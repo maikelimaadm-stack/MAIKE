@@ -6,7 +6,7 @@
  * tipo como snapshot, D-PROD-190/198). O nome do grupo fica em cache em
  * `grupo_atividade_nome` e é renovado quando o grupo do tipo muda.
  *
- * D-PROD-190 / D-PROD-198 — o tipo usado numa atividade não é excluído: quem
+ * D-PROD-190 / D-PROD-199 — o tipo usado numa atividade não é excluído: quem
  * barra é a FK RESTRICT da tabela `Atividade` (este módulo NUNCA consulta
  * `Atividade`, lição do hotfix #259), reconhecida pelo nome da FK
  * (`shared/errors/vinculoAtividade.js`) e traduzida aqui em 409

@@ -1,6 +1,6 @@
 /**
  * Regras puras dos FORMULÁRIOS e da LISTA POR DIA do Lançamento de Atividades
- * (D-PROD-198, Fatia 2): o formulário do cabeçalho (abrir e editar a
+ * (D-PROD-199, Fatia 2): o formulário do cabeçalho (abrir e editar a
  * atividade), o do apontamento do dia e o agrupamento dos apontamentos por dia.
  * Quem decide é o servidor; aqui ficam o estado dos formulários, a validação
  * local, o corpo do envio, o PATCH mínimo e a prévia do que a atividade herda.

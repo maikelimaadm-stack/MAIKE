@@ -1,5 +1,5 @@
 /**
- * Service do Lançamento de Atividades (D-PROD-198, Fatia 2).
+ * Service do Lançamento de Atividades (D-PROD-199, Fatia 2).
  *
  * A ATIVIDADE é o cabeçalho aberto (tipo, área, máquina, safra, datas; setor
  * herdado da área; centros e unidade herdados do tipo) e os APONTAMENTOS são os

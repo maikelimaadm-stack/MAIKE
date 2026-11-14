@@ -46,7 +46,7 @@ import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
 
 /**
- * Formulário do apontamento do DIA (D-PROD-198, Fatia 2), na janela do motor
+ * Formulário do apontamento do DIA (D-PROD-199, Fatia 2), na janela do motor
  * Base1 (`B1Janela`). Só os campos do dia, nesta ordem: Data (padrão hoje no
  * fuso da fazenda, nunca futura), Turno (vazio, Manhã, Tarde ou Noite),
  * Operador, Área do dia, Produção do dia (com a sigla da unidade do cabeçalho)

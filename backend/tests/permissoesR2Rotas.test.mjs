@@ -123,7 +123,7 @@ const ESCRITAS = (c) => {
     ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
-    // D-PROD-198 — Lançamento de Atividades: escrita guardada pela tela
+    // D-PROD-199 — Lançamento de Atividades: escrita guardada pela tela
     // op-atividades (cabeçalho pelas ações padrão; reabrir e os apontamentos
     // pelas ações EXTRAS da mesma linha). Cancelar = ação "excluir"; não há
     // DELETE físico. Os corpos são válidos: um 403 é só da autorização.
@@ -210,7 +210,7 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.notEqual((await req('POST', '/lancamentos-tarefa', c.tokOp, tarefa)).statusCode, 403);
   });
 
-  test('D-PROD-198 — Lançamento de Atividades: só a tela op-atividades libera, ação por ação; reabrir e os apontamentos exigem as ações extras; a leitura também exige a tela', async () => {
+  test('D-PROD-199 — Lançamento de Atividades: só a tela op-atividades libera, ação por ação; reabrir e os apontamentos exigem as ações extras; a leitura também exige a tela', async () => {
     const c = await cenario();
     const E = c.empresa.id;
     const leituras = ['/atividades', `/atividades/${ID}`, `/atividades/${ID}/apontamentos`, `/atividades/${ID}/apontamentos/${ID}`,

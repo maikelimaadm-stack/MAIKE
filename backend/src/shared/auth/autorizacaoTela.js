@@ -72,7 +72,7 @@ export const TELAS = Object.freeze({
   PATRIMONIO_BENS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-bens-patrimoniais' }),
   // D-PROD-159 — Patrimônio P1-02: abastecimentos e consumo (baixa física de estoque). Sem concessão automática.
   PATRIMONIO_ABASTECIMENTOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-abastecimentos' }),
-  // D-PROD-198 — Lançamento de Atividades (cabeçalho + apontamentos do dia/turno).
+  // D-PROD-199 — Lançamento de Atividades (cabeçalho + apontamentos do dia/turno).
   // Mesmo id do item de menu `op-atividades`, no grupo `suporte-mapa`, logo abaixo
   // de Tipos de Atividade. As permissões do apontamento e a de reabrir são AÇÕES
   // EXTRAS desta mesma linha (`ACOES_ATIVIDADES_EXTRAS`): a tela Permissões só
@@ -110,7 +110,7 @@ export const ACOES_PATRIMONIO_EXTRAS = Object.freeze(['inativar']);
 export const ACOES_ABASTECIMENTO_EXTRAS = Object.freeze(['cancelar']);
 
 /**
- * D-PROD-198 — ações EXTRAS da tela `op-atividades` (Lançamento de Atividades),
+ * D-PROD-199 — ações EXTRAS da tela `op-atividades` (Lançamento de Atividades),
  * gravadas na própria linha da tela em `permissoes_telas` (padrão de
  * ACOES_LANCAMENTOS_FINANCEIROS, D-PROD-155): reabrir a atividade concluída e
  * lançar (criar e repetir), editar e cancelar apontamento. Nascem desligadas:

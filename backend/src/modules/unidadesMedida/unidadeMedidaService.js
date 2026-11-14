@@ -7,7 +7,7 @@
  * traduzida aqui em 409 `UNIDADE_MEDIDA_DELETE_BLOCKED` (antes, o P2003 caía no
  * 403 enganoso do `errorHandler`).
  *
- * D-PROD-198 — o mesmo para a unidade de produção HERDADA por uma atividade
+ * D-PROD-199 — o mesmo para a unidade de produção HERDADA por uma atividade
  * (snapshot do tipo): a FK RESTRICT da `Atividade` barra, reconhecida pelo nome
  * (`shared/errors/vinculoAtividade.js`; este módulo não consulta `Atividade`),
  * e vira o mesmo 409 com `details.vinculo = 'atividade'`.
@@ -227,7 +227,7 @@ export const excluir = async (contexto, id) => {
     try {
       await excluirUnidadePorId(tx, auth.clienteId, id);
     } catch (erro) {
-      // D-PROD-197: a FK do padrão do tipo; D-PROD-198: a FK da unidade de produção da
+      // D-PROD-197: a FK do padrão do tipo; D-PROD-199: a FK da unidade de produção da
       // atividade. As duas são reconhecidas pelo nome exato (uma não casa com a outra);
       // qualquer outro erro segue como antes.
       if (vinculoComTipoAtividadePadrao(erro)?.campo === 'unidade_producao_id') {

@@ -32,7 +32,7 @@ const COLUNAS_OK = [
   { table_name: 'AbastecimentoBem', column_name: 'quantidade' },
   { table_name: 'AbastecimentoBem', column_name: 'unidade' },
   { table_name: 'TanqueBemProduto', column_name: 'produto_id' },
-  // D-PROD-198: a atividade (cabeçalho) e o apontamento do dia.
+  // D-PROD-199: a atividade (cabeçalho) e o apontamento do dia.
   { table_name: 'Atividade', column_name: 'unidade_producao_sigla' },
   { table_name: 'AtividadeApontamento', column_name: 'sequencia' },
 ];

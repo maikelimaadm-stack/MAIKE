@@ -126,7 +126,7 @@ export const API_ERROR_CODES = Object.freeze({
   // `details.field` diz qual e `details.reason`, por quê (texto por motivo).
   TIPO_ATIVIDADE_PADRAO_INVALIDO: 'TIPO_ATIVIDADE_PADRAO_INVALIDO',
 
-  // Lançamento de Atividades (D-PROD-198): a ATIVIDADE (cabeçalho aberto) e o
+  // Lançamento de Atividades (D-PROD-199): a ATIVIDADE (cabeçalho aberto) e o
   // APONTAMENTO do dia/turno. A tela age sobre cada um: relê (não encontrado,
   // status, versão velha) ou diz o campo recusado (referência, exigência do
   // tipo, data, motivo). `details.field`/`details.reason` dizem qual e por quê.

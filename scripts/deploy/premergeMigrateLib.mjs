@@ -39,11 +39,11 @@
  *     D-PROD-197, sem DROP nenhum, as 18 instruções ADITIVAS em TipoAtividade que a
  *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
  *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs).
- *     Formato CONVERSÃO (D-PROD-198; a entrada tem `conversao` não vazia): os dados
+ *     Formato CONVERSÃO (D-PROD-199; a entrada tem `conversao` não vazia): os dados
  *     das tabelas que saem vão para as que entram ANTES do DROP. A ordem passa a ser
- *     guarda → `alter_antigas` (na D-PROD-198, nenhuma) → RESTO pela allowlist EXPAND
+ *     guarda → `alter_antigas` (na D-PROD-199, nenhuma) → RESTO pela allowlist EXPAND
  *     (as tabelas novas, criadas no próprio resto) → EXATAMENTE as instruções
- *     `conversao` pinadas, na ordem (na D-PROD-198, o INSERT … SELECT de
+ *     `conversao` pinadas, na ordem (na D-PROD-199, o INSERT … SELECT de
  *     ApontamentoAtividade para Atividade, o de ApontamentoAtividade para
  *     AtividadeApontamento e o UPDATE que passa o contador de EntidadeCodigoSequencia
  *     para a entidade Atividade) → EXATAMENTE os DROP TABLE de `drop`, na ordem
@@ -117,9 +117,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-197: CONTRACT aprovado pelo proprietário — TipoAtividade ganha 5 padrões anuláveis, 8 flags NOT NULL
   // DEFAULT false, 3 FKs (centros e unidade) e 2 CHECKs; mudança aditiva, sem DROP.
   '20261114300000_tipo_atividade_defaults': 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf',
-  // D-PROD-198: CONTRACT aprovado pelo proprietário — a atividade vira cabeçalho: Atividade e AtividadeApontamento
+  // D-PROD-199: CONTRACT aprovado pelo proprietário — a atividade vira cabeçalho: Atividade e AtividadeApontamento
   // novas, cada ApontamentoAtividade convertido nas duas (conversão pinada) e as 3 tabelas antigas apagadas no fim.
-  '20261114400000_atividade_cabecalho': 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb',
+  '20261114500000_atividade_cabecalho': 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -151,14 +151,14 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
   // D-PROD-193: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).
   '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710',
-  // D-PROD-198: RLS/REVOKE de Atividade e AtividadeApontamento (mesmo corpo, lista nova).
+  // D-PROD-199: RLS/REVOKE de Atividade e AtividadeApontamento (mesmo corpo, lista nova).
   '8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c',
 ]);
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
  * exige decisão. São sete, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e
- * D-PROD-198 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre).
+ * D-PROD-199 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -294,7 +294,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_coeficiente_padrao_check" CHECK ("coeficiente_padrao" > 0)',
     ]),
   }),
-  // D-PROD-198: a atividade vira CABEÇALHO e o apontamento de hoje vira FILHO dela. Formato CONVERSÃO: a guarda (hash
+  // D-PROD-199: a atividade vira CABEÇALHO e o apontamento de hoje vira FILHO dela. Formato CONVERSÃO: a guarda (hash
   // pinado) confere as 3 tabelas antigas e as trava em ACCESS EXCLUSIVE antes de conferir os itens de custo e as fatias
   // FIFO vazios, os campos sem lugar no modelo novo vazios, os status e o contador; nenhuma instrução em tabela antiga
   // logo depois dela; no resto, Atividade e AtividadeApontamento pela allowlist EXPAND (CREATE TABLE, índices, CHECKs,
@@ -302,8 +302,8 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // uma Atividade, com id 'atv_' || id antigo e o mesmo número, e um AtividadeApontamento filho com o mesmo id; o
   // contador passa para a entidade Atividade) e, por ÚLTIMO, EXATAMENTE os 3 DROP TABLE, filhas primeiro. A guarda só
   // cita as 3 removidas, as 2 criadas no resto e os literais abaixo. As 3 instruções aparecem em `contract[].conversoes`.
-  '20261114400000_atividade_cabecalho': Object.freeze({
-    decisao: 'D-PROD-198',
+  '20261114500000_atividade_cabecalho': Object.freeze({
+    decisao: 'D-PROD-199',
     guarda_sha256: '6d192b5423d728d425d20d4a98d28335b7617a6261ae96999162a71578856f64',
     drop: Object.freeze(['ApontamentoAtividadeItemConsumoLote', 'ApontamentoAtividadeItem', 'ApontamentoAtividade']),
     literais_guarda: Object.freeze(['CONFIRMADO', 'CANCELADO', 'EntidadeCodigoSequencia']),
@@ -470,7 +470,7 @@ const nomesRenomeados = (alterAntigas) =>
     .filter(Boolean).map((x) => `${q(x[1])}→${q(x[2])}`);
 
 /**
- * D-PROD-198 — o que cada instrução pinada da conversão escreve, a partir do texto pinado (`INSERT INTO "T" …` →
+ * D-PROD-199 — o que cada instrução pinada da conversão escreve, a partir do texto pinado (`INSERT INTO "T" …` →
  * "INSERT INTO T", `UPDATE "T" …` → "UPDATE T"). Instrução de outra forma sai com o começo do próprio texto.
  */
 const conversoesDe = (conversao) =>
@@ -480,7 +480,7 @@ const conversoesDe = (conversao) =>
   });
 
 /**
- * D-PROD-198 — formato CONVERSÃO: casa a CAUDA do arquivo, de trás para frente, sobre as peças não vazias de
+ * D-PROD-199 — formato CONVERSÃO: casa a CAUDA do arquivo, de trás para frente, sobre as peças não vazias de
  * `instrucoes` a partir de `inicio`: por último EXATAMENTE os `DROP TABLE` de `drop`, na ordem, e logo antes deles
  * EXATAMENTE as instruções `conversao`, na ordem. De trás para frente porque o resto (antes da cauda) tem blocos DO,
  * que contêm ';'; a cauda não tem DO. Devolve o índice da primeira peça da cauda (o resto acaba nele), ou `null` se a
@@ -508,7 +508,7 @@ const casarCaudaConversao = (instrucoes, inicio, k, nome, v) => {
  * D-PROD-162 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
  * a guarda pinada, os DROP e os alargamentos na ordem; devolve o RESTO para a
  * allowlist EXPAND, ou `null` se o recorte já falhou (não há como alinhar o resto).
- * D-PROD-198: com `conversao` não vazia, os DROP saem do início e vão para o FIM, depois da conversão pinada
+ * D-PROD-199: com `conversao` não vazia, os DROP saem do início e vão para o FIM, depois da conversão pinada
  * (`casarCaudaConversao`); o resto fica entre os `alter_antigas` e a cauda.
  */
 const recortarContract = (m, k, v) => {

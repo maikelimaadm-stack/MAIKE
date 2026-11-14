@@ -10,13 +10,13 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    -- D-PROD-198: o apontamento do dia (AtividadeApontamento) sai PRIMEIRO — referencia a atividade, os usuários e a
+    -- D-PROD-199: o apontamento do dia (AtividadeApontamento) sai PRIMEIRO — referencia a atividade, os usuários e a
     -- empresa; nenhuma tabela o referencia. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
     'AtividadeApontamento',
-    -- D-PROD-198: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
+    -- D-PROD-199: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
     -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia (acima) a referencia.
     'Atividade',
-    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-198) e ANTES dos
+    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-199) e ANTES dos
     -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
     'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',

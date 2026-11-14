@@ -1,5 +1,5 @@
 /**
- * Lançamento de Atividades (D-PROD-198) — espelho dos guardas do servidor,
+ * Lançamento de Atividades (D-PROD-199) — espelho dos guardas do servidor,
  * pela linha da tela `op-atividades` (contrato §5):
  *  - ver      = visualizar (lista, detalhe, apontamentos e os seletores PRÓPRIOS da tela);
  *  - criar    = novo OU salvar (abrir e duplicar atividade);

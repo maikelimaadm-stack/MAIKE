@@ -1,5 +1,5 @@
 /**
- * Rotas do CABEÇALHO do Lançamento de Atividades (D-PROD-198, Fatia 2) — tela
+ * Rotas do CABEÇALHO do Lançamento de Atividades (D-PROD-199, Fatia 2) — tela
  * `op-atividades`, guardas `GUARDAS.atividades` (contrato §4):
  *
  *  - `GET   /atividades` (ver) — lista keyset (`createdAt desc, id desc`) com

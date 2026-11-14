@@ -64,7 +64,7 @@ const textoDoCancelamento = (ap, fuso) => {
 };
 
 /**
- * Lançamentos do dia a dia de UMA atividade (D-PROD-198, Fatia 2): a lista por
+ * Lançamentos do dia a dia de UMA atividade (D-PROD-199, Fatia 2): a lista por
  * dia (o mais recente primeiro; no dia, turno e passada), com data, turno,
  * passada ("1ª/2ª passada"), operador, área do dia, produção, situação e
  * observação. Os CANCELADOS continuam na lista, riscados e com o motivo.

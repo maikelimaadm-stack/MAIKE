@@ -9,9 +9,9 @@
  * cópia temporária: as 49 de nome anterior (inclui as CONTRACT da D-PROD-162, da
  * D-PROD-183, da D-PROD-187 e da D-PROD-194, já concluídas como em produção) e as
  * CONTRACT da D-PROD-197 (`20261114300000_tipo_atividade_defaults`, padrões e
- * flags do TipoAtividade) e da D-PROD-198 (`20261114400000_atividade_cabecalho`,
+ * flags do TipoAtividade) e da D-PROD-199 (`20261114500000_atividade_cabecalho`,
  * Atividade cabeçalho), de nome POSTERIOR, que sobem fora de ordem: a guarda da
- * D-PROD-197 só olha TipoAtividade e os alvos das FKs, a da D-PROD-198 só as 3
+ * D-PROD-197 só olha TipoAtividade e os alvos das FKs, a da D-PROD-199 só as 3
  * tabelas do apontamento antigo (vazias aqui: ela não converte nada, apaga as 3 e
  * cria as 2 novas), nenhuma toca CADCATEGORIA nem CADCURVAGANHO, e assim só a
  * D-PROD-195 pende no runner (em produção a ordem é a inversa: esta já está
@@ -68,7 +68,7 @@ const BANCO = 'maike_ccc_curva_teste';
 /** Pastas do repositório: a partida são as de nome anterior ao desta CONTRACT; o total, depois do GREEN. */
 const PASTAS = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 const TOTAL_MIGRATIONS = PASTAS.length;
-/** D-PROD-197/D-PROD-198: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
+/** D-PROD-197/D-PROD-199: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
 const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT));
 const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n !== NOME_CONTRACT).length;
 /** O lock_timeout da guarda é 5 s; o teto cobre a partida do Prisma CLI em máquina lenta de CI. */
@@ -325,8 +325,8 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: todas menos esta (as quatro CONTRACT anteriores concluídas e a D-PROD-197 e a D-PROD-198, posteriores), 84 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114400000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-198 têm nome posterior a esta');
+  test('CC-01 partida: todas menos esta (as quatro CONTRACT anteriores concluídas e a D-PROD-197 e a D-PROD-199, posteriores), 84 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-199 têm nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     assert.equal(MIGRATIONS_PARTIDA, 51);
     assert.equal(TOTAL_MIGRATIONS, 52);
@@ -335,7 +335,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 4);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 84, '85 até a D-PROD-197; a D-PROD-198 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade');
+    assert.equal(partida.tabelas, 84, '85 até a D-PROD-197; a D-PROD-199 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade');
     assert.deepEqual(partida.colunas, [...COLUNAS_ANTES]);
     assert.deepEqual(partida.indices_categoria, [...INDICES_CATEGORIA_ANTES]);
     assert.deepEqual(partida.constraints_categoria, [...CONSTRAINTS_CATEGORIA_ANTES]);

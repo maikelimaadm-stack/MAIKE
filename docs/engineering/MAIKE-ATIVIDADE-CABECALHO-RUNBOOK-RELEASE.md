@@ -1,4 +1,4 @@
-# MAIKE — Atividade cabeçalho (Fatia 2): runbook de release CONTRACT (D-PROD-198)
+# MAIKE — Atividade cabeçalho (Fatia 2): runbook de release CONTRACT (D-PROD-199)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 >
@@ -6,7 +6,7 @@
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de
 > leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-198](./DECISIONS.md) · Contrato:
+Decisão: [D-PROD-199](./DECISIONS.md) · Contrato:
 [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md) (§2 a migration, §9 a release e o
 GO do proprietário). Precedentes executados: [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md)
 (a CONTRACT anterior, caminho B) e [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md)
@@ -17,7 +17,7 @@ GO do proprietário). Precedentes executados: [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RU
 
 | Item | Valor |
 |---|---|
-| Migration | `20261114400000_atividade_cabecalho` |
+| Migration | `20261114500000_atividade_cabecalho` |
 | Natureza | **CONTRACT** (sétima exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162, da D-PROD-183, da D-PROD-187, da D-PROD-194, da D-PROD-195 e da D-PROD-197) e a primeira no **formato conversão** do portão, numa transação só: guarda → as 2 tabelas novas → a conversão pinada → os 3 `DROP TABLE` pinados no fim |
 | O que entra | `"Atividade"` (cabeçalho) e `"AtividadeApontamento"` (dia/turno), pela allowlist EXPAND: 2 `CREATE TABLE`, 15 índices (6 únicos; o de (`cliente_id`, `atividade_id`, `data_operacional`, `turno`, `sequencia`) é `NULLS NOT DISTINCT`), 14 CHECKs, 21 FKs compostas pelo tenant `ON DELETE RESTRICT ON UPDATE CASCADE` e o RLS de sempre (REVOKE de `anon`/`authenticated`, RLS sem FORCE, política `maike_backend_all` para `maike_vercel`) |
 | A conversão (texto pinado) | cada linha de `"ApontamentoAtividade"` vira uma `"Atividade"` com id `'atv_' \|\| id antigo`, o **mesmo número**, nome `<tipo> (apontamento nº <n>)`, tipo e grupo (snapshots), área com o **setor da área**, máquina (`bem_id`), safra, centros de custo e de resultado, a unidade de texto em `unidade_producao_sigla`, a data como `data_inicio`, a tarefa, a produção (só se `CONFIRMADO`) e status `ABERTA` (ou `CANCELADA` com o cancelamento); e um `"AtividadeApontamento"` filho com o **mesmo id antigo**, sequência 1, sem turno, operador, produção do dia, observação, origem `WEB`, status e cancelamento, versão e datas de criação/alteração. O contador `EntidadeCodigoSequencia` da entidade `ApontamentoAtividade` passa a ser o da entidade `Atividade` (o mesmo próximo número) |
@@ -28,7 +28,7 @@ GO do proprietário). Precedentes executados: [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RU
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb` |
 | Entrada pinada (`MIGRATIONS_CONTRACT_APROVADAS`) | guarda `6d192b5423d728d425d20d4a98d28335b7617a6261ae96999162a71578856f64`; `drop`: as 3 antigas, filhas primeiro; `literais_guarda`: `CONFIRMADO`, `CANCELADO`, `EntidadeCodigoSequencia`; `alter_antigas: []`; `conversao`: as 3 instruções |
 | RLS das novas (`DO_RLS_APROVADOS`) | `8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c` |
-| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: ["Atividade", "AtividadeApontamento"]`, `colunas_novas_em_tabelas_antigas: []`; `contract[0]`: `decisao: "D-PROD-198"`, `conversoes` (`INSERT INTO Atividade`, `INSERT INTO AtividadeApontamento`, `UPDATE EntidadeCodigoSequencia`), `tabelas_removidas` (as 3) |
+| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: ["Atividade", "AtividadeApontamento"]`, `colunas_novas_em_tabelas_antigas: []`; `contract[0]`: `decisao: "D-PROD-199"`, `conversoes` (`INSERT INTO Atividade`, `INSERT INTO AtividadeApontamento`, `UPDATE EntidadeCodigoSequencia`), `tabelas_removidas` (as 3) |
 | `_prisma_migrations` | antes **51** concluídas, 0 em aberto (a última, os padrões do Tipo de Atividade da D-PROD-197, `20261114300000_tipo_atividade_defaults`, concluída em 2026-11-14 às 17:05:05 UTC); depois **52**. Recontar no §4 se algo mais for aplicado antes |
 | Tabelas em `public` | **85** antes, **84** depois (− 3 + 2) |
 | Linhas (produção hoje) | `ApontamentoAtividade` 2 (`CONFIRMADO`), itens 0, fatias 0; contador `ApontamentoAtividade` / `tenant` / próximo 3 → depois `Atividade` 2 e `AtividadeApontamento` 2 (`ABERTA` e `CONFIRMADO`, números 1 e 2), contador `Atividade` / `tenant` / próximo 3 |
@@ -49,7 +49,7 @@ Por isso: **aplicar logo antes do merge, fora de pico**, e mergear logo depois d
 postcheck. A janela é a do deploy da Vercel (do `COMMIT` da migration até o deploy
 da `main` nova ficar READY): nesse intervalo a tela antiga quebra. E o
 `premerge-migrate` só enxerga a migration como "nova" enquanto ela não está na
-`main`: depois do merge o `--contract D-PROD-198` vira `CONTRACT_INESPERADO` e o
+`main`: depois do merge o `--contract D-PROD-199` vira `CONTRACT_INESPERADO` e o
 caminho A fecha (aconteceu na D-PROD-183). A ordem é: aplicar (§5) → postcheck (§6)
 → merge (§7). **Só com o GO explícito e escrito do proprietário** (§2).
 
@@ -85,9 +85,9 @@ travas e as transações longas.
   **isolada** (esta é a única migration nova; senão `CONTRACT_NAO_ISOLADO`) e exige
   a decisão exata:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-198: 3 conversões (…), 3 tabelas removidas)
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-198
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-198   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-198
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-199: 3 conversões (…), 3 tabelas removidas)
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-199
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-199   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199
   ```
   A guarda põe o próprio `lock_timeout` (5 s); não é preciso parâmetro na URL.
 - **B — conector Supabase, uma única `execute_sql` (§5):** desvio da D-PROD-74,
@@ -95,8 +95,8 @@ travas e as transações longas.
   (§2). Nunca presumido de releases anteriores nem de autorização genérica.
 - O `npm run deploy:migrate` à mão e o `release-migrate.yml` **recusam** esta
   migration (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver
-  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-198`
-  passa `MIGRATION_CONTRACT_AUTORIZADO`, e `d-prod-198`, ` D-PROD-198 ` ou a
+  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-199`
+  passa `MIGRATION_CONTRACT_AUTORIZADO`, e `d-prod-199`, ` D-PROD-199 ` ou a
   decisão de outra CONTRACT não servem.
 
 ## 2. Pré-requisitos e GOs
@@ -135,13 +135,13 @@ elas já não existem). Qualquer `PARAR` → `RELEASE_BLOCKED`.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-198 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-199 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261114400000_atividade_cabecalho' AND rolled_back_at IS NULL) AS esta,
+         count(*) FILTER (WHERE migration_name = '20261114500000_atividade_cabecalho' AND rolled_back_at IS NULL) AS esta,
          count(*) FILTER (WHERE migration_name = '20261113700000_apontamento_atividade'
                             AND checksum = 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS apontamento,
@@ -206,7 +206,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '51 / 0',
          CASE WHEN (SELECT concluidas = 51 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, '20261114400000_atividade_cabecalho já registrada', (SELECT esta::text FROM mig), '0',
+  SELECT 3, '20261114500000_atividade_cabecalho já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'apontamento (D-PROD-190), itens (D-PROD-193) e a CONTRACT anterior (D-PROD-197) com o checksum do repositório',
@@ -275,9 +275,9 @@ SELECT item, valor, esperado, status FROM (
 | travas de outras sessões e transações longas | `0` e `0` (senão `ATENÇÃO`: esperar e repetir fora de pico) |
 
 E, localmente, no `<SHA_APROVADO>`:
-`sha256sum backend/prisma/migrations/20261114400000_atividade_cabecalho/migration.sql`
+`sha256sum backend/prisma/migrations/20261114500000_atividade_cabecalho/migration.sql`
 igual ao pinado, e a análise local do `premerge-migrate` (§1) com `modo: CONTRACT`,
-`contract[0].decisao = "D-PROD-198"`, as 3 `conversoes`, as 3 `tabelas_removidas`,
+`contract[0].decisao = "D-PROD-199"`, as 3 `conversoes`, as 3 `tabelas_removidas`,
 `tabelas_novas` com as 2 novas e `violacoes: []`.
 
 ### 4.2 Ensaio local (com o arquivo exato do `<SHA_APROVADO>`)
@@ -300,7 +300,7 @@ produção pelo local:
   gravado por uma transação concorrente enquanto a migration espera a trava
   (recusado, o item fica) e o mesmo item pelo runner (falha aberta → `migrate
   resolve --rolled-back`); e o `deploy:migrate` com a conferência de alvo exigida e
-  sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-198` exato →
+  sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199` exato →
   `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` antes de qualquer DDL;
 - GREEN pelo runner oficial (conferência exigida, decisão exata) e GREEN pelo
   envelope do caminho B: 52/0, 84 tabelas, as 2 atividades e os 2 apontamentos
@@ -333,7 +333,7 @@ BEGIN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
   IF EXISTS (SELECT 1 FROM _prisma_migrations
-              WHERE migration_name = '20261114400000_atividade_cabecalho' AND rolled_back_at IS NULL) THEN
+              WHERE migration_name = '20261114500000_atividade_cabecalho' AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -356,7 +356,7 @@ END $alvo$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb', now(),
-        '20261114400000_atividade_cabecalho', NULL, NULL, now(), 1);
+        '20261114500000_atividade_cabecalho', NULL, NULL, now(), 1);
 COMMIT;
 ```
 <!-- /sql:caminho-b -->
@@ -376,7 +376,7 @@ COMMIT;
 2. Conferir pelo preflight que as novas não existem e as antigas continuam (linha 5
    `3 / 0`, linha 9 igual à de antes).
 3. Com a conexão de **produção** explícita (o schema lê `DATABASE_URL`):
-   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261114400000_atividade_cabecalho --schema backend/prisma/schema.prisma`.
+   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261114500000_atividade_cabecalho --schema backend/prisma/schema.prisma`.
 4. Eliminar a causa (a mensagem da guarda diz qual) e confirmar com o proprietário
    antes de tentar de novo.
 5. Uma tentativa resolvida (`rolled_back_at` preenchido) não bloqueia o envelope
@@ -397,13 +397,13 @@ aplicação).
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-198 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
+-- MAIKE · D-PROD-199 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261114400000_atividade_cabecalho'
+         count(*) FILTER (WHERE migration_name = '20261114500000_atividade_cabecalho'
                             AND checksum = 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL AND applied_steps_count = 1) AS esta
     FROM public._prisma_migrations
@@ -483,7 +483,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, '20261114400000_atividade_cabecalho concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
+  SELECT 2, '20261114500000_atividade_cabecalho concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '52 / 0',
@@ -601,7 +601,7 @@ Não há reversão automática: as 3 tabelas antigas deixam de existir no `COMMI
 - sem o GO-2 (no caminho B, sem o desvio da D-PROD-74 registrado para esta migration);
 - validação local da PR não verde;
 - alvo com `system_identifier` diferente;
-- histórico diferente de 51/0 antes, ou a D-PROD-198 já registrada (linha não revertida);
+- histórico diferente de 51/0 antes, ou a D-PROD-199 já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release (`CONTRACT_NAO_ISOLADO`);
 - SHA-256 do arquivo diferente do pinado, ou classificador fora do esperado;

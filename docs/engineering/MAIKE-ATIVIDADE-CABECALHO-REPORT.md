@@ -2,7 +2,7 @@
 
 > **fatia 2 · `feat/atividade-cabecalho` · PR #285**
 >
-> Decisão **D-PROD-198** · contrato [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md) ·
+> Decisão **D-PROD-199** · contrato [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md) ·
 > runbook [`MAIKE-ATIVIDADE-CABECALHO-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-CABECALHO-RUNBOOK-RELEASE.md)
 
 ## 1. O que é
@@ -21,7 +21,7 @@ Tudo o que vem do cabeçalho é herdado e travado no apontamento:
 | Camada | Entrega |
 |---|---|
 | Banco | `Atividade` e `AtividadeApontamento`, com FKs compostas pelo tenant (RESTRICT), CHECKs das listas fechadas e do status com data, e unique das passadas `NULLS NOT DISTINCT`. Saem as 3 tabelas antigas. Tabelas 85 → 84 |
-| Migration | `20261114400000_atividade_cabecalho`, **CONTRACT** com conversão (sétima entrada fechada; formato novo do portão: guarda → EXPAND → conversão pinada → DROP no fim). A guarda trava as 3 antigas antes de conferir. Os 2 registros de teste viram 2 atividades com 1 apontamento cada (mesmo número; ids `atv_<id>` e o id antigo). Nada é descartado. SHA `c288cf47…1feb` |
+| Migration | `20261114500000_atividade_cabecalho`, **CONTRACT** com conversão (sétima entrada fechada; formato novo do portão: guarda → EXPAND → conversão pinada → DROP no fim). A guarda trava as 3 antigas antes de conferir. Os 2 registros de teste viram 2 atividades com 1 apontamento cada (mesmo número; ids `atv_<id>` e o id antigo). Nada é descartado. SHA `c288cf47…1feb` |
 | Portão | `conversao` em `MIGRATIONS_CONTRACT_APROVADAS`; rótulo do `premerge-migrate` com as conversões; preflight de schema exige as 2 tabelas novas |
 | API | `/atividades` (lista keyset, detalhe, abrir, editar, concluir, reabrir, cancelar, duplicar), `/atividades/:id/apontamentos` (lista, detalhe, lançar, editar, cancelar, repetir) e `/atividades-opcoes/{bens,operadores}`. Erros `ATIVIDADE_*`. Exclusão de cadastro usado por atividade → 409 (tradutor de vínculo ancorado; nunca o 403 da #259) |
 | Permissões | Tela `op-atividades` ("Lançamento de Atividades"). Ações padrão para a atividade. Ações extras `lancar_apontamento`, `editar_apontamento`, `cancelar_apontamento` e `reabrir` (as permissões `op-atividade-apontamentos` e `op-atividade-reabrir` do pedido). Sem concessão automática |

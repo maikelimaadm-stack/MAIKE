@@ -1,6 +1,6 @@
 /**
  * PR174-R6/R7 — allowlist EXPAND fechada (manifesto pinado + conferência
- * estrutural), modo CONTRACT fechado (D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e D-PROD-198,
+ * estrutural), modo CONTRACT fechado (D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e D-PROD-199,
  * esta no formato CONVERSÃO), conferência do histórico do alvo, barreiras do runner pré-merge e da identidade de
  * produção do cutover. Sem banco.
  */
@@ -38,7 +38,7 @@ const VAZIOS_187 = { constraints_removidas: [], indices_removidos: [], tabelas_r
  * CONSTRAINT` do mesmo nome: é alargamento (`constraints_alargadas`), não constraint nova.
  */
 const VAZIOS_196 = { colunas_adicionadas: [], constraints_adicionadas: [] };
-/** D-PROD-198: o campo descritivo do formato CONVERSÃO (`conversoes`) fica vazio nas seis CONTRACT anteriores, que não têm `conversao`. */
+/** D-PROD-199: o campo descritivo do formato CONVERSÃO (`conversoes`) fica vazio nas seis CONTRACT anteriores, que não têm `conversao`. */
 const VAZIOS_198 = { conversoes: [] };
 const CONTRACT_C = { migration: NOME_C, decisao: 'D-PROD-162', tabelas_removidas: DROP_C, constraints_alargadas: ALARGADAS_C, colunas_removidas: [], ...VAZIOS_187, ...VAZIOS_196, ...VAZIOS_198 };
 /** D-PROD-183 — a segunda migration CONTRACT aprovada: DROP COLUMN das 4 colunas dormentes de TipoTarefa (sem DROP TABLE, sem tabela nova). */
@@ -133,12 +133,12 @@ const CONTRACT_P = {
   ...VAZIOS_198,
 };
 /**
- * D-PROD-198 — a sétima migration CONTRACT aprovada, a primeira no formato CONVERSÃO: a atividade vira cabeçalho
+ * D-PROD-199 — a sétima migration CONTRACT aprovada, a primeira no formato CONVERSÃO: a atividade vira cabeçalho
  * (Atividade) e o apontamento de hoje vira filho dela (AtividadeApontamento). Depois da guarda, nenhuma instrução em
  * tabela antiga; no resto, as 2 tabelas novas pela allowlist EXPAND; e, como ÚLTIMAS instruções do arquivo, EXATAMENTE
  * as 3 da conversão pinada (2 INSERT … SELECT e o UPDATE do contador) e os 3 DROP TABLE das antigas, filhas primeiro.
  */
-const NOME_V = '20261114400000_atividade_cabecalho';
+const NOME_V = '20261114500000_atividade_cabecalho';
 const SQL_V = readFileSync(`backend/prisma/migrations/${NOME_V}/migration.sql`, 'utf8');
 const DROP_V = ['ApontamentoAtividadeItemConsumoLote', 'ApontamentoAtividadeItem', 'ApontamentoAtividade'];
 const NOVAS_V = ['Atividade', 'AtividadeApontamento'];
@@ -150,7 +150,7 @@ const CAUDA_V = (() => {
 })();
 const [INS_ATIV_V, INS_APONT_V, UPD_SEQ_V, ...DROPS_V] = CAUDA_V;
 const CONTRACT_V = {
-  migration: NOME_V, decisao: 'D-PROD-198', tabelas_removidas: DROP_V, constraints_alargadas: [], colunas_removidas: [], ...VAZIOS_187, ...VAZIOS_196,
+  migration: NOME_V, decisao: 'D-PROD-199', tabelas_removidas: DROP_V, constraints_alargadas: [], colunas_removidas: [], ...VAZIOS_187, ...VAZIOS_196,
   conversoes: ['INSERT INTO Atividade', 'INSERT INTO AtividadeApontamento', 'UPDATE EntidadeCodigoSequencia'],
 };
 /** Variação do arquivo CONTRACT `nome` sob o MESMO nome, com manifesto sintético: o checksum passa e só a estrutura decide. */
@@ -169,7 +169,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; Atividade cabeçalho (D-PROD-198) pelo modo CONTRACT fechado no formato conversão', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; Atividade cabeçalho (D-PROD-199) pelo modo CONTRACT fechado no formato conversão', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -189,7 +189,7 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   // As sete CONTRACT, na ordem do manifesto: as colunas removidas não viram "coluna nova em tabela antiga", o RENAME
   // da D-PROD-187 não cria tabela nova, a CADCURVAGANHO recriada pela D-PROD-194 não aparece duas vezes em tabelas_novas,
   // as colunas que o texto pinado acrescenta — a NOT NULL da D-PROD-195 e as 13 da D-PROD-197 — ficam no descritor de
-  // cada uma (colunas_adicionadas), fora da lista do caminho EXPAND acima, e a conversão da D-PROD-198 fica em `conversoes`.
+  // cada uma (colunas_adicionadas), fora da lista do caminho EXPAND acima, e a conversão da D-PROD-199 fica em `conversoes`.
   assert.deepEqual(c.contract, [CONTRACT_C, CONTRACT_T, CONTRACT_D, CONTRACT_K, CONTRACT_G, CONTRACT_P, CONTRACT_V]);
   // Todas as pastas de migration desde o manifesto da PR #174 estão nele; as 27 anteriores ficam fora por construção.
   const pastas = readdirSync('backend/prisma/migrations', { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
@@ -211,9 +211,9 @@ test('B1f (D-PROD-162): a migration CONTRACT classificada SOZINHA, como na relea
   assert.equal(MIGRATIONS_APROVADAS[NOME_C], sha256(SQL_C));
 });
 
-test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-198): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as sete entradas, na ordem; só a D-PROD-198 tem `conversao`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
+test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-199): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as sete entradas, na ordem; só a D-PROD-199 tem `conversao`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
   assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V]);
-  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-198']);
+  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-199']);
   // O formato CONVERSÃO é escolha da entrada: as seis anteriores não têm o campo e seguem o formato de sempre.
   assert.deepEqual(Object.entries(MIGRATIONS_CONTRACT_APROVADAS).filter(([, k]) => k.conversao !== undefined).map(([n]) => n), [NOME_V]);
   // MIGRATION_CONTRACT_AUTORIZADO tem um só valor: duas entradas com a mesma decisão seriam autorizadas juntas.
@@ -761,7 +761,7 @@ test('B9 (D-PROD-162): runner real sobre a release do CONTRACT — análise loca
     assert.match(analise.stdout, /ANÁLISE LOCAL OK \(CONTRACT D-PROD-162: 13 tabelas removidas, 2 CHECKs alargados\) — alvo remoto NÃO verificado/);
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
-    // Isolada: a D-PROD-183, a D-PROD-187, a D-PROD-194, a D-PROD-195, a D-PROD-197 e a D-PROD-198 estão na main desta release sintética, então a única migration nova é a D-PROD-162.
+    // Isolada: a D-PROD-183, a D-PROD-187, a D-PROD-194, a D-PROD-195, a D-PROD-197 e a D-PROD-199 estão na main desta release sintética, então a única migration nova é a D-PROD-162.
     assert.deepEqual(json.migrations_novas, [NOME_C]);
     assert.deepEqual(json.contract.map((k) => k.decisao), ['D-PROD-162']);
     assert.equal(run(SEM_ALVO, '--contract', 'D-PROD-162').status, 0, 'a análise local aceita a decisão certa');
@@ -773,7 +773,7 @@ test('B9 (D-PROD-162): runner real sobre a release do CONTRACT — análise loca
       run(COM_ALVO, '--verificar-alvo', '--contract'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-183'),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-187'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-194'),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-195'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-197'),
-      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-198'),
+      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-199'),
     ];
     for (const r of recusas) recusadoSemConectar(r, 'D-PROD-162');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
@@ -796,7 +796,7 @@ test('B13 (D-PROD-183): runner real sobre a release do DROP COLUMN de TipoTarefa
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
-    // Isolada: a D-PROD-162, a D-PROD-187, a D-PROD-194, a D-PROD-195, a D-PROD-197 e a D-PROD-198 estão na main desta release sintética, então a única nova é a D-PROD-183.
+    // Isolada: a D-PROD-162, a D-PROD-187, a D-PROD-194, a D-PROD-195, a D-PROD-197 e a D-PROD-199 estão na main desta release sintética, então a única nova é a D-PROD-183.
     assert.deepEqual(json.migrations_novas, [NOME_T]);
     assert.deepEqual(json.contract, [CONTRACT_T]);
     assert.deepEqual(json.tabelas_novas, []);
@@ -810,7 +810,7 @@ test('B13 (D-PROD-183): runner real sobre a release do DROP COLUMN de TipoTarefa
       run(COM_ALVO, '--verificar-alvo'), run(COM_ALVO, '--aplicar'),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-162'), run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-162'),
       run(COM_ALVO, '--aplicar', '--contract', 'd-prod-183'), run(COM_ALVO, '--verificar-alvo', '--contract'),
-      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-198'),
+      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-199'),
     ];
     for (const r of recusas) recusadoSemConectar(r, 'D-PROD-183');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
@@ -1093,7 +1093,7 @@ test('B15j (D-PROD-187): runner real sobre a release de CategoriaManejo → CADC
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
     // Isolada: a D-PROD-162 e a D-PROD-183 estão na main desta release sintética (em produção já concluídas), e
-    // também a CADCURVAGANHO (D-PROD-189), o ApontamentoAtividade (D-PROD-190), a curva mensal (D-PROD-194), a curva na categoria (D-PROD-195), os padrões do TipoAtividade (D-PROD-197) e a Atividade cabeçalho (D-PROD-198), de nome POSTERIOR a esta: a release adiciona uma migration que ordena
+    // também a CADCURVAGANHO (D-PROD-189), o ApontamentoAtividade (D-PROD-190), a curva mensal (D-PROD-194), a curva na categoria (D-PROD-195), os padrões do TipoAtividade (D-PROD-197) e a Atividade cabeçalho (D-PROD-199), de nome POSTERIOR a esta: a release adiciona uma migration que ordena
     // antes da última da main, e isso não é migration da main alterada nem migration nova a mais.
     assert.ok(readdirSync(join(repo.trabalho, 'backend/prisma/migrations')).some((d) => d > NOME_D), 'a main da release tem migration de nome posterior');
     assert.deepEqual(json.migrations_novas, [NOME_D]);
@@ -1109,7 +1109,7 @@ test('B15j (D-PROD-187): runner real sobre a release de CategoriaManejo → CADC
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-183'), run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-162'),
       run(COM_ALVO, '--aplicar', '--contract', 'd-prod-187'), run(COM_ALVO, '--verificar-alvo', '--contract'),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-194'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-195'),
-      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-197'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-198'),
+      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-197'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-199'),
     ];
     for (const r of recusas) recusadoSemConectar(r, 'D-PROD-187');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
@@ -1133,7 +1133,7 @@ test('B15k (D-PROD-187/D-PROD-189/D-PROD-190): ordem de produção — alvo com 
   // Produção no dia desta CONTRACT: as pastas até a última POSTERIOR. As de releases seguintes, com nome depois dela
   // (os itens do apontamento, D-PROD-193, `20261113800000_apontamento_atividade_item`, a curva mensal, D-PROD-194, ver
   // B16k, a curva na categoria, D-PROD-195, ver B18k, os padrões do TipoAtividade, D-PROD-197, ver B19k, e a Atividade
-  // cabeçalho, D-PROD-198, ver B20m), ainda não existiam: 47 pastas. A EXPAND que a main recebeu depois dela (D-PROD-185,
+  // cabeçalho, D-PROD-199, ver B20m), ainda não existiam: 47 pastas. A EXPAND que a main recebeu depois dela (D-PROD-185,
   // só índices, de nome anterior) não muda o que este teste prova.
   const locais = todas.filter((l) => l.nome <= POSTERIORES.at(-1));
   assert.equal(locais.length, 47);
@@ -1295,7 +1295,7 @@ test('B16g (D-PROD-194): conferirReleaseContract — a D-PROD-194 sozinha só co
   const comK = classificarMigrations([ler(NOME_K)]);
   assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_K], classificacao: comK, autorizacao: 'D-PROD-194' }), { ok: true, codigo: null });
   // Os números antigos (D-PROD-190, hoje da PR #269, e D-PROD-191, hoje da PR #271) não autorizam: a decisão da curva mensal é a D-PROD-194.
-  for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-189', 'D-PROD-190', 'D-PROD-191', 'D-PROD-195', 'D-PROD-197', 'D-PROD-198', '', undefined, null, 'd-prod-194', ' D-PROD-194', 'D-PROD-194 ']) {
+  for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-189', 'D-PROD-190', 'D-PROD-191', 'D-PROD-195', 'D-PROD-197', 'D-PROD-199', '', undefined, null, 'd-prod-194', ' D-PROD-194', 'D-PROD-194 ']) {
     assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_K], classificacao: comK, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_AUTORIZADO' }, String(autorizacao));
   }
   // Junto com a criação da tabela (D-PROD-189) ou com outra migration: não isolada.
@@ -1366,7 +1366,7 @@ test('B16j (D-PROD-194): runner real sobre a release da CADCURVAGANHO mensal —
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
-    // Isolada: D-PROD-162, D-PROD-183 e D-PROD-187 (em produção já concluídas) e a D-PROD-195, a D-PROD-197 e a D-PROD-198 (posteriores) estão na main desta release sintética, então a única nova é a D-PROD-194.
+    // Isolada: D-PROD-162, D-PROD-183 e D-PROD-187 (em produção já concluídas) e a D-PROD-195, a D-PROD-197 e a D-PROD-199 (posteriores) estão na main desta release sintética, então a única nova é a D-PROD-194.
     assert.deepEqual(json.migrations_novas, [NOME_K]);
     assert.deepEqual(json.contract, [CONTRACT_K]);
     assert.deepEqual(json.tabelas_novas, ['CADCURVAGANHO'], 'a tabela removida volta recriada');
@@ -1383,7 +1383,7 @@ test('B16j (D-PROD-194): runner real sobre a release da CADCURVAGANHO mensal —
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-187'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-190'),
       run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-191'), run(COM_ALVO, '--verificar-alvo', '--contract'),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-195'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-197'),
-      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-198'),
+      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-199'),
     ];
     for (const r of recusas) recusadoSemConectar(r, 'D-PROD-194');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
@@ -1407,8 +1407,8 @@ test('B16k (D-PROD-194/D-PROD-187/D-PROD-189/D-PROD-190/D-PROD-185/D-PROD-193): 
   assert.equal(todas.length, 52);
   // Produção no dia desta CONTRACT: a curva mensal era a pasta de nome mais recente. A curva na categoria (D-PROD-195,
   // `20261114200000_cadcategoria_curva_ganho`, ver B18k), os padrões do TipoAtividade (D-PROD-197,
-  // `20261114300000_tipo_atividade_defaults`, ver B19k) e a Atividade cabeçalho (D-PROD-198,
-  // `20261114400000_atividade_cabecalho`, ver B20m) vieram depois dela, em releases seguintes: 49 pastas.
+  // `20261114300000_tipo_atividade_defaults`, ver B19k) e a Atividade cabeçalho (D-PROD-199,
+  // `20261114500000_atividade_cabecalho`, ver B20m) vieram depois dela, em releases seguintes: 49 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_K);
   assert.equal(locais.length, 49);
   for (const n of [NOME_G, NOME_P, NOME_V]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -1606,8 +1606,8 @@ test('B18f (D-PROD-195): o contrato é do NOME — o mesmo SQL com outro nome se
 test('B18g (D-PROD-195): conferirReleaseContract — a D-PROD-195 sozinha só com --contract D-PROD-195 exato; junto com outra migration ou com outra CONTRACT é CONTRACT_NAO_ISOLADO; --contract D-PROD-195 sem CONTRACT é inesperado', () => {
   const comG = classificarMigrations([ler(NOME_G)]);
   assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_G], classificacao: comG, autorizacao: 'D-PROD-195' }), { ok: true, codigo: null });
-  // As decisões das releases seguintes (D-PROD-197, padrões do TipoAtividade, e D-PROD-198, Atividade cabeçalho) também não autorizam esta.
-  for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-189', 'D-PROD-194', 'D-PROD-197', 'D-PROD-198', '', undefined, null, 'd-prod-195', ' D-PROD-195', 'D-PROD-195 ', 'D-PROD-19']) {
+  // As decisões das releases seguintes (D-PROD-197, padrões do TipoAtividade, e D-PROD-199, Atividade cabeçalho) também não autorizam esta.
+  for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-189', 'D-PROD-194', 'D-PROD-197', 'D-PROD-199', '', undefined, null, 'd-prod-195', ' D-PROD-195', 'D-PROD-195 ', 'D-PROD-19']) {
     assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_G], classificacao: comG, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_AUTORIZADO' }, String(autorizacao));
   }
   // Junto com a criação da curva (D-PROD-189) ou com uma EXPAND qualquer: não isolada.
@@ -1680,7 +1680,7 @@ test('B18j (D-PROD-195): runner real sobre a release da curva na categoria — a
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
-    // Isolada: as quatro anteriores (em produção já concluídas) e a D-PROD-197 e a D-PROD-198 (posteriores) estão na main
+    // Isolada: as quatro anteriores (em produção já concluídas) e a D-PROD-197 e a D-PROD-199 (posteriores) estão na main
     // desta release sintética, então a única nova é a D-PROD-195.
     assert.deepEqual(json.migrations_novas, [NOME_G]);
     assert.deepEqual(json.contract, [CONTRACT_G]);
@@ -1696,7 +1696,7 @@ test('B18j (D-PROD-195): runner real sobre a release da curva na categoria — a
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-194'), run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-187'),
       run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-162'), run(COM_ALVO, '--aplicar', '--contract', 'd-prod-195'),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-183'), run(COM_ALVO, '--verificar-alvo', '--contract'),
-      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-197'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-198'),
+      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-197'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-199'),
     ];
     for (const r of recusas) recusadoSemConectar(r, 'D-PROD-195');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
@@ -1719,8 +1719,8 @@ test('B18k (D-PROD-195/D-PROD-194): ordem de produção no dia da D-PROD-195 —
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 52);
   // Produção no dia desta CONTRACT: a curva na categoria era a pasta de nome mais recente. Os padrões do TipoAtividade
-  // (D-PROD-197, `20261114300000_tipo_atividade_defaults`, ver B19k) e a Atividade cabeçalho (D-PROD-198,
-  // `20261114400000_atividade_cabecalho`, ver B20m) vieram depois dela: 50 pastas.
+  // (D-PROD-197, `20261114300000_tipo_atividade_defaults`, ver B19k) e a Atividade cabeçalho (D-PROD-199,
+  // `20261114500000_atividade_cabecalho`, ver B20m) vieram depois dela: 50 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_G);
   assert.equal(locais.length, 50);
   for (const n of [NOME_P, NOME_V]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -2007,8 +2007,8 @@ test('B19g (D-PROD-197): conferirReleaseContract — a D-PROD-197 sozinha só co
   const comP = classificarMigrations([ler(NOME_P)]);
   assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_P], classificacao: comP, autorizacao: 'D-PROD-197' }), { ok: true, codigo: null });
   // A D-PROD-182 (criação da tabela), as CONTRACT anteriores (inclusive a D-PROD-195, a curva na categoria) e a seguinte
-  // (D-PROD-198, Atividade cabeçalho) não autorizam esta.
-  for (const autorizacao of ['D-PROD-162', 'D-PROD-182', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-198', '', undefined, null, 'd-prod-195', 'd-prod-197', 'D-PROD-196', ' D-PROD-197', 'D-PROD-197 ', 'D-PROD-19']) {
+  // (D-PROD-199, Atividade cabeçalho) não autorizam esta.
+  for (const autorizacao of ['D-PROD-162', 'D-PROD-182', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-199', '', undefined, null, 'd-prod-195', 'd-prod-197', 'D-PROD-196', ' D-PROD-197', 'D-PROD-197 ', 'D-PROD-19']) {
     assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_P], classificacao: comP, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_AUTORIZADO' }, String(autorizacao));
   }
   // Junto com a criação da tabela (D-PROD-182) ou com outra migration: não isolada.
@@ -2043,7 +2043,7 @@ test('B19h (D-PROD-197): envDoDeployMigrate — MIGRATION_CONTRACT_AUTORIZADO=D-
   assert.equal(herdado.MIGRATION_CONTRACT_AUTORIZADO, 'herdado', 'o ambiente do runner não é mutado');
   // Negativos com base JÁ igual à decisão: prova que ela nunca é herdada.
   const base = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-197' };
-  for (const [classificacao, autorizacao] of [[comP, 'D-PROD-194'], [comP, 'D-PROD-195'], [comP, 'D-PROD-182'], [comP, 'D-PROD-198'], [comP, undefined], [comP, 'd-prod-195'], [comP, 'd-prod-197'], [comP, 'D-PROD-196'], [comK, 'D-PROD-197'], [comK, 'D-PROD-194'], [comG, 'D-PROD-197'], [comG, 'D-PROD-195'], [seis, 'D-PROD-197']]) {
+  for (const [classificacao, autorizacao] of [[comP, 'D-PROD-194'], [comP, 'D-PROD-195'], [comP, 'D-PROD-182'], [comP, 'D-PROD-199'], [comP, undefined], [comP, 'd-prod-195'], [comP, 'd-prod-197'], [comP, 'D-PROD-196'], [comK, 'D-PROD-197'], [comK, 'D-PROD-194'], [comG, 'D-PROD-197'], [comG, 'D-PROD-195'], [seis, 'D-PROD-197']]) {
     const e = envDoDeployMigrate({ env: base, classificacao, autorizacao });
     assert.equal('MIGRATION_CONTRACT_AUTORIZADO' in e, false, `${classificacao.contract.length} CONTRACT, ${autorizacao}: nunca herdado`);
     assert.equal(e.MIGRATION_EXIGIR_CONFERENCIA, 'sim');
@@ -2082,7 +2082,7 @@ test('B19j (D-PROD-197): runner real sobre a release dos padrões do TipoAtivida
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
-    // Isolada: as cinco CONTRACT anteriores (em produção, concluídas) e a D-PROD-198 (posterior) estão na main desta release sintética; a única nova é a D-PROD-197.
+    // Isolada: as cinco CONTRACT anteriores (em produção, concluídas) e a D-PROD-199 (posterior) estão na main desta release sintética; a única nova é a D-PROD-197.
     assert.deepEqual(json.migrations_novas, [NOME_P]);
     assert.deepEqual(json.contract, [CONTRACT_P]);
     assert.deepEqual(json.tabelas_novas, []);
@@ -2097,7 +2097,7 @@ test('B19j (D-PROD-197): runner real sobre a release dos padrões do TipoAtivida
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-194'), run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-182'),
       run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-183'), run(COM_ALVO, '--aplicar', '--contract', 'd-prod-195'),
       run(COM_ALVO, '--verificar-alvo', '--contract'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-195'),
-      run(COM_ALVO, '--aplicar', '--contract', 'd-prod-197'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-198'),
+      run(COM_ALVO, '--aplicar', '--contract', 'd-prod-197'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-199'),
     ];
     for (const r of recusas) recusadoSemConectar(r, 'D-PROD-197');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
@@ -2118,7 +2118,7 @@ test('B19k (D-PROD-197/D-PROD-195): ordem de produção no dia da D-PROD-197 —
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 52);
   // Produção no dia desta CONTRACT: os padrões do TipoAtividade eram a pasta de nome mais recente. A Atividade cabeçalho
-  // (D-PROD-198, `20261114400000_atividade_cabecalho`) veio depois dela (ver B20m): 51 pastas.
+  // (D-PROD-199, `20261114500000_atividade_cabecalho`) veio depois dela (ver B20m): 51 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_P);
   assert.equal(locais.length, 51);
   assert.ok(todas.some((l) => l.nome === NOME_V) && !locais.some((l) => l.nome === NOME_V), NOME_V);
@@ -2149,7 +2149,7 @@ test('B19k (D-PROD-197/D-PROD-195): ordem de produção no dia da D-PROD-197 —
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B20a (D-PROD-198): a migration CONTRACT classificada SOZINHA, como na release: ok, modo CONTRACT, exatamente as 2 tabelas novas, nenhuma coluna em tabela antiga e o descritor com as 3 conversões e as 3 tabelas removidas (filhas primeiro); nada alargado, acrescentado ou renomeado', () => {
+test('B20a (D-PROD-199): a migration CONTRACT classificada SOZINHA, como na release: ok, modo CONTRACT, exatamente as 2 tabelas novas, nenhuma coluna em tabela antiga e o descritor com as 3 conversões e as 3 tabelas removidas (filhas primeiro); nada alargado, acrescentado ou renomeado', () => {
   const c = classificarMigrations([ler(NOME_V)]);
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -2162,14 +2162,14 @@ test('B20a (D-PROD-198): a migration CONTRACT classificada SOZINHA, como na rele
   assert.equal(sha256(SQL_V), 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb');
   assert.equal(MIGRATIONS_APROVADAS[NOME_V], sha256(SQL_V));
   // O número da decisão fica fora do migration.sql (renumerar nunca muda o checksum aplicado).
-  assert.doesNotMatch(SQL_V, /D-PROD-198/);
+  assert.doesNotMatch(SQL_V, /D-PROD-199/);
 });
 
-test('B20b (D-PROD-198): a entrada é congelada e o conteúdo pinado é o do arquivo — guarda, os 3 DROP (filhas primeiro), os 3 literais, nenhuma instrução em tabela antiga e as 3 conversões; as 6 ÚLTIMAS instruções do arquivo são as 3 conversões e os 3 DROP, nessa ordem; a guarda trava as antigas antes de conferir; o RLS do resto é corpo novo, pinado, só das 2 novas', () => {
+test('B20b (D-PROD-199): a entrada é congelada e o conteúdo pinado é o do arquivo — guarda, os 3 DROP (filhas primeiro), os 3 literais, nenhuma instrução em tabela antiga e as 3 conversões; as 6 ÚLTIMAS instruções do arquivo são as 3 conversões e os 3 DROP, nessa ordem; a guarda trava as antigas antes de conferir; o RLS do resto é corpo novo, pinado, só das 2 novas', () => {
   const k = MIGRATIONS_CONTRACT_APROVADAS[NOME_V];
   assert.ok(NOME_V in MIGRATIONS_APROVADAS, 'quem é CONTRACT também está no manifesto (checksum pinado)');
   for (const o of [k, k.drop, k.literais_guarda, k.alter_antigas, k.conversao]) assert.equal(Object.isFrozen(o), true);
-  assert.equal(k.decisao, 'D-PROD-198');
+  assert.equal(k.decisao, 'D-PROD-199');
   assert.equal(k.guarda_sha256, '6d192b5423d728d425d20d4a98d28335b7617a6261ae96999162a71578856f64');
   assert.deepEqual(k.drop, DROP_V);
   assert.deepEqual(k.literais_guarda, ['CONFIRMADO', 'CANCELADO', 'EntidadeCodigoSequencia']);
@@ -2217,7 +2217,7 @@ test('B20b (D-PROD-198): a entrada é congelada e o conteúdo pinado é o do arq
   assert.doesNotMatch(semComent, /\bTRUNCATE\b|\bDELETE FROM\b|DROP TABLE [^;]*(CASCADE|IF EXISTS)|ON DELETE (CASCADE|SET NULL)|NOT VALID/);
 });
 
-test('B20c (D-PROD-198): as 3 conversões são EXATAMENTE as do contrato, na ordem, logo antes dos DROP — alterada (id, nome, setor, quantidade do cancelado, status, JOIN interno, ON CONFLICT, filtro, turno, contador), faltando, trocada de ordem, DML a mais entre elas ou o UPDATE do contador levado para o resto → CONTRACT_CONVERSAO_FORA_DO_CONTRATO', () => {
+test('B20c (D-PROD-199): as 3 conversões são EXATAMENTE as do contrato, na ordem, logo antes dos DROP — alterada (id, nome, setor, quantidade do cancelado, status, JOIN interno, ON CONFLICT, filtro, turno, contador), faltando, trocada de ordem, DML a mais entre elas ou o UPDATE do contador levado para o resto → CONTRACT_CONVERSAO_FORA_DO_CONTRATO', () => {
   const ancoraResto = '-- CreateTable\nCREATE TABLE "Atividade" (';
   const casos = {
     idDaAtividade: [trocar(SQL_V, INS_ATIV_V, INS_ATIV_V.replace(`SELECT 'atv_' || a."id"`, `SELECT 'atx_' || a."id"`)), 0],
@@ -2250,7 +2250,7 @@ test('B20c (D-PROD-198): as 3 conversões são EXATAMENTE as do contrato, na ord
   }
 });
 
-test('B20d (D-PROD-198): os 3 DROP são EXATAMENTE os do contrato, na ordem, e as ÚLTIMAS instruções — antes da conversão, de volta logo depois da guarda (formato antigo), fora de ordem, CASCADE, IF EXISTS, outra tabela, um faltando, dois numa só ou qualquer instrução depois deles → CONTRACT_DROP_FORA_DO_CONTRATO', () => {
+test('B20d (D-PROD-199): os 3 DROP são EXATAMENTE os do contrato, na ordem, e as ÚLTIMAS instruções — antes da conversão, de volta logo depois da guarda (formato antigo), fora de ordem, CASCADE, IF EXISTS, outra tabela, um faltando, dois numa só ou qualquer instrução depois deles → CONTRACT_DROP_FORA_DO_CONTRATO', () => {
   const [D1, D2, D3] = DROPS_V;
   const fimDaGuarda = 'END $$;\n\n-- CreateTable\nCREATE TABLE "Atividade" (';
   const semDrops = trocar(SQL_V, `${D1}\n\n${D2}\n\n${D3}\n`, '');
@@ -2280,7 +2280,7 @@ test('B20d (D-PROD-198): os 3 DROP são EXATAMENTE os do contrato, na ordem, e a
   assert.deepEqual(classificarContractV(`${SQL_V}\n-- fim\n\n`).violacoes, []);
 });
 
-test('B20e (D-PROD-198): o resto (entre a guarda e a conversão) é EXPAND — DML (DELETE, UPDATE, INSERT, TRUNCATE, cópia de uma conversão), DROP, ALTER e UNIQUE em tabela antiga recusados como sempre; sem o CREATE TABLE, a tabela volta a ser antiga; CHECK, índice e UNIQUE nas 2 novas aceitos', () => {
+test('B20e (D-PROD-199): o resto (entre a guarda e a conversão) é EXPAND — DML (DELETE, UPDATE, INSERT, TRUNCATE, cópia de uma conversão), DROP, ALTER e UNIQUE em tabela antiga recusados como sempre; sem o CREATE TABLE, a tabela volta a ser antiga; CHECK, índice e UNIQUE nas 2 novas aceitos', () => {
   const ancora = '-- CONVERSÃO (pinada)';
   const noResto = (ddl) => trocar(SQL_V, ancora, `${ddl}\n\n${ancora}`);
   const casos = {
@@ -2319,7 +2319,7 @@ test('B20e (D-PROD-198): o resto (entre a guarda e a conversão) é EXPAND — D
   assert.deepEqual(ok.contract, [CONTRACT_V]);
 });
 
-test('B20f (D-PROD-198): a guarda é a PRIMEIRA instrução e tem o hash pinado — sem a trava das 3 antigas, trava fraca, sem tempo limite ou trava consultiva, sem conferir as fatias, as horas, o cancelamento ou o contador → CONTRACT_GUARDA_NAO_RECONHECIDA; ausente ou precedida de outra instrução → CONTRACT_GUARDA_AUSENTE; citando outra tabela ou sem um literal → DO_EM_TABELA_ANTIGA', () => {
+test('B20f (D-PROD-199): a guarda é a PRIMEIRA instrução e tem o hash pinado — sem a trava das 3 antigas, trava fraca, sem tempo limite ou trava consultiva, sem conferir as fatias, as horas, o cancelamento ou o contador → CONTRACT_GUARDA_NAO_RECONHECIDA; ausente ou precedida de outra instrução → CONTRACT_GUARDA_AUSENTE; citando outra tabela ou sem um literal → DO_EM_TABELA_ANTIGA', () => {
   for (const [de, para] of [
     ['  LOCK TABLE public."ApontamentoAtividade", public."ApontamentoAtividadeItem", public."ApontamentoAtividadeItemConsumoLote" IN ACCESS EXCLUSIVE MODE;\n', ''],
     ['IN ACCESS EXCLUSIVE MODE;', 'IN SHARE MODE;'],
@@ -2354,7 +2354,7 @@ test('B20f (D-PROD-198): a guarda é a PRIMEIRA instrução e tem o hash pinado 
   assert.ok(s.violacoes.every((v) => v.detalhe === 'EntidadeCodigoSequencia'));
 });
 
-test('B20g (D-PROD-198): o RLS do resto só passa com o corpo pinado e só das 2 novas — citando uma antiga, sem uma das novas ou com FORCE → DO_NAO_RECONHECIDO (e DO_EM_TABELA_ANTIGA se cita antiga); sem o hash na allowlist, o mesmo arquivo é recusado', () => {
+test('B20g (D-PROD-199): o RLS do resto só passa com o corpo pinado e só das 2 novas — citando uma antiga, sem uma das novas ou com FORCE → DO_NAO_RECONHECIDO (e DO_EM_TABELA_ANTIGA se cita antiga); sem o hash na allowlist, o mesmo arquivo é recusado', () => {
   const lista = "ARRAY['Atividade','AtividadeApontamento']";
   assert.deepEqual(codigos(classificarContractV(trocar(SQL_V, lista, "ARRAY['Atividade','AtividadeApontamento','ApontamentoAtividade']"))), ['DO_EM_TABELA_ANTIGA', 'DO_NAO_RECONHECIDO']);
   assert.deepEqual(codigos(classificarContractV(trocar(SQL_V, lista, "ARRAY['Atividade']"))), ['DO_NAO_RECONHECIDO']);
@@ -2366,7 +2366,7 @@ test('B20g (D-PROD-198): o RLS do resto só passa com o corpo pinado e só das 2
   assert.deepEqual(codigos(classificarMigrations([{ nome: NOME_V, sql: `${SQL_V}\n` }])), ['MIGRATION_CHECKSUM_DIVERGENTE']);
 });
 
-test('B20h (D-PROD-198): o contrato é do NOME e o formato é da ENTRADA — o mesmo SQL com outro nome segue o caminho EXPAND e é recusado (os 2 INSERT, o UPDATE e os 3 DROP); sem a entrada, ou só com as seis anteriores, o nome real é recusado; a entrada sem `conversao` (formato de sempre) recusa o arquivo, e `conversao` numa entrada antiga recusa o dela; os contratos não se servem entre si', () => {
+test('B20h (D-PROD-199): o contrato é do NOME e o formato é da ENTRADA — o mesmo SQL com outro nome segue o caminho EXPAND e é recusado (os 2 INSERT, o UPDATE e os 3 DROP); sem a entrada, ou só com as seis anteriores, o nome real é recusado; a entrada sem `conversao` (formato de sempre) recusa o arquivo, e `conversao` numa entrada antiga recusa o dela; os contratos não se servem entre si', () => {
   const outro = '20261114400001_outro_nome';
   const c = classificarMigrations([{ nome: outro, sql: SQL_V }], { manifesto: { [outro]: sha256(SQL_V) } });
   assert.equal(c.ok, false);
@@ -2400,58 +2400,58 @@ test('B20h (D-PROD-198): o contrato é do NOME e o formato é da ENTRADA — o m
   for (const sql of [SQL_C, SQL_T, SQL_D, SQL_K, SQL_G, SQL_P]) assert.ok(codigos(classificarContractV(sql)).includes('CONTRACT_GUARDA_NAO_RECONHECIDA'));
 });
 
-test('B20i (D-PROD-198): conferirReleaseContract — a D-PROD-198 sozinha só com --contract D-PROD-198 exato; junto com outra migration ou com outra CONTRACT é CONTRACT_NAO_ISOLADO; --contract D-PROD-198 sem CONTRACT é inesperado', () => {
+test('B20i (D-PROD-199): conferirReleaseContract — a D-PROD-199 sozinha só com --contract D-PROD-199 exato; junto com outra migration ou com outra CONTRACT é CONTRACT_NAO_ISOLADO; --contract D-PROD-199 sem CONTRACT é inesperado', () => {
   const comV = classificarMigrations([ler(NOME_V)]);
-  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_V], classificacao: comV, autorizacao: 'D-PROD-198' }), { ok: true, codigo: null });
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_V], classificacao: comV, autorizacao: 'D-PROD-199' }), { ok: true, codigo: null });
   // As decisões que criaram as tabelas antigas (D-PROD-190, D-PROD-193) e as CONTRACT anteriores (inclusive a D-PROD-197) não autorizam esta.
-  for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-190', 'D-PROD-193', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', '', undefined, null, 'd-prod-198', ' D-PROD-198', 'D-PROD-198 ', ' D-PROD-198 ', 'D-PROD-19', 'D-PROD-1980']) {
+  for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-190', 'D-PROD-193', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', '', undefined, null, 'd-prod-199', ' D-PROD-199', 'D-PROD-199 ', ' D-PROD-199 ', 'D-PROD-19', 'D-PROD-1980']) {
     assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_V], classificacao: comV, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_AUTORIZADO' }, String(autorizacao));
   }
   // Junto com a criação das tabelas que ela apaga (D-PROD-190, D-PROD-193) ou com outra migration: não isolada.
   for (const outra of [NOME_A, NOME_I]) {
     const comOutra = classificarMigrations([ler(outra), ler(NOME_V)]);
     assert.deepEqual(comOutra.violacoes, []);
-    assert.deepEqual(conferirReleaseContract({ nomesNovas: [outra, NOME_V], classificacao: comOutra, autorizacao: 'D-PROD-198' }), { ok: false, codigo: 'CONTRACT_NAO_ISOLADO' }, outra);
+    assert.deepEqual(conferirReleaseContract({ nomesNovas: [outra, NOME_V], classificacao: comOutra, autorizacao: 'D-PROD-199' }), { ok: false, codigo: 'CONTRACT_NAO_ISOLADO' }, outra);
   }
   // Com outra CONTRACT (inclusive a D-PROD-197, a anterior) ou várias: nenhuma autorização isola.
   for (const lote of [[NOME_P, NOME_V], [NOME_K, NOME_V], [NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V]]) {
     const c = classificarMigrations(lote.map(ler));
     assert.deepEqual(c.violacoes, []);
     assert.equal(c.contract.length, lote.length);
-    for (const autorizacao of ['D-PROD-162', 'D-PROD-194', 'D-PROD-197', 'D-PROD-198', undefined]) {
+    for (const autorizacao of ['D-PROD-162', 'D-PROD-194', 'D-PROD-197', 'D-PROD-199', undefined]) {
       assert.deepEqual(conferirReleaseContract({ nomesNovas: lote, classificacao: c, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_ISOLADO' }, `${lote.length} CONTRACT, ${autorizacao}`);
     }
   }
   const semV = classificarMigrations([ler(NOME_I)]);
-  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_I], classificacao: semV, autorizacao: 'D-PROD-198' }), { ok: false, codigo: 'CONTRACT_INESPERADO' });
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_I], classificacao: semV, autorizacao: 'D-PROD-199' }), { ok: false, codigo: 'CONTRACT_INESPERADO' });
 });
 
-test('B20j (D-PROD-198): envDoDeployMigrate — MIGRATION_CONTRACT_AUTORIZADO=D-PROD-198 só com a D-PROD-198 sozinha e --contract D-PROD-198; outra decisão ou outra CONTRACT junto não autorizam; nunca herdado', () => {
+test('B20j (D-PROD-199): envDoDeployMigrate — MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199 só com a D-PROD-199 sozinha e --contract D-PROD-199; outra decisão ou outra CONTRACT junto não autorizam; nunca herdado', () => {
   const comV = classificarMigrations([ler(NOME_V)]);
   const comP = classificarMigrations([ler(NOME_P), ler(NOME_V)]);
   const sete = classificarMigrations([NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V].map(ler));
   // Positivo com base 'herdado': prova que a função GRAVA a decisão (não só deixa passar o valor herdado).
   const herdado = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'herdado' };
-  const a = envDoDeployMigrate({ env: herdado, classificacao: comV, autorizacao: 'D-PROD-198' });
-  assert.equal(a.MIGRATION_CONTRACT_AUTORIZADO, 'D-PROD-198');
+  const a = envDoDeployMigrate({ env: herdado, classificacao: comV, autorizacao: 'D-PROD-199' });
+  assert.equal(a.MIGRATION_CONTRACT_AUTORIZADO, 'D-PROD-199');
   assert.equal(a.MIGRATION_EXIGIR_CONFERENCIA, 'sim');
   assert.equal(herdado.MIGRATION_CONTRACT_AUTORIZADO, 'herdado', 'o ambiente do runner não é mutado');
   // Negativos com base JÁ igual à decisão: prova que ela nunca é herdada.
-  const base = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-198' };
-  for (const [classificacao, autorizacao] of [[comV, 'D-PROD-197'], [comV, 'D-PROD-193'], [comV, undefined], [comV, 'd-prod-198'], [comV, ' D-PROD-198 '], [comP, 'D-PROD-198'], [comP, 'D-PROD-197'], [sete, 'D-PROD-198']]) {
+  const base = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-199' };
+  for (const [classificacao, autorizacao] of [[comV, 'D-PROD-197'], [comV, 'D-PROD-193'], [comV, undefined], [comV, 'd-prod-199'], [comV, ' D-PROD-199 '], [comP, 'D-PROD-199'], [comP, 'D-PROD-197'], [sete, 'D-PROD-199']]) {
     const e = envDoDeployMigrate({ env: base, classificacao, autorizacao });
     assert.equal('MIGRATION_CONTRACT_AUTORIZADO' in e, false, `${classificacao.contract.length} CONTRACT, ${autorizacao}: nunca herdado`);
     assert.equal(e.MIGRATION_EXIGIR_CONFERENCIA, 'sim');
   }
 });
 
-test('B20k (D-PROD-198): contractsPendentes com as sete CONTRACT locais — produção hoje (as seis anteriores concluídas, a D-PROD-197 por último) deixa só a D-PROD-198 pendente; histórico vazio, as sete; aberta ou revertida continua pendente; todas concluídas, nenhuma', () => {
+test('B20k (D-PROD-199): contractsPendentes com as sete CONTRACT locais — produção hoje (as seis anteriores concluídas, a D-PROD-197 por último) deixa só a D-PROD-199 pendente; histórico vazio, as sete; aberta ou revertida continua pendente; todas concluídas, nenhuma', () => {
   const linha = (n, extra = {}) => ({ migration_name: n, checksum: 'c', finished_at: new Date(), rolled_back_at: null, ...extra });
   const locais = [NOME_C, NOME_T, NOME_D, NOME_A, NOME_I, NOME_K, NOME_G, NOME_P, NOME_V];
-  const PEND_V = { nome: NOME_V, decisao: 'D-PROD-198' };
+  const PEND_V = { nome: NOME_V, decisao: 'D-PROD-199' };
   const producao = [NOME_C, NOME_T, NOME_D, NOME_A, NOME_I, NOME_K, NOME_G, NOME_P].map((n) => linha(n));
   assert.deepEqual(contractsPendentes({ locais, linhas: producao }), [PEND_V], 'produção hoje: as seis anteriores concluídas');
-  assert.deepEqual(contractsPendentes({ locais, linhas: [] }).map((p) => p.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-198']);
+  assert.deepEqual(contractsPendentes({ locais, linhas: [] }).map((p) => p.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-199']);
   assert.deepEqual(contractsPendentes({ locais, linhas: producao.filter((l) => l.migration_name !== NOME_P) }), [{ nome: NOME_P, decisao: 'D-PROD-197' }, PEND_V], 'antes da D-PROD-197: as duas últimas pendentes');
   assert.deepEqual(contractsPendentes({ locais, linhas: [...producao, linha(NOME_V)] }), []);
   assert.deepEqual(contractsPendentes({ locais, linhas: [...producao, linha(NOME_V, { finished_at: null })] }), [PEND_V], 'falha aberta continua pendente');
@@ -2459,37 +2459,37 @@ test('B20k (D-PROD-198): contractsPendentes com as sete CONTRACT locais — prod
   assert.deepEqual(contractsPendentes({ locais: locais.filter((n) => n !== NOME_V), linhas: producao }), [], 'sem a pasta local não há o que aplicar');
 });
 
-test('B20l (D-PROD-198): runner real sobre a release da Atividade cabeçalho — análise local declara as 3 conversões e as 3 tabelas removidas; verificar/aplicar exigem --contract D-PROD-198 exato ANTES de conectar (as decisões anteriores, inclusive a D-PROD-197, as das tabelas antigas e as quase iguais não servem); nunca imprime URL', () => {
+test('B20l (D-PROD-199): runner real sobre a release da Atividade cabeçalho — análise local declara as 3 conversões e as 3 tabelas removidas; verificar/aplicar exigem --contract D-PROD-199 exato ANTES de conectar (as decisões anteriores, inclusive a D-PROD-197, as das tabelas antigas e as quase iguais não servem); nunca imprime URL', () => {
   const repo = repoDaReleaseContract(NOME_V);
   const run = runnerDaRelease(repo);
   try {
     const analise = run(SEM_ALVO);
     assert.equal(analise.status, 0, analise.stderr);
     const rotulo = analise.stdout.split('\n').find((l) => l.includes('ANÁLISE LOCAL OK'));
-    assert.equal(rotulo, 'premerge-migrate: ANÁLISE LOCAL OK (CONTRACT D-PROD-198: 3 conversões (INSERT INTO Atividade, INSERT INTO AtividadeApontamento, UPDATE EntidadeCodigoSequencia), 3 tabelas removidas) — alvo remoto NÃO verificado (isto não autoriza aplicar; use --verificar-alvo)');
+    assert.equal(rotulo, 'premerge-migrate: ANÁLISE LOCAL OK (CONTRACT D-PROD-199: 3 conversões (INSERT INTO Atividade, INSERT INTO AtividadeApontamento, UPDATE EntidadeCodigoSequencia), 3 tabelas removidas) — alvo remoto NÃO verificado (isto não autoriza aplicar; use --verificar-alvo)');
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
-    // Isolada: as seis CONTRACT anteriores (em produção, concluídas) estão na main desta release sintética; a única nova é a D-PROD-198.
+    // Isolada: as seis CONTRACT anteriores (em produção, concluídas) estão na main desta release sintética; a única nova é a D-PROD-199.
     assert.deepEqual(json.migrations_novas, [NOME_V]);
     assert.deepEqual(json.contract, [CONTRACT_V]);
     assert.deepEqual(json.tabelas_novas, NOVAS_V);
     assert.deepEqual(json.colunas_novas_em_tabelas_antigas, []);
     assert.deepEqual(json.violacoes, []);
-    assert.equal(run(SEM_ALVO, '--contract', 'D-PROD-198').status, 0, 'a análise local aceita a decisão certa');
-    const semConfig = run(SEM_ALVO, '--aplicar', '--contract', 'D-PROD-198');
+    assert.equal(run(SEM_ALVO, '--contract', 'D-PROD-199').status, 0, 'a análise local aceita a decisão certa');
+    const semConfig = run(SEM_ALVO, '--aplicar', '--contract', 'D-PROD-199');
     assert.equal(semConfig.status, 3);
     assert.match(semConfig.stderr, /ALVO_SEM_CONFIGURACAO/);
     const recusas = [
       run(COM_ALVO, '--verificar-alvo'), run(COM_ALVO, '--aplicar'),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-197'), run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-197'),
       run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-190'), run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-193'),
-      run(COM_ALVO, '--aplicar', '--contract', 'd-prod-198'), run(COM_ALVO, '--verificar-alvo', '--contract', ' D-PROD-198 '),
+      run(COM_ALVO, '--aplicar', '--contract', 'd-prod-199'), run(COM_ALVO, '--verificar-alvo', '--contract', ' D-PROD-199 '),
       run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-1980'), run(COM_ALVO, '--verificar-alvo', '--contract'),
     ];
-    for (const r of recusas) recusadoSemConectar(r, 'D-PROD-198');
+    for (const r of recusas) recusadoSemConectar(r, 'D-PROD-199');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
-    const certo = run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-198');
+    const certo = run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-199');
     assert.equal(certo.status, 3);
     assert.match(certo.stderr, /PREMERGE_MIGRATIONS_NAO_COMPROVADAS/);
     semSegredo(certo);
@@ -2498,7 +2498,7 @@ test('B20l (D-PROD-198): runner real sobre a release da Atividade cabeçalho —
   }
 });
 
-test('B20m (D-PROD-198/D-PROD-197): ordem de produção hoje — alvo com as 51 da main concluídas (por último os padrões do TipoAtividade, D-PROD-197): o histórico confere, a única pendente é a D-PROD-198 e a barreira do CONTRACT a exige; checksum diferente do arquivo é divergência; depois dela, 52 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
+test('B20m (D-PROD-199/D-PROD-197): ordem de produção hoje — alvo com as 51 da main concluídas (por último os padrões do TipoAtividade, D-PROD-197): o histórico confere, a única pendente é a D-PROD-199 e a barreira do CONTRACT a exige; checksum diferente do arquivo é divergência; depois dela, 52 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
   const P1_03 = '20261113300000_estoque_p1_03_indices';
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
@@ -2506,7 +2506,7 @@ test('B20m (D-PROD-198/D-PROD-197): ordem de produção hoje — alvo com as 51 
   assert.equal(locais.length, 52);
   assert.ok(locais.every((l) => l.nome <= NOME_V), 'a Atividade cabeçalho é a migration de nome mais recente');
   const t0 = Date.parse('2026-01-01T00:00:00Z');
-  // Produção: as 51 sem a D-PROD-198, na ordem em que foram concluídas (como em B19k) e, por último, os padrões do
+  // Produção: as 51 sem a D-PROD-199, na ordem em que foram concluídas (como em B19k) e, por último, os padrões do
   // TipoAtividade (D-PROD-197, 17:05:05 UTC de 2026-11-14).
   const fora = [NOME_V, NOME_P, NOME_G, NOME_K, NOME_D, P1_03, NOME_I];
   const ordem = [...locais.filter((l) => !fora.includes(l.nome)), ...[NOME_D, P1_03, NOME_I, NOME_K, NOME_G, NOME_P].map((n) => locais.find((l) => l.nome === n))];
@@ -2516,13 +2516,13 @@ test('B20m (D-PROD-198/D-PROD-197): ordem de produção hoje — alvo com as 51 
   const h = conferirHistoricoRemoto({ locais, linhas });
   assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_V], falhas: [] });
   assert.deepEqual(conferirHistoricoRemoto({ locais: [...locais].reverse(), linhas: [...linhas].reverse() }), h);
-  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_V, decisao: 'D-PROD-198' }]);
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_V, decisao: 'D-PROD-199' }]);
   // O caminho B registra o checksum = SHA-256 do arquivo; qualquer outro valor é divergência, não "aplicada".
   const linhaV = (checksum) => ({ migration_name: NOME_V, checksum, finished_at: new Date(t0 + 99_000), rolled_back_at: null });
   for (const errado of [MIGRATIONS_APROVADAS[NOME_P], 'manual', MIGRATIONS_CONTRACT_APROVADAS[NOME_V].guarda_sha256, DO_V]) {
     assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaV(errado)] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS', errado);
   }
-  // Depois da aplicação (a D-PROD-198 concluída por último): 52, nada pendente, nada a autorizar.
+  // Depois da aplicação (a D-PROD-199 concluída por último): 52, nada pendente, nada a autorizar.
   const depois = [...linhas, linhaV(MIGRATIONS_APROVADAS[NOME_V])];
   assert.equal(depois.length, 52);
   assert.deepEqual(conferirHistoricoRemoto({ locais, linhas: depois }), { ok: true, codigo: null, pendentes: [], falhas: [] });

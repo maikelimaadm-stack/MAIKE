@@ -1,5 +1,5 @@
 /**
- * D-PROD-198 (Fatia 2 do Lançamento de Atividades) — peças COMUNS do cabeçalho
+ * D-PROD-199 (Fatia 2 do Lançamento de Atividades) — peças COMUNS do cabeçalho
  * (`Atividade`) e do apontamento do dia/turno (`AtividadeApontamento`), contrato
  * `docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`.
  *
@@ -54,7 +54,7 @@ export { comoData, diaDe, ehDiaValido, iso };
 /**
  * Entidade da sequência do tenant (`EntidadeCodigoSequencia`, `reservarNumero`)
  * e da auditoria do cabeçalho. EXATAMENTE `Atividade`: é o contador que a
- * migration `20261114400000_atividade_cabecalho` renomeia de
+ * migration `20261114500000_atividade_cabecalho` renomeia de
  * `ApontamentoAtividade` (as duas atividades convertidas mantêm os números 1 e
  * 2; a próxima é 3).
  */

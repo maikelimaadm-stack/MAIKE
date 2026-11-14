@@ -120,8 +120,8 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
  * contadas pela pasta para não quebrar quando outra release entra na main (D-PROD-185 entrou depois desta: 45 → 46
  * pastas; D-PROD-190, 46 → 47; D-PROD-193, 47 → 48; a curva mensal, D-PROD-194, 48 → 49; a curva na categoria,
  * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, e a Atividade cabeçalho,
- * D-PROD-198, 51 → 52, as duas na partida); e tabelas em public (84: 83 com a do ApontamentoAtividade, D-PROD-190, + as
- * 2 dos itens do apontamento, D-PROD-193, − essas 3 + as 2 da atividade, D-PROD-198, que sobe na partida pela ordem dos
+ * D-PROD-199, 51 → 52, as duas na partida); e tabelas em public (84: 83 com a do ApontamentoAtividade, D-PROD-190, + as
+ * 2 dos itens do apontamento, D-PROD-193, − essas 3 + as 2 da atividade, D-PROD-199, que sobe na partida pela ordem dos
  * nomes: a guarda dela só olha as 3 tabelas do apontamento antigo, vazias aqui, e ela não toca CategoriaManejo; a
  * D-PROD-194, a D-PROD-195 e a D-PROD-197 não criam nem apagam tabela; iguais antes e depois: só rename).
  */

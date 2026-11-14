@@ -120,7 +120,7 @@ export const limparBanco = async () => {
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});
   await prisma.perfilFinanceiroEmpresa.deleteMany({});
-  // D-PROD-198: o apontamento referencia a atividade, o operador e os
+  // D-PROD-199: o apontamento referencia a atividade, o operador e os
   // usuários de autoria; a atividade referencia bem (máquina), centros de custo
   // e de resultado, unidade, área, setor, tarefa, tipo e grupo de atividade,
   // usuários e empresa (RESTRICT em tudo): apontamentos → atividades, antes de

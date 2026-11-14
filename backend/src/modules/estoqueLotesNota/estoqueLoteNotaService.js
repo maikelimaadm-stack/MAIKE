@@ -5,7 +5,7 @@
  * do motor físico. Ele só nasce de uma ENTRADA (compra confirmada) ou de uma
  * TRANSFERÊNCIA, e saldo, custo e situação só mudam pelos comandos do motor
  * (venda, suplementação, transferência, abastecimento e seus cancelamentos; o
- * item de apontamento de atividade da D-PROD-193 saiu na D-PROD-198).
+ * item de apontamento de atividade da D-PROD-193 saiu na D-PROD-199).
  * Por esta API sobram a leitura e a renomeação benigna do local
  * (`local_estoque_nome`, FormularioPonto). POST, PATCH de coluna operacional e
  * DELETE de lote LIVRE → 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA; nada é gravado.
@@ -116,7 +116,7 @@ const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
  * D-PROD-155 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409.
  * D-PROD-159 (X1): idem para fatia FIFO de abastecimento de bem (confirmado ou
  * cancelado: o histórico fica). Chamar sob `travarLote`.
- * D-PROD-198: o ramo das fatias FIFO de item de apontamento de atividade
+ * D-PROD-199: o ramo das fatias FIFO de item de apontamento de atividade
  * (D-PROD-193) saiu com as tabelas dos itens, que a migration da Fatia 2 só
  * apaga vazias (o delegate do Prisma deixou de existir); as linhas de produto
  * da atividade chegam na Fatia 3.

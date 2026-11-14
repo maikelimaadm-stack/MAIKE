@@ -70,7 +70,7 @@ const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, '
  */
 const TIPOS_ATIVIDADE_CRIAR_OU_EDITAR = [[T.TIPOS_ATIVIDADE, 'novo'], [T.TIPOS_ATIVIDADE, 'salvar'], [T.TIPOS_ATIVIDADE, 'editar']];
 
-/** D-PROD-198 — o cabeçalho da atividade segue o esquema do cadastro na tela `op-atividades`. */
+/** D-PROD-199 — o cabeçalho da atividade segue o esquema do cadastro na tela `op-atividades`. */
 const CADASTRO_ATIVIDADES = cadastro(T.ATIVIDADES);
 
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
@@ -306,7 +306,7 @@ export const GUARDAS = Object.freeze({
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).
   curvaGanho: { ...cadastro(T.CURVAS_GANHO), ver: porTela(T.CURVAS_GANHO, 'visualizar') },
-  // D-PROD-198 — Lançamento de Atividades, tela `op-atividades` (contrato §5;
+  // D-PROD-199 — Lançamento de Atividades, tela `op-atividades` (contrato §5;
   // substitui `apontamentoAtividade`, da D-PROD-190/193). Cabeçalho pelas ações
   // PADRÃO da tela, no esquema do cadastro: ver = visualizar (lista, detalhe,
   // apontamentos e os seletores próprios, que não dependem das telas de bens nem

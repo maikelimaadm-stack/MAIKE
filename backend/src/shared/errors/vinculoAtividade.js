@@ -1,5 +1,5 @@
 /**
- * D-PROD-198 — exclusão de cadastro barrada por uma ATIVIDADE (o cabeçalho) ou
+ * D-PROD-199 — exclusão de cadastro barrada por uma ATIVIDADE (o cabeçalho) ou
  * por um APONTAMENTO de atividade. Substitui `vinculoApontamentoAtividade.js`
  * (D-PROD-190), que saiu com o apontamento de linha única.
  *
@@ -14,7 +14,7 @@
  * bruto (P2010), o 23503 traz o nome da FK entre aspas na mensagem.
  *
  * O reconhecimento é pelo NOME EXATO de cada constraint do migration.sql
- * `20261114400000_atividade_cabecalho`, ANCORADO dos dois lados: o nome não
+ * `20261114500000_atividade_cabecalho`, ANCORADO dos dois lados: o nome não
  * pode vir colado a outro identificador. Sem a âncora, `Atividade_…_fkey`
  * casaria DENTRO das FKs de `TipoAtividade` e de `GrupoAtividade`; ex.:
  * `TipoAtividade_cliente_id_unidade_producao_id_fkey` (padrão do tipo, Fatia 1,

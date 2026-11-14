@@ -126,14 +126,14 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * novo, rodada interrompida) faz a guarda recusar. As mensagens começam com
  * `tipo_atividade_defaults:`. Mesmo remédio: recriar o banco local.
  *
- * D-PROD-198: a migration CONTRACT da Atividade cabeçalho converte cada
+ * D-PROD-199: a migration CONTRACT da Atividade cabeçalho converte cada
  * ApontamentoAtividade numa Atividade com um AtividadeApontamento e apaga as 3
  * tabelas antigas. A guarda recusa se houver item de custo ou fatia FIFO no
  * apontamento antigo, apontamento com implemento, hora ou horas trabalhadas,
  * status fora de CONFIRMADO/CANCELADO, contador da entidade Atividade, ou se as
  * tabelas novas já existirem. A CI nasce vazia; um banco LOCAL com apontamentos
  * de rodadas antigas (itens, horas) faz a guarda recusar. As mensagens começam
- * com `guarda:` e a saída do Prisma cita `20261114400000_atividade_cabecalho`.
+ * com `guarda:` e a saída do Prisma cita `20261114500000_atividade_cabecalho`.
  * Mesmo remédio: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
@@ -158,7 +158,7 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se cita tipo_atividade_defaults (a CONTRACT da D-PROD-197), o banco local já tem alguma coluna, constraint ou índice ' +
   'novo de TipoAtividade (por exemplo, de um prisma db push com o schema novo) e a guarda recusa reaplicar; a mensagem ' +
   'da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve. ' +
-  'Se cita atividade_cabecalho (a CONTRACT da D-PROD-198, mensagens "guarda: …"), o banco local tem apontamentos de ' +
+  'Se cita atividade_cabecalho (a CONTRACT da D-PROD-199, mensagens "guarda: …"), o banco local tem apontamentos de ' +
   'atividade de rodadas antigas que o modelo novo não guarda (itens de custo, fatias FIFO, implemento, horas) ou já tem ' +
   'as tabelas Atividade/AtividadeApontamento ou o contador da entidade Atividade; a mensagem da guarda diz o motivo ' +
   'exato. Recriar o banco local, do mesmo jeito, resolve.';

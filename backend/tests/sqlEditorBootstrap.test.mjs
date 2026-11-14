@@ -97,7 +97,7 @@ const semear = async ({ clientes = 1 } = {}) => {
     const tt = await p.tipoTarefa.create({ data: { cliente_id: c, nome_tipo: 'T', grupo_atividade_id: g.id, grupo_atividade_nome: 'G' } });
     const tarefa = await p.lancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, titulo: 'X', tipo: 'Tarefa', tipo_tarefa_id: tt.id, tipo_tarefa_nome: 'T', lote_id: lote.id } });
     await p.historicoLancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, tarefa_id: tarefa.id, evento: 'criada', data_evento: new Date() } });
-    // D-PROD-198: uma atividade (cabeçalho) com um apontamento do dia (FKs RESTRICT do apontamento para a atividade, o
+    // D-PROD-199: uma atividade (cabeçalho) com um apontamento do dia (FKs RESTRICT do apontamento para a atividade, o
     // usuário e a empresa; da atividade para tarefa, tipo, grupo, área, setor, centros, unidade, usuário, empresa e
     // cliente): o 02 só os apaga se o apontamento vier antes da atividade e a atividade ANTES de todas as mães.
     // D-PROD-197: o tipo de atividade aponta para um centro de custo, um centro de resultado e uma unidade como padrões
@@ -167,7 +167,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '84', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-198)');
+    assert.equal(l['tabelas em public'].valor, '84', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-199)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
@@ -280,7 +280,7 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
   test('SE-07b (D-PROD-197) na ordem antiga (TipoAtividade junto de TipoTarefa, depois dos centros e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
     await semear();
     const antes = await contar();
-    const blocoNovo = "    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-198) e ANTES dos\n"
+    const blocoNovo = "    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-199) e ANTES dos\n"
       + "    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).\n"
       + "    'TipoAtividade',\n";
     assert.equal(RESET.split(blocoNovo).length, 2, 'o 02 tem a posição nova do TipoAtividade');
@@ -296,7 +296,7 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     assert.deepEqual(await contar(), antes);
   });
 
-  test('SE-07c (D-PROD-198) com a atividade antes do apontamento do dia (ou depois do tipo de atividade) a conferência da árvore real de FKs recusa antes de apagar', async () => {
+  test('SE-07c (D-PROD-199) com a atividade antes do apontamento do dia (ou depois do tipo de atividade) a conferência da árvore real de FKs recusa antes de apagar', async () => {
     await semear();
     const antes = await contar();
     const LINHA_FILHO = "    'AtividadeApontamento',\n";
@@ -354,7 +354,7 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     assert.equal(await bcrypt.compare(res.senha, conta.senha_hash), true, 'hash do pgcrypto compatível com bcryptjs');
     const depois = await contar();
     assert.deepEqual(depois, { c: 1, u: 1, l: 0, a: 2, cat: 0, mm: 0, glob: antes.glob, mig: antes.mig });
-    // D-PROD-198: a semente tinha 1 atividade com 1 apontamento do dia; o 02 apagou na ordem certa (apontamento → atividade →
+    // D-PROD-199: a semente tinha 1 atividade com 1 apontamento do dia; o 02 apagou na ordem certa (apontamento → atividade →
     // tipo, tarefa, área, setor, centros e unidade), e o estoque (lote e movimento → produto e local).
     assert.deepEqual(
       [await p.atividadeApontamento.count(), await p.atividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(), await p.localEstoque.count()],

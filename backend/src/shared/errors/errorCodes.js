@@ -224,7 +224,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // D-PROD-197 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada
   // como unidade de produção padrão (reconhecida pela FK; o módulo da unidade
   // nunca consulta TipoAtividade). O front já conhece o código (P1.4).
-  // D-PROD-198 — também a FK da Atividade (unidade de produção herdada do tipo).
+  // D-PROD-199 — também a FK da Atividade (unidade de produção herdada do tipo).
   UNIDADE_MEDIDA_DELETE_BLOCKED: {
     http: 409,
     meaning: 'unidade de medida usada como unidade de produção padrão de um tipo de atividade ou como unidade de produção de uma atividade (details.vinculo: tipo_atividade | atividade); inative em vez de excluir; nada foi apagado',
@@ -239,7 +239,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   GRUPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'grupo possui tipos de tarefa ou de atividade, lançamentos de tarefa ou atividades (D-PROD-198) vinculados',
+    meaning: 'grupo possui tipos de tarefa ou de atividade, lançamentos de tarefa ou atividades (D-PROD-199) vinculados',
   },
   TIPO_TAREFA_NOT_FOUND: {
     http: 404,
@@ -259,7 +259,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     meaning: 'já existe tipo de atividade com este nome no grupo',
   },
   // D-PROD-190 — a FK RESTRICT do apontamento barrava a exclusão do tipo usado.
-  // D-PROD-198 — agora é a FK da atividade (o apontamento é filho dela).
+  // D-PROD-199 — agora é a FK da atividade (o apontamento é filho dela).
   TIPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
     meaning: 'tipo de atividade usado por atividade; inative em vez de excluir',
@@ -269,7 +269,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 422,
     meaning: 'padrão do tipo de atividade recusado (details.field: centro_custo_padrao_id | centro_resultado_padrao_id | unidade_producao_id | coeficiente_padrao; details.reason: nao_encontrado — também de outro tenant, sem oráculo — | inativo | empresas_diferentes | nao_positivo); nada foi gravado',
   },
-  // D-PROD-198 — Lançamento de Atividades (Fatia 2): o CABEÇALHO (Atividade) e o
+  // D-PROD-199 — Lançamento de Atividades (Fatia 2): o CABEÇALHO (Atividade) e o
   // APONTAMENTO do dia/turno (AtividadeApontamento), contrato §10.
   ATIVIDADE_NOT_FOUND: {
     http: 404,

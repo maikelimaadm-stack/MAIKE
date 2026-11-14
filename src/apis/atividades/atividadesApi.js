@@ -1,6 +1,6 @@
 /**
  * API do módulo Atividades — cadastro de tipos de atividade (D-PROD-182; padrões
- * e flags, D-PROD-197) e o Lançamento de Atividades (D-PROD-198): a ATIVIDADE
+ * e flags, D-PROD-197) e o Lançamento de Atividades (D-PROD-199): a ATIVIDADE
  * (cabeçalho aberto) e os APONTAMENTOS dela, por dia e turno.
  */
 
@@ -80,7 +80,7 @@ export const deleteTipoAtividade = async (id) => {
   return runProviderCall(() => tipoAtividadePort.delete(id), { ...contexto, details: { id } });
 };
 
-// ─── Lançamento de Atividades (D-PROD-198) ──────────────────────────────
+// ─── Lançamento de Atividades (D-PROD-199) ──────────────────────────────
 
 const RESOURCE_ATIVIDADE = 'Atividade';
 const RESOURCE_APONTAMENTO = 'AtividadeApontamento';

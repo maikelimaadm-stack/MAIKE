@@ -1,6 +1,6 @@
 /**
  * Repositório do CABEÇALHO do Lançamento de Atividades (`Atividade`,
- * D-PROD-198, Fatia 2; contrato `docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`).
+ * D-PROD-199, Fatia 2; contrato `docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`).
  *
  * Adaptador de dados, sem regra: a lista keyset da empresa, a gravação na
  * transação de quem chama e as leituras curtas dos cadastros que a abertura e a

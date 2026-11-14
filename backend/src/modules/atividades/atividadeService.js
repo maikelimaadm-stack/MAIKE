@@ -1,5 +1,5 @@
 /**
- * Serviço do CABEÇALHO do Lançamento de Atividades (`Atividade`, D-PROD-198,
+ * Serviço do CABEÇALHO do Lançamento de Atividades (`Atividade`, D-PROD-199,
  * Fatia 2; contrato `docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`
  * §3, §4 e §10). A atividade é a operação aberta ("Cigarrinha Pasto 01"); os
  * apontamentos do dia e do turno são filhos dela

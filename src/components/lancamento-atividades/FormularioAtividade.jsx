@@ -61,7 +61,7 @@ const rotuloDaTarefaNaLista = (t) => {
 const travado = (valor, vazio) => (valor ? valor : vazio);
 
 /**
- * Formulário do CABEÇALHO da atividade (D-PROD-198, Fatia 2): abrir uma
+ * Formulário do CABEÇALHO da atividade (D-PROD-199, Fatia 2): abrir uma
  * atividade nova ou editar a aberta. Grava sozinho (serviço do Lançamento de
  * Atividades, que põe a fazenda selecionada) e devolve a atividade gravada em
  * `onSalvo`.

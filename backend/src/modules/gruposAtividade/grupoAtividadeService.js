@@ -188,7 +188,7 @@ export const excluir = async (contexto, id) => {
       throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com tipos de atividade vinculados');
     }
 
-    // D-PROD-190 / D-PROD-198 — o grupo guardado como snapshot numa atividade
+    // D-PROD-190 / D-PROD-199 — o grupo guardado como snapshot numa atividade
     // (mesmo que o tipo tenha mudado de grupo depois) é barrado pela FK RESTRICT
     // da tabela `Atividade`, reconhecida pelo nome da FK; este módulo não a
     // consulta (lição do hotfix #259).

@@ -2,7 +2,7 @@
  * D-PROD-197 — FKs dos PADRÕES do Tipo de Atividade (centro de custo, centro
  * de resultado e unidade de produção), compostas pelo tenant e RESTRICT.
  *
- * Mesma disciplina de `vinculoAtividade.js` (D-PROD-198; antes,
+ * Mesma disciplina de `vinculoAtividade.js` (D-PROD-199; antes,
  * `vinculoApontamentoAtividade.js`, D-PROD-190) — lição do hotfix #259:
  * os módulos dos cadastros apontados (unidade de medida, centros) NUNCA
  * consultam `TipoAtividade` para decidir se podem apagar; quem barra é a FK.

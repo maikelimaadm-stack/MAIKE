@@ -13,7 +13,7 @@ export const ACTION_LABELS = {
   estornar_liquidacao: "estornar baixas",
   cancelar: "cancelar lançamentos",
   inativar: "inativar ou reativar registros",
-  // D-PROD-198 — Lançamento de Atividades.
+  // D-PROD-199 — Lançamento de Atividades.
   reabrir: "reabrir atividade",
   lancar_apontamento: "lançar apontamento",
   editar_apontamento: "editar apontamento",
@@ -31,7 +31,7 @@ export const ACTION_LABELS = {
  *    (backend/src/shared/auth/guardasRotas.js);
  *  - Abastecimentos (D-PROD-159/161): `cancelar` (cancelar/estornar o
  *    abastecimento) — espelho de `ACOES_ABASTECIMENTO_EXTRAS`;
- *  - Lançamento de Atividades (D-PROD-198): `reabrir` (reabrir atividade
+ *  - Lançamento de Atividades (D-PROD-199): `reabrir` (reabrir atividade
  *    concluída) e as ações do apontamento (`lancar_apontamento`, que também
  *    "repete", `editar_apontamento` e `cancelar_apontamento`), na linha da tela
  *    `op-atividades`.

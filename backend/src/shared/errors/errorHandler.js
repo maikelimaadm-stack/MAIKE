@@ -8,7 +8,7 @@
  *     `CONCURRENCY_CONFLICT` — a última barreira de concorrência produz código
  *     estável em vez de 500 opaco, como o contrato exige. A FK RESTRICT de uma
  *     atividade ou de um apontamento de atividade barrando a exclusão do
- *     cadastro apontado vira 409 `ATIVIDADE_VINCULADA` (D-PROD-198; antes,
+ *     cadastro apontado vira 409 `ATIVIDADE_VINCULADA` (D-PROD-199; antes,
  *     `APONTAMENTO_ATIVIDADE_VINCULADO`, da D-PROD-190).
  *
  * Qualquer outra coisa é erro não previsto: 500 com corpo genérico. O erro
@@ -54,7 +54,7 @@ export const normalizarErro = (erro) => {
     return new AppError('CONCURRENCY_CONFLICT', 'registro já existe', { cause: erro });
   }
 
-  // D-PROD-198: exclusão de cadastro barrada pela FK RESTRICT de uma atividade
+  // D-PROD-199: exclusão de cadastro barrada pela FK RESTRICT de uma atividade
   // ou de um apontamento de atividade (reconhecida pelo nome EXATO da FK) →
   // 409 próprio, não o 403 genérico abaixo. Vem antes dele porque o 23503 do
   // SQL bruto (P2010) também é reconhecido. A escrita na própria tabela não

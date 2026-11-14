@@ -72,11 +72,11 @@ describe('escopo do produto', () => {
     // Patrimônio e Frota fica com as duas páginas.
     expect(scope.allowedPages.filter((p) => ['BensPatrimoniais', 'Abastecimentos'].includes(p))).toEqual(['BensPatrimoniais', 'Abastecimentos']);
     // +1 Tipos de Atividade (D-PROD-182); +1 Estações (D-PROD-188); +1 Curvas de Ganho (D-PROD-189);
-    // +1 Apontamentos de Atividade (D-PROD-190), trocado por Lançamento de Atividades (D-PROD-198, uma por uma).
+    // +1 Apontamentos de Atividade (D-PROD-190), trocado por Lançamento de Atividades (D-PROD-199, uma por uma).
     expect(scope.allowedPages).toHaveLength(28);
   });
 
-  it('D-PROD-198: Apontamentos de Atividade deu lugar a Lançamento de Atividades, uma por uma (página, registro, manifesto e menu)', () => {
+  it('D-PROD-199: Apontamentos de Atividade deu lugar a Lançamento de Atividades, uma por uma (página, registro, manifesto e menu)', () => {
     const doMenu = flattenMenuPages(DEFAULT_MENU).map((page) => page.url);
     expect(PAGES.ApontamentosAtividade).toBeUndefined();
     expect(scope.allowedPages).not.toContain('ApontamentosAtividade');
