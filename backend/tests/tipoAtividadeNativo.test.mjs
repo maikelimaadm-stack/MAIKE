@@ -971,6 +971,22 @@ describe('D-PROD-195 — TipoAtividade: opções de centros do formulário (GET 
     for (const n of ['30', '4', '300']) await s.cr(e3, n, `RESULTADO ${n}`);
     assert.deepEqual((await opcoesOk(s.token, 'centros-custo', e3.id)).map((c) => c.numero), ['1', '2', '10', '100']);
     assert.deepEqual((await opcoesOk(s.token, 'centros-resultado', e3.id)).map((c) => c.numero), ['4', '30', '300']);
+
+    // O teto corta na MESMA ordem: com 1001 ativos numerados 1..1001 (sem zeros à esquerda), saem 1..1000
+    // — em ordem de texto o corte deixaria '999' de fora e manteria '1001'.
+    const e4 = await s.empresa(4);
+    const linhas = Array.from({ length: 1001 }, (_, k) => 1001 - k).map((n) => ({
+      cliente_id: s.clienteId, empresa_id: e4.id, numero: `${n}`, nome: `CENTRO ${n}`,
+    }));
+    // numero é único por CLIENTE: os centros já criados (nenhum é padrão de tipo aqui) saem antes.
+    await prisma().centroCusto.deleteMany({ where: { cliente_id: s.clienteId } });
+    await prisma().centroResultado.deleteMany({ where: { cliente_id: s.clienteId } });
+    await prisma().centroCusto.createMany({ data: linhas });
+    await prisma().centroResultado.createMany({ data: linhas });
+    for (const lado of LADOS) {
+      const numeros = (await opcoesOk(s.token, lado, e4.id)).map((c) => c.numero);
+      assert.deepEqual(numeros, Array.from({ length: 1000 }, (_, k) => `${k + 1}`), `${lado}: os 1000 primeiros pelo valor do número`);
+    }
   });
 
   test('no máximo 1000 itens (o teto de ativos por empresa da gestão): os primeiros pelo número', async () => {
