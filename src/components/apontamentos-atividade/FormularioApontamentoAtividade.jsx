@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Ban, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangle, Ban, ChevronDown, ChevronRight } from "lucide-react";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -92,6 +92,9 @@ const NOTA_AMBAR = "col-span-12 -mt-1 min-w-0 break-words rounded-md border bord
 /** Card de item: o molde visual da linha de item da Central (`LinhaItem`). */
 const CARD_ITEM = "col-span-12 min-w-0 rounded-lg border border-[var(--mg-divider,#cbd5e1)] bg-white p-3";
 const TITULO_CARD = "text-[12px] font-semibold uppercase text-[var(--mg-text-2,#475569)]";
+/** Texto inteiro do card gravado (descrição, Produto, local), quebrando linha: nada é cortado. O tom do "Sai do estoque" do rascunho. */
+const TEXTO_CARD = "col-span-12 min-w-0 break-words text-[13px]";
+const TEXTO_CARD_METADE = `${TEXTO_CARD} md:col-span-6`;
 
 /**
  * @typedef {{ fase: 'pronto'|'enviando'|'incerto'|'erro', mensagem?: string, consulta?: string|null }} EstadoEnvioItem
@@ -369,7 +372,35 @@ function RascunhoDoItem({ tipo, empresaId, versao, onEnviar, onConsultar = null,
           </>
         )}
         <div className="col-span-12 min-w-0">
-          <AvisoEnvioAbastecimento estado={estado} objeto="o item" onRepetir={lancar} onConsultar={onConsultar ? consultar : null} />
+          {!produto && estado.fase === "incerto" ? (
+            // Serviço e Outro custo não mexem no estoque: o mesmo bloco "incerto" (mesmas classes), com o texto sem estoque.
+            <div role="alert" data-testid="resultado-incerto" className="min-w-0 rounded-md border border-amber-300 bg-amber-50 p-3 text-[13px] text-amber-900">
+              <p className="flex items-center gap-1.5 font-semibold">
+                <AlertTriangle size={16} aria-hidden /> Resultado incerto — consulte antes de repetir
+              </p>
+              <p className="mt-1 break-words">
+                Não recebemos a resposta do servidor: o item PODE ter sido gravado. Consulte antes. Se repetir, o MESMO envio é reaproveitado e o item não é
+                lançado duas vezes.
+              </p>
+              {estado.consulta ? (
+                <p className="mt-1 break-words font-medium" data-testid="consulta-resultado">
+                  {estado.consulta}
+                </p>
+              ) : null}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {onConsultar ? (
+                  <button type="button" className={BOTAO_SECUNDARIO} onClick={consultar} data-testid="botao-consultar-resultado">
+                    Consultar
+                  </button>
+                ) : null}
+                <button type="button" className={BOTAO_SECUNDARIO} onClick={lancar} data-testid="botao-repetir-envio">
+                  Repetir o mesmo envio
+                </button>
+              </div>
+            </div>
+          ) : (
+            <AvisoEnvioAbastecimento estado={estado} objeto="o item" onRepetir={lancar} onConsultar={onConsultar ? consultar : null} />
+          )}
         </div>
         <div className="col-span-12 flex flex-wrap gap-2 pt-1">
           <button type="button" className={BOTAO_PRIMARIO} disabled={enviando} onClick={lancar} data-testid="apontamento-item-lancar">
@@ -423,17 +454,24 @@ function CardItem({ item, fuso, podeCancelar, onCancelar }) {
         ) : null}
       </div>
       <div className="grid grid-cols-12 gap-3">
+        {/* Nomes e descrição em <p> que quebra linha: o ValorCalculado corta (truncate) o texto longo. */}
         {produto ? (
           <>
-            <ValorCalculado label="Produto" valor={String(item?.produto?.nome ?? "—")} span={6} />
-            <ValorCalculado label="Local do estoque" valor={String(item?.local_estoque?.nome ?? "—")} span={6} />
+            <p className={TEXTO_CARD_METADE} data-testid={`apontamento-item-produto-${ordem}`}>
+              Produto: <span className="font-semibold">{String(item?.produto?.nome ?? "—")}</span>
+            </p>
+            <p className={TEXTO_CARD_METADE} data-testid={`apontamento-item-local-${ordem}`}>
+              Local do estoque: <span className="font-semibold">{String(item?.local_estoque?.nome ?? "—")}</span>
+            </p>
             <ValorCalculado label="Quantidade" valor={formatarQuantidadeItem(item?.quantidade, unidade)} span={4} testId={`apontamento-item-quantidade-${ordem}`} />
             <ValorCalculado label={porUnidade ? `Custo FIFO por ${porUnidade}` : "Custo FIFO unitário"} valor={formatarValorItem(item?.valor_unitario, 4)} span={4} />
             <ValorCalculado label="Total" valor={formatarValorItem(item?.valor_total)} span={4} testId={`apontamento-item-total-${ordem}`} destaque />
           </>
         ) : (
           <>
-            <ValorCalculado label="Descrição" valor={String(item?.descricao ?? "")} span={12} />
+            <p className={TEXTO_CARD} data-testid={`apontamento-item-descricao-${ordem}`}>
+              Descrição: <span className="font-semibold">{String(item?.descricao ?? "")}</span>
+            </p>
             <ValorCalculado label="Quantidade" valor={formatarQuantidadeItem(item?.quantidade, null)} span={4} testId={`apontamento-item-quantidade-${ordem}`} />
             <ValorCalculado label="Valor unitário" valor={formatarValorItem(item?.valor_unitario, 6)} span={4} />
             <ValorCalculado label="Total" valor={formatarValorItem(item?.valor_total)} span={4} testId={`apontamento-item-total-${ordem}`} destaque />
@@ -647,7 +685,8 @@ function SecaoItens({ registro, modo, empresaId, fuso, podeLancar, podeCancelar,
  * outro custo) — ver `SecaoItens`. Os itens vêm do DETALHE do apontamento; só a
  * CONSULTA do confirmado lança e cancela item (cada comando com `operation_id`
  * e a `versao` do apontamento). Com item de Produto confirmado, a data não muda
- * na edição (D-1: a saída do estoque está nela).
+ * na edição (D-1: a saída do estoque está nela); antes de o detalhe chegar (itens
+ * desconhecidos), ela fica travada na data gravada.
  *
  * @param {{
  *   initialData?: any,
@@ -699,8 +738,10 @@ export default function FormularioApontamentoAtividade({
   // Cancelado não aceita edição de nenhum campo, venha o pedido de onde vier.
   const somenteLeitura = readOnly || cancelado;
   const bloqueado = somenteLeitura || isSubmitting;
-  // D-1: com item de Produto confirmado a data não muda (o servidor recusaria com DATA_COM_ITENS).
-  const dataTravada = existente && temItemDeProdutoConfirmado(initialData);
+  // D-1: com item de Produto confirmado a data não muda (o servidor recusaria com DATA_COM_ITENS). Antes de o
+  // DETALHE chegar os itens não são conhecidos: a data fica travada (na gravada) até eles chegarem.
+  const itensConhecidos = Array.isArray(initialData?.itens);
+  const dataTravada = existente && (!itensConhecidos || temItemDeProdutoConfirmado(initialData));
   const modoItens = !existente ? "novo" : cancelado ? "cancelado" : readOnly ? "consulta" : "edicao";
   const [form, setForm] = useState(() => (existente ? formularioDoRegistro(initialData, fuso) : formularioVazio(hoje)));
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
@@ -825,7 +866,8 @@ export default function FormularioApontamentoAtividade({
       <CampoDia
         label="Data"
         value={form.data_operacional}
-        onChange={(v) => mudar({ data_operacional: v }, ["data_operacional"])}
+        // Travada, nenhuma mudança entra, venha de onde vier (a data fica a gravada).
+        onChange={(v) => (dataTravada ? undefined : mudar({ data_operacional: v }, ["data_operacional"]))}
         max={hoje || undefined}
         readOnly={bloqueado || dataTravada}
         required
@@ -835,7 +877,9 @@ export default function FormularioApontamentoAtividade({
       />
       {!somenteLeitura && dataTravada ? (
         <p className="col-span-12 -mt-1 min-w-0 break-words text-[11px] text-[var(--mg-text-2,#475569)]" data-testid="apontamento-data-travada">
-          A data não muda enquanto houver item de Produto lançado: a saída do estoque está nesta data.
+          {itensConhecidos
+            ? "A data não muda enquanto houver item de Produto lançado: a saída do estoque está nesta data."
+            : "A data fica travada até os itens do apontamento serem lidos: com item de Produto lançado, ela não muda."}
         </p>
       ) : null}
 
