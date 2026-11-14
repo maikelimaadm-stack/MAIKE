@@ -6957,7 +6957,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ICONES-LOTE-CODIGO-REPORT.md`](./MAIKE-ICONES-LOTE-CODIGO-REPORT.md).
 
-**Nota (merge da `main` com as PRs #268, #267 e #263, 2026-11-14).** A PR #268 (D-PROD-187) entrou na `main` antes desta e já apagou `catalogoGlobalService.js`, `CategoriaOficialCatalogoSelect.jsx`, `src/apis/catalogoGlobal/` e `listarIconesDeLoteDaEmpresa`: o que o item 7 deixava "de propósito" saiu com ela. No merge, os conflitos foram os previstos: no `FormularioLote.jsx` ficou a linha desta fatia (a dica com a prévia local, o resto da linha igual ao da #268); no `catalogoGlobalLote.test.jsx` ficou a versão da #268, que só exige que o componente, o `data-testid` e o alt antigos tenham sumido; e os docs comuns. A D-PROD-192 (PR #272) entrou nesta branch antes do merge.
+**Nota (merge da `main` com as PRs #268, #267 e #263, 2026-11-14).** A PR #268 (D-PROD-187) entrou na `main` antes desta e já apagou `catalogoGlobalService.js`, `CategoriaOficialCatalogoSelect.jsx`, `src/apis/catalogoGlobal/` e `listarIconesDeLoteDaEmpresa`: o que o item 7 deixava "de propósito" saiu com ela. No merge, os conflitos foram os previstos: no `FormularioLote.jsx` ficou a linha desta fatia (a dica com a prévia local, o resto da linha igual ao da #268); no `catalogoGlobalLote.test.jsx` ficou a versão da #268, que só exige que o componente, o `data-testid` e o alt antigos tenham sumido; e os docs comuns. Sem conflito, o parágrafo do catálogo em `docs/design/GUIA-MAPA-E-ICONES.md` foi reescrito no merge, porque citava o leitor do catálogo que a #268 apagou. A D-PROD-192 (PR #272) entrou nesta branch antes do merge.
 
 ## D-PROD-192 — Cadastro de ícone: a categoria digitada não é apagada pelo Select (MAIKE-ICONES-CATEGORIA-DIGITADA)
 
@@ -6980,4 +6980,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md`](./MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-193 (D-PROD-190 com a PR #269) -->
+<!-- Próxima decisão: D-PROD-193 (D-PROD-190 com as PRs #269 e #273) -->
