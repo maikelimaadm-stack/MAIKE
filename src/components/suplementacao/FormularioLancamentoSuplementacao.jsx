@@ -12,7 +12,7 @@ import {
   carregarPontoAtualizado,
   listarPontosDaEmpresa,
   listarAreasDaEmpresa,
-  listarLotesDaEmpresa,
+  listarRebanhoParaSuplementacao,
   listarProdutosDaEmpresa,
   listarLotesNotaDaEmpresa,
   listarMovimentacoesPecuariasDaEmpresa,
@@ -34,7 +34,7 @@ import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeConversaoUtils";
-import { consumoEsperadoPorCabecaDia, pesoMedioPonderadoLotes } from "./consumoPVUtils";
+import { consumoEsperadoPorCabecaDia, pesoDeConsumoDoLote, resumoPesoDosLotes } from "./consumoPVUtils";
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { listEmpresas } from "@/services/empresaService";
@@ -144,17 +144,23 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     return ponto?.area_vinculada_nome ? [ponto.area_vinculada_nome] : [];
   }, [areas, areaIdsVinculados, areaNomesVinculados, ponto?.area_vinculada_nome]);
 
+  // D-PROD-201: o rebanho vem da MESMA fonte do mapa — as posições do ledger
+  // (cabeças atuais e peso projetado) ou, no legado, os Lotes ativos.
   const { data: lotes = [], isLoading: loadingLotes } = useQuery({
-    queryKey: ["lotes-area", areaIdsVinculados.join("|")],
+    queryKey: ["rebanho-area-suplementacao", empresaSelecionadaId, areaIdsVinculados.join("|")],
     queryFn: async () => {
-      const all = await listarLotesDaEmpresa(empresaSelecionadaId);
-      return all.filter((lote) => areaIdsVinculados.includes(lote.area_atual_id) && lote.status === "Ativo");
+      const ativos = await listarRebanhoParaSuplementacao(empresaSelecionadaId);
+      return ativos.filter((lote) => areaIdsVinculados.includes(lote.area_atual_id) && Number(lote.quantidade_cabecas || 0) > 0);
     },
     enabled: !!empresaSelecionadaId && areaIdsVinculados.length > 0,
   });
 
+  // D-PROD-201: uma operação por LANÇAMENTO, não por clique. Salvar de novo
+  // depois de uma falha reaproveita o mesmo `operation_id` (o servidor devolve o
+  // que já gravou) e a baixa de estoque já feita — nunca baixa duas vezes.
+  const operacaoRef = useRef(/** @type {null | { id: string, saida: any, chaveSaida: string | null }} */ (null));
 
-  const { data: ultimoEvento } = useQuery({
+  const { data: ultimoEvento, isLoading: loadingUltimoEvento } = useQuery({
     queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id],
     queryFn: () => ultimoEventoDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id }),
     enabled: !!empresaSelecionadaId && !!ponto?.id,
@@ -250,7 +256,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   // === CÁLCULOS ===
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
-  const pesoMedioGeral = pesoMedioPonderadoLotes(lotes);
+  // D-PROD-201: peso projetado de hoje (ou o último peso); lote sem peso fica FORA da média.
+  const resumoPeso = useMemo(() => resumoPesoDosLotes(lotes), [lotes]);
+  const pesoMedioGeral = resumoPeso.pesoMedio;
   const closingDateForPreviousPeriod = formData.data_fim_consumo_anterior || formData.data_lancamento;
   const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, closingDateForPreviousPeriod) : null;
 
@@ -409,7 +417,17 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     if (sobraInformada < 0) return toast.error("A sobra informada não pode ser negativa.");
     if (totalCabecas <= 0) return toast.error("Não há cabeças ativas nas áreas vinculadas.");
     if (depositoVinculado?.local_estoque_id && !produtoSelecionado) return toast.error("O produto selecionado não foi encontrado no cadastro.");
-    if (depositoVinculado?.local_estoque_id && quantidadeKg > 0 && quantidadeKg > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
+    // Com a baixa desta operação já feita (salvar de novo após falha), o saldo lido pode já estar sem ela.
+    if (!operacaoRef.current?.saida && depositoVinculado?.local_estoque_id && quantidadeKg > 0 && quantidadeKg > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
+
+    if (loadingUltimoEvento) return toast.error("Aguarde: carregando o último lançamento deste cocho.");
+    // D-PROD-201: lançamento fora de ordem fechava o período ERRADO (o mais novo, com 1 dia).
+    const erroData = erroDeDataDoLancamento({
+      dataLancamento: formData.data_lancamento,
+      dataFimAnterior: formData.data_fim_consumo_anterior,
+      ultimaData: ultimoEvento?.data_lancamento,
+    });
+    if (erroData) return toast.error(erroData);
 
     if (ultimoEvento) {
       const saldoFisicoMaximo = (ultimoEvento.quantidade_total_kg || 0) + (ultimoEvento.sobra_kg || 0);
@@ -423,16 +441,36 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       if (!confirmarDuracao) return;
     }
 
+    if (!operacaoRef.current) {
+      operacaoRef.current = {
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        saida: null,
+        chaveSaida: null,
+      };
+    }
+    const operacao = operacaoRef.current;
+    let baixaFeitaNestaTentativa = false;
     try {
-      const operationId =
-        typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}`;
+      const operationId = operacao.id;
       const deveBaixarDeposito = depositoVinculado?.local_estoque_id && produtoSelecionado && quantidadeKg > 0;
       const totalPassos = (deveBaixarDeposito ? 1 : 0) + 1;
       let passoAtual = 0;
       setProgresso({ show: true, atual: 0, total: totalPassos, mensagem: "Iniciando lançamento..." });
 
       let movimentoEstoque = null;
-      if (deveBaixarDeposito) {
+      const chaveSaidaAtual = deveBaixarDeposito
+        ? chaveDaSaida({ produtoId: produtoSelecionado?.id, quantidadeKg, data: formData.data_lancamento, localId: depositoVinculado?.local_estoque_id })
+        : null;
+      if (operacao.saida && operacao.chaveSaida !== chaveSaidaAtual) {
+        // A baixa desta operação JÁ foi feita com outros valores: baixar de novo duplicaria o estoque.
+        setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
+        toast.error(`A baixa no estoque deste lançamento já foi feita (${operacao.saida.resumo}). Volte a quantidade, o produto e a data para esses valores e salve de novo para concluir.`);
+        return;
+      }
+      if (deveBaixarDeposito && operacao.saida) {
+        movimentoEstoque = operacao.saida.movimentacao;
+        passoAtual += 1;
+      } else if (deveBaixarDeposito) {
         // A validação é pura e roda **antes** de qualquer escrita: é ela que
         // produz a frase específica ("Saldo insuficiente neste local.
         // Disponível: …"). O service revalida e recusa com código estável — a
@@ -466,6 +504,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           operationId,
         });
         movimentoEstoque = saidaRegistrada.movimentacao;
+        operacao.saida = {
+          movimentacao: saidaRegistrada.movimentacao,
+          resumo: `${formatDecimal(quantidadeKg, 2)} kg de ${produtoSelecionado?.nome_produto || formData.produto} em ${formatDateBR(formData.data_lancamento)}`,
+        };
+        operacao.chaveSaida = chaveSaidaAtual;
+        baixaFeitaNestaTentativa = true;
       }
 
       setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Criando evento de suplementação..." });
@@ -492,6 +536,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         consumo_diario_grupo_kg: null,
         total_cabecas_afetadas: totalCabecas,
         peso_medio_lotes_kg: pesoMedioGeral || null,
+        // D-PROD-201: cabeças sem peso não entram na média (o esperado usa a média dos com peso).
+        cabecas_sem_peso: resumoPeso.cabecasSemPeso,
         peso_total_consumo: totalCabecas,
         consumo_esperado_pv_kg: consumoEsperadoGrupoDiaPV > 0 ? consumoEsperadoGrupoDiaPV : null,
         percentual_consumo_pv_usado: pctPV > 0 ? pctPV : null,
@@ -500,7 +546,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       };
 
       const lotesPayload = lotes.map((lote) => {
-        const pesoMedioLote = Number(lote.peso_medio_kg || 0);
+        const pesoMedioLote = pesoDeConsumoDoLote(lote).peso;
         const consumoEsperadoLotePV = pctPV > 0 && pesoMedioLote > 0
           ? consumoEsperadoPorCabecaDia(pesoMedioLote, pctPV) * (lote.quantidade_cabecas || 0)
           : null;
@@ -546,12 +592,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               sobraFinal: parseNumber(formData.sobra_kg || 0),
             });
           } else {
-            toast.warn("Datas inconsistentes — período anterior não foi fechado.");
+            toast.warning("Datas inconsistentes — período anterior não foi fechado.");
           }
         }
-      } catch (err) {
-        toast.warn("Falha ao fechar período anterior, mas o lançamento foi salvo.");
+      } catch {
+        // `toast.warn` não existe no sonner: o TypeError caía no catch de fora e a tela
+        // dizia "Não foi possível registrar" com o lançamento JÁ gravado (D-PROD-201).
+        toast.warning("Falha ao fechar o período anterior, mas o lançamento foi salvo.");
       }
+      operacaoRef.current = null;
 
       await updateMapaCachedData('eventosSuplementacao', empresaSelecionadaId, (items) => [novoEvento, ...(items || [])]);
       await Promise.all([
@@ -572,11 +621,16 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }, 400);
     } catch (error) {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      toast.error(getApiErrorMessage(error, "Não foi possível registrar a suplementação."));
+      const motivo = getApiErrorMessage(error, "Não foi possível registrar a suplementação.");
+      toast.error(
+        operacao.saida
+          ? `${motivo} A baixa no estoque ${baixaFeitaNestaTentativa ? "foi registrada" : "já estava registrada"}: clique em salvar de novo para concluir — o estoque não será baixado outra vez.`
+          : motivo,
+      );
     }
   };
 
-  const botaoHabilitado = totalCabecas > 0 && formData.produto && totalDisponivelNovo > 0;
+  const botaoHabilitado = totalCabecas > 0 && formData.produto && totalDisponivelNovo > 0 && !loadingUltimoEvento;
 
   return (
     <>
@@ -601,6 +655,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Lotes: <span className="font-semibold text-slate-900">{loadingLotes ? "..." : `${formatDecimal(lotes.length, 0, true)} lote(s) - ${formatDecimal(totalCabecas, 0, true)} cabeças`}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${formatDecimal(pesoMedioGeral, 1)} kg` : "-"}</span></div>
               </div>
+              <AvisoPesoDoRebanho resumo={resumoPeso} totalCabecas={totalCabecas} />
               {ultimoEvento && diasPeriodo && <div className="text-[10px] text-slate-600 pt-1 border-t border-emerald-200">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
@@ -803,4 +858,66 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       </Dialog>
     </>
   );
+}
+/**
+ * D-PROD-201 — chave dos valores de uma baixa de estoque: mudou a chave depois
+ * de a baixa ser feita, salvar de novo NÃO pode baixar outra vez.
+ * @param {{ produtoId?: unknown, quantidadeKg: number, data?: string, localId?: unknown }} p
+ */
+export function chaveDaSaida({ produtoId, quantidadeKg, data, localId }) {
+  return [String(produtoId ?? ""), Number(quantidadeKg || 0).toFixed(4), String(data ?? ""), String(localId ?? "")].join("|");
+}
+
+const diaDe = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
+const brDe = (dia) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}`;
+
+/**
+ * D-PROD-201 — datas do lançamento. O abastecimento não pode ser ANTERIOR ao
+ * último deste cocho (fecharia o período errado), e o fim do consumo anterior,
+ * quando informado, fica entre o último abastecimento e o novo. Mesmo dia é
+ * aceito. `null` = ok; senão a mensagem para a tela.
+ * @param {{ dataLancamento?: string, dataFimAnterior?: string, ultimaData?: string }} p
+ */
+export function erroDeDataDoLancamento({ dataLancamento, dataFimAnterior, ultimaData }) {
+  const nova = diaDe(dataLancamento);
+  if (!nova) return "Informe a data do abastecimento.";
+  const ultima = diaDe(ultimaData);
+  if (ultima && nova < ultima) {
+    return `A data do abastecimento (${brDe(nova)}) é anterior ao último abastecimento deste cocho (${brDe(ultima)}). Lançamentos fora de ordem não são aceitos.`;
+  }
+  const fim = diaDe(dataFimAnterior);
+  if (fim && ultima && fim < ultima) {
+    return `O fim do consumo anterior (${brDe(fim)}) não pode ser antes do último abastecimento (${brDe(ultima)}).`;
+  }
+  if (fim && fim > nova) {
+    return `O fim do consumo anterior (${brDe(fim)}) não pode ser depois do novo abastecimento (${brDe(nova)}).`;
+  }
+  return null;
+}
+
+/**
+ * D-PROD-201 — de onde vem o peso do consumo por %PV e o aviso de cabeças sem
+ * peso (elas não entram na média; antes entravam como 0 kg).
+ * @param {{ resumo: ReturnType<typeof resumoPesoDosLotes>, totalCabecas: number }} props
+ */
+function AvisoPesoDoRebanho({ resumo, totalCabecas }) {
+  if (!(totalCabecas > 0)) return null;
+  const linhas = [];
+  if (resumo.cabecasComPeso > 0) {
+    linhas.push(
+      <div key="origem" className="text-[10px] text-slate-500" data-testid="suplementacao-peso-origem">
+        Peso para o consumo: {resumo.cabecasProjetado === resumo.cabecasComPeso ? "peso projetado de hoje" : resumo.cabecasProjetado > 0 ? "peso projetado de hoje (ou o último peso, sem projeção)" : "último peso (pesagem ou entrada)"}.
+      </div>,
+    );
+  }
+  if (resumo.cabecasSemPeso > 0) {
+    linhas.push(
+      <div key="sem-peso" className="text-[10px] text-amber-700" data-testid="suplementacao-sem-peso">
+        {resumo.cabecasComPeso > 0
+          ? `${formatDecimal(resumo.cabecasSemPeso, 0, true)} cabeça(s) sem peso (${resumo.lotesSemPeso.map((l) => l.nome).filter(Boolean).join(", ") || "lote sem nome"}): o consumo esperado usa o peso médio dos lotes com peso.`
+          : "Nenhum lote do pasto tem peso: o consumo esperado por %PV não é calculado. Registre uma pesagem."}
+      </div>,
+    );
+  }
+  return linhas.length ? <div className="pt-1 border-t border-emerald-200 space-y-0.5">{linhas}</div> : null;
 }
