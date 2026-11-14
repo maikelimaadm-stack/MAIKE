@@ -16,7 +16,8 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-198** |
 | Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `ab63ee26` (merge da PR #282) e atualizada por merge com a `main` `1dd44f0c` (PR #276, D-PROD-197) |
 | Escopo | Peso objetivo opcional na categoria; motor do peso projetado pela curva (base derivada pelo projetado das origens); `projecao_peso` em `GET /rebanho/posicoes`; Detalhes do Lote com projetado, @, GMD, base, objetivo, quando atinge, pesado × previsto e próximos meses |
-| Migration | `20261114400000_cadcategoria_peso_objetivo`, **EXPAND** (uma coluna anulável). SHA-256 `d44f8070…3fb1a9`. Repositório e produção: 51 → **52** (depois da `20261114300000_tipo_atividade_defaults`, já aplicada); tabelas iguais. **Não aplicada em nenhum ambiente remoto** |
+| Migration | `20261114400000_cadcategoria_peso_objetivo`, **EXPAND** (uma coluna anulável). SHA-256 `d44f8070…3fb1a9`. Repositório e produção: 51 → **52** (depois da `20261114300000_tipo_atividade_defaults`, já aplicada); tabelas iguais |
+| Release | **Aplicada em produção** em 2026-11-14 às 19:00:00 UTC, caminho B do [runbook](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 52 / 0, coluna `numeric(10,2)` anulável sem default, 10 categorias com o campo vazio, 85 tabelas, advisors de segurança sem achados. Merge da PR #283 depois da aplicação |
 | Próxima fatia | Mudança de Categoria entre Categorias de Manejo com a mesma categoria oficial (pasto → confinamento) |
 | Relatório | [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md) |
 

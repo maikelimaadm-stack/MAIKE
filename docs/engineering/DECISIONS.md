@@ -7236,7 +7236,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - a **arroba** é a de peso vivo (kg ÷ 30).
 
 **Decisão.**
-1. **`CADCATEGORIA.peso_objetivo_kg DECIMAL(10,2)`**, opcional. Migration **EXPAND** pura `20261114400000_cadcategoria_peso_objetivo` (uma coluna anulável, sem DEFAULT), SHA-256 `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9`. Repositório 51 → **52** migrations (depois da `20261114300000_tipo_atividade_defaults`); tabelas iguais (85). Release **antes do merge** pelo runbook [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md). Não há janela: o runtime antigo ignora a coluna.
+1. **`CADCATEGORIA.peso_objetivo_kg DECIMAL(10,2)`**, opcional. Migration **EXPAND** pura `20261114400000_cadcategoria_peso_objetivo` (uma coluna anulável, sem DEFAULT), SHA-256 `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9`. Repositório 51 → **52** migrations (depois da `20261114300000_tipo_atividade_defaults`); tabelas iguais (85). Release **antes do merge** pelo runbook [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md). Não há janela: o runtime antigo ignora a coluna. **Aplicada em produção em 2026-11-14 às 19:00:00 UTC** (caminho B, GO escrito "go"), conferida: 52 / 0, advisors sem achados.
 2. **API da categoria:** `peso_objetivo_kg` no formato público.
    - **Validação:** vazio ou `null` limpa; o valor precisa ser número finito > 0 e até 3.000 kg (o teto por cabeça do manejo). Aceita vírgula e milhar pt-BR ("1.200" é 1.200 kg, não 1,2) e grava com 2 casas.
    - **Erro:** fora disso, 400 `REQUEST_VALIDATION_FAILED` com reason `peso_objetivo_invalido`.

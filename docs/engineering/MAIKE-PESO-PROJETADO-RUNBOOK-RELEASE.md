@@ -131,4 +131,11 @@ próprio), nunca editando esta. Com o código novo no ar, reverter o código pri
 
 ## 7. Registro de execução
 
-_(vazio — preencher com data/hora UTC, caminho usado, GO citado, resultado do §4.)_
+| Campo | Valor |
+|---|---|
+| Data/hora (UTC) | 2026-11-14 19:00:00 (`finished_at` da linha em `_prisma_migrations`) |
+| Caminho | **B**: SQL do §3 numa transação única, pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne` |
+| GO | Escrito pelo proprietário no chat: "go", em resposta ao pedido específico desta migration |
+| Preflight (§2) | `system_identifier` 7692130048193495360; 51 concluídas / 0 com falha; última `20261114300000_tipo_atividade_defaults`; coluna ausente; 85 tabelas |
+| Postcheck (§4) | 52 / 0; checksum `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9`; `peso_objetivo_kg numeric(10,2)`, anulável, sem default; 10 categorias, 0 com objetivo; 85 tabelas; `get_advisors(security)` sem achados |
+| Resultado | **APLICADA E CONFERIDA** |
