@@ -64,5 +64,43 @@ Com o GitHub Actions do proprietário pausado, a análise foi local.
 |---|---|
 | Revisão independente do commit `a2de2c56` (2 lentes, um cético por achado) | 3 achados confirmados, todos corrigidos em `3295a12b`: (1) POST de categoria gravado na fila offline pela versão anterior travaria a fila inteira → criar categoria passa a ser só online e o item antigo fica retido; (2) criar categoria offline já não era possível sem as opções de curva → registrado como decisão; (3) a janela entre a migration e o deploy também afeta excluir curva em uso (403 do runtime antigo) → docs corrigidas |
 | smoke da correção (`categoriaManejoCriacaoOnline`, `categoriaManejoEnxuto`, `categoriaManejoCurvaGanho`, `offlineRuntime`) | 56/56 |
-| `verify:all` no commit `a2de2c56` (banco dedicado `maike_verify`) | em andamento no momento do merge (etapas até `lint` passaram; `test:backend` sem nenhuma falha até então); o merge não esperou o fim porque, com a migration aplicada, criar categoria em produção fica quebrado até o deploy. O resultado final é registrado no fechamento |
+| `verify:all` no commit `a2de2c56` (banco dedicado `maike_verify`) | **TODAS AS ETAPAS PASSARAM** (exit 0), terminado depois do merge: backend 1.900 testes (1.895 passaram, 0 falhas, os demais pulados), smoke 229 arquivos e 2.827 testes. O merge não esperou o fim porque, com a migration aplicada, criar categoria ficava quebrado até o deploy. As etapas finais (smoke em diante) já leram a árvore com a primeira versão da emenda R2, que só muda o frontend |
 | aplicação em produção e conferência | ver runbook §7 |
+
+## 6. Emenda R2 — fila offline (depois do merge)
+
+A segunda revisão independente, do commit `3295a12b`, confirmou três problemas
+na retenção da criação antiga de categoria. Estavam no ar desde o merge da PR
+#278, mas só afetam quem tem uma categoria criada sem conexão pela versão
+anterior e ainda não sincronizada:
+
+| Achado | Correção (D-PROD-195, emenda R2) |
+|---|---|
+| Um lote criado offline apontando para a categoria retida ia ao servidor com `categoria_manejo_id = 'offline_…'` e era gravado com referência solta | No replay, um `create` que cita uma criação retida pela política fica retido junto (`quarentena.depende_de`), em qualquer ordem; a edição de um registro real que a cita vai sem esses campos (sem resto, sai da fila); edição ou exclusão do registro retido fica junto dele. Outros ids offline seguem como antes |
+| A categoria retida aparecia em todas as listas, inclusive online | Para entidade com criação só online, nem o `create` da fila nem a cópia `offline_…` do cache entram nas listas, sem depender de sincronizar antes |
+| Criar categoria online deixou de pôr o registro no cache offline | Política `criacao: 'somente_online'` no runtime, que grava o registro confirmado no cache |
+
+A terceira revisão independente, feita sobre a primeira versão desta emenda,
+mostrou que reter **todo** id `offline_…` sem mapeamento escondia para sempre
+cadastros legítimos de outras entidades. Um exemplo é o lote cuja área foi criada
+numa sincronização anterior, porque o mapa de ids vale só para uma passada. A regra
+ficou restrita às criações retidas pela política e conhecidas antes do laço. A lista
+também passou a esconder a cópia `offline_…` do cache e decide pela política, sem
+esperar um replay. A quarta revisão mostrou que reter a **edição de um lote real**
+que citava a categoria retida a deixava por cima do servidor nas listas e travava a
+exclusão do lote; agora essa edição vai sem o campo que cita a categoria.
+
+Sem migration. Testes: `categoriaManejoCriacaoOnline` (8, entre eles lote dependente
+nas duas ordens, lista sem a retida pela fila e pelo cache, cache depois de criar
+online e outro id offline que não é retido), `offlineRuntime`,
+`estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado` e
+`loteExclusaoCacheOffline`: 63/63. Com o runtime anterior, 5 dos 8 falham.
+
+Verificação final da emenda: `verify:all` em `027cdab2` (banco `maike_verify`),
+**TODAS AS ETAPAS PASSARAM**. Backend: 1.900 testes, 0 falhas. Smoke: 229 arquivos
+e 2.829 testes. O commit seguinte, `036b5da5`, só alinha textos (CURRENT-STATE e
+comentários). Nele passaram `eslint`, `categoriaManejoCriacaoOnline` (8/8) e os gates
+`governance-paths`, `product-scope`, `no-secrets`, `import-integrity` e `base44`.
+Revisão: quatro rodadas independentes sobre a emenda, até a última não achar
+defeito de comportamento.
+

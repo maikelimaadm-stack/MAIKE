@@ -76,6 +76,23 @@ const getCacheKey = (entityName, empresaId, tenantId) =>
     ? `${entityName}::${chaveEmpresa(empresaId)}`
     : `${entityName}::${TENANT_PREFIXO}${tenantId || SEM_TENANT_KEY}::${chaveEmpresa(empresaId)}`;
 const isOfflineId = (value) => String(value || "").startsWith("offline_");
+
+/**
+ * Ids offline (`offline_…`) citados num corpo, em qualquer profundidade.
+ * @param {unknown} valor
+ * @param {Set<string>} [acc]
+ * @returns {Set<string>}
+ */
+const idsOfflineNoCorpo = (valor, acc = new Set()) => {
+  if (typeof valor === "string") {
+    if (isOfflineId(valor)) acc.add(valor);
+  } else if (Array.isArray(valor)) {
+    for (const v of valor) idsOfflineNoCorpo(v, acc);
+  } else if (valor && typeof valor === "object") {
+    for (const v of Object.values(valor)) idsOfflineNoCorpo(v, acc);
+  }
+  return acc;
+};
 const estaOnline = () => (typeof navigator === "undefined" ? true : navigator.onLine !== false);
 
 /**
@@ -289,15 +306,23 @@ const listarLocal = async (storage, entityName, { order, limit, filters = {}, em
   // Entidade com exclusão só online: um `delete` na fila (legado) está RETIDO
   // e não esconde o registro — ele não foi excluído no servidor.
   const exclusaoRetida = CATALOGO.get(entityName)?.exclusaoSomenteOnline === true;
+  // D-PROD-195 R2: entidade com criação só online — um `create` na fila (legado)
+  // nunca chega ao servidor: nem ele nem a cópia `offline_…` que a versão antiga
+  // gravou no cache aparecem como registro real (senão seriam escolhidos em
+  // outro cadastro, editados ou excluídos com id offline). Decide pela POLÍTICA,
+  // não pela marca do replay, como a exclusão retida.
+  const criacaoRetida = CATALOGO.get(entityName)?.criacaoSomenteOnline === true;
   const daEntidade = fila.filter(
     (item) =>
       item.entity_name === entityName &&
       chaveEmpresa(item.empresa_id) === chaveEmpresa(empresaId) &&
       (tenantId === undefined || (item.cliente_id ?? null) === tenantId) &&
-      !(exclusaoRetida && item.operation === "delete")
+      !(exclusaoRetida && item.operation === "delete") &&
+      !(criacaoRetida && item.operation === "create")
   );
+  const base = criacaoRetida ? emCache.filter((registro) => !isOfflineId(registro?.id)) : emCache;
 
-  let items = aplicarPendentes(emCache, daEntidade);
+  let items = aplicarPendentes(base, daEntidade);
 
   if (Object.keys(filters).length > 0) {
     items = items.filter((item) => Object.entries(filters).every(([k, v]) => item?.[k] === v));
@@ -428,6 +453,13 @@ export const liberarExclusaoOfflineRetida = async (filaId) => {
  *        direto a `operations.delete` (que recusa sem conexão) e só depois de
  *        sucesso tira o registro dos caches do tenant; delete legado na fila
  *        fica retido (quarentena) no replay em vez de ser enviado.
+ * @param {"fila"|"somente_online"} [p.criacao] política de criação (D-PROD-195 R2).
+ *        "fila" (padrão): offline cria com id `offline_` e enfileira.
+ *        "somente_online": a criação NUNCA passa pela fila — vai direto a
+ *        `operations.create` (que falha sem conexão) e, com sucesso, entra no
+ *        cache; `create` legado na fila fica RETIDO no replay e some das listas;
+ *        um `create` que o cite fica retido junto (em qualquer ordem), e a
+ *        edição de um registro real que o cite vai sem esses campos.
  * @param {OfflineEntityStorage} [p.storage]
  * @returns {object} objeto com as mesmas chaves de `operations`
  */
@@ -438,6 +470,7 @@ export const createOfflineEntityAdapter = ({
   tenantScoped = false,
   tenantCatalog = false,
   exclusao = "fila",
+  criacao = "fila",
   storage,
 }) => {
   if (typeof entityName !== "string" || !entityName) {
@@ -451,12 +484,14 @@ export const createOfflineEntityAdapter = ({
   const porta = storage || criarArmazenamentoIndexedDB();
   const catalogoTenant = Boolean(tenantCatalog);
   const exclusaoSomenteOnline = exclusao === "somente_online";
+  const criacaoSomenteOnline = criacao === "somente_online";
   CATALOGO.set(entityName, {
     operations,
     storage: porta,
     tenantScoped: Boolean(tenantScoped),
     tenantCatalog: catalogoTenant,
     exclusaoSomenteOnline,
+    criacaoSomenteOnline,
   });
 
   const adapter = { ...operations };
@@ -485,7 +520,27 @@ export const createOfflineEntityAdapter = ({
     };
   }
 
-  if (typeof operations.create === "function") {
+  if (typeof operations.create === "function" && criacaoSomenteOnline) {
+    // Sem fila e sem id offline: falha (offline, timeout, 4xx, 5xx) propaga;
+    // só o registro confirmado pelo servidor entra no cache.
+    adapter.create = async (dados) => {
+      const empresaId = empresaIdParaEntidade(catalogoTenant, dados);
+      const tenantId = tenantDe(tenantScoped);
+      const criado = await operations.create(dados);
+      try {
+        await atualizarCache(
+          porta,
+          entityName,
+          empresaId,
+          (items) => [criado, ...items.filter((item) => item.id !== criado.id)],
+          tenantId
+        );
+      } catch {
+        // Cache é conveniência: a criação já foi confirmada pelo servidor.
+      }
+      return criado;
+    };
+  } else if (typeof operations.create === "function") {
     adapter.create = async (dados) => {
       const empresaId = empresaIdParaEntidade(catalogoTenant, dados);
       const tenantId = tenantDe(tenantScoped);
@@ -753,6 +808,32 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   let descartados = 0;
   let quarentenados = 0;
   let retidos = 0;
+  /**
+   * D-PROD-195 R2: record_id dos `create` que a POLÍTICA retém (entidade com
+   * criação só online ou porta sem `create`), conhecidos antes do laço — assim
+   * um item que cita um deles é retido mesmo que venha antes na fila. Só esses
+   * ids seguram outro item; qualquer outro id offline segue o caminho de sempre.
+   */
+  const criacoesRetidas = new Set(
+    emOrdem
+      .filter((item) => {
+        if (item.operation !== "create") return false;
+        const entrada = CATALOGO.get(item.entity_name);
+        return Boolean(entrada) && (entrada.criacaoSomenteOnline || typeof entrada.operations.create !== "function");
+      })
+      .map((item) => item.record_id)
+  );
+
+  /** Marca o item como retido (uma vez) e conta. */
+  const reter = async (storage, item, extra = {}) => {
+    if (!item.quarentena) {
+      await storage.atualizarNaFila(item.id, {
+        quarentena: { codigo: API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED, operacao: item.operation, ...extra, em: new Date().toISOString() },
+      });
+      emitirMudancaDeFila();
+    }
+    retidos += 1;
+  };
 
   for (let i = 0; i < emOrdem.length; i += 1) {
     const item = emOrdem[i];
@@ -803,14 +884,54 @@ export const syncOfflineEntityQueue = async (onProgress) => {
 
     if (OPERACOES_DA_FILA.includes(item.operation) && typeof operations[item.operation] !== "function") {
       // Operação que a porta não tem mais (LC-3): retida, nunca enviada nem apagada; o replay segue.
-      if (!item.quarentena) {
-        await storage.atualizarNaFila(item.id, {
-          quarentena: { codigo: API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED, operacao: item.operation, em: new Date().toISOString() },
-        });
-        emitirMudancaDeFila();
-      }
-      retidos += 1;
+      await reter(storage, item);
       continue;
+    }
+
+    if (item.operation === "create" && entrada.criacaoSomenteOnline) {
+      // D-PROD-195 R2: criação gravada offline por versão anterior de uma
+      // entidade que agora só cria online (ex.: categoria sem a curva
+      // obrigatória). Retida, nunca enviada nem apagada; o replay segue.
+      await reter(storage, item);
+      continue;
+    }
+
+    if ((item.operation === "update" || item.operation === "delete") && criacoesRetidas.has(item.record_id)) {
+      // Edição/exclusão de um registro cuja criação ficou retida: fica junto
+      // dela (não é descartada nem enviada com id offline).
+      await reter(storage, item, { depende_de: item.record_id });
+      continue;
+    }
+
+    // D-PROD-195 R2: nenhum item vai ao servidor citando um registro cuja
+    // criação ficou RETIDA (o servidor gravaria a referência solta).
+    //  - create que cita: fica retido junto (é um registro que ainda não
+    //    existe no servidor) e passa a segurar quem o citar;
+    //  - update de registro REAL que cita: segue SEM os campos que citam o id
+    //    retido (o resto da edição é aplicado; sem resto, sai da fila). Reter a
+    //    edição de um registro real a deixaria por cima do servidor nas listas
+    //    e travaria a exclusão por pendência offline.
+    let dadosDoUpdate = item.data || {};
+    if (item.operation === "create" || item.operation === "update") {
+      const citado = [...idsOfflineNoCorpo(item.data || {})].find((id) => criacoesRetidas.has(id));
+      if (citado && item.operation === "create") {
+        await reter(storage, item, { depende_de: citado });
+        criacoesRetidas.add(item.record_id);
+        continue;
+      }
+      if (citado) {
+        dadosDoUpdate = Object.fromEntries(
+          Object.entries(item.data || {}).filter(
+            ([, valor]) => ![...idsOfflineNoCorpo(valor)].some((id) => criacoesRetidas.has(id))
+          )
+        );
+        if (Object.keys(dadosDoUpdate).length === 0) {
+          await storage.removerDaFila(item.id);
+          descartados += 1;
+          emitirMudancaDeFila();
+          continue;
+        }
+      }
     }
 
     try {
@@ -832,7 +953,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       if (item.operation === "update") {
         const alvo = mapaDeIds[item.record_id] || item.record_id;
         if (!isOfflineId(alvo)) {
-          const atualizado = await operations.update(alvo, substituirIdsMapeados(item.data || {}, mapaDeIds));
+          const atualizado = await operations.update(alvo, substituirIdsMapeados(dadosDoUpdate, mapaDeIds));
           await atualizarCache(
             storage,
             item.entity_name,
