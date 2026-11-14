@@ -751,7 +751,10 @@ export const cancelar = async (contexto, id, corpo) => {
       const { agora } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE (o dia do estorno da Fatia 3)
       const anterior = await travarELer(tx, cli, empresaId, id, 'cancelar', versao);
       const usuarioId = auth.usuarioId ?? null;
+      // Os filhos antes do cabeçalho: o serviço do apontamento cancela com a atividade ainda ABERTA (e travada).
       const apontamentosCancelados = await cancelarApontamentosDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id, usuarioId, motivo, agora });
+      // Idempotente: "totais = soma dos CONFIRMADO" vale mesmo sem nenhum apontamento cancelado aqui,
+      // sem depender de quando o serviço do apontamento decide recalcular.
       await recalcularTotaisDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id });
       await gravarComVersao(tx, {
         clienteId: cli,
