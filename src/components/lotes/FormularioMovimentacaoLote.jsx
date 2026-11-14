@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { listarIconesDaEmpresa, listarTodosPontosSuplementacao } from "@/services/mapaService";
+import { listarTodosPontosSuplementacao } from "@/services/mapaService";
+import { figuraDaPosicao, figuraDoGrupo, urlSubiconeLote } from "@/assets/icones/lotes";
 import { listarTodosLotes, listarEventosSuplementacao } from "@/services/loteManejoService";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,14 +21,20 @@ import { notifyWarning, notifyError } from "@/lib/maikeNotify";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
+/** Largura do ícone no cabeçalho do item (`.mk-ll__item-ic`): o subícone é montado nela. */
+const SUBICONE_PX = 22;
+
 /**
  * `podeLancarSuplementacao` (R4, PR #199): só quem tem "lançar suplementação"
  * fecha o consumo do cocho ou aproveita sobra no destino — o servidor recusa
  * (403) para os demais. Sem a permissão, o formulário NÃO oferece o fechamento:
  * avisa que o consumo continua aberto e segue para a movimentação.
  * Padrão `false` (o lado seguro).
+ *
+ * `categoriasManejo` (cache do mapa): o subícone de cada linha vem do código pela
+ * Categoria de Manejo das posições (D-PROD-191).
  */
-export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, areaDestinoPreSelecionada, onSubmit, onCancel, podeLancarSuplementacao = false }) {
+export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, areaDestinoPreSelecionada, onSubmit, onCancel, podeLancarSuplementacao = false, categoriasManejo = [] }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [loading, setLoading] = useState(false);
   const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'confirmar_consumo', 'fechamento_consumo', 'movimentacao'
@@ -167,15 +174,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
     verificarEventosAbertos();
   }, [areaSaidaResolvida, empresaSelecionadaId]);
-
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
-    queryFn: async () => {
-      const icones = await listarIconesDaEmpresa(empresaSelecionadaId);
-      return icones.filter((i) => i.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId
-  });
 
   const { data: todosLotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
@@ -584,11 +582,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               )}
               {formData.movimentacoes.map((mov, index) => {
               const infoCategoria = categoriasPorLote[mov.categoria];
-              const configIcone = iconesConfig.find((ic) =>
-              ic.tipo_entidade === 'Lote' &&
-              ic.categoria?.toUpperCase() === mov.categoria?.toUpperCase()
-              );
-              const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+              // D-PROD-191: o animal das posições desta categoria (sexo + faixa da Categoria de
+              // Manejo; reserva: o texto da categoria oficial), na cor do sexo. Nunca misto.
+              const figura = figuraDoGrupo(infoCategoria?.lotes, categoriasManejo) ?? figuraDaPosicao({ categoria: mov.categoria }, categoriasManejo);
+              const iconeUrl = urlSubiconeLote(figura?.figura, SUBICONE_PX);
 
               return (
                 <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => handleRemoveMovimentacao(index)} rotuloRemover="Remover categoria">

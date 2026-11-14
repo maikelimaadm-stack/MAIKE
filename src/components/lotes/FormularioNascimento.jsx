@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useQuery } from "@tanstack/react-query";
-import { listarIconesDaEmpresa } from "@/services/mapaService";
+import { figuraDaPosicao, figuraDoGrupo, urlSubiconeLote } from "@/assets/icones/lotes";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
@@ -13,18 +12,15 @@ import { notifyWarning } from "@/lib/maikeNotify";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
-export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+/** Largura do ícone no cabeçalho do item (`.mk-ll__item-ic`): o subícone é montado nela. */
+const SUBICONE_PX = 22;
+
+/**
+ * `categoriasManejo` (cache do mapa): o subícone de cada linha vem do código pela
+ * Categoria de Manejo das posições (D-PROD-191).
+ */
+export default function FormularioNascimento({ lote, onSubmit, onCancel, categoriasManejo = [] }) {
   const lotesArray = Array.isArray(lote) ? lote : [lote];
-  
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
-    queryFn: async () => {
-      const icones = await listarIconesDaEmpresa(empresaSelecionadaId);
-      return icones.filter((i) => i.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
 
   // PR168-R2 (D-PROD-101): mesma política do servidor — só lotes FÊMEA de
   // categoria oficial de matriz (Vaca 25-36, Vaca +36, Novilha 13-24).
@@ -117,11 +113,10 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
           <LancLoteItens>
             {formData.nascimentos.map((nascimento, index) => {
               const infoCategoria = lotesPorCategoria[nascimento.categoria_mae];
-              const configIcone = iconesConfig.find(ic => 
-                ic.tipo_entidade === 'Lote' && 
-                ic.categoria?.toUpperCase() === nascimento.categoria_mae?.toUpperCase()
-              );
-              const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+              // D-PROD-191: o animal das matrizes desta categoria (sexo + faixa da Categoria de
+              // Manejo; reserva: o texto da categoria oficial), na cor do sexo. Nunca misto.
+              const figura = figuraDoGrupo(infoCategoria?.lotes, categoriasManejo) ?? figuraDaPosicao({ categoria: nascimento.categoria_mae }, categoriasManejo);
+              const iconeUrl = urlSubiconeLote(figura?.figura, SUBICONE_PX);
 
               return (
                 <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">

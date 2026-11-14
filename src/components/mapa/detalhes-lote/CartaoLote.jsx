@@ -146,7 +146,7 @@ export default function CartaoLote({ lote, estado }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", width: 32, height: 32 }}>
-            <IconeCategoria url={lote.iconeUrl} tamanho={32} alt={lote.categoria} />
+            <IconeCategoria figura={lote.subicone} tamanho={32} alt={lote.categoria} />
           </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ ...umaLinha, fontSize: 11, fontWeight: 700, lineHeight: 1.25, color: COR.titulo }}>{lote.nome}</div>

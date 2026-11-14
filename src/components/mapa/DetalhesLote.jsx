@@ -6,7 +6,6 @@ import {
   registrarSuplementacaoEmLote,
 } from "@/services/loteManejoService";
 import { areaPorId } from "@/domain/lotes/movimentacaoLote";
-import { listarIconesPorTipoEntidade } from "@/services/mapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
@@ -116,13 +115,30 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     };
   }, [modoLedger]);
 
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones-global'],
+  // D-PROD-191: o subícone do lote (detalhes e formulários de manejo) vem do código,
+  // pela Categoria de Manejo de cada posição (sexo + faixa de idade) — nada de
+  // ConfiguracaoIcone. Cache do mapa (aparece offline), como as áreas/lotes, com a
+  // MESMA chave do Mapa Geral (`createMapaQuery`): o detalhe usa a lista do marcador e
+  // recebe as mesmas invalidações. NÃO bloqueia a abertura: sem ela o subícone sai do
+  // texto da categoria oficial (ou o quadrado vazio) até chegar.
+  const chaveCategoriasManejo = ['mapa-cache', 'categoriasManejo', empresaSelecionadaId, 'default'];
+  const { data: categoriasManejo = [] } = useQuery({
+    queryKey: chaveCategoriasManejo,
     queryFn: async () => {
-      const all = await listarIconesPorTipoEntidade(null);
-      return all.filter((i) => i.ativo !== false);
+      const cached = await getMapaCachedData('categoriasManejo', empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('categoriasManejo', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(chaveCategoriasManejo, fresh);
+          }).catch(() => {});
+          return cached;
+        }
+        return (await refreshMapaCacheEntry('categoriasManejo', empresaSelecionadaId)) || [];
+      }
+      return cached || [];
     },
-    staleTime: 10 * 60 * 1000
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: areas = [], isLoading: loadingAreas } = useQuery({
@@ -205,8 +221,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   }, [user?.cliente_id, user?.login, user?.email, empresaSelecionadaId]);
 
   const modelo = useMemo(
-    () => montarModeloDetalhes({ area: areaAtual, lotes, lotesDaArea: todosLotesNaArea, movimentacoes, iconesConfig, hoje: new Date() }),
-    [areaAtual, lotes, todosLotesNaArea, movimentacoes, iconesConfig]
+    () => montarModeloDetalhes({ area: areaAtual, lotes, lotesDaArea: todosLotesNaArea, movimentacoes, categoriasManejo, hoje: new Date() }),
+    [areaAtual, lotes, todosLotesNaArea, movimentacoes, categoriasManejo]
   );
 
   const movimentacaoMutation = useMutation({
@@ -699,6 +715,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               areaOrigem={areaAtual}
               areaDestinoPreSelecionada={areaDestinoPreSelecionada}
               podeLancarSuplementacao={/** @type {Record<string, unknown>} */ (permissions).lancar_suplementacao === true}
+              categoriasManejo={categoriasManejo}
               onSubmit={handleMovimentacao}
               onCancel={() => {
                 setAreaDestinoPreSelecionada(null);
@@ -710,6 +727,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           {showMorte &&
             <FormularioMorte
               lote={lotes}
+              categoriasManejo={categoriasManejo}
               onSubmit={handleMorte}
               enviando={enviandoBaixa}
               onCancel={() => setShowMorte(false)} />
@@ -721,6 +739,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           {showNascimento &&
             <FormularioNascimento
               lote={lotes}
+              categoriasManejo={categoriasManejo}
               onSubmit={handleNascimento}
               onCancel={() => setShowNascimento(false)} />
 
@@ -731,6 +750,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           {showAbate &&
             <FormularioAbate
               lote={lotes}
+              categoriasManejo={categoriasManejo}
               onSubmit={handleAbate}
               enviando={enviandoBaixa}
               onCancel={() => setShowAbate(false)} />
@@ -741,6 +761,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       <LancLoteDialogo open={showMudancaCategoria} onOpenChange={setShowMudancaCategoria} titulo="Mudança de Categoria" lotes={lotes}>
           <FormularioMudancaCategoria
               lote={lotes}
+              categoriasManejo={categoriasManejo}
               onSubmit={handleMudancaCategoria}
               onCancel={() => setShowMudancaCategoria(false)} />
       </LancLoteDialogo>
@@ -749,6 +770,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           {showPesagem &&
             <FormularioPesagem
               lote={lotes}
+              categoriasManejo={categoriasManejo}
               onSubmit={handlePesagem}
               onCancel={() => setShowPesagem(false)} />
 
