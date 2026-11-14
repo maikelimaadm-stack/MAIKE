@@ -76,6 +76,20 @@ describe('escopo do produto', () => {
     expect(scope.allowedPages).toHaveLength(28);
   });
 
+  it('D-PROD-198: Apontamentos de Atividade deu lugar a Lançamento de Atividades, uma por uma (página, registro, manifesto e menu)', () => {
+    const doMenu = flattenMenuPages(DEFAULT_MENU).map((page) => page.url);
+    expect(PAGES.ApontamentosAtividade).toBeUndefined();
+    expect(scope.allowedPages).not.toContain('ApontamentosAtividade');
+    expect(doMenu).not.toContain('ApontamentosAtividade');
+    expect(existsSync('src/pages/ApontamentosAtividade.jsx')).toBe(false);
+    expect(existsSync('src/components/apontamentos-atividade')).toBe(false);
+    expect(typeof PAGES.LancamentoAtividades).toBe('function');
+    expect(scope.allowedPages).toContain('LancamentoAtividades');
+    expect(doMenu.filter((url) => url === 'LancamentoAtividades')).toHaveLength(1);
+    // A nova ocupa o lugar da antiga no manifesto: logo depois de Tipos de Atividade.
+    expect(scope.allowedPages.indexOf('LancamentoAtividades')).toBe(scope.allowedPages.indexOf('TiposAtividade') + 1);
+  });
+
   it('PageNotFound continua registrado como catch-all', () => {
     const app = readFileSync('src/App.jsx', 'utf8');
     expect(app).toContain('path="*"');

@@ -152,7 +152,8 @@ describe('VERCEL-SPA — matriz das páginas', () => {
     expect(rewrites).toHaveLength(2 + 4 * 28);
   });
 
-  it('as quatro páginas removidas pela D-PROD-162 não têm rewrite (nem no vercel.json)', () => {
+  it('as páginas removidas (as quatro da D-PROD-162 e o Apontamentos de Atividade, D-PROD-198) não têm rewrite (nem no vercel.json)', () => {
+    expect(PAGINAS_REMOVIDAS).toHaveLength(5);
     for (const nome of PAGINAS_REMOVIDAS) {
       for (const source of [`/${nome.toLowerCase()}`, `/${nome.toLowerCase()}/`, `/${nome}`, `/${nome}/`]) {
         expect(rewrites.find((r) => r.source === source), source).toBeUndefined();

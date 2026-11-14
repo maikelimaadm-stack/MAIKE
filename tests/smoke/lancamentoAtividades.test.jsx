@@ -680,6 +680,33 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     selecionar("a1");
     expect(botaoEditarDaBarra()).toBeNull();
     expect(await acoesDoMenu()).toEqual([]);
+    // Aberta: os lançamentos aparecem, mas sem nenhum botão de escrita.
+    await abrir("a1");
+    await screen.findByTestId("apontamento-ap1");
+    expect(botaoEditarDaBarra()).toBeNull();
+    for (const id of ["apontamento-novo", "apontamento-ap1-editar", "apontamento-ap1-cancelar", "apontamento-ap1-repetir"]) expect(screen.queryByTestId(id), id).toBeNull();
+    expect(escritas()).toEqual([]);
+  });
+
+  it("LA-LISTA-8 — trocar de fazenda fecha a atividade aberta e o diálogo, e relê a lista com a fazenda nova; o detalhe nunca vai com ela", async () => {
+    atividades.set("b9", { ...ATV_A1, id: "b9", empresa_id: "emp-2", numero: "1", nome: "Atividade da Santa Rita" });
+    apontamentosPorAtividade.set("b9", []);
+    await montarComLista();
+    await abrir("a1");
+    await escolherNoMenu("Cancelar atividade");
+    await screen.findByTestId("dialogo-cancelar-atividade");
+    const { persistirEmpresaSelecionada } = await import("@/hooks/useEmpresaSelecionadaId");
+    act(() => persistirEmpresaSelecionada("emp-2", "cli-1"));
+    expect(await screen.findByTestId("atividade-numero-b9")).toBeTruthy();
+    expect(screen.queryByTestId("dialogo-cancelar-atividade")).toBeNull();
+    expect(screen.queryByTestId("atividade-cabecalho")).toBeNull();
+    expect(screen.queryByTestId("atividade-numero-a1")).toBeNull();
+    expect(listagens().at(-1).query.empresa_id).toBe("emp-2");
+    // Nem o detalhe nem os lançamentos da atividade anterior são pedidos com a fazenda nova.
+    const daAnterior = backend.chamadas.filter((c) => c.path.startsWith("/atividades/a1"));
+    expect(daAnterior.map((c) => c.path).sort()).toEqual(["/atividades/a1", "/atividades/a1/apontamentos"]);
+    expect(daAnterior.every((c) => c.query.empresa_id === "emp-1")).toBe(true);
+    expect(escritas()).toEqual([]);
   });
 });
 
@@ -779,6 +806,36 @@ describe("LA-ABERTA — atividade aberta: cabeçalho travado e lançamentos por 
     expect(screen.queryByTestId("apontamento-ap1-editar")).toBeNull();
     expect(screen.queryByTestId("apontamento-ap1-cancelar")).toBeNull();
   });
+
+  it("LA-ABERTA-6 — a regra de status vale nos próprios componentes: concluída com TODAS as ações não tem botão de lançamento nem envio", async () => {
+    const { definirFazendaDaTela } = await import("@/services/lancamentoAtividadesService");
+    const { default: ListaApontamentos } = await import("@/components/lancamento-atividades/ListaApontamentos");
+    const { default: FormularioApontamento } = await import("@/components/lancamento-atividades/FormularioApontamento");
+    definirFazendaDaTela("emp-1");
+    const todas = { ver: true, lancarApontamento: true, editarApontamento: true, cancelarApontamento: true };
+    render(
+      <QueryClientProvider client={novoCliente()}>
+        <ListaApontamentos atividade={atividades.get("a2")} acoes={todas} onAtividadeAtualizada={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    await screen.findByTestId("apontamento-ap7");
+    expect(screen.getByTestId("apontamentos-aviso")).toHaveTextContent("Atividade concluída");
+    for (const id of ["apontamento-novo", "apontamento-repetir-ultimo", "apontamento-ap7-editar", "apontamento-ap7-cancelar", "apontamento-ap7-repetir"]) {
+      expect(screen.queryByTestId(id), id).toBeNull();
+    }
+    cleanup();
+    render(
+      <QueryClientProvider client={novoCliente()}>
+        <FormularioApontamento atividade={atividades.get("a2")} onSalvo={vi.fn()} onCancelar={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByTestId("apontamento-aviso")).toHaveTextContent("não está aberta");
+    expect(screen.getByTestId("apontamento-salvar")).toBeDisabled();
+    fireEvent.submit(screen.getByTestId("b1-form-apontamento"));
+    await assentar();
+    expect(escritas()).toEqual([]);
+    definirFazendaDaTela(null);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -851,7 +908,12 @@ describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)",
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     await montarComLista();
     selecionar("a1");
-    await escolherNoMenu("Duplicar atividade");
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    const item = await screen.findByRole("menuitem", { name: "Duplicar atividade" });
+    // A confirmação resolve num microtask depois do clique: o envio segue dentro do `act`.
+    await act(async () => {
+      fireEvent.click(item);
+    });
     await waitFor(() => expect(escritas()).toHaveLength(1));
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/duplicar", query: {}, body: { empresa_id: "emp-1" } });

@@ -655,7 +655,9 @@ export default function LancamentoAtividades() {
   };
 
   let conteudoRegistro = null;
-  if (controller.showForm) {
+  // Na renderização da troca de fazenda o registro ainda está aberto (o efeito acima o fecha logo depois): nada dele
+  // monta com a fazenda nova, senão os lançamentos da atividade anterior seriam pedidos com o `empresa_id` da nova.
+  if (controller.showForm && !trocandoEmpresa) {
     if (controller.isEditing) {
       if (idAberto && !detalhe) {
         conteudoRegistro = (
