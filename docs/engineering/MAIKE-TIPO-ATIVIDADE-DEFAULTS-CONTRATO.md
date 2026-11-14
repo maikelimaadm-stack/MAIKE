@@ -148,6 +148,19 @@ Registrar a mudança em `docs/engineering/GATE-REGISTRY.md`.
   se o conjunto de colunas muda, seguir a regra de versão da chave de preferência que o repo já usa.
 - Mensagem de `TIPO_ATIVIDADE_PADRAO_INVALIDO` em `src/apis/_core/ApiError.js` (texto por `reason`).
 
+### 6.1 Rótulos e test ids (fixos)
+
+- Seções: títulos "Identificação", "Apropriação", "Como funciona"; `data-testid` `tipo-atividade-secao-identificacao`,
+  `tipo-atividade-secao-apropriacao`, `tipo-atividade-secao-como-funciona`.
+- Campos: "Categoria", "Centro de custo padrão", "Centro de resultado padrão", "Unidade de produção",
+  "Coeficiente padrão".
+- Categorias: `PREPARO_SOLO` "Preparo de solo", `PLANTIO` "Plantio", `TRATO_CULTURAL` "Trato cultural",
+  `APLICACAO` "Aplicação", `COLHEITA` "Colheita", `PASTAGEM` "Pastagem", `BENFEITORIA` "Benfeitoria",
+  `MANEJO_ANIMAL` "Manejo animal", `OUTROS` "Outros".
+- Flags (caixas de marcar, nesta ordem): "Exige área", "Exige safra", "Exige máquina", "Permite implemento",
+  "Permite produto", "Permite serviço", "Permite mão de obra", "Exige produção"; `data-testid`
+  `tipo-atividade-flag-<nome_da_flag>` (ex.: `tipo-atividade-flag-exige_area`).
+
 ## 7. Testes exigidos
 
 Backend (PostgreSQL real): defaults na criação (flags `false`, padrões `null`); flags gravando e lendo; categoria
