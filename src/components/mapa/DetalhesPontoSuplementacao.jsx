@@ -299,7 +299,11 @@ function PainelRestanteCiclo({ nivel }) {
   const baseSemEstimativa = !estimado && nivel.estado === "ciclo_aberto" && nivel.baseCicloKg != null && nivel.baseCicloKg > 0;
   const orientacao = nivel.confiabilidade === "compartilhada" ?
   MENSAGENS_NIVEL.orientacaoCompartilhada :
-  nivel.confiabilidade === "indisponivel" && nivel.motivo === MENSAGENS_NIVEL.motivoSemPv ? MENSAGENS_NIVEL.orientacaoSemPv : null;
+  nivel.confiabilidade === "indisponivel" && nivel.motivo === MENSAGENS_NIVEL.motivoSemPv
+    ? MENSAGENS_NIVEL.orientacaoSemPv
+    : nivel.confiabilidade === "indisponivel" && nivel.motivo === MENSAGENS_NIVEL.motivoSemPeso
+      ? MENSAGENS_NIVEL.orientacaoSemPeso
+      : null;
 
   return (
     <div className="flex min-w-0 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2">

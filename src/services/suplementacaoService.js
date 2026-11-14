@@ -30,6 +30,7 @@ import {
   PATCH_REABERTURA_LOTE,
 } from '@/components/utils/consumoUtils';
 import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos';
+import { listarPosicoesRebanhoServidor } from '@/apis/lotes';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
 const novaOperationId = () =>
@@ -63,6 +64,21 @@ export const carregarPontoAtualizado = async (pontoId) => {
 export const listarPontosDaEmpresa = async (empresaId) => daEmpresa(await listPontosSuplementacao(), empresaId);
 export const listarAreasDaEmpresa = async (empresaId) => daEmpresa(await listAreas(), empresaId);
 export const listarLotesDaEmpresa = async (empresaId) => daEmpresa(await listLotesRebanho(), empresaId);
+
+/**
+ * D-PROD-201 — rebanho ATIVO da empresa para o lançamento de suplementação, da
+ * MESMA fonte do mapa (D-PROD-107): empresa no ledger → as POSIÇÕES (cabeças
+ * atuais por área, com `projecao_peso`); legado → os Lotes ativos. Antes o
+ * formulário lia o cadastro de Lote, que no ledger é só o cadastro de entrada
+ * (cabeças e área desatualizados). Erro na consulta propaga: nunca cai para o
+ * Lote como saldo numa empresa ativada.
+ * @param {string} empresaId
+ */
+export const listarRebanhoParaSuplementacao = async (empresaId) => {
+  const ledger = /** @type {{ativo?: boolean, itens?: any[]}} */ (await listarPosicoesRebanhoServidor(empresaId));
+  if (ledger?.ativo) return (Array.isArray(ledger.itens) ? ledger.itens : []).filter((p) => p?.status === 'Ativo');
+  return (await listarLotesDaEmpresa(empresaId)).filter((l) => l?.status === 'Ativo');
+};
 export const listarProdutosDaEmpresa = async (empresaId) => daEmpresa(await listProdutos(), empresaId);
 export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await listLotesNota(), empresaId);
 export const listarMovimentacoesPecuariasDaEmpresa = async (empresaId) =>
