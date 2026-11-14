@@ -152,7 +152,9 @@ travadas AS (
 ),
 travas AS (
   SELECT count(*) AS n FROM pg_locks l
-   WHERE l.locktype = 'relation' AND l.pid <> pg_backend_pid() AND l.relation IN (SELECT oid FROM travadas WHERE oid IS NOT NULL)
+   WHERE l.locktype = 'relation' AND l.pid <> pg_backend_pid()
+     AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
+     AND l.relation IN (SELECT oid FROM travadas WHERE oid IS NOT NULL)
 ),
 longas AS (
   SELECT count(*) AS n FROM pg_stat_activity
