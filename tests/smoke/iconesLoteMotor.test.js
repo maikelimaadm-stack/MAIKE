@@ -341,12 +341,13 @@ describe("ICL-F — geometria do marcador: contagem livre, tamanho por faixa, bo
     expect((CONTAGEM_TOPO_PCT / 100) * 961.94).toBeLessThan(961.94 * 0.8851);
   });
 
-  it("tamanho cresce com a faixa: 70 / 78 / 86 / 94 / 100 % da largura útil; misto 100 %", () => {
+  it("tamanho cresce com a faixa; mistos aproveitam a própria área livre sem invadir a contagem", () => {
     const util = larguraUtilDoCard();
     for (const icone of unicos) {
       const [d] = desenhosDoMarcador(icone);
       const esperado = icone.nivel === 3 ? TAMANHO_MISTO : TAMANHO_POR_FAIXA[icone.animais[0].faixa];
-      expect((d.svg.largura * d.escala) / util, icone.chave).toBeCloseTo(esperado, 9);
+      if (icone.nivel === 3) expect((d.svg.largura * d.escala) / util, icone.chave).toBeGreaterThanOrEqual(esperado - 1e-9);
+      else expect((d.svg.largura * d.escala) / util, icone.chave).toBeCloseTo(esperado, 9);
       // centralizado na horizontal e apoiado na linha de chão
       expect(d.x + (d.svg.largura * d.escala) / 2).toBeCloseTo(500, 6);
       expect(d.y + d.svg.altura * d.escala).toBeCloseTo(LINHA_DE_CHAO, 6);

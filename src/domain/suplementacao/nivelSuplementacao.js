@@ -10,6 +10,10 @@
  * leem daqui o MESMO número. Ninguém mais calcula saldo, taxa ou percentual.
  *
  * ── Cocho ────────────────────────────────────────────────────────────────
+ *  - Consumo por DIAS CIVIS: a data do abastecimento é a base, não o horário
+ *    em que o registro foi digitado. No próprio dia, dias decorridos = 0;
+ *    o primeiro consumo diário é descontado no dia seguinte. Um registro
+ *    retroativo usa a data informada para estimar o saldo de hoje.
  *  - Ciclo = último evento do ponto. Aberto quando `dias_periodo == null`.
  *  - Base do ciclo aberto = `quantidade_total_kg` (fornecido) + `sobra_kg`
  *    (sobra anterior, saldo inicial legítimo do ciclo).
@@ -888,10 +892,12 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
 
   /** @type {AlertaNivel[]} */
   const alertas = [];
+  const avisoConfigurado = numeroOuNulo(ponto?.dias_alerta_reposicao);
+  const diasAviso = avisoConfigurado != null && avisoConfigurado >= 0 ? Math.floor(avisoConfigurado) : 1;
   if (n.confiabilidade === 'estimada' && n.saldoKg != null && n.diasRestantesEstimados != null) {
     if (n.saldoKg <= 0) {
       alertas.push({ tipo: 'cocho_sem_produto', severidade: 'critico', titulo: 'Cocho sem produto', descricao: 'A cobertura estimada do cocho foi esgotada.' });
-    } else if (n.diasRestantesEstimados <= 1) {
+    } else if (n.diasRestantesEstimados <= diasAviso) {
       alertas.push({ tipo: 'cocho_baixo', severidade: 'alerta', titulo: 'Reposição próxima', descricao: `Cobertura estimada restante: ${numeroPtBR(n.diasRestantesEstimados, 1)} dia(s).` });
     }
   }

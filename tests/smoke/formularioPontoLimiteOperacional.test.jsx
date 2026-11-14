@@ -193,3 +193,16 @@ describe('FormularioPonto — limite operacional (D-PROD-178)', () => {
     expect(COLUNAS_PONTOS.some((item) => item.label === 'Capacidade (kg)')).toBe(false);
   });
 });
+
+
+it('oferece Cocho e Depósito sem ícones cadastrados e abre os respectivos campos', async () => {
+  await montar();
+  const seletor = screen.getAllByRole('combobox')[0];
+  fireEvent.click(seletor);
+  fireEvent.click(await screen.findByRole('option', { name: /^COCHO$/i }));
+  expect(screen.getByText('Dados do Cocho')).toBeTruthy();
+  fireEvent.click(seletor);
+  fireEvent.click(await screen.findByRole('option', { name: /^DEPÓSITO$/i }));
+  expect(screen.getByText('Depósito de Suplementação')).toBeTruthy();
+  expect(screen.queryByText('Dados do Cocho')).toBeNull();
+});

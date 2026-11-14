@@ -167,6 +167,21 @@ export default function FormularioPonto({
     enabled: true
   });
 
+  // Tipos nativos não dependem de um registro de imagem no cadastro de ícones.
+  const tiposPonto = useMemo(() => {
+    const opcoes = iconesConfig.map((icone) => ({
+      valor: icone.id, categoria: icone.categoria, iconeId: icone.id,
+    }));
+    for (const categoria of ["Cocho", "Depósito"]) {
+      if (!opcoes.some((opcao) => normalizeText(opcao.categoria) === normalizeText(categoria))) {
+        opcoes.push({ valor: `nativo:${normalizeText(categoria)}`, categoria, iconeId: "" });
+      }
+    }
+    return opcoes;
+  }, [iconesConfig]);
+  const tipoSelecionado = formData.configuracao_icone_id ||
+    tiposPonto.find((opcao) => normalizeText(opcao.categoria) === normalizeText(formData.tipo))?.valor || "";
+
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: pontosSuplementacao = [], isSuccess: pontosSuplementacaoLoaded } = useQuery({
@@ -716,9 +731,9 @@ export default function FormularioPonto({
           <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
         </div>
         <FL label="Ponto de referência" required>
-          <Select value={formData.configuracao_icone_id} onValueChange={(value) => {const configuracao = iconesConfig.find((itemConfig) => itemConfig.id === value);setFormData((prev) => ({ ...prev, configuracao_icone_id: value, tipo: configuracao?.categoria || prev.tipo }));}}>
+          <Select value={tipoSelecionado} onValueChange={(value) => {const opcao = tiposPonto.find((tipo) => tipo.valor === value);if (opcao) setFormData((prev) => ({ ...prev, configuracao_icone_id: opcao.iconeId, tipo: opcao.categoria }));}}>
             <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o tipo do ponto" /></SelectTrigger>
-            <SelectContent>{iconesConfig.map((itemConfig) => <SelectItem key={itemConfig.id} value={itemConfig.id} className="text-xs">{itemConfig.categoria}</SelectItem>)}</SelectContent>
+            <SelectContent>{tiposPonto.map((opcao) => <SelectItem key={opcao.valor} value={opcao.valor} className="text-xs">{opcao.categoria}</SelectItem>)}</SelectContent>
           </Select>
         </FL>
         <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
@@ -806,7 +821,8 @@ export default function FormularioPonto({
                 </Select>
               </FL>
               <FL label="Dias de alerta para reposição">
-                <Input type="number" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData((prev) => ({ ...prev, dias_alerta_reposicao: e.target.value }))} placeholder="3" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                <Input type="number" min="0" step="1" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData((prev) => ({ ...prev, dias_alerta_reposicao: e.target.value }))} placeholder="3" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                <p className="mt-1 text-[10px] leading-snug text-slate-500">Avisa quando o saldo estimado durar este número de dias ou menos. Não muda o percentual de saldo.</p>
               </FL>
               <FL label="Alerta sem lançamento (dias)">
                 <Input type="number" value={formData.alerta_sem_lancamento_dias} onChange={(e) => setFormData((prev) => ({ ...prev, alerta_sem_lancamento_dias: e.target.value }))} placeholder="10" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
