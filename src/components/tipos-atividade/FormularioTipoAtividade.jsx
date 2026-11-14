@@ -131,6 +131,13 @@ const opcoesDoCentro = (ativos, gravadoId, gravado, empresaId) => {
 const listaDe = (consulta) => (Array.isArray(consulta.data) ? consulta.data : []);
 
 /**
+ * O objeto incluído pelo servidor, só se for o do id gravado (nunca um rótulo de outro registro).
+ * @param {any} objeto @param {string} id
+ */
+const objetoDoGravado = (objeto, id) =>
+  id && objeto && typeof objeto === "object" && (objeto.id == null || String(objeto.id) === id) ? objeto : null;
+
+/**
  * @typedef {{ id: string, nome_grupo?: string, ativo?: boolean }} GrupoOpcao
  * @typedef {{ id?: string, numero?: string|null, nome?: string, empresa_id?: string, ativo?: boolean }} CentroGravado
  * @typedef {{ id?: string, sigla?: string, descricao?: string, ativo?: boolean }} UnidadeGravada
@@ -272,9 +279,9 @@ export default function FormularioTipoAtividade({
   const centroCustoGravadoId = initialData?.centro_custo_padrao_id || "";
   const centroResultadoGravadoId = initialData?.centro_resultado_padrao_id || "";
   const unidadeGravadaId = initialData?.unidade_producao_id || "";
-  const centroCustoGravado = initialData?.centro_custo_padrao ?? null;
-  const centroResultadoGravado = initialData?.centro_resultado_padrao ?? null;
-  const unidadeGravada = initialData?.unidade_producao ?? null;
+  const centroCustoGravado = objetoDoGravado(initialData?.centro_custo_padrao, centroCustoGravadoId);
+  const centroResultadoGravado = objetoDoGravado(initialData?.centro_resultado_padrao, centroResultadoGravadoId);
+  const unidadeGravada = objetoDoGravado(initialData?.unidade_producao, unidadeGravadaId);
 
   const opcoesCentroCusto = useMemo(
     () => opcoesDoCentro(listaDe(centrosCustoQuery), centroCustoGravadoId, centroCustoGravado, empresaId),
