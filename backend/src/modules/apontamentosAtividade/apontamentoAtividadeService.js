@@ -3,8 +3,12 @@
  *
  * A TAREFA (`LancamentoTarefa`) é a demanda; o APONTAMENTO é a EXECUÇÃO de um
  * Tipo de Atividade (D-PROD-182): a operação feita, que consome máquina,
- * combustível e insumo. Base enxuta, SEM itens de custo (o abastecimento se
- * pendura aqui nas fatias seguintes).
+ * combustível e insumo. D-PROD-193 (Fatia D): o apontamento CONFIRMADO recebe
+ * ITENS de custo (`apontamentoAtividadeItemService.js`: adicionar e cancelar
+ * item); aqui ficam o DETALHE com os itens e o custo, o estorno exato dos itens
+ * PRODUTO (um caminho só, para o cancelamento do item e o do apontamento) e o
+ * cancelamento do apontamento, que cancela e estorna TODOS os itens na mesma
+ * transação. O abastecimento se pendura aqui numa fatia seguinte.
  *
  * Molde: o cadastro de Tipo de Atividade (estrutura, auth, guardas, auditoria,
  * erros) e o abastecimento (número pela sequência do tenant, keyset,
@@ -46,7 +50,14 @@
  *  - R-i bem, implemento, área e lançamento de tarefa são da MESMA empresa do
  *    apontamento (centros também; a FK composta já garante);
  *  - R-j sem DELETE físico: cancelar grava status, quem, quando e motivo, e
- *    incrementa `versao` (CAS, como o abastecimento);
+ *    incrementa `versao` (CAS, como o abastecimento). D-PROD-193: o
+ *    cancelamento é idempotente por `operation_id` (obrigatório, D-2), trava a
+ *    linha do apontamento e cancela/estorna todos os itens CONFIRMADO junto;
+ *    qualquer estorno recusado → 409 e nada muda;
+ *  - D-1 (D-PROD-193): o PATCH não muda `data_operacional` se houver item
+ *    PRODUTO CONFIRMADO (a saída de estoque está na data gravada) → 409
+ *    `APONTAMENTO_ATIVIDADE_DATA_COM_ITENS`; lê os itens sem trava (o CAS por
+ *    `versao` o protege: um item que entre depois muda a versão);
  *  - R-k `numero` pela sequência do tenant (`EntidadeCodigoSequencia`), o
  *    mesmo formato do abastecimento e do bem;
  *  - tenant SÓ do auth_context; a empresa vem do corpo/query e é conferida no
@@ -59,7 +70,10 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import {
+  AppError,
+  apontamentoAtividadeDataComItens,
   apontamentoAtividadeDataFutura,
+  apontamentoAtividadeEstornoBloqueado,
   apontamentoAtividadeHorarioInvalido,
   apontamentoAtividadeImplementoInvalido,
   apontamentoAtividadeNotFound,
@@ -67,28 +81,39 @@ import {
   apontamentoAtividadeReferenciaInvalida,
   apontamentoAtividadeStatusInvalido,
   apontamentoAtividadeVersaoConflito,
+  concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { fkDoApontamentoNaEscrita } from '../../shared/errors/vinculoApontamentoAtividade.js';
+import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
-import { registrarEvento } from '../auditoria/auditService.js';
-import { CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
+import { registrarEvento, registrarEventosEmLote } from '../auditoria/auditService.js';
+import {
+  EFEITO_SAIDA, ORIGEM_APONTAMENTO, estornarEmLote, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
+} from '../estoqueFisico/estoqueFisicoMotor.js';
+import { CASAS_CUSTO, CASAS_PRECO, CASAS_QUANTIDADE, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, ehDiaValido, paginacaoOpcoes, paginarPorNome, termoDeBusca } from '../patrimonio/patrimonioComum.js';
+import { unidadeEfetivaDoEstoque } from '../patrimonio/patrimonioDominio.js';
 import { agoraDoServidor, diaNoFuso, fusoDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import {
   atualizarComVersao,
   buscarApontamento,
+  buscarApontamentoComItens,
+  cancelarItensConfirmados,
+  contarItensProdutoConfirmados,
   inserirApontamento,
   lerArea,
   lerBem,
   lerCentro,
   lerCentroCustoDoBem,
+  lerItensComFatias,
   lerLancamentoTarefa,
   lerTipoAtividade,
   lerUsuario,
   lerVersaoEStatus,
   listarApontamentos,
+  travarApontamento,
 } from './apontamentoAtividadeRepository.js';
 
 export const ENTIDADE = 'ApontamentoAtividade';
@@ -102,14 +127,26 @@ export const PADRAO_DECIMAL = /^\d{1,10}(\.\d{1,4})?$/;
 /** Instante ISO 8601 com fuso EXPLÍCITO (`Z` ou ±hh:mm): sem fuso, a hora seria ambígua. */
 export const PADRAO_INSTANTE = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d{1,3})?)?(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/;
 export const MOTIVO_MINIMO = 3;
+/** Chave de idempotência (= `PADRAO_OPERATION_ID` do abastecimento e o CHECK da tabela de itens). */
+export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
+/** D-PROD-193 — entidade e situações do item (CHECK da tabela). */
+export const ENTIDADE_ITEM = 'ApontamentoAtividadeItem';
+export const TIPO_PRODUTO = 'PRODUTO';
+/** D-2 (D-PROD-193) — recibo do cancelamento do apontamento (efeito de estoque = recibo). */
+export const TIPO_CANCELAR_APONTAMENTO = 'cancelar_apontamento_atividade_v1';
+/** Rótulos do estorno de item PRODUTO no movimento (I-p). */
+const TIPO_DETALHADO_ESTORNO = 'estorno_apontamento_atividade';
+const MOTIVO_ESTORNO = 'Estorno de item de apontamento de atividade cancelado';
+/** Leitura consistente sem trava (detalhe com os itens). */
+const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
 
 // ─── normalização do corpo ──────────────────────────────────────────────────
 
 const ehObjeto = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 const tem = (obj, chave) => Object.prototype.hasOwnProperty.call(obj, chave);
 
-/** Decimais do corpo (anti-coerção antes do AJV, no plugin das rotas). */
-export const DECIMAIS_DO_CORPO = Object.freeze(['quantidade_produzida', 'horas_trabalhadas']);
+/** Decimais do corpo (anti-coerção antes do AJV, no plugin das rotas). D-PROD-193: e os do item. */
+export const DECIMAIS_DO_CORPO = Object.freeze(['quantidade_produzida', 'horas_trabalhadas', 'quantidade', 'valor_unitario']);
 
 /**
  * `preValidation` do plugin: decimal presente, não-null e não-string → 400
@@ -258,7 +295,7 @@ const exigirRegrasPuras = (e) => {
  * @param {any} tx @param {string} cli @param {string} empresaId
  * @returns {Promise<{ agora: Date, hoje: string, fuso: string }>}
  */
-const tempoDaFazenda = async (tx, cli, empresaId) => {
+export const tempoDaFazenda = async (tx, cli, empresaId) => {
   const fuso = await fusoDaEmpresa(tx, cli, empresaId);
   const agora = agoraDoServidor();
   return { agora, hoje: diaNoFuso(agora, fuso), fuso };
@@ -487,11 +524,249 @@ const detalheNa = async (db, cli, empresaId, id) => {
  * CAS perdido: o apontamento foi cancelado (R-g) ou mudou de versão.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string} id @param {number} versao
  */
-const erroDoCasPerdido = async (tx, cli, empresaId, id, versao) => {
+export const erroDoCasPerdido = async (tx, cli, empresaId, id, versao) => {
   const atual = await lerVersaoEStatus(tx, cli, empresaId, id);
   if (!atual) return apontamentoAtividadeNotFound();
   if (atual.status !== STATUS_CONFIRMADO) return apontamentoAtividadeStatusInvalido(atual.status);
   return apontamentoAtividadeVersaoConflito(atual.versao, versao);
+};
+
+// ─── itens (D-PROD-193): forma pública, custo, normalização comum ──────────
+
+const t6 = (v) => (v === null || v === undefined ? null : dec(v).toFixed(CASAS_PRECO));
+const custo4 = (v) => (v === null || v === undefined ? null : dec(v).toFixed(CASAS_CUSTO));
+const movimentoResumo = (m) => (m ? { id: m.id, numero: m.numero_movimentacao } : null);
+
+/**
+ * Item público (§3.4 do contrato): decimais em TEXTO (quantidade e fatias com
+ * 4 casas, valor unitário com 6, total com 4); produto, local e movimentos só
+ * no item PRODUTO; cancelados ficam (histórico).
+ * @param {any} i item com os resumos de `INCLUIR_DETALHE.itens`
+ */
+export const comoItemPublico = (i) => ({
+  id: i.id,
+  ordem: i.ordem,
+  tipo: i.tipo,
+  status: i.status,
+  descricao: i.descricao ?? null,
+  produto: i.produto ? { id: i.produto.id, nome: i.produto.nome_produto, unidade_principal_estoque: i.produto.unidade_principal_estoque } : null,
+  local_estoque: i.localEstoque ? { id: i.localEstoque.id, nome: i.localEstoque.nome } : null,
+  quantidade: t4(i.quantidade),
+  unidade: i.unidade ?? null,
+  valor_unitario: t6(i.valor_unitario),
+  valor_total: custo4(i.valor_total),
+  movimento: movimentoResumo(i.movimentacao),
+  movimento_estorno: movimentoResumo(i.movimentacaoEstorno),
+  consumos: (i.consumos ?? []).map((f) => ({ ordem: f.ordem, lote_id: f.estoque_lote_nota_id, quantidade: t4(f.quantidade), custo_unitario: custo4(f.custo_unitario) })),
+  criado_por: usuarioPublico(i.criadoPor),
+  criado_em: iso(i.createdAt),
+  cancelamento:
+    i.status === STATUS_CANCELADO
+      ? { cancelado_em: iso(i.cancelado_em), cancelado_por: usuarioPublico(i.canceladoPor), motivo: i.motivo_cancelamento ?? null, origem: i.cancelamento_origem ?? null }
+      : null,
+});
+
+/**
+ * Custo dos itens: soma SÓ dos CONFIRMADO (4 casas, Decimal), por tipo. É
+ * custo gerencial da atividade (sem efeito financeiro, I-w).
+ * @param {Array<{ status: string, tipo: string, valor_total: any }>} itens
+ */
+export const custoDosItens = (itens) => {
+  const confirmados = itens.filter((i) => i.status === STATUS_CONFIRMADO);
+  /** @param {string|null} tipo */
+  const soma = (tipo) => somar(confirmados.filter((i) => tipo === null || i.tipo === tipo).map((i) => i.valor_total)).toFixed(CASAS_CUSTO);
+  return { total: soma(null), produto: soma(TIPO_PRODUTO), servico: soma('SERVICO'), outro: soma('OUTRO'), itens_confirmados: confirmados.length };
+};
+
+/**
+ * DETALHE (A1–A4): a forma pública do apontamento + os itens + o custo. A
+ * lista continua com `comoApontamentoPublico` (sem itens).
+ * @param {any} r registro com `INCLUIR_DETALHE`
+ */
+export const comoDetalhePublico = (r) => ({ ...comoApontamentoPublico(r), itens: r.itens.map(comoItemPublico), custo_itens: custoDosItens(r.itens) });
+
+/** Detalhe relido (com os itens) na transação de quem chama. @param {any} db @param {string} cli @param {string} empresaId @param {string} id */
+export const carregarDetalhe = async (db, cli, empresaId, id) => {
+  const r = await buscarApontamentoComItens(db, cli, empresaId, id);
+  if (!r) throw apontamentoAtividadeNotFound();
+  return comoDetalhePublico(r);
+};
+
+/** Auditoria do item: colunas, sem texto livre (só se há descrição/motivo). @param {any} i item com `consumos` */
+export const itemParaAuditoria = (i) => ({
+  id: i.id,
+  apontamento_id: i.apontamento_id,
+  empresa_id: i.empresa_id,
+  ordem: i.ordem,
+  tipo: i.tipo,
+  status: i.status,
+  produto_id: i.produto_id ?? null,
+  local_estoque_id: i.local_estoque_id ?? null,
+  quantidade: t4(i.quantidade),
+  unidade: i.unidade ?? null,
+  valor_unitario: t6(i.valor_unitario),
+  valor_total: custo4(i.valor_total),
+  movimentacao_estoque_id: i.movimentacao_estoque_id ?? null,
+  movimentacao_estorno_id: i.movimentacao_estorno_id ?? null,
+  cancelamento_origem: i.cancelamento_origem ?? null,
+  fatias: (i.consumos ?? []).map((f) => ({ ordem: f.ordem, lote_id: f.estoque_lote_nota_id, quantidade: t4(f.quantidade), custo_unitario: custo4(f.custo_unitario) })),
+  tem_descricao: Boolean(i.descricao),
+  tem_motivo_cancelamento: Boolean(i.motivo_cancelamento),
+});
+
+/**
+ * Motivo do cancelamento (do apontamento e do item): 3..500, aparado, sem
+ * controle nem marcação.
+ * @param {unknown} v
+ */
+export const motivoDoCorpo = (v) => {
+  const motivo = textoDoCorpo(v, 'motivo');
+  if (!motivo) throw invalido('informe o motivo do cancelamento', { field: 'motivo', reason: 'obrigatorio' });
+  if ([...motivo].length < MOTIVO_MINIMO) {
+    throw invalido(`o motivo do cancelamento deve ter ao menos ${MOTIVO_MINIMO} caracteres`, { field: 'motivo', reason: 'motivo_curto' });
+  }
+  return motivo;
+};
+
+/** @param {unknown} v */
+export const operationIdDoCorpo = (v) => {
+  if (typeof v !== 'string' || !PADRAO_OPERATION_ID.test(v)) throw invalido('operation_id inválido', { field: 'operation_id', reason: 'formato' });
+  return v;
+};
+
+/**
+ * Reenvio conflitante (mesma chave, conteúdo diferente) auditado numa
+ * transação própria, best-effort (molde do abastecimento): a resposta segue 409
+ * e nada foi gravado.
+ * @param {any} contexto @param {string} entidade @param {string} operationId @param {string} tipoOperacao
+ */
+export const auditarReenvioConflitante = async (contexto, entidade, operationId, tipoOperacao) => {
+  try {
+    await registrarEvento(contexto, { acao: 'apontamento_atividade.reenvio_conflitante', entidade, entidadeId: null, dadosNovos: { operation_id: operationId, tipo_operacao: tipoOperacao } });
+  } catch {
+    // best-effort documentado: a auditoria do conflito não muda a resposta 409.
+  }
+};
+
+// ─── estorno exato dos itens PRODUTO (I-p, I-q): um caminho só ──────────────
+
+/** Recusas do motor que a tela conhece (as demais de `ESTOQUE_JA_CONSUMIDO` viram `fatias_inconsistentes`). */
+const RECUSAS_DO_MOTOR = Object.freeze(['lote_indisponivel_para_devolucao', 'devolucao_excede_entrada', 'fatias_inconsistentes', 'vinculo_divergente', 'camada_divergente']);
+
+/**
+ * Erros do motor no estorno → 409 `APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO`
+ * com o item (fail-closed; molde do cancelamento do abastecimento).
+ * `CONCURRENCY_CONFLICT` e o resto passam.
+ * @param {unknown} erro @param {any[]} itens os itens PRODUTO enviados ao motor (`ordem` → item)
+ */
+const traduzirErroDoEstorno = (erro, itens) => {
+  if (!(erro instanceof AppError)) return erro;
+  const e = /** @type {any} */ (erro);
+  const porOrdem = new Map(itens.map((i) => [i.ordem, i]));
+  /** O item da recusa: pela `item_ordem` do motor; sem ela, o único item do lote (se só há um). */
+  const doItem = (ordem) => {
+    const i = Number.isInteger(ordem) ? porOrdem.get(ordem) : itens.length === 1 ? itens[0] : undefined;
+    return i ? { item_id: i.id, item_ordem: i.ordem } : {};
+  };
+  const opcoes = { cause: erro };
+  if (e.code === 'ESTOQUE_JA_CONSUMIDO') {
+    const base = { ...doItem(e.details?.item_ordem), ...(e.details?.lote_id ? { lote_id: e.details.lote_id } : {}) };
+    if (e.details?.reason === 'original_ja_estornado' || e.details?.reason === 'original_nao_ativo') return apontamentoAtividadeEstornoBloqueado('movimento_estornado', base, opcoes);
+    const reason = RECUSAS_DO_MOTOR.find((r) => r === e.details?.reason) ?? 'fatias_inconsistentes';
+    return apontamentoAtividadeEstornoBloqueado(/** @type {any} */ (reason), base, opcoes);
+  }
+  if (e.code === 'MOVIMENTACAO_ESTOQUE_NOT_FOUND') return apontamentoAtividadeEstornoBloqueado('movimento_inexistente', doItem(undefined), opcoes);
+  if (e.code === 'OPERACAO_VALORES_INVALIDOS') return apontamentoAtividadeEstornoBloqueado('estoque_excede_limite', doItem(e.details?.item_ordem), opcoes);
+  if (e.code === 'PRODUTO_NOT_FOUND') return apontamentoAtividadeEstornoBloqueado('produto_mudou_de_fazenda', doItem(e.details?.item_ordem), opcoes);
+  return erro;
+};
+
+/**
+ * Estorno EXATO dos itens PRODUTO (I-p, I-q) — o MESMO caminho para cancelar
+ * um item (lista de um) e para cancelar o apontamento (todos, na ordem):
+ *  1. `travarProdutosEstoque` com todos os produtos de uma vez (o apontamento
+ *     já está travado por quem chama: ordem canônica do motor);
+ *  2. conferências ANTES do motor, item a item na ordem (molde do
+ *     abastecimento): Produto ainda da empresa (`produto_mudou_de_fazenda`),
+ *     mesma unidade EFETIVA (`unidade_mudou`), movimento original existe
+ *     (`movimento_inexistente`), 'Ativa' e sem filho (`movimento_estornado`),
+ *     fatias gravadas e Σ = quantidade (`fatias_inconsistentes`);
+ *  3. `estornarEmLote` (efeito SAÍDA): cada fatia volta ao SEU lote, Entrada
+ *     `estorno_apontamento_atividade` com o MESMO valor do original e
+ *     `movimento_pai_id`, original 'Estornada' (CAS), `estoque_atual +`, no
+ *     dia `hoje` da fazenda. Recusa do motor → 409 `…_ESTORNO_BLOQUEADO`.
+ * Nada aqui escreve em Produto, lote ou movimento fora do motor (I-u). Os
+ * números dos movimentos são PROVISÓRIOS: quem chama numera no fim.
+ * @param {any} tx @param {{auth: any}} contexto
+ * @param {{ empresaId: string, apontamento: { id: string, numero: string, data_operacional: any }, itens: any[], hoje: string }} a
+ *   `itens`: CONFIRMADO, com `consumos` (os SERVICO/OUTRO são ignorados)
+ * @returns {Promise<Map<string, string>>} id do item PRODUTO → id do movimento de estorno, na ordem dos itens
+ */
+export const estornarItensProduto = async (tx, contexto, { empresaId, apontamento, itens, hoje }) => {
+  const doProduto = itens.filter((i) => i.tipo === TIPO_PRODUTO);
+  if (!doProduto.length) return new Map();
+  const cli = exigirAuthContext(contexto?.auth).clienteId;
+  const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, doProduto.map((i) => i.produto_id));
+  const produtos = new Map(
+    (await tx.produto.findMany({ where: { cliente_id: cli, id: { in: produtoIds } }, select: { id: true, empresa_id: true, unidade_principal_estoque: true } })).map((p) => [p.id, p])
+  );
+  const movimentoIds = [...new Set(doProduto.map((i) => i.movimentacao_estoque_id).filter((v) => typeof v === 'string' && v))];
+  // Pré-leitura SEM trava, só para responder os motivos que a tela conhece; o motor trava os lotes e DEPOIS os
+  // originais (FOR UPDATE) e revalida tudo sob a trava.
+  const movimentos = new Map(
+    (movimentoIds.length
+      ? await tx.movimentacaoEstoque.findMany({ where: { cliente_id: cli, id: { in: movimentoIds } }, select: { id: true, status: true, movimento_filho_id: true } })
+      : []
+    ).map((m) => [m.id, m])
+  );
+  for (const item of doProduto) {
+    const base = { item_id: item.id, item_ordem: item.ordem };
+    const produto = produtos.get(item.produto_id);
+    if (!produto || produto.empresa_id !== empresaId) throw apontamentoAtividadeEstornoBloqueado('produto_mudou_de_fazenda', base);
+    // Unidade EFETIVA (L → L; KG/SACO → KG): KG ↔ SACO guardam kg e não bloqueiam; a troca que envolve L, sim.
+    if (unidadeEfetivaDoEstoque(produto.unidade_principal_estoque) !== item.unidade) {
+      throw apontamentoAtividadeEstornoBloqueado('unidade_mudou', { ...base, unidade_item: item.unidade, unidade_produto: produto.unidade_principal_estoque });
+    }
+    const original = item.movimentacao_estoque_id ? movimentos.get(item.movimentacao_estoque_id) : undefined;
+    if (!original) throw apontamentoAtividadeEstornoBloqueado('movimento_inexistente', base);
+    if (original.status !== 'Ativa' || original.movimento_filho_id) throw apontamentoAtividadeEstornoBloqueado('movimento_estornado', base);
+    const fatias = item.consumos ?? [];
+    if (!fatias.length || !somar(fatias.map((f) => f.quantidade)).eq(dec(item.quantidade))) throw apontamentoAtividadeEstornoBloqueado('fatias_inconsistentes', base);
+  }
+  let estornos;
+  try {
+    estornos = await estornarEmLote(tx, contexto, {
+      empresaId,
+      efeito: EFEITO_SAIDA,
+      dia: hoje, // dia do estorno = hoje da fazenda (nunca a data operacional)
+      documento: { numero: apontamento.numero, data: diaDe(apontamento.data_operacional) },
+      origem: { sistema: ORIGEM_APONTAMENTO, operacaoId: apontamento.id, tipoDetalhadoEstorno: TIPO_DETALHADO_ESTORNO, motivoEstorno: MOTIVO_ESTORNO },
+      itens: doProduto.map((i) => ({
+        produto_id: i.produto_id,
+        local_estoque_id: i.local_estoque_id,
+        movimentacao_estoque_id: i.movimentacao_estoque_id,
+        quantidade_estoque: i.quantidade,
+        ordem: i.ordem,
+        consumos: i.consumos.map((f) => ({ estoque_lote_nota_id: f.estoque_lote_nota_id, quantidade: f.quantidade })),
+      })),
+      numeroMovimento: numeroMovimentoProvisorio,
+    });
+  } catch (erro) {
+    throw traduzirErroDoEstorno(erro, doProduto);
+  }
+  return new Map(doProduto.map((i, k) => [i.id, estornos[k]]));
+};
+
+/**
+ * Cancela os itens CONFIRMADO lidos (CAS numa instrução; contagem = nº de
+ * itens) com o estorno de cada PRODUTO. Contagem diferente = um escritor fora
+ * do protocolo (a trava do apontamento serializa todos): 409, tudo desfeito.
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, apontamentoId: string, itens: any[], estornos: Map<string, string>,
+ *   motivo: string, origem: 'ITEM'|'APONTAMENTO', usuarioId: string|null, agora: Date }} a
+ */
+export const cancelarItens = async (tx, { estornos, itens, ...resto }) => {
+  const n = await cancelarItensConfirmados(tx, { ...resto, itens: itens.map((i) => ({ id: i.id, estorno: estornos.get(i.id) ?? null })) });
+  if (n !== itens.length) throw concurrencyConflict('um item do apontamento mudou durante o cancelamento; nada foi alterado, tente de novo com a mesma operation_id', { details: { itens: itens.length, cancelados: n } });
 };
 
 // ─── leitura ────────────────────────────────────────────────────────────────
@@ -527,13 +802,16 @@ const diaDoFiltro = (v, campo) => {
 };
 
 /**
+ * DETALHE (A4): o apontamento com os itens (inclusive cancelados) e o custo dos
+ * CONFIRMADO, numa leitura consistente (RepeatableRead, sem trava).
  * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id @param {Record<string, any>} [query]
  */
 export const obter = async (contexto, id, query = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const empresaId = await exigirEmpresaDoTenant(prisma, auth.clienteId, query.empresa_id);
-  return comoApontamentoPublico(await detalheNa(prisma, auth.clienteId, empresaId, id));
+  return emTransacao(LEITURA, async (tx) => {
+    const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, query.empresa_id);
+    return carregarDetalhe(tx, auth.clienteId, empresaId, id);
+  });
 };
 
 // ─── criação ────────────────────────────────────────────────────────────────
@@ -610,6 +888,12 @@ export const atualizar = async (contexto, id, corpo) => {
       if (anterior.status !== STATUS_CONFIRMADO) throw apontamentoAtividadeStatusInvalido(anterior.status); // R-g
       if (anterior.versao !== versao) throw apontamentoAtividadeVersaoConflito(anterior.versao, versao);
       const gravado = estadoGravado(anterior);
+      // D-1 (D-PROD-193): a saída de estoque do item PRODUTO está na data gravada; mudar a data com item
+      // PRODUTO CONFIRMADO é recusado (lido sem trava: um item que entre depois muda a versão e o CAS perde).
+      if (tem(campos, 'data_operacional') && campos.data_operacional !== gravado.data_operacional) {
+        const itensProduto = await contarItensProdutoConfirmados(tx, cli, empresaId, id);
+        if (itensProduto > 0) throw apontamentoAtividadeDataComItens(itensProduto);
+      }
       const estado = { ...gravado, ...campos };
       exigirRegrasPuras(estado);
       if (tempo && tem(campos, 'data_operacional')) exigirDiaNaoFuturo(tempo, estado.data_operacional);
@@ -640,56 +924,112 @@ export const atualizar = async (contexto, id, corpo) => {
   );
 };
 
-// ─── cancelamento (R-j) ─────────────────────────────────────────────────────
+// ─── cancelamento (R-j; D-PROD-193 I-q) ─────────────────────────────────────
 
 /**
  * Sem DELETE físico: CONFIRMADO → CANCELADO com quem, quando e motivo; CAS por
  * `versao`. Cancelado não cancela de novo (R-g).
+ *
+ * D-PROD-193 (I-q, D-2): idempotente por `operation_id` (obrigatório; recibo
+ * `cancelar_apontamento_atividade_v1`; mesma chave e mesmo conteúdo → o corpo
+ * gravado com `replay: true`; conteúdo diferente → 409 `IDEMPOTENCY_CONFLICT`).
+ * Na MESMA transação, TODOS os itens CONFIRMADO são cancelados
+ * (`cancelamento_origem = 'APONTAMENTO'`, o motivo do apontamento) e os PRODUTO
+ * estornados de uma vez pelo motor; qualquer recusa → 409
+ * `APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO` com o item, e NADA muda. Travas:
+ * recibo → empresa → Empresa FOR SHARE (fuso; sem fuso, falha fechado) →
+ * Apontamento FOR UPDATE → itens → produtos → lotes → originais → sequência →
+ * AuditLog → recibo.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} id @param {Record<string, any>} corpo
+ * @returns {Promise<Record<string, unknown>>} detalhe (itens cancelados/estornados) + `replay`
  */
 export const cancelar = async (contexto, id, corpo) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
-  const motivo = textoDoCorpo(corpo.motivo, 'motivo');
-  if (!motivo) throw invalido('informe o motivo do cancelamento', { field: 'motivo', reason: 'obrigatorio' });
-  if ([...motivo].length < MOTIVO_MINIMO) {
-    throw invalido(`o motivo do cancelamento deve ter ao menos ${MOTIVO_MINIMO} caracteres`, { field: 'motivo', reason: 'motivo_curto' });
-  }
+  const motivo = motivoDoCorpo(corpo.motivo);
+  const operationId = operationIdDoCorpo(corpo.operation_id);
   const versao = corpo.versao;
+  // Ordem FIXA de chaves; valores já normalizados (motivo aparado).
+  const fingerprint = fingerprintDePayload({ v: 1, id, empresa_id: corpo.empresa_id, versao, motivo });
 
-  return emTransacao(
-    TRANSACAO_CURTA,
-    async (tx) => {
-      const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-      const antes = await detalheNa(tx, cli, empresaId, id);
-      if (antes.status !== STATUS_CONFIRMADO) throw apontamentoAtividadeStatusInvalido(antes.status); // R-g
-      if (antes.versao !== versao) throw apontamentoAtividadeVersaoConflito(antes.versao, versao);
-      const alterados = await atualizarComVersao(tx, {
-        clienteId: cli,
-        empresaId,
-        id,
-        versao,
-        statusEsperado: STATUS_CONFIRMADO,
-        dados: {
-          status: STATUS_CANCELADO,
-          cancelado_em: new Date(),
-          cancelado_por_usuario_id: auth.usuarioId ?? null,
-          motivo_cancelamento: motivo,
-        },
-      });
-      if (alterados !== 1) throw await erroDoCasPerdido(tx, cli, empresaId, id, versao);
-      const depois = await detalheNa(tx, cli, empresaId, id);
-      await registrarEvento(
-        contexto,
-        { acao: 'apontamento_atividade.cancelar', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: paraAuditoria(antes), dadosNovos: paraAuditoria(depois) },
-        tx
-      );
-      return comoApontamentoPublico(depois);
-    },
-    {},
-    MENSAGEM_CONFLITO_SEM_CHAVE
-  );
+  try {
+    const r = await emTransacao(
+      TRANSACAO_CURTA,
+      (tx) =>
+        executarComIdempotencia(tx, {
+          clienteId: cli,
+          operationKey: operationId,
+          tipoOperacao: TIPO_CANCELAR_APONTAMENTO,
+          fingerprint,
+          executar: async () => {
+            const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
+            const { hoje } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE (dia do estorno)
+            if (!(await travarApontamento(tx, cli, empresaId, id))) throw apontamentoAtividadeNotFound(); // I-c
+            const antes = await detalheNa(tx, cli, empresaId, id);
+            if (antes.status !== STATUS_CONFIRMADO) throw apontamentoAtividadeStatusInvalido(antes.status); // R-g
+            if (antes.versao !== versao) throw apontamentoAtividadeVersaoConflito(antes.versao, versao);
+            const itens = await lerItensComFatias(tx, cli, empresaId, id, { status: STATUS_CONFIRMADO });
+            const estornos = await estornarItensProduto(tx, contexto, { empresaId, apontamento: antes, itens, hoje }); // I-q
+            const agora = new Date();
+            await cancelarItens(tx, {
+              clienteId: cli,
+              empresaId,
+              apontamentoId: id,
+              itens,
+              estornos,
+              motivo,
+              origem: 'APONTAMENTO',
+              usuarioId: auth.usuarioId ?? null,
+              agora,
+            });
+            const alterados = await atualizarComVersao(tx, {
+              clienteId: cli,
+              empresaId,
+              id,
+              versao,
+              statusEsperado: STATUS_CONFIRMADO,
+              dados: {
+                status: STATUS_CANCELADO,
+                cancelado_em: agora,
+                cancelado_por_usuario_id: auth.usuarioId ?? null,
+                motivo_cancelamento: motivo,
+              },
+            });
+            if (alterados !== 1) throw await erroDoCasPerdido(tx, cli, empresaId, id, versao);
+            await numerarMovimentos(tx, cli, [...estornos.values()]);
+            const depois = await buscarApontamentoComItens(tx, cli, empresaId, id);
+            if (!depois) throw apontamentoAtividadeNotFound();
+            await registrarEvento(
+              contexto,
+              { acao: 'apontamento_atividade.cancelar', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: paraAuditoria(antes), dadosNovos: paraAuditoria(depois) },
+              tx
+            );
+            const cancelados = new Set(itens.map((i) => i.id));
+            const anteriores = new Map(itens.map((i) => [i.id, i]));
+            await registrarEventosEmLote(
+              contexto,
+              depois.itens
+                .filter((/** @type {any} */ i) => cancelados.has(i.id))
+                .map((/** @type {any} */ i) => ({
+                  acao: 'apontamento_atividade.item_cancelar',
+                  entidade: ENTIDADE_ITEM,
+                  entidadeId: i.id,
+                  dadosAnteriores: itemParaAuditoria(anteriores.get(i.id)),
+                  dadosNovos: itemParaAuditoria(i),
+                })),
+              tx
+            );
+            return { httpStatus: 200, body: comoDetalhePublico(depois) };
+          },
+        }),
+      {}
+    );
+    return { ...r.body, replay: r.replay };
+  } catch (e) {
+    if (/** @type {any} */ (e)?.code === 'IDEMPOTENCY_CONFLICT') await auditarReenvioConflitante(contexto, ENTIDADE, operationId, TIPO_CANCELAR_APONTAMENTO);
+    throw e;
+  }
 };
 
 // ─── opções do formulário (seletores próprios da tela) ──────────────────────

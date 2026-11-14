@@ -13,7 +13,8 @@
  *              todos os status: o estorno compensa) e nunca negativo;
  *  I3 lote     0 ≤ disponível ≤ entrada; situação coerente com o saldo; consumo
  *              observado (entrada − disponível) = consumo explicado pelas
- *              fatias FK (financeiro ativo, abastecimento CONFIRMADO), pelo
+ *              fatias FK (financeiro ativo, abastecimento CONFIRMADO e, D-PROD-193,
+ *              item de apontamento de atividade CONFIRMADO), pelo
  *              `lotes_consumidos` das Saídas de suplementação/transferência,
  *              pelo `rateio` do recibo legado (só quando o movimento NÃO tem
  *              `lotes_consumidos`, para não contar duas vezes) e pela compra
@@ -124,7 +125,7 @@ import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_QUANTIDADE, Dec, ZERO, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { agoraDoServidor } from '../rebanhoLedger/rebanhoLedgerTempo.js';
-import { ORIGEM_ABASTECIMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO } from './estoqueFisicoMotor.js';
+import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO } from './estoqueFisicoMotor.js';
 
 /**
  * Origens de movimento do protocolo (motor físico único, D-PROD-161). Vêm dos
@@ -132,11 +133,14 @@ import { ORIGEM_ABASTECIMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTEMA, ORIGEM_SUPLEMENT
  * §8), para que uma origem nova do motor não fique fora do reconciliador por
  * divergência de literal. Os valores são os mesmos que a F4 declarava aqui.
  */
-export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
+export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_APONTAMENTO]);
 /** Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. */
 const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
-/** Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote`). */
-const ORIGENS_COM_FK = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO]);
+/**
+ * Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote` e,
+ * D-PROD-193, `ApontamentoAtividadeItemConsumoLote`).
+ */
+const ORIGENS_COM_FK = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO]);
 /** Escritores genéricos antigos (POST de movimento, reversão pelo navegador). */
 const ORIGENS_LEGADAS = Object.freeze(['manual', 'reversao']);
 const STATUS_LOTE = Object.freeze(['Disponivel', 'Esgotado', 'Estornado']);
@@ -438,9 +442,34 @@ const lerLocais = (tx, cli, f, faixa) => tx.$queryRaw`WITH lot AS (
     LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = COALESCE(lot.produto_id, mov.produto_id)${naFaixa('p.id', faixa)}
     ORDER BY 2, 1, 3`;
 
+/**
+ * D-PROD-193 (I-y, I-z; lição do hotfix #259) — fatias FK dos itens PRODUTO do
+ * apontamento de atividade. O código pode subir antes da migration das duas
+ * tabelas novas: sem elas (`comItens` falso, lido do catálogo por `to_regclass`
+ * na 2ª instrução fixa da leitura), o CTE e o ramo do `fk` viram consultas
+ * VAZIAS do mesmo formato — nunca 500, nem 25P02 no resto da transação.
+ *
+ * Consumo por lote dos itens CONFIRMADO (item cancelado devolveu a fatia: não conta).
+ */
+const consumoDosItensDoApontamento = (cli, comItens) => (comItens
+  ? Prisma.sql`SELECT f.estoque_lote_nota_id AS lote_id, SUM(f.quantidade) AS consumido
+      FROM "ApontamentoAtividadeItemConsumoLote" f
+      JOIN "ApontamentoAtividadeItem" i ON i.cliente_id = f.cliente_id AND i.id = f.item_id
+      WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt)) AND i.status = 'CONFIRMADO'
+      GROUP BY 1`
+  : Prisma.sql`SELECT NULL::text AS lote_id, 0::numeric AS consumido WHERE false`);
+/** Σ das fatias por movimento de SAÍDA do item (de qualquer situação: o original estornado continua com as fatias). */
+const fatiasFkDosItensDoApontamento = (cli, comItens) => (comItens
+  ? Prisma.sql`SELECT i.movimentacao_estoque_id, SUM(f.quantidade)
+      FROM "ApontamentoAtividadeItem" i
+      JOIN "ApontamentoAtividadeItemConsumoLote" f ON f.cliente_id = i.cliente_id AND f.item_id = i.id
+      WHERE i.cliente_id = ${cli} AND i.movimentacao_estoque_id = ANY(ARRAY(SELECT id FROM mv))
+      GROUP BY 1`
+  : Prisma.sql`SELECT NULL::text, 0::numeric WHERE false`);
+
 const COLUNAS_LOTE = Prisma.raw(`y.id, y.empresa_id, y.produto_id, y.local_estoque_id, y.status, y.q_entrada::text AS entrada, y.q_disp::text AS disponivel,
   y.movimentacao_entrada_id, y.data_antiga, y.produto_inexistente, y.produto_empresa_id, y.local_inexistente,
-  y.c_fin::text AS consumo_financeiro, y.c_abs::text AS consumo_abastecimento, y.c_nov::text AS consumo_movimentos, y.c_leg::text AS consumo_recibos,
+  y.c_fin::text AS consumo_financeiro, y.c_abs::text AS consumo_abastecimento, y.c_apo::text AS consumo_apontamento, y.c_nov::text AS consumo_movimentos, y.c_leg::text AS consumo_recibos,
   y.fatias_recibo, y.fatias_recibo_fora_janela, y.compra_estornada, y.tem_movimento_entrada, y.entrada_tipo, y.entrada_tipo_detalhado,
   y.entrada_origem, y.q_ent_mov::text AS entrada_quantidade, y.entrada_incoerente, y.linhagem_motor`);
 
@@ -451,7 +480,7 @@ const COLUNAS_LOTE = Prisma.raw(`y.id, y.empresa_id, y.produto_id, y.local_estoq
  * `teto + 1` (o excesso marca a página truncada), e uma AMOSTRA de `amostra`
  * lotes órfãos (os órfãos são contados por Q2: classe fixa).
  */
-const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
+const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra, comItens) => {
   // Sem amostra de órfãos a CTE `y` é lida uma vez só (o PostgreSQL a embute e filtra em fluxo, sem materializar
   // a página inteira em disco); com amostra, os dois ramos leem a mesma `y` materializada.
   const comAmostra = amostra > 0;
@@ -472,6 +501,8 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
       JOIN "AbastecimentoBem" a ON a.cliente_id = f.cliente_id AND a.id = f.abastecimento_id
       WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt)) AND a.status = 'CONFIRMADO'
       GROUP BY 1
+    ), apo AS (
+      ${consumoDosItensDoApontamento(cli, comItens)}
     ), nov AS (
       SELECT x.elem ->> 'lote_id' AS lote_id, SUM(${num(Prisma.sql`x.elem ->> 'quantidade'`)}) AS consumido
       FROM "MovimentacaoEstoque" m
@@ -508,7 +539,8 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
       SELECT lt.id, lt.empresa_id, lt.produto_id, lt.local_estoque_id, lt.status, lt.quantidade_entrada AS q_entrada, lt.quantidade_disponivel AS q_disp,
              lt.movimentacao_entrada_id, (lt.data_documento IS NOT NULL AND lt.data_documento < DATE '2002-01-01') AS data_antiga,
              (p.id IS NULL) AS produto_inexistente, p.empresa_id AS produto_empresa_id, (le.id IS NULL) AS local_inexistente,
-             COALESCE(fin.consumido, 0) AS c_fin, COALESCE(abs.consumido, 0) AS c_abs, COALESCE(nov.consumido, 0) AS c_nov, COALESCE(leg.consumido, 0) AS c_leg,
+             COALESCE(fin.consumido, 0) AS c_fin, COALESCE(abs.consumido, 0) AS c_abs, COALESCE(apo.consumido, 0) AS c_apo,
+             COALESCE(nov.consumido, 0) AS c_nov, COALESCE(leg.consumido, 0) AS c_leg,
              COALESCE(leg.fatias, 0)::int AS fatias_recibo, COALESCE(leg.fatias_fora_janela, 0)::int AS fatias_recibo_fora_janela,
              COALESCE(compra.estornada, false) AS compra_estornada,
              (ent.id IS NOT NULL) AS tem_movimento_entrada, ent.tipo_movimentacao AS entrada_tipo, ent.tipo_detalhado AS entrada_tipo_detalhado,
@@ -521,6 +553,7 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
       LEFT JOIN "LocalEstoque" le ON le.cliente_id = ${cli} AND le.id = lt.local_estoque_id
       LEFT JOIN fin ON fin.lote_id = lt.id
       LEFT JOIN abs ON abs.lote_id = lt.id
+      LEFT JOIN apo ON apo.lote_id = lt.id
       LEFT JOIN nov ON nov.lote_id = lt.id
       LEFT JOIN leg ON leg.lote_id = lt.id
       LEFT JOIN compra ON compra.lote_id = lt.id
@@ -537,7 +570,7 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
         OFFSET 0
       ) lm ON true
     ), y AS ${comAmostra ? Prisma.sql`MATERIALIZED` : Prisma.empty} (
-      SELECT x.*, ((x.q_entrada - x.q_disp) - (x.c_fin + x.c_abs + x.c_nov + x.c_leg + CASE WHEN x.compra_estornada THEN x.q_entrada ELSE 0 END)) AS dif
+      SELECT x.*, ((x.q_entrada - x.q_disp) - (x.c_fin + x.c_abs + x.c_apo + x.c_nov + x.c_leg + CASE WHEN x.compra_estornada THEN x.q_entrada ELSE 0 END)) AS dif
       FROM x
     )
     (SELECT ${COLUNAS_LOTE}, false AS amostra_orfa FROM y
@@ -568,7 +601,7 @@ const COLUNAS_MOVIMENTO = Prisma.raw('x.*');
  * Q4 — movimentos com alguma regra disparada (os demais só entram na contagem
  * de Q2), até `teto + 1` não órfãos e uma AMOSTRA de `amostra` órfãos.
  */
-const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => {
+const lerMovimentos = (tx, cli, f, faixa, teto, amostra, comItens) => {
   const comAmostra = amostra > 0; // idem `lerLotes`: sem amostra, `x` é embutida e filtrada em fluxo
   return tx.$queryRaw`WITH mv AS (
       SELECT m.id, m.empresa_id, m.produto_id, m.tipo_movimentacao, m.tipo_detalhado, m.origem_sistema, m.status, m.quantidade,
@@ -603,6 +636,8 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => {
       JOIN "AbastecimentoBemConsumoLote" f ON f.cliente_id = a.cliente_id AND f.abastecimento_id = a.id
       WHERE a.cliente_id = ${cli} AND a.movimentacao_estoque_id = ANY(ARRAY(SELECT id FROM mv))
       GROUP BY 1
+      UNION ALL
+      ${fatiasFkDosItensDoApontamento(cli, comItens)}
     ), ltr AS (
       -- R2: linhagem da transferência do motor — cada fatia aponta a UMA camada de destino do filho, no local de destino,
       -- do mesmo produto e empresa, com a mesma quantidade e o mesmo custo (lote_destino_id em JSON, sem FK).
@@ -839,7 +874,8 @@ const achadoLote = (l, aud, semRecibo) => {
   const entrada = d(l.entrada);
   const disp = d(l.disponivel);
   const observado = entrada.minus(disp);
-  const explicado = somar([l.consumo_financeiro, l.consumo_abastecimento, l.consumo_movimentos, l.consumo_recibos].map(d)).plus(l.compra_estornada ? entrada : ZERO);
+  const explicado = somar([l.consumo_financeiro, l.consumo_abastecimento, l.consumo_apontamento, l.consumo_movimentos, l.consumo_recibos].map(d))
+    .plus(l.compra_estornada ? entrada : ZERO);
   const dif = observado.minus(explicado);
   const statusConhecido = STATUS_LOTE.includes(l.status);
   const zeradoDisponivel = l.status === 'Disponivel' && disp.isZero();
@@ -1075,8 +1111,12 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
   const o = normalizarOrcamento(orcamento);
   // `statement_timeout` (< 20 s da transação): uma consulta nunca sobrevive à transação que o Prisma já
   // abandonou (medido no código anterior: plano genérico rodando 8 min 50 s depois do timeout de 20 s).
-  await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true),
-    set_config('statement_timeout', ${`${o.instrucaoMs}ms`}, true)`;
+  // D-PROD-193 (I-z): a MESMA 2ª instrução lê do catálogo se as tabelas dos itens do apontamento já existem
+  // (`to_regclass` nunca falha): nenhuma ida a mais ao banco.
+  const [config] = /** @type {Array<{ com_itens_apontamento: boolean }>} */ (await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true),
+    set_config('statement_timeout', ${`${o.instrucaoMs}ms`}, true),
+    (to_regclass('public."ApontamentoAtividadeItem"') IS NOT NULL AND to_regclass('public."ApontamentoAtividadeItemConsumoLote"') IS NOT NULL) AS com_itens_apontamento`);
+  const comItens = Boolean(config?.com_itens_apontamento);
   const inicio = Date.now();
   if (f.empresaId !== null) await exigirEmpresaDoTenant(tx, cli, f.empresaId);
 
@@ -1153,8 +1193,8 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
       const evidencia = [...new Set(auditoria.filter((a) => a.entidade === 'EstoqueLoteNota').map((a) => a.entidade_id))];
       // Amostra de órfãos: só as vagas da lista que um DADOS_INSUFICIENTES ainda pode ocupar (a contagem é exata no SQL).
       const vagas = chaves.some((c) => !c.existe) ? Math.max(limite - achados.filter((a) => GRAVIDADE[a.classe] <= GRAVIDADE.DADOS_INSUFICIENTES).length, 0) : 0;
-      const lotes = /** @type {any[]} */ (await lerLotes(tx, cli, f, faixa, evidencia, teto, vagas));
-      const movimentos = /** @type {any[]} */ (await lerMovimentos(tx, cli, f, faixa, teto, vagas));
+      const lotes = /** @type {any[]} */ (await lerLotes(tx, cli, f, faixa, evidencia, teto, vagas, comItens));
+      const movimentos = /** @type {any[]} */ (await lerMovimentos(tx, cli, f, faixa, teto, vagas, comItens));
       const lotesSuspeitos = lotes.filter((l) => !l.amostra_orfa);
       const movsSuspeitos = movimentos.filter((m) => !m.amostra_orfa);
       const truncada = auditoria.length > teto || lotesSuspeitos.length > teto || movsSuspeitos.length > teto;

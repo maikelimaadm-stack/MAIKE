@@ -120,6 +120,12 @@ export const limparBanco = async () => {
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});
   await prisma.perfilFinanceiroEmpresa.deleteMany({});
+  // D-PROD-193: as fatias FIFO do item referenciam o item e o lote; o item
+  // referencia o apontamento, os movimentos (saída e estorno), Produto, local e
+  // usuários (RESTRICT em tudo): fatias → itens, antes do apontamento e antes
+  // do laço (que limpa movimentos, lotes, Produto, local e usuário).
+  await prisma.apontamentoAtividadeItemConsumoLote.deleteMany({});
+  await prisma.apontamentoAtividadeItem.deleteMany({});
   // D-PROD-190: o apontamento de atividade referencia bem (máquina e
   // implemento), centros de custo e de resultado, área, tarefa, tipo e grupo de
   // atividade, usuários e empresa (RESTRICT em tudo): sai antes de todos eles.

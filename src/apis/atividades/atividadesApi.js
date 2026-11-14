@@ -1,6 +1,7 @@
 /**
- * API do módulo Atividades — cadastro de tipos de atividade (D-PROD-182) e
- * apontamentos de atividade, a EXECUÇÃO de um tipo (D-PROD-190).
+ * API do módulo Atividades — cadastro de tipos de atividade (D-PROD-182),
+ * apontamentos de atividade, a EXECUÇÃO de um tipo (D-PROD-190), e os itens de
+ * custo do apontamento (D-PROD-193: produto, serviço e outro custo).
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
@@ -58,6 +59,12 @@ const ctxApontamento = (operation) => ({ operation, resource: RESOURCE_APONTAMEN
 /** @param {unknown} v */
 const ehVersao = (v) => Number.isInteger(v) && /** @type {number} */ (v) >= 1;
 const RE_DIA = /^\d{4}-\d{2}-\d{2}$/;
+/** Chave de idempotência (o mesmo padrão do servidor e do abastecimento). */
+const RE_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
+/** @param {unknown} v */
+const ehOperationId = (v) => typeof v === 'string' && RE_OPERATION_ID.test(v);
+/** Tipos do item (D-PROD-193): fechados no servidor. */
+const TIPOS_ITEM = Object.freeze(['PRODUTO', 'SERVICO', 'OUTRO']);
 
 export { RECURSOS_OPCOES_APONTAMENTO };
 
@@ -104,8 +111,10 @@ export const updateApontamentoAtividade = async (id, corpo) => {
 };
 
 /**
- * Cancelamento (sem DELETE físico): motivo obrigatório e a `versao` lida.
- * @param {string} id @param {{ empresa_id: string, versao: number, motivo: string }} corpo
+ * Cancelamento (sem DELETE físico): motivo obrigatório, a `versao` lida e o
+ * `operation_id` do recibo (D-PROD-193, D-2: o cancelamento estorna os itens de
+ * Produto, então repetir o envio tem de devolver o gravado, nunca estornar de novo).
+ * @param {string} id @param {{ empresa_id: string, versao: number, motivo: string, operation_id: string }} corpo
  */
 export const cancelarApontamentoAtividade = async (id, corpo) => {
   const contexto = ctxApontamento('cancelarApontamentoAtividade');
@@ -113,20 +122,59 @@ export const cancelarApontamentoAtividade = async (id, corpo) => {
   assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'empresa_id', contexto);
   assertArgument(ehVersao(corpo.versao), 'versao', contexto);
   assertArgument(isId(corpo.motivo), 'motivo', contexto);
+  assertArgument(ehOperationId(corpo.operation_id), 'operation_id', contexto);
   return runProviderCall(() => apontamentoNativo.cancelar(id, corpo), { ...contexto, details: { id } });
 };
 
 /**
+ * Adiciona UM item ao apontamento CONFIRMADO (D-PROD-193): empresa, `versao`
+ * do apontamento, `operation_id`, tipo e quantidade (texto) são obrigatórios
+ * (falha ANTES da rede). A resposta é o DETALHE do apontamento com `item_id` e
+ * `replay`.
+ * @param {string} id @param {Record<string, unknown>} corpo
+ */
+export const adicionarItemApontamentoAtividade = async (id, corpo) => {
+  const contexto = ctxApontamento('adicionarItemApontamentoAtividade');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  assertArgument(ehOperationId(corpo.operation_id), 'operation_id', contexto);
+  assertArgument(typeof corpo.tipo === 'string' && TIPOS_ITEM.includes(corpo.tipo), 'tipo', contexto);
+  assertArgument(isId(corpo.quantidade), 'quantidade', contexto);
+  return runProviderCall(() => apontamentoNativo.adicionarItem(id, corpo), { ...contexto, details: { id } });
+};
+
+/**
+ * Cancela UM item (D-PROD-193): o de Produto volta exatamente aos lotes de
+ * origem. Motivo, `versao` do apontamento e `operation_id` obrigatórios.
+ * @param {string} id @param {string} itemId
+ * @param {{ empresa_id: string, versao: number, motivo: string, operation_id: string }} corpo
+ */
+export const cancelarItemApontamentoAtividade = async (id, itemId, corpo) => {
+  const contexto = ctxApontamento('cancelarItemApontamentoAtividade');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isId(itemId), 'itemId', contexto);
+  assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  assertArgument(isId(corpo.motivo), 'motivo', contexto);
+  assertArgument(ehOperationId(corpo.operation_id), 'operation_id', contexto);
+  return runProviderCall(() => apontamentoNativo.cancelarItem(id, itemId, corpo), { ...contexto, details: { id, itemId } });
+};
+
+/**
  * Uma página de opções ATIVAS de um seletor da tela (`{itens, has_more,
- * next_cursor}`; `has_more` só com cursor). Em `bens`, `natureza` filtra.
+ * next_cursor}`; `has_more` só com cursor). Em `bens`, `natureza` filtra; em
+ * `locais` (D-PROD-193: locais com saldo do Produto na fazenda), `produto_id`
+ * é obrigatório e a resposta vem inteira (sem página).
  * @param {string} recurso
- * @param {{ empresa_id: string, q?: string, cursor?: string|null, limit?: number, natureza?: string[] }} filtros
+ * @param {{ empresa_id: string, q?: string, cursor?: string|null, limit?: number, natureza?: string[], produto_id?: string }} filtros
  * @returns {Promise<{ itens: any[], has_more: boolean, next_cursor: string|null }>}
  */
 export const listOpcoesApontamentoAtividade = async (recurso, filtros) => {
   const contexto = ctxApontamento('listOpcoesApontamentoAtividade');
   assertArgument(RECURSOS_OPCOES_APONTAMENTO.includes(recurso), 'recurso', contexto);
   assertArgument(isObjeto(filtros) && isId(filtros.empresa_id), 'empresa_id', contexto);
+  if (recurso === 'locais') assertArgument(isId(filtros.produto_id), 'produto_id', contexto);
   const bruto = await runProviderCall(() => apontamentoNativo.opcoes(recurso, filtros), { ...contexto, details: { recurso } });
   const o = isObjeto(bruto) ? /** @type {Record<string, unknown>} */ (bruto) : {};
   const itens = Array.isArray(o.itens) ? o.itens : [];

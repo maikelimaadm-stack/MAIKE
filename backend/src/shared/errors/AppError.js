@@ -249,6 +249,71 @@ export const apontamentoAtividadeVinculado = (vinculo, options) =>
     { ...options, details: { ...(options?.details ?? {}), vinculo } }
   );
 
+// D-PROD-193 — itens do apontamento de atividade.
+/** Item de outro apontamento, empresa ou tenant = inexistente (o mesmo corpo: sem oráculo). */
+export const apontamentoAtividadeItemNotFound = (message, options) =>
+  new AppError('APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND', message || 'item não encontrado neste apontamento de atividade', options);
+
+/**
+ * Item recusado (um só código; `details.field`/`details.reason` dizem qual).
+ * @param {'produto_id'|'local_estoque_id'|'quantidade'|'valor_unitario'} field
+ * @param {string} reason @param {string} message @param {Record<string, unknown>} [extra]
+ */
+export const apontamentoAtividadeItemInvalido = (field, reason, message, extra = {}, options = undefined) =>
+  new AppError('APONTAMENTO_ATIVIDADE_ITEM_INVALIDO', message, {
+    ...options,
+    details: { ...(options?.details ?? {}), ...extra, field, reason },
+  });
+
+/** @param {string} status */
+export const apontamentoAtividadeItemStatusInvalido = (status, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO',
+    'este item já foi cancelado; nada foi alterado',
+    { ...options, details: { ...(options?.details ?? {}), field: 'status', reason: 'status_invalido', status, esperado: 'CONFIRMADO' } }
+  );
+
+/** @param {number} limite */
+export const apontamentoAtividadeItensExcedidos = (limite, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS',
+    `o apontamento já tem ${limite} itens (confirmados e cancelados), o máximo; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), limite } }
+  );
+
+/** Frase de cada estorno bloqueado de item PRODUTO, por `reason`. */
+const MENSAGENS_ESTORNO_ITEM = Object.freeze({
+  produto_mudou_de_fazenda: 'o produto deste item mudou de fazenda: o estorno exato não é seguro; nada foi alterado',
+  unidade_mudou: 'a unidade de estoque do produto mudou desde o lançamento do item: o estorno exato não é seguro; nada foi alterado',
+  movimento_inexistente: 'o movimento de saída deste item não existe mais: o estorno exato não é seguro; nada foi alterado',
+  movimento_estornado: 'o movimento de saída deste item já foi estornado; nada foi alterado',
+  fatias_inconsistentes: 'as fatias FIFO gravadas não somam a quantidade do item: o estorno exato não é seguro; nada foi alterado',
+  lote_indisponivel_para_devolucao: 'um lote consumido por este item não pode receber a devolução (lote estornado ou removido); nada foi alterado',
+  devolucao_excede_entrada: 'a devolução ultrapassaria a entrada de um lote consumido por este item; nada foi alterado',
+  estoque_excede_limite: 'a devolução passaria do limite das colunas de estoque; nada foi alterado',
+  vinculo_divergente: 'o movimento de saída deste item é de outro produto ou outra fazenda: o estorno exato não é seguro; nada foi alterado',
+  camada_divergente: 'um lote consumido por este item é de outro produto, outra fazenda ou outro local: o estorno exato não é seguro; nada foi alterado',
+});
+
+/**
+ * Estorno exato de item PRODUTO recusado (molde `ABASTECIMENTO_CANCELAMENTO_BLOQUEADO`).
+ * @param {keyof typeof MENSAGENS_ESTORNO_ITEM} reason
+ * @param {{ item_id?: string, item_ordem?: number, lote_id?: string } & Record<string, unknown>} [extra]
+ */
+export const apontamentoAtividadeEstornoBloqueado = (reason, extra = {}, options = undefined) =>
+  new AppError('APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO', MENSAGENS_ESTORNO_ITEM[reason], {
+    ...options,
+    details: { ...(options?.details ?? {}), ...extra, field: 'item', reason },
+  });
+
+/** D-1 (D-PROD-193): a data não muda com item PRODUTO confirmado (a saída está na data atual). @param {number} itens */
+export const apontamentoAtividadeDataComItens = (itens, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS',
+    'a data da atividade não pode mudar: há item de produto confirmado, com a saída do estoque nesta data; cancele os itens de produto antes; nada foi gravado',
+    { ...options, details: { ...(options?.details ?? {}), field: 'data_operacional', reason: 'data_com_itens', itens_produto: itens } }
+  );
+
 // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
 export const estacaoNotFound = (message, options) =>
   new AppError('ESTACAO_NOT_FOUND', message || 'estação não encontrada', options);

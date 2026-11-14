@@ -142,3 +142,12 @@ Violação exige **rollback**, não flexibilização da regra.
 > - reabrir qualquer nome de `forbiddenDomains` (`config/mapa-manejo-scope.json`), em
 >   especial `MovimentacoesEstoque`, `LancamentoProdutosEstoque`, `RelatoriosEstoque`,
 >   `Relatorios`, `Dashboard` e `Home`.
+
+> **Nota (D-PROD-193):** os itens do Apontamento de Atividade são a segunda exceção, depois do abastecimento, à
+> lista "fora" da D-PROD-157, só no trecho baixa de estoque, nos limites da decisão. Continua proibido: baixar o
+> item fora do motor de estoque ou por `Produto.estoque_atual -= …`; gravar o movimento com a origem do
+> abastecimento ou do financeiro; converter unidade; apagar ou editar item (só cancelar com estorno exato); tratar
+> devolução de sobra como estorno; criar `OperacaoFinanceira`, título ou rateio a partir do item; cadastro de
+> serviços ou fornecedor no item; reintroduzir as flags `exige_area`/`pode_ter_*`; conceder a tela ou as ações a
+> perfis existentes por padrão. Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no
+> merge manual (`00-CONSTITUICAO.md` §4).
