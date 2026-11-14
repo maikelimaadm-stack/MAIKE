@@ -420,9 +420,12 @@ const bordaNoCard = (borda) => (borda / 100) * MOLDURA.largura;
 const meiaBorda = (borda) => bordaNoCard(borda) / 2;
 /** Linha de chão: os pés ficam aqui, e nem a borda branca entra na faixa da contagem. */
 export const LINHA_DE_CHAO = LIMITE_ANIMAIS - meiaBorda(Math.max(BORDA_PADRAO, BORDA_VACA_MISTO));
-const ESQUERDA_LIVRE = MOLDURA.largura * FOLGA_LATERAL;
+// Reserve a borda colorida, o halo branco e uma folga adicional: o cálculo
+// considera o contorno do desenho, não só o seu caminho central.
+const RESERVA_DA_BORDA = bordaNoCard(BORDA_MOLDURA_PCT) + meiaBorda(Math.max(BORDA_PADRAO, BORDA_VACA_MISTO)) + bordaNoCard(1.5);
+const ESQUERDA_LIVRE = MOLDURA.largura * FOLGA_LATERAL + RESERVA_DA_BORDA;
 const LARGURA_LIVRE = MOLDURA.largura - 2 * ESQUERDA_LIVRE;
-const TOPO_LIVRE = ALTURA_CARD * FOLGA_TOPO;
+const TOPO_LIVRE = ALTURA_CARD * FOLGA_TOPO + RESERVA_DA_BORDA;
 const ALTURA_LIVRE = LINHA_DE_CHAO - TOPO_LIVRE;
 
 /** Centro da faixa da contagem, em % da altura do marcador (posição do número). */
