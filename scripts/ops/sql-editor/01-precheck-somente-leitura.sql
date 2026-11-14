@@ -13,11 +13,14 @@ WITH
 esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
--- 67 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- 68 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190) na ordem segura de exclusão (filha → mãe) + Cliente.
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
 -- (histórico/tarefa → pesos → partidas → eventos → posições → ativação), antes de Lote/Área/Empresa.
 tenant(nome, ord) AS (
   SELECT * FROM unnest(ARRAY[
+    -- D-PROD-190 (Fatia C): o apontamento de atividade sai PRIMEIRO — referencia a tarefa, o tipo e o grupo de atividade,
+    -- o bem e o implemento, a área, os centros, os usuários e a empresa; nenhuma tabela o referencia.
+    'ApontamentoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
@@ -135,8 +138,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
          CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 82 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189)',
-         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 82 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
+  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 83 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190)',
+         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 83 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',
          CASE WHEN (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0 THEN 'OK' ELSE 'PARAR' END
@@ -194,7 +197,7 @@ base(ordem, item, valor, esperado, status) AS (
 ),
 contrato AS (
   SELECT (SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0
-         AND (SELECT count(*) FROM tabelas) = 82
+         AND (SELECT count(*) FROM tabelas) = 83
          AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
          AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))
          AND (SELECT count(*) FROM tabelas WHERE NOT rls) = 0

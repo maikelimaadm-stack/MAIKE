@@ -46,11 +46,27 @@
       "destination": "/index.html"
     },
     {
+      "source": "/apontamentosatividade/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ApontamentosAtividade/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/lancamentosfinanceiros",
       "destination": "/index.html"
     },
     {
       "source": "/LancamentosFinanceiros",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/apontamentosatividade",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ApontamentosAtividade",
       "destination": "/index.html"
     },
     {

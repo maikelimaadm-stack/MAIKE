@@ -6,15 +6,18 @@
  *  1. `AppError` vira `{ code, message }` com o status do contrato;
  *  2. erro de unique do PostgreSQL (Prisma `P2002`) vira
  *     `CONCURRENCY_CONFLICT` — a última barreira de concorrência produz código
- *     estável em vez de 500 opaco, como o contrato exige.
+ *     estável em vez de 500 opaco, como o contrato exige. A FK RESTRICT de um
+ *     apontamento de atividade barrando a exclusão do cadastro apontado vira
+ *     409 `APONTAMENTO_ATIVIDADE_VINCULADO` (D-PROD-190).
  *
  * Qualquer outra coisa é erro não previsto: 500 com corpo genérico. O erro
  * original vai para o log, nunca para o cliente — mensagem de erro é uma via de
  * vazamento de esquema e de dado.
  */
 
-import { AppError, ehAppError } from './AppError.js';
+import { AppError, apontamentoAtividadeVinculado, ehAppError } from './AppError.js';
 import { extrairDiagnosticoValidacao } from './validationDiagnostic.js';
+import { vinculoComApontamentoAtividade } from './vinculoApontamentoAtividade.js';
 
 /** Prisma sinaliza violação de unique com `P2002`. */
 const ehViolacaoDeUnique = (erro) => erro?.code === 'P2002';
@@ -48,6 +51,14 @@ export const normalizarErro = (erro) => {
 
   if (ehViolacaoDeUnique(erro)) {
     return new AppError('CONCURRENCY_CONFLICT', 'registro já existe', { cause: erro });
+  }
+
+  // D-PROD-190 (R-l): exclusão de cadastro barrada pela FK RESTRICT de um
+  // apontamento de atividade → 409 próprio, não o 403 genérico abaixo. Vem
+  // antes dele porque o 23503 do SQL bruto (P2010) também é reconhecido.
+  const vinculoApontamento = vinculoComApontamentoAtividade(erro);
+  if (vinculoApontamento) {
+    return apontamentoAtividadeVinculado(vinculoApontamento.campo, { cause: erro });
   }
 
   if (ehViolacaoDeVinculo(erro)) {

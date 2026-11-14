@@ -12,8 +12,10 @@
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_tt_drop):
  *  1. aplica todas as migrations do repositório menos a CONTRACT, pelo Prisma,
  *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
- *     da D-PROD-188 (`20261113400000_cadestacoes_cadastro`) e da D-PROD-189
- *     (`20261113600000_cadcurvaganho_cadastro`) e a CONTRACT da D-PROD-187
+ *     da D-PROD-188 (`20261113400000_cadestacoes_cadastro`), da D-PROD-189
+ *     (`20261113600000_cadcurvaganho_cadastro`) e da D-PROD-190
+ *     (`20261113700000_apontamento_atividade`: só cria tabela nova e não toca
+ *     TipoTarefa) e a CONTRACT da D-PROD-187
  *     (`20261113500000_categoria_manejo_cadcategoria`), posterior a esta e
  *     aplicada aqui fora de ordem, pelo Prisma direto (sem a barreira do
  *     runner); a guarda dela passa porque CategoriaManejo está vazia;

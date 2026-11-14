@@ -61,8 +61,9 @@ const soCom = (nomes) => pastaReal(readdirSync(join(RAIZ, 'backend', 'prisma', '
   .filter((d) => d.isDirectory() && !nomes.includes(d.name)).map((d) => d.name));
 /**
  * Migrations da base que produção já tem e que ainda NÃO estão na pasta do repositório (aplicadas antes do merge da
- * PR delas). Hoje: a do Apontamento (PR #269, D-PROD-190). Quando a PR entrar na main, o nome passa a ter pasta e
- * deixa de ser registrado à mão (registrarForaDoRepo só registra o que não tem pasta).
+ * PR delas). Era a do Apontamento (PR #269, D-PROD-190): com o merge da main na branch dela, o nome passou a ter
+ * pasta e deixa de ser registrado à mão (registrarForaDoRepo só registra o que não tem pasta; sobe pelo Prisma
+ * junto com o resto da base).
  */
 const FORA_DO_REPO = ['20261113700000_apontamento_atividade'];
 const registrarForaDoRepo = async (db) => {
