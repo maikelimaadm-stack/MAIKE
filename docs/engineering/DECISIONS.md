@@ -6804,6 +6804,40 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md).
 
+**Revista pela D-PROD-190 (2026-11-14):** o GMD passa a ser mensal (12 meses, do calendário) e a curva deixa de depender das Estações. A PR #270 foi mergeada em `cf07309c` (2026-11-13) e a produção foi conferida: `/health` com `release` = `cf07309c`, `/api/native/curvas-ganho` → 401.
+
 **Nota de aplicação (2026-11-13).** A migration `20261113600000_cadcurvaganho_cadastro` foi aplicada em produção às 23:18:10 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral do commit `5ebf64a8` e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**. GO escrito do proprietário: "Autorizo" / "Pode aplicar" / "mande de novo". É um desvio da D-PROD-74 só para esta migration, não precedente. Conferência: 44/0 migrations, 82 tabelas, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. A Fatia D (PR #268) continua pendente; a guarda dela passa a contar 44. Registro no §7 do runbook.
 
-<!-- Próxima decisão: D-PROD-190 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268) -->
+## D-PROD-190 — Curva de Ganho de Peso por mês: 12 GMD mensais em `CADCURVAGANHO`, sem ligação com as Estações (revê a D-PROD-189)
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário depois de ver a D-PROD-189 em produção ("o certo era colocar por mês"; "as estações a gente iria apenas colocar ela lá"; "se no GMD já vai ter os meses, então se eu cadastrar o GMD em um mês e outra estação em outro? acho que não iria dar muito certo"), com o GO "vamos fazer então" para a recomendação: curva por mês, Estações separadas, ligação futura pela Categoria de Manejo · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** A D-PROD-189 guardou 3 GMD por tipo de estação, e o GMD de cada dia viria da Estação cadastrada para a data. O proprietário prefere o mês como unidade, que é como o pecuarista pensa e confere a curva, e não quer duas fontes para o mesmo período: se o mês já diz o GMD, uma Estação com outra data abriria conflito. A tabela `"CADCURVAGANHO"` estava **vazia** em produção (conferido em 2026-11-14, junto com `"CADESTACOES"`), então trocar a estrutura não perde dado.
+
+**Decisão.**
+1. **A curva tem 12 GMD mensais**, `gmd_jan` … `gmd_dez`, `DECIMAL(6,3)` em kg/dia, todos obrigatórios, de **-2 a 3** (negativo = perda de peso), com no máximo 3 casas. O CHECK `CADCURVAGANHO_gmd_check` passa a cobrir os 12 meses. Saem `gmd_aguas`, `gmd_transicao` e `gmd_seca`. Ficam iguais: nome físico `"CADCURVAGANHO"`, `nome`, `observacoes`, `ativo`, escopo por fazenda, FKs, únicos, índice e RLS. Os meses são os do **calendário** (janeiro a dezembro).
+2. **As Estações não entram na curva** (nem agora nem na projeção). `CADESTACOES` (D-PROD-188) continua como cadastro próprio, um calendário da fazenda para relatórios e planejamento. Este ponto revê o "GMD por estação" da D-PROD-189; o resto dela vale.
+3. **Migration CONTRACT `20261114100000_cadcurvaganho_mensal`** (terceira exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162 e da D-PROD-183):
+   - guarda DO como primeira instrução, com hash pinado `3cd5adc49d6e0cab0e155b190d7c095a419b7ddbb0ef617bc5000bc9bdfb0b6d`: falha fechada se a tabela não existir, se não tiver exatamente as 3 colunas por estação (e nenhuma outra `gmd_*`), se tiver **qualquer curva**, FK de outra tabela, gatilho de usuário, política além de `maike_backend_all` ou função que cite as colunas antigas. Mensagens com o prefixo `cadcurvaganho_mensal:`; número da decisão fora do arquivo;
+   - depois, exatamente `DROP TABLE "CADCURVAGANHO"` (sem `CASCADE`, sem `IF EXISTS`) e a tabela recriada pelo caminho EXPAND, com o bloco RLS de corpo idêntico ao da D-PROD-189 (hash `eaafebfa…`, já aprovado);
+   - SHA-256 do arquivo `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`, pinado em `MIGRATIONS_APROVADAS`; entrada em `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-190'`, `drop: ['CADCURVAGANHO']`, sem `alter_antigas`. O classificador dá `CONTRACT`, `tabelas_removidas` e `tabelas_novas` = `["CADCURVAGANHO"]`;
+   - repositório: 44 → **45** migrations; tabelas continuam **82**;
+   - release **isolada** (só esta migration nova), aplicada **antes do merge** pelo runbook [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md): caminho A com `--contract D-PROD-190`, ou caminho B só com GO escrito e específico desta migration. Entre o `COMMIT` e o deploy, só as rotas `/curvas-ganho` dão 500 (o runtime antigo lê as colunas por estação); por isso o merge vem logo depois da conferência;
+   - **ordem com a Fatia D (PR #268):** também é CONTRACT; as duas nunca na mesma release, e a que for aplicada depois recalcula o `<N_OK>`.
+4. **API `/curvas-ganho`:** mesmas rotas, regras e erros da D-PROD-189, com os 12 campos mensais no lugar dos 3. Os 12 são obrigatórios no `POST`; no `PATCH`, qualquer subconjunto. `gmd_aguas`, `gmd_transicao` e `gmd_seca` passam a ser chave fora do schema (400). A recusa de GMD que não chega como número no corpo bruto (coerção do AJV) vale para os 12. A lista dos campos vive em `curvaGanhoCampos.js`, usada por serviço, rotas e repositório.
+5. **Tela Manejo → Curvas de Ganho:**
+   - formulário: Nome; o bloco "GMD por mês (kg/dia)" com os 12 meses (6 por linha no computador, 3 no celular); Ativo; Observações;
+   - embaixo de cada mês, o ganho do mês calculado com os **dias reais do mês** (fevereiro com 28), não 30 fixos; e o atalho "repetir →", que copia o GMD daquele mês para todos os seguintes até dezembro;
+   - resumo: **ganho estimado no ano** (Σ GMD × dias do mês) e **média por dia** ponderada (ganho no ano ÷ 365), com um gráfico de barras dos 12 meses (verde para ganho, laranja para perda) desenhado em SVG, sem biblioteca. As contas correm em gramas inteiros, com arredondamento simétrico;
+   - lista: Nome, Média (kg/dia), Ganho no ano (kg) e Ativo; as 12 colunas mensais ficam disponíveis na configuração de colunas. Média, ganho e meses ordenam pelo número.
+6. **Próximas fatias (fora do escopo):** ligar a curva à **Categoria de Manejo** (a categoria escolhe a curva; várias categorias podem usar a mesma; quando o animal muda de categoria, a projeção passa a usar a curva da categoria nova a partir daquela data); depois, a pesagem do lote como ponto de partida e o peso projetado mês a mês; mais tarde, curva própria de um lote como exceção.
+
+**Testes.**
+- `backend/tests/curvaGanhoNativo.test.mjs` reescrito para os 12 meses: cada mês no lugar certo, decimal exato, obrigatórios mês a mês, campos por estação recusados, `PATCH` de um mês só, CHECK em todos os meses, as 12 colunas na ordem e nenhuma por estação. `permissoesR2Rotas` com o corpo mensal.
+- `backend/tests/cadCurvaGanhoMensalMigration.test.mjs` (PostgreSQL real, bancos próprios): recusas da guarda, aplicação pelo runner oficial com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-190`, recusa sem a autorização e `migrate diff` vazio.
+- Ferramental de migration: `premerge-migrate` (classificação, contrato pinado, recortes recusados, isolamento da release, ambiente do runner), `migrations` (barreira do runner para a D-PROD-190) e `alvo-banco`; contagens dos testes e ensaios da D-PROD-162 e da D-PROD-183; dica do `run-backend-tests` para banco local com curvas antigas.
+- Smoke `tests/smoke/curvasGanho.test.jsx`: meses e dias, ganho do mês, resumo, formulário com os 12 meses, "repetir →", somente leitura, grade e tela.
+
+**Relatório:** [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-191 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268) -->

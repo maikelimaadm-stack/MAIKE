@@ -1,12 +1,14 @@
 /**
- * Cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189), tabela
- * CADCURVAGANHO.
+ * Cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189; mensal desde a
+ * D-PROD-190), tabela CADCURVAGANHO.
  *
- * Formulário: Nome, GMD nas Águas, GMD na Transição, GMD na Seca, Ativo e
- * Observações, nesta ordem. GMD em kg/dia com vírgula ou ponto, sinal de menos
- * (perda de peso) e até 3 casas, de -2 a 3; o envio leva números, não texto. A
- * fazenda não é campo (vem do topo). A tela lista as curvas da fazenda
- * selecionada e avisa quando nenhuma está selecionada.
+ * Formulário: Nome, os 12 GMD mensais (Jan a Dez), Ativo e Observações, nesta
+ * ordem. GMD em kg/dia com vírgula ou ponto, sinal de menos (perda de peso) e
+ * até 3 casas, de -2 a 3; o envio leva números, não texto. Embaixo de cada mês,
+ * o ganho do mês com os dias reais; atalho "repetir →" copia o valor até
+ * dezembro; resumo com ganho no ano, média ponderada e gráfico. Nada de
+ * estação, fazenda, categoria ou lote no formulário. A tela lista as curvas da
+ * fazenda selecionada e avisa quando nenhuma está selecionada.
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
@@ -38,9 +40,20 @@ vi.mock("@/hooks/useGestaoSessao", async (importOriginal) => ({
 
 const { default: FormularioCurvaGanho, FORMULARIO_CURVA_GANHO_ID } = await import("@/components/curvas-ganho/FormularioCurvaGanho");
 const { getCurvaGanhoFieldValue, compararCurvasParaOrdenar } = await import("@/components/curvas-ganho/TabelaCurvasGanho");
-const { lerGmd, formatarGmd } = await import("@/services/curvaGanhoCadastroService");
+const { lerGmd, formatarGmd, formatarKg, ganhoNoMes, resumoDaCurva, MESES, CAMPOS_GMD } = await import(
+  "@/services/curvaGanhoCadastroService"
+);
 
-const ROTULOS = ["Nome", "GMD nas Águas", "GMD na Transição", "GMD na Seca", "Ativo", "Observações"];
+const CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const ROTULOS = ["Nome", ...CURTOS, "Ativo", "Observações"];
+/** Curva típica: águas boas, seca com perda em agosto. */
+const CURVA = [0.7, 0.75, 0.7, 0.55, 0.35, 0.2, 0.1, -0.05, 0.05, 0.3, 0.55, 0.65];
+const CAMPOS = CURTOS.map((c) => `gmd_${c.toLowerCase()}`);
+const mesesDe = (valores) => Object.fromEntries(CAMPOS.map((c, i) => [c, valores[i]]));
+/** Ganho no ano da CURVA, conta feita à mão: Σ GMD × dias do mês (ano comum). */
+const DIAS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const GRAMAS_ANO = CURVA.reduce((s, v, i) => s + Math.round(v * 1000) * DIAS[i], 0);
+const GANHO_ANO = Math.round(GRAMAS_ANO / 100) / 10;
 
 const montar = (props = {}) => {
   const onSubmit = vi.fn();
@@ -56,6 +69,7 @@ const rotulos = (form) =>
   [...form.querySelectorAll(".mg-field__label")].map((el) => el.textContent.replace(/\s*\*\s*$/, "").trim());
 
 const digitar = (testId, valor) => fireEvent.change(screen.getByTestId(testId), { target: { value: valor } });
+const preencherMeses = (valores) => valores.forEach((v, i) => digitar(`curva-${CAMPOS[i]}`, String(v).replace(".", ",")));
 
 afterEach(() => {
   cleanup();
@@ -73,74 +87,132 @@ describe("CG-GMD — leitura e formato do GMD", () => {
     for (const ruim of ["", "abc", "0,6543", "3,001", "-2,5", "1,2,3", ",5", "+0,5"]) expect(lerGmd(ruim), ruim).toBeNull();
   });
 
-  it("CG-GMD-2 — exibe com vírgula, sem casas sobrando", () => {
+  it("CG-GMD-2 — exibe com vírgula, sem casas sobrando; kg com 1 casa", () => {
     expect(formatarGmd(0.65)).toBe("0,65");
     expect(formatarGmd(-0.15)).toBe("-0,15");
     expect(formatarGmd(0.65, { casasMin: 2 })).toBe("0,65");
     expect(formatarGmd(1, { casasMin: 2 })).toBe("1,00");
     expect(formatarGmd(undefined)).toBe("");
+    expect(formatarKg(21.7)).toBe("21,7");
+    expect(formatarKg(-1.55)).toMatch(/^-1,[56]$/);
+    expect(formatarKg(null)).toBe("");
+  });
+
+  it("CG-GMD-3 — os 12 meses na ordem do calendário, com os dias reais (fevereiro 28); campos gmd_jan … gmd_dez", () => {
+    expect(MESES.map((m) => m.curto)).toEqual(CURTOS);
+    expect(MESES.map((m) => m.dias)).toEqual(DIAS);
+    expect(DIAS.reduce((a, b) => a + b, 0)).toBe(365);
+    expect(CAMPOS_GMD).toEqual(CAMPOS);
+  });
+
+  it("CG-GMD-4 — ganho do mês usa os dias do mês; resumo: ganho no ano (Σ GMD × dias) e média ponderada (÷ 365); falta um mês → sem resumo", () => {
+    expect(ganhoNoMes(0.7, 31)).toBe(21.7);
+    expect(ganhoNoMes(0.7, 28)).toBe(19.6);
+    expect(ganhoNoMes(-0.05, 31)).toBe(-1.6);
+    const r = resumoDaCurva(CURVA);
+    expect(r.ganhoAno).toBe(GANHO_ANO);
+    expect(r.mediaDia).toBe(Math.round(GRAMAS_ANO / 365) / 1000);
+    expect(GRAMAS_ANO).toBeGreaterThan(0);
+    expect(ganhoNoMes(0.05, 31)).toBe(1.6);
+    expect(ganhoNoMes(-2, 31)).toBe(-62);
+    expect(resumoDaCurva(Array(12).fill(0.5))).toEqual({ ganhoAno: 182.5, mediaDia: 0.5 });
+    expect(resumoDaCurva([...CURVA.slice(0, 11), null])).toBeNull();
+    expect(resumoDaCurva(CURVA.slice(0, 3))).toBeNull();
   });
 });
 
 describe("CG-FORM — formulário de curva de ganho", () => {
-  it("CG-FORM-1 — seis campos, nesta ordem; sem fazenda, categoria ou mês", () => {
+  it("CG-FORM-1 — Nome, os 12 meses, Ativo e Observações, nesta ordem; sem estação, fazenda, categoria ou lote", () => {
     const { form } = montar();
     expect(rotulos(form)).toEqual(ROTULOS);
-    expect(form.textContent).not.toMatch(/Fazenda|Empresa|Categoria|Lote|Janeiro/i);
+    expect(form.textContent).not.toMatch(/Fazenda|Empresa|Categoria|Lote|Águas|Transição|Seca|Estaç/i);
     expect(screen.getByText("Nova Curva de Ganho")).toBeTruthy();
+    expect(screen.getByText("GMD por mês (kg/dia)")).toBeTruthy();
+    expect(screen.getByTestId("curva-gmd_jan").getAttribute("aria-label")).toBe("GMD de Janeiro (kg/dia)");
   });
 
-  it("CG-FORM-2 — nome e os três GMD são obrigatórios; GMD fora da faixa ou com 4 casas não envia", async () => {
+  it("CG-FORM-2 — nome e os 12 GMD são obrigatórios; GMD fora da faixa ou com 4 casas não envia", async () => {
     const { form, onSubmit } = montar();
     enviar();
-    await waitFor(() => expect(within(form).getAllByText(/Obrigatório|GMD inválido/)).toHaveLength(4));
+    await waitFor(() => expect(within(form).getAllByText(/Obrigatório|Inválido/)).toHaveLength(13));
     expect(onSubmit).not.toHaveBeenCalled();
+    expect(notify.notifyWarning).toHaveBeenCalled();
     fireEvent.change(within(form).getByPlaceholderText(/RECRIA A PASTO/), { target: { value: "x" } });
-    digitar("curva-gmd_aguas", "3,5");
-    digitar("curva-gmd_transicao", "0,4567");
-    digitar("curva-gmd_seca", "0,2");
+    preencherMeses(CURVA);
+    digitar("curva-gmd_mar", "3,5");
+    digitar("curva-gmd_out", "0,4567");
     enviar();
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(within(form).getAllByText("GMD inválido")).toHaveLength(2);
+    expect(within(form).getAllByText("Inválido")).toHaveLength(2);
   });
 
-  it("CG-FORM-3 — o envio leva números (inclusive negativo) e nome/observações em maiúsculas", () => {
+  it("CG-FORM-3 — o envio leva os 12 números (inclusive negativo), cada um no seu mês, e nome/observações em maiúsculas", () => {
     const { form, onSubmit } = montar();
     fireEvent.change(within(form).getByPlaceholderText(/RECRIA A PASTO/), { target: { value: "recria pasto" } });
-    digitar("curva-gmd_aguas", "0,65");
-    digitar("curva-gmd_transicao", "0.4");
-    digitar("curva-gmd_seca", "-0,15");
+    preencherMeses(CURVA);
     fireEvent.change(within(form).getByPlaceholderText(/OBSERVAÇÕES/), { target: { value: "proteinado" } });
     enviar();
-    expect(onSubmit).toHaveBeenCalledWith({
-      nome: "RECRIA PASTO",
-      gmd_aguas: 0.65,
-      gmd_transicao: 0.4,
-      gmd_seca: -0.15,
-      observacoes: "PROTEINADO",
-      ativo: true,
-    });
+    expect(onSubmit).toHaveBeenCalledWith({ nome: "RECRIA PASTO", ...mesesDe(CURVA), observacoes: "PROTEINADO", ativo: true });
   });
 
-  it("CG-FORM-4 — a dica mostra o equivalente por mês (30 dias); editar abre com os valores e envia igual", () => {
+  it("CG-FORM-4 — a dica de cada mês mostra o ganho com os dias reais; o resumo mostra ganho no ano, média e o gráfico com barra negativa", () => {
+    montar();
+    expect(screen.queryByTestId("grafico-curva-ganho")).toBeNull();
+    expect(screen.getByTestId("curva-ganho-ano").textContent).toBe("–");
+    digitar("curva-gmd_jan", "0,7");
+    digitar("curva-gmd_fev", "0,7");
+    expect(screen.getByTestId("dica-gmd_jan").textContent).toContain("≈ 21,7 kg no mês");
+    expect(screen.getByTestId("dica-gmd_fev").textContent).toContain("≈ 19,6 kg no mês");
+    expect(screen.getByTestId("grafico-curva-ganho")).toBeTruthy();
+    preencherMeses(CURVA);
+    expect(screen.getByTestId("curva-ganho-ano").textContent).toBe(`${formatarKg(GANHO_ANO)} kg`);
+    expect(screen.getByTestId("curva-media-dia").textContent).toMatch(/^0,\d{1,3} kg\/dia$/);
+    expect(screen.getAllByTestId(/^barra-gmd_/)).toHaveLength(12);
+    expect(screen.getByTestId("barra-gmd_ago").getAttribute("fill")).not.toBe(screen.getByTestId("barra-gmd_jan").getAttribute("fill"));
+  });
+
+  it("CG-FORM-5 — \"repetir →\" copia o GMD do mês para todos os seguintes até dezembro, sem tocar nos anteriores; dezembro não tem o atalho", () => {
+    montar();
+    digitar("curva-gmd_jan", "0,8");
+    digitar("curva-gmd_mai", "0,3");
+    expect(screen.queryByTestId("repetir-gmd_fev")).toBeNull();
+    fireEvent.click(screen.getByTestId("repetir-gmd_mai"));
+    expect(CAMPOS.map((c) => screen.getByTestId(`curva-${c}`).value)).toEqual(["0,8", "", "", "", "0,3", "0,3", "0,3", "0,3", "0,3", "0,3", "0,3", "0,3"]);
+    expect(screen.queryByTestId("repetir-gmd_dez")).toBeNull();
+  });
+
+  it("CG-FORM-6 — editar abre com os 12 valores e envia igual", () => {
     const { onSubmit } = montar({
       isEditing: true,
-      initialData: { id: "c1", nome: "ENGORDA", gmd_aguas: 0.9, gmd_transicao: 0.6, gmd_seca: 0.3, ativo: false },
+      initialData: { id: "c1", nome: "ENGORDA", ...mesesDe(CURVA), ativo: false },
     });
-    expect(screen.getByText("≈ 27 kg/mês (30 dias)")).toBeTruthy();
-    expect(screen.getByTestId("curva-gmd_aguas").value).toBe("0,9");
+    expect(screen.getByTestId("curva-gmd_jan").value).toBe("0,7");
+    expect(screen.getByTestId("curva-gmd_ago").value).toBe("-0,05");
     enviar();
-    expect(onSubmit).toHaveBeenCalledWith({ nome: "ENGORDA", gmd_aguas: 0.9, gmd_transicao: 0.6, gmd_seca: 0.3, observacoes: null, ativo: false });
+    expect(onSubmit).toHaveBeenCalledWith({ nome: "ENGORDA", ...mesesDe(CURVA), observacoes: null, ativo: false });
     expect(screen.getByText("Editar Curva de Ganho")).toBeTruthy();
+  });
+
+  it("CG-FORM-7 — somente leitura: sem atalho de repetir e sem dicas", () => {
+    montar({ readOnly: true, initialData: { id: "c1", nome: "ENGORDA", ...mesesDe(CURVA), ativo: true } });
+    expect(screen.queryByTestId("repetir-gmd_jan")).toBeNull();
+    expect(screen.queryByTestId("dica-gmd_jan")).toBeNull();
+    expect(screen.getByTestId("curva-ganho-ano").textContent).toBe(`${formatarKg(GANHO_ANO)} kg`);
   });
 });
 
 describe("CG-GRADE — valores e ordenação da lista", () => {
-  it("CG-GRADE-1 — GMD com vírgula e duas casas; ordena pelo número, não pelo texto", () => {
-    expect(getCurvaGanhoFieldValue({ gmd_seca: -0.15 }, "gmd_seca")).toBe("-0,15");
-    expect(getCurvaGanhoFieldValue({ gmd_aguas: 1 }, "gmd_aguas")).toBe("1,00");
-    expect(compararCurvasParaOrdenar({ gmd_seca: -0.15 }, { gmd_seca: 0.1 }, "gmd_seca")).toBeLessThan(0);
-    expect(compararCurvasParaOrdenar({ gmd_seca: 0.1 }, {}, "gmd_seca")).toBe(-1);
+  it("CG-GRADE-1 — GMD do mês com vírgula e duas casas; média e ganho no ano calculados; ordena pelo número, não pelo texto", () => {
+    expect(getCurvaGanhoFieldValue({ gmd_ago: -0.05 }, "gmd_ago")).toBe("-0,05");
+    expect(getCurvaGanhoFieldValue({ gmd_jan: 1 }, "gmd_jan")).toBe("1,00");
+    const curva = mesesDe(CURVA);
+    expect(getCurvaGanhoFieldValue(curva, "ganho_ano")).toBe(formatarKg(GANHO_ANO));
+    expect(getCurvaGanhoFieldValue(mesesDe(Array(12).fill(0.5)), "media_dia")).toBe("0,500");
+    expect(getCurvaGanhoFieldValue({ gmd_jan: 1 }, "ganho_ano")).toBe("");
+    expect(compararCurvasParaOrdenar({ gmd_ago: -0.15 }, { gmd_ago: 0.1 }, "gmd_ago")).toBeLessThan(0);
+    expect(compararCurvasParaOrdenar({ gmd_ago: 0.1 }, {}, "gmd_ago")).toBe(-1);
+    expect(compararCurvasParaOrdenar(mesesDe(Array(12).fill(0.2)), mesesDe(Array(12).fill(1)), "ganho_ano")).toBeLessThan(0);
+    expect(compararCurvasParaOrdenar(mesesDe(Array(12).fill(1)), mesesDe(Array(12).fill(-0.5)), "media_dia")).toBeGreaterThan(0);
     expect(compararCurvasParaOrdenar({ nome: "A" }, { nome: "B" }, "nome")).toBeNull();
   });
 });
@@ -156,18 +228,17 @@ describe("CG-PAGE — tela de curvas de ganho", () => {
     );
   };
 
-  it("CG-PAGE-1 — lista as curvas da fazenda selecionada e abre o formulário no Novo", async () => {
-    servico.listarCurvasGanho.mockResolvedValue([
-      { id: "c1", nome: "RECRIA PASTO", gmd_aguas: 0.65, gmd_transicao: 0.4, gmd_seca: 0.2, ativo: true },
-    ]);
+  it("CG-PAGE-1 — lista as curvas da fazenda selecionada (com o ganho no ano) e abre o formulário no Novo", async () => {
+    servico.listarCurvasGanho.mockResolvedValue([{ id: "c1", nome: "RECRIA PASTO", ...mesesDe(CURVA), ativo: true }]);
     await renderizar();
     await waitFor(() => expect(screen.getByText("RECRIA PASTO")).toBeTruthy());
+    expect(screen.getByText(formatarKg(GANHO_ANO))).toBeTruthy();
     expect(servico.listarCurvasGanho).toHaveBeenCalledWith("emp-1");
     fireEvent.click(screen.getByRole("button", { name: "Novo" }));
     const form = await screen.findByTestId("b1-form-curva-ganho");
     expect(rotulos(form)).toEqual(ROTULOS);
     fireEvent.submit(document.getElementById(FORMULARIO_CURVA_GANHO_ID));
-    await waitFor(() => expect(within(form).getAllByText(/Obrigatório|GMD inválido/)).toHaveLength(4));
+    await waitFor(() => expect(within(form).getAllByText(/Obrigatório|Inválido/)).toHaveLength(13));
     expect(servico.criarCurvaGanho).not.toHaveBeenCalled();
   });
 

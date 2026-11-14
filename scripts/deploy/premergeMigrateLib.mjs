@@ -28,7 +28,8 @@
  *     com hash pinado (e só cita as tabelas removidas, as criadas no resto e os
  *     literais listados); depois EXATAMENTE os DROP TABLE da lista, na ordem;
  *     depois EXATAMENTE as instruções `alter_antigas` (texto pinado), na ordem
- *     (alargamento de CHECK na D-PROD-162; DROP COLUMN na D-PROD-183, sem DROP TABLE).
+ *     (alargamento de CHECK na D-PROD-162; DROP COLUMN na D-PROD-183, sem DROP TABLE;
+ *     na D-PROD-190, só o DROP TABLE da tabela VAZIA que o resto recria).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -75,6 +76,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113400000_cadestacoes_cadastro': '5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7',
   // D-PROD-189: CADCURVAGANHO (cadastro de Curvas de Ganho de Peso) — só tabela nova.
   '20261113600000_cadcurvaganho_cadastro': '137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6',
+  // D-PROD-190: CONTRACT aprovado pelo proprietário — CADCURVAGANHO VAZIA sai e volta com os 12 GMD mensais.
+  '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -136,6 +139,17 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_maquina"',
       'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_implemento"',
     ]),
+  }),
+  // D-PROD-190: a Curva de Ganho passa de 3 GMD por estação para 12 GMD mensais. A guarda só
+  // aceita CADCURVAGANHO VAZIA, com as 3 colunas por estação; depois dela, EXATAMENTE o
+  // DROP TABLE "CADCURVAGANHO" e, no resto, a mesma tabela recriada (allowlist EXPAND),
+  // com o RLS de corpo já aprovado na D-PROD-189. Nenhuma outra tabela é tocada.
+  '20261114100000_cadcurvaganho_mensal': Object.freeze({
+    decisao: 'D-PROD-190',
+    guarda_sha256: '3cd5adc49d6e0cab0e155b190d7c095a419b7ddbb0ef617bc5000bc9bdfb0b6d',
+    drop: Object.freeze(['CADCURVAGANHO']),
+    literais_guarda: Object.freeze([]),
+    alter_antigas: Object.freeze([]),
   }),
 });
 

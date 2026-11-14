@@ -574,21 +574,30 @@ model CadEstacao {
 }
 
 // ---------------------------------------------------------------------------
-// CadCurvaGanho — cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189).
-// Ganho médio diário (GMD, kg/dia) previsto em cada tipo de estação: ÁGUAS,
-// TRANSIÇÃO e SECA (os mesmos tipos de CADESTACOES). Nome físico da tabela
-// fixado pelo proprietário: "CADCURVAGANHO". Primeira fatia SEM vínculo com
-// categoria, lote ou estação: as únicas FKs são o escopo (Cliente e Empresa).
-// GMD de -2 a 3 kg/dia (negativo = perda na seca), 3 casas, por CHECK.
+// CadCurvaGanho — cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189,
+// mensal desde a D-PROD-190). Ganho médio diário (GMD, kg/dia) previsto em cada
+// mês do calendário, de janeiro (gmd_jan) a dezembro (gmd_dez). Nome físico da
+// tabela fixado pelo proprietário: "CADCURVAGANHO". SEM vínculo com estação,
+// categoria ou lote: as únicas FKs são o escopo (Cliente e Empresa).
+// GMD de -2 a 3 kg/dia (negativo = perda de peso), 3 casas, por CHECK.
 // ---------------------------------------------------------------------------
 model CadCurvaGanho {
   id            String   @id @default(cuid())
   cliente_id    String   @db.VarChar(64)
   empresa_id    String   @db.VarChar(64)
   nome          String   @db.VarChar(120)
-  gmd_aguas     Decimal  @db.Decimal(6, 3)
-  gmd_transicao Decimal  @db.Decimal(6, 3)
-  gmd_seca      Decimal  @db.Decimal(6, 3)
+  gmd_jan       Decimal  @db.Decimal(6, 3)
+  gmd_fev       Decimal  @db.Decimal(6, 3)
+  gmd_mar       Decimal  @db.Decimal(6, 3)
+  gmd_abr       Decimal  @db.Decimal(6, 3)
+  gmd_mai       Decimal  @db.Decimal(6, 3)
+  gmd_jun       Decimal  @db.Decimal(6, 3)
+  gmd_jul       Decimal  @db.Decimal(6, 3)
+  gmd_ago       Decimal  @db.Decimal(6, 3)
+  gmd_set       Decimal  @db.Decimal(6, 3)
+  gmd_out       Decimal  @db.Decimal(6, 3)
+  gmd_nov       Decimal  @db.Decimal(6, 3)
+  gmd_dez       Decimal  @db.Decimal(6, 3)
   observacoes   String?  @db.VarChar(2000)
   ativo         Boolean  @default(true)
   createdAt     DateTime @default(now())

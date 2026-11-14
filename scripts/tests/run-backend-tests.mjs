@@ -95,6 +95,13 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * afetada; um banco LOCAL com TipoTarefa de rodadas antigas com flags true é.
  * As mensagens dessa guarda começam com `tipo_tarefa_drop_colunas:` (o número
  * da decisão fica fora do migration.sql). O remédio é o mesmo: recriar o banco local.
+ *
+ * D-PROD-190: a migration CONTRACT da Curva de Ganho apaga e recria a tabela
+ * CADCURVAGANHO (12 GMD mensais no lugar dos 3 por estação) e só a aceita
+ * VAZIA, com a estrutura por estação. A CI nasce vazia e não é afetada; um
+ * banco LOCAL com curvas de rodadas antigas em CADCURVAGANHO (estrutura por
+ * estação) faz a guarda recusar. As mensagens dessa guarda começam com
+ * `cadcurvaganho_mensal:`. O remédio é o mesmo: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -103,7 +110,10 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se cita tipo_tarefa_drop_colunas (a CONTRACT da D-PROD-183), o mais provável é o banco local ter TipoTarefa ' +
   'de rodadas antigas com alguma das 4 flags (exige_area, pode_ter_produto, pode_ter_maquina, pode_ter_implemento) ' +
   'em true, e a guarda exigir a impressão aprovada no GO; a mensagem da guarda diz o motivo exato. ' +
-  'Recriar o banco local, do mesmo jeito, resolve.';
+  'Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita cadcurvaganho_mensal (a CONTRACT da D-PROD-190), o mais provável é o banco local ter curvas de ganho ' +
+  'de rodadas antigas em CADCURVAGANHO (estrutura por estação: gmd_aguas, gmd_transicao, gmd_seca), e a guarda só ' +
+  'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

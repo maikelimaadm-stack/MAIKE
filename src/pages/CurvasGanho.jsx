@@ -28,10 +28,12 @@ import { useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 const QUERY_RAIZ = "curvas-ganho";
 
 /**
- * Cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189), tabela CADCURVAGANHO.
+ * Cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189; mensal desde a
+ * D-PROD-190), tabela CADCURVAGANHO.
  *
- * GMD (kg/dia) por tipo de estação da fazenda selecionada no topo. Nesta
- * primeira fatia nada mais lê as curvas: é só o cadastro.
+ * GMD (kg/dia) de cada mês, de janeiro a dezembro, da fazenda selecionada no
+ * topo. A curva não depende das Estações, e nada mais lê as curvas ainda: é só
+ * o cadastro.
  */
 export default function CurvasGanho() {
   const queryClient = useQueryClient();
@@ -69,7 +71,7 @@ export default function CurvasGanho() {
     onRequestDeleteMutation: (/** @type {string[]} */ ids) => deleteRef.current(ids),
   });
 
-  // Trocar de fazenda: a estação aberta, a seleção e a busca (inclusive a
+  // Trocar de fazenda: a curva aberta, a seleção e a busca (inclusive a
   // sugestão escolhida, que filtra por id) são da fazenda anterior. Fecha o
   // registro só se havia um aberto, para não tirar a lista do modo cartões.
   const empresaAnterior = useRef(empresaId);

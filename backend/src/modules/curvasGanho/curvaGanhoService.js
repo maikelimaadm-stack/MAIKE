@@ -1,20 +1,20 @@
 /**
- * Serviço de Curvas de Ganho de Peso da fazenda (D-PROD-189), tabela física
- * "CADCURVAGANHO".
+ * Serviço de Curvas de Ganho de Peso da fazenda (D-PROD-189, mensal desde a
+ * D-PROD-190), tabela física "CADCURVAGANHO".
  *
- * Uma curva guarda o ganho médio diário (GMD, kg/dia) previsto em cada tipo de
- * estação: ÁGUAS, TRANSIÇÃO e SECA (os tipos de CADESTACOES, D-PROD-188). Na
- * fatia que ligar a curva ao lote, o GMD de cada dia virá da estação cadastrada
- * para aquela data. Nesta primeira fatia, SEM vínculo: nada lê as curvas.
+ * Uma curva guarda o ganho médio diário (GMD, kg/dia) previsto em cada mês do
+ * calendário, de janeiro (`gmd_jan`) a dezembro (`gmd_dez`). A curva NÃO depende
+ * das Estações (CADESTACOES): o mês já diz o GMD. Nesta fatia, SEM vínculo:
+ * nada lê as curvas (a ligação com a Categoria de Manejo vem depois).
  *
  * Regras:
  *  - tenant só de `auth_context` (R11); a fazenda vem do corpo/query e precisa
  *    ser DESTE tenant (`exigirEmpresaDoTenant`: outra ou inexistente → 404);
  *  - nome em MAIÚSCULAS, único por fazenda (409 `CURVA_GANHO_NAME_CONFLICT`),
  *    com o tamanho conferido depois das maiúsculas ('ß' → 'SS');
- *  - os três GMD são obrigatórios na criação: número finito de -2 a 3 kg/dia
- *    (negativo = perda de peso, típica da seca), com no máximo 3 casas
- *    decimais. Gravado como decimal exato; o banco tem CHECK da faixa;
+ *  - os 12 GMD são obrigatórios na criação: número finito de -2 a 3 kg/dia
+ *    (negativo = perda de peso), com no máximo 3 casas decimais. Gravado como
+ *    decimal exato; o banco tem CHECK da faixa;
  *  - exclusão física com auditoria (não há dependentes nesta fatia).
  */
 
@@ -31,11 +31,10 @@ import {
   atualizarCurvaPorId,
   excluirCurvaPorId,
 } from './curvaGanhoRepository.js';
+import { GMD_MINIMO, GMD_MAXIMO, MESES, CAMPOS_GMD } from './curvaGanhoCampos.js';
 
 const ENTIDADE = 'CadCurvaGanho';
-export const GMD_MINIMO = -2;
-export const GMD_MAXIMO = 3;
-export const CAMPOS_GMD = Object.freeze(['gmd_aguas', 'gmd_transicao', 'gmd_seca']);
+export { GMD_MINIMO, GMD_MAXIMO, MESES, CAMPOS_GMD };
 /** Largura das colunas VARCHAR (em caracteres, como o PostgreSQL conta). */
 const LARGURA = Object.freeze({ nome: 120, observacoes: 2000 });
 
@@ -47,9 +46,7 @@ export const comoCurvaPublica = (registro) => ({
   id: registro.id,
   empresa_id: registro.empresa_id,
   nome: registro.nome,
-  gmd_aguas: numeroDe(registro.gmd_aguas),
-  gmd_transicao: numeroDe(registro.gmd_transicao),
-  gmd_seca: numeroDe(registro.gmd_seca),
+  ...Object.fromEntries(CAMPOS_GMD.map((campo) => [campo, numeroDe(registro[campo])])),
   observacoes: registro.observacoes ?? null,
   ativo: registro.ativo,
   created_date: registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,

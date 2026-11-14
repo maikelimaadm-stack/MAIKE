@@ -1,6 +1,6 @@
 /**
  * PR174-R6/R7 — allowlist EXPAND fechada (manifesto pinado + conferência
- * estrutural), modo CONTRACT fechado (D-PROD-162 e D-PROD-183), conferência
+ * estrutural), modo CONTRACT fechado (D-PROD-162, D-PROD-183 e D-PROD-190), conferência
  * do histórico do alvo, barreiras do runner pré-merge e da identidade de
  * produção do cutover. Sem banco.
  */
@@ -12,7 +12,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 
 import {
-  classificarMigrations, conferirHistoricoRemoto, sha256, MIGRATIONS_APROVADAS, migrationsDoManifestoFaltando,
+  classificarMigrations, conferirHistoricoRemoto, sha256, MIGRATIONS_APROVADAS, migrationsDoManifestoFaltando, DO_RLS_APROVADOS,
   MIGRATIONS_CONTRACT_APROVADAS, conferirReleaseContract, contractsPendentes, envDoDeployMigrate,
 } from '../../deploy/premergeMigrateLib.mjs';
 import { conferirBackendNovo, validarOrigemProducao } from '../../ops/cutoverRebanhoLib.mjs';
@@ -23,7 +23,7 @@ const BASE = `CREATE TABLE "Nova" ("id" TEXT NOT NULL, "cliente_id" VARCHAR(64) 
 /** Classifica SQL sintético com manifesto próprio (só para testar a conferência estrutural). */
 const classificar = (sql, extra = {}) => classificarMigrations([{ nome: 'x', sql }], { manifesto: { x: sha256(sql) }, ...extra });
 
-/** D-PROD-162 — a primeira migration CONTRACT aprovada (a segunda é a D-PROD-183, logo abaixo). */
+/** D-PROD-162 — a primeira migration CONTRACT aprovada (a segunda é a D-PROD-183 e a terceira a D-PROD-190, logo abaixo). */
 const NOME_C = '20261110300000_patrimonio_simplifica';
 const SQL_C = readFileSync(`backend/prisma/migrations/${NOME_C}/migration.sql`, 'utf8');
 const DROP_C = ['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial', 'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel'];
@@ -37,10 +37,16 @@ const COLUNAS_T = ['exige_area', 'pode_ter_produto', 'pode_ter_maquina', 'pode_t
 const REMOVIDAS_T = COLUNAS_T.map((c) => `TipoTarefa.${c}`);
 const ALTER_T = COLUNAS_T.map((c) => `ALTER TABLE "TipoTarefa" DROP COLUMN "${c}"`);
 const CONTRACT_T = { migration: NOME_T, decisao: 'D-PROD-183', tabelas_removidas: [], constraints_alargadas: [], colunas_removidas: REMOVIDAS_T };
+/** D-PROD-190 — a terceira migration CONTRACT aprovada: DROP TABLE da CADCURVAGANHO VAZIA e a mesma tabela recriada com os 12 GMD mensais. */
+const NOME_K = '20261114100000_cadcurvaganho_mensal';
+const SQL_K = readFileSync(`backend/prisma/migrations/${NOME_K}/migration.sql`, 'utf8');
+const DROP_K = 'DROP TABLE "CADCURVAGANHO";';
+const CONTRACT_K = { migration: NOME_K, decisao: 'D-PROD-190', tabelas_removidas: ['CADCURVAGANHO'], constraints_alargadas: [], colunas_removidas: [] };
 /** Variação do arquivo CONTRACT `nome` sob o MESMO nome, com manifesto sintético: o checksum passa e só a estrutura decide. */
 const classificarContractDe = (nome) => (sql, extra = {}) => classificarMigrations([{ nome, sql }], { manifesto: { [nome]: sha256(sql) }, ...extra });
 const classificarContract = classificarContractDe(NOME_C);
 const classificarContractT = classificarContractDe(NOME_T);
+const classificarContractK = classificarContractDe(NOME_K);
 const codigos = (c) => [...new Set(c.violacoes.map((v) => v.codigo))].sort();
 /** Troca um trecho que tem de aparecer EXATAMENTE uma vez (senão o teste não prova o que diz). */
 const trocar = (sql, de, para) => {
@@ -48,7 +54,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CADCURVAGANHO mensal (D-PROD-190) pelo modo CONTRACT fechado', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -63,8 +69,9 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
     'TipoCombustivelProduto', 'TipoPatrimonial', 'TipoPatrimonialPerfil', 'TituloFinanceiro',
   ]);
   assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
-  // As duas CONTRACT, na ordem do manifesto: as colunas removidas de TipoTarefa não viram "coluna nova em tabela antiga".
-  assert.deepEqual(c.contract, [CONTRACT_C, CONTRACT_T]);
+  // As três CONTRACT, na ordem do manifesto: as colunas removidas de TipoTarefa não viram "coluna nova em tabela antiga"
+  // e a CADCURVAGANHO recriada pela D-PROD-190 não aparece duas vezes em tabelas_novas.
+  assert.deepEqual(c.contract, [CONTRACT_C, CONTRACT_T, CONTRACT_K]);
 });
 
 test('B1f (D-PROD-162): a migration CONTRACT classificada SOZINHA, como na release: ok, modo CONTRACT, exatamente as 7 tabelas do formato novo, nenhuma coluna em tabela antiga, as 13 removidas na ordem e os 2 CHECKs alargados', () => {
@@ -81,8 +88,8 @@ test('B1f (D-PROD-162): a migration CONTRACT classificada SOZINHA, como na relea
   assert.equal(MIGRATIONS_APROVADAS[NOME_C], sha256(SQL_C));
 });
 
-test('B8-0 (D-PROD-162/D-PROD-183): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as duas entradas, na ordem; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
-  assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T]);
+test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-190): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as três entradas, na ordem; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
+  assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T, NOME_K]);
   assert.equal(Object.isFrozen(MIGRATIONS_CONTRACT_APROVADAS), true);
   const k = MIGRATIONS_CONTRACT_APROVADAS[NOME_C];
   assert.equal(Object.isFrozen(k), true);
@@ -406,6 +413,197 @@ test('B12i (D-PROD-183): envDoDeployMigrate — MIGRATION_CONTRACT_AUTORIZADO=D-
   }
 });
 
+test('B14a (D-PROD-190): a migration CONTRACT classificada SOZINHA, como na release: ok, modo CONTRACT, só CADCURVAGANHO como tabela nova (a recriada), nenhuma coluna em tabela antiga e só CADCURVAGANHO removida', () => {
+  const c = classificarMigrations([ler(NOME_K)]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.ok, true);
+  assert.equal(c.expand, false);
+  assert.equal(c.modo, 'CONTRACT');
+  assert.deepEqual(c.tabelas_novas, ['CADCURVAGANHO']);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
+  assert.deepEqual(c.contract, [CONTRACT_K]);
+  // O arquivo é o auditado, byte a byte.
+  assert.equal(sha256(SQL_K), 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c');
+  assert.equal(MIGRATIONS_APROVADAS[NOME_K], sha256(SQL_K));
+  // A tabela volta com os 12 GMD mensais e sem os 3 por estação (estes só aparecem na guarda, antes do DROP).
+  const resto = SQL_K.slice(SQL_K.indexOf(DROP_K));
+  for (const m of ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']) assert.ok(resto.includes(`"gmd_${m}" DECIMAL(6,3) NOT NULL,`), m);
+  assert.doesNotMatch(resto, /gmd_aguas|gmd_transicao|gmd_seca/);
+});
+
+test('B14b (D-PROD-190): a entrada de MIGRATIONS_CONTRACT_APROVADAS é congelada e o conteúdo pinado é o do arquivo — guarda, só o DROP TABLE "CADCURVAGANHO", nenhum literal e nenhuma instrução em tabela antiga; o RLS do resto é o corpo já aprovado na D-PROD-189', () => {
+  const k = MIGRATIONS_CONTRACT_APROVADAS[NOME_K];
+  assert.ok(NOME_K in MIGRATIONS_APROVADAS, 'quem é CONTRACT também está no manifesto (checksum pinado)');
+  for (const o of [k, k.drop, k.literais_guarda, k.alter_antigas]) assert.equal(Object.isFrozen(o), true);
+  assert.equal(k.decisao, 'D-PROD-190');
+  assert.equal(k.guarda_sha256, '3cd5adc49d6e0cab0e155b190d7c095a419b7ddbb0ef617bc5000bc9bdfb0b6d');
+  assert.deepEqual(k.drop, ['CADCURVAGANHO']);
+  assert.deepEqual(k.literais_guarda, []);
+  assert.deepEqual(k.alter_antigas, []);
+  // O hash pinado é o do corpo da guarda do arquivo (sem comentários, espaços normalizados); o DROP está nele uma vez.
+  const corpos = [...SQL_K.replace(/--[^\n]*/g, '').matchAll(/DO\s+\$\$([\s\S]*?)\$\$\s*;/g)].map((x) => sha256(x[1].replace(/\s+/g, ' ').trim()));
+  assert.equal(corpos.length, 2, 'guarda + RLS');
+  assert.equal(corpos[0], k.guarda_sha256);
+  assert.equal(SQL_K.split(DROP_K).length, 2);
+  // O DO de RLS da tabela recriada não é corpo novo: é o mesmo hash da D-PROD-189 (já em DO_RLS_APROVADOS).
+  const rls189 = readFileSync('backend/prisma/migrations/20261113600000_cadcurvaganho_cadastro/migration.sql', 'utf8').replace(/--[^\n]*/g, '').match(/DO\s+\$\$([\s\S]*?)\$\$\s*;/)[1];
+  assert.equal(corpos[1], sha256(rls189.replace(/\s+/g, ' ').trim()));
+  assert.ok(DO_RLS_APROVADOS.includes(corpos[1]));
+});
+
+test('B14c (D-PROD-190): o DROP é EXATAMENTE DROP TABLE "CADCURVAGANHO" — CASCADE, RESTRICT, IF EXISTS, outra tabela, duas numa instrução só ou ausente → CONTRACT_DROP_FORA_DO_CONTRATO', () => {
+  const casos = {
+    cascade: trocar(SQL_K, DROP_K, 'DROP TABLE "CADCURVAGANHO" CASCADE;'),
+    restrict: trocar(SQL_K, DROP_K, 'DROP TABLE "CADCURVAGANHO" RESTRICT;'),
+    ifExists: trocar(SQL_K, DROP_K, 'DROP TABLE IF EXISTS "CADCURVAGANHO";'),
+    outraTabela: trocar(SQL_K, DROP_K, 'DROP TABLE "CADESTACOES";'),
+    duas: trocar(SQL_K, DROP_K, 'DROP TABLE "CADCURVAGANHO", "CADESTACOES";'),
+    ausente: trocar(SQL_K, DROP_K, ''),
+  };
+  for (const [caso, sql] of Object.entries(casos)) {
+    assert.notEqual(sql, SQL_K, caso);
+    const c = classificarContractK(sql);
+    assert.equal(c.ok, false, caso);
+    assert.deepEqual(codigos(c), ['CONTRACT_DROP_FORA_DO_CONTRATO'], `${caso}: ${JSON.stringify(c.violacoes)}`);
+    assert.match(c.violacoes[0].detalhe, /^posição 0: esperado DROP TABLE "CADCURVAGANHO" encontrado /, caso);
+  }
+  assert.match(classificarContractK(casos.ausente).violacoes[0].detalhe, /encontrado CREATE TABLE "CADCURVA/);
+});
+
+test('B14d (D-PROD-190): depois do DROP o resto é o EXPAND da tabela recriada — segundo DROP TABLE, DROP de outra tabela, DELETE, UPDATE, TRUNCATE, ALTER e UNIQUE em tabela antiga recusados; sem o CREATE TABLE a CADCURVAGANHO volta a ser antiga', () => {
+  const casos = {
+    'DROP TABLE "CADCURVAGANHO";': 'SQL_NAO_RECONHECIDO',
+    'DROP TABLE "CADESTACOES";': 'SQL_NAO_RECONHECIDO',
+    'DELETE FROM "CADCURVAGANHO";': 'SQL_NAO_RECONHECIDO',
+    'UPDATE "CADESTACOES" SET "ativo" = false;': 'SQL_NAO_RECONHECIDO',
+    'TRUNCATE "CADESTACOES";': 'SQL_NAO_RECONHECIDO',
+    'ALTER TABLE "CADESTACOES" ADD COLUMN "x" INTEGER NOT NULL DEFAULT 0;': 'ALTER_EM_TABELA_ANTIGA',
+    'ALTER TABLE "CADESTACOES" DROP COLUMN "nome";': 'ALTER_EM_TABELA_ANTIGA',
+    'CREATE UNIQUE INDEX "CADESTACOES_cliente_id_nome_key" ON "CADESTACOES"("cliente_id", "nome");': 'UNIQUE_EM_TABELA_ANTIGA',
+  };
+  for (const [ddl, codigo] of Object.entries(casos)) assert.deepEqual(codigos(classificarContractK(`${SQL_K}\n${ddl}\n`)), [codigo], ddl);
+  // Um segundo DROP logo depois do primeiro (antes da recriação) também cai no resto, e não no recorte.
+  const segundoDrop = classificarContractK(trocar(SQL_K, DROP_K, `${DROP_K}\nDROP TABLE "CADESTACOES";`));
+  assert.deepEqual(codigos(segundoDrop), ['SQL_NAO_RECONHECIDO']);
+  // O DO de RLS do resto não pode citar outra tabela: muda o hash e cita tabela antiga.
+  const rlsComAntiga = classificarContractK(trocar(SQL_K, "ARRAY['CADCURVAGANHO']", "ARRAY['CADCURVAGANHO','CADESTACOES']"));
+  assert.deepEqual(codigos(rlsComAntiga), ['DO_EM_TABELA_ANTIGA', 'DO_NAO_RECONHECIDO']);
+  // Sem o CREATE TABLE no resto, a tabela removida não é "nova": índices únicos, FKs/CHECK e RLS sobre ela são recusados.
+  const semCreate = classificarContractK(SQL_K.slice(0, SQL_K.indexOf('-- CreateTable')) + SQL_K.slice(SQL_K.indexOf('-- CreateIndex')));
+  assert.deepEqual(codigos(semCreate), ['ALTER_EM_TABELA_ANTIGA', 'DO_EM_TABELA_ANTIGA', 'UNIQUE_EM_TABELA_ANTIGA']);
+  // Controle positivo: CHECK na tabela recriada e tabela nova depois do recorte são o EXPAND de sempre.
+  const ok = classificarContractK(`${SQL_K}\nALTER TABLE "CADCURVAGANHO" ADD CONSTRAINT "x_check" CHECK ("nome" <> '');\n${BASE}`);
+  assert.deepEqual(ok.violacoes, []);
+  assert.deepEqual(ok.tabelas_novas, ['CADCURVAGANHO', 'Nova']);
+  assert.deepEqual(ok.contract, [CONTRACT_K]);
+});
+
+test('B14e (D-PROD-190): a guarda é a PRIMEIRA instrução e tem o hash pinado — alterada (vazia, FK externa, colunas, rotinas, trava) → CONTRACT_GUARDA_NAO_RECONHECIDA; ausente ou precedida de outra instrução → CONTRACT_GUARDA_AUSENTE', () => {
+  const corte = (sql, de, ate) => {
+    const i = sql.indexOf(de);
+    const j = sql.indexOf(ate);
+    assert.ok(i > 0 && j > i, `${de} … ${ate}`);
+    return sql.slice(0, i) + sql.slice(j);
+  };
+  const alteradas = {
+    vazia: trocar(SQL_K, 'IF curvas <> 0 THEN', 'IF curvas < 0 THEN'),
+    semFkExterna: corte(SQL_K, '  SELECT string_agg(k.conname', '  SELECT string_agg(t.tgname'),
+    semRotinas: corte(SQL_K, '  SELECT string_agg(p.oid::regprocedure', 'END $$;'),
+    colunas: trocar(SQL_K, 'IF n_antigas <> 3 OR n_outras <> 0 THEN', 'IF n_antigas <> 3 THEN'),
+    trava: trocar(SQL_K, 'LOCK TABLE public."CADCURVAGANHO" IN ACCESS EXCLUSIVE MODE;', 'LOCK TABLE public."CADCURVAGANHO" IN SHARE MODE;'),
+  };
+  for (const [caso, sql] of Object.entries(alteradas)) {
+    assert.notEqual(sql, SQL_K, caso);
+    assert.deepEqual(codigos(classificarContractK(sql)), ['CONTRACT_GUARDA_NAO_RECONHECIDA'], caso);
+  }
+  const inicio = SQL_K.indexOf('-- 1. Guarda');
+  const fim = SQL_K.indexOf('END $$;', inicio) + 'END $$;'.length;
+  const semGuarda = SQL_K.slice(0, inicio) + SQL_K.slice(fim);
+  assert.ok(!semGuarda.includes('curvas bigint'));
+  assert.deepEqual(codigos(classificarContractK(semGuarda)), ['CONTRACT_GUARDA_AUSENTE']);
+  const antes = classificarContractK(`CREATE INDEX "x_idx" ON "CADCURVAGANHO"("id");\n${SQL_K}`);
+  assert.deepEqual(codigos(antes), ['CONTRACT_GUARDA_AUSENTE']);
+});
+
+test('B14f (D-PROD-190): o contrato é do NOME — o mesmo SQL com outro nome segue o caminho EXPAND e é recusado; sem a entrada (ou com os contratos da D-PROD-162/D-PROD-183) o nome real é recusado', () => {
+  const outro = '20261114100001_outro_nome';
+  const c = classificarMigrations([{ nome: outro, sql: SQL_K }], { manifesto: { [outro]: sha256(SQL_K) } });
+  assert.equal(c.ok, false);
+  assert.equal(c.modo, 'EXPAND');
+  assert.deepEqual(c.contract, []);
+  assert.deepEqual(codigos(c), ['DO_NAO_RECONHECIDO', 'SQL_NAO_RECONHECIDO']);
+  assert.ok(c.violacoes.some((x) => x.codigo === 'SQL_NAO_RECONHECIDO' && x.detalhe === 'DROP TABLE "CADCURVAGANHO"'), 'o DROP TABLE é recusado');
+  // Contrato vazio, ou só as entradas anteriores: nada é aprovado por fora da lista fechada.
+  assert.equal(classificarMigrations([ler(NOME_K)], { contratos: {} }).ok, false);
+  const antigos = { [NOME_C]: MIGRATIONS_CONTRACT_APROVADAS[NOME_C], [NOME_T]: MIGRATIONS_CONTRACT_APROVADAS[NOME_T] };
+  assert.equal(classificarMigrations([ler(NOME_K)], { contratos: antigos }).ok, false);
+  // O contrato de um nome não serve ao SQL do outro: guarda, DROP e alterações das anteriores não batem com o arquivo da D-PROD-190.
+  assert.deepEqual(codigos(classificarContract(SQL_K)), ['CONTRACT_DROP_FORA_DO_CONTRATO', 'CONTRACT_GUARDA_NAO_RECONHECIDA']);
+  assert.deepEqual(codigos(classificarContractT(SQL_K)), ['CONTRACT_ALTER_FORA_DO_CONTRATO', 'CONTRACT_GUARDA_NAO_RECONHECIDA']);
+  // E o contrato da D-PROD-190 não serve aos arquivos das anteriores.
+  assert.ok(codigos(classificarContractK(SQL_C)).includes('CONTRACT_GUARDA_NAO_RECONHECIDA'));
+  assert.ok(codigos(classificarContractK(SQL_T)).includes('CONTRACT_GUARDA_NAO_RECONHECIDA'));
+});
+
+test('B14g (D-PROD-190): conferirReleaseContract — a D-PROD-190 sozinha só com --contract D-PROD-190 exato; junto com outra migration ou com outra CONTRACT é CONTRACT_NAO_ISOLADO; --contract D-PROD-190 sem CONTRACT é inesperado', () => {
+  const comK = classificarMigrations([ler(NOME_K)]);
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_K], classificacao: comK, autorizacao: 'D-PROD-190' }), { ok: true, codigo: null });
+  for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-189', '', undefined, null, 'd-prod-190', ' D-PROD-190', 'D-PROD-190 ']) {
+    assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_K], classificacao: comK, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_AUTORIZADO' }, String(autorizacao));
+  }
+  // Junto com a criação da tabela (D-PROD-189) ou com outra migration: não isolada.
+  const CURVA = '20261113600000_cadcurvaganho_cadastro';
+  const comOutra = classificarMigrations([ler(CURVA), ler(NOME_K)]);
+  assert.deepEqual(comOutra.violacoes, []);
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [CURVA, NOME_K], classificacao: comOutra, autorizacao: 'D-PROD-190' }), { ok: false, codigo: 'CONTRACT_NAO_ISOLADO' });
+  // Com outra CONTRACT (ou as três): nenhuma autorização isola (a variável do runner oficial tem um só valor).
+  for (const lote of [[NOME_C, NOME_K], [NOME_T, NOME_K], [NOME_C, NOME_T, NOME_K]]) {
+    const c = classificarMigrations(lote.map(ler));
+    assert.deepEqual(c.violacoes, []);
+    assert.equal(c.contract.length, lote.length);
+    for (const autorizacao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-190', undefined]) {
+      assert.deepEqual(conferirReleaseContract({ nomesNovas: lote, classificacao: c, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_ISOLADO' }, `${lote.length} CONTRACT, ${autorizacao}`);
+    }
+  }
+  const semK = classificarMigrations([ler(CURVA)]);
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [CURVA], classificacao: semK, autorizacao: 'D-PROD-190' }), { ok: false, codigo: 'CONTRACT_INESPERADO' });
+});
+
+test('B14h (D-PROD-190): envDoDeployMigrate — MIGRATION_CONTRACT_AUTORIZADO=D-PROD-190 só com a D-PROD-190 sozinha e --contract D-PROD-190; outra decisão ou outra CONTRACT junto não autorizam', () => {
+  const comK = classificarMigrations([ler(NOME_K)]);
+  const duas = classificarMigrations([ler(NOME_T), ler(NOME_K)]);
+  const tres = classificarMigrations([ler(NOME_C), ler(NOME_T), ler(NOME_K)]);
+  // Positivo com base 'herdado': prova que a função GRAVA a decisão (não só deixa passar o valor herdado).
+  const herdado = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'herdado' };
+  const a = envDoDeployMigrate({ env: herdado, classificacao: comK, autorizacao: 'D-PROD-190' });
+  assert.equal(a.MIGRATION_CONTRACT_AUTORIZADO, 'D-PROD-190');
+  assert.equal(a.MIGRATION_EXIGIR_CONFERENCIA, 'sim');
+  assert.equal(herdado.MIGRATION_CONTRACT_AUTORIZADO, 'herdado', 'o ambiente do runner não é mutado');
+  // Negativos com base JÁ igual à decisão: prova que ela nunca é herdada.
+  const base = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-190' };
+  for (const [classificacao, autorizacao] of [[comK, 'D-PROD-183'], [comK, 'D-PROD-189'], [comK, undefined], [comK, 'd-prod-190'], [duas, 'D-PROD-190'], [tres, 'D-PROD-190']]) {
+    const e = envDoDeployMigrate({ env: base, classificacao, autorizacao });
+    assert.equal('MIGRATION_CONTRACT_AUTORIZADO' in e, false, `${classificacao.contract.length} CONTRACT, ${autorizacao}: nunca herdado`);
+    assert.equal(e.MIGRATION_EXIGIR_CONFERENCIA, 'sim');
+  }
+});
+
+test('B14i (D-PROD-190): contractsPendentes com as três CONTRACT locais — produção hoje (D-PROD-162 e D-PROD-183 concluídas) deixa só a D-PROD-190 pendente; histórico vazio, as três; todas concluídas, nenhuma', () => {
+  const linha = (n, extra = {}) => ({ migration_name: n, checksum: 'c', finished_at: new Date(), rolled_back_at: null, ...extra });
+  const locais = [NOME_C, '20261113100000_tipo_atividade_cadastro', NOME_T, '20261113600000_cadcurvaganho_cadastro', NOME_K];
+  const PEND_C = { nome: NOME_C, decisao: 'D-PROD-162' };
+  const PEND_T = { nome: NOME_T, decisao: 'D-PROD-183' };
+  const PEND_K = { nome: NOME_K, decisao: 'D-PROD-190' };
+  const antigas = [linha(NOME_C), linha(NOME_T)];
+  assert.deepEqual(contractsPendentes({ locais, linhas: antigas }), [PEND_K], 'produção hoje: D-PROD-162 e D-PROD-183 concluídas');
+  assert.deepEqual(contractsPendentes({ locais, linhas: [] }), [PEND_C, PEND_T, PEND_K]);
+  assert.deepEqual(contractsPendentes({ locais, linhas: [linha(NOME_C)] }), [PEND_T, PEND_K]);
+  assert.deepEqual(contractsPendentes({ locais, linhas: [...antigas, linha(NOME_K)] }), []);
+  assert.deepEqual(contractsPendentes({ locais, linhas: [...antigas, linha(NOME_K, { finished_at: null })] }), [PEND_K], 'falha aberta continua pendente');
+  assert.deepEqual(contractsPendentes({ locais, linhas: [...antigas, linha(NOME_K, { rolled_back_at: new Date() })] }), [PEND_K], 'revertida continua pendente');
+  assert.deepEqual(contractsPendentes({ locais: locais.filter((n) => n !== NOME_K), linhas: antigas }), [], 'sem a pasta local não há o que aplicar');
+});
+
 test('B1b: P3-02 (D-PROD-156) classificada SOZINHA, como na release (a P3-01 já está na main): só OperacaoFinanceira.rateio_escopo anulável numa tabela antiga e a tabela nova do rateio por item', () => {
   const c = classificarMigrations([ler('20261109200000_gestao_p3_02_rateio_por_item')]);
   assert.deepEqual(c.violacoes, []);
@@ -575,8 +773,8 @@ test('B7: runner no HEAD atual — sem credenciais só há análise local declar
 /**
  * Repositório git descartável que reproduz a release de UMA migration CONTRACT (`nome`): `origin` (bare) com a
  * main = todas as migrations da pasta menos `nome`, e HEAD = main + `nome`. Árvore limpa e `origin/main` = remota,
- * então o runner real chega às barreiras do CONTRACT independentemente do estado desta árvore. A OUTRA CONTRACT
- * (D-PROD-162 ou D-PROD-183) fica na main: a release continua ISOLADA (uma só migration nova) e nada do manifesto falta.
+ * então o runner real chega às barreiras do CONTRACT independentemente do estado desta árvore. As OUTRAS CONTRACT
+ * (D-PROD-162, D-PROD-183 ou D-PROD-190) ficam na main: a release continua ISOLADA (uma só migration nova) e nada do manifesto falta.
  */
 const repoDaReleaseContract = (nome) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-premerge-contract-'));
@@ -675,6 +873,44 @@ test('B13 (D-PROD-183): runner real sobre a release do DROP COLUMN de TipoTarefa
     for (const r of recusas) recusadoSemConectar(r, 'D-PROD-183');
     // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
     const certo = run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-183');
+    assert.equal(certo.status, 3);
+    assert.match(certo.stderr, /PREMERGE_MIGRATIONS_NAO_COMPROVADAS/);
+    semSegredo(certo);
+  } finally {
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+});
+
+test('B15 (D-PROD-190): runner real sobre a release da CADCURVAGANHO mensal — análise local declara a tabela removida e recriada; verificar/aplicar exigem --contract D-PROD-190 exato ANTES de conectar (as decisões anteriores não servem); nunca imprime URL', () => {
+  const repo = repoDaReleaseContract(NOME_K);
+  const run = runnerDaRelease(repo);
+  try {
+    const analise = run(SEM_ALVO);
+    assert.equal(analise.status, 0, analise.stderr);
+    // O rótulo cita só a tabela removida (sem CHECK alargado nem coluna removida); singular ou plural é do runner.
+    assert.match(analise.stdout, /ANÁLISE LOCAL OK \(CONTRACT D-PROD-190: 1 tabelas? removidas?\) — alvo remoto NÃO verificado/);
+    const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
+    assert.equal(json.modo, 'CONTRACT');
+    assert.equal(json.expand, false);
+    // Isolada: D-PROD-162 e D-PROD-183 estão na main desta release sintética (em produção já concluídas), então a única nova é a D-PROD-190.
+    assert.deepEqual(json.migrations_novas, [NOME_K]);
+    assert.deepEqual(json.contract, [CONTRACT_K]);
+    assert.deepEqual(json.tabelas_novas, ['CADCURVAGANHO'], 'a tabela removida volta recriada');
+    assert.deepEqual(json.colunas_novas_em_tabelas_antigas, []);
+    assert.deepEqual(json.violacoes, []);
+    assert.equal(run(SEM_ALVO, '--contract', 'D-PROD-190').status, 0, 'a análise local aceita a decisão certa');
+    const semConfig = run(SEM_ALVO, '--aplicar', '--contract', 'D-PROD-190');
+    assert.equal(semConfig.status, 3);
+    assert.match(semConfig.stderr, /ALVO_SEM_CONFIGURACAO/);
+    const recusas = [
+      run(COM_ALVO, '--verificar-alvo'), run(COM_ALVO, '--aplicar'),
+      run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-189'), run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-183'),
+      run(COM_ALVO, '--aplicar', '--contract', 'D-PROD-162'), run(COM_ALVO, '--aplicar', '--contract', 'd-prod-190'),
+      run(COM_ALVO, '--verificar-alvo', '--contract'),
+    ];
+    for (const r of recusas) recusadoSemConectar(r, 'D-PROD-190');
+    // Com a decisão exata a barreira passa e o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
+    const certo = run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-190');
     assert.equal(certo.status, 3);
     assert.match(certo.stderr, /PREMERGE_MIGRATIONS_NAO_COMPROVADAS/);
     semSegredo(certo);
