@@ -56,9 +56,9 @@ const TIPOS_OFERECIDOS = new Set(TIPOS_ENTIDADE.map((tipo) => tipo.value));
 /**
  * Valor do Select de categoria: só uma das opções dele, nunca o texto livre (D-PROD-192).
  *
- * O Select do Radix 2.x mantém um `<select>` nativo oculto e, a cada troca de valor, grava o
- * valor nele e dispara `change`. Texto que não é opção ("MEU PONTO", ou "COCHO" no lugar de
- * "Cocho") não existe nesse `<select>`, que responde "" — e o `onValueChange` apagava a
+ * O Select do Radix 2.x mantém um select nativo oculto (`SelectBubbleInput`) e, a cada troca de
+ * valor, grava o valor nele e dispara `change`. Texto que não é opção ("MEU PONTO", ou "COCHO" no
+ * lugar de "Cocho") não existe nesse select oculto, que responde "" — e o `onValueChange` apagava a
  * categoria digitada no campo "OU DIGITE UMA NOVA CATEGORIA". Por isso o Select recebe a
  * sugestão igual ao texto sem diferença de maiúsculas (a categoria é salva em maiúsculas), ou
  * "" quando o texto é novo. O campo de texto continua com o que foi digitado.
