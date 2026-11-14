@@ -12,8 +12,14 @@
  *  (c) editar e excluir seguem passando pelo adaptador offline;
  *  (d) D-PROD-195 R2: um lote (ou edição) da fila que aponte para a categoria
  *      retida também fica retido — nunca vai ao servidor com o id offline;
- *  (e) a categoria retida não aparece nas listas (nem online);
- *  (f) a categoria criada online entra no cache offline.
+ *  (e) a categoria criada offline pela versão anterior não aparece nas listas
+ *      (online ou offline), nem pela fila nem pela cópia `offline_` do cache,
+ *      mesmo antes de qualquer sincronização;
+ *  (f) a categoria criada online entra no cache offline;
+ *  (g) um id offline que NÃO é de criação retida segue o caminho de sempre
+ *      (a R2 não retém cadastros de outras entidades);
+ *  (h) a ordem da fila não importa: o lote que vem antes da categoria retida
+ *      também fica retido.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -167,12 +173,14 @@ describe('D-PROD-195 — criar categoria é só online', () => {
     expect(storage.fila.size).toBe(4);
   });
 
-  it('(e) a categoria retida não aparece na lista online nem offline', async () => {
+  it('(e) a categoria da versão anterior não aparece na lista, nem pela fila nem pelo cache, sem sincronizar antes', async () => {
     await storage.adicionarNaFila(categoriaLegada());
-    await syncOfflineEntityQueue();
-    nativeRequest.mockImplementationOnce(async () => [{ id: 'srv-1', nome: 'VACA' }]);
-    expect((await categoriaManejoPort.list()).map((c) => c.id)).toEqual(['srv-1']);
+    // cópia que a versão antiga gravou no cache (a porta não é tenant-scoped: chave `Entidade::empresa`)
+    storage.cache.set(`${ENTIDADE_OFFLINE}::emp-1`, [{ id: 'offline_cm_1', nome: 'NOVILHA', _isOffline: true }, { id: 'srv-0', nome: 'BOI' }]);
     online(false);
+    expect((await categoriaManejoPort.list()).map((c) => c.id)).toEqual(['srv-0']);
+    online(true);
+    nativeRequest.mockImplementationOnce(async () => [{ id: 'srv-1', nome: 'VACA' }]);
     expect((await categoriaManejoPort.list()).map((c) => c.id)).toEqual(['srv-1']);
     expect(storage.fila.size).toBe(1);
   });
@@ -184,4 +192,33 @@ describe('D-PROD-195 — criar categoria é só online', () => {
     online(false);
     expect((await categoriaManejoPort.list()).map((c) => c.id)).toEqual(['cm-novo']);
   });
+
+  it('(g) id offline de outro cadastro (não retido) segue o caminho de sempre', async () => {
+    const opsLote = { list: vi.fn(async () => []), create: vi.fn(async (d) => ({ id: 'lote-srv', ...d })) };
+    createOfflineEntityAdapter({ entityName: 'LoteComArea', operations: opsLote, storage });
+    await storage.adicionarNaFila({
+      entity_name: 'LoteComArea', empresa_id: 'emp-1', operation: 'create', record_id: 'offline_lote_9',
+      data: { id: 'offline_lote_9', nome: 'L9', area_atual_id: 'offline_AreaPastagem_1' }, created_at: '2026-11-01T00:00:00Z',
+    });
+    const r = await syncOfflineEntityQueue();
+    expect(opsLote.create).toHaveBeenCalledWith({ nome: 'L9', area_atual_id: 'offline_AreaPastagem_1' });
+    expect(r.retidos ?? 0).toBe(0);
+    expect(storage.fila.size).toBe(0);
+  });
+
+  it('(h) lote que vem ANTES da categoria retida na fila também fica retido', async () => {
+    const opsLote = { list: vi.fn(async () => []), create: vi.fn(async (d) => ({ id: 'lote-srv', ...d })) };
+    createOfflineEntityAdapter({ entityName: 'LoteAntes', operations: opsLote, storage });
+    await storage.adicionarNaFila({
+      entity_name: 'LoteAntes', empresa_id: 'emp-1', operation: 'create', record_id: 'offline_lote_0',
+      data: { id: 'offline_lote_0', nome: 'L0', categoria_manejo_id: 'offline_cm_1' }, created_at: '2026-10-31T00:00:00Z',
+    });
+    await storage.adicionarNaFila(categoriaLegada());
+    const r = await syncOfflineEntityQueue();
+    expect(opsLote.create).not.toHaveBeenCalled();
+    expect(nativeRequest).not.toHaveBeenCalled();
+    expect(r.retidos).toBe(2);
+    expect([...storage.fila.values()].find((f) => f.record_id === 'offline_lote_0')?.quarentena?.depende_de).toBe('offline_cm_1');
+  });
 });
+

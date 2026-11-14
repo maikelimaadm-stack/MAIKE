@@ -77,33 +77,21 @@ const getCacheKey = (entityName, empresaId, tenantId) =>
     : `${entityName}::${TENANT_PREFIXO}${tenantId || SEM_TENANT_KEY}::${chaveEmpresa(empresaId)}`;
 const isOfflineId = (value) => String(value || "").startsWith("offline_");
 
-/** `create` retido no replay: fica na fila, mas não é registro real (D-PROD-195 R2). */
-const criacaoRetida = (item) =>
-  item?.operation === "create" && item?.quarentena?.codigo === API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED;
-
 /**
- * Primeiro id offline (`offline_…`) que sobrou num corpo depois de
- * `substituirIdsMapeados`: uma referência a um registro que NÃO foi criado no
- * servidor nesta sincronização (retido, pulado ou criado e excluído offline).
+ * Ids offline (`offline_…`) citados num corpo, em qualquer profundidade.
  * @param {unknown} valor
- * @returns {string|null}
+ * @param {Set<string>} [acc]
+ * @returns {Set<string>}
  */
-const idOfflineSemMapeamento = (valor) => {
-  if (typeof valor === "string") return isOfflineId(valor) ? valor : null;
-  if (Array.isArray(valor)) {
-    for (const v of valor) {
-      const achado = idOfflineSemMapeamento(v);
-      if (achado) return achado;
-    }
-    return null;
+const idsOfflineNoCorpo = (valor, acc = new Set()) => {
+  if (typeof valor === "string") {
+    if (isOfflineId(valor)) acc.add(valor);
+  } else if (Array.isArray(valor)) {
+    for (const v of valor) idsOfflineNoCorpo(v, acc);
+  } else if (valor && typeof valor === "object") {
+    for (const v of Object.values(valor)) idsOfflineNoCorpo(v, acc);
   }
-  if (valor && typeof valor === "object") {
-    for (const v of Object.values(valor)) {
-      const achado = idOfflineSemMapeamento(v);
-      if (achado) return achado;
-    }
-  }
-  return null;
+  return acc;
 };
 const estaOnline = () => (typeof navigator === "undefined" ? true : navigator.onLine !== false);
 
@@ -318,19 +306,23 @@ const listarLocal = async (storage, entityName, { order, limit, filters = {}, em
   // Entidade com exclusão só online: um `delete` na fila (legado) está RETIDO
   // e não esconde o registro — ele não foi excluído no servidor.
   const exclusaoRetida = CATALOGO.get(entityName)?.exclusaoSomenteOnline === true;
-  // D-PROD-195 R2: um `create` RETIDO no replay (quarentena OFFLINE_ENTITY_UNSUPPORTED)
-  // nunca chegou ao servidor e não vai chegar: não aparece como registro real
-  // (senão seria escolhido em outro cadastro, editado ou excluído com id offline).
+  // D-PROD-195 R2: entidade com criação só online — um `create` na fila (legado)
+  // nunca chega ao servidor: nem ele nem a cópia `offline_…` que a versão antiga
+  // gravou no cache aparecem como registro real (senão seriam escolhidos em
+  // outro cadastro, editados ou excluídos com id offline). Decide pela POLÍTICA,
+  // não pela marca do replay, como a exclusão retida.
+  const criacaoRetida = CATALOGO.get(entityName)?.criacaoSomenteOnline === true;
   const daEntidade = fila.filter(
     (item) =>
       item.entity_name === entityName &&
       chaveEmpresa(item.empresa_id) === chaveEmpresa(empresaId) &&
       (tenantId === undefined || (item.cliente_id ?? null) === tenantId) &&
       !(exclusaoRetida && item.operation === "delete") &&
-      !criacaoRetida(item)
+      !(criacaoRetida && item.operation === "create")
   );
+  const base = criacaoRetida ? emCache.filter((registro) => !isOfflineId(registro?.id)) : emCache;
 
-  let items = aplicarPendentes(emCache, daEntidade);
+  let items = aplicarPendentes(base, daEntidade);
 
   if (Object.keys(filters).length > 0) {
     items = items.filter((item) => Object.entries(filters).every(([k, v]) => item?.[k] === v));
@@ -815,8 +807,21 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   let descartados = 0;
   let quarentenados = 0;
   let retidos = 0;
-  /** record_id de creates retidos nesta passada (D-PROD-195 R2). */
-  const criacoesRetidas = new Set();
+  /**
+   * D-PROD-195 R2: record_id dos `create` que a POLÍTICA retém (entidade com
+   * criação só online ou porta sem `create`), conhecidos antes do laço — assim
+   * um item que cita um deles é retido mesmo que venha antes na fila. Só esses
+   * ids seguram outro item; qualquer outro id offline segue o caminho de sempre.
+   */
+  const criacoesRetidas = new Set(
+    emOrdem
+      .filter((item) => {
+        if (item.operation !== "create") return false;
+        const entrada = CATALOGO.get(item.entity_name);
+        return Boolean(entrada) && (entrada.criacaoSomenteOnline || typeof entrada.operations.create !== "function");
+      })
+      .map((item) => item.record_id)
+  );
 
   /** Marca o item como retido (uma vez) e conta. */
   const reter = async (storage, item, extra = {}) => {
@@ -826,7 +831,6 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       });
       emitirMudancaDeFila();
     }
-    if (item.operation === "create") criacoesRetidas.add(item.record_id);
     retidos += 1;
   };
 
@@ -898,14 +902,15 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       continue;
     }
 
-    if (item.operation === "create" || (item.operation === "update" && !isOfflineId(mapaDeIds[item.record_id] || item.record_id))) {
-      // D-PROD-195 R2: referência a um registro que não existe no servidor (a
-      // criação dele ficou retida ou não foi enviada): NUNCA envia o id
-      // offline — o servidor gravaria a referência solta. Retido; o replay segue.
-      const { id: _idOffline, _isOffline, ...bruto } = item.data || {};
-      const pendente = idOfflineSemMapeamento(substituirIdsMapeados(item.operation === "create" ? bruto : item.data || {}, mapaDeIds));
-      if (pendente) {
-        await reter(storage, item, { depende_de: pendente });
+    if (item.operation === "create" || item.operation === "update") {
+      // D-PROD-195 R2: um item que cita um registro cuja criação ficou RETIDA
+      // nunca vai ao servidor com esse id offline (o servidor gravaria a
+      // referência solta): fica retido junto, e o resto da fila segue. Ele
+      // mesmo passa a segurar quem o citar (lote → movimento, por exemplo).
+      const citado = [...idsOfflineNoCorpo(item.data || {})].find((id) => criacoesRetidas.has(id));
+      if (citado) {
+        await reter(storage, item, { depende_de: citado });
+        if (item.operation === "create") criacoesRetidas.add(item.record_id);
         continue;
       }
     }

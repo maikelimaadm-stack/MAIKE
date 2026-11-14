@@ -76,12 +76,21 @@ anterior e ainda não sincronizada:
 
 | Achado | Correção (D-PROD-195, emenda R2) |
 |---|---|
-| Um lote criado offline apontando para a categoria retida ia ao servidor com `categoria_manejo_id = 'offline_…'` e era gravado com referência solta | No replay, nenhum item vai ao servidor com um id `offline_…` sem mapeamento: fica retido (`quarentena.depende_de`); edição ou exclusão do registro retido fica junto dele |
-| A categoria retida aparecia em todas as listas, inclusive online | `create` retido não entra mais nas listas |
+| Um lote criado offline apontando para a categoria retida ia ao servidor com `categoria_manejo_id = 'offline_…'` e era gravado com referência solta | No replay, item que cita uma criação retida pela política fica retido junto (`quarentena.depende_de`), em qualquer ordem; edição ou exclusão do registro retido também. Outros ids offline seguem como antes |
+| A categoria retida aparecia em todas as listas, inclusive online | Para entidade com criação só online, nem o `create` da fila nem a cópia `offline_…` do cache entram nas listas, sem depender de sincronizar antes |
 | Criar categoria online deixou de pôr o registro no cache offline | Política `criacao: 'somente_online'` no runtime, que grava o registro confirmado no cache |
 
-Sem migration. Testes: `categoriaManejoCriacaoOnline` (6, com lote dependente,
-lista sem a retida e cache), `offlineRuntime`, `estoqueP0FilaOfflineLegada`,
-`loteDeleteOfflineBloqueado` e `loteExclusaoCacheOffline`: 61/61. Os quatro testes
-novos falham com o runtime anterior.
+A terceira revisão independente, feita sobre a primeira versão desta emenda,
+mostrou que reter **todo** id `offline_…` sem mapeamento escondia para sempre
+cadastros legítimos de outras entidades. Um exemplo é o lote cuja área foi criada
+numa sincronização anterior, porque o mapa de ids vale só para uma passada. A regra
+ficou restrita às criações retidas pela política e conhecidas antes do laço. A lista
+também passou a esconder a cópia `offline_…` do cache e decide pela política, sem
+esperar um replay.
+
+Sem migration. Testes: `categoriaManejoCriacaoOnline` (8, entre eles lote dependente
+nas duas ordens, lista sem a retida pela fila e pelo cache, cache depois de criar
+online e outro id offline que não é retido), `offlineRuntime`,
+`estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado` e
+`loteExclusaoCacheOffline`: 62/62. Com o runtime anterior, 5 dos 8 falham.
 
