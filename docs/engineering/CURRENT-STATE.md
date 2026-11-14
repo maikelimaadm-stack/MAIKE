@@ -25,6 +25,17 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
+## Missão ativa (2026-11-14) — MAIKE-ICONES-CATEGORIA-DIGITADA: a categoria digitada no cadastro de ícone não é mais apagada (D-PROD-192)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-192** (D-PROD-191 com a PR #271; D-PROD-190 com a PR #269; D-PROD-187 com a PR #268; D-PROD-185 com a PR #263) |
+| Branch / PR | `claude/fervent-knuth-txff6q`, empilhada sobre `feat/icones-lote-codigo` (`950907fc`, PR #271 em rascunho), porque as duas alteram `GerenciadorIcones.jsx`. PR em rascunho com base `feat/icones-lote-codigo`, exclusiva desta correção; depois do merge da #271, a base passa a ser a `main` |
+| Escopo | No diálogo "Cadastrar Novo Ícone" (Configurações), o Select de categoria só recebe valor que é uma das sugestões, sem diferença de maiúsculas; o texto digitado em "OU DIGITE UMA NOVA CATEGORIA" fica e é salvo em maiúsculas. Causa: o `<select>` nativo oculto do Radix Select 2.3.7 respondia `""` para valor fora das opções, e o `onValueChange` gravava `categoria: ""` |
+| Banco | **Sem migration.** Backend e banco intocados |
+| Testes | `tests/smoke/gerenciadorIconesCategoriaDigitada.test.jsx` (5 casos): falham antes da correção, passam depois |
+| Relatório | [`MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md`](./MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md) |
+
 ## Missão ativa (2026-11-13) — MAIKE-ICONES-LOTE-CODIGO: ícone do lote pelo código, sexo + faixa de idade (D-PROD-191)
 
 | Campo | Valor |

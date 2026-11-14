@@ -55,6 +55,8 @@ Campos principais: `tipo_entidade`, `categoria`, `icone_url`, `sub_icone_url` e 
 
 Para trocar uma imagem cadastrada, use o gerenciador e salve o registro. Não coloque uma URL nova em uma lista aleatória do código: o mapa escolhe o cadastro pelas funções de resolução.
 
+**Categoria: sugestão ou texto livre (D-PROD-192).** A categoria é escolhida no Select (as sugestões do tipo, em `CATEGORIAS_SUGERIDAS`) ou digitada em "OU DIGITE UMA NOVA CATEGORIA", e é salva em maiúsculas. O Select só recebe valor que é uma das sugestões (`sugestaoDaCategoria`, sem diferença de maiúsculas): o `<select>` nativo oculto do Radix responde `""` para valor fora das opções, e isso apagava o texto digitado.
+
 Quem escolhe a imagem no mapa: `src/lib/maplibre/mapaGeralRender.js`:
 
 - `resolverIconeLote`: não lê mais o cadastro. Chama a cascata do código (`resolverFiguraDoPasto`, em `src/assets/icones/lotes/index.js`) e sempre devolve um desenho.
