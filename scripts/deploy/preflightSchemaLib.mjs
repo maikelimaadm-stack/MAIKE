@@ -53,7 +53,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AbastecimentoBem', 'quantidade'],
   ['AbastecimentoBem', 'unidade'],
   ['TanqueBemProduto', 'produto_id'],
-  // D-PROD-199: o Lançamento de Atividades lê e grava a atividade (cabeçalho) e o apontamento do dia; sem as 2 tabelas
+  // D-PROD-200: o Lançamento de Atividades lê e grava a atividade (cabeçalho) e o apontamento do dia; sem as 2 tabelas
   // (a migration CONTRACT da Atividade cabeçalho ainda não aplicada), a tela nova responde 500.
   ['Atividade', 'unidade_producao_sigla'],
   ['AtividadeApontamento', 'sequencia'],

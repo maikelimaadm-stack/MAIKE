@@ -1,5 +1,5 @@
 /**
- * Sessão da tela Lançamento de Atividades (D-PROD-199): empresa REAL
+ * Sessão da tela Lançamento de Atividades (D-PROD-200): empresa REAL
  * selecionada, o fuso da fazenda (o "hoje") e as ações que a permissão
  * efetiva libera na tela `op-atividades`.
  *

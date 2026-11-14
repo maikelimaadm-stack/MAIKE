@@ -11,7 +11,7 @@
  *  - a sessão (hooks do Patrimônio) não quebra nem expõe `configurarConversao`;
  *  - o gerenciador de permissões não as desenha, preserva as linhas ao salvar e
  *    não conta o id antigo no limite de 4 botões do celular.
- * D-PROD-199 — a tela `op-apontamentos-atividade` (Apontamentos de Atividade,
+ * D-PROD-200 — a tela `op-apontamentos-atividade` (Apontamentos de Atividade,
  * D-PROD-190) deu lugar a `op-atividades` (Lançamento de Atividades): as linhas
  * antigas ficam inertes do mesmo jeito (nada é migrado nem concedido; quem não
  * é administrador precisa de nova concessão).
@@ -57,7 +57,7 @@ import { EXTRA_ACTION_KEYS_BY_PAGE, canAccessPage, extraActionKeysOf, getPagePer
 import { MODULO_PATRIMONIO, TELAS_PATRIMONIO, acoesDaTelaAbastecimento, acoesDaTelaPatrimonio, acoesDeCatalogoNoBem } from '@/lib/patrimonioPermissions';
 import { MODULO_ATIVIDADES, TELA_ATIVIDADES, acoesDaTelaAtividades } from '@/lib/lancamentoAtividadesPermissions';
 
-/** D-PROD-199 — a tela antiga do apontamento de atividade (D-PROD-190), no mesmo grupo de menu da nova. */
+/** D-PROD-200 — a tela antiga do apontamento de atividade (D-PROD-190), no mesmo grupo de menu da nova. */
 const TELA_APONTAMENTOS_ANTIGA = 'op-apontamentos-atividade';
 const SEM_ACOES_ATIVIDADES = {
   ver: false, criar: false, editar: false, cancelar: false, reabrir: false, lancarApontamento: false, editarApontamento: false, cancelarApontamento: false,
@@ -82,7 +82,7 @@ const linhaAntigaTudo = (tela_id) =>
 const LINHAS_ANTIGAS = ANTIGAS.map(([id]) => linhaAntigaTudo(id));
 /** Abastecimentos com o fator kg/L ligado (ação que saiu). */
 const ABASTECIMENTO_COM_FATOR = tela(MODULO_PATRIMONIO, 'pat-abastecimentos', { visualizar: true, configurar_conversao: true });
-/** D-PROD-199 — linha antiga do Apontamento de Atividade com TUDO ligado (inclusive chaves com o nome das extras novas). */
+/** D-PROD-200 — linha antiga do Apontamento de Atividade com TUDO ligado (inclusive chaves com o nome das extras novas). */
 const APONTAMENTO_ANTIGO_TUDO = tela(MODULO_ATIVIDADES, TELA_APONTAMENTOS_ANTIGA, {
   visualizar: true, novo: true, salvar: true, editar: true, excluir: true, importar: true, exportar: true,
   reabrir: true, lancar_apontamento: true, editar_apontamento: true, cancelar_apontamento: true,
@@ -168,7 +168,7 @@ describe('INERTE-1 — regras de ação ignoram as linhas antigas', () => {
     expect(canAccessPage(registro([MODULO_PATRIMONIO], LINHAS_ANTIGAS), 'pat-combustiveis', MODULO_PATRIMONIO)).toBe(true);
   });
 
-  it('D-PROD-199: a linha antiga `op-apontamentos-atividade` (tudo ligado) não dá nada no Lançamento de Atividades', () => {
+  it('D-PROD-200: a linha antiga `op-apontamentos-atividade` (tudo ligado) não dá nada no Lançamento de Atividades', () => {
     expect(TELA_ATIVIDADES).toBe('op-atividades');
     const perm = registro([MODULO_ATIVIDADES], [APONTAMENTO_ANTIGO_TUDO]);
     expect(acoesDaTelaAtividades(perm)).toEqual(SEM_ACOES_ATIVIDADES);
@@ -212,7 +212,7 @@ describe('INERTE-2 — menu do shell real', () => {
     for (const [, titulo] of ANTIGAS) expect(screen.queryByText(titulo), titulo).toBeNull();
   });
 
-  it('D-PROD-199: só a linha antiga do Apontamento de Atividade (com o módulo): nem a tela antiga nem o Lançamento de Atividades aparecem', async () => {
+  it('D-PROD-200: só a linha antiga do Apontamento de Atividade (com o módulo): nem a tela antiga nem o Lançamento de Atividades aparecem', async () => {
     sessao.permissoes = [
       registro(['mapa', MODULO_ATIVIDADES], [tela('mapa', 'pec-mapa-geral', { visualizar: true }), APONTAMENTO_ANTIGO_TUDO], {
         mobile_menu_ids: [TELA_APONTAMENTOS_ANTIGA],
@@ -225,7 +225,7 @@ describe('INERTE-2 — menu do shell real', () => {
     expect(screen.queryByText('Suporte do Mapa')).toBeNull();
   });
 
-  it('D-PROD-199: linha antiga + a nova: o grupo aparece só com Lançamento de Atividades', async () => {
+  it('D-PROD-200: linha antiga + a nova: o grupo aparece só com Lançamento de Atividades', async () => {
     sessao.permissoes = [
       registro(['mapa', MODULO_ATIVIDADES], [
         tela('mapa', 'pec-mapa-geral', { visualizar: true }),
@@ -274,7 +274,7 @@ describe('INERTE-3 — sessão: hooks do Patrimônio com linhas antigas', () => 
     expect(abastecimento).toEqual({ ver: true, criar: false, cancelar: false, carregando: false, administrador: false, login: 'vaqueiro' });
   });
 
-  it('D-PROD-199: useAcoesTelaAtividades com só a linha antiga do apontamento → nada (sem concessão automática)', async () => {
+  it('D-PROD-200: useAcoesTelaAtividades com só a linha antiga do apontamento → nada (sem concessão automática)', async () => {
     sessao.permissoes = [registro([MODULO_ATIVIDADES], [APONTAMENTO_ANTIGO_TUDO])];
     const { useAcoesTelaAtividades } = await import('@/hooks/useLancamentoAtividadesSessao');
     function Sonda() {
@@ -340,7 +340,7 @@ describe('INERTE-4 — gerenciador de permissões', () => {
     expect(linhas).toHaveLength(LINHAS_ANTIGAS.length + 2);
   });
 
-  it('D-PROD-199: não desenha Apontamentos de Atividade; ao ligar uma extra do Lançamento, preserva a linha antiga igual', async () => {
+  it('D-PROD-200: não desenha Apontamentos de Atividade; ao ligar uma extra do Lançamento, preserva a linha antiga igual', async () => {
     const nova = tela(MODULO_ATIVIDADES, TELA_ATIVIDADES, { visualizar: true, reabrir: false, lancar_apontamento: false, editar_apontamento: false, cancelar_apontamento: false });
     const estado = await montarGerenciador({
       modulos_permitidos: [MODULO_ATIVIDADES],

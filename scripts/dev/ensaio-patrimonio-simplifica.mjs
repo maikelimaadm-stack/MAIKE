@@ -32,7 +32,7 @@
  *     `20261113800000_apontamento_atividade_item` (D-PROD-193) também fica de
  *     fora: os itens referenciam o ApontamentoAtividade por FK RESTRICT; sobe
  *     no passo 4, depois dele. A CONTRACT `20261114500000_atividade_cabecalho`
- *     (D-PROD-199) também fica de fora: a guarda dela exige as 3 tabelas do
+ *     (D-PROD-200) também fica de fora: a guarda dela exige as 3 tabelas do
  *     apontamento antigo, que as duas criam; sobe no passo 4, por último;
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
  *     perfis, combustíveis, vínculos, fatores, bens, tanques, medições,
@@ -44,13 +44,13 @@
  *     "remoto" simulado): cada um tem de recusar e não mudar nada; a falha
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. o runner oficial com a conferência de alvo exigida e
- *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 RECUSA: a D-PROD-199 pende junto
+ *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 RECUSA: a D-PROD-200 pende junto
  *     (nunca duas CONTRACT de uma vez; como a D-PROD-195 na D-PROD-187); então
  *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
- *     impressão na URL) esta, a D-PROD-190, a D-PROD-193 e a D-PROD-199, e
+ *     impressão na URL) esta, a D-PROD-190, a D-PROD-193 e a D-PROD-200, e
  *     confere: todas concluídas, 84 tabelas (as 82 do formato novo + Atividade e
  *     AtividadeApontamento; as 3 do apontamento antigo nascem e saem com a
- *     D-PROD-199), as 7 vazias, dono e ACL, RLS, contagens de constraints,
+ *     D-PROD-200), as 7 vazias, dono e ACL, RLS, contagens de constraints,
  *     impressão digital das 75 que ficam, CHECKs alargados, estoque intacto,
  *     `migrate diff` vazio e 2ª execução.
  *
@@ -86,7 +86,7 @@ export const DECISAO = 'D-PROD-162';
  * produção: ficam fora da partida e sobem pelo runner no GREEN, depois dela. As tabelas que elas criam ficam fora
  * da impressão digital das que FICAM (são novas, como as 7 do formato novo).
  * D-PROD-193 — os itens do apontamento dependem do ApontamentoAtividade (FK RESTRICT): vêm logo depois dele.
- * D-PROD-199 — a CONTRACT da Atividade cabeçalho exige as 3 tabelas do apontamento antigo (a guarda recusa sem elas),
+ * D-PROD-200 — a CONTRACT da Atividade cabeçalho exige as 3 tabelas do apontamento antigo (a guarda recusa sem elas),
  * converte o que houver (aqui, nada) e as apaga, criando Atividade e AtividadeApontamento: vem por último. Por ser
  * CONTRACT, com ela pendente o runner com a conferência exigida recusa a decisão desta (nunca duas de uma vez).
  */
@@ -543,9 +543,9 @@ if (ehEntradaDireta()) {
       const sid = await sistema(db);
       const semAutorizacao = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid } });
       relatorio.runner_sem_autorizacao = { status: semAutorizacao.status, recusou: /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/.test(semAutorizacao.saida), tabelas: await contarTabelas(db) };
-      // D-PROD-199: com a conferência e a decisão desta, a D-PROD-199 pende junto: recusa (nunca duas CONTRACT de uma vez).
+      // D-PROD-200: com a conferência e a decisão desta, a D-PROD-200 pende junto: recusa (nunca duas CONTRACT de uma vez).
       const autorizada = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
-      relatorio.runner_autorizado_com_outra_pendente = { status: autorizada.status, recusou: autorizada.saida.includes(`${NOME_ATIVIDADE_CABECALHO} (D-PROD-199)`) && !autorizada.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), tabelas: await contarTabelas(db) };
+      relatorio.runner_autorizado_com_outra_pendente = { status: autorizada.status, recusou: autorizada.saida.includes(`${NOME_ATIVIDADE_CABECALHO} (D-PROD-200)`) && !autorizada.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), tabelas: await contarTabelas(db) };
       const green = await aplicarPeloRunner(comImpressao(url, imp.impressao));
       const fpDepois = await fingerprintV2(db);
       const retratoDepois = await retrato(db);
@@ -568,7 +568,7 @@ if (ehEntradaDireta()) {
       };
       const g = relatorio.green;
       // D-PROD-190/191/198: 84 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento
-      // (D-PROD-199); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-199.
+      // (D-PROD-200); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-200.
       if (g.status !== 0 || g.tabelas !== 84 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();

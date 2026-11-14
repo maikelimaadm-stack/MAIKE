@@ -25,22 +25,22 @@
  *
  * D-PROD-198: a EXPAND `20261114400000_cadcategoria_peso_objetivo` (CADCATEGORIA.peso_objetivo_kg), de nome
  * posterior, não existia no dia desta CONTRACT. Fica fora da partida (que é só o que vem ANTES desta) e fora da subida
- * fora de ordem da D-PROD-199 (abaixo), e sobe nos GREEN que aplicam tudo o que pende no diretório real (runner
+ * fora de ordem da D-PROD-200 (abaixo), e sobe nos GREEN que aplicam tudo o que pende no diretório real (runner
  * oficial), depois desta e sem autorização (é EXPAND). O postcheck do runbook fixa o histórico de produção naquele dia
  * (51 / 0, 85 tabelas).
  *
  * Runbook: o preflight, o envelope do caminho B e o postcheck de `MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md`
  * (entre os marcadores `sql:…`) rodam como estão, trocando só o system_identifier de produção pelo local.
  *
- * D-PROD-199: a CONTRACT seguinte (`20261114500000_atividade_cabecalho`, Atividade cabeçalho), de nome POSTERIOR,
+ * D-PROD-200: a CONTRACT seguinte (`20261114500000_atividade_cabecalho`, Atividade cabeçalho), de nome POSTERIOR,
  * entrou no repositório depois desta. O runner oficial nunca aplica duas CONTRACT de uma vez; por isso, logo antes do
  * caminho do runner (TA-02), ela sobe FORA DE ORDEM pelo Prisma direto (a guarda dela só olha as 3 tabelas do
  * apontamento antigo, vazias aqui, e ela não toca TipoAtividade): 51 migrations e 84 tabelas nessa partida, e só a
  * D-PROD-197 pende no runner como CONTRACT (a EXPAND da D-PROD-198 sobe com ela; em produção a ordem é a inversa: esta
- * e a D-PROD-198 já estão aplicadas e a D-PROD-199 entra depois). O preflight e os RED rodam antes, no estado de
+ * e a D-PROD-198 já estão aplicadas e a D-PROD-200 entra depois). O preflight e os RED rodam antes, no estado de
  * produção do dia desta (50 / 0, 85 tabelas); o postcheck do runbook, escrito para 51 / 0 e 85 tabelas, passa inteiro
  * no banco do caminho B, que fica nesse estado, e no banco do runner só as duas linhas de contagem mudam (53 / 0 e 84).
- * No caminho B, a 2ª execução do runner aplica só a D-PROD-198 e a D-PROD-199.
+ * No caminho B, a 2ª execução do runner aplica só a D-PROD-198 e a D-PROD-200.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -79,7 +79,7 @@ const TOTAL_MIGRATIONS = PASTAS.length;
 /** D-PROD-198: a EXPAND do peso objetivo, de nome posterior; não existia no dia desta CONTRACT (ver o cabeçalho). */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 /**
- * D-PROD-199: as CONTRACT de nome POSTERIOR a esta (a Atividade cabeçalho), que sobem fora de ordem antes do runner (ver
+ * D-PROD-200: as CONTRACT de nome POSTERIOR a esta (a Atividade cabeçalho), que sobem fora de ordem antes do runner (ver
  * o cabeçalho); a EXPAND da D-PROD-198 fica de fora e sobe pelo runner, depois desta.
  */
 const POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && n !== NOME_PESO_OBJETIVO));
@@ -409,7 +409,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(h.concluidas, ANTERIORES.length);
     assert.equal(ANTERIORES.length, 50, 'produção hoje: 50 migrations, a última a curva obrigatória na Categoria de Manejo (D-PROD-195)');
     assert.equal(ANTERIORES.at(-1), '20261114200000_cadcategoria_curva_ganho');
-    // D-PROD-198 e D-PROD-199: a EXPAND do peso objetivo e a Atividade cabeçalho têm nome posterior a esta (53 pastas no
+    // D-PROD-198 e D-PROD-200: a EXPAND do peso objetivo e a Atividade cabeçalho têm nome posterior a esta (53 pastas no
     // total); as duas ficam fora da partida.
     assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho']);
     assert.equal(TOTAL_MIGRATIONS, 53);
@@ -465,14 +465,14 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
   }
 
   test('TA-02 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-197, antes de qualquer DDL', async () => {
-    // D-PROD-199 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
-    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho'], 'só a CONTRACT da D-PROD-199 tem nome posterior a esta');
+    // D-PROD-200 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
+    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho'], 'só a CONTRACT da D-PROD-200 tem nome posterior a esta');
     // A EXPAND da D-PROD-198 fica para o runner, depois desta (como em produção).
     await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO));
     partida = await retrato(db);
     linhasPartida = partida.linhas;
     assert.equal((await historico(db)).concluidas, ANTERIORES.length + POSTERIORES.length);
-    assert.equal(partida.tabelas.split(',').length, 84, 'a D-PROD-199 troca as 3 tabelas do apontamento antigo pelas 2 da atividade');
+    assert.equal(partida.tabelas.split(',').length, 84, 'a D-PROD-200 troca as 3 tabelas do apontamento antigo pelas 2 da atividade');
     assert.deepEqual(await intrusos(db), []);
     const linhasAntes = (await historico(db)).total;
     // D-PROD-182 criou a tabela; D-PROD-194 e D-PROD-195 são as CONTRACT anteriores (concluídas); a decisão em minúsculas
@@ -632,9 +632,9 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(n, 4);
   });
 
-  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198 e a D-PROD-199, posteriores, mudam (53 / 0 e 84 tabelas); o preflight agora manda parar', async () => {
+  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198 e a D-PROD-200, posteriores, mudam (53 / 0 e 84 tabelas); o preflight agora manda parar', async () => {
     const pos = quadro(await consulta(URL_T, blocoDoRunbook('postcheck').split(SID_PRODUCAO).join(SID)));
-    // O postcheck foi escrito para o dia desta (51 / 0, 85 tabelas); aqui a EXPAND da D-PROD-198 e a D-PROD-199 também
+    // O postcheck foi escrito para o dia desta (51 / 0, 85 tabelas); aqui a EXPAND da D-PROD-198 e a D-PROD-200 também
     // estão aplicadas (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03), que
     // fica nesse estado antes do runner.
     const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '84' };
@@ -715,7 +715,7 @@ describe('D-PROD-197 — caminho B do runbook (uma transação pelo conector), n
     assert.equal(pos['TipoAtividade: linhas (igual ao preflight)'].valor, pre['TipoAtividade: linhas (anote; o postcheck repete)'].valor);
 
     // O registro manual vale para o Prisma: o runner não reaplica a D-PROD-197; só aplica as de nome posterior, a EXPAND
-    // da D-PROD-198 (não existia no dia desta CONTRACT) e a D-PROD-199 (ver o cabeçalho), e o schema bate com o
+    // da D-PROD-198 (não existia no dia desta CONTRACT) e a D-PROD-200 (ver o cabeçalho), e o schema bate com o
     // schema.prisma; a 2ª execução já não vê pendência.
     const runner = await aplicarPeloRunner(URL_B);
     assert.equal(runner.status, 0, runner.saida);

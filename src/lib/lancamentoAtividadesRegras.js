@@ -1,5 +1,5 @@
 /**
- * Regras do Lançamento de Atividades no navegador (D-PROD-199, Fatia 2).
+ * Regras do Lançamento de Atividades no navegador (D-PROD-200, Fatia 2).
  *
  * A ATIVIDADE é o cabeçalho aberto ("Cigarrinha Pasto 01"); os APONTAMENTOS são
  * os dias e turnos em que ela foi executada (sequência 1, 2… no mesmo dia e

@@ -211,7 +211,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEstacaoRoutes);
   // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
   await app.register(registrarCurvaGanhoRoutes);
-  // D-PROD-199 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
+  // D-PROD-200 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
   // concluída ou cancelada, sem DELETE físico) e os APONTAMENTOS do dia e do
   // turno, filhos dela. Substitui o apontamento de linha única (D-PROD-190/193).
   await app.register(registrarAtividadeRoutes);

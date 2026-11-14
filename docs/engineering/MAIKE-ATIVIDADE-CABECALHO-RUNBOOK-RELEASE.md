@@ -1,4 +1,4 @@
-# MAIKE — Atividade cabeçalho (Fatia 2): runbook de release CONTRACT (D-PROD-199)
+# MAIKE — Atividade cabeçalho (Fatia 2): runbook de release CONTRACT (D-PROD-200)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 >
@@ -6,7 +6,7 @@
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de
 > leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-199](./DECISIONS.md) · Contrato:
+Decisão: [D-PROD-200](./DECISIONS.md) · Contrato:
 [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md) (§2 a migration, §9 a release e o
 GO do proprietário). Precedentes executados: [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md)
 (a CONTRACT anterior, caminho B) e [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md)
@@ -28,7 +28,7 @@ GO do proprietário). Precedentes executados: [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RU
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb` |
 | Entrada pinada (`MIGRATIONS_CONTRACT_APROVADAS`) | guarda `6d192b5423d728d425d20d4a98d28335b7617a6261ae96999162a71578856f64`; `drop`: as 3 antigas, filhas primeiro; `literais_guarda`: `CONFIRMADO`, `CANCELADO`, `EntidadeCodigoSequencia`; `alter_antigas: []`; `conversao`: as 3 instruções |
 | RLS das novas (`DO_RLS_APROVADOS`) | `8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c` |
-| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: ["Atividade", "AtividadeApontamento"]`, `colunas_novas_em_tabelas_antigas: []`; `contract[0]`: `decisao: "D-PROD-199"`, `conversoes` (`INSERT INTO Atividade`, `INSERT INTO AtividadeApontamento`, `UPDATE EntidadeCodigoSequencia`), `tabelas_removidas` (as 3) |
+| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: ["Atividade", "AtividadeApontamento"]`, `colunas_novas_em_tabelas_antigas: []`; `contract[0]`: `decisao: "D-PROD-200"`, `conversoes` (`INSERT INTO Atividade`, `INSERT INTO AtividadeApontamento`, `UPDATE EntidadeCodigoSequencia`), `tabelas_removidas` (as 3) |
 | `_prisma_migrations` | antes **52** concluídas, 0 em aberto (a CONTRACT anterior, os padrões do Tipo de Atividade da D-PROD-197, `20261114300000_tipo_atividade_defaults`, concluída em 2026-11-14 às 17:05:05 UTC; a última, a EXPAND do peso objetivo da D-PROD-198, `20261114400000_cadcategoria_peso_objetivo`, concluída em 2026-11-14 às 19:00:00 UTC); depois **53**. Recontar no §4 se algo mais for aplicado antes |
 | Tabelas em `public` | **85** antes, **84** depois (− 3 + 2) |
 | Linhas (produção hoje) | `ApontamentoAtividade` 2 (`CONFIRMADO`), itens 0, fatias 0; contador `ApontamentoAtividade` / `tenant` / próximo 3 → depois `Atividade` 2 e `AtividadeApontamento` 2 (`ABERTA` e `CONFIRMADO`, números 1 e 2), contador `Atividade` / `tenant` / próximo 3 |
@@ -49,7 +49,7 @@ Por isso: **aplicar logo antes do merge, fora de pico**, e mergear logo depois d
 postcheck. A janela é a do deploy da Vercel (do `COMMIT` da migration até o deploy
 da `main` nova ficar READY): nesse intervalo a tela antiga quebra. E o
 `premerge-migrate` só enxerga a migration como "nova" enquanto ela não está na
-`main`: depois do merge o `--contract D-PROD-199` vira `CONTRACT_INESPERADO` e o
+`main`: depois do merge o `--contract D-PROD-200` vira `CONTRACT_INESPERADO` e o
 caminho A fecha (aconteceu na D-PROD-183). A ordem é: aplicar (§5) → postcheck (§6)
 → merge (§7). **Só com o GO explícito e escrito do proprietário** (§2).
 
@@ -85,9 +85,9 @@ travas e as transações longas.
   **isolada** (esta é a única migration nova; senão `CONTRACT_NAO_ISOLADO`) e exige
   a decisão exata:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-199: 3 conversões (…), 3 tabelas removidas)
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-199
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-199   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-200: 3 conversões (…), 3 tabelas removidas)
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-200
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-200   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-200
   ```
   A guarda põe o próprio `lock_timeout` (5 s); não é preciso parâmetro na URL.
 - **B — conector Supabase, uma única `execute_sql` (§5):** desvio da D-PROD-74,
@@ -95,8 +95,8 @@ travas e as transações longas.
   (§2). Nunca presumido de releases anteriores nem de autorização genérica.
 - O `npm run deploy:migrate` à mão e o `release-migrate.yml` **recusam** esta
   migration (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver
-  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-199`
-  passa `MIGRATION_CONTRACT_AUTORIZADO`, e `d-prod-199`, ` D-PROD-199 ` ou a
+  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-200`
+  passa `MIGRATION_CONTRACT_AUTORIZADO`, e `d-prod-200`, ` D-PROD-200 ` ou a
   decisão de outra CONTRACT não servem.
 
 ## 2. Pré-requisitos e GOs
@@ -135,7 +135,7 @@ elas já não existem). Qualquer `PARAR` → `RELEASE_BLOCKED`.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-199 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-200 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -280,7 +280,7 @@ SELECT item, valor, esperado, status FROM (
 E, localmente, no `<SHA_APROVADO>`:
 `sha256sum backend/prisma/migrations/20261114500000_atividade_cabecalho/migration.sql`
 igual ao pinado, e a análise local do `premerge-migrate` (§1) com `modo: CONTRACT`,
-`contract[0].decisao = "D-PROD-199"`, as 3 `conversoes`, as 3 `tabelas_removidas`,
+`contract[0].decisao = "D-PROD-200"`, as 3 `conversoes`, as 3 `tabelas_removidas`,
 `tabelas_novas` com as 2 novas e `violacoes: []`.
 
 ### 4.2 Ensaio local (com o arquivo exato do `<SHA_APROVADO>`)
@@ -303,7 +303,7 @@ produção pelo local:
   gravado por uma transação concorrente enquanto a migration espera a trava
   (recusado, o item fica) e o mesmo item pelo runner (falha aberta → `migrate
   resolve --rolled-back`); e o `deploy:migrate` com a conferência de alvo exigida e
-  sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199` exato →
+  sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-200` exato →
   `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` antes de qualquer DDL;
 - GREEN pelo runner oficial (conferência exigida, decisão exata) e GREEN pelo
   envelope do caminho B: 53/0, 84 tabelas, as 2 atividades e os 2 apontamentos
@@ -401,7 +401,7 @@ aplicação).
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-199 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
+-- MAIKE · D-PROD-200 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -605,7 +605,7 @@ Não há reversão automática: as 3 tabelas antigas deixam de existir no `COMMI
 - sem o GO-2 (no caminho B, sem o desvio da D-PROD-74 registrado para esta migration);
 - validação local da PR não verde;
 - alvo com `system_identifier` diferente;
-- histórico diferente de 52/0 antes, ou a D-PROD-199 já registrada (linha não revertida);
+- histórico diferente de 52/0 antes, ou a D-PROD-200 já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release (`CONTRACT_NAO_ISOLADO`);
 - SHA-256 do arquivo diferente do pinado, ou classificador fora do esperado;

@@ -9,9 +9,9 @@
  * Prisma a partir de uma cópia temporária: as 49 de nome anterior (inclui as CONTRACT da D-PROD-162, da
  * D-PROD-183, da D-PROD-187 e da D-PROD-194, já concluídas como em produção) e as
  * CONTRACT da D-PROD-197 (`20261114300000_tipo_atividade_defaults`, padrões e
- * flags do TipoAtividade) e da D-PROD-199 (`20261114500000_atividade_cabecalho`,
+ * flags do TipoAtividade) e da D-PROD-200 (`20261114500000_atividade_cabecalho`,
  * Atividade cabeçalho), de nome POSTERIOR, que sobem fora de ordem: a guarda da
- * D-PROD-197 só olha TipoAtividade e os alvos das FKs, a da D-PROD-199 só as 3
+ * D-PROD-197 só olha TipoAtividade e os alvos das FKs, a da D-PROD-200 só as 3
  * tabelas do apontamento antigo (vazias aqui: ela não converte nada, apaga as 3 e
  * cria as 2 novas), nenhuma toca CADCATEGORIA nem CADCURVAGANHO, e assim só a
  * D-PROD-195 pende no runner (em produção a ordem é a inversa: esta já está
@@ -79,7 +79,7 @@ const TOTAL_MIGRATIONS = PASTAS.length;
  */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO]);
-/** D-PROD-197/D-PROD-199: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
+/** D-PROD-197/D-PROD-200: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
 const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n)));
 const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n !== NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n)).length;
 /** O lock_timeout da guarda é 5 s; o teto cobre a partida do Prisma CLI em máquina lenta de CI. */
@@ -176,7 +176,7 @@ const ambienteBase = () => {
 };
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
-/** Todas as pastas menos esta CONTRACT e FORA_DA_PARTIDA (as 49 anteriores e a D-PROD-197 e a D-PROD-199, posteriores), aplicadas pelo Prisma a partir de uma cópia temporária. */
+/** Todas as pastas menos esta CONTRACT e FORA_DA_PARTIDA (as 49 anteriores e a D-PROD-197 e a D-PROD-200, posteriores), aplicadas pelo Prisma a partir de uma cópia temporária. */
 const aplicarMigrationsAnteriores = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-ccc-curva-main-'));
   try {
@@ -343,8 +343,8 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas e a D-PROD-197 e a D-PROD-199, posteriores), 84 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-199 têm nome posterior a esta');
+  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas e a D-PROD-197 e a D-PROD-200, posteriores), 84 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-200 têm nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     // D-PROD-198: a EXPAND do peso objetivo fica fora da partida (53 pastas; partida 51).
     assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho']);
@@ -356,7 +356,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 4);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 84, '85 até a D-PROD-197; a D-PROD-199 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade');
+    assert.equal(partida.tabelas, 84, '85 até a D-PROD-197; a D-PROD-200 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade');
     assert.deepEqual(partida.colunas, [...COLUNAS_ANTES]);
     assert.deepEqual(partida.indices_categoria, [...INDICES_CATEGORIA_ANTES]);
     assert.deepEqual(partida.constraints_categoria, [...CONSTRAINTS_CATEGORIA_ANTES]);

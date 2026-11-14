@@ -1,5 +1,5 @@
 /**
- * D-PROD-199 (Fatia 2) — integração REAL tela ↔ servidor do Lançamento de
+ * D-PROD-200 (Fatia 2) — integração REAL tela ↔ servidor do Lançamento de
  * Atividades. Os testes de tela (`tests/smoke/lancamentoAtividades.test.jsx`)
  * usam um servidor falso; os do backend mandam corpos escritos à mão. Aqui o
  * caminho inteiro do navegador roda no Node contra o Fastify e o PostgreSQL

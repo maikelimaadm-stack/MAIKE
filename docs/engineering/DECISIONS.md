@@ -7259,9 +7259,9 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md).
 
-## D-PROD-199 — Lançamento de Atividades em dois níveis: a Atividade (cabeçalho) e o apontamento do dia como filho (Fatia 2)
+## D-PROD-200 — Lançamento de Atividades em dois níveis: a Atividade (cabeçalho) e o apontamento do dia como filho (Fatia 2)
 
-> **Numeração:** nasceu como D-PROD-198, com a migration `20261114400000_atividade_cabecalho`. A `main` deu a D-PROD-198 e o prefixo `20261114400000` ao peso objetivo na Categoria de Manejo (PR #283, aplicada em produção às 19:00 UTC) antes do merge desta. Esta é a **D-PROD-199** e a migration passou a `20261114500000_atividade_cabecalho`. O número não está no `migration.sql`, então o checksum não muda. O GO do proprietário ("autorizo pode enviar") foi dado para esta migration, com o número antigo.
+> **Numeração:** nasceu como D-PROD-198, com a migration `20261114400000_atividade_cabecalho`. A `main` deu a D-PROD-198 e o prefixo `20261114400000` ao peso objetivo na Categoria de Manejo (PR #283, aplicada em produção às 19:00 UTC) antes do merge desta. Passou a D-PROD-199, e a `main` deu a D-PROD-199 à Mudança de Categoria (PR #287, sem migration). Esta é a **D-PROD-200** e a migration passou a `20261114500000_atividade_cabecalho`. O número não está no `migration.sql`, então o checksum não muda. O GO do proprietário ("autorizo pode enviar") foi dado para esta migration, com o número antigo.
 
 **Data:** 2026-11-14 · **Origem:** pedido do proprietário ("LANÇAMENTO DE ATIVIDADES — REDESENHO EM 4 FATIAS", Fatia 2: "O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" · **Branch:** `feat/atividade-cabecalho`
 
@@ -7275,4 +7275,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Contrato:** [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md).
 
-<!-- Próxima decisão: D-PROD-200 -->
+<!-- Próxima decisão: D-PROD-201 -->

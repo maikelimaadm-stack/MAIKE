@@ -1,5 +1,5 @@
 /**
- * D-PROD-199 — exclusão de cadastro barrada por uma ATIVIDADE (o cabeçalho) ou
+ * D-PROD-200 — exclusão de cadastro barrada por uma ATIVIDADE (o cabeçalho) ou
  * por um APONTAMENTO de atividade. Substitui `vinculoApontamentoAtividade.js`
  * (D-PROD-190), que saiu com o apontamento de linha única.
  *

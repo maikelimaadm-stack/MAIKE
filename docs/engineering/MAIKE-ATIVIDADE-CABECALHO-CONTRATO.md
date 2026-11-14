@@ -2,7 +2,7 @@
 
 > **fatia 2 · `feat/atividade-cabecalho` · PR #285**
 >
-> Decisão **D-PROD-199**. Pedido do proprietário: "FATIA 2 — O cabeçalho + transformar o apontamento atual em filho
+> Decisão **D-PROD-200**. Pedido do proprietário: "FATIA 2 — O cabeçalho + transformar o apontamento atual em filho
 > dele." Base: a Fatia 1 (D-PROD-197), já em produção, com os padrões e as flags do Tipo de Atividade.
 
 ## 1. Modelo (fixado no `schema.prisma`)
@@ -220,7 +220,7 @@ scripts e documentos operacionais. Documentos históricos ficam.
 A migration **apaga a tabela que o código em produção usa** e cria as que o código novo usa: não há ordem sem janela.
 O runbook prevê aplicar e fazer o merge em seguida, fora de pico. A janela é a do deploy da Vercel: a tela antiga
 quebra até o código novo subir. **Só com autorização explícita do proprietário**, pelo caminho A
-(`--contract D-PROD-199`) ou pelo caminho B com GO escrito para esta migration.
+(`--contract D-PROD-200`) ou pelo caminho B com GO escrito para esta migration.
 
 **GO do proprietário (2026-11-14):** "autorizo pode enviar", em resposta a "A migration da Fatia 2 apaga a tabela que
 a versão no ar usa. Então ela só entra com nova autorização sua, logo antes do merge." Vale para aplicar esta

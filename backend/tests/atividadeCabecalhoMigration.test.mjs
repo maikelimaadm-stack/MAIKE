@@ -1,5 +1,5 @@
 /**
- * D-PROD-199 — a migration CONTRACT `20261114500000_atividade_cabecalho` (formato CONVERSÃO do portão: a atividade
+ * D-PROD-200 — a migration CONTRACT `20261114500000_atividade_cabecalho` (formato CONVERSÃO do portão: a atividade
  * vira CABEÇALHO, o apontamento de hoje vira FILHO dela e as 3 tabelas antigas saem) de ponta a ponta, contra
  * PostgreSQL real, em bancos PRÓPRIOS criados e apagados por este teste (o banco da suíte não é tocado; os nomes
  * começam pelo nome do banco da suíte).
@@ -19,7 +19,7 @@
  * lock_timeout de 5 s da guarda) e o item pelo runner oficial (falha aberta → `migrate resolve --rolled-back`). A
  * CORRIDA: um item gravado por uma transação concorrente enquanto a migration espera a trava da guarda é visto e
  * recusado (sem a trava, a conferência não o via e o DROP o apagava com a tabela — achado deste teste). E o runner com
- * a conferência de alvo exigida e SEM MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199 exato recusa antes de qualquer DDL.
+ * a conferência de alvo exigida e SEM MIGRATION_CONTRACT_AUTORIZADO=D-PROD-200 exato recusa antes de qualquer DDL.
  *
  * GREEN pelo runner oficial (alvo conferido + decisão exata): todas concluídas, as 2 atividades e os 2 apontamentos
  * campo a campo, o contador renomeado (próximo 3) e o outro intacto, as 3 antigas fora, 84 tabelas, RLS nas 2 novas,
@@ -52,7 +52,7 @@ const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME_CONTRACT = '20261114500000_atividade_cabecalho';
-const DECISAO = 'D-PROD-199';
+const DECISAO = 'D-PROD-200';
 const ARQUIVO = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
 const SQL_MIGRATION = readFileSync(ARQUIVO, 'utf8');
 const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
@@ -95,7 +95,7 @@ const SEQ_ALTERADA_EM = new Date('2026-11-14T12:30:00.000Z');
 /** Recusa (lança) qualquer URL que não seja desta máquina. Nunca devolve nem imprime a URL. */
 const exigirUrlLocal = (url) => {
   const motivo = motivoAlvoProtegido({}, url);
-  if (!url || motivo) throw new Error(`teste D-PROD-199: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
+  if (!url || motivo) throw new Error(`teste D-PROD-200: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
   return url;
 };
 /** Mesma URL, outro banco lógico. */
@@ -165,7 +165,7 @@ const aplicarAnteriores = async (url) => {
     if (existsSync(join(MIGRATIONS, 'migration_lock.toml'))) cpSync(join(MIGRATIONS, 'migration_lock.toml'), join(dir, 'migrations', 'migration_lock.toml'));
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
-    if (r.status !== 0) throw new Error(`teste D-PROD-199: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
+    if (r.status !== 0) throw new Error(`teste D-PROD-200: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -456,7 +456,7 @@ after(async () => {
   await closePrismaClient();
 });
 
-describe('D-PROD-199 — migration CONTRACT da Atividade cabeçalho, com conversão (PostgreSQL real)', () => {
+describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com conversão (PostgreSQL real)', () => {
   test('AC-01 partida: as 52 migrations de nome anterior a esta (as 6 CONTRACT anteriores concluídas), 85 tabelas, as 3 antigas com 2 apontamentos e nenhum item ou fatia, as 2 novas ausentes, o contador ApontamentoAtividade/tenant/3; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     const h = await historico(db);
     assert.equal(ANTERIORES.length, 52, 'produção hoje: 52 migrations, a CONTRACT anterior os padrões do Tipo de Atividade (D-PROD-197) e a última o peso objetivo (D-PROD-198)');
@@ -552,17 +552,17 @@ describe('D-PROD-199 — migration CONTRACT da Atividade cabeçalho, com convers
     });
   });
 
-  test('AC-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-199, antes de qualquer DDL', async () => {
+  test('AC-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-200, antes de qualquer DDL', async () => {
     const linhasAntes = (await historico(db)).total;
     // D-PROD-190/D-PROD-193 criaram as tabelas que ela apaga e D-PROD-197 é a CONTRACT anterior (concluída); a decisão
     // em minúsculas, com espaços ou com um dígito a mais também não vale (comparação exata): nenhuma autoriza esta.
-    for (const extra of [{}, ...['D-PROD-197', 'D-PROD-190', 'D-PROD-193', 'd-prod-199', ' D-PROD-199 ', 'D-PROD-1980'].map((d) => ({ MIGRATION_CONTRACT_AUTORIZADO: d }))]) {
+    for (const extra of [{}, ...['D-PROD-197', 'D-PROD-190', 'D-PROD-193', 'd-prod-200', ' D-PROD-200 ', 'D-PROD-1980'].map((d) => ({ MIGRATION_CONTRACT_AUTORIZADO: d }))]) {
       const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, ...extra } });
       assert.equal(r.status, 1, r.saida);
       assert.match(r.saida, /alvo conferido nas duas conexões/);
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
       assert.ok(r.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), r.saida);
-      for (const anterior of CONTRACTS_ANTERIORES) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-199 pende`);
+      for (const anterior of CONTRACTS_ANTERIORES) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-200 pende`);
       assert.match(r.saida, /Nenhuma migration foi executada/);
       assert.ok(!vazou(r.saida, URL_T));
     }
@@ -570,7 +570,7 @@ describe('D-PROD-199 — migration CONTRACT da Atividade cabeçalho, com convers
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('AC-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199): todas/0, as 2 atividades e os 2 apontamentos campo a campo, o contador renomeado (próximo 3) e o outro intacto, as 3 antigas fora, 84 tabelas, RLS nas 2 novas e migrate diff vazio', async () => {
+  test('AC-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-200): todas/0, as 2 atividades e os 2 apontamentos campo a campo, o contador renomeado (próximo 3) e o outro intacto, as 3 antigas fora, 84 tabelas, RLS nas 2 novas e migrate diff vazio', async () => {
     const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /alvo conferido nas duas conexões/);
@@ -756,7 +756,7 @@ describe('D-PROD-199 — migration CONTRACT da Atividade cabeçalho, com convers
   });
 });
 
-describe('D-PROD-199 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
+describe('D-PROD-200 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
   let dbB;
   let partidaB;
   before(async () => {

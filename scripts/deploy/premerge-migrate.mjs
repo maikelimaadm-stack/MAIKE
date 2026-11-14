@@ -36,7 +36,7 @@
  *   … --verificar-alvo --contract D-PROD-187 / … --aplicar --contract D-PROD-187   (CategoriaManejo → CADCATEGORIA)
  *   … --verificar-alvo --contract D-PROD-194 / … --aplicar --contract D-PROD-194   (CADCURVAGANHO mensal)
  *   … --verificar-alvo --contract D-PROD-197 / … --aplicar --contract D-PROD-197   (padrões e flags de TipoAtividade, aditiva)
- *   … --verificar-alvo --contract D-PROD-199 / … --aplicar --contract D-PROD-199   (Atividade cabeçalho: conversão e DROP das 3 tabelas antigas)
+ *   … --verificar-alvo --contract D-PROD-200 / … --aplicar --contract D-PROD-200   (Atividade cabeçalho: conversão e DROP das 3 tabelas antigas)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -96,7 +96,7 @@ const [k] = c.contract;
 // D-PROD-183/D-PROD-187: o rótulo cita só o que a migration CONTRACT faz (a D-PROD-162 segue "13 tabelas removidas,
 // 2 CHECKs alargados"; a D-PROD-183, "4 colunas removidas (…)").
 const partesContract = k ? [
-  // D-PROD-199: formato CONVERSÃO — a conversão pinada vem ANTES do DROP no arquivo, e o rótulo diz na mesma ordem.
+  // D-PROD-200: formato CONVERSÃO — a conversão pinada vem ANTES do DROP no arquivo, e o rótulo diz na mesma ordem.
   k.conversoes?.length && `${k.conversoes.length} ${k.conversoes.length === 1 ? 'conversão' : 'conversões'} (${k.conversoes.join(', ')})`,
   k.tabelas_removidas.length && `${k.tabelas_removidas.length} tabelas removidas`,
   k.constraints_alargadas.length && `${k.constraints_alargadas.length} CHECKs alargados`,

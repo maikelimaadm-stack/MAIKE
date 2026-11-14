@@ -16,7 +16,7 @@
  * (`20261114400000_cadcategoria_peso_objetivo`, CADCATEGORIA.peso_objetivo_kg, em NOMES_DEPOIS_DO_CONTRACT): no dia
  * desta CONTRACT ela ainda não existia, também exige o nome novo e sobe no GREEN por último. (A CONTRACT da D-PROD-197,
  * `20261114300000_tipo_atividade_defaults`, só toca TipoAtividade e sobe na partida, como a da D-PROD-194; a da
- * D-PROD-199, `20261114500000_atividade_cabecalho`, só olha as 3 tabelas do apontamento antigo, vazias aqui, troca-as
+ * D-PROD-200, `20261114500000_atividade_cabecalho`, só olha as 3 tabelas do apontamento antigo, vazias aqui, troca-as
  * pelas 2 da atividade e também sobe na partida: 85 → 84 tabelas.) Para 2
  * clientes, 4 categorias de manejo: uma no formato das 4 de produção (raça,
  * categoria oficial, 12 GMDs 0.0000), uma com ganho e GMDs variados (e um
@@ -37,7 +37,7 @@
  * muda); no alvo local, com a impressão na URL, aplica esta, depois a D-PROD-195 e por último a EXPAND da D-PROD-198:
  * todas concluídas (CONCLUIDAS_DEPOIS; esta CONTRACT aplicada depois da CADCURVAGANHO e do ApontamentoAtividade,
  * fora da ordem dos nomes, como aconteceu em produção, e dos itens do apontamento e da CONTRACT da D-PROD-194, que
- * subiram na partida, como a D-PROD-197 e a D-PROD-199; a D-PROD-195 e a D-PROD-198 por último), 84 tabelas,
+ * subiram na partida, como a D-PROD-197 e a D-PROD-200; a D-PROD-195 e a D-PROD-198 por último), 84 tabelas,
  * CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e políticas, as 12 colunas que ficam (mais a
  * curva_ganho_id da D-PROD-195, cada categoria na CURVA PADRÃO da fazenda, e a peso_objetivo_kg da D-PROD-198, vazia),
  * linhas idênticas nelas, os 4 nomes novos,
@@ -113,15 +113,15 @@ after(async () => {
 });
 
 describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem as 16 colunas (PostgreSQL real)', () => {
-  test('CD-01 partida: todas as migrations menos esta CONTRACT (a CADCURVAGANHO, o ApontamentoAtividade e os itens do apontamento, de nome posterior, já concluídos, e as CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-199, também de nome posterior), 84 tabelas, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
+  test('CD-01 partida: todas as migrations menos esta CONTRACT (a CADCURVAGANHO, o ApontamentoAtividade e os itens do apontamento, de nome posterior, já concluídos, e as CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-200, também de nome posterior), 84 tabelas, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, CONCLUIDAS_ANTES);
     // D-PROD-198: a EXPAND do peso objetivo (ALTER TABLE "CADCATEGORIA") também fica fora da partida: era 2, agora 3.
     assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO]);
     assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 3, 'todas as pastas menos esta CONTRACT, a D-PROD-195 e a D-PROD-198');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
-    assert.equal(TABELAS_PUBLIC, 84, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-199, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
-    assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114500000_atividade_cabecalho'), 'a CONTRACT da D-PROD-199 sobe na partida');
+    assert.equal(TABELAS_PUBLIC, 84, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
+    assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114500000_atividade_cabecalho'), 'a CONTRACT da D-PROD-200 sobe na partida');
     // O estado de produção: duas migrations de nome POSTERIOR a esta CONTRACT já concluídas, por último e nesta ordem, e esta pendente.
     assert.deepEqual(NOMES_POSTERIORES_JA_APLICADAS, ['20261113600000_cadcurvaganho_cadastro', '20261113700000_apontamento_atividade']);
     // D-PROD-193: a partida sobe pela ordem dos nomes; as de nome posterior que vieram depois das duas (os itens do

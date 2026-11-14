@@ -9,11 +9,11 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-14) — MAIKE-ATIVIDADE-CABECALHO (Fatia 2 do Lançamento de Atividades): Atividade como cabeçalho e o apontamento do dia como filho (D-PROD-199)
+## Missão ativa (2026-11-14) — MAIKE-ATIVIDADE-CABECALHO (Fatia 2 do Lançamento de Atividades): Atividade como cabeçalho e o apontamento do dia como filho (D-PROD-200)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-199**, pedido do proprietário ("FATIA 2 — O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" |
+| Decisão | **D-PROD-200**, pedido do proprietário ("FATIA 2 — O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" |
 | Branch / PR | `feat/atividade-cabecalho`, a partir da `main` `1dd44f0c` (merge da PR #276) |
 | Escopo | `Atividade` e `AtividadeApontamento` no lugar do apontamento de linha única e dos itens da D-PROD-193; API `/atividades`; tela "Lançamento de Atividades"; permissões `op-atividades` com as extras de apontamento e de reabrir |
 | Migration | `20261114500000_atividade_cabecalho`, **CONTRACT** com conversão (sétima entrada; formato novo do portão). SHA-256 `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb`. Repositório 51 → **52**; tabelas 85 → **84** |

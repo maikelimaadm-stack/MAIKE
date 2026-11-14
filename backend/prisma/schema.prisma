@@ -129,7 +129,7 @@ model Cliente {
   // D-PROD-159/161 — Patrimônio: abastecimentos e fatias FIFO.
   abastecimentosBem            AbastecimentoBem[]
   abastecimentosBemConsumos    AbastecimentoBemConsumoLote[]
-  // D-PROD-199 — Lançamento de Atividades: a atividade (cabeçalho) e os apontamentos (dia/turno).
+  // D-PROD-200 — Lançamento de Atividades: a atividade (cabeçalho) e os apontamentos (dia/turno).
   atividades                   Atividade[]
   atividadeApontamentos        AtividadeApontamento[]
 
@@ -191,7 +191,7 @@ model Usuario {
   // D-PROD-159/161 — autores do abastecimento (FK composta por tenant).
   abastecimentosCriados           AbastecimentoBem[]            @relation("AbastecimentoBemCriadoPor")
   abastecimentosCancelados        AbastecimentoBem[]            @relation("AbastecimentoBemCanceladoPor")
-  // D-PROD-199 — autores da atividade (cabeçalho) e operador/autores do apontamento (FK composta por tenant).
+  // D-PROD-200 — autores da atividade (cabeçalho) e operador/autores do apontamento (FK composta por tenant).
   atividadesCriadas               Atividade[]                   @relation("AtividadeCriadaPor")
   atividadesConcluidas            Atividade[]                   @relation("AtividadeConcluidaPor")
   atividadesCanceladas            Atividade[]                   @relation("AtividadeCanceladaPor")
@@ -404,7 +404,7 @@ model Setor {
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   areas   AreaPastagem[]
   lotes   Lote[]
-  // D-PROD-199 — snapshot do setor da área na atividade.
+  // D-PROD-200 — snapshot do setor da área na atividade.
   atividades Atividade[]
 
   @@unique([cliente_id, numero_setor])
@@ -467,7 +467,7 @@ model UnidadeMedida {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   // D-PROD-197 — unidade de produção padrão dos tipos de atividade (RESTRICT).
   tiposAtividadeProducao TipoAtividade[]
-  // D-PROD-199 — snapshot da unidade de produção do tipo na abertura da atividade.
+  // D-PROD-200 — snapshot da unidade de produção do tipo na abertura da atividade.
   atividadesProducao     Atividade[]
 
   @@unique([cliente_id, numero_unidade])
@@ -2688,7 +2688,7 @@ model BemPatrimonial {
   tanques      TanqueBem[]
   // D-PROD-159 — abastecimentos do bem (a leitura do medidor do abastecimento vive lá).
   abastecimentos AbastecimentoBem[]
-  // D-PROD-199 — atividades (cabeçalho) que têm este bem como máquina.
+  // D-PROD-200 — atividades (cabeçalho) que têm este bem como máquina.
   atividades     Atividade[]    @relation("AtividadeBem")
 
   @@unique([cliente_id, id])
@@ -2853,7 +2853,7 @@ model AbastecimentoBemConsumoLote {
 }
 
 // ---------------------------------------------------------------------------
-// D-PROD-199 (Fatia 2 do Lançamento de Atividades) — dois níveis no lugar do
+// D-PROD-200 (Fatia 2 do Lançamento de Atividades) — dois níveis no lugar do
 // apontamento de linha única (D-PROD-190/193, removido nesta fatia):
 //
 //   Atividade (CABEÇALHO, aberta: "Cigarrinha Pasto 01")
@@ -2874,7 +2874,7 @@ model AbastecimentoBemConsumoLote {
 // serviço (a unidade é do cliente).
 // ---------------------------------------------------------------------------
 
-/// D-PROD-199 — CABEÇALHO do Lançamento de Atividades. `numero`: sequência do tenant (entidade `Atividade`).
+/// D-PROD-200 — CABEÇALHO do Lançamento de Atividades. `numero`: sequência do tenant (entidade `Atividade`).
 model Atividade {
   id                       String    @id @default(cuid())
   cliente_id               String    @db.VarChar(64)
@@ -2958,7 +2958,7 @@ model Atividade {
   @@index([cliente_id, lancamento_tarefa_id])
 }
 
-/// D-PROD-199 — APONTAMENTO de um dia/turno, filho da atividade (o antigo ApontamentoAtividade, virando filho).
+/// D-PROD-200 — APONTAMENTO de um dia/turno, filho da atividade (o antigo ApontamentoAtividade, virando filho).
 /// `sequencia`: 1, 2, 3… por (atividade, dia, turno), calculada no servidor sob a trava da atividade — as passadas.
 /// O unique trata `turno` nulo como valor (NULLS NOT DISTINCT, no migration.sql).
 model AtividadeApontamento {

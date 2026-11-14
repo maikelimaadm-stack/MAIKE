@@ -74,7 +74,7 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   TIPO_ATIVIDADE_PADRAO_INVALIDO: API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO,
   // D-PROD-190/198 — a atividade barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED,
-  // D-PROD-199 — Lançamento de Atividades (cabeçalho e apontamentos): a tela relê
+  // D-PROD-200 — Lançamento de Atividades (cabeçalho e apontamentos): a tela relê
   // ou diz o campo recusado; sem estes, a recusa viraria OPERATION_FAILED.
   ATIVIDADE_NOT_FOUND: API_ERROR_CODES.ATIVIDADE_NOT_FOUND,
   ATIVIDADE_APONTAMENTO_NOT_FOUND: API_ERROR_CODES.ATIVIDADE_APONTAMENTO_NOT_FOUND,

@@ -1,5 +1,5 @@
 /**
- * D-PROD-199 (Fatia 2 do Lançamento de Atividades) — os APONTAMENTOS da
+ * D-PROD-200 (Fatia 2 do Lançamento de Atividades) — os APONTAMENTOS da
  * atividade (`/atividades/:id/apontamentos…`), contra PostgreSQL real e HTTP
  * autenticado (`app.inject`). Contrato:
  * docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md (§3, §4, §5, §8, §10).

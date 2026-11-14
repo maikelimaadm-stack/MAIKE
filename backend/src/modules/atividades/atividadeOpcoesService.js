@@ -1,5 +1,5 @@
 /**
- * Opções dos seletores PRÓPRIOS da tela Lançamento de Atividades (D-PROD-199,
+ * Opções dos seletores PRÓPRIOS da tela Lançamento de Atividades (D-PROD-200,
  * contrato §10): quem só tem a tela `op-atividades` não leva 403 das telas de
  * bens ou de usuários. Mesmo formato das opções do apontamento antigo
  * (`opcoesBens`, `opcoesResponsaveis`): só ATIVOS, keyset (nome, id)
