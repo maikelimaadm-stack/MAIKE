@@ -36,4 +36,18 @@ cheias.
 
 ## 4. Verificação completa e revisão
 
-_(preenchido ao fim da missão.)_
+- **Revisão independente** do commit `aeef10c0`: nenhum defeito alto ou médio. Quatro
+  pontos baixos foram corrigidos em `22ece107`:
+  - no tablet, o Sexo ficava sozinho numa linha;
+  - layout salvo com a ordem antiga deixava buracos (agora vale a ordem padrão);
+  - `PATCH` só com chaves ignoradas gravava auditoria vazia;
+  - a doc dizia "obrigatórios", mas os campos só tinham asterisco.
+
+  Também entraram testes que renderizam o formulário e o layout salvo antigo. O
+  teste do layout falha sem a correção.
+- **Backend dos lotes** depois das correções: 83/83. **Smoke** `r1CorrecaoEntradaLote`: 24/24.
+- **`verify:all`** em `22ece107`: etapas até `lint` passaram, e `test:backend` estava
+  em andamento, sem falha, quando o proprietário pediu o merge ("faça o merge"). O
+  merge foi feito antes do fim, por pedido explícito: a release não tem migration, e o
+  smoke completo já tinha passado em `aeef10c0` (230 arquivos, 2.833 testes). O
+  resultado final é conferido depois do merge.
