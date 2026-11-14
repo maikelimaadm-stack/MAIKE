@@ -2,7 +2,6 @@ import React from "react";
 import "@/styles/acoes-lote-modulos.css";
 import { createPortal } from "react-dom";
 import { ChevronDown, LayoutGrid } from "lucide-react";
-import { useMediaQuery } from "@/components/common/MobileSheet";
 import { LancLoteDialogo, useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 
 /**
@@ -11,12 +10,11 @@ import { LancLoteDialogo, useLancLoteDialogo } from "@/components/lotes/Lancamen
  * grupos separados; cada quadro abre a ação com um clique.
  * - celular/tablet: um botão só, "Manejos e históricos", abre a tela fixa de ações (✕ e título);
  *   dentro do diálogo ele fica no alto, à direita (espelho do ✕) (D-PROD-120);
- * - desktop: os quadros ficam à vista, menores, embaixo do Detalhes do Lote.
+ * - desktop: a mesma abertura de ações em grade, separada dos dados.
  *
  * @param {{ grupos: Array<{ titulo: string, itens: Array<{ nome: string, rotulo?: string, Icone: React.ComponentType<any>, onClick: () => void, disabled?: boolean, motivoBloqueio?: string }> }> }} props
  */
 export default function AcoesDoLote({ grupos }) {
-  const celular = useMediaQuery("(max-width: 1023px)");
   const [aberto, setAberto] = React.useState(false);
   const slot = useLancLoteDialogo()?.slotDireito || null;
   const visiveis = grupos.filter((g) => g.itens.length > 0).map((g) => ({ ...g, itens: [...g.itens].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" })) }));
@@ -57,15 +55,11 @@ export default function AcoesDoLote({ grupos }) {
     </button>
   );
 
-  if (celular) {
-    const botao = React.cloneElement(gatilho, { onClick: () => setAberto(true) });
-    return <>
+  const botao = React.cloneElement(gatilho, { onClick: () => setAberto(true) });
+  return <>
       {slot ? createPortal(botao, slot) : botao}
       <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Manejos e históricos" somenteLeitura>
         <div className="mk-map-action-choices mk-dl8-folha mk-al-dock mk-al-menu">{conteudo}</div>
       </LancLoteDialogo>
     </>;
-  }
-
-  return <nav className="mk-al--embaixo mk-al-dock" aria-label="Ações do lote" tabIndex={0}>{conteudo}</nav>;
 }

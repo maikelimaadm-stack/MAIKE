@@ -59,11 +59,12 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     }
   });
 
-  it("desktop: quadros à vista; um clique abre a ação", async () => {
+  it("desktop: a mesma abertura em grade do celular", async () => {
     comoCelular(false);
     const pesar = vi.fn();
     render(<AcoesDoLote grupos={grupos(pesar, vi.fn())} />);
-    expect(screen.queryByRole("button", { name: "Manejos e históricos" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Pesar" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" }));
     expect(screen.getByRole("region", { name: "Manejos" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Históricos" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Pesar" }));
