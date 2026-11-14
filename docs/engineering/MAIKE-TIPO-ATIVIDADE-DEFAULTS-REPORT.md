@@ -63,7 +63,12 @@ unidade de produção de `UnidadeMedida` e coeficiente) e as **8 flags** de como
 
 ### 5.1 Rodada final, sobre o estado mesclado
 
-(preencher)
+| Etapa | Resultado |
+|---|---|
+| `verify:all --pular=test:backend` | **todas as etapas PASS** (exit 0): `test:gates`, os gates, tipos, `typecheck:backend`, lint, smoke **2848/2848** (229 arquivos), build e build:admin |
+| Backend, 22 arquivos das duas fatias (tipo, unidade, permissões, apontamento, tarefa, SQL Editor, categoria e curva, migrations CONTRACT, ledger) | 388 testes: **384 ok**; as 4 falhas eram todas do teste da CONTRACT D-PROD-195 da `main`, que ainda supunha ser a migration mais recente — corrigido (a D-PROD-196 entra na partida) e reexecutado: **10/10** |
+| Portão e runner (`scripts/tests/deploy/*`) | **168/168**; `gate:deploy-migrations` PASS |
+| Banco vazio | 51 migrations aplicadas; `prisma migrate diff` banco × schema vazio |
 
 ## 6. Revisão independente
 
