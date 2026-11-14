@@ -240,7 +240,12 @@ const REFERENCIAS = Object.freeze(
       grupo_inativo: 'O grupo deste tipo de atividade está inativo: reative o grupo ou escolha outro tipo',
     },
     area_id: { inexistente: 'A área não foi encontrada', inativo: 'A área está inativa', outra_empresa: 'A área é de outra fazenda' },
-    bem_id: { inexistente: 'A máquina não foi encontrada', inativo: 'A máquina está inativa', outra_empresa: 'A máquina é de outra fazenda' },
+    bem_id: {
+      inexistente: 'A máquina não foi encontrada',
+      inativo: 'A máquina está inativa',
+      outra_empresa: 'A máquina é de outra fazenda',
+      natureza: 'O bem escolhido não é máquina, veículo nem equipamento: escolha uma máquina',
+    },
     lancamento_tarefa_id: { inexistente: 'A tarefa não foi encontrada', inativo: 'A tarefa não pode ser usada', outra_empresa: 'A tarefa é de outra fazenda' },
     operador_usuario_id: { inexistente: 'O operador não foi encontrado', inativo: 'O operador está inativo', outra_empresa: 'O operador não pode ser usado nesta fazenda' },
     // Herdados (nunca vêm do corpo): só somem entre a leitura e a escrita.

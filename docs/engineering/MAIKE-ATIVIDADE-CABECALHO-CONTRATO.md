@@ -65,6 +65,7 @@ migrations e 84 tabelas depois desta (85 − 3 + 2).
   - Centros e unidade **não vêm no corpo**: o corpo recusa esses campos.
 - **Setor herdado da área** (`AreaPastagem.setor_id/setor_nome`); nunca vem no corpo.
 - A área, a máquina e a tarefa têm de ser da mesma fazenda, e a área e a máquina ativas.
+- A máquina (`bem_id`) só aceita bem de natureza `MAQUINA`, `VEICULO` ou `EQUIPAMENTO`; implemento, benfeitoria ou outro → 422 `ATIVIDADE_REFERENCIA_INVALIDA` do `bem_id`, reason `natureza` (na abertura e na edição que troca a máquina).
 - **Flags do tipo:**
   - `exige_area` sem área → 422;
   - `exige_safra` sem safra → 422;
@@ -308,7 +309,7 @@ Toda escrita devolve a atividade no formato do detalhe.
 |---|---|---|
 | `ATIVIDADE_NOT_FOUND` | 404 | atividade não encontrada |
 | `ATIVIDADE_APONTAMENTO_NOT_FOUND` | 404 | apontamento não encontrado |
-| `ATIVIDADE_REFERENCIA_INVALIDA` | 422 | `field`; `reason` `inexistente` \| `inativo` \| `outra_empresa` \| `grupo_inativo` |
+| `ATIVIDADE_REFERENCIA_INVALIDA` | 422 | `field`; `reason` `inexistente` \| `inativo` \| `outra_empresa` \| `grupo_inativo` \| `natureza` (só `bem_id`) |
 | `ATIVIDADE_EXIGIDA_PELO_TIPO` | 422 | `field` `area_id` \| `safra_ciclo` \| `bem_id` \| `quantidade_produzida` |
 | `ATIVIDADE_DATA_INVALIDA` | 422 | `field`; `reason` `futura` \| `antes_do_inicio` \| `periodo_invertido` \| `data_inexistente` |
 | `ATIVIDADE_STATUS_INVALIDO` | 409 | ação não permitida no status atual; `details.status`, `details.acao` |

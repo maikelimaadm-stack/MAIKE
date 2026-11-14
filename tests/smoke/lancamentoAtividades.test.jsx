@@ -1026,6 +1026,19 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     expect(within(form).getAllByText("A área está inativa. Nada foi gravado.").length).toBeGreaterThanOrEqual(2);
     expect(ultimaEscrita()).toMatchObject({ method: "PATCH", path: "/atividades/a1", body: { versao: 4, area_id: "ar2" } });
   });
+
+  it("LA-CABECALHO-4 — máquina recusada por natureza (implemento, benfeitoria, outro) mostra a frase própria", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(/** @type {HTMLElement} */ (botaoEditarDaBarra()));
+    const form = await screen.findByTestId("b1-form-atividade");
+    await escolherNoCombo(form, "Área", /02 — Pasto 02/i);
+    proxima = erroServidor(422, "ATIVIDADE_REFERENCIA_INVALIDA", { field: "bem_id", reason: "natureza" });
+    fireEvent.submit(form);
+    expect(await within(form).findByTestId("atividade-erro")).toHaveTextContent(
+      "O bem escolhido não é máquina, veículo nem equipamento: escolha uma máquina. Nada foi gravado."
+    );
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════

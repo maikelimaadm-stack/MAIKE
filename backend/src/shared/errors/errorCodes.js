@@ -281,7 +281,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_REFERENCIA_INVALIDA: {
     http: 422,
-    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo); nada foi gravado',
+    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo | natureza — a máquina, bem_id, só MAQUINA, VEICULO ou EQUIPAMENTO); nada foi gravado',
   },
   ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,

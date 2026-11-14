@@ -259,6 +259,7 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
     inexistente: 'a máquina não foi encontrada',
     outra_empresa: 'a máquina é de outra fazenda',
     inativo: 'a máquina está inativa',
+    natureza: 'o bem não é máquina, veículo nem equipamento: escolha uma máquina',
   }),
   centro_custo_id: Object.freeze({ inexistente: 'o centro de custo padrão do tipo não foi encontrado' }),
   centro_resultado_id: Object.freeze({ inexistente: 'o centro de resultado padrão do tipo não foi encontrado' }),
@@ -278,7 +279,7 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
  * código; `details.field`/`details.reason` dizem qual). Id de outro tenant é
  * `inexistente`, como o que não existe (sem oráculo).
  * @param {'tipo_atividade_id'|'grupo_atividade_id'|'area_id'|'setor_id'|'bem_id'|'centro_custo_id'|'centro_resultado_id'|'unidade_producao_id'|'lancamento_tarefa_id'|'operador_usuario_id'} field
- * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'} reason
+ * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'} reason
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeReferenciaInvalida = (field, reason, options) =>

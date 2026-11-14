@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
-import { HOJE, erro, http, montarPatrimonio, prisma, corpoTrator } from './patrimonioP1Cenario.mjs';
+import { HOJE, erro, http, montarPatrimonio, prisma, corpoCaminhonete, corpoGerador, corpoImplemento, corpoTrator } from './patrimonioP1Cenario.mjs';
 import { normalizarErro } from '../src/shared/errors/errorHandler.js';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -87,12 +87,14 @@ const montar = async () => {
   const tipoProducao = await tipoDe('COLHEITA', { exige_producao: true });
   const trator = await H.ok(H.req('POST', '/bens-patrimoniais', s.token, corpoTrator(s)), 201);
   const trator2 = await H.ok(H.req('POST', '/bens-patrimoniais', s.token, corpoTrator(s, { empresa_id: s.e2.id, codigo_frota: 'TP-09' })), 201);
+  // Implemento (natureza IMPLEMENTO), ativo e da mesma fazenda: não é máquina da atividade.
+  const implemento = await H.ok(H.req('POST', '/bens-patrimoniais', s.token, corpoImplemento(s)), 201);
   const tipoTarefa = await p.tipoTarefa.create({ data: { cliente_id: s.c, nome_tipo: `ROÇAR ${suf}`, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo } });
   const tarefa = (empresa, titulo) =>
     H.ok(H.req('POST', '/lancamentos-tarefa', s.token, { empresa_id: empresa.id, titulo, tipo: 'Manejo', tipo_tarefa_id: tipoTarefa.id, data_pedido: '2027-06-01' }), 201);
   const tarefa1 = await tarefa(s.e1, 'Roçar o retiro');
   const tarefa2 = await tarefa(s.e2, 'Roçar a sede 2');
-  return { ...s, grupo, cr1, un, tipo, tipoLivre, tipoExige, tipoProducao, trator, trator2, tarefa1, tarefa2 };
+  return { ...s, grupo, cr1, un, tipo, tipoLivre, tipoExige, tipoProducao, trator, trator2, implemento, tarefa1, tarefa2 };
 };
 
 /** @typedef {Awaited<ReturnType<typeof montar>>} Cenario */
@@ -230,6 +232,7 @@ describe('abrir: herança do tipo e setor da área', () => {
       [{ area_id: 'nao-existe' }, [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'area_id', 'inexistente']],
       [{ bem_id: s.trator2.id }, [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'outra_empresa']],
       [{ bem_id: 'nao-existe' }, [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'inexistente']],
+      [{ bem_id: s.implemento.id }, [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'natureza']],
       [{ lancamento_tarefa_id: s.tarefa2.id }, [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'lancamento_tarefa_id', 'outra_empresa']],
       [{ lancamento_tarefa_id: 'nao-existe' }, [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'lancamento_tarefa_id', 'inexistente']],
     ];
@@ -421,6 +424,7 @@ describe('editar (PATCH, CAS por versão)', () => {
     const antes = await foto(s.c);
     assert.deepEqual(erro(await patch(s, a, { versao: 1, area_id: s.area2.id })), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'area_id', 'outra_empresa']);
     assert.deepEqual(erro(await patch(s, a, { versao: 1, bem_id: s.trator2.id })), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'outra_empresa']);
+    assert.deepEqual(erro(await patch(s, a, { versao: 1, bem_id: s.implemento.id })), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'natureza']);
     assert.deepEqual(erro(await patch(s, a, { versao: 1, lancamento_tarefa_id: s.tarefa2.id })), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'lancamento_tarefa_id', 'outra_empresa']);
     assert.deepEqual(erro(await patch(s, a, { versao: 1, data_inicio: '2027-06-16' })), [422, 'ATIVIDADE_DATA_INVALIDA', 'data_inicio', 'futura']);
     assert.deepEqual(erro(await patch(s, a, { versao: 1, data_prevista_fim: '2027-06-01' })), [422, 'ATIVIDADE_DATA_INVALIDA', 'data_prevista_fim', 'periodo_invertido']);
@@ -433,6 +437,26 @@ describe('editar (PATCH, CAS por versão)', () => {
     const t2 = await H.ok(H.req('POST', '/bens-patrimoniais', s.token, corpoTrator(s, { codigo_frota: 'TP-03' })), 201);
     await p.bemPatrimonial.update({ where: { id: t2.id }, data: { ativo: false } });
     assert.deepEqual(erro(await patch(s, a, { versao: 2, bem_id: t2.id })), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'inativo']);
+  });
+
+  test('máquina da atividade só de natureza MAQUINA, VEICULO ou EQUIPAMENTO: implemento → 422 natureza na abertura e na edição; trator, caminhonete e gerador aceitos', async () => {
+    const s = await montar();
+    const caminhonete = await H.ok(H.req('POST', '/bens-patrimoniais', s.token, corpoCaminhonete(s)), 201);
+    const gerador = await H.ok(H.req('POST', '/bens-patrimoniais', s.token, corpoGerador(s)), 201);
+    assert.deepEqual([s.trator.natureza, caminhonete.natureza, gerador.natureza, s.implemento.natureza], ['MAQUINA', 'VEICULO', 'EQUIPAMENTO', 'IMPLEMENTO']);
+    const antes = await foto(s.c);
+    assert.deepEqual(erro(await abrir(s, { bem_id: s.implemento.id })), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'natureza']);
+    assert.equal(await foto(s.c), antes, 'nada gravado');
+    for (const bem of [s.trator, caminhonete, gerador]) {
+      const a = await abrirOk(s, { bem_id: bem.id });
+      assert.deepEqual([a.bem_id, a.bem.natureza], [bem.id, bem.natureza]);
+    }
+    // Edição: trocar para o implemento é recusado e nada muda; trocar para outra máquina pode.
+    const a = await abrirOk(s, { bem_id: s.trator.id });
+    const antesDaEdicao = await foto(s.c);
+    assert.deepEqual(erro(await patch(s, a, { versao: 1, bem_id: s.implemento.id })), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'bem_id', 'natureza']);
+    assert.equal(await foto(s.c), antesDaEdicao);
+    assert.equal((await H.ok(patch(s, a, { versao: 1, bem_id: gerador.id }))).bem_id, gerador.id);
   });
 
   test('conflito de versão: 409 ATIVIDADE_VERSAO_CONFLITO com versao_atual e versao_informada; nada muda', async () => {
@@ -848,12 +872,15 @@ describe('isolamento por tenant e por fazenda; permissões', () => {
     const s = await montar();
     const p = prisma();
     const leitor = await s.conta({ modulos_permitidos: [MODULO], permissoes_telas: [linhaAtividades({ visualizar: true })] });
-    const bens = await H.ok(H.req('GET', `/atividades-opcoes/bens?empresa_id=${s.e1.id}`, leitor.token));
+    // A tela pede só as naturezas que servem de máquina (MAQUINA, VEICULO, EQUIPAMENTO); sem o filtro vem também o implemento.
+    const MAQUINAS = '&natureza=MAQUINA&natureza=VEICULO&natureza=EQUIPAMENTO';
+    const bens = await H.ok(H.req('GET', `/atividades-opcoes/bens?empresa_id=${s.e1.id}${MAQUINAS}`, leitor.token));
     assert.deepEqual(Object.keys(bens).sort(), ['has_more', 'itens', 'next_cursor']);
     assert.deepEqual(bens.itens, [{ id: s.trator.id, numero: s.trator.numero, codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA' }]);
+    assert.deepEqual((await H.ok(H.req('GET', `/atividades-opcoes/bens?empresa_id=${s.e1.id}`, leitor.token))).itens.map((b) => b.id).sort(), [s.trator.id, s.implemento.id].sort());
     assert.deepEqual((await H.ok(H.req('GET', `/atividades-opcoes/bens?empresa_id=${s.e2.id}`, leitor.token))).itens.map((b) => b.id), [s.trator2.id]);
     await p.bemPatrimonial.update({ where: { id: s.trator.id }, data: { ativo: false } });
-    assert.deepEqual((await H.ok(H.req('GET', `/atividades-opcoes/bens?empresa_id=${s.e1.id}`, leitor.token))).itens, []);
+    assert.deepEqual((await H.ok(H.req('GET', `/atividades-opcoes/bens?empresa_id=${s.e1.id}${MAQUINAS}`, leitor.token))).itens, []);
     const inativo = await s.conta(null, { ativo: false, nome: 'Responsável Inativo' }).catch(() => null);
     const ops = await H.ok(H.req('GET', `/atividades-opcoes/operadores?empresa_id=${s.e1.id}&q=Respons`, leitor.token));
     assert.ok(ops.itens.some((u) => u.id === leitor.id));

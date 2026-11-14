@@ -15,7 +15,8 @@
  *    unidade de produção com a sigla. O SETOR é herdado da área. Centros,
  *    unidade e setor nunca vêm no corpo (o schema da rota recusa);
  *  - área, máquina e tarefa: do tenant e da MESMA fazenda (`inexistente` |
- *    `outra_empresa`); área e máquina ATIVAS (`inativo`). Manter na edição a
+ *    `outra_empresa`); área e máquina ATIVAS (`inativo`); a máquina de
+ *    natureza MAQUINA, VEICULO ou EQUIPAMENTO (`natureza`). Manter na edição a
  *    referência já gravada não relê nada (como no cadastro do bem): só a
  *    referência NOVA ou TROCADA é conferida;
  *  - FLAGS do tipo (`regrasDoTipo`): `exige_area` sem área, `exige_safra` sem
@@ -265,8 +266,12 @@ const exigirArea = async (tx, clienteId, empresaId, id) => {
   return { setor_id: area.setor_id, setor_nome: area.setor_nome };
 };
 
+/** Naturezas do bem que servem de MÁQUINA da atividade (contrato §3); implemento, benfeitoria e outro não. */
+const NATUREZAS_MAQUINA = Object.freeze(['MAQUINA', 'VEICULO', 'EQUIPAMENTO']);
+
 /**
- * Máquina informada ou trocada: do tenant, da MESMA fazenda e ativa.
+ * Máquina informada ou trocada: do tenant, da MESMA fazenda, ativa e de
+ * natureza MAQUINA, VEICULO ou EQUIPAMENTO (senão reason `natureza`).
  * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} id
  */
 const exigirBem = async (tx, clienteId, empresaId, id) => {
@@ -274,6 +279,7 @@ const exigirBem = async (tx, clienteId, empresaId, id) => {
   if (!bem) throw atividadeReferenciaInvalida('bem_id', 'inexistente');
   if (bem.empresa_id !== empresaId) throw atividadeReferenciaInvalida('bem_id', 'outra_empresa');
   if (!bem.ativo) throw atividadeReferenciaInvalida('bem_id', 'inativo');
+  if (!NATUREZAS_MAQUINA.includes(bem.natureza)) throw atividadeReferenciaInvalida('bem_id', 'natureza');
 };
 
 /**

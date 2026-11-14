@@ -80,12 +80,12 @@ export const lerArea = (tx, clienteId, id) =>
   });
 
 /**
- * Máquina (bem) do TENANT: fazenda e situação.
+ * Máquina (bem) do TENANT: fazenda, situação e natureza (só MAQUINA, VEICULO ou EQUIPAMENTO servem de máquina).
  * @param {any} tx @param {string} clienteId @param {string} id
- * @returns {Promise<{ empresa_id: string, ativo: boolean } | null>}
+ * @returns {Promise<{ empresa_id: string, ativo: boolean, natureza: string } | null>}
  */
 export const lerBem = (tx, clienteId, id) =>
-  tx.bemPatrimonial.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id } }, select: { empresa_id: true, ativo: true } });
+  tx.bemPatrimonial.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id } }, select: { empresa_id: true, ativo: true, natureza: true } });
 
 /**
  * Tarefa de origem (`LancamentoTarefa`, a demanda) do TENANT: fazenda (a tabela
