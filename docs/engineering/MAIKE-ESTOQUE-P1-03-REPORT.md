@@ -265,7 +265,13 @@ O revisor também confirmou localmente que a recuperação do §6 vale no Prisma
   - Conflitos só nas contagens dos ensaios das CONTRACT.
   - O ensaio novo da #268 passou a contar pela pasta (antes tinha 44/45 fixos).
 - **Base da release:** 46 nomes, que são as 45 pastas da main sem a P1-03 mais a do Apontamento, ainda sem pasta (`FORA_DO_REPO` nos testes, registrada no ledger do banco de teste). O X5 espera `PARAR` enquanto a base não estiver completa no banco da suíte.
-- **Caminho B:** envelope gerado das peças versionadas e ensaiado num banco local idêntico ao estado de produção (runbook §4.5). Nada foi aplicado em produção sem o GO do proprietário.
+- **Caminho B:** envelope gerado das peças versionadas e ensaiado num banco local idêntico ao estado de produção (runbook §4.5).
+- **Aplicado em produção em 2026-11-14**, com o GO do proprietário:
+  - preflight `SEGUIR` com 46;
+  - envelope numa transação, sem guarda disparada;
+  - postcheck `JA_APLICADA` com 47, checksum pinado e os 2 índices válidos;
+  - 3 leituras e 1 escrita (a transação do envelope);
+  - registro completo no runbook §7.
 
 ## 8. Bandeiras
 
@@ -274,12 +280,11 @@ CODE_READY=depende da CI full verde no HEAD final (ver PR e resposta final)
 TRANSACAO_PROVADA=SIM (ensaio + teste TX-F/T/L e PF; §9)
 PREFLIGHT_BASE_RELEASE=SIM (44 da main cf07309c; RED→GREEN PB/PH; §10)
 ORDEM_MIGRATIONS_PROVADA=SIM (OR + runner real local; P1-03 preservada; §10)
-MERGE_READY=NÃO   (a ordem com DDL é GO-1 → GO-2 → aplicação → postcheck → merge)
-RELEASE_READY=NÃO (novo GO-1 e GO-2 não concedidos; GO-1 #1 encerrado)
+MERGE_READY=SIM depois da CI verde (GO-2 concedido; aplicação e postcheck feitos em 2026-11-14; §11)
+RELEASE_READY=SIM
 SCHEMA_APPLIED_LOCAL=SIM (PG17 local: migrate deploy + diff sem drift, nas duas ordens)
-SCHEMA_APPLIED_PRODUCAO=NÃO
-DB_READS_PRODUCAO_R2=0
-DB_WRITES_PRODUCAO=0
-GO_PENDENTE=novo GO-1 (preflight da R2 + --verificar-alvo) e GO-2 (--aplicar + merge)
+SCHEMA_APPLIED_PRODUCAO=SIM (2026-11-14, caminho B; postcheck JA_APLICADA)
+DB_WRITES_PRODUCAO=1 transação (o envelope)
+GO_PENDENTE=nenhum (merge depois da CI)
 M7=PARCIAL (LC-2 e keyset prontos; R2-2 adiado com aprovação do proprietário; §10)
 ```

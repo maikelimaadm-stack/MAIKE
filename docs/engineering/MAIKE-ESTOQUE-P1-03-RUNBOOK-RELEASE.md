@@ -349,9 +349,9 @@ Depois disso, o proprietário faz o merge manual.
 | Campo | Valor |
 |---|---|
 | GO-1 #1 (2026-11-13) | Autorização expressa do proprietário "somente o GO-1". Preflight do SQL anterior à R2, em `SET TRANSACTION READ ONLY` pelo conector, projeto `uuemcasqcdjucflulkne`: `veredito = SEGUIR`, porém `concluidas = 43` (esperado 42) e `ultima = 20261113400000_cadestacoes_cadastro`, que não estava na main nem na PR. Índices: 0 novos, 0 nomes ocupados, 0 inválidos, 0 exatos; 0 falhadas; D-PROD-183 `SIM`; P1-03 `0`; travas, transação antiga e idle in transaction `0`; `lock_timeout 0`, `statement_timeout 2min`, `maintenance_work_mem 64MB`. **Interrompido** pela divergência; `--verificar-alvo` não rodou (também faltava `MIGRATION_DATABASE_URL` no ambiente). Origem: PR #265, mergeada depois. Esse GO-1 está encerrado |
-| GO-1 #2 (texto literal, data) | — (precisa de nova autorização, com o preflight da R2) |
-| Preflight (linhas) | — |
-| GO-2 (texto literal, data, janela) | — |
-| `--aplicar` (saída) | — |
-| Postcheck | — |
-| Merge | — |
+| GO-1 #2 (2026-11-14) | Autorização expressa do proprietário. Preflight R2 (base 44), `SET TRANSACTION READ ONLY`: `PARAR`, com 45 concluídas e 1 desconhecida (`20261113700000_apontamento_atividade`, PR #269, aplicada antes do merge). Interrompido; `--verificar-alvo` não rodou. 1 leitura |
+| GO-2 (texto literal, data) | 2026-11-14. Proprietário: "se quiser fazer a migração já aproveite essa pr" e, pedido o GO explícito, "aturozio" (autorizo). Caminho B (§4.5), exceção à D-PROD-74 |
+| Preflight imediatamente antes | HEAD `3853a0f5`, texto idêntico ao arquivo, `SET TRANSACTION READ ONLY`. Resultado `SEGUIR`: 46 concluídas, base_ausentes 0, desconhecidas 0, duplicadas 0, falhadas 0; índices novos/ocupados/exatos/inválidos 0; travas, transação aberta e idle in transaction 0. Última: `20261113500000_categoria_manejo_cadcategoria` |
+| Aplicação (caminho B) | Envelope do §4.5, sha256 `7d3eddd83a34c3665e01f74f88257f0d6bce63f25fe904361bcf1ecd27a4ea1a`, regenerado do HEAD e conferido byte a byte. Uma chamada do conector; nenhuma guarda disparou; COMMIT |
+| Postcheck | Preflight: `JA_APLICADA`; 47 concluídas, a P1-03 por último; definições exatas 2; inválidos 0; travas 0. `_prisma_migrations`: checksum `5d91e751…28565`, `applied_steps_count` 1, terminada e não revertida. Os 2 índices com `indisvalid` e `indisready` verdadeiros. Tamanho dos índices: MovimentacaoEstoque 96 → 112 kB; OperacaoIdempotente 48 → 64 kB |
+| Merge | depois da CI verde no HEAD com este registro |

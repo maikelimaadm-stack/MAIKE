@@ -6740,6 +6740,11 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - O GO-1 #2 parou corretamente: o preflight deu `PARAR` porque a produção tinha a migration do Apontamento (PR #269, D-PROD-190) fora da base.
 - Com a main `b46bb184` integrada, a base da release passa a 46: as 45 pastas da main sem a P1-03, mais a do Apontamento, aplicada antes do merge da PR dela.
 - A aplicação, se autorizada, vai pelo caminho B (exceção à D-PROD-74, só com GO escrito do proprietário). O envelope tem guarda de conjunto exato e foi ensaiado localmente (runbook §4.5).
+- **Aplicada em produção em 2026-11-14** pelo caminho B, com o GO do proprietário:
+  - preflight `SEGUIR` com 46;
+  - envelope sha256 `7d3eddd8…a4ea1a`;
+  - postcheck `JA_APLICADA` com 47, checksum pinado e os 2 índices válidos.
+  - Desvio da D-PROD-74 registrado aqui, como nas releases anteriores (runbook §7).
 
 **Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
 
