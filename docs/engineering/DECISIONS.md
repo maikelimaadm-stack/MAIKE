@@ -7170,4 +7170,18 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - para entidade com criação só online, o `create` da fila **e a cópia `offline_…` do cache** não aparecem nas listas, online nem offline, decidido pela política (sem depender de um replay antes), como a exclusão retida. O item continua na fila, sem envio e sem apagar nada; descartá-lo pela tela fica para uma fatia própria (hoje só a exclusão retida tem liberação manual). Um lote retido por depender da categoria continua visível;
    - fora do escopo, registrado como pendência: o mapa `offline_ → id do servidor` vale só para uma passada do replay. Se a passada para entre criar A e enviar B que cita A, B vai depois com o id offline. É um comportamento anterior à D-PROD-195, que a R2 não altera.
 
-<!-- Próxima decisão: D-PROD-196 -->
+## D-PROD-196 — Cadastro de lotes sem raça predominante e sem idade média (meses)
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("vamos organizar o cadastro de lotes, e preciso remover, idade média meses, raça predominante, e ajuste tudo") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** O cadastro do lote ainda tinha dois campos herdados do ERP antigo: **Raça Predominante** (texto, obrigatório no formulário) e **Idade Média (meses)** (inteiro, obrigatório). A faixa etária agora vem da Categoria de Manejo (D-PROD-186), e o ganho de peso vem da curva da categoria (D-PROD-195). Os dois campos ficaram redundantes. Em produção, os 84 lotes têm os dois preenchidos (raças NELORE e COMPOSTO).
+
+**Decisão.**
+1. **Saem do sistema:** formulário do lote, incluindo o layout padrão da aba Geral e a lista de campos em maiúsculas; porta nativa do lote (`CAMPOS_DE_CRIACAO`/`ATUALIZACAO`); grade do cadastro (coluna "Raça Predominante"); motor de campos (`campoEngine`); correção da entrada, nos dois lados (`CAMPOS_ADMINISTRATIVOS_DA_ENTRADA`); detalhes do lote no mapa (coluna "Raça" e linha "Raça Predom." no card); informação da posição no controle por posições (`raca_predominante` sai da posição pública do ledger e do formulário "Editar informação").
+2. **API:** `comoLotePublico` não devolve mais os dois campos, e o repositório não os lê. O serviço não os grava: `camposDe` só considera `CAMPOS_EDITAVEIS`. O schema de `POST`/`PATCH /lotes` **continua aceitando** as duas chaves, ignoradas, para não recusar com 400 um bundle antigo nem um item da fila offline gravado pela versão anterior. O comando de correção da entrada passa a recusá-las (400), como qualquer campo não corrigível. Nesse caso não há fila, porque o comando é só online.
+3. **Banco: sem migration.** As colunas `Lote.raca_predominante` e `Lote.idade_media_meses` continuam no banco, com os valores antigos dos 84 lotes intactos. Nada se perde, e a release não exige GO de banco. Lote novo fica com as duas colunas nulas. Apagar as colunas fica para uma migration CONTRACT própria, se o proprietário quiser, junto de outras colunas legadas.
+4. **Layout da aba Geral:** sem os dois campos, a aba fica com duas linhas cheias: **Categoria de Manejo · Sexo · Sistema Produtivo** e **Qtd. Cabeças · Peso Médio**. Uma configuração de layout salva no navegador que ainda cite os ids removidos não quebra nada: o renderizador descarta ids sem campo.
+
+**Relatório:** [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-197 -->

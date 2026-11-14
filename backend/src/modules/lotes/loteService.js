@@ -80,14 +80,12 @@ export const comoLotePublico = (registro) => ({
   sexo: registro.sexo ?? null,
   peso_medio_kg: comoNumero(registro.peso_medio_kg),
   peso_entrada_kg: comoNumero(registro.peso_entrada_kg),
-  idade_media_meses: registro.idade_media_meses ?? null,
   setor_id: registro.setor_id ?? null,
   setor_nome: registro.setor_nome ?? null,
   area_entrada_id: registro.area_entrada_id ?? null,
   area_entrada_nome: registro.area_entrada_nome ?? null,
   area_atual_id: registro.area_atual_id ?? null,
   area_atual_nome: registro.area_atual_nome ?? null,
-  raca_predominante: registro.raca_predominante ?? null,
   sistema_produtivo: registro.sistema_produtivo ?? null,
   data_entrada: comoDataIso(registro.data_entrada),
   motivo_entrada: registro.motivo_entrada,
@@ -114,6 +112,12 @@ export const comoLotePublico = (registro) => ({
     registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
 });
 
+/**
+ * Campos que o cadastro grava. Raça predominante e idade média (meses) saíram
+ * do cadastro do lote (D-PROD-196): as colunas continuam no banco, com os
+ * valores antigos, mas a API não as lê, não as devolve e ignora se vierem num
+ * corpo (cliente antigo ou fila offline): só entra o que está nesta lista.
+ */
 const CAMPOS_EDITAVEIS = Object.freeze({
   empresa_id: (v) => textoOuNulo(v),
   nome: (v) => textoOuNulo(v),
@@ -126,10 +130,8 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   categoria_manejo_nome: (v) => textoOuNulo(v),
   sexo: (v) => textoOuNulo(v),
   peso_medio_kg: (v) => decimalOuNulo(v),
-  idade_media_meses: (v) => inteiroOuNulo(v),
   setor_id: (v) => textoOuNulo(v),
   area_atual_id: (v) => textoOuNulo(v),
-  raca_predominante: (v) => textoOuNulo(v),
   sistema_produtivo: (v) => textoOuNulo(v),
   data_entrada: (v) => {
     if (v === undefined) return undefined;
@@ -206,7 +208,7 @@ const CAMPOS_OPERACIONAIS_NO_LEDGER = Object.freeze(new Set([
 ]));
 
 const CAMPOS_SO_DO_CADASTRO = Object.freeze(new Set([
-  'idade_media_meses', 'setor_id', 'raca_predominante', 'sistema_produtivo', 'data_entrada',
+  'setor_id', 'sistema_produtivo', 'data_entrada',
   'motivo_entrada', 'motivo_ajuste', 'motivo_outros', 'origem', 'fornecedor_id', 'fornecedor_nome',
   'nota_fiscal', 'chave_nfe', 'numero_gta', 'cidade_origem', 'estado_origem',
   'valor_total_compra', 'valor_por_cabeca', 'valor_frete', 'observacoes', 'campos_personalizados',
@@ -306,14 +308,12 @@ export const criar = async (contexto, entrada) => {
       sexo: campos.sexo ?? null,
       peso_medio_kg: pesoMedio,
       peso_entrada_kg: pesoMedio,
-      idade_media_meses: campos.idade_media_meses ?? null,
       setor_id: setor.setor_id,
       setor_nome: setor.setor_nome,
       area_entrada_id: areaEntrada.id,
       area_entrada_nome: areaEntrada.nome,
       area_atual_id: areaAtual.id,
       area_atual_nome: areaAtual.nome,
-      raca_predominante: campos.raca_predominante ?? null,
       sistema_produtivo: campos.sistema_produtivo ?? null,
       data_entrada: campos.data_entrada ?? null,
       motivo_entrada: motivo,

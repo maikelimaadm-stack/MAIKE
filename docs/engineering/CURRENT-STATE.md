@@ -9,6 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-14) — MAIKE-LOTE-SEM-RACA-IDADE: cadastro de lotes sem raça predominante e idade média (D-PROD-196)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-196** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `29052ea7` (merge da PR #279) |
+| Escopo | Raça Predominante e Idade Média (meses) saem do formulário, da grade, da porta, da correção da entrada, do mapa e da posição; a aba Geral fica com duas linhas cheias |
+| Banco | **Sem migration**: colunas ficam no banco com os valores antigos (84 lotes); a API não lê, não grava e não devolve, e aceita e ignora se um cliente antigo enviar |
+| Relatório | [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md) |
+
 ## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
 
 | Campo | Valor |

@@ -37,12 +37,14 @@ describe("R1 domínio — o que a correção muda", () => {
   });
 
   it("R1-R2: administrativos alterados sem diferença espúria (vazio ≠ 0, texto aparado, tipos canônicos)", () => {
-    const lote = { ...ENTRADA, raca_predominante: "NELORE", idade_media_meses: null, valor_total_compra: null, observacoes: null, campos_personalizados: { a: 1 } };
-    const dados = { nome: "NOVO", raca_predominante: " NELORE ", idade_media_meses: 0, valor_total_compra: 0, observacoes: "", campos_personalizados: { a: 1 } };
-    expect(camposAdministrativosAlterados(lote, dados, { idade_media_meses: "", valor_total_compra: "" })).toEqual({});
-    expect(camposAdministrativosAlterados(lote, { ...dados, raca_predominante: "ANGUS", observacoes: "X" }, { idade_media_meses: "12", valor_total_compra: "1500.5" })).toEqual({
-      raca_predominante: "ANGUS", observacoes: "X", idade_media_meses: 12, valor_total_compra: 1500.5,
+    const lote = { ...ENTRADA, identificador_nome: "GRUPO A", valor_total_compra: null, observacoes: null, campos_personalizados: { a: 1 } };
+    const dados = { nome: "NOVO", identificador_nome: " GRUPO A ", valor_total_compra: 0, observacoes: "", campos_personalizados: { a: 1 } };
+    expect(camposAdministrativosAlterados(lote, dados, { valor_total_compra: "" })).toEqual({});
+    expect(camposAdministrativosAlterados(lote, { ...dados, identificador_nome: "GRUPO B", observacoes: "X" }, { valor_total_compra: "1500.5" })).toEqual({
+      identificador_nome: "GRUPO B", observacoes: "X", valor_total_compra: 1500.5,
     });
+    // D-PROD-196: raça predominante e idade média saíram do cadastro — nunca entram na correção.
+    expect(camposAdministrativosAlterados(lote, { ...dados, raca_predominante: "ANGUS", idade_media_meses: 12 }, { valor_total_compra: "" })).toEqual({});
   });
 
   it("R3: quantidade digitada nunca é truncada — 100.5 / 100abc / 0 / vazio são inválidos; inteiros válidos passam", () => {
@@ -222,31 +224,31 @@ describe("R1 página — enviar a correção", () => {
     expect(mapaCache.refreshMapaCacheEntry).toHaveBeenCalledWith("lotes", "emp-1", { force: true });
   });
 
-  it("R1-R2: quantidade + raça no MESMO clique → UMA requisição (comando), nenhum PATCH", async () => {
-    serviceMock.corrigirEntradaDoLote.mockResolvedValue({ lote_id: "l9", lote: { ...ENTRADA, quantidade_entrada: 120, raca_predominante: "NELORE" } });
+  it("R1-R2: quantidade + descrição no MESMO clique → UMA requisição (comando), nenhum PATCH", async () => {
+    serviceMock.corrigirEntradaDoLote.mockResolvedValue({ lote_id: "l9", lote: { ...ENTRADA, quantidade_entrada: 120, nome: "LOTE NOVO" } });
     await editarQuantidade("120");
-    fireEvent.change(screen.getByText("Raça Predominante").closest(".mg-field").querySelector("input"), { target: { value: "nelore" } });
+    fireEvent.change(screen.getByPlaceholderText("NOME DO LOTE"), { target: { value: "lote novo" } });
     fireEvent.change(screen.getByLabelText("Motivo da correção"), { target: { value: "lançamento errado" } });
     salvar();
     await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Entrada do lote corrigida"));
     expect(serviceMock.corrigirEntradaDoLote).toHaveBeenCalledTimes(1);
     const [, enviado] = serviceMock.corrigirEntradaDoLote.mock.calls[0];
     expect(enviado.campos).toMatchObject({ quantidade: 120 });
-    expect(String(enviado.campos.raca_predominante).toUpperCase()).toBe("NELORE");
-    expect(Object.keys(enviado.campos).sort()).toEqual(["quantidade", "raca_predominante"]);
+    expect(String(enviado.campos.nome).toUpperCase()).toBe("LOTE NOVO");
+    expect(Object.keys(enviado.campos).sort()).toEqual(["nome", "quantidade"]);
     expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
   });
 
   it("R1-R2: só administrativo com a entrada elegível também vai pelo comando (com motivo), sem PATCH", async () => {
-    serviceMock.corrigirEntradaDoLote.mockResolvedValue({ lote_id: "l9", lote: { ...ENTRADA, raca_predominante: "ANGUS" } });
+    serviceMock.corrigirEntradaDoLote.mockResolvedValue({ lote_id: "l9", lote: { ...ENTRADA, nome: "LOTE ANGUS" } });
     await renderPagina();
     await abrirEdicao();
     await waitFor(async () => expect((await aviso()).dataset.estado).toBe("elegivel"));
-    fireEvent.change(screen.getByText("Raça Predominante").closest(".mg-field").querySelector("input"), { target: { value: "ANGUS" } });
-    fireEvent.change(screen.getByLabelText("Motivo da correção"), { target: { value: "raça errada" } });
+    fireEvent.change(screen.getByPlaceholderText("NOME DO LOTE"), { target: { value: "LOTE ANGUS" } });
+    fireEvent.change(screen.getByLabelText("Motivo da correção"), { target: { value: "nome errado" } });
     salvar();
     await waitFor(() => expect(serviceMock.corrigirEntradaDoLote).toHaveBeenCalledTimes(1));
-    expect(Object.keys(serviceMock.corrigirEntradaDoLote.mock.calls[0][1].campos)).toEqual(["raca_predominante"]);
+    expect(Object.keys(serviceMock.corrigirEntradaDoLote.mock.calls[0][1].campos)).toEqual(["nome"]);
     expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
   });
 

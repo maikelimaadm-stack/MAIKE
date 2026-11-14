@@ -46,7 +46,7 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     const cartoesTudo = readFileSync("src/components/mapa/detalhes-lote/CartoesLoteTudo.jsx", "utf8");
     const area = readFileSync("src/components/mapa/InformacoesArea.jsx", "utf8");
     const camposLote = catalogo.slice(catalogo.indexOf("export function camposCartaoTudo"));
-    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso médio (kg)", "Dias de pastejo", "Sist. Rep.", "Raça Predom.", "Sexo"]) {
+    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso médio (kg)", "Dias de pastejo", "Sist. Rep.", "Sexo"]) {
       expect(camposLote, c).toContain(c);
     }
     expect(cartoesTudo).toContain("Categoria de Manejo:");
