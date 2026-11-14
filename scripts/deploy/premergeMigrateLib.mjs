@@ -95,6 +95,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
   // D-PROD-195: CONTRACT aprovado pelo proprietário — curva de ganho obrigatória na Categoria de Manejo, da mesma fazenda.
   '20261114200000_cadcategoria_curva_ganho': 'b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb',
+  '20261114400000_cadcategoria_peso_objetivo': 'd44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

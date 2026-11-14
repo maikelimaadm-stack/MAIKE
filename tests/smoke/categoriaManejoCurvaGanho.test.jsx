@@ -284,7 +284,7 @@ describe("(d) grade: coluna Curva de ganho e chave _v2", () => {
     const { CATEGORIAS_MANEJO_COLUNAS, CATEGORIAS_MANEJO_STORAGE_KEY, getCategoriaManejoFieldValue } = await import(
       "@/components/categorias-manejo/TabelaCategoriasManejo"
     );
-    expect(CATEGORIAS_MANEJO_STORAGE_KEY).toBe("colunas_largura_categorias_manejo_v2");
+    expect(CATEGORIAS_MANEJO_STORAGE_KEY).toBe("colunas_largura_categorias_manejo_v3");
     const coluna = CATEGORIAS_MANEJO_COLUNAS.find((c) => c.id === "curva_ganho");
     expect(coluna).toMatchObject({ label: "Curva de ganho", default: true });
     expect(getCategoriaManejoFieldValue({ curva_ganho_nome: "CURVA PADRÃO" }, "curva_ganho")).toBe("CURVA PADRÃO");

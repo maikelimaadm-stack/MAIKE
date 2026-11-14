@@ -1234,6 +1234,9 @@ model CategoriaManejo {
   idade_maxima_meses    Int?
   // D-PROD-195: curva de ganho da categoria, obrigatória e da MESMA fazenda (FK composta).
   curva_ganho_id        String   @db.VarChar(64)
+  // D-PROD-198: peso que a categoria quer atingir (kg por cabeça), opcional; a
+  // projeção do lote mostra quando ele chega lá.
+  peso_objetivo_kg      Decimal? @db.Decimal(10, 2)
   ativo                 Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

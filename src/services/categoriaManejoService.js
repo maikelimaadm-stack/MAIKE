@@ -67,6 +67,7 @@ export const normalizarCategoriaManejo = (formData, { empresaId, edicao = false 
     especie: formData.especie || null,
     sexo: formData.sexo || null,
     curva_ganho_id: idOuNulo(formData.curva_ganho_id),
+    peso_objetivo_kg: pesoObjetivoOuNulo(formData.peso_objetivo_kg),
     ativo: true,
   };
   if (edicao && formData.faixa_idade_alterada !== true) return payload;
@@ -75,6 +76,19 @@ export const normalizarCategoriaManejo = (formData, { empresaId, edicao = false 
     idade_minima_meses: inteiroOuNulo(formData.idade_minima_meses),
     idade_maxima_meses: inteiroOuNulo(formData.idade_maxima_meses),
   };
+};
+
+/**
+ * D-PROD-198: peso objetivo (kg/cabeça), opcional. Vazio → null (limpa); aceita
+ * vírgula. Texto que não é número vai como está, e o servidor recusa com 400.
+ * @param {unknown} v
+ */
+export const pesoObjetivoOuNulo = (v) => {
+  if (v === null || v === undefined) return null;
+  const t = String(v).trim();
+  if (!t) return null;
+  const n = Number(t.replace(',', '.'));
+  return Number.isFinite(n) ? n : t;
 };
 
 /**

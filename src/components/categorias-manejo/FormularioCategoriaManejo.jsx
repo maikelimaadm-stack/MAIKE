@@ -18,6 +18,18 @@ export const FORMULARIO_CATEGORIA_MANEJO_ID = "formulario-categoria-manejo-base1
  * 2026-11-13); a Curva de ganho também, desde a D-PROD-195.
  */
 const REQUIRED_FIELDS = ["nome", "sexo", "faixa_idade", "curva_ganho_id"];
+
+/**
+ * D-PROD-198: peso objetivo opcional — vazio vale; preenchido precisa ser
+ * número > 0 e até 3.000 kg (aceita vírgula).
+ * @param {unknown} v
+ */
+export const pesoObjetivoValido = (v) => {
+  const t = String(v ?? "").trim();
+  if (!t) return true;
+  const n = Number(t.replace(",", "."));
+  return Number.isFinite(n) && n > 0 && n <= 3000;
+};
 const UPPERCASE_FIELDS = ["nome", "sigla"];
 const SELECT_EMPTY = "__VAZIO__";
 const SEXOS = ["Macho", "Fêmea"];
@@ -95,6 +107,7 @@ export const getInitialFormData = () => ({
   idade_minima_meses: "",
   idade_maxima_meses: "",
   curva_ganho_id: "",
+  peso_objetivo_kg: "",
 });
 
 /**
@@ -112,6 +125,7 @@ export function buildFormInitialFromRecord(editando) {
     idade_minima_meses: editando.idade_minima_meses ?? "",
     idade_maxima_meses: editando.idade_maxima_meses ?? "",
     curva_ganho_id: editando.curva_ganho_id ?? "",
+    peso_objetivo_kg: editando.peso_objetivo_kg === null || editando.peso_objetivo_kg === undefined ? "" : String(editando.peso_objetivo_kg).replace(".", ","),
     faixa_idade_alterada: false,
   };
 }
@@ -172,11 +186,12 @@ export default function FormularioCategoriaManejo({
       sexo: !SEXOS.includes(formData?.sexo),
       faixa_idade: valorFaixaIdade(formData) === "",
       curva_ganho_id: isEmptyValue(formData?.curva_ganho_id),
+      peso_objetivo_kg: !pesoObjetivoValido(formData?.peso_objetivo_kg),
     };
     const missingFields = REQUIRED_FIELDS.filter((field) => faltando[field]);
-    if (missingFields.length > 0) {
-      setInvalidFields(missingFields);
-      notifyWarning("Atenção", "Preencha os campos obrigatórios.");
+    if (missingFields.length > 0 || faltando.peso_objetivo_kg) {
+      setInvalidFields([...missingFields, ...(faltando.peso_objetivo_kg ? ["peso_objetivo_kg"] : [])]);
+      notifyWarning("Atenção", missingFields.length > 0 ? "Preencha os campos obrigatórios." : "Peso objetivo inválido: informe um peso maior que 0 e até 3.000 kg.");
       return;
     }
     onSubmit(formData);
@@ -355,6 +370,28 @@ export default function FormularioCategoriaManejo({
             ))}
           </B1Select>
         )}
+      </B1Field>
+
+      <B1Field
+        label="Peso objetivo (kg)"
+        span={4}
+        hasValue={String(formData.peso_objetivo_kg ?? "").trim() !== ""}
+        locked={readOnly}
+        disabled={locked}
+        error={invalidFields.includes("peso_objetivo_kg") ? "Informe um peso maior que 0 e até 3.000 kg" : undefined}
+        dica="Opcional. O lote mostra quando chega a este peso pela curva de ganho."
+      >
+        <input
+          type="text"
+          inputMode="decimal"
+          aria-label="Peso objetivo (kg)"
+          value={formData.peso_objetivo_kg ?? ""}
+          onChange={(e) => handleChange("peso_objetivo_kg", e.target.value)}
+          placeholder="EX.: 540"
+          className={`${B1_FIELD_CTL_CLS} tabular-nums`}
+          readOnly={readOnly}
+          data-testid="categoria-peso-objetivo"
+        />
       </B1Field>
 
       {!toolbarActions ? (

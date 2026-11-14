@@ -31,6 +31,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { agoraDoServidor, exigirDiaNaoFuturo, hojeDaEmpresa } from './rebanhoLedgerTempo.js';
+import { carregarProjetorDaEmpresa } from './pesoProjetado.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -693,7 +694,15 @@ export const listarPosicoes = async (contexto, { empresa_id: empresaId, incluir_
     include: { area: { select: { nome: true } }, loteEntrada: { select: { sistema_produtivo: true, data_entrada: true } } },
     orderBy: [{ area_id: 'asc' }, { numero_lote: 'asc' }, { id: 'asc' }],
   });
-  return { ativo: true, modo: ativacao.modo, data_corte: diaDoBanco(ativacao.data_corte), itens: ps.map((p) => comoPosicaoPublica(p)) };
+  // D-PROD-198: peso projetado de cada posição (leitura pura, a partir da série de pesos e da curva da categoria).
+  const [{ hoje }, projetor] = await Promise.all([
+    hojeDaEmpresa(prisma, auth.clienteId, empresaId),
+    carregarProjetorDaEmpresa(prisma, auth.clienteId, empresaId),
+  ]);
+  return {
+    ativo: true, modo: ativacao.modo, data_corte: diaDoBanco(ativacao.data_corte),
+    itens: ps.map((p) => ({ ...comoPosicaoPublica(p), projecao_peso: projetor.resumo(p.id, hoje) })),
+  };
 };
 
 /** Saldo e peso em uma data (fim do dia) por posição, a partir das partidas e pesos ativos. */

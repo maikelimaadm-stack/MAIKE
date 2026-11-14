@@ -9,6 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-14) — MAIKE-PESO-PROJETADO: peso projetado do lote e peso objetivo na Categoria de Manejo (D-PROD-198)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-198** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `ab63ee26` (merge da PR #282) |
+| Escopo | Peso objetivo opcional na categoria; motor do peso projetado pela curva (base derivada pelo projetado das origens); `projecao_peso` em `GET /rebanho/posicoes`; Detalhes do Lote com projetado, @, GMD, base, objetivo, quando atinge, pesado × previsto e próximos meses |
+| Migration | `20261114400000_cadcategoria_peso_objetivo`, **EXPAND** (uma coluna anulável). SHA-256 `d44f8070…3fb1a9`. Repositório e produção: 50 → **51**; tabelas iguais. **Não aplicada em nenhum ambiente remoto** |
+| Próxima fatia | Mudança de Categoria entre Categorias de Manejo com a mesma categoria oficial (pasto → confinamento) |
+| Relatório | [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md) |
+
 ## Missão ativa (2026-11-14) — MAIKE-LOTE-SEM-RACA-IDADE: cadastro de lotes sem raça predominante e idade média (D-PROD-196)
 
 | Campo | Valor |

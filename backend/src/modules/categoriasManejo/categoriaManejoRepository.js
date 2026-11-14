@@ -24,6 +24,7 @@ const SELECAO = Object.freeze({
   idade_maxima_meses: true,
   // D-PROD-195: a curva de ganho obrigatória (mesma fazenda) e o nome dela, para a resposta.
   curva_ganho_id: true,
+  peso_objetivo_kg: true,
   curvaGanho: { select: { nome: true } },
   ativo: true,
   createdAt: true,

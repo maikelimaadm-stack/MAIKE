@@ -7185,4 +7185,38 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-197 -->
+## D-PROD-198 — Peso projetado do lote pela curva de ganho e peso objetivo na Categoria de Manejo
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("vamos começar com o peso projetado lote"; "inves de criar peso objetivo a gente colocaria no cadastro de categoria, muito mas simples e outra não precisa ser obrigatório"; "também ja ajuste essas contas de curvas objetivos") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** A curva de ganho mensal (D-PROD-194) está ligada a cada Categoria de Manejo (D-PROD-195). Na Prodap, o peso projetado do lote é o último peso mais o GMD do mês da curva da categoria, dia a dia. O lote mostra também o "pesado × previsto" e quando atinge o peso objetivo. O proprietário decidiu:
+- **não** criar um cadastro de "objetivo do lote". Na Prodap ele é só um rótulo de destino, sem efeito no cálculo, e confundiria com a categoria;
+- o **peso objetivo** fica **na Categoria de Manejo**, opcional;
+- a **base** da projeção é o último peso do lote, de qualquer origem: entrada, pesagem estimada ("no olho") ou de balança;
+- a **arroba** é a de peso vivo (kg ÷ 30).
+
+**Decisão.**
+1. **`CADCATEGORIA.peso_objetivo_kg DECIMAL(10,2)`**, opcional. Migration **EXPAND** pura `20261114400000_cadcategoria_peso_objetivo` (uma coluna anulável, sem DEFAULT), SHA-256 `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9`. Repositório 50 → **51** migrations; tabelas iguais (85). Release **antes do merge** pelo runbook [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md). Não há janela: o runtime antigo ignora a coluna.
+2. **API da categoria:** `peso_objetivo_kg` no formato público.
+   - **Validação:** vazio ou `null` limpa; o valor precisa ser número finito > 0 e até 3.000 kg (o teto por cabeça do manejo). Aceita vírgula e grava com 2 casas.
+   - **Erro:** fora disso, 400 `REQUEST_VALIDATION_FAILED` com reason `peso_objetivo_invalido`.
+   - **Tela:** campo "Peso objetivo (kg)" no formulário e coluna na lista. A chave de preferências passa a `_v3` para a coluna nova aparecer.
+3. **Motor do peso projetado** (`backend/src/modules/rebanhoLedger/pesoProjetado.js`, só leitura, nada gravado):
+   - **Cálculo:** projetado = valor da base + Σ GMD(dia) para cada dia depois da base, com o GMD do mês de cada dia na curva da categoria da posição.
+   - **Base:** o último `PesoRebanho` ativo da posição.
+   - **Base derivada:** transferência, mudança de categoria e junção gravam no destino a média do peso registrado das origens. Por isso a base derivada é recalculada com o peso **projetado** de cada origem (e do saldo que já estava no destino) no instante do evento, pelo descritor `dados.pesos_derivados` do evento. Assim o ganho do pasto não se perde quando o lote muda de categoria. Recursão com memória e limite de profundidade; peso desconhecido cai para o valor gravado (nunca inventa).
+   - **Saídas por posição:**
+     - peso e @ de hoje;
+     - GMD do mês;
+     - base (tipo do fato, data, peso gravado e peso usado);
+     - objetivo, quanto falta e data prevista para atingir (busca até 1.095 dias);
+     - **pesado × previsto** da última pesagem, comparada com o projetado logo antes dela;
+     - projeção no último dia dos próximos 12 meses.
+4. **Onde aparece:**
+   - **API:** `GET /rebanho/posicoes` devolve `projecao_peso` em cada item. A projeção carrega posições, categorias, pesos, partidas e eventos da empresa, com uma consulta por tabela.
+   - **Mapa:** nos Detalhes do Lote, na seção **Pesagem**, que já é visível, entram as colunas peso projetado, @ projetadas, GMD do mês, base da projeção, peso objetivo, quando atinge, pesado × previsto e os próximos fins de mês. O card mostra "Peso projetado (kg)".
+5. **Limite registrado (próxima fatia):** hoje o manejo **Mudança de Categoria** escolhe as fontes pela categoria **oficial** e recusa "categoria nova igual à atual". Por isso ainda não dá para trocar BOI PASTO por BOI CONFINAMENTO quando as duas são "Boi 25 a 36 meses" Macho. Liberar a troca entre Categorias de Manejo com a mesma oficial fica para a próxima missão. O motor já trata a base derivada dessa troca.
+
+**Relatório:** [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-199 -->
