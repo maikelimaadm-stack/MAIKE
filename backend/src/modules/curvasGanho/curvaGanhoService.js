@@ -1,6 +1,6 @@
 /**
  * Serviço de Curvas de Ganho de Peso da fazenda (D-PROD-189, mensal desde a
- * D-PROD-191), tabela física "CADCURVAGANHO".
+ * D-PROD-194), tabela física "CADCURVAGANHO".
  *
  * Uma curva guarda o ganho médio diário (GMD, kg/dia) previsto em cada mês do
  * calendário, de janeiro (`gmd_jan`) a dezembro (`gmd_dez`). A curva NÃO depende

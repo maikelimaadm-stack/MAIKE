@@ -9,7 +9,7 @@ const PASSO = LARGURA / MESES.length;
 const BARRA = PASSO * 0.62;
 
 /**
- * Gráfico de barras dos 12 GMD da curva (D-PROD-191), de janeiro a dezembro,
+ * Gráfico de barras dos 12 GMD da curva (D-PROD-194), de janeiro a dezembro,
  * com a linha do zero: barra para cima é ganho, para baixo é perda de peso.
  * Mês sem valor válido fica sem barra. SVG puro, sem biblioteca.
  *

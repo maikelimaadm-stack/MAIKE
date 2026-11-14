@@ -86,7 +86,7 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     env: { MIGRATION_DATABASE_URL: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID },
     conferir: async () => ({ ok: true, falhas: [], resumo: 'banco=postgres' }),
     resolverRuntime: async () => REMOTO,
-    // D-PROD-162, D-PROD-183, D-PROD-187 e D-PROD-191: alvo já com as quatro CONTRACT concluídas (a barreira delas
+    // D-PROD-162, D-PROD-183, D-PROD-187 e D-PROD-194: alvo já com as quatro CONTRACT concluídas (a barreira delas
     // tem prova própria em migrations.test.mjs, B11, B14, B16 e B15). Sem alguma das linhas, a CONTRACT pendente
     // recusaria por conta própria.
     lerHistorico: async () => [

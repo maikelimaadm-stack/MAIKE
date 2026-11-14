@@ -6,7 +6,7 @@ import {
   notifySuccess,
   notifyWarning,
 } from "@/lib/maikeNotify";
-import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { API_ERROR_CODES, getApiErrorMessage } from "@/apis/_core/ApiError";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import FormularioTipoAtividade, {
   FORMULARIO_TIPO_ATIVIDADE_ID,
@@ -125,11 +125,15 @@ export default function TiposAtividade() {
         notifyExclusoesEmpilhadas(excluidos.length, { singular: "Tipo de atividade excluído" });
       }
       if (bloqueados.length) {
+        // D-PROD-190: tipo com apontamento de atividade não sai (FK RESTRICT); a saída é inativá-lo.
+        const porApontamento = bloqueados.some((b) => b.code === API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED)
+          ? " Há apontamentos de atividade vinculados: inative o tipo em vez de excluir."
+          : "";
         notifyError(
           "Atenção",
-          bloqueados.length === 1
+          (bloqueados.length === 1
             ? "1 tipo de atividade não pôde ser excluído."
-            : `${bloqueados.length} tipos de atividade não puderam ser excluídos.`,
+            : `${bloqueados.length} tipos de atividade não puderam ser excluídos.`) + porApontamento,
         );
       }
     },

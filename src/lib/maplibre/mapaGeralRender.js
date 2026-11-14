@@ -12,6 +12,7 @@ import { urlIconeDeposito } from "@/assets/icones/deposito-sal";
  * é coordenada válida (nada de `c[0] || c.lat`).
  */
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
+import { resolverFiguraDoPasto, urlMarcadorLote } from "@/assets/icones/lotes";
 import { parseVertex, parseVertices, toGeoJsonLineString, toGeoJsonPolygon } from "@/lib/geografia/coords.js";
 import { corExibidaNoMapa, paintAreaDestaque, paintAreaDivisa, paintAreaFill } from "./estiloAreas.js";
 import { pointInPolygonRing, safeCentroid } from "./taskLocationPicker.js";
@@ -396,19 +397,29 @@ export function descreverMarcadorSuplementacao(ponto) {
   return { titulo, selo };
 }
 
-export function resolverIconeLote(lotesNaArea, iconesConfig = []) {
-  const cats = [...new Set(lotesNaArea.map((l) => norm(l.categoria)).filter(Boolean))].sort();
-  let cfg = null;
-  if (cats.length === 1) {
-    cfg = iconesConfig.find((ic) => ic.tipo_entidade === "Lote" && norm(ic.categoria) === cats[0]) || null;
-  } else if (cats.length > 1) {
-    const validos = iconesConfig
-      .filter((ic) => ic.tipo_entidade === "Lote" && norm(ic.categoria) === "MISTO" && Array.isArray(ic.categorias_misto) && ic.categorias_misto.length > 0)
-      .filter((c) => cats.every((cat) => c.categorias_misto.map(norm).includes(cat)))
-      .sort((a, b) => a.categorias_misto.length - b.categorias_misto.length);
-    cfg = validos[0] || null;
-  }
-  return { iconUrl: cfg?.icone_url || null, categorias: cats.join("|") };
+/**
+ * Ícone do lote no mapa (D-PROD-191): vem do CÓDIGO, pela chave SEXO + FAIXA DE
+ * IDADE da Categoria de Manejo de cada posição do pasto. A cascata e o desenho
+ * ficam em `src/assets/icones/lotes` (`resolverFiguraDoPasto`/`urlMarcadorLote`);
+ * aqui só se entrega o marcador pronto ao renderer.
+ *
+ * Não lê ConfiguracaoIcone: o upload de ícone de Lote deixou de valer. Não usa
+ * rede: com as categorias do cache do mapa, o ícone sai igual offline.
+ *
+ * SEMPRE devolve figura (`iconUrl` nunca é null): sem posição, sem categoria,
+ * com categoria desconhecida ou sexo "Misto", o motor cai na categoria oficial
+ * gravada na posição e, no fim, no último recurso.
+ *
+ * @param {any[]|null|undefined} lotesNaArea posições do rebanho (ou lotes legados) do pasto
+ * @param {any[]|Map<string, any>|null} [categoriasManejo] Categorias de Manejo da empresa
+ * @returns {{ iconUrl: string, chave: string, nivel: 1|2|3|4|5, rotulo: string }}
+ *   `iconUrl`: data URL do SVG do marcador inteiro; `chave`: identifica o desenho
+ *   (mesma chave → mesmo `iconUrl`); `nivel`: degrau da cascata; `rotulo`: texto
+ *   do desenho ("Macho 13 a 24 meses", "misto2"…).
+ */
+export function resolverIconeLote(lotesNaArea, categoriasManejo = []) {
+  const icone = resolverFiguraDoPasto(lotesNaArea, categoriasManejo);
+  return { iconUrl: urlMarcadorLote(icone), chave: icone.chave, nivel: icone.nivel, rotulo: icone.rotulo };
 }
 
 const CORES_PRIORIDADE = { Baixa: "#94a3b8", Normal: "#3b82f6", Alta: "#f59e0b", Urgente: "#ef4444" };

@@ -25,7 +25,7 @@ export default function CartoesLoteTudo({ modelo }) {
               <PilulaSituacao situacao={lote.situacao} />
             </span>
             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", flex: "0 0 auto", height: 22, overflow: "visible" }}>
-              <IconeCategoria url={lote.iconeUrl} tamanho={36} alt={lote.categoria} />
+              <IconeCategoria figura={lote.subicone} tamanho={36} alt={lote.categoria} />
             </span>
           </div>
           <GradeCampos campos={camposCartaoTudo(lote)} colunas={ui.infoCols} variante="info" />

@@ -1,6 +1,6 @@
 /**
  * Curvas de Ganho de Peso da fazenda (D-PROD-189; 12 GMD mensais desde a
- * D-PROD-191), tabela física "CADCURVAGANHO" — PostgreSQL real.
+ * D-PROD-194), tabela física "CADCURVAGANHO" — PostgreSQL real.
  *
  * Cadastro sem vínculo com nenhum outro (nem com as Estações): nome em
  * MAIÚSCULAS e único por fazenda (tamanho conferido depois das maiúsculas), os
@@ -84,7 +84,7 @@ const base = (empresaId, extra = {}) => ({
 const criar = (token, payload) => req('POST', '/curvas-ganho', token, payload);
 const comEmpresa = (url, empresaId) => `${url}?empresa_id=${encodeURIComponent(empresaId)}`;
 
-describe('D-PROD-191 — Curvas de Ganho mensais: criação, leitura e formato público', () => {
+describe('D-PROD-194 — Curvas de Ganho mensais: criação, leitura e formato público', () => {
   test('GET /curvas-ganho sem token → 401', async () => {
     assert.equal((await req('GET', '/curvas-ganho?empresa_id=x')).statusCode, 401);
   });
@@ -101,7 +101,7 @@ describe('D-PROD-191 — Curvas de Ganho mensais: criação, leitura e formato p
     assert.equal(c.gmd_ago, -0.05, 'perda de peso é aceita');
     assert.equal(c.ativo, true);
     assert.equal(c.empresa_id, e1.id);
-    for (const antigo of ['gmd_aguas', 'gmd_transicao', 'gmd_seca']) assert.ok(!(antigo in c), `${antigo} saiu com a D-PROD-191`);
+    for (const antigo of ['gmd_aguas', 'gmd_transicao', 'gmd_seca']) assert.ok(!(antigo in c), `${antigo} saiu com a D-PROD-194`);
 
     const banco = await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } });
     assert.equal(banco.cliente_id, clienteId, 'tenant gravado a partir da sessão');
@@ -130,7 +130,7 @@ describe('D-PROD-191 — Curvas de Ganho mensais: criação, leitura e formato p
   });
 });
 
-describe('D-PROD-191 — Curvas de Ganho mensais: validação do corpo', () => {
+describe('D-PROD-194 — Curvas de Ganho mensais: validação do corpo', () => {
   test('obrigatórios na criação: empresa_id, nome e cada um dos 12 GMD → 400; chave fora do schema (cliente_id, categoria, GMD por estação) → 400', async () => {
     const { token, clienteId, e1 } = await cenario();
     for (const campo of ['empresa_id', 'nome', ...MESES]) {
@@ -182,7 +182,7 @@ describe('D-PROD-191 — Curvas de Ganho mensais: validação do corpo', () => {
   });
 });
 
-describe('D-PROD-191 — Curvas de Ganho mensais: edição, exclusão e escopo', () => {
+describe('D-PROD-194 — Curvas de Ganho mensais: edição, exclusão e escopo', () => {
   test('PATCH altera só o enviado (um mês, nome, ativo, observações null); os outros 11 meses ficam; sem empresa_id ou só empresa_id → 400', async () => {
     const { token, e1 } = await cenario();
     const c = (await criar(token, base(e1.id, { observacoes: 'x' }))).json();
@@ -265,7 +265,7 @@ describe('D-PROD-189 — Curvas de Ganho: permissão da tela pec-curvas-ganho', 
   });
 });
 
-describe('D-PROD-191 — CADCURVAGANHO no banco: nome físico, colunas mensais, CHECK e RLS', () => {
+describe('D-PROD-194 — CADCURVAGANHO no banco: nome físico, colunas mensais, CHECK e RLS', () => {
   test('a tabela física chama "CADCURVAGANHO", tem RLS ligado, as 12 colunas gmd_* mensais (e nenhuma por estação) e o CHECK da faixa barra escrita direta em QUALQUER mês', async () => {
     const { clienteId, e1 } = await cenario();
     const [tabela] = await prisma().$queryRaw`SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'CADCURVAGANHO' AND relkind = 'r'`;

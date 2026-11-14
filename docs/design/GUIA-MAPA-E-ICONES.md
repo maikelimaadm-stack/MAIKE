@@ -6,13 +6,15 @@ Este documento é um índice dos arquivos reais do sistema. As tabelas indicam *
 
 | Quero mudar | Arquivo e ponto de edição |
 | --- | --- |
+| Ícone do lote (gado): cores, bordas, tamanho por faixa, mistos, desenhos | `src/assets/icones/lotes/` → constantes no topo de `animais.js`, `mistos.js` e `quadradinho.js` (guia: `src/assets/icones/lotes/README.md`) |
 | Cor, espessura e preenchimento do cocho | `src/assets/icones/cocho-descoberto.js` → `COCHO_APARENCIA` |
 | Desenho do cocho | Mesmo arquivo → `COCHO_DESCOBERTO_FORMA` |
 | Desenho do depósito | `src/assets/icones/deposito-sal.js` → `MODELO`, `CORPO`, `desenhoAjustado` |
 | Bolinha branca e ponteira de cocho/depósito | `cocho-descoberto.js` → `envolverMarcadorSvg` |
-| Tamanho dos bois, cochos, depósitos e tarefas no mapa | `src/components/mapa/useMapRenderer.jsx` → `baseSize` nas funções `syncLotes`, `syncPontosSuplementacao`, `syncTarefas` |
+| Tamanho dos bois no mapa | `src/assets/icones/lotes/quadradinho.js` → `LARGURA_MARCADOR_PX` (44) |
+| Tamanho dos cochos, depósitos e tarefas no mapa | `src/components/mapa/useMapRenderer.jsx` → `baseSize` nas funções `syncPontosSuplementacao`, `syncTarefas` |
 | Número de cabeças: tamanho da letra | `src/lib/maplibre/contagemLote.js` → `FONTE_CONTAGEM_PX` |
-| Número de cabeças: posição e cor | `useMapRenderer.jsx` → criação de `cont` em `syncLotes` (`top:69%`, `left:50%`, `color:#6b7280`) |
+| Número de cabeças: posição e cor | Altura: centro da faixa reservada à contagem, `CONTAGEM_TOPO_PCT` (`src/assets/icones/lotes/index.js`, calculado de `CARD_FRAC` e `FAIXA_CONTAGEM`). Cor e centro na horizontal: o `badge` em `syncLotes` (`left:50%`, `color:#6b7280`) |
 | Avisos dos bois no canto superior direito | `useMapRenderer.jsx` → `ind.style.cssText` em `syncLotes` |
 | Nomes dos pastos e hectares: tamanho | `src/lib/maplibre/mapaGeralRender.js` → `fontesRotuloPorZoom` |
 | Nomes dos pastos: aparência e posição | `useMapRenderer.jsx` → `syncLabels` e atualização dos rótulos |
@@ -32,6 +34,7 @@ Há três fontes. Não existe um único arquivo com todas as imagens.
 
 | Ícone | Onde editar |
 | --- | --- |
+| Lote (gado), por sexo + faixa de idade, e os mistos | `src/assets/icones/lotes/` (D-PROD-191) |
 | Cocho com nível | `src/assets/icones/cocho-descoberto.js` |
 | Depósito com nível | `src/assets/icones/deposito-sal.js` |
 | Manejos: pesar, nascimento, saída, morte, juntar/mover lotes, mudar categoria e históricos | `src/components/mapa/IconesManejoEnviados.jsx` (SVGs em componentes React) |
@@ -46,13 +49,17 @@ Existem imagens em `public/icons/`. Antes de substituir uma delas, procure quem 
 
 Tela: `src/pages/ConfiguracoesGerais.jsx`; componente: `src/components/configuracoes/GerenciadorIcones.jsx`.
 
-Campos principais: `tipo_entidade`, `categoria`, `icone_url`, `sub_icone_url`, `cor_padrao` e `categorias_misto`. A imagem é enviada e a URL fica no cadastro; não é necessariamente um SVG dentro do repositório.
+Campos principais: `tipo_entidade`, `categoria`, `icone_url`, `sub_icone_url` e `cor_padrao`. A imagem é enviada e a URL fica no cadastro; não é necessariamente um SVG dentro do repositório. O campo `categorias_misto` só servia ao Lote e saiu da tela.
+
+**Lote não é mais cadastrado aqui (D-PROD-191).** O gerenciador oferece Ponto, Área, Linha, Prioridade de Tarefa e Ícone do Menu Mobile. As linhas antigas de `tipo_entidade = 'Lote'` continuam no banco, órfãs e sem uso; a limpeza é outra fatia.
 
 Para trocar uma imagem cadastrada, use o gerenciador e salve o registro. Não coloque uma URL nova em uma lista aleatória do código: o mapa escolhe o cadastro pelas funções de resolução.
 
+**Categoria: sugestão ou texto livre (D-PROD-192).** A categoria é escolhida no Select (as sugestões do tipo, em `CATEGORIAS_SUGERIDAS`) ou digitada em "OU DIGITE UMA NOVA CATEGORIA", e é salva em maiúsculas. O Select só recebe valor que é uma das sugestões (`sugestaoDaCategoria`, sem diferença de maiúsculas): o `<select>` nativo oculto do Radix responde `""` para valor fora das opções, e isso apagava o texto digitado.
+
 Quem escolhe a imagem no mapa: `src/lib/maplibre/mapaGeralRender.js`:
 
-- `resolverIconeLote`: procura ícones do tipo `Lote` pela categoria. Para categorias misturadas usa a categoria `MISTO` e a combinação de `categorias_misto`.
+- `resolverIconeLote`: não lê mais o cadastro. Chama a cascata do código (`resolverFiguraDoPasto`, em `src/assets/icones/lotes/index.js`) e sempre devolve um desenho.
 - `resolverIconePonto`: usa o vínculo do ponto com a configuração ou sua categoria/tipo.
 - `resolverIconeTarefa`: procura `Prioridade Tarefa` e usa `CORES_PRIORIDADE` para a cor de fallback.
 - `resolverIconeSuplementacao`: cochos e depósitos usam os SVGs dinâmicos embutidos. Enviar outro ícone pelo gerenciador não substitui essa geometria dinâmica.
@@ -64,14 +71,12 @@ O serviço desse cadastro é `src/services/configuracaoIconeService.js`.
 Há também um catálogo oficial, separado dos desenhos embutidos e do gerenciador de configurações.
 
 - Administração das imagens oficiais: `apps/admin/src/telas/Icones.jsx`.
-- Leitura no aplicativo: `src/services/catalogoGlobalService.js`.
-- Prévia da categoria oficial no lote: `src/components/catalogoGlobal/IconeOficialLotePreview.jsx`.
-- O vínculo da categoria de manejo usa `catalogo_categoria_visual_id`.
+- O aplicativo não lê mais o catálogo: a Fatia D (D-PROD-187) apagou o vínculo `catalogo_categoria_visual_id` da Categoria de Manejo, o seletor do cadastro e o leitor do catálogo no aplicativo.
 - O backend desse catálogo fica em `backend/src/modules/catalogoGlobal/`.
 
-As imagens publicadas são assets com URLs versionadas. Para trocar a imagem oficial, use a administração do catálogo e seu fluxo de publicação. Não edite migrations antigas ou URLs históricas para trocar uma imagem. A prévia oficial tem cache de 60 segundos.
+As imagens publicadas são assets com URLs versionadas. Para trocar a imagem oficial, use a administração do catálogo e seu fluxo de publicação. Não edite migrations antigas ou URLs históricas para trocar uma imagem.
 
-**Importante:** a prévia do ícone oficial no cadastro do lote e o marcador do Mapa Geral não são a mesma função. No mapa, confira primeiro `resolverIconeLote`: ele resolve a lista `iconesConfig`. Alterar a prévia oficial não prova, por si só, que o marcador do mapa mudou.
+**O ícone do lote não vem deste catálogo (D-PROD-191).** O marcador do mapa, o subícone dos detalhes e a prévia no cadastro do lote (`src/components/lotes/IconeLotePreview.jsx`) usam os desenhos do código, em `src/assets/icones/lotes/`, sem rede nem cache.
 
 ## 3. Tamanhos e posições dos marcadores
 
@@ -79,12 +84,12 @@ Arquivo: `src/components/mapa/useMapRenderer.jsx`.
 
 | Elemento | Referência no código |
 | --- | --- |
-| Gado/lotes | `baseSize: 44`, em `syncLotes` |
+| Gado/lotes | `LARGURA_MARCADOR_PX` (44), em `src/assets/icones/lotes/quadradinho.js`, usado por `syncLotes` |
 | Cochos e depósitos | `baseSize` de 36, em `syncPontosSuplementacao` |
 | Pontos de referência | `baseSize: 40`, em `syncPontos` |
 | Tarefas | `baseSize: 28`, em `syncTarefas` |
 | Deslocamento do gado em relação ao ponto | `OFFSET_LOTE_PX = [0, -26]` |
-| Contagem dentro do ícone do gado | `left:50%`, `top:69%`, com `translate(-50%,-50%)` |
+| Contagem dentro do ícone do gado | `left:50%`, `top: CONTAGEM_TOPO_PCT%` (centro da faixa reservada, ≈ 73,46%), com `translate(-50%,-50%)` |
 | Avisos no alto à direita do gado | `left:calc(50% + 22px)`, `top:calc(50% - 24px)` |
 | Selo neutro/excesso de suplementação | Função `aplicarTextoESeloSuplementacao` e seu `style.cssText` |
 
@@ -96,12 +101,12 @@ Altere o tamanho tanto na criação quanto na atualização do marcador quando h
 
 Para cocho/depósito, a bolinha está desenhada no próprio SVG de `envolverMarcadorSvg`. Fundo `#fff`, borda `#bbb7b7`, espessura 1. O `path d` inclui a ponteira.
 
-Para um ícone de gado enviado como imagem com moldura, a moldura e a ponteira podem estar **dentro do próprio arquivo enviado**. Alterar a bolinha do cocho não altera a imagem do boi. Confira o SVG/PNG cadastrado antes de mudar CSS.
+O gado tem moldura própria: o "quadradinho" branco com ponteira, em `src/assets/icones/lotes/quadradinho.js` (`QUADRADINHO_SVG`, com `CARD_FRAC` e `FAIXA_CONTAGEM`). Alterar a bolinha do cocho não altera o ícone do boi.
 
 ## 4. Letras, nomes e números
 
 - Cabeças: `FONTE_CONTAGEM_PX = 9.5` em `src/lib/maplibre/contagemLote.js`. A formatação dos milhares também está nesse arquivo.
-- Cor, peso, família e sombra da contagem: `cont.style.cssText` em `syncLotes`.
+- Cor, peso, família e sombra da contagem: `badge.style.cssText` em `syncLotes`.
 - Tamanho de nomes/hectares por zoom: `fontesRotuloPorZoom` em `mapaGeralRender.js`. O código interpola o tamanho conforme o zoom; os hectares ficam menores.
 - Cor, sombra e família dos rótulos de áreas: criação dos elementos em `useMapRenderer.jsx`.
 - Organização/escala dos rótulos: `escalaRotulo` e regras de espaço disponível em `mapaGeralRender.js`/`useMapRenderer.jsx`.
@@ -165,3 +170,5 @@ Imagens trocadas por cadastro/catálogo seguem o fluxo de salvamento/publicaçã
 Confira: números grandes no gado, mistura de categorias, zoom alto/baixo, áreas pequenas, painéis abertos, filtros salvos, níveis cheio/intermediário/vazio e marcadores clicáveis.
 
 Guia específico do cocho/depósito: [src/assets/icones/README.md](../../src/assets/icones/README.md).
+
+Guia específico do ícone do lote: [src/assets/icones/lotes/README.md](../../src/assets/icones/lotes/README.md).

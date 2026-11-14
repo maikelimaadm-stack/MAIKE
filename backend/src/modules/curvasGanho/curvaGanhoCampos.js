@@ -1,5 +1,5 @@
 /**
- * Campos de GMD da Curva de Ganho de Peso (D-PROD-191): um por mês do
+ * Campos de GMD da Curva de Ganho de Peso (D-PROD-194): um por mês do
  * calendário, de janeiro (`gmd_jan`) a dezembro (`gmd_dez`), em kg/dia, de
  * -2 a 3 (negativo = perda de peso). Fica num módulo próprio para o serviço,
  * as rotas e o repositório usarem a MESMA lista sem import circular.

@@ -33,7 +33,7 @@
  *     COLUMN e os RENAME da tabela CategoriaManejo → CADCATEGORIA e dos seus
  *     índices/constraints — todos pinados letra por letra: RENAME continua
  *     PROIBIDO no caminho EXPAND, só existe como texto pinado de uma entrada;
- *     na D-PROD-191, só o DROP TABLE da tabela VAZIA que o resto recria).
+ *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -76,6 +76,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
   // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7): EXPAND só de índices não-únicos em tabelas antigas (LC-2 e keyset de movimentos).
+  '20261113300000_estoque_p1_03_indices': '5d91e751e4e924f94154ddaad603203e0d21ebc0e84fd242c6a2108ea6d28565',
   // D-PROD-188: CADESTACOES (cadastro de Estações da fazenda) — só tabela nova.
   '20261113400000_cadestacoes_cadastro': '5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7',
   // D-PROD-187: CONTRACT aprovado pelo proprietário — DROP COLUMN das 15 colunas dormentes de CategoriaManejo (D-PROD-186)
@@ -83,7 +85,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113500000_categoria_manejo_cadcategoria': '83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c',
   // D-PROD-189: CADCURVAGANHO (cadastro de Curvas de Ganho de Peso) — só tabela nova.
   '20261113600000_cadcurvaganho_cadastro': '137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6',
-  // D-PROD-191: CONTRACT aprovado pelo proprietário — CADCURVAGANHO VAZIA sai e volta com os 12 GMD mensais.
+  // D-PROD-190 (Fatia C): ApontamentoAtividade (execução de uma atividade) — só tabela nova.
+  '20261113700000_apontamento_atividade': 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e',
+  // D-PROD-194: CONTRACT aprovado pelo proprietário — CADCURVAGANHO VAZIA sai e volta com os 12 GMD mensais.
   '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
@@ -112,6 +116,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f',
   // D-PROD-189: RLS/REVOKE de CADCURVAGANHO (mesmo corpo, lista nova).
   'eaafebfa75191f2e77bd59d6a6ecf6af2c33ee86c536c39fe2b0e881cf1680a7',
+  // D-PROD-190 (Fatia C): RLS/REVOKE de ApontamentoAtividade (mesmo corpo, lista nova).
+  '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
 ]);
 
 /**
@@ -186,12 +192,12 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "CADCATEGORIA" RENAME CONSTRAINT "CategoriaManejo_cliente_id_fkey" TO "CADCATEGORIA_cliente_id_fkey"',
     ]),
   }),
-  // D-PROD-191: a Curva de Ganho passa de 3 GMD por estação para 12 GMD mensais. A guarda só
+  // D-PROD-194: a Curva de Ganho passa de 3 GMD por estação para 12 GMD mensais. A guarda só
   // aceita CADCURVAGANHO VAZIA, com as 3 colunas por estação; depois dela, EXATAMENTE o
   // DROP TABLE "CADCURVAGANHO" e, no resto, a mesma tabela recriada (allowlist EXPAND),
   // com o RLS de corpo já aprovado na D-PROD-189. Nenhuma outra tabela é tocada.
   '20261114100000_cadcurvaganho_mensal': Object.freeze({
-    decisao: 'D-PROD-191',
+    decisao: 'D-PROD-194',
     guarda_sha256: '3cd5adc49d6e0cab0e155b190d7c095a419b7ddbb0ef617bc5000bc9bdfb0b6d',
     drop: Object.freeze(['CADCURVAGANHO']),
     literais_guarda: Object.freeze([]),

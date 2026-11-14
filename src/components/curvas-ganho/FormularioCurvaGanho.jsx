@@ -47,7 +47,7 @@ const ajudaDoMes = (/** @type {string} */ texto, /** @type {number} */ dias) => 
 
 /**
  * Formulário do cadastro de Curvas de Ganho de Peso (D-PROD-189; mensal desde a
- * D-PROD-191).
+ * D-PROD-194).
  *
  * Campos, nesta ordem: Nome, os 12 GMD mensais (Jan a Dez), Ativo e
  * Observações. O GMD é em kg/dia, aceita vírgula ou ponto, sinal de menos

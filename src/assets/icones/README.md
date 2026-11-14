@@ -39,7 +39,7 @@ O SVG precisa ter uma área interna que possa ser preenchida. Em um SVG com vár
 - Na função `envolverMarcadorSvg`, no fim de `cocho-descoberto.js`, o primeiro `path` tem `fill="#fff"` (fundo branco), `stroke="#bbb7b7"` (borda) e `stroke-width="1"` (grossura da borda).
 - O caminho `d` desse `path` desenha a bolinha e a ponteira. A moldura é compartilhada com o depósito.
 - Os argumentos padrão `x`, `y`, `width`, `height` dessa função controlam a posição e o tamanho do desenho dentro da bolinha.
-- Em `src/components/mapa/useMapRenderer.jsx`, procure `const baseSize =`: cochos e depósitos usam **36 px**, enquanto lotes usam **44 px**.
+- Em `src/components/mapa/useMapRenderer.jsx`, procure `const baseSize =`: cochos e depósitos usam **36 px**. O lote usa **44 px**, definido em `LARGURA_MARCADOR_PX` (`src/assets/icones/lotes/quadradinho.js`).
 - Em `src/components/mapa/CochoNivel.jsx`, a classe `w-[156px]` controla a largura do subícone nos detalhes.
 
 ## Depósito
@@ -68,6 +68,10 @@ npm run build
 ```
 
 Para uma alteração apenas de cor, mantenha as coordenadas e o cálculo do nível. Para trocar o formato, confira também os níveis cheio, intermediário e vazio, nos dois tamanhos.
+
+## Ícone do lote (gado)
+
+O desenho do lote no mapa e o subícone dos detalhes vêm do código, pela chave sexo + faixa de idade: veja [`lotes/README.md`](./lotes/README.md) para cores, bordas, tamanhos, mistos e como trocar um desenho.
 
 ## Guia geral do mapa
 

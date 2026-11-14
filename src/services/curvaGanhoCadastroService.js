@@ -1,6 +1,6 @@
 /**
  * Service do cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189;
- * mensal desde a D-PROD-191), tabela CADCURVAGANHO.
+ * mensal desde a D-PROD-194), tabela CADCURVAGANHO.
  *
  * GMD (ganho médio diário) em kg/dia para cada mês do calendário, de janeiro a
  * dezembro. A curva não depende das Estações: o mês já diz o GMD. Toda operação

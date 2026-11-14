@@ -1,14 +1,16 @@
 /**
- * D-PROD-191 — a migration CONTRACT `20261114100000_cadcurvaganho_mensal` (a
+ * D-PROD-194 — a migration CONTRACT `20261114100000_cadcurvaganho_mensal` (a
  * Curva de Ganho de Peso troca os 3 GMD por estação, gmd_aguas, gmd_transicao e
  * gmd_seca, por 12 GMD mensais, gmd_jan a gmd_dez) de ponta a ponta, contra
  * PostgreSQL real, em bancos PRÓPRIOS criados e apagados por este teste (o
  * banco da suíte não é tocado).
  *
- * Partida: as 45 migrations da main (todas menos esta CONTRACT; inclui as
+ * Partida: as 47 migrations da main (todas menos esta CONTRACT; inclui as
  * CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187, já concluídas como em
  * produção; a da D-PROD-187 renomeia CategoriaManejo para CADCATEGORIA e não
- * cria nem apaga tabela), pelo Prisma a partir de uma cópia temporária; 82
+ * cria nem apaga tabela; e as EXPAND `20261113300000_estoque_p1_03_indices`,
+ * só índices, e `20261113700000_apontamento_atividade`, D-PROD-190, que cria a
+ * tabela ApontamentoAtividade), pelo Prisma a partir de uma cópia temporária; 83
  * tabelas; CADCURVAGANHO VAZIA com a estrutura por estação; um Cliente e uma
  * Empresa reais.
  *
@@ -19,9 +21,9 @@
  * `cadcurvaganho_mensal:`.
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`) com a conferência de alvo
- * exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-191: 46/0, as 12 colunas
+ * exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194: 48/0, as 12 colunas
  * mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK de
- * -2 a 3, mesmos índices, mesmas 82 tabelas e `migrate diff` vazio. Sem a
+ * -2 a 3, mesmos índices, mesmas 83 tabelas e `migrate diff` vazio. Sem a
  * decisão exata, num banco à parte, o runner recusa antes de qualquer DDL.
  *
  * As funções seguem as do ensaio da D-PROD-183
@@ -47,7 +49,7 @@ const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME_CONTRACT = '20261114100000_cadcurvaganho_mensal';
-const DECISAO = 'D-PROD-191';
+const DECISAO = 'D-PROD-194';
 const CONTRACTS_ANTERIORES = Object.freeze(['20261110300000_patrimonio_simplifica', '20261113200000_tipo_tarefa_drop_colunas', '20261113500000_categoria_manejo_cadcategoria']);
 const BANCO = 'maike_ccg_mensal_teste';
 /** Banco à parte para a recusa sem MIGRATION_CONTRACT_AUTORIZADO (o principal já terá aplicado a CONTRACT). */
@@ -91,7 +93,7 @@ const SQL_INTRUSOS = `SELECT n FROM (
 /** Recusa (lança) qualquer URL que não seja desta máquina. Nunca devolve nem imprime a URL. */
 const exigirUrlLocal = (url) => {
   const motivo = motivoAlvoProtegido({}, url);
-  if (!url || motivo) throw new Error(`teste D-PROD-191: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
+  if (!url || motivo) throw new Error(`teste D-PROD-194: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
   return url;
 };
 /** Mesma URL, outro banco lógico. */
@@ -122,7 +124,7 @@ const ambienteBase = () => {
 };
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
-/** As 45 migrations anteriores (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária. */
+/** As 47 migrations anteriores (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária. */
 const aplicarMigrationsAnteriores = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-ccg-mensal-main-'));
   try {
@@ -130,7 +132,7 @@ const aplicarMigrationsAnteriores = async (url) => {
     for (const d of readdirSync(MIGRATIONS)) if (d !== NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
-    if (r.status !== 0) throw new Error(`teste D-PROD-191: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
+    if (r.status !== 0) throw new Error(`teste D-PROD-194: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
     return r;
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -175,8 +177,8 @@ const retrato = async (db) => ({
 
 /** Cliente e Empresa reais (as FKs da curva valem: nada de session_replication_role). */
 const semear = async (db) => {
-  await db.$executeRawUnsafe(`INSERT INTO public."Cliente" (id, codigo, nome, "updatedAt") VALUES ('${CLIENTE}', '${CLIENTE}', 'Cliente de ensaio D-PROD-191', now())`);
-  await db.$executeRawUnsafe(`INSERT INTO public."Empresa" (id, cliente_id, numero_empresa, apelido, nome, "updatedAt") VALUES ('${EMPRESA}', '${CLIENTE}', 1, 'Fazenda 1', 'Fazenda de ensaio D-PROD-191', now())`);
+  await db.$executeRawUnsafe(`INSERT INTO public."Cliente" (id, codigo, nome, "updatedAt") VALUES ('${CLIENTE}', '${CLIENTE}', 'Cliente de ensaio D-PROD-194', now())`);
+  await db.$executeRawUnsafe(`INSERT INTO public."Empresa" (id, cliente_id, numero_empresa, apelido, nome, "updatedAt") VALUES ('${EMPRESA}', '${CLIENTE}', 1, 'Fazenda 1', 'Fazenda de ensaio D-PROD-194', now())`);
 };
 
 /** Uma curva no schema mensal; `gmd` sobrescreve meses (o resto vale 0,5). */
@@ -279,14 +281,14 @@ after(async () => {
   await encerrar();
 });
 
-describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD mensais (PostgreSQL real)', () => {
-  test('CM-01 partida: 45 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas), 82 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
+describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD mensais (PostgreSQL real)', () => {
+  test('CM-01 partida: 47 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas), 83 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
     const h = await historico(db);
-    assert.equal(h.concluidas, 45);
+    assert.equal(h.concluidas, 47);
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 3);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 82);
+    assert.equal(partida.tabelas, 83, 'as 83 da main (com ApontamentoAtividade, D-PROD-190)');
     assert.deepEqual(partida.colunas, [...COLUNAS_ANTES]);
     assert.equal(partida.curvas, 0);
     assert.deepEqual(partida.indices, [...INDICES]);
@@ -298,7 +300,7 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
   });
 
   for (const cenario of CENARIOS_RED) {
-    test(`CM-02 ${cenario.id}: a guarda recusa (cadcurvaganho_mensal:) e NADA muda (colunas por estação, mesma tabela, histórico 45, migration aberta → resolvida)`, async () => {
+    test(`CM-02 ${cenario.id}: a guarda recusa (cadcurvaganho_mensal:) e NADA muda (colunas por estação, mesma tabela, histórico 47, migration aberta → resolvida)`, async () => {
       await cenario.preparar(db);
       let r;
       let antes;
@@ -318,12 +320,12 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
       assert.match(r.saida, cenario.esperado);
       assert.deepEqual(antes.colunas, cenario.colunasPreparadas ?? [...COLUNAS_ANTES]);
       assert.deepEqual(depois, antes, 'nenhuma coluna, linha, índice ou política mudou; a tabela é a mesma (oid)');
-      assert.equal(hist.concluidas, 45);
+      assert.equal(hist.concluidas, 47);
       assert.equal(hist.contract_concluida, 0);
       assert.equal(hist.contract_aberta, 1, 'a linha da migration fica com finished_at NULL');
       assert.equal(resolvida?.status, 0, resolvida?.saida);
       const h = await historico(db);
-      assert.equal(h.concluidas, 45);
+      assert.equal(h.concluidas, 47);
       assert.equal(h.contract_aberta, 0);
       assert.deepEqual(await intrusos(db), [], 'o objeto do cenário foi removido');
       assert.deepEqual(await retrato(db), partida, 'o cenário foi desfeito por inteiro');
@@ -331,7 +333,7 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     });
   }
 
-  test('CM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-191): 46/0, as 12 colunas mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK, índices e migrate diff vazio', async () => {
+  test('CM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194): 48/0, as 12 colunas mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK, índices e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
@@ -340,7 +342,7 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, 46);
+    assert.equal(h.concluidas, 48);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
 
@@ -348,7 +350,7 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.deepEqual(depois.colunas, [...COLUNAS_DEPOIS]);
     for (const c of COLUNAS_ESTACAO) assert.ok(!depois.colunas.includes(c), `${c} saiu`);
     assert.equal(depois.curvas, 0, 'a tabela volta vazia');
-    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (82)');
+    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (83)');
     assert.notEqual(depois.seguranca.oid, partida.seguranca.oid, 'a tabela foi recriada');
     assert.equal(depois.seguranca.rls, true, 'RLS ligado');
     assert.equal(depois.seguranca.force, false, 'sem FORCE');
@@ -375,7 +377,7 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.equal(diff.status, 0, diff.saida);
   });
 
-  test('CM-04 runner com a conferência de alvo exigida e SEM a decisão exata (banco à parte, 45 migrations) → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando D-PROD-191 antes de qualquer DDL', async () => {
+  test('CM-04 runner com a conferência de alvo exigida e SEM a decisão exata (banco à parte, 47 migrations) → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando D-PROD-194 antes de qualquer DDL', async () => {
     const p = getPrismaClient();
     await p.$executeRawUnsafe(`CREATE DATABASE ${BANCO_SEM_AUTORIZACAO}`);
     await aplicarMigrationsAnteriores(URL_S);
@@ -385,20 +387,21 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
       assert.deepEqual(partidaS.colunas, [...COLUNAS_ANTES]);
       const sid = await sistema(dbS);
       const linhasAntes = (await historico(dbS)).total;
-      // D-PROD-190 é o número antigo desta CONTRACT (hoje reservado à PR #269): também tem de ser recusado.
-      for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-183' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-187' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-190' }]) {
+      // D-PROD-190 e D-PROD-191 são os números antigos desta CONTRACT (hoje da PR #269, Apontamento de Atividade, e da
+      // PR #271, ícones de lote): também têm de ser recusados.
+      for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-183' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-187' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-190' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-191' }]) {
         const r = await aplicarPeloRunner(URL_S, { runtime: URL_S, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, ...extra } });
         assert.equal(r.status, 1, r.saida);
         assert.match(r.saida, /alvo conferido nas duas conexões/);
         assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
         assert.ok(r.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), r.saida);
-        for (const anterior of CONTRACTS_ANTERIORES) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-191 pende`);
+        for (const anterior of CONTRACTS_ANTERIORES) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-194 pende`);
         assert.match(r.saida, /Nenhuma migration foi executada/);
         assert.ok(!vazou(r.saida, URL_S));
       }
       const h = await historico(dbS);
       assert.equal(h.total, linhasAntes, 'nenhuma linha nova no histórico');
-      assert.equal(h.concluidas, 45);
+      assert.equal(h.concluidas, 47);
       assert.deepEqual(await retrato(dbS), partidaS, 'nada mudou');
     } finally {
       await dbS.$disconnect();
@@ -411,6 +414,6 @@ describe('D-PROD-191 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
-    assert.equal((await historico(db)).concluidas, 46);
+    assert.equal((await historico(db)).concluidas, 48);
   });
 });

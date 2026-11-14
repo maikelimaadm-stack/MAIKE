@@ -1,6 +1,6 @@
 /**
  * Cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189; mensal desde a
- * D-PROD-191), tabela CADCURVAGANHO.
+ * D-PROD-194), tabela CADCURVAGANHO.
  *
  * Formulário: Nome, os 12 GMD mensais (Jan a Dez), Ativo e Observações, nesta
  * ordem. GMD em kg/dia com vírgula ou ponto, sinal de menos (perda de peso) e

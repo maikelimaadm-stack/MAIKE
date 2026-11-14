@@ -104,7 +104,7 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * vazia; um banco LOCAL com CategoriaManejo de rodadas antigas pode não estar.
  * As mensagens começam com `categoria_manejo_cadcategoria:`. Mesmo remédio.
  *
- * D-PROD-191: a migration CONTRACT da Curva de Ganho apaga e recria a tabela
+ * D-PROD-194: a migration CONTRACT da Curva de Ganho apaga e recria a tabela
  * CADCURVAGANHO (12 GMD mensais no lugar dos 3 por estação) e só a aceita
  * VAZIA, com a estrutura por estação. A CI nasce vazia e não é afetada; um
  * banco LOCAL com curvas de rodadas antigas em CADCURVAGANHO (estrutura por
@@ -123,7 +123,7 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'antigas com valor em alguma das 16 colunas apagadas (raca, categoria_oficial, ganho_peso_anual_kg, gmd_*, ' +
   'catalogo_categoria_visual_id) ou algum objeto de fora na tabela; a mensagem da guarda diz o motivo exato. ' +
   'Recriar o banco local também resolve. ' +
-  'Se cita cadcurvaganho_mensal (a CONTRACT da D-PROD-191), o mais provável é o banco local ter curvas de ganho ' +
+  'Se cita cadcurvaganho_mensal (a CONTRACT da D-PROD-194), o mais provável é o banco local ter curvas de ganho ' +
   'de rodadas antigas em CADCURVAGANHO (estrutura por estação: gmd_aguas, gmd_transicao, gmd_seca), e a guarda só ' +
   'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve.';
 

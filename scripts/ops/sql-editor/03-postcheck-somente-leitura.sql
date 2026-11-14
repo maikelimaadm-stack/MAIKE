@@ -10,6 +10,9 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
+    -- D-PROD-190 (Fatia C): o apontamento de atividade sai PRIMEIRO — referencia a tarefa, o tipo e o grupo de atividade,
+    -- o bem e o implemento, a área, os centros, os usuários e a empresa; nenhuma tabela o referencia.
+    'ApontamentoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.

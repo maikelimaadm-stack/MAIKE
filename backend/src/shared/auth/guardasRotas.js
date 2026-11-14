@@ -288,6 +288,16 @@ export const GUARDAS = Object.freeze({
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).
   curvaGanho: { ...cadastro(T.CURVAS_GANHO), ver: porTela(T.CURVAS_GANHO, 'visualizar') },
+  // D-PROD-190 — Apontamento de Atividade: o esquema do cadastro (criar =
+  // novo|salvar; editar = editar|salvar). Sem DELETE físico: cancelar é a
+  // ação `excluir` da tela. Leitura e seletores = visualizar DESTA tela (dado
+  // operacional da fazenda; não dependem das telas de bens nem de centros).
+  apontamentoAtividade: {
+    ver: porTela(T.APONTAMENTOS_ATIVIDADE, 'visualizar'),
+    criar: cadastro(T.APONTAMENTOS_ATIVIDADE).criar,
+    editar: cadastro(T.APONTAMENTOS_ATIVIDADE).editar,
+    cancelar: cadastro(T.APONTAMENTOS_ATIVIDADE).excluir,
+  },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
   anexo: { criar: porQualquer(...LOTES_GRAVAR), excluir: porQualquer([T.LOTES, 'excluir']) },

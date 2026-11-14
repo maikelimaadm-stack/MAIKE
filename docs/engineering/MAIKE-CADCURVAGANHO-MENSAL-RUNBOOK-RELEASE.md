@@ -1,4 +1,4 @@
-# MAIKE — Curva de Ganho mensal: runbook de release CONTRACT (D-PROD-191)
+# MAIKE — Curva de Ganho mensal: runbook de release CONTRACT (D-PROD-194)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 >
@@ -6,7 +6,7 @@
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
 > na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-191](./DECISIONS.md) · Relatório:
+Decisão: [D-PROD-194](./DECISIONS.md) · Relatório:
 [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md).
 Precedentes executados: [`MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) §7
 (mesmo formato, caminho B) e [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md)
@@ -23,8 +23,8 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md`](./MAIKE-CADCU
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c` |
 | Guarda pinada (`MIGRATIONS_CONTRACT_APROVADAS`) | `3cd5adc49d6e0cab0e155b190d7c095a419b7ddbb0ef617bc5000bc9bdfb0b6d`; `drop = ["CADCURVAGANHO"]`, sem `alter_antigas` |
 | Hash do DO de RLS | `eaafebfa75191f2e77bd59d6a6ecf6af2c33ee86c536c39fe2b0e881cf1680a7` (o mesmo da D-PROD-189, já aprovado) |
-| `_prisma_migrations` | em 2026-11-14 00:45 UTC: **46** concluídas, 0 abertas — as 45 da `main` (inclui a Fatia D, `20261113500000_categoria_manejo_cadcategoria`, aplicada às 00:37) e a `20261113700000_apontamento_atividade` da PR #269, já aplicada mas ainda fora da `main`; depois **47**. Recontar no §2 se algo mais for aplicado antes |
-| Tabelas em `public` | **83** antes e depois (82 do repositório + a do Apontamento, PR #269) |
+| `_prisma_migrations` | em 2026-11-14 01:30 UTC: **47** concluídas, 0 abertas, exatamente as 47 da `main` (inclui a Fatia D `…500000`, aplicada às 00:37, o Estoque P1-03 `…300000`, às 01:09, e o Apontamento `…700000`); depois **48**. Recontar no §2 se algo mais for aplicado antes |
+| Tabelas em `public` | **83** antes e depois (as mesmas do repositório) |
 
 **Janela entre a aplicação e o deploy.** A produção roda o código da D-PROD-189,
 que lê `gmd_aguas`, `gmd_transicao` e `gmd_seca`. Do `COMMIT` até a `main` nova
@@ -60,9 +60,9 @@ nada**: confira pelo §4, espere e peça novo GO.
   mesmo banco. Por ser CONTRACT, a release é **isolada** (esta é a única
   migration nova) e exige a decisão exata:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # análise local: CONTRACT D-PROD-191
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-191
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-191   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-191
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # análise local: CONTRACT D-PROD-194
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-194
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-194   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194
   ```
 - **B — conector Supabase, uma única `execute_sql` (§3):** só com autorização
   **escrita e específica do proprietário para esta migration**, registrada como
@@ -80,13 +80,13 @@ SELECT count(*) FROM "CADCURVAGANHO";                          -- 0 (senão: REL
 SELECT string_agg(column_name, ',' ORDER BY column_name) FROM information_schema.columns
  WHERE table_schema = 'public' AND table_name = 'CADCURVAGANHO' AND column_name LIKE 'gmd%';
                                                                -- gmd_aguas,gmd_seca,gmd_transicao
-SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 83 (com o Apontamento da PR #269)
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 83
 ```
 
 E, localmente, no `<SHA_APROVADO>`:
 `sha256sum backend/prisma/migrations/20261114100000_cadcurvaganho_mensal/migration.sql`
 igual ao pinado, e o classificador (`classificarMigrations`) com `modo: CONTRACT`,
-`contract[0].decisao = "D-PROD-191"`, `tabelas_removidas = ["CADCURVAGANHO"]`,
+`contract[0].decisao = "D-PROD-194"`, `tabelas_removidas = ["CADCURVAGANHO"]`,
 `tabelas_novas = ["CADCURVAGANHO"]` e `violacoes: []`.
 
 ## 3. Caminho B — uma transação
@@ -147,7 +147,7 @@ SELECT policyname, roles FROM pg_policies WHERE tablename = 'CADCURVAGANHO';  --
 SELECT has_table_privilege('anon', 'public."CADCURVAGANHO"', 'SELECT'),
        has_table_privilege('authenticated', 'public."CADCURVAGANHO"', 'SELECT');  -- f, f
 SELECT count(*) FROM "CADCURVAGANHO";                          -- 0
-SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 83 (com o Apontamento da PR #269)
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 83
 ```
 
 Mais: `get_advisors` (segurança) sem alerta novo para `CADCURVAGANHO`.

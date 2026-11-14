@@ -4,6 +4,7 @@ import {
   Briefcase,
   Building2,
   ChevronRight,
+  ClipboardCheck,
   CloudSun,
   Coins,
   Droplet,
@@ -53,6 +54,8 @@ export const ICONE_TELA = {
   LocaisEstoque: Warehouse,
   TiposTarefa: ListChecks,
   TiposAtividade: ListChecks,
+  // D-PROD-190 — Apontamentos de Atividade (a execução; ClipboardCheck ≠ ListChecks dos tipos).
+  ApontamentosAtividade: ClipboardCheck,
   GruposAtividades: Folder,
   Empresa: Building2,
   Usuarios: Users,

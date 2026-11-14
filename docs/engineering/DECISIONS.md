@@ -6690,6 +6690,64 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
 
+## D-PROD-185 — Estoque P1-03: índices M7 EXPAND-ONLY (LC-2 e keyset); R2-2 adiado por falta de consumidor
+
+**Contexto.** O contrato do Estoque P1 (§2 M7, §6.5, §7) põe na P1-03 os índices LC-2 (recibos), R2-2 (AuditLog por produto) e o keyset de movimentos, só com DDL EXPAND e com runbook e GO antes do merge.
+
+**Decisões.**
+1. **Migration nova** `20261113300000_estoque_p1_03_indices`, EXPAND, só `CREATE INDEX` comum, não-único, em tabelas existentes, sem `CONCURRENTLY`. Fica pinada em `MIGRATIONS_APROVADAS`. O número desta decisão fica **fora** do `.sql`.
+   - Numa transação só, as escritas nas duas tabelas esperam até o COMMIT.
+   - A ordem recibos → movimentos é a dos comandos, sem ciclo de espera (runbook §0).
+   - `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`: LC-2. O consumidor é `recibosNosIntervalos`, com `tipo_operacao = ANY(...)` e intervalo de `createdAt`.
+   - `MovimentacaoEstoque(cliente_id, empresa_id, data_movimentacao DESC, id DESC)`, com nome `MovimentacaoEstoque_keyset_empresa_idx`: keyset da central de movimentos da P1-04 (§6.3).
+2. **R2-2 não é criado.**
+   - A busca de evidência de exclusão filtra o produto depois do `LIMIT`, sobre colunas derivadas por `objeto()`. Nenhum índice de expressão sobre `dados_anteriores`/`dados_novos` casa com ela.
+   - Medido: o candidato não é usado.
+   - O índice fecha **junto** com a reescrita dessa busca, que é mudança de consulta, em slice próprio. Até lá, o M7 está incompleto nesse item.
+3. **`(cliente_id, empresa_id)` de `MovimentacaoEstoque` fica**, embora seja prefixo do keyset. Remoção é CONTRACT e pede decisão própria.
+4. **Ensaios das CONTRACT D-PROD-162/183** contam as migrations pela pasta (`TOTAL_MIGRATIONS`, `MIGRATIONS_PARTIDA`), em vez de números fixos.
+5. **Release:** GO-1 (preflight só leitura, `estoque-p1-03-preflight-indices-somente-leitura.sql`, mais `--verificar-alvo`) → GO-2 (`premerge-migrate --aplicar`, sem `--contract`) → postcheck → merge manual.
+   - Nenhum GO foi concedido.
+   - A D-PROD-183 já está aplicada. Se o preflight disser o contrário, PARAR.
+
+**Nota posterior (R1 da PR #263).**
+- **Provado com `prisma migrate deploy` 6.19.3 real** (ensaio `scripts/dev/ensaio-p1-03-transacao-migration.mjs` e teste `estoqueP1M7TransacaoMigration`):
+  - o `migration.sql` vai numa só mensagem e roda como uma transação implícita;
+  - falha no 2º índice não deixa o 1º;
+  - as duas travas `SHARE` ficam até o COMMIT;
+  - `lock_timeout` nas `options` da URL de migration faz o deploy desistir sem efeito. Isso foi provado em conexão **direta**; via pooler não está provado, e o GO-2 exige conexão direta ou `SHOW lock_timeout` pela mesma URL;
+  - o retry com migration falhada pendente recusa com P3009.
+- **Preflight:** ganha `veredito.estado` (fail-closed) e separa falhadas pendentes de revertidas no histórico.
+  - Nome ocupado por qualquer relação → `PARAR`.
+  - `JA_APLICADA` só com as definições exatas, válidas e na tabela certa.
+- **Recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio.
+- **R2-2:** o adiamento continua sinalizado para decisão do proprietário.
+
+**Nota posterior (R2 da PR #263, 2026-11-13).**
+- **GO-1 #1 encerrado sem passar.** O preflight em produção deu `SEGUIR`, mas havia 43 concluídas com a `20261113400000_cadestacoes_cadastro` fora do repositório; a parada foi manual. Defeito reproduzido localmente: o veredito antigo dava `SEGUIR` com a base incompleta ou com migration desconhecida.
+- **Preflight:** confere o histórico, por nome, contra a lista fixa `base_release` (44 migrations da main `cf07309c`, com a CADESTACOES e a CADCURVAGANHO).
+  - `SEGUIR` exige exatamente a base; `JA_APLICADA`, a base + a P1-03.
+  - Base incompleta, migration desconhecida, nome duplicado ou falhada → `PARAR`.
+  - Checksum continua com o `premerge-migrate --verificar-alvo`.
+- **Ordem:** a P1-03 tem carimbo anterior às duas, mas entra por último em produção. As duas ordens foram provadas equivalentes em PostgreSQL real:
+  - mesmo schema e sem drift;
+  - o runner aceita a P1-03 pendente depois delas;
+  - o nome e o SHA-256 da P1-03 ficam.
+- **R2-2:** o proprietário **aprovou o adiamento** até um slice que reescreva a consulta de auditoria por produto e demonstre o uso efetivo do índice. O índice **não** foi criado; o M7 segue parcial, com LC-2 e keyset prontos.
+- **I2** da P1-02 segue pendente, fora daqui.
+
+**Nota posterior (R3 da PR #263, 2026-11-14).**
+- O GO-1 #2 parou corretamente: o preflight deu `PARAR` porque a produção tinha a migration do Apontamento (PR #269, D-PROD-190) fora da base.
+- Com a main `b46bb184` integrada, a base da release passa a 46: as 45 pastas da main sem a P1-03, mais a do Apontamento, aplicada antes do merge da PR dela.
+- A aplicação, se autorizada, vai pelo caminho B (exceção à D-PROD-74, só com GO escrito do proprietário). O envelope tem guarda de conjunto exato e foi ensaiado localmente (runbook §4.5).
+- **Aplicada em produção em 2026-11-14** pelo caminho B, com o GO do proprietário:
+  - preflight `SEGUIR` com 46;
+  - envelope sha256 `7d3eddd8…a4ea1a`;
+  - postcheck `JA_APLICADA` com 47, checksum pinado e os 2 índices válidos.
+  - Desvio da D-PROD-74 registrado aqui, como nas releases anteriores (runbook §7).
+
+**Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
+
 ## D-PROD-186 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-185`, mas a PR #263 (Estoque P1-03, em rascunho) já usa a D-PROD-185. Para não duplicar, esta decisão é a **D-PROD-186**, e a **D-PROD-187** fica reservada para a Fatia D (DROP + nome físico `CADCATEGORIA`).
@@ -6862,13 +6920,120 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md).
 
-**Revista pela D-PROD-191 (2026-11-14):** o GMD passa a ser mensal (12 meses, do calendário) e a curva deixa de depender das Estações. A PR #270 foi mergeada em `cf07309c` (2026-11-13) e a produção foi conferida: `/health` com `release` = `cf07309c`, `/api/native/curvas-ganho` → 401.
+**Revista pela D-PROD-194 (2026-11-14):** o GMD passa a ser mensal (12 meses, do calendário) e a curva deixa de depender das Estações. A PR #270 foi mergeada em `cf07309c` (2026-11-13) e a produção foi conferida: `/health` com `release` = `cf07309c`, `/api/native/curvas-ganho` → 401.
 
 **Nota de aplicação (2026-11-13).** A migration `20261113600000_cadcurvaganho_cadastro` foi aplicada em produção às 23:18:10 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral do commit `5ebf64a8` e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**. GO escrito do proprietário: "Autorizo" / "Pode aplicar" / "mande de novo". É um desvio da D-PROD-74 só para esta migration, não precedente. Conferência: 44/0 migrations, 82 tabelas, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. A Fatia D (PR #268) continua pendente; a guarda dela passa a contar 44. Registro no §7 do runbook.
 
-## D-PROD-191 — Curva de Ganho de Peso por mês: 12 GMD mensais em `CADCURVAGANHO`, sem ligação com as Estações (revê a D-PROD-189)
+## D-PROD-190 — Apontamento de Atividade: a execução da atividade (Fatia C do apontamento)
 
-> **Numeração:** nasceu como D-PROD-190, mas a `main` passou a reservar a D-PROD-190 para a PR #269 (Apontamento de Atividade) e indicar `Próxima decisão: D-PROD-191`. Esta decisão é a **D-PROD-191**. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então o checksum não mudou.
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário (Fatia C, "ApontamentoAtividade"), depois da Fatia LIMPEZA aplicada (D-PROD-183) · **Branch:** `feat/apontamento-atividade`
+
+> **Numeração:** a especificação e os primeiros commits da branch usavam a D-PROD-184, que a `main` já deu ao Estoque P1-02; depois a branch usou a D-PROD-188, que a `main` deu às Estações (PR #265, mergeada durante esta fatia, com a migration já aplicada em produção). O caminho foi 184 → 188 → 190: D-PROD-184 é o Estoque P1-02, D-PROD-185 o Estoque P1-03 (PR #263), D-PROD-186 a Categoria de Manejo enxuta, D-PROD-187 a Fatia D da Categoria de Manejo (PR #268), D-PROD-188 as Estações (PR #265) e D-PROD-189 as Curvas de Ganho (PR #270). Depois da aplicação desta migration a `main` recebeu as PRs **#270**, **#268**, **#267** (só testes) e **#263**, todas mergeadas, com as migrations delas já aplicadas em produção. Esta decisão é a **D-PROD-190**, que a `main` reserva para a PR #269. O `migration.sql` não cita número de decisão, para que renumerar nunca mude o checksum aplicado. A "Fatia D" do apontamento (itens) é outra coisa e tem número próprio: a D-PROD-191 é da PR #271, e a **D-PROD-192** fica reservada à Fatia D do apontamento (branch `feat/apontamento-itens`). A PR #273 também cita a D-PROD-190 e precisa renumerar; esta decisão não muda.
+
+**Contexto.**
+- **TAREFA** (`LancamentoTarefa`) é a demanda; **ATIVIDADE** é a operação executada, que consome máquina, combustível e insumo (D-PROD-182).
+- O apontamento é a base onde o abastecimento vai se pendurar (Fatia E). Esta fatia é enxuta: **sem itens de custo**.
+
+**Decisão.**
+1. **Model `ApontamentoAtividade`**, com os campos exatos da especificação (número, tipo e grupo com snapshot de nome, data operacional, horas, bem, implemento, operador, área, centros, safra, produção e unidade, horas trabalhadas, tarefa de origem, observação, status, cancelamento, criador, `versao`).
+   - FKs compostas e tenant-aware, todas `ON DELETE RESTRICT`: bem, implemento, centro de custo e centro de resultado por `(cliente_id, empresa_id, id)`; empresa, tipo, grupo, área, tarefa e os três usuários por `(cliente_id, …)`.
+   - Únicos `(cliente_id, id)`, `(cliente_id, empresa_id, id)` e `(cliente_id, numero)`. Índices `(cliente_id, empresa_id, createdAt, id)`, `(cliente_id, empresa_id, bem_id, data_operacional)`, `(cliente_id, empresa_id, tipo_atividade_id, data_operacional)`, `(cliente_id, area_id)` e `(cliente_id, lancamento_tarefa_id)`.
+   - Relações inversas só no Prisma (Cliente, Empresa, TipoAtividade, GrupoAtividade, BemPatrimonial ×2, AreaPastagem, CentroCusto, CentroResultado, LancamentoTarefa, Usuario ×3). `LancamentoTarefa` e `AbastecimentoBem` não mudam além disso.
+2. **Migration EXPAND `20261113700000_apontamento_atividade`.** Só a tabela nova, com índices, FKs e o bloco RLS/REVOKE da D-PROD-182 (lista `['ApontamentoAtividade']`). Nenhuma tabela antiga muda.
+   - Nome com data **depois** de toda migration já aplicada em produção naquela hora (a `20261113400000_cadestacoes_cadastro`, D-PROD-188) e das PRs então abertas #268 (`20261113500000`) e #270 (`20261113600000`), hoje mergeadas: a pasta foi renomeada no merge da `main` (PR #265), sem mudar uma linha do `migration.sql` (mesmo SHA-256 e mesmo DO).
+   - Hashes pinados em `premergeMigrateLib.mjs`: arquivo `a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e`; corpo do DO `5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867`.
+   - Repositório, depois do merge da `main` `00a06096` (PRs #265, #270, #268, #267 e #263 já nela): 46 → **47** migrations (a CONTRACT `20261113500000_categoria_manejo_cadcategoria`, D-PROD-187, e a EXPAND de índices `20261113300000_estoque_p1_03_indices`, D-PROD-185, não criam tabela); tabelas em `public` 82 → **83** (contando `_prisma_migrations`), tabelas de tenant 67 → **68**; páginas 27 → **28** e rewrites do `vercel.json` 110 → **114**. Conferido num banco limpo migrado com as 47 (47/0, `migrate diff` vazio). SQL editor 01–04, testes de contagem e ensaios atualizados.
+   - Dependência entre as CONTRACT e esta EXPAND: esta referencia `BemPatrimonial(cliente_id, empresa_id, id)`, que só existe no formato novo da D-PROD-162; no ensaio da D-PROD-162 ela fica fora da partida e sobe pelo runner depois da CONTRACT (`MIGRATIONS_DEPOIS_DO_CONTRACT`). Não depende do formato da D-PROD-183 (TipoTarefa) nem da D-PROD-187 (CategoriaManejo): nos ensaios delas entra na partida; no da D-PROD-187, como em produção, é a segunda EXPAND de nome posterior já concluída (depois da CADCURVAGANHO) antes da CONTRACT.
+   - **Aplicada em produção em 2026-11-13 às 23:23:18 UTC, antes do merge**, com GO do proprietário ("go liberado"; confirmado como "As duas, nessa ordem"). Foi pelo caminho B (conector Supabase, uma transação), **desvio da D-PROD-74** pelo mesmo motivo das Estações: esta sessão não tem a URL direta do banco. Conferido: 45/0, checksum pinado, RLS sem FORCE, 13 FKs `RESTRICT`, advisors sem alerta. Registro no relatório, §7.
+3. **API** (tenant só do `auth_context`; empresa no corpo/query, conferida no tenant; corpos com `additionalProperties: false`):
+   - `GET /apontamentos-atividade` (keyset por `createdAt, id`, filtros de período, bem, implemento, tipo, área, tarefa, status e número), `GET /:id`, `POST`, `PATCH /:id` (CAS por `versao`) e `POST /:id/cancelar` (motivo). **Sem DELETE.**
+   - Opções do formulário: `GET /apontamentos-atividade-opcoes/{bens,operadores,centros-custo,centros-resultado}`, só cadastros ativos da empresa. A opção de bem traz `centro_custo` (só quando o centro do bem está ativo).
+   - Erros novos: `APONTAMENTO_ATIVIDADE_NOT_FOUND`, `_REFERENCIA_INVALIDA`, `_HORARIO_INVALIDO`, `_DATA_FUTURA`, `_IMPLEMENTO_INVALIDO`, `_PRODUCAO_INVALIDA`, `_STATUS_INVALIDO`, `_VERSAO_CONFLITO`, `_VINCULADO` e `TIPO_ATIVIDADE_DELETE_BLOCKED`.
+4. **Regras de negócio.**
+   - **R-a** tipo inativo: recusa criar; editar mantendo o tipo (mesmo inativo) pode; trocar para outro tipo inativo, não. Vale também para bem, implemento, operador, área e centros: vínculo novo exige cadastro ativo.
+   - **R-b** `hora_fim` anterior a `hora_inicio` é recusada (iguais pode).
+   - **R-c** data operacional depois de "hoje" no fuso da fazenda é recusada; sem fuso, falha fechada. **Ampliação desta fatia** (achado da revisão): nenhuma hora pode estar no futuro, e `hora_inicio` e `hora_fim` caem na data operacional (dia local no fuso da fazenda). Não há turno que vira o dia: com a R-b, é exatamente o que a tela permite (HH:MM no dia da atividade, fim não antes do início); um turno noturno vira dois apontamentos. Na edição, a regra vale sobre o estado final quando data ou hora mudam. Mesmo código da R-b (`APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO`), com `reason` `hora_futura` ou `hora_fora_do_dia`.
+   - **R-d** implemento exige bem e não pode ser o próprio bem.
+   - **R-e centros — decisão do proprietário.** Pedido original: "se vierem nulos, copiar do bem na criação; depois nunca reler do bem". Esclarecimento do proprietário durante a fatia: "centro de resultado eu que devo escolher do centro de resultado entendeu, o do bem é apenas para cadastro". Fica:
+     - **centro de resultado:** escolhido pelo usuário numa lista normal dos centros de resultado ativos da empresa; **nunca** vem do bem (o bem nem tem esse campo);
+     - **centro de custo:** na criação, se vier nulo e houver bem, o servidor copia o centro de custo do bem, só se ele estiver ativo; o informado vence. No formulário, vem preenchido a partir do bem escolhido e pode ser trocado antes de salvar; a escolha manual não é sobrescrita por troca de máquina; num apontamento novo com máquina de centro ativo, limpar o campo traz de volta o centro do bem (a tela não mostra vazio o que o servidor grava). Depois é snapshot: **nunca** é relido do bem (nem na edição, nem na troca do bem, nem quando o bem muda de centro); na edição, limpar limpa.
+     - Se o proprietário quiser que o centro de custo também não venha do bem, a mudança é a cópia em `criar()` e o preenchimento no formulário.
+   - **R-f** quantidade e unidade andam juntas; quantidade > 0; horas trabalhadas > 0; unidade ∈ {HA, CAB, TON, KM}.
+   - **R-g** apontamento CANCELADO não aceita edição nem novo cancelamento.
+   - **R-h** nomes do tipo e do grupo são snapshot, gravados na criação e na troca do tipo; renomear depois **não** propaga.
+   - **R-i** bem, implemento, área, tarefa e centros são da mesma empresa do apontamento (centros e bens pela FK composta; área e tarefa conferidas no serviço).
+   - **R-j** sem DELETE físico: cancelar grava status, quem, quando e motivo e incrementa `versao` (CAS, como o abastecimento).
+   - **R-k** `numero` pela sequência do tenant (`EntidadeCodigoSequencia`).
+   - **R-l** excluir tipo, grupo, bem, área, centro, tarefa, usuário ou empresa com apontamento devolve 409 (FK `Restrict` traduzida), sem que os módulos antigos consultem a tabela nova. A exclusão de empresa só conta dependentes em tabelas que existem (lição do hotfix #259: o código pode subir antes da migration).
+5. **Permissão.** Tela `op-apontamentos-atividade`, módulo `suporte-mapa`, menu logo abaixo de "Tipos de Atividade". Ações: visualizar (lista, detalhe, opções), novo (criar), editar (editar), excluir (cancelar). Nenhum perfil recebe acesso automático.
+6. **Tela.** Página `ApontamentosAtividade`, porta `src/apis/atividades/apontamentoAtividadePort.js` com allowlist. Formulário nesta ordem: 1) tipo de atividade (só ativos; o gravado e inativo aparece "(INATIVO)"; grupo ao lado, só leitura); 2) data; 3) máquina/veículo (libera o implemento, que não pode ser a própria máquina); 4) operador; 5) área; 6) hora início/fim; 7) produção (quantidade + unidade); 8) observação; depois os centros. Cancelado abre só leitura. Horas trabalhadas, safra e tarefa de origem ficam fora do formulário (a API e a porta aceitam). Só componentes que já existiam; nenhum componente ou CSS novo.
+7. **Fora do escopo:** itens do apontamento (Fatia D do apontamento), abastecimento ligado à atividade (Fatia E), qualquer mudança em `AbastecimentoBem` e `LancamentoTarefa`, flags de exigência (não voltam em lugar nenhum) e trabalho visual.
+
+**Testes.** `backend/tests/apontamentoAtividadeNativo.test.mjs` (Postgres real: todas as regras acima, isolamento entre clientes, concorrência de número e de cancelamento, exclusões barradas, snapshot do centro provado contra mutação), `permissoesR2Rotas` (tela e ações), `premerge-migrate` (B14a/B14b; e o B15k da D-PROD-187 com as duas EXPAND de nome posterior), `sqlEditorBootstrap` e os testes de contagem das três migrations CONTRACT (D-PROD-162, D-PROD-183 e D-PROD-187), que contam pela pasta; smoke `tests/smoke/apontamentosAtividade.test.jsx`.
+
+**Relatório:** [`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md`](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md).
+
+## D-PROD-191 — Ícone do lote pelo código: sexo + faixa de idade, cascata de 5 níveis e subícone nunca misto (MAIKE-ICONES-LOTE-CODIGO)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-190`, mas a PR #269 (Apontamento de Atividade, em rascunho) já usa a D-PROD-190. A D-PROD-185 está na PR #263 e a D-PROD-187 na PR #268. Esta é a **D-PROD-191**.
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário (fatia MAIKE-ICONES-LOTE-CODIGO), com os 15 SVGs já normalizados por ele (`icones-lote-limpos.zip`: viewBox `0 0 1000 H`, `fill="currentColor"`, a vaca marcada com `data-vaca="1"`) · **Branch:** `feat/icones-lote-codigo`
+
+**Contexto.** O ícone do lote no mapa vinha de upload: `ConfiguracaoIcone` com `tipo_entidade = 'Lote'` (`icone_url`, `sub_icone_url`, `categorias_misto`), cadastrado em Configurações pelo `GerenciadorIcones`. `resolverIconeLote` devolvia `iconUrl = null` quando a combinação não estava cadastrada, e o marcador ficava sem figura. O subícone era um segundo upload, que podia divergir do principal. As faixas sugeridas no cadastro (0–12, 13–24, 25–36, +36) já não eram as faixas vigentes (D-PROD-186).
+
+**Decisão.**
+1. **O desenho do Lote vem do código**, em `src/assets/icones/lotes/`, no padrão do cocho e do depósito: `quadradinho.js` (moldura), `animais.js` (os 10 animais), `mistos.js` (os 4 mistos e a tabela), `index.js` (resolução e composição) e `README.md` (como editar). A chave é **sexo + faixa de idade** da Categoria de Manejo (`FAIXAS_IDADE_CATEGORIA_MANEJO`, D-PROD-186). Os 15 SVGs entram como vieram, como texto literal; o teste confere viewBox, caminhos e marca da vaca contra o `_medidas.json`, e o relatório traz o SHA-256 de cada arquivo.
+2. **Constantes de aparência no topo dos arquivos**, com os valores do proprietário: `COR_FEMEA` `#d4a017`, `COR_MACHO` `#1f7a8c`, `COR_MISTO` `#ff0000`; `BORDA_PADRAO` 3 e `BORDA_VACA_MISTO` 5; tamanho por faixa 0,70 / 0,78 / 0,86 / 0,94 / 1,00 e misto 1,00; `CARD_FRAC` 0,8851; `FAIXA_CONTAGEM` 0,66. O que o pedido não fixava ficou assim, documentado no README:
+   - **borda** em % da largura do card (3 = 3%), traço branco **atrás** do animal (só metade aparece; nunca afina perna) e **compensado pela escala** de cada desenho (traço no desenho = borda ÷ escala), então a grossura na tela é a mesma do bezerro a 70% ao boi a 100%. A borda 5 vale só para caminhos `data-vaca="1"` num ícone com mais de um animal; a fêmea "Maior que 36" sozinha usa 3. Medida em pixels do marcador, como na primeira tentativa, a borda da vaca apagava o boi atrás dela nos mistos;
+   - **largura útil** = a maior largura em que todos os 14 desenhos de ícone único (10 animais no tamanho da faixa e 4 mistos) cabem na área livre do card — folgas `FOLGA_LATERAL` 5% e `FOLGA_TOPO` 4% —, então o tamanho cresce com a faixa sem nenhum animal entrar na contagem, mesmo se os tamanhos mudarem;
+   - os animais ficam centralizados e apoiados numa **linha de chão** comum: o limite da contagem (66% do card) menos meia borda maior. O número de cabeças vai para o centro da faixa reservada (`CONTAGEM_TOPO_PCT` ≈ 73,46% da altura do marcador; antes `top:69%`, raspando as patas). O marcador segue com 44 px (`LARGURA_MARCADOR_PX`).
+3. **Sexo e faixa de cada posição.** Da Categoria de Manejo (`categoria_manejo_id`): par exato da lista → a faixa; par antigo fora da lista → a faixa que contém a idade mínima. Reserva: o sexo da posição (Macho/Fêmea; "Misto" não serve) e a categoria oficial gravada (texto; a faixa oficial 0–12 vira "0 a 8 meses"). As categorias de manejo entram no cache offline do mapa (capacidade `categoriasManejo` do `mapaCacheService`), para o ícone sair certo sem rede.
+4. **Cascata do marcador** (`resolverFiguraDoPasto`), substitui o `resolverIconeLote` antigo:
+   1. uma única combinação sexo+faixa → o animal dela, na cor do sexo;
+   2. várias faixas do **mesmo sexo** → **um** animal só, o da faixa com mais cabeças (empate: a faixa mais velha), na cor do sexo — não é misto. Ex.: macho 9–12 (40) + 13–24 (210) + 25–36 (95) → macho 13–24, contagem 345;
+   3. sexos cruzados com misto declarado → o SVG do misto, em `COR_MISTO`. Tabela: misto1 = macho 37+, fêmea 37+, macho 0–8 (prioridade 10); misto2 = macho 37+, fêmea 37+ (20); misto3 = macho 37+, macho 0–8 (20); misto4 = fêmea 37+, macho 0–8 (20). `tipo_regra MINIMA` em todas: bate quando o pasto TEM essas combinações, podendo ter outras. Menor prioridade ganha; empate → o misto de mais animais, depois a chave. Outro `tipo_regra` nunca bate;
+   4. sexos cruzados sem misto declarado → o predominante de cada sexo, os dois no mesmo card, o mais velho maior e atrás (empate de faixa: o macho atrás), o mais novo à frente e à esquerda cobrindo 35% (`SOBREPOSICAO_COMPOSICAO`), na mesma linha de chão, em `COR_MISTO`; se não couber, os dois diminuem juntos. No máximo 2 animais;
+   5. último recurso (sexo desconhecido em alguma posição, ou falta faixa para os níveis acima) → o predominante geral por cabeças, em `COR_MISTO`; sexo conhecido sem nenhuma faixa → o adulto desse sexo; nada conhecido → o boi adulto (`FIGURA_ULTIMO_RECURSO`).
+
+   Posição sem cabeça não conta quando há outras com cabeça. **Invariante:** sempre sai uma figura — nunca `null`, nunca vazio. O nome de exibição dos mistos ainda não foi definido pelo proprietário: vale a chave (`ROTULO_MISTO`, uma linha por misto).
+5. **Subícone nunca é misto.** Nos detalhes do lote (cartão, linha, lista compacta, composição por categoria da área) e nos formulários de manejo abertos dali (Pesagem, Morte, Abate, Mudança de Categoria, Movimentação, Nascimento), cada linha mostra o animal da categoria dela, na cor do sexo dela, sem moldura (`figuraDaPosicao`, `figuraDoGrupo`, `urlSubiconeLote`). O vermelho existe só no marcador do mapa. A borda do subícone tem na tela a mesma grossura do mapa, em qualquer tamanho. Sem sexo ou faixa conhecidos: o quadrado vazio de sempre.
+6. **Sai do código:** o tipo "Lote" do `GerenciadorIcones` (com `CATEGORIAS_SUGERIDAS.Lote`, o bloco "Categorias que formam o MISTO" e o estado `categorias_misto`); a resolução por `ConfiguracaoIcone` no `resolverIconeLote`; a leitura de `sub_icone_url`/`icone_url` de Lote nos detalhes e nos formulários de manejo; a pré-carga das imagens de Lote no `MapaGeral`; e `IconeOficialLotePreview.jsx` (catálogo global, cache de 60 s). A prévia do Formulário de Lote passa a ser local (`IconeLotePreview.jsx`): o animal da categoria de manejo escolhida, sem rede.
+7. **Fica de propósito** (a PR #268, D-PROD-187, apaga): `src/services/catalogoGlobalService.js` — `carregarIconesOficiaisLote` e `resolverIconeOficialDoLote` ficam sem consumidor, e `carregarCategoriasOficiaisLote` segue em uso pelo seletor do catálogo no cadastro de Categoria de Manejo, que só sai na #268; apagar aqui criaria conflito modify/delete com ela. Idem `listarIconesDeLoteDaEmpresa`, já sem uso antes desta fatia. `categorias_misto` continua na lista de campos da porta de `ConfiguracaoIcone`: o servidor ainda aceita o campo, e tirá-lo do contrato faz parte da limpeza CONTRACT.
+8. **Banco intocado.** Nenhuma migration; `ConfiguracaoIcone` fica como está. As linhas `tipo_entidade = 'Lote'` ficam órfãs; a limpeza é CONTRACT e depende de GO próprio do proprietário, fora desta fatia.
+9. **Fora do escopo:** cocho, depósito, ponto, área, linha, prioridade de tarefa e ícone do menu (seguem no `GerenciadorIcones`), redesenho dos SVGs e nome de exibição dos mistos.
+
+**Testes.**
+- `tests/smoke/iconesLoteMotor.test.js` (motor, 33 casos): os 15 SVGs conferidos contra o `_medidas.json` (viewBox, caminhos, marca da vaca); as constantes exatas; sexo e faixa de cada posição (Categoria de Manejo, reserva pelo texto oficial, par antigo, "Misto"); os 5 níveis um a um, com o exemplo do proprietário no nível 2 e as prioridades e a regra MINIMA no nível 3; o **invariante** com 5.000 pastos aleatórios, com lixo no meio (sempre figura, os 5 níveis aparecem); nenhum desenho, nem a borda dele, abaixo de 66% do card; contagem no centro da faixa; tamanho = fração × largura útil (9 casas); borda × escala igual nos 14 ícones e nas composições (vaca no misto com 5, fêmea 37+ sozinha com 3); subícone na cor do sexo, sem vermelho, com a mesma grossura de borda na tela em 22, 32, 36 e 48 px.
+- `tests/smoke/iconeLoteMapa.test.jsx` (mapa), `tests/smoke/subiconeLote.test.jsx` (detalhes e formulários de manejo), `tests/smoke/iconeLoteFormulario.test.jsx` (prévia local) e `tests/smoke/gerenciadorIconesSemLote.test.jsx` (Configurações sem Lote); ajustes em `maplibreAreasUnificacao`, `mapaCache`, `contagemLote`, `detalhesLoteV8Preferencias` e `catalogoGlobalLote` (só os dois blocos da prévia antiga).
+
+**Relatório:** [`MAIKE-ICONES-LOTE-CODIGO-REPORT.md`](./MAIKE-ICONES-LOTE-CODIGO-REPORT.md).
+
+**Nota (merge da `main` com as PRs #268, #267 e #263, 2026-11-14).** A PR #268 (D-PROD-187) entrou na `main` antes desta e já apagou `catalogoGlobalService.js`, `CategoriaOficialCatalogoSelect.jsx`, `src/apis/catalogoGlobal/` e `listarIconesDeLoteDaEmpresa`: o que o item 7 deixava "de propósito" para a #268 saiu com ela. `categorias_misto` segue na porta de `ConfiguracaoIcone`, para a limpeza CONTRACT. No merge, os conflitos foram os previstos: no `FormularioLote.jsx` ficou a linha desta fatia (a dica com a prévia local, o resto da linha igual ao da #268); no `catalogoGlobalLote.test.jsx` ficou a versão da #268, que só exige que o componente, o `data-testid` e o alt antigos tenham sumido; e os docs comuns. Sem conflito, o parágrafo do catálogo em `docs/design/GUIA-MAPA-E-ICONES.md` foi reescrito no merge, porque citava o leitor do catálogo que a #268 apagou. A D-PROD-192 (PR #272) entrou nesta branch antes do merge.
+
+## D-PROD-192 — Cadastro de ícone: a categoria digitada não é apagada pelo Select (MAIKE-ICONES-CATEGORIA-DIGITADA)
+
+> **Numeração:** a branch da PR #271 (D-PROD-191) indica `Próxima decisão: D-PROD-192`, que é esta. O contrato da branch `feat/apontamento-itens` (ainda sem PR) previa a D-PROD-191, que a PR #271 já usa; a Fatia D do apontamento vai precisar de número próprio (D-PROD-193 ou seguinte).
+
+**Data:** 2026-11-14 · **Origem:** defeito anterior, achado durante a fatia MAIKE-ICONES-LOTE-CODIGO (D-PROD-191) e deixado fora dela; pedido do proprietário · **Branch:** `claude/fervent-knuth-txff6q`, empilhada sobre `feat/icones-lote-codigo` (PR #271, que também altera `GerenciadorIcones.jsx`)
+
+**Contexto.** No diálogo "Cadastrar Novo Ícone" (`src/components/configuracoes/GerenciadorIcones.jsx`), a categoria tem um Select (Radix, `@/components/ui/select`) com as sugestões do tipo e, logo abaixo, o campo "OU DIGITE UMA NOVA CATEGORIA", os dois ligados a `formData.categoria`. Texto que não era exatamente uma das opções ("MEU PONTO", ou "COCHO" no lugar de "Cocho") era apagado já na primeira tecla, ao cadastrar e ao editar. Na prática só dava para salvar uma categoria sugerida, escolhida no Select.
+
+**Causa (confirmada).** O `Select` do `@radix-ui/react-select` 2.3.7 (versão do lockfile) desenha um `<select>` nativo oculto (`SelectBubbleInput`, `aria-hidden`), com uma `<option>` por item. Quando o valor controlado muda, um efeito grava esse valor no `<select>` pelo setter nativo e dispara `change`, e o `onChange` dele chama `onValueChange(event.target.value)`. Valor sem `<option>` igual deixa o `<select>` sem seleção, e `event.target.value` chega `""`. Como o Select é controlado e `""` difere do valor recebido, o Radix chama o `onValueChange` da tela, que gravava `categoria: ""`. Prova, num teste descartável (saída no relatório): sem interferência, a tecla "M" faz o `<select>` oculto da categoria (11 opções, as sugestões de Ponto) disparar `change` com `""`, e o campo zera; bloqueando só esse `change`, o "M" fica.
+
+**Decisão.**
+1. **O Select de categoria só recebe valor que é uma das opções dele.** `sugestaoDaCategoria(tipo, categoria)` devolve a sugestão do tipo igual ao texto sem diferença de maiúsculas (a categoria é salva em maiúsculas, então "COCHO" corresponde a "Cocho"), ou `""` quando o texto é novo. Assim o `<select>` oculto sempre tem a opção do valor, ou fica vazio junto com ele, e o `change` dele nunca traz valor diferente do recebido: o `onValueChange` só dispara quando o usuário escolhe uma sugestão.
+2. **O campo de texto não muda.** Continua ligado a `formData.categoria`, com o texto como foi digitado, e o salvamento segue em maiúsculas (`toUpperCase()`, sem `trim`, como antes). Escolher uma sugestão no Select continua trocando o texto pela sugestão.
+3. **O que o Select mostra.** Com texto novo, o texto de sempre do Select, "Selecione a categoria" (antes ficava em branco nas vezes em que o valor não sumia). Com texto igual a uma sugestão em outra grafia, a sugestão: ao editar um ícone salvo como "COCHO", aparece "Cocho".
+4. **Fica igual:** os 5 tipos oferecidos (sem Lote, D-PROD-191), as listas de sugestões, os dois uploads (`enviarArquivo(await redimensionarParaIcone(file))` duas vezes, prova ICO-04), o botão "Usar modelo de cocho SVG" (aparece com a categoria "COCHO" em qualquer grafia), cor, descrição e a lista de ícones. O `onValueChange` do Select ficou como estava: ignorar `""` nele seria redundante com o item 1.
+5. **Fora do escopo:** backend, banco, `ConfiguracaoIcone`, o baseline de tipos e o componente compartilhado `src/components/ui/select.jsx`. A busca por "OU DIGITE" em `src/` só acha esta tela; outros Selects controlados com valor fora das opções não foram auditados nesta fatia.
+
+**Testes.** `tests/smoke/gerenciadorIconesCategoriaDigitada.test.jsx` (5 casos, digitação tecla a tecla, conferindo o campo a cada tecla): CAT-01 "MEU PONTO" fica e é salvo "MEU PONTO", com o Select em "Selecione a categoria"; CAT-02 "meu ponto" fica como foi digitado e é salvo "MEU PONTO"; CAT-03 "COCHO" fica, o Select mostra "Cocho", o botão do modelo de cocho aparece nos dois uploads e salva "COCHO"; CAT-04 escolher "Bebedouro" no Select por cima do texto e voltar a digitar (salva "BEBEDOURO NOVO"); CAT-05 editar um ícone de categoria própria e salvar o texto alterado (`atualizarIcone`). Os 5 falharam antes da correção (o campo zerava na primeira tecla) e passam depois.
+
+**Relatório:** [`MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md`](./MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md).
+
+## D-PROD-194 — Curva de Ganho de Peso por mês: 12 GMD mensais em `CADCURVAGANHO`, sem ligação com as Estações (revê a D-PROD-189)
+
+> **Numeração:** nasceu como D-PROD-190 (a da PR #269, Apontamento de Atividade) e depois foi D-PROD-191 (a da PR #271, ícones de lote). A `main` atual indica `Próxima decisão: D-PROD-194` (a D-PROD-193 está com a PR #274) e pede a renumeração desta PR. Esta decisão é a **D-PROD-194**. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então o checksum não mudou.
 
 **Data:** 2026-11-14 · **Origem:** pedido do proprietário depois de ver a D-PROD-189 em produção ("o certo era colocar por mês"; "as estações a gente iria apenas colocar ela lá"; "se no GMD já vai ter os meses, então se eu cadastrar o GMD em um mês e outra estação em outro? acho que não iria dar muito certo"), com o GO "vamos fazer então" para a recomendação: curva por mês, Estações separadas, ligação futura pela Categoria de Manejo · **Branch:** `claude/kind-knuth-tztu1v`
 
@@ -6880,10 +7045,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 3. **Migration CONTRACT `20261114100000_cadcurvaganho_mensal`** (quarta exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162, da D-PROD-183 e da D-PROD-187):
    - guarda DO como primeira instrução, com hash pinado `3cd5adc49d6e0cab0e155b190d7c095a419b7ddbb0ef617bc5000bc9bdfb0b6d`: falha fechada se a tabela não existir, se não tiver exatamente as 3 colunas por estação (e nenhuma outra `gmd_*`), se tiver **qualquer curva**, FK de outra tabela, gatilho de usuário, política além de `maike_backend_all` ou função que cite as colunas antigas. Mensagens com o prefixo `cadcurvaganho_mensal:`; número da decisão fora do arquivo;
    - depois, exatamente `DROP TABLE "CADCURVAGANHO"` (sem `CASCADE`, sem `IF EXISTS`) e a tabela recriada pelo caminho EXPAND, com o bloco RLS de corpo idêntico ao da D-PROD-189 (hash `eaafebfa…`, já aprovado);
-   - SHA-256 do arquivo `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`, pinado em `MIGRATIONS_APROVADAS`; entrada em `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-191'`, `drop: ['CADCURVAGANHO']`, sem `alter_antigas`. O classificador dá `CONTRACT`, `tabelas_removidas` e `tabelas_novas` = `["CADCURVAGANHO"]`;
-   - repositório: 45 → **46** migrations (a `main` já tem a Fatia D); tabelas não mudam. Em produção, que também tem a `20261113700000_apontamento_atividade` da PR #269, 46 → **47**;
-   - release **isolada** (só esta migration nova), aplicada **antes do merge** pelo runbook [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md): caminho A com `--contract D-PROD-191`, ou caminho B só com GO escrito e específico desta migration. Entre o `COMMIT` e o deploy, só as rotas `/curvas-ganho` dão 500 (o runtime antigo lê as colunas por estação); por isso o merge vem logo depois da conferência. Durante a transação (menos de 1 s), o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` (bloqueia leitura), então a aplicação é **fora de pico**; uma espera além de 5 s ou um *deadlock* abortam sem aplicar nada;
-   - **ordem:** a Fatia D (PR #268, CONTRACT) foi aplicada em produção antes desta (2026-11-14 00:37 UTC) e já está na `main`; o Apontamento (PR #269) também já está aplicado. O preflight recalcula o `<N_OK>` (46 em 2026-11-14).
+   - SHA-256 do arquivo `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`, pinado em `MIGRATIONS_APROVADAS`; entrada em `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-194'`, `drop: ['CADCURVAGANHO']`, sem `alter_antigas`. O classificador dá `CONTRACT`, `tabelas_removidas` e `tabelas_novas` = `["CADCURVAGANHO"]`;
+   - repositório: 47 → **48** migrations (a `main` já tem a Fatia D, o Estoque P1-03 e o Apontamento); tabelas não mudam. Produção, igual à `main` em 2026-11-14 01:30 UTC: 47 → **48**;
+   - release **isolada** (só esta migration nova), aplicada **antes do merge** pelo runbook [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md): caminho A com `--contract D-PROD-194`, ou caminho B só com GO escrito e específico desta migration. Entre o `COMMIT` e o deploy, só as rotas `/curvas-ganho` dão 500 (o runtime antigo lê as colunas por estação); por isso o merge vem logo depois da conferência. Durante a transação (menos de 1 s), o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` (bloqueia leitura), então a aplicação é **fora de pico**; uma espera além de 5 s ou um *deadlock* abortam sem aplicar nada;
+   - **ordem:** a Fatia D (PR #268, CONTRACT) foi aplicada em produção antes desta (2026-11-14 00:37 UTC) e já está na `main`; o Apontamento (PR #269) também já está aplicado. O Estoque P1-03 (`20261113300000_estoque_p1_03_indices`) também já está aplicado. O preflight recalcula o `<N_OK>` (47 em 2026-11-14 01:30 UTC).
 4. **API `/curvas-ganho`:** mesmas rotas, regras e erros da D-PROD-189, com os 12 campos mensais no lugar dos 3. Os 12 são obrigatórios no `POST`; no `PATCH`, qualquer subconjunto. `gmd_aguas`, `gmd_transicao` e `gmd_seca` passam a ser chave fora do schema (400). A recusa de GMD que não chega como número no corpo bruto (coerção do AJV) vale para os 12. A lista dos campos vive em `curvaGanhoCampos.js`, usada por serviço, rotas e repositório.
 5. **Tela Manejo → Curvas de Ganho:**
    - formulário: Nome; o bloco "GMD por mês (kg/dia)" com os 12 meses (6 por linha no computador, 3 no celular); Ativo; Observações;
@@ -6894,10 +7059,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Testes.**
 - `backend/tests/curvaGanhoNativo.test.mjs` reescrito para os 12 meses: cada mês no lugar certo, decimal exato, obrigatórios mês a mês, campos por estação recusados, `PATCH` de um mês só, CHECK em todos os meses, as 12 colunas na ordem e nenhuma por estação. `permissoesR2Rotas` com o corpo mensal.
-- `backend/tests/cadCurvaGanhoMensalMigration.test.mjs` (PostgreSQL real, bancos próprios): recusas da guarda, aplicação pelo runner oficial com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-191`, recusa sem a autorização e `migrate diff` vazio.
-- Ferramental de migration: `premerge-migrate` (classificação, contrato pinado, recortes recusados, isolamento da release, ambiente do runner), `migrations` (barreira do runner para a D-PROD-191) e `alvo-banco`; contagens dos testes e ensaios da D-PROD-162, da D-PROD-183 e da D-PROD-187; dica do `run-backend-tests` para banco local com curvas antigas.
+- `backend/tests/cadCurvaGanhoMensalMigration.test.mjs` (PostgreSQL real, bancos próprios): recusas da guarda, aplicação pelo runner oficial com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194`, recusa sem a autorização e `migrate diff` vazio.
+- Ferramental de migration: `premerge-migrate` (classificação, contrato pinado, recortes recusados, isolamento da release, ambiente do runner), `migrations` (barreira do runner para a D-PROD-194) e `alvo-banco`; contagens dos testes e ensaios da D-PROD-162, da D-PROD-183 e da D-PROD-187; dica do `run-backend-tests` para banco local com curvas antigas.
 - Smoke `tests/smoke/curvasGanho.test.jsx`: meses e dias, ganho do mês, resumo, formulário com os 12 meses, "repetir →", somente leitura, grade e tela.
 
 **Relatório:** [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-192 (D-PROD-185 com a PR #263; D-PROD-190 com a PR #269) -->
+<!-- Próxima decisão: D-PROD-195 (D-PROD-193 com a PR #274) -->

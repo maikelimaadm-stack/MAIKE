@@ -6,8 +6,10 @@
  * um TipoAtividade. Os grupos vêm do mesmo cadastro de GrupoAtividade.
  *
  * A exclusão devolve **resultado parcial explícito** (o que saiu, o que ficou
- * e com qual código), como em `tarefaCadastroService`. TipoAtividade não tem
- * dependentes, então não há guarda de vínculo antes do `DELETE`.
+ * e com qual código), como em `tarefaCadastroService`. Não há guarda de
+ * vínculo antes do `DELETE`: o tipo usado num apontamento de atividade é
+ * barrado no SERVIDOR pela FK RESTRICT (409 `TIPO_ATIVIDADE_DELETE_BLOCKED`,
+ * D-PROD-190) e volta aqui em `bloqueados`, com o código.
  */
 
 import {

@@ -2,6 +2,7 @@ import React from "react";
 import { TextoCorrido } from "@/components/mapa/CampoDl";
 import { useMediaQuery } from "@/components/common/MobileSheet";
 import { TONS } from "@/components/mapa/detalhes-lote/catalogo";
+import { urlSubiconeLote } from "@/assets/icones/lotes";
 
 /*
  * Peças visuais do Detalhes do Lote v8 (mockup docs/design/detalhes-do-lote/
@@ -159,11 +160,15 @@ export function PilulaSituacao({ situacao }) {
 }
 
 /**
- * Ícone da categoria; sem url, o quadrado tracejado do mockup.
- * @param {{ url?: string | null, tamanho?: number, alt?: string }} props
+ * Subícone da categoria (D-PROD-191): o animal da `figura` ('femea-13-24'), desenhado
+ * pelo código na cor do sexo — nunca misto, nunca upload. O desenho é montado para o
+ * `tamanho` em que aparece, para a borda branca ter na tela a mesma grossura em todo
+ * lugar. Sem figura, o quadrado tracejado do mockup.
+ * @param {{ figura?: string | null, tamanho?: number, alt?: string }} props
  */
-export function IconeCategoria({ url, tamanho = 22, alt = "" }) {
+export function IconeCategoria({ figura, tamanho = 22, alt = "" }) {
   const caixa = { display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", width: tamanho, height: tamanho };
+  const url = urlSubiconeLote(figura, tamanho);
   if (url) {
     return (
       <span style={caixa}>
