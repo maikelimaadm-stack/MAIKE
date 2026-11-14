@@ -41,7 +41,7 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-192** (D-PROD-191 com a PR #271; D-PROD-190 com a PR #269; D-PROD-187 com a PR #268; D-PROD-185 com a PR #263) |
+| Decisão | **D-PROD-192** (D-PROD-191 com a PR #271; D-PROD-190 com as PRs #269 e #273; D-PROD-193 com a PR #274; D-PROD-187 com a PR #268; D-PROD-185 com a PR #263) |
 | Branch / PR | `claude/fervent-knuth-txff6q`, empilhada sobre `feat/icones-lote-codigo` (`950907fc`), porque as duas alteram `GerenciadorIcones.jsx`. PR **#272**, exclusiva desta correção, mergeada pelo proprietário na `feat/icones-lote-codigo` (`b4b5040e`); chega à `main` com a PR #271 |
 | Escopo | No diálogo "Cadastrar Novo Ícone" (Configurações), o Select de categoria só recebe valor que é uma das sugestões, sem diferença de maiúsculas; o texto digitado em "OU DIGITE UMA NOVA CATEGORIA" fica e é salvo em maiúsculas. Causa: o `<select>` nativo oculto do Radix Select 2.3.7 respondia `""` para valor fora das opções, e o `onValueChange` gravava `categoria: ""` |
 | Banco | **Sem migration.** Backend e banco intocados |
@@ -52,7 +52,7 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-191** (D-PROD-190 com as PRs #269 e #273) |
+| Decisão | **D-PROD-191** (D-PROD-190 com as PRs #269 e #273; D-PROD-193 com a PR #274) |
 | Branch / PR | `feat/icones-lote-codigo`, criada de `origin/main` `776befe9`, com a `main` integrada por merge duas vezes: `cf07309c` (PR #270) e `00a06096` (PRs #268, #267 e #263). PR **#271**, exclusiva desta fatia; a PR #272 (D-PROD-192) entrou nesta branch antes |
 | Escopo | O ícone do Lote sai do upload (`ConfiguracaoIcone` tipo `Lote`) e vem do código, em `src/assets/icones/lotes/`, pela chave sexo + faixa de idade da Categoria de Manejo. Marcador do mapa pela cascata de 5 níveis (sempre sai figura); subícone dos detalhes e dos formulários de manejo na cor do sexo, nunca misto; prévia local no Formulário de Lote; Configurações sem cadastro de ícone de Lote |
 | Banco | **Sem migration.** `ConfiguracaoIcone` intocada; as linhas `tipo_entidade = 'Lote'` ficam órfãs (limpeza CONTRACT com GO próprio, fora desta fatia) |

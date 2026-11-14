@@ -2,9 +2,9 @@
 
 FATIA: MAIKE-ICONES-CATEGORIA-DIGITADA
 BRANCH: `claude/fervent-knuth-txff6q`
-PR: rascunho com base `feat/icones-lote-codigo` (PR #271)
+PR: #272, mergeada pelo proprietário na `feat/icones-lote-codigo` (`b4b5040e`); chega à `main` com a PR #271
 
-**Decisão:** [D-PROD-192](./DECISIONS.md) · **Base:** `feat/icones-lote-codigo` `950907fc` (PR #271, D-PROD-191, em rascunho), que já integra a `main` `cf07309c` · **Banco:** nenhuma migration · **Data:** 2026-11-14
+**Decisão:** [D-PROD-192](./DECISIONS.md) · **Base:** `feat/icones-lote-codigo` `950907fc` (PR #271, D-PROD-191), que já integra a `main` `cf07309c` · **Banco:** nenhuma migration · **Data:** 2026-11-14
 
 ## 1. Problema e causa
 
@@ -102,11 +102,11 @@ Nenhuma. É correção de tela, sem camada nova: a tela continua falando com o b
 
 ## 8. Pendências e riscos
 
-- **PR empilhada.** A base é `feat/icones-lote-codigo` (PR #271, em rascunho). Se a #271 receber commits novos em `GerenciadorIcones.jsx` ou nos documentos comuns, esta branch precisa de merge dela antes do merge final. Depois do merge da #271 na `main`, a base desta PR passa a ser a `main` (o GitHub troca sozinho se a branch da #271 for apagada no merge; se não for, troca-se a base à mão). Esta PR não deve entrar antes da #271.
+- **PR empilhada, já resolvida.** A #272 entrou na `feat/icones-lote-codigo` em `b4b5040e` e chega à `main` com a #271. Não há troca de base a fazer.
 - **Outras telas não foram auditadas.** A busca por "OU DIGITE" em `src/` só acha esta tela. Qualquer outro Select controlado que receba valor fora das opções tem o mesmo risco (o Radix responde `""`), mas não foi procurado nesta fatia.
-- **Baseline de tipos com folga herdada.** `gate:types` registra 7 diagnósticos a menos que o baseline, todos em `GerenciadorIcones.jsx` e todos já eliminados pela PR #271 (tirar `categorias_misto` e Lote). Esta correção não muda a contagem do arquivo (22 antes e depois). Gravar a redução (`--update`) fica para a #271 ou para uma missão própria, para não misturar.
+- **Baseline de tipos com folga herdada.** `gate:types` registra 7 diagnósticos a menos que o baseline, todos em `GerenciadorIcones.jsx` e todos já eliminados pela PR #271 (tirar `categorias_misto` e Lote). Esta correção não muda a contagem do arquivo (22 antes e depois). Gravar a redução (`--update`) fica para uma missão própria (a #271 não regravou o baseline), para não misturar.
 
 ## 9. Decisões que precisam do proprietário
 
-- **Aprovar a correção e a ordem de merge:** esta PR depois da #271.
+- **Correção e ordem de merge:** resolvidas. O proprietário mergeou a #272 na branch da #271 (`b4b5040e`).
 - **Confirmar o que o Select mostra** (D-PROD-192 item 3): com texto novo, "Selecione a categoria"; com texto que é uma sugestão em outra grafia ("COCHO"), a sugestão ("Cocho"). Se preferir comparação exata (o Select só mostra a sugestão quando a grafia é idêntica), é uma troca de uma linha em `sugestaoDaCategoria`, sem efeito no que é salvo.
