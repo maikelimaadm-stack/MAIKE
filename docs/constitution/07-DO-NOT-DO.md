@@ -176,3 +176,15 @@ Violação exige **rollback**, não flexibilização da regra.
 >
 > Texto redigido pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a
 > "aplica e aprova"), no merge da PR #289 (`00-CONSTITUICAO.md` §4).
+
+> **Nota (D-PROD-203):** os cadastros mínimos de **Funcionário** e de **Serviço**, por fazenda, e as linhas de mão de
+> obra e de serviço do Lançamento de Atividades existem só como **custo da atividade** (snapshot na linha); o parceiro
+> prestador é só uma referência na linha de serviço. Continua **fora**: folha de pagamento (D-PROD-02), salário,
+> encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço. Continua proibido:
+> - apagar cadastro de funcionário ou de serviço (só inativar) ou apagar linha (só cancelar);
+> - criar `OperacaoFinanceira`, título ou rateio a partir das linhas de mão de obra ou de serviço;
+> - usar `Usuario` (conta de acesso) como funcionário;
+> - conceder as telas novas ou as ações das linhas a perfis existentes por padrão.
+>
+> Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no merge manual
+> (`00-CONSTITUICAO.md` §4).

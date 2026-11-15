@@ -322,8 +322,8 @@ export const listOpcoesAtividade = async (recurso, filtros) => {
 
 // ─── Linhas de produto e de máquina e totais (D-PROD-202, Fatia 3) ──────
 
-/** Tipos de linha do apontamento (o segmento da rota). */
-export const TIPOS_LINHA_ATIVIDADE = Object.freeze(['produtos', 'maquinas']);
+/** Tipos de linha do apontamento (o segmento da rota): produto e máquina (Fatia 3), mão de obra e serviço (Fatia 4). */
+export const TIPOS_LINHA_ATIVIDADE = Object.freeze(['produtos', 'maquinas', 'mao-obra', 'servicos']);
 /** @param {unknown} v */
 const ehTipoDeLinha = (v) => typeof v === 'string' && TIPOS_LINHA_ATIVIDADE.includes(v);
 /** @param {unknown} v */
@@ -331,7 +331,7 @@ const ehOperationId = (v) => typeof v === 'string' && /^[A-Za-z0-9_.:-]{8,128}$/
 
 /**
  * Totais da atividade (`GET /atividades/:id/totais`): `{ area_executada, area_planejada, unidade_area, produtos[],
- * maquinas[], custo_total, custo_por_ha }`. Só linhas confirmadas de apontamentos confirmados; `custo_por_ha` nulo sem área.
+ * maquinas[], mao_obra[], servicos[], custo_total, custo_por_ha }`. Só linhas confirmadas de apontamentos confirmados; `custo_por_ha` nulo sem área.
  * @param {string} id @param {string} empresaId
  */
 export const getAtividadeTotais = async (id, empresaId) => {
@@ -344,13 +344,15 @@ export const getAtividadeTotais = async (id, empresaId) => {
     ...o,
     produtos: Array.isArray(o.produtos) ? o.produtos.filter(isObjeto) : [],
     maquinas: Array.isArray(o.maquinas) ? o.maquinas.filter(isObjeto) : [],
+    mao_obra: Array.isArray(o.mao_obra) ? o.mao_obra.filter(isObjeto) : [],
+    servicos: Array.isArray(o.servicos) ? o.servicos.filter(isObjeto) : [],
   };
 };
 
 /**
- * Adiciona UMA linha (produto ou máquina) ao apontamento CONFIRMADO de atividade ABERTA: a empresa, a `versao` do
+ * Adiciona UMA linha (produto, máquina, mão de obra ou serviço) ao apontamento CONFIRMADO de atividade ABERTA: a empresa, a `versao` do
  * apontamento (CAS) e o `operation_id` são obrigatórios (falha ANTES da rede). Devolve `{ apontamento, atividade, alertas }`.
- * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {Record<string, unknown>} corpo
+ * @param {'produtos'|'maquinas'|'mao-obra'|'servicos'} tipo @param {string} atividadeId @param {string} apontamentoId @param {Record<string, unknown>} corpo
  */
 export const createAtividadeLinha = async (tipo, atividadeId, apontamentoId, corpo) => {
   const contexto = ctxApontamento('createAtividadeLinha');
@@ -367,7 +369,7 @@ export const createAtividadeLinha = async (tipo, atividadeId, apontamentoId, cor
 
 /**
  * Edita UMA linha CONFIRMADA (produto: estorno exato + nova saída; máquina: cancela e cria outra, no servidor).
- * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+ * @param {'produtos'|'maquinas'|'mao-obra'|'servicos'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
  * @param {Record<string, unknown>} corpo
  */
 export const updateAtividadeLinha = async (tipo, atividadeId, apontamentoId, linhaId, corpo) => {
@@ -389,7 +391,7 @@ export const updateAtividadeLinha = async (tipo, atividadeId, apontamentoId, lin
 
 /**
  * Cancela UMA linha CONFIRMADA com motivo (produto: estorno exato aos lotes de origem).
- * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+ * @param {'produtos'|'maquinas'|'mao-obra'|'servicos'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
  * @param {{ empresa_id: string, versao: number, operation_id: string, motivo: string }} corpo
  */
 export const cancelAtividadeLinha = async (tipo, atividadeId, apontamentoId, linhaId, corpo) => {

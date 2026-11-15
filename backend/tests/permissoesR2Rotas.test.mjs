@@ -122,6 +122,15 @@ const ESCRITAS = (c) => {
     ['curva de ganho (POST)', 'POST', '/curvas-ganho', { empresa_id: E, nome: 'HACK', ...Object.fromEntries(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].map((m) => [`gmd_${m}`, 0.5])) }],
     ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],
+    // D-PROD-203 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
+    ['funcionário (POST)', 'POST', '/funcionarios', { empresa_id: E, nome: 'HACK', tipo: 'DIARISTA' }],
+    ['funcionário (PATCH)', 'PATCH', `/funcionarios/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['funcionário (inativar)', 'POST', `/funcionarios/${ID}/inativar`, { empresa_id: E }],
+    ['funcionário (reativar)', 'POST', `/funcionarios/${ID}/reativar`, { empresa_id: E }],
+    ['serviço (POST)', 'POST', '/servicos', { empresa_id: E, nome: 'HACK', unidade_medida_id: 'um-1' }],
+    ['serviço (PATCH)', 'PATCH', `/servicos/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['serviço (inativar)', 'POST', `/servicos/${ID}/inativar`, { empresa_id: E }],
+    ['serviço (reativar)', 'POST', `/servicos/${ID}/reativar`, { empresa_id: E }],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
     // D-PROD-200 — Lançamento de Atividades: escrita guardada pela tela
     // op-atividades (cabeçalho pelas ações padrão; reabrir e os apontamentos

@@ -29,9 +29,16 @@
  */
 
 /**
+ * @typedef {'Atividade'|'AtividadeApontamento'|'AtividadeApontamentoMaoObra'|'AtividadeApontamentoServico'} TabelaDaAtividade
+ */
+
+/**
  * FK → a tabela que a declara (é ela que segura o vínculo; o nome do model é o
- * da tabela) e a coluna dela. Os nomes são os do migration.sql.
- * @type {Readonly<Record<string, Readonly<{ tabela: 'Atividade'|'AtividadeApontamento', campo: string }>>>}
+ * da tabela) e a coluna dela. Os nomes são os do migration.sql. D-PROD-203
+ * (Fatia 4, `20261114700000_atividade_mao_obra_servico`): as FKs das linhas de
+ * mão de obra e de serviço para os cadastros que elas seguram (funcionário,
+ * serviço e parceiro); o parceiro também é contado em `PARCEIRO_EM_USO`.
+ * @type {Readonly<Record<string, Readonly<{ tabela: TabelaDaAtividade, campo: string }>>>}
  */
 export const FKS_DA_ATIVIDADE = Object.freeze({
   Atividade_cliente_id_fkey: Object.freeze({ tabela: 'Atividade', campo: 'cliente_id' }),
@@ -55,6 +62,9 @@ export const FKS_DA_ATIVIDADE = Object.freeze({
   AtividadeApontamento_operador_fkey: Object.freeze({ tabela: 'AtividadeApontamento', campo: 'operador_usuario_id' }),
   AtividadeApontamento_criado_por_fkey: Object.freeze({ tabela: 'AtividadeApontamento', campo: 'criado_por_usuario_id' }),
   AtividadeApontamento_cancelado_por_fkey: Object.freeze({ tabela: 'AtividadeApontamento', campo: 'cancelado_por_usuario_id' }),
+  AtividadeApontamentoMaoObra_funcionario_fkey: Object.freeze({ tabela: 'AtividadeApontamentoMaoObra', campo: 'funcionario_id' }),
+  AtividadeApontamentoServico_servico_fkey: Object.freeze({ tabela: 'AtividadeApontamentoServico', campo: 'servico_id' }),
+  AtividadeApontamentoServico_parceiro_fkey: Object.freeze({ tabela: 'AtividadeApontamentoServico', campo: 'fornecedor_parceiro_id' }),
 });
 
 /**
@@ -66,7 +76,7 @@ const NOME_DA_FK = new RegExp(
 );
 
 /**
- * @typedef {{ constraint: string, tabela: 'Atividade'|'AtividadeApontamento', campo: string }} FkDaAtividade
+ * @typedef {{ constraint: string, tabela: TabelaDaAtividade, campo: string }} FkDaAtividade
  */
 
 /** @param {string} texto @returns {FkDaAtividade | null} */

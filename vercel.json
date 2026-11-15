@@ -270,6 +270,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/funcionarios/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Funcionarios/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/centroscusto/",
       "destination": "/index.html"
     },
@@ -299,6 +307,14 @@
     },
     {
       "source": "/TiposTarefa/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/funcionarios",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Funcionarios",
       "destination": "/index.html"
     },
     {
@@ -414,6 +430,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/servicos/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Servicos/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/usuarios/",
       "destination": "/index.html"
     },
@@ -451,6 +475,14 @@
     },
     {
       "source": "/Produtos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/servicos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Servicos",
       "destination": "/index.html"
     },
     {

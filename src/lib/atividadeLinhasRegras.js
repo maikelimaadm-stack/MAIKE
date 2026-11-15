@@ -1,7 +1,8 @@
 /**
- * Regras puras das LINHAS do apontamento — produto e máquina — e do
- * totalizador da atividade (D-PROD-202, Fatia 3). Contrato:
- * docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md (§2 a §5).
+ * Regras puras das LINHAS do apontamento — produto e máquina (D-PROD-202,
+ * Fatia 3), mão de obra e serviço (Fatia 4) — e do totalizador da atividade.
+ * Contratos: docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md (§2 a §5) e
+ * docs/engineering/MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md (§3 a §7).
  *
  * Quem decide é o servidor; aqui ficam o estado das janelas, a validação
  * local, o corpo do envio, o PATCH mínimo, a dose/ha e o uso calculados para
@@ -15,9 +16,15 @@
  *    leitura inicial é sugerida pela leitura vigente; o uso é final − inicial
  *    ou, "sem medidor", o que a pessoa informa. O teto do salto é do tipo
  *    patrimonial: passou, a justificativa é pedida (não bloqueia).
+ *  - Mão de obra: funcionário, medida (HORA | DIARIA | TAREFA, sugerida pelo
+ *    tipo do funcionário) e quantidade. Hora e diária: o custo unitário é o do
+ *    cadastro (snapshot no servidor, só mostrado aqui); tarefa: digitado.
+ *  - Serviço: serviço, parceiro prestador (opcional), quantidade na unidade do
+ *    serviço, valor unitário (preenchido com o de referência) e documento.
+ *  - O total mostrado (quantidade × unitário, 4 casas HALF_UP) é só prévia.
  */
 
-import { comparar, deUnidades, ehCanonico, ehPositivo, formatarNumero, lerNumeroLocal, paraTextoDeEdicao, paraUnidades, subtrair } from './dinheiroDecimal.js';
+import { comparar, deUnidades, ehCanonico, ehPositivo, formatarNumero, lerNumeroLocal, multiplicarArredondar, paraTextoDeEdicao, paraUnidades, subtrair } from './dinheiroDecimal.js';
 import {
   MEDIDORES_CONTADOR,
   ROTULO_LEITURA,
@@ -34,6 +41,31 @@ import { RAIZ_CONSULTAS_ATIVIDADES } from './atividadeApontamentoRegras.js';
 
 export const LINHA_PRODUTO = 'produtos';
 export const LINHA_MAQUINA = 'maquinas';
+/** Fatia 4: o segmento da rota da mão de obra (`…/mao-obra`) e do serviço (`…/servicos`). */
+export const LINHA_MAO_OBRA = 'mao-obra';
+export const LINHA_SERVICO = 'servicos';
+/**
+ * A coleção de cada tipo de linha no apontamento (lista e detalhe) e no corpo do lançamento com linhas: a mão de obra
+ * é `mao_obra[]` (a rota é `…/mao-obra`).
+ */
+export const COLECAO_DA_LINHA = Object.freeze(
+  /** @type {Record<string, 'produtos'|'maquinas'|'mao_obra'|'servicos'>} */ ({
+    [LINHA_PRODUTO]: 'produtos',
+    [LINHA_MAQUINA]: 'maquinas',
+    [LINHA_MAO_OBRA]: 'mao_obra',
+    [LINHA_SERVICO]: 'servicos',
+  }),
+);
+/** Medidas da mão de obra (CHECK do servidor). */
+export const MEDIDAS_MAO_OBRA = Object.freeze(['HORA', 'DIARIA', 'TAREFA']);
+/** Rótulo de cada medida (a escolha da janela). */
+export const ROTULO_MEDIDA = Object.freeze(/** @type {Record<string, string>} */ ({ HORA: 'Hora', DIARIA: 'Diária', TAREFA: 'Tarefa' }));
+/** Sugestão (não regra) da medida pelo tipo do funcionário (§3). */
+export const MEDIDA_SUGERIDA = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'HORA', DIARISTA: 'DIARIA', TAREFEIRO: 'TAREFA' }));
+/** Rótulo do tipo do funcionário (detalhe da opção do seletor). */
+export const ROTULO_TIPO_FUNCIONARIO = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'Mensalista', DIARISTA: 'Diarista', TAREFEIRO: 'Tarefeiro' }));
+/** Documento de referência do serviço (VarChar(120)). */
+export const MAX_DOCUMENTO_SERVICO = 120;
 /** Observação da linha (VarChar(500)). */
 export const MAX_OBSERVACAO_LINHA = 500;
 /** Justificativa do salto do medidor (§3): 3 a 500 caracteres úteis. */
@@ -81,10 +113,11 @@ export const chaveMedidor = (empresaId, bemId, dia) => [RAIZ_CONSULTAS_ATIVIDADE
 
 /**
  * Flags do TIPO da atividade que valem para as linhas: `permite_produto` (sem ela o bloco Produtos some e o servidor
- * recusa) e `permite_implemento`. O servidor confere o tipo ATUAL; a tela usa o que a atividade trouxer
- * (`permite_*` ou `tipo_atividade.permite_*`) e, sem isso, o tipo da lista de tipos. Sem saber: fechado.
+ * recusa), `permite_implemento` e, na Fatia 4, `permite_mao_obra` e `permite_servico` (os blocos Mão de obra e
+ * Serviços). O servidor confere o tipo ATUAL; a tela usa o que a atividade trouxer (`permite_*` ou
+ * `tipo_atividade.permite_*`) e, sem isso, o tipo da lista de tipos. Sem saber: fechado.
  * @param {any} atividade @param {any[]} [tipos]
- * @returns {{ permiteProduto: boolean, permiteImplemento: boolean }}
+ * @returns {{ permiteProduto: boolean, permiteImplemento: boolean, permiteMaoObra: boolean, permiteServico: boolean }}
  */
 export const flagsDoTipoDaAtividade = (atividade, tipos = []) => {
   const doTipo = (Array.isArray(tipos) ? tipos : []).find((t) => ehObjeto(t) && String(t.id) === String(atividade?.tipo_atividade_id ?? ''));
@@ -94,7 +127,12 @@ export const flagsDoTipoDaAtividade = (atividade, tipos = []) => {
     if (typeof atividade?.tipo_atividade?.[flag] === 'boolean') return atividade.tipo_atividade[flag];
     return doTipo?.[flag] === true;
   };
-  return { permiteProduto: flag('permite_produto'), permiteImplemento: flag('permite_implemento') };
+  return {
+    permiteProduto: flag('permite_produto'),
+    permiteImplemento: flag('permite_implemento'),
+    permiteMaoObra: flag('permite_mao_obra'),
+    permiteServico: flag('permite_servico'),
+  };
 };
 
 // ─── Linhas gravadas (lista e detalhe do apontamento) ────────────────────
@@ -102,20 +140,29 @@ export const flagsDoTipoDaAtividade = (atividade, tipos = []) => {
 /** @param {any} a @param {any} b */
 const porOrdem = (a, b) => (Number(a?.ordem) || 0) - (Number(b?.ordem) || 0);
 
+/** @param {any} apontamento @param {string} colecao */
+const gravadas = (apontamento, colecao) => (Array.isArray(apontamento?.[colecao]) ? apontamento[colecao] : []).filter((l) => ehObjeto(l) && l.id != null).sort(porOrdem);
+
 /**
- * As linhas do apontamento como o servidor devolve (`produtos[]`, `maquinas[]`, canceladas inclusive), por ordem.
+ * As linhas do apontamento como o servidor devolve (`produtos[]`, `maquinas[]`, `mao_obra[]`, `servicos[]`, canceladas
+ * inclusive), por ordem.
  * @param {any} apontamento
- * @returns {{ produtos: any[], maquinas: any[] }}
+ * @returns {{ produtos: any[], maquinas: any[], mao_obra: any[], servicos: any[] }}
  */
 export const linhasDoApontamento = (apontamento) => ({
-  produtos: (Array.isArray(apontamento?.produtos) ? apontamento.produtos : []).filter((l) => ehObjeto(l) && l.id != null).sort(porOrdem),
-  maquinas: (Array.isArray(apontamento?.maquinas) ? apontamento.maquinas : []).filter((l) => ehObjeto(l) && l.id != null).sort(porOrdem),
+  produtos: gravadas(apontamento, 'produtos'),
+  maquinas: gravadas(apontamento, 'maquinas'),
+  mao_obra: gravadas(apontamento, 'mao_obra'),
+  servicos: gravadas(apontamento, 'servicos'),
 });
 
-/** Tem alguma linha CONFIRMADA (produto ou máquina)? @param {any} apontamento */
+/** As linhas de UM tipo (o segmento da rota: `produtos`, `maquinas`, `mao-obra`, `servicos`). @param {any} apontamento @param {string} tipo */
+export const linhasDoTipo = (apontamento, tipo) => linhasDoApontamento(apontamento)[COLECAO_DA_LINHA[tipo] ?? 'produtos'];
+
+/** Tem alguma linha CONFIRMADA (produto, máquina, mão de obra ou serviço)? @param {any} apontamento */
 export const temLinhaConfirmada = (apontamento) => {
-  const { produtos, maquinas } = linhasDoApontamento(apontamento);
-  return [...produtos, ...maquinas].some((l) => l.status === STATUS_CONFIRMADO);
+  const { produtos, maquinas, mao_obra, servicos } = linhasDoApontamento(apontamento);
+  return [...produtos, ...maquinas, ...mao_obra, ...servicos].some((l) => l.status === STATUS_CONFIRMADO);
 };
 
 /** Nome do produto da linha (resumo do servidor ou o snapshot). @param {any} l */
@@ -126,6 +173,13 @@ export const rotuloDoLocalDaLinha = (l) => texto(l?.local_estoque?.nome) || text
 export const rotuloDaMaquinaDaLinha = (l) => rotuloDoBem(l?.bem) || texto(l?.bem_nome);
 /** Implemento da linha. @param {any} l */
 export const rotuloDoImplementoDaLinha = (l) => rotuloDoBem(l?.implemento) || texto(l?.implemento_nome);
+/** Funcionário da linha de mão de obra (resumo do servidor ou o nome). @param {any} l */
+export const rotuloDoFuncionarioDaLinha = (l) => texto(l?.funcionario?.nome) || texto(l?.funcionario_nome);
+/** Serviço da linha. @param {any} l */
+export const rotuloDoServicoDaLinha = (l) => texto(l?.servico?.nome) || texto(l?.servico_nome);
+/** Parceiro (prestador) da linha de serviço; vazio sem parceiro. @param {any} l */
+export const rotuloDoParceiroDaLinha = (l) =>
+  texto(l?.fornecedor_parceiro?.nome) || texto(l?.parceiro?.nome) || texto(l?.fornecedor_parceiro_nome) || texto(l?.parceiro_nome);
 
 /**
  * Unidade em que a quantidade do produto é digitada e baixada (`L` | `KG`): a unidade EFETIVA do estoque (SACO
@@ -443,9 +497,262 @@ export const corpoDaLinhaMaquina = (form, medidor, { comJustificativa }) => {
   };
 };
 
+// ─── Total da linha (só leitura) ─────────────────────────────────────────
+
+/**
+ * Total da linha = quantidade × unitário, 4 casas (HALF_UP), em BigInt — só prévia (o servidor grava o total). Sem
+ * um dos dois (ou inválido): null.
+ * @param {unknown} quantidade @param {unknown} unitario
+ * @returns {string|null}
+ */
+export const totalDaLinha = (quantidade, unitario) => {
+  if (!ehCanonico(quantidade) || !ehCanonico(unitario)) return null;
+  try {
+    return multiplicarArredondar(/** @type {string} */ (quantidade), /** @type {string} */ (unitario), 4);
+  } catch {
+    return null;
+  }
+};
+
+// ─── Linha de MÃO DE OBRA (janela e "Repetir") ───────────────────────────
+
+/**
+ * @typedef {{ id: string, rotulo: string, tipo: string|null, custo_hora: string|null, custo_diaria: string|null } | null} FuncionarioEscolhido
+ * @typedef {{ funcionario: FuncionarioEscolhido, tipo_medida: string, quantidade: string, custo_unitario: string, observacao: string }} FormularioLinhaMaoObra
+ */
+
+/** @param {unknown} v */
+const decimalOuNulo = (v) => (ehCanonico(v) ? /** @type {string} */ (v) : null);
+
+/** A opção do seletor (`/atividades-opcoes/funcionarios`) como o formulário guarda. @param {any} o @returns {FuncionarioEscolhido} */
+export const funcionarioEscolhido = (o) =>
+  ehObjeto(o) && o.id != null
+    ? {
+        id: String(o.id),
+        rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id),
+        tipo: texto(o.tipo) || null,
+        custo_hora: decimalOuNulo(o.custo_hora),
+        custo_diaria: decimalOuNulo(o.custo_diaria),
+      }
+    : null;
+
+/** Medida sugerida pelo tipo do funcionário (MENSALISTA → HORA, DIARISTA → DIARIA, TAREFEIRO → TAREFA). @param {unknown} tipo */
+export const medidaSugerida = (tipo) => MEDIDA_SUGERIDA[String(tipo ?? '')] ?? 'HORA';
+
+/** "Hora (h)" na unidade da quantidade: "h", "diária(s)", "tarefa(s)". @param {unknown} medida */
+export const unidadeDaMedida = (medida) => (medida === 'DIARIA' ? 'diária(s)' : medida === 'TAREFA' ? 'tarefa(s)' : medida === 'HORA' ? 'h' : '');
+
+/** "8 h" / "2 diária(s)" / "3 tarefa(s)"; vazio sem valor. @param {unknown} v @param {unknown} medida */
+export const formatarQuantidadeMaoObra = (v, medida) => {
+  const n = formatarDecimalLinha(v);
+  if (!n) return '';
+  const u = unidadeDaMedida(medida);
+  return u ? `${n} ${u}` : n;
+};
+
+/**
+ * Custo unitário que vem do CADASTRO do funcionário (hora → `custo_hora`, diária → `custo_diaria`); tarefa (digitado)
+ * ou sem custo no cadastro: null.
+ * @param {FuncionarioEscolhido} funcionario @param {unknown} medida
+ * @returns {string|null}
+ */
+export const custoDoCadastro = (funcionario, medida) => {
+  if (!funcionario) return null;
+  if (medida === 'HORA') return funcionario.custo_hora;
+  if (medida === 'DIARIA') return funcionario.custo_diaria;
+  return null;
+};
+
+/** O custo unitário é digitado? Só na tarefa. @param {unknown} medida */
+export const custoDigitado = (medida) => medida === 'TAREFA';
+
+/** @returns {FormularioLinhaMaoObra} */
+export const formularioMaoObraVazio = () => ({ funcionario: null, tipo_medida: 'HORA', quantidade: '', custo_unitario: '', observacao: '' });
+
+/**
+ * Formulário a partir da linha gravada (editar, "Repetir"). Sem o cadastro do funcionário na resposta, o custo de
+ * hora/diária mostrado é o snapshot da linha.
+ * @param {any} l @returns {FormularioLinhaMaoObra}
+ */
+export const formularioDaLinhaMaoObra = (l) => {
+  const medida = MEDIDAS_MAO_OBRA.includes(l?.tipo_medida) ? l.tipo_medida : 'HORA';
+  const f = ehObjeto(l?.funcionario) ? l.funcionario : {};
+  const snapshot = decimalOuNulo(l?.custo_unitario);
+  return {
+    funcionario: l?.funcionario_id
+      ? {
+          id: String(l.funcionario_id),
+          rotulo: rotuloDoFuncionarioDaLinha(l) || String(l.funcionario_id),
+          tipo: texto(f.tipo) || null,
+          custo_hora: decimalOuNulo(f.custo_hora) ?? (medida === 'HORA' ? snapshot : null),
+          custo_diaria: decimalOuNulo(f.custo_diaria) ?? (medida === 'DIARIA' ? snapshot : null),
+        }
+      : null,
+    tipo_medida: medida,
+    quantidade: paraEdicao(l?.quantidade),
+    custo_unitario: medida === 'TAREFA' ? paraEdicao(l?.custo_unitario) : '',
+    observacao: typeof l?.observacao === 'string' ? l.observacao : '',
+  };
+};
+
+/**
+ * Custo unitário e total da linha de mão de obra (só leitura): hora/diária do cadastro; tarefa, o digitado.
+ * @param {FormularioLinhaMaoObra} form
+ * @returns {{ unitario: string|null, total: string|null }}
+ */
+export const custoDaLinhaMaoObra = (form) => {
+  const unitario = custoDigitado(form?.tipo_medida) ? lerDecimal(form?.custo_unitario, '').valor : custoDoCadastro(form?.funcionario ?? null, form?.tipo_medida);
+  return { unitario, total: totalDaLinha(lerDecimal(form?.quantidade, '').valor, unitario) };
+};
+
+/**
+ * Validação local da linha de mão de obra (o servidor confere tudo de novo).
+ * @param {FormularioLinhaMaoObra} form
+ * @returns {Record<string, string>}
+ */
+export const validarLinhaMaoObra = (form) => {
+  /** @type {Record<string, string>} */
+  const erros = {};
+  if (!form?.funcionario?.id) erros.funcionario = 'Escolha o funcionário.';
+  if (!MEDIDAS_MAO_OBRA.includes(form?.tipo_medida)) erros.tipo_medida = 'Escolha a medida: hora, diária ou tarefa.';
+  const q = lerDecimal(form?.quantidade, 'A quantidade');
+  if (q.erro) erros.quantidade = q.erro;
+  else if (!q.valor) erros.quantidade = 'Informe a quantidade.';
+  else if (!ehPositivo(q.valor)) erros.quantidade = 'Informe uma quantidade maior que zero.';
+  if (custoDigitado(form?.tipo_medida)) {
+    const c = lerDecimal(form?.custo_unitario, 'O custo da tarefa');
+    if (c.erro) erros.custo_unitario = c.erro;
+    else if (!c.valor) erros.custo_unitario = 'Informe o custo da tarefa.';
+  }
+  if (tamanho(texto(form?.observacao)) > MAX_OBSERVACAO_LINHA) erros.observacao = `No máximo ${MAX_OBSERVACAO_LINHA} caracteres.`;
+  return erros;
+};
+
+/**
+ * Corpo da linha de mão de obra (formulário JÁ VALIDADO): funcionário, medida, quantidade e observação; o custo
+ * unitário SÓ na tarefa (hora e diária vêm do cadastro, no servidor, e o corpo não os aceita).
+ * @param {FormularioLinhaMaoObra} form
+ */
+export const corpoDaLinhaMaoObra = (form) => ({
+  funcionario_id: form.funcionario?.id ?? null,
+  tipo_medida: form.tipo_medida,
+  quantidade: lerDecimal(form.quantidade, '').valor,
+  ...(custoDigitado(form.tipo_medida) ? { custo_unitario: lerDecimal(form.custo_unitario, '').valor } : {}),
+  observacao: texto(form.observacao) || null,
+});
+
+// ─── Linha de SERVIÇO (janela e "Repetir") ───────────────────────────────
+
+/**
+ * @typedef {{ id: string, rotulo: string, unidade: string, valor_referencia: string|null } | null} ServicoEscolhido
+ * @typedef {{ id: string, rotulo: string } | null} ParceiroEscolhido
+ * @typedef {{
+ *   servico: ServicoEscolhido,
+ *   parceiro: ParceiroEscolhido,
+ *   quantidade: string,
+ *   valor_unitario: string,
+ *   documento_referencia: string,
+ *   observacao: string,
+ * }} FormularioLinhaServico
+ */
+
+/** Sigla da unidade (texto ou o resumo `{ sigla }`). @param {unknown} u */
+export const siglaDaUnidade = (u) => (ehObjeto(u) ? texto(u.sigla) || texto(u.descricao) : texto(u));
+
+/** A opção do seletor (`/atividades-opcoes/servicos`) como o formulário guarda. @param {any} o @returns {ServicoEscolhido} */
+export const servicoEscolhido = (o) =>
+  ehObjeto(o) && o.id != null
+    ? {
+        id: String(o.id),
+        rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id),
+        unidade: siglaDaUnidade(o.unidade) || siglaDaUnidade(o.unidade_medida) || texto(o.unidade_sigla),
+        valor_referencia: decimalOuNulo(o.valor_referencia),
+      }
+    : null;
+
+/** A opção do seletor (`/atividades-opcoes/parceiros-servico`). @param {any} o @returns {ParceiroEscolhido} */
+export const parceiroEscolhido = (o) => (ehObjeto(o) && o.id != null ? { id: String(o.id), rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id) } : null);
+
+/** "3 ha" / "2 un"; vazio sem valor. @param {unknown} v @param {unknown} unidade */
+export const formatarQuantidadeServico = (v, unidade) => {
+  const n = formatarDecimalLinha(v);
+  if (!n) return '';
+  const u = siglaDaUnidade(unidade);
+  return u ? `${n} ${u}` : n;
+};
+
+/** @returns {FormularioLinhaServico} */
+export const formularioServicoVazio = () => ({ servico: null, parceiro: null, quantidade: '', valor_unitario: '', documento_referencia: '', observacao: '' });
+
+/**
+ * A mudança do formulário ao escolher o serviço: o valor unitário vem preenchido com o de referência (a pessoa troca).
+ * @param {any} opcao @returns {{ servico: ServicoEscolhido, valor_unitario: string }}
+ */
+export const mudancaDoServicoEscolhido = (opcao) => {
+  const servico = servicoEscolhido(opcao);
+  return { servico, valor_unitario: servico?.valor_referencia ? paraEdicao(servico.valor_referencia) : '' };
+};
+
+/** "Repetir": o serviço da base com a mesma quantidade e valor; o documento NÃO é copiado (é do dia). @param {any} l @returns {FormularioLinhaServico} */
+export const formularioServicoDaBase = (l) => ({ ...formularioDaLinhaServico(l), documento_referencia: '' });
+
+/** Formulário a partir da linha gravada (editar, "Repetir"). @param {any} l @returns {FormularioLinhaServico} */
+export const formularioDaLinhaServico = (l) => ({
+  servico: l?.servico_id
+    ? {
+        id: String(l.servico_id),
+        rotulo: rotuloDoServicoDaLinha(l) || String(l.servico_id),
+        unidade: siglaDaUnidade(l?.unidade) || siglaDaUnidade(l?.servico?.unidade),
+        valor_referencia: decimalOuNulo(l?.servico?.valor_referencia),
+      }
+    : null,
+  parceiro: l?.fornecedor_parceiro_id ? { id: String(l.fornecedor_parceiro_id), rotulo: rotuloDoParceiroDaLinha(l) || String(l.fornecedor_parceiro_id) } : null,
+  quantidade: paraEdicao(l?.quantidade),
+  valor_unitario: paraEdicao(l?.valor_unitario),
+  documento_referencia: typeof l?.documento_referencia === 'string' ? l.documento_referencia : '',
+  observacao: typeof l?.observacao === 'string' ? l.observacao : '',
+});
+
+/** Total da linha de serviço (só leitura). @param {FormularioLinhaServico} form */
+export const valorDaLinhaServico = (form) => totalDaLinha(lerDecimal(form?.quantidade, '').valor, lerDecimal(form?.valor_unitario, '').valor);
+
+/**
+ * Validação local da linha de serviço (o servidor confere o serviço, a unidade e o papel do parceiro).
+ * @param {FormularioLinhaServico} form
+ * @returns {Record<string, string>}
+ */
+export const validarLinhaServico = (form) => {
+  /** @type {Record<string, string>} */
+  const erros = {};
+  if (!form?.servico?.id) erros.servico = 'Escolha o serviço.';
+  const q = lerDecimal(form?.quantidade, 'A quantidade');
+  if (q.erro) erros.quantidade = q.erro;
+  else if (!q.valor) erros.quantidade = 'Informe a quantidade.';
+  else if (!ehPositivo(q.valor)) erros.quantidade = 'Informe uma quantidade maior que zero.';
+  const v = lerDecimal(form?.valor_unitario, 'O valor unitário');
+  if (v.erro) erros.valor_unitario = v.erro;
+  else if (!v.valor) erros.valor_unitario = 'Informe o valor unitário.';
+  if (tamanho(texto(form?.documento_referencia)) > MAX_DOCUMENTO_SERVICO) erros.documento_referencia = `No máximo ${MAX_DOCUMENTO_SERVICO} caracteres.`;
+  if (tamanho(texto(form?.observacao)) > MAX_OBSERVACAO_LINHA) erros.observacao = `No máximo ${MAX_OBSERVACAO_LINHA} caracteres.`;
+  return erros;
+};
+
+/**
+ * Corpo da linha de serviço (formulário JÁ VALIDADO). A unidade (snapshot) e o total são do servidor.
+ * @param {FormularioLinhaServico} form
+ */
+export const corpoDaLinhaServico = (form) => ({
+  servico_id: form.servico?.id ?? null,
+  fornecedor_parceiro_id: form.parceiro?.id ?? null,
+  quantidade: lerDecimal(form.quantidade, '').valor,
+  valor_unitario: lerDecimal(form.valor_unitario, '').valor,
+  documento_referencia: texto(form.documento_referencia) || null,
+  observacao: texto(form.observacao) || null,
+});
+
 // ─── PATCH mínimo das linhas ─────────────────────────────────────────────
 
-const DECIMAIS_DA_LINHA = Object.freeze(['quantidade', 'leitura_inicial', 'leitura_final', 'quantidade_uso']);
+const DECIMAIS_DA_LINHA = Object.freeze(['quantidade', 'leitura_inicial', 'leitura_final', 'quantidade_uso', 'custo_unitario', 'valor_unitario']);
 
 /**
  * Só as chaves que mudaram em relação à linha gravada (decimal como decimal, texto aparado, vazio = null).
@@ -466,24 +773,42 @@ export const camposAlteradosDaLinha = (linha, corpo) => {
   return saida;
 };
 
+/**
+ * PATCH mínimo da mão de obra: trocar a medida para TAREFA leva sempre o custo digitado (mesmo que igual ao snapshot
+ * da hora/diária anterior), para o servidor não herdar o custo do cadastro.
+ * @param {any} linha @param {Record<string, any>} corpo
+ */
+export const camposAlteradosDaLinhaMaoObra = (linha, corpo) => {
+  const saida = camposAlteradosDaLinha(linha, corpo);
+  if (saida.tipo_medida === 'TAREFA' && Object.prototype.hasOwnProperty.call(corpo, 'custo_unitario')) saida.custo_unitario = corpo.custo_unitario;
+  return saida;
+};
+
 // ─── "Repetir último lançamento" com as linhas ───────────────────────────
 
 /**
  * @typedef {{ chave: string, form: FormularioLinhaProduto }} RascunhoProduto
  * @typedef {{ chave: string, form: FormularioLinhaMaquina }} RascunhoMaquina
+ * @typedef {{ chave: string, form: FormularioLinhaMaoObra }} RascunhoMaoObra
+ * @typedef {{ chave: string, form: FormularioLinhaServico }} RascunhoServico
+ * @typedef {{ produtos: RascunhoProduto[], maquinas: RascunhoMaquina[], mao_obra: RascunhoMaoObra[], servicos: RascunhoServico[] }} RascunhosDoLancamento
  */
 
 /**
- * As linhas CONFIRMADAS da base para o "Repetir": produtos com a mesma quantidade e o mesmo local (o operador ajusta)
- * e máquinas com a leitura sugerida de novo.
+ * As linhas CONFIRMADAS da base para o "Repetir": produtos com a mesma quantidade e o mesmo local (o operador ajusta),
+ * máquinas com a leitura sugerida de novo, mão de obra e serviços com os mesmos dados (o documento do serviço não).
  * @param {any} base
- * @returns {{ produtos: RascunhoProduto[], maquinas: RascunhoMaquina[] }}
+ * @returns {RascunhosDoLancamento}
  */
 export const linhasParaRepetir = (base) => {
-  const { produtos, maquinas } = linhasDoApontamento(base);
+  const { produtos, maquinas, mao_obra, servicos } = linhasDoApontamento(base);
+  /** @param {any} l */
+  const confirmada = (l) => l.status === STATUS_CONFIRMADO;
   return {
-    produtos: produtos.filter((l) => l.status === STATUS_CONFIRMADO).map((l) => ({ chave: `p-${l.id}`, form: formularioDaLinhaProduto(l) })),
-    maquinas: maquinas.filter((l) => l.status === STATUS_CONFIRMADO).map((l) => ({ chave: `m-${l.id}`, form: formularioMaquinaDaBase(l) })),
+    produtos: produtos.filter(confirmada).map((l) => ({ chave: `p-${l.id}`, form: formularioDaLinhaProduto(l) })),
+    maquinas: maquinas.filter(confirmada).map((l) => ({ chave: `m-${l.id}`, form: formularioMaquinaDaBase(l) })),
+    mao_obra: mao_obra.filter(confirmada).map((l) => ({ chave: `o-${l.id}`, form: formularioDaLinhaMaoObra(l) })),
+    servicos: servicos.filter(confirmada).map((l) => ({ chave: `s-${l.id}`, form: formularioServicoDaBase(l) })),
   };
 };
 
@@ -511,10 +836,24 @@ export const totaisParaExibir = (totais, atividade) => {
     uso: formatarUso(m.quantidade_uso, m.medidor_tipo, m.medidor_unidade) || '—',
     custo: formatarCustoLinha(m.custo_total),
   }));
+  const maoObra = (Array.isArray(t.mao_obra) ? t.mao_obra : []).filter(ehObjeto).map((o) => ({
+    chave: `${String(o.funcionario_id ?? o.nome ?? '')}${o.tipo_medida ? `-${o.tipo_medida}` : ''}`,
+    nome: texto(o.nome) || texto(o.funcionario?.nome) || 'Mão de obra',
+    quantidade: formatarQuantidadeMaoObra(o.quantidade, o.tipo_medida) || '—',
+    custo: formatarCustoLinha(o.custo_total),
+  }));
+  const servicos = (Array.isArray(t.servicos) ? t.servicos : []).filter(ehObjeto).map((v) => ({
+    chave: String(v.servico_id ?? v.nome ?? ''),
+    nome: texto(v.nome) || texto(v.servico?.nome) || 'Serviço',
+    quantidade: formatarQuantidadeServico(v.quantidade, v.unidade) || '—',
+    custo: formatarCustoLinha(v.custo_total ?? v.valor_total),
+  }));
   return {
     area,
     produtos,
     maquinas,
+    maoObra,
+    servicos,
     custo: formatarCustoLinha(t.custo_total) || '—',
     custoPorHa: ehCanonico(t.custo_por_ha) ? `${formatarCusto(t.custo_por_ha)}/${unidadeArea}` : '—',
   };
@@ -535,6 +874,13 @@ export const CAMPO_DA_LINHA = Object.freeze(
     quantidade_uso: 'quantidade_uso',
     sem_medidor: 'quantidade_uso',
     justificativa_salto: 'justificativa_salto',
+    funcionario_id: 'funcionario',
+    tipo_medida: 'tipo_medida',
+    custo_unitario: 'custo_unitario',
+    servico_id: 'servico',
+    fornecedor_parceiro_id: 'parceiro',
+    valor_unitario: 'valor_unitario',
+    documento_referencia: 'documento_referencia',
     observacao: 'observacao',
   }),
 );
@@ -550,7 +896,12 @@ const LINHA_INVALIDA = Object.freeze(
       combustivel_no_abastecimento: 'Este produto é combustível (aceito por um tanque): lance-o pelo Abastecimento, não pela atividade',
     },
     local_estoque_id: { inexistente: 'O local de estoque não foi encontrado', inativo: 'O local de estoque está inativo' },
-    quantidade: { quantidade_nao_positiva: 'Informe uma quantidade maior que zero' },
+    quantidade: {
+      quantidade_nao_positiva: 'Informe uma quantidade maior que zero',
+      nao_positiva: 'Informe uma quantidade maior que zero',
+      obrigatoria: 'Informe a quantidade',
+      custo_excede_limite: 'O total da linha (quantidade × unitário) passa do limite permitido',
+    },
     bem_id: {
       inexistente: 'A máquina não foi encontrada nesta fazenda',
       inativo: 'A máquina está inativa',
@@ -585,6 +936,38 @@ const LINHA_INVALIDA = Object.freeze(
     },
     sem_medidor: { medidor_obrigatorio: 'A máquina não tem medidor: lance com "sem medidor", informando as horas ou o km' },
     justificativa_salto: { curta: 'A justificativa do salto precisa de pelo menos 3 caracteres', longa: 'A justificativa do salto pode ter no máximo 500 caracteres' },
+    funcionario_id: {
+      obrigatorio: 'Escolha o funcionário',
+      inexistente: 'O funcionário não foi encontrado nesta fazenda',
+      outra_empresa: 'O funcionário é de outra fazenda',
+      inativo: 'O funcionário está inativo',
+    },
+    tipo_medida: { obrigatorio: 'Escolha a medida: hora, diária ou tarefa', formato: 'Escolha a medida: hora, diária ou tarefa', invalido: 'Escolha a medida: hora, diária ou tarefa' },
+    custo_unitario: {
+      obrigatorio: 'Informe o custo da tarefa',
+      obrigatoria: 'Informe o custo da tarefa',
+      nao_aceito: 'Na hora e na diária o custo vem do cadastro do funcionário: não informe o custo',
+      nao_aceita: 'Na hora e na diária o custo vem do cadastro do funcionário: não informe o custo',
+      negativo: 'O custo da tarefa não pode ser negativo',
+    },
+    servico_id: {
+      obrigatorio: 'Escolha o serviço',
+      inexistente: 'O serviço não foi encontrado nesta fazenda',
+      outra_empresa: 'O serviço é de outra fazenda',
+      inativo: 'O serviço está inativo',
+    },
+    valor_unitario: { obrigatorio: 'Informe o valor unitário', obrigatoria: 'Informe o valor unitário', negativo: 'O valor unitário não pode ser negativo' },
+    documento_referencia: { longo: 'O documento pode ter no máximo 120 caracteres', longa: 'O documento pode ter no máximo 120 caracteres' },
+  }),
+);
+
+/**
+ * Recusa uniforme por campo (sem revelar o porquê): o parceiro do serviço só é aceito se for prestador de serviço
+ * ativo desta fazenda — o servidor não diz se o id existe.
+ */
+const LINHA_INVALIDA_DO_CAMPO = Object.freeze(
+  /** @type {Record<string, string>} */ ({
+    fornecedor_parceiro_id: 'O parceiro escolhido não pode ser usado: ele precisa ser um prestador de serviço ativo desta fazenda',
   }),
 );
 
@@ -635,8 +1018,8 @@ export const mensagemDeErroLinha = (erro, fallback, ctx = {}) => {
       return `O uso da máquina${uso} passa do teto de salto do medidor${teto}. Informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.`;
     }
     case 'ATIVIDADE_LINHA_INVALIDA': {
-      const frase = LINHA_INVALIDA[field ?? '']?.[reason ?? ''];
-      return `${frase ?? 'A linha foi recusada: confira o produto, o local, a quantidade, a máquina, o implemento e as leituras'}. Nada foi gravado.`;
+      const frase = LINHA_INVALIDA[field ?? '']?.[reason ?? ''] ?? LINHA_INVALIDA_DO_CAMPO[field ?? ''];
+      return `${frase ?? 'A linha foi recusada: confira os dados da linha (produto, máquina, mão de obra ou serviço)'}. Nada foi gravado.`;
     }
     case 'ATIVIDADE_LINHA_NOT_FOUND':
       return 'Esta linha não foi encontrada neste apontamento. Os lançamentos serão relidos. Nada foi alterado.';
@@ -644,10 +1027,12 @@ export const mensagemDeErroLinha = (erro, fallback, ctx = {}) => {
     case 'ESTOQUE_JA_CONSUMIDO':
       return `O estorno exato do produto não é seguro agora: ${ESTORNO_BLOQUEADO[reason ?? ''] ?? 'o lote de onde ele saiu já foi consumido, transferido ou mudou'}. Nada foi alterado.`;
     case 'ATIVIDADE_DATA_COM_LINHAS':
-      return 'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
+      return 'A data do apontamento não muda com linha de produto, máquina, mão de obra ou serviço confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
     case 'ATIVIDADE_EXIGIDA_PELO_TIPO':
       if (reason === 'permite_produto' || field === 'produtos') return 'O tipo desta atividade não permite produto. Nada foi gravado.';
       if (reason === 'permite_implemento' || field === 'implemento_bem_id') return 'O tipo desta atividade não permite implemento. Nada foi gravado.';
+      if (reason === 'permite_mao_obra' || field === 'mao_obra') return 'O tipo desta atividade não permite mão de obra. Nada foi gravado.';
+      if (reason === 'permite_servico' || field === 'servicos') return 'O tipo desta atividade não permite serviço. Nada foi gravado.';
       return mensagemDeErroAtividade(erro, fallback);
     case 'MEDIDOR_LEITURA_REGRESSIVA':
       return `A leitura é menor que a registrada${details.data_referencia ? ` em ${formatarDiaAbastecimento(details.data_referencia)}` : ''}${
@@ -678,17 +1063,28 @@ export const campoDaLinhaRecusada = (erro) => {
   return null;
 };
 
+/** Coleções das linhas embutidas no corpo da criação do apontamento. */
+const COLECOES_EMBUTIDAS = Object.freeze(['produtos', 'maquinas', 'mao_obra', 'servicos']);
+/** A coleção de cada `details.entidade` das recusas de linha. */
+const COLECAO_DA_ENTIDADE = Object.freeze(
+  /** @type {Record<string, string>} */ ({ linha_maquina: 'maquinas', linha_mao_obra: 'mao_obra', linha_servico: 'servicos', linha_produto: 'produtos' }),
+);
+
 /**
- * Qual linha embutida (no corpo da criação do apontamento) a recusa aponta: `{ colecao: 'produtos'|'maquinas', indice }`
- * (0-based), ou null.
+ * Qual linha embutida (no corpo da criação do apontamento) a recusa aponta:
+ * `{ colecao: 'produtos'|'maquinas'|'mao_obra'|'servicos', indice }` (0-based), ou null.
  * @param {unknown} erro
  */
 export const linhaEmbutidaRecusada = (erro) => {
   const { details } = lerErroGestao(erro);
-  // Máquina: `details.linha_indice`; produto: `details.colecao = 'produtos'` + `details.indice`.
-  if (Number.isInteger(details.linha_indice)) return { colecao: LINHA_MAQUINA, indice: /** @type {number} */ (details.linha_indice) };
-  const colecao = details.colecao === LINHA_PRODUTO || details.colecao === LINHA_MAQUINA ? details.colecao : null;
-  return colecao && Number.isInteger(details.indice) ? { colecao, indice: /** @type {number} */ (details.indice) } : null;
+  // Máquina, mão de obra e serviço: `details.linha_indice` com `details.entidade` (`linha_maquina`, `linha_mao_obra`,
+  // `linha_servico`); produto: `details.colecao = 'produtos'` + `details.indice`.
+  const daEntidade = COLECAO_DA_ENTIDADE[String(details.entidade ?? '')] ?? null;
+  const colecao = typeof details.colecao === 'string' && COLECOES_EMBUTIDAS.includes(details.colecao) ? details.colecao : daEntidade;
+  const indice = Number.isInteger(details.indice) ? details.indice : Number.isInteger(details.linha_indice) ? details.linha_indice : null;
+  if (indice === null) return null;
+  if (colecao) return { colecao, indice: /** @type {number} */ (indice) };
+  return Number.isInteger(details.linha_indice) ? { colecao: LINHA_MAQUINA, indice: /** @type {number} */ (details.linha_indice) } : null;
 };
 
 /** É o pedido de justificativa do salto do medidor? @param {unknown} erro */

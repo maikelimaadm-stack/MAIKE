@@ -9,6 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades): mão de obra e serviço de terceiro (D-PROD-203)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-203**, pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."); escolha aprovada antes de implementar: Funcionário próprio (não `Usuario`) e prestador do cadastro de Parceiros ("sim, vai de acordo com o cadastro de parceiro") |
+| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1` |
+| Escopo | Cadastros mínimos de Funcionário e de Serviço por fazenda (só inativar), linha de mão de obra (hora e diária com snapshot do custo, tarefa digitada), linha de serviço (unidade como snapshot, valor digitado, parceiro prestador opcional), editar/cancelar e cascatas como na Fatia 3, totais e custo por hectare com as quatro linhas |
+| Migration | `20261114700000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 54 → 55; tabelas 87 → 91 |
+| Release | **Não aplicada.** Antes do merge, só com GO do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md) |
+| Constituição | Expansão D-PROD-203 no `00` e nota no `07`, redigidas pelo agente; **valem só com a aprovação explícita do proprietário no merge** |
+| Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md) |
+
 ## Missão ativa (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
 
 | Campo | Valor |

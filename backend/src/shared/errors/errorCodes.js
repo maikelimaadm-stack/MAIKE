@@ -227,7 +227,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // D-PROD-200 — também a FK da Atividade (unidade de produção herdada do tipo).
   UNIDADE_MEDIDA_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'unidade de medida usada como unidade de produção padrão de um tipo de atividade ou como unidade de produção de uma atividade (details.vinculo: tipo_atividade | atividade); inative em vez de excluir; nada foi apagado',
+    meaning: 'unidade de medida usada como unidade de produção padrão de um tipo de atividade, como unidade de produção de uma atividade ou como unidade de um serviço (details.vinculo: tipo_atividade | atividade | servico); inative em vez de excluir; nada foi apagado',
   },
   GRUPO_ATIVIDADE_NOT_FOUND: {
     http: 404,
@@ -285,7 +285,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,
-    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-202, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento); nada foi gravado',
+    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-202, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento; D-PROD-203: funcionario_id → permite_mao_obra, servico_id → permite_servico); nada foi gravado',
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
@@ -293,7 +293,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_STATUS_INVALIDO: {
     http: 409,
-    meaning: 'a ação não é permitida no status atual da atividade, do apontamento ou da linha (details.status, details.acao, details.entidade: atividade | apontamento | linha_produto | linha_maquina); nada foi alterado',
+    meaning: 'a ação não é permitida no status atual da atividade, do apontamento ou da linha (details.status, details.acao, details.entidade: atividade | apontamento | linha_produto | linha_maquina | linha_mao_obra | linha_servico); nada foi alterado',
   },
   ATIVIDADE_VERSAO_CONFLITO: {
     http: 409,
@@ -310,11 +310,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // D-PROD-202 — Lançamento de Atividades (Fatia 3): as linhas de produto e de máquina do apontamento.
   ATIVIDADE_LINHA_NOT_FOUND: {
     http: 404,
-    meaning: 'linhaId não identifica linha (details.entidade: linha_produto | linha_maquina) deste apontamento, desta atividade, desta empresa e deste tenant',
+    meaning: 'linhaId não identifica linha (details.entidade: linha_produto | linha_maquina | linha_mao_obra | linha_servico) deste apontamento, desta atividade, desta empresa e deste tenant',
   },
   ATIVIDADE_LINHA_INVALIDA: {
     http: 422,
-    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto); nada foi gravado',
+    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto; D-PROD-203 mão de obra: funcionario_id inexistente | outra_empresa | inativo, tipo_medida obrigatorio, quantidade obrigatoria | nao_positiva | custo_excede_limite, custo_unitario obrigatorio | nao_aceito; serviço: servico_id inexistente | outra_empresa | inativo, fornecedor_parceiro_id parceiro_invalido — inexistente, de outra fazenda, inativo ou sem o papel prestador_servico, sem oráculo —, valor_unitario obrigatorio); nada foi gravado',
   },
   ATIVIDADE_SALTO_MEDIDOR: {
     http: 422,
@@ -326,7 +326,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_DATA_COM_LINHAS: {
     http: 409,
-    meaning: 'a data do apontamento não muda com linha de produto ou de máquina confirmada (details.linhas_produto/linhas_maquina); cancele e lance de novo; nada foi gravado',
+    meaning: 'a data do apontamento não muda com linha de produto, máquina, mão de obra ou serviço confirmada (details.linhas_produto/linhas_maquina/linhas_mao_obra/linhas_servico); cancele e lance de novo; nada foi gravado',
   },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {
@@ -340,6 +340,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ESTACAO_PERIODO_SOBREPOSTO: {
     http: 409,
     meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
+  },
+  // D-PROD-203 — cadastros de Funcionário e Serviço da fazenda (Fatia 4 do Lançamento de Atividades).
+  FUNCIONARIO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica funcionário desta fazenda neste tenant',
+  },
+  SERVICO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica serviço desta fazenda neste tenant',
+  },
+  SERVICO_REFERENCIA_INVALIDA: {
+    http: 422,
+    meaning: 'referência do serviço recusada (details.field: unidade_medida_id | centro_custo_padrao_id; details.reason: nao_encontrado — também de outro tenant ou de outra fazenda, sem oráculo — | inativo); nada foi gravado',
   },
   // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
   CURVA_GANHO_NOT_FOUND: {

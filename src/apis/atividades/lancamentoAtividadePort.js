@@ -30,9 +30,19 @@ const CAMINHO_OPCOES = '/atividades-opcoes';
 /**
  * Seletores próprios da tela (guardados por "ver" da tela). D-PROD-202 (Fatia 3): produtos (os já usados na
  * atividade primeiro), locais com saldo de um produto, implementos e o medidor de um bem (tipo, unidade, leitura
- * vigente e teto do salto).
+ * vigente e teto do salto). Fatia 4: funcionários e serviços ativos da fazenda e os parceiros prestadores de serviço.
  */
-export const RECURSOS_OPCOES_ATIVIDADE = Object.freeze(['bens', 'operadores', 'produtos', 'locais', 'implementos', 'medidor']);
+export const RECURSOS_OPCOES_ATIVIDADE = Object.freeze([
+  'bens',
+  'operadores',
+  'produtos',
+  'locais',
+  'implementos',
+  'medidor',
+  'funcionarios',
+  'servicos',
+  'parceiros-servico',
+]);
 
 // ─── Atividade (cabeçalho) ───────────────────────────────────────────────
 
@@ -100,6 +110,16 @@ export const CAMPOS_DA_LINHA_MAQUINA = Object.freeze([
   'justificativa_salto',
   'observacao',
 ]);
+/**
+ * Linha de MÃO DE OBRA (Fatia 4): o funcionário, a medida (HORA | DIARIA | TAREFA), a quantidade e, SÓ na tarefa, o
+ * custo unitário digitado (hora e diária vêm do cadastro do funcionário, snapshot no servidor). O total é do servidor.
+ */
+export const CAMPOS_DA_LINHA_MAO_OBRA = Object.freeze(['funcionario_id', 'tipo_medida', 'quantidade', 'custo_unitario', 'observacao']);
+/**
+ * Linha de SERVIÇO (Fatia 4): o serviço, o parceiro prestador (opcional), a quantidade (na unidade do serviço), o valor
+ * unitário e o documento. A unidade (snapshot) e o total são do servidor.
+ */
+export const CAMPOS_DA_LINHA_SERVICO = Object.freeze(['servico_id', 'fornecedor_parceiro_id', 'quantidade', 'valor_unitario', 'documento_referencia', 'observacao']);
 /** Toda escrita de linha leva a empresa, a `versao` do APONTAMENTO (CAS) e o `operation_id` (idempotência). */
 const ENVELOPE_DA_LINHA = Object.freeze(['empresa_id', 'versao', 'operation_id']);
 /** POST …/apontamentos/:apId/produtos. */
@@ -110,11 +130,30 @@ export const CAMPOS_DE_EDICAO_LINHA_PRODUTO = Object.freeze([...ENVELOPE_DA_LINH
 export const CAMPOS_DE_CRIACAO_LINHA_MAQUINA = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_MAQUINA]);
 /** PATCH …/maquinas/:linhaId (cancela a linha e cria outra, no servidor). */
 export const CAMPOS_DE_EDICAO_LINHA_MAQUINA = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_MAQUINA]);
-/** POST …/produtos/:linhaId/cancelar · …/maquinas/:linhaId/cancelar. */
+/** POST …/apontamentos/:apId/mao-obra · PATCH …/mao-obra/:linhaId (cancela a linha e cria outra, no servidor). */
+export const CAMPOS_DE_CRIACAO_LINHA_MAO_OBRA = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_MAO_OBRA]);
+export const CAMPOS_DE_EDICAO_LINHA_MAO_OBRA = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_MAO_OBRA]);
+/** POST …/apontamentos/:apId/servicos · PATCH …/servicos/:linhaId (cancela a linha e cria outra, no servidor). */
+export const CAMPOS_DE_CRIACAO_LINHA_SERVICO = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_SERVICO]);
+export const CAMPOS_DE_EDICAO_LINHA_SERVICO = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_SERVICO]);
+/** POST …/{produtos|maquinas|mao-obra|servicos}/:linhaId/cancelar. */
 export const CAMPOS_DE_CANCELAMENTO_LINHA = Object.freeze([...ENVELOPE_DA_LINHA, 'motivo']);
 
-/** POST /atividades/:id/apontamentos: o dia e, desde a Fatia 3, as linhas (`produtos[]`, `maquinas[]`) com um `operation_id`. */
-export const CAMPOS_DE_CRIACAO_APONTAMENTO = Object.freeze(['empresa_id', ...CAMPOS_DO_APONTAMENTO, 'operation_id', 'produtos', 'maquinas']);
+/** Coleções de linhas embutidas no corpo do lançamento (e do duplicar) → a allowlist de cada item. */
+const COLECOES_DE_LINHAS = Object.freeze(
+  /** @type {Record<string, readonly string[]>} */ ({
+    produtos: CAMPOS_DA_LINHA_PRODUTO,
+    maquinas: CAMPOS_DA_LINHA_MAQUINA,
+    mao_obra: CAMPOS_DA_LINHA_MAO_OBRA,
+    servicos: CAMPOS_DA_LINHA_SERVICO,
+  }),
+);
+
+/**
+ * POST /atividades/:id/apontamentos: o dia e, desde a Fatia 3, as linhas (`produtos[]`, `maquinas[]`; Fatia 4:
+ * `mao_obra[]`, `servicos[]`) com um `operation_id`.
+ */
+export const CAMPOS_DE_CRIACAO_APONTAMENTO = Object.freeze(['empresa_id', ...CAMPOS_DO_APONTAMENTO, 'operation_id', 'produtos', 'maquinas', 'mao_obra', 'servicos']);
 /**
  * PATCH /atividades/:id/apontamentos/:apontamentoId (§10): os mesmos campos de dado, mais a `versao`. A origem é
  * gravada no lançamento e não muda na edição: o schema fechado do servidor a recusa (400), então ela não vai.
@@ -126,7 +165,7 @@ export const CAMPOS_DE_CANCELAMENTO_APONTAMENTO = Object.freeze(['empresa_id', '
  * POST …/:apontamentoId/duplicar ("Repetir"): o dia (padrão hoje no servidor) e, desde a Fatia 3, as linhas com um
  * `operation_id` (a tela manda o "Repetir" com linhas pela criação; a rota aceita o mesmo corpo).
  */
-export const CAMPOS_DE_DUPLICACAO_APONTAMENTO = Object.freeze(['empresa_id', 'data_operacional', 'operation_id', 'produtos', 'maquinas']);
+export const CAMPOS_DE_DUPLICACAO_APONTAMENTO = Object.freeze(['empresa_id', 'data_operacional', 'operation_id', 'produtos', 'maquinas', 'mao_obra', 'servicos']);
 
 /**
  * Linhas embutidas no corpo da criação do apontamento: cada item só com as chaves da linha (sem envelope: o
@@ -147,11 +186,14 @@ const linhasDeEnvio = (linhas, permitidos) => {
  * @param {Record<string, unknown>} dados @param {readonly string[]} [permitidos]
  */
 export const corpoDaCriacaoDoApontamento = (dados, permitidos = CAMPOS_DE_CRIACAO_APONTAMENTO) => {
-  const { produtos, maquinas, ...doDia } = dados ?? {};
-  const corpo = corpoSemVazios(doDia, permitidos.filter((c) => c !== 'produtos' && c !== 'maquinas'));
-  const p = linhasDeEnvio(produtos, CAMPOS_DA_LINHA_PRODUTO);
-  const m = linhasDeEnvio(maquinas, CAMPOS_DA_LINHA_MAQUINA);
-  return { ...corpo, ...(p ? { produtos: p } : {}), ...(m ? { maquinas: m } : {}) };
+  const d = /** @type {Record<string, unknown>} */ (dados ?? {});
+  const corpo = corpoSemVazios(d, permitidos.filter((c) => !Object.prototype.hasOwnProperty.call(COLECOES_DE_LINHAS, c)));
+  for (const [colecao, campos] of Object.entries(COLECOES_DE_LINHAS)) {
+    if (!permitidos.includes(colecao)) continue;
+    const itens = linhasDeEnvio(d[colecao], campos);
+    if (itens) corpo[colecao] = itens;
+  }
+  return corpo;
 };
 
 // ─── Leitura ─────────────────────────────────────────────────────────────
@@ -247,7 +289,22 @@ const daAtividade = (id) => `${CAMINHO}/${encodeURIComponent(id)}`;
 /** @param {string} atividadeId @param {string} [apontamentoId] */
 const doApontamento = (atividadeId, apontamentoId) =>
   `${daAtividade(atividadeId)}/apontamentos${apontamentoId ? `/${encodeURIComponent(apontamentoId)}` : ''}`;
-/** @param {string} atividadeId @param {string} apontamentoId @param {'produtos'|'maquinas'} tipo @param {string} [linhaId] */
+/**
+ * Tipo de linha (o segmento da rota) → allowlists e nome da operação.
+ * @typedef {'produtos'|'maquinas'|'mao-obra'|'servicos'} TipoDeLinha
+ */
+const DO_TIPO_DE_LINHA = Object.freeze(
+  /** @type {Record<string, { criacao: readonly string[], edicao: readonly string[], nome: string }>} */ ({
+    produtos: { criacao: CAMPOS_DE_CRIACAO_LINHA_PRODUTO, edicao: CAMPOS_DE_EDICAO_LINHA_PRODUTO, nome: 'Produto' },
+    maquinas: { criacao: CAMPOS_DE_CRIACAO_LINHA_MAQUINA, edicao: CAMPOS_DE_EDICAO_LINHA_MAQUINA, nome: 'Maquina' },
+    'mao-obra': { criacao: CAMPOS_DE_CRIACAO_LINHA_MAO_OBRA, edicao: CAMPOS_DE_EDICAO_LINHA_MAO_OBRA, nome: 'MaoObra' },
+    servicos: { criacao: CAMPOS_DE_CRIACAO_LINHA_SERVICO, edicao: CAMPOS_DE_EDICAO_LINHA_SERVICO, nome: 'Servico' },
+  }),
+);
+/** Allowlists do tipo (o desconhecido cai na de máquina; a API confere o tipo antes). @param {string} tipo */
+const doTipo = (tipo) => DO_TIPO_DE_LINHA[tipo] ?? DO_TIPO_DE_LINHA.maquinas;
+
+/** @param {string} atividadeId @param {string} apontamentoId @param {TipoDeLinha} tipo @param {string} [linhaId] */
 const daLinha = (atividadeId, apontamentoId, tipo, linhaId) =>
   `${doApontamento(atividadeId, apontamentoId)}/${tipo}${linhaId ? `/${encodeURIComponent(linhaId)}` : ''}`;
 /** @param {string} caminho @param {string} empresaId */
@@ -354,37 +411,37 @@ export const operacoesNativas = Object.freeze({
   /** Área executada / planejada, total por produto e por máquina, custo e custo/ha. @param {string} id @param {string} empresaId */
   totais: (id, empresaId) => nativeRequest(comEmpresa(`${daAtividade(id)}/totais`, empresaId), { autenticado: true }, ctx('getAtividadeTotais', { id })),
 
-  // ── Linhas de produto e de máquina (Fatia 3) ──
+  // ── Linhas de produto e de máquina (Fatia 3), mão de obra e serviço (Fatia 4) ──
   /**
-   * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {Record<string, unknown>} dados
+   * @param {TipoDeLinha} tipo @param {string} atividadeId @param {string} apontamentoId @param {Record<string, unknown>} dados
    */
   criarLinha: (tipo, atividadeId, apontamentoId, dados) =>
     nativeRequest(
       daLinha(atividadeId, apontamentoId, tipo),
-      { method: 'POST', body: corpoSemVazios(dados, tipo === 'produtos' ? CAMPOS_DE_CRIACAO_LINHA_PRODUTO : CAMPOS_DE_CRIACAO_LINHA_MAQUINA), autenticado: true },
-      ctx(tipo === 'produtos' ? 'createAtividadeLinhaProduto' : 'createAtividadeLinhaMaquina', { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
+      { method: 'POST', body: corpoSemVazios(dados, doTipo(tipo).criacao), autenticado: true },
+      ctx(`createAtividadeLinha${doTipo(tipo).nome}`, { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
     ),
 
   /**
-   * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+   * @param {TipoDeLinha} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
    * @param {Record<string, unknown>} dados
    */
   editarLinha: (tipo, atividadeId, apontamentoId, linhaId, dados) =>
     nativeRequest(
       daLinha(atividadeId, apontamentoId, tipo, linhaId),
-      { method: 'PATCH', body: corpoDeEnvio(dados, tipo === 'produtos' ? CAMPOS_DE_EDICAO_LINHA_PRODUTO : CAMPOS_DE_EDICAO_LINHA_MAQUINA), autenticado: true },
-      ctx(tipo === 'produtos' ? 'updateAtividadeLinhaProduto' : 'updateAtividadeLinhaMaquina', { atividadeId, apontamentoId, linhaId }, RESOURCE_APONTAMENTO),
+      { method: 'PATCH', body: corpoDeEnvio(dados, doTipo(tipo).edicao), autenticado: true },
+      ctx(`updateAtividadeLinha${doTipo(tipo).nome}`, { atividadeId, apontamentoId, linhaId }, RESOURCE_APONTAMENTO),
     ),
 
   /**
-   * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+   * @param {TipoDeLinha} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
    * @param {Record<string, unknown>} dados
    */
   cancelarLinha: (tipo, atividadeId, apontamentoId, linhaId, dados) =>
     nativeRequest(
       `${daLinha(atividadeId, apontamentoId, tipo, linhaId)}/cancelar`,
       { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_CANCELAMENTO_LINHA), autenticado: true },
-      ctx(tipo === 'produtos' ? 'cancelAtividadeLinhaProduto' : 'cancelAtividadeLinhaMaquina', { atividadeId, apontamentoId, linhaId }, RESOURCE_APONTAMENTO),
+      ctx(`cancelAtividadeLinha${doTipo(tipo).nome}`, { atividadeId, apontamentoId, linhaId }, RESOURCE_APONTAMENTO),
     ),
 
   // ── Opções da tela ──

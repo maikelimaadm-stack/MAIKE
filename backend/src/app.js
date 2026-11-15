@@ -39,8 +39,12 @@ import { registrarAtividadeRoutes } from './modules/atividades/atividadeRoutes.j
 import { registrarAtividadeApontamentoRoutes } from './modules/atividades/atividadeApontamentoRoutes.js';
 import { registrarAtividadeApontamentoProdutoRoutes } from './modules/atividades/atividadeApontamentoProdutoRoutes.js';
 import { registrarAtividadeApontamentoMaquinaRoutes } from './modules/atividades/atividadeApontamentoMaquinaRoutes.js';
+import { registrarAtividadeApontamentoMaoObraRoutes } from './modules/atividades/atividadeApontamentoMaoObraRoutes.js';
+import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades/atividadeApontamentoServicoRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
+import { registrarFuncionarioRoutes } from './modules/funcionarios/funcionarioRoutes.js';
+import { registrarServicoRoutes } from './modules/servicos/servicoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
@@ -213,6 +217,9 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEstacaoRoutes);
   // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
   await app.register(registrarCurvaGanhoRoutes);
+  // D-PROD-203 (Fatia 4) — cadastros de Funcionário e Serviço da fazenda (sem DELETE).
+  await app.register(registrarFuncionarioRoutes);
+  await app.register(registrarServicoRoutes);
   // D-PROD-200 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
   // concluída ou cancelada, sem DELETE físico) e os APONTAMENTOS do dia e do
   // turno, filhos dela. Substitui o apontamento de linha única (D-PROD-190/193).
@@ -222,6 +229,9 @@ export const construirApp = async (opcoes = {}) => {
   // estoque pelo motor FIFO) e máquina (uso pelo medidor, custo por hora/km).
   await app.register(registrarAtividadeApontamentoProdutoRoutes);
   await app.register(registrarAtividadeApontamentoMaquinaRoutes);
+  // D-PROD-203 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.
+  await app.register(registrarAtividadeApontamentoMaoObraRoutes);
+  await app.register(registrarAtividadeApontamentoServicoRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);

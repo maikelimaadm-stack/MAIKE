@@ -7377,4 +7377,22 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Contrato:** [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md).
 
-<!-- Próxima decisão: D-PROD-203 -->
+## D-PROD-203 — Mão de obra e serviço de terceiro no apontamento do Lançamento de Atividades (Fatia 4)
+
+**Data:** 2026-11-15 · **Origem:** pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo.") · **Branch:** `feat/atividade-mao-obra-servico`
+
+**Escolha aprovada antes de implementar.** A mão de obra pede uma pessoa com custo. O agente propôs um cadastro próprio de **Funcionário** em vez de usar `Usuario`, porque `Usuario` é conta de acesso: tem login e senha obrigatórios, não tem custo e é por cliente, não por fazenda; e propôs que o prestador do serviço viesse do **cadastro de Parceiros** (tabela `Fornecedor`) com o papel `prestador_servico`. O proprietário aprovou: "sim, vai de acordo com o cadastro de parceiro".
+
+**Decisão.**
+1. **Cadastros mínimos, por fazenda, nunca apagados (só inativar e reativar):** `Funcionario` (número, nome, cargo, tipo `MENSALISTA | DIARISTA | TAREFEIRO`, custo por hora e por diária, opcionais e ≥ 0) e `Servico` (número, nome, unidade de medida do cadastro existente `UnidadeMedida`, centro de custo padrão da mesma fazenda e valor de referência, opcionais). Telas próprias `Funcionarios` e `Servicos`, com permissão de tela própria e sem concessão automática. Não é folha: sem salário, encargos, ponto ou pagamento.
+2. **Linha de mão de obra** (`AtividadeApontamentoMaoObra`): funcionário ativo da mesma fazenda, medida `HORA | DIARIA | TAREFA`, quantidade > 0. Hora e diária copiam o custo do cadastro como snapshot (sem custo no cadastro, a linha entra sem custo); tarefa pede o custo unitário no corpo. Exige a flag `permite_mao_obra` do tipo da atividade.
+3. **Linha de serviço** (`AtividadeApontamentoServico`): serviço ativo da mesma fazenda, unidade copiada como snapshot da sigla da unidade do serviço, valor unitário digitado (a tela sugere o de referência), documento opcional e parceiro opcional — ativo, da mesma fazenda e com o papel `prestador_servico`; o parceiro usado conta como "em uso" na exclusão de parceiro. Exige a flag `permite_servico`.
+4. **Comum às duas, como na Fatia 3:** editar é cancelar e lançar de novo na mesma transação; cancelar o apontamento ou a atividade cancela as linhas; idempotência por `operation_id`; data do apontamento travada com linha confirmada; os totais da atividade e o custo por hectare somam produto, máquina, mão de obra e serviço. Nada de financeiro: nenhuma `OperacaoFinanceira`, título ou rateio a partir das linhas.
+5. **Migration EXPAND `20261114700000_atividade_mao_obra_servico`:** só 4 tabelas novas (`Funcionario`, `Servico`, `AtividadeApontamentoMaoObra`, `AtividadeApontamentoServico`), nenhuma coluna em tabela antiga, nenhum dado migrado. Toda FK é composta pelo tenant e `RESTRICT`; o apontamento, o funcionário, o serviço e o centro de custo entram por `(cliente_id, empresa_id, id)` (mesma fazenda por construção); o parceiro só tem `(cliente_id, id)`, e a mesma fazenda dele é conferida no código. SHA-256 `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`, RLS pinado `16d2680d…`. Produção: 54 → 55 migrations, 87 → 91 tabelas (de tenant, 72 → 76).
+6. **Constituição:** expansão D-PROD-203 no `00` e nota no `07`: os cadastros mínimos e as linhas como custo da atividade (snapshot), o parceiro prestador como referência; continua fora folha (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço; proibido apagar cadastro ou linha, criar `OperacaoFinanceira` a partir das linhas e usar `Usuario` como funcionário. **Vale só com a aprovação explícita do proprietário no merge.**
+
+**Release.** Não aplicada. A ordem é aplicar antes do merge, só com o GO escrito do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md).
+
+**Contrato:** [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-204 -->

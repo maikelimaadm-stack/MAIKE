@@ -18,12 +18,40 @@ import { RAIZ_CONSULTAS_ATIVIDADES, normalizarPaginaDeOpcoes, normalizarResposta
 import {
   JUSTIFICATIVA_MAXIMA,
   LIMITES_LINHA,
+  LINHA_MAO_OBRA,
   LINHA_MAQUINA,
   LINHA_PRODUTO,
+  LINHA_SERVICO,
+  MAX_DOCUMENTO_SERVICO,
   MAX_OBSERVACAO_LINHA,
+  MEDIDAS_MAO_OBRA,
+  ROTULO_MEDIDA,
+  ROTULO_TIPO_FUNCIONARIO,
   bemEscolhido,
   camposAlteradosDaLinha,
+  camposAlteradosDaLinhaMaoObra,
   campoDaLinhaRecusada,
+  corpoDaLinhaMaoObra,
+  corpoDaLinhaServico,
+  custoDaLinhaMaoObra,
+  custoDigitado,
+  formatarCustoLinha,
+  formularioDaLinhaMaoObra,
+  formularioDaLinhaServico,
+  formularioMaoObraVazio,
+  formularioServicoVazio,
+  funcionarioEscolhido,
+  linhasDoTipo,
+  medidaSugerida,
+  mudancaDoServicoEscolhido,
+  parceiroEscolhido,
+  rotuloDoFuncionarioDaLinha,
+  rotuloDoServicoDaLinha,
+  siglaDaUnidade,
+  unidadeDaMedida,
+  validarLinhaMaoObra,
+  validarLinhaServico,
+  valorDaLinhaServico,
   chaveLocaisDoProduto,
   chaveMedidor,
   corpoDaLinhaMaquina,
@@ -61,8 +89,11 @@ import {
   limparPendenciaDaLinha,
   listarLocaisDoProduto,
   listarOpcoesBens,
+  listarOpcoesFuncionarios,
   listarOpcoesImplementos,
+  listarOpcoesParceirosServico,
   listarOpcoesProdutos,
+  listarOpcoesServicos,
   obterApontamento,
   obterMedidorDoBem,
 } from "@/services/lancamentoAtividadesService";
@@ -138,10 +169,10 @@ export function useEnvioDaLinha(enviar, mensagemDe) {
 
 /**
  * Aviso do envio da linha: o do abastecimento para produto (mexe no estoque) e o mesmo bloco, sem estoque, para
- * máquina.
- * @param {{ estado: EstadoEnvioLinha, produto: boolean, onRepetir: () => void, onConsultar: () => void }} props
+ * máquina, mão de obra e serviço (`lancado`: "a máquina PODE ter sido lançada").
+ * @param {{ estado: EstadoEnvioLinha, produto: boolean, onRepetir: () => void, onConsultar: () => void, lancado?: string }} props
  */
-export function AvisoEnvioDaLinha({ estado, produto, onRepetir, onConsultar }) {
+export function AvisoEnvioDaLinha({ estado, produto, onRepetir, onConsultar, lancado = "a máquina PODE ter sido lançada" }) {
   if (produto || estado.fase !== "incerto") return <AvisoEnvioAbastecimento estado={estado} objeto="o produto" onRepetir={onRepetir} onConsultar={onConsultar} />;
   return (
     <div role="alert" data-testid="resultado-incerto" className="min-w-0 rounded-md border border-amber-300 bg-amber-50 p-3 text-[13px] text-amber-900">
@@ -149,7 +180,7 @@ export function AvisoEnvioDaLinha({ estado, produto, onRepetir, onConsultar }) {
         <AlertTriangle size={16} aria-hidden /> Resultado incerto — consulte antes de repetir
       </p>
       <p className="mt-1 break-words">
-        Não recebemos a resposta do servidor: a máquina PODE ter sido lançada. Consulte antes. Se repetir, o MESMO envio é reaproveitado e a linha não é
+        Não recebemos a resposta do servidor: {lancado}. Consulte antes. Se repetir, o MESMO envio é reaproveitado e a linha não é
         lançada duas vezes.
       </p>
       {estado.consulta ? (
@@ -578,6 +609,203 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
   );
 }
 
+// ─── Campos da linha de MÃO DE OBRA (janela e "Repetir") ─────────────────
+
+/** @param {any} o */
+const detalheDoFuncionario = (o) => [typeof o?.cargo === "string" ? o.cargo : "", ROTULO_TIPO_FUNCIONARIO[String(o?.tipo ?? "")] ?? ""].filter(Boolean).join(" · ") || null;
+
+/**
+ * Campos da linha de mão de obra: funcionário → medida (sugerida pelo tipo do funcionário) → quantidade → custo
+ * unitário (hora/diária: do cadastro, só leitura; tarefa: digitado) → total calculado → observação.
+ * @param {{
+ *   form: import("@/lib/atividadeLinhasRegras").FormularioLinhaMaoObra,
+ *   mudar: (mudanca: Record<string, any>, campos: string[]) => void,
+ *   erros: Record<string, string>,
+ *   bloqueado: boolean,
+ *   prefixo: string,
+ *   comObservacao?: boolean,
+ * }} props
+ */
+export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
+  const empresaId = useEmpresaRealSelecionadaId();
+  const medida = form.tipo_medida;
+  const unidade = unidadeDaMedida(medida);
+  const { unitario, total } = custoDaLinhaMaoObra(form);
+  const digitado = custoDigitado(medida);
+  return (
+    <>
+      <SeletorPaginadoGestao
+        rotulo="Funcionário"
+        testId={`${prefixo}-funcionario`}
+        chave={[RAIZ_CONSULTAS_ATIVIDADES, "funcionarios", empresaId]}
+        buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesFuncionarios({ q, cursor, limit }))}
+        value={form.funcionario ? { id: form.funcionario.id, rotulo: form.funcionario.rotulo } : null}
+        onChange={(o) => {
+          const funcionario = funcionarioEscolhido(o);
+          mudar({ funcionario, tipo_medida: funcionario ? medidaSugerida(funcionario.tipo) : form.tipo_medida }, ["funcionario", "tipo_medida", "custo_unitario"]);
+        }}
+        rotuloDaOpcao={(o) => String(o?.nome ?? "")}
+        detalheDaOpcao={detalheDoFuncionario}
+        readOnly={bloqueado}
+        obrigatorio
+        erro={erros.funcionario}
+        span={12}
+        maiusculas={false}
+      />
+      <EscolhaSegmentada
+        rotulo="Medida"
+        testId={`${prefixo}-medida`}
+        value={medida}
+        onChange={(v) => mudar({ tipo_medida: v }, ["tipo_medida", "custo_unitario"])}
+        readOnly={bloqueado}
+        opcoes={MEDIDAS_MAO_OBRA.map((m) => ({ value: m, label: ROTULO_MEDIDA[m] }))}
+      />
+      <ErroDoCampo texto={erros.tipo_medida} />
+      <CampoNumero
+        label={unidade ? `Quantidade (${unidade})` : "Quantidade"}
+        value={form.quantidade}
+        onChange={(v) => mudar({ quantidade: v }, ["quantidade"])}
+        locale={LOCALE_ATIVIDADE}
+        limites={LIMITES_LINHA}
+        readOnly={bloqueado}
+        required
+        span={6}
+        error={erros.quantidade}
+        testId={`${prefixo}-quantidade`}
+      />
+      {digitado ? (
+        <CampoNumero
+          label="Custo da tarefa (R$)"
+          value={form.custo_unitario}
+          onChange={(v) => mudar({ custo_unitario: v }, ["custo_unitario"])}
+          locale={LOCALE_ATIVIDADE}
+          limites={LIMITES_LINHA}
+          readOnly={bloqueado}
+          required
+          span={6}
+          error={erros.custo_unitario}
+          testId={`${prefixo}-custo-unitario`}
+        />
+      ) : (
+        <ValorCalculado
+          label={medida === "DIARIA" ? "Custo da diária (do cadastro)" : "Custo da hora (do cadastro)"}
+          valor={!form.funcionario ? "—" : formatarCustoLinha(unitario) || "Sem custo no cadastro"}
+          span={6}
+          testId={`${prefixo}-custo-unitario`}
+        />
+      )}
+      {!digitado ? <ErroDoCampo texto={erros.custo_unitario} /> : null}
+      <ValorCalculado label="Total (quantidade × custo)" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
+      {!digitado && form.funcionario && !unitario ? (
+        <p className={NOTA} data-testid={`${prefixo}-sem-custo`}>
+          Este funcionário não tem custo de {medida === "DIARIA" ? "diária" : "hora"} no cadastro: a linha entra sem custo.
+        </p>
+      ) : null}
+      {comObservacao ? (
+        <CampoTextoLongo label="Observação" value={form.observacao} onChange={(v) => mudar({ observacao: v }, ["observacao"])} readOnly={bloqueado} maxLength={MAX_OBSERVACAO_LINHA} />
+      ) : null}
+    </>
+  );
+}
+
+// ─── Campos da linha de SERVIÇO (janela e "Repetir") ─────────────────────
+
+/** @param {any} o */
+const detalheDoServico = (o) => {
+  const unidade = siglaDaUnidade(o?.unidade) || siglaDaUnidade(o?.unidade_medida);
+  const referencia = typeof o?.valor_referencia === "string" ? formatarCustoLinha(o.valor_referencia) : "";
+  return [unidade, referencia ? `referência ${referencia}` : ""].filter(Boolean).join(" · ") || null;
+};
+
+/**
+ * Campos da linha de serviço: serviço → parceiro (opcional, só prestadores de serviço) → quantidade na unidade do
+ * serviço → valor unitário (preenchido com o de referência) → total calculado → documento → observação.
+ * @param {{
+ *   form: import("@/lib/atividadeLinhasRegras").FormularioLinhaServico,
+ *   mudar: (mudanca: Record<string, any>, campos: string[]) => void,
+ *   erros: Record<string, string>,
+ *   bloqueado: boolean,
+ *   prefixo: string,
+ *   comObservacao?: boolean,
+ * }} props
+ */
+export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
+  const empresaId = useEmpresaRealSelecionadaId();
+  const unidade = form.servico?.unidade ?? "";
+  const total = valorDaLinhaServico(form);
+  return (
+    <>
+      <SeletorPaginadoGestao
+        rotulo="Serviço"
+        testId={`${prefixo}-servico`}
+        chave={[RAIZ_CONSULTAS_ATIVIDADES, "servicos", empresaId]}
+        buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesServicos({ q, cursor, limit }))}
+        value={form.servico ? { id: form.servico.id, rotulo: form.servico.rotulo } : null}
+        onChange={(o) => mudar(mudancaDoServicoEscolhido(o), ["servico", "quantidade", "valor_unitario"])}
+        rotuloDaOpcao={(o) => String(o?.nome ?? "")}
+        detalheDaOpcao={detalheDoServico}
+        readOnly={bloqueado}
+        obrigatorio
+        erro={erros.servico}
+        span={12}
+        maiusculas={false}
+      />
+      <SeletorPaginadoGestao
+        rotulo="Parceiro (prestador do serviço, opcional)"
+        testId={`${prefixo}-parceiro`}
+        chave={[RAIZ_CONSULTAS_ATIVIDADES, "parceiros-servico", empresaId]}
+        buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesParceirosServico({ q, cursor, limit }))}
+        value={form.parceiro}
+        onChange={(o) => mudar({ parceiro: parceiroEscolhido(o) }, ["parceiro"])}
+        rotuloDaOpcao={(o) => String(o?.nome ?? "")}
+        readOnly={bloqueado}
+        permitirLimpar
+        erro={erros.parceiro}
+        span={12}
+        maiusculas={false}
+      />
+      <CampoNumero
+        label={unidade ? `Quantidade (${unidade})` : "Quantidade"}
+        value={form.quantidade}
+        onChange={(v) => mudar({ quantidade: v }, ["quantidade"])}
+        locale={LOCALE_ATIVIDADE}
+        limites={LIMITES_LINHA}
+        readOnly={bloqueado}
+        required
+        span={6}
+        error={erros.quantidade}
+        testId={`${prefixo}-quantidade`}
+      />
+      <CampoNumero
+        label={unidade ? `Valor unitário (R$ por ${unidade})` : "Valor unitário (R$)"}
+        value={form.valor_unitario}
+        onChange={(v) => mudar({ valor_unitario: v }, ["valor_unitario"])}
+        locale={LOCALE_ATIVIDADE}
+        limites={LIMITES_LINHA}
+        readOnly={bloqueado}
+        required
+        span={6}
+        error={erros.valor_unitario}
+        testId={`${prefixo}-valor-unitario`}
+      />
+      <ValorCalculado label="Total (quantidade × valor)" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
+      <CampoTexto
+        label="Documento (nota, recibo)"
+        value={form.documento_referencia}
+        onChange={(v) => mudar({ documento_referencia: v }, ["documento_referencia"])}
+        readOnly={bloqueado}
+        span={6}
+        maxLength={MAX_DOCUMENTO_SERVICO}
+        keepCase
+        error={erros.documento_referencia}
+      />
+      {comObservacao ? (
+        <CampoTextoLongo label="Observação" value={form.observacao} onChange={(v) => mudar({ observacao: v }, ["observacao"])} readOnly={bloqueado} maxLength={MAX_OBSERVACAO_LINHA} />
+      ) : null}
+    </>
+  );
+}
+
 // ─── Janelas ─────────────────────────────────────────────────────────────
 
 /**
@@ -653,8 +881,8 @@ function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, pod
   );
 }
 
-/** Ids das linhas do apontamento (para o "Consultar" achar a linha nova). @param {any} ap @param {'produtos'|'maquinas'} tipo */
-const idsDasLinhas = (ap, tipo) => new Set(linhasDoApontamento(ap)[tipo].map((l) => String(l.id)));
+/** Ids das linhas do apontamento (para o "Consultar" achar a linha nova). @param {any} ap @param {'produtos'|'maquinas'|'mao-obra'|'servicos'} tipo */
+const idsDasLinhas = (ap, tipo) => new Set(linhasDoTipo(ap, tipo).map((l) => String(l.id)));
 
 /**
  * Janela da linha de PRODUTO (adicionar ou editar). A baixa sai do estoque pelo MESMO motor FIFO do abastecimento, no
@@ -906,5 +1134,216 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
         <AvisoEnvioDaLinha estado={estado} produto={false} onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>
     </Janela>
+  );
+}
+
+/**
+ * Janela de UMA linha que cancela e cria outra na edição (mão de obra e serviço, Fatia 4): o molde da janela de
+ * máquina, sem medidor. Valida localmente, manda só o que mudou (edição) com a `versao` do apontamento e o
+ * `operation_id` persistente; sem resposta, "Repetir o mesmo envio" reaproveita a chave; "Consultar" relê o apontamento.
+ * @template F
+ * @param {PropsDaJanela & {
+ *   tipo: 'mao-obra'|'servicos',
+ *   formInicial: () => F,
+ *   validar: (form: F) => Record<string, string>,
+ *   corpo: (form: F) => Record<string, any>,
+ *   alterados: (linha: any, corpo: Record<string, any>) => Record<string, any>,
+ *   idDoCadastro: (form: F) => string|null,
+ *   campoDoCadastro: string,
+ *   nome: (form: F) => string,
+ *   rotulos: { titulo: string, tituloEdicao: string, envio: string, sucesso: string, sucessoEdicao: string, lancado: string, objeto: string, falha: string, falhaEdicao: string },
+ *   testId: string,
+ *   campos: (p: { form: F, mudar: (mudanca: Record<string, any>, campos: string[]) => void, erros: Record<string, string>, bloqueado: boolean }) => React.ReactNode,
+ *   nota: string,
+ * }} props
+ */
+function JanelaLinhaSemMedidor({
+  tipo,
+  atividade,
+  apontamento,
+  linha = null,
+  escopo,
+  onSalvo,
+  onCancelar,
+  onMudou = null,
+  formInicial,
+  validar,
+  corpo,
+  alterados,
+  idDoCadastro,
+  campoDoCadastro,
+  nome: nomeDe,
+  rotulos,
+  testId,
+  campos,
+  nota,
+}) {
+  const editando = Boolean(linha?.id);
+  const atividadeId = String(atividade?.id ?? "");
+  const [form, setForm] = useState(formInicial);
+  const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
+  const antes = useRef(idsDasLinhas(apontamento, tipo));
+  const fallback = editando ? rotulos.falhaEdicao : rotulos.falha;
+
+  /** @param {{ dados: Record<string, any>, versao: number }} arg @param {{ retentativa: boolean }} o */
+  const enviar = (arg, o) => {
+    const ap = { id: String(apontamento.id), versao: arg.versao };
+    return editando ? editarLinha(tipo, atividadeId, ap, linha, arg.dados, { escopo, retentativa: o.retentativa }) : adicionarLinha(tipo, atividadeId, ap, arg.dados, { escopo, retentativa: o.retentativa });
+  };
+  const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(enviar, (e) => mensagemDeErroLinha(e, fallback));
+  const enviando = estado.fase === "enviando";
+
+  /** @param {Record<string, any>} mudanca @param {string[]} camposMudados */
+  const mudar = (mudanca, camposMudados) => {
+    setForm((f) => ({ ...f, ...mudanca }));
+    setErros((e) => (camposMudados.some((c) => e[c]) ? Object.fromEntries(Object.entries(e).filter(([k]) => !camposMudados.includes(k))) : e));
+    esquecerUltimo();
+    setEstado((e) => (e.fase === "erro" ? { fase: "pronto" } : e));
+  };
+
+  const nome = nomeDe(form);
+
+  const salvar = async () => {
+    if (enviando) return;
+    const v = validar(form);
+    setErros(v);
+    if (Object.keys(v).length) {
+      notifyWarning("Atenção", "Revise os campos destacados.");
+      return;
+    }
+    /** @type {Record<string, any>} */
+    let dados = corpo(form);
+    if (editando) {
+      dados = alterados(linha, dados);
+      if (!Object.keys(dados).length) {
+        notifyInfo("Sem alterações", "Nada foi alterado.");
+        onCancelar();
+        return;
+      }
+    }
+    const r = await disparar({ dados, versao: apontamento.versao });
+    if (!r) return;
+    if (r.ok) {
+      onSalvo(normalizarRespostaDeEscrita(r.resposta), (editando ? rotulos.sucessoEdicao : rotulos.sucesso).replace("{nome}", nome));
+      return;
+    }
+    const campo = campoDaLinhaRecusada(r.erro);
+    const mensagem = mensagemDeErroLinha(r.erro, fallback);
+    if (campo) setErros((e) => ({ ...e, [campo]: mensagem }));
+    if (ehResultadoIncerto(r.erro) || pedeReleitura(r.erro)) onMudou?.();
+    if (!ehResultadoIncerto(r.erro) && /** @type {any} */ (r.erro)?.code !== CODIGO_ENVIO_PENDENTE) notifyWarning("Atenção", mensagem);
+  };
+
+  /** "Consultar" depois de um envio sem resposta: o apontamento relido mostra o efeito? */
+  const consultar = async () => {
+    try {
+      const lido = /** @type {any} */ (await obterApontamento(atividadeId, String(apontamento.id)));
+      const linhas = linhasDoTipo(lido, tipo);
+      const gravou = editando
+        ? linhas.some((l) => String(l.id) === String(linha.id) && l.status === STATUS_CANCELADO)
+        : linhas.some((l) => !antes.current.has(String(l.id)) && l.status === STATUS_CONFIRMADO && String(l[campoDoCadastro]) === String(idDoCadastro(form) ?? ""));
+      if (gravou) {
+        limparPendenciaDaLinha(escopo, editando ? ACAO_EDITAR_LINHA : ACAO_LANCAR_LINHA, editando ? alvoDaLinha(tipo, String(linha.id)) : alvoDasLinhas(tipo, String(apontamento.id)));
+        notifySuccess("Gravado", `O envio anterior ${rotulos.objeto} ${nome} foi gravado.`);
+        onSalvo({ apontamento: lido, atividade: null, alertas: [] }, `${nome} gravado.`);
+        return;
+      }
+      setEstado((e) => ({ ...e, consulta: "O envio ainda não aparece gravado. Repita o mesmo envio: ele não será duplicado." }));
+    } catch {
+      setEstado((e) => ({ ...e, consulta: "Não foi possível consultar agora. Tente de novo." }));
+    }
+  };
+
+  return (
+    <Janela
+      titulo={editando ? rotulos.tituloEdicao.replace("{nome}", nome).trim() : rotulos.titulo}
+      descricao={`${descricaoDaJanela(atividade, apontamento)}.${editando ? " Salvar cancela esta linha e lança outra com os dados novos." : ""}`}
+      testId={testId}
+      formId={`formulario-${testId.replace(/^janela-/, "")}`}
+      enviando={enviando}
+      incerto={estado.fase === "incerto"}
+      podeEnviar
+      rotuloEnvio={editando ? "Salvar alterações" : rotulos.envio}
+      onFechar={onCancelar}
+      onEnviar={() => void salvar()}
+    >
+      {campos({ form, mudar, erros, bloqueado: enviando })}
+      <p className={NOTA}>{nota}</p>
+      <div className="col-span-12 min-w-0">
+        <AvisoEnvioDaLinha estado={estado} produto={false} lancado={rotulos.lancado} onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
+      </div>
+    </Janela>
+  );
+}
+
+/**
+ * Janela da linha de MÃO DE OBRA (adicionar ou editar; Fatia 4). Hora e diária: o custo unitário é o do cadastro do
+ * funcionário (snapshot no servidor, só mostrado); tarefa: digitado. A medida vem sugerida pelo tipo do funcionário.
+ * @param {PropsDaJanela} props
+ */
+export function JanelaLinhaMaoObra({ linha = null, ...props }) {
+  return (
+    <JanelaLinhaSemMedidor
+      {...props}
+      linha={linha}
+      tipo={LINHA_MAO_OBRA}
+      testId="janela-linha-mao-obra"
+      formInicial={() => (linha?.id ? formularioDaLinhaMaoObra(linha) : formularioMaoObraVazio())}
+      validar={validarLinhaMaoObra}
+      corpo={corpoDaLinhaMaoObra}
+      alterados={camposAlteradosDaLinhaMaoObra}
+      idDoCadastro={(f) => f.funcionario?.id ?? null}
+      campoDoCadastro="funcionario_id"
+      nome={(f) => f.funcionario?.rotulo ?? (rotuloDoFuncionarioDaLinha(linha) || "Funcionário")}
+      rotulos={{
+        titulo: "Adicionar mão de obra",
+        tituloEdicao: "Editar mão de obra de {nome}",
+        envio: "Lançar mão de obra",
+        sucesso: "Mão de obra de {nome} lançada.",
+        sucessoEdicao: "Mão de obra de {nome} alterada.",
+        lancado: "a mão de obra PODE ter sido lançada",
+        objeto: "da mão de obra de",
+        falha: "Não foi possível lançar a mão de obra. Nada foi gravado.",
+        falhaEdicao: "Não foi possível alterar a mão de obra. Nada foi alterado.",
+      }}
+      campos={(p) => <CamposDaLinhaMaoObra {...p} prefixo="linha-mao-obra" />}
+      nota="Hora e diária usam o custo do cadastro do funcionário na data do lançamento; tarefa usa o custo digitado. Não é folha de pagamento: nada vai para o financeiro."
+    />
+  );
+}
+
+/**
+ * Janela da linha de SERVIÇO (adicionar ou editar; Fatia 4): o serviço (a unidade é a dele), o parceiro prestador
+ * (opcional), a quantidade, o valor unitário (preenchido com o de referência) e o documento.
+ * @param {PropsDaJanela} props
+ */
+export function JanelaLinhaServico({ linha = null, ...props }) {
+  return (
+    <JanelaLinhaSemMedidor
+      {...props}
+      linha={linha}
+      tipo={LINHA_SERVICO}
+      testId="janela-linha-servico"
+      formInicial={() => (linha?.id ? formularioDaLinhaServico(linha) : formularioServicoVazio())}
+      validar={validarLinhaServico}
+      corpo={corpoDaLinhaServico}
+      alterados={camposAlteradosDaLinha}
+      idDoCadastro={(f) => f.servico?.id ?? null}
+      campoDoCadastro="servico_id"
+      nome={(f) => f.servico?.rotulo ?? (rotuloDoServicoDaLinha(linha) || "Serviço")}
+      rotulos={{
+        titulo: "Adicionar serviço",
+        tituloEdicao: "Editar serviço {nome}",
+        envio: "Lançar serviço",
+        sucesso: "Serviço {nome} lançado.",
+        sucessoEdicao: "Serviço {nome} alterado.",
+        lancado: "o serviço PODE ter sido lançado",
+        objeto: "do serviço",
+        falha: "Não foi possível lançar o serviço. Nada foi gravado.",
+        falhaEdicao: "Não foi possível alterar o serviço. Nada foi alterado.",
+      }}
+      campos={(p) => <CamposDaLinhaServico {...p} prefixo="linha-servico" />}
+      nota="O serviço entra no custo da atividade. Nada vai para o financeiro: título ou pagamento ao parceiro são lançados à parte."
+    />
   );
 }

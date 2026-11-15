@@ -10,12 +10,17 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    -- D-PROD-202 (Fatia 3): as linhas do apontamento saem PRIMEIRO — a fatia FIFO do produto referencia a linha de
+    -- D-PROD-203 (Fatia 4): as linhas de mão de obra e de serviço saem PRIMEIRO — a de mão de obra referencia o
+    -- apontamento, o funcionário e os usuários; a de serviço referencia o apontamento, o serviço, o parceiro (Fornecedor)
+    -- e os usuários; nenhuma outra tabela as referencia. O Funcionario e o Servico saem logo depois — referenciam a
+    -- empresa (e o serviço, a UnidadeMedida e o CentroCusto); só as duas linhas os referenciam.
+    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Funcionario','Servico',
+    -- D-PROD-202 (Fatia 3): as linhas de produto e de máquina saem logo depois — a fatia FIFO do produto referencia a linha de
     -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
     -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
     'AtividadeApontamentoProdutoConsumoLote','AtividadeApontamentoProduto','AtividadeApontamentoMaquina',
     -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
-    -- empresa; só as linhas (acima, D-PROD-202) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-203) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
     'AtividadeApontamento',
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
     -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia (acima) a referencia.

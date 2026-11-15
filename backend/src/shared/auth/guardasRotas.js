@@ -331,6 +331,17 @@ export const GUARDAS = Object.freeze({
     cancelar: porTela(T.ATIVIDADES, 'cancelar_apontamento'),
   },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
+  // D-PROD-203 — Funcionários e Serviços da fazenda: leitura pela própria tela
+  // (dado por fazenda); inativar e reativar são edição do registro (editar|salvar,
+  // como nos centros da D-PROD-146). Sem DELETE físico (cadastro com custo).
+  funcionario: { ...cadastro(T.FUNCIONARIOS), ver: porTela(T.FUNCIONARIOS, 'visualizar') },
+  // Opções do centro de custo padrão do formulário do serviço = criar OU editar
+  // serviço (não exigem a tela de Centros de Custo), como em `tipoAtividade.opcoes`.
+  servico: {
+    ...cadastro(T.SERVICOS),
+    ver: porTela(T.SERVICOS, 'visualizar'),
+    opcoes: porQualquer([T.SERVICOS, 'novo'], [T.SERVICOS, 'salvar'], [T.SERVICOS, 'editar']),
+  },
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
   anexo: { criar: porQualquer(...LOTES_GRAVAR), excluir: porQualquer([T.LOTES, 'excluir']) },
   upload: porQualquer(...LOTES_GRAVAR, [T.EMPRESA, 'novo'], [T.EMPRESA, 'editar'], [T.EMPRESA, 'salvar']),

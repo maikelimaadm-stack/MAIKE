@@ -42,8 +42,10 @@ import {
   validarFormularioApontamento,
 } from "@/lib/atividadeApontamentoRegras";
 import {
+  corpoDaLinhaMaoObra,
   corpoDaLinhaMaquina,
   corpoDaLinhaProduto,
+  corpoDaLinhaServico,
   linhaEmbutidaRecusada,
   linhasParaRepetir,
   campoDaLinhaRecusada,
@@ -52,13 +54,17 @@ import {
   passaDoTeto,
   temLinhaConfirmada,
   usoDaLinha,
+  validarLinhaMaoObra,
   validarLinhaMaquina,
   validarLinhaProduto,
+  validarLinhaServico,
 } from "@/lib/atividadeLinhasRegras";
 import { criarApontamento, duplicarApontamento, editarApontamento, listarOpcoesOperadores } from "@/services/lancamentoAtividadesService";
 import { CODIGO_ENVIO_PENDENTE, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
+
+/** @typedef {keyof import("@/lib/atividadeLinhasRegras").RascunhosDoLancamento} ColecaoDoLancamento */
 
 /**
  * Formulário do apontamento do DIA (D-PROD-200, Fatia 2), na janela do motor
@@ -82,7 +88,8 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *    as linhas preenchidas (as leituras sugeridas de novo) e vai UM lançamento
  *    novo com `produtos[]` e `maquinas[]` — tudo numa transação, com o
  *    `operation_id` persistente (sem resposta, "Repetir o mesmo envio" não
- *    duplica).
+ *    duplica). Fatia 4: a mão de obra e os serviços da base também vêm
+ *    (`mao_obra[]`, `servicos[]`), cada coleção só com a flag do tipo.
  *
  * Decimais vão em texto canônico. Fora do período da atividade o lançamento é
  * aceito com aviso (o alerta da resposta, que a lista mostra). A recusa do
@@ -100,6 +107,8 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *   onMudou?: (() => void) | null,
  *   permiteProduto?: boolean,
  *   permiteImplemento?: boolean,
+ *   permiteMaoObra?: boolean,
+ *   permiteServico?: boolean,
  *   escopo?: string,
  * }} props `onMudou`: a atividade ou o lançamento mudou no servidor (versão, status, sumiu) ou o envio ficou sem resposta — quem abriu relê.
  */
@@ -112,6 +121,8 @@ export default function FormularioApontamento({
   onMudou = null,
   permiteProduto = false,
   permiteImplemento = false,
+  permiteMaoObra = false,
+  permiteServico = false,
   escopo = "",
 }) {
   const empresaId = useEmpresaRealSelecionadaId();
@@ -139,19 +150,25 @@ export default function FormularioApontamento({
   // Folhas do celular (Turno, Operador) nascem dentro da janela: fora dela o diálogo bloqueia o toque.
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
 
-  // ─── Linhas do "Repetir" (Fatia 3) ─────────────────────────────────
-  const linhasDaBase = useMemo(() => (repetindo ? linhasParaRepetir(base) : { produtos: [], maquinas: [] }), []);
-  const [rascProdutos, setRascProdutos] = useState(() => linhasDaBase.produtos);
-  const [rascMaquinas, setRascMaquinas] = useState(() => linhasDaBase.maquinas);
+  // ─── Linhas do "Repetir" (Fatia 3; mão de obra e serviço na Fatia 4) ─
+  const linhasDaBase = useMemo(() => (repetindo ? linhasParaRepetir(base) : { produtos: [], maquinas: [], mao_obra: [], servicos: [] }), []);
+  const [rascunhos, setRascunhos] = useState(() => /** @type {import("@/lib/atividadeLinhasRegras").RascunhosDoLancamento} */ (linhasDaBase));
   const [errosLinhas, setErrosLinhas] = useState(/** @type {Record<string, Record<string, string>>} */ ({}));
   const [saltos, setSaltos] = useState(/** @type {Record<string, boolean>} */ ({}));
   /** Saldo e medidor que cada linha leu (para validar e montar o corpo). @type {React.MutableRefObject<Record<string, any>>} */
   const contextoLinhas = useRef({});
-  // Sem `permite_produto` no tipo, os produtos da base não vão (o servidor recusaria).
-  const produtosDoEnvio = permiteProduto ? rascProdutos : [];
+  // Sem a flag no tipo (`permite_produto`, `permite_mao_obra`, `permite_servico`), as linhas da base não vão (o servidor recusaria).
+  const doEnvio = {
+    produtos: permiteProduto ? rascunhos.produtos : [],
+    maquinas: rascunhos.maquinas,
+    mao_obra: permiteMaoObra ? rascunhos.mao_obra : [],
+    servicos: permiteServico ? rascunhos.servicos : [],
+  };
+  const produtosDoEnvio = doEnvio.produtos;
+  const rascMaquinas = doEnvio.maquinas;
   // A base tinha linhas: o envio é sempre o lançamento novo (o duplicar copia só os dados do dia).
-  const baseTinhaLinhas = linhasDaBase.produtos.length > 0 || linhasDaBase.maquinas.length > 0;
-  const comLinhas = produtosDoEnvio.length > 0 || rascMaquinas.length > 0;
+  const baseTinhaLinhas = Object.values(linhasDaBase).some((l) => l.length > 0);
+  const comLinhas = Object.values(doEnvio).some((l) => l.length > 0);
   // Envio com linhas sem resposta: o próximo clique repete EXATAMENTE aquele corpo (mesma chave, sem duplicar).
   const repetirEnvio = useRef(false);
   const ultimoCorpo = useRef(/** @type {Record<string, any> | null} */ (null));
@@ -166,17 +183,16 @@ export default function FormularioApontamento({
       const resto = campos.length ? Object.fromEntries(Object.entries(e[chave]).filter(([k]) => !campos.includes(k))) : {};
       return { ...e, [chave]: resto };
     });
-  /** @param {string} chave @param {(f: any) => any} f */
-  const atualizarProduto = (chave, f) => {
-    setRascProdutos((l) => l.map((r) => (r.chave === chave ? { ...r, form: f(r.form) } : r)));
+  /** @param {ColecaoDoLancamento} colecao @param {string} chave @param {(f: any) => any} f */
+  const atualizarRascunho = (colecao, chave, f) => {
+    setRascunhos((r) => ({ ...r, [colecao]: /** @type {any[]} */ (r[colecao]).map((x) => (x.chave === chave ? { ...x, form: f(x.form) } : x)) }));
     limparErrosDaLinha(chave);
     esquecerEnvio();
   };
-  /** @param {string} chave @param {(f: any) => any} f */
-  const atualizarMaquina = (chave, f) => {
-    setRascMaquinas((l) => l.map((r) => (r.chave === chave ? { ...r, form: f(r.form) } : r)));
-    limparErrosDaLinha(chave);
+  /** @param {ColecaoDoLancamento} colecao @param {string} chave */
+  const retirarRascunho = (colecao, chave) => {
     esquecerEnvio();
+    setRascunhos((r) => ({ ...r, [colecao]: /** @type {any[]} */ (r[colecao]).filter((x) => x.chave !== chave) }));
   };
   /** @param {string} chave @param {Record<string, any>} c */
   const aoContexto = (chave, c) => {
@@ -215,7 +231,7 @@ export default function FormularioApontamento({
       const texto = existente
         ? "Não recebemos a resposta do servidor: a alteração PODE ter sido gravada. Feche e confira o lançamento antes de salvar de novo."
         : enviouLinhas
-          ? "Não recebemos a resposta do servidor: o lançamento com os produtos e as máquinas PODE ter sido gravado. Confira a lista; se ele não estiver lá, use \"Repetir o mesmo envio\": com a mesma chave, nada é lançado nem baixado duas vezes."
+          ? "Não recebemos a resposta do servidor: o lançamento com as linhas (produtos, máquinas, mão de obra e serviços) PODE ter sido gravado. Confira a lista; se ele não estiver lá, use \"Repetir o mesmo envio\": com a mesma chave, nada é lançado nem baixado duas vezes."
           : "Não recebemos a resposta do servidor: o lançamento PODE ter sido gravado. Feche e confira a lista antes de lançar de novo: se ele já estiver lá, lançar outra vez grava mais uma passada.";
       setErroGeral(texto);
       notifyWarning("Resultado incerto", texto);
@@ -225,7 +241,7 @@ export default function FormularioApontamento({
     if (enviouLinhas) {
       // A recusa que aponta uma linha embutida (índice) vai para ela: o salto pede a justificativa, o saldo, a quantidade.
       const alvo = linhaEmbutidaRecusada(erro);
-      const lista = alvo?.colecao === "produtos" ? produtosDoEnvio : alvo?.colecao === "maquinas" ? rascMaquinas : null;
+      const lista = alvo ? /** @type {Array<{ chave: string }>} */ (doEnvio[/** @type {ColecaoDoLancamento} */ (alvo.colecao)] ?? null) : null;
       let chave = lista && alvo ? lista[alvo.indice]?.chave ?? null : null;
       if (!chave && ehSaltoDoMedidor(erro) && rascMaquinas.length === 1) chave = rascMaquinas[0].chave;
       const mensagemLinha = mensagemDeErroLinha(erro, "Não foi possível gravar o lançamento. Nada foi gravado.");
@@ -267,6 +283,10 @@ export default function FormularioApontamento({
     const produtos = [];
     /** @type {Record<string, any>[]} */
     const maquinas = [];
+    /** @type {Record<string, any>[]} */
+    const maoObra = [];
+    /** @type {Record<string, any>[]} */
+    const servicos = [];
     let esperandoMedidor = false;
     for (const r of produtosDoEnvio) {
       const ctx = contextoLinhas.current[r.chave] ?? {};
@@ -285,9 +305,19 @@ export default function FormularioApontamento({
       if (Object.keys(e).length) errosDasLinhas[r.chave] = e;
       else maquinas.push(corpoDaLinhaMaquina(r.form, medidor, { comJustificativa: pede }));
     }
+    for (const r of doEnvio.mao_obra) {
+      const e = validarLinhaMaoObra(r.form);
+      if (Object.keys(e).length) errosDasLinhas[r.chave] = e;
+      else maoObra.push(corpoDaLinhaMaoObra(r.form));
+    }
+    for (const r of doEnvio.servicos) {
+      const e = validarLinhaServico(r.form);
+      if (Object.keys(e).length) errosDasLinhas[r.chave] = e;
+      else servicos.push(corpoDaLinhaServico(r.form));
+    }
     setErrosLinhas(errosDasLinhas);
     if (Object.keys(errosDasLinhas).length) {
-      notifyWarning("Atenção", "Revise os campos destacados nas linhas de produto e de máquina.");
+      notifyWarning("Atenção", "Revise os campos destacados nas linhas do lançamento.");
       return;
     }
     if (esperandoMedidor) {
@@ -302,7 +332,7 @@ export default function FormularioApontamento({
       let resposta;
       if (enviouLinhas) {
         // Retentativa: o MESMO corpo daquele envio sem resposta (a pendência casa a chave e o servidor devolve o gravado).
-        const corpoComLinhas = repetirEnvio.current && ultimoCorpo.current ? ultimoCorpo.current : { ...corpo, produtos, maquinas };
+        const corpoComLinhas = repetirEnvio.current && ultimoCorpo.current ? ultimoCorpo.current : { ...corpo, produtos, maquinas, mao_obra: maoObra, servicos };
         ultimoCorpo.current = corpoComLinhas;
         resposta = await criarApontamento(atividadeId, corpoComLinhas, { escopo, retentativa: repetirEnvio.current });
         repetirEnvio.current = false;
@@ -482,24 +512,19 @@ export default function FormularioApontamento({
           />
           {dataTravada ? (
             <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="apontamento-data-travada">
-              A data não muda enquanto houver produto ou máquina confirmados neste lançamento: para mudar o dia, cancele o lançamento e lance de novo.
+              A data não muda enquanto houver produto, máquina, mão de obra ou serviço confirmados neste lançamento: para mudar o dia, cancele o lançamento e lance de novo.
             </p>
           ) : null}
           {repetindo ? (
             <LinhasDoLancamento
-              produtos={produtosDoEnvio}
-              maquinas={rascMaquinas}
-              produtosForaDoTipo={permiteProduto ? 0 : rascProdutos.length}
-              atualizarProduto={atualizarProduto}
-              atualizarMaquina={atualizarMaquina}
-              retirarProduto={(chave) => {
-                esquecerEnvio();
-                setRascProdutos((l) => l.filter((r) => r.chave !== chave));
+              rascunhos={doEnvio}
+              foraDoTipo={{
+                produtos: permiteProduto ? 0 : rascunhos.produtos.length,
+                mao_obra: permiteMaoObra ? 0 : rascunhos.mao_obra.length,
+                servicos: permiteServico ? 0 : rascunhos.servicos.length,
               }}
-              retirarMaquina={(chave) => {
-                esquecerEnvio();
-                setRascMaquinas((l) => l.filter((r) => r.chave !== chave));
-              }}
+              atualizar={atualizarRascunho}
+              retirar={retirarRascunho}
               onContexto={aoContexto}
               erros={errosLinhas}
               saltos={saltos}

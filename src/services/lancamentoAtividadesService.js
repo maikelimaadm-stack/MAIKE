@@ -210,22 +210,26 @@ export const listarApontamentos = async (atividadeId) => {
 export const obterApontamento = async (atividadeId, apontamentoId) =>
   getAtividadeApontamento(String(atividadeId ?? ''), String(apontamentoId ?? ''), fazenda('obterApontamento', RESOURCE_APONTAMENTO));
 
+/** Coleções de linhas que o lançamento (e o "Repetir") leva no corpo. */
+const COLECOES_DO_LANCAMENTO = Object.freeze(['produtos', 'maquinas', 'mao_obra', 'servicos']);
+
 /**
  * Novo lançamento (só em atividade ABERTA): `{ data_operacional, turno?,
  * operador_usuario_id?, area_executada_dia?, quantidade_produzida_dia?,
  * observacao?, origem? }`. Área, setor, safra, centros, unidade e máquina são do
  * cabeçalho (não vão). Devolve `{ apontamento, atividade, alertas }`.
  * Fatia 3: com `produtos[]`/`maquinas[]` ("Repetir último lançamento"), vai com
- * o `operation_id` persistente (`opcoes`: escopo e retentativa).
+ * o `operation_id` persistente (`opcoes`: escopo e retentativa). Fatia 4: o
+ * mesmo com `mao_obra[]` e `servicos[]`.
  * @param {string} atividadeId @param {Record<string, any>} dados @param {OpcoesDeEnvio|null} [opcoes]
  */
 export const criarApontamento = async (atividadeId, dados, opcoes = null) => {
   const d = comoObjeto(dados);
   const empresaId = fazenda('criarApontamento', RESOURCE_APONTAMENTO);
   const id = String(atividadeId ?? '');
-  const comLinhas = (Array.isArray(d.produtos) && d.produtos.length > 0) || (Array.isArray(d.maquinas) && d.maquinas.length > 0);
+  const comLinhas = COLECOES_DO_LANCAMENTO.some((c) => Array.isArray(d[c]) && d[c].length > 0);
   if (!comLinhas) {
-    const { produtos: _p, maquinas: _m, ...doDia } = d;
+    const { produtos: _p, maquinas: _m, mao_obra: _o, servicos: _s, ...doDia } = d;
     return createAtividadeApontamento(id, { ...doDia, empresa_id: empresaId });
   }
   // Com linhas (Fatia 3): tudo numa transação no servidor, com UM `operation_id` persistente até a resposta definitiva.
@@ -283,7 +287,7 @@ export const duplicarApontamento = async (atividadeId, apontamentoId, dados = {}
     ...soOsInformados(comoObjeto(dados), ['data_operacional']),
   });
 
-// ─── Linhas de produto e de máquina (D-PROD-202, Fatia 3) ───────────────
+// ─── Linhas de produto e de máquina (D-PROD-202, Fatia 3), mão de obra e serviço (Fatia 4) ─
 
 /**
  * Pendência de `operation_id` das linhas (precedente D-PROD-193): adicionar, editar e cancelar linha — e o lançamento
@@ -295,9 +299,10 @@ export const duplicarApontamento = async (atividadeId, apontamentoId, dados = {}
 export const ACAO_LANCAR_LINHA = 'criar';
 export const ACAO_EDITAR_LINHA = 'editar';
 export const ACAO_CANCELAR_LINHA = 'cancelar';
-/** Alvo das linhas NOVAS de um apontamento (por tipo). @param {'produtos'|'maquinas'} tipo @param {string} apontamentoId */
+/** O segmento da rota de cada tipo de linha. @typedef {'produtos'|'maquinas'|'mao-obra'|'servicos'} TipoDeLinha */
+/** Alvo das linhas NOVAS de um apontamento (por tipo). @param {TipoDeLinha} tipo @param {string} apontamentoId */
 export const alvoDasLinhas = (tipo, apontamentoId) => `${tipo}:${apontamentoId}`;
-/** Alvo de UMA linha gravada. @param {'produtos'|'maquinas'} tipo @param {string} linhaId */
+/** Alvo de UMA linha gravada. @param {TipoDeLinha} tipo @param {string} linhaId */
 export const alvoDaLinha = (tipo, linhaId) => `${tipo}:linha:${linhaId}`;
 /** Alvo do lançamento NOVO com linhas de uma atividade. @param {string} atividadeId */
 export const alvoDosApontamentos = (atividadeId) => `apontamentos:${atividadeId}`;
@@ -391,10 +396,10 @@ const enviarLinha = (p) =>
   });
 
 /**
- * Adiciona UMA linha (produto ou máquina) ao apontamento CONFIRMADO: o corpo da janela (`corpoDaLinhaProduto` /
- * `corpoDaLinhaMaquina`), a `versao` do apontamento lida e o `operation_id` persistente. Devolve
+ * Adiciona UMA linha (produto, máquina, mão de obra ou serviço) ao apontamento CONFIRMADO: o corpo da janela
+ * (`corpoDaLinhaProduto` / `corpoDaLinhaMaquina` / `corpoDaLinhaMaoObra` / `corpoDaLinhaServico`), a `versao` do apontamento lida e o `operation_id` persistente. Devolve
  * `{ apontamento, atividade, alertas }` (o apontamento com as linhas).
- * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
+ * @param {TipoDeLinha} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
  * @param {Record<string, any>} corpoLinha @param {OpcoesDeEnvio} opcoes
  */
 export const adicionarLinha = async (tipo, atividadeId, apontamento, corpoLinha, opcoes) => {
@@ -413,9 +418,9 @@ export const adicionarLinha = async (tipo, atividadeId, apontamento, corpoLinha,
 };
 
 /**
- * Edita UMA linha CONFIRMADA (produto: estorno exato + nova saída; máquina: cancela e cria outra): só o que mudou, a
+ * Edita UMA linha CONFIRMADA (produto: estorno exato + nova saída; máquina, mão de obra e serviço: cancela e cria outra): só o que mudou, a
  * `versao` do apontamento e o `operation_id` persistente.
- * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
+ * @param {TipoDeLinha} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
  * @param {{ id: string }} linha @param {Record<string, any>} mudancas @param {OpcoesDeEnvio} opcoes
  */
 export const editarLinha = async (tipo, atividadeId, apontamento, linha, mudancas, opcoes) => {
@@ -437,7 +442,7 @@ export const editarLinha = async (tipo, atividadeId, apontamento, linha, mudanca
 /**
  * Cancela UMA linha CONFIRMADA (produto: estorno exato aos lotes de origem): motivo de 3 a 500 caracteres (conferido
  * ANTES da rede), a `versao` do apontamento e o `operation_id` persistente.
- * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
+ * @param {TipoDeLinha} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
  * @param {{ id: string }} linha @param {string} motivo @param {OpcoesDeEnvio} opcoes
  */
 export const cancelarLinha = async (tipo, atividadeId, apontamento, linha, motivo, opcoes) => {
@@ -491,7 +496,7 @@ export const obterMedidorDoBem = async (bemId, dia = null) => {
 const SEM_OPCOES = Object.freeze({ itens: [], has_more: false, next_cursor: null });
 
 /**
- * @param {'bens'|'operadores'|'produtos'|'implementos'|'locais'} recurso
+ * @param {'bens'|'operadores'|'produtos'|'implementos'|'locais'|'funcionarios'|'servicos'|'parceiros-servico'} recurso
  * @param {{ q?: string, cursor?: string|null, limit?: number, atividade_id?: string|null, produto_id?: string|null }} [opts]
  */
 const opcoes = async (recurso, opts = {}) => {
@@ -523,6 +528,25 @@ export const listarLocaisDoProduto = async (produtoId) => {
   if (!textoOuIndefinido(produtoId)) return { ...SEM_OPCOES, itens: [] };
   return opcoes('locais', { produto_id: produtoId });
 };
+
+/**
+ * Funcionários ATIVOS da fazenda para a linha de mão de obra (`{ id, numero, nome, cargo, tipo, custo_hora,
+ * custo_diaria }`): o tipo sugere a medida e os custos de hora/diária são os do cadastro.
+ * @param {{ q?: string, cursor?: string|null, limit?: number }} [opts]
+ */
+export const listarOpcoesFuncionarios = (opts = {}) => opcoes('funcionarios', opts);
+
+/**
+ * Serviços ATIVOS da fazenda para a linha de serviço (`{ id, numero, nome, unidade, valor_referencia }`).
+ * @param {{ q?: string, cursor?: string|null, limit?: number }} [opts]
+ */
+export const listarOpcoesServicos = (opts = {}) => opcoes('servicos', opts);
+
+/**
+ * Parceiros ATIVOS com o papel de prestador de serviço (`{ id, nome }`) para o parceiro (opcional) da linha de serviço.
+ * @param {{ q?: string, cursor?: string|null, limit?: number }} [opts]
+ */
+export const listarOpcoesParceirosServico = (opts = {}) => opcoes('parceiros-servico', opts);
 
 /** Implementos ATIVOS da fazenda (natureza IMPLEMENTO) para a linha de máquina. @param {{ q?: string, cursor?: string|null, limit?: number }} [opts] */
 export const listarOpcoesImplementos = (opts = {}) => opcoes('implementos', opts);

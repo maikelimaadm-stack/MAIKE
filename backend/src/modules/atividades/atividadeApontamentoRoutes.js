@@ -32,6 +32,8 @@
  * `ESQUEMA_ITEM_PRODUTO`) e `maquinas[]` (item: `ITEM_LINHA_MAQUINA`), até
  * `LINHAS_NO_LANCAMENTO_MAXIMO` de cada, com `operation_id` (obrigatório quando
  * há linha; até 120). Reenvio igual → 200 com `replay: true`; novo → 201.
+ * D-PROD-203 (Fatia 4): também `mao_obra[]` (`ITEM_LINHA_MAO_OBRA`) e
+ * `servicos[]` (`ITEM_LINHA_SERVICO`), sob a mesma chave.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -50,6 +52,10 @@ import {
 } from './atividadeComum.js';
 import { ITEM_LINHA_MAQUINA, recusarCoercaoDasMaquinas } from './atividadeApontamentoMaquinaRoutes.js';
 import { ESQUEMA_ITEM_PRODUTO } from './atividadeApontamentoProdutoRoutes.js';
+import { ITEM_LINHA_MAO_OBRA } from './atividadeApontamentoMaoObraRoutes.js';
+import { ITEM_LINHA_SERVICO } from './atividadeApontamentoServicoRoutes.js';
+import { DECIMAIS_DA_LINHA_MAO_OBRA } from './atividadeApontamentoMaoObraService.js';
+import { DECIMAIS_DA_LINHA_SERVICO } from './atividadeApontamentoServicoService.js';
 import {
   cancelarApontamento,
   duplicarApontamento,
@@ -89,6 +95,9 @@ const LINHAS_DO_LANCAMENTO = Object.freeze({
   operation_id: { type: 'string', minLength: 8, maxLength: OPERATION_ID_DO_LANCAMENTO_MAXIMO, pattern: PADRAO_OPERATION_ID.source },
   produtos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ESQUEMA_ITEM_PRODUTO },
   maquinas: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAQUINA },
+  // D-PROD-203 (Fatia 4): mão de obra e serviço de terceiro.
+  mao_obra: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAO_OBRA },
+  servicos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_SERVICO },
 });
 
 /** Campos de DADO do dia (o formulário do §6), os mesmos no lançamento e na edição. */
@@ -164,7 +173,7 @@ export const registrarAtividadeApontamentoRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
   app.addHook('preValidation', async (request) => {
     recusarCoercao(request.body, DECIMAIS_DO_APONTAMENTO);
-    recusarCoercaoNasListas(request.body, { produtos: DECIMAIS_DA_LINHA_PRODUTO });
+    recusarCoercaoNasListas(request.body, { produtos: DECIMAIS_DA_LINHA_PRODUTO, mao_obra: DECIMAIS_DA_LINHA_MAO_OBRA, servicos: DECIMAIS_DA_LINHA_SERVICO });
     recusarCoercaoDasMaquinas(request.body);
   });
   /** 201 no lançamento novo; 200 no reenvio igual da mesma chave (`replay: true`). */
