@@ -157,6 +157,15 @@ cancelada (editar é cancelar e lançar de novo). Nesta parte, esta expansão su
 lista "fora" da D-PROD-202, só para o parceiro prestador como referência na linha de serviço. Texto redigido pelo
 agente e **aprovado pelo proprietário em 2026-11-15 ("Aplica e aprova")**, no merge da PR #294 (§4).
 
+**Ajuste (D-PROD-208):** o **Funcionário** deixa de ser cadastro próprio e passa a ser **papel do parceiro** (cadastro
+de Parceiros, papel `funcionario`), com tipo `MENSALISTA | DIARISTA | TAREFEIRO`, cargo e custos por hora e por diária,
+opcionais e só com esse papel; a tela e o cadastro próprios de Funcionário saem. A **mão de obra** do apontamento pode
+ser de **funcionário** (parceiro com o papel `funcionario`; hora e diária copiam o custo do papel como snapshot, a
+tarefa é digitada) ou de **terceiro** (parceiro prestador de serviço, papel `prestador_servico`; custo sempre
+digitado). O funcionário continua nunca sendo uma conta de acesso (`Usuario`). Continua **fora** tudo o que a D-PROD-207
+deixou fora: folha de pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título e
+rateio. Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no merge manual (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

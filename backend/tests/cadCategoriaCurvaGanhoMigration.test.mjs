@@ -65,6 +65,10 @@
  * D-PROD-207: a EXPAND `20261115900000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
  * de serviço, que referenciam AtividadeApontamento; nenhuma coluna em tabela antiga), também de nome POSTERIOR, sobe
  * na partida da mesma forma que a D-PROD-202, depois dela: 91 tabelas na partida e 95 no fim (58 migrations).
+ *
+ * D-PROD-208: a CONTRACT `20261116000000_mao_obra_parceiro` (o funcionário como papel do parceiro; a Funcionario, vazia,
+ * sai; não toca CADCATEGORIA), de nome POSTERIOR, sobe na partida como as outras CONTRACT posteriores, depois da
+ * D-PROD-207: 90 tabelas na partida e 94 no fim (59 migrations).
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -373,21 +377,21 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas, a D-PROD-197 e a D-PROD-200, posteriores, e as EXPAND posteriores da D-PROD-202 e da D-PROD-207; fora também as EXPAND da D-PROD-203, da D-PROD-205 e da D-PROD-206), 91 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-200 têm nome posterior a esta');
+  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas, a D-PROD-197 e a D-PROD-200, posteriores, as EXPAND posteriores da D-PROD-202 e da D-PROD-207 e a CONTRACT posterior da D-PROD-208; fora também as EXPAND da D-PROD-203, da D-PROD-205 e da D-PROD-206), 90 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho', '20261116000000_mao_obra_parceiro'], 'só as CONTRACT da D-PROD-197, da D-PROD-200 e da D-PROD-208 têm nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     // D-PROD-198, D-PROD-203, D-PROD-205 e D-PROD-206: as EXPAND do peso objetivo, das Formulações, da Leitura de cocho e
-    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 entram (58 pastas; partida 53).
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA]);
-    assert.equal(MIGRATIONS_PARTIDA, 53);
-    assert.equal(TOTAL_MIGRATIONS, 58);
+    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 e a CONTRACT da D-PROD-208 entram (59 pastas; partida 54).
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, '20261116000000_mao_obra_parceiro']);
+    assert.equal(MIGRATIONS_PARTIDA, 54);
+    assert.equal(TOTAL_MIGRATIONS, 59);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.peso_concluida, 0, 'a D-PROD-198 ainda não existia no dia desta CONTRACT');
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 4);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 91, '85 até a D-PROD-197; a D-PROD-200 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade; a D-PROD-202 (na partida) acrescenta as 3 das linhas; a D-PROD-207 (na partida), as 4 da mão de obra e do serviço');
+    assert.equal(partida.tabelas, 90, '85 até a D-PROD-197; a D-PROD-200 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade; a D-PROD-202 (na partida) acrescenta as 3 das linhas; a D-PROD-207 (na partida), as 4 da mão de obra e do serviço; a D-PROD-208 (na partida) tira a Funcionario');
     assert.deepEqual(partida.colunas, [...COLUNAS_ANTES]);
     assert.deepEqual(partida.indices_categoria, [...INDICES_CATEGORIA_ANTES]);
     assert.deepEqual(partida.constraints_categoria, [...CONSTRAINTS_CATEGORIA_ANTES]);
@@ -494,7 +498,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.deepEqual(depois.oids, partida.oids, 'as mesmas tabelas (ALTER, não cópia)');
     assert.deepEqual(depois.categorias, partida.categorias, 'as linhas nas colunas de antes não mudaram');
     assert.deepEqual(depois.curvas, partida.curvas, 'nenhuma curva mudou');
-    assert.equal(depois.tabelas, partida.tabelas + 4, 'nenhuma tabela a mais nem a menos além das 3 das Formulações (D-PROD-203) e da LEITURACOCHO (D-PROD-205), por último: 91 → 95');
+    assert.equal(depois.tabelas, partida.tabelas + 4, 'nenhuma tabela a mais nem a menos além das 3 das Formulações (D-PROD-203) e da LEITURACOCHO (D-PROD-205), por último: 90 → 94');
 
     // Cada categoria ficou na CURVA PADRÃO da própria fazenda (a inativa inclusive; nunca na CURVA ENGORDA).
     const ligadas = await db.$queryRawUnsafe(`SELECT id, curva_ganho_id AS curva FROM public."CADCATEGORIA" ORDER BY id COLLATE "C"`);

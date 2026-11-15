@@ -7499,4 +7499,24 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Contrato:** [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-208 -->
+## D-PROD-208 — Ajuste da Fatia 4: o funcionário vira papel do parceiro, e a mão de obra pode ser de funcionário ou de terceiro
+
+**Data:** 2026-11-15 · **Origem:** pedido do proprietário, logo depois da Fatia 4 (D-PROD-207) entrar em produção · **Branch:** `feat/atividade-mao-obra-parceiro` · **Ajusta:** D-PROD-207
+
+**O pedido.** Nas palavras do proprietário: "o cadastro de funcionários deveria ser lá em parceiros, outra coisa, eu também tenho mão de obra com terceiros não apenas com funcionários, tipo assim, lá já tenho as opções papeis do parceiro, só iria incluir quando eu escolher o funcionário os dados dele". O agente propôs o plano abaixo (papel `funcionario` no parceiro com os dados dele; a linha de mão de obra apontando para o parceiro, funcionário ou terceiro; a tabela e a tela Funcionário saindo) e o proprietário aprovou: "sim pode fazer".
+
+**Decisão.**
+1. **Papel `funcionario` no parceiro** (tabela `Fornecedor`, tela Parceiros), com os 4 campos do cadastro que sai, todos opcionais e aceitos só com esse papel nos papéis finais (sem ele → 422 `PARCEIRO_FUNCIONARIO_SEM_PAPEL`): `funcionario_tipo` (`MENSALISTA | DIARISTA | TAREFEIRO`), `funcionario_cargo`, `funcionario_custo_hora` e `funcionario_custo_diaria` (≥ 0). Tirar o papel limpa os 4 campos. O CHECK `Fornecedor_funcionario_check` fecha a lista e os custos no banco.
+2. **A linha de mão de obra aponta para o parceiro** (`parceiro_id`, FK composta pelo tenant, `RESTRICT`), e o **servidor** decide e grava a `origem` pelo parceiro novo: ativo, da mesma fazenda e com o papel `funcionario` → `FUNCIONARIO` (com os dois papéis, vale funcionário); senão com `prestador_servico` → `TERCEIRO`; qualquer outro caso → a mesma recusa 422 `ATIVIDADE_LINHA_INVALIDA` (`reason: parceiro_invalido`, sem oráculo). Custo do funcionário: hora e diária copiam o custo do papel como snapshot (sem custo no papel, a linha entra sem custo; o corpo não aceita `custo_unitario`); tarefa pede o custo digitado. Custo do terceiro: **sempre** digitado, em qualquer medida.
+3. **Edição** (cancelar e lançar de novo, como na Fatia 4): o parceiro mantido fica com a `origem` gravada, mesmo que depois tenha perdido o papel ou sido inativado; trocar só o parceiro mantém o custo digitado gravado e descarta o snapshot. A correção da unidade do serviço mantida na edição, apontada pelo Codex na PR #294, continua valendo.
+4. **Auditoria do parceiro:** `funcionario_tipo` e os 2 custos entram como valor; o cargo, só como `tem_funcionario_cargo`.
+5. **Sai** a tabela `Funcionario`, a tela Funcionários, as rotas `/funcionarios` e o seletor `/atividades-opcoes/funcionarios`; entra o seletor `GET /atividades-opcoes/mao-obra` (os parceiros ativos da fazenda com papel funcionário ou prestador de serviço). Em produção, `Funcionario` e `AtividadeApontamentoMaoObra` estão **vazias** (conferido): nada se perde. O teste de serviço da Fatia 4 passa a ser `backend/tests/servicoNativo.test.mjs`.
+6. **Migration CONTRACT `20261116000000_mao_obra_parceiro`, condicionada a tabelas vazias:** a guarda pinada trava `Funcionario` e `AtividadeApontamentoMaoObra` em `ACCESS EXCLUSIVE` e aborta a transação inteira com qualquer linha em qualquer das duas; depois, as 12 instruções pinadas em tabela antiga (sai a FK, o índice e a coluna `funcionario_id`; entram `parceiro_id` e `origem` `NOT NULL` sem DEFAULT, as 4 colunas anuláveis em `Fornecedor`, os 2 CHECKs e a FK nova), o índice `(cliente_id, parceiro_id)` e, por último, `DROP TABLE "Funcionario"`. Entrada nova em `MIGRATIONS_CONTRACT_APROVADAS`, a primeira com `drop_no_fim` sem conversão (o `DROP` no começo falharia: a FK da linha ainda referencia a tabela). SHA-256 `65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0`, guarda `9ec960b5…`. Produção: 58 → 59 migrations, 95 → 94 tabelas (de tenant, 80 → 79). O Instant Rollback deixa de ser seguro depois da aplicação.
+7. **Continua fora**, como na D-PROD-207: folha (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço.
+8. **Constituição:** nota "Ajuste (D-PROD-208)" no `00` e no `07`, logo depois dos textos da D-PROD-207. Redigida pelo agente; vale só com a aprovação explícita do proprietário no merge manual (§4).
+
+**Release.** Só com o GO explícito e escrito do proprietário para **esta** migration, depois de toda a validação local verde (o GitHub Actions está pausado: os testes rodam localmente) e de um preflight `PRONTO PARA APLICAR`. [Runbook](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md).
+
+**Contrato:** [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-209 -->

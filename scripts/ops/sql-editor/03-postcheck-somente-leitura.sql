@@ -11,10 +11,11 @@ WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
     -- D-PROD-207 (Fatia 4): as linhas de mão de obra e de serviço saem PRIMEIRO — a de mão de obra referencia o
-    -- apontamento, o funcionário e os usuários; a de serviço referencia o apontamento, o serviço, o parceiro (Fornecedor)
-    -- e os usuários; nenhuma outra tabela as referencia. O Funcionario e o Servico saem logo depois — referenciam a
-    -- empresa (e o serviço, a UnidadeMedida e o CentroCusto); só as duas linhas os referenciam.
-    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Funcionario','Servico',
+    -- apontamento, o parceiro (Fornecedor; D-PROD-208: o funcionário é papel do parceiro e a tabela Funcionario saiu) e
+    -- os usuários; a de serviço referencia o apontamento, o serviço, o parceiro e os usuários; nenhuma outra tabela as
+    -- referencia. O Servico sai logo depois — referencia a empresa, a UnidadeMedida e o CentroCusto; só a linha de
+    -- serviço o referencia.
+    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Servico',
     -- D-PROD-202 (Fatia 3): as linhas de produto e de máquina saem logo depois — a fatia FIFO do produto referencia a linha de
     -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
     -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.

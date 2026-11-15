@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades): mão de obra e serviço de terceiro (D-PROD-207)
+## Missão ativa (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO (ajuste da Fatia 4): o funcionário vira papel do parceiro, e a mão de obra pode ser de funcionário ou de terceiro (D-PROD-208)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-208**, pedido do proprietário ("o cadastro de funcionários deveria ser lá em parceiros, outra coisa, eu também tenho mão de obra com terceiros não apenas com funcionários […]"); plano aprovado: "sim pode fazer" |
+| Branch / PR | `feat/atividade-mao-obra-parceiro`, a partir da `main` `9a666393` (merge da PR #294, Fatia 4, D-PROD-207) · PR **a abrir** |
+| Escopo | Papel `funcionario` no parceiro com tipo, cargo e custos por hora e por diária; a linha de mão de obra aponta para o parceiro, com a `origem` `FUNCIONARIO`/`TERCEIRO` decidida pelo servidor (funcionário: hora e diária com snapshot, tarefa digitada; terceiro: custo sempre digitado); seletor `GET /atividades-opcoes/mao-obra`; tabela, tela e rotas de Funcionário saem (vazias em produção) |
+| Migration | `20261116000000_mao_obra_parceiro`, **CONTRACT condicionado a tabelas vazias** (`drop_no_fim`), SHA `65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0`. Produção 58 → 59; tabelas 95 → 94; de tenant, 80 → 79 |
+| Release | **Não aplicada.** Só com o GO explícito e escrito do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md); validação toda local (GitHub Actions pausado) |
+| Constituição | Nota "Ajuste (D-PROD-208)" no `00` e no `07`, redigida pelo agente; vale só com a aprovação explícita do proprietário no merge manual |
+| Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades): mão de obra e serviço de terceiro (D-PROD-207)
 
 | Campo | Valor |
 |---|---|

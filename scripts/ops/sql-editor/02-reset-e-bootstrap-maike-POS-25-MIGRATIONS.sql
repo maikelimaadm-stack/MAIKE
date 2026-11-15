@@ -20,11 +20,11 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 95 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 94 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
---   - Apaga SOMENTE linhas das 80 tabelas de tenant (por cliente_id) e os
+--   - Apaga SOMENTE linhas das 79 tabelas de tenant (por cliente_id) e os
 --     clientes de teste. Nunca toca _prisma_migrations, catálogo global,
 --     identidade do proprietário (MAIKE Admin), auth, storage, schema, RLS,
 --     grants. Sem DROP/TRUNCATE/DDL.
@@ -55,10 +55,11 @@ DECLARE
   -- Ordem segura de exclusão (filha → mãe), conferida contra as FKs reais abaixo.
   c_tenant constant text[] := ARRAY[
     -- D-PROD-207 (Fatia 4): as linhas de mão de obra e de serviço saem PRIMEIRO — a de mão de obra referencia o
-    -- apontamento, o funcionário e os usuários; a de serviço referencia o apontamento, o serviço, o parceiro (Fornecedor)
-    -- e os usuários; nenhuma outra tabela as referencia. O Funcionario e o Servico saem logo depois — referenciam a
-    -- empresa (e o serviço, a UnidadeMedida e o CentroCusto); só as duas linhas os referenciam.
-    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Funcionario','Servico',
+    -- apontamento, o parceiro (Fornecedor; D-PROD-208: o funcionário é papel do parceiro e a tabela Funcionario saiu) e
+    -- os usuários; a de serviço referencia o apontamento, o serviço, o parceiro e os usuários; nenhuma outra tabela as
+    -- referencia. O Servico sai logo depois — referencia a empresa, a UnidadeMedida e o CentroCusto; só a linha de
+    -- serviço o referencia.
+    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Servico',
     -- D-PROD-202 (Fatia 3): as linhas de produto e de máquina saem logo depois — a fatia FIFO do produto referencia a linha de
     -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
     -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
@@ -164,7 +165,7 @@ BEGIN
     RAISE EXCEPTION 'MAIKE-02: falta tabela esperada em public. Nada foi alterado.';
   END IF;
 
-  -- 4. cliente_id exatamente nas 80 de tenant (+ OperadorProdutoMaike, preservada).
+  -- 4. cliente_id exatamente nas 79 de tenant (+ OperadorProdutoMaike, preservada).
   IF (SELECT array_agg(table_name::text ORDER BY table_name) FROM information_schema.columns
        WHERE table_schema = 'public' AND column_name = 'cliente_id')
      IS DISTINCT FROM (SELECT array_agg(x ORDER BY x) FROM unnest(c_tenant || ARRAY['OperadorProdutoMaike']) x) THEN
@@ -219,7 +220,7 @@ BEGIN
   END IF;
 
   -- 7. Trava as tabelas de tenant contra escrita e confere a impressão do inventário.
-  LOCK TABLE "AtividadeApontamentoMaoObra","AtividadeApontamentoServico","Funcionario","Servico","AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeApontamento","Atividade","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
+  LOCK TABLE "AtividadeApontamentoMaoObra","AtividadeApontamentoServico","Servico","AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeApontamento","Atividade","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
     "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADFORMULACAOREGRA","CADFORMULACAOINGREDIENTE","CADFORMULACAO","LEITURACOCHO",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
     "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
