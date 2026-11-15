@@ -19,7 +19,7 @@
  * D-PROD-200, `20261114500000_atividade_cabecalho`, só olha as 3 tabelas do apontamento antigo, vazias aqui, troca-as
  * pelas 2 da atividade e também sobe na partida: 85 → 84 tabelas; a EXPAND da D-PROD-202,
  * `20261114600000_atividade_linhas_produto_maquina`, sobe na partida logo depois dela: + as 3 tabelas das linhas, 87;
- * a EXPAND da D-PROD-203, `20261114700000_atividade_mao_obra_servico`, sobe na partida depois delas: + as 4 tabelas
+ * a EXPAND da D-PROD-204, `20261114800000_atividade_mao_obra_servico`, sobe na partida depois delas: + as 4 tabelas
  * da mão de obra e do serviço, 91.) Para 2
  * clientes, 4 categorias de manejo: uma no formato das 4 de produção (raça,
  * categoria oficial, 12 GMDs 0.0000), uma com ganho e GMDs variados (e um
@@ -40,7 +40,7 @@
  * muda); no alvo local, com a impressão na URL, aplica esta, depois a D-PROD-195 e por último a EXPAND da D-PROD-198:
  * todas concluídas (CONCLUIDAS_DEPOIS; esta CONTRACT aplicada depois da CADCURVAGANHO e do ApontamentoAtividade,
  * fora da ordem dos nomes, como aconteceu em produção, e dos itens do apontamento e da CONTRACT da D-PROD-194, que
- * subiram na partida, como a D-PROD-197, a D-PROD-200, a D-PROD-202 e a D-PROD-203; a D-PROD-195 e a D-PROD-198 por último), 91 tabelas,
+ * subiram na partida, como a D-PROD-197, a D-PROD-200, a D-PROD-202 e a D-PROD-204; a D-PROD-195 e a D-PROD-198 por último), 91 tabelas,
  * CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e políticas, as 12 colunas que ficam (mais a
  * curva_ganho_id da D-PROD-195, cada categoria na CURVA PADRÃO da fazenda, e a peso_objetivo_kg da D-PROD-198, vazia),
  * linhas idênticas nelas, os 4 nomes novos,
@@ -123,8 +123,8 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO]);
     assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 3, 'todas as pastas menos esta CONTRACT, a D-PROD-195 e a D-PROD-198');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
-    assert.equal(TABELAS_PUBLIC, 91, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-203, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
-    assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114700000_atividade_mao_obra_servico'), 'a EXPAND da D-PROD-203 sobe na partida, depois da D-PROD-202');
+    assert.equal(TABELAS_PUBLIC, 91, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-204, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
+    assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114800000_atividade_mao_obra_servico'), 'a EXPAND da D-PROD-204 sobe na partida, depois da D-PROD-202');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114600000_atividade_linhas_produto_maquina'), 'a EXPAND da D-PROD-202 sobe na partida, depois da D-PROD-200');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114500000_atividade_cabecalho'), 'a CONTRACT da D-PROD-200 sobe na partida');
     // O estado de produção: duas migrations de nome POSTERIOR a esta CONTRACT já concluídas, por último e nesta ordem, e esta pendente.

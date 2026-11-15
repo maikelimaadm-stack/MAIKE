@@ -13,7 +13,7 @@
 -- GARANTIAS (falha fechada; qualquer erro desfaz TUDO):
 --   - Uma única transação; fora dela, para antes de alterar.
 --   - Confere alvo, 25/25 migrations (as 7 da PR com o checksum do repositório),
---     o conjunto EXATO de 91 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 4 da mão de obra e do serviço, D-PROD-203), cliente_id, ordem das FKs, nenhuma FK de
+--     o conjunto EXATO de 91 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 4 da mão de obra e do serviço, D-PROD-204), cliente_id, ordem das FKs, nenhuma FK de
 --     fora do tenant com linhas, RLS e grants; exatamente 1 cliente ("maike",
 --     ativo) e 1 conta ("maike", ativa, nesse cliente); todas as linhas de tenant
 --     desse cliente. Trava as tabelas e RECONFERE tudo, inclusive a impressão.
@@ -42,7 +42,7 @@ CREATE TEMP TABLE maike_limpeza_resultado (
 DO $maike$
 DECLARE
   c_tenant constant text[] := ARRAY[
-    -- D-PROD-203 (Fatia 4): as linhas de mão de obra e de serviço saem PRIMEIRO — a de mão de obra referencia o
+    -- D-PROD-204 (Fatia 4): as linhas de mão de obra e de serviço saem PRIMEIRO — a de mão de obra referencia o
     -- apontamento, o funcionário e os usuários; a de serviço referencia o apontamento, o serviço, o parceiro (Fornecedor)
     -- e os usuários; nenhuma outra tabela as referencia. O Funcionario e o Servico saem logo depois — referenciam a
     -- empresa (e o serviço, a UnidadeMedida e o CentroCusto); só as duas linhas os referenciam.
@@ -52,7 +52,7 @@ DECLARE
     -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
     'AtividadeApontamentoProdutoConsumoLote','AtividadeApontamentoProduto','AtividadeApontamentoMaquina',
     -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
-    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-203) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-204) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
     'AtividadeApontamento',
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
     -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia (acima) a referencia.

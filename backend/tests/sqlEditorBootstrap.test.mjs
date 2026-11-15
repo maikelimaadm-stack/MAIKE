@@ -153,7 +153,7 @@ const semear = async ({ clientes = 1 } = {}) => {
       medidor_tipo: 'SEM_MEDIDOR', sem_medidor: true, quantidade_uso: '3', custo_unitario_uso: '150', custo_total: '450',
       operation_id: `sqled-maquina-${i}`, criado_por_usuario_id: t.usuario.id,
     } });
-    // D-PROD-203 (Fatia 4): um funcionário e um serviço (com a unidade e o centro de custo como padrão), um parceiro
+    // D-PROD-204 (Fatia 4): um funcionário e um serviço (com a unidade e o centro de custo como padrão), um parceiro
     // prestador e as duas linhas novas (FK RESTRICT da mão de obra para o apontamento, o funcionário e o usuário; do
     // serviço para o apontamento, o serviço, o parceiro e o usuário): o 02 só apaga tudo se as duas linhas vierem ANTES
     // do apontamento, do funcionário, do serviço e do parceiro, e o funcionário e o serviço ANTES da empresa, da unidade
@@ -215,7 +215,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '91', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-200) + 3 das linhas de produto e de máquina (D-PROD-202) + 4 da mão de obra e do serviço (D-PROD-203)');
+    assert.equal(l['tabelas em public'].valor, '91', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-200) + 3 das linhas de produto e de máquina (D-PROD-202) + 4 da mão de obra e do serviço (D-PROD-204)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
@@ -384,7 +384,7 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     assert.deepEqual(await contar(), antes);
   });
 
-  test('SE-07e (D-PROD-203) com a mão de obra e o serviço fora de ordem (o funcionário antes da linha de mão de obra, a linha de serviço depois do apontamento do dia, ou o serviço depois da empresa, do centro de custo e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
+  test('SE-07e (D-PROD-204) com a mão de obra e o serviço fora de ordem (o funcionário antes da linha de mão de obra, a linha de serviço depois do apontamento do dia, ou o serviço depois da empresa, do centro de custo e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
     await semear();
     const antes = await contar();
     const NOVAS = "    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Funcionario','Servico',\n";
@@ -446,7 +446,7 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     // D-PROD-200: a semente tinha 1 atividade com 1 apontamento do dia; o 02 apagou na ordem certa (apontamento → atividade →
     // tipo, tarefa, área, setor, centros e unidade), e o estoque (lote e movimento → produto e local).
     // D-PROD-202: e as linhas do apontamento antes dele (fatia → linha de produto → linha de máquina → apontamento), e o bem.
-    // D-PROD-203: e a mão de obra e o serviço antes de tudo (linhas → funcionário e serviço → apontamento), e o parceiro.
+    // D-PROD-204: e a mão de obra e o serviço antes de tudo (linhas → funcionário e serviço → apontamento), e o parceiro.
     assert.deepEqual(
       [await p.atividadeApontamentoMaoObra.count(), await p.atividadeApontamentoServico.count(), await p.funcionario.count(), await p.servico.count(),
         await p.fornecedor.count(), await p.atividadeApontamentoProdutoConsumoLote.count(), await p.atividadeApontamentoProduto.count(), await p.atividadeApontamentoMaquina.count(),

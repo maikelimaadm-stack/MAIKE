@@ -1,7 +1,7 @@
 /**
  * PR174-R6/R7 — allowlist EXPAND fechada (manifesto pinado + conferência
  * estrutural), modo CONTRACT fechado (D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e D-PROD-200,
- * esta no formato CONVERSÃO), EXPAND das linhas de produto e de máquina (D-PROD-202), EXPAND da mão de obra e do serviço (D-PROD-203), conferência do histórico do alvo, barreiras do runner pré-merge e da identidade de
+ * esta no formato CONVERSÃO), EXPAND das linhas de produto e de máquina (D-PROD-202), EXPAND da mão de obra e do serviço (D-PROD-204), conferência do histórico do alvo, barreiras do runner pré-merge e da identidade de
  * produção do cutover. Sem banco.
  */
 import { test } from 'node:test';
@@ -165,11 +165,11 @@ const NOVAS_L = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', '
 const COLUNAS_L = ['BemPatrimonial.custo_uso_unitario', 'TipoPatrimonial.salto_maximo_medidor'];
 const DO_L = '3991bb1cbddf3772bf580b1bf35de71580b77725d20e77c0d6df7d8a1f2e95d8';
 /**
- * D-PROD-203 (Fatia 4) — mão de obra e serviço de terceiro do apontamento: EXPAND puro. As 4 tabelas novas
+ * D-PROD-204 (Fatia 4) — mão de obra e serviço de terceiro do apontamento: EXPAND puro. As 4 tabelas novas
  * (Funcionario, Servico e as 2 linhas) e o RLS pinado delas. Nenhuma coluna em tabela antiga, nenhum dado migrado;
  * AtividadeApontamento (D-PROD-200), Fornecedor, UnidadeMedida, CentroCusto e Usuario são ANTIGAS nesta release.
  */
-const NOME_MO = '20261114700000_atividade_mao_obra_servico';
+const NOME_MO = '20261114800000_atividade_mao_obra_servico';
 const NOVAS_MO = ['AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
 const DO_MO = '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403';
 /** Variação do arquivo CONTRACT `nome` sob o MESMO nome, com manifesto sintético: o checksum passa e só a estrutura decide. */
@@ -188,7 +188,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; mão de obra e serviço (D-PROD-203) só com as 4 tabelas novas', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; mão de obra e serviço (D-PROD-204) só com as 4 tabelas novas', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -1155,7 +1155,7 @@ test('B15k (D-PROD-187/D-PROD-189/D-PROD-190): ordem de produção — alvo com 
   // (os itens do apontamento, D-PROD-193, `20261113800000_apontamento_atividade_item`, a curva mensal, D-PROD-194, ver
   // B16k, a curva na categoria, D-PROD-195, ver B18k, os padrões do TipoAtividade, D-PROD-197, ver B19k, o peso
   // objetivo, D-PROD-198, ver B20k, a Atividade cabeçalho, D-PROD-200, ver B21m, as linhas de produto e de máquina,
-  // D-PROD-202, ver B22k, e a mão de obra e o serviço, D-PROD-203, ver B23k), ainda não existiam: 47 pastas. A EXPAND que a main recebeu depois dela (D-PROD-185,
+  // D-PROD-202, ver B22k, e a mão de obra e o serviço, D-PROD-204, ver B23k), ainda não existiam: 47 pastas. A EXPAND que a main recebeu depois dela (D-PROD-185,
   // só índices, de nome anterior) não muda o que este teste prova.
   const locais = todas.filter((l) => l.nome <= POSTERIORES.at(-1));
   assert.equal(locais.length, 47);
@@ -1432,8 +1432,8 @@ test('B16k (D-PROD-194/D-PROD-187/D-PROD-189/D-PROD-190/D-PROD-185/D-PROD-193): 
   // `20261114300000_tipo_atividade_defaults`, ver B19k), o peso objetivo (D-PROD-198,
   // `20261114400000_cadcategoria_peso_objetivo`, ver B20k), a Atividade cabeçalho (D-PROD-200,
   // `20261114500000_atividade_cabecalho`, ver B21m), as linhas de produto e de máquina (D-PROD-202,
-  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-203,
-  // `20261114700000_atividade_mao_obra_servico`, ver B23k) vieram depois dela, em releases seguintes: 49 pastas.
+  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-204,
+  // `20261114800000_atividade_mao_obra_servico`, ver B23k) vieram depois dela, em releases seguintes: 49 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_K);
   assert.equal(locais.length, 49);
   for (const n of [NOME_G, NOME_P, NOME_PO, NOME_V, NOME_L, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -1747,8 +1747,8 @@ test('B18k (D-PROD-195/D-PROD-194): ordem de produção no dia da D-PROD-195 —
   // (D-PROD-197, `20261114300000_tipo_atividade_defaults`, ver B19k), o peso objetivo (D-PROD-198,
   // `20261114400000_cadcategoria_peso_objetivo`, ver B20k), a Atividade cabeçalho (D-PROD-200,
   // `20261114500000_atividade_cabecalho`, ver B21m), as linhas de produto e de máquina (D-PROD-202,
-  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-203,
-  // `20261114700000_atividade_mao_obra_servico`, ver B23k) vieram depois dela: 50 pastas.
+  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-204,
+  // `20261114800000_atividade_mao_obra_servico`, ver B23k) vieram depois dela: 50 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_G);
   assert.equal(locais.length, 50);
   for (const n of [NOME_P, NOME_PO, NOME_V, NOME_L, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -1808,8 +1808,8 @@ test('B20k (D-PROD-198): ordem de produção no dia da D-PROD-198 — alvo com a
   assert.equal(todas.length, 55);
   // No dia da D-PROD-198 o peso objetivo era a pasta de nome mais recente; a Atividade cabeçalho (D-PROD-200,
   // `20261114500000_atividade_cabecalho`, ver B21m), as linhas de produto e de máquina (D-PROD-202,
-  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-203,
-  // `20261114700000_atividade_mao_obra_servico`, ver B23k) vieram depois dela, em releases seguintes: 52 pastas.
+  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-204,
+  // `20261114800000_atividade_mao_obra_servico`, ver B23k) vieram depois dela, em releases seguintes: 52 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_PO);
   assert.equal(locais.length, 52);
   for (const n of [NOME_V, NOME_L, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -2203,8 +2203,8 @@ test('B19k (D-PROD-197/D-PROD-195): ordem de produção no dia da D-PROD-197 —
   // Produção no dia desta CONTRACT: os padrões do TipoAtividade eram a pasta de nome mais recente. O peso objetivo
   // (D-PROD-198, `20261114400000_cadcategoria_peso_objetivo`, ver B20k), a Atividade cabeçalho (D-PROD-200,
   // `20261114500000_atividade_cabecalho`, ver B21m), as linhas de produto e de máquina (D-PROD-202,
-  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-203,
-  // `20261114700000_atividade_mao_obra_servico`, ver B23k) vieram depois dela, em releases seguintes: 51 pastas.
+  // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-204,
+  // `20261114800000_atividade_mao_obra_servico`, ver B23k) vieram depois dela, em releases seguintes: 51 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_P);
   assert.equal(locais.length, 51);
   for (const n of [NOME_PO, NOME_V, NOME_L, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -2591,8 +2591,8 @@ test('B21m (D-PROD-200/D-PROD-198/D-PROD-197): ordem de produção no dia da D-P
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 55);
   // No dia da D-PROD-200 a Atividade cabeçalho era a pasta de nome mais recente; as linhas de produto e de máquina
-  // (D-PROD-202, `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-203,
-  // `20261114700000_atividade_mao_obra_servico`, ver B23k) vieram depois dela: 53 pastas.
+  // (D-PROD-202, `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e a mão de obra e o serviço (D-PROD-204,
+  // `20261114800000_atividade_mao_obra_servico`, ver B23k) vieram depois dela: 53 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_V);
   assert.equal(locais.length, 53);
   for (const n of [NOME_L, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -2731,7 +2731,7 @@ test('B22k (D-PROD-202/D-PROD-200): ordem de produção no dia da D-PROD-202 —
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 55);
   // No dia da D-PROD-202 as linhas de produto e de máquina eram a pasta de nome mais recente; a mão de obra e o serviço
-  // (D-PROD-203, `20261114700000_atividade_mao_obra_servico`, ver B23k) vieram depois dela: 54 pastas.
+  // (D-PROD-204, `20261114800000_atividade_mao_obra_servico`, ver B23k) vieram depois dela: 54 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_L);
   assert.equal(locais.length, 54);
   assert.ok(todas.some((l) => l.nome === NOME_MO) && !locais.some((l) => l.nome === NOME_MO), NOME_MO);
@@ -2763,7 +2763,7 @@ test('B22k (D-PROD-202/D-PROD-200): ordem de produção no dia da D-PROD-202 —
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B23a (D-PROD-203): a mão de obra e o serviço classificados SOZINHOS, como na release (a D-PROD-202 já está em produção): EXPAND puro, só as 4 tabelas novas, nenhuma coluna em tabela antiga, DO de RLS pinado citando só as novas; --contract é inesperado; o que tocaria AtividadeApontamento, Fornecedor, UnidadeMedida, CentroCusto ou Usuario é recusado', () => {
+test('B23a (D-PROD-204): a mão de obra e o serviço classificados SOZINHOS, como na release (a D-PROD-202 já está em produção): EXPAND puro, só as 4 tabelas novas, nenhuma coluna em tabela antiga, DO de RLS pinado citando só as novas; --contract é inesperado; o que tocaria AtividadeApontamento, Fornecedor, UnidadeMedida, CentroCusto ou Usuario é recusado', () => {
   const m = ler(NOME_MO);
   const c = classificarMigrations([m]);
   assert.deepEqual(c.violacoes, []);
@@ -2782,10 +2782,10 @@ test('B23a (D-PROD-203): a mão de obra e o serviço classificados SOZINHOS, com
   assert.notEqual(DO_MO, DO_L, 'lista nova, hash novo');
   // Release EXPAND: sem --contract passa; qualquer --contract (inclusive o número desta decisão e o da anterior) é inesperado.
   assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_MO], classificacao: c, autorizacao: undefined }), { ok: true, codigo: null });
-  for (const autorizacao of ['D-PROD-203', 'D-PROD-202', '']) {
+  for (const autorizacao of ['D-PROD-204', 'D-PROD-202', '']) {
     assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_MO], classificacao: c, autorizacao }), { ok: false, codigo: 'CONTRACT_INESPERADO' }, autorizacao);
   }
-  assert.equal(envDoDeployMigrate({ env: { PATH: '/bin' }, classificacao: c, autorizacao: 'D-PROD-203' }).MIGRATION_CONTRACT_AUTORIZADO, undefined);
+  assert.equal(envDoDeployMigrate({ env: { PATH: '/bin' }, classificacao: c, autorizacao: 'D-PROD-204' }).MIGRATION_CONTRACT_AUTORIZADO, undefined);
   // As tabelas que as FKs novas referenciam são ANTIGAS nesta release: nenhuma coluna, CHECK, UNIQUE, ALTER COLUMN ou
   // DML nelas cabe no EXPAND — nem a coluna anulável que a allowlist aceitaria (esta migration não tem nenhuma).
   const casos = {
@@ -2832,7 +2832,7 @@ test('B23a (D-PROD-203): a mão de obra e o serviço classificados SOZINHOS, com
   }
 });
 
-test('B23b (D-PROD-203): runner real sobre a release da mão de obra e do serviço — análise local EXPAND sem rótulo CONTRACT, com as 4 tabelas e nenhuma coluna em tabela antiga; --contract é CONTRACT_INESPERADO; verificar o alvo não pede --contract e segue para a conexão; nunca imprime URL', () => {
+test('B23b (D-PROD-204): runner real sobre a release da mão de obra e do serviço — análise local EXPAND sem rótulo CONTRACT, com as 4 tabelas e nenhuma coluna em tabela antiga; --contract é CONTRACT_INESPERADO; verificar o alvo não pede --contract e segue para a conexão; nunca imprime URL', () => {
   // main = pasta sem NOME_MO (já com a D-PROD-202), HEAD = main + NOME_MO.
   const repo = repoDaReleaseContract(NOME_MO);
   const run = runnerDaRelease(repo);
@@ -2849,7 +2849,7 @@ test('B23b (D-PROD-203): runner real sobre a release da mão de obra e do servi�
     assert.deepEqual(json.tabelas_novas, NOVAS_MO);
     assert.deepEqual(json.colunas_novas_em_tabelas_antigas, []);
     assert.deepEqual(json.violacoes, []);
-    for (const r of [run(SEM_ALVO, '--contract', 'D-PROD-203'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-202')]) {
+    for (const r of [run(SEM_ALVO, '--contract', 'D-PROD-204'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-202')]) {
       assert.equal(r.status, 3, r.stderr);
       assert.match(r.stderr, /RECUSADO CONTRACT_INESPERADO/);
       semSegredo(r);
@@ -2868,7 +2868,7 @@ test('B23b (D-PROD-203): runner real sobre a release da mão de obra e do servi�
   }
 });
 
-test('B23k (D-PROD-203/D-PROD-202): ordem de produção hoje — alvo com as 54 da main concluídas (por último as linhas de produto e de máquina, D-PROD-202, 2026-11-14): o histórico confere, a única pendente é a D-PROD-203, nenhum CONTRACT a autorizar; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 55 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
+test('B23k (D-PROD-204/D-PROD-202): ordem de produção hoje — alvo com as 54 da main concluídas (por último as linhas de produto e de máquina, D-PROD-202, 2026-11-14): o histórico confere, a única pendente é a D-PROD-204, nenhum CONTRACT a autorizar; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 55 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
   const P1_03 = '20261113300000_estoque_p1_03_indices';
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
@@ -2876,7 +2876,7 @@ test('B23k (D-PROD-203/D-PROD-202): ordem de produção hoje — alvo com as 54 
   assert.equal(locais.length, 55);
   assert.ok(locais.every((l) => l.nome <= NOME_MO), 'a mão de obra e o serviço são a migration de nome mais recente');
   const t0 = Date.parse('2026-01-01T00:00:00Z');
-  // Produção: as 54 sem a D-PROD-203, na ordem em que foram concluídas (como em B22k) e, por último, as linhas de
+  // Produção: as 54 sem a D-PROD-204, na ordem em que foram concluídas (como em B22k) e, por último, as linhas de
   // produto e de máquina (D-PROD-202).
   const fora = [NOME_MO, NOME_L, NOME_V, NOME_PO, NOME_P, NOME_G, NOME_K, NOME_D, P1_03, NOME_I];
   const ordem = [...locais.filter((l) => !fora.includes(l.nome)), ...[NOME_D, P1_03, NOME_I, NOME_K, NOME_G, NOME_P, NOME_PO, NOME_V, NOME_L].map((n) => locais.find((l) => l.nome === n))];
@@ -2896,7 +2896,7 @@ test('B23k (D-PROD-203/D-PROD-202): ordem de produção hoje — alvo com as 54 
   }
   // Registro aberto (finished_at nulo) é aplicação parcial: recusa.
   assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaMO(MIGRATIONS_APROVADAS[NOME_MO], { finished_at: null })] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS');
-  // Depois da aplicação (a D-PROD-203 concluída por último): 55, nada pendente, nada a autorizar.
+  // Depois da aplicação (a D-PROD-204 concluída por último): 55, nada pendente, nada a autorizar.
   const depois = [...linhas, linhaMO(MIGRATIONS_APROVADAS[NOME_MO])];
   assert.equal(depois.length, 55);
   assert.deepEqual(conferirHistoricoRemoto({ locais, linhas: depois }), { ok: true, codigo: null, pendentes: [], falhas: [] });

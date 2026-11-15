@@ -122,7 +122,7 @@ const ESCRITAS = (c) => {
     ['curva de ganho (POST)', 'POST', '/curvas-ganho', { empresa_id: E, nome: 'HACK', ...Object.fromEntries(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].map((m) => [`gmd_${m}`, 0.5])) }],
     ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],
-    // D-PROD-203 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
+    // D-PROD-204 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
     ['funcionário (POST)', 'POST', '/funcionarios', { empresa_id: E, nome: 'HACK', tipo: 'DIARISTA' }],
     ['funcionário (PATCH)', 'PATCH', `/funcionarios/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['funcionário (inativar)', 'POST', `/funcionarios/${ID}/inativar`, { empresa_id: E }],

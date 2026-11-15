@@ -1,5 +1,5 @@
 /**
- * D-PROD-203 (Fatia 4 do Lançamento de Atividades) — peças comuns às LINHAS DE
+ * D-PROD-204 (Fatia 4 do Lançamento de Atividades) — peças comuns às LINHAS DE
  * MÃO DE OBRA e DE SERVIÇO do apontamento (`atividadeApontamentoMaoObra*.js` e
  * `atividadeApontamentoServico*.js`), no molde da linha de máquina da Fatia 3
  * (`atividadeApontamentoMaquinaService.js`: `escreverLinha`,

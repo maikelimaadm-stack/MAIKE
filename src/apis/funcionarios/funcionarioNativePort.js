@@ -1,5 +1,5 @@
 /**
- * Porta nativa de Funcionários da fazenda (D-PROD-203, Fatia 4 do Lançamento de
+ * Porta nativa de Funcionários da fazenda (D-PROD-204, Fatia 4 do Lançamento de
  * Atividades). Só online; o tenant vem só do JWT e a fazenda (`empresa_id`) vai
  * na query das leituras e no corpo das escritas. Sem DELETE: inativar e reativar.
  */

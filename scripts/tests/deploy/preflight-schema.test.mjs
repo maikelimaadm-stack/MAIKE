@@ -43,7 +43,7 @@ const COLUNAS_OK = [
   { table_name: 'AtividadeApontamentoMaquina', column_name: 'quantidade_uso' },
   { table_name: 'BemPatrimonial', column_name: 'custo_uso_unitario' },
   { table_name: 'TipoPatrimonial', column_name: 'salto_maximo_medidor' },
-  // D-PROD-203: os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço.
+  // D-PROD-204: os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço.
   { table_name: 'Funcionario', column_name: 'custo_hora' },
   { table_name: 'Servico', column_name: 'unidade_medida_id' },
   { table_name: 'AtividadeApontamentoMaoObra', column_name: 'tipo_medida' },

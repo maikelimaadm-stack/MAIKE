@@ -623,7 +623,7 @@ export const operationIdDoCorpo = (v, maximo = 128) => {
 
 /**
  * Letra da chave derivada de cada tipo de linha (`<operation_id>:<letra><n>`).
- * D-PROD-203 (Fatia 4): `o` = mão de obra, `s` = serviço.
+ * D-PROD-204 (Fatia 4): `o` = mão de obra, `s` = serviço.
  */
 export const LETRA_DA_LINHA = Object.freeze({ produto: 'p', maquina: 'm', mao_obra: 'o', servico: 's' });
 

@@ -142,7 +142,7 @@ abastecimento além de respeitar as leituras das linhas. Nesta parte, esta expan
 pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a "aplica e aprova"), no merge
 da PR #289 (§4).
 
-**Expansão autorizada pelo proprietário (D-PROD-203):** **Lançamento de Atividades — mão de obra e serviço de
+**Expansão autorizada pelo proprietário (D-PROD-204):** **Lançamento de Atividades — mão de obra e serviço de
 terceiro** (página `LancamentoAtividades`, Fatia 4, e as telas de cadastro `Funcionarios` e `Servicos`). Entram dois
 **cadastros mínimos por fazenda**: **Funcionário** (nome, cargo, tipo `MENSALISTA | DIARISTA | TAREFEIRO`, custo por
 hora e por diária, opcionais) e **Serviço** (nome, unidade de medida do cadastro existente, centro de custo padrão e

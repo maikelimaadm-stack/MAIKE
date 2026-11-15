@@ -37,7 +37,7 @@
  *     EXPAND `20261114600000_atividade_linhas_produto_maquina` (D-PROD-202)
  *     também fica de fora: as linhas referenciam AtividadeApontamento, que a
  *     D-PROD-200 cria; sobe no passo 4, depois dela. A EXPAND
- *     `20261114700000_atividade_mao_obra_servico` (D-PROD-203) também fica de
+ *     `20261114800000_atividade_mao_obra_servico` (D-PROD-204) também fica de
  *     fora: as linhas de mão de obra e de serviço referenciam
  *     AtividadeApontamento; sobe no passo 4, por último;
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
@@ -54,7 +54,7 @@
  *     (nunca duas CONTRACT de uma vez; como a D-PROD-195 na D-PROD-187); então
  *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
  *     impressão na URL) esta, a D-PROD-190, a D-PROD-193, a D-PROD-200, a
- *     D-PROD-202 e a D-PROD-203, e confere: todas concluídas, 91 tabelas (as 82 do
+ *     D-PROD-202 e a D-PROD-204, e confere: todas concluídas, 91 tabelas (as 82 do
  *     formato novo + Atividade e AtividadeApontamento + as 3 das linhas de produto
  *     e de máquina + as 4 da mão de obra e do serviço; as 3 do apontamento antigo
  *     nascem e saem com a D-PROD-200), as 7 vazias, dono e ACL, RLS, contagens de constraints,
@@ -99,14 +99,14 @@ export const DECISAO = 'D-PROD-162';
  * D-PROD-202 — a EXPAND das linhas de produto e de máquina referencia AtividadeApontamento (da D-PROD-200) e
  * BemPatrimonial(cliente_id, empresa_id, id) (do formato novo), e acrescenta 2 colunas anuláveis em BemPatrimonial e
  * TipoPatrimonial: vem depois da D-PROD-200 (EXPAND: o runner não a cita como CONTRACT).
- * D-PROD-203 — a EXPAND da mão de obra e do serviço cria Funcionario, Servico e as 2 linhas, que referenciam
+ * D-PROD-204 — a EXPAND da mão de obra e do serviço cria Funcionario, Servico e as 2 linhas, que referenciam
  * AtividadeApontamento (da D-PROD-200): vem por último (EXPAND, sem coluna em tabela antiga).
  */
 export const NOME_ATIVIDADE_CABECALHO = '20261114500000_atividade_cabecalho';
 export const NOME_ATIVIDADE_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
-export const NOME_ATIVIDADE_MAO_OBRA = '20261114700000_atividade_mao_obra_servico';
+export const NOME_ATIVIDADE_MAO_OBRA = '20261114800000_atividade_mao_obra_servico';
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_ATIVIDADE_MAO_OBRA]);
-/** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-203). */
+/** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-204). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
@@ -586,7 +586,7 @@ if (ehEntradaDireta()) {
       const g = relatorio.green;
       // D-PROD-190/191/198: 84 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento
       // (D-PROD-200); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-200.
-      // D-PROD-202: + as 3 das linhas de produto e de máquina = 87; D-PROD-203: + as 4 da mão de obra e do serviço = 91.
+      // D-PROD-202: + as 3 das linhas de produto e de máquina = 87; D-PROD-204: + as 4 da mão de obra e do serviço = 91.
       if (g.status !== 0 || g.tabelas !== 91 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();

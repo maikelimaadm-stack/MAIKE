@@ -73,7 +73,7 @@ describe('escopo do produto', () => {
     expect(scope.allowedPages.filter((p) => ['BensPatrimoniais', 'Abastecimentos'].includes(p))).toEqual(['BensPatrimoniais', 'Abastecimentos']);
     // +1 Tipos de Atividade (D-PROD-182); +1 Estações (D-PROD-188); +1 Curvas de Ganho (D-PROD-189);
     // +1 Apontamentos de Atividade (D-PROD-190), trocado por Lançamento de Atividades (D-PROD-200, uma por uma);
-    // +2 Funcionários e Serviços (D-PROD-203).
+    // +2 Funcionários e Serviços (D-PROD-204).
     expect(scope.allowedPages).toHaveLength(30);
   });
 
