@@ -46,6 +46,7 @@ import {
 import { listLotesNota, listMovimentacoes as listMovimentacoesEstoque, listProdutos } from '@/apis/estoque';
 import { listLancamentos, listHistorico } from '@/apis/tarefas';
 import { listPermissoes } from '@/apis/session';
+import { listLeiturasCocho } from '@/apis/leituras-cocho';
 import {
   listAplicacoesMedicamento,
   listEventosSanitarios,
@@ -92,6 +93,8 @@ const CAPACIDADES = {
   // inativas: uma posição antiga pode apontar para uma delas.
   categoriasManejo: async (empresaId) => daEmpresa(await listCategoriasManejo(), empresaId),
   eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
+  // D-PROD-205: leituras de cocho (escore, acesso, estrutura) — o farol do cocho no mapa, também sem rede.
+  leiturasCocho: async (empresaId) => daEmpresa(await listLeiturasCocho(), empresaId),
   estoqueLotes: async (empresaId) =>
     daEmpresa(await listLotesNota(), empresaId).filter((item) => item.status === 'Disponivel'),
   tarefas: async (empresaId) =>

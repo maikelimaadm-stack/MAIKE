@@ -113,10 +113,10 @@ const selo = (m) => m.el.querySelector('.mg-supl-selo');
 
 describe('descreverMarcadorSuplementacao (pura)', () => {
   it('título = nome — texto do nível; sem texto do nível, só o nome', () => {
-    expect(descreverMarcadorSuplementacao(cocho({ indicador_titulo: TXT_75 }))).toEqual({ titulo: `Cocho Norte — ${TXT_75}`, selo: null });
-    expect(descreverMarcadorSuplementacao({ nome_ponto: 'Cocho' })).toEqual({ titulo: 'Cocho', selo: null });
+    expect(descreverMarcadorSuplementacao(cocho({ indicador_titulo: TXT_75 }))).toEqual({ titulo: `Cocho Norte — ${TXT_75}`, selo: null, farol: null });
+    expect(descreverMarcadorSuplementacao({ nome_ponto: 'Cocho' })).toEqual({ titulo: 'Cocho', selo: null, farol: null });
     expect(descreverMarcadorSuplementacao({ nome_ponto: '  ', indicador_titulo: TXT_75 }).titulo).toBe(TXT_75);
-    expect(descreverMarcadorSuplementacao(null)).toEqual({ titulo: '', selo: null });
+    expect(descreverMarcadorSuplementacao(null)).toEqual({ titulo: '', selo: null, farol: null });
   });
 
   it('selo "?" quando neutro; "!" quando o depósito passa do limite', () => {
@@ -219,5 +219,40 @@ describe('useMapRenderer.syncPontosSuplementacao — nível no marcador (D-PROD-
     expect(m.el.title).toBe('Cocho');
     expect(m.el.getAttribute('aria-label')).toBe('Cocho');
     expect(selo(m)).toBeNull();
+  });
+});
+
+describe('D-PROD-205 — farol da leitura de cocho no marcador', () => {
+  const farol = (m) => m.el.querySelector('.mg-supl-farol');
+  const FAROL_VAZIO = { cor: 'vermelho', hex: '#dc2626', rotulo: 'Cocho vazio', texto: 'Leitura: Cocho vazio · Estrutura quebrada', avisos: 1 };
+  const FAROL_CHEIO = { cor: 'azul', hex: '#2563eb', rotulo: 'Cocho cheio', texto: 'Leitura: Cocho cheio', avisos: 0 };
+
+  it('pura: o texto do farol entra no fim do título e a cor sai separada; sem farol, null', () => {
+    expect(descreverMarcadorSuplementacao(cocho({ indicador_titulo: TXT_75, indicador_farol: FAROL_VAZIO }))).toEqual({
+      titulo: `Cocho Norte — ${TXT_75} · Leitura: Cocho vazio · Estrutura quebrada`,
+      selo: null,
+      farol: { cor: 'vermelho', hex: '#dc2626' },
+    });
+    expect(descreverMarcadorSuplementacao(deposito({ indicador_titulo: TXT_DEP_50, indicador_farol: null })).farol).toBeNull();
+  });
+
+  it('desenha o ponto do farol (decorativo) sem tirar o selo; troca de cor no MESMO marcador; sem farol, some', async () => {
+    marcadores.length = 0;
+    const { r } = await montarRenderer();
+    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: FAROL_VAZIO })], true, [], vi.fn());
+    const m = marcadorDe('Cocho Norte');
+    expect(farol(m).dataset.farol).toBe('vermelho');
+    expect(farol(m).getAttribute('aria-hidden')).toBe('true');
+    expect(selo(m).textContent, 'o selo "?" continua').toBe('?');
+    expect(m.el.getAttribute('aria-label')).toBe(`Cocho Norte — ${TXT_SEM_PV} · Leitura: Cocho vazio · Estrutura quebrada`);
+
+    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: FAROL_CHEIO })], true, [], vi.fn());
+    expect(m.removed).toBe(false);
+    expect(m.el.querySelectorAll('.mg-supl-farol')).toHaveLength(1);
+    expect(farol(m).dataset.farol).toBe('azul');
+
+    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: null })], true, [], vi.fn());
+    expect(farol(m)).toBeNull();
+    expect(selo(m)).toBeTruthy();
   });
 });

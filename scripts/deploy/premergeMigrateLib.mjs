@@ -128,6 +128,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261114600000_atividade_linhas_produto_maquina': 'e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489',
   // D-PROD-203: EXPAND — Formulações de suplemento (CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA), só tabelas novas.
   '20261114700000_cadformulacao': '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524',
+  // D-PROD-205: EXPAND — Leitura de cocho (LEITURACOCHO), só tabela nova.
+  '20261115100000_leitura_cocho': 'f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -165,6 +167,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '3991bb1cbddf3772bf580b1bf35de71580b77725d20e77c0d6df7d8a1f2e95d8',
   // D-PROD-203: RLS/REVOKE das 3 tabelas de Formulações (mesmo corpo, lista nova).
   'b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6',
+  // D-PROD-205: RLS/REVOKE da LEITURACOCHO (mesmo corpo, lista nova).
+  '60149f94e07596da2c93471f82110e6f37b5f014bcf721c1dc366a2d4b4bcce8',
 ]);
 
 /**

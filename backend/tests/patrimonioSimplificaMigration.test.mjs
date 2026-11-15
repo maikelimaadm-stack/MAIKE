@@ -34,7 +34,8 @@
  * BemPatrimonial(cliente_id, empresa_id, id): também fica fora da partida e sobe por último no GREEN, com as 3 tabelas
  * dela (vazias, com RLS) e as 2 colunas anuláveis em BemPatrimonial e TipoPatrimonial. A D-PROD-203 (EXPAND
  * `20261114700000_cadformulacao`, Formulações, 3 tabelas novas) não existia no dia desta CONTRACT: também fica fora da
- * partida e sobe por último no GREEN, depois da D-PROD-202, com as 3 tabelas dela (vazias, com RLS).
+ * partida e sobe por último no GREEN, depois da D-PROD-202, com as 3 tabelas dela (vazias, com RLS). A D-PROD-205
+ * (EXPAND `20261115100000_leitura_cocho`, 1 tabela nova) idem, depois da D-PROD-203: 91 tabelas no fim.
  *
  * RED (nada muda; a falha aberta é resolvida com `migrate resolve --rolled-back`):
  * CONFIRMADO, FK e visão de fora, trava concorrente em Produto, sem impressão,
@@ -59,7 +60,7 @@ import { PrismaClient } from '@prisma/client';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
-  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_FORMULACOES, PAPEL_OUTRO,
+  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_FORMULACOES, NOME_LEITURA, PAPEL_OUTRO,
   TOTAL_MIGRATIONS, TABELAS_APAGADAS, TABELAS_DEPOIS_DO_CONTRACT, TABELAS_ESTOQUE, TABELAS_FINAIS_DEPOIS_DO_CONTRACT, TABELAS_NOVAS,
   aplicarMigrationsDaMain, aplicarPeloRunner, checksOperacaoItem, comBanco, comImpressao, contarTabelas, donoEAcl,
   estoqueCoerente, estruturaNovas, exigirUrlLocal, fingerprintV2, historico, impressao, itemEmLitros, migrateDiff,
@@ -105,12 +106,12 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
   test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202 e a D-PROD-203, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 6, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202 e a D-PROD-203');
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 7, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-205');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
-    // D-PROD-203: as Formulações (release posterior) também ficam fora da partida e sobem por último no GREEN.
-    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES]);
+    // D-PROD-203 e D-PROD-205: as Formulações e a Leitura de cocho (releases posteriores) também ficam fora da partida e sobem por último no GREEN.
+    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA]);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
     assert.deepEqual(await donoEAcl(db, TABELAS_DEPOIS_DO_CONTRACT), []);
@@ -185,7 +186,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 90, 'as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
+    assert.equal(await contarTabelas(db), 91, 'as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
     // D-PROD-190/191/198/201: subiram DEPOIS da CONTRACT (o runner aplica em ordem de nome); no fim ficam as 2 da atividade, as 3 das linhas e as 3 das Formulações (D-PROD-203), vazias, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
@@ -196,6 +197,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
       ['Atividade', true, false], ['AtividadeApontamento', true, false],
       ['AtividadeApontamentoMaquina', true, false], ['AtividadeApontamentoProduto', true, false], ['AtividadeApontamentoProdutoConsumoLote', true, false],
       ['CADFORMULACAO', true, false], ['CADFORMULACAOINGREDIENTE', true, false], ['CADFORMULACAOREGRA', true, false],
+      ['LEITURACOCHO', true, false],
     ]);
     for (const t of TABELAS_FINAIS_DEPOIS_DO_CONTRACT) assert.equal((await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${t}"`))[0].n, 0, `${t} nasce vazia`);
 

@@ -42,6 +42,7 @@ import { registrarAtividadeApontamentoMaquinaRoutes } from './modules/atividades
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
 import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoutes.js';
+import { registrarLeituraCochoRoutes } from './modules/leiturasCocho/leituraCochoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
@@ -216,6 +217,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarCurvaGanhoRoutes);
   // D-PROD-203 — Formulações de suplemento da fazenda (tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA).
   await app.register(registrarFormulacaoRoutes);
+  // D-PROD-205 — Leitura de cocho (escore, acesso, estrutura; tabela LEITURACOCHO). Não movimenta estoque.
+  await app.register(registrarLeituraCochoRoutes);
   // D-PROD-200 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
   // concluída ou cancelada, sem DELETE físico) e os APONTAMENTOS do dia e do
   // turno, filhos dela. Substitui o apontamento de linha única (D-PROD-190/193).

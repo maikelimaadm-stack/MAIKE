@@ -74,6 +74,8 @@ model Cliente {
   formulacoes        Formulacao[]
   ingredientesFormulacao FormulacaoIngrediente[]
   regrasFormulacao       FormulacaoRegraCategoria[]
+  // D-PROD-205 — leituras de cocho (escore, acesso, estrutura); tabela LEITURACOCHO.
+  leiturasCocho          LeituraCocho[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -1293,6 +1295,8 @@ model Empresa {
   curvasGanho            CadCurvaGanho[]
   // D-PROD-203 — formulações de suplemento da fazenda.
   formulacoes            Formulacao[]
+  // D-PROD-205 — leituras de cocho da fazenda.
+  leiturasCocho          LeituraCocho[]
   // D-PROD-190 — apontamentos de atividade da fazenda.
   atividades            Atividade[]
   atividadeApontamentos AtividadeApontamento[]
@@ -1473,9 +1477,46 @@ model PontoSuplementacao {
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
+  // D-PROD-205 — leituras do cocho (só relação Prisma; zero DDL em PontoSuplementacao).
+  leituras LeituraCocho[]
+
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_ponto])
   @@index([cliente_id, empresa_id])
+}
+
+// ---------------------------------------------------------------------------
+// LeituraCocho — leitura de cocho feita no campo (D-PROD-205, etapa 3 da
+// suplementação). Tabela física "LEITURACOCHO". Registra o que se viu no cocho
+// num dia: escore (VAZIO | ADEQUADO | CHEIO), acesso (BOM | RUIM) e estrutura
+// (BOA | REPARO | QUEBRADA). NÃO movimenta estoque. Alimenta o farol do cocho
+// no mapa. `registrado_por_nome` vem do auth_context, nunca do corpo.
+// FKs tenant-safe: (cliente_id, empresa_id) → Empresa, Restrict;
+// (cliente_id, ponto_suplementacao_id) → PontoSuplementacao(cliente_id, id),
+// CASCADE (apagar o cocho apaga as leituras dele). Valores por CHECK.
+// ---------------------------------------------------------------------------
+model LeituraCocho {
+  id                     String   @id @default(cuid())
+  cliente_id             String   @db.VarChar(64)
+  empresa_id             String   @db.VarChar(64)
+  ponto_suplementacao_id String   @db.VarChar(64)
+  data_leitura           DateTime @db.Date
+  escore                 String   @db.VarChar(16)
+  acesso                 String   @db.VarChar(8)
+  estrutura              String   @db.VarChar(16)
+  observacoes            String?  @db.VarChar(2000)
+  registrado_por_nome    String?  @db.VarChar(255)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  cliente Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa            @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  ponto   PontoSuplementacao @relation(fields: [cliente_id, ponto_suplementacao_id], references: [cliente_id, id], onDelete: Cascade)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id, data_leitura])
+  @@index([cliente_id, ponto_suplementacao_id, data_leitura])
+  @@map("LEITURACOCHO")
 }
 
 model EstoqueLoteNota {

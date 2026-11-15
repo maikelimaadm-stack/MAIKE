@@ -69,6 +69,9 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['CADFORMULACAO', 'percentual_pv_padrao'],
   ['CADFORMULACAOINGREDIENTE', 'quantidade_kg'],
   ['CADFORMULACAOREGRA', 'consome'],
+  // D-PROD-205: a leitura de cocho e o farol do mapa leem a tabela nova; sem a migration
+  // `20261115100000_leitura_cocho`, `/leituras-cocho` responde 500.
+  ['LEITURACOCHO', 'escore'],
 ]);
 
 /**

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarTodosProdutos } from "@/services/estoqueMapaService";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
@@ -15,6 +15,19 @@ import MedidorLimiteOperacional from "./MedidorLimiteOperacional";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import CardMetricaEvento from "../suplementacao/CardMetricaEvento";
+import FormularioLeituraCocho from "../suplementacao/FormularioLeituraCocho";
+import { excluirLeituraCocho } from "@/services/leituraCochoService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
+import { notifyError, notifySuccess } from "@/lib/maikeNotify";
+import {
+  COR_FAROL,
+  ROTULO_ACESSO,
+  ROTULO_ESCORE,
+  ROTULO_ESTRUTURA,
+  farolDoCocho,
+  leiturasDoPonto,
+} from "@/domain/suplementacao/leituraCocho";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
@@ -89,6 +102,7 @@ function DetalhesCocho({ ponto, permissions }) {
   const queryClient = useQueryClient();
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [showLeitura, setShowLeitura] = useState(false);
 
   // Fuso da FAZENDA: o mesmo resumo de empresas do Layout (`['empresas']`).
   // Sem fuso, o dia é o do relógio do navegador (`useDiaCivil(null)`).
@@ -110,6 +124,10 @@ function DetalhesCocho({ ponto, permissions }) {
   const { data: eventos = [], isLoading: loadingEventos } = useCacheDoMapa("eventosSuplementacao", empresaSelecionadaId, 60 * 1000);
   const { data: pontosSuplementacao = [], isLoading: loadingPontos } = useCacheDoMapa("pontosSuplementacao", empresaSelecionadaId, 5 * 60 * 1000);
   const { data: areas = [], isLoading: loadingAreas } = useCacheDoMapa("areas", empresaSelecionadaId, 5 * 60 * 1000);
+  // D-PROD-205: leituras de cocho (o farol), do mesmo cache do mapa.
+  const { data: leituras = [] } = useCacheDoMapa("leiturasCocho", empresaSelecionadaId, 60 * 1000);
+  const farol = useMemo(() => farolDoCocho({ leituras, pontoId: ponto?.id, hoje }), [leituras, ponto?.id, hoje]);
+  const ultimasLeituras = useMemo(() => leiturasDoPonto(leituras, ponto?.id).slice(0, 5), [leituras, ponto?.id]);
 
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-ponto-detalhe", empresaSelecionadaId],
@@ -182,6 +200,26 @@ function DetalhesCocho({ ponto, permissions }) {
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
 
+  /** D-PROD-205: depois de registrar/excluir leitura, o detalhe e o marcador releem o cache. */
+  const leiturasAtualizadas = (lista) => {
+    if (Array.isArray(lista)) queryClient.setQueryData(["mapa-cache", "leiturasCocho", empresaSelecionadaId, "default"], lista);
+    queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "mapa-cache" && query.queryKey[1] === "leiturasCocho" });
+    window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: ["leiturasCocho"] } }));
+  };
+
+  const excluirLeitura = async (leitura) => {
+    const ok = await confirmarExclusao(`Excluir a leitura de ${formatarDia(String(leitura.data_leitura).slice(0, 10))} (${ROTULO_ESCORE[leitura.escore] ?? leitura.escore})?`);
+    if (!ok) return;
+    try {
+      await excluirLeituraCocho(leitura.id);
+      const lista = await updateMapaCachedData("leiturasCocho", empresaSelecionadaId, (itens) => (itens || []).filter((i) => i.id !== leitura.id));
+      leiturasAtualizadas(lista);
+      notifySuccess("Leitura excluída");
+    } catch (erro) {
+      notifyError("Erro ao excluir a leitura", getApiErrorMessage(erro));
+    }
+  };
+
   // Aguarda a leitura rápida do cache local (os pontos entram: sem eles o
   // compartilhamento entre cochos não seria detectado no primeiro quadro).
   const loadingInicial = (loadingEventos && eventos.length === 0) || (loadingAreas && areas.length === 0) || (loadingPontos && pontosSuplementacao.length === 0);
@@ -205,8 +243,9 @@ function DetalhesCocho({ ponto, permissions }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1">
+      <div className={permissions.lancar_suplementacao !== false ? "grid grid-cols-3 gap-1" : "grid grid-cols-2 gap-1"}>
         {permissions.lancar_suplementacao !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>}
+        {permissions.lancar_suplementacao !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLeitura(true)}>Leitura</Button>}
         {permissions.visualizar_historico_cocho !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
@@ -217,6 +256,10 @@ function DetalhesCocho({ ponto, permissions }) {
           <PainelUsoLimite nivel={nivel} />
         </div>
         <CartoesNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} />
+      </CardSection>
+
+      <CardSection title="Leitura do cocho" regiao>
+        <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={permissions.lancar_suplementacao !== false} onExcluir={excluirLeitura} />
       </CardSection>
 
       <CardSection title="Total Fornecido por Produto">
@@ -278,6 +321,20 @@ function DetalhesCocho({ ponto, permissions }) {
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
         <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
       </Dialog>
+
+      <LancLoteDialogo open={showLeitura} onOpenChange={setShowLeitura} titulo="Leitura de Cocho">
+        {showLeitura ? (
+          <FormularioLeituraCocho
+            ponto={ponto}
+            hoje={hoje}
+            onCancel={() => setShowLeitura(false)}
+            onSaved={async () => {
+              setShowLeitura(false);
+              leiturasAtualizadas(await getMapaCachedData("leiturasCocho", empresaSelecionadaId));
+            }}
+          />
+        ) : null}
+      </LancLoteDialogo>
 
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" largo somenteLeitura>
           <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
@@ -397,6 +454,57 @@ function CartoesNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
       )}
     </div>);
 
+}
+
+/**
+ * D-PROD-205 — farol da última leitura (cor + rótulo + data e quem leu), os avisos
+ * de acesso/estrutura e as últimas leituras (até 5), com excluir.
+ * @param {{ farol: import("@/domain/suplementacao/leituraCocho").FarolCocho, ultimas: any[], podeExcluir: boolean, onExcluir: (l: any) => void }} props
+ */
+function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir }) {
+  const l = farol.leitura;
+  return (
+    <div className="space-y-1 text-[11px]" data-testid="painel-leitura-cocho">
+      <div className="flex items-center gap-2">
+        <span aria-hidden className="inline-block h-3 w-3 rounded-full border border-white shadow" style={{ backgroundColor: COR_FAROL[farol.cor] }} />
+        <span className="font-semibold text-slate-900" data-testid="farol-cocho" data-cor={farol.cor}>{farol.rotulo}</span>
+        {l ? <span className="text-slate-500">· {formatarDia(String(l.data_leitura).slice(0, 10))}{l.registrado_por_nome ? ` · ${l.registrado_por_nome}` : ""}</span> : null}
+      </div>
+      {l ? (
+        <div className="text-slate-600">
+          Escore: <span className="font-semibold text-slate-900">{ROTULO_ESCORE[l.escore] ?? l.escore}</span>
+          {" · "}Acesso: <span className="font-semibold text-slate-900">{ROTULO_ACESSO[l.acesso] ?? l.acesso}</span>
+          {" · "}Estrutura: <span className="font-semibold text-slate-900">{ROTULO_ESTRUTURA[l.estrutura] ?? l.estrutura}</span>
+        </div>
+      ) : (
+        <div className="text-slate-500">Nenhuma leitura registrada.</div>
+      )}
+      {farol.avisos.map((a) => (
+        <div key={a.texto} className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-800" data-testid="aviso-leitura-cocho">
+          {a.texto} (leitura de {formatarDia(String(l.data_leitura).slice(0, 10))})
+        </div>
+      ))}
+      {ultimas.length > 0 ? (
+        <ul className="divide-y divide-slate-100 rounded border border-slate-200" aria-label="Últimas leituras">
+          {ultimas.map((u) => (
+            <li key={u.id} className="flex items-center justify-between gap-2 px-2 py-0.5">
+              <span className="text-slate-700">
+                {formatarDia(String(u.data_leitura).slice(0, 10))} · {ROTULO_ESCORE[u.escore] ?? u.escore}
+                {u.acesso === "RUIM" ? " · acesso ruim" : ""}
+                {u.estrutura !== "BOA" ? ` · ${String(ROTULO_ESTRUTURA[u.estrutura] ?? u.estrutura).toLowerCase()}` : ""}
+                {u.observacoes ? <span className="italic text-slate-500"> · {u.observacoes}</span> : null}
+              </span>
+              {podeExcluir ? (
+                <button type="button" className="shrink-0 text-red-600 hover:underline" onClick={() => onExcluir(u)} aria-label={`Excluir a leitura de ${formatarDia(String(u.data_leitura).slice(0, 10))}`}>
+                  Excluir
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
 }
 
 /**
