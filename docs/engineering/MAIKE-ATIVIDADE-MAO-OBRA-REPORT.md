@@ -2,7 +2,7 @@
 
 > **fatia 4 · `feat/atividade-mao-obra-servico` · PR #294**
 >
-> Decisão **D-PROD-206** · contrato [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) ·
+> Decisão **D-PROD-207** · contrato [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) ·
 > runbook [`MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md)
 
 ## 1. O que é
@@ -17,7 +17,7 @@ atividade passam a somar as quatro linhas (produto, máquina, mão de obra e ser
 | Camada | Entrega |
 |---|---|
 | Banco | `Funcionario`, `Servico`, `AtividadeApontamentoMaoObra` e `AtividadeApontamentoServico`, com FKs compostas pelo tenant (`RESTRICT`), 8 CHECKs, 23 índices começando por `cliente_id` e o RLS de sempre. Nenhuma coluna em tabela antiga. Tabelas 91 → 95 (de tenant, 76 → 80) |
-| Migration | `20261115200000_atividade_mao_obra_servico`, **EXPAND** (zero violações no portão). SHA `79f139a0…`, RLS `16d2680d…`. Aplicável antes do merge |
+| Migration | `20261115900000_atividade_mao_obra_servico`, **EXPAND** (zero violações no portão). SHA `79f139a0…`, RLS `16d2680d…`. Aplicável antes do merge |
 | Cadastros | Funcionário (tipo, cargo, custo por hora e por diária) e Serviço (unidade de medida do cadastro existente, centro de custo padrão, valor de referência), por fazenda, sem DELETE: só inativar e reativar |
 | Mão de obra | Hora e diária com o custo do cadastro como snapshot (sem custo no cadastro, a linha entra sem custo); tarefa com custo digitado; exige `permite_mao_obra` |
 | Serviço | Unidade como snapshot da sigla da unidade do serviço; valor digitado (a tela sugere o de referência); parceiro opcional, ativo, da mesma fazenda e com o papel `prestador_servico`; exige `permite_servico` |
@@ -47,7 +47,7 @@ atividade passam a somar as quatro linhas (produto, máquina, mão de obra e ser
    mesma fazenda garantida pelo banco.
 4. **Sem financeiro e sem folha.** Nenhuma `OperacaoFinanceira`, título ou rateio a partir das linhas; nada de
    salário, encargos, ponto ou pagamento.
-5. **Constituição:** a expansão D-PROD-206 no `00` e a nota no `07` foram redigidas pelo agente e **valem só com a sua
+5. **Constituição:** a expansão D-PROD-207 no `00` e a nota no `07` foram redigidas pelo agente e **valem só com a sua
    aprovação no merge**.
 
 ## 5. Validação (local; o GitHub Actions roda no push)

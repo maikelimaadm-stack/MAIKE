@@ -1,5 +1,5 @@
 /**
- * D-PROD-206 — FKs do cadastro de SERVIÇO (`Servico`) para os cadastros que ele
+ * D-PROD-207 — FKs do cadastro de SERVIÇO (`Servico`) para os cadastros que ele
  * aponta: unidade de medida (por cliente) e centro de custo padrão (da mesma
  * fazenda), compostas pelo tenant e RESTRICT.
  *
@@ -10,7 +10,7 @@
  * `meta.modelName` = o model da operação (`Servico` na escrita do serviço; o
  * cadastro apontado, na exclusão dele).
  *
- * Os nomes são os do migration.sql `20261115200000_atividade_mao_obra_servico`,
+ * Os nomes são os do migration.sql `20261115900000_atividade_mao_obra_servico`,
  * ANCORADOS dos dois lados: `AtividadeApontamentoServico_…` (linha de serviço)
  * não casa com uma FK do cadastro.
  *

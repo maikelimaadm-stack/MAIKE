@@ -32,7 +32,7 @@
  * `ESQUEMA_ITEM_PRODUTO`) e `maquinas[]` (item: `ITEM_LINHA_MAQUINA`), até
  * `LINHAS_NO_LANCAMENTO_MAXIMO` de cada, com `operation_id` (obrigatório quando
  * há linha; até 120). Reenvio igual → 200 com `replay: true`; novo → 201.
- * D-PROD-206 (Fatia 4): também `mao_obra[]` (`ITEM_LINHA_MAO_OBRA`) e
+ * D-PROD-207 (Fatia 4): também `mao_obra[]` (`ITEM_LINHA_MAO_OBRA`) e
  * `servicos[]` (`ITEM_LINHA_SERVICO`), sob a mesma chave.
  */
 
@@ -95,7 +95,7 @@ const LINHAS_DO_LANCAMENTO = Object.freeze({
   operation_id: { type: 'string', minLength: 8, maxLength: OPERATION_ID_DO_LANCAMENTO_MAXIMO, pattern: PADRAO_OPERATION_ID.source },
   produtos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ESQUEMA_ITEM_PRODUTO },
   maquinas: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAQUINA },
-  // D-PROD-206 (Fatia 4): mão de obra e serviço de terceiro.
+  // D-PROD-207 (Fatia 4): mão de obra e serviço de terceiro.
   mao_obra: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAO_OBRA },
   servicos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_SERVICO },
 });

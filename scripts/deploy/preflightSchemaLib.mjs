@@ -72,7 +72,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-205: a leitura de cocho e o farol do mapa leem a tabela nova; sem a migration
   // `20261115100000_leitura_cocho`, `/leituras-cocho` responde 500.
   ['LEITURACOCHO', 'escore'],
-  // D-PROD-206 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
+  // D-PROD-207 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
   // apontamento; sem a migration EXPAND da mão de obra e do serviço, os cadastros e o apontamento novo respondem 500.
   ['Funcionario', 'custo_hora'],
   ['Servico', 'unidade_medida_id'],

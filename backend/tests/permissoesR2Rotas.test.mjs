@@ -129,7 +129,7 @@ const ESCRITAS = (c) => {
     // D-PROD-205 — Leitura de cocho: escrita guardada pela chave do mapa lancar_suplementacao.
     ['leitura de cocho (POST)', 'POST', '/leituras-cocho', { empresa_id: E, ponto_suplementacao_id: 'ps-1', data_leitura: '2026-10-27', escore: 'VAZIO' }],
     ['leitura de cocho (DELETE)', 'DELETE', `/leituras-cocho/${ID}`],
-    // D-PROD-206 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
+    // D-PROD-207 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
     ['funcionário (POST)', 'POST', '/funcionarios', { empresa_id: E, nome: 'HACK', tipo: 'DIARISTA' }],
     ['funcionário (PATCH)', 'PATCH', `/funcionarios/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['funcionário (inativar)', 'POST', `/funcionarios/${ID}/inativar`, { empresa_id: E }],

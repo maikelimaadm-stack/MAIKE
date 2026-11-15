@@ -12,7 +12,7 @@
  * campo, `null` para limpar, `versao`, formato de data/decimal ou envelope
  * quebra aqui.
  *
- * Fatia 3 (D-PROD-202): linhas de produto e de máquina. Fatia 4 (D-PROD-206): linhas de mão de obra e de serviço —
+ * Fatia 3 (D-PROD-202): linhas de produto e de máquina. Fatia 4 (D-PROD-207): linhas de mão de obra e de serviço —
  * os seletores (funcionários, serviços, parceiros prestadores), lançar/editar/cancelar, a prévia do custo da janela
  * contra o gravado, os totais com as quatro linhas, o "Repetir" com `mao_obra[]`/`servicos[]` e as cascatas. As
  * respostas cruas ficam em `recebidos` (ex.: a linha escrita em `mao_obra`/`servico`, no singular).
@@ -644,7 +644,7 @@ test('linhas: o salto do medidor conta da leitura vigente — a recusa chega à 
   assert.deepEqual(ok.apontamento.maquinas.map((l) => [l.quantidade_uso, l.justificativa_salto]), [['5.0000', 'horímetro trocado']]);
 });
 
-// ─── D-PROD-206 (Fatia 4): linhas de mão de obra e de serviço pelo caminho da tela ────────────
+// ─── D-PROD-207 (Fatia 4): linhas de mão de obra e de serviço pelo caminho da tela ────────────
 
 /**
  * Cenário de custo: o das linhas (Fatia 3) com o tipo da atividade passando a permitir mão de obra e serviço; na

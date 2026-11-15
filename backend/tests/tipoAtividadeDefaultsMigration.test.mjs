@@ -55,7 +55,7 @@
  * D-PROD-205: a EXPAND `20261115100000_leitura_cocho` (1 tabela nova, LEITURACOCHO), de nome ainda posterior, segue a
  * mesma regra da D-PROD-203: fora da partida, sobe pelo runner depois dela.
  *
- * D-PROD-206: a EXPAND `20261115200000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
+ * D-PROD-207: a EXPAND `20261115900000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
  * de serviço, que referenciam AtividadeApontamento; nenhuma coluna em tabela antiga, não toca TipoAtividade) sobe como
  * a D-PROD-202, fora de ordem antes do caminho do runner, depois dela: 53 migrations e 91 tabelas nessa partida, e no
  * banco do runner (com a D-PROD-205 aplicada por último) as duas linhas de contagem do postcheck ficam 57 / 0 e 95.
@@ -97,7 +97,7 @@ const TOTAL_MIGRATIONS = PASTAS.length;
 /** D-PROD-198: a EXPAND do peso objetivo, de nome posterior; não existia no dia desta CONTRACT (ver o cabeçalho). */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 /**
- * D-PROD-200: as de nome POSTERIOR a esta (a CONTRACT da Atividade cabeçalho e, D-PROD-202 e D-PROD-206, as EXPAND das
+ * D-PROD-200: as de nome POSTERIOR a esta (a CONTRACT da Atividade cabeçalho e, D-PROD-202 e D-PROD-207, as EXPAND das
  * linhas de produto e de máquina e da mão de obra e do serviço), que sobem fora de ordem antes do runner (ver o cabeçalho); a EXPAND da D-PROD-198 fica de
  * fora e sobe pelo runner, depois desta.
  */
@@ -437,10 +437,10 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(h.concluidas, ANTERIORES.length);
     assert.equal(ANTERIORES.length, 50, 'produção hoje: 50 migrations, a última a curva obrigatória na Categoria de Manejo (D-PROD-195)');
     assert.equal(ANTERIORES.at(-1), '20261114200000_cadcategoria_curva_ganho');
-    // D-PROD-198, D-PROD-200, D-PROD-202, D-PROD-203, D-PROD-205 e D-PROD-206: a EXPAND do peso objetivo, a Atividade
+    // D-PROD-198, D-PROD-200, D-PROD-202, D-PROD-203, D-PROD-205 e D-PROD-207: a EXPAND do peso objetivo, a Atividade
     // cabeçalho, as linhas de produto e de máquina, a EXPAND das Formulações, a da Leitura de cocho e a mão de obra e o
     // serviço têm nome posterior a esta (57 pastas no total); as seis ficam fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, '20261115200000_atividade_mao_obra_servico']);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, '20261115900000_atividade_mao_obra_servico']);
     assert.equal(TOTAL_MIGRATIONS, 57);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_PESO_OBJETIVO), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_FORMULACOES), false);
@@ -497,13 +497,13 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
 
   test('TA-02 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-197, antes de qualquer DDL', async () => {
     // D-PROD-200 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
-    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', '20261115200000_atividade_mao_obra_servico'], 'só a CONTRACT da D-PROD-200 e as EXPAND da D-PROD-202 e da D-PROD-206 (fora a D-PROD-198 e a D-PROD-203) têm nome posterior a esta');
+    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', '20261115900000_atividade_mao_obra_servico'], 'só a CONTRACT da D-PROD-200 e as EXPAND da D-PROD-202 e da D-PROD-207 (fora a D-PROD-198 e a D-PROD-203) têm nome posterior a esta');
     // As EXPAND da D-PROD-198 e da D-PROD-203 ficam para o runner, depois desta (como em produção).
     await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_FORMULACOES && n !== NOME_LEITURA));
     partida = await retrato(db);
     linhasPartida = partida.linhas;
     assert.equal((await historico(db)).concluidas, ANTERIORES.length + POSTERIORES.length);
-    assert.equal(partida.tabelas.split(',').length, 91, 'a D-PROD-200 troca as 3 tabelas do apontamento antigo pelas 2 da atividade, a D-PROD-202 acrescenta as 3 das linhas e a D-PROD-206 as 4 da mão de obra e do serviço');
+    assert.equal(partida.tabelas.split(',').length, 91, 'a D-PROD-200 troca as 3 tabelas do apontamento antigo pelas 2 da atividade, a D-PROD-202 acrescenta as 3 das linhas e a D-PROD-207 as 4 da mão de obra e do serviço');
     assert.deepEqual(await intrusos(db), []);
     const linhasAntes = (await historico(db)).total;
     // D-PROD-182 criou a tabela; D-PROD-194 e D-PROD-195 são as CONTRACT anteriores (concluídas); a decisão em minúsculas
@@ -666,9 +666,9 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(n, 4);
   });
 
-  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205 e a D-PROD-206, posteriores, mudam (57 / 0 e 95 tabelas); o preflight agora manda parar', async () => {
+  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205 e a D-PROD-207, posteriores, mudam (57 / 0 e 95 tabelas); o preflight agora manda parar', async () => {
     const pos = quadro(await consulta(URL_T, blocoDoRunbook('postcheck').split(SID_PRODUCAO).join(SID)));
-    // O postcheck foi escrito para o dia desta (51 / 0, 85 tabelas); aqui a EXPAND da D-PROD-198, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205 e a D-PROD-206 também
+    // O postcheck foi escrito para o dia desta (51 / 0, 85 tabelas); aqui a EXPAND da D-PROD-198, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205 e a D-PROD-207 também
     // estão aplicadas (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03), que
     // fica nesse estado antes do runner.
     const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '95' };

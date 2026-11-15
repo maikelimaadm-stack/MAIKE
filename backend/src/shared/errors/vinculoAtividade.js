@@ -34,8 +34,8 @@
 
 /**
  * FK → a tabela que a declara (é ela que segura o vínculo; o nome do model é o
- * da tabela) e a coluna dela. Os nomes são os do migration.sql. D-PROD-206
- * (Fatia 4, `20261115200000_atividade_mao_obra_servico`): as FKs das linhas de
+ * da tabela) e a coluna dela. Os nomes são os do migration.sql. D-PROD-207
+ * (Fatia 4, `20261115900000_atividade_mao_obra_servico`): as FKs das linhas de
  * mão de obra e de serviço para os cadastros que elas seguram (funcionário,
  * serviço e parceiro); o parceiro também é contado em `PARCEIRO_EM_USO`.
  * @type {Readonly<Record<string, Readonly<{ tabela: TabelaDaAtividade, campo: string }>>>}

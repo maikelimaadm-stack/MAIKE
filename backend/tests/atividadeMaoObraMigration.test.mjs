@@ -1,5 +1,5 @@
 /**
- * D-PROD-206 — a migration EXPAND `20261115200000_atividade_mao_obra_servico` (os cadastros Funcionario e Servico, por
+ * D-PROD-207 — a migration EXPAND `20261115900000_atividade_mao_obra_servico` (os cadastros Funcionario e Servico, por
  * fazenda, e as linhas que fecham o custo do apontamento do dia: AtividadeApontamentoMaoObra e
  * AtividadeApontamentoServico; nenhuma coluna em tabela antiga) de ponta a ponta, contra PostgreSQL real, em bancos
  * PRÓPRIOS criados e apagados por este teste (o banco da suíte não é tocado; os nomes começam pelo nome do banco da
@@ -52,7 +52,7 @@ const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
 const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
-const NOME = '20261115200000_atividade_mao_obra_servico';
+const NOME = '20261115900000_atividade_mao_obra_servico';
 const ARQUIVO = join(MIGRATIONS, NOME, 'migration.sql');
 const SQL_MIGRATION = readFileSync(ARQUIVO, 'utf8');
 const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
@@ -88,7 +88,7 @@ const AP2 = `${C1}-ap2`;
 /** Recusa (lança) qualquer URL que não seja desta máquina. Nunca devolve nem imprime a URL. */
 const exigirUrlLocal = (url) => {
   const motivo = motivoAlvoProtegido({}, url);
-  if (!url || motivo) throw new Error(`teste D-PROD-206: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
+  if (!url || motivo) throw new Error(`teste D-PROD-207: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
   return url;
 };
 /** Mesma URL, outro banco lógico. */
@@ -156,7 +156,7 @@ const aplicarAnteriores = async (url) => {
     if (existsSync(join(MIGRATIONS, 'migration_lock.toml'))) cpSync(join(MIGRATIONS, 'migration_lock.toml'), join(dir, 'migrations', 'migration_lock.toml'));
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
-    if (r.status !== 0) throw new Error(`teste D-PROD-206: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
+    if (r.status !== 0) throw new Error(`teste D-PROD-207: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -271,7 +271,7 @@ after(async () => {
   await closePrismaClient();
 });
 
-describe('D-PROD-206 — migration EXPAND da mão de obra e do serviço de terceiro do apontamento (PostgreSQL real)', () => {
+describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terceiro do apontamento (PostgreSQL real)', () => {
   test('AM-01 partida: as 56 migrations de nome anterior a esta (a última a D-PROD-205), 91 tabelas, as 4 novas ausentes; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     assert.equal(ANTERIORES.length, 56, 'produção hoje: 56 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
@@ -392,7 +392,7 @@ describe('D-PROD-206 — migration EXPAND da mão de obra e do serviço de terce
     assert.equal(pos['índices (sem as pkeys): total / começando por cliente_id / únicos'].valor, '23 / 23 / 14');
     assert.equal(pos['grants para anon/authenticated/PUBLIC nas 4 novas'].valor, '0');
     const pre = quadro(await consulta(URL_T, comSidLocal(blocoDoRunbook('preflight'), SID)));
-    for (const item of ['20261115200000_atividade_mao_obra_servico já registrada', 'tabelas novas já presentes', 'migrations concluídas / em aberto', 'tabelas em public']) {
+    for (const item of ['20261115900000_atividade_mao_obra_servico já registrada', 'tabelas novas já presentes', 'migrations concluídas / em aberto', 'tabelas em public']) {
       assert.equal(pre[item].status, 'PARAR', item);
     }
     assert.match(pre.VEREDITO.valor, /^PARAR/);
@@ -545,7 +545,7 @@ describe('D-PROD-206 — migration EXPAND da mão de obra e do serviço de terce
   });
 });
 
-describe('D-PROD-206 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
+describe('D-PROD-207 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
   let dbB;
   let partidaB;
   before(async () => {

@@ -1,5 +1,5 @@
 /**
- * D-PROD-206 (Fatia 4 do Lançamento de Atividades) — cenário comum dos testes
+ * D-PROD-207 (Fatia 4 do Lançamento de Atividades) — cenário comum dos testes
  * das LINHAS DE MÃO DE OBRA e DE SERVIÇO (`atividadeLinhaMaoObra.test.mjs`,
  * `atividadeLinhaServico.test.mjs`).
  *
