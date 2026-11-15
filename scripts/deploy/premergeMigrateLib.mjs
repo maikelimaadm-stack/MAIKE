@@ -126,6 +126,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // AtividadeApontamentoProdutoConsumoLote e AtividadeApontamentoMaquina novas, e duas colunas anuláveis sem DEFAULT
   // (BemPatrimonial.custo_uso_unitario e TipoPatrimonial.salto_maximo_medidor). Nenhum dado migrado.
   '20261114600000_atividade_linhas_produto_maquina': 'e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489',
+  // D-PROD-203: EXPAND — Formulações de suplemento (CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA), só tabelas novas.
+  '20261114700000_cadformulacao': '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -161,6 +163,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c',
   // D-PROD-202 (Fatia 3): RLS/REVOKE das 3 tabelas das linhas de produto e de máquina (mesmo corpo, lista nova).
   '3991bb1cbddf3772bf580b1bf35de71580b77725d20e77c0d6df7d8a1f2e95d8',
+  // D-PROD-203: RLS/REVOKE das 3 tabelas de Formulações (mesmo corpo, lista nova).
+  'b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6',
 ]);
 
 /**

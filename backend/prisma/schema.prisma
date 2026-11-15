@@ -70,6 +70,10 @@ model Cliente {
   estacoes           CadEstacao[]
   // D-PROD-189 — curvas de ganho de peso (GMD por estação) por fazenda; tabela CADCURVAGANHO.
   curvasGanho        CadCurvaGanho[]
+  // D-PROD-203 — formulações de suplemento por fazenda; tabela CADFORMULACAO.
+  formulacoes        Formulacao[]
+  ingredientesFormulacao FormulacaoIngrediente[]
+  regrasFormulacao       FormulacaoRegraCategoria[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -678,6 +682,103 @@ model CadCurvaGanho {
 }
 
 // ---------------------------------------------------------------------------
+// Formulacao — formulações de suplemento da fazenda (D-PROD-203, etapa 2a da
+// suplementação). Tabela física "CADFORMULACAO". Uma formulação é um PRODUTO
+// PRONTO (sal mineral comprado pronto) ou uma BATELADA (mistura feita na
+// fazenda com produtos do estoque, em kg por batida). `produto_id` é o produto
+// que vai ao cocho: o próprio produto pronto, ou o produto misturado cadastrado
+// antes em Produtos. Consumo alvo em %PV (peso vivo), com exceção opcional por
+// Categoria de Manejo (FormulacaoRegraCategoria). A produção da batelada
+// (movimento de estoque) NÃO existe aqui — é a etapa 2b.
+// FKs tenant-safe: (cliente_id, empresa_id) → Empresa; (cliente_id, produto_id)
+// → Produto(cliente_id, id), Restrict. Valores de `tipo` e faixas por CHECK.
+// ---------------------------------------------------------------------------
+model Formulacao {
+  id                         String   @id @default(cuid())
+  cliente_id                 String   @db.VarChar(64)
+  empresa_id                 String   @db.VarChar(64)
+  nome                       String   @db.VarChar(120)
+  tipo                       String   @db.VarChar(16)
+  produto_id                 String   @db.VarChar(64)
+  percentual_pv_padrao       Decimal  @db.Decimal(8, 4)
+  consumo_objetivo_g_cab_dia Decimal? @db.Decimal(10, 2)
+  observacoes                String?  @db.VarChar(2000)
+  ativo                      Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  produto Produto @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+
+  ingredientes FormulacaoIngrediente[]
+  regras       FormulacaoRegraCategoria[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@index([cliente_id, produto_id])
+  @@map("CADFORMULACAO")
+}
+
+// ---------------------------------------------------------------------------
+// FormulacaoIngrediente — ingrediente de uma formulação BATELADA (D-PROD-203):
+// produto do estoque e a quantidade em kg POR BATIDA (ex.: milho 600, farelo
+// 300, núcleo 100 numa batida de 1.000 kg). Tabela "CADFORMULACAOINGREDIENTE".
+// Da MESMA fazenda da formulação por construção (FK composta com empresa_id),
+// apagado junto com ela (CASCADE); produto com Restrict.
+// ---------------------------------------------------------------------------
+model FormulacaoIngrediente {
+  id            String   @id @default(cuid())
+  cliente_id    String   @db.VarChar(64)
+  empresa_id    String   @db.VarChar(64)
+  formulacao_id String   @db.VarChar(64)
+  produto_id    String   @db.VarChar(64)
+  quantidade_kg Decimal  @db.Decimal(12, 3)
+  ordem         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cliente    Cliente    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  formulacao Formulacao @relation(fields: [cliente_id, empresa_id, formulacao_id], references: [cliente_id, empresa_id, id], onDelete: Cascade)
+  produto    Produto    @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, formulacao_id, produto_id])
+  @@index([cliente_id, produto_id])
+  @@map("CADFORMULACAOINGREDIENTE")
+}
+
+// ---------------------------------------------------------------------------
+// FormulacaoRegraCategoria — exceção de consumo de uma formulação para uma
+// Categoria de Manejo (D-PROD-203): `consome = false` (ex.: BEZERRO MAMANDO não
+// consome) ou `consome = true` com o %PV próprio (ex.: VACA LEITEIRA 0,15%).
+// Tabela "CADFORMULACAOREGRA". Mesma fazenda da formulação (FK composta),
+// apagada junto com ela; categoria com Restrict. Forma por CHECK.
+// ---------------------------------------------------------------------------
+model FormulacaoRegraCategoria {
+  id                  String   @id @default(cuid())
+  cliente_id          String   @db.VarChar(64)
+  empresa_id          String   @db.VarChar(64)
+  formulacao_id       String   @db.VarChar(64)
+  categoria_manejo_id String   @db.VarChar(64)
+  consome             Boolean
+  percentual_pv       Decimal? @db.Decimal(8, 4)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  cliente         Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  formulacao      Formulacao      @relation(fields: [cliente_id, empresa_id, formulacao_id], references: [cliente_id, empresa_id, id], onDelete: Cascade)
+  categoriaManejo CategoriaManejo @relation(fields: [cliente_id, categoria_manejo_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, formulacao_id, categoria_manejo_id])
+  @@index([cliente_id, categoria_manejo_id])
+  @@map("CADFORMULACAOREGRA")
+}
+
+// ---------------------------------------------------------------------------
 // AreaPastagem — segunda capacidade de domínio migrada (P4.2, D-PROD-31).
 //
 // É o primeiro model deste repositório com FK **para outro model de domínio**.
@@ -1034,6 +1135,10 @@ model Produto {
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
+  // D-PROD-203 — formulações que vão ao cocho com este produto e ingredientes de
+  // batelada (só relação Prisma; zero DDL em Produto).
+  formulacoes            Formulacao[]
+  ingredientesFormulacao FormulacaoIngrediente[]
   // D-PROD-202 — linhas de produto do lançamento de atividades.
   atividadeApontamentoProdutos AtividadeApontamentoProduto[]
 
@@ -1186,6 +1291,8 @@ model Empresa {
   estacoes               CadEstacao[]
   // D-PROD-189 — curvas de ganho de peso da fazenda.
   curvasGanho            CadCurvaGanho[]
+  // D-PROD-203 — formulações de suplemento da fazenda.
+  formulacoes            Formulacao[]
   // D-PROD-190 — apontamentos de atividade da fazenda.
   atividades            Atividade[]
   atividadeApontamentos AtividadeApontamento[]
@@ -1286,6 +1393,8 @@ model CategoriaManejo {
 
   cliente    Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   curvaGanho CadCurvaGanho @relation(fields: [cliente_id, empresa_id, curva_ganho_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  // D-PROD-203 — exceções de consumo das formulações (só relação Prisma; zero DDL em CADCATEGORIA).
+  regrasFormulacao FormulacaoRegraCategoria[]
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])

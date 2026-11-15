@@ -222,6 +222,8 @@ D-PROD-189: +5 rotas, todas classe (a): `/curvas-ganho` (Curvas de Ganho de Peso
 
 D-PROD-195: +1 rota, classe (a): `GET /categorias-manejo-opcoes/curvas-ganho` (seletor obrigatório de curva da Categoria de Manejo; só `{id, nome, ativo}` da fazenda, `exigirEmpresaDoTenant`). Guarda: quem cria OU edita categoria — `pec-categorias-manejo` `novo`/`salvar`/`editar` ou `pec-lotes` `novo`/`editar`/`salvar` (cadastro rápido); a tela `pec-curvas-ganho` sozinha não lê. `DELETE /curvas-ganho/:id` mantém guarda e classe e ganha a recusa 409 `CURVA_GANHO_EM_USO` `{ categorias }`.
 
+D-PROD-203: +6 rotas, todas classe (a): `/formulacoes` (Formulações de suplemento, tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA). Leitura e escrita pela tela `pec-formulacoes`; `GET /formulacoes/opcoes-lancamento` (só as ativas, para o lançamento de suplementação) também pela chave do mapa `lancar_suplementacao`. `DELETE /formulacoes/:id` recusa com 409 `FORMULACAO_EM_USO` `{ lancamentos }` a formulação citada por lançamento de suplementação.
+
 D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
 
 | Método | Rota | Arquivo:linha | Classe — guarda |
@@ -320,6 +322,12 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/eventos-sanitarios` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:40` | c — GUARDAS.semTela (só administrador real) |
 | PATCH | `/eventos-sanitarios/:id` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:46` | c — GUARDAS.semTela (só administrador real) |
 | DELETE | `/eventos-sanitarios/:id` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:52` | c — GUARDAS.semTela (só administrador real) |
+| GET | `/formulacoes` | `backend/src/modules/formulacoes/formulacaoRoutes.js:125` | a — GUARDAS.formulacao.ver (D-PROD-203) |
+| GET | `/formulacoes/opcoes-lancamento` | `backend/src/modules/formulacoes/formulacaoRoutes.js:131` | a — GUARDAS.formulacao.opcoesLancamento (D-PROD-203: mapa `lancar_suplementacao` OU `pec-formulacoes` visualizar; só as ativas) |
+| GET | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:136` | a — GUARDAS.formulacao.ver (D-PROD-203) |
+| POST | `/formulacoes` | `backend/src/modules/formulacoes/formulacaoRoutes.js:142` | a — GUARDAS.formulacao.criar (D-PROD-203) |
+| PATCH | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:148` | a — GUARDAS.formulacao.editar (D-PROD-203) |
+| DELETE | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:154` | a — GUARDAS.formulacao.excluir (D-PROD-203); citada por lançamento de suplementação → 409 `FORMULACAO_EM_USO` `{ lancamentos }` |
 | GET | `/fornecedores` | `backend/src/modules/fornecedores/fornecedorRoutes.js:42` | a — porQualquer([TELAS.LOTES, 'visualizar']). (D-PROD-137) Projeção com CPF mascarado; completo só com acesso total |
 | POST | `/fornecedores` | `backend/src/modules/fornecedores/fornecedorRoutes.js:50` | c — GUARDAS.semTela (só administrador real) |
 | PATCH | `/fornecedores/:id` | `backend/src/modules/fornecedores/fornecedorRoutes.js:56` | c — GUARDAS.semTela (só administrador real) |

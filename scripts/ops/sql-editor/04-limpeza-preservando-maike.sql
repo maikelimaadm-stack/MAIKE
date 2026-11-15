@@ -13,11 +13,11 @@
 -- GARANTIAS (falha fechada; qualquer erro desfaz TUDO):
 --   - Uma única transação; fora dela, para antes de alterar.
 --   - Confere alvo, 25/25 migrations (as 7 da PR com o checksum do repositório),
---     o conjunto EXATO de 87 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202), cliente_id, ordem das FKs, nenhuma FK de
+--     o conjunto EXATO de 90 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203), cliente_id, ordem das FKs, nenhuma FK de
 --     fora do tenant com linhas, RLS e grants; exatamente 1 cliente ("maike",
 --     ativo) e 1 conta ("maike", ativa, nesse cliente); todas as linhas de tenant
 --     desse cliente. Trava as tabelas e RECONFERE tudo, inclusive a impressão.
---   - Apaga SOMENTE as linhas das 72 tabelas de tenant do cliente "maike",
+--   - Apaga SOMENTE as linhas das 75 tabelas de tenant do cliente "maike",
 --     EXCETO a própria conta. O Cliente fica intacto.
 --   - Preserva Usuario.id, senha_hash, login, nome, ativo e o vínculo; Cliente.id,
 --     código, nome e ativo. Altera SÓ Usuario.papel_tenant → 'administrador'
@@ -67,6 +67,9 @@ DECLARE
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
+    -- D-PROD-203: as formulações de suplemento — regras e ingredientes (filhas) antes da formulação, e as três antes
+    -- de CADCATEGORIA, Produto e Empresa, que elas referenciam (FKs RESTRICT).
+    'CADFORMULACAOREGRA','CADFORMULACAOINGREDIENTE','CADFORMULACAO',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
     -- D-PROD-189/D-PROD-195: CADCURVAGANHO (curvas de ganho) depois de CADCATEGORIA, que a referencia, e antes de Empresa.
@@ -118,7 +121,7 @@ BEGIN
   FOR v_rodada IN 1..2 LOOP
     IF v_rodada = 2 THEN
       LOCK TABLE "AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeApontamento","Atividade","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
-        "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES",
+        "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADFORMULACAOREGRA","CADFORMULACAOINGREDIENTE","CADFORMULACAO",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
         "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
         "EventoSanitario","Fornecedor","LinhaGeografica","LocalEstoque",
@@ -165,7 +168,7 @@ BEGIN
       RAISE EXCEPTION 'MAIKE-04: RLS desligado ou grant para anon/authenticated em public. Nada foi alterado.';
     END IF;
 
-    -- 4. cliente_id exatamente nas 72 de tenant (+ OperadorProdutoMaike, preservada).
+    -- 4. cliente_id exatamente nas 75 de tenant (+ OperadorProdutoMaike, preservada).
     IF (SELECT array_agg(table_name::text ORDER BY table_name) FROM information_schema.columns
          WHERE table_schema = 'public' AND column_name = 'cliente_id')
        IS DISTINCT FROM (SELECT array_agg(x ORDER BY x) FROM unnest(c_tenant || ARRAY['OperadorProdutoMaike']) x) THEN

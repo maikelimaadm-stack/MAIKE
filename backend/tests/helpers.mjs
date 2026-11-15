@@ -67,6 +67,11 @@ const ORDEM_DE_LIMPEZA = [
   'pontoSuplementacao',
   'bebedouro',
   'fornecedor',
+  // D-PROD-203 — as regras e os ingredientes das Formulações referenciam CADCATEGORIA e Produto (Restrict); a
+  // formulação referencia Produto e Empresa. Filhas antes da mãe, todas antes da categoria, do produto e da empresa.
+  'formulacaoRegraCategoria',
+  'formulacaoIngrediente',
+  'formulacao',
   'categoriaManejo',
   'permissao',
   // D-PROD-188 — CADESTACOES referencia Empresa (FK composta, Restrict).
