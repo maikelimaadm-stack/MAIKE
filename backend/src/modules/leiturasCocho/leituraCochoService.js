@@ -99,7 +99,7 @@ const diaValido = (valor) => {
 };
 
 /**
- * @param {{ auth: any }} contexto
+ * @param {any} contexto auth_context da requisição (`contexto.auth`)
  * @param {{ empresa_id?: string, ponto_suplementacao_id?: string, limit?: unknown }} filtros
  */
 export const listar = async (contexto, filtros = {}) => {
@@ -109,7 +109,7 @@ export const listar = async (contexto, filtros = {}) => {
 };
 
 /**
- * @param {{ auth: any }} contexto
+ * @param {any} contexto auth_context da requisição (`contexto.auth`)
  * @param {Record<string, unknown>} entrada
  */
 export const criar = async (contexto, entrada) => {
@@ -167,7 +167,7 @@ export const criar = async (contexto, entrada) => {
 };
 
 /**
- * @param {{ auth: any }} contexto
+ * @param {any} contexto auth_context da requisição (`contexto.auth`)
  * @param {string} id
  */
 export const excluir = async (contexto, id) => {

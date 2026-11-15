@@ -16,8 +16,8 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-205**, decisões do proprietário para a etapa 3 da suplementação (escore Vazio/Adequado/Cheio + acesso + estrutura, sem estoque; farol no mapa; leitura vence depois de 2 dias) |
 | Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `5490308f` (merge da PR #280, D-PROD-204) |
 | Escopo | Tabela `LEITURACOCHO`, API `/leituras-cocho` (GET autenticado; POST/DELETE com a chave do mapa `lancar_suplementacao`), leitura também offline (fila), farol do cocho (vermelho/verde/azul/cinza) no detalhe e no marcador do mapa, avisos de acesso e estrutura |
-| Migration | `20261115100000_leitura_cocho`, **EXPAND** (1 tabela nova). SHA-256 `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1`. Release pelo [runbook](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md), **antes do merge** (D-PROD-72), com GO escrito do proprietário |
-| Release | **NÃO APLICADA** em produção (aguarda o GO) |
+| Migration | `20261115100000_leitura_cocho`, **EXPAND** (1 tabela nova). SHA-256 `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1`. Release pelo [runbook](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md), **antes do merge** (D-PROD-72) |
+| Release | **Aplicada em produção** em 2026-11-15 às 15:20:55 UTC, caminho B do [runbook](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md), com aprovação do proprietário; postcheck 56 / 0, checksum igual ao pinado, `LEITURACOCHO` com RLS e 1 política, 7 constraints, `anon` sem SELECT, 91 tabelas em `public` |
 | Próximas etapas | 4 Fechamento de consumo em %PV com faixa configurável (padrão ±15%) e custo por cab/dia · 2b Produção da batelada, quando o proprietário precisar |
 | Relatório | [`MAIKE-LEITURA-COCHO-REPORT.md`](./MAIKE-LEITURA-COCHO-REPORT.md) |
 

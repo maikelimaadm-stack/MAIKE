@@ -1,6 +1,6 @@
 # MAIKE — Leitura de cocho: runbook de release expand-only (D-PROD-205)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
+> **Estado: EXECUTADO em 2026-11-15 15:20:55 UTC (caminho B). `SCHEMA_APPLIED_PROD: SIM`.** Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -156,10 +156,10 @@ editando esta. Com o código novo no ar, reverter o código primeiro.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | `<a preencher: finished_at da linha em _prisma_migrations>` |
-| Caminho | `<A ou B>` (B: SQL do §3 numa transação única pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne`; guarda exige **55** concluídas) |
-| GO | `<texto escrito do proprietário, específico desta migration>` |
-| Preflight (§2) | `<system_identifier; concluídas / com falha; última; LEITURACOCHO ausente; 90 tabelas>` |
+| Data/hora (UTC) | 2026-11-15 15:20:55 (`finished_at` da linha em `_prisma_migrations`) |
+| Caminho | **B**: o SQL do §3 (`aplicar205.sql`, com o `migration.sql` integral) numa transação única pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne`; guarda exigindo **55** concluídas. Aplicado pela sessão coordenadora |
+| GO | Do proprietário, pela aprovação da chamada que ele mesmo pediu no chat ("me envie a solicitação de autorização"), específica desta migration |
+| Preflight (§2) | guarda da transação: `system_identifier` 7692130048193495360; 55 concluídas / 0 com falha; `LEITURACOCHO` ausente |
 | Ensaio | Banco local com as 55 migrations da `main`: aplicou (56 / 0, 91 tabelas, `migrate status` em dia, `migrate diff` vazio); reexecução recusada (`migration já registrada`); alvo divergente recusado |
-| Postcheck (§4) | `<a preencher>` |
-| Resultado | **NÃO EXECUTADO** |
+| Postcheck (§4) | 56 concluídas / 0 com falha; checksum `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1` igual ao pinado; `LEITURACOCHO` com RLS ligado, 1 política; 7 constraints (pkey + 3 FK + 3 CHECK); `anon` sem SELECT; 91 tabelas em `public` |
+| Resultado | **APLICADA E CONFERIDA** antes do merge (D-PROD-72) |

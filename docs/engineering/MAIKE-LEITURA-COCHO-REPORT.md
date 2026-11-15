@@ -42,6 +42,7 @@ Etapa 3 de 4 da suplementação: a leitura de cocho feita no campo e o farol do 
 | `npx vitest run` dos 64 arquivos de smoke do mapa/cache/cocho | todos verdes |
 | Ensaio do caminho B (banco à parte com as 55 da `main`) | alvo divergente recusado; aplicou 55 → 56, 91 tabelas, RLS sem FORCE; `migrate status` em dia; `migrate diff` vazio; reexecução recusada |
 | `npm run verify:all` | ver §5 |
+| Produção | migration aplicada em 2026-11-15 15:20:55 UTC (caminho B, runbook §7): 56 / 0, 91 tabelas |
 
 ## 4. Limites conhecidos
 
@@ -52,4 +53,12 @@ Etapa 3 de 4 da suplementação: a leitura de cocho feita no campo e o farol do 
 
 ## 5. verify:all
 
-Preenchido no commit final da PR.
+Local, PostgreSQL 16, com `DATABASE_URL` e `AUTH_SECRET` exportados. O `verify:all` inteiro passou de 30 min com a suíte de backend completa num processo só (o CI a divide em 4 shards); as etapas foram então conferidas assim:
+
+| Etapa | Resultado |
+|---|---|
+| `test:gates` (927 testes) e todos os gates estáticos, `prisma:generate`, `types` (547 ≤ teto 625), `lint` (0 erros) | PASSOU no `verify:all` |
+| `typecheck:backend` | falhou no 1º `verify:all` (tipo JSDoc do `contexto` no serviço novo); corrigido e PASSOU |
+| `test:backend` | PASSOU: 2082 testes, 2077 aprovados, 0 falhas |
+| `test:smoke` | PASSOU: 240 arquivos, 2929 testes |
+| `build`, `build:admin`, `admin-isolation:bundles` | PASSOU |
