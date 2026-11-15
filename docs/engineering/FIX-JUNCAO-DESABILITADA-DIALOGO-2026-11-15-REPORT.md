@@ -64,13 +64,22 @@ Nenhum teste foi pulado ou afrouxado além do necessário.
 | `npx vitest run tests/smoke/detalhesLoteCutoverPendente.test.jsx` | **23/23** (antes: 19/23) |
 | Mutação temporária em `AcoesDoLote.jsx` (o quadro desabilitado dispara a ação), com as asserções de `disabled`/`title` comentadas para chegar às novas | **4/4 casos falham**: o formulário de junção abre e o contrato pega |
 | `npm run test:smoke` | **237 arquivos, 2.891 testes, todos verdes** |
-| `npm run verify:all` | ver seção abaixo |
+| `npm run verify:all` | 38/39 etapas; `test:backend` fechado à parte (ver abaixo) |
 
 ### verify:all
 
 Local: **38 das 39 etapas PASS**, incluindo todos os gates, `types`, `lint`, `test:smoke`, `build` e `build:admin`.
 `test:backend` reprovou em 110 ms com `DATABASE_URL ausente`: o contêiner não tinha PostgreSQL. É ambiente, não teste.
-Ele foi rodado à parte contra um PostgreSQL 16 efêmero local, com as variáveis do job da CI (`AUTH_SECRET` descartável): BACKEND_RESULT
+Ele foi rodado à parte contra um PostgreSQL 16 efêmero local:
+
+- Na primeira rodada só havia `DATABASE_URL` e `AUTH_SECRET` (descartável, o mesmo do job da CI). O resultado foi
+  2.053 testes: 2.045 pass, **3 fail** e 5 todo. As 3 falhas são todas em `backend/tests/transporteNativo.test.mjs`
+  ("P4B — CORS no app real") e exigem a origin `http://localhost:5173`. A CI define essa origin em
+  `FRONTEND_ORIGINS`, no `env` do job (`.github/workflows/quality.yml`); a rodada local não a tinha definido.
+- Com `FRONTEND_ORIGINS=http://localhost:5173`, o `transporteNativo.test.mjs` passa **20/20**.
+
+Total do backend: **2.048 pass, 0 fail, 5 todo**. Nenhuma das falhas tem relação com esta mudança, que não toca
+`backend/`.
 
 ## Fora do escopo
 
