@@ -21,7 +21,7 @@ import { INCLUIR_LINHA_SERVICO } from './atividadeApontamentoServicoRepository.j
 /**
  * `include` do apontamento: o resumo ao lado de cada id de usuário da forma
  * pública e, D-PROD-202 (Fatia 3), as linhas de PRODUTO e de MÁQUINA
- * (inclusive as canceladas), em ordem de lançamento. D-PROD-204 (Fatia 4):
+ * (inclusive as canceladas), em ordem de lançamento. D-PROD-205 (Fatia 4):
  * também as de MÃO DE OBRA e de SERVIÇO.
  */
 export const INCLUIR_APONTAMENTO = Object.freeze({

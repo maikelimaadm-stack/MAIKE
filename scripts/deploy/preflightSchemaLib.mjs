@@ -69,7 +69,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['CADFORMULACAO', 'percentual_pv_padrao'],
   ['CADFORMULACAOINGREDIENTE', 'quantidade_kg'],
   ['CADFORMULACAOREGRA', 'consome'],
-  // D-PROD-204 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
+  // D-PROD-205 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
   // apontamento; sem a migration EXPAND da mão de obra e do serviço, os cadastros e o apontamento novo respondem 500.
   ['Funcionario', 'custo_hora'],
   ['Servico', 'unidade_medida_id'],

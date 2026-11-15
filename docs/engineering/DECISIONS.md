@@ -7409,9 +7409,9 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md).
 
-## D-PROD-204 — Mão de obra e serviço de terceiro no apontamento do Lançamento de Atividades (Fatia 4)
+## D-PROD-205 — Mão de obra e serviço de terceiro no apontamento do Lançamento de Atividades (Fatia 4)
 
-> **Numeração:** nasceu como D-PROD-203; a `main` deu a D-PROD-203 às Formulações (PR #290, migration `20261114700000_cadformulacao`, já em produção) antes do merge desta. Esta é a **D-PROD-204**. O número não está no `migration.sql`.
+> **Numeração:** nasceu como D-PROD-203; a `main` deu a D-PROD-203 às Formulações (PR #290, migration `20261114700000_cadformulacao`, já em produção) e depois a D-PROD-204 ao mapa de ids da fila offline (PR #280, sem migration), antes do merge desta. Esta é a **D-PROD-205**. O número não está no `migration.sql`.
 
 **Data:** 2026-11-15 · **Origem:** pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo.") · **Branch:** `feat/atividade-mao-obra-servico`
 
@@ -7423,10 +7423,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 3. **Linha de serviço** (`AtividadeApontamentoServico`): serviço ativo da mesma fazenda, unidade copiada como snapshot da sigla da unidade do serviço, valor unitário digitado (a tela sugere o de referência), documento opcional e parceiro opcional — ativo, da mesma fazenda e com o papel `prestador_servico`; o parceiro usado conta como "em uso" na exclusão de parceiro. Exige a flag `permite_servico`.
 4. **Comum às duas, como na Fatia 3:** editar é cancelar e lançar de novo na mesma transação; cancelar o apontamento ou a atividade cancela as linhas; idempotência por `operation_id`; data do apontamento travada com linha confirmada; os totais da atividade e o custo por hectare somam produto, máquina, mão de obra e serviço. Nada de financeiro: nenhuma `OperacaoFinanceira`, título ou rateio a partir das linhas.
 5. **Migration EXPAND `20261114800000_atividade_mao_obra_servico`:** só 4 tabelas novas (`Funcionario`, `Servico`, `AtividadeApontamentoMaoObra`, `AtividadeApontamentoServico`), nenhuma coluna em tabela antiga, nenhum dado migrado. Toda FK é composta pelo tenant e `RESTRICT`; o apontamento, o funcionário, o serviço e o centro de custo entram por `(cliente_id, empresa_id, id)` (mesma fazenda por construção); o parceiro só tem `(cliente_id, id)`, e a mesma fazenda dele é conferida no código. SHA-256 `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`, RLS pinado `16d2680d…`. Produção: 55 → 56 migrations, 90 → 94 tabelas (de tenant, 75 → 79), depois das Formulações (D-PROD-203).
-6. **Constituição:** expansão D-PROD-204 no `00` e nota no `07`: os cadastros mínimos e as linhas como custo da atividade (snapshot), o parceiro prestador como referência; continua fora folha (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço; proibido apagar cadastro ou linha, criar `OperacaoFinanceira` a partir das linhas e usar `Usuario` como funcionário. **Vale só com a aprovação explícita do proprietário no merge.**
+6. **Constituição:** expansão D-PROD-205 no `00` e nota no `07`: os cadastros mínimos e as linhas como custo da atividade (snapshot), o parceiro prestador como referência; continua fora folha (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço; proibido apagar cadastro ou linha, criar `OperacaoFinanceira` a partir das linhas e usar `Usuario` como funcionário. **Vale só com a aprovação explícita do proprietário no merge.**
 
 **Release.** Não aplicada. A ordem é aplicar antes do merge, só com o GO escrito do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md).
 
 **Contrato:** [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-205 -->
+<!-- Próxima decisão: D-PROD-206 -->

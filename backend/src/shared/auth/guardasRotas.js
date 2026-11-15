@@ -339,7 +339,7 @@ export const GUARDAS = Object.freeze({
     cancelar: porTela(T.ATIVIDADES, 'cancelar_apontamento'),
   },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
-  // D-PROD-204 — Funcionários e Serviços da fazenda: leitura pela própria tela
+  // D-PROD-205 — Funcionários e Serviços da fazenda: leitura pela própria tela
   // (dado por fazenda); inativar e reativar são edição do registro (editar|salvar,
   // como nos centros da D-PROD-146). Sem DELETE físico (cadastro com custo).
   funcionario: { ...cadastro(T.FUNCIONARIOS), ver: porTela(T.FUNCIONARIOS, 'visualizar') },

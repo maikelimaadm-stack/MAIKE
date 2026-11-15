@@ -1,5 +1,5 @@
 /**
- * D-PROD-204 (Fatia 4 do Lançamento de Atividades) — LINHAS DE MÃO DE OBRA do
+ * D-PROD-205 (Fatia 4 do Lançamento de Atividades) — LINHAS DE MÃO DE OBRA do
  * apontamento (`/atividades/:id/apontamentos/:apontamentoId/mao-obra…`), o
  * seletor `/atividades-opcoes/funcionarios`, o lançamento/repetição com
  * `mao_obra[]` e o totalizador com as QUATRO linhas, contra PostgreSQL real e

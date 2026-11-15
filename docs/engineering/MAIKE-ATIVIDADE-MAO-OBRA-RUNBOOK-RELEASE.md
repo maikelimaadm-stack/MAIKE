@@ -1,4 +1,4 @@
-# MAIKE — Mão de obra e serviço de terceiro (Fatia 4): runbook de release EXPAND (D-PROD-204)
+# MAIKE — Mão de obra e serviço de terceiro (Fatia 4): runbook de release EXPAND (D-PROD-205)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 >
@@ -6,7 +6,7 @@
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de
 > leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-204](./DECISIONS.md) · Contrato:
+Decisão: [D-PROD-205](./DECISIONS.md) · Contrato:
 [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) (§1 o modelo e a migration).
 Precedente executado: [`MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md)
 (a anterior, EXPAND, caminho B). Molde: [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md)
@@ -103,7 +103,7 @@ Cole TUDO e rode. Só `SELECT`. Qualquer `PARAR` → `RELEASE_BLOCKED`.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-204 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-205 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -314,7 +314,7 @@ Qualquer `PARAR`: **não mergear** e chamar o proprietário.
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-204 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
+-- MAIKE · D-PROD-205 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -437,7 +437,7 @@ CONFERIDA`. Mais:
   `cancelado_por` (para `Usuario`) e as FKs para `Cliente` e `Empresa` dos dois
   cadastros não têm índice próprio, como nas tabelas da D-PROD-202;
 - opcional, no caminho A: `node scripts/deploy/preflight-schema.mjs` com a conexão
-  de produção → exit 0 (nenhuma migration pendente; as colunas da D-PROD-204 em
+  de produção → exit 0 (nenhuma migration pendente; as colunas da D-PROD-205 em
   `COLUNAS_EXIGIDAS` presentes).
 
 ## 7. Merge
@@ -474,7 +474,7 @@ migration.
 - sem o GO-2 (no caminho B, sem o desvio da D-PROD-74 registrado para esta migration);
 - validação local da PR não verde;
 - alvo com `system_identifier` diferente;
-- histórico diferente de 55/0 antes, a D-PROD-203 com outro checksum, ou a D-PROD-204
+- histórico diferente de 55/0 antes, a D-PROD-203 com outro checksum, ou a D-PROD-205
   já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release;

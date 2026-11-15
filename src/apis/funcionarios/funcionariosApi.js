@@ -1,4 +1,4 @@
-/** API do módulo Funcionários da fazenda (D-PROD-204). Online só; página keyset do motor Base1. */
+/** API do módulo Funcionários da fazenda (D-PROD-205). Online só; página keyset do motor Base1. */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { operacoesNativas } from './funcionarioNativePort.js';

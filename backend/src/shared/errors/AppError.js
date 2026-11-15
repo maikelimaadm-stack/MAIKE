@@ -132,7 +132,7 @@ export const unidadeMedidaSiglaConflito = (message, options) =>
 const MENSAGENS_UNIDADE_MEDIDA_EM_USO = Object.freeze({
   tipo_atividade: 'não é possível excluir: a unidade de medida é a unidade de produção padrão de um tipo de atividade; inative-a; nada foi apagado',
   atividade: 'não é possível excluir: a unidade de medida é a unidade de produção de uma atividade; inative-a; nada foi apagado',
-  // D-PROD-204 — unidade de medida de um serviço (cadastro da Fatia 4).
+  // D-PROD-205 — unidade de medida de um serviço (cadastro da Fatia 4).
   servico: 'não é possível excluir: a unidade de medida é usada por um serviço; inative-a; nada foi apagado',
 });
 
@@ -313,7 +313,7 @@ const EXIGENCIAS_DO_TIPO_ATIVIDADE = Object.freeze({
     flag: 'permite_implemento',
     mensagem: 'o tipo de atividade não permite implemento: ligue "permite implemento" no tipo ou lance a máquina sem implemento',
   }),
-  // D-PROD-204 (Fatia 4): linhas de mão de obra e de serviço.
+  // D-PROD-205 (Fatia 4): linhas de mão de obra e de serviço.
   funcionario_id: Object.freeze({
     flag: 'permite_mao_obra',
     mensagem: 'o tipo de atividade não permite mão de obra: ligue "permite mão de obra" no tipo ou lance sem mão de obra',
@@ -329,7 +329,7 @@ const EXIGENCIAS_DO_TIPO_ATIVIDADE = Object.freeze({
  * `details.field` = o campo; `details.reason` = a flag (`exige_area`,
  * `exige_safra`, `exige_maquina`, `exige_producao`). D-PROD-202: também a
  * linha que o tipo não PERMITE (`produto_id` → `permite_produto`;
- * `implemento_bem_id` → `permite_implemento`). D-PROD-204: `funcionario_id` →
+ * `implemento_bem_id` → `permite_implemento`). D-PROD-205: `funcionario_id` →
  * `permite_mao_obra`; `servico_id` → `permite_servico`.
  * @param {'area_id'|'safra_ciclo'|'bem_id'|'quantidade_produzida'|'produto_id'|'implemento_bem_id'|'funcionario_id'|'servico_id'} field
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
@@ -489,7 +489,7 @@ const TIPOS_DE_LINHA_ATIVIDADE = Object.freeze({
 /**
  * D-PROD-202 — linha de outro apontamento, atividade, empresa ou tenant =
  * inexistente (o mesmo corpo: sem oráculo). `details.entidade` diz qual linha
- * (D-PROD-204: também `linha_mao_obra` e `linha_servico`).
+ * (D-PROD-205: também `linha_mao_obra` e `linha_servico`).
  * @param {'produto'|'maquina'|'mao_obra'|'servico'} tipo
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
@@ -520,14 +520,14 @@ const MENSAGENS_LINHA_ATIVIDADE = Object.freeze({
   }),
   quantidade: Object.freeze({
     quantidade_nao_positiva: 'a quantidade deve ser maior que zero',
-    // D-PROD-204 (mão de obra e serviço).
+    // D-PROD-205 (mão de obra e serviço).
     obrigatoria: 'informe a quantidade',
     nao_positiva: 'a quantidade deve ser maior que zero',
     custo_excede_limite: 'o custo da linha (quantidade × valor unitário) passa do limite da coluna',
   }),
-  // D-PROD-204 — edição de linha de mão de obra/serviço sem mudança real.
+  // D-PROD-205 — edição de linha de mão de obra/serviço sem mudança real.
   corpo: Object.freeze({ sem_alteracao: 'os dados enviados são os mesmos da linha gravada: não há o que alterar' }),
-  // D-PROD-204 — linha de mão de obra.
+  // D-PROD-205 — linha de mão de obra.
   funcionario_id: Object.freeze({
     inexistente: 'o funcionário não foi encontrado',
     outra_empresa: 'o funcionário é de outra fazenda',
@@ -538,7 +538,7 @@ const MENSAGENS_LINHA_ATIVIDADE = Object.freeze({
     obrigatorio: 'na tarefa, informe o valor por tarefa',
     nao_aceito: 'por hora ou por diária, o custo vem do cadastro do funcionário: não informe o custo unitário',
   }),
-  // D-PROD-204 — linha de serviço.
+  // D-PROD-205 — linha de serviço.
   servico_id: Object.freeze({
     inexistente: 'o serviço não foi encontrado',
     outra_empresa: 'o serviço é de outra fazenda',
@@ -588,7 +588,7 @@ const MENSAGENS_LINHA_ATIVIDADE = Object.freeze({
 /**
  * D-PROD-202 — linha de produto ou de máquina recusada (um só código;
  * `details.field`/`details.reason` dizem qual; `details.entidade`
- * `linha_produto` | `linha_maquina`, D-PROD-204 `linha_mao_obra` |
+ * `linha_produto` | `linha_maquina`, D-PROD-205 `linha_mao_obra` |
  * `linha_servico`). Id de outro tenant é `inexistente`.
  * @param {string} field  ex.: `produto_id`, `local_estoque_id`, `quantidade`, `bem_id`, `leitura_final`
  * @param {string} reason
@@ -654,7 +654,7 @@ export const atividadeEstornoBloqueado = (reason, extra = {}, options = undefine
  * D-PROD-202 — a data do apontamento não muda com linha de produto ou de
  * máquina CONFIRMADA (a saída de estoque e a leitura do medidor estão nesta
  * data): cancelar e lançar de novo. `details.linhas_produto`/`linhas_maquina`.
- * D-PROD-204: também com linha de mão de obra ou de serviço confirmada
+ * D-PROD-205: também com linha de mão de obra ou de serviço confirmada
  * (`details.linhas_mao_obra`/`linhas_servico`).
  * @param {{ produtos: number, maquinas: number, maoObra?: number, servicos?: number }} contagem
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
@@ -691,7 +691,7 @@ export const estacaoPeriodoSobreposto = (message, options) =>
     options
   );
 
-// D-PROD-204 — cadastros de Funcionário e Serviço da fazenda (Fatia 4).
+// D-PROD-205 — cadastros de Funcionário e Serviço da fazenda (Fatia 4).
 export const funcionarioNotFound = (message, options) =>
   new AppError('FUNCIONARIO_NOT_FOUND', message || 'funcionário não encontrado nesta fazenda', options);
 

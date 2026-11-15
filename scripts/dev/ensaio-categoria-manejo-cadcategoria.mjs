@@ -58,7 +58,7 @@
  *     URL), esta, depois a D-PROD-195 e por último as EXPAND da D-PROD-198 e da D-PROD-203, e confere: todas
  *     concluídas (CONCLUIDAS_DEPOIS; esta depois da CADCURVAGANHO, do ApontamentoAtividade,
  *     dos itens do apontamento e das CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-200,
- *     e as EXPAND da D-PROD-202 e da D-PROD-204, e a D-PROD-195, a D-PROD-198 e a EXPAND da D-PROD-203 por último),
+ *     e as EXPAND da D-PROD-202 e da D-PROD-205, e a D-PROD-195, a D-PROD-198 e a EXPAND da D-PROD-203 por último),
  *     91 tabelas na partida e 94 no fim (+ as 3 das Formulações, D-PROD-203),
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam mais a curva_ganho_id da D-PROD-195 (cada
@@ -102,7 +102,7 @@ export const NOMES_POSTERIORES_JA_APLICADAS = Object.freeze(['20261113600000_cad
  * TipoAtividade, e a da D-PROD-200, `20261114500000_atividade_cabecalho`, que só toca as 3 tabelas do apontamento
  * antigo, e a EXPAND da D-PROD-202, `20261114600000_atividade_linhas_produto_maquina`, que cria as 3 tabelas das
  * linhas de produto e de máquina e só acrescenta colunas anuláveis em BemPatrimonial e TipoPatrimonial, e a EXPAND da
- * D-PROD-204, `20261114800000_atividade_mao_obra_servico`, que cria Funcionario, Servico e as 2 linhas de mão de obra
+ * D-PROD-205, `20261114800000_atividade_mao_obra_servico`, que cria Funcionario, Servico e as 2 linhas de mão de obra
  * e de serviço, sem coluna em tabela antiga) também ficam concluídas antes desta CONTRACT, menos as
  * NOMES_DEPOIS_DO_CONTRACT.
  * Em produção essas entram depois desta CONTRACT (já aplicada); não dependem do formato desta tabela e ela não as
@@ -147,11 +147,11 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
  * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, na partida; o peso
  * objetivo, D-PROD-198, 51 → 52, fora da partida; a Atividade cabeçalho, D-PROD-200, 52 → 53, na partida; e as linhas
  * de produto e de máquina, D-PROD-202, 53 → 54, na partida; as Formulações, D-PROD-203, 54 → 55, fora da partida; e a
- * mão de obra e o serviço, D-PROD-204, 55 → 56, na partida); e tabelas em public (91: 83 com a do ApontamentoAtividade,
+ * mão de obra e o serviço, D-PROD-205, 55 → 56, na partida); e tabelas em public (91: 83 com a do ApontamentoAtividade,
  * D-PROD-190, + as 2 dos itens do apontamento, D-PROD-193, − essas 3 + as 2 da atividade, D-PROD-200, que sobe na
  * partida pela ordem dos nomes: a guarda dela só olha as 3 tabelas do apontamento antigo, vazias aqui, e ela não toca
  * CategoriaManejo; + as 3 das linhas, D-PROD-202, na partida depois dela; + as 4 da mão de obra e do serviço,
- * D-PROD-204, na partida depois delas; a D-PROD-194, a D-PROD-195, a D-PROD-197 e
+ * D-PROD-205, na partida depois delas; a D-PROD-194, a D-PROD-195, a D-PROD-197 e
  * a D-PROD-198 não criam nem apagam tabela; iguais antes e depois: só rename).
  */
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;

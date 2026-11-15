@@ -126,7 +126,7 @@ const ESCRITAS = (c) => {
     ['formulação (POST)', 'POST', '/formulacoes', { empresa_id: E, nome: 'HACK', tipo: 'PRONTO', produto_id: 'p-1', percentual_pv_padrao: 0.1 }],
     ['formulação (PATCH)', 'PATCH', `/formulacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['formulação (DELETE)', 'DELETE', `/formulacoes/${ID}?empresa_id=${E}`],
-    // D-PROD-204 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
+    // D-PROD-205 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
     ['funcionário (POST)', 'POST', '/funcionarios', { empresa_id: E, nome: 'HACK', tipo: 'DIARISTA' }],
     ['funcionário (PATCH)', 'PATCH', `/funcionarios/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['funcionário (inativar)', 'POST', `/funcionarios/${ID}/inativar`, { empresa_id: E }],

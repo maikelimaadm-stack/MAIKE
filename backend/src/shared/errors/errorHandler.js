@@ -61,7 +61,7 @@ export const normalizarErro = (erro) => {
   // casa aqui: o serviço da atividade a traduz em 422 do campo.
   const vinculo = vinculoComAtividade(erro);
   if (vinculo) {
-    // D-PROD-204: as linhas do apontamento (mão de obra, serviço) contam como apontamento.
+    // D-PROD-205: as linhas do apontamento (mão de obra, serviço) contam como apontamento.
     return atividadeVinculada(vinculo.campo, vinculo.tabela.startsWith('AtividadeApontamento') ? 'apontamento' : 'atividade', { cause: erro });
   }
 

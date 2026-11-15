@@ -31,7 +31,7 @@ const PAGINAS_COLISAO_HISTORICA = [
  * de Medição e Combustíveis, D-PROD-162; +1 Tipos de Atividade, D-PROD-182;
  * +1 Estações, D-PROD-188; +1 Curvas de Ganho, D-PROD-189; +1 Apontamentos de
  * Atividade, D-PROD-190; trocado por Lançamento de Atividades, D-PROD-200; +1 Formulações, D-PROD-203;
- * +2 Funcionários e Serviços, D-PROD-204).
+ * +2 Funcionários e Serviços, D-PROD-205).
  */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',

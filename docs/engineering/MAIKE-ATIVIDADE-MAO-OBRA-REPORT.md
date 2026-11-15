@@ -2,7 +2,7 @@
 
 > **fatia 4 · `feat/atividade-mao-obra-servico` · PR #294**
 >
-> Decisão **D-PROD-204** · contrato [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) ·
+> Decisão **D-PROD-205** · contrato [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) ·
 > runbook [`MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md)
 
 ## 1. O que é
@@ -47,7 +47,7 @@ atividade passam a somar as quatro linhas (produto, máquina, mão de obra e ser
    mesma fazenda garantida pelo banco.
 4. **Sem financeiro e sem folha.** Nenhuma `OperacaoFinanceira`, título ou rateio a partir das linhas; nada de
    salário, encargos, ponto ou pagamento.
-5. **Constituição:** a expansão D-PROD-204 no `00` e a nota no `07` foram redigidas pelo agente e **valem só com a sua
+5. **Constituição:** a expansão D-PROD-205 no `00` e a nota no `07` foram redigidas pelo agente e **valem só com a sua
    aprovação no merge**.
 
 ## 5. Validação (local; o GitHub Actions roda no push)

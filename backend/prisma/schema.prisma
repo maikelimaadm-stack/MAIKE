@@ -140,7 +140,7 @@ model Cliente {
   atividadeApontamentoProdutos      AtividadeApontamentoProduto[]
   atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
   atividadeApontamentoMaquinas      AtividadeApontamentoMaquina[]
-  // D-PROD-204 — cadastros de mão de obra e serviço e as linhas do apontamento.
+  // D-PROD-205 — cadastros de mão de obra e serviço e as linhas do apontamento.
   funcionarios                      Funcionario[]
   servicos                          Servico[]
   atividadeApontamentoMaoObras      AtividadeApontamentoMaoObra[]
@@ -217,7 +217,7 @@ model Usuario {
   atividadeProdutosCancelados AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCanceladoPor")
   atividadeMaquinasCriadas    AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaCriadoPor")
   atividadeMaquinasCanceladas AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaCanceladoPor")
-  // D-PROD-204 — autores das linhas de mão de obra e serviço.
+  // D-PROD-205 — autores das linhas de mão de obra e serviço.
   atividadeMaoObrasCriadas    AtividadeApontamentoMaoObra[] @relation("AtividadeApontamentoMaoObraCriadoPor")
   atividadeMaoObrasCanceladas AtividadeApontamentoMaoObra[] @relation("AtividadeApontamentoMaoObraCanceladoPor")
   atividadeServicosCriados    AtividadeApontamentoServico[] @relation("AtividadeApontamentoServicoCriadoPor")
@@ -492,7 +492,7 @@ model UnidadeMedida {
   tiposAtividadeProducao TipoAtividade[]
   // D-PROD-200 — snapshot da unidade de produção do tipo na abertura da atividade.
   atividadesProducao     Atividade[]
-  // D-PROD-204 — unidade de medida do serviço (RESTRICT).
+  // D-PROD-205 — unidade de medida do serviço (RESTRICT).
   servicos               Servico[]
 
   @@unique([cliente_id, numero_unidade])
@@ -1308,7 +1308,7 @@ model Empresa {
   // D-PROD-190 — apontamentos de atividade da fazenda.
   atividades            Atividade[]
   atividadeApontamentos AtividadeApontamento[]
-  // D-PROD-204 — funcionários e serviços da fazenda.
+  // D-PROD-205 — funcionários e serviços da fazenda.
   funcionarios          Funcionario[]
   servicos              Servico[]
   @@unique([cliente_id, id])
@@ -1370,7 +1370,7 @@ model Fornecedor {
   // D-PROD-157 — proprietário (bem de terceiro) e fornecedor da aquisição.
   bensComoProprietario BemPatrimonial[]   @relation("BemPatrimonialProprietario")
   bensComoFornecedor   BemPatrimonial[]   @relation("BemPatrimonialFornecedor")
-  // D-PROD-204 — parceiro (prestador) da linha de serviço do apontamento.
+  // D-PROD-205 — parceiro (prestador) da linha de serviço do apontamento.
   atividadeServicos    AtividadeApontamentoServico[]
 
   @@unique([cliente_id, id])
@@ -2193,7 +2193,7 @@ model CentroCusto {
   atividades Atividade[]
   // D-PROD-197 — centro de custo padrão dos tipos de atividade.
   tiposAtividadePadrao  TipoAtividade[]
-  // D-PROD-204 — centro de custo padrão do serviço.
+  // D-PROD-205 — centro de custo padrão do serviço.
   servicosPadrao        Servico[]
 
   @@unique([cliente_id, id])
@@ -3288,7 +3288,7 @@ model AtividadeApontamentoMaquina {
 }
 
 // ---------------------------------------------------------------------------
-// D-PROD-204 — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades).
+// D-PROD-205 — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades).
 // Cadastros mínimos por fazenda (Funcionario, Servico) e as linhas de custo do
 // apontamento (mão de obra e serviço de terceiro). Nada é apagado: cadastro
 // inativa; linha cancela. FKs compostas pelo tenant, RESTRICT.

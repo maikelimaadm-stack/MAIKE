@@ -220,7 +220,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarCurvaGanhoRoutes);
   // D-PROD-203 — Formulações de suplemento da fazenda (tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA).
   await app.register(registrarFormulacaoRoutes);
-  // D-PROD-204 (Fatia 4) — cadastros de Funcionário e Serviço da fazenda (sem DELETE).
+  // D-PROD-205 (Fatia 4) — cadastros de Funcionário e Serviço da fazenda (sem DELETE).
   await app.register(registrarFuncionarioRoutes);
   await app.register(registrarServicoRoutes);
   // D-PROD-200 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
@@ -232,7 +232,7 @@ export const construirApp = async (opcoes = {}) => {
   // estoque pelo motor FIFO) e máquina (uso pelo medidor, custo por hora/km).
   await app.register(registrarAtividadeApontamentoProdutoRoutes);
   await app.register(registrarAtividadeApontamentoMaquinaRoutes);
-  // D-PROD-204 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.
+  // D-PROD-205 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.
   await app.register(registrarAtividadeApontamentoMaoObraRoutes);
   await app.register(registrarAtividadeApontamentoServicoRoutes);
   await app.register(registrarLoteRoutes);

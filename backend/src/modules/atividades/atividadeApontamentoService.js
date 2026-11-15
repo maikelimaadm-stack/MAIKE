@@ -367,7 +367,7 @@ export const comoApontamentoPublico = (r) => ({
   // D-PROD-202: as linhas que geram custo, inclusive as canceladas, em ordem de lançamento.
   produtos: [...(r.produtos ?? [])].sort(porOrdem).map(comoLinhaProdutoPublica),
   maquinas: [...(r.maquinas ?? [])].sort(porOrdem).map(comoLinhaMaquinaPublica),
-  // D-PROD-204 (Fatia 4): mão de obra e serviço de terceiro, inclusive as canceladas.
+  // D-PROD-205 (Fatia 4): mão de obra e serviço de terceiro, inclusive as canceladas.
   mao_obra: [...(r.maoObras ?? [])].sort(porOrdem).map(comoLinhaMaoObraPublica),
   servicos: [...(r.servicos ?? [])].sort(porOrdem).map(comoLinhaServicoPublica),
 });
@@ -500,7 +500,7 @@ export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId
 /**
  * D-PROD-202 — a cascada das LINHAS (cancelar o apontamento ou a atividade):
  * primeiro as de máquina (trava bem → produto, a ordem do abastecimento),
- * depois o estorno exato das de produto. D-PROD-204: as de mão de obra e de
+ * depois o estorno exato das de produto. D-PROD-205: as de mão de obra e de
  * serviço caem junto (sem estoque nem medidor: só o status). Devolve as contagens.
  * @param {any} tx
  * @param {{ clienteId: string, empresaId: string, atividadeId: string, apontamentoIds: string[], usuarioId: string|null,
@@ -572,7 +572,7 @@ const canonico = (v) => {
 };
 
 /**
- * D-PROD-204 — `mao_obra[]` e `servicos[]` entram no fingerprint SÓ quando
+ * D-PROD-205 — `mao_obra[]` e `servicos[]` entram no fingerprint SÓ quando
  * vêm (o fingerprint de um lançamento sem elas segue o mesmo da Fatia 3).
  * @param {LinhasDoLancamento} linhas
  */
@@ -592,7 +592,7 @@ const linhasNovasDoFingerprint = (linhas) => ({
 const linhasDoCorpo = (corpo) => {
   const produtosBrutos = Array.isArray(corpo.produtos) ? corpo.produtos : [];
   const maquinas = Array.isArray(corpo.maquinas) ? corpo.maquinas : [];
-  // D-PROD-204: `mao_obra[]` e `servicos[]` como vieram (os serviços das linhas normalizam).
+  // D-PROD-205: `mao_obra[]` e `servicos[]` como vieram (os serviços das linhas normalizam).
   const maoObra = Array.isArray(corpo.mao_obra) ? corpo.mao_obra : [];
   const servicos = Array.isArray(corpo.servicos) ? corpo.servicos : [];
   const produtos = produtosBrutos.map((/** @type {any} */ l, /** @type {number} */ i) => normalizarDadosDaLinha(l ?? {}, `produtos[${i}].`));
@@ -631,7 +631,7 @@ const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerpr
           executar: async () => {
             // As chaves derivadas EXATAS (`<chave>:p1…p20`, nunca um prefixo com curinga de LIKE).
             if (await existeLinhaComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'produto'))) throw conflito();
-            // D-PROD-204: idem para as chaves derivadas das linhas de mão de obra (`:o`) e de serviço (`:s`).
+            // D-PROD-205: idem para as chaves derivadas das linhas de mão de obra (`:o`) e de serviço (`:s`).
             if (await existeLinhaMaoObraComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'mao_obra'))) throw conflito();
             if (await existeLinhaServicoComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'servico'))) throw conflito();
             return { httpStatus: 201, body: await executar(tx) };
@@ -688,7 +688,7 @@ const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividade, estad
     if (linhas.produtos.length) {
       await criarLinhasProduto(tx, contexto, { apontamento, atividade, linhas: linhas.produtos, operationId: /** @type {string} */ (linhas.operationId) });
     }
-    // D-PROD-204: mão de obra e serviço (sem trava própria: nem estoque nem medidor), com a chave do lançamento.
+    // D-PROD-205: mão de obra e serviço (sem trava própria: nem estoque nem medidor), com a chave do lançamento.
     if (linhas.maoObra.length) await criarLinhasMaoObra(tx, contexto, { apontamento, atividade, linhas: linhas.maoObra, operationId: linhas.operationId });
     if (linhas.servicos.length) await criarLinhasServico(tx, contexto, { apontamento, atividade, linhas: linhas.servicos, operationId: linhas.operationId });
   }
@@ -849,7 +849,7 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
         // A saída de estoque e a leitura do medidor das linhas estão nesta data: cancelar e lançar de novo.
         const produtos = await contarLinhasProdutoConfirmadas(tx, cli, empresaId, apontamentoId);
         const maquinas = await contarLinhasMaquinaConfirmadas(tx, { clienteId: cli, empresaId, apontamentoId });
-        // D-PROD-204: o custo da mão de obra e do serviço também é deste dia.
+        // D-PROD-205: o custo da mão de obra e do serviço também é deste dia.
         const maoObra = await contarLinhasMaoObraConfirmadas(tx, { clienteId: cli, empresaId, apontamentoId });
         const servicos = await contarLinhasServicoConfirmadas(tx, { clienteId: cli, empresaId, apontamentoId });
         if (produtos + maquinas + maoObra + servicos > 0) throw atividadeDataComLinhas({ produtos, maquinas, maoObra, servicos });

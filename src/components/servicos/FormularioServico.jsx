@@ -25,7 +25,7 @@ export const rotuloDaUnidade = (u) =>
 const listaDe = (consulta) => (Array.isArray(consulta.data) ? consulta.data : []);
 
 /**
- * Formulário do cadastro de Serviços da fazenda (D-PROD-204).
+ * Formulário do cadastro de Serviços da fazenda (D-PROD-205).
  *
  * Campos: Nome, Unidade de medida (do cadastro de Unidades de Medida: as ATIVAS
  * e, se ficou inativa, a gravada, marcada), Centro de custo padrão (os ATIVOS da
