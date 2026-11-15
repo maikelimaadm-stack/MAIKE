@@ -71,6 +71,8 @@ let R;
 let T;
 /** Pedidos que a tela mandou (método, caminho, corpo), para conferir a forma exata. */
 let enviados = [];
+/** O que o servidor respondeu a cada pedido (status e corpo cru, antes da API da tela normalizar). */
+let recebidos = [];
 /** Simula a rede caindo na VOLTA: o servidor grava, a tela não recebe a resposta (resultado incerto). */
 let perderProximaResposta = false;
 
@@ -84,6 +86,7 @@ before(async () => {
     const corpo = init.body === undefined ? undefined : JSON.parse(String(init.body));
     enviados.push({ metodo: init.method ?? 'GET', caminho: `${u.pathname}${u.search}`, corpo });
     const r = await app.inject({ method: init.method ?? 'GET', url: `${u.pathname}${u.search}`, headers: init.headers, ...(init.body !== undefined ? { payload: String(init.body) } : {}) });
+    recebidos.push({ status: r.statusCode, corpo: r.statusCode === 204 || !r.body ? null : JSON.parse(r.body) });
     if (perderProximaResposta) {
       perderProximaResposta = false;
       throw new TypeError('Failed to fetch');
@@ -102,6 +105,7 @@ after(async () => {
 beforeEach(async () => {
   await limparBanco();
   enviados = [];
+  recebidos = [];
   perderProximaResposta = false;
 });
 
