@@ -74,6 +74,7 @@ Local, PostgreSQL 16, com `DATABASE_URL` e `AUTH_SECRET` exportados. Como na D-P
 | `gate:types` | PASSOU (546 ≤ teto 625) |
 | `typecheck:backend` | PASSOU |
 | `lint` | 0 erros (2 avisos antigos, fora desta missão) |
-| `test:backend` | ver abaixo |
-| `test:smoke` | ver abaixo |
-| `build`, `build:admin` | ver abaixo |
+| `test:gates` | PASSOU (930 testes) |
+| `test:backend` | PASSOU: 2083 testes, 2078 aprovados, 0 falhas (5 `todo`) |
+| `test:smoke` | PASSOU: 241 arquivos, 2945 testes |
+| `build`, `build:admin`, `gate:admin-isolation` | PASSOU |
