@@ -78,7 +78,9 @@ export const comoServicoPublico = (r) => ({
 
 /** @param {ReturnType<typeof comoServicoPublico>} p */
 const paraAuditoria = (p) => {
-  const { unidade_medida: _u, centro_custo_padrao: _c, ...resto } = p;
+  const resto = { ...p };
+  delete resto.unidade_medida;
+  delete resto.centro_custo_padrao;
   return resto;
 };
 
