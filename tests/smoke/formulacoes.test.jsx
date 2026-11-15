@@ -140,7 +140,7 @@ describe("FO-SV — leitura, batida e validação", () => {
     expect(ok.erros).toEqual({});
     expect(ok.corpo).toEqual({
       nome: "PROTEINADO SECA", tipo: "BATELADA", produto_id: "p-mix", percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800,
-      observacoes: null, ativo: true,
+      faixa_tolerancia_percentual: null, observacoes: null, ativo: true,
       ingredientes: [{ produto_id: "p-milho", quantidade_kg: 600 }, { produto_id: "p-farelo", quantidade_kg: 300 }, { produto_id: "p-nucleo", quantidade_kg: 100 }],
       regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15 }],
     });
@@ -154,6 +154,12 @@ describe("FO-SV — leitura, batida e validação", () => {
     expect(validarFormulacao({ ...base, regras: [{ categoria_manejo_id: "c-vaca", consome: true, percentual_pv: "" }] }).erros["regras.0.percentual_pv"]).toBeTruthy();
     expect(validarFormulacao({ ...base, percentual_pv_padrao: "6" }).erros.percentual_pv_padrao).toBeTruthy();
     expect(validarFormulacao({ ...base, nome: " ", produto_id: "" }).erros).toMatchObject({ nome: "Obrigatório", produto_id: "Obrigatório" });
+    // D-PROD-206: faixa de tolerância — vírgula aceita, vazio = null (15%), fora de (0, 100] ou 3 casas → erro.
+    expect(validarFormulacao({ ...base, faixa_tolerancia_percentual: "12,5" }).corpo?.faixa_tolerancia_percentual).toBe(12.5);
+    expect(validarFormulacao({ ...base, faixa_tolerancia_percentual: "" }).corpo?.faixa_tolerancia_percentual).toBeNull();
+    for (const ruim of ["0", "100,5", "15,123", "abc"]) {
+      expect(validarFormulacao({ ...base, faixa_tolerancia_percentual: ruim }).erros.faixa_tolerancia_percentual, ruim).toMatch(/De 0 a 100%/);
+    }
     // Não consome: o %PV digitado antes não vai.
     expect(validarFormulacao({ ...base, regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: "0,2" }] }).corpo?.regras).toEqual([{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null }]);
   });
@@ -204,9 +210,24 @@ describe("FO-FORM — formulário de formulação", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0][0]).toEqual({
       nome: "SAL 80", tipo: "PRONTO", produto_id: "p-sal", percentual_pv_padrao: 0.1, consumo_objetivo_g_cab_dia: null,
-      observacoes: null, ativo: true, ingredientes: [],
+      faixa_tolerancia_percentual: null, observacoes: null, ativo: true, ingredientes: [],
       regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15 }],
     });
+  });
+
+  it("FO-FORM-2b — D-PROD-206: faixa de tolerância com placeholder 15 (padrão); digitada vai no corpo; editar abre com a gravada", async () => {
+    const { onSubmit } = montar();
+    const campo = /** @type {HTMLInputElement} */ (screen.getByLabelText("Faixa de tolerância do consumo, em porcentagem do esperado"));
+    expect(campo.placeholder).toBe("15");
+    fireEvent.change(screen.getByPlaceholderText(/EX\.: SAL MINERAL/), { target: { value: "sal 80" } });
+    await escolher(/^Produto \(vai ao cocho\)/, "SAL MINERAL 80");
+    digitar("Percentual do peso vivo padrão", "0,1");
+    digitar("Faixa de tolerância do consumo, em porcentagem do esperado", "20");
+    enviar();
+    expect(onSubmit.mock.calls[0][0].faixa_tolerancia_percentual).toBe(20);
+    cleanup();
+    montar({ initialData: { ...BATELADA, faixa_tolerancia_percentual: 12.5 }, isEditing: true });
+    expect(/** @type {HTMLInputElement} */ (screen.getByLabelText("Faixa de tolerância do consumo, em porcentagem do esperado")).value).toBe("12,5");
   });
 
   it("FO-FORM-3 — obrigatórios e regra que consome sem %PV não enviam e marcam os campos", () => {

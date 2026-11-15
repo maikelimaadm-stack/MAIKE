@@ -328,3 +328,68 @@ describe("D-PROD-203 — formulação obrigatória no lançamento", () => {
     expect(consumoEsperadoPorFormulacao({ formulacao: null, lotes: [{ id: "a", quantidade_cabecas: 3, peso_medio_kg: 300 }] }).totalKgDia).toBe(0);
   });
 });
+
+describe("D-PROD-206 — o lançamento grava o que o fechamento do consumo precisa", () => {
+  const sobraCampo = () => /** @type {HTMLInputElement} */ (screen.getByLabelText("Sobra no cocho (kg)"));
+
+  it("SF-5 — sobra vazia = não medida (fecha com sobraInformada false e avisa); 0 digitado = medida (true)", async () => {
+    estado.ultimoEvento = { id: "ev-1", data_lancamento: "2020-01-10", quantidade_total_kg: 100, sobra_kg: 0, dias_periodo: null };
+    await montar();
+    expect(sobraCampo().value).toBe("");
+    expect(sobraCampo().placeholder).toBe("Não medida");
+    expect(screen.getByTestId("suplementacao-sobra-nao-medida").textContent).toMatch(/aproximado/);
+    await act(async () => { fireEvent.change(campoKg(), { target: { value: "200" } }); });
+    await salvar();
+    expect(fechar).toHaveBeenCalledTimes(1);
+    expect(fechar.mock.calls[0][0]).toMatchObject({ sobraFinal: 0, sobraInformada: false });
+    // Sem a prop, o serviço confere o compartilhamento pelo cache (o formulário não decide).
+    expect(fechar.mock.calls[0][0].compartilhado).toBeUndefined();
+
+    cleanup();
+    fechar.mockClear();
+    lancar.mockClear();
+    await montar();
+    await act(async () => { fireEvent.change(campoKg(), { target: { value: "200" } }); });
+    await act(async () => { fireEvent.change(sobraCampo(), { target: { value: "0" } }); });
+    expect(screen.queryByTestId("suplementacao-sobra-nao-medida")).toBeNull();
+    await salvar();
+    expect(fechar.mock.calls[0][0]).toMatchObject({ sobraFinal: 0, sobraInformada: true });
+  });
+
+  it("SF-6 — custo/kg da saída (FIFO), faixa da formulação e peso vivo de quem consome vão no evento", async () => {
+    estado.formulacoes = [{ ...FORMULACAO, faixa_tolerancia_percentual: 20 }];
+    saida.mockImplementation(async () => ({ movimentacao: { id: "mov-1", valor_unitario: "3.5" } }));
+    await montar();
+    await act(async () => { fireEvent.change(campoKg(), { target: { value: "200" } }); });
+    await salvar();
+    const { evento } = lancar.mock.calls[0][0];
+    expect(evento.custo_unitario_kg).toBe(3.5);
+    expect(evento.faixa_tolerancia_percentual).toBe(20);
+    // 30 × 400 (projetado) + 20 × 400 (sem peso: a média dos com peso) = 20.000 kg.
+    expect(evento.peso_vivo_consumo_kg).toBe(20000);
+  });
+
+  it("SF-7 — formulação sem faixa → null (15% na leitura); saída sem valor → sem custo; ciclo compartilhado vem da prop", async () => {
+    const { custoUnitarioDaSaida, pesoVivoDeQuemConsome } = await import("@/components/suplementacao/FormularioLancamentoSuplementacao");
+    expect(custoUnitarioDaSaida({ valor_unitario: 0 })).toBe(0);
+    expect(custoUnitarioDaSaida({ valor_unitario: null })).toBeNull();
+    expect(custoUnitarioDaSaida(null)).toBeNull();
+    expect(custoUnitarioDaSaida({ valor_unitario: "x" })).toBeNull();
+    expect(pesoVivoDeQuemConsome([{ cabecas: 10, peso: 300, consome: true }, { cabecas: 5, peso: 100, consome: false }])).toBe(3000);
+    expect(pesoVivoDeQuemConsome([{ cabecas: 5, peso: 0, consome: true }])).toBeNull();
+
+    estado.ultimoEvento = { id: "ev-1", data_lancamento: "2020-01-10", quantidade_total_kg: 100, sobra_kg: 0, dias_periodo: null };
+    const { default: FormularioLancamentoSuplementacao } = await import("@/components/suplementacao/FormularioLancamentoSuplementacao");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    await act(async () => {
+      render(<QueryClientProvider client={client}><FormularioLancamentoSuplementacao ponto={PONTO} cicloCompartilhado onCancel={() => {}} /></QueryClientProvider>);
+    });
+    await assentar();
+    await waitFor(() => expect(screen.getByText(/cabeças/)).toBeTruthy());
+    await act(async () => { fireEvent.change(campoKg(), { target: { value: "200" } }); });
+    await salvar();
+    expect(lancar.mock.calls[0][0].evento.faixa_tolerancia_percentual).toBeNull();
+    expect(lancar.mock.calls[0][0].evento.custo_unitario_kg).toBeNull();
+    expect(fechar.mock.calls[0][0].compartilhado).toBe(true);
+  });
+});

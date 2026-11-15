@@ -42,8 +42,16 @@ import { listEmpresas } from "@/services/empresaService";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { createPageUrl } from "@/utils";
 import { QUERY_FORMULACOES_LANCAMENTO, rotuloDoTipo } from "@/services/formulacaoCadastroService";
+import { calcularFechamentoConsumo } from "@/domain/suplementacao/fechamentoConsumo";
+import { ResumoFechamentoConsumo } from "./FarolConsumo";
 
-export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
+/**
+ * `cicloCompartilhado` (D-PROD-206): o nível do cocho marcou o ciclo aberto como compartilhado (os mesmos
+ * animais com o mesmo produto em outro cocho). O fechamento desse ciclo vai sem farol ("sem referência"):
+ * não se rateia o consumo. Sem a prop, o serviço confere pelo cache do mapa.
+ * @param {{ ponto: any, onSubmit?: any, onCancel: () => void, cicloCompartilhado?: boolean }} props
+ */
+export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel, cicloCompartilhado }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const parseDateLocal = (value) => {
     if (!value) return null;
@@ -91,7 +99,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     // D-PROD-203: a FORMULAÇÃO é obrigatória; o produto que vai ao cocho (e que se baixa) é o dela.
     formulacao_id: "",
     quantidade_total_kg: "",
-    sobra_kg: "0",
+    // D-PROD-206: vazio = sobra NÃO medida (o fechamento conta 0 e marca "Aproximado"); 0 digitado = medida.
+    sobra_kg: "",
     unidade_lancamento: "KG",
     quantidade_sacos: "",
     observacoes: "",
@@ -289,6 +298,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   }, [formData.unidade_lancamento, formData.quantidade_sacos, formData.quantidade_total_kg, suportaSacos, pesoPorSaco]);
 
   const sobraInformada = parseNumber(formData.sobra_kg || 0);
+  // D-PROD-206: a sobra foi MEDIDA (inclusive 0 digitado)? Vazio = não medida.
+  const sobraFoiInformada = String(formData.sobra_kg ?? "").trim() !== "";
 
 
   // D-PROD-203: consumo esperado por %PV da FORMULAÇÃO, lote a lote (regra da categoria ou o padrão;
@@ -564,6 +575,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         // Cabeças cuja categoria NÃO consome a formulação (fora do consumo esperado; contam em total_cabecas_afetadas).
         cabecas_nao_consomem: consumoPV.cabecasNaoConsomem,
         movimentacao_estoque_id: movimentoEstoque?.id || null,
+        // D-PROD-206: o fechamento do consumo usa o custo REAL da saída (FIFO), a faixa da formulação vigente no
+        // lançamento (null = 15%) e o peso vivo de quem consome (base do %PV real e do esperado).
+        custo_unitario_kg: custoUnitarioDaSaida(movimentoEstoque),
+        faixa_tolerancia_percentual: typeof formulacaoSelecionada?.faixa_tolerancia_percentual === "number" ? formulacaoSelecionada.faixa_tolerancia_percentual : null,
+        peso_vivo_consumo_kg: pesoVivoDeQuemConsome(consumoPV.porLote),
         observacoes: formData.observacoes || null,
       };
 
@@ -614,6 +630,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               diasPeriodo: diasPeriodoCalculado,
               sobraInicial: ultimoEvento.sobra_kg || 0,
               sobraFinal: parseNumber(formData.sobra_kg || 0),
+              sobraInformada: sobraFoiInformada,
+              compartilhado: cicloCompartilhado,
             });
           } else {
             toast.warning("Datas inconsistentes — período anterior não foi fechado.");
@@ -769,8 +787,13 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                   {sobraHerdadaKg > 0 && <span className="ml-1 text-amber-700 font-semibold">• Herdada do ciclo anterior</span>}
                 </label>
                 <div className={`rounded-md border ${sobraHerdadaKg > 0 ? "border-amber-300 bg-amber-50" : "border-slate-300"} focus-within:border-emerald-500 transition-colors`}>
-                  <Input type="text" inputMode="decimal" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" />
+                  <Input type="text" inputMode="decimal" aria-label="Sobra no cocho (kg)" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="Não medida" />
                 </div>
+                {ultimoEvento && ultimoEvento.dias_periodo == null && !sobraFoiInformada && (
+                  <div className="text-[10px] text-slate-500" data-testid="suplementacao-sobra-nao-medida">
+                    Sem sobra medida, o fechamento conta 0 e fica marcado como aproximado.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -810,6 +833,23 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/cab/dia</div><div className="font-bold text-slate-900">{consumoPorCabAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg</div></div>
                   </div>
                   <div className="text-[10px] text-slate-600">Período analisado: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</div>
+                  {/* D-PROD-206: prévia do farol do fechamento (o que será gravado ao salvar). */}
+                  {ultimoEvento.dias_periodo == null && diasAnterior > 0 && (
+                    <ResumoFechamentoConsumo
+                      previa
+                      resumo={calcularFechamentoConsumo({
+                        evento: ultimoEvento,
+                        consumoTotalKg: consumidoAnterior,
+                        diasPeriodo: diasAnterior,
+                        sobraInformada: sobraFoiInformada,
+                        faixaPercentual: Object.prototype.hasOwnProperty.call(ultimoEvento, "faixa_tolerancia_percentual")
+                          ? ultimoEvento.faixa_tolerancia_percentual
+                          : formulacoes.find((f) => String(f.id) === String(ultimoEvento.formulacao_id))?.faixa_tolerancia_percentual ?? null,
+                        custoUnitarioKg: ultimoEvento.custo_unitario_kg ?? null,
+                        compartilhado: cicloCompartilhado === true,
+                      })}
+                    />
+                  )}
                 </div>
               );
             })()}
@@ -914,6 +954,28 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 export function chaveDaSaida({ produtoId, quantidadeKg, data, localId }) {
   return [String(produtoId ?? ""), Number(quantidadeKg || 0).toFixed(4), String(data ?? ""), String(localId ?? "")].join("|");
 }
+
+/**
+ * D-PROD-206 — R$/kg da saída de estoque (FIFO) do lançamento: `valor_unitario` do movimento; sem saída
+ * (cocho sem depósito) ou valor inválido → null ("sem custo").
+ * @param {any} movimento
+ */
+export const custoUnitarioDaSaida = (movimento) => {
+  const v = movimento?.valor_unitario;
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+/**
+ * D-PROD-206 — peso vivo (kg) de quem CONSOME a formulação: Σ cabeças × peso de cada lote que consome
+ * (o lote sem peso entra com a média dos com peso, como no esperado). Sem peso nenhum → null.
+ * @param {Array<{ cabecas: number, peso: number, consome: boolean }>} porLote
+ */
+export const pesoVivoDeQuemConsome = (porLote) => {
+  const total = (porLote || []).reduce((soma, l) => soma + (l?.consome && l.peso > 0 ? l.cabecas * l.peso : 0), 0);
+  return total > 0 ? Number(total.toFixed(2)) : null;
+};
 
 const diaDe = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
 const brDe = (dia) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}`;

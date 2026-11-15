@@ -53,6 +53,12 @@ export const lerPercentualPV = (texto) => lerDecimal(texto, { casas: 4, maximo: 
 export const lerKg = (texto) => lerDecimal(texto, { casas: 3 });
 /** Consumo objetivo (g/cab/dia), > 0, até 2 casas. @param {unknown} texto */
 export const lerGramas = (texto) => lerDecimal(texto, { casas: 2 });
+/** D-PROD-206: faixa máxima de tolerância do farol de consumo (% do esperado), como no servidor. */
+export const FAIXA_MAXIMA = 100;
+/** D-PROD-206: faixa padrão do farol de consumo quando a formulação não tem uma (placeholder da tela). */
+export const FAIXA_PADRAO = 15;
+/** D-PROD-206: faixa de tolerância (0, 100], até 2 casas; vazio = padrão de 15%. @param {unknown} texto */
+export const lerFaixa = (texto) => lerDecimal(texto, { casas: 2, maximo: FAIXA_MAXIMA });
 
 /**
  * Número → texto com vírgula ("0,15"; "1.000"). Vazio sem valor.
@@ -88,7 +94,7 @@ export const resumoDaBatida = (ingredientes) => {
  * @typedef {{ categoria_manejo_id: string, consome: boolean, percentual_pv: string }} RegraForm
  * @typedef {{
  *   nome: string, tipo: string, produto_id: string, percentual_pv_padrao: string,
- *   consumo_objetivo_g_cab_dia: string, observacoes: string, ativo: boolean,
+ *   consumo_objetivo_g_cab_dia: string, faixa_tolerancia_percentual?: string, observacoes: string, ativo: boolean,
  *   ingredientes: IngredienteForm[], regras: RegraForm[],
  * }} FormulacaoForm
  */
@@ -112,6 +118,8 @@ export const validarFormulacao = (f) => {
   else if (pv === null) erros.percentual_pv_padrao = `De 0 a ${PV_MAXIMO}%, até 4 casas`;
   const gramas = lerGramas(f.consumo_objetivo_g_cab_dia);
   if (gramas === null) erros.consumo_objetivo_g_cab_dia = 'Maior que 0, até 2 casas';
+  const faixa = lerFaixa(f.faixa_tolerancia_percentual);
+  if (faixa === null) erros.faixa_tolerancia_percentual = `De 0 a ${FAIXA_MAXIMA}%, até 2 casas`;
 
   const batelada = f.tipo === 'BATELADA';
   const ingredientes = batelada ? f.ingredientes || [] : [];
@@ -148,6 +156,7 @@ export const validarFormulacao = (f) => {
       produto_id: f.produto_id,
       percentual_pv_padrao: pv,
       consumo_objetivo_g_cab_dia: gramas ?? null,
+      faixa_tolerancia_percentual: faixa ?? null,
       observacoes: observacoes || null,
       ativo: f.ativo !== false,
       ingredientes: corpoIngredientes,

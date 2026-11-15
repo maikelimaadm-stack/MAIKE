@@ -1,0 +1,11 @@
+-- MAIKE-FECHAMENTO-CONSUMO — a Formulação ("CADFORMULACAO") ganha a FAIXA DE
+-- TOLERÂNCIA do farol de consumo (% do consumo esperado), opcional: vazia vale o
+-- padrão de 15%. Decisão, relatório e runbook em docs/engineering/
+-- (MAIKE-FECHAMENTO-CONSUMO-*.md). O número da decisão fica FORA deste arquivo
+-- de propósito: renumerar a decisão nunca muda o checksum aplicado.
+--
+-- Modo EXPAND puro: uma coluna anulável, sem DEFAULT, numa tabela antiga. Nada
+-- é reescrito nem travado além do instante do ALTER (catálogo); formulações que
+-- já existem ficam com o campo vazio (= 15%). A faixa (0 < x ≤ 100, até 2
+-- casas) é conferida pelo serviço. Reversão: migration nova com DROP COLUMN.
+ALTER TABLE "CADFORMULACAO" ADD COLUMN "faixa_tolerancia_percentual" DECIMAL(5,2);

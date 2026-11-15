@@ -15,6 +15,8 @@ export const FORMULACOES_COLUNAS = [
   { id: "regras", label: "Regras", default: true, sortable: true, width: 100, align: "right" },
   { id: "ingredientes", label: "Ingredientes / batida", default: true, sortable: true, width: 180, align: "right" },
   { id: "consumo_objetivo_g_cab_dia", label: "Objetivo (g/cab/dia)", default: false, sortable: true, width: 160, align: "right" },
+  // D-PROD-206: faixa do farol de consumo (vazio = 15%).
+  { id: "faixa_tolerancia_percentual", label: "Faixa (%)", default: false, sortable: true, width: 110, align: "right" },
   { id: "observacoes", label: "Observações", default: false, sortable: true, width: 260 },
   {
     id: "ativo",
@@ -50,6 +52,7 @@ export function getFormulacaoFieldValue(item, colunaId) {
     return `${n} / ${formatarNumero(item.total_batida_kg ?? 0, { casasMax: 3 })} kg`;
   }
   if (colunaId === "consumo_objetivo_g_cab_dia") return formatarNumero(item.consumo_objetivo_g_cab_dia, { casasMax: 2 });
+  if (colunaId === "faixa_tolerancia_percentual") return typeof item.faixa_tolerancia_percentual === "number" ? `${formatarNumero(item.faixa_tolerancia_percentual, { casasMax: 2 })}%` : "15% (padrão)";
   if (colunaId === "observacoes") return item.observacoes || "";
   if (colunaId === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
   if (colunaId === "created_date") return formatarDataHora(item.created_date);
@@ -64,7 +67,7 @@ const numeroDaColuna = (item, colId) => {
   const v = item?.[colId];
   return typeof v === "number" ? v : null;
 };
-const NUMERICAS = new Set(["percentual_pv_padrao", "regras", "ingredientes", "consumo_objetivo_g_cab_dia"]);
+const NUMERICAS = new Set(["percentual_pv_padrao", "regras", "ingredientes", "consumo_objetivo_g_cab_dia", "faixa_tolerancia_percentual"]);
 
 /**
  * Colunas numéricas ordenam pelo número; as demais, pela regra da grade.

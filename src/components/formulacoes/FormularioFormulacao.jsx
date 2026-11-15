@@ -7,6 +7,7 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
 import {
+  FAIXA_PADRAO,
   PV_MAXIMO,
   TIPOS_FORMULACAO,
   formatarNumero,
@@ -35,6 +36,7 @@ export const formularioDoRegistro = (r) => ({
   produto_id: r?.produto_id || "",
   percentual_pv_padrao: textoDe(r?.percentual_pv_padrao),
   consumo_objetivo_g_cab_dia: textoDe(r?.consumo_objetivo_g_cab_dia),
+  faixa_tolerancia_percentual: textoDe(r?.faixa_tolerancia_percentual),
   observacoes: r?.observacoes || "",
   ativo: r?.ativo ?? true,
   ingredientes: (r?.ingredientes || []).map((/** @type {any} */ i) => ({ produto_id: i.produto_id, quantidade_kg: textoDe(i.quantidade_kg) })),
@@ -248,6 +250,28 @@ export default function FormularioFormulacao({
           className={CTL_NUMERO}
           readOnly={readOnly}
           aria-label="Consumo objetivo em gramas por cabeça por dia"
+        />
+      </B1Field>
+
+      {/* D-PROD-206: faixa do farol de consumo no fechamento do período (vazio = 15%). */}
+      <B1Field
+        label="Faixa de tolerância (%)"
+        span={3}
+        hasValue={Boolean(String(formData.faixa_tolerancia_percentual ?? "").trim())}
+        locked={readOnly}
+        disabled={travado}
+        error={erros.faixa_tolerancia_percentual}
+      >
+        <input
+          type="text"
+          inputMode="decimal"
+          value={formData.faixa_tolerancia_percentual ?? ""}
+          onChange={(e) => mudarCampo("faixa_tolerancia_percentual", e.target.value)}
+          placeholder={String(FAIXA_PADRAO)}
+          maxLength={6}
+          className={CTL_NUMERO}
+          readOnly={readOnly}
+          aria-label="Faixa de tolerância do consumo, em porcentagem do esperado"
         />
       </B1Field>
 

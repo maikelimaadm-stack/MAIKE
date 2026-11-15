@@ -130,6 +130,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261114700000_cadformulacao': '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524',
   // D-PROD-205: EXPAND — Leitura de cocho (LEITURACOCHO), só tabela nova.
   '20261115100000_leitura_cocho': 'f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1',
+  // D-PROD-206: EXPAND — faixa de tolerância do farol de consumo na Formulação (uma coluna anulável em CADFORMULACAO).
+  '20261115200000_formulacao_faixa_tolerancia': 'bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

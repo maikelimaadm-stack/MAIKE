@@ -59,6 +59,9 @@
  * D-PROD-205: a EXPAND `20261115100000_leitura_cocho` (1 tabela nova), agora a de nome mais posterior, sobe também,
  * por último: 56/0 e 91 tabelas no fim.
  *
+ * D-PROD-206: a EXPAND `20261115200000_formulacao_faixa_tolerancia` (1 coluna anulável em CADFORMULACAO), agora a de
+ * nome mais posterior, sobe também, por último: 57/0 e 91 tabelas no fim.
+ *
  * As funções seguem as do ensaio da D-PROD-183
  * (`scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`), copiadas aqui com o nome
  * desta CONTRACT.
@@ -97,6 +100,8 @@ const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
 const NOME_FORMULACOES = '20261114700000_cadformulacao';
 /** D-PROD-205: a EXPAND da Leitura de cocho, a de nome mais posterior (ver o cabeçalho). */
 const NOME_LEITURA = '20261115100000_leitura_cocho';
+/** D-PROD-206: a EXPAND da faixa de tolerância, a de nome mais posterior (ver o cabeçalho). */
+const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
 const POSTERIORES = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort());
 /** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
 const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200']]);
@@ -346,9 +351,9 @@ after(async () => {
 
 describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD mensais (PostgreSQL real)', () => {
   test('CM-01 partida: 48 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas; a D-PROD-195, a D-PROD-197, a EXPAND da D-PROD-198 e a D-PROD-200, posteriores, ainda não), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
-    assert.deepEqual(POSTERIORES, [NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA], 'só as CONTRACT da D-PROD-195, da D-PROD-197 e da D-PROD-200 e as EXPAND da D-PROD-198, da D-PROD-202, da D-PROD-203 e da D-PROD-205 têm nome posterior a esta');
+    assert.deepEqual(POSTERIORES, [NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA], 'só as CONTRACT da D-PROD-195, da D-PROD-197 e da D-PROD-200 e as EXPAND da D-PROD-198, da D-PROD-202, da D-PROD-203, da D-PROD-205 e da D-PROD-206 têm nome posterior a esta');
     assert.equal(MIGRATIONS_PARTIDA, 48);
-    assert.equal(TOTAL_MIGRATIONS, 56);
+    assert.equal(TOTAL_MIGRATIONS, 57);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.posteriores_concluidas, 0);
@@ -428,7 +433,7 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     assert.equal(h.posteriores_concluidas, POSTERIORES.length);
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-8), [NOME_CONTRACT, NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA]);
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-9), [NOME_CONTRACT, NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
 
     const depois = await retrato(db);
     assert.deepEqual(depois.colunas, [...COLUNAS_DEPOIS]);
