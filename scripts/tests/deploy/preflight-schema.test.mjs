@@ -51,6 +51,9 @@ const COLUNAS_OK = [
   { table_name: 'LEITURACOCHO', column_name: 'escore' },
   // D-PROD-206: a faixa do farol de consumo.
   { table_name: 'CADFORMULACAO', column_name: 'faixa_tolerancia_percentual' },
+  // D-PROD-207: a base do consumo e os gramas da regra.
+  { table_name: 'CADFORMULACAO', column_name: 'base_consumo' },
+  { table_name: 'CADFORMULACAOREGRA', column_name: 'g_cab_dia' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };

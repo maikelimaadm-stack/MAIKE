@@ -5,6 +5,8 @@ import { FAROL_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
  * D-PROD-206 — exibição do fechamento do consumo: o farol (sempre com o texto,
  * não só a cor), consumo g/cab/dia, %PV real × esperado, custo e a marca
  * "Aproximado" quando a sobra final não foi medida.
+ * D-PROD-207: na base g/cab/dia a meta é em gramas ("g/cab/dia real × meta") e o
+ * %PV real aparece só como informação, sem %PV esperado.
  */
 
 const COR_SELO = Object.freeze({
@@ -66,6 +68,9 @@ export function ResumoFechamentoConsumo({ resumo, previa = false }) {
   const relacaoPct = typeof resumo.consumo_relacao_esperado === "number" ? resumo.consumo_relacao_esperado * 100 : null;
   const pvReal = fmt(resumo.consumo_real_pv_percentual, 3);
   const pvEsperado = fmt(resumo.consumo_esperado_pv_percentual, 3);
+  const emGramas = resumo.base_consumo_aplicada === "G_CAB_DIA";
+  const gReal = fmt(resumo.consumo_g_cab_dia, 0);
+  const gMeta = fmt(resumo.consumo_esperado_g_cab_dia, 0);
   return (
     <div className="space-y-1" data-testid={previa ? "fechamento-consumo-previa" : "fechamento-consumo"}>
       <div className="flex flex-wrap items-center gap-1">
@@ -76,8 +81,17 @@ export function ResumoFechamentoConsumo({ resumo, previa = false }) {
         )}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-        <Celula label="Consumo g/cab/dia" value={fmt(resumo.consumo_g_cab_dia, 0) ? `${fmt(resumo.consumo_g_cab_dia, 0)} g` : "-"} />
-        <Celula label="%PV real × esperado" value={pvReal ? `${pvReal}% × ${pvEsperado ?? "-"}${pvEsperado ? "%" : ""}` : "-"} />
+        {emGramas ? (
+          <>
+            <Celula label="g/cab/dia real × meta" value={gReal ? `${gReal} g × ${gMeta ? `${gMeta} g` : "-"}` : "-"} />
+            <Celula label="%PV real (informação)" value={pvReal ? `${pvReal}%` : "-"} />
+          </>
+        ) : (
+          <>
+            <Celula label="Consumo g/cab/dia" value={gReal ? `${gReal} g` : "-"} />
+            <Celula label="%PV real × esperado" value={pvReal ? `${pvReal}% × ${pvEsperado ?? "-"}${pvEsperado ? "%" : ""}` : "-"} />
+          </>
+        )}
         <Celula label="Custo R$/cab/dia" value={reais(resumo.custo_cab_dia) ?? "Sem custo"} />
         <Celula
           label="Custo do período"

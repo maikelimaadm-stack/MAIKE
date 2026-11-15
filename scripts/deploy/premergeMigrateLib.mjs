@@ -132,6 +132,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261115100000_leitura_cocho': 'f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1',
   // D-PROD-206: EXPAND — faixa de tolerância do farol de consumo na Formulação (uma coluna anulável em CADFORMULACAO).
   '20261115200000_formulacao_faixa_tolerancia': 'bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c',
+  // D-PROD-207: CONTRACT aprovado pelo proprietário — base do consumo na Formulação (% do peso vivo ou g/cab/dia):
+  // coluna NOT NULL DEFAULT 'PV', %PV padrão anulável, CHECK por base e regra em gramas; as 3 tabelas VAZIAS.
+  '20261115300000_formulacao_base_consumo': 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -175,8 +178,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São sete, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e
- * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre).
+ * exige decisão. São oito, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre) e D-PROD-207.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -356,6 +359,28 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
         'FROM "ApontamentoAtividade" AS a',
       ].join(' '),
       'UPDATE "EntidadeCodigoSequencia" SET "entidade" = \'Atividade\', "updatedAt" = CURRENT_TIMESTAMP WHERE "entidade" = \'ApontamentoAtividade\'',
+    ]),
+  }),
+  // D-PROD-207: a Formulação ganha a BASE DO CONSUMO — % do peso vivo (PV) ou gramas por cabeça por dia (G_CAB_DIA), uma
+  // por formulação, sem mistura. É CONTRACT porque a allowlist EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT,
+  // ALTER COLUMN, DROP CONSTRAINT e CHECK. A guarda (hash pinado) trava as 3 tabelas de Formulações e exige as 3 VAZIAS
+  // (o proprietário autorizou: "os dados eram só teste"; em produção estavam com 0 linhas) — nenhum dado é migrado.
+  // Depois dela, EXATAMENTE as 7 instruções abaixo, nesta ordem (texto pinado): a coluna base_consumo, o %PV padrão
+  // anulável, o CHECK do %PV padrão trocado pelo CHECK por base, a coluna g_cab_dia da regra e o CHECK da forma da
+  // regra recriado (consome com %PV OU com gramas, nunca os dois). Não há resto. A guarda só cita as 3 tabelas.
+  '20261115300000_formulacao_base_consumo': Object.freeze({
+    decisao: 'D-PROD-207',
+    guarda_sha256: 'a66ff13e8427efbe7d434d286459a0354e8331b10a1c5afd9953b83464184819',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "CADFORMULACAO" ADD COLUMN "base_consumo" VARCHAR(16) NOT NULL DEFAULT \'PV\'',
+      'ALTER TABLE "CADFORMULACAO" ALTER COLUMN "percentual_pv_padrao" DROP NOT NULL',
+      'ALTER TABLE "CADFORMULACAO" DROP CONSTRAINT "CADFORMULACAO_percentual_pv_padrao_check"',
+      'ALTER TABLE "CADFORMULACAO" ADD CONSTRAINT "CADFORMULACAO_base_consumo_check" CHECK (("base_consumo" = \'PV\' AND "percentual_pv_padrao" IS NOT NULL AND "percentual_pv_padrao" > 0 AND "percentual_pv_padrao" <= 5) OR ("base_consumo" = \'G_CAB_DIA\' AND "percentual_pv_padrao" IS NULL AND "consumo_objetivo_g_cab_dia" IS NOT NULL AND "consumo_objetivo_g_cab_dia" > 0))',
+      'ALTER TABLE "CADFORMULACAOREGRA" ADD COLUMN "g_cab_dia" DECIMAL(10,2)',
+      'ALTER TABLE "CADFORMULACAOREGRA" DROP CONSTRAINT "CADFORMULACAOREGRA_forma_check"',
+      'ALTER TABLE "CADFORMULACAOREGRA" ADD CONSTRAINT "CADFORMULACAOREGRA_forma_check" CHECK (("consome" = false AND "percentual_pv" IS NULL AND "g_cab_dia" IS NULL) OR ("consome" = true AND "percentual_pv" IS NOT NULL AND "percentual_pv" > 0 AND "percentual_pv" <= 5 AND "g_cab_dia" IS NULL) OR ("consome" = true AND "percentual_pv" IS NULL AND "g_cab_dia" IS NOT NULL AND "g_cab_dia" > 0))',
     ]),
   }),
 });

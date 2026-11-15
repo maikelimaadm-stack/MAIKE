@@ -175,16 +175,46 @@ export function percentualPVDoLote(lote, formulacao) {
   return { percentual: Number.isFinite(padrao) && padrao > 0 ? padrao : 0, consome: true, origem: "padrao" };
 }
 
+/** D-PROD-207 — a base do consumo da formulação: 'G_CAB_DIA' (gramas por cabeça por dia) ou 'PV' (padrão, inclusive sem o campo). */
+export const baseDoConsumo = (formulacao) => (formulacao?.base_consumo === "G_CAB_DIA" ? "G_CAB_DIA" : "PV");
+
+/**
+ * D-PROD-207 — gramas por cabeça por dia de um lote numa formulação da base
+ * G_CAB_DIA: a regra da Categoria de Manejo do lote, quando houver (não consome
+ * → 0; consome → os gramas da regra), senão o padrão (`consumo_objetivo_g_cab_dia`).
+ * @param {{ categoria_manejo_id?: string | null } | null | undefined} lote
+ * @param {{ consumo_objetivo_g_cab_dia?: unknown, regras?: Array<{ categoria_manejo_id?: string, consome?: boolean, g_cab_dia?: unknown }> } | null | undefined} formulacao
+ * @returns {{ gramas: number, consome: boolean, origem: 'padrao' | 'regra' | 'nao_consome' }}
+ */
+export function gramasDoLote(lote, formulacao) {
+  const categoria = lote?.categoria_manejo_id ? String(lote.categoria_manejo_id) : null;
+  const regra = categoria ? (formulacao?.regras || []).find((r) => String(r?.categoria_manejo_id) === categoria) : null;
+  if (regra && regra.consome === false) return { gramas: 0, consome: false, origem: "nao_consome" };
+  if (regra) {
+    const g = Number(regra.g_cab_dia);
+    return { gramas: Number.isFinite(g) && g > 0 ? g : 0, consome: true, origem: "regra" };
+  }
+  const padrao = Number(formulacao?.consumo_objetivo_g_cab_dia);
+  return { gramas: Number.isFinite(padrao) && padrao > 0 ? padrao : 0, consome: true, origem: "padrao" };
+}
+
 /**
  * D-PROD-203 — consumo esperado (kg/dia) por FORMULAÇÃO, lote a lote:
  * `peso do lote × %PV do lote / 100 × cabeças`, com o %PV da regra da categoria
  * (ou o padrão). Lote sem peso usa o peso médio ponderado dos lotes COM peso
  * (a mesma extrapolação da D-PROD-201), com o %PV da própria categoria. Lote
  * cuja categoria não consome entra com 0 kg. Sem formulação, tudo 0.
+ *
+ * D-PROD-207 — na base G_CAB_DIA a meta é FIXA por cabeça e não usa peso:
+ * `cabeças × gramas do lote / 1000` (regra da categoria, senão o padrão); lote
+ * sem peso não impede o esperado. `gCabDiaEsperado` é a média dos gramas
+ * ponderada pelas cabeças que consomem (null na base PV ou sem quem consome).
  * @param {{ lotes: Array<any>, formulacao: any }} p
  * @returns {{
+ *   base: 'PV' | 'G_CAB_DIA',
  *   totalKgDia: number,
- *   porLote: Array<{ id: unknown, cabecas: number, peso: number, pesoExtrapolado: boolean, percentualPV: number, consome: boolean, origem: string, esperadoKgDia: number | null }>,
+ *   gCabDiaEsperado: number | null,
+ *   porLote: Array<{ id: unknown, cabecas: number, peso: number, pesoExtrapolado: boolean, percentualPV: number, gCabDia: number | null, consome: boolean, origem: string, esperadoKgDia: number | null }>,
  *   cabecasNaoConsomem: number,
  *   cabecasConsomem: number,
  *   cabecasSemPeso: number,
@@ -193,6 +223,7 @@ export function percentualPVDoLote(lote, formulacao) {
  */
 export function consumoEsperadoPorFormulacao({ lotes, formulacao }) {
   const resumo = resumoPesoDosLotes(lotes);
+  const base = baseDoConsumo(formulacao);
   let totalKgDia = 0;
   let cabecasNaoConsomem = 0;
   let cabecasConsomem = 0;
@@ -203,6 +234,15 @@ export function consumoEsperadoPorFormulacao({ lotes, formulacao }) {
     const { peso: pesoProprio, origem: origemPeso } = pesoDeConsumoDoLote(lote);
     const pesoExtrapolado = origemPeso === "sem_peso";
     const peso = pesoExtrapolado ? resumo.pesoMedio : pesoProprio;
+    if (base === "G_CAB_DIA") {
+      const g = gramasDoLote(lote, formulacao);
+      if (!g.consome) cabecasNaoConsomem += cabecas;
+      else cabecasConsomem += cabecas;
+      const esperadoKgDia = !g.consome ? 0 : g.gramas > 0 ? (g.gramas * cabecas) / 1000 : null;
+      if (esperadoKgDia) totalKgDia += esperadoKgDia;
+      porLote.push({ id: lote?.id, cabecas, peso, pesoExtrapolado, percentualPV: 0, gCabDia: g.consome ? g.gramas : 0, consome: g.consome, origem: g.origem, esperadoKgDia });
+      continue;
+    }
     const pv = formulacao ? percentualPVDoLote(lote, formulacao) : { percentual: 0, consome: true, origem: "padrao" };
     if (!pv.consome) cabecasNaoConsomem += cabecas;
     else cabecasConsomem += cabecas;
@@ -210,7 +250,8 @@ export function consumoEsperadoPorFormulacao({ lotes, formulacao }) {
     if (!pv.consome) esperadoKgDia = 0;
     else if (peso > 0 && pv.percentual > 0) esperadoKgDia = consumoEsperadoPorCabecaDia(peso, pv.percentual) * cabecas;
     if (esperadoKgDia) totalKgDia += esperadoKgDia;
-    porLote.push({ id: lote?.id, cabecas, peso, pesoExtrapolado, percentualPV: pv.percentual, consome: pv.consome, origem: pv.origem, esperadoKgDia });
+    porLote.push({ id: lote?.id, cabecas, peso, pesoExtrapolado, percentualPV: pv.percentual, gCabDia: null, consome: pv.consome, origem: pv.origem, esperadoKgDia });
   }
-  return { totalKgDia, porLote, cabecasNaoConsomem, cabecasConsomem, cabecasSemPeso: resumo.cabecasSemPeso, pesoMedioReferencia: resumo.pesoMedio };
+  const gCabDiaEsperado = base === "G_CAB_DIA" && cabecasConsomem > 0 ? (totalKgDia * 1000) / cabecasConsomem : null;
+  return { base, totalKgDia, gCabDiaEsperado, porLote, cabecasNaoConsomem, cabecasConsomem, cabecasSemPeso: resumo.cabecasSemPeso, pesoMedioReferencia: resumo.pesoMedio };
 }

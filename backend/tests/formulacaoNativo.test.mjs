@@ -47,7 +47,7 @@ const acoes = (v) => ({ visualizar: v, novo: v, salvar: v, editar: v, excluir: v
 const linha = (tela, a) => ({ modulo_id: 'manejo', tela_id: tela, ...acoes(false), ...a });
 
 const CAMPOS_PUBLICOS = [
-  'ativo', 'consumo_objetivo_g_cab_dia', 'created_date', 'empresa_id', 'faixa_tolerancia_percentual', 'id', 'ingredientes', 'nome', 'observacoes', 'percentual_pv_padrao',
+  'ativo', 'base_consumo', 'consumo_objetivo_g_cab_dia', 'created_date', 'empresa_id', 'faixa_tolerancia_percentual', 'id', 'ingredientes', 'nome', 'observacoes', 'percentual_pv_padrao',
   'produto_ativo', 'produto_id', 'produto_nome', 'regras', 'tipo', 'total_batida_kg', 'updated_date',
 ].sort();
 
@@ -198,10 +198,10 @@ describe('D-PROD-203 — Formulações: criação, leitura e formato público', 
     assert.equal(r.statusCode, 200, r.body);
     assert.deepEqual(r.json(), [{
       id: ativa.id, empresa_id: cen.e1.id, nome: 'PROTEINADO SECA', tipo: 'BATELADA', produto_id: cen.p.mistura.id, produto_nome: 'PROTEINADO DA FAZENDA',
-      produto_ativo: true, percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800, faixa_tolerancia_percentual: null,
+      produto_ativo: true, base_consumo: 'PV', percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800, faixa_tolerancia_percentual: null,
       regras: [
-        { categoria_manejo_id: cen.cat.bezerro.id, categoria_manejo_nome: 'BEZERRO MAMANDO', consome: false, percentual_pv: null },
-        { categoria_manejo_id: cen.cat.vaca.id, categoria_manejo_nome: 'VACA LEITEIRA', consome: true, percentual_pv: 0.15 },
+        { categoria_manejo_id: cen.cat.bezerro.id, categoria_manejo_nome: 'BEZERRO MAMANDO', consome: false, percentual_pv: null, g_cab_dia: null },
+        { categoria_manejo_id: cen.cat.vaca.id, categoria_manejo_nome: 'VACA LEITEIRA', consome: true, percentual_pv: 0.15, g_cab_dia: null },
       ],
     }]);
   });
@@ -230,7 +230,8 @@ describe('D-PROD-203 — Formulações: validação', () => {
       [{ percentual_pv_padrao: 'muito' }, 'percentual_pv_invalido'],
       // milhar pt-BR: "1.000,5" é 1000,5 (não 1,0005) → fora da faixa de %PV
       [{ percentual_pv_padrao: '1.000,5' }, 'percentual_pv_fora_da_faixa'],
-      [{ percentual_pv_padrao: null }, 'percentual_pv_invalido'],
+      // D-PROD-207: na base PV (padrão) o %PV padrão vazio é obrigatório que falta.
+      [{ percentual_pv_padrao: null }, 'pv_padrao_obrigatorio'],
       [{ percentual_pv_padrao: true }, 'percentual_pv_invalido'],
       [{ consumo_objetivo_g_cab_dia: 0 }, 'consumo_objetivo_fora_da_faixa'],
       [{ consumo_objetivo_g_cab_dia: '1,234' }, 'consumo_objetivo_casas_decimais'],
@@ -491,5 +492,124 @@ describe('D-PROD-203 — Formulações no banco: nomes físicos, CHECK e RLS', (
     // A filha é da MESMA fazenda da formulação por construção (FK composta com empresa_id).
     await assert.rejects(prisma().formulacaoIngrediente.create({ data: { ...escopo, empresa_id: cen.e2.id, produto_id: cen.p.milho.id, quantidade_kg: '1' } }));
     assert.equal(await prisma().formulacaoIngrediente.count(), 0);
+  });
+});
+
+/** D-PROD-207 — sal mineral na base g/cab/dia: padrão 80 g, bezerro mamando não consome, vaca 1.500 g. */
+const salG = (cen, extra = {}) => ({
+  empresa_id: cen.e1.id,
+  nome: 'sal mineral g',
+  tipo: 'PRONTO',
+  produto_id: cen.p.sal.id,
+  base_consumo: 'G_CAB_DIA',
+  consumo_objetivo_g_cab_dia: '80',
+  regras: [
+    { categoria_manejo_id: cen.cat.bezerro.id, consome: false },
+    { categoria_manejo_id: cen.cat.vaca.id, consome: true, g_cab_dia: '1.500' },
+  ],
+  ...extra,
+});
+
+describe('D-PROD-207 — base do consumo: % do peso vivo OU g por cabeça por dia, sem mistura', () => {
+  test('base G_CAB_DIA: criada sem %PV, gramas exatos ("1.500" = 1500 g); vai assim nas opções do lançamento; base PV continua o padrão', async () => {
+    const cen = await cenario();
+    const r = await criar(cen.token, salG(cen));
+    assert.equal(r.statusCode, 201, r.body);
+    const f = r.json();
+    assert.equal(f.base_consumo, 'G_CAB_DIA');
+    assert.equal(f.percentual_pv_padrao, null);
+    assert.equal(f.consumo_objetivo_g_cab_dia, 80);
+    assert.deepEqual(f.regras.map((x) => [x.consome, x.percentual_pv, x.g_cab_dia]), [[false, null, null], [true, null, 1500]]);
+    const pv = (await criar(cen.token, pronto(cen, { nome: 'outra' }))).json();
+    assert.equal(pv.base_consumo, 'PV');
+    const op = (await req('GET', comEmpresa('/formulacoes/opcoes-lancamento', cen.e1.id), cen.token)).json();
+    const g = op.find((x) => x.id === f.id);
+    assert.equal(g.base_consumo, 'G_CAB_DIA');
+    assert.equal(g.consumo_objetivo_g_cab_dia, 80);
+    assert.deepEqual(g.regras.find((x) => x.consome).g_cab_dia, 1500);
+    const banco = await prisma().formulacao.findUnique({ where: { cliente_id_id: { cliente_id: cen.clienteId, id: f.id } } });
+    assert.equal(banco.base_consumo, 'G_CAB_DIA');
+    assert.equal(banco.percentual_pv_padrao, null);
+  });
+
+  test('mistura recusada (400 com o motivo): %PV na base G, gramas na regra da base PV, os dois na mesma regra, base sem o seu valor; nada gravado', async () => {
+    const cen = await cenario();
+    const vaca = cen.cat.vaca.id;
+    const casos = [
+      [salG(cen, { percentual_pv_padrao: '0,1' }), 'pv_na_base_g'],
+      [salG(cen, { consumo_objetivo_g_cab_dia: null }), 'g_padrao_obrigatorio'],
+      [salG(cen, { consumo_objetivo_g_cab_dia: undefined }), 'g_padrao_obrigatorio'],
+      [salG(cen, { regras: [{ categoria_manejo_id: vaca, consome: true, percentual_pv: '0,1' }] }), 'regra_pv_na_base_g'],
+      [salG(cen, { regras: [{ categoria_manejo_id: vaca, consome: true }] }), 'regra_g_obrigatorio'],
+      [salG(cen, { regras: [{ categoria_manejo_id: vaca, consome: false, g_cab_dia: 10 }] }), 'regra_nao_consome_com_g'],
+      [salG(cen, { regras: [{ categoria_manejo_id: vaca, consome: true, g_cab_dia: 10, percentual_pv: 0.1 }] }), 'regra_pv_e_g'],
+      [salG(cen, { consumo_objetivo_g_cab_dia: '20000,01' }), 'consumo_objetivo_fora_da_faixa'],
+      [salG(cen, { regras: [{ categoria_manejo_id: vaca, consome: true, g_cab_dia: '0' }] }), 'g_cab_dia_fora_da_faixa'],
+      [salG(cen, { regras: [{ categoria_manejo_id: vaca, consome: true, g_cab_dia: true }] }), 'g_cab_dia_invalido'],
+      [pronto(cen, { regras: [{ categoria_manejo_id: vaca, consome: true, g_cab_dia: 100 }] }), 'regra_g_na_base_pv'],
+      [pronto(cen, { base_consumo: 'PV', percentual_pv_padrao: undefined }), 'pv_padrao_obrigatorio'],
+    ];
+    for (const [corpo, motivo] of casos) {
+      const r = await criar(cen.token, JSON.parse(JSON.stringify(corpo)));
+      assert.equal(r.statusCode, 400, `${motivo}: ${r.body}`);
+      assert.equal(r.json().reason, motivo, r.body);
+    }
+    assert.equal((await criar(cen.token, salG(cen, { base_consumo: 'KG' }))).statusCode, 400);
+    assert.equal(await prisma().formulacao.count(), 0);
+  });
+
+  test('base PV: o g/cab/dia padrão é só referência (aceito, não exigido); a regra continua em %PV', async () => {
+    const cen = await cenario();
+    const r = await criar(cen.token, batelada(cen));
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().base_consumo, 'PV');
+    assert.equal(r.json().consumo_objetivo_g_cab_dia, 800);
+  });
+
+  test('troca de base pelo PATCH: exige os valores da nova base (sem sobra da antiga); PV → G e G → PV de volta', async () => {
+    const cen = await cenario();
+    const f = (await criar(cen.token, batelada(cen))).json();
+    const url = `/formulacoes/${f.id}`;
+    // Só a base: o %PV e as regras em %PV da base antiga ficariam — recusado.
+    const soBase = await req('PATCH', url, cen.token, { empresa_id: cen.e1.id, base_consumo: 'G_CAB_DIA' });
+    assert.equal(soBase.statusCode, 400, soBase.body);
+    assert.equal(soBase.json().reason, 'pv_na_base_g');
+    const semRegras = await req('PATCH', url, cen.token, { empresa_id: cen.e1.id, base_consumo: 'G_CAB_DIA', percentual_pv_padrao: null });
+    assert.equal(semRegras.json().reason, 'regra_pv_na_base_g', semRegras.body);
+    const ok = await req('PATCH', url, cen.token, {
+      empresa_id: cen.e1.id, base_consumo: 'G_CAB_DIA', percentual_pv_padrao: null, consumo_objetivo_g_cab_dia: 1000,
+      regras: [{ categoria_manejo_id: cen.cat.bezerro.id, consome: false }, { categoria_manejo_id: cen.cat.vaca.id, consome: true, g_cab_dia: 1500 }],
+    });
+    assert.equal(ok.statusCode, 200, ok.body);
+    assert.equal(ok.json().base_consumo, 'G_CAB_DIA');
+    assert.equal(ok.json().percentual_pv_padrao, null);
+    assert.deepEqual(ok.json().regras.map((x) => x.g_cab_dia), [null, 1500]);
+    // Volta para PV sem %PV padrão → recusado; com %PV e regras em %PV → aceito.
+    const voltaSem = await req('PATCH', url, cen.token, { empresa_id: cen.e1.id, base_consumo: 'PV' });
+    assert.equal(voltaSem.json().reason, 'pv_padrao_obrigatorio', voltaSem.body);
+    const volta = await req('PATCH', url, cen.token, {
+      empresa_id: cen.e1.id, base_consumo: 'PV', percentual_pv_padrao: '0,2',
+      regras: [{ categoria_manejo_id: cen.cat.vaca.id, consome: true, percentual_pv: '0,15' }],
+    });
+    assert.equal(volta.statusCode, 200, volta.body);
+    assert.equal(volta.json().base_consumo, 'PV');
+    assert.equal(volta.json().percentual_pv_padrao, 0.2);
+    assert.deepEqual(volta.json().regras.map((x) => [x.percentual_pv, x.g_cab_dia]), [[0.15, null]]);
+  });
+
+  test('CHECKs no banco (última barreira): base fora da lista, base G com %PV ou sem gramas, base PV sem %PV, regra com %PV e gramas', async () => {
+    const cen = await cenario();
+    const base = { cliente_id: cen.clienteId, empresa_id: cen.e1.id, nome: 'Y', tipo: 'PRONTO', produto_id: cen.p.sal.id };
+    await assert.rejects(prisma().formulacao.create({ data: { ...base, base_consumo: 'KG', percentual_pv_padrao: '0.1' } }), /base_consumo_check|check constraint/i);
+    await assert.rejects(prisma().formulacao.create({ data: { ...base, base_consumo: 'G_CAB_DIA', percentual_pv_padrao: '0.1', consumo_objetivo_g_cab_dia: '80' } }), /base_consumo_check|check constraint/i);
+    await assert.rejects(prisma().formulacao.create({ data: { ...base, base_consumo: 'G_CAB_DIA' } }), /base_consumo_check|check constraint/i);
+    await assert.rejects(prisma().formulacao.create({ data: { ...base, base_consumo: 'PV' } }), /base_consumo_check|check constraint/i);
+    const f = await prisma().formulacao.create({ data: { ...base, base_consumo: 'G_CAB_DIA', consumo_objetivo_g_cab_dia: '80' } });
+    const escopo = { cliente_id: cen.clienteId, empresa_id: cen.e1.id, formulacao_id: f.id };
+    await assert.rejects(prisma().formulacaoRegraCategoria.create({ data: { ...escopo, categoria_manejo_id: cen.cat.vaca.id, consome: true, percentual_pv: '0.1', g_cab_dia: '10' } }), /forma_check|check constraint/i);
+    await assert.rejects(prisma().formulacaoRegraCategoria.create({ data: { ...escopo, categoria_manejo_id: cen.cat.vaca.id, consome: false, g_cab_dia: '10' } }), /forma_check|check constraint/i);
+    await assert.rejects(prisma().formulacaoRegraCategoria.create({ data: { ...escopo, categoria_manejo_id: cen.cat.vaca.id, consome: true, g_cab_dia: '0' } }), /forma_check|check constraint/i);
+    const ok = await prisma().formulacaoRegraCategoria.create({ data: { ...escopo, categoria_manejo_id: cen.cat.vaca.id, consome: true, g_cab_dia: '1500' } });
+    assert.equal(Number(ok.g_cab_dia), 1500);
   });
 });

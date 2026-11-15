@@ -58,6 +58,13 @@
  *
  * D-PROD-206: a EXPAND `20261115200000_formulacao_faixa_tolerancia` (1 coluna anulável em CADFORMULACAO) idem, por
  * último, depois da D-PROD-205: 57 / 0 e 91.
+ *
+ * D-PROD-207: a CONTRACT `20261115300000_formulacao_base_consumo` (base do consumo na Formulação), de nome ainda
+ * posterior. O runner nunca aplica duas CONTRACT de uma vez e ela altera as 3 tabelas das Formulações: por isso, como
+ * a D-PROD-200, ela sobe FORA DE ORDEM pelo Prisma direto antes do caminho do runner, junto com a EXPAND das
+ * Formulações (D-PROD-203) de que depende (as 3 tabelas vazias aqui). A partida do runner fica com 90 tabelas; o
+ * runner aplica esta, a D-PROD-198, a D-PROD-205 e a D-PROD-206. No caminho B, a 2ª execução do runner (alvo local)
+ * aplica todas as posteriores, a D-PROD-207 por último: 58 / 0 e 91.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -109,9 +116,11 @@ const NOME_FORMULACOES = '20261114700000_cadformulacao';
 const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** D-PROD-206: a EXPAND da faixa de tolerância (coluna em CADFORMULACAO), a de nome mais posterior. */
 const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
-/** As tabelas das EXPAND posteriores que criam tabela: as 3 das Formulações (D-PROD-203) e a da Leitura de cocho (D-PROD-205). */
-const TABELAS_POSTERIORES = Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA', 'LEITURACOCHO']);
-const POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_FORMULACOES && n !== NOME_LEITURA && n !== NOME_FAIXA));
+/** D-PROD-207: a CONTRACT da base do consumo, a de nome mais posterior; sobe fora de ordem com a D-PROD-203 (ver o cabeçalho). */
+const NOME_BASE = '20261115300000_formulacao_base_consumo';
+/** A tabela das EXPAND que o runner aplica depois desta e que cria tabela: a da Leitura de cocho (D-PROD-205). */
+const TABELAS_POSTERIORES = Object.freeze(['LEITURACOCHO']);
+const POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA));
 /** Migrations concluídas na ordem REAL de aplicação (finished_at). */
 const ordemDeAplicacao = async (db) =>
   (await db.$queryRawUnsafe(`SELECT migration_name AS n FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
@@ -441,8 +450,9 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     // D-PROD-198, D-PROD-200, D-PROD-202 e D-PROD-203: a EXPAND do peso objetivo, a Atividade cabeçalho, as linhas de
     // produto e de máquina e a EXPAND das Formulações têm nome posterior a esta (55 pastas no total); as quatro ficam
     // fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
-    assert.equal(TOTAL_MIGRATIONS, 57);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE]);
+    assert.equal(TOTAL_MIGRATIONS, 58);
+    assert.equal((await ordemDeAplicacao(db)).includes(NOME_BASE), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_PESO_OBJETIVO), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_FORMULACOES), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_LEITURA), false);
@@ -499,13 +509,13 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
 
   test('TA-02 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-197, antes de qualquer DDL', async () => {
     // D-PROD-200 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
-    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina'], 'só a CONTRACT da D-PROD-200 e a EXPAND da D-PROD-202 (fora a D-PROD-198 e a D-PROD-203) têm nome posterior a esta');
+    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_BASE], 'sobem fora de ordem: as CONTRACT da D-PROD-200 e da D-PROD-207, a EXPAND da D-PROD-202 e a da D-PROD-203, de que a D-PROD-207 depende');
     // As EXPAND da D-PROD-198 e da D-PROD-203 ficam para o runner, depois desta (como em produção).
-    await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_FORMULACOES && n !== NOME_LEITURA && n !== NOME_FAIXA));
+    await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA));
     partida = await retrato(db);
     linhasPartida = partida.linhas;
     assert.equal((await historico(db)).concluidas, ANTERIORES.length + POSTERIORES.length);
-    assert.equal(partida.tabelas.split(',').length, 87, 'a D-PROD-200 troca as 3 tabelas do apontamento antigo pelas 2 da atividade e a D-PROD-202 acrescenta as 3 das linhas');
+    assert.equal(partida.tabelas.split(',').length, 90, 'a D-PROD-200 troca as 3 tabelas do apontamento antigo pelas 2 da atividade, a D-PROD-202 acrescenta as 3 das linhas e a D-PROD-203 as 3 das Formulações');
     assert.deepEqual(await intrusos(db), []);
     const linhasAntes = (await historico(db)).total;
     // D-PROD-182 criou a tabela; D-PROD-194 e D-PROD-195 são as CONTRACT anteriores (concluídas); a decisão em minúsculas
@@ -537,7 +547,8 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(h.contract_concluida, 1);
     // A EXPAND da D-PROD-198, pendente também, sobe junto e depois desta (pela ordem dos nomes; só esta pede a decisão).
     // A EXPAND da D-PROD-203 (Formulações) também, por último.
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-5), [NOME_CONTRACT, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
+    // As Formulações (D-PROD-203) e a base do consumo (D-PROD-207) já subiram fora de ordem, antes do runner.
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-4), [NOME_CONTRACT, NOME_PESO_OBJETIVO, NOME_LEITURA, NOME_FAIXA]);
     const [linha] = await db.$queryRawUnsafe(`SELECT checksum, applied_steps_count::int AS passos FROM _prisma_migrations WHERE migration_name = '${NOME_CONTRACT}' AND rolled_back_at IS NULL`);
     assert.deepEqual(linha, { checksum: CHECKSUM, passos: 1 });
 
@@ -553,7 +564,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
         count(*) FILTER (WHERE ${PADROES.map((c) => `"${c}" IS NOT NULL`).join(' OR ')})::int AS com_padrao
       FROM "TipoAtividade"`);
     assert.deepEqual(novas, { n: 6, com_flag: 0, com_padrao: 0 }, 'as linhas que já existiam leem false e null');
-    // Nenhuma tabela criada nem apagada por esta; só as 3 das Formulações (D-PROD-203) e a LEITURACOCHO (D-PROD-205), aplicadas depois.
+    // Nenhuma tabela criada nem apagada por esta; só a LEITURACOCHO (D-PROD-205), aplicada depois.
     assert.deepEqual(depois.tabelas.split(',').filter((t) => !TABELAS_POSTERIORES.includes(t)), partida.tabelas.split(','), 'nenhuma tabela criada nem apagada');
     for (const t of TABELAS_POSTERIORES) assert.ok(depois.tabelas.split(',').includes(t), t);
     assert.equal(depois.rls, partida.rls);
@@ -674,7 +685,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     // estão aplicadas (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03), que
     // fica nesse estado antes do runner.
     const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '91' };
-    assert.equal(TOTAL_MIGRATIONS, 57);
+    assert.equal(TOTAL_MIGRATIONS, 58);
     for (const [item, v] of Object.entries(pos)) {
       if (item === 'VEREDITO') continue;
       if (item in CONTAGENS) assert.deepEqual([v.valor, v.status], [CONTAGENS[item], 'PARAR'], item);
@@ -760,10 +771,11 @@ describe('D-PROD-197 — caminho B do runbook (uma transação pelo conector), n
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_FORMULACOES}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_LEITURA}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_FAIXA}\``), runner.saida);
+    assert.ok(runner.saida.includes(`Applying migration \`${NOME_BASE}\``), runner.saida);
     assert.ok(!runner.saida.includes(`Applying migration \`${NOME_CONTRACT}\``), runner.saida);
     const hB = await historico(dbB);
     assert.deepEqual([hB.concluidas, hB.abertas, hB.contract_concluida], [TOTAL_MIGRATIONS, 0, 1]);
-    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-(5 + POSTERIORES.length)), [NOME_CONTRACT, NOME_PESO_OBJETIVO, ...POSTERIORES, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-8), [NOME_CONTRACT, NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE]);
     const [linhaDepois] = await dbB.$queryRawUnsafe(`SELECT checksum FROM _prisma_migrations WHERE migration_name = '${NOME_CONTRACT}'`);
     assert.equal(linhaDepois.checksum, CHECKSUM, 'a linha do caminho B continua a mesma');
     const segunda = await aplicarPeloRunner(URL_B);

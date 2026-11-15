@@ -75,6 +75,10 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-206: a Formulação lê e grava a faixa do farol de consumo; sem a migration
   // `20261115200000_formulacao_faixa_tolerancia`, `/formulacoes` responde 500.
   ['CADFORMULACAO', 'faixa_tolerancia_percentual'],
+  // D-PROD-207: a base do consumo da Formulação e os gramas da regra; sem a migration
+  // `20261115300000_formulacao_base_consumo`, `/formulacoes` responde 500.
+  ['CADFORMULACAO', 'base_consumo'],
+  ['CADFORMULACAOREGRA', 'g_cab_dia'],
 ]);
 
 /**

@@ -11,10 +11,11 @@ export const FORMULACOES_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 240 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, width: 140 },
   { id: "produto_nome", label: "Produto", default: true, sortable: true, width: 220 },
-  { id: "percentual_pv_padrao", label: "% PV padrão", default: true, sortable: true, width: 120, align: "right" },
+  // D-PROD-207: o consumo padrão na base da formulação ("0,1% PV" ou "80 g/cab/dia"); id mantido (larguras salvas).
+  { id: "percentual_pv_padrao", label: "Consumo padrão", default: true, sortable: true, width: 140, align: "right" },
   { id: "regras", label: "Regras", default: true, sortable: true, width: 100, align: "right" },
   { id: "ingredientes", label: "Ingredientes / batida", default: true, sortable: true, width: 180, align: "right" },
-  { id: "consumo_objetivo_g_cab_dia", label: "Objetivo (g/cab/dia)", default: false, sortable: true, width: 160, align: "right" },
+  { id: "consumo_objetivo_g_cab_dia", label: "g/cab/dia (meta ou referência)", default: false, sortable: true, width: 160, align: "right" },
   // D-PROD-206: faixa do farol de consumo (vazio = 15%).
   { id: "faixa_tolerancia_percentual", label: "Faixa (%)", default: false, sortable: true, width: 110, align: "right" },
   { id: "observacoes", label: "Observações", default: false, sortable: true, width: 260 },
@@ -44,7 +45,12 @@ export function getFormulacaoFieldValue(item, colunaId) {
   if (colunaId === "nome") return item.nome || "";
   if (colunaId === "tipo") return rotuloDoTipo(item.tipo);
   if (colunaId === "produto_nome") return item.produto_nome || "";
-  if (colunaId === "percentual_pv_padrao") return typeof item.percentual_pv_padrao === "number" ? `${formatarNumero(item.percentual_pv_padrao)}%` : "";
+  if (colunaId === "percentual_pv_padrao") {
+    if (item.base_consumo === "G_CAB_DIA") {
+      return typeof item.consumo_objetivo_g_cab_dia === "number" ? `${formatarNumero(item.consumo_objetivo_g_cab_dia, { casasMax: 2 })} g/cab/dia` : "";
+    }
+    return typeof item.percentual_pv_padrao === "number" ? `${formatarNumero(item.percentual_pv_padrao)}% PV` : "";
+  }
   if (colunaId === "regras") return String((item.regras || []).length);
   if (colunaId === "ingredientes") {
     if (item.tipo !== "BATELADA") return "–";

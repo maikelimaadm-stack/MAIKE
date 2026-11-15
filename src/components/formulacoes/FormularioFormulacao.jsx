@@ -7,8 +7,11 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
 import {
+  BASES_CONSUMO,
   FAIXA_PADRAO,
   PV_MAXIMO,
+  equivalenteEmKg,
+  rotuloDaBase,
   TIPOS_FORMULACAO,
   formatarNumero,
   resumoDaBatida,
@@ -34,6 +37,7 @@ export const formularioDoRegistro = (r) => ({
   nome: r?.nome || "",
   tipo: r?.tipo || "PRONTO",
   produto_id: r?.produto_id || "",
+  base_consumo: r?.base_consumo === "G_CAB_DIA" ? "G_CAB_DIA" : "PV",
   percentual_pv_padrao: textoDe(r?.percentual_pv_padrao),
   consumo_objetivo_g_cab_dia: textoDe(r?.consumo_objetivo_g_cab_dia),
   faixa_tolerancia_percentual: textoDe(r?.faixa_tolerancia_percentual),
@@ -44,8 +48,27 @@ export const formularioDoRegistro = (r) => ({
     categoria_manejo_id: x.categoria_manejo_id,
     consome: x.consome !== false,
     percentual_pv: textoDe(x.percentual_pv),
+    g_cab_dia: textoDe(x.g_cab_dia),
   })),
 });
+
+/**
+ * D-PROD-207 — trocar a base do consumo LIMPA o padrão e os valores das regras (as categorias e o "consome" ficam):
+ * nada da base antiga sobra escondido na conta.
+ * @param {FormulacaoForm} prev
+ * @param {string} base
+ * @returns {FormulacaoForm}
+ */
+export const trocarBaseDoConsumo = (prev, base) =>
+  prev.base_consumo === base
+    ? prev
+    : {
+        ...prev,
+        base_consumo: base,
+        percentual_pv_padrao: "",
+        consumo_objetivo_g_cab_dia: "",
+        regras: prev.regras.map((r) => ({ ...r, percentual_pv: "", g_cab_dia: "" })),
+      };
 
 /**
  * Opções de um select de cadastro: os ATIVOS, em ordem de nome, e o já gravado
@@ -101,6 +124,7 @@ export default function FormularioFormulacao({
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const travado = readOnly || isSubmitting;
   const batelada = formData.tipo === "BATELADA";
+  const emGramas = formData.base_consumo === "G_CAB_DIA";
 
   const gravadosProduto = useMemo(
     () => [initialData?.produto_id, ...(initialData?.ingredientes || []).map((/** @type {any} */ i) => i.produto_id)].filter(Boolean),
@@ -137,7 +161,10 @@ export default function FormularioFormulacao({
       setErros(r.erros);
       notifyWarning(
         "Atenção",
-        r.erros.ingredientes || `Confira os campos marcados: %PV de 0 a ${formatarNumero(PV_MAXIMO)}%, kg por batida maior que 0 e nada repetido.`,
+        r.erros.ingredientes ||
+          (emGramas
+            ? "Confira os campos marcados: g/cab/dia maior que 0 (padrão e regras que consomem), kg por batida maior que 0 e nada repetido."
+            : `Confira os campos marcados: %PV de 0 a ${formatarNumero(PV_MAXIMO)}%, kg por batida maior que 0 e nada repetido.`),
       );
       return;
     }
@@ -209,49 +236,89 @@ export default function FormularioFormulacao({
         )}
       </B1Field>
 
-      <B1Field
-        label="% PV padrão"
-        required
-        span={3}
-        hasValue={Boolean(formData.percentual_pv_padrao.trim())}
-        locked={readOnly}
-        disabled={travado}
-        error={erros.percentual_pv_padrao}
-        dica={readOnly ? undefined : <p className="b1-campo-dica text-[11px]">% do peso vivo por cabeça/dia (ex.: 0,1)</p>}
-      >
-        <input
-          type="text"
-          inputMode="decimal"
-          value={formData.percentual_pv_padrao}
-          onChange={(e) => mudarCampo("percentual_pv_padrao", e.target.value)}
-          placeholder="0,1"
-          maxLength={8}
-          className={CTL_NUMERO}
-          readOnly={readOnly}
-          aria-label="Percentual do peso vivo padrão"
-        />
+      {/* D-PROD-207: UMA base do consumo por formulação; trocar limpa os valores da base antiga. */}
+      <B1Field label="Base do consumo" required span={3} hasValue locked={readOnly} disabled={travado}>
+        {readOnly ? (
+          <input type="text" readOnly value={rotuloDaBase(formData.base_consumo)} className={B1_FIELD_CTL_CLS} />
+        ) : (
+          <B1Select
+            value={formData.base_consumo}
+            onChange={(e) => atualizar((prev) => trocarBaseDoConsumo(prev, e.target.value), ["percentual_pv_padrao", "consumo_objetivo_g_cab_dia", "regras"])}
+            className={B1_FIELD_CTL_CLS}
+            semOpcaoVazia
+            aria-label="Base do consumo"
+          >
+            {BASES_CONSUMO.map((b) => (
+              <option key={b.valor} value={b.valor}>
+                {b.rotulo}
+              </option>
+            ))}
+          </B1Select>
+        )}
       </B1Field>
 
-      <B1Field
-        label="Consumo objetivo (g/cab/dia)"
-        span={3}
-        hasValue={Boolean(formData.consumo_objetivo_g_cab_dia.trim())}
-        locked={readOnly}
-        disabled={travado}
-        error={erros.consumo_objetivo_g_cab_dia}
-      >
-        <input
-          type="text"
-          inputMode="decimal"
-          value={formData.consumo_objetivo_g_cab_dia}
-          onChange={(e) => mudarCampo("consumo_objetivo_g_cab_dia", e.target.value)}
-          placeholder="opcional"
-          maxLength={10}
-          className={CTL_NUMERO}
-          readOnly={readOnly}
-          aria-label="Consumo objetivo em gramas por cabeça por dia"
-        />
-      </B1Field>
+      {emGramas ? (
+        <B1Field
+          label="Consumo padrão (g/cab/dia)"
+          required
+          span={3}
+          hasValue={Boolean(formData.consumo_objetivo_g_cab_dia.trim())}
+          locked={readOnly}
+          disabled={travado}
+          error={erros.consumo_objetivo_g_cab_dia}
+          dica={
+            <p className="b1-campo-dica text-[11px]" data-testid="formulacao-g-padrao-kg">
+              {equivalenteEmKg(formData.consumo_objetivo_g_cab_dia) || "Gramas por cabeça por dia (ex.: 80; 1500 = 1,5 kg)"}
+            </p>
+          }
+        >
+          <input
+            type="text"
+            inputMode="decimal"
+            value={formData.consumo_objetivo_g_cab_dia}
+            onChange={(e) => mudarCampo("consumo_objetivo_g_cab_dia", e.target.value)}
+            placeholder="80"
+            maxLength={10}
+            className={CTL_NUMERO}
+            readOnly={readOnly}
+            aria-label="Consumo padrão em gramas por cabeça por dia"
+          />
+        </B1Field>
+      ) : (
+        <B1Field
+          label="% PV padrão"
+          required
+          span={3}
+          hasValue={Boolean(formData.percentual_pv_padrao.trim())}
+          locked={readOnly}
+          disabled={travado}
+          error={erros.percentual_pv_padrao}
+          dica={
+            readOnly ? undefined : (
+              <p className="b1-campo-dica text-[11px]">
+                % do peso vivo por cabeça/dia (ex.: 0,1)
+                {formData.consumo_objetivo_g_cab_dia.trim() ? (
+                  <span className="block" data-testid="formulacao-g-referencia">
+                    Referência: {formData.consumo_objetivo_g_cab_dia} g/cab/dia (não entra na conta)
+                  </span>
+                ) : null}
+              </p>
+            )
+          }
+        >
+          <input
+            type="text"
+            inputMode="decimal"
+            value={formData.percentual_pv_padrao}
+            onChange={(e) => mudarCampo("percentual_pv_padrao", e.target.value)}
+            placeholder="0,1"
+            maxLength={8}
+            className={CTL_NUMERO}
+            readOnly={readOnly}
+            aria-label="Percentual do peso vivo padrão"
+          />
+        </B1Field>
+      )}
 
       {/* D-PROD-206: faixa do farol de consumo no fechamento do período (vazio = 15%). */}
       <B1Field
@@ -278,13 +345,13 @@ export default function FormularioFormulacao({
       <section className="col-span-12" aria-labelledby="formulacao-regras-titulo" data-testid="formulacao-regras">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p id="formulacao-regras-titulo" className="text-[13px] font-medium text-[#3D3D3A]">
-            Regras por categoria <span className="text-[11px] font-normal text-[#73726C]">(exceções ao % PV padrão)</span>
+            Regras por categoria <span className="text-[11px] font-normal text-[#73726C]">{emGramas ? "(exceções ao g/cab/dia padrão)" : "(exceções ao % PV padrão)"}</span>
           </p>
           {readOnly ? null : (
             <button
               type="button"
               className="tb-btn tb-btn-gray h-7 text-xs"
-              onClick={() => atualizar((prev) => ({ ...prev, regras: [...prev.regras, { categoria_manejo_id: "", consome: false, percentual_pv: "" }] }), ["regras"])}
+              onClick={() => atualizar((prev) => ({ ...prev, regras: [...prev.regras, { categoria_manejo_id: "", consome: false, percentual_pv: "", g_cab_dia: "" }] }), ["regras"])}
               disabled={travado}
               data-testid="formulacao-regra-adicionar"
             >
@@ -294,7 +361,7 @@ export default function FormularioFormulacao({
         </div>
         {formData.regras.length === 0 ? (
           <p className="text-[12px] text-[#73726C]" data-testid="formulacao-sem-regras">
-            Sem exceção: todas as categorias consomem o % PV padrão.
+            {emGramas ? "Sem exceção: todas as categorias consomem o g/cab/dia padrão." : "Sem exceção: todas as categorias consomem o % PV padrão."}
           </p>
         ) : (
           <div className="space-y-2">
@@ -332,11 +399,38 @@ export default function FormularioFormulacao({
                   label="Consome?"
                   span={2}
                   checked={regra.consome}
-                  onChange={readOnly ? undefined : (/** @type {boolean} */ v) => mudarRegra(n, { consome: v, percentual_pv: v ? regra.percentual_pv : "" })}
+                  onChange={readOnly ? undefined : (/** @type {boolean} */ v) => mudarRegra(n, { consome: v, percentual_pv: v ? regra.percentual_pv : "", g_cab_dia: v ? regra.g_cab_dia ?? "" : "" })}
                   disabled={travado}
                   ariaLabel={`Consome (regra ${n + 1})`}
                 />
-                {regra.consome ? (
+                {regra.consome && emGramas ? (
+                  <B1Field
+                    label="g/cab/dia"
+                    required
+                    span={3}
+                    hasValue={Boolean(String(regra.g_cab_dia ?? "").trim())}
+                    locked={readOnly}
+                    disabled={travado}
+                    error={erros[`regras.${n}.g_cab_dia`]}
+                    dica={
+                      <p className="b1-campo-dica text-[11px]" data-testid={`formulacao-regra-${n}-kg`}>
+                        {equivalenteEmKg(regra.g_cab_dia)}
+                      </p>
+                    }
+                  >
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={regra.g_cab_dia ?? ""}
+                      onChange={(e) => mudarRegra(n, { g_cab_dia: e.target.value })}
+                      placeholder="1500"
+                      maxLength={10}
+                      className={CTL_NUMERO}
+                      readOnly={readOnly}
+                      aria-label={`Gramas por cabeça por dia da regra ${n + 1}`}
+                    />
+                  </B1Field>
+                ) : regra.consome ? (
                   <B1Field
                     label="% PV"
                     required

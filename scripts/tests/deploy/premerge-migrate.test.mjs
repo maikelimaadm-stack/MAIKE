@@ -174,6 +174,22 @@ const NOVAS_LC = ['LEITURACOCHO'];
 const DO_LC = '60149f94e07596da2c93471f82110e6f37b5f014bcf721c1dc366a2d4b4bcce8';
 /** D-PROD-206 — Fechamento do consumo: EXPAND puro, só a coluna anulável CADFORMULACAO.faixa_tolerancia_percentual. */
 const NOME_FT = '20261115200000_formulacao_faixa_tolerancia';
+/**
+ * D-PROD-207 — a oitava migration CONTRACT aprovada: a base do consumo na Formulação (% do peso vivo ou g/cab/dia).
+ * Sem DROP TABLE e sem tabela nova: depois da guarda (que exige as 3 tabelas de Formulações VAZIAS), EXATAMENTE as 7
+ * instruções pinadas — 2 colunas (base_consumo NOT NULL DEFAULT 'PV' e a g_cab_dia da regra), o %PV padrão anulável,
+ * o CHECK do %PV padrão trocado pelo CHECK por base e o CHECK da forma da regra recriado. Não há resto.
+ */
+const NOME_BC = '20261115300000_formulacao_base_consumo';
+const SQL_BC = readFileSync(`backend/prisma/migrations/${NOME_BC}/migration.sql`, 'utf8');
+const CONTRACT_BC = {
+  migration: NOME_BC, decisao: 'D-PROD-207', tabelas_removidas: [],
+  constraints_alargadas: ['CADFORMULACAOREGRA.CADFORMULACAOREGRA_forma_check'], colunas_removidas: [],
+  constraints_removidas: ['CADFORMULACAO.CADFORMULACAO_percentual_pv_padrao_check'], indices_removidos: [], tabelas_renomeadas: [], nomes_renomeados: [],
+  colunas_adicionadas: ['CADFORMULACAO.base_consumo', 'CADFORMULACAOREGRA.g_cab_dia'],
+  constraints_adicionadas: ['CADFORMULACAO.CADFORMULACAO_base_consumo_check'],
+  ...VAZIOS_199,
+};
 /** Variação do arquivo CONTRACT `nome` sob o MESMO nome, com manifesto sintético: o checksum passa e só a estrutura decide. */
 const classificarContractDe = (nome) => (sql, extra = {}) => classificarMigrations([{ nome, sql }], { manifesto: { [nome]: sha256(sql) }, ...extra });
 const classificarContract = classificarContractDe(NOME_C);
@@ -190,7 +206,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; Formulações (D-PROD-203) só com as 3 tabelas novas; Leitura de cocho (D-PROD-205) só com a tabela nova; faixa de tolerância na CADFORMULACAO (D-PROD-206) só com a coluna anulável', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; Formulações (D-PROD-203) só com as 3 tabelas novas; Leitura de cocho (D-PROD-205) só com a tabela nova; faixa de tolerância na CADFORMULACAO (D-PROD-206) só com a coluna anulável; base do consumo na Formulação (D-PROD-207) pelo modo CONTRACT fechado', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -213,10 +229,10 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   // da D-PROD-187 não cria tabela nova, a CADCURVAGANHO recriada pela D-PROD-194 não aparece duas vezes em tabelas_novas,
   // as colunas que o texto pinado acrescenta — a NOT NULL da D-PROD-195 e as 13 da D-PROD-197 — ficam no descritor de
   // cada uma (colunas_adicionadas), fora da lista do caminho EXPAND acima, e a conversão da D-PROD-200 fica em `conversoes`.
-  assert.deepEqual(c.contract, [CONTRACT_C, CONTRACT_T, CONTRACT_D, CONTRACT_K, CONTRACT_G, CONTRACT_P, CONTRACT_V]);
+  assert.deepEqual(c.contract, [CONTRACT_C, CONTRACT_T, CONTRACT_D, CONTRACT_K, CONTRACT_G, CONTRACT_P, CONTRACT_V, CONTRACT_BC]);
   // Todas as pastas de migration desde o manifesto da PR #174 estão nele; as 27 anteriores ficam fora por construção.
   const pastas = readdirSync('backend/prisma/migrations', { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
-  assert.equal(pastas.length, 57);
+  assert.equal(pastas.length, 58);
   assert.deepEqual(pastas.filter((n) => n >= NOMES[0]).sort(), [...NOMES].sort());
 });
 
@@ -234,9 +250,9 @@ test('B1f (D-PROD-162): a migration CONTRACT classificada SOZINHA, como na relea
   assert.equal(MIGRATIONS_APROVADAS[NOME_C], sha256(SQL_C));
 });
 
-test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-200): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as sete entradas, na ordem; só a D-PROD-200 tem `conversao`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
-  assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V]);
-  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200']);
+test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-200/D-PROD-207): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as oito entradas, na ordem; só a D-PROD-200 tem `conversao`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
+  assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V, NOME_BC]);
+  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200', 'D-PROD-207']);
   // O formato CONVERSÃO é escolha da entrada: as seis anteriores não têm o campo e seguem o formato de sempre.
   assert.deepEqual(Object.entries(MIGRATIONS_CONTRACT_APROVADAS).filter(([, k]) => k.conversao !== undefined).map(([n]) => n), [NOME_V]);
   // MIGRATION_CONTRACT_AUTORIZADO tem um só valor: duas entradas com a mesma decisão seriam autorizadas juntas.
@@ -1152,7 +1168,7 @@ test('B15k (D-PROD-187/D-PROD-189/D-PROD-190): ordem de produção — alvo com 
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // Produção no dia desta CONTRACT: as pastas até a última POSTERIOR. As de releases seguintes, com nome depois dela
   // (os itens do apontamento, D-PROD-193, `20261113800000_apontamento_atividade_item`, a curva mensal, D-PROD-194, ver
   // B16k, a curva na categoria, D-PROD-195, ver B18k, os padrões do TipoAtividade, D-PROD-197, ver B19k, o peso
@@ -1428,7 +1444,7 @@ test('B16k (D-PROD-194/D-PROD-187/D-PROD-189/D-PROD-190/D-PROD-185/D-PROD-193): 
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // Produção no dia desta CONTRACT: a curva mensal era a pasta de nome mais recente. A curva na categoria (D-PROD-195,
   // `20261114200000_cadcategoria_curva_ganho`, ver B18k), os padrões do TipoAtividade (D-PROD-197,
   // `20261114300000_tipo_atividade_defaults`, ver B19k), o peso objetivo (D-PROD-198,
@@ -1744,7 +1760,7 @@ test('B18k (D-PROD-195/D-PROD-194): ordem de produção no dia da D-PROD-195 —
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // Produção no dia desta CONTRACT: a curva na categoria era a pasta de nome mais recente. Os padrões do TipoAtividade
   // (D-PROD-197, `20261114300000_tipo_atividade_defaults`, ver B19k), o peso objetivo (D-PROD-198,
   // `20261114400000_cadcategoria_peso_objetivo`, ver B20k), a Atividade cabeçalho (D-PROD-200,
@@ -1807,7 +1823,7 @@ test('B20k (D-PROD-198): ordem de produção no dia da D-PROD-198 — alvo com a
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // No dia da D-PROD-198 o peso objetivo era a pasta de nome mais recente; a Atividade cabeçalho (D-PROD-200,
   // `20261114500000_atividade_cabecalho`, ver B21m), as linhas de produto e de máquina (D-PROD-202,
   // `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e as Formulações (D-PROD-203, ver B23k) vieram depois
@@ -2201,7 +2217,7 @@ test('B19k (D-PROD-197/D-PROD-195): ordem de produção no dia da D-PROD-197 —
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // Produção no dia desta CONTRACT: os padrões do TipoAtividade eram a pasta de nome mais recente. O peso objetivo
   // (D-PROD-198, `20261114400000_cadcategoria_peso_objetivo`, ver B20k), a Atividade cabeçalho (D-PROD-200,
   // `20261114500000_atividade_cabecalho`, ver B21m), as linhas de produto e de máquina (D-PROD-202,
@@ -2591,7 +2607,7 @@ test('B21m (D-PROD-200/D-PROD-198/D-PROD-197): ordem de produção no dia da D-P
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // No dia da D-PROD-200 a Atividade cabeçalho era a pasta de nome mais recente; as linhas de produto e de máquina
   // (D-PROD-202, `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e as Formulações (D-PROD-203,
   // `20261114700000_cadformulacao`, ver B23k) vieram depois dela: 53 pastas.
@@ -2731,7 +2747,7 @@ test('B22k (D-PROD-202/D-PROD-200): ordem de produção no dia da D-PROD-202 —
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // No dia da D-PROD-202 as linhas de produto e de máquina eram a pasta de nome mais recente; as Formulações
   // (D-PROD-203, `20261114700000_cadformulacao`, ver B23k) vieram depois dela, na release seguinte: 54 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_L);
@@ -2804,7 +2820,7 @@ test('B23k (D-PROD-203/D-PROD-202): ordem de produção hoje — alvo com as 54 
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // No dia das Formulações: a Leitura de cocho (D-PROD-205, ver B24k) veio na release seguinte: 55 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_F);
   assert.equal(locais.length, 55);
@@ -2875,7 +2891,7 @@ test('B24k (D-PROD-205/D-PROD-203): ordem de produção hoje — alvo com as 55 
   const raiz = 'backend/prisma/migrations';
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(todas.length, 57);
+  assert.equal(todas.length, 58);
   // No dia da Leitura de cocho: a faixa de tolerância (D-PROD-206, ver B25k) veio na release seguinte: 56 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_LC);
   assert.equal(locais.length, 56);
@@ -2937,10 +2953,13 @@ test('B25b (D-PROD-206): o mesmo ADD COLUMN com NOT NULL ou DEFAULT volátil, um
 test('B25k (D-PROD-206/D-PROD-205): ordem de produção hoje — alvo com as 56 da main concluídas (por último a Leitura de cocho, D-PROD-205, 2026-11-15 15:20:55 UTC): o histórico confere, a única pendente é a faixa de tolerância, nenhum CONTRACT a autorizar; checksum diferente do arquivo é divergência; depois dela, 57 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
   const P1_03 = '20261113300000_estoque_p1_03_indices';
   const raiz = 'backend/prisma/migrations';
-  const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
+  const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
+  assert.equal(todas.length, 58);
+  // No dia da faixa de tolerância: a base do consumo (D-PROD-207, ver B26k) veio na release seguinte: 57 pastas.
+  const locais = todas.filter((l) => l.nome <= NOME_FT);
   assert.equal(locais.length, 57);
-  assert.ok(locais.every((l) => l.nome <= NOME_FT), 'a faixa de tolerância é a migration de nome mais recente');
+  assert.ok(todas.some((l) => l.nome === NOME_BC) && !locais.some((l) => l.nome === NOME_BC), NOME_BC);
   const t0 = Date.parse('2026-01-01T00:00:00Z');
   // Produção: as 55 de B24k, na ordem em que foram concluídas, e depois a Leitura de cocho (D-PROD-205).
   const fora = [NOME_FT, NOME_LC, NOME_F, NOME_L, NOME_V, NOME_PO, NOME_P, NOME_G, NOME_K, NOME_D, P1_03, NOME_I];
@@ -2960,6 +2979,121 @@ test('B25k (D-PROD-206/D-PROD-205): ordem de produção hoje — alvo com as 56 
   assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaFT(MIGRATIONS_APROVADAS[NOME_FT], { finished_at: null })] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS');
   const depois = [...linhas, linhaFT(MIGRATIONS_APROVADAS[NOME_FT])];
   assert.equal(depois.length, 57);
+  assert.deepEqual(conferirHistoricoRemoto({ locais, linhas: depois }), { ok: true, codigo: null, pendentes: [], falhas: [] });
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
+});
+
+test('B26a (D-PROD-207): a base do consumo classificada SOZINHA, como na release: ok, modo CONTRACT, nenhuma tabela nova nem removida, nenhuma coluna no caminho EXPAND e o descritor com as 2 colunas, o CHECK novo, o CHECK da regra alargado e o do %PV padrão removido', () => {
+  const c = classificarMigrations([ler(NOME_BC)]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.ok, true);
+  assert.equal(c.expand, false);
+  assert.equal(c.modo, 'CONTRACT');
+  assert.deepEqual(c.tabelas_novas, []);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
+  assert.deepEqual(c.contract, [CONTRACT_BC]);
+  assert.equal(MIGRATIONS_APROVADAS[NOME_BC], sha256(SQL_BC));
+});
+
+test('B26b (D-PROD-207): a entrada de MIGRATIONS_CONTRACT_APROVADAS é congelada e o conteúdo pinado é o do arquivo — guarda, nenhum DROP, os 3 literais (as tabelas de Formulações) e as 7 instruções exatas, nesta ordem; não há resto', () => {
+  const k = MIGRATIONS_CONTRACT_APROVADAS[NOME_BC];
+  assert.equal(Object.isFrozen(k), true);
+  assert.equal(k.decisao, 'D-PROD-207');
+  assert.deepEqual(k.drop, []);
+  assert.deepEqual(k.literais_guarda, ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);
+  assert.equal(k.conversao, undefined);
+  const limpo = SQL_BC.replace(/--[^\n]*/g, '').trim();
+  const guarda = limpo.match(/^DO\s+\$\$([\s\S]*?)\$\$\s*;/);
+  assert.ok(guarda, 'a guarda é a 1ª instrução');
+  assert.equal(sha256(guarda[1].replace(/\s+/g, ' ').trim()), k.guarda_sha256);
+  // A guarda exige as 3 tabelas VAZIAS (o proprietário autorizou: os dados eram só teste) e trava as 3.
+  assert.match(guarda[1], /esta CONTRACT só roda com as Formulações vazias/);
+  assert.match(guarda[1], /LOCK TABLE public\."CADFORMULACAO", public\."CADFORMULACAOINGREDIENTE", public\."CADFORMULACAOREGRA" IN ACCESS EXCLUSIVE MODE/);
+  const resto = limpo.slice(guarda[0].length).split(';').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  assert.deepEqual(resto, [...k.alter_antigas]);
+  assert.equal(k.alter_antigas.length, 7);
+  assert.ok(k.alter_antigas.every((a) => a.startsWith('ALTER TABLE "CADFORMULACAO" ') || a.startsWith('ALTER TABLE "CADFORMULACAOREGRA" ')));
+});
+
+test('B26c (D-PROD-207): as 7 instruções são EXATAMENTE as do contrato — DEFAULT trocado, NOT NULL a menos, SET NOT NULL, CHECK afrouxado, outra tabela, troca de ordem, uma faltando ou uma a mais → recusa; o resto não aceita DML nem DDL em tabela antiga', () => {
+  const classificarBC = classificarContractDe(NOME_BC);
+  assert.deepEqual(classificarBC(SQL_BC).violacoes, []);
+  const variacoes = [
+    trocar(SQL_BC, `ADD COLUMN "base_consumo" VARCHAR(16) NOT NULL DEFAULT 'PV';`, `ADD COLUMN "base_consumo" VARCHAR(16) NOT NULL DEFAULT 'G_CAB_DIA';`),
+    trocar(SQL_BC, `ADD COLUMN "base_consumo" VARCHAR(16) NOT NULL DEFAULT 'PV';`, `ADD COLUMN "base_consumo" VARCHAR(16) DEFAULT 'PV';`),
+    trocar(SQL_BC, '"percentual_pv_padrao" DROP NOT NULL;', '"percentual_pv_padrao" SET NOT NULL;'),
+    trocar(SQL_BC, '"percentual_pv_padrao" <= 5) OR ("base_consumo"', '"percentual_pv_padrao" <= 50) OR ("base_consumo"'),
+    trocar(SQL_BC, 'ALTER TABLE "CADFORMULACAOREGRA" ADD COLUMN "g_cab_dia" DECIMAL(10,2);', 'ALTER TABLE "CADFORMULACAOINGREDIENTE" ADD COLUMN "g_cab_dia" DECIMAL(10,2);'),
+    trocar(SQL_BC, 'ALTER TABLE "CADFORMULACAOREGRA" ADD COLUMN "g_cab_dia" DECIMAL(10,2);\n', ''),
+    `${SQL_BC}\nALTER TABLE "CADFORMULACAO" ADD COLUMN "x" INTEGER NOT NULL DEFAULT 0;\n`,
+    `${SQL_BC}\nUPDATE "CADFORMULACAO" SET "base_consumo" = 'G_CAB_DIA';\n`,
+    `${SQL_BC}\nDROP TABLE "CADFORMULACAOINGREDIENTE";\n`,
+  ];
+  for (const sql of variacoes) {
+    const c = classificarBC(sql);
+    assert.equal(c.ok, false, sql.slice(-160));
+  }
+});
+
+test('B26e (D-PROD-207): a guarda é a PRIMEIRA instrução e tem o hash pinado — alterada (vazias, trava, coluna) → CONTRACT_GUARDA_NAO_RECONHECIDA; ausente → CONTRACT_GUARDA_AUSENTE; citando outra tabela → DO_EM_TABELA_ANTIGA', () => {
+  const classificarBC = classificarContractDe(NOME_BC);
+  const codigos = (sql) => classificarBC(sql).violacoes.map((v) => v.codigo);
+  assert.ok(codigos(trocar(SQL_BC, 'IF n <> 0 THEN', 'IF n > 1000 THEN')).includes('CONTRACT_GUARDA_NAO_RECONHECIDA'));
+  assert.ok(codigos(trocar(SQL_BC, "PERFORM set_config('lock_timeout', '5s', true);", '')).includes('CONTRACT_GUARDA_NAO_RECONHECIDA'));
+  assert.ok(codigos(trocar(SQL_BC, "a.attname = 'base_consumo'", "a.attname = 'outra'")).includes('CONTRACT_GUARDA_NAO_RECONHECIDA'));
+  const semGuarda = SQL_BC.replace(/--[^\n]*/g, '').replace(/^\s*DO \$\$[\s\S]*?END \$\$;/, '');
+  assert.ok(codigos(semGuarda).includes('CONTRACT_GUARDA_AUSENTE'));
+  assert.ok(codigos(trocar(SQL_BC, "'CADFORMULACAOINGREDIENTE','CADFORMULACAOREGRA'];", "'CADFORMULACAOINGREDIENTE','CADFORMULACAOREGRA','Produto'];")).includes('DO_EM_TABELA_ANTIGA'));
+});
+
+test('B26f (D-PROD-207): o contrato é do NOME — o mesmo SQL com outro nome segue o caminho EXPAND e é recusado; sem a entrada, o nome real é recusado; os contratos não se servem entre si', () => {
+  const outroNome = classificarMigrations([{ nome: '20261115300001_x', sql: SQL_BC }], { manifesto: { '20261115300001_x': sha256(SQL_BC) } });
+  assert.equal(outroNome.ok, false);
+  const semEntrada = { ...MIGRATIONS_CONTRACT_APROVADAS };
+  delete semEntrada[NOME_BC];
+  assert.equal(classificarMigrations([ler(NOME_BC)], { contratos: semEntrada }).ok, false);
+  const comOutra = { [NOME_BC]: MIGRATIONS_CONTRACT_APROVADAS[NOME_P] };
+  assert.equal(classificarMigrations([ler(NOME_BC)], { contratos: comOutra }).ok, false);
+});
+
+test('B26g (D-PROD-207): conferirReleaseContract e envDoDeployMigrate — a D-PROD-207 sozinha só com --contract D-PROD-207 exato; junto de outra migration é CONTRACT_NAO_ISOLADO; MIGRATION_CONTRACT_AUTORIZADO só com ela sozinha e a decisão exata', () => {
+  const comBC = classificarMigrations([ler(NOME_BC)]);
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_BC], classificacao: comBC, autorizacao: 'D-PROD-207' }), { ok: true, codigo: null });
+  for (const autorizacao of ['D-PROD-203', 'D-PROD-206', 'D-PROD-200', '', undefined, null, 'd-prod-207', ' D-PROD-207']) {
+    assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_BC], classificacao: comBC, autorizacao }), { ok: false, codigo: 'CONTRACT_NAO_AUTORIZADO' }, String(autorizacao));
+  }
+  const comOutra = classificarMigrations([ler(NOME_FT), ler(NOME_BC)]);
+  assert.deepEqual(comOutra.violacoes, []);
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_FT, NOME_BC], classificacao: comOutra, autorizacao: 'D-PROD-207' }), { ok: false, codigo: 'CONTRACT_NAO_ISOLADO' });
+  assert.equal(envDoDeployMigrate({ env: {}, classificacao: comBC, autorizacao: 'D-PROD-207' }).MIGRATION_CONTRACT_AUTORIZADO, 'D-PROD-207');
+  assert.equal(envDoDeployMigrate({ env: { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-207' }, classificacao: comBC, autorizacao: 'D-PROD-206' }).MIGRATION_CONTRACT_AUTORIZADO, undefined);
+});
+
+test('B26k (D-PROD-207/D-PROD-206): ordem de produção hoje — alvo com as 57 da main concluídas (por último a faixa de tolerância, D-PROD-206, 2026-11-15 17:27:54 UTC): o histórico confere, a única pendente é a base do consumo e a barreira do CONTRACT a exige; checksum diferente do arquivo é divergência; depois dela, 58 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
+  const P1_03 = '20261113300000_estoque_p1_03_indices';
+  const raiz = 'backend/prisma/migrations';
+  const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
+    .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
+  assert.equal(locais.length, 58);
+  assert.ok(locais.every((l) => l.nome <= NOME_BC), 'a base do consumo é a migration de nome mais recente');
+  const t0 = Date.parse('2026-01-01T00:00:00Z');
+  // Produção: as 56 de B25k, na ordem em que foram concluídas, e depois a faixa de tolerância (D-PROD-206).
+  const fora = [NOME_BC, NOME_FT, NOME_LC, NOME_F, NOME_L, NOME_V, NOME_PO, NOME_P, NOME_G, NOME_K, NOME_D, P1_03, NOME_I];
+  const ordem = [...locais.filter((l) => !fora.includes(l.nome)), ...[NOME_D, P1_03, NOME_I, NOME_K, NOME_G, NOME_P, NOME_PO, NOME_V, NOME_L, NOME_F, NOME_LC, NOME_FT].map((n) => locais.find((l) => l.nome === n))];
+  const linhas = ordem.map((l, i) => ({ migration_name: l.nome, checksum: l.checksum, finished_at: new Date(t0 + i * 1000), rolled_back_at: null }));
+  assert.equal(linhas.length, 57);
+  assert.deepEqual(linhas.slice(-2).map((l) => l.migration_name), [NOME_LC, NOME_FT]);
+  assert.equal(linhas.at(-1).checksum, 'bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c');
+  const h = conferirHistoricoRemoto({ locais, linhas });
+  assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_BC], falhas: [] });
+  assert.deepEqual(conferirHistoricoRemoto({ locais: [...locais].reverse(), linhas: [...linhas].reverse() }), h);
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_BC, decisao: 'D-PROD-207' }]);
+  const linhaBC = (checksum, extra = {}) => ({ migration_name: NOME_BC, checksum, finished_at: new Date(t0 + 99_000), rolled_back_at: null, ...extra });
+  for (const errado of [MIGRATIONS_APROVADAS[NOME_FT], MIGRATIONS_APROVADAS[NOME_F], 'manual']) {
+    assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaBC(errado)] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS', errado);
+  }
+  const depois = [...linhas, linhaBC(MIGRATIONS_APROVADAS[NOME_BC])];
+  assert.equal(depois.length, 58);
   assert.deepEqual(conferirHistoricoRemoto({ locais, linhas: depois }), { ok: true, codigo: null, pendentes: [], falhas: [] });
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });

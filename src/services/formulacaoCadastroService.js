@@ -51,8 +51,30 @@ export const lerDecimal = (texto, { casas, maximo }) => {
 export const lerPercentualPV = (texto) => lerDecimal(texto, { casas: 4, maximo: PV_MAXIMO });
 /** kg por batida, > 0, até 3 casas. @param {unknown} texto */
 export const lerKg = (texto) => lerDecimal(texto, { casas: 3 });
-/** Consumo objetivo (g/cab/dia), > 0, até 2 casas. @param {unknown} texto */
-export const lerGramas = (texto) => lerDecimal(texto, { casas: 2 });
+/** D-PROD-207: teto de gramas por cabeça por dia (20 kg), como no servidor. */
+export const G_MAXIMO = 20000;
+/** Gramas por cabeça por dia, > 0, até 2 casas e até 20.000 ("1.500" = 1500 g). @param {unknown} texto */
+export const lerGramas = (texto) => lerDecimal(texto, { casas: 2, maximo: G_MAXIMO });
+
+/** D-PROD-207: as bases do consumo da formulação (uma por formulação, sem mistura). */
+export const BASES_CONSUMO = Object.freeze([
+  { valor: 'PV', rotulo: '% do peso vivo' },
+  { valor: 'G_CAB_DIA', rotulo: 'g por cabeça por dia' },
+]);
+/** @param {unknown} base */
+export const rotuloDaBase = (base) => BASES_CONSUMO.find((b) => b.valor === base)?.rotulo ?? BASES_CONSUMO[0].rotulo;
+/** @param {{ base_consumo?: unknown } | null | undefined} f */
+export const ehBaseEmGramas = (f) => f?.base_consumo === 'G_CAB_DIA';
+
+/**
+ * D-PROD-207 — o equivalente em kg dos gramas digitados ("1500" → "= 1,5 kg/cab/dia"); vazio sem número válido.
+ * @param {unknown} texto
+ */
+export const equivalenteEmKg = (texto) => {
+  const g = lerGramas(texto);
+  if (typeof g !== 'number') return '';
+  return `= ${(g / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg/cab/dia`;
+};
 /** D-PROD-206: faixa máxima de tolerância do farol de consumo (% do esperado), como no servidor. */
 export const FAIXA_MAXIMA = 100;
 /** D-PROD-206: faixa padrão do farol de consumo quando a formulação não tem uma (placeholder da tela). */
@@ -91,9 +113,9 @@ export const resumoDaBatida = (ingredientes) => {
 
 /**
  * @typedef {{ produto_id: string, quantidade_kg: string }} IngredienteForm
- * @typedef {{ categoria_manejo_id: string, consome: boolean, percentual_pv: string }} RegraForm
+ * @typedef {{ categoria_manejo_id: string, consome: boolean, percentual_pv: string, g_cab_dia?: string }} RegraForm
  * @typedef {{
- *   nome: string, tipo: string, produto_id: string, percentual_pv_padrao: string,
+ *   nome: string, tipo: string, produto_id: string, base_consumo?: string, percentual_pv_padrao: string,
  *   consumo_objetivo_g_cab_dia: string, faixa_tolerancia_percentual?: string, observacoes: string, ativo: boolean,
  *   ingredientes: IngredienteForm[], regras: RegraForm[],
  * }} FormulacaoForm
@@ -113,11 +135,15 @@ export const validarFormulacao = (f) => {
   if (!nome) erros.nome = 'Obrigatório';
   if (!TIPOS_FORMULACAO.some((t) => t.valor === f.tipo)) erros.tipo = 'Obrigatório';
   if (!f.produto_id) erros.produto_id = 'Obrigatório';
-  const pv = lerPercentualPV(f.percentual_pv_padrao);
-  if (pv === undefined) erros.percentual_pv_padrao = 'Obrigatório';
-  else if (pv === null) erros.percentual_pv_padrao = `De 0 a ${PV_MAXIMO}%, até 4 casas`;
+  // D-PROD-207: UMA base por formulação. Base PV: só o %PV conta (o g/cab/dia antigo vai como referência, intocado).
+  // Base G_CAB_DIA: só os gramas contam e o %PV vai nulo.
+  const emGramas = f.base_consumo === 'G_CAB_DIA';
+  const pv = emGramas ? undefined : lerPercentualPV(f.percentual_pv_padrao);
+  if (!emGramas && pv === undefined) erros.percentual_pv_padrao = 'Obrigatório';
+  else if (!emGramas && pv === null) erros.percentual_pv_padrao = `De 0 a ${PV_MAXIMO}%, até 4 casas`;
   const gramas = lerGramas(f.consumo_objetivo_g_cab_dia);
-  if (gramas === null) erros.consumo_objetivo_g_cab_dia = 'Maior que 0, até 2 casas';
+  if (emGramas && gramas === undefined) erros.consumo_objetivo_g_cab_dia = 'Obrigatório';
+  else if (gramas === null) erros.consumo_objetivo_g_cab_dia = `Maior que 0, até ${G_MAXIMO.toLocaleString('pt-BR')} g, até 2 casas`;
   const faixa = lerFaixa(f.faixa_tolerancia_percentual);
   if (faixa === null) erros.faixa_tolerancia_percentual = `De 0 a ${FAIXA_MAXIMA}%, até 2 casas`;
 
@@ -140,10 +166,15 @@ export const validarFormulacao = (f) => {
     if (!r.categoria_manejo_id) erros[`regras.${n}.categoria_manejo_id`] = 'Obrigatório';
     else if (vistasCategorias.has(r.categoria_manejo_id)) erros[`regras.${n}.categoria_manejo_id`] = 'Categoria repetida';
     vistasCategorias.add(r.categoria_manejo_id);
-    if (!r.consome) return { categoria_manejo_id: r.categoria_manejo_id, consome: false, percentual_pv: null };
+    if (!r.consome) return { categoria_manejo_id: r.categoria_manejo_id, consome: false, percentual_pv: null, g_cab_dia: null };
+    if (emGramas) {
+      const gRegra = lerGramas(r.g_cab_dia);
+      if (typeof gRegra !== 'number') erros[`regras.${n}.g_cab_dia`] = `g/cab/dia maior que 0, até ${G_MAXIMO.toLocaleString('pt-BR')}`;
+      return { categoria_manejo_id: r.categoria_manejo_id, consome: true, percentual_pv: null, g_cab_dia: gRegra };
+    }
     const pvRegra = lerPercentualPV(r.percentual_pv);
     if (typeof pvRegra !== 'number') erros[`regras.${n}.percentual_pv`] = `De 0 a ${PV_MAXIMO}%, até 4 casas`;
-    return { categoria_manejo_id: r.categoria_manejo_id, consome: true, percentual_pv: pvRegra };
+    return { categoria_manejo_id: r.categoria_manejo_id, consome: true, percentual_pv: pvRegra, g_cab_dia: null };
   });
 
   if (Object.keys(erros).length) return { erros, corpo: null };
@@ -154,7 +185,8 @@ export const validarFormulacao = (f) => {
       nome,
       tipo: f.tipo,
       produto_id: f.produto_id,
-      percentual_pv_padrao: pv,
+      base_consumo: emGramas ? 'G_CAB_DIA' : 'PV',
+      percentual_pv_padrao: emGramas ? null : pv,
       consumo_objetivo_g_cab_dia: gramas ?? null,
       faixa_tolerancia_percentual: faixa ?? null,
       observacoes: observacoes || null,

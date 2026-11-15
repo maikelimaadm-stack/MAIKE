@@ -23,6 +23,15 @@
  *
  * Sobra não informada (campo vazio no abastecimento) conta como 0, e o
  * resultado fica marcado `sobra_informada: false` ("Aproximado").
+ *
+ * D-PROD-207 — BASE do consumo da formulação gravada no lançamento
+ * (`base_consumo`; evento sem o campo = 'PV'):
+ *  - 'PV': como acima; o g/cab/dia é só informação;
+ *  - 'G_CAB_DIA' (sal mineral, quantidade fixa por cabeça): a meta é o
+ *    g/cab/dia esperado (`consumo_esperado_g_cab_dia` do lançamento; evento sem
+ *    ele → esperado kg/dia ÷ cabeças que consomem × 1000). Relação = g/cab/dia
+ *    real ÷ g/cab/dia esperado, mesma faixa e mesmo farol. Não há %PV esperado
+ *    (null); o %PV real aparece só como informação, quando há peso.
  */
 
 /** Faixa de tolerância padrão do farol de consumo, em % do esperado. */
@@ -47,6 +56,7 @@ export const CAMPOS_FECHAMENTO_CONSUMO = Object.freeze([
   'farol_consumo',
   'farol_consumo_motivo',
   'faixa_tolerancia_aplicada',
+  'base_consumo_aplicada',
   'sobra_informada',
   'custo_total_periodo',
   'custo_cab_dia',
@@ -141,7 +151,17 @@ export const calcularFechamentoConsumo = ({
   const faixa = faixaDeTolerancia(faixaPercentual);
   const custoKg = num(custoUnitarioKg);
 
-  const relacao = esperado !== null && esperado > 0 ? kgDia / esperado : null;
+  const base = evento?.base_consumo === 'G_CAB_DIA' ? 'G_CAB_DIA' : 'PV';
+  const gReal = cab > 0 ? (kgDia / cab) * 1000 : null;
+  const gEsperadoGravado = num(evento?.consumo_esperado_g_cab_dia);
+  const gEsperado = base !== 'G_CAB_DIA'
+    ? null
+    : gEsperadoGravado !== null && gEsperadoGravado > 0
+      ? gEsperadoGravado
+      : esperado !== null && esperado > 0 && cab > 0 ? (esperado / cab) * 1000 : null;
+  const relacao = base === 'G_CAB_DIA'
+    ? (gReal !== null && gEsperado !== null && gEsperado > 0 ? gReal / gEsperado : null)
+    : esperado !== null && esperado > 0 ? kgDia / esperado : null;
   /** @type {FarolConsumo} */
   let farol = farolPelaRelacao(relacao, faixa);
   /** @type {null|'sem_esperado'|'cocho_compartilhado'} */
@@ -154,9 +174,11 @@ export const calcularFechamentoConsumo = ({
 
   const custoTotal = custoKg !== null && custoKg >= 0 ? total * custoKg : null;
   return {
-    consumo_g_cab_dia: cab > 0 ? arred((kgDia / cab) * 1000, 1) : null,
+    consumo_g_cab_dia: gReal !== null ? arred(gReal, 1) : null,
     consumo_real_pv_percentual: pv ? arred((kgDia / pv) * 100, 4) : null,
-    consumo_esperado_pv_percentual: pv && esperado !== null && esperado > 0 ? arred((esperado / pv) * 100, 4) : null,
+    consumo_esperado_pv_percentual: base === 'PV' && pv && esperado !== null && esperado > 0 ? arred((esperado / pv) * 100, 4) : null,
+    base_consumo_aplicada: base,
+    consumo_esperado_g_cab_dia: gEsperado === null ? null : arred(gEsperado, 1),
     consumo_relacao_esperado: relacao === null ? null : arred(relacao, 4),
     farol_consumo: farol,
     farol_consumo_motivo: motivo,
@@ -189,6 +211,8 @@ export const resumoDoFechamento = (evento, extra = {}) => {
       farol_consumo: /** @type {FarolConsumo} */ (evento.farol_consumo),
       farol_consumo_motivo: evento.farol_consumo_motivo ?? null,
       faixa_tolerancia_aplicada: faixaDeTolerancia(evento.faixa_tolerancia_aplicada),
+      base_consumo_aplicada: evento.base_consumo_aplicada === 'G_CAB_DIA' || evento.base_consumo === 'G_CAB_DIA' ? 'G_CAB_DIA' : 'PV',
+      consumo_esperado_g_cab_dia: num(evento.consumo_esperado_g_cab_dia),
       sobra_informada: typeof evento.sobra_informada === 'boolean' ? evento.sobra_informada : null,
       custo_unitario_kg: num(evento.custo_unitario_kg),
       custo_total_periodo: num(evento.custo_total_periodo),

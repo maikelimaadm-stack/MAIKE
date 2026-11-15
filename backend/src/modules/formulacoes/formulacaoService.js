@@ -27,7 +27,15 @@
  *    consumo objetivo (g/cab/dia) opcional, > 0, até 2 casas; ingrediente em kg
  *    por batida > 0, até 3 casas. Gravado como decimal exato;
  *  - regras: Categoria de Manejo DESTA fazenda (ativa quando nova), sem
- *    repetir; não consome → sem %PV; consome → %PV obrigatório;
+ *    repetir; não consome → sem %PV e sem gramas; consome → o valor da BASE;
+ *  - D-PROD-207, base do consumo (UMA por formulação, sem mistura):
+ *    `PV` (% do peso vivo; padrão: `percentual_pv_padrao` obrigatório; regras
+ *    que consomem com `percentual_pv`) ou `G_CAB_DIA` (gramas por cabeça por
+ *    dia; padrão: `consumo_objetivo_g_cab_dia` obrigatório e %PV nulo; regras
+ *    que consomem com `g_cab_dia`). Valor da outra base → 400 (`pv_na_base_g`,
+ *    `regra_pv_na_base_g`, `regra_g_na_base_pv`); na base PV o
+ *    `consumo_objetivo_g_cab_dia` é só referência. A forma FINAL é conferida
+ *    também no PATCH (trocar a base exige mandar os valores da nova base);
  *  - PATCH substitui por inteiro as listas enviadas (`ingredientes`, `regras`),
  *    na mesma transação; a forma final (tipo × ingredientes) é conferida;
  *  - exclusão física só sem lançamento de suplementação que a cite
@@ -57,6 +65,10 @@ const ENTIDADE = 'Formulacao';
 export const TIPOS = Object.freeze(['PRONTO', 'BATELADA']);
 /** %PV máximo aceito (padrão e da regra). */
 export const PV_MAXIMO = 5;
+/** D-PROD-207: as bases do consumo (CHECK "CADFORMULACAO_base_consumo_check"). */
+export const BASES_CONSUMO = Object.freeze(['PV', 'G_CAB_DIA']);
+/** D-PROD-207: teto de gramas por cabeça por dia (20 kg), no padrão e na regra. */
+export const G_MAXIMO = 20000;
 /** D-PROD-206: faixa de tolerância do farol de consumo, em % do esperado (null = padrão de 15%). */
 export const FAIXA_MAXIMA = 100;
 /** Largura das colunas VARCHAR (em caracteres, como o PostgreSQL conta). */
@@ -90,6 +102,7 @@ export const comoFormulacaoPublica = (registro) => {
     produto_id: registro.produto_id,
     produto_nome: registro.produto?.nome_produto ?? null,
     produto_ativo: registro.produto?.ativo ?? null,
+    base_consumo: registro.base_consumo ?? 'PV',
     percentual_pv_padrao: numeroDe(registro.percentual_pv_padrao, 4),
     consumo_objetivo_g_cab_dia: numeroDe(registro.consumo_objetivo_g_cab_dia, 2),
     // D-PROD-206: null = o padrão de 15% (quem lê aplica o padrão; o banco não inventa valor).
@@ -107,6 +120,7 @@ export const comoFormulacaoPublica = (registro) => {
       categoria_manejo_nome: r.categoriaManejo?.nome ?? null,
       consome: r.consome,
       percentual_pv: numeroDe(r.percentual_pv, 4),
+      g_cab_dia: numeroDe(r.g_cab_dia, 2),
     })),
     created_date: registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
     updated_date: registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
@@ -162,6 +176,9 @@ const decimalDoCorpo = (valor, campo, { casas, maximo, motivo, rotulo }) => {
 };
 
 const pvDoCorpo = (valor, campo) => decimalDoCorpo(valor, campo, { casas: 4, maximo: PV_MAXIMO, motivo: 'percentual_pv', rotulo: '% do peso vivo' });
+const gDoCorpo = (valor, campo, motivo) => decimalDoCorpo(valor, campo, { casas: 2, maximo: G_MAXIMO, motivo, rotulo: 'g/cab/dia' });
+/** @param {unknown} v */
+const vazio = (v) => v === undefined || v === null || v === '';
 
 /**
  * Campos escalares editáveis do corpo, já normalizados. `empresa_id` NÃO está
@@ -178,11 +195,19 @@ const camposDe = (entrada) => {
     campos.tipo = entrada.tipo;
   }
   if (entrada.produto_id !== undefined) campos.produto_id = String(entrada.produto_id);
-  if (entrada.percentual_pv_padrao !== undefined) campos.percentual_pv_padrao = pvDoCorpo(entrada.percentual_pv_padrao, 'percentual_pv_padrao');
+  if (entrada.base_consumo !== undefined) {
+    if (!BASES_CONSUMO.includes(/** @type {string} */ (entrada.base_consumo))) {
+      throw invalido('base_consumo deve ser PV ou G_CAB_DIA', { field: 'base_consumo', reason: 'base_consumo_invalida' });
+    }
+    campos.base_consumo = entrada.base_consumo;
+  }
+  if (entrada.percentual_pv_padrao !== undefined) {
+    campos.percentual_pv_padrao = vazio(entrada.percentual_pv_padrao) ? null : pvDoCorpo(entrada.percentual_pv_padrao, 'percentual_pv_padrao');
+  }
   if (entrada.consumo_objetivo_g_cab_dia !== undefined) {
-    campos.consumo_objetivo_g_cab_dia = entrada.consumo_objetivo_g_cab_dia === null || entrada.consumo_objetivo_g_cab_dia === ''
+    campos.consumo_objetivo_g_cab_dia = vazio(entrada.consumo_objetivo_g_cab_dia)
       ? null
-      : decimalDoCorpo(entrada.consumo_objetivo_g_cab_dia, 'consumo_objetivo_g_cab_dia', { casas: 2, motivo: 'consumo_objetivo', rotulo: 'g/cab/dia' });
+      : gDoCorpo(entrada.consumo_objetivo_g_cab_dia, 'consumo_objetivo_g_cab_dia', 'consumo_objetivo');
   }
   // D-PROD-206: faixa do farol de consumo (0 < x ≤ 100, até 2 casas); vazio/null = padrão de 15%.
   if (entrada.faixa_tolerancia_percentual !== undefined) {
@@ -221,10 +246,12 @@ const ingredientesDe = (lista) => {
 
 /**
  * Regras por categoria do corpo (lista inteira), normalizadas: categoria
- * repetida → `regra_duplicada`; não consome com %PV → `regra_nao_consome_com_pv`;
- * consome sem %PV → `regra_pv_obrigatorio`.
+ * repetida → `regra_duplicada`; não consome com %PV ou gramas →
+ * `regra_nao_consome_com_pv` / `regra_nao_consome_com_g`; %PV e gramas na mesma
+ * regra → `regra_pv_e_g`. Se o valor que veio é o da BASE certa (e se faltou) é
+ * conferido depois, na forma final (`conferirBaseDoConsumo`).
  * @param {unknown} lista
- * @returns {Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null }> | undefined}
+ * @returns {Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null, g_cab_dia: string | null }> | undefined}
  */
 const regrasDe = (lista) => {
   if (lista === undefined) return undefined;
@@ -237,14 +264,22 @@ const regrasDe = (lista) => {
     }
     vistas.add(categoriaId);
     const consome = item.consome === true;
-    const pv = item.percentual_pv;
-    const semPv = pv === undefined || pv === null || pv === '';
+    const semPv = vazio(item.percentual_pv);
+    const semG = vazio(item.g_cab_dia);
     if (!consome) {
       if (!semPv) throw invalido('categoria que não consome não tem %PV', { field: `regras[${i}].percentual_pv`, reason: 'regra_nao_consome_com_pv' });
-      return { categoria_manejo_id: categoriaId, consome: false, percentual_pv: null };
+      if (!semG) throw invalido('categoria que não consome não tem g/cab/dia', { field: `regras[${i}].g_cab_dia`, reason: 'regra_nao_consome_com_g' });
+      return { categoria_manejo_id: categoriaId, consome: false, percentual_pv: null, g_cab_dia: null };
     }
-    if (semPv) throw invalido('informe o %PV da categoria que consome', { field: `regras[${i}].percentual_pv`, reason: 'regra_pv_obrigatorio' });
-    return { categoria_manejo_id: categoriaId, consome: true, percentual_pv: pvDoCorpo(pv, `regras[${i}].percentual_pv`) };
+    if (!semPv && !semG) {
+      throw invalido('a regra leva %PV OU g/cab/dia, conforme a base da formulação; nunca os dois', { field: `regras[${i}].g_cab_dia`, reason: 'regra_pv_e_g' });
+    }
+    return {
+      categoria_manejo_id: categoriaId,
+      consome: true,
+      percentual_pv: semPv ? null : pvDoCorpo(item.percentual_pv, `regras[${i}].percentual_pv`),
+      g_cab_dia: semG ? null : gDoCorpo(item.g_cab_dia, `regras[${i}].g_cab_dia`, 'g_cab_dia'),
+    };
   });
 };
 
@@ -264,6 +299,36 @@ const comConflitoDeNomeEstavel = async (executar) => {
     if (ehViolacaoDeUnique(erro)) throw formulacaoNomeConflito();
     throw erro;
   }
+};
+
+/**
+ * D-PROD-207 — a forma FINAL da base do consumo (sem mistura). PV: %PV padrão
+ * obrigatório; regra que consome com %PV, sem gramas. G_CAB_DIA: g/cab/dia padrão
+ * obrigatório e %PV padrão nulo; regra que consome com gramas, sem %PV.
+ * @param {{ base: string, percentual_pv_padrao: unknown, consumo_objetivo_g_cab_dia: unknown,
+ *   regras: Array<{ consome: boolean, percentual_pv?: unknown, g_cab_dia?: unknown }> }} final
+ */
+const conferirBaseDoConsumo = (final) => {
+  if (final.base === 'G_CAB_DIA') {
+    if (!vazio(final.percentual_pv_padrao)) {
+      throw invalido('na base g/cab/dia a formulação não tem %PV padrão', { field: 'percentual_pv_padrao', reason: 'pv_na_base_g' });
+    }
+    if (vazio(final.consumo_objetivo_g_cab_dia)) {
+      throw invalido('informe o consumo padrão em g/cab/dia', { field: 'consumo_objetivo_g_cab_dia', reason: 'g_padrao_obrigatorio' });
+    }
+  } else if (vazio(final.percentual_pv_padrao)) {
+    throw invalido('informe o %PV padrão', { field: 'percentual_pv_padrao', reason: 'pv_padrao_obrigatorio' });
+  }
+  final.regras.forEach((regra, i) => {
+    if (!regra.consome) return;
+    if (final.base === 'G_CAB_DIA') {
+      if (!vazio(regra.percentual_pv)) throw invalido('na base g/cab/dia a regra não tem %PV', { field: `regras[${i}].percentual_pv`, reason: 'regra_pv_na_base_g' });
+      if (vazio(regra.g_cab_dia)) throw invalido('informe os g/cab/dia da categoria que consome', { field: `regras[${i}].g_cab_dia`, reason: 'regra_g_obrigatorio' });
+    } else {
+      if (!vazio(regra.g_cab_dia)) throw invalido('na base %PV a regra não tem g/cab/dia', { field: `regras[${i}].g_cab_dia`, reason: 'regra_g_na_base_pv' });
+      if (vazio(regra.percentual_pv)) throw invalido('informe o %PV da categoria que consome', { field: `regras[${i}].percentual_pv`, reason: 'regra_pv_obrigatorio' });
+    }
+  });
 };
 
 /**
@@ -347,10 +412,11 @@ export const opcoesLancamento = async (contexto, consulta) => {
       produto_id: f.produto_id,
       produto_nome: f.produto_nome,
       produto_ativo: f.produto_ativo,
+      base_consumo: f.base_consumo,
       percentual_pv_padrao: f.percentual_pv_padrao,
       consumo_objetivo_g_cab_dia: f.consumo_objetivo_g_cab_dia,
       faixa_tolerancia_percentual: f.faixa_tolerancia_percentual,
-      regras: f.regras.map(({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv }) => ({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv })),
+      regras: f.regras.map(({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv, g_cab_dia }) => ({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv, g_cab_dia })),
     };
   });
 };
@@ -376,11 +442,17 @@ export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const campos = camposDe(entrada);
-  for (const campo of ['tipo', 'produto_id', 'percentual_pv_padrao']) {
+  for (const campo of ['tipo', 'produto_id']) {
     if (campos[campo] === undefined) throw invalido(`${campo} é obrigatório`, { field: campo });
   }
   const ingredientes = ingredientesDe(entrada.ingredientes) ?? [];
   const regras = regrasDe(entrada.regras) ?? [];
+  conferirBaseDoConsumo({
+    base: String(campos.base_consumo ?? 'PV'),
+    percentual_pv_padrao: campos.percentual_pv_padrao,
+    consumo_objetivo_g_cab_dia: campos.consumo_objetivo_g_cab_dia,
+    regras,
+  });
   const ativo = campos.ativo === undefined ? true : Boolean(campos.ativo);
 
   return comConflitoDeNomeEstavel(() =>
@@ -420,6 +492,13 @@ export const atualizar = async (contexto, id, entrada) => {
 
       const anterior = await buscarFormulacao(auth.clienteId, empresaId, id, tx);
       if (!anterior) throw formulacaoNotFound();
+
+      conferirBaseDoConsumo({
+        base: String(campos.base_consumo ?? anterior.base_consumo ?? 'PV'),
+        percentual_pv_padrao: campos.percentual_pv_padrao !== undefined ? campos.percentual_pv_padrao : anterior.percentual_pv_padrao,
+        consumo_objetivo_g_cab_dia: campos.consumo_objetivo_g_cab_dia !== undefined ? campos.consumo_objetivo_g_cab_dia : anterior.consumo_objetivo_g_cab_dia,
+        regras: regras ?? anterior.regras.map((r) => ({ consome: r.consome, percentual_pv: r.percentual_pv, g_cab_dia: r.g_cab_dia })),
+      });
 
       await conferirFormaEReferencias(tx, auth.clienteId, empresaId, {
         tipo: String(campos.tipo ?? anterior.tipo),

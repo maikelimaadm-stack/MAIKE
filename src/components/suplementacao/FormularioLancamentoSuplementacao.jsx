@@ -35,7 +35,7 @@ import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeConversaoUtils";
-import { consumoEsperadoPorFormulacao, resumoPesoDosLotes } from "./consumoPVUtils";
+import { baseDoConsumo, consumoEsperadoPorFormulacao, resumoPesoDosLotes } from "./consumoPVUtils";
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { listEmpresas } from "@/services/empresaService";
@@ -304,7 +304,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   // D-PROD-203: consumo esperado por %PV da FORMULAÇÃO, lote a lote (regra da categoria ou o padrão;
   // categoria que não consome entra com 0; lote sem peso usa a média ponderada dos lotes com peso).
-  const pctPV = Number(formulacaoSelecionada?.percentual_pv_padrao || 0);
+  // D-PROD-207: na base G_CAB_DIA a meta é fixa por cabeça (gramas da regra da categoria, senão o padrão), sem
+  // peso e sem %PV; o esperado em kg/dia continua em `consumo_esperado_pv_kg` (a taxa que o nível do cocho lê).
+  const baseConsumo = baseDoConsumo(formulacaoSelecionada);
+  const baseEmGramas = baseConsumo === "G_CAB_DIA";
+  const pctPV = baseEmGramas ? 0 : Number(formulacaoSelecionada?.percentual_pv_padrao || 0);
   const consumoPV = useMemo(
     () => consumoEsperadoPorFormulacao({ lotes, formulacao: formulacaoSelecionada }),
     [lotes, formulacaoSelecionada],
@@ -572,6 +576,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         consumo_esperado_pv_kg: consumoEsperadoGrupoDiaPV > 0 ? consumoEsperadoGrupoDiaPV : null,
         // %PV padrão da formulação; as exceções por categoria ficam em cada lote (percentual_pv_lote).
         percentual_consumo_pv_usado: pctPV > 0 ? pctPV : null,
+        // D-PROD-207: a base do consumo da formulação e, na base G_CAB_DIA, a meta em gramas por cabeça por dia
+        // (média ponderada das cabeças que consomem; as exceções por categoria ficam em cada lote, g_cab_dia_lote).
+        base_consumo: formulacaoSelecionada ? baseConsumo : null,
+        consumo_esperado_g_cab_dia: baseEmGramas && consumoPV.gCabDiaEsperado ? Number(consumoPV.gCabDiaEsperado.toFixed(2)) : null,
         // Cabeças cuja categoria NÃO consome a formulação (fora do consumo esperado; contam em total_cabecas_afetadas).
         cabecas_nao_consomem: consumoPV.cabecasNaoConsomem,
         movimentacao_estoque_id: movimentoEstoque?.id || null,
@@ -598,7 +606,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           fator_consumo: 1,
           peso_medio_lote_kg: pesoMedioLote || null,
           // D-PROD-203: %PV deste lote (regra da categoria ou o padrão; 0 = não consome) e o esperado dele.
-          percentual_pv_lote: doLote ? doLote.percentualPV : null,
+          percentual_pv_lote: doLote && !baseEmGramas ? doLote.percentualPV : null,
+          // D-PROD-207: gramas por cabeça por dia deste lote na base G_CAB_DIA (0 = não consome).
+          g_cab_dia_lote: doLote && baseEmGramas ? doLote.gCabDia : null,
           consumo_esperado_pv_lote_kg: consumoEsperadoLotePV,
           data_lancamento: formData.data_lancamento,
           produto: nomeProduto,
@@ -698,7 +708,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Lotes: <span className="font-semibold text-slate-900">{loadingLotes ? "..." : `${formatDecimal(lotes.length, 0, true)} lote(s) - ${formatDecimal(totalCabecas, 0, true)} cabeças`}</span></div>
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${formatDecimal(pesoMedioGeral, 1)} kg` : "-"}</span></div>
               </div>
-              <AvisoPesoDoRebanho resumo={resumoPeso} totalCabecas={totalCabecas} />
+              <AvisoPesoDoRebanho resumo={resumoPeso} totalCabecas={totalCabecas} baseEmGramas={baseEmGramas} />
               {ultimoEvento && diasPeriodo && <div className="text-[10px] text-slate-600 pt-1 border-t border-emerald-200">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
@@ -706,7 +716,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {semFormulacao && (
               <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800" role="alert" data-testid="suplementacao-sem-formulacao">
                 Não há formulação ativa nesta fazenda: o lançamento precisa de uma. Cadastre em{" "}
-                <a href={createPageUrl("Formulacoes")} className="font-semibold underline">Formulações</a> (menu Manejo) o produto pronto ou a batelada e o % PV.
+                <a href={createPageUrl("Formulacoes")} className="font-semibold underline">Formulações</a> (menu Manejo) o produto pronto ou a batelada e o consumo (% PV ou g/cab/dia).
               </div>
             )}
 
@@ -732,7 +742,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                         <SelectItem key={f.id} value={f.id} className="text-xs">
                           {f.nome}
                           {` • ${rotuloDoTipo(f.tipo)}`}
-                          {` (${formatDecimal(Number(f.percentual_pv_padrao || 0), 3)}% PV)`}
+                          {f.base_consumo === "G_CAB_DIA"
+                            ? ` (${formatDecimal(Number(f.consumo_objetivo_g_cab_dia || 0), 0, true)} g/cab/dia)`
+                            : ` (${formatDecimal(Number(f.percentual_pv_padrao || 0), 3)}% PV)`}
                           {produto?.unidade_principal_estoque === "SACO" ? ` • Saco ${produto.peso_por_saco_kg}kg` : ""}
                         </SelectItem>
                       );
@@ -853,6 +865,26 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 </div>
               );
             })()}
+
+            {/* D-PROD-207: painel da base g/cab/dia — meta fixa por cabeça, sem peso. */}
+            {baseEmGramas && consumoPV.cabecasConsomem > 0 && consumoEsperadoGrupoDiaPV > 0 && (
+              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1" data-testid="suplementacao-painel-g">
+                <div className="text-xs font-semibold text-slate-900">Consumo esperado em g/cab/dia da formulação</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Meta/cab/dia</div><div className="font-bold text-slate-900" data-testid="suplementacao-meta-g">{formatDecimal(consumoPV.gCabDiaEsperado || 0, 0, true)} g</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Cabeças que consomem</div><div className="font-bold text-slate-900">{formatDecimal(consumoPV.cabecasConsomem, 0, true)}</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900" data-testid="suplementacao-esperado-grupo">{consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
+                </div>
+                {consumoPV.cabecasNaoConsomem > 0 && (
+                  <div className="text-[10px] text-slate-600" data-testid="suplementacao-nao-consomem">
+                    {formatDecimal(consumoPV.cabecasNaoConsomem, 0, true)} cabeça(s) não consomem esta formulação (regra da categoria): ficam fora do esperado.
+                  </div>
+                )}
+                {consumoPV.porLote.some((l) => l.origem === "regra") && (
+                  <div className="text-[10px] text-slate-600">Categorias com g/cab/dia próprio na formulação entram com os gramas delas.</div>
+                )}
+              </div>
+            )}
 
             {/* Painel %PV - quando disponível */}
             {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
@@ -1007,10 +1039,11 @@ export function erroDeDataDoLancamento({ dataLancamento, dataFimAnterior, ultima
 /**
  * D-PROD-201 — de onde vem o peso do consumo por %PV e o aviso de cabeças sem
  * peso (elas não entram na média; antes entravam como 0 kg).
- * @param {{ resumo: ReturnType<typeof resumoPesoDosLotes>, totalCabecas: number }} props
+ * D-PROD-207: na base g/cab/dia a meta não usa peso — o aviso de falta de peso não aparece.
+ * @param {{ resumo: ReturnType<typeof resumoPesoDosLotes>, totalCabecas: number, baseEmGramas?: boolean }} props
  */
-function AvisoPesoDoRebanho({ resumo, totalCabecas }) {
-  if (!(totalCabecas > 0)) return null;
+function AvisoPesoDoRebanho({ resumo, totalCabecas, baseEmGramas = false }) {
+  if (!(totalCabecas > 0) || baseEmGramas) return null;
   const linhas = [];
   if (resumo.cabecasComPeso > 0) {
     linhas.push(

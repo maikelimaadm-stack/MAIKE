@@ -61,6 +61,13 @@
  *
  * D-PROD-206: a EXPAND `20261115200000_formulacao_faixa_tolerancia` (1 coluna anulável em CADFORMULACAO, que só
  * existe depois da D-PROD-203) também fica FORA da partida e sobe no GREEN por último: 57 migrations, 91 tabelas.
+ *
+ * D-PROD-207: a CONTRACT `20261115300000_formulacao_base_consumo` (base do consumo; altera as 3 tabelas das
+ * Formulações) fica FORA da partida. O runner nunca aplica duas CONTRACT de uma vez: logo antes do caminho do runner
+ * (CC-03) ela sobe FORA DE ORDEM pelo Prisma direto, junto com a EXPAND das Formulações (D-PROD-203) de que depende
+ * (vazias aqui; nenhuma das duas toca CADCATEGORIA além da FK da regra, que já existe): a partida do runner fica com
+ * 90 tabelas e só a D-PROD-195 pende como CONTRACT; o GREEN aplica esta, a D-PROD-198, a D-PROD-205 e a D-PROD-206:
+ * 58 migrations, 91 tabelas.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -100,7 +107,9 @@ const NOME_FORMULACOES = '20261114700000_cadformulacao';
 const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** D-PROD-206: a EXPAND da faixa de tolerância (coluna em CADFORMULACAO), a de nome mais posterior. */
 const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
-const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
+/** D-PROD-207: a CONTRACT da base do consumo, fora da partida; sobe fora de ordem com a D-PROD-203 (ver o cabeçalho). */
+const NOME_BASE = '20261115300000_formulacao_base_consumo';
+const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE]);
 /** D-PROD-202: a EXPAND das linhas de produto e de máquina, de nome posterior, sobe na partida (ver o cabeçalho). */
 const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
 /** D-PROD-197/D-PROD-200: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
@@ -210,6 +219,20 @@ const aplicarMigrationsAnteriores = async (url) => {
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
     if (r.status !== 0) throw new Error(`teste D-PROD-195: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
     return r;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+/** D-PROD-207: a partida mais as Formulações (D-PROD-203) e a base do consumo (D-PROD-207), fora de ordem, pelo Prisma. */
+const aplicarFormulacoesForaDeOrdem = async (url) => {
+  const dir = mkdtempSync(join(tmpdir(), 'maike-ccc-curva-207-'));
+  try {
+    mkdirSync(join(dir, 'migrations'));
+    for (const d of PASTAS) if (d !== NOME_CONTRACT && (!FORA_DA_PARTIDA.includes(d) || d === NOME_FORMULACOES || d === NOME_BASE)) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
+    writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
+    const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
+    if (r.status !== 0) throw new Error(`teste D-PROD-195: as Formulações e a D-PROD-207 não subiram (exit ${r.status})\n${r.saida}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -372,9 +395,9 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     // D-PROD-198 e D-PROD-203: as EXPAND do peso objetivo e das Formulações ficam fora da partida; a EXPAND da D-PROD-202
     // entra (57 pastas com a D-PROD-205 e a D-PROD-206, também fora; partida 52).
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE]);
     assert.equal(MIGRATIONS_PARTIDA, 52);
-    assert.equal(TOTAL_MIGRATIONS, 57);
+    assert.equal(TOTAL_MIGRATIONS, 58);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.peso_concluida, 0, 'a D-PROD-198 ainda não existia no dia desta CONTRACT');
@@ -444,6 +467,10 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
   }
 
   test('CC-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando a D-PROD-195 antes de qualquer DDL', async () => {
+    // D-PROD-207 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, com as Formulações, para só esta pender.
+    await aplicarFormulacoesForaDeOrdem(URL_T);
+    partida = await retrato(db);
+    assert.equal(partida.tabelas, 90, '87 + as 3 das Formulações');
     const sid = await sistema(db);
     const linhasAntes = (await historico(db)).total;
     for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-194' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-187' }, { MIGRATION_CONTRACT_AUTORIZADO: 'd-prod-195' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-19' }]) {
@@ -458,7 +485,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     }
     const h = await historico(db);
     assert.equal(h.total, linhasAntes, 'nenhuma linha nova no histórico');
-    assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
+    assert.equal(h.concluidas, MIGRATIONS_PARTIDA + 2, 'a partida e as 2 que subiram fora de ordem');
     assert.deepEqual(await retrato(db), partida, 'nada mudou');
   });
 
@@ -476,7 +503,8 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.equal(h.contract_concluida, 1);
     // As EXPAND da D-PROD-198 e da D-PROD-203 sobem junto, depois desta (pela ordem dos nomes; só esta pede a decisão).
     assert.equal(h.peso_concluida, 1);
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-5), [NOME_CONTRACT, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
+    // As Formulações (D-PROD-203) e a base do consumo (D-PROD-207) já subiram fora de ordem, antes do runner.
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-4), [NOME_CONTRACT, NOME_PESO_OBJETIVO, NOME_LEITURA, NOME_FAIXA]);
 
     const depois = await retrato(db);
     // A curva_ganho_id desta CONTRACT e, no fim, a peso_objetivo_kg da D-PROD-198.
@@ -488,7 +516,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.deepEqual(depois.oids, partida.oids, 'as mesmas tabelas (ALTER, não cópia)');
     assert.deepEqual(depois.categorias, partida.categorias, 'as linhas nas colunas de antes não mudaram');
     assert.deepEqual(depois.curvas, partida.curvas, 'nenhuma curva mudou');
-    assert.equal(depois.tabelas, partida.tabelas + 4, 'nenhuma tabela a mais nem a menos além das 3 das Formulações (D-PROD-203) e da LEITURACOCHO (D-PROD-205), por último: 87 → 91');
+    assert.equal(depois.tabelas, partida.tabelas + 1, 'nenhuma tabela a mais nem a menos além da LEITURACOCHO (D-PROD-205), por último: 90 → 91');
 
     // Cada categoria ficou na CURVA PADRÃO da própria fazenda (a inativa inclusive; nunca na CURVA ENGORDA).
     const ligadas = await db.$queryRawUnsafe(`SELECT id, curva_ganho_id AS curva FROM public."CADCATEGORIA" ORDER BY id COLLATE "C"`);
