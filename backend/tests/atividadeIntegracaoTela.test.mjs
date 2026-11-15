@@ -748,7 +748,8 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   const formT = { ...LR.formularioMaoObraVazio(), funcionario: tiao, tipo_medida: LR.medidaSugerida(tiao.tipo), quantidade: '3', custo_unitario: '35,5' };
   assert.deepEqual([formT.tipo_medida, LR.validarLinhaMaoObra(formT)], ['TAREFA', {}]);
   ap = (await S.adicionarLinha('mao-obra', a.id, ap, LR.corpoDaLinhaMaoObra(formT), OPCOES_LINHA)).apontamento;
-  const { operation_id: _ot, ...restoT } = ultimoEnvio().corpo;
+  const restoT = { ...ultimoEnvio().corpo };
+  delete restoT.operation_id;
   assert.deepEqual(restoT, { funcionario_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '3', custo_unitario: '35.5', empresa_id: s.e1.id, versao: 2 });
   assert.deepEqual([ap.mao_obra[1].custo_unitario, ap.mao_obra[1].custo_total], ['35.5000', LR.custoDaLinhaMaoObra(formT).total]);
   const formP = { ...LR.formularioMaoObraVazio(), funcionario: LR.funcionarioEscolhido(funcs.itens[1]), tipo_medida: 'HORA', quantidade: '4' };
@@ -821,7 +822,8 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   const rc = await S.cancelarLinha('mao-obra', a.id, ap, lH3, '  lançada errada ', OPCOES_LINHA);
   const envC = ultimoEnvio();
   assert.deepEqual([envC.metodo, envC.caminho], ['POST', `/api/native/atividades/${a.id}/apontamentos/${ap.id}/mao-obra/${lH3.id}/cancelar`]);
-  const { operation_id: _oc, ...restoC } = envC.corpo;
+  const restoC = { ...envC.corpo };
+  delete restoC.operation_id;
   assert.deepEqual(restoC, { empresa_id: s.e1.id, versao: ap.versao, motivo: 'lançada errada' });
   const cancelada = rc.apontamento.mao_obra.find((l) => l.id === lH3.id);
   assert.deepEqual([cancelada.status, cancelada.cancelamento_origem, cancelada.motivo_cancelamento, cancelada.cancelado_por?.id], ['CANCELADO', 'LINHA', 'lançada errada', s.adm.usuario.id]);
@@ -918,7 +920,8 @@ test('serviço: seletores de serviços e de parceiros prestadores, lançar com e
   assert.equal(esc2.valor_unitario, '');
   const formS2 = { ...LR.formularioServicoVazio(), ...esc2, quantidade: '3', valor_unitario: '90,5' };
   ap = (await S.adicionarLinha('servicos', a.id, ap, LR.corpoDaLinhaServico(formS2), OPCOES_LINHA)).apontamento;
-  const { operation_id: _o3, ...resto3 } = ultimoEnvio().corpo;
+  const resto3 = { ...ultimoEnvio().corpo };
+  delete resto3.operation_id;
   assert.deepEqual(resto3, { servico_id: s.frete.id, quantidade: '3', valor_unitario: '90.5', empresa_id: s.e1.id, versao: 3 }, 'sem parceiro e sem documento: nada vai');
   assert.deepEqual([ap.servicos[2].unidade, ap.servicos[2].valor_total, ap.servicos[2].fornecedor_parceiro_id], ['UN', LR.valorDaLinhaServico(formS2), null]);
 
@@ -939,7 +942,8 @@ test('serviço: seletores de serviços e de parceiros prestadores, lançar com e
   const rc = await S.cancelarLinha('servicos', a.id, ap, linha, ' feito por engano ', OPCOES_LINHA);
   const envC = ultimoEnvio();
   assert.deepEqual([envC.metodo, envC.caminho], ['POST', `/api/native/atividades/${a.id}/apontamentos/${ap.id}/servicos/${linha.id}/cancelar`]);
-  const { operation_id: _oc, ...restoC } = envC.corpo;
+  const restoC = { ...envC.corpo };
+  delete restoC.operation_id;
   assert.deepEqual(restoC, { empresa_id: s.e1.id, versao: ap.versao, motivo: 'feito por engano' });
   assert.deepEqual(rc.apontamento.servicos.map((l) => [l.status, l.cancelamento_origem]), [['CANCELADO', 'EDICAO'], ['CONFIRMADO', null], ['CANCELADO', 'LINHA']]);
 
