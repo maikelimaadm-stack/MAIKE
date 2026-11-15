@@ -47,7 +47,7 @@ const acoes = (v) => ({ visualizar: v, novo: v, salvar: v, editar: v, excluir: v
 const linha = (tela, a) => ({ modulo_id: 'manejo', tela_id: tela, ...acoes(false), ...a });
 
 const CAMPOS_PUBLICOS = [
-  'ativo', 'consumo_objetivo_g_cab_dia', 'created_date', 'empresa_id', 'id', 'ingredientes', 'nome', 'observacoes', 'percentual_pv_padrao',
+  'ativo', 'consumo_objetivo_g_cab_dia', 'created_date', 'empresa_id', 'faixa_tolerancia_percentual', 'id', 'ingredientes', 'nome', 'observacoes', 'percentual_pv_padrao',
   'produto_ativo', 'produto_id', 'produto_nome', 'regras', 'tipo', 'total_batida_kg', 'updated_date',
 ].sort();
 
@@ -147,6 +147,8 @@ describe('D-PROD-203 — Formulações: criação, leitura e formato público', 
     assert.equal(f.produto_nome, 'SAL MINERAL 80');
     assert.equal(f.percentual_pv_padrao, 0.1);
     assert.equal(f.consumo_objetivo_g_cab_dia, null);
+    // D-PROD-206: sem faixa informada, null (= o padrão de 15% de quem lê).
+    assert.equal(f.faixa_tolerancia_percentual, null);
     assert.equal(f.observacoes, 'COMPRADO PRONTO');
     assert.equal(f.ativo, true);
     assert.deepEqual([f.ingredientes, f.regras, f.total_batida_kg], [[], [], 0]);
@@ -196,7 +198,7 @@ describe('D-PROD-203 — Formulações: criação, leitura e formato público', 
     assert.equal(r.statusCode, 200, r.body);
     assert.deepEqual(r.json(), [{
       id: ativa.id, empresa_id: cen.e1.id, nome: 'PROTEINADO SECA', tipo: 'BATELADA', produto_id: cen.p.mistura.id, produto_nome: 'PROTEINADO DA FAZENDA',
-      produto_ativo: true, percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800,
+      produto_ativo: true, percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800, faixa_tolerancia_percentual: null,
       regras: [
         { categoria_manejo_id: cen.cat.bezerro.id, categoria_manejo_nome: 'BEZERRO MAMANDO', consome: false, percentual_pv: null },
         { categoria_manejo_id: cen.cat.vaca.id, categoria_manejo_nome: 'VACA LEITEIRA', consome: true, percentual_pv: 0.15 },
@@ -233,6 +235,12 @@ describe('D-PROD-203 — Formulações: validação', () => {
       [{ consumo_objetivo_g_cab_dia: 0 }, 'consumo_objetivo_fora_da_faixa'],
       [{ consumo_objetivo_g_cab_dia: '1,234' }, 'consumo_objetivo_casas_decimais'],
       [{ consumo_objetivo_g_cab_dia: false }, 'consumo_objetivo_invalido'],
+      // D-PROD-206: faixa do farol de consumo, 0 < x ≤ 100, até 2 casas.
+      [{ faixa_tolerancia_percentual: 0 }, 'faixa_tolerancia_fora_da_faixa'],
+      [{ faixa_tolerancia_percentual: '100,01' }, 'faixa_tolerancia_fora_da_faixa'],
+      [{ faixa_tolerancia_percentual: '15,123' }, 'faixa_tolerancia_casas_decimais'],
+      [{ faixa_tolerancia_percentual: true }, 'faixa_tolerancia_invalido'],
+      [{ faixa_tolerancia_percentual: 'muito' }, 'faixa_tolerancia_invalido'],
     ];
     for (const [extra, motivo] of ruins) {
       const r = await criar(cen.token, pronto(cen, extra));
@@ -312,6 +320,27 @@ describe('D-PROD-203 — Formulações: validação', () => {
 });
 
 describe('D-PROD-203 — Formulações: edição, exclusão e escopo', () => {
+  test('D-PROD-206 — faixa de tolerância: criada com vírgula (15,5) gravada exata; PATCH troca, null volta ao padrão; vai nas opções do lançamento', async () => {
+    const cen = await cenario();
+    const r = await criar(cen.token, pronto(cen, { faixa_tolerancia_percentual: '15,5' }));
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().faixa_tolerancia_percentual, 15.5);
+    assert.equal((await prisma().formulacao.findUnique({ where: { id: r.json().id } })).faixa_tolerancia_percentual.toString(), '15.5');
+    const opcoes = await req('GET', comEmpresa('/formulacoes/opcoes-lancamento', cen.e1.id), cen.token);
+    assert.equal(opcoes.json()[0].faixa_tolerancia_percentual, 15.5);
+    const vinte = await req('PATCH', `/formulacoes/${r.json().id}`, cen.token, { empresa_id: cen.e1.id, faixa_tolerancia_percentual: 20 });
+    assert.equal(vinte.statusCode, 200, vinte.body);
+    assert.equal(vinte.json().faixa_tolerancia_percentual, 20);
+    const nome = await req('PATCH', `/formulacoes/${r.json().id}`, cen.token, { empresa_id: cen.e1.id, nome: 'outro nome' });
+    assert.equal(nome.json().faixa_tolerancia_percentual, 20, 'PATCH sem o campo não mexe nele');
+    const limpa = await req('PATCH', `/formulacoes/${r.json().id}`, cen.token, { empresa_id: cen.e1.id, faixa_tolerancia_percentual: null });
+    assert.equal(limpa.statusCode, 200, limpa.body);
+    assert.equal(limpa.json().faixa_tolerancia_percentual, null);
+    assert.equal((await prisma().formulacao.findUnique({ where: { id: r.json().id } })).faixa_tolerancia_percentual, null);
+    const cem = await req('PATCH', `/formulacoes/${r.json().id}`, cen.token, { empresa_id: cen.e1.id, faixa_tolerancia_percentual: '100' });
+    assert.equal(cem.json().faixa_tolerancia_percentual, 100, '100% é o extremo aceito');
+  });
+
   test('PATCH substitui as listas enviadas e mantém as não enviadas; troca para PRONTO exige ingredientes: []; referência que ficou inativa continua aceita', async () => {
     const cen = await cenario();
     const f = (await criar(cen.token, batelada(cen))).json();

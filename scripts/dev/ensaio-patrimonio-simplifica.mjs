@@ -112,7 +112,9 @@ export const NOME_FORMULACOES = '20261114700000_cadformulacao';
  * sobe por último no GREEN, depois da D-PROD-203; fica fora da impressão digital das que FICAM.
  */
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA]);
+/** D-PROD-206 — a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO): fora da partida, por último; sem tabela nova. */
+export const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote'];
 /** As 3 tabelas das Formulações (D-PROD-203). */

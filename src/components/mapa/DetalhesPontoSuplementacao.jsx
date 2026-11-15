@@ -15,6 +15,8 @@ import MedidorLimiteOperacional from "./MedidorLimiteOperacional";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import CardMetricaEvento from "../suplementacao/CardMetricaEvento";
+import { ResumoFechamentoConsumo } from "../suplementacao/FarolConsumo";
+import { resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
 import FormularioLeituraCocho from "../suplementacao/FormularioLeituraCocho";
 import { excluirLeituraCocho } from "@/services/leituraCochoService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
@@ -152,6 +154,12 @@ function DetalhesCocho({ ponto, permissions }) {
     () => eventos.filter((evento) => String(evento?.ponto_suplementacao_id) === String(ponto?.id)),
     [eventos, ponto?.id],
   );
+  // D-PROD-206: o período FECHADO mais recente do cocho (pela data do lançamento; empate, o último da lista).
+  const ultimoFechado = useMemo(() => {
+    const fechados = eventosDoPonto.filter((evento) => Number(evento?.dias_periodo) > 0);
+    return fechados.reduce((maisNovo, evento) => (!maisNovo || String(evento.data_lancamento ?? "") >= String(maisNovo.data_lancamento ?? "") ? evento : maisNovo), null);
+  }, [eventosDoPonto]);
+  const resumoUltimoFechado = useMemo(() => (ultimoFechado ? resumoDoFechamento(ultimoFechado) : null), [ultimoFechado]);
 
   const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0 ?
   ponto.area_vinculada_ids :
@@ -262,6 +270,18 @@ function DetalhesCocho({ ponto, permissions }) {
         <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={permissions.lancar_suplementacao !== false} onExcluir={excluirLeitura} />
       </CardSection>
 
+      <CardSection title="Último período fechado">
+        {ultimoFechado && resumoUltimoFechado ?
+        <div className="space-y-1" data-testid="ultimo-periodo-fechado">
+            <div className="text-[10px] text-slate-500">
+              {ultimoFechado.produto || "-"} · {formatarDia(String(ultimoFechado.data_lancamento ?? "").slice(0, 10))} · {ultimoFechado.dias_periodo} dia(s)
+            </div>
+            <ResumoFechamentoConsumo resumo={resumoUltimoFechado} />
+          </div> :
+        <div className="text-xs text-slate-500">Nenhum período fechado ainda.</div>
+        }
+      </CardSection>
+
       <CardSection title="Total Fornecido por Produto">
         {resumoProdutos.length === 0 ?
         <div className="text-xs text-slate-500">Nenhum produto lançado ainda.</div> :
@@ -319,7 +339,7 @@ function DetalhesCocho({ ponto, permissions }) {
       </CardSection>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
-        <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
+        <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} cicloCompartilhado={nivel.confiabilidade === "compartilhada"} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
       </Dialog>
 
       <LancLoteDialogo open={showLeitura} onOpenChange={setShowLeitura} titulo="Leitura de Cocho">

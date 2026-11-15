@@ -60,7 +60,7 @@ import { PrismaClient } from '@prisma/client';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
-  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_FORMULACOES, NOME_LEITURA, PAPEL_OUTRO,
+  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, PAPEL_OUTRO,
   TOTAL_MIGRATIONS, TABELAS_APAGADAS, TABELAS_DEPOIS_DO_CONTRACT, TABELAS_ESTOQUE, TABELAS_FINAIS_DEPOIS_DO_CONTRACT, TABELAS_NOVAS,
   aplicarMigrationsDaMain, aplicarPeloRunner, checksOperacaoItem, comBanco, comImpressao, contarTabelas, donoEAcl,
   estoqueCoerente, estruturaNovas, exigirUrlLocal, fingerprintV2, historico, impressao, itemEmLitros, migrateDiff,
@@ -106,12 +106,13 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
   test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202 e a D-PROD-203, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 7, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-205');
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 8, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205 e a D-PROD-206');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
-    // D-PROD-203 e D-PROD-205: as Formulações e a Leitura de cocho (releases posteriores) também ficam fora da partida e sobem por último no GREEN.
-    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA]);
+    // D-PROD-203, D-PROD-205 e D-PROD-206: as Formulações, a Leitura de cocho e a faixa de tolerância (releases posteriores)
+    // também ficam fora da partida e sobem por último no GREEN.
+    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
     assert.deepEqual(await donoEAcl(db, TABELAS_DEPOIS_DO_CONTRACT), []);

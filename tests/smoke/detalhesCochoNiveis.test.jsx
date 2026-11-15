@@ -327,3 +327,25 @@ describe('DC-8 — mesma fonte de dados do mapa', () => {
     await waitFor(() => expect(within(secaoCocho()).getAllByText(/Estimativa não confiável: 2 cochos/).length).toBeGreaterThan(0));
   });
 });
+
+describe('DC-206 — D-PROD-206: cartão "Último período fechado" no detalhe do cocho', () => {
+  it('mostra o período fechado mais recente com o farol (texto), %PV e custo; sem período fechado, avisa', async () => {
+    const ponto = cocho('c9');
+    dados.cache.pontosSuplementacao = [ponto];
+    dados.cache.eventosSuplementacao = [
+      evento('e-antigo', 'c9', { data_lancamento: '2026-10-01', dias_periodo: 10, consumo_diario_grupo_kg: 50, farol_consumo: 'acima', consumo_relacao_esperado: 1.3, faixa_tolerancia_aplicada: 15, sobra_informada: true }),
+      evento('e-fechado', 'c9', { data_lancamento: '2026-11-01', dias_periodo: 9, consumo_diario_grupo_kg: 40, farol_consumo: 'abaixo', consumo_relacao_esperado: 0.8, faixa_tolerancia_aplicada: 15, sobra_informada: false, custo_cab_dia: 1.2, custo_total_periodo: 1080, custo_unitario_kg: 3 }),
+      evento('e-aberto', 'c9', { data_lancamento: '2026-11-10' }),
+    ];
+    await renderizar(ponto);
+    const cartao = await screen.findByTestId('ultimo-periodo-fechado');
+    expect(cartao.textContent).toMatch(/01\/11\/2026 · 9 dia\(s\)/);
+    expect(within(cartao).getByTestId('farol-consumo').textContent).toMatch(/Abaixo \(±15%\)/);
+    expect(within(cartao).getByTestId('fechamento-aproximado')).toBeTruthy();
+    expect(cartao.textContent).toMatch(/R\$\s?1,20/);
+    cleanup();
+    dados.cache.eventosSuplementacao = [evento('e-aberto', 'c9')];
+    await renderizar(ponto);
+    expect(screen.getByText('Nenhum período fechado ainda.')).toBeTruthy();
+  });
+});

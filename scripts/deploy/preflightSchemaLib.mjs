@@ -72,6 +72,9 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-205: a leitura de cocho e o farol do mapa leem a tabela nova; sem a migration
   // `20261115100000_leitura_cocho`, `/leituras-cocho` responde 500.
   ['LEITURACOCHO', 'escore'],
+  // D-PROD-206: a Formulação lê e grava a faixa do farol de consumo; sem a migration
+  // `20261115200000_formulacao_faixa_tolerancia`, `/formulacoes` responde 500.
+  ['CADFORMULACAO', 'faixa_tolerancia_percentual'],
 ]);
 
 /**

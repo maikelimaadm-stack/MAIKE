@@ -5,6 +5,8 @@ import { safeDivide } from "../utils/pecuariaUtils";
 import { kgParaSacos } from "./unidadeConversaoUtils";
 import { formatarDia, somarDias } from "@/lib/diaCivil";
 import { baseDoCicloDoEvento } from "@/domain/suplementacao/nivelSuplementacao";
+import { resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
+import { ResumoFechamentoConsumo } from "./FarolConsumo";
 
 /** Dias com até 1 casa ("4", "6,7"). @param {number} dias */
 const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -159,6 +161,14 @@ export default function CardMetricaEvento({
               </div>
             </div>
           </div>
+        </div>
+      }
+
+      {/* FECHAMENTO DO CONSUMO (D-PROD-206) - farol real × esperado, %PV e custo; só período fechado */}
+      {periodoFechado && resumoDoFechamento(evento) &&
+      <div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fechamento do consumo</div>
+          <ResumoFechamentoConsumo resumo={resumoDoFechamento(evento)} />
         </div>
       }
 

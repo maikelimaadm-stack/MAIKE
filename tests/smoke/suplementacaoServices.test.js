@@ -380,6 +380,11 @@ describe('SP — fechamento e reabertura de período', () => {
 
     expect(suplementacao.updateEvento).toHaveBeenCalledWith('e1', {
       sobra_kg: 10, dias_periodo: 5, consumo_diario_grupo_kg: 18,
+      // D-PROD-206: o fechamento do consumo. Sem esperado no evento → sem referência; sem custo; faixa padrão;
+      // sem `sobraInformada` não se sabe se a sobra foi medida (null).
+      consumo_g_cab_dia: 1800, consumo_real_pv_percentual: null, consumo_esperado_pv_percentual: null,
+      consumo_relacao_esperado: null, farol_consumo: 'sem_referencia', farol_consumo_motivo: 'sem_esperado',
+      faixa_tolerancia_aplicada: 15, sobra_informada: null, custo_unitario_kg: null, custo_total_periodo: null, custo_cab_dia: null,
     });
     expect(suplementacao.updateLoteSuplementacao).toHaveBeenCalledWith('sl1', expect.objectContaining({
       dias_periodo: 5, percentual_consumo_lote: 1,
@@ -405,7 +410,13 @@ describe('SP — fechamento e reabertura de período', () => {
       eventoId: 'e1',
       lotesSupl: [{ id: 'sl1', suplementacao_evento_id: 'e1' }, { id: 'sl2', suplementacao_evento_id: 'e2' }],
     });
-    expect(suplementacao.updateEvento).toHaveBeenCalledWith('e1', { dias_periodo: null, consumo_diario_grupo_kg: null });
+    expect(suplementacao.updateEvento).toHaveBeenCalledWith('e1', {
+      dias_periodo: null, consumo_diario_grupo_kg: null,
+      // D-PROD-206: a reabertura limpa o fechamento do consumo (o custo/kg do lançamento fica).
+      consumo_g_cab_dia: null, consumo_real_pv_percentual: null, consumo_esperado_pv_percentual: null, consumo_relacao_esperado: null,
+      farol_consumo: null, farol_consumo_motivo: null, faixa_tolerancia_aplicada: null, sobra_informada: null,
+      custo_total_periodo: null, custo_cab_dia: null,
+    });
     expect(suplementacao.updateLoteSuplementacao).toHaveBeenCalledTimes(1);
     expect(suplementacao.updateLoteSuplementacao).toHaveBeenCalledWith('sl1', {
       dias_periodo: null, consumo_unitario_dia: null,

@@ -41,6 +41,7 @@ const CAMPOS = Object.freeze({
   produto_id: ID,
   percentual_pv_padrao: DECIMAL,
   consumo_objetivo_g_cab_dia: DECIMAL_OU_NULO,
+  faixa_tolerancia_percentual: DECIMAL_OU_NULO,
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
   ingredientes: { type: 'array', maxItems: 50, items: INGREDIENTE },
@@ -93,6 +94,9 @@ const corpoSemCoercao = async (request) => {
   }
   if (tem(corpo, 'consumo_objetivo_g_cab_dia') && corpo.consumo_objetivo_g_cab_dia !== null && !ehDecimalBruto(corpo.consumo_objetivo_g_cab_dia)) {
     throw invalido('consumo_objetivo_g_cab_dia deve ser um número (g/cab/dia)', { field: 'consumo_objetivo_g_cab_dia', reason: 'consumo_objetivo_invalido' });
+  }
+  if (tem(corpo, 'faixa_tolerancia_percentual') && corpo.faixa_tolerancia_percentual !== null && !ehDecimalBruto(corpo.faixa_tolerancia_percentual)) {
+    throw invalido('faixa_tolerancia_percentual deve ser um número (% de tolerância)', { field: 'faixa_tolerancia_percentual', reason: 'faixa_tolerancia_invalido' });
   }
   for (const lista of ['ingredientes', 'regras']) {
     if (tem(corpo, lista) && !Array.isArray(corpo[lista])) throw invalido(`${lista} deve ser uma lista`, { field: lista, reason: 'lista_invalida' });

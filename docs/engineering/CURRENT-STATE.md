@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-15) — MAIKE-LEITURA-COCHO: leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (D-PROD-205)
+## Missão ativa (2026-11-15) — MAIKE-FECHAMENTO-CONSUMO: fechamento do consumo do cocho (%PV real × esperado, farol pela faixa da formulação, custo por cab/dia) (D-PROD-206)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-206**, decisões do proprietário para a etapa 4 da suplementação (abastecimento fecha o período; farol ±faixa da formulação, padrão 15%; custo pelo estoque; sobra não informada = aproximado) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `45444d21` (merge da PR #295, D-PROD-205) |
+| Escopo | Faixa de tolerância na Formulação (API, tela e coluna); o lançamento grava custo/kg da saída FIFO, faixa e peso vivo de quem consome; sobra vazia = não medida; fechamento puro (`fechamentoConsumo.js`) gravado no evento nos dois caminhos que fecham; farol, %PV, g/cab/dia e custo no cartão do lançamento, no detalhe do cocho ("Último período fechado") e na prévia do abastecimento |
+| Migration | `20261115200000_formulacao_faixa_tolerancia`, **EXPAND** (1 coluna anulável em CADFORMULACAO). SHA-256 `bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c`. Release pelo [runbook](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md) |
+| Release | **Aplicada em produção** em 2026-11-15 às 17:27:54 UTC, caminho B do [runbook](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md), com aprovação do proprietário; postcheck 57 / 0, checksum igual ao pinado, coluna `numeric(5,2)` anulável sem default, 91 tabelas em `public` |
+| Próximas etapas | 2b Produção da batelada, quando o proprietário precisar |
+| Relatório | [`MAIKE-FECHAMENTO-CONSUMO-REPORT.md`](./MAIKE-FECHAMENTO-CONSUMO-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-LEITURA-COCHO: leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (D-PROD-205)
 
 | Campo | Valor |
 |---|---|

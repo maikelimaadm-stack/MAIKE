@@ -49,6 +49,8 @@ const COLUNAS_OK = [
   { table_name: 'CADFORMULACAOREGRA', column_name: 'consome' },
   // D-PROD-205: a leitura de cocho.
   { table_name: 'LEITURACOCHO', column_name: 'escore' },
+  // D-PROD-206: a faixa do farol de consumo.
+  { table_name: 'CADFORMULACAO', column_name: 'faixa_tolerancia_percentual' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
