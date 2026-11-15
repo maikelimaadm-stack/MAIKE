@@ -60,13 +60,16 @@ export const COLECAO_DA_LINHA = Object.freeze(
 export const MEDIDAS_MAO_OBRA = Object.freeze(['HORA', 'DIARIA', 'TAREFA']);
 /** Rótulo de cada medida (a escolha da janela). */
 export const ROTULO_MEDIDA = Object.freeze(/** @type {Record<string, string>} */ ({ HORA: 'Hora', DIARIA: 'Diária', TAREFA: 'Tarefa' }));
-/** Sugestão (não regra) da medida pelo tipo do funcionário (§3); o terceiro não tem sugestão (hora). */
-export const MEDIDA_SUGERIDA = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'HORA', DIARISTA: 'DIARIA', TAREFEIRO: 'TAREFA' }));
+/**
+ * Sugestão (não regra) da medida pelo tipo do funcionário (§3); o terceiro não tem sugestão (hora). D-PROD-209: o
+ * funcionário TERCEIRIZADO (no lugar do TAREFEIRO) sugere hora; a medida TAREFA continua existindo, escolhida na linha.
+ */
+export const MEDIDA_SUGERIDA = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'HORA', DIARISTA: 'DIARIA', TERCEIRIZADO: 'HORA' }));
 /** Origem da mão de obra (D-PROD-208): parceiro com o papel funcionário ou prestador de serviço (terceiro). */
 export const ORIGEM_FUNCIONARIO = 'FUNCIONARIO';
 export const ORIGEM_TERCEIRO = 'TERCEIRO';
 /** Rótulo do tipo do funcionário (detalhe da opção do seletor). */
-export const ROTULO_TIPO_FUNCIONARIO = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'Mensalista', DIARISTA: 'Diarista', TAREFEIRO: 'Tarefeiro' }));
+export const ROTULO_TIPO_FUNCIONARIO = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'Mensalista', DIARISTA: 'Diarista', TERCEIRIZADO: 'Terceirizado' }));
 /** Documento de referência do serviço (VarChar(120)). */
 export const MAX_DOCUMENTO_SERVICO = 120;
 /** Observação da linha (VarChar(500)). */
@@ -560,7 +563,7 @@ export const maoObraEscolhida = (o) => {
   };
 };
 
-/** Medida sugerida pelo tipo do funcionário (MENSALISTA → HORA, DIARISTA → DIARIA, TAREFEIRO → TAREFA). @param {unknown} tipo */
+/** Medida sugerida pelo tipo do funcionário (MENSALISTA → HORA, DIARISTA → DIARIA, TERCEIRIZADO → HORA). @param {unknown} tipo */
 export const medidaSugerida = (tipo) => MEDIDA_SUGERIDA[String(tipo ?? '')] ?? 'HORA';
 
 /** Medida sugerida ao escolher o parceiro: a do tipo do funcionário; terceiro, sem sugestão (hora). @param {MaoObraEscolhida} p */

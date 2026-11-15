@@ -117,8 +117,8 @@ export const temPapelFornecedor = (tipos) => {
 
 // ─── D-PROD-208: dados do papel `funcionario` ───────────────────────────────
 
-/** Tipos do funcionário (CHECK `Fornecedor_funcionario_check`). */
-export const TIPOS_FUNCIONARIO = Object.freeze(['MENSALISTA', 'DIARISTA', 'TAREFEIRO']);
+/** Tipos do funcionário (CHECK `Fornecedor_funcionario_check`; D-PROD-209: TERCEIRIZADO no lugar de TAREFEIRO). */
+export const TIPOS_FUNCIONARIO = Object.freeze(['MENSALISTA', 'DIARISTA', 'TERCEIRIZADO']);
 
 /** As quatro colunas do papel `funcionario` (anuláveis; o CHECK confere tipo e custos ≥ 0). */
 export const CAMPOS_FUNCIONARIO = Object.freeze(['funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria']);

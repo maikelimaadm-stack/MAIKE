@@ -23,11 +23,14 @@ export const PAPEIS_PARCEIRO = Object.freeze([
 /** O papel que mostra (e envia) os dados do funcionário. */
 export const PAPEL_FUNCIONARIO = 'funcionario';
 
-/** Tipos do funcionário (CHECK do servidor), com o rótulo exibido; o tipo sugere a medida da mão de obra. */
+/**
+ * Tipos do funcionário (CHECK do servidor), com o rótulo exibido; o tipo sugere a medida da mão de obra. D-PROD-209: a
+ * escolha é Mensalista, Diarista ou Terceirizado (TERCEIRIZADO no lugar de TAREFEIRO).
+ */
 export const TIPOS_FUNCIONARIO = Object.freeze([
   Object.freeze({ value: 'MENSALISTA', label: 'Mensalista' }),
   Object.freeze({ value: 'DIARISTA', label: 'Diarista' }),
-  Object.freeze({ value: 'TAREFEIRO', label: 'Tarefeiro' }),
+  Object.freeze({ value: 'TERCEIRIZADO', label: 'Terceirizado' }),
 ]);
 
 /** @param {unknown} tipo @returns {string} */

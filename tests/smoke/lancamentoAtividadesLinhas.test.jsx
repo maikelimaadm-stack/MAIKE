@@ -101,7 +101,7 @@ const TIPOS = [
 // Fatia 4 / D-PROD-208: a mão de obra (parceiros funcionário ou terceiro), o serviço e o parceiro prestador (as opções da tela).
 const MAO_OBRA = [
   { id: "f1", nome: "José Silva", origem: "FUNCIONARIO", funcionario_tipo: "MENSALISTA", funcionario_custo_hora: "20.0000", funcionario_custo_diaria: "160.0000" },
-  { id: "f2", nome: "Ana Souza", origem: "FUNCIONARIO", funcionario_tipo: "TAREFEIRO", funcionario_custo_hora: null, funcionario_custo_diaria: null },
+  { id: "f2", nome: "Ana Souza", origem: "FUNCIONARIO", funcionario_tipo: "TERCEIRIZADO", funcionario_custo_hora: null, funcionario_custo_diaria: null },
   { id: "f3", nome: "Pedro Lima", origem: "FUNCIONARIO", funcionario_tipo: "DIARISTA", funcionario_custo_hora: null, funcionario_custo_diaria: "150.0000" },
   { id: "pp2", nome: "Empreiteira Rocha", origem: "TERCEIRO", funcionario_tipo: null, funcionario_custo_hora: null, funcionario_custo_diaria: null },
 ];
@@ -1267,7 +1267,7 @@ describe("LL-MAO-OBRA — janela da linha de mão de obra", () => {
     await waitFor(() => expect(screen.getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("16 h · R$ 320,00"));
   });
 
-  it("LL-MAO-OBRA-2 — tarefa (tarefeiro): custo digitado e obrigatório, vai no corpo; diarista sugere diária; sem custo no cadastro avisa", async () => {
+  it("LL-MAO-OBRA-2 — tarefa: custo digitado e obrigatório, vai no corpo; diarista sugere diária; terceirizado sugere hora (D-PROD-209); sem custo no cadastro avisa", async () => {
     await montar();
     await abrir("a4", "ap7");
     fireEvent.click(screen.getByTestId("apontamento-ap7-adicionar-mao-obra"));
@@ -1280,8 +1280,11 @@ describe("LL-MAO-OBRA — janela da linha de mão de obra", () => {
     fireEvent.click(within(janela).getByRole("radio", { name: "Hora" }));
     expect(within(janela).getByTestId("linha-mao-obra-custo-unitario")).toHaveTextContent("Sem custo no cadastro");
     expect(within(janela).getByTestId("linha-mao-obra-sem-custo")).toHaveTextContent("a linha entra sem custo");
-    // Tarefeira: tarefa sugerida e o custo passa a ser digitado.
+    // Terceirizada (D-PROD-209): hora sugerida, sem custo no cadastro; escolhida a tarefa, o custo passa a ser digitado.
     await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Ana Souza/);
+    expect(within(janela).getByRole("radio", { name: "Hora" })).toHaveAttribute("aria-checked", "true");
+    expect(within(janela).getByTestId("linha-mao-obra-custo-unitario")).toHaveTextContent("Sem custo no cadastro");
+    fireEvent.click(within(janela).getByRole("radio", { name: "Tarefa" }));
     expect(within(janela).getByRole("radio", { name: "Tarefa" })).toHaveAttribute("aria-checked", "true");
     expect(within(janela).getByText("Quantidade (tarefa(s))")).toBeTruthy();
     fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "4" } });
@@ -1428,9 +1431,9 @@ describe("LL-MAO-OBRA-TERCEIRO — funcionário ou terceiro (D-PROD-208)", () =>
     fireEvent.click(screen.getByTestId("apontamento-ap7-adicionar-mao-obra"));
     const janela = await screen.findByTestId("janela-linha-mao-obra");
     expect(within(janela).getByText("Funcionário ou terceiro")).toBeTruthy();
-    // A tarefeira sugere tarefa; o terceiro escolhido depois volta para hora (sem sugestão).
-    await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Ana Souza/);
-    expect(within(janela).getByRole("radio", { name: "Tarefa" })).toHaveAttribute("aria-checked", "true");
+    // O diarista sugere diária; o terceiro escolhido depois volta para hora (sem sugestão).
+    await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Pedro Lima/);
+    expect(within(janela).getByRole("radio", { name: "Diária" })).toHaveAttribute("aria-checked", "true");
     await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Empreiteira Rocha/);
     expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/mao-obra")?.query).toMatchObject({ empresa_id: "emp-1" });
     expect(within(janela).getByRole("radio", { name: "Hora" })).toHaveAttribute("aria-checked", "true");
@@ -1567,8 +1570,10 @@ describe("LL-MAO-OBRA-ORIGEM — origem gravada × origem atual do parceiro (D-P
     const custo = () => within(janela).getByTestId("linha-mao-obra-custo-unitario");
     expect(custo()).toHaveTextContent("R$ 22,00");
     expect(janela).toHaveTextContent("Custo da hora (gravado na linha)");
-    // Para a Ana (tarefeira): tarefa, custo digitado.
+    // Para a Ana (terceirizada, D-PROD-209: hora sugerida, sem custo no cadastro); escolhida a tarefa, custo digitado.
     await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Ana Souza/);
+    expect(within(janela).getByRole("radio", { name: "Hora" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(janela).getByRole("radio", { name: "Tarefa" }));
     expect(custo().tagName).toBe("INPUT");
     // De volta à Rocha pelo seletor (a opção diz TERCEIRO): a linha mantém a origem gravada (funcionário), a hora e o custo gravado.
     await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Empreiteira Rocha/);
@@ -1808,7 +1813,8 @@ describe("LL-PORTA — allowlists da mão de obra e do serviço (Fatia 4)", () =
 
     // Regras puras: a sugestão da medida e o custo de cada medida.
     const regras = await import("@/lib/atividadeLinhasRegras");
-    expect(["MENSALISTA", "DIARISTA", "TAREFEIRO", "X"].map(regras.medidaSugerida)).toEqual(["HORA", "DIARIA", "TAREFA", "HORA"]);
+    // D-PROD-209: TERCEIRIZADO sugere hora; TAREFEIRO saiu da lista (desconhecido → hora, como qualquer outro).
+    expect(["MENSALISTA", "DIARISTA", "TERCEIRIZADO", "TAREFEIRO", "X"].map(regras.medidaSugerida)).toEqual(["HORA", "DIARIA", "HORA", "HORA", "HORA"]);
     const jose = regras.maoObraEscolhida(MAO_OBRA[0]);
     expect(jose).toEqual({ id: "f1", rotulo: "José Silva", origem: "FUNCIONARIO", tipo: "MENSALISTA", custo_hora: "20.0000", custo_diaria: "160.0000" });
     expect(regras.custoDaLinhaMaoObra({ parceiro: jose, tipo_medida: "DIARIA", quantidade: "1,5", custo_unitario: "999", observacao: "" })).toEqual({ unitario: "160.0000", total: "240.0000" });

@@ -649,7 +649,7 @@ test('linhas: o salto do medidor conta da leitura vigente — a recusa chega à 
 /**
  * Cenário de custo: o das linhas (Fatia 3) com o tipo da atividade passando a permitir mão de obra e serviço; na
  * fazenda 1, parceiros-funcionário (João mensalista com custo de hora 25,5 e de diária 180; Pedro diarista sem custo; Tião
- * tarefeiro), um inativo e um da fazenda 2; serviços (gradagem em HA com referência 150, frete em UN sem
+ * terceirizado, D-PROD-209), um inativo e um da fazenda 2; serviços (gradagem em HA com referência 150, frete em UN sem
  * referência), um inativo e um da fazenda 2; parceiros prestador de serviço, só fornecedor, prestador inativo e
  * prestador da fazenda 2. Criados direto pelo Prisma (o CRUD dos cadastros é outro módulo).
  */
@@ -672,7 +672,7 @@ const montarCusto = async () => {
     p.fornecedor.create({ data: { cliente_id: s.c, empresa_id: empresa.id, numero_cadastro: `PS-${(n += 1)}`, tipo_pessoa: 'Jurídica', nome, tipos, ativo } });
   const joao = await funcionario(s.e1, { nome: 'João Mensalista', cargo: 'Tratorista', tipo: 'MENSALISTA', custo_hora: '25.5', custo_diaria: '180' });
   const pedro = await funcionario(s.e1, { nome: 'Pedro Diarista', tipo: 'DIARISTA' });
-  const tiao = await funcionario(s.e1, { nome: 'Tião Tarefeiro', tipo: 'TAREFEIRO' });
+  const tiao = await funcionario(s.e1, { nome: 'Tião Terceirizado', tipo: 'TERCEIRIZADO' });
   await funcionario(s.e1, { nome: 'Antigo Inativo', tipo: 'DIARISTA', custo_hora: '10', ativo: false });
   await funcionario(s.e2, { nome: 'Funcionário da Fazenda 2', tipo: 'DIARISTA', custo_hora: '10' });
   const gradagem = await servico(s.e1, { nome: 'Gradagem terceirizada', valor_referencia: '150' });
@@ -756,9 +756,11 @@ test('mão de obra: flags do tipo, seletor de funcionários e terceiros, lançar
   assert.deepEqual(LR.camposAlteradosDaLinhaMaoObra(lH, LR.corpoDaLinhaMaoObra(LR.formularioDaLinhaMaoObra(lH))), {});
   assert.deepEqual(LR.custoDaLinhaMaoObra(LR.formularioDaLinhaMaoObra(lH)), previaH);
 
-  // ── TAREFA digitada (Tião) e HORA sem custo no cadastro (Pedro): a linha entra sem custo.
+  // ── TAREFA digitada (Tião) e HORA sem custo no cadastro (Pedro): a linha entra sem custo. D-PROD-209: o terceirizado
+  // sugere HORA (a medida TAREFA continua existindo; o operador a escolhe na linha).
   const tiao = LR.maoObraEscolhida(porId(s.tiao.id));
-  const formT = { ...LR.formularioMaoObraVazio(), parceiro: tiao, tipo_medida: LR.medidaSugeridaDaMaoObra(tiao), quantidade: '3', custo_unitario: '35,5' };
+  assert.equal(LR.medidaSugeridaDaMaoObra(tiao), 'HORA');
+  const formT = { ...LR.formularioMaoObraVazio(), parceiro: tiao, tipo_medida: 'TAREFA', quantidade: '3', custo_unitario: '35,5' };
   assert.deepEqual([formT.tipo_medida, LR.validarLinhaMaoObra(formT)], ['TAREFA', {}]);
   ap = (await S.adicionarLinha('mao-obra', a.id, ap, LR.corpoDaLinhaMaoObra(formT), OPCOES_LINHA)).apontamento;
   const restoT = { ...ultimoEnvio().corpo };
