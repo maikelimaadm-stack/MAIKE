@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO — relatório do ajuste da Fatia 4 do Lançamento de Atividades
 
-> **fatia 4 (ajuste) · `feat/atividade-mao-obra-parceiro` · PR (a abrir)**
+> **fatia 4 (ajuste) · `feat/atividade-mao-obra-parceiro` · PR #298**
 >
 > Decisão **D-PROD-208** · contrato [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md) ·
 > runbook [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md)

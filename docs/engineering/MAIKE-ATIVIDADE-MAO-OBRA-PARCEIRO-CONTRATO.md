@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO — contrato do ajuste da Fatia 4
 
-> **fatia 4 (ajuste) · `feat/atividade-mao-obra-parceiro` · PR (a abrir)**
+> **fatia 4 (ajuste) · `feat/atividade-mao-obra-parceiro` · PR #298**
 >
 > Decisão **D-PROD-208** (ajusta a D-PROD-207). Pedido do proprietário: "o cadastro de funcionários deveria ser lá em
 > parceiros, outra coisa, eu também tenho mão de obra com terceiros não apenas com funcionários, tipo assim, lá já tenho
