@@ -21,6 +21,16 @@ rollout pausado **D-PROD-41**)
 | Constituição | Expansão D-PROD-205 no `00` e nota no `07`, redigidas pelo agente; **valem só com a aprovação explícita do proprietário no merge** |
 | Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md) |
 
+## Missão anterior (2026-11-14) — MAIKE-OFFLINE-MAPA-IDS: o id do servidor de uma criação offline sobrevive entre passadas do replay (D-PROD-204)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-204** (nasceu D-PROD-198, que a `main` deu ao peso projetado do lote; a D-PROD-203 é da PR #290, mergeada) |
+| Branch / PR | `claude/relaxed-bardeen-jlgbp7`, PR #280, exclusiva desta missão. Nasceu sobre a PR #279 (emenda R2 da D-PROD-195); depois do merge dela, atualizada por merge com a `main` e com a `main` como base |
+| Escopo | `syncOfflineEntityQueue`: depois de um `create` confirmado e antes de tirá-lo da fila, todo item da fila que cita o id offline passa a citar o do servidor (`record_id` e `data`). `substituirIdsMapeados` troca só id `offline_…`, por chave própria do mapa, inclusive dentro de listas. Sem retenção nova. Só frontend, sem migration |
+| Provas | `offlineMapaDeIdsEntrePassadas` (6, todos reprovam com o runtime anterior) + `offlineRuntime`, `estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado`, `loteExclusaoCacheOffline`, `categoriaManejoCriacaoOnline` |
+| Relatório | [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md) |
+
 ## Missão anterior (2026-11-14) — MAIKE-FORMULACOES: Formulações de suplemento (produto pronto ou batelada, %PV por categoria) e formulação obrigatória no lançamento do cocho (D-PROD-203)
 
 | Campo | Valor |
