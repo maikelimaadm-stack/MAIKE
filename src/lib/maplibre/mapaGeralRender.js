@@ -382,19 +382,27 @@ export function resolverIconeSuplementacao(ponto, iconesConfig = []) {
  *    sem limite…), "!" quando o depósito está acima do limite operacional;
  *    senão null. O selo é só visual: o significado já está no `titulo`.
  *
+ *  - `farol` (D-PROD-205, só cocho): a cor da última leitura de cocho
+ *    (vermelho/verde/azul/cinza), desenhada como um ponto no canto de baixo; o
+ *    texto do farol (`indicador_farol.texto`) entra no fim do `titulo`.
+ *
  * @param {any} ponto  ponto decorado pelo Mapa Geral
- * @returns {{ titulo: string, selo: null | { tipo: "neutro" | "excesso", texto: string } }}
+ * @returns {{ titulo: string, selo: null | { tipo: "neutro" | "excesso", texto: string }, farol: null | { cor: string, hex: string } }}
  */
 export function descreverMarcadorSuplementacao(ponto) {
   const nome = String(ponto?.nome_ponto ?? "").trim();
   const nivel = typeof ponto?.indicador_titulo === "string" ? ponto.indicador_titulo.trim() : "";
-  const titulo = nome && nivel ? `${nome} — ${nivel}` : nome || nivel;
+  const base = nome && nivel ? `${nome} — ${nivel}` : nome || nivel;
+  const f = ponto?.indicador_farol;
+  const textoFarol = f && typeof f.texto === "string" ? f.texto.trim() : "";
+  const titulo = textoFarol ? (base ? `${base} · ${textoFarol}` : textoFarol) : base;
+  const farol = f && typeof f.cor === "string" && typeof f.hex === "string" ? { cor: f.cor, hex: f.hex } : null;
   const selo = ponto?.indicador_alerta_excesso === true
     ? { tipo: /** @type {const} */ ("excesso"), texto: "!" }
     : ponto?.indicador_neutro === true
       ? { tipo: /** @type {const} */ ("neutro"), texto: "?" }
       : null;
-  return { titulo, selo };
+  return { titulo, selo, farol };
 }
 
 /**

@@ -7430,4 +7430,29 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-205 -->
+## D-PROD-205 — Leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (etapa 3 da suplementação)
+
+**Data:** 2026-11-15 · **Origem:** decisões do proprietário para a etapa 3 da suplementação: leitura de cocho = **escore** (Vazio / Adequado / Cheio) + **acesso** + **estrutura**, **sem lançamento de estoque**; farol no mapa; escore com 3 níveis; leitura vence depois de **2 dias**; etapa 3 e etapa 4 (fechamento de consumo) em PRs separadas · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Contexto.** O cocho só mostrava o nível ESTIMADO (D-PROD-178), calculado pelo consumo esperado desde o último abastecimento. Não havia como registrar o que o vaqueiro viu no cocho (vazio, cheio de sobra) nem problema de acesso ou de estrutura.
+
+**Decisão.**
+1. **Tabela nova `LEITURACOCHO`** (model `LeituraCocho`), por fazenda: `ponto_suplementacao_id`, `data_leitura` (DATE), `escore` `VAZIO | ADEQUADO | CHEIO`, `acesso` `BOM | RUIM`, `estrutura` `BOA | REPARO | QUEBRADA` (os três por CHECK), `observacoes` e `registrado_por_nome`. FKs pelo tenant: Empresa (Restrict) e PontoSuplementacao (**CASCADE**: apagar o cocho apaga as leituras dele). Índices começando por `cliente_id`.
+2. **Migration EXPAND `20261115100000_leitura_cocho`**: só `CREATE TABLE`/`INDEX`/FK/CHECK na tabela nova e o bloco RLS/REVOKE dela (mesmo corpo de sempre, lista nova, hash `60149f94…` em `DO_RLS_APROVADOS`). SHA-256 `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1`. Nenhuma tabela antiga alterada. 56 migrations e 91 tabelas depois.
+3. **API `/leituras-cocho`** (tenant só do `auth_context`):
+   - `GET` (opcional `empresa_id`, `ponto_suplementacao_id`, `limit`): leitura autenticada isolada por tenant, como `/suplementacao-eventos` (o mapa desenha o farol com ela);
+   - `POST` (corpo fechado): fazenda do tenant (`EMPRESA_NOT_FOUND` 404); cocho do tenant, da MESMA fazenda e que seja cocho (400 `ponto_inexistente`, `ponto_de_outra_fazenda`, `ponto_nao_e_cocho`); `data_leitura` válida e não posterior a hoje no fuso da fazenda (sem fuso configurado, `America/Sao_Paulo`; 400 `data_invalida`, `data_futura`); `escore` obrigatório, `acesso` padrão `BOM`, `estrutura` padrão `BOA`; `registrado_por_nome` da conta autenticada (nome, ou o login), nunca do corpo; auditoria;
+   - `DELETE /:id` físico (404 `LEITURA_COCHO_NOT_FOUND`), com auditoria. Sem PATCH.
+   - **Permissão:** criar e excluir com a chave do mapa `lancar_suplementacao` (quem lança no cocho também lê; nenhuma chave nova a conceder).
+4. **A leitura não movimenta estoque** e não muda o nível estimado do cocho (D-PROD-178).
+5. **Front:**
+   - porta `src/apis/leituras-cocho` com o adaptador offline (`tenantScoped`): **a leitura funciona sem rede** (entra na fila e vai ao servidor no replay); o POST envia só os campos da leitura (o replay acrescenta `created_date`/`updated_date`);
+   - capacidade `leiturasCocho` no cache do mapa;
+   - domínio puro `src/domain/suplementacao/leituraCocho.js`: **farol** pela última leitura (dia mais recente; no mesmo dia, a registrada depois) — VAZIO **vermelho**, ADEQUADO **verde**, CHEIO **azul**; sem leitura ou com mais de **2 dias** (hoje, ontem e anteontem valem) **cinza** "Sem leitura recente"; **avisos** de acesso ruim e de estrutura (reparo/quebrada) sempre da última leitura, mesmo vencida, com a data;
+   - detalhe do cocho no mapa: botão **Leitura** (com `lancar_suplementacao`), seção "Leitura do cocho" com o farol, quem leu, os avisos e as últimas 5 leituras (excluir com confirmação);
+   - marcador do cocho: ponto colorido do farol no canto de baixo (o selo do nível continua no de cima) e o texto do farol no `title`/`aria-label`. Depósito não tem farol.
+6. **Fora desta missão:** etapa 4 — fechamento do consumo em %PV com faixa configurável (padrão ±15%) e custo por cabeça/dia, com decisão e PR próprios. A produção da batelada (etapa 2b) fica para quando o proprietário precisar.
+
+**Relatório:** [`MAIKE-LEITURA-COCHO-REPORT.md`](./MAIKE-LEITURA-COCHO-REPORT.md) · **Runbook:** [`MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md`](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md).
+
+<!-- Próxima decisão: D-PROD-206 -->

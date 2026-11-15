@@ -20,11 +20,11 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 90 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 91 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
---   - Apaga SOMENTE linhas das 75 tabelas de tenant (por cliente_id) e os
+--   - Apaga SOMENTE linhas das 76 tabelas de tenant (por cliente_id) e os
 --     clientes de teste. Nunca toca _prisma_migrations, catálogo global,
 --     identidade do proprietário (MAIKE Admin), auth, storage, schema, RLS,
 --     grants. Sem DROP/TRUNCATE/DDL.
@@ -82,6 +82,8 @@ DECLARE
     -- D-PROD-203: as formulações de suplemento — regras e ingredientes (filhas) antes da formulação, e as três antes
     -- de CADCATEGORIA, Produto e Empresa, que elas referenciam (FKs RESTRICT).
     'CADFORMULACAOREGRA','CADFORMULACAOINGREDIENTE','CADFORMULACAO',
+    -- D-PROD-205: as leituras de cocho antes de PontoSuplementacao (CASCADE) e de Empresa (RESTRICT), que elas referenciam.
+    'LEITURACOCHO',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
     -- D-PROD-189/D-PROD-195: CADCURVAGANHO (curvas de ganho) depois de CADCATEGORIA, que a referencia, e antes de Empresa.
@@ -157,7 +159,7 @@ BEGIN
     RAISE EXCEPTION 'MAIKE-02: falta tabela esperada em public. Nada foi alterado.';
   END IF;
 
-  -- 4. cliente_id exatamente nas 75 de tenant (+ OperadorProdutoMaike, preservada).
+  -- 4. cliente_id exatamente nas 76 de tenant (+ OperadorProdutoMaike, preservada).
   IF (SELECT array_agg(table_name::text ORDER BY table_name) FROM information_schema.columns
        WHERE table_schema = 'public' AND column_name = 'cliente_id')
      IS DISTINCT FROM (SELECT array_agg(x ORDER BY x) FROM unnest(c_tenant || ARRAY['OperadorProdutoMaike']) x) THEN
@@ -213,7 +215,7 @@ BEGIN
 
   -- 7. Trava as tabelas de tenant contra escrita e confere a impressão do inventário.
   LOCK TABLE "AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeApontamento","Atividade","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
-    "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADFORMULACAOREGRA","CADFORMULACAOINGREDIENTE","CADFORMULACAO",
+    "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADFORMULACAOREGRA","CADFORMULACAOINGREDIENTE","CADFORMULACAO","LEITURACOCHO",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
     "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
     "EventoSanitario","Fornecedor","LinhaGeografica","LocalEstoque",

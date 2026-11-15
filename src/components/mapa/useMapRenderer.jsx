@@ -184,6 +184,29 @@ function aplicarTextoESeloSuplementacao(entry, titulo, selo) {
   entry.selo = s;
 }
 
+/**
+ * D-PROD-205 — farol da leitura de cocho: ponto colorido no canto de BAIXO à
+ * direita do ícone (o selo do nível fica no de cima). Decorativo (`aria-hidden`):
+ * o texto do farol já está no `aria-label`. Só recria quando a cor muda.
+ * @param {any} entry
+ * @param {null | { cor: string, hex: string }} farol
+ */
+function aplicarFarolSuplementacao(entry, farol) {
+  const cor = farol?.cor ?? null;
+  if ((entry.farol?.dataset?.farol ?? null) === cor) return;
+  entry.farol?.remove();
+  entry.farol = null;
+  if (!farol) return;
+  const f = document.createElement("span");
+  f.className = "mg-supl-farol";
+  f.dataset.farol = farol.cor;
+  f.setAttribute("aria-hidden", "true");
+  f.style.cssText =
+    `position:absolute;left:calc(50% + 13px);top:calc(50% + 12px);transform:translate(-50%,-50%);width:12px;height:12px;box-sizing:border-box;border-radius:9999px;border:2px solid #fff;background:${farol.hex};box-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none;`;
+  entry.el.appendChild(f);
+  entry.farol = f;
+}
+
 function removerMarcador(entry) {
   if (!entry) return;
   try {
@@ -690,7 +713,7 @@ export default function useMapRenderer(mapInstanceRef) {
         if (!c) continue;
         const { iconUrl, cor, categoria } = resolverIconeSuplementacao(ponto, iconesConfig);
         // Nível no marcador (D-PROD-178): texto do SSOT no title/aria-label e selo.
-        const { titulo, selo } = descreverMarcadorSuplementacao(ponto);
+        const { titulo, selo, farol } = descreverMarcadorSuplementacao(ponto);
         const baseSize = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? 36 : 40;
         const corpoChave = JSON.stringify([iconUrl, baseSize, cor]);
         const key = prefix + ponto.id;
@@ -700,7 +723,7 @@ export default function useMapRenderer(mapInstanceRef) {
           lngLat: [c.lng, c.lat],
           // Título e selo entram no diff: quando o nível muda (virada do dia,
           // lançamento, estoque) o MESMO marcador acompanha.
-          estado: JSON.stringify([c.lat, c.lng, iconUrl, categoria, titulo, selo?.tipo ?? null]),
+          estado: JSON.stringify([c.lat, c.lng, iconUrl, categoria, titulo, selo?.tipo ?? null, farol?.cor ?? null]),
           criar: () => {
             const entry = criarMarcadorClicavel({ iconUrl, baseSize, cor, titulo }, () => {
               const p = markersRef.current.get(key)?.ultimo?.ref?.ponto || ponto;
@@ -709,6 +732,7 @@ export default function useMapRenderer(mapInstanceRef) {
             entry.marker.getElement().style.zIndex = "500";
             entry.corpoChave = corpoChave;
             aplicarTextoESeloSuplementacao(entry, titulo, selo);
+            aplicarFarolSuplementacao(entry, farol);
             return entry;
           },
           atualizar: (entry) => {
@@ -718,6 +742,7 @@ export default function useMapRenderer(mapInstanceRef) {
               entry.corpoChave = corpoChave;
             }
             aplicarTextoESeloSuplementacao(entry, titulo, selo);
+            aplicarFarolSuplementacao(entry, farol);
           },
           ref,
         });
