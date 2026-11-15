@@ -77,10 +77,15 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['CADFORMULACAO', 'faixa_tolerancia_percentual'],
   // D-PROD-207 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
   // apontamento; sem a migration EXPAND da mão de obra e do serviço, os cadastros e o apontamento novo respondem 500.
-  ['Funcionario', 'custo_hora'],
+  // D-PROD-208: a tabela Funcionario saiu (o funcionário é papel do parceiro); o cadastro de parceiros lê os dados do
+  // papel e a linha de mão de obra aponta para o parceiro com a origem; sem a migration CONTRACT
+  // `20261116000000_mao_obra_parceiro`, Parceiros e o apontamento respondem 500.
   ['Servico', 'unidade_medida_id'],
   ['AtividadeApontamentoMaoObra', 'tipo_medida'],
   ['AtividadeApontamentoServico', 'fornecedor_parceiro_id'],
+  ['Fornecedor', 'funcionario_tipo'],
+  ['AtividadeApontamentoMaoObra', 'parceiro_id'],
+  ['AtividadeApontamentoMaoObra', 'origem'],
 ]);
 
 /**

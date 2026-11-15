@@ -2,9 +2,8 @@ import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBase1CellKind";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
-import { compararDecimaisParaOrdenar } from "@/components/funcionarios/TabelaFuncionarios";
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
-import { formatarMoeda } from "@/lib/dinheiroDecimal";
+import { formatarMoeda, paraUnidades } from "@/lib/dinheiroDecimal";
 import { rotuloDoCentro } from "@/lib/lancamentoAtividadesRegras";
 
 export const SERVICOS_STORAGE_KEY = "colunas_servicos_v1";
@@ -37,6 +36,28 @@ function renderCell(item, colId) {
   if (colId === "numero") return <span className="font-mono">{item.numero ?? "–"}</span>;
   return getServicoFieldValue(item, colId) || "–";
 }
+
+/** Texto canônico → BigInt em 4 casas (vazio ou inválido = null). @param {unknown} v */
+const unidadesDe = (v) => {
+  if (typeof v !== "string" || !v) return null;
+  try {
+    return paraUnidades(v, 4);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Valores decimais ordenam pelo valor (nunca pelo texto "R$ …"); vazio por último. Demais colunas: regra da grade.
+ * @param {any} a @param {any} b @param {string} colId @param {string[]} [colunas] @returns {number|null}
+ */
+export const compararDecimaisParaOrdenar = (a, b, colId, colunas = ["valor_referencia"]) => {
+  if (!colunas.includes(colId)) return null;
+  const va = unidadesDe(a?.[colId]);
+  const vb = unidadesDe(b?.[colId]);
+  if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+  return va < vb ? -1 : va > vb ? 1 : 0;
+};
 
 /** @param {any} a @param {any} b @param {string} colId */
 const comparar = (a, b, colId) => compararDecimaisParaOrdenar(a, b, colId, ["valor_referencia"]);

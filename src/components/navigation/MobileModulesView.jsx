@@ -59,7 +59,6 @@ export const ICONE_TELA = {
   // D-PROD-200 — Lançamento de Atividades (a execução; o ícone do antigo Apontamentos de Atividade, ≠ ListChecks dos tipos).
   LancamentoAtividades: ClipboardCheck,
   GruposAtividades: Folder,
-  Funcionarios: Users, // D-PROD-207
   Servicos: Briefcase, // D-PROD-207
   Empresa: Building2,
   Usuarios: Users,

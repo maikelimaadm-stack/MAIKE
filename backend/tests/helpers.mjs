@@ -138,13 +138,13 @@ export const limparBanco = async () => {
   await prisma.atividadeApontamentoProdutoConsumoLote.deleteMany({});
   await prisma.atividadeApontamentoProduto.deleteMany({});
   await prisma.atividadeApontamentoMaquina.deleteMany({});
-  // D-PROD-207 (Fatia 4): linhas de mão de obra e de serviço (apontamento, funcionário, serviço, parceiro, usuários).
+  // D-PROD-207 (Fatia 4): linhas de mão de obra e de serviço (apontamento, parceiro, serviço, usuários).
   await prisma.atividadeApontamentoMaoObra.deleteMany({});
   await prisma.atividadeApontamentoServico.deleteMany({});
   await prisma.atividadeApontamento.deleteMany({});
   await prisma.atividade.deleteMany({});
-  // D-PROD-207: os cadastros da Fatia 4 referenciam Empresa, UnidadeMedida e CentroCusto (RESTRICT).
-  await prisma.funcionario.deleteMany({});
+  // D-PROD-207: o cadastro de Serviço referencia Empresa, UnidadeMedida e CentroCusto (RESTRICT).
+  // D-PROD-208: o Funcionário virou papel do parceiro (tabela "Fornecedor"); a tabela própria saiu.
   await prisma.servico.deleteMany({});
   // D-PROD-157/161: Patrimônio e Frota simplificado (filhas antes das mães; sem
   // autorreferência). Antes do bloco de Gestão porque o bem referencia o centro

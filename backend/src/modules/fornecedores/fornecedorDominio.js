@@ -11,11 +11,14 @@
  *  - funções puras de documento (dígitos, DV de CPF/CNPJ, máscara de CPF);
  *  - vocabulário de papéis com aliases históricos e a regra "é fornecedor";
  *  - projeção de AUDITORIA por allowlist positiva (sem PII);
- *  - a guarda transacional de documento (validade + duplicata na empresa).
+ *  - a guarda transacional de documento (validade + duplicata na empresa);
+ *  - D-PROD-208: os dados do papel `funcionario` (tipo, cargo, custo por hora e
+ *    por diária), aceitos SÓ com o papel e limpos quando ele sai.
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
-import { travarEscopo } from '../gestao/gestaoComum.js';
+import { CASAS_CUSTO, dec } from '../financeiro/decimalFinanceiro.js';
+import { invalido, textoDoCorpo, travarEscopo } from '../gestao/gestaoComum.js';
 
 /** @param {unknown} v */
 export const digitos = (v) => String(v ?? '').replace(/\D/g, '');
@@ -59,7 +62,12 @@ export const mascararCpf = (cpf) => {
   return d.length === 11 ? `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**` : null;
 };
 
-export const PAPEIS = Object.freeze(['fornecedor', 'cliente', 'prestador_servico', 'transportador', 'outros']);
+/** D-PROD-208: `funcionario` — o funcionário da fazenda é um papel do parceiro (a mão de obra da atividade). */
+export const PAPEIS = Object.freeze(['fornecedor', 'cliente', 'prestador_servico', 'transportador', 'funcionario', 'outros']);
+
+/** D-PROD-208 — o papel do funcionário e o do terceiro (prestador de serviço). */
+export const PAPEL_FUNCIONARIO = 'funcionario';
+export const PAPEL_PRESTADOR_SERVICO = 'prestador_servico';
 
 /** @param {string} s */
 const semAcento = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[\s-]+/g, '_');
@@ -69,6 +77,8 @@ const ALIASES = Object.freeze({
   cliente: 'cliente', clientes: 'cliente', comprador: 'cliente',
   prestador_servico: 'prestador_servico', prestador_de_servico: 'prestador_servico', prestador_de_servicos: 'prestador_servico', prestador: 'prestador_servico', prestadora: 'prestador_servico', servicos: 'prestador_servico', servico: 'prestador_servico',
   transportador: 'transportador', transportadora: 'transportador', transportadores: 'transportador',
+  funcionario: 'funcionario', funcionarios: 'funcionario', funcionaria: 'funcionario', funcionarias: 'funcionario',
+  colaborador: 'funcionario', colaboradores: 'funcionario', empregado: 'funcionario', empregados: 'funcionario',
   outros: 'outros', outro: 'outros',
 });
 
@@ -105,6 +115,85 @@ export const temPapelFornecedor = (tipos) => {
   return lerPapeis(tipos).papeis.includes('fornecedor');
 };
 
+// ─── D-PROD-208: dados do papel `funcionario` ───────────────────────────────
+
+/** Tipos do funcionário (CHECK `Fornecedor_funcionario_check`). */
+export const TIPOS_FUNCIONARIO = Object.freeze(['MENSALISTA', 'DIARISTA', 'TAREFEIRO']);
+
+/** As quatro colunas do papel `funcionario` (anuláveis; o CHECK confere tipo e custos ≥ 0). */
+export const CAMPOS_FUNCIONARIO = Object.freeze(['funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria']);
+
+/** Os dois custos de referência (decimais em TEXTO no corpo; a linha de mão de obra copia como snapshot). */
+export const CUSTOS_FUNCIONARIO = Object.freeze(['funcionario_custo_hora', 'funcionario_custo_diaria']);
+
+/** Largura da coluna do cargo (em caracteres, como o PostgreSQL conta). */
+const LARGURA_CARGO = 120;
+
+/** Decimal do custo com 4 casas, ou nulo. @param {unknown} v @returns {string|null} */
+export const custo4 = (v) => (v === null || v === undefined ? null : dec(/** @type {any} */ (v)).toFixed(CASAS_CUSTO));
+
+/**
+ * Os dados do funcionário presentes no corpo, normalizados (ausente = `undefined`,
+ * não entra). Tipo na lista fechada; cargo texto em MAIÚSCULAS (≤ 120 depois de
+ * convertido); custos texto decimal ≥ 0 (até 10 dígitos e 4 casas) — número JSON
+ * não entra (o `Number` perderia casas). Formato errado → 400.
+ * @param {Record<string, unknown>} entrada
+ * @returns {Record<string, string|null>}
+ */
+export const dadosFuncionarioDoCorpo = (entrada) => {
+  /** @type {Record<string, string|null>} */
+  const d = {};
+  const e = entrada && typeof entrada === 'object' ? entrada : {};
+  if (e.funcionario_tipo !== undefined) {
+    if (e.funcionario_tipo !== null && (typeof e.funcionario_tipo !== 'string' || !TIPOS_FUNCIONARIO.includes(e.funcionario_tipo))) {
+      throw invalido(`funcionario_tipo deve ser um de: ${TIPOS_FUNCIONARIO.join(', ')}`, { field: 'funcionario_tipo', reason: 'formato' });
+    }
+    d.funcionario_tipo = /** @type {string|null} */ (e.funcionario_tipo);
+  }
+  if (e.funcionario_cargo !== undefined) {
+    const cargo = textoDoCorpo(e.funcionario_cargo, 'funcionario_cargo', { maiusculas: true }) ?? null;
+    if (cargo !== null && [...cargo].length > LARGURA_CARGO) {
+      throw invalido(`funcionario_cargo passa de ${LARGURA_CARGO} caracteres`, { field: 'funcionario_cargo', reason: 'tamanho_excedido' });
+    }
+    d.funcionario_cargo = cargo;
+  }
+  for (const campo of CUSTOS_FUNCIONARIO) {
+    const v = e[campo];
+    if (v === undefined) continue;
+    if (v === null) { d[campo] = null; continue; }
+    if (typeof v !== 'string' || !/^\d{1,10}(\.\d{1,4})?$/.test(v)) {
+      throw invalido(`${campo} deve ser texto decimal não negativo, com até 10 dígitos e 4 casas (ex.: "12.5")`, { field: campo, reason: 'formato' });
+    }
+    d[campo] = dec(v).toFixed(CASAS_CUSTO);
+  }
+  return d;
+};
+
+/**
+ * A regra do papel (D-PROD-208), aplicada sobre os dados já normalizados:
+ *  - COM o papel `funcionario` nos papéis finais: os campos enviados ficam;
+ *  - SEM o papel: qualquer campo enviado com valor → 422
+ *    `PARCEIRO_FUNCIONARIO_SEM_PAPEL` (nulo é aceito: não há o que gravar);
+ *    e, se o registro tinha algum dado de funcionário, os quatro são limpos
+ *    (tirar o papel limpa os dados).
+ * Devolve as colunas a gravar (pode ser `{}`).
+ * @param {Record<string, string|null>} dados  saída de `dadosFuncionarioDoCorpo`
+ * @param {unknown} tiposFinais  os `tipos` que o registro terá
+ * @param {Record<string, any>|null} [antes]  o registro gravado (na edição)
+ * @returns {Record<string, string|null>}
+ */
+export const aplicarPapelFuncionario = (dados, tiposFinais, antes = null) => {
+  if (lerPapeis(tiposFinais).papeis.includes(PAPEL_FUNCIONARIO)) return { ...dados };
+  const comValor = CAMPOS_FUNCIONARIO.find((c) => dados[c] !== undefined && dados[c] !== null);
+  if (comValor) {
+    throw new AppError('PARCEIRO_FUNCIONARIO_SEM_PAPEL', 'os dados do funcionário (tipo, cargo e custos) só valem para parceiro com o papel funcionário: marque o papel ou não envie os campos', {
+      details: { field: comValor, reason: 'exige_papel_funcionario' },
+    });
+  }
+  const tinha = antes && CAMPOS_FUNCIONARIO.some((c) => antes[c] !== null && antes[c] !== undefined);
+  return tinha ? Object.fromEntries(CAMPOS_FUNCIONARIO.map((c) => [c, null])) : {};
+};
+
 /**
  * Projeção de AUDITORIA por allowlist positiva (B1/R2): só identificadores
  * internos, empresa, número, tipo de pessoa, situação e papéis canônicos.
@@ -124,6 +213,12 @@ export const comoAuditoriaFornecedor = (r) => {
     ativo: typeof r?.ativo === 'boolean' ? r.ativo : null,
     papeis,
     tipos_legados_qtd: legados.length,
+    // D-PROD-208: do funcionário, o tipo (lista fechada) e os custos de referência (os mesmos valores que a linha de
+    // mão de obra já audita como snapshot); o cargo é texto livre: só se há.
+    funcionario_tipo: TIPOS_FUNCIONARIO.includes(r?.funcionario_tipo) ? r.funcionario_tipo : null,
+    funcionario_custo_hora: custo4(r?.funcionario_custo_hora),
+    funcionario_custo_diaria: custo4(r?.funcionario_custo_diaria),
+    tem_funcionario_cargo: Boolean(r?.funcionario_cargo),
   };
 };
 
@@ -132,6 +227,8 @@ const COLUNAS_AUDITAVEIS = Object.freeze([
   'empresa_id', 'numero_cadastro', 'tipo_pessoa', 'nome', 'razao_social', 'cpf', 'cnpj', 'rg', 'data_nascimento',
   'inscricao_estadual', 'nome_responsavel', 'telefone', 'email', 'endereco', 'cidade', 'codigo_ibge', 'estado', 'cep',
   'observacoes', 'tipos', 'ativo',
+  // D-PROD-208 — dados do papel funcionário.
+  'funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria',
 ]);
 
 /**

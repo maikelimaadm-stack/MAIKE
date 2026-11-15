@@ -313,8 +313,8 @@ const EXIGENCIAS_DO_TIPO_ATIVIDADE = Object.freeze({
     flag: 'permite_implemento',
     mensagem: 'o tipo de atividade não permite implemento: ligue "permite implemento" no tipo ou lance a máquina sem implemento',
   }),
-  // D-PROD-207 (Fatia 4): linhas de mão de obra e de serviço.
-  funcionario_id: Object.freeze({
+  // D-PROD-207 (Fatia 4): linhas de mão de obra e de serviço (D-PROD-208: a mão de obra aponta o parceiro).
+  parceiro_id: Object.freeze({
     flag: 'permite_mao_obra',
     mensagem: 'o tipo de atividade não permite mão de obra: ligue "permite mão de obra" no tipo ou lance sem mão de obra',
   }),
@@ -329,9 +329,9 @@ const EXIGENCIAS_DO_TIPO_ATIVIDADE = Object.freeze({
  * `details.field` = o campo; `details.reason` = a flag (`exige_area`,
  * `exige_safra`, `exige_maquina`, `exige_producao`). D-PROD-202: também a
  * linha que o tipo não PERMITE (`produto_id` → `permite_produto`;
- * `implemento_bem_id` → `permite_implemento`). D-PROD-207: `funcionario_id` →
- * `permite_mao_obra`; `servico_id` → `permite_servico`.
- * @param {'area_id'|'safra_ciclo'|'bem_id'|'quantidade_produzida'|'produto_id'|'implemento_bem_id'|'funcionario_id'|'servico_id'} field
+ * `implemento_bem_id` → `permite_implemento`). D-PROD-207: `servico_id` →
+ * `permite_servico`; mão de obra (D-PROD-208: `parceiro_id`) → `permite_mao_obra`.
+ * @param {'area_id'|'safra_ciclo'|'bem_id'|'quantidade_produzida'|'produto_id'|'implemento_bem_id'|'parceiro_id'|'servico_id'} field
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeExigidaPeloTipo = (field, options) => {
@@ -527,16 +527,14 @@ const MENSAGENS_LINHA_ATIVIDADE = Object.freeze({
   }),
   // D-PROD-207 — edição de linha de mão de obra/serviço sem mudança real.
   corpo: Object.freeze({ sem_alteracao: 'os dados enviados são os mesmos da linha gravada: não há o que alterar' }),
-  // D-PROD-207 — linha de mão de obra.
-  funcionario_id: Object.freeze({
-    inexistente: 'o funcionário não foi encontrado',
-    outra_empresa: 'o funcionário é de outra fazenda',
-    inativo: 'o funcionário está inativo',
+  // D-PROD-207 — linha de mão de obra. D-PROD-208: o parceiro (funcionário ou terceiro), recusa uniforme.
+  parceiro_id: Object.freeze({
+    parceiro_invalido: 'o parceiro não foi encontrado como funcionário ou prestador de serviço ativo desta fazenda',
   }),
   tipo_medida: Object.freeze({ obrigatorio: 'informe se a mão de obra é por hora, por diária ou por tarefa' }),
   custo_unitario: Object.freeze({
-    obrigatorio: 'na tarefa, informe o valor por tarefa',
-    nao_aceito: 'por hora ou por diária, o custo vem do cadastro do funcionário: não informe o custo unitário',
+    obrigatorio: 'informe o custo unitário (na tarefa do funcionário e em qualquer medida do terceiro)',
+    nao_aceito: 'por hora ou por diária, o custo do funcionário vem do cadastro do parceiro: não informe o custo unitário',
   }),
   // D-PROD-207 — linha de serviço.
   servico_id: Object.freeze({
@@ -691,10 +689,7 @@ export const estacaoPeriodoSobreposto = (message, options) =>
     options
   );
 
-// D-PROD-207 — cadastros de Funcionário e Serviço da fazenda (Fatia 4).
-export const funcionarioNotFound = (message, options) =>
-  new AppError('FUNCIONARIO_NOT_FOUND', message || 'funcionário não encontrado nesta fazenda', options);
-
+// D-PROD-207 — cadastro de Serviço da fazenda (Fatia 4). D-PROD-208: o de Funcionário saiu.
 export const servicoNotFound = (message, options) =>
   new AppError('SERVICO_NOT_FOUND', message || 'serviço não encontrado nesta fazenda', options);
 

@@ -55,7 +55,7 @@
     "estoquePecuarioLedgerTransacional.test.mjs": 5495,
     "exclusaoMovimentacaoLedger.test.mjs": 18065,
     "foundation.test.mjs": 6884,
-    "funcionarioServicoNativo.test.mjs": 9000,
+    "servicoNativo.test.mjs": 7000,
     "gestaoP1Cadastros.test.mjs": 19056,
     "gestaoP1R2Blindagem.test.mjs": 5209,
     "gestaoP2Naturezas.test.mjs": 12628,

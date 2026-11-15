@@ -60,8 +60,11 @@ export const COLECAO_DA_LINHA = Object.freeze(
 export const MEDIDAS_MAO_OBRA = Object.freeze(['HORA', 'DIARIA', 'TAREFA']);
 /** Rótulo de cada medida (a escolha da janela). */
 export const ROTULO_MEDIDA = Object.freeze(/** @type {Record<string, string>} */ ({ HORA: 'Hora', DIARIA: 'Diária', TAREFA: 'Tarefa' }));
-/** Sugestão (não regra) da medida pelo tipo do funcionário (§3). */
+/** Sugestão (não regra) da medida pelo tipo do funcionário (§3); o terceiro não tem sugestão (hora). */
 export const MEDIDA_SUGERIDA = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'HORA', DIARISTA: 'DIARIA', TAREFEIRO: 'TAREFA' }));
+/** Origem da mão de obra (D-PROD-208): parceiro com o papel funcionário ou prestador de serviço (terceiro). */
+export const ORIGEM_FUNCIONARIO = 'FUNCIONARIO';
+export const ORIGEM_TERCEIRO = 'TERCEIRO';
 /** Rótulo do tipo do funcionário (detalhe da opção do seletor). */
 export const ROTULO_TIPO_FUNCIONARIO = Object.freeze(/** @type {Record<string, string>} */ ({ MENSALISTA: 'Mensalista', DIARISTA: 'Diarista', TAREFEIRO: 'Tarefeiro' }));
 /** Documento de referência do serviço (VarChar(120)). */
@@ -173,8 +176,12 @@ export const rotuloDoLocalDaLinha = (l) => texto(l?.local_estoque?.nome) || text
 export const rotuloDaMaquinaDaLinha = (l) => rotuloDoBem(l?.bem) || texto(l?.bem_nome);
 /** Implemento da linha. @param {any} l */
 export const rotuloDoImplementoDaLinha = (l) => rotuloDoBem(l?.implemento) || texto(l?.implemento_nome);
-/** Funcionário da linha de mão de obra (resumo do servidor ou o nome). @param {any} l */
-export const rotuloDoFuncionarioDaLinha = (l) => texto(l?.funcionario?.nome) || texto(l?.funcionario_nome);
+/** Funcionário ou terceiro da linha de mão de obra (o resumo `parceiro` do servidor ou o nome). @param {any} l */
+export const rotuloDaMaoObraDaLinha = (l) => texto(l?.parceiro?.nome) || texto(l?.parceiro_nome);
+/** A linha (ou o total) de mão de obra é de terceiro? @param {any} l */
+export const ehMaoObraDeTerceiro = (l) => l?.origem === ORIGEM_TERCEIRO;
+/** "Nome" ou "Nome (terceiro)". @param {string} nome @param {any} l */
+export const comMarcaDeTerceiro = (nome, l) => (nome && ehMaoObraDeTerceiro(l) ? `${nome} (terceiro)` : nome);
 /** Serviço da linha. @param {any} l */
 export const rotuloDoServicoDaLinha = (l) => texto(l?.servico?.nome) || texto(l?.servico_nome);
 /** Parceiro (prestador) da linha de serviço; vazio sem parceiro. @param {any} l */
@@ -517,31 +524,47 @@ export const totalDaLinha = (quantidade, unitario) => {
 // ─── Linha de MÃO DE OBRA (janela e "Repetir") ───────────────────────────
 
 /**
- * @typedef {{ id: string, rotulo: string, tipo: string|null, custo_hora: string|null, custo_diaria: string|null } | null} FuncionarioEscolhido
- * @typedef {{ funcionario_id: string, tipo_medida: string, custo_unitario: string|null } | null} MaoObraGravada
+ * @typedef {{ id: string, rotulo: string, origem: 'FUNCIONARIO'|'TERCEIRO', tipo: string|null, custo_hora: string|null,
+ *   custo_diaria: string|null } | null} MaoObraEscolhida
+ *   O parceiro da linha (D-PROD-208): funcionário (com o tipo e os custos do cadastro dele) ou terceiro (prestador de
+ *   serviço, sem custo de cadastro: o custo é sempre digitado).
+ * @typedef {{ parceiro_id: string, tipo_medida: string, custo_unitario: string|null } | null} MaoObraGravada
  *   O que a linha EDITADA gravou (o snapshot do custo): com o mesmo funcionário e a mesma medida, a edição mantém
  *   esse custo; só o "Repetir" e a linha nova usam o cadastro de agora.
- * @typedef {{ funcionario: FuncionarioEscolhido, tipo_medida: string, quantidade: string, custo_unitario: string, observacao: string,
+ * @typedef {{ parceiro: MaoObraEscolhida, tipo_medida: string, quantidade: string, custo_unitario: string, observacao: string,
  *   gravado?: MaoObraGravada }} FormularioLinhaMaoObra
  */
 
 /** @param {unknown} v */
 const decimalOuNulo = (v) => (ehCanonico(v) ? /** @type {string} */ (v) : null);
 
-/** A opção do seletor (`/atividades-opcoes/funcionarios`) como o formulário guarda. @param {any} o @returns {FuncionarioEscolhido} */
-export const funcionarioEscolhido = (o) =>
-  ehObjeto(o) && o.id != null
-    ? {
-        id: String(o.id),
-        rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id),
-        tipo: texto(o.tipo) || null,
-        custo_hora: decimalOuNulo(o.custo_hora),
-        custo_diaria: decimalOuNulo(o.custo_diaria),
-      }
-    : null;
+/** @param {unknown} origem @returns {'FUNCIONARIO'|'TERCEIRO'} */
+const origemDe = (origem) => (origem === ORIGEM_TERCEIRO ? ORIGEM_TERCEIRO : ORIGEM_FUNCIONARIO);
+
+/**
+ * A opção do seletor (`/atividades-opcoes/mao-obra`: `{ id, nome, origem, funcionario_tipo, funcionario_custo_hora,
+ * funcionario_custo_diaria }`) como o formulário guarda. O terceiro não leva custo de cadastro.
+ * @param {any} o @returns {MaoObraEscolhida}
+ */
+export const maoObraEscolhida = (o) => {
+  if (!ehObjeto(o) || o.id == null) return null;
+  const origem = origemDe(o.origem);
+  const funcionario = origem === ORIGEM_FUNCIONARIO;
+  return {
+    id: String(o.id),
+    rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id),
+    origem,
+    tipo: funcionario ? texto(o.funcionario_tipo) || null : null,
+    custo_hora: funcionario ? decimalOuNulo(o.funcionario_custo_hora) : null,
+    custo_diaria: funcionario ? decimalOuNulo(o.funcionario_custo_diaria) : null,
+  };
+};
 
 /** Medida sugerida pelo tipo do funcionário (MENSALISTA → HORA, DIARISTA → DIARIA, TAREFEIRO → TAREFA). @param {unknown} tipo */
 export const medidaSugerida = (tipo) => MEDIDA_SUGERIDA[String(tipo ?? '')] ?? 'HORA';
+
+/** Medida sugerida ao escolher o parceiro: a do tipo do funcionário; terceiro, sem sugestão (hora). @param {MaoObraEscolhida} p */
+export const medidaSugeridaDaMaoObra = (p) => (p && p.origem === ORIGEM_FUNCIONARIO ? medidaSugerida(p.tipo) : 'HORA');
 
 /** "Hora (h)" na unidade da quantidade: "h", "diária(s)", "tarefa(s)". @param {unknown} medida */
 export const unidadeDaMedida = (medida) => (medida === 'DIARIA' ? 'diária(s)' : medida === 'TAREFA' ? 'tarefa(s)' : medida === 'HORA' ? 'h' : '');
@@ -555,52 +578,62 @@ export const formatarQuantidadeMaoObra = (v, medida) => {
 };
 
 /**
- * Custo unitário que vem do CADASTRO do funcionário (hora → `custo_hora`, diária → `custo_diaria`); tarefa (digitado)
- * ou sem custo no cadastro: null.
- * @param {FuncionarioEscolhido} funcionario @param {unknown} medida
+ * Custo unitário que vem do CADASTRO do funcionário (hora → `custo_hora`, diária → `custo_diaria`); tarefa, terceiro
+ * (digitado) ou sem custo no cadastro: null.
+ * @param {MaoObraEscolhida} parceiro @param {unknown} medida
  * @returns {string|null}
  */
-export const custoDoCadastro = (funcionario, medida) => {
-  if (!funcionario) return null;
-  if (medida === 'HORA') return funcionario.custo_hora;
-  if (medida === 'DIARIA') return funcionario.custo_diaria;
+export const custoDoCadastro = (parceiro, medida) => {
+  if (!parceiro || parceiro.origem === ORIGEM_TERCEIRO) return null;
+  if (medida === 'HORA') return parceiro.custo_hora;
+  if (medida === 'DIARIA') return parceiro.custo_diaria;
   return null;
 };
 
-/** O custo unitário é digitado? Só na tarefa. @param {unknown} medida */
-export const custoDigitado = (medida) => medida === 'TAREFA';
+/**
+ * O custo unitário é digitado? Na tarefa do funcionário e SEMPRE no terceiro (D-PROD-208).
+ * @param {unknown} medida @param {unknown} [origem]
+ */
+export const custoDigitado = (medida, origem = null) => origem === ORIGEM_TERCEIRO || medida === 'TAREFA';
+
+/** O custo do formulário é digitado? @param {FormularioLinhaMaoObra} form */
+const custoDigitadoNoForm = (form) => custoDigitado(form?.tipo_medida, form?.parceiro?.origem);
 
 /** @returns {FormularioLinhaMaoObra} */
-export const formularioMaoObraVazio = () => ({ funcionario: null, tipo_medida: 'HORA', quantidade: '', custo_unitario: '', observacao: '', gravado: null });
+export const formularioMaoObraVazio = () => ({ parceiro: null, tipo_medida: 'HORA', quantidade: '', custo_unitario: '', observacao: '', gravado: null });
 
 /**
- * Formulário a partir da linha gravada (EDITAR). Guarda em `gravado` o funcionário, a medida e o custo unitário da
- * linha (o snapshot): enquanto funcionário e medida forem os mesmos, a prévia mostra esse custo (o servidor o mantém
- * e só recalcula o total). O resumo `funcionario` do servidor traz os custos ATUAIS do cadastro: são eles que a
- * prévia mostra ao trocar o funcionário ou a medida (só sem eles na resposta, o snapshot da linha na medida dela).
+ * Formulário a partir da linha gravada (EDITAR). Guarda em `gravado` o parceiro, a medida e o custo unitário da
+ * linha (o snapshot): enquanto parceiro e medida forem os mesmos (funcionário, hora/diária), a prévia mostra esse custo
+ * (o servidor o mantém e só recalcula o total). O resumo `parceiro` do servidor traz os custos ATUAIS do cadastro do
+ * funcionário: são eles que a prévia mostra ao trocar o parceiro ou a medida (só sem eles na resposta, o snapshot da
+ * linha na medida dela). Terceiro: o custo gravado volta como o digitado.
  * @param {any} l @returns {FormularioLinhaMaoObra}
  */
 export const formularioDaLinhaMaoObra = (l) => {
   const medida = MEDIDAS_MAO_OBRA.includes(l?.tipo_medida) ? l.tipo_medida : 'HORA';
-  const f = ehObjeto(l?.funcionario) ? l.funcionario : {};
+  const p = ehObjeto(l?.parceiro) ? l.parceiro : {};
+  const origem = origemDe(l?.origem);
   const snapshot = decimalOuNulo(l?.custo_unitario);
-  /** @param {'custo_hora'|'custo_diaria'} campo @param {string} daMedida */
-  const doCadastro = (campo, daMedida) => (Object.prototype.hasOwnProperty.call(f, campo) ? decimalOuNulo(f[campo]) : medida === daMedida ? snapshot : null);
+  /** @param {'funcionario_custo_hora'|'funcionario_custo_diaria'} campo @param {string} daMedida */
+  const doCadastro = (campo, daMedida) =>
+    origem === ORIGEM_TERCEIRO ? null : Object.prototype.hasOwnProperty.call(p, campo) ? decimalOuNulo(p[campo]) : medida === daMedida ? snapshot : null;
   return {
-    funcionario: l?.funcionario_id
+    parceiro: l?.parceiro_id
       ? {
-          id: String(l.funcionario_id),
-          rotulo: rotuloDoFuncionarioDaLinha(l) || String(l.funcionario_id),
-          tipo: texto(f.tipo) || null,
-          custo_hora: doCadastro('custo_hora', 'HORA'),
-          custo_diaria: doCadastro('custo_diaria', 'DIARIA'),
+          id: String(l.parceiro_id),
+          rotulo: rotuloDaMaoObraDaLinha(l) || String(l.parceiro_id),
+          origem,
+          tipo: origem === ORIGEM_FUNCIONARIO ? texto(p.funcionario_tipo) || null : null,
+          custo_hora: doCadastro('funcionario_custo_hora', 'HORA'),
+          custo_diaria: doCadastro('funcionario_custo_diaria', 'DIARIA'),
         }
       : null,
     tipo_medida: medida,
     quantidade: paraEdicao(l?.quantidade),
-    custo_unitario: medida === 'TAREFA' ? paraEdicao(l?.custo_unitario) : '',
+    custo_unitario: custoDigitado(medida, origem) ? paraEdicao(l?.custo_unitario) : '',
     observacao: typeof l?.observacao === 'string' ? l.observacao : '',
-    gravado: l?.funcionario_id ? { funcionario_id: String(l.funcionario_id), tipo_medida: medida, custo_unitario: snapshot } : null,
+    gravado: l?.parceiro_id ? { parceiro_id: String(l.parceiro_id), tipo_medida: medida, custo_unitario: snapshot } : null,
   };
 };
 
@@ -612,63 +645,67 @@ export const formularioDaLinhaMaoObra = (l) => {
 export const formularioMaoObraDaBase = (l) => ({ ...formularioDaLinhaMaoObra(l), gravado: null });
 
 /**
- * A edição mantém o custo gravado? Hora/diária com o MESMO funcionário e a MESMA medida da linha gravada (o servidor
- * não relê o cadastro). Tarefa: o custo é sempre o digitado.
+ * A edição mantém o custo gravado? Hora/diária do funcionário com o MESMO parceiro e a MESMA medida da linha gravada
+ * (o servidor não relê o cadastro). Tarefa e terceiro: o custo é sempre o digitado.
  * @param {FormularioLinhaMaoObra} form
  */
 export const custoMantidoDaLinha = (form) => {
   const g = form?.gravado;
-  return Boolean(g) && !custoDigitado(form?.tipo_medida) && form?.funcionario?.id === g?.funcionario_id && form?.tipo_medida === g?.tipo_medida;
+  return Boolean(g) && !custoDigitadoNoForm(form) && form?.parceiro?.id === g?.parceiro_id && form?.tipo_medida === g?.tipo_medida;
 };
 
 /**
- * Custo unitário e total da linha de mão de obra (só leitura): tarefa, o digitado; hora/diária, o GRAVADO na linha
- * editada enquanto funcionário e medida forem os mesmos (`custoMantidoDaLinha`), senão o do cadastro atual.
+ * Custo unitário e total da linha de mão de obra (só leitura): tarefa e terceiro, o digitado; hora/diária do
+ * funcionário, o GRAVADO na linha editada enquanto parceiro e medida forem os mesmos (`custoMantidoDaLinha`), senão o
+ * do cadastro atual.
  * @param {FormularioLinhaMaoObra} form
  * @returns {{ unitario: string|null, total: string|null }}
  */
 export const custoDaLinhaMaoObra = (form) => {
-  const unitario = custoDigitado(form?.tipo_medida)
+  const unitario = custoDigitadoNoForm(form)
     ? lerDecimal(form?.custo_unitario, '').valor
     : custoMantidoDaLinha(form)
       ? (form.gravado?.custo_unitario ?? null)
-      : custoDoCadastro(form?.funcionario ?? null, form?.tipo_medida);
+      : custoDoCadastro(form?.parceiro ?? null, form?.tipo_medida);
   return { unitario, total: totalDaLinha(lerDecimal(form?.quantidade, '').valor, unitario) };
 };
 
 /**
- * Validação local da linha de mão de obra (o servidor confere tudo de novo).
+ * Validação local da linha de mão de obra (o servidor confere tudo de novo). O custo digitado (tarefa ou terceiro) é
+ * obrigatório.
  * @param {FormularioLinhaMaoObra} form
  * @returns {Record<string, string>}
  */
 export const validarLinhaMaoObra = (form) => {
   /** @type {Record<string, string>} */
   const erros = {};
-  if (!form?.funcionario?.id) erros.funcionario = 'Escolha o funcionário.';
+  if (!form?.parceiro?.id) erros.parceiro = 'Escolha o funcionário ou terceiro.';
   if (!MEDIDAS_MAO_OBRA.includes(form?.tipo_medida)) erros.tipo_medida = 'Escolha a medida: hora, diária ou tarefa.';
   const q = lerDecimal(form?.quantidade, 'A quantidade');
   if (q.erro) erros.quantidade = q.erro;
   else if (!q.valor) erros.quantidade = 'Informe a quantidade.';
   else if (!ehPositivo(q.valor)) erros.quantidade = 'Informe uma quantidade maior que zero.';
-  if (custoDigitado(form?.tipo_medida)) {
-    const c = lerDecimal(form?.custo_unitario, 'O custo da tarefa');
+  if (custoDigitadoNoForm(form)) {
+    const terceiro = form?.parceiro?.origem === ORIGEM_TERCEIRO;
+    const c = lerDecimal(form?.custo_unitario, terceiro ? 'O custo unitário' : 'O custo da tarefa');
     if (c.erro) erros.custo_unitario = c.erro;
-    else if (!c.valor) erros.custo_unitario = 'Informe o custo da tarefa.';
+    else if (!c.valor) erros.custo_unitario = terceiro ? 'Informe o custo unitário: para terceiro ele é sempre digitado.' : 'Informe o custo da tarefa.';
   }
   if (tamanho(texto(form?.observacao)) > MAX_OBSERVACAO_LINHA) erros.observacao = `No máximo ${MAX_OBSERVACAO_LINHA} caracteres.`;
   return erros;
 };
 
 /**
- * Corpo da linha de mão de obra (formulário JÁ VALIDADO): funcionário, medida, quantidade e observação; o custo
- * unitário SÓ na tarefa (hora e diária vêm do cadastro, no servidor, e o corpo não os aceita).
+ * Corpo da linha de mão de obra (formulário JÁ VALIDADO): parceiro, medida, quantidade e observação; o custo
+ * unitário SÓ quando digitado (tarefa ou terceiro — hora e diária do funcionário vêm do cadastro, no servidor, e o
+ * corpo não os aceita).
  * @param {FormularioLinhaMaoObra} form
  */
 export const corpoDaLinhaMaoObra = (form) => ({
-  funcionario_id: form.funcionario?.id ?? null,
+  parceiro_id: form.parceiro?.id ?? null,
   tipo_medida: form.tipo_medida,
   quantidade: lerDecimal(form.quantidade, '').valor,
-  ...(custoDigitado(form.tipo_medida) ? { custo_unitario: lerDecimal(form.custo_unitario, '').valor } : {}),
+  ...(custoDigitadoNoForm(form) ? { custo_unitario: lerDecimal(form.custo_unitario, '').valor } : {}),
   observacao: texto(form.observacao) || null,
 });
 
@@ -805,13 +842,14 @@ export const camposAlteradosDaLinha = (linha, corpo) => {
 };
 
 /**
- * PATCH mínimo da mão de obra: trocar a medida para TAREFA leva sempre o custo digitado (mesmo que igual ao snapshot
- * da hora/diária anterior), para o servidor não herdar o custo do cadastro.
+ * PATCH mínimo da mão de obra: trocar a medida ou o parceiro com o custo DIGITADO (tarefa ou terceiro) leva sempre o
+ * custo (mesmo que igual ao snapshot anterior), para o servidor não herdar o custo do cadastro nem o da linha antiga.
  * @param {any} linha @param {Record<string, any>} corpo
  */
 export const camposAlteradosDaLinhaMaoObra = (linha, corpo) => {
   const saida = camposAlteradosDaLinha(linha, corpo);
-  if (saida.tipo_medida === 'TAREFA' && Object.prototype.hasOwnProperty.call(corpo, 'custo_unitario')) saida.custo_unitario = corpo.custo_unitario;
+  const trocou = Object.prototype.hasOwnProperty.call(saida, 'tipo_medida') || Object.prototype.hasOwnProperty.call(saida, 'parceiro_id');
+  if (trocou && Object.prototype.hasOwnProperty.call(corpo, 'custo_unitario')) saida.custo_unitario = corpo.custo_unitario;
   return saida;
 };
 
@@ -867,9 +905,10 @@ export const totaisParaExibir = (totais, atividade) => {
     uso: formatarUso(m.quantidade_uso, m.medidor_tipo, m.medidor_unidade) || '—',
     custo: formatarCustoLinha(m.custo_total),
   }));
+  // D-PROD-208: por parceiro (funcionário ou terceiro) e medida; o terceiro vem marcado no nome.
   const maoObra = (Array.isArray(t.mao_obra) ? t.mao_obra : []).filter(ehObjeto).map((o) => ({
-    chave: `${String(o.funcionario_id ?? o.nome ?? '')}${o.tipo_medida ? `-${o.tipo_medida}` : ''}`,
-    nome: texto(o.nome) || texto(o.funcionario?.nome) || 'Mão de obra',
+    chave: `${String(o.parceiro_id ?? o.nome ?? '')}${o.tipo_medida ? `-${o.tipo_medida}` : ''}`,
+    nome: comMarcaDeTerceiro(texto(o.nome) || texto(o.parceiro?.nome) || 'Mão de obra', o),
     quantidade: formatarQuantidadeMaoObra(o.quantidade, o.tipo_medida) || '—',
     custo: formatarCustoLinha(o.custo_total),
   }));
@@ -906,7 +945,7 @@ export const CAMPO_DA_LINHA = Object.freeze(
     quantidade_uso: 'quantidade_uso',
     sem_medidor: 'quantidade_uso',
     justificativa_salto: 'justificativa_salto',
-    funcionario_id: 'funcionario',
+    parceiro_id: 'parceiro',
     tipo_medida: 'tipo_medida',
     custo_unitario: 'custo_unitario',
     servico_id: 'servico',
@@ -968,19 +1007,14 @@ const LINHA_INVALIDA = Object.freeze(
     },
     sem_medidor: { medidor_obrigatorio: 'A máquina não tem medidor: lance com "sem medidor", informando as horas ou o km' },
     justificativa_salto: { curta: 'A justificativa do salto precisa de pelo menos 3 caracteres', longa: 'A justificativa do salto pode ter no máximo 500 caracteres' },
-    funcionario_id: {
-      obrigatorio: 'Escolha o funcionário',
-      inexistente: 'O funcionário não foi encontrado nesta fazenda',
-      outra_empresa: 'O funcionário é de outra fazenda',
-      inativo: 'O funcionário está inativo',
-    },
+    parceiro_id: { obrigatorio: 'Escolha o funcionário ou terceiro' },
     tipo_medida: { obrigatorio: 'Escolha a medida: hora, diária ou tarefa', formato: 'Escolha a medida: hora, diária ou tarefa', invalido: 'Escolha a medida: hora, diária ou tarefa' },
     custo_unitario: {
-      obrigatorio: 'Informe o custo da tarefa',
-      obrigatoria: 'Informe o custo da tarefa',
-      nao_aceito: 'Na hora e na diária o custo vem do cadastro do funcionário: não informe o custo',
-      nao_aceita: 'Na hora e na diária o custo vem do cadastro do funcionário: não informe o custo',
-      negativo: 'O custo da tarefa não pode ser negativo',
+      obrigatorio: 'Informe o custo unitário (na tarefa e para terceiro ele é digitado)',
+      obrigatoria: 'Informe o custo unitário (na tarefa e para terceiro ele é digitado)',
+      nao_aceito: 'Na hora e na diária do funcionário o custo vem do cadastro dele: não informe o custo',
+      nao_aceita: 'Na hora e na diária do funcionário o custo vem do cadastro dele: não informe o custo',
+      negativo: 'O custo unitário não pode ser negativo',
     },
     servico_id: {
       obrigatorio: 'Escolha o serviço',
@@ -1001,6 +1035,8 @@ const LINHA_INVALIDA = Object.freeze(
 const LINHA_INVALIDA_DO_CAMPO = Object.freeze(
   /** @type {Record<string, string>} */ ({
     fornecedor_parceiro_id: 'O parceiro escolhido não pode ser usado: ele precisa ser um prestador de serviço ativo desta fazenda',
+    // D-PROD-208: o funcionário ou terceiro da mão de obra (parceiro ativo com o papel funcionário ou prestador de serviço).
+    parceiro_id: 'O funcionário ou terceiro escolhido não pode ser usado: ele precisa ser um parceiro ativo desta fazenda com o papel funcionário ou prestador de serviço',
   }),
 );
 

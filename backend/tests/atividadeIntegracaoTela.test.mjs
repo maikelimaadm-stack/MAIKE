@@ -659,7 +659,14 @@ const montarCusto = async () => {
   await p.tipoAtividade.updateMany({ where: { cliente_id: s.c, id: s.tipoLinhas.id }, data: { permite_mao_obra: true, permite_servico: true } });
   const un = await p.unidadeMedida.create({ data: { cliente_id: s.c, numero_unidade: 'U-2', sigla: 'UN', descricao: 'Unidade' } });
   let n = 0;
-  const funcionario = (empresa, dados) => p.funcionario.create({ data: { cliente_id: s.c, empresa_id: empresa.id, numero: `F-${(n += 1)}`, ...dados } });
+  // D-PROD-208: o funcionário é um PARCEIRO com o papel `funcionario` e os dados dele nas colunas `funcionario_*`.
+  const funcionario = (empresa, { cargo = null, tipo, custo_hora = null, custo_diaria = null, ...dados }) =>
+    p.fornecedor.create({
+      data: {
+        cliente_id: s.c, empresa_id: empresa.id, numero_cadastro: `F-${(n += 1)}`, tipo_pessoa: 'Física', tipos: ['funcionario'],
+        funcionario_tipo: tipo, funcionario_cargo: cargo, funcionario_custo_hora: custo_hora, funcionario_custo_diaria: custo_diaria, ...dados,
+      },
+    });
   const servico = (empresa, dados) => p.servico.create({ data: { cliente_id: s.c, empresa_id: empresa.id, numero: `S-${(n += 1)}`, unidade_medida_id: s.un.id, ...dados } });
   const parceiro = (empresa, nome, tipos, ativo = true) =>
     p.fornecedor.create({ data: { cliente_id: s.c, empresa_id: empresa.id, numero_cadastro: `PS-${(n += 1)}`, tipo_pessoa: 'Jurídica', nome, tipos, ativo } });
@@ -725,7 +732,7 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   assert.deepEqual([envH.metodo, envH.caminho], ['POST', `/api/native/atividades/${a.id}/apontamentos/${ap.id}/mao-obra`]);
   const { operation_id: oh, ...restoH } = envH.corpo;
   assert.match(oh, /^[A-Za-z0-9_.:-]{8,128}$/);
-  assert.deepEqual(restoH, { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8', empresa_id: s.e1.id, versao: 1 }, 'hora: o custo não vai (o servidor o recusaria)');
+  assert.deepEqual(restoH, { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8', empresa_id: s.e1.id, versao: 1 }, 'hora: o custo não vai (o servidor o recusaria)');
   // A resposta crua traz a linha escrita em `mao_obra` (singular); a tela lê o apontamento relido.
   const cruH = recebidos.at(-1);
   assert.equal(cruH.status, 201);
@@ -735,7 +742,7 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   const lH = ap.mao_obra[0];
   assert.deepEqual(cruH.corpo.mao_obra, lH);
   assert.deepEqual(
-    [ap.versao, lH.status, lH.funcionario_id, lH.tipo_medida, lH.quantidade, lH.custo_unitario, lH.custo_total],
+    [ap.versao, lH.status, lH.parceiro_id, lH.tipo_medida, lH.quantidade, lH.custo_unitario, lH.custo_total],
     [2, 'CONFIRMADO', s.joao.id, 'HORA', '8.0000', previaH.unitario, previaH.total]
   );
   assert.deepEqual([LR.rotuloDoFuncionarioDaLinha(lH), LR.formatarQuantidadeMaoObra(lH.quantidade, lH.tipo_medida)], ['João Mensalista', '8 h']);
@@ -750,12 +757,12 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   ap = (await S.adicionarLinha('mao-obra', a.id, ap, LR.corpoDaLinhaMaoObra(formT), OPCOES_LINHA)).apontamento;
   const restoT = { ...ultimoEnvio().corpo };
   delete restoT.operation_id;
-  assert.deepEqual(restoT, { funcionario_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '3', custo_unitario: '35.5', empresa_id: s.e1.id, versao: 2 });
+  assert.deepEqual(restoT, { parceiro_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '3', custo_unitario: '35.5', empresa_id: s.e1.id, versao: 2 });
   assert.deepEqual([ap.mao_obra[1].custo_unitario, ap.mao_obra[1].custo_total], ['35.5000', LR.custoDaLinhaMaoObra(formT).total]);
   const formP = { ...LR.formularioMaoObraVazio(), funcionario: LR.funcionarioEscolhido(funcs.itens[1]), tipo_medida: 'HORA', quantidade: '4' };
   assert.deepEqual(LR.custoDaLinhaMaoObra(formP), { unitario: null, total: null }, 'a janela avisa: sem custo no cadastro');
   ap = (await S.adicionarLinha('mao-obra', a.id, ap, LR.corpoDaLinhaMaoObra(formP), OPCOES_LINHA)).apontamento;
-  assert.deepEqual([ap.mao_obra[2].funcionario_id, ap.mao_obra[2].custo_unitario, ap.mao_obra[2].custo_total], [s.pedro.id, null, null]);
+  assert.deepEqual([ap.mao_obra[2].parceiro_id, ap.mao_obra[2].custo_unitario, ap.mao_obra[2].custo_total], [s.pedro.id, null, null]);
 
   // ── editar trocando a medida HORA → DIÁRIA: o custo vem do cadastro (o corpo não leva custo) e a prévia concorda.
   const formD = { ...LR.formularioDaLinhaMaoObra(lH), tipo_medida: 'DIARIA', quantidade: '1' };
@@ -769,9 +776,9 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   assert.deepEqual(restoD, { tipo_medida: 'DIARIA', quantidade: '1', empresa_id: s.e1.id, versao: 4 });
   assert.equal(recebidos.at(-1).corpo.mao_obra.id, rd.apontamento.mao_obra.at(-1).id, 'a escrita devolve a linha NOVA');
   ap = rd.apontamento;
-  const lD = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.funcionario_id === s.joao.id);
+  const lD = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.parceiro_id === s.joao.id);
   assert.deepEqual(
-    ap.mao_obra.filter((l) => l.funcionario_id === s.joao.id).map((l) => [l.status, l.tipo_medida, l.quantidade, l.custo_unitario, l.custo_total, l.cancelamento_origem]),
+    ap.mao_obra.filter((l) => l.parceiro_id === s.joao.id).map((l) => [l.status, l.tipo_medida, l.quantidade, l.custo_unitario, l.custo_total, l.cancelamento_origem]),
     [['CANCELADO', 'HORA', '8.0000', '25.5000', '204.0000', 'EDICAO'], ['CONFIRMADO', 'DIARIA', '1.0000', '180.0000', '180.0000', null]]
   );
   assert.deepEqual(LR.custoDaLinhaMaoObra(formD), { unitario: lD.custo_unitario, total: lD.custo_total }, 'a prévia da janela = o gravado');
@@ -781,34 +788,34 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   const mudT2 = LR.camposAlteradosDaLinhaMaoObra(lD, LR.corpoDaLinhaMaoObra(formT2));
   assert.deepEqual(mudT2, { tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '180' });
   ap = (await S.editarLinha('mao-obra', a.id, ap, lD, mudT2, OPCOES_LINHA)).apontamento;
-  const lT2 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.funcionario_id === s.joao.id);
+  const lT2 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.parceiro_id === s.joao.id);
   assert.deepEqual([lT2.tipo_medida, lT2.custo_unitario, lT2.custo_total], ['TAREFA', '180.0000', '360.0000']);
   // TAREFA: só a quantidade muda; o custo digitado continua (não vai de novo).
   const mudQ = LR.camposAlteradosDaLinhaMaoObra(lT2, LR.corpoDaLinhaMaoObra({ ...LR.formularioDaLinhaMaoObra(lT2), quantidade: '3' }));
   assert.deepEqual(mudQ, { quantidade: '3' });
   ap = (await S.editarLinha('mao-obra', a.id, ap, lT2, mudQ, OPCOES_LINHA)).apontamento;
-  const lT3 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.funcionario_id === s.joao.id);
+  const lT3 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.parceiro_id === s.joao.id);
   assert.deepEqual([lT3.tipo_medida, lT3.custo_unitario, lT3.custo_total], ['TAREFA', '180.0000', '540.0000']);
   // TAREFA → HORA: o custo volta a ser o do cadastro (a prévia concorda).
   const formH2 = { ...LR.formularioDaLinhaMaoObra(lT3), tipo_medida: 'HORA' };
   const mudH2 = LR.camposAlteradosDaLinhaMaoObra(lT3, LR.corpoDaLinhaMaoObra(formH2));
   assert.deepEqual(mudH2, { tipo_medida: 'HORA' });
   ap = (await S.editarLinha('mao-obra', a.id, ap, lT3, mudH2, OPCOES_LINHA)).apontamento;
-  const lH2 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.funcionario_id === s.joao.id);
+  const lH2 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.parceiro_id === s.joao.id);
   assert.deepEqual([lH2.tipo_medida, lH2.quantidade, lH2.custo_unitario, lH2.custo_total], ['HORA', '3.0000', '25.5000', '76.5000']);
   assert.deepEqual(LR.custoDaLinhaMaoObra(formH2), { unitario: lH2.custo_unitario, total: lH2.custo_total }, 'a prévia da janela = o gravado');
 
   // O custo de hora sai do cadastro: editar SEM trocar funcionário nem medida mantém o snapshot gravado (só o total
   // segue a quantidade nova), e a prévia da janela concorda; trocar a medida mostraria o cadastro atual.
-  await prisma().funcionario.updateMany({ where: { cliente_id: s.c, id: s.joao.id }, data: { custo_hora: null } });
+  await prisma().fornecedor.updateMany({ where: { cliente_id: s.c, id: s.joao.id }, data: { funcionario_custo_hora: null } });
   ap = await S.obterApontamento(a.id, ap.id);
   const lH2b = ap.mao_obra.find((l) => l.id === lH2.id);
-  assert.deepEqual([lH2b.custo_unitario, lH2b.funcionario.custo_hora], ['25.5000', null], 'a linha guarda o snapshot; o resumo, o cadastro atual');
+  assert.deepEqual([lH2b.custo_unitario, lH2b.parceiro.funcionario_custo_hora], ['25.5000', null], 'a linha guarda o snapshot; o resumo, o cadastro atual');
   const formSem = { ...LR.formularioDaLinhaMaoObra(lH2b), quantidade: '2' };
   assert.deepEqual(LR.custoDaLinhaMaoObra(formSem), { unitario: '25.5000', total: '51.0000' }, 'mesmo funcionário e medida: o gravado');
   assert.deepEqual(LR.custoDaLinhaMaoObra({ ...formSem, tipo_medida: 'DIARIA' }), { unitario: '180.0000', total: '360.0000' }, 'outra medida: o cadastro');
   ap = (await S.editarLinha('mao-obra', a.id, ap, lH2b, LR.camposAlteradosDaLinhaMaoObra(lH2b, LR.corpoDaLinhaMaoObra(formSem)), OPCOES_LINHA)).apontamento;
-  const lH3 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.funcionario_id === s.joao.id);
+  const lH3 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.parceiro_id === s.joao.id);
   assert.deepEqual([lH3.quantidade, lH3.custo_unitario, lH3.custo_total], ['2.0000', '25.5000', '51.0000']);
   assert.deepEqual(LR.custoDaLinhaMaoObra(formSem), { unitario: lH3.custo_unitario, total: lH3.custo_total }, 'a prévia da janela = o gravado');
   // Sem mudança real (o formulário relido): a tela nem envia; se enviar, o servidor responde `sem_alteracao` e nada grava.
@@ -835,8 +842,8 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   ]);
 
   // ── recusas chegam à janela: funcionário inativo/de outra fazenda e tipo sem mão de obra.
-  const inativo = await prisma().funcionario.findFirst({ where: { cliente_id: s.c, ativo: false } });
-  const eInativo = await recusaDe(S.adicionarLinha('mao-obra', a.id, rc.apontamento, { funcionario_id: inativo.id, tipo_medida: 'HORA', quantidade: '1' }, OPCOES_LINHA));
+  const inativo = await prisma().fornecedor.findFirst({ where: { cliente_id: s.c, ativo: false, tipos: { has: 'funcionario' } } });
+  const eInativo = await recusaDe(S.adicionarLinha('mao-obra', a.id, rc.apontamento, { parceiro_id: inativo.id, tipo_medida: 'HORA', quantidade: '1' }, OPCOES_LINHA));
   assert.equal(LR.campoDaLinhaRecusada(eInativo), 'funcionario');
   assert.equal(LR.mensagemDeErroLinha(eInativo, ''), 'O funcionário está inativo. Nada foi gravado.');
   const semFlag = await S.criarAtividade(R.corpoDaAtividade(formCheio(s), { novo: true }));
@@ -966,25 +973,25 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
   };
   await lancar('produtos', { produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '10' }); // 10 × 5,20 = 52
   await lancar('maquinas', { bem_id: s.trator.id, sem_medidor: false, leitura_inicial: '1520.5', leitura_final: '1522.5' }); // 2 h × 100 = 200
-  await lancar('mao-obra', { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' }); // 204
-  await lancar('mao-obra', { funcionario_id: s.joao.id, tipo_medida: 'DIARIA', quantidade: '1' }); // 180
-  await lancar('mao-obra', { funcionario_id: s.pedro.id, tipo_medida: 'HORA', quantidade: '4' }); // sem custo
+  await lancar('mao-obra', { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' }); // 204
+  await lancar('mao-obra', { parceiro_id: s.joao.id, tipo_medida: 'DIARIA', quantidade: '1' }); // 180
+  await lancar('mao-obra', { parceiro_id: s.pedro.id, tipo_medida: 'HORA', quantidade: '4' }); // sem custo
   await lancar('servicos', { servico_id: s.gradagem.id, fornecedor_parceiro_id: s.prestador.id, quantidade: '4', valor_unitario: '150' }); // 600
   await lancar('servicos', { servico_id: s.frete.id, quantidade: '1', valor_unitario: '999' });
   ap = (await S.cancelarLinha('servicos', a.id, ap, ap.servicos[1], 'não houve frete', OPCOES_LINHA)).apontamento; // cancelada: não conta
   // Linhas de um apontamento CANCELADO não contam.
   let ap2 = (await S.criarApontamento(a.id, R.corpoDoApontamento(R.formularioApontamentoVazio('2027-06-12')))).apontamento;
-  ap2 = (await S.adicionarLinha('mao-obra', a.id, ap2, { funcionario_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '1', custo_unitario: '1000' }, OPCOES_LINHA)).apontamento;
+  ap2 = (await S.adicionarLinha('mao-obra', a.id, ap2, { parceiro_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '1', custo_unitario: '1000' }, OPCOES_LINHA)).apontamento;
   ap2 = (await S.adicionarLinha('servicos', a.id, ap2, { servico_id: s.gradagem.id, quantidade: '1', valor_unitario: '1000' }, OPCOES_LINHA)).apontamento;
   await S.cancelarApontamento(a.id, ap2.id, { versao: ap2.versao, motivo: 'dia errado' });
 
   const t = await S.obterTotaisAtividade(a.id);
   assert.equal(enviados.at(-1).caminho, `/api/native/atividades/${a.id}/totais?empresa_id=${s.e1.id}`);
   assert.deepEqual(Object.keys(recebidos.at(-1).corpo).sort(), ['area_executada', 'area_planejada', 'custo_por_ha', 'custo_total', 'mao_obra', 'maquinas', 'produtos', 'servicos', 'unidade_area']);
-  assert.deepEqual(t.mao_obra.map((x) => [x.funcionario_id, x.nome, x.tipo_medida, x.quantidade, x.custo_total]), [
-    [s.joao.id, 'João Mensalista', 'DIARIA', '1.0000', '180.0000'],
-    [s.joao.id, 'João Mensalista', 'HORA', '8.0000', '204.0000'],
-    [s.pedro.id, 'Pedro Diarista', 'HORA', '4.0000', null],
+  assert.deepEqual(t.mao_obra.map((x) => [x.parceiro_id, x.nome, x.origem, x.tipo_medida, x.quantidade, x.custo_total]), [
+    [s.joao.id, 'João Mensalista', 'FUNCIONARIO', 'DIARIA', '1.0000', '180.0000'],
+    [s.joao.id, 'João Mensalista', 'FUNCIONARIO', 'HORA', '8.0000', '204.0000'],
+    [s.pedro.id, 'Pedro Diarista', 'FUNCIONARIO', 'HORA', '4.0000', null],
   ]);
   assert.deepEqual(t.servicos.map((x) => [x.servico_id, x.nome, x.unidade, x.quantidade, x.custo_total]), [[s.gradagem.id, 'Gradagem terceirizada', 'HA', '4.0000', '600.0000']]);
   assert.deepEqual([t.produtos.map((x) => x.custo_total), t.maquinas.map((x) => x.custo_total)], [['52.0000'], ['200.0000']]);
@@ -1017,17 +1024,17 @@ test('mão de obra e serviço: "Repetir" com mao_obra[] e servicos[] (rede cai d
   const lancar = async (tipo, corpo) => {
     base = (await S.adicionarLinha(tipo, a.id, base, corpo, OPCOES_LINHA)).apontamento;
   };
-  await lancar('mao-obra', { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' });
-  await lancar('mao-obra', { funcionario_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' });
+  await lancar('mao-obra', { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' });
+  await lancar('mao-obra', { parceiro_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' });
   await lancar('servicos', { servico_id: s.gradagem.id, fornecedor_parceiro_id: s.prestador.id, quantidade: '3', valor_unitario: '150', documento_referencia: 'NF 9' });
   await lancar('servicos', { servico_id: s.frete.id, quantidade: '1', valor_unitario: '10' });
   base = (await S.cancelarLinha('servicos', a.id, base, base.servicos[1], 'não houve frete', OPCOES_LINHA)).apontamento;
   assert.deepEqual(await s.contagem(), [1, 2, 2]);
 
   // O custo de hora do João sobe no cadastro: a linha gravada guarda o snapshot; o resumo do funcionário, o atual.
-  await prisma().funcionario.updateMany({ where: { cliente_id: s.c, id: s.joao.id }, data: { custo_hora: '30' } });
+  await prisma().fornecedor.updateMany({ where: { cliente_id: s.c, id: s.joao.id }, data: { funcionario_custo_hora: '30' } });
   base = await S.obterApontamento(a.id, base.id);
-  assert.deepEqual([base.mao_obra[0].custo_unitario, base.mao_obra[0].funcionario.custo_hora], ['25.5000', '30.0000']);
+  assert.deepEqual([base.mao_obra[0].custo_unitario, base.mao_obra[0].parceiro.funcionario_custo_hora], ['25.5000', '30.0000']);
 
   // ── "Repetir": as linhas CONFIRMADAS da base preenchidas (o documento do serviço não); o operador ajusta as horas.
   const rasc = LR.linhasParaRepetir(base);
@@ -1056,8 +1063,8 @@ test('mão de obra e serviço: "Repetir" com mao_obra[] e servicos[] (rede cai d
     turno: 'MANHA',
     area_executada_dia: '3',
     mao_obra: [
-      { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '6' },
-      { funcionario_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' },
+      { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '6' },
+      { parceiro_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' },
     ],
     servicos: [{ servico_id: s.gradagem.id, fornecedor_parceiro_id: s.prestador.id, quantidade: '3', valor_unitario: '150', documento_referencia: 'NF 10' }],
   });
@@ -1068,7 +1075,7 @@ test('mão de obra e serviço: "Repetir" com mao_obra[] e servicos[] (rede cai d
   assert.deepEqual(await s.contagem(), [2, 4, 3], 'nada a mais');
   const novo = r1.apontamento;
   assert.deepEqual([novo.data_operacional, novo.turno, novo.status], [HOJE, 'MANHA', 'CONFIRMADO']);
-  assert.deepEqual(novo.mao_obra.map((l) => [l.status, l.funcionario_id, l.tipo_medida, l.quantidade, l.custo_unitario, l.custo_total]), [
+  assert.deepEqual(novo.mao_obra.map((l) => [l.status, l.parceiro_id, l.tipo_medida, l.quantidade, l.custo_unitario, l.custo_total]), [
     ['CONFIRMADO', s.joao.id, 'HORA', '6.0000', '30.0000', '180.0000'],
     ['CONFIRMADO', s.tiao.id, 'TAREFA', '2.0000', '40.0000', '80.0000'],
   ]);
@@ -1100,7 +1107,7 @@ test('mão de obra e serviço: "Repetir" com mao_obra[] e servicos[] (rede cai d
       empresa_id: s.e1.id,
       data_operacional: HOJE,
       operation_id: opD,
-      mao_obra: [{ funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' }],
+      mao_obra: [{ parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' }],
       servicos: [{ servico_id: s.gradagem.id, quantidade: '3', valor_unitario: '150' }],
     },
   });

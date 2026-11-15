@@ -496,7 +496,7 @@ export const obterMedidorDoBem = async (bemId, dia = null) => {
 const SEM_OPCOES = Object.freeze({ itens: [], has_more: false, next_cursor: null });
 
 /**
- * @param {'bens'|'operadores'|'produtos'|'implementos'|'locais'|'funcionarios'|'servicos'|'parceiros-servico'} recurso
+ * @param {'bens'|'operadores'|'produtos'|'implementos'|'locais'|'mao-obra'|'servicos'|'parceiros-servico'} recurso
  * @param {{ q?: string, cursor?: string|null, limit?: number, atividade_id?: string|null, produto_id?: string|null }} [opts]
  */
 const opcoes = async (recurso, opts = {}) => {
@@ -530,11 +530,13 @@ export const listarLocaisDoProduto = async (produtoId) => {
 };
 
 /**
- * Funcionários ATIVOS da fazenda para a linha de mão de obra (`{ id, numero, nome, cargo, tipo, custo_hora,
- * custo_diaria }`): o tipo sugere a medida e os custos de hora/diária são os do cadastro.
+ * Funcionários e terceiros para a linha de mão de obra (D-PROD-208): parceiros ATIVOS com o papel funcionário
+ * (`origem: 'FUNCIONARIO'`) ou prestador de serviço (`origem: 'TERCEIRO'`) —
+ * `{ id, nome, origem, funcionario_tipo, funcionario_custo_hora, funcionario_custo_diaria }`. O tipo do funcionário
+ * sugere a medida e os custos de hora/diária são os do cadastro dele; o terceiro tem o custo sempre digitado.
  * @param {{ q?: string, cursor?: string|null, limit?: number }} [opts]
  */
-export const listarOpcoesFuncionarios = (opts = {}) => opcoes('funcionarios', opts);
+export const listarOpcoesMaoObra = (opts = {}) => opcoes('mao-obra', opts);
 
 /**
  * Serviços ATIVOS da fazenda para a linha de serviço (`{ id, numero, nome, unidade, valor_referencia }`).

@@ -40,6 +40,7 @@ const PAPEIS = /** @type {Record<string, string>} */ ({
   cliente: "cliente",
   prestador_servico: "prestador de serviço",
   transportador: "transportador",
+  funcionario: "funcionário",
   outros: "outros",
 });
 

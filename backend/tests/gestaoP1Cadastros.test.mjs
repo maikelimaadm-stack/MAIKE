@@ -487,3 +487,117 @@ describe('T7 — o banco garante o escopo (FKs compostas e CHECK)', () => {
     await assert.rejects(p.empresa.delete({ where: { id: c.e1.id } }), /Foreign key|P2003|violates/, 'RESTRICT: empresa com centro não some em cascata');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// D-PROD-208 — o funcionário é um PAPEL do parceiro, com os dados dele
+// (tipo, cargo, custo por hora e por diária) aceitos SÓ com o papel.
+describe('T8 — papel funcionário (D-PROD-208)', () => {
+  const func = (c, extra = {}) => ({
+    empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'Zé Tratorista', papeis: ['funcionario'],
+    funcionario_tipo: 'DIARISTA', funcionario_cargo: 'tratorista', funcionario_custo_hora: '25.5', funcionario_custo_diaria: '180', ...extra,
+  });
+
+  test('cria com o papel e os dados (decimais como texto, 4 casas; cargo em maiúsculas); aliases antigos leem o papel; filtro papel=funcionario; auditoria sem o cargo', async () => {
+    const c = await cenario();
+    const a = await ok(req('POST', '/parceiros', c.par, func(c)), 201);
+    assert.deepEqual(
+      [a.papeis, a.funcionario_tipo, a.funcionario_cargo, a.funcionario_custo_hora, a.funcionario_custo_diaria],
+      [['funcionario'], 'DIARISTA', 'TRATORISTA', '25.5000', '180.0000']
+    );
+    const sem = await ok(req('POST', '/parceiros', c.par, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'Só Papel', papeis: ['funcionario', 'prestador_servico'] }), 201);
+    assert.deepEqual([sem.papeis, sem.funcionario_tipo, sem.funcionario_custo_hora], [['prestador_servico', 'funcionario'], null, null], 'os dados são opcionais');
+    const forn = await ok(req('POST', '/parceiros', c.par, pf(c, { cpf: CPF_B })), 201);
+    assert.deepEqual([forn.funcionario_tipo, forn.funcionario_cargo, forn.funcionario_custo_hora, forn.funcionario_custo_diaria], [null, null, null, null]);
+    // Grafias antigas gravadas viram o papel.
+    for (const [i, grafia] of ['Funcionária', 'colaborador', 'Empregado', 'funcionarios'].entries()) {
+      await prisma().fornecedor.create({ data: { cliente_id: c.cliente.id, empresa_id: c.e1.id, numero_cadastro: `ALIAS-${i}`, tipo_pessoa: 'Física', nome: `ALIAS ${i}`, tipos: [grafia] } });
+    }
+    const lista = await ok(req('GET', `/parceiros?empresa_id=${c.e1.id}&papel=funcionario`, c.par));
+    assert.equal(lista.total, 6);
+    assert.ok(lista.items.every((x) => x.papeis.includes('funcionario') && x.tipos_legados.length === 0));
+    const au = await prisma().auditLog.findFirst({ where: { cliente_id: c.cliente.id, entidade: 'Fornecedor', entidade_id: a.id, acao: 'create' } });
+    assert.deepEqual(
+      [au.dados_novos.papeis, au.dados_novos.funcionario_tipo, au.dados_novos.funcionario_custo_hora, au.dados_novos.funcionario_custo_diaria, au.dados_novos.tem_funcionario_cargo],
+      [['funcionario'], 'DIARISTA', '25.5000', '180.0000', true]
+    );
+    assert.ok(!JSON.stringify(au.dados_novos).includes('TRATORISTA'), 'o cargo (texto livre) não vai para a auditoria');
+  });
+
+  test('sem o papel → 422 PARCEIRO_FUNCIONARIO_SEM_PAPEL (criar e editar; nulos passam); formato → 400; nada gravado', async () => {
+    const c = await cenario();
+    const forn = await ok(req('POST', '/parceiros', c.par, pf(c)), 201);
+    const antes = await prisma().fornecedor.count({ where: { cliente_id: c.cliente.id } });
+    for (const campo of ['funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria']) {
+      const valor = { funcionario_tipo: 'MENSALISTA', funcionario_cargo: 'peão', funcionario_custo_hora: '10', funcionario_custo_diaria: '0' }[campo];
+      const r = await req('POST', '/parceiros', c.par, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'X', papeis: ['prestador_servico'], [campo]: valor });
+      assert.deepEqual([r.statusCode, r.json().code, r.json().field, r.json().reason], [422, 'PARCEIRO_FUNCIONARIO_SEM_PAPEL', campo, 'exige_papel_funcionario'], r.body);
+      const e = await req('PATCH', `/parceiros/${forn.id}`, c.par, { empresa_id: c.e1.id, [campo]: valor });
+      assert.deepEqual([e.statusCode, e.json().code], [422, 'PARCEIRO_FUNCIONARIO_SEM_PAPEL'], e.body);
+    }
+    assert.equal(await prisma().fornecedor.count({ where: { cliente_id: c.cliente.id } }), antes);
+    // Nulo sem o papel: nada a gravar, aceito.
+    await ok(req('POST', '/parceiros', c.par, { empresa_id: c.e1.id, tipo_pessoa: 'Jurídica', nome: 'Nulos', papeis: ['cliente'], funcionario_tipo: null, funcionario_custo_hora: null }), 201);
+    // Formato (schema e anti-coerção): tipo fora da lista, custo negativo, número JSON, casas demais, cargo longo.
+    for (const extra of [
+      { funcionario_tipo: 'HORISTA' }, { funcionario_custo_hora: '-1' }, { funcionario_custo_hora: 10 }, { funcionario_custo_diaria: '1.23456' },
+      { funcionario_custo_hora: '1e3' }, { funcionario_cargo: 'x'.repeat(121) },
+    ]) {
+      const r = await req('POST', '/parceiros', c.par, func(c, extra));
+      assert.equal(r.statusCode, 400, `${JSON.stringify(extra).slice(0, 40)} → ${r.body}`);
+    }
+    // 'ß' cresce ao virar maiúsculo: passa do schema, mas o serviço confere de novo (400, nunca 500).
+    const cresce = await req('POST', '/parceiros', c.par, func(c, { funcionario_cargo: 'ß'.repeat(70) }));
+    assert.deepEqual([cresce.statusCode, cresce.json().reason], [400, 'tamanho_excedido'], cresce.body);
+    assert.equal(await prisma().fornecedor.count({ where: { cliente_id: c.cliente.id } }), antes + 1);
+  });
+
+  test('editar os dados com o papel; tirar o papel LIMPA os quatro campos (auditado); recolocar não traz de volta; mandar o papel e os dados juntos', async () => {
+    const c = await cenario();
+    const a = await ok(req('POST', '/parceiros', c.par, func(c, { papeis: ['funcionario', 'fornecedor'] })), 201);
+    const e1 = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, funcionario_custo_hora: '30', funcionario_tipo: 'MENSALISTA' }));
+    assert.deepEqual([e1.funcionario_tipo, e1.funcionario_custo_hora, e1.funcionario_custo_diaria], ['MENSALISTA', '30.0000', '180.0000']);
+    const igual = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, funcionario_custo_hora: '30.00' }));
+    assert.equal(igual.updated_date, e1.updated_date, 'o mesmo valor não regrava');
+    const limpa = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, funcionario_custo_diaria: null }));
+    assert.equal(limpa.funcionario_custo_diaria, null, 'null limpa com o papel');
+    const tira = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, papeis: ['fornecedor'] }));
+    assert.deepEqual(
+      [tira.papeis, tira.funcionario_tipo, tira.funcionario_cargo, tira.funcionario_custo_hora, tira.funcionario_custo_diaria],
+      [['fornecedor'], null, null, null, null]
+    );
+    const g = await prisma().fornecedor.findUnique({ where: { id: a.id } });
+    assert.deepEqual([g.funcionario_tipo, g.funcionario_cargo, g.funcionario_custo_hora, g.funcionario_custo_diaria], [null, null, null, null]);
+    const au = await prisma().auditLog.findFirst({ where: { cliente_id: c.cliente.id, entidade: 'Fornecedor', entidade_id: a.id, acao: 'update' }, orderBy: { createdAt: 'desc' } });
+    assert.deepEqual(au.dados_novos.campos_alterados.sort(), ['funcionario_cargo', 'funcionario_custo_hora', 'funcionario_tipo', 'tipos']);
+    // Tirar o papel e mandar dados no mesmo PATCH → 422.
+    const b = await ok(req('POST', '/parceiros', c.par, func(c, { nome: 'B', cpf: CPF_B })), 201);
+    const r = await req('PATCH', `/parceiros/${b.id}`, c.par, { empresa_id: c.e1.id, papeis: ['cliente'], funcionario_custo_hora: '1' });
+    assert.deepEqual([r.statusCode, r.json().code], [422, 'PARCEIRO_FUNCIONARIO_SEM_PAPEL']);
+    // Recolocar o papel: os dados não voltam (foram limpos); mandar papel + dados juntos grava.
+    const volta = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, papeis: ['fornecedor', 'funcionario'] }));
+    assert.deepEqual([volta.funcionario_tipo, volta.funcionario_custo_hora], [null, null]);
+    const junto = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, funcionario_tipo: 'TAREFEIRO', funcionario_custo_diaria: '0' }));
+    assert.deepEqual([junto.funcionario_tipo, junto.funcionario_custo_diaria], ['TAREFEIRO', '0.0000']);
+    const c2 = await ok(req('POST', '/parceiros', c.par, { empresa_id: c.e1.id, tipo_pessoa: 'Jurídica', nome: 'C', cnpj: CNPJ_A, papeis: ['cliente'] }), 201);
+    const passa = await ok(req('PATCH', `/parceiros/${c2.id}`, c.par, { empresa_id: c.e1.id, papeis: ['cliente', 'funcionario'], funcionario_tipo: 'DIARISTA' }));
+    assert.deepEqual([passa.papeis, passa.funcionario_tipo], [['cliente', 'funcionario'], 'DIARISTA']);
+  });
+
+  test('CRUD legado /fornecedores (administrador): mesma regra — dados só com o papel (422), formato (400), tirar o papel limpa; custos lidos como texto', async () => {
+    const c = await cenario();
+    const sem = await req('POST', '/fornecedores', c.adm, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'L1', tipos: ['fornecedor'], funcionario_custo_hora: '10' });
+    assert.deepEqual([sem.statusCode, sem.json().code], [422, 'PARCEIRO_FUNCIONARIO_SEM_PAPEL'], sem.body);
+    const num = await req('POST', '/fornecedores', c.adm, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'L1', tipos: ['funcionario'], funcionario_custo_hora: 10 });
+    assert.equal(num.statusCode, 400, num.body);
+    const tipo = await req('POST', '/fornecedores', c.adm, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'L1', tipos: ['funcionario'], funcionario_tipo: 'X' });
+    assert.equal(tipo.statusCode, 400, tipo.body);
+    const a = await ok(req('POST', '/fornecedores', c.adm, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'L1', tipos: ['Funcionário'], funcionario_tipo: 'MENSALISTA', funcionario_custo_hora: '12.5' }), 201);
+    assert.deepEqual([a.funcionario_tipo, a.funcionario_custo_hora, a.funcionario_custo_diaria], ['MENSALISTA', '12.5000', null]);
+    const lido = (await ok(req('GET', `/fornecedores?empresa_id=${c.e1.id}`, c.adm))).find((x) => x.id === a.id);
+    assert.equal(lido.funcionario_custo_hora, '12.5000');
+    const e = await req('PATCH', `/fornecedores/${a.id}`, c.adm, { tipos: ['fornecedor'], funcionario_cargo: 'x' });
+    assert.deepEqual([e.statusCode, e.json().code], [422, 'PARCEIRO_FUNCIONARIO_SEM_PAPEL'], e.body);
+    const tira = await ok(req('PATCH', `/fornecedores/${a.id}`, c.adm, { tipos: ['fornecedor'] }));
+    assert.deepEqual([tira.funcionario_tipo, tira.funcionario_custo_hora], [null, null]);
+  });
+});

@@ -152,8 +152,7 @@ export const API_ERROR_CODES = Object.freeze({
   ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
   ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
   ESTACAO_PERIODO_SOBREPOSTO: 'ESTACAO_PERIODO_SOBREPOSTO',
-  // D-PROD-207 — Funcionários e Serviços da fazenda.
-  FUNCIONARIO_NOT_FOUND: 'FUNCIONARIO_NOT_FOUND',
+  // D-PROD-207 — Serviços da fazenda (o funcionário é papel do parceiro desde a D-PROD-208).
   SERVICO_NOT_FOUND: 'SERVICO_NOT_FOUND',
   SERVICO_REFERENCIA_INVALIDA: 'SERVICO_REFERENCIA_INVALIDA',
   // D-PROD-189 — Curvas de Ganho de Peso.
@@ -296,7 +295,6 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:
     'O período se sobrepõe a outra estação ativa desta fazenda. Ajuste as datas ou inative a outra estação.',
-  [API_ERROR_CODES.FUNCIONARIO_NOT_FOUND]: 'Este funcionário não foi encontrado nesta fazenda. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.SERVICO_NOT_FOUND]: 'Este serviço não foi encontrado nesta fazenda. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.SERVICO_REFERENCIA_INVALIDA]:
     'A unidade de medida ou o centro de custo escolhido não está disponível (inativo ou de outra fazenda). Escolha outro.',

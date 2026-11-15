@@ -8,6 +8,9 @@
  * do cookie (R11). Toda leitura vai pelo escopo (cliente_id, empresa_id, …):
  * linha de outro apontamento, de outra fazenda ou de outro tenant dá o mesmo
  * `null` (sem oráculo). Nada aqui toca o financeiro.
+ *
+ * D-PROD-208: a linha aponta o PARCEIRO (`Fornecedor`, papel `funcionario` ou
+ * `prestador_servico`), não mais o cadastro `Funcionario` (que saiu).
  */
 
 import { USUARIO_RESUMO } from './atividadeComum.js';
@@ -19,15 +22,17 @@ export const STATUS_LINHA = Object.freeze({ CONFIRMADO: 'CONFIRMADO', CANCELADO:
 export const ORIGENS_CANCELAMENTO = Object.freeze({ LINHA: 'LINHA', EDICAO: 'EDICAO', APONTAMENTO: 'APONTAMENTO', ATIVIDADE: 'ATIVIDADE' });
 
 /**
- * Resumo do funcionário ao lado do id (só exibição), com os custos ATUAIS do cadastro: a janela de editar e o
- * "Repetir" mostram a prévia do custo que o servidor vai gravar (hora/diária = o cadastro de agora, não o snapshot
- * da linha), inclusive ao trocar a medida.
+ * Resumo do parceiro ao lado do id (só exibição; nada de documento ou contato), com os dados ATUAIS do funcionário:
+ * a janela de editar e o "Repetir" mostram a prévia do custo que o servidor vai gravar (hora/diária = o cadastro de
+ * agora, não o snapshot da linha), inclusive ao trocar a medida.
  */
-export const FUNCIONARIO_RESUMO = Object.freeze({ select: { id: true, numero: true, nome: true, cargo: true, tipo: true, custo_hora: true, custo_diaria: true } });
+export const PARCEIRO_RESUMO = Object.freeze({
+  select: { id: true, nome: true, funcionario_tipo: true, funcionario_cargo: true, funcionario_custo_hora: true, funcionario_custo_diaria: true },
+});
 
 /** `include` da linha: o resumo ao lado de cada id da forma pública. */
 export const INCLUIR_LINHA_MAO_OBRA = Object.freeze({
-  funcionario: FUNCIONARIO_RESUMO,
+  parceiro: PARCEIRO_RESUMO,
   criadoPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
 });
@@ -73,23 +78,24 @@ export const proximaOrdem = async (tx, clienteId, apontamentoId) => {
 export const inserirLinha = (tx, dados) => tx.atividadeApontamentoMaoObra.create({ data: dados, select: { id: true } });
 
 /**
- * O que a regra da linha lê do funcionário: fazenda, situação e os custos do
- * cadastro (o snapshot). Outro tenant = `null`. Lido FOR SHARE: uma inativação
- * ou troca de custo em voo (o UPDATE do cadastro trava FOR NO KEY UPDATE)
- * termina antes e aqui já se lê o estado novo (inativo → 422; custo novo no
- * snapshot); se esta linha chega antes, o cadastro espera o commit dela. A
- * leitura sem trava veria a versão velha e gravaria um vínculo com quem acabou
- * de ser inativado.
+ * O que a regra da linha lê do parceiro: fazenda, situação, papéis e os custos
+ * do funcionário (o snapshot). Outro tenant = `null`. Lido FOR SHARE: uma
+ * inativação, troca de papel ou de custo em voo (o UPDATE do parceiro trava FOR
+ * NO KEY UPDATE) termina antes e aqui já se lê o estado novo (inativo ou sem
+ * papel → 422; custo novo no snapshot); se esta linha chega antes, o cadastro
+ * espera o commit dela. FOR SHARE também segura a FK (uma exclusão em voo
+ * espera e vê o vínculo: `PARCEIRO_EM_USO`). A leitura sem trava veria a versão
+ * velha e gravaria um vínculo com quem acabou de ser inativado.
  * @param {any} tx @param {string} clienteId @param {string} id
- * @returns {Promise<{ id: string, numero: string, nome: string, cargo: string|null, tipo: string, custo_hora: unknown,
- *   custo_diaria: unknown, empresa_id: string, ativo: boolean } | null>}
+ * @returns {Promise<{ id: string, nome: string, empresa_id: string, ativo: boolean, tipos: string[], funcionario_tipo: string|null,
+ *   funcionario_custo_hora: unknown, funcionario_custo_diaria: unknown } | null>}
  */
-export const lerFuncionarioDaLinha = async (tx, clienteId, id) => {
-  const [f] = /** @type {any[]} */ (
-    await tx.$queryRaw`SELECT id, numero, nome, cargo, tipo, custo_hora, custo_diaria, empresa_id, ativo
-      FROM "Funcionario" WHERE cliente_id = ${clienteId} AND id = ${id} FOR SHARE`
+export const lerParceiroDaLinha = async (tx, clienteId, id) => {
+  const [p] = /** @type {any[]} */ (
+    await tx.$queryRaw`SELECT id, nome, empresa_id, ativo, tipos, funcionario_tipo, funcionario_custo_hora, funcionario_custo_diaria
+      FROM "Fornecedor" WHERE cliente_id = ${clienteId} AND id = ${id} FOR SHARE`
   );
-  return f ?? null;
+  return p ?? null;
 };
 
 /**
@@ -147,16 +153,17 @@ export const existeLinhaComChave = async (db, clienteId, chaves) =>
 
 /**
  * Σ quantidade e Σ custo das linhas CONFIRMADAS de apontamentos CONFIRMADOS da
- * atividade, por funcionário e tipo de medida, em ordem de nome.
+ * atividade, por parceiro, origem (funcionário ou terceiro) e tipo de medida,
+ * em ordem de nome.
  * @param {any} db @param {string} clienteId @param {string} empresaId @param {string} atividadeId
- * @returns {Promise<Array<{ funcionario_id: string, nome: string, tipo_medida: string, quantidade: unknown, custo: unknown }>>}
+ * @returns {Promise<Array<{ parceiro_id: string, nome: string, origem: string, tipo_medida: string, quantidade: unknown, custo: unknown }>>}
  */
-export const somarPorFuncionario = (db, clienteId, empresaId, atividadeId) =>
-  db.$queryRaw`SELECT l.funcionario_id, f.nome, l.tipo_medida, SUM(l.quantidade) AS quantidade, SUM(l.custo_total) AS custo
+export const somarPorParceiro = (db, clienteId, empresaId, atividadeId) =>
+  db.$queryRaw`SELECT l.parceiro_id, p.nome, l.origem, l.tipo_medida, SUM(l.quantidade) AS quantidade, SUM(l.custo_total) AS custo
     FROM "AtividadeApontamentoMaoObra" l
     JOIN "AtividadeApontamento" a ON a.cliente_id = l.cliente_id AND a.empresa_id = l.empresa_id AND a.id = l.apontamento_id
-    JOIN "Funcionario" f ON f.cliente_id = l.cliente_id AND f.empresa_id = l.empresa_id AND f.id = l.funcionario_id
+    JOIN "Fornecedor" p ON p.cliente_id = l.cliente_id AND p.id = l.parceiro_id
     WHERE l.cliente_id = ${clienteId} AND l.empresa_id = ${empresaId} AND a.atividade_id = ${atividadeId}
       AND l.status = 'CONFIRMADO' AND a.status = 'CONFIRMADO'
-    GROUP BY l.funcionario_id, f.nome, l.tipo_medida
-    ORDER BY f.nome, l.funcionario_id, l.tipo_medida`;
+    GROUP BY l.parceiro_id, p.nome, l.origem, l.tipo_medida
+    ORDER BY p.nome, l.parceiro_id, l.origem, l.tipo_medida`;
