@@ -1,6 +1,6 @@
 # MAIKE — Mão de obra e serviço de terceiro (Fatia 4): runbook de release EXPAND (D-PROD-207)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
+> **Estado: EXECUTADO em 2026-11-15 19:58:35 UTC. `SCHEMA_APPLIED_PROD: SIM`.**
 >
 > Este documento é o plano. Cada passo para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de
@@ -488,14 +488,14 @@ migration.
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | `<texto e data do GO do proprietário>` |
-| Caminho | `<A ou B>` |
-| `<SHA_APROVADO>` | `<sha>` |
-| Verificação do SHA | `<CI da PR e validação local>` |
-| Ensaio local (§4.2) | `<atividadeMaoObraMigration.test.mjs n/n>` |
-| Preflight (§4) | `<hora UTC; 57 / 0; 0; 1; 0; 6; 91; travas; transações longas; veredito>` |
-| Backup / PITR anterior | `<horário>` |
-| Aplicação | `<data e hora UTC; checksum; applied_steps_count>` |
-| Postcheck (§6) | `<58 / 0; 4 / 0; 95; 8; 17 / 17; 5; 23 / 23 / 14; RLS; grants; veredito>` |
-| Alertas do Supabase | `<segurança / performance>` |
-| Merge e deploy | `<PR e horário>` |
+| GO-1 e GO-2 | "Aplica e aprova" (2026-11-15); depois "pode seguir", "sim ele já fez isso já liberou pode continuar", "mande de novo por favor" |
+| Caminho | B (conector, uma transação) |
+| `<SHA_APROVADO>` | `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725` |
+| Verificação do SHA | `sha256sum` local igual; CI da PR #294 verde |
+| Ensaio local (§4.2) | `atividadeMaoObraMigration.test.mjs` 11/11 |
+| Preflight (§4) | 2026-11-15 ~19:57 UTC; 57 / 0; 0; 1; 0; 91; 0 longas; PRONTO PARA APLICAR |
+| Backup / PITR anterior | PITR do Supabase (sem backup manual) |
+| Aplicação | 2026-11-15 19:58:35 UTC; `79f139a0…`; 1 |
+| Postcheck (§6) | 58 / 0; 4 novas; 95; 8 CHECKs; 17 FKs RESTRICT; 23 índices; RLS sem FORCE com `maike_backend_all` nas 4; 0 grants |
+| Alertas do Supabase | não consultados |
+| Merge e deploy | PR #294, 2026-11-15 |

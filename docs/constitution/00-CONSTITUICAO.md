@@ -155,7 +155,7 @@ pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento finance
 linha, rateio e contrato de serviço. Cadastro e linha nunca são apagados: o cadastro só é inativado, e a linha só é
 cancelada (editar é cancelar e lançar de novo). Nesta parte, esta expansão supera o trecho "fornecedor na linha" da
 lista "fora" da D-PROD-202, só para o parceiro prestador como referência na linha de serviço. Texto redigido pelo
-agente; vale só com a aprovação explícita do proprietário no merge manual (§4).
+agente e **aprovado pelo proprietário em 2026-11-15 ("Aplica e aprova")**, no merge da PR #294 (§4).
 
 ## 2. Princípios fundadores
 

@@ -186,5 +186,5 @@ Violação exige **rollback**, não flexibilização da regra.
 > - usar `Usuario` (conta de acesso) como funcionário;
 > - conceder as telas novas ou as ações das linhas a perfis existentes por padrão.
 >
-> Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no merge manual
+> Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("Aplica e aprova")**, no merge da PR #294
 > (`00-CONSTITUICAO.md` §4).

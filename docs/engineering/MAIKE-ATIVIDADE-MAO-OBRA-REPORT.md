@@ -52,15 +52,25 @@ atividade passam a somar as quatro linhas (produto, máquina, mão de obra e ser
 
 ## 5. Validação (local; o GitHub Actions roda no push)
 
-(preenchida no fim da validação)
+- Backend completo em PostgreSQL 16 local: 2145 testes, 0 falhas (antes dos merges da `main`).
+- Depois do último merge (`1e47c262`): `test:gates` 933/933, typecheck e lint sem erro, `verify-all` (sem backend) todo verde,
+  `scripts/tests/deploy` 205/205; backend da fatia: `atividadeLinhaMaoObra` 18, `atividadeLinhaServico` 11,
+  `funcionarioServicoNativo` 28, `atividadeIntegracaoTela` 12, `atividadeMaoObraMigration` 11 — todos verdes.
+- GitHub Actions na PR #294: verde.
 
 ## 6. Revisão independente
 
-(preenchida depois da revisão)
+- **Correção (D6):** sem achado alto. Corrigidos: custo da mão de obra mantido na edição (snapshot), PATCH sem mudança
+  recusado (`sem_alteracao`), chave do totalizador por serviço e unidade, chaves de idempotência exatas.
+- **Segurança (D7):** sem achado crítico, alto ou médio. Corrigidos: travas contra inativação concorrente, buscas literais
+  nos cadastros, busca de prestadores só por nome.
+- **Integração real tela ↔ servidor (D5):** 12 casos; um desalinhamento da prévia do custo na edição, corrigido.
+- **Abertos (baixos):** a unidade do serviço é relida do cadastro na edição; o custo por hora/diária aparece no seletor
+  para quem só vê atividades (decisão do proprietário).
 
 ## 7. Release
 
-Ainda não aplicada; aguarda o GO do proprietário. A ordem é aplicar antes do merge, pelo runbook.
+Aplicada em produção em 2026-11-15 às 19:58:35 UTC, antes do merge, pelo caminho B do runbook, com o GO do proprietário ("Aplica e aprova"; depois "pode seguir", "sim ele já fez isso já liberou pode continuar" e "mande de novo por favor"). Três outras migrations entraram em produção durante a espera (Formulações, leitura de cocho, faixa de tolerância); a cada vez a guarda recusou sem gravar nada, e a fatia foi renumerada e mesclada. Preflight: 57 / 0, anterior `20261115200000_formulacao_faixa_tolerancia` (`bb8be379…`), 0 tabelas novas, 91 tabelas. Postcheck: 58 / 0, checksum `79f139a0…`, 4 tabelas novas, 95 tabelas, 8 CHECKs, 17 FKs RESTRICT validadas, 23 índices, RLS sem FORCE e `maike_backend_all` nas 4, 0 grants para anon/authenticated/PUBLIC.
 
 ## 8. Fora do escopo
 
