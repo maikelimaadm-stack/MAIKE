@@ -18,8 +18,12 @@ export const STATUS_LINHA = Object.freeze({ CONFIRMADO: 'CONFIRMADO', CANCELADO:
 /** Origem do cancelamento da linha (CHECK do status). */
 export const ORIGENS_CANCELAMENTO = Object.freeze({ LINHA: 'LINHA', EDICAO: 'EDICAO', APONTAMENTO: 'APONTAMENTO', ATIVIDADE: 'ATIVIDADE' });
 
-/** Resumo do funcionário ao lado do id (só exibição). */
-export const FUNCIONARIO_RESUMO = Object.freeze({ select: { id: true, numero: true, nome: true, cargo: true, tipo: true } });
+/**
+ * Resumo do funcionário ao lado do id (só exibição), com os custos ATUAIS do cadastro: a janela de editar e o
+ * "Repetir" mostram a prévia do custo que o servidor vai gravar (hora/diária = o cadastro de agora, não o snapshot
+ * da linha), inclusive ao trocar a medida.
+ */
+export const FUNCIONARIO_RESUMO = Object.freeze({ select: { id: true, numero: true, nome: true, cargo: true, tipo: true, custo_hora: true, custo_diaria: true } });
 
 /** `include` da linha: o resumo ao lado de cada id da forma pública. */
 export const INCLUIR_LINHA_MAO_OBRA = Object.freeze({
@@ -76,7 +80,7 @@ export const inserirLinha = (tx, dados) => tx.atividadeApontamentoMaoObra.create
 export const lerFuncionarioDaLinha = (tx, clienteId, id) =>
   tx.funcionario.findFirst({
     where: { cliente_id: clienteId, id },
-    select: { ...FUNCIONARIO_RESUMO.select, empresa_id: true, ativo: true, custo_hora: true, custo_diaria: true },
+    select: { ...FUNCIONARIO_RESUMO.select, empresa_id: true, ativo: true },
   });
 
 /**

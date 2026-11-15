@@ -63,7 +63,7 @@ describe('custo da mão de obra', () => {
       [l.status, l.ordem, l.tipo_medida, l.quantidade, l.custo_unitario, l.custo_total, l.empresa_id, l.criado_por.id],
       ['CONFIRMADO', 1, 'HORA', '8.0000', '25.5000', '204.0000', s.e1.id, s.adm.usuario.id]
     );
-    assert.deepEqual(l.funcionario, { id: s.joao.id, numero: s.joao.numero, nome: 'João Diarista', cargo: 'Tratorista', tipo: 'DIARISTA' });
+    assert.deepEqual(l.funcionario, { id: s.joao.id, numero: s.joao.numero, nome: 'João Diarista', cargo: 'Tratorista', tipo: 'DIARISTA', custo_hora: '25.5000', custo_diaria: '180.0000' });
     assert.equal(c.apontamento.versao, 2, 'a versão do apontamento sobe uma vez');
     assert.deepEqual(c.apontamento.mao_obra.map((x) => x.id), [l.id]);
     assert.deepEqual([c.apontamento.servicos, c.apontamento.produtos, c.apontamento.maquinas], [[], [], []]);
@@ -72,6 +72,7 @@ describe('custo da mão de obra', () => {
     await prisma().funcionario.update({ where: { id: s.joao.id }, data: { custo_hora: '99' } });
     const detalhe = await s.H.ok(s.H.req('GET', `${s.baseAp(s.atividade)}/${ap.id}?empresa_id=${s.e1.id}`, s.token));
     assert.deepEqual([detalhe.mao_obra[0].custo_unitario, detalhe.mao_obra[0].custo_total], ['25.5000', '204.0000'], 'snapshot');
+    assert.equal(detalhe.mao_obra[0].funcionario.custo_hora, '99.0000', 'o resumo do funcionário traz o custo ATUAL do cadastro (a prévia da tela)');
     const lista = await s.H.ok(s.H.req('GET', `${s.baseAp(s.atividade)}?empresa_id=${s.e1.id}`, s.token));
     assert.deepEqual(lista.items[0].mao_obra.map((x) => x.id), [l.id]);
     const au = await prisma().auditLog.findMany({ where: { cliente_id: s.c, entidade: 'AtividadeApontamentoMaoObra' } });

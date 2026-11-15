@@ -192,8 +192,9 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, estado, ca
 
 // ─── formas públicas e auditoria ────────────────────────────────────────────
 
-/** @param {any} f */
-const funcionarioPublico = (f) => (f ? { id: f.id, numero: f.numero, nome: f.nome, cargo: f.cargo ?? null, tipo: f.tipo } : null);
+/** Resumo do funcionário: os custos são os ATUAIS do cadastro (a prévia da tela); os da linha são o snapshot. @param {any} f */
+const funcionarioPublico = (f) =>
+  f ? { id: f.id, numero: f.numero, nome: f.nome, cargo: f.cargo ?? null, tipo: f.tipo, custo_hora: t4(f.custo_hora), custo_diaria: t4(f.custo_diaria) } : null;
 
 /**
  * Forma pública da LINHA DE MÃO DE OBRA (lista e detalhe do apontamento, e as

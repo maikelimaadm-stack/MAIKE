@@ -570,22 +570,25 @@ export const custoDigitado = (medida) => medida === 'TAREFA';
 export const formularioMaoObraVazio = () => ({ funcionario: null, tipo_medida: 'HORA', quantidade: '', custo_unitario: '', observacao: '' });
 
 /**
- * Formulário a partir da linha gravada (editar, "Repetir"). Sem o cadastro do funcionário na resposta, o custo de
- * hora/diária mostrado é o snapshot da linha.
+ * Formulário a partir da linha gravada (editar, "Repetir"). O resumo `funcionario` do servidor traz os custos ATUAIS
+ * do cadastro (os que a edição e o "Repetir" gravam, inclusive nulos); só sem eles na resposta o custo de hora/diária
+ * mostrado é o snapshot da linha.
  * @param {any} l @returns {FormularioLinhaMaoObra}
  */
 export const formularioDaLinhaMaoObra = (l) => {
   const medida = MEDIDAS_MAO_OBRA.includes(l?.tipo_medida) ? l.tipo_medida : 'HORA';
   const f = ehObjeto(l?.funcionario) ? l.funcionario : {};
   const snapshot = decimalOuNulo(l?.custo_unitario);
+  /** @param {'custo_hora'|'custo_diaria'} campo @param {string} daMedida */
+  const doCadastro = (campo, daMedida) => (Object.prototype.hasOwnProperty.call(f, campo) ? decimalOuNulo(f[campo]) : medida === daMedida ? snapshot : null);
   return {
     funcionario: l?.funcionario_id
       ? {
           id: String(l.funcionario_id),
           rotulo: rotuloDoFuncionarioDaLinha(l) || String(l.funcionario_id),
           tipo: texto(f.tipo) || null,
-          custo_hora: decimalOuNulo(f.custo_hora) ?? (medida === 'HORA' ? snapshot : null),
-          custo_diaria: decimalOuNulo(f.custo_diaria) ?? (medida === 'DIARIA' ? snapshot : null),
+          custo_hora: doCadastro('custo_hora', 'HORA'),
+          custo_diaria: doCadastro('custo_diaria', 'DIARIA'),
         }
       : null,
     tipo_medida: medida,
