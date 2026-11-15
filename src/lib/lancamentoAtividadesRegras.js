@@ -343,6 +343,8 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
     case 'ATIVIDADE_EXIGIDA_PELO_TIPO':
       if (reason === 'permite_produto') return 'O tipo desta atividade não permite produto. Nada foi gravado.';
       if (reason === 'permite_implemento') return 'O tipo desta atividade não permite implemento. Nada foi gravado.';
+      if (reason === 'permite_mao_obra') return 'O tipo desta atividade não permite mão de obra. Nada foi gravado.';
+      if (reason === 'permite_servico') return 'O tipo desta atividade não permite serviço. Nada foi gravado.';
       return `${EXIGIDOS[field ?? ''] ?? 'O tipo de atividade exige um dado que não foi informado.'} Nada foi gravado.`;
     case 'ATIVIDADE_DATA_INVALIDA': {
       const frase = fraseDaData(field, reason, details);
@@ -367,13 +369,13 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
     case 'ATIVIDADE_LINHA_NOT_FOUND':
       return 'Esta linha não foi encontrada neste apontamento. Os lançamentos serão relidos. Nada foi alterado.';
     case 'ATIVIDADE_LINHA_INVALIDA':
-      return 'Uma linha de produto ou de máquina foi recusada: confira o produto, o local, a quantidade, a máquina, o implemento e as leituras. Nada foi gravado.';
+      return 'Uma linha do lançamento foi recusada: confira os produtos, as máquinas, a mão de obra e os serviços. Nada foi gravado.';
     case 'ATIVIDADE_SALTO_MEDIDOR':
       return 'O uso da máquina passa do teto de salto do medidor: informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.';
     case 'ATIVIDADE_ESTORNO_BLOQUEADO':
       return 'O estorno exato de um produto não é seguro agora: o lote de onde ele saiu já foi consumido, transferido ou mudou. Nada foi alterado.';
     case 'ATIVIDADE_DATA_COM_LINHAS':
-      return 'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
+      return 'A data do apontamento não muda com linha de produto, máquina, mão de obra ou serviço confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
     default:
       return mensagemErroGestao(erro, fallback);
   }

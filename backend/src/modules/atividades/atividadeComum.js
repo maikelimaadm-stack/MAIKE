@@ -622,11 +622,29 @@ export const operationIdDoCorpo = (v, maximo = 128) => {
 };
 
 /**
+ * Letra da chave derivada de cada tipo de linha (`<operation_id>:<letra><n>`).
+ * D-PROD-207 (Fatia 4): `o` = mão de obra, `s` = serviço.
+ */
+export const LETRA_DA_LINHA = Object.freeze({ produto: 'p', maquina: 'm', mao_obra: 'o', servico: 's' });
+
+/**
  * Chave gravada na linha criada DENTRO de um lançamento (uma chave do corpo
  * para tudo; cada linha precisa da sua, pela unique `(cliente_id, operation_id)`).
- * @param {string} base  `operation_id` do lançamento @param {'produto'|'maquina'} tipo @param {number} indice  0-based
+ * @param {string} base  `operation_id` do lançamento @param {'produto'|'maquina'|'mao_obra'|'servico'} tipo @param {number} indice  0-based
  */
-export const operationIdDaLinha = (base, tipo, indice) => `${base}:${tipo === 'maquina' ? 'm' : 'p'}${indice + 1}`;
+export const operationIdDaLinha = (base, tipo, indice) => `${base}:${LETRA_DA_LINHA[tipo] ?? 'p'}${indice + 1}`;
+
+/**
+ * TODAS as chaves que um lançamento com a chave `base` pode gravar nas linhas
+ * de um tipo (`<base>:<letra>1` … `<base>:<letra>N`, N =
+ * `LINHAS_NO_LANCAMENTO_MAXIMO`). A busca por elas é EXATA (`operation_id IN
+ * (…)`): um prefixo (`LIKE '<base>:o%'`) faria do `_` da chave um curinga e
+ * casaria a chave de outro lançamento que só começa igual.
+ * @param {string} base @param {'produto'|'maquina'|'mao_obra'|'servico'} tipo
+ * @returns {string[]}
+ */
+export const chavesDerivadasDasLinhas = (base, tipo) =>
+  Array.from({ length: LINHAS_NO_LANCAMENTO_MAXIMO }, (_, i) => operationIdDaLinha(base, tipo, i));
 
 /**
  * Status das escritas de linha: atividade ABERTA e apontamento CONFIRMADO;
@@ -642,8 +660,9 @@ export const exigirLinhaGravavel = (atividade, apontamento, acao) => {
 
 /**
  * Editar e cancelar só linha CONFIRMADA; senão 409 `ATIVIDADE_STATUS_INVALIDO`
- * (`entidade` `linha_produto` | `linha_maquina`).
- * @param {{ status: string }} linha @param {'editar_linha'|'cancelar_linha'} acao @param {'linha_produto'|'linha_maquina'} entidade
+ * (`entidade` `linha_produto` | `linha_maquina` | `linha_mao_obra` | `linha_servico`).
+ * @param {{ status: string }} linha @param {'editar_linha'|'cancelar_linha'} acao
+ * @param {'linha_produto'|'linha_maquina'|'linha_mao_obra'|'linha_servico'} entidade
  */
 export const exigirLinhaConfirmada = (linha, acao, entidade) => {
   if (linha.status !== STATUS_LINHA.CONFIRMADO) throw atividadeStatusInvalido({ status: linha.status, acao, entidade });

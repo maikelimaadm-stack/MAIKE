@@ -692,6 +692,9 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
       assert.deepEqual(deFora, ['Atividade', 'AtividadeApontamentoMaquina'], 'só a atividade e a linha de máquina (posteriores) referenciam as 7 tabelas');
       // D-PROD-202: as linhas do apontamento (migration POSTERIOR) referenciam o apontamento; saem antes dele.
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamentoProdutoConsumoLote", "AtividadeApontamentoProduto", "AtividadeApontamentoMaquina"');
+      // D-PROD-207: as linhas de mão de obra e de serviço (migration POSTERIOR) também referenciam o apontamento e não
+      // referenciam as 7; saem antes dele. Funcionario e Servico não referenciam o apontamento nem as 7: ficam.
+      await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamentoMaoObra", "AtividadeApontamentoServico"');
       // D-PROD-200: o apontamento da atividade (mesma migration POSTERIOR) referencia a atividade por FK RESTRICT
       // e não referencia as 7; também não existe no "schema antigo". Sai antes dela.
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamento"');

@@ -129,6 +129,15 @@ const ESCRITAS = (c) => {
     // D-PROD-205 — Leitura de cocho: escrita guardada pela chave do mapa lancar_suplementacao.
     ['leitura de cocho (POST)', 'POST', '/leituras-cocho', { empresa_id: E, ponto_suplementacao_id: 'ps-1', data_leitura: '2026-10-27', escore: 'VAZIO' }],
     ['leitura de cocho (DELETE)', 'DELETE', `/leituras-cocho/${ID}`],
+    // D-PROD-207 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
+    ['funcionário (POST)', 'POST', '/funcionarios', { empresa_id: E, nome: 'HACK', tipo: 'DIARISTA' }],
+    ['funcionário (PATCH)', 'PATCH', `/funcionarios/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['funcionário (inativar)', 'POST', `/funcionarios/${ID}/inativar`, { empresa_id: E }],
+    ['funcionário (reativar)', 'POST', `/funcionarios/${ID}/reativar`, { empresa_id: E }],
+    ['serviço (POST)', 'POST', '/servicos', { empresa_id: E, nome: 'HACK', unidade_medida_id: 'um-1' }],
+    ['serviço (PATCH)', 'PATCH', `/servicos/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['serviço (inativar)', 'POST', `/servicos/${ID}/inativar`, { empresa_id: E }],
+    ['serviço (reativar)', 'POST', `/servicos/${ID}/reativar`, { empresa_id: E }],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
     // D-PROD-200 — Lançamento de Atividades: escrita guardada pela tela
     // op-atividades (cabeçalho pelas ações padrão; reabrir e os apontamentos

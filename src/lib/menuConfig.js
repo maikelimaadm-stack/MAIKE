@@ -46,6 +46,9 @@ export const DEFAULT_MENU = [
       // D-PROD-200 — a EXECUÇÃO de um Tipo de Atividade (atividade aberta + apontamentos por dia), logo abaixo do cadastro dos tipos.
       { id: "op-atividades", title: "Lançamento de Atividades", url: "LancamentoAtividades" },
       { id: "sup-grupos-atividades", title: "Grupos de Atividades", url: "GruposAtividades" },
+      // D-PROD-207 — cadastros da mão de obra e do serviço de terceiro do Lançamento de Atividades (Fatia 4).
+      { id: "sup-funcionarios", title: "Funcionários", url: "Funcionarios" },
+      { id: "sup-servicos", title: "Serviços", url: "Servicos" },
     ],
   },
   {

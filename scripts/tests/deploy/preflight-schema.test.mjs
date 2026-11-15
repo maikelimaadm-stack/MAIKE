@@ -51,6 +51,11 @@ const COLUNAS_OK = [
   { table_name: 'LEITURACOCHO', column_name: 'escore' },
   // D-PROD-206: a faixa do farol de consumo.
   { table_name: 'CADFORMULACAO', column_name: 'faixa_tolerancia_percentual' },
+  // D-PROD-207: os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço.
+  { table_name: 'Funcionario', column_name: 'custo_hora' },
+  { table_name: 'Servico', column_name: 'unidade_medida_id' },
+  { table_name: 'AtividadeApontamentoMaoObra', column_name: 'tipo_medida' },
+  { table_name: 'AtividadeApontamentoServico', column_name: 'fornecedor_parceiro_id' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };

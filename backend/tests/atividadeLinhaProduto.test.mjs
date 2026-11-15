@@ -378,6 +378,8 @@ describe('totalizador', () => {
         { produto_id: s.herbicida.id, nome: 'Herbicida glifosato (L)', unidade: 'L', quantidade: '30.0000', custo_total: '156.0000' },
       ],
       maquinas: [],
+      mao_obra: [],
+      servicos: [],
       custo_total: '168.0000',
       custo_por_ha: '11.2000',
     });

@@ -132,6 +132,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261115100000_leitura_cocho': 'f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1',
   // D-PROD-206: EXPAND — faixa de tolerância do farol de consumo na Formulação (uma coluna anulável em CADFORMULACAO).
   '20261115200000_formulacao_faixa_tolerancia': 'bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c',
+  // D-PROD-207 (Fatia 4): EXPAND — mão de obra e serviço de terceiro do apontamento: Funcionario, Servico,
+  // AtividadeApontamentoMaoObra e AtividadeApontamentoServico novas. Nenhuma coluna em tabela antiga; nenhum dado migrado.
+  '20261115900000_atividade_mao_obra_servico': '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -171,6 +174,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6',
   // D-PROD-205: RLS/REVOKE da LEITURACOCHO (mesmo corpo, lista nova).
   '60149f94e07596da2c93471f82110e6f37b5f014bcf721c1dc366a2d4b4bcce8',
+  // D-PROD-207 (Fatia 4): RLS/REVOKE das 4 tabelas de mão de obra e serviço (mesmo corpo, lista nova).
+  '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403',
 ]);
 
 /**

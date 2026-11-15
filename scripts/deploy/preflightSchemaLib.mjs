@@ -75,6 +75,12 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-206: a Formulação lê e grava a faixa do farol de consumo; sem a migration
   // `20261115200000_formulacao_faixa_tolerancia`, `/formulacoes` responde 500.
   ['CADFORMULACAO', 'faixa_tolerancia_percentual'],
+  // D-PROD-207 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
+  // apontamento; sem a migration EXPAND da mão de obra e do serviço, os cadastros e o apontamento novo respondem 500.
+  ['Funcionario', 'custo_hora'],
+  ['Servico', 'unidade_medida_id'],
+  ['AtividadeApontamentoMaoObra', 'tipo_medida'],
+  ['AtividadeApontamentoServico', 'fornecedor_parceiro_id'],
 ]);
 
 /**

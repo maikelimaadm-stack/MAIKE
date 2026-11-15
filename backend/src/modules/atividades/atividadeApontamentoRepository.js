@@ -15,11 +15,14 @@
 
 import { INCLUIR_LINHA_PRODUTO, STATUS_APONTAMENTO, USUARIO_RESUMO, comoData } from './atividadeComum.js';
 import { INCLUIR_LINHA_MAQUINA } from './atividadeApontamentoMaquinaRepository.js';
+import { INCLUIR_LINHA_MAO_OBRA } from './atividadeApontamentoMaoObraRepository.js';
+import { INCLUIR_LINHA_SERVICO } from './atividadeApontamentoServicoRepository.js';
 
 /**
  * `include` do apontamento: o resumo ao lado de cada id de usuário da forma
  * pública e, D-PROD-202 (Fatia 3), as linhas de PRODUTO e de MÁQUINA
- * (inclusive as canceladas), em ordem de lançamento.
+ * (inclusive as canceladas), em ordem de lançamento. D-PROD-207 (Fatia 4):
+ * também as de MÃO DE OBRA e de SERVIÇO.
  */
 export const INCLUIR_APONTAMENTO = Object.freeze({
   operador: USUARIO_RESUMO,
@@ -27,6 +30,8 @@ export const INCLUIR_APONTAMENTO = Object.freeze({
   canceladoPor: USUARIO_RESUMO,
   produtos: { include: INCLUIR_LINHA_PRODUTO, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
   maquinas: { include: INCLUIR_LINHA_MAQUINA, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
+  maoObras: { include: INCLUIR_LINHA_MAO_OBRA, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
+  servicos: { include: INCLUIR_LINHA_SERVICO, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
 });
 
 /**

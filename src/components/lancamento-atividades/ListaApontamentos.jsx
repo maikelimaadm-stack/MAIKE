@@ -84,6 +84,8 @@ const textoDoCancelamento = (ap, fuso) => {
  * Fatia 3 (D-PROD-202): dentro de cada lançamento, os blocos "Produtos" e
  * "Máquinas" (`LinhasDoApontamento`), com as linhas e as janelas de adicionar,
  * editar e cancelar; o bloco Produtos só aparece com `permite_produto` no tipo.
+ * Fatia 4: os blocos "Mão de obra" e "Serviços", só com `permite_mao_obra` e
+ * `permite_servico` no tipo.
  * "Repetir último lançamento" traz também as linhas do lançamento base.
  *
  * Depois de cada escrita a lista é relida, `onAtividadeAtualizada` recebe o
@@ -113,14 +115,14 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
     enabled: Boolean(empresaId && atividadeId && podeVer),
     staleTime: 15 * 1000,
   });
-  // O que o tipo permite nas linhas (produto, implemento): a mesma leitura de tipos da página (mesma chave).
+  // O que o tipo permite nas linhas (produto, implemento, mão de obra, serviço): a mesma leitura de tipos da página (mesma chave).
   const { data: tipos = [] } = useQuery({
     queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "tipos"],
     queryFn: () => listarTiposAtividade(),
     enabled: podeVer,
     staleTime: 30 * 1000,
   });
-  const { permiteProduto, permiteImplemento } = flagsDoTipoDaAtividade(atividade, /** @type {any[]} */ (tipos));
+  const { permiteProduto, permiteImplemento, permiteMaoObra, permiteServico } = flagsDoTipoDaAtividade(atividade, /** @type {any[]} */ (tipos));
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo par do abastecimento.
   const { clienteId } = useAuth();
   const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
@@ -340,6 +342,8 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
           apontamento={ap}
           permiteProduto={permiteProduto}
           permiteImplemento={permiteImplemento}
+          permiteMaoObra={permiteMaoObra}
+          permiteServico={permiteServico}
           podeLancar={podeLancar}
           podeEditar={podeEditar}
           podeCancelar={podeCancelar}
@@ -430,6 +434,8 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
           base={janela.modo === "repetir" ? janela.apontamento : null}
           permiteProduto={permiteProduto}
           permiteImplemento={permiteImplemento}
+          permiteMaoObra={permiteMaoObra}
+          permiteServico={permiteServico}
           escopo={escopo}
           onSalvo={(r) => {
             const modo = janela.modo;

@@ -17,12 +17,16 @@
  * D-PROD-202 (Fatia 3): os seletores da LINHA DE PRODUTO — produtos (os já
  * usados na atividade primeiro) e locais com saldo —, com a lógica dos
  * seletores do financeiro e do abastecimento, mas com a guarda "ver" desta tela.
+ *
+ * D-PROD-207 (Fatia 4): os seletores das linhas de MÃO DE OBRA (funcionários)
+ * e de SERVIÇO (serviços e parceiros prestadores de serviço).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError, atividadeNotFound } from '../../shared/errors/AppError.js';
 import { ZERO, dec } from '../financeiro/decimalFinanceiro.js';
+import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { opcoesResponsaveis } from '../patrimonio/bemPatrimonialOpcoesService.js';
 import { paginacaoOpcoes, paginarPorNome } from '../patrimonio/patrimonioComum.js';
@@ -30,6 +34,7 @@ import { UNIDADES_PRODUTO_TANQUE, unidadeEfetivaDoEstoque } from '../patrimonio/
 import { bemPublico, t4 } from './atividadeComum.js';
 import { produtosUsadosNaAtividade } from './atividadeApontamentoProdutoRepository.js';
 import { paginarBensAtivos } from './atividadeRepository.js';
+import { PAPEL_PRESTADOR } from './atividadeApontamentoServicoService.js';
 
 /**
  * Máquinas ATIVAS da empresa (`GET /atividades-opcoes/bens`); `natureza`
@@ -166,4 +171,87 @@ export const opcoesLocaisDoProduto = async (contexto, query = {}) => {
         unidade_principal_estoque: produto.unidade_principal_estoque,
       })),
   };
+};
+
+// ─── D-PROD-207 (Fatia 4): seletores das linhas de mão de obra e de serviço ──
+
+/**
+ * `GET /atividades-opcoes/funcionarios?empresa_id=&q=&cursor=&limit=`:
+ * funcionários ATIVOS da fazenda, keyset (nome, id), `q` em nome, número ou
+ * cargo. Cada opção: `{ id, numero, nome, cargo, tipo, custo_hora, custo_diaria }`
+ * (custos como texto com 4 casas, ou nulos).
+ * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {Record<string, any>} [query]
+ */
+export const opcoesFuncionarios = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const prisma = getPrismaClient();
+  const empresaId = await exigirEmpresaDoTenant(prisma, auth.clienteId, query.empresa_id);
+  const { limit, cursor, q } = paginacaoOpcoes(query);
+  /** @type {any[]} */
+  const filtros = [{ cliente_id: auth.clienteId, empresa_id: empresaId, ativo: true }];
+  if (q) filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { numero: { contains: q } }, { cargo: { contains: q, mode: 'insensitive' } }] });
+  return paginarPorNome(prisma.funcionario, {
+    where: { AND: filtros },
+    select: { id: true, numero: true, nome: true, cargo: true, tipo: true, custo_hora: true, custo_diaria: true },
+    limit,
+    cursor,
+    mapear: (linhas) =>
+      linhas.map((f) => ({ id: f.id, numero: f.numero, nome: f.nome, cargo: f.cargo ?? null, tipo: f.tipo, custo_hora: t4(f.custo_hora), custo_diaria: t4(f.custo_diaria) })),
+  });
+};
+
+/**
+ * `GET /atividades-opcoes/servicos?empresa_id=&q=&cursor=&limit=`: serviços
+ * ATIVOS da fazenda, keyset (nome, id), `q` em nome ou número. Cada opção:
+ * `{ id, numero, nome, unidade, valor_referencia }` (`unidade` = sigla da
+ * unidade de medida do serviço; `valor_referencia` texto com 4 casas ou nulo).
+ * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {Record<string, any>} [query]
+ */
+export const opcoesServicos = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const prisma = getPrismaClient();
+  const empresaId = await exigirEmpresaDoTenant(prisma, auth.clienteId, query.empresa_id);
+  const { limit, cursor, q } = paginacaoOpcoes(query);
+  /** @type {any[]} */
+  const filtros = [{ cliente_id: auth.clienteId, empresa_id: empresaId, ativo: true }];
+  if (q) filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { numero: { contains: q } }] });
+  return paginarPorNome(prisma.servico, {
+    where: { AND: filtros },
+    select: { id: true, numero: true, nome: true, valor_referencia: true, unidadeMedida: { select: { sigla: true } } },
+    limit,
+    cursor,
+    mapear: (linhas) =>
+      linhas.map((s) => ({ id: s.id, numero: s.numero, nome: s.nome, unidade: s.unidadeMedida?.sigla ?? null, valor_referencia: t4(s.valor_referencia) })),
+  });
+};
+
+/**
+ * `GET /atividades-opcoes/parceiros-servico?empresa_id=&q=&cursor=&limit=`:
+ * parceiros ATIVOS da fazenda com o papel `prestador_servico` (pelas grafias
+ * gravadas, a mesma normalização de `lerPapeis`; `tipos` vazio NÃO entra: a
+ * linha exige o papel). Só `{ id, nome }` — nada de documento; o `q` casa só
+ * o `nome`.
+ * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {Record<string, any>} [query]
+ */
+export const opcoesParceirosServico = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const prisma = getPrismaClient();
+  const empresaId = await exigirEmpresaDoTenant(prisma, auth.clienteId, query.empresa_id);
+  const { limit, cursor, q } = paginacaoOpcoes(query);
+  const gravadas = /** @type {Array<{ t: string }>} */ (
+    await prisma.$queryRaw`SELECT DISTINCT unnest(tipos) AS t FROM "Fornecedor" WHERE cliente_id = ${auth.clienteId} AND empresa_id = ${empresaId}`
+  );
+  const grafias = gravadas.map((l) => l.t).filter((t) => typeof t === 'string' && lerPapeis([t]).papeis.includes(PAPEL_PRESTADOR));
+  /** @type {any[]} */
+  const filtros = [{ cliente_id: auth.clienteId, empresa_id: empresaId, ativo: true }, grafias.length ? { tipos: { hasSome: grafias } } : { id: { in: [] } }];
+  // O `q` casa SÓ o nome (o que a opção mostra): razão social e número de cadastro não saem na resposta e não
+  // servem de busca (nenhuma opção aparece por um campo que o operador não vê, e nada vira oráculo deles).
+  if (q) filtros.push({ nome: { contains: q, mode: 'insensitive' } });
+  return paginarPorNome(prisma.fornecedor, {
+    where: { AND: filtros },
+    select: { id: true, nome: true },
+    limit,
+    cursor,
+    mapear: (linhas) => linhas.map((p) => ({ id: p.id, nome: p.nome })),
+  });
 };
