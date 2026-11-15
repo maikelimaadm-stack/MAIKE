@@ -79,10 +79,10 @@ const renderizar = async (lotes, permissions = {}) => {
   return utils;
 };
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
-/** D-PROD-119: manejos e históricos em quadros (no celular, atrás do botão "Manejos e históricos"). */
+/** D-PROD-119: manejos e históricos em quadros, atrás do botão "Manejos e históricos" em todas as telas (PR #291). */
 const acao = async (nome) => {
   const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-  if (botaoUnico) await clicar(botaoUnico); // celular; no desktop os quadros já estão à vista
+  if (botaoUnico) await clicar(botaoUnico);
   await clicar(screen.getByRole("button", { name: nome }));
 };
 const nenhumaEscrita = () => {
@@ -150,7 +150,11 @@ describe("Juntar Lotes permanece visível quando indisponível", () => {
     const botao = screen.getByRole("button", { name: "Juntar Lotes" });
     expect(botao.disabled).toBe(true);
     expect(botao.title).toBe(motivo);
-    expect(screen.queryByRole("dialog")).toBe(null);
+    // A abertura em grade ("Manejos e históricos") é um diálogo em todas as telas e
+    // segue aberta: o quadro desabilitado não age. O que não pode abrir é a junção.
+    expect(screen.getAllByRole("dialog")).toEqual([screen.getByRole("dialog", { name: "Manejos e históricos" })]);
+    expect(screen.queryByRole("dialog", { name: "Juntar Lotes" })).toBe(null);
+    expect(screen.queryByText("Selecione o lote que receberá os animais (lote principal):")).toBe(null);
     expect(toast.error).not.toHaveBeenCalled();
     nenhumaEscrita();
   });
@@ -169,6 +173,8 @@ describe("DetalhesLote no ledger (posições): formulários abrem como antes", (
   it("Juntar Lotes abre o diálogo de junção", async () => {
     await renderizar([posicao("p1"), posicao("p2")]);
     await acao("Juntar Lotes");
+    expect(screen.getByRole("dialog", { name: "Juntar Lotes" })).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Manejos e históricos" })).toBe(null);
     expect(screen.getByText("Selecione o lote que receberá os animais (lote principal):")).toBeTruthy();
     expect(toast.error).not.toHaveBeenCalled();
   });
