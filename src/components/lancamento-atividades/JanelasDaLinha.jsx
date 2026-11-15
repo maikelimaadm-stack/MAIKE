@@ -44,8 +44,7 @@ import {
   formularioMaoObraVazio,
   formularioServicoVazio,
   linhasDoTipo,
-  maoObraEscolhida,
-  medidaSugeridaDaMaoObra,
+  mudancaDaMaoObraEscolhida,
   mudancaDoServicoEscolhido,
   parceiroEscolhido,
   rotuloDaMaoObraDaLinha,
@@ -654,10 +653,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         chave={[RAIZ_CONSULTAS_ATIVIDADES, "mao-obra", empresaId]}
         buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesMaoObra({ q, cursor, limit }))}
         value={form.parceiro ? { id: form.parceiro.id, rotulo: form.parceiro.rotulo } : null}
-        onChange={(o) => {
-          const parceiro = maoObraEscolhida(o);
-          mudar({ parceiro, tipo_medida: parceiro ? medidaSugeridaDaMaoObra(parceiro) : form.tipo_medida }, ["parceiro", "tipo_medida", "custo_unitario"]);
-        }}
+        onChange={(o) => mudar(mudancaDaMaoObraEscolhida(o, form), ["parceiro", "tipo_medida", "custo_unitario"])}
         rotuloDaOpcao={(o) => String(o?.nome ?? "")}
         detalheDaOpcao={detalheDaMaoObra}
         readOnly={bloqueado}

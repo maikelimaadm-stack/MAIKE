@@ -71,7 +71,7 @@ describe('custo da mão de obra', () => {
     );
     assert.equal(l.origem, 'FUNCIONARIO', 'parceiro com o papel funcionário');
     assert.deepEqual(l.parceiro, {
-      id: s.joao.id, nome: 'João Diarista', funcionario_tipo: 'DIARISTA', funcionario_cargo: 'Tratorista', funcionario_custo_hora: '25.5000', funcionario_custo_diaria: '180.0000',
+      id: s.joao.id, nome: 'João Diarista', origem_atual: 'FUNCIONARIO', funcionario_tipo: 'DIARISTA', funcionario_cargo: 'Tratorista', funcionario_custo_hora: '25.5000', funcionario_custo_diaria: '180.0000',
     });
     assert.equal(c.apontamento.versao, 2, 'a versão do apontamento sobe uma vez');
     assert.deepEqual(c.apontamento.mao_obra.map((x) => x.id), [l.id]);
@@ -82,6 +82,20 @@ describe('custo da mão de obra', () => {
     const detalhe = await s.H.ok(s.H.req('GET', `${s.baseAp(s.atividade)}/${ap.id}?empresa_id=${s.e1.id}`, s.token));
     assert.deepEqual([detalhe.mao_obra[0].custo_unitario, detalhe.mao_obra[0].custo_total], ['25.5000', '204.0000'], 'snapshot');
     assert.equal(detalhe.mao_obra[0].parceiro.funcionario_custo_hora, '99.0000', 'o resumo do funcionário traz o custo ATUAL do cadastro (a prévia da tela)');
+    // `origem_atual` (o "Repetir" da tela): a origem com que o parceiro entraria AGORA; a `origem` da linha é a gravada.
+    const lerOrigens = async () => {
+      const d = await s.H.ok(s.H.req('GET', `${s.baseAp(s.atividade)}/${ap.id}?empresa_id=${s.e1.id}`, s.token));
+      return [d.mao_obra[0].origem, d.mao_obra[0].parceiro.origem_atual];
+    };
+    await prisma().fornecedor.update({ where: { id: s.joao.id }, data: { tipos: ['prestador_servico'] } });
+    assert.deepEqual(await lerOrigens(), ['FUNCIONARIO', 'TERCEIRO'], 'virou só prestador de serviço');
+    await prisma().fornecedor.update({ where: { id: s.joao.id }, data: { tipos: ['fornecedor'] } });
+    assert.deepEqual(await lerOrigens(), ['FUNCIONARIO', null], 'sem papel de mão de obra');
+    await prisma().fornecedor.update({ where: { id: s.joao.id }, data: { tipos: ['funcionario', 'prestador_servico'], ativo: false } });
+    assert.deepEqual(await lerOrigens(), ['FUNCIONARIO', null], 'inativo');
+    await prisma().fornecedor.update({ where: { id: s.joao.id }, data: { tipos: ['funcionario', 'prestador_servico'], ativo: true } });
+    assert.deepEqual(await lerOrigens(), ['FUNCIONARIO', 'FUNCIONARIO'], 'os dois papéis: funcionário vale');
+    assert.ok(!('tipos' in detalhe.mao_obra[0].parceiro) && !('ativo' in detalhe.mao_obra[0].parceiro) && !('empresa_id' in detalhe.mao_obra[0].parceiro), 'só o resumo público');
     const lista = await s.H.ok(s.H.req('GET', `${s.baseAp(s.atividade)}?empresa_id=${s.e1.id}`, s.token));
     assert.deepEqual(lista.items[0].mao_obra.map((x) => x.id), [l.id]);
     const au = await prisma().auditLog.findMany({ where: { cliente_id: s.c, entidade: 'AtividadeApontamentoMaoObra' } });
@@ -545,7 +559,7 @@ describe('D-PROD-208: mão de obra de funcionário ou de terceiro (parceiro)', (
     assert.equal(await foto(s.c), f, 'nada gravado');
     const h = (await s.M.lancarOk(ap, { parceiro_id: s.prestador.id, tipo_medida: 'HORA', quantidade: '8', custo_unitario: '40' })).mao_obra;
     assert.deepEqual([h.origem, h.tipo_medida, h.custo_unitario, h.custo_total], ['TERCEIRO', 'HORA', '40.0000', '320.0000']);
-    assert.deepEqual(h.parceiro, { id: s.prestador.id, nome: 'Prestadora Terra Boa', funcionario_tipo: null, funcionario_cargo: null, funcionario_custo_hora: null, funcionario_custo_diaria: null });
+    assert.deepEqual(h.parceiro, { id: s.prestador.id, nome: 'Prestadora Terra Boa', origem_atual: 'TERCEIRO', funcionario_tipo: null, funcionario_cargo: null, funcionario_custo_hora: null, funcionario_custo_diaria: null });
     const d = (await s.M.lancarOk(ap, { parceiro_id: s.prestadorAlias.id, tipo_medida: 'DIARIA', quantidade: '1', custo_unitario: '0' })).mao_obra;
     assert.deepEqual([d.origem, d.custo_unitario, d.custo_total], ['TERCEIRO', '0.0000', '0.0000'], 'grafia antiga do papel; zero vale');
     // Os dois papéis: funcionário (custo do cadastro; o corpo não aceita custo na hora).

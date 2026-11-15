@@ -274,14 +274,17 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, estado, ca
 
 /**
  * Resumo do parceiro (sem documento nem contato): os dados do funcionário são os ATUAIS do cadastro (a prévia da
- * tela); os custos da linha são o snapshot.
- * @param {any} p
+ * tela); os custos da linha são o snapshot. `origem_atual` é a origem com que o parceiro entraria AGORA numa linha
+ * NOVA da fazenda da linha (a mesma regra de `origemDoParceiro`: funcionário > prestador de serviço; inativo, de
+ * outra fazenda ou sem esses papéis → null) — o "Repetir" da tela parte dela; a `origem` da linha é a gravada.
+ * @param {any} p @param {string} empresaId  a fazenda da linha
  */
-const parceiroPublico = (p) =>
+const parceiroPublico = (p, empresaId) =>
   p
     ? {
         id: p.id,
         nome: p.nome,
+        origem_atual: origemDoParceiro(p, empresaId),
         funcionario_tipo: p.funcionario_tipo ?? null,
         funcionario_cargo: p.funcionario_cargo ?? null,
         funcionario_custo_hora: t4(p.funcionario_custo_hora),
@@ -301,7 +304,7 @@ export const comoLinhaMaoObraPublica = (r) => ({
   ordem: r.ordem,
   status: r.status,
   parceiro_id: r.parceiro_id,
-  parceiro: parceiroPublico(r.parceiro),
+  parceiro: parceiroPublico(r.parceiro, r.empresa_id),
   origem: r.origem,
   tipo_medida: r.tipo_medida,
   quantidade: t4(r.quantidade),

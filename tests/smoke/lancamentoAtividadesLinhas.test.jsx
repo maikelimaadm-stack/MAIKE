@@ -111,6 +111,8 @@ const resumoParceiro = (id) => {
   return {
     id,
     nome: o?.nome,
+    // A origem com que o parceiro entraria AGORA numa linha nova (o "Repetir" parte dela).
+    origem_atual: o?.origem ?? null,
     funcionario_tipo: o?.funcionario_tipo ?? null,
     funcionario_cargo: o?.origem === "FUNCIONARIO" ? "TRATORISTA" : null,
     funcionario_custo_hora: o?.funcionario_custo_hora ?? null,
@@ -439,7 +441,7 @@ const totaisDe = (id) => {
       custo += Number(l.custo_total ?? 0);
     }
     for (const l of (a.mao_obra ?? []).filter((/** @type {any} */ x) => x.status === "CONFIRMADO")) {
-      const k = `${l.parceiro_id}-${l.tipo_medida}`;
+      const k = `${l.parceiro_id}-${l.origem}-${l.tipo_medida}`;
       const t = mos.get(k) ?? { parceiro_id: l.parceiro_id, nome: l.parceiro.nome, origem: l.origem, tipo_medida: l.tipo_medida, q: 0, c: 0 };
       t.q += Number(l.quantidade);
       t.c += Number(l.custo_total ?? 0);
@@ -1262,7 +1264,7 @@ describe("LL-MAO-OBRA — janela da linha de mão de obra", () => {
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Mão de obra de José Silva lançada.");
     expect(await screen.findByTestId("linha-mao-obra-mo-n1-custo")).toHaveTextContent("custo R$ 160,00");
     await waitFor(() => expect(leiturasDosTotais("a4")).toBeGreaterThan(totaisAntes));
-    await waitFor(() => expect(screen.getByTestId("totalizador-mao-obra-f1-HORA")).toHaveTextContent("16 h · R$ 320,00"));
+    await waitFor(() => expect(screen.getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("16 h · R$ 320,00"));
   });
 
   it("LL-MAO-OBRA-2 — tarefa (tarefeiro): custo digitado e obrigatório, vai no corpo; diarista sugere diária; sem custo no cadastro avisa", async () => {
@@ -1458,7 +1460,7 @@ describe("LL-MAO-OBRA-TERCEIRO — funcionário ou terceiro (D-PROD-208)", () =>
     expect(await screen.findByTestId("linha-mao-obra-mo-n1-nome")).toHaveTextContent("Empreiteira Rocha (terceiro)");
     expect(screen.getByTestId("linha-mao-obra-mo-n1-custo")).toHaveTextContent("custo R$ 240,00");
     const totais = screen.getByTestId("totalizador-atividade");
-    await waitFor(() => expect(within(totais).getByTestId("totalizador-mao-obra-pp2-HORA")).toHaveTextContent("8 h · R$ 240,00"));
+    await waitFor(() => expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA")).toHaveTextContent("8 h · R$ 240,00"));
     expect(within(totais).getByText("Mão de obra — Empreiteira Rocha (terceiro)")).toBeTruthy();
     // O funcionário continua sem a marca.
     expect(within(totais).getByText("Mão de obra — José Silva")).toBeTruthy();
@@ -1522,6 +1524,76 @@ describe("LL-MAO-OBRA-TERCEIRO — funcionário ou terceiro (D-PROD-208)", () =>
       { parceiro_id: "f1", tipo_medida: "HORA", quantidade: "8" },
       { parceiro_id: "pp2", tipo_medida: "DIARIA", quantidade: "2", custo_unitario: "130" },
     ]);
+  });
+});
+
+describe("LL-MAO-OBRA-ORIGEM — origem gravada × origem atual do parceiro (D-PROD-208)", () => {
+  it("LL-REPETIR-7 — o \"Repetir\" parte da origem ATUAL: quem virou terceiro pede o custo digitado; quem perdeu o papel volta vazio para escolher", async () => {
+    const ap7 = apontamentosPorAtividade.get("a4")[0];
+    // A Rocha entrou como funcionária (hora, custo do cadastro) e hoje é só prestadora (terceiro).
+    ap7.mao_obra.push(linhaMaoObra({ id: "mo3", ordem: 3, parceiro_id: "pp2", origem: "FUNCIONARIO", parceiro: resumoParceiro("pp2"), tipo_medida: "HORA", quantidade: "5.0000", custo_unitario: "22.0000", custo_total: "110.0000" }));
+    // O Zé Antigo perdeu o papel (ou foi inativado): `origem_atual` nula.
+    ap7.mao_obra.push(linhaMaoObra({ id: "mo4", ordem: 4, parceiro_id: "x9", origem: "FUNCIONARIO", parceiro: { ...resumoParceiro("x9"), nome: "Zé Antigo", origem_atual: null }, tipo_medida: "DIARIA", quantidade: "1.0000", custo_unitario: "100.0000", custo_total: "100.0000" }));
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("apontamento-repetir-ultimo"));
+    const form = await screen.findByTestId("b1-form-apontamento");
+    expect(within(form).getByTestId("repetir-mao-obra-1-parceiro").getAttribute("aria-label")).toMatch(/Empreiteira Rocha/);
+    expect(within(form).getByTestId("repetir-mao-obra-1-terceiro")).toBeTruthy();
+    expect(within(form).getByTestId("repetir-mao-obra-1-custo-unitario")).toHaveValue("");
+    expect(within(form).getByTestId("repetir-mao-obra-2-parceiro").getAttribute("aria-label")).not.toMatch(/Zé Antigo/);
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    expect(await within(form).findByText("Informe o custo unitário: para terceiro ele é sempre digitado.")).toBeTruthy();
+    expect(await within(form).findByText("Escolha o funcionário ou terceiro.")).toBeTruthy();
+    expect(escritas()).toEqual([]);
+    fireEvent.change(within(form).getByTestId("repetir-mao-obra-1-custo-unitario"), { target: { value: "35" } });
+    await escolherNoSeletor(form, "repetir-mao-obra-2-parceiro", /Pedro Lima/);
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita().body.mao_obra).toEqual([
+      { parceiro_id: "f1", tipo_medida: "HORA", quantidade: "8" },
+      { parceiro_id: "pp2", tipo_medida: "HORA", quantidade: "5", custo_unitario: "35" },
+      { parceiro_id: "f3", tipo_medida: "DIARIA", quantidade: "1" },
+    ]);
+  });
+
+  it("LL-MAO-OBRA-9 — editar: trocar de parceiro e voltar ao GRAVADO restaura a origem, a medida e o custo gravados (não os da opção)", async () => {
+    const ap7 = apontamentosPorAtividade.get("a4")[0];
+    ap7.mao_obra[0] = linhaMaoObra({ parceiro_id: "pp2", origem: "FUNCIONARIO", parceiro: resumoParceiro("pp2"), tipo_medida: "HORA", quantidade: "8.0000", custo_unitario: "22.0000", custo_total: "176.0000" });
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("linha-mao-obra-mo1-editar"));
+    const janela = await screen.findByTestId("janela-linha-mao-obra");
+    const custo = () => within(janela).getByTestId("linha-mao-obra-custo-unitario");
+    expect(custo()).toHaveTextContent("R$ 22,00");
+    expect(janela).toHaveTextContent("Custo da hora (gravado na linha)");
+    // Para a Ana (tarefeira): tarefa, custo digitado.
+    await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Ana Souza/);
+    expect(custo().tagName).toBe("INPUT");
+    // De volta à Rocha pelo seletor (a opção diz TERCEIRO): a linha mantém a origem gravada (funcionário), a hora e o custo gravado.
+    await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Empreiteira Rocha/);
+    expect(within(janela).getByRole("radio", { name: "Hora" })).toHaveAttribute("aria-checked", "true");
+    expect(custo().tagName).not.toBe("INPUT");
+    expect(custo()).toHaveTextContent("R$ 22,00");
+    expect(within(janela).queryByTestId("linha-mao-obra-terceiro")).toBeNull();
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "10" } });
+    expect(within(janela).getByTestId("linha-mao-obra-total")).toHaveTextContent("R$ 220,00");
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), quantidade: "10" });
+  });
+
+  it("LL-TOTAIS-4 — o mesmo parceiro como funcionário e como terceiro são duas linhas do totalizador (a chave leva a origem)", async () => {
+    const ap7 = apontamentosPorAtividade.get("a4")[0];
+    ap7.mao_obra.push(linhaMaoObra({ id: "mo5", ordem: 3, parceiro_id: "pp2", origem: "FUNCIONARIO", parceiro: resumoParceiro("pp2"), tipo_medida: "HORA", quantidade: "1.0000", custo_unitario: "10.0000", custo_total: "10.0000" }));
+    ap7.mao_obra.push(linhaMaoObra({ id: "mo6", ordem: 4, parceiro_id: "pp2", origem: "TERCEIRO", parceiro: resumoParceiro("pp2"), tipo_medida: "HORA", quantidade: "2.0000", custo_unitario: "30.0000", custo_total: "60.0000" }));
+    await montar();
+    await abrir("a4", "ap7");
+    const totais = await screen.findByTestId("totalizador-atividade");
+    await waitFor(() => expect(within(totais).getByTestId("totalizador-mao-obra-pp2-FUNCIONARIO-HORA")).toHaveTextContent("1 h · R$ 10,00"));
+    expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA")).toHaveTextContent("2 h · R$ 60,00");
+    expect(within(totais).getByText("Mão de obra — Empreiteira Rocha")).toBeTruthy();
+    expect(within(totais).getByText("Mão de obra — Empreiteira Rocha (terceiro)")).toBeTruthy();
   });
 });
 
@@ -1614,9 +1686,9 @@ describe("LL-TOTAIS — totalizador com mão de obra e serviços (Fatia 4)", () 
     const totais = await screen.findByTestId("totalizador-atividade");
     await waitFor(() => expect(within(totais).getByTestId("totalizador-custo")).toHaveTextContent("R$ 210,00"));
     expect(within(totais).getByText("Mão de obra — José Silva")).toBeTruthy();
-    expect(within(totais).getByTestId("totalizador-mao-obra-f1-HORA")).toHaveTextContent("8 h · R$ 160,00");
+    expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("8 h · R$ 160,00");
     // A tarefa cancelada da Ana não conta.
-    expect(within(totais).queryByTestId("totalizador-mao-obra-f2-TAREFA")).toBeNull();
+    expect(within(totais).queryByTestId("totalizador-mao-obra-f2-FUNCIONARIO-TAREFA")).toBeNull();
     expect(within(totais).getByText("Serviço — Frete")).toBeTruthy();
     expect(within(totais).getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM · R$ 50,00");
     expect(within(totais).getByTestId("totalizador-custo-ha")).toHaveTextContent("R$ 21,00/ha");

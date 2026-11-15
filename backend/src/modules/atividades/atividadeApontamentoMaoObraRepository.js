@@ -27,7 +27,11 @@ export const ORIGENS_CANCELAMENTO = Object.freeze({ LINHA: 'LINHA', EDICAO: 'EDI
  * agora, não o snapshot da linha), inclusive ao trocar a medida.
  */
 export const PARCEIRO_RESUMO = Object.freeze({
-  select: { id: true, nome: true, funcionario_tipo: true, funcionario_cargo: true, funcionario_custo_hora: true, funcionario_custo_diaria: true },
+  // `empresa_id`, `ativo` e `tipos` só para calcular a `origem_atual` do resumo (não saem na forma pública).
+  select: {
+    id: true, nome: true, empresa_id: true, ativo: true, tipos: true,
+    funcionario_tipo: true, funcionario_cargo: true, funcionario_custo_hora: true, funcionario_custo_diaria: true,
+  },
 });
 
 /** `include` da linha: o resumo ao lado de cada id da forma pública. */

@@ -528,9 +528,9 @@ export const totalDaLinha = (quantidade, unitario) => {
  *   custo_diaria: string|null } | null} MaoObraEscolhida
  *   O parceiro da linha (D-PROD-208): funcionário (com o tipo e os custos do cadastro dele) ou terceiro (prestador de
  *   serviço, sem custo de cadastro: o custo é sempre digitado).
- * @typedef {{ parceiro_id: string, tipo_medida: string, custo_unitario: string|null } | null} MaoObraGravada
- *   O que a linha EDITADA gravou (o snapshot do custo): com o mesmo funcionário e a mesma medida, a edição mantém
- *   esse custo; só o "Repetir" e a linha nova usam o cadastro de agora.
+ * @typedef {{ parceiro_id: string, tipo_medida: string, custo_unitario: string|null, parceiro?: MaoObraEscolhida } | null} MaoObraGravada
+ *   O que a linha EDITADA gravou (o snapshot do custo e o parceiro com a ORIGEM gravada): com o mesmo funcionário e a
+ *   mesma medida, a edição mantém esse custo; só o "Repetir" e a linha nova usam o cadastro de agora.
  * @typedef {{ parceiro: MaoObraEscolhida, tipo_medida: string, quantidade: string, custo_unitario: string, observacao: string,
  *   gravado?: MaoObraGravada }} FormularioLinhaMaoObra
  */
@@ -618,31 +618,65 @@ export const formularioDaLinhaMaoObra = (l) => {
   /** @param {'funcionario_custo_hora'|'funcionario_custo_diaria'} campo @param {string} daMedida */
   const doCadastro = (campo, daMedida) =>
     origem === ORIGEM_TERCEIRO ? null : Object.prototype.hasOwnProperty.call(p, campo) ? decimalOuNulo(p[campo]) : medida === daMedida ? snapshot : null;
+  /** @type {MaoObraEscolhida} */
+  const parceiro = l?.parceiro_id
+    ? {
+        id: String(l.parceiro_id),
+        rotulo: rotuloDaMaoObraDaLinha(l) || String(l.parceiro_id),
+        origem,
+        tipo: origem === ORIGEM_FUNCIONARIO ? texto(p.funcionario_tipo) || null : null,
+        custo_hora: doCadastro('funcionario_custo_hora', 'HORA'),
+        custo_diaria: doCadastro('funcionario_custo_diaria', 'DIARIA'),
+      }
+    : null;
   return {
-    parceiro: l?.parceiro_id
-      ? {
-          id: String(l.parceiro_id),
-          rotulo: rotuloDaMaoObraDaLinha(l) || String(l.parceiro_id),
-          origem,
-          tipo: origem === ORIGEM_FUNCIONARIO ? texto(p.funcionario_tipo) || null : null,
-          custo_hora: doCadastro('funcionario_custo_hora', 'HORA'),
-          custo_diaria: doCadastro('funcionario_custo_diaria', 'DIARIA'),
-        }
-      : null,
+    parceiro,
     tipo_medida: medida,
     quantidade: paraEdicao(l?.quantidade),
     custo_unitario: custoDigitado(medida, origem) ? paraEdicao(l?.custo_unitario) : '',
     observacao: typeof l?.observacao === 'string' ? l.observacao : '',
-    gravado: l?.parceiro_id ? { parceiro_id: String(l.parceiro_id), tipo_medida: medida, custo_unitario: snapshot } : null,
+    gravado: parceiro ? { parceiro_id: parceiro.id, tipo_medida: medida, custo_unitario: snapshot, parceiro } : null,
   };
 };
 
 /**
  * Formulário da linha da BASE no "Repetir" (linha nova): os mesmos dados, mas sem o `gravado` — o servidor grava o
- * snapshot do cadastro de AGORA, e é ele que a prévia mostra.
+ * snapshot do cadastro de AGORA, e é ele que a prévia mostra. A origem é a ATUAL do parceiro (`parceiro.origem_atual`,
+ * a que o servidor decide para a linha nova), não a gravada: se o parceiro mudou de papel, o custo segue a regra da
+ * origem de agora (passar a terceiro pede o custo digitado de novo); sem papel de mão de obra, inativo ou de outra
+ * fazenda (`origem_atual` nula), o parceiro fica vazio para a pessoa escolher.
  * @param {any} l @returns {FormularioLinhaMaoObra}
  */
-export const formularioMaoObraDaBase = (l) => ({ ...formularioDaLinhaMaoObra(l), gravado: null });
+export const formularioMaoObraDaBase = (l) => {
+  const p = ehObjeto(l?.parceiro) ? l.parceiro : null;
+  const comAtual = Boolean(p) && Object.prototype.hasOwnProperty.call(p, 'origem_atual');
+  if (!comAtual) return { ...formularioDaLinhaMaoObra(l), gravado: null };
+  const atual = /** @type {any} */ (p).origem_atual;
+  if (atual !== ORIGEM_FUNCIONARIO && atual !== ORIGEM_TERCEIRO) return { ...formularioDaLinhaMaoObra(l), parceiro: null, custo_unitario: '', gravado: null };
+  const gravada = origemDe(l?.origem);
+  const form = formularioDaLinhaMaoObra({ ...l, origem: atual });
+  // Mudou para uma origem em que o custo é digitado e antes não era: o custo antigo (do cadastro) não vale.
+  const limpaCusto = atual !== gravada && !custoDigitado(form.tipo_medida, gravada);
+  return { ...form, custo_unitario: limpaCusto ? '' : form.custo_unitario, gravado: null };
+};
+
+/**
+ * A mudança do formulário ao escolher no seletor "Funcionário ou terceiro": a opção nova com a medida sugerida; na
+ * EDIÇÃO, voltar ao parceiro GRAVADO da linha restaura a origem, a medida e o custo gravados (o servidor mantém a
+ * origem com que a linha entrou, mesmo que o papel do parceiro tenha mudado).
+ * @param {any} o a opção do seletor (ou null ao limpar) @param {FormularioLinhaMaoObra} form
+ * @returns {Partial<FormularioLinhaMaoObra>}
+ */
+export const mudancaDaMaoObraEscolhida = (o, form) => {
+  const g = form?.gravado;
+  if (ehObjeto(o) && o.id != null && g?.parceiro && String(o.id) === g.parceiro_id) {
+    const parceiro = g.parceiro;
+    const digitado = custoDigitado(g.tipo_medida, parceiro.origem);
+    return { parceiro, tipo_medida: g.tipo_medida, custo_unitario: digitado ? paraEdicao(g.custo_unitario) : form.custo_unitario };
+  }
+  const parceiro = maoObraEscolhida(o);
+  return { parceiro, tipo_medida: parceiro ? medidaSugeridaDaMaoObra(parceiro) : form?.tipo_medida ?? 'HORA' };
+};
 
 /**
  * A edição mantém o custo gravado? Hora/diária do funcionário com o MESMO parceiro e a MESMA medida da linha gravada
@@ -907,7 +941,7 @@ export const totaisParaExibir = (totais, atividade) => {
   }));
   // D-PROD-208: por parceiro (funcionário ou terceiro) e medida; o terceiro vem marcado no nome.
   const maoObra = (Array.isArray(t.mao_obra) ? t.mao_obra : []).filter(ehObjeto).map((o) => ({
-    chave: `${String(o.parceiro_id ?? o.nome ?? '')}${o.tipo_medida ? `-${o.tipo_medida}` : ''}`,
+    chave: `${String(o.parceiro_id ?? o.nome ?? '')}${o.origem ? `-${o.origem}` : ''}${o.tipo_medida ? `-${o.tipo_medida}` : ''}`,
     nome: comMarcaDeTerceiro(texto(o.nome) || texto(o.parceiro?.nome) || 'Mão de obra', o),
     quantidade: formatarQuantidadeMaoObra(o.quantidade, o.tipo_medida) || '—',
     custo: formatarCustoLinha(o.custo_total),
