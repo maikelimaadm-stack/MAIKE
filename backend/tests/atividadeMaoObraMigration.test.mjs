@@ -1,5 +1,5 @@
 /**
- * D-PROD-205 — a migration EXPAND `20261114800000_atividade_mao_obra_servico` (os cadastros Funcionario e Servico, por
+ * D-PROD-205 — a migration EXPAND `20261115200000_atividade_mao_obra_servico` (os cadastros Funcionario e Servico, por
  * fazenda, e as linhas que fecham o custo do apontamento do dia: AtividadeApontamentoMaoObra e
  * AtividadeApontamentoServico; nenhuma coluna em tabela antiga) de ponta a ponta, contra PostgreSQL real, em bancos
  * PRÓPRIOS criados e apagados por este teste (o banco da suíte não é tocado; os nomes começam pelo nome do banco da
@@ -52,7 +52,7 @@ const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
 const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
-const NOME = '20261114800000_atividade_mao_obra_servico';
+const NOME = '20261115200000_atividade_mao_obra_servico';
 const ARQUIVO = join(MIGRATIONS, NOME, 'migration.sql');
 const SQL_MIGRATION = readFileSync(ARQUIVO, 'utf8');
 const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
@@ -392,7 +392,7 @@ describe('D-PROD-205 — migration EXPAND da mão de obra e do serviço de terce
     assert.equal(pos['índices (sem as pkeys): total / começando por cliente_id / únicos'].valor, '23 / 23 / 14');
     assert.equal(pos['grants para anon/authenticated/PUBLIC nas 4 novas'].valor, '0');
     const pre = quadro(await consulta(URL_T, comSidLocal(blocoDoRunbook('preflight'), SID)));
-    for (const item of ['20261114800000_atividade_mao_obra_servico já registrada', 'tabelas novas já presentes', 'migrations concluídas / em aberto', 'tabelas em public']) {
+    for (const item of ['20261115200000_atividade_mao_obra_servico já registrada', 'tabelas novas já presentes', 'migrations concluídas / em aberto', 'tabelas em public']) {
       assert.equal(pre[item].status, 'PARAR', item);
     }
     assert.match(pre.VEREDITO.valor, /^PARAR/);

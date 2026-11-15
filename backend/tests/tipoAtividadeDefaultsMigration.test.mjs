@@ -52,7 +52,7 @@
  * posterior, também não existia no dia desta CONTRACT: fica fora da partida (como a D-PROD-198) e sobe pelo runner,
  * pela ordem dos nomes; no caminho B a 2ª execução do runner aplica também ela.
  *
- * D-PROD-205: a EXPAND `20261114800000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
+ * D-PROD-205: a EXPAND `20261115200000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
  * de serviço, que referenciam AtividadeApontamento; nenhuma coluna em tabela antiga, não toca TipoAtividade) sobe como
  * a D-PROD-202, fora de ordem antes do caminho do runner, depois dela: 53 migrations e 91 tabelas nessa partida, e no
  * banco do runner (com a D-PROD-203 aplicada por último) as duas linhas de contagem do postcheck ficam 56 / 0 e 94.
@@ -434,7 +434,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     // D-PROD-198, D-PROD-200, D-PROD-202, D-PROD-203 e D-PROD-205: a EXPAND do peso objetivo, a Atividade cabeçalho, as
     // linhas de produto e de máquina, a EXPAND das Formulações e a mão de obra e o serviço têm nome posterior a esta
     // (56 pastas no total); as cinco ficam fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261114800000_atividade_mao_obra_servico']);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261115200000_atividade_mao_obra_servico']);
     assert.equal(TOTAL_MIGRATIONS, 56);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_PESO_OBJETIVO), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_FORMULACOES), false);
@@ -490,7 +490,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
 
   test('TA-02 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-197, antes de qualquer DDL', async () => {
     // D-PROD-200 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
-    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', '20261114800000_atividade_mao_obra_servico'], 'só a CONTRACT da D-PROD-200 e as EXPAND da D-PROD-202 e da D-PROD-205 (fora a D-PROD-198 e a D-PROD-203) têm nome posterior a esta');
+    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', '20261115200000_atividade_mao_obra_servico'], 'só a CONTRACT da D-PROD-200 e as EXPAND da D-PROD-202 e da D-PROD-205 (fora a D-PROD-198 e a D-PROD-203) têm nome posterior a esta');
     // As EXPAND da D-PROD-198 e da D-PROD-203 ficam para o runner, depois desta (como em produção).
     await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_FORMULACOES));
     partida = await retrato(db);

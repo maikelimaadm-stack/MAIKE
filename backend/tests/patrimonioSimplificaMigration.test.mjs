@@ -35,7 +35,7 @@
  * dela (vazias, com RLS) e as 2 colunas anuláveis em BemPatrimonial e TipoPatrimonial. A D-PROD-203 (EXPAND
  * `20261114700000_cadformulacao`, Formulações, 3 tabelas novas) não existia no dia desta CONTRACT: também fica fora da
  * partida e sobe no GREEN, depois da D-PROD-202, com as 3 tabelas dela (vazias, com RLS). A D-PROD-205 (EXPAND
- * `20261114800000_atividade_mao_obra_servico`, mão de obra e serviço) referencia AtividadeApontamento: também fica
+ * `20261115200000_atividade_mao_obra_servico`, mão de obra e serviço) referencia AtividadeApontamento: também fica
  * fora da partida e sobe por último no GREEN, com as 4 tabelas dela (vazias, com RLS) e nenhuma coluna em tabela antiga.
  *
  * RED (nada muda; a falha aberta é resolvida com `migrate resolve --rolled-back`):
@@ -113,7 +113,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
     // D-PROD-203: as Formulações (release posterior) também ficam fora da partida e sobem no GREEN; a D-PROD-205, por último.
-    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261114800000_atividade_mao_obra_servico']);
+    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261115200000_atividade_mao_obra_servico']);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
     assert.deepEqual(await donoEAcl(db, TABELAS_DEPOIS_DO_CONTRACT), []);

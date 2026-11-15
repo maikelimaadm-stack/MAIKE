@@ -39,7 +39,7 @@
  *     D-PROD-200 cria; sobe no passo 4, depois dela. A EXPAND
  *     `20261114700000_cadformulacao` (D-PROD-203, Formulações) também fica de
  *     fora (não existia no dia desta CONTRACT); sobe no passo 4. A EXPAND
- *     `20261114800000_atividade_mao_obra_servico` (D-PROD-205) também fica de
+ *     `20261115200000_atividade_mao_obra_servico` (D-PROD-205) também fica de
  *     fora: as linhas de mão de obra e de serviço referenciam
  *     AtividadeApontamento; sobe no passo 4, por último;
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
@@ -112,7 +112,7 @@ export const NOME_ATIVIDADE_LINHAS = '20261114600000_atividade_linhas_produto_ma
  * tabelas ficam fora da impressão digital das que FICAM, como as da D-PROD-200 e da D-PROD-202.
  */
 export const NOME_FORMULACOES = '20261114700000_cadformulacao';
-export const NOME_ATIVIDADE_MAO_OBRA = '20261114800000_atividade_mao_obra_servico';
+export const NOME_ATIVIDADE_MAO_OBRA = '20261115200000_atividade_mao_obra_servico';
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_ATIVIDADE_MAO_OBRA]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-205). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',

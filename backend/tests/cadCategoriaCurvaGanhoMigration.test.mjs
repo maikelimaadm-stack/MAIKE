@@ -56,7 +56,7 @@
  * "CADCATEGORIA") também não existia no dia desta CONTRACT: fica FORA da partida e sobe no GREEN por último (pela
  * ordem dos nomes, EXPAND, sem autorização): + 3 tabelas no fim.
  *
- * D-PROD-205: a EXPAND `20261114800000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
+ * D-PROD-205: a EXPAND `20261115200000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
  * de serviço, que referenciam AtividadeApontamento; nenhuma coluna em tabela antiga), também de nome POSTERIOR, sobe
  * na partida da mesma forma que a D-PROD-202, depois dela: 91 tabelas na partida e 94 no fim.
  */
@@ -98,7 +98,7 @@ const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO, NOME_FORMULACOES]);
 /** D-PROD-202: a EXPAND das linhas de produto e de máquina, de nome posterior, sobe na partida (ver o cabeçalho). */
 const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
 /** D-PROD-205: a EXPAND da mão de obra e do serviço, de nome posterior, também sobe na partida (ver o cabeçalho). */
-const NOME_MAO_OBRA = '20261114800000_atividade_mao_obra_servico';
+const NOME_MAO_OBRA = '20261115200000_atividade_mao_obra_servico';
 /** D-PROD-197/D-PROD-200: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
 const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n) && n !== NOME_LINHAS && n !== NOME_MAO_OBRA));
 const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n !== NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n)).length;

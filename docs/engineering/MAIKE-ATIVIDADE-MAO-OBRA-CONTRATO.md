@@ -27,7 +27,7 @@ Toda FK é composta pelo tenant e `RESTRICT`. Apontamento, funcionário e servi�
 id)`. O parceiro só tem `(cliente_id, id)`: a mesma fazenda é conferida no serviço (`FOR KEY SHARE`, como
 `bemPatrimonialService`).
 
-**Migration `20261114800000_atividade_mao_obra_servico`, EXPAND (só 4 tabelas novas):** produção 55 → 56
+**Migration `20261115200000_atividade_mao_obra_servico`, EXPAND (só 4 tabelas novas):** produção 55 → 56
 migrations e 90 → 94 tabelas (depois das Formulações, D-PROD-203, `20261114700000_cadformulacao`). Aplicável antes do merge, só com autorização do proprietário.
 
 ## 2. Cadastros Funcionário e Serviço

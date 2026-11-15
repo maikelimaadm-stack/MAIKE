@@ -10,7 +10,7 @@
  * `meta.modelName` = o model da operação (`Servico` na escrita do serviço; o
  * cadastro apontado, na exclusão dele).
  *
- * Os nomes são os do migration.sql `20261114800000_atividade_mao_obra_servico`,
+ * Os nomes são os do migration.sql `20261115200000_atividade_mao_obra_servico`,
  * ANCORADOS dos dois lados: `AtividadeApontamentoServico_…` (linha de serviço)
  * não casa com uma FK do cadastro.
  *

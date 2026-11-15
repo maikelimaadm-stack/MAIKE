@@ -130,7 +130,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261114700000_cadformulacao': '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524',
   // D-PROD-205 (Fatia 4): EXPAND — mão de obra e serviço de terceiro do apontamento: Funcionario, Servico,
   // AtividadeApontamentoMaoObra e AtividadeApontamentoServico novas. Nenhuma coluna em tabela antiga; nenhum dado migrado.
-  '20261114800000_atividade_mao_obra_servico': '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725',
+  '20261115200000_atividade_mao_obra_servico': '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

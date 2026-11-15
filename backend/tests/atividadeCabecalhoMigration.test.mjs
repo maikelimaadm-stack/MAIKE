@@ -43,7 +43,7 @@
  * sobe nos mesmos GREEN, depois da D-PROD-202 (pela ordem dos nomes; EXPAND, sem autorização). No banco do runner as
  * duas linhas de contagem do postcheck ficam 55 / 0 e 90 (84 + 3 da D-PROD-202 + 3 da D-PROD-203).
  *
- * D-PROD-205: o mesmo vale para a EXPAND `20261114800000_atividade_mao_obra_servico` (os cadastros Funcionario e
+ * D-PROD-205: o mesmo vale para a EXPAND `20261115200000_atividade_mao_obra_servico` (os cadastros Funcionario e
  * Servico e as linhas de mão de obra e de serviço: 4 tabelas novas, nenhuma coluna em tabela antiga), também de nome
  * posterior: sobe depois da D-PROD-203 nos mesmos GREEN, e as duas linhas de contagem passam a 56 / 0 e 94.
  */
@@ -90,7 +90,7 @@ const NOVAS_LINHAS = Object.freeze(['AtividadeApontamentoMaquina', 'AtividadeApo
 const NOME_FORMULACOES = '20261114700000_cadformulacao';
 const TABELAS_FORMULACOES = Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);
 /** D-PROD-205: a EXPAND da mão de obra e do serviço, também de nome posterior (ver o cabeçalho). */
-const NOME_MAO_OBRA = '20261114800000_atividade_mao_obra_servico';
+const NOME_MAO_OBRA = '20261115200000_atividade_mao_obra_servico';
 const NOVAS_MAO_OBRA = Object.freeze(['AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico']);
 /** As tabelas das EXPAND posteriores (D-PROD-202, D-PROD-203 e D-PROD-205), que só existem nos bancos em que o runner as aplicou. */
 const NOVAS_POSTERIORES = Object.freeze([...NOVAS_LINHAS, ...TABELAS_FORMULACOES, ...NOVAS_MAO_OBRA]);

@@ -16,7 +16,7 @@ Precedente executado: [`MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIV
 
 | Item | Valor |
 |---|---|
-| Migration | `20261114800000_atividade_mao_obra_servico` |
+| Migration | `20261115200000_atividade_mao_obra_servico` |
 | Natureza | **EXPAND** (allowlist fechada do portão, D-PROD-107 R7): só tabelas novas. Nenhuma coluna em tabela antiga, nenhum dado migrado, nenhum `UPDATE`, nenhum `DROP` |
 | O que entra | `"Funcionario"` (cadastro de funcionário por fazenda), `"Servico"` (cadastro de serviço por fazenda, com a unidade de medida do cadastro existente e o centro de custo padrão), `"AtividadeApontamentoMaoObra"` (linha de mão de obra) e `"AtividadeApontamentoServico"` (linha de serviço de terceiro): 4 `CREATE TABLE`, 23 índices (14 únicos), todos começando por `cliente_id`, 8 CHECKs, 17 FKs compostas pelo tenant `ON DELETE RESTRICT ON UPDATE CASCADE` (o apontamento, o funcionário, o serviço e o centro de custo por `(cliente_id, empresa_id, id)`: mesma fazenda por construção; o parceiro, a unidade e os usuários por `(cliente_id, id)`) e o RLS de sempre (REVOKE de `anon`/`authenticated`, RLS sem FORCE, política `maike_backend_all` para `maike_vercel`) |
 | Colunas em tabelas antigas | **nenhuma** |
@@ -109,7 +109,7 @@ esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261114800000_atividade_mao_obra_servico' AND rolled_back_at IS NULL) AS esta,
+         count(*) FILTER (WHERE migration_name = '20261115200000_atividade_mao_obra_servico' AND rolled_back_at IS NULL) AS esta,
          count(*) FILTER (WHERE migration_name = '20261114700000_cadformulacao'
                             AND checksum = '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior
@@ -155,7 +155,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '55 / 0',
          CASE WHEN (SELECT concluidas = 55 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, '20261114800000_atividade_mao_obra_servico já registrada', (SELECT esta::text FROM mig), '0',
+  SELECT 3, '20261115200000_atividade_mao_obra_servico já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'a anterior (D-PROD-203) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
@@ -198,7 +198,7 @@ SELECT item, valor, esperado, status FROM (
 | travas de outras sessões e transações longas | `0` e `0` (senão `ATENÇÃO`: esperar e repetir fora de pico) |
 
 E, localmente, no `<SHA_APROVADO>`:
-`sha256sum backend/prisma/migrations/20261114800000_atividade_mao_obra_servico/migration.sql`
+`sha256sum backend/prisma/migrations/20261115200000_atividade_mao_obra_servico/migration.sql`
 igual ao pinado, e a análise local do `premerge-migrate` (§1) com `modo: EXPAND`,
 `contract: []`, as 4 `tabelas_novas`, `colunas_novas_em_tabelas_antigas: []` e
 `violacoes: []`.
@@ -251,7 +251,7 @@ BEGIN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
   IF EXISTS (SELECT 1 FROM _prisma_migrations
-              WHERE migration_name = '20261114800000_atividade_mao_obra_servico' AND rolled_back_at IS NULL) THEN
+              WHERE migration_name = '20261115200000_atividade_mao_obra_servico' AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -279,7 +279,7 @@ END $alvo$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725', now(),
-        '20261114800000_atividade_mao_obra_servico', NULL, NULL, now(), 1);
+        '20261115200000_atividade_mao_obra_servico', NULL, NULL, now(), 1);
 COMMIT;
 ```
 <!-- /sql:caminho-b -->
@@ -297,7 +297,7 @@ COMMIT;
    com `finished_at` NULL.
 2. Conferir pelo preflight que as novas não existem (linha 5 `0`).
 3. Com a conexão de **produção** explícita (o schema lê `DATABASE_URL`):
-   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261114800000_atividade_mao_obra_servico --schema backend/prisma/schema.prisma`.
+   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261115200000_atividade_mao_obra_servico --schema backend/prisma/schema.prisma`.
 4. Eliminar a causa e confirmar com o proprietário antes de tentar de novo.
 5. Uma tentativa resolvida (`rolled_back_at` preenchido) não bloqueia o envelope
    do caminho B; uma linha ainda aberta bloqueia (resolver primeiro). No §6,
@@ -320,7 +320,7 @@ esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261114800000_atividade_mao_obra_servico'
+         count(*) FILTER (WHERE migration_name = '20261115200000_atividade_mao_obra_servico'
                             AND checksum = '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL AND applied_steps_count = 1) AS esta
     FROM public._prisma_migrations
@@ -385,7 +385,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, '20261114800000_atividade_mao_obra_servico concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
+  SELECT 2, '20261115200000_atividade_mao_obra_servico concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '56 / 0',

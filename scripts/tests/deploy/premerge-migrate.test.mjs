@@ -173,7 +173,7 @@ const DO_F = 'b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6';
  * (Funcionario, Servico e as 2 linhas) e o RLS pinado delas. Nenhuma coluna em tabela antiga, nenhum dado migrado;
  * AtividadeApontamento (D-PROD-200), Fornecedor, UnidadeMedida, CentroCusto e Usuario são ANTIGAS nesta release.
  */
-const NOME_MO = '20261114800000_atividade_mao_obra_servico';
+const NOME_MO = '20261115200000_atividade_mao_obra_servico';
 const NOVAS_MO = ['AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
 const DO_MO = '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403';
 /** Variação do arquivo CONTRACT `nome` sob o MESMO nome, com manifesto sintético: o checksum passa e só a estrutura decide. */
@@ -1438,7 +1438,7 @@ test('B16k (D-PROD-194/D-PROD-187/D-PROD-189/D-PROD-190/D-PROD-185/D-PROD-193): 
   // `20261114500000_atividade_cabecalho`, ver B21m), as linhas de produto e de máquina (D-PROD-202,
   // `20261114600000_atividade_linhas_produto_maquina`, ver B22k), as Formulações (D-PROD-203,
   // `20261114700000_cadformulacao`, ver B23k) e a mão de obra e o serviço (D-PROD-205,
-  // `20261114800000_atividade_mao_obra_servico`, ver B24k) vieram depois dela, em releases seguintes: 49 pastas.
+  // `20261115200000_atividade_mao_obra_servico`, ver B24k) vieram depois dela, em releases seguintes: 49 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_K);
   assert.equal(locais.length, 49);
   for (const n of [NOME_G, NOME_P, NOME_PO, NOME_V, NOME_L, NOME_F, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -2598,7 +2598,7 @@ test('B21m (D-PROD-200/D-PROD-198/D-PROD-197): ordem de produção no dia da D-P
   // No dia da D-PROD-200 a Atividade cabeçalho era a pasta de nome mais recente; as linhas de produto e de máquina
   // (D-PROD-202, `20261114600000_atividade_linhas_produto_maquina`, ver B22k) e as Formulações (D-PROD-203,
   // `20261114700000_cadformulacao`, ver B23k) e a mão de obra e o serviço (D-PROD-205,
-  // `20261114800000_atividade_mao_obra_servico`, ver B24k) vieram depois dela: 53 pastas.
+  // `20261115200000_atividade_mao_obra_servico`, ver B24k) vieram depois dela: 53 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_V);
   assert.equal(locais.length, 53);
   for (const n of [NOME_L, NOME_F, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -2738,7 +2738,7 @@ test('B22k (D-PROD-202/D-PROD-200): ordem de produção no dia da D-PROD-202 —
   assert.equal(todas.length, 56);
   // No dia da D-PROD-202 as linhas de produto e de máquina eram a pasta de nome mais recente; as Formulações
   // (D-PROD-203, `20261114700000_cadformulacao`, ver B23k) e a mão de obra e o serviço (D-PROD-205,
-  // `20261114800000_atividade_mao_obra_servico`, ver B24k) vieram depois dela, nas releases seguintes: 54 pastas.
+  // `20261115200000_atividade_mao_obra_servico`, ver B24k) vieram depois dela, nas releases seguintes: 54 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_L);
   assert.equal(locais.length, 54);
   for (const n of [NOME_F, NOME_MO]) assert.ok(todas.some((l) => l.nome === n) && !locais.some((l) => l.nome === n), n);
@@ -2811,7 +2811,7 @@ test('B23k (D-PROD-203/D-PROD-202): ordem de produção no dia da D-PROD-203 —
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 56);
   // No dia da D-PROD-203 as Formulações eram a pasta de nome mais recente; a mão de obra e o serviço (D-PROD-205,
-  // `20261114800000_atividade_mao_obra_servico`, ver B24k) vieram depois dela, na release seguinte: 55 pastas.
+  // `20261115200000_atividade_mao_obra_servico`, ver B24k) vieram depois dela, na release seguinte: 55 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_F);
   assert.equal(locais.length, 55);
   assert.ok(todas.some((l) => l.nome === NOME_MO) && !locais.some((l) => l.nome === NOME_MO), NOME_MO);

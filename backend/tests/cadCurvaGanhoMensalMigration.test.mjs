@@ -56,7 +56,7 @@
  * D-PROD-203: a EXPAND `20261114700000_cadformulacao` (as 3 tabelas das Formulações, nada em tabela antiga) também
  * fica fora da partida e sobe no GREEN depois da D-PROD-202 (EXPAND, sem autorização).
  *
- * D-PROD-205: a EXPAND `20261114800000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
+ * D-PROD-205: a EXPAND `20261115200000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
  * de serviço; nenhuma coluna em tabela antiga), agora a de nome mais recente, fica fora da partida e sobe no GREEN por
  * último, do mesmo jeito: 56/0 e 94 tabelas no fim (85 − 3 + 2 + 3 + 3 + 4).
  *
@@ -97,7 +97,7 @@ const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
 /** D-PROD-203: a EXPAND das Formulações (3 tabelas novas); fora da partida, aplicada pelo runner no GREEN depois da D-PROD-202. */
 const NOME_FORMULACOES = '20261114700000_cadformulacao';
 /** D-PROD-205: a EXPAND da mão de obra e do serviço, a de nome mais recente; fora da partida, aplicada pelo runner no GREEN por último. */
-const NOME_MAO_OBRA = '20261114800000_atividade_mao_obra_servico';
+const NOME_MAO_OBRA = '20261115200000_atividade_mao_obra_servico';
 const POSTERIORES = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort());
 /** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
 const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200']]);

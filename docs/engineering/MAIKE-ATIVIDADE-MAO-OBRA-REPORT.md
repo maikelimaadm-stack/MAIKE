@@ -17,7 +17,7 @@ atividade passam a somar as quatro linhas (produto, máquina, mão de obra e ser
 | Camada | Entrega |
 |---|---|
 | Banco | `Funcionario`, `Servico`, `AtividadeApontamentoMaoObra` e `AtividadeApontamentoServico`, com FKs compostas pelo tenant (`RESTRICT`), 8 CHECKs, 23 índices começando por `cliente_id` e o RLS de sempre. Nenhuma coluna em tabela antiga. Tabelas 90 → 94 (de tenant, 75 → 79) |
-| Migration | `20261114800000_atividade_mao_obra_servico`, **EXPAND** (zero violações no portão). SHA `79f139a0…`, RLS `16d2680d…`. Aplicável antes do merge |
+| Migration | `20261115200000_atividade_mao_obra_servico`, **EXPAND** (zero violações no portão). SHA `79f139a0…`, RLS `16d2680d…`. Aplicável antes do merge |
 | Cadastros | Funcionário (tipo, cargo, custo por hora e por diária) e Serviço (unidade de medida do cadastro existente, centro de custo padrão, valor de referência), por fazenda, sem DELETE: só inativar e reativar |
 | Mão de obra | Hora e diária com o custo do cadastro como snapshot (sem custo no cadastro, a linha entra sem custo); tarefa com custo digitado; exige `permite_mao_obra` |
 | Serviço | Unidade como snapshot da sigla da unidade do serviço; valor digitado (a tela sugere o de referência); parceiro opcional, ativo, da mesma fazenda e com o papel `prestador_servico`; exige `permite_servico` |

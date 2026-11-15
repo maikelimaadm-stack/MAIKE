@@ -102,7 +102,7 @@ export const NOMES_POSTERIORES_JA_APLICADAS = Object.freeze(['20261113600000_cad
  * TipoAtividade, e a da D-PROD-200, `20261114500000_atividade_cabecalho`, que só toca as 3 tabelas do apontamento
  * antigo, e a EXPAND da D-PROD-202, `20261114600000_atividade_linhas_produto_maquina`, que cria as 3 tabelas das
  * linhas de produto e de máquina e só acrescenta colunas anuláveis em BemPatrimonial e TipoPatrimonial, e a EXPAND da
- * D-PROD-205, `20261114800000_atividade_mao_obra_servico`, que cria Funcionario, Servico e as 2 linhas de mão de obra
+ * D-PROD-205, `20261115200000_atividade_mao_obra_servico`, que cria Funcionario, Servico e as 2 linhas de mão de obra
  * e de serviço, sem coluna em tabela antiga) também ficam concluídas antes desta CONTRACT, menos as
  * NOMES_DEPOIS_DO_CONTRACT.
  * Em produção essas entram depois desta CONTRACT (já aplicada); não dependem do formato desta tabela e ela não as

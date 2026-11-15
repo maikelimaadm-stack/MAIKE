@@ -34,7 +34,7 @@
  * runbook fixa o histórico de produção naquele dia (54 / 0, 87 tabelas): passa inteiro no banco do caminho B antes do
  * runner e, no banco do runner, só as duas linhas de contagem mudam (55 / 0 e 90).
  *
- * D-PROD-205: a EXPAND `20261114800000_atividade_mao_obra_servico` (os cadastros Funcionario e Servico e as linhas de
+ * D-PROD-205: a EXPAND `20261115200000_atividade_mao_obra_servico` (os cadastros Funcionario e Servico e as linhas de
  * mão de obra e de serviço do apontamento: 4 tabelas novas, nenhuma coluna em tabela antiga), de nome posterior à da
  * D-PROD-203, também não existia no dia desta: fica fora da partida e sobe nos mesmos GREEN, depois da D-PROD-203 (pela
  * ordem dos nomes; EXPAND, sem autorização). No banco do runner as duas linhas de contagem ficam 56 / 0 e 94.
@@ -80,7 +80,7 @@ const TABELAS_FORMULACOES = Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGRED
 /** Constraints, índices e políticas das 3 tabelas das Formulações (só nos bancos em que o runner as aplicou). */
 const daFormulacao = (l) => /^CADFORMULACAO/.test(l);
 /** D-PROD-205: a EXPAND da mão de obra e do serviço, de nome posterior; não existia no dia desta (ver o cabeçalho). */
-const NOME_MAO_OBRA = '20261114800000_atividade_mao_obra_servico';
+const NOME_MAO_OBRA = '20261115200000_atividade_mao_obra_servico';
 const NOVAS_MAO_OBRA = Object.freeze(['AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico']);
 /** Constraints, índices ou `tabela:política` das 4 tabelas da D-PROD-205. */
 const DA_MAO_OBRA = /^(Funcionario|Servico|AtividadeApontamento(MaoObra|Servico))[_:]/;
