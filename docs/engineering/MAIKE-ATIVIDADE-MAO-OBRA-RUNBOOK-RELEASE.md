@@ -24,8 +24,8 @@ Precedente executado: [`MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIV
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725` |
 | RLS das novas (`DO_RLS_APROVADOS`) | `16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403` |
 | Classificador (`classificarMigrations`) | `modo: EXPAND`, `expand: true`, `violacoes: []`, `contract: []`, `tabelas_novas: ["AtividadeApontamentoMaoObra", "AtividadeApontamentoServico", "Funcionario", "Servico"]`, `colunas_novas_em_tabelas_antigas: []` |
-| `_prisma_migrations` | antes **54** concluídas, 0 em aberto (a última, a EXPAND das linhas de produto e de máquina da D-PROD-202, `20261114600000_atividade_linhas_produto_maquina`, concluída em 2026-11-14, checksum `e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489`); depois **55**. Recontar no §4 se algo mais for aplicado antes |
-| Tabelas em `public` | **87** antes, **91** depois (+ 4); de tenant, 72 → 76 |
+| `_prisma_migrations` | antes **55** concluídas, 0 em aberto (a última, a EXPAND das Formulações da D-PROD-203, `20261114700000_cadformulacao`, concluída em 2026-11-14 às 23:41:42 UTC, checksum `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`); depois **56**. Recontar no §4 se algo mais for aplicado antes |
+| Tabelas em `public` | **90** antes, **94** depois (+ 4); de tenant, 75 → 79 |
 
 **Ordem: aplicar ANTES do merge (D-PROD-72 item 1). Não há janela.**
 
@@ -110,8 +110,8 @@ mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
          count(*) FILTER (WHERE migration_name = '20261114800000_atividade_mao_obra_servico' AND rolled_back_at IS NULL) AS esta,
-         count(*) FILTER (WHERE migration_name = '20261114600000_atividade_linhas_produto_maquina'
-                            AND checksum = 'e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489'
+         count(*) FILTER (WHERE migration_name = '20261114700000_cadformulacao'
+                            AND checksum = '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior
     FROM public._prisma_migrations
 ),
@@ -152,13 +152,13 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '54 / 0',
-         CASE WHEN (SELECT concluidas = 54 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '55 / 0',
+         CASE WHEN (SELECT concluidas = 55 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, '20261114800000_atividade_mao_obra_servico já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 4, 'a anterior (D-PROD-202) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
+  SELECT 4, 'a anterior (D-PROD-203) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
          CASE WHEN (SELECT anterior FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 5, 'tabelas novas já presentes', (SELECT n::text FROM novas), '0',
@@ -167,8 +167,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 6, 'chaves compostas que as FKs novas referenciam', (SELECT n::text FROM chaves), '6',
          CASE WHEN (SELECT n FROM chaves) = 6 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 7, 'tabelas em public', (SELECT n::text FROM tabelas), '87',
-         CASE WHEN (SELECT n FROM tabelas) = 87 THEN 'OK' ELSE 'PARAR' END
+  SELECT 7, 'tabelas em public', (SELECT n::text FROM tabelas), '90',
+         CASE WHEN (SELECT n FROM tabelas) = 90 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 8, 'travas de outras sessões nas tabelas que a migration trava, agora', (SELECT n::text FROM travas), '0',
          CASE WHEN (SELECT n FROM travas) = 0 THEN 'OK' ELSE 'ATENÇÃO (repita fora de pico)' END
@@ -189,12 +189,12 @@ SELECT item, valor, esperado, status FROM (
 | Linha | Esperado hoje |
 |---|---|
 | alvo | `7692130048193495360` |
-| migrations | `54 / 0` |
+| migrations | `55 / 0` |
 | esta migration registrada | `0` |
-| a anterior (D-PROD-202) com o checksum do repositório | `1` |
+| a anterior (D-PROD-203) com o checksum do repositório | `1` |
 | tabelas novas já presentes | `0` |
 | chaves compostas que as FKs referenciam | `6` |
-| tabelas em `public` | `87` |
+| tabelas em `public` | `90` |
 | travas de outras sessões e transações longas | `0` e `0` (senão `ATENÇÃO`: esperar e repetir fora de pico) |
 
 E, localmente, no `<SHA_APROVADO>`:
@@ -211,11 +211,11 @@ PostgreSQL local, em bancos próprios criados e apagados pelo teste. Ele roda
 deste arquivo, entre os marcadores `sql:…`), trocando só o `system_identifier` de
 produção pelo local:
 
-- partida: as 54 migrations de nome anterior a esta, pelo Prisma, com um
+- partida: as 55 migrations de nome anterior a esta, pelo Prisma, com um
   apontamento do dia, uma unidade de medida, um centro de custo, um parceiro
   prestador e os usuários já cadastrados; preflight `PRONTO`;
 - o classificador (`EXPAND`, sem violação) e a release pelo runner oficial com a
-  conferência de alvo exigida, **sem** `MIGRATION_CONTRACT_AUTORIZADO`: 55/0, 91
+  conferência de alvo exigida, **sem** `MIGRATION_CONTRACT_AUTORIZADO`: 56/0, 94
   tabelas, as 4 novas com RLS sem FORCE, a política e nenhum grant público, nenhuma
   coluna nova em tabela antiga, os CHECKs (tipo do funcionário, custos, status e
   cancelamento, tipo de medida, custo com e sem snapshot, valores do serviço,
@@ -223,8 +223,8 @@ produção pelo local:
   `migrate diff` vazio, postcheck `APLICADA`; reaplicar o `migration.sql` falha sem
   mudar nada;
 - caminho B: o envelope com o `system_identifier` de produção recusa (alvo
-  divergente); com histórico fora de 54/0 ou a D-PROD-202 com outro checksum recusa
-  antes do DDL; o envelope aplica (54 → 55, checksum = SHA-256 do arquivo,
+  divergente); com histórico fora de 55/0 ou a D-PROD-203 com outro checksum recusa
+  antes do DDL; o envelope aplica (55 → 56, checksum = SHA-256 do arquivo,
   `applied_steps_count` 1, o mesmo schema do runner), o Prisma não vê pendência,
   `migrate diff` vazio, postcheck `APLICADA`; repetir o envelope recusa.
 
@@ -257,14 +257,14 @@ BEGIN
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)
     INTO n_ok, n_aberta FROM _prisma_migrations;
-  IF n_ok <> 54 OR n_aberta <> 0 THEN
+  IF n_ok <> 55 OR n_aberta <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % em aberto', n_ok, n_aberta;
   END IF;
   IF (SELECT count(*) FROM _prisma_migrations
        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
-         AND migration_name = '20261114600000_atividade_linhas_produto_maquina'
-         AND checksum = 'e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489') <> 1 THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-202) ausente ou com checksum divergente';
+         AND migration_name = '20261114700000_cadformulacao'
+         AND checksum = '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524') <> 1 THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-203) ausente ou com checksum divergente';
   END IF;
   IF to_regclass('public."Funcionario"') IS NOT NULL
      OR to_regclass('public."Servico"') IS NOT NULL
@@ -388,14 +388,14 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, '20261114800000_atividade_mao_obra_servico concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '55 / 0',
-         CASE WHEN (SELECT concluidas = 55 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '56 / 0',
+         CASE WHEN (SELECT concluidas = 56 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'tabelas novas presentes / linhas nelas', (SELECT (4 - ausentes) || ' / ' || coalesce(n::text, '-') FROM linhas), '4 / 0',
          CASE WHEN (SELECT ausentes = 0 AND n = 0 FROM linhas) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 5, 'tabelas em public', (SELECT n::text FROM tabelas), '91',
-         CASE WHEN (SELECT n FROM tabelas) = 91 THEN 'OK' ELSE 'PARAR' END
+  SELECT 5, 'tabelas em public', (SELECT n::text FROM tabelas), '94',
+         CASE WHEN (SELECT n FROM tabelas) = 94 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 6, 'os 8 CHECKs, validados', (SELECT n::text FROM checks), '8',
          CASE WHEN (SELECT n FROM checks) = 8 THEN 'OK' ELSE 'PARAR' END
@@ -425,7 +425,7 @@ SELECT item, valor, esperado, status FROM (
 ```
 <!-- /sql:postcheck -->
 
-Esperado: `1`; `55 / 0`; `4 / 0`; `91`; `8`; `17 / 17`; `5`; `23 / 23 / 14`; RLS
+Esperado: `1`; `56 / 0`; `4 / 0`; `94`; `8`; `17 / 17`; `5`; `23 / 23 / 14`; RLS
 `true / false / maike_backend_all` nas quatro; `0` grants; VEREDITO `APLICADA E
 CONFERIDA`. Mais:
 
@@ -474,7 +474,7 @@ migration.
 - sem o GO-2 (no caminho B, sem o desvio da D-PROD-74 registrado para esta migration);
 - validação local da PR não verde;
 - alvo com `system_identifier` diferente;
-- histórico diferente de 54/0 antes, a D-PROD-202 com outro checksum, ou a D-PROD-204
+- histórico diferente de 55/0 antes, a D-PROD-203 com outro checksum, ou a D-PROD-204
   já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release;
@@ -493,9 +493,9 @@ migration.
 | `<SHA_APROVADO>` | `<sha>` |
 | Verificação do SHA | `<CI da PR e validação local>` |
 | Ensaio local (§4.2) | `<atividadeMaoObraMigration.test.mjs n/n>` |
-| Preflight (§4) | `<hora UTC; 54 / 0; 0; 1; 0; 6; 87; travas; transações longas; veredito>` |
+| Preflight (§4) | `<hora UTC; 55 / 0; 0; 1; 0; 6; 90; travas; transações longas; veredito>` |
 | Backup / PITR anterior | `<horário>` |
 | Aplicação | `<data e hora UTC; checksum; applied_steps_count>` |
-| Postcheck (§6) | `<55 / 0; 4 / 0; 91; 8; 17 / 17; 5; 23 / 23 / 14; RLS; grants; veredito>` |
+| Postcheck (§6) | `<56 / 0; 4 / 0; 94; 8; 17 / 17; 5; 23 / 23 / 14; RLS; grants; veredito>` |
 | Alertas do Supabase | `<segurança / performance>` |
 | Merge e deploy | `<PR e horário>` |

@@ -43,6 +43,10 @@ const COLUNAS_OK = [
   { table_name: 'AtividadeApontamentoMaquina', column_name: 'quantidade_uso' },
   { table_name: 'BemPatrimonial', column_name: 'custo_uso_unitario' },
   { table_name: 'TipoPatrimonial', column_name: 'salto_maximo_medidor' },
+  // D-PROD-203: as 3 tabelas das Formulações.
+  { table_name: 'CADFORMULACAO', column_name: 'percentual_pv_padrao' },
+  { table_name: 'CADFORMULACAOINGREDIENTE', column_name: 'quantidade_kg' },
+  { table_name: 'CADFORMULACAOREGRA', column_name: 'consome' },
   // D-PROD-204: os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço.
   { table_name: 'Funcionario', column_name: 'custo_hora' },
   { table_name: 'Servico', column_name: 'unidade_medida_id' },
@@ -81,6 +85,9 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   for (const k of ['AtividadeApontamentoProduto.movimentacao_estoque_id', 'AtividadeApontamentoProdutoConsumoLote.estoque_lote_nota_id', 'AtividadeApontamentoMaquina.quantidade_uso', 'BemPatrimonial.custo_uso_unitario', 'TipoPatrimonial.salto_maximo_medidor']) {
     assert.ok(r.falhas.join('\n').includes(k), k);
   }
+  assert.match(r.falhas.join('\n'), /CADFORMULACAO\.percentual_pv_padrao/);
+  assert.match(r.falhas.join('\n'), /CADFORMULACAOINGREDIENTE\.quantidade_kg/);
+  assert.match(r.falhas.join('\n'), /CADFORMULACAOREGRA\.consome/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 

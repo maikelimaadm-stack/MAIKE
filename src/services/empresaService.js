@@ -69,6 +69,10 @@ const ROTULO_VINCULO = Object.freeze({
   CadEstacao: 'estações',
   // D-PROD-189 — model CadCurvaGanho (tabela CADCURVAGANHO).
   CadCurvaGanho: 'curvas de ganho',
+  // D-PROD-203 — Formulações de suplemento (tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA).
+  Formulacao: 'formulações',
+  FormulacaoIngrediente: 'ingredientes de formulações',
+  FormulacaoRegraCategoria: 'regras de formulações',
   // D-PROD-204 — cadastros da Fatia 4 do Lançamento de Atividades.
   Funcionario: 'funcionários',
   Servico: 'serviços',

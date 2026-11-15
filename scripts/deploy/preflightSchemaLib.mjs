@@ -64,6 +64,11 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AtividadeApontamentoMaquina', 'quantidade_uso'],
   ['BemPatrimonial', 'custo_uso_unitario'],
   ['TipoPatrimonial', 'salto_maximo_medidor'],
+  // D-PROD-203: o cadastro de Formulações e o lançamento de suplementação (formulação obrigatória) leem as 3 tabelas
+  // novas; sem a migration `20261114700000_cadformulacao`, a tela e as opções do lançamento respondem 500.
+  ['CADFORMULACAO', 'percentual_pv_padrao'],
+  ['CADFORMULACAOINGREDIENTE', 'quantidade_kg'],
+  ['CADFORMULACAOREGRA', 'consome'],
   // D-PROD-204 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
   // apontamento; sem a migration EXPAND da mão de obra e do serviço, os cadastros e o apontamento novo respondem 500.
   ['Funcionario', 'custo_hora'],

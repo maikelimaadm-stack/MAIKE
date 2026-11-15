@@ -161,6 +161,10 @@ export const API_ERROR_CODES = Object.freeze({
   CURVA_GANHO_NAME_CONFLICT: 'CURVA_GANHO_NAME_CONFLICT',
   // D-PROD-195 — curva ligada a categoria de manejo não se exclui (details.categorias = quantas).
   CURVA_GANHO_EM_USO: 'CURVA_GANHO_EM_USO',
+  // D-PROD-203 — Formulações de suplemento (details.lancamentos no EM_USO).
+  FORMULACAO_NOT_FOUND: 'FORMULACAO_NOT_FOUND',
+  FORMULACAO_NAME_CONFLICT: 'FORMULACAO_NAME_CONFLICT',
+  FORMULACAO_EM_USO: 'FORMULACAO_EM_USO',
 
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
@@ -298,6 +302,10 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.CURVA_GANHO_NAME_CONFLICT]: 'Já existe uma curva de ganho com este nome nesta fazenda.',
   [API_ERROR_CODES.CURVA_GANHO_EM_USO]:
     'Esta curva está ligada a categoria(s) de manejo e não pode ser excluída.',
+  [API_ERROR_CODES.FORMULACAO_NOT_FOUND]: 'Esta formulação não foi encontrada. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.FORMULACAO_NAME_CONFLICT]: 'Já existe uma formulação com este nome nesta fazenda.',
+  [API_ERROR_CODES.FORMULACAO_EM_USO]:
+    'Esta formulação já foi usada em lançamento(s) de suplementação e não pode ser excluída. Inative-a.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',

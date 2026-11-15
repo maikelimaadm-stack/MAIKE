@@ -43,6 +43,7 @@ import { registrarAtividadeApontamentoMaoObraRoutes } from './modules/atividades
 import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades/atividadeApontamentoServicoRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
+import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoutes.js';
 import { registrarFuncionarioRoutes } from './modules/funcionarios/funcionarioRoutes.js';
 import { registrarServicoRoutes } from './modules/servicos/servicoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
@@ -217,6 +218,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEstacaoRoutes);
   // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
   await app.register(registrarCurvaGanhoRoutes);
+  // D-PROD-203 — Formulações de suplemento da fazenda (tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA).
+  await app.register(registrarFormulacaoRoutes);
   // D-PROD-204 (Fatia 4) — cadastros de Funcionário e Serviço da fazenda (sem DELETE).
   await app.register(registrarFuncionarioRoutes);
   await app.register(registrarServicoRoutes);

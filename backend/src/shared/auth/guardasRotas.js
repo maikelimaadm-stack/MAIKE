@@ -306,6 +306,14 @@ export const GUARDAS = Object.freeze({
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).
   curvaGanho: { ...cadastro(T.CURVAS_GANHO), ver: porTela(T.CURVAS_GANHO, 'visualizar') },
+  // D-PROD-203 — Formulações de suplemento: cadastro e leitura pela tela `pec-formulacoes`. O lançamento de
+  // suplementação (formulação obrigatória) lê só as ATIVAS pelas opções, com a chave do mapa
+  // `lancar_suplementacao` (o vaqueiro que lança não precisa da tela do cadastro) ou com a própria tela.
+  formulacao: {
+    ...cadastro(T.FORMULACOES),
+    ver: porTela(T.FORMULACOES, 'visualizar'),
+    opcoesLancamento: porQualquer({ mapa: 'lancar_suplementacao' }, [T.FORMULACOES, 'visualizar']),
+  },
   // D-PROD-200 — Lançamento de Atividades, tela `op-atividades` (contrato §5;
   // substitui `apontamentoAtividade`, da D-PROD-190/193). Cabeçalho pelas ações
   // PADRÃO da tela, no esquema do cadastro: ver = visualizar (lista, detalhe,

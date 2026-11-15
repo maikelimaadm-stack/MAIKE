@@ -16,14 +16,14 @@ atividade passam a somar as quatro linhas (produto, máquina, mão de obra e ser
 
 | Camada | Entrega |
 |---|---|
-| Banco | `Funcionario`, `Servico`, `AtividadeApontamentoMaoObra` e `AtividadeApontamentoServico`, com FKs compostas pelo tenant (`RESTRICT`), 8 CHECKs, 23 índices começando por `cliente_id` e o RLS de sempre. Nenhuma coluna em tabela antiga. Tabelas 87 → 91 (de tenant, 72 → 76) |
+| Banco | `Funcionario`, `Servico`, `AtividadeApontamentoMaoObra` e `AtividadeApontamentoServico`, com FKs compostas pelo tenant (`RESTRICT`), 8 CHECKs, 23 índices começando por `cliente_id` e o RLS de sempre. Nenhuma coluna em tabela antiga. Tabelas 90 → 94 (de tenant, 75 → 79) |
 | Migration | `20261114800000_atividade_mao_obra_servico`, **EXPAND** (zero violações no portão). SHA `79f139a0…`, RLS `16d2680d…`. Aplicável antes do merge |
 | Cadastros | Funcionário (tipo, cargo, custo por hora e por diária) e Serviço (unidade de medida do cadastro existente, centro de custo padrão, valor de referência), por fazenda, sem DELETE: só inativar e reativar |
 | Mão de obra | Hora e diária com o custo do cadastro como snapshot (sem custo no cadastro, a linha entra sem custo); tarefa com custo digitado; exige `permite_mao_obra` |
 | Serviço | Unidade como snapshot da sigla da unidade do serviço; valor digitado (a tela sugere o de referência); parceiro opcional, ativo, da mesma fazenda e com o papel `prestador_servico`; exige `permite_servico` |
 | Comum | Editar = cancelar e lançar de novo; cascatas do apontamento e da atividade; idempotência por `operation_id`; trava de data; totais e custo por hectare com as quatro linhas |
 | Tela | Blocos "Mão de obra" e "Serviços" no apontamento, telas de cadastro Funcionários e Serviços; só componentes que já existem |
-| Portão e operação | Pins em `premergeMigrateLib.mjs`, colunas exigidas no preflight de schema, scripts do SQL Editor com as 4 tabelas (76 de tenant, 91 em `public`), contagens 55 / 91 nos testes das migrations anteriores, teste da migration e runbook |
+| Portão e operação | Pins em `premergeMigrateLib.mjs`, colunas exigidas no preflight de schema, scripts do SQL Editor com as 4 tabelas (79 de tenant, 94 em `public`), contagens 56 / 94 nos testes das migrations anteriores, teste da migration e runbook |
 
 ## 3. Agentes
 
@@ -32,7 +32,7 @@ atividade passam a somar as quatro linhas (produto, máquina, mão de obra e ser
 | D0 | Mapa somente leitura (cadastros de referência, Parceiros, linhas da Fatia 3, unidade, centro de custo, portão e contagens) |
 | D (orquestrador) | Schema, migration e contrato |
 | D1 | Cadastros de Funcionário e de Serviço (backend e telas) |
-| D2 | Portão da migration (pins, EXPAND), contagens 54 → 55 / 87 → 91, teste da migration, runbook, SQL Editor, governança e este relatório |
+| D2 | Portão da migration (pins, EXPAND), contagens 55 → 56 / 90 → 94, teste da migration, runbook, SQL Editor, governança e este relatório |
 | D3 | Backend das linhas de mão de obra e de serviço, cascatas e totais |
 | D4 | Telas das linhas, totalizador e repetir |
 

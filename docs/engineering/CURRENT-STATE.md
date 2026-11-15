@@ -14,14 +14,26 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-204**, pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."); escolha aprovada antes de implementar: Funcionário próprio (não `Usuario`) e prestador do cadastro de Parceiros ("sim, vai de acordo com o cadastro de parceiro") |
-| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1` |
+| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1`, com a `main` `c181e327` (PR #290, Formulações, D-PROD-203) mesclada |
 | Escopo | Cadastros mínimos de Funcionário e de Serviço por fazenda (só inativar), linha de mão de obra (hora e diária com snapshot do custo, tarefa digitada), linha de serviço (unidade como snapshot, valor digitado, parceiro prestador opcional), editar/cancelar e cascatas como na Fatia 3, totais e custo por hectare com as quatro linhas |
-| Migration | `20261114800000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 54 → 55; tabelas 87 → 91 |
+| Migration | `20261114800000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 55 → 56 (depois das Formulações, D-PROD-203, já aplicada); tabelas 90 → 94; de tenant, 75 → 79 |
 | Release | **Não aplicada.** Antes do merge, só com GO do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md) |
 | Constituição | Expansão D-PROD-204 no `00` e nota no `07`, redigidas pelo agente; **valem só com a aprovação explícita do proprietário no merge** |
 | Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
+## Missão anterior (2026-11-14) — MAIKE-FORMULACOES: Formulações de suplemento (produto pronto ou batelada, %PV por categoria) e formulação obrigatória no lançamento do cocho (D-PROD-203)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-203**, decisões do proprietário para a etapa 2 da suplementação (pronto × batelada, %PV com exceção por categoria, ingredientes em kg por batida, produto misturado cadastrado antes em Produtos, formulação obrigatória no lançamento) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `10a966e7` (merge da PR #288, D-PROD-201) |
+| Escopo | Etapa 2a de 4 da suplementação: cadastro de Formulações (tela `Formulacoes`, menu Manejo, tela de permissão `pec-formulacoes`), API `/formulacoes` com `opcoes-lancamento` (só ativas; também pela chave do mapa `lancar_suplementacao`), e o lançamento do cocho com a Formulação obrigatória no lugar do Produto e o consumo esperado lote a lote (regra da categoria ou %PV padrão) |
+| Migration | `20261114700000_cadformulacao`, **EXPAND** (3 tabelas novas: `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE`, `CADFORMULACAOREGRA`). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`. Repositório 54 → **55** (a 55ª, depois da `20261114600000_atividade_linhas_produto_maquina` da PR #289); tabelas 87 → **90** |
+| Release | **Aplicada em produção** em 2026-11-14 às 23:41:42 UTC, caminho B do [runbook](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 55 / 0, 3 tabelas com RLS, 90 tabelas, advisors sem achados. A PR #289 (migration `20261114600000`, já aplicada) entrou na `main` (`8d4b36a1`, com a #291) e foi incorporada nesta branch |
+| Próximas etapas | 2b Produção da batelada (baixa dos ingredientes e entrada do misturado pelo motor de estoque) · 3 Leitura de cocho e farol · 4 Fechamento de consumo em %PV com faixa configurável |
+| Relatório | [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
 
 | Campo | Valor |
 |---|---|
@@ -33,7 +45,7 @@ rollout pausado **D-PROD-41**)
 | Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-14 |
 | Documentos | [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) · [`MAIKE-ATIVIDADE-LINHAS-REPORT.md`](./MAIKE-ATIVIDADE-LINHAS-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
+## Missão anterior (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
 
 | Campo | Valor |
 |---|---|
