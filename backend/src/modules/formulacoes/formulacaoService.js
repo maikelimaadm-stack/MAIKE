@@ -57,6 +57,8 @@ const ENTIDADE = 'Formulacao';
 export const TIPOS = Object.freeze(['PRONTO', 'BATELADA']);
 /** %PV máximo aceito (padrão e da regra). */
 export const PV_MAXIMO = 5;
+/** D-PROD-206: faixa de tolerância do farol de consumo, em % do esperado (null = padrão de 15%). */
+export const FAIXA_MAXIMA = 100;
 /** Largura das colunas VARCHAR (em caracteres, como o PostgreSQL conta). */
 const LARGURA = Object.freeze({ nome: 120, observacoes: 2000 });
 
@@ -90,6 +92,8 @@ export const comoFormulacaoPublica = (registro) => {
     produto_ativo: registro.produto?.ativo ?? null,
     percentual_pv_padrao: numeroDe(registro.percentual_pv_padrao, 4),
     consumo_objetivo_g_cab_dia: numeroDe(registro.consumo_objetivo_g_cab_dia, 2),
+    // D-PROD-206: null = o padrão de 15% (quem lê aplica o padrão; o banco não inventa valor).
+    faixa_tolerancia_percentual: numeroDe(registro.faixa_tolerancia_percentual, 2),
     observacoes: registro.observacoes ?? null,
     ativo: registro.ativo,
     total_batida_kg: total,
@@ -179,6 +183,12 @@ const camposDe = (entrada) => {
     campos.consumo_objetivo_g_cab_dia = entrada.consumo_objetivo_g_cab_dia === null || entrada.consumo_objetivo_g_cab_dia === ''
       ? null
       : decimalDoCorpo(entrada.consumo_objetivo_g_cab_dia, 'consumo_objetivo_g_cab_dia', { casas: 2, motivo: 'consumo_objetivo', rotulo: 'g/cab/dia' });
+  }
+  // D-PROD-206: faixa do farol de consumo (0 < x ≤ 100, até 2 casas); vazio/null = padrão de 15%.
+  if (entrada.faixa_tolerancia_percentual !== undefined) {
+    campos.faixa_tolerancia_percentual = entrada.faixa_tolerancia_percentual === null || entrada.faixa_tolerancia_percentual === ''
+      ? null
+      : decimalDoCorpo(entrada.faixa_tolerancia_percentual, 'faixa_tolerancia_percentual', { casas: 2, maximo: FAIXA_MAXIMA, motivo: 'faixa_tolerancia', rotulo: '% de tolerância' });
   }
   const observacoes = caberNaColuna(textoDoCorpo(entrada.observacoes, 'observacoes', { maiusculas: true }), 'observacoes');
   if (observacoes !== undefined) campos.observacoes = observacoes;
@@ -339,6 +349,7 @@ export const opcoesLancamento = async (contexto, consulta) => {
       produto_ativo: f.produto_ativo,
       percentual_pv_padrao: f.percentual_pv_padrao,
       consumo_objetivo_g_cab_dia: f.consumo_objetivo_g_cab_dia,
+      faixa_tolerancia_percentual: f.faixa_tolerancia_percentual,
       regras: f.regras.map(({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv }) => ({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv })),
     };
   });

@@ -58,7 +58,7 @@
  *     URL), esta, depois a D-PROD-195 e por último as EXPAND da D-PROD-198 e da D-PROD-203, e confere: todas
  *     concluídas (CONCLUIDAS_DEPOIS; esta depois da CADCURVAGANHO, do ApontamentoAtividade,
  *     dos itens do apontamento e das CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-200,
- *     e as EXPAND da D-PROD-202 e da D-PROD-207, e a D-PROD-195, a D-PROD-198 e as EXPAND da D-PROD-203 e da D-PROD-205 por último),
+ *     e as EXPAND da D-PROD-202 e da D-PROD-207, e a D-PROD-195, a D-PROD-198 e as EXPAND da D-PROD-203, da D-PROD-205 e da D-PROD-206 por último),
  *     91 tabelas na partida e 95 no fim (+ as 3 das Formulações, D-PROD-203, e a LEITURACOCHO, D-PROD-205),
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam mais a curva_ganho_id da D-PROD-195 (cada
@@ -136,7 +136,12 @@ export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULA
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203) e a LEITURACOCHO (D-PROD-205). */
 export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO']);
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA]);
+/**
+ * D-PROD-206: a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO, que só existe depois da D-PROD-203),
+ * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
+ */
+export const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()
@@ -155,8 +160,8 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
  * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, na partida; o peso
  * objetivo, D-PROD-198, 51 → 52, fora da partida; a Atividade cabeçalho, D-PROD-200, 52 → 53, na partida; e as linhas
  * de produto e de máquina, D-PROD-202, 53 → 54, na partida; as Formulações, D-PROD-203, 54 → 55, fora da partida; a
- * Leitura de cocho, D-PROD-205, 55 → 56, fora da partida; e a mão de obra e o serviço, D-PROD-207, 56 → 57, na
- * partida); e tabelas em public (91: 83 com a do ApontamentoAtividade,
+ * Leitura de cocho, D-PROD-205, 55 → 56, fora da partida; a faixa de tolerância, D-PROD-206, 56 → 57, fora da
+ * partida; e a mão de obra e o serviço, D-PROD-207, 57 → 58, na partida); e tabelas em public (91: 83 com a do ApontamentoAtividade,
  * D-PROD-190, + as 2 dos itens do apontamento, D-PROD-193, − essas 3 + as 2 da atividade, D-PROD-200, que sobe na
  * partida pela ordem dos nomes: a guarda dela só olha as 3 tabelas do apontamento antigo, vazias aqui, e ela não toca
  * CategoriaManejo; + as 3 das linhas, D-PROD-202, na partida depois dela; + as 4 da mão de obra e do serviço,

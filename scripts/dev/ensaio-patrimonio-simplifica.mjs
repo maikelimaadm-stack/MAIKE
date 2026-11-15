@@ -39,7 +39,8 @@
  *     D-PROD-200 cria; sobe no passo 4, depois dela. A EXPAND
  *     `20261114700000_cadformulacao` (D-PROD-203, Formulações) também fica de
  *     fora (não existia no dia desta CONTRACT); sobe no passo 4; a EXPAND
- *     `20261115100000_leitura_cocho` (D-PROD-205) também. A EXPAND
+ *     `20261115100000_leitura_cocho` (D-PROD-205) também, e a EXPAND
+ *     `20261115200000_formulacao_faixa_tolerancia` (D-PROD-206) também. A EXPAND
  *     `20261115900000_atividade_mao_obra_servico` (D-PROD-207) também fica de
  *     fora: as linhas de mão de obra e de serviço referenciam
  *     AtividadeApontamento; sobe no passo 4, por último;
@@ -57,7 +58,7 @@
  *     (nunca duas CONTRACT de uma vez; como a D-PROD-195 na D-PROD-187); então
  *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
  *     impressão na URL) esta, a D-PROD-190, a D-PROD-193, a D-PROD-200, a
- *     D-PROD-202, a D-PROD-203, a D-PROD-205 e a D-PROD-207, e confere: todas concluídas, 95 tabelas
+ *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-207, e confere: todas concluídas, 95 tabelas
  *     (as 82 do formato novo + Atividade e AtividadeApontamento + as 3 das linhas de
  *     produto e de máquina + as 3 das Formulações + a LEITURACOCHO + as 4 da mão de obra e do serviço;
  *     as 3 do apontamento antigo nascem e saem com a D-PROD-200), as 7 vazias, dono e ACL, RLS, contagens de constraints,
@@ -118,8 +119,10 @@ export const NOME_FORMULACOES = '20261114700000_cadformulacao';
  * sobe no GREEN depois da D-PROD-203 (a D-PROD-207 vem por último); fica fora da impressão digital das que FICAM.
  */
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
+/** D-PROD-206 — a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO): fora da partida, depois da D-PROD-205; sem tabela nova. */
+export const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
 export const NOME_ATIVIDADE_MAO_OBRA = '20261115900000_atividade_mao_obra_servico';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_ATIVIDADE_MAO_OBRA]);
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];

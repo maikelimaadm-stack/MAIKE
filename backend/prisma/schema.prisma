@@ -716,6 +716,8 @@ model Formulacao {
   produto_id                 String   @db.VarChar(64)
   percentual_pv_padrao       Decimal  @db.Decimal(8, 4)
   consumo_objetivo_g_cab_dia Decimal? @db.Decimal(10, 2)
+  // D-PROD-206: faixa de tolerância do farol de consumo (% do esperado); null = padrão de 15%.
+  faixa_tolerancia_percentual Decimal? @db.Decimal(5, 2)
   observacoes                String?  @db.VarChar(2000)
   ativo                      Boolean  @default(true)
   createdAt                  DateTime @default(now())

@@ -14,12 +14,24 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-207**, pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."); escolha aprovada antes de implementar: Funcionário próprio (não `Usuario`) e prestador do cadastro de Parceiros ("sim, vai de acordo com o cadastro de parceiro") |
-| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1`, com a `main` `c181e327` (PR #290, Formulações, D-PROD-203), a `5490308f` (PR #280, D-PROD-204) e a `45444d21` (PR #295, leitura de cocho, D-PROD-205) mescladas |
+| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1`, com a `main` `c181e327` (PR #290, Formulações, D-PROD-203), a `5490308f` (PR #280, D-PROD-204), a `45444d21` (PR #295, leitura de cocho, D-PROD-205) e a `f31d3397` (PR #296, fechamento do consumo, D-PROD-206) mescladas |
 | Escopo | Cadastros mínimos de Funcionário e de Serviço por fazenda (só inativar), linha de mão de obra (hora e diária com snapshot do custo, tarefa digitada), linha de serviço (unidade como snapshot, valor digitado, parceiro prestador opcional), editar/cancelar e cascatas como na Fatia 3, totais e custo por hectare com as quatro linhas |
-| Migration | `20261115900000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 56 → 57 (depois da leitura de cocho, D-PROD-205, já aplicada); tabelas 91 → 95; de tenant, 76 → 80 |
+| Migration | `20261115900000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 57 → 58 (depois da faixa de tolerância do fechamento do consumo, D-PROD-206, já aplicada); tabelas 91 → 95; de tenant, 76 → 80 |
 | Release | **Não aplicada.** Antes do merge, só com GO do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md) |
 | Constituição | Expansão D-PROD-207 no `00` e nota no `07`, redigidas pelo agente; **valem só com a aprovação explícita do proprietário no merge** |
 | Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-FECHAMENTO-CONSUMO: fechamento do consumo do cocho (%PV real × esperado, farol pela faixa da formulação, custo por cab/dia) (D-PROD-206)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-206**, decisões do proprietário para a etapa 4 da suplementação (abastecimento fecha o período; farol ±faixa da formulação, padrão 15%; custo pelo estoque; sobra não informada = aproximado) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `45444d21` (merge da PR #295, D-PROD-205) |
+| Escopo | Faixa de tolerância na Formulação (API, tela e coluna); o lançamento grava custo/kg da saída FIFO, faixa e peso vivo de quem consome; sobra vazia = não medida; fechamento puro (`fechamentoConsumo.js`) gravado no evento nos dois caminhos que fecham; farol, %PV, g/cab/dia e custo no cartão do lançamento, no detalhe do cocho ("Último período fechado") e na prévia do abastecimento |
+| Migration | `20261115200000_formulacao_faixa_tolerancia`, **EXPAND** (1 coluna anulável em CADFORMULACAO). SHA-256 `bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c`. Release pelo [runbook](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md) |
+| Release | **Aplicada em produção** em 2026-11-15 às 17:27:54 UTC, caminho B do [runbook](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md), com aprovação do proprietário; postcheck 57 / 0, checksum igual ao pinado, coluna `numeric(5,2)` anulável sem default, 91 tabelas em `public` |
+| Próximas etapas | 2b Produção da batelada, quando o proprietário precisar |
+| Relatório | [`MAIKE-FECHAMENTO-CONSUMO-REPORT.md`](./MAIKE-FECHAMENTO-CONSUMO-REPORT.md) |
 
 ## Missão anterior (2026-11-15) — MAIKE-LEITURA-COCHO: leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (D-PROD-205)
 

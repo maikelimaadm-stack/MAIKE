@@ -313,6 +313,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           diasPeriodo,
           sobraInicial: evento.sobra_kg || 0,
           sobraFinal: sobra,
+          // D-PROD-206: o campo é obrigatório nesta tela (começa em 0); vazio contaria como não medida.
+          sobraInformada: String(formData.sobras_cocho[evento.id] ?? '').trim() !== '',
         });
         fechamentos.push({ ...preparado, ponto_nome: evento.ponto_nome, data_fechamento: formData.data_movimentacao });
       }

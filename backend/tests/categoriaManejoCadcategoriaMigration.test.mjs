@@ -40,7 +40,7 @@
  * muda); no alvo local, com a impressão na URL, aplica esta, depois a D-PROD-195 e por último a EXPAND da D-PROD-198:
  * todas concluídas (CONCLUIDAS_DEPOIS; esta CONTRACT aplicada depois da CADCURVAGANHO e do ApontamentoAtividade,
  * fora da ordem dos nomes, como aconteceu em produção, e dos itens do apontamento e da CONTRACT da D-PROD-194, que
- * subiram na partida, como a D-PROD-197, a D-PROD-200, a D-PROD-202 e a D-PROD-207; a D-PROD-195, a D-PROD-198, a EXPAND das Formulações, D-PROD-203, e a EXPAND da Leitura de cocho, D-PROD-205, por último), 91 tabelas na partida e 95 no fim,
+ * subiram na partida, como a D-PROD-197, a D-PROD-200, a D-PROD-202 e a D-PROD-207; a D-PROD-195, a D-PROD-198, a EXPAND das Formulações, D-PROD-203, a EXPAND da Leitura de cocho, D-PROD-205, e a EXPAND da faixa de tolerância, D-PROD-206, por último), 91 tabelas na partida e 95 no fim,
  * CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e políticas, as 12 colunas que ficam (mais a
  * curva_ganho_id da D-PROD-195, cada categoria na CURVA PADRÃO da fazenda, e a peso_objetivo_kg da D-PROD-198, vazia),
  * linhas idênticas nelas, os 4 nomes novos,
@@ -64,7 +64,7 @@ import {
   ARQUIVO_CONTRACT, CENARIOS_RED, COLUNAS, COLUNAS_ANTES, COLUNAS_DEPOIS, CONSTRAINTS_ANTES, CONSTRAINTS_DEPOIS, DECISAO,
   IMPRESSAO_ERRADA, IMPRESSAO_VAZIA, INDICES_ANTES, INDICES_DEPOIS, NOME_CONTRACT, REGEX_ROTINAS, SQL_IMPRESSAO, TABELA_ANTIGA,
   TABELA_NOVA, TRECHOS_DA_GUARDA, NOMES_POSTERIORES_JA_APLICADAS, NOMES_POSTERIORES_NA_PARTIDA, NOME_CURVA_MENSAL, CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS, TABELAS_PUBLIC,
-  NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, TABELAS_CRIADAS_NO_GREEN, NOMES_DEPOIS_DO_CONTRACT, curvaPadraoDe,
+  NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, TABELAS_CRIADAS_NO_GREEN, NOMES_DEPOIS_DO_CONTRACT, curvaPadraoDe,
   aplicarMigrationsDaMain, aplicarPeloRunner, colunasDaTabela, comBanco, comImpressao, contagens, divergenciasGreen, exigirUrlLocal,
   historico, impressao, intrusos, migrateDeploy, migrateDiff, ordemDeAplicacao, resolverRevertida, retrato, rodarCenarioRed, semear, sistema, tabelaAtual,
 } from '../../scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs';
@@ -122,8 +122,9 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     // D-PROD-198: a EXPAND do peso objetivo (ALTER TABLE "CADCATEGORIA") também fica fora da partida: era 2, agora 3.
     // D-PROD-203: a EXPAND das Formulações (FK para "CADCATEGORIA") também: agora 4.
     // D-PROD-205: a EXPAND da Leitura de cocho, de nome ainda posterior, também: agora 5.
-    assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA]);
-    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 5, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203 e a D-PROD-205');
+    // D-PROD-206: a EXPAND da faixa de tolerância (coluna em CADFORMULACAO), também: agora 6.
+    assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 6, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205 e a D-PROD-206');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 91, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-207, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261115900000_atividade_mao_obra_servico'), 'a EXPAND da D-PROD-207 sobe na partida, depois da D-PROD-202');
@@ -151,6 +152,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.ok(!ordem.includes(NOME_PESO_OBJETIVO));
     assert.ok(!ordem.includes(NOME_FORMULACOES));
     assert.ok(!ordem.includes(NOME_LEITURA));
+    assert.ok(!ordem.includes(NOME_FAIXA));
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabela, TABELA_ANTIGA);
