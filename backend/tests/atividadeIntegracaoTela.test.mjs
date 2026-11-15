@@ -797,16 +797,25 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   assert.deepEqual([lH2.tipo_medida, lH2.quantidade, lH2.custo_unitario, lH2.custo_total], ['HORA', '3.0000', '25.5000', '76.5000']);
   assert.deepEqual(LR.custoDaLinhaMaoObra(formH2), { unitario: lH2.custo_unitario, total: lH2.custo_total }, 'a prévia da janela = o gravado');
 
-  // O custo de hora sai do cadastro: a edição grava sem custo, e a prévia (pelo resumo atual) concorda — não o snapshot.
+  // O custo de hora sai do cadastro: editar SEM trocar funcionário nem medida mantém o snapshot gravado (só o total
+  // segue a quantidade nova), e a prévia da janela concorda; trocar a medida mostraria o cadastro atual.
   await prisma().funcionario.updateMany({ where: { cliente_id: s.c, id: s.joao.id }, data: { custo_hora: null } });
   ap = await S.obterApontamento(a.id, ap.id);
   const lH2b = ap.mao_obra.find((l) => l.id === lH2.id);
   assert.deepEqual([lH2b.custo_unitario, lH2b.funcionario.custo_hora], ['25.5000', null], 'a linha guarda o snapshot; o resumo, o cadastro atual');
   const formSem = { ...LR.formularioDaLinhaMaoObra(lH2b), quantidade: '2' };
-  assert.deepEqual(LR.custoDaLinhaMaoObra(formSem), { unitario: null, total: null });
+  assert.deepEqual(LR.custoDaLinhaMaoObra(formSem), { unitario: '25.5000', total: '51.0000' }, 'mesmo funcionário e medida: o gravado');
+  assert.deepEqual(LR.custoDaLinhaMaoObra({ ...formSem, tipo_medida: 'DIARIA' }), { unitario: '180.0000', total: '360.0000' }, 'outra medida: o cadastro');
   ap = (await S.editarLinha('mao-obra', a.id, ap, lH2b, LR.camposAlteradosDaLinhaMaoObra(lH2b, LR.corpoDaLinhaMaoObra(formSem)), OPCOES_LINHA)).apontamento;
   const lH3 = ap.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.funcionario_id === s.joao.id);
-  assert.deepEqual([lH3.quantidade, lH3.custo_unitario, lH3.custo_total], ['2.0000', null, null]);
+  assert.deepEqual([lH3.quantidade, lH3.custo_unitario, lH3.custo_total], ['2.0000', '25.5000', '51.0000']);
+  assert.deepEqual(LR.custoDaLinhaMaoObra(formSem), { unitario: lH3.custo_unitario, total: lH3.custo_total }, 'a prévia da janela = o gravado');
+  // Sem mudança real (o formulário relido): a tela nem envia; se enviar, o servidor responde `sem_alteracao` e nada grava.
+  assert.deepEqual(LR.camposAlteradosDaLinhaMaoObra(lH3, LR.corpoDaLinhaMaoObra(LR.formularioDaLinhaMaoObra(lH3))), {});
+  const eSem = await recusaDe(S.editarLinha('mao-obra', a.id, ap, lH3, { quantidade: '2' }, OPCOES_LINHA));
+  assert.equal(LR.ehSemAlteracaoDaLinha(eSem), true);
+  assert.equal(LR.mensagemDeErroLinha(eSem, ''), 'Os dados são os mesmos da linha gravada: não há o que alterar. Nada foi gravado.');
+  ap = await S.obterApontamento(a.id, ap.id);
 
   // ── cancelar a linha (motivo aparado).
   const rc = await S.cancelarLinha('mao-obra', a.id, ap, lH3, '  lançada errada ', OPCOES_LINHA);

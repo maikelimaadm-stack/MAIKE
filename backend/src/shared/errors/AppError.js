@@ -525,6 +525,8 @@ const MENSAGENS_LINHA_ATIVIDADE = Object.freeze({
     nao_positiva: 'a quantidade deve ser maior que zero',
     custo_excede_limite: 'o custo da linha (quantidade × valor unitário) passa do limite da coluna',
   }),
+  // D-PROD-203 — edição de linha de mão de obra/serviço sem mudança real.
+  corpo: Object.freeze({ sem_alteracao: 'os dados enviados são os mesmos da linha gravada: não há o que alterar' }),
   // D-PROD-203 — linha de mão de obra.
   funcionario_id: Object.freeze({
     inexistente: 'o funcionário não foi encontrado',

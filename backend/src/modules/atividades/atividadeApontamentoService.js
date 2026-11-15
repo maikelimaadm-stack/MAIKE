@@ -93,6 +93,7 @@ import {
   atualizarComVersao,
   auditarReenvioConflitante,
   carregarAtividadeDetalhe,
+  chavesDerivadasDasLinhas,
   comFkTraduzida,
   comoLinhaProdutoPublica,
   comoData,
@@ -139,7 +140,7 @@ import {
   normalizarDadosDaLinha,
   recalcularDosesDoApontamento,
 } from './atividadeApontamentoProdutoService.js';
-import { existeLinhaComPrefixo } from './atividadeApontamentoProdutoRepository.js';
+import { existeLinhaComChave } from './atividadeApontamentoProdutoRepository.js';
 import {
   cancelarLinhasMaoObraDoApontamento,
   comoLinhaMaoObraPublica,
@@ -152,8 +153,8 @@ import {
   contarLinhasServicoConfirmadas,
   criarLinhasServico,
 } from './atividadeApontamentoServicoService.js';
-import { existeLinhaComPrefixo as existeLinhaMaoObraComPrefixo } from './atividadeApontamentoMaoObraRepository.js';
-import { existeLinhaComPrefixo as existeLinhaServicoComPrefixo } from './atividadeApontamentoServicoRepository.js';
+import { existeLinhaComChave as existeLinhaMaoObraComChave } from './atividadeApontamentoMaoObraRepository.js';
+import { existeLinhaComChave as existeLinhaServicoComChave } from './atividadeApontamentoServicoRepository.js';
 
 /** Código do alerta de data fora do período da atividade (não bloqueia). */
 export const ALERTA_FORA_DO_INTERVALO = 'FORA_DO_INTERVALO';
@@ -606,7 +607,8 @@ const linhasDoCorpo = (corpo) => {
  * Roda a escrita do lançamento: sem chave, como na Fatia 2 (só a transação);
  * com chave, sob o recibo de idempotência (reenvio igual devolve o corpo
  * gravado com `replay: true`; corpo diferente → 409, auditado à parte). A
- * chave de uma linha de produto JÁ gravada (`<operation_id>:p…`) é conflito
+ * chave de uma linha de produto, mão de obra ou serviço JÁ gravada
+ * (`<operation_id>:p<n>`, `:o<n>`, `:s<n>`, comparadas EXATAS) é conflito
  * mesmo sem o recibo.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>> }} a
@@ -627,10 +629,11 @@ const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerpr
           tipoOperacao,
           fingerprint: fingerprint(),
           executar: async () => {
-            if (await existeLinhaComPrefixo(tx, cli, `${chave}:p`)) throw conflito();
+            // As chaves derivadas EXATAS (`<chave>:p1…p20`, nunca um prefixo com curinga de LIKE).
+            if (await existeLinhaComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'produto'))) throw conflito();
             // D-PROD-203: idem para as chaves derivadas das linhas de mão de obra (`:o`) e de serviço (`:s`).
-            if (await existeLinhaMaoObraComPrefixo(tx, cli, `${chave}:o`)) throw conflito();
-            if (await existeLinhaServicoComPrefixo(tx, cli, `${chave}:s`)) throw conflito();
+            if (await existeLinhaMaoObraComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'mao_obra'))) throw conflito();
+            if (await existeLinhaServicoComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'servico'))) throw conflito();
             return { httpStatus: 201, body: await executar(tx) };
           },
         }),

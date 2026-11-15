@@ -82,6 +82,17 @@ export const buscarFuncionario = async (clienteId, empresaId, id, tx) => {
   });
 };
 
+/**
+ * Trava a linha do funcionário (`FOR UPDATE`) antes de ler e atualizar, como
+ * `parceiroService`/`fornecedorService`: dois PATCH (ou um PATCH e uma
+ * inativação) não leem o mesmo "antes"; uma linha de mão de obra em voo (que lê
+ * o funcionário FOR SHARE) termina antes. Outro tenant ou inexistente: nada travado.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx @param {string} clienteId @param {string} id
+ */
+export const travarFuncionario = async (tx, clienteId, id) => {
+  await tx.$queryRaw`SELECT id FROM "Funcionario" WHERE cliente_id = ${clienteId} AND id = ${id} FOR UPDATE`;
+};
+
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx @param {object} dados */
 export const inserirFuncionario = async (tx, dados) =>
   tx.funcionario.create({ data: /** @type {any} */ (dados), select: SELECAO });

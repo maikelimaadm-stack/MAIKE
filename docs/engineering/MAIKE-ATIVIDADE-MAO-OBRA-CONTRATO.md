@@ -34,13 +34,24 @@ migrations e 87 → 91 tabelas. Aplicável antes do merge, só com autorização
 
 - Padrão dos cadastros por fazenda do repo (molde: `CadEstacao` para módulo/tela/guarda; `CentroCusto`/`Marca` para a
   numeração `reservarNumero(..., ESCOPO_TENANT)`).
-- Rotas: `GET /funcionarios?empresa_id=&q=&ativo=&page=`, `GET /funcionarios/:id`, `POST /funcionarios`,
-  `PATCH /funcionarios/:id`, `POST /funcionarios/:id/inativar`, `POST /funcionarios/:id/reativar`. Igual para
-  `/servicos`. **Sem DELETE** (cadastro com custo nunca é apagado).
+- Rotas: `GET /funcionarios?empresa_id=&q=&ativo=&limit=&cursor=` (paginação **keyset**, `createdAt DESC, id DESC`:
+  envelope `{ items, total, limit, has_more, next_cursor }`; não há `page`), `GET /funcionarios/:id`,
+  `POST /funcionarios`, `PATCH /funcionarios/:id`, `POST /funcionarios/:id/inativar`,
+  `POST /funcionarios/:id/reativar`. Igual para `/servicos`. **Sem DELETE** (cadastro com custo nunca é apagado).
+- `q` é busca **literal** (`%` e `_` escapados, `termoDeBusca`): funcionário por nome, número e cargo; serviço por nome
+  e número.
+- `GET /servicos-opcoes/centros-custo?empresa_id=`: centros de custo ATIVOS da fazenda (id, número, nome) para o
+  centro padrão do formulário de serviço. Guarda: `novo`, `salvar` **ou** `editar` da tela de Serviços (quem cria ou
+  edita serviço escolhe o centro sem ter a tela de Centros de Custo; só `visualizar` → 403).
+- Concorrência: `PATCH`, inativar e reativar travam a linha do cadastro (`SELECT … FOR UPDATE`) antes de ler o
+  "antes" (como `parceiroService`/`fornecedorService`); a unidade de medida e o centro de custo do serviço são lidos
+  `FOR SHARE` (uma inativação em voo termina antes e é vista).
 - Tenant do `auth_context`; `empresa_id` conferido contra o escopo do usuário; schemas fechados; decimais como string.
 - Funcionário: `tipo` obrigatório; custos opcionais, ≥ 0.
 - Serviço: unidade de medida ativa do cliente; centro de custo padrão ativo da mesma fazenda; valor de referência ≥ 0.
-- Exclusão de unidade de medida usada por serviço → 409 (`unidadeMedidaService`).
+- Exclusão de unidade de medida usada por serviço (mesmo inativo) → 409 `UNIDADE_MEDIDA_DELETE_BLOCKED` (vínculo
+  `servico`), barrada pela **FK** `Servico_cliente_id_unidade_medida_id_fkey` (RESTRICT) e reconhecida por
+  `shared/errors/vinculoServico.js` — o módulo da unidade não consulta `Servico`.
 - Telas novas `Funcionarios` e `Servicos` no grupo de cadastros, com permissão de tela própria, registradas no
   `config/mapa-manejo-scope.json`. Só componentes existentes (nada visual novo). Nunca usar a palavra "Fornecedores"
   em menu/rota (domínio proibido).
@@ -55,6 +66,13 @@ migrations e 87 → 91 tabelas. Aplicável antes do merge, só com autorização
     `custo_unitario` nesses casos. Sem custo no cadastro → custo nulo (a linha entra, sem custo).
   - `TAREFA` → `custo_unitario` obrigatório no corpo (≥ 0).
   - `custo_total = quantidade × custo_unitario` (mesmo arredondamento da linha de máquina).
+  - **Edição mantém o snapshot:** se o `funcionario_id` **e** o `tipo_medida` não mudam, o `custo_unitario` gravado
+    fica (inclusive nulo) e só o `custo_total` é recalculado com a quantidade nova; o cadastro (`custo_hora` /
+    `custo_diaria`) só é lido de novo quando o funcionário ou a medida mudam. Entrar em `TAREFA` continua exigindo o
+    custo digitado; editar uma `TAREFA` sem trocar a medida mantém o custo gravado, salvo se o corpo trouxer outro.
+    O "Repetir" (lançamento novo) grava o snapshot do cadastro **atual**.
+  - O funcionário é lido `FOR SHARE` na escrita da linha: uma inativação ou troca de custo em voo termina antes e é
+    vista (inativo → 422 `inativo`).
 - Sugestão na tela (não regra): MENSALISTA → HORA, DIARISTA → DIARIA, TAREFEIRO → TAREFA.
 
 ## 4. Linha de serviço
@@ -70,6 +88,13 @@ migrations e 87 → 91 tabelas. Aplicável antes do merge, só com autorização
 ## 5. Comum às duas linhas (igual à Fatia 3)
 
 - **Editar** = cancelar a linha (`EDICAO`) e criar outra, na mesma transação. **Cancelar** com motivo.
+- `PATCH` **sem mudança real** (o estado mesclado igual ao gravado; decimais comparados no canônico de 4 casas; na
+  hora/diária o custo não conta) → 422 `ATIVIDADE_LINHA_INVALIDA`, `field: corpo`, `reason: sem_alteracao`: nada é
+  cancelado nem recriado e a `versao` não sobe. A tela já não envia um PATCH vazio ("Sem alterações") e trata essa
+  resposta do mesmo jeito.
+- As chaves derivadas das linhas de um lançamento (`<operation_id>:o<n>`, `:s<n>`, e `:p<n>` do produto) são
+  conferidas por comparação **exata** (`operation_id IN (<k>:o1 … <k>:o20)`, 20 = máximo de linhas por tipo no
+  corpo), nunca por prefixo (`LIKE` faria do `_` da chave um curinga).
 - Cancelar o apontamento ou a atividade cancela as linhas confirmadas (`APONTAMENTO` / `ATIVIDADE`).
 - Idempotência por `operation_id` (`executarComIdempotencia`; recibo antes da versão); CAS pela `versao` do
   apontamento; data do apontamento travada com linha confirmada (incluir as novas na trava).
@@ -86,7 +111,11 @@ migrations e 87 → 91 tabelas. Aplicável antes do merge, só com autorização
 | `POST …/mao-obra/:linhaId/cancelar` · `…/servicos/:linhaId/cancelar` | apontamentos: cancelar |
 | `GET /atividades-opcoes/funcionarios?empresa_id=&q=` (ativos: id, numero, nome, cargo, tipo, custo_hora, custo_diaria) | atividades: ver |
 | `GET /atividades-opcoes/servicos?empresa_id=&q=` (ativos: id, numero, nome, unidade, valor_referencia) | atividades: ver |
-| `GET /atividades-opcoes/parceiros-servico?empresa_id=&q=` (ativos com papel `prestador_servico`: id, nome) | atividades: ver |
+| `GET /atividades-opcoes/parceiros-servico?empresa_id=&q=` (ativos com papel `prestador_servico`: id, nome; o `q` casa só o `nome`) | atividades: ver |
+
+A linha de mão de obra (no apontamento e nas escritas) traz ao lado do `funcionario_id` o resumo
+`funcionario: { id, numero, nome, cargo, tipo, custo_hora, custo_diaria }` com os custos **atuais** do cadastro (a
+prévia da tela ao trocar funcionário ou medida, e o "Repetir"); o snapshot da linha é o `custo_unitario`.
 
 **Totais** (`GET /atividades/:id/totais`) ganham, somando só linhas confirmadas de apontamentos confirmados:
 
@@ -95,7 +124,8 @@ mao_obra: [{ funcionario_id, nome, tipo_medida, quantidade, custo_total }],
 servicos: [{ servico_id, nome, unidade, quantidade, custo_total }]
 ```
 
-`custo_total` e `custo_por_ha` passam a somar produto + máquina + mão de obra + serviço.
+`custo_total` e `custo_por_ha` passam a somar produto + máquina + mão de obra + serviço. A mão de obra agrupa por
+funcionário e medida; o serviço, por serviço **e** unidade (a tela usa `${servico_id}-${unidade}` como chave).
 
 ## 7. Tela (só componentes existentes)
 

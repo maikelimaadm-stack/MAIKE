@@ -74,14 +74,23 @@ export const inserirLinha = (tx, dados) => tx.atividadeApontamentoMaoObra.create
 
 /**
  * O que a regra da linha lê do funcionário: fazenda, situação e os custos do
- * cadastro (o snapshot). Outro tenant = `null`.
+ * cadastro (o snapshot). Outro tenant = `null`. Lido FOR SHARE: uma inativação
+ * ou troca de custo em voo (o UPDATE do cadastro trava FOR NO KEY UPDATE)
+ * termina antes e aqui já se lê o estado novo (inativo → 422; custo novo no
+ * snapshot); se esta linha chega antes, o cadastro espera o commit dela. A
+ * leitura sem trava veria a versão velha e gravaria um vínculo com quem acabou
+ * de ser inativado.
  * @param {any} tx @param {string} clienteId @param {string} id
+ * @returns {Promise<{ id: string, numero: string, nome: string, cargo: string|null, tipo: string, custo_hora: unknown,
+ *   custo_diaria: unknown, empresa_id: string, ativo: boolean } | null>}
  */
-export const lerFuncionarioDaLinha = (tx, clienteId, id) =>
-  tx.funcionario.findFirst({
-    where: { cliente_id: clienteId, id },
-    select: { ...FUNCIONARIO_RESUMO.select, empresa_id: true, ativo: true },
-  });
+export const lerFuncionarioDaLinha = async (tx, clienteId, id) => {
+  const [f] = /** @type {any[]} */ (
+    await tx.$queryRaw`SELECT id, numero, nome, cargo, tipo, custo_hora, custo_diaria, empresa_id, ativo
+      FROM "Funcionario" WHERE cliente_id = ${clienteId} AND id = ${id} FOR SHARE`
+  );
+  return f ?? null;
+};
 
 /**
  * A flag `permite_mao_obra` do TIPO da atividade (lida agora, não é snapshot).
@@ -127,13 +136,14 @@ export const contarConfirmadasDoApontamento = (db, clienteId, empresaId, apontam
   });
 
 /**
- * Alguma linha de mão de obra com chave que começa por `prefixo` (as chaves
- * derivadas `<operation_id>:o<n>` de um lançamento com linhas).
- * @param {any} db @param {string} clienteId @param {string} prefixo
+ * Alguma linha de mão de obra gravada com uma das `chaves` (as derivadas
+ * `<operation_id>:o<n>` de um lançamento com linhas, `chavesDerivadasDasLinhas`).
+ * Comparação EXATA (`IN`), sem curinga de LIKE.
+ * @param {any} db @param {string} clienteId @param {string[]} chaves
  * @returns {Promise<boolean>}
  */
-export const existeLinhaComPrefixo = async (db, clienteId, prefixo) =>
-  (await db.atividadeApontamentoMaoObra.count({ where: { cliente_id: clienteId, operation_id: { startsWith: prefixo } } })) > 0;
+export const existeLinhaComChave = async (db, clienteId, chaves) =>
+  chaves.length > 0 && (await db.atividadeApontamentoMaoObra.count({ where: { cliente_id: clienteId, operation_id: { in: chaves } } })) > 0;
 
 /**
  * Σ quantidade e Σ custo das linhas CONFIRMADAS de apontamentos CONFIRMADOS da

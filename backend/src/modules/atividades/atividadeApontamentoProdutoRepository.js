@@ -24,13 +24,14 @@ export const buscarLinhaPorOperacao = (db, clienteId, operationId) =>
   db.atividadeApontamentoProduto.findFirst({ where: { cliente_id: clienteId, operation_id: operationId }, select: { id: true } });
 
 /**
- * Alguma linha (de produto) com chave que começa por `prefixo` (as chaves
- * derivadas `<operation_id>:p<n>` de um lançamento com linhas).
- * @param {any} db @param {string} clienteId @param {string} prefixo
+ * Alguma linha de produto gravada com uma das `chaves` (as derivadas
+ * `<operation_id>:p<n>` de um lançamento com linhas, `chavesDerivadasDasLinhas`).
+ * Comparação EXATA (`IN`), sem curinga de LIKE.
+ * @param {any} db @param {string} clienteId @param {string[]} chaves
  * @returns {Promise<boolean>}
  */
-export const existeLinhaComPrefixo = async (db, clienteId, prefixo) =>
-  (await db.atividadeApontamentoProduto.count({ where: { cliente_id: clienteId, operation_id: { startsWith: prefixo } } })) > 0;
+export const existeLinhaComChave = async (db, clienteId, chaves) =>
+  chaves.length > 0 && (await db.atividadeApontamentoProduto.count({ where: { cliente_id: clienteId, operation_id: { in: chaves } } })) > 0;
 
 /**
  * Maior `ordem` das linhas do apontamento (confirmadas e canceladas: a ordem

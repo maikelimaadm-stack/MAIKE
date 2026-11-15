@@ -16,10 +16,15 @@
  *    `DIARIA` → de `custo_diaria`; o corpo NÃO aceita `custo_unitario` nesses
  *    casos (422 `nao_aceito`). Sem custo no cadastro → custo nulo (a linha
  *    entra, sem custo). `TAREFA` → `custo_unitario` obrigatório no corpo (≥ 0).
+ *    Na EDIÇÃO, se o funcionário e a medida não mudam, o `custo_unitario`
+ *    gravado (o snapshot) é mantido e só o `custo_total` é recalculado; o
+ *    cadastro só é lido de novo quando o funcionário ou a medida mudam;
  *    `custo_total = quantidade × custo_unitario` (4 casas, meio para cima, como
  *    a máquina). O CHECK da tabela exige os dois nulos ou os dois preenchidos;
  *  - editar = cancelar a linha (origem `EDICAO`) + linha nova, na mesma
- *    transação; cancelar com motivo (origem `LINHA`);
+ *    transação; sem mudança real → 422 `ATIVIDADE_LINHA_INVALIDA`
+ *    (`field: corpo`, `reason: sem_alteracao`) e nada é gravado; cancelar com
+ *    motivo (origem `LINHA`);
  *  - toda escrita de linha pela rota leva `operation_id` (idempotência) e a
  *    `versao` do APONTAMENTO (CAS), incrementada uma vez;
  *  - nada de financeiro: nenhuma operação, título ou rateio sai daqui.
@@ -117,8 +122,9 @@ export const camposDaLinha = (corpo) => {
 };
 
 /**
- * Linha gravada na forma do estado: a base da edição. O custo só é dado de
- * entrada na TAREFA (em hora e diária é o snapshot do cadastro).
+ * Linha gravada na forma do estado: a base da edição. O `custo_unitario` é o
+ * GRAVADO em qualquer medida (na tarefa, o digitado; em hora e diária, o
+ * snapshot do cadastro): a edição que não troca funcionário nem medida o mantém.
  * @param {any} r
  * @returns {EstadoDaLinha}
  */
@@ -126,13 +132,14 @@ const estadoGravado = (r) => ({
   funcionario_id: r.funcionario_id,
   tipo_medida: r.tipo_medida,
   quantidade: t4(r.quantidade),
-  custo_unitario: r.tipo_medida === 'TAREFA' ? t4(r.custo_unitario) : null,
+  custo_unitario: t4(r.custo_unitario),
   observacao: r.observacao ?? null,
 });
 
 /**
  * Edição: o gravado + os campos enviados. Trocar o tipo de medida descarta o
- * custo digitado da tarefa (o da hora/diária vem do cadastro).
+ * custo gravado (o da hora/diária volta a vir do cadastro; entrar na tarefa
+ * exige o custo digitado).
  * @param {EstadoDaLinha} gravado @param {Partial<EstadoDaLinha>} campos
  * @returns {EstadoDaLinha}
  */
@@ -141,6 +148,22 @@ const mesclar = (gravado, campos) => {
   if (temCampo(campos, 'tipo_medida') && campos.tipo_medida !== gravado.tipo_medida && !temCampo(campos, 'custo_unitario')) e.custo_unitario = null;
   return e;
 };
+
+/**
+ * O estado mesclado da edição é o MESMO gravado? Funcionário, medida,
+ * quantidade e observação; o custo unitário só conta na tarefa (em hora e
+ * diária ele não é dado de entrada: com funcionário e medida iguais, fica o
+ * snapshot gravado). Custo enviado em hora/diária não é "sem alteração": é a
+ * recusa `nao_aceito` da regra.
+ * @param {EstadoDaLinha} gravado @param {EstadoDaLinha} estado @param {Partial<EstadoDaLinha>} campos
+ */
+const semAlteracao = (gravado, estado, campos) =>
+  !(estado.tipo_medida !== 'TAREFA' && temCampo(campos, 'custo_unitario') && campos.custo_unitario !== null) &&
+  estado.funcionario_id === gravado.funcionario_id &&
+  estado.tipo_medida === gravado.tipo_medida &&
+  estado.quantidade === gravado.quantidade &&
+  (estado.observacao ?? null) === (gravado.observacao ?? null) &&
+  (estado.tipo_medida !== 'TAREFA' || estado.custo_unitario === gravado.custo_unitario);
 
 // ─── regras ─────────────────────────────────────────────────────────────────
 
@@ -175,7 +198,9 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, estado, ca
     custoUnitario = estado.custo_unitario;
   } else {
     if (temCampo(campos, 'custo_unitario') && campos.custo_unitario !== null) throw recusa('custo_unitario', 'nao_aceito', { ...extra, tipo_medida: tipo });
-    custoUnitario = t4(funcionario[CUSTO_DO_CADASTRO[/** @type {'HORA'|'DIARIA'} */ (tipo)]]);
+    // Edição sem trocar funcionário nem medida: o snapshot gravado fica (o cadastro de agora não entra).
+    const mantemSnapshot = gravado !== null && gravado.funcionario_id === funcionario.id && gravado.tipo_medida === tipo;
+    custoUnitario = mantemSnapshot ? gravado.custo_unitario : t4(funcionario[CUSTO_DO_CADASTRO[/** @type {'HORA'|'DIARIA'} */ (tipo)]]);
   }
   const custoTotal = custoUnitario === null ? null : arredondar(quantidade.times(dec(custoUnitario)), CASAS_CUSTO);
   if (custoTotal !== null && custoTotal.gt(LIMITE_DECIMAL_14_4)) throw recusa('quantidade', 'custo_excede_limite', { ...extra, custo_unitario: custoUnitario });
@@ -436,6 +461,7 @@ export const lancarLinhaMaoObra = async (contexto, atividadeId, apontamentoId, c
  * `PATCH …/mao-obra/:linhaId`: editar = cancelar a linha (origem `EDICAO`) +
  * linha NOVA com o gravado e os campos enviados, na mesma transação. Devolve a
  * linha nova em `mao_obra`; a antiga fica em `apontamento.mao_obra[]`, cancelada.
+ * Estado mesclado igual ao gravado → 422 `sem_alteracao`, nada gravado.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId @param {Record<string, any>} corpo
  */
@@ -454,6 +480,8 @@ export const editarLinhaMaoObra = async (contexto, atividadeId, apontamentoId, l
       const anterior = await exigirLinhaConfirmada(tx, clienteId, empresaId, apontamentoId, linhaId, 'editar_linha');
       const gravado = estadoGravado(anterior);
       const estado = mesclar(gravado, campos);
+      // Nada muda de fato: não cancela nem recria (a linha e a versão ficam como estão).
+      if (semAlteracao(gravado, estado, campos)) throw recusa('corpo', 'sem_alteracao');
       const cancelada = await cancelarLinhas(
         tx,
         { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: apontamentoId, id: linhaId },

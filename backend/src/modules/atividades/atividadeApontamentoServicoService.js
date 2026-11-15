@@ -19,7 +19,8 @@
  *    outro tenant, outra fazenda, inativo, sem o papel) → a MESMA recusa 422
  *    `parceiro_invalido` (sem revelar se o id existe). Conferido só quando o
  *    vínculo é novo ou mudou (manter o gravado pode);
- *  - editar = cancelar (`EDICAO`) + linha nova; cancelar com motivo (`LINHA`);
+ *  - editar = cancelar (`EDICAO`) + linha nova (sem mudança real → 422
+ *    `sem_alteracao`); cancelar com motivo (`LINHA`);
  *  - idempotência por `operation_id`, CAS pela `versao` do apontamento;
  *  - nada de financeiro: nenhuma operação, título ou rateio sai daqui.
  */
@@ -130,6 +131,14 @@ const estadoGravado = (r) => ({
   documento_referencia: r.documento_referencia ?? null,
   observacao: r.observacao ?? null,
 });
+
+/**
+ * O estado mesclado da edição é o MESMO gravado (campo a campo; os decimais já
+ * vêm canônicos, com 4 casas)?
+ * @param {EstadoDaLinha} gravado @param {EstadoDaLinha} estado
+ */
+const semAlteracao = (gravado, estado) =>
+  /** @type {Array<keyof EstadoDaLinha>} */ (Object.keys(LINHA_VAZIA)).every((campo) => (estado[campo] ?? null) === (gravado[campo] ?? null));
 
 // ─── regras ─────────────────────────────────────────────────────────────────
 
@@ -430,6 +439,7 @@ export const lancarLinhaServico = async (contexto, atividadeId, apontamentoId, c
  * `PATCH …/servicos/:linhaId`: editar = cancelar a linha (origem `EDICAO`) +
  * linha NOVA com o gravado e os campos enviados, na mesma transação. Devolve a
  * linha nova em `servico`; a antiga fica em `apontamento.servicos[]`, cancelada.
+ * Estado mesclado igual ao gravado → 422 `sem_alteracao`, nada gravado.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId @param {Record<string, any>} corpo
  */
@@ -449,6 +459,8 @@ export const editarLinhaServico = async (contexto, atividadeId, apontamentoId, l
       const gravado = estadoGravado(anterior);
       /** @type {EstadoDaLinha} */
       const estado = { ...gravado, ...campos };
+      // Nada muda de fato: não cancela nem recria (a linha e a versão ficam como estão).
+      if (semAlteracao(gravado, estado)) throw recusa('corpo', 'sem_alteracao');
       const cancelada = await cancelarLinhas(
         tx,
         { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: apontamentoId, id: linhaId },

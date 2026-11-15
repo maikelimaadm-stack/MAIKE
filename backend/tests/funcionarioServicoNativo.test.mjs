@@ -527,3 +527,119 @@ describe('D-PROD-203 — Funcionários e Serviços: permissão da própria tela'
     assert.equal((await req('PATCH', `/servicos/${s.json().id}`, editar, { empresa_id: cen.e1.id, nome: 'novo nome' })).statusCode, 200);
   });
 });
+
+// ─── Revisões (D8): busca literal e travas contra a corrida ─────────────────
+
+/**
+ * Uma escrita "em voo" numa transação à parte: roda `sql`, segura as travas e
+ * só faz commit em `soltar()`.
+ * @param {(tx: any) => Promise<unknown>} sql
+ */
+const emVoo = async (sql) => {
+  /** @type {() => void} */
+  let liberar = () => {};
+  const segura = new Promise((r) => (liberar = /** @type {any} */ (r)));
+  /** @type {() => void} */
+  let travou = () => {};
+  const travado = new Promise((r) => (travou = /** @type {any} */ (r)));
+  const tx = prisma().$transaction(
+    async (t) => {
+      await sql(t);
+      travou();
+      await segura;
+    },
+    { timeout: 20000 }
+  );
+  await travado;
+  return {
+    soltar: async () => {
+      liberar();
+      await tx;
+    },
+  };
+};
+
+/** A requisição ainda não respondeu depois de `ms`? (ela espera a trava). @param {Promise<any>} p */
+const esperando = async (p, ms = 400) => {
+  let respondeu = false;
+  const r = p.then((x) => {
+    respondeu = true;
+    return x;
+  });
+  await new Promise((ok) => setTimeout(ok, ms));
+  return { esperou: !respondeu, resposta: () => r };
+};
+
+describe('D-PROD-203 — revisões: busca literal e travas', () => {
+  test('q com % e _ é literal (não curinga) na lista de funcionários e na de serviços', async () => {
+    const { token, e1, ha } = await cenario();
+    const pct = (await criarF(token, funcionario(e1.id, { nome: 'meeiro 50%' }))).json();
+    const sub = (await criarF(token, funcionario(e1.id, { nome: 'ana_maria' }))).json();
+    await criarF(token, funcionario(e1.id, { nome: 'bruno' }));
+    const busca = async (url, q) => (await req('GET', comEmpresa(url, e1.id, `&q=${encodeURIComponent(q)}`), token)).json().items.map((x) => x.id);
+    assert.deepEqual(await busca('/funcionarios', '%'), [pct.id], 'q=% casa só quem tem % no nome');
+    assert.deepEqual(await busca('/funcionarios', '_'), [sub.id], 'q=_ casa só quem tem _ no nome');
+    assert.deepEqual(await busca('/funcionarios', 'a%a'), []);
+    const sPct = (await criarS(token, servico(e1.id, ha.id, { nome: 'frete 10%' }))).json();
+    const sSub = (await criarS(token, servico(e1.id, ha.id, { nome: 'hora_maquina' }))).json();
+    await criarS(token, servico(e1.id, ha.id, { nome: 'gradagem' }));
+    assert.deepEqual(await busca('/servicos', '%'), [sPct.id]);
+    assert.deepEqual(await busca('/servicos', '_'), [sSub.id]);
+  });
+
+  test('inativar/PATCH do funcionário e inativar do serviço travam a linha (FOR UPDATE) antes de ler: a escrita em voo termina antes e o "antes" lido é o novo (sem gravação nem auditoria em dobro)', async () => {
+    const { token, clienteId, e1, ha } = await cenario();
+    const f = (await criarF(token, funcionario(e1.id, { custo_hora: '10' }))).json();
+    const s = (await criarS(token, servico(e1.id, ha.id))).json();
+    const auditorias = (entidade) => prisma().auditLog.count({ where: { cliente_id: clienteId, entidade, acao: 'update' } });
+
+    // Outra inativação do funcionário em voo.
+    let voo = await emVoo((t) => t.$executeRaw`UPDATE "Funcionario" SET ativo = false WHERE cliente_id = ${clienteId} AND id = ${f.id}`);
+    let pedido = await esperando(req('POST', `/funcionarios/${f.id}/inativar`, token, { empresa_id: e1.id }));
+    await voo.soltar();
+    let r = await pedido.resposta();
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(r.json().ativo, false);
+    assert.equal(await auditorias('Funcionario'), 0, 'já estava inativo quando a trava saiu: idempotente, não audita');
+
+    // Um PATCH do custo em voo com o MESMO valor: o segundo vê o novo e não grava.
+    voo = await emVoo((t) => t.$executeRaw`UPDATE "Funcionario" SET custo_hora = 30 WHERE cliente_id = ${clienteId} AND id = ${f.id}`);
+    pedido = await esperando(req('PATCH', `/funcionarios/${f.id}`, token, { empresa_id: e1.id, custo_hora: '30' }));
+    assert.equal(pedido.esperou, true, 'o PATCH espera a trava da linha');
+    await voo.soltar();
+    r = await pedido.resposta();
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(r.json().custo_hora, '30.0000');
+    assert.equal(await auditorias('Funcionario'), 0, 'sem mudança depois da trava: não audita um "antes" velho');
+
+    // Outra inativação do serviço em voo.
+    voo = await emVoo((t) => t.$executeRaw`UPDATE "Servico" SET ativo = false WHERE cliente_id = ${clienteId} AND id = ${s.id}`);
+    pedido = await esperando(req('POST', `/servicos/${s.id}/inativar`, token, { empresa_id: e1.id }));
+    await voo.soltar();
+    r = await pedido.resposta();
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(await auditorias('Servico'), 0);
+  });
+
+  test('serviço: a inativação em voo da unidade de medida ou do centro de custo termina antes e o cadastro vê o inativo (FOR SHARE), sem gravar', async () => {
+    const { token, clienteId, e1, cc1 } = await cenario();
+    const kg = await unidade(clienteId, 'KG');
+    let voo = await emVoo((t) => t.$executeRaw`UPDATE "UnidadeMedida" SET ativo = false WHERE cliente_id = ${clienteId} AND id = ${kg.id}`);
+    let pedido = await esperando(criarS(token, servico(e1.id, kg.id)));
+    assert.equal(pedido.esperou, true, 'o cadastro espera a inativação da unidade');
+    await voo.soltar();
+    let r = await pedido.resposta();
+    assert.equal(r.statusCode, 422, r.body);
+    assert.deepEqual([r.json().code, r.json().field ?? r.json().details?.field, r.json().reason ?? r.json().details?.reason], ['SERVICO_REFERENCIA_INVALIDA', 'unidade_medida_id', 'inativo']);
+
+    voo = await emVoo((t) => t.$executeRaw`UPDATE "CentroCusto" SET ativo = false WHERE cliente_id = ${clienteId} AND id = ${cc1.id}`);
+    const ha2 = await unidade(clienteId, 'HA2');
+    pedido = await esperando(criarS(token, servico(e1.id, ha2.id, { centro_custo_padrao_id: cc1.id })));
+    assert.equal(pedido.esperou, true, 'o cadastro espera a inativação do centro');
+    await voo.soltar();
+    r = await pedido.resposta();
+    assert.equal(r.statusCode, 422, r.body);
+    assert.equal(r.json().code, 'SERVICO_REFERENCIA_INVALIDA');
+    assert.equal(await prisma().servico.count({ where: { cliente_id: clienteId } }), 0, 'nada gravado');
+  });
+});

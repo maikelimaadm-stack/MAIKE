@@ -369,3 +369,137 @@ describe('totais da atividade com as quatro linhas', () => {
     assert.deepEqual([t2.custo_total, t2.custo_por_ha], ['51.0000', null]);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Correções das revisões (D8): snapshot na edição, PATCH sem mudança, chaves
+// derivadas EXATAS e a corrida inativar × lançar.
+describe('revisões: snapshot na edição, PATCH sem mudança, chaves exatas, corrida', () => {
+  test('editar sem trocar funcionário nem medida MANTÉM o custo_unitario gravado (só o total é recalculado); trocar a medida ou o funcionário lê o cadastro de agora', async () => {
+    const s = await montar();
+    const ap = await s.apontar();
+    const l1 = (await s.M.lancarOk(ap, { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' })).mao_obra;
+    assert.deepEqual([l1.custo_unitario, l1.custo_total], ['25.5000', '204.0000']);
+    await prisma().funcionario.update({ where: { id: s.joao.id }, data: { custo_hora: '30', custo_diaria: '200' } });
+    const c = (r) => [r.mao_obra.tipo_medida, r.mao_obra.custo_unitario, r.mao_obra.custo_total];
+    const e1 = await s.H.ok(s.M.editar(ap, l1.id, { quantidade: '10' }));
+    assert.deepEqual(c(e1), ['HORA', '25.5000', '255.0000'], 'o snapshot fica; o total segue a quantidade nova');
+    assert.equal(e1.mao_obra.funcionario.custo_hora, '30.0000', 'o resumo traz o cadastro atual');
+    const e2 = await s.H.ok(s.M.editar(ap, e1.mao_obra.id, { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '2' }));
+    assert.deepEqual(c(e2), ['HORA', '25.5000', '51.0000'], 'mandar o mesmo funcionário e a mesma medida também mantém');
+    const e3 = await s.H.ok(s.M.editar(ap, e2.mao_obra.id, { tipo_medida: 'DIARIA', quantidade: '1' }));
+    assert.deepEqual(c(e3), ['DIARIA', '200.0000', '200.0000'], 'trocar a medida: o cadastro de agora');
+    const e4 = await s.H.ok(s.M.editar(ap, e3.mao_obra.id, { tipo_medida: 'HORA', quantidade: '2' }));
+    assert.deepEqual(c(e4), ['HORA', '30.0000', '60.0000'], 'voltar para hora: o cadastro de agora, não o snapshot antigo');
+    const e5 = await s.H.ok(s.M.editar(ap, e4.mao_obra.id, { funcionario_id: s.pedro.id }));
+    assert.deepEqual(c(e5), ['HORA', null, null], 'trocar o funcionário: o cadastro do novo (sem custo)');
+    // Snapshot NULO também fica: o cadastro ganhar custo depois não entra na edição.
+    await prisma().funcionario.update({ where: { id: s.pedro.id }, data: { custo_hora: '15' } });
+    const e6 = await s.H.ok(s.M.editar(ap, e5.mao_obra.id, { quantidade: '4' }));
+    assert.deepEqual(c(e6), ['HORA', null, null]);
+    assert.deepEqual(erro(await s.M.editar(ap, e6.mao_obra.id, { quantidade: '5', custo_unitario: '1' })), [422, 'ATIVIDADE_LINHA_INVALIDA', 'custo_unitario', 'nao_aceito']);
+
+    // TAREFA: sem trocar a medida, o custo gravado fica (mesmo trocando o funcionário), salvo se o corpo trouxer outro.
+    const t1 = (await s.M.lancarOk(ap, { funcionario_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' })).mao_obra;
+    const t2 = await s.H.ok(s.M.editar(ap, t1.id, { quantidade: '3' }));
+    assert.deepEqual(c(t2), ['TAREFA', '40.0000', '120.0000']);
+    const t3 = await s.H.ok(s.M.editar(ap, t2.mao_obra.id, { funcionario_id: s.joao.id }));
+    assert.deepEqual(c(t3), ['TAREFA', '40.0000', '120.0000']);
+    const t4 = await s.H.ok(s.M.editar(ap, t3.mao_obra.id, { custo_unitario: '50' }));
+    assert.deepEqual(c(t4), ['TAREFA', '50.0000', '150.0000']);
+    // Entrar em TAREFA exige o custo digitado (o snapshot da hora não serve).
+    assert.deepEqual(erro(await s.M.editar(ap, e6.mao_obra.id, { tipo_medida: 'TAREFA' })), [422, 'ATIVIDADE_LINHA_INVALIDA', 'custo_unitario', 'obrigatorio']);
+  });
+
+  test('PATCH sem mudança real → 422 ATIVIDADE_LINHA_INVALIDA (corpo, sem_alteracao): nada cancelado nem recriado, versão e auditoria iguais', async () => {
+    const s = await montar();
+    const ap = await s.apontar();
+    const h = (await s.M.lancarOk(ap, { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8', observacao: 'x' })).mao_obra;
+    const t = (await s.M.lancarOk(ap, { funcionario_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' })).mao_obra;
+    // O cadastro mudar depois não é mudança da linha (o snapshot fica).
+    await prisma().funcionario.update({ where: { id: s.joao.id }, data: { custo_hora: '99' } });
+    const f = await foto(s.c);
+    const auditorias = () => prisma().auditLog.count({ where: { cliente_id: s.c, entidade: 'AtividadeApontamentoMaoObra' } });
+    const antes = await auditorias();
+    for (const [linha, corpo] of /** @type {Array<[any, Record<string, unknown>]>} */ ([
+      [h, { quantidade: '8' }],
+      [h, { quantidade: '8.0000', funcionario_id: s.joao.id, tipo_medida: 'HORA', observacao: 'x' }],
+      [h, { custo_unitario: null }],
+      [t, { custo_unitario: '40.0', quantidade: '2' }],
+      [t, { tipo_medida: 'TAREFA' }],
+    ])) {
+      const r = await s.M.editar(ap, linha.id, corpo);
+      assert.deepEqual(erro(r), [422, 'ATIVIDADE_LINHA_INVALIDA', 'corpo', 'sem_alteracao'], JSON.stringify(corpo));
+      assert.equal(r.json().details.entidade, 'linha_mao_obra');
+    }
+    assert.equal(await foto(s.c), f, 'nada cancelado, nada recriado, a versão não subiu');
+    assert.equal(await auditorias(), antes);
+    // Uma mudança de fato passa.
+    assert.equal((await s.M.editar(ap, h.id, { observacao: 'y' })).statusCode, 200);
+  });
+
+  test('chaves derivadas EXATAS: `_` da chave do lançamento não é curinga e uma chave que só começa igual não conflita (produto, mão de obra e serviço)', async () => {
+    const s = await montar();
+    const sufixo = opId('').slice(1, 13);
+    const linhas = {
+      produtos: [{ produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '1' }],
+      mao_obra: [{ funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '1' }],
+      servicos: [{ servico_id: s.gradagem.id, quantidade: '1', valor_unitario: '10' }],
+    };
+    // 1) `lancX…` gravado; `lanc_…` (o `_` casaria qualquer letra num LIKE) é OUTRA chave.
+    const lancar = (operation_id, corpo) => s.lancarAp({ operation_id, ...corpo });
+    for (const [colecao, corpo] of Object.entries(linhas)) {
+      const x = await lancar(`lancX${colecao}${sufixo}`, { [colecao]: corpo });
+      assert.equal(x.statusCode, 201, x.body);
+      const sub = await lancar(`lanc_${colecao}${sufixo}`, { [colecao]: corpo });
+      assert.equal(sub.statusCode, 201, `${colecao}: ${sub.body}`);
+    }
+    // 2) `K:o9` gravou `K:o9:o1`; a chave `K` (derivadas `K:o1…K:o20`) não conflita com ela.
+    const letra = { produtos: 'p', mao_obra: 'o', servicos: 's' };
+    for (const [colecao, corpo] of Object.entries(linhas)) {
+      const k = `pref${colecao}${sufixo}`;
+      const longa = await lancar(`${k}:${letra[colecao]}9`, { [colecao]: corpo });
+      assert.equal(longa.statusCode, 201, longa.body);
+      const curta = await lancar(k, { [colecao]: corpo });
+      assert.equal(curta.statusCode, 201, `${colecao}: ${curta.body}`);
+    }
+    // A chave EXATA de uma linha gravada continua conflito, mesmo sem o recibo do lançamento.
+    const k = `exata${sufixo}`;
+    assert.equal((await lancar(k, { mao_obra: linhas.mao_obra })).statusCode, 201);
+    await prisma().operacaoIdempotente.deleteMany({ where: { cliente_id: s.c, operation_key: k } });
+    assert.deepEqual(erro(await lancar(k, { mao_obra: linhas.mao_obra })).slice(0, 2), [409, 'IDEMPOTENCY_CONFLICT']);
+  });
+
+  test('corrida: a inativação do funcionário em voo termina antes e a linha nova vê o inativo (422), sem gravar o vínculo', async () => {
+    const s = await montar();
+    const ap = await s.apontar();
+    const f = await foto(s.c);
+    /** @type {() => void} */
+    let soltar = () => {};
+    const segura = new Promise((r) => (soltar = /** @type {any} */ (r)));
+    /** @type {() => void} */
+    let travou = () => {};
+    const travado = new Promise((r) => (travou = /** @type {any} */ (r)));
+    // A "inativação" em voo: o UPDATE do cadastro (trava FOR NO KEY UPDATE) e o commit só depois.
+    const inativar = prisma().$transaction(
+      async (tx) => {
+        await tx.$executeRaw`UPDATE "Funcionario" SET ativo = false WHERE cliente_id = ${s.c} AND id = ${s.joao.id}`;
+        travou();
+        await segura;
+      },
+      { timeout: 20000 }
+    );
+    await travado;
+    let respondeu = false;
+    const linha = s.M.lancar(ap, { funcionario_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' }).then((r) => {
+      respondeu = true;
+      return r;
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(respondeu, false, 'a linha espera a inativação (FOR SHARE no funcionário)');
+    soltar();
+    await inativar;
+    const r = await linha;
+    assert.deepEqual(erro(r), [422, 'ATIVIDADE_LINHA_INVALIDA', 'funcionario_id', 'inativo']);
+    assert.equal(await foto(s.c), f, 'nada gravado');
+  });
+});

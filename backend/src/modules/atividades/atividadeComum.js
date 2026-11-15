@@ -635,6 +635,18 @@ export const LETRA_DA_LINHA = Object.freeze({ produto: 'p', maquina: 'm', mao_ob
 export const operationIdDaLinha = (base, tipo, indice) => `${base}:${LETRA_DA_LINHA[tipo] ?? 'p'}${indice + 1}`;
 
 /**
+ * TODAS as chaves que um lançamento com a chave `base` pode gravar nas linhas
+ * de um tipo (`<base>:<letra>1` … `<base>:<letra>N`, N =
+ * `LINHAS_NO_LANCAMENTO_MAXIMO`). A busca por elas é EXATA (`operation_id IN
+ * (…)`): um prefixo (`LIKE '<base>:o%'`) faria do `_` da chave um curinga e
+ * casaria a chave de outro lançamento que só começa igual.
+ * @param {string} base @param {'produto'|'maquina'|'mao_obra'|'servico'} tipo
+ * @returns {string[]}
+ */
+export const chavesDerivadasDasLinhas = (base, tipo) =>
+  Array.from({ length: LINHAS_NO_LANCAMENTO_MAXIMO }, (_, i) => operationIdDaLinha(base, tipo, i));
+
+/**
  * Status das escritas de linha: atividade ABERTA e apontamento CONFIRMADO;
  * senão 409 `ATIVIDADE_STATUS_INVALIDO` (`entidade` atividade ou apontamento,
  * `acao` `lancar_linha` | `editar_linha` | `cancelar_linha`).

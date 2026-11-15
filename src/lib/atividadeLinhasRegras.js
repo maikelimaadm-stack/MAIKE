@@ -518,7 +518,11 @@ export const totalDaLinha = (quantidade, unitario) => {
 
 /**
  * @typedef {{ id: string, rotulo: string, tipo: string|null, custo_hora: string|null, custo_diaria: string|null } | null} FuncionarioEscolhido
- * @typedef {{ funcionario: FuncionarioEscolhido, tipo_medida: string, quantidade: string, custo_unitario: string, observacao: string }} FormularioLinhaMaoObra
+ * @typedef {{ funcionario_id: string, tipo_medida: string, custo_unitario: string|null } | null} MaoObraGravada
+ *   O que a linha EDITADA gravou (o snapshot do custo): com o mesmo funcionário e a mesma medida, a edição mantém
+ *   esse custo; só o "Repetir" e a linha nova usam o cadastro de agora.
+ * @typedef {{ funcionario: FuncionarioEscolhido, tipo_medida: string, quantidade: string, custo_unitario: string, observacao: string,
+ *   gravado?: MaoObraGravada }} FormularioLinhaMaoObra
  */
 
 /** @param {unknown} v */
@@ -567,12 +571,13 @@ export const custoDoCadastro = (funcionario, medida) => {
 export const custoDigitado = (medida) => medida === 'TAREFA';
 
 /** @returns {FormularioLinhaMaoObra} */
-export const formularioMaoObraVazio = () => ({ funcionario: null, tipo_medida: 'HORA', quantidade: '', custo_unitario: '', observacao: '' });
+export const formularioMaoObraVazio = () => ({ funcionario: null, tipo_medida: 'HORA', quantidade: '', custo_unitario: '', observacao: '', gravado: null });
 
 /**
- * Formulário a partir da linha gravada (editar, "Repetir"). O resumo `funcionario` do servidor traz os custos ATUAIS
- * do cadastro (os que a edição e o "Repetir" gravam, inclusive nulos); só sem eles na resposta o custo de hora/diária
- * mostrado é o snapshot da linha.
+ * Formulário a partir da linha gravada (EDITAR). Guarda em `gravado` o funcionário, a medida e o custo unitário da
+ * linha (o snapshot): enquanto funcionário e medida forem os mesmos, a prévia mostra esse custo (o servidor o mantém
+ * e só recalcula o total). O resumo `funcionario` do servidor traz os custos ATUAIS do cadastro: são eles que a
+ * prévia mostra ao trocar o funcionário ou a medida (só sem eles na resposta, o snapshot da linha na medida dela).
  * @param {any} l @returns {FormularioLinhaMaoObra}
  */
 export const formularioDaLinhaMaoObra = (l) => {
@@ -595,16 +600,39 @@ export const formularioDaLinhaMaoObra = (l) => {
     quantidade: paraEdicao(l?.quantidade),
     custo_unitario: medida === 'TAREFA' ? paraEdicao(l?.custo_unitario) : '',
     observacao: typeof l?.observacao === 'string' ? l.observacao : '',
+    gravado: l?.funcionario_id ? { funcionario_id: String(l.funcionario_id), tipo_medida: medida, custo_unitario: snapshot } : null,
   };
 };
 
 /**
- * Custo unitário e total da linha de mão de obra (só leitura): hora/diária do cadastro; tarefa, o digitado.
+ * Formulário da linha da BASE no "Repetir" (linha nova): os mesmos dados, mas sem o `gravado` — o servidor grava o
+ * snapshot do cadastro de AGORA, e é ele que a prévia mostra.
+ * @param {any} l @returns {FormularioLinhaMaoObra}
+ */
+export const formularioMaoObraDaBase = (l) => ({ ...formularioDaLinhaMaoObra(l), gravado: null });
+
+/**
+ * A edição mantém o custo gravado? Hora/diária com o MESMO funcionário e a MESMA medida da linha gravada (o servidor
+ * não relê o cadastro). Tarefa: o custo é sempre o digitado.
+ * @param {FormularioLinhaMaoObra} form
+ */
+export const custoMantidoDaLinha = (form) => {
+  const g = form?.gravado;
+  return Boolean(g) && !custoDigitado(form?.tipo_medida) && form?.funcionario?.id === g?.funcionario_id && form?.tipo_medida === g?.tipo_medida;
+};
+
+/**
+ * Custo unitário e total da linha de mão de obra (só leitura): tarefa, o digitado; hora/diária, o GRAVADO na linha
+ * editada enquanto funcionário e medida forem os mesmos (`custoMantidoDaLinha`), senão o do cadastro atual.
  * @param {FormularioLinhaMaoObra} form
  * @returns {{ unitario: string|null, total: string|null }}
  */
 export const custoDaLinhaMaoObra = (form) => {
-  const unitario = custoDigitado(form?.tipo_medida) ? lerDecimal(form?.custo_unitario, '').valor : custoDoCadastro(form?.funcionario ?? null, form?.tipo_medida);
+  const unitario = custoDigitado(form?.tipo_medida)
+    ? lerDecimal(form?.custo_unitario, '').valor
+    : custoMantidoDaLinha(form)
+      ? (form.gravado?.custo_unitario ?? null)
+      : custoDoCadastro(form?.funcionario ?? null, form?.tipo_medida);
   return { unitario, total: totalDaLinha(lerDecimal(form?.quantidade, '').valor, unitario) };
 };
 
@@ -810,7 +838,7 @@ export const linhasParaRepetir = (base) => {
   return {
     produtos: produtos.filter(confirmada).map((l) => ({ chave: `p-${l.id}`, form: formularioDaLinhaProduto(l) })),
     maquinas: maquinas.filter(confirmada).map((l) => ({ chave: `m-${l.id}`, form: formularioMaquinaDaBase(l) })),
-    mao_obra: mao_obra.filter(confirmada).map((l) => ({ chave: `o-${l.id}`, form: formularioDaLinhaMaoObra(l) })),
+    mao_obra: mao_obra.filter(confirmada).map((l) => ({ chave: `o-${l.id}`, form: formularioMaoObraDaBase(l) })),
     servicos: servicos.filter(confirmada).map((l) => ({ chave: `s-${l.id}`, form: formularioServicoDaBase(l) })),
   };
 };
@@ -845,8 +873,9 @@ export const totaisParaExibir = (totais, atividade) => {
     quantidade: formatarQuantidadeMaoObra(o.quantidade, o.tipo_medida) || '—',
     custo: formatarCustoLinha(o.custo_total),
   }));
+  // O servidor agrupa o serviço por serviço E unidade (o snapshot da linha): a chave também.
   const servicos = (Array.isArray(t.servicos) ? t.servicos : []).filter(ehObjeto).map((v) => ({
-    chave: String(v.servico_id ?? v.nome ?? ''),
+    chave: `${String(v.servico_id ?? v.nome ?? '')}${texto(v.unidade) ? `-${texto(v.unidade)}` : ''}`,
     nome: texto(v.nome) || texto(v.servico?.nome) || 'Serviço',
     quantidade: formatarQuantidadeServico(v.quantidade, v.unidade) || '—',
     custo: formatarCustoLinha(v.custo_total ?? v.valor_total),
@@ -961,6 +990,7 @@ const LINHA_INVALIDA = Object.freeze(
     },
     valor_unitario: { obrigatorio: 'Informe o valor unitário', obrigatoria: 'Informe o valor unitário', negativo: 'O valor unitário não pode ser negativo' },
     documento_referencia: { longo: 'O documento pode ter no máximo 120 caracteres', longa: 'O documento pode ter no máximo 120 caracteres' },
+    corpo: { sem_alteracao: 'Os dados são os mesmos da linha gravada: não há o que alterar' },
   }),
 );
 
@@ -1054,6 +1084,16 @@ export const mensagemDeErroLinha = (erro, fallback, ctx = {}) => {
     default:
       return mensagemDeErroAtividade(erro, fallback);
   }
+};
+
+/**
+ * A edição foi recusada por não mudar nada (`ATIVIDADE_LINHA_INVALIDA`, `reason: sem_alteracao`)? A janela trata
+ * como "Sem alterações" (o mesmo de quando ela nem envia).
+ * @param {unknown} erro
+ */
+export const ehSemAlteracaoDaLinha = (erro) => {
+  const { code, reason } = lerErroGestao(erro);
+  return code === 'ATIVIDADE_LINHA_INVALIDA' && reason === 'sem_alteracao';
 };
 
 /** Campo da janela que a recusa aponta, ou null (o salto aponta a justificativa). @param {unknown} erro */

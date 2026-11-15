@@ -75,7 +75,9 @@ export const buscarServico = async (clienteId, empresaId, id, tx) => {
 
 /**
  * Unidade de medida do CLIENTE (cadastro por tenant, sem fazenda), sob
- * `FOR KEY SHARE`: não some nem muda de chave até o fim da transação.
+ * `FOR SHARE`: não some, não muda de chave e não é inativada até o fim da
+ * transação (uma inativação em voo termina antes e aqui já se lê o estado novo;
+ * `FOR KEY SHARE` não esperaria o UPDATE do `ativo` e leria a versão velha).
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {string} clienteId
  * @param {string} id
@@ -83,13 +85,14 @@ export const buscarServico = async (clienteId, empresaId, id, tx) => {
  */
 export const lerUnidadeMedida = async (tx, clienteId, id) => {
   const linhas = /** @type {Array<{ id: string, ativo: boolean }>} */ (
-    await tx.$queryRaw`SELECT "id", "ativo" FROM "UnidadeMedida" WHERE "cliente_id" = ${clienteId} AND "id" = ${id} FOR KEY SHARE`
+    await tx.$queryRaw`SELECT "id", "ativo" FROM "UnidadeMedida" WHERE "cliente_id" = ${clienteId} AND "id" = ${id} FOR SHARE`
   );
   return linhas[0] ?? null;
 };
 
 /**
- * Centro de custo da MESMA fazenda (o centro é por empresa), sob `FOR KEY SHARE`.
+ * Centro de custo da MESMA fazenda (o centro é por empresa), sob `FOR SHARE`
+ * (como a unidade: a inativação em voo termina antes).
  * Outra fazenda, outro tenant ou inexistente → null (sem oráculo).
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {string} clienteId
@@ -99,9 +102,20 @@ export const lerUnidadeMedida = async (tx, clienteId, id) => {
  */
 export const lerCentroCustoDaFazenda = async (tx, clienteId, empresaId, id) => {
   const linhas = /** @type {Array<{ id: string, ativo: boolean }>} */ (
-    await tx.$queryRaw`SELECT "id", "ativo" FROM "CentroCusto" WHERE "cliente_id" = ${clienteId} AND "empresa_id" = ${empresaId} AND "id" = ${id} FOR KEY SHARE`
+    await tx.$queryRaw`SELECT "id", "ativo" FROM "CentroCusto" WHERE "cliente_id" = ${clienteId} AND "empresa_id" = ${empresaId} AND "id" = ${id} FOR SHARE`
   );
   return linhas[0] ?? null;
+};
+
+/**
+ * Trava a linha do serviço (`FOR UPDATE`) antes de ler e atualizar, como
+ * `parceiroService`/`fornecedorService`: dois PATCH (ou um PATCH e uma
+ * inativação) não leem o mesmo "antes"; uma linha de serviço em voo (que lê o
+ * serviço FOR SHARE) termina antes. Outro tenant ou inexistente: nada travado.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx @param {string} clienteId @param {string} id
+ */
+export const travarServico = async (tx, clienteId, id) => {
+  await tx.$queryRaw`SELECT id FROM "Servico" WHERE cliente_id = ${clienteId} AND id = ${id} FOR UPDATE`;
 };
 
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx @param {object} dados */

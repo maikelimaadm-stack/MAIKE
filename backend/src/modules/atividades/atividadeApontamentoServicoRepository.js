@@ -72,14 +72,25 @@ export const inserirLinha = (tx, dados) => tx.atividadeApontamentoServico.create
 
 /**
  * O que a regra da linha lê do serviço: fazenda, situação e a sigla da unidade
- * de medida (o snapshot `unidade`). Outro tenant = `null`.
+ * de medida (o snapshot `unidade`). Outro tenant = `null`. O serviço é lido
+ * FOR SHARE (só a linha dele, `OF s`): uma inativação em voo termina antes e
+ * aqui já se lê `ativo = false` (422); se esta linha chega antes, a inativação
+ * espera o commit dela.
  * @param {any} tx @param {string} clienteId @param {string} id
+ * @returns {Promise<{ id: string, numero: string, nome: string, empresa_id: string, ativo: boolean,
+ *   unidadeMedida: { id: string, sigla: string } } | null>}
  */
-export const lerServicoDaLinha = (tx, clienteId, id) =>
-  tx.servico.findFirst({
-    where: { cliente_id: clienteId, id },
-    select: { ...SERVICO_RESUMO.select, empresa_id: true, ativo: true, unidadeMedida: { select: { id: true, sigla: true } } },
-  });
+export const lerServicoDaLinha = async (tx, clienteId, id) => {
+  const [s] = /** @type {any[]} */ (
+    await tx.$queryRaw`SELECT s.id, s.numero, s.nome, s.empresa_id, s.ativo, u.id AS unidade_id, u.sigla AS unidade_sigla
+      FROM "Servico" s
+      JOIN "UnidadeMedida" u ON u.cliente_id = s.cliente_id AND u.id = s.unidade_medida_id
+      WHERE s.cliente_id = ${clienteId} AND s.id = ${id}
+      FOR SHARE OF s`
+  );
+  if (!s) return null;
+  return { id: s.id, numero: s.numero, nome: s.nome, empresa_id: s.empresa_id, ativo: s.ativo, unidadeMedida: { id: s.unidade_id, sigla: s.unidade_sigla } };
+};
 
 /**
  * O parceiro lido FOR KEY SHARE — a mesma trava que a FK pega no INSERT, só que
@@ -141,13 +152,14 @@ export const contarConfirmadasDoApontamento = (db, clienteId, empresaId, apontam
   });
 
 /**
- * Alguma linha de serviço com chave que começa por `prefixo` (as chaves
- * derivadas `<operation_id>:s<n>` de um lançamento com linhas).
- * @param {any} db @param {string} clienteId @param {string} prefixo
+ * Alguma linha de serviço gravada com uma das `chaves` (as derivadas
+ * `<operation_id>:s<n>` de um lançamento com linhas, `chavesDerivadasDasLinhas`).
+ * Comparação EXATA (`IN`), sem curinga de LIKE.
+ * @param {any} db @param {string} clienteId @param {string[]} chaves
  * @returns {Promise<boolean>}
  */
-export const existeLinhaComPrefixo = async (db, clienteId, prefixo) =>
-  (await db.atividadeApontamentoServico.count({ where: { cliente_id: clienteId, operation_id: { startsWith: prefixo } } })) > 0;
+export const existeLinhaComChave = async (db, clienteId, chaves) =>
+  chaves.length > 0 && (await db.atividadeApontamentoServico.count({ where: { cliente_id: clienteId, operation_id: { in: chaves } } })) > 0;
 
 /**
  * Σ quantidade e Σ valor das linhas CONFIRMADAS de apontamentos CONFIRMADOS da

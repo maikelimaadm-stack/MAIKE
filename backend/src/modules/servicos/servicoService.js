@@ -31,7 +31,8 @@ import { fkDoServicoNaEscrita } from '../../shared/errors/vinculoServico.js';
 import { decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { CASAS_CUSTO, dec } from '../financeiro/decimalFinanceiro.js';
-import { exigirEmpresaDoTenant, invalido, iso, textoDeBusca, textoDoCorpo } from '../gestao/gestaoComum.js';
+import { exigirEmpresaDoTenant, invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
+import { termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { ESCOPO_TENANT, reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import {
   atualizarServicoPorId,
@@ -40,6 +41,7 @@ import {
   lerCentroCustoDaFazenda,
   lerUnidadeMedida,
   listarServicosPagina,
+  travarServico,
 } from './servicoRepository.js';
 
 /** Decimais do corpo (texto; o `preValidation` da rota recusa número JSON). */
@@ -178,7 +180,8 @@ export const listar = async (contexto, consulta = {}) => {
   let ativo = null;
   if (consulta.ativo === true || consulta.ativo === 'true') ativo = true;
   if (consulta.ativo === false || consulta.ativo === 'false') ativo = false;
-  const q = textoDeBusca(consulta.q);
+  // Busca literal: `%` e `_` escapados (o `contains` do Prisma não os escapa).
+  const q = termoDeBusca(consulta.q);
   const { registros, total } = await listarServicosPagina(auth.clienteId, empresaId, { q, ativo, limit, cursor });
   return montarEnvelopeKeyset({ registros, limit, total, mapItem: comoServicoPublico });
 };
@@ -239,6 +242,7 @@ export const atualizar = async (contexto, id, entrada) => {
   return comFkTraduzida(() =>
     getPrismaClient().$transaction(async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada.empresa_id);
+      await travarServico(tx, auth.clienteId, id);
       const anterior = await buscarServico(auth.clienteId, empresaId, id, tx);
       if (!anterior) throw servicoNotFound();
       const antes = comoServicoPublico(anterior);
@@ -278,6 +282,7 @@ export const alterarSituacao = async (contexto, id, entrada, ativo) => {
   const auth = exigirAuthContext(contexto?.auth);
   return getPrismaClient().$transaction(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada?.empresa_id);
+    await travarServico(tx, auth.clienteId, id);
     const anterior = await buscarServico(auth.clienteId, empresaId, id, tx);
     if (!anterior) throw servicoNotFound();
     if (anterior.ativo === ativo) return comoServicoPublico(anterior);

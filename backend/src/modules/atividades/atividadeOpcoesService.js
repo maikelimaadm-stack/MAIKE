@@ -229,7 +229,8 @@ export const opcoesServicos = async (contexto, query = {}) => {
  * `GET /atividades-opcoes/parceiros-servico?empresa_id=&q=&cursor=&limit=`:
  * parceiros ATIVOS da fazenda com o papel `prestador_servico` (pelas grafias
  * gravadas, a mesma normalização de `lerPapeis`; `tipos` vazio NÃO entra: a
- * linha exige o papel). Só `{ id, nome }` — nada de documento.
+ * linha exige o papel). Só `{ id, nome }` — nada de documento; o `q` casa só
+ * o `nome`.
  * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {Record<string, any>} [query]
  */
 export const opcoesParceirosServico = async (contexto, query = {}) => {
@@ -243,7 +244,9 @@ export const opcoesParceirosServico = async (contexto, query = {}) => {
   const grafias = gravadas.map((l) => l.t).filter((t) => typeof t === 'string' && lerPapeis([t]).papeis.includes(PAPEL_PRESTADOR));
   /** @type {any[]} */
   const filtros = [{ cliente_id: auth.clienteId, empresa_id: empresaId, ativo: true }, grafias.length ? { tipos: { hasSome: grafias } } : { id: { in: [] } }];
-  if (q) filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { razao_social: { contains: q, mode: 'insensitive' } }, { numero_cadastro: { contains: q } }] });
+  // O `q` casa SÓ o nome (o que a opção mostra): razão social e número de cadastro não saem na resposta e não
+  // servem de busca (nenhuma opção aparece por um campo que o operador não vê, e nada vira oráculo deles).
+  if (q) filtros.push({ nome: { contains: q, mode: 'insensitive' } });
   return paginarPorNome(prisma.fornecedor, {
     where: { AND: filtros },
     select: { id: true, nome: true },

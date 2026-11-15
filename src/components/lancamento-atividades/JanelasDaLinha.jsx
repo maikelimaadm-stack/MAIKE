@@ -35,6 +35,8 @@ import {
   corpoDaLinhaServico,
   custoDaLinhaMaoObra,
   custoDigitado,
+  custoMantidoDaLinha,
+  ehSemAlteracaoDaLinha,
   formatarCustoLinha,
   formularioDaLinhaMaoObra,
   formularioDaLinhaServico,
@@ -632,6 +634,9 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
   const unidade = unidadeDaMedida(medida);
   const { unitario, total } = custoDaLinhaMaoObra(form);
   const digitado = custoDigitado(medida);
+  // Edição com o mesmo funcionário e a mesma medida: o custo é o GRAVADO na linha (o servidor o mantém).
+  const mantido = custoMantidoDaLinha(form);
+  const deOnde = mantido ? "gravado na linha" : "do cadastro";
   return (
     <>
       <SeletorPaginadoGestao
@@ -688,8 +693,8 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         />
       ) : (
         <ValorCalculado
-          label={medida === "DIARIA" ? "Custo da diária (do cadastro)" : "Custo da hora (do cadastro)"}
-          valor={!form.funcionario ? "—" : formatarCustoLinha(unitario) || "Sem custo no cadastro"}
+          label={medida === "DIARIA" ? `Custo da diária (${deOnde})` : `Custo da hora (${deOnde})`}
+          valor={!form.funcionario ? "—" : formatarCustoLinha(unitario) || (mantido ? "Sem custo gravado" : "Sem custo no cadastro")}
           span={6}
           testId={`${prefixo}-custo-unitario`}
         />
@@ -698,7 +703,9 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
       <ValorCalculado label="Total (quantidade × custo)" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
       {!digitado && form.funcionario && !unitario ? (
         <p className={NOTA} data-testid={`${prefixo}-sem-custo`}>
-          Este funcionário não tem custo de {medida === "DIARIA" ? "diária" : "hora"} no cadastro: a linha entra sem custo.
+          {mantido
+            ? "Esta linha foi gravada sem custo: com o mesmo funcionário e a mesma medida, ela continua sem custo."
+            : `Este funcionário não tem custo de ${medida === "DIARIA" ? "diária" : "hora"} no cadastro: a linha entra sem custo.`}
         </p>
       ) : null}
       {comObservacao ? (
@@ -1227,6 +1234,12 @@ function JanelaLinhaSemMedidor({
       onSalvo(normalizarRespostaDeEscrita(r.resposta), (editando ? rotulos.sucessoEdicao : rotulos.sucesso).replace("{nome}", nome));
       return;
     }
+    // O servidor viu que nada muda de fato (a linha e a versão ficaram como estavam): o mesmo "Sem alterações".
+    if (editando && ehSemAlteracaoDaLinha(r.erro)) {
+      notifyInfo("Sem alterações", "Nada foi alterado.");
+      onCancelar();
+      return;
+    }
     const campo = campoDaLinhaRecusada(r.erro);
     const mensagem = mensagemDeErroLinha(r.erro, fallback);
     if (campo) setErros((e) => ({ ...e, [campo]: mensagem }));
@@ -1307,7 +1320,7 @@ export function JanelaLinhaMaoObra({ linha = null, ...props }) {
         falhaEdicao: "Não foi possível alterar a mão de obra. Nada foi alterado.",
       }}
       campos={(p) => <CamposDaLinhaMaoObra {...p} prefixo="linha-mao-obra" />}
-      nota="Hora e diária usam o custo do cadastro do funcionário na data do lançamento; tarefa usa o custo digitado. Não é folha de pagamento: nada vai para o financeiro."
+      nota="Hora e diária usam o custo do cadastro do funcionário na data do lançamento (editar sem trocar o funcionário nem a medida mantém o custo gravado); tarefa usa o custo digitado. Não é folha de pagamento: nada vai para o financeiro."
     />
   );
 }

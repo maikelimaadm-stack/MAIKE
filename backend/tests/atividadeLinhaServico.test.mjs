@@ -202,6 +202,12 @@ describe('proteções', () => {
     assert.deepEqual(pa.itens, [{ id: s.prestadorAlias.id, nome: 'Empreiteira Alias' }, { id: s.prestador.id, nome: 'Prestadora Terra Boa' }]);
     const pq = await s.H.ok(s.H.req('GET', `/atividades-opcoes/parceiros-servico?empresa_id=${s.e1.id}&q=terra`, s.token));
     assert.deepEqual(pq.itens.map((x) => x.id), [s.prestador.id]);
+    // O `q` casa SÓ o nome (o que a opção mostra): nem a razão social nem o número de cadastro.
+    await prisma().fornecedor.update({ where: { id: s.prestador.id }, data: { razao_social: 'Razao Oculta Ltda' } });
+    const porRazao = await s.H.ok(s.H.req('GET', `/atividades-opcoes/parceiros-servico?empresa_id=${s.e1.id}&q=oculta`, s.token));
+    const numero = (await prisma().fornecedor.findUnique({ where: { id: s.prestador.id } })).numero_cadastro;
+    const porNumero = await s.H.ok(s.H.req('GET', `/atividades-opcoes/parceiros-servico?empresa_id=${s.e1.id}&q=${encodeURIComponent(numero)}`, s.token));
+    assert.deepEqual([porRazao.itens, porNumero.itens], [[], []]);
     assert.equal((await s.H.req('GET', `/atividades-opcoes/servicos?empresa_id=${s.e1.id}`, b.token)).statusCode, 404);
     assert.equal((await s.H.req('GET', `/atividades-opcoes/parceiros-servico?empresa_id=${s.e1.id}&papel=cliente`, s.token)).statusCode, 400, 'query fechada');
   });
@@ -251,5 +257,60 @@ describe('parceiro em uso', () => {
     const livre = await s.H.req('DELETE', `/fornecedores/${s.prestadorAlias.id}`, s.token);
     assert.ok([200, 204].includes(livre.statusCode), livre.body);
     assert.equal(await prisma().fornecedor.findUnique({ where: { id: s.prestadorAlias.id } }), null);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('revisões: PATCH sem mudança e corrida', () => {
+  test('PATCH sem mudança real → 422 ATIVIDADE_LINHA_INVALIDA (corpo, sem_alteracao): nada cancelado nem recriado, versão e auditoria iguais', async () => {
+    const s = await montar();
+    const ap = await s.apontar();
+    const l = (await s.S.lancarOk(ap, { servico_id: s.gradagem.id, quantidade: '2', valor_unitario: '150', fornecedor_parceiro_id: s.prestador.id, documento_referencia: 'NF 1' })).servico;
+    const f = await foto(s.c);
+    const auditorias = () => prisma().auditLog.count({ where: { cliente_id: s.c, entidade: 'AtividadeApontamentoServico' } });
+    const antes = await auditorias();
+    for (const corpo of [
+      { quantidade: '2' },
+      { quantidade: '2.0000', valor_unitario: '150.0', servico_id: s.gradagem.id, fornecedor_parceiro_id: s.prestador.id, documento_referencia: 'NF 1', observacao: null },
+    ]) {
+      const r = await s.S.editar(ap, l.id, corpo);
+      assert.deepEqual(erro(r), [422, 'ATIVIDADE_LINHA_INVALIDA', 'corpo', 'sem_alteracao'], JSON.stringify(corpo));
+      assert.equal(r.json().details.entidade, 'linha_servico');
+    }
+    assert.equal(await foto(s.c), f, 'nada cancelado, nada recriado, a versão não subiu');
+    assert.equal(await auditorias(), antes);
+    assert.equal((await s.S.editar(ap, l.id, { documento_referencia: null })).statusCode, 200, 'limpar o documento é mudança');
+  });
+
+  test('corrida: a inativação do serviço em voo termina antes e a linha nova vê o inativo (422), sem gravar', async () => {
+    const s = await montar();
+    const ap = await s.apontar();
+    const f = await foto(s.c);
+    /** @type {() => void} */
+    let soltar = () => {};
+    const segura = new Promise((r) => (soltar = /** @type {any} */ (r)));
+    /** @type {() => void} */
+    let travou = () => {};
+    const travado = new Promise((r) => (travou = /** @type {any} */ (r)));
+    const inativar = prisma().$transaction(
+      async (tx) => {
+        await tx.$executeRaw`UPDATE "Servico" SET ativo = false WHERE cliente_id = ${s.c} AND id = ${s.gradagem.id}`;
+        travou();
+        await segura;
+      },
+      { timeout: 20000 }
+    );
+    await travado;
+    let respondeu = false;
+    const linha = s.S.lancar(ap, { servico_id: s.gradagem.id, quantidade: '1', valor_unitario: '10' }).then((r) => {
+      respondeu = true;
+      return r;
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(respondeu, false, 'a linha espera a inativação (FOR SHARE no serviço)');
+    soltar();
+    await inativar;
+    assert.deepEqual(erro(await linha), [422, 'ATIVIDADE_LINHA_INVALIDA', 'servico_id', 'inativo']);
+    assert.equal(await foto(s.c), f, 'nada gravado');
   });
 });
