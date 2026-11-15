@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADE-MAO-OBRA — relatório da Fatia 4 do Lançamento de Atividades
 
-> **fatia 4 · `feat/atividade-mao-obra-servico` · PR (a abrir)**
+> **fatia 4 · `feat/atividade-mao-obra-servico` · PR #294**
 >
 > Decisão **D-PROD-204** · contrato [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) ·
 > runbook [`MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md)

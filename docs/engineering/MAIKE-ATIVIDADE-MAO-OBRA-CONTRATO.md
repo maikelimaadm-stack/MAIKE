@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADE-MAO-OBRA — contrato da Fatia 4 do Lançamento de Atividades
 
-> **fatia 4 · `feat/atividade-mao-obra-servico` · PR (a abrir)**
+> **fatia 4 · `feat/atividade-mao-obra-servico` · PR #294**
 >
 > Decisão **D-PROD-204**. Pedido do proprietário: "FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."
 > Escolha aprovada pelo proprietário antes de implementar ("sim, vai de acordo com o cadastro de parceiro"):
