@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades): mão de obra e serviço de terceiro (D-PROD-207)
+## Missão ativa (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-208)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-208** (nasceu D-PROD-207, que a `main` deu à Fatia 4), pedido do proprietário: sal mineral em g/cab/dia fixo; uma base por formulação, sem mistura; regras por categoria na mesma base |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `f31d3397` (PR #296), com a `main` `9a666393` (PR #294, Fatia 4, D-PROD-207) por merge |
+| Escopo | `base_consumo` PV / G_CAB_DIA na Formulação (API, tela, validação sem mistura), regra em gramas, esperado do lançamento na base G (sem peso), farol do fechamento pelos gramas na base G |
+| Migration | `20261116000000_formulacao_base_consumo`, **CONTRACT** (oitava de `MIGRATIONS_CONTRACT_APROVADAS`; as 3 tabelas de Formulações vazias pela guarda), SHA-256 `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`. Produção 58 → 59, 95 tabelas. Aprovação do CONTRACT pelo proprietário ("os dados eram só teste"; tabelas com 0 linhas) |
+| Release | **Pendente**: aplicar antes do merge (D-PROD-72) pelo [runbook](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md), com o GO escrito do proprietário |
+| Relatório | [`MAIKE-BASE-CONSUMO-REPORT.md`](./MAIKE-BASE-CONSUMO-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades): mão de obra e serviço de terceiro (D-PROD-207)
 
 | Campo | Valor |
 |---|---|
