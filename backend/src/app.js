@@ -45,7 +45,6 @@ import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
 import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoutes.js';
 import { registrarLeituraCochoRoutes } from './modules/leiturasCocho/leituraCochoRoutes.js';
-import { registrarFuncionarioRoutes } from './modules/funcionarios/funcionarioRoutes.js';
 import { registrarServicoRoutes } from './modules/servicos/servicoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
@@ -223,8 +222,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarFormulacaoRoutes);
   // D-PROD-205 — Leitura de cocho (escore, acesso, estrutura; tabela LEITURACOCHO). Não movimenta estoque.
   await app.register(registrarLeituraCochoRoutes);
-  // D-PROD-207 (Fatia 4) — cadastros de Funcionário e Serviço da fazenda (sem DELETE).
-  await app.register(registrarFuncionarioRoutes);
+  // D-PROD-207 (Fatia 4) — cadastro de Serviço da fazenda (sem DELETE). D-PROD-208: o Funcionário
+  // virou papel do parceiro (`/parceiros`); o cadastro próprio saiu.
   await app.register(registrarServicoRoutes);
   // D-PROD-200 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
   // concluída ou cancelada, sem DELETE físico) e os APONTAMENTOS do dia e do

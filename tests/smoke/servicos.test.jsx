@@ -1,14 +1,13 @@
 /**
- * Cadastros de Funcionários e Serviços da fazenda (D-PROD-207, Fatia 4 do
- * Lançamento de Atividades).
+ * Cadastro de Serviços da fazenda (D-PROD-207, Fatia 4 do Lançamento de
+ * Atividades). O cadastro próprio de Funcionários saiu na D-PROD-208: o
+ * funcionário é papel do parceiro (ver gestaoParceiros.test.jsx).
  *
- * Funcionário: Nome, Cargo, Tipo (Mensalista / Diarista / Tarefeiro), Custo por
- * hora e Custo por diária; os custos vão como TEXTO canônico (nunca número),
- * vazio = null. Serviço: Nome, Unidade de medida (só as ativas do cadastro de
- * Unidades e a gravada), Centro de custo padrão (os ativos da fazenda) e Valor de
- * referência. Nenhum dos dois tem campo de fazenda (vem do topo) nem de situação
- * editável: inativar e reativar são ações da tela. A lista é da fazenda
- * selecionada e avisa quando nenhuma está selecionada.
+ * Serviço: Nome, Unidade de medida (só as ativas do cadastro de Unidades e a
+ * gravada), Centro de custo padrão (os ativos da fazenda) e Valor de referência.
+ * Sem campo de fazenda (vem do topo) nem de situação editável: inativar e
+ * reativar são ações da tela. A lista é da fazenda selecionada e avisa quando
+ * nenhuma está selecionada.
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
@@ -19,18 +18,6 @@ const notify = vi.hoisted(() => ({ notifyWarning: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({
   ...(await importOriginal()),
   notifyWarning: notify.notifyWarning,
-}));
-
-const funcionarios = vi.hoisted(() => ({
-  listarFuncionariosPagina: vi.fn(),
-  criarFuncionario: vi.fn(),
-  atualizarFuncionario: vi.fn(),
-  inativarFuncionarios: vi.fn(),
-  alterarSituacaoFuncionario: vi.fn(),
-}));
-vi.mock("@/services/funcionarioCadastroService", async (importOriginal) => ({
-  ...(await importOriginal()),
-  ...funcionarios,
 }));
 
 const servicos = vi.hoisted(() => ({
@@ -53,10 +40,8 @@ vi.mock("@/hooks/useGestaoSessao", async (importOriginal) => ({
   useEmpresaRealSelecionadaId: () => sessao.empresaId,
 }));
 
-const { default: FormularioFuncionario, FORMULARIO_FUNCIONARIO_ID } = await import("@/components/funcionarios/FormularioFuncionario");
 const { default: FormularioServico, FORMULARIO_SERVICO_ID } = await import("@/components/servicos/FormularioServico");
-const { getFuncionarioFieldValue, compararDecimaisParaOrdenar } = await import("@/components/funcionarios/TabelaFuncionarios");
-const { getServicoFieldValue } = await import("@/components/servicos/TabelaServicos");
+const { getServicoFieldValue, compararDecimaisParaOrdenar } = await import("@/components/servicos/TabelaServicos");
 
 const pagina = (items) => ({ items, next_cursor: null, has_more: false, total: items.length, limit: 100 });
 
@@ -80,62 +65,6 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   sessao.empresaId = "emp-1";
-});
-
-describe("FUN-FORM — formulário de funcionário", () => {
-  const montar = (props = {}) => {
-    const onSubmit = vi.fn();
-    render(<FormularioFuncionario onSubmit={onSubmit} {...props} />);
-    return { onSubmit, form: screen.getByTestId("b1-form-funcionario") };
-  };
-  const enviar = () => fireEvent.submit(document.getElementById(FORMULARIO_FUNCIONARIO_ID));
-
-  it("FUN-FORM-1 — cinco campos, nesta ordem; sem fazenda, salário ou situação editável no Novo", () => {
-    const { form } = montar();
-    expect(rotulos(form)).toEqual(["Nome", "Cargo", "Tipo", "Custo por hora (R$)", "Custo por diária (R$)"]);
-    expect(form.textContent).not.toMatch(/Fazenda|Empresa|Salário|Encargo|Ponto|Fornecedor/i);
-  });
-
-  it("FUN-FORM-2 — o tipo oferece exatamente MENSALISTA, DIARISTA e TAREFEIRO", async () => {
-    const { form } = montar();
-    fireEvent.click(within(form).getByRole("combobox", { name: /Tipo/ }));
-    const opcoes = (await screen.findAllByRole("option")).map((o) => o.textContent.trim());
-    expect(opcoes).toEqual(["MENSALISTA", "DIARISTA", "TAREFEIRO"]);
-  });
-
-  it("FUN-FORM-3 — nome e tipo obrigatórios; custo com sinal não envia", async () => {
-    const { form, onSubmit } = montar();
-    enviar();
-    await waitFor(() => expect(within(form).getAllByText("Obrigatório")).toHaveLength(2));
-    expect(onSubmit).not.toHaveBeenCalled();
-    fireEvent.change(within(form).getByPlaceholderText("NOME"), { target: { value: "ana" } });
-    await escolher(form, "Tipo", "DIARISTA");
-    fireEvent.change(screen.getByTestId("funcionario-custo-hora"), { target: { value: "-5" } });
-    enviar();
-    expect(onSubmit).not.toHaveBeenCalled();
-  });
-
-  it("FUN-FORM-4 — o envio leva texto canônico nos custos (vírgula → ponto), maiúsculas e null no vazio", async () => {
-    const { form, onSubmit } = montar();
-    fireEvent.change(within(form).getByPlaceholderText("NOME"), { target: { value: "joão da silva" } });
-    fireEvent.change(within(form).getByPlaceholderText(/TRATORISTA/), { target: { value: "tratorista" } });
-    await escolher(form, "Tipo", "MENSALISTA");
-    fireEvent.change(screen.getByTestId("funcionario-custo-hora"), { target: { value: "1.234,5" } });
-    enviar();
-    expect(onSubmit).toHaveBeenCalledWith({
-      nome: "JOÃO DA SILVA",
-      cargo: "TRATORISTA",
-      tipo: "MENSALISTA",
-      custo_hora: "1234.5",
-      custo_diaria: null,
-    });
-  });
-
-  it("FUN-FORM-5 — na edição mostra a situação, travada (muda pelas ações Inativar/Reativar)", () => {
-    const { form } = montar({ readOnly: true, initialData: { id: "f1", nome: "X", tipo: "TAREFEIRO", custo_diaria: "150.2500", ativo: false } });
-    expect(rotulos(form)).toContain("Ativo");
-    expect(screen.getByTestId("funcionario-custo-diaria").value).toBe("150,25");
-  });
 });
 
 describe("SER-FORM — formulário de serviço", () => {
@@ -192,13 +121,10 @@ describe("SER-FORM — formulário de serviço", () => {
   });
 });
 
-describe("FUN/SER-GRADE — valores da lista", () => {
-  it("custos e valor de referência em reais (sem float) e ordenados pelo valor, nunca pelo texto", () => {
-    expect(getFuncionarioFieldValue({ tipo: "DIARISTA" }, "tipo")).toBe("DIARISTA");
-    expect(getFuncionarioFieldValue({ custo_hora: "25.5000" }, "custo_hora")).toMatch(/25,50/);
-    expect(getFuncionarioFieldValue({ custo_hora: null }, "custo_hora")).toBe("");
-    expect(compararDecimaisParaOrdenar({ custo_hora: "100.0000" }, { custo_hora: "25.0000" }, "custo_hora")).toBeGreaterThan(0);
-    expect(compararDecimaisParaOrdenar({ custo_hora: "1.0000" }, {}, "custo_hora")).toBe(-1);
+describe("SER-GRADE — valores da lista", () => {
+  it("valor de referência em reais (sem float) e ordenado pelo valor, nunca pelo texto", () => {
+    expect(compararDecimaisParaOrdenar({ valor_referencia: "100.0000" }, { valor_referencia: "25.0000" }, "valor_referencia")).toBeGreaterThan(0);
+    expect(compararDecimaisParaOrdenar({ valor_referencia: "1.0000" }, {}, "valor_referencia")).toBe(-1);
     expect(compararDecimaisParaOrdenar({}, {}, "nome")).toBeNull();
     const s = { unidade_medida: { sigla: "HA" }, centro_custo_padrao: { numero: "3", nome: "LAVOURA" }, valor_referencia: "85.9000" };
     expect(getServicoFieldValue(s, "unidade")).toBe("HA");
@@ -207,17 +133,7 @@ describe("FUN/SER-GRADE — valores da lista", () => {
   });
 });
 
-describe("FUN/SER-PAGE — telas", () => {
-  it("Funcionários: lista a fazenda selecionada (só ativos por padrão) e abre o formulário no Novo", async () => {
-    funcionarios.listarFuncionariosPagina.mockResolvedValue(pagina([{ id: "f1", numero: "1", nome: "JOÃO DA SILVA", tipo: "DIARISTA", ativo: true }]));
-    const { default: Funcionarios } = await import("@/pages/Funcionarios");
-    comQuery(<Funcionarios />);
-    await waitFor(() => expect(screen.getByText("JOÃO DA SILVA")).toBeTruthy());
-    expect(funcionarios.listarFuncionariosPagina).toHaveBeenCalledWith("emp-1", expect.objectContaining({ ativo: true }));
-    fireEvent.click(screen.getByRole("button", { name: "Novo" }));
-    expect(await screen.findByTestId("b1-form-funcionario")).toBeTruthy();
-  });
-
+describe("SER-PAGE — tela", () => {
   it("Serviços: lista a fazenda selecionada e abre o formulário no Novo", async () => {
     servicos.listarServicosPagina.mockResolvedValue(pagina([{ id: "s1", numero: "1", nome: "APLICAÇÃO AÉREA", unidade_medida: { sigla: "HA" }, ativo: true }]));
     servicos.listarUnidadesDoServico.mockResolvedValue([]);
@@ -232,14 +148,9 @@ describe("FUN/SER-PAGE — telas", () => {
 
   it("sem fazenda selecionada: aviso, nenhuma consulta e sem botão Novo", async () => {
     sessao.empresaId = null;
-    const { default: Funcionarios } = await import("@/pages/Funcionarios");
     const { default: Servicos } = await import("@/pages/Servicos");
-    comQuery(<Funcionarios />);
-    expect(await screen.findByTestId("funcionarios-sem-fazenda")).toBeTruthy();
-    cleanup();
     comQuery(<Servicos />);
     expect(await screen.findByTestId("servicos-sem-fazenda")).toBeTruthy();
-    expect(funcionarios.listarFuncionariosPagina).not.toHaveBeenCalled();
     expect(servicos.listarServicosPagina).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Novo" })).toBeNull();
   });

@@ -4,8 +4,10 @@ import B1MultiSelecao from "@/components/cadastro/base1/B1MultiSelecao";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { PAPEIS_PARCEIRO } from "@/services/parceiroService";
+import { LIMITES, lerNumeroLocal, paraTextoDeEdicao } from "@/lib/dinheiroDecimal";
+import { CAMPOS_FUNCIONARIO_PARCEIRO, PAPEIS_PARCEIRO, PAPEL_FUNCIONARIO, TIPOS_FUNCIONARIO } from "@/services/parceiroService";
 import { CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 
 export const FORMULARIO_PARCEIRO_ID = "formulario-parceiro-base1";
 
@@ -13,6 +15,25 @@ const TIPOS_PESSOA = [
   { value: "Física", label: "Pessoa física" },
   { value: "Jurídica", label: "Pessoa jurídica" },
 ];
+
+const LOCALE = "pt-BR";
+/** O decimal da API (custo do funcionário): até 10 inteiros e 4 casas, não negativo. */
+const LIMITES_CUSTO = LIMITES.QUANTIDADE;
+
+/**
+ * Custo digitado no formato local → texto canônico (`null` = vazio).
+ * @param {string} texto
+ * @returns {{ valor: string|null, erro: string|null }}
+ */
+const lerCusto = (texto) => {
+  const digitado = String(texto ?? "").trim();
+  if (!digitado) return { valor: null, erro: null };
+  const lida = lerNumeroLocal(digitado, LOCALE, LIMITES_CUSTO);
+  if (lida.ok) return { valor: /** @type {string} */ (lida.valor), erro: null };
+  if (lida.motivo === "casas") return { valor: null, erro: `Use no máximo ${LIMITES_CUSTO.casas} casas decimais.` };
+  if (lida.motivo === "limite") return { valor: null, erro: "Valor acima do limite permitido." };
+  return { valor: null, erro: "Valor inválido: use o formato 1.234,56 (sem sinal)." };
+};
 
 const formInicial = (d) => ({
   tipo_pessoa: d?.tipo_pessoa || "Jurídica",
@@ -33,12 +54,18 @@ const formInicial = (d) => ({
   observacoes: d?.observacoes || "",
   papeis: Array.isArray(d?.papeis) ? [...d.papeis] : [],
   ativo: d?.ativo !== false,
+  // D-PROD-208: dados do papel funcionário (só aparecem e só vão com o papel marcado).
+  funcionario_tipo: d?.funcionario_tipo || "",
+  funcionario_cargo: d?.funcionario_cargo || "",
+  funcionario_custo_hora: paraTextoDeEdicao(d?.funcionario_custo_hora, LOCALE, { casasMax: LIMITES_CUSTO.casas }),
+  funcionario_custo_diaria: paraTextoDeEdicao(d?.funcionario_custo_diaria, LOCALE, { casasMax: LIMITES_CUSTO.casas }),
 });
 
 /**
  * Formulário de Parceiro (D-PROD-146): seções Identificação, Papéis, Contato,
  * Endereço, Observações e Situação. Entrega o formulário inteiro; quem grava
- * calcula só o que mudou (PATCH mínimo).
+ * calcula só o que mudou (PATCH mínimo). Com o papel Funcionário (D-PROD-208),
+ * a seção Funcionário: tipo (obrigatório), cargo, custo por hora e por diária.
  *
  * @param {{ onSubmit: (dados: object) => void, initialData?: any, readOnly?: boolean, variant?: string }} props
  */
@@ -46,11 +73,14 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
   const [form, setForm] = useState(() => formInicial(initialData));
   const [invalidos, setInvalidos] = useState(/** @type {string[]} */ ([]));
   const fisica = form.tipo_pessoa === "Física";
+  const funcionario = form.papeis.includes(PAPEL_FUNCIONARIO);
+  const [errosCusto, setErrosCusto] = useState(/** @type {Record<string, string>} */ ({}));
   const legados = Array.isArray(initialData?.tipos_legados) ? initialData.tipos_legados : [];
 
   const set = (campo, valor) => {
     setForm((prev) => ({ ...prev, [campo]: valor }));
     setInvalidos((prev) => prev.filter((c) => c !== campo));
+    setErrosCusto((prev) => (prev[campo] ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== campo)) : prev));
   };
 
   /** @param {string[]} proximos papéis marcados, na ordem da lista */
@@ -71,10 +101,19 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
     const papeisOriginais = Array.isArray(initialData?.papeis) ? initialData.papeis : [];
     const exigePapel = !initialData?.id || papeisOriginais.length > 0;
     if (exigePapel && !form.papeis.length) faltando.push("papeis");
+    if (funcionario && !form.funcionario_tipo) faltando.push("funcionario_tipo");
     if (faltando.length) {
       setInvalidos(faltando);
-      const nomes = faltando.map((c) => (c === "papeis" ? "Papéis (ao menos um)" : c === "nome" ? "Nome" : "Tipo de pessoa"));
-      notifyWarning("Atenção", `Preencha o campo obrigatório: ${nomes.join(", ")}.`);
+      /** @type {Record<string, string>} */
+      const rotulos = { papeis: "Papéis (ao menos um)", nome: "Nome", tipo_pessoa: "Tipo de pessoa", funcionario_tipo: "Tipo do funcionário" };
+      notifyWarning("Atenção", `Preencha o campo obrigatório: ${faltando.map((c) => rotulos[c]).join(", ")}.`);
+      return;
+    }
+    const hora = lerCusto(funcionario ? form.funcionario_custo_hora : "");
+    const diaria = lerCusto(funcionario ? form.funcionario_custo_diaria : "");
+    if (hora.erro || diaria.erro) {
+      setErrosCusto({ ...(hora.erro ? { funcionario_custo_hora: hora.erro } : {}), ...(diaria.erro ? { funcionario_custo_diaria: diaria.erro } : {}) });
+      notifyWarning("Atenção", "Confira os custos do funcionário.");
       return;
     }
     const papeisOrdenados = PAPEIS_PARCEIRO.map((p) => p.id).filter((id) => form.papeis.includes(id));
@@ -91,6 +130,14 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
       delete dados.data_nascimento;
     }
     if (dados.estado) dados.estado = String(dados.estado).trim().toUpperCase();
+    // Sem o papel Funcionário os dados dele não vão (o servidor os limpa ao desmarcar o papel).
+    if (funcionario) {
+      dados.funcionario_cargo = form.funcionario_cargo.trim().toUpperCase() || null;
+      dados.funcionario_custo_hora = hora.valor;
+      dados.funcionario_custo_diaria = diaria.valor;
+    } else {
+      for (const campo of CAMPOS_FUNCIONARIO_PARCEIRO) delete dados[campo];
+    }
     onSubmit(dados);
   };
 
@@ -129,7 +176,7 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
           <div className="col-span-12">
             {invalidos.includes("papeis") ? (
               <p className="mt-1 text-[11px] text-red-700" role="alert" data-testid="parceiro-papeis-obrigatorio">
-                Escolha ao menos um papel (fornecedor, cliente, prestador de serviço, transportador ou outros).
+                Escolha ao menos um papel (fornecedor, cliente, prestador de serviço, transportador, funcionário ou outros).
               </p>
             ) : null}
             {legados.length ? (
@@ -138,6 +185,45 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
               </p>
             ) : null}
           </div>
+
+          {funcionario ? (
+            <>
+              <SecaoForm titulo="Funcionário" />
+              <CampoSelect
+                label="Tipo do funcionário"
+                required
+                span={4}
+                value={form.funcionario_tipo}
+                onChange={(v) => set("funcionario_tipo", v)}
+                options={[...TIPOS_FUNCIONARIO]}
+                readOnly={readOnly}
+                error={invalidos.includes("funcionario_tipo") ? "Obrigatório" : undefined}
+              />
+              <CampoTexto label="Cargo" span={8} value={form.funcionario_cargo} onChange={(v) => set("funcionario_cargo", v)} readOnly={readOnly} maxLength={120} placeholder="EX.: TRATORISTA" />
+              <CampoNumero
+                label="Custo por hora (R$)"
+                value={form.funcionario_custo_hora}
+                onChange={(v) => set("funcionario_custo_hora", v)}
+                locale={LOCALE}
+                limites={LIMITES_CUSTO}
+                readOnly={readOnly}
+                span={4}
+                error={errosCusto.funcionario_custo_hora}
+                testId="parceiro-funcionario-custo-hora"
+              />
+              <CampoNumero
+                label="Custo por diária (R$)"
+                value={form.funcionario_custo_diaria}
+                onChange={(v) => set("funcionario_custo_diaria", v)}
+                locale={LOCALE}
+                limites={LIMITES_CUSTO}
+                readOnly={readOnly}
+                span={4}
+                error={errosCusto.funcionario_custo_diaria}
+                testId="parceiro-funcionario-custo-diaria"
+              />
+            </>
+          ) : null}
 
           <SecaoForm titulo="Contato" />
           <CampoTexto label="Telefone" span={4} value={form.telefone} onChange={(v) => set("telefone", v)} readOnly={readOnly} inputMode="tel" maxLength={64} />

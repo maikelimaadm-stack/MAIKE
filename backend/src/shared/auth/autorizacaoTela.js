@@ -55,9 +55,9 @@ export const TELAS = Object.freeze({
   // D-PROD-182 — mesmo id do item de menu `sup-tipos-atividade`.
   TIPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-atividade' }),
   GRUPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-grupos-atividades' }),
-  // D-PROD-207 — cadastros de Funcionário e Serviço (Fatia 4 do Lançamento de
-  // Atividades). Mesmos ids dos itens de menu. Sem concessão automática.
-  FUNCIONARIOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-funcionarios' }),
+  // D-PROD-207 — cadastro de Serviço (Fatia 4 do Lançamento de Atividades). Mesmo
+  // id do item de menu. Sem concessão automática. D-PROD-208: o cadastro de
+  // Funcionário (`sup-funcionarios`) saiu — o funcionário é papel do parceiro.
   SERVICOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-servicos' }),
   EMPRESA: Object.freeze({ modulo: 'administracao', tela: 'adm-empresa' }),
   // D-PROD-146 — Gestão Rural (cadastros; sem financeiro transacional). Nenhuma

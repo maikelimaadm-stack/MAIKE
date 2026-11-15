@@ -25,6 +25,7 @@ import {
   MAX_DOCUMENTO_SERVICO,
   MAX_OBSERVACAO_LINHA,
   MEDIDAS_MAO_OBRA,
+  ORIGEM_TERCEIRO,
   ROTULO_MEDIDA,
   ROTULO_TIPO_FUNCIONARIO,
   bemEscolhido,
@@ -42,12 +43,11 @@ import {
   formularioDaLinhaServico,
   formularioMaoObraVazio,
   formularioServicoVazio,
-  funcionarioEscolhido,
   linhasDoTipo,
-  medidaSugerida,
+  mudancaDaMaoObraEscolhida,
   mudancaDoServicoEscolhido,
   parceiroEscolhido,
-  rotuloDoFuncionarioDaLinha,
+  rotuloDaMaoObraDaLinha,
   rotuloDoServicoDaLinha,
   siglaDaUnidade,
   unidadeDaMedida,
@@ -91,8 +91,8 @@ import {
   limparPendenciaDaLinha,
   listarLocaisDoProduto,
   listarOpcoesBens,
-  listarOpcoesFuncionarios,
   listarOpcoesImplementos,
+  listarOpcoesMaoObra,
   listarOpcoesParceirosServico,
   listarOpcoesProdutos,
   listarOpcoesServicos,
@@ -613,12 +613,19 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
 
 // ─── Campos da linha de MÃO DE OBRA (janela e "Repetir") ─────────────────
 
-/** @param {any} o */
-const detalheDoFuncionario = (o) => [typeof o?.cargo === "string" ? o.cargo : "", ROTULO_TIPO_FUNCIONARIO[String(o?.tipo ?? "")] ?? ""].filter(Boolean).join(" · ") || null;
+/** "Funcionário · Mensalista" / "Terceiro (prestador de serviço)". @param {any} o */
+const detalheDaMaoObra = (o) =>
+  o?.origem === ORIGEM_TERCEIRO
+    ? "Terceiro (prestador de serviço)"
+    : ["Funcionário", ROTULO_TIPO_FUNCIONARIO[String(o?.funcionario_tipo ?? "")] ?? ""].filter(Boolean).join(" · ");
+
+/** Rótulo do custo unitário pela medida ("Custo da hora", "Custo da diária", "Custo da tarefa"). @param {string} medida */
+const rotuloDoCusto = (medida) => (medida === "DIARIA" ? "Custo da diária" : medida === "TAREFA" ? "Custo da tarefa" : "Custo da hora");
 
 /**
- * Campos da linha de mão de obra: funcionário → medida (sugerida pelo tipo do funcionário) → quantidade → custo
- * unitário (hora/diária: do cadastro, só leitura; tarefa: digitado) → total calculado → observação.
+ * Campos da linha de mão de obra (D-PROD-208): funcionário ou terceiro → medida (sugerida pelo tipo do funcionário;
+ * terceiro, hora) → quantidade → custo unitário (hora/diária do funcionário: do cadastro, só leitura; tarefa e
+ * terceiro: digitado) → total calculado → observação.
  * @param {{
  *   form: import("@/lib/atividadeLinhasRegras").FormularioLinhaMaoObra,
  *   mudar: (mudanca: Record<string, any>, campos: string[]) => void,
@@ -633,27 +640,25 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
   const medida = form.tipo_medida;
   const unidade = unidadeDaMedida(medida);
   const { unitario, total } = custoDaLinhaMaoObra(form);
-  const digitado = custoDigitado(medida);
+  const terceiro = form.parceiro?.origem === ORIGEM_TERCEIRO;
+  const digitado = custoDigitado(medida, form.parceiro?.origem);
   // Edição com o mesmo funcionário e a mesma medida: o custo é o GRAVADO na linha (o servidor o mantém).
   const mantido = custoMantidoDaLinha(form);
   const deOnde = mantido ? "gravado na linha" : "do cadastro";
   return (
     <>
       <SeletorPaginadoGestao
-        rotulo="Funcionário"
-        testId={`${prefixo}-funcionario`}
-        chave={[RAIZ_CONSULTAS_ATIVIDADES, "funcionarios", empresaId]}
-        buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesFuncionarios({ q, cursor, limit }))}
-        value={form.funcionario ? { id: form.funcionario.id, rotulo: form.funcionario.rotulo } : null}
-        onChange={(o) => {
-          const funcionario = funcionarioEscolhido(o);
-          mudar({ funcionario, tipo_medida: funcionario ? medidaSugerida(funcionario.tipo) : form.tipo_medida }, ["funcionario", "tipo_medida", "custo_unitario"]);
-        }}
+        rotulo="Funcionário ou terceiro"
+        testId={`${prefixo}-parceiro`}
+        chave={[RAIZ_CONSULTAS_ATIVIDADES, "mao-obra", empresaId]}
+        buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesMaoObra({ q, cursor, limit }))}
+        value={form.parceiro ? { id: form.parceiro.id, rotulo: form.parceiro.rotulo } : null}
+        onChange={(o) => mudar(mudancaDaMaoObraEscolhida(o, form), ["parceiro", "tipo_medida", "custo_unitario"])}
         rotuloDaOpcao={(o) => String(o?.nome ?? "")}
-        detalheDaOpcao={detalheDoFuncionario}
+        detalheDaOpcao={detalheDaMaoObra}
         readOnly={bloqueado}
         obrigatorio
-        erro={erros.funcionario}
+        erro={erros.parceiro}
         span={12}
         maiusculas={false}
       />
@@ -680,7 +685,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
       />
       {digitado ? (
         <CampoNumero
-          label="Custo da tarefa (R$)"
+          label={`${rotuloDoCusto(medida)} (R$)`}
           value={form.custo_unitario}
           onChange={(v) => mudar({ custo_unitario: v }, ["custo_unitario"])}
           locale={LOCALE_ATIVIDADE}
@@ -693,15 +698,20 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         />
       ) : (
         <ValorCalculado
-          label={medida === "DIARIA" ? `Custo da diária (${deOnde})` : `Custo da hora (${deOnde})`}
-          valor={!form.funcionario ? "—" : formatarCustoLinha(unitario) || (mantido ? "Sem custo gravado" : "Sem custo no cadastro")}
+          label={`${rotuloDoCusto(medida)} (${deOnde})`}
+          valor={!form.parceiro ? "—" : formatarCustoLinha(unitario) || (mantido ? "Sem custo gravado" : "Sem custo no cadastro")}
           span={6}
           testId={`${prefixo}-custo-unitario`}
         />
       )}
       {!digitado ? <ErroDoCampo texto={erros.custo_unitario} /> : null}
       <ValorCalculado label="Total (quantidade × custo)" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
-      {!digitado && form.funcionario && !unitario ? (
+      {terceiro ? (
+        <p className={NOTA} data-testid={`${prefixo}-terceiro`}>
+          Terceiro (prestador de serviço): o custo unitário é sempre digitado.
+        </p>
+      ) : null}
+      {!digitado && form.parceiro && !unitario ? (
         <p className={NOTA} data-testid={`${prefixo}-sem-custo`}>
           {mantido
             ? "Esta linha foi gravada sem custo: com o mesmo funcionário e a mesma medida, ela continua sem custo."
@@ -1290,8 +1300,9 @@ function JanelaLinhaSemMedidor({
 }
 
 /**
- * Janela da linha de MÃO DE OBRA (adicionar ou editar; Fatia 4). Hora e diária: o custo unitário é o do cadastro do
- * funcionário (snapshot no servidor, só mostrado); tarefa: digitado. A medida vem sugerida pelo tipo do funcionário.
+ * Janela da linha de MÃO DE OBRA (adicionar ou editar; Fatia 4, D-PROD-208). Funcionário ou terceiro (parceiro).
+ * Hora e diária do funcionário: o custo unitário é o do cadastro dele (snapshot no servidor, só mostrado); tarefa e
+ * terceiro: digitado. A medida vem sugerida pelo tipo do funcionário.
  * @param {PropsDaJanela} props
  */
 export function JanelaLinhaMaoObra({ linha = null, ...props }) {
@@ -1305,9 +1316,9 @@ export function JanelaLinhaMaoObra({ linha = null, ...props }) {
       validar={validarLinhaMaoObra}
       corpo={corpoDaLinhaMaoObra}
       alterados={camposAlteradosDaLinhaMaoObra}
-      idDoCadastro={(f) => f.funcionario?.id ?? null}
-      campoDoCadastro="funcionario_id"
-      nome={(f) => f.funcionario?.rotulo ?? (rotuloDoFuncionarioDaLinha(linha) || "Funcionário")}
+      idDoCadastro={(f) => f.parceiro?.id ?? null}
+      campoDoCadastro="parceiro_id"
+      nome={(f) => f.parceiro?.rotulo ?? (rotuloDaMaoObraDaLinha(linha) || "Funcionário ou terceiro")}
       rotulos={{
         titulo: "Adicionar mão de obra",
         tituloEdicao: "Editar mão de obra de {nome}",
@@ -1320,7 +1331,7 @@ export function JanelaLinhaMaoObra({ linha = null, ...props }) {
         falhaEdicao: "Não foi possível alterar a mão de obra. Nada foi alterado.",
       }}
       campos={(p) => <CamposDaLinhaMaoObra {...p} prefixo="linha-mao-obra" />}
-      nota="Hora e diária usam o custo do cadastro do funcionário na data do lançamento (editar sem trocar o funcionário nem a medida mantém o custo gravado); tarefa usa o custo digitado. Não é folha de pagamento: nada vai para o financeiro."
+      nota="Funcionário: hora e diária usam o custo do cadastro dele na data do lançamento (editar sem trocar o funcionário nem a medida mantém o custo gravado); tarefa usa o custo digitado. Terceiro: o custo é sempre digitado. Não é folha de pagamento: nada vai para o financeiro."
     />
   );
 }

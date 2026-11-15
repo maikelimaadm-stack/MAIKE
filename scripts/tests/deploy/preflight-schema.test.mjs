@@ -52,10 +52,13 @@ const COLUNAS_OK = [
   // D-PROD-206: a faixa do farol de consumo.
   { table_name: 'CADFORMULACAO', column_name: 'faixa_tolerancia_percentual' },
   // D-PROD-207: os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço.
-  { table_name: 'Funcionario', column_name: 'custo_hora' },
+  // D-PROD-208: Funcionario saiu; o papel funcionário no parceiro e a linha de mão de obra pelo parceiro.
   { table_name: 'Servico', column_name: 'unidade_medida_id' },
   { table_name: 'AtividadeApontamentoMaoObra', column_name: 'tipo_medida' },
   { table_name: 'AtividadeApontamentoServico', column_name: 'fornecedor_parceiro_id' },
+  { table_name: 'Fornecedor', column_name: 'funcionario_tipo' },
+  { table_name: 'AtividadeApontamentoMaoObra', column_name: 'parceiro_id' },
+  { table_name: 'AtividadeApontamentoMaoObra', column_name: 'origem' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };

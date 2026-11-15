@@ -37,6 +37,7 @@
  *   … --verificar-alvo --contract D-PROD-194 / … --aplicar --contract D-PROD-194   (CADCURVAGANHO mensal)
  *   … --verificar-alvo --contract D-PROD-197 / … --aplicar --contract D-PROD-197   (padrões e flags de TipoAtividade, aditiva)
  *   … --verificar-alvo --contract D-PROD-200 / … --aplicar --contract D-PROD-200   (Atividade cabeçalho: conversão e DROP das 3 tabelas antigas)
+ *   … --verificar-alvo --contract D-PROD-208 / … --aplicar --contract D-PROD-208   (funcionário como papel do parceiro: DROP de Funcionario, vazia, no fim)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -98,7 +99,7 @@ const [k] = c.contract;
 const partesContract = k ? [
   // D-PROD-200: formato CONVERSÃO — a conversão pinada vem ANTES do DROP no arquivo, e o rótulo diz na mesma ordem.
   k.conversoes?.length && `${k.conversoes.length} ${k.conversoes.length === 1 ? 'conversão' : 'conversões'} (${k.conversoes.join(', ')})`,
-  k.tabelas_removidas.length && `${k.tabelas_removidas.length} tabelas removidas`,
+  k.tabelas_removidas.length && `${k.tabelas_removidas.length} ${k.tabelas_removidas.length === 1 ? 'tabela removida' : 'tabelas removidas'}`,
   k.constraints_alargadas.length && `${k.constraints_alargadas.length} CHECKs alargados`,
   k.constraints_removidas.length && `${k.constraints_removidas.length} constraints removidas (${k.constraints_removidas.join(', ')})`,
   k.indices_removidos.length && `${k.indices_removidos.length} índices removidos (${k.indices_removidos.join(', ')})`,

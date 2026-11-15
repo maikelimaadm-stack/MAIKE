@@ -43,7 +43,9 @@
  *     `20261115200000_formulacao_faixa_tolerancia` (D-PROD-206) também. A EXPAND
  *     `20261115900000_atividade_mao_obra_servico` (D-PROD-207) também fica de
  *     fora: as linhas de mão de obra e de serviço referenciam
- *     AtividadeApontamento; sobe no passo 4, por último;
+ *     AtividadeApontamento; sobe no passo 4. A CONTRACT
+ *     `20261116000000_mao_obra_parceiro` (D-PROD-208) também: exige a D-PROD-207;
+ *     sobe no passo 4, por último, e tira a Funcionario (vazia);
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
  *     perfis, combustíveis, vínculos, fatores, bens, tanques, medições,
  *     abastecimentos CANCELADOS com saída + estorno + fatias), um lote e uma
@@ -58,9 +60,10 @@
  *     (nunca duas CONTRACT de uma vez; como a D-PROD-195 na D-PROD-187); então
  *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
  *     impressão na URL) esta, a D-PROD-190, a D-PROD-193, a D-PROD-200, a
- *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-207, e confere: todas concluídas, 95 tabelas
+ *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207 e a D-PROD-208, e confere: todas concluídas, 94 tabelas
  *     (as 82 do formato novo + Atividade e AtividadeApontamento + as 3 das linhas de
- *     produto e de máquina + as 3 das Formulações + a LEITURACOCHO + as 4 da mão de obra e do serviço;
+ *     produto e de máquina + as 3 das Formulações + a LEITURACOCHO + as 3 da mão de obra e do serviço que ficam (a
+ *     Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208);
  *     as 3 do apontamento antigo nascem e saem com a D-PROD-200), as 7 vazias, dono e ACL, RLS, contagens de constraints,
  *     impressão digital das 75 que ficam, CHECKs alargados, estoque intacto,
  *     `migrate diff` vazio e 2ª execução.
@@ -122,7 +125,13 @@ export const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** D-PROD-206 — a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO): fora da partida, depois da D-PROD-205; sem tabela nova. */
 export const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
 export const NOME_ATIVIDADE_MAO_OBRA = '20261115900000_atividade_mao_obra_servico';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA]);
+/**
+ * D-PROD-208 — a CONTRACT do ajuste da Fatia 4 (o funcionário vira papel do parceiro; a tabela Funcionario, VAZIA, sai)
+ * exige a D-PROD-207 aplicada e as duas tabelas dela vazias: vem por último, depois dela. Fora da partida, como as
+ * outras; com ela pendente, o runner com a conferência exigida também recusa a decisão desta.
+ */
+export const NOME_MAO_OBRA_PARCEIRO = '20261116000000_mao_obra_parceiro';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
@@ -132,7 +141,8 @@ const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFO
 const TABELAS_LEITURA = ['LEITURACOCHO'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
-export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
+// D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
+export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
 /**
  * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
  * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —
@@ -155,7 +165,10 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
        left(md5(coalesce(string_agg(tabela || '|' || cliente_id || '|' || n, E'\\n' ORDER BY ord, cliente_id COLLATE "C"), '')), 12) AS impressao
   FROM c`;
 
-/** Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho ensaio/fingerprint_v2.sql). */
+/**
+ * Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho
+ * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK).
+ */
 export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
 tab AS (
   SELECT c.oid, c.relname::text AS t, c.relrowsecurity AS rls, c.relforcerowsecurity AS force, coalesce(c.relacl::text, '') AS acl
@@ -170,10 +183,13 @@ linhas AS (
     FROM tab t JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
     LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
     LEFT JOIN pg_collation co ON co.oid = a.attcollation AND a.attcollation <> 0
+   -- D-PROD-208 (posterior, sobe no GREEN): as 4 colunas do papel funcionário em Fornecedor não são desta CONTRACT.
+   WHERE NOT (t.t = 'Fornecedor' AND a.attname::text IN ('funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria'))
   UNION ALL
   SELECT 'constraint', t.t || '|' || k.conname::text || '|' || k.contype::text || '|' || pg_get_constraintdef(k.oid, true)
     FROM tab t JOIN pg_constraint k ON k.conrelid = t.oid
    WHERE NOT (t.t = 'OperacaoFinanceiraItem' AND k.conname IN ('OperacaoFinanceiraItem_unidade_check', 'OperacaoFinanceiraItem_forma_check'))
+     AND NOT (t.t = 'Fornecedor' AND k.conname = 'Fornecedor_funcionario_check')
   UNION ALL
   SELECT 'indice', t.t || '|' || i.relname::text || '|' || pg_get_indexdef(i.oid)
     FROM tab t JOIN pg_index x ON x.indrelid = t.oid JOIN pg_class i ON i.oid = x.indexrelid
@@ -608,8 +624,8 @@ if (ehEntradaDireta()) {
       // D-PROD-190/191/198: 84 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento
       // (D-PROD-200); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-200.
       // D-PROD-202: + as 3 das linhas de produto e de máquina = 87; D-PROD-203: + as 3 das Formulações = 90;
-      // D-PROD-205: + a LEITURACOCHO = 91; D-PROD-207: + as 4 da mão de obra e do serviço = 95.
-      if (g.status !== 0 || g.tabelas !== 95 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
+      // D-PROD-205: + a LEITURACOCHO = 91; D-PROD-207: + as 4 da mão de obra e do serviço = 95; D-PROD-208: − Funcionario = 94.
+      if (g.status !== 0 || g.tabelas !== 94 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

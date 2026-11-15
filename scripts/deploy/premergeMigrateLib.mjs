@@ -55,6 +55,11 @@
  *     ou CONTRACT_DROP_FORA_DO_CONTRATO na cauda). DML continua PROIBIDO no caminho
  *     EXPAND: só existe como texto pinado da cauda de uma entrada. As entradas sem
  *     `conversao` (as seis anteriores) seguem o formato de sempre, igual.
+ *     Cauda SEM conversão (D-PROD-208; a entrada tem `drop_no_fim: true` e nenhuma
+ *     `conversao`): guarda → `alter_antigas` → RESTO pela allowlist EXPAND → os DROP
+ *     TABLE de `drop` como as ÚLTIMAS instruções. Serve à tabela que sai mas ainda é
+ *     referenciada por uma FK que só cai nos `alter_antigas` (na D-PROD-208, a FK da
+ *     linha de mão de obra para "Funcionario"). Mesma casagem de trás para frente.
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -135,6 +140,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-207 (Fatia 4): EXPAND — mão de obra e serviço de terceiro do apontamento: Funcionario, Servico,
   // AtividadeApontamentoMaoObra e AtividadeApontamentoServico novas. Nenhuma coluna em tabela antiga; nenhum dado migrado.
   '20261115900000_atividade_mao_obra_servico': '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725',
+  // D-PROD-208 (ajuste da Fatia 4): CONTRACT aprovado pelo proprietário — o funcionário vira papel do parceiro (4 colunas
+  // anuláveis em Fornecedor), a linha de mão de obra aponta para o parceiro (parceiro_id e origem NOT NULL, tabela vazia)
+  // e a tabela Funcionario, VAZIA, sai no fim. A guarda aborta se Funcionario ou AtividadeApontamentoMaoObra tiverem linha.
+  '20261116000000_mao_obra_parceiro': '65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -180,8 +189,9 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São sete, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e
- * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre).
+ * exige decisão. São oito, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre) e D-PROD-208
+ * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -363,6 +373,36 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'UPDATE "EntidadeCodigoSequencia" SET "entidade" = \'Atividade\', "updatedAt" = CURRENT_TIMESTAMP WHERE "entidade" = \'ApontamentoAtividade\'',
     ]),
   }),
+  // D-PROD-208: o funcionário deixa de ser cadastro próprio e vira PAPEL do parceiro; a linha de mão de obra aponta para o
+  // parceiro (funcionário ou terceiro). CONTRACT condicionado a tabelas VAZIAS: a guarda (hash pinado) confere o estado
+  // da Fatia 4 e trava Funcionario e AtividadeApontamentoMaoObra em ACCESS EXCLUSIVE antes de conferir que as duas estão
+  // vazias. Depois dela, EXATAMENTE as 12 instruções abaixo, nesta ordem (texto pinado): sai o vínculo com o funcionário
+  // (FK, índice e coluna), entram parceiro_id e origem NOT NULL sem DEFAULT (só porque a tabela está vazia), as 4 colunas
+  // anuláveis do papel em Fornecedor, os 2 CHECKs e a FK composta pelo tenant, RESTRICT, para Fornecedor (tabela antiga).
+  // No resto, só o índice não-único da FK nova (allowlist EXPAND). `drop_no_fim`: o DROP TABLE "Funcionario" é a ÚLTIMA
+  // instrução (no início ele falharia: a FK da linha de mão de obra ainda o referencia). Nenhuma conversão: não há dado.
+  // A guarda só cita a removida, as duas tabelas antigas tocadas e nenhum outro literal.
+  '20261116000000_mao_obra_parceiro': Object.freeze({
+    decisao: 'D-PROD-208',
+    guarda_sha256: '9ec960b559bb4173342ed76302c828b04b207f07381f5f39b74aea606751d387',
+    drop: Object.freeze(['Funcionario']),
+    drop_no_fim: true,
+    literais_guarda: Object.freeze(['AtividadeApontamentoMaoObra', 'Fornecedor']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AtividadeApontamentoMaoObra" DROP CONSTRAINT "AtividadeApontamentoMaoObra_funcionario_fkey"',
+      'DROP INDEX "AtividadeApontamentoMaoObra_cliente_id_empresa_id_funcionar_idx"',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" DROP COLUMN "funcionario_id"',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD COLUMN "parceiro_id" VARCHAR(64) NOT NULL',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD COLUMN "origem" VARCHAR(12) NOT NULL',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_tipo" VARCHAR(16)',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_cargo" VARCHAR(120)',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_custo_hora" DECIMAL(14,4)',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_custo_diaria" DECIMAL(14,4)',
+      'ALTER TABLE "Fornecedor" ADD CONSTRAINT "Fornecedor_funcionario_check" CHECK (("funcionario_tipo" IS NULL OR "funcionario_tipo" IN (\'MENSALISTA\', \'DIARISTA\', \'TAREFEIRO\')) AND ("funcionario_custo_hora" IS NULL OR "funcionario_custo_hora" >= 0) AND ("funcionario_custo_diaria" IS NULL OR "funcionario_custo_diaria" >= 0))',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD CONSTRAINT "AtividadeApontamentoMaoObra_origem_check" CHECK ("origem" IN (\'FUNCIONARIO\', \'TERCEIRO\'))',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD CONSTRAINT "AtividadeApontamentoMaoObra_parceiro_fkey" FOREIGN KEY ("cliente_id", "parceiro_id") REFERENCES "Fornecedor"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
 });
 
 /**
@@ -511,14 +551,15 @@ const conversoesDe = (conversao) =>
  */
 const casarCaudaConversao = (instrucoes, inicio, k, nome, v) => {
   const drops = k.drop.map((t) => `DROP TABLE "${t}"`);
-  const esperadas = [...k.conversao, ...drops];
+  const conversao = k.conversao ?? [];
+  const esperadas = [...conversao, ...drops];
   let i = instrucoes.length;
   for (let n = esperadas.length - 1; n >= 0; n--) {
     do i--; while (i >= inicio && !norm(instrucoes[i]));
     const achado = i >= inicio ? norm(instrucoes[i]) : '';
     if (achado === esperadas[n]) continue;
-    if (n >= k.conversao.length) {
-      v(nome, 'CONTRACT_DROP_FORA_DO_CONTRATO', `posição ${n - k.conversao.length}: esperado ${esperadas[n]} encontrado ${achado}`);
+    if (n >= conversao.length) {
+      v(nome, 'CONTRACT_DROP_FORA_DO_CONTRATO', `posição ${n - conversao.length}: esperado ${esperadas[n]} encontrado ${achado}`);
     } else {
       v(nome, 'CONTRACT_CONVERSAO_FORA_DO_CONTRATO', `posição ${n}: esperado ${esperadas[n].slice(0, 30)}… encontrado ${achado}`);
     }
@@ -544,7 +585,9 @@ const recortarContract = (m, k, v) => {
   const corpo = norm(guarda[1]);
   if (sha256(corpo) !== k.guarda_sha256) v(m.nome, 'CONTRACT_GUARDA_NAO_RECONHECIDA', corpo);
   const instrucoes = limpo.slice(guarda[0].length).split(';');
-  const conversao = k.conversao?.length > 0;
+  // D-PROD-208: `drop_no_fim` leva os DROP para a cauda mesmo sem conversão (a tabela que sai ainda é referenciada por uma
+  // FK que só cai nos `alter_antigas`).
+  const conversao = k.conversao?.length > 0 || k.drop_no_fim === true;
   const dropsNoInicio = conversao ? [] : k.drop;
   for (let i = 0; i < dropsNoInicio.length; i++) {
     const esperado = `DROP TABLE "${dropsNoInicio[i]}"`;

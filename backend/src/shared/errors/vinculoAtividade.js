@@ -36,8 +36,8 @@
  * FK → a tabela que a declara (é ela que segura o vínculo; o nome do model é o
  * da tabela) e a coluna dela. Os nomes são os do migration.sql. D-PROD-207
  * (Fatia 4, `20261115900000_atividade_mao_obra_servico`): as FKs das linhas de
- * mão de obra e de serviço para os cadastros que elas seguram (funcionário,
- * serviço e parceiro); o parceiro também é contado em `PARCEIRO_EM_USO`.
+ * mão de obra e de serviço para os cadastros que elas seguram (D-PROD-208: o
+ * parceiro da mão de obra, o serviço e o parceiro do serviço); o parceiro também é contado em `PARCEIRO_EM_USO`.
  * @type {Readonly<Record<string, Readonly<{ tabela: TabelaDaAtividade, campo: string }>>>}
  */
 export const FKS_DA_ATIVIDADE = Object.freeze({
@@ -62,7 +62,7 @@ export const FKS_DA_ATIVIDADE = Object.freeze({
   AtividadeApontamento_operador_fkey: Object.freeze({ tabela: 'AtividadeApontamento', campo: 'operador_usuario_id' }),
   AtividadeApontamento_criado_por_fkey: Object.freeze({ tabela: 'AtividadeApontamento', campo: 'criado_por_usuario_id' }),
   AtividadeApontamento_cancelado_por_fkey: Object.freeze({ tabela: 'AtividadeApontamento', campo: 'cancelado_por_usuario_id' }),
-  AtividadeApontamentoMaoObra_funcionario_fkey: Object.freeze({ tabela: 'AtividadeApontamentoMaoObra', campo: 'funcionario_id' }),
+  AtividadeApontamentoMaoObra_parceiro_fkey: Object.freeze({ tabela: 'AtividadeApontamentoMaoObra', campo: 'parceiro_id' }),
   AtividadeApontamentoServico_servico_fkey: Object.freeze({ tabela: 'AtividadeApontamentoServico', campo: 'servico_id' }),
   AtividadeApontamentoServico_parceiro_fkey: Object.freeze({ tabela: 'AtividadeApontamentoServico', campo: 'fornecedor_parceiro_id' }),
 });

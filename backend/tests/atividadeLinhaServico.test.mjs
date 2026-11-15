@@ -145,6 +145,25 @@ describe('editar e cancelar', () => {
     assert.deepEqual(au.map((x) => x.acao), ['atividade_servico.lancar', 'atividade_servico.editar', 'atividade_servico.editar']);
   });
 
+  test('D-PROD-208 (correção do snapshot): editar com o MESMO servico_id mantém a unidade gravada; só trocar o serviço lê a unidade do cadastro', async () => {
+    const s = await montar();
+    const ap = await s.apontar();
+    const l1 = (await s.S.lancarOk(ap, { servico_id: s.gradagem.id, quantidade: '2', valor_unitario: '100' })).servico;
+    assert.equal(l1.unidade, 'ha');
+    // O cadastro do serviço muda de unidade depois do lançamento.
+    await prisma().servico.update({ where: { id: s.gradagem.id }, data: { unidade_medida_id: s.unidadeHora.id } });
+    const e1 = await s.H.ok(s.S.editar(ap, l1.id, { quantidade: '3' }));
+    assert.deepEqual([e1.servico.unidade, e1.servico.quantidade, e1.servico.valor_total], ['ha', '3.0000', '300.0000'], 'mesmo serviço: o snapshot fica');
+    const e2 = await s.H.ok(s.S.editar(ap, e1.servico.id, { servico_id: s.gradagem.id, valor_unitario: '110' }));
+    assert.equal(e2.servico.unidade, 'ha', 'mandar o mesmo servico_id também mantém');
+    const gravada = await prisma().atividadeApontamentoServico.findUnique({ where: { id: e2.servico.id } });
+    assert.equal(gravada.unidade, 'ha');
+    const e3 = await s.H.ok(s.S.editar(ap, e2.servico.id, { servico_id: s.horaTrator.id }));
+    assert.equal(e3.servico.unidade, 'h', 'trocar o serviço: a unidade do cadastro do novo');
+    const e4 = await s.H.ok(s.S.editar(ap, e3.servico.id, { servico_id: s.gradagem.id }));
+    assert.equal(e4.servico.unidade, 'h', 'voltar ao serviço antigo: o cadastro de AGORA, não o snapshot antigo');
+  });
+
   test('cancelar com motivo (origem LINHA); 404 em outro apontamento; cascatas do apontamento e da atividade', async () => {
     const s = await montar();
     const ap1 = await s.apontar();
@@ -199,7 +218,8 @@ describe('proteções', () => {
       { id: s.horaTrator.id, numero: s.horaTrator.numero, nome: 'Hora de trator alugado', unidade: 'h', valor_referencia: null },
     ]);
     const pa = await s.H.ok(s.H.req('GET', `/atividades-opcoes/parceiros-servico?empresa_id=${s.e1.id}`, leitor.token));
-    assert.deepEqual(pa.itens, [{ id: s.prestadorAlias.id, nome: 'Empreiteira Alias' }, { id: s.prestador.id, nome: 'Prestadora Terra Boa' }]);
+    // D-PROD-208: o parceiro com os dois papéis (funcionário e prestador) também é prestador.
+    assert.deepEqual(pa.itens, [{ id: s.prestadorAlias.id, nome: 'Empreiteira Alias' }, { id: s.prestador.id, nome: 'Prestadora Terra Boa' }, { id: s.ambos.id, nome: 'Zé Dos Dois Papéis' }]);
     const pq = await s.H.ok(s.H.req('GET', `/atividades-opcoes/parceiros-servico?empresa_id=${s.e1.id}&q=terra`, s.token));
     assert.deepEqual(pq.itens.map((x) => x.id), [s.prestador.id]);
     // O `q` casa SÓ o nome (o que a opção mostra): nem a razão social nem o número de cadastro.
@@ -237,7 +257,7 @@ describe('lançar e repetir com servicos[]', () => {
     assert.deepEqual(erro(await s.lancarAp({ operation_id: opId(), servicos: [{ ...corpo.servicos[1], valor_unitario: 1 }] })), [400, 'REQUEST_VALIDATION_FAILED', 'servicos[0].valor_unitario', 'valor_deve_ser_texto']);
     const dup = await s.H.ok(
       s.H.req('POST', `${s.baseAp(s.atividade)}/${c.apontamento.id}/duplicar`, s.token, {
-        empresa_id: s.e1.id, data_operacional: '2027-06-11', operation_id: opId('dup'), servicos: [corpo.servicos[0]], mao_obra: [{ funcionario_id: s.joao.id, tipo_medida: 'DIARIA', quantidade: '1' }],
+        empresa_id: s.e1.id, data_operacional: '2027-06-11', operation_id: opId('dup'), servicos: [corpo.servicos[0]], mao_obra: [{ parceiro_id: s.joao.id, tipo_medida: 'DIARIA', quantidade: '1' }],
       }),
       201
     );

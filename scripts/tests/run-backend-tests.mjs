@@ -135,6 +135,12 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * de rodadas antigas (itens, horas) faz a guarda recusar. As mensagens começam
  * com `guarda:` e a saída do Prisma cita `20261114500000_atividade_cabecalho`.
  * Mesmo remédio: recriar o banco local.
+ *
+ * D-PROD-208: a migration CONTRACT do funcionário como papel do parceiro só roda
+ * com Funcionario e AtividadeApontamentoMaoObra VAZIAS. Um banco LOCAL que já
+ * rodou a suíte da Fatia 4 (D-PROD-207) tem funcionários e linhas de mão de obra
+ * e a guarda recusa (`guarda: "Funcionario" tem linhas`; a saída do Prisma cita
+ * `20261116000000_mao_obra_parceiro`). Mesmo remédio: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -161,7 +167,10 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se cita atividade_cabecalho (a CONTRACT da D-PROD-200, mensagens "guarda: …"), o banco local tem apontamentos de ' +
   'atividade de rodadas antigas que o modelo novo não guarda (itens de custo, fatias FIFO, implemento, horas) ou já tem ' +
   'as tabelas Atividade/AtividadeApontamento ou o contador da entidade Atividade; a mensagem da guarda diz o motivo ' +
-  'exato. Recriar o banco local, do mesmo jeito, resolve.';
+  'exato. Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita mao_obra_parceiro (a CONTRACT da D-PROD-208, mensagens "guarda: …"), o banco local tem funcionários ou ' +
+  'linhas de mão de obra de rodadas da Fatia 4 (D-PROD-207), e a guarda só aceita as duas tabelas vazias; recriar o ' +
+  'banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

@@ -27,7 +27,8 @@ import {
   mensagemDeErroLinha,
   rotuloDaMaquinaDaLinha,
   rotuloDaUnidadeDoMedidor,
-  rotuloDoFuncionarioDaLinha,
+  comMarcaDeTerceiro,
+  rotuloDaMaoObraDaLinha,
   rotuloDoImplementoDaLinha,
   rotuloDoLocalDaLinha,
   rotuloDoParceiroDaLinha,
@@ -70,7 +71,7 @@ const textoDoCancelamento = (l, fuso) => {
 const nomeDaLinhaDoTipo = (tipo, l) => {
   if (tipo === LINHA_PRODUTO) return `o produto ${rotuloDoProdutoDaLinha(l) || ""}`.trim();
   if (tipo === LINHA_MAQUINA) return `a máquina ${rotuloDaMaquinaDaLinha(l) || ""}`.trim();
-  if (tipo === LINHA_MAO_OBRA) return `a mão de obra ${rotuloDoFuncionarioDaLinha(l) ? `de ${rotuloDoFuncionarioDaLinha(l)}` : ""}`.trim();
+  if (tipo === LINHA_MAO_OBRA) return `a mão de obra ${rotuloDaMaoObraDaLinha(l) ? `de ${rotuloDaMaoObraDaLinha(l)}` : ""}`.trim();
   return `o serviço ${rotuloDoServicoDaLinha(l) || ""}`.trim();
 };
 
@@ -258,7 +259,7 @@ export default function LinhasDoApontamento({
     return (
       <li key={id} className={cancelada ? LINHA_CANCELADA : LINHA_CONFIRMADA} data-testid={prefixo} data-status={statusDaLinha(l)}>
         <span className={cancelada ? "line-through" : "font-medium"} data-testid={`${prefixo}-nome`}>
-          {rotuloDoFuncionarioDaLinha(l) || "Funcionário"}
+          {comMarcaDeTerceiro(rotuloDaMaoObraDaLinha(l) || "Funcionário ou terceiro", l)}
         </span>
         <span data-testid={`${prefixo}-quantidade`}>
           · {ROTULO_MEDIDA[String(l.tipo_medida ?? "")] ?? "—"} · {formatarQuantidadeMaoObra(l.quantidade, l.tipo_medida) || "—"}
@@ -311,7 +312,7 @@ export default function LinhasDoApontamento({
   const textoDoCancelado = (c) => {
     if (c.tipo === LINHA_PRODUTO) return `Produto ${rotuloDoProdutoDaLinha(c.linha)} cancelado: a quantidade voltou ao estoque, aos lotes de origem.`;
     if (c.tipo === LINHA_MAQUINA) return `Máquina ${rotuloDaMaquinaDaLinha(c.linha)} cancelada: a leitura dela deixa de contar.`;
-    if (c.tipo === LINHA_MAO_OBRA) return `Mão de obra de ${rotuloDoFuncionarioDaLinha(c.linha)} cancelada: o custo dela deixa de contar.`;
+    if (c.tipo === LINHA_MAO_OBRA) return `Mão de obra de ${rotuloDaMaoObraDaLinha(c.linha)} cancelada: o custo dela deixa de contar.`;
     return `Serviço ${rotuloDoServicoDaLinha(c.linha)} cancelado: o valor dele deixa de contar.`;
   };
 

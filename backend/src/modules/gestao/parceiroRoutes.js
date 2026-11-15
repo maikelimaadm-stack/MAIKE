@@ -7,7 +7,12 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
-import { PAPEIS, TIPOS_PESSOA, atualizar, criar, detalhar, listar } from './parceiroService.js';
+import { CUSTOS_FUNCIONARIO } from '../fornecedores/fornecedorDominio.js';
+import { invalido } from './gestaoComum.js';
+import { PAPEIS, TIPOS_FUNCIONARIO, TIPOS_PESSOA, atualizar, criar, detalhar, listar } from './parceiroService.js';
+
+/** Texto decimal não negativo, até 10 dígitos e 4 casas (D-PROD-208: custos do funcionário). */
+const DECIMAL = { type: ['string', 'null'], pattern: '^\\d{1,10}(\\.\\d{1,4})?$' };
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const TEXTO = (max) => ({ type: ['string', 'null'], maxLength: max });
@@ -33,6 +38,11 @@ const CAMPOS = Object.freeze({
   observacoes: TEXTO(2000),
   papeis: { type: 'array', maxItems: PAPEIS.length, uniqueItems: true, items: { type: 'string', enum: [...PAPEIS] } },
   ativo: { type: 'boolean' },
+  // D-PROD-208 — dados do papel funcionário (só com o papel; o serviço confere). Custos em TEXTO decimal.
+  funcionario_tipo: { type: ['string', 'null'], enum: [...TIPOS_FUNCIONARIO, null] },
+  funcionario_cargo: TEXTO(120),
+  funcionario_custo_hora: DECIMAL,
+  funcionario_custo_diaria: DECIMAL,
 });
 
 const LISTAR = {
@@ -62,6 +72,16 @@ const ctx = (request) => {
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarParceiroRoutes = async (app) => {
   const g = GUARDAS.parceiro;
+  // D-PROD-208: custo em número JSON → 400 antes da coerção do AJV (o `Number` perderia casas).
+  app.addHook('preValidation', async (request) => {
+    const corpo = /** @type {Record<string, unknown>|null} */ (request.body && typeof request.body === 'object' ? request.body : null);
+    for (const campo of CUSTOS_FUNCIONARIO) {
+      const v = corpo?.[campo];
+      if (v !== null && v !== undefined && typeof v !== 'string') {
+        throw invalido(`${campo} deve ser texto decimal (ex.: "12.5"), nunca número`, { field: campo, reason: 'valor_deve_ser_texto' });
+      }
+    }
+  });
   app.get('/parceiros', { onRequest: [app.autenticar], preHandler: [g.ver], schema: LISTAR }, async (request) => listar(ctx(request), /** @type {any} */ (request.query)));
   app.get('/parceiros/:id', { onRequest: [app.autenticar], preHandler: [g.ver], schema: DETALHE }, async (request) =>
     detalhar(ctx(request), /** @type {any} */ (request.params).id, /** @type {any} */ (request.query)));

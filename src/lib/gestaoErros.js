@@ -445,6 +445,9 @@ export const mensagemErroGestao = (erro, fallback, contexto = {}) => {
       const numero = details.numero_cadastro != null ? ` (cadastro nº ${String(details.numero_cadastro)})` : '';
       return `Já existe um parceiro com este ${doc} nesta empresa${numero}. Nada foi gravado.`;
     }
+    case 'PARCEIRO_FUNCIONARIO_SEM_PAPEL':
+      // D-PROD-208: tipo, cargo e custos do funcionário só com o papel Funcionário.
+      return 'Os dados do funcionário (tipo, cargo e custos) só valem com o papel Funcionário marcado. Nada foi gravado.';
     case 'CENTRO_CUSTO_NOT_FOUND':
       return 'Centro de custo não encontrado nesta empresa. A lista será atualizada.';
     case 'CENTRO_RESULTADO_NOT_FOUND':

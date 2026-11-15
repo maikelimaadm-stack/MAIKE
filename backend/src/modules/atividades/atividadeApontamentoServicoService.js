@@ -10,7 +10,9 @@
  *    `reason: permite_servico`);
  *  - apontamento CONFIRMADO de atividade ABERTA; serviço da fazenda e ativo
  *    (vínculo novo). `unidade` = SNAPSHOT da sigla da unidade de medida do
- *    serviço (nunca do usuário);
+ *    serviço (nunca do usuário); na EDIÇÃO com o mesmo `servico_id`, a unidade
+ *    GRAVADA fica (o cadastro só é lido de novo quando o serviço muda —
+ *    D-PROD-208, correção do snapshot);
  *  - `valor_unitario` obrigatório no corpo (≥ 0; a tela preenche com
  *    `valor_referencia`); `valor_total = quantidade × valor_unitario` (4 casas);
  *  - `fornecedor_parceiro_id` opcional: parceiro ATIVO, da MESMA fazenda e com o
@@ -122,8 +124,13 @@ export const camposDaLinha = (corpo) => {
   return saida;
 };
 
-/** Linha gravada na forma do estado: a base da edição. @param {any} r @returns {EstadoDaLinha} */
+/**
+ * Linha gravada na forma do estado: a base da edição, com a `unidade` gravada
+ * (o snapshot, mantido enquanto o serviço não muda).
+ * @param {any} r @returns {EstadoDaLinha & { unidade: string }}
+ */
 const estadoGravado = (r) => ({
+  unidade: r.unidade,
   servico_id: r.servico_id,
   fornecedor_parceiro_id: r.fornecedor_parceiro_id ?? null,
   quantidade: t4(r.quantidade),
@@ -162,7 +169,7 @@ const exigirParceiro = async (tx, clienteId, empresaId, id, gravadoId, extra) =>
  * estado final e devolve as colunas a gravar.
  * @param {any} tx
  * @param {{ clienteId: string, empresaId: string, atividadeId: string, estado: EstadoDaLinha,
- *   gravado?: EstadoDaLinha|null, extra?: Record<string, unknown> }} pedido
+ *   gravado?: (EstadoDaLinha & { unidade?: string })|null, extra?: Record<string, unknown> }} pedido
  */
 const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, estado, gravado = null, extra = {} }) => {
   if (!(await tipoPermiteServico(tx, clienteId, empresaId, atividadeId))) {
@@ -187,7 +194,8 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, estado, gr
     servico_id: servico.id,
     fornecedor_parceiro_id: estado.fornecedor_parceiro_id ?? null,
     quantidade: quantidade.toFixed(CASAS),
-    unidade: servico.unidadeMedida.sigla,
+    // Mesmo serviço na edição: a unidade gravada (snapshot) fica; só o serviço novo lê a do cadastro.
+    unidade: gravado?.unidade && gravado.servico_id === servico.id ? gravado.unidade : servico.unidadeMedida.sigla,
     valor_unitario: estado.valor_unitario,
     valor_total: total.toFixed(CASAS),
     documento_referencia: estado.documento_referencia ?? null,

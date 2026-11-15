@@ -5,9 +5,11 @@
  *
  * Parte do cenário do abastecimento (tenant com 2 fazendas, trator com
  * horímetro, gerador sem medidor, local de estoque, `lote`, `conta`) e cria
- * DIRETO pelo Prisma (o CRUD dos cadastros é de outro módulo): funcionários,
- * serviços com unidade de medida, parceiros com e sem o papel
- * `prestador_servico`, um tipo de atividade que permite as quatro linhas e um
+ * DIRETO pelo Prisma (o CRUD dos cadastros é de outro módulo): funcionários
+ * (D-PROD-208: parceiros com o papel `funcionario` e os dados dele), serviços
+ * com unidade de medida, parceiros com e sem o papel `prestador_servico` (o
+ * terceiro da mão de obra e o prestador do serviço), um com os dois papéis, um
+ * tipo de atividade que permite as quatro linhas e um
  * que não permite nenhuma, um herbicida com lote (a linha de produto dos
  * totais) e uma atividade ABERTA.
  */
@@ -46,9 +48,22 @@ export const montarLinhasCusto = async (app) => {
   const unidade = await p.unidadeMedida.create({ data: { cliente_id: s.c, numero_unidade: `U${suf}`, sigla: 'ha', descricao: 'Hectare' } });
   const unidadeHora = await p.unidadeMedida.create({ data: { cliente_id: s.c, numero_unidade: `H${suf}`, sigla: 'h', descricao: 'Hora' } });
 
-  /** @param {{ id: string }} empresa @param {Record<string, unknown>} [extra] */
-  const funcionario = (empresa, extra = {}) =>
-    p.funcionario.create({ data: { cliente_id: s.c, empresa_id: empresa.id, numero: `F${(n += 1)}-${suf}`, nome: `Funcionário ${n}`, tipo: 'DIARISTA', ...extra } });
+  /**
+   * D-PROD-208 — o funcionário é um PARCEIRO com o papel `funcionario` e os dados dele (`cargo`, `tipo`,
+   * `custo_hora`, `custo_diaria` do teste viram as colunas `funcionario_*`); `tipos` troca os papéis.
+   * @param {{ id: string }} empresa @param {Record<string, any>} [extra]
+   */
+  const funcionario = (empresa, extra = {}) => {
+    const { cargo, tipo, custo_hora, custo_diaria, tipos = ['funcionario'], ...resto } = extra;
+    n += 1;
+    return p.fornecedor.create({
+      data: {
+        cliente_id: s.c, empresa_id: empresa.id, numero_cadastro: `F${n}-${suf}`, tipo_pessoa: 'Física', nome: `Funcionário ${n}`, tipos,
+        funcionario_tipo: tipo ?? 'DIARISTA', funcionario_cargo: cargo ?? null, funcionario_custo_hora: custo_hora ?? null, funcionario_custo_diaria: custo_diaria ?? null,
+        ...resto,
+      },
+    });
+  };
   /** @param {{ id: string }} empresa @param {Record<string, unknown>} [extra] */
   const servico = (empresa, extra = {}) =>
     p.servico.create({ data: { cliente_id: s.c, empresa_id: empresa.id, numero: `S${(n += 1)}-${suf}`, nome: `Serviço ${n}`, unidade_medida_id: unidade.id, ...extra } });
@@ -61,6 +76,8 @@ export const montarLinhasCusto = async (app) => {
   const tiao = await funcionario(s.e1, { nome: 'Tião Tarefeiro', tipo: 'TAREFEIRO' });
   const inativo = await funcionario(s.e1, { nome: 'Antigo Funcionário', ativo: false, custo_hora: '10' });
   const daE2 = await funcionario(s.e2, { nome: 'Funcionário da Fazenda 2', custo_hora: '10' });
+  // Com os dois papéis (funcionário e prestador): vale funcionário.
+  const ambos = await funcionario(s.e1, { nome: 'Zé Dos Dois Papéis', tipos: ['Prestador de Serviço', 'Funcionária'], custo_hora: '30' });
 
   const gradagem = await servico(s.e1, { nome: 'Gradagem terceirizada', valor_referencia: '150' });
   const horaTrator = await servico(s.e1, { nome: 'Hora de trator alugado', unidade_medida_id: unidadeHora.id });
@@ -126,7 +143,7 @@ export const montarLinhasCusto = async (app) => {
 
   return {
     ...s, H, grupo, tipo, tipoSem, unidade, unidadeHora, funcionario, servico, parceiro,
-    joao, pedro, tiao, inativo, daE2, gradagem, horaTrator, servicoInativo, servicoE2,
+    joao, pedro, tiao, inativo, daE2, ambos, gradagem, horaTrator, servicoInativo, servicoE2,
     prestador, prestadorAlias, soFornecedor, semPapel, prestadorInativo, prestadorE2, herbicida,
     abrir, atividade, baseAp, lancarAp, apontar, versaoDe, acoesDaLinha, totais, contaTela,
   };
