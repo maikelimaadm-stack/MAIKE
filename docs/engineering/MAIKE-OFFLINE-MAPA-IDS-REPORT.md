@@ -54,7 +54,7 @@ reprovam**; com a correção, os 6 passam.
 | Verificação | Resultado |
 |---|---|
 | `offlineMapaDeIdsEntrePassadas` + `offlineRuntime` + `estoqueP0FilaOfflineLegada` + `loteDeleteOfflineBloqueado` + `loteExclusaoCacheOffline` + `categoriaManejoCriacaoOnline` | 69/69 |
-| `npm run verify:all` | todas as etapas passaram (ver §4) |
+| `npm run verify:all` | antes do merge com a `main`: todas as etapas passaram. Na árvore mergeada, só falham 4 testes de `detalhesLoteCutoverPendente`, regressão que veio da `main` e não desta PR (ver §4) |
 
 ## 4. `verify:all`
 
@@ -73,3 +73,15 @@ Na primeira rodada do `verify:all`, o `test:backend` teve 4 falhas, todas do amb
 - `usuariosBenchEscopo` (BE-04, "credencial no log"): a senha do banco local era a palavra `postgres`, que aparece dentro de `postgresql://` no log.
 
 Com `FRONTEND_ORIGINS` definido e uma senha aleatória, o `test:backend` passou inteiro (0 falhas). As demais etapas não dependem dessas duas variáveis e já tinham passado na primeira rodada.
+
+### 4.1 Depois do merge com a `main` (`26153f2c`, base `main` `8d4b36a1`)
+
+| Etapa | Resultado |
+|---|---|
+| `test:gates` e os `gate:*` | PASS (921/921 no `test:gates`) |
+| `prisma:generate`, `gate:types`, `typecheck:backend`, `lint` | PASS |
+| `test:backend` | PASS: 2.053 testes, 2.048 passaram, 0 falhas, 5 `todo` |
+| `test:smoke` | **FAIL**: 238 arquivos, 2.893 de 2.897 testes passaram. As 4 falhas são todas em `tests/smoke/detalhesLoteCutoverPendente.test.jsx` ("Juntar Lotes permanece visível quando indisponível": o formulário abre quando deveria ficar fechado) |
+| `build`, `build:admin`, `admin-isolation:bundles` | PASS |
+
+**As 4 falhas não são desta PR.** Elas se repetem iguais com o `offlineEntityRuntime.js` da `main` no lugar do desta branch, e o resto do diff é documentação e um teste novo. Um `git bisect` na `main` (de `890eaff6`, verde, até `8d4b36a1`) aponta como primeiro commit vermelho o `71dde7d3` ("Unifica abertura em grade e amplia ícones e nomes em todas as telas", da PR #291, já mergeada). A correção é da missão dessa tela e fica fora desta PR (R7).
