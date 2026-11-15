@@ -52,7 +52,19 @@ tabela antiga. Gravar um %PV de mentira na base G (sentinela) foi descartado.
 
 ## 5. Validação local
 
-<preenchido abaixo>
+Na árvore com a `main` `9a666393` (PR #294) mergeada, etapas do `verify:all` rodadas separadas (como na D-PROD-205 e
+na D-PROD-206; o `verify:all` inteiro passa de 30 min localmente com o backend num processo só):
+
+| Etapa | Resultado |
+|---|---|
+| todos os `gate:*` (30) | passaram |
+| `gate:types` | passou (546 ≤ 625) |
+| `typecheck:backend` | passou |
+| `lint` | 0 erros (2 avisos antigos, fora desta PR) |
+| `test:gates` | 943 aprovados, 0 falhas |
+| `test:backend` | 2161 testes: 2156 aprovados, 0 falhas, 5 todo |
+| `test:smoke` | 242 arquivos, 2981 testes, todos aprovados |
+| `build`, `build:admin`, `gate:admin-isolation` | passaram |
 
 ## 6. Fora do escopo
 
