@@ -12,7 +12,7 @@
  * (`shared/errors/vinculoAtividade.js`; este módulo não consulta `Atividade`),
  * e vira o mesmo 409 com `details.vinculo = 'atividade'`.
  *
- * D-PROD-205 — o mesmo para a unidade de medida de um SERVIÇO (cadastro da
+ * D-PROD-206 — o mesmo para a unidade de medida de um SERVIÇO (cadastro da
  * Fatia 4): a FK RESTRICT do `Servico` barra, reconhecida pelo nome
  * (`shared/errors/vinculoServico.js`; este módulo não consulta `Servico`), e vira
  * o mesmo 409 com `details.vinculo = 'servico'`.
@@ -242,7 +242,7 @@ export const excluir = async (contexto, id) => {
       if (vinculoComAtividade(erro)?.campo === 'unidade_producao_id') {
         throw unidadeMedidaDeleteBlocked(undefined, { cause: erro, details: { vinculo: 'atividade' } });
       }
-      // D-PROD-205: a FK da unidade de medida do serviço.
+      // D-PROD-206: a FK da unidade de medida do serviço.
       if (vinculoComServico(erro)?.campo === 'unidade_medida_id') {
         throw unidadeMedidaDeleteBlocked(undefined, { cause: erro, details: { vinculo: 'servico' } });
       }

@@ -285,7 +285,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,
-    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-202, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento; D-PROD-205: funcionario_id → permite_mao_obra, servico_id → permite_servico); nada foi gravado',
+    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-202, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento; D-PROD-206: funcionario_id → permite_mao_obra, servico_id → permite_servico); nada foi gravado',
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
@@ -314,7 +314,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_LINHA_INVALIDA: {
     http: 422,
-    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto; D-PROD-205 mão de obra: funcionario_id inexistente | outra_empresa | inativo, tipo_medida obrigatorio, quantidade obrigatoria | nao_positiva | custo_excede_limite, custo_unitario obrigatorio | nao_aceito; serviço: servico_id inexistente | outra_empresa | inativo, fornecedor_parceiro_id parceiro_invalido — inexistente, de outra fazenda, inativo ou sem o papel prestador_servico, sem oráculo —, valor_unitario obrigatorio); nada foi gravado',
+    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto; D-PROD-206 mão de obra: funcionario_id inexistente | outra_empresa | inativo, tipo_medida obrigatorio, quantidade obrigatoria | nao_positiva | custo_excede_limite, custo_unitario obrigatorio | nao_aceito; serviço: servico_id inexistente | outra_empresa | inativo, fornecedor_parceiro_id parceiro_invalido — inexistente, de outra fazenda, inativo ou sem o papel prestador_servico, sem oráculo —, valor_unitario obrigatorio); nada foi gravado',
   },
   ATIVIDADE_SALTO_MEDIDOR: {
     http: 422,
@@ -341,7 +341,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
   },
-  // D-PROD-205 — cadastros de Funcionário e Serviço da fazenda (Fatia 4 do Lançamento de Atividades).
+  // D-PROD-206 — cadastros de Funcionário e Serviço da fazenda (Fatia 4 do Lançamento de Atividades).
   FUNCIONARIO_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica funcionário desta fazenda neste tenant',

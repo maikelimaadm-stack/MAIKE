@@ -1,4 +1,4 @@
-/** API do módulo Serviços da fazenda (D-PROD-205). Online só; página keyset do motor Base1. */
+/** API do módulo Serviços da fazenda (D-PROD-206). Online só; página keyset do motor Base1. */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { operacoesNativas } from './servicoNativePort.js';

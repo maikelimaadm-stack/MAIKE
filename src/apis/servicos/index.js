@@ -1,4 +1,4 @@
-/** Superfície pública do módulo Serviços da fazenda (D-PROD-205). */
+/** Superfície pública do módulo Serviços da fazenda (D-PROD-206). */
 
 export {
   listServicosPage,

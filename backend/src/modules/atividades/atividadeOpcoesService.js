@@ -18,7 +18,7 @@
  * usados na atividade primeiro) e locais com saldo —, com a lógica dos
  * seletores do financeiro e do abastecimento, mas com a guarda "ver" desta tela.
  *
- * D-PROD-205 (Fatia 4): os seletores das linhas de MÃO DE OBRA (funcionários)
+ * D-PROD-206 (Fatia 4): os seletores das linhas de MÃO DE OBRA (funcionários)
  * e de SERVIÇO (serviços e parceiros prestadores de serviço).
  */
 
@@ -173,7 +173,7 @@ export const opcoesLocaisDoProduto = async (contexto, query = {}) => {
   };
 };
 
-// ─── D-PROD-205 (Fatia 4): seletores das linhas de mão de obra e de serviço ──
+// ─── D-PROD-206 (Fatia 4): seletores das linhas de mão de obra e de serviço ──
 
 /**
  * `GET /atividades-opcoes/funcionarios?empresa_id=&q=&cursor=&limit=`:

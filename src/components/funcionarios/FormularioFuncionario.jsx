@@ -30,7 +30,7 @@ const lerCusto = (texto) => {
 };
 
 /**
- * Formulário do cadastro de Funcionários da fazenda (D-PROD-205).
+ * Formulário do cadastro de Funcionários da fazenda (D-PROD-206).
  *
  * Campos: Nome, Cargo, Tipo (Mensalista / Diarista / Tarefeiro), Custo por hora
  * e Custo por diária (opcionais, ≥ 0; a linha de mão de obra copia o da medida).

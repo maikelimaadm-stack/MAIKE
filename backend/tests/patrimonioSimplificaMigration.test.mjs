@@ -34,7 +34,7 @@
  * BemPatrimonial(cliente_id, empresa_id, id): também fica fora da partida e sobe por último no GREEN, com as 3 tabelas
  * dela (vazias, com RLS) e as 2 colunas anuláveis em BemPatrimonial e TipoPatrimonial. A D-PROD-203 (EXPAND
  * `20261114700000_cadformulacao`, Formulações, 3 tabelas novas) não existia no dia desta CONTRACT: também fica fora da
- * partida e sobe no GREEN, depois da D-PROD-202, com as 3 tabelas dela (vazias, com RLS). A D-PROD-205 (EXPAND
+ * partida e sobe no GREEN, depois da D-PROD-202, com as 3 tabelas dela (vazias, com RLS). A D-PROD-206 (EXPAND
  * `20261115200000_atividade_mao_obra_servico`, mão de obra e serviço) referencia AtividadeApontamento: também fica
  * fora da partida e sobe por último no GREEN, com as 4 tabelas dela (vazias, com RLS) e nenhuma coluna em tabela antiga.
  *
@@ -47,7 +47,7 @@
  * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL: com a conferência de alvo e
  * MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 ele recusa (a D-PROD-200 pende junto; nada muda); no alvo local, todas
  * concluídas (TOTAL_MIGRATIONS: esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a
- * D-PROD-205), 94 tabelas (+ Atividade e AtividadeApontamento, as 3 das linhas, as 3 das Formulações e as 4 da mão de
+ * D-PROD-206), 94 tabelas (+ Atividade e AtividadeApontamento, as 3 das linhas, as 3 das Formulações e as 4 da mão de
  * obra e do serviço, vazias, com RLS), as 7 novas vazias com o mesmo dono/ACL das antigas,
  * RLS e políticas no padrão, 7/31/32/55 constraints e índices, impressão digital
  * das 75 que ficam idêntica, os 2 CHECKs de OperacaoFinanceiraItem com 'L',
@@ -105,14 +105,14 @@ after(async () => {
 });
 
 describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (PostgreSQL real)', () => {
-  test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-205, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
+  test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-206, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 7, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-205');
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 7, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-206');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
-    // D-PROD-203: as Formulações (release posterior) também ficam fora da partida e sobem no GREEN; a D-PROD-205, por último.
+    // D-PROD-203: as Formulações (release posterior) também ficam fora da partida e sobem no GREEN; a D-PROD-206, por último.
     assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261115200000_atividade_mao_obra_servico']);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
@@ -167,7 +167,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('SM-03 GREEN pelo runner oficial (impressão na URL): com o alvo conferido e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 recusa (a D-PROD-200 pende junto; nada muda); no alvo local, todas/0 (com a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-205 depois da CONTRACT), 94 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 75 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
+  test('SM-03 GREEN pelo runner oficial (impressão na URL): com o alvo conferido e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 recusa (a D-PROD-200 pende junto; nada muda); no alvo local, todas/0 (com a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203 e a D-PROD-206 depois da CONTRACT), 94 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 75 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
     // Nunca duas CONTRACT de uma vez: com esta e a D-PROD-200 pendentes, a decisão desta não basta; a recusa cita só a outra.
@@ -188,8 +188,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 94, 'as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + as 4 da mão de obra e do serviço (D-PROD-205); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
-    // D-PROD-190/191/198/201: subiram DEPOIS da CONTRACT (o runner aplica em ordem de nome); no fim ficam as 2 da atividade, as 3 das linhas, as 3 das Formulações (D-PROD-203) e as 4 da mão de obra e do serviço (D-PROD-205), vazias, com RLS e sem FORCE.
+    assert.equal(await contarTabelas(db), 94, 'as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + as 4 da mão de obra e do serviço (D-PROD-206); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
+    // D-PROD-190/191/198/201: subiram DEPOIS da CONTRACT (o runner aplica em ordem de nome); no fim ficam as 2 da atividade, as 3 das linhas, as 3 das Formulações (D-PROD-203) e as 4 da mão de obra e do serviço (D-PROD-206), vazias, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
       [NOME_CONTRACT, ...MIGRATIONS_DEPOIS_DO_CONTRACT]

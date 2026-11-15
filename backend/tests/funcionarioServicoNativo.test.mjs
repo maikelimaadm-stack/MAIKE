@@ -1,5 +1,5 @@
 /**
- * Cadastros de Funcionário e Serviço da fazenda (D-PROD-205, Fatia 4 do
+ * Cadastros de Funcionário e Serviço da fazenda (D-PROD-206, Fatia 4 do
  * Lançamento de Atividades; contrato `MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md` §2)
  * — PostgreSQL real.
  *
@@ -98,7 +98,7 @@ const criarS = (token, payload) => req('POST', '/servicos', token, payload);
 
 // ─── Funcionário ────────────────────────────────────────────────────────────
 
-describe('D-PROD-205 — Funcionários: criação, leitura e lista', () => {
+describe('D-PROD-206 — Funcionários: criação, leitura e lista', () => {
   test('sem token → 401', async () => {
     assert.equal((await req('GET', '/funcionarios?empresa_id=x')).statusCode, 401);
     assert.equal((await req('POST', '/funcionarios', undefined, { empresa_id: 'x', nome: 'x', tipo: 'DIARISTA' })).statusCode, 401);
@@ -161,7 +161,7 @@ describe('D-PROD-205 — Funcionários: criação, leitura e lista', () => {
   });
 });
 
-describe('D-PROD-205 — Funcionários: validação do corpo', () => {
+describe('D-PROD-206 — Funcionários: validação do corpo', () => {
   test('chave fora do schema (cliente_id, numero, ativo, salario) → 400 e nada gravado', async () => {
     const { token, clienteId, e1 } = await cenario();
     for (const extra of [{ cliente_id: clienteId }, { numero: '99' }, { ativo: false }, { salario: '1000' }]) {
@@ -214,7 +214,7 @@ describe('D-PROD-205 — Funcionários: validação do corpo', () => {
   });
 });
 
-describe('D-PROD-205 — Funcionários: edição, inativar/reativar, sem DELETE e escopo', () => {
+describe('D-PROD-206 — Funcionários: edição, inativar/reativar, sem DELETE e escopo', () => {
   test('PATCH altera e audita; sem mudança não grava; sem empresa_id, só empresa_id ou com ativo → 400', async () => {
     const { token, clienteId, e1 } = await cenario();
     const f = (await criarF(token, funcionario(e1.id))).json();
@@ -298,7 +298,7 @@ describe('D-PROD-205 — Funcionários: edição, inativar/reativar, sem DELETE 
 
 // ─── Serviço ────────────────────────────────────────────────────────────────
 
-describe('D-PROD-205 — Serviços: criação, leitura e lista', () => {
+describe('D-PROD-206 — Serviços: criação, leitura e lista', () => {
   test('POST cria (201) com a unidade e o centro resumidos na leitura; número próprio; decimais como texto', async () => {
     const { token, clienteId, e1, ha, cc1 } = await cenario();
     const r = await criarS(token, servico(e1.id, ha.id, { centro_custo_padrao_id: cc1.id, valor_referencia: '85.9' }));
@@ -401,7 +401,7 @@ describe('D-PROD-205 — Serviços: criação, leitura e lista', () => {
   });
 });
 
-describe('D-PROD-205 — Serviços: inativar/reativar, sem DELETE, escopo e unidade em uso', () => {
+describe('D-PROD-206 — Serviços: inativar/reativar, sem DELETE, escopo e unidade em uso', () => {
   test('inativar e reativar (200, idempotentes); sem DELETE (404, nada apagado)', async () => {
     const { token, e1, ha } = await cenario();
     const s = (await criarS(token, servico(e1.id, ha.id))).json();
@@ -461,7 +461,7 @@ describe('D-PROD-205 — Serviços: inativar/reativar, sem DELETE, escopo e unid
   });
 });
 
-describe('D-PROD-205 — Funcionários e Serviços: permissão da própria tela', () => {
+describe('D-PROD-206 — Funcionários e Serviços: permissão da própria tela', () => {
   test('sem a tela (só outra) → 403 na leitura e na escrita, nada gravado', async () => {
     const cen = await cenario();
     const token = await contaCom(cen, [linha('sup-unidades', acoes(true))]);
@@ -570,7 +570,7 @@ const esperando = async (p, ms = 400) => {
   return { esperou: !respondeu, resposta: () => r };
 };
 
-describe('D-PROD-205 — revisões: busca literal e travas', () => {
+describe('D-PROD-206 — revisões: busca literal e travas', () => {
   test('q com % e _ é literal (não curinga) na lista de funcionários e na de serviços', async () => {
     const { token, e1, ha } = await cenario();
     const pct = (await criarF(token, funcionario(e1.id, { nome: 'meeiro 50%' }))).json();

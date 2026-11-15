@@ -2,7 +2,7 @@
 
 > **fatia 4 · `feat/atividade-mao-obra-servico` · PR #294**
 >
-> Decisão **D-PROD-205**. Pedido do proprietário: "FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."
+> Decisão **D-PROD-206**. Pedido do proprietário: "FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."
 > Escolha aprovada pelo proprietário antes de implementar ("sim, vai de acordo com o cadastro de parceiro"):
 > cadastro próprio de **Funcionário** (não `Usuario`); o prestador do serviço vem do **cadastro de Parceiros**
 > (tabela `Fornecedor`, papel `prestador_servico`). Base: Fatias 1 a 3 (D-PROD-197, 200 e 202), em produção.
@@ -140,7 +140,7 @@ funcionário e medida; o serviço, por serviço **e** unidade (a tela usa `${ser
 
 ## 8. Constituição (precisa da aprovação do proprietário no merge)
 
-Expansão D-PROD-205 no `00` e nota no `07`: cadastros mínimos de Funcionário e Serviço e as linhas de mão de obra e
+Expansão D-PROD-206 no `00` e nota no `07`: cadastros mínimos de Funcionário e Serviço e as linhas de mão de obra e
 serviço como **custo da atividade** (snapshot), com parceiro prestador como referência. Continua fora: folha
 (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio, contrato de serviço.
 

@@ -159,7 +159,7 @@ export const excluir = async (contexto, id) => {
     // devolvia o enganoso 403 TENANT_SCOPE_VIOLATION.
     // D-PROD-157: bem patrimonial que o tem como proprietário OU fornecedor
     // também o segura (mesma FK RESTRICT; mesmo 409, nunca 403).
-    // D-PROD-205: linha de serviço de atividade com ele como prestador também (mesma FK RESTRICT).
+    // D-PROD-206: linha de serviço de atividade com ele como prestador também (mesma FK RESTRICT).
     const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos, bens, servicosAtividade] = await Promise.all([
       tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.estoqueLoteNota.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
@@ -171,7 +171,7 @@ export const excluir = async (contexto, id) => {
     ]);
     if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos + bens + servicosAtividade > 0) {
       throw new AppError('PARCEIRO_EM_USO', 'fornecedor com histórico não pode ser excluído; inative-o na tela Parceiros', {
-        // D-PROD-205: a contagem das linhas de serviço só aparece quando há (os `details` de antes não mudam).
+        // D-PROD-206: a contagem das linhas de serviço só aparece quando há (os `details` de antes não mudam).
         details: { lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos, bens, ...(servicosAtividade ? { servicos_atividade: servicosAtividade } : {}) },
       });
     }

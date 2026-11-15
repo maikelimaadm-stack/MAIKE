@@ -453,7 +453,7 @@ export const obter = async (contexto, id, query = {}) => {
  *    servicos: [{ servico_id, nome, unidade, quantidade, custo_total }],
  *    custo_total, custo_por_ha }`.
  * `custo_total` = Σ produtos + Σ máquinas com custo + Σ mão de obra com custo +
- * Σ serviços (D-PROD-205, Fatia 4; nulo sem nenhum custo);
+ * Σ serviços (D-PROD-206, Fatia 4; nulo sem nenhum custo);
  * `custo_por_ha` = custo_total / area_executada (4 casas), nulo sem área ou
  * sem custo. Decimais como texto com 4 casas. Outra fazenda ou tenant → 404.
  * @param {{ auth: AuthContext }} contexto @param {string} id @param {Record<string, any>} [query]
@@ -820,7 +820,7 @@ export const cancelar = async (contexto, id, corpo) => {
       // Os filhos antes do cabeçalho: o serviço do apontamento cancela com a atividade ainda ABERTA (e travada).
       // D-PROD-202: as linhas dos apontamentos caem junto (máquina cancelada; produto estornado exatamente, num
       // `estornarEmLote` só, no dia de hoje da fazenda), com o mesmo motivo e a origem ATIVIDADE.
-      // D-PROD-205: as de mão de obra e de serviço também (cascata em `cancelarLinhasDosApontamentos`).
+      // D-PROD-206: as de mão de obra e de serviço também (cascata em `cancelarLinhasDosApontamentos`).
       const apontamentosCancelados = await cancelarApontamentosDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id, usuarioId, motivo, agora, hoje, contexto });
       // Idempotente: "totais = soma dos CONFIRMADO" vale mesmo sem nenhum apontamento cancelado aqui,
       // sem depender de quando o serviço do apontamento decide recalcular.
