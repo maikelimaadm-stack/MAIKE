@@ -132,13 +132,16 @@ export const unidadeMedidaSiglaConflito = (message, options) =>
 const MENSAGENS_UNIDADE_MEDIDA_EM_USO = Object.freeze({
   tipo_atividade: 'não é possível excluir: a unidade de medida é a unidade de produção padrão de um tipo de atividade; inative-a; nada foi apagado',
   atividade: 'não é possível excluir: a unidade de medida é a unidade de produção de uma atividade; inative-a; nada foi apagado',
+  // D-PROD-207 — unidade de medida de um serviço (cadastro da Fatia 4).
+  servico: 'não é possível excluir: a unidade de medida é usada por um serviço; inative-a; nada foi apagado',
 });
 
 // D-PROD-197 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada como padrão.
 // D-PROD-200 — e a da Atividade, que guarda a unidade de produção herdada do tipo:
 // quem chama passa `details.vinculo = 'atividade'`; sem ele, o vínculo é `tipo_atividade`.
 export const unidadeMedidaDeleteBlocked = (message, options) => {
-  const vinculo = options?.details?.vinculo === 'atividade' ? 'atividade' : 'tipo_atividade';
+  const pedido = options?.details?.vinculo;
+  const vinculo = pedido === 'atividade' || pedido === 'servico' ? pedido : 'tipo_atividade';
   return new AppError('UNIDADE_MEDIDA_DELETE_BLOCKED', message || MENSAGENS_UNIDADE_MEDIDA_EM_USO[vinculo], {
     ...options,
     details: { ...(options?.details ?? {}), vinculo },
@@ -310,6 +313,15 @@ const EXIGENCIAS_DO_TIPO_ATIVIDADE = Object.freeze({
     flag: 'permite_implemento',
     mensagem: 'o tipo de atividade não permite implemento: ligue "permite implemento" no tipo ou lance a máquina sem implemento',
   }),
+  // D-PROD-207 (Fatia 4): linhas de mão de obra e de serviço.
+  funcionario_id: Object.freeze({
+    flag: 'permite_mao_obra',
+    mensagem: 'o tipo de atividade não permite mão de obra: ligue "permite mão de obra" no tipo ou lance sem mão de obra',
+  }),
+  servico_id: Object.freeze({
+    flag: 'permite_servico',
+    mensagem: 'o tipo de atividade não permite serviço: ligue "permite serviço" no tipo ou lance sem serviço',
+  }),
 });
 
 /**
@@ -317,8 +329,9 @@ const EXIGENCIAS_DO_TIPO_ATIVIDADE = Object.freeze({
  * `details.field` = o campo; `details.reason` = a flag (`exige_area`,
  * `exige_safra`, `exige_maquina`, `exige_producao`). D-PROD-202: também a
  * linha que o tipo não PERMITE (`produto_id` → `permite_produto`;
- * `implemento_bem_id` → `permite_implemento`).
- * @param {'area_id'|'safra_ciclo'|'bem_id'|'quantidade_produzida'|'produto_id'|'implemento_bem_id'} field
+ * `implemento_bem_id` → `permite_implemento`). D-PROD-207: `funcionario_id` →
+ * `permite_mao_obra`; `servico_id` → `permite_servico`.
+ * @param {'area_id'|'safra_ciclo'|'bem_id'|'quantidade_produzida'|'produto_id'|'implemento_bem_id'|'funcionario_id'|'servico_id'} field
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeExigidaPeloTipo = (field, options) => {
@@ -394,7 +407,7 @@ const REGRA_DE_STATUS_DA_ACAO = Object.freeze({
   editar_apontamento: 'só apontamento confirmado de atividade aberta é editado',
   cancelar_apontamento: 'só apontamento confirmado de atividade aberta é cancelado',
   // D-PROD-202 (Fatia 3): as linhas de produto e de máquina do apontamento.
-  lancar_linha: 'só apontamento confirmado de atividade aberta recebe linha de produto ou de máquina',
+  lancar_linha: 'só apontamento confirmado de atividade aberta recebe linha (produto, máquina, mão de obra ou serviço)',
   editar_linha: 'só linha confirmada, de apontamento confirmado e atividade aberta, é editada',
   cancelar_linha: 'só linha confirmada, de apontamento confirmado e atividade aberta, é cancelada',
 });
@@ -402,7 +415,7 @@ const REGRA_DE_STATUS_DA_ACAO = Object.freeze({
 /**
  * D-PROD-200 — a ação não é permitida no status atual da atividade (ou do
  * apontamento, ou da linha — D-PROD-202): `details.status`, `details.acao` e `details.entidade`.
- * @param {{ status: string, acao: string, entidade?: 'atividade'|'apontamento'|'linha_produto'|'linha_maquina' }} situacao
+ * @param {{ status: string, acao: string, entidade?: 'atividade'|'apontamento'|'linha_produto'|'linha_maquina'|'linha_mao_obra'|'linha_servico' }} situacao
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeStatusInvalido = ({ status, acao, entidade = 'atividade' }, options = undefined) =>
@@ -465,18 +478,28 @@ export const atividadeVinculada = (vinculo, entidade = 'atividade', options = un
 // motor FIFO) e máquina (`AtividadeApontamentoMaquina`, uso por medidor).
 // Contrato `docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`.
 
+/** D-PROD-202/203 — rótulo e entidade de cada tipo de linha do apontamento. */
+const TIPOS_DE_LINHA_ATIVIDADE = Object.freeze({
+  produto: Object.freeze({ rotulo: 'linha de produto', entidade: 'linha_produto' }),
+  maquina: Object.freeze({ rotulo: 'linha de máquina', entidade: 'linha_maquina' }),
+  mao_obra: Object.freeze({ rotulo: 'linha de mão de obra', entidade: 'linha_mao_obra' }),
+  servico: Object.freeze({ rotulo: 'linha de serviço', entidade: 'linha_servico' }),
+});
+
 /**
  * D-PROD-202 — linha de outro apontamento, atividade, empresa ou tenant =
- * inexistente (o mesmo corpo: sem oráculo). `details.entidade` diz qual linha.
- * @param {'produto'|'maquina'} tipo
+ * inexistente (o mesmo corpo: sem oráculo). `details.entidade` diz qual linha
+ * (D-PROD-207: também `linha_mao_obra` e `linha_servico`).
+ * @param {'produto'|'maquina'|'mao_obra'|'servico'} tipo
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
-export const atividadeLinhaNotFound = (tipo, options = undefined) =>
-  new AppError(
-    'ATIVIDADE_LINHA_NOT_FOUND',
-    tipo === 'maquina' ? 'linha de máquina não encontrada neste apontamento' : 'linha de produto não encontrada neste apontamento',
-    { ...options, details: { ...(options?.details ?? {}), entidade: tipo === 'maquina' ? 'linha_maquina' : 'linha_produto' } }
-  );
+export const atividadeLinhaNotFound = (tipo, options = undefined) => {
+  const t = TIPOS_DE_LINHA_ATIVIDADE[tipo] ?? TIPOS_DE_LINHA_ATIVIDADE.produto;
+  return new AppError('ATIVIDADE_LINHA_NOT_FOUND', `${t.rotulo} não encontrada neste apontamento`, {
+    ...options,
+    details: { ...(options?.details ?? {}), entidade: t.entidade },
+  });
+};
 
 /**
  * D-PROD-202 — frase de cada linha recusada, por coluna e `reason` (toda
@@ -495,7 +518,36 @@ const MENSAGENS_LINHA_ATIVIDADE = Object.freeze({
     inexistente: 'o local de estoque não foi encontrado',
     inativo: 'o local de estoque está inativo',
   }),
-  quantidade: Object.freeze({ quantidade_nao_positiva: 'a quantidade deve ser maior que zero' }),
+  quantidade: Object.freeze({
+    quantidade_nao_positiva: 'a quantidade deve ser maior que zero',
+    // D-PROD-207 (mão de obra e serviço).
+    obrigatoria: 'informe a quantidade',
+    nao_positiva: 'a quantidade deve ser maior que zero',
+    custo_excede_limite: 'o custo da linha (quantidade × valor unitário) passa do limite da coluna',
+  }),
+  // D-PROD-207 — edição de linha de mão de obra/serviço sem mudança real.
+  corpo: Object.freeze({ sem_alteracao: 'os dados enviados são os mesmos da linha gravada: não há o que alterar' }),
+  // D-PROD-207 — linha de mão de obra.
+  funcionario_id: Object.freeze({
+    inexistente: 'o funcionário não foi encontrado',
+    outra_empresa: 'o funcionário é de outra fazenda',
+    inativo: 'o funcionário está inativo',
+  }),
+  tipo_medida: Object.freeze({ obrigatorio: 'informe se a mão de obra é por hora, por diária ou por tarefa' }),
+  custo_unitario: Object.freeze({
+    obrigatorio: 'na tarefa, informe o valor por tarefa',
+    nao_aceito: 'por hora ou por diária, o custo vem do cadastro do funcionário: não informe o custo unitário',
+  }),
+  // D-PROD-207 — linha de serviço.
+  servico_id: Object.freeze({
+    inexistente: 'o serviço não foi encontrado',
+    outra_empresa: 'o serviço é de outra fazenda',
+    inativo: 'o serviço está inativo',
+  }),
+  fornecedor_parceiro_id: Object.freeze({
+    parceiro_invalido: 'o parceiro não foi encontrado como prestador de serviço ativo desta fazenda',
+  }),
+  valor_unitario: Object.freeze({ obrigatorio: 'informe o valor unitário do serviço' }),
   bem_id: Object.freeze({
     inexistente: 'a máquina não foi encontrada',
     outra_empresa: 'a máquina é de outra fazenda',
@@ -536,7 +588,8 @@ const MENSAGENS_LINHA_ATIVIDADE = Object.freeze({
 /**
  * D-PROD-202 — linha de produto ou de máquina recusada (um só código;
  * `details.field`/`details.reason` dizem qual; `details.entidade`
- * `linha_produto` | `linha_maquina`). Id de outro tenant é `inexistente`.
+ * `linha_produto` | `linha_maquina`, D-PROD-207 `linha_mao_obra` |
+ * `linha_servico`). Id de outro tenant é `inexistente`.
  * @param {string} field  ex.: `produto_id`, `local_estoque_id`, `quantidade`, `bem_id`, `leitura_final`
  * @param {string} reason
  * @param {Record<string, unknown>} [extra]  vai para `details` (ex.: `{ entidade: 'linha_maquina', leitura_vigente }`)
@@ -601,14 +654,27 @@ export const atividadeEstornoBloqueado = (reason, extra = {}, options = undefine
  * D-PROD-202 — a data do apontamento não muda com linha de produto ou de
  * máquina CONFIRMADA (a saída de estoque e a leitura do medidor estão nesta
  * data): cancelar e lançar de novo. `details.linhas_produto`/`linhas_maquina`.
- * @param {{ produtos: number, maquinas: number }} contagem
+ * D-PROD-207: também com linha de mão de obra ou de serviço confirmada
+ * (`details.linhas_mao_obra`/`linhas_servico`).
+ * @param {{ produtos: number, maquinas: number, maoObra?: number, servicos?: number }} contagem
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
-export const atividadeDataComLinhas = ({ produtos, maquinas }, options = undefined) =>
+export const atividadeDataComLinhas = ({ produtos, maquinas, maoObra = 0, servicos = 0 }, options = undefined) =>
   new AppError(
     'ATIVIDADE_DATA_COM_LINHAS',
-    'a data do lançamento não pode mudar: há linha de produto ou de máquina confirmada nesta data; cancele o lançamento e lance de novo na data certa; nada foi gravado',
-    { ...options, details: { ...(options?.details ?? {}), field: 'data_operacional', reason: 'data_com_linhas', linhas_produto: produtos, linhas_maquina: maquinas } }
+    'a data do lançamento não pode mudar: há linha de produto, máquina, mão de obra ou serviço confirmada nesta data; cancele o lançamento e lance de novo na data certa; nada foi gravado',
+    {
+      ...options,
+      details: {
+        ...(options?.details ?? {}),
+        field: 'data_operacional',
+        reason: 'data_com_linhas',
+        linhas_produto: produtos,
+        linhas_maquina: maquinas,
+        linhas_mao_obra: maoObra,
+        linhas_servico: servicos,
+      },
+    }
   );
 
 // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
@@ -623,6 +689,36 @@ export const estacaoPeriodoSobreposto = (message, options) =>
     'ESTACAO_PERIODO_SOBREPOSTO',
     message || 'o período se sobrepõe a outra estação ativa desta fazenda',
     options
+  );
+
+// D-PROD-207 — cadastros de Funcionário e Serviço da fazenda (Fatia 4).
+export const funcionarioNotFound = (message, options) =>
+  new AppError('FUNCIONARIO_NOT_FOUND', message || 'funcionário não encontrado nesta fazenda', options);
+
+export const servicoNotFound = (message, options) =>
+  new AppError('SERVICO_NOT_FOUND', message || 'serviço não encontrado nesta fazenda', options);
+
+const MENSAGENS_REFERENCIA_SERVICO = Object.freeze({
+  unidade_medida_id: Object.freeze({
+    nao_encontrado: 'unidade de medida não encontrada neste cliente',
+    inativo: 'unidade de medida inativa não pode ser escolhida',
+  }),
+  centro_custo_padrao_id: Object.freeze({
+    nao_encontrado: 'centro de custo não encontrado nesta fazenda',
+    inativo: 'centro de custo inativo não pode ser escolhido',
+  }),
+});
+
+/**
+ * @param {'unidade_medida_id'|'centro_custo_padrao_id'} field
+ * @param {'nao_encontrado'|'inativo'} reason
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const servicoReferenciaInvalida = (field, reason, options = undefined) =>
+  new AppError(
+    'SERVICO_REFERENCIA_INVALIDA',
+    `${MENSAGENS_REFERENCIA_SERVICO[field]?.[reason] ?? 'referência do serviço recusada'}; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), field, reason } }
   );
 
 // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).

@@ -5,7 +5,7 @@ import { FAROL_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
  * D-PROD-206 — exibição do fechamento do consumo: o farol (sempre com o texto,
  * não só a cor), consumo g/cab/dia, %PV real × esperado, custo e a marca
  * "Aproximado" quando a sobra final não foi medida.
- * D-PROD-207: na base g/cab/dia a meta é em gramas ("g/cab/dia real × meta") e o
+ * D-PROD-208: na base g/cab/dia a meta é em gramas ("g/cab/dia real × meta") e o
  * %PV real aparece só como informação, sem %PV esperado.
  */
 

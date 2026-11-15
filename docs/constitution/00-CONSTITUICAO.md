@@ -142,6 +142,21 @@ abastecimento além de respeitar as leituras das linhas. Nesta parte, esta expan
 pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a "aplica e aprova"), no merge
 da PR #289 (§4).
 
+**Expansão autorizada pelo proprietário (D-PROD-207):** **Lançamento de Atividades — mão de obra e serviço de
+terceiro** (página `LancamentoAtividades`, Fatia 4, e as telas de cadastro `Funcionarios` e `Servicos`). Entram dois
+**cadastros mínimos por fazenda**: **Funcionário** (nome, cargo, tipo `MENSALISTA | DIARISTA | TAREFEIRO`, custo por
+hora e por diária, opcionais) e **Serviço** (nome, unidade de medida do cadastro existente, centro de custo padrão e
+valor de referência, opcionais). O funcionário é cadastro próprio, nunca uma conta de acesso (`Usuario`). O apontamento
+recebe a **linha de mão de obra** (funcionário, hora, diária ou tarefa, quantidade e custo) e a **linha de serviço**
+(serviço, quantidade, unidade e valor), como **custo da atividade**: o custo da hora ou da diária é copiado do cadastro
+na linha como snapshot, e o da tarefa e o valor do serviço são digitados. O **parceiro prestador** (cadastro de
+Parceiros, papel `prestador_servico`) é só uma **referência** opcional na linha de serviço. Continua **fora**: folha de
+pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título ou conta a pagar a partir da
+linha, rateio e contrato de serviço. Cadastro e linha nunca são apagados: o cadastro só é inativado, e a linha só é
+cancelada (editar é cancelar e lançar de novo). Nesta parte, esta expansão supera o trecho "fornecedor na linha" da
+lista "fora" da D-PROD-202, só para o parceiro prestador como referência na linha de serviço. Texto redigido pelo
+agente e **aprovado pelo proprietário em 2026-11-15 ("Aplica e aprova")**, no merge da PR #294 (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

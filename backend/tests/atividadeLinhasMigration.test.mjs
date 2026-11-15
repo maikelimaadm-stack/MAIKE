@@ -12,10 +12,10 @@
  * o lote e o usuário do outro cliente. Os bancos do teste são cópias dele (CREATE DATABASE … TEMPLATE).
  *
  * O portão: o classificador diz EXPAND (sem violação, as 3 tabelas e as 2 colunas), o arquivo é o pinado e a
- * conferência do histórico do alvo vê só esta (e a D-PROD-203, abaixo) pendente, sem CONTRACT a autorizar.
+ * conferência do histórico do alvo vê só esta (e a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-207, abaixo) pendente, sem CONTRACT a autorizar.
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`) com a conferência de alvo exigida e SEM
- * MIGRATION_CONTRACT_AUTORIZADO (EXPAND não pede): 54/0, 87 tabelas (55/0 e 90 com a D-PROD-203, abaixo), RLS sem FORCE nas 3, a política do backend e
+ * MIGRATION_CONTRACT_AUTORIZADO (EXPAND não pede): 54/0, 87 tabelas (58/0 e 95 com a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-207, abaixo), RLS sem FORCE nas 3, a política do backend e
  * nenhum grant para anon/authenticated, as 2 colunas DECIMAL(14,4) anuláveis sem DEFAULT (o bem e o tipo de antes com
  * NULL), as constraints e os índices das outras tabelas intactos, `migrate diff` vazio e o postcheck do runbook
  * APLICADA. Depois: os CHECKs (status, valores, medidor, implemento ≠ bem, estorno ≠ saída), as FKs compostas pelo
@@ -39,14 +39,20 @@
  * banco do runner passam a 56 / 0 e 91.
  *
  * D-PROD-206: a EXPAND `20261115200000_formulacao_faixa_tolerancia` (1 coluna anulável em CADFORMULACAO), de nome
- * ainda posterior, também: fora da partida, sobe no GREEN por último. As contagens no banco do runner passam a
- * 57 / 0 e 91.
+ * ainda posterior, também: fora da partida, sobe no GREEN depois da D-PROD-205. As contagens no banco do runner
+ * passam a 57 / 0 e 91.
  *
- * D-PROD-207: a CONTRACT `20261115300000_formulacao_base_consumo` (base do consumo na Formulação), de nome ainda
+ * D-PROD-207: a EXPAND `20261115900000_atividade_mao_obra_servico` (os cadastros Funcionario e Servico e as linhas de
+ * mão de obra e de serviço do apontamento: 4 tabelas novas, nenhuma coluna em tabela antiga), de nome posterior à da
+ * D-PROD-206, também não existia no dia desta: fica fora da partida e sobe nos mesmos GREEN, por último (pela ordem
+ * dos nomes; EXPAND, sem autorização). No banco do runner as duas linhas de contagem ficam 58 / 0 e 95.
+ *
+ * D-PROD-208: a CONTRACT `20261116000000_formulacao_base_consumo` (base do consumo na Formulação), de nome ainda
  * posterior. O runner com a conferência exigida não aplica CONTRACT sem a decisão exata, e ela altera as 3 tabelas das
  * Formulações: por isso, logo antes do runner do LM-03, ela sobe FORA DE ORDEM pelo Prisma direto, junto com a EXPAND
- * das Formulações (D-PROD-203) de que depende (vazias aqui). O runner aplica esta, a D-PROD-205 e a D-PROD-206; no
- * caminho B (alvo local) o runner depois do envelope aplica todas as posteriores, a D-PROD-207 por último: 58 / 0 e 91.
+ * das Formulações (D-PROD-203) de que depende (vazias aqui). O runner aplica esta, a D-PROD-205, a D-PROD-206 e a
+ * D-PROD-207; no caminho B (alvo local) o runner depois do envelope aplica todas as posteriores, a D-PROD-208 por
+ * último: 59 / 0 e 95.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -89,12 +95,23 @@ const TABELAS_FORMULACOES = Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGRED
 /** Constraints, índices e políticas das 3 tabelas das Formulações (só nos bancos em que o runner as aplicou). */
 /** D-PROD-205: a EXPAND da Leitura de cocho, de nome ainda posterior (ver o cabeçalho). */
 const NOME_LEITURA = '20261115100000_leitura_cocho';
-/** D-PROD-206: a EXPAND da faixa de tolerância, a de nome mais posterior (ver o cabeçalho). */
+/** D-PROD-206: a EXPAND da faixa de tolerância, de nome posterior à da Leitura de cocho (ver o cabeçalho). */
 const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
-/** D-PROD-207: a CONTRACT da base do consumo; sobe fora de ordem com a D-PROD-203 antes do runner (ver o cabeçalho). */
-const NOME_BASE = '20261115300000_formulacao_base_consumo';
 const TABELAS_POSTERIORES = Object.freeze([...TABELAS_FORMULACOES, 'LEITURACOCHO']);
 const daFormulacao = (l) => /^(CADFORMULACAO|LEITURACOCHO)/.test(l);
+/** D-PROD-207: a EXPAND da mão de obra e do serviço, de nome posterior; não existia no dia desta (ver o cabeçalho). */
+const NOME_MAO_OBRA = '20261115900000_atividade_mao_obra_servico';
+/** D-PROD-208: a CONTRACT da base do consumo; sobe fora de ordem com a D-PROD-203 antes do runner (ver o cabeçalho). */
+const NOME_BASE = '20261116000000_formulacao_base_consumo';
+const NOVAS_MAO_OBRA = Object.freeze(['AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico']);
+/** Constraints, índices ou `tabela:política` das 4 tabelas da D-PROD-207. */
+const DA_MAO_OBRA = /^(Funcionario|Servico|AtividadeApontamento(MaoObra|Servico))[_:]/;
+/** Das EXPAND posteriores (D-PROD-203, D-PROD-205, D-PROD-206 e D-PROD-207): constraint, índice, `tabela:política` ou tabela. */
+const dasPosteriores = (l) => daFormulacao(l) || DA_MAO_OBRA.test(l) || NOVAS_MAO_OBRA.includes(l);
+/** Migrations concluídas na ordem REAL de aplicação (finished_at). */
+const ordemDeAplicacao = async (db) =>
+  (await db.$queryRawUnsafe(`SELECT migration_name AS n FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+                              ORDER BY finished_at, started_at, migration_name`)).map((x) => x.n);
 const COLUNAS = Object.freeze([['BemPatrimonial', 'custo_uso_unitario'], ['TipoPatrimonial', 'salto_maximo_medidor']]);
 
 /** O runbook desta release: os blocos SQL rodam como estão, com o system_identifier local no lugar do de produção. */
@@ -314,8 +331,8 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.equal(ANTERIORES.length, 53, 'produção hoje: 53 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     // D-PROD-203 (ver o cabeçalho): só a EXPAND das Formulações tem nome posterior a esta, e fica fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME), [NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE], 'só as EXPAND da D-PROD-203, da D-PROD-205 e da D-PROD-206 e a CONTRACT da D-PROD-207 têm nome posterior a esta');
-    assert.equal(TOTAL_MIGRATIONS, 58);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME), [NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_BASE], 'só as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 e a CONTRACT da D-PROD-208 têm nome posterior a esta');
+    assert.equal(TOTAL_MIGRATIONS, 59);
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [53, 0, 0]);
     const tabelas = partida.tabelas.split(',');
@@ -339,7 +356,7 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.deepEqual(await retrato(db), partida, 'o preflight só lê');
   });
 
-  test('LM-02 o portão: o classificador diz EXPAND sem violação (as 3 tabelas e as 2 colunas), o arquivo é o pinado, sem entrada CONTRACT; o histórico real da partida confere com só esta (e, depois dela, a EXPAND da D-PROD-203) pendente e nenhum CONTRACT a autorizar', async () => {
+  test('LM-02 o portão: o classificador diz EXPAND sem violação (as 3 tabelas e as 2 colunas), o arquivo é o pinado, sem entrada CONTRACT; o histórico real da partida confere com só esta (e, depois dela, as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207) pendente e nenhum CONTRACT a autorizar', async () => {
     const c = classificarMigrations([{ nome: NOME, sql: SQL_MIGRATION }]);
     assert.deepEqual(c.violacoes, []);
     assert.deepEqual([c.ok, c.expand, c.modo], [true, true, 'EXPAND']);
@@ -353,13 +370,13 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     const linhas = await db.$queryRawUnsafe('SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations');
     const locais = PASTAS.map((n) => ({ nome: n, checksum: createHash('sha256').update(readFileSync(join(MIGRATIONS, n, 'migration.sql'), 'utf8')).digest('hex') }));
     const h = conferirHistoricoRemoto({ locais, linhas });
-    assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE], falhas: [] });
-    // Esta é EXPAND; a única CONTRACT pendente na pasta real é a D-PROD-207, posterior (sobe fora de ordem no LM-03).
-    assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), [{ nome: NOME_BASE, decisao: 'D-PROD-207' }]);
+    assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_BASE], falhas: [] });
+    // Esta é EXPAND; a única CONTRACT pendente na pasta real é a D-PROD-208, posterior (sobe fora de ordem no LM-03).
+    assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), [{ nome: NOME_BASE, decisao: 'D-PROD-208' }]);
   });
 
-  test('LM-03 GREEN pelo runner oficial (alvo conferido, SEM MIGRATION_CONTRACT_AUTORIZADO): esta e depois a EXPAND da D-PROD-203, 55/0, 87 tabelas mais as 3 das Formulações, RLS sem FORCE e a política nas 3, nenhum grant público, as 2 colunas DECIMAL(14,4) anuláveis sem DEFAULT (o bem e o tipo de antes com NULL), o resto intacto e migrate diff vazio', async () => {
-    // D-PROD-207 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, com as Formulações (D-PROD-203) de que depende.
+  test('LM-03 GREEN pelo runner oficial (alvo conferido, SEM MIGRATION_CONTRACT_AUTORIZADO): esta e depois as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207, 58/0, 87 tabelas mais as 3 das Formulações, a LEITURACOCHO e as 4 da mão de obra e do serviço, RLS sem FORCE e a política nas 3, nenhum grant público, as 2 colunas DECIMAL(14,4) anuláveis sem DEFAULT (o bem e o tipo de antes com NULL), o resto intacto e migrate diff vazio', async () => {
+    // D-PROD-208 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, com as Formulações (D-PROD-203) de que depende.
     await aplicarAnteriores(URL_T, [...ANTERIORES, NOME_FORMULACOES, NOME_BASE]);
     const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID } });
     assert.equal(r.status, 0, r.saida);
@@ -368,6 +385,9 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.ok(!r.saida.includes(`Applying migration \`${NOME_FORMULACOES}\``) && !r.saida.includes(`Applying migration \`${NOME_BASE}\``), r.saida);
     assert.ok(r.saida.indexOf(`Applying migration \`${NOME}\``) < r.saida.indexOf(`Applying migration \`${NOME_LEITURA}\``), 'esta antes da D-PROD-205');
     assert.ok(r.saida.indexOf(`Applying migration \`${NOME_LEITURA}\``) < r.saida.indexOf(`Applying migration \`${NOME_FAIXA}\``), 'a D-PROD-205 antes da D-PROD-206');
+    // D-PROD-207: a EXPAND da mão de obra e do serviço sobe por último.
+    assert.ok(r.saida.includes(`Applying migration \`${NOME_MAO_OBRA}\``), r.saida);
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-4), [NOME, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA]);
     assert.doesNotMatch(r.saida, /CONTRACT autorizado/);
     assert.ok(!vazou(r.saida, URL_T));
 
@@ -378,9 +398,10 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
 
     const depois = await retrato(db);
     const tabelas = depois.tabelas.split(',');
-    // 84 + as 3 desta = 87; + as 3 das Formulações (D-PROD-203) e a LEITURACOCHO (D-PROD-205), aplicadas depois = 91.
-    assert.equal(tabelas.length, 91);
-    assert.deepEqual(tabelas.filter((t) => !TABELAS_POSTERIORES.includes(t)), [...partida.tabelas.split(','), ...NOVAS].sort());
+    // 84 + as 3 desta = 87; + as 3 das Formulações (D-PROD-203) e a LEITURACOCHO (D-PROD-205), aplicadas depois = 91;
+    // + as 4 da D-PROD-207 = 95.
+    assert.equal(tabelas.length, 95);
+    assert.deepEqual(tabelas.filter((t) => !TABELAS_POSTERIORES.includes(t)), [...partida.tabelas.split(','), ...NOVAS, ...NOVAS_MAO_OBRA].sort());
     for (const t of TABELAS_POSTERIORES) assert.ok(tabelas.includes(t), t);
     // RLS ligado, sem FORCE, e a política do backend quando o papel existe; nenhum grant para anon/authenticated.
     const rls = await db.$queryRawUnsafe(`SELECT relname::text AS t, relrowsecurity AS rls, relforcerowsecurity AS forcar FROM pg_class
@@ -406,11 +427,11 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.ok(colunasAntes.every((c) => depois.colunas.split(',').includes(c)), 'as colunas de antes continuam iguais');
     assert.deepEqual(depois.colunas.split(',').filter((c) => !colunasAntes.includes(c)), COLUNAS.map(([t, c]) => `${t}.${c}:numeric:YES`));
     // As da D-PROD-203 (todas com nome começando por CADFORMULACAO) ficam fora: são da release seguinte.
-    const novasConstraints = depois.constraints.split('\n').filter((c) => !partida.constraints.split('\n').includes(c) && !daFormulacao(c));
+    const novasConstraints = depois.constraints.split('\n').filter((c) => !partida.constraints.split('\n').includes(c) && !dasPosteriores(c));
     assert.ok(partida.constraints.split('\n').every((c) => depois.constraints.split('\n').includes(c)), 'nenhuma constraint antiga mudou');
     assert.deepEqual(novasConstraints, dasNovas(depois.constraints));
     assert.equal(novasConstraints.length, 3 + 9 + 17, '3 pkeys, 9 CHECKs e 17 FKs');
-    const novosIndices = depois.indices.split('\n').filter((i) => !partida.indices.split('\n').includes(i) && !daFormulacao(i));
+    const novosIndices = depois.indices.split('\n').filter((i) => !partida.indices.split('\n').includes(i) && !dasPosteriores(i));
     assert.ok(partida.indices.split('\n').every((i) => depois.indices.split('\n').includes(i)), 'nenhum índice antigo mudou');
     assert.deepEqual(novosIndices, dasNovas(depois.indices));
     assert.equal(novosIndices.length, 3 + 20, '3 pkeys e 20 índices');
@@ -420,12 +441,12 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.equal(diff.status, 0, diff.saida);
   });
 
-  test('LM-04 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-203, posterior, muda (55 / 0 e 90 tabelas); o preflight agora manda parar', async () => {
+  test('LM-04 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-207, posteriores, mudam (58 / 0 e 95 tabelas); o preflight agora manda parar', async () => {
     const pos = quadro(await consulta(URL_T, comSidLocal(blocoDoRunbook('postcheck'), SID)));
-    // O postcheck foi escrito para o dia desta (54 / 0, 87 tabelas); aqui a EXPAND da D-PROD-203 também está aplicada
+    // O postcheck foi escrito para o dia desta (54 / 0, 87 tabelas); aqui as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 também estão aplicadas
     // (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03) antes do runner.
-    const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '91' };
-    assert.equal(TOTAL_MIGRATIONS, 58);
+    const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '95' };
+    assert.equal(TOTAL_MIGRATIONS, 59);
     for (const [item, v] of Object.entries(pos)) {
       if (item === 'VEREDITO') continue;
       if (item in CONTAGENS) assert.deepEqual([v.valor, v.status], [CONTAGENS[item], 'PARAR'], item);
@@ -613,7 +634,7 @@ describe('D-PROD-202 — caminho B do runbook (uma transação pelo conector), n
     assert.deepEqual(await retrato(dbB), partidaB);
   });
 
-  test('TB-03 GREEN: preflight PRONTO; o envelope aplica numa transação (53 → 54, checksum = SHA-256 do arquivo, applied_steps_count 1); o mesmo schema do runner; postcheck APLICADA; o runner não vê esta pendente (só aplica a EXPAND da D-PROD-203) e depois nada pende; migrate diff vazio', async () => {
+  test('TB-03 GREEN: preflight PRONTO; o envelope aplica numa transação (53 → 54, checksum = SHA-256 do arquivo, applied_steps_count 1); o mesmo schema do runner; postcheck APLICADA; o runner não vê esta pendente (só aplica as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207) e depois nada pende; migrate diff vazio', async () => {
     const pre = quadro(await consulta(URL_B, comSidLocal(blocoDoRunbook('preflight'), SID)));
     assert.match(pre.VEREDITO.valor, /^PRONTO PARA APLICAR/);
     assert.match(quadro(await consulta(URL_B, comSidLocal(blocoDoRunbook('postcheck'), SID))).VEREDITO.valor, /^PARAR/, 'antes de aplicar, o postcheck manda parar');
@@ -626,25 +647,27 @@ describe('D-PROD-202 — caminho B do runbook (uma transação pelo conector), n
     assert.deepEqual(linha, { checksum: CHECKSUM, passos: 1, logs: null, concluida: true });
 
     // O mesmo schema que o runner deixou no outro banco (tabelas, constraints e índices das novas, políticas e as colunas),
-    // fora as 3 das Formulações (D-PROD-203), que lá o runner aplicou depois desta.
+    // fora as 3 das Formulações (D-PROD-203) e as 4 da mão de obra e do serviço (D-PROD-207), que lá o runner aplicou depois desta.
     const b = await retrato(dbB);
     const t = await retrato(db);
-    const semFormulacoes = (lista) => lista.split(',').filter((x) => !daFormulacao(x)).join(',');
+    const semFormulacoes = (lista) => lista.split(',').filter((x) => !dasPosteriores(x)).join(',');
     assert.deepEqual([b.tabelas, dasNovas(b.constraints), dasNovas(b.indices), b.politicas, b.colunas], [semFormulacoes(t.tabelas), dasNovas(t.constraints), dasNovas(t.indices), semFormulacoes(t.politicas), t.colunas]);
 
     const pos = quadro(await consulta(URL_B, comSidLocal(blocoDoRunbook('postcheck'), SID)));
     for (const [item, v] of Object.entries(pos)) if (item !== 'VEREDITO') assert.ok(['OK', 'CONFIRA'].includes(v.status), `${item}: ${v.status} (${v.valor})`);
     assert.match(pos.VEREDITO.valor, /^APLICADA E CONFERIDA/);
 
-    // O registro manual vale para o Prisma: o runner não reaplica esta; só aplica a de nome posterior, a EXPAND da
-    // D-PROD-203 (não existia no dia desta, ver o cabeçalho), e o schema bate com o schema.prisma; a 2ª execução já não
-    // vê pendência.
+    // O registro manual vale para o Prisma: o runner não reaplica esta; só aplica as de nome posterior, as EXPAND da
+    // D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 (não existiam no dia desta, ver o cabeçalho), e o schema bate com o schema.prisma; a 2ª
+    // execução já não vê pendência.
     const runner = await aplicarPeloRunner(URL_B);
     assert.equal(runner.status, 0, runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_FORMULACOES}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_LEITURA}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_FAIXA}\``), runner.saida);
+    assert.ok(runner.saida.includes(`Applying migration \`${NOME_MAO_OBRA}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_BASE}\``), runner.saida);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-6), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_BASE]);
     assert.ok(!runner.saida.includes(`Applying migration \`${NOME}\``), runner.saida);
     const segunda = await aplicarPeloRunner(URL_B);
     assert.equal(segunda.status, 0, segunda.saida);

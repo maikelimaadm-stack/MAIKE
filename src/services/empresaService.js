@@ -73,6 +73,9 @@ const ROTULO_VINCULO = Object.freeze({
   Formulacao: 'formulações',
   FormulacaoIngrediente: 'ingredientes de formulações',
   FormulacaoRegraCategoria: 'regras de formulações',
+  // D-PROD-207 — cadastros da Fatia 4 do Lançamento de Atividades.
+  Funcionario: 'funcionários',
+  Servico: 'serviços',
 });
 
 /**

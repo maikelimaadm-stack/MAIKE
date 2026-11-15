@@ -304,7 +304,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   // D-PROD-203: consumo esperado por %PV da FORMULAÇÃO, lote a lote (regra da categoria ou o padrão;
   // categoria que não consome entra com 0; lote sem peso usa a média ponderada dos lotes com peso).
-  // D-PROD-207: na base G_CAB_DIA a meta é fixa por cabeça (gramas da regra da categoria, senão o padrão), sem
+  // D-PROD-208: na base G_CAB_DIA a meta é fixa por cabeça (gramas da regra da categoria, senão o padrão), sem
   // peso e sem %PV; o esperado em kg/dia continua em `consumo_esperado_pv_kg` (a taxa que o nível do cocho lê).
   const baseConsumo = baseDoConsumo(formulacaoSelecionada);
   const baseEmGramas = baseConsumo === "G_CAB_DIA";
@@ -576,7 +576,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         consumo_esperado_pv_kg: consumoEsperadoGrupoDiaPV > 0 ? consumoEsperadoGrupoDiaPV : null,
         // %PV padrão da formulação; as exceções por categoria ficam em cada lote (percentual_pv_lote).
         percentual_consumo_pv_usado: pctPV > 0 ? pctPV : null,
-        // D-PROD-207: a base do consumo da formulação e, na base G_CAB_DIA, a meta em gramas por cabeça por dia
+        // D-PROD-208: a base do consumo da formulação e, na base G_CAB_DIA, a meta em gramas por cabeça por dia
         // (média ponderada das cabeças que consomem; as exceções por categoria ficam em cada lote, g_cab_dia_lote).
         base_consumo: formulacaoSelecionada ? baseConsumo : null,
         consumo_esperado_g_cab_dia: baseEmGramas && consumoPV.gCabDiaEsperado ? Number(consumoPV.gCabDiaEsperado.toFixed(2)) : null,
@@ -607,7 +607,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           peso_medio_lote_kg: pesoMedioLote || null,
           // D-PROD-203: %PV deste lote (regra da categoria ou o padrão; 0 = não consome) e o esperado dele.
           percentual_pv_lote: doLote && !baseEmGramas ? doLote.percentualPV : null,
-          // D-PROD-207: gramas por cabeça por dia deste lote na base G_CAB_DIA (0 = não consome).
+          // D-PROD-208: gramas por cabeça por dia deste lote na base G_CAB_DIA (0 = não consome).
           g_cab_dia_lote: doLote && baseEmGramas ? doLote.gCabDia : null,
           consumo_esperado_pv_lote_kg: consumoEsperadoLotePV,
           data_lancamento: formData.data_lancamento,
@@ -866,7 +866,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               );
             })()}
 
-            {/* D-PROD-207: painel da base g/cab/dia — meta fixa por cabeça, sem peso. */}
+            {/* D-PROD-208: painel da base g/cab/dia — meta fixa por cabeça, sem peso. */}
             {baseEmGramas && consumoPV.cabecasConsomem > 0 && consumoEsperadoGrupoDiaPV > 0 && (
               <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1" data-testid="suplementacao-painel-g">
                 <div className="text-xs font-semibold text-slate-900">Consumo esperado em g/cab/dia da formulação</div>
@@ -1039,7 +1039,7 @@ export function erroDeDataDoLancamento({ dataLancamento, dataFimAnterior, ultima
 /**
  * D-PROD-201 — de onde vem o peso do consumo por %PV e o aviso de cabeças sem
  * peso (elas não entram na média; antes entravam como 0 kg).
- * D-PROD-207: na base g/cab/dia a meta não usa peso — o aviso de falta de peso não aparece.
+ * D-PROD-208: na base g/cab/dia a meta não usa peso — o aviso de falta de peso não aparece.
  * @param {{ resumo: ReturnType<typeof resumoPesoDosLotes>, totalCabecas: number, baseEmGramas?: boolean }} props
  */
 function AvisoPesoDoRebanho({ resumo, totalCabecas, baseEmGramas = false }) {

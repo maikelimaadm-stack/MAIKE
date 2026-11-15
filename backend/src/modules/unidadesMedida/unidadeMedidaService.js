@@ -11,6 +11,11 @@
  * (snapshot do tipo): a FK RESTRICT da `Atividade` barra, reconhecida pelo nome
  * (`shared/errors/vinculoAtividade.js`; este módulo não consulta `Atividade`),
  * e vira o mesmo 409 com `details.vinculo = 'atividade'`.
+ *
+ * D-PROD-207 — o mesmo para a unidade de medida de um SERVIÇO (cadastro da
+ * Fatia 4): a FK RESTRICT do `Servico` barra, reconhecida pelo nome
+ * (`shared/errors/vinculoServico.js`; este módulo não consulta `Servico`), e vira
+ * o mesmo 409 com `details.vinculo = 'servico'`.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -20,6 +25,7 @@ import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoServi
 import { unidadeMedidaDeleteBlocked, unidadeMedidaNotFound, unidadeMedidaSiglaConflito } from '../../shared/errors/AppError.js';
 import { vinculoComAtividade } from '../../shared/errors/vinculoAtividade.js';
 import { vinculoComTipoAtividadePadrao } from '../../shared/errors/vinculoTipoAtividadePadrao.js';
+import { vinculoComServico } from '../../shared/errors/vinculoServico.js';
 import {
   listarUnidades,
   listarUnidadesPagina,
@@ -235,6 +241,10 @@ export const excluir = async (contexto, id) => {
       }
       if (vinculoComAtividade(erro)?.campo === 'unidade_producao_id') {
         throw unidadeMedidaDeleteBlocked(undefined, { cause: erro, details: { vinculo: 'atividade' } });
+      }
+      // D-PROD-207: a FK da unidade de medida do serviço.
+      if (vinculoComServico(erro)?.campo === 'unidade_medida_id') {
+        throw unidadeMedidaDeleteBlocked(undefined, { cause: erro, details: { vinculo: 'servico' } });
       }
       throw erro;
     }

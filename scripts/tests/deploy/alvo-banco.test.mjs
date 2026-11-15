@@ -86,7 +86,7 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     env: { MIGRATION_DATABASE_URL: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID },
     conferir: async () => ({ ok: true, falhas: [], resumo: 'banco=postgres' }),
     resolverRuntime: async () => REMOTO,
-    // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197, D-PROD-200 e D-PROD-207: alvo já com as oito CONTRACT
+    // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197, D-PROD-200 e D-PROD-208: alvo já com as oito CONTRACT
     // concluídas (a barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17, B18 e B19). Sem alguma
     // das linhas, a CONTRACT pendente recusaria por conta própria.
     lerHistorico: async () => [
@@ -97,8 +97,8 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261114200000_cadcategoria_curva_ganho', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261114300000_tipo_atividade_defaults', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261114500000_atividade_cabecalho', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
-      // D-PROD-207: a oitava CONTRACT (base do consumo na Formulação), B20 em migrations.test.mjs.
-      { migration_name: '20261115300000_formulacao_base_consumo', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-208: a oitava CONTRACT (base do consumo na Formulação), B20 em migrations.test.mjs.
+      { migration_name: '20261116000000_formulacao_base_consumo', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},

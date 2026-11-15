@@ -26,7 +26,13 @@
  *    relido depois de cada escrita;
  *  - "Repetir último lançamento": as linhas da base preenchidas (leitura
  *    sugerida de novo) e UM POST com `produtos[]` e `maquinas[]`;
- *  - paridade das allowlists das linhas com os schemas fechados do servidor.
+ *  - paridade das allowlists das linhas com os schemas fechados do servidor;
+ *  - Fatia 4 (docs/engineering/MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md §3 a §7):
+ *    os blocos "Mão de obra" e "Serviços" só com `permite_mao_obra` /
+ *    `permite_servico`; adicionar, editar e cancelar; custo da hora/diária
+ *    vindo do cadastro × custo da tarefa digitado; serviço com o valor de
+ *    referência pré-preenchido e o parceiro opcional (só prestadores);
+ *    totalizador e "Repetir" com as linhas novas; allowlists da porta.
  */
 import React from "react";
 import { readFileSync } from "node:fs";
@@ -86,7 +92,19 @@ const permissaoCom = (acoes) => ({
 const TIPOS = [
   { id: "t1", nome_tipo: "APLICAÇÃO", grupo_atividade_id: "g1", ativo: true, exige_maquina: true, permite_produto: true, permite_implemento: true },
   { id: "t2", nome_tipo: "ROÇADA", grupo_atividade_id: "g1", ativo: true, permite_produto: false, permite_implemento: false },
+  { id: "t3", nome_tipo: "COLHEITA MANUAL", grupo_atividade_id: "g1", ativo: true, permite_produto: false, permite_implemento: false, permite_mao_obra: true, permite_servico: true },
 ];
+// Fatia 4: cadastros de funcionário, serviço e parceiro prestador (as opções da tela).
+const FUNCIONARIOS = [
+  { id: "f1", numero: "1", nome: "José Silva", cargo: "Tratorista", tipo: "MENSALISTA", custo_hora: "20.0000", custo_diaria: "160.0000" },
+  { id: "f2", numero: "2", nome: "Ana Souza", cargo: "Colhedora", tipo: "TAREFEIRO", custo_hora: null, custo_diaria: null },
+  { id: "f3", numero: "3", nome: "Pedro Lima", cargo: null, tipo: "DIARISTA", custo_hora: null, custo_diaria: "150.0000" },
+];
+const SERVICOS = [
+  { id: "s1", numero: "1", nome: "Frete", unidade: "KM", valor_referencia: "5.0000" },
+  { id: "s2", numero: "2", nome: "Roçada terceirizada", unidade: "HA", valor_referencia: null },
+];
+const PARCEIROS = [{ id: "pp1", nome: "Transportes Silva" }];
 const TRATOR = { id: "b1", numero: "2", codigo_frota: "TP-02", nome: "Trator", natureza: "MAQUINA" };
 const CAMINHAO = { id: "b2", numero: "5", codigo_frota: "CM-01", nome: "Caminhão", natureza: "VEICULO" };
 const GRADE = { id: "i1", numero: "9", codigo_frota: "GR-01", nome: "Grade", natureza: "IMPLEMENTO" };
@@ -187,6 +205,45 @@ const linhaMaquina = (/** @type {Record<string, any>} */ extra) => ({
   createdAt: "2026-11-12T10:00:00.000Z",
   ...extra,
 });
+const linhaMaoObra = (/** @type {Record<string, any>} */ extra) => ({
+  id: "mo1",
+  ordem: 1,
+  status: "CONFIRMADO",
+  funcionario_id: "f1",
+  funcionario: { id: "f1", numero: "1", nome: "José Silva", cargo: "Tratorista", tipo: "MENSALISTA", custo_hora: "20.0000", custo_diaria: "160.0000" },
+  tipo_medida: "HORA",
+  quantidade: "8.0000",
+  custo_unitario: "20.0000",
+  custo_total: "160.0000",
+  observacao: null,
+  cancelado_em: null,
+  cancelado_por: null,
+  motivo_cancelamento: null,
+  cancelamento_origem: null,
+  createdAt: "2026-11-12T10:00:00.000Z",
+  ...extra,
+});
+const linhaServico = (/** @type {Record<string, any>} */ extra) => ({
+  id: "sv1",
+  ordem: 1,
+  status: "CONFIRMADO",
+  servico_id: "s1",
+  servico: { id: "s1", numero: "1", nome: "Frete" },
+  fornecedor_parceiro_id: "pp1",
+  fornecedor_parceiro: { id: "pp1", nome: "Transportes Silva" },
+  quantidade: "10.0000",
+  unidade: "KM",
+  valor_unitario: "5.0000",
+  valor_total: "50.0000",
+  documento_referencia: "NF 77",
+  observacao: null,
+  cancelado_em: null,
+  cancelado_por: null,
+  motivo_cancelamento: null,
+  cancelamento_origem: null,
+  createdAt: "2026-11-12T10:00:00.000Z",
+  ...extra,
+});
 const apontamento = (/** @type {Record<string, any>} */ extra) => ({
   id: "ap1",
   empresa_id: "emp-1",
@@ -208,6 +265,8 @@ const apontamento = (/** @type {Record<string, any>} */ extra) => ({
   createdAt: "2026-11-12T10:00:00.000Z",
   produtos: [],
   maquinas: [],
+  mao_obra: [],
+  servicos: [],
   ...extra,
 });
 
@@ -272,6 +331,49 @@ const novaLinhaMaquina = (/** @type {any} */ b, /** @type {any} */ ap) => {
     createdAt: AGORA.toISOString(),
   });
 };
+const novaLinhaMaoObra = (/** @type {any} */ b, /** @type {any} */ ap, /** @type {any} */ anterior = null) => {
+  proximoId += 1;
+  const f = FUNCIONARIOS.find((x) => x.id === b.funcionario_id);
+  const q = Number(b.quantidade);
+  // Hora e diária: o custo do cadastro (snapshot) — na edição sem trocar funcionário nem medida, o snapshot gravado
+  // fica; tarefa: o do corpo.
+  const mantem = anterior && anterior.funcionario_id === b.funcionario_id && anterior.tipo_medida === b.tipo_medida;
+  const cu =
+    b.tipo_medida === "TAREFA" ? b.custo_unitario : mantem ? anterior.custo_unitario : b.tipo_medida === "DIARIA" ? f?.custo_diaria : f?.custo_hora;
+  return linhaMaoObra({
+    id: `mo-n${proximoId}`,
+    ordem: (ap.mao_obra?.length ?? 0) + 1,
+    funcionario_id: b.funcionario_id,
+    funcionario: { id: b.funcionario_id, numero: f?.numero, nome: f?.nome, cargo: f?.cargo ?? null, tipo: f?.tipo, custo_hora: f?.custo_hora ?? null, custo_diaria: f?.custo_diaria ?? null },
+    tipo_medida: b.tipo_medida,
+    quantidade: t4(q),
+    custo_unitario: cu != null ? t4(Number(cu)) : null,
+    custo_total: cu != null ? t4(q * Number(cu)) : null,
+    observacao: b.observacao ?? null,
+    createdAt: AGORA.toISOString(),
+  });
+};
+const novaLinhaServico = (/** @type {any} */ b, /** @type {any} */ ap) => {
+  proximoId += 1;
+  const sv = SERVICOS.find((x) => x.id === b.servico_id);
+  const parceiro = PARCEIROS.find((x) => x.id === b.fornecedor_parceiro_id) ?? null;
+  const q = Number(b.quantidade);
+  return linhaServico({
+    id: `sv-n${proximoId}`,
+    ordem: (ap.servicos?.length ?? 0) + 1,
+    servico_id: b.servico_id,
+    servico: { id: b.servico_id, numero: sv?.numero, nome: sv?.nome },
+    fornecedor_parceiro_id: parceiro?.id ?? null,
+    fornecedor_parceiro: parceiro,
+    quantidade: t4(q),
+    unidade: sv?.unidade,
+    valor_unitario: t4(Number(b.valor_unitario)),
+    valor_total: t4(q * Number(b.valor_unitario)),
+    documento_referencia: b.documento_referencia ?? null,
+    observacao: b.observacao ?? null,
+    createdAt: AGORA.toISOString(),
+  });
+};
 const cancelada = (/** @type {any} */ l, /** @type {string} */ origem, /** @type {string|null} */ motivo) => ({
   ...l,
   status: "CANCELADO",
@@ -288,6 +390,10 @@ const totaisDe = (id) => {
   const prods = new Map();
   /** @type {Map<string, any>} */
   const maqs = new Map();
+  /** @type {Map<string, any>} */
+  const mos = new Map();
+  /** @type {Map<string, any>} */
+  const svs = new Map();
   let custo = 0;
   let area = 0;
   for (const a of aps) {
@@ -306,6 +412,22 @@ const totaisDe = (id) => {
       maqs.set(l.bem_id, t);
       custo += Number(l.custo_total ?? 0);
     }
+    for (const l of (a.mao_obra ?? []).filter((/** @type {any} */ x) => x.status === "CONFIRMADO")) {
+      const k = `${l.funcionario_id}-${l.tipo_medida}`;
+      const t = mos.get(k) ?? { funcionario_id: l.funcionario_id, nome: l.funcionario.nome, tipo_medida: l.tipo_medida, q: 0, c: 0 };
+      t.q += Number(l.quantidade);
+      t.c += Number(l.custo_total ?? 0);
+      mos.set(k, t);
+      custo += Number(l.custo_total ?? 0);
+    }
+    for (const l of (a.servicos ?? []).filter((/** @type {any} */ x) => x.status === "CONFIRMADO")) {
+      const k = `${l.servico_id}-${l.unidade}`;
+      const t = svs.get(k) ?? { servico_id: l.servico_id, nome: l.servico.nome, unidade: l.unidade, q: 0, c: 0 };
+      t.q += Number(l.quantidade);
+      t.c += Number(l.valor_total);
+      svs.set(k, t);
+      custo += Number(l.valor_total);
+    }
   }
   return {
     area_executada: area ? t4(area) : null,
@@ -313,6 +435,8 @@ const totaisDe = (id) => {
     unidade_area: "ha",
     produtos: [...prods.values()].map((t) => ({ produto_id: t.produto_id, nome: t.nome, unidade: t.unidade, quantidade: t4(t.q), custo_total: t4(t.c) })),
     maquinas: [...maqs.values()].map((t) => ({ bem_id: t.bem_id, nome: t.nome, medidor_unidade: t.medidor_unidade, quantidade_uso: t4(t.u), custo_total: t4(t.c) })),
+    mao_obra: [...mos.values()].map((t) => ({ funcionario_id: t.funcionario_id, nome: t.nome, tipo_medida: t.tipo_medida, quantidade: t4(t.q), custo_total: t4(t.c) })),
+    servicos: [...svs.values()].map((t) => ({ servico_id: t.servico_id, nome: t.nome, unidade: t.unidade, quantidade: t4(t.q), custo_total: t4(t.c) })),
     custo_total: custo ? t4(custo) : null,
     custo_por_ha: custo && area ? t4(custo / area) : null,
   };
@@ -341,7 +465,15 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     const recurso = partes[1];
     if (recurso === "medidor") return { status: 200, body: MEDIDORES[String(query.get("bem_id"))] ?? {} };
     if (recurso === "locais") return { status: 200, body: { itens: LOCAIS[String(query.get("produto_id"))] ?? [] } };
-    const itens = recurso === "bens" ? [TRATOR, CAMINHAO] : recurso === "implementos" ? [GRADE] : recurso === "produtos" ? PRODUTOS : [];
+    const porRecurso = /** @type {Record<string, any[]>} */ ({
+      bens: [TRATOR, CAMINHAO],
+      implementos: [GRADE],
+      produtos: PRODUTOS,
+      funcionarios: FUNCIONARIOS,
+      servicos: SERVICOS,
+      "parceiros-servico": PARCEIROS,
+    });
+    const itens = porRecurso[recurso] ?? [];
     return { status: 200, body: { itens, has_more: false, next_cursor: null } };
   }
   if (partes[0] !== "atividades") return undefined;
@@ -370,6 +502,8 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
       });
       ap.produtos = (body.produtos ?? []).map((/** @type {any} */ p) => novaLinhaProduto(p, ap));
       ap.maquinas = (body.maquinas ?? []).map((/** @type {any} */ m) => novaLinhaMaquina(m, ap));
+      ap.mao_obra = (body.mao_obra ?? []).map((/** @type {any} */ o) => novaLinhaMaoObra(o, ap));
+      ap.servicos = (body.servicos ?? []).map((/** @type {any} */ v) => novaLinhaServico(v, ap));
       apontamentosPorAtividade.set(id, [...lista, ap]);
       return { status: 201, body: { apontamento: ap, atividade: atv, alertas: [] } };
     });
@@ -378,15 +512,17 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
   const ap = lista.find((a) => a.id === apId);
   if (!ap) return erroServidor(404, "ATIVIDADE_APONTAMENTO_NOT_FOUND");
   if (partes.length === 4 && method === "GET") return { status: 200, body: ap };
-  const tipo = partes[4];
-  if (tipo !== "produtos" && tipo !== "maquinas") return undefined;
+  const segmento = partes[4];
+  const COLECOES = /** @type {Record<string, string>} */ ({ produtos: "produtos", maquinas: "maquinas", "mao-obra": "mao_obra", servicos: "servicos" });
+  const tipo = COLECOES[segmento];
+  if (!tipo) return undefined;
   const salvar = (/** @type {any} */ novo) => {
     apontamentosPorAtividade.set(id, (apontamentosPorAtividade.get(id) ?? []).map((a) => (a.id === apId ? novo : a)));
     return novo;
   };
   // O reenvio igual (mesma operation_id) devolve o gravado ANTES do CAS; o envio novo com versão velha → 409.
   const conflito = () => (body?.versao !== ap.versao ? erroServidor(409, "ATIVIDADE_VERSAO_CONFLITO", { details: { entidade: "apontamento" } }) : null);
-  const nova = tipo === "produtos" ? novaLinhaProduto : novaLinhaMaquina;
+  const nova = /** @type {Record<string, (b: any, ap: any) => any>} */ ({ produtos: novaLinhaProduto, maquinas: novaLinhaMaquina, mao_obra: novaLinhaMaoObra, servicos: novaLinhaServico })[tipo];
   if (partes.length === 5 && method === "POST") {
     return comIdempotencia(body.operation_id, () => {
       const c = conflito();
@@ -404,7 +540,7 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
       const c = conflito();
       if (c) return c;
       const { empresa_id: _e, versao: _v, operation_id: _o, ...dados } = body;
-      const substituta = nova({ ...linha, ...dados }, ap);
+      const substituta = nova({ ...linha, ...dados }, ap, linha);
       const novo = salvar({ ...ap, versao: ap.versao + 1, [tipo]: [...ap[tipo].map((/** @type {any} */ l) => (l.id === linhaId ? cancelada(l, "EDICAO", null) : l)), substituta] });
       return { status: 200, body: { linha: substituta, linha_anterior_id: linhaId, apontamento: novo, atividade: atv } };
     });
@@ -440,6 +576,7 @@ beforeEach(async () => {
     ["a1", { ...ATV }],
     ["a2", { ...ATV, id: "a2", numero: "2", nome: "Roçada Pasto 02", tipo_atividade_id: "t2", tipo_atividade_nome: "ROÇADA", createdAt: "2026-10-30T12:00:00.000Z" }],
     ["a3", { ...ATV, id: "a3", numero: "1", nome: "Aplicação concluída", status: "CONCLUIDA", data_conclusao: "2026-11-13", createdAt: "2026-10-20T12:00:00.000Z" }],
+    ["a4", { ...ATV, id: "a4", numero: "4", nome: "Colheita Talhão 04", tipo_atividade_id: "t3", tipo_atividade_nome: "COLHEITA MANUAL", createdAt: "2026-10-29T12:00:00.000Z" }],
   ]);
   apontamentosPorAtividade = new Map([
     [
@@ -454,6 +591,20 @@ beforeEach(async () => {
     ],
     ["a2", [apontamento({ id: "ap9", atividade_id: "a2" })]],
     ["a3", [apontamento({ id: "ap5", atividade_id: "a3", produtos: [linhaProduto({ id: "pl5" })], maquinas: [linhaMaquina({ id: "ml5" })] })]],
+    [
+      "a4",
+      [
+        apontamento({
+          id: "ap7",
+          atividade_id: "a4",
+          mao_obra: [
+            linhaMaoObra({}),
+            linhaMaoObra({ id: "mo2", ordem: 2, funcionario_id: "f2", funcionario: { id: "f2", nome: "Ana Souza" }, tipo_medida: "TAREFA", quantidade: "3.0000", custo_unitario: "30.0000", custo_total: "90.0000", status: "CANCELADO", cancelado_em: "2026-11-12T12:00:00.000Z", cancelado_por: usuario("u2", "Maria"), motivo_cancelamento: "lançada em dobro", cancelamento_origem: "LINHA" }),
+          ],
+          servicos: [linhaServico({})],
+        }),
+      ],
+    ],
   ]);
   tiposSrv.listarTiposAtividade.mockResolvedValue(TIPOS);
   confirmacao.confirmar.mockResolvedValue(true);
@@ -990,5 +1141,459 @@ describe("LL-PORTA — allowlists das linhas = schemas fechados do servidor", ()
     expect(porta.montarCaminhoOpcoes("produtos", { empresa_id: "emp-1", atividade_id: "a1", q: "gli", produto_id: "x" })).toBe("/atividades-opcoes/produtos?empresa_id=emp-1&atividade_id=a1&q=gli");
     expect(porta.montarCaminhoOpcoes("locais", { empresa_id: "emp-1", produto_id: "p1", q: "x" })).toBe("/atividades-opcoes/locais?empresa_id=emp-1&produto_id=p1");
     expect(porta.montarCaminhoOpcoes("medidor", { empresa_id: "emp-1", bem_id: "b1", data: HOJE, q: "x" })).toBe(`/atividades-opcoes/medidor?empresa_id=emp-1&bem_id=b1&data=${HOJE}`);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+// Fatia 4 — mão de obra e serviço (MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md §3 a §7)
+// ═════════════════════════════════════════════════════════════════════════
+describe("LL-BLOCOS — Mão de obra e Serviços dentro do apontamento (Fatia 4)", () => {
+  it("LL-BLOCOS-4 — sem permite_mao_obra / permite_servico os blocos somem; com as flags aparecem com as linhas (a cancelada marcada) e os botões", async () => {
+    await montar();
+    await abrir("a1", "ap1");
+    for (const t of ["apontamento-ap1-mao-obra", "apontamento-ap1-servicos", "apontamento-ap1-adicionar-mao-obra", "apontamento-ap1-adicionar-servico"]) {
+      expect(screen.queryByTestId(t), t).toBeNull();
+    }
+    cleanup();
+
+    await montar();
+    await abrir("a4", "ap7");
+    // O tipo da a4 não permite produto: o bloco some; mão de obra e serviços aparecem.
+    expect(screen.queryByTestId("apontamento-ap7-produtos")).toBeNull();
+    const mo = screen.getByTestId("apontamento-ap7-mao-obra");
+    expect(within(mo).getByTestId("linha-mao-obra-mo1-nome")).toHaveTextContent("José Silva");
+    expect(within(mo).getByTestId("linha-mao-obra-mo1-quantidade")).toHaveTextContent("Hora · 8 h");
+    expect(within(mo).getByTestId("linha-mao-obra-mo1-unitario")).toHaveTextContent("R$ 20,00 cada");
+    expect(within(mo).getByTestId("linha-mao-obra-mo1-custo")).toHaveTextContent("custo R$ 160,00");
+    expect(screen.getByTestId("linha-mao-obra-mo2")).toHaveAttribute("data-status", "CANCELADO");
+    expect(screen.getByTestId("linha-mao-obra-mo2-nome")).toHaveClass("line-through");
+    expect(screen.getByTestId("linha-mao-obra-mo2-cancelamento")).toHaveTextContent("por Maria · motivo: lançada em dobro");
+    expect(screen.queryByTestId("linha-mao-obra-mo2-editar")).toBeNull();
+    const sv = screen.getByTestId("apontamento-ap7-servicos");
+    expect(within(sv).getByTestId("linha-servico-sv1-nome")).toHaveTextContent("Frete");
+    expect(within(sv).getByTestId("linha-servico-sv1-quantidade")).toHaveTextContent("10 KM");
+    expect(within(sv).getByTestId("linha-servico-sv1-parceiro")).toHaveTextContent("por Transportes Silva");
+    expect(within(sv).getByTestId("linha-servico-sv1-valor")).toHaveTextContent("valor R$ 50,00");
+    for (const t of ["apontamento-ap7-adicionar-mao-obra", "apontamento-ap7-adicionar-servico", "linha-mao-obra-mo1-editar", "linha-mao-obra-mo1-cancelar", "linha-servico-sv1-editar", "linha-servico-sv1-cancelar"]) {
+      expect(screen.getByTestId(t), t).toBeTruthy();
+    }
+    cleanup();
+
+    // Linha antiga num tipo sem a flag: continua listada, mas sem "Adicionar".
+    apontamentosPorAtividade.set("a2", [apontamento({ id: "ap9", atividade_id: "a2", mao_obra: [linhaMaoObra({ id: "mo9" })] })]);
+    await montar();
+    await abrir("a2", "ap9");
+    expect(screen.getByTestId("linha-mao-obra-mo9")).toBeTruthy();
+    expect(screen.queryByTestId("apontamento-ap9-adicionar-mao-obra")).toBeNull();
+    expect(screen.queryByTestId("apontamento-ap9-servicos")).toBeNull();
+  });
+});
+
+describe("LL-MAO-OBRA — janela da linha de mão de obra", () => {
+  it("LL-MAO-OBRA-1 — hora: medida sugerida pelo tipo (mensalista), custo da hora do cadastro (só leitura), total; o corpo NÃO leva custo", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    const totaisAntes = leiturasDosTotais("a4");
+    fireEvent.click(screen.getByTestId("apontamento-ap7-adicionar-mao-obra"));
+    const janela = await screen.findByTestId("janela-linha-mao-obra");
+    await escolherNoSeletor(janela, "linha-mao-obra-funcionario", /José Silva/);
+    expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/funcionarios")?.query).toMatchObject({ empresa_id: "emp-1" });
+    expect(within(janela).getByRole("radio", { name: "Hora" })).toHaveAttribute("aria-checked", "true");
+    expect(within(janela).getByText("Quantidade (h)")).toBeTruthy();
+    // Hora: o custo é o do cadastro e não é campo digitável.
+    expect(within(janela).getByTestId("linha-mao-obra-custo-unitario")).toHaveTextContent("R$ 20,00");
+    expect(within(janela).getByTestId("linha-mao-obra-custo-unitario").tagName).not.toBe("INPUT");
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "8" } });
+    expect(within(janela).getByTestId("linha-mao-obra-total")).toHaveTextContent("R$ 160,00");
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({
+      method: "POST",
+      path: "/atividades/a4/apontamentos/ap7/mao-obra",
+      query: {},
+      body: { empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), funcionario_id: "f1", tipo_medida: "HORA", quantidade: "8" },
+    });
+    await waitFor(() => expect(screen.queryByTestId("janela-linha-mao-obra")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Mão de obra de José Silva lançada.");
+    expect(await screen.findByTestId("linha-mao-obra-mo-n1-custo")).toHaveTextContent("custo R$ 160,00");
+    await waitFor(() => expect(leiturasDosTotais("a4")).toBeGreaterThan(totaisAntes));
+    await waitFor(() => expect(screen.getByTestId("totalizador-mao-obra-f1-HORA")).toHaveTextContent("16 h · R$ 320,00"));
+  });
+
+  it("LL-MAO-OBRA-2 — tarefa (tarefeiro): custo digitado e obrigatório, vai no corpo; diarista sugere diária; sem custo no cadastro avisa", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("apontamento-ap7-adicionar-mao-obra"));
+    const janela = await screen.findByTestId("janela-linha-mao-obra");
+    // Diarista: diária sugerida, com o custo da diária do cadastro.
+    await escolherNoSeletor(janela, "linha-mao-obra-funcionario", /Pedro Lima/);
+    expect(within(janela).getByRole("radio", { name: "Diária" })).toHaveAttribute("aria-checked", "true");
+    expect(within(janela).getByTestId("linha-mao-obra-custo-unitario")).toHaveTextContent("R$ 150,00");
+    // Pedro não tem custo de hora: trocando para hora, a linha entra sem custo (aviso, não bloqueio).
+    fireEvent.click(within(janela).getByRole("radio", { name: "Hora" }));
+    expect(within(janela).getByTestId("linha-mao-obra-custo-unitario")).toHaveTextContent("Sem custo no cadastro");
+    expect(within(janela).getByTestId("linha-mao-obra-sem-custo")).toHaveTextContent("a linha entra sem custo");
+    // Tarefeira: tarefa sugerida e o custo passa a ser digitado.
+    await escolherNoSeletor(janela, "linha-mao-obra-funcionario", /Ana Souza/);
+    expect(within(janela).getByRole("radio", { name: "Tarefa" })).toHaveAttribute("aria-checked", "true");
+    expect(within(janela).getByText("Quantidade (tarefa(s))")).toBeTruthy();
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "4" } });
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    expect(await within(janela).findByText("Informe o custo da tarefa.")).toBeTruthy();
+    expect(escritas()).toEqual([]);
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-custo-unitario"), { target: { value: "12,5" } });
+    expect(within(janela).getByTestId("linha-mao-obra-total")).toHaveTextContent("R$ 50,00");
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita().body).toEqual({
+      empresa_id: "emp-1",
+      versao: 3,
+      operation_id: expect.stringMatching(/^lanc-/),
+      funcionario_id: "f2",
+      tipo_medida: "TAREFA",
+      quantidade: "4",
+      custo_unitario: "12.5",
+    });
+    expect(typeof ultimaEscrita().body.custo_unitario).toBe("string");
+    expect(await screen.findByTestId("linha-mao-obra-mo-n1-quantidade")).toHaveTextContent("Tarefa · 4 tarefa(s)");
+  });
+
+  it("LL-MAO-OBRA-3 — editar: PATCH só com o que mudou; trocar para tarefa leva o custo digitado; a anterior fica substituída", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("linha-mao-obra-mo1-editar"));
+    let janela = await screen.findByTestId("janela-linha-mao-obra");
+    expect(within(janela).getByTestId("linha-mao-obra-quantidade")).toHaveValue("8");
+    // O custo da hora mostrado na edição: o do cadastro (aqui, o snapshot da linha).
+    expect(within(janela).getByTestId("linha-mao-obra-custo-unitario")).toHaveTextContent("R$ 20,00");
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "6" } });
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({
+      method: "PATCH",
+      path: "/atividades/a4/apontamentos/ap7/mao-obra/mo1",
+      query: {},
+      body: { empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), quantidade: "6" },
+    });
+    await waitFor(() => expect(screen.getByTestId("linha-mao-obra-mo1")).toHaveAttribute("data-status", "CANCELADO"));
+    expect(screen.getByTestId("linha-mao-obra-mo1-cancelamento")).toHaveTextContent("Substituída pela edição");
+    expect(await screen.findByTestId("linha-mao-obra-mo-n1-quantidade")).toHaveTextContent("Hora · 6 h");
+
+    // A nova linha: a medida muda para tarefa com o custo digitado (mesma quantidade).
+    fireEvent.click(screen.getByTestId("linha-mao-obra-mo-n1-editar"));
+    janela = await screen.findByTestId("janela-linha-mao-obra");
+    fireEvent.click(within(janela).getByRole("radio", { name: "Tarefa" }));
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-custo-unitario"), { target: { value: "25" } });
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(2));
+    expect(ultimaEscrita().path).toBe("/atividades/a4/apontamentos/ap7/mao-obra/mo-n1");
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 4, operation_id: expect.stringMatching(/^lanc-/), tipo_medida: "TAREFA", custo_unitario: "25" });
+  });
+
+  it("LL-MAO-OBRA-5 — editar: a prévia mostra o custo GRAVADO enquanto funcionário e medida são os mesmos; trocar a medida ou o funcionário mostra o cadastro; o Repetir usa o cadastro", async () => {
+    // O snapshot da linha (R$ 18) difere do cadastro atual do José (R$ 20/h, R$ 160/diária).
+    const ap7 = apontamentosPorAtividade.get("a4")[0];
+    ap7.mao_obra[0] = linhaMaoObra({ custo_unitario: "18.0000", custo_total: "144.0000" });
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("linha-mao-obra-mo1-editar"));
+    const janela = await screen.findByTestId("janela-linha-mao-obra");
+    const custo = () => within(janela).getByTestId("linha-mao-obra-custo-unitario");
+    const total = () => within(janela).getByTestId("linha-mao-obra-total");
+    expect(custo()).toHaveTextContent("R$ 18,00");
+    expect(janela).toHaveTextContent("Custo da hora (gravado na linha)");
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "10" } });
+    expect(total()).toHaveTextContent("R$ 180,00");
+    // Trocar a medida: o cadastro de agora.
+    fireEvent.click(within(janela).getByRole("radio", { name: "Diária" }));
+    expect(custo()).toHaveTextContent("R$ 160,00");
+    expect(janela).toHaveTextContent("Custo da diária (do cadastro)");
+    expect(total()).toHaveTextContent("R$ 1.600,00");
+    // Voltar à medida gravada: o gravado de novo.
+    fireEvent.click(within(janela).getByRole("radio", { name: "Hora" }));
+    expect(custo()).toHaveTextContent("R$ 18,00");
+    // Trocar o funcionário: o cadastro do novo (o diarista Pedro sugere diária, R$ 150).
+    await escolherNoSeletor(janela, "linha-mao-obra-funcionario", /Pedro Lima/);
+    expect(custo()).toHaveTextContent("R$ 150,00");
+    fireEvent.click(within(janela).getByRole("radio", { name: "Hora" }));
+    expect(custo()).toHaveTextContent("Sem custo no cadastro");
+    // De volta ao José (mensalista → hora): o gravado.
+    await escolherNoSeletor(janela, "linha-mao-obra-funcionario", /José Silva/);
+    expect(custo()).toHaveTextContent("R$ 18,00");
+    expect(total()).toHaveTextContent("R$ 180,00");
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), quantidade: "10" });
+    // O servidor manteve o snapshot: a linha nova mostra o mesmo custo que a prévia.
+    expect(await screen.findByTestId("linha-mao-obra-mo-n1-unitario")).toHaveTextContent("R$ 18,00 cada");
+    expect(screen.getByTestId("linha-mao-obra-mo-n1-custo")).toHaveTextContent("custo R$ 180,00");
+
+    // "Repetir" é linha NOVA: o servidor grava o cadastro de agora, e a prévia mostra ele (R$ 20), não o snapshot.
+    fireEvent.click(screen.getByTestId("apontamento-repetir-ultimo"));
+    const form = await screen.findByTestId("b1-form-apontamento");
+    expect(within(form).getByTestId("repetir-mao-obra-0-custo-unitario")).toHaveTextContent("R$ 20,00");
+    expect(within(form).getByTestId("repetir-mao-obra-0-total")).toHaveTextContent("R$ 200,00");
+  });
+
+  it("LL-MAO-OBRA-6 — o servidor responde sem_alteracao: a janela trata como \"Sem alterações\" (fecha, sem aviso de erro)", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("linha-mao-obra-mo1-editar"));
+    const janela = await screen.findByTestId("janela-linha-mao-obra");
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "6" } });
+    proxima = erroServidor(422, "ATIVIDADE_LINHA_INVALIDA", { field: "corpo", reason: "sem_alteracao", details: { entidade: "linha_mao_obra", field: "corpo", reason: "sem_alteracao" } });
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    await waitFor(() => expect(notify.notifyInfo).toHaveBeenCalledWith("Sem alterações", "Nada foi alterado."));
+    await waitFor(() => expect(screen.queryByTestId("janela-linha-mao-obra")).toBeNull());
+    expect(notify.notifyWarning).not.toHaveBeenCalled();
+    expect(screen.getByTestId("linha-mao-obra-mo1")).toHaveAttribute("data-status", "CONFIRMADO");
+  });
+
+  it("LL-MAO-OBRA-4 — cancelar pede motivo e manda {empresa_id, versao, operation_id, motivo}; flag desligada no servidor mostra a frase", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("linha-mao-obra-mo1-cancelar"));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-linha");
+    expect(dialogo).toHaveTextContent("Cancelar a mão de obra de José Silva");
+    expect(dialogo).toHaveTextContent("O custo desta mão de obra deixa de contar na atividade.");
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-linha-motivo"), { target: { value: "lançada errada" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-linha-enviar"));
+    await waitFor(() => expect(ultimaEscrita()?.path).toBe("/atividades/a4/apontamentos/ap7/mao-obra/mo1/cancelar"));
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), motivo: "lançada errada" });
+    await waitFor(() => expect(screen.getByTestId("linha-mao-obra-mo1")).toHaveAttribute("data-status", "CANCELADO"));
+    expect(screen.getByTestId("linha-mao-obra-mo1-cancelamento")).toHaveTextContent("motivo: lançada errada");
+
+    // O tipo mudou no servidor (sem permite_mao_obra): a recusa diz o porquê.
+    fireEvent.click(screen.getByTestId("apontamento-ap7-adicionar-mao-obra"));
+    const janela = await screen.findByTestId("janela-linha-mao-obra");
+    await escolherNoSeletor(janela, "linha-mao-obra-funcionario", /José Silva/);
+    fireEvent.change(within(janela).getByTestId("linha-mao-obra-quantidade"), { target: { value: "2" } });
+    proxima = erroServidor(422, "ATIVIDADE_EXIGIDA_PELO_TIPO", { field: "mao_obra", reason: "permite_mao_obra" });
+    fireEvent.click(within(janela).getByTestId("janela-linha-mao-obra-salvar"));
+    expect(await within(janela).findByTestId("erro-envio")).toHaveTextContent("O tipo desta atividade não permite mão de obra. Nada foi gravado.");
+  });
+});
+
+describe("LL-SERVICO — janela da linha de serviço", () => {
+  it("LL-SERVICO-1 — valor unitário pré-preenchido com o de referência, quantidade na unidade do serviço, total, documento; sem parceiro o corpo não o leva", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("apontamento-ap7-adicionar-servico"));
+    const janela = await screen.findByTestId("janela-linha-servico");
+    // Serviço sem valor de referência: o valor fica em branco e é obrigatório.
+    await escolherNoSeletor(janela, "linha-servico-servico", /Roçada terceirizada/);
+    expect(within(janela).getByTestId("linha-servico-valor-unitario")).toHaveValue("");
+    expect(within(janela).getByText("Quantidade (HA)")).toBeTruthy();
+    fireEvent.change(within(janela).getByTestId("linha-servico-quantidade"), { target: { value: "2" } });
+    fireEvent.click(within(janela).getByTestId("janela-linha-servico-salvar"));
+    expect(await within(janela).findByText("Informe o valor unitário.")).toBeTruthy();
+    expect(escritas()).toEqual([]);
+    // Frete: o valor de referência (R$ 5) entra no campo; a unidade é a do serviço.
+    await escolherNoSeletor(janela, "linha-servico-servico", /Frete/);
+    expect(within(janela).getByTestId("linha-servico-valor-unitario")).toHaveValue("5");
+    expect(within(janela).getByText("Quantidade (KM)")).toBeTruthy();
+    fireEvent.change(within(janela).getByTestId("linha-servico-quantidade"), { target: { value: "10" } });
+    expect(within(janela).getByTestId("linha-servico-total")).toHaveTextContent("R$ 50,00");
+    fireEvent.change(within(janela).getByLabelText(/Documento/), { target: { value: "NF 123" } });
+    fireEvent.click(within(janela).getByTestId("janela-linha-servico-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({
+      method: "POST",
+      path: "/atividades/a4/apontamentos/ap7/servicos",
+      query: {},
+      body: { empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), servico_id: "s1", quantidade: "10", valor_unitario: "5", documento_referencia: "NF 123" },
+    });
+    await waitFor(() => expect(screen.queryByTestId("janela-linha-servico")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Serviço Frete lançado.");
+    expect(await screen.findByTestId("linha-servico-sv-n1-valor")).toHaveTextContent("valor R$ 50,00");
+    expect(screen.queryByTestId("linha-servico-sv-n1-parceiro")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("20 KM · R$ 100,00"));
+  });
+
+  it("LL-SERVICO-2 — parceiro opcional (só prestadores): recusa uniforme do servidor; com parceiro vai o id; editar limpando o parceiro manda null", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("apontamento-ap7-adicionar-servico"));
+    const janela = await screen.findByTestId("janela-linha-servico");
+    await escolherNoSeletor(janela, "linha-servico-servico", /Frete/);
+    await escolherNoSeletor(janela, "linha-servico-parceiro", /Transportes Silva/);
+    expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/parceiros-servico")?.query).toMatchObject({ empresa_id: "emp-1" });
+    fireEvent.change(within(janela).getByTestId("linha-servico-quantidade"), { target: { value: "3" } });
+    proxima = erroServidor(422, "ATIVIDADE_LINHA_INVALIDA", { field: "fornecedor_parceiro_id", reason: "parceiro_recusado" });
+    fireEvent.click(within(janela).getByTestId("janela-linha-servico-salvar"));
+    const frase = "O parceiro escolhido não pode ser usado: ele precisa ser um prestador de serviço ativo desta fazenda. Nada foi gravado.";
+    expect(await within(janela).findByTestId("erro-envio")).toHaveTextContent(frase);
+    expect(notify.notifyWarning).toHaveBeenCalledWith("Atenção", frase);
+    expect(escritas()[0].body).toMatchObject({ servico_id: "s1", fornecedor_parceiro_id: "pp1", quantidade: "3", valor_unitario: "5" });
+    fireEvent.click(within(janela).getByTestId("janela-linha-servico-salvar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-linha-servico")).toBeNull());
+    expect(await screen.findByTestId("linha-servico-sv-n1-parceiro")).toHaveTextContent("por Transportes Silva");
+
+    // Editar a sv1: tirar o parceiro manda `fornecedor_parceiro_id: null` (e só ele).
+    fireEvent.click(screen.getByTestId("linha-servico-sv1-editar"));
+    const edicao = await screen.findByTestId("janela-linha-servico");
+    expect(within(edicao).getByLabelText(/Documento/)).toHaveValue("NF 77");
+    fireEvent.click(within(edicao).getByRole("button", { name: "Limpar" }));
+    fireEvent.click(within(edicao).getByTestId("janela-linha-servico-salvar"));
+    await waitFor(() => expect(ultimaEscrita().path).toBe("/atividades/a4/apontamentos/ap7/servicos/sv1"));
+    expect(ultimaEscrita()).toMatchObject({ method: "PATCH", body: { empresa_id: "emp-1", versao: 4, fornecedor_parceiro_id: null } });
+    expect(Object.keys(ultimaEscrita().body).sort()).toEqual(["empresa_id", "fornecedor_parceiro_id", "operation_id", "versao"]);
+  });
+
+  it("LL-SERVICO-3 — cancelar o serviço com motivo; deixa de contar no totalizador", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    await waitFor(() => expect(screen.getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM · R$ 50,00"));
+    fireEvent.click(screen.getByTestId("linha-servico-sv1-cancelar"));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-linha");
+    expect(dialogo).toHaveTextContent("O valor deste serviço deixa de contar na atividade.");
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-linha-motivo"), { target: { value: "serviço não feito" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-linha-enviar"));
+    await waitFor(() => expect(ultimaEscrita()?.path).toBe("/atividades/a4/apontamentos/ap7/servicos/sv1/cancelar"));
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), motivo: "serviço não feito" });
+    await waitFor(() => expect(screen.getByTestId("linha-servico-sv1")).toHaveAttribute("data-status", "CANCELADO"));
+    await waitFor(() => expect(screen.queryByTestId("totalizador-servico-s1-KM")).toBeNull());
+  });
+});
+
+describe("LL-TOTAIS — totalizador com mão de obra e serviços (Fatia 4)", () => {
+  it("LL-TOTAIS-2 — mão de obra por funcionário e medida, serviço por serviço; custo e custo/ha somam as quatro linhas", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    const totais = await screen.findByTestId("totalizador-atividade");
+    await waitFor(() => expect(within(totais).getByTestId("totalizador-custo")).toHaveTextContent("R$ 210,00"));
+    expect(within(totais).getByText("Mão de obra — José Silva")).toBeTruthy();
+    expect(within(totais).getByTestId("totalizador-mao-obra-f1-HORA")).toHaveTextContent("8 h · R$ 160,00");
+    // A tarefa cancelada da Ana não conta.
+    expect(within(totais).queryByTestId("totalizador-mao-obra-f2-TAREFA")).toBeNull();
+    expect(within(totais).getByText("Serviço — Frete")).toBeTruthy();
+    expect(within(totais).getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM · R$ 50,00");
+    expect(within(totais).getByTestId("totalizador-custo-ha")).toHaveTextContent("R$ 21,00/ha");
+  });
+});
+
+describe("LL-TOTAIS — o serviço agrupa por serviço E unidade", () => {
+  it("LL-TOTAIS-3 — o mesmo serviço em duas unidades (o snapshot da linha) são duas linhas do totalizador, cada uma com a sua chave", async () => {
+    const ap7 = apontamentosPorAtividade.get("a4")[0];
+    ap7.servicos.push(linhaServico({ id: "sv2", ordem: 2, unidade: "H", quantidade: "2.0000", valor_unitario: "30.0000", valor_total: "60.0000", documento_referencia: null }));
+    await montar();
+    await abrir("a4", "ap7");
+    const totais = await screen.findByTestId("totalizador-atividade");
+    await waitFor(() => expect(within(totais).getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM · R$ 50,00"));
+    expect(within(totais).getByTestId("totalizador-servico-s1-H")).toHaveTextContent("2 H · R$ 60,00");
+    expect(within(totais).getAllByText("Serviço — Frete")).toHaveLength(2);
+  });
+});
+
+describe("LL-REPETIR — \"Repetir último lançamento\" com mão de obra e serviços (Fatia 4)", () => {
+  it("LL-REPETIR-4 — traz a mão de obra e os serviços confirmados (sem o documento), o operador ajusta e vai UM POST com mao_obra[] e servicos[]", async () => {
+    await montar();
+    await abrir("a4", "ap7");
+    fireEvent.click(screen.getByTestId("apontamento-repetir-ultimo"));
+    const form = await screen.findByTestId("b1-form-apontamento");
+    expect(within(form).getByTestId("repetir-mao-obra-0")).toBeTruthy();
+    expect(within(form).queryByTestId("repetir-mao-obra-1")).toBeNull();
+    expect(within(form).getByTestId("repetir-mao-obra-0-funcionario").getAttribute("aria-label")).toMatch(/José Silva/);
+    expect(within(form).getByTestId("repetir-mao-obra-0-quantidade")).toHaveValue("8");
+    expect(within(form).getByTestId("repetir-mao-obra-0-custo-unitario")).toHaveTextContent("R$ 20,00");
+    const servico = within(form).getByTestId("repetir-servico-0");
+    expect(within(servico).getByTestId("repetir-servico-0-servico").getAttribute("aria-label")).toMatch(/Frete/);
+    expect(within(servico).getByTestId("repetir-servico-0-parceiro").getAttribute("aria-label")).toMatch(/Transportes Silva/);
+    expect(within(servico).getByTestId("repetir-servico-0-valor-unitario")).toHaveValue("5");
+    expect(within(servico).getByLabelText(/Documento/)).toHaveValue("");
+    fireEvent.change(within(form).getByTestId("repetir-mao-obra-0-quantidade"), { target: { value: "9" } });
+    expect(within(form).getByTestId("repetir-mao-obra-0-total")).toHaveTextContent("R$ 180,00");
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    const { method, path, body } = ultimaEscrita();
+    expect({ method, path }).toEqual({ method: "POST", path: "/atividades/a4/apontamentos" });
+    expect(body).toEqual({
+      empresa_id: "emp-1",
+      data_operacional: HOJE,
+      turno: "MANHA",
+      area_executada_dia: "10",
+      operation_id: expect.stringMatching(/^lanc-/),
+      mao_obra: [{ funcionario_id: "f1", tipo_medida: "HORA", quantidade: "9" }],
+      servicos: [{ servico_id: "s1", fornecedor_parceiro_id: "pp1", quantidade: "10", valor_unitario: "5" }],
+    });
+    await waitFor(() => expect(screen.queryByTestId("janela-apontamento")).toBeNull());
+    expect(await screen.findByTestId("linha-mao-obra-mo-n2-quantidade")).toHaveTextContent("Hora · 9 h");
+  });
+
+  it("LL-REPETIR-5 — a base com mão de obra num tipo sem permite_mao_obra: aviso e as linhas não vão", async () => {
+    apontamentosPorAtividade.set("a2", [apontamento({ id: "ap9", atividade_id: "a2", mao_obra: [linhaMaoObra({ id: "mo9" })] })]);
+    await montar();
+    await abrir("a2", "ap9");
+    fireEvent.click(screen.getByTestId("apontamento-repetir-ultimo"));
+    const form = await screen.findByTestId("b1-form-apontamento");
+    expect(within(form).getByTestId("repetir-mao-obra-fora-do-tipo")).toHaveTextContent("não permite mão de obra");
+    expect(within(form).queryByTestId("repetir-mao-obra-0")).toBeNull();
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita().body).not.toHaveProperty("mao_obra");
+    expect(ultimaEscrita().body).not.toHaveProperty("operation_id");
+  });
+});
+
+describe("LL-PORTA — allowlists da mão de obra e do serviço (Fatia 4)", () => {
+  it("LL-PORTA-2 — campos do contrato §3/§4/§6; nada do servidor vai no corpo; rotas e seletores novos", async () => {
+    const porta = await import("@/apis/atividades/lancamentoAtividadePort.js");
+    const ordenado = (/** @type {readonly string[]} */ l) => [...l].sort();
+    expect(ordenado(porta.CAMPOS_DA_LINHA_MAO_OBRA)).toEqual(["custo_unitario", "funcionario_id", "observacao", "quantidade", "tipo_medida"]);
+    expect(ordenado(porta.CAMPOS_DA_LINHA_SERVICO)).toEqual(["documento_referencia", "fornecedor_parceiro_id", "observacao", "quantidade", "servico_id", "valor_unitario"]);
+    // Paridade com os schemas fechados do servidor (os mesmos campos no lançamento, na edição e em `mao_obra[]`/`servicos[]`).
+    for (const [arquivo, constante, campos] of /** @type {Array<[string, string, readonly string[]]>} */ ([
+      ["backend/src/modules/atividades/atividadeApontamentoMaoObraRoutes.js", "export const CAMPOS_DA_LINHA_MAO_OBRA", porta.CAMPOS_DA_LINHA_MAO_OBRA],
+      ["backend/src/modules/atividades/atividadeApontamentoServicoRoutes.js", "export const CAMPOS_DA_LINHA_SERVICO", porta.CAMPOS_DA_LINHA_SERVICO],
+    ])) {
+      const fonte = readFileSync(arquivo, "utf8");
+      const inicio = fonte.indexOf(constante);
+      expect(inicio, arquivo).toBeGreaterThan(-1);
+      const bloco = fonte.slice(inicio, fonte.indexOf("});", inicio));
+      expect(ordenado([...bloco.matchAll(/^\s+([a-z_]+):/gm)].map((m) => m[1])), arquivo).toEqual(ordenado(campos));
+      expect(fonte).toMatch(/required: \['empresa_id', 'versao', 'operation_id'/);
+    }
+    for (const l of [porta.CAMPOS_DE_CRIACAO_LINHA_MAO_OBRA, porta.CAMPOS_DE_EDICAO_LINHA_MAO_OBRA]) {
+      expect(ordenado(l)).toEqual(ordenado(["empresa_id", "versao", "operation_id", ...porta.CAMPOS_DA_LINHA_MAO_OBRA]));
+    }
+    for (const l of [porta.CAMPOS_DE_CRIACAO_LINHA_SERVICO, porta.CAMPOS_DE_EDICAO_LINHA_SERVICO]) {
+      expect(ordenado(l)).toEqual(ordenado(["empresa_id", "versao", "operation_id", ...porta.CAMPOS_DA_LINHA_SERVICO]));
+    }
+    expect(porta.CAMPOS_DE_CRIACAO_APONTAMENTO).toEqual(expect.arrayContaining(["mao_obra", "servicos"]));
+    expect(porta.CAMPOS_DE_DUPLICACAO_APONTAMENTO).toEqual(expect.arrayContaining(["mao_obra", "servicos"]));
+    expect(porta.RECURSOS_OPCOES_ATIVIDADE).toEqual(expect.arrayContaining(["funcionarios", "servicos", "parceiros-servico"]));
+    const { TIPOS_LINHA_ATIVIDADE } = await import("@/apis/atividades");
+    expect(TIPOS_LINHA_ATIVIDADE).toEqual(["produtos", "maquinas", "mao-obra", "servicos"]);
+
+    // Custo total, status, nome e cliente nunca vão; a rota da mão de obra é `…/mao-obra`.
+    const sujoMo = { empresa_id: "emp-1", versao: 3, operation_id: "lanc-12345678", funcionario_id: "f1", tipo_medida: "HORA", quantidade: "2", custo_total: "9", status: "CANCELADO", funcionario: { nome: "x" }, cliente_id: "x" };
+    await porta.operacoesNativas.criarLinha("mao-obra", "a4", "ap7", sujoMo).catch(() => null);
+    expect(ultimaEscrita().path).toBe("/atividades/a4/apontamentos/ap7/mao-obra");
+    expect(Object.keys(ultimaEscrita().body).sort()).toEqual(["empresa_id", "funcionario_id", "operation_id", "quantidade", "tipo_medida", "versao"]);
+    const sujoSv = { servico_id: "s1", quantidade: "2", valor_unitario: "5", unidade: "KM", valor_total: "10", fornecedor_parceiro_id: null, documento_referencia: "" };
+    await porta.operacoesNativas.createApontamento("a4", { empresa_id: "emp-1", data_operacional: HOJE, operation_id: "lanc-12345678", mao_obra: [{ ...sujoMo }], servicos: [sujoSv] }).catch(() => null);
+    expect(ultimaEscrita().body).toEqual({
+      empresa_id: "emp-1",
+      data_operacional: HOJE,
+      operation_id: "lanc-12345678",
+      mao_obra: [{ funcionario_id: "f1", tipo_medida: "HORA", quantidade: "2" }],
+      servicos: [{ servico_id: "s1", quantidade: "2", valor_unitario: "5" }],
+    });
+    expect(porta.montarCaminhoOpcoes("funcionarios", { empresa_id: "emp-1", q: "jo", produto_id: "x" })).toBe("/atividades-opcoes/funcionarios?empresa_id=emp-1&q=jo");
+    expect(porta.montarCaminhoOpcoes("parceiros-servico", { empresa_id: "emp-1", q: "sil" })).toBe("/atividades-opcoes/parceiros-servico?empresa_id=emp-1&q=sil");
+
+    // Regras puras: a sugestão da medida e o custo de cada medida.
+    const regras = await import("@/lib/atividadeLinhasRegras");
+    expect(["MENSALISTA", "DIARISTA", "TAREFEIRO", "X"].map(regras.medidaSugerida)).toEqual(["HORA", "DIARIA", "TAREFA", "HORA"]);
+    const jose = regras.funcionarioEscolhido(FUNCIONARIOS[0]);
+    expect(regras.custoDaLinhaMaoObra({ funcionario: jose, tipo_medida: "DIARIA", quantidade: "1,5", custo_unitario: "999", observacao: "" })).toEqual({ unitario: "160.0000", total: "240.0000" });
+    expect(regras.corpoDaLinhaMaoObra({ funcionario: jose, tipo_medida: "DIARIA", quantidade: "1,5", custo_unitario: "999", observacao: "" })).not.toHaveProperty("custo_unitario");
+    // A recusa de uma linha embutida aponta a coleção pela entidade do servidor (`linha_indice` + `entidade`).
+    const recusa = (/** @type {Record<string, unknown>} */ details) => ({ code: "ATIVIDADE_LINHA_INVALIDA", details });
+    expect(regras.linhaEmbutidaRecusada(recusa({ entidade: "linha_mao_obra", linha_indice: 1 }))).toEqual({ colecao: "mao_obra", indice: 1 });
+    expect(regras.linhaEmbutidaRecusada(recusa({ entidade: "linha_servico", linha_indice: 0 }))).toEqual({ colecao: "servicos", indice: 0 });
+    expect(regras.linhaEmbutidaRecusada(recusa({ entidade: "linha_maquina", linha_indice: 2 }))).toEqual({ colecao: "maquinas", indice: 2 });
+    expect(regras.linhaEmbutidaRecusada(recusa({ linha_indice: 0 }))).toEqual({ colecao: "maquinas", indice: 0 });
+    expect(regras.linhaEmbutidaRecusada(recusa({ colecao: "produtos", indice: 3 }))).toEqual({ colecao: "produtos", indice: 3 });
   });
 });

@@ -132,9 +132,12 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261115100000_leitura_cocho': 'f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1',
   // D-PROD-206: EXPAND — faixa de tolerância do farol de consumo na Formulação (uma coluna anulável em CADFORMULACAO).
   '20261115200000_formulacao_faixa_tolerancia': 'bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c',
-  // D-PROD-207: CONTRACT aprovado pelo proprietário — base do consumo na Formulação (% do peso vivo ou g/cab/dia):
+  // D-PROD-207 (Fatia 4): EXPAND — mão de obra e serviço de terceiro do apontamento: Funcionario, Servico,
+  // AtividadeApontamentoMaoObra e AtividadeApontamentoServico novas. Nenhuma coluna em tabela antiga; nenhum dado migrado.
+  '20261115900000_atividade_mao_obra_servico': '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725',
+  // D-PROD-208: CONTRACT aprovado pelo proprietário — base do consumo na Formulação (% do peso vivo ou g/cab/dia):
   // coluna NOT NULL DEFAULT 'PV', %PV padrão anulável, CHECK por base e regra em gramas; as 3 tabelas VAZIAS.
-  '20261115300000_formulacao_base_consumo': 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171',
+  '20261116000000_formulacao_base_consumo': 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -174,12 +177,14 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6',
   // D-PROD-205: RLS/REVOKE da LEITURACOCHO (mesmo corpo, lista nova).
   '60149f94e07596da2c93471f82110e6f37b5f014bcf721c1dc366a2d4b4bcce8',
+  // D-PROD-207 (Fatia 4): RLS/REVOKE das 4 tabelas de mão de obra e serviço (mesmo corpo, lista nova).
+  '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403',
 ]);
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
  * exige decisão. São oito, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
- * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre) e D-PROD-207.
+ * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre) e D-PROD-208.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -361,15 +366,15 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'UPDATE "EntidadeCodigoSequencia" SET "entidade" = \'Atividade\', "updatedAt" = CURRENT_TIMESTAMP WHERE "entidade" = \'ApontamentoAtividade\'',
     ]),
   }),
-  // D-PROD-207: a Formulação ganha a BASE DO CONSUMO — % do peso vivo (PV) ou gramas por cabeça por dia (G_CAB_DIA), uma
+  // D-PROD-208: a Formulação ganha a BASE DO CONSUMO — % do peso vivo (PV) ou gramas por cabeça por dia (G_CAB_DIA), uma
   // por formulação, sem mistura. É CONTRACT porque a allowlist EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT,
   // ALTER COLUMN, DROP CONSTRAINT e CHECK. A guarda (hash pinado) trava as 3 tabelas de Formulações e exige as 3 VAZIAS
   // (o proprietário autorizou: "os dados eram só teste"; em produção estavam com 0 linhas) — nenhum dado é migrado.
   // Depois dela, EXATAMENTE as 7 instruções abaixo, nesta ordem (texto pinado): a coluna base_consumo, o %PV padrão
   // anulável, o CHECK do %PV padrão trocado pelo CHECK por base, a coluna g_cab_dia da regra e o CHECK da forma da
   // regra recriado (consome com %PV OU com gramas, nunca os dois). Não há resto. A guarda só cita as 3 tabelas.
-  '20261115300000_formulacao_base_consumo': Object.freeze({
-    decisao: 'D-PROD-207',
+  '20261116000000_formulacao_base_consumo': Object.freeze({
+    decisao: 'D-PROD-208',
     guarda_sha256: 'a66ff13e8427efbe7d434d286459a0354e8331b10a1c5afd9953b83464184819',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']),

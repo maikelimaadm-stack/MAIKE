@@ -230,7 +230,7 @@ describe('D-PROD-203 — Formulações: validação', () => {
       [{ percentual_pv_padrao: 'muito' }, 'percentual_pv_invalido'],
       // milhar pt-BR: "1.000,5" é 1000,5 (não 1,0005) → fora da faixa de %PV
       [{ percentual_pv_padrao: '1.000,5' }, 'percentual_pv_fora_da_faixa'],
-      // D-PROD-207: na base PV (padrão) o %PV padrão vazio é obrigatório que falta.
+      // D-PROD-208: na base PV (padrão) o %PV padrão vazio é obrigatório que falta.
       [{ percentual_pv_padrao: null }, 'pv_padrao_obrigatorio'],
       [{ percentual_pv_padrao: true }, 'percentual_pv_invalido'],
       [{ consumo_objetivo_g_cab_dia: 0 }, 'consumo_objetivo_fora_da_faixa'],
@@ -495,7 +495,7 @@ describe('D-PROD-203 — Formulações no banco: nomes físicos, CHECK e RLS', (
   });
 });
 
-/** D-PROD-207 — sal mineral na base g/cab/dia: padrão 80 g, bezerro mamando não consome, vaca 1.500 g. */
+/** D-PROD-208 — sal mineral na base g/cab/dia: padrão 80 g, bezerro mamando não consome, vaca 1.500 g. */
 const salG = (cen, extra = {}) => ({
   empresa_id: cen.e1.id,
   nome: 'sal mineral g',
@@ -510,7 +510,7 @@ const salG = (cen, extra = {}) => ({
   ...extra,
 });
 
-describe('D-PROD-207 — base do consumo: % do peso vivo OU g por cabeça por dia, sem mistura', () => {
+describe('D-PROD-208 — base do consumo: % do peso vivo OU g por cabeça por dia, sem mistura', () => {
   test('base G_CAB_DIA: criada sem %PV, gramas exatos ("1.500" = 1500 g); vai assim nas opções do lançamento; base PV continua o padrão', async () => {
     const cen = await cenario();
     const r = await criar(cen.token, salG(cen));

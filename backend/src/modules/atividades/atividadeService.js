@@ -113,6 +113,8 @@ import {
 } from './atividadeComum.js';
 import { cancelarApontamentosDaAtividade, recalcularTotaisDaAtividade } from './atividadeApontamentoService.js';
 import { totaisDasMaquinasDaAtividade } from './atividadeApontamentoMaquinaService.js';
+import { totaisDaMaoObraDaAtividade } from './atividadeApontamentoMaoObraService.js';
+import { totaisDosServicosDaAtividade } from './atividadeApontamentoServicoService.js';
 import { totaisPorProduto } from './atividadeApontamentoProdutoRepository.js';
 import {
   inserirAtividade,
@@ -447,8 +449,11 @@ export const obter = async (contexto, id, query = {}) => {
  * `{ area_executada, area_planejada, unidade_area: 'ha',
  *    produtos: [{ produto_id, nome, unidade, quantidade, custo_total }],
  *    maquinas: [{ bem_id, nome, medidor_unidade, quantidade_uso, custo_total }],
+ *    mao_obra: [{ funcionario_id, nome, tipo_medida, quantidade, custo_total }],
+ *    servicos: [{ servico_id, nome, unidade, quantidade, custo_total }],
  *    custo_total, custo_por_ha }`.
- * `custo_total` = Σ produtos + Σ máquinas com custo (nulo sem nenhum custo);
+ * `custo_total` = Σ produtos + Σ máquinas com custo + Σ mão de obra com custo +
+ * Σ serviços (D-PROD-207, Fatia 4; nulo sem nenhum custo);
  * `custo_por_ha` = custo_total / area_executada (4 casas), nulo sem área ou
  * sem custo. Decimais como texto com 4 casas. Outra fazenda ou tenant → 404.
  * @param {{ auth: AuthContext }} contexto @param {string} id @param {Record<string, any>} [query]
@@ -470,7 +475,12 @@ export const obterTotais = async (contexto, id, query = {}) => {
       custo_total: /** @type {string} */ (t4(p.custo_total)),
     }));
     const maquinas = await totaisDasMaquinasDaAtividade(tx, cli, empresaId, id);
-    const parcelas = [...produtos.map((p) => p.custo_total), ...(maquinas.custo_total === null ? [] : [maquinas.custo_total])];
+    const maoObra = await totaisDaMaoObraDaAtividade(tx, cli, empresaId, id);
+    const servicos = await totaisDosServicosDaAtividade(tx, cli, empresaId, id);
+    const parcelas = [
+      ...produtos.map((p) => p.custo_total),
+      ...[maquinas.custo_total, maoObra.custo_total, servicos.custo_total].filter((v) => v !== null),
+    ];
     const custoTotal = parcelas.length ? parcelas.reduce((t, v) => t.plus(dec(v)), dec(0)) : null;
     const area = areaExecutada === null ? null : dec(areaExecutada);
     return {
@@ -479,6 +489,8 @@ export const obterTotais = async (contexto, id, query = {}) => {
       unidade_area: 'ha',
       produtos,
       maquinas: maquinas.maquinas,
+      mao_obra: maoObra.mao_obra,
+      servicos: servicos.servicos,
       custo_total: custoTotal === null ? null : t4(custoTotal),
       custo_por_ha: custoTotal !== null && area !== null && area.gt(0) ? t4(arredondar(custoTotal.dividedBy(area), 4)) : null,
     };
@@ -808,6 +820,7 @@ export const cancelar = async (contexto, id, corpo) => {
       // Os filhos antes do cabeçalho: o serviço do apontamento cancela com a atividade ainda ABERTA (e travada).
       // D-PROD-202: as linhas dos apontamentos caem junto (máquina cancelada; produto estornado exatamente, num
       // `estornarEmLote` só, no dia de hoje da fazenda), com o mesmo motivo e a origem ATIVIDADE.
+      // D-PROD-207: as de mão de obra e de serviço também (cascata em `cancelarLinhasDosApontamentos`).
       const apontamentosCancelados = await cancelarApontamentosDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id, usuarioId, motivo, agora, hoje, contexto });
       // Idempotente: "totais = soma dos CONFIRMADO" vale mesmo sem nenhum apontamento cancelado aqui,
       // sem depender de quando o serviço do apontamento decide recalcular.

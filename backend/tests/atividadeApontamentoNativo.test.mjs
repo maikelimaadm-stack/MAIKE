@@ -51,7 +51,7 @@ const CAMPOS_APONTAMENTO = [
   'cancelado_em', 'cancelado_por', 'motivo_cancelamento',
   'criado_por', 'createdAt', 'updatedAt',
   // D-PROD-202 (Fatia 3): as linhas de produto e de máquina, inclusive as canceladas.
-  'produtos', 'maquinas',
+  'produtos', 'maquinas', 'mao_obra', 'servicos',
 ];
 
 const MODULO = 'suporte-mapa';

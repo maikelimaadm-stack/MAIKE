@@ -153,6 +153,31 @@ const semear = async ({ clientes = 1 } = {}) => {
       medidor_tipo: 'SEM_MEDIDOR', sem_medidor: true, quantidade_uso: '3', custo_unitario_uso: '150', custo_total: '450',
       operation_id: `sqled-maquina-${i}`, criado_por_usuario_id: t.usuario.id,
     } });
+    // D-PROD-207 (Fatia 4): um funcionário e um serviço (com a unidade e o centro de custo como padrão), um parceiro
+    // prestador e as duas linhas novas (FK RESTRICT da mão de obra para o apontamento, o funcionário e o usuário; do
+    // serviço para o apontamento, o serviço, o parceiro e o usuário): o 02 só apaga tudo se as duas linhas vierem ANTES
+    // do apontamento, do funcionário, do serviço e do parceiro, e o funcionário e o serviço ANTES da empresa, da unidade
+    // e do centro de custo, na ordem de exclusão.
+    const funcionario = await p.funcionario.create({ data: {
+      cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'JOÃO', tipo: 'DIARISTA', custo_diaria: '120',
+    } });
+    const servico = await p.servico.create({ data: {
+      cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'PULVERIZAÇÃO AÉREA', unidade_medida_id: unidade.id,
+      centro_custo_padrao_id: centroCusto.id, valor_referencia: '80',
+    } });
+    const prestador = await p.fornecedor.create({ data: {
+      cliente_id: c, empresa_id: emp.id, numero_cadastro: '1', tipo_pessoa: 'Jurídica', nome: 'AVIAÇÃO AGRÍCOLA', tipos: ['prestador_servico'],
+    } });
+    await p.atividadeApontamentoMaoObra.create({ data: {
+      cliente_id: c, empresa_id: emp.id, apontamento_id: apontamento.id, ordem: 1, status: 'CONFIRMADO', funcionario_id: funcionario.id,
+      tipo_medida: 'DIARIA', quantidade: '1', custo_unitario: '120', custo_total: '120', operation_id: `sqled-mao-obra-${i}`,
+      criado_por_usuario_id: t.usuario.id,
+    } });
+    await p.atividadeApontamentoServico.create({ data: {
+      cliente_id: c, empresa_id: emp.id, apontamento_id: apontamento.id, ordem: 1, status: 'CONFIRMADO', servico_id: servico.id,
+      fornecedor_parceiro_id: prestador.id, quantidade: '10', unidade: 'HA', valor_unitario: '80', valor_total: '800',
+      operation_id: `sqled-servico-${i}`, criado_por_usuario_id: t.usuario.id,
+    } });
     for (let k = 0; k < 3; k += 1) await p.movimentacaoMapa.create({ data: { cliente_id: c, empresa_id: emp.id } });
     for (let k = 0; k < 5; k += 1) await p.auditLog.create({ data: { cliente_id: c, usuario_id: t.usuario.id, acao: 'criar', entidade: 'Lote', entidade_id: lote.id, request_id: 'req-teste' } });
     criados.push(t);
@@ -190,7 +215,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '91', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-200) + 3 das linhas de produto e de máquina (D-PROD-202) + 3 das Formulações (D-PROD-203) + 1 LEITURACOCHO (D-PROD-205)');
+    assert.equal(l['tabelas em public'].valor, '95', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-200) + 3 das linhas de produto e de máquina (D-PROD-202) + 3 das Formulações (D-PROD-203) + 1 LEITURACOCHO (D-PROD-205) + 4 da mão de obra e do serviço (D-PROD-207)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
@@ -359,6 +384,28 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     assert.deepEqual(await contar(), antes);
   });
 
+  test('SE-07e (D-PROD-207) com a mão de obra e o serviço fora de ordem (o funcionário antes da linha de mão de obra, a linha de serviço depois do apontamento do dia, ou o serviço depois da empresa, do centro de custo e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
+    await semear();
+    const antes = await contar();
+    const NOVAS = "    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Funcionario','Servico',\n";
+    const FILHO = "    'AtividadeApontamento',\n";
+    const UNIDADE = "'UnidadeMedida',";
+    assert.equal(RESET.split(NOVAS).length, 2, 'o 02 tem as 4 tabelas da mão de obra e do serviço');
+    assert.ok(RESET.indexOf(NOVAS) < RESET.indexOf(FILHO), 'mão de obra e serviço → apontamento do dia');
+    assert.ok(RESET.indexOf(NOVAS) < RESET.indexOf(UNIDADE), 'serviço → unidade');
+    for (const [ordemErrada, re] of [
+      [reset({ impressao: impressaoAtual() }).replace(NOVAS, "    'Funcionario','AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Servico',\n"), /ordem de FK inválida \(AtividadeApontamentoMaoObra → Funcionario\)/],
+      [reset({ impressao: impressaoAtual() }).replace(NOVAS, "    'AtividadeApontamentoMaoObra','Funcionario','Servico',\n").replace(FILHO, `${FILHO}    'AtividadeApontamentoServico',\n`), /ordem de FK inválida \(AtividadeApontamentoServico → (AtividadeApontamento|Servico)\)/],
+      [reset({ impressao: impressaoAtual() }).replace(NOVAS, "    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Funcionario',\n").replace(UNIDADE, `${UNIDADE}'Servico',`), /ordem de FK inválida \(Servico → (Empresa|UnidadeMedida|CentroCusto)\)/],
+    ]) {
+      const r = psql(ordemErrada);
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, re);
+      assert.match(r.stderr, /Nada foi alterado/);
+    }
+    assert.deepEqual(await contar(), antes);
+  });
+
   test('SE-08 login "maike" já existe (fora do escopo) ou conta maike com papel errado: ANOMALIA, nada apagado', async () => {
     const [t] = await semear();
     const p = prisma();
@@ -399,11 +446,13 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     // D-PROD-200: a semente tinha 1 atividade com 1 apontamento do dia; o 02 apagou na ordem certa (apontamento → atividade →
     // tipo, tarefa, área, setor, centros e unidade), e o estoque (lote e movimento → produto e local).
     // D-PROD-202: e as linhas do apontamento antes dele (fatia → linha de produto → linha de máquina → apontamento), e o bem.
+    // D-PROD-207: e a mão de obra e o serviço antes de tudo (linhas → funcionário e serviço → apontamento), e o parceiro.
     assert.deepEqual(
-      [await p.atividadeApontamentoProdutoConsumoLote.count(), await p.atividadeApontamentoProduto.count(), await p.atividadeApontamentoMaquina.count(),
+      [await p.atividadeApontamentoMaoObra.count(), await p.atividadeApontamentoServico.count(), await p.funcionario.count(), await p.servico.count(),
+        await p.fornecedor.count(), await p.atividadeApontamentoProdutoConsumoLote.count(), await p.atividadeApontamentoProduto.count(), await p.atividadeApontamentoMaquina.count(),
         await p.atividadeApontamento.count(), await p.atividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(),
         await p.localEstoque.count(), await p.bemPatrimonial.count(), await p.tipoPatrimonial.count(), await p.familiaPatrimonial.count()],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     );
     // D-PROD-197: o tipo com os 3 padrões saiu antes do centro de custo, do centro de resultado e da unidade (FKs RESTRICT).
     assert.deepEqual(

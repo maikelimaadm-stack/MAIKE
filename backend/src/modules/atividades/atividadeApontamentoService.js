@@ -93,6 +93,7 @@ import {
   atualizarComVersao,
   auditarReenvioConflitante,
   carregarAtividadeDetalhe,
+  chavesDerivadasDasLinhas,
   comFkTraduzida,
   comoLinhaProdutoPublica,
   comoData,
@@ -139,7 +140,21 @@ import {
   normalizarDadosDaLinha,
   recalcularDosesDoApontamento,
 } from './atividadeApontamentoProdutoService.js';
-import { existeLinhaComPrefixo } from './atividadeApontamentoProdutoRepository.js';
+import { existeLinhaComChave } from './atividadeApontamentoProdutoRepository.js';
+import {
+  cancelarLinhasMaoObraDoApontamento,
+  comoLinhaMaoObraPublica,
+  contarLinhasMaoObraConfirmadas,
+  criarLinhasMaoObra,
+} from './atividadeApontamentoMaoObraService.js';
+import {
+  cancelarLinhasServicoDoApontamento,
+  comoLinhaServicoPublica,
+  contarLinhasServicoConfirmadas,
+  criarLinhasServico,
+} from './atividadeApontamentoServicoService.js';
+import { existeLinhaComChave as existeLinhaMaoObraComChave } from './atividadeApontamentoMaoObraRepository.js';
+import { existeLinhaComChave as existeLinhaServicoComChave } from './atividadeApontamentoServicoRepository.js';
 
 /** Código do alerta de data fora do período da atividade (não bloqueia). */
 export const ALERTA_FORA_DO_INTERVALO = 'FORA_DO_INTERVALO';
@@ -352,6 +367,9 @@ export const comoApontamentoPublico = (r) => ({
   // D-PROD-202: as linhas que geram custo, inclusive as canceladas, em ordem de lançamento.
   produtos: [...(r.produtos ?? [])].sort(porOrdem).map(comoLinhaProdutoPublica),
   maquinas: [...(r.maquinas ?? [])].sort(porOrdem).map(comoLinhaMaquinaPublica),
+  // D-PROD-207 (Fatia 4): mão de obra e serviço de terceiro, inclusive as canceladas.
+  mao_obra: [...(r.maoObras ?? [])].sort(porOrdem).map(comoLinhaMaoObraPublica),
+  servicos: [...(r.servicos ?? [])].sort(porOrdem).map(comoLinhaServicoPublica),
 });
 
 /** Linhas na ordem em que foram lançadas (a `ordem` nunca é reaproveitada). @param {any} a @param {any} b */
@@ -482,21 +500,24 @@ export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId
 /**
  * D-PROD-202 — a cascada das LINHAS (cancelar o apontamento ou a atividade):
  * primeiro as de máquina (trava bem → produto, a ordem do abastecimento),
- * depois o estorno exato das de produto. Devolve as contagens.
+ * depois o estorno exato das de produto. D-PROD-207: as de mão de obra e de
+ * serviço caem junto (sem estoque nem medidor: só o status). Devolve as contagens.
  * @param {any} tx
  * @param {{ clienteId: string, empresaId: string, atividadeId: string, apontamentoIds: string[], usuarioId: string|null,
  *   motivo: string, agora: Date, hoje?: string, contexto?: any, origem: 'APONTAMENTO'|'ATIVIDADE' }} pedido
  */
 const cancelarLinhasDosApontamentos = async (tx, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, contexto, origem }) => {
-  if (!apontamentoIds.length) return { maquinas: 0, produtos: 0 };
+  if (!apontamentoIds.length) return { maquinas: 0, produtos: 0, mao_obra: 0, servicos: 0 };
   const maquinas = await cancelarLinhasMaquinaDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
+  const maoObra = await cancelarLinhasMaoObraDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
+  const servicos = await cancelarLinhasServicoDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
   const temProduto = (await tx.atividadeApontamentoProduto.count({
     where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: 'CONFIRMADO' },
   })) > 0;
-  if (!temProduto) return { maquinas, produtos: 0 };
+  if (!temProduto) return { maquinas, produtos: 0, mao_obra: maoObra, servicos };
   if (!contexto?.auth) throw new Error('cancelamento em cascata: o estorno das linhas de produto precisa do contexto da requisição');
   const produtos = await cancelarLinhasProdutoDosApontamentos(tx, contexto, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, origem });
-  return { maquinas, produtos };
+  return { maquinas, produtos, mao_obra: maoObra, servicos };
 };
 
 // ─── leitura ────────────────────────────────────────────────────────────────
@@ -539,7 +560,8 @@ export const obterApontamento = async (contexto, atividadeId, apontamentoId, que
 // ─── lançamento e repetição ─────────────────────────────────────────────────
 
 /**
- * @typedef {{ operationId: string|null, produtos: Array<ReturnType<typeof normalizarDadosDaLinha>>, maquinas: unknown[] }} LinhasDoLancamento
+ * @typedef {{ operationId: string|null, produtos: Array<ReturnType<typeof normalizarDadosDaLinha>>, maquinas: unknown[],
+ *   maoObra: unknown[], servicos: unknown[] }} LinhasDoLancamento
  */
 
 /** JSON com as chaves em ordem (o fingerprint não depende da ordem das chaves do cliente). @param {unknown} v @returns {unknown} */
@@ -548,6 +570,16 @@ const canonico = (v) => {
   if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonico(/** @type {any} */ (v)[k])]));
   return v;
 };
+
+/**
+ * D-PROD-207 — `mao_obra[]` e `servicos[]` entram no fingerprint SÓ quando
+ * vêm (o fingerprint de um lançamento sem elas segue o mesmo da Fatia 3).
+ * @param {LinhasDoLancamento} linhas
+ */
+const linhasNovasDoFingerprint = (linhas) => ({
+  ...(linhas.maoObra.length ? { mao_obra: canonico(linhas.maoObra) } : {}),
+  ...(linhas.servicos.length ? { servicos: canonico(linhas.servicos) } : {}),
+});
 
 /**
  * D-PROD-202 — as linhas do corpo do lançamento/repetição: `produtos[]`
@@ -560,19 +592,23 @@ const canonico = (v) => {
 const linhasDoCorpo = (corpo) => {
   const produtosBrutos = Array.isArray(corpo.produtos) ? corpo.produtos : [];
   const maquinas = Array.isArray(corpo.maquinas) ? corpo.maquinas : [];
+  // D-PROD-207: `mao_obra[]` e `servicos[]` como vieram (os serviços das linhas normalizam).
+  const maoObra = Array.isArray(corpo.mao_obra) ? corpo.mao_obra : [];
+  const servicos = Array.isArray(corpo.servicos) ? corpo.servicos : [];
   const produtos = produtosBrutos.map((/** @type {any} */ l, /** @type {number} */ i) => normalizarDadosDaLinha(l ?? {}, `produtos[${i}].`));
   const temChave = corpo.operation_id !== undefined && corpo.operation_id !== null;
-  if (!temChave && (produtos.length || maquinas.length)) {
-    throw invalido('operation_id é obrigatório no lançamento com linhas de produto ou de máquina', { field: 'operation_id', reason: 'obrigatorio' });
+  if (!temChave && (produtos.length || maquinas.length || maoObra.length || servicos.length)) {
+    throw invalido('operation_id é obrigatório no lançamento com linhas (produto, máquina, mão de obra ou serviço)', { field: 'operation_id', reason: 'obrigatorio' });
   }
-  return { operationId: temChave ? operationIdDoCorpo(corpo.operation_id, OPERATION_ID_DO_LANCAMENTO_MAXIMO) : null, produtos, maquinas };
+  return { operationId: temChave ? operationIdDoCorpo(corpo.operation_id, OPERATION_ID_DO_LANCAMENTO_MAXIMO) : null, produtos, maquinas, maoObra, servicos };
 };
 
 /**
  * Roda a escrita do lançamento: sem chave, como na Fatia 2 (só a transação);
  * com chave, sob o recibo de idempotência (reenvio igual devolve o corpo
  * gravado com `replay: true`; corpo diferente → 409, auditado à parte). A
- * chave de uma linha de produto JÁ gravada (`<operation_id>:p…`) é conflito
+ * chave de uma linha de produto, mão de obra ou serviço JÁ gravada
+ * (`<operation_id>:p<n>`, `:o<n>`, `:s<n>`, comparadas EXATAS) é conflito
  * mesmo sem o recibo.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>> }} a
@@ -593,7 +629,11 @@ const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerpr
           tipoOperacao,
           fingerprint: fingerprint(),
           executar: async () => {
-            if (await existeLinhaComPrefixo(tx, cli, `${chave}:p`)) throw conflito();
+            // As chaves derivadas EXATAS (`<chave>:p1…p20`, nunca um prefixo com curinga de LIKE).
+            if (await existeLinhaComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'produto'))) throw conflito();
+            // D-PROD-207: idem para as chaves derivadas das linhas de mão de obra (`:o`) e de serviço (`:s`).
+            if (await existeLinhaMaoObraComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'mao_obra'))) throw conflito();
+            if (await existeLinhaServicoComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'servico'))) throw conflito();
             return { httpStatus: 201, body: await executar(tx) };
           },
         }),
@@ -638,7 +678,7 @@ const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividade, estad
       versao: 1,
     })
   );
-  if (linhas.maquinas.length || linhas.produtos.length) {
+  if (linhas.maquinas.length || linhas.produtos.length || linhas.maoObra.length || linhas.servicos.length) {
     const apontamento = await tx.atividadeApontamento.findFirst({
       where: { cliente_id: clienteId, empresa_id: empresaId, id },
       select: { id: true, empresa_id: true, atividade_id: true, data_operacional: true, status: true, versao: true, area_executada_dia: true },
@@ -648,6 +688,9 @@ const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividade, estad
     if (linhas.produtos.length) {
       await criarLinhasProduto(tx, contexto, { apontamento, atividade, linhas: linhas.produtos, operationId: /** @type {string} */ (linhas.operationId) });
     }
+    // D-PROD-207: mão de obra e serviço (sem trava própria: nem estoque nem medidor), com a chave do lançamento.
+    if (linhas.maoObra.length) await criarLinhasMaoObra(tx, contexto, { apontamento, atividade, linhas: linhas.maoObra, operationId: linhas.operationId });
+    if (linhas.servicos.length) await criarLinhasServico(tx, contexto, { apontamento, atividade, linhas: linhas.servicos, operationId: linhas.operationId });
   }
   const totais = await recalcularTotaisDaAtividade(tx, { clienteId, empresaId, atividadeId });
   const registro = await carregarApontamento(tx, clienteId, empresaId, atividadeId, id);
@@ -662,6 +705,8 @@ const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividade, estad
         ...extras,
         linhas_produto: (registro.produtos ?? []).map((/** @type {any} */ l) => l.id),
         linhas_maquina: (registro.maquinas ?? []).map((/** @type {any} */ l) => l.id),
+        linhas_mao_obra: (registro.maoObras ?? []).map((/** @type {any} */ l) => l.id),
+        linhas_servico: (registro.servicos ?? []).map((/** @type {any} */ l) => l.id),
         ...(linhas.operationId ? { operation_id: linhas.operationId } : {}),
         totais_da_atividade: totais,
       },
@@ -689,7 +734,10 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
   return comReciboOpcional(contexto, {
     operationId: linhas.operationId,
     tipoOperacao: TIPOS_OPERACAO_APONTAMENTO.lancar,
-    fingerprint: () => fingerprintDePayload({ v: 1, atividade_id: atividadeId, empresa_id: corpo.empresa_id, estado, origem, produtos: linhas.produtos, maquinas: canonico(linhas.maquinas) }),
+    fingerprint: () =>
+      fingerprintDePayload({
+        v: 1, atividade_id: atividadeId, empresa_id: corpo.empresa_id, estado, origem, produtos: linhas.produtos, maquinas: canonico(linhas.maquinas), ...linhasNovasDoFingerprint(linhas),
+      }),
     executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
@@ -721,7 +769,10 @@ export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, 
     operationId: linhas.operationId,
     tipoOperacao: TIPOS_OPERACAO_APONTAMENTO.duplicar,
     fingerprint: () =>
-      fingerprintDePayload({ v: 1, atividade_id: atividadeId, base_id: apontamentoId, empresa_id: corpo.empresa_id, data_operacional: diaInformado ?? null, produtos: linhas.produtos, maquinas: canonico(linhas.maquinas) }),
+      fingerprintDePayload({
+        v: 1, atividade_id: atividadeId, base_id: apontamentoId, empresa_id: corpo.empresa_id, data_operacional: diaInformado ?? null, produtos: linhas.produtos, maquinas: canonico(linhas.maquinas),
+        ...linhasNovasDoFingerprint(linhas),
+      }),
     executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
@@ -798,7 +849,10 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
         // A saída de estoque e a leitura do medidor das linhas estão nesta data: cancelar e lançar de novo.
         const produtos = await contarLinhasProdutoConfirmadas(tx, cli, empresaId, apontamentoId);
         const maquinas = await contarLinhasMaquinaConfirmadas(tx, { clienteId: cli, empresaId, apontamentoId });
-        if (produtos + maquinas > 0) throw atividadeDataComLinhas({ produtos, maquinas });
+        // D-PROD-207: o custo da mão de obra e do serviço também é deste dia.
+        const maoObra = await contarLinhasMaoObraConfirmadas(tx, { clienteId: cli, empresaId, apontamentoId });
+        const servicos = await contarLinhasServicoConfirmadas(tx, { clienteId: cli, empresaId, apontamentoId });
+        if (produtos + maquinas + maoObra + servicos > 0) throw atividadeDataComLinhas({ produtos, maquinas, maoObra, servicos });
       }
       await exigirOperador(tx, cli, estado.operador_usuario_id, gravado.operador_usuario_id);
       const dados = paraGravacao(campos);

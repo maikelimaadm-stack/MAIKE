@@ -28,7 +28,7 @@
  *    por batida > 0, até 3 casas. Gravado como decimal exato;
  *  - regras: Categoria de Manejo DESTA fazenda (ativa quando nova), sem
  *    repetir; não consome → sem %PV e sem gramas; consome → o valor da BASE;
- *  - D-PROD-207, base do consumo (UMA por formulação, sem mistura):
+ *  - D-PROD-208, base do consumo (UMA por formulação, sem mistura):
  *    `PV` (% do peso vivo; padrão: `percentual_pv_padrao` obrigatório; regras
  *    que consomem com `percentual_pv`) ou `G_CAB_DIA` (gramas por cabeça por
  *    dia; padrão: `consumo_objetivo_g_cab_dia` obrigatório e %PV nulo; regras
@@ -65,9 +65,9 @@ const ENTIDADE = 'Formulacao';
 export const TIPOS = Object.freeze(['PRONTO', 'BATELADA']);
 /** %PV máximo aceito (padrão e da regra). */
 export const PV_MAXIMO = 5;
-/** D-PROD-207: as bases do consumo (CHECK "CADFORMULACAO_base_consumo_check"). */
+/** D-PROD-208: as bases do consumo (CHECK "CADFORMULACAO_base_consumo_check"). */
 export const BASES_CONSUMO = Object.freeze(['PV', 'G_CAB_DIA']);
-/** D-PROD-207: teto de gramas por cabeça por dia (20 kg), no padrão e na regra. */
+/** D-PROD-208: teto de gramas por cabeça por dia (20 kg), no padrão e na regra. */
 export const G_MAXIMO = 20000;
 /** D-PROD-206: faixa de tolerância do farol de consumo, em % do esperado (null = padrão de 15%). */
 export const FAIXA_MAXIMA = 100;
@@ -302,7 +302,7 @@ const comConflitoDeNomeEstavel = async (executar) => {
 };
 
 /**
- * D-PROD-207 — a forma FINAL da base do consumo (sem mistura). PV: %PV padrão
+ * D-PROD-208 — a forma FINAL da base do consumo (sem mistura). PV: %PV padrão
  * obrigatório; regra que consome com %PV, sem gramas. G_CAB_DIA: g/cab/dia padrão
  * obrigatório e %PV padrão nulo; regra que consome com gramas, sem %PV.
  * @param {{ base: string, percentual_pv_padrao: unknown, consumo_objetivo_g_cab_dia: unknown,

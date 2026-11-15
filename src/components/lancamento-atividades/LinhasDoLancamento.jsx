@@ -2,7 +2,14 @@ import React, { useEffect } from "react";
 import { X } from "lucide-react";
 import { AvisoGestao, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
-import { CamposDaLinhaMaquina, CamposDaLinhaProduto, useMedidorDaLinha, useSaldoDoProduto } from "@/components/lancamento-atividades/JanelasDaLinha";
+import {
+  CamposDaLinhaMaoObra,
+  CamposDaLinhaMaquina,
+  CamposDaLinhaProduto,
+  CamposDaLinhaServico,
+  useMedidorDaLinha,
+  useSaldoDoProduto,
+} from "@/components/lancamento-atividades/JanelasDaLinha";
 import { useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
 import { passaDoTeto, usoDaLinha, validarLinhaProduto } from "@/lib/atividadeLinhasRegras";
 
@@ -13,6 +20,10 @@ const TITULO_CARTAO = "text-[12px] font-semibold uppercase text-[var(--mg-text-2
 /**
  * @typedef {import("@/lib/atividadeLinhasRegras").RascunhoProduto} RascunhoProduto
  * @typedef {import("@/lib/atividadeLinhasRegras").RascunhoMaquina} RascunhoMaquina
+ * @typedef {import("@/lib/atividadeLinhasRegras").RascunhoMaoObra} RascunhoMaoObra
+ * @typedef {import("@/lib/atividadeLinhasRegras").RascunhoServico} RascunhoServico
+ * @typedef {import("@/lib/atividadeLinhasRegras").RascunhosDoLancamento} RascunhosDoLancamento
+ * @typedef {keyof RascunhosDoLancamento} ColecaoDoLancamento
  * @typedef {{ disponivel?: string|null, medidor?: ReturnType<typeof import("@/lib/atividadeLinhasRegras").medidorDaResposta> | null }} ContextoDaLinha
  */
 
@@ -100,17 +111,70 @@ function RascunhoMaquina({ rascunho, ordem, atualizar, onRetirar, onContexto, er
 }
 
 /**
- * As linhas do "Repetir último lançamento" (D-PROD-202, §5): as de produto e de máquina do lançamento base, prontas
- * para o operador só ajustar as quantidades — tudo vai num envio só (o lançamento com `produtos[]` e `maquinas[]`,
- * numa transação no servidor). "Retirar" tira a linha deste envio (a base não muda).
+ * Uma linha de MÃO DE OBRA ou de SERVIÇO do "Repetir" (Fatia 4): os campos da janela, já preenchidos com a base.
+ * @param {{ tipo: 'mao_obra'|'servicos', rascunho: RascunhoMaoObra|RascunhoServico, ordem: number,
+ *   atualizar: (chave: string, f: (form: any) => any) => void, onRetirar: () => void, erros: Record<string, string>, bloqueado: boolean }} props
+ */
+function RascunhoSemMedidor({ tipo, rascunho, ordem, atualizar, onRetirar, erros, bloqueado }) {
+  const { chave } = rascunho;
+  const servico = tipo === "servicos";
+  const prefixo = `repetir-${servico ? "servico" : "mao-obra"}-${ordem}`;
+  /** @param {Record<string, any>} mudanca */
+  const mudar = (mudanca) => atualizar(chave, (f) => ({ ...f, ...mudanca }));
+  return (
+    <div className={CARTAO} data-testid={prefixo}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className={TITULO_CARTAO}>
+          {servico ? "Serviço" : "Mão de obra"} {ordem + 1}
+        </p>
+        <button type="button" className={`${BOTAO_SECUNDARIO} tb-btn-sm`} onClick={onRetirar} disabled={bloqueado} data-testid={`${prefixo}-retirar`}>
+          <X size={14} aria-hidden /> Retirar
+        </button>
+      </div>
+      <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2">
+        {servico ? (
+          <CamposDaLinhaServico
+            form={/** @type {RascunhoServico} */ (rascunho).form}
+            mudar={mudar}
+            erros={erros}
+            bloqueado={bloqueado}
+            prefixo={prefixo}
+            comObservacao={false}
+          />
+        ) : (
+          <CamposDaLinhaMaoObra
+            form={/** @type {RascunhoMaoObra} */ (rascunho).form}
+            mudar={mudar}
+            erros={erros}
+            bloqueado={bloqueado}
+            prefixo={prefixo}
+            comObservacao={false}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** O que a base trazia e o tipo não permite mais (as linhas não vão). */
+const FORA_DO_TIPO = Object.freeze(
+  /** @type {Record<string, string>} */ ({
+    produtos: "O tipo desta atividade não permite produto: os produtos do lançamento repetido não vão.",
+    mao_obra: "O tipo desta atividade não permite mão de obra: a mão de obra do lançamento repetido não vai.",
+    servicos: "O tipo desta atividade não permite serviço: os serviços do lançamento repetido não vão.",
+  }),
+);
+
+/**
+ * As linhas do "Repetir último lançamento" (D-PROD-202, §5; Fatia 4): as de produto, máquina, mão de obra e serviço do
+ * lançamento base, prontas para o operador só ajustar — tudo vai num envio só (o lançamento com `produtos[]`,
+ * `maquinas[]`, `mao_obra[]` e `servicos[]`, numa transação no servidor). "Retirar" tira a linha deste envio (a base
+ * não muda).
  * @param {{
- *   produtos: RascunhoProduto[],
- *   maquinas: RascunhoMaquina[],
- *   produtosForaDoTipo: number,
- *   atualizarProduto: (chave: string, f: (form: any) => any) => void,
- *   atualizarMaquina: (chave: string, f: (form: any) => any) => void,
- *   retirarProduto: (chave: string) => void,
- *   retirarMaquina: (chave: string) => void,
+ *   rascunhos: RascunhosDoLancamento,
+ *   foraDoTipo: Partial<Record<ColecaoDoLancamento, number>>,
+ *   atualizar: (colecao: ColecaoDoLancamento, chave: string, f: (form: any) => any) => void,
+ *   retirar: (colecao: ColecaoDoLancamento, chave: string) => void,
  *   onContexto: (chave: string, c: ContextoDaLinha) => void,
  *   erros: Record<string, Record<string, string>>,
  *   saltos: Record<string, boolean>,
@@ -121,42 +185,28 @@ function RascunhoMaquina({ rascunho, ordem, atualizar, onRetirar, onContexto, er
  *   bloqueado: boolean,
  * }} props
  */
-export default function LinhasDoLancamento({
-  produtos,
-  maquinas,
-  produtosForaDoTipo,
-  atualizarProduto,
-  atualizarMaquina,
-  retirarProduto,
-  retirarMaquina,
-  onContexto,
-  erros,
-  saltos,
-  atividadeId,
-  areaDoDia,
-  dia,
-  permiteImplemento,
-  bloqueado,
-}) {
-  if (!produtos.length && !maquinas.length && !produtosForaDoTipo) return null;
+export default function LinhasDoLancamento({ rascunhos, foraDoTipo, atualizar, retirar, onContexto, erros, saltos, atividadeId, areaDoDia, dia, permiteImplemento, bloqueado }) {
+  const { produtos, maquinas, mao_obra: maoObra, servicos } = rascunhos;
+  const avisos = Object.entries(FORA_DO_TIPO).filter(([c]) => (foraDoTipo[/** @type {ColecaoDoLancamento} */ (c)] ?? 0) > 0);
+  if (!produtos.length && !maquinas.length && !maoObra.length && !servicos.length && !avisos.length) return null;
   return (
     <>
-      <SecaoForm titulo="Produtos e máquinas do lançamento" />
+      <SecaoForm titulo="Linhas do lançamento (produtos, máquinas, mão de obra e serviços)" />
       <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="repetir-linhas-nota">
         As linhas vêm do lançamento repetido: ajuste as quantidades e as leituras. Tudo é gravado junto com o lançamento, de uma vez.
       </p>
-      {produtosForaDoTipo ? (
-        <div className="col-span-12">
-          <AvisoGestao testId="repetir-produtos-fora-do-tipo">O tipo desta atividade não permite produto: os produtos do lançamento repetido não vão.</AvisoGestao>
+      {avisos.map(([colecao, texto]) => (
+        <div key={colecao} className="col-span-12">
+          <AvisoGestao testId={`repetir-${colecao === "mao_obra" ? "mao-obra" : colecao}-fora-do-tipo`}>{texto}</AvisoGestao>
         </div>
-      ) : null}
+      ))}
       {produtos.map((r, i) => (
         <RascunhoProduto
           key={r.chave}
           rascunho={r}
           ordem={i}
-          atualizar={atualizarProduto}
-          onRetirar={() => retirarProduto(r.chave)}
+          atualizar={(chave, f) => atualizar("produtos", chave, f)}
+          onRetirar={() => retirar("produtos", r.chave)}
           onContexto={onContexto}
           erros={erros[r.chave] ?? {}}
           atividadeId={atividadeId}
@@ -169,13 +219,37 @@ export default function LinhasDoLancamento({
           key={r.chave}
           rascunho={r}
           ordem={i}
-          atualizar={atualizarMaquina}
-          onRetirar={() => retirarMaquina(r.chave)}
+          atualizar={(chave, f) => atualizar("maquinas", chave, f)}
+          onRetirar={() => retirar("maquinas", r.chave)}
           onContexto={onContexto}
           erros={erros[r.chave] ?? {}}
           dia={dia}
           permiteImplemento={permiteImplemento}
           saltoPedido={saltos[r.chave] === true}
+          bloqueado={bloqueado}
+        />
+      ))}
+      {maoObra.map((r, i) => (
+        <RascunhoSemMedidor
+          key={r.chave}
+          tipo="mao_obra"
+          rascunho={r}
+          ordem={i}
+          atualizar={(chave, f) => atualizar("mao_obra", chave, f)}
+          onRetirar={() => retirar("mao_obra", r.chave)}
+          erros={erros[r.chave] ?? {}}
+          bloqueado={bloqueado}
+        />
+      ))}
+      {servicos.map((r, i) => (
+        <RascunhoSemMedidor
+          key={r.chave}
+          tipo="servicos"
+          rascunho={r}
+          ordem={i}
+          atualizar={(chave, f) => atualizar("servicos", chave, f)}
+          onRetirar={() => retirar("servicos", r.chave)}
+          erros={erros[r.chave] ?? {}}
           bloqueado={bloqueado}
         />
       ))}

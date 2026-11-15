@@ -394,7 +394,7 @@ describe("D-PROD-206 — o lançamento grava o que o fechamento do consumo preci
   });
 });
 
-describe("D-PROD-207 — lançamento numa formulação da base g/cab/dia", () => {
+describe("D-PROD-208 — lançamento numa formulação da base g/cab/dia", () => {
   const SAL_G = {
     ...FORMULACAO, id: "f-g", nome: "SAL MINERAL G", base_consumo: "G_CAB_DIA", percentual_pv_padrao: null, consumo_objetivo_g_cab_dia: 80,
     regras: [

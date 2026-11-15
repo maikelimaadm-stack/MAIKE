@@ -24,7 +24,7 @@
  * Sobra não informada (campo vazio no abastecimento) conta como 0, e o
  * resultado fica marcado `sobra_informada: false` ("Aproximado").
  *
- * D-PROD-207 — BASE do consumo da formulação gravada no lançamento
+ * D-PROD-208 — BASE do consumo da formulação gravada no lançamento
  * (`base_consumo`; evento sem o campo = 'PV'):
  *  - 'PV': como acima; o g/cab/dia é só informação;
  *  - 'G_CAB_DIA' (sal mineral, quantidade fixa por cabeça): a meta é o
