@@ -104,7 +104,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   FORNECEDOR_NOT_FOUND: { http: 404, meaning: 'id não identifica fornecedor deste tenant (rota legada /fornecedores)' },
   PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
   PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
-  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação, lançamento financeiro/título (D-PROD-155) ou bem patrimonial como proprietário ou fornecedor (D-PROD-157) não é excluído; inativar' },
+  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação, lançamento financeiro/título (D-PROD-155), bem patrimonial como proprietário ou fornecedor (D-PROD-157) ou linha de serviço/mão de obra de atividade (D-PROD-207/208: details.servicos_atividade, details.mao_obra_atividade) não é excluído; inativar' },
   PARCEIRO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe parceiro com este CPF/CNPJ nesta empresa; nada foi gravado' },
   // D-PROD-208 — dados do funcionário (tipo, cargo, custo por hora e por diária) só com o papel `funcionario`.
   PARCEIRO_FUNCIONARIO_SEM_PAPEL: { http: 422, meaning: 'dados do funcionário (details.field) informados num parceiro sem o papel funcionario (details.reason: exige_papel_funcionario); marque o papel ou não envie os campos; nada foi gravado' },

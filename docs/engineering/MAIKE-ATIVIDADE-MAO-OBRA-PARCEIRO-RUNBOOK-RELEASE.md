@@ -388,9 +388,13 @@ indices AS (
          count(*) FILTER (WHERE indexname = 'AtividadeApontamentoMaoObra_cliente_id_empresa_id_funcionar_idx') AS antigo
     FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'AtividadeApontamentoMaoObra'
 ),
+-- Por SQL dinâmico, só quando as 4 colunas do papel existem (antes de aplicar: NULL, nunca erro).
 linhas AS (
   SELECT (xpath('/row/n/text()', query_to_xml('SELECT count(*) AS n FROM public."AtividadeApontamentoMaoObra"', false, true, '')))[1]::text::bigint AS mao_obra,
-         (xpath('/row/n/text()', query_to_xml('SELECT count(*) AS n FROM public."Fornecedor" WHERE funcionario_tipo IS NOT NULL OR funcionario_cargo IS NOT NULL OR funcionario_custo_hora IS NOT NULL OR funcionario_custo_diaria IS NOT NULL', false, true, '')))[1]::text::bigint AS papel
+         CASE WHEN (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Fornecedor'
+                      AND column_name IN ('funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria')) = 4
+              THEN (xpath('/row/n/text()', query_to_xml('SELECT count(*) AS n FROM public."Fornecedor" WHERE funcionario_tipo IS NOT NULL OR funcionario_cargo IS NOT NULL OR funcionario_custo_hora IS NOT NULL OR funcionario_custo_diaria IS NOT NULL', false, true, '')))[1]::text::bigint
+         END AS papel
 ),
 tabelas AS (SELECT count(*) AS n FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p')),
 base(ordem, item, valor, esperado, status) AS (
@@ -424,7 +428,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 10, 'índice novo (cliente_id, parceiro_id) / índice antigo do funcionário', (SELECT novo || ' / ' || antigo FROM indices), '1 / 0',
          CASE WHEN (SELECT novo = 1 AND antigo = 0 FROM indices) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 11, 'linhas de mão de obra / parceiros com dado de funcionário', (SELECT mao_obra || ' / ' || papel FROM linhas), '0 / 0',
+  SELECT 11, 'linhas de mão de obra / parceiros com dado de funcionário', (SELECT mao_obra || ' / ' || coalesce(papel::text, '-') FROM linhas), '0 / 0',
          CASE WHEN (SELECT mao_obra = 0 AND papel = 0 FROM linhas) THEN 'OK' ELSE 'CONFIRA (o código novo já gravou?)' END
 )
 SELECT item, valor, esperado, status FROM (
