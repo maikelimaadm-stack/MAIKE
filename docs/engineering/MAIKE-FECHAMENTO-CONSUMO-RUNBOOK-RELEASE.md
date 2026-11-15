@@ -1,6 +1,6 @@
 # MAIKE — Fechamento do consumo: runbook de release expand-only (D-PROD-206)
 
-> **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Aplicar antes do merge (D-PROD-72), com o GO do proprietário.
+> **Estado: EXECUTADO em 2026-11-15 17:27:54 UTC (caminho B). `SCHEMA_APPLIED_PROD: SIM`.** Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -163,10 +163,10 @@ eventos (JSON) não dependem da coluna e podem ficar.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | `<preencher: finished_at da linha em _prisma_migrations>` |
-| Caminho | `<A ou B>` |
-| GO | `<texto do GO do proprietário>` |
-| Preflight (§2) | `<system_identifier; 56 / 0; coluna ausente>` |
+| Data/hora (UTC) | 2026-11-15 17:27:54 (`finished_at` da linha em `_prisma_migrations`) |
+| Caminho | **B**: o SQL do §3 (`aplicar206.sql`, com o `migration.sql` integral) numa transação única pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne`; guarda exigindo **56** concluídas. Aplicado pela sessão coordenadora |
+| GO | Do proprietário ("Ok faça o merge"), pela aprovação da chamada específica desta migration |
+| Preflight (§2) | guarda da transação: `system_identifier` 7692130048193495360; 56 concluídas / 0 com falha; `CADFORMULACAO` presente; coluna ausente |
 | Ensaio | Banco local com as 56 migrations da `main`: aplicou (57 / 0, 91 tabelas, `migrate status` em dia, `migrate diff` vazio); reexecução recusada (`migration já registrada`); alvo divergente recusado |
-| Postcheck (§4) | `<57 / 0; checksum; tipo da coluna; 91 tabelas>` |
-| Resultado | **PENDENTE** |
+| Postcheck (§4) | 57 concluídas / 0 com falha; checksum `bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c` igual ao pinado; coluna `numeric(5,2)`, anulável, sem default; 91 tabelas em `public` |
+| Resultado | **APLICADA E CONFERIDA** antes do merge (D-PROD-72) |
