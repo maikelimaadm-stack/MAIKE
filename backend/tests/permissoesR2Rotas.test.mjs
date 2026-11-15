@@ -126,6 +126,9 @@ const ESCRITAS = (c) => {
     ['formulação (POST)', 'POST', '/formulacoes', { empresa_id: E, nome: 'HACK', tipo: 'PRONTO', produto_id: 'p-1', percentual_pv_padrao: 0.1 }],
     ['formulação (PATCH)', 'PATCH', `/formulacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['formulação (DELETE)', 'DELETE', `/formulacoes/${ID}?empresa_id=${E}`],
+    // D-PROD-205 — Leitura de cocho: escrita guardada pela chave do mapa lancar_suplementacao.
+    ['leitura de cocho (POST)', 'POST', '/leituras-cocho', { empresa_id: E, ponto_suplementacao_id: 'ps-1', data_leitura: '2026-10-27', escore: 'VAZIO' }],
+    ['leitura de cocho (DELETE)', 'DELETE', `/leituras-cocho/${ID}`],
     // D-PROD-206 — Funcionários e Serviços: escrita guardada pelas telas sup-funcionarios e sup-servicos (sem DELETE).
     ['funcionário (POST)', 'POST', '/funcionarios', { empresa_id: E, nome: 'HACK', tipo: 'DIARISTA' }],
     ['funcionário (PATCH)', 'PATCH', `/funcionarios/${ID}`, { empresa_id: E, nome: 'HACK' }],

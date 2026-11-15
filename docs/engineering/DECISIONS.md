@@ -7430,6 +7430,31 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md).
 
+## D-PROD-205 — Leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (etapa 3 da suplementação)
+
+**Data:** 2026-11-15 · **Origem:** decisões do proprietário para a etapa 3 da suplementação: leitura de cocho = **escore** (Vazio / Adequado / Cheio) + **acesso** + **estrutura**, **sem lançamento de estoque**; farol no mapa; escore com 3 níveis; leitura vence depois de **2 dias**; etapa 3 e etapa 4 (fechamento de consumo) em PRs separadas · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Contexto.** O cocho só mostrava o nível ESTIMADO (D-PROD-178), calculado pelo consumo esperado desde o último abastecimento. Não havia como registrar o que o vaqueiro viu no cocho (vazio, cheio de sobra) nem problema de acesso ou de estrutura.
+
+**Decisão.**
+1. **Tabela nova `LEITURACOCHO`** (model `LeituraCocho`), por fazenda: `ponto_suplementacao_id`, `data_leitura` (DATE), `escore` `VAZIO | ADEQUADO | CHEIO`, `acesso` `BOM | RUIM`, `estrutura` `BOA | REPARO | QUEBRADA` (os três por CHECK), `observacoes` e `registrado_por_nome`. FKs pelo tenant: Empresa (Restrict) e PontoSuplementacao (**CASCADE**: apagar o cocho apaga as leituras dele). Índices começando por `cliente_id`.
+2. **Migration EXPAND `20261115100000_leitura_cocho`**: só `CREATE TABLE`/`INDEX`/FK/CHECK na tabela nova e o bloco RLS/REVOKE dela (mesmo corpo de sempre, lista nova, hash `60149f94…` em `DO_RLS_APROVADOS`). SHA-256 `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1`. Nenhuma tabela antiga alterada. 56 migrations e 91 tabelas depois.
+3. **API `/leituras-cocho`** (tenant só do `auth_context`):
+   - `GET` (opcional `empresa_id`, `ponto_suplementacao_id`, `limit`): leitura autenticada isolada por tenant, como `/suplementacao-eventos` (o mapa desenha o farol com ela);
+   - `POST` (corpo fechado): fazenda do tenant (`EMPRESA_NOT_FOUND` 404); cocho do tenant, da MESMA fazenda e que seja cocho (400 `ponto_inexistente`, `ponto_de_outra_fazenda`, `ponto_nao_e_cocho`); `data_leitura` válida e não posterior a hoje no fuso da fazenda (sem fuso configurado, `America/Sao_Paulo`; 400 `data_invalida`, `data_futura`); `escore` obrigatório, `acesso` padrão `BOM`, `estrutura` padrão `BOA`; `registrado_por_nome` da conta autenticada (nome, ou o login), nunca do corpo; auditoria;
+   - `DELETE /:id` físico (404 `LEITURA_COCHO_NOT_FOUND`), com auditoria. Sem PATCH.
+   - **Permissão:** criar e excluir com a chave do mapa `lancar_suplementacao` (quem lança no cocho também lê; nenhuma chave nova a conceder).
+4. **A leitura não movimenta estoque** e não muda o nível estimado do cocho (D-PROD-178).
+5. **Front:**
+   - porta `src/apis/leituras-cocho` com o adaptador offline (`tenantScoped`): **a leitura funciona sem rede** (entra na fila e vai ao servidor no replay); o POST envia só os campos da leitura (o replay acrescenta `created_date`/`updated_date`);
+   - capacidade `leiturasCocho` no cache do mapa;
+   - domínio puro `src/domain/suplementacao/leituraCocho.js`: **farol** pela última leitura (dia mais recente; no mesmo dia, a registrada depois) — VAZIO **vermelho**, ADEQUADO **verde**, CHEIO **azul**; sem leitura ou com mais de **2 dias** (hoje, ontem e anteontem valem) **cinza** "Sem leitura recente"; **avisos** de acesso ruim e de estrutura (reparo/quebrada) sempre da última leitura, mesmo vencida, com a data;
+   - detalhe do cocho no mapa: botão **Leitura** (com `lancar_suplementacao`), seção "Leitura do cocho" com o farol, quem leu, os avisos e as últimas 5 leituras (excluir com confirmação);
+   - marcador do cocho: ponto colorido do farol no canto de baixo (o selo do nível continua no de cima) e o texto do farol no `title`/`aria-label`. Depósito não tem farol.
+6. **Fora desta missão:** etapa 4 — fechamento do consumo em %PV com faixa configurável (padrão ±15%) e custo por cabeça/dia, com decisão e PR próprios. A produção da batelada (etapa 2b) fica para quando o proprietário precisar.
+
+**Relatório:** [`MAIKE-LEITURA-COCHO-REPORT.md`](./MAIKE-LEITURA-COCHO-REPORT.md) · **Runbook:** [`MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md`](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md).
+
 ## D-PROD-206 — Mão de obra e serviço de terceiro no apontamento do Lançamento de Atividades (Fatia 4)
 
 > **Numeração:** nasceu como D-PROD-203; a `main` deu a D-PROD-203 às Formulações (PR #290, migration `20261114700000_cadformulacao`, já em produção) e depois a D-PROD-204 ao mapa de ids da fila offline (PR #280, sem migration), e depois a D-PROD-205 à leitura de cocho (PR #295, migration `20261115100000_leitura_cocho`, já em produção), antes do merge desta. Esta é a **D-PROD-206**. O número não está no `migration.sql`.
@@ -7443,7 +7468,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 2. **Linha de mão de obra** (`AtividadeApontamentoMaoObra`): funcionário ativo da mesma fazenda, medida `HORA | DIARIA | TAREFA`, quantidade > 0. Hora e diária copiam o custo do cadastro como snapshot (sem custo no cadastro, a linha entra sem custo); tarefa pede o custo unitário no corpo. Exige a flag `permite_mao_obra` do tipo da atividade.
 3. **Linha de serviço** (`AtividadeApontamentoServico`): serviço ativo da mesma fazenda, unidade copiada como snapshot da sigla da unidade do serviço, valor unitário digitado (a tela sugere o de referência), documento opcional e parceiro opcional — ativo, da mesma fazenda e com o papel `prestador_servico`; o parceiro usado conta como "em uso" na exclusão de parceiro. Exige a flag `permite_servico`.
 4. **Comum às duas, como na Fatia 3:** editar é cancelar e lançar de novo na mesma transação; cancelar o apontamento ou a atividade cancela as linhas; idempotência por `operation_id`; data do apontamento travada com linha confirmada; os totais da atividade e o custo por hectare somam produto, máquina, mão de obra e serviço. Nada de financeiro: nenhuma `OperacaoFinanceira`, título ou rateio a partir das linhas.
-5. **Migration EXPAND `20261115200000_atividade_mao_obra_servico`:** só 4 tabelas novas (`Funcionario`, `Servico`, `AtividadeApontamentoMaoObra`, `AtividadeApontamentoServico`), nenhuma coluna em tabela antiga, nenhum dado migrado. Toda FK é composta pelo tenant e `RESTRICT`; o apontamento, o funcionário, o serviço e o centro de custo entram por `(cliente_id, empresa_id, id)` (mesma fazenda por construção); o parceiro só tem `(cliente_id, id)`, e a mesma fazenda dele é conferida no código. SHA-256 `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`, RLS pinado `16d2680d…`. Produção: 55 → 56 migrations, 90 → 94 tabelas (de tenant, 75 → 79), depois das Formulações (D-PROD-203).
+5. **Migration EXPAND `20261115200000_atividade_mao_obra_servico`:** só 4 tabelas novas (`Funcionario`, `Servico`, `AtividadeApontamentoMaoObra`, `AtividadeApontamentoServico`), nenhuma coluna em tabela antiga, nenhum dado migrado. Toda FK é composta pelo tenant e `RESTRICT`; o apontamento, o funcionário, o serviço e o centro de custo entram por `(cliente_id, empresa_id, id)` (mesma fazenda por construção); o parceiro só tem `(cliente_id, id)`, e a mesma fazenda dele é conferida no código. SHA-256 `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`, RLS pinado `16d2680d…`. Produção: 56 → 57 migrations, 91 → 95 tabelas (de tenant, 76 → 80), depois da leitura de cocho (D-PROD-205).
 6. **Constituição:** expansão D-PROD-206 no `00` e nota no `07`: os cadastros mínimos e as linhas como custo da atividade (snapshot), o parceiro prestador como referência; continua fora folha (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço; proibido apagar cadastro ou linha, criar `OperacaoFinanceira` a partir das linhas e usar `Usuario` como funcionário. **Vale só com a aprovação explícita do proprietário no merge.**
 
 **Release.** Não aplicada. A ordem é aplicar antes do merge, só com o GO escrito do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md).

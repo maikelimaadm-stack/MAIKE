@@ -14,12 +14,24 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-206**, pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."); escolha aprovada antes de implementar: Funcionário próprio (não `Usuario`) e prestador do cadastro de Parceiros ("sim, vai de acordo com o cadastro de parceiro") |
-| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1`, com a `main` `c181e327` (PR #290, Formulações, D-PROD-203) mesclada |
+| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1`, com a `main` `c181e327` (PR #290, Formulações, D-PROD-203), a `5490308f` (PR #280, D-PROD-204) e a `45444d21` (PR #295, leitura de cocho, D-PROD-205) mescladas |
 | Escopo | Cadastros mínimos de Funcionário e de Serviço por fazenda (só inativar), linha de mão de obra (hora e diária com snapshot do custo, tarefa digitada), linha de serviço (unidade como snapshot, valor digitado, parceiro prestador opcional), editar/cancelar e cascatas como na Fatia 3, totais e custo por hectare com as quatro linhas |
-| Migration | `20261115200000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 55 → 56 (depois das Formulações, D-PROD-203, já aplicada); tabelas 90 → 94; de tenant, 75 → 79 |
+| Migration | `20261115200000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 56 → 57 (depois da leitura de cocho, D-PROD-205, já aplicada); tabelas 91 → 95; de tenant, 76 → 80 |
 | Release | **Não aplicada.** Antes do merge, só com GO do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md) |
 | Constituição | Expansão D-PROD-206 no `00` e nota no `07`, redigidas pelo agente; **valem só com a aprovação explícita do proprietário no merge** |
 | Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-LEITURA-COCHO: leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (D-PROD-205)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-205**, decisões do proprietário para a etapa 3 da suplementação (escore Vazio/Adequado/Cheio + acesso + estrutura, sem estoque; farol no mapa; leitura vence depois de 2 dias) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `5490308f` (merge da PR #280, D-PROD-204) |
+| Escopo | Tabela `LEITURACOCHO`, API `/leituras-cocho` (GET autenticado; POST/DELETE com a chave do mapa `lancar_suplementacao`), leitura também offline (fila), farol do cocho (vermelho/verde/azul/cinza) no detalhe e no marcador do mapa, avisos de acesso e estrutura |
+| Migration | `20261115100000_leitura_cocho`, **EXPAND** (1 tabela nova). SHA-256 `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1`. Release pelo [runbook](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md), **antes do merge** (D-PROD-72) |
+| Release | **Aplicada em produção** em 2026-11-15 às 15:20:55 UTC, caminho B do [runbook](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md), com aprovação do proprietário; postcheck 56 / 0, checksum igual ao pinado, `LEITURACOCHO` com RLS e 1 política, 7 constraints, `anon` sem SELECT, 91 tabelas em `public` |
+| Próximas etapas | 4 Fechamento de consumo em %PV com faixa configurável (padrão ±15%) e custo por cab/dia · 2b Produção da batelada, quando o proprietário precisar |
+| Relatório | [`MAIKE-LEITURA-COCHO-REPORT.md`](./MAIKE-LEITURA-COCHO-REPORT.md) |
 
 ## Missão anterior (2026-11-14) — MAIKE-OFFLINE-MAPA-IDS: o id do servidor de uma criação offline sobrevive entre passadas do replay (D-PROD-204)
 

@@ -180,6 +180,11 @@ export const GUARDAS = Object.freeze({
     editar: porQualquer({ mapa: 'lancar_suplementacao' }),
     excluir: SO_ADMIN, // estorno suspenso na interface (politicaEstorno)
   },
+  // D-PROD-205 — Leitura de cocho: quem lança no cocho também lê (mesma chave do mapa). Listar é só autenticado.
+  leituraCocho: {
+    criar: porQualquer({ mapa: 'lancar_suplementacao' }),
+    excluir: porQualquer({ mapa: 'lancar_suplementacao' }),
+  },
   suplementacaoEvento: {
     criar: porQualquer({ mapa: 'lancar_suplementacao' }),
     lancamento: porQualquer({ mapa: 'lancar_suplementacao' }),

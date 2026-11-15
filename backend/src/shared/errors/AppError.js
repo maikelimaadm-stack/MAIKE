@@ -758,6 +758,10 @@ export const formulacaoEmUso = (lancamentos, options) =>
     { ...options, details: { ...(options?.details ?? {}), lancamentos } }
   );
 
+// D-PROD-205 — Leitura de cocho (tabela LEITURACOCHO).
+export const leituraCochoNotFound = (message, options) =>
+  new AppError('LEITURA_COCHO_NOT_FOUND', message || 'leitura de cocho não encontrada', options);
+
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);
 

@@ -30,6 +30,7 @@ import useMapRenderer from "../components/mapa/useMapRenderer";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { useBebedouros } from "@/hooks/useBebedouros";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
+import { descreverFarol, farolDoCocho } from "@/domain/suplementacao/leituraCocho";
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 import { BASEMAP_IDS, CENTRO_PADRAO } from "@/lib/maplibre/basemap.js";
@@ -392,6 +393,8 @@ export default function MapaGeral() {
   }, [iconesConfig]);
 
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery(createMapaQuery('eventosSuplementacao'));
+  // D-PROD-205: leituras de cocho — o farol do cocho (vermelho/verde/azul/cinza).
+  const { data: leiturasCocho = [], refetch: refetchLeiturasCocho } = useQuery(createMapaQuery('leiturasCocho'));
   const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery(createMapaQuery('estoqueLotes'));
   const { data: produtos = [] } = useQuery(createMapaQuery('produtos'));
   const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery(createMapaQuery('tarefas', { enabled: !!empresaSelecionadaId && podeUsarTarefasMapa, enabledKey: podeUsarTarefasMapa ? 'on' : 'off' }));
@@ -453,6 +456,8 @@ export default function MapaGeral() {
       null;
       const indicadorBase = indicadorDeposito || getCochoIndicator(ponto, eventosSupl, { hoje, pontos: pontosSuplementacao });
       const nivel = indicadorBase.nivel;
+      // D-PROD-205: só cocho tem farol (depósito não tem leitura).
+      const farol = indicadorDeposito ? null : farolDoCocho({ leituras: leiturasCocho, pontoId: ponto.id, hoje });
       const alertaInfo = alertasMapa.alertasPonto.get(ponto.id);
       const alertaPrincipal = alertaInfo?.alertas?.[0] || null;
 
@@ -462,13 +467,14 @@ export default function MapaGeral() {
         indicador_neutro: nivel.neutro === true,
         indicador_titulo: nivel.descricao,
         indicador_alerta_excesso: Number(indicadorDeposito?.nivel.excessoKg) > 0,
+        indicador_farol: farol ? { cor: farol.cor, hex: farol.hex, rotulo: farol.rotulo, texto: descreverFarol(farol), avisos: farol.avisos.length } : null,
         nivel_suplementacao: nivel,
         indicador_helper: showAlertas ? alertaPrincipal?.descricao || indicadorBase.helperLabel : indicadorBase.helperLabel,
         ultimo_registro: indicadorBase.latestRecord,
         alertas_inteligentes: showAlertas ? alertaInfo?.alertas || [] : []
       };
     });
-  }, [pontosSuplementacao, estoqueLotes, produtos, eventosSupl, alertasMapa, showAlertas, hoje]);
+  }, [pontosSuplementacao, estoqueLotes, produtos, eventosSupl, leiturasCocho, alertasMapa, showAlertas, hoje]);
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {
@@ -887,7 +893,7 @@ export default function MapaGeral() {
     await queryClient.invalidateQueries({ queryKey: ['mapa-cache'] });
 
     const refreshOptions = force ? { force: true } : {};
-    const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'pontosSuplementacao', 'pontos', 'estoqueLotes', 'categoriasManejo'];
+    const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'leiturasCocho', 'pontosSuplementacao', 'pontos', 'estoqueLotes', 'categoriasManejo'];
     const refreshTasks = keysToRefresh.map((key) => refreshMapaCacheEntry(key, empresaSelecionadaId, refreshOptions));
 
     if (modoColoracao === 'situacao_pasto' && !keysToRefresh.includes('movimentacoes')) refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
@@ -898,6 +904,7 @@ export default function MapaGeral() {
     if (keysToRefresh.includes('lotes')) refetchTasks.push(refetchLotes());
     if (keysToRefresh.includes('areas')) refetchTasks.push(refetchAreas());
     if (keysToRefresh.includes('eventosSuplementacao')) refetchTasks.push(refetchEventosSupl());
+    if (keysToRefresh.includes('leiturasCocho')) refetchTasks.push(refetchLeiturasCocho());
     if (keysToRefresh.includes('pontosSuplementacao')) refetchTasks.push(refetchPontosSupl());
     if (keysToRefresh.includes('pontos')) refetchTasks.push(refetchPontosRef());
     if (keysToRefresh.includes('estoqueLotes')) refetchTasks.push(refetchEstoqueLotes());
@@ -907,7 +914,7 @@ export default function MapaGeral() {
     if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();
     if (podeUsarTarefasMapa && (!cacheKeys?.length || keysToRefresh.includes('tarefas'))) await refetchTarefas();
     if (showToast) toast.success('Mapa atualizado');
-  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLeiturasCocho, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleRefresh = useCallback(async () => {
     await executarRefreshMapa(true, true);

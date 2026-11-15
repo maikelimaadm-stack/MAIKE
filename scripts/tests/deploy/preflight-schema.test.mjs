@@ -47,6 +47,8 @@ const COLUNAS_OK = [
   { table_name: 'CADFORMULACAO', column_name: 'percentual_pv_padrao' },
   { table_name: 'CADFORMULACAOINGREDIENTE', column_name: 'quantidade_kg' },
   { table_name: 'CADFORMULACAOREGRA', column_name: 'consome' },
+  // D-PROD-205: a leitura de cocho.
+  { table_name: 'LEITURACOCHO', column_name: 'escore' },
   // D-PROD-206: os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço.
   { table_name: 'Funcionario', column_name: 'custo_hora' },
   { table_name: 'Servico', column_name: 'unidade_medida_id' },
@@ -88,6 +90,7 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /CADFORMULACAO\.percentual_pv_padrao/);
   assert.match(r.falhas.join('\n'), /CADFORMULACAOINGREDIENTE\.quantidade_kg/);
   assert.match(r.falhas.join('\n'), /CADFORMULACAOREGRA\.consome/);
+  assert.match(r.falhas.join('\n'), /LEITURACOCHO\.escore/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 

@@ -118,7 +118,7 @@ que o servidor faz em `1e2b9fc5`.
 
 | Classe | Rotas | No HEAD |
 |---|---|---|
-| **MAPA_NECESSARIO** (o mapa desenha e abre os detalhes com elas) | `/areas-pastagem`, `/pontos-referencia`, `/linhas-geograficas`, `/pontos-suplementacao`, `/configuracao-icones`, `/lotes` e `/lotes/:id`, `/rebanho/posicoes`, `/setores`, `/categorias-manejo`, `/bebedouros`, `/bebedouros-historico`, `/suplementacao-eventos`, `/suplementacao-lotes`, `/estoque-lotes-nota`, `/produtos`, `/movimentacoes-estoque`, `/movimentacoes-mapa`, `/movimentacoes-mapa/historico`, `/movimentacoes-mapa/:id/elegibilidade-cancelamento` e `-exclusao`, `/aplicacoes-medicamento`, `/eventos-sanitarios`, `/manejos-tecnico-rebanho`, `/movimentacoes-pecuaria`, `/catalogo-global/*`, `/auth/contexto` | só tenant, **de propósito**: guardar pela tela do cadastro quebraria o operador real |
+| **MAPA_NECESSARIO** (o mapa desenha e abre os detalhes com elas) | `/areas-pastagem`, `/pontos-referencia`, `/linhas-geograficas`, `/pontos-suplementacao`, `/configuracao-icones`, `/lotes` e `/lotes/:id`, `/rebanho/posicoes`, `/setores`, `/categorias-manejo`, `/bebedouros`, `/bebedouros-historico`, `/suplementacao-eventos`, `/leituras-cocho` (D-PROD-205), `/suplementacao-lotes`, `/estoque-lotes-nota`, `/produtos`, `/movimentacoes-estoque`, `/movimentacoes-mapa`, `/movimentacoes-mapa/historico`, `/movimentacoes-mapa/:id/elegibilidade-cancelamento` e `-exclusao`, `/aplicacoes-medicamento`, `/eventos-sanitarios`, `/manejos-tecnico-rebanho`, `/movimentacoes-pecuaria`, `/catalogo-global/*`, `/auth/contexto` | só tenant, **de propósito**: guardar pela tela do cadastro quebraria o operador real |
 | **MAPA_NECESSARIO condicional** (painel de tarefas, `podeUsarTarefasMapa`) | `/lancamentos-tarefa`, `/historicos-lancamento-tarefa`, `/tipos-tarefa`, `/grupos-atividade` | só tenant. A guarda proposta no diagnóstico não foi aplicada |
 | **Projeção por quem pede** (D-PROD-137). O Layout de todo usuário as lê, então não há 403 | `/empresas`, `/usuarios`, `/permissoes` | projeção no service (abaixo) |
 | **CADASTRO com guarda** (D-PROD-137) | `/fornecedores` | `porQualquer([TELAS.LOTES, 'visualizar'])` + projeção |
@@ -224,6 +224,8 @@ D-PROD-195: +1 rota, classe (a): `GET /categorias-manejo-opcoes/curvas-ganho` (s
 
 D-PROD-203: +6 rotas, todas classe (a): `/formulacoes` (Formulações de suplemento, tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA). Leitura e escrita pela tela `pec-formulacoes`; `GET /formulacoes/opcoes-lancamento` (só as ativas, para o lançamento de suplementação) também pela chave do mapa `lancar_suplementacao`. `DELETE /formulacoes/:id` recusa com 409 `FORMULACAO_EM_USO` `{ lancamentos }` a formulação citada por lançamento de suplementação.
 
+D-PROD-205: +3 rotas: `/leituras-cocho` (Leitura de cocho, tabela LEITURACOCHO). `GET` classe (d), leitura autenticada isolada por tenant (o mapa desenha o farol do cocho com ela, como `/suplementacao-eventos`); `POST` e `DELETE` classe (a), chave do mapa `lancar_suplementacao`.
+
 D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
 
 | Método | Rota | Arquivo:linha | Classe — guarda |
@@ -328,6 +330,9 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/formulacoes` | `backend/src/modules/formulacoes/formulacaoRoutes.js:142` | a — GUARDAS.formulacao.criar (D-PROD-203) |
 | PATCH | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:148` | a — GUARDAS.formulacao.editar (D-PROD-203) |
 | DELETE | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:154` | a — GUARDAS.formulacao.excluir (D-PROD-203); citada por lançamento de suplementação → 409 `FORMULACAO_EM_USO` `{ lancamentos }` |
+| GET | `/leituras-cocho` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:50` | d — leitura autenticada, isolada por tenant (sem checagem de tela; D-PROD-205) |
+| POST | `/leituras-cocho` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:55` | a — GUARDAS.leituraCocho.criar (D-PROD-205: mapa `lancar_suplementacao`) |
+| DELETE | `/leituras-cocho/:id` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:61` | a — GUARDAS.leituraCocho.excluir (D-PROD-205: mapa `lancar_suplementacao`) |
 | GET | `/fornecedores` | `backend/src/modules/fornecedores/fornecedorRoutes.js:42` | a — porQualquer([TELAS.LOTES, 'visualizar']). (D-PROD-137) Projeção com CPF mascarado; completo só com acesso total |
 | POST | `/fornecedores` | `backend/src/modules/fornecedores/fornecedorRoutes.js:50` | c — GUARDAS.semTela (só administrador real) |
 | PATCH | `/fornecedores/:id` | `backend/src/modules/fornecedores/fornecedorRoutes.js:56` | c — GUARDAS.semTela (só administrador real) |

@@ -64,6 +64,8 @@ const ORDEM_DE_LIMPEZA = [
   // fazer (P4.2).
   'movimentacaoEstoque',
   'estoqueLoteNota',
+  // D-PROD-205 — LEITURACOCHO referencia PontoSuplementacao (CASCADE) e Empresa (Restrict): antes dos dois.
+  'leituraCocho',
   'pontoSuplementacao',
   'bebedouro',
   'fornecedor',
