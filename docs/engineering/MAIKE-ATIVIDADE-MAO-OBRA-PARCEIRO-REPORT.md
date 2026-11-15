@@ -47,7 +47,14 @@ obra** do apontamento passa a ser de um parceiro: **funcionário** (custo da hor
 
 ## 5. Validação (local; o GitHub Actions está pausado)
 
-`<placeholder: preencher no fim — test:gates, scripts/tests/deploy, backend completo, typecheck/lint, verify:all>`
+Tudo local, com o GitHub Actions pausado pelo proprietário (commit `7315dc00`):
+
+- **Backend completo** (PostgreSQL 16): 2169 testes, 2164 passaram, **0 falhas** (5 `todo`).
+- **`verify-all` sem backend:** TODAS AS ETAPAS PASSARAM (inclui o smoke completo).
+- **`test:gates`:** 951/951; typecheck sem regressão; lint sem erro; `scripts/tests/deploy`: 223/223.
+- **Da fatia:** migration 13/13, mão de obra 23/23, serviço 12/12, integração real tela ↔ servidor 13/13, smoke das linhas 38/38, Parceiros 23/23.
+- **Revisão independente (E4):** sem achado grave nem de segurança; os 3 baixos (Repetir pela origem atual, chave do totalizador, voltar ao parceiro gravado) corrigidos com teste.
+- Uma rodada anterior do backend falhou só em `inicializarTenantMaikeCli` IT-10 enquanto outros agentes criavam e apagavam bancos no mesmo Postgres; o arquivo passa sozinho (11/11) e a rodada limpa acima passou inteira.
 
 Do E3, até aqui: `node --test scripts/tests/deploy/*.mjs` 223/223 (premerge-migrate com B27a–B27m e migrations com B20);
 `npm run -s test:gates` 951/951; `atividadeMaoObraParceiroMigration` 13/13; nos testes das migrations anteriores, com a
