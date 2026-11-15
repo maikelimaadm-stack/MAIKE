@@ -13,13 +13,25 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-204** (nasceu D-PROD-198, que a `main` deu ao peso projetado do lote; a D-PROD-203 é da PR #290) |
+| Decisão | **D-PROD-204** (nasceu D-PROD-198, que a `main` deu ao peso projetado do lote; a D-PROD-203 é da PR #290, mergeada) |
 | Branch / PR | `claude/relaxed-bardeen-jlgbp7`, PR #280, exclusiva desta missão. Nasceu sobre a PR #279 (emenda R2 da D-PROD-195); depois do merge dela, atualizada por merge com a `main` e com a `main` como base |
 | Escopo | `syncOfflineEntityQueue`: depois de um `create` confirmado e antes de tirá-lo da fila, todo item da fila que cita o id offline passa a citar o do servidor (`record_id` e `data`). `substituirIdsMapeados` troca só id `offline_…`, por chave própria do mapa, inclusive dentro de listas. Sem retenção nova. Só frontend, sem migration |
 | Provas | `offlineMapaDeIdsEntrePassadas` (6, todos reprovam com o runtime anterior) + `offlineRuntime`, `estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado`, `loteExclusaoCacheOffline`, `categoriaManejoCriacaoOnline` |
 | Relatório | [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
+## Missão anterior (2026-11-14) — MAIKE-FORMULACOES: Formulações de suplemento (produto pronto ou batelada, %PV por categoria) e formulação obrigatória no lançamento do cocho (D-PROD-203)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-203**, decisões do proprietário para a etapa 2 da suplementação (pronto × batelada, %PV com exceção por categoria, ingredientes em kg por batida, produto misturado cadastrado antes em Produtos, formulação obrigatória no lançamento) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `10a966e7` (merge da PR #288, D-PROD-201) |
+| Escopo | Etapa 2a de 4 da suplementação: cadastro de Formulações (tela `Formulacoes`, menu Manejo, tela de permissão `pec-formulacoes`), API `/formulacoes` com `opcoes-lancamento` (só ativas; também pela chave do mapa `lancar_suplementacao`), e o lançamento do cocho com a Formulação obrigatória no lugar do Produto e o consumo esperado lote a lote (regra da categoria ou %PV padrão) |
+| Migration | `20261114700000_cadformulacao`, **EXPAND** (3 tabelas novas: `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE`, `CADFORMULACAOREGRA`). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`. Repositório 54 → **55** (a 55ª, depois da `20261114600000_atividade_linhas_produto_maquina` da PR #289); tabelas 87 → **90** |
+| Release | **Aplicada em produção** em 2026-11-14 às 23:41:42 UTC, caminho B do [runbook](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 55 / 0, 3 tabelas com RLS, 90 tabelas, advisors sem achados. A PR #289 (migration `20261114600000`, já aplicada) entrou na `main` (`8d4b36a1`, com a #291) e foi incorporada nesta branch |
+| Próximas etapas | 2b Produção da batelada (baixa dos ingredientes e entrada do misturado pelo motor de estoque) · 3 Leitura de cocho e farol · 4 Fechamento de consumo em %PV com faixa configurável |
+| Relatório | [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
 
 | Campo | Valor |
 |---|---|
@@ -31,7 +43,7 @@ rollout pausado **D-PROD-41**)
 | Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-14 |
 | Documentos | [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) · [`MAIKE-ATIVIDADE-LINHAS-REPORT.md`](./MAIKE-ATIVIDADE-LINHAS-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
+## Missão anterior (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
 
 | Campo | Valor |
 |---|---|

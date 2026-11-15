@@ -64,6 +64,11 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AtividadeApontamentoMaquina', 'quantidade_uso'],
   ['BemPatrimonial', 'custo_uso_unitario'],
   ['TipoPatrimonial', 'salto_maximo_medidor'],
+  // D-PROD-203: o cadastro de Formulações e o lançamento de suplementação (formulação obrigatória) leem as 3 tabelas
+  // novas; sem a migration `20261114700000_cadformulacao`, a tela e as opções do lançamento respondem 500.
+  ['CADFORMULACAO', 'percentual_pv_padrao'],
+  ['CADFORMULACAOINGREDIENTE', 'quantidade_kg'],
+  ['CADFORMULACAOREGRA', 'consome'],
 ]);
 
 /**

@@ -55,10 +55,11 @@
  *  6. o runner oficial com a conferência exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187
  *     também recusa: a D-PROD-195 pende junto (nunca duas CONTRACT de uma vez);
  *  7. aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a impressão na
- *     URL), esta, depois a D-PROD-195 e por último a EXPAND da D-PROD-198, e confere: todas
+ *     URL), esta, depois a D-PROD-195 e por último as EXPAND da D-PROD-198 e da D-PROD-203, e confere: todas
  *     concluídas (CONCLUIDAS_DEPOIS; esta depois da CADCURVAGANHO, do ApontamentoAtividade,
  *     dos itens do apontamento e das CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-200,
- *     e a EXPAND da D-PROD-202, e a D-PROD-195 e a D-PROD-198 por último), 87 tabelas,
+ *     e a EXPAND da D-PROD-202, e a D-PROD-195, a D-PROD-198 e a EXPAND da D-PROD-203 por último),
+ *     87 tabelas na partida e 90 no fim (+ as 3 das Formulações, D-PROD-203),
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam mais a curva_ganho_id da D-PROD-195 (cada
  *     categoria na CURVA PADRÃO da fazenda) e a peso_objetivo_kg da D-PROD-198 (vazia),
@@ -118,7 +119,14 @@ export const NOME_CURVA_NA_CATEGORIA = '20261114200000_cadcategoria_curva_ganho'
  * D-PROD-195, e sobe no GREEN depois dela, pela ordem dos nomes (EXPAND: o runner não pede autorização para ela).
  */
 export const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO]);
+/**
+ * D-PROD-203: a EXPAND das Formulações (3 tabelas novas; a regra por categoria tem FK para "CADCATEGORIA"), de nome
+ * posterior, também exige o nome NOVO e no dia desta CONTRACT ainda não existia. Fica fora da partida e sobe no GREEN
+ * por último, pela ordem dos nomes (EXPAND). É a única que cria tabela depois desta CONTRACT: +3 no GREEN.
+ */
+export const NOME_FORMULACOES = '20261114700000_cadformulacao';
+export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()
@@ -136,7 +144,7 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
  * pastas; D-PROD-190, 46 → 47; D-PROD-193, 47 → 48; a curva mensal, D-PROD-194, 48 → 49; a curva na categoria,
  * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, na partida; o peso
  * objetivo, D-PROD-198, 51 → 52, fora da partida; a Atividade cabeçalho, D-PROD-200, 52 → 53, na partida; e as linhas
- * de produto e de máquina, D-PROD-202, 53 → 54, na partida); e tabelas em public (87: 83 com a do ApontamentoAtividade,
+ * de produto e de máquina, D-PROD-202, 53 → 54, na partida; e as Formulações, D-PROD-203, 54 → 55, fora da partida); e tabelas em public (87: 83 com a do ApontamentoAtividade,
  * D-PROD-190, + as 2 dos itens do apontamento, D-PROD-193, − essas 3 + as 2 da atividade, D-PROD-200, que sobe na
  * partida pela ordem dos nomes: a guarda dela só olha as 3 tabelas do apontamento antigo, vazias aqui, e ela não toca
  * CategoriaManejo; + as 3 das linhas, D-PROD-202, na partida depois dela; a D-PROD-194, a D-PROD-195, a D-PROD-197 e
@@ -145,6 +153,8 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1 - NOMES_DEPOIS_DO_CONTRACT.length;
 export const TABELAS_PUBLIC = 87;
+/** Depois do GREEN: as da partida + as 3 das Formulações (D-PROD-203), aplicadas por último: 90. */
+export const TABELAS_DEPOIS = TABELAS_PUBLIC + TABELAS_DA_FORMULACAO.length;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
 /** Parâmetro de sessão que leva a impressão aprovada no GO até a guarda. */
@@ -607,7 +617,7 @@ export const divergenciasGreen = (partida, depois) => {
   if (depois.colunas !== COLUNAS_DEPOIS.length) d.push(`${depois.colunas} colunas`);
   if (depois.legado !== null) d.push('legado ainda existe');
   if (!igual(depois.linhas, partida.linhas)) d.push('linhas nas 12 colunas mudaram');
-  if (depois.tabelas !== partida.tabelas) d.push('número de tabelas mudou');
+  if (depois.tabelas !== partida.tabelas + TABELAS_DA_FORMULACAO.length) d.push('número de tabelas mudou (além das 3 das Formulações, D-PROD-203)');
   if (!igual(depois.Cliente, partida.Cliente) || !igual(depois.CatalogoCategoriaVisual, partida.CatalogoCategoriaVisual)) d.push('outras tabelas mudaram');
   return d;
 };
@@ -698,7 +708,7 @@ if (ehEntradaDireta()) {
       const g = relatorio.green;
       const c195 = relatorio.runner_com_d195_pendente;
       if (g.status !== 0 || g.historico.concluidas !== CONCLUIDAS_DEPOIS || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_DEPOIS)
-        || JSON.stringify(g.ultimas_aplicadas) !== JSON.stringify([...NOMES_POSTERIORES_NA_PARTIDA, NOME_CONTRACT, ...NOMES_DEPOIS_DO_CONTRACT]) || g.tabelas !== TABELAS_PUBLIC
+        || JSON.stringify(g.ultimas_aplicadas) !== JSON.stringify([...NOMES_POSTERIORES_NA_PARTIDA, NOME_CONTRACT, ...NOMES_DEPOIS_DO_CONTRACT]) || g.tabelas !== TABELAS_DEPOIS
         || g.divergencias.length || !g.curvas_na_padrao || g.migrate_diff !== 0 || g.prisma_client !== partida.linhas.n || !g.segunda
         || c195.status === 0 || !c195.recusou || !c195.nada_mudou
         || relatorio.runner_sem_autorizacao.status === 0 || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_sem_autorizacao.nada_mudou) relatorio.ok = false;
