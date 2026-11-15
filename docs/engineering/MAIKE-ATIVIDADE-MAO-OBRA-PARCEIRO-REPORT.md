@@ -66,7 +66,7 @@ D-PROD-208: `atividadeMaoObraMigration` 12/12, `atividadeLinhasMigration` 11/11,
 
 ## 6. Release
 
-`<placeholder: não aplicada — só com o GO explícito e escrito do proprietário, pelo runbook; preencher horário, caminho, checksum e postcheck>`
+Aplicada em produção em 2026-11-15 às 22:57:36 UTC, antes do merge, pelo caminho B do runbook, com o GO do proprietário ("aplica e aprova"). Preflight: 58 / 0, anterior `20261115900000_atividade_mao_obra_servico` (`79f139a0…`), "Funcionario" e "AtividadeApontamentoMaoObra" vazias, 95 tabelas, 0 travas. Postcheck: 59 / 0, checksum `65a8a4eb…`, 94 tabelas, "Funcionario" ausente, `funcionario_id` ausente, 6 colunas novas, 2 CHECKs validados, FK nova RESTRICT, índice novo.
 
 ## 7. Fora do escopo
 

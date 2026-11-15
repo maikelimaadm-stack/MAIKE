@@ -1,6 +1,6 @@
 # MAIKE — Funcionário como papel do parceiro (ajuste da Fatia 4): runbook de release CONTRACT (D-PROD-208)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.** Só com o GO explícito e escrito do proprietário.
+> **Estado: EXECUTADO em 2026-11-15 22:57:36 UTC. `SCHEMA_APPLIED_PROD: SIM`.**
 >
 > Este documento é o plano. Cada passo para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de
@@ -504,14 +504,14 @@ publica a `main`; o build não roda migration.
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | `<pendente>` |
-| Caminho | `<A ou B>` |
-| `<SHA_APROVADO>` | `<pendente>` |
-| Verificação do SHA | `<sha256sum local igual ao pinado>` |
-| Ensaio local (§4.2) | `<atividadeMaoObraParceiroMigration.test.mjs n/n>` |
-| Preflight (§4) | `<horário; 58 / 0; 0; 1; 0; 0; 1; 0; 1; 95; travas; longas; veredito>` |
-| Backup / PITR anterior | `<pendente>` |
-| Aplicação | `<horário UTC; checksum; applied_steps_count>` |
-| Postcheck (§6) | `<pendente>` |
-| Alertas do Supabase | `<pendente>` |
-| Merge e deploy | `<PR; data>` |
+| GO-1 e GO-2 | "aplica e aprova" (2026-11-15) |
+| Caminho | B (conector, uma transação) |
+| `<SHA_APROVADO>` | `65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0` |
+| Verificação do SHA | `sha256sum` local igual ao pinado |
+| Ensaio local (§4.2) | `atividadeMaoObraParceiroMigration.test.mjs` 13/13 |
+| Preflight (§4) | 2026-11-15 ~22:56 UTC; 58 / 0; 0; 1; 0; 0; 1; 0; 95; 0 travas; 0 longas; PRONTO |
+| Backup / PITR anterior | PITR do Supabase (tabelas afetadas vazias) |
+| Aplicação | 2026-11-15 22:57:36 UTC; `65a8a4eb…`; 1 |
+| Postcheck (§6) | 59 / 0; 94; Funcionario ausente; funcionario_id ausente; 6 colunas; 2 CHECKs; FK nova 1 / antiga 0; índice novo 1 |
+| Alertas do Supabase | não consultados |
+| Merge e deploy | PR #298, 2026-11-15 |

@@ -194,5 +194,5 @@ Violação exige **rollback**, não flexibilização da regra.
 > **terceiro** (parceiro prestador de serviço, custo digitado). Continua **fora** tudo o que a D-PROD-207 deixou fora:
 > folha de pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título e rateio. Continua
 > proibido usar `Usuario` como funcionário, apagar linha (só cancelar) e criar `OperacaoFinanceira`, título ou rateio a
-> partir das linhas. Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no merge manual
+> partir das linhas. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("aplica e aprova")**, no merge da PR #298
 > (`00-CONSTITUICAO.md` §4).
