@@ -13,7 +13,7 @@
  * quebra aqui.
  *
  * Fatia 3 (D-PROD-202): linhas de produto e de máquina. Fatia 4 (D-PROD-207): linhas de mão de obra e de serviço —
- * os seletores (funcionários, serviços, parceiros prestadores), lançar/editar/cancelar, a prévia do custo da janela
+ * os seletores (mão de obra — funcionário ou terceiro, D-PROD-208 —, serviços, parceiros prestadores), lançar/editar/cancelar, a prévia do custo da janela
  * contra o gravado, os totais com as quatro linhas, o "Repetir" com `mao_obra[]`/`servicos[]` e as cascatas. As
  * respostas cruas ficam em `recebidos` (ex.: a linha escrita em `mao_obra`/`servico`, no singular).
  *
@@ -648,7 +648,7 @@ test('linhas: o salto do medidor conta da leitura vigente — a recusa chega à 
 
 /**
  * Cenário de custo: o das linhas (Fatia 3) com o tipo da atividade passando a permitir mão de obra e serviço; na
- * fazenda 1, funcionários (João mensalista com custo de hora 25,5 e de diária 180; Pedro diarista sem custo; Tião
+ * fazenda 1, parceiros-funcionário (João mensalista com custo de hora 25,5 e de diária 180; Pedro diarista sem custo; Tião
  * tarefeiro), um inativo e um da fazenda 2; serviços (gradagem em HA com referência 150, frete em UN sem
  * referência), um inativo e um da fazenda 2; parceiros prestador de serviço, só fornecedor, prestador inativo e
  * prestador da fazenda 2. Criados direto pelo Prisma (o CRUD dos cadastros é outro módulo).
@@ -702,7 +702,7 @@ const recusaDe = async (pr) => {
   return assert.fail('deveria recusar');
 };
 
-test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do cadastro, tarefa digitada, sem custo), editar trocando a medida e cancelar pelo caminho da tela', async () => {
+test('mão de obra: flags do tipo, seletor de funcionários e terceiros, lançar (hora do cadastro, tarefa digitada, sem custo, terceiro com custo digitado), editar trocando a medida e cancelar pelo caminho da tela', async () => {
   const s = await montarCusto();
   const LR = await import('../../src/lib/atividadeLinhasRegras.js');
   const { a } = s;
@@ -712,17 +712,23 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
   let ap = (await S.criarApontamento(a.id, R.corpoDoApontamento({ ...R.formularioApontamentoVazio('2027-06-11'), area_executada_dia: '2' }))).apontamento;
   assert.deepEqual([ap.mao_obra, ap.servicos], [[], []], 'o apontamento traz as listas novas, vazias');
 
-  // ── seletor: só os ativos da fazenda, em ordem de nome, com o tipo e os custos do cadastro.
-  const funcs = await S.listarOpcoesFuncionarios();
-  assert.equal(enviados.at(-1).caminho, `/api/native/atividades-opcoes/funcionarios?empresa_id=${s.e1.id}`);
-  assert.deepEqual(funcs.itens.map((f) => f.id), [s.joao.id, s.pedro.id, s.tiao.id]);
-  assert.deepEqual(Object.keys(funcs.itens[0]).sort(), ['cargo', 'custo_diaria', 'custo_hora', 'id', 'nome', 'numero', 'tipo']);
-  assert.deepEqual((await S.listarOpcoesFuncionarios({ q: 'tratorista' })).itens.map((f) => f.id), [s.joao.id], 'a busca vê o cargo');
-  const joao = LR.funcionarioEscolhido(funcs.itens[0]);
-  assert.deepEqual(joao, { id: s.joao.id, rotulo: 'João Mensalista', tipo: 'MENSALISTA', custo_hora: '25.5000', custo_diaria: '180.0000' });
+  // ── seletor (D-PROD-208): parceiros ativos da fazenda com o papel funcionário ou prestador de serviço (terceiro), em
+  // ordem de nome; o funcionário com o tipo e os custos do cadastro, o terceiro sem eles.
+  const opcoes = await S.listarOpcoesMaoObra();
+  assert.equal(enviados.at(-1).caminho, `/api/native/atividades-opcoes/mao-obra?empresa_id=${s.e1.id}`);
+  assert.deepEqual(opcoes.itens.map((f) => [f.id, f.origem]), [
+    [s.joao.id, 'FUNCIONARIO'], [s.pedro.id, 'FUNCIONARIO'], [s.prestador.id, 'TERCEIRO'], [s.tiao.id, 'FUNCIONARIO'],
+  ]);
+  assert.deepEqual(Object.keys(opcoes.itens[0]).sort(), ['funcionario_custo_diaria', 'funcionario_custo_hora', 'funcionario_tipo', 'id', 'nome', 'origem']);
+  assert.deepEqual((await S.listarOpcoesMaoObra({ q: 'terra' })).itens.map((f) => f.id), [s.prestador.id], 'a busca vê o nome');
+  const porId = (/** @type {string} */ id) => opcoes.itens.find((f) => f.id === id);
+  const joao = LR.maoObraEscolhida(porId(s.joao.id));
+  assert.deepEqual(joao, { id: s.joao.id, rotulo: 'João Mensalista', origem: 'FUNCIONARIO', tipo: 'MENSALISTA', custo_hora: '25.5000', custo_diaria: '180.0000' });
+  const terceiro = LR.maoObraEscolhida(porId(s.prestador.id));
+  assert.deepEqual(terceiro, { id: s.prestador.id, rotulo: 'Prestadora Terra Boa', origem: 'TERCEIRO', tipo: null, custo_hora: null, custo_diaria: null });
 
   // ── lançar HORA: a medida sugerida pelo tipo, o custo do cadastro (a prévia da janela = o gravado).
-  const formH = { ...LR.formularioMaoObraVazio(), funcionario: joao, tipo_medida: LR.medidaSugerida(joao.tipo), quantidade: '8' };
+  const formH = { ...LR.formularioMaoObraVazio(), parceiro: joao, tipo_medida: LR.medidaSugeridaDaMaoObra(joao), quantidade: '8' };
   assert.equal(formH.tipo_medida, 'HORA');
   assert.deepEqual(LR.validarLinhaMaoObra(formH), {});
   const previaH = LR.custoDaLinhaMaoObra(formH);
@@ -745,21 +751,21 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
     [ap.versao, lH.status, lH.parceiro_id, lH.tipo_medida, lH.quantidade, lH.custo_unitario, lH.custo_total],
     [2, 'CONFIRMADO', s.joao.id, 'HORA', '8.0000', previaH.unitario, previaH.total]
   );
-  assert.deepEqual([LR.rotuloDoFuncionarioDaLinha(lH), LR.formatarQuantidadeMaoObra(lH.quantidade, lH.tipo_medida)], ['João Mensalista', '8 h']);
+  assert.deepEqual([LR.rotuloDaMaoObraDaLinha(lH), lH.origem, LR.formatarQuantidadeMaoObra(lH.quantidade, lH.tipo_medida)], ['João Mensalista', 'FUNCIONARIO', '8 h']);
   // O formulário relido da linha não acusa mudança e mostra o mesmo custo.
   assert.deepEqual(LR.camposAlteradosDaLinhaMaoObra(lH, LR.corpoDaLinhaMaoObra(LR.formularioDaLinhaMaoObra(lH))), {});
   assert.deepEqual(LR.custoDaLinhaMaoObra(LR.formularioDaLinhaMaoObra(lH)), previaH);
 
   // ── TAREFA digitada (Tião) e HORA sem custo no cadastro (Pedro): a linha entra sem custo.
-  const tiao = LR.funcionarioEscolhido(funcs.itens[2]);
-  const formT = { ...LR.formularioMaoObraVazio(), funcionario: tiao, tipo_medida: LR.medidaSugerida(tiao.tipo), quantidade: '3', custo_unitario: '35,5' };
+  const tiao = LR.maoObraEscolhida(porId(s.tiao.id));
+  const formT = { ...LR.formularioMaoObraVazio(), parceiro: tiao, tipo_medida: LR.medidaSugeridaDaMaoObra(tiao), quantidade: '3', custo_unitario: '35,5' };
   assert.deepEqual([formT.tipo_medida, LR.validarLinhaMaoObra(formT)], ['TAREFA', {}]);
   ap = (await S.adicionarLinha('mao-obra', a.id, ap, LR.corpoDaLinhaMaoObra(formT), OPCOES_LINHA)).apontamento;
   const restoT = { ...ultimoEnvio().corpo };
   delete restoT.operation_id;
   assert.deepEqual(restoT, { parceiro_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '3', custo_unitario: '35.5', empresa_id: s.e1.id, versao: 2 });
   assert.deepEqual([ap.mao_obra[1].custo_unitario, ap.mao_obra[1].custo_total], ['35.5000', LR.custoDaLinhaMaoObra(formT).total]);
-  const formP = { ...LR.formularioMaoObraVazio(), funcionario: LR.funcionarioEscolhido(funcs.itens[1]), tipo_medida: 'HORA', quantidade: '4' };
+  const formP = { ...LR.formularioMaoObraVazio(), parceiro: LR.maoObraEscolhida(porId(s.pedro.id)), tipo_medida: 'HORA', quantidade: '4' };
   assert.deepEqual(LR.custoDaLinhaMaoObra(formP), { unitario: null, total: null }, 'a janela avisa: sem custo no cadastro');
   ap = (await S.adicionarLinha('mao-obra', a.id, ap, LR.corpoDaLinhaMaoObra(formP), OPCOES_LINHA)).apontamento;
   assert.deepEqual([ap.mao_obra[2].parceiro_id, ap.mao_obra[2].custo_unitario, ap.mao_obra[2].custo_total], [s.pedro.id, null, null]);
@@ -841,17 +847,62 @@ test('mão de obra: flags do tipo, seletor de funcionários, lançar (hora do ca
     [1, 'CANCELADO'], [2, 'CONFIRMADO'], [3, 'CONFIRMADO'], [4, 'CANCELADO'], [5, 'CANCELADO'], [6, 'CANCELADO'], [7, 'CANCELADO'], [8, 'CANCELADO'],
   ]);
 
-  // ── recusas chegam à janela: funcionário inativo/de outra fazenda e tipo sem mão de obra.
+  // ── recusas chegam à janela: parceiro inativo, de outra fazenda ou sem papel de mão de obra — recusa UNIFORME no campo
+  // `parceiro` (sem dizer o porquê) — e tipo sem mão de obra.
   const inativo = await prisma().fornecedor.findFirst({ where: { cliente_id: s.c, ativo: false, tipos: { has: 'funcionario' } } });
-  const eInativo = await recusaDe(S.adicionarLinha('mao-obra', a.id, rc.apontamento, { parceiro_id: inativo.id, tipo_medida: 'HORA', quantidade: '1' }, OPCOES_LINHA));
-  assert.equal(LR.campoDaLinhaRecusada(eInativo), 'funcionario');
-  assert.equal(LR.mensagemDeErroLinha(eInativo, ''), 'O funcionário está inativo. Nada foi gravado.');
+  const daFazenda2 = await prisma().fornecedor.findFirst({ where: { cliente_id: s.c, empresa_id: s.e2.id, tipos: { has: 'funcionario' } } });
+  const antesRecusas = await s.contagem();
+  for (const outro of [inativo, daFazenda2, s.soFornecedor, s.prestadorInativo, s.prestadorE2]) {
+    const e = await recusaDe(S.adicionarLinha('mao-obra', a.id, rc.apontamento, { parceiro_id: outro.id, tipo_medida: 'HORA', quantidade: '1' }, OPCOES_LINHA));
+    assert.equal(LR.campoDaLinhaRecusada(e), 'parceiro', outro.nome);
+    assert.equal(
+      LR.mensagemDeErroLinha(e, ''),
+      'O funcionário ou terceiro escolhido não pode ser usado: ele precisa ser um parceiro ativo desta fazenda com o papel funcionário ou prestador de serviço. Nada foi gravado.',
+      outro.nome
+    );
+  }
+  assert.deepEqual(await s.contagem(), antesRecusas, 'nada gravado nas recusas');
+
+  // ── terceiro (D-PROD-208): prestador de serviço sem sugestão de medida (hora); o custo unitário é SEMPRE digitado e
+  // obrigatório — a janela não envia sem ele e o servidor também recusa.
+  let apT = rc.apontamento;
+  const formX = { ...LR.formularioMaoObraVazio(), parceiro: terceiro, tipo_medida: LR.medidaSugeridaDaMaoObra(terceiro), quantidade: '6' };
+  assert.equal(formX.tipo_medida, 'HORA');
+  assert.deepEqual(LR.custoDaLinhaMaoObra(formX), { unitario: null, total: null }, 'nada vem de cadastro');
+  assert.deepEqual(LR.validarLinhaMaoObra(formX), { custo_unitario: 'Informe o custo unitário: para terceiro ele é sempre digitado.' });
+  const eSemCusto = await recusaDe(S.adicionarLinha('mao-obra', a.id, apT, LR.corpoDaLinhaMaoObra(formX), OPCOES_LINHA));
+  assert.equal(LR.campoDaLinhaRecusada(eSemCusto), 'custo_unitario');
+  assert.deepEqual(await s.contagem(), antesRecusas, 'terceiro sem custo: nada gravado');
+  const formX2 = { ...formX, custo_unitario: '42,75' };
+  assert.deepEqual(LR.validarLinhaMaoObra(formX2), {});
+  const previaX = LR.custoDaLinhaMaoObra(formX2);
+  assert.equal(previaX.total, '256.5000');
+  apT = (await S.adicionarLinha('mao-obra', a.id, apT, LR.corpoDaLinhaMaoObra(formX2), OPCOES_LINHA)).apontamento;
+  const restoX = { ...ultimoEnvio().corpo };
+  delete restoX.operation_id;
+  assert.deepEqual(restoX, { parceiro_id: s.prestador.id, tipo_medida: 'HORA', quantidade: '6', custo_unitario: '42.75', empresa_id: s.e1.id, versao: apT.versao - 1 });
+  const lX = apT.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.parceiro_id === s.prestador.id);
+  assert.deepEqual([lX.origem, lX.tipo_medida, lX.custo_unitario, lX.custo_total], ['TERCEIRO', 'HORA', '42.7500', previaX.total], 'a prévia da janela = o gravado');
+  assert.equal(LR.comMarcaDeTerceiro(LR.rotuloDaMaoObraDaLinha(lX), lX), 'Prestadora Terra Boa (terceiro)');
+  // Editar: o relido traz o custo digitado (nada muda = nada vai); trocar a medida leva o custo de novo.
+  const relX = LR.formularioDaLinhaMaoObra(lX);
+  assert.deepEqual([relX.parceiro?.origem, LR.custoMantidoDaLinha(relX)], ['TERCEIRO', false]);
+  assert.deepEqual(LR.camposAlteradosDaLinhaMaoObra(lX, LR.corpoDaLinhaMaoObra(relX)), {});
+  const mudX = LR.camposAlteradosDaLinhaMaoObra(lX, LR.corpoDaLinhaMaoObra({ ...relX, tipo_medida: 'DIARIA', quantidade: '1' }));
+  assert.deepEqual(mudX, { tipo_medida: 'DIARIA', quantidade: '1', custo_unitario: '42.75' });
+  apT = (await S.editarLinha('mao-obra', a.id, apT, lX, mudX, OPCOES_LINHA)).apontamento;
+  const lX2 = apT.mao_obra.find((l) => l.status === 'CONFIRMADO' && l.parceiro_id === s.prestador.id);
+  assert.deepEqual([lX2.origem, lX2.tipo_medida, lX2.custo_unitario, lX2.custo_total], ['TERCEIRO', 'DIARIA', '42.7500', '42.7500']);
+  // O totalizador da tela marca o terceiro.
+  const tX = await S.obterTotaisAtividade(a.id);
+  assert.deepEqual(tX.mao_obra.filter((x) => x.origem === 'TERCEIRO').map((x) => [x.parceiro_id, x.tipo_medida, x.custo_total]), [[s.prestador.id, 'DIARIA', '42.7500']]);
+  assert.ok(LR.totaisParaExibir(tX, await S.obterAtividade(a.id)).maoObra.some((x) => x.nome === 'Prestadora Terra Boa (terceiro)'));
   const semFlag = await S.criarAtividade(R.corpoDaAtividade(formCheio(s), { novo: true }));
   assert.deepEqual(LR.flagsDoTipoDaAtividade(semFlag, await S.listarTiposAtividade()).permiteMaoObra, false);
   const apSem = (await S.criarApontamento(semFlag.id, R.corpoDoApontamento(R.formularioApontamentoVazio('2027-06-11')))).apontamento;
   const eFlag = await recusaDe(S.adicionarLinha('mao-obra', semFlag.id, apSem, LR.corpoDaLinhaMaoObra(formH), OPCOES_LINHA));
   assert.equal(LR.mensagemDeErroLinha(eFlag, ''), 'O tipo desta atividade não permite mão de obra. Nada foi gravado.');
-  assert.equal(LR.campoDaLinhaRecusada(eFlag), 'funcionario');
+  assert.equal(LR.campoDaLinhaRecusada(eFlag), 'parceiro');
 });
 
 test('serviço: seletores de serviços e de parceiros prestadores, lançar com e sem parceiro, editar (tirar o parceiro, trocar o valor), parceiro sem o papel recusado e cancelar pelo caminho da tela', async () => {
