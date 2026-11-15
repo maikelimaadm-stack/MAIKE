@@ -150,7 +150,12 @@ describe("Juntar Lotes permanece visível quando indisponível", () => {
     const botao = screen.getByRole("button", { name: "Juntar Lotes" });
     expect(botao.disabled).toBe(true);
     expect(botao.title).toBe(motivo);
-    expect(screen.queryByRole("dialog")).toBe(null);
+    // PR #291: os manejos abrem numa grade em diálogo ("Manejos e históricos") também no
+    // desktop. O clique no botão desabilitado não abre nada além dela: nenhum diálogo de junção.
+    const dialogos = screen.queryAllByRole("dialog");
+    expect(dialogos.length).toBe(1);
+    expect(screen.getByRole("dialog", { name: "Manejos e históricos" })).toBeTruthy();
+    expect(screen.queryByText("Selecione o lote que receberá os animais (lote principal):")).toBe(null);
     expect(toast.error).not.toHaveBeenCalled();
     nenhumaEscrita();
   });
