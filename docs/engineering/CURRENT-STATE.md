@@ -16,10 +16,22 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-203**, decisões do proprietário para a etapa 2 da suplementação (pronto × batelada, %PV com exceção por categoria, ingredientes em kg por batida, produto misturado cadastrado antes em Produtos, formulação obrigatória no lançamento) |
 | Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `10a966e7` (merge da PR #288, D-PROD-201) |
 | Escopo | Etapa 2a de 4 da suplementação: cadastro de Formulações (tela `Formulacoes`, menu Manejo, tela de permissão `pec-formulacoes`), API `/formulacoes` com `opcoes-lancamento` (só ativas; também pela chave do mapa `lancar_suplementacao`), e o lançamento do cocho com a Formulação obrigatória no lugar do Produto e o consumo esperado lote a lote (regra da categoria ou %PV padrão) |
-| Migration | `20261114700000_cadformulacao`, **EXPAND** (3 tabelas novas: `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE`, `CADFORMULACAOREGRA`). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`. Repositório 53 → **54**; tabelas 84 → **87** |
-| Release | **Aplicada em produção** em 2026-11-14 às 23:41:42 UTC, caminho B do [runbook](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 55 / 0, 3 tabelas com RLS, 90 tabelas, advisors sem achados. O merge espera a PR #289 (migration `20261114600000`, já aplicada) entrar na `main` |
+| Migration | `20261114700000_cadformulacao`, **EXPAND** (3 tabelas novas: `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE`, `CADFORMULACAOREGRA`). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`. Repositório 54 → **55** (a 55ª, depois da `20261114600000_atividade_linhas_produto_maquina` da PR #289); tabelas 87 → **90** |
+| Release | **Aplicada em produção** em 2026-11-14 às 23:41:42 UTC, caminho B do [runbook](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 55 / 0, 3 tabelas com RLS, 90 tabelas, advisors sem achados. A PR #289 (migration `20261114600000`, já aplicada) entrou na `main` (`8d4b36a1`, com a #291) e foi incorporada nesta branch |
 | Próximas etapas | 2b Produção da batelada (baixa dos ingredientes e entrada do misturado pelo motor de estoque) · 3 Leitura de cocho e farol · 4 Fechamento de consumo em %PV com faixa configurável |
 | Relatório | [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-202**, pedido do proprietário ("FATIA 3 — As linhas que geram custo: produto e máquina."), liberada com "pode começar" |
+| Branch / PR | `feat/atividade-itens-produto-maquina`, a partir da `main` `74bd3ee1` |
+| Escopo | Linha de produto (baixa e estorno FIFO pelo motor único), linha de máquina (medidor do bem, leitura na linha), totalizador, repetir com linhas, custo de uso e teto de salto nos cadastros |
+| Migration | `20261114600000_atividade_linhas_produto_maquina`, **EXPAND**, SHA `e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489`. Produção 53 → 54; tabelas 84 → 87 |
+| Release | **Aplicada em produção** em 2026-11-14, antes do merge, com o GO "autorizo vocÇe", pelo caminho B do [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md). Postcheck: 54 / 0, 87 tabelas, APLICADA E CONFERIDA |
+| Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-14 |
+| Documentos | [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) · [`MAIKE-ATIVIDADE-LINHAS-REPORT.md`](./MAIKE-ATIVIDADE-LINHAS-REPORT.md) |
 
 ## Missão anterior (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
 

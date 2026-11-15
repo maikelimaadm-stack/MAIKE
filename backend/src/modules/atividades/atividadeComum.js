@@ -36,6 +36,7 @@ import {
   atividadeVersaoConflito,
 } from '../../shared/errors/AppError.js';
 import { fkDaAtividadeNaEscrita } from '../../shared/errors/vinculoAtividade.js';
+import { registrarEvento } from '../auditoria/auditService.js';
 import { CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
 import { invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, ehDiaValido } from '../patrimonio/patrimonioComum.js';
@@ -573,4 +574,173 @@ export const recalcularTotaisDaAtividade = async (tx, clienteId, empresaId, ativ
     data: { area_executada: somas.area_executada, quantidade_produzida: somas.quantidade_produzida },
   });
   return somas;
+};
+
+// ─── D-PROD-202 (Fatia 3): linhas de PRODUTO e de MÁQUINA do apontamento ────
+//
+// Contrato `docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`. Peças comuns
+// às duas linhas (`atividadeApontamentoProduto*.js` e
+// `atividadeApontamentoMaquina*.js`) e a forma pública da linha de PRODUTO,
+// que o apontamento passa a trazer em `produtos[]` (a de máquina é do serviço
+// dela, `comoLinhaMaquinaPublica`).
+
+/** Status da linha (CHECK `…_status_check` das duas tabelas). */
+export const STATUS_LINHA = Object.freeze({ CONFIRMADO: 'CONFIRMADO', CANCELADO: 'CANCELADO' });
+
+/**
+ * Por que a linha foi cancelada (CHECK `cancelamento_origem`): pela própria
+ * linha, pela EDIÇÃO (estorno exato + linha nova), pelo cancelamento do
+ * apontamento ou pelo da atividade.
+ */
+export const ORIGEM_CANCELAMENTO_LINHA = Object.freeze({ LINHA: 'LINHA', EDICAO: 'EDICAO', APONTAMENTO: 'APONTAMENTO', ATIVIDADE: 'ATIVIDADE' });
+
+/** `operation_id` (CHECK `…_textos_check` das duas tabelas e do recibo de idempotência). */
+export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
+
+/**
+ * Teto da chave do LANÇAMENTO com linhas (`POST …/apontamentos` e `…/duplicar`
+ * com `produtos[]`/`maquinas[]`): cada linha grava a chave derivada
+ * `<operation_id>:p<n>` ou `<operation_id>:m<n>` (`operationIdDaLinha`), que
+ * tem de caber nos 128 do CHECK.
+ */
+export const OPERATION_ID_DO_LANCAMENTO_MAXIMO = 120;
+
+/** Máximo de linhas de cada tipo num lançamento (o corpo do `POST …/apontamentos`). */
+export const LINHAS_NO_LANCAMENTO_MAXIMO = 20;
+
+/**
+ * `operation_id` do corpo: texto no `PADRAO_OPERATION_ID` (8..128 de
+ * `[A-Za-z0-9_.:-]`); senão 400 `formato`.
+ * @param {unknown} v @param {number} [maximo]
+ * @returns {string}
+ */
+export const operationIdDoCorpo = (v, maximo = 128) => {
+  if (typeof v !== 'string' || !PADRAO_OPERATION_ID.test(v) || v.length > maximo) {
+    throw invalido(`operation_id inválido: use de 8 a ${maximo} caracteres entre letras, dígitos, "_", ".", ":" e "-"`, { field: 'operation_id', reason: 'formato' });
+  }
+  return v;
+};
+
+/**
+ * Chave gravada na linha criada DENTRO de um lançamento (uma chave do corpo
+ * para tudo; cada linha precisa da sua, pela unique `(cliente_id, operation_id)`).
+ * @param {string} base  `operation_id` do lançamento @param {'produto'|'maquina'} tipo @param {number} indice  0-based
+ */
+export const operationIdDaLinha = (base, tipo, indice) => `${base}:${tipo === 'maquina' ? 'm' : 'p'}${indice + 1}`;
+
+/**
+ * Status das escritas de linha: atividade ABERTA e apontamento CONFIRMADO;
+ * senão 409 `ATIVIDADE_STATUS_INVALIDO` (`entidade` atividade ou apontamento,
+ * `acao` `lancar_linha` | `editar_linha` | `cancelar_linha`).
+ * @param {{ status: string }} atividade @param {{ status: string }} apontamento
+ * @param {'lancar_linha'|'editar_linha'|'cancelar_linha'} acao
+ */
+export const exigirLinhaGravavel = (atividade, apontamento, acao) => {
+  if (atividade.status !== STATUS_ATIVIDADE.ABERTA) throw atividadeStatusInvalido({ status: atividade.status, acao, entidade: 'atividade' });
+  if (apontamento.status !== STATUS_APONTAMENTO.CONFIRMADO) throw atividadeStatusInvalido({ status: apontamento.status, acao, entidade: 'apontamento' });
+};
+
+/**
+ * Editar e cancelar só linha CONFIRMADA; senão 409 `ATIVIDADE_STATUS_INVALIDO`
+ * (`entidade` `linha_produto` | `linha_maquina`).
+ * @param {{ status: string }} linha @param {'editar_linha'|'cancelar_linha'} acao @param {'linha_produto'|'linha_maquina'} entidade
+ */
+export const exigirLinhaConfirmada = (linha, acao, entidade) => {
+  if (linha.status !== STATUS_LINHA.CONFIRMADO) throw atividadeStatusInvalido({ status: linha.status, acao, entidade });
+};
+
+/**
+ * `preValidation` das rotas com linhas: os decimais DENTRO de `produtos[]` e
+ * `maquinas[]` só como texto (o AJV coergiria número em texto já corrompido
+ * pelo float) → 400 `valor_deve_ser_texto` com `details.campo` = `produtos[0].quantidade`.
+ * @param {unknown} corpo
+ * @param {Readonly<Record<string, readonly string[]>>} listas  lista do corpo → decimais de cada item
+ */
+export const recusarCoercaoNasListas = (corpo, listas) => {
+  if (!ehObjeto(corpo)) return;
+  const c = /** @type {Record<string, unknown>} */ (corpo);
+  for (const [lista, chaves] of Object.entries(listas)) {
+    const itens = c[lista];
+    if (!Array.isArray(itens)) continue;
+    itens.forEach((item, i) => {
+      if (!ehObjeto(item)) return;
+      for (const chave of chaves) {
+        if (!temCampo(item, chave)) continue;
+        const v = item[chave];
+        if (v !== null && v !== undefined && typeof v !== 'string') {
+          const campo = `${lista}[${i}].${chave}`;
+          throw invalido(`${campo} deve ser texto decimal (ex.: "12.5"), nunca número`, { field: campo, reason: 'valor_deve_ser_texto', campo });
+        }
+      }
+    });
+  }
+};
+
+/** Decimais da linha de PRODUTO (corpo da linha e itens de `produtos[]`). */
+export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade']);
+
+/** Resumos das linhas (só exibição), no formato do `select` do Prisma. */
+export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true } });
+export const LOCAL_RESUMO = Object.freeze({ select: { id: true, numero_local: true, nome: true } });
+
+/** @param {any} p */
+export const produtoPublico = (p) => (p ? { id: p.id, numero: p.numero_produto, nome: p.nome_produto } : null);
+/** @param {any} l */
+export const localPublico = (l) => (l ? { id: l.id, numero: l.numero_local, nome: l.nome } : null);
+
+/** `include` da linha de PRODUTO: resumos e as fatias FIFO (na ordem do motor). */
+export const INCLUIR_LINHA_PRODUTO = Object.freeze({
+  produto: PRODUTO_RESUMO,
+  localEstoque: LOCAL_RESUMO,
+  criadoPor: USUARIO_RESUMO,
+  canceladoPor: USUARIO_RESUMO,
+  consumos: { orderBy: { ordem: /** @type {const} */ ('asc') } },
+});
+
+/**
+ * Forma pública da linha de PRODUTO (contrato §2 e §4). `unidade` é a efetiva
+ * do estoque (L | KG); custos do FIFO do motor; `fatias` = de qual lote,
+ * quanto e a que custo.
+ * @param {any} r  registro lido com `INCLUIR_LINHA_PRODUTO`
+ */
+export const comoLinhaProdutoPublica = (r) => ({
+  id: r.id,
+  empresa_id: r.empresa_id,
+  apontamento_id: r.apontamento_id,
+  ordem: r.ordem,
+  status: r.status,
+  produto_id: r.produto_id,
+  produto: produtoPublico(r.produto),
+  local_estoque_id: r.local_estoque_id,
+  local_estoque: localPublico(r.localEstoque),
+  quantidade: t4(r.quantidade),
+  unidade: r.unidade,
+  dose_ha: t4(r.dose_ha),
+  custo_unitario: t4(r.custo_unitario),
+  custo_total: t4(r.custo_total),
+  movimentacao_estoque_id: r.movimentacao_estoque_id,
+  movimentacao_estorno_id: r.movimentacao_estorno_id ?? null,
+  fatias: (r.consumos ?? []).map((/** @type {any} */ f) => ({ ordem: f.ordem, lote_id: f.estoque_lote_nota_id, quantidade: t4(f.quantidade), custo_unitario: t4(f.custo_unitario) })),
+  observacao: r.observacao ?? null,
+  criado_por: usuarioPublico(r.criadoPor),
+  cancelado_em: iso(r.cancelado_em),
+  cancelado_por: usuarioPublico(r.canceladoPor),
+  motivo_cancelamento: r.motivo_cancelamento ?? null,
+  cancelamento_origem: r.cancelamento_origem ?? null,
+  createdAt: iso(r.createdAt),
+  updatedAt: iso(r.updatedAt),
+});
+
+/**
+ * Reenvio conflitante (mesma `operation_id`, corpo diferente) auditado numa
+ * transação PRÓPRIA, best-effort (molde do abastecimento e da D-PROD-193): a
+ * resposta segue 409 `IDEMPOTENCY_CONFLICT` e nada foi gravado.
+ * @param {any} contexto @param {string} entidade @param {string} operationId @param {string} tipoOperacao
+ */
+export const auditarReenvioConflitante = async (contexto, entidade, operationId, tipoOperacao) => {
+  try {
+    await registrarEvento(contexto, { acao: 'atividade.reenvio_conflitante', entidade, entidadeId: null, dadosNovos: { operation_id: operationId, tipo_operacao: tipoOperacao } });
+  } catch {
+    // best-effort documentado: a auditoria do conflito não muda a resposta 409.
+  }
 };

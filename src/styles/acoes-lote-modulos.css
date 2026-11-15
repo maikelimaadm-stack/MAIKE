@@ -1,0 +1,121 @@
+/* A mesma abertura de ações no desktop, tablet e celular. As cores e o
+   contraste são locais para resistir às regras globais dos botões do mapa. */
+.mk-al-dock.mk-al-menu:not(#mk-padrao) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+  border: 0;
+  background: transparent !important;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo-titulo:not(#mk-padrao) {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px !important;
+  font-weight: 600;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 12px 6px;
+  border: 0 !important;
+  border-radius: 12px;
+  background: #65d1ec !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  text-align: center;
+  cursor: pointer;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):is(:hover, :active, :focus-visible) {
+  background: #65d1ec !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transform: none;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:not(#mk-padrao) {
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone :is(svg, img):not(#mk-padrao) {
+  display: block;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  max-width: 36px;
+  margin: 0;
+  object-fit: contain;
+  color: #fff !important;
+  filter: none;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__quadro .mk-al__img g {
+  color: inherit;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
+  width: 68px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone .mk-al__img--mover:not(#mk-padrao) {
+  height: 44px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro > span:last-child:not(#mk-padrao) {
+  min-width: 0;
+  max-width: 100%;
+  color: #fff !important;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):focus-visible {
+  outline: 2px solid #15803d !important;
+  outline-offset: 2px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+@media (max-width: 639px) {
+  .mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+@media (max-width: 359px) {
+  .mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

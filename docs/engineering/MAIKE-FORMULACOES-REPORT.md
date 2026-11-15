@@ -8,7 +8,7 @@ Runbook: [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RE
 | Camada | O que entrou |
 |---|---|
 | Banco | `CADFORMULACAO` (`Formulacao`), `CADFORMULACAOINGREDIENTE` (`FormulacaoIngrediente`) e `CADFORMULACAOREGRA` (`FormulacaoRegraCategoria`), por fazenda; migration **EXPAND** `20261114700000_cadformulacao` (SHA-256 `96f3f364…`), 5 CHECKs, FKs compostas pelo tenant, filhas da mesma fazenda com `CASCADE`, RLS/REVOKE |
-| Release | manifesto e bloco RLS pinados; preflight de schema exige as 3 tabelas; runbook com caminhos A e B, ensaiado em banco local; testes do ferramental (B22a/b/k) e contagens 53 → 54 migrations e 84 → 87 tabelas (premerge, SQL Editor 01–04 e os ensaios das CONTRACT anteriores) |
+| Release | manifesto e bloco RLS pinados; preflight de schema exige as 3 tabelas; runbook com caminhos A e B, ensaiado em banco local; testes do ferramental (B23a/b/k; nasceram B22a/b/k, renumerados no merge da PR #289, que usa B22a/b/k) e contagens 54 → 55 migrations e 87 → 90 tabelas, 75 de tenant (premerge, SQL Editor 01–04 e os ensaios das CONTRACT anteriores; antes do merge da PR #289 a branch dizia 53 → 54 e 84 → 87) |
 | Backend | módulo `backend/src/modules/formulacoes/` (rotas, serviço, repositório): CRUD por fazenda, PATCH com troca das listas, DELETE recusado com 409 `FORMULACAO_EM_USO` quando um lançamento cita a formulação, `GET /formulacoes/opcoes-lancamento` (ativas) também pela chave do mapa `lancar_suplementacao`; códigos `FORMULACAO_NOT_FOUND`, `FORMULACAO_NAME_CONFLICT`, `FORMULACAO_EM_USO`; tela de permissão `pec-formulacoes` |
 | Frontend | tela `Formulacoes` (menu Manejo; grade e formulário Base1 com regras por categoria e ingredientes em kg por batida, total e %); porta/API/service; lançamento do cocho com a **Formulação obrigatória** e o consumo esperado lote a lote (`consumoEsperadoPorFormulacao`) |
 | Docs | D-PROD-203, este relatório, runbook, `CURRENT-STATE`, cobertura de endpoints da R2 |
@@ -32,6 +32,7 @@ Runbook: [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RE
 | `npm run test:gates` | 921/921 |
 | `gate:tenancy`, `gate:indices`, `gate:modelobase1-pecuario`, `gate:supabase-public-grants`, `gate:deploy-migrations`, `gate:native-api`, `gate:product-scope`, `gate:import-integrity`, `gate:base44`, `gate:source-closure`, `gate:api-boundary`, `gate:no-secrets`, `gate:types`, `typecheck:backend`, `lint` | PASSOU (lint: 0 erros; 2 avisos anteriores a esta missão) |
 | ensaio do caminho B (§3 do runbook) em banco local com as 53 migrations | recusa com o sid de produção; aplica com o local (54 / 0, 87 tabelas, `migrate status` em dia, `migrate diff` vazio); 2ª execução recusada |
+| o mesmo ensaio, refeito com as 54 migrations (as da PR #289 incluídas; guarda em 54) | aplica (55 / 0, 90 tabelas, `migrate status` em dia); 2ª execução recusada; alvo divergente recusado |
 
 ## 4. Verificação completa e revisão
 

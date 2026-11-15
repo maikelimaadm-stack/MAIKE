@@ -292,7 +292,7 @@ describe('K3 — tipos', () => {
     assert.equal(criado.codigo, 'POCILGA');
     assert.deepEqual([criado.familia.codigo, criado.natureza, criado.bens_em_uso], ['BENFEITORIAS', 'BENFEITORIA', 0]);
     assert.deepEqual(Object.keys(criado).sort(), [
-      'ativo', 'bens_em_uso', 'codigo', 'created_date', 'descricao', 'familia', 'familia_id', 'id', 'natureza', 'nome', 'updated_date', 'versao', 'vida_util_meses_sugerida',
+      'ativo', 'bens_em_uso', 'codigo', 'created_date', 'descricao', 'familia', 'familia_id', 'id', 'natureza', 'nome', 'salto_maximo_medidor', 'updated_date', 'versao', 'vida_util_meses_sugerida',
     ]);
     assert.deepEqual(await ok(req('GET', `/patrimonio-tipos/${criado.id}`, t)), criado);
     assert.equal((await req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 1, perfis: [] })).statusCode, 400, 'PATCH com perfis');

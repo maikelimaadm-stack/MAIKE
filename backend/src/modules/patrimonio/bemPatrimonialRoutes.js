@@ -145,6 +145,8 @@ const CAMPOS_DO_BEM = {
   placa_uf: TEXTO(4),
   renavam: TEXTO(16),
   potencia_cv: MEDIDA_NULO,
+  // D-PROD-202: custo por hora ou km de uso (≥ 0), snapshot na linha de máquina da atividade.
+  custo_uso_unitario: MEDIDA_NULO,
   material: TEXTO(80),
   ano_conclusao: INTEIRO_NULO,
   compatibilidade: TEXTO(255),

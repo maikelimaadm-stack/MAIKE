@@ -1,0 +1,698 @@
+/**
+ * Regras puras das LINHAS do apontamento — produto e máquina — e do
+ * totalizador da atividade (D-PROD-202, Fatia 3). Contrato:
+ * docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md (§2 a §5).
+ *
+ * Quem decide é o servidor; aqui ficam o estado das janelas, a validação
+ * local, o corpo do envio, o PATCH mínimo, a dose/ha e o uso calculados para
+ * LEITURA, o "Repetir" com as linhas e as mensagens das recusas.
+ *
+ *  - Decimais em TEXTO canônico (4 casas no máximo, Decimal(14, 4)).
+ *  - Produto: a quantidade é na unidade do ESTOQUE do produto (L; kg para KG
+ *    e SACO), nunca digitada nem convertida; custo (FIFO) e dose/ha são do
+ *    servidor — a dose mostrada aqui é só prévia (quantidade / área do dia).
+ *  - Máquina: tipo e unidade do medidor vêm do BEM (nunca perguntados); a
+ *    leitura inicial é sugerida pela leitura vigente; o uso é final − inicial
+ *    ou, "sem medidor", o que a pessoa informa. O teto do salto é do tipo
+ *    patrimonial: passou, a justificativa é pedida (não bloqueia).
+ */
+
+import { comparar, deUnidades, ehCanonico, ehPositivo, formatarNumero, lerNumeroLocal, paraTextoDeEdicao, paraUnidades, subtrair } from './dinheiroDecimal.js';
+import {
+  MEDIDORES_CONTADOR,
+  ROTULO_LEITURA,
+  UNIDADE_MEDIDOR,
+  formatarCusto,
+  formatarDiaAbastecimento,
+  rotuloDaUnidade,
+  rotuloDoBem,
+  unidadeDoAbastecimentoDoProduto,
+} from './abastecimentoRegras.js';
+import { lerErroGestao } from './gestaoErros.js';
+import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, STATUS_CANCELADO, STATUS_CONFIRMADO, mensagemDeErroAtividade } from './lancamentoAtividadesRegras.js';
+import { RAIZ_CONSULTAS_ATIVIDADES } from './atividadeApontamentoRegras.js';
+
+export const LINHA_PRODUTO = 'produtos';
+export const LINHA_MAQUINA = 'maquinas';
+/** Observação da linha (VarChar(500)). */
+export const MAX_OBSERVACAO_LINHA = 500;
+/** Justificativa do salto do medidor (§3): 3 a 500 caracteres úteis. */
+export const JUSTIFICATIVA_MINIMA = 3;
+export const JUSTIFICATIVA_MAXIMA = 500;
+/** Quantidade, leituras e uso: Decimal(14, 4). */
+export const LIMITES_LINHA = LIMITES_DECIMAL_ATIVIDADE;
+
+/** @param {unknown} v */
+const texto = (v) => (typeof v === 'string' ? v.trim() : '');
+/** @param {unknown} v @returns {v is Record<string, any>} */
+const ehObjeto = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+/** @param {string} t */
+const tamanho = (t) => [...t].length;
+/** Texto canônico gravado → texto do campo ("12.5000" → "12,5"). @param {unknown} v */
+const paraEdicao = (v) => paraTextoDeEdicao(v, LOCALE_ATIVIDADE, { casasMax: LIMITES_LINHA.casas });
+/** "12,5" (sem zeros à direita); vazio sem valor. @param {unknown} v */
+export const formatarDecimalLinha = (v) => (ehCanonico(v) ? formatarNumero(/** @type {string} */ (v), { locale: LOCALE_ATIVIDADE, casasMin: 0, casasMax: 4 }) : '');
+
+/**
+ * Decimal digitado (pt-BR) → canônico; vazio → null; inválido → erro do campo.
+ * @param {unknown} digitado @param {string} oque ex.: "A quantidade"
+ * @returns {{ valor: string|null, erro: string|null }}
+ */
+const lerDecimal = (digitado, oque) => {
+  const t = texto(digitado);
+  if (!t) return { valor: null, erro: null };
+  const lida = lerNumeroLocal(t, LOCALE_ATIVIDADE, LIMITES_LINHA);
+  if (lida.ok) return { valor: /** @type {string} */ (lida.valor), erro: null };
+  if (lida.motivo === 'casas') return { valor: null, erro: `Use no máximo ${LIMITES_LINHA.casas} casas decimais.` };
+  if (lida.motivo === 'limite') return { valor: null, erro: `${oque} passa do limite permitido.` };
+  return { valor: null, erro: `${oque} está em formato inválido: use 1.234,5.` };
+};
+
+// ─── Chaves das consultas ────────────────────────────────────────────────
+
+/** Totais de UMA atividade (o totalizador do cabeçalho). @param {string|null|undefined} empresaId @param {string|null|undefined} atividadeId */
+export const chaveTotais = (empresaId, atividadeId) => [RAIZ_CONSULTAS_ATIVIDADES, 'totais', empresaId ?? null, atividadeId ?? null];
+/** Locais com saldo de um produto (relida depois de baixa, estorno e recusa de saldo). @param {string|null} empresaId @param {string|null} produtoId */
+export const chaveLocaisDoProduto = (empresaId, produtoId) => [RAIZ_CONSULTAS_ATIVIDADES, 'locais', empresaId ?? null, produtoId ?? null];
+/** Medidor de um bem na data do apontamento. @param {string|null} empresaId @param {string|null} bemId @param {string|null} dia */
+export const chaveMedidor = (empresaId, bemId, dia) => [RAIZ_CONSULTAS_ATIVIDADES, 'medidor', empresaId ?? null, bemId ?? null, dia ?? null];
+
+// ─── O que o tipo permite ────────────────────────────────────────────────
+
+/**
+ * Flags do TIPO da atividade que valem para as linhas: `permite_produto` (sem ela o bloco Produtos some e o servidor
+ * recusa) e `permite_implemento`. O servidor confere o tipo ATUAL; a tela usa o que a atividade trouxer
+ * (`permite_*` ou `tipo_atividade.permite_*`) e, sem isso, o tipo da lista de tipos. Sem saber: fechado.
+ * @param {any} atividade @param {any[]} [tipos]
+ * @returns {{ permiteProduto: boolean, permiteImplemento: boolean }}
+ */
+export const flagsDoTipoDaAtividade = (atividade, tipos = []) => {
+  const doTipo = (Array.isArray(tipos) ? tipos : []).find((t) => ehObjeto(t) && String(t.id) === String(atividade?.tipo_atividade_id ?? ''));
+  /** @param {string} flag */
+  const flag = (flag) => {
+    if (typeof atividade?.[flag] === 'boolean') return atividade[flag];
+    if (typeof atividade?.tipo_atividade?.[flag] === 'boolean') return atividade.tipo_atividade[flag];
+    return doTipo?.[flag] === true;
+  };
+  return { permiteProduto: flag('permite_produto'), permiteImplemento: flag('permite_implemento') };
+};
+
+// ─── Linhas gravadas (lista e detalhe do apontamento) ────────────────────
+
+/** @param {any} a @param {any} b */
+const porOrdem = (a, b) => (Number(a?.ordem) || 0) - (Number(b?.ordem) || 0);
+
+/**
+ * As linhas do apontamento como o servidor devolve (`produtos[]`, `maquinas[]`, canceladas inclusive), por ordem.
+ * @param {any} apontamento
+ * @returns {{ produtos: any[], maquinas: any[] }}
+ */
+export const linhasDoApontamento = (apontamento) => ({
+  produtos: (Array.isArray(apontamento?.produtos) ? apontamento.produtos : []).filter((l) => ehObjeto(l) && l.id != null).sort(porOrdem),
+  maquinas: (Array.isArray(apontamento?.maquinas) ? apontamento.maquinas : []).filter((l) => ehObjeto(l) && l.id != null).sort(porOrdem),
+});
+
+/** Tem alguma linha CONFIRMADA (produto ou máquina)? @param {any} apontamento */
+export const temLinhaConfirmada = (apontamento) => {
+  const { produtos, maquinas } = linhasDoApontamento(apontamento);
+  return [...produtos, ...maquinas].some((l) => l.status === STATUS_CONFIRMADO);
+};
+
+/** Nome do produto da linha (resumo do servidor ou o snapshot). @param {any} l */
+export const rotuloDoProdutoDaLinha = (l) => texto(l?.produto?.nome) || texto(l?.produto_nome);
+/** Nome do local de onde saiu. @param {any} l */
+export const rotuloDoLocalDaLinha = (l) => texto(l?.local_estoque?.nome) || texto(l?.local_nome) || texto(l?.local?.nome);
+/** Máquina da linha ("TP-02 — Trator"). @param {any} l */
+export const rotuloDaMaquinaDaLinha = (l) => rotuloDoBem(l?.bem) || texto(l?.bem_nome);
+/** Implemento da linha. @param {any} l */
+export const rotuloDoImplementoDaLinha = (l) => rotuloDoBem(l?.implemento) || texto(l?.implemento_nome);
+
+/**
+ * Unidade em que a quantidade do produto é digitada e baixada (`L` | `KG`): a unidade EFETIVA do estoque (SACO
+ * guarda kg). Da opção de produto (`unidade_principal_estoque`) ou da linha gravada (`unidade`).
+ * @param {any} produtoOuLinha
+ * @returns {'L'|'KG'|null}
+ */
+export const unidadeDoProduto = (produtoOuLinha) =>
+  unidadeDoAbastecimentoDoProduto(produtoOuLinha?.unidade_principal_estoque) ??
+  unidadeDoAbastecimentoDoProduto(produtoOuLinha?.unidade) ??
+  unidadeDoAbastecimentoDoProduto(produtoOuLinha?.produto?.unidade_principal_estoque);
+
+/** "12,5 L" / "80 kg"; vazio sem valor. @param {unknown} v @param {unknown} unidade */
+export const formatarQuantidadeLinha = (v, unidade) => {
+  const n = formatarDecimalLinha(v);
+  if (!n) return '';
+  const u = rotuloDaUnidade(unidade);
+  return u ? `${n} ${u}` : n;
+};
+
+/** Custo em reais (até 4 casas); vazio sem valor. @param {unknown} v */
+export const formatarCustoLinha = (v) => (ehCanonico(v) ? formatarCusto(v) : '');
+
+// ─── Dose/ha e uso (só leitura) ──────────────────────────────────────────
+
+/**
+ * Dose/ha = quantidade / área do dia, 4 casas (HALF_UP), em BigInt — só prévia (o servidor grava e recalcula quando a
+ * área do dia muda). Sem área (ou área zero) → null.
+ * @param {unknown} quantidade @param {unknown} area
+ * @returns {string|null}
+ */
+export const doseHa = (quantidade, area) => {
+  if (!ehCanonico(quantidade) || !ehCanonico(area) || !ehPositivo(/** @type {string} */ (area))) return null;
+  try {
+    const q = paraUnidades(quantidade, 4);
+    const a = paraUnidades(area, 4);
+    const n = q * 10000n;
+    let r = n / a;
+    if ((n % a) * 2n >= a) r += 1n;
+    return deUnidades(r, 4);
+  } catch {
+    return null;
+  }
+};
+
+/** "2,5 L/ha"; vazio sem dose. @param {unknown} dose @param {unknown} unidade */
+export const formatarDose = (dose, unidade) => {
+  const n = formatarDecimalLinha(dose);
+  if (!n) return '';
+  const u = rotuloDaUnidade(unidade);
+  return `${n} ${u ? `${u}/ha` : 'por ha'}`;
+};
+
+/** Medidor que conta (horímetro, odômetro, ciclos): pede leitura. @param {unknown} tipo */
+export const ehContador = (tipo) => typeof tipo === 'string' && MEDIDORES_CONTADOR.includes(tipo);
+
+const UNIDADE_DO_TEXTO = Object.freeze(/** @type {Record<string, string>} */ ({ H: 'h', HORA: 'h', HORAS: 'h', HR: 'h', KM: 'km', CICLOS: 'ciclos', CICLO: 'ciclos' }));
+
+/**
+ * Unidade legível do medidor ("h", "km", "ciclos"): a gravada/do bem e, sem ela, a do tipo do medidor.
+ * @param {unknown} tipo @param {unknown} unidade
+ */
+export const rotuloDaUnidadeDoMedidor = (tipo, unidade) => {
+  const u = texto(unidade);
+  if (u) return UNIDADE_DO_TEXTO[u.toUpperCase()] ?? u;
+  return UNIDADE_MEDIDOR[String(tipo ?? '')] ?? '';
+};
+
+/** "Horímetro (h)" / "Odômetro (km)" / "Sem medidor". @param {unknown} tipo */
+export const rotuloDoMedidor = (tipo) => ROTULO_LEITURA[String(tipo ?? '')] ?? 'Sem medidor';
+
+/** "8 h" / "120 km"; vazio sem valor. @param {unknown} v @param {unknown} tipo @param {unknown} unidade */
+export const formatarUso = (v, tipo, unidade) => {
+  const n = formatarDecimalLinha(v);
+  if (!n) return '';
+  const u = rotuloDaUnidadeDoMedidor(tipo, unidade);
+  return u ? `${n} ${u}` : n;
+};
+
+/**
+ * Medidor de um bem (`/atividades-opcoes/medidor`), normalizado: tipo e unidade (do bem), se conta, a leitura vigente
+ * na data (`{ leitura, data, origem, numero }`) e o teto do salto. Aceita os nomes do contrato e os do abastecimento.
+ * @param {unknown} r
+ * @returns {{ tipo: string|null, unidade: string, contador: boolean, vigente: { leitura: string, data: string|null, origem: string|null, numero: unknown } | null, teto: string|null, custo: string|null }}
+ */
+export const medidorDaResposta = (r) => {
+  const o = ehObjeto(r) ? r : {};
+  const m = ehObjeto(o.medidor) ? o.medidor : o;
+  const tipo = texto(m.medidor_tipo) || texto(m.tipo) || null;
+  const bruto = m.leitura_vigente ?? m.vigente ?? null;
+  /** @type {{ leitura: string, data: string|null, origem: string|null, numero: unknown } | null} */
+  let vigente = null;
+  if (ehObjeto(bruto) && ehCanonico(bruto.leitura)) {
+    vigente = { leitura: bruto.leitura, data: texto(bruto.data) || null, origem: texto(bruto.origem) || null, numero: bruto.numero ?? null };
+  } else if (ehCanonico(m.leitura_sugerida)) {
+    vigente = { leitura: m.leitura_sugerida, data: texto(m.data) || null, origem: null, numero: null };
+  } else if (ehCanonico(bruto)) {
+    vigente = { leitura: /** @type {string} */ (bruto), data: texto(m.leitura_vigente_data) || null, origem: texto(m.leitura_vigente_origem) || null, numero: null };
+  }
+  const teto = [m.salto_maximo, m.salto_maximo_medidor, m.teto].find(ehCanonico) ?? null;
+  const custo = [m.custo_uso_unitario, m.custo_unitario_uso].find(ehCanonico) ?? null;
+  return { tipo, unidade: rotuloDaUnidadeDoMedidor(tipo, m.medidor_unidade ?? m.unidade), contador: ehContador(tipo), vigente, teto, custo };
+};
+
+/** "Última leitura: 1.550 h em 12/11/2026 (abastecimento nº 4)". @param {ReturnType<typeof medidorDaResposta>} medidor */
+export const textoDaLeituraVigente = (medidor) => {
+  const v = medidor?.vigente;
+  if (!v) return 'Sem leitura registrada para este bem até esta data.';
+  const dia = v.data ? ` em ${formatarDiaAbastecimento(v.data)}` : '';
+  const origem =
+    v.origem === 'CADASTRO' ? ' (cadastro do bem)' : v.origem === 'ABASTECIMENTO' ? ` (abastecimento${v.numero != null ? ` nº ${v.numero}` : ''})` : v.origem === 'ATIVIDADE' ? ' (lançamento de atividade)' : '';
+  return `Última leitura: ${formatarDecimalLinha(v.leitura)}${medidor.unidade ? ` ${medidor.unidade}` : ''}${dia}${origem}.`;
+};
+
+// ─── Linha de PRODUTO (janela e "Repetir") ───────────────────────────────
+
+/**
+ * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null } | null} ProdutoEscolhido
+ * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string }} FormularioLinhaProduto
+ */
+
+/** A opção do seletor (ou o resumo gravado) como o formulário guarda. @param {any} o @returns {ProdutoEscolhido} */
+export const produtoEscolhido = (o) =>
+  ehObjeto(o) && o.id != null
+    ? { id: String(o.id), rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id), unidade_principal_estoque: texto(o.unidade_principal_estoque) || texto(o.unidade) || null }
+    : null;
+
+/** @returns {FormularioLinhaProduto} */
+export const formularioProdutoVazio = () => ({ produto: null, local_estoque_id: null, quantidade: '', observacao: '' });
+
+/** Formulário a partir da linha gravada (editar, "Repetir"). @param {any} l @returns {FormularioLinhaProduto} */
+export const formularioDaLinhaProduto = (l) => ({
+  produto: l?.produto_id
+    ? {
+        id: String(l.produto_id),
+        rotulo: rotuloDoProdutoDaLinha(l) || String(l.produto_id),
+        unidade_principal_estoque: texto(l?.produto?.unidade_principal_estoque) || texto(l?.unidade) || null,
+      }
+    : null,
+  local_estoque_id: texto(l?.local_estoque_id) || null,
+  quantidade: paraEdicao(l?.quantidade),
+  observacao: typeof l?.observacao === 'string' ? l.observacao : '',
+});
+
+/**
+ * Validação local da linha de produto. Saldo: a quantidade acima do disponível do local AVISA com o disponível ×
+ * pedido (o servidor confere sob trava e recusa com ESTOQUE_SALDO_INSUFICIENTE); não bloqueia aqui porque o saldo
+ * lido pode estar velho.
+ * @param {FormularioLinhaProduto} form @param {{ disponivel?: string|null }} [ctx]
+ * @returns {{ erros: Record<string, string>, aviso: string|null }}
+ */
+export const validarLinhaProduto = (form, ctx = {}) => {
+  /** @type {Record<string, string>} */
+  const erros = {};
+  let aviso = null;
+  if (!form?.produto?.id) erros.produto = 'Escolha o produto.';
+  else if (!unidadeDoProduto(form.produto)) {
+    erros.produto = 'O estoque deste produto não está em litros (L), quilos (KG) nem sacos (SACO): ele não pode ser lançado na atividade.';
+  } else if (!form.local_estoque_id) erros.local_estoque_id = 'Escolha de qual local do estoque sai o produto.';
+  const q = lerDecimal(form?.quantidade, 'A quantidade');
+  if (q.erro) erros.quantidade = q.erro;
+  else if (!q.valor) erros.quantidade = 'Informe a quantidade.';
+  else if (!ehPositivo(q.valor)) erros.quantidade = 'Informe uma quantidade maior que zero.';
+  else if (ehCanonico(ctx.disponivel) && comparar(q.valor, /** @type {string} */ (ctx.disponivel)) > 0) {
+    const u = rotuloDaUnidade(unidadeDoProduto(form.produto));
+    aviso = `Saldo insuficiente neste local: disponível ${formatarDecimalLinha(ctx.disponivel)}${u ? ` ${u}` : ''}, pedido ${formatarDecimalLinha(q.valor)}${u ? ` ${u}` : ''}. O servidor recusa a baixa acima do saldo.`;
+  }
+  if (tamanho(texto(form?.observacao)) > MAX_OBSERVACAO_LINHA) erros.observacao = `No máximo ${MAX_OBSERVACAO_LINHA} caracteres.`;
+  return { erros, aviso };
+};
+
+/**
+ * Corpo da linha de produto (formulário JÁ VALIDADO): produto, local, quantidade em texto canônico e observação
+ * (vazia = null). A unidade, o custo e a dose são do servidor.
+ * @param {FormularioLinhaProduto} form
+ */
+export const corpoDaLinhaProduto = (form) => ({
+  produto_id: form.produto?.id ?? null,
+  local_estoque_id: form.local_estoque_id ?? null,
+  quantidade: lerDecimal(form.quantidade, '').valor,
+  observacao: texto(form.observacao) || null,
+});
+
+// ─── Linha de MÁQUINA (janela e "Repetir") ───────────────────────────────
+
+/**
+ * @typedef {{ id: string, rotulo: string } | null} BemEscolhido
+ * @typedef {{
+ *   bem: BemEscolhido,
+ *   implemento: BemEscolhido,
+ *   sem_medidor: boolean,
+ *   leitura_inicial: string,
+ *   leitura_final: string,
+ *   quantidade_uso: string,
+ *   justificativa_salto: string,
+ *   observacao: string,
+ * }} FormularioLinhaMaquina
+ */
+
+/** @param {any} o @returns {BemEscolhido} */
+export const bemEscolhido = (o) => (ehObjeto(o) && o.id != null ? { id: String(o.id), rotulo: rotuloDoBem(o) || texto(o.rotulo) || String(o.id) } : null);
+
+/**
+ * Linha nova: a máquina do CABEÇALHO vem como sugestão (o operador troca).
+ * @param {any} [bemDoCabecalho] @returns {FormularioLinhaMaquina}
+ */
+export const formularioMaquinaVazio = (bemDoCabecalho = null) => ({
+  bem: bemEscolhido(bemDoCabecalho),
+  implemento: null,
+  sem_medidor: false,
+  leitura_inicial: '',
+  leitura_final: '',
+  quantidade_uso: '',
+  justificativa_salto: '',
+  observacao: '',
+});
+
+/** Formulário a partir da linha gravada (editar). @param {any} l @returns {FormularioLinhaMaquina} */
+export const formularioDaLinhaMaquina = (l) => ({
+  bem: l?.bem_id ? { id: String(l.bem_id), rotulo: rotuloDaMaquinaDaLinha(l) || String(l.bem_id) } : null,
+  implemento: l?.implemento_bem_id ? { id: String(l.implemento_bem_id), rotulo: rotuloDoImplementoDaLinha(l) || String(l.implemento_bem_id) } : null,
+  sem_medidor: l?.sem_medidor === true,
+  leitura_inicial: paraEdicao(l?.leitura_inicial),
+  leitura_final: paraEdicao(l?.leitura_final),
+  quantidade_uso: l?.sem_medidor === true ? paraEdicao(l?.quantidade_uso) : '',
+  justificativa_salto: typeof l?.justificativa_salto === 'string' ? l.justificativa_salto : '',
+  observacao: typeof l?.observacao === 'string' ? l.observacao : '',
+});
+
+/**
+ * "Repetir": a máquina e o implemento da linha base; a leitura NÃO é copiada (a inicial é sugerida de novo pela
+ * leitura vigente e a final fica em branco); "sem medidor" copia o uso, para o operador só ajustar.
+ * @param {any} l @returns {FormularioLinhaMaquina}
+ */
+export const formularioMaquinaDaBase = (l) => {
+  const f = formularioDaLinhaMaquina(l);
+  return { ...f, leitura_inicial: '', leitura_final: '', justificativa_salto: '' };
+};
+
+/**
+ * A linha usa o caminho "sem medidor"? O bem sem medidor que conta só tem esse caminho.
+ * @param {FormularioLinhaMaquina} form @param {{ contador: boolean }} medidor
+ */
+export const usaSemMedidor = (form, medidor) => form?.sem_medidor === true || !medidor?.contador;
+
+/**
+ * Uso da linha (só leitura): final − inicial com leitura; o informado sem medidor. Inválido ou negativo → null.
+ * @param {FormularioLinhaMaquina} form @param {{ contador: boolean }} medidor
+ * @returns {string|null}
+ */
+export const usoDaLinha = (form, medidor) => {
+  if (usaSemMedidor(form, medidor)) return lerDecimal(form?.quantidade_uso, '').valor;
+  const i = lerDecimal(form?.leitura_inicial, '').valor;
+  const f = lerDecimal(form?.leitura_final, '').valor;
+  if (!i || !f || comparar(f, i) < 0) return null;
+  return subtrair(f, i, 4);
+};
+
+/** O uso passa do teto do salto do tipo patrimonial? @param {string|null} uso @param {string|null} teto */
+export const passaDoTeto = (uso, teto) => ehCanonico(uso) && ehCanonico(teto) && comparar(/** @type {string} */ (uso), /** @type {string} */ (teto)) > 0;
+
+/**
+ * Validação local da linha de máquina (o servidor confere tudo de novo, inclusive o medidor para trás).
+ * @param {FormularioLinhaMaquina} form
+ * @param {{ medidor: { contador: boolean, unidade?: string }, permiteImplemento: boolean, pedeJustificativa: boolean }} ctx
+ * @returns {Record<string, string>}
+ */
+export const validarLinhaMaquina = (form, { medidor, permiteImplemento, pedeJustificativa }) => {
+  /** @type {Record<string, string>} */
+  const erros = {};
+  if (!form?.bem?.id) erros.bem = 'Escolha a máquina.';
+  if (form?.implemento?.id) {
+    if (!permiteImplemento) erros.implemento = 'O tipo desta atividade não permite implemento.';
+    else if (form.implemento.id === form?.bem?.id) erros.implemento = 'O implemento não pode ser a própria máquina.';
+  }
+  if (usaSemMedidor(form, medidor)) {
+    const uso = lerDecimal(form?.quantidade_uso, 'O uso');
+    if (uso.erro) erros.quantidade_uso = uso.erro;
+    else if (!uso.valor) erros.quantidade_uso = `Informe o uso${medidor?.unidade ? ` (${medidor.unidade})` : ' (horas ou km)'}.`;
+    else if (!ehPositivo(uso.valor)) erros.quantidade_uso = 'Informe um uso maior que zero.';
+  } else {
+    const i = lerDecimal(form?.leitura_inicial, 'A leitura inicial');
+    const f = lerDecimal(form?.leitura_final, 'A leitura final');
+    if (i.erro) erros.leitura_inicial = i.erro;
+    else if (!i.valor) erros.leitura_inicial = 'Informe a leitura inicial.';
+    if (f.erro) erros.leitura_final = f.erro;
+    else if (!f.valor) erros.leitura_final = 'Informe a leitura final.';
+    else if (i.valor && comparar(f.valor, i.valor) < 0) erros.leitura_final = 'A leitura final é menor que a inicial: o medidor não anda para trás.';
+  }
+  const just = texto(form?.justificativa_salto);
+  if (pedeJustificativa) {
+    if (tamanho(just) < JUSTIFICATIVA_MINIMA) erros.justificativa_salto = `Informe a justificativa do salto (pelo menos ${JUSTIFICATIVA_MINIMA} caracteres).`;
+    else if (tamanho(just) > JUSTIFICATIVA_MAXIMA) erros.justificativa_salto = `No máximo ${JUSTIFICATIVA_MAXIMA} caracteres.`;
+  }
+  if (tamanho(texto(form?.observacao)) > MAX_OBSERVACAO_LINHA) erros.observacao = `No máximo ${MAX_OBSERVACAO_LINHA} caracteres.`;
+  return erros;
+};
+
+/**
+ * Corpo da linha de máquina (formulário JÁ VALIDADO). Com leitura: as duas leituras (o uso é do servidor); sem
+ * medidor: `sem_medidor: true` e o uso informado. Tipo e unidade do medidor e o custo são do bem e nunca vão.
+ * @param {FormularioLinhaMaquina} form @param {{ contador: boolean }} medidor @param {{ comJustificativa: boolean }} ctx
+ */
+export const corpoDaLinhaMaquina = (form, medidor, { comJustificativa }) => {
+  const sem = usaSemMedidor(form, medidor);
+  return {
+    bem_id: form.bem?.id ?? null,
+    implemento_bem_id: form.implemento?.id ?? null,
+    sem_medidor: sem,
+    leitura_inicial: sem ? null : lerDecimal(form.leitura_inicial, '').valor,
+    leitura_final: sem ? null : lerDecimal(form.leitura_final, '').valor,
+    quantidade_uso: sem ? lerDecimal(form.quantidade_uso, '').valor : null,
+    justificativa_salto: comJustificativa ? texto(form.justificativa_salto) || null : null,
+    observacao: texto(form.observacao) || null,
+  };
+};
+
+// ─── PATCH mínimo das linhas ─────────────────────────────────────────────
+
+const DECIMAIS_DA_LINHA = Object.freeze(['quantidade', 'leitura_inicial', 'leitura_final', 'quantidade_uso']);
+
+/**
+ * Só as chaves que mudaram em relação à linha gravada (decimal como decimal, texto aparado, vazio = null).
+ * @param {any} linha @param {Record<string, any>} corpo
+ * @returns {Record<string, any>}
+ */
+export const camposAlteradosDaLinha = (linha, corpo) => {
+  /** @type {Record<string, any>} */
+  const saida = {};
+  for (const [campo, valor] of Object.entries(corpo)) {
+    const antes = linha?.[campo] ?? null;
+    let igual;
+    if (DECIMAIS_DA_LINHA.includes(campo)) igual = valor === null || antes === null ? valor === antes : ehCanonico(antes) && ehCanonico(valor) && comparar(valor, antes) === 0;
+    else if (typeof valor === 'boolean') igual = valor === (antes === true);
+    else igual = (texto(valor) || null) === (texto(antes) || null);
+    if (!igual) saida[campo] = valor;
+  }
+  return saida;
+};
+
+// ─── "Repetir último lançamento" com as linhas ───────────────────────────
+
+/**
+ * @typedef {{ chave: string, form: FormularioLinhaProduto }} RascunhoProduto
+ * @typedef {{ chave: string, form: FormularioLinhaMaquina }} RascunhoMaquina
+ */
+
+/**
+ * As linhas CONFIRMADAS da base para o "Repetir": produtos com a mesma quantidade e o mesmo local (o operador ajusta)
+ * e máquinas com a leitura sugerida de novo.
+ * @param {any} base
+ * @returns {{ produtos: RascunhoProduto[], maquinas: RascunhoMaquina[] }}
+ */
+export const linhasParaRepetir = (base) => {
+  const { produtos, maquinas } = linhasDoApontamento(base);
+  return {
+    produtos: produtos.filter((l) => l.status === STATUS_CONFIRMADO).map((l) => ({ chave: `p-${l.id}`, form: formularioDaLinhaProduto(l) })),
+    maquinas: maquinas.filter((l) => l.status === STATUS_CONFIRMADO).map((l) => ({ chave: `m-${l.id}`, form: formularioMaquinaDaBase(l) })),
+  };
+};
+
+// ─── Totalizador ─────────────────────────────────────────────────────────
+
+/**
+ * Totais da atividade (`GET /atividades/:id/totais`) prontos para exibir; sem resposta, a área do cabeçalho.
+ * @param {any} totais @param {any} atividade
+ */
+export const totaisParaExibir = (totais, atividade) => {
+  const t = ehObjeto(totais) ? totais : {};
+  const executada = formatarDecimalLinha(t.area_executada ?? atividade?.area_executada);
+  const planejada = formatarDecimalLinha(t.area_planejada ?? atividade?.area_planejada);
+  const unidadeArea = texto(t.unidade_area) || 'ha';
+  const area = executada || planejada ? `${executada || '—'} / ${planejada || '—'} ${unidadeArea}` : '—';
+  const produtos = (Array.isArray(t.produtos) ? t.produtos : []).filter(ehObjeto).map((p) => ({
+    chave: String(p.produto_id ?? p.nome ?? ''),
+    nome: texto(p.nome) || texto(p.produto?.nome) || 'Produto',
+    quantidade: formatarQuantidadeLinha(p.quantidade, p.unidade) || '—',
+    custo: formatarCustoLinha(p.custo_total),
+  }));
+  const maquinas = (Array.isArray(t.maquinas) ? t.maquinas : []).filter(ehObjeto).map((m) => ({
+    chave: `${String(m.bem_id ?? m.nome ?? '')}${m.medidor_unidade ? `-${m.medidor_unidade}` : ''}`,
+    nome: texto(m.nome) || rotuloDoBem(m.bem) || 'Máquina',
+    uso: formatarUso(m.quantidade_uso, m.medidor_tipo, m.medidor_unidade) || '—',
+    custo: formatarCustoLinha(m.custo_total),
+  }));
+  return {
+    area,
+    produtos,
+    maquinas,
+    custo: formatarCustoLinha(t.custo_total) || '—',
+    custoPorHa: ehCanonico(t.custo_por_ha) ? `${formatarCusto(t.custo_por_ha)}/${unidadeArea}` : '—',
+  };
+};
+
+// ─── Recusas do servidor ─────────────────────────────────────────────────
+
+/** Campo da janela que cada coluna recusada destaca (`details.field`). */
+export const CAMPO_DA_LINHA = Object.freeze(
+  /** @type {Record<string, string>} */ ({
+    produto_id: 'produto',
+    local_estoque_id: 'local_estoque_id',
+    quantidade: 'quantidade',
+    bem_id: 'bem',
+    implemento_bem_id: 'implemento',
+    leitura_inicial: 'leitura_inicial',
+    leitura_final: 'leitura_final',
+    quantidade_uso: 'quantidade_uso',
+    sem_medidor: 'quantidade_uso',
+    justificativa_salto: 'justificativa_salto',
+    observacao: 'observacao',
+  }),
+);
+
+/** Frase de cada recusa da linha (`ATIVIDADE_LINHA_INVALIDA`, `field` × `reason`). */
+const LINHA_INVALIDA = Object.freeze(
+  /** @type {Record<string, Record<string, string>>} */ ({
+    produto_id: {
+      inexistente: 'O produto não foi encontrado nesta fazenda',
+      outra_empresa: 'O produto é de outra fazenda',
+      inativo: 'O produto está inativo',
+      unidade_nao_aceita: 'O estoque deste produto não está em litros (L), quilos (KG) nem sacos (SACO): ele não pode ser lançado',
+      combustivel_no_abastecimento: 'Este produto é combustível (aceito por um tanque): lance-o pelo Abastecimento, não pela atividade',
+    },
+    local_estoque_id: { inexistente: 'O local de estoque não foi encontrado', inativo: 'O local de estoque está inativo' },
+    quantidade: { quantidade_nao_positiva: 'Informe uma quantidade maior que zero' },
+    bem_id: {
+      inexistente: 'A máquina não foi encontrada nesta fazenda',
+      inativo: 'A máquina está inativa',
+      outra_empresa: 'A máquina é de outra fazenda',
+      natureza: 'O bem escolhido não é máquina, veículo nem equipamento',
+    },
+    implemento_bem_id: {
+      igual_a_maquina: 'O implemento não pode ser a própria máquina',
+      natureza: 'O bem escolhido como implemento não é um implemento',
+      inexistente: 'O implemento não foi encontrado nesta fazenda',
+      outra_empresa: 'O implemento é de outra fazenda',
+      inativo: 'O implemento está inativo',
+      nao_permitido: 'O tipo desta atividade não permite implemento',
+    },
+    leitura_inicial: {
+      obrigatoria: 'Informe a leitura inicial do medidor',
+      abaixo_da_vigente: 'A leitura inicial está abaixo da leitura vigente do medidor nesta data: o medidor não anda para trás',
+      nao_aceita: 'A linha sem medidor não leva leitura',
+    },
+    leitura_final: {
+      obrigatoria: 'Informe a leitura final do medidor',
+      menor_que_inicial: 'A leitura final é menor que a inicial: o medidor não anda para trás',
+      abaixo_da_vigente: 'A leitura final está abaixo da leitura vigente do medidor nesta data: o medidor não anda para trás',
+      acima_de_posterior: 'A leitura final passa de uma leitura posterior já registrada para este medidor',
+      nao_aceita: 'A linha sem medidor não leva leitura',
+    },
+    quantidade_uso: {
+      obrigatoria: 'Informe as horas ou o km de uso',
+      nao_aceita: 'Com medidor, o uso é calculado pelas leituras (final − inicial): não informe o uso',
+      nao_positiva: 'O uso deve ser maior que zero',
+      quantidade_nao_positiva: 'O uso deve ser maior que zero',
+    },
+    sem_medidor: { medidor_obrigatorio: 'A máquina não tem medidor: lance com "sem medidor", informando as horas ou o km' },
+    justificativa_salto: { curta: 'A justificativa do salto precisa de pelo menos 3 caracteres', longa: 'A justificativa do salto pode ter no máximo 500 caracteres' },
+  }),
+);
+
+/** Por que o estorno exato foi recusado (`ATIVIDADE_ESTORNO_BLOQUEADO`, `details.reason`). */
+const ESTORNO_BLOQUEADO = Object.freeze(
+  /** @type {Record<string, string>} */ ({
+    produto_mudou_de_fazenda: 'o produto desta linha mudou de fazenda',
+    unidade_mudou: 'a unidade de estoque do produto mudou desde o lançamento',
+    movimento_inexistente: 'o movimento de saída desta linha não existe mais',
+    movimento_estornado: 'o movimento de saída desta linha já foi estornado',
+    fatias_inconsistentes: 'os lotes gravados não somam a quantidade da linha',
+    lote_indisponivel_para_devolucao: 'um lote de onde o produto saiu não pode receber a devolução (estornado, transferido ou removido)',
+    devolucao_excede_entrada: 'a devolução passaria da entrada de um lote de onde o produto saiu (ele já foi consumido)',
+    estoque_excede_limite: 'a devolução passaria do limite do estoque',
+    vinculo_divergente: 'o movimento de saída desta linha é de outro produto ou outra fazenda',
+    camada_divergente: 'um lote de onde o produto saiu é de outro produto, outra fazenda ou outro local',
+    lote_indisponivel: 'um lote de onde o produto saiu já foi consumido ou transferido',
+  }),
+);
+
+/** "disponível 3 L, pedido 5 L". @param {unknown} v @param {string} u */
+const comUnidade = (v, u) => `${formatarDecimalLinha(v) || String(v ?? '')}${u ? ` ${u}` : ''}`;
+
+/**
+ * Mensagem clara da recusa de uma escrita de linha (ou do apontamento com linhas). Os códigos da Fatia 3 primeiro;
+ * o resto cai no Lançamento de Atividades e no catálogo de Gestão.
+ * @param {unknown} erro @param {string} fallback
+ * @param {{ unidade?: string|null, medidorUnidade?: string|null }} [ctx] unidade do produto e do medidor da linha
+ */
+export const mensagemDeErroLinha = (erro, fallback, ctx = {}) => {
+  const { code, field, reason, details } = lerErroGestao(erro);
+  const u = rotuloDaUnidade(details.unidade) || rotuloDaUnidade(ctx.unidade) || '';
+  const um = rotuloDaUnidadeDoMedidor(null, details.medidor_unidade) || texto(ctx.medidorUnidade);
+  switch (code) {
+    case 'ESTOQUE_SALDO_INSUFICIENTE':
+      if (reason === 'estoque_atual_insuficiente') return 'O estoque atual do produto é menor que o pedido. Nada foi gravado.';
+      return details.disponivel != null
+        ? `Saldo insuficiente deste produto no local escolhido: disponível ${comUnidade(details.disponivel, u)}, pedido ${comUnidade(details.solicitado, u)}. Nada foi gravado.`
+        : 'Saldo insuficiente deste produto no local escolhido. Nada foi gravado.';
+    case 'ATIVIDADE_SALTO_MEDIDOR': {
+      const uso = details.quantidade_uso != null ? ` (${comUnidade(details.quantidade_uso, um)})` : '';
+      const teto = details.salto_maximo != null ? ` (${comUnidade(details.salto_maximo, um)})` : '';
+      // O salto conta da leitura vigente: com a inicial digitada acima dela, o medidor anda mais que o uso.
+      if (ehCanonico(details.salto) && ehCanonico(details.quantidade_uso) && comparar(details.salto, details.quantidade_uso) !== 0) {
+        const desde = ehCanonico(details.leitura_vigente) ? ` desde a última leitura (${formatarDecimalLinha(details.leitura_vigente)})` : '';
+        return `O medidor anda ${comUnidade(details.salto, um)}${desde} neste lançamento e passa do teto de salto${teto}. Confira a leitura inicial ou informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.`;
+      }
+      return `O uso da máquina${uso} passa do teto de salto do medidor${teto}. Informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.`;
+    }
+    case 'ATIVIDADE_LINHA_INVALIDA': {
+      const frase = LINHA_INVALIDA[field ?? '']?.[reason ?? ''];
+      return `${frase ?? 'A linha foi recusada: confira o produto, o local, a quantidade, a máquina, o implemento e as leituras'}. Nada foi gravado.`;
+    }
+    case 'ATIVIDADE_LINHA_NOT_FOUND':
+      return 'Esta linha não foi encontrada neste apontamento. Os lançamentos serão relidos. Nada foi alterado.';
+    case 'ATIVIDADE_ESTORNO_BLOQUEADO':
+    case 'ESTOQUE_JA_CONSUMIDO':
+      return `O estorno exato do produto não é seguro agora: ${ESTORNO_BLOQUEADO[reason ?? ''] ?? 'o lote de onde ele saiu já foi consumido, transferido ou mudou'}. Nada foi alterado.`;
+    case 'ATIVIDADE_DATA_COM_LINHAS':
+      return 'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
+    case 'ATIVIDADE_EXIGIDA_PELO_TIPO':
+      if (reason === 'permite_produto' || field === 'produtos') return 'O tipo desta atividade não permite produto. Nada foi gravado.';
+      if (reason === 'permite_implemento' || field === 'implemento_bem_id') return 'O tipo desta atividade não permite implemento. Nada foi gravado.';
+      return mensagemDeErroAtividade(erro, fallback);
+    case 'MEDIDOR_LEITURA_REGRESSIVA':
+      return `A leitura é menor que a registrada${details.data_referencia ? ` em ${formatarDiaAbastecimento(details.data_referencia)}` : ''}${
+        details.leitura_referencia != null ? ` (${comUnidade(details.leitura_referencia, um)})` : ''
+      }: o medidor não anda para trás. Nada foi gravado.`;
+    case 'MEDIDOR_LEITURA_ACIMA_POSTERIOR':
+      return `A leitura é maior que a registrada depois${details.data_posterior ? `, em ${formatarDiaAbastecimento(details.data_posterior)}` : ''}${
+        details.leitura_posterior != null ? ` (${comUnidade(details.leitura_posterior, um)})` : ''
+      }. Nada foi gravado.`;
+    case 'IDEMPOTENCY_CONFLICT':
+      return 'Este envio já foi usado com outro conteúdo. Feche, confira as linhas do apontamento e lance de novo. Nada foi gravado.';
+    case 'IDEMPOTENCY_IN_PROGRESS':
+      return 'O mesmo envio ainda está sendo processado. Aguarde alguns segundos e consulte: ele não será duplicado.';
+    case 'CONCURRENCY_CONFLICT':
+      return 'Outra operação mexia nos mesmos dados ao mesmo tempo. Nada foi gravado. Repita o mesmo envio: ele não será duplicado.';
+    default:
+      return mensagemDeErroAtividade(erro, fallback);
+  }
+};
+
+/** Campo da janela que a recusa aponta, ou null (o salto aponta a justificativa). @param {unknown} erro */
+export const campoDaLinhaRecusada = (erro) => {
+  const { code, field } = lerErroGestao(erro);
+  if (code === 'ATIVIDADE_SALTO_MEDIDOR') return 'justificativa_salto';
+  if (code === 'ESTOQUE_SALDO_INSUFICIENTE') return 'quantidade';
+  if (code === 'MEDIDOR_LEITURA_REGRESSIVA' || code === 'MEDIDOR_LEITURA_ACIMA_POSTERIOR') return field === 'leitura_inicial' ? 'leitura_inicial' : 'leitura_final';
+  if (code === 'ATIVIDADE_LINHA_INVALIDA' || code === 'ATIVIDADE_EXIGIDA_PELO_TIPO') return CAMPO_DA_LINHA[field ?? ''] ?? null;
+  return null;
+};
+
+/**
+ * Qual linha embutida (no corpo da criação do apontamento) a recusa aponta: `{ colecao: 'produtos'|'maquinas', indice }`
+ * (0-based), ou null.
+ * @param {unknown} erro
+ */
+export const linhaEmbutidaRecusada = (erro) => {
+  const { details } = lerErroGestao(erro);
+  // Máquina: `details.linha_indice`; produto: `details.colecao = 'produtos'` + `details.indice`.
+  if (Number.isInteger(details.linha_indice)) return { colecao: LINHA_MAQUINA, indice: /** @type {number} */ (details.linha_indice) };
+  const colecao = details.colecao === LINHA_PRODUTO || details.colecao === LINHA_MAQUINA ? details.colecao : null;
+  return colecao && Number.isInteger(details.indice) ? { colecao, indice: /** @type {number} */ (details.indice) } : null;
+};
+
+/** É o pedido de justificativa do salto do medidor? @param {unknown} erro */
+export const ehSaltoDoMedidor = (erro) => lerErroGestao(erro).code === 'ATIVIDADE_SALTO_MEDIDOR';
+
+/** O status da linha para o selo (CONFIRMADO | CANCELADO). @param {any} l */
+export const statusDaLinha = (l) => (l?.status === STATUS_CANCELADO ? STATUS_CANCELADO : STATUS_CONFIRMADO);

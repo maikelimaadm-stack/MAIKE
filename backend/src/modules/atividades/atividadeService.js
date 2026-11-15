@@ -76,7 +76,7 @@ import {
 } from '../../shared/errors/AppError.js';
 import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { dec } from '../financeiro/decimalFinanceiro.js';
+import { arredondar, dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { agoraDoServidor } from '../rebanhoLedger/rebanhoLedgerTempo.js';
@@ -112,6 +112,8 @@ import {
   travarAtividade,
 } from './atividadeComum.js';
 import { cancelarApontamentosDaAtividade, recalcularTotaisDaAtividade } from './atividadeApontamentoService.js';
+import { totaisDasMaquinasDaAtividade } from './atividadeApontamentoMaquinaService.js';
+import { totaisPorProduto } from './atividadeApontamentoProdutoRepository.js';
 import {
   inserirAtividade,
   lerArea,
@@ -438,6 +440,51 @@ export const obter = async (contexto, id, query = {}) => {
   });
 };
 
+/**
+ * D-PROD-202 — `GET /atividades/:id/totais` (contrato das linhas §4): o
+ * totalizador do cabeçalho, numa leitura consistente (RepeatableRead, sem
+ * trava). Soma só as linhas CONFIRMADO de apontamentos CONFIRMADO:
+ * `{ area_executada, area_planejada, unidade_area: 'ha',
+ *    produtos: [{ produto_id, nome, unidade, quantidade, custo_total }],
+ *    maquinas: [{ bem_id, nome, medidor_unidade, quantidade_uso, custo_total }],
+ *    custo_total, custo_por_ha }`.
+ * `custo_total` = Σ produtos + Σ máquinas com custo (nulo sem nenhum custo);
+ * `custo_por_ha` = custo_total / area_executada (4 casas), nulo sem área ou
+ * sem custo. Decimais como texto com 4 casas. Outra fazenda ou tenant → 404.
+ * @param {{ auth: AuthContext }} contexto @param {string} id @param {Record<string, any>} [query]
+ */
+export const obterTotais = async (contexto, id, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const cli = auth.clienteId;
+  return emTransacao(TRANSACAO_LEITURA, async (tx) => {
+    const empresaId = await exigirEmpresaDoTenant(tx, cli, query.empresa_id);
+    const atividade = await tx.atividade.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id }, select: { id: true, area_planejada: true } });
+    if (!atividade) throw atividadeNotFound();
+    // A área executada é a soma dos CONFIRMADO, como no cabeçalho (lida aqui, no mesmo instante das linhas).
+    const { area_executada: areaExecutada } = await somarApontamentosConfirmados(tx, cli, empresaId, id);
+    const produtos = (await totaisPorProduto(tx, cli, empresaId, id)).map((p) => ({
+      produto_id: p.produto_id,
+      nome: p.nome,
+      unidade: p.unidade,
+      quantidade: /** @type {string} */ (t4(p.quantidade)),
+      custo_total: /** @type {string} */ (t4(p.custo_total)),
+    }));
+    const maquinas = await totaisDasMaquinasDaAtividade(tx, cli, empresaId, id);
+    const parcelas = [...produtos.map((p) => p.custo_total), ...(maquinas.custo_total === null ? [] : [maquinas.custo_total])];
+    const custoTotal = parcelas.length ? parcelas.reduce((t, v) => t.plus(dec(v)), dec(0)) : null;
+    const area = areaExecutada === null ? null : dec(areaExecutada);
+    return {
+      area_executada: areaExecutada,
+      area_planejada: t4(atividade.area_planejada),
+      unidade_area: 'ha',
+      produtos,
+      maquinas: maquinas.maquinas,
+      custo_total: custoTotal === null ? null : t4(custoTotal),
+      custo_por_ha: custoTotal !== null && area !== null && area.gt(0) ? t4(arredondar(custoTotal.dividedBy(area), 4)) : null,
+    };
+  });
+};
+
 // ─── abertura (abrir e duplicar) ────────────────────────────────────────────
 
 /**
@@ -740,8 +787,9 @@ export const reabrir = async (contexto, id, corpo) => {
  * CANCELAR (`POST /atividades/:id/cancelar`): ABERTA → CANCELADA com motivo,
  * quem e quando. Na MESMA transação, sob a trava da atividade, os apontamentos
  * CONFIRMADO são cancelados com o mesmo motivo, instante e usuário e os totais
- * recalculados (`atividadeApontamentoService.js`: é ali que a Fatia 3 estorna o
- * estoque, com o "hoje" da fazenda). O cabeçalho é gravado por último (CAS).
+ * recalculados (`atividadeApontamentoService.js`). D-PROD-202: ali também as
+ * linhas de máquina são canceladas e as de produto estornadas (estoque e lotes
+ * voltam exatos, no "hoje" da fazenda). O cabeçalho é gravado por último (CAS).
  * @param {Contexto} contexto @param {string} id @param {Record<string, any>} corpo
  */
 export const cancelar = async (contexto, id, corpo) => {
@@ -754,11 +802,13 @@ export const cancelar = async (contexto, id, corpo) => {
     TRANSACAO_CURTA,
     async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-      const { agora } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE (o dia do estorno da Fatia 3)
+      const { agora, hoje } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE (o dia do estorno das linhas de produto)
       const anterior = await travarELer(tx, cli, empresaId, id, 'cancelar', versao);
       const usuarioId = auth.usuarioId ?? null;
       // Os filhos antes do cabeçalho: o serviço do apontamento cancela com a atividade ainda ABERTA (e travada).
-      const apontamentosCancelados = await cancelarApontamentosDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id, usuarioId, motivo, agora });
+      // D-PROD-202: as linhas dos apontamentos caem junto (máquina cancelada; produto estornado exatamente, num
+      // `estornarEmLote` só, no dia de hoje da fazenda), com o mesmo motivo e a origem ATIVIDADE.
+      const apontamentosCancelados = await cancelarApontamentosDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id, usuarioId, motivo, agora, hoje, contexto });
       // Idempotente: "totais = soma dos CONFIRMADO" vale mesmo sem nenhum apontamento cancelado aqui,
       // sem depender de quando o serviço do apontamento decide recalcular.
       await recalcularTotaisDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id });

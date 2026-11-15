@@ -118,14 +118,17 @@ const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
  * cancelado: o histórico fica). Chamar sob `travarLote`.
  * D-PROD-200: o ramo das fatias FIFO de item de apontamento de atividade
  * (D-PROD-193) saiu com as tabelas dos itens, que a migration da Fatia 2 só
- * apaga vazias (o delegate do Prisma deixou de existir); as linhas de produto
- * da atividade chegam na Fatia 3.
+ * apaga vazias (o delegate do Prisma deixou de existir).
+ * D-PROD-202 (Fatia 3): volta para as fatias FIFO da LINHA DE PRODUTO do
+ * apontamento da atividade (`AtividadeApontamentoProdutoConsumoLote`,
+ * confirmada ou cancelada: o histórico fica) → 409.
  */
 const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
-  const [itens, consumos, abastecimentos] = await Promise.all([
+  const [itens, consumos, abastecimentos, atividades] = await Promise.all([
     tx.operacaoFinanceiraItem.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
     tx.operacaoFinanceiraConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
     tx.abastecimentoBemConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
+    tx.atividadeApontamentoProdutoConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
   ]);
   if (itens + consumos > 0) {
     throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque vinculado a lançamento financeiro só muda pelo próprio lançamento (cancelamento); nada foi alterado', {
@@ -135,6 +138,11 @@ const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
   if (abastecimentos > 0) {
     throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque consumido por abastecimento de bem só muda pelo próprio abastecimento (cancelamento); nada foi alterado', {
       details: { id, vinculo: 'abastecimento_bem', consumos_abastecimento: abastecimentos },
+    });
+  }
+  if (atividades > 0) {
+    throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque consumido por linha de produto de atividade só muda pela própria atividade (editar ou cancelar a linha); nada foi alterado', {
+      details: { id, vinculo: 'atividade_apontamento_produto', consumos_atividade: atividades },
     });
   }
 };

@@ -319,3 +319,106 @@ export const listOpcoesAtividade = async (recurso, filtros) => {
   const proximo = typeof o.next_cursor === 'string' && o.next_cursor ? o.next_cursor : null;
   return { itens, has_more: Boolean(o.has_more === true && proximo), next_cursor: proximo };
 };
+
+// ─── Linhas de produto e de máquina e totais (D-PROD-202, Fatia 3) ──────
+
+/** Tipos de linha do apontamento (o segmento da rota). */
+export const TIPOS_LINHA_ATIVIDADE = Object.freeze(['produtos', 'maquinas']);
+/** @param {unknown} v */
+const ehTipoDeLinha = (v) => typeof v === 'string' && TIPOS_LINHA_ATIVIDADE.includes(v);
+/** @param {unknown} v */
+const ehOperationId = (v) => typeof v === 'string' && /^[A-Za-z0-9_.:-]{8,128}$/.test(v);
+
+/**
+ * Totais da atividade (`GET /atividades/:id/totais`): `{ area_executada, area_planejada, unidade_area, produtos[],
+ * maquinas[], custo_total, custo_por_ha }`. Só linhas confirmadas de apontamentos confirmados; `custo_por_ha` nulo sem área.
+ * @param {string} id @param {string} empresaId
+ */
+export const getAtividadeTotais = async (id, empresaId) => {
+  const contexto = ctxAtividade('getAtividadeTotais');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isId(empresaId), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => atividadeNativa.totais(id, empresaId), { ...contexto, details: { id } });
+  const o = isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
+  return {
+    ...o,
+    produtos: Array.isArray(o.produtos) ? o.produtos.filter(isObjeto) : [],
+    maquinas: Array.isArray(o.maquinas) ? o.maquinas.filter(isObjeto) : [],
+  };
+};
+
+/**
+ * Adiciona UMA linha (produto ou máquina) ao apontamento CONFIRMADO de atividade ABERTA: a empresa, a `versao` do
+ * apontamento (CAS) e o `operation_id` são obrigatórios (falha ANTES da rede). Devolve `{ apontamento, atividade, alertas }`.
+ * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {Record<string, unknown>} corpo
+ */
+export const createAtividadeLinha = async (tipo, atividadeId, apontamentoId, corpo) => {
+  const contexto = ctxApontamento('createAtividadeLinha');
+  assertArgument(ehTipoDeLinha(tipo), 'tipo', contexto);
+  assertArgument(isId(atividadeId), 'atividade_id', contexto);
+  assertArgument(isId(apontamentoId), 'apontamento_id', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  assertArgument(ehOperationId(corpo.operation_id), 'operation_id', contexto);
+  return respostaDeApontamento(
+    await runProviderCall(() => atividadeNativa.criarLinha(tipo, atividadeId, apontamentoId, corpo), { ...contexto, details: { atividadeId, apontamentoId, tipo } }),
+  );
+};
+
+/**
+ * Edita UMA linha CONFIRMADA (produto: estorno exato + nova saída; máquina: cancela e cria outra, no servidor).
+ * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+ * @param {Record<string, unknown>} corpo
+ */
+export const updateAtividadeLinha = async (tipo, atividadeId, apontamentoId, linhaId, corpo) => {
+  const contexto = ctxApontamento('updateAtividadeLinha');
+  assertArgument(ehTipoDeLinha(tipo), 'tipo', contexto);
+  assertArgument(isId(atividadeId), 'atividade_id', contexto);
+  assertArgument(isId(apontamentoId), 'apontamento_id', contexto);
+  assertArgument(isId(linhaId), 'linha_id', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  assertArgument(ehOperationId(corpo.operation_id), 'operation_id', contexto);
+  return respostaDeApontamento(
+    await runProviderCall(() => atividadeNativa.editarLinha(tipo, atividadeId, apontamentoId, linhaId, corpo), {
+      ...contexto,
+      details: { atividadeId, apontamentoId, linhaId, tipo },
+    }),
+  );
+};
+
+/**
+ * Cancela UMA linha CONFIRMADA com motivo (produto: estorno exato aos lotes de origem).
+ * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+ * @param {{ empresa_id: string, versao: number, operation_id: string, motivo: string }} corpo
+ */
+export const cancelAtividadeLinha = async (tipo, atividadeId, apontamentoId, linhaId, corpo) => {
+  const contexto = ctxApontamento('cancelAtividadeLinha');
+  assertArgument(ehTipoDeLinha(tipo), 'tipo', contexto);
+  assertArgument(isId(atividadeId), 'atividade_id', contexto);
+  assertArgument(isId(apontamentoId), 'apontamento_id', contexto);
+  assertArgument(isId(linhaId), 'linha_id', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  assertArgument(ehOperationId(corpo.operation_id), 'operation_id', contexto);
+  assertArgument(isId(corpo.motivo), 'motivo', contexto);
+  return respostaDeApontamento(
+    await runProviderCall(() => atividadeNativa.cancelarLinha(tipo, atividadeId, apontamentoId, linhaId, corpo), {
+      ...contexto,
+      details: { atividadeId, apontamentoId, linhaId, tipo },
+    }),
+  );
+};
+
+/**
+ * Leitura do medidor de UM bem para a linha de máquina (`/atividades-opcoes/medidor`): tipo e unidade do medidor (do
+ * bem), a leitura vigente na data e o teto do salto. O objeto do servidor, como veio (a tela normaliza).
+ * @param {{ empresa_id: string, bem_id: string, data?: string }} filtros
+ */
+export const getMedidorAtividade = async (filtros) => {
+  const contexto = ctxAtividade('getMedidorAtividade');
+  assertArgument(ehObjetoComEmpresa(filtros), 'empresa_id', contexto);
+  assertArgument(isId(filtros.bem_id), 'bem_id', contexto);
+  const bruto = await runProviderCall(() => atividadeNativa.opcoes('medidor', filtros), { ...contexto, details: { recurso: 'medidor' } });
+  return isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
+};

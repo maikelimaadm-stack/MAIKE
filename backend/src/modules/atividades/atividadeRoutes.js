@@ -6,6 +6,8 @@
  *    filtros `status`, `tipo_atividade_id`, `area_id`, `data_de`/`data_ate`
  *    (sobre `data_inicio`) e `q` (número e nome)
  *  - `GET   /atividades/:id` (ver) — detalhe com os resumos e os `totais`
+ *  - `GET   /atividades/:id/totais` (ver) — D-PROD-202: o totalizador das linhas
+ *    (produtos, máquinas, custo e custo/ha)
  *  - `POST  /atividades` (criar) — abrir; 201
  *  - `POST  /atividades/:id/duplicar` (criar) — abertura nova a partir desta; 201
  *  - `PATCH /atividades/:id` (editar) — CAS por `versao`; só ABERTA
@@ -37,7 +39,7 @@ import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from '../patrimonio/patrim
 import { NATUREZAS } from '../patrimonio/patrimonioDominio.js';
 import { DECIMAIS_DA_ATIVIDADE, PADRAO_DECIMAL, recusarCoercao } from './atividadeComum.js';
 import { opcoesBens, opcoesOperadores } from './atividadeOpcoesService.js';
-import { NOME_MAXIMO, STATUS, atualizar, cancelar, concluir, criar, duplicar, listar, obter, reabrir } from './atividadeService.js';
+import { NOME_MAXIMO, STATUS, atualizar, cancelar, concluir, criar, duplicar, listar, obter, obterTotais, reabrir } from './atividadeService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const ID_NULO = { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -173,6 +175,9 @@ export const registrarAtividadeRoutes = async (app) => {
 
   app.get('/atividades', { ...autenticado, preHandler: [g.ver], schema: LISTAR }, async (request) => listar(ctx(request), consulta(request)));
   app.get('/atividades/:id', { ...autenticado, preHandler: [g.ver], schema: DETALHE }, async (request) => obter(ctx(request), idDe(request), consulta(request)));
+  // D-PROD-202: o totalizador (área executada/planejada, produtos, máquinas, custo e custo/ha).
+  app.get('/atividades/:id/totais', { ...autenticado, preHandler: [g.ver], schema: DETALHE }, async (request) =>
+    obterTotais(ctx(request), idDe(request), consulta(request)));
   app.post('/atividades', { ...autenticado, preHandler: [g.criar], schema: CRIAR }, async (request, reply) =>
     reply.status(201).send(await criar(ctx(request), corpo(request))));
   app.post('/atividades/:id/duplicar', { ...autenticado, preHandler: [g.criar], schema: DUPLICAR }, async (request, reply) =>

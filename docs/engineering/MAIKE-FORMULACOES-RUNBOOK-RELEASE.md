@@ -21,8 +21,8 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md`](./MAIKE-CADCU
 | Natureza | **expand-only**: 3 tabelas NOVAS — `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE` e `CADFORMULACAOREGRA` — com índices, FKs compostas pelo tenant (para Cliente, Empresa, Produto, `CADCATEGORIA` e entre elas), 5 CHECKs e o bloco RLS/REVOKE delas. Nenhuma tabela existente é alterada, nenhum dado migrado, nenhum `UPDATE` |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524` |
 | Bloco RLS (`DO_RLS_APROVADOS`) | `b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6` (mesmo corpo de sempre, lista nova) |
-| `_prisma_migrations` | esperado **53** concluídas, 0 abertas (a última `20261114500000_atividade_cabecalho`, D-PROD-200); depois **54**. Recontar no §2 |
-| Tabelas em `public` | **84** antes, **87** depois |
+| `_prisma_migrations` | esperado **54** concluídas, 0 abertas (a última `20261114600000_atividade_linhas_produto_maquina`, D-PROD-202, da PR #289, aplicada antes desta); depois **55**. Recontar no §2 |
+| Tabelas em `public` | **87** antes, **90** depois |
 
 **Por que antes do merge (D-PROD-72 item 1):** a Vercel publica a `main` sozinha.
 O runtime novo lê as 3 tabelas na tela Formulações e no lançamento de
@@ -58,19 +58,19 @@ fim da transação (milissegundos; as 3 tabelas nascem vazias). Uma espera além
 SELECT system_identifier FROM pg_control_system();            -- 7692130048193495360
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS ok,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) AS ruim
-  FROM _prisma_migrations;                                     -- 53, 0
+  FROM _prisma_migrations;                                     -- 54, 0
 SELECT migration_name FROM _prisma_migrations
  WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
- ORDER BY finished_at DESC LIMIT 1;                            -- 20261114500000_atividade_cabecalho
+ ORDER BY finished_at DESC LIMIT 1;                            -- 20261114600000_atividade_linhas_produto_maquina
 SELECT to_regclass('public."CADFORMULACAO"'), to_regclass('public."CADFORMULACAOINGREDIENTE"'),
        to_regclass('public."CADFORMULACAOREGRA"');             -- null, null, null
-SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 84
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 87
 ```
 
 E, localmente, no `<SHA_APROVADO>`: `sha256sum` do `migration.sql` igual ao
 pinado, e `classificarMigrations` com `modo: EXPAND`,
 `tabelas_novas = ["CADFORMULACAO", "CADFORMULACAOINGREDIENTE", "CADFORMULACAOREGRA"]`,
-`colunas_novas_em_tabelas_antigas = []` e `violacoes: []` (teste B22a).
+`colunas_novas_em_tabelas_antigas = []` e `violacoes: []` (teste B23a).
 
 ## 3. Caminho B — uma transação
 
@@ -90,7 +90,7 @@ BEGIN
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
     INTO n_ok, n_ruim FROM _prisma_migrations;
-  IF n_ok <> 53 OR n_ruim <> 0 THEN
+  IF n_ok <> 54 OR n_ruim <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % com falha', n_ok, n_ruim;
   END IF;
   IF to_regclass('public."CADFORMULACAO"') IS NOT NULL
@@ -119,7 +119,9 @@ transação (53 → 54 / 0, checksum pinado, `applied_steps_count` 1, as 3 tabel
 com RLS ligado e sem FORCE, 87 tabelas em `public`), o `prisma migrate status`
 disse "Database schema is up to date!", o `migrate diff` contra o
 `schema.prisma` saiu vazio e a 2ª execução recusou
-(`RELEASE_BLOCKED: migration já registrada`), sem linha nova.
+(`RELEASE_BLOCKED: migration já registrada`), sem linha nova. Esse primeiro ensaio
+foi antes da PR #289; com a migration dela já em produção, a guarda passou a
+exigir 54 e o ensaio foi refeito com as 54 (55 / 0, 90 tabelas; ver o §7).
 
 ## 4. Conferência — somente leitura
 
@@ -127,7 +129,7 @@ disse "Database schema is up to date!", o `migrate diff` contra o
 SELECT migration_name, checksum, rolled_back_at, applied_steps_count FROM _prisma_migrations
  WHERE migration_name = '20261114700000_cadformulacao';  -- 1 linha, checksum pinado, null, 1
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
-       count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 54, 0
+       count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 55, 0
 SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
  WHERE relname IN ('CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA') AND relkind = 'r'
  ORDER BY relname;                                             -- 3 linhas, t, f
@@ -140,7 +142,7 @@ SELECT conname FROM pg_constraint WHERE conrelid IN ('public."CADFORMULACAO"'::r
  ORDER BY 1;                                                   -- os 5 CHECKs
 SELECT (SELECT count(*) FROM "CADFORMULACAO"), (SELECT count(*) FROM "CADFORMULACAOINGREDIENTE"),
        (SELECT count(*) FROM "CADFORMULACAOREGRA");            -- 0, 0, 0
-SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 87
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 90
 ```
 
 Mais: `get_advisors` (segurança) sem alerta novo.
@@ -172,4 +174,4 @@ código novo no ar, reverter o código primeiro (o lançamento exige formulaçã
 | Preflight (§2) | `system_identifier` 7692130048193495360; 54 concluídas / 0 com falha; última `20261114600000_atividade_linhas_produto_maquina`; tabelas `CADFORMULACAO*` ausentes |
 | Ensaio | Banco local com as 54 migrations (as da PR #289 incluídas): aplicou (55 / 0, 90 tabelas, `migrate status` em dia); reexecução recusada (`migration já registrada`); alvo divergente recusado |
 | Postcheck (§4) | 55 / 0; checksum `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`; as 3 tabelas com RLS ligado e sem FORCE; 14 FK/CHECK; 90 tabelas em `public`; `get_advisors(security)` sem achados |
-| Resultado | **APLICADA E CONFERIDA**. O merge desta PR espera a PR #289 entrar na `main` |
+| Resultado | **APLICADA E CONFERIDA**. A PR #289 entrou na `main` (`8d4b36a1`, com a #291) e foi incorporada nesta branch antes do merge desta |

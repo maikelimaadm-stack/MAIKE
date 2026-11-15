@@ -41,6 +41,17 @@
  * produção do dia desta (50 / 0, 85 tabelas); o postcheck do runbook, escrito para 51 / 0 e 85 tabelas, passa inteiro
  * no banco do caminho B, que fica nesse estado, e no banco do runner só as duas linhas de contagem mudam (53 / 0 e 84).
  * No caminho B, a 2ª execução do runner aplica só a D-PROD-198 e a D-PROD-200.
+ *
+ * D-PROD-202: a EXPAND `20261114600000_atividade_linhas_produto_maquina` (as 3 tabelas das linhas de produto e de
+ * máquina do apontamento e 2 colunas anuláveis em BemPatrimonial e TipoPatrimonial), de nome posterior à D-PROD-200,
+ * sobe junto com ela FORA DE ORDEM antes do caminho do runner (as linhas referenciam AtividadeApontamento; ela não
+ * toca TipoAtividade): 52 migrations e 87 tabelas nessa partida, e no banco do runner as duas linhas de contagem do
+ * postcheck ficam 54 / 0 e 87. No caminho B, a 2ª execução do runner aplica a D-PROD-198, a D-PROD-200 e a D-PROD-202.
+ *
+ * D-PROD-203: a EXPAND `20261114700000_cadformulacao` (as 3 tabelas das Formulações, nada em tabela antiga), de nome
+ * posterior, também não existia no dia desta CONTRACT: fica fora da partida (como a D-PROD-198) e sobe pelo runner por
+ * último, pela ordem dos nomes. No banco do runner as duas linhas de contagem do postcheck ficam 55 / 0 e 90; no
+ * caminho B a 2ª execução do runner aplica também ela, por último.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -79,8 +90,9 @@ const TOTAL_MIGRATIONS = PASTAS.length;
 /** D-PROD-198: a EXPAND do peso objetivo, de nome posterior; não existia no dia desta CONTRACT (ver o cabeçalho). */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 /**
- * D-PROD-200: as CONTRACT de nome POSTERIOR a esta (a Atividade cabeçalho), que sobem fora de ordem antes do runner (ver
- * o cabeçalho); a EXPAND da D-PROD-198 fica de fora e sobe pelo runner, depois desta.
+ * D-PROD-200: as de nome POSTERIOR a esta (a CONTRACT da Atividade cabeçalho e, D-PROD-202, a EXPAND das linhas de
+ * produto e de máquina), que sobem fora de ordem antes do runner (ver o cabeçalho); a EXPAND da D-PROD-198 fica de
+ * fora e sobe pelo runner, depois desta.
  */
 /**
  * D-PROD-203: a EXPAND das Formulações (3 tabelas novas), de nome posterior, também não existia no dia desta CONTRACT:
@@ -415,10 +427,11 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(h.concluidas, ANTERIORES.length);
     assert.equal(ANTERIORES.length, 50, 'produção hoje: 50 migrations, a última a curva obrigatória na Categoria de Manejo (D-PROD-195)');
     assert.equal(ANTERIORES.at(-1), '20261114200000_cadcategoria_curva_ganho');
-    // D-PROD-198, D-PROD-200 e D-PROD-203: a EXPAND do peso objetivo, a Atividade cabeçalho e a EXPAND das Formulações
-    // têm nome posterior a esta (54 pastas no total); as três ficam fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_FORMULACOES]);
-    assert.equal(TOTAL_MIGRATIONS, 54);
+    // D-PROD-198, D-PROD-200, D-PROD-202 e D-PROD-203: a EXPAND do peso objetivo, a Atividade cabeçalho, as linhas de
+    // produto e de máquina e a EXPAND das Formulações têm nome posterior a esta (55 pastas no total); as quatro ficam
+    // fora da partida.
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES]);
+    assert.equal(TOTAL_MIGRATIONS, 55);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_PESO_OBJETIVO), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_FORMULACOES), false);
     assert.equal(h.abertas, 0);
@@ -473,13 +486,13 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
 
   test('TA-02 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-197, antes de qualquer DDL', async () => {
     // D-PROD-200 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
-    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho'], 'só a CONTRACT da D-PROD-200 tem nome posterior a esta');
-    // A EXPAND da D-PROD-198 fica para o runner, depois desta (como em produção).
+    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina'], 'só a CONTRACT da D-PROD-200 e a EXPAND da D-PROD-202 (fora a D-PROD-198 e a D-PROD-203) têm nome posterior a esta');
+    // As EXPAND da D-PROD-198 e da D-PROD-203 ficam para o runner, depois desta (como em produção).
     await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_FORMULACOES));
     partida = await retrato(db);
     linhasPartida = partida.linhas;
     assert.equal((await historico(db)).concluidas, ANTERIORES.length + POSTERIORES.length);
-    assert.equal(partida.tabelas.split(',').length, 84, 'a D-PROD-200 troca as 3 tabelas do apontamento antigo pelas 2 da atividade');
+    assert.equal(partida.tabelas.split(',').length, 87, 'a D-PROD-200 troca as 3 tabelas do apontamento antigo pelas 2 da atividade e a D-PROD-202 acrescenta as 3 das linhas');
     assert.deepEqual(await intrusos(db), []);
     const linhasAntes = (await historico(db)).total;
     // D-PROD-182 criou a tabela; D-PROD-194 e D-PROD-195 são as CONTRACT anteriores (concluídas); a decisão em minúsculas
@@ -642,13 +655,13 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(n, 4);
   });
 
-  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198, a D-PROD-200 e a D-PROD-203, posteriores, mudam (54 / 0 e 87 tabelas); o preflight agora manda parar', async () => {
+  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198, a D-PROD-200, a D-PROD-202 e a D-PROD-203, posteriores, mudam (55 / 0 e 90 tabelas); o preflight agora manda parar', async () => {
     const pos = quadro(await consulta(URL_T, blocoDoRunbook('postcheck').split(SID_PRODUCAO).join(SID)));
-    // O postcheck foi escrito para o dia desta (51 / 0, 85 tabelas); aqui a EXPAND da D-PROD-198 e a D-PROD-200 também
+    // O postcheck foi escrito para o dia desta (51 / 0, 85 tabelas); aqui a EXPAND da D-PROD-198, a D-PROD-200, a D-PROD-202 e a D-PROD-203 também
     // estão aplicadas (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03), que
     // fica nesse estado antes do runner.
-    const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '87' };
-    assert.equal(TOTAL_MIGRATIONS, 54);
+    const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '90' };
+    assert.equal(TOTAL_MIGRATIONS, 55);
     for (const [item, v] of Object.entries(pos)) {
       if (item === 'VEREDITO') continue;
       if (item in CONTAGENS) assert.deepEqual([v.valor, v.status], [CONTAGENS[item], 'PARAR'], item);
@@ -735,7 +748,7 @@ describe('D-PROD-197 — caminho B do runbook (uma transação pelo conector), n
     assert.ok(!runner.saida.includes(`Applying migration \`${NOME_CONTRACT}\``), runner.saida);
     const hB = await historico(dbB);
     assert.deepEqual([hB.concluidas, hB.abertas, hB.contract_concluida], [TOTAL_MIGRATIONS, 0, 1]);
-    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-4), [NOME_CONTRACT, NOME_PESO_OBJETIVO, ...POSTERIORES, NOME_FORMULACOES]);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-(3 + POSTERIORES.length)), [NOME_CONTRACT, NOME_PESO_OBJETIVO, ...POSTERIORES, NOME_FORMULACOES]);
     const [linhaDepois] = await dbB.$queryRawUnsafe(`SELECT checksum FROM _prisma_migrations WHERE migration_name = '${NOME_CONTRACT}'`);
     assert.equal(linhaDepois.checksum, CHECKSUM, 'a linha do caminho B continua a mesma');
     const segunda = await aplicarPeloRunner(URL_B);

@@ -13,8 +13,8 @@
  *              todos os status: o estorno compensa) e nunca negativo;
  *  I3 lote     0 ≤ disponível ≤ entrada; situação coerente com o saldo; consumo
  *              observado (entrada − disponível) = consumo explicado pelas
- *              fatias FK (financeiro ativo, abastecimento CONFIRMADO e, D-PROD-193,
- *              item de apontamento de atividade CONFIRMADO), pelo
+ *              fatias FK (financeiro ativo, abastecimento CONFIRMADO e, D-PROD-202,
+ *              linha de produto CONFIRMADO do apontamento da atividade), pelo
  *              `lotes_consumidos` das Saídas de suplementação/transferência,
  *              pelo `rateio` do recibo legado (só quando o movimento NÃO tem
  *              `lotes_consumidos`, para não contar duas vezes) e pela compra
@@ -138,7 +138,7 @@ export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIM
 const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
 /**
  * Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote` e,
- * D-PROD-193, `ApontamentoAtividadeItemConsumoLote`).
+ * D-PROD-202, `AtividadeApontamentoProdutoConsumoLote`, a linha de produto do apontamento da atividade).
  */
 const ORIGENS_COM_FK = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO]);
 /** Escritores genéricos antigos (POST de movimento, reversão pelo navegador). */
@@ -443,26 +443,28 @@ const lerLocais = (tx, cli, f, faixa) => tx.$queryRaw`WITH lot AS (
     ORDER BY 2, 1, 3`;
 
 /**
- * D-PROD-193 (I-y, I-z; lição do hotfix #259) — fatias FK dos itens PRODUTO do
- * apontamento de atividade. O código pode subir antes da migration das duas
- * tabelas novas: sem elas (`comItens` falso, lido do catálogo por `to_regclass`
- * na 2ª instrução fixa da leitura), o CTE e o ramo do `fk` viram consultas
- * VAZIAS do mesmo formato — nunca 500, nem 25P02 no resto da transação.
+ * D-PROD-202 (Fatia 3 do Lançamento de Atividades; antes D-PROD-193, I-y, I-z; lição do hotfix #259) — fatias FK
+ * das linhas de PRODUTO do apontamento da atividade (`AtividadeApontamentoProduto` e
+ * `AtividadeApontamentoProdutoConsumoLote`). O código pode subir antes da migration das duas tabelas
+ * (`20261114600000_atividade_linhas_produto_maquina`, EXPAND): sem elas (`comItens` falso, lido do catálogo por
+ * `to_regclass` na 2ª instrução fixa da leitura), o CTE e o ramo do `fk` viram consultas VAZIAS do mesmo formato —
+ * nunca 500, nem 25P02 no resto da transação.
  *
- * Consumo por lote dos itens CONFIRMADO (item cancelado devolveu a fatia: não conta).
+ * Consumo por lote das linhas CONFIRMADO (linha cancelada — na edição, no cancelamento da linha, do apontamento ou
+ * da atividade — devolveu a fatia pelo estorno exato: não conta).
  */
 const consumoDosItensDoApontamento = (cli, comItens) => (comItens
   ? Prisma.sql`SELECT f.estoque_lote_nota_id AS lote_id, SUM(f.quantidade) AS consumido
-      FROM "ApontamentoAtividadeItemConsumoLote" f
-      JOIN "ApontamentoAtividadeItem" i ON i.cliente_id = f.cliente_id AND i.id = f.item_id
+      FROM "AtividadeApontamentoProdutoConsumoLote" f
+      JOIN "AtividadeApontamentoProduto" i ON i.cliente_id = f.cliente_id AND i.id = f.linha_id
       WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt)) AND i.status = 'CONFIRMADO'
       GROUP BY 1`
   : Prisma.sql`SELECT NULL::text AS lote_id, 0::numeric AS consumido WHERE false`);
-/** Σ das fatias por movimento de SAÍDA do item (de qualquer situação: o original estornado continua com as fatias). */
+/** Σ das fatias por movimento de SAÍDA da linha (de qualquer situação: o original estornado continua com as fatias). */
 const fatiasFkDosItensDoApontamento = (cli, comItens) => (comItens
   ? Prisma.sql`SELECT i.movimentacao_estoque_id, SUM(f.quantidade)
-      FROM "ApontamentoAtividadeItem" i
-      JOIN "ApontamentoAtividadeItemConsumoLote" f ON f.cliente_id = i.cliente_id AND f.item_id = i.id
+      FROM "AtividadeApontamentoProduto" i
+      JOIN "AtividadeApontamentoProdutoConsumoLote" f ON f.cliente_id = i.cliente_id AND f.linha_id = i.id
       WHERE i.cliente_id = ${cli} AND i.movimentacao_estoque_id = ANY(ARRAY(SELECT id FROM mv))
       GROUP BY 1`
   : Prisma.sql`SELECT NULL::text, 0::numeric WHERE false`);
@@ -1111,11 +1113,11 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
   const o = normalizarOrcamento(orcamento);
   // `statement_timeout` (< 20 s da transação): uma consulta nunca sobrevive à transação que o Prisma já
   // abandonou (medido no código anterior: plano genérico rodando 8 min 50 s depois do timeout de 20 s).
-  // D-PROD-193 (I-z): a MESMA 2ª instrução lê do catálogo se as tabelas dos itens do apontamento já existem
-  // (`to_regclass` nunca falha): nenhuma ida a mais ao banco.
+  // D-PROD-202 (antes D-PROD-193, I-z): a MESMA 2ª instrução lê do catálogo se as tabelas das linhas de produto do
+  // apontamento da atividade já existem (`to_regclass` nunca falha): nenhuma ida a mais ao banco.
   const [config] = /** @type {Array<{ com_itens_apontamento: boolean }>} */ (await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true),
     set_config('statement_timeout', ${`${o.instrucaoMs}ms`}, true),
-    (to_regclass('public."ApontamentoAtividadeItem"') IS NOT NULL AND to_regclass('public."ApontamentoAtividadeItemConsumoLote"') IS NOT NULL) AS com_itens_apontamento`);
+    (to_regclass('public."AtividadeApontamentoProduto"') IS NOT NULL AND to_regclass('public."AtividadeApontamentoProdutoConsumoLote"') IS NOT NULL) AS com_itens_apontamento`);
   const comItens = Boolean(config?.com_itens_apontamento);
   const inicio = Date.now();
   if (f.empresaId !== null) await exigirEmpresaDoTenant(tx, cli, f.empresaId);

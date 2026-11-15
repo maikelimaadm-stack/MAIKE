@@ -13,14 +13,22 @@
  *
  * Tipos, áreas e tarefas reusam as rotas que já existem e só pedem login
  * (`/tipos-atividade`, `/areas-pastagem`, `/lancamentos-tarefa`).
+ *
+ * D-PROD-202 (Fatia 3): os seletores da LINHA DE PRODUTO — produtos (os já
+ * usados na atividade primeiro) e locais com saldo —, com a lógica dos
+ * seletores do financeiro e do abastecimento, mas com a guarda "ver" desta tela.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { AppError, atividadeNotFound } from '../../shared/errors/AppError.js';
+import { ZERO, dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { opcoesResponsaveis } from '../patrimonio/bemPatrimonialOpcoesService.js';
-import { paginacaoOpcoes } from '../patrimonio/patrimonioComum.js';
-import { bemPublico } from './atividadeComum.js';
+import { paginacaoOpcoes, paginarPorNome } from '../patrimonio/patrimonioComum.js';
+import { UNIDADES_PRODUTO_TANQUE, unidadeEfetivaDoEstoque } from '../patrimonio/patrimonioDominio.js';
+import { bemPublico, t4 } from './atividadeComum.js';
+import { produtosUsadosNaAtividade } from './atividadeApontamentoProdutoRepository.js';
 import { paginarBensAtivos } from './atividadeRepository.js';
 
 /**
@@ -41,3 +49,121 @@ export const opcoesBens = async (contexto, query = {}) => {
  * só `{ id, nome }` (o login é credencial e nunca sai); a empresa é só escopo.
  */
 export const opcoesOperadores = opcoesResponsaveis;
+
+// ─── D-PROD-202: seletores da linha de produto ──────────────────────────────
+
+/** Ordem estável por texto (o mesmo comparador dos seletores do abastecimento). */
+const comparar = (/** @type {string} */ a, /** @type {string} */ b) => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
+ * Produtos que a linha aceita: ATIVOS da fazenda, com unidade de estoque L, KG
+ * ou SACO, e que NÃO são combustível (sem aceite que vale: ativo, em tanque
+ * ativo de bem ativo — combustível vai pelo abastecimento). É o mesmo critério
+ * do serviço da linha: o que não aparece aqui seria recusado lá.
+ * @param {string} clienteId @param {string} empresaId
+ */
+const produtosAceitos = (clienteId, empresaId) => ({
+  cliente_id: clienteId,
+  empresa_id: empresaId,
+  ativo: true,
+  unidade_principal_estoque: { in: [...UNIDADES_PRODUTO_TANQUE] },
+  tanquesAceitos: { none: { ativo: true, tanque: { ativo: true, bem: { ativo: true } } } },
+});
+
+const SELECT_PRODUTO = Object.freeze({ id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, estoque_atual: true });
+
+/** @param {any} p @param {boolean} favorito */
+const opcaoDeProduto = (p, favorito) => ({
+  id: p.id,
+  numero: p.numero_produto,
+  nome: p.nome_produto,
+  unidade: unidadeEfetivaDoEstoque(p.unidade_principal_estoque),
+  unidade_principal_estoque: p.unidade_principal_estoque,
+  estoque_atual: t4(p.estoque_atual),
+  favorito,
+});
+
+/**
+ * `GET /atividades-opcoes/produtos?empresa_id=&atividade_id=&q=&cursor=&limit=`:
+ * produtos aceitos pela linha, em keyset (nome, id). Com `atividade_id` (da
+ * MESMA fazenda; senão 404 `ATIVIDADE_NOT_FOUND`), os já usados em linhas
+ * confirmadas dela vêm PRIMEIRO na primeira página (`favorito: true`, do mais
+ * usado ao menos usado) e saem das páginas seguintes, sem repetir. Envelope
+ * `{ itens, has_more, next_cursor }`; `unidade` = a efetiva do estoque (L | KG).
+ * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {Record<string, any>} [query]
+ */
+export const opcoesProdutos = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const prisma = getPrismaClient();
+  const cli = auth.clienteId;
+  const empresaId = await exigirEmpresaDoTenant(prisma, cli, query.empresa_id);
+  const { limit, cursor, q } = paginacaoOpcoes(query);
+  /** @type {string[]} */
+  let favoritosIds = [];
+  if (typeof query.atividade_id === 'string' && query.atividade_id) {
+    const atividade = await prisma.atividade.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id: query.atividade_id }, select: { id: true } });
+    if (!atividade) throw atividadeNotFound();
+    favoritosIds = await produtosUsadosNaAtividade(prisma, cli, empresaId, atividade.id);
+  }
+  // `q` já vem escapado por `paginacaoOpcoes` (busca literal: `%`/`_` não são curingas).
+  const termo = q || null;
+  /** @type {any[]} */
+  const busca = termo
+    ? [{ OR: [{ nome_produto: { contains: termo, mode: 'insensitive' } }, { numero_produto: { contains: termo } }, { codigo_interno: { contains: termo, mode: 'insensitive' } }] }]
+    : [];
+  const aceitos = produtosAceitos(cli, empresaId);
+  /** @type {any[]} */
+  let favoritos = [];
+  if (favoritosIds.length && !cursor) {
+    const lidos = await prisma.produto.findMany({ where: { AND: [aceitos, { id: { in: favoritosIds } }, ...busca] }, select: SELECT_PRODUTO });
+    const posicao = new Map(favoritosIds.map((id, i) => [id, i]));
+    favoritos = lidos.sort((a, b) => /** @type {number} */ (posicao.get(a.id)) - /** @type {number} */ (posicao.get(b.id))).map((p) => opcaoDeProduto(p, true));
+  }
+  const pagina = await paginarPorNome(prisma.produto, {
+    where: { AND: [aceitos, ...(favoritosIds.length ? [{ id: { notIn: favoritosIds } }] : []), ...busca] },
+    campoNome: 'nome_produto',
+    select: SELECT_PRODUTO,
+    limit,
+    cursor,
+    mapear: (linhas) => linhas.map((p) => opcaoDeProduto(p, false)),
+  });
+  return { ...pagina, itens: [...favoritos, ...pagina.itens] };
+};
+
+/**
+ * `GET /atividades-opcoes/locais?empresa_id=&produto_id=`: locais ATIVOS com
+ * saldo (lotes Disponível > 0) do produto NA fazenda, por nome. `disponivel`
+ * na unidade EFETIVA do estoque (`unidade`: L ou KG; SACO → KG). Produto de
+ * outra fazenda ou tenant → 404 `PRODUTO_NOT_FOUND` (sem oráculo).
+ * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {Record<string, any>} [query]
+ */
+export const opcoesLocaisDoProduto = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const prisma = getPrismaClient();
+  const cli = auth.clienteId;
+  const empresaId = await exigirEmpresaDoTenant(prisma, cli, query.empresa_id);
+  const produto = await prisma.produto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id: String(query.produto_id) }, select: { id: true, unidade_principal_estoque: true } });
+  if (!produto) {
+    throw new AppError('PRODUTO_NOT_FOUND', 'produto não encontrado nesta fazenda', { details: { field: 'produto_id', reason: 'produto_nao_encontrado' } });
+  }
+  const grupos = await prisma.estoqueLoteNota.groupBy({
+    by: ['local_estoque_id'],
+    where: { cliente_id: cli, empresa_id: empresaId, produto_id: produto.id, status: 'Disponivel', quantidade_disponivel: { gt: 0 } },
+    _sum: { quantidade_disponivel: true },
+  });
+  const ids = grupos.map((g) => g.local_estoque_id).filter((v) => typeof v === 'string');
+  const locais = ids.length ? await prisma.localEstoque.findMany({ where: { cliente_id: cli, id: { in: ids }, ativo: true }, select: { id: true, nome: true } }) : [];
+  const saldo = new Map(grupos.map((g) => [g.local_estoque_id, g._sum.quantidade_disponivel]));
+  const unidade = unidadeEfetivaDoEstoque(produto.unidade_principal_estoque) ?? produto.unidade_principal_estoque;
+  return {
+    itens: locais
+      .sort((a, b) => comparar(a.nome, b.nome) || comparar(a.id, b.id))
+      .map((l) => ({
+        local_estoque_id: l.id,
+        local_nome: l.nome,
+        disponivel: dec(saldo.get(l.id) ?? ZERO).toFixed(4),
+        unidade,
+        unidade_principal_estoque: produto.unidade_principal_estoque,
+      })),
+  };
+};
