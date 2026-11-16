@@ -52,11 +52,14 @@ DECLARE
     -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
     -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
     'AtividadeApontamentoProdutoConsumoLote','AtividadeApontamentoProduto','AtividadeApontamentoMaquina',
+    -- D-PROD-210 (Fatia 5): o abastecimento (e as fatias FIFO dele) sai antes do apontamento e da atividade, que ele
+    -- passa a referenciar, e antes do tanque, do bem e dos centros (abaixo); só as fatias FIFO o referenciam.
+    'AbastecimentoBemConsumoLote','AbastecimentoBem',
     -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
-    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) e o abastecimento (D-PROD-210) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
     'AtividadeApontamento',
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
-    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia (acima) a referencia.
+    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia e o abastecimento (acima) a referenciam.
     'Atividade',
     -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-200) e ANTES dos
     -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
@@ -69,7 +72,7 @@ DECLARE
     -- D-PROD-157/159 (Patrimônio P1-01/P1-02): antes de CentroCusto/Empresa/Fornecedor/Usuario/AreaPastagem, do Produto e dos lotes/movimentos/local que eles referenciam.
     -- D-PROD-162: o Patrimônio simplificado (sem perfis, medições, combustíveis e fator) — filhas antes das mães
     -- (fatias FIFO → abastecimento → Produto aceito pelo tanque → tanque → bem → tipo → família).
-    'AbastecimentoBemConsumoLote','AbastecimentoBem','TanqueBemProduto','TanqueBem','BemPatrimonial','TipoPatrimonial','FamiliaPatrimonial',
+    'TanqueBemProduto','TanqueBem','BemPatrimonial','TipoPatrimonial','FamiliaPatrimonial',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
