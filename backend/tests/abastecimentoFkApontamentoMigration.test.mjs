@@ -21,6 +21,10 @@
  * atividade; a FK já com 4 colunas, o UNIQUE já presente ou o CHECK da atividade ausente. E o runner com a conferência
  * de alvo exigida e SEM MIGRATION_CONTRACT_AUTORIZADO=D-PROD-213 exato recusa antes de qualquer DDL.
  *
+ * Concorrência: a transação do app na ordem da confirmação do abastecimento (lê o apontamento, depois grava o
+ * abastecimento) não fecha deadlock com a migration: a guarda já trava "AtividadeApontamento" em ACCESS EXCLUSIVE (o
+ * modo que o DROP CONSTRAINT pede nela), espera o app sem segurar "AbastecimentoBem" e aplica depois do COMMIT dele.
+ *
  * GREEN pelo runner oficial (alvo conferido + decisão exata): 63/0, 94 tabelas, só a FK do apontamento (recriada, 4
  * colunas) e o UNIQUE novo mudam, nenhum dado; o banco RECUSA (23503) o apontamento de outra atividade e aceita o
  * vínculo certo e os abastecimentos sem vínculo (ESTOQUE e EXTERNO); RESTRICT e o CASCADE da atividade do apontamento;
@@ -397,7 +401,7 @@ describe('D-PROD-213 — migration CONTRACT do reforço da FK do apontamento do 
     assert.deepEqual([c.contract[0].colunas_adicionadas, c.contract[0].constraints_adicionadas, c.contract[0].colunas_removidas, c.contract[0].conversoes], [[], [], [], []]);
     assert.equal(MIGRATIONS_APROVADAS[NOME], CHECKSUM);
     assert.equal(MIGRATIONS_CONTRACT_APROVADAS[NOME].decisao, DECISAO);
-    assert.equal(CHECKSUM, '37c5617b681c8f9a3108e2bd89b3aa02425898bef84aa9d30aecc5b9179f8cd7');
+    assert.equal(CHECKSUM, '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e');
     assert.doesNotMatch(SQL_MIGRATION, /D-PROD-\d+/, 'o número da decisão fica fora do arquivo');
 
     const linhas = await db.$queryRawUnsafe('SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations');
@@ -450,6 +454,39 @@ describe('D-PROD-213 — migration CONTRACT do reforço da FK do apontamento do 
       await dbr.$executeRawUnsafe(`ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "${FK}" FOREIGN KEY ("cliente_id", "empresa_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE`);
       await dbr.$executeRawUnsafe(`ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_atividade_check"`);
       await tentar();
+    });
+  });
+
+  test('AF-RED-3 concorrência (num banco novo): a transação do app que lê o apontamento e DEPOIS toca o abastecimento (a ordem da confirmação do abastecimento) não fecha deadlock com a migration — ela espera o app, que termina, e só então aplica', async () => {
+    await emBancoNovo('c1', async (dbr, url) => {
+      const NOVO = `${C1}-cc1`;
+      let migracao;
+      await dbr.$transaction(async (tx) => {
+        // 1. O app lê o apontamento (ACCESS SHARE em "AtividadeApontamento" até o COMMIT).
+        await tx.$queryRawUnsafe(`SELECT id, atividade_id FROM "AtividadeApontamento" WHERE id = '${AP1}'`);
+        // 2. A migration começa e fica esperando a trava de "AtividadeApontamento" (sem segurar "AbastecimentoBem").
+        migracao = aplicarArquivo(url);
+        let esperando = 0;
+        for (let i = 0; i < 100 && esperando === 0; i += 1) {
+          await new Promise((r) => setTimeout(r, 20));
+          ({ n: esperando } = await um(dbr, `SELECT count(*)::int AS n FROM pg_locks WHERE NOT granted AND relation = '"AtividadeApontamento"'::regclass`));
+        }
+        assert.equal(esperando, 1, 'a migration espera a trava de "AtividadeApontamento" já na guarda');
+        const { n: noAbastecimento } = await um(dbr, `SELECT count(*)::int AS n FROM pg_locks l JOIN pg_stat_activity s ON s.pid = l.pid
+          WHERE l.relation = '"AbastecimentoBem"'::regclass AND s.application_name = 'psql'`);
+        assert.equal(noAbastecimento, 0, 'enquanto espera, a migration não segura "AbastecimentoBem"');
+        // 3. O app grava o abastecimento (antes, com SHARE ROW EXCLUSIVE na guarda, isto fechava o ciclo: deadlock).
+        await tx.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "AbastecimentoBem" WHERE apontamento_id = '${AP1}'`);
+        await tx.$executeRawUnsafe(novo(NOVO, { atividade: `'${ATV1}'`, apontamento: `'${AP1}'` }));
+      }, { timeout: 20000 });
+      // 4. Com o COMMIT do app, a migration segue e aplica (dentro do lock_timeout de 5 s).
+      const r = await migracao;
+      assert.equal(r.status, 0, r.saida);
+      assert.doesNotMatch(r.saida, /deadlock/);
+      const depois = await retrato(dbr);
+      assert.ok(depois.constraints.split('\n').includes(FK_DEPOIS));
+      assert.ok(depois.indices.includes(UNICO));
+      assert.ok(depois.abastecimentos.includes(`"id":"${NOVO}"`), 'a gravação do app ficou');
     });
   });
 

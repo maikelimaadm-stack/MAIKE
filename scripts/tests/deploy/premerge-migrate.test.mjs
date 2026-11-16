@@ -4377,7 +4377,7 @@ test('B31b (D-PROD-213): a entrada é congelada e o conteúdo pinado é o do arq
   const fk = corpo.indexOf("AND conname = 'AbastecimentoBem_apontamento_fkey' AND contype = 'f' AND confrelid = to_regclass('public.\"AtividadeApontamento\"') AND array_length(conkey, 1) = 3)");
   const check = corpo.indexOf("AND conname = 'AbastecimentoBem_atividade_check' AND contype = 'c')");
   const unico = corpo.indexOf("OR to_regclass('public.\"AtividadeApontamento_empresa_atividade_id_key\"') IS NOT NULL THEN");
-  const trava1 = corpo.indexOf('LOCK TABLE public."AtividadeApontamento" IN SHARE ROW EXCLUSIVE MODE;');
+  const trava1 = corpo.indexOf('LOCK TABLE public."AtividadeApontamento" IN ACCESS EXCLUSIVE MODE;');
   const trava2 = corpo.indexOf('LOCK TABLE public."AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;');
   const conteudo = corpo.indexOf('WHERE a.apontamento_id IS NOT NULL AND p.atividade_id IS DISTINCT FROM a.atividade_id) THEN');
   assert.ok(fk > 0 && check > fk && unico > check && trava1 > unico && trava2 > trava1 && conteudo > trava2, 'o formato, as travas (referenciada primeiro) e só então o conteúdo');
@@ -4431,13 +4431,16 @@ test('B31d (D-PROD-213): depois das 3 instruções, o resto é EXPAND — DML, D
 });
 
 test('B31f (D-PROD-213): a guarda é a PRIMEIRA instrução e tem o hash pinado — sem uma trava, trava fraca, ordem das travas trocada, sem tempo limite ou trava consultiva, sem conferir o conteúdo, a FK antiga ou o UNIQUE → CONTRACT_GUARDA_NAO_RECONHECIDA; ausente ou precedida de outra instrução → CONTRACT_GUARDA_AUSENTE; citando outra tabela ou sem um literal → DO_EM_TABELA_ANTIGA', () => {
-  const travas = '  LOCK TABLE public."AtividadeApontamento" IN SHARE ROW EXCLUSIVE MODE;\n  LOCK TABLE public."AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;\n';
+  const travas = '  LOCK TABLE public."AtividadeApontamento" IN ACCESS EXCLUSIVE MODE;\n  LOCK TABLE public."AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;\n';
   for (const [de, para] of [
     ['  LOCK TABLE public."AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;\n', ''],
-    ['  LOCK TABLE public."AtividadeApontamento" IN SHARE ROW EXCLUSIVE MODE;\n', ''],
+    ['  LOCK TABLE public."AtividadeApontamento" IN ACCESS EXCLUSIVE MODE;\n', ''],
     ['"AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;', '"AbastecimentoBem" IN SHARE MODE;'],
-    ['"AtividadeApontamento" IN SHARE ROW EXCLUSIVE MODE;', '"AtividadeApontamento" IN ROW SHARE MODE;'],
-    [travas, '  LOCK TABLE public."AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;\n  LOCK TABLE public."AtividadeApontamento" IN SHARE ROW EXCLUSIVE MODE;\n'],
+    ['"AtividadeApontamento" IN ACCESS EXCLUSIVE MODE;', '"AtividadeApontamento" IN ROW SHARE MODE;'],
+    // A trava da referenciada que o ADD FOREIGN KEY pede (SHARE ROW EXCLUSIVE) não basta: o DROP CONSTRAINT pede ACCESS
+    // EXCLUSIVE nela, e subir de trava no meio da transação fecha ciclo com o app (lê o apontamento, grava o abastecimento).
+    ['"AtividadeApontamento" IN ACCESS EXCLUSIVE MODE;', '"AtividadeApontamento" IN SHARE ROW EXCLUSIVE MODE;'],
+    [travas, '  LOCK TABLE public."AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;\n  LOCK TABLE public."AtividadeApontamento" IN ACCESS EXCLUSIVE MODE;\n'],
     ["PERFORM set_config('lock_timeout', '5s', true);", "PERFORM set_config('lock_timeout', '0', true);"],
     ["PERFORM set_config('statement_timeout', '120s', true);", "PERFORM set_config('statement_timeout', '0', true);"],
     ['PERFORM pg_advisory_xact_lock(72707369);', 'PERFORM pg_advisory_xact_lock(1);'],

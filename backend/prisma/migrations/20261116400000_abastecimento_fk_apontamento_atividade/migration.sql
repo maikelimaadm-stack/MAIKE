@@ -14,13 +14,19 @@
 --      migrate (72707369), o estado esperado (as 2 tabelas existem, a FK
 --      "AbastecimentoBem_apontamento_fkey" ainda é a de 3 colunas para
 --      "AtividadeApontamento", o CHECK "AbastecimentoBem_atividade_check" existe e o
---      UNIQUE novo ainda não), "AtividadeApontamento" travada em SHARE ROW EXCLUSIVE
---      (a referenciada primeiro, a trava que a FK nova pede nela) e "AbastecimentoBem"
---      em ACCESS EXCLUSIVE, as duas até o COMMIT, ANTES de conferir que NENHUM
---      abastecimento aponta para um apontamento de outra atividade. Qualquer linha
---      assim aborta a transação inteira: nada muda. Uma transação do app que segure
---      as duas na ordem inversa faz o lock_timeout (5 s) ou o detector de deadlock
---      abortar esta migration, também sem aplicar nada;
+--      UNIQUE novo ainda não), "AtividadeApontamento" e depois "AbastecimentoBem"
+--      travadas em ACCESS EXCLUSIVE, as duas até o COMMIT, ANTES de conferir que
+--      NENHUM abastecimento aponta para um apontamento de outra atividade. Qualquer
+--      linha assim aborta a transação inteira: nada muda. ACCESS EXCLUSIVE na
+--      referenciada também, e já na guarda, porque o DROP CONSTRAINT da FK antiga
+--      toma ACCESS EXCLUSIVE nas DUAS tabelas (remove os gatilhos da FK na
+--      referenciada): pegar menos ali e subir para ACCESS EXCLUSIVE só no DROP, com
+--      "AbastecimentoBem" já travada, fecha um ciclo com a transação do app que lê o
+--      apontamento e depois grava o abastecimento (deadlock, e quem cai pode ser o
+--      app). Pegando as duas de uma vez, na ordem do app (apontamento → abastecimento),
+--      a transação do app que já segura uma delas só faz esta migration esperar, até
+--      o lock_timeout (5 s), que a aborta sem aplicar nada; até o COMMIT, leituras e
+--      escritas nas duas tabelas esperam;
 --   2. as 3 instruções pinadas em tabelas antigas: o UNIQUE (cliente_id, empresa_id,
 --      atividade_id, id) em "AtividadeApontamento" (trivialmente único, o id já é;
 --      é o alvo que a FK composta exige), sai a FK de 3 colunas e volta, com o mesmo
@@ -49,8 +55,8 @@ BEGIN
      OR to_regclass('public."AtividadeApontamento_empresa_atividade_id_key"') IS NOT NULL THEN
     RAISE EXCEPTION 'guarda: o vínculo do abastecimento com o apontamento não está no formato anterior (FK de 3 colunas ausente, CHECK da atividade ausente ou UNIQUE novo já presente)';
   END IF;
-  -- Trava ANTES de conferir, a referenciada primeiro: até o COMMIT ninguém grava no apontamento nem no abastecimento (o que a guarda conferiu é o que a FK nova valida).
-  LOCK TABLE public."AtividadeApontamento" IN SHARE ROW EXCLUSIVE MODE;
+  -- Trava ANTES de conferir, a referenciada primeiro e já no modo que o DROP CONSTRAINT pede nela (sem subir de trava no meio): até o COMMIT ninguém lê nem grava no apontamento ou no abastecimento (o que a guarda conferiu é o que a FK nova valida).
+  LOCK TABLE public."AtividadeApontamento" IN ACCESS EXCLUSIVE MODE;
   LOCK TABLE public."AbastecimentoBem" IN ACCESS EXCLUSIVE MODE;
   IF EXISTS (SELECT 1 FROM public."AbastecimentoBem" a
                JOIN public."AtividadeApontamento" p

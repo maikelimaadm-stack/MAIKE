@@ -171,7 +171,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // tem de ser DA atividade gravada nele: UNIQUE (cliente_id, empresa_id, atividade_id, id) em AtividadeApontamento e a
   // FK "AbastecimentoBem_apontamento_fkey" recriada com 4 colunas. A guarda aborta se algum abastecimento apontar para
   // um apontamento de outra atividade. Nenhuma coluna, tabela ou dado muda.
-  '20261116400000_abastecimento_fk_apontamento_atividade': '37c5617b681c8f9a3108e2bd89b3aa02425898bef84aa9d30aecc5b9179f8cd7',
+  '20261116400000_abastecimento_fk_apontamento_atividade': '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -521,7 +521,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // `constraints_alargadas`: recriada), RESTRICT. A guarda só cita as 2 tabelas.
   '20261116400000_abastecimento_fk_apontamento_atividade': Object.freeze({
     decisao: 'D-PROD-213',
-    guarda_sha256: '234df4b5f77973188d545c47520d0e342ae7084f50a2a77b3edc7b99fb70cbdb',
+    guarda_sha256: '8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['AbastecimentoBem', 'AtividadeApontamento']),
     alter_antigas: Object.freeze([

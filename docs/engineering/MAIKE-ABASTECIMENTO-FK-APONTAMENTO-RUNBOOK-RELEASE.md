@@ -22,8 +22,8 @@ Precedente executado:
 | Efeito | o banco passa a **recusar** (`23503`) um abastecimento cujo apontamento é de **outra** atividade. Com `MATCH SIMPLE` e o CHECK `AbastecimentoBem_atividade_check` (apontamento ⇒ atividade), toda linha com apontamento tem as 4 colunas preenchidas: a FK sempre confere. Abastecimento sem vínculo (as 4 colunas com `apontamento_id` nulo) segue livre, `ESTOQUE` ou `EXTERNO` |
 | Dados | nenhum. A guarda só lê: nenhum abastecimento ligado a apontamento de outra atividade (produção: **1** abastecimento, sem vínculo) |
 | O que não muda | nenhuma coluna, tabela, política ou CHECK; a FK `AbastecimentoBem_atividade_fkey` fica como está |
-| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `37c5617b681c8f9a3108e2bd89b3aa02425898bef84aa9d30aecc5b9179f8cd7` |
-| Guarda (`guarda_sha256`) | `234df4b5f77973188d545c47520d0e342ae7084f50a2a77b3edc7b99fb70cbdb` |
+| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e` |
+| Guarda (`guarda_sha256`) | `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c` |
 | Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-213`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_apontamento_fkey"]` (mesmo nome, recriada; o rótulo do runner é o de sempre, "1 CHECKs alargados"), o resto vazio; o `UNIQUE` é a 1ª das 3 instruções pinadas; não há resto |
 | `_prisma_migrations` | antes **62** concluídas, 0 em aberto (a última, a D-PROD-211, `20261116300000_abastecimento_atividade`, checksum `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`); depois **63** |
 | Tabelas em `public` | **94** antes e depois |
@@ -40,13 +40,20 @@ merge; o padrão (D-PROD-72 item 1) é **antes**:
 O Instant Rollback da Vercel continua possível depois da aplicação (o código anterior
 grava o mesmo par atividade/apontamento).
 
-**Travas:** a guarda trava `"AtividadeApontamento"` em `SHARE ROW EXCLUSIVE` (a
-referenciada primeiro: ninguém grava apontamento; leitura e `FOR UPDATE` seguem) e
-`"AbastecimentoBem"` em `ACCESS EXCLUSIVE`, as duas até o `COMMIT`. O índice único e a
-validação da FK leem as tabelas inteiras (produção: poucas linhas; menos de 1 s). O
-Lançamento de Atividades e a tela de abastecimentos esperam esse tempo. `lock_timeout`
-de 5 s: com uma transação longa segurando uma delas (ou numa ordem que fecharia um
-deadlock), aborta **sem aplicar nada**. Fora de pico.
+**Travas:** a guarda trava `"AtividadeApontamento"` e depois `"AbastecimentoBem"` em
+`ACCESS EXCLUSIVE`, as duas até o `COMMIT`: até lá, **leituras e escritas** nas duas
+tabelas esperam (a lista e o detalhe do Lançamento de Atividades e a tela de
+abastecimentos). `ACCESS EXCLUSIVE` também na referenciada, e já na guarda, porque o
+`DROP CONSTRAINT` da FK antiga toma `ACCESS EXCLUSIVE` nas duas tabelas (remove os
+gatilhos da FK na referenciada); pegar menos ali e subir só no `DROP`, com
+`"AbastecimentoBem"` já travada, fecharia um ciclo com a confirmação do abastecimento
+(lê o apontamento, depois grava o abastecimento) e o detector de deadlock poderia
+derrubar a requisição do usuário. Na ordem do app (apontamento → abastecimento), uma
+transação que já segura uma delas só faz a migration esperar. O índice único e a
+validação da FK leem as tabelas inteiras (produção: poucas linhas; menos de 1 s).
+`lock_timeout` de 5 s: com uma transação longa segurando uma delas, aborta **sem
+aplicar nada** (no caminho A, a linha falha em `_prisma_migrations` pede
+`migrate resolve --rolled-back` antes de repetir). Fora de pico.
 
 ## 1. Caminhos
 
@@ -240,7 +247,7 @@ END $alvo$;
 
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
-VALUES (gen_random_uuid()::text, '37c5617b681c8f9a3108e2bd89b3aa02425898bef84aa9d30aecc5b9179f8cd7', now(),
+VALUES (gen_random_uuid()::text, '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e', now(),
         '20261116400000_abastecimento_fk_apontamento_atividade', NULL, NULL, now(), 1);
 COMMIT;
 ```
@@ -270,7 +277,7 @@ mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
          count(*) FILTER (WHERE migration_name = '20261116400000_abastecimento_fk_apontamento_atividade'
-                            AND checksum = '37c5617b681c8f9a3108e2bd89b3aa02425898bef84aa9d30aecc5b9179f8cd7'
+                            AND checksum = '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL AND applied_steps_count = 1) AS esta
     FROM public._prisma_migrations
 ),
