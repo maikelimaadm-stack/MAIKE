@@ -65,7 +65,7 @@ const CATEGORIAS = vi.hoisted(() => [
 
 const { default: FormularioFormulacao, FORMULARIO_FORMULACAO_ID, formularioDoRegistro } = await import("@/components/formulacoes/FormularioFormulacao");
 const { getFormulacaoFieldValue, compararFormulacoesParaOrdenar, FORMULACOES_COLUNAS } = await import("@/components/formulacoes/TabelaFormulacoes");
-const { lerPercentualPV, lerKg, lerGramas, resumoDaBatida, validarFormulacao, mensagemExclusaoBloqueada, QUERY_FORMULACOES_LANCAMENTO } = await import(
+const { lerPercentualPV, lerKg, lerGramas, equivalenteEmKg, resumoDaBatida, validarFormulacao, mensagemExclusaoBloqueada, QUERY_FORMULACOES_LANCAMENTO } = await import(
   "@/services/formulacaoCadastroService"
 );
 
@@ -139,10 +139,10 @@ describe("FO-SV — leitura, batida e validação", () => {
     const ok = validarFormulacao(base);
     expect(ok.erros).toEqual({});
     expect(ok.corpo).toEqual({
-      nome: "PROTEINADO SECA", tipo: "BATELADA", produto_id: "p-mix", percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800,
+      nome: "PROTEINADO SECA", tipo: "BATELADA", produto_id: "p-mix", base_consumo: "PV", percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800,
       faixa_tolerancia_percentual: null, observacoes: null, ativo: true,
       ingredientes: [{ produto_id: "p-milho", quantidade_kg: 600 }, { produto_id: "p-farelo", quantidade_kg: 300 }, { produto_id: "p-nucleo", quantidade_kg: 100 }],
-      regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15 }],
+      regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null, g_cab_dia: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15, g_cab_dia: null }],
     });
     // PRONTO: os ingredientes do formulário não vão (a troca esvazia a lista no servidor).
     expect(validarFormulacao({ ...base, tipo: "PRONTO" }).corpo?.ingredientes).toEqual([]);
@@ -161,7 +161,7 @@ describe("FO-SV — leitura, batida e validação", () => {
       expect(validarFormulacao({ ...base, faixa_tolerancia_percentual: ruim }).erros.faixa_tolerancia_percentual, ruim).toMatch(/De 0 a 100%/);
     }
     // Não consome: o %PV digitado antes não vai.
-    expect(validarFormulacao({ ...base, regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: "0,2" }] }).corpo?.regras).toEqual([{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null }]);
+    expect(validarFormulacao({ ...base, regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: "0,2" }] }).corpo?.regras).toEqual([{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null, g_cab_dia: null }]);
   });
 
   it("FO-SV-4 — aviso de exclusão bloqueada: em uso manda inativar; a chave das opções do lançamento é própria", () => {
@@ -209,9 +209,9 @@ describe("FO-FORM — formulário de formulação", () => {
     enviar();
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0][0]).toEqual({
-      nome: "SAL 80", tipo: "PRONTO", produto_id: "p-sal", percentual_pv_padrao: 0.1, consumo_objetivo_g_cab_dia: null,
+      nome: "SAL 80", tipo: "PRONTO", produto_id: "p-sal", base_consumo: "PV", percentual_pv_padrao: 0.1, consumo_objetivo_g_cab_dia: null,
       faixa_tolerancia_percentual: null, observacoes: null, ativo: true, ingredientes: [],
-      regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15 }],
+      regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null, g_cab_dia: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15, g_cab_dia: null }],
     });
   });
 
@@ -261,8 +261,8 @@ describe("FO-FORM — formulário de formulação", () => {
 
 describe("FO-GRADE — colunas e valores", () => {
   it("FO-GRADE-1 — Nome, Tipo, Produto, %PV, nº de regras, ingredientes/total e Ativo visíveis; ordena %PV pelo número", () => {
-    expect(FORMULACOES_COLUNAS.filter((c) => c.default).map((c) => c.label)).toEqual(["Nome", "Tipo", "Produto", "% PV padrão", "Regras", "Ingredientes / batida", "Ativo"]);
-    expect(["tipo", "produto_nome", "percentual_pv_padrao", "regras", "ingredientes"].map((c) => getFormulacaoFieldValue(BATELADA, c))).toEqual(["Batelada", "PROTEINADO DA FAZENDA", "0,2%", "2", "3 / 1.000 kg"]);
+    expect(FORMULACOES_COLUNAS.filter((c) => c.default).map((c) => c.label)).toEqual(["Nome", "Tipo", "Produto", "Consumo padrão", "Regras", "Ingredientes / batida", "Ativo"]);
+    expect(["tipo", "produto_nome", "percentual_pv_padrao", "regras", "ingredientes"].map((c) => getFormulacaoFieldValue(BATELADA, c))).toEqual(["Batelada", "PROTEINADO DA FAZENDA", "0,2% PV", "2", "3 / 1.000 kg"]);
     expect(getFormulacaoFieldValue({ tipo: "PRONTO", ingredientes: [], regras: [] }, "ingredientes")).toBe("–");
     expect(compararFormulacoesParaOrdenar({ percentual_pv_padrao: 0.15 }, { percentual_pv_padrao: 1.2 }, "percentual_pv_padrao")).toBeLessThan(0);
     expect(compararFormulacoesParaOrdenar({ nome: "a" }, { nome: "b" }, "nome")).toBeNull();
@@ -332,5 +332,68 @@ describe("FO-API — porta nativa", () => {
       ["/formulacoes/f%201?empresa_id=emp-1", "DELETE"],
       ["/formulacoes", "POST"],
     ]);
+  });
+});
+
+describe("FO-BASE — D-PROD-210: base do consumo (% do peso vivo OU g/cab/dia), sem mistura", () => {
+  it("FO-BASE-1 — base %PV (padrão) mostra só o %PV; trocar para g/cab/dia mostra só os gramas, com o equivalente em kg; envia sem %PV", async () => {
+    const { onSubmit } = montar();
+    expect(screen.getByLabelText("Percentual do peso vivo padrão")).toBeTruthy();
+    expect(screen.queryByLabelText("Consumo padrão em gramas por cabeça por dia")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText(/EX\.: SAL MINERAL/), { target: { value: "sal g" } });
+    await escolher(/^Produto \(vai ao cocho\)/, "SAL MINERAL 80");
+    digitar("Percentual do peso vivo padrão", "0,1");
+    await escolher(/^Base do consumo/, "g por cabeça por dia");
+    expect(screen.queryByLabelText("Percentual do peso vivo padrão")).toBeNull();
+    const g = /** @type {HTMLInputElement} */ (screen.getByLabelText("Consumo padrão em gramas por cabeça por dia"));
+    expect(g.value).toBe("");
+    digitar("Consumo padrão em gramas por cabeça por dia", "1500");
+    expect(screen.getByTestId("formulacao-g-padrao-kg").textContent).toBe("= 1,5 kg/cab/dia");
+    fireEvent.click(screen.getByTestId("formulacao-regra-adicionar"));
+    await escolher("Categoria da regra 1", "VACA LEITEIRA");
+    fireEvent.click(screen.getByRole("switch", { name: "Consome (regra 1)" }));
+    expect(screen.queryByLabelText("Percentual do peso vivo da regra 1")).toBeNull();
+    digitar("Gramas por cabeça por dia da regra 1", "2.000");
+    expect(screen.getByTestId("formulacao-regra-0-kg").textContent).toBe("= 2 kg/cab/dia");
+    enviar();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      base_consumo: "G_CAB_DIA", percentual_pv_padrao: null, consumo_objetivo_g_cab_dia: 1500,
+      regras: [{ categoria_manejo_id: "c-vaca", consome: true, percentual_pv: null, g_cab_dia: 2000 }],
+    });
+  });
+
+  it("FO-BASE-2 — trocar a base LIMPA o padrão e os valores das regras (categoria e Consome? ficam); voltar para %PV pede o %PV de novo", async () => {
+    const { onSubmit } = montar({ initialData: BATELADA, isEditing: true });
+    await escolher(/^Base do consumo/, "g por cabeça por dia");
+    expect(/** @type {HTMLInputElement} */ (screen.getByLabelText("Consumo padrão em gramas por cabeça por dia")).value).toBe("");
+    expect(/** @type {HTMLInputElement} */ (screen.getByLabelText("Gramas por cabeça por dia da regra 2")).value).toBe("");
+    enviar();
+    expect(onSubmit).not.toHaveBeenCalled();
+    await escolher(/^Base do consumo/, "% do peso vivo");
+    expect(/** @type {HTMLInputElement} */ (screen.getByLabelText("Percentual do peso vivo padrão")).value).toBe("");
+    expect(/** @type {HTMLInputElement} */ (screen.getByLabelText("Percentual do peso vivo da regra 2")).value).toBe("");
+  });
+
+  it("FO-BASE-3 — validação como o servidor: base g/cab/dia exige gramas no padrão e nas regras que consomem, %PV nulo; base %PV manda o g antigo só como referência", () => {
+    const base = formularioDoRegistro(null);
+    const g = { ...base, nome: "SAL", produto_id: "p-sal", base_consumo: "G_CAB_DIA" };
+    expect(validarFormulacao(g).erros.consumo_objetivo_g_cab_dia).toBe("Obrigatório");
+    expect(validarFormulacao({ ...g, consumo_objetivo_g_cab_dia: "20.000,01" }).erros.consumo_objetivo_g_cab_dia).toBeTruthy();
+    const regraSemG = { ...g, consumo_objetivo_g_cab_dia: "80", regras: [{ categoria_manejo_id: "c-vaca", consome: true, percentual_pv: "0,1", g_cab_dia: "" }] };
+    expect(validarFormulacao(regraSemG).erros["regras.0.g_cab_dia"]).toBeTruthy();
+    const ok = validarFormulacao({ ...g, consumo_objetivo_g_cab_dia: "80", percentual_pv_padrao: "0,1" });
+    expect(ok.corpo).toMatchObject({ base_consumo: "G_CAB_DIA", percentual_pv_padrao: null, consumo_objetivo_g_cab_dia: 80 });
+    const pv = validarFormulacao({ ...base, nome: "P", produto_id: "p-sal", percentual_pv_padrao: "0,2", consumo_objetivo_g_cab_dia: "800" });
+    expect(pv.corpo).toMatchObject({ base_consumo: "PV", percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800 });
+    expect(equivalenteEmKg("80")).toBe("= 0,08 kg/cab/dia");
+    expect(equivalenteEmKg("abc")).toBe("");
+  });
+
+  it("FO-BASE-4 — na base %PV o g/cab/dia antigo aparece só como referência; a grade mostra o consumo na base de cada uma", () => {
+    montar({ initialData: BATELADA, isEditing: true });
+    expect(screen.getByTestId("formulacao-g-referencia").textContent).toMatch(/Referência: 800 g\/cab\/dia \(não entra na conta\)/);
+    expect(getFormulacaoFieldValue({ base_consumo: "G_CAB_DIA", consumo_objetivo_g_cab_dia: 80, percentual_pv_padrao: null }, "percentual_pv_padrao")).toBe("80 g/cab/dia");
+    expect(getFormulacaoFieldValue(BATELADA, "percentual_pv_padrao")).toBe("0,2% PV");
   });
 });

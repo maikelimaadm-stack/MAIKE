@@ -86,6 +86,10 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Fornecedor', 'funcionario_tipo'],
   ['AtividadeApontamentoMaoObra', 'parceiro_id'],
   ['AtividadeApontamentoMaoObra', 'origem'],
+  // D-PROD-210: a base do consumo da Formulação e os gramas da regra; sem a migration
+  // `20261116200000_formulacao_base_consumo`, `/formulacoes` responde 500.
+  ['CADFORMULACAO', 'base_consumo'],
+  ['CADFORMULACAOREGRA', 'g_cab_dia'],
 ]);
 
 /**

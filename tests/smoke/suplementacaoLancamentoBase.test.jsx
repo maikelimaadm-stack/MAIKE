@@ -393,3 +393,60 @@ describe("D-PROD-206 — o lançamento grava o que o fechamento do consumo preci
     expect(fechar.mock.calls[0][0].compartilhado).toBe(true);
   });
 });
+
+describe("D-PROD-210 — lançamento numa formulação da base g/cab/dia", () => {
+  const SAL_G = {
+    ...FORMULACAO, id: "f-g", nome: "SAL MINERAL G", base_consumo: "G_CAB_DIA", percentual_pv_padrao: null, consumo_objetivo_g_cab_dia: 80,
+    regras: [
+      { categoria_manejo_id: "cat-bez", categoria_manejo_nome: "BEZERRO MAMANDO", consome: false, percentual_pv: null, g_cab_dia: null },
+      { categoria_manejo_id: "cat-vaca", categoria_manejo_nome: "VACA LEITEIRA", consome: true, percentual_pv: null, g_cab_dia: 1500 },
+    ],
+  };
+
+  it("SG-1 — esperado = cabeças × gramas (regra da categoria, senão o padrão) ÷ 1000, sem peso; rótulos em g, sem %PV; evento grava a base e os gramas", async () => {
+    estado.formulacoes = [SAL_G];
+    estado.rebanho = [
+      posicao("pv", "VACAS", 10, { categoria_manejo_id: "cat-vaca", projecao_peso: projecao(450) }),
+      posicao("pz", "BEZERROS", 8, { categoria_manejo_id: "cat-bez", peso_medio_kg: 120 }),
+      posicao("pb", "BOIS SEM PESO", 20, { categoria_manejo_id: "cat-boi", peso_medio_kg: null }),
+    ];
+    await montar();
+    // 10 × 1500 g + 20 × 80 g = 16,6 kg/dia; os 8 bezerros ficam fora; o lote sem peso conta (meta fixa).
+    expect(screen.getByTestId("suplementacao-painel-g")).toBeTruthy();
+    expect(screen.queryByTestId("suplementacao-painel-pv")).toBeNull();
+    expect(screen.getByTestId("suplementacao-esperado-grupo").textContent).toBe("16,6 kg");
+    expect(screen.getByTestId("suplementacao-meta-g").textContent).toBe("553 g");
+    expect(screen.queryByTestId("suplementacao-sem-peso")).toBeNull();
+    expect(screen.getByText(/SAL MINERAL G/).textContent).toMatch(/80 g\/cab\/dia/);
+    expect(screen.getByText(/SAL MINERAL G/).textContent).not.toMatch(/% PV/);
+
+    await act(async () => { fireEvent.change(campoKg(), { target: { value: "200" } }); });
+    await salvar();
+    const { evento, lotes } = lancar.mock.calls[0][0];
+    expect(evento.base_consumo).toBe("G_CAB_DIA");
+    expect(evento.consumo_esperado_pv_kg).toBeCloseTo(16.6, 6);
+    expect(evento.consumo_esperado_g_cab_dia).toBeCloseTo(553.33, 2);
+    expect(evento.percentual_consumo_pv_usado).toBeNull();
+    expect(evento.cabecas_nao_consomem).toBe(8);
+    expect(lotes.map((l) => [l.lote_id, l.g_cab_dia_lote, l.percentual_pv_lote, l.consumo_esperado_pv_lote_kg])).toEqual([
+      ["pv", 1500, null, 15], ["pz", 0, null, 0], ["pb", 80, null, 1.6],
+    ]);
+  });
+
+  it("SG-2 — funções puras: gramasDoLote e consumoEsperadoPorFormulacao na base g; base PV continua igual e sem gCabDiaEsperado", async () => {
+    const { consumoEsperadoPorFormulacao, gramasDoLote, baseDoConsumo } = await import("@/components/suplementacao/consumoPVUtils");
+    expect(baseDoConsumo(SAL_G)).toBe("G_CAB_DIA");
+    expect(baseDoConsumo({})).toBe("PV");
+    expect(gramasDoLote({ categoria_manejo_id: "cat-bez" }, SAL_G)).toEqual({ gramas: 0, consome: false, origem: "nao_consome" });
+    expect(gramasDoLote({ categoria_manejo_id: "cat-vaca" }, SAL_G)).toEqual({ gramas: 1500, consome: true, origem: "regra" });
+    expect(gramasDoLote({ categoria_manejo_id: "x" }, SAL_G)).toEqual({ gramas: 80, consome: true, origem: "padrao" });
+    const r = consumoEsperadoPorFormulacao({ lotes: [{ id: "a", quantidade_cabecas: 100, categoria_manejo_id: "x" }], formulacao: SAL_G });
+    expect(r.base).toBe("G_CAB_DIA");
+    expect(r.totalKgDia).toBeCloseTo(8, 9);
+    expect(r.gCabDiaEsperado).toBeCloseTo(80, 9);
+    const pv = consumoEsperadoPorFormulacao({ lotes: [{ id: "a", quantidade_cabecas: 10, peso_medio_kg: 400 }], formulacao: { percentual_pv_padrao: 0.1, regras: [] } });
+    expect(pv.base).toBe("PV");
+    expect(pv.gCabDiaEsperado).toBeNull();
+    expect(pv.totalKgDia).toBeCloseTo(4, 9);
+  });
+});

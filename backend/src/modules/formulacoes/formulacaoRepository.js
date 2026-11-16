@@ -20,6 +20,7 @@ const SELECAO = Object.freeze({
   nome: true,
   tipo: true,
   produto_id: true,
+  base_consumo: true,
   percentual_pv_padrao: true,
   consumo_objetivo_g_cab_dia: true,
   faixa_tolerancia_percentual: true,
@@ -34,7 +35,7 @@ const SELECAO = Object.freeze({
   },
   regras: {
     orderBy: [{ categoriaManejo: { nome: ASC } }, { id: ASC }],
-    select: { id: true, categoria_manejo_id: true, consome: true, percentual_pv: true, categoriaManejo: { select: { nome: true, ativo: true } } },
+    select: { id: true, categoria_manejo_id: true, consome: true, percentual_pv: true, g_cab_dia: true, categoriaManejo: { select: { nome: true, ativo: true } } },
   },
 });
 
@@ -104,7 +105,7 @@ export const lerCategorias = async (tx, clienteId, ids) =>
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {Record<string, unknown>} dados
  * @param {Array<{ produto_id: string, quantidade_kg: string }>} ingredientes
- * @param {Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null }>} regras
+ * @param {Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null, g_cab_dia?: string | null }>} regras
  */
 export const inserirFormulacao = async (tx, dados, ingredientes, regras) => {
   const criada = await tx.formulacao.create({ data: /** @type {any} */ (dados), select: { id: true, cliente_id: true, empresa_id: true } });
@@ -116,7 +117,7 @@ export const inserirFormulacao = async (tx, dados, ingredientes, regras) => {
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {{ id: string, cliente_id: string, empresa_id: string }} formulacao
  * @param {Array<{ produto_id: string, quantidade_kg: string }>} ingredientes
- * @param {Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null }>} regras
+ * @param {Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null, g_cab_dia?: string | null }>} regras
  */
 const gravarFilhas = async (tx, formulacao, ingredientes, regras) => {
   const escopo = { cliente_id: formulacao.cliente_id, empresa_id: formulacao.empresa_id, formulacao_id: formulacao.id };
@@ -127,7 +128,7 @@ const gravarFilhas = async (tx, formulacao, ingredientes, regras) => {
   }
   if (regras.length) {
     await tx.formulacaoRegraCategoria.createMany({
-      data: regras.map((r) => ({ ...escopo, categoria_manejo_id: r.categoria_manejo_id, consome: r.consome, percentual_pv: r.percentual_pv })),
+      data: regras.map((r) => ({ ...escopo, categoria_manejo_id: r.categoria_manejo_id, consome: r.consome, percentual_pv: r.percentual_pv, g_cab_dia: r.g_cab_dia ?? null })),
     });
   }
 };
@@ -138,7 +139,7 @@ const gravarFilhas = async (tx, formulacao, ingredientes, regras) => {
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {{ id: string, cliente_id: string, empresa_id: string }} formulacao
  * @param {Record<string, unknown>} dados
- * @param {{ ingredientes?: Array<{ produto_id: string, quantidade_kg: string }>, regras?: Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null }> }} listas
+ * @param {{ ingredientes?: Array<{ produto_id: string, quantidade_kg: string }>, regras?: Array<{ categoria_manejo_id: string, consome: boolean, percentual_pv: string | null, g_cab_dia?: string | null }> }} listas
  */
 export const atualizarFormulacao = async (tx, formulacao, dados, listas) => {
   const chave = { cliente_id: formulacao.cliente_id, formulacao_id: formulacao.id };

@@ -713,7 +713,10 @@ model Formulacao {
   nome                       String   @db.VarChar(120)
   tipo                       String   @db.VarChar(16)
   produto_id                 String   @db.VarChar(64)
-  percentual_pv_padrao       Decimal  @db.Decimal(8, 4)
+  // D-PROD-210: base do consumo — 'PV' (% do peso vivo; exige percentual_pv_padrao) ou 'G_CAB_DIA' (gramas por
+  // cabeça por dia; exige consumo_objetivo_g_cab_dia e %PV nulo). CHECK "CADFORMULACAO_base_consumo_check".
+  base_consumo               String   @default("PV") @db.VarChar(16)
+  percentual_pv_padrao       Decimal? @db.Decimal(8, 4)
   consumo_objetivo_g_cab_dia Decimal? @db.Decimal(10, 2)
   // D-PROD-206: faixa de tolerância do farol de consumo (% do esperado); null = padrão de 15%.
   faixa_tolerancia_percentual Decimal? @db.Decimal(5, 2)
@@ -780,6 +783,8 @@ model FormulacaoRegraCategoria {
   categoria_manejo_id String   @db.VarChar(64)
   consome             Boolean
   percentual_pv       Decimal? @db.Decimal(8, 4)
+  // D-PROD-210: na base G_CAB_DIA a regra que consome leva os gramas por cabeça por dia (e não o %PV).
+  g_cab_dia           Decimal? @db.Decimal(10, 2)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

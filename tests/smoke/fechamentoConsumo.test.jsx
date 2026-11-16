@@ -67,7 +67,7 @@ describe("FC-1 — domínio puro", () => {
     const r = fechar(280, { custoUnitarioKg: 3.5 });
     expect(r).toEqual({
       consumo_g_cab_dia: 400, consumo_real_pv_percentual: 0.1, consumo_esperado_pv_percentual: 0.1, consumo_relacao_esperado: 1,
-      farol_consumo: "dentro", farol_consumo_motivo: null, faixa_tolerancia_aplicada: 15, sobra_informada: true,
+      farol_consumo: "dentro", farol_consumo_motivo: null, faixa_tolerancia_aplicada: 15, sobra_informada: true, base_consumo_aplicada: "PV", consumo_esperado_g_cab_dia: null,
       custo_unitario_kg: 3.5, custo_total_periodo: 980, custo_cab_dia: 1.4,
     });
   });
@@ -201,5 +201,43 @@ describe("FC-5 — tela", () => {
     cleanup();
     render(<FarolConsumoSelo farol="acima" faixa={15} />);
     expect(screen.getByTestId("farol-consumo").textContent).toMatch(/Acima/);
+  });
+});
+
+describe("D-PROD-210 — fechamento na base g/cab/dia: o farol compara os gramas", () => {
+  it("FG-1 — relação = g real ÷ g esperado; limites exatos da faixa; %PV esperado nulo; %PV real só informação", async () => {
+    const { calcularFechamentoConsumo } = await import("@/domain/suplementacao/fechamentoConsumo");
+    const evento = { base_consumo: "G_CAB_DIA", total_cabecas_afetadas: 100, cabecas_nao_consomem: 0, consumo_esperado_pv_kg: 8, consumo_esperado_g_cab_dia: 80, peso_vivo_consumo_kg: 40000 };
+    // 7 dias, 56 kg = 8 kg/dia = 80 g/cab/dia → 100%.
+    const dentro = calcularFechamentoConsumo({ evento, consumoTotalKg: 56, diasPeriodo: 7 });
+    expect(dentro).toMatchObject({ farol_consumo: "dentro", consumo_g_cab_dia: 80, consumo_esperado_g_cab_dia: 80, base_consumo_aplicada: "G_CAB_DIA", consumo_esperado_pv_percentual: null });
+    expect(dentro.consumo_real_pv_percentual).toBeCloseTo(0.02, 6);
+    // 85% exato (68 g) fica dentro; 84% abaixo; 115% dentro; 116% acima.
+    expect(calcularFechamentoConsumo({ evento, consumoTotalKg: 0.85 * 56, diasPeriodo: 7 }).farol_consumo).toBe("dentro");
+    expect(calcularFechamentoConsumo({ evento, consumoTotalKg: 0.84 * 56, diasPeriodo: 7 }).farol_consumo).toBe("abaixo");
+    expect(calcularFechamentoConsumo({ evento, consumoTotalKg: 1.15 * 56, diasPeriodo: 7 }).farol_consumo).toBe("dentro");
+    expect(calcularFechamentoConsumo({ evento, consumoTotalKg: 1.16 * 56, diasPeriodo: 7 }).farol_consumo).toBe("acima");
+    // Faixa 10%: 112% acima.
+    expect(calcularFechamentoConsumo({ evento, consumoTotalKg: 1.12 * 56, diasPeriodo: 7, faixaPercentual: 10 }).farol_consumo).toBe("acima");
+  });
+
+  it("FG-2 — sem os gramas gravados, o esperado vem do kg/dia ÷ cabeças que consomem; sem peso o %PV real fica nulo mas o farol sai; evento sem base = PV", async () => {
+    const { calcularFechamentoConsumo } = await import("@/domain/suplementacao/fechamentoConsumo");
+    const semG = { base_consumo: "G_CAB_DIA", total_cabecas_afetadas: 120, cabecas_nao_consomem: 20, consumo_esperado_pv_kg: 8 };
+    const r = calcularFechamentoConsumo({ evento: semG, consumoTotalKg: 56, diasPeriodo: 7 });
+    expect(r).toMatchObject({ consumo_esperado_g_cab_dia: 80, consumo_g_cab_dia: 80, farol_consumo: "dentro", consumo_real_pv_percentual: null });
+    const pv = calcularFechamentoConsumo({ evento: { total_cabecas_afetadas: 10, consumo_esperado_pv_kg: 4, peso_vivo_consumo_kg: 4000 }, consumoTotalKg: 28, diasPeriodo: 7 });
+    expect(pv).toMatchObject({ base_consumo_aplicada: "PV", consumo_esperado_g_cab_dia: null, consumo_esperado_pv_percentual: 0.1, farol_consumo: "dentro" });
+  });
+
+  it("FG-3 — a tela mostra 'g/cab/dia real × meta' e o %PV como informação na base g", async () => {
+    const { ResumoFechamentoConsumo } = await import("@/components/suplementacao/FarolConsumo");
+    const { calcularFechamentoConsumo } = await import("@/domain/suplementacao/fechamentoConsumo");
+    const evento = { base_consumo: "G_CAB_DIA", total_cabecas_afetadas: 100, consumo_esperado_pv_kg: 8, consumo_esperado_g_cab_dia: 80, peso_vivo_consumo_kg: 40000 };
+    render(<ResumoFechamentoConsumo resumo={calcularFechamentoConsumo({ evento, consumoTotalKg: 56, diasPeriodo: 7 })} />);
+    expect(screen.getByText("g/cab/dia real × meta")).toBeTruthy();
+    expect(screen.getByText("80 g × 80 g")).toBeTruthy();
+    expect(screen.getByText("%PV real (informação)")).toBeTruthy();
+    expect(screen.queryByText("%PV real × esperado")).toBeNull();
   });
 });
