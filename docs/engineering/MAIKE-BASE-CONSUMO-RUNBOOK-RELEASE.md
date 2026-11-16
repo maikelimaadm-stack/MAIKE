@@ -1,6 +1,6 @@
 # MAIKE — Base do consumo na Formulação: runbook de release CONTRACT (D-PROD-210)
 
-> **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Aplicar antes do merge (D-PROD-72), com o GO escrito do proprietário.
+> **Estado: EXECUTADO em 2026-11-16 02:06:55 UTC (caminho B). `SCHEMA_APPLIED_PROD: SIM`.** Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -161,10 +161,10 @@ esta. Com o código novo no ar, reverter o código primeiro.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | `<preencher: finished_at da linha em _prisma_migrations>` |
-| Caminho | `<A ou B>` |
-| GO | `<texto do GO do proprietário>` |
-| Preflight (§2) | `<system_identifier; 60 / 0; 3 tabelas vazias; colunas ausentes>` |
+| Data/hora (UTC) | 2026-11-16 02:06:55 (`finished_at` da linha em `_prisma_migrations`) |
+| Caminho | **B**: `aplicar210.sql` (guarda + `migration.sql` com as mesmas instruções + INSERT com o checksum) numa transação única pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne`. Aplicado pela sessão coordenadora. Uma tentativa anterior (com a guarda de 58) foi barrada pela guarda porque a produção já tinha 59 — nada foi alterado |
+| GO | "go", escrito pelo proprietário para esta migration (mesmo conteúdo, renumerado de D-PROD-208 para D-PROD-210), e a aprovação da chamada no app |
+| Preflight (§2) | leitura antes e guarda da transação: `system_identifier` 7692130048193495360; 60 concluídas / 0 com falha, a última `20261116100000_funcionario_tipo_terceirizado`; as 3 tabelas de Formulações com 0 linhas; colunas novas ausentes |
 | Ensaio | Banco local com as 60 migrations da `main` `18426967` (sem esta; a última a D-PROD-209): alvo de produção recusado (`RELEASE_BLOCKED: alvo divergente`); com o `system_identifier` local aplicou numa transação (61 / 0, 94 tabelas, checksum `a8c42eeb…` igual ao pinado, `migrate status` "Database schema is up to date!", `migrate diff` "No difference detected."); repetir recusado (`RELEASE_BLOCKED: migration já registrada`). SQL: `aplicar210.sql` (scratchpad da sessão) |
-| Postcheck (§4) | `<61 / 0; checksum; colunas; CHECKs; 94 tabelas>` |
-| Resultado | **PENDENTE** |
+| Postcheck (§4) | 61 concluídas / 0 com falha; checksum `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171` igual ao pinado; `base_consumo` NOT NULL DEFAULT 'PV'; `percentual_pv_padrao` anulável; `CADFORMULACAOREGRA.g_cab_dia` numeric anulável; CHECKs `CADFORMULACAO_base_consumo_check` e `CADFORMULACAOREGRA_forma_check` presentes, `CADFORMULACAO_percentual_pv_padrao_check` removido; 94 tabelas em `public` |
+| Resultado | **APLICADA E CONFERIDA** antes do merge (D-PROD-72) |

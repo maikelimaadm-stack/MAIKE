@@ -17,7 +17,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `f31d3397` (PR #296), com a `main` `18426967` (PR #299, D-PROD-209) por merge · PR **#297** |
 | Escopo | `base_consumo` PV / G_CAB_DIA na Formulação (API, tela, validação sem mistura), regra em gramas, esperado do lançamento na base G (sem peso), farol do fechamento pelos gramas na base G |
 | Migration | `20261116200000_formulacao_base_consumo`, **CONTRACT** (décima de `MIGRATIONS_CONTRACT_APROVADAS`; as 3 tabelas de Formulações vazias pela guarda), SHA-256 `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`. Produção 58 → 59, 95 tabelas. Aprovação do CONTRACT pelo proprietário ("os dados eram só teste"; tabelas com 0 linhas) |
-| Release | **Pendente**: aplicar antes do merge (D-PROD-72) pelo [runbook](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md), com o GO escrito do proprietário |
+| Release | **Aplicada em produção** em 2026-11-16 às 02:06:55 UTC, caminho B do [runbook](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md), com o GO escrito do proprietário ("go"); postcheck 61 / 0, checksum igual ao pinado, colunas e CHECKs novos presentes, 94 tabelas em `public` |
 | Relatório | [`MAIKE-BASE-CONSUMO-REPORT.md`](./MAIKE-BASE-CONSUMO-REPORT.md) |
 
 ## Missão anterior (2026-11-16) — MAIKE-FUNCIONARIO-TIPO: tipo do funcionário Mensalista, Diarista ou Terceirizado (D-PROD-209)
