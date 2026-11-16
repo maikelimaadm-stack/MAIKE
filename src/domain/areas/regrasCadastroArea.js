@@ -61,6 +61,26 @@ export const lerHectares = (valor) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+/** "1.500" / "12.345.678": só grupos de milhar com ponto, sem vírgula (pt-BR). */
+const SO_MILHAR_PT_BR = /^\d{1,3}(\.\d{3})+$/;
+
+/**
+ * Hectares digitados num formulário em pt-BR. Igual a {@link lerHectares}, mas
+ * "1.500" (ponto separando grupos de 3 dígitos, sem vírgula) é milhar — 1500 ha,
+ * não 1,5 ha —, como já leem os demais formulários do produto. "10.5" e "1.5"
+ * (ponto decimal do teclado) continuam decimais; "1.234,56" segue como pt-BR.
+ *
+ * Não muda a leitura da importação por arquivo, que segue em {@link lerHectares}.
+ * @param {unknown} valor
+ * @returns {number | null | typeof NaN}
+ */
+export const lerHectaresDigitados = (valor) => {
+  if (typeof valor === "string" && SO_MILHAR_PT_BR.test(valor.trim())) {
+    return lerHectares(valor.trim().replace(/\./g, ""));
+  }
+  return lerHectares(valor);
+};
+
 /**
  * Pendências de uma área, na ordem da tela. Vazio = pode gravar.
  *

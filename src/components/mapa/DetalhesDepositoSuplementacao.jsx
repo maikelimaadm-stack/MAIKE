@@ -283,7 +283,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{deposito.produto_padrao || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Limite operacional:</span><span className="font-semibold text-slate-900">{nivel.limiteOperacionalKg != null ? formatKg(nivel.limiteOperacionalKg) : '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Estoque mínimo:</span><span className="font-semibold text-slate-900">{nivel.estoqueMinimoKg != null ? formatKg(nivel.estoqueMinimoKg) : '-'}</span></div>
-            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência padrão:</span><span className="font-semibold text-slate-900">{deposito.frequencia_esperada_dias ? `${deposito.frequencia_esperada_dias} dia(s)` : '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cochos vinculados:</span><span className="font-semibold text-slate-900">{cochosVinculados.length}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{deposito.observacoes || '-'}</span></div>
           </div>

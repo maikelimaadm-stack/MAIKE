@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-RESUMO-REBANHO: Resumo do Rebanho no Mapa Geral (D-PROD-213)
+## Missão ativa (2026-11-16) — MAIKE-MAPA-CADASTROS-LIGACOES: bugs dos cadastros do mapa e das ligações (D-PROD-214)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-214**, pedido do proprietário: verificar e corrigir os cadastros do mapa (pontos, áreas, linhas, cochos, depósitos, bebedouros), o cadastro em lote e as ligações entre áreas, pontos e lotes |
+| Branch / PR | `fix/mapa-cadastros-ligacoes`, a partir da `main` `83206ab5` (PR #302) |
+| Escopo | Ligação estrita ponto↔cocho/depósito/bebedouro; exclusão com histórico bloqueada; `numero_ponto` no servidor; ocupação derivada; propagação de nome de área/setor; renumeração de áreas; Mapa Geral relendo depois de cadastros. Bugs de lote/movimentação só registrados (pausa nos lotes) |
+| Release | Sem migration: merge e deploy normais |
+| Relatório | [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-RESUMO-REBANHO: Resumo do Rebanho no Mapa Geral (D-PROD-213)
 
 | Campo | Valor |
 |---|---|

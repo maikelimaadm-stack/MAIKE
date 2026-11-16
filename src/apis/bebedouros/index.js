@@ -3,6 +3,7 @@ export {
   listBebedouros,
   createBebedouro,
   updateBebedouro,
+  consultarElegibilidadeExclusaoBebedouro,
   listHistorico,
   createHistorico,
   deleteHistorico,

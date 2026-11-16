@@ -49,7 +49,7 @@ const NAO_ENCONTRADO = Object.freeze({
 });
 
 /** Interativa, mas cada dependente é UM statement: o teto cobre fila de lock, não laço. */
-const OPCOES_TRANSACAO = Object.freeze({ maxWait: 10000, timeout: 30000 });
+export const OPCOES_TRANSACAO = Object.freeze({ maxWait: 10000, timeout: 30000 });
 /** Ids por tabela no AuditLog: rastro sem transformar uma renomeação grande em megabytes. */
 const IDS_NO_AUDIT = 200;
 const IDENTIFICADOR = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -154,6 +154,118 @@ const atualizarDependente = async (tx, escopo, dep, valores) => {
 };
 
 /**
+ * Aplica uma lista de dependentes a partir da origem RELIDA do banco, na
+ * transação de quem chama. Usado pelo `/referencias/sincronizar` e pelos PATCH
+ * que renomeiam na própria transação (Setor, AreaPastagem — G4).
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {{clienteId: string, empresaId: string | null, id: string}} escopo
+ * @param {readonly import('./propagationRules.js').Dependente[]} dependentes
+ * @param {Record<string, any>} origem registro atual da origem, lido do banco
+ * @returns {Promise<{porTabela: Record<string, number>, ids: Record<string, string[]>, valores: Record<string, string | null>}>}
+ */
+export const propagarDependentes = async (tx, escopo, dependentes, origem) => {
+  /** @type {Record<string, Set<string>>} */
+  const tocados = {};
+  /** @type {Record<string, string | null>} */
+  const valores = {};
+  for (const dep of dependentes) {
+    // HOTFIX (D-PROD-182): dependente `opcional` cuja tabela ainda não existe é
+    // pulado. `to_regclass` nunca falha, então a transação segue íntegra.
+    if (dep.opcional && !(await tabelaExiste(tx, dep.tabela))) {
+      console.warn(`[hotfix D-PROD-182] tabela ${dep.tabela} ausente: dependente opcional pulado.`);
+      continue;
+    }
+    const novos = exigirTexto(dep.valores(origem));
+    const ids = await atualizarDependente(tx, escopo, dep, novos);
+    if (!ids.length) continue;
+    const conjunto = (tocados[dep.tabela] ??= new Set());
+    ids.forEach((x) => conjunto.add(x));
+    for (const [campo, valor] of Object.entries(novos)) valores[`${dep.tabela}.${campo}`] = valor;
+  }
+
+  // Documento tocado por duas chaves (ex.: setor_id e setor_origem_id do mesmo
+  // setor) conta uma vez: a contagem é de linhas, não de statements.
+  const porTabela = Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, s.size]));
+  const ids = Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, [...s]]));
+  return { porTabela, ids, valores };
+};
+
+/**
+ * Listas PARALELAS de id/nome (G4): troca o nome só nas posições em que o id
+ * da lista é o da origem. Ex.: cocho com `area_vinculada_ids = [A, B]` e
+ * `area_vinculada_nomes = ['PASTO A', 'PASTO B']`; renomear B reescreve só o
+ * segundo elemento. Lista de nomes mais curta que a de ids é completada com
+ * `''` até a posição trocada (nunca com NULL: o Prisma lê `String[]`).
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {{clienteId: string, empresaId: string | null, id: string}} escopo
+ * @param {readonly {tabela: string, ids: string, nomes: string}[]} listas
+ * @param {string} nome valor atual da origem
+ * @returns {Promise<{porTabela: Record<string, number>, ids: Record<string, string[]>, valores: Record<string, string | null>}>}
+ */
+export const propagarNomeEmListas = async (tx, escopo, listas, nome) => {
+  /** @type {Record<string, number>} */
+  const porTabela = {};
+  /** @type {Record<string, string[]>} */
+  const ids = {};
+  /** @type {Record<string, string | null>} */
+  const valores = {};
+  const daEmpresa = escopo.empresaId ? Prisma.sql`AND t.empresa_id = ${escopo.empresaId}` : Prisma.empty;
+  for (const lista of listas) {
+    const tabela = ident(lista.tabela);
+    const colIds = Prisma.sql`t.${ident(lista.ids)}`;
+    const colNomes = Prisma.sql`t.${ident(lista.nomes)}`;
+    const linhas = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`
+      UPDATE ${tabela} AS t
+         SET ${ident(lista.nomes)} = (
+               SELECT array_agg(CASE WHEN ${colIds}[i] = ${escopo.id} THEN ${nome}::text ELSE COALESCE(${colNomes}[i], '') END ORDER BY i)
+                 FROM generate_series(1, GREATEST(
+                        COALESCE(cardinality(${colNomes}), 0),
+                        (SELECT max(j) FROM generate_subscripts(${colIds}, 1) AS j WHERE ${colIds}[j] = ${escopo.id})
+                      )) AS i
+             ),
+             "updatedAt" = ${AGORA_UTC}
+       WHERE t.cliente_id = ${escopo.clienteId} ${daEmpresa}
+         AND ${escopo.id} = ANY(${colIds})
+         AND EXISTS (
+               SELECT 1 FROM generate_subscripts(${colIds}, 1) AS k
+                WHERE ${colIds}[k] = ${escopo.id} AND ${colNomes}[k] IS DISTINCT FROM ${nome}::text
+             )
+      RETURNING t.id`);
+    if (!linhas.length) continue;
+    porTabela[lista.tabela] = linhas.length;
+    ids[lista.tabela] = linhas.map((l) => l.id);
+    valores[`${lista.tabela}.${lista.nomes}[]`] = nome;
+  }
+  return { porTabela, ids, valores };
+};
+
+/**
+ * Junta resultados de propagação (contagem por tabela = linhas distintas).
+ *
+ * @param {...{porTabela: Record<string, number>, ids: Record<string, string[]>, valores: Record<string, string | null>}} resultados
+ */
+export const juntarPropagacoes = (...resultados) => {
+  /** @type {Record<string, Set<string>>} */
+  const tocados = {};
+  /** @type {Record<string, string | null>} */
+  const valores = {};
+  for (const r of resultados) {
+    for (const [tabela, lista] of Object.entries(r.ids)) {
+      const conjunto = (tocados[tabela] ??= new Set());
+      lista.forEach((x) => conjunto.add(x));
+    }
+    Object.assign(valores, r.valores);
+  }
+  return {
+    porTabela: Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, s.size])),
+    ids: Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, [...s]])),
+    valores,
+  };
+};
+
+/**
  * Evento-resumo da propagação (REF-02). Só quando algo foi escrito: chamada
  * sem efeito não é escrita e não polui a trilha.
  *
@@ -205,30 +317,9 @@ export const sincronizarReferencias = async (contexto, payload) => {
     if (!origem) throw NAO_ENCONTRADO[entidade]();
 
     const escopo = { clienteId: auth.clienteId, empresaId: definicao.porEmpresa ? String(origem.empresa_id) : null, id };
-    /** @type {Record<string, Set<string>>} */
-    const tocados = {};
-    /** @type {Record<string, string | null>} */
-    const valores = {};
-    for (const dep of definicao.dependentes) {
-      // HOTFIX (D-PROD-182): dependente `opcional` cuja tabela ainda não existe é
-      // pulado. `to_regclass` nunca falha, então a transação segue íntegra.
-      if (dep.opcional && !(await tabelaExiste(tx, dep.tabela))) {
-        console.warn(`[hotfix D-PROD-182] tabela ${dep.tabela} ausente: dependente opcional pulado.`);
-        continue;
-      }
-      const novos = exigirTexto(dep.valores(origem));
-      const ids = await atualizarDependente(tx, escopo, dep, novos);
-      if (!ids.length) continue;
-      const conjunto = (tocados[dep.tabela] ??= new Set());
-      ids.forEach((x) => conjunto.add(x));
-      for (const [campo, valor] of Object.entries(novos)) valores[`${dep.tabela}.${campo}`] = valor;
-    }
-
-    // Documento tocado por duas chaves (ex.: setor_id e setor_origem_id do mesmo
-    // setor) conta uma vez: a contagem é de linhas, não de statements.
-    const porTabela = Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, s.size]));
-    const ids = Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, [...s]]));
-    await registrarPropagacao(contexto, entidade, id, { porTabela, ids, valores }, tx);
+    const resultado = await propagarDependentes(tx, escopo, definicao.dependentes, origem);
+    await registrarPropagacao(contexto, entidade, id, resultado, tx);
+    const { porTabela } = resultado;
 
     return {
       success: true,

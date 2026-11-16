@@ -16,6 +16,7 @@ import {
   filterAreas as filterAreasApi,
   createArea,
   updateArea,
+  renumerarAreas as renumerarAreasApi,
   createPonto,
   updatePonto,
   deletePonto,
@@ -25,13 +26,21 @@ import {
   createLinha,
   updateLinha,
 } from '@/apis/mapa';
-import { listLotes, listMovimentacoes, listMovimentacoesPecuarias, listSuplementacaoEventos } from '@/apis/lotes';
+import {
+  listLotes,
+  listTodasMovimentacoes,
+  listHistoricoMovimentacoesPagina,
+  listMovimentacoesPecuarias,
+  listSuplementacaoEventos,
+} from '@/apis/lotes';
 import { listLancamentos } from '@/apis/tarefas';
 import { listManejosTecnicos } from '@/apis/rebanho';
-import { deleteLocal, listLocais } from '@/apis/estoque';
+import { listLocais } from '@/apis/estoque';
+import { consultarElegibilidadeExclusaoPontoSuplementacao } from '@/apis/pontos-suplementacao';
+import { consultarElegibilidadeExclusaoBebedouro } from '@/apis/bebedouros';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { evaluateDeleteBlock, dependenciesOf } from '@/domain/deleteRules';
-import { normalizarTexto } from '@/domain/mapa/pontoCascata';
+import { resolverSuplementacaoDoPonto, bebedourosDoPonto } from '@/domain/mapa/ligacaoPontoReferencia';
 
 /**
  * @param {any[]} items
@@ -39,6 +48,16 @@ import { normalizarTexto } from '@/domain/mapa/pontoCascata';
  * @returns {any[]}
  */
 const daEmpresa = (items, empresaId) => items.filter((item) => item.empresa_id === empresaId);
+/**
+ * Ícones são configuração do TENANT: `empresa_id` nulo vale para todas as
+ * empresas (o Gerenciador de Ícones grava sem empresa). Um ícone com empresa
+ * continua restrito a ela.
+ * @param {any[]} items
+ * @param {string} empresaId
+ * @returns {any[]}
+ */
+const daEmpresaOuDoTenant = (items, empresaId) =>
+  items.filter((item) => item.empresa_id == null || item.empresa_id === empresaId);
 /**
  * @param {any[]} items
  * @returns {any[]}
@@ -62,6 +81,8 @@ export const listarBebedourosAtivos = async (empresaId) =>
 
 export const criarArea = (dados) => createArea(dados);
 export const atualizarArea = (id, dados) => updateArea(id, dados);
+/** Reatribui `numero_area` de várias áreas numa operação só no servidor (somente online). */
+export const renumerarAreas = (itens) => renumerarAreasApi(itens);
 export const criarPonto = (dados) => createPonto(dados);
 export const atualizarPonto = (id, dados) => updatePonto(id, dados);
 export const criarLinha = (dados) => createLinha(dados);
@@ -80,12 +101,22 @@ export const atualizarPontoSuplementacao = (id, dados) => updatePontoSuplementac
  */
 const CARREGADORES_DE_DEPENDENCIA = {
   Lote: () => listLotes(),
-  MovimentacaoMapa: () => listMovimentacoes(),
+  // Consulta FILTRADA pela área no servidor (origem, destino ou área do evento),
+  // sem o teto das 500 movimentações mais recentes do tenant: movimentação
+  // antiga também segura a área. Sem empresa conhecida, lista sem teto.
+  MovimentacaoMapa: async ({ id, empresaId }) => {
+    if (!empresaId) return listTodasMovimentacoes();
+    const pagina = await listHistoricoMovimentacoesPagina({ empresaId, areaId: id, limit: 1 });
+    return Array.isArray(pagina?.items) ? pagina.items : [];
+  },
   MovimentacaoPecuaria: () => listMovimentacoesPecuarias(),
   SuplementacaoEvento: () => listSuplementacaoEventos(),
   PontoSuplementacao: () => listPontosSuplementacao(),
   LancamentoTarefa: () => listLancamentos(),
   ManejoTecnicoRebanho: () => listManejosTecnicos(),
+  // Só bebedouros ATIVOS seguram a área: o inativado pela troca de tipo do
+  // ponto some das telas e não teria onde ser corrigido.
+  Bebedouro: async () => (await listBebedouros()).filter((b) => b.ativo !== false),
 };
 
 /**
@@ -96,6 +127,7 @@ const CARREGADORES_DE_DEPENDENCIA = {
 export const excluirArea = async (id, empresaId) => {
   const areas = await listAreas();
   const areaAtual = areas.find((item) => item.id === id) || null;
+  const escopo = { id, empresaId: areaAtual?.empresa_id ?? empresaId ?? null };
 
   const dependencias = dependenciesOf('AreaPastagem');
   const entidades = [...new Set(dependencias.map((r) => r.entity))];
@@ -111,7 +143,7 @@ export const excluirArea = async (id, empresaId) => {
           details: { dependencia: entidade },
         });
       }
-      return [entidade, await carregar()];
+      return [entidade, await carregar(escopo)];
     })
   );
 
@@ -146,70 +178,128 @@ export const excluirLinha = async (id) => {
 // ── Exclusão de ponto, com cascata ────────────────────────────────────────
 
 /**
- * Exclui um ponto de referência e a cascata vinculada.
+ * Exclui um ponto de referência e o cocho/depósito/bebedouro ligado a ele.
  *
- * Ordem preservada da implementação anterior:
- *  1. excluir `PontoReferencia`;
- *  2. localizar `PontoSuplementacao` vinculados pelo nome normalizado;
- *  3. para cada depósito, remover o `LocalEstoque` (tolerando ausência);
- *  4. desvincular cochos que apontavam para o depósito;
- *  5. remover os pontos de suplementação vinculados.
+ * Ligação: `@/domain/mapa/ligacaoPontoReferencia` (fonte única) — cocho/depósito
+ * pela mesma empresa + categoria compatível com o tipo do ponto + nome
+ * (coordenadas desempatam); bebedouro só por `ponto_referencia_id`.
  *
- * **Sem transação.** A Base44 não oferece atomicidade multi-entidade
- * (QLT-P12-06). Se a etapa 1 falhar, nada mais acontece; se falhar depois dela,
- * o resultado é parcial — e isso é reportado, não escondido.
+ * Ordem (nada é apagado antes de tudo ser conferido):
+ *  1. resolve a ligação; ambígua → `MAPA_DELETE_BLOCKED`, nada muda;
+ *  2. pergunta ao servidor se o cocho/depósito e o bebedouro podem sair
+ *     (leituras, lançamentos, movimentações, saldo, histórico, sanidade);
+ *     algum com histórico → `MAPA_DELETE_BLOCKED`, nada muda;
+ *  3. exclui o cocho/depósito — o servidor desvincula os cochos do depósito e
+ *     inativa o LocalEstoque dele (D-PROD-137), na mesma transação, e recusa
+ *     de novo se aparecer histórico;
+ *  4. exclui o ponto de referência — o servidor exclui junto o bebedouro
+ *     ligado sem histórico e só desliga (mantém inativo, com o histórico) o
+ *     bebedouro INATIVO que tem histórico, na mesma transação.
+ * Falha no passo 4 depois do 3 → `MAPA_PARTIAL_OPERATION` (a tela não diz
+ * "excluído" quando não foi).
  *
- * @returns {Promise<{pontoId: string, pontosSuplementacaoRemovidos: number,
- *   locaisEstoqueIgnorados: number, cochosDesvinculados: number}>}
+ * @returns {Promise<{pontoId: string, pontosSuplementacaoRemovidos: number, bebedourosRemovidos: number}>}
  */
 export const excluirPontoComCascata = async (pontoId, empresaId, pontoConhecido = null) => {
-  const pontos = pontoConhecido ? null : await listPontos();
-  const ponto = pontoConhecido || pontos?.find((item) => item.id === pontoId) || null;
+  const ponto = pontoConhecido || (await listPontos()).find((item) => item.id === pontoId) || null;
+  const empresa = ponto?.empresa_id ?? empresaId ?? null;
+  const pontoComEmpresa = ponto ? { ...ponto, id: pontoId, empresa_id: empresa } : null;
 
-  await deletePonto(pontoId);
+  const [todosSupl, todosBebedouros] = await Promise.all([listPontosSuplementacao(), listBebedouros()]);
+  const ativosDaEmpresa = todosSupl.filter((item) => item.empresa_id === empresa && item.status === 'Ativo');
+  const ligacao = resolverSuplementacaoDoPonto(pontoComEmpresa, ativosDaEmpresa);
+  if (ligacao.ambiguo) {
+    throw new ApiError(API_ERROR_CODES.MAPA_DELETE_BLOCKED, {
+      operation: 'excluirPontoComCascata',
+      resource: 'PontoReferencia',
+      details: { id: pontoId, motivo: 'ligacao_ambigua', candidatos: ligacao.candidatos.map((c) => c.id) },
+    });
+  }
+  const suplementacao = ligacao.registro;
+  const bebedouros = bebedourosDoPonto({ id: pontoId }, todosBebedouros);
 
-  const todosSupl = await listPontosSuplementacao();
-  const vinculados = todosSupl.filter(
-    (item) =>
-      item.empresa_id === empresaId &&
-      item.status === 'Ativo' &&
-      normalizarTexto(item.nome_ponto) === normalizarTexto(ponto?.nome)
-  );
-
-  let locaisEstoqueIgnorados = 0;
-  let cochosDesvinculados = 0;
-
-  const depositos = vinculados.filter((item) => normalizarTexto(item.categoria_ponto) === 'DEPOSITO');
-  for (const deposito of depositos) {
-    if (deposito.local_estoque_id) {
-      try {
-        await deleteLocal(deposito.local_estoque_id);
-      } catch {
-        // Tolerância deliberada e testada: local já removido não bloqueia a
-        // cascata. Contado em vez de virar `console.warn` com erro cru.
-        locaisEstoqueIgnorados += 1;
-      }
-    }
-
-    const cochos = todosSupl.filter(
-      (item) => item.empresa_id === empresaId && item.deposito_origem_id === deposito.id
-    );
-    for (const cocho of cochos) {
-      await updatePontoSuplementacao(cocho.id, { deposito_origem_id: null, deposito_origem_nome: null });
-      cochosDesvinculados += 1;
-    }
+  const bloqueios = [];
+  if (suplementacao) {
+    const r = await consultarElegibilidadeExclusaoPontoSuplementacao(suplementacao.id);
+    if (!r.pode_excluir) bloqueios.push({ recurso: 'PontoSuplementacao', id: suplementacao.id, motivos: r.motivos });
+  }
+  // Bebedouro INATIVO (o ponto deixou de ser bebedouro) não segura o ponto: o
+  // servidor o apaga se não tiver histórico, ou só o desliga do ponto, mantendo
+  // o histórico. Bebedouro ATIVO com histórico bloqueia.
+  for (const bebedouro of bebedouros.filter((b) => b.ativo !== false)) {
+    const r = await consultarElegibilidadeExclusaoBebedouro(bebedouro.id);
+    if (!r.pode_excluir) bloqueios.push({ recurso: 'Bebedouro', id: bebedouro.id, motivos: r.motivos });
+  }
+  if (bloqueios.length) {
+    throw new ApiError(API_ERROR_CODES.MAPA_DELETE_BLOCKED, {
+      operation: 'excluirPontoComCascata',
+      resource: 'PontoReferencia',
+      details: { id: pontoId, motivo: 'historico', bloqueios },
+    });
   }
 
-  for (const item of vinculados) {
-    await deletePontoSuplementacao(item.id);
+  if (suplementacao) await deletePontoSuplementacao(suplementacao.id);
+
+  try {
+    await deletePonto(pontoId);
+  } catch (erro) {
+    if (!suplementacao) throw erro;
+    throw new ApiError(API_ERROR_CODES.MAPA_PARTIAL_OPERATION, {
+      operation: 'excluirPontoComCascata',
+      resource: 'PontoReferencia',
+      details: { id: pontoId, etapas: ['ponto_suplementacao'] },
+      cause: erro,
+    });
   }
 
   return {
     pontoId,
-    pontosSuplementacaoRemovidos: vinculados.length,
-    locaisEstoqueIgnorados,
-    cochosDesvinculados,
+    pontosSuplementacaoRemovidos: suplementacao ? 1 : 0,
+    bebedourosRemovidos: bebedouros.length,
   };
+};
+
+// ── Troca de tipo e desfazer criação (formulário e cadastro em lote) ─────
+
+/**
+ * Confere no servidor se o cocho/depósito pode sair (troca de tipo do ponto).
+ * @throws {ApiError} `MAPA_DELETE_BLOCKED` com `details.motivos` quando tem histórico
+ */
+export const verificarRemocaoSuplementacao = async (suplementacao) => {
+  const r = await consultarElegibilidadeExclusaoPontoSuplementacao(suplementacao.id);
+  if (!r.pode_excluir) {
+    throw new ApiError(API_ERROR_CODES.MAPA_DELETE_BLOCKED, {
+      operation: 'verificarRemocaoSuplementacao',
+      resource: 'PontoSuplementacao',
+      details: { id: suplementacao.id, motivo: 'historico', motivos: r.motivos },
+    });
+  }
+};
+
+/**
+ * Remove o cocho/depósito sem histórico. O servidor recusa de novo se houver
+ * histórico, desvincula os cochos do depósito e inativa o local (D-PROD-137).
+ */
+export const removerPontoSuplementacao = (id) => deletePontoSuplementacao(id);
+
+/**
+ * Desfaz, no melhor esforço, um ponto recém-criado cujo cocho/depósito ou
+ * bebedouro não pôde ser gravado — para não deixar `PontoReferencia` órfão.
+ * O servidor exclui junto o bebedouro ligado ao ponto e aceita o DELETE de quem
+ * só tem "novo" quando é a própria criação recente (desfazer). O local do
+ * depósito novo nasce na mesma transação do depósito, então não há local a desfazer.
+ *
+ * @param {{ pontoId?: string|null }} p
+ * @returns {Promise<boolean>} `true` quando tudo o que foi criado saiu
+ */
+export const desfazerCriacaoDePonto = async ({ pontoId = null }) => {
+  if (!pontoId) return true;
+  try {
+    await deletePonto(pontoId);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 /** Ícones ativos de um tipo de entidade. Configuração global. */
@@ -219,8 +309,12 @@ export const listarIconesPorTipoEntidade = async (tipoEntidade) => {
   return tipoEntidade == null ? todos : ativos(todos).filter((item) => item.tipo_entidade === tipoEntidade);
 };
 
-/** Ícones ativos da empresa. Alguns consumidores filtram por empresa. */
-export const listarIconesDaEmpresa = async (empresaId) => ativos(daEmpresa(await listIcones(), empresaId));
+/**
+ * Ícones ativos válidos para a empresa: os do tenant (`empresa_id` nulo, que é
+ * como o Gerenciador de Ícones grava) e os da própria empresa.
+ */
+export const listarIconesDaEmpresa = async (empresaId) =>
+  ativos(daEmpresaOuDoTenant(await listIcones(), empresaId));
 
 /** Todos os pontos de referência, sem filtro. */
 export const listarTodosPontos = () => listPontos();

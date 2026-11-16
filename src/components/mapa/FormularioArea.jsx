@@ -20,6 +20,8 @@ import {
   TIPOS_CULTURAS,
   TIPOS_INFRAESTRUTURA,
   TIPOS_USO,
+  lerHectares,
+  lerHectaresDigitados,
   pendenciasDaArea,
   usoExploraArea,
 } from "@/domain/areas/regrasCadastroArea";
@@ -29,6 +31,31 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 const CORES_DISPONIVEIS = CORES_CADASTRO;
 
 export const FORMULARIO_AREA_ID = "formulario-area-b1";
+
+/**
+ * Hectares no formato da tela (pt-BR): o número 10.5 da API vira "10,50". Sempre com
+ * vírgula (mínimo 2 casas), para o leitor nunca confundir o ponto de milhar com decimal.
+ * @param {unknown} val
+ * @param {number} [maxCasas] casas decimais máximas (a coluna guarda até 4)
+ */
+const formatHa = (val, maxCasas = 2) => {
+  if (!val && val !== 0) return '';
+  const num = typeof val === 'number' ? val : lerHectares(val);
+  if (typeof num !== 'number' || Number.isNaN(num)) return String(val);
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: maxCasas });
+};
+
+/**
+ * Tipo de infraestrutura de uma área gravada. Não há coluna própria: o servidor
+ * guarda o tipo em `tipo_pastagem` (regrasCadastroArea.js), então a edição lê de lá
+ * — o mesmo fallback do catálogo do mapa e de `ehCurral`.
+ */
+const tipoInfraestruturaDoItem = (item) => {
+  if (item?.tipo_infraestrutura) return item.tipo_infraestrutura;
+  if (item?.tipo_cultura !== 'Infraestrutura') return '';
+  const tipo = String(item?.tipo_pastagem || '').trim();
+  return TIPOS_INFRAESTRUTURA.find((t) => t.toLowerCase() === tipo.toLowerCase()) || tipo;
+};
 
 /**
  * Detalhes da área (D-PROD-174: campos e listas do motor Base1).
@@ -59,11 +86,13 @@ export default function FormularioArea({
     setor_id: item?.setor_id || "",
     setor_nome: item?.setor_nome || "",
     area_total: item?.tamanho_hectares?.toString() || "",
-    area_pastejada: item?.area_pastejada?.toString() || "",
+    area_pastejada: item?.area_pastejada != null && item?.area_pastejada !== "" ? formatHa(item.area_pastejada, 4) : "",
     aproveitamento: item?.aproveitamento_classificacao || "Média",
     tipo_cultura: item?.tipo_cultura || "Pastagem",
-    tipo_pastagem: item?.tipo_pastagem || "",
-    tipo_infraestrutura: item?.tipo_infraestrutura || "",
+    // Em Infraestrutura, `tipo_pastagem` gravado é o tipo da infraestrutura (vai para o campo
+    // abaixo); no estado do formulário fica o marcador que a troca de uso já usa.
+    tipo_pastagem: item?.tipo_cultura === "Infraestrutura" ? "Infraestrutura" : item?.tipo_pastagem || "",
+    tipo_infraestrutura: tipoInfraestruturaDoItem(item),
     cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
     observacoes: item?.observacoes || "",
   });
@@ -118,18 +147,6 @@ export default function FormularioArea({
 
   const handleCapturaGPS = (pontos) => { setCoordenadasGPS(pontos); setMostrarCapturaGPS(false); toast.success(`${pontos.length} pontos capturados via GPS!`); };
 
-  const formatHa = (val) => {
-    if (!val && val !== 0) return '';
-    const num = parseFloat(String(val).replace(',', '.'));
-    if (isNaN(num)) return String(val);
-    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const parseHa = (str) => {
-    // Aceita entrada do usuário no formato pt-BR: remove pontos de milhar, troca vírgula por ponto
-    return str.replace(/\./g, '').replace(',', '.');
-  };
-
   React.useEffect(() => {
     const coords = parseVertices(coordenadasGPS || coordenadas);
     if (coords.length >= 3) {
@@ -142,10 +159,9 @@ export default function FormularioArea({
     e.preventDefault();
     if (readOnly) return;
     const infraestrutura = formData.tipo_cultura === 'Infraestrutura';
-    const haDigitado = (valor) => {
-      const texto = String(valor ?? '').trim();
-      return texto === '' ? null : parseFloat(parseHa(texto));
-    };
+    // "1.234,56" e "1.500" (pt-BR, ponto de milhar) e "10.5" (ponto decimal do teclado):
+    // "1.500" é 1500 ha, como nos demais formulários; "10.5" continua 10,5.
+    const haDigitado = (valor) => lerHectaresDigitados(valor);
     // Mesma regra da importação por arquivo (D-PROD-90): Reserva/APP não exigem
     // cultura e aceitam 0 de pastejada; pastejada nunca passa da área total.
     const pendencias = pendenciasDaArea({
@@ -183,6 +199,8 @@ export default function FormularioArea({
     if (coords.length >= 3) {
       tamanhoHectares = parseFloat(areaHectares(coords).toFixed(2));
     }
+    const totalDigitado = haDigitado(formData.area_total);
+    const pastejadaDigitada = haDigitado(formData.area_pastejada);
 
     createAreaMutation.mutate({
       nome: formData.nome.toUpperCase(),
@@ -192,8 +210,8 @@ export default function FormularioArea({
       tipo_cultura: formData.tipo_cultura,
       tipo_pastagem: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : formData.tipo_pastagem,
       tipo_infraestrutura: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : undefined,
-      tamanho_hectares: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(parseHa(String(formData.area_total))) || tamanhoHectares,
-      area_pastejada: formData.tipo_cultura === 'Infraestrutura' ? 0 : parseFloat(parseHa(String(formData.area_pastejada))) || 0,
+      tamanho_hectares: formData.tipo_cultura === 'Infraestrutura' ? 0 : (Number.isFinite(totalDigitado) && totalDigitado) || tamanhoHectares,
+      area_pastejada: formData.tipo_cultura === 'Infraestrutura' ? 0 : (Number.isFinite(pastejadaDigitada) ? pastejadaDigitada : 0),
       observacoes: formData.observacoes?.toUpperCase(),
       cor: formData.cor,
     });
