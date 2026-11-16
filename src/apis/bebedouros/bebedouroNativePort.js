@@ -53,3 +53,14 @@ export const bebedouroPort = offlineStorageDisponivel()
       enabled: true,
     })
   : operacoesNativas;
+
+/**
+ * Elegibilidade de exclusão (só leitura, só online): `{ id, pode_excluir, motivos }`.
+ * @param {string} id
+ */
+export const consultarElegibilidadeExclusaoBebedouroNativa = (id) =>
+  nativeRequest(
+    `${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`,
+    { autenticado: true },
+    ctx('elegibilidadeExclusaoBebedouro')
+  );

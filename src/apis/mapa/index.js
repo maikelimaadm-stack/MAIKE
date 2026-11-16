@@ -10,6 +10,7 @@ export {
   filterAreas,
   createArea,
   updateArea,
+  renumerarAreas,
   listPontos,
   createPonto,
   updatePonto,

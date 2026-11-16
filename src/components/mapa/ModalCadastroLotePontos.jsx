@@ -1,8 +1,11 @@
 /* global google */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIconesPorTipoEntidade, listarTodosPontos, listarTodosPontosSuplementacao, criarPonto, criarPontoSuplementacao } from "@/services/mapaService";
-import { criarLocal } from "@/services/estoqueMapaService";
+import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIconesPorTipoEntidade, listarTodosPontosSuplementacao, criarPonto, criarPontoSuplementacao, desfazerCriacaoDePonto } from "@/services/mapaService";
+import { criarBebedouro } from "@/services/bebedouroDataService";
+import { tipoEhBebedouro } from "@/domain/mapa/ligacaoPontoReferencia";
+import { montarPayloadBebedouro, montarPayloadSuplementacao } from "@/domain/mapa/payloadsPontoMapa";
+import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -557,27 +560,23 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
       const pontosValidos = pontos.filter((item) => item.nome && item.tipo && item.coordenadas);
       if (!pontosValidos.length) throw new Error("Preencha nome e tipo de pelo menos um ponto.");
 
-      const existentes = await listarTodosPontos();
-      const maxNum = existentes.reduce((max, p) => Math.max(max, parseInt(p.numero_ponto) || 0), 0);
-
-      // Suplementacao Data
       const pontosSuplementacaoEmpresa = await listarTodosPontosSuplementacao();
       const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((p) => p.empresa_id === empresaSelecionadaId && p.status === "Ativo");
-      const maiorNumero = pontosAtivosEmpresa.reduce((max, p) => Math.max(max, parseInt(String(p.numero_ponto || "").replace(/\D/g, "")) || 0), 0);
-
-      let offsetSuplementacao = 1;
 
       for (let index = 0; index < pontosValidos.length; index++) {
         const item = pontosValidos[index];
+        const nome = item.nome.toUpperCase();
+        const sigla = item.sigla?.toUpperCase() || "";
+        const observacoes = item.observacoes?.toUpperCase() || "";
         const configIcone = iconesConfig.find((ic) => ic.categoria === item.tipo) || iconesConfig.find((ic) => ic.id === item.configuracao_icone_id);
 
-        await criarPonto({
+        // `numero_ponto` (do ponto e do cocho/depósito) é do servidor: sequência do tenant.
+        const pontoCriado = await criarPonto({
           empresa_id: empresaSelecionadaId,
-          numero_ponto: String(maxNum + index + 1),
-          nome: item.nome.toUpperCase(),
-          sigla: item.sigla?.toUpperCase() || "",
+          nome,
+          sigla,
           tipo: item.tipo,
-          observacoes: item.observacoes?.toUpperCase() || "",
+          observacoes,
           configuracao_icone_id: configIcone?.id || null,
           icone_url: configIcone?.icone_url || null,
           sub_icone_url: configIcone?.sub_icone_url || null,
@@ -586,72 +585,56 @@ export default function ModalCadastroLotePontos({ open, onOpenChange }) {
           coordenadas: item.coordenadas
         });
 
-        if (item.tipo_categoria === "DEPOSITO" || item.tipo_categoria === "COCHO") {
-          let localEstoqueId = null;
-          let localEstoqueNome = null;
-
-          if (item.tipo_categoria === "DEPOSITO") {
-            const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${item.nome.toUpperCase()}`;
-            const localCriado = await criarLocal({ nome: item.nome.toUpperCase(), descricao: descricaoLocal });
-            localEstoqueId = localCriado.id;
-            localEstoqueNome = localCriado.nome;
+        const dados = { ...item, nome, sigla, observacoes: observacoes || null };
+        try {
+          // Mesmo cadastro do formulário individual: o ponto Bebedouro cria o
+          // registro na Gestão de Bebedouros, ligado pelo `ponto_referencia_id`.
+          if (tipoEhBebedouro(item.tipo)) {
+            await criarBebedouro(montarPayloadBebedouro({
+              data: dados, pontoReferenciaId: pontoCriado.id, empresaId: empresaSelecionadaId, areas, setores, coordenadas: item.coordenadas,
+            }));
           }
 
-          const prefixo = item.tipo_categoria === "DEPOSITO" ? "DEP" : "COCHO";
-          const areasVinculadas = areas.filter((area) => (item.area_vinculada_ids || []).includes(area.id));
-          const areaVinculadaPrincipal = areasVinculadas[0] || null;
-          const setorSelecionado = setores.find((setor) => setor.id === item.setor_id);
-
-          let deposito_origem_nome = null;
-          if (item.tipo_categoria === "COCHO" && item.deposito_origem_id) {
-            const existingDep = pontosAtivosEmpresa.find((p) => p.id === item.deposito_origem_id);
-            if (existingDep) deposito_origem_nome = existingDep.nome_ponto;
+          if (item.tipo_categoria === "DEPOSITO" || item.tipo_categoria === "COCHO") {
+            // O local do depósito é criado pelo servidor na mesma transação do
+            // depósito: se o depósito falhar, nenhum local fica órfão.
+            await criarPontoSuplementacao({
+              ...montarPayloadSuplementacao({
+                data: dados,
+                empresaId: empresaSelecionadaId,
+                areas,
+                setores,
+                depositoOrigem: pontosAtivosEmpresa.find((p) => p.id === item.deposito_origem_id) || null,
+                localEstoqueId: null,
+                localEstoqueNome: null,
+                coordenadas: item.coordenadas,
+              }),
+              ...(item.tipo_categoria === "DEPOSITO" ? { local_estoque: { nome, descricao: `DEPÓSITO DE SUPLEMENTAÇÃO - ${nome}` } } : {}),
+            });
           }
-
-          await criarPontoSuplementacao({
-            empresa_id: empresaSelecionadaId,
-            numero_ponto: `${prefixo}-${String(maiorNumero + offsetSuplementacao).padStart(4, "0")}`,
-            setor_id: item.setor_id || null,
-            setor_nome: setorSelecionado?.nome || null,
-            nome_ponto: item.nome.toUpperCase(),
-            sigla: item.sigla?.toUpperCase() || "",
-            categoria_ponto: item.tipo_categoria,
-            tipo: item.tipo,
-            produto_padrao: item.tipo_categoria === "COCHO" ? item.produto_padrao || null : null,
-            capacidade_cocho_kg: item.capacidade_cocho_kg ? parseFloat(item.capacidade_cocho_kg) : null,
-            metragem_cocho_m: item.tipo_categoria === "COCHO" && item.metragem_cocho_m ? parseFloat(item.metragem_cocho_m) : null,
-            cobertura_cocho: item.tipo_categoria === "COCHO" ? item.cobertura_cocho || null : null,
-            area_vinculada_id: item.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.id || null : null,
-            area_vinculada_nome: item.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.nome || "" : null,
-            area_vinculada_ids: item.tipo_categoria === "COCHO" ? item.area_vinculada_ids || [] : [],
-            area_vinculada_nomes: item.tipo_categoria === "COCHO" ? areasVinculadas.map((a) => a.nome) : [],
-            deposito_origem_id: item.tipo_categoria === "COCHO" ? item.deposito_origem_id || null : null,
-            deposito_origem_nome: deposito_origem_nome,
-            local_estoque_id: item.tipo_categoria === "DEPOSITO" ? localEstoqueId : null,
-            local_estoque_nome: item.tipo_categoria === "DEPOSITO" ? localEstoqueNome : null,
-            coordenadas: item.coordenadas,
-            status: "Ativo",
-            observacoes: item.observacoes?.toUpperCase() || null,
-            consumo_ideal_por_cabeca_kg: item.tipo_categoria === "COCHO" && item.consumo_ideal_por_cabeca_kg ? parseFloat(item.consumo_ideal_por_cabeca_kg) : null,
-            limite_minimo_consumo: item.tipo_categoria === "COCHO" && item.limite_minimo_consumo ? parseFloat(item.limite_minimo_consumo) : null,
-            limite_maximo_consumo: item.tipo_categoria === "COCHO" && item.limite_maximo_consumo ? parseFloat(item.limite_maximo_consumo) : null,
-            dias_alerta_reposicao: item.tipo_categoria === "COCHO" && item.dias_alerta_reposicao ? parseInt(item.dias_alerta_reposicao) : 3,
-            estoque_minimo_kg: item.tipo_categoria === "DEPOSITO" && item.estoque_minimo_kg ? parseFloat(item.estoque_minimo_kg) : null,
-            alerta_sem_lancamento_dias: item.tipo_categoria === "COCHO" ? parseInt(item.alerta_sem_lancamento_dias || 10) : null
-          });
-
-          offsetSuplementacao++;
+        } catch (erro) {
+          // Não deixa o ponto de referência órfão: desfaz o que este item criou.
+          const desfeito = await desfazerCriacaoDePonto({ pontoId: pontoCriado.id });
+          const motivo = erro?.message ? `${erro.message} ` : "";
+          const salvos = index > 0 ? ` Os ${index} ponto(s) anteriores do lote foram salvos.` : "";
+          throw new Error(desfeito ?
+            `${motivo}O ponto "${nome}" não foi cadastrado.${salvos}` :
+            `${motivo}O cadastro do ponto "${nome}" ficou incompleto; confira a lista de pontos.${salvos}`);
         }
       }
       return true;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["pontos", "mapa-pontos", "pontos-suplementacao", "pontos-suplementacao-form"].includes(q.queryKey[0]) });
+      invalidarCachesDoMapa(queryClient, ["pontos", "mapa-pontos", "pontos-suplementacao", "pontos-suplementacao-form", "bebedouros", "bebedouros-form", "locais-estoque"]);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Pontos salvos com sucesso.");
       onOpenChange(false);
     },
-    onError: (error) => toast.error(error.message || "Erro ao salvar.")
+    onError: (error) => {
+      // Parte do lote pode ter sido salva: a lista precisa refletir isso.
+      invalidarCachesDoMapa(queryClient, ["pontos", "mapa-pontos", "pontos-suplementacao", "pontos-suplementacao-form", "bebedouros", "bebedouros-form", "locais-estoque"]);
+      toast.error(error.message || "Erro ao salvar.");
+    }
   });
 
   if (!open) return null;

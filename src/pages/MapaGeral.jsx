@@ -4,6 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrador, getCurrentUser } from "@/services/sessionService";
 import { listarBebedourosAtivos } from "@/services/mapaService";
+import { mapaPrecisaBuscarNoServidor } from "@/components/mapa/invalidarCachesMapa";
+import {
+  bebedouroDoPonto, calcularSituacaoPasto, filtrarLotesPorArea, filtrarPontosSuplementacaoPorArea,
+  filtrarTarefasPorArea, filtroDeAreaAtivo, statusOcupacaoPorArea } from "@/domain/mapa/mapaGeralDerivados";
 import { canAccessPage } from "@/lib/permissions";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
@@ -347,18 +351,41 @@ export default function MapaGeral() {
 
   // ─── Queries ───
   const ST = 5 * 60 * 1000;
+  // Primeira leitura de uma chave depois de um cadastro/exclusão que a afeta:
+  // o IndexedDB ainda tem a cópia de antes e o refresh sem force devolveria
+  // essa cópia dentro da janela de 60 s, então vai ao servidor com force. Sem
+  // nada em memória (o mapa voltou depois do gcTime), mostra antes a cópia
+  // local e aplica a resposta quando chegar: em rede lenta o mapa não fica
+  // vazio esperando o servidor.
+  const lerDepoisDeCadastro = async (cacheKey, cacheEmpresa, queryKey) => {
+    if (queryClient.getQueryData(queryKey) === undefined) {
+      const local = await getMapaCachedData(cacheKey, cacheEmpresa);
+      if (local?.length) {
+        refreshMapaCacheEntry(cacheKey, cacheEmpresa, { force: true }).then((fresh) => {
+          queryClient.setQueryData(queryKey, fresh || []);
+        }).catch(() => {});
+        return local;
+      }
+    }
+    return await refreshMapaCacheEntry(cacheKey, cacheEmpresa, { force: true });
+  };
   const createMapaQuery = (cacheKey, options = {}) => ({
     queryKey: ['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'],
     queryFn: async () => {
       // Ícones e permissões são do TENANT: o mapaCacheService troca a empresa
       // pelo tenant da sessão (antes iam para `__GLOBAL__`, sem dono; D-PROD-137).
       const cacheEmpresa = empresaSelecionadaId;
+      const queryKey = ['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'];
+      // Cadastro/exclusão que afeta ESTA chave (invalidarCachesDoMapa): vai ao servidor com force.
+      if (navigator.onLine && mapaPrecisaBuscarNoServidor(cacheKey)) {
+        return await lerDepoisDeCadastro(cacheKey, cacheEmpresa, queryKey);
+      }
       const cached = await getMapaCachedData(cacheKey, cacheEmpresa);
 
       if (navigator.onLine) {
         if (cached?.length) {
           refreshMapaCacheEntry(cacheKey, cacheEmpresa).then((fresh) => {
-            queryClient.setQueryData(['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'], fresh || []);
+            queryClient.setQueryData(queryKey, fresh || []);
           }).catch(() => {});
           return cached;
         }
@@ -377,7 +404,7 @@ export default function MapaGeral() {
   const { data: pontos = [], refetch: refetchPontosRef } = useQuery(createMapaQuery('pontos'));
   const { data: bebedouros = [] } = useBebedouros(empresaSelecionadaId);
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
-  const { data: linhas = [] } = useQuery(createMapaQuery('linhas'));
+  const { data: linhas = [], refetch: refetchLinhas } = useQuery(createMapaQuery('linhas'));
   const { data: lotesBase = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
   const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
   // D-PROD-191: o ícone do lote vem do código, pela faixa de idade da Categoria de
@@ -488,10 +515,11 @@ export default function MapaGeral() {
   }), [areas, filtroSetor, filtroTipoCultura, filtroTipoPastagem]);
 
   const areaIdsFiltrados = useMemo(() => new Set(areasFiltradas.map((area) => area.id)), [areasFiltradas]);
+  // Setor, tipo de uso ou tipo de pastagem: o que está numa área escondida some junto.
+  const filtroAreaAtivo = filtroDeAreaAtivo({ filtroSetor, filtroTipoCultura, filtroTipoPastagem });
 
   // Filtrar lotes
-  const lotesFiltrados = useMemo(() => lotesComAlerta.filter((lote) => {
-    if (!filtroSemRestricao(filtroSetor) && !areaIdsFiltrados.has(lote.area_atual_id)) return false;
+  const lotesFiltrados = useMemo(() => filtrarLotesPorArea(lotesComAlerta, { filtroAreaAtivo, areaIdsFiltrados }).filter((lote) => {
     if (!filtroInclui(filtroCategoria, lote.categoria)) return false;
     const identificadorLote = lote.identificador_nome || lote.identificador_sigla || '';
     if (!filtroInclui(filtroIdentificador, identificadorLote)) return false;
@@ -501,19 +529,12 @@ export default function MapaGeral() {
     if (filtroPesoMin && (!lote.peso_medio_kg || lote.peso_medio_kg < filtroPesoMin)) return false;
     if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
-  }), [lotesComAlerta, filtroSetor, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroAlertaTipo, filtroSistema, filtroPesoMin, filtroPesoMax, showAlertas]);
+  }), [lotesComAlerta, filtroAreaAtivo, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroAlertaTipo, filtroSistema, filtroPesoMin, filtroPesoMax, showAlertas]);
 
-  const pontosSuplementacaoFiltrados = useMemo(() => {
-    if (filtroSemRestricao(filtroSetor)) return pontosSuplementacaoDecorados;
-    return pontosSuplementacaoDecorados.filter((ponto) => {
-      const areaIds = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length ?
-      ponto.area_vinculada_ids :
-      ponto.area_vinculada_id ?
-      [ponto.area_vinculada_id] :
-      [];
-      return areaIds.some((id) => areaIdsFiltrados.has(id));
-    });
-  }, [filtroSetor, pontosSuplementacaoDecorados, areaIdsFiltrados]);
+  // Depósito não tem área: com filtro de setor vale o setor dele (antes todos sumiam).
+  const pontosSuplementacaoFiltrados = useMemo(() => filtrarPontosSuplementacaoPorArea(pontosSuplementacaoDecorados, {
+    filtroSetor, filtroAreaAtivo, areaIdsFiltrados
+  }), [filtroSetor, filtroAreaAtivo, pontosSuplementacaoDecorados, areaIdsFiltrados]);
 
   const cochosFiltrados = useMemo(() => {
     return pontosSuplementacaoFiltrados.filter((ponto) => normalizeText(ponto.categoria_ponto || 'COCHO') !== 'DEPOSITO');
@@ -524,10 +545,11 @@ export default function MapaGeral() {
   }, [pontosSuplementacaoFiltrados]);
 
   const tarefasMapaFiltradas = useMemo(() => {
-    if (filtroSemRestricao(filtroSetor)) return tarefasMapa;
-    const nomesSetores = new Set(setores.filter((setor) => filtroInclui(filtroSetor, setor.id)).map(setor => setor.nome));
-    return tarefasMapa.filter((tarefa) => areaIdsFiltrados.has(tarefa.area_id) || nomesSetores.has(tarefa.setor_nome));
-  }, [filtroSetor, tarefasMapa, setores, areaIdsFiltrados]);
+    const nomesSetores = filtroSemRestricao(filtroSetor) ?
+    new Set() :
+    new Set(setores.filter((setor) => filtroInclui(filtroSetor, setor.id)).map((setor) => setor.nome));
+    return filtrarTarefasPorArea(tarefasMapa, { filtroSetor, filtroTipoCultura, filtroTipoPastagem, areaIdsFiltrados, nomesSetores });
+  }, [filtroSetor, filtroTipoCultura, filtroTipoPastagem, tarefasMapa, setores, areaIdsFiltrados]);
 
   // Mapa de cores para categorias de manejo e pastagem
   const categoriasGadoCores = useMemo(() => {
@@ -564,38 +586,23 @@ export default function MapaGeral() {
     return area.tamanho_hectares || 0;
   }, []);
 
-  // Calcular situação do pasto (ocupado com dias, ou vazio em descanso)
-  const situacaoPastoMap = useMemo(() => {
-    const m = {};
-    const agora = new Date();
-    areas.forEach((a) => {
-      const lotesNaArea = lotes.filter((l) => l.area_atual_id === a.id);
-      if (lotesNaArea.length > 0) {
-        // Área COM animais: calcular dias desde a data_entrada mais antiga
-        const datasEntrada = lotesNaArea.map((l) => l.data_entrada ? new Date(l.data_entrada) : agora).filter((d) => !isNaN(d));
-        const maisAntiga = datasEntrada.length > 0 ? new Date(Math.min(...datasEntrada)) : agora;
-        const dias = Math.max(0, Math.floor((agora - maisAntiga) / 86400000));
-        m[a.id] = { tipo: 'ocupado', dias };
-      } else {
-        // Área SEM animais: verificar última movimentação de saída desta área
-        const movsSaida = movimentacoes.filter((mv) => mv.area_origem_id === a.id && mv.tipo === 'Transferência de Área');
-        if (movsSaida.length > 0) {
-          const ultimaSaida = new Date(movsSaida[0].data_movimentacao);
-          const diasSem = Math.max(0, Math.floor((agora - ultimaSaida) / 86400000));
-          m[a.id] = { tipo: 'descanso', dias: diasSem };
-        } else {
-          m[a.id] = { tipo: 'vazia', dias: null };
-        }
-      }
-    });
-    return m;
-  }, [areas, lotes, movimentacoes]);
+  // Situação do pasto: dias desde a chegada do lote NAQUELE pasto (transferência
+  // mais recente para a área; sem ela, a entrada) e descanso pela saída mais
+  // recente por data operacional.
+  const situacaoPastoMap = useMemo(
+    () => calcularSituacaoPasto({ areas, lotes, movimentacoes, agora: new Date() }),
+    [areas, lotes, movimentacoes]
+  );
+
+  // Ocupação pelos lotes que o próprio mapa mostra na área (o `status_ocupacao`
+  // gravado na área ficava "Disponível" com lote ativo dentro).
+  const ocupacaoPorArea = useMemo(() => statusOcupacaoPorArea(areas, lotes), [areas, lotes]);
 
   // Função de cor para áreas baseada no modo de coloração
   const getAreaColor = useCallback((area) => {
     if (modoColoracao === 'tipo_cultura') return CORES_TIPO_CULTURA[area.tipo_cultura] || '#94a3b8';
     if (modoColoracao === 'aproveitamento') return CORES_APROVEITAMENTO[area.aproveitamento_classificacao] || '#94a3b8';
-    if (modoColoracao === 'ocupacao') return CORES_OCUPACAO[area.status_ocupacao] || '#94a3b8';
+    if (modoColoracao === 'ocupacao') return CORES_OCUPACAO[ocupacaoPorArea[area.id]] || '#94a3b8';
     if (modoColoracao === 'tipo_pastagem') return tiposPastagemCores[area.tipo_pastagem] || '#94a3b8';
     if (modoColoracao === 'categoria_gado') {
       const lotesNaArea = lotes.filter((l) => l.area_atual_id === area.id);
@@ -627,7 +634,7 @@ export default function MapaGeral() {
       return '#ef4444'; // crítico
     }
     return null; // padrao: usar cor da área
-  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
+  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, ocupacaoPorArea, getAreaEfetiva]);
 
   const teardownMapInstance = useCallback(() => {
     renderer.clearAll();
@@ -833,29 +840,9 @@ export default function MapaGeral() {
     const bebedourosEmpresa = navigator.onLine
       ? await listarBebedourosAtivos(empresaSelecionadaId)
       : bebedouros.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
-    const pontoNumero = normalizeText(ponto.numero_ponto);
-    const pontoNome = normalizeText(ponto.nome);
-    const pontoSigla = normalizeText(ponto.sigla);
-    const pontoCoords = ponto.coordenadas || {};
-
-    const sameCoords = (coords = {}) => {
-      if (!pontoCoords.lat || !pontoCoords.lng || !coords.lat || !coords.lng) return false;
-      return Math.abs(Number(coords.lat) - Number(pontoCoords.lat)) < 0.00002 && Math.abs(Number(coords.lng) - Number(pontoCoords.lng)) < 0.00002;
-    };
-
-    const bebedouro = bebedourosEmpresa.find((item) => {
-      const itemNome = normalizeText(item.nome);
-      const itemCodigo = normalizeText(item.codigo_interno);
-      return item.id === ponto.bebedouro_id ||
-        item.ponto_referencia_id === ponto.id ||
-        sameCoords(item.coordenadas) ||
-        (pontoNome && itemNome === pontoNome) ||
-        (itemCodigo && pontoSigla && itemCodigo === pontoSigla) ||
-        (itemCodigo && pontoNumero && itemCodigo === pontoNumero) ||
-        (itemCodigo && pontoNome.includes(itemCodigo)) ||
-        (pontoSigla && itemNome.includes(pontoSigla)) ||
-        (pontoNumero && itemNome.includes(pontoNumero));
-    });
+    // Só o vínculo por id: nome/sigla/número por "contém" abria (e lançava no)
+    // bebedouro errado ("BEB PASTO 12" contém "2").
+    const bebedouro = bebedouroDoPonto(ponto, bebedourosEmpresa);
 
     setSelectedBebedouro(bebedouro || {
       empresa_id: ponto.empresa_id,
@@ -896,7 +883,7 @@ export default function MapaGeral() {
     await queryClient.invalidateQueries({ queryKey: ['mapa-cache'] });
 
     const refreshOptions = force ? { force: true } : {};
-    const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'leiturasCocho', 'pontosSuplementacao', 'pontos', 'estoqueLotes', 'categoriasManejo'];
+    const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'leiturasCocho', 'pontosSuplementacao', 'pontos', 'linhas', 'estoqueLotes', 'categoriasManejo'];
     const refreshTasks = keysToRefresh.map((key) => refreshMapaCacheEntry(key, empresaSelecionadaId, refreshOptions));
 
     if (modoColoracao === 'situacao_pasto' && !keysToRefresh.includes('movimentacoes')) refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
@@ -910,6 +897,7 @@ export default function MapaGeral() {
     if (keysToRefresh.includes('leiturasCocho')) refetchTasks.push(refetchLeiturasCocho());
     if (keysToRefresh.includes('pontosSuplementacao')) refetchTasks.push(refetchPontosSupl());
     if (keysToRefresh.includes('pontos')) refetchTasks.push(refetchPontosRef());
+    if (keysToRefresh.includes('linhas')) refetchTasks.push(refetchLinhas());
     if (keysToRefresh.includes('estoqueLotes')) refetchTasks.push(refetchEstoqueLotes());
     // D-PROD-191: a faixa da Categoria de Manejo muda o desenho do lote.
     if (keysToRefresh.includes('categoriasManejo')) refetchTasks.push(refetchCategoriasManejo());
@@ -917,7 +905,7 @@ export default function MapaGeral() {
     if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();
     if (podeUsarTarefasMapa && (!cacheKeys?.length || keysToRefresh.includes('tarefas'))) await refetchTarefas();
     if (showToast) toast.success('Mapa atualizado');
-  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLeiturasCocho, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLeiturasCocho, refetchLinhas, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleRefresh = useCallback(async () => {
     await executarRefreshMapa(true, true);

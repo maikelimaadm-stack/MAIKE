@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
+import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 
 /**
  * Uma aba do Cadastro de Áreas, Pontos e Linhas no motor Base1 (D-PROD-174): barra, faixa de filtros,
@@ -28,7 +29,7 @@ import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1Full
  *   codigoDoItem?: (item: any) => string | undefined,
  *   textoDeBusca: (item: any) => string,
  *   formId: string,
- *   formulario: (p: { item: any, readOnly: boolean, onSalvo: () => void, onSalvandoChange: (v: boolean) => void, chave: string }) => React.ReactNode,
+ *   formulario: (p: { item: any, readOnly: boolean, onSalvo: (gravada?: any) => void, onSalvandoChange: (v: boolean) => void, chave: string }) => React.ReactNode,
  *   onNovo: () => void,
  *   rotuloNovo?: string,
  *   acoes: (p: { selecionados: any[], registro: any | null }) => Array<{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, hidden?: boolean, onSelect: () => void }>,
@@ -87,10 +88,6 @@ export default function TelaCadastroMapa({
     onRequestDeleteMutation: (ids) => excluirRef.current(ids),
   });
 
-  const recarregar = useCallback(() => {
-    queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === queryKey[0] });
-  }, [queryClient, queryKey]);
-
   excluirRef.current = (ids) => {
     const itens = controller.allItems.filter((item) => ids.includes(String(item.id)));
     void excluir(ids, itens).then(() => {
@@ -107,12 +104,55 @@ export default function TelaCadastroMapa({
   );
   const registro = controller.showForm ? controller.editingItem : null;
 
-  const aoSalvar = useCallback(() => {
-    recarregar();
-    controller.setIsEditing(false);
-  }, [recarregar, controller]);
+  // Registro aberto agora (o salvar termina depois do refetch; o usuário pode ter trocado de registro).
+  const registroAbertoRef = useRef(/** @type {any} */ (null));
+  registroAbertoRef.current = registro;
+  const editandoRef = useRef(false);
+  editandoRef.current = controller.isEditing;
+  const { setEditingItem, setIsEditing, recarregarLista, recordHelpers } = controller;
+  const { bumpFormEpoch } = recordHelpers;
 
-  const screenController = { ...controller, saving: salvando, openNew: onNovo };
+  /**
+   * Depois de gravar: trava o registro e troca o `editingItem` pela linha recarregada da lista,
+   * para o título, o código e os campos mostrarem o que foi gravado (não o objeto aberto antes).
+   * O formulário entrega o registro gravado (área, linha); a linha da lista vem enriquecida
+   * (setor, áreas do ponto), então ela prevalece quando chega.
+   * @param {any} [gravada]
+   */
+  const aoSalvar = useCallback(
+    async (gravada) => {
+      const id = registroAbertoRef.current?.id;
+      setIsEditing(false);
+      const mesmoRegistro = (atual) => id != null && atual?.id != null && String(atual.id) === String(id);
+      if (gravada && typeof gravada === "object" && mesmoRegistro(gravada)) {
+        setEditingItem((atual) => (mesmoRegistro(atual) ? { ...atual, ...gravada } : atual));
+        bumpFormEpoch();
+      }
+      // A lista desta aba e as leituras do Mapa Geral ('mapa-cache').
+      void invalidarCachesDoMapa(queryClient, [/** @type {string} */ (queryKey[0])]);
+      if (id == null) return;
+      try {
+        const resultado = await recarregarLista();
+        const linha = (resultado?.data ?? []).find((r) => String(r?.id) === String(id));
+        // Não remonta por cima de uma nova edição já aberta (perderia o que está sendo digitado).
+        if (!linha || !mesmoRegistro(registroAbertoRef.current) || editandoRef.current) return;
+        setEditingItem((atual) => (mesmoRegistro(atual) ? linha : atual));
+        bumpFormEpoch();
+      } catch {
+        /* a lista mostra o próprio erro de carregamento */
+      }
+    },
+    [queryClient, queryKey, recarregarLista, setEditingItem, setIsEditing, bumpFormEpoch],
+  );
+
+  // Cancelar a edição de um registro gravado descarta o digitado: o motor só sai do modo
+  // edição, então o formulário (estado inicializado do `item`) precisa remontar (formEpoch).
+  const cancelarEdicao = useCallback(() => {
+    if (controller.isEditing && controller.editingItem?.id) bumpFormEpoch();
+    controller.cancelForm();
+  }, [controller, bumpFormEpoch]);
+
+  const screenController = { ...controller, saving: salvando, openNew: onNovo, cancelForm: cancelarEdicao };
 
   return (
     <CadastroBase1Screen

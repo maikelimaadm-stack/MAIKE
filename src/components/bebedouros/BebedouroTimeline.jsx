@@ -45,6 +45,9 @@ export default function BebedouroTimeline({ historico = [], podeExcluir = false 
     } finally {
       // Sucesso ou recusa (ex.: outro lançamento entrou depois): relê a lista do servidor.
       queryClient.invalidateQueries({ queryKey: ["bebedouro-historico"] });
+      // A lista da tela Bebedouros (status, alertas, custos) lê outra chave: o
+      // prefixo acima não a cobre. Mesmo par de chaves que o "Lançar" invalida.
+      queryClient.invalidateQueries({ queryKey: ["bebedouro-historico-all"] });
       setDeletingId(null);
     }
   };

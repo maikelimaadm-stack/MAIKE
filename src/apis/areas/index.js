@@ -13,6 +13,7 @@ export {
   filterAreas,
   createArea,
   updateArea,
+  renumerarAreas,
   conferirImportacaoAreas,
   importarAreas,
 } from './areasApi.js';

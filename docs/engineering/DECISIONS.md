@@ -7623,9 +7623,26 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md).
 
+## D-PROD-214 — Cadastros do mapa e ligações: ligação estrita ponto↔cocho/depósito/bebedouro, exclusão com histórico bloqueada, ocupação derivada e propagação de nomes
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário ("verifique toda a minha situação de cadastros de pontos no mapa, cadastro em lotes, ligações de áreas, pontos etc., pois há vários bugs") · **Branch:** `fix/mapa-cadastros-ligacoes`.
+
+**Decisão.**
+1. **Ligação ponto do mapa ↔ registro operacional** numa regra só (`src/domain/mapa/ligacaoPontoReferencia.js`): bebedouro **somente** por `ponto_referencia_id`; cocho/depósito por mesma empresa + categoria compatível com o tipo do ponto + nome normalizado (coordenadas desempatam; sigla sozinha nunca liga). Ambiguidade não altera nem apaga nada. Sem migration: um `ponto_referencia_id` em `PontoSuplementacao` fica para uma EXPAND futura, se o proprietário quiser.
+2. **Exclusão do ponto** só leva junto cocho/depósito/bebedouro **sem histórico** (leituras de cocho, eventos de suplementação, movimentações/saldo de estoque; histórico/sanidade de bebedouro). Com histórico: bloqueio 409 (`PONTO_SUPLEMENTACAO_COM_HISTORICO`, `BEBEDOURO_COM_HISTORICO`), conferido também no DELETE do servidor. O `LocalEstoque` do depósito é **inativado**, não apagado (D-PROD-137). Falha no meio nunca aparece como sucesso.
+3. **`numero_ponto` do cocho/depósito é do servidor** (sequência do tenant, nova tentativa em colisão); o local do depósito novo nasce na mesma transação.
+4. **Ocupação da área** (`quantidade_atual`, `status_ocupacao`) é **derivada na leitura** dos lotes/posições ativos (mesma fonte do mapa), não mais o valor gravado que ninguém atualizava. Faixas: sem gado "Disponível"; UA/capacidade até 70% "Médio", até 110% "Alto", acima "Sobrepastoreado".
+5. **Renomear área ou setor** propaga o nome para lotes, cochos, bebedouros, tarefas e movimentações na mesma transação, por id e `cliente_id` do `auth_context`.
+6. **Reatribuir códigos de áreas** por comando próprio `POST /areas-pastagem/renumerar` (transação, duas fases), só online; o PATCH genérico continua sem `numero_area`.
+7. **Mapa Geral** relê do servidor as chaves afetadas depois de qualquer cadastro (`invalidarCachesDoMapa`). Ícones são do tenant (`empresa_id` nulo vale para todas as empresas).
+
+**Fora do escopo (pausa nos lotes, pedido do proprietário):** 12 bugs confirmados de lote/movimentação listados no relatório §6; fila offline que trava num 4xx definitivo.
+
+**Relatório:** [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md).
+
 ## D-PROD-215 — Cadastro de Culturas (tabela `CADCULTURAS`) com lista de referência
 
-> **Numeração:** a `main` indica `Próxima decisão: D-PROD-214`, mas a PR #303 (reforço da FK do apontamento do abastecimento, em rascunho) já usa a D-PROD-214. Para não duplicar, esta decisão é a **D-PROD-215**. O número não está no `migration.sql`, então o checksum não muda. A #303 também usa o prefixo `20261116400000` (`…_abastecimento_fk_apontamento_atividade`): a pasta desta passou a `20261116500000_cadculturas` (conteúdo idêntico); a ordem de release com a #303 está no runbook.
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-214`, mas a D-PROD-214 já está em uso (PR #303, reforço da FK do apontamento do abastecimento, e PR #305, cadastros do mapa, já mergeada). Para não duplicar, esta decisão é a **D-PROD-215**. O número não está no `migration.sql`, então o checksum não muda. A #303 também usa o prefixo `20261116400000` (`…_abastecimento_fk_apontamento_atividade`): a pasta desta passou a `20261116500000_cadculturas` (conteúdo idêntico); a ordem de release com a #303 está no runbook.
 
 **Data:** 2026-11-16 · **Origem:** pedido do proprietário, primeiro passo da produção de forragem e das medições ("vamos primeiro fazer o cadastro de culturas ok, no banco eu quero que se chama CADCULTURAS"; os parâmetros ficam no catálogo de cultura, "pré cadastrado com uma numeração") · **Branch:** `claude/kind-knuth-tztu1v`.
 
