@@ -38,6 +38,11 @@
  * produção, num banco à parte: esta pelo runner do dia e depois, pelo runner do repositório com o alvo conferido e sem
  * decisão (EXPAND), a D-PROD-215 (63/0, 95 tabelas, `migrate diff` vazio); no caminho B, o runner do repositório sobe a
  * D-PROD-215 depois do envelope e o `migrate diff` fica vazio.
+ *
+ * D-PROD-216: a CONTRACT aditiva `20261117000000_area_cultura` (a Área ligada à Cultura), ainda posterior, também muda
+ * o schema.prisma e entra no `migrate diff` da partida. No AA-08, o runner do repositório com o alvo conferido passa a
+ * pedir a decisão DELA (é a única CONTRACT pendente) e sobe as duas: 64/0, 95 tabelas. No caminho B, o runner do
+ * repositório (alvo local, sem a conferência) sobe as duas sem decisão.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -75,6 +80,9 @@ const CHECKSUM_ANTERIOR = 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5
 const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 /** D-PROD-215: a EXPAND do Cadastro de Culturas, de nome posterior (ver o cabeçalho); fica fora do dia desta. */
 const NOME_CULTURAS = '20261116500000_cadculturas';
+/** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura, ainda posterior (ver o cabeçalho). */
+const NOME_AREA_CULTURA = '20261117000000_area_cultura';
+const DECISAO_AREA_CULTURA = 'D-PROD-216';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
@@ -356,7 +364,7 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     assert.equal(PASTAS.at(-1), NOME, 'no dia da D-PROD-211, esta era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 62);
-    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_CULTURAS], 'D-PROD-215: só o Cadastro de Culturas tem nome posterior a esta');
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_CULTURAS, NOME_AREA_CULTURA], 'D-PROD-215 e D-PROD-216: só o Cadastro de Culturas e a Área ligada à Cultura têm nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [61, 0, 0]);
     assert.equal(partida.tabelas.split(',').length, 94);
@@ -619,7 +627,7 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
 });
 
 describe('D-PROD-211 — ordem de produção com a D-PROD-215 (posterior)', () => {
-  test('AA-08 num banco à parte com a mesma partida: esta pelo runner do dia (62/0) e depois, pelo runner do repositório com o alvo conferido e sem decisão (EXPAND), só a D-PROD-215 pende e sobe; 63/0, 95 tabelas, o abastecimento intacto e migrate diff vazio', async () => {
+  test('AA-08 num banco à parte com a mesma partida: esta pelo runner do dia (62/0) e depois, pelo runner do repositório com o alvo conferido, a D-PROD-215 (EXPAND) e a D-PROD-216 (CONTRACT, com a decisão dela) pendem e sobem; 64/0, 95 tabelas, o abastecimento intacto e migrate diff vazio', async () => {
     const url = await clonar(`${PREFIXO}_aba_ordem`);
     const dbo = new PrismaClient({ datasourceUrl: url });
     try {
@@ -629,13 +637,19 @@ describe('D-PROD-211 — ordem de produção com a D-PROD-215 (posterior)', () =
       assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [62, 0]);
       const meio = await retrato(dbo);
       assert.equal(meio.tabelas.split(',').length, 94);
-      // A D-PROD-215 é EXPAND: com o alvo conferido, o runner do repositório a aplica sem pedir decisão nenhuma.
-      const r = await aplicarPeloRunner(url, { runtime: url, extras: conferencia });
+      // A D-PROD-215 é EXPAND; a D-PROD-216 é a única CONTRACT pendente: com o alvo conferido, sem a decisão dela recusa
+      // antes de qualquer DDL, e com ela o runner do repositório aplica as duas.
+      const sem = await aplicarPeloRunner(url, { runtime: url, extras: conferencia });
+      assert.notEqual(sem.status, 0, sem.saida);
+      assert.match(sem.saida, /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/);
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [62, 0]);
+      const r = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: DECISAO_AREA_CULTURA } });
       assert.equal(r.status, 0, r.saida);
       assert.ok(r.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), r.saida);
+      assert.ok(r.saida.includes(`Applying migration \`${NOME_AREA_CULTURA}\``), r.saida);
       assert.ok(!r.saida.includes(`Applying migration \`${NOME}\``), r.saida);
       assert.ok(!vazou(r.saida, url));
-      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [63, 0]);
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [64, 0]);
       const fim = await retrato(dbo);
       assert.equal(fim.tabelas.split(',').length, 95);
       assert.ok(fim.tabelas.split(',').includes('CADCULTURAS'));
@@ -733,6 +747,7 @@ describe('D-PROD-211 — caminho B do runbook (uma transação pelo conector), n
     const hoje = await aplicarPeloRunner(URL_B);
     assert.equal(hoje.status, 0, hoje.saida);
     assert.ok(hoje.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), hoje.saida);
+    assert.ok(hoje.saida.includes(`Applying migration \`${NOME_AREA_CULTURA}\``), hoje.saida);
     assert.ok(!hoje.saida.includes(`Applying migration \`${NOME}\``), hoje.saida);
     const diff = await migrateDiff(URL_B);
     assert.equal(diff.status, 0, diff.saida);

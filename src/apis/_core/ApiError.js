@@ -155,6 +155,7 @@ export const API_ERROR_CODES = Object.freeze({
   CULTURA_NOT_FOUND: 'CULTURA_NOT_FOUND',
   CULTURA_NAME_CONFLICT: 'CULTURA_NAME_CONFLICT',
   CULTURA_CODIGO_CONFLICT: 'CULTURA_CODIGO_CONFLICT',
+  CULTURA_EM_USO: 'CULTURA_EM_USO',
   // D-PROD-207 — Serviços da fazenda (o funcionário é papel do parceiro desde a D-PROD-208).
   SERVICO_NOT_FOUND: 'SERVICO_NOT_FOUND',
   SERVICO_REFERENCIA_INVALIDA: 'SERVICO_REFERENCIA_INVALIDA',
@@ -297,6 +298,7 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.CULTURA_NOT_FOUND]: 'Esta cultura não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.CULTURA_NAME_CONFLICT]: 'Já existe uma cultura com este nome nesta fazenda.',
   [API_ERROR_CODES.CULTURA_CODIGO_CONFLICT]: 'Já existe uma cultura com este código nesta fazenda.',
+  [API_ERROR_CODES.CULTURA_EM_USO]: 'Esta cultura está ligada a áreas do mapa. Troque a cultura dessas áreas ou inative a cultura.',
   [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:

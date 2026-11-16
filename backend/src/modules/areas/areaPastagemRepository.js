@@ -44,11 +44,24 @@ const SELECAO = Object.freeze({
   taxa_crescimento_kg_ha_dia: true,
   taxa_aproveitamento: true,
   periodo_estacao: true,
+  // D-PROD-216 — cultura do cadastro de Culturas (CADCULTURAS) da mesma fazenda.
+  cultura_id: true,
   coordenadas: true,
   observacoes: true,
   ativo: true,
   createdAt: true,
   updatedAt: true,
+});
+
+/**
+ * D-PROD-216 — leitura com a cultura ligada (código, nome e tipo), para a tela e o
+ * mapa mostrarem "001 · BRACHIARIA BRIZANTHA CV. MARANDU" sem uma segunda ida ao
+ * banco. A inserção em lote (`createManyAndReturn`) usa a seleção plana: sem
+ * relação ali, `cultura` sai `null` na resposta da importação, que não liga cultura.
+ */
+const SELECAO_COM_CULTURA = Object.freeze({
+  ...SELECAO,
+  cultura: { select: { id: true, codigo: true, nome: true, tipo: true } },
 });
 
 /**
@@ -65,7 +78,7 @@ export const listarAreas = async (clienteId) => {
   return prisma.areaPastagem.findMany({
     where: { cliente_id: clienteId },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: SELECAO,
+    select: SELECAO_COM_CULTURA,
   });
 };
 
@@ -81,7 +94,7 @@ export const buscarArea = async (clienteId, id, tx) => {
   const cliente = tx || getPrismaClient();
   return cliente.areaPastagem.findUnique({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
-    select: SELECAO,
+    select: SELECAO_COM_CULTURA,
   });
 };
 
@@ -93,7 +106,7 @@ export const buscarArea = async (clienteId, id, tx) => {
  * @param {object} dados
  */
 export const inserirArea = async (tx, dados) =>
-  tx.areaPastagem.create({ data: dados, select: SELECAO });
+  tx.areaPastagem.create({ data: dados, select: SELECAO_COM_CULTURA });
 
 /**
  * Insere várias áreas numa única ida ao banco e devolve as linhas criadas
@@ -117,7 +130,7 @@ export const atualizarAreaPorId = async (tx, clienteId, id, dados) =>
   tx.areaPastagem.update({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
     data: dados,
-    select: SELECAO,
+    select: SELECAO_COM_CULTURA,
   });
 
 /**
@@ -198,7 +211,7 @@ export const gadoPorArea = async (clienteId, { areaIds = null, tx } = {}) => {
  */
 export const travarAreasPorIds = async (tx, clienteId, ids) => {
   await tx.$queryRaw`SELECT id FROM "AreaPastagem" WHERE cliente_id = ${clienteId} AND id = ANY(${ids}::text[]) ORDER BY id FOR UPDATE`;
-  return tx.areaPastagem.findMany({ where: { cliente_id: clienteId, id: { in: ids } }, select: SELECAO });
+  return tx.areaPastagem.findMany({ where: { cliente_id: clienteId, id: { in: ids } }, select: SELECAO_COM_CULTURA });
 };
 
 /**
@@ -265,3 +278,17 @@ export const propagarSetorDaAreaParaTarefas = async (tx, clienteId, { areaId, se
     RETURNING id`);
   return linhas.map((l) => l.id);
 };
+
+/**
+ * D-PROD-216 — a cultura do tenant pelo id (o serviço confere a fazenda, o uso e
+ * se está ativa). `null` quando não existe ou é de outro cliente.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string} id
+ */
+export const buscarCulturaDoTenant = async (tx, clienteId, id) =>
+  tx.cultura.findUnique({
+    where: { cliente_id_id: { cliente_id: clienteId, id } },
+    select: { id: true, empresa_id: true, codigo: true, nome: true, tipo: true, ativo: true },
+  });

@@ -64,6 +64,9 @@ const CAMPOS = Object.freeze({
   area_pastejada: { type: ['number', 'null'], minimum: 0, maximum: 99999999.9999 },
   capacidade_maxima: { type: ['number', 'null'], minimum: 0, maximum: 99999999.9999 },
   tipo_pastagem: { type: ['string', 'null'], maxLength: 128 },
+  // D-PROD-216 — cultura do cadastro de Culturas da MESMA fazenda; `null` desliga.
+  // Com cultura, o servidor deriva `tipo_pastagem` do nome dela (o enviado é ignorado).
+  cultura_id: { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '\\S' },
   aproveitamento_classificacao: { type: 'string', enum: CLASSIFICACOES },
   tipo_cultura: { type: 'string', enum: CULTURAS },
   cor: { type: ['string', 'null'], maxLength: 32 },

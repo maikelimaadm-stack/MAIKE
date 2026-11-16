@@ -97,3 +97,25 @@ export const excluirCulturaPorId = async (tx, clienteId, id) =>
     where: { cliente_id_id: { cliente_id: clienteId, id } },
     select: SELECAO,
   });
+
+/**
+ * D-PROD-216 — quantas áreas desta fazenda apontam para a cultura (a exclusão é
+ * barrada com 409 antes de a FK RESTRICT estourar).
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const contarAreasDaCultura = async (tx, clienteId, empresaId, id) =>
+  tx.areaPastagem.count({ where: { cliente_id: clienteId, empresa_id: empresaId, cultura_id: id } });
+
+/**
+ * D-PROD-216 — o texto `tipo_pastagem` das áreas ligadas é cópia do nome da
+ * cultura (derivado pelo serviço da Área): renomear a cultura reescreve a cópia,
+ * na mesma transação, casando por tenant, fazenda e id. Devolve os ids tocados.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @returns {Promise<string[]>}
+ */
+export const propagarNomeDaCulturaNasAreas = async (tx, clienteId, empresaId, id, nome) => {
+  const where = { cliente_id: clienteId, empresa_id: empresaId, cultura_id: id };
+  const ids = (await tx.areaPastagem.findMany({ where, select: { id: true }, orderBy: { id: 'asc' } })).map((a) => a.id);
+  if (ids.length) await tx.areaPastagem.updateMany({ where, data: { tipo_pastagem: nome } });
+  return ids;
+};

@@ -78,6 +78,8 @@ const NOME_BASE = '20261116200000_formulacao_base_consumo';
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS), ainda posterior; o runner do repositório a sobe sem decisão. */
 const NOME_CULTURAS = '20261116500000_cadculturas';
+/** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura (coluna, UNIQUE em CADCULTURAS e FK), ainda posterior. */
+const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
@@ -148,6 +150,14 @@ let ESPELHO_210;
 const runnerAteBase = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
     cwd: ESPELHO_210,
+    env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
+  });
+
+/** D-PROD-216 — o runner oficial NO DIA DA D-PROD-215 (espelho com as pastas até ela), para o FT-08. */
+let ESPELHO_215;
+const runnerAte215 = (urlMigracao, { runtime, extras = {} } = {}) =>
+  rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: ESPELHO_215,
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 
@@ -270,6 +280,7 @@ before(async () => {
   BASE_URL = exigirUrlLocal(process.env.DATABASE_URL);
   ESPELHO = criarEspelhoDoRunner({ raiz: RAIZ, ate: NOME }).dir;
   ESPELHO_210 = criarEspelhoDoRunner({ raiz: RAIZ, ate: NOME_BASE }).dir;
+  ESPELHO_215 = criarEspelhoDoRunner({ raiz: RAIZ, ate: NOME_CULTURAS }).dir;
   PREFIXO = new URL(BASE_URL).pathname.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40) || 'maike';
   BANCO_MODELO = `${PREFIXO}_ftt_modelo`;
   for (const b of [`${PREFIXO}_ftt`, `${PREFIXO}_ftt_b`, BANCO_MODELO]) await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${b} WITH (FORCE)`);
@@ -291,7 +302,7 @@ before(async () => {
 after(async () => {
   await db?.$disconnect();
   for (const b of [`${PREFIXO}_ftt`, `${PREFIXO}_ftt_b`, `${PREFIXO}_ftt_ordem`, BANCO_MODELO]) if (PREFIXO) await apagar(b);
-  for (const e of [ESPELHO, ESPELHO_210]) if (e) rmSync(e, { recursive: true, force: true });
+  for (const e of [ESPELHO, ESPELHO_210, ESPELHO_215]) if (e) rmSync(e, { recursive: true, force: true });
   await closePrismaClient();
 });
 
@@ -301,7 +312,7 @@ describe('D-PROD-209 — migration CONTRACT do tipo do funcionário com TERCEIRI
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     assert.equal(PASTAS.at(-1), NOME, 'no dia da D-PROD-209, esta era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 60);
-    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS], 'D-PROD-210, D-PROD-211 e D-PROD-215: só a base do consumo, o abastecimento ligado à atividade e o Cadastro de Culturas têm nome posterior a esta');
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA], 'D-PROD-210, D-PROD-211 e D-PROD-215: só a base do consumo, o abastecimento ligado à atividade e o Cadastro de Culturas têm nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [59, 0, 0]);
     assert.equal(partida.tabelas.split(',').length, 94);
@@ -353,7 +364,7 @@ describe('D-PROD-209 — migration CONTRACT do tipo do funcionário com TERCEIRI
     assert.deepEqual(conferirHistoricoRemoto({ locais, linhas }), { ok: true, codigo: null, pendentes: [NOME], falhas: [] });
     assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), [{ nome: NOME, decisao: DECISAO }]);
     // Hoje (D-PROD-211), com as pastas do repositório, a base do consumo e o abastecimento também pendem: são três CONTRACT pendentes.
-    assert.deepEqual(contractsPendentes({ locais: PASTAS_HOJE, linhas }), [{ nome: NOME, decisao: DECISAO }, { nome: NOME_BASE, decisao: 'D-PROD-210' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-211' }]);
+    assert.deepEqual(contractsPendentes({ locais: PASTAS_HOJE, linhas }), [{ nome: NOME, decisao: DECISAO }, { nome: NOME_BASE, decisao: 'D-PROD-210' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-211' }, { nome: NOME_AREA_CULTURA, decisao: 'D-PROD-216' }]);
   });
 
   test('FT-RED-1 um parceiro com funcionario_tipo = TAREFEIRO (num banco novo) → a guarda recusa e NADA muda', async () => {
@@ -466,7 +477,7 @@ describe('D-PROD-209 — migration CONTRACT do tipo do funcionário com TERCEIRI
 });
 
 describe('D-PROD-209 — ordem de produção com a D-PROD-210 e a D-PROD-211 (posteriores)', () => {
-  test('FT-08 num banco à parte com a mesma partida: esta pelo runner do dia (60/0); com o alvo conferido, as duas posteriores pendem juntas e a decisão desta recusa antes de qualquer DDL; a D-PROD-210 pelo runner do dia dela (61/0); depois, pelo runner do repositório, só a D-PROD-211 pende: sem a decisão exata recusa, com ela (e a EXPAND da D-PROD-215, sem decisão, depois) 63/0, 95 tabelas, o CHECK com TERCEIRIZADO intacto e migrate diff vazio', async () => {
+  test('FT-08 num banco à parte com a mesma partida: esta pelo runner do dia (60/0); com o alvo conferido, as duas posteriores pendem juntas e a decisão desta recusa antes de qualquer DDL; a D-PROD-210 pelo runner do dia dela (61/0); depois, pelo runner do dia da D-PROD-215, só a D-PROD-211 pende: sem a decisão exata recusa, com ela (e a EXPAND da D-PROD-215, sem decisão, depois) 63/0, 95 tabelas; por fim, pelo runner do repositório, a D-PROD-216 com a decisão dela: 64/0, o CHECK com TERCEIRIZADO intacto e migrate diff vazio', async () => {
     const url = await clonar(`${PREFIXO}_ftt_ordem`);
     const dbo = new PrismaClient({ datasourceUrl: url });
     try {
@@ -480,7 +491,7 @@ describe('D-PROD-209 — ordem de produção com a D-PROD-210 e a D-PROD-211 (po
       assert.equal(await temBase(), 0);
       const juntas = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
       assert.equal(juntas.status, 1, juntas.saida);
-      assert.ok(juntas.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_BASE} (D-PROD-210), ${NOME_ABASTECIMENTO} (D-PROD-211).`), juntas.saida);
+      assert.ok(juntas.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_BASE} (D-PROD-210), ${NOME_ABASTECIMENTO} (D-PROD-211), ${NOME_AREA_CULTURA} (D-PROD-216).`), juntas.saida);
       assert.match(juntas.saida, /Nenhuma migration foi executada/);
       assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [60, 0]);
       // D-PROD-210, no dia dela (espelho até ela), com a decisão DELA.
@@ -490,13 +501,13 @@ describe('D-PROD-209 — ordem de produção com a D-PROD-210 e a D-PROD-211 (po
       assert.ok(base.saida.includes(`Applying migration \`${NOME_BASE}\``), base.saida);
       assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [61, 0]);
       assert.equal(await temBase(), 1);
-      // D-PROD-211, por último, pelo runner do repositório: sem a decisão exata recusa; com ela, aplica.
-      const semDecisao = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-210' } });
+      // D-PROD-211, pelo runner do dia da D-PROD-215: sem a decisão exata recusa; com ela, aplica.
+      const semDecisao = await runnerAte215(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-210' } });
       assert.equal(semDecisao.status, 1, semDecisao.saida);
       assert.ok(semDecisao.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ABASTECIMENTO} (D-PROD-211).`), semDecisao.saida);
       assert.match(semDecisao.saida, /Nenhuma migration foi executada/);
       assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [61, 0]);
-      const r = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-211' } });
+      const r = await runnerAte215(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-211' } });
       assert.equal(r.status, 0, r.saida);
       assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_ABASTECIMENTO} (D-PROD-211).`), r.saida);
       assert.ok(r.saida.includes(`Applying migration \`${NOME_ABASTECIMENTO}\``), r.saida);
@@ -505,6 +516,11 @@ describe('D-PROD-209 — ordem de produção com a D-PROD-210 e a D-PROD-211 (po
       assert.ok(r.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), r.saida);
       assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [63, 0]);
       assert.equal((await retrato(dbo)).tabelas.split(',').length, 95);
+      // D-PROD-216, por último, pelo runner do repositório, com a decisão DELA.
+      const r216 = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-216' } });
+      assert.equal(r216.status, 0, r216.saida);
+      assert.ok(r216.saida.includes(`Applying migration \`${NOME_AREA_CULTURA}\``), r216.saida);
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [64, 0]);
       assert.equal(await definicaoDoCheck(dbo), check);
       const diff = await migrateDiff(url);
       assert.equal(diff.status, 0, diff.saida);
@@ -597,7 +613,7 @@ describe('D-PROD-209 — caminho B do runbook (uma transação pelo conector), n
     // posteriores; o schema bate.
     const hoje = await aplicarPeloRunner(URL_B);
     assert.equal(hoje.status, 0, hoje.saida);
-    for (const n of [NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS]) assert.ok(hoje.saida.includes(`Applying migration \`${n}\``), hoje.saida);
+    for (const n of [NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA]) assert.ok(hoje.saida.includes(`Applying migration \`${n}\``), hoje.saida);
     assert.ok(!hoje.saida.includes(`Applying migration \`${NOME}\``), hoje.saida);
     const diff = await migrateDiff(URL_B);
     assert.equal(diff.status, 0, diff.saida);
