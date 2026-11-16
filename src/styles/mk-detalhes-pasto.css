@@ -1,0 +1,1415 @@
+/*
+ * Detalhes do Lote v12 (D-PROD-214) — visual comum. Peças em
+ * src/components/mapa/detalhes-lote/blocos.jsx; valores da especificação v12
+ * (§0.2 tokens, A casca, B abas, C corpo e blocos, E rodapé, G modos).
+ *
+ * Tudo vale só sob a raiz `.mk-dp` (o Resumo do Rebanho usa `.mk-dl8` e não muda).
+ * O diálogo (`LancLoteDialogo`) só muda quando o conteúdo é `.mk-dp`:
+ *   .mk-ll-dlg(.is-desktop | .is-tela) > .mk-ll-dlg__head + .mk-ll > .mk-dp
+ * Este arquivo entra ANTES do index.css (main.jsx): em empate o index.css vence;
+ * por isso os seletores do diálogo levam `:not(#mk-padrao)` e, onde o sistema
+ * usa `!important` (botões redondos, título), também `!important`. Fundo e
+ * sombra dos botões redondos vêm de `--mk-btn-bg` / `--mk-btn-sombra` (regra
+ * de especificidade alta em mk-unificado.css): aqui se troca a variável. O ✕
+ * do popup leva dois ids porque base1-design.css pinta todo botão neutro de
+ * `.cadastro-b1` com `:not(#mk-a):not(#mk-b)`.
+ *
+ * Modos: celular ≤ 767 px · tablet 768–1023 · desktop ≥ 1024.
+ *
+ * ── Mapa de uso (marcação de referência) ────────────────────────────────
+ * raiz        div.mk-dp[data-modo] > Abas + div.mk-dp__corpo.mk-dp__corpo--cards|--lista + div.mk-dp__rodape
+ * troca       corpo com nova key + .mk-dp-anim--empurrar|--voltar|--aba-dir|--aba-esq|--troca
+ * Abas        div.mk-dp-abas[role=tablist] > button.mk-dp-aba[role=tab][aria-selected](.is-on) > texto + span.mk-dp-aba__badge
+ * Cabeçalho   div.mk-dp-cab > button.mk-dp-redondo.mk-dp-cab__voltar + div.mk-dp-cab__txt > h2.mk-dp-cab__titulo + p.mk-dp-cab__sub
+ * TituloBloco div.mk-dp-titulo > h3.mk-dp-titulo__h + button.mk-dp-link
+ * Cartao      div.mk-dp-cartao > div.mk-dp-cartao__cab(> span.mk-dp-cartao__img | svg.mk-dp-cartao__ic, div.mk-dp-cartao__txt > strong + span, .mk-dp-chip) + partes
+ * Grade       dl.mk-dp-grade > div.mk-dp-cel > dt.mk-dp-cel__rot + dd.mk-dp-cel__val(> span.mk-dp-bolinha) + dd.mk-dp-cel__sub + dd.mk-dp-cel__barra > span
+ * Linha       div|button.mk-dp-linha(.mk-dp-linha--quebra|--toque) > img|ic + span.mk-dp-linha__txt(> __rot + __sub) + span.mk-dp-linha__fim(> bolinha + __val + svg.mk-dp-chev)
+ * Aviso       div.mk-dp-aviso.mk-dp-aviso--atencao|--neutro > svg.mk-dp-aviso__ic + span
+ * Nota        p.mk-dp-nota
+ * Vazio       div.mk-dp-vazio > svg.mk-dp-vazio__ic + p
+ * Chip        span.mk-dp-chip.mk-dp-chip--ok|--atencao|--neutro
+ * Caixa       button.mk-dp-cx[role=checkbox](.is-on|.is-meio)  (ou span.mk-dp-cx dentro de uma linha role=checkbox)
+ * Segmentado  div.mk-dp-seg[role=group] > button.mk-dp-seg__op[aria-pressed](.is-on)
+ * Kpis        dl.mk-dp-kpis[style=grid-template-columns] > div.mk-dp-kpi > dt.mk-dp-kpi__rot + dd.mk-dp-kpi__val + dd.mk-dp-kpi__nota
+ * ListaItens  div.mk-dp-itens > div.mk-dp-itens__cab(.is-toque > .mk-dp-cx + span) + ul.mk-dp-itens__lista
+ * Item        li.mk-dp-item(.is-toque) > .mk-dp-cx + button|span.mk-dp-item__corpo > __img|__ic + span.mk-dp-item__txt(> __tit(> .mk-dp-quad + __nome) + __meta + __sub) + chip + .mk-dp-bolinha--g + .mk-dp-chev
+ * NavLote     div.mk-dp-nav > button.mk-dp-redondo + div.mk-dp-nav__meio(> strong + span) + button.mk-dp-redondo
+ * Info        div.mk-dp-info > span.mk-dp-info__faixa > svg + div.mk-dp-info__txt > p…
+ * Busca       label.mk-dp-busca > svg + input.mk-dp-busca__in[type=search]
+ * GrupoMarcar div.mk-dp-grupo[role=group] > button.mk-dp-grupo__cab[role=checkbox](> .mk-dp-cx + __titulo + __n) + button.mk-dp-grupo__item[role=checkbox]…
+ * BotaoFiltro div.mk-dp-botoes (opcional) > button.mk-dp-filtro > span + svg
+ * Rodapés     div.mk-dp-rodape.mk-dp-rodape--pilulas > button.mk-dp-pilula(.is-off)  ·  div.mk-dp-rodape.mk-dp-rodape--botoes > button.mk-dp-botao--branco|--verde
+ */
+
+/* ── Raiz ─────────────────────────────────────────────────────────────── */
+.mk-dp {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  background: #F9F9F7;
+  color: #1f2328;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(.mk-dp) :where(*, *::before, *::after) {
+  box-sizing: border-box;
+}
+
+:where(.mk-dp) :where(button) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(.mk-dp) :where(button:disabled) {
+  cursor: default;
+}
+
+:where(.mk-dp) :where(h2, h3, p, dl, dt, dd, ul, li) {
+  margin: 0;
+  padding: 0;
+}
+
+:where(.mk-dp) :where(ul) {
+  list-style: none;
+}
+
+.mk-dp :focus-visible {
+  outline: 2px solid #3db5c9;
+  outline-offset: 2px;
+}
+
+/* Linhas e faixas que encostam na borda do cartão: contorno por dentro */
+.mk-dp :is(.mk-dp-aba, .mk-dp-linha, .mk-dp-grupo__cab, .mk-dp-grupo__item):focus-visible {
+  outline-offset: -2px;
+}
+
+/* ── Corpo: a única área que rola ─────────────────────────────────────── */
+.mk-dp .mk-dp__corpo {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mk-dp .mk-dp__corpo > * {
+  flex: 0 0 auto;
+}
+
+.mk-dp .mk-dp__corpo--cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 24px;
+}
+
+.mk-dp .mk-dp__corpo--lista {
+  display: block;
+  padding: 0 0 24px;
+  background: #fff;
+}
+
+.mk-dp .mk-dp__rodape {
+  flex: 0 0 auto;
+}
+
+.mk-dp .mk-dp__rodape:empty {
+  display: none;
+}
+
+/* ── Abas (B) ─────────────────────────────────────────────────────────── */
+.mk-dp .mk-dp-abas {
+  flex: 0 0 auto;
+  display: flex;
+  padding: 0 4px;
+  border-bottom: 1px solid #e7e9ec;
+  background: #fff;
+}
+
+.mk-dp .mk-dp-aba {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 46px;
+  padding: 0 6px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+.mk-dp .mk-dp-aba.is-on {
+  color: #1f2328;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-aba.is-on::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 2px;
+  background: #3fbf5f;
+}
+
+.mk-dp .mk-dp-aba__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e7f6f9;
+  color: #0e8fa6;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+/* ── Cabeçalho próprio (sem o diálogo; mesmo desenho do popup) ────────── */
+.mk-dp .mk-dp-cab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 14px 10px 18px;
+  background: #F9F9F7;
+}
+
+.mk-dp .mk-dp-cab__voltar {
+  margin: 0 2px 0 -4px;
+}
+
+.mk-dp .mk-dp-cab__txt {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-cab__titulo {
+  overflow: hidden;
+  color: #292a2d;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-cab__sub {
+  margin-top: 1px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Botão redondo branco 40 px (‹ › do lote, ‹ do cabeçalho próprio) */
+.mk-dp .mk-dp-redondo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #fff;
+  color: #373733;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.043);
+}
+
+.mk-dp .mk-dp-redondo:active:not(:disabled) {
+  background: #F1F1EE;
+}
+
+.mk-dp .mk-dp-redondo:disabled {
+  opacity: 0.3;
+}
+
+.mk-dp .mk-dp-redondo svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ── Título de seção e link ───────────────────────────────────────────── */
+.mk-dp .mk-dp-titulo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 2px 0;
+}
+
+.mk-dp .mk-dp-titulo__h {
+  color: #1f2328;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-link {
+  color: #0e8fa6;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── Cartão ───────────────────────────────────────────────────────────── */
+.mk-dp :is(.mk-dp-cartao, .mk-dp-itens, .mk-dp-kpis, .mk-dp-nav, .mk-dp-info) {
+  border: 1px solid transparent;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(20, 20, 19, 0.1);
+}
+
+.mk-dp .mk-dp-cartao {
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.mk-dp .mk-dp-cartao__cab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.mk-dp .mk-dp-cartao__img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  background: center / contain no-repeat;
+}
+
+.mk-dp .mk-dp-cartao__ic {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  color: #3db5c9;
+}
+
+.mk-dp .mk-dp-cartao__txt {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-cartao__titulo {
+  color: #1f2328;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-cartao__sub {
+  margin-top: 1px;
+  color: #6b7280;
+  font-size: 12.5px;
+}
+
+/* Divisórias entre as partes do cartão. A da grade fica recuada 14 px (o
+   clip-path da grade corta a própria borda); grade → linha vai de borda a borda. */
+.mk-dp .mk-dp-cartao__cab + .mk-dp-grade,
+.mk-dp .mk-dp-grade + .mk-dp-grade,
+.mk-dp .mk-dp-linha + .mk-dp-grade,
+.mk-dp .mk-dp-grade + .mk-dp-linha,
+.mk-dp .mk-dp-cartao__cab + .mk-dp-linha,
+.mk-dp .mk-dp-linha + .mk-dp-linha {
+  border-top: 1px solid #e7e9ec;
+}
+
+/* ── Grade de células ─────────────────────────────────────────────────── */
+.mk-dp .mk-dp-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0;
+  padding: 0 14px;
+  overflow: visible;
+  clip-path: inset(0 14px);
+}
+
+.mk-dp .mk-dp-cel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 11px 12px 11px 0;
+}
+
+/* Linha entre fileiras de ponta a ponta (fileira incompleta também); a 1ª
+   fileira fica sem linha (cortada pelo clip-path da grade). */
+.mk-dp .mk-dp-cel::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -2000px;
+  right: -2000px;
+  height: 1px;
+  background: #e7e9ec;
+  pointer-events: none;
+}
+
+.mk-dp .mk-dp-cel__rot {
+  color: #73726C;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.mk-dp .mk-dp-cel__val {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.mk-dp .mk-dp-cel__sub {
+  color: #73726C;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.mk-dp .mk-dp-cel__barra {
+  display: block;
+  height: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #eef0f2;
+}
+
+.mk-dp .mk-dp-cel__barra > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.mk-dp .mk-dp-bolinha {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.mk-dp .mk-dp-bolinha--g {
+  width: 11px;
+  height: 11px;
+}
+
+/* ── Linha ────────────────────────────────────────────────────────────── */
+.mk-dp .mk-dp-linha {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 50px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.mk-dp .mk-dp-linha--toque {
+  cursor: pointer;
+}
+
+.mk-dp .mk-dp-linha--toque:active {
+  background: #f6f7f8;
+}
+
+.mk-dp .mk-dp-linha__ic {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: #3db5c9;
+}
+
+.mk-dp .mk-dp-linha__img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  background: center / contain no-repeat;
+}
+
+.mk-dp .mk-dp-linha__txt {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-linha__rot {
+  color: #2b2f33;
+  font-size: 14px;
+}
+
+.mk-dp .mk-dp-linha__sub {
+  margin-top: 1px;
+  color: #6b7280;
+  font-size: 12.5px;
+}
+
+.mk-dp .mk-dp-linha__fim {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  max-width: 62%;
+}
+
+.mk-dp .mk-dp-linha__val {
+  color: #1f2937;
+  font-size: 14px;
+  text-align: right;
+}
+
+.mk-dp .mk-dp-linha--quebra .mk-dp-linha__fim {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  max-width: none;
+}
+
+.mk-dp .mk-dp-linha--quebra .mk-dp-linha__val {
+  white-space: normal;
+}
+
+.mk-dp .mk-dp-chev {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: #9aa1a9;
+}
+
+/* ── Aviso, nota, vazio ───────────────────────────────────────────────── */
+.mk-dp .mk-dp-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.mk-dp .mk-dp-aviso__ic {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.mk-dp .mk-dp-aviso--atencao {
+  border: 1px solid #fde4b0;
+  background: #fff8eb;
+  color: #92400e;
+}
+
+.mk-dp .mk-dp-aviso--neutro {
+  border: 1px solid #bfe7ef;
+  background: #e7f6f9;
+  color: #155e6c;
+}
+
+.mk-dp .mk-dp-nota {
+  padding: 6px 10px;
+  color: #6b7280;
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.mk-dp .mk-dp__corpo--lista .mk-dp-nota {
+  padding: 8px 16px;
+}
+
+.mk-dp .mk-dp-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 20px;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
+.mk-dp .mk-dp-vazio__ic {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  color: #b8c0c8;
+}
+
+/* ── Chip ─────────────────────────────────────────────────────────────── */
+.mk-dp .mk-dp-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-chip::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.mk-dp .mk-dp-chip--ok {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.mk-dp .mk-dp-chip--atencao {
+  background: #fff7e6;
+  color: #b45309;
+}
+
+.mk-dp .mk-dp-chip--neutro {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* ── Caixa de marcar: 18 px, canto 3 px, verde #32D65E com ✓ branco ─── */
+.mk-dp .mk-dp-cx {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #D1D0CA;
+  border-radius: 3px;
+  background: #fff;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.mk-dp .mk-dp-cx.is-on,
+.mk-dp .mk-dp-cx.is-meio {
+  border-color: #32D65E;
+  background: #32D65E;
+}
+
+.mk-dp .mk-dp-cx.is-on::after {
+  content: "";
+  position: absolute;
+  left: 5.5px;
+  top: 2.5px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 1.75px 1.75px 0;
+  transform: rotate(45deg);
+}
+
+.mk-dp .mk-dp-cx.is-meio::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 7.5px;
+  height: 1.75px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+/* Área de toque de 40 px sem mudar o desenho */
+.mk-dp button.mk-dp-cx::before {
+  content: "";
+  position: absolute;
+  inset: -11px;
+}
+
+/* ── Segmentado ───────────────────────────────────────────────────────── */
+.mk-dp .mk-dp-seg {
+  display: flex;
+  padding: 3px;
+  border-radius: 9px;
+  background: #e9ebee;
+}
+
+.mk-dp .mk-dp-seg__op {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 38px;
+  border-radius: 7px;
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.mk-dp .mk-dp-seg__op.is-on {
+  background: #fff;
+  color: #1f2328;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Números (KPIs) ───────────────────────────────────────────────────── */
+.mk-dp .mk-dp-kpis {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.mk-dp .mk-dp-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.mk-dp .mk-dp-kpi + .mk-dp-kpi {
+  border-left: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-kpi__rot {
+  color: #6b7280;
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+
+.mk-dp .mk-dp-kpi__val {
+  color: #1f2937;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.mk-dp .mk-dp-kpi__nota {
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* ── Lista de itens ───────────────────────────────────────────────────── */
+.mk-dp .mk-dp-itens {
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.mk-dp .mk-dp-itens__cab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid #e7e9ec;
+  background: #fafbfb;
+  color: #2b2f33;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-itens__cab.is-toque {
+  cursor: pointer;
+}
+
+.mk-dp .mk-dp-itens__titulo {
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 12px 10px 14px;
+  transition: background-color 0.15s;
+}
+
+.mk-dp .mk-dp-item.is-toque {
+  cursor: pointer;
+}
+
+.mk-dp .mk-dp-item.is-toque:active {
+  background: #f6f7f8;
+}
+
+.mk-dp .mk-dp-item + .mk-dp-item {
+  border-top: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-item__corpo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+.mk-dp .mk-dp-item__img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  background: center / contain no-repeat;
+}
+
+.mk-dp .mk-dp-item__ic {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  color: #3db5c9;
+}
+
+.mk-dp .mk-dp-item__txt {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-item__tit {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #1f2328;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-item__nome {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mk-dp .mk-dp-quad {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.mk-dp .mk-dp-item__meta {
+  overflow: hidden;
+  color: #4b5563;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-item__sub {
+  color: #6b7280;
+  font-size: 12.5px;
+}
+
+/* ── Navegação do lote ────────────────────────────────────────────────── */
+.mk-dp .mk-dp-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.mk-dp .mk-dp-nav__meio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-nav__titulo {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-nav__sub {
+  color: #6b7280;
+  font-size: 12.5px;
+}
+
+/* ── Info (faixa teal) ────────────────────────────────────────────────── */
+.mk-dp .mk-dp-info {
+  display: flex;
+  gap: 12px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.mk-dp .mk-dp__corpo--lista > .mk-dp-info {
+  margin: 14px 16px 6px;
+}
+
+.mk-dp .mk-dp-info__faixa {
+  display: flex;
+  justify-content: center;
+  flex: 0 0 34px;
+  padding-top: 11px;
+  background: #3db5c9;
+  color: #fff;
+}
+
+.mk-dp .mk-dp-info__faixa svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mk-dp .mk-dp-info__txt {
+  padding: 10px 12px 10px 0;
+  color: #2b2f33;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* ── Busca ────────────────────────────────────────────────────────────── */
+.mk-dp .mk-dp-busca {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid #e7e9ec;
+  border-radius: 10px;
+  background: #fff;
+  color: #9aa1a9;
+  cursor: text;
+}
+
+.mk-dp .mk-dp-busca:focus-within {
+  border-color: #3db5c9;
+}
+
+.mk-dp .mk-dp__corpo--lista > .mk-dp-busca {
+  margin: 12px 16px 4px;
+}
+
+.mk-dp .mk-dp-busca > svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.mk-dp .mk-dp-busca__in {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 1px 2px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #1f2328;
+  font: inherit;
+  font-size: 14px;
+}
+
+.mk-dp .mk-dp-busca__in::placeholder {
+  color: #9aa1a9;
+  opacity: 1;
+}
+
+/* ── Grupo de marcar (Configurar tabela) ──────────────────────────────── */
+.mk-dp .mk-dp-grupo {
+  border-top: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-grupo__cab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  background: #f6f7f8;
+  color: #4b5563;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.mk-dp .mk-dp-grupo__titulo {
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-grupo__n {
+  margin-left: auto;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-grupo__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border-top: 1px solid #e7e9ec;
+  color: #2b2f33;
+  font-size: 14px;
+  text-align: left;
+}
+
+.mk-dp .mk-dp-grupo__item:active {
+  background: #f6f7f8;
+}
+
+/* ── Botão de filtro ──────────────────────────────────────────────────── */
+.mk-dp .mk-dp-botoes {
+  display: flex;
+  gap: 8px;
+}
+
+.mk-dp .mk-dp-filtro {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px 0 14px;
+  border: 1px solid #d6dadf;
+  border-radius: 8px;
+  background: #fff;
+  color: #2b2f33;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-filtro > svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+}
+
+/* ── Rodapés (E) ──────────────────────────────────────────────────────── */
+.mk-dp .mk-dp-rodape {
+  flex: 0 0 auto;
+  border-top: 1px solid #E8E7E2;
+  background: #F9F9F7;
+}
+
+.mk-dp .mk-dp-rodape--pilulas {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.mk-dp .mk-dp-pilula {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  gap: 6px;
+  min-width: 0;
+  max-width: 220px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #fff;
+  color: #373733;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.043);
+  transition: background-color 0.15s;
+}
+
+.mk-dp .mk-dp-pilula > svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.mk-dp .mk-dp-pilula > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mk-dp .mk-dp-pilula:active:not(:disabled) {
+  background: #F1F1EE;
+}
+
+@media (hover: hover) {
+  .mk-dp .mk-dp-pilula:hover:not(:disabled) {
+    background: #F1F1EE;
+  }
+}
+
+.mk-dp .mk-dp-pilula.is-off,
+.mk-dp .mk-dp-pilula:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.mk-dp .mk-dp-rodape--botoes {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.mk-dp .mk-dp-botao {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 40px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.043);
+  transition: filter 0.15s, transform 0.1s;
+}
+
+.mk-dp .mk-dp-botao:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.mk-dp .mk-dp-botao:disabled {
+  opacity: 0.5;
+}
+
+.mk-dp .mk-dp-botao--branco {
+  background: #fff;
+  color: #373733;
+}
+
+.mk-dp .mk-dp-botao--verde {
+  background: #3fbf5f;
+  color: #fff;
+}
+
+/* ── Celular (G): grade de 2 colunas; rodapé mais justo; aba sem badge ── */
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mk-dp .mk-dp-aba__badge {
+    display: none;
+  }
+
+  .mk-dp .mk-dp-rodape--pilulas {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .mk-dp .mk-dp-pilula {
+    gap: 5px;
+    padding: 0 8px;
+  }
+}
+
+/* Inputs abaixo de 1024 px: 16 px (sem zoom no iOS), como o sistema */
+@media (max-width: 1023px) {
+  .mk-dp .mk-dp-busca__in {
+    font-size: 16px;
+  }
+}
+
+/* ── Troca de tela, de aba e de vista (A.3) ───────────────────────────── */
+@keyframes mk-dp-empurrar {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes mk-dp-voltar {
+  from { opacity: 0; transform: translateX(-32px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes mk-dp-aba-dir {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes mk-dp-aba-esq {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes mk-dp-troca {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(.mk-dp, .mk-ll-dlg:has(> .mk-ll > .mk-dp)) .mk-dp-anim--empurrar {
+    animation: mk-dp-empurrar 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  :is(.mk-dp, .mk-ll-dlg:has(> .mk-ll > .mk-dp)) .mk-dp-anim--voltar {
+    animation: mk-dp-voltar 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  :is(.mk-dp, .mk-ll-dlg:has(> .mk-ll > .mk-dp)) .mk-dp-anim--aba-dir {
+    animation: mk-dp-aba-dir 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  :is(.mk-dp, .mk-ll-dlg:has(> .mk-ll > .mk-dp)) .mk-dp-anim--aba-esq {
+    animation: mk-dp-aba-esq 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  :is(.mk-dp, .mk-ll-dlg:has(> .mk-ll > .mk-dp)) .mk-dp-anim--troca {
+    animation: mk-dp-troca 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+/* ══ Diálogo (LancLoteDialogo) com conteúdo v12 ════════════════════════ */
+/* Comum: fundo da folha, sem vidro; o .mk-ll vira coluna sem padding e só o
+   corpo rola (`.mk-ll > * { flex-shrink: 0 }` de lancamento-lote.css perde). */
+.mk-ll-dlg:has(> .mk-ll > .mk-dp):not(#mk-padrao) {
+  background: #F9F9F7;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dp) > .mk-ll:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mk-ll-dlg > .mk-ll > .mk-dp:not(#mk-padrao) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* O cabeçalho não encolhe quando o corpo é comprido (só o corpo rola) */
+.mk-ll-dlg:has(> .mk-ll > .mk-dp) > .mk-ll-dlg__head:not(#mk-padrao) {
+  flex: 0 0 auto;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dp) .mk-ll-dlg__titulo:not(#mk-padrao) {
+  margin: 0;
+  overflow: hidden;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dp) .mk-ll-dlg__lotes:not(#mk-padrao) {
+  margin: 1px 0 0;
+  overflow: hidden;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Botões redondos brancos de 40 px (‹ Voltar; na tela cheia também o ✕ da raiz) */
+.mk-ll-dlg:has(> .mk-ll > .mk-dp) .mk-ll-dlg__redondo:not(.mk-ll-dlg__redondo--salvar):not(#mk-padrao) {
+  --mk-btn-bg: #fff;
+  --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.043);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: #373733 !important;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dp) .mk-ll-dlg__redondo:not(.mk-ll-dlg__redondo--salvar):not(#mk-padrao):active:not(:disabled) {
+  --mk-btn-bg: #F1F1EE;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dp) .mk-ll-dlg__redondo:not(.mk-ll-dlg__redondo--salvar):not(#mk-padrao) svg {
+  width: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  color: #373733 !important;
+  stroke-width: 2 !important;
+}
+
+/* ── Popup (A.1): desktop (e tablet com popupDesde="tablet") ──────────── */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp):not(#mk-padrao) {
+  width: min(880px, calc(100vw - 48px));
+  height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
+  max-height: calc(100vh - 64px);
+  max-height: calc(100dvh - 64px);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #F9F9F7;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) .mk-ll-dlg__head:not(#mk-padrao) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 14px 10px 18px;
+  border-bottom: 0;
+  background: #F9F9F7;
+}
+
+/* ‹ antes do título: o sistema zera a margem dos filhos do cabeçalho com !important */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) .mk-ll-dlg__head > .mk-ll-dlg__voltar:not(#mk-padrao) {
+  margin: 0 2px 0 -4px !important;
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) .mk-ll-dlg__txt:not(#mk-padrao) {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) .mk-ll-dlg__titulo:not(#mk-padrao) {
+  color: #292a2d;
+  font-size: 15px !important;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) .mk-ll-dlg__lotes:not(#mk-padrao) {
+  color: #64748b;
+  text-align: left;
+}
+
+/* ✕ do popup (PillBtn): 36 px branco, ícone 14 px #64748b traço 2,25. Dois ids:
+   base1-design.css pinta todo botão neutro de .cadastro-b1 com `:not(#mk-a):not(#mk-b)`. */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) > .mk-ll-dlg__head > .mk-ll-dlg__acoes .tb-btn.mg-act-cancelar:not(#mk-a):not(#mk-b) {
+  --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  color: #64748b !important;
+  transition: background-color 0.15s;
+}
+
+@media (hover: hover) {
+  .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) > .mk-ll-dlg__head > .mk-ll-dlg__acoes .tb-btn.mg-act-cancelar:not(#mk-a):not(#mk-b):hover {
+    background: #f8fafc !important;
+  }
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) > .mk-ll-dlg__head > .mk-ll-dlg__acoes .tb-btn.mg-act-cancelar:not(#mk-a):not(#mk-b) svg {
+  width: 14px !important;
+  height: 14px !important;
+  padding: 0 !important;
+  color: #64748b !important;
+  stroke-width: 2.25 !important;
+}
+
+/* ── Tela cheia (A.2): celular ────────────────────────────────────────── */
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp):not(#mk-padrao) {
+  border: 0;
+  border-radius: 0;
+  background: #F9F9F7;
+  box-shadow: none;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp) .mk-ll-dlg__head:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 4px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 8px 6px;
+  border-bottom: 0;
+  background: #F9F9F7;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp) .mk-ll-dlg__txt:not(#mk-padrao) {
+  min-width: 0;
+  text-align: center;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp) .mk-ll-dlg__titulo:not(#mk-padrao) {
+  color: #1f2328;
+  font-size: 16px !important;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp) .mk-ll-dlg__lotes:not(#mk-padrao) {
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Coluna da direita (72 px): vazia no Detalhes; o título continua no meio */
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp) .mk-ll-dlg__slot:not(#mk-padrao) {
+  display: flex;
+  justify-content: flex-end;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  padding-right: 6px;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp) .mk-dp-rodape {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+}
