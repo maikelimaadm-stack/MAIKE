@@ -40,7 +40,10 @@
  *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
  *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs; na D-PROD-209, sem DROP
  *     nenhum, só o DROP CONSTRAINT e o ADD CONSTRAINT do mesmo CHECK de Fornecedor,
- *     com TERCEIRIZADO no lugar de TAREFEIRO).
+ *     com TERCEIRIZADO no lugar de TAREFEIRO; na D-PROD-210, sem DROP TABLE, as 18
+ *     instruções em AbastecimentoBem — 7 ADD COLUMN, 2 delas NOT NULL DEFAULT, 2 DROP
+ *     NOT NULL, o UPDATE do centro de custo vindo do bem, o CHECK de status recriado,
+ *     3 CHECKs novos e 3 FKs compostas para tabelas antigas).
  *     Formato CONVERSÃO (D-PROD-200; a entrada tem `conversao` não vazia): os dados
  *     das tabelas que saem vão para as que entram ANTES do DROP. A ordem passa a ser
  *     guarda → `alter_antigas` (na D-PROD-200, nenhuma) → RESTO pela allowlist EXPAND
@@ -150,6 +153,11 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // Terceirizado: o CHECK "Fornecedor_funcionario_check" volta igual, com TERCEIRIZADO no lugar de TAREFEIRO. A guarda
   // aborta se algum parceiro tiver funcionario_tipo = TAREFEIRO. Nenhuma coluna, índice, tabela ou dado muda.
   '20261116100000_funcionario_tipo_terceirizado': '44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6',
+  // D-PROD-210: CONTRACT aprovado pelo proprietário (Fatia 5) — o abastecimento ligado à atividade: AbastecimentoBem ganha
+  // origem (ESTOQUE | EXTERNO), o vínculo com o apontamento e a atividade, o snapshot do centro de custo (o das linhas
+  // existentes vem do bem), da leitura anterior, do delta e do intervalo confiável; local e movimento passam a anuláveis;
+  // o CHECK de status é recriado e entram 3 CHECKs, 3 FKs e 3 índices. Nenhuma tabela criada ou apagada.
+  '20261116200000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -195,10 +203,11 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São nove, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * exige decisão. São dez, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
  * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre), D-PROD-208
  * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto) e
- * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto).
+ * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto) e D-PROD-210
+ * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -424,6 +433,42 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
     alter_antigas: Object.freeze([
       'ALTER TABLE "Fornecedor" DROP CONSTRAINT "Fornecedor_funcionario_check"',
       'ALTER TABLE "Fornecedor" ADD CONSTRAINT "Fornecedor_funcionario_check" CHECK (("funcionario_tipo" IS NULL OR "funcionario_tipo" IN (\'MENSALISTA\', \'DIARISTA\', \'TERCEIRIZADO\')) AND ("funcionario_custo_hora" IS NULL OR "funcionario_custo_hora" >= 0) AND ("funcionario_custo_diaria" IS NULL OR "funcionario_custo_diaria" >= 0))',
+    ]),
+  }),
+  // D-PROD-210 (Fatia 5): o abastecimento ligado à atividade. Sem DROP TABLE e sem tabela nova: depois da guarda (hash
+  // pinado; confere que as 5 tabelas existem, que nenhuma coluna nova existe, que local e movimento ainda são NOT NULL,
+  // que o CHECK de status ainda é o antigo e que os 3 CHECKs novos não existem, e trava "AbastecimentoBem" em ACCESS
+  // EXCLUSIVE), EXATAMENTE as 18 instruções abaixo, nesta ordem (texto pinado): 7 ADD COLUMN (origem NOT NULL DEFAULT
+  // 'ESTOQUE' e intervalo_confiavel NOT NULL DEFAULT false; as outras 5 anuláveis, sem DEFAULT), os 2 DROP NOT NULL, o
+  // UPDATE que traz o centro de custo do bem para as linhas existentes, o CHECK de status recriado (o estorno exigido só
+  // na origem ESTOQUE; o descritor o declara em `constraints_alargadas`), os 3 CHECKs novos (origem, apontamento ⇒
+  // atividade, leitura anterior/delta/intervalo) e as 3 FKs compostas pelo tenant e pela empresa, RESTRICT. O resto são
+  // os 3 CREATE INDEX não-únicos pela allowlist EXPAND, que continua recusando UNIQUE, ALTER COLUMN, DML e qualquer outra
+  // coisa em AbastecimentoBem. A guarda só cita as 5 tabelas.
+  '20261116200000_abastecimento_atividade': Object.freeze({
+    decisao: 'D-PROD-210',
+    guarda_sha256: '3f5a3a37959e571e3d2ee68cd2ec87e15138aa1b59903db0f13dbe4c90b502fa',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AbastecimentoBem', 'Atividade', 'AtividadeApontamento', 'CentroCusto', 'BemPatrimonial']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "origem" VARCHAR(8) NOT NULL DEFAULT \'ESTOQUE\'',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "atividade_id" VARCHAR(64)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "apontamento_id" VARCHAR(64)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "centro_custo_id" VARCHAR(64)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "medidor_leitura_anterior" DECIMAL(14,4)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "medidor_delta" DECIMAL(14,4)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "intervalo_confiavel" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "AbastecimentoBem" ALTER COLUMN "local_estoque_id" DROP NOT NULL',
+      'ALTER TABLE "AbastecimentoBem" ALTER COLUMN "movimentacao_estoque_id" DROP NOT NULL',
+      'UPDATE "AbastecimentoBem" AS a SET "centro_custo_id" = b."centro_custo_id" FROM "BemPatrimonial" AS b WHERE b."cliente_id" = a."cliente_id" AND b."empresa_id" = a."empresa_id" AND b."id" = a."bem_id" AND b."centro_custo_id" IS NOT NULL',
+      'ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_status_check"',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_status_check" CHECK (("status" = \'CONFIRMADO\' AND "movimentacao_estorno_id" IS NULL AND "cancelado_em" IS NULL AND "cancelado_por_usuario_id" IS NULL AND "motivo_cancelamento" IS NULL) OR ("status" = \'CANCELADO\' AND ("origem" = \'EXTERNO\' OR "movimentacao_estorno_id" IS NOT NULL) AND "cancelado_em" IS NOT NULL AND "motivo_cancelamento" IS NOT NULL AND char_length(btrim("motivo_cancelamento")) >= 3))',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_origem_check" CHECK (("origem" = \'ESTOQUE\' AND "local_estoque_id" IS NOT NULL AND "movimentacao_estoque_id" IS NOT NULL) OR ("origem" = \'EXTERNO\' AND "local_estoque_id" IS NULL AND "movimentacao_estoque_id" IS NULL AND "movimentacao_estorno_id" IS NULL))',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_atividade_check" CHECK ("apontamento_id" IS NULL OR "atividade_id" IS NOT NULL)',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_intervalo_check" CHECK ((("medidor_leitura_anterior" IS NULL AND "medidor_delta" IS NULL) OR ("medidor_leitura_anterior" IS NOT NULL AND "medidor_delta" IS NOT NULL AND "medidor_tipo" IN (\'HORIMETRO\', \'ODOMETRO\', \'CICLOS\') AND "medidor_leitura_anterior" >= 0 AND "medidor_delta" = "medidor_leitura" - "medidor_leitura_anterior")) AND ("intervalo_confiavel" = false OR ("medidor_leitura_anterior" IS NOT NULL AND "medidor_delta" IS NOT NULL AND "medidor_delta" > 0)))',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_atividade_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "atividade_id") REFERENCES "Atividade"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_apontamento_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_centro_custo_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_custo_id") REFERENCES "CentroCusto"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ]),
   }),
 });
