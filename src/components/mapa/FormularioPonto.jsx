@@ -3,6 +3,7 @@ import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   listarIconesPorTipoEntidade,
   listarTodosPontosSuplementacao,
+  listarPontosAtivos,
   listarTodosBebedouros,
   criarPonto,
   atualizarPonto,
@@ -205,6 +206,14 @@ export default function FormularioPonto({
     enabled: !!empresaSelecionadaId
   });
 
+  // Pontos de referência da empresa: dizem de quem é cada lugar, para um
+  // cocho/depósito no lugar de OUTRO ponto não ligar a este pelo nome.
+  const { data: pontosReferenciaForm = [] } = useQuery({
+    queryKey: ["pontos-referencia-form", empresaSelecionadaId],
+    queryFn: () => listarPontosAtivos(empresaSelecionadaId),
+    enabled: !!empresaSelecionadaId
+  });
+
   const { data: bebedourosForm = [] } = useQuery({
     queryKey: ["bebedouros-form", empresaSelecionadaId],
     queryFn: async () => {
@@ -220,8 +229,12 @@ export default function FormularioPonto({
   const ligacaoSuplementacao = useMemo(() => {
     if (!item) return { registro: null, ambiguo: false };
     if (item.detalhe_suplementacao?.id) return { registro: item.detalhe_suplementacao, ambiguo: false };
-    return resolverSuplementacaoDoPonto({ ...item, empresa_id: item.empresa_id ?? empresaSelecionadaId }, pontosSuplementacao);
-  }, [item, pontosSuplementacao, empresaSelecionadaId]);
+    return resolverSuplementacaoDoPonto(
+      { ...item, empresa_id: item.empresa_id ?? empresaSelecionadaId },
+      pontosSuplementacao,
+      { outrosPontos: pontosReferenciaForm }
+    );
+  }, [item, pontosSuplementacao, pontosReferenciaForm, empresaSelecionadaId]);
   const pontoSuplementacaoExistente = ligacaoSuplementacao.registro;
 
   // Bebedouro: SOMENTE pelo `ponto_referencia_id` (nome/sigla iguais não ligam).

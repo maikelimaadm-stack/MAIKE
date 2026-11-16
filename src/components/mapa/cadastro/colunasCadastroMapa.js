@@ -83,7 +83,7 @@ export const COLUNAS_PONTOS = [
  */
 export function pontosComDetalhes(pontos, pontosSuplementacao, bebedouros) {
   return (pontos || []).map((item) => {
-    const ligacao = resolverSuplementacaoDoPonto(item, pontosSuplementacao);
+    const ligacao = resolverSuplementacaoDoPonto(item, pontosSuplementacao, { outrosPontos: pontos });
     const bebedouro = tipoEhBebedouro(item.tipo) ? bebedourosDoPonto(item, bebedouros)[0] || null : null;
     return {
       ...item,

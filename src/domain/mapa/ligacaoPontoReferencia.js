@@ -84,9 +84,18 @@ const SEM_LIGACAO = Object.freeze({ registro: null, ambiguo: false, candidatos: 
  * ativos da empresa). O ponto pode trazer `ponto_suplementacao_id` explícito
  * (itens do cadastro em lote): ele vale se for da mesma empresa e categoria.
  *
- * @param {any} ponto ponto de referência (`nome`, `tipo`, `empresa_id`, `coordenadas`)
+ * Cocho/depósito que está EXATAMENTE no lugar de OUTRO ponto de referência
+ * ativo da mesma empresa e categoria pertence àquele ponto: não liga por nome a
+ * este (`opcoes.outrosPontos`). Caso real de produção: dois pontos "TESTE" de
+ * depósito e um único depósito, no lugar do segundo; sem isto o primeiro
+ * (sobra de um cadastro que falhou) também "achava" o depósito, e excluí-lo
+ * tentaria levar junto o depósito do outro.
+ *
+ * @param {any} ponto ponto de referência (`id`, `nome`, `tipo`, `empresa_id`, `coordenadas`)
  * @param {any[]} pontosSuplementacao
- * @param {{ tipo?: unknown }} [opcoes] `tipo` substitui `ponto.tipo` (ex.: tipo anterior numa edição)
+ * @param {{ tipo?: unknown, outrosPontos?: any[] }} [opcoes] `tipo` substitui `ponto.tipo`
+ *   (ex.: tipo anterior numa edição); `outrosPontos` são os pontos de referência
+ *   conhecidos (pode incluir o próprio ponto), para saber de quem é cada lugar.
  * @returns {ResultadoLigacao}
  */
 export const resolverSuplementacaoDoPonto = (ponto, pontosSuplementacao, opcoes = {}) => {
@@ -106,7 +115,21 @@ export const resolverSuplementacaoDoPonto = (ponto, pontosSuplementacao, opcoes 
   const nome = normalizarLigacao(ponto.nome);
   if (!nome) return SEM_LIGACAO;
 
-  const candidatos = lista.filter((sup) => compativel(sup) && normalizarLigacao(sup.nome_ponto) === nome);
+  const outrosPontos = (Array.isArray(opcoes.outrosPontos) ? opcoes.outrosPontos : []).filter(
+    (p) =>
+      p &&
+      p.ativo !== false &&
+      (ponto.id == null || p.id !== ponto.id) &&
+      (p.empresa_id ?? null) === (ponto.empresa_id ?? null) &&
+      categoriaSuplementacaoDoTipo(p.tipo) === categoria
+  );
+  const doLugarDeOutroPonto = (sup) =>
+    !mesmasCoordenadas(sup.coordenadas, ponto.coordenadas) &&
+    outrosPontos.some((p) => mesmasCoordenadas(p.coordenadas, sup.coordenadas));
+
+  const candidatos = lista.filter(
+    (sup) => compativel(sup) && normalizarLigacao(sup.nome_ponto) === nome && !doLugarDeOutroPonto(sup)
+  );
   if (candidatos.length === 0) return SEM_LIGACAO;
   if (candidatos.length === 1) return { registro: candidatos[0], ambiguo: false, candidatos };
 
