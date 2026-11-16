@@ -91,7 +91,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['CADFORMULACAO', 'base_consumo'],
   ['CADFORMULACAOREGRA', 'g_cab_dia'],
   // D-PROD-215: o Cadastro de Culturas lê e grava a tabela nova; sem a migration
-  // `20261116400000_cadculturas`, `/culturas` responde 500.
+  // `20261116500000_cadculturas`, `/culturas` responde 500.
   ['CADCULTURAS', 'altura_entrada_cm'],
 ]);
 

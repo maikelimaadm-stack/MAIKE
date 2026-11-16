@@ -149,7 +149,7 @@ export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_ativid
  * D-PROD-215 — a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS; referencia só Cliente e Empresa) não existia
  * no dia desta CONTRACT: fora da partida como as outras, sobe por último no GREEN. +1 tabela no fim.
  */
-export const NOME_CULTURAS = '20261116400000_cadculturas';
+export const NOME_CULTURAS = '20261116500000_cadculturas';
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',

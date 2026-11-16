@@ -16,7 +16,7 @@ Precedente executado: [`MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md`](./MAIKE-LEITURA
 
 | Item | Valor |
 |---|---|
-| Migration | `20261116400000_cadculturas` |
+| Migration | `20261116500000_cadculturas` |
 | Natureza | **expand-only**: 1 tabela NOVA — `CADCULTURAS` — com 1 índice, 3 uniques (todos começando por `cliente_id`), FKs compostas pelo tenant (Cliente e Empresa, `RESTRICT`), 2 CHECKs (`tipo` e alturas) e o bloco RLS/REVOKE dela. Nenhuma tabela existente é alterada, nenhum dado migrado ou semeado (a lista de referência é criada pela API, nunca pela migration) |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715` |
 | Bloco RLS (`DO_RLS_APROVADOS`) | `cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b` (mesmo corpo de sempre, lista nova) |
@@ -33,6 +33,19 @@ runtime antigo não conhece a tabela e segue igual com o banco migrado — **nã
 `Empresa`) — leituras seguem, escritas nelas esperam o fim da transação
 (milissegundos; a tabela nasce vazia). Uma espera além do `lock_timeout` de 5 s
 aborta tudo sem aplicar nada.
+
+**Ordem com a PR #303 (D-PROD-214).** A PR #303 (rascunho, outra sessão) traz a
+migration `20261116400000_abastecimento_fk_apontamento_atividade`. Esta pasta foi
+renomeada de `20261116400000_cadculturas` para **`20261116500000_cadculturas`**
+para não dividir o prefixo com ela (conteúdo idêntico, mesmo SHA-256). A guarda
+abaixo exige **62** concluídas com a anterior `20261116300000_abastecimento_atividade`,
+isto é, que esta suba **antes** da #303. Se a #303 for aplicada em produção
+primeiro, a guarda recusa (`63 concluídas`) e **precisa ser ajustada** antes de
+pedir o GO: 63 concluídas e a anterior passa a ser a
+`20261116400000_abastecimento_fk_apontamento_atividade` com o checksum dela. As
+duas são independentes (a #303 só toca AbastecimentoBem; esta só cria a
+CADCULTURAS), e o Prisma aplica pela ordem dos nomes: a #303 antes desta, se as
+duas estiverem pendentes.
 
 ## 1. Caminhos
 
@@ -80,7 +93,7 @@ BEGIN
   IF (SELECT system_identifier FROM pg_control_system()) <> 7692130048193495360 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
-  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261116400000_cadculturas') THEN
+  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261116500000_cadculturas') THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -105,7 +118,7 @@ END $guarda$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715', now(),
-        '20261116400000_cadculturas', NULL, NULL, now(), 1);
+        '20261116500000_cadculturas', NULL, NULL, now(), 1);
 COMMIT;
 ```
 
@@ -114,7 +127,7 @@ rascunho da sessão (`aplicar214.sql`); confira o SHA-256 do trecho da migration
 antes de usar. Qualquer falha desfaz tudo. Confirme pelo §4 que a tabela não
 existe e que não há linha nova, corrija a causa e peça novo GO.
 
-**Ensaio local (2026-11-16):** o script acima, com o `migration.sql` integral,
+**Ensaio local (2026-11-16; refeito depois do renome para `20261116500000_cadculturas`, mesmo resultado):** o script acima, com o `migration.sql` integral,
 num banco à parte com as 62 migrations da `main` (`prisma migrate deploy` de uma
 cópia com as pastas até a `20261116300000_abastecimento_atividade`: 62 / 0, 94
 tabelas): com o `system_identifier` de produção recusou
@@ -130,7 +143,7 @@ Database schema is up to date!", o `migrate diff --exit-code` contra o
 
 ```sql
 SELECT migration_name, checksum, rolled_back_at, applied_steps_count FROM _prisma_migrations
- WHERE migration_name = '20261116400000_cadculturas';  -- 1 linha, checksum pinado, null, 1
+ WHERE migration_name = '20261116500000_cadculturas';  -- 1 linha, checksum pinado, null, 1
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 63, 0
 SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class

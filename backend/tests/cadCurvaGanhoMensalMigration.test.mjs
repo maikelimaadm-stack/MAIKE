@@ -73,7 +73,7 @@
  * D-PROD-210: a CONTRACT `20261116200000_formulacao_base_consumo` (base do consumo; altera as 3 tabelas das
  * Formulações, vazias), ainda posterior, também: 61/0 e as mesmas 94 tabelas.
  * D-PROD-211: a CONTRACT `20261116300000_abastecimento_atividade` (o abastecimento ligado à atividade), a de nome mais
- * posterior, do mesmo jeito: 62/0 e as mesmas 94 tabelas. D-PROD-215: a EXPAND `20261116400000_cadculturas` (tabela
+ * posterior, do mesmo jeito: 62/0 e as mesmas 94 tabelas. D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela
  * nova CADCULTURAS), a de nome mais posterior, fica fora da partida e sobe por último no alvo local: 63/0 e 95 tabelas.
  *
  * As funções seguem as do ensaio da D-PROD-183
@@ -127,7 +127,7 @@ const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-211: a CONTRACT do abastecimento ligado à atividade, a de nome mais posterior (ver o cabeçalho). */
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas, a de nome mais posterior (ver o cabeçalho); não pede decisão. */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 const POSTERIORES = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort());
 /** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
 const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200'], [NOME_PARCEIRO, 'D-PROD-208'], [NOME_TIPO, 'D-PROD-209'], [NOME_BASE, 'D-PROD-210'], [NOME_ABASTECIMENTO, 'D-PROD-211']]);

@@ -120,7 +120,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     // também ficam fora da partida e sobem no GREEN; a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210 (base do
     // consumo nas Formulações) e, por último, a D-PROD-211 (o abastecimento ligado à atividade: muda a AbastecimentoBem
     // que esta recria); D-PROD-215: a EXPAND do Cadastro de Culturas (CADCULTURAS), a de nome mais recente, por último.
-    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116200000_formulacao_base_consumo', '20261116300000_abastecimento_atividade', '20261116400000_cadculturas']);
+    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116200000_formulacao_base_consumo', '20261116300000_abastecimento_atividade', '20261116500000_cadculturas']);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
     assert.deepEqual(await donoEAcl(db, TABELAS_DEPOIS_DO_CONTRACT), []);

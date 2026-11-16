@@ -34,7 +34,7 @@
  * duas (exit 2) até elas subirem. O FT-08 prova a ordem de produção, num banco à parte: esta pelo runner do dia, depois
  * a D-PROD-210 pelo runner do dia dela (espelho até ela; 61/0) e, por último, pelo runner do repositório com a decisão
  * exata, a D-PROD-211 (62/0, 94 tabelas, `migrate diff` vazio); no caminho B, o runner do repositório (alvo local)
- * sobe as duas depois do envelope e o `migrate diff` fica vazio. D-PROD-215: a EXPAND `20261116400000_cadculturas`
+ * sobe as duas depois do envelope e o `migrate diff` fica vazio. D-PROD-215: a EXPAND `20261116500000_cadculturas`
  * (tabela nova CADCULTURAS), ainda posterior, não pede decisão: no último passo do FT-08 e no caminho B o runner do
  * repositório a sobe junto, depois da D-PROD-211 (63/0, 95 tabelas, `migrate diff` vazio).
  */
@@ -77,7 +77,7 @@ const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-211: a CONTRACT do abastecimento ligado à atividade, de nome posterior (ver o cabeçalho); fica fora do dia desta. */
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS), ainda posterior; o runner do repositório a sobe sem decisão. */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;

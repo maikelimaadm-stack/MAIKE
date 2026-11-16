@@ -65,7 +65,7 @@
  * ela (no dia dela), a D-PROD-210 pelo espelho até ela e a D-PROD-211 pelo runner do repositório, cada uma com a decisão
  * DELA; as constraints e os índices que a D-PROD-211 troca ou cria em AbastecimentoBem ficam fora da conta "o resto
  * intacto" (`DO_ABASTECIMENTO`). No banco do runner as duas linhas de contagem ficam 62 / 0 e 94. Nos runners locais,
- * as quatro CONTRACT sobem juntas, por último. D-PROD-215: a EXPAND `20261116400000_cadculturas` (tabela nova
+ * as quatro CONTRACT sobem juntas, por último. D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela nova
  * CADCULTURAS), ainda posterior, não pede decisão: sobe no passo do runner do repositório, depois da D-PROD-211, e as
  * contagens ficam 63 / 0 e 95.
  */
@@ -131,7 +131,7 @@ const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-211: a CONTRACT do abastecimento ligado à atividade, ainda posterior (ver o cabeçalho); o que ela troca ou cria em AbastecimentoBem. */
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS), ainda posterior; o runner do repositório a sobe sem decisão. */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 const DO_ABASTECIMENTO = /^AbastecimentoBem_(status_check|origem_check|atividade_check|intervalo_check|atividade_fkey|apontamento_fkey|centro_custo_fkey|atividade_idx|apontamento_idx|centro_custo_idx):/;
 /** Das migrations posteriores (D-PROD-203, D-PROD-205, D-PROD-206, D-PROD-207, D-PROD-208, D-PROD-210 e D-PROD-211): constraint, índice, `tabela:política` ou tabela. */
 const dasPosteriores = (l) => daFormulacao(l) || DA_MAO_OBRA.test(l) || DO_PARCEIRO.test(l) || DO_ABASTECIMENTO.test(l) || NOVAS_MAO_OBRA.includes(l);

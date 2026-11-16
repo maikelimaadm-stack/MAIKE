@@ -31,7 +31,7 @@
  * do DDL; o envelope aplica (61 → 62, checksum = SHA-256 do arquivo, applied_steps_count 1, o mesmo schema do runner),
  * o Prisma não vê pendência, `migrate diff` vazio e o postcheck APLICADA; repetir o envelope recusa.
  *
- * D-PROD-215: a EXPAND `20261116400000_cadculturas` (o Cadastro de Culturas, tabela nova CADCULTURAS), de nome
+ * D-PROD-215: a EXPAND `20261116500000_cadculturas` (o Cadastro de Culturas, tabela nova CADCULTURAS), de nome
  * posterior, muda o schema.prisma. Este teste fica NO DIA DA D-PROD-211: o runner oficial roda sobre um espelho do
  * repositório com só as pastas até esta (`runnerDoDia`, ver `espelhoDoRunner.mjs`), e o `migrate diff` contra o
  * schema.prisma de hoje acusa só a diferença da CADCULTURAS (exit 2) até a D-PROD-215 subir. O AA-08 prova a ordem de
@@ -74,7 +74,7 @@ const CHECKSUM_ANTERIOR = 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5
 /** Pastas do repositório: a partida é o que vem ANTES desta; o GREEN, até esta (no dia da D-PROD-211). */
 const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 /** D-PROD-215: a EXPAND do Cadastro de Culturas, de nome posterior (ver o cabeçalho); fica fora do dia desta. */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;

@@ -80,7 +80,7 @@
  * D-PROD-211: a CONTRACT `20261116300000_abastecimento_atividade` (colunas, CHECKs e FKs em AbastecimentoBem; não
  * toca CADCATEGORIA nem as Formulações), ainda posterior, entra na partida por último: partida 56, 62 migrations, as
  * mesmas tabelas.
- * D-PROD-215: a EXPAND `20261116400000_cadculturas` (tabela nova CADCULTURAS; não existia no dia desta) fica FORA da
+ * D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela nova CADCULTURAS; não existia no dia desta) fica FORA da
  * partida, como a da Leitura de cocho, e sobe no GREEN por último: partida 56, 63 migrations, 95 tabelas no fim.
  */
 import { describe, test, before, after } from 'node:test';
@@ -124,7 +124,7 @@ const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
 /** D-PROD-210: a CONTRACT da base do consumo, fora da partida; sobe fora de ordem com a D-PROD-203 (ver o cabeçalho). */
 const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas, de nome posterior, também fica fora da partida (ver o cabeçalho). */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS]);
 /** D-PROD-202: a EXPAND das linhas de produto e de máquina, de nome posterior, sobe na partida (ver o cabeçalho). */
 const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';

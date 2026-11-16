@@ -79,7 +79,7 @@
  * D-PROD-211: a CONTRACT `20261116300000_abastecimento_atividade` (o abastecimento ligado à atividade; não toca
  * TipoAtividade nem as Formulações) sobe do mesmo jeito, fora de ordem pelo Prisma direto, depois da D-PROD-210 (as
  * mesmas tabelas): 62 / 0 e 94 no banco do runner.
- * D-PROD-215: a EXPAND `20261116400000_cadculturas` (tabela nova CADCULTURAS; não toca TipoAtividade) não existia no
+ * D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela nova CADCULTURAS; não toca TipoAtividade) não existia no
  * dia desta: fica para o runner, como a da Leitura de cocho, e sobe por último: 63 / 0 e 95 no banco do runner.
  */
 import { describe, test, before, after } from 'node:test';
@@ -137,7 +137,7 @@ const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
 const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** A tabela das EXPAND que o runner aplica depois desta e que cria tabela: a da Leitura de cocho (D-PROD-205). */
 /** D-PROD-215: a EXPAND do Cadastro de Culturas, de nome posterior; fica para o runner, por último (ver o cabeçalho). */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 const TABELAS_POSTERIORES = Object.freeze(['LEITURACOCHO', 'CADCULTURAS']);
 const POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA && n !== NOME_CULTURAS));
 /** Migrations concluídas na ordem REAL de aplicação (finished_at). */

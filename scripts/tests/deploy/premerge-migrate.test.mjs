@@ -289,7 +289,7 @@ const CONTRACT_AB = {
   ...VAZIOS_199,
 };
 /** D-PROD-215 — Cadastro de Culturas: EXPAND puro, só a tabela nova CADCULTURAS (nenhuma tabela antiga alterada, nenhum DML). */
-const NOME_CU = '20261116400000_cadculturas';
+const NOME_CU = '20261116500000_cadculturas';
 const NOVAS_CU = ['CADCULTURAS'];
 const DO_CU = 'cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b';
 /** Variação do arquivo CONTRACT `nome` sob o MESMO nome, com manifesto sintético: o checksum passa e só a estrutura decide. */
@@ -4089,7 +4089,7 @@ test('B30m (D-PROD-211/D-PROD-210): ordem de produção no dia da D-PROD-211 —
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 63);
   // No dia da D-PROD-211 o abastecimento ligado à atividade era a pasta de nome mais recente; o Cadastro de Culturas
-  // (D-PROD-215, `20261116400000_cadculturas`, ver B31k) veio depois dele, em release seguinte: 62 pastas.
+  // (D-PROD-215, `20261116500000_cadculturas`, ver B31k) veio depois dele, em release seguinte: 62 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_AB);
   assert.equal(locais.length, 62);
   assert.ok(todas.some((l) => l.nome === NOME_CU) && !locais.some((l) => l.nome === NOME_CU), NOME_CU);

@@ -151,7 +151,7 @@ export const NOME_BASE = '20261116200000_formulacao_base_consumo';
  * D-PROD-215: a EXPAND do Cadastro de Culturas (1 tabela nova, CADCULTURAS; referencia só Cliente e Empresa), de nome
  * ainda posterior, não existia no dia desta CONTRACT: fora da partida, sobe no GREEN por último. +1 tabela no GREEN.
  */
-export const NOME_CULTURAS = '20261116400000_cadculturas';
+export const NOME_CULTURAS = '20261116500000_cadculturas';
 export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })

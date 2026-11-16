@@ -71,7 +71,7 @@
  * tabelas que esta cria), ainda posterior, do mesmo jeito: a D-PROD-210 passa a subir pelo espelho até ela e a
  * D-PROD-211 pelo runner do repositório com a decisão DELA: 62 / 0 e 94. Nos runners locais, as quatro sobem por último.
  *
- * D-PROD-215: a EXPAND `20261116400000_cadculturas` (tabela nova CADCULTURAS), ainda posterior, não pede decisão:
+ * D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela nova CADCULTURAS), ainda posterior, não pede decisão:
  * sobe no mesmo passo do runner do repositório, depois da D-PROD-211: 63 / 0 e 95.
  */
 import { describe, test, before, after } from 'node:test';
@@ -133,7 +133,7 @@ const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-211: a CONTRACT do abastecimento ligado à atividade, ainda posterior (ver o cabeçalho). */
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS), ainda posterior; o runner do repositório a sobe sem decisão. */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 /** As tabelas das EXPAND posteriores (D-PROD-202, D-PROD-203, D-PROD-205, D-PROD-206 e D-PROD-207; a D-PROD-206 só põe uma coluna), que só existem nos bancos em que o runner as aplicou. */
 const NOVAS_POSTERIORES = Object.freeze([...NOVAS_LINHAS, ...TABELAS_FORMULACOES, 'LEITURACOCHO', ...NOVAS_MAO_OBRA]);
 const TOTAL_MIGRATIONS = PASTAS.length;

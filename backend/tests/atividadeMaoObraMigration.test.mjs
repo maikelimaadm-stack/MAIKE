@@ -43,7 +43,7 @@
  * CONTRACT `20261116300000_abastecimento_atividade` (AbastecimentoBem), ainda posteriores, mudam o schema.prisma: no fim
  * do AM-08 (59/0) o `migrate diff` acusa só as diferenças delas (exit 2); a ordem com a D-PROD-210 e a D-PROD-211 é
  * provada em atividadeMaoObraParceiroMigration (MP-08) e em funcionarioTipoTerceirizadoMigration (FT-08). D-PROD-215: a
- * EXPAND `20261116400000_cadculturas` (tabela nova CADCULTURAS), ainda posterior, também entra no `migrate diff` do fim
+ * EXPAND `20261116500000_cadculturas` (tabela nova CADCULTURAS), ainda posterior, também entra no `migrate diff` do fim
  * do AM-08; a ordem com ela é provada em abastecimentoAtividadeMigration (AA-08).
  */
 import { describe, test, before, after } from 'node:test';
@@ -88,7 +88,7 @@ const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-211: a CONTRACT do abastecimento ligado à atividade, ainda posterior (ver o cabeçalho). */
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS), ainda posterior; o runner do repositório a sobe sem decisão. */
-const NOME_CULTURAS = '20261116400000_cadculturas';
+const NOME_CULTURAS = '20261116500000_cadculturas';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
