@@ -511,8 +511,13 @@ export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId
  * D-PROD-210 (Fatia 5): os ABASTECIMENTOS confirmados ligados aos apontamentos
  * também caem (estorno exato no ESTOQUE, só o status no EXTERNO), pelo mesmo
  * caminho do cancelamento do abastecimento, com o motivo derivado — DEPOIS das
- * de máquina e ANTES das de produto: travam Bem → Produto, e o estorno das de
- * produto já trava Produto (sem inversão). Devolve as contagens.
+ * de máquina e ANTES das de produto. Travas: Bens (ordenados) → AbastecimentoBem
+ * → UM `travarProdutosEstoque` com a UNIÃO ordenada dos combustíveis (ESTOQUE)
+ * e dos produtos das linhas de produto confirmadas → lotes/movimentos; o
+ * estorno das linhas de produto, depois, só retrava produtos que a transação já
+ * tem (nenhuma segunda ordem de Produto, nenhuma inversão Produto → Bem). Sem
+ * abastecimento ligado, o estorno das linhas trava o conjunto delas sozinho.
+ * Devolve as contagens.
  * @param {any} tx
  * @param {{ clienteId: string, empresaId: string, atividadeId: string, apontamentoIds: string[], usuarioId: string|null,
  *   motivo: string, agora: Date, hoje?: string, contexto?: any, origem: 'APONTAMENTO'|'ATIVIDADE' }} pedido
@@ -520,12 +525,19 @@ export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId
 const cancelarLinhasDosApontamentos = async (tx, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, contexto, origem }) => {
   if (!apontamentoIds.length) return { maquinas: 0, produtos: 0, mao_obra: 0, servicos: 0, abastecimentos: 0 };
   const maquinas = await cancelarLinhasMaquinaDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
-  const abastecimentos = await cancelarAbastecimentosDosApontamentos(tx, contexto, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, hoje, origem });
+  // Os produtos das linhas de produto CONFIRMADO: a cascata dos abastecimentos os trava JUNTO com os combustíveis,
+  // num conjunto ordenado só (uma ordem global de Produto; o estorno das linhas, depois, só retrava o que já tem).
+  const produtosDasLinhas = (await tx.atividadeApontamentoProduto.findMany({
+    where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: 'CONFIRMADO' },
+    select: { produto_id: true },
+    distinct: ['produto_id'],
+  })).map((/** @type {{ produto_id: string }} */ l) => l.produto_id);
+  const abastecimentos = await cancelarAbastecimentosDosApontamentos(tx, contexto, {
+    clienteId, empresaId, apontamentoIds, usuarioId, motivo, hoje, origem, produtosAdicionais: produtosDasLinhas,
+  });
   const maoObra = await cancelarLinhasMaoObraDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
   const servicos = await cancelarLinhasServicoDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
-  const temProduto = (await tx.atividadeApontamentoProduto.count({
-    where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: 'CONFIRMADO' },
-  })) > 0;
+  const temProduto = produtosDasLinhas.length > 0;
   if (!temProduto) return { maquinas, produtos: 0, mao_obra: maoObra, servicos, abastecimentos };
   if (!contexto?.auth) throw new Error('cancelamento em cascata: o estorno das linhas de produto precisa do contexto da requisição');
   const produtos = await cancelarLinhasProdutoDosApontamentos(tx, contexto, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, origem });

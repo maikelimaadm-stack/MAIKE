@@ -128,6 +128,16 @@ describe('origem EXTERNO (posto de estrada)', () => {
     assert.equal(await fotoAbastecimento(s.c), foto);
   });
 
+  test('custo unitário acima do limite das colunas (total ÷ quantidade minúscula): prévia e confirmação bloqueiam com 422, nada gravado', async () => {
+    const s = await montarLinhasCusto(app);
+    const foto = await fotoAbastecimento(s.c);
+    const corpo = corpoExterno(s, { custo_total: '1000000.00', quantidade: '0.0001' });
+    const pv = await A.ok(A.previa(s.token, semOperacao(corpo)));
+    assert.deepEqual(pv.bloqueios.map((b) => [b.code, b.field, b.reason]), [['OPERACAO_VALORES_INVALIDOS', 'custo_total', 'valor_excede_limite_estoque']]);
+    assert.deepEqual(erro(await A.confirmar(s.token, corpo)), [422, 'OPERACAO_VALORES_INVALIDOS', 'custo_total', 'valor_excede_limite_estoque']);
+    assert.equal(await fotoAbastecimento(s.c), foto);
+  });
+
   test('prévia do EXTERNO: sem FIFO nem estoque; sem custo ainda → custo nulo; com custo → custo unitário', async () => {
     const s = await montarLinhasCusto(app);
     const sem = await A.ok(A.previa(s.token, semOperacao(corpoExterno(s, { custo_total: null }))));
@@ -343,6 +353,39 @@ describe('cascata: cancelar o apontamento ou a atividade', () => {
     assert.equal(await estoqueAtual(s.diesel.id), estoqueInicial, 'estoque de volta');
     const au = await p.auditLog.findMany({ where: { cliente_id: s.c, acao: 'abastecimento_bem.cancelar' } });
     assert.deepEqual(au.filter((a) => a.dados_novos.cascata?.origem === 'ATIVIDADE').map((a) => a.entidade_id).sort(), [a1.id, a2.id].sort());
+  });
+
+  test('corrida: cascata com combustível + linha de produto em ordem "ruim" de ids × lançamento que trava os dois produtos — sem deadlock', async () => {
+    const s = await montarLinhasCusto(app);
+    const p = prisma();
+    // combustível criado DEPOIS do herbicida (cuid crescente): id do combustível > id do produto da linha
+    const dieselNovo = await p.produto.create({
+      data: { cliente_id: s.c, empresa_id: s.e1.id, numero_produto: `DN-${Date.now()}`, nome_produto: 'Diesel S500 (L)', unidade_principal_estoque: 'L' },
+    });
+    assert.ok(s.herbicida.id < dieselNovo.id, 'a ordem que expunha a inversão');
+    await s.lote(s.e1, dieselNovo, s.local, { quantidade: '500.0000', custo: '5.0000', dia: '2027-06-01' });
+    const aceite = await s.patchAceites(s.trator, [[s.diesel.id, s.dieselKg.id, dieselNovo.id]]);
+    assert.equal(aceite.statusCode, 200, aceite.body);
+    const outra = await s.abrir();
+    for (let i = 0; i < 4; i += 1) {
+      const ap = await s.apontar({
+        data_operacional: '2027-06-10', operation_id: opId(),
+        produtos: [{ produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '1' }],
+      });
+      await A.confirmarOk(s.token, corpoAbastecimento(s, { apontamento_id: ap.id, produto_id: dieselNovo.id, quantidade: '5', medidor_leitura: `${1550 + i}`, tanque_cheio: false }));
+      const versao = await s.versaoDe(ap.id);
+      const [k, l] = await Promise.all([
+        s.H.req('POST', `${s.baseAp(s.atividade)}/${ap.id}/cancelar`, s.token, { empresa_id: s.e1.id, versao, motivo: 'corrida de travas' }),
+        // trava {herbicida, dieselNovo} em ordem (o diesel é recusado depois, como combustível: só a trava importa)
+        s.lancarAp({ operation_id: opId(), produtos: [
+          { produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '1' },
+          { produto_id: dieselNovo.id, local_estoque_id: s.local.id, quantidade: '1' },
+        ] }, { a: outra }),
+      ]);
+      assert.equal(k.statusCode, 200, k.body);
+      assert.ok(l.statusCode < 500 && l.json().code !== 'CONCURRENCY_CONFLICT', l.body);
+      assert.equal(await p.abastecimentoBem.count({ where: { cliente_id: s.c, apontamento_id: ap.id, status: 'CONFIRMADO' } }), 0);
+    }
   });
 
   test('corrida: confirmar ligado × cancelar o apontamento — sem deadlock e sem abastecimento confirmado em apontamento cancelado', async () => {

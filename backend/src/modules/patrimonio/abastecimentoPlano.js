@@ -482,6 +482,10 @@ export const planejarAbastecimento = (entrada, estado) => {
         custo_total: custoExterno ? custoExterno.toFixed(CASAS_CUSTO) : null,
         custo_unitario: custoExterno && quantidadePositiva ? arredondar(custoExterno.dividedBy(quantidade), CASAS_CUSTO).toFixed(CASAS_CUSTO) : null,
       };
+  // B8c (D-PROD-210) — EXTERNO: o custo unitário (total ÷ quantidade) cabe nas colunas Decimal(14,4) do estoque.
+  if (!doEstoque && custo.custo_unitario !== null && (dec(custo.custo_unitario).gt(LIMITE_ESTOQUE) || dec(/** @type {string} */ (custo.custo_total)).gt(LIMITE_ESTOQUE))) {
+    bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'custo_total', 'valor_excede_limite_estoque', { custo_total: custo.custo_total, custo_unitario: custo.custo_unitario }));
+  }
   const snapshot = snapshotDoMedidor(tipoMedidor, entrada.medidor_leitura, medidor.anterior);
 
   const plano = {

@@ -51,7 +51,8 @@
  * O cancelamento direto: Empresa FOR SHARE → (ligado) Atividade FOR UPDATE, só
  * ABERTA → Bem FOR UPDATE → AbastecimentoBem FOR UPDATE → Produto → lotes → movimentos. A cascata: Empresa FOR SHARE →
  * Atividade FOR UPDATE (quem chama) → Bens FOR UPDATE (ordenados) →
- * AbastecimentoBem FOR UPDATE → Produtos (todos, ordenados) → lotes → movimentos,
+ * AbastecimentoBem FOR UPDATE → Produtos (UMA rodada ordenada: combustíveis +
+ * produtos das linhas de produto da cascata) → lotes → movimentos,
  * e roda ANTES do estorno das linhas de produto (que travam Produto): nenhuma
  * inversão Produto → Bem.
  */
@@ -796,16 +797,18 @@ export const motivoDaCascata = ({ apontamento, atividade, motivo, origem }) => {
  *
  * Quem chama já tomou Empresa FOR SHARE e Atividade FOR UPDATE (nenhum
  * abastecimento novo entra no apontamento no meio). Aqui: Bens FOR UPDATE
- * (ordenados) → AbastecimentoBem FOR UPDATE (ordenados) → Produtos (todos de
- * uma vez, ordenados) → por abastecimento, lotes e movimentos do motor. Chame
- * ANTES do estorno das linhas de produto (que já travariam Produto antes do Bem).
+ * (ordenados) → AbastecimentoBem FOR UPDATE (ordenados) → Produtos (UM
+ * `travarProdutosEstoque` com a união ordenada dos combustíveis e dos
+ * `produtosAdicionais` — os das linhas de produto que quem chama estorna em
+ * seguida) → por abastecimento, lotes e movimentos do motor. Chame ANTES do
+ * estorno das linhas de produto (que já travariam Produto antes do Bem).
  * @param {any} tx
  * @param {{ requestId?: string, auth: import('../../shared/auth/authContext.js').AuthContext }|undefined} contexto
  * @param {{ clienteId: string, empresaId: string, apontamentoIds: string[], usuarioId: string|null, motivo: string, hoje?: string,
- *   origem: 'APONTAMENTO'|'ATIVIDADE' }} pedido
+ *   origem: 'APONTAMENTO'|'ATIVIDADE', produtosAdicionais?: string[] }} pedido
  * @returns {Promise<number>} quantos foram cancelados
  */
-export const cancelarAbastecimentosDosApontamentos = async (tx, contexto, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, hoje, origem }) => {
+export const cancelarAbastecimentosDosApontamentos = async (tx, contexto, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, hoje, origem, produtosAdicionais = [] }) => {
   if (!Array.isArray(apontamentoIds) || !apontamentoIds.length) return 0;
   const onde = { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: STATUS_CONFIRMADO };
   const alvos = await tx.abastecimentoBem.findMany({ where: onde, select: { id: true, bem_id: true, produto_id: true, origem: true }, orderBy: { id: 'asc' } });
@@ -816,7 +819,9 @@ export const cancelarAbastecimentosDosApontamentos = async (tx, contexto, { clie
   }
   const ids = alvos.map((a) => a.id);
   await tx.$queryRaw`SELECT id FROM "AbastecimentoBem" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND id = ANY(${ids}::text[]) ORDER BY id FOR UPDATE`;
-  await travarProdutosEstoque(tx, clienteId, empresaId, alvos.filter((a) => a.origem !== ORIGEM_EXTERNO).map((a) => a.produto_id));
+  // UM conjunto ordenado de Produto: os combustíveis (ESTOQUE) e os `produtosAdicionais` de quem chama (os das
+  // linhas de produto que a cascata estorna depois) — uma ordem global, sem duas rodadas de travas.
+  await travarProdutosEstoque(tx, clienteId, empresaId, [...alvos.filter((a) => a.origem !== ORIGEM_EXTERNO).map((a) => a.produto_id), ...produtosAdicionais]);
   const dia = hoje ?? (await hojeDaEmpresa(tx, clienteId, empresaId)).hoje;
   // Relidos sob as travas: um cancelamento direto que passou antes já os tirou do CONFIRMADO.
   const linhas = await tx.abastecimentoBem.findMany({
