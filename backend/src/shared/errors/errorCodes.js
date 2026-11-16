@@ -343,6 +343,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
   },
+  // D-PROD-215 — Cadastro de Culturas da fazenda (tabela CADCULTURAS).
+  CULTURA_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica cultura desta fazenda neste tenant',
+  },
+  CULTURA_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe cultura com este nome nesta fazenda',
+  },
+  CULTURA_CODIGO_CONFLICT: {
+    http: 409,
+    meaning: 'já existe cultura com este código nesta fazenda',
+  },
   // D-PROD-207 — cadastro de Serviço da fazenda (Fatia 4 do Lançamento de Atividades).
   // D-PROD-208: o código 404 do cadastro de Funcionário saiu com ele (o funcionário é papel do parceiro).
   SERVICO_NOT_FOUND: {

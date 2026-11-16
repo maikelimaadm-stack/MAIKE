@@ -76,6 +76,8 @@ model Cliente {
   regrasFormulacao       FormulacaoRegraCategoria[]
   // D-PROD-205 — leituras de cocho (escore, acesso, estrutura); tabela LEITURACOCHO.
   leiturasCocho          LeituraCocho[]
+  // D-PROD-215 — culturas (pastagem, capineira, lavoura, silagem) por fazenda; tabela CADCULTURAS.
+  culturas               Cultura[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -649,6 +651,43 @@ model CadEstacao {
   @@index([cliente_id, empresa_id, ativo])
   @@index([cliente_id, empresa_id, data_inicio])
   @@map("CADESTACOES")
+}
+
+// ---------------------------------------------------------------------------
+// Cultura — Cadastro de Culturas da fazenda (D-PROD-215), tabela física
+// "CADCULTURAS" (nome fixado pelo proprietário). Cada cultura tem um código de
+// numeração da fazenda ("001", "002"…), o tipo (PASTAGEM | CAPINEIRA | LAVOURA |
+// SILAGEM, por CHECK), o nome em MAIÚSCULAS, espécie e cultivar opcionais e as
+// alturas de referência de pastejo (entrada e saída, em cm; anuláveis, > 0 e
+// saída < entrada quando as duas existem, por CHECK). Primeira fatia SEM vínculo:
+// nada referencia CADCULTURAS ainda (a Área continua com o texto de antes); as
+// únicas FKs são o escopo (Cliente e Empresa). A lista de referência é criada
+// pelo serviço (rota de comando idempotente), nunca por DML de migration.
+// ---------------------------------------------------------------------------
+model Cultura {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  empresa_id        String   @db.VarChar(64)
+  codigo            String   @db.VarChar(16)
+  tipo              String   @db.VarChar(16)
+  nome              String   @db.VarChar(120)
+  especie           String?  @db.VarChar(120)
+  cultivar          String?  @db.VarChar(120)
+  altura_entrada_cm Decimal? @db.Decimal(6, 1)
+  altura_saida_cm   Decimal? @db.Decimal(6, 1)
+  observacoes       String?  @db.VarChar(2000)
+  ativo             Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, codigo])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@map("CADCULTURAS")
 }
 
 // ---------------------------------------------------------------------------
@@ -1315,6 +1354,8 @@ model Empresa {
   formulacoes            Formulacao[]
   // D-PROD-205 — leituras de cocho da fazenda.
   leiturasCocho          LeituraCocho[]
+  // D-PROD-215 — culturas da fazenda.
+  culturas               Cultura[]
   // D-PROD-190 — apontamentos de atividade da fazenda.
   atividades            Atividade[]
   atividadeApontamentos AtividadeApontamento[]

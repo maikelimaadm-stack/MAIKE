@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   CloudSun,
+  Sprout,
   Coins,
   Droplet,
   Droplets,
@@ -46,6 +47,7 @@ export const ICONE_TELA = {
   CadastroSetores: Layers,
   CategoriasManejo: Tag,
   Estacoes: CloudSun, // D-PROD-188
+  Culturas: Sprout, // D-PROD-215
   CurvasGanho: TrendingUp, // D-PROD-189
   Formulacoes: FlaskConical, // D-PROD-203
   Bebedouros: Droplet,

@@ -44,6 +44,7 @@ import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
 import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoutes.js';
+import { registrarCulturaRoutes } from './modules/culturas/culturaRoutes.js';
 import { registrarLeituraCochoRoutes } from './modules/leiturasCocho/leituraCochoRoutes.js';
 import { registrarServicoRoutes } from './modules/servicos/servicoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
@@ -220,6 +221,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarCurvaGanhoRoutes);
   // D-PROD-203 — Formulações de suplemento da fazenda (tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA).
   await app.register(registrarFormulacaoRoutes);
+  // D-PROD-215 — Cadastro de Culturas da fazenda (tabela CADCULTURAS).
+  await app.register(registrarCulturaRoutes);
   // D-PROD-205 — Leitura de cocho (escore, acesso, estrutura; tabela LEITURACOCHO). Não movimenta estoque.
   await app.register(registrarLeituraCochoRoutes);
   // D-PROD-207 (Fatia 4) — cadastro de Serviço da fazenda (sem DELETE). D-PROD-208: o Funcionário

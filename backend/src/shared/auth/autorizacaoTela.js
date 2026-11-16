@@ -46,6 +46,8 @@ export const TELAS = Object.freeze({
   CURVAS_GANHO: Object.freeze({ modulo: 'manejo', tela: 'pec-curvas-ganho' }),
   // D-PROD-203 — mesmo id do item de menu `pec-formulacoes`. Sem concessão automática.
   FORMULACOES: Object.freeze({ modulo: 'manejo', tela: 'pec-formulacoes' }),
+  // D-PROD-215 — mesmo id do item de menu `pec-culturas`. Sem concessão automática.
+  CULTURAS: Object.freeze({ modulo: 'manejo', tela: 'pec-culturas' }),
   PRODUTOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-produtos' }),
   CATEGORIAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-categorias' }),
   MARCAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-marcas' }),
