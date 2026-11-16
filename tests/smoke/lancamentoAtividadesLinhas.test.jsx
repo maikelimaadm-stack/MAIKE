@@ -37,7 +37,7 @@
  *    parceiro, custos do cadastro dele) ou terceiro (prestador de serviço, custo
  *    unitário sempre digitado e obrigatório); seletor `/atividades-opcoes/mao-obra`;
  *    corpo com `parceiro_id`; totalizador marca o terceiro;
- *  - Fatia 5 (docs/engineering/MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md §3, D-PROD-210): o bloco "Abastecimentos" de
+ *  - Fatia 5 (docs/engineering/MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md §3, D-PROD-211): o bloco "Abastecimentos" de
  *    cada lançamento (só com a tela Abastecimentos), lista pelo filtro `apontamento_id`, "Novo abastecimento" abre o
  *    MESMO formulário ligado ao lançamento (atividade e lançamento só leitura, data do lançamento, corpo com
  *    `apontamento_id` e sem `atividade_id`), cancelamento pelo diálogo de sempre e o totalizador com o combustível,
@@ -1863,7 +1863,7 @@ describe("LL-PORTA — allowlists da mão de obra e do serviço (Fatia 4)", () =
 });
 
 // ═════════════════════════════════════════════════════════════════════════
-// Fatia 5 (D-PROD-210): abastecimento ligado ao lançamento da atividade
+// Fatia 5 (D-PROD-211): abastecimento ligado ao lançamento da atividade
 describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia 5)", () => {
   const TELA_ABASTECIMENTO = "pat-abastecimentos";
   /** A permissão das atividades (todas) + a da tela Abastecimentos com `acoes`. @param {Record<string, boolean>} acoes */

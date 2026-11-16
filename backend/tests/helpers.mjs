@@ -135,7 +135,7 @@ export const limparBanco = async () => {
   // D-PROD-202: as linhas do apontamento (fatias FIFO → linha de produto; linha
   // de máquina) referenciam o apontamento, lotes, movimentos, produtos, locais,
   // bens e usuários (RESTRICT): saem antes do apontamento.
-  // D-PROD-210 (Fatia 5): o abastecimento referencia a atividade, o apontamento e o centro de custo
+  // D-PROD-211 (Fatia 5): o abastecimento referencia a atividade, o apontamento e o centro de custo
   // (RESTRICT): as fatias e o abastecimento saem antes deles (e continuam antes de bem, tanque e produto).
   await prisma.abastecimentoBemConsumoLote.deleteMany({});
   await prisma.abastecimentoBem.deleteMany({});
@@ -157,7 +157,7 @@ export const limparBanco = async () => {
   // D-PROD-159/161: fatias → abastecimento (referenciam lote, movimento, bem,
   // tanque, Produto aceito, local e usuário — RESTRICT) → Produto aceito pelo
   // tanque (referencia tanque e Produto) → tanque → bem → tipo → família.
-  // (o abastecimento e as fatias já saíram acima, antes da atividade — D-PROD-210)
+  // (o abastecimento e as fatias já saíram acima, antes da atividade — D-PROD-211)
   await prisma.tanqueBemProduto.deleteMany({});
   await prisma.tanqueBem.deleteMany({});
   await prisma.bemPatrimonial.deleteMany({});

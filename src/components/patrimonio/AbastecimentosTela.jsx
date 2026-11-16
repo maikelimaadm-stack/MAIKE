@@ -120,7 +120,7 @@ export default function AbastecimentosTela() {
     onRequestDeleteMutation: () => {},
   });
 
-  // Formulário, revisão, confirmação e cancelamento: o MESMO fluxo do Lançamento de Atividades (D-PROD-210).
+  // Formulário, revisão, confirmação e cancelamento: o MESMO fluxo do Lançamento de Atividades (D-PROD-211).
   const fluxo = useFluxoAbastecimento({
     empresaId,
     hoje,

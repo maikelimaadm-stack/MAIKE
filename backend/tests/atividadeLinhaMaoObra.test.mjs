@@ -388,7 +388,7 @@ describe('totais da atividade com as quatro linhas', () => {
     assert.deepEqual(Object.keys(t), [
       'area_executada', 'area_planejada', 'unidade_area', 'produtos', 'maquinas', 'mao_obra', 'servicos', 'combustivel', 'consumo_por_bem', 'custo_total', 'custo_por_ha',
       'custo_combustivel_por_ha',
-    ], 'D-PROD-210: combustível, consumo por bem e custo de combustível/ha');
+    ], 'D-PROD-211: combustível, consumo por bem e custo de combustível/ha');
     assert.deepEqual(t.produtos.map((x) => x.custo_total), ['50.0000']);
     assert.deepEqual(t.maquinas.map((x) => x.custo_total), ['80.0000']);
     assert.deepEqual(t.mao_obra, [

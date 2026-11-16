@@ -255,7 +255,7 @@ describe('API-3 — abastecimento em quantidade da unidade do Produto', () => {
   });
 });
 
-describe('API-210 — origem, valor da nota e vínculo com o lançamento (D-PROD-210)', () => {
+describe('API-211 — origem, valor da nota e vínculo com o lançamento (D-PROD-211)', () => {
   it('EXTERNO: sem local e com custo_total (até 2 casas); ESTOQUE: com local e sem custo; apontamento_id opcional; atividade_id nunca', async () => {
     const { api, porta } = await carregar();
     const { local_estoque_id: _l, ...semLocal } = PREVIA;

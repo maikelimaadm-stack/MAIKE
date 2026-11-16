@@ -124,7 +124,7 @@ const textoOuIndefinido = (v) => (typeof v === 'string' && v.trim() ? v.trim() :
  * @param {string|null} empresaId
  * @param {{ limit?: number, cursor?: string|null, q?: string, bemId?: string|null, tanqueId?: string|null, produtoId?: string|null,
  *   status?: string|null, dataDe?: string|null, dataAte?: string|null, operationId?: string|null,
- *   apontamentoId?: string|null, atividadeId?: string|null }} [opts] `apontamentoId`/`atividadeId` (D-PROD-210): só os
+ *   apontamentoId?: string|null, atividadeId?: string|null }} [opts] `apontamentoId`/`atividadeId` (D-PROD-211): só os
  *   abastecimentos ligados àquele lançamento / àquela atividade.
  */
 export const listarAbastecimentosPagina = async (empresaId, opts = {}) => {
@@ -217,7 +217,7 @@ export const previaDoAbastecimento = async (empresaId, form) =>
 /**
  * Confirma o abastecimento que a prévia mostrou (o MESMO corpo da prévia; o
  * servidor relê tudo sob as travas). `operation_id` persistente por pendência.
- * D-PROD-210: o corpo leva `origem`/`custo_total` no posto externo (sem local)
+ * D-PROD-211: o corpo leva `origem`/`custo_total` no posto externo (sem local)
  * e `apontamento_id` quando aberto a partir de um lançamento da atividade.
  * @param {string|null} empresaId @param {any} form @param {any} plano
  * @param {{ escopo: string, storage?: Storage|null, retentativa?: boolean,

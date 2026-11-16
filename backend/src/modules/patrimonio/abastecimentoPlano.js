@@ -16,7 +16,7 @@
  * para KG e SACO (SACO guarda estoque em kg); a quantidade digitada é em kg
  * para SACO, sem conversão por peso do saco.
  *
- * D-PROD-210 (Fatia 5 do Lançamento de Atividades, contrato
+ * D-PROD-211 (Fatia 5 do Lançamento de Atividades, contrato
  * `MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md` §2):
  *  - `origem` ESTOQUE (padrão; o FIFO de sempre, `local_estoque_id`
  *    obrigatório, `custo_total` recusado — o custo é o do FIFO) | EXTERNO
@@ -54,9 +54,9 @@ export const CASAS_LEITURA = 4;
 export const PADRAO_QUANTIDADE = /^\d{1,10}(\.\d{1,4})?$/;
 export const PADRAO_LEITURA = /^\d{1,10}(\.\d{1,4})?$/;
 export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
-/** D-PROD-210 — valor total da nota do posto (EXTERNO): até 10 inteiros e 2 casas. */
+/** D-PROD-211 — valor total da nota do posto (EXTERNO): até 10 inteiros e 2 casas. */
 export const PADRAO_CUSTO_TOTAL = /^\d{1,10}(\.\d{1,2})?$/;
-/** D-PROD-210 — de onde vem o combustível (CHECK `AbastecimentoBem_origem_check`). */
+/** D-PROD-211 — de onde vem o combustível (CHECK `AbastecimentoBem_origem_check`). */
 export const ORIGEM_ESTOQUE = 'ESTOQUE';
 export const ORIGEM_EXTERNO = 'EXTERNO';
 export const ORIGENS_ABASTECIMENTO = Object.freeze([ORIGEM_ESTOQUE, ORIGEM_EXTERNO]);
@@ -118,7 +118,7 @@ const quantidadeObrigatoria = (c) => {
 
 const presente = (c, chave) => Object.prototype.hasOwnProperty.call(c, chave) && c[chave] !== undefined && c[chave] !== null;
 
-/** D-PROD-210: `origem` ausente → ESTOQUE. @param {unknown} v */
+/** D-PROD-211: `origem` ausente → ESTOQUE. @param {unknown} v */
 const origemDoCorpo = (v) => {
   if (v === undefined || v === null) return ORIGEM_ESTOQUE;
   if (typeof v !== 'string' || !ORIGENS_ABASTECIMENTO.includes(v)) {
@@ -128,7 +128,7 @@ const origemDoCorpo = (v) => {
 };
 
 /**
- * D-PROD-210 — as regras do corpo por origem e o vínculo com a atividade.
+ * D-PROD-211 — as regras do corpo por origem e o vínculo com a atividade.
  * `exigeCusto`: a confirmação exige o `custo_total` do EXTERNO; a prévia o
  * aceita ausente (a tela ainda não tem o valor da nota).
  * @param {Record<string, any>} c @param {{ exigeCusto: boolean }} opcoes
@@ -202,10 +202,10 @@ export const normalizarCancelamento = (id, corpo) => {
   return { id, empresa_id: c.empresa_id, versao: c.versao, operation_id: c.operation_id, motivo };
 };
 
-// ─── fingerprint canônico (ordem FIXA de chaves; v3 da D-PROD-210) ──────────
+// ─── fingerprint canônico (ordem FIXA de chaves; v3 da D-PROD-211) ──────────
 
 /**
- * D-PROD-210: v3 — entram `origem`, `apontamento_id` e `custo_total`. Uma
+ * D-PROD-211: v3 — entram `origem`, `apontamento_id` e `custo_total`. Uma
  * chave já usada por um recibo v2 com o mesmo tipo vira 409 (corpo diferente).
  * @param {any} e Entrada normalizada da confirmação
  */
@@ -347,7 +347,7 @@ export const avaliarLeitura = ({ tipo, leitura, dia, cadastro, anterior, posteri
   return { bloqueio: null, anterior: ant, posterior: post };
 };
 
-// ─── snapshot do medidor (D-PROD-210) ───────────────────────────────────────
+// ─── snapshot do medidor (D-PROD-211) ───────────────────────────────────────
 
 /**
  * Snapshot gravado na confirmação (e devolvido pela prévia), só com medidor
@@ -422,7 +422,7 @@ export const planejarAbastecimento = (entrada, estado) => {
   if (tanque && produto && !(tanque.produtos ?? []).some((a) => a.produto_id === produto.id && a.ativo)) {
     bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_NAO_ACEITO', 'produto_id', 'nao_aceito_pelo_tanque'));
   }
-  // B7 (D-PROD-210: só do estoque da fazenda; o EXTERNO não tem local)
+  // B7 (D-PROD-211: só do estoque da fazenda; o EXTERNO não tem local)
   const doEstoque = entrada.origem !== ORIGEM_EXTERNO;
   if (doEstoque && !local) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inexistente'));
   else if (doEstoque && !local.ativo) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inativo'));
@@ -474,7 +474,7 @@ export const planejarAbastecimento = (entrada, estado) => {
     };
   }
 
-  // D-PROD-210 — custo: o do FIFO (estimativa) no ESTOQUE; o da nota no EXTERNO (custo_unitario = total ÷ quantidade).
+  // D-PROD-211 — custo: o do FIFO (estimativa) no ESTOQUE; o da nota no EXTERNO (custo_unitario = total ÷ quantidade).
   const custoExterno = !doEstoque && entrada.custo_total !== null ? dec(entrada.custo_total) : null;
   const custo = doEstoque
     ? { custo_total: fifo ? fifo.custo_total_estimado : null, custo_unitario: fifo ? fifo.custo_unitario_estimado : null }
@@ -482,7 +482,7 @@ export const planejarAbastecimento = (entrada, estado) => {
         custo_total: custoExterno ? custoExterno.toFixed(CASAS_CUSTO) : null,
         custo_unitario: custoExterno && quantidadePositiva ? arredondar(custoExterno.dividedBy(quantidade), CASAS_CUSTO).toFixed(CASAS_CUSTO) : null,
       };
-  // B8c (D-PROD-210) — EXTERNO: o custo unitário (total ÷ quantidade) cabe nas colunas Decimal(14,4) do estoque.
+  // B8c (D-PROD-211) — EXTERNO: o custo unitário (total ÷ quantidade) cabe nas colunas Decimal(14,4) do estoque.
   if (!doEstoque && custo.custo_unitario !== null && (dec(custo.custo_unitario).gt(LIMITE_ESTOQUE) || dec(/** @type {string} */ (custo.custo_total)).gt(LIMITE_ESTOQUE))) {
     bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'custo_total', 'valor_excede_limite_estoque', { custo_total: custo.custo_total, custo_unitario: custo.custo_unitario }));
   }
@@ -505,7 +505,7 @@ export const planejarAbastecimento = (entrada, estado) => {
         }
       : null,
     local_estoque: doEstoque && local ? { id: local.id, nome: local.nome } : null,
-    // D-PROD-210 — o vínculo (atividade derivada do apontamento) e o centro de custo snapshot.
+    // D-PROD-211 — o vínculo (atividade derivada do apontamento) e o centro de custo snapshot.
     atividade: estado.vinculo?.atividade ?? null,
     apontamento: estado.vinculo?.apontamento ?? null,
     centro_custo: estado.vinculo?.centro_custo ?? null,

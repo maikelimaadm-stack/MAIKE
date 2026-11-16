@@ -1,6 +1,9 @@
-# MAIKE — Fatia 5 do Lançamento de Atividades: abastecimento ligado à atividade (contrato, D-PROD-210)
+# MAIKE — Fatia 5 do Lançamento de Atividades: abastecimento ligado à atividade (contrato, D-PROD-211)
 
-> Branch `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209).
+> Branch `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209), com a `main`
+> `67f44d76` (PR #297, D-PROD-210, a base do consumo) por merge. Nasceu como D-PROD-210 com a migration
+> `20261116200000_abastecimento_atividade`; renumerada para D-PROD-211 e `20261116300000_abastecimento_atividade` (o
+> checksum não mudou: o número da decisão não está no `migration.sql`).
 > Pedido do proprietário (mapa da Fatia 5): "AbastecimentoBem ganha atividade_id / apontamento_id, snapshot de
 > centro de custo, leitura anterior do medidor, delta e flag de intervalo confiável, e origem EXTERNO para posto de
 > estrada. É o que fecha L/h, km/L e custo de combustível por hectare. Hoje o diesel do dia do operador não tem onde
@@ -8,14 +11,14 @@
 
 ## 0. Estado de partida (produção, conferido em 2026-11-16)
 
-- 60 migrations, 0 em aberto; 94 tabelas. Última: `20261116100000_funcionario_tipo_terceirizado`
-  (checksum `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6`).
+- 61 migrations, 0 em aberto; 94 tabelas. Última: `20261116200000_formulacao_base_consumo` (D-PROD-210, aplicada
+  depois do início desta fatia; checksum `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`).
 - `AbastecimentoBem`: **1** linha (CONFIRMADO, com leitura). `Atividade` 4, `AtividadeApontamento` 4,
   `AtividadeApontamentoMaquina` 1.
 - O consumo pelo **método do tanque cheio** já existe e é calculado na leitura (`patrimonio/abastecimentoConsumo.js`,
   D-PROD-162). **Continua sendo a única fonte do consumo do bem**: esta fatia não cria um segundo cálculo dele.
 
-## 1. Banco — `AbastecimentoBem` (uma migration, `20261116200000_abastecimento_atividade`)
+## 1. Banco — `AbastecimentoBem` (uma migration, `20261116300000_abastecimento_atividade`)
 
 | Coluna | Tipo | Regra |
 |---|---|---|
@@ -39,10 +42,10 @@
   (`BemPatrimonial.centro_custo_id`); `medidor_leitura_anterior`, `medidor_delta` NULL e `intervalo_confiavel` false
   (o snapshot não existia quando foram confirmadas: fica "desconhecido", sem inventar).
 - É **CONTRACT** (NOT NULL → NULL e troca de CHECK em tabela antiga): entrada fechada em
-  `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-210'`, guarda pinada no início (lock_timeout, trava 72707369,
+  `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-211'`, guarda pinada no início (lock_timeout, trava 72707369,
   `ACCESS EXCLUSIVE` em `AbastecimentoBem`, estado esperado: as colunas novas ausentes, o CHECK antigo presente).
-  Produção 60 → 61, tabelas 94 (sem mudança). Runbook com preflight, caminho B (guardas `n_ok <> 60`, a anterior
-  `20261116100000_funcionario_tipo_terceirizado` com o checksum acima) e postcheck.
+  Produção 61 → 62, tabelas 94 (sem mudança). Runbook com preflight, caminho B (guardas `n_ok <> 61`, a anterior
+  `20261116200000_formulacao_base_consumo` com o checksum acima) e postcheck.
 
 ## 2. Servidor
 

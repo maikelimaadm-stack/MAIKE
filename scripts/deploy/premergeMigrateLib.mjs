@@ -40,7 +40,10 @@
  *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
  *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs; na D-PROD-209, sem DROP
  *     nenhum, só o DROP CONSTRAINT e o ADD CONSTRAINT do mesmo CHECK de Fornecedor,
- *     com TERCEIRIZADO no lugar de TAREFEIRO; na D-PROD-210, sem DROP TABLE, as 18
+ *     com TERCEIRIZADO no lugar de TAREFEIRO; na D-PROD-210, sem DROP TABLE, as 7
+ *     instruções nas 3 tabelas VAZIAS das Formulações (a coluna base_consumo NOT NULL
+ *     DEFAULT, o %PV padrão anulável, a coluna g_cab_dia e os CHECKs trocados); na
+ *     D-PROD-211, sem DROP TABLE, as 18
  *     instruções em AbastecimentoBem — 7 ADD COLUMN, 2 delas NOT NULL DEFAULT, 2 DROP
  *     NOT NULL, o UPDATE do centro de custo vindo do bem, o CHECK de status recriado,
  *     3 CHECKs novos e 3 FKs compostas para tabelas antigas).
@@ -153,11 +156,14 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // Terceirizado: o CHECK "Fornecedor_funcionario_check" volta igual, com TERCEIRIZADO no lugar de TAREFEIRO. A guarda
   // aborta se algum parceiro tiver funcionario_tipo = TAREFEIRO. Nenhuma coluna, índice, tabela ou dado muda.
   '20261116100000_funcionario_tipo_terceirizado': '44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6',
-  // D-PROD-210: CONTRACT aprovado pelo proprietário (Fatia 5) — o abastecimento ligado à atividade: AbastecimentoBem ganha
+  // D-PROD-210: CONTRACT aprovado pelo proprietário — base do consumo na Formulação (% do peso vivo ou g/cab/dia):
+  // coluna NOT NULL DEFAULT 'PV', %PV padrão anulável, CHECK por base e regra em gramas; as 3 tabelas VAZIAS.
+  '20261116200000_formulacao_base_consumo': 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171',
+  // D-PROD-211: CONTRACT aprovado pelo proprietário (Fatia 5) — o abastecimento ligado à atividade: AbastecimentoBem ganha
   // origem (ESTOQUE | EXTERNO), o vínculo com o apontamento e a atividade, o snapshot do centro de custo (o das linhas
   // existentes vem do bem), da leitura anterior, do delta e do intervalo confiável; local e movimento passam a anuláveis;
   // o CHECK de status é recriado e entram 3 CHECKs, 3 FKs e 3 índices. Nenhuma tabela criada ou apagada.
-  '20261116200000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
+  '20261116300000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -203,10 +209,11 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São dez, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * exige decisão. São onze, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
  * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre), D-PROD-208
- * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto) e
- * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto) e D-PROD-210
+ * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto),
+ * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto), D-PROD-210
+ * (formato de sempre: a base do consumo nas 3 tabelas VAZIAS das Formulações, sem DROP TABLE e sem resto) e D-PROD-211
  * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
@@ -435,7 +442,29 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "Fornecedor" ADD CONSTRAINT "Fornecedor_funcionario_check" CHECK (("funcionario_tipo" IS NULL OR "funcionario_tipo" IN (\'MENSALISTA\', \'DIARISTA\', \'TERCEIRIZADO\')) AND ("funcionario_custo_hora" IS NULL OR "funcionario_custo_hora" >= 0) AND ("funcionario_custo_diaria" IS NULL OR "funcionario_custo_diaria" >= 0))',
     ]),
   }),
-  // D-PROD-210 (Fatia 5): o abastecimento ligado à atividade. Sem DROP TABLE e sem tabela nova: depois da guarda (hash
+  // D-PROD-210: a Formulação ganha a BASE DO CONSUMO — % do peso vivo (PV) ou gramas por cabeça por dia (G_CAB_DIA), uma
+  // por formulação, sem mistura. É CONTRACT porque a allowlist EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT,
+  // ALTER COLUMN, DROP CONSTRAINT e CHECK. A guarda (hash pinado) trava as 3 tabelas de Formulações e exige as 3 VAZIAS
+  // (o proprietário autorizou: "os dados eram só teste"; em produção estavam com 0 linhas) — nenhum dado é migrado.
+  // Depois dela, EXATAMENTE as 7 instruções abaixo, nesta ordem (texto pinado): a coluna base_consumo, o %PV padrão
+  // anulável, o CHECK do %PV padrão trocado pelo CHECK por base, a coluna g_cab_dia da regra e o CHECK da forma da
+  // regra recriado (consome com %PV OU com gramas, nunca os dois). Não há resto. A guarda só cita as 3 tabelas.
+  '20261116200000_formulacao_base_consumo': Object.freeze({
+    decisao: 'D-PROD-210',
+    guarda_sha256: 'a66ff13e8427efbe7d434d286459a0354e8331b10a1c5afd9953b83464184819',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "CADFORMULACAO" ADD COLUMN "base_consumo" VARCHAR(16) NOT NULL DEFAULT \'PV\'',
+      'ALTER TABLE "CADFORMULACAO" ALTER COLUMN "percentual_pv_padrao" DROP NOT NULL',
+      'ALTER TABLE "CADFORMULACAO" DROP CONSTRAINT "CADFORMULACAO_percentual_pv_padrao_check"',
+      'ALTER TABLE "CADFORMULACAO" ADD CONSTRAINT "CADFORMULACAO_base_consumo_check" CHECK (("base_consumo" = \'PV\' AND "percentual_pv_padrao" IS NOT NULL AND "percentual_pv_padrao" > 0 AND "percentual_pv_padrao" <= 5) OR ("base_consumo" = \'G_CAB_DIA\' AND "percentual_pv_padrao" IS NULL AND "consumo_objetivo_g_cab_dia" IS NOT NULL AND "consumo_objetivo_g_cab_dia" > 0))',
+      'ALTER TABLE "CADFORMULACAOREGRA" ADD COLUMN "g_cab_dia" DECIMAL(10,2)',
+      'ALTER TABLE "CADFORMULACAOREGRA" DROP CONSTRAINT "CADFORMULACAOREGRA_forma_check"',
+      'ALTER TABLE "CADFORMULACAOREGRA" ADD CONSTRAINT "CADFORMULACAOREGRA_forma_check" CHECK (("consome" = false AND "percentual_pv" IS NULL AND "g_cab_dia" IS NULL) OR ("consome" = true AND "percentual_pv" IS NOT NULL AND "percentual_pv" > 0 AND "percentual_pv" <= 5 AND "g_cab_dia" IS NULL) OR ("consome" = true AND "percentual_pv" IS NULL AND "g_cab_dia" IS NOT NULL AND "g_cab_dia" > 0))',
+    ]),
+  }),
+  // D-PROD-211 (Fatia 5): o abastecimento ligado à atividade. Sem DROP TABLE e sem tabela nova: depois da guarda (hash
   // pinado; confere que as 5 tabelas existem, que nenhuma coluna nova existe, que local e movimento ainda são NOT NULL,
   // que o CHECK de status ainda é o antigo e que os 3 CHECKs novos não existem, e trava "AbastecimentoBem" em ACCESS
   // EXCLUSIVE), EXATAMENTE as 18 instruções abaixo, nesta ordem (texto pinado): 7 ADD COLUMN (origem NOT NULL DEFAULT
@@ -445,8 +474,8 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // atividade, leitura anterior/delta/intervalo) e as 3 FKs compostas pelo tenant e pela empresa, RESTRICT. O resto são
   // os 3 CREATE INDEX não-únicos pela allowlist EXPAND, que continua recusando UNIQUE, ALTER COLUMN, DML e qualquer outra
   // coisa em AbastecimentoBem. A guarda só cita as 5 tabelas.
-  '20261116200000_abastecimento_atividade': Object.freeze({
-    decisao: 'D-PROD-210',
+  '20261116300000_abastecimento_atividade': Object.freeze({
+    decisao: 'D-PROD-211',
     guarda_sha256: '3f5a3a37959e571e3d2ee68cd2ec87e15138aa1b59903db0f13dbe4c90b502fa',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['AbastecimentoBem', 'Atividade', 'AtividadeApontamento', 'CentroCusto', 'BemPatrimonial']),

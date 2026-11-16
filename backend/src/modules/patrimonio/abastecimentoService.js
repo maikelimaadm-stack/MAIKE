@@ -24,7 +24,7 @@
  * A leitura do medidor vive no próprio abastecimento (`medidor_origem =
  * 'ABASTECIMENTO'`): o bem nunca é gravado (nem a `versao`).
  *
- * D-PROD-210 (Fatia 5 do Lançamento de Atividades, contrato
+ * D-PROD-211 (Fatia 5 do Lançamento de Atividades, contrato
  * `MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md` §2):
  *  - `origem` EXTERNO (posto de estrada): nenhum movimento de estoque, nenhum
  *    lote, sem trava de estoque nem de local; o custo é o da nota
@@ -166,7 +166,7 @@ const movimentoPublico = (m) =>
       }
     : null;
 
-/** D-PROD-210 — o vínculo com a atividade e o centro de custo snapshot (lista e detalhe). */
+/** D-PROD-211 — o vínculo com a atividade e o centro de custo snapshot (lista e detalhe). */
 const INCLUIR_VINCULO = Object.freeze({
   atividade: { select: { id: true, numero: true, nome: true } },
   apontamento: { select: { id: true, data_operacional: true, turno: true, sequencia: true } },
@@ -185,7 +185,7 @@ const INCLUIR_RESUMO = Object.freeze({
 const localPublico = (l) => (l ? { id: l.id, nome: l.nome } : null);
 
 /**
- * D-PROD-210 — campos novos da lista e do detalhe: a origem, o vínculo
+ * D-PROD-211 — campos novos da lista e do detalhe: a origem, o vínculo
  * (`atividade` `{id, numero, nome}`, `apontamento` `{id, data_operacional,
  * turno, sequencia}`), o `centro_custo` `{id, nome}` e o snapshot do medidor.
  * @param {any} r
@@ -320,7 +320,7 @@ const carregarEstado = async (tx, cli, empresaId, entrada, { hoje, fuso }) => {
     where: { cliente_id: cli, id: entrada.tanque_id, bem_id: bem.id },
     select: { id: true, bem_id: true, identificador: true, capacidade_litros: true, ativo: true, produtos: { select: { produto_id: true, ativo: true } } },
   });
-  // D-PROD-210: o EXTERNO não tem local nem lotes (nenhum efeito de estoque).
+  // D-PROD-211: o EXTERNO não tem local nem lotes (nenhum efeito de estoque).
   const local = entrada.origem === ORIGEM_EXTERNO
     ? null
     : await tx.localEstoque.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: entrada.local_estoque_id } }, select: { id: true, nome: true, ativo: true } });
@@ -334,7 +334,7 @@ const carregarEstado = async (tx, cli, empresaId, entrada, { hoje, fuso }) => {
 };
 
 /**
- * D-PROD-210 — o lançamento do dia ao qual o abastecimento pertence. Sem
+ * D-PROD-211 — o lançamento do dia ao qual o abastecimento pertence. Sem
  * `apontamento_id`: só o centro de custo (o do bem). Com ele: o apontamento da
  * EMPRESA (de outra fazenda ou tenant → 404 `ATIVIDADE_APONTAMENTO_NOT_FOUND`,
  * sem oráculo), a atividade dele ABERTA (concluída/cancelada → 409
@@ -367,7 +367,7 @@ const carregarVinculo = async (tx, cli, empresaId, entrada, bem) => {
 };
 
 /**
- * D-PROD-210 — a atividade do apontamento (lida SEM trava, só para saber qual
+ * D-PROD-211 — a atividade do apontamento (lida SEM trava, só para saber qual
  * travar: o `atividade_id` do apontamento nunca muda). Inexistente → null (o
  * erro sai de `carregarVinculo`, já sob as travas).
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string|null} apontamentoId
@@ -467,7 +467,7 @@ export const confirmar = async (contexto, corpo) => {
           executar: async () => {
             const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
             const tempo = await hojeDaEmpresa(tx, cli, empresaId); // R2 Empresa FOR SHARE
-            // D-PROD-210 — R2b: Atividade FOR UPDATE ANTES do bem (a ordem dos escritores da atividade). O
+            // D-PROD-211 — R2b: Atividade FOR UPDATE ANTES do bem (a ordem dos escritores da atividade). O
             // apontamento e a atividade são lidos sob ela (`carregarVinculo`): nenhum cancelamento passa no meio.
             const atividadeId = await atividadeDoApontamento(tx, cli, empresaId, entrada.apontamento_id);
             if (atividadeId) await travarAtividade(tx, cli, empresaId, atividadeId);
@@ -482,7 +482,7 @@ export const confirmar = async (contexto, corpo) => {
               await tx.$queryRaw`SELECT id FROM "LocalEstoque" WHERE cliente_id = ${cli} AND id = ${entrada.local_estoque_id} FOR KEY SHARE`; // R7
               await travarProdutosEstoque(tx, cli, empresaId, [entrada.produto_id]); // R8
             } else {
-              // D-PROD-210: EXTERNO sem trava de estoque; a linha do Produto FOR SHARE segura unidade e fazenda até o commit.
+              // D-PROD-211: EXTERNO sem trava de estoque; a linha do Produto FOR SHARE segura unidade e fazenda até o commit.
               await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${cli} AND id = ${entrada.produto_id} FOR SHARE`; // R8'
             }
             const estado = await carregarEstado(tx, cli, empresaId, entrada, tempo);
@@ -553,7 +553,7 @@ export const confirmar = async (contexto, corpo) => {
 /**
  * Reserva o número (R12a) e grava a linha (R11) — a mesma nas duas origens;
  * `variavel` traz o que depende da origem (local, movimento, custo) e o
- * vínculo/snapshot da D-PROD-210.
+ * vínculo/snapshot da D-PROD-211.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {any} entrada @param {any} estado @param {any} plano
  * @param {{ usuarioId?: string|null }} auth @param {Record<string, any>} variavel
  */
@@ -609,7 +609,7 @@ const traduzirErroDoEstorno = (erro) => {
  * Cancela UM abastecimento já TRAVADO por quem chama (Bem FOR UPDATE →
  * AbastecimentoBem FOR UPDATE), CONFIRMADO e com a `versao` conferida: é o
  * ÚNICO caminho do cancelamento — o direto (A5) e a cascata do apontamento e da
- * atividade (D-PROD-210). ESTOQUE: Produto (`travarProdutosEstoque`) → estorno
+ * atividade (D-PROD-211). ESTOQUE: Produto (`travarProdutosEstoque`) → estorno
  * exato fatia a fatia pelo motor (`estornarSaida`: lotes → movimentos), no dia
  * `hoje` da fazenda. EXTERNO: só o status (não há movimento nem lote). Depois:
  * CAS pela `versao`, numeração do estorno e o evento de auditoria
@@ -728,7 +728,7 @@ export const cancelar = async (contexto, id, corpo) => {
               where: { cliente_id: cli, empresa_id: empresaId, id }, select: { bem_id: true, produto_id: true, atividade_id: true },
             });
             if (!base) throw naoEncontrado();
-            // D-PROD-210 — R2b: ligado à atividade, a Atividade FOR UPDATE vem ANTES do bem (o `atividade_id` nunca
+            // D-PROD-211 — R2b: ligado à atividade, a Atividade FOR UPDATE vem ANTES do bem (o `atividade_id` nunca
             // muda) e só a ABERTA deixa cancelar: a CONCLUIDA tem os totais fechados (reabra antes); a CANCELADA não
             // tem abastecimento ligado CONFIRMADO (a cascata os cancelou).
             if (base.atividade_id) {
@@ -768,7 +768,7 @@ export const cancelar = async (contexto, id, corpo) => {
   }
 };
 
-// ─── cascata pela atividade (D-PROD-210, §2.3) ──────────────────────────────
+// ─── cascata pela atividade (D-PROD-211, §2.3) ──────────────────────────────
 
 /** `motivo_cancelamento` é VarChar(500). */
 const MOTIVO_MAXIMO = 500;
@@ -788,7 +788,7 @@ export const motivoDaCascata = ({ apontamento, atividade, motivo, origem }) => {
 };
 
 /**
- * D-PROD-210 — cancelar o APONTAMENTO (ou a ATIVIDADE, para todos os
+ * D-PROD-211 — cancelar o APONTAMENTO (ou a ATIVIDADE, para todos os
  * apontamentos dela) cancela os abastecimentos CONFIRMADO ligados a eles, na
  * transação de quem chama e pelo MESMO caminho do cancelamento direto
  * (`cancelarAbastecimentoTravado`: estorno exato no ESTOQUE, só o status no

@@ -174,7 +174,7 @@ describe('FE6 — cancelamento', () => {
   });
 });
 
-describe('FE6 — cancelamento do posto externo (D-PROD-210)', () => {
+describe('FE6 — cancelamento do posto externo (D-PROD-211)', () => {
   it('posto externo: o diálogo diz que nada volta ao estoque; corpo de A5 de sempre; só o status muda (sem estorno)', async () => {
     await semearAbastecimento(amb.estado, {
       bem_id: 'b2', tanque_id: 'tq2', produto_id: 'p2', origem: 'EXTERNO', custo_total: '300',

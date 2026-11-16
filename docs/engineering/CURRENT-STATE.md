@@ -9,16 +9,27 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-ATIVIDADE-ABASTECIMENTO: Fatia 5, abastecimento ligado à atividade (D-PROD-210)
+## Missão ativa (2026-11-16) — MAIKE-ATIVIDADE-ABASTECIMENTO: Fatia 5, abastecimento ligado à atividade (D-PROD-211)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-210**, Fatia 5 do brief do Lançamento de Atividades, liberada pelo proprietário ("pode iniciar a fatia 5") |
-| Branch / PR | `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209) · PR **#300** |
+| Decisão | **D-PROD-211** (nasceu D-PROD-210; a `main` deu a D-PROD-210 à base do consumo, PR #297), Fatia 5 do brief do Lançamento de Atividades, liberada pelo proprietário ("pode iniciar a fatia 5") |
+| Branch / PR | `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209), com a `main` `67f44d76` (PR #297, D-PROD-210) por merge · PR **#300** |
 | Escopo | Abastecimento ligado ao lançamento (atividade derivada), origem `EXTERNO` (posto, sem estoque), snapshots de centro de custo, leitura anterior, delta e intervalo confiável; cascata de cancelamento; totalizador com combustível, custo/ha e consumo por bem |
-| Migration | `20261116200000_abastecimento_atividade`, **CONTRACT**, SHA `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`. Produção 60 → 61; tabelas 94 (sem mudança) |
+| Migration | `20261116300000_abastecimento_atividade`, **CONTRACT**, SHA `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`. Produção 61 → 62 (a anterior é a `20261116200000_formulacao_base_consumo`, D-PROD-210); tabelas 94 (sem mudança) |
 | Release | **Não aplicada.** Só com o GO do proprietário, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) |
 | Documentos | [contrato](./MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md) · [relatório](./MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md) · [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-210)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-210** (nasceu D-PROD-207 e depois D-PROD-208; a `main` deu a D-PROD-207 à Fatia 4, a D-PROD-208 ao ajuste dela e a D-PROD-209 ao tipo Terceirizado), pedido do proprietário: sal mineral em g/cab/dia fixo; uma base por formulação, sem mistura; regras por categoria na mesma base |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `f31d3397` (PR #296), com a `main` `18426967` (PR #299, D-PROD-209) por merge · PR **#297** |
+| Escopo | `base_consumo` PV / G_CAB_DIA na Formulação (API, tela, validação sem mistura), regra em gramas, esperado do lançamento na base G (sem peso), farol do fechamento pelos gramas na base G |
+| Migration | `20261116200000_formulacao_base_consumo`, **CONTRACT** (décima de `MIGRATIONS_CONTRACT_APROVADAS`; as 3 tabelas de Formulações vazias pela guarda), SHA-256 `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`. Produção 58 → 59, 95 tabelas. Aprovação do CONTRACT pelo proprietário ("os dados eram só teste"; tabelas com 0 linhas) |
+| Release | **Aplicada em produção** em 2026-11-16 às 02:06:55 UTC, caminho B do [runbook](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md), com o GO escrito do proprietário ("go"); postcheck 61 / 0, checksum igual ao pinado, colunas e CHECKs novos presentes, 94 tabelas em `public` |
+| Relatório | [`MAIKE-BASE-CONSUMO-REPORT.md`](./MAIKE-BASE-CONSUMO-REPORT.md) |
 
 ## Missão anterior (2026-11-16) — MAIKE-FUNCIONARIO-TIPO: tipo do funcionário Mensalista, Diarista ou Terceirizado (D-PROD-209)
 

@@ -332,7 +332,7 @@ const ehOperationId = (v) => typeof v === 'string' && /^[A-Za-z0-9_.:-]{8,128}$/
 /**
  * Totais da atividade (`GET /atividades/:id/totais`): `{ area_executada, area_planejada, unidade_area, produtos[],
  * maquinas[], mao_obra[], servicos[], custo_total, custo_por_ha }`. Só linhas confirmadas de apontamentos confirmados; `custo_por_ha` nulo sem área.
- * D-PROD-210: `combustivel { quantidade_l, quantidade_kg, custo_total }`, `custo_combustivel_por_ha` e `consumo_por_bem[]`
+ * D-PROD-211: `combustivel { quantidade_l, quantidade_kg, custo_total }`, `custo_combustivel_por_ha` e `consumo_por_bem[]`
  * (o `custo_total` e o `custo_por_ha` já somam o combustível).
  * @param {string} id @param {string} empresaId
  */
@@ -348,7 +348,7 @@ export const getAtividadeTotais = async (id, empresaId) => {
     maquinas: Array.isArray(o.maquinas) ? o.maquinas.filter(isObjeto) : [],
     mao_obra: Array.isArray(o.mao_obra) ? o.mao_obra.filter(isObjeto) : [],
     servicos: Array.isArray(o.servicos) ? o.servicos.filter(isObjeto) : [],
-    // D-PROD-210: o consumo de combustível de cada bem da atividade (L/h, km/L…).
+    // D-PROD-211: o consumo de combustível de cada bem da atividade (L/h, km/L…).
     consumo_por_bem: Array.isArray(o.consumo_por_bem) ? o.consumo_por_bem.filter(isObjeto) : [],
   };
 };

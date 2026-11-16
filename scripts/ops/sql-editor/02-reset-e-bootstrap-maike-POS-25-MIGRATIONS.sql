@@ -64,11 +64,11 @@ DECLARE
     -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
     -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
     'AtividadeApontamentoProdutoConsumoLote','AtividadeApontamentoProduto','AtividadeApontamentoMaquina',
-    -- D-PROD-210 (Fatia 5): o abastecimento (e as fatias FIFO dele) sai antes do apontamento e da atividade, que ele
+    -- D-PROD-211 (Fatia 5): o abastecimento (e as fatias FIFO dele) sai antes do apontamento e da atividade, que ele
     -- passa a referenciar, e antes do tanque, do bem e dos centros (abaixo); só as fatias FIFO o referenciam.
     'AbastecimentoBemConsumoLote','AbastecimentoBem',
     -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
-    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) e o abastecimento (D-PROD-210) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) e o abastecimento (D-PROD-211) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
     'AtividadeApontamento',
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
     -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia e o abastecimento (acima) a referenciam.

@@ -220,7 +220,7 @@ const CORPO_BASE_ABASTECIMENTO = Object.freeze([
   'referencia_externa',
 ]);
 /**
- * D-PROD-210 — opcionais: `origem` (`ESTOQUE` padrão | `EXTERNO`), `custo_total` (só no `EXTERNO`: o valor da nota,
+ * D-PROD-211 — opcionais: `origem` (`ESTOQUE` padrão | `EXTERNO`), `custo_total` (só no `EXTERNO`: o valor da nota,
  * até 2 casas) e `apontamento_id` (o lançamento da atividade; a atividade o servidor deriva e nunca vai). No
  * `EXTERNO` o `local_estoque_id` NÃO vai.
  */

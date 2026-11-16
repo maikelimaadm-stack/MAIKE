@@ -59,7 +59,7 @@ export const ABASTECIMENTOS_COLUNAS = [
   { id: "custo_total", label: "Custo", default: false, sortable: true, align: "right", width: 120 },
   { id: "tanque_cheio", label: "Tanque cheio", default: false, sortable: true, align: "center", width: 100 },
   { id: "referencia_externa", label: "Referência", default: false, sortable: true, width: 120 },
-  // D-PROD-210 (opcionais, desligadas: o padrão do tablet não muda).
+  // D-PROD-211 (opcionais, desligadas: o padrão do tablet não muda).
   { id: "origem", label: "Origem", default: false, sortable: true, width: 130 },
   { id: "atividade", label: "Atividade", default: false, sortable: true, width: 160 },
   { id: "lancamento", label: "Lançamento", default: false, sortable: true, width: 160 },

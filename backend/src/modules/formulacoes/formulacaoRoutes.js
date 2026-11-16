@@ -14,7 +14,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { invalido } from '../gestao/gestaoComum.js';
-import { listar, opcoesLancamento, obter, criar, atualizar, excluir, TIPOS } from './formulacaoService.js';
+import { listar, opcoesLancamento, obter, criar, atualizar, excluir, TIPOS, BASES_CONSUMO } from './formulacaoService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 /** Decimal: número, ou texto com vírgula/ponto ("0,15"); o serviço confere faixa e casas. */
@@ -32,14 +32,16 @@ const REGRA = {
   type: 'object',
   required: ['categoria_manejo_id', 'consome'],
   additionalProperties: false,
-  properties: { categoria_manejo_id: ID, consome: { type: 'boolean' }, percentual_pv: DECIMAL_OU_NULO },
+  properties: { categoria_manejo_id: ID, consome: { type: 'boolean' }, percentual_pv: DECIMAL_OU_NULO, g_cab_dia: DECIMAL_OU_NULO },
 };
 
 const CAMPOS = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
   tipo: { type: 'string', enum: [...TIPOS] },
   produto_id: ID,
-  percentual_pv_padrao: DECIMAL,
+  // D-PROD-210: base do consumo — PV (% do peso vivo) ou G_CAB_DIA (gramas por cabeça por dia). Na base G o %PV padrão é nulo.
+  base_consumo: { type: 'string', enum: [...BASES_CONSUMO] },
+  percentual_pv_padrao: DECIMAL_OU_NULO,
   consumo_objetivo_g_cab_dia: DECIMAL_OU_NULO,
   faixa_tolerancia_percentual: DECIMAL_OU_NULO,
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
@@ -58,7 +60,7 @@ const EXCLUIR_SCHEMA = { params: PARAMS_ID, querystring: QUERY_EMPRESA };
 const CRIAR_SCHEMA = {
   body: {
     type: 'object',
-    required: ['empresa_id', 'nome', 'tipo', 'produto_id', 'percentual_pv_padrao'],
+    required: ['empresa_id', 'nome', 'tipo', 'produto_id'],
     additionalProperties: false,
     properties: { empresa_id: ID, ...CAMPOS },
   },
@@ -89,7 +91,7 @@ const corpoSemCoercao = async (request) => {
   const corpo = /** @type {Record<string, unknown>|null} */ (request.body);
   if (!corpo || typeof corpo !== 'object') return;
   const tem = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
-  if (tem(corpo, 'percentual_pv_padrao') && !ehDecimalBruto(corpo.percentual_pv_padrao)) {
+  if (tem(corpo, 'percentual_pv_padrao') && corpo.percentual_pv_padrao !== null && !ehDecimalBruto(corpo.percentual_pv_padrao)) {
     throw invalido('percentual_pv_padrao deve ser um número (% do peso vivo)', { field: 'percentual_pv_padrao', reason: 'percentual_pv_invalido' });
   }
   if (tem(corpo, 'consumo_objetivo_g_cab_dia') && corpo.consumo_objetivo_g_cab_dia !== null && !ehDecimalBruto(corpo.consumo_objetivo_g_cab_dia)) {
@@ -115,6 +117,9 @@ const corpoSemCoercao = async (request) => {
     }
     if (tem(item, 'percentual_pv') && item.percentual_pv !== null && !ehDecimalBruto(item.percentual_pv)) {
       throw invalido(`regras[${i}].percentual_pv deve ser um número (% do peso vivo)`, { field: `regras[${i}].percentual_pv`, reason: 'percentual_pv_invalido' });
+    }
+    if (tem(item, 'g_cab_dia') && item.g_cab_dia !== null && !ehDecimalBruto(item.g_cab_dia)) {
+      throw invalido(`regras[${i}].g_cab_dia deve ser um número (g/cab/dia)`, { field: `regras[${i}].g_cab_dia`, reason: 'g_cab_dia_invalido' });
     }
   });
 };

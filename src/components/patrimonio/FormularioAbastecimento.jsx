@@ -98,7 +98,7 @@ function ErroDoCampo({ texto }) {
  * sem fator kg/L. Trocar um campo limpa os que dependem dele. Nada é gravado
  * aqui: "Revisar abastecimento" pede a prévia ao servidor.
  *
- * D-PROD-210: "Origem" — Estoque da fazenda (o local de estoque, como sempre)
+ * D-PROD-211: "Origem" — Estoque da fazenda (o local de estoque, como sempre)
  * ou Posto externo (sem local; pede o valor total da nota). Aberto a partir de
  * um lançamento da atividade (`vinculo`), mostra a atividade e o lançamento só
  * para leitura (o `apontamento_id` vem preso no formulário; a data padrão é a

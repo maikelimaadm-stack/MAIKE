@@ -554,7 +554,7 @@ describe('UX-A11 — revisão', () => {
     await preencherTrator(form);
     const dialogo = await pedirPrevia(form);
     const dados = within(dialogo).getByTestId('previa-dados');
-    // D-PROD-210: com contador, a revisão mostra também o snapshot do medidor (leitura anterior, avanço, intervalo confiável).
+    // D-PROD-211: com contador, a revisão mostra também o snapshot do medidor (leitura anterior, avanço, intervalo confiável).
     expect([...dados.querySelectorAll('dt')].map((d) => d.textContent)).toEqual([
       'Máquina/Veículo', 'Produto', 'Quantidade', 'Leitura do medidor', 'Leitura anterior', 'Avanço do medidor', 'Intervalo confiável',
       'Completou o tanque', 'Data', 'Sai do estoque', 'Baixa do estoque',

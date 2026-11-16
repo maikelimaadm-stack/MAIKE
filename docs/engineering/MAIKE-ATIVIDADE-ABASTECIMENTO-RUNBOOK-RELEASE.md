@@ -1,4 +1,4 @@
-# MAIKE — Abastecimento ligado à atividade (Fatia 5): runbook de release CONTRACT (D-PROD-210)
+# MAIKE — Abastecimento ligado à atividade (Fatia 5): runbook de release CONTRACT (D-PROD-211)
 
 > **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** Aplicação só com o GO explícito e
 > escrito do proprietário para **esta** migration.
@@ -6,24 +6,24 @@
 > Cada passo para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>`
 > são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-210](./DECISIONS.md) · Contrato:
+Decisão: [D-PROD-211](./DECISIONS.md) · Contrato:
 [`MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md) (§1). Precedente
-executado: [`MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md)
-(D-PROD-209, a anterior).
+executado: [`MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md`](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md)
+(D-PROD-210, a anterior).
 
 ## 0. O que muda no banco
 
 | Item | Valor |
 |---|---|
-| Migration | `20261116200000_abastecimento_atividade` |
+| Migration | `20261116300000_abastecimento_atividade` |
 | Natureza | **CONTRACT** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, formato de sempre, sem `DROP TABLE`): colunas NOT NULL com DEFAULT, `DROP NOT NULL`, um `UPDATE` de backfill, um CHECK recriado, CHECKs e FKs novos numa tabela antiga. A guarda aborta a transação inteira se `AbastecimentoBem` não estiver no formato anterior |
 | O que muda | `AbastecimentoBem` ganha `origem` (`VARCHAR(8)` NOT NULL DEFAULT `'ESTOQUE'`), `atividade_id`, `apontamento_id`, `centro_custo_id` (`VARCHAR(64)`, anuláveis), `medidor_leitura_anterior`, `medidor_delta` (`DECIMAL(14,4)`, anuláveis) e `intervalo_confiavel` (`BOOLEAN` NOT NULL DEFAULT `false`); `local_estoque_id` e `movimentacao_estoque_id` passam a anuláveis; o CHECK `AbastecimentoBem_status_check` volta com o estorno exigido só na origem `ESTOQUE`; CHECKs novos `AbastecimentoBem_origem_check`, `AbastecimentoBem_atividade_check` e `AbastecimentoBem_intervalo_check`; FKs `AbastecimentoBem_atividade_fkey`, `AbastecimentoBem_apontamento_fkey` e `AbastecimentoBem_centro_custo_fkey` (compostas pelo tenant e pela empresa, RESTRICT); índices `AbastecimentoBem_atividade_idx`, `AbastecimentoBem_apontamento_idx` e `AbastecimentoBem_centro_custo_idx` (começam por `cliente_id`) |
 | Dados | as linhas existentes ficam `origem = 'ESTOQUE'` e `intervalo_confiavel = false`; o `centro_custo_id` delas vem do bem (`BemPatrimonial.centro_custo_id`); leitura anterior e delta ficam nulos (o snapshot não existia: desconhecido, sem inventar). Nenhuma linha some |
 | O que não muda | nenhuma tabela criada ou apagada, nenhuma política, nenhuma outra tabela |
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436` |
 | Guarda (`guarda_sha256`) | `3f5a3a37959e571e3d2ee68cd2ec87e15138aa1b59903db0f13dbe4c90b502fa` |
-| Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-210`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_status_check"]` (mesmo nome, recriado), `colunas_adicionadas` (as 7), `constraints_adicionadas` (os 3 CHECKs e as 3 FKs), o resto vazio; o resto do arquivo são só os 3 `CREATE INDEX` não-únicos |
-| `_prisma_migrations` | antes **60** concluídas, 0 em aberto (a última, a D-PROD-209, `20261116100000_funcionario_tipo_terceirizado`, checksum `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6`); depois **61** |
+| Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-211`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_status_check"]` (mesmo nome, recriado), `colunas_adicionadas` (as 7), `constraints_adicionadas` (os 3 CHECKs e as 3 FKs), o resto vazio; o resto do arquivo são só os 3 `CREATE INDEX` não-únicos |
+| `_prisma_migrations` | antes **61** concluídas, 0 em aberto (a última, a D-PROD-210, `20261116200000_formulacao_base_consumo`, checksum `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`); depois **62** |
 | Tabelas em `public` | **94** antes e depois |
 
 **Ordem: aplicar ANTES do merge (D-PROD-72 item 1).** Produção tem **1** linha em
@@ -51,9 +51,9 @@ pico.
   sessão na 5432), `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360` e a
   conexão do runtime no MESMO banco:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-210: 1 CHECKs alargados, 7 colunas adicionadas (…), 6 constraints adicionadas (…))
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-210  # ALVO VERIFICADO — 1 pendente(s) do manifesto
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-210
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-211: 1 CHECKs alargados, 7 colunas adicionadas (…), 6 constraints adicionadas (…))
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-211  # ALVO VERIFICADO — 1 pendente(s) do manifesto
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-211
   ```
 - **B — conector Supabase, uma única `execute_sql` (§5):** desvio da D-PROD-74, só
   com o GO escrito do proprietário **para esta migration**, registrado no §9.
@@ -68,7 +68,7 @@ pico.
 | GO | O quê | Situação |
 |---|---|---|
 | GO-1 | preflight **só leitura** em produção (§4) | `<pendente>` |
-| GO-2 | aplicar a CONTRACT D-PROD-210 (§5) e mergear em seguida | `<pendente>` |
+| GO-2 | aplicar a CONTRACT D-PROD-211 (§5) e mergear em seguida | `<pendente>` |
 
 ## 3. Ordem
 
@@ -83,15 +83,15 @@ ou posto externo).
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-210 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-211 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261116200000_abastecimento_atividade' AND rolled_back_at IS NULL) AS esta,
-         count(*) FILTER (WHERE migration_name = '20261116100000_funcionario_tipo_terceirizado'
-                            AND checksum = '44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6'
+         count(*) FILTER (WHERE migration_name = '20261116300000_abastecimento_atividade' AND rolled_back_at IS NULL) AS esta,
+         count(*) FILTER (WHERE migration_name = '20261116200000_formulacao_base_consumo'
+                            AND checksum = 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior
     FROM public._prisma_migrations
 ),
@@ -136,13 +136,13 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '60 / 0',
-         CASE WHEN (SELECT concluidas = 60 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '61 / 0',
+         CASE WHEN (SELECT concluidas = 61 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, '20261116200000_abastecimento_atividade já registrada', (SELECT esta::text FROM mig), '0',
+  SELECT 3, '20261116300000_abastecimento_atividade já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 4, 'a anterior (D-PROD-209) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
+  SELECT 4, 'a anterior (D-PROD-210) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
          CASE WHEN (SELECT anterior FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 5, 'colunas novas já presentes em AbastecimentoBem (tem de ser 0)', (SELECT n::text FROM colunas_novas), '0',
@@ -177,7 +177,7 @@ SELECT item, valor, esperado, status FROM (
 ```
 <!-- /sql:preflight -->
 
-Esperado hoje: `7692130048193495360`; `60 / 0`; `0`; `1`; `0`; `2`; `1 / 0`;
+Esperado hoje: `7692130048193495360`; `61 / 0`; `0`; `1`; `0`; `2`; `1 / 0`;
 `1 / <0 ou 1>` (a linha de produção; com centro no bem, ela recebe o centro);
 `94`; `0`; `0`; `PRONTO PARA APLICAR`. E, localmente, `sha256sum` do arquivo igual
 ao do §0.
@@ -187,21 +187,21 @@ ao do §0.
 Automatizado em `backend/tests/abastecimentoAtividadeMigration.test.mjs`
 (PostgreSQL local, bancos próprios). Roda **este** preflight, **este** envelope e
 **este** postcheck (entre os marcadores `sql:…`), trocando só o `system_identifier`:
-partida com as 60 anteriores e abastecimentos de 2 clientes (um com centro de custo
+partida com as 61 anteriores e abastecimentos de 2 clientes (um com centro de custo
 no bem, um sem, um cancelado com estorno); classificador e barreira do runner (sem
-`MIGRATION_CONTRACT_AUTORIZADO=D-PROD-210` exato recusa antes do DDL); RED (coluna
+`MIGRATION_CONTRACT_AUTORIZADO=D-PROD-211` exato recusa antes do DDL); RED (coluna
 nova já presente, ou local já anulável: a guarda recusa e nada muda); GREEN pelo
-runner (61/0, 94 tabelas, o backfill do centro de custo vindo do bem, as formas que os
+runner (62/0, 94 tabelas, o backfill do centro de custo vindo do bem, as formas que os
 CHECKs aceitam e recusam, `migrate diff` vazio, postcheck `APLICADA`; reaplicar é
-recusado pela guarda); caminho B (o SID de produção, histórico fora de 60/0, a
-D-PROD-209 com outro checksum ou uma coluna nova já presente recusam antes do DDL; o
-envelope aplica 60 → 61; repetir recusa).
+recusado pela guarda); caminho B (o SID de produção, histórico fora de 61/0, a
+D-PROD-210 com outro checksum ou uma coluna nova já presente recusam antes do DDL; o
+envelope aplica 61 → 62; repetir recusa).
 
 ## 5. Aplicação — só com o GO-2
 
 ### Caminho A
 
-Os comandos do §1 com `--contract D-PROD-210`.
+Os comandos do §1 com `--contract D-PROD-211`.
 
 ### Caminho B (conector, uma `execute_sql`, só com o GO escrito para ESTA migration)
 
@@ -217,20 +217,20 @@ BEGIN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
   IF EXISTS (SELECT 1 FROM _prisma_migrations
-              WHERE migration_name = '20261116200000_abastecimento_atividade' AND rolled_back_at IS NULL) THEN
+              WHERE migration_name = '20261116300000_abastecimento_atividade' AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)
     INTO n_ok, n_aberta FROM _prisma_migrations;
-  IF n_ok <> 60 OR n_aberta <> 0 THEN
+  IF n_ok <> 61 OR n_aberta <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % em aberto', n_ok, n_aberta;
   END IF;
   IF (SELECT count(*) FROM _prisma_migrations
        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
-         AND migration_name = '20261116100000_funcionario_tipo_terceirizado'
-         AND checksum = '44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6') <> 1 THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-209) ausente ou com checksum divergente';
+         AND migration_name = '20261116200000_formulacao_base_consumo'
+         AND checksum = 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171') <> 1 THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-210) ausente ou com checksum divergente';
   END IF;
   -- A guarda da migration (logo abaixo) confere o formato inteiro e trava "AbastecimentoBem"; esta conferência só para antes, com a mensagem do runbook.
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AbastecimentoBem'
@@ -244,7 +244,7 @@ END $alvo$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436', now(),
-        '20261116200000_abastecimento_atividade', NULL, NULL, now(), 1);
+        '20261116300000_abastecimento_atividade', NULL, NULL, now(), 1);
 COMMIT;
 ```
 <!-- /sql:caminho-b -->
@@ -253,7 +253,7 @@ O `migration.sql` não tem `BEGIN`/`COMMIT`; a guarda `DO $$ … $$` vai como es
 `checksum` do `INSERT` é o SHA-256 do arquivo. Qualquer falha desfaz tudo.
 
 **Falha no caminho A** (`55P03`, `guarda: …`): nada fica; conferir pelo preflight;
-`DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261116200000_abastecimento_atividade --schema backend/prisma/schema.prisma`;
+`DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261116300000_abastecimento_atividade --schema backend/prisma/schema.prisma`;
 eliminar a causa e confirmar com o proprietário. Com `guarda: o abastecimento não está
 no formato anterior` ou `guarda: os CHECKs do abastecimento não estão no formato
 anterior`: **não** tentar de novo (decisão nova).
@@ -264,13 +264,13 @@ proprietário.
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-210 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
+-- MAIKE · D-PROD-211 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261116200000_abastecimento_atividade'
+         count(*) FILTER (WHERE migration_name = '20261116300000_abastecimento_atividade'
                             AND checksum = '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL AND applied_steps_count = 1) AS esta
     FROM public._prisma_migrations
@@ -330,11 +330,11 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, '20261116200000_abastecimento_atividade concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
+  SELECT 2, '20261116300000_abastecimento_atividade concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '61 / 0',
-         CASE WHEN (SELECT concluidas = 61 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '62 / 0',
+         CASE WHEN (SELECT concluidas = 62 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'as 7 colunas novas com o tipo, a nulidade e o DEFAULT do contrato', (SELECT n::text FROM colunas), '7',
          CASE WHEN (SELECT n FROM colunas) = 7 THEN 'OK' ELSE 'PARAR' END
@@ -373,7 +373,7 @@ SELECT item, valor, esperado, status FROM (
 ```
 <!-- /sql:postcheck -->
 
-Esperado: `1`; `61 / 0`; `7`; `2`; `4`; `10`; `3`; `3`; `0`; `0`; `94`; VEREDITO
+Esperado: `1`; `62 / 0`; `7`; `2`; `4`; `10`; `3`; `3`; `0`; `0`; `94`; VEREDITO
 `APLICADA E CONFERIDA`. `get_advisors`: nada novo (os 3 índices cobrem as 3 FKs).
 
 ## 7. Reversão
@@ -388,7 +388,7 @@ Esperado: `1`; `61 / 0`; `7`; `2`; `4`; `10`; `3`; `3`; `0`; `0`; `94`; VEREDITO
 ## 8. `RELEASE_BLOCKED`
 
 Sem o GO-2; validação local não verde; `system_identifier` diferente; histórico
-diferente de 60/0, a D-PROD-209 com outro checksum ou a D-PROD-210 já registrada;
+diferente de 61/0, a D-PROD-210 com outro checksum ou a D-PROD-211 já registrada;
 `AbastecimentoBem` fora do formato anterior; qualquer `PARAR` no preflight; outra
 migration nova na mesma release; SHA-256 diferente do pinado; ensaio local sem passar.
 

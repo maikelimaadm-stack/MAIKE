@@ -193,7 +193,7 @@ export const consumoDoBem = async (contexto, query) => {
   };
 };
 
-// ─── D-PROD-210: combustível da ATIVIDADE (totalizador) ─────────────────────
+// ─── D-PROD-211: combustível da ATIVIDADE (totalizador) ─────────────────────
 
 /**
  * Combustível e consumo por bem de uma atividade (`GET /atividades/:id/totais`,

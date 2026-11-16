@@ -59,6 +59,9 @@ const COLUNAS_OK = [
   { table_name: 'Fornecedor', column_name: 'funcionario_tipo' },
   { table_name: 'AtividadeApontamentoMaoObra', column_name: 'parceiro_id' },
   { table_name: 'AtividadeApontamentoMaoObra', column_name: 'origem' },
+  // D-PROD-210: a base do consumo e os gramas da regra.
+  { table_name: 'CADFORMULACAO', column_name: 'base_consumo' },
+  { table_name: 'CADFORMULACAOREGRA', column_name: 'g_cab_dia' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };

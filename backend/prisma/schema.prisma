@@ -713,7 +713,10 @@ model Formulacao {
   nome                       String   @db.VarChar(120)
   tipo                       String   @db.VarChar(16)
   produto_id                 String   @db.VarChar(64)
-  percentual_pv_padrao       Decimal  @db.Decimal(8, 4)
+  // D-PROD-210: base do consumo — 'PV' (% do peso vivo; exige percentual_pv_padrao) ou 'G_CAB_DIA' (gramas por
+  // cabeça por dia; exige consumo_objetivo_g_cab_dia e %PV nulo). CHECK "CADFORMULACAO_base_consumo_check".
+  base_consumo               String   @default("PV") @db.VarChar(16)
+  percentual_pv_padrao       Decimal? @db.Decimal(8, 4)
   consumo_objetivo_g_cab_dia Decimal? @db.Decimal(10, 2)
   // D-PROD-206: faixa de tolerância do farol de consumo (% do esperado); null = padrão de 15%.
   faixa_tolerancia_percentual Decimal? @db.Decimal(5, 2)
@@ -780,6 +783,8 @@ model FormulacaoRegraCategoria {
   categoria_manejo_id String   @db.VarChar(64)
   consome             Boolean
   percentual_pv       Decimal? @db.Decimal(8, 4)
+  // D-PROD-210: na base G_CAB_DIA a regra que consome leva os gramas por cabeça por dia (e não o %PV).
+  g_cab_dia           Decimal? @db.Decimal(10, 2)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -2245,7 +2250,7 @@ model CentroCusto {
   // D-PROD-207 — centro de custo padrão do serviço.
   servicosPadrao        Servico[]
 
-  abastecimentos AbastecimentoBem[] // D-PROD-210
+  abastecimentos AbastecimentoBem[] // D-PROD-211
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2987,16 +2992,16 @@ model AbastecimentoBem {
   medidor_unidade          String?   @db.VarChar(8)
   medidor_leitura          Decimal?  @db.Decimal(14, 4)
   medidor_origem           String?   @db.VarChar(24)
-  /// D-PROD-210 — snapshot na confirmação: o ponto anterior do medidor, o delta e se o intervalo é confiável.
+  /// D-PROD-211 — snapshot na confirmação: o ponto anterior do medidor, o delta e se o intervalo é confiável.
   medidor_leitura_anterior Decimal?  @db.Decimal(14, 4)
   medidor_delta            Decimal?  @db.Decimal(14, 4)
   intervalo_confiavel      Boolean   @default(false)
-  /// D-PROD-210 — ESTOQUE (baixa FIFO) | EXTERNO (posto de estrada, sem estoque). CHECK.
+  /// D-PROD-211 — ESTOQUE (baixa FIFO) | EXTERNO (posto de estrada, sem estoque). CHECK.
   origem                   String    @default("ESTOQUE") @db.VarChar(8)
-  /// D-PROD-210 — o lançamento do dia (a atividade é derivada dele pelo servidor).
+  /// D-PROD-211 — o lançamento do dia (a atividade é derivada dele pelo servidor).
   atividade_id             String?   @db.VarChar(64)
   apontamento_id           String?   @db.VarChar(64)
-  /// D-PROD-210 — snapshot: o da atividade, senão o do bem.
+  /// D-PROD-211 — snapshot: o da atividade, senão o do bem.
   centro_custo_id          String?   @db.VarChar(64)
   observacao               String?   @db.VarChar(500)
   referencia_externa       String?   @db.VarChar(64)
@@ -3166,7 +3171,7 @@ model Atividade {
   reabertaPor      Usuario?               @relation("AtividadeReabertaPor", fields: [cliente_id, reaberta_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_reaberta_por_fkey")
   apontamentos     AtividadeApontamento[]
 
-  abastecimentos   AbastecimentoBem[]     // D-PROD-210
+  abastecimentos   AbastecimentoBem[]     // D-PROD-211
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
@@ -3219,7 +3224,7 @@ model AtividadeApontamento {
   maoObras     AtividadeApontamentoMaoObra[]
   servicos     AtividadeApontamentoServico[]
 
-  abastecimentos           AbastecimentoBem[]          // D-PROD-210
+  abastecimentos           AbastecimentoBem[]          // D-PROD-211
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, atividade_id, data_operacional, turno, sequencia], map: "AtividadeApontamento_atividade_dia_turno_sequencia_key")

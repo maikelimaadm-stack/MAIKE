@@ -391,7 +391,7 @@ describe('formatação (sem float)', () => {
   });
 });
 
-describe('D-PROD-210 — origem, vínculo com o lançamento e snapshot do medidor', () => {
+describe('D-PROD-211 — origem, vínculo com o lançamento e snapshot do medidor', () => {
   it('formulário vazio = Estoque da fazenda, sem apontamento; o do lançamento prende o apontamento e usa a data dele', () => {
     const vazio = formularioVazio('2026-06-15');
     expect([vazio.origem, vazio.custo_total, vazio.apontamento_id, ehExterno(vazio), rotuloDaOrigem(vazio)]).toEqual(['ESTOQUE', '', null, false, 'Estoque da fazenda']);

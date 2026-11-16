@@ -389,7 +389,7 @@ function PainelRestanteCiclo({ nivel }) {
       {estimado ?
       <div className="space-y-0.5 text-center text-[11px] leading-snug text-slate-700">
           <div className="font-semibold text-slate-900">{`${formatarKgNivel(nivel.saldoKg)} de ${formatarKgNivel(nivel.baseCicloKg)}`}</div>
-          <div>{`Consumo estimado: ${formatarTaxaNivel(nivel.taxaConsumoKgDia)} (%PV no lançamento)`}</div>
+          <div>{`Consumo estimado: ${formatarTaxaNivel(nivel.taxaConsumoKgDia)} (${nivel.evento?.base_consumo === "G_CAB_DIA" ? "g/cab/dia" : "%PV"} no lançamento)`}</div>
           {nivel.diasDecorridos != null && nivel.diasRestantesEstimados != null &&
         <div>{`Dias desde o abastecimento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)`}</div>
         }

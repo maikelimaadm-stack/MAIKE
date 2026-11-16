@@ -456,7 +456,7 @@ export const obter = async (contexto, id, query = {}) => {
  *    consumo_por_bem: [{ bem, medidor_tipo, uso, quantidade, unidade, quantidade_l, quantidade_kg, metrica, unidade_metrica, valor, custo_total }],
  *    custo_total, custo_por_ha, custo_combustivel_por_ha }`.
  * `custo_total` = Σ produtos + Σ máquinas com custo + Σ mão de obra com custo +
- * Σ serviços (D-PROD-207, Fatia 4) + combustível (D-PROD-210, Fatia 5: os
+ * Σ serviços (D-PROD-207, Fatia 4) + combustível (D-PROD-211, Fatia 5: os
  * abastecimentos CONFIRMADO ligados à atividade); nulo sem nenhum custo;
  * `custo_por_ha` = custo_total / area_executada (4 casas), nulo sem área ou
  * sem custo; `custo_combustivel_por_ha` = custo do combustível / área, idem.
@@ -813,7 +813,7 @@ export const reabrir = async (contexto, id, corpo) => {
  * CONFIRMADO são cancelados com o mesmo motivo, instante e usuário e os totais
  * recalculados (`atividadeApontamentoService.js`). D-PROD-202: ali também as
  * linhas de máquina são canceladas e as de produto estornadas (estoque e lotes
- * voltam exatos, no "hoje" da fazenda). D-PROD-210: os abastecimentos
+ * voltam exatos, no "hoje" da fazenda). D-PROD-211: os abastecimentos
  * CONFIRMADO ligados aos apontamentos também caem (estorno no ESTOQUE, só o
  * status no EXTERNO; travas Atividade → Bem → Produto). O cabeçalho é gravado por último (CAS).
  * @param {Contexto} contexto @param {string} id @param {Record<string, any>} corpo

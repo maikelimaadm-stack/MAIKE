@@ -141,7 +141,12 @@ export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO,
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
  */
 export const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA]);
+/**
+ * D-PROD-210: a CONTRACT da base do consumo (altera as 3 tabelas das Formulações, que só existem depois da D-PROD-203),
+ * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
+ */
+export const NOME_BASE = '20261116200000_formulacao_base_consumo';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()

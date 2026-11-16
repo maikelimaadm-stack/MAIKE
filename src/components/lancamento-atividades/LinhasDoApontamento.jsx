@@ -104,7 +104,7 @@ const EFEITO_DO_CANCELAMENTO = Object.freeze(
 const LIMITE_ABASTECIMENTOS_DO_LANCAMENTO = 100;
 
 /**
- * Bloco "Abastecimentos" de UM lançamento (D-PROD-210): a lista dos abastecimentos ligados a ele (filtro
+ * Bloco "Abastecimentos" de UM lançamento (D-PROD-211): a lista dos abastecimentos ligados a ele (filtro
  * `apontamento_id` da lista de abastecimentos) e o botão "Novo abastecimento", que abre o MESMO formulário da tela
  * Abastecimentos (`FormularioAbastecimento`, prévia e confirmação idempotente do `useFluxoAbastecimento`) já ligado
  * ao lançamento: a atividade e o lançamento aparecem só para leitura e a data padrão é a do lançamento. O cancelamento
@@ -295,7 +295,7 @@ function AbastecimentosDoApontamento({ atividade, apontamento, gravavel, fuso })
  * ações da tela (`podeLancar`, `podeEditar`, `podeCancelar` — já com a atividade ABERTA e o fuso) e só valem no
  * apontamento CONFIRMADO e na linha CONFIRMADA. Sem `permite_produto` no tipo, o bloco Produtos some (o servidor também
  * recusa); a linha de produto antiga, se houver, continua listada. Fatia 4: os blocos "Mão de obra" e "Serviços", no
- * mesmo molde, cada um só com a flag do tipo (`permite_mao_obra`, `permite_servico`). D-PROD-210: o bloco
+ * mesmo molde, cada um só com a flag do tipo (`permite_mao_obra`, `permite_servico`). D-PROD-211: o bloco
  * "Abastecimentos" (`AbastecimentosDoApontamento`), só com a tela Abastecimentos liberada; `gravavel` = atividade
  * ABERTA, fazenda com fuso e a empresa real.
  *

@@ -62,7 +62,7 @@
  *    estorna as de produto, na mesma transação, antes do UPDATE (origem
  *    `APONTAMENTO` | `ATIVIDADE`).
  *
- * D-PROD-210 (Fatia 5): a cascata também cancela os ABASTECIMENTOS confirmados
+ * D-PROD-211 (Fatia 5): a cascata também cancela os ABASTECIMENTOS confirmados
  * ligados ao apontamento (`cancelarAbastecimentosDosApontamentos`, o mesmo
  * caminho do cancelamento do abastecimento). A edição do apontamento não mexe
  * neles (não são linhas do lançamento: nem a troca de data os toca).
@@ -508,7 +508,7 @@ export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId
  * primeiro as de máquina (trava bem → produto, a ordem do abastecimento),
  * depois o estorno exato das de produto. D-PROD-207: as de mão de obra e de
  * serviço caem junto (sem estoque nem medidor: só o status).
- * D-PROD-210 (Fatia 5): os ABASTECIMENTOS confirmados ligados aos apontamentos
+ * D-PROD-211 (Fatia 5): os ABASTECIMENTOS confirmados ligados aos apontamentos
  * também caem (estorno exato no ESTOQUE, só o status no EXTERNO), pelo mesmo
  * caminho do cancelamento do abastecimento, com o motivo derivado — DEPOIS das
  * de máquina e ANTES das de produto. Travas: Bens (ordenados) → AbastecimentoBem
@@ -925,7 +925,7 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
  * D-PROD-202: antes do UPDATE, na mesma transação, as linhas confirmadas caem
  * com o mesmo motivo (origem `APONTAMENTO`): as de máquina e as de produto,
  * estornadas exatamente num `estornarEmLote` (o estoque volta, no dia de hoje).
- * D-PROD-210: e os abastecimentos CONFIRMADO ligados a ele (motivo derivado).
+ * D-PROD-211: e os abastecimentos CONFIRMADO ligados a ele (motivo derivado).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {Record<string, any>} corpo
  */

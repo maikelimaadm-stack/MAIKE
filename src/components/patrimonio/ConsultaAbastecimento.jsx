@@ -106,7 +106,7 @@ export function ConsumoDoAbastecimento({ consumo }) {
  * cadastro de Bens não reescreve o histórico), quantidade baixada na unidade
  * gravada no abastecimento (L ou kg), leitura do medidor, tanque, custo FIFO
  * FINAL (por L ou por kg), lotes, movimento e estorno; situação, cancelamento e
- * consumo. D-PROD-162: sem tipo de combustível e sem fator. D-PROD-210: origem
+ * consumo. D-PROD-162: sem tipo de combustível e sem fator. D-PROD-211: origem
  * (estoque da fazenda ou posto externo, que não tem local nem movimento), a
  * atividade e o lançamento a que pertence, o centro de custo (snapshot) e, com
  * contador, a leitura anterior, o avanço do medidor e o intervalo confiável.

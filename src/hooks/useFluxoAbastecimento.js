@@ -1,10 +1,10 @@
 /**
- * Fluxo do NOVO abastecimento e do cancelamento (D-PROD-159/162; D-PROD-210):
+ * Fluxo do NOVO abastecimento e do cancelamento (D-PROD-159/162; D-PROD-211):
  * o estado do formulário, a revisão (prévia no servidor, sem escrita), a
  * confirmação com `operation_id` persistente e o cancelamento com estorno.
  *
  * É o MESMO fluxo da tela Abastecimentos, tirado dela para que o Lançamento de
- * Atividades abra o mesmo formulário já ligado a um lançamento (D-PROD-210),
+ * Atividades abra o mesmo formulário já ligado a um lançamento (D-PROD-211),
  * sem um segundo caminho de gravação. Depois de cada escrita relê as listas de
  * abastecimentos, as consultas de estoque, o cache do Mapa, o bem e — quando o
  * abastecimento é de uma atividade — os lançamentos e os totais dela.
@@ -48,7 +48,7 @@ import {
 export const QUERY_RAIZ_ABASTECIMENTOS = 'patrimonio-abastecimentos';
 /** Opções dos seletores da tela (SeletorPaginadoGestao põe este prefixo). */
 export const CHAVE_OPCOES_ABASTECIMENTO = ['lancamentos-financeiros-gestao', 'opcoes', 'patrimonio', 'abastecimento'];
-/** Os abastecimentos ligados a UM lançamento da atividade (D-PROD-210). @param {string|null} empresaId @param {string|null} apontamentoId */
+/** Os abastecimentos ligados a UM lançamento da atividade (D-PROD-211). @param {string|null} empresaId @param {string|null} apontamentoId */
 export const chaveAbastecimentosDoApontamento = (empresaId, apontamentoId) => [QUERY_RAIZ_ABASTECIMENTOS, 'apontamento', empresaId ?? null, apontamentoId ?? null];
 
 /**
@@ -97,7 +97,7 @@ export const chaveProdutosDoBem = (empresaId, bemId) => [QUERY_RAIZ_ABASTECIMENT
  * Depois de confirmar ou cancelar: lista e detalhes de abastecimento, opções,
  * detalhe do bem (leitura do medidor), consultas de estoque, refresh FORÇADO do
  * cache do Mapa e o evento "atualizar-mapa"; e, se o abastecimento é de uma
- * atividade (D-PROD-210), os lançamentos e os totais dela.
+ * atividade (D-PROD-211), os lançamentos e os totais dela.
  * @param {import('@tanstack/react-query').QueryClient} queryClient @param {any} registro @param {string} emp
  */
 export const avisarAbastecimentoGravado = (queryClient, registro, emp) => {
@@ -117,7 +117,7 @@ export const avisarAbastecimentoGravado = (queryClient, registro, emp) => {
 
 /**
  * O aviso de sucesso: a quantidade na unidade GRAVADA (L ou kg); o posto
- * externo não baixa nem devolve estoque (D-PROD-210).
+ * externo não baixa nem devolve estoque (D-PROD-211).
  * @param {any} registro @param {'confirmar'|'cancelar'} tipo
  */
 const notificarComando = (registro, tipo) => {

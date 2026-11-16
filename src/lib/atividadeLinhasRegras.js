@@ -221,7 +221,7 @@ export const formatarQuantidadeLinha = (v, unidade) => {
 /** Custo em reais (até 4 casas); vazio sem valor. @param {unknown} v */
 export const formatarCustoLinha = (v) => (ehCanonico(v) ? formatarCusto(v) : '');
 
-// ─── Abastecimento ligado à atividade (D-PROD-210, só leitura) ───────────
+// ─── Abastecimento ligado à atividade (D-PROD-211, só leitura) ───────────
 
 /** "Nº 3 — Cigarrinha Pasto 01" (a atividade do abastecimento: `{id, numero, nome}`); "—" sem ela. @param {any} atividade */
 export const rotuloDaAtividadeDoAbastecimento = (atividade) => {
@@ -981,7 +981,7 @@ export const totaisParaExibir = (totais, atividade) => {
   }));
   /** @param {unknown} v */
   const positivoOuNulo = (v) => (ehCanonico(v) && ehPositivo(/** @type {string} */ (v)) ? v : null);
-  // D-PROD-210: combustível dos abastecimentos CONFIRMADOS ligados à atividade — litros e quilos à parte (nunca se somam).
+  // D-PROD-211: combustível dos abastecimentos CONFIRMADOS ligados à atividade — litros e quilos à parte (nunca se somam).
   const c = ehObjeto(t.combustivel) ? t.combustivel : null;
   const combustivel = c
     ? [formatarQuantidadeLinha(positivoOuNulo(c.quantidade_l), 'L'), formatarQuantidadeLinha(positivoOuNulo(c.quantidade_kg), 'KG'), formatarCustoLinha(c.custo_total)]

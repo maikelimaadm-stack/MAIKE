@@ -24,7 +24,7 @@
  * `preValidation` deste plugin (encapsulado) recusa número em `quantidade`,
  * `medidor_leitura` e `custo_total` antes da coerção do AJV.
  *
- * D-PROD-210 (Fatia 5): o corpo da prévia e da confirmação ganha `origem`
+ * D-PROD-211 (Fatia 5): o corpo da prévia e da confirmação ganha `origem`
  * (ESTOQUE | EXTERNO), `apontamento_id` e `custo_total` (só EXTERNO);
  * `local_estoque_id` deixa de ser obrigatório no schema (o serviço o exige no
  * ESTOQUE e o recusa no EXTERNO); `atividade_id` nunca entra (é derivado do
@@ -78,7 +78,7 @@ const CORPO_BASE = {
   tanque_cheio: { type: 'boolean' },
   observacao: TEXTO_NULO(500),
   referencia_externa: TEXTO_NULO(64),
-  // D-PROD-210
+  // D-PROD-211
   origem: { type: 'string', enum: [...ORIGENS_ABASTECIMENTO] },
   apontamento_id: { ...ID, type: ['string', 'null'] },
   custo_total: { type: ['string', 'null'], pattern: PADRAO_CUSTO_TOTAL.source },

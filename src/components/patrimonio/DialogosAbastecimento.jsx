@@ -138,7 +138,7 @@ function Linha({ rotulo, valor, testId = undefined }) {
  * estoque", recolhido. Sem tipo de combustível e sem fator. Com bloqueio não
  * há "Confirmar". `onConsultar` devolve o texto do resultado da consulta (ou
  * null quando achou e o diálogo fecha).
- * D-PROD-210: no posto externo (`origem` do formulário revisado, ou a do
+ * D-PROD-211: no posto externo (`origem` do formulário revisado, ou a do
  * plano) não há local nem baixa do estoque: a revisão mostra a origem e o valor
  * da nota (`custoExterno`, o digitado). Com contador, mostra a leitura
  * anterior, o avanço do medidor e se o intervalo é confiável, como o servidor
@@ -376,7 +376,7 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
   const unidade = UNIDADE_MEDIDOR[String(registro?.medidor?.tipo ?? "")] ?? "";
   const antes = textoDoPonto(efeito?.leitura_operacional_antes, unidade);
   const depois = efeito?.leitura_operacional_depois ?? null;
-  // D-PROD-210: o posto externo não baixou estoque — não há o que devolver.
+  // D-PROD-211: o posto externo não baixou estoque — não há o que devolver.
   const externo = ehExterno(registro);
   const textoDepois =
     !depois || depois.origem === "CADASTRO"

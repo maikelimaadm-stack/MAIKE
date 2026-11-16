@@ -380,7 +380,7 @@ describe('totalizador', () => {
       maquinas: [],
       mao_obra: [],
       servicos: [],
-      // D-PROD-210 (Fatia 5): sem abastecimento ligado, o combustível fica vazio.
+      // D-PROD-211 (Fatia 5): sem abastecimento ligado, o combustível fica vazio.
       combustivel: { quantidade_l: null, quantidade_kg: null, custo_total: null },
       consumo_por_bem: [],
       custo_total: '168.0000',

@@ -587,8 +587,8 @@ describe('Consumo do bem (D-PROD-162, P-03: métrica pela unidade do Produto)', 
 });
 
 // ═════════════════════════════════════════════════════════════════════════
-// D-PROD-210 — origem (estoque da fazenda × posto externo) e o snapshot do medidor
-describe('FE6 — origem e snapshot do medidor (D-PROD-210)', () => {
+// D-PROD-211 — origem (estoque da fazenda × posto externo) e o snapshot do medidor
+describe('FE6 — origem e snapshot do medidor (D-PROD-211)', () => {
   /** Escolhe a origem no formulário. @param {HTMLElement} form @param {'Estoque da fazenda'|'Posto externo'} nome */
   const escolherOrigem = (form, nome) => fireEvent.click(within(within(form).getByTestId('abastecimento-origem')).getByRole('radio', { name: nome }));
 
