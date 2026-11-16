@@ -232,6 +232,9 @@
 .mk-mapa-resumo__num small { font-size: 11px; font-weight: 600; color: var(--mk-mapa-suave); }
 .mk-mapa-resumo__num--verde { color: var(--mk-mapa-verde); }
 .mk-mapa-resumo__rot { margin-top: 2px; font-size: 10.5px; font-weight: 500; color: var(--mk-mapa-suave); }
+/* D-PROD-213: o cartão abre o Resumo do Rebanho (seta discreta à direita). */
+.mk-mapa-resumo[data-mk-resumo-rebanho] { cursor: pointer; }
+.mk-mapa-resumo__abrir { display: inline-flex; align-items: center; padding: 0 4px 0 2px; color: var(--mk-mapa-suave); }
 
 /* Controles nativos do MapLibre (zoom) no mesmo desenho */
 .mk-mapa .maplibregl-ctrl-bottom-right .maplibregl-ctrl { margin: 0 var(--mk-mapa-gap) var(--mk-mapa-gap) 0; }

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import MapaFiltrosPainel from "@/components/mapa/MapaFiltrosPainel";
 import DetalhesLote from "../components/mapa/DetalhesLote";
+import PainelResumoRebanho from "@/components/mapa/resumo-rebanho/PainelResumoRebanho";
 import DetalhesArea from "../components/mapa/DetalhesArea";
 import { acaoDoCliqueNaArea } from "@/domain/mapa/cliqueArea";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
@@ -83,6 +84,8 @@ export default function MapaGeral() {
 
   // Painéis
   const [showDetalhesLote, setShowDetalhesLote] = useState(false);
+  // D-PROD-213: Resumo do Rebanho (abre pelo cartão do resumo inferior).
+  const [showResumoRebanho, setShowResumoRebanho] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
   const [showDetalhesArea, setShowDetalhesArea] = useState(false);
   const [selectedArea, setSelectedArea] = useState(null);
@@ -1204,7 +1207,13 @@ export default function MapaGeral() {
 
 
         {/* Resumo inferior (D-PROD-131): cartão único, números grandes e rótulos discretos */}
-        <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo do mapa">
+        {/* D-PROD-213: com permissão de ver lotes, o cartão abre o Resumo do Rebanho. */}
+        <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo do mapa"
+          {...(mapaGeralPermissions.visualizar_lotes ? {
+            role: 'button', tabIndex: 0, title: 'Abrir o Resumo do Rebanho', 'data-mk-resumo-rebanho': '',
+            onClick: () => setShowResumoRebanho(true),
+            onKeyDown: (/** @type {React.KeyboardEvent} */ e) => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault();setShowResumoRebanho(true);}}
+          } : {})}>
           <div className="mk-mapa-resumo__item">
             <span className="mk-mapa-resumo__num mk-mapa-resumo__num--verde">{totalCabecas}</span>
             <span className="mk-mapa-resumo__rot">Animais</span>
@@ -1219,6 +1228,11 @@ export default function MapaGeral() {
             <span className="mk-mapa-resumo__num">{areasFiltradas.length}</span>
             <span className="mk-mapa-resumo__rot">Áreas</span>
           </div>
+          {mapaGeralPermissions.visualizar_lotes &&
+          <span className="mk-mapa-resumo__abrir" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
+            </span>
+          }
         </div>
 
         {!mapReady && mapLoadError &&
@@ -1277,6 +1291,10 @@ export default function MapaGeral() {
       {/* ─── Dialogs ─── */}
       <LancLoteDialogo open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) refetchLotes();}} titulo="Detalhes do Lote" lotes={areaDoDetalhe ? [{ nome: areaDoDetalhe }] : undefined} largo somenteLeitura>
           {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesLote(false);refetchLotes();}} />}
+      </LancLoteDialogo>
+
+      <LancLoteDialogo open={showResumoRebanho && mapaGeralPermissions.visualizar_lotes} onOpenChange={setShowResumoRebanho} titulo="Resumo do Rebanho" lotes={hoje ? [{ nome: `Posição em ${hoje.slice(8, 10)}/${hoje.slice(5, 7)}/${hoje.slice(0, 4)}` }] : undefined} largo somenteLeitura>
+          <PainelResumoRebanho posicoes={lotes} areas={areas} categoriasManejo={categoriasManejo} hoje={hoje} />
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo="Histórico da Área" largo somenteLeitura>

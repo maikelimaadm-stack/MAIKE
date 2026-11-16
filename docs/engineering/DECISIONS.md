@@ -7609,4 +7609,18 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md`](./MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-213 -->
+## D-PROD-213 — Resumo do Rebanho no Mapa Geral (cabeças, peso hoje e em 90 dias, arrobas, lotação por pasto)
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário ("meu patrão quer algum resultado": relação do rebanho atual por categoria, peso, peso projetado, ganho, peso em @). O conteúdo foi aprovado num modelo visual (canvas) e o proprietário exigiu o VISUAL igual ao padrão original do sistema · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Onde:** o cartão do resumo inferior do Mapa Geral (Animais · Peso méd. · Áreas, D-PROD-131) vira o botão que abre o diálogo "Resumo do Rebanho" — sem rota nem página nova (escopo D-PROD-01). Só com `visualizar_lotes` do mapa; sem ele o cartão continua só informativo. Nenhuma permissão nova.
+2. **Visual:** a MESMA casca do Detalhes do Lote v8 — `LancLoteDialogo` (`largo somenteLeitura`, desktop 880 px, tablet/celular tela cheia) com `.mk-dl.mk-dl8[data-modo]`, menu de abas `.mk-dl8__aba` (sublinhado verde), cartões `CartaoDl`, `PilulaTitulo`, cores `COR` e o seletor em pílula do "Ver como" (aba Lotes) para a fazenda. Nenhuma cor ou fonte nova.
+3. **Conteúdo:** filtro de fazenda (setores das áreas com rebanho: "Todas" + um por `setor_nome`, sem o prefixo "FAZENDA "). Aba **Rebanho**: 4 cartões — Cabeças, Peso médio (projetado hoje), Arrobas (peso vivo ÷ 30) e Em 90 dias (+@ do rebanho; peso médio em 90 dias) — e a lista por categoria de manejo (idade mínima da faixa): Cabeças, Peso hoje, Em 90 dias. Aba **Pastos**: Cabeças, peso, fazenda e lotação UA/ha (UA = 450 kg) com barra, do mais carregado para o menos. Rodapé: projeção pela curva; ganho real só depois da segunda pesagem.
+4. **Contas puras** em `src/domain/rebanho/resumoDoRebanho.js`: peso de hoje = `projecao_peso.peso_kg` que o servidor já manda em cada posição (D-PROD-197/198); sem projeção, o `peso_medio_kg` gravado (contado como "sem projeção" e avisado no rodapé). Peso em 90 dias = interpolação linear entre os pontos de `projecao_mensal` (hoje e os fins de mês) — exata, porque o GMD da curva é constante dentro do mês; nenhum GMD é inventado no front. Sem projeção, o peso não muda no horizonte. Usa as posições e áreas já carregadas pelo mapa (sem os filtros de exibição do mapa): nada de backend novo, nada de migration.
+
+**Fora do escopo:** ganho real (precisa da segunda pesagem), exportar PDF/planilha, valor em R$ (preço da @), @ de carcaça.
+
+**Relatório:** [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-214 -->
