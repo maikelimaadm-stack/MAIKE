@@ -141,6 +141,12 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * rodou a suíte da Fatia 4 (D-PROD-207) tem funcionários e linhas de mão de obra
  * e a guarda recusa (`guarda: "Funcionario" tem linhas`; a saída do Prisma cita
  * `20261116000000_mao_obra_parceiro`). Mesmo remédio: recriar o banco local.
+ *
+ * D-PROD-209: a migration CONTRACT do tipo Terceirizado só roda sem parceiro com
+ * funcionario_tipo = TAREFEIRO. Um banco LOCAL que já rodou a suíte da D-PROD-208
+ * pode ter parceiros TAREFEIRO e a guarda recusa (`guarda: há parceiro com
+ * funcionario_tipo = TAREFEIRO`; a saída do Prisma cita
+ * `20261116100000_funcionario_tipo_terceirizado`). Mesmo remédio: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -170,7 +176,9 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'exato. Recriar o banco local, do mesmo jeito, resolve. ' +
   'Se cita mao_obra_parceiro (a CONTRACT da D-PROD-208, mensagens "guarda: …"), o banco local tem funcionários ou ' +
   'linhas de mão de obra de rodadas da Fatia 4 (D-PROD-207), e a guarda só aceita as duas tabelas vazias; recriar o ' +
-  'banco local, do mesmo jeito, resolve.';
+  'banco local, do mesmo jeito, resolve. ' +
+  'Se cita funcionario_tipo_terceirizado (a CONTRACT da D-PROD-209, mensagens "guarda: …"), o banco local tem parceiros ' +
+  'com o tipo TAREFEIRO de rodadas da D-PROD-208, e a guarda só aceita nenhum; recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

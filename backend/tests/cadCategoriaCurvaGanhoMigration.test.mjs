@@ -68,7 +68,9 @@
  *
  * D-PROD-208: a CONTRACT `20261116000000_mao_obra_parceiro` (o funcionário como papel do parceiro; a Funcionario, vazia,
  * sai; não toca CADCATEGORIA), de nome POSTERIOR, sobe na partida como as outras CONTRACT posteriores, depois da
- * D-PROD-207: 90 tabelas na partida e 94 no fim (59 migrations).
+ * D-PROD-207: 90 tabelas na partida e 94 no fim (59 migrations). D-PROD-209: a CONTRACT
+ * `20261116100000_funcionario_tipo_terceirizado` (só o CHECK de Fornecedor), ainda posterior, sobe na partida do mesmo
+ * jeito, por último: 60 migrations, as mesmas tabelas.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -378,13 +380,13 @@ after(async () => {
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
   test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas, a D-PROD-197 e a D-PROD-200, posteriores, as EXPAND posteriores da D-PROD-202 e da D-PROD-207 e a CONTRACT posterior da D-PROD-208; fora também as EXPAND da D-PROD-203, da D-PROD-205 e da D-PROD-206), 90 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho', '20261116000000_mao_obra_parceiro'], 'só as CONTRACT da D-PROD-197, da D-PROD-200 e da D-PROD-208 têm nome posterior a esta');
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado'], 'só as CONTRACT da D-PROD-197, da D-PROD-200, da D-PROD-208 e da D-PROD-209 têm nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     // D-PROD-198, D-PROD-203, D-PROD-205 e D-PROD-206: as EXPAND do peso objetivo, das Formulações, da Leitura de cocho e
-    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 e a CONTRACT da D-PROD-208 entram (59 pastas; partida 54).
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, '20261116000000_mao_obra_parceiro']);
-    assert.equal(MIGRATIONS_PARTIDA, 54);
-    assert.equal(TOTAL_MIGRATIONS, 59);
+    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 e as CONTRACT da D-PROD-208 e da D-PROD-209 entram (60 pastas; partida 55).
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado']);
+    assert.equal(MIGRATIONS_PARTIDA, 55);
+    assert.equal(TOTAL_MIGRATIONS, 60);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.peso_concluida, 0, 'a D-PROD-198 ainda não existia no dia desta CONTRACT');

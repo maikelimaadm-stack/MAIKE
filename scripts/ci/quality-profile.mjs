@@ -66,6 +66,8 @@ export const DOCS_ACOPLADOS = Object.freeze([
   'docs/engineering/MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md',
   // backend/tests/atividadeMaoObraParceiroMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-208)
   'docs/engineering/MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md',
+  // backend/tests/funcionarioTipoTerceirizadoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-209)
+  'docs/engineering/MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md',
 ]);
 
 /** Estados do GitHub aceitos no `docs_fast`. Removido e renomeado vão para o `full`. */
