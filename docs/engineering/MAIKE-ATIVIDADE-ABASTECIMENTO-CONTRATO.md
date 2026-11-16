@@ -74,6 +74,9 @@ Corpo ganha, todos opcionais:
 ### 2.2 Cancelar abastecimento
 
 - `ESTOQUE`: como hoje (estorno pelo motor). `EXTERNO`: só muda o status (não há movimento); motivo obrigatório igual.
+- Ligado a atividade que não está `ABERTA` (concluída): **recusado** (409 `ATIVIDADE_STATUS_INVALIDO`, ação
+  `cancelar_abastecimento`); reabra a atividade antes. Trava: Empresa → Atividade (só quando ligado) → Bem → …
+- `EXTERNO`: `custo_total`/`custo_unitario` acima do limite do estoque bloqueiam na prévia e na confirmação (422).
 - Nada é apagado fisicamente.
 
 ### 2.3 Cascata pela atividade (princípio 7 do redesenho)

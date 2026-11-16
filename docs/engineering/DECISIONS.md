@@ -7549,7 +7549,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 3. **Snapshots** na confirmação, nunca relidos: o **centro de custo** (o da atividade; sem atividade, o do bem) e a **leitura anterior do medidor**, o **delta** e o **intervalo confiável** (anterior existe, delta > 0 e o anterior não é só o ponto do cadastro do bem).
 4. O consumo do bem pelo **método do tanque cheio** (D-PROD-162) continua sendo o único cálculo do consumo do bem; o totalizador da atividade ganha o combustível, o custo de combustível por hectare e o consumo por bem da atividade (litros ÷ horas, km ÷ litros das linhas de máquina).
 5. **Migration CONTRACT `20261116200000_abastecimento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`): 7 colunas novas, `local_estoque_id` e `movimentacao_estoque_id` passam a aceitar nulo (só no `EXTERNO`), CHECK de status trocado, CHECKs novos de origem, vínculo e intervalo, 3 FKs e 3 índices; backfill do centro de custo das linhas existentes pelo bem. SHA-256 `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`; 60 → 61 migrations, 94 tabelas.
-6. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
+6. Abastecimento ligado a atividade **concluída** não se cancela (409, a atividade precisa ser reaberta antes): os totais da concluída ficam congelados. O sem vínculo cancela como sempre.
+7. Permissões: ligar e cancelar o abastecimento seguem as permissões da tela de Abastecimentos; a cascata (cancelar o lançamento ou a atividade) cancela os ligados pela permissão da atividade, como já fazia com as linhas.
+8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro.
+9. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
 
 **Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-210` no caminho A; o envelope no caminho B).
 
