@@ -12,8 +12,12 @@ import {
   formatarQuantidade,
   formatarQuantidadeCurta,
   quantidadeDaBaixaNaPrevia,
+  ORIGEM_EXTERNO,
+  ehExterno,
   rotuloDaUnidade,
   rotuloDoBem,
+  snapshotDoMedidor,
+  textoDoIntervaloConfiavel,
   unidadeDoAbastecimentoDoProduto,
 } from "@/lib/abastecimentoRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
@@ -134,16 +138,23 @@ function Linha({ rotulo, valor, testId = undefined }) {
  * estoque", recolhido. Sem tipo de combustível e sem fator. Com bloqueio não
  * há "Confirmar". `onConsultar` devolve o texto do resultado da consulta (ou
  * null quando achou e o diálogo fecha).
+ * D-PROD-211: no posto externo (`origem` do formulário revisado, ou a do
+ * plano) não há local nem baixa do estoque: a revisão mostra a origem e o valor
+ * da nota (`custoExterno`, o digitado). Com contador, mostra a leitura
+ * anterior, o avanço do medidor e se o intervalo é confiável, como o servidor
+ * calculou (sem gravar).
  * @param {{
  *   aberto: boolean,
  *   previa: { plano: any, bloqueios: any[] } | null,
+ *   origem?: string|null,
+ *   custoExterno?: string|null,
  *   podeConfirmar: boolean,
  *   onFechar: () => void,
  *   onConfirmar: (arg: unknown, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar: () => Promise<string|null>,
  * }} props
  */
-export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFechar, onConfirmar, onConsultar }) {
+export function DialogoPreviaAbastecimento({ aberto, previa, origem = null, custoExterno = null, podeConfirmar, onFechar, onConfirmar, onConsultar }) {
   const { estado, disparar, setEstado } = useEnvioAbastecimento(onConfirmar, "Não foi possível confirmar o abastecimento. Nada foi gravado.");
   const [detalhesAbertos, setDetalhesAbertos] = useState(false);
   const enviando = estado.fase === "enviando";
@@ -159,8 +170,17 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
   // Dica pela unidade do PRODUTO (KG: kg, não litros; SACO: kg, não sacos); sem ela no plano, a da unidade efetiva.
   const dicaDaUnidade = dicaDaUnidadeDoProduto(plano?.produto?.unidade_principal_estoque ?? unidadeEstoque);
   // Com bloqueio de quantidade (zero, acima do teto) ou Produto fora de L/KG/SACO a quantidade não é baixa: não aparece como tal.
-  const baixa = quantidadeDaBaixaNaPrevia(previa);
+  const externo = origem === ORIGEM_EXTERNO || ehExterno(plano);
+  const baixa = externo ? null : quantidadeDaBaixaNaPrevia(previa);
   const quantidade = plano?.quantidade ? formatarQuantidadeCurta(plano.quantidade, unidadeEstoque) : "—";
+  const valorDaNota = plano?.custo_total ?? custoExterno;
+  const snapshot = medidor?.leitura ? snapshotDoMedidor(plano) : null;
+  let resumo = "Nada foi gravado: confira abaixo o que impede a confirmação.";
+  if (externo && !bloqueios.length && plano) {
+    resumo = `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${quantidade}. Posto externo: sem baixa do estoque${valorDaNota ? `; nota de ${formatarCusto(valorDaNota)}` : ""}.`;
+  } else if (baixa) {
+    resumo = `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${quantidade}. Baixa de ${formatarQuantidade(baixa, unidadeEstoque)} do estoque em ${plano.local_estoque?.nome ?? "local"}.`;
+  }
 
   const consultar = async () => {
     const texto = await onConsultar();
@@ -173,13 +193,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
       onFechar={onFechar}
       podeFechar={!enviando}
       titulo="Revisar abastecimento"
-      descricao={
-        baixa
-          ? `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${quantidade}. Baixa de ${formatarQuantidade(baixa, unidadeEstoque)} do estoque em ${
-              plano.local_estoque?.nome ?? "local"
-            }.`
-          : "Nada foi gravado: confira abaixo o que impede a confirmação."
-      }
+      descricao={resumo}
       descricaoProps={{ "data-testid": "previa-resumo" }}
       className="b1-janela--estreita"
       testId="dialogo-previa-abastecimento"
@@ -210,11 +224,28 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
         {medidor?.leitura ? (
           <Linha rotulo="Leitura do medidor" testId="previa-leitura" valor={`${formatarLeitura(medidor.leitura)}${unidade ? ` ${unidade}` : ""}`} />
         ) : null}
+        {snapshot ? (
+          <>
+            <Linha rotulo="Leitura anterior" testId="previa-leitura-anterior" valor={snapshot.anterior ? `${formatarLeitura(snapshot.anterior)}${unidade ? ` ${unidade}` : ""}` : "—"} />
+            <Linha rotulo="Avanço do medidor" testId="previa-medidor-delta" valor={snapshot.delta ? `${formatarLeitura(snapshot.delta)}${unidade ? ` ${unidade}` : ""}` : "—"} />
+            <Linha rotulo="Intervalo confiável" testId="previa-intervalo-confiavel" valor={textoDoIntervaloConfiavel(snapshot)} />
+          </>
+        ) : null}
         <Linha rotulo="Completou o tanque" testId="previa-tanque-cheio" valor={plano?.tanque_cheio ? "Sim" : "Não"} />
         <Linha rotulo="Data" testId="previa-data" valor={formatarDiaAbastecimento(plano?.data_operacional)} />
-        <Linha rotulo="Sai do estoque" testId="previa-local" valor={plano?.local_estoque?.nome ?? "—"} />
-        <Linha rotulo="Baixa do estoque" testId="previa-baixa" valor={baixa ? formatarQuantidade(baixa, unidadeEstoque) : "—"} />
+        {externo ? (
+          <>
+            <Linha rotulo="Origem" testId="previa-origem" valor="Posto externo (sem baixa do estoque)" />
+            <Linha rotulo="Valor total da nota" testId="previa-valor-nota" valor={valorDaNota ? formatarCusto(valorDaNota) : "—"} />
+          </>
+        ) : (
+          <>
+            <Linha rotulo="Sai do estoque" testId="previa-local" valor={plano?.local_estoque?.nome ?? "—"} />
+            <Linha rotulo="Baixa do estoque" testId="previa-baixa" valor={baixa ? formatarQuantidade(baixa, unidadeEstoque) : "—"} />
+          </>
+        )}
       </dl>
+      {externo ? null : (
       <div className="min-w-0">
         <button
           type="button"
@@ -295,6 +326,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
           </div>
         ) : null}
       </div>
+      )}
       {bloqueios.length ? (
         <div role="alert" data-testid="previa-bloqueios" className="min-w-0 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
           <p className="font-semibold">Não dá para confirmar agora:</p>
@@ -344,6 +376,8 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
   const unidade = UNIDADE_MEDIDOR[String(registro?.medidor?.tipo ?? "")] ?? "";
   const antes = textoDoPonto(efeito?.leitura_operacional_antes, unidade);
   const depois = efeito?.leitura_operacional_depois ?? null;
+  // D-PROD-211: o posto externo não baixou estoque — não há o que devolver.
+  const externo = ehExterno(registro);
   const textoDepois =
     !depois || depois.origem === "CADASTRO"
       ? `para a leitura do cadastro${depois?.leitura ? `, ${textoDoPonto(depois, unidade)}` : ""}`
@@ -361,10 +395,17 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
       podeFechar={!enviando}
       titulo={`Cancelar abastecimento ${registro?.numero ? `nº ${registro.numero}` : ""}`.trim()}
       descricao={
-        <>
-          O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de{" "}
-          {registro?.produto?.nome ?? "produto"}). O abastecimento continua no histórico como cancelado; nada é apagado.
-        </>
+        externo ? (
+          <>
+            Abastecimento no posto externo ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de {registro?.produto?.nome ?? "produto"}): não houve baixa
+            do estoque, então nada volta ao estoque. Ele deixa de contar no consumo e nos custos e continua no histórico como cancelado; nada é apagado.
+          </>
+        ) : (
+          <>
+            O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de{" "}
+            {registro?.produto?.nome ?? "produto"}). O abastecimento continua no histórico como cancelado; nada é apagado.
+          </>
+        )
       }
       className="b1-janela--estreita"
       testId="dialogo-cancelamento-abastecimento"
@@ -409,7 +450,11 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
           onChange={(e) => setCiente(e.target.checked)}
           data-testid="cancelamento-ciente"
         />
-        <span className="min-w-0 break-words">Estou ciente: o estoque baixado volta aos lotes de origem e este abastecimento deixa de contar no consumo.</span>
+        <span className="min-w-0 break-words">
+          {externo
+            ? "Estou ciente: este abastecimento do posto externo deixa de contar no consumo e nos custos."
+            : "Estou ciente: o estoque baixado volta aos lotes de origem e este abastecimento deixa de contar no consumo."}
+        </span>
       </label>
       <AvisoEnvioAbastecimento estado={estado} objeto="o cancelamento" onConsultar={consultar} onRepetir={bloqueado ? null : () => disparar(motivoLimpo)} />
     </B1Janela>

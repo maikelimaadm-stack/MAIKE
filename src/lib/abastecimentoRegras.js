@@ -32,6 +32,29 @@ export const LIMITES_ABASTECIMENTO = Object.freeze({
   LEITURA: Object.freeze({ inteiros: 10, casas: 4 }),
 });
 
+/**
+ * D-PROD-211: valor total da nota do posto externo, em reais com até 2 casas
+ * (o teto do estoque). Fica fora de `LIMITES_ABASTECIMENTO` (o contrato dela é
+ * congelado pelos testes da D-PROD-162).
+ */
+export const LIMITES_CUSTO_EXTERNO = Object.freeze({ inteiros: 10, casas: 2 });
+
+/**
+ * D-PROD-211: de onde sai o combustível. `ESTOQUE` (padrão) baixa do estoque da
+ * fazenda pelo motor FIFO; `EXTERNO` é o posto de estrada: sem local, sem baixa,
+ * com o valor total da nota.
+ */
+export const ORIGEM_ESTOQUE = 'ESTOQUE';
+export const ORIGEM_EXTERNO = 'EXTERNO';
+export const ORIGENS_ABASTECIMENTO = Object.freeze([ORIGEM_ESTOQUE, ORIGEM_EXTERNO]);
+export const ROTULO_ORIGEM_ABASTECIMENTO = Object.freeze(/** @type {Record<string, string>} */ ({ ESTOQUE: 'Estoque da fazenda', EXTERNO: 'Posto externo' }));
+/** A origem do formulário ou do registro (ausente = `ESTOQUE`). @param {unknown} v */
+export const origemDe = (v) => (v && typeof v === 'object' && /** @type {any} */ (v).origem === ORIGEM_EXTERNO ? ORIGEM_EXTERNO : ORIGEM_ESTOQUE);
+/** O formulário ou o registro é de posto externo? @param {unknown} v */
+export const ehExterno = (v) => origemDe(v) === ORIGEM_EXTERNO;
+/** "Estoque da fazenda" / "Posto externo". @param {unknown} v */
+export const rotuloDaOrigem = (v) => ROTULO_ORIGEM_ABASTECIMENTO[origemDe(v)];
+
 /** Teto do motor de estoque (quantidade e valor). */
 export const LIMITE_ESTOQUE = '9999999999.9999';
 
@@ -130,14 +153,30 @@ export const formularioVazio = (hoje) => ({
   bem: null,
   tanque_id: null,
   produto: null,
+  // D-PROD-211: origem (ESTOQUE | EXTERNO) e, no posto externo, o valor total da nota (texto digitado).
+  origem: ORIGEM_ESTOQUE,
   local_estoque_id: null,
   data_operacional: hoje,
   quantidade: '',
+  custo_total: '',
   medidor_leitura: '',
   tanque_cheio: false,
   observacao: '',
   referencia_externa: '',
+  // D-PROD-211: o lançamento (apontamento) da atividade a que o abastecimento pertence; o servidor deriva a atividade.
+  apontamento_id: null,
 });
+
+/**
+ * Formulário aberto a partir de um LANÇAMENTO da atividade (D-PROD-211): o
+ * `apontamento_id` fica preso e a data vem a do lançamento (o operador pode
+ * mudá-la; o servidor não exige que seja a mesma).
+ * @param {string} hoje @param {any} apontamento
+ */
+export const formularioDoApontamento = (hoje, apontamento) => {
+  const dia = texto(apontamento?.data_operacional);
+  return { ...formularioVazio(ehDiaValido(dia) ? dia : hoje), apontamento_id: idDe(apontamento) };
+};
 
 // ─── Opção de PRODUTO do bem → formulário (A16) ──────────────────────────
 
@@ -232,7 +271,19 @@ export const validarFormulario = (form, ctx = {}) => {
   else {
     // Tanque e local dependem do Produto: só cobrados (e só visíveis) depois dele.
     if (!idDe(form?.tanque_id)) erros.tanque_id = 'Escolha qual tanque será abastecido.';
-    if (!idDe(form?.local_estoque_id)) erros.local_estoque_id = 'Escolha de qual local do estoque sai o Produto.';
+    // Posto externo (D-PROD-211): não há local; o combustível não sai do estoque.
+    if (!ehExterno(form) && !idDe(form?.local_estoque_id)) erros.local_estoque_id = 'Escolha de qual local do estoque sai o Produto.';
+  }
+  if (ehExterno(form)) {
+    const custo = lerNumeroLocal(form?.custo_total, LOCALE_ABASTECIMENTO, LIMITES_CUSTO_EXTERNO);
+    if (!custo.ok) {
+      erros.custo_total =
+        custo.motivo === 'vazio'
+          ? 'Informe o valor total da nota do posto.'
+          : custo.motivo === 'casas'
+            ? 'No máximo 2 casas decimais (centavos).'
+            : mensagemDoNumero(String(custo.motivo));
+    } else if (!ehPositivo(/** @type {string} */ (custo.valor))) erros.custo_total = 'Informe um valor maior que zero.';
   }
   const dia = texto(form?.data_operacional);
   if (!ehDiaValido(dia)) erros.data_operacional = 'Informe a data do abastecimento.';
@@ -265,7 +316,8 @@ export const montarCorpoPrevia = (empresaId, form) => {
   if (!quantidade) throw new RangeError('quantidade_invalida');
   const contador = medidorExigeLeitura(medidorDoFormulario(form));
   const leitura = contador ? canonicoDoDigitado(form?.medidor_leitura, LIMITES_ABASTECIMENTO.LEITURA) : null;
-  return {
+  /** @type {Record<string, unknown>} */
+  const corpo = {
     empresa_id: empresaId,
     bem_id: idDe(form?.bem),
     tanque_id: idDe(form?.tanque_id),
@@ -278,6 +330,19 @@ export const montarCorpoPrevia = (empresaId, form) => {
     observacao: textoOuNulo(form?.observacao),
     referencia_externa: textoOuNulo(form?.referencia_externa),
   };
+  // D-PROD-211 — posto externo: `origem` e o valor total da nota; o local NÃO vai (o servidor recusaria).
+  // Estoque da fazenda: o corpo de sempre (a origem padrão do servidor é ESTOQUE).
+  if (ehExterno(form)) {
+    const custo = canonicoDoDigitado(form?.custo_total, LIMITES_CUSTO_EXTERNO);
+    if (!custo) throw new RangeError('custo_total_invalido');
+    delete corpo.local_estoque_id;
+    corpo.origem = ORIGEM_EXTERNO;
+    corpo.custo_total = custo;
+  }
+  // Ligado a um lançamento da atividade: só o `apontamento_id` (a atividade o servidor deriva; nunca vai).
+  const apontamentoId = idDe(form?.apontamento_id);
+  if (apontamentoId) corpo.apontamento_id = apontamentoId;
+  return corpo;
 };
 
 /**
@@ -311,6 +376,9 @@ export const assinaturaDoFormulario = (form) =>
     idDe(form?.local_estoque_id),
     texto(form?.data_operacional),
     canonicoDoDigitado(form?.quantidade, LIMITES_ABASTECIMENTO.QUANTIDADE) ?? texto(form?.quantidade),
+    origemDe(form),
+    ehExterno(form) ? (canonicoDoDigitado(form?.custo_total, LIMITES_CUSTO_EXTERNO) ?? texto(form?.custo_total)) : null,
+    idDe(form?.apontamento_id),
     canonicoDoDigitado(form?.medidor_leitura, LIMITES_ABASTECIMENTO.LEITURA) ?? texto(form?.medidor_leitura),
     form?.tanque_cheio === true,
     texto(form?.observacao),
@@ -351,6 +419,32 @@ export const formatarDiaAbastecimento = (v) => formatarDia(v, LOCALE_ABASTECIMEN
 export const UNIDADE_MEDIDOR = Object.freeze(/** @type {Record<string, string>} */ ({ HORIMETRO: 'h', ODOMETRO: 'km', CICLOS: 'ciclos' }));
 /** Rótulo do campo de leitura conforme o medidor. */
 export const ROTULO_LEITURA = Object.freeze(/** @type {Record<string, string>} */ ({ HORIMETRO: 'Horímetro (h)', ODOMETRO: 'Odômetro (km)', CICLOS: 'Ciclos' }));
+
+/**
+ * D-PROD-211 — o snapshot do medidor gravado na confirmação (e devolvido pela
+ * prévia, sem gravar): leitura anterior, avanço desde ela e se o intervalo é
+ * confiável. Lê os campos do próprio objeto e, na falta, os de `medidor`.
+ * `null` quando o objeto não traz nenhum deles (servidor antigo / sem contador).
+ * @param {any} obj
+ * @returns {{ anterior: string|null, delta: string|null, confiavel: boolean } | null}
+ */
+export const snapshotDoMedidor = (obj) => {
+  if (!obj || typeof obj !== 'object') return null;
+  const m = obj.medidor && typeof obj.medidor === 'object' ? obj.medidor : {};
+  /** @param {string} k */
+  const de = (k) => (Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : Object.prototype.hasOwnProperty.call(m, k) ? m[k] : undefined);
+  const anterior = de('medidor_leitura_anterior');
+  const delta = de('medidor_delta');
+  const confiavel = de('intervalo_confiavel');
+  if (anterior === undefined && delta === undefined && confiavel === undefined) return null;
+  return { anterior: ehCanonico(anterior) ? /** @type {string} */ (anterior) : null, delta: ehCanonico(delta) ? /** @type {string} */ (delta) : null, confiavel: confiavel === true };
+};
+
+/** "Sim" / "Não" do intervalo confiável (sem leitura anterior: "Não (sem leitura anterior)"). @param {ReturnType<typeof snapshotDoMedidor>} s */
+export const textoDoIntervaloConfiavel = (s) => (!s ? '—' : s.confiavel ? 'Sim' : s.anterior ? 'Não' : 'Não (sem leitura anterior)');
+
+/** Centro de custo do snapshot ("—" sem ele). @param {any} registro */
+export const rotuloDoCentroDeCusto = (registro) => texto(registro?.centro_custo?.nome) || '—';
 
 /** "TP-02 — Trator TP-02" (ou só o nome). @param {any} bem */
 export const rotuloDoBem = (bem) => {
@@ -483,6 +577,22 @@ const conferirConsumoDoAbastecimento = (v, onde, c) => {
   if (Object.prototype.hasOwnProperty.call(c, 'litros')) v.push(`${onde}.litros: campo removido pela D-PROD-162`);
 };
 
+/**
+ * D-PROD-211 — os campos novos, quando vêm: origem, atividade/apontamento/centro
+ * de custo (objeto ou null) e o snapshot do medidor (texto de 4 casas ou null;
+ * booleano). Ausentes não violam (servidor anterior à fatia).
+ * @param {string[]} v @param {string} onde @param {any} d
+ */
+const conferirVinculo = (v, onde, d) => {
+  if (Object.prototype.hasOwnProperty.call(d, 'origem') && !ORIGENS_ABASTECIMENTO.includes(d.origem)) v.push(`${onde}.origem: inválida (${JSON.stringify(d.origem)})`);
+  for (const k of ['atividade', 'apontamento', 'centro_custo']) {
+    if (Object.prototype.hasOwnProperty.call(d, k) && d[k] !== null && !ehObjeto(d[k])) v.push(`${onde}.${k}: não é objeto`);
+  }
+  if (Object.prototype.hasOwnProperty.call(d, 'medidor_leitura_anterior')) exigirFormato(v, `${onde}.medidor_leitura_anterior`, d.medidor_leitura_anterior, RE_4, true);
+  if (Object.prototype.hasOwnProperty.call(d, 'medidor_delta')) exigirFormato(v, `${onde}.medidor_delta`, d.medidor_delta, RE_4, true);
+  if (Object.prototype.hasOwnProperty.call(d, 'intervalo_confiavel') && typeof d.intervalo_confiavel !== 'boolean') v.push(`${onde}.intervalo_confiavel: não é booleano`);
+};
+
 /** @param {string[]} v @param {string} onde @param {any} d @param {boolean} detalhe */
 const conferirAbastecimento = (v, onde, d, detalhe) => {
   exigirChaves(v, onde, d, detalhe ? CHAVES_DETALHE : CHAVES_RESUMO);
@@ -495,13 +605,17 @@ const conferirAbastecimento = (v, onde, d, detalhe) => {
   exigirFormato(v, `${onde}.custo_total`, d.custo_total, RE_4);
   if (typeof d.tanque_cheio !== 'boolean') v.push(`${onde}.tanque_cheio: não é booleano`);
   conferirMedidor(v, `${onde}.medidor`, d.medidor);
+  conferirVinculo(v, onde, d);
   if (!detalhe) return;
   exigirFormato(v, `${onde}.custo_unitario`, d.custo_unitario, RE_4);
   if (ehObjeto(d.tanque)) exigirFormato(v, `${onde}.tanque.capacidade_litros`, d.tanque.capacidade_litros, RE_4, true);
   conferirMovimento(v, `${onde}.movimentacao`, d.movimentacao);
-  if (d.movimentacao === null) v.push(`${onde}.movimentacao: ausente`);
+  // D-PROD-211: o posto externo não tem movimento de estoque (nem estorno); o do estoque continua obrigatório.
+  const externo = d.origem === 'EXTERNO';
+  if (externo && (d.movimentacao !== null || d.estorno !== null || d.local_estoque !== null)) v.push(`${onde}: EXTERNO com movimento, estorno ou local de estoque`);
+  if (!externo && d.movimentacao === null) v.push(`${onde}.movimentacao: ausente`);
   conferirMovimento(v, `${onde}.estorno`, d.estorno);
-  if (d.status === 'CANCELADO' && (d.estorno === null || d.cancelamento === null)) v.push(`${onde}: CANCELADO sem estorno/cancelamento`);
+  if (d.status === 'CANCELADO' && ((!externo && d.estorno === null) || d.cancelamento === null)) v.push(`${onde}: CANCELADO sem estorno/cancelamento`);
   if (d.status === 'CONFIRMADO' && (d.estorno !== null || d.cancelamento !== null)) v.push(`${onde}: CONFIRMADO com estorno/cancelamento`);
   conferirFatias(v, `${onde}.fatias`, d.fatias);
   conferirConsumoDoAbastecimento(v, `${onde}.consumo`, d.consumo);

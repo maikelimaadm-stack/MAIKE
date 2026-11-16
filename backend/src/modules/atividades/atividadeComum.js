@@ -116,6 +116,8 @@ export const STATUS_EXIGIDO_DA_ATIVIDADE = Object.freeze({
   lancar_apontamento: STATUS_ATIVIDADE.ABERTA,
   editar_apontamento: STATUS_ATIVIDADE.ABERTA,
   cancelar_apontamento: STATUS_ATIVIDADE.ABERTA,
+  // D-PROD-211 (Fatia 5): cancelar um abastecimento ligado à atividade (a concluída tem os totais fechados: reabra antes).
+  cancelar_abastecimento: STATUS_ATIVIDADE.ABERTA,
 });
 
 // ─── normalização do corpo ──────────────────────────────────────────────────

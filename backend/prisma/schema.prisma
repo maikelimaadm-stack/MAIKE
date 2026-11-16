@@ -2250,6 +2250,7 @@ model CentroCusto {
   // D-PROD-207 — centro de custo padrão do serviço.
   servicosPadrao        Servico[]
 
+  abastecimentos AbastecimentoBem[] // D-PROD-211
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2980,7 +2981,7 @@ model AbastecimentoBem {
   bem_id                   String    @db.VarChar(64)
   tanque_id                String    @db.VarChar(64)
   produto_id               String    @db.VarChar(64)
-  local_estoque_id         String    @db.VarChar(64)
+  local_estoque_id         String?   @db.VarChar(64)
   data_operacional         DateTime  @db.Date
   quantidade               Decimal   @db.Decimal(14, 4)
   unidade                  String    @db.VarChar(4)
@@ -2991,10 +2992,21 @@ model AbastecimentoBem {
   medidor_unidade          String?   @db.VarChar(8)
   medidor_leitura          Decimal?  @db.Decimal(14, 4)
   medidor_origem           String?   @db.VarChar(24)
+  /// D-PROD-211 — snapshot na confirmação: o ponto anterior do medidor, o delta e se o intervalo é confiável.
+  medidor_leitura_anterior Decimal?  @db.Decimal(14, 4)
+  medidor_delta            Decimal?  @db.Decimal(14, 4)
+  intervalo_confiavel      Boolean   @default(false)
+  /// D-PROD-211 — ESTOQUE (baixa FIFO) | EXTERNO (posto de estrada, sem estoque). CHECK.
+  origem                   String    @default("ESTOQUE") @db.VarChar(8)
+  /// D-PROD-211 — o lançamento do dia (a atividade é derivada dele pelo servidor).
+  atividade_id             String?   @db.VarChar(64)
+  apontamento_id           String?   @db.VarChar(64)
+  /// D-PROD-211 — snapshot: o da atividade, senão o do bem.
+  centro_custo_id          String?   @db.VarChar(64)
   observacao               String?   @db.VarChar(500)
   referencia_externa       String?   @db.VarChar(64)
   operation_id             String    @db.VarChar(128)
-  movimentacao_estoque_id  String    @db.VarChar(64)
+  movimentacao_estoque_id  String?   @db.VarChar(64)
   movimentacao_estorno_id  String?   @db.VarChar(64)
   criado_por_usuario_id    String?   @db.VarChar(64)
   cancelado_por_usuario_id String?   @db.VarChar(64)
@@ -3010,11 +3022,14 @@ model AbastecimentoBem {
   tanque              TanqueBem                     @relation(fields: [cliente_id, bem_id, tanque_id], references: [cliente_id, bem_id, id], onDelete: Restrict)
   produto             Produto                       @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
   aceite              TanqueBemProduto              @relation(fields: [cliente_id, tanque_id, produto_id], references: [cliente_id, tanque_id, produto_id], onDelete: Restrict)
-  localEstoque        LocalEstoque                  @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
-  movimentacao        MovimentacaoEstoque           @relation("AbastecimentoBemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_movimentacao_fkey")
+  localEstoque        LocalEstoque?                 @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
+  movimentacao        MovimentacaoEstoque?          @relation("AbastecimentoBemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_movimentacao_fkey")
   movimentacaoEstorno MovimentacaoEstoque?          @relation("AbastecimentoBemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_estorno_fkey")
   criadoPor           Usuario?                      @relation("AbastecimentoBemCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_criado_por_fkey")
   canceladoPor        Usuario?                      @relation("AbastecimentoBemCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_cancelado_por_fkey")
+  atividade           Atividade?                    @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AbastecimentoBem_atividade_fkey")
+  apontamento         AtividadeApontamento?         @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AbastecimentoBem_apontamento_fkey")
+  centroCusto         CentroCusto?                  @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AbastecimentoBem_centro_custo_fkey")
   consumos            AbastecimentoBemConsumoLote[]
 
   @@unique([cliente_id, id])
@@ -3030,6 +3045,9 @@ model AbastecimentoBem {
   @@index([cliente_id, empresa_id, produto_id])
   @@index([cliente_id, produto_id])
   @@index([cliente_id, local_estoque_id])
+  @@index([cliente_id, empresa_id, atividade_id], map: "AbastecimentoBem_atividade_idx")
+  @@index([cliente_id, empresa_id, apontamento_id], map: "AbastecimentoBem_apontamento_idx")
+  @@index([cliente_id, empresa_id, centro_custo_id], map: "AbastecimentoBem_centro_custo_idx")
 }
 
 /// D-PROD-159 (Patrimônio P1-02; D-PROD-162) — fatia FIFO consumida pelo
@@ -3153,6 +3171,7 @@ model Atividade {
   reabertaPor      Usuario?               @relation("AtividadeReabertaPor", fields: [cliente_id, reaberta_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_reaberta_por_fkey")
   apontamentos     AtividadeApontamento[]
 
+  abastecimentos   AbastecimentoBem[]     // D-PROD-211
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
@@ -3205,6 +3224,7 @@ model AtividadeApontamento {
   maoObras     AtividadeApontamentoMaoObra[]
   servicos     AtividadeApontamentoServico[]
 
+  abastecimentos           AbastecimentoBem[]          // D-PROD-211
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, atividade_id, data_operacional, turno, sequencia], map: "AtividadeApontamento_atividade_dia_turno_sequencia_key")

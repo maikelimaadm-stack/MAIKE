@@ -698,6 +698,9 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamentoMaoObra", "AtividadeApontamentoServico"');
       // D-PROD-200: o apontamento da atividade (mesma migration POSTERIOR) referencia a atividade por FK RESTRICT
       // e não referencia as 7; também não existe no "schema antigo". Sai antes dela.
+      // D-PROD-211: o abastecimento (uma das 7) passou a referenciar a atividade e o apontamento (migration POSTERIOR);
+      // no "schema antigo" essas FKs não existem: saem antes das duas tabelas.
+      await tx.$executeRawUnsafe('ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_apontamento_fkey", DROP CONSTRAINT "AbastecimentoBem_atividade_fkey"');
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamento"');
       await tx.$executeRawUnsafe('DROP TABLE "Atividade"');
       // As 7 saem juntas, sem CASCADE (nada mais de fora as referencia; nada some escondido).

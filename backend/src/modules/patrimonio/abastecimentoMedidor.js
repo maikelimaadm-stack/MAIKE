@@ -19,6 +19,10 @@
  * a linha (ou o apontamento) tira a leitura dela da série. Sem linhas, tudo é
  * idêntico ao comportamento anterior.
  *
+ * D-PROD-211: os abastecimentos das DUAS origens (ESTOQUE e EXTERNO, o posto
+ * de estrada) entram na série — o filtro é o status e o tipo do medidor, nunca
+ * o local de estoque: o combustível do posto também entra no tanque do bem.
+ *
  * Ponto = `{ leitura: string(4), data: 'AAAA-MM-DD', origem: 'CADASTRO'|'ABASTECIMENTO'|'ATIVIDADE',
  *   abastecimento_id: string|null, numero: string|null }`; o ponto de uma linha
  * de máquina traz também `linha_maquina_id` e `apontamento_id`.

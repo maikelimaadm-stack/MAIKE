@@ -62,6 +62,11 @@
  *    estorna as de produto, na mesma transação, antes do UPDATE (origem
  *    `APONTAMENTO` | `ATIVIDADE`).
  *
+ * D-PROD-211 (Fatia 5): a cascata também cancela os ABASTECIMENTOS confirmados
+ * ligados ao apontamento (`cancelarAbastecimentosDosApontamentos`, o mesmo
+ * caminho do cancelamento do abastecimento). A edição do apontamento não mexe
+ * neles (não são linhas do lançamento: nem a troca de data os toca).
+ *
  * Tenant SÓ do auth_context (R11); a empresa vem do corpo (escrita) ou da
  * query (leitura) e é conferida no tenant (`exigirEmpresaDoTenant`). O
  * apontamento sempre pertence à atividade da URL e a essa empresa: de outra
@@ -155,6 +160,7 @@ import {
 } from './atividadeApontamentoServicoService.js';
 import { existeLinhaComChave as existeLinhaMaoObraComChave } from './atividadeApontamentoMaoObraRepository.js';
 import { existeLinhaComChave as existeLinhaServicoComChave } from './atividadeApontamentoServicoRepository.js';
+import { cancelarAbastecimentosDosApontamentos } from '../patrimonio/abastecimentoService.js';
 
 /** Código do alerta de data fora do período da atividade (não bloqueia). */
 export const ALERTA_FORA_DO_INTERVALO = 'FORA_DO_INTERVALO';
@@ -501,23 +507,41 @@ export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId
  * D-PROD-202 — a cascada das LINHAS (cancelar o apontamento ou a atividade):
  * primeiro as de máquina (trava bem → produto, a ordem do abastecimento),
  * depois o estorno exato das de produto. D-PROD-207: as de mão de obra e de
- * serviço caem junto (sem estoque nem medidor: só o status). Devolve as contagens.
+ * serviço caem junto (sem estoque nem medidor: só o status).
+ * D-PROD-211 (Fatia 5): os ABASTECIMENTOS confirmados ligados aos apontamentos
+ * também caem (estorno exato no ESTOQUE, só o status no EXTERNO), pelo mesmo
+ * caminho do cancelamento do abastecimento, com o motivo derivado — DEPOIS das
+ * de máquina e ANTES das de produto. Travas: Bens (ordenados) → AbastecimentoBem
+ * → UM `travarProdutosEstoque` com a UNIÃO ordenada dos combustíveis (ESTOQUE)
+ * e dos produtos das linhas de produto confirmadas → lotes/movimentos; o
+ * estorno das linhas de produto, depois, só retrava produtos que a transação já
+ * tem (nenhuma segunda ordem de Produto, nenhuma inversão Produto → Bem). Sem
+ * abastecimento ligado, o estorno das linhas trava o conjunto delas sozinho.
+ * Devolve as contagens.
  * @param {any} tx
  * @param {{ clienteId: string, empresaId: string, atividadeId: string, apontamentoIds: string[], usuarioId: string|null,
  *   motivo: string, agora: Date, hoje?: string, contexto?: any, origem: 'APONTAMENTO'|'ATIVIDADE' }} pedido
  */
 const cancelarLinhasDosApontamentos = async (tx, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, contexto, origem }) => {
-  if (!apontamentoIds.length) return { maquinas: 0, produtos: 0, mao_obra: 0, servicos: 0 };
+  if (!apontamentoIds.length) return { maquinas: 0, produtos: 0, mao_obra: 0, servicos: 0, abastecimentos: 0 };
   const maquinas = await cancelarLinhasMaquinaDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
+  // Os produtos das linhas de produto CONFIRMADO: a cascata dos abastecimentos os trava JUNTO com os combustíveis,
+  // num conjunto ordenado só (uma ordem global de Produto; o estorno das linhas, depois, só retrava o que já tem).
+  const produtosDasLinhas = (await tx.atividadeApontamentoProduto.findMany({
+    where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: 'CONFIRMADO' },
+    select: { produto_id: true },
+    distinct: ['produto_id'],
+  })).map((/** @type {{ produto_id: string }} */ l) => l.produto_id);
+  const abastecimentos = await cancelarAbastecimentosDosApontamentos(tx, contexto, {
+    clienteId, empresaId, apontamentoIds, usuarioId, motivo, hoje, origem, produtosAdicionais: produtosDasLinhas,
+  });
   const maoObra = await cancelarLinhasMaoObraDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
   const servicos = await cancelarLinhasServicoDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
-  const temProduto = (await tx.atividadeApontamentoProduto.count({
-    where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: 'CONFIRMADO' },
-  })) > 0;
-  if (!temProduto) return { maquinas, produtos: 0, mao_obra: maoObra, servicos };
+  const temProduto = produtosDasLinhas.length > 0;
+  if (!temProduto) return { maquinas, produtos: 0, mao_obra: maoObra, servicos, abastecimentos };
   if (!contexto?.auth) throw new Error('cancelamento em cascata: o estorno das linhas de produto precisa do contexto da requisição');
   const produtos = await cancelarLinhasProdutoDosApontamentos(tx, contexto, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, origem });
-  return { maquinas, produtos, mao_obra: maoObra, servicos };
+  return { maquinas, produtos, mao_obra: maoObra, servicos, abastecimentos };
 };
 
 // ─── leitura ────────────────────────────────────────────────────────────────
@@ -901,6 +925,7 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
  * D-PROD-202: antes do UPDATE, na mesma transação, as linhas confirmadas caem
  * com o mesmo motivo (origem `APONTAMENTO`): as de máquina e as de produto,
  * estornadas exatamente num `estornarEmLote` (o estoque volta, no dia de hoje).
+ * D-PROD-211: e os abastecimentos CONFIRMADO ligados a ele (motivo derivado).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {Record<string, any>} corpo
  */

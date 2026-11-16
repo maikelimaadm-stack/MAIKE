@@ -86,8 +86,8 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     env: { MIGRATION_DATABASE_URL: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID },
     conferir: async () => ({ ok: true, falhas: [], resumo: 'banco=postgres' }),
     resolverRuntime: async () => REMOTO,
-    // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197, D-PROD-200, D-PROD-208, D-PROD-209 e D-PROD-210: alvo já
-    // com as dez CONTRACT concluídas (a barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17, B18, B19, B20, B21 e B22). Sem alguma
+    // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197, D-PROD-200, D-PROD-208, D-PROD-209, D-PROD-210 e
+    // D-PROD-211: alvo já com as onze CONTRACT concluídas (a barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17, B18, B19, B20, B21, B22 e B23). Sem alguma
     // das linhas, a CONTRACT pendente recusaria por conta própria.
     lerHistorico: async () => [
       { migration_name: '20261110300000_patrimonio_simplifica', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
@@ -101,6 +101,8 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261116100000_funcionario_tipo_terceirizado', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       // D-PROD-210: a décima CONTRACT (base do consumo na Formulação), B22 em migrations.test.mjs.
       { migration_name: '20261116200000_formulacao_base_consumo', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-211: a décima primeira CONTRACT (o abastecimento ligado à atividade), B23 em migrations.test.mjs.
+      { migration_name: '20261116300000_abastecimento_atividade', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},

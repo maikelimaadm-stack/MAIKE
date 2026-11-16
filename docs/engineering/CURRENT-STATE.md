@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-FECHAMENTO-REFINAMENTOS: peso médio do período no esperado (base %PV) e a sobra antiga primeiro no custo (D-PROD-212)
+## Missão ativa (2026-11-16) — MAIKE-ATIVIDADE-ABASTECIMENTO: Fatia 5, abastecimento ligado à atividade (D-PROD-211)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-211** (nasceu D-PROD-210; a `main` deu a D-PROD-210 à base do consumo, PR #297), Fatia 5 do brief do Lançamento de Atividades, liberada pelo proprietário ("pode iniciar a fatia 5") |
+| Branch / PR | `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209), com a `main` `67f44d76` (PR #297, D-PROD-210) e `72e31cbe` (PR #301, D-PROD-212) por merge · PR **#300** |
+| Escopo | Abastecimento ligado ao lançamento (atividade derivada), origem `EXTERNO` (posto, sem estoque), snapshots de centro de custo, leitura anterior, delta e intervalo confiável; cascata de cancelamento; totalizador com combustível, custo/ha e consumo por bem |
+| Migration | `20261116300000_abastecimento_atividade`, **CONTRACT**, SHA `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`. Produção 61 → 62 (a anterior é a `20261116200000_formulacao_base_consumo`, D-PROD-210); tabelas 94 (sem mudança) |
+| Release | **Aplicada em produção em 2026-11-16** (GO escrito do proprietário, caminho B): postcheck APLICADA E CONFERIDA, produção 62/0, 94 tabelas. Registro no [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) §9 |
+| Documentos | [contrato](./MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md) · [relatório](./MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md) · [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-FECHAMENTO-REFINAMENTOS: peso médio do período no esperado (base %PV) e a sobra antiga primeiro no custo (D-PROD-212)
 
 | Campo | Valor |
 |---|---|

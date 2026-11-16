@@ -116,6 +116,7 @@ import { totaisDasMaquinasDaAtividade } from './atividadeApontamentoMaquinaServi
 import { totaisDaMaoObraDaAtividade } from './atividadeApontamentoMaoObraService.js';
 import { totaisDosServicosDaAtividade } from './atividadeApontamentoServicoService.js';
 import { totaisPorProduto } from './atividadeApontamentoProdutoRepository.js';
+import { combustivelDaAtividade } from '../patrimonio/abastecimentoConsumo.js';
 import {
   inserirAtividade,
   lerArea,
@@ -451,11 +452,17 @@ export const obter = async (contexto, id, query = {}) => {
  *    maquinas: [{ bem_id, nome, medidor_unidade, quantidade_uso, custo_total }],
  *    mao_obra: [{ parceiro_id, nome, origem, tipo_medida, quantidade, custo_total }],
  *    servicos: [{ servico_id, nome, unidade, quantidade, custo_total }],
- *    custo_total, custo_por_ha }`.
+ *    combustivel: { quantidade_l, quantidade_kg, custo_total },
+ *    consumo_por_bem: [{ bem, medidor_tipo, uso, quantidade, unidade, quantidade_l, quantidade_kg, metrica, unidade_metrica, valor, custo_total }],
+ *    custo_total, custo_por_ha, custo_combustivel_por_ha }`.
  * `custo_total` = Σ produtos + Σ máquinas com custo + Σ mão de obra com custo +
- * Σ serviços (D-PROD-207, Fatia 4; nulo sem nenhum custo);
+ * Σ serviços (D-PROD-207, Fatia 4) + combustível (D-PROD-211, Fatia 5: os
+ * abastecimentos CONFIRMADO ligados à atividade); nulo sem nenhum custo;
  * `custo_por_ha` = custo_total / area_executada (4 casas), nulo sem área ou
- * sem custo. Decimais como texto com 4 casas. Outra fazenda ou tenant → 404.
+ * sem custo; `custo_combustivel_por_ha` = custo do combustível / área, idem.
+ * `consumo_por_bem` (L/h, km/L… de `abastecimentoConsumo.metricaDoMedidor`) é
+ * de `combustivelDaAtividade`. Decimais como texto com 4 casas. Outra fazenda
+ * ou tenant → 404.
  * @param {{ auth: AuthContext }} contexto @param {string} id @param {Record<string, any>} [query]
  */
 export const obterTotais = async (contexto, id, query = {}) => {
@@ -477,9 +484,10 @@ export const obterTotais = async (contexto, id, query = {}) => {
     const maquinas = await totaisDasMaquinasDaAtividade(tx, cli, empresaId, id);
     const maoObra = await totaisDaMaoObraDaAtividade(tx, cli, empresaId, id);
     const servicos = await totaisDosServicosDaAtividade(tx, cli, empresaId, id);
+    const { combustivel, consumo_por_bem: consumoPorBem } = await combustivelDaAtividade(tx, cli, empresaId, id);
     const parcelas = [
       ...produtos.map((p) => p.custo_total),
-      ...[maquinas.custo_total, maoObra.custo_total, servicos.custo_total].filter((v) => v !== null),
+      ...[maquinas.custo_total, maoObra.custo_total, servicos.custo_total, combustivel.custo_total].filter((v) => v !== null),
     ];
     const custoTotal = parcelas.length ? parcelas.reduce((t, v) => t.plus(dec(v)), dec(0)) : null;
     const area = areaExecutada === null ? null : dec(areaExecutada);
@@ -491,8 +499,12 @@ export const obterTotais = async (contexto, id, query = {}) => {
       maquinas: maquinas.maquinas,
       mao_obra: maoObra.mao_obra,
       servicos: servicos.servicos,
+      combustivel,
+      consumo_por_bem: consumoPorBem,
       custo_total: custoTotal === null ? null : t4(custoTotal),
       custo_por_ha: custoTotal !== null && area !== null && area.gt(0) ? t4(arredondar(custoTotal.dividedBy(area), 4)) : null,
+      custo_combustivel_por_ha:
+        combustivel.custo_total !== null && area !== null && area.gt(0) ? t4(arredondar(dec(combustivel.custo_total).dividedBy(area), 4)) : null,
     };
   });
 };
@@ -801,7 +813,9 @@ export const reabrir = async (contexto, id, corpo) => {
  * CONFIRMADO são cancelados com o mesmo motivo, instante e usuário e os totais
  * recalculados (`atividadeApontamentoService.js`). D-PROD-202: ali também as
  * linhas de máquina são canceladas e as de produto estornadas (estoque e lotes
- * voltam exatos, no "hoje" da fazenda). O cabeçalho é gravado por último (CAS).
+ * voltam exatos, no "hoje" da fazenda). D-PROD-211: os abastecimentos
+ * CONFIRMADO ligados aos apontamentos também caem (estorno no ESTOQUE, só o
+ * status no EXTERNO; travas Atividade → Bem → Produto). O cabeçalho é gravado por último (CAS).
  * @param {Contexto} contexto @param {string} id @param {Record<string, any>} corpo
  */
 export const cancelar = async (contexto, id, corpo) => {

@@ -136,9 +136,15 @@ export const NOME_MAO_OBRA_PARCEIRO = '20261116000000_mao_obra_parceiro';
  * lugar de TAREFEIRO) exige a D-PROD-208: vem por último, depois dela, fora da partida como as outras.
  */
 export const NOME_FUNCIONARIO_TIPO = '20261116100000_funcionario_tipo_terceirizado';
-/** D-PROD-210 — a CONTRACT da base do consumo (altera as 3 tabelas das Formulações): fora da partida, por último; sem tabela nova. */
+/** D-PROD-210 — a CONTRACT da base do consumo (altera as 3 tabelas das Formulações): fora da partida; sem tabela nova. */
 export const NOME_BASE = '20261116200000_formulacao_base_consumo';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE]);
+/**
+ * D-PROD-211 — a CONTRACT do abastecimento ligado à atividade (colunas, backfill, CHECKs e FKs em AbastecimentoBem, no
+ * formato desta CONTRACT, para Atividade e AtividadeApontamento, da D-PROD-200) exige as duas: vem por último, depois da
+ * D-PROD-210, fora da partida como as outras.
+ */
+export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_atividade';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];

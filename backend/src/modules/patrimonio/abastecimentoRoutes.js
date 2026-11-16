@@ -21,8 +21,15 @@
  * Corpo e query FECHADOS (`additionalProperties: false`; `cliente_id` → 400;
  * campo antigo `quantidade_litros`, `tipo_combustivel_id`, `conversao_*` → 400,
  * nunca falso sucesso); tenant só da sessão. Decimais chegam como TEXTO: o
- * `preValidation` deste plugin (encapsulado) recusa número em `quantidade` e
- * `medidor_leitura` antes da coerção do AJV.
+ * `preValidation` deste plugin (encapsulado) recusa número em `quantidade`,
+ * `medidor_leitura` e `custo_total` antes da coerção do AJV.
+ *
+ * D-PROD-211 (Fatia 5): o corpo da prévia e da confirmação ganha `origem`
+ * (ESTOQUE | EXTERNO), `apontamento_id` e `custo_total` (só EXTERNO);
+ * `local_estoque_id` deixa de ser obrigatório no schema (o serviço o exige no
+ * ESTOQUE e o recusa no EXTERNO); `atividade_id` nunca entra (é derivado do
+ * apontamento: o schema fechado o recusa). A lista filtra também por
+ * `origem`, `apontamento_id` e `atividade_id`.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -30,7 +37,7 @@ import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { consumoDoBem } from './abastecimentoConsumo.js';
 import { opcoesBens, opcoesLocais, opcoesProdutosDoBem, opcoesProdutosFiltro, opcoesTanques } from './abastecimentoOpcoesService.js';
-import { PADRAO_LEITURA, PADRAO_QUANTIDADE, recusarCoercaoAbastecimento } from './abastecimentoPlano.js';
+import { ORIGENS_ABASTECIMENTO, PADRAO_CUSTO_TOTAL, PADRAO_LEITURA, PADRAO_QUANTIDADE, recusarCoercaoAbastecimento } from './abastecimentoPlano.js';
 import { cancelar, confirmar, detalhar, listar, previa } from './abastecimentoService.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from './patrimonioComum.js';
 
@@ -71,8 +78,12 @@ const CORPO_BASE = {
   tanque_cheio: { type: 'boolean' },
   observacao: TEXTO_NULO(500),
   referencia_externa: TEXTO_NULO(64),
+  // D-PROD-211
+  origem: { type: 'string', enum: [...ORIGENS_ABASTECIMENTO] },
+  apontamento_id: { ...ID, type: ['string', 'null'] },
+  custo_total: { type: ['string', 'null'], pattern: PADRAO_CUSTO_TOTAL.source },
 };
-const REQUERIDOS_PREVIA = ['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'local_estoque_id', 'data_operacional', 'quantidade'];
+const REQUERIDOS_PREVIA = ['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'data_operacional', 'quantidade'];
 
 const LISTAR = {
   querystring: {
@@ -85,6 +96,9 @@ const LISTAR = {
       tanque_id: ID,
       produto_id: ID,
       status: { type: 'string', enum: ['CONFIRMADO', 'CANCELADO'] },
+      origem: { type: 'string', enum: [...ORIGENS_ABASTECIMENTO] },
+      apontamento_id: ID,
+      atividade_id: ID,
       data_de: DIA,
       data_ate: DIA,
       operation_id: OPERATION_ID,

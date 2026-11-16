@@ -15,6 +15,20 @@
  * unidade do abastecimento é a unidade EFETIVA do estoque: `L` para L e `KG`
  * para KG e SACO (SACO guarda estoque em kg); a quantidade digitada é em kg
  * para SACO, sem conversão por peso do saco.
+ *
+ * D-PROD-211 (Fatia 5 do Lançamento de Atividades, contrato
+ * `MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md` §2):
+ *  - `origem` ESTOQUE (padrão; o FIFO de sempre, `local_estoque_id`
+ *    obrigatório, `custo_total` recusado — o custo é o do FIFO) | EXTERNO
+ *    (posto de estrada: `local_estoque_id` recusado, nenhum movimento nem lote;
+ *    `custo_total` obrigatório na confirmação, > 0 e até 2 casas, o valor da
+ *    nota; `custo_unitario = custo_total ÷ quantidade`, 4 casas);
+ *  - `apontamento_id` opcional (o lançamento do dia); `atividade_id` nunca vem
+ *    do corpo (o servidor deriva do apontamento): se vier, 400;
+ *  - o plano traz o vínculo (`atividade`, `apontamento`, `centro_custo`
+ *    snapshot) e o snapshot do medidor (`medidor_leitura_anterior`,
+ *    `medidor_delta`, `intervalo_confiavel`), o MESMO que a confirmação grava;
+ *  - fingerprint v3 (inclui `origem`, `apontamento_id` e `custo_total`).
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
@@ -40,6 +54,12 @@ export const CASAS_LEITURA = 4;
 export const PADRAO_QUANTIDADE = /^\d{1,10}(\.\d{1,4})?$/;
 export const PADRAO_LEITURA = /^\d{1,10}(\.\d{1,4})?$/;
 export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
+/** D-PROD-211 — valor total da nota do posto (EXTERNO): até 10 inteiros e 2 casas. */
+export const PADRAO_CUSTO_TOTAL = /^\d{1,10}(\.\d{1,2})?$/;
+/** D-PROD-211 — de onde vem o combustível (CHECK `AbastecimentoBem_origem_check`). */
+export const ORIGEM_ESTOQUE = 'ESTOQUE';
+export const ORIGEM_EXTERNO = 'EXTERNO';
+export const ORIGENS_ABASTECIMENTO = Object.freeze([ORIGEM_ESTOQUE, ORIGEM_EXTERNO]);
 export const STATUS_CONFIRMADO = 'CONFIRMADO';
 export const STATUS_CANCELADO = 'CANCELADO';
 
@@ -56,7 +76,7 @@ const ehObjeto = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v)
 
 // ─── anti-coerção (antes do AJV) ────────────────────────────────────────────
 
-const DECIMAIS_DO_CORPO = Object.freeze(['quantidade', 'medidor_leitura']);
+const DECIMAIS_DO_CORPO = Object.freeze(['quantidade', 'medidor_leitura', 'custo_total']);
 
 /**
  * `preValidation` do plugin: decimal presente, não-null e não-string → 400
@@ -96,25 +116,68 @@ const quantidadeObrigatoria = (c) => {
   if (c.quantidade === undefined || c.quantidade === null) throw invalido('quantidade é obrigatória', { field: 'quantidade', reason: 'obrigatorio' });
 };
 
-const basesDoCorpo = (c) => ({
+const presente = (c, chave) => Object.prototype.hasOwnProperty.call(c, chave) && c[chave] !== undefined && c[chave] !== null;
+
+/** D-PROD-211: `origem` ausente → ESTOQUE. @param {unknown} v */
+const origemDoCorpo = (v) => {
+  if (v === undefined || v === null) return ORIGEM_ESTOQUE;
+  if (typeof v !== 'string' || !ORIGENS_ABASTECIMENTO.includes(v)) {
+    throw invalido(`origem deve ser ${ORIGENS_ABASTECIMENTO.join(' ou ')}`, { field: 'origem', reason: 'formato' });
+  }
+  return v;
+};
+
+/**
+ * D-PROD-211 — as regras do corpo por origem e o vínculo com a atividade.
+ * `exigeCusto`: a confirmação exige o `custo_total` do EXTERNO; a prévia o
+ * aceita ausente (a tela ainda não tem o valor da nota).
+ * @param {Record<string, any>} c @param {{ exigeCusto: boolean }} opcoes
+ */
+const origemEVinculo = (c, { exigeCusto }) => {
+  if (Object.prototype.hasOwnProperty.call(c, 'atividade_id')) {
+    throw invalido('atividade_id não é enviado: a atividade vem do lançamento (apontamento_id)', { field: 'atividade_id', reason: 'derivado_do_apontamento' });
+  }
+  const origem = origemDoCorpo(c.origem);
+  const custoTotal = decimalDoCorpo(c.custo_total, 'custo_total', PADRAO_CUSTO_TOTAL, 2);
+  if (origem === ORIGEM_ESTOQUE) {
+    if (!presente(c, 'local_estoque_id')) throw invalido('local_estoque_id é obrigatório no abastecimento do estoque da fazenda', { field: 'local_estoque_id', reason: 'obrigatorio' });
+    if (custoTotal !== null) throw invalido('custo_total só é informado no abastecimento em posto externo: o do estoque é o custo FIFO', { field: 'custo_total', reason: 'nao_se_aplica_estoque' });
+  } else {
+    if (presente(c, 'local_estoque_id')) throw invalido('abastecimento em posto externo não tem local de estoque: não informe local_estoque_id', { field: 'local_estoque_id', reason: 'nao_se_aplica_externo' });
+    if (custoTotal === null && exigeCusto) throw invalido('informe o valor total da nota do posto (custo_total)', { field: 'custo_total', reason: 'obrigatorio' });
+    if (custoTotal !== null && !dec(custoTotal).gt(0)) throw invalido('o valor total da nota do posto deve ser maior que zero', { field: 'custo_total', reason: 'nao_positivo' });
+  }
+  const apontamentoId = c.apontamento_id === undefined || c.apontamento_id === null ? null : c.apontamento_id;
+  if (apontamentoId !== null && (typeof apontamentoId !== 'string' || !apontamentoId)) {
+    throw invalido('apontamento_id inválido', { field: 'apontamento_id', reason: 'formato' });
+  }
+  return {
+    origem,
+    local_estoque_id: origem === ORIGEM_ESTOQUE ? c.local_estoque_id : null,
+    custo_total: custoTotal,
+    apontamento_id: apontamentoId,
+  };
+};
+
+const basesDoCorpo = (c, opcoes) => ({
   empresa_id: c.empresa_id,
   bem_id: c.bem_id,
   tanque_id: c.tanque_id,
   produto_id: c.produto_id,
-  local_estoque_id: c.local_estoque_id,
   data_operacional: dataOperacionalDoCorpo(c.data_operacional),
   quantidade: /** @type {string} */ (decimalDoCorpo(c.quantidade, 'quantidade', PADRAO_QUANTIDADE, CASAS_QUANTIDADE_ABASTECIMENTO)),
   medidor_leitura: decimalDoCorpo(c.medidor_leitura, 'medidor_leitura', PADRAO_LEITURA, CASAS_LEITURA),
   tanque_cheio: c.tanque_cheio === true,
   observacao: textoDoCorpo(c.observacao, 'observacao') ?? null,
   referencia_externa: textoDoCorpo(c.referencia_externa, 'referencia_externa') ?? null,
+  ...origemEVinculo(c, opcoes),
 });
 
 /** Corpo da prévia (A3) → Entrada (sem operation_id). */
 export const normalizarPrevia = (corpo) => {
   const c = /** @type {Record<string, any>} */ (corpo ?? {});
   quantidadeObrigatoria(c);
-  return { ...basesDoCorpo(c), operation_id: null };
+  return { ...basesDoCorpo(c, { exigeCusto: false }), operation_id: null };
 };
 
 /** Corpo da confirmação (A4) → Entrada canônica. */
@@ -124,7 +187,7 @@ export const normalizarConfirmacao = (corpo) => {
   if (typeof c.operation_id !== 'string' || !PADRAO_OPERATION_ID.test(c.operation_id)) {
     throw invalido('operation_id inválido', { field: 'operation_id', reason: 'formato' });
   }
-  return { ...basesDoCorpo(c), operation_id: c.operation_id };
+  return { ...basesDoCorpo(c, { exigeCusto: true }), operation_id: c.operation_id };
 };
 
 /** Corpo do cancelamento (A5). Motivo obrigatório (3..500, aparado). */
@@ -139,11 +202,15 @@ export const normalizarCancelamento = (id, corpo) => {
   return { id, empresa_id: c.empresa_id, versao: c.versao, operation_id: c.operation_id, motivo };
 };
 
-// ─── fingerprint canônico (ordem FIXA de chaves; v2 da D-PROD-162) ──────────
+// ─── fingerprint canônico (ordem FIXA de chaves; v3 da D-PROD-211) ──────────
 
-/** @param {any} e Entrada normalizada da confirmação */
+/**
+ * D-PROD-211: v3 — entram `origem`, `apontamento_id` e `custo_total`. Uma
+ * chave já usada por um recibo v2 com o mesmo tipo vira 409 (corpo diferente).
+ * @param {any} e Entrada normalizada da confirmação
+ */
 export const fingerprintDaConfirmacao = (e) => ({
-  v: 2,
+  v: 3,
   empresa_id: e.empresa_id,
   bem_id: e.bem_id,
   tanque_id: e.tanque_id,
@@ -155,6 +222,9 @@ export const fingerprintDaConfirmacao = (e) => ({
   tanque_cheio: e.tanque_cheio,
   observacao: e.observacao,
   referencia_externa: e.referencia_externa,
+  origem: e.origem,
+  apontamento_id: e.apontamento_id,
+  custo_total: e.custo_total,
 });
 
 /** @param {any} e Entrada normalizada do cancelamento */
@@ -277,6 +347,30 @@ export const avaliarLeitura = ({ tipo, leitura, dia, cadastro, anterior, posteri
   return { bloqueio: null, anterior: ant, posterior: post };
 };
 
+// ─── snapshot do medidor (D-PROD-211) ───────────────────────────────────────
+
+/**
+ * Snapshot gravado na confirmação (e devolvido pela prévia), só com medidor
+ * contador e leitura: `anterior` é o ponto que `avaliarLeitura` já calcula
+ * (cadastro, abastecimento ou linha de máquina). `medidor_delta = leitura −
+ * anterior`; `intervalo_confiavel` = há anterior ∧ delta > 0 ∧ o anterior não
+ * é o do CADASTRO (a leitura do cadastro não diz quando o tanque foi enchido).
+ * Sem anterior: os dois nulos e `false`. Pura.
+ * @param {string|null} tipo @param {string|null} leitura @param {any} anterior ponto|null
+ * @returns {{ medidor_leitura_anterior: string|null, medidor_delta: string|null, intervalo_confiavel: boolean }}
+ */
+export const snapshotDoMedidor = (tipo, leitura, anterior) => {
+  if (!ehContador(tipo) || leitura === null || leitura === undefined || !anterior) {
+    return { medidor_leitura_anterior: null, medidor_delta: null, intervalo_confiavel: false };
+  }
+  const delta = dec(leitura).minus(dec(anterior.leitura));
+  return {
+    medidor_leitura_anterior: dec(anterior.leitura).toFixed(CASAS_LEITURA),
+    medidor_delta: delta.toFixed(CASAS_LEITURA),
+    intervalo_confiavel: delta.gt(0) && anterior.origem !== 'CADASTRO',
+  };
+};
+
 // ─── plano ──────────────────────────────────────────────────────────────────
 
 const q4 = (v) => dec(v).toFixed(CASAS_QUANTIDADE);
@@ -328,9 +422,10 @@ export const planejarAbastecimento = (entrada, estado) => {
   if (tanque && produto && !(tanque.produtos ?? []).some((a) => a.produto_id === produto.id && a.ativo)) {
     bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_NAO_ACEITO', 'produto_id', 'nao_aceito_pelo_tanque'));
   }
-  // B7
-  if (!local) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inexistente'));
-  else if (!local.ativo) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inativo'));
+  // B7 (D-PROD-211: só do estoque da fazenda; o EXTERNO não tem local)
+  const doEstoque = entrada.origem !== ORIGEM_EXTERNO;
+  if (doEstoque && !local) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inexistente'));
+  else if (doEstoque && !local.ativo) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inativo'));
   // B8a — a capacidade do tanque é em litros: só conferida para Produto em L (D-PROD-162)
   const confereCapacidade = unidade === 'L';
   if (confereCapacidade && tanque && quantidade.gt(dec(tanque.capacidade_litros))) {
@@ -350,10 +445,10 @@ export const planejarAbastecimento = (entrada, estado) => {
     posterior: estado.medidor.posterior,
   });
   if (medidor.bloqueio) bloqueios.push(medidor.bloqueio);
-  // B10 — FIFO com a quantidade digitada (só com produto e unidade válidos, local ativo e quantidade válida)
+  // B10 — FIFO com a quantidade digitada (só do ESTOQUE, com produto e unidade válidos, local ativo e quantidade válida)
   const produtoOk = produtoValido && unidadeAceita;
   let fifo = null;
-  if (quantidadePositiva && dentroDoLimite && produtoOk && local && local.ativo) {
+  if (doEstoque && quantidadePositiva && dentroDoLimite && produtoOk && local && local.ativo) {
     const sim = consumirFifo(lotes, quantidade);
     if (!sim.suficiente) {
       bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', { disponivel: q4(sim.disponivel), solicitado: q4(quantidade), unidade }));
@@ -379,8 +474,23 @@ export const planejarAbastecimento = (entrada, estado) => {
     };
   }
 
+  // D-PROD-211 — custo: o do FIFO (estimativa) no ESTOQUE; o da nota no EXTERNO (custo_unitario = total ÷ quantidade).
+  const custoExterno = !doEstoque && entrada.custo_total !== null ? dec(entrada.custo_total) : null;
+  const custo = doEstoque
+    ? { custo_total: fifo ? fifo.custo_total_estimado : null, custo_unitario: fifo ? fifo.custo_unitario_estimado : null }
+    : {
+        custo_total: custoExterno ? custoExterno.toFixed(CASAS_CUSTO) : null,
+        custo_unitario: custoExterno && quantidadePositiva ? arredondar(custoExterno.dividedBy(quantidade), CASAS_CUSTO).toFixed(CASAS_CUSTO) : null,
+      };
+  // B8c (D-PROD-211) — EXTERNO: o custo unitário (total ÷ quantidade) cabe nas colunas Decimal(14,4) do estoque.
+  if (!doEstoque && custo.custo_unitario !== null && (dec(custo.custo_unitario).gt(LIMITE_ESTOQUE) || dec(/** @type {string} */ (custo.custo_total)).gt(LIMITE_ESTOQUE))) {
+    bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'custo_total', 'valor_excede_limite_estoque', { custo_total: custo.custo_total, custo_unitario: custo.custo_unitario }));
+  }
+  const snapshot = snapshotDoMedidor(tipoMedidor, entrada.medidor_leitura, medidor.anterior);
+
   const plano = {
     empresa_id: bem.empresa_id,
+    origem: doEstoque ? ORIGEM_ESTOQUE : ORIGEM_EXTERNO,
     data_operacional: entrada.data_operacional,
     hoje: estado.hoje,
     bem: { id: bem.id, numero: bem.numero, codigo_frota: bem.codigo_frota ?? null, nome: bem.nome, natureza: bem.natureza, ativo: bem.ativo },
@@ -394,11 +504,16 @@ export const planejarAbastecimento = (entrada, estado) => {
           unidade_abastecimento: unidadeEfetivaDoEstoque(produto.unidade_principal_estoque),
         }
       : null,
-    local_estoque: local ? { id: local.id, nome: local.nome } : null,
+    local_estoque: doEstoque && local ? { id: local.id, nome: local.nome } : null,
+    // D-PROD-211 — o vínculo (atividade derivada do apontamento) e o centro de custo snapshot.
+    atividade: estado.vinculo?.atividade ?? null,
+    apontamento: estado.vinculo?.apontamento ?? null,
+    centro_custo: estado.vinculo?.centro_custo ?? null,
     quantidade: q4(quantidade),
     unidade,
     confere_capacidade: confereCapacidade,
-    estoque: produtoOk && local ? { saldo_local: q4(somar(lotes.map((l) => l.quantidade_disponivel))), estoque_atual: q4(produto.estoque_atual), unidade } : null,
+    ...custo,
+    estoque: doEstoque && produtoOk && local ? { saldo_local: q4(somar(lotes.map((l) => l.quantidade_disponivel))), estoque_atual: q4(produto.estoque_atual), unidade } : null,
     fifo,
     medidor: {
       tipo: tipoMedidor,
@@ -407,8 +522,9 @@ export const planejarAbastecimento = (entrada, estado) => {
       anterior: medidor.anterior,
       posterior: medidor.posterior,
     },
+    ...snapshot,
     tanque_cheio: entrada.tanque_cheio,
-    custo_e_estimativa: true,
+    custo_e_estimativa: doEstoque,
   };
   return { plano, bloqueios };
 };
@@ -430,7 +546,11 @@ export const paraAuditoria = (r, fatias) => ({
   bem_id: r.bem_id,
   tanque_id: r.tanque_id,
   produto_id: r.produto_id,
-  local_estoque_id: r.local_estoque_id,
+  local_estoque_id: r.local_estoque_id ?? null,
+  origem: r.origem,
+  atividade_id: r.atividade_id ?? null,
+  apontamento_id: r.apontamento_id ?? null,
+  centro_custo_id: r.centro_custo_id ?? null,
   data_operacional: diaDe(r.data_operacional),
   quantidade: texto4(r.quantidade),
   unidade: r.unidade,
@@ -439,7 +559,10 @@ export const paraAuditoria = (r, fatias) => ({
   tanque_cheio: r.tanque_cheio,
   medidor_tipo: r.medidor_tipo,
   medidor_leitura: texto4(r.medidor_leitura),
-  movimentacao_estoque_id: r.movimentacao_estoque_id,
+  medidor_leitura_anterior: texto4(r.medidor_leitura_anterior),
+  medidor_delta: texto4(r.medidor_delta),
+  intervalo_confiavel: r.intervalo_confiavel === true,
+  movimentacao_estoque_id: r.movimentacao_estoque_id ?? null,
   movimentacao_estorno_id: r.movimentacao_estorno_id ?? null,
   fatias: fatias.map((f) => ({ lote_id: f.estoque_lote_nota_id, quantidade: texto4(f.quantidade), custo_unitario: texto4(f.custo_unitario) })),
   tem_observacao: Boolean(r.observacao),
