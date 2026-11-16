@@ -109,16 +109,17 @@ after(async () => {
 });
 
 describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (PostgreSQL real)', () => {
-  test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208 e a D-PROD-209, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
+  test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209 e a D-PROD-210, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 11, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208 e a D-PROD-209');
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 12, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209 e a D-PROD-210');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
     // D-PROD-203, D-PROD-205 e D-PROD-206: as Formulações, a Leitura de cocho e a faixa de tolerância (releases posteriores)
-    // também ficam fora da partida e sobem no GREEN; a D-PROD-207, a D-PROD-208 e, por último, a D-PROD-209.
-    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado']);
+    // também ficam fora da partida e sobem no GREEN; a D-PROD-207, a D-PROD-208, a D-PROD-209 e, por último, a D-PROD-210
+    // (o abastecimento ligado à atividade: muda a AbastecimentoBem que esta recria).
+    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116200000_abastecimento_atividade']);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
     assert.deepEqual(await donoEAcl(db, TABELAS_DEPOIS_DO_CONTRACT), []);
@@ -180,8 +181,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(recusada.status, 1, recusada.saida);
     assert.match(recusada.saida, /alvo conferido nas duas conexões/);
     assert.match(recusada.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
-    // D-PROD-208 e D-PROD-209: as CONTRACT posteriores também pendem e também são citadas.
-    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209).`), recusada.saida);
+    // D-PROD-208, D-PROD-209 e D-PROD-210: as CONTRACT posteriores também pendem e também são citadas.
+    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209), 20261116200000_abastecimento_atividade (D-PROD-210).`), recusada.saida);
     assert.match(recusada.saida, /Nenhuma migration foi executada/);
     assert.deepEqual(await retrato(db), partida, 'nada mudou');
     assert.equal((await historico(db)).concluidas, MIGRATIONS_PARTIDA);
@@ -235,9 +236,11 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual(segurancaAntes.politicas.map((x) => x.nome), seg.vercel ? TABELAS_APAGADAS.map(() => 'maike_backend_all') : []);
 
     const e = await estruturaNovas(db);
-    assert.deepEqual({ pk: e.pk, fk: e.fk, check: e.check, indices: e.indices }, { pk: 7, fk: 31, check: 32, indices: 55 });
+    // D-PROD-210 (aplicada depois): + 3 FKs, 3 CHECKs e 3 índices em AbastecimentoBem (o CHECK de status é recriado, não somado).
+    assert.deepEqual({ pk: e.pk, fk: e.fk, check: e.check, indices: e.indices }, { pk: 7, fk: 31 + 3, check: 32 + 3, indices: 55 + 3 });
     // D-PROD-202: + BemPatrimonial.custo_uso_unitario e TipoPatrimonial.salto_maximo_medidor (anuláveis), aplicadas depois.
-    assert.deepEqual(e.colunas, { AbastecimentoBem: 31, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 55, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 12 });
+    // D-PROD-210: + as 7 colunas de AbastecimentoBem, aplicadas depois.
+    assert.deepEqual(e.colunas, { AbastecimentoBem: 31 + 7, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 55, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 12 });
 
     assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 75 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
     const k = await checksOperacaoItem(db);

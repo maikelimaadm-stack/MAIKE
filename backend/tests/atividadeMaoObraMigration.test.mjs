@@ -39,6 +39,9 @@
  * a D-PROD-208 (59/0, 94 tabelas, `migrate diff` vazio). D-PROD-209: a CONTRACT `20261116100000_funcionario_tipo_terceirizado`,
  * ainda posterior, troca o CHECK de Fornecedor que a D-PROD-208 cria; o AM-08 fica no dia da D-PROD-208 (o segundo passo
  * roda pelo espelho até ela, `runnerAte208`), e a ordem com a D-PROD-209 é provada em atividadeMaoObraParceiroMigration (MP-08).
+ * D-PROD-210: a CONTRACT `20261116200000_abastecimento_atividade`, ainda posterior, muda o schema.prisma (AbastecimentoBem):
+ * no fim do AM-08 (59/0) o `migrate diff` acusa só a diferença do abastecimento (exit 2); a ordem com a D-PROD-210 é
+ * provada em atividadeMaoObraParceiroMigration (MP-08) e em funcionarioTipoTerceirizadoMigration (FT-08).
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -77,6 +80,8 @@ const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) 
 const NOME_PARCEIRO = '20261116000000_mao_obra_parceiro';
 /** D-PROD-209: a CONTRACT do tipo Terceirizado, ainda posterior (ver o cabeçalho). */
 const NOME_TIPO = '20261116100000_funcionario_tipo_terceirizado';
+/** D-PROD-210: a CONTRACT do abastecimento ligado à atividade, ainda posterior (ver o cabeçalho). */
+const NOME_ABASTECIMENTO = '20261116200000_abastecimento_atividade';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
@@ -304,7 +309,7 @@ describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terce
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     assert.equal(PASTAS.at(-1), NOME, 'no dia da D-PROD-207, esta era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 58);
-    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_PARCEIRO, NOME_TIPO], 'D-PROD-208 e D-PROD-209: só o ajuste e o tipo Terceirizado têm nome posterior a esta');
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_PARCEIRO, NOME_TIPO, NOME_ABASTECIMENTO], 'D-PROD-208, D-PROD-209 e D-PROD-210: só o ajuste, o tipo Terceirizado e o abastecimento ligado à atividade têm nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [57, 0, 0]);
     const tabelas = partida.tabelas.split(',');
@@ -350,8 +355,8 @@ describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terce
     assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), []);
     // Hoje (D-PROD-208), com as pastas do repositório, o ajuste também pende, e é ele a CONTRACT a autorizar.
     const hoje = PASTAS_HOJE.map((n) => ({ nome: n, checksum: createHash('sha256').update(readFileSync(join(MIGRATIONS, n, 'migration.sql'), 'utf8')).digest('hex') }));
-    assert.deepEqual(conferirHistoricoRemoto({ locais: hoje, linhas }).pendentes, [NOME, NOME_PARCEIRO, NOME_TIPO]);
-    assert.deepEqual(contractsPendentes({ locais: PASTAS_HOJE, linhas }), [{ nome: NOME_PARCEIRO, decisao: 'D-PROD-208' }, { nome: NOME_TIPO, decisao: 'D-PROD-209' }]);
+    assert.deepEqual(conferirHistoricoRemoto({ locais: hoje, linhas }).pendentes, [NOME, NOME_PARCEIRO, NOME_TIPO, NOME_ABASTECIMENTO]);
+    assert.deepEqual(contractsPendentes({ locais: PASTAS_HOJE, linhas }), [{ nome: NOME_PARCEIRO, decisao: 'D-PROD-208' }, { nome: NOME_TIPO, decisao: 'D-PROD-209' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-210' }]);
   });
 
   test('AM-03 GREEN pelo runner oficial do dia (alvo conferido, SEM MIGRATION_CONTRACT_AUTORIZADO): 58/0, 95 tabelas, RLS sem FORCE e a política nas 4, nenhum grant público, nenhuma coluna nova nas tabelas antigas, as constraints e os índices antigos intactos, índices pelo cliente; o schema.prisma de hoje (D-PROD-208) acusa a diferença', async () => {
@@ -578,7 +583,7 @@ describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terce
     assert.deepEqual(await retrato(db), antes);
   });
 
-  test('AM-08 ordem de produção (D-PROD-208), num banco à parte com a mesma partida: a Fatia 4 pelo runner do dia (58/0, 95) e depois, pelo runner do repositório com o alvo conferido, só a D-PROD-208 pende; sem a decisão exata recusa antes de qualquer DDL; com ela, 59/0, 94 tabelas, Funcionario fora e migrate diff vazio', async () => {
+  test('AM-08 ordem de produção (D-PROD-208), num banco à parte com a mesma partida: a Fatia 4 pelo runner do dia (58/0, 95) e depois, pelo runner do repositório com o alvo conferido, só a D-PROD-208 pende; sem a decisão exata recusa antes de qualquer DDL; com ela, 59/0, 94 tabelas, Funcionario fora e migrate diff só com a diferença do abastecimento (D-PROD-210)', async () => {
     const url = await clonar(`${PREFIXO}_amo_ordem`);
     const dbo = new PrismaClient({ datasourceUrl: url });
     try {
@@ -602,8 +607,11 @@ describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terce
       assert.equal(tabelas.length, 94);
       assert.ok(!tabelas.includes('Funcionario'));
       for (const t of NOVAS.filter((x) => x !== 'Funcionario')) assert.ok(tabelas.includes(t), t);
+      // D-PROD-210 (ver o cabeçalho): o schema.prisma de hoje já tem as colunas novas do abastecimento.
       const diff = await migrateDiff(url);
-      assert.equal(diff.status, 0, diff.saida);
+      assert.equal(diff.status, 2, diff.saida);
+      assert.match(diff.stdout, /AbastecimentoBem/);
+      assert.doesNotMatch(diff.stdout, /Funcionario|AtividadeApontamentoMaoObra/);
     } finally {
       await dbo.$disconnect();
       await apagar(`${PREFIXO}_amo_ordem`);
