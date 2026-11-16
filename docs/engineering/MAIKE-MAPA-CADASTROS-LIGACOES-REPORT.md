@@ -60,7 +60,7 @@ O proprietário pediu uma verificação completa dos cadastros do mapa (pontos, 
 
 ## 4. Validação
 
-Ver §7 (preenchido com o resultado do `verify:all`). Testes novos: `tests/smoke/g1AreasCadastroCorrecoes.test.jsx`, `g1SelecaoAreasMapaLote.test.jsx`, `g2FormularioPontoLigacoes.test.jsx`, `g2PontosLigacoesServico.test.js`, `g3CadastroInvalidaMapa.test.jsx`, `g3FormularioLinhaEPicker.test.jsx`, `g3MapaGeralDerivados.test.js`, `g3MapaGeralIntegrado.test.jsx`, `g4AreasRenumeracaoPorta.test.js`, `suplementacaoFormsG5.test.jsx`, `suplementacaoFormsG5Lancamento.test.jsx`, `bebedouroHistoricoPorData.test.jsx`; backend `backend/tests/g2PontosLigacoes.test.mjs`, `backend/tests/g4AreaPropagacaoOcupacao.test.mjs`. `tests/smoke/mapaService.test.js` atualizado para a exclusão nova (MC7–MC9).
+Resultado na §7. Testes novos: `tests/smoke/g1AreasCadastroCorrecoes.test.jsx`, `g1SelecaoAreasMapaLote.test.jsx`, `g2FormularioPontoLigacoes.test.jsx`, `g2PontosLigacoesServico.test.js`, `g3CadastroInvalidaMapa.test.jsx`, `g3FormularioLinhaEPicker.test.jsx`, `g3MapaGeralDerivados.test.js`, `g3MapaGeralIntegrado.test.jsx`, `g4AreasRenumeracaoPorta.test.js`, `suplementacaoFormsG5.test.jsx`, `suplementacaoFormsG5Lancamento.test.jsx`, `bebedouroHistoricoPorData.test.jsx`; backend `backend/tests/g2PontosLigacoes.test.mjs`, `backend/tests/g4AreaPropagacaoOcupacao.test.mjs`. `tests/smoke/mapaService.test.js` atualizado para a exclusão nova (MC7–MC9).
 
 ## 5. Produção
 
@@ -89,4 +89,10 @@ Também ficou fora: fila offline que trava inteira num 4xx definitivo (`src/lib/
 
 ## 7. Resultado da verificação
 
-(preenchido abaixo depois do `verify:all`)
+| Onde | Etapa | Resultado |
+|---|---|---|
+| Local | gates (`product-scope`, `import-integrity`, `source-closure`, `no-secrets`, `base44`, `tenancy`, `indices`, `rebanho-ssot`, `deploy-migrations`, …), `lint`, `build`, `build:admin` | passam |
+| Local | `gate:types` | passa — dívida 481 → **479** (teto 625) |
+| Local | `typecheck:backend` | passa (depois do ajuste de 2 anotações) |
+| Local | `test:smoke` | 256 arquivos, **3.144/3.144** |
+| CI `quality` (commit `ca93db7b`) | `verify:full` estático, smoke 1/2 e 2/2, backend 1/4 a 4/4, `verify:all` | **todos verdes** |
