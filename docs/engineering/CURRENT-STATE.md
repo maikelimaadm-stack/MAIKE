@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-214**, pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
-| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211) · PR a abrir |
+| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213) por merge · PR **#303** |
 | Escopo | Só banco: `AtividadeApontamento` ganha o UNIQUE (`cliente_id`, `empresa_id`, `atividade_id`, `id`) e a FK `AbastecimentoBem_apontamento_fkey` passa a 4 colunas (com a atividade): o banco recusa um abastecimento ligado a apontamento de outra atividade. Código do servidor e da tela sem mudança |
 | Migration | `20261116400000_abastecimento_fk_apontamento_atividade`, **CONTRACT** (décima segunda de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 62 → 63 (a anterior é a `20261116300000_abastecimento_atividade`, D-PROD-211); tabelas 94 (sem mudança) |
 | Release | Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md). `SCHEMA_APPLIED_PROD: NÃO` |

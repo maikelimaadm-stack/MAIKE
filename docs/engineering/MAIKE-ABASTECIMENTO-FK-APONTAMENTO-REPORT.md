@@ -1,6 +1,6 @@
 # MAIKE — Reforço no banco: o apontamento do abastecimento é da atividade dele (relatório, D-PROD-214)
 
-> **fatia:** reforço D-PROD-214 · **branch:** `feat/abastecimento-fk-apontamento-atividade` · **PR:** a abrir
+> **fatia:** reforço D-PROD-214 · **branch:** `feat/abastecimento-fk-apontamento-atividade` · **PR:** #303
 > Decisão **D-PROD-214** (continua a D-PROD-211, item 8, "reforço futuro") · pedido do proprietário: "pode fazer o
 > reforço no banco" · runbook [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md)
 
