@@ -410,6 +410,8 @@ const REGRA_DE_STATUS_DA_ACAO = Object.freeze({
   lancar_linha: 'só apontamento confirmado de atividade aberta recebe linha (produto, máquina, mão de obra ou serviço)',
   editar_linha: 'só linha confirmada, de apontamento confirmado e atividade aberta, é editada',
   cancelar_linha: 'só linha confirmada, de apontamento confirmado e atividade aberta, é cancelada',
+  // D-PROD-210 (Fatia 5): o abastecimento ligado ao lançamento do dia.
+  lancar_abastecimento: 'só apontamento confirmado de atividade aberta recebe abastecimento',
 });
 
 /**

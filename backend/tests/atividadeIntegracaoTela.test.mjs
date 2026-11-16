@@ -1040,7 +1040,10 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
 
   const t = await S.obterTotaisAtividade(a.id);
   assert.equal(enviados.at(-1).caminho, `/api/native/atividades/${a.id}/totais?empresa_id=${s.e1.id}`);
-  assert.deepEqual(Object.keys(recebidos.at(-1).corpo).sort(), ['area_executada', 'area_planejada', 'custo_por_ha', 'custo_total', 'mao_obra', 'maquinas', 'produtos', 'servicos', 'unidade_area']);
+  assert.deepEqual(Object.keys(recebidos.at(-1).corpo).sort(), [
+    'area_executada', 'area_planejada', 'combustivel', 'consumo_por_bem', 'custo_combustivel_por_ha', 'custo_por_ha', 'custo_total', 'mao_obra', 'maquinas', 'produtos',
+    'servicos', 'unidade_area',
+  ]);
   assert.deepEqual(t.mao_obra.map((x) => [x.parceiro_id, x.nome, x.origem, x.tipo_medida, x.quantidade, x.custo_total]), [
     [s.joao.id, 'João Mensalista', 'FUNCIONARIO', 'DIARIA', '1.0000', '180.0000'],
     [s.joao.id, 'João Mensalista', 'FUNCIONARIO', 'HORA', '8.0000', '204.0000'],

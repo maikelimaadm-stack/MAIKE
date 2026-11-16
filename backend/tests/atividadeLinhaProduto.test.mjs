@@ -380,8 +380,12 @@ describe('totalizador', () => {
       maquinas: [],
       mao_obra: [],
       servicos: [],
+      // D-PROD-210 (Fatia 5): sem abastecimento ligado, o combustível fica vazio.
+      combustivel: { quantidade_l: null, quantidade_kg: null, custo_total: null },
+      consumo_por_bem: [],
       custo_total: '168.0000',
       custo_por_ha: '11.2000',
+      custo_combustivel_por_ha: null,
     });
     // sem linha: custo nulo; outra fazenda → 404
     const b = await s.abrir();

@@ -192,3 +192,84 @@ export const consumoDoBem = async (contexto, query) => {
     }),
   };
 };
+
+// ─── D-PROD-210: combustível da ATIVIDADE (totalizador) ─────────────────────
+
+/**
+ * Combustível e consumo por bem de uma atividade (`GET /atividades/:id/totais`,
+ * contrato da Fatia 5 §2.4). Soma os abastecimentos CONFIRMADO ligados à
+ * atividade (a cascata cancela os do apontamento cancelado). NÃO é um segundo
+ * cálculo do tanque cheio: aqui a conta é "litros da atividade ÷ horas da
+ * atividade" (ou km ÷ litros), com as MESMAS métricas de `metricaDoMedidor`.
+ * `uso` = Σ `quantidade_uso` das linhas de máquina CONFIRMADO do bem, do tipo
+ * de medidor do bem, em apontamentos CONFIRMADO da atividade. Litros e quilos
+ * nunca se somam: misturados ⇒ `quantidade`, `unidade`, `metrica` e `valor`
+ * nulos (as parcelas seguem em `quantidade_l`/`quantidade_kg`); sem uso ⇒
+ * `valor` nulo. Decimais como texto com 4 casas.
+ * @param {any} db @param {string} cli @param {string} empresaId @param {string} atividadeId
+ */
+export const combustivelDaAtividade = async (db, cli, empresaId, atividadeId) => {
+  const porBem = /** @type {Array<{ bem_id: string, unidade: string, quantidade: unknown, custo: unknown }>} */ (
+    await db.$queryRaw`SELECT a.bem_id, a.unidade, SUM(a.quantidade) AS quantidade, SUM(a.custo_total) AS custo
+      FROM "AbastecimentoBem" a
+      WHERE a.cliente_id = ${cli} AND a.empresa_id = ${empresaId} AND a.atividade_id = ${atividadeId} AND a.status = 'CONFIRMADO'
+      GROUP BY a.bem_id, a.unidade`
+  );
+  if (!porBem.length) return { combustivel: { quantidade_l: null, quantidade_kg: null, custo_total: null }, consumo_por_bem: [] };
+  const bemIds = [...new Set(porBem.map((l) => l.bem_id))];
+  const bens = await db.bemPatrimonial.findMany({
+    where: { cliente_id: cli, empresa_id: empresaId, id: { in: bemIds } },
+    select: { id: true, numero: true, codigo_frota: true, nome: true, medidor_tipo: true },
+  });
+  const usos = /** @type {Array<{ bem_id: string, uso: unknown }>} */ (
+    await db.$queryRaw`SELECT m.bem_id, SUM(m.quantidade_uso) AS uso
+      FROM "AtividadeApontamentoMaquina" m
+      JOIN "AtividadeApontamento" ap ON ap.cliente_id = m.cliente_id AND ap.empresa_id = m.empresa_id AND ap.id = m.apontamento_id
+      JOIN "BemPatrimonial" b ON b.cliente_id = m.cliente_id AND b.empresa_id = m.empresa_id AND b.id = m.bem_id
+      WHERE m.cliente_id = ${cli} AND m.empresa_id = ${empresaId} AND ap.atividade_id = ${atividadeId}
+        AND m.status = 'CONFIRMADO' AND ap.status = 'CONFIRMADO' AND m.bem_id = ANY(${bemIds}::text[]) AND m.medidor_tipo = b.medidor_tipo
+        AND m.quantidade_uso IS NOT NULL
+      GROUP BY m.bem_id`
+  );
+  const usoDe = new Map(usos.map((u) => [u.bem_id, u.uso === null || u.uso === undefined ? null : dec(u.uso)]));
+  const soma = (linhas, campo) => linhas.reduce((t, l) => t.plus(dec(l[campo])), dec(0));
+  const consumo = bens
+    .map((b) => {
+      const linhas = porBem.filter((l) => l.bem_id === b.id);
+      const litros = linhas.filter((l) => l.unidade === 'L');
+      const quilos = linhas.filter((l) => l.unidade === 'KG');
+      const misturado = litros.length > 0 && quilos.length > 0;
+      const unidade = misturado ? null : litros.length ? 'L' : 'KG';
+      const quantidade = unidade === null ? null : soma(unidade === 'L' ? litros : quilos, 'quantidade');
+      const uso = usoDe.get(b.id) ?? null;
+      const m = unidade === null ? null : metricaDoMedidor(b.medidor_tipo ?? null, unidade);
+      let valor = null;
+      if (m && quantidade && quantidade.gt(0) && uso && uso.gt(0)) {
+        valor = b.medidor_tipo === 'ODOMETRO' ? arredondar(uso.dividedBy(quantidade), CASAS) : arredondar(quantidade.dividedBy(uso), CASAS);
+      }
+      return {
+        bem: { id: b.id, numero: b.numero, codigo_frota: b.codigo_frota ?? null, nome: b.nome },
+        medidor_tipo: b.medidor_tipo ?? null,
+        uso: uso === null ? null : t4(uso),
+        quantidade: quantidade === null ? null : t4(quantidade),
+        unidade,
+        quantidade_l: litros.length ? t4(soma(litros, 'quantidade')) : null,
+        quantidade_kg: quilos.length ? t4(soma(quilos, 'quantidade')) : null,
+        metrica: m?.metrica ?? null,
+        unidade_metrica: m?.unidade_metrica ?? null,
+        valor: valor === null ? null : t4(valor),
+        custo_total: t4(soma(linhas, 'custo')),
+      };
+    })
+    .sort((a, b) => a.bem.nome.localeCompare(b.bem.nome, 'pt-BR') || (a.bem.id < b.bem.id ? -1 : 1));
+  const litros = porBem.filter((l) => l.unidade === 'L');
+  const quilos = porBem.filter((l) => l.unidade === 'KG');
+  return {
+    combustivel: {
+      quantidade_l: litros.length ? t4(soma(litros, 'quantidade')) : null,
+      quantidade_kg: quilos.length ? t4(soma(quilos, 'quantidade')) : null,
+      custo_total: t4(soma(porBem, 'custo')),
+    },
+    consumo_por_bem: consumo,
+  };
+};

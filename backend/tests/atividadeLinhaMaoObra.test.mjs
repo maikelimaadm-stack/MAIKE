@@ -385,7 +385,10 @@ describe('totais da atividade com as quatro linhas', () => {
     const ap2 = await s.apontar({ data_operacional: '2027-06-11', operation_id: opId(), mao_obra: [{ parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '100' }] });
     await s.H.ok(s.H.req('POST', `${s.baseAp(s.atividade)}/${ap2.id}/cancelar`, s.token, { empresa_id: s.e1.id, versao: ap2.versao, motivo: 'dia errado' }));
     const t = await s.totais();
-    assert.deepEqual(Object.keys(t), ['area_executada', 'area_planejada', 'unidade_area', 'produtos', 'maquinas', 'mao_obra', 'servicos', 'custo_total', 'custo_por_ha']);
+    assert.deepEqual(Object.keys(t), [
+      'area_executada', 'area_planejada', 'unidade_area', 'produtos', 'maquinas', 'mao_obra', 'servicos', 'combustivel', 'consumo_por_bem', 'custo_total', 'custo_por_ha',
+      'custo_combustivel_por_ha',
+    ], 'D-PROD-210: combustível, consumo por bem e custo de combustível/ha');
     assert.deepEqual(t.produtos.map((x) => x.custo_total), ['50.0000']);
     assert.deepEqual(t.maquinas.map((x) => x.custo_total), ['80.0000']);
     assert.deepEqual(t.mao_obra, [
