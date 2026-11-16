@@ -15,7 +15,7 @@
 
 import { safeDivide } from "./pecuariaUtils";
 import { buildTimeWeightedLoteAllocations } from "../suplementacao/timeWeightedAllocation";
-import { calcularFechamentoConsumo, PATCH_REABERTURA_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
+import { calcularFechamentoConsumo, pesoMedioDoPeriodo, PATCH_REABERTURA_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
 
 export const parseDateLocal = (value) => {
   if (!value) return null;
@@ -170,7 +170,10 @@ export function calcularFechamentoDePeriodo({
   faixaPercentual = null,
   custoUnitarioKg = null,
   compartilhado = false,
+  // D-PROD-212: custo da sobra herdada ({ camadas, custoAnteriorKg }); null = tudo ao custo do lançamento.
+  sobraHerdada = null,
 }) {
+  const sobraInicialKg = Number(sobraInicial ?? evento.sobra_kg ?? 0) || 0;
   const { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia } = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
     sobraFinal,
@@ -203,6 +206,7 @@ export function calcularFechamentoDePeriodo({
   });
 
   // D-PROD-206: consumo real × esperado (farol pela faixa da formulação), %PV e custo do período.
+  // D-PROD-212: o esperado usa o peso médio do período (base PV) e a sobra antiga sai primeiro no custo.
   const fechamentoConsumo = calcularFechamentoConsumo({
     evento,
     consumoTotalKg: consumoTotal,
@@ -211,6 +215,9 @@ export function calcularFechamentoDePeriodo({
     faixaPercentual,
     custoUnitarioKg,
     compartilhado,
+    pesoMedio: pesoMedioDoPeriodo({ evento, lotesDoEvento, diasPeriodo }),
+    sobraInicialKg,
+    sobraHerdada,
   });
 
   return {

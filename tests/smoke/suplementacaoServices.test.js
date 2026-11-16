@@ -387,6 +387,11 @@ describe('SP — fechamento e reabertura de período', () => {
       faixa_tolerancia_aplicada: 15, sobra_informada: null, custo_unitario_kg: null, custo_total_periodo: null, custo_cab_dia: null,
       // D-PROD-210: a base do consumo aplicada (evento sem base = PV) e a meta em gramas (só na base G).
       base_consumo_aplicada: 'PV', consumo_esperado_g_cab_dia: null,
+      // D-PROD-212: sem lote que consuma (o lote do teste não tem %PV nem esperado) o peso médio do período fica
+      // aproximado ("sem_lotes"); sem custo, nada da sobra herdada.
+      peso_medio_periodo_kg: null, peso_medio_periodo_aproximado: true, peso_medio_periodo_motivo: 'sem_lotes',
+      consumo_esperado_fechamento_kg_dia: null,
+      sobra_herdada_kg: null, custo_sobra_herdada_kg: null, custo_sobra_aproximado: null, sobra_final_camadas: null,
     });
     expect(suplementacao.updateLoteSuplementacao).toHaveBeenCalledWith('sl1', expect.objectContaining({
       dias_periodo: 5, percentual_consumo_lote: 1,
@@ -418,6 +423,10 @@ describe('SP — fechamento e reabertura de período', () => {
       consumo_g_cab_dia: null, consumo_real_pv_percentual: null, consumo_esperado_pv_percentual: null, consumo_relacao_esperado: null,
       farol_consumo: null, farol_consumo_motivo: null, faixa_tolerancia_aplicada: null, base_consumo_aplicada: null, sobra_informada: null,
       custo_total_periodo: null, custo_cab_dia: null,
+      // D-PROD-212: e o peso médio do período e o custo da sobra herdada.
+      peso_medio_periodo_kg: null, peso_medio_periodo_aproximado: null, peso_medio_periodo_motivo: null,
+      consumo_esperado_fechamento_kg_dia: null,
+      sobra_herdada_kg: null, custo_sobra_herdada_kg: null, custo_sobra_aproximado: null, sobra_final_camadas: null,
     });
     expect(suplementacao.updateLoteSuplementacao).toHaveBeenCalledTimes(1);
     expect(suplementacao.updateLoteSuplementacao).toHaveBeenCalledWith('sl1', {

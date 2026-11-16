@@ -117,6 +117,37 @@ describe('P0 — suplementação e estoque', () => {
     assert.equal(gravado.dados.quantidade_total_kg, 100);
   });
 
+  test('D-PROD-212 — SuplementacaoEvento: o fechamento do consumo passa (farol, custo, peso médio, camadas), com tipos conferidos', async () => {
+    const c = await cenario();
+    const ev = (await req('POST', '/suplementacao-eventos', c.tokAdm, { empresa_id: c.empresa.id, quantidade_total_kg: 900, produto: 'SAL', sobra_kg: 100 })).json();
+    const fechamento = {
+      sobra_kg: 50, dias_periodo: 10, consumo_diario_grupo_kg: 95,
+      consumo_g_cab_dia: 950, consumo_real_pv_percentual: 0.3074, consumo_esperado_pv_percentual: 0.3, consumo_esperado_g_cab_dia: null,
+      consumo_relacao_esperado: 1.0248, farol_consumo: 'dentro', farol_consumo_motivo: null, faixa_tolerancia_aplicada: 15,
+      base_consumo_aplicada: 'PV', sobra_informada: true, custo_unitario_kg: 3.5, custo_total_periodo: 3275, custo_cab_dia: 3.275,
+      peso_medio_periodo_kg: 309, peso_medio_periodo_aproximado: false, peso_medio_periodo_motivo: null, consumo_esperado_fechamento_kg_dia: 92.7,
+      sobra_herdada_kg: 100, custo_sobra_herdada_kg: 3, custo_sobra_aproximado: false, sobra_final_camadas: [{ kg: 50, custo_kg: 3.5 }],
+    };
+    const ok = await req('PATCH', `/suplementacao-eventos/${ev.id}`, c.tokAdm, fechamento);
+    assert.equal(ok.statusCode, 200, ok.body);
+    const gravado = await prisma().suplementacaoEvento.findUnique({ where: { id: ev.id } });
+    assert.equal(gravado.dados.farol_consumo, 'dentro');
+    assert.equal(gravado.dados.custo_total_periodo, 3275);
+    assert.deepEqual(gravado.dados.sobra_final_camadas, [{ kg: 50, custo_kg: 3.5 }]);
+    assert.equal(gravado.dados.quantidade_total_kg, 900);
+    // Reabertura: os mesmos campos em null.
+    const reabre = await req('PATCH', `/suplementacao-eventos/${ev.id}`, c.tokAdm, Object.fromEntries(Object.keys(fechamento).filter((k) => k !== 'sobra_kg' && k !== 'custo_unitario_kg').map((k) => [k, null])));
+    assert.equal(reabre.statusCode, 200, reabre.body);
+    // Tipo errado → 400 com o campo; nada gravado.
+    for (const [campo, valor] of [['farol_consumo', 'verde'], ['sobra_informada', 'sim'], ['custo_cab_dia', '3,28'], ['sobra_final_camadas', [{ kg: -1, custo_kg: 3 }]], ['base_consumo_aplicada', 'KG']]) {
+      const r = await req('PATCH', `/suplementacao-eventos/${ev.id}`, c.tokAdm, { [campo]: valor });
+      assert.equal(r.statusCode, 400, `${campo}: ${r.body}`);
+      assert.equal(r.json().field, campo, r.body);
+    }
+    // Campo de lançamento/saldo continua imutável.
+    assert.equal((await req('PATCH', `/suplementacao-eventos/${ev.id}`, c.tokAdm, { consumo_esperado_pv_kg: 1 })).json().code, 'REGISTRO_OPERACIONAL_IMUTAVEL');
+  });
+
   test('SuplementacaoLote: só métricas de consumo; vínculo e DELETE bloqueados', async () => {
     const c = await cenario();
     const sl = (await req('POST', '/suplementacao-lotes', c.tokAdm, { empresa_id: c.empresa.id, lote_id: 'L1', cabecas_na_area: 10 })).json();

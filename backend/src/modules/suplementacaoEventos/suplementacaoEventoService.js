@@ -6,7 +6,8 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { documentoComoPublico, montarDocumento } from '../../shared/jsonDocument/jsonDocumentPublic.js';
-import { exigirNumerosOuNulo, exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
+import { exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
+import { CAMPOS_PATCH_PERMITIDOS, exigirTiposDoFechamento } from './camposFechamentoEvento.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -59,10 +60,13 @@ export const criarEmLote = async (contexto, registros) => {
 
 /**
  * R2A (D-PROD-99): o evento compõe saída de estoque e rateio por lote. PATCH só
- * aceita as métricas de fechamento/reabertura de período (sobra, dias, consumo diário do grupo), que não mexem
- * em saldo; qualquer outro campo → REGISTRO_OPERACIONAL_IMUTAVEL, nada gravado.
+ * aceita o que o fechamento/reabertura do período grava — as métricas do período
+ * (sobra, dias, consumo diário do grupo) e, desde a D-PROD-212, os campos do
+ * fechamento do consumo (farol, %PV, custo, peso médio, sobra herdada), cada um
+ * com o seu tipo (`camposFechamentoEvento.js`). Nada disso mexe em saldo;
+ * qualquer outro campo → REGISTRO_OPERACIONAL_IMUTAVEL, nada gravado.
  */
-export const CAMPOS_PATCH_PERMITIDOS = Object.freeze(['sobra_kg', 'dias_periodo', 'consumo_diario_grupo_kg']);
+export { CAMPOS_PATCH_PERMITIDOS };
 
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -71,7 +75,7 @@ export const atualizar = async (contexto, id, entrada) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
     exigirSomenteCamposPermitidos(entrada, CAMPOS_PATCH_PERMITIDOS, { entidade: ENTIDADE, empresaAtual: existente.empresa_id });
-    exigirNumerosOuNulo(entrada, ENTIDADE);
+    exigirTiposDoFechamento(entrada, ENTIDADE);
     const patch = montarDocumento(auth.clienteId, { ...documentoComoPublico(existente), ...entrada }, { atualizacao: true, id, dadosAnteriores: existente.dados });
     const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, patch);
     await registrarEvento(

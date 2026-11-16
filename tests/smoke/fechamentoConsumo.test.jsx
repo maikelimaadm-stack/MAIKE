@@ -69,6 +69,10 @@ describe("FC-1 — domínio puro", () => {
       consumo_g_cab_dia: 400, consumo_real_pv_percentual: 0.1, consumo_esperado_pv_percentual: 0.1, consumo_relacao_esperado: 1,
       farol_consumo: "dentro", farol_consumo_motivo: null, faixa_tolerancia_aplicada: 15, sobra_informada: true, base_consumo_aplicada: "PV", consumo_esperado_g_cab_dia: null,
       custo_unitario_kg: 3.5, custo_total_periodo: 980, custo_cab_dia: 1.4,
+      // D-PROD-212: sem peso médio do período nem sobra herdada informados, os campos novos ficam vazios.
+      peso_medio_periodo_kg: null, peso_medio_periodo_aproximado: null, peso_medio_periodo_motivo: null,
+      consumo_esperado_fechamento_kg_dia: null,
+      sobra_herdada_kg: null, custo_sobra_herdada_kg: null, custo_sobra_aproximado: null, sobra_final_camadas: null,
     });
   });
 
