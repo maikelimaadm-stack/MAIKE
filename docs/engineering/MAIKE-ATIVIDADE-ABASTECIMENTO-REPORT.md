@@ -32,6 +32,7 @@ Registrado como reforço futuro: FK composta amarrando o lançamento à atividad
 | `atividadeAbastecimento` (servidor da fatia, com concorrência) | 15/15 |
 | `scripts/tests/deploy` premerge-migrate / migrations / alvo-banco | 162/162 · 77/77 · 6/6 |
 | suíte backend inteira (antes do merge da `main`) | 2211 testes: 2206 passaram, **0 falhas**, 5 `todo` |
+| suíte backend inteira (depois do merge da `main`, 62 migrations) | 2216 testes: 2211 passaram, **0 falhas**, 5 `todo` |
 | `verify-all --pular=test:backend` (depois do merge) | todas as etapas passaram (smoke, gates, tipos, lint, builds) |
 
 ## 4. Release
