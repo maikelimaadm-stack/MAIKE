@@ -9,6 +9,10 @@
  *  F6  trocar o tipo de um BEBEDOURO inativa o bebedouro ligado pelo id;
  *  F7  depósito novo: o local vai junto no POST do depósito (o servidor cria os
  *      dois na mesma transação), sem POST de local antes.
+ *  F8  sem a lista de pontos (falhou/carregando) o formulário de cocho/depósito
+ *      não se preenche pela regra só por nome e nada é gravado;
+ *  F9  produção: o ponto nº 1 "TESTE" não puxa nem grava no depósito que está no
+ *      lugar do ponto nº 4 "TESTE".
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
@@ -22,6 +26,7 @@ const svc = vi.hoisted(() => ({
   atualizarPontoSuplementacao: vi.fn(),
   listarTodosPontosSuplementacao: vi.fn(),
   listarTodosBebedouros: vi.fn(),
+  listarPontosAtivos: vi.fn(),
   listarIconesPorTipoEntidade: vi.fn(),
   verificarRemocaoSuplementacao: vi.fn(),
   removerPontoSuplementacao: vi.fn(),
@@ -36,6 +41,7 @@ vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () 
 vi.mock('@/services/mapaService', () => ({
   listarIconesPorTipoEntidade: (...a) => svc.listarIconesPorTipoEntidade(...a),
   listarTodosPontos: vi.fn(async () => []),
+  listarPontosAtivos: (...a) => svc.listarPontosAtivos(...a),
   listarTodosPontosSuplementacao: (...a) => svc.listarTodosPontosSuplementacao(...a),
   listarTodosBebedouros: (...a) => svc.listarTodosBebedouros(...a),
   listarSetoresAtivos: vi.fn(async () => [{ id: 's1', nome: 'SETOR 1', empresa_id: 'emp-1' }, { id: 's2', nome: 'SETOR 2', empresa_id: 'emp-1' }]),
@@ -86,6 +92,7 @@ beforeEach(() => {
   svc.listarIconesPorTipoEntidade.mockResolvedValue([{ id: 'ic-porteira', categoria: 'PORTEIRA', tipo_entidade: 'Ponto', ativo: true }]);
   svc.listarTodosPontosSuplementacao.mockResolvedValue([]);
   svc.listarTodosBebedouros.mockResolvedValue([]);
+  svc.listarPontosAtivos.mockResolvedValue([]);
   svc.criarPonto.mockImplementation(async (d) => ({ id: 'ref-novo', ...d }));
   svc.atualizarPonto.mockImplementation(async (id, d) => ({ id, ...d }));
   svc.criarPontoSuplementacao.mockImplementation(async (d) => ({ id: 'supl-novo', ...d }));
@@ -211,5 +218,35 @@ describe('FormularioPonto — ligações (G2)', () => {
       local_estoque_id: null,
       local_estoque: { nome: 'DEP NOVO', descricao: 'DEPÓSITO DE SUPLEMENTAÇÃO - DEP NOVO' },
     });
+  });
+
+  const DEP_NO_LUGAR_4 = { id: 'd1', empresa_id: 'emp-1', status: 'Ativo', nome_ponto: 'TESTE', categoria_ponto: 'DEPOSITO', local_estoque_id: 'loc1', setor_id: 's1', capacidade_cocho_kg: 100, estoque_minimo_kg: 10, coordenadas: { lat: -14.50677727330729, lng: -60.20940129969895 } };
+  const PONTO_1 = { id: 'p1', empresa_id: 'emp-1', nome: 'TESTE', tipo: 'DEPÓSITO', ativo: true, coordenadas: { lat: -14.50675131924793, lng: -60.20948193454403 } };
+  const PONTO_4 = { id: 'p4', empresa_id: 'emp-1', nome: 'TESTE', tipo: 'Depósito', ativo: true, coordenadas: DEP_NO_LUGAR_4.coordenadas };
+
+  it('F8 — lista de pontos falhou: o depósito do outro ponto não preenche o formulário e nada é gravado', async () => {
+    svc.listarTodosPontosSuplementacao.mockResolvedValue([DEP_NO_LUGAR_4]);
+    svc.listarPontosAtivos.mockRejectedValue(new Error('rede'));
+    await montar(PONTO_1);
+    await waitFor(() => expect(svc.listarTodosPontosSuplementacao).toHaveBeenCalled());
+    await waitFor(() => expect(svc.listarPontosAtivos).toHaveBeenCalled());
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(campo('Nome do ponto').value).toBe('');
+    expect(screen.queryByDisplayValue('100')).toBeNull();
+    await enviar();
+    await act(async () => {});
+    expect(svc.atualizarPontoSuplementacao).not.toHaveBeenCalled();
+    expect(svc.atualizarPonto).not.toHaveBeenCalled();
+  });
+
+  it('F9 — produção: o ponto nº 1 não puxa nem grava no depósito do ponto nº 4', async () => {
+    svc.listarTodosPontosSuplementacao.mockResolvedValue([DEP_NO_LUGAR_4]);
+    svc.listarPontosAtivos.mockResolvedValue([PONTO_1, PONTO_4]);
+    await montar(PONTO_1);
+    await waitFor(() => expect(campo('Nome do ponto').value).toBe('TESTE'));
+    expect(campo('Limite operacional do depósito (kg)').value).toBe('');
+    await enviar();
+    await act(async () => {});
+    expect(svc.atualizarPontoSuplementacao.mock.calls.some(([id]) => id === 'd1')).toBe(false);
   });
 });

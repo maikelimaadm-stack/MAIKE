@@ -51,6 +51,15 @@ describe('regra de ligação — lugar de outro ponto', () => {
     expect(resolverSuplementacaoDoPonto(ponto1, SUPL, { outrosPontos: [ponto1, porteira] }).registro?.id).toBe('dep1');
   });
 
+  it('LO10 — ponto de OUTRO nome no mesmo lugar (ímã do editor) não tira o cocho do dono pelo nome', () => {
+    const pa = { id: 'pa', empresa_id: EMPRESA, nome: 'COCHO A', tipo: 'Cocho', ativo: true, coordenadas: LUGAR_1 };
+    const pb = { id: 'pb', empresa_id: EMPRESA, nome: 'COCHO B', tipo: 'Cocho', ativo: true, coordenadas: LUGAR_4 };
+    const sa = { id: 'sa', empresa_id: EMPRESA, nome_ponto: 'COCHO A', categoria_ponto: 'COCHO', status: 'Ativo', coordenadas: LUGAR_4 };
+    const sb = { id: 'sb', empresa_id: EMPRESA, nome_ponto: 'COCHO B', categoria_ponto: 'COCHO', status: 'Ativo', coordenadas: LUGAR_4 };
+    expect(resolverSuplementacaoDoPonto(pa, [sa, sb], { outrosPontos: [pa, pb] }).registro?.id).toBe('sa');
+    expect(resolverSuplementacaoDoPonto(pb, [sa, sb], { outrosPontos: [pa, pb] }).registro?.id).toBe('sb');
+  });
+
   it('LO7 — a lista do Cadastro de Pontos mostra o depósito só no nº 4', () => {
     const linhas = pontosComDetalhes(PONTOS, SUPL, []);
     const porId = Object.fromEntries(linhas.map((l) => [l.id, l.detalhe_suplementacao?.id ?? null]));

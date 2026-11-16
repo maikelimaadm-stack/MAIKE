@@ -32,6 +32,7 @@ vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () 
 vi.mock('@/services/mapaService', () => ({
   listarIconesPorTipoEntidade: vi.fn(async () => []),
   listarTodosPontos: vi.fn(async () => []),
+  listarPontosAtivos: vi.fn(async () => []),
   listarTodosPontosSuplementacao: vi.fn(async () => []),
   listarTodosBebedouros: vi.fn(async () => []),
   listarSetoresAtivos: vi.fn(async () => [{ id: 's1', nome: 'SETOR 1', empresa_id: 'emp-1' }]),

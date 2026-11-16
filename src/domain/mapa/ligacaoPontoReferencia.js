@@ -72,7 +72,8 @@ export const mesmasCoordenadas = (a, b) => {
 };
 
 /**
- * @typedef {{ registro: any|null, ambiguo: boolean, candidatos: any[] }} ResultadoLigacao
+ * @typedef {{ registro: any|null, ambiguo: boolean, candidatos?: any[], pendente?: boolean }} ResultadoLigacao
+ *   `pendente`: quem chama ainda não tem o que precisa para decidir (ex.: a lista de pontos não carregou).
  */
 
 const SEM_LIGACAO = Object.freeze({ registro: null, ambiguo: false, candidatos: [] });
@@ -85,7 +86,7 @@ const SEM_LIGACAO = Object.freeze({ registro: null, ambiguo: false, candidatos: 
  * (itens do cadastro em lote): ele vale se for da mesma empresa e categoria.
  *
  * Cocho/depósito que está EXATAMENTE no lugar de OUTRO ponto de referência
- * ativo da mesma empresa e categoria pertence àquele ponto: não liga por nome a
+ * ativo da mesma empresa, categoria e nome pertence àquele ponto: não liga por nome a
  * este (`opcoes.outrosPontos`). Caso real de produção: dois pontos "TESTE" de
  * depósito e um único depósito, no lugar do segundo; sem isto o primeiro
  * (sobra de um cadastro que falhou) também "achava" o depósito, e excluí-lo
@@ -121,7 +122,10 @@ export const resolverSuplementacaoDoPonto = (ponto, pontosSuplementacao, opcoes 
       p.ativo !== false &&
       (ponto.id == null || p.id !== ponto.id) &&
       (p.empresa_id ?? null) === (ponto.empresa_id ?? null) &&
-      categoriaSuplementacaoDoTipo(p.tipo) === categoria
+      categoriaSuplementacaoDoTipo(p.tipo) === categoria &&
+      // Só um ponto de MESMO nome reivindica o lugar: um ponto de outro nome no
+      // mesmo vértice (ímã do editor) não tira o cocho de quem é dono pelo nome.
+      normalizarLigacao(p.nome) === nome
   );
   const doLugarDeOutroPonto = (sup) =>
     !mesmasCoordenadas(sup.coordenadas, ponto.coordenadas) &&
