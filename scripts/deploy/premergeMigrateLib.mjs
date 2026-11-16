@@ -38,7 +38,9 @@
  *     antiga e FK composta entre duas tabelas antigas, todos pinados letra por letra; na
  *     D-PROD-197, sem DROP nenhum, as 18 instruções ADITIVAS em TipoAtividade que a
  *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
- *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs).
+ *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs; na D-PROD-209, sem DROP
+ *     nenhum, só o DROP CONSTRAINT e o ADD CONSTRAINT do mesmo CHECK de Fornecedor,
+ *     com TERCEIRIZADO no lugar de TAREFEIRO).
  *     Formato CONVERSÃO (D-PROD-200; a entrada tem `conversao` não vazia): os dados
  *     das tabelas que saem vão para as que entram ANTES do DROP. A ordem passa a ser
  *     guarda → `alter_antigas` (na D-PROD-200, nenhuma) → RESTO pela allowlist EXPAND
@@ -144,6 +146,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // anuláveis em Fornecedor), a linha de mão de obra aponta para o parceiro (parceiro_id e origem NOT NULL, tabela vazia)
   // e a tabela Funcionario, VAZIA, sai no fim. A guarda aborta se Funcionario ou AtividadeApontamentoMaoObra tiverem linha.
   '20261116000000_mao_obra_parceiro': '65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0',
+  // D-PROD-209: CONTRACT aprovado pelo proprietário — o tipo do funcionário passa a ser Mensalista, Diarista ou
+  // Terceirizado: o CHECK "Fornecedor_funcionario_check" volta igual, com TERCEIRIZADO no lugar de TAREFEIRO. A guarda
+  // aborta se algum parceiro tiver funcionario_tipo = TAREFEIRO. Nenhuma coluna, índice, tabela ou dado muda.
+  '20261116100000_funcionario_tipo_terceirizado': '44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -189,9 +195,10 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São oito, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
- * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre) e D-PROD-208
- * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto).
+ * exige decisão. São nove, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre), D-PROD-208
+ * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto) e
+ * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -401,6 +408,22 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "Fornecedor" ADD CONSTRAINT "Fornecedor_funcionario_check" CHECK (("funcionario_tipo" IS NULL OR "funcionario_tipo" IN (\'MENSALISTA\', \'DIARISTA\', \'TAREFEIRO\')) AND ("funcionario_custo_hora" IS NULL OR "funcionario_custo_hora" >= 0) AND ("funcionario_custo_diaria" IS NULL OR "funcionario_custo_diaria" >= 0))',
       'ALTER TABLE "AtividadeApontamentoMaoObra" ADD CONSTRAINT "AtividadeApontamentoMaoObra_origem_check" CHECK ("origem" IN (\'FUNCIONARIO\', \'TERCEIRO\'))',
       'ALTER TABLE "AtividadeApontamentoMaoObra" ADD CONSTRAINT "AtividadeApontamentoMaoObra_parceiro_fkey" FOREIGN KEY ("cliente_id", "parceiro_id") REFERENCES "Fornecedor"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-209: o tipo do funcionário passa a ser Mensalista, Diarista ou Terceirizado. Sem DROP TABLE e sem tabela nova:
+  // depois da guarda (hash pinado; confere que "Fornecedor" existe e que o CHECK ainda tem TAREFEIRO e trava "Fornecedor"
+  // em ACCESS EXCLUSIVE antes de conferir que nenhum parceiro tem funcionario_tipo = TAREFEIRO), EXATAMENTE as 2
+  // instruções abaixo, nesta ordem (texto pinado): sai o CHECK e volta igual, com TERCEIRIZADO no lugar de TAREFEIRO
+  // (o descritor o declara em `constraints_alargadas`: mesmo nome, recriado). Resto vazio. A guarda só cita "Fornecedor"
+  // e o valor que sai, 'TAREFEIRO'.
+  '20261116100000_funcionario_tipo_terceirizado': Object.freeze({
+    decisao: 'D-PROD-209',
+    guarda_sha256: '93612d85d6cc9ec3c39b9586619deedb8db72e5198d1ab64fa3ee9d8e911cca9',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['Fornecedor', 'TAREFEIRO']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "Fornecedor" DROP CONSTRAINT "Fornecedor_funcionario_check"',
+      'ALTER TABLE "Fornecedor" ADD CONSTRAINT "Fornecedor_funcionario_check" CHECK (("funcionario_tipo" IS NULL OR "funcionario_tipo" IN (\'MENSALISTA\', \'DIARISTA\', \'TERCEIRIZADO\')) AND ("funcionario_custo_hora" IS NULL OR "funcionario_custo_hora" >= 0) AND ("funcionario_custo_diaria" IS NULL OR "funcionario_custo_diaria" >= 0))',
     ]),
   }),
 });

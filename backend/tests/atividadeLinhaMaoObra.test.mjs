@@ -294,7 +294,7 @@ describe('proteções', () => {
     // o da outra fazenda, o só fornecedor e o sem papel.
     assert.deepEqual(op.itens.map((x) => [x.nome, x.origem]), [
       ['Empreiteira Alias', 'TERCEIRO'], ['João Diarista', 'FUNCIONARIO'], ['Pedro Sem Custo', 'FUNCIONARIO'],
-      ['Prestadora Terra Boa', 'TERCEIRO'], ['Tião Tarefeiro', 'FUNCIONARIO'], ['Zé Dos Dois Papéis', 'FUNCIONARIO'],
+      ['Prestadora Terra Boa', 'TERCEIRO'], ['Tião Terceirizado', 'FUNCIONARIO'], ['Zé Dos Dois Papéis', 'FUNCIONARIO'],
     ]);
     assert.deepEqual(op.itens[1], { id: s.joao.id, nome: 'João Diarista', origem: 'FUNCIONARIO', funcionario_tipo: 'DIARISTA', funcionario_custo_hora: '25.5000', funcionario_custo_diaria: '180.0000' });
     assert.deepEqual(op.itens[3], { id: s.prestador.id, nome: 'Prestadora Terra Boa', origem: 'TERCEIRO', funcionario_tipo: null, funcionario_custo_hora: null, funcionario_custo_diaria: null });
@@ -308,7 +308,7 @@ describe('proteções', () => {
     assert.deepEqual(curinga.itens, [], '`%` é literal, não curinga');
     const p1 = await s.H.ok(s.H.req('GET', `/atividades-opcoes/mao-obra?empresa_id=${s.e1.id}&limit=4`, s.token));
     const p2 = await s.H.ok(s.H.req('GET', `/atividades-opcoes/mao-obra?empresa_id=${s.e1.id}&limit=4&cursor=${encodeURIComponent(p1.next_cursor)}`, s.token));
-    assert.deepEqual([p1.has_more, p2.itens.map((x) => x.nome), p2.has_more], [true, ['Tião Tarefeiro', 'Zé Dos Dois Papéis'], false]);
+    assert.deepEqual([p1.has_more, p2.itens.map((x) => x.nome), p2.has_more], [true, ['Tião Terceirizado', 'Zé Dos Dois Papéis'], false]);
   });
 });
 

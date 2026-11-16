@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO (ajuste da Fatia 4): o funcionário vira papel do parceiro, e a mão de obra pode ser de funcionário ou de terceiro (D-PROD-208)
+## Missão ativa (2026-11-16) — MAIKE-FUNCIONARIO-TIPO: tipo do funcionário Mensalista, Diarista ou Terceirizado (D-PROD-209)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-209**, pedido do proprietário ("por enquanto deixe a escolha assim, mensalista, diárias, terceirzado") |
+| Branch / PR | `feat/funcionario-tipo-terceirizado`, a partir da `main` `3de613a5` (merge da PR #298, D-PROD-208) · PR **#299** |
+| Escopo | `Fornecedor.funcionario_tipo` ∈ `MENSALISTA \| DIARISTA \| TERCEIRIZADO` (`TERCEIRIZADO` no lugar de `TAREFEIRO`), na tela Parceiros e no servidor; medida sugerida na mão de obra: Terceirizado → hora (Mensalista → hora e Diarista → diária continuam); a medida `TAREFA` da linha continua |
+| Migration | `20261116100000_funcionario_tipo_terceirizado`, **CONTRACT** (troca do CHECK `Fornecedor_funcionario_check`; a guarda aborta com qualquer parceiro `TAREFEIRO`), SHA `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6`. Produção 59 → 60; tabelas 94 (sem mudança) |
+| Release | **Aplicada em produção em 2026-11-16** (GO escrito do proprietário, caminho B): postcheck APLICADA E CONFERIDA, produção 60/0, 94 tabelas, CHECK com `TERCEIRIZADO`. Registro no [runbook](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) §9; validação toda local (GitHub Actions pausado) |
+| Constituição | Sem nota (não muda escopo) |
+| Documentos | [`MAIKE-FUNCIONARIO-TIPO-REPORT.md`](./MAIKE-FUNCIONARIO-TIPO-REPORT.md) · [`MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO (ajuste da Fatia 4): o funcionário vira papel do parceiro, e a mão de obra pode ser de funcionário ou de terceiro (D-PROD-208)
 
 | Campo | Valor |
 |---|---|

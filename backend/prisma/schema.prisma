@@ -1365,7 +1365,7 @@ model Fornecedor {
   tipos              String[]  @default([])
   ativo              Boolean   @default(true)
   /// D-PROD-208 — dados do papel `funcionario` (só com esse papel; CHECK).
-  /// MENSALISTA | DIARISTA | TAREFEIRO.
+  /// MENSALISTA | DIARISTA | TERCEIRIZADO (D-PROD-209: TERCEIRIZADO no lugar de TAREFEIRO).
   funcionario_tipo       String?  @db.VarChar(16)
   funcionario_cargo      String?  @db.VarChar(120)
   funcionario_custo_hora   Decimal? @db.Decimal(14, 4)

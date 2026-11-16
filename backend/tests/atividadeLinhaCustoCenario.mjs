@@ -73,7 +73,7 @@ export const montarLinhasCusto = async (app) => {
 
   const joao = await funcionario(s.e1, { nome: 'João Diarista', cargo: 'Tratorista', tipo: 'DIARISTA', custo_hora: '25.5', custo_diaria: '180' });
   const pedro = await funcionario(s.e1, { nome: 'Pedro Sem Custo', tipo: 'MENSALISTA' });
-  const tiao = await funcionario(s.e1, { nome: 'Tião Tarefeiro', tipo: 'TAREFEIRO' });
+  const tiao = await funcionario(s.e1, { nome: 'Tião Terceirizado', tipo: 'TERCEIRIZADO' });
   const inativo = await funcionario(s.e1, { nome: 'Antigo Funcionário', ativo: false, custo_hora: '10' });
   const daE2 = await funcionario(s.e2, { nome: 'Funcionário da Fazenda 2', custo_hora: '10' });
   // Com os dois papéis (funcionário e prestador): vale funcionário.

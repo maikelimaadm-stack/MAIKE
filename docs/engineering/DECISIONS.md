@@ -7519,4 +7519,22 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Contrato:** [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-209 -->
+## D-PROD-209 — Tipo do funcionário: Mensalista, Diarista ou Terceirizado
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário · **Branch:** `feat/funcionario-tipo-terceirizado` · **Ajusta:** D-PROD-208
+
+**O pedido.** Nas palavras do proprietário: "por enquanto deixe a escolha assim, mensalista, diárias, terceirzado".
+
+**Decisão.**
+1. A escolha do tipo do funcionário (papel `funcionario` do parceiro, D-PROD-208) passa a ser **Mensalista, Diarista ou Terceirizado**: `Fornecedor.funcionario_tipo` ∈ `MENSALISTA | DIARISTA | TERCEIRIZADO` (`TERCEIRIZADO` no lugar de `TAREFEIRO`). O tipo continua obrigatório na tela quando o papel Funcionário está marcado; o servidor recusa `TAREFEIRO` como qualquer valor fora da lista (400).
+2. A medida **sugerida** na linha de mão de obra: Mensalista → hora, Diarista → diária, **Terceirizado → hora**. A medida `TAREFA` da linha continua existindo (é a medida, não o tipo): o operador a escolhe na linha, com o custo digitado.
+3. **Migration CONTRACT `20261116100000_funcionario_tipo_terceirizado`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, formato de sempre, sem `DROP TABLE`): a guarda pinada confere que o CHECK ainda é o da D-PROD-208 (com `TAREFEIRO`), trava `Fornecedor` em `ACCESS EXCLUSIVE` e aborta a transação inteira se algum parceiro tiver `funcionario_tipo = 'TAREFEIRO'`; depois, as 2 instruções pinadas: `DROP CONSTRAINT "Fornecedor_funcionario_check"` e o `ADD CONSTRAINT` igual com `TERCEIRIZADO` no lugar de `TAREFEIRO`. Nenhuma coluna, índice, tabela ou dado muda; o `schema.prisma` só muda o comentário. SHA-256 `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6`; 59 → 60 migrations, 94 tabelas. Em produção nenhum parceiro tem `funcionario_tipo` preenchido (conferido).
+4. Sem nota de Constituição: não muda o escopo (só a lista fechada de um campo que já existe).
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) (`--contract D-PROD-209` no caminho A; o envelope no caminho B).
+
+**Aplicada em produção em 2026-11-16** (GO escrito do proprietário: "pode aplicar"), caminho B: preflight OK, postcheck APLICADA E CONFERIDA (60/0, CHECK com `TERCEIRIZADO`, 94 tabelas). PR #299.
+
+**Relatório:** [`MAIKE-FUNCIONARIO-TIPO-REPORT.md`](./MAIKE-FUNCIONARIO-TIPO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-210 -->

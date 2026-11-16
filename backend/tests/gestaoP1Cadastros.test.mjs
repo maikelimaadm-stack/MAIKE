@@ -576,8 +576,12 @@ describe('T8 — papel funcionário (D-PROD-208)', () => {
     // Recolocar o papel: os dados não voltam (foram limpos); mandar papel + dados juntos grava.
     const volta = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, papeis: ['fornecedor', 'funcionario'] }));
     assert.deepEqual([volta.funcionario_tipo, volta.funcionario_custo_hora], [null, null]);
-    const junto = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, funcionario_tipo: 'TAREFEIRO', funcionario_custo_diaria: '0' }));
-    assert.deepEqual([junto.funcionario_tipo, junto.funcionario_custo_diaria], ['TAREFEIRO', '0.0000']);
+    // D-PROD-209: a escolha é Mensalista, Diarista ou Terceirizado; TAREFEIRO saiu (400 pelo formato, nada gravado).
+    const tarefeiro = await req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, funcionario_tipo: 'TAREFEIRO' });
+    assert.equal(tarefeiro.statusCode, 400, tarefeiro.body);
+    assert.equal((await prisma().fornecedor.findUnique({ where: { id: a.id } })).funcionario_tipo, null);
+    const junto = await ok(req('PATCH', `/parceiros/${a.id}`, c.par, { empresa_id: c.e1.id, funcionario_tipo: 'TERCEIRIZADO', funcionario_custo_diaria: '0' }));
+    assert.deepEqual([junto.funcionario_tipo, junto.funcionario_custo_diaria], ['TERCEIRIZADO', '0.0000']);
     const c2 = await ok(req('POST', '/parceiros', c.par, { empresa_id: c.e1.id, tipo_pessoa: 'Jurídica', nome: 'C', cnpj: CNPJ_A, papeis: ['cliente'] }), 201);
     const passa = await ok(req('PATCH', `/parceiros/${c2.id}`, c.par, { empresa_id: c.e1.id, papeis: ['cliente', 'funcionario'], funcionario_tipo: 'DIARISTA' }));
     assert.deepEqual([passa.papeis, passa.funcionario_tipo], [['cliente', 'funcionario'], 'DIARISTA']);

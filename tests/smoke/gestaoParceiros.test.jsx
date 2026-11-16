@@ -317,6 +317,12 @@ describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
     funcionario_custo_hora: '20.0000', funcionario_custo_diaria: '160.0000',
   };
 
+  it('D-PROD-209: a escolha do tipo do funcionário é Mensalista, Diarista ou Terceirizado (TERCEIRIZADO no lugar de TAREFEIRO)', async () => {
+    const { TIPOS_FUNCIONARIO, rotuloTipoFuncionario } = await import('@/services/parceiroService');
+    expect(TIPOS_FUNCIONARIO.map((t) => [t.value, t.label])).toEqual([['MENSALISTA', 'Mensalista'], ['DIARISTA', 'Diarista'], ['TERCEIRIZADO', 'Terceirizado']]);
+    expect(rotuloTipoFuncionario('TAREFEIRO')).toBe('');
+  });
+
   it('o papel Funcionário está na lista; os dados do funcionário só aparecem com ele; tipo obrigatório; POST com os custos em texto', async () => {
     empresaSelecionada('emp-1');
     await montar();
@@ -359,7 +365,7 @@ describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
     const form = await screen.findByTestId('b1-form');
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Empreiteira Rocha' } });
     await marcarPapel(form, 'Funcionário');
-    await escolherOpcao(within(form).getByLabelText(/Tipo do funcionário/), /Tarefeiro/i);
+    await escolherOpcao(within(form).getByLabelText(/Tipo do funcionário/), /Terceirizado/i);
     fireEvent.change(within(form).getByTestId('parceiro-funcionario-custo-hora'), { target: { value: '12,34567' } });
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     expect(await within(form).findByText(/no máximo 4 casas decimais/)).toBeTruthy();
