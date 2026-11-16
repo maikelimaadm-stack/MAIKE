@@ -48,6 +48,7 @@ Resultados no §5.
 | `atividadeLinhaMaoObra` · `gestaoP1Cadastros` · `atividadeIntegracaoTela` | 23/23 · 23/23 · 13/13 |
 | testes de migration ajustados à 60ª pasta (`atividadeCabecalho`, `atividadeLinhas`, `cadCategoriaCurvaGanho`, `cadCurvaGanhoMensal`, `categoriaManejoCadcategoria`, `patrimonioSimplifica`, `tipoAtividadeDefaults`, `tipoTarefaDropColunas`) | 28/28 · 11/11 · 10/10 · 10/10 · 20/20 · 14/14 · 25/25 · 15/15 |
 | suíte backend inteira (antes dos ajustes acima) | 2152/2183: as falhas eram só nesses testes de migration, depois corrigidos e rodados de novo, cada um sozinho (tabela acima) |
+| suíte backend inteira (final, `npm run test:backend`, banco `maike_f5_full`) | 2182 testes: 2177 passaram, **0 falhas**, 5 `todo` (já existentes), ~29 min |
 | `node --test scripts/tests/deploy/*.mjs` | 240/240 |
 | `npm run test:gates` | 968/968 |
 | `npm run typecheck` · `npm run lint` | passa (sem regressão) · 0 erros |
