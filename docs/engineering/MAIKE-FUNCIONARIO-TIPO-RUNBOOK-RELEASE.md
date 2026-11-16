@@ -309,11 +309,11 @@ nova na mesma release; SHA-256 diferente do pinado; ensaio local sem passar.
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | `<pendente>` |
-| Caminho | `<A ou B>` |
-| `<SHA_APROVADO>` | `<pendente>` |
-| Ensaio local (§4.2) | `<n/n>` |
-| Preflight (§4) | `<pendente>` |
-| Aplicação | `<pendente>` |
-| Postcheck (§6) | `<pendente>` |
-| Merge e deploy | `<pendente>` |
+| GO-1 e GO-2 | GO escrito do proprietário em 2026-11-16 ("pode aplicar"), para esta migration |
+| Caminho | B (conector Supabase, uma `execute_sql`) |
+| `<SHA_APROVADO>` | `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6` (conferido no arquivo antes de colar) |
+| Ensaio local (§4.2) | 12/12 (`funcionarioTipoTerceirizadoMigration`) |
+| Preflight (§4) | 2026-11-16 ~00:26Z: todas as linhas OK (alvo, 59/0, esta 0, a anterior 1, TAREFEIRO 0, CHECK antigo 1, 94 tabelas, 0 travas, 0 transações longas) · PRONTO PARA APLICAR |
+| Aplicação | 2026-11-16 ~00:27Z, envelope do §5 com a migration integral, COMMIT sem erro |
+| Postcheck (§6) | 2026-11-16 ~00:28Z: todas as linhas OK (esta 1 com o checksum pinado, 60/0, CHECK novo validado 1, 1 CHECK em `Fornecedor`, TAREFEIRO 0, 94 tabelas) · APLICADA E CONFERIDA |
+| Merge e deploy | PR #299, depois da suíte backend local completa verde (deploy automático da Vercel a partir da `main`) |

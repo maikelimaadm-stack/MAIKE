@@ -27,6 +27,11 @@ caminho B, guardas `n_ok <> 59`, a anterior `20261116000000_mao_obra_parceiro` c
 parceiro `TAREFEIRO`). A janela não põe dado em jogo: código de hoje + migration só não grava Tarefeiro; código novo sem
 a migration só não grava Terceirizado. O Instant Rollback continua seguro.
 
+**Aplicada em produção em 2026-11-16** com o GO escrito do proprietário ("pode aplicar"), pelo caminho B: preflight
+todo OK (59/0, nenhum `TAREFEIRO`, CHECK antigo presente, 94 tabelas), envelope com a migration integral (SHA
+`44dd42d8…`) e postcheck **APLICADA E CONFERIDA** (60/0, CHECK novo com `TERCEIRIZADO` validado, 94 tabelas).
+Registro no §9 do runbook.
+
 ## 4. Validação local (GitHub Actions pausado)
 
 PostgreSQL 16 local, banco `maike_f5_f1`: `prisma migrate deploy` das 60 e `migrate diff --exit-code` sem drift.

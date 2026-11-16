@@ -7533,6 +7533,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) (`--contract D-PROD-209` no caminho A; o envelope no caminho B).
 
+**Aplicada em produção em 2026-11-16** (GO escrito do proprietário: "pode aplicar"), caminho B: preflight OK, postcheck APLICADA E CONFERIDA (60/0, CHECK com `TERCEIRIZADO`, 94 tabelas). PR #299.
+
 **Relatório:** [`MAIKE-FUNCIONARIO-TIPO-REPORT.md`](./MAIKE-FUNCIONARIO-TIPO-REPORT.md).
 
 <!-- Próxima decisão: D-PROD-210 -->
