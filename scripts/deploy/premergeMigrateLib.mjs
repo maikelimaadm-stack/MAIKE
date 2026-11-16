@@ -46,7 +46,7 @@
  *     D-PROD-211, sem DROP TABLE, as 18
  *     instruções em AbastecimentoBem — 7 ADD COLUMN, 2 delas NOT NULL DEFAULT, 2 DROP
  *     NOT NULL, o UPDATE do centro de custo vindo do bem, o CHECK de status recriado,
- *     3 CHECKs novos e 3 FKs compostas para tabelas antigas; na D-PROD-213, sem DROP
+ *     3 CHECKs novos e 3 FKs compostas para tabelas antigas; na D-PROD-214, sem DROP
  *     TABLE e sem resto, as 3 instruções do reforço — o UNIQUE (cliente_id, empresa_id,
  *     atividade_id, id) em AtividadeApontamento e a FK do apontamento de AbastecimentoBem
  *     recriada com o mesmo nome, agora com a atividade).
@@ -167,7 +167,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // existentes vem do bem), da leitura anterior, do delta e do intervalo confiável; local e movimento passam a anuláveis;
   // o CHECK de status é recriado e entram 3 CHECKs, 3 FKs e 3 índices. Nenhuma tabela criada ou apagada.
   '20261116300000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
-  // D-PROD-213: CONTRACT aprovado pelo proprietário ("pode fazer o reforço no banco") — o apontamento do abastecimento
+  // D-PROD-214: CONTRACT aprovado pelo proprietário ("pode fazer o reforço no banco") — o apontamento do abastecimento
   // tem de ser DA atividade gravada nele: UNIQUE (cliente_id, empresa_id, atividade_id, id) em AtividadeApontamento e a
   // FK "AbastecimentoBem_apontamento_fkey" recriada com 4 colunas. A guarda aborta se algum abastecimento apontar para
   // um apontamento de outra atividade. Nenhuma coluna, tabela ou dado muda.
@@ -223,7 +223,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
  * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto), D-PROD-210
  * (formato de sempre: a base do consumo nas 3 tabelas VAZIAS das Formulações, sem DROP TABLE e sem resto), D-PROD-211
  * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices) e
- * D-PROD-213 (formato de sempre: o UNIQUE e a FK recriada do reforço, pinados em tabelas antigas, sem DROP TABLE e sem
+ * D-PROD-214 (formato de sempre: o UNIQUE e a FK recriada do reforço, pinados em tabelas antigas, sem DROP TABLE e sem
  * resto).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
@@ -510,7 +510,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_centro_custo_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_custo_id") REFERENCES "CentroCusto"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ]),
   }),
-  // D-PROD-213 (reforço da D-PROD-211): o apontamento do abastecimento tem de ser da atividade gravada nele. Sem DROP
+  // D-PROD-214 (reforço da D-PROD-211): o apontamento do abastecimento tem de ser da atividade gravada nele. Sem DROP
   // TABLE, sem tabela nova e sem resto: depois da guarda (hash pinado; confere que as 2 tabelas existem, que a FK
   // "AbastecimentoBem_apontamento_fkey" ainda é a de 3 colunas para "AtividadeApontamento", que o CHECK
   // "AbastecimentoBem_atividade_check" existe e que o UNIQUE novo não; trava "AtividadeApontamento" em SHARE ROW
@@ -520,7 +520,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // tabela antiga), o DROP da FK de 3 colunas e o ADD da FK de 4 colunas com o MESMO nome (o descritor a declara em
   // `constraints_alargadas`: recriada), RESTRICT. A guarda só cita as 2 tabelas.
   '20261116400000_abastecimento_fk_apontamento_atividade': Object.freeze({
-    decisao: 'D-PROD-213',
+    decisao: 'D-PROD-214',
     guarda_sha256: '8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['AbastecimentoBem', 'AtividadeApontamento']),

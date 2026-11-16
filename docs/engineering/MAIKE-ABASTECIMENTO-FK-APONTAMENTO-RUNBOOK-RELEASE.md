@@ -1,4 +1,4 @@
-# MAIKE — Reforço do abastecimento ligado à atividade: runbook de release CONTRACT (D-PROD-213)
+# MAIKE — Reforço do abastecimento ligado à atividade: runbook de release CONTRACT (D-PROD-214)
 
 > **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** Aplicação só com o GO explícito e
 > escrito do proprietário para **esta** migration.
@@ -6,7 +6,7 @@
 > Cada passo para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>`
 > são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-213](./DECISIONS.md) (continua a D-PROD-211) · Relatório:
+Decisão: [D-PROD-214](./DECISIONS.md) (continua a D-PROD-211) · Relatório:
 [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) ·
 Precedente executado:
 [`MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md)
@@ -24,7 +24,7 @@ Precedente executado:
 | O que não muda | nenhuma coluna, tabela, política ou CHECK; a FK `AbastecimentoBem_atividade_fkey` fica como está |
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e` |
 | Guarda (`guarda_sha256`) | `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c` |
-| Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-213`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_apontamento_fkey"]` (mesmo nome, recriada; o rótulo do runner é o de sempre, "1 CHECKs alargados"), o resto vazio; o `UNIQUE` é a 1ª das 3 instruções pinadas; não há resto |
+| Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-214`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_apontamento_fkey"]` (mesmo nome, recriada; o rótulo do runner é o de sempre, "1 CHECKs alargados"), o resto vazio; o `UNIQUE` é a 1ª das 3 instruções pinadas; não há resto |
 | `_prisma_migrations` | antes **62** concluídas, 0 em aberto (a última, a D-PROD-211, `20261116300000_abastecimento_atividade`, checksum `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`); depois **63** |
 | Tabelas em `public` | **94** antes e depois |
 
@@ -61,9 +61,9 @@ aplicar nada** (no caminho A, a linha falha em `_prisma_migrations` pede
   sessão na 5432), `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360` e a
   conexão do runtime no MESMO banco:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-213: 1 CHECKs alargados)
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-213  # ALVO VERIFICADO — 1 pendente(s) do manifesto
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-213
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-214: 1 CHECKs alargados)
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-214  # ALVO VERIFICADO — 1 pendente(s) do manifesto
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-214
   ```
 - **B — conector Supabase, uma única `execute_sql` (§5):** desvio da D-PROD-74, só
   com o GO escrito do proprietário **para esta migration**, registrado no §9.
@@ -79,7 +79,7 @@ aplicar nada** (no caminho A, a linha falha em `_prisma_migrations` pede
 | GO | O quê | Situação |
 |---|---|---|
 | GO-1 | preflight **só leitura** em produção (§4) | `<pendente>` |
-| GO-2 | aplicar a CONTRACT D-PROD-213 (§5) e mergear em seguida | `<pendente>` |
+| GO-2 | aplicar a CONTRACT D-PROD-214 (§5) e mergear em seguida | `<pendente>` |
 
 ## 3. Ordem
 
@@ -93,7 +93,7 @@ lançamento continua gravando e aparecendo no bloco Abastecimentos.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-213 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-214 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -193,7 +193,7 @@ Automatizado em `backend/tests/abastecimentoFkApontamentoMigration.test.mjs`
 **este** postcheck (entre os marcadores `sql:…`), trocando só o `system_identifier`:
 partida com as 62 anteriores e abastecimentos de 2 clientes (um ligado ao apontamento
 da própria atividade, um sem vínculo `ESTOQUE`, um `EXTERNO` sem vínculo); classificador
-e barreira do runner (sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-213` exato recusa antes
+e barreira do runner (sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-214` exato recusa antes
 do DDL); RED (um abastecimento ligado a apontamento de outra atividade, ou a FK já com 4
 colunas, ou o UNIQUE já presente: a guarda recusa e nada muda); GREEN pelo runner (63/0,
 94 tabelas, só a FK e o índice mudam, o banco recusa o apontamento de outra atividade
@@ -206,7 +206,7 @@ DDL; o envelope aplica 62 → 63; repetir recusa).
 
 ### Caminho A
 
-Os comandos do §1 com `--contract D-PROD-213`.
+Os comandos do §1 com `--contract D-PROD-214`.
 
 ### Caminho B (conector, uma `execute_sql`, só com o GO escrito para ESTA migration)
 
@@ -270,7 +270,7 @@ proprietário.
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-213 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
+-- MAIKE · D-PROD-214 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -365,7 +365,7 @@ Esperado: `1`; `63 / 0`; `1`; `1`; `14 / 10`; `1`; `0`; `94`; VEREDITO
 ## 8. `RELEASE_BLOCKED`
 
 Sem o GO-2; validação local não verde; `system_identifier` diferente; histórico
-diferente de 62/0, a D-PROD-211 com outro checksum ou a D-PROD-213 já registrada; o
+diferente de 62/0, a D-PROD-211 com outro checksum ou a D-PROD-214 já registrada; o
 vínculo fora do formato anterior; algum abastecimento ligado a apontamento de outra
 atividade; qualquer `PARAR` no preflight; outra migration nova na mesma release;
 SHA-256 diferente do pinado; ensaio local sem passar.

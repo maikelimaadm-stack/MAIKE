@@ -1,5 +1,5 @@
 /**
- * D-PROD-213 — a migration CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade` (o reforço da D-PROD-211:
+ * D-PROD-214 — a migration CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade` (o reforço da D-PROD-211:
  * o apontamento gravado no abastecimento tem de ser DA atividade gravada nele; UNIQUE (cliente_id, empresa_id,
  * atividade_id, id) em AtividadeApontamento e a FK "AbastecimentoBem_apontamento_fkey" recriada, com o mesmo nome, com
  * 4 colunas) de ponta a ponta, contra PostgreSQL real, em bancos PRÓPRIOS criados e apagados por este teste (o banco da
@@ -19,7 +19,7 @@
  *
  * RED (num banco NOVO, recusado pela guarda `guarda: …` e NADA muda): um abastecimento ligado a apontamento de outra
  * atividade; a FK já com 4 colunas, o UNIQUE já presente ou o CHECK da atividade ausente. E o runner com a conferência
- * de alvo exigida e SEM MIGRATION_CONTRACT_AUTORIZADO=D-PROD-213 exato recusa antes de qualquer DDL.
+ * de alvo exigida e SEM MIGRATION_CONTRACT_AUTORIZADO=D-PROD-214 exato recusa antes de qualquer DDL.
  *
  * Concorrência: a transação do app na ordem da confirmação do abastecimento (lê o apontamento, depois grava o
  * abastecimento) não fecha deadlock com a migration: a guarda já trava "AtividadeApontamento" em ACCESS EXCLUSIVE (o
@@ -61,7 +61,7 @@ const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME = '20261116400000_abastecimento_fk_apontamento_atividade';
-const DECISAO = 'D-PROD-213';
+const DECISAO = 'D-PROD-214';
 const ARQUIVO = join(MIGRATIONS, NOME, 'migration.sql');
 const SQL_MIGRATION = readFileSync(ARQUIVO, 'utf8');
 const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
@@ -115,7 +115,7 @@ const A4 = `${C2}-a1`;
 /** Recusa (lança) qualquer URL que não seja desta máquina. Nunca devolve nem imprime a URL. */
 const exigirUrlLocal = (url) => {
   const motivo = motivoAlvoProtegido({}, url);
-  if (!url || motivo) throw new Error(`teste D-PROD-213: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
+  if (!url || motivo) throw new Error(`teste D-PROD-214: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
   return url;
 };
 /** Mesma URL, outro banco lógico. */
@@ -183,7 +183,7 @@ const aplicarAnteriores = async (url) => {
     if (existsSync(join(MIGRATIONS, 'migration_lock.toml'))) cpSync(join(MIGRATIONS, 'migration_lock.toml'), join(dir, 'migrations', 'migration_lock.toml'));
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
-    if (r.status !== 0) throw new Error(`teste D-PROD-213: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
+    if (r.status !== 0) throw new Error(`teste D-PROD-214: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -347,7 +347,7 @@ after(async () => {
   await closePrismaClient();
 });
 
-describe('D-PROD-213 — migration CONTRACT do reforço da FK do apontamento do abastecimento (PostgreSQL real)', () => {
+describe('D-PROD-214 — migration CONTRACT do reforço da FK do apontamento do abastecimento (PostgreSQL real)', () => {
   test('AF-01 partida: as 62 migrations de nome anterior a esta (a última a D-PROD-211), 94 tabelas, a FK de 3 colunas; o banco ainda ACEITA o apontamento de outra atividade; schema × banco acusa só o reforço; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     assert.equal(ANTERIORES.length, 62, 'produção hoje: 62 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
@@ -388,7 +388,7 @@ describe('D-PROD-213 — migration CONTRACT do reforço da FK do apontamento do 
     assert.deepEqual(await retrato(db), partida, 'o preflight e o postcheck só leem');
   });
 
-  test('AF-02 o portão: o classificador diz CONTRACT D-PROD-213 sem violação, o arquivo e a guarda são os pinados; o histórico real da partida confere com só esta pendente, e é a CONTRACT a autorizar', async () => {
+  test('AF-02 o portão: o classificador diz CONTRACT D-PROD-214 sem violação, o arquivo e a guarda são os pinados; o histórico real da partida confere com só esta pendente, e é a CONTRACT a autorizar', async () => {
     const c = classificarMigrations([{ nome: NOME, sql: SQL_MIGRATION }]);
     assert.deepEqual(c.violacoes, []);
     assert.deepEqual([c.ok, c.expand, c.modo], [true, false, 'CONTRACT']);
@@ -490,10 +490,10 @@ describe('D-PROD-213 — migration CONTRACT do reforço da FK do apontamento do 
     });
   });
 
-  test('AF-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-213, antes de qualquer DDL', async () => {
+  test('AF-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-214, antes de qualquer DDL', async () => {
     const linhasAntes = (await um(db, 'SELECT count(*)::int AS n FROM _prisma_migrations')).n;
     // D-PROD-211 é a CONTRACT que o reforço completa e D-PROD-212 não é CONTRACT: nenhuma autoriza esta; nem a decisão em minúsculas.
-    for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-211' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-212' }, { MIGRATION_CONTRACT_AUTORIZADO: 'd-prod-213' }, { MIGRATION_CONTRACT_AUTORIZADO: ' D-PROD-213 ' }]) {
+    for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-211' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-212' }, { MIGRATION_CONTRACT_AUTORIZADO: 'd-prod-213' }, { MIGRATION_CONTRACT_AUTORIZADO: ' D-PROD-214 ' }]) {
       const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, ...extra } });
       assert.equal(r.status, 1, r.saida);
       assert.match(r.saida, /alvo conferido nas duas conexões/);
@@ -507,7 +507,7 @@ describe('D-PROD-213 — migration CONTRACT do reforço da FK do apontamento do 
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('AF-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-213): 63/0, 94 tabelas, só a FK do apontamento (4 colunas, mesmo nome) e o UNIQUE novo mudam; nenhum dado muda; migrate diff vazio', async () => {
+  test('AF-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-214): 63/0, 94 tabelas, só a FK do apontamento (4 colunas, mesmo nome) e o UNIQUE novo mudam; nenhum dado muda; migrate diff vazio', async () => {
     const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /alvo conferido nas duas conexões/);
@@ -603,7 +603,7 @@ describe('D-PROD-213 — migration CONTRACT do reforço da FK do apontamento do 
   });
 });
 
-describe('D-PROD-213 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
+describe('D-PROD-214 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
   let dbB;
   let partidaB;
   before(async () => {

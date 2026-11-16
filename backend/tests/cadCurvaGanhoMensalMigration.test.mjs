@@ -74,7 +74,7 @@
  * Formulações, vazias), ainda posterior, também: 61/0 e as mesmas 94 tabelas.
  * D-PROD-211: a CONTRACT `20261116300000_abastecimento_atividade` (o abastecimento ligado à atividade), a de nome mais
  * posterior, do mesmo jeito: 62/0 e as mesmas 94 tabelas.
- * D-PROD-213: a CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento do
+ * D-PROD-214: a CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento do
  * abastecimento), agora a de nome mais posterior, do mesmo jeito: 63/0 e as mesmas 94 tabelas.
  *
  * As funções seguem as do ensaio da D-PROD-183
@@ -127,11 +127,11 @@ const NOME_TIPO = '20261116100000_funcionario_tipo_terceirizado';
 const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-211: a CONTRACT do abastecimento ligado à atividade, a de nome mais posterior (ver o cabeçalho). */
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
-/** D-PROD-213: a CONTRACT do reforço da FK do apontamento do abastecimento, agora a de nome mais posterior (ver o cabeçalho). */
+/** D-PROD-214: a CONTRACT do reforço da FK do apontamento do abastecimento, agora a de nome mais posterior (ver o cabeçalho). */
 const NOME_REFORCO = '20261116400000_abastecimento_fk_apontamento_atividade';
 const POSTERIORES = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort());
 /** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
-const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200'], [NOME_PARCEIRO, 'D-PROD-208'], [NOME_TIPO, 'D-PROD-209'], [NOME_BASE, 'D-PROD-210'], [NOME_ABASTECIMENTO, 'D-PROD-211'], [NOME_REFORCO, 'D-PROD-213']]);
+const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200'], [NOME_PARCEIRO, 'D-PROD-208'], [NOME_TIPO, 'D-PROD-209'], [NOME_BASE, 'D-PROD-210'], [NOME_ABASTECIMENTO, 'D-PROD-211'], [NOME_REFORCO, 'D-PROD-214']]);
 /** O que a recusa do runner cita: todas as CONTRACT pendentes menos a autorizada (MIGRATION_CONTRACT_AUTORIZADO). */
 const pendentesSemAutorizacao = (autorizada) =>
   `migration CONTRACT pendente no alvo: ${CONTRACTS_PENDENTES.filter(([, d]) => d !== autorizada).map(([n, d]) => `${n} (${d})`).join(', ')}.`;
@@ -378,7 +378,7 @@ after(async () => {
 
 describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD mensais (PostgreSQL real)', () => {
   test('CM-01 partida: 48 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas; a D-PROD-195, a D-PROD-197, a EXPAND da D-PROD-198 e a D-PROD-200, posteriores, ainda não), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
-    assert.deepEqual(POSTERIORES, [NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_REFORCO], 'só as CONTRACT da D-PROD-195, da D-PROD-197, da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-210, da D-PROD-211 e da D-PROD-213 e as EXPAND da D-PROD-198, da D-PROD-202, da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 têm nome posterior a esta');
+    assert.deepEqual(POSTERIORES, [NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_REFORCO], 'só as CONTRACT da D-PROD-195, da D-PROD-197, da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-210, da D-PROD-211 e da D-PROD-214 e as EXPAND da D-PROD-198, da D-PROD-202, da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 têm nome posterior a esta');
     assert.equal(MIGRATIONS_PARTIDA, 48);
     assert.equal(TOTAL_MIGRATIONS, 63);
     const h = await historico(db);

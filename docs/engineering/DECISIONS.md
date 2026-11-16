@@ -7574,7 +7574,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 5. **Migration CONTRACT `20261116300000_abastecimento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`): 7 colunas novas, `local_estoque_id` e `movimentacao_estoque_id` passam a aceitar nulo (só no `EXTERNO`), CHECK de status trocado, CHECKs novos de origem, vínculo e intervalo, 3 FKs e 3 índices; backfill do centro de custo das linhas existentes pelo bem. SHA-256 `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`; 60 → 61 migrations, 94 tabelas.
 6. Abastecimento ligado a atividade **concluída** não se cancela (409, a atividade precisa ser reaberta antes): os totais da concluída ficam congelados. O sem vínculo cancela como sempre.
 7. Permissões: ligar e cancelar o abastecimento seguem as permissões da tela de Abastecimentos; a cascata (cancelar o lançamento ou a atividade) cancela os ligados pela permissão da atividade, como já fazia com as linhas.
-8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro — **feito na D-PROD-213** (FK composta de 4 colunas, [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
+8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro — **feito na D-PROD-214** (FK composta de 4 colunas, [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
 9. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
 
 **Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-211` no caminho A; o envelope no caminho B).
@@ -7609,9 +7609,25 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md`](./MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md).
 
-## D-PROD-213 — Reforço no banco: o apontamento do abastecimento é da atividade dele
+## D-PROD-213 — Resumo do Rebanho no Mapa Geral (cabeças, peso hoje e em 90 dias, arrobas, lotação por pasto)
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário ("meu patrão quer algum resultado": relação do rebanho atual por categoria, peso, peso projetado, ganho, peso em @). O conteúdo foi aprovado num modelo visual (canvas) e o proprietário exigiu o VISUAL igual ao padrão original do sistema · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Onde:** o cartão do resumo inferior do Mapa Geral (Animais · Peso méd. · Áreas, D-PROD-131) vira o botão que abre o diálogo "Resumo do Rebanho" — sem rota nem página nova (escopo D-PROD-01). Só com `visualizar_lotes` do mapa; sem ele o cartão continua só informativo. Nenhuma permissão nova.
+2. **Visual:** a MESMA casca do Detalhes do Lote v8 — `LancLoteDialogo` (`largo somenteLeitura`, desktop 880 px, tablet/celular tela cheia) com `.mk-dl.mk-dl8[data-modo]`, menu de abas `.mk-dl8__aba` (sublinhado verde), cartões `CartaoDl`, `PilulaTitulo`, cores `COR` e o seletor em pílula do "Ver como" (aba Lotes) para a fazenda. Nenhuma cor ou fonte nova.
+3. **Conteúdo:** filtro de fazenda (setores das áreas com rebanho: "Todas" + um por `setor_nome`, sem o prefixo "FAZENDA "). Aba **Rebanho**: 4 cartões — Cabeças, Peso médio (projetado hoje), Arrobas (peso vivo ÷ 30) e Em 90 dias (+@ do rebanho; peso médio em 90 dias) — e a lista por categoria de manejo (idade mínima da faixa): Cabeças, Peso hoje, Em 90 dias. Aba **Pastos**: Cabeças, peso, fazenda e lotação UA/ha (UA = 450 kg) com barra, do mais carregado para o menos. Rodapé: projeção pela curva; ganho real só depois da segunda pesagem.
+4. **Contas puras** em `src/domain/rebanho/resumoDoRebanho.js`: peso de hoje = `projecao_peso.peso_kg` que o servidor já manda em cada posição (D-PROD-197/198); sem projeção, o `peso_medio_kg` gravado (contado como "sem projeção" e avisado no rodapé). Peso em 90 dias = interpolação linear entre os pontos de `projecao_mensal` (hoje e os fins de mês) — exata, porque o GMD da curva é constante dentro do mês; nenhum GMD é inventado no front. Sem projeção, o peso não muda no horizonte. Usa as posições e áreas já carregadas pelo mapa (sem os filtros de exibição do mapa): nada de backend novo, nada de migration.
+
+**Fora do escopo:** ganho real (precisa da segunda pesagem), exportar PDF/planilha, valor em R$ (preço da @), @ de carcaça.
+
+**Relatório:** [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md).
+
+## D-PROD-214 — Reforço no banco: o apontamento do abastecimento é da atividade dele
 
 **Data:** 2026-11-16 · **Origem:** pedido do proprietário: "pode fazer o reforço no banco" · **Branch:** `feat/abastecimento-fk-apontamento-atividade` · **Continua:** D-PROD-211 (item 8, "reforço futuro")
+
+> **Numeração:** nasceu como D-PROD-213; a `main` deu a D-PROD-213 ao Resumo do Rebanho (PR #302, sem migration). O checksum não mudou: o número da decisão não está no `migration.sql`.
 
 **O problema.** Desde a D-PROD-211, `AbastecimentoBem` tem duas FKs independentes: `AbastecimentoBem_atividade_fkey` (`cliente_id`, `empresa_id`, `atividade_id`) → `Atividade` e `AbastecimentoBem_apontamento_fkey` (`cliente_id`, `empresa_id`, `apontamento_id`) → `AtividadeApontamento`, mais o CHECK `AbastecimentoBem_atividade_check` (apontamento ⇒ atividade). Nada no banco impede uma linha cujo apontamento é de **outra** atividade; só o servidor garante (ele deriva a atividade do apontamento). Uma gravação à mão, um script ou um defeito futuro do servidor deixariam o combustível somado na atividade errada.
 
@@ -7622,8 +7638,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 4. Nenhuma coluna, tabela ou dado muda; o código do servidor e da tela não muda (o servidor já grava sempre o par certo). O `schema.prisma` acompanha: a relação `apontamento` de `AbastecimentoBem` passa a 4 campos e `AtividadeApontamento` ganha o `@@unique`.
 5. Sem nota de Constituição: dentro do escopo do manejo (o mesmo vínculo da D-PROD-211).
 
-**Release.** Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-213` no caminho A; o envelope no caminho B). Produção hoje: 62 migrations, 0 em aberto, 94 tabelas, 1 abastecimento sem vínculo (a guarda passa).
+**Release.** Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-214` no caminho A; o envelope no caminho B). Produção hoje: 62 migrations, 0 em aberto, 94 tabelas, 1 abastecimento sem vínculo (a guarda passa).
 
 **Relatório:** [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-214 -->
+<!-- Próxima decisão: D-PROD-215 -->

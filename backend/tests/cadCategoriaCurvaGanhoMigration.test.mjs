@@ -80,7 +80,7 @@
  * D-PROD-211: a CONTRACT `20261116300000_abastecimento_atividade` (colunas, CHECKs e FKs em AbastecimentoBem; não
  * toca CADCATEGORIA nem as Formulações), ainda posterior, entra na partida por último: partida 56, 62 migrations, as
  * mesmas tabelas.
- * D-PROD-213: a CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento do
+ * D-PROD-214: a CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento do
  * abastecimento; não toca CADCATEGORIA), ainda posterior, também: partida 57, 63 migrations, as mesmas tabelas.
  */
 import { describe, test, before, after } from 'node:test';
@@ -407,10 +407,10 @@ after(async () => {
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
   test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas, a D-PROD-197 e a D-PROD-200, posteriores, as EXPAND posteriores da D-PROD-202 e da D-PROD-207 e a CONTRACT posterior da D-PROD-208; fora também as EXPAND da D-PROD-203, da D-PROD-205 e da D-PROD-206), 90 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116300000_abastecimento_atividade', '20261116400000_abastecimento_fk_apontamento_atividade'], 'só as CONTRACT da D-PROD-197, da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-211 e da D-PROD-213 têm nome posterior a esta (a da D-PROD-210 fica fora da partida)');
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116300000_abastecimento_atividade', '20261116400000_abastecimento_fk_apontamento_atividade'], 'só as CONTRACT da D-PROD-197, da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-211 e da D-PROD-214 têm nome posterior a esta (a da D-PROD-210 fica fora da partida)');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     // D-PROD-198, D-PROD-203, D-PROD-205 e D-PROD-206: as EXPAND do peso objetivo, das Formulações, da Leitura de cocho e
-    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 e as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-211 e da D-PROD-213 entram; a CONTRACT da D-PROD-210 fica fora (63 pastas; partida 57).
+    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 e as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-211 e da D-PROD-214 entram; a CONTRACT da D-PROD-210 fica fora (63 pastas; partida 57).
     assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', '20261116400000_abastecimento_fk_apontamento_atividade']);
     assert.equal(MIGRATIONS_PARTIDA, 57);
     assert.equal(TOTAL_MIGRATIONS, 63);

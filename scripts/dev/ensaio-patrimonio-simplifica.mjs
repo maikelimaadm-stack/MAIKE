@@ -145,7 +145,7 @@ export const NOME_BASE = '20261116200000_formulacao_base_consumo';
  */
 export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_atividade';
 /**
- * D-PROD-213 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
+ * D-PROD-214 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
  * atividade) exige a D-PROD-211: vem por último, depois dela, fora da partida como as outras; sem tabela nova.
  */
 export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261116400000_abastecimento_fk_apontamento_atividade';

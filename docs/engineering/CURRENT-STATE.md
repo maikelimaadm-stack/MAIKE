@@ -9,16 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-213)
+## Missão ativa (2026-11-16) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-214)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-213**, pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
+| Decisão | **D-PROD-214**, pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
 | Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211) · PR a abrir |
 | Escopo | Só banco: `AtividadeApontamento` ganha o UNIQUE (`cliente_id`, `empresa_id`, `atividade_id`, `id`) e a FK `AbastecimentoBem_apontamento_fkey` passa a 4 colunas (com a atividade): o banco recusa um abastecimento ligado a apontamento de outra atividade. Código do servidor e da tela sem mudança |
 | Migration | `20261116400000_abastecimento_fk_apontamento_atividade`, **CONTRACT** (décima segunda de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 62 → 63 (a anterior é a `20261116300000_abastecimento_atividade`, D-PROD-211); tabelas 94 (sem mudança) |
 | Release | Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md). `SCHEMA_APPLIED_PROD: NÃO` |
 | Documentos | [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) · [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-RESUMO-REBANHO: Resumo do Rebanho no Mapa Geral (D-PROD-213)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-213**, pedido do proprietário: relação do rebanho por categoria com peso hoje, peso projetado em 90 dias, arrobas e lotação por pasto, no padrão visual do sistema |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `387903f2` · PR **#302**, mergeada (`83206ab5`) |
+| Escopo | Cartão do resumo inferior do Mapa Geral abre o diálogo (casca do Detalhes do Lote v8); contas puras em `src/domain/rebanho/resumoDoRebanho.js`; sem backend, sem migration, sem permissão nova |
+| Release | Sem migration: merge e deploy normais |
+| Relatório | [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md) |
 
 ## Missão anterior (2026-11-16) — MAIKE-ATIVIDADE-ABASTECIMENTO: Fatia 5, abastecimento ligado à atividade (D-PROD-211)
 

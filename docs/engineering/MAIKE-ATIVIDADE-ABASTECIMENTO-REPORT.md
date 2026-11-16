@@ -22,7 +22,7 @@ Não muda: o motor FIFO (o mesmo), o cálculo do consumo do tanque cheio (D-PROD
 Sem bloqueio. Corrigidos: custo unitário do `EXTERNO` sem limite (500 → 422 na prévia e na confirmação) e travas de
 Produto em duas rodadas na cascata (uma rodada só, ordenada; teste de concorrência reproduz o deadlock no código antigo).
 Registrado como reforço futuro: FK composta amarrando o lançamento à atividade (hoje garantido pelo servidor) — feito
-na D-PROD-213 ([`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
+na D-PROD-214 ([`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
 
 ## 3. Validação local (GitHub Actions do proprietário pausado; os jobs que rodaram foram conferidos)
 
