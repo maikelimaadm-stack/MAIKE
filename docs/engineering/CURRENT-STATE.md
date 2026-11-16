@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-214**, pedido do proprietário: verificar e corrigir os cadastros do mapa (pontos, áreas, linhas, cochos, depósitos, bebedouros), o cadastro em lote e as ligações entre áreas, pontos e lotes |
-| Branch / PR | `fix/mapa-cadastros-ligacoes`, a partir da `main` `83206ab5` (PR #302) |
+| Branch / PR | `fix/mapa-cadastros-ligacoes`, a partir da `main` `83206ab5` (PR #302) · PR **#305** |
 | Escopo | Ligação estrita ponto↔cocho/depósito/bebedouro; exclusão com histórico bloqueada; `numero_ponto` no servidor; ocupação derivada; propagação de nome de área/setor; renumeração de áreas; Mapa Geral relendo depois de cadastros. Bugs de lote/movimentação só registrados (pausa nos lotes) |
 | Release | Sem migration: merge e deploy normais |
 | Relatório | [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md) |
