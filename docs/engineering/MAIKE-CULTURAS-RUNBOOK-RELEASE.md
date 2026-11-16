@@ -1,6 +1,6 @@
 # MAIKE — Cadastro de Culturas: runbook de release expand-only (D-PROD-215)
 
-> **Estado: PENDENTE — aguardando o GO escrito do proprietário para esta migration.** `SCHEMA_APPLIED_PROD: NÃO`.
+> **Estado: EXECUTADO em 2026-11-16 22:54:49 UTC (caminho B). `SCHEMA_APPLIED_PROD: SIM`.** Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -180,10 +180,10 @@ editando esta. Com o código novo no ar, reverter o código primeiro.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | `<preencher com o finished_at da linha em _prisma_migrations>` |
-| Caminho | `<A ou B>`. No caminho B: o SQL do §3 (`aplicar214.sql`, com o `migration.sql` integral) numa transação única pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne`; guarda exigindo **62** concluídas, a anterior `20261116300000_abastecimento_atividade` concluída com o checksum do repositório e `CADCULTURAS` ausente |
-| GO | `<texto do GO escrito do proprietário, específico desta migration>` |
-| Preflight (§2) | `<system_identifier; concluídas / com falha; a anterior e o checksum dela; CADCULTURAS ausente; tabelas>` |
+| Data/hora (UTC) | 2026-11-16 22:54:49 (`finished_at` da linha em `_prisma_migrations`) |
+| Caminho | **B**, pela sessão coordenadora: o SQL do §3 (`aplicar214.sql`, com o `migration.sql` integral) numa transação única pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne`; guarda exigindo **62** concluídas, a anterior `20261116300000_abastecimento_atividade` concluída com o checksum do repositório e `CADCULTURAS` ausente |
+| GO | "me envie a autorização de migração por favor", escrito pelo proprietário para esta migration, e a aprovação da chamada no app |
+| Preflight (§2) | leitura antes e guarda da transação: `system_identifier` 7692130048193495360; 62 concluídas / 0 com falha; a anterior `20261116300000_abastecimento_atividade` com o checksum do repositório; `CADCULTURAS` ausente; 94 tabelas |
 | Ensaio | Banco local com as 62 migrations da `main`: aplicou (63 / 0, 95 tabelas, `migrate status` em dia, `migrate diff` vazio); reexecução recusada (`migration já registrada`); alvo divergente recusado (§3) |
-| Postcheck (§4) | `<63 / 0; checksum; RLS; política; constraints; grants; 95 tabelas>` |
-| Resultado | `<APLICADA E CONFERIDA antes do merge (D-PROD-72) ou RELEASE_BLOCKED com o motivo>` |
+| Postcheck (§4) | 63 concluídas / 0 com falha; checksum `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715` igual ao pinado; `CADCULTURAS` com RLS ligado e 1 política; 5 constraints (pkey, 2 FK, 2 CHECK); `anon` sem SELECT; 95 tabelas em `public` |
+| Resultado | **APLICADA E CONFERIDA** antes do merge (D-PROD-72). A PR #303 (outra sessão, D-PROD-214) ainda não foi aplicada: a guarda dela precisa passar a exigir 63 concluídas com esta como anterior |
