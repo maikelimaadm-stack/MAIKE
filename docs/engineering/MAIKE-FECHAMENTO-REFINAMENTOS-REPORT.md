@@ -48,7 +48,18 @@ O PATCH de `SuplementacaoEvento` aceitava só `sobra_kg`, `dias_periodo` e `cons
 
 ## 5. Verificação
 
-(ver §5 preenchido abaixo)
+Etapas do `verify:all` rodadas separadas (como nas D-PROD-205/206/210), PG 16 local, banco `maike_verify`:
+
+| Etapa | Resultado |
+|---|---|
+| 28 `gate:*` (governance-paths … indices) | todos PASSOU |
+| `gate:types` | PASSOU (546 ≤ 625) |
+| `typecheck:backend` | PASSOU |
+| `lint` | 0 erros (2 avisos antigos, fora desta PR) |
+| `test:gates` | 979 / 979 |
+| `test:backend` | 2189 testes: 2184 aprovados, 5 todo, **0 falhas** |
+| `test:smoke` | 243 arquivos, 3006 / 3006 |
+| `build`, `build:admin`, `gate:admin-isolation` | PASSOU |
 
 ## 6. Fora do escopo
 
