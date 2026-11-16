@@ -8,9 +8,15 @@ import {
   formatarLeitura,
   formatarLitros,
   formatarQuantidade,
+  ehExterno,
+  rotuloDaOrigem,
   rotuloDaUnidade,
   rotuloDoBem,
+  rotuloDoCentroDeCusto,
+  snapshotDoMedidor,
+  textoDoIntervaloConfiavel,
 } from "@/lib/abastecimentoRegras";
+import { rotuloDaAtividadeDoAbastecimento, rotuloDoLancamentoDoAbastecimento } from "@/lib/atividadeLinhasRegras";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
 import { BOTAO_PERIGO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 
@@ -100,7 +106,10 @@ export function ConsumoDoAbastecimento({ consumo }) {
  * cadastro de Bens não reescreve o histórico), quantidade baixada na unidade
  * gravada no abastecimento (L ou kg), leitura do medidor, tanque, custo FIFO
  * FINAL (por L ou por kg), lotes, movimento e estorno; situação, cancelamento e
- * consumo. D-PROD-162: sem tipo de combustível e sem fator.
+ * consumo. D-PROD-162: sem tipo de combustível e sem fator. D-PROD-210: origem
+ * (estoque da fazenda ou posto externo, que não tem local nem movimento), a
+ * atividade e o lançamento a que pertence, o centro de custo (snapshot) e, com
+ * contador, a leitura anterior, o avanço do medidor e o intervalo confiável.
  * @param {{ detalhe: any, podeCancelar: boolean, onCancelar: () => void, onVerConsumo: () => void, fuso?: string|null }} props
  */
 export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCancelar, onVerConsumo, fuso = null }) {
@@ -108,6 +117,8 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
   const fatias = Array.isArray(d?.fatias) ? d.fatias : [];
   // A unidade GRAVADA no abastecimento (snapshot): a do Produto pode ter mudado depois.
   const porUnidade = rotuloDaUnidade(d?.unidade);
+  const externo = ehExterno(d);
+  const snapshot = d?.medidor?.leitura ? snapshotDoMedidor(d) : null;
   return (
     <div className="cadastro-b1 min-w-0 p-3" data-testid="abastecimento-consulta">
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -122,23 +133,48 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
         <Campo rotulo="Produto" testId="consulta-produto">
           {d.produto?.nome ?? "—"}
         </Campo>
-        <Campo rotulo="Local de estoque">{d.local_estoque?.nome ?? "—"}</Campo>
-        <Campo rotulo="Quantidade baixada" testId="consulta-quantidade">
+        <Campo rotulo="Origem" testId="consulta-origem">
+          {rotuloDaOrigem(d)}
+        </Campo>
+        <Campo rotulo="Local de estoque">{externo ? "— (posto externo)" : (d.local_estoque?.nome ?? "—")}</Campo>
+        <Campo rotulo={externo ? "Quantidade abastecida" : "Quantidade baixada"} testId="consulta-quantidade">
           {formatarQuantidade(d.quantidade, d.unidade)}
         </Campo>
         <Campo rotulo="Leitura do medidor" testId="consulta-leitura">
           {d.medidor?.leitura ? `${formatarLeitura(d.medidor.leitura)} ${unidade}` : d.medidor?.tipo === "SEM_MEDIDOR" ? "Sem medidor" : "—"}
         </Campo>
+        {snapshot ? (
+          <>
+            <Campo rotulo="Leitura anterior" testId="consulta-leitura-anterior">
+              {snapshot.anterior ? `${formatarLeitura(snapshot.anterior)} ${unidade}` : "—"}
+            </Campo>
+            <Campo rotulo="Avanço do medidor" testId="consulta-medidor-delta">
+              {snapshot.delta ? `${formatarLeitura(snapshot.delta)} ${unidade}` : "—"}
+            </Campo>
+            <Campo rotulo="Intervalo confiável" testId="consulta-intervalo-confiavel">
+              {textoDoIntervaloConfiavel(snapshot)}
+            </Campo>
+          </>
+        ) : null}
         <Campo rotulo="Tanque cheio">{d.tanque_cheio ? "Sim" : "Não"}</Campo>
         <Campo rotulo="Tanque">
           {d.tanque?.identificador ?? "—"}
           {d.tanque?.capacidade_litros ? ` (${formatarLitros(d.tanque.capacidade_litros)} L)` : ""}
         </Campo>
-        <Campo rotulo="Custo FIFO" testId="consulta-custo">
+        <Campo rotulo={externo ? "Valor da nota" : "Custo FIFO"} testId="consulta-custo">
           {formatarCusto(d.custo_total)}
           {d.custo_unitario ? ` (${formatarCusto(d.custo_unitario)}${porUnidade ? `/${porUnidade}` : ""})` : ""}
         </Campo>
-        <Campo rotulo="Referência externa">{d.referencia_externa || "—"}</Campo>
+        <Campo rotulo={externo ? "Número da nota ou cupom" : "Referência externa"}>{d.referencia_externa || "—"}</Campo>
+        <Campo rotulo="Atividade" testId="consulta-atividade">
+          {rotuloDaAtividadeDoAbastecimento(d.atividade)}
+        </Campo>
+        <Campo rotulo="Lançamento" testId="consulta-lancamento">
+          {rotuloDoLancamentoDoAbastecimento(d.apontamento)}
+        </Campo>
+        <Campo rotulo="Centro de custo" testId="consulta-centro-custo">
+          {rotuloDoCentroDeCusto(d)}
+        </Campo>
         {d.observacao ? (
           <Campo rotulo="Observação" span="sm:col-span-3">
             {d.observacao}

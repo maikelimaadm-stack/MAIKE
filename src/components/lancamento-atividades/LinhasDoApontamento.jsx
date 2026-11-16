@@ -1,13 +1,25 @@
 import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Pencil, Plus } from "lucide-react";
+import B1Janela from "@/components/cadastro/base1/B1Janela";
+import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
-import { BOTAO_PERIGO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
+import FormularioAbastecimento from "@/components/patrimonio/FormularioAbastecimento";
+import { BOTAO_PERIGO, BOTAO_SECUNDARIO, DialogoCancelarAbastecimento, DialogoPreviaAbastecimento } from "@/components/patrimonio/DialogosAbastecimento";
+import { useAcoesTelaAbastecimento } from "@/hooks/usePatrimonioSessao";
+import { useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
+import { chaveAbastecimentosDoApontamento, useFluxoAbastecimento } from "@/hooks/useFluxoAbastecimento";
+import { useAuth } from "@/lib/AuthContext";
+import { formatarQuantidadeCurta, formularioDoApontamento, rotuloDaOrigem, rotuloDoBem } from "@/lib/abastecimentoRegras";
+import { hojeNoFuso } from "@/lib/diaCivil";
+import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
+import { detalharAbastecimento, listarAbastecimentosPagina } from "@/services/abastecimentoService";
 import { JanelaLinhaMaoObra, JanelaLinhaMaquina, JanelaLinhaProduto, JanelaLinhaServico } from "@/components/lancamento-atividades/JanelasDaLinha";
 import { formatarInstante } from "@/lib/diaCivil";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { LOCALE_ATIVIDADE, MOTIVO_MINIMO, STATUS_CANCELADO, STATUS_CONFIRMADO, formatarDiaAtividade, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
-import { normalizarRespostaDeEscrita, pedeReleitura } from "@/lib/atividadeApontamentoRegras";
+import { chaveApontamentos, itensDaLista, normalizarRespostaDeEscrita, pedeReleitura } from "@/lib/atividadeApontamentoRegras";
 import {
   LINHA_MAO_OBRA,
   LINHA_MAQUINA,
@@ -34,7 +46,10 @@ import {
   rotuloDoParceiroDaLinha,
   rotuloDoProdutoDaLinha,
   rotuloDoServicoDaLinha,
+  rotuloDaAtividadeDoAbastecimento,
+  rotuloDoLancamentoDoAbastecimento,
   statusDaLinha,
+  chaveTotais,
 } from "@/lib/atividadeLinhasRegras";
 import { ACAO_CANCELAR_LINHA, alvoDaLinha, cancelarLinha, limparPendenciaDaLinha, obterApontamento } from "@/services/lancamentoAtividadesService";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
@@ -85,13 +100,204 @@ const EFEITO_DO_CANCELAMENTO = Object.freeze(
   }),
 );
 
+/** Os abastecimentos de um lançamento (uma página basta: são os do dia de uma máquina ou poucas). */
+const LIMITE_ABASTECIMENTOS_DO_LANCAMENTO = 100;
+
+/**
+ * Bloco "Abastecimentos" de UM lançamento (D-PROD-210): a lista dos abastecimentos ligados a ele (filtro
+ * `apontamento_id` da lista de abastecimentos) e o botão "Novo abastecimento", que abre o MESMO formulário da tela
+ * Abastecimentos (`FormularioAbastecimento`, prévia e confirmação idempotente do `useFluxoAbastecimento`) já ligado
+ * ao lançamento: a atividade e o lançamento aparecem só para leitura e a data padrão é a do lançamento. O cancelamento
+ * usa o diálogo de sempre (`DialogoCancelarAbastecimento`). Só aparece com a tela Abastecimentos liberada (`ver`);
+ * "Novo" pede `criar` e "Cancelar" pede `cancelar` — e os dois, a atividade ABERTA, o fuso da fazenda e o lançamento
+ * CONFIRMADO (`gravavel`). Depois de gravar: as listas de abastecimento, os lançamentos e os totais da atividade se
+ * relêem. Nem o tipo de medidor (vem do bem) nem o centro de custo (snapshot do servidor) são perguntados.
+ * @param {{ atividade: any, apontamento: any, gravavel: boolean, fuso: string|null }} props
+ */
+function AbastecimentosDoApontamento({ atividade, apontamento, gravavel, fuso }) {
+  const queryClient = useQueryClient();
+  const empresaId = useEmpresaRealSelecionadaId();
+  const acoes = useAcoesTelaAbastecimento();
+  const { clienteId } = useAuth();
+  // O MESMO escopo da pendência da tela Abastecimentos (cliente e login).
+  const escopo = `${clienteId || "sem-tenant"}:${acoes.login || "sem-login"}`;
+  const apId = apontamento?.id ? String(apontamento.id) : null;
+  const atividadeId = atividade?.id ? String(atividade.id) : null;
+  const confirmado = apontamento?.status === STATUS_CONFIRMADO;
+  const podeNovo = gravavel && confirmado && acoes.criar === true;
+  const podeCancelar = gravavel && confirmado && acoes.cancelar === true;
+  const hoje = hojeNoFuso(fuso);
+  const [janela, setJanela] = useState(/** @type {number|null} */ (null));
+  const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
+  const [abrindo, setAbrindo] = useState(/** @type {string|null} */ (null));
+
+  /** Os lançamentos e os totais da atividade (o servidor já somou o combustível). */
+  const relerAtividade = () => {
+    queryClient.invalidateQueries({ queryKey: chaveTotais(empresaId, atividadeId) });
+    queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
+  };
+  const fluxo = useFluxoAbastecimento({
+    empresaId,
+    hoje,
+    podeCriar: podeNovo,
+    escopo,
+    onConcluido: (_registro, _emp, tipo) => {
+      relerAtividade();
+      if (tipo === "confirmar") setJanela(null);
+    },
+  });
+
+  const consulta = useQuery({
+    queryKey: chaveAbastecimentosDoApontamento(empresaId, apId),
+    queryFn: () => listarAbastecimentosPagina(empresaId, { apontamentoId: apId, limit: LIMITE_ABASTECIMENTOS_DO_LANCAMENTO }),
+    enabled: Boolean(empresaId && apId && acoes.ver),
+    staleTime: 15 * 1000,
+  });
+  if (!acoes.ver || !apId) return null;
+  const itens = itensDaLista(consulta.data);
+
+  const abrirNovo = () => {
+    fluxo.iniciar(formularioDoApontamento(hoje, apontamento));
+    setJanela(Date.now());
+  };
+
+  /** O cancelamento precisa do DETALHE (versão e o efeito no medidor). @param {any} a */
+  const abrirCancelamento = async (a) => {
+    if (!empresaId || abrindo) return;
+    setAbrindo(String(a.id));
+    try {
+      fluxo.setCancelando(await detalharAbastecimento(empresaId, String(a.id)));
+    } catch (erro) {
+      notifyWarning("Atenção", mensagemErroAbastecimento(erro, "Não foi possível abrir o abastecimento."));
+    } finally {
+      setAbrindo(null);
+    }
+  };
+
+  /** @param {any} a */
+  const linha = (a) => {
+    const id = String(a.id);
+    const cancelado = a.status === STATUS_CANCELADO;
+    const custo = formatarCustoLinha(a.custo_total);
+    return (
+      <li key={id} className={cancelado ? LINHA_CANCELADA : LINHA_CONFIRMADA} data-testid={`linha-abastecimento-${id}`} data-status={String(a.status ?? "")}>
+        <span className={cancelado ? "line-through" : "font-medium"} data-testid={`linha-abastecimento-${id}-nome`}>
+          Nº {a.numero ?? "—"} · {rotuloDoBem(a.bem) || "Máquina"}
+        </span>
+        <span>· {a.produto?.nome ?? "Produto"}</span>
+        <span data-testid={`linha-abastecimento-${id}-quantidade`}>· {formatarQuantidadeCurta(a.quantidade, a.unidade) || "—"}</span>
+        <span data-testid={`linha-abastecimento-${id}-origem`}>· {rotuloDaOrigem(a)}</span>
+        {custo ? <span data-testid={`linha-abastecimento-${id}-custo`}>· custo {custo}</span> : null}
+        <SeloAbastecimento status={String(a.status ?? "")} testId={`linha-abastecimento-${id}-status`} />
+        {!cancelado && podeCancelar ? (
+          <span className="ml-auto flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={`${BOTAO_PERIGO} tb-btn-sm`}
+              onClick={() => abrirCancelamento(a)}
+              disabled={abrindo !== null}
+              data-testid={`linha-abastecimento-${id}-cancelar`}
+            >
+              <Ban size={14} aria-hidden /> Cancelar
+            </button>
+          </span>
+        ) : null}
+      </li>
+    );
+  };
+
+  return (
+    <div className="min-w-0" data-testid={`apontamento-${apId}-abastecimentos`}>
+      <p className={TITULO_BLOCO}>Abastecimentos</p>
+      {consulta.isError ? (
+        <p className="text-[12px] text-red-700" role="alert" data-testid={`apontamento-${apId}-abastecimentos-erro`}>
+          {mensagemErroAbastecimento(consulta.error, "Não foi possível ler os abastecimentos deste lançamento.")}{" "}
+          <button type="button" className="underline" onClick={() => consulta.refetch()}>
+            Tentar novamente
+          </button>
+        </p>
+      ) : itens.length ? (
+        <ul className="space-y-1" aria-label="Abastecimentos do lançamento">
+          {itens.map(linha)}
+        </ul>
+      ) : consulta.isSuccess ? (
+        <p className="text-[12px] text-[var(--mg-text-2,#475569)]">Nenhum abastecimento neste lançamento.</p>
+      ) : null}
+      {podeNovo ? (
+        <button type="button" className={`${BOTAO_SECUNDARIO} tb-btn-sm mt-1`} onClick={abrirNovo} data-testid={`apontamento-${apId}-novo-abastecimento`}>
+          <Plus size={14} aria-hidden /> Novo abastecimento
+        </button>
+      ) : null}
+
+      {janela !== null ? (
+        <B1Janela
+          key={janela}
+          aberto
+          onFechar={() => setJanela(null)}
+          podeFechar={!fluxo.previando}
+          aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
+          titulo="Novo abastecimento"
+          descricao={[rotuloDoLancamentoDoAbastecimento(apontamento), rotuloDaAtividadeDoAbastecimento(atividade)].join(" — ")}
+          testId="janela-abastecimento-lancamento"
+          // Os botões daqui seguem as ações da tela Abastecimentos: a heurística de texto do Layout não vale.
+          contentProps={{ "data-permissao-explicita": "" }}
+          fora={<div ref={setAlvoFolha} className="contents" />}
+        >
+          <MobileSheetPortalCtx.Provider value={alvoFolha}>
+            <FormularioAbastecimento
+              empresaId={/** @type {string} */ (empresaId)}
+              form={fluxo.form}
+              setForm={fluxo.setForm}
+              hoje={hoje}
+              erros={fluxo.erros}
+              limparErro={fluxo.limparErro}
+              previando={fluxo.previando}
+              situacaoPrevia={fluxo.situacaoPrevia}
+              onPrevia={fluxo.pedirPrevia}
+              onReabrirPrevia={() => fluxo.setPreviaAberta(true)}
+              vinculo={{ atividade, apontamento }}
+            />
+          </MobileSheetPortalCtx.Provider>
+        </B1Janela>
+      ) : null}
+
+      {fluxo.previa ? (
+        <DialogoPreviaAbastecimento
+          key={`previa-${fluxo.previa.seq}`}
+          aberto={fluxo.previaAberta && fluxo.situacaoPrevia === "valida"}
+          previa={fluxo.previa.resposta}
+          origem={fluxo.origemDaPrevia}
+          custoExterno={fluxo.custoExternoDaPrevia}
+          podeConfirmar={podeNovo}
+          onFechar={() => fluxo.setPreviaAberta(false)}
+          onConfirmar={fluxo.confirmarDaPrevia}
+          onConsultar={fluxo.consultarConfirmacao}
+        />
+      ) : null}
+
+      {fluxo.cancelando ? (
+        <DialogoCancelarAbastecimento
+          key={`cancelar-abastecimento-${fluxo.cancelando.id}-${fluxo.cancelando.versao}`}
+          aberto
+          registro={fluxo.cancelando}
+          onFechar={() => fluxo.setCancelando(null)}
+          onEnviar={fluxo.enviarCancelamento}
+          onConsultar={fluxo.consultarCancelamento}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Linhas que geram custo de UM apontamento (D-PROD-202, Fatia 3): os blocos "Produtos" e "Máquinas", cada um com as
  * linhas (as canceladas continuam visíveis, marcadas) e o botão de adicionar. Adicionar, editar e cancelar seguem as
  * ações da tela (`podeLancar`, `podeEditar`, `podeCancelar` — já com a atividade ABERTA e o fuso) e só valem no
  * apontamento CONFIRMADO e na linha CONFIRMADA. Sem `permite_produto` no tipo, o bloco Produtos some (o servidor também
  * recusa); a linha de produto antiga, se houver, continua listada. Fatia 4: os blocos "Mão de obra" e "Serviços", no
- * mesmo molde, cada um só com a flag do tipo (`permite_mao_obra`, `permite_servico`).
+ * mesmo molde, cada um só com a flag do tipo (`permite_mao_obra`, `permite_servico`). D-PROD-210: o bloco
+ * "Abastecimentos" (`AbastecimentosDoApontamento`), só com a tela Abastecimentos liberada; `gravavel` = atividade
+ * ABERTA, fazenda com fuso e a empresa real.
  *
  * @param {{
  *   atividade: any,
@@ -103,6 +309,7 @@ const EFEITO_DO_CANCELAMENTO = Object.freeze(
  *   podeLancar: boolean,
  *   podeEditar: boolean,
  *   podeCancelar: boolean,
+ *   gravavel?: boolean,
  *   escopo: string,
  *   fuso: string|null,
  *   onEscrita: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string) => void,
@@ -119,6 +326,7 @@ export default function LinhasDoApontamento({
   podeLancar,
   podeEditar,
   podeCancelar,
+  gravavel = false,
   escopo,
   fuso,
   onEscrita,
@@ -385,6 +593,7 @@ export default function LinhasDoApontamento({
           </button>
         ) : null}
       </div>
+      <AbastecimentosDoApontamento atividade={atividade} apontamento={apontamento} gravavel={gravavel} fuso={fuso} />
       {mostrarMaoObra ? (
         <div className="min-w-0" data-testid={`apontamento-${apId}-mao-obra`}>
           <p className={TITULO_BLOCO}>Mão de obra</p>

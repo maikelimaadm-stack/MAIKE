@@ -3,7 +3,18 @@ import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
 import { ehDiaValido } from "@/lib/diaCivil";
-import { UNIDADE_MEDIDOR, formatarCusto, formatarDiaAbastecimento, formatarLeitura, formatarQuantidade, rotuloDoBem } from "@/lib/abastecimentoRegras";
+import {
+  UNIDADE_MEDIDOR,
+  formatarCusto,
+  formatarDiaAbastecimento,
+  formatarLeitura,
+  formatarQuantidade,
+  rotuloDaOrigem,
+  rotuloDoBem,
+  snapshotDoMedidor,
+  textoDoIntervaloConfiavel,
+} from "@/lib/abastecimentoRegras";
+import { rotuloDaAtividadeDoAbastecimento, rotuloDoLancamentoDoAbastecimento } from "@/lib/atividadeLinhasRegras";
 import { ROTULO_STATUS_ABASTECIMENTO } from "@/services/abastecimentoService";
 
 /**
@@ -48,6 +59,14 @@ export const ABASTECIMENTOS_COLUNAS = [
   { id: "custo_total", label: "Custo", default: false, sortable: true, align: "right", width: 120 },
   { id: "tanque_cheio", label: "Tanque cheio", default: false, sortable: true, align: "center", width: 100 },
   { id: "referencia_externa", label: "Referência", default: false, sortable: true, width: 120 },
+  // D-PROD-210 (opcionais, desligadas: o padrão do tablet não muda).
+  { id: "origem", label: "Origem", default: false, sortable: true, width: 130 },
+  { id: "atividade", label: "Atividade", default: false, sortable: true, width: 160 },
+  { id: "lancamento", label: "Lançamento", default: false, sortable: true, width: 160 },
+  { id: "centro_custo", label: "Centro de custo", default: false, sortable: true, width: 140 },
+  { id: "leitura_anterior", label: "Leitura anterior", default: false, sortable: true, align: "right", width: 110 },
+  { id: "medidor_delta", label: "Avanço do medidor", default: false, sortable: true, align: "right", width: 110 },
+  { id: "intervalo_confiavel", label: "Intervalo confiável", default: false, sortable: true, align: "center", width: 110 },
 ];
 
 /**
@@ -65,6 +84,11 @@ const ordemDaUnidade = (u) => (u === "L" ? 0 : u === "KG" ? 1 : 2);
 /** @param {any} item @param {string} colId */
 const canonicoDa = (item, colId) => {
   if (colId === "leitura") return ehCanonico(item?.medidor?.leitura) ? item.medidor.leitura : null;
+  if (colId === "leitura_anterior" || colId === "medidor_delta") {
+    const s = snapshotDoMedidor(item);
+    const v = colId === "leitura_anterior" ? s?.anterior : s?.delta;
+    return ehCanonico(v) ? v : null;
+  }
   const campo = /** @type {Record<string, string>} */ (COLUNAS_DECIMAIS)[colId];
   if (!campo) return null;
   const v = item?.[campo];
@@ -89,7 +113,7 @@ export const compararAbastecimentosParaOrdenar = (a, b, colId) => {
     const nb = ehCanonico(b?.numero) ? b.numero : null;
     return na === null || nb === null ? 0 : comparar(na, nb);
   }
-  if (colId !== "leitura" && !Object.prototype.hasOwnProperty.call(COLUNAS_DECIMAIS, colId)) return null;
+  if (!["leitura", "leitura_anterior", "medidor_delta"].includes(colId) && !Object.prototype.hasOwnProperty.call(COLUNAS_DECIMAIS, colId)) return null;
   const va = canonicoDa(a, colId);
   const vb = canonicoDa(b, colId);
   if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
@@ -116,6 +140,18 @@ export const valorDoCampoAbastecimento = (item, id) => {
   if (id === "status") return /** @type {Record<string, string>} */ (ROTULO_STATUS_ABASTECIMENTO)[item.status] ?? String(item.status ?? "");
   if (id === "tanque_cheio") return item.tanque_cheio ? "Sim" : "Não";
   if (id === "referencia_externa") return String(item.referencia_externa ?? "");
+  if (id === "origem") return rotuloDaOrigem(item);
+  if (id === "atividade") return item.atividade ? rotuloDaAtividadeDoAbastecimento(item.atividade) : "";
+  if (id === "lancamento") return item.apontamento ? rotuloDoLancamentoDoAbastecimento(item.apontamento) : "";
+  if (id === "centro_custo") return String(item.centro_custo?.nome ?? "");
+  if (id === "leitura_anterior" || id === "medidor_delta" || id === "intervalo_confiavel") {
+    const s = item.medidor?.leitura ? snapshotDoMedidor(item) : null;
+    if (!s) return "";
+    if (id === "intervalo_confiavel") return textoDoIntervaloConfiavel(s);
+    const v = id === "leitura_anterior" ? s.anterior : s.delta;
+    const unidade = UNIDADE_MEDIDOR[String(item.medidor?.tipo ?? "")];
+    return v ? `${formatarLeitura(v)}${unidade ? ` ${unidade}` : ""}` : "";
+  }
   return "";
 };
 

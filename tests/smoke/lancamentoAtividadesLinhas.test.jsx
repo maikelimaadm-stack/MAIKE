@@ -36,7 +36,13 @@
  *  - D-PROD-208: a mão de obra é de um PARCEIRO — funcionário (papel do
  *    parceiro, custos do cadastro dele) ou terceiro (prestador de serviço, custo
  *    unitário sempre digitado e obrigatório); seletor `/atividades-opcoes/mao-obra`;
- *    corpo com `parceiro_id`; totalizador marca o terceiro.
+ *    corpo com `parceiro_id`; totalizador marca o terceiro;
+ *  - Fatia 5 (docs/engineering/MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md §3, D-PROD-210): o bloco "Abastecimentos" de
+ *    cada lançamento (só com a tela Abastecimentos), lista pelo filtro `apontamento_id`, "Novo abastecimento" abre o
+ *    MESMO formulário ligado ao lançamento (atividade e lançamento só leitura, data do lançamento, corpo com
+ *    `apontamento_id` e sem `atividade_id`), cancelamento pelo diálogo de sempre e o totalizador com o combustível,
+ *    o custo de combustível/ha e o consumo por bem. As rotas de abastecimento usam o backend falso da tela
+ *    Abastecimentos (`abastecimentosFakeCore`).
  */
 import React from "react";
 import { readFileSync } from "node:fs";
@@ -44,6 +50,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
 import { API_FAKE, envelope, erroServidor, instalarBackendFake } from "./fixtures/gestaoBackendFake.js";
+import { criarEstadoAbastecimentos, rotearAbastecimentos, semearAbastecimento } from "./fixtures/abastecimentosFakeCore.js";
 
 const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn(), notifyError: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
@@ -304,6 +311,10 @@ let perderResposta = false;
 /** operation_id → resposta gravada (replay do servidor). @type {Map<string, any>} */
 let gravados;
 let proximoId = 0;
+/** Fatia 5: o backend falso dos abastecimentos (rotas `/patrimonio-abastecimentos*`). @type {ReturnType<typeof criarEstadoAbastecimentos>} */
+let abast;
+/** Fatia 5: campos do combustível acrescentados à resposta dos totais. @type {Record<string, any> | null} */
+let totaisExtra = null;
 
 const t4 = (/** @type {number} */ n) => n.toFixed(4);
 const CUSTO_PRODUTO = 5;
@@ -467,6 +478,7 @@ const totaisDe = (id) => {
     servicos: [...svs.values()].map((t) => ({ servico_id: t.servico_id, nome: t.nome, unidade: t.unidade, quantidade: t4(t.q), custo_total: t4(t.c) })),
     custo_total: custo ? t4(custo) : null,
     custo_por_ha: custo && area ? t4(custo / area) : null,
+    ...(totaisExtra ?? {}),
   };
 };
 
@@ -503,6 +515,7 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     proxima = null;
     return r;
   }
+  if (path.startsWith("/patrimonio-abastecimentos")) return rotearAbastecimentos(abast, { method, path, query, body });
   const partes = path.split("/").filter(Boolean);
   if (partes[0] === "atividades-opcoes" && method === "GET") {
     const recurso = partes[1];
@@ -655,6 +668,15 @@ beforeEach(async () => {
   ]);
   tiposSrv.listarTiposAtividade.mockResolvedValue(TIPOS);
   confirmacao.confirmar.mockResolvedValue(true);
+  totaisExtra = null;
+  abast = criarEstadoAbastecimentos();
+  abast.apontamentos.ap1 = {
+    data_operacional: "2026-11-12",
+    turno: "MANHA",
+    sequencia: 1,
+    atividade: { id: "a1", numero: "3", nome: "Cigarrinha Pasto 01" },
+    centro_custo: { id: "cc-pasto", nome: "Pastagem" },
+  };
   backend = instalarBackendFake(rotear);
 });
 
@@ -1837,5 +1859,210 @@ describe("LL-PORTA — allowlists da mão de obra e do serviço (Fatia 4)", () =
     expect(regras.linhaEmbutidaRecusada(recusa({ entidade: "linha_maquina", linha_indice: 2 }))).toEqual({ colecao: "maquinas", indice: 2 });
     expect(regras.linhaEmbutidaRecusada(recusa({ linha_indice: 0 }))).toEqual({ colecao: "maquinas", indice: 0 });
     expect(regras.linhaEmbutidaRecusada(recusa({ colecao: "produtos", indice: 3 }))).toEqual({ colecao: "produtos", indice: 3 });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+// Fatia 5 (D-PROD-210): abastecimento ligado ao lançamento da atividade
+describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia 5)", () => {
+  const TELA_ABASTECIMENTO = "pat-abastecimentos";
+  /** A permissão das atividades (todas) + a da tela Abastecimentos com `acoes`. @param {Record<string, boolean>} acoes */
+  const comAbastecimento = (acoes) => {
+    const base = permissaoCom(TODAS);
+    return {
+      ...base,
+      modulos_permitidos: [...base.modulos_permitidos, "patrimonio"],
+      permissoes_telas: [
+        ...base.permissoes_telas,
+        { modulo_id: "patrimonio", tela_id: TELA_ABASTECIMENTO, visualizar: true, novo: false, salvar: false, editar: false, excluir: false, importar: false, exportar: false, ...acoes },
+      ],
+    };
+  };
+  const listasDoLancamento = () => backend.chamadas.filter((c) => c.method === "GET" && c.path === "/patrimonio-abastecimentos" && c.query.apontamento_id === "ap1");
+  /** Um abastecimento do posto externo já ligado ao ap1 e outro sem vínculo (não aparece no bloco). */
+  const semear = async () => {
+    await semearAbastecimento(abast, {
+      bem_id: "b1", tanque_id: "tq1", produto_id: "p1", origem: "EXTERNO", custo_total: "400", apontamento_id: "ap1",
+      data_operacional: "2026-11-12", quantidade: "80", medidor_leitura: "1550.5", tanque_cheio: true,
+    });
+    await semearAbastecimento(abast, { bem_id: "b2", tanque_id: "tq2", produto_id: "p2", local_estoque_id: "l2", data_operacional: "2026-11-12", quantidade: "20", medidor_leitura: "35300" });
+  };
+
+  it("LL-ABAST-1 — sem a tela Abastecimentos o bloco não aparece; só ver = lista sem Novo nem Cancelar", async () => {
+    await semear();
+    await montar();
+    await abrir("a1", "ap1");
+    await assentar();
+    expect(screen.queryByTestId("apontamento-ap1-abastecimentos")).toBeNull();
+    expect(listasDoLancamento()).toHaveLength(0);
+    cleanup();
+
+    sessao.permissao = comAbastecimento({});
+    await montar();
+    await abrir("a1", "ap1");
+    const bloco = await screen.findByTestId("apontamento-ap1-abastecimentos");
+    expect(await within(bloco).findByTestId("linha-abastecimento-ab-1")).toBeTruthy();
+    expect(within(bloco).queryByTestId("apontamento-ap1-novo-abastecimento")).toBeNull();
+    expect(within(bloco).queryByTestId("linha-abastecimento-ab-1-cancelar")).toBeNull();
+  });
+
+  it("LL-ABAST-2 — lista só os abastecimentos do lançamento (filtro apontamento_id): nº, máquina, produto, quantidade, origem e custo", async () => {
+    await semear();
+    sessao.permissao = comAbastecimento({ novo: true, cancelar: true });
+    await montar();
+    await abrir("a1", "ap1");
+    const bloco = await screen.findByTestId("apontamento-ap1-abastecimentos");
+    const linha = await within(bloco).findByTestId("linha-abastecimento-ab-1");
+    expect(listasDoLancamento().at(-1)?.query).toMatchObject({ empresa_id: "emp-1", apontamento_id: "ap1" });
+    expect(within(linha).getByTestId("linha-abastecimento-ab-1-nome")).toHaveTextContent("Nº 1 · TP-02 — Trator TP-02");
+    expect(within(linha).getByTestId("linha-abastecimento-ab-1-quantidade")).toHaveTextContent("80 L");
+    expect(within(linha).getByTestId("linha-abastecimento-ab-1-origem")).toHaveTextContent("Posto externo");
+    expect(within(linha).getByTestId("linha-abastecimento-ab-1-custo")).toHaveTextContent("R$ 400,00");
+    expect(within(bloco).queryByTestId("linha-abastecimento-ab-2")).toBeNull();
+    // O lançamento CANCELADO (ap0) não aceita abastecimento novo.
+    expect(within(bloco).getByTestId("apontamento-ap1-novo-abastecimento")).toBeTruthy();
+    expect(screen.queryByTestId("apontamento-ap0-novo-abastecimento")).toBeNull();
+  });
+
+  it("LL-ABAST-3 — Novo abastecimento: o formulário de sempre, ligado ao lançamento (atividade e lançamento só leitura, data do lançamento); corpo com apontamento_id e sem atividade_id; relê lista, lançamentos e totais", async () => {
+    sessao.permissao = comAbastecimento({ novo: true });
+    await montar();
+    await abrir("a1", "ap1");
+    const bloco = await screen.findByTestId("apontamento-ap1-abastecimentos");
+    await within(bloco).findByText("Nenhum abastecimento neste lançamento.");
+    fireEvent.click(within(bloco).getByTestId("apontamento-ap1-novo-abastecimento"));
+    const janela = await screen.findByTestId("janela-abastecimento-lancamento");
+    const form = within(janela).getByTestId("abastecimento-form");
+    expect(within(form).getByTestId("abastecimento-vinculo-atividade")).toHaveTextContent("Nº 3 — Cigarrinha Pasto 01");
+    expect(within(form).getByTestId("abastecimento-vinculo-lancamento")).toHaveTextContent("12/11/2026 · Manhã · 1ª passada");
+    // Só leitura: são saídas, não campos.
+    expect(within(form).getByTestId("abastecimento-vinculo-atividade").tagName).toBe("OUTPUT");
+    expect(within(form).getByTestId("abastecimento-data")).toHaveValue("2026-11-12");
+    // Nem tipo de medidor nem centro de custo são perguntados.
+    expect(within(form).queryByText(/Centro de custo/i)).toBeNull();
+    await escolherNoSeletor(form, "abastecimento-bem", /Trator TP-02/);
+    await waitFor(() => expect(within(form).getByTestId("abastecimento-local-auto")).toHaveTextContent("Sai do estoque: Tanque diesel sede"));
+    fireEvent.change(within(form).getByTestId("abastecimento-quantidade"), { target: { value: "60" } });
+    fireEvent.change(within(form).getByTestId("abastecimento-leitura"), { target: { value: "1.600" } });
+    await act(async () => {
+      fireEvent.click(within(form).getByTestId("abastecimento-previa"));
+    });
+    const previa = await screen.findByTestId("dialogo-previa-abastecimento");
+    const corpoPrevia = backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos-previa").at(-1)?.body;
+    expect(corpoPrevia).toMatchObject({ apontamento_id: "ap1", bem_id: "b1", local_estoque_id: "l1", data_operacional: "2026-11-12", quantidade: "60", medidor_leitura: "1600" });
+    expect(corpoPrevia).not.toHaveProperty("atividade_id");
+    expect(corpoPrevia).not.toHaveProperty("origem");
+    const totaisAntes = leiturasDosTotais("a1");
+    const lancamentosAntes = backend.chamadas.filter((c) => c.method === "GET" && c.path === "/atividades/a1/apontamentos").length;
+    await act(async () => {
+      fireEvent.click(within(previa).getByTestId("abastecimento-confirmar"));
+    });
+    await waitFor(() => expect(screen.queryByTestId("janela-abastecimento-lancamento")).toBeNull());
+    const confirmado = backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos").at(-1)?.body;
+    expect(confirmado).toMatchObject({ apontamento_id: "ap1", operation_id: expect.any(String) });
+    expect(confirmado).not.toHaveProperty("atividade_id");
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Abastecimento confirmado", expect.stringContaining("baixados do estoque"));
+    expect(await within(bloco).findByTestId("linha-abastecimento-ab-1")).toBeTruthy();
+    await waitFor(() => expect(leiturasDosTotais("a1")).toBeGreaterThan(totaisAntes));
+    expect(backend.chamadas.filter((c) => c.method === "GET" && c.path === "/atividades/a1/apontamentos").length).toBeGreaterThan(lancamentosAntes);
+    // O registro gravado traz o vínculo e o centro de custo da atividade (snapshot do servidor).
+    expect(abast.abastecimentos[0]).toMatchObject({ atividade: { id: "a1" }, apontamento: { id: "ap1" }, centro_custo: { nome: "Pastagem" } });
+  });
+
+  it("LL-ABAST-4 — posto externo pelo lançamento: sem local, com o valor da nota; o corpo leva origem, custo_total e apontamento_id", async () => {
+    sessao.permissao = comAbastecimento({ novo: true });
+    await montar();
+    await abrir("a1", "ap1");
+    const bloco = await screen.findByTestId("apontamento-ap1-abastecimentos");
+    fireEvent.click(await within(bloco).findByTestId("apontamento-ap1-novo-abastecimento"));
+    const form = within(await screen.findByTestId("janela-abastecimento-lancamento")).getByTestId("abastecimento-form");
+    await escolherNoSeletor(form, "abastecimento-bem", /Trator TP-02/);
+    fireEvent.click(within(within(form).getByTestId("abastecimento-origem")).getByRole("radio", { name: "Posto externo" }));
+    await waitFor(() => expect(within(form).queryByTestId("abastecimento-local-auto")).toBeNull());
+    fireEvent.change(within(form).getByTestId("abastecimento-quantidade"), { target: { value: "50" } });
+    fireEvent.change(within(form).getByTestId("abastecimento-leitura"), { target: { value: "1.600" } });
+    fireEvent.change(within(form).getByTestId("abastecimento-custo-total"), { target: { value: "310,50" } });
+    await act(async () => {
+      fireEvent.click(within(form).getByTestId("abastecimento-previa"));
+    });
+    const previa = await screen.findByTestId("dialogo-previa-abastecimento");
+    expect(within(previa).getByTestId("previa-origem")).toHaveTextContent("Posto externo");
+    await act(async () => {
+      fireEvent.click(within(previa).getByTestId("abastecimento-confirmar"));
+    });
+    await waitFor(() => expect(screen.queryByTestId("janela-abastecimento-lancamento")).toBeNull());
+    const confirmado = backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos").at(-1)?.body;
+    expect(confirmado).toMatchObject({ origem: "EXTERNO", custo_total: "310.5", apontamento_id: "ap1" });
+    expect(confirmado).not.toHaveProperty("local_estoque_id");
+    expect(await within(bloco).findByTestId("linha-abastecimento-ab-1-origem")).toHaveTextContent("Posto externo");
+  });
+
+  it("LL-ABAST-5 — Cancelar pelo bloco usa o diálogo de cancelamento de sempre (motivo e ciência) e a linha fica Cancelada", async () => {
+    await semear();
+    sessao.permissao = comAbastecimento({ cancelar: true });
+    await montar();
+    await abrir("a1", "ap1");
+    const bloco = await screen.findByTestId("apontamento-ap1-abastecimentos");
+    // Sem `novo`, não há Novo abastecimento.
+    expect(within(bloco).queryByTestId("apontamento-ap1-novo-abastecimento")).toBeNull();
+    fireEvent.click(await within(bloco).findByTestId("linha-abastecimento-ab-1-cancelar"));
+    const dialogo = await screen.findByTestId("dialogo-cancelamento-abastecimento");
+    expect(dialogo).toHaveTextContent("nada volta ao estoque");
+    fireEvent.change(within(dialogo).getByTestId("cancelamento-motivo"), { target: { value: "Nota em dobro" } });
+    fireEvent.click(within(dialogo).getByTestId("cancelamento-ciente"));
+    const totaisAntes = leiturasDosTotais("a1");
+    await act(async () => {
+      fireEvent.click(within(dialogo).getByTestId("cancelamento-enviar"));
+    });
+    await waitFor(() => expect(screen.queryByTestId("dialogo-cancelamento-abastecimento")).toBeNull());
+    expect(backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos/ab-1/cancelar").at(-1)?.body).toMatchObject({ versao: 1, motivo: "Nota em dobro" });
+    await waitFor(() => expect(within(bloco).getByTestId("linha-abastecimento-ab-1")).toHaveAttribute("data-status", "CANCELADO"));
+    expect(within(bloco).queryByTestId("linha-abastecimento-ab-1-cancelar")).toBeNull();
+    await waitFor(() => expect(leiturasDosTotais("a1")).toBeGreaterThan(totaisAntes));
+  });
+
+  it("LL-ABAST-6 — atividade concluída: o bloco fica só para consulta (nem Novo nem Cancelar)", async () => {
+    abast.apontamentos.ap5 = { data_operacional: "2026-11-12", turno: "MANHA", sequencia: 1, atividade: { id: "a3", numero: "1", nome: "Aplicação concluída" } };
+    await semearAbastecimento(abast, { bem_id: "b1", tanque_id: "tq1", produto_id: "p1", local_estoque_id: "l1", apontamento_id: "ap5", data_operacional: "2026-11-12", quantidade: "10", medidor_leitura: "1530" });
+    sessao.permissao = comAbastecimento({ novo: true, cancelar: true });
+    await montar();
+    await abrir("a3", "ap5");
+    const bloco = await screen.findByTestId("apontamento-ap5-abastecimentos");
+    expect(await within(bloco).findByTestId("linha-abastecimento-ab-1")).toBeTruthy();
+    expect(within(bloco).queryByTestId("apontamento-ap5-novo-abastecimento")).toBeNull();
+    expect(within(bloco).queryByTestId("linha-abastecimento-ab-1-cancelar")).toBeNull();
+  });
+});
+
+describe("LL-TOTAIS — totalizador com o combustível (Fatia 5)", () => {
+  it("LL-TOTAIS-5 — combustível em L e kg à parte e em R$, custo de combustível/ha e o consumo por bem (sem uso ou misturado: sem valor)", async () => {
+    totaisExtra = {
+      combustivel: { quantidade_l: "120.0000", quantidade_kg: "35.5000", custo_total: "780.0000" },
+      custo_combustivel_por_ha: "78.0000",
+      consumo_por_bem: [
+        { bem: TRATOR, medidor_tipo: "HORIMETRO", uso: "8.0000", quantidade: "120.0000", unidade: "L", metrica: "L_POR_HORA", unidade_metrica: "L/h", valor: "15.0000" },
+        { bem: CAMINHAO, medidor_tipo: "ODOMETRO", uso: null, quantidade: "35.5000", unidade: "KG", metrica: "KM_POR_KG", unidade_metrica: "km/kg", valor: null },
+        // L e kg no mesmo bem (o servidor zera unidade, quantidade e valor; manda as parcelas).
+        { bem: GRADE, medidor_tipo: "HORIMETRO", uso: "4.0000", quantidade: null, unidade: null, quantidade_l: "10.0000", quantidade_kg: "5.0000", metrica: null, unidade_metrica: null, valor: null },
+      ],
+    };
+    await montar();
+    await abrir("a1", "ap1");
+    const totais = await screen.findByTestId("totalizador-atividade");
+    await waitFor(() => expect(within(totais).getByTestId("totalizador-combustivel")).toHaveTextContent("120 L · 35,5 kg · R$ 780,00"));
+    expect(within(totais).getByTestId("totalizador-combustivel-ha")).toHaveTextContent("R$ 78,00/ha");
+    expect(within(totais).getByTestId("totalizador-consumo-b1-L")).toHaveTextContent("15 L/h · 120 L em 8 h");
+    expect(within(totais).getByTestId("totalizador-consumo-b2-KG")).toHaveTextContent("35,5 kg sem uso nas máquinas");
+    expect(within(totais).getByTestId("totalizador-consumo-i1")).toHaveTextContent("10 L e 5 kg (litros e quilos não se somam) em 4 h");
+    expect(within(totais).getByText("Consumo — TP-02 — Trator")).toBeTruthy();
+  });
+
+  it("LL-TOTAIS-6 — servidor sem combustível nos totais: nenhum campo de combustível aparece", async () => {
+    await montar();
+    await abrir("a1", "ap1");
+    const totais = await screen.findByTestId("totalizador-atividade");
+    await waitFor(() => expect(within(totais).getByTestId("totalizador-custo")).toHaveTextContent("R$ 525,00"));
+    expect(within(totais).queryByTestId("totalizador-combustivel")).toBeNull();
+    expect(within(totais).queryByTestId("totalizador-combustivel-ha")).toBeNull();
   });
 });

@@ -36,8 +36,16 @@ import {
   unidadeDoAbastecimentoDoProduto,
 } from './abastecimentoRegras.js';
 import { lerErroGestao } from './gestaoErros.js';
-import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, STATUS_CANCELADO, STATUS_CONFIRMADO, mensagemDeErroAtividade } from './lancamentoAtividadesRegras.js';
-import { RAIZ_CONSULTAS_ATIVIDADES } from './atividadeApontamentoRegras.js';
+import {
+  LIMITES_DECIMAL_ATIVIDADE,
+  LOCALE_ATIVIDADE,
+  STATUS_CANCELADO,
+  STATUS_CONFIRMADO,
+  formatarDiaAtividade,
+  mensagemDeErroAtividade,
+  rotuloDoTurno,
+} from './lancamentoAtividadesRegras.js';
+import { RAIZ_CONSULTAS_ATIVIDADES, rotuloDaPassada } from './atividadeApontamentoRegras.js';
 
 export const LINHA_PRODUTO = 'produtos';
 export const LINHA_MAQUINA = 'maquinas';
@@ -212,6 +220,21 @@ export const formatarQuantidadeLinha = (v, unidade) => {
 
 /** Custo em reais (até 4 casas); vazio sem valor. @param {unknown} v */
 export const formatarCustoLinha = (v) => (ehCanonico(v) ? formatarCusto(v) : '');
+
+// ─── Abastecimento ligado à atividade (D-PROD-210, só leitura) ───────────
+
+/** "Nº 3 — Cigarrinha Pasto 01" (a atividade do abastecimento: `{id, numero, nome}`); "—" sem ela. @param {any} atividade */
+export const rotuloDaAtividadeDoAbastecimento = (atividade) => {
+  if (!ehObjeto(atividade)) return '—';
+  const numero = atividade.numero != null && String(atividade.numero) !== '' ? `Nº ${atividade.numero}` : '';
+  return [numero, texto(atividade.nome)].filter(Boolean).join(' — ') || '—';
+};
+
+/** "12/11/2026 · Manhã · 1ª passada" (o lançamento: `{id, data_operacional, turno, sequencia}`); "—" sem ele. @param {any} apontamento */
+export const rotuloDoLancamentoDoAbastecimento = (apontamento) => {
+  if (!ehObjeto(apontamento)) return '—';
+  return [formatarDiaAtividade(apontamento.data_operacional), rotuloDoTurno(apontamento.turno), rotuloDaPassada(apontamento.sequencia)].filter(Boolean).join(' · ') || '—';
+};
 
 // ─── Dose/ha e uso (só leitura) ──────────────────────────────────────────
 
@@ -956,12 +979,41 @@ export const totaisParaExibir = (totais, atividade) => {
     quantidade: formatarQuantidadeServico(v.quantidade, v.unidade) || '—',
     custo: formatarCustoLinha(v.custo_total ?? v.valor_total),
   }));
+  /** @param {unknown} v */
+  const positivoOuNulo = (v) => (ehCanonico(v) && ehPositivo(/** @type {string} */ (v)) ? v : null);
+  // D-PROD-210: combustível dos abastecimentos CONFIRMADOS ligados à atividade — litros e quilos à parte (nunca se somam).
+  const c = ehObjeto(t.combustivel) ? t.combustivel : null;
+  const combustivel = c
+    ? [formatarQuantidadeLinha(positivoOuNulo(c.quantidade_l), 'L'), formatarQuantidadeLinha(positivoOuNulo(c.quantidade_kg), 'KG'), formatarCustoLinha(c.custo_total)]
+        .filter(Boolean)
+        .join(' · ') || '—'
+    : null;
+  // Consumo por bem (L/h, km/L…) pelo uso das linhas de máquina; sem uso ou com L e kg misturados o servidor manda `valor` nulo.
+  const consumoPorBem = (Array.isArray(t.consumo_por_bem) ? t.consumo_por_bem : []).filter(ehObjeto).map((b) => {
+    // L e kg misturados no mesmo bem: o servidor manda `unidade`/`quantidade` nulos e as parcelas à parte (sem consumo).
+    const misturado = !texto(b.unidade) && Boolean(formatarDecimalLinha(b.quantidade_l)) && Boolean(formatarDecimalLinha(b.quantidade_kg));
+    const quantidade = misturado
+      ? `${formatarQuantidadeLinha(b.quantidade_l, 'L')} e ${formatarQuantidadeLinha(b.quantidade_kg, 'KG')} (litros e quilos não se somam)`
+      : formatarQuantidadeLinha(b.quantidade, b.unidade);
+    const uso = formatarUso(b.uso, b.medidor_tipo, null);
+    const metrica = texto(b.unidade_metrica);
+    const valor = ehCanonico(b.valor) ? `${formatarDecimalLinha(b.valor)}${metrica ? ` ${metrica}` : ''}` : '';
+    const base = [quantidade, uso ? `em ${uso}` : 'sem uso nas máquinas'].filter(Boolean).join(' ');
+    return {
+      chave: `${String(b.bem?.id ?? b.bem_id ?? '')}${texto(b.unidade) ? `-${texto(b.unidade)}` : ''}`,
+      nome: rotuloDoBem(b.bem) || 'Máquina',
+      valor: valor ? `${valor} · ${base}` : base || '—',
+    };
+  });
   return {
     area,
     produtos,
     maquinas,
     maoObra,
     servicos,
+    combustivel,
+    custoCombustivelPorHa: c && ehCanonico(t.custo_combustivel_por_ha) ? `${formatarCusto(t.custo_combustivel_por_ha)}/${unidadeArea}` : c ? '—' : null,
+    consumoPorBem,
     custo: formatarCustoLinha(t.custo_total) || '—',
     custoPorHa: ehCanonico(t.custo_por_ha) ? `${formatarCusto(t.custo_por_ha)}/${unidadeArea}` : '—',
   };

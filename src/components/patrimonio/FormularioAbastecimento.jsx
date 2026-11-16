@@ -4,20 +4,27 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
-import { CampoDia, CampoNumero, EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
+import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { useAcoesTelaPatrimonio } from "@/hooks/usePatrimonioSessao";
 import { TELAS_PATRIMONIO } from "@/lib/patrimonioPermissions";
 import { listarOpcoesAbastecimento, listarProdutosDoBem } from "@/services/abastecimentoService";
+import { chaveProdutosDoBem } from "@/hooks/useFluxoAbastecimento";
 import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import { createPageUrl } from "@/utils";
+import { rotuloDaAtividadeDoAbastecimento, rotuloDoLancamentoDoAbastecimento } from "@/lib/atividadeLinhasRegras";
 import {
   LIMITES_ABASTECIMENTO,
+  LIMITES_CUSTO_EXTERNO,
   LOCALE_ABASTECIMENTO,
+  ORIGEM_ESTOQUE,
+  ORIGEM_EXTERNO,
+  ROTULO_ORIGEM_ABASTECIMENTO,
   ROTULO_LEITURA,
   UNIDADE_MEDIDOR,
   dicaDaUnidadeDoProduto,
+  ehExterno,
   formatarDiaAbastecimento,
   formatarLeitura,
   formatarLitrosCurto,
@@ -35,7 +42,7 @@ import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/Dialog
 export const FORMULARIO_ABASTECIMENTO_ID = "formulario-abastecimento";
 
 /** Chaves das leituras do formulário (prefixo da tela: confirmar/cancelar/recusas invalidam). */
-export const chaveProdutosDoBem = (/** @type {string|null} */ empresaId, /** @type {string|null} */ bemId) => ["patrimonio-abastecimentos", "produtos-do-bem", empresaId, bemId];
+export { chaveProdutosDoBem };
 export const chaveLocais = (/** @type {string|null} */ empresaId, /** @type {string|null} */ produtoId) => ["patrimonio-abastecimentos", "locais", empresaId, produtoId];
 
 /** Até este número de Produtos (resposta completa) a escolha é por botões; acima, seletor com busca. */
@@ -90,7 +97,15 @@ function ErroDoCampo({ texto }) {
  * "Completou o tanque?" → Mais detalhes → Revisar. Sem tipo de combustível e
  * sem fator kg/L. Trocar um campo limpa os que dependem dele. Nada é gravado
  * aqui: "Revisar abastecimento" pede a prévia ao servidor.
+ *
+ * D-PROD-210: "Origem" — Estoque da fazenda (o local de estoque, como sempre)
+ * ou Posto externo (sem local; pede o valor total da nota). Aberto a partir de
+ * um lançamento da atividade (`vinculo`), mostra a atividade e o lançamento só
+ * para leitura (o `apontamento_id` vem preso no formulário; a data padrão é a
+ * do lançamento). O tipo de medidor vem do bem e o centro de custo é o snapshot
+ * do servidor: nenhum dos dois se pergunta.
  * @param {{
+ *   vinculo?: { atividade: any, apontamento: any } | null,
  *   empresaId: string,
  *   form: any,
  *   setForm: (atualizar: (f: any) => any) => void,
@@ -103,9 +118,23 @@ function ErroDoCampo({ texto }) {
  *   onReabrirPrevia: () => void,
  * }} props
  */
-export default function FormularioAbastecimento({ empresaId, form, setForm, hoje, erros, limparErro, previando, situacaoPrevia, onPrevia, onReabrirPrevia }) {
+export default function FormularioAbastecimento({
+  empresaId,
+  form,
+  setForm,
+  hoje,
+  erros,
+  limparErro,
+  previando,
+  situacaoPrevia,
+  onPrevia,
+  onReabrirPrevia,
+  vinculo = null,
+}) {
   const bemId = form.bem?.id ? String(form.bem.id) : null;
   const produtoId = form.produto?.id ? String(form.produto.id) : null;
+  // Posto externo: o combustível não sai do estoque (sem local, sem leitura de saldo).
+  const externo = ehExterno(form);
   // "Abrir Bens Patrimoniais" só para quem vê a tela de Bens (onde ficam os Produtos aceitos do tanque).
   const acoesBens = useAcoesTelaPatrimonio(TELAS_PATRIMONIO.BENS);
   const [indisponivel, setIndisponivel] = useState(false);
@@ -142,7 +171,7 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
   const locaisQuery = useQuery({
     queryKey: chaveLocais(empresaId, produtoId),
     queryFn: () => listarOpcoesAbastecimento("locais", empresaId, { produtoId }),
-    enabled: Boolean(empresaId && produtoId),
+    enabled: Boolean(empresaId && produtoId && !externo),
     staleTime: 15 * 1000,
   });
   const locais = /** @type {any[]} */ (locaisQuery.data?.itens ?? []);
@@ -172,7 +201,7 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
 
   // Local: o único com saldo já vem escolhido; um local que sumiu da lista sai do formulário.
   useEffect(() => {
-    if (!produtoId || !locaisQuery.isSuccess) return;
+    if (!produtoId || externo || !locaisQuery.isSuccess) return;
     const atual = form.local_estoque_id ? String(form.local_estoque_id) : null;
     if (atual && !locais.some((l) => String(l.local_estoque_id) === atual)) {
       setForm((f) => (String(f.produto?.id ?? "") === produtoId && String(f.local_estoque_id ?? "") === atual ? { ...f, local_estoque_id: null } : f));
@@ -182,7 +211,7 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
       const local = String(locais[0].local_estoque_id);
       setForm((f) => (String(f.produto?.id ?? "") === produtoId && !f.local_estoque_id ? { ...f, local_estoque_id: local } : f));
     }
-  }, [produtoId, form.local_estoque_id, locais, locaisQuery.isSuccess, setForm]);
+  }, [produtoId, externo, form.local_estoque_id, locais, locaisQuery.isSuccess, setForm]);
 
   const tipoMedidor = medidorDoFormulario(form);
   const contador = medidorExigeLeitura(tipoMedidor);
@@ -282,6 +311,13 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
     <CadastroFormShell embedded title="Novo abastecimento">
       <div className="mg-b1-record-form">
         <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form" data-densidade={DENSIDADE_BASE1}>
+          {vinculo ? (
+            <>
+              <SecaoForm titulo="Lançamento da atividade" />
+              <ValorCalculado label="Atividade" valor={rotuloDaAtividadeDoAbastecimento(vinculo.atividade)} span={6} testId="abastecimento-vinculo-atividade" />
+              <ValorCalculado label="Lançamento" valor={rotuloDoLancamentoDoAbastecimento(vinculo.apontamento)} span={6} testId="abastecimento-vinculo-lancamento" />
+            </>
+          ) : null}
           <SecaoForm titulo="Máquina e Produto" />
           <SeletorPaginadoGestao
             rotulo="Máquina/Veículo"
@@ -322,7 +358,26 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
               <ErroDoCampo texto={erros.tanque_id} />
             </>
           ) : null}
-          {produtoId ? (
+          <EscolhaSegmentada
+            rotulo="Origem"
+            testId="abastecimento-origem"
+            value={externo ? ORIGEM_EXTERNO : ORIGEM_ESTOQUE}
+            onChange={(v) =>
+              v === ORIGEM_EXTERNO
+                ? mudar({ origem: ORIGEM_EXTERNO, local_estoque_id: null }, ["local_estoque_id"])
+                : mudar({ origem: ORIGEM_ESTOQUE, custo_total: "" }, ["custo_total"])
+            }
+            opcoes={[
+              { value: ORIGEM_ESTOQUE, label: ROTULO_ORIGEM_ABASTECIMENTO.ESTOQUE },
+              { value: ORIGEM_EXTERNO, label: ROTULO_ORIGEM_ABASTECIMENTO.EXTERNO },
+            ]}
+          />
+          {externo ? (
+            <p className="col-span-12 -mt-1 min-w-0 break-words text-[11px] text-[var(--mg-text-2,#475569)]" data-testid="abastecimento-externo-nota">
+              Posto externo: o combustível não sai do estoque da fazenda. Informe o valor total da nota do posto.
+            </p>
+          ) : null}
+          {produtoId && !externo ? (
             locaisQuery.isError ? (
               <div className="col-span-12">
                 <AvisoGestao testId="abastecimento-locais-erro">
@@ -388,6 +443,20 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
               {dicaDaUnidade}
             </p>
           ) : null}
+          {externo ? (
+            <CampoNumero
+              label="Valor total da nota (R$)"
+              value={form.custo_total ?? ""}
+              onChange={(v) => mudar({ custo_total: v }, ["custo_total"])}
+              locale={LOCALE_ABASTECIMENTO}
+              limites={LIMITES_CUSTO_EXTERNO}
+              casasMin={2}
+              required
+              span={6}
+              error={erros.custo_total}
+              testId="abastecimento-custo-total"
+            />
+          ) : null}
           {contador ? (
             <>
               <CampoNumero
@@ -440,7 +509,7 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
               <CampoTextoLongo label="Observação" value={form.observacao} onChange={(v) => mudar({ observacao: v }, ["observacao"])} maxLength={500} />
               <ErroDoCampo texto={erros.observacao} />
               <CampoTexto
-                label="Referência externa"
+                label={externo ? "Número da nota ou cupom" : "Referência externa"}
                 value={form.referencia_externa}
                 onChange={(v) => mudar({ referencia_externa: v }, ["referencia_externa"])}
                 maxLength={64}

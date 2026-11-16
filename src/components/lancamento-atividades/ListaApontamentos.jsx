@@ -8,6 +8,7 @@ import { BOTAO_PERIGO, BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/pat
 import FormularioApontamento from "@/components/lancamento-atividades/FormularioApontamento";
 import LinhasDoApontamento from "@/components/lancamento-atividades/LinhasDoApontamento";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { QUERY_RAIZ_ABASTECIMENTOS } from "@/hooks/useFluxoAbastecimento";
 import { useAuth } from "@/lib/AuthContext";
 import { formatarInstante } from "@/lib/diaCivil";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
@@ -84,6 +85,7 @@ const textoDoCancelamento = (ap, fuso) => {
  * Fatia 3 (D-PROD-202): dentro de cada lançamento, os blocos "Produtos" e
  * "Máquinas" (`LinhasDoApontamento`), com as linhas e as janelas de adicionar,
  * editar e cancelar; o bloco Produtos só aparece com `permite_produto` no tipo.
+ * D-PROD-210: o bloco "Abastecimentos" de cada lançamento (só com a tela Abastecimentos liberada).
  * Fatia 4: os blocos "Mão de obra" e "Serviços", só com `permite_mao_obra` e
  * `permite_servico` no tipo.
  * "Repetir último lançamento" traz também as linhas do lançamento base.
@@ -166,6 +168,8 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
     situacaoAnterior.current = { id: atividadeId, situacao };
     if (atividadeId && anterior.id === atividadeId && anterior.situacao !== situacao) {
       queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
+      // Cancelar a atividade cancela os abastecimentos ligados (D-PROD-210): os blocos de abastecimento se relêem.
+      queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ_ABASTECIMENTOS] });
     }
   }, [atividadeId, situacao, empresaId, queryClient]);
 
@@ -173,6 +177,7 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
   const relerTudo = () => {
     queryClient.invalidateQueries({ queryKey: chave });
     queryClient.invalidateQueries({ queryKey: chaveTotais(empresaId, atividadeId) });
+    queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ_ABASTECIMENTOS] });
     const id = atividadeId;
     if (!id) return;
     obterAtividade(id)
@@ -238,6 +243,8 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
     try {
       const r = normalizarRespostaDeEscrita(await cancelarApontamento(atividadeId, String(alvo.id), { versao: alvo.versao, motivo }));
       setCancelando(null);
+      // O cancelamento do lançamento cancela os abastecimentos ligados a ele (D-PROD-210).
+      queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ_ABASTECIMENTOS] });
       aplicarEscrita(r, `Lançamento de ${formatarDiaAtividade(alvo.data_operacional)} cancelado. Ele continua no histórico; nada foi apagado.`);
     } catch (erro) {
       // Sem resposta: o diálogo mostra "resultado incerto" (consultar ou repetir); a lista é relida.
@@ -347,6 +354,7 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
           podeLancar={podeLancar}
           podeEditar={podeEditar}
           podeCancelar={podeCancelar}
+          gravavel={gravavel}
           escopo={escopo}
           fuso={fuso}
           onEscrita={aplicarEscrita}

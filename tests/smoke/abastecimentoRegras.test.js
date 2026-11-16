@@ -45,6 +45,11 @@ import {
   unidadeDoAbastecimentoDoProduto,
   unidadeDoFormulario,
   validarFormulario,
+  ehExterno,
+  formularioDoApontamento,
+  rotuloDaOrigem,
+  snapshotDoMedidor,
+  textoDoIntervaloConfiavel,
 } from '@/lib/abastecimentoRegras';
 import { acrescentarProduto, criarEstadoAbastecimentos, detalheDe, rotearAbastecimentos, semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
 
@@ -383,5 +388,77 @@ describe('formatação (sem float)', () => {
     expect(formatarQuantidadeCurta('80.0000', 'L')).toBe('80 L');
     expect(formatarQuantidadeCurta('1200.5000', 'KG')).toBe('1.200,5 kg');
     expect([rotuloDaUnidade('L'), rotuloDaUnidade('KG'), rotuloDaUnidade('SACO'), rotuloDaUnidade('UN'), rotuloDaUnidade(null)]).toEqual(['L', 'kg', 'kg', '', '']);
+  });
+});
+
+describe('D-PROD-210 — origem, vínculo com o lançamento e snapshot do medidor', () => {
+  it('formulário vazio = Estoque da fazenda, sem apontamento; o do lançamento prende o apontamento e usa a data dele', () => {
+    const vazio = formularioVazio('2026-06-15');
+    expect([vazio.origem, vazio.custo_total, vazio.apontamento_id, ehExterno(vazio), rotuloDaOrigem(vazio)]).toEqual(['ESTOQUE', '', null, false, 'Estoque da fazenda']);
+    const ligado = formularioDoApontamento('2026-06-15', { id: 'ap1', data_operacional: '2026-06-12' });
+    expect([ligado.apontamento_id, ligado.data_operacional]).toEqual(['ap1', '2026-06-12']);
+    expect(formularioDoApontamento('2026-06-15', { id: 'ap1', data_operacional: null }).data_operacional).toBe('2026-06-15');
+    expect(rotuloDaOrigem({ origem: 'EXTERNO' })).toBe('Posto externo');
+  });
+
+  it('corpos: ESTOQUE = o de sempre; EXTERNO = sem local, com origem e custo_total canônico; ligado = só o apontamento_id (nunca a atividade)', () => {
+    const estoque = montarCorpoPrevia('emp-1', formTrator());
+    for (const k of ['origem', 'custo_total', 'apontamento_id', 'atividade_id']) expect(estoque).not.toHaveProperty(k);
+    expect(estoque.local_estoque_id).toBe('l1');
+    const externo = montarCorpoPrevia('emp-1', formTrator({ origem: 'EXTERNO', custo_total: '1.452,80' }));
+    expect(externo).not.toHaveProperty('local_estoque_id');
+    expect(externo).toMatchObject({ origem: 'EXTERNO', custo_total: '1452.8', quantidade: '1234.5' });
+    expect(() => montarCorpoPrevia('emp-1', formTrator({ origem: 'EXTERNO', custo_total: '' }))).toThrow(RangeError);
+    const ligado = montarCorpoPrevia('emp-1', formTrator({ apontamento_id: 'ap1' }));
+    expect(ligado.apontamento_id).toBe('ap1');
+    expect(ligado).not.toHaveProperty('atividade_id');
+    expect(ligado).not.toHaveProperty('origem');
+    const ligadoExterno = montarCorpoPrevia('emp-1', formTrator({ apontamento_id: 'ap1', origem: 'EXTERNO', custo_total: '300' }));
+    expect(ligadoExterno).toMatchObject({ apontamento_id: 'ap1', origem: 'EXTERNO', custo_total: '300' });
+    expect(montarCorpoConfirmacao('emp-1', formTrator({ origem: 'EXTERNO', custo_total: '300' }), {})).toEqual(montarCorpoPrevia('emp-1', formTrator({ origem: 'EXTERNO', custo_total: '300' })));
+  });
+
+  it('validação: EXTERNO não cobra local e cobra o valor da nota (positivo, até 2 casas); mudar origem ou valor invalida a revisão', () => {
+    const ctx = { hoje: '2026-06-15' };
+    expect(validarFormulario(formTrator({ origem: 'EXTERNO', local_estoque_id: null, custo_total: '' , quantidade: '80' }), ctx).erros).toEqual({ custo_total: 'Informe o valor total da nota do posto.' });
+    expect(validarFormulario(formTrator({ origem: 'EXTERNO', local_estoque_id: null, custo_total: '0', quantidade: '80' }), ctx).erros).toEqual({ custo_total: 'Informe um valor maior que zero.' });
+    expect(validarFormulario(formTrator({ origem: 'EXTERNO', local_estoque_id: null, custo_total: '10,123', quantidade: '80' }), ctx).erros).toEqual({ custo_total: 'No máximo 2 casas decimais (centavos).' });
+    expect(validarFormulario(formTrator({ origem: 'EXTERNO', local_estoque_id: null, custo_total: '452,80', quantidade: '80' }), ctx).erros).toEqual({});
+    expect(validarFormulario(formTrator({ local_estoque_id: null, quantidade: '80' }), ctx).erros).toHaveProperty('local_estoque_id');
+    const a = assinaturaDoFormulario(formTrator());
+    expect(assinaturaDoFormulario(formTrator({ origem: 'EXTERNO', custo_total: '1' }))).not.toBe(a);
+    expect(assinaturaDoFormulario(formTrator({ apontamento_id: 'ap1' }))).not.toBe(a);
+  });
+
+  it('snapshot do medidor: do próprio objeto ou de `medidor`; sem nenhum campo = null; o texto do intervalo', () => {
+    expect(snapshotDoMedidor({ medidor_leitura_anterior: '1530.5000', medidor_delta: '20.0000', intervalo_confiavel: true })).toEqual({ anterior: '1530.5000', delta: '20.0000', confiavel: true });
+    expect(snapshotDoMedidor({ medidor: { medidor_leitura_anterior: '1.0000', medidor_delta: '2.0000', intervalo_confiavel: false } })).toEqual({ anterior: '1.0000', delta: '2.0000', confiavel: false });
+    expect(snapshotDoMedidor({ medidor: { leitura: '1.0000' } })).toBeNull();
+    expect(textoDoIntervaloConfiavel({ anterior: null, delta: null, confiavel: false })).toBe('Não (sem leitura anterior)');
+    expect(textoDoIntervaloConfiavel({ anterior: '1.0000', delta: '0.0000', confiavel: false })).toBe('Não');
+    expect(textoDoIntervaloConfiavel(null)).toBe('—');
+  });
+
+  it('conferência: o EXTERNO sem movimento, estorno nem local é conforme; ESTOQUE sem movimento continua violação; campos novos com formato', async () => {
+    const e = criarEstadoAbastecimentos();
+    e.apontamentos.ap1 = { data_operacional: '2026-06-10', turno: 'MANHA', sequencia: 1, atividade: { id: 'a1', numero: '3', nome: 'Cigarrinha' }, centro_custo: { id: 'cc-pasto', nome: 'Pastagem' } };
+    const ext = await semearAbastecimento(e, { bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', origem: 'EXTERNO', custo_total: '400', apontamento_id: 'ap1', data_operacional: '2026-06-10', quantidade: '80', medidor_leitura: '1550.5' });
+    expect(conferirRespostaAbastecimento(ext)).toEqual([]);
+    expect([ext.origem, ext.local_estoque, ext.movimentacao, ext.custo_total, ext.custo_unitario]).toEqual(['EXTERNO', null, null, '400.0000', '5.0000']);
+    expect(ext.atividade).toEqual({ id: 'a1', numero: '3', nome: 'Cigarrinha' });
+    expect(ext.centro_custo).toEqual({ id: 'cc-pasto', nome: 'Pastagem' });
+    expect([ext.medidor_leitura_anterior, ext.medidor_delta, ext.intervalo_confiavel]).toEqual(['1520.5000', '30.0000', false]);
+    const est = await semearAbastecimento(e, { bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1', data_operacional: '2026-06-11', quantidade: '10', medidor_leitura: '1560' });
+    expect(conferirRespostaAbastecimento(est)).toEqual([]);
+    expect([est.intervalo_confiavel, est.centro_custo?.nome]).toEqual([true, 'Frota']);
+    expect(conferirRespostaAbastecimento({ ...est, movimentacao: null })).toEqual([expect.stringContaining('movimentacao: ausente')]);
+    expect(conferirRespostaAbastecimento({ ...ext, movimentacao: est.movimentacao })).toEqual([expect.stringContaining('EXTERNO com movimento')]);
+    expect(conferirRespostaAbastecimento({ ...est, origem: 'POSTO' })).toEqual([expect.stringContaining('origem: inválida')]);
+    expect(conferirRespostaAbastecimento({ ...est, medidor_delta: '10' })).toEqual([expect.stringContaining('medidor_delta')]);
+    expect(conferirRespostaAbastecimento({ ...est, intervalo_confiavel: 'sim' })).toEqual([expect.stringContaining('intervalo_confiavel')]);
+    const q = (s) => new URLSearchParams(s);
+    const lista = await rotearAbastecimentos(e, { method: 'GET', path: '/patrimonio-abastecimentos', query: q('empresa_id=emp-1&apontamento_id=ap1'), body: null });
+    expect(conferirRespostaAbastecimento(lista.body)).toEqual([]);
+    expect(lista.body.items.map((i) => i.id)).toEqual([ext.id]);
   });
 });

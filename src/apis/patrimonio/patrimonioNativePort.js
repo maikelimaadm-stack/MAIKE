@@ -148,7 +148,10 @@ export const TIMEOUT_COMANDO_ABASTECIMENTO_MS = 60000;
 export const RECURSOS_OPCOES_ABASTECIMENTO = Object.freeze(['bens', 'tanques', 'produtos-filtro', 'locais', 'produtos-do-bem']);
 
 /** Filtros aceitos por recurso (query FECHADA no servidor: nada além disso vai). */
-const FILTROS_LISTA_ABASTECIMENTOS = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'status', 'data_de', 'data_ate', 'operation_id', 'q', 'limit', 'cursor']);
+// D-PROD-210: `apontamento_id` e `atividade_id` (os abastecimentos ligados a um lançamento / a uma atividade).
+const FILTROS_LISTA_ABASTECIMENTOS = Object.freeze([
+  'empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'status', 'data_de', 'data_ate', 'operation_id', 'apontamento_id', 'atividade_id', 'q', 'limit', 'cursor',
+]);
 const FILTROS_OPCOES_ABASTECIMENTO = Object.freeze(/** @type {Record<string, readonly string[]>} */ ({
   bens: ['empresa_id', 'uso', 'q', 'limit', 'cursor'],
   tanques: ['empresa_id', 'bem_id'],
