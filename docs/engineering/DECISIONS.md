@@ -7640,4 +7640,25 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-215 -->
+## D-PROD-215 — Cadastro de Culturas (tabela `CADCULTURAS`) com lista de referência
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-214`, mas a D-PROD-214 já está em uso (PR #303, reforço da FK do apontamento do abastecimento, e PR #305, cadastros do mapa, já mergeada). Para não duplicar, esta decisão é a **D-PROD-215**. O número não está no `migration.sql`, então o checksum não muda. A #303 também usa o prefixo `20261116400000` (`…_abastecimento_fk_apontamento_atividade`): a pasta desta passou a `20261116500000_cadculturas` (conteúdo idêntico); a ordem de release com a #303 está no runbook.
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário, primeiro passo da produção de forragem e das medições ("vamos primeiro fazer o cadastro de culturas ok, no banco eu quero que se chama CADCULTURAS"; os parâmetros ficam no catálogo de cultura, "pré cadastrado com uma numeração") · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Cadastro novo, por fazenda**: model Prisma `Cultura`, tabela física **`CADCULTURAS`** (nome fixado pelo proprietário), `cliente_id` + `empresa_id` com FKs compostas para Cliente e Empresa (`RESTRICT`), RLS no padrão, uniques e índice começando por `cliente_id` (R9/R10). O tenant vem só da sessão (R11).
+2. **Campos:** `codigo` (texto curto, "001", "002"…; único na fazenda; vazio na criação = o servidor usa o próximo número livre depois do maior código numérico, com 3 dígitos), `tipo` (`PASTAGEM | CAPINEIRA | LAVOURA | SILAGEM`, CHECK no banco), `nome` (MAIÚSCULAS, único na fazenda), `especie` e `cultivar` opcionais, `altura_entrada_cm` e `altura_saida_cm` (DECIMAL(6,1), anuláveis; > 0, até 1.000 cm, 1 casa; com as duas, saída < entrada — CHECK no banco e 400 com `field`/`reason` na API), `observacoes`, `ativo` e datas. Números em pt-BR ("25,5") aceitos pela API.
+3. **Lista de referência sem DML:** o botão "Incluir lista de referência" chama o comando **`POST /culturas/comandos/lista-referencia`**, idempotente pelo nome: cria na fazenda as 11 forrageiras que faltam — 001 MARANDU 25/15, 002 XARAÉS 30/15, 003 PIATÃ 35/20, 004 PAIAGUÁS 30/15, 005 DECUMBENS (Basilisk) 20/10, 006 HUMIDICOLA 20/10, 007 MOMBAÇA 90/45, 008 TANZÂNIA 70/35, 009 ZURI 75/35, 010 MASSAI 55/25, 011 TIFTON 85 25/10 (entrada/saída em cm, manejo rotacionado), todas `PASTAGEM`, com a observação "Valor de referência (manejo rotacionado). Ajuste para a fazenda." Nome já cadastrado é pulado; código de referência ocupado por outra cultura → o próximo número livre. Repetir não duplica (`{ criadas, ja_existiam, culturas }`). A migration não semeia nada.
+4. **API `/culturas`** (GET lista e detalhe, POST, PATCH, DELETE com `empresa_id`), corpo fechado (`additionalProperties: false`), auditoria de create/update/delete (`Cultura`), exclusão física. Excluir a fazenda com cultura → 409 `EMPRESA_COM_VINCULOS`. Erros novos: `CULTURA_NOT_FOUND` (404), `CULTURA_NAME_CONFLICT` e `CULTURA_CODIGO_CONFLICT` (409).
+5. **Permissão `pec-culturas`** (módulo `manejo`), leitura incluída, **sem concessão automática**; o comando da lista exige a ação de criar.
+6. **Tela "Culturas"** no padrão Base1 (como Estações e Formulações), no menu Manejo logo depois de Estações; rota `/culturas` no escopo do produto (`config/mapa-manejo-scope.json`, 31 páginas).
+7. **Migration EXPAND `20261116500000_cadculturas`**: só a tabela nova (CREATE TABLE, índice, uniques, FKs, 2 CHECKs e o bloco de RLS pinado). SHA-256 `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`; 62 → 63 migrations, 94 → 95 tabelas, 79 → 80 de tenant.
+
+**Fora do escopo (próximas missões):** ligar a Área à Cultura (a Área continua com o texto de antes), altura de entrada no pasto e de saída no lote, Monitoramento de Forragem (medições) e calibragem.
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-CULTURAS-RUNBOOK-RELEASE.md) (caminho A sem `--contract`; caminho B pelo envelope).
+
+**Relatório:** [`MAIKE-CULTURAS-REPORT.md`](./MAIKE-CULTURAS-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-216 -->

@@ -414,6 +414,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/culturas/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Culturas/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapageral",
       "destination": "/index.html"
     },
@@ -459,6 +467,14 @@
     },
     {
       "source": "/Estacoes",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/culturas",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Culturas",
       "destination": "/index.html"
     },
     {

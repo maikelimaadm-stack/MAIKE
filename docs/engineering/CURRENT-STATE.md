@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-MAPA-CADASTROS-LIGACOES: bugs dos cadastros do mapa e das ligações (D-PROD-214)
+## Missão ativa (2026-11-16) — MAIKE-CULTURAS: Cadastro de Culturas, tabela `CADCULTURAS`, com lista de referência (D-PROD-215)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-215**, pedido do proprietário: primeiro passo da produção de forragem e das medições; o catálogo de culturas traz as alturas de referência, numerado |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `83206ab5` (PR #302, D-PROD-213) |
+| Escopo | Model `Cultura` / tabela `CADCULTURAS` por fazenda; API `/culturas` + comando idempotente `POST /culturas/comandos/lista-referencia` (11 forrageiras); tela "Culturas" Base1 no menu Manejo; permissão `pec-culturas` sem concessão automática. Sem vínculo com Área, pasto ou lote |
+| Migration | `20261116500000_cadculturas`, **EXPAND** (só a tabela nova), SHA-256 `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`. Produção 62 → 63 (a anterior é a `20261116300000_abastecimento_atividade`, D-PROD-211); tabelas 94 → 95 |
+| Release | **Aplicada em produção** em 2026-11-16 às 22:54:49 UTC, caminho B do [runbook](./MAIKE-CULTURAS-RUNBOOK-RELEASE.md), com o GO escrito do proprietário; postcheck 63 / 0, checksum igual ao pinado, `CADCULTURAS` com RLS e 1 política, 5 constraints, `anon` sem SELECT, 95 tabelas |
+| Relatório | [`MAIKE-CULTURAS-REPORT.md`](./MAIKE-CULTURAS-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-MAPA-CADASTROS-LIGACOES: bugs dos cadastros do mapa e das ligações (D-PROD-214)
 
 | Campo | Valor |
 |---|---|

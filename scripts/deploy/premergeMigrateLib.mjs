@@ -164,6 +164,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // existentes vem do bem), da leitura anterior, do delta e do intervalo confiável; local e movimento passam a anuláveis;
   // o CHECK de status é recriado e entram 3 CHECKs, 3 FKs e 3 índices. Nenhuma tabela criada ou apagada.
   '20261116300000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
+  // D-PROD-215: EXPAND — Cadastro de Culturas (CADCULTURAS), só tabela nova.
+  '20261116500000_cadculturas': '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -205,6 +207,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '60149f94e07596da2c93471f82110e6f37b5f014bcf721c1dc366a2d4b4bcce8',
   // D-PROD-207 (Fatia 4): RLS/REVOKE das 4 tabelas de mão de obra e serviço (mesmo corpo, lista nova).
   '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403',
+  // D-PROD-215: RLS/REVOKE da CADCULTURAS (mesmo corpo, lista nova).
+  'cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b',
 ]);
 
 /**

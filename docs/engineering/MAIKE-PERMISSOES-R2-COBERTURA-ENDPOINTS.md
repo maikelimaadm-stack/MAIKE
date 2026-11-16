@@ -228,6 +228,8 @@ D-PROD-205: +3 rotas: `/leituras-cocho` (Leitura de cocho, tabela LEITURACOCHO).
 
 D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
 
+D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabela CADCULTURAS). Leitura e escrita pela tela `pec-culturas` (leitura com `visualizar`); o comando `POST /culturas/comandos/lista-referencia` cria registros e exige a ação de criar (`novo`/`salvar`). Sem concessão automática.
+
 | Método | Rota | Arquivo:linha | Classe — guarda |
 |---|---|---|---|
 | GET | `/admin-maike/primeiro-acesso` | `backend/src/modules/adminMaike/adminRoutes.js:75` | c — sessão MAIKE Admin |
@@ -314,6 +316,12 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/estacoes` | `backend/src/modules/estacoes/estacaoRoutes.js:72` | a — GUARDAS.estacao.criar (D-PROD-188) |
 | PATCH | `/estacoes/:id` | `backend/src/modules/estacoes/estacaoRoutes.js:78` | a — GUARDAS.estacao.editar (D-PROD-188) |
 | DELETE | `/estacoes/:id` | `backend/src/modules/estacoes/estacaoRoutes.js:84` | a — GUARDAS.estacao.excluir (D-PROD-188) |
+| GET | `/culturas` | `backend/src/modules/culturas/culturaRoutes.js:93` | a — GUARDAS.cultura.ver (D-PROD-215) |
+| GET | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:98` | a — GUARDAS.cultura.ver (D-PROD-215) |
+| POST | `/culturas` | `backend/src/modules/culturas/culturaRoutes.js:104` | a — GUARDAS.cultura.criar (D-PROD-215) |
+| POST | `/culturas/comandos/lista-referencia` | `backend/src/modules/culturas/culturaRoutes.js:114` | a — GUARDAS.cultura.criar (D-PROD-215: comando idempotente, inclui as 11 culturas de referência que faltam pelo nome) |
+| PATCH | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:123` | a — GUARDAS.cultura.editar (D-PROD-215) |
+| DELETE | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:133` | a — GUARDAS.cultura.excluir (D-PROD-215) |
 | GET | `/estoque-fisico/reconciliacao` | `backend/src/modules/estoqueFisico/estoqueFisicoRoutes.js:39` | c — GUARDAS.estoqueFisico.reconciliar (só administrador real; somente leitura, `RepeatableRead` + `READ ONLY`, sem tela; querystring fechada; `cursor` assinado por HMAC e amarrado ao tenant e ao escopo, qualquer desvio → 400 `cursor_invalido` antes do banco; D-PROD-161) |
 | GET | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:40` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | GET | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:46` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
