@@ -136,6 +136,31 @@ describe("D-PROD-201 — rebanho e peso do lançamento", () => {
     expect([evento.formulacao_id, evento.formulacao_nome, evento.formulacao_tipo, evento.produto, evento.produto_id]).toEqual(["f-1", "SAL MINERAL 80", "PRONTO", "SAL MINERAL", "prod-1"]);
     expect(evento.cabecas_nao_consomem).toBe(0);
     expect(lotes.map((l) => [l.percentual_pv_lote, Number(l.consumo_esperado_pv_lote_kg.toFixed(6))])).toEqual([[0.1, 12], [0.1, 8]]);
+    // D-PROD-212: projeção sem os 12 meses (e lote sem peso) → sem curva gravada; o fechamento marca aproximado.
+    expect(lotes.map((l) => l.gmd_mensal_kg)).toEqual([null, null]);
+  });
+
+  it("SB-1b — D-PROD-212: o lote com peso projetado grava a curva de ganho (GMD de cada mês) para o fechamento", async () => {
+    // Projeção como o servidor manda: 400 kg em 20/11 e +0,5 kg/dia em todos os meses.
+    const meses = [];
+    let ano = 2026;
+    let mes0 = 10;
+    let anterior = { dia: "2026-11-20", peso: 400 };
+    for (let i = 0; i < 12; i += 1) {
+      const fim = new Date(Date.UTC(ano, mes0 + 1, 0)).toISOString().slice(0, 10);
+      const dias = Math.round((Date.parse(fim) - Date.parse(anterior.dia)) / 86400000);
+      const peso = anterior.peso + 0.5 * dias;
+      meses.push({ mes: fim.slice(0, 7), dia: fim, peso_kg: peso });
+      anterior = { dia: fim, peso };
+      mes0 += 1;
+      if (mes0 > 11) { mes0 = 0; ano += 1; }
+    }
+    estado.rebanho = [posicao("pa", "LOTE A", 30, { projecao_peso: { disponivel: true, dia: "2026-11-20", peso_kg: 400, sem_curva: false, gmd_hoje_kg: 0.5, projecao_mensal: meses } })];
+    await montar();
+    await act(async () => { fireEvent.change(campoKg(), { target: { value: "200" } }); });
+    await salvar();
+    const { lotes } = lancar.mock.calls[0][0];
+    expect(lotes[0].gmd_mensal_kg).toEqual(Object.fromEntries(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"].map((m) => [`gmd_${m}`, 0.5])));
   });
 });
 

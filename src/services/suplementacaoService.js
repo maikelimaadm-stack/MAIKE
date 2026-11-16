@@ -198,6 +198,39 @@ const cicloCompartilhadoNoCache = async (evento, diasPeriodo) => {
   }
 };
 
+/**
+ * D-PROD-212 — de onde vem o custo da sobra que o período HERDOU: o fechamento
+ * anterior do mesmo cocho (o evento fechado mais recente antes deste). Com as
+ * camadas que ele gravou (`sobra_final_camadas`), elas; senão, o custo/kg do
+ * lançamento dele (gravado ou achado pelo movimento de estoque). Sem anterior,
+ * sem rede ou sem custo: `{}` — o cálculo usa o custo do lançamento atual e
+ * marca aproximado. Só leitura; erro de leitura não impede o fechamento.
+ * @param {any} evento
+ * @returns {Promise<{ camadas?: unknown, custoAnteriorKg?: number|null }>}
+ */
+const sobraHerdadaDoEvento = async (evento) => {
+  try {
+    if (!evento?.ponto_suplementacao_id || !evento?.data_lancamento) return {};
+    const eventos = await listEventos();
+    const dia = String(evento.data_lancamento).slice(0, 10);
+    const anteriores = (Array.isArray(eventos) ? eventos : []).filter((item) =>
+      item && String(item.id) !== String(evento.id)
+      && String(item.ponto_suplementacao_id) === String(evento.ponto_suplementacao_id)
+      && (!evento.empresa_id || item.empresa_id === evento.empresa_id)
+      && item.dias_periodo !== null && item.dias_periodo !== undefined
+      && String(item.data_lancamento ?? '').slice(0, 10) <= dia);
+    if (anteriores.length === 0) return {};
+    const chave = (item) => `${String(item.data_lancamento ?? '').slice(0, 10)}|${String(item.createdAt ?? item.created_date ?? '')}`;
+    const anterior = anteriores.reduce((a, b) => (chave(b) > chave(a) ? b : a));
+    if (Array.isArray(anterior.sobra_final_camadas) && anterior.sobra_final_camadas.length > 0) {
+      return { camadas: anterior.sobra_final_camadas };
+    }
+    return { custoAnteriorKg: await custoDoEvento(anterior) };
+  } catch {
+    return {};
+  }
+};
+
 /** Alocações ponderadas por tempo, com os dados carregados aqui. */
 export const calcularAlocacoesDoPeriodo = async ({ evento, diasPeriodo, consumoTotal }) => {
   const [todosLotesSupl, lotesAtivos, movimentacoes] = await Promise.all([
@@ -238,10 +271,12 @@ export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFina
   const lotesDoEvento = lotesSupl.filter((lote) => lote.suplementacao_evento_id === evento.id);
   // D-PROD-206: faixa da formulação, custo da saída de estoque e cocho compartilhado — o que o fechamento do
   // consumo precisa e que um evento anterior a esta decisão não traz gravado.
-  const [faixaPercentual, custoUnitarioKg, cicloCompartilhado] = await Promise.all([
+  // D-PROD-212: e o custo da sobra herdada (a sobra antiga sai primeiro no custo do período).
+  const [faixaPercentual, custoUnitarioKg, cicloCompartilhado, sobraHerdada] = await Promise.all([
     faixaDoEvento(evento),
     custoDoEvento(evento),
     compartilhado === undefined ? cicloCompartilhadoNoCache(evento, diasPeriodo) : Promise.resolve(Boolean(compartilhado)),
+    sobraHerdadaDoEvento(evento),
   ]);
 
   const metricas = calcularConsumo({
@@ -269,6 +304,7 @@ export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFina
     faixaPercentual,
     custoUnitarioKg,
     compartilhado: cicloCompartilhado,
+    sobraHerdada,
   });
 
   return {

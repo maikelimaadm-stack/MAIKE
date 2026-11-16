@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-210)
+## Missão ativa (2026-11-16) — MAIKE-FECHAMENTO-REFINAMENTOS: peso médio do período no esperado (base %PV) e a sobra antiga primeiro no custo (D-PROD-212)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-212** (a D-PROD-211 fica para a PR #300, aberta), refinamentos 1 e 2 do fechamento do consumo aprovados pelo proprietário |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `67f44d76` (PR #297, D-PROD-210) |
+| Escopo | Esperado do fechamento pelo peso médio do período (curva de ganho do lote, mesma regra do peso projetado D-PROD-198), só na base PV; custo do período com a sobra herdada saindo primeiro (camadas FIFO no cocho); correção do PATCH de `SuplementacaoEvento`, que recusava os campos do fechamento do consumo desde a D-PROD-206 |
+| Migration | **Nenhuma** (campos no documento JSON do evento e do lote) |
+| Release | Merge sem passo de banco |
+| Relatório | [`MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md`](./MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-210)
 
 | Campo | Valor |
 |---|---|
