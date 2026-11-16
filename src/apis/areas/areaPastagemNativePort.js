@@ -157,16 +157,48 @@ export const operacoesNativas = Object.freeze({
     ),
 
   /**
+   * Corpo vazio não vai à rede (G4). O PATCH exige ao menos um campo e
+   * responderia 400 — e, no replay da fila offline, um 400 permanente travava
+   * todas as pendências que vêm depois (ex.: `{ numero_area }` enfileirado
+   * antes de a renumeração ter rota própria). Sem nada a gravar, a operação é
+   * um no-op confirmado: devolve só o id, e o cache fica como está.
+   *
    * @param {string} id
    * @param {Record<string, unknown>} dados
    */
-  update: (id, dados) =>
-    nativeRequest(
+  update: async (id, dados) => {
+    const corpo = corpoDeEnvio(dados, CAMPOS_DE_ATUALIZACAO);
+    if (Object.keys(corpo).length === 0) return { id };
+    return nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'PATCH', body: corpoDeEnvio(dados, CAMPOS_DE_ATUALIZACAO), autenticado: true },
+      { method: 'PATCH', body: corpo, autenticado: true },
       ctx('updateArea')
-    ),
+    );
+  },
 });
+
+/** O PATCH tem algo a gravar com estes dados? */
+export const temCampoDeAtualizacao = (dados) => Object.keys(corpoDeEnvio(dados, CAMPOS_DE_ATUALIZACAO)).length > 0;
+
+/**
+ * Reatribuição de `numero_area` (G4): `POST /areas-pastagem/renumerar`, em
+ * lote e atômica no servidor (troca 1↔2 sem colisão no unique). Online sempre:
+ * fora do runtime offline, nunca vai para a fila — um código que o servidor
+ * recusa não pode aparecer como salvo no cache local.
+ *
+ * @param {Array<{id: string, numero_area: string | number}>} itens
+ * @returns {Promise<{itens: any[]}>}
+ */
+export const renumerarAreasNativa = (itens) =>
+  /** @type {Promise<{itens: any[]}>} */ (nativeRequest(
+    `${CAMINHO}/renumerar`,
+    {
+      method: 'POST',
+      body: { itens: itens.map((item) => ({ id: String(item.id), numero_area: String(item.numero_area).trim() })) },
+      autenticado: true,
+    },
+    ctx('renumerarAreas')
+  ));
 
 /**
  * Porta efetiva: operações nativas compostas com o runtime offline.

@@ -6,6 +6,7 @@ import { listarTodosLotes } from "@/services/loteManejoService";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
 import BebedouroTimeline from "./BebedouroTimeline";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
+import { resumoHistoricoBebedouro } from "./historicoBebedouroPorData";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import { ArrowLeft } from "lucide-react";
 
@@ -111,8 +112,8 @@ export default function DetalhesBebedouro({ bebedouro, podeLancar = false, podeE
     staleTime: 60 * 1000
   });
   const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
-  const ultimaAvaliacaoAgua = historico.find((item) => item.qualidade_agua || item.escore_agua);
-  const ultimoLancamento = historico[0];
+  // Resumo pela data do lançamento, não pela ordem de criação (lançamento retroativo).
+  const { ultimoLancamento, ultimaLimpeza: ultimoLancamentoLimpeza, ultimaInspecao } = useMemo(() => resumoHistoricoBebedouro(historico), [historico]);
   const custoTotal = historico.reduce((sum, item) => sum + Number(item.custo || 0), 0);
   const iconePonto = useMemo(() => {
     const tipoBebedouro = normalizeText(bebedouro?.tipo || "");
@@ -139,8 +140,6 @@ export default function DetalhesBebedouro({ bebedouro, podeLancar = false, podeE
   const nomesPastos = Array.isArray(bebedouro.area_vinculada_nomes) && bebedouro.area_vinculada_nomes.length ? bebedouro.area_vinculada_nomes : bebedouro.pasto_nome ? [bebedouro.pasto_nome] : [];
   const lotesAtendidos = lotes.filter((lote) => areaIdsBebedouro.includes(lote.area_atual_id));
   const totalAnimaisAgua = lotesAtendidos.reduce((total, lote) => total + Number(lote.quantidade_cabecas || 0), 0);
-  const ultimoLancamentoLimpeza = historico.find((item) => item.tipo_lancamento === "Limpeza");
-  const ultimaInspecao = historico.find((item) => item.tipo_lancamento === "Inspeção") || ultimaAvaliacaoAgua;
   const diasLimpeza = getPeriodDays(bebedouro.periodicidade_limpeza, bebedouro.dias_limpeza_personalizado);
   const diasInspecao = getPeriodDays(bebedouro.periodicidade_inspecao, bebedouro.dias_inspecao_personalizado);
   const proximaLimpeza = addDaysToDate(ultimoLancamentoLimpeza?.data_lancamento, diasLimpeza);

@@ -431,6 +431,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // D-PROD-137 (BEB-02/BEB-03): os services de bebedouro já lançavam estes
   // códigos, mas fora do catálogo eles viravam 500 ("erro interno").
   BEBEDOURO_NOT_FOUND: { http: 404, meaning: 'id não identifica bebedouro deste tenant (e desta empresa, no histórico)' },
+  // D-PROD-214: exclusão do ponto do mapa com cocho/depósito/bebedouro ligado.
+  BEBEDOURO_COM_HISTORICO: { http: 409, meaning: 'bebedouro com lançamentos de histórico ou sanidade não é excluído; nada foi apagado' },
+  PONTO_SUPLEMENTACAO_NOT_FOUND: { http: 404, meaning: 'id não identifica ponto de suplementação (cocho/depósito) deste tenant' },
+  PONTO_SUPLEMENTACAO_COM_HISTORICO: { http: 409, meaning: 'cocho/depósito com leituras, eventos de suplementação, movimentações ou saldo de estoque não é excluído; nada foi apagado' },
   BEBEDOUROHISTORICO_NOT_FOUND: { http: 404, meaning: 'id não identifica lançamento de bebedouro deste tenant' },
   BEBEDOUROHISTORICO_SOMENTE_ULTIMO: {
     http: 409,
