@@ -254,6 +254,36 @@ describe('vínculo com o lançamento (apontamento) e centro de custo', () => {
     assert.equal(await prisma().abastecimentoBem.count({ where: { cliente_id: s.c } }), 0, 'nada gravado');
   });
 
+  test('cancelar o abastecimento ligado: recusado com a atividade CONCLUIDA (nada alterado), permitido depois de reabrir; o solto não depende da atividade', async () => {
+    const s = await montarLinhasCusto(app);
+    const estoqueInicial = await estoqueAtual(s.diesel.id);
+    const ap = await s.apontar();
+    const ligado = await A.confirmarOk(s.token, corpoAbastecimento(s, { apontamento_id: ap.id }));
+    const externo = await A.confirmarOk(s.token, corpoExterno(s, { apontamento_id: ap.id, medidor_leitura: '1551', quantidade: '10', custo_total: '50' }));
+    const solto = await A.confirmarOk(s.token, corpoAbastecimento(s, { quantidade: '10', data_operacional: '2027-06-11', medidor_leitura: '1560' }));
+    const v1 = (await s.H.ok(s.H.req('GET', `/atividades/${s.atividade.id}?empresa_id=${s.e1.id}`, s.token))).versao;
+    await s.H.ok(s.H.req('POST', `/atividades/${s.atividade.id}/concluir`, s.token, { empresa_id: s.e1.id, versao: v1, data_conclusao: '2027-06-14' }));
+    const foto = await fotoAbastecimento(s.c);
+    for (const a of [ligado, externo]) {
+      const r = await A.cancelar(s.token, a.id, cancelarCorpo(s));
+      assert.deepEqual(erro(r).slice(0, 2), [409, 'ATIVIDADE_STATUS_INVALIDO'], r.body);
+      const corpo = r.json();
+      assert.deepEqual([corpo.details?.status ?? corpo.status, corpo.details?.acao ?? corpo.acao], ['CONCLUIDA', 'cancelar_abastecimento']);
+      assert.match(corpo.message, /reaberta antes/);
+    }
+    assert.equal(await fotoAbastecimento(s.c), foto, 'nada alterado (nem estorno, nem recibo)');
+    assert.equal(await estoqueAtual(s.diesel.id), (Number(estoqueInicial) - 90).toFixed(4));
+    // o solto (sem atividade) cancela com a atividade concluída
+    assert.equal((await A.cancelar(s.token, solto.id, cancelarCorpo(s))).statusCode, 200);
+    // reabrir → cancelar os ligados passa (ESTOQUE estornado, EXTERNO só o status)
+    const v2 = (await s.H.ok(s.H.req('GET', `/atividades/${s.atividade.id}?empresa_id=${s.e1.id}`, s.token))).versao;
+    await s.H.ok(s.H.req('POST', `/atividades/${s.atividade.id}/reabrir`, s.token, { empresa_id: s.e1.id, versao: v2, motivo: 'faltou cancelar o diesel' }));
+    const k1 = await A.ok(A.cancelar(s.token, ligado.id, cancelarCorpo(s)));
+    const k2 = await A.ok(A.cancelar(s.token, externo.id, cancelarCorpo(s)));
+    assert.deepEqual([k1.status, Boolean(k1.estorno), k2.status, k2.estorno], ['CANCELADO', true, 'CANCELADO', null]);
+    assert.equal(await estoqueAtual(s.diesel.id), estoqueInicial, 'estoque de volta');
+  });
+
   test('editar o apontamento (data e área) não mexe nos abastecimentos ligados', async () => {
     const s = await montarLinhasCusto(app);
     const ap = await s.apontar({ area_executada_dia: '5' });

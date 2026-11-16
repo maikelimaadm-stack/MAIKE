@@ -48,8 +48,8 @@
  *   apontamento a toma antes) → Bem FOR UPDATE → (ESTOQUE) LocalEstoque FOR KEY
  *   SHARE → Produto (`travarProdutosEstoque`; no EXTERNO só `FOR SHARE` da
  *   linha, sem a trava de estoque) → lotes → movimento → sequências → auditoria.
- * O cancelamento direto: Empresa FOR SHARE → Bem FOR UPDATE → AbastecimentoBem
- * FOR UPDATE → Produto → lotes → movimentos. A cascata: Empresa FOR SHARE →
+ * O cancelamento direto: Empresa FOR SHARE → (ligado) Atividade FOR UPDATE, só
+ * ABERTA → Bem FOR UPDATE → AbastecimentoBem FOR UPDATE → Produto → lotes → movimentos. A cascata: Empresa FOR SHARE →
  * Atividade FOR UPDATE (quem chama) → Bens FOR UPDATE (ordenados) →
  * AbastecimentoBem FOR UPDATE → Produtos (todos, ordenados) → lotes → movimentos,
  * e roda ANTES do estorno das linhas de produto (que travam Produto): nenhuma
@@ -723,8 +723,19 @@ export const cancelar = async (contexto, id, corpo) => {
           executar: async () => {
             const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
             const { hoje } = await hojeDaEmpresa(tx, cli, empresaId); // R2 (dia do estorno)
-            const base = await tx.abastecimentoBem.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id }, select: { bem_id: true, produto_id: true } });
+            const base = await tx.abastecimentoBem.findFirst({
+              where: { cliente_id: cli, empresa_id: empresaId, id }, select: { bem_id: true, produto_id: true, atividade_id: true },
+            });
             if (!base) throw naoEncontrado();
+            // D-PROD-210 — R2b: ligado à atividade, a Atividade FOR UPDATE vem ANTES do bem (o `atividade_id` nunca
+            // muda) e só a ABERTA deixa cancelar: a CONCLUIDA tem os totais fechados (reabra antes); a CANCELADA não
+            // tem abastecimento ligado CONFIRMADO (a cascata os cancelou).
+            if (base.atividade_id) {
+              await travarAtividade(tx, cli, empresaId, base.atividade_id);
+              const atividade = await tx.atividade.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id: base.atividade_id }, select: { status: true } });
+              if (!atividade) throw new Error('abastecimento: atividade do abastecimento ausente na fazenda');
+              exigirStatusDaAtividade(atividade, 'cancelar_abastecimento');
+            }
             const bemTravado = /** @type {any[]} */ (
               await tx.$queryRaw`SELECT id FROM "BemPatrimonial" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${base.bem_id} FOR UPDATE`
             ); // R3
