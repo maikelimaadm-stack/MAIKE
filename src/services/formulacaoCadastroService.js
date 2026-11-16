@@ -51,12 +51,12 @@ export const lerDecimal = (texto, { casas, maximo }) => {
 export const lerPercentualPV = (texto) => lerDecimal(texto, { casas: 4, maximo: PV_MAXIMO });
 /** kg por batida, > 0, até 3 casas. @param {unknown} texto */
 export const lerKg = (texto) => lerDecimal(texto, { casas: 3 });
-/** D-PROD-208: teto de gramas por cabeça por dia (20 kg), como no servidor. */
+/** D-PROD-210: teto de gramas por cabeça por dia (20 kg), como no servidor. */
 export const G_MAXIMO = 20000;
 /** Gramas por cabeça por dia, > 0, até 2 casas e até 20.000 ("1.500" = 1500 g). @param {unknown} texto */
 export const lerGramas = (texto) => lerDecimal(texto, { casas: 2, maximo: G_MAXIMO });
 
-/** D-PROD-208: as bases do consumo da formulação (uma por formulação, sem mistura). */
+/** D-PROD-210: as bases do consumo da formulação (uma por formulação, sem mistura). */
 export const BASES_CONSUMO = Object.freeze([
   { valor: 'PV', rotulo: '% do peso vivo' },
   { valor: 'G_CAB_DIA', rotulo: 'g por cabeça por dia' },
@@ -67,7 +67,7 @@ export const rotuloDaBase = (base) => BASES_CONSUMO.find((b) => b.valor === base
 export const ehBaseEmGramas = (f) => f?.base_consumo === 'G_CAB_DIA';
 
 /**
- * D-PROD-208 — o equivalente em kg dos gramas digitados ("1500" → "= 1,5 kg/cab/dia"); vazio sem número válido.
+ * D-PROD-210 — o equivalente em kg dos gramas digitados ("1500" → "= 1,5 kg/cab/dia"); vazio sem número válido.
  * @param {unknown} texto
  */
 export const equivalenteEmKg = (texto) => {
@@ -135,7 +135,7 @@ export const validarFormulacao = (f) => {
   if (!nome) erros.nome = 'Obrigatório';
   if (!TIPOS_FORMULACAO.some((t) => t.valor === f.tipo)) erros.tipo = 'Obrigatório';
   if (!f.produto_id) erros.produto_id = 'Obrigatório';
-  // D-PROD-208: UMA base por formulação. Base PV: só o %PV conta (o g/cab/dia antigo vai como referência, intocado).
+  // D-PROD-210: UMA base por formulação. Base PV: só o %PV conta (o g/cab/dia antigo vai como referência, intocado).
   // Base G_CAB_DIA: só os gramas contam e o %PV vai nulo.
   const emGramas = f.base_consumo === 'G_CAB_DIA';
   const pv = emGramas ? undefined : lerPercentualPV(f.percentual_pv_padrao);

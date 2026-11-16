@@ -175,11 +175,11 @@ export function percentualPVDoLote(lote, formulacao) {
   return { percentual: Number.isFinite(padrao) && padrao > 0 ? padrao : 0, consome: true, origem: "padrao" };
 }
 
-/** D-PROD-208 — a base do consumo da formulação: 'G_CAB_DIA' (gramas por cabeça por dia) ou 'PV' (padrão, inclusive sem o campo). */
+/** D-PROD-210 — a base do consumo da formulação: 'G_CAB_DIA' (gramas por cabeça por dia) ou 'PV' (padrão, inclusive sem o campo). */
 export const baseDoConsumo = (formulacao) => (formulacao?.base_consumo === "G_CAB_DIA" ? "G_CAB_DIA" : "PV");
 
 /**
- * D-PROD-208 — gramas por cabeça por dia de um lote numa formulação da base
+ * D-PROD-210 — gramas por cabeça por dia de um lote numa formulação da base
  * G_CAB_DIA: a regra da Categoria de Manejo do lote, quando houver (não consome
  * → 0; consome → os gramas da regra), senão o padrão (`consumo_objetivo_g_cab_dia`).
  * @param {{ categoria_manejo_id?: string | null } | null | undefined} lote
@@ -205,7 +205,7 @@ export function gramasDoLote(lote, formulacao) {
  * (a mesma extrapolação da D-PROD-201), com o %PV da própria categoria. Lote
  * cuja categoria não consome entra com 0 kg. Sem formulação, tudo 0.
  *
- * D-PROD-208 — na base G_CAB_DIA a meta é FIXA por cabeça e não usa peso:
+ * D-PROD-210 — na base G_CAB_DIA a meta é FIXA por cabeça e não usa peso:
  * `cabeças × gramas do lote / 1000` (regra da categoria, senão o padrão); lote
  * sem peso não impede o esperado. `gCabDiaEsperado` é a média dos gramas
  * ponderada pelas cabeças que consomem (null na base PV ou sem quem consome).

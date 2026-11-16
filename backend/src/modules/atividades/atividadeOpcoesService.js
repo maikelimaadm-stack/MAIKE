@@ -18,15 +18,16 @@
  * usados na atividade primeiro) e locais com saldo —, com a lógica dos
  * seletores do financeiro e do abastecimento, mas com a guarda "ver" desta tela.
  *
- * D-PROD-207 (Fatia 4): os seletores das linhas de MÃO DE OBRA (funcionários)
- * e de SERVIÇO (serviços e parceiros prestadores de serviço).
+ * D-PROD-207 (Fatia 4): os seletores das linhas de MÃO DE OBRA e de SERVIÇO
+ * (serviços e parceiros prestadores de serviço). D-PROD-208: a mão de obra é de
+ * um parceiro — funcionário ou terceiro (`/atividades-opcoes/mao-obra`).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError, atividadeNotFound } from '../../shared/errors/AppError.js';
 import { ZERO, dec } from '../financeiro/decimalFinanceiro.js';
-import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
+import { PAPEL_FUNCIONARIO, PAPEL_PRESTADOR_SERVICO, lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { opcoesResponsaveis } from '../patrimonio/bemPatrimonialOpcoesService.js';
 import { paginacaoOpcoes, paginarPorNome } from '../patrimonio/patrimonioComum.js';
@@ -35,6 +36,7 @@ import { bemPublico, t4 } from './atividadeComum.js';
 import { produtosUsadosNaAtividade } from './atividadeApontamentoProdutoRepository.js';
 import { paginarBensAtivos } from './atividadeRepository.js';
 import { PAPEL_PRESTADOR } from './atividadeApontamentoServicoService.js';
+import { ORIGENS_MAO_OBRA, origemDoParceiro } from './atividadeApontamentoMaoObraService.js';
 
 /**
  * Máquinas ATIVAS da empresa (`GET /atividades-opcoes/bens`); `natureza`
@@ -176,27 +178,48 @@ export const opcoesLocaisDoProduto = async (contexto, query = {}) => {
 // ─── D-PROD-207 (Fatia 4): seletores das linhas de mão de obra e de serviço ──
 
 /**
- * `GET /atividades-opcoes/funcionarios?empresa_id=&q=&cursor=&limit=`:
- * funcionários ATIVOS da fazenda, keyset (nome, id), `q` em nome, número ou
- * cargo. Cada opção: `{ id, numero, nome, cargo, tipo, custo_hora, custo_diaria }`
- * (custos como texto com 4 casas, ou nulos).
+ * D-PROD-208 — `GET /atividades-opcoes/mao-obra?empresa_id=&q=&cursor=&limit=`:
+ * parceiros ATIVOS da fazenda com o papel `funcionario` ou `prestador_servico`
+ * (pelas grafias gravadas, a mesma normalização de `lerPapeis`; `tipos` vazio
+ * NÃO entra), keyset (nome, id). Cada opção: `{ id, nome, origem,
+ * funcionario_tipo, funcionario_custo_hora, funcionario_custo_diaria }` — a
+ * `origem` é a que a linha gravaria (FUNCIONARIO vale sobre TERCEIRO); os dados
+ * do funcionário só no funcionário (nulos no terceiro). Nada de documento; o
+ * `q` casa SÓ o nome (já escapado: busca literal).
  * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {Record<string, any>} [query]
  */
-export const opcoesFuncionarios = async (contexto, query = {}) => {
+export const opcoesMaoObra = async (contexto, query = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const empresaId = await exigirEmpresaDoTenant(prisma, auth.clienteId, query.empresa_id);
   const { limit, cursor, q } = paginacaoOpcoes(query);
+  const gravadas = /** @type {Array<{ t: string }>} */ (
+    await prisma.$queryRaw`SELECT DISTINCT unnest(tipos) AS t FROM "Fornecedor" WHERE cliente_id = ${auth.clienteId} AND empresa_id = ${empresaId}`
+  );
+  const grafias = gravadas
+    .map((l) => l.t)
+    .filter((t) => typeof t === 'string' && lerPapeis([t]).papeis.some((p) => p === PAPEL_FUNCIONARIO || p === PAPEL_PRESTADOR_SERVICO));
   /** @type {any[]} */
-  const filtros = [{ cliente_id: auth.clienteId, empresa_id: empresaId, ativo: true }];
-  if (q) filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { numero: { contains: q } }, { cargo: { contains: q, mode: 'insensitive' } }] });
-  return paginarPorNome(prisma.funcionario, {
+  const filtros = [{ cliente_id: auth.clienteId, empresa_id: empresaId, ativo: true }, grafias.length ? { tipos: { hasSome: grafias } } : { id: { in: [] } }];
+  if (q) filtros.push({ nome: { contains: q, mode: 'insensitive' } });
+  return paginarPorNome(prisma.fornecedor, {
     where: { AND: filtros },
-    select: { id: true, numero: true, nome: true, cargo: true, tipo: true, custo_hora: true, custo_diaria: true },
+    select: { id: true, nome: true, empresa_id: true, ativo: true, tipos: true, funcionario_tipo: true, funcionario_custo_hora: true, funcionario_custo_diaria: true },
     limit,
     cursor,
     mapear: (linhas) =>
-      linhas.map((f) => ({ id: f.id, numero: f.numero, nome: f.nome, cargo: f.cargo ?? null, tipo: f.tipo, custo_hora: t4(f.custo_hora), custo_diaria: t4(f.custo_diaria) })),
+      linhas.map((p) => {
+        const origem = origemDoParceiro(p, empresaId);
+        const funcionario = origem === ORIGENS_MAO_OBRA.FUNCIONARIO;
+        return {
+          id: p.id,
+          nome: p.nome,
+          origem,
+          funcionario_tipo: funcionario ? p.funcionario_tipo ?? null : null,
+          funcionario_custo_hora: funcionario ? t4(p.funcionario_custo_hora) : null,
+          funcionario_custo_diaria: funcionario ? t4(p.funcionario_custo_diaria) : null,
+        };
+      }),
   });
 };
 

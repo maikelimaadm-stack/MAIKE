@@ -1,11 +1,11 @@
 # MAIKE-BASE-CONSUMO — Relatório
 
-> **CONTRACT aprovado pelo proprietário** (D-PROD-208): "sobre a tabela que já tem dados pode excluir, não tem
+> **CONTRACT aprovado pelo proprietário** (D-PROD-210): "sobre a tabela que já tem dados pode excluir, não tem
 > problema, os dados eram só teste". As 3 tabelas de Formulações estavam com **0 linhas** em produção e a guarda da
 > migration exige isso; nenhum dado é migrado ou apagado. A aplicação em produção continua pendente do GO escrito
 > desta migration (runbook §7).
 
-Decisão: [D-PROD-208](./DECISIONS.md) · Runbook: [`MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md`](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md)
+Decisão: [D-PROD-210](./DECISIONS.md) · Runbook: [`MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md`](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md)
 · Branch `claude/kind-knuth-tztu1v`.
 
 ## 1. Entrega
@@ -15,7 +15,7 @@ Decisão: [D-PROD-208](./DECISIONS.md) · Runbook: [`MAIKE-BASE-CONSUMO-RUNBOOK-
   categoria que consomem levam `g_cab_dia`. Na base PV o g/cab/dia que já existir é só referência.
 - **Sem mistura:** o servidor recusa (400 com `field`/`reason`) %PV na base G, gramas na base PV, os dois na mesma
   regra e a base sem o seu valor; a forma final vale também no PATCH (trocar a base exige os valores da nova).
-- **Migration CONTRACT `20261116000000_formulacao_base_consumo`** (SHA-256 `a8c42eeb…3171`): `base_consumo` NOT NULL
+- **Migration CONTRACT `20261116200000_formulacao_base_consumo`** (SHA-256 `a8c42eeb…3171`): `base_consumo` NOT NULL
   DEFAULT 'PV', `percentual_pv_padrao` anulável, CHECK por base no lugar do CHECK do %PV, `g_cab_dia` na regra e o
   CHECK da forma da regra recriado. Guarda com as 3 tabelas vazias. Oitava entrada de `MIGRATIONS_CONTRACT_APROVADAS`.
 - **Tela Formulações:** campo "Base do consumo"; só os campos da base aparecem; trocar a base limpa o padrão e os
@@ -41,10 +41,10 @@ tabela antiga. Gravar um %PV de mentira na base G (sentinela) foi descartado.
 
 ## 4. Release e testes das migrations anteriores
 
-- A CONTRACT é isolada: `premerge-migrate --contract D-PROD-208` e, no runner oficial, `MIGRATION_CONTRACT_AUTORIZADO`
+- A CONTRACT é isolada: `premerge-migrate --contract D-PROD-210` e, no runner oficial, `MIGRATION_CONTRACT_AUTORIZADO`
   exato (B27g, B20 do `migrations.test.mjs`).
 - Nos testes das migrations anteriores que usam o runner com a conferência de alvo exigida (D-PROD-195, D-PROD-197,
-  D-PROD-200, D-PROD-202, D-PROD-207), a D-PROD-208 sobe **fora de ordem** pelo Prisma direto antes do runner — junto
+  D-PROD-200, D-PROD-202, D-PROD-207), a D-PROD-210 sobe **fora de ordem** pelo Prisma direto antes do runner — junto
   com a EXPAND das Formulações (D-PROD-203), de que depende — como já se fazia com a D-PROD-200. Nos caminhos com alvo
   local (sem conferência) ela sobe por último. Os ensaios da D-PROD-162 e da D-PROD-187 a deixam fora da partida.
 - Ensaio do `aplicar208.sql`: alvo de produção recusado; aplicou 58 → 59 com 95 tabelas; `migrate status` em dia;

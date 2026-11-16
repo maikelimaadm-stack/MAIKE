@@ -123,12 +123,13 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     // D-PROD-203: a EXPAND das Formulações (FK para "CADCATEGORIA") também: agora 4.
     // D-PROD-205: a EXPAND da Leitura de cocho, de nome ainda posterior, também: agora 5.
     // D-PROD-206: a EXPAND da faixa de tolerância (coluna em CADFORMULACAO), também: agora 6.
-    // D-PROD-208: a CONTRACT da base do consumo (altera as 3 tabelas das Formulações), também: agora 7.
+    // D-PROD-210: a CONTRACT da base do consumo (altera as 3 tabelas das Formulações), também: agora 7.
     assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE]);
-    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 7, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-208');
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 7, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-210');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
-    assert.equal(TABELAS_PUBLIC, 91, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-207, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
+    assert.equal(TABELAS_PUBLIC, 90, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-207, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem; − a Funcionario (D-PROD-208, na partida, por último)');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261115900000_atividade_mao_obra_servico'), 'a EXPAND da D-PROD-207 sobe na partida, depois da D-PROD-202');
+    assert.deepEqual(NOMES_POSTERIORES_NA_PARTIDA.slice(-2), ['20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado'], 'as CONTRACT da D-PROD-208 (Funcionario e a linha de mão de obra vazias) e da D-PROD-209 (só o CHECK de Fornecedor) sobem na partida, por último');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114600000_atividade_linhas_produto_maquina'), 'a EXPAND da D-PROD-202 sobe na partida, depois da D-PROD-200');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114500000_atividade_cabecalho'), 'a CONTRACT da D-PROD-200 sobe na partida');
     // O estado de produção: duas migrations de nome POSTERIOR a esta CONTRACT já concluídas, por último e nesta ordem, e esta pendente.

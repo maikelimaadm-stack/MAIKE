@@ -204,7 +204,7 @@ describe("FC-5 — tela", () => {
   });
 });
 
-describe("D-PROD-208 — fechamento na base g/cab/dia: o farol compara os gramas", () => {
+describe("D-PROD-210 — fechamento na base g/cab/dia: o farol compara os gramas", () => {
   it("FG-1 — relação = g real ÷ g esperado; limites exatos da faixa; %PV esperado nulo; %PV real só informação", async () => {
     const { calcularFechamentoConsumo } = await import("@/domain/suplementacao/fechamentoConsumo");
     const evento = { base_consumo: "G_CAB_DIA", total_cabecas_afetadas: 100, cabecas_nao_consomem: 0, consumo_esperado_pv_kg: 8, consumo_esperado_g_cab_dia: 80, peso_vivo_consumo_kg: 40000 };

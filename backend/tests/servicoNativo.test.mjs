@@ -1,15 +1,21 @@
 /**
- * Cadastros de Funcionário e Serviço da fazenda (D-PROD-207, Fatia 4 do
- * Lançamento de Atividades; contrato `MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md` §2)
- * — PostgreSQL real.
+ * Cadastro de Serviço da fazenda (D-PROD-207, Fatia 4 do Lançamento de
+ * Atividades; contrato `MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md` §2) —
+ * PostgreSQL real.
  *
  * Prova: CRUD com número da sequência do tenant, nome em MAIÚSCULAS, decimais
  * como texto, inativar/reativar (idempotente, auditado), SEM DELETE, isolamento
- * por tenant e por fazenda (404 sem oráculo), validações (tipo, custos
- * negativos ou numéricos, unidade inativa ou de outro cliente, centro de outra
- * fazenda ou inativo), a unidade de medida usada por serviço não sai (409
+ * por tenant e por fazenda (404 sem oráculo), validações (valor negativo ou
+ * numérico, unidade inativa ou de outro cliente, centro de outra fazenda ou
+ * inativo), a unidade de medida usada por serviço não sai (409
  * `UNIDADE_MEDIDA_DELETE_BLOCKED` vinculo `servico`) e a permissão pela própria
- * tela (`sup-funcionarios`, `sup-servicos`), leitura incluída.
+ * tela (`sup-servicos`), leitura incluída.
+ *
+ * D-PROD-208: o cadastro de Funcionário (`/funcionarios`, tela
+ * `sup-funcionarios`) saiu — o funcionário é um PAPEL do parceiro (tela
+ * Parceiros); este arquivo era `funcionarioServicoNativo.test.mjs` e ficou só
+ * com a parte de Serviço (a do parceiro-funcionário está em
+ * `gestaoP1Cadastros.test.mjs`).
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -37,9 +43,6 @@ beforeEach(async () => {
   await limparBanco();
 });
 
-const CAMPOS_FUNCIONARIO = [
-  'ativo', 'cargo', 'created_date', 'custo_diaria', 'custo_hora', 'empresa_id', 'id', 'nome', 'numero', 'tipo', 'updated_date',
-];
 const CAMPOS_SERVICO = [
   'ativo', 'centro_custo_padrao', 'centro_custo_padrao_id', 'created_date', 'empresa_id', 'id', 'nome', 'numero',
   'unidade_medida', 'unidade_medida_id', 'updated_date', 'valor_referencia',
@@ -91,210 +94,9 @@ const contaCom = async (cen, permissoes_telas, modulos = ['suporte-mapa']) => {
   return corpo.token;
 };
 
-const funcionario = (empresaId, extra = {}) => ({ empresa_id: empresaId, nome: 'joão da silva', tipo: 'DIARISTA', ...extra });
 const servico = (empresaId, unidadeId, extra = {}) => ({ empresa_id: empresaId, nome: 'aplicação aérea', unidade_medida_id: unidadeId, ...extra });
-const criarF = (token, payload) => req('POST', '/funcionarios', token, payload);
 const criarS = (token, payload) => req('POST', '/servicos', token, payload);
 
-// ─── Funcionário ────────────────────────────────────────────────────────────
-
-describe('D-PROD-207 — Funcionários: criação, leitura e lista', () => {
-  test('sem token → 401', async () => {
-    assert.equal((await req('GET', '/funcionarios?empresa_id=x')).statusCode, 401);
-    assert.equal((await req('POST', '/funcionarios', undefined, { empresa_id: 'x', nome: 'x', tipo: 'DIARISTA' })).statusCode, 401);
-  });
-
-  test('POST cria (201): número da sequência, MAIÚSCULAS, decimais como texto com 4 casas, ativo; GET detalha; tenant da sessão', async () => {
-    const { token, clienteId, e1 } = await cenario();
-    const r = await criarF(token, funcionario(e1.id, { cargo: 'tratorista', custo_hora: '25.5', custo_diaria: '200' }));
-    assert.equal(r.statusCode, 201, r.body);
-    const f = r.json();
-    assert.deepEqual(Object.keys(f).sort(), CAMPOS_FUNCIONARIO);
-    assert.equal(f.nome, 'JOÃO DA SILVA');
-    assert.equal(f.cargo, 'TRATORISTA');
-    assert.equal(f.tipo, 'DIARISTA');
-    assert.equal(f.custo_hora, '25.5000');
-    assert.equal(f.custo_diaria, '200.0000');
-    assert.equal(f.ativo, true);
-    assert.equal(f.empresa_id, e1.id);
-    assert.equal(f.numero, '1');
-    const segundo = (await criarF(token, funcionario(e1.id, { nome: 'maria', tipo: 'MENSALISTA' }))).json();
-    assert.equal(segundo.numero, '2');
-    assert.equal(segundo.custo_hora, null);
-    assert.equal(segundo.cargo, null);
-
-    const um = await req('GET', comEmpresa(`/funcionarios/${f.id}`, e1.id), token);
-    assert.equal(um.statusCode, 200, um.body);
-    assert.deepEqual(um.json(), f);
-    const banco = await prisma().funcionario.findUnique({ where: { id: f.id } });
-    assert.equal(banco.cliente_id, clienteId, 'tenant gravado a partir da sessão');
-  });
-
-  test('lista keyset por fazenda, com busca (nome, número, cargo), filtro de situação e paginação', async () => {
-    const { token, e1, e2 } = await cenario();
-    const a = (await criarF(token, funcionario(e1.id, { nome: 'ana', cargo: 'vaqueiro' }))).json();
-    const b = (await criarF(token, funcionario(e1.id, { nome: 'bruno', tipo: 'TAREFEIRO' }))).json();
-    const c = (await criarF(token, funcionario(e1.id, { nome: 'carla', tipo: 'MENSALISTA' }))).json();
-    await criarF(token, funcionario(e2.id, { nome: 'de outra fazenda' }));
-    await req('POST', `/funcionarios/${b.id}/inativar`, token, { empresa_id: e1.id });
-
-    const lista = (await req('GET', comEmpresa('/funcionarios', e1.id), token)).json();
-    assert.deepEqual(Object.keys(lista).sort(), ['has_more', 'items', 'limit', 'next_cursor', 'total']);
-    assert.equal(lista.total, 3);
-    assert.deepEqual(lista.items.map((x) => x.id), [c.id, b.id, a.id], 'mais novo primeiro');
-
-    assert.deepEqual((await req('GET', comEmpresa('/funcionarios', e1.id, '&q=vaque'), token)).json().items.map((x) => x.id), [a.id]);
-    assert.deepEqual((await req('GET', comEmpresa('/funcionarios', e1.id, '&q=Carl'), token)).json().items.map((x) => x.id), [c.id]);
-    assert.deepEqual((await req('GET', comEmpresa('/funcionarios', e1.id, `&q=${b.numero}`), token)).json().items.map((x) => x.id), [b.id]);
-    assert.deepEqual((await req('GET', comEmpresa('/funcionarios', e1.id, '&ativo=false'), token)).json().items.map((x) => x.id), [b.id]);
-    assert.equal((await req('GET', comEmpresa('/funcionarios', e1.id, '&ativo=true'), token)).json().total, 2);
-
-    const p1 = (await req('GET', comEmpresa('/funcionarios', e1.id, '&limit=2'), token)).json();
-    assert.equal(p1.items.length, 2);
-    assert.equal(p1.has_more, true);
-    const p2 = (await req('GET', comEmpresa('/funcionarios', e1.id, `&limit=2&cursor=${p1.next_cursor}`), token)).json();
-    assert.deepEqual(p2.items.map((x) => x.id), [a.id]);
-    assert.equal(p2.has_more, false);
-    assert.equal((await req('GET', comEmpresa('/funcionarios', e1.id, '&cursor=lixo'), token)).statusCode, 400);
-
-    assert.equal((await req('GET', comEmpresa('/funcionarios', e2.id), token)).json().total, 1);
-  });
-});
-
-describe('D-PROD-207 — Funcionários: validação do corpo', () => {
-  test('chave fora do schema (cliente_id, numero, ativo, salario) → 400 e nada gravado', async () => {
-    const { token, clienteId, e1 } = await cenario();
-    for (const extra of [{ cliente_id: clienteId }, { numero: '99' }, { ativo: false }, { salario: '1000' }]) {
-      const r = await criarF(token, funcionario(e1.id, extra));
-      assert.equal(r.statusCode, 400, `${JSON.stringify(extra)} ${r.body}`);
-    }
-    assert.equal(await prisma().funcionario.count(), 0);
-  });
-
-  test('obrigatórios (empresa_id, nome, tipo) e tipo fechado → 400; os três tipos aceitos', async () => {
-    const { token, e1 } = await cenario();
-    for (const campo of ['empresa_id', 'nome', 'tipo']) {
-      const corpo = funcionario(e1.id);
-      delete corpo[campo];
-      assert.equal((await criarF(token, corpo)).statusCode, 400, campo);
-    }
-    assert.equal((await criarF(token, funcionario(e1.id, { nome: '   ' }))).statusCode, 400, 'nome em branco');
-    for (const tipo of ['diarista', 'EMPREITEIRO', '', 'Mensalista']) {
-      assert.equal((await criarF(token, funcionario(e1.id, { tipo }))).statusCode, 400, tipo);
-    }
-    assert.equal(await prisma().funcionario.count(), 0);
-    for (const tipo of ['MENSALISTA', 'DIARISTA', 'TAREFEIRO']) {
-      assert.equal((await criarF(token, funcionario(e1.id, { nome: tipo, tipo }))).statusCode, 201, tipo);
-    }
-  });
-
-  test('custos: negativo, número JSON, formato ou casas demais → 400; zero aceito; null limpa no PATCH', async () => {
-    const { token, e1 } = await cenario();
-    for (const extra of [{ custo_hora: '-1' }, { custo_diaria: '-0.01' }, { custo_hora: 25 }, { custo_diaria: 1.5 }, { custo_hora: '1,5' }, { custo_hora: '1.12345' }, { custo_hora: '12345678901' }]) {
-      const r = await criarF(token, funcionario(e1.id, extra));
-      assert.equal(r.statusCode, 400, `${JSON.stringify(extra)} ${r.body}`);
-    }
-    const numero = await criarF(token, funcionario(e1.id, { custo_hora: 25 }));
-    assert.equal(numero.json().reason, 'valor_deve_ser_texto');
-    assert.equal(await prisma().funcionario.count(), 0);
-    const f = (await criarF(token, funcionario(e1.id, { custo_hora: '0', custo_diaria: '0.0000' }))).json();
-    assert.equal(f.custo_hora, '0.0000');
-    const limpo = await req('PATCH', `/funcionarios/${f.id}`, token, { empresa_id: e1.id, custo_hora: null });
-    assert.equal(limpo.statusCode, 200, limpo.body);
-    assert.equal(limpo.json().custo_hora, null);
-    assert.equal(limpo.json().custo_diaria, '0.0000');
-  });
-
-  test('texto que cresce ao virar maiúsculo e passa da coluna → 400 tamanho_excedido, nunca 500', async () => {
-    const { token, e1 } = await cenario();
-    const r = await criarF(token, funcionario(e1.id, { cargo: 'ß'.repeat(61) }));
-    assert.equal(r.statusCode, 400, r.body);
-    assert.equal(r.json().reason, 'tamanho_excedido');
-    assert.equal((await criarF(token, funcionario(e1.id, { nome: '<b>x</b>' }))).statusCode, 400, 'marcação HTML');
-  });
-});
-
-describe('D-PROD-207 — Funcionários: edição, inativar/reativar, sem DELETE e escopo', () => {
-  test('PATCH altera e audita; sem mudança não grava; sem empresa_id, só empresa_id ou com ativo → 400', async () => {
-    const { token, clienteId, e1 } = await cenario();
-    const f = (await criarF(token, funcionario(e1.id))).json();
-    const r = await req('PATCH', `/funcionarios/${f.id}`, token, { empresa_id: e1.id, nome: 'joão s.', tipo: 'TAREFEIRO', cargo: 'peão', custo_diaria: '150.25' });
-    assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().nome, 'JOÃO S.');
-    assert.equal(r.json().tipo, 'TAREFEIRO');
-    assert.equal(r.json().cargo, 'PEÃO');
-    assert.equal(r.json().custo_diaria, '150.2500');
-    assert.equal(r.json().numero, f.numero, 'número não muda');
-    const igual = await req('PATCH', `/funcionarios/${f.id}`, token, { empresa_id: e1.id, nome: 'JOÃO S.' });
-    assert.equal(igual.statusCode, 200);
-    assert.equal((await req('PATCH', `/funcionarios/${f.id}`, token, { nome: 'Z' })).statusCode, 400, 'sem empresa_id');
-    assert.equal((await req('PATCH', `/funcionarios/${f.id}`, token, { empresa_id: e1.id })).statusCode, 400, 'nada para alterar');
-    assert.equal((await req('PATCH', `/funcionarios/${f.id}`, token, { empresa_id: e1.id, ativo: false })).statusCode, 400, 'ativo só pelas rotas próprias');
-    const eventos = await prisma().auditLog.findMany({ where: { cliente_id: clienteId, entidade: 'Funcionario' }, orderBy: { createdAt: 'asc' } });
-    assert.deepEqual(eventos.map((x) => x.acao), ['create', 'update']);
-  });
-
-  test('inativar e reativar (200, idempotentes, auditados); o inativo continua legível', async () => {
-    const { token, clienteId, e1 } = await cenario();
-    const f = (await criarF(token, funcionario(e1.id))).json();
-    const ina = await req('POST', `/funcionarios/${f.id}/inativar`, token, { empresa_id: e1.id });
-    assert.equal(ina.statusCode, 200, ina.body);
-    assert.equal(ina.json().ativo, false);
-    assert.equal((await req('POST', `/funcionarios/${f.id}/inativar`, token, { empresa_id: e1.id })).json().ativo, false, 'de novo: sem erro');
-    assert.equal((await req('GET', comEmpresa(`/funcionarios/${f.id}`, e1.id), token)).json().ativo, false);
-    const rea = await req('POST', `/funcionarios/${f.id}/reativar`, token, { empresa_id: e1.id });
-    assert.equal(rea.statusCode, 200, rea.body);
-    assert.equal(rea.json().ativo, true);
-    assert.equal((await req('POST', `/funcionarios/${f.id}/reativar`, token, { empresa_id: e1.id, ativo: true })).statusCode, 400, 'corpo fechado');
-    const eventos = await prisma().auditLog.findMany({ where: { cliente_id: clienteId, entidade: 'Funcionario' }, orderBy: { createdAt: 'asc' } });
-    assert.deepEqual(eventos.map((x) => x.acao), ['create', 'update', 'update'], 'a inativação repetida não audita');
-  });
-
-  test('sem DELETE: a rota não existe (404) e o funcionário fica', async () => {
-    const { token, e1 } = await cenario();
-    const f = (await criarF(token, funcionario(e1.id))).json();
-    const r = await req('DELETE', comEmpresa(`/funcionarios/${f.id}`, e1.id), token);
-    assert.equal(r.statusCode, 404, r.body);
-    assert.equal(await prisma().funcionario.count(), 1);
-  });
-
-  test('outra fazenda do tenant → 404 FUNCIONARIO_NOT_FOUND em ler, editar, inativar e reativar; nada muda', async () => {
-    const { token, e1, e2 } = await cenario();
-    const f = (await criarF(token, funcionario(e1.id))).json();
-    for (const [m, url, corpo] of [
-      ['GET', comEmpresa(`/funcionarios/${f.id}`, e2.id)],
-      ['PATCH', `/funcionarios/${f.id}`, { empresa_id: e2.id, nome: 'movido' }],
-      ['POST', `/funcionarios/${f.id}/inativar`, { empresa_id: e2.id }],
-      ['POST', `/funcionarios/${f.id}/reativar`, { empresa_id: e2.id }],
-    ]) {
-      const r = await req(m, url, token, corpo);
-      assert.equal(r.statusCode, 404, `${m} ${url}: ${r.body}`);
-      assert.equal(r.json().code, 'FUNCIONARIO_NOT_FOUND');
-    }
-    const banco = await prisma().funcionario.findUnique({ where: { id: f.id } });
-    assert.equal(banco.empresa_id, e1.id);
-    assert.equal(banco.nome, 'JOÃO DA SILVA');
-    assert.equal(banco.ativo, true);
-  });
-
-  test('outro tenant: fazenda de A → 404 EMPRESA_NOT_FOUND; registro de A pela fazenda de B → 404 (mesma resposta de inexistente)', async () => {
-    const A = await cenario();
-    const B = await cenario();
-    const f = (await criarF(A.token, funcionario(A.e1.id))).json();
-    const naFazendaDeA = await criarF(B.token, funcionario(A.e1.id));
-    assert.equal(naFazendaDeA.statusCode, 404, naFazendaDeA.body);
-    assert.equal(naFazendaDeA.json().code, 'EMPRESA_NOT_FOUND');
-    assert.equal((await req('GET', comEmpresa('/funcionarios', A.e1.id), B.token)).statusCode, 404);
-    const deA = await req('GET', comEmpresa(`/funcionarios/${f.id}`, B.e1.id), B.token);
-    const inexistente = await req('GET', comEmpresa('/funcionarios/nao-existe', B.e1.id), B.token);
-    assert.equal(deA.statusCode, 404);
-    assert.equal(deA.json().code, inexistente.json().code);
-    assert.equal(deA.json().message, inexistente.json().message);
-    assert.equal((await req('PATCH', `/funcionarios/${f.id}`, B.token, { empresa_id: B.e1.id, nome: 'x' })).statusCode, 404);
-    assert.equal((await req('POST', `/funcionarios/${f.id}/inativar`, B.token, { empresa_id: B.e1.id })).statusCode, 404);
-    assert.equal((await prisma().funcionario.findUnique({ where: { id: f.id } })).ativo, true);
-  });
-});
 
 // ─── Serviço ────────────────────────────────────────────────────────────────
 
@@ -315,8 +117,6 @@ describe('D-PROD-207 — Serviços: criação, leitura e lista', () => {
     assert.equal(sem.numero, '2');
     assert.equal(sem.centro_custo_padrao, null);
     assert.equal(sem.valor_referencia, null);
-    // a numeração do serviço não é a do funcionário
-    assert.equal((await criarF(token, funcionario(e1.id))).json().numero, '1');
 
     const um = await req('GET', comEmpresa(`/servicos/${s.id}`, e1.id), token);
     assert.equal(um.statusCode, 200, um.body);
@@ -449,11 +249,10 @@ describe('D-PROD-207 — Serviços: inativar/reativar, sem DELETE, escopo e unid
     assert.equal((await req('DELETE', `/unidades-medida/${livre.id}`, token)).statusCode, 204);
   });
 
-  test('a fazenda com funcionário ou serviço não sai (409 EMPRESA_COM_VINCULOS)', async () => {
-    const { token, e1, e2, ha } = await cenario();
-    assert.equal((await criarF(token, funcionario(e1.id))).statusCode, 201);
+  test('a fazenda com serviço não sai (409 EMPRESA_COM_VINCULOS)', async () => {
+    const { token, e2, ha } = await cenario();
     assert.equal((await criarS(token, servico(e2.id, ha.id))).statusCode, 201);
-    for (const e of [e1, e2]) {
+    for (const e of [e2]) {
       const r = await req('DELETE', `/empresas/${e.id}`, token);
       assert.equal(r.statusCode, 409, r.body);
       assert.equal(r.json().code, 'EMPRESA_COM_VINCULOS');
@@ -461,28 +260,23 @@ describe('D-PROD-207 — Serviços: inativar/reativar, sem DELETE, escopo e unid
   });
 });
 
-describe('D-PROD-207 — Funcionários e Serviços: permissão da própria tela', () => {
+describe('D-PROD-207 — Serviços: permissão da própria tela', () => {
   test('sem a tela (só outra) → 403 na leitura e na escrita, nada gravado', async () => {
     const cen = await cenario();
     const token = await contaCom(cen, [linha('sup-unidades', acoes(true))]);
-    for (const [url, corpo] of [['/funcionarios', funcionario(cen.e1.id)], ['/servicos', servico(cen.e1.id, cen.ha.id)]]) {
-      const ler = await req('GET', comEmpresa(url, cen.e1.id), token);
-      assert.equal(ler.statusCode, 403, ler.body);
-      assert.equal(ler.json().code, 'ACAO_NAO_PERMITIDA');
-      assert.equal((await req('POST', url, token, corpo)).statusCode, 403);
-    }
-    assert.equal(await prisma().funcionario.count(), 0);
+    const ler = await req('GET', comEmpresa('/servicos', cen.e1.id), token);
+    assert.equal(ler.statusCode, 403, ler.body);
+    assert.equal(ler.json().code, 'ACAO_NAO_PERMITIDA');
+    assert.equal((await req('POST', '/servicos', token, servico(cen.e1.id, cen.ha.id))).statusCode, 403);
     assert.equal(await prisma().servico.count(), 0);
   });
 
-  test('a tela de funcionários não abre a de serviços (e vice-versa)', async () => {
+  test('D-PROD-208: o cadastro de Funcionário saiu — /funcionarios não existe (404), nem para o administrador', async () => {
     const cen = await cenario();
-    const soF = await contaCom(cen, [linha('sup-funcionarios', acoes(true))]);
-    assert.equal((await req('GET', comEmpresa('/funcionarios', cen.e1.id), soF)).statusCode, 200);
-    assert.equal((await req('GET', comEmpresa('/servicos', cen.e1.id), soF)).statusCode, 403);
+    assert.equal((await req('GET', comEmpresa('/funcionarios', cen.e1.id), cen.token)).statusCode, 404);
+    assert.equal((await req('POST', '/funcionarios', cen.token, { empresa_id: cen.e1.id, nome: 'x', tipo: 'DIARISTA' })).statusCode, 404);
     const soS = await contaCom(cen, [linha('sup-servicos', acoes(true))]);
     assert.equal((await req('GET', comEmpresa('/servicos', cen.e1.id), soS)).statusCode, 200);
-    assert.equal((await req('GET', comEmpresa('/funcionarios', cen.e1.id), soS)).statusCode, 403);
   });
 
   test('opções do centro padrão: só os ATIVOS da fazenda pedida; quem cria ou edita serviço lê, sem a tela de centros; só visualizar → 403', async () => {
@@ -502,31 +296,25 @@ describe('D-PROD-207 — Funcionários e Serviços: permissão da própria tela'
 
   test('só "visualizar" lê e não grava; "novo" cria; inativar/reativar e PATCH pedem "editar" (ou "salvar")', async () => {
     const cen = await cenario();
-    const ver = await contaCom(cen, [linha('sup-funcionarios', { visualizar: true }), linha('sup-servicos', { visualizar: true })]);
-    assert.equal((await req('GET', comEmpresa('/funcionarios', cen.e1.id), ver)).statusCode, 200);
+    const ver = await contaCom(cen, [linha('sup-servicos', { visualizar: true })]);
     assert.equal((await req('GET', comEmpresa('/servicos', cen.e1.id), ver)).statusCode, 200);
-    assert.equal((await criarF(ver, funcionario(cen.e1.id))).statusCode, 403);
     assert.equal((await criarS(ver, servico(cen.e1.id, cen.ha.id))).statusCode, 403);
 
-    const novo = await contaCom(cen, [linha('sup-funcionarios', { visualizar: true, novo: true }), linha('sup-servicos', { visualizar: true, novo: true })]);
-    const f = await criarF(novo, funcionario(cen.e1.id));
-    assert.equal(f.statusCode, 201, f.body);
+    const novo = await contaCom(cen, [linha('sup-servicos', { visualizar: true, novo: true })]);
     const s = await criarS(novo, servico(cen.e1.id, cen.ha.id));
     assert.equal(s.statusCode, 201, s.body);
-    for (const [base, id] of [['/funcionarios', f.json().id], ['/servicos', s.json().id]]) {
-      assert.equal((await req('POST', `${base}/${id}/inativar`, novo, { empresa_id: cen.e1.id })).statusCode, 403);
-      assert.equal((await req('PATCH', `${base}/${id}`, novo, { empresa_id: cen.e1.id, nome: 'x' })).statusCode, 403);
-    }
+    assert.equal((await req('POST', `/servicos/${s.json().id}/inativar`, novo, { empresa_id: cen.e1.id })).statusCode, 403);
+    assert.equal((await req('PATCH', `/servicos/${s.json().id}`, novo, { empresa_id: cen.e1.id, nome: 'x' })).statusCode, 403);
     // "excluir" não inativa: não há DELETE e inativar é edição do registro.
-    const exc = await contaCom(cen, [linha('sup-funcionarios', { visualizar: true, excluir: true })]);
-    assert.equal((await req('POST', `/funcionarios/${f.json().id}/inativar`, exc, { empresa_id: cen.e1.id })).statusCode, 403);
-    const editar = await contaCom(cen, [linha('sup-funcionarios', { visualizar: true, editar: true }), linha('sup-servicos', { visualizar: true, salvar: true })]);
-    assert.equal((await req('POST', `/funcionarios/${f.json().id}/inativar`, editar, { empresa_id: cen.e1.id })).statusCode, 200);
-    assert.equal((await req('POST', `/funcionarios/${f.json().id}/reativar`, editar, { empresa_id: cen.e1.id })).statusCode, 200);
+    const exc = await contaCom(cen, [linha('sup-servicos', { visualizar: true, excluir: true })]);
+    assert.equal((await req('POST', `/servicos/${s.json().id}/inativar`, exc, { empresa_id: cen.e1.id })).statusCode, 403);
+    const editar = await contaCom(cen, [linha('sup-servicos', { visualizar: true, salvar: true })]);
     assert.equal((await req('POST', `/servicos/${s.json().id}/inativar`, editar, { empresa_id: cen.e1.id })).statusCode, 200);
+    assert.equal((await req('POST', `/servicos/${s.json().id}/reativar`, editar, { empresa_id: cen.e1.id })).statusCode, 200);
     assert.equal((await req('PATCH', `/servicos/${s.json().id}`, editar, { empresa_id: cen.e1.id, nome: 'novo nome' })).statusCode, 200);
   });
 });
+
 
 // ─── Revisões (D8): busca literal e travas contra a corrida ─────────────────
 
@@ -571,52 +359,26 @@ const esperando = async (p, ms = 400) => {
 };
 
 describe('D-PROD-207 — revisões: busca literal e travas', () => {
-  test('q com % e _ é literal (não curinga) na lista de funcionários e na de serviços', async () => {
+  test('q com % e _ é literal (não curinga) na lista de serviços', async () => {
     const { token, e1, ha } = await cenario();
-    const pct = (await criarF(token, funcionario(e1.id, { nome: 'meeiro 50%' }))).json();
-    const sub = (await criarF(token, funcionario(e1.id, { nome: 'ana_maria' }))).json();
-    await criarF(token, funcionario(e1.id, { nome: 'bruno' }));
     const busca = async (url, q) => (await req('GET', comEmpresa(url, e1.id, `&q=${encodeURIComponent(q)}`), token)).json().items.map((x) => x.id);
-    assert.deepEqual(await busca('/funcionarios', '%'), [pct.id], 'q=% casa só quem tem % no nome');
-    assert.deepEqual(await busca('/funcionarios', '_'), [sub.id], 'q=_ casa só quem tem _ no nome');
-    assert.deepEqual(await busca('/funcionarios', 'a%a'), []);
     const sPct = (await criarS(token, servico(e1.id, ha.id, { nome: 'frete 10%' }))).json();
     const sSub = (await criarS(token, servico(e1.id, ha.id, { nome: 'hora_maquina' }))).json();
     await criarS(token, servico(e1.id, ha.id, { nome: 'gradagem' }));
     assert.deepEqual(await busca('/servicos', '%'), [sPct.id]);
     assert.deepEqual(await busca('/servicos', '_'), [sSub.id]);
+    assert.deepEqual(await busca('/servicos', 'a%a'), []);
   });
 
-  test('inativar/PATCH do funcionário e inativar do serviço travam a linha (FOR UPDATE) antes de ler: a escrita em voo termina antes e o "antes" lido é o novo (sem gravação nem auditoria em dobro)', async () => {
+  test('inativar do serviço trava a linha (FOR UPDATE) antes de ler: a escrita em voo termina antes e o "antes" lido é o novo (sem gravação nem auditoria em dobro)', async () => {
     const { token, clienteId, e1, ha } = await cenario();
-    const f = (await criarF(token, funcionario(e1.id, { custo_hora: '10' }))).json();
     const s = (await criarS(token, servico(e1.id, ha.id))).json();
     const auditorias = (entidade) => prisma().auditLog.count({ where: { cliente_id: clienteId, entidade, acao: 'update' } });
-
-    // Outra inativação do funcionário em voo.
-    let voo = await emVoo((t) => t.$executeRaw`UPDATE "Funcionario" SET ativo = false WHERE cliente_id = ${clienteId} AND id = ${f.id}`);
-    let pedido = await esperando(req('POST', `/funcionarios/${f.id}/inativar`, token, { empresa_id: e1.id }));
+    const voo = await emVoo((t) => t.$executeRaw`UPDATE "Servico" SET ativo = false WHERE cliente_id = ${clienteId} AND id = ${s.id}`);
+    const pedido = await esperando(req('POST', `/servicos/${s.id}/inativar`, token, { empresa_id: e1.id }));
+    assert.equal(pedido.esperou, true, 'o inativar espera a trava da linha');
     await voo.soltar();
-    let r = await pedido.resposta();
-    assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().ativo, false);
-    assert.equal(await auditorias('Funcionario'), 0, 'já estava inativo quando a trava saiu: idempotente, não audita');
-
-    // Um PATCH do custo em voo com o MESMO valor: o segundo vê o novo e não grava.
-    voo = await emVoo((t) => t.$executeRaw`UPDATE "Funcionario" SET custo_hora = 30 WHERE cliente_id = ${clienteId} AND id = ${f.id}`);
-    pedido = await esperando(req('PATCH', `/funcionarios/${f.id}`, token, { empresa_id: e1.id, custo_hora: '30' }));
-    assert.equal(pedido.esperou, true, 'o PATCH espera a trava da linha');
-    await voo.soltar();
-    r = await pedido.resposta();
-    assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().custo_hora, '30.0000');
-    assert.equal(await auditorias('Funcionario'), 0, 'sem mudança depois da trava: não audita um "antes" velho');
-
-    // Outra inativação do serviço em voo.
-    voo = await emVoo((t) => t.$executeRaw`UPDATE "Servico" SET ativo = false WHERE cliente_id = ${clienteId} AND id = ${s.id}`);
-    pedido = await esperando(req('POST', `/servicos/${s.id}/inativar`, token, { empresa_id: e1.id }));
-    await voo.soltar();
-    r = await pedido.resposta();
+    const r = await pedido.resposta();
     assert.equal(r.statusCode, 200, r.body);
     assert.equal(await auditorias('Servico'), 0);
   });

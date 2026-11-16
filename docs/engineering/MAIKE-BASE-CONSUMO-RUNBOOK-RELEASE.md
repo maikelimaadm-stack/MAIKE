@@ -1,4 +1,4 @@
-# MAIKE — Base do consumo na Formulação: runbook de release CONTRACT (D-PROD-208)
+# MAIKE — Base do consumo na Formulação: runbook de release CONTRACT (D-PROD-210)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Aplicar antes do merge (D-PROD-72), com o GO escrito do proprietário.
 >
@@ -6,7 +6,7 @@
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
 > na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-208](./DECISIONS.md) · Relatório:
+Decisão: [D-PROD-210](./DECISIONS.md) · Relatório:
 [`MAIKE-BASE-CONSUMO-REPORT.md`](./MAIKE-BASE-CONSUMO-REPORT.md).
 Precedentes: [`MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md`](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md) §7
 (caminho B na mesma tabela) e o CONTRACT aditivo da D-PROD-197
@@ -16,15 +16,15 @@ Precedentes: [`MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md`](./MAIKE-FECHAMENTO-
 
 | Item | Valor |
 |---|---|
-| Migration | `20261116000000_formulacao_base_consumo` |
-| Natureza | **CONTRACT** (oitava entrada de `MIGRATIONS_CONTRACT_APROVADAS`): guarda DO pinada + **7 instruções pinadas** em `CADFORMULACAO` e `CADFORMULACAOREGRA`; não há resto. Nenhuma tabela nova ou apagada, nenhum dado migrado, nenhum `UPDATE`/`DELETE` |
+| Migration | `20261116200000_formulacao_base_consumo` |
+| Natureza | **CONTRACT** (décima entrada de `MIGRATIONS_CONTRACT_APROVADAS`): guarda DO pinada + **7 instruções pinadas** em `CADFORMULACAO` e `CADFORMULACAOREGRA`; não há resto. Nenhuma tabela nova ou apagada, nenhum dado migrado, nenhum `UPDATE`/`DELETE` |
 | As 7 instruções | `CADFORMULACAO.base_consumo VARCHAR(16) NOT NULL DEFAULT 'PV'`; `percentual_pv_padrao DROP NOT NULL`; `DROP CONSTRAINT CADFORMULACAO_percentual_pv_padrao_check`; `ADD CONSTRAINT CADFORMULACAO_base_consumo_check` (PV exige %PV em (0, 5]; G_CAB_DIA exige %PV nulo e `consumo_objetivo_g_cab_dia` > 0); `CADFORMULACAOREGRA.g_cab_dia DECIMAL(10,2)`; `DROP` e `ADD` de `CADFORMULACAOREGRA_forma_check` (não consome = sem %PV e sem gramas; consome = %PV OU gramas) |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171` |
 | Guarda (hash `a66ff13e…4819` em `MIGRATIONS_CONTRACT_APROVADAS`) | trava `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE` e `CADFORMULACAOREGRA` em ACCESS EXCLUSIVE e exige as **3 VAZIAS**; colunas e constraint novas ausentes; os 2 CHECKs da D-PROD-203 presentes; `percentual_pv_padrao` ainda NOT NULL |
 | Aprovação do CONTRACT | Proprietário: "sobre a tabela que já tem dados pode excluir, não tem problema, os dados eram só teste". Conferido só leitura: as 3 tabelas com **0 linhas** e nenhum `SuplementacaoEvento` com `formulacao_id`. Nenhum DELETE é feito |
 | Bloco RLS | nenhum (as tabelas já têm RLS desde a D-PROD-203) |
-| `_prisma_migrations` | esperado **58** concluídas, 0 abertas (a última `20261115900000_atividade_mao_obra_servico`, D-PROD-207); depois **59**. Recontar no §2 |
-| Tabelas em `public` | **95** antes e depois |
+| `_prisma_migrations` | esperado **60** concluídas, 0 abertas (a última `20261116100000_funcionario_tipo_terceirizado`, D-PROD-209); depois **61**. Recontar no §2 |
+| Tabelas em `public` | **94** antes e depois |
 
 **Por que antes do merge (D-PROD-72 item 1):** a Vercel publica a `main` sozinha.
 O runtime novo lê e grava `base_consumo` e `g_cab_dia` em `/formulacoes`: sem a
@@ -43,9 +43,9 @@ Uma espera além do `lock_timeout` de 5 s aborta tudo sem aplicar nada.
   pooler 6543), `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360` e
   `DATABASE_URL` do mesmo banco:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-208
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-208 --verificar-alvo
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-208 --aplicar
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-210
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-210 --verificar-alvo
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-210 --aplicar
   ```
 - **B — conector Supabase, uma única `execute_sql` (§3):** só com autorização
   **escrita e específica do proprietário para esta migration**, registrada como
@@ -57,7 +57,7 @@ Uma espera além do `lock_timeout` de 5 s aborta tudo sem aplicar nada.
 SELECT system_identifier FROM pg_control_system();            -- 7692130048193495360
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS ok,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) AS ruim
-  FROM _prisma_migrations;                                     -- 58, 0
+  FROM _prisma_migrations;                                     -- 60, 0
 SELECT migration_name FROM _prisma_migrations
  WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
  ORDER BY finished_at DESC LIMIT 1;                            -- 20261115900000_atividade_mao_obra_servico
@@ -67,11 +67,11 @@ SELECT count(*) FROM "SuplementacaoEvento" WHERE dados ? 'formulacao_id';  -- 0
 SELECT table_name, column_name FROM information_schema.columns
  WHERE table_schema = 'public' AND ((table_name = 'CADFORMULACAO' AND column_name = 'base_consumo')
     OR (table_name = 'CADFORMULACAOREGRA' AND column_name = 'g_cab_dia'));   -- nenhuma linha
-SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 95
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 94
 ```
 
 E, localmente, no `<SHA_APROVADO>`: `sha256sum` do `migration.sql` igual ao
-pinado, e `classificarMigrations` com `modo: CONTRACT`, a entrada D-PROD-208 e
+pinado, e `classificarMigrations` com `modo: CONTRACT`, a entrada D-PROD-210 e
 `violacoes: []` (testes B27a/B27b).
 
 ## 3. Caminho B — uma transação
@@ -89,17 +89,17 @@ BEGIN
   IF (SELECT system_identifier FROM pg_control_system()) <> 7692130048193495360 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
-  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261116000000_formulacao_base_consumo') THEN
+  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261116200000_formulacao_base_consumo') THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
     INTO n_ok, n_ruim FROM _prisma_migrations;
-  IF n_ok <> 58 OR n_ruim <> 0 THEN
+  IF n_ok <> 60 OR n_ruim <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % com falha', n_ok, n_ruim;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261115900000_atividade_mao_obra_servico' AND finished_at IS NOT NULL AND rolled_back_at IS NULL) THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-207, mão de obra e serviço) não está concluída';
+  IF NOT EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261116100000_funcionario_tipo_terceirizado' AND finished_at IS NOT NULL AND rolled_back_at IS NULL) THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-209, tipo Terceirizado) não está concluída';
   END IF;
   IF to_regclass('public."CADFORMULACAO"') IS NULL OR to_regclass('public."CADFORMULACAOINGREDIENTE"') IS NULL OR to_regclass('public."CADFORMULACAOREGRA"') IS NULL THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: tabelas de Formulações ausentes';
@@ -119,7 +119,7 @@ END $guarda$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171', now(),
-        '20261116000000_formulacao_base_consumo', NULL, NULL, now(), 1);
+        '20261116200000_formulacao_base_consumo', NULL, NULL, now(), 1);
 COMMIT;
 ```
 
@@ -127,9 +127,9 @@ COMMIT;
 
 ```sql
 SELECT migration_name, checksum, rolled_back_at, applied_steps_count FROM _prisma_migrations
- WHERE migration_name = '20261116000000_formulacao_base_consumo';     -- 1 linha, checksum pinado, null, 1
+ WHERE migration_name = '20261116200000_formulacao_base_consumo';     -- 1 linha, checksum pinado, null, 1
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
-       count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 59, 0
+       count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 61, 0
 SELECT table_name, column_name, data_type, is_nullable, column_default FROM information_schema.columns
  WHERE table_schema = 'public' AND ((table_name = 'CADFORMULACAO' AND column_name IN ('base_consumo', 'percentual_pv_padrao'))
     OR (table_name = 'CADFORMULACAOREGRA' AND column_name = 'g_cab_dia')) ORDER BY 1, 2;
@@ -138,7 +138,7 @@ SELECT conname FROM pg_constraint WHERE conrelid IN ('public."CADFORMULACAO"'::r
    AND contype = 'c' ORDER BY 1;
   -- CADFORMULACAOREGRA_forma_check, CADFORMULACAO_base_consumo_check, CADFORMULACAO_consumo_objetivo_check,
   -- CADFORMULACAO_tipo_check (sem CADFORMULACAO_percentual_pv_padrao_check)
-SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 95
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 94
 ```
 
 Mais: `get_advisors` (segurança) sem alerta novo.
@@ -164,7 +164,7 @@ esta. Com o código novo no ar, reverter o código primeiro.
 | Data/hora (UTC) | `<preencher: finished_at da linha em _prisma_migrations>` |
 | Caminho | `<A ou B>` |
 | GO | `<texto do GO do proprietário>` |
-| Preflight (§2) | `<system_identifier; 58 / 0; 3 tabelas vazias; colunas ausentes>` |
+| Preflight (§2) | `<system_identifier; 60 / 0; 3 tabelas vazias; colunas ausentes>` |
 | Ensaio | Banco local com as 58 migrations da `main` (sem esta): alvo de produção recusado (`alvo divergente`); com o `system_identifier` local aplicou (59 / 0, 95 tabelas, `migrate status` em dia, `migrate diff` vazio); reexecução recusada (`migration já registrada`) |
-| Postcheck (§4) | `<59 / 0; checksum; colunas; CHECKs; 95 tabelas>` |
+| Postcheck (§4) | `<61 / 0; checksum; colunas; CHECKs; 94 tabelas>` |
 | Resultado | **PENDENTE** |

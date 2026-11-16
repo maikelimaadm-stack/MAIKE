@@ -335,7 +335,7 @@ describe("FO-API — porta nativa", () => {
   });
 });
 
-describe("FO-BASE — D-PROD-208: base do consumo (% do peso vivo OU g/cab/dia), sem mistura", () => {
+describe("FO-BASE — D-PROD-210: base do consumo (% do peso vivo OU g/cab/dia), sem mistura", () => {
   it("FO-BASE-1 — base %PV (padrão) mostra só o %PV; trocar para g/cab/dia mostra só os gramas, com o equivalente em kg; envia sem %PV", async () => {
     const { onSubmit } = montar();
     expect(screen.getByLabelText("Percentual do peso vivo padrão")).toBeTruthy();

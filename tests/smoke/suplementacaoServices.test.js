@@ -385,7 +385,7 @@ describe('SP — fechamento e reabertura de período', () => {
       consumo_g_cab_dia: 1800, consumo_real_pv_percentual: null, consumo_esperado_pv_percentual: null,
       consumo_relacao_esperado: null, farol_consumo: 'sem_referencia', farol_consumo_motivo: 'sem_esperado',
       faixa_tolerancia_aplicada: 15, sobra_informada: null, custo_unitario_kg: null, custo_total_periodo: null, custo_cab_dia: null,
-      // D-PROD-208: a base do consumo aplicada (evento sem base = PV) e a meta em gramas (só na base G).
+      // D-PROD-210: a base do consumo aplicada (evento sem base = PV) e a meta em gramas (só na base G).
       base_consumo_aplicada: 'PV', consumo_esperado_g_cab_dia: null,
     });
     expect(suplementacao.updateLoteSuplementacao).toHaveBeenCalledWith('sl1', expect.objectContaining({

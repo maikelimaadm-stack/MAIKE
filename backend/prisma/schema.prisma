@@ -143,7 +143,6 @@ model Cliente {
   atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
   atividadeApontamentoMaquinas      AtividadeApontamentoMaquina[]
   // D-PROD-207 — cadastros de mão de obra e serviço e as linhas do apontamento.
-  funcionarios                      Funcionario[]
   servicos                          Servico[]
   atividadeApontamentoMaoObras      AtividadeApontamentoMaoObra[]
   atividadeApontamentoServicos      AtividadeApontamentoServico[]
@@ -714,7 +713,7 @@ model Formulacao {
   nome                       String   @db.VarChar(120)
   tipo                       String   @db.VarChar(16)
   produto_id                 String   @db.VarChar(64)
-  // D-PROD-208: base do consumo — 'PV' (% do peso vivo; exige percentual_pv_padrao) ou 'G_CAB_DIA' (gramas por
+  // D-PROD-210: base do consumo — 'PV' (% do peso vivo; exige percentual_pv_padrao) ou 'G_CAB_DIA' (gramas por
   // cabeça por dia; exige consumo_objetivo_g_cab_dia e %PV nulo). CHECK "CADFORMULACAO_base_consumo_check".
   base_consumo               String   @default("PV") @db.VarChar(16)
   percentual_pv_padrao       Decimal? @db.Decimal(8, 4)
@@ -784,7 +783,7 @@ model FormulacaoRegraCategoria {
   categoria_manejo_id String   @db.VarChar(64)
   consome             Boolean
   percentual_pv       Decimal? @db.Decimal(8, 4)
-  // D-PROD-208: na base G_CAB_DIA a regra que consome leva os gramas por cabeça por dia (e não o %PV).
+  // D-PROD-210: na base G_CAB_DIA a regra que consome leva os gramas por cabeça por dia (e não o %PV).
   g_cab_dia           Decimal? @db.Decimal(10, 2)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -1320,7 +1319,6 @@ model Empresa {
   atividades            Atividade[]
   atividadeApontamentos AtividadeApontamento[]
   // D-PROD-207 — funcionários e serviços da fazenda.
-  funcionarios          Funcionario[]
   servicos              Servico[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
@@ -1371,6 +1369,12 @@ model Fornecedor {
   observacoes        String?   @db.VarChar(2000)
   tipos              String[]  @default([])
   ativo              Boolean   @default(true)
+  /// D-PROD-208 — dados do papel `funcionario` (só com esse papel; CHECK).
+  /// MENSALISTA | DIARISTA | TERCEIRIZADO (D-PROD-209: TERCEIRIZADO no lugar de TAREFEIRO).
+  funcionario_tipo       String?  @db.VarChar(16)
+  funcionario_cargo      String?  @db.VarChar(120)
+  funcionario_custo_hora   Decimal? @db.Decimal(14, 4)
+  funcionario_custo_diaria Decimal? @db.Decimal(14, 4)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -1383,6 +1387,8 @@ model Fornecedor {
   bensComoFornecedor   BemPatrimonial[]   @relation("BemPatrimonialFornecedor")
   // D-PROD-207 — parceiro (prestador) da linha de serviço do apontamento.
   atividadeServicos    AtividadeApontamentoServico[]
+  // D-PROD-208 — funcionário ou terceiro da linha de mão de obra.
+  atividadeMaoObras    AtividadeApontamentoMaoObra[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_cadastro])
@@ -3337,37 +3343,10 @@ model AtividadeApontamentoMaquina {
 
 // ---------------------------------------------------------------------------
 // D-PROD-207 — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades).
-// Cadastros mínimos por fazenda (Funcionario, Servico) e as linhas de custo do
+// Cadastros mínimos por fazenda (Servico; o funcionário é papel do parceiro desde a D-PROD-208) e as linhas de custo do
 // apontamento (mão de obra e serviço de terceiro). Nada é apagado: cadastro
 // inativa; linha cancela. FKs compostas pelo tenant, RESTRICT.
 // ---------------------------------------------------------------------------
-
-/// Pessoa que trabalha na fazenda e não precisa entrar no sistema (diarista,
-/// tarefeiro, mensalista). Não é `Usuario` (conta de acesso).
-model Funcionario {
-  id           String   @id @default(cuid())
-  cliente_id   String   @db.VarChar(64)
-  empresa_id   String   @db.VarChar(64)
-  numero       String   @db.VarChar(32)
-  nome         String   @db.VarChar(255)
-  cargo        String?  @db.VarChar(120)
-  /// MENSALISTA | DIARISTA | TAREFEIRO (CHECK).
-  tipo         String   @db.VarChar(16)
-  custo_hora   Decimal? @db.Decimal(14, 4)
-  custo_diaria Decimal? @db.Decimal(14, 4)
-  ativo        Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  cliente Cliente                       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  empresa Empresa                       @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
-  linhas  AtividadeApontamentoMaoObra[]
-
-  @@unique([cliente_id, id])
-  @@unique([cliente_id, empresa_id, id])
-  @@unique([cliente_id, numero])
-  @@index([cliente_id, empresa_id, ativo])
-}
 
 /// Serviço de terceiro contratado (empreitada, hora de trator alugado, etc.).
 model Servico {
@@ -3405,7 +3384,10 @@ model AtividadeApontamentoMaoObra {
   ordem                    Int
   /// CONFIRMADO | CANCELADO (CHECK).
   status                   String    @db.VarChar(16)
-  funcionario_id           String    @db.VarChar(64)
+  /// Parceiro com papel `funcionario` ou `prestador_servico` (terceiro); mesma fazenda conferida no serviço.
+  parceiro_id              String    @db.VarChar(64)
+  /// FUNCIONARIO | TERCEIRO (CHECK): o papel com que o parceiro entrou na linha.
+  origem                   String    @db.VarChar(12)
   /// HORA | DIARIA | TAREFA (CHECK).
   tipo_medida              String    @db.VarChar(8)
   quantidade               Decimal   @db.Decimal(14, 4)
@@ -3425,7 +3407,7 @@ model AtividadeApontamentoMaoObra {
 
   cliente      Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   apontamento  AtividadeApontamento @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_apontamento_fkey")
-  funcionario  Funcionario          @relation(fields: [cliente_id, empresa_id, funcionario_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_funcionario_fkey")
+  parceiro     Fornecedor           @relation(fields: [cliente_id, parceiro_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_parceiro_fkey")
   criadoPor    Usuario?             @relation("AtividadeApontamentoMaoObraCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_criado_por_fkey")
   canceladoPor Usuario?             @relation("AtividadeApontamentoMaoObraCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_cancelado_por_fkey")
 
@@ -3434,7 +3416,7 @@ model AtividadeApontamentoMaoObra {
   @@unique([cliente_id, operation_id])
   @@unique([cliente_id, apontamento_id, ordem], map: "AtividadeApontamentoMaoObra_apontamento_ordem_key")
   @@index([cliente_id, empresa_id, apontamento_id])
-  @@index([cliente_id, empresa_id, funcionario_id])
+  @@index([cliente_id, parceiro_id])
 }
 
 model AtividadeApontamentoServico {

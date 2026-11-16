@@ -53,7 +53,7 @@ export const formularioDoRegistro = (r) => ({
 });
 
 /**
- * D-PROD-208 — trocar a base do consumo LIMPA o padrão e os valores das regras (as categorias e o "consome" ficam):
+ * D-PROD-210 — trocar a base do consumo LIMPA o padrão e os valores das regras (as categorias e o "consome" ficam):
  * nada da base antiga sobra escondido na conta.
  * @param {FormulacaoForm} prev
  * @param {string} base
@@ -236,7 +236,7 @@ export default function FormularioFormulacao({
         )}
       </B1Field>
 
-      {/* D-PROD-208: UMA base do consumo por formulação; trocar limpa os valores da base antiga. */}
+      {/* D-PROD-210: UMA base do consumo por formulação; trocar limpa os valores da base antiga. */}
       <B1Field label="Base do consumo" required span={3} hasValue locked={readOnly} disabled={travado}>
         {readOnly ? (
           <input type="text" readOnly value={rotuloDaBase(formData.base_consumo)} className={B1_FIELD_CTL_CLS} />

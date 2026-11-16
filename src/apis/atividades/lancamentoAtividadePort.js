@@ -30,7 +30,8 @@ const CAMINHO_OPCOES = '/atividades-opcoes';
 /**
  * Seletores próprios da tela (guardados por "ver" da tela). D-PROD-202 (Fatia 3): produtos (os já usados na
  * atividade primeiro), locais com saldo de um produto, implementos e o medidor de um bem (tipo, unidade, leitura
- * vigente e teto do salto). Fatia 4: funcionários e serviços ativos da fazenda e os parceiros prestadores de serviço.
+ * vigente e teto do salto). Fatia 4: serviços ativos da fazenda e os parceiros prestadores de serviço; desde a
+ * D-PROD-208, a mão de obra (`mao-obra`): parceiros ativos com o papel funcionário ou prestador de serviço (terceiro).
  */
 export const RECURSOS_OPCOES_ATIVIDADE = Object.freeze([
   'bens',
@@ -39,7 +40,7 @@ export const RECURSOS_OPCOES_ATIVIDADE = Object.freeze([
   'locais',
   'implementos',
   'medidor',
-  'funcionarios',
+  'mao-obra',
   'servicos',
   'parceiros-servico',
 ]);
@@ -111,10 +112,11 @@ export const CAMPOS_DA_LINHA_MAQUINA = Object.freeze([
   'observacao',
 ]);
 /**
- * Linha de MÃO DE OBRA (Fatia 4): o funcionário, a medida (HORA | DIARIA | TAREFA), a quantidade e, SÓ na tarefa, o
- * custo unitário digitado (hora e diária vêm do cadastro do funcionário, snapshot no servidor). O total é do servidor.
+ * Linha de MÃO DE OBRA (Fatia 4; D-PROD-208): o parceiro (funcionário ou terceiro), a medida (HORA | DIARIA | TAREFA),
+ * a quantidade e o custo unitário digitado — na tarefa do funcionário e SEMPRE no terceiro (hora e diária do
+ * funcionário vêm do cadastro dele, snapshot no servidor). A origem e o total são do servidor.
  */
-export const CAMPOS_DA_LINHA_MAO_OBRA = Object.freeze(['funcionario_id', 'tipo_medida', 'quantidade', 'custo_unitario', 'observacao']);
+export const CAMPOS_DA_LINHA_MAO_OBRA = Object.freeze(['parceiro_id', 'tipo_medida', 'quantidade', 'custo_unitario', 'observacao']);
 /**
  * Linha de SERVIÇO (Fatia 4): o serviço, o parceiro prestador (opcional), a quantidade (na unidade do serviço), o valor
  * unitário e o documento. A unidade (snapshot) e o total são do servidor.

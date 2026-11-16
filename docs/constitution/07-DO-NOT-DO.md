@@ -188,3 +188,11 @@ Violação exige **rollback**, não flexibilização da regra.
 >
 > Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("Aplica e aprova")**, no merge da PR #294
 > (`00-CONSTITUICAO.md` §4).
+>
+> **Ajuste (D-PROD-208):** o **Funcionário** deixa de ser cadastro próprio e passa a ser **papel do parceiro**
+> (papel `funcionario`), com tipo, cargo e custos por hora e por diária; a mão de obra pode ser de **funcionário** ou de
+> **terceiro** (parceiro prestador de serviço, custo digitado). Continua **fora** tudo o que a D-PROD-207 deixou fora:
+> folha de pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título e rateio. Continua
+> proibido usar `Usuario` como funcionário, apagar linha (só cancelar) e criar `OperacaoFinanceira`, título ou rateio a
+> partir das linhas. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("aplica e aprova")**, no merge da PR #298
+> (`00-CONSTITUICAO.md` §4).

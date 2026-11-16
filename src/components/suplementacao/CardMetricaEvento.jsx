@@ -138,7 +138,7 @@ export default function CardMetricaEvento({
       <div>
         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Esperado</div>
         <div className="grid grid-cols-2 gap-1 text-[10px]">
-          {/* D-PROD-208: na base g/cab/dia o esperado não é por %PV. */}
+          {/* D-PROD-210: na base g/cab/dia o esperado não é por %PV. */}
           <MetricCell label={evento.base_consumo === "G_CAB_DIA" ? "Esperado lote/dia (g/cab)" : "Consumo Lote PV/dia"} value={consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : "-"} />
           <MetricCell label="Esperado/cab/dia" value={fmtNum3(consumoEsperadoCabDia)} />
         </div>

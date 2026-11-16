@@ -104,8 +104,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   FORNECEDOR_NOT_FOUND: { http: 404, meaning: 'id não identifica fornecedor deste tenant (rota legada /fornecedores)' },
   PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
   PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
-  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação, lançamento financeiro/título (D-PROD-155) ou bem patrimonial como proprietário ou fornecedor (D-PROD-157) não é excluído; inativar' },
+  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação, lançamento financeiro/título (D-PROD-155), bem patrimonial como proprietário ou fornecedor (D-PROD-157) ou linha de serviço/mão de obra de atividade (D-PROD-207/208: details.servicos_atividade, details.mao_obra_atividade) não é excluído; inativar' },
   PARCEIRO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe parceiro com este CPF/CNPJ nesta empresa; nada foi gravado' },
+  // D-PROD-208 — dados do funcionário (tipo, cargo, custo por hora e por diária) só com o papel `funcionario`.
+  PARCEIRO_FUNCIONARIO_SEM_PAPEL: { http: 422, meaning: 'dados do funcionário (details.field) informados num parceiro sem o papel funcionario (details.reason: exige_papel_funcionario); marque o papel ou não envie os campos; nada foi gravado' },
   CENTRO_CUSTO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de custo desta empresa neste tenant' },
   CENTRO_RESULTADO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de resultado desta empresa neste tenant' },
   CENTRO_NOME_CONFLITO: { http: 409, meaning: 'já existe centro com este nome nesta empresa; nada foi gravado' },
@@ -285,7 +287,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,
-    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-202, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento; D-PROD-207: funcionario_id → permite_mao_obra, servico_id → permite_servico); nada foi gravado',
+    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-202, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento; D-PROD-207: servico_id → permite_servico; mão de obra, D-PROD-208: parceiro_id → permite_mao_obra); nada foi gravado',
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
@@ -314,7 +316,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_LINHA_INVALIDA: {
     http: 422,
-    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto; D-PROD-207 mão de obra: funcionario_id inexistente | outra_empresa | inativo, tipo_medida obrigatorio, quantidade obrigatoria | nao_positiva | custo_excede_limite, custo_unitario obrigatorio | nao_aceito; serviço: servico_id inexistente | outra_empresa | inativo, fornecedor_parceiro_id parceiro_invalido — inexistente, de outra fazenda, inativo ou sem o papel prestador_servico, sem oráculo —, valor_unitario obrigatorio); nada foi gravado',
+    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto; D-PROD-207/208 mão de obra: parceiro_id parceiro_invalido — inexistente, de outra fazenda, inativo ou sem o papel funcionario nem prestador_servico, sem oráculo —, tipo_medida obrigatorio, quantidade obrigatoria | nao_positiva | custo_excede_limite, custo_unitario obrigatorio | nao_aceito; serviço: servico_id inexistente | outra_empresa | inativo, fornecedor_parceiro_id parceiro_invalido — inexistente, de outra fazenda, inativo ou sem o papel prestador_servico, sem oráculo —, valor_unitario obrigatorio); nada foi gravado',
   },
   ATIVIDADE_SALTO_MEDIDOR: {
     http: 422,
@@ -341,11 +343,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
   },
-  // D-PROD-207 — cadastros de Funcionário e Serviço da fazenda (Fatia 4 do Lançamento de Atividades).
-  FUNCIONARIO_NOT_FOUND: {
-    http: 404,
-    meaning: 'id não identifica funcionário desta fazenda neste tenant',
-  },
+  // D-PROD-207 — cadastro de Serviço da fazenda (Fatia 4 do Lançamento de Atividades).
+  // D-PROD-208: o código 404 do cadastro de Funcionário saiu com ele (o funcionário é papel do parceiro).
   SERVICO_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica serviço desta fazenda neste tenant',

@@ -449,7 +449,7 @@ export const obter = async (contexto, id, query = {}) => {
  * `{ area_executada, area_planejada, unidade_area: 'ha',
  *    produtos: [{ produto_id, nome, unidade, quantidade, custo_total }],
  *    maquinas: [{ bem_id, nome, medidor_unidade, quantidade_uso, custo_total }],
- *    mao_obra: [{ funcionario_id, nome, tipo_medida, quantidade, custo_total }],
+ *    mao_obra: [{ parceiro_id, nome, origem, tipo_medida, quantidade, custo_total }],
  *    servicos: [{ servico_id, nome, unidade, quantidade, custo_total }],
  *    custo_total, custo_por_ha }`.
  * `custo_total` = Σ produtos + Σ máquinas com custo + Σ mão de obra com custo +

@@ -9,16 +9,40 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-208)
+## Missão ativa (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-210)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-208** (nasceu D-PROD-207, que a `main` deu à Fatia 4), pedido do proprietário: sal mineral em g/cab/dia fixo; uma base por formulação, sem mistura; regras por categoria na mesma base |
-| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `f31d3397` (PR #296), com a `main` `9a666393` (PR #294, Fatia 4, D-PROD-207) por merge |
+| Decisão | **D-PROD-210** (nasceu D-PROD-207 e depois D-PROD-208; a `main` deu a D-PROD-207 à Fatia 4, a D-PROD-208 ao ajuste dela e a D-PROD-209 ao tipo Terceirizado), pedido do proprietário: sal mineral em g/cab/dia fixo; uma base por formulação, sem mistura; regras por categoria na mesma base |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `f31d3397` (PR #296), com a `main` `18426967` (PR #299, D-PROD-209) por merge · PR **#297** |
 | Escopo | `base_consumo` PV / G_CAB_DIA na Formulação (API, tela, validação sem mistura), regra em gramas, esperado do lançamento na base G (sem peso), farol do fechamento pelos gramas na base G |
-| Migration | `20261116000000_formulacao_base_consumo`, **CONTRACT** (oitava de `MIGRATIONS_CONTRACT_APROVADAS`; as 3 tabelas de Formulações vazias pela guarda), SHA-256 `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`. Produção 58 → 59, 95 tabelas. Aprovação do CONTRACT pelo proprietário ("os dados eram só teste"; tabelas com 0 linhas) |
+| Migration | `20261116200000_formulacao_base_consumo`, **CONTRACT** (décima de `MIGRATIONS_CONTRACT_APROVADAS`; as 3 tabelas de Formulações vazias pela guarda), SHA-256 `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`. Produção 58 → 59, 95 tabelas. Aprovação do CONTRACT pelo proprietário ("os dados eram só teste"; tabelas com 0 linhas) |
 | Release | **Pendente**: aplicar antes do merge (D-PROD-72) pelo [runbook](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md), com o GO escrito do proprietário |
 | Relatório | [`MAIKE-BASE-CONSUMO-REPORT.md`](./MAIKE-BASE-CONSUMO-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-FUNCIONARIO-TIPO: tipo do funcionário Mensalista, Diarista ou Terceirizado (D-PROD-209)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-209**, pedido do proprietário ("por enquanto deixe a escolha assim, mensalista, diárias, terceirzado") |
+| Branch / PR | `feat/funcionario-tipo-terceirizado`, a partir da `main` `3de613a5` (merge da PR #298, D-PROD-208) · PR **#299** |
+| Escopo | `Fornecedor.funcionario_tipo` ∈ `MENSALISTA \| DIARISTA \| TERCEIRIZADO` (`TERCEIRIZADO` no lugar de `TAREFEIRO`), na tela Parceiros e no servidor; medida sugerida na mão de obra: Terceirizado → hora (Mensalista → hora e Diarista → diária continuam); a medida `TAREFA` da linha continua |
+| Migration | `20261116100000_funcionario_tipo_terceirizado`, **CONTRACT** (troca do CHECK `Fornecedor_funcionario_check`; a guarda aborta com qualquer parceiro `TAREFEIRO`), SHA `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6`. Produção 59 → 60; tabelas 94 (sem mudança) |
+| Release | **Aplicada em produção em 2026-11-16** (GO escrito do proprietário, caminho B): postcheck APLICADA E CONFERIDA, produção 60/0, 94 tabelas, CHECK com `TERCEIRIZADO`. Registro no [runbook](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) §9; validação toda local (GitHub Actions pausado) |
+| Constituição | Sem nota (não muda escopo) |
+| Documentos | [`MAIKE-FUNCIONARIO-TIPO-REPORT.md`](./MAIKE-FUNCIONARIO-TIPO-REPORT.md) · [`MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO (ajuste da Fatia 4): o funcionário vira papel do parceiro, e a mão de obra pode ser de funcionário ou de terceiro (D-PROD-208)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-208**, pedido do proprietário ("o cadastro de funcionários deveria ser lá em parceiros, outra coisa, eu também tenho mão de obra com terceiros não apenas com funcionários […]"); plano aprovado: "sim pode fazer" |
+| Branch / PR | `feat/atividade-mao-obra-parceiro`, a partir da `main` `9a666393` (merge da PR #294, Fatia 4, D-PROD-207) · PR **a abrir** |
+| Escopo | Papel `funcionario` no parceiro com tipo, cargo e custos por hora e por diária; a linha de mão de obra aponta para o parceiro, com a `origem` `FUNCIONARIO`/`TERCEIRO` decidida pelo servidor (funcionário: hora e diária com snapshot, tarefa digitada; terceiro: custo sempre digitado); seletor `GET /atividades-opcoes/mao-obra`; tabela, tela e rotas de Funcionário saem (vazias em produção) |
+| Migration | `20261116000000_mao_obra_parceiro`, **CONTRACT condicionado a tabelas vazias** (`drop_no_fim`), SHA `65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0`. Produção 58 → 59; tabelas 95 → 94; de tenant, 80 → 79 |
+| Release | **Aplicada em produção** em 2026-11-15 às 22:57:36 UTC, antes do merge, caminho B do [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md), com o GO "aplica e aprova"; postcheck 59 / 0, 94 tabelas; validação toda local (GitHub Actions pausado) |
+| Constituição | Nota "Ajuste (D-PROD-208)" no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-15 |
+| Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md) |
 
 ## Missão anterior (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades): mão de obra e serviço de terceiro (D-PROD-207)
 

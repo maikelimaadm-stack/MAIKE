@@ -1,19 +1,20 @@
 /**
  * D-PROD-207 (Fatia 4 do Lançamento de Atividades) — rotas das LINHAS DE MÃO
- * DE OBRA do apontamento e do seletor de funcionários, tela `op-atividades`
+ * DE OBRA do apontamento e do seletor de parceiros da mão de obra, tela `op-atividades`
  * (contrato `docs/engineering/MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md` §3, §5 e §6):
  *
  *  - `POST  /atividades/:id/apontamentos/:apontamentoId/mao-obra` (lançar) — 201
  *  - `PATCH /atividades/:id/apontamentos/:apontamentoId/mao-obra/:linhaId`
  *    (editar = cancela a linha e cria outra) — 200
  *  - `POST  /atividades/:id/apontamentos/:apontamentoId/mao-obra/:linhaId/cancelar` — 200
- *  - `GET   /atividades-opcoes/funcionarios?empresa_id=&q=&cursor=&limit=` (ver)
+ *  - `GET   /atividades-opcoes/mao-obra?empresa_id=&q=&cursor=&limit=` (ver) — D-PROD-208:
+ *    parceiros ativos da fazenda com o papel funcionário ou prestador de serviço
  *
  * Guardas: escritas em `GUARDAS.atividadeApontamentos` (criar, editar,
  * cancelar); o seletor, `GUARDAS.atividades.ver`. Toda escrita leva
  * `empresa_id`, a `versao` do APONTAMENTO (CAS) e o `operation_id`. Corpo e
  * query FECHADOS (`additionalProperties: false`): custo total, status, ordem,
- * autoria e `cliente_id` → 400. Decimais chegam como TEXTO: o `preValidation`
+ * autoria, `origem` (D-PROD-208: decidida pelo servidor) e `cliente_id` → 400. Decimais chegam como TEXTO: o `preValidation`
  * deste plugin (encapsulado) recusa número antes da coerção do AJV.
  *
  * Exporta `ITEM_LINHA_MAO_OBRA` (o schema de um item de `mao_obra[]` no
@@ -31,7 +32,7 @@ import {
   editarLinhaMaoObra,
   lancarLinhaMaoObra,
 } from './atividadeApontamentoMaoObraService.js';
-import { opcoesFuncionarios } from './atividadeOpcoesService.js';
+import { opcoesMaoObra } from './atividadeOpcoesService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const VERSAO = { type: 'integer', minimum: 1 };
@@ -44,7 +45,7 @@ const OBSERVACAO = { type: ['string', 'null'], maxLength: 500 };
 
 /** Campos de DADO da linha de mão de obra (os mesmos no lançamento, na edição e em `mao_obra[]`). */
 export const CAMPOS_DA_LINHA_MAO_OBRA = Object.freeze({
-  funcionario_id: ID,
+  parceiro_id: ID,
   tipo_medida: { type: 'string', enum: [...TIPOS_MEDIDA] },
   quantidade: DECIMAL_NULO,
   custo_unitario: DECIMAL_NULO,
@@ -54,7 +55,7 @@ export const CAMPOS_DA_LINHA_MAO_OBRA = Object.freeze({
 /** Schema de UM item de `mao_obra[]` (fechado). */
 export const ITEM_LINHA_MAO_OBRA = Object.freeze({
   type: 'object',
-  required: ['funcionario_id', 'tipo_medida', 'quantidade'],
+  required: ['parceiro_id', 'tipo_medida', 'quantidade'],
   additionalProperties: false,
   properties: CAMPOS_DA_LINHA_MAO_OBRA,
 });
@@ -67,7 +68,7 @@ const LANCAR = {
   params: PARAMS_APONTAMENTO,
   body: {
     type: 'object',
-    required: ['empresa_id', 'versao', 'operation_id', 'funcionario_id', 'tipo_medida', 'quantidade'],
+    required: ['empresa_id', 'versao', 'operation_id', 'parceiro_id', 'tipo_medida', 'quantidade'],
     additionalProperties: false,
     properties: { ...ENVELOPE, ...CAMPOS_DA_LINHA_MAO_OBRA },
   },
@@ -130,6 +131,6 @@ export const registrarAtividadeApontamentoMaoObraRoutes = async (app) => {
     return reply.status(r.status).send(r.body);
   });
 
-  app.get('/atividades-opcoes/funcionarios', { ...autenticado, preHandler: [ver], schema: OPCOES }, async (request) =>
-    opcoesFuncionarios(ctx(request), /** @type {Record<string, any>} */ (request.query)));
+  app.get('/atividades-opcoes/mao-obra', { ...autenticado, preHandler: [ver], schema: OPCOES }, async (request) =>
+    opcoesMaoObra(ctx(request), /** @type {Record<string, any>} */ (request.query)));
 };

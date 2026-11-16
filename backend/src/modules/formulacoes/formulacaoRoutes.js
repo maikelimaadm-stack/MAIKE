@@ -39,7 +39,7 @@ const CAMPOS = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
   tipo: { type: 'string', enum: [...TIPOS] },
   produto_id: ID,
-  // D-PROD-208: base do consumo — PV (% do peso vivo) ou G_CAB_DIA (gramas por cabeça por dia). Na base G o %PV padrão é nulo.
+  // D-PROD-210: base do consumo — PV (% do peso vivo) ou G_CAB_DIA (gramas por cabeça por dia). Na base G o %PV padrão é nulo.
   base_consumo: { type: 'string', enum: [...BASES_CONSUMO] },
   percentual_pv_padrao: DECIMAL_OU_NULO,
   consumo_objetivo_g_cab_dia: DECIMAL_OU_NULO,

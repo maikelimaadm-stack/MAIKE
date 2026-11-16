@@ -11,7 +11,7 @@ export const FORMULACOES_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 240 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, width: 140 },
   { id: "produto_nome", label: "Produto", default: true, sortable: true, width: 220 },
-  // D-PROD-208: o consumo padrão na base da formulação ("0,1% PV" ou "80 g/cab/dia"); id mantido (larguras salvas).
+  // D-PROD-210: o consumo padrão na base da formulação ("0,1% PV" ou "80 g/cab/dia"); id mantido (larguras salvas).
   { id: "percentual_pv_padrao", label: "Consumo padrão", default: true, sortable: true, width: 140, align: "right" },
   { id: "regras", label: "Regras", default: true, sortable: true, width: 100, align: "right" },
   { id: "ingredientes", label: "Ingredientes / batida", default: true, sortable: true, width: 180, align: "right" },
