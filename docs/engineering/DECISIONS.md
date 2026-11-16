@@ -7574,7 +7574,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 5. **Migration CONTRACT `20261116300000_abastecimento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`): 7 colunas novas, `local_estoque_id` e `movimentacao_estoque_id` passam a aceitar nulo (só no `EXTERNO`), CHECK de status trocado, CHECKs novos de origem, vínculo e intervalo, 3 FKs e 3 índices; backfill do centro de custo das linhas existentes pelo bem. SHA-256 `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`; 60 → 61 migrations, 94 tabelas.
 6. Abastecimento ligado a atividade **concluída** não se cancela (409, a atividade precisa ser reaberta antes): os totais da concluída ficam congelados. O sem vínculo cancela como sempre.
 7. Permissões: ligar e cancelar o abastecimento seguem as permissões da tela de Abastecimentos; a cascata (cancelar o lançamento ou a atividade) cancela os ligados pela permissão da atividade, como já fazia com as linhas.
-8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro.
+8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro — **feito na D-PROD-213** (FK composta de 4 colunas, [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
 9. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
 
 **Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-211` no caminho A; o envelope no caminho B).
@@ -7609,4 +7609,21 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md`](./MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-213 -->
+## D-PROD-213 — Reforço no banco: o apontamento do abastecimento é da atividade dele
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário: "pode fazer o reforço no banco" · **Branch:** `feat/abastecimento-fk-apontamento-atividade` · **Continua:** D-PROD-211 (item 8, "reforço futuro")
+
+**O problema.** Desde a D-PROD-211, `AbastecimentoBem` tem duas FKs independentes: `AbastecimentoBem_atividade_fkey` (`cliente_id`, `empresa_id`, `atividade_id`) → `Atividade` e `AbastecimentoBem_apontamento_fkey` (`cliente_id`, `empresa_id`, `apontamento_id`) → `AtividadeApontamento`, mais o CHECK `AbastecimentoBem_atividade_check` (apontamento ⇒ atividade). Nada no banco impede uma linha cujo apontamento é de **outra** atividade; só o servidor garante (ele deriva a atividade do apontamento). Uma gravação à mão, um script ou um defeito futuro do servidor deixariam o combustível somado na atividade errada.
+
+**Decisão.**
+1. `AtividadeApontamento` ganha o índice único `AtividadeApontamento_empresa_atividade_id_key` (`cliente_id`, `empresa_id`, `atividade_id`, `id`): trivialmente único (o `id` já é), começa por `cliente_id` (R10) e é o alvo que a FK composta exige.
+2. A FK `AbastecimentoBem_apontamento_fkey` é recriada **com o mesmo nome** e 4 colunas: (`cliente_id`, `empresa_id`, `atividade_id`, `apontamento_id`) → `AtividadeApontamento`(`cliente_id`, `empresa_id`, `atividade_id`, `id`), `ON DELETE RESTRICT ON UPDATE CASCADE`. Com `MATCH SIMPLE` e o CHECK da atividade, toda linha com apontamento tem as 4 colunas preenchidas: a FK sempre confere. Sem vínculo, nada muda (`ESTOQUE` e `EXTERNO`). A FK da atividade fica como está. Se a atividade de um apontamento mudar, a do abastecimento vai junto (CASCADE): o par continua coerente.
+3. **Migration CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, a décima segunda, formato de sempre, sem resto): guarda pinada (formato anterior: FK de 3 colunas, CHECK da atividade presente, UNIQUE ausente; trava `AtividadeApontamento` em `SHARE ROW EXCLUSIVE` e `AbastecimentoBem` em `ACCESS EXCLUSIVE`, a referenciada primeiro; aborta se algum abastecimento apontar para um apontamento de outra atividade) e as 3 instruções pinadas (o UNIQUE, o DROP e o ADD da FK). SHA-256 `37c5617b681c8f9a3108e2bd89b3aa02425898bef84aa9d30aecc5b9179f8cd7`; guarda `234df4b5f77973188d545c47520d0e342ae7084f50a2a77b3edc7b99fb70cbdb`; 62 → 63 migrations, 94 tabelas. O número da decisão fica fora do `migration.sql`.
+4. Nenhuma coluna, tabela ou dado muda; o código do servidor e da tela não muda (o servidor já grava sempre o par certo). O `schema.prisma` acompanha: a relação `apontamento` de `AbastecimentoBem` passa a 4 campos e `AtividadeApontamento` ganha o `@@unique`.
+5. Sem nota de Constituição: dentro do escopo do manejo (o mesmo vínculo da D-PROD-211).
+
+**Release.** Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-213` no caminho A; o envelope no caminho B). Produção hoje: 62 migrations, 0 em aberto, 94 tabelas, 1 abastecimento sem vínculo (a guarda passa).
+
+**Relatório:** [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-214 -->
