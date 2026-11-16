@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { listarTodosLocais, listarTodosProdutos, listarTodosLotesNota } from "@/services/estoqueMapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,11 @@ import { registrarTransferenciaEntreLocais } from "@/services/suplementacaoEstoq
 import { formatQuantidadeTecnica } from "../suplementacao/formatters";
 import { produtoSuportaSacos, sacosParaKg, kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { listEmpresas } from "@/services/empresaService";
+import { hojeNoFuso } from "@/lib/diaCivil";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -28,7 +33,31 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const [localRelacionadoId, setLocalRelacionadoId] = useState("");
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
-  const [dataMovimentacao, setDataMovimentacao] = useState(() => new Date().toISOString().split("T")[0]);
+  // A data PADRÃO é o dia civil da FAZENDA (`Empresa.fuso_horario`, D-PROD-155/178), como no
+  // lançamento do cocho: o dia em UTC (`toISOString`) gravava a movimentação da noite no dia seguinte.
+  // Sem fuso (ou enquanto ele não chega), o relógio do navegador.
+  const { data: empresas = [] } = useQuery({
+    queryKey: ["empresas"],
+    queryFn: () => listEmpresas(),
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const fusoFazenda = useMemo(() => {
+    const empresa = (Array.isArray(empresas) ? empresas : []).find((e) => String(e?.id) === String(empresaSelecionadaId));
+    return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
+  }, [empresas, empresaSelecionadaId]);
+  const hojeFazenda = hojeNoFuso(fusoFazenda);
+  const [dataMovimentacao, setDataMovimentacao] = useState(() => hojeNoFuso(null));
+  // A data que a pessoa escolheu não é trocada quando o fuso chega; o padrão é aplicado uma vez.
+  const dataEditada = useRef(false);
+  const padraoDoFusoAplicado = useRef(false);
+  useEffect(() => {
+    if (!fusoFazenda || padraoDoFusoAplicado.current) return;
+    padraoDoFusoAplicado.current = true;
+    if (dataEditada.current) return;
+    setDataMovimentacao(hojeNoFuso(fusoFazenda));
+  }, [fusoFazenda]);
   const [observacoes, setObservacoes] = useState("");
   const [unidadeInput, setUnidadeInput] = useState("KG");
   const [saving, setSaving] = useState(false);
@@ -54,11 +83,13 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     enabled: !!empresaSelecionadaId,
   });
 
+  // Local inativo não recebe estoque (o servidor recusa `local_inativo`): fora da lista de DESTINO.
+  // Como ORIGEM (entrada) continua, para tirar o saldo que ficou nele.
   const outrosLocais = useMemo(() => {
     return locais
-      .filter((l) => l.id !== deposito.local_estoque_id)
+      .filter((l) => l.id !== deposito.local_estoque_id && (direction !== "saida" || l.ativo !== false))
       .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" }));
-  }, [locais, deposito.local_estoque_id]);
+  }, [locais, deposito.local_estoque_id, direction]);
 
   const localOrigemId = direction === "entrada" ? localRelacionadoId : deposito.local_estoque_id;
   const localOrigemNome = direction === "entrada"
@@ -101,6 +132,8 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!localRelacionadoId) return toast.error("Selecione o local.");
+    if (!dataMovimentacao) return toast.error("Informe a data da movimentação.");
+    if (dataMovimentacao > hojeFazenda) return toast.error("A data da movimentação não pode ser futura.");
     if (!produtoSelecionado) return toast.error("Selecione um produto.");
 
     const inputNum = parseNumber(quantidade);
@@ -116,11 +149,17 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         observacoes: observacoes || `${direction === 'entrada' ? 'Entrada' : 'Saída'} pelo depósito ${deposito.nome_ponto}`, lotesNota,
         dataMovimentacao,
       });
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "movimentacoes", "produtos", "historico-deposito"].includes(q.queryKey[0]) });
+      // O histórico do depósito e o mapa leem primeiro o IndexedDB, e o refresh comum respeita o intervalo
+      // de 60 s: sem `force` a transferência recém-gravada não aparecia ao reabrir o histórico.
+      await Promise.all([
+        refreshMapaCacheEntry("movimentacaoEstoque", empresaSelecionadaId, { force: true }),
+        refreshMapaCacheEntry("estoqueLotes", empresaSelecionadaId, { force: true }),
+      ]).catch(() => {});
+      invalidarCachesDoMapa(queryClient, ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "movimentacoes", "produtos", "historico-deposito", "movimentacoes-deposito-detalhe"]);
       toast.success("Transferência registrada.");
       onSuccess?.();
     } catch (error) {
-      toast.error(error.message || "Erro ao registrar.");
+      toast.error(getApiErrorMessage(error, "Erro ao registrar a transferência."));
     } finally {
       setSaving(false);
     }
@@ -136,7 +175,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
             <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">Data da movimentação <span className="text-red-500">*</span></label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={dataMovimentacao} onChange={(e) => setDataMovimentacao(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
+              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={dataMovimentacao} max={hojeFazenda} onChange={(e) => { dataEditada.current = true; setDataMovimentacao(e.target.value); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
             </div>
             <div>
               <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>

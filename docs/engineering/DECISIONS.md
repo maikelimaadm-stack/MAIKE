@@ -7623,4 +7623,21 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-214 -->
+## D-PROD-214 — Cadastros do mapa e ligações: ligação estrita ponto↔cocho/depósito/bebedouro, exclusão com histórico bloqueada, ocupação derivada e propagação de nomes
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário ("verifique toda a minha situação de cadastros de pontos no mapa, cadastro em lotes, ligações de áreas, pontos etc., pois há vários bugs") · **Branch:** `fix/mapa-cadastros-ligacoes`.
+
+**Decisão.**
+1. **Ligação ponto do mapa ↔ registro operacional** numa regra só (`src/domain/mapa/ligacaoPontoReferencia.js`): bebedouro **somente** por `ponto_referencia_id`; cocho/depósito por mesma empresa + categoria compatível com o tipo do ponto + nome normalizado (coordenadas desempatam; sigla sozinha nunca liga). Ambiguidade não altera nem apaga nada. Sem migration: um `ponto_referencia_id` em `PontoSuplementacao` fica para uma EXPAND futura, se o proprietário quiser.
+2. **Exclusão do ponto** só leva junto cocho/depósito/bebedouro **sem histórico** (leituras de cocho, eventos de suplementação, movimentações/saldo de estoque; histórico/sanidade de bebedouro). Com histórico: bloqueio 409 (`PONTO_SUPLEMENTACAO_COM_HISTORICO`, `BEBEDOURO_COM_HISTORICO`), conferido também no DELETE do servidor. O `LocalEstoque` do depósito é **inativado**, não apagado (D-PROD-137). Falha no meio nunca aparece como sucesso.
+3. **`numero_ponto` do cocho/depósito é do servidor** (sequência do tenant, nova tentativa em colisão); o local do depósito novo nasce na mesma transação.
+4. **Ocupação da área** (`quantidade_atual`, `status_ocupacao`) é **derivada na leitura** dos lotes/posições ativos (mesma fonte do mapa), não mais o valor gravado que ninguém atualizava. Faixas: sem gado "Disponível"; UA/capacidade até 70% "Médio", até 110% "Alto", acima "Sobrepastoreado".
+5. **Renomear área ou setor** propaga o nome para lotes, cochos, bebedouros, tarefas e movimentações na mesma transação, por id e `cliente_id` do `auth_context`.
+6. **Reatribuir códigos de áreas** por comando próprio `POST /areas-pastagem/renumerar` (transação, duas fases), só online; o PATCH genérico continua sem `numero_area`.
+7. **Mapa Geral** relê do servidor as chaves afetadas depois de qualquer cadastro (`invalidarCachesDoMapa`). Ícones são do tenant (`empresa_id` nulo vale para todas as empresas).
+
+**Fora do escopo (pausa nos lotes, pedido do proprietário):** 12 bugs confirmados de lote/movimentação listados no relatório §6; fila offline que trava num 4xx definitivo.
+
+**Relatório:** [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-215 -->

@@ -3,4 +3,5 @@ export {
   createPontoSuplementacao,
   updatePontoSuplementacao,
   deletePontoSuplementacao,
+  consultarElegibilidadeExclusaoPontoSuplementacao,
 } from './pontosSuplementacaoApi.js';

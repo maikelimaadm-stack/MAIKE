@@ -53,3 +53,16 @@ export const pontoSuplementacaoPort = offlineStorageDisponivel()
       enabled: true,
     })
   : operacoesNativas;
+
+/**
+ * Elegibilidade de exclusão (só leitura, só online): `{ id, pode_excluir, motivos }`.
+ * Fica FORA do adaptador offline: a exclusão do ponto do mapa precisa da
+ * resposta do servidor para não apagar cocho/depósito com histórico.
+ * @param {string} id
+ */
+export const consultarElegibilidadeExclusaoPontoSuplementacaoNativa = (id) =>
+  nativeRequest(
+    `${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`,
+    { autenticado: true },
+    ctx('elegibilidadeExclusaoPontoSuplementacao')
+  );

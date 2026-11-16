@@ -40,6 +40,8 @@ export const ORIGENS = Object.freeze({
       { tabela: 'AreaPastagem', chave: 'setor_id', valores: nomeDoSetor('setor_nome') },
       { tabela: 'PontoSuplementacao', chave: 'setor_id', valores: nomeDoSetor('setor_nome') },
       { tabela: 'Lote', chave: 'setor_id', valores: nomeDoSetor('setor_nome') },
+      // G4 — o bebedouro guarda o nome do setor como o cocho guarda.
+      { tabela: 'Bebedouro', chave: 'setor_id', valores: nomeDoSetor('setor_nome') },
       { tabela: 'MovimentacaoMapa', documento: true, chave: 'setor_id', valores: nomeDoSetor('setor_nome') },
       { tabela: 'MovimentacaoMapa', documento: true, chave: 'setor_origem_id', valores: nomeDoSetor('setor_origem_nome') },
       { tabela: 'MovimentacaoMapa', documento: true, chave: 'setor_destino_id', valores: nomeDoSetor('setor_destino_nome') },
@@ -106,10 +108,47 @@ export const ORIGENS = Object.freeze({
   },
 });
 
+const nomeDaArea = (campo) => (o) => ({ [campo]: o.nome });
+
+/**
+ * Cópias do NOME da área (G4). Não é origem do `/referencias/sincronizar`: a
+ * propagação roda dentro da transação do PATCH da área
+ * (`areaPastagemService.atualizar`), com o nome relido do banco, casada só por
+ * id e na empresa da área. Mesmo formato de dependente das ORIGENS.
+ *
+ * @type {readonly Dependente[]}
+ */
+export const DEPENDENTES_NOME_AREA = Object.freeze([
+  { tabela: 'Lote', chave: 'area_atual_id', valores: nomeDaArea('area_atual_nome') },
+  { tabela: 'Lote', chave: 'area_entrada_id', valores: nomeDaArea('area_entrada_nome') },
+  { tabela: 'LancamentoTarefa', chave: 'area_id', valores: nomeDaArea('area_nome') },
+  { tabela: 'PontoSuplementacao', chave: 'area_vinculada_id', valores: nomeDaArea('area_vinculada_nome') },
+  { tabela: 'Bebedouro', chave: 'pasto_id', valores: nomeDaArea('pasto_nome') },
+  { tabela: 'MovimentacaoEstoque', chave: 'area_vinculada_id', valores: nomeDaArea('area_vinculada_nome') },
+  // Os mesmos pares que movimentacaoMapaService resolve na escrita (CAMPOS_DE_AREA).
+  { tabela: 'MovimentacaoMapa', documento: true, chave: 'area_id', valores: nomeDaArea('area_nome') },
+  { tabela: 'MovimentacaoMapa', documento: true, chave: 'area_origem_id', valores: nomeDaArea('area_origem_nome') },
+  { tabela: 'MovimentacaoMapa', documento: true, chave: 'area_destino_id', valores: nomeDaArea('area_destino_nome') },
+]);
+
+/**
+ * Listas PARALELAS de áreas (cocho e bebedouro): `ids[i]` é a área cujo nome
+ * está em `nomes[i]`. O casamento é por posição do id, nunca pelo nome.
+ *
+ * @type {readonly {tabela: string, ids: string, nomes: string}[]}
+ */
+export const LISTAS_NOME_AREA = Object.freeze([
+  { tabela: 'PontoSuplementacao', ids: 'area_vinculada_ids', nomes: 'area_vinculada_nomes' },
+  { tabela: 'Bebedouro', ids: 'area_vinculada_ids', nomes: 'area_vinculada_nomes' },
+]);
+
 // Identificador fora do formato quebra no carregamento do módulo, não em SQL.
 const IDENTIFICADOR = /^[A-Za-z][A-Za-z0-9_]*$/;
-for (const origem of Object.values(ORIGENS)) {
-  for (const nome of [origem.tabela, ...origem.dependentes.flatMap((d) => [d.tabela, d.chave])]) {
-    if (!IDENTIFICADOR.test(nome)) throw new Error(`propagationRules: identificador inválido ${nome}`);
-  }
+const todosOsDependentes = [...Object.values(ORIGENS).flatMap((origem) => origem.dependentes), ...DEPENDENTES_NOME_AREA];
+for (const nome of [
+  ...Object.values(ORIGENS).map((origem) => origem.tabela),
+  ...todosOsDependentes.flatMap((d) => [d.tabela, d.chave]),
+  ...LISTAS_NOME_AREA.flatMap((l) => [l.tabela, l.ids, l.nomes]),
+]) {
+  if (!IDENTIFICADOR.test(nome)) throw new Error(`propagationRules: identificador inválido ${nome}`);
 }

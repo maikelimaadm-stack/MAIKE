@@ -22,6 +22,7 @@ export const ENTITY_LABELS = {
   Categoria: "categoria",
   LocalEstoque: "local de estoque",
   PontoSuplementacao: "ponto de suplementação",
+  Bebedouro: "bebedouro",
   GrupoAtividade: "grupo de atividades",
   TipoTarefa: "tipo de tarefa",
   TipoAtividade: "tipo de atividade",
@@ -59,6 +60,8 @@ export const DELETE_RULES = {
     { entity: "PontoSuplementacao", fields: ["area_vinculada_id"], arrayFields: ["area_vinculada_ids"], label: "pontos de suplementação" },
     { entity: "LancamentoTarefa", fields: ["area_id"], label: "lançamentos de tarefas" },
     { entity: "ManejoTecnicoRebanho", fields: ["area_id"], label: "manejos técnicos" },
+    // Bebedouro aponta para o pasto pelo id principal e pela lista de áreas.
+    { entity: "Bebedouro", fields: ["pasto_id"], arrayFields: ["area_vinculada_ids"], label: "bebedouros" },
   ],
   // Categoria de manejo: o vínculo real é o id (`Lote.categoria_manejo_id` /
   // `categoria_manejo_entrada_id`); o nome cobre os registros que só guardaram o
@@ -98,7 +101,10 @@ export const DELETE_RULES = {
     { entity: "MovimentacaoEstoque", valueMatches: [{ sourceField: "nome", targetFields: ["local_origem", "local_destino", "local_estoque_origem", "local_estoque_destino"] }], label: "movimentações de estoque" },
     { entity: "PontoSuplementacao", valueMatches: [{ sourceField: "nome", targetFields: ["local_estoque_nome"] }], label: "pontos de suplementação" },
   ],
+  // Espelho da trava do servidor (`pontoSuplementacaoService.excluir`), que é a
+  // autoridade: a exclusão pelo mapa pergunta a elegibilidade ao servidor.
   PontoSuplementacao: [
+    { entity: "LeituraCocho", fields: ["ponto_suplementacao_id"], label: "leituras de cocho" },
     { entity: "SuplementacaoEvento", fields: ["ponto_suplementacao_id"], label: "lançamentos de suplementação" },
     { entity: "LancamentoTarefa", fields: ["ponto_suplementacao_id"], label: "lançamentos de tarefas" },
     { entity: "MovimentacaoEstoque", fields: ["ponto_suplementacao_id", "deposito_id"], label: "movimentações de estoque" },
