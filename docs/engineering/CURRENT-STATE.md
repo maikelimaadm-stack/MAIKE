@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-ATIVIDADE-ABASTECIMENTO: Fatia 5, abastecimento ligado à atividade (D-PROD-211)
+## Missão ativa (2026-11-16) — MAIKE-RESUMO-REBANHO: Resumo do Rebanho no Mapa Geral (D-PROD-213)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-213**, pedido do proprietário: relação do rebanho por categoria com peso hoje, peso projetado em 90 dias, arrobas e lotação por pasto, no padrão visual do sistema |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `387903f2` |
+| Escopo | Cartão do resumo inferior do Mapa Geral abre o diálogo (casca do Detalhes do Lote v8); contas puras em `src/domain/rebanho/resumoDoRebanho.js`; sem backend, sem migration, sem permissão nova |
+| Release | Sem migration: merge e deploy normais |
+| Relatório | [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-ATIVIDADE-ABASTECIMENTO: Fatia 5, abastecimento ligado à atividade (D-PROD-211)
 
 | Campo | Valor |
 |---|---|
