@@ -59,6 +59,7 @@ export const motivosHistoricoPonto = async (tx, clienteId, ponto) => {
   const existe = async (consulta) => Boolean(await consulta);
   const sel = { select: { id: true } };
 
+  /** @type {Array<[string, () => Promise<unknown>]>} */
   const verificacoes = [
     ['leituras_cocho', () => tx.leituraCocho.findFirst({ where: { cliente_id: clienteId, ponto_suplementacao_id: id }, ...sel })],
     [
@@ -102,6 +103,7 @@ export const motivosHistoricoPonto = async (tx, clienteId, ponto) => {
     );
   }
 
+  /** @type {string[]} */
   const motivos = [];
   for (const [motivo, consultar] of verificacoes) {
     if (await existe(consultar())) motivos.push(motivo);

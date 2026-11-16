@@ -163,7 +163,7 @@ const OCUPACOES_COM_GADO = Object.freeze(['Médio', 'Alto', 'Sobrepastoreado']);
  *  - com cabeças sem como medir: o valor gravado, se já for de área ocupada;
  *    senão "Médio".
  *
- * @param {{capacidade_maxima: unknown, status_ocupacao: unknown}} area
+ * @param {{capacidade_maxima?: unknown, status_ocupacao?: unknown}} area
  * @param {{cabecas: number, kg: number} | undefined} gado
  * @returns {{quantidade_atual: number, status_ocupacao: string}}
  */
