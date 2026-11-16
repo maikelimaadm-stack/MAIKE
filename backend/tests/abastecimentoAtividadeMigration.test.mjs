@@ -30,6 +30,15 @@
  * produção recusa; histórico fora de 61/0, a D-PROD-210 com outro checksum ou uma coluna nova já presente recusa antes
  * do DDL; o envelope aplica (61 → 62, checksum = SHA-256 do arquivo, applied_steps_count 1, o mesmo schema do runner),
  * o Prisma não vê pendência, `migrate diff` vazio e o postcheck APLICADA; repetir o envelope recusa.
+ *
+ * D-PROD-213: a CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade` (o reforço: UNIQUE em
+ * AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a atividade), de nome posterior, muda o
+ * schema.prisma. Este teste fica NO DIA DA D-PROD-211: o runner oficial roda sobre um espelho do repositório com só as
+ * pastas até esta (`runnerDoDia`, ver `espelhoDoRunner.mjs`), e o `migrate diff` contra o schema.prisma de hoje acusa
+ * só a diferença do reforço (exit 2) até a D-PROD-213 subir. O AA-08 prova a ordem de produção, num banco à parte: esta
+ * pelo runner do dia e depois, pelo runner do repositório com a decisão exata, a D-PROD-213 (63/0, 94 tabelas,
+ * `migrate diff` vazio); no caminho B, o runner do repositório sobe a D-PROD-213 depois do envelope e o `migrate diff`
+ * fica vazio.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,6 +54,7 @@ import { PrismaClient } from '@prisma/client';
 // e este teste não depende de rota nem de serviço.
 import { closePrismaClient, getPrismaClient } from '../src/database/prismaClient.js';
 import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
+import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
 import {
   MIGRATIONS_APROVADAS, MIGRATIONS_CONTRACT_APROVADAS, classificarMigrations, conferirHistoricoRemoto, contractsPendentes,
 } from '../../scripts/deploy/premergeMigrateLib.mjs';
@@ -62,8 +72,11 @@ const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
 /** D-PROD-210: a anterior, a última que produção concluiu (o preflight e o envelope conferem o checksum dela). */
 const NOME_ANTERIOR = '20261116200000_formulacao_base_consumo';
 const CHECKSUM_ANTERIOR = 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171';
-/** Pastas do repositório: a partida é o que vem ANTES desta (produção hoje); o GREEN, todas. */
-const PASTAS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+/** Pastas do repositório: a partida é o que vem ANTES desta; o GREEN, até esta (no dia da D-PROD-211). */
+const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+/** D-PROD-213: a CONTRACT do reforço, de nome posterior (ver o cabeçalho); fica fora do dia desta. */
+const NOME_REFORCO = '20261116400000_abastecimento_fk_apontamento_atividade';
+const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
 const COLUNAS_NOVAS = Object.freeze(['origem', 'atividade_id', 'apontamento_id', 'centro_custo_id', 'medidor_leitura_anterior', 'medidor_delta', 'intervalo_confiavel']);
@@ -131,6 +144,26 @@ const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);
+/** D-PROD-213 — o runner oficial NO DIA DA D-PROD-211 (espelho com as pastas até esta; ver `espelhoDoRunner.mjs`). */
+let ESPELHO;
+const runnerDoDia = (urlMigracao, { runtime, extras = {} } = {}) =>
+  rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: ESPELHO,
+    env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
+  });
+/** D-PROD-213 (ver o cabeçalho): até o reforço subir, o schema.prisma de hoje acusa só a diferença dele. */
+const DIFERENCA_DO_REFORCO = [
+  '[*] Changed the `AbastecimentoBem` table',
+  '  [-] Removed foreign key on columns (cliente_id, empresa_id, apontamento_id)',
+  '  [+] Added foreign key on columns (cliente_id, empresa_id, atividade_id, apontamento_id)',
+  '',
+  '[*] Changed the `AtividadeApontamento` table',
+  '  [+] Added unique index on columns (cliente_id, empresa_id, atividade_id, id)',
+].join('\n');
+const soDiferencaDoReforco = (diff) => {
+  assert.equal(diff.status, 2, diff.saida);
+  assert.equal(diff.stdout.trim(), DIFERENCA_DO_REFORCO, diff.saida);
+};
 
 /** psql sem .psqlrc, saída crua e SQLSTATE nas mensagens de erro. */
 const psql = (url, args) => {
@@ -305,6 +338,7 @@ const emBancoNovo = async (sufixo, fn) => {
 before(async () => {
   const p = getPrismaClient();
   BASE_URL = exigirUrlLocal(process.env.DATABASE_URL);
+  ESPELHO = criarEspelhoDoRunner({ raiz: RAIZ, ate: NOME }).dir;
   PREFIXO = new URL(BASE_URL).pathname.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40) || 'maike';
   BANCO_MODELO = `${PREFIXO}_aba_modelo`;
   for (const b of [`${PREFIXO}_aba`, `${PREFIXO}_aba_b`, BANCO_MODELO]) await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${b} WITH (FORCE)`);
@@ -325,7 +359,8 @@ before(async () => {
 
 after(async () => {
   await db?.$disconnect();
-  for (const b of [`${PREFIXO}_aba`, `${PREFIXO}_aba_b`, BANCO_MODELO]) if (PREFIXO) await apagar(b);
+  for (const b of [`${PREFIXO}_aba`, `${PREFIXO}_aba_b`, `${PREFIXO}_aba_ordem`, BANCO_MODELO]) if (PREFIXO) await apagar(b);
+  if (ESPELHO) rmSync(ESPELHO, { recursive: true, force: true });
   await closePrismaClient();
 });
 
@@ -333,8 +368,9 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
   test('AA-01 partida: as 61 migrations de nome anterior a esta (a última a D-PROD-210), 94 tabelas, os 3 abastecimentos no formato de antes; schema × banco acusa a diferença; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     assert.equal(ANTERIORES.length, 61, 'produção hoje: 61 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
-    assert.equal(PASTAS.at(-1), NOME, 'esta é a migration de nome mais recente');
+    assert.equal(PASTAS.at(-1), NOME, 'no dia da D-PROD-211, esta era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 62);
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_REFORCO], 'D-PROD-213: só o reforço tem nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [61, 0, 0]);
     assert.equal(partida.tabelas.split(',').length, 94);
@@ -390,6 +426,8 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
     const locais = PASTAS.map((n) => ({ nome: n, checksum: createHash('sha256').update(readFileSync(join(MIGRATIONS, n, 'migration.sql'), 'utf8')).digest('hex') }));
     assert.deepEqual(conferirHistoricoRemoto({ locais, linhas }), { ok: true, codigo: null, pendentes: [NOME], falhas: [] });
     assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), [{ nome: NOME, decisao: DECISAO }]);
+    // Hoje (D-PROD-213), com as pastas do repositório, o reforço também pende: são duas CONTRACT pendentes.
+    assert.deepEqual(contractsPendentes({ locais: PASTAS_HOJE, linhas }), [{ nome: NOME, decisao: DECISAO }, { nome: NOME_REFORCO, decisao: 'D-PROD-213' }]);
   });
 
   test('AA-RED-1 uma coluna nova já presente (num banco novo) → a guarda recusa e NADA muda; o runner local também falha na guarda', async () => {
@@ -400,7 +438,7 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
       assert.notEqual(r.status, 0, r.saida);
       assert.match(r.saida, /guarda: o abastecimento não está no formato anterior/);
       assert.deepEqual(await retrato(dbr), antes, 'nada da migration ficou');
-      const runner = await aplicarPeloRunner(url);
+      const runner = await runnerDoDia(url);
       assert.notEqual(runner.status, 0, runner.saida);
       assert.match(runner.saida, /guarda: o abastecimento não está no formato anterior/);
       const depois = await retrato(dbr);
@@ -428,11 +466,11 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
     });
   });
 
-  test('AA-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-211, antes de qualquer DDL', async () => {
+  test('AA-03 runner do dia com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-211, antes de qualquer DDL', async () => {
     const linhasAntes = (await um(db, 'SELECT count(*)::int AS n FROM _prisma_migrations')).n;
     // D-PROD-210 é a CONTRACT anterior e D-PROD-200 criou a atividade: nenhuma autoriza esta; nem a decisão em minúsculas.
     for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-210' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-209' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-200' }, { MIGRATION_CONTRACT_AUTORIZADO: 'd-prod-211' }, { MIGRATION_CONTRACT_AUTORIZADO: ' D-PROD-211 ' }]) {
-      const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, ...extra } });
+      const r = await runnerDoDia(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, ...extra } });
       assert.equal(r.status, 1, r.saida);
       assert.match(r.saida, /alvo conferido nas duas conexões/);
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
@@ -445,8 +483,8 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('AA-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-211): 62/0, 94 tabelas, as 7 colunas, local e movimento anuláveis, o CHECK de status recriado, 3 CHECKs, 3 FKs e 3 índices novos, nada mais mudou; o backfill do centro de custo vindo do bem; migrate diff vazio', async () => {
-    const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+  test('AA-04 GREEN pelo runner oficial do dia (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-211): 62/0, 94 tabelas, as 7 colunas, local e movimento anuláveis, o CHECK de status recriado, 3 CHECKs, 3 FKs e 3 índices novos, nada mais mudou; o backfill do centro de custo vindo do bem; migrate diff só com a diferença do reforço (D-PROD-213)', async () => {
+    const r = await runnerDoDia(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /alvo conferido nas duas conexões/);
     assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME} (${DECISAO})`), r.saida);
@@ -510,8 +548,7 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
       { id: A3, origem: 'ESTOQUE', centro_custo_id: `${C2}-cc1`, atividade_id: null, apontamento_id: null, anterior: null, delta: null, intervalo_confiavel: false, local_estoque_id: `${C2}-l1`, movimentacao_estoque_id: `${C2}-mv1`, status: 'CONFIRMADO' },
     ]);
 
-    const diff = await migrateDiff(URL_T);
-    assert.equal(diff.status, 0, diff.saida);
+    soDiferencaDoReforco(await migrateDiff(URL_T));
   });
 
   test('AA-05 postcheck do runbook no banco aplicado pelo runner: tudo OK e VEREDITO APLICADA; o preflight agora manda parar', async () => {
@@ -580,16 +617,52 @@ describe('D-PROD-211 — migration CONTRACT do abastecimento ligado à atividade
     assert.deepEqual(await retrato(db), antes);
   });
 
-  test('AA-07 reaplicar o migration.sql (psql, uma transação) é recusado pela guarda (as colunas já existem) e NADA muda; a 2ª execução do runner não tem pendência', async () => {
+  test('AA-07 reaplicar o migration.sql (psql, uma transação) é recusado pela guarda (as colunas já existem) e NADA muda; a 2ª execução do runner do dia não tem pendência', async () => {
     const antes = await retrato(db);
     const r = await aplicarArquivo(URL_T);
     assert.notEqual(r.status, 0, r.saida);
     assert.match(r.saida, /guarda: o abastecimento não está no formato anterior/);
     assert.deepEqual(await retrato(db), antes);
-    const segunda = await aplicarPeloRunner(URL_T);
+    const segunda = await runnerDoDia(URL_T);
     assert.equal(segunda.status, 0, segunda.saida);
     assert.match(segunda.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
+  });
+});
+
+describe('D-PROD-211 — ordem de produção com a D-PROD-213 (posterior)', () => {
+  test('AA-08 num banco à parte com a mesma partida: esta pelo runner do dia (62/0) e depois, pelo runner do repositório com o alvo conferido, só a D-PROD-213 pende; sem a decisão exata recusa antes de qualquer DDL; com ela, 63/0, 94 tabelas e migrate diff vazio', async () => {
+    const url = await clonar(`${PREFIXO}_aba_ordem`);
+    const dbo = new PrismaClient({ datasourceUrl: url });
+    try {
+      const conferencia = { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID };
+      // Com as pastas do repositório, as duas pendem juntas: nem a decisão desta passa.
+      const juntas = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+      assert.equal(juntas.status, 1, juntas.saida);
+      assert.ok(juntas.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_REFORCO} (D-PROD-213).`), juntas.saida);
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [61, 0]);
+      const dia = await runnerDoDia(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+      assert.equal(dia.status, 0, dia.saida);
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [62, 0]);
+      const semDecisao = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+      assert.equal(semDecisao.status, 1, semDecisao.saida);
+      assert.ok(semDecisao.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_REFORCO} (D-PROD-213).`), semDecisao.saida);
+      assert.match(semDecisao.saida, /Nenhuma migration foi executada/);
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [62, 0]);
+      const r = await aplicarPeloRunner(url, { runtime: url, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-213' } });
+      assert.equal(r.status, 0, r.saida);
+      assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_REFORCO} (D-PROD-213).`), r.saida);
+      assert.ok(r.saida.includes(`Applying migration \`${NOME_REFORCO}\``), r.saida);
+      assert.ok(!r.saida.includes(`Applying migration \`${NOME}\``), r.saida);
+      assert.ok(!vazou(r.saida, url));
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [63, 0]);
+      assert.equal((await retrato(dbo)).tabelas.split(',').length, 94);
+      const diff = await migrateDiff(url);
+      assert.equal(diff.status, 0, diff.saida);
+    } finally {
+      await dbo.$disconnect();
+      await apagar(`${PREFIXO}_aba_ordem`);
+    }
   });
 });
 
@@ -648,7 +721,7 @@ describe('D-PROD-211 — caminho B do runbook (uma transação pelo conector), n
     assert.deepEqual(await retrato(dbB), partidaB);
   });
 
-  test('TB-03 GREEN: preflight PRONTO; o envelope aplica numa transação (61 → 62, checksum = SHA-256 do arquivo, applied_steps_count 1); o mesmo schema do runner; postcheck APLICADA; o Prisma não vê pendência; migrate diff vazio', async () => {
+  test('TB-03 GREEN: preflight PRONTO; o envelope aplica numa transação (61 → 62, checksum = SHA-256 do arquivo, applied_steps_count 1); o mesmo schema do runner; postcheck APLICADA; o Prisma do dia não vê pendência; o do repositório sobe a D-PROD-213 e o migrate diff fica vazio', async () => {
     const pre = quadro(await consulta(URL_B, comSidLocal(blocoDoRunbook('preflight'), SID)));
     assert.match(pre.VEREDITO.valor, /^PRONTO PARA APLICAR/);
 
@@ -670,9 +743,15 @@ describe('D-PROD-211 — caminho B do runbook (uma transação pelo conector), n
     for (const [item, v] of Object.entries(pos)) if (item !== 'VEREDITO') assert.equal(v.status, 'OK', `${item}: ${v.status} (${v.valor})`);
     assert.match(pos.VEREDITO.valor, /^APLICADA E CONFERIDA/);
 
-    const runner = await aplicarPeloRunner(URL_B);
+    const runner = await runnerDoDia(URL_B);
     assert.equal(runner.status, 0, runner.saida);
     assert.match(runner.saida, /No pending migrations to apply/);
+    soDiferencaDoReforco(await migrateDiff(URL_B));
+    // D-PROD-213 (ver o cabeçalho): o runner do repositório (alvo local, sem a conferência) sobe a posterior; o schema bate.
+    const hoje = await aplicarPeloRunner(URL_B);
+    assert.equal(hoje.status, 0, hoje.saida);
+    assert.ok(hoje.saida.includes(`Applying migration \`${NOME_REFORCO}\``), hoje.saida);
+    assert.ok(!hoje.saida.includes(`Applying migration \`${NOME}\``), hoje.saida);
     const diff = await migrateDiff(URL_B);
     assert.equal(diff.status, 0, diff.saida);
   });
