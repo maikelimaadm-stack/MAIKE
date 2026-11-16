@@ -72,7 +72,7 @@ SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 94
 
 E, localmente, no `<SHA_APROVADO>`: `sha256sum` do `migration.sql` igual ao
 pinado, e `classificarMigrations` com `modo: CONTRACT`, a entrada D-PROD-210 e
-`violacoes: []` (testes B27a/B27b).
+`violacoes: []` (testes B29a/B29b).
 
 ## 3. Caminho B — uma transação
 
@@ -165,6 +165,6 @@ esta. Com o código novo no ar, reverter o código primeiro.
 | Caminho | `<A ou B>` |
 | GO | `<texto do GO do proprietário>` |
 | Preflight (§2) | `<system_identifier; 60 / 0; 3 tabelas vazias; colunas ausentes>` |
-| Ensaio | Banco local com as 58 migrations da `main` (sem esta): alvo de produção recusado (`alvo divergente`); com o `system_identifier` local aplicou (59 / 0, 95 tabelas, `migrate status` em dia, `migrate diff` vazio); reexecução recusada (`migration já registrada`) |
+| Ensaio | Banco local com as 60 migrations da `main` `18426967` (sem esta; a última a D-PROD-209): alvo de produção recusado (`RELEASE_BLOCKED: alvo divergente`); com o `system_identifier` local aplicou numa transação (61 / 0, 94 tabelas, checksum `a8c42eeb…` igual ao pinado, `migrate status` "Database schema is up to date!", `migrate diff` "No difference detected."); repetir recusado (`RELEASE_BLOCKED: migration já registrada`). SQL: `aplicar210.sql` (scratchpad da sessão) |
 | Postcheck (§4) | `<61 / 0; checksum; colunas; CHECKs; 94 tabelas>` |
 | Resultado | **PENDENTE** |

@@ -604,8 +604,9 @@ describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terce
       assert.equal(tabelas.length, 94);
       assert.ok(!tabelas.includes('Funcionario'));
       for (const t of NOVAS.filter((x) => x !== 'Funcionario')) assert.ok(tabelas.includes(t), t);
+      // D-PROD-210: o schema.prisma de hoje já tem a base do consumo (posterior; ver o FT-08): o diff acusa só ela.
       const diff = await migrateDiff(url);
-      assert.equal(diff.status, 0, diff.saida);
+      assert.equal(diff.status, 2, diff.saida);
     } finally {
       await dbo.$disconnect();
       await apagar(`${PREFIXO}_amo_ordem`);

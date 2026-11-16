@@ -3763,10 +3763,15 @@ test('B28l (D-PROD-209): runner real sobre a release do tipo Terceirizado — an
 test('B28m (D-PROD-209/D-PROD-208): ordem de produção hoje — alvo com as 59 da main concluídas (por último o ajuste da Fatia 4, D-PROD-208): o histórico confere, a única pendente é a D-PROD-209 e a barreira do CONTRACT a exige; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 60 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
   const P1_03 = '20261113300000_estoque_p1_03_indices';
   const raiz = 'backend/prisma/migrations';
-  const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
+  const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
+  assert.equal(todas.length, 61);
+  // No dia da D-PROD-209 o tipo Terceirizado era a pasta de nome mais recente; a base do consumo (D-PROD-210,
+  // `20261116200000_formulacao_base_consumo`, ver B29m) veio depois dela, na release seguinte: 60 pastas.
+  const locais = todas.filter((l) => l.nome <= NOME_TT);
   assert.equal(locais.length, 60);
-  assert.ok(locais.every((l) => l.nome <= NOME_TT), 'o tipo Terceirizado é a migration de nome mais recente');
+  assert.ok(todas.some((l) => l.nome === NOME_BC) && !locais.some((l) => l.nome === NOME_BC), NOME_BC);
+  assert.ok(locais.every((l) => l.nome <= NOME_TT), 'na época, o tipo Terceirizado era a migration de nome mais recente');
   const t0 = Date.parse('2026-01-01T00:00:00Z');
   // Produção: as 59 de B27m (depois da D-PROD-208), na ordem em que foram concluídas; por último a D-PROD-208.
   const fora = [NOME_TT, NOME_PP, NOME_MO, NOME_FT, NOME_LC, NOME_F, NOME_L, NOME_V, NOME_PO, NOME_P, NOME_G, NOME_K, NOME_D, P1_03, NOME_I];
@@ -3957,4 +3962,35 @@ test('B29k (D-PROD-210): contractsPendentes com as dez CONTRACT locais — produ
   assert.deepEqual(contractsPendentes({ locais, linhas: [...producao, linha(NOME_BC, { finished_at: null })] }), [PEND]);
   assert.deepEqual(contractsPendentes({ locais, linhas: [...producao, linha(NOME_BC, { rolled_back_at: new Date() })] }), [PEND]);
   assert.deepEqual(contractsPendentes({ locais: locais.filter((n) => n !== NOME_BC), linhas: producao }), []);
+});
+
+test('B29m (D-PROD-210/D-PROD-209): ordem de produção hoje — alvo com as 60 da main concluídas (por último o tipo Terceirizado, D-PROD-209): o histórico confere, a única pendente é a D-PROD-210 e a barreira do CONTRACT a exige; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 61 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
+  const P1_03 = '20261113300000_estoque_p1_03_indices';
+  const raiz = 'backend/prisma/migrations';
+  const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
+    .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
+  assert.equal(locais.length, 61);
+  assert.ok(locais.every((l) => l.nome <= NOME_BC), 'a base do consumo é a migration de nome mais recente');
+  const t0 = Date.parse('2026-01-01T00:00:00Z');
+  // Produção: as 60 de B28m (depois da D-PROD-209), na ordem em que foram concluídas; por último a D-PROD-209.
+  const fora = [NOME_BC, NOME_TT, NOME_PP, NOME_MO, NOME_FT, NOME_LC, NOME_F, NOME_L, NOME_V, NOME_PO, NOME_P, NOME_G, NOME_K, NOME_D, P1_03, NOME_I];
+  const ordem = [...locais.filter((l) => !fora.includes(l.nome)), ...[NOME_D, P1_03, NOME_I, NOME_K, NOME_G, NOME_P, NOME_PO, NOME_V, NOME_L, NOME_F, NOME_LC, NOME_FT, NOME_MO, NOME_PP, NOME_TT].map((n) => locais.find((l) => l.nome === n))];
+  const linhas = ordem.map((l, i) => ({ migration_name: l.nome, checksum: l.checksum, finished_at: new Date(t0 + i * 1000), rolled_back_at: null }));
+  assert.equal(linhas.length, 60);
+  assert.equal(linhas.at(-1).migration_name, NOME_TT);
+  // A anterior concluída com o checksum do arquivo (o mesmo que o preflight do runbook confere).
+  assert.equal(linhas.at(-1).checksum, '44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6');
+  const h = conferirHistoricoRemoto({ locais, linhas });
+  assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_BC], falhas: [] });
+  assert.deepEqual(conferirHistoricoRemoto({ locais: [...locais].reverse(), linhas: [...linhas].reverse() }), h);
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_BC, decisao: 'D-PROD-210' }]);
+  const linhaBC = (checksum, extra = {}) => ({ migration_name: NOME_BC, checksum, finished_at: new Date(t0 + 99_000), rolled_back_at: null, ...extra });
+  for (const errado of [MIGRATIONS_APROVADAS[NOME_TT], 'manual', MIGRATIONS_CONTRACT_APROVADAS[NOME_BC].guarda_sha256]) {
+    assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaBC(errado)] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS', errado);
+  }
+  assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaBC(MIGRATIONS_APROVADAS[NOME_BC], { finished_at: null })] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS');
+  const depois = [...linhas, linhaBC(MIGRATIONS_APROVADAS[NOME_BC])];
+  assert.equal(depois.length, 61);
+  assert.deepEqual(conferirHistoricoRemoto({ locais, linhas: depois }), { ok: true, codigo: null, pendentes: [], falhas: [] });
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });

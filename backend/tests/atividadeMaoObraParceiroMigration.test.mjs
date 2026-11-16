@@ -134,11 +134,6 @@ const ambienteBase = () => {
   return env;
 };
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
-/** O runner oficial (`npm run deploy:migrate`). `runtime` é a conexão do runtime quando a conferência de alvo é exigida. */
-const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
-  rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
-    env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
-  });
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);
 
 /** D-PROD-209 — o runner oficial NO DIA DA D-PROD-208 (espelho com as pastas até esta; ver `espelhoDoRunner.mjs`). */
