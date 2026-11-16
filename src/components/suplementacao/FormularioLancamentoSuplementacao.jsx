@@ -35,7 +35,8 @@ import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeConversaoUtils";
-import { baseDoConsumo, consumoEsperadoPorFormulacao, resumoPesoDosLotes } from "./consumoPVUtils";
+import { baseDoConsumo, consumoEsperadoPorFormulacao, pesoDeConsumoDoLote, resumoPesoDosLotes } from "./consumoPVUtils";
+import { curvaDaProjecaoDePeso } from "@/domain/rebanho/ganhoPelaCurva";
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { listEmpresas } from "@/services/empresaService";
@@ -610,6 +611,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           // D-PROD-210: gramas por cabeça por dia deste lote na base G_CAB_DIA (0 = não consome).
           g_cab_dia_lote: doLote && baseEmGramas ? doLote.gCabDia : null,
           consumo_esperado_pv_lote_kg: consumoEsperadoLotePV,
+          // D-PROD-212: a curva de ganho do lote (GMD de cada mês, da projeção de peso D-PROD-198) — o fechamento
+          // projeta com ela o peso no fim do período (peso médio). Só quando o peso usado é o projetado.
+          gmd_mensal_kg: pesoMedioLote > 0 && pesoDeConsumoDoLote(lote).origem === "projetado" ? curvaDaProjecaoDePeso(lote.projecao_peso) : null,
           data_lancamento: formData.data_lancamento,
           produto: nomeProduto,
           cabecas_na_area: lote.quantidade_cabecas,

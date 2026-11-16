@@ -396,11 +396,11 @@ migration nova na mesma release; SHA-256 diferente do pinado; ensaio local sem p
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | `<pendente>` |
-| Caminho | `<pendente>` |
-| `<SHA_APROVADO>` | `<pendente>` |
-| Ensaio local (§4.2) | `<pendente>` |
-| Preflight (§4) | `<pendente>` |
-| Aplicação | `<pendente>` |
-| Postcheck (§6) | `<pendente>` |
-| Merge e deploy | `<pendente>` |
+| GO-1 e GO-2 | GO escrito do proprietário em 2026-11-16 ("aplica"), para esta migration |
+| Caminho | B (conector Supabase, uma `execute_sql`) |
+| `<SHA_APROVADO>` | `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436` (conferido no arquivo antes de colar) |
+| Ensaio local (§4.2) | 13/13 (`abastecimentoAtividadeMigration`); suíte backend inteira 2216, 0 falhas |
+| Preflight (§4) | 2026-11-16: todas as linhas OK (alvo, 61/0, esta 0, a anterior D-PROD-210 1, colunas novas 0, NOT NULL 2, CHECK antigo 1 / novos 0, abastecimentos 1 / com centro no bem 0, 94 tabelas, 0 travas, 0 transações longas) · PRONTO PARA APLICAR |
+| Aplicação | 2026-11-16, envelope do §5 com a migration integral, COMMIT sem erro |
+| Postcheck (§6) | 2026-11-16: todas as linhas OK (esta 1 com o checksum pinado, 62/0, 7 colunas, 2 anuláveis, 4 CHECKs novos, 10 CHECKs no total, 3 FKs, 3 índices, backfill 0 divergente, formato 0 fora, 94 tabelas) · APLICADA E CONFERIDA |
+| Merge e deploy | PR #300 (deploy automático da Vercel a partir da `main`) |

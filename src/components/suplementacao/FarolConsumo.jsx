@@ -7,7 +7,17 @@ import { FAROL_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
  * "Aproximado" quando a sobra final não foi medida.
  * D-PROD-210: na base g/cab/dia a meta é em gramas ("g/cab/dia real × meta") e o
  * %PV real aparece só como informação, sem %PV esperado.
+ * D-PROD-212: o peso médio do período (base do esperado na base %PV; marcado
+ * aproximado quando não houve curva ou peso) e a sobra herdada que saiu primeiro
+ * no custo do período.
  */
+
+const MOTIVO_PESO = Object.freeze({
+  sem_data: "sem data do lançamento",
+  sem_lotes: "sem os lotes do período",
+  sem_curva: "lote sem curva de ganho gravada",
+  sem_peso: "lote sem peso próprio",
+});
 
 const COR_SELO = Object.freeze({
   vermelho: "border-red-200 bg-red-50 text-red-700",
@@ -92,12 +102,33 @@ export function ResumoFechamentoConsumo({ resumo, previa = false }) {
             <Celula label="%PV real × esperado" value={pvReal ? `${pvReal}% × ${pvEsperado ?? "-"}${pvEsperado ? "%" : ""}` : "-"} />
           </>
         )}
+        {typeof resumo.peso_medio_periodo_kg === "number" && (
+          <Celula
+            label="Peso médio do período"
+            value={
+              <span data-testid="peso-medio-periodo">
+                {fmt(resumo.peso_medio_periodo_kg, 0)} kg
+                {resumo.peso_medio_periodo_aproximado ? (
+                  <span className="ml-1 font-normal text-amber-700" title={MOTIVO_PESO[resumo.peso_medio_periodo_motivo] ?? ""}>
+                    (aproximado{MOTIVO_PESO[resumo.peso_medio_periodo_motivo] ? `: ${MOTIVO_PESO[resumo.peso_medio_periodo_motivo]}` : ""})
+                  </span>
+                ) : null}
+              </span>
+            }
+          />
+        )}
         <Celula label="Custo R$/cab/dia" value={reais(resumo.custo_cab_dia) ?? "Sem custo"} />
         <Celula
           label="Custo do período"
           value={reais(resumo.custo_total_periodo) ? `${reais(resumo.custo_total_periodo)} · ${reais(resumo.custo_unitario_kg)}/kg` : "Sem custo"}
         />
       </div>
+      {typeof resumo.sobra_herdada_kg === "number" && resumo.sobra_herdada_kg > 0 && typeof resumo.custo_sobra_herdada_kg === "number" && (
+        <div className="text-[10px] text-slate-600" data-testid="custo-sobra-herdada">
+          Sobra antiga primeiro: {fmt(resumo.sobra_herdada_kg, 2)} kg a {reais(resumo.custo_sobra_herdada_kg)}/kg
+          {resumo.custo_sobra_aproximado ? <span className="ml-1 font-semibold text-amber-700">(custo da sobra aproximado)</span> : null}
+        </div>
+      )}
     </div>
   );
 }

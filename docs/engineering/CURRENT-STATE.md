@@ -14,11 +14,22 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-211** (nasceu D-PROD-210; a `main` deu a D-PROD-210 à base do consumo, PR #297), Fatia 5 do brief do Lançamento de Atividades, liberada pelo proprietário ("pode iniciar a fatia 5") |
-| Branch / PR | `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209), com a `main` `67f44d76` (PR #297, D-PROD-210) por merge · PR **#300** |
+| Branch / PR | `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209), com a `main` `67f44d76` (PR #297, D-PROD-210) e `72e31cbe` (PR #301, D-PROD-212) por merge · PR **#300** |
 | Escopo | Abastecimento ligado ao lançamento (atividade derivada), origem `EXTERNO` (posto, sem estoque), snapshots de centro de custo, leitura anterior, delta e intervalo confiável; cascata de cancelamento; totalizador com combustível, custo/ha e consumo por bem |
 | Migration | `20261116300000_abastecimento_atividade`, **CONTRACT**, SHA `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`. Produção 61 → 62 (a anterior é a `20261116200000_formulacao_base_consumo`, D-PROD-210); tabelas 94 (sem mudança) |
-| Release | **Não aplicada.** Só com o GO do proprietário, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) |
+| Release | **Aplicada em produção em 2026-11-16** (GO escrito do proprietário, caminho B): postcheck APLICADA E CONFERIDA, produção 62/0, 94 tabelas. Registro no [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) §9 |
 | Documentos | [contrato](./MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md) · [relatório](./MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md) · [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-FECHAMENTO-REFINAMENTOS: peso médio do período no esperado (base %PV) e a sobra antiga primeiro no custo (D-PROD-212)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-212** (a D-PROD-211 fica para a PR #300, aberta), refinamentos 1 e 2 do fechamento do consumo aprovados pelo proprietário |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `67f44d76` (PR #297, D-PROD-210) |
+| Escopo | Esperado do fechamento pelo peso médio do período (curva de ganho do lote, mesma regra do peso projetado D-PROD-198), só na base PV; custo do período com a sobra herdada saindo primeiro (camadas FIFO no cocho); correção do PATCH de `SuplementacaoEvento`, que recusava os campos do fechamento do consumo desde a D-PROD-206 |
+| Migration | **Nenhuma** (campos no documento JSON do evento e do lote) |
+| Release | Merge sem passo de banco |
+| Relatório | [`MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md`](./MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md) |
 
 ## Missão anterior (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-210)
 

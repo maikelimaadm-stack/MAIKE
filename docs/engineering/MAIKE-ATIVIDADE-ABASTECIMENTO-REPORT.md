@@ -37,5 +37,8 @@ Registrado como reforço futuro: FK composta amarrando o lançamento à atividad
 
 ## 4. Release
 
-**Não aplicada.** Só com o GO escrito do proprietário, antes do merge, pelo runbook (caminho B: guardas `n_ok <> 61`, a
-anterior `20261116200000_formulacao_base_consumo` com o checksum `a8c42eeb…`; postcheck 62/0, 94 tabelas).
+**Aplicada em produção em 2026-11-16** com o GO escrito do proprietário ("aplica"), pelo caminho B: preflight todo OK
+(61/0, colunas novas ausentes, local/movimento ainda NOT NULL, CHECK antigo presente, 94 tabelas), envelope com a
+migration integral (SHA `6dfc825c…`) e postcheck **APLICADA E CONFERIDA** (62/0, 7 colunas, 4 CHECKs, 3 FKs, 3
+índices, backfill conferido, 94 tabelas). Registro no §9 do runbook. A `main` recebeu a PR #301 (D-PROD-212, sem
+migration) antes do merge, trazida por merge.
