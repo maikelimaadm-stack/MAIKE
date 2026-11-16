@@ -144,7 +144,12 @@ export const NOME_BASE = '20261116200000_formulacao_base_consumo';
  * D-PROD-210, fora da partida como as outras.
  */
 export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_atividade';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE]);
+/**
+ * D-PROD-213 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
+ * atividade) exige a D-PROD-211: vem por último, depois dela, fora da partida como as outras; sem tabela nova.
+ */
+export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261116400000_abastecimento_fk_apontamento_atividade';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_ABASTECIMENTO_FK_APONTAMENTO]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
