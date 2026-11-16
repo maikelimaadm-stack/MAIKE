@@ -7537,4 +7537,22 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-FUNCIONARIO-TIPO-REPORT.md`](./MAIKE-FUNCIONARIO-TIPO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-210 -->
+## D-PROD-210 — Fatia 5 do Lançamento de Atividades: abastecimento ligado à atividade
+
+**Data:** 2026-11-16 · **Origem:** brief do proprietário (Fatia 5, "DEPOIS"), liberada com "pode iniciar a fatia 5" · **Branch:** `feat/atividade-abastecimento` · **Continua:** D-PROD-202, D-PROD-207, D-PROD-208
+
+**O pedido.** "AbastecimentoBem ganha atividade_id / apontamento_id, snapshot de centro de custo, leitura anterior do medidor, delta e flag de intervalo confiável, e origem EXTERNO para posto de estrada. É o que fecha L/h, km/L e custo de combustível por hectare. Hoje o diesel do dia do operador não tem onde entrar."
+
+**Decisão.**
+1. O abastecimento pode pertencer a um **lançamento** da atividade (`apontamento_id`); o servidor **deriva** `atividade_id` dele (o cliente nunca o manda). Exige lançamento confirmado de atividade **aberta**. Cancelar o lançamento ou a atividade cancela os abastecimentos ligados, com estorno do estoque pelo mesmo motor; nada é apagado.
+2. **Origem `EXTERNO`** (posto de estrada): sem baixa de estoque nem lote, com o valor total da nota digitado; `ESTOQUE` continua exatamente como antes (FIFO do mesmo motor).
+3. **Snapshots** na confirmação, nunca relidos: o **centro de custo** (o da atividade; sem atividade, o do bem) e a **leitura anterior do medidor**, o **delta** e o **intervalo confiável** (anterior existe, delta > 0 e o anterior não é só o ponto do cadastro do bem).
+4. O consumo do bem pelo **método do tanque cheio** (D-PROD-162) continua sendo o único cálculo do consumo do bem; o totalizador da atividade ganha o combustível, o custo de combustível por hectare e o consumo por bem da atividade (litros ÷ horas, km ÷ litros das linhas de máquina).
+5. **Migration CONTRACT `20261116200000_abastecimento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`): 7 colunas novas, `local_estoque_id` e `movimentacao_estoque_id` passam a aceitar nulo (só no `EXTERNO`), CHECK de status trocado, CHECKs novos de origem, vínculo e intervalo, 3 FKs e 3 índices; backfill do centro de custo das linhas existentes pelo bem. SHA-256 `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`; 60 → 61 migrations, 94 tabelas.
+6. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-210` no caminho A; o envelope no caminho B).
+
+**Contrato:** [`MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-211 -->
