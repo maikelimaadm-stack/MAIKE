@@ -86,8 +86,9 @@ export const lerHectaresDigitados = (valor) => {
  *
  * @param {{
  *   nome?: string, sigla?: string, setor_id?: string, tipo_cultura?: string, tipo_pastagem?: string,
- *   area_pastejada?: unknown, total_ha?: number | null
- * }} campos `total_ha` é a área total geodésica (ou `null` se ainda não há contorno)
+ *   area_pastejada?: unknown, total_ha?: number | null, cultura_id?: string | null
+ * }} campos `total_ha` é a área total geodésica (ou `null` se ainda não há contorno). Com `cultura_id` (D-PROD-216),
+ * `tipo_pastagem` é o nome da cultura do cadastro (derivado pelo servidor) e não precisa estar na lista fixa.
  * @returns {{ campo: string, mensagem: string }[]}
  */
 export const pendenciasDaArea = (campos) => {
@@ -121,7 +122,7 @@ export const pendenciasDaArea = (campos) => {
   }
 
   if (usoExploraArea(uso) && !tipo) pend.push({ campo: "tipo_pastagem", mensagem: "Escolha o tipo de cultura." });
-  if (tipo && !TIPOS_CULTURAS.includes(tipo)) pend.push({ campo: "tipo_pastagem", mensagem: "Tipo de cultura desconhecido." });
+  if (tipo && !campos.cultura_id && !TIPOS_CULTURAS.includes(tipo)) pend.push({ campo: "tipo_pastagem", mensagem: "Tipo de cultura desconhecido." });
 
   const pastejada = lerHectares(campos.area_pastejada);
   if (pastejada === null) {

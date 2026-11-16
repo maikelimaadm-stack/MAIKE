@@ -92,7 +92,9 @@ const semearMaike = async () => {
   await p.permissao.create({ data: { cliente_id: c, user_email: 'maike', is_admin: true } });
   const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
   const setor = await p.setor.create({ data: { cliente_id: c, empresa_id: emp.id, numero_setor: '1', nome: 'S' } });
-  await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
+  // D-PROD-216: a área ligada a uma cultura (FK RESTRICT) prova a ordem AreaPastagem → CADCULTURAS → Empresa.
+  const culturaDaArea = await p.cultura.create({ data: { cliente_id: c, empresa_id: emp.id, codigo: '001', tipo: 'PASTAGEM', nome: 'MARANDU' } });
+  await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1, cultura_id: culturaDaArea.id } });
   const lote = await p.lote.create({ data: { cliente_id: c, empresa_id: emp.id, numero_lote: '1', nome: 'L', quantidade_cabecas: 5, quantidade_entrada: 5, motivo_entrada: 'Compra' } });
   const pai = await p.categoria.create({ data: { cliente_id: c, numero_categoria: '1', nome: 'PAI' } });
   await p.categoria.create({ data: { cliente_id: c, numero_categoria: '2', nome: 'FILHA', categoria_pai_id: pai.id } });

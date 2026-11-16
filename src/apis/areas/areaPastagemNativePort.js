@@ -81,6 +81,8 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'area_pastejada',
   'capacidade_maxima',
   'tipo_pastagem',
+  // D-PROD-216: a cultura do cadastro de Culturas (o servidor deriva `tipo_pastagem` do nome dela).
+  'cultura_id',
   'aproveitamento_classificacao',
   'tipo_cultura',
   'cor',
