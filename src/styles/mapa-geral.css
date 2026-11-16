@@ -1,5 +1,9 @@
 /*
- * GUIA DE EDIÇÃO — POSIÇÃO DO MAPA: .mk-mapa-topo, .mk-mapa-dir, .mk-mapa-resumo, --mk-mapa-gap e --mk-mapa-alto. Confira também os overrides em mk-mapa-superficie.css.
+ * GUIA DE EDIÇÃO — POSIÇÃO DO MAPA: .mk-mapa-barra (barra do topo ⚙ · Lotes · Pastos · Tarefas, D-PROD-V12;
+ * --mk-mapa-barra-topo e --mk-mapa-barra-alto), .mk-mapa-dir, .mk-mapa-resumo, --mk-mapa-gap e --mk-mapa-alto.
+ * A barra usa classes próprias (não herda o !important de .mk-mapa-btn/.mk-mapa-card); no celular ela
+ * vai da esquerda até antes da coluna da direita. O aviso do satélite (.mk-mapa-aviso) fica abaixo dela.
+ * Confira também os overrides em mk-mapa-superficie.css.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 /*
@@ -60,43 +64,71 @@
 }
 .mk-mapa-btn--solo { border-radius: 14px; }
 .mk-mapa-btn:focus-visible,
-.mk-mapa-chip:focus-visible,
 .mk-mapa-camada:focus-visible {
   outline: 2px solid var(--mk-mapa-verde);
   outline-offset: 2px;
 }
 
-/* Alto à esquerda: ferramentas (Tarefas, Filtros) */
-.mk-mapa-topo {
+/* ── Barra do topo v12 (D-PROD-V12): ⚙ · Lotes · Pastos · Tarefas ────────────
+   Medidas do v12 dentro do .mk-mapa: o mapa já começa abaixo do cabeçalho e
+   do menu (desktop) e à direita do trilho (tablet), então os 106/96 px do
+   quadro do v12 viram 12 px aqui. Sem fundo no segmento ativo: só a cor muda. */
+.mk-mapa {
+  --mk-mapa-barra-topo: 12px;
+  --mk-mapa-barra-alto: 46px;
+}
+.mk-mapa-barra {
   position: absolute;
   z-index: 20;
-  top: var(--mk-mapa-gap);
-  left: var(--mk-mapa-gap);
-  right: calc(var(--mk-mapa-alto) + var(--mk-mapa-gap) * 2);
+  top: var(--mk-mapa-barra-topo);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  pointer-events: none;
+  gap: 2px;
+  height: var(--mk-mapa-barra-alto);
+  padding: 0 10px 0 4px;
+  border-radius: 12px;
+  background: rgba(38, 41, 44, 0.94);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
 }
-.mk-mapa-topo > * { pointer-events: auto; }
-
-.mk-mapa-ferramentas { display: inline-flex; gap: 8px; }
-.mk-mapa-chip {
+/* Sem o ⚙ (sem "Ver filtros e camadas"): margens iguais dos dois lados. */
+.mk-mapa-barra--sem-cfg { padding-left: 10px; }
+.mk-mapa-barra__cfg,
+.mk-mapa-barra__seg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  height: var(--mk-mapa-alto);
-  min-width: var(--mk-mapa-alto);
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--mkq-334155, #334155);
+  height: 38px;
+  border-radius: 9px;
   -webkit-tap-highlight-color: transparent;
 }
-.mk-mapa-chip:hover { background: #fff; color: var(--mk-mapa-texto); }
-.mk-mapa-chip:active { transform: scale(0.97); }
+.mk-mapa-barra__cfg {
+  flex: none;
+  width: 42px;
+  color: #fff;
+}
+.mk-mapa-barra__cfg:active { background: rgba(255, 255, 255, 0.12); }
+.mk-mapa-barra__seg {
+  padding: 0 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+.mk-mapa-barra__seg[aria-pressed="true"] { color: #fff; }
+.mk-mapa-barra__seg:active { background: rgba(255, 255, 255, 0.1); }
+.mk-mapa-barra__cfg:focus-visible,
+.mk-mapa-barra__seg:focus-visible {
+  outline: 2px solid #3db5c9;
+  outline-offset: 2px;
+}
 
 /* Alto à direita: camadas + grupo de ações */
 .mk-mapa-dir {
@@ -322,6 +354,11 @@
   color: var(--mkq-1e293b, #1e293b);
   animation: mk-mapa-pop 0.16s ease-out;
 }
+/* Com a barra do topo (D-PROD-V12) o aviso desce para baixo dela. Só no Mapa
+   Geral: o editor (MapaDesenho) usa o mesmo BasemapAtribuicao e não muda. */
+.mk-mapa:has(.mk-mapa-barra) .mk-mapa-aviso {
+  top: calc(var(--mk-mapa-barra-topo) + var(--mk-mapa-barra-alto) + 8px);
+}
 .mk-mapa-aviso--info { padding: 6px 12px; border-radius: 9999px; }
 .mk-mapa-aviso__ic { flex: none; color: #d97706; }
 .mk-mapa-aviso__txt { display: flex; min-width: 0; flex-direction: column; line-height: 1.25; }
@@ -365,11 +402,28 @@
 }
 @keyframes mk-mapa-gira { to { transform: rotate(360deg); } }
 
-/* ── Celular: só ícones nas ferramentas ───────────────────────────────────── */
+/* ── Celular ──────────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
-  .mk-mapa { --mk-mapa-gap: 8px; --mk-mapa-alto: 40px; }
-  .mk-mapa-chip { padding: 0; width: var(--mk-mapa-alto); }
-  .mk-mapa-chip__txt { display: none; }
+  .mk-mapa {
+    --mk-mapa-gap: 8px;
+    --mk-mapa-alto: 40px;
+    --mk-mapa-barra-topo: var(--mk-mapa-gap);
+    --mk-mapa-barra-alto: 44px;
+  }
+  /* Barra da esquerda até antes da coluna da direita (o botão Visualização e
+     a cápsula continuam à vista), com os três segmentos por igual. */
+  .mk-mapa-barra {
+    left: var(--mk-mapa-gap);
+    right: calc(var(--mk-mapa-alto) + var(--mk-mapa-gap) * 2);
+    transform: none;
+    justify-content: space-between;
+  }
+  .mk-mapa-barra__seg {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 15px;
+  }
   .mk-mapa-resumo__item { padding: 0 10px; }
   .mk-mapa-resumo__num { font-size: 15px; }
   .mk-atrib { max-width: 46vw; }
@@ -469,4 +523,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .mk-mapa-camadas__menu, .mk-mapa-aviso { animation: none; }
+  .mk-mapa-barra__seg { transition: none; }
 }

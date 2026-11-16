@@ -1,20 +1,47 @@
 /*
- * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações. Posição e espaçamento ficam em mapa-geral.css e mk-mapa-superficie.css.
+ * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações.
+ * - Barra do topo (D-PROD-V12): ⚙ (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
+ *   Os segmentos e o que cada foco mostra vêm de src/lib/mapaFoco.js.
+ * - Coluna da direita: Visualização; Atualizar, Minha localização e Mover.
+ * Posição e espaçamento ficam em mapa-geral.css (.mk-mapa-barra, .mk-mapa-dir) e mk-mapa-superficie.css.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 import React from "react";
 import MapaFiltrosPainel from "./MapaFiltrosPainel";
-import { ClipboardList, Layers, Move, RefreshCw, SlidersHorizontal, Target } from "lucide-react";
+import { Layers, Move, RefreshCw, Settings, Target } from "lucide-react";
+import { FOCOS_MAPA } from "@/lib/mapaFoco";
 
 const CAMADAS = [
   { id: "roadmap", label: "Mapa" },
   { id: "satellite", label: "Satélite" },
 ];
 
+/** Setas, Home e End passam de um botão da barra para outro (`role="toolbar"`). */
+function andarNaBarra(event) {
+  const botoes = Array.from(event.currentTarget.querySelectorAll("button"));
+  const atual = botoes.indexOf(document.activeElement);
+  if (atual < 0) return;
+  const destino = {
+    ArrowRight: (atual + 1) % botoes.length,
+    ArrowLeft: (atual - 1 + botoes.length) % botoes.length,
+    Home: 0,
+    End: botoes.length - 1,
+  }[event.key];
+  if (destino === undefined) return;
+  event.preventDefault();
+  botoes[destino].focus();
+}
+
 /**
  * Controles flutuantes do Mapa Geral (D-PROD-132), iguais no celular, tablet e computador.
  *
- * - Alto à esquerda: Tarefas e Filtros (o antigo ✕ saiu).
+ * - Alto, no centro (celular: da esquerda até a coluna da direita): a barra do
+ *   v12 (D-PROD-V12) no lugar dos antigos botões Tarefas e Filtros.
+ *   - ⚙ "Filtros" (`showFiltrosButton`) abre o painel Filtro de hoje (`onOpenFiltros`).
+ *   - Segmentos `focosPermitidos` (Lotes sempre; Pastos e Tarefas pela
+ *     permissão), com `aria-pressed` no `foco` atual; o toque chama `onFoco(id)`.
+ *     Tarefas também abre a Gestão de Tarefas (`onOpenTarefas`) a cada toque.
+ *   - A barra só aparece com o ⚙ ou com dois segmentos ou mais.
  * - Alto à direita: Visualização (tipo de mapa, estilo e cores dos pastos, o
  *   que mostrar — `painel`) e Atualizar, Minha localização e Mover lotes num
  *   grupo único.
@@ -24,8 +51,11 @@ export default function MapaControlesMobile({
   onRefresh, onLocate, onToggleDrag,
   dragEnabled = false,
   onOpenTarefas, onOpenFiltros,
-  showTarefasButton = true,
   showFiltrosButton = true,
+  foco = "lotes",
+  onFoco = null,
+  // Fecha por padrão: Pastos e Tarefas só entram com a permissão (D-PROD-V12, B2).
+  focosPermitidos = ["lotes"],
   // Fecha por padrão (D-PROD-137, PREF-04): sem a permissão, Mover só mudaria
   // uma preferência gravada sem efeito e Localizar ligaria uma camada proibida.
   showLocalizarButton = false,
@@ -33,6 +63,9 @@ export default function MapaControlesMobile({
   painel = null
 }) {
   const [camadasAberto, setCamadasAberto] = React.useState(false);
+
+  const segmentos = FOCOS_MAPA.filter((f) => focosPermitidos.includes(f.id));
+  const mostrarBarra = showFiltrosButton || segmentos.length >= 2;
 
   const camadaAtual = CAMADAS.find((c) => c.id === mapType) || CAMADAS[0];
 
@@ -54,24 +87,32 @@ export default function MapaControlesMobile({
 
   return (
     <>
-      <div className="mk-mapa-topo">
-        {showTarefasButton || showFiltrosButton ? (
-          <div className="mk-mapa-ferramentas">
-            {showTarefasButton ? (
-              <button type="button" className="mk-mapa-card mk-mapa-chip" onClick={onOpenTarefas} aria-label="Tarefas" title="Tarefas">
-                <ClipboardList size={17} aria-hidden />
-                <span className="mk-mapa-chip__txt">Tarefas</span>
-              </button>
-            ) : null}
-            {showFiltrosButton ? (
-              <button type="button" className="mk-mapa-card mk-mapa-chip" onClick={onOpenFiltros} aria-label="Filtros" title="Filtros">
-                <SlidersHorizontal size={17} aria-hidden />
-                <span className="mk-mapa-chip__txt">Filtros</span>
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      {mostrarBarra ? (
+        <div
+          className={`mk-mapa-barra${showFiltrosButton ? "" : " mk-mapa-barra--sem-cfg"}`}
+          role="toolbar"
+          aria-label="Mapa"
+          onKeyDown={andarNaBarra}>
+          {showFiltrosButton ? (
+            <button type="button" className="mk-mapa-barra__cfg" onClick={onOpenFiltros} aria-label="Filtros" title="Filtros">
+              <Settings size={22} aria-hidden />
+            </button>
+          ) : null}
+          {segmentos.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className="mk-mapa-barra__seg"
+              aria-pressed={foco === f.id}
+              onClick={() => {
+                onFoco?.(f.id);
+                if (f.id === "tarefas") onOpenTarefas?.();
+              }}>
+              {f.rotulo}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mk-mapa-dir">
         <div className="mk-mapa-camadas">
