@@ -96,3 +96,11 @@ Também ficou fora: fila offline que trava inteira num 4xx definitivo (`src/lib/
 | Local | `typecheck:backend` | passa (depois do ajuste de 2 anotações) |
 | Local | `test:smoke` | 256 arquivos, **3.144/3.144** |
 | CI `quality` (commit `ca93db7b`) | `verify:full` estático, smoke 1/2 e 2/2, backend 1/4 a 4/4, `verify:all` | **todos verdes** |
+
+## 8. Correção pós-merge (2026-11-16) — depósito no lugar de outro ponto
+
+- **Achado na conferência de produção (só leitura):** dois pontos "TESTE" de depósito (nº 1 e nº 4) e um único depósito `DEP-0001`, nas coordenadas do nº 4. O nº 1 é sobra de um cadastro que falhou antes desta missão. Pela regra da §3 (nome + categoria; coordenadas só desempatam), o nº 1 também "achava" o `DEP-0001`: a lista mostraria o depósito nos dois e excluir o nº 1 tentaria levar o depósito do nº 4.
+- **Correção:** `resolverSuplementacaoDoPonto` recebe `outrosPontos`; cocho/depósito que está exatamente no lugar de OUTRO ponto ativo da mesma empresa e categoria (e não no lugar deste) pertence àquele ponto e não liga por nome. Lista do Cadastro de Pontos, formulário e exclusão passam a lista de pontos.
+- **Testes:** `tests/smoke/ligacaoPontoLugarOcupado.test.js` (LO1–LO9, com as coordenadas reais); com a regra antiga, LO1, LO7 e LO8 falham.
+- **Revisão independente (2 revisores), aplicada:** (a) só um ponto de MESMO nome reivindica o lugar — um ponto de outro nome no mesmo vértice (ímã do editor) não tira o cocho do dono pelo nome (LO10); (b) o formulário espera a lista de pontos: enquanto ela não chega, ou se falhar, a ligação fica pendente, o formulário de cocho/depósito não se preenche pela regra só por nome e o salvar recusa (F8, F9 em `g2FormularioPontoLigacoes.test.jsx`; com a proteção retirada, F8 e F9 falham).
+- **Sem migration, sem dado alterado.** Depois do deploy, o ponto nº 1 pode ser excluído sozinho.
