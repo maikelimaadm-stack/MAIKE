@@ -1,9 +1,9 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { listarTodasMovimentacoes } from "@/services/loteManejoService";
 import ExcluirMovimentacao from "@/components/lotes/ExcluirMovimentacao";
+import CartaoHistorico, { EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico } from "@/components/lotes/CartaoHistorico";
+import { TituloBloco } from "@/components/mapa/detalhes-lote/blocos";
 import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
@@ -16,6 +16,14 @@ function formatDateOnly(value) {
   return `${day}/${month}/${year}`;
 }
 
+/**
+ * Histórico de Abate do curral (aba "Abate" do detalhe da área).
+ * D-PROD-221: os cartões são os do Histórico de Movimentação do manejo
+ * (`CartaoHistorico`): selos de data, tipo e situação, o lote em negrito, as
+ * linhas "Rótulo: valor" e o "Excluir movimentação" no rodapé. Sem rolagem
+ * própria: o corpo do detalhe é a única área que rola (D-PROD-220).
+ * @param {{ areaId: string }} props
+ */
 export default function HistoricoAbateCurral({ areaId }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   // R2A (D-PROD-99): a exclusão antiga (somar no lote e apagar o movimento em
@@ -44,81 +52,59 @@ export default function HistoricoAbateCurral({ areaId }) {
     enabled: !!areaId && !!empresaSelecionadaId,
   });
 
+  const titulo = <TituloBloco>{`Histórico de Abate${!isLoading && historico.length > 0 ? ` (${historico.length})` : ""}`}</TituloBloco>;
+
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="mk-hist p-4">
-          <div className="text-center text-sm text-slate-500">Carregando histórico...</div>
-        </CardContent>
-      </Card>
+      <>
+        {titulo}
+        <MolduraHistorico estado={<EstadoHistorico tipo="carregando" />} />
+      </>
     );
   }
 
   if (historico.length === 0) {
     return (
-      <Card>
-        <CardHeader className="bg-[#FAFCFE] border-b py-3">
-          <CardTitle className="text-sm font-semibold">Histórico de Abate</CardTitle>
-        </CardHeader>
-        <CardContent className="mk-hist p-4">
-          <div className="text-center py-8 text-slate-500 text-sm">Nenhum abate encontrado</div>
-        </CardContent>
-      </Card>
+      <>
+        {titulo}
+        <MolduraHistorico estado={<EstadoHistorico>Nenhum abate encontrado</EstadoHistorico>} />
+      </>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="bg-[#FAFCFE] border-b py-3">
-        <CardTitle className="text-sm font-semibold">Histórico de Abate ({historico.length})</CardTitle>
-      </CardHeader>
-      <CardContent className="mk-hist p-2">
-        {/* Sem rolagem própria: dentro do detalhe v12 o corpo é a única área que rola (D-PROD-220). */}
-        <div className="mk-hist__lista">
-          {historico.map((item) => (
-            <div key={item.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-1">
-                    <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
-                      {formatDateOnly(item.data)}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
-                      Abate
-                    </Badge>
-                    {item.cancelado && (
-                      <Badge variant="outline" className="text-[10px] text-red-800 border-red-300 bg-red-50">
-                        Cancelado
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="text-xs font-semibold text-slate-900">{item.lote || "Sem lote"}</div>
-
-                  <div className="space-y-0.5 text-[10px] text-slate-600">
-                    {!!item.quantidade && <div><strong>Quantidade:</strong> {item.quantidade} cab</div>}
-                    <div><strong>Data:</strong> {formatDateOnly(item.data)}</div>
-                    {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}
-                    {!!item.destino && <div><strong>Destino:</strong> {item.destino}</div>}
-                    {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
-                    {item.cancelado && (
-                      <div className="text-red-800">
-                        Cancelado{item.cancelamento?.por_login ? ` por ${item.cancelamento.por_login}` : ""}
-                        {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ""}
-                      </div>
-                    )}
-                  </div>
-                </div>
+    <>
+      {titulo}
+      <MolduraHistorico>
+        {historico.map((item) => (
+          <CartaoHistorico
+            key={item.id}
+            cancelado={item.cancelado}
+            selos={
+              <>
+                <SeloHistorico tom="data">{formatDateOnly(item.data)}</SeloHistorico>
+                <SeloHistorico>Abate</SeloHistorico>
+                <SeloHistorico tom={item.cancelado ? "vermelho" : "verde"}>{item.cancelado ? "Cancelado" : "Ativo"}</SeloHistorico>
+              </>
+            }
+            titulo={item.lote || "Sem lote"}
+            rodape={item.cancelado ? null : <ExcluirMovimentacao movimento={item.raw} />}
+          >
+            {!!item.quantidade && <LinhaHistorico rotulo="Quantidade">{item.quantidade} cab</LinhaHistorico>}
+            <LinhaHistorico rotulo="Data">{formatDateOnly(item.data)}</LinhaHistorico>
+            {!!item.peso_medio && <LinhaHistorico rotulo="Peso médio">{item.peso_medio} kg</LinhaHistorico>}
+            {!!item.destino && <LinhaHistorico rotulo="Destino">{item.destino}</LinhaHistorico>}
+            {!!item.observacoes && <LinhaHistorico rotulo="Detalhes">{item.observacoes}</LinhaHistorico>}
+            {item.cancelado && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-800">
+                <strong>Cancelado</strong>
+                {item.cancelamento?.por_login ? ` por ${item.cancelamento.por_login}` : ""}
+                {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ""}
               </div>
-              {!item.cancelado && (
-                <div className="border-t border-slate-100 pt-1.5">
-                  <ExcluirMovimentacao movimento={item.raw} />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            )}
+          </CartaoHistorico>
+        ))}
+      </MolduraHistorico>
+    </>
   );
 }

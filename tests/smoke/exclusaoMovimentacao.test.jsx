@@ -666,7 +666,8 @@ describe("Histórico de Abate do Curral", () => {
     ]);
     await renderizar(<HistoricoAbateCurral areaId="curral" />);
     expect(await screen.findByText("Histórico de Abate (2)")).toBeTruthy();
-    expect(screen.getByText(/Cancelado por admin — Motivo: duplicado/)).toBeTruthy();
+    // D-PROD-221: a nota do cancelado é a do Histórico de Movimentação ("Cancelado" em negrito + quem e o motivo).
+    expect(screen.getByText((_, el) => el?.textContent === "Cancelado por admin — Motivo: duplicado")).toBeTruthy();
     expect(await screen.findAllByRole("button", { name: "Excluir movimentação" })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
     expect(servico.atualizarLote).not.toHaveBeenCalled();
