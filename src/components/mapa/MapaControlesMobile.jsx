@@ -64,7 +64,7 @@ export default function MapaControlesMobile({
 }) {
   const [camadasAberto, setCamadasAberto] = React.useState(false);
 
-  const segmentos = FOCOS_MAPA.filter((f) => focosPermitidos.includes(f.id));
+  const segmentos = FOCOS_MAPA.filter((f) => f.id !== "tarefas" && focosPermitidos.includes(f.id));
 
   const camadaAtual = CAMADAS.find((c) => c.id === mapType) || CAMADAS[0];
 
@@ -106,7 +106,7 @@ export default function MapaControlesMobile({
               onFoco?.(f.id);
               if (f.id === "tarefas") onOpenTarefas?.();
             }}>
-            {f.rotulo}
+            {f.id === "pastos" ? "Pontos" : f.rotulo}
           </button>
         ))}
         <button
