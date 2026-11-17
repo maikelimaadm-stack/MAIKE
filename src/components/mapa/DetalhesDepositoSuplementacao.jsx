@@ -6,7 +6,7 @@ import { listarPontosSuplementacaoAtivos, listarAreasAtivas } from "@/services/m
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent as DialogContentUi, DialogHeader as DialogHeaderUi, DialogTitle as DialogTitleUi } from "@/components/ui/dialog";
 import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
@@ -25,6 +25,11 @@ import { descreverFarol, farolDoCocho } from "@/domain/suplementacao/leituraCoch
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import "@/styles/mk-dp-deposito.css";
+
+// `ui/dialog` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
+/** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
+/** @type {React.ComponentType<any>} */ const DialogHeader = DialogHeaderUi;
+/** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /** Cartões da linha do tempo do detalhe; o histórico completo abre pela pílula "Histórico". */
 const LIMITE_LINHA_DO_TEMPO = 5;
