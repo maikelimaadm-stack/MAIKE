@@ -88,5 +88,5 @@ proprietário quiser a barreira também no banco, é uma CONTRACT aditiva própr
 
 ## 6. Pendências e notas
 
-- Migration e passo de dados **pendentes** de GO do proprietário (runbook §3 e §4b), antes do merge.
+- Migration e passo de dados **aplicados em produção** em 2026-11-17 (13:48:31 e 13:48:50 UTC, caminho B, GO do proprietário): 67 / 0, as 4 colunas, 11 culturas com os dias de descanso — runbook §7.
 - Fora do escopo: descanso variável por estação, lotação e dias de pastejo pela forragem, alerta de pasto passado.

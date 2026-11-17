@@ -7760,7 +7760,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Fora do escopo:** taxa de crescimento por época do ano (descanso variável por estação), lotação e dias de pastejo pela forragem, alerta de pasto passado.
 
-**Release.** Migration **EXPAND** `20261117300000_descanso_e_alturas_por_area` (4 colunas anuláveis; SHA-256 `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e`), produção 66 → 67, tabelas 96 (nenhuma nova), **antes do merge** e com GO do proprietário; depois, o passo de dados das 11 culturas, com GO próprio. Runbook: [`MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md`](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md).
+**Release.** Migration **EXPAND** `20261117300000_descanso_e_alturas_por_area` (4 colunas anuláveis; SHA-256 `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e`), produção 66 → 67, tabelas 96 (nenhuma nova), **antes do merge** e com GO do proprietário; depois, o passo de dados das 11 culturas, com GO próprio. Runbook: [`MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md`](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md). **Aplicada em produção** em 2026-11-17 às 13:48:31 UTC (caminho B), com o passo de dados às 13:48:50 UTC.
 
 **Relatório:** [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md).
 

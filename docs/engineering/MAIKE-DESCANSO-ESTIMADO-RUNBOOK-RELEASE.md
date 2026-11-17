@@ -1,6 +1,6 @@
 # MAIKE — Dias de descanso e parâmetros do pasto: runbook de release expand-only (D-PROD-223)
 
-> **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
+> **Estado: EXECUTADO** (migration e passo de dados, 2026-11-17). `SCHEMA_APPLIED_PROD: SIM`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`** (migration) ou **`BACKFILL_BLOCKED`**
@@ -220,10 +220,10 @@ dados se desfaz com `UPDATE … SET dias_descanso = NULL` nas mesmas 11 linhas.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | `<pendente>` |
-| Caminho | `<A ou B>` |
-| GO | `<texto do GO do proprietário>` |
-| Preflight (§2) | `<pendente>` |
-| Postcheck (§4) | `<pendente>` |
-| Passo de dados (§4b) | `<pendente — GO próprio>` |
-| Resultado | **PENDENTE** |
+| Data/hora (UTC) | **2026-11-17 13:48:31** (`finished_at` da migration); passo de dados às **13:48:50** |
+| Caminho | **B** (uma transação via `execute_sql`, exatamente o `aplicar223.sql`: guarda + corpo idêntico ao `migration.sql` + registro em `_prisma_migrations`); depois o `backfill223.sql`, também numa transação |
+| GO | "go" (pedido de autorização da D-PROD-223, aprovado pelo proprietário; relayed pela sessão coordenadora) |
+| Preflight (§2) | 66 concluídas / 0 com falha; anterior `20261117200000_medicao_forragem` (`66f5fb51…`); 0 das 4 colunas presentes; 11 culturas na fazenda |
+| Postcheck (§4) | 67 / 0; `20261117300000_descanso_e_alturas_por_area` com checksum `c391e4b0…0239b477e`; as 4 colunas presentes (`AreaPastagem.altura_entrada_cm` e `altura_saida_cm` numeric, `AreaPastagem.dias_descanso` e `CADCULTURAS.dias_descanso` integer); 96 tabelas |
+| Passo de dados (§4b) | 11 culturas com `dias_descanso` (001 30, 002 30, 003 30, 004 28, 005 25, 006 25, 007 35, 008 32, 009 35, 010 28, 011 25); `AuditLog` `backfill_dias_descanso_cultura`, total 11, `request_id = 'd-prod-223-backfill'` |
+| Resultado | **EXECUTADO**. Merge depois do CI verde (§5) |
