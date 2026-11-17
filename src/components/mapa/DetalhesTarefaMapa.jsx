@@ -12,6 +12,7 @@ import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
 import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
 import { Cartao, Celula, Chip, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { VAZIO, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoPasto";
+import { TONS } from "@/components/mapa/detalhes-lote/catalogo";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
 // Sem uso (o stub devolve null), como antes: a importação só mantém o arquivo
@@ -57,7 +58,8 @@ const CLASSE_DO_STATUS = {
 const COR_PRIORIDADE = { Urgente: "#dc2626", Alta: "#f59e0b", Média: "#0ea5e9", Baixa: "#64748b" };
 
 /** Prazo vencido de tarefa em aberto (v12: o valor do Prazo em vermelho). */
-const COR_PRAZO_VENCIDO = "#dc2626";
+// O vermelho de atraso do v12 (COR_INVESTIGAR), o mesmo da pesagem atrasada do Detalhes do Lote.
+const COR_PRAZO_VENCIDO = TONS.investigar.texto;
 
 /** Ícone de cada evento do histórico (os nomes que o servidor aceita); outro nome: relógio. */
 const ICONE_DO_EVENTO = {

@@ -169,6 +169,16 @@ describe("Detalhe da tarefa v12 no diálogo", () => {
     }
   });
 
+  it("datas de dia no fuso do Brasil: o dia gravado, sem voltar um dia (D-PROD-220)", async () => {
+    // Antes, new Date("2026-11-10") virava 09/11 em fusos a oeste de UTC.
+    vi.stubEnv("TZ", "America/Cuiaba");
+    largura(1280);
+    noDialogo();
+    expect(valorDaCelula("Data do pedido")?.textContent).toBe("10/11/2026");
+    expect(valorDaCelula("Prazo")?.textContent).toBe("18/11/2026");
+    expect(valorDaCelula("Data de início")?.textContent).toBe("12/11/2026");
+  });
+
   it("Informações da tarefa: a grade do v12 com os mesmos dados de hoje e o que o MAIKE tem a mais", async () => {
     largura(1280);
     noDialogo();
@@ -206,7 +216,7 @@ describe("Detalhe da tarefa v12 no diálogo", () => {
   it("prazo vencido em vermelho (com o aviso para o leitor de tela) só com a tarefa em aberto", async () => {
     largura(1280);
     const { unmount } = noDialogo({ hoje: "2026-11-19" });
-    expect(valorDaCelula("Prazo")?.style.color).toBe("rgb(220, 38, 38)");
+    expect(valorDaCelula("Prazo")?.style.color).toBe("rgb(185, 28, 28)");
     expect(valorDaCelula("Prazo")?.textContent).toBe("18/11/2026 (vencido)");
     await esperarEventos();
     unmount();
@@ -225,7 +235,7 @@ describe("Detalhe da tarefa v12 no diálogo", () => {
   it("sem `hoje`, o prazo usa o dia do aparelho", async () => {
     largura(1280);
     noDialogo({ hoje: null, tarefa: { ...TAREFA, data_prevista: "2000-01-01" } });
-    expect(valorDaCelula("Prazo")?.style.color).toBe("rgb(220, 38, 38)");
+    expect(valorDaCelula("Prazo")?.style.color).toBe("rgb(185, 28, 28)");
     await esperarEventos();
   });
 
@@ -351,6 +361,16 @@ describe("Últimos eventos", () => {
     refreshMapaCacheEntry.mockResolvedValue([]);
     noDialogo();
     expect(await screen.findByText("Nenhum evento registrado.")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Últimos eventos da tarefa" })).toBeNull();
+  });
+
+  it("erro sem cópia no aparelho: o aviso do histórico, sem a linha do tempo", async () => {
+    largura(1280);
+    getMapaCachedData.mockResolvedValue([]);
+    refreshMapaCacheEntry.mockRejectedValue(new Error("falha de rede"));
+    noDialogo();
+    const alerta = await screen.findByRole("alert");
+    expect(alerta.textContent).toContain("Não foi possível carregar o histórico.");
     expect(screen.queryByRole("list", { name: "Últimos eventos da tarefa" })).toBeNull();
   });
 
