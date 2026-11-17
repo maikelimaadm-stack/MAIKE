@@ -17,7 +17,7 @@ sem medição recente ganha um farol **estimado** pelos dias de descanso da cult
 | Banco | migration **EXPAND** `20261117300000_cultura_dias_descanso`: `CADCULTURAS.dias_descanso INTEGER` anulável, sem DEFAULT e sem CHECK. SHA-256 `5a266b174b20a6bc3ca51a7dc15d852378a875d506a805bb7eedfbba01191a4b`, pinado em `MIGRATIONS_APROVADAS`; `COLUNAS_EXIGIDAS` do preflight com a coluna. 66 → 67 migrations, 96 tabelas |
 | API `/culturas` | `dias_descanso` no corpo e na resposta; inteiro (ou texto só com dígitos) de **1 a 365**, vazio = `null`; fora disso 400 (`dias_descanso_invalido` / `dias_descanso_fora_da_faixa`); a rota recusa a coerção do Fastify como nas alturas. A lista de referência grava os dias (Marandu 30, Xaraés 30, Piatã 30, Paiaguás 28, Decumbens 25, Humidicola 25, Mombaça 35, Tanzânia 32, Zuri 35, Massai 28, Tifton 85 25) |
 | API `/areas-pastagem` | a `cultura` embutida (D-PROD-216) traz `dias_descanso` |
-| API `/medicoes-forragem/descanso` | `GET ?empresa_id=` (autenticado; fazenda conferida no tenant; R11): por pasto, `{ area_id, ocupada, ultima_saida }` pelo ledger do rebanho (seção 2) |
+| API `/medicoes-forragem/descanso` | `GET ?empresa_id=` (autenticado; fazenda conferida no tenant; R11): por pasto, `{ area_id, ocupada, ultima_saida }` pelo ledger do rebanho (seção 2). A consulta mora no módulo do ledger (`rebanhoLedger/rebanhoLedgerOcupacaoPasto.js`, só leitura): só ele toca `PartidaRebanho` (`gate:rebanho-ssot`, D-PROD-107) |
 | Domínio | `src/domain/pastagem/farolForragem.js`: `estimarSituacaoPorDescanso` (regra pura), `estimativaDoPasto` ("Em pastejo", "Sem estimativa", "<Situação> (estimado)"), `farolQueVale` (medição válida vence) e `farolForragemComEstimativaPorArea` (todos os pastos de uma vez); `corEstimada` = mesma cor, tom 0,7 (o "no olho" é 0,45) |
 | Mapa | `MapaGeral.jsx` carrega `descansoPastos` (cache do mapa, só com o modo "Forragem") e pinta pelo farol que vale; o refresh do mapa o recarrega nesse modo. Legenda (`MapaLegenda.jsx` e o painel) com "Descanso / Pronto / Passou do ponto (estimado)" e a nota do tom |
 | Detalhe do pasto | `PainelForragemArea.jsx`: "Pronto (estimado) · lote saiu há 32 dias · descanso da cultura 30 dias"; "Em pastejo" com lote no pasto |
@@ -29,7 +29,7 @@ sem medição recente ganha um farol **estimado** pelos dias de descanso da cult
 Fonte: **o ledger do rebanho** (R2E), não a Movimentação legada nem o `status_ocupacao` da área.
 
 ```sql
--- medicaoForragemRepository.ocupacaoPorPasto(cliente, empresa)
+-- rebanhoLedgerOcupacaoPasto.ocupacaoPorPasto(cliente, empresa)
 WITH por_dia AS (                      -- partidas ATIVAS por pasto e dia operacional
   SELECT p.area_id, pr.data_operacional AS dia, SUM(pr.delta)::int AS delta
     FROM "PartidaRebanho" pr JOIN "PosicaoRebanho" p ON (tenant, empresa, posicao)
