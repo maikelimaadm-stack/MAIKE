@@ -27,11 +27,13 @@ const servico = vi.hoisted(() => ({
   eventoMudancaFilaOffline: () => "offline-entity-queue-updated",
 }));
 const sessao = vi.hoisted(() => ({ admin: false }));
+// vi.fn: o teste do "Histórico completo fechado" confere as fontes que só ele lê.
+const refreshMapaCacheEntry = vi.hoisted(() => vi.fn(async (chave) => (chave === "areas" ? [{ id: "area-A", nome: "PASTO A", empresa_id: "emp-1" }] : [])));
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => ({
   getMapaCachedData: async () => [],
   getMapaCacheSnapshot: async () => ({ items: [], atualizadoEm: null }),
-  refreshMapaCacheEntry: async (chave) => (chave === "areas" ? [{ id: "area-A", nome: "PASTO A", empresa_id: "emp-1" }] : []),
+  refreshMapaCacheEntry,
 }));
 vi.mock("@/services/sessionService", () => ({
   getCurrentUser: async () => ({ id: "u-1", cliente_id: "c-1", administrador_fazenda: sessao.admin }),
@@ -228,11 +230,47 @@ describe("DetalhesArea", () => {
     renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
     expect((await screen.findByRole("list", { name: "Registros da área" })).textContent).toContain("NELORE 1");
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledTimes(1);
+    // A linha do tempo e o histórico completo usam a mesma chave do React Query: contar as
+    // chamadas da página não vê o segundo. A prova é o texto dele e uma fonte que só ele lê.
+    expect(document.body.textContent).not.toContain("Entradas, saídas e manejos registrados nesta área");
+    expect(refreshMapaCacheEntry.mock.calls.map(([chave]) => chave)).not.toContain("suplementacaoLote");
     fireEvent.click(screen.getByRole("button", { name: "Histórico completo" }));
     const dialogo = await screen.findByRole("dialog");
     expect(await within(dialogo).findByText("NELORE 1")).toBeTruthy();
-    expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledTimes(2);
+    expect(dialogo.textContent).toContain("Entradas, saídas e manejos registrados nesta área");
+    // A conferência de cima não é vazia: aberto, o histórico completo lê essa fonte.
+    expect(refreshMapaCacheEntry.mock.calls.map(([chave]) => chave)).toContain("suplementacaoLote");
+  });
+
+  it("Histórico completo: ao fechar pelo ✕, o histórico e o título com a contagem ficam no diálogo até o fim da animação de saída", async () => {
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([saidaAntiga]));
+    // O jsdom não anima: simula a saída do app (data-state=closed). O Presence do Radix lê a
+    // animação pelo getComputedStyle e só desmonta no animationend.
+    const original = window.getComputedStyle;
+    vi.stubGlobal("getComputedStyle", (el, ...resto) => {
+      const estilo = original(el, ...resto);
+      if (!el?.classList?.contains("mk-ll-dlg")) return estilo;
+      return new Proxy(estilo, {
+        get: (alvo, p) => (p === "animationName" ? (el.getAttribute("data-state") === "closed" ? "saida" : "entrada") : Reflect.get(alvo, p)),
+      });
+    });
+    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
+    await screen.findByRole("list", { name: "Registros da área" });
+    fireEvent.click(screen.getByRole("button", { name: "Histórico completo" }));
+    const dialogo = await screen.findByRole("dialog");
+    await within(dialogo).findByText("NELORE 1");
+    const titulo = dialogo.querySelector(".mk-ll-dlg__titulo");
+    expect(titulo?.textContent).toBe("Histórico da Área PASTO A (1)");
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Fechar" }));
+    // Saindo: o diálogo continua com o histórico e o título com a contagem (sem a barra vazia).
+    expect(dialogo.getAttribute("data-state")).toBe("closed");
+    expect(within(dialogo).getByText("NELORE 1")).toBeTruthy();
+    expect(titulo?.textContent).toBe("Histórico da Área PASTO A (1)");
+    const fim = new Event("animationend", { bubbles: true });
+    Object.defineProperty(fim, "animationName", { value: "saida" });
+    fireEvent(dialogo, fim);
+    expect(dialogo.isConnected).toBe(false);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("A3: registro antigo com o nome da outra área vazio mostra o nome do cadastro de áreas do mapa", async () => {

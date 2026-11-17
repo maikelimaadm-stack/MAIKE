@@ -29,8 +29,8 @@ import "@/styles/mk-dp-bebedouro.css";
  * próximas datas pela data do lançamento (`resumoHistoricoBebedouro`) e o ponto
  * de referência são os de antes. "Lançar" e "Histórico" abrem como telas
  * empilhadas na mesma janela (‹ Voltar), com o MESMO formulário e o histórico
- * completo (`BebedouroTimeline`, na linha do tempo v12, com o "Excluir" do mais
- * recente). No diálogo, o Esc volta do Histórico; no formulário ele é ignorado
+ * completo (`BebedouroTimeline`, na linha do tempo v12, com o "Excluir" do último
+ * lançado no sistema). No diálogo, o Esc volta do Histórico; no formulário ele é ignorado
  * (`escVolta={false}`), para um Esc sem querer não apagar o que foi digitado.
  *
  * Histórico carregando ou com erro (sem cópia): o detalhe diz isso, em vez de

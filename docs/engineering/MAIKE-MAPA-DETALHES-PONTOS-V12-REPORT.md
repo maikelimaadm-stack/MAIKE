@@ -64,7 +64,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
      - cada cocho vinculado com o ícone do marcador e o farol da última leitura;
      - tocar num cocho abre o detalhe dele empilhado, com ‹ Voltar, se o usuário tiver `visualizar_detalhes_cochos`.
   4. **Informações do depósito:** os 7 campos, mais "Cochos vinculados" com os nomes e "Observações".
-  5. **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a mesma regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". Enquanto carrega, mostra "Carregando histórico..."; se a consulta falha, o aviso de erro. Sem a permissão, continua o "Último registro" de antes, com uma movimentação só.
+  5. **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a mesma regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". Enquanto carrega, mostra "Carregando histórico..."; se a consulta falha, o aviso de erro. Sem a permissão, o bloco continua "Último registro", com uma movimentação só, mas pela mesma regra (§3), e não mais a de data mais recente.
 
 ### 2.4 Bebedouro (`DetalhesBebedouro`)
 
@@ -79,7 +79,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - Histórico com os 5 últimos e "Ver tudo".
 - **Telas empilhadas** (‹ Voltar):
   - o lançamento, com o formulário de hoje. Ali o Esc é ignorado, para não apagar o que foi digitado;
-  - o histórico completo, na linha do tempo v12. Usa os mesmos cartões do resumo, mais a hora, na ordem do servidor, com "Lançamentos (N)". O Excluir fica no pé do cartão e só liga no mais recente, conforme `podeExcluir`. A confirmação, a mensagem do 409 e as invalidações não mudam. O Esc volta.
+  - o histórico completo, na linha do tempo v12. Usa os mesmos cartões do resumo, mais a hora, na ordem do servidor, com "Lançamentos (N)". O Excluir fica no pé do cartão e só liga no último lançado no sistema (o primeiro da lista, mesmo que seja um retroativo), conforme `podeExcluir`. A confirmação, a mensagem do 409 e as invalidações não mudam. O Esc volta.
 - **Carregando ou com erro:** o "Último registro" diz "Carregando..." ou o erro, o custo fica "—", e a seção Histórico mostra "Carregando histórico..." ou "Não foi possível carregar o histórico.". Com a lista já lida, um erro não a apaga.
 - **Página Bebedouros:** a casca fica sem o cabeçalho próprio, e a barra "Voltar ao resumo" da página continua.
 
@@ -114,7 +114,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - As datas de dia (pedido, prazo, conclusão) apareciam um dia antes no fuso do Brasil. Agora usam `formatarDia`.
   - Registrar evento e Concluir ficam desligados quando nenhum tipo é permitido. Antes, o diálogo abria com o segmento vazio.
 - **Depósito:**
-  - O primeiro cartão do histórico é o último lançado. O antigo "Último Registro" usava a data mais recente.
+  - O primeiro cartão do histórico é o último lançado, com ou sem `visualizar_historico_cocho`, sem reversões nem o lado errado de uma transferência. O antigo "Último Registro" usava a data mais recente.
   - Reversões e o lado errado de uma transferência não aparecem mais.
   - O kg segue o formato do SSOT: "600 kg" em vez de "600,00 kg".
   - Enquanto as movimentações carregam, o histórico diz "Carregando histórico..." em vez de "Nenhum registro ainda.".
@@ -165,7 +165,11 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - tirar o `placeholderData: []` do hook do bebedouro;
   - trocar `isLoading` por `isPending` no depósito;
   - mostrar a pílula "Histórico completo" sem a permissão de histórico.
-- **Suíte inteira e gates:** ver §7.
+- **Mutações da 3ª revisão**, todas pegas:
+  - montar o histórico completo escondido com o diálogo fechado;
+  - voltar a montagem condicional do histórico completo (o conteúdo sumia antes da animação de saída);
+  - no depósito sem `visualizar_historico_cocho`, voltar o cartão único ao de data mais recente, com reversões.
+- **Suíte inteira e gates:** ver §7.3.
 
 ## 6. Conferência visual
 
@@ -183,7 +187,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 | Tela | Confirmados e corrigidos | Refutados |
 |---|---|---|
 | Cocho | o percentual uma vez só sem proteção de teste; o subtítulo do cocho aberto pelo depósito; a animação de volta ao depósito | 1 |
-| Depósito | o histórico de 5 sem `visualizar_historico_cocho` (agora só o último, como antes); o ícone do nível (o do marcador, como o v12); a célula do Estoque mínimo como grupo dentro da grade | 4 |
+| Depósito | o histórico de 5 sem `visualizar_historico_cocho` (agora um cartão só, como antes, pela regra nova); o ícone do nível (o do marcador, como o v12); a célula do Estoque mínimo como grupo dentro da grade | 4 |
 | Tarefa | o vermelho do prazo vencido (#b91c1c, o do v12); testes do fuso do Brasil e do erro do histórico | 4 |
 | Bebedouro | o Esc que apagava o formulário; o histórico completo com rolagem própria e no desenho antigo | 2 |
 | Área | o "Excluir movimentação" e os dados de auditoria do histórico completo (pílula "Histórico completo"); o nome da outra área; o rótulo da lista; o teste do acesso total; o desenho antigo da Forragem sem uso | 1 |
@@ -201,9 +205,9 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - no cocho, a leitura mais recente também na lista, para o Excluir dela;
   - no depósito: as observações dos cartões sem formatar o kg, "Origem: —" e "Destino: —" na compra e na venda (o motor não grava esses locais) e os dias na ordem de cadastro, a mesma do histórico completo.
 
-### 7.1 Segunda revisão (das correções da 1ª)
+### 7.1 Segunda revisão (da última leva de correções da 1ª)
 
-- **Método:** o mesmo, em 4 frentes: as peças compartilhadas, o bebedouro, a área, e o depósito com os testes e os docs. A comparação foi com o estado antes das correções (9eb6a58) e com o de antes da missão (62819a7).
+- **Método:** o mesmo, em 4 frentes: as peças compartilhadas, o bebedouro, a área, e o depósito com os testes e os docs. A comparação foi com 9eb6a58, antes dessa leva (bf9c178 e d9a11ab), e com o estado antes da missão (62819a7). As correções do cocho, do depósito e da tarefa da tabela do §7 (cad9489 a 9eb6a58) já estavam nessa base.
 - **Resultado:** 17 achados: 15 confirmados e 2 refutados. Os confirmados se resumem aos 12 problemas da tabela, porque alguns apareceram para mais de um revisor.
 
 | Problema confirmado | Correção |
@@ -211,7 +215,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 | As `areas` não chegavam à aba Histórico do pasto: o `PainelPasto` refazia o contexto sem elas. Os docs diziam que sim. | O `PainelPasto` repassa as `areas`; teste de ponta a ponta (`detalhesLoteHistoricoAreas`). |
 | O fio `MapaGeral` → `DetalhesArea` das `areas` sem teste | G3-INT-7 no `g3MapaGeralIntegrado` |
 | O `title` do Excluir do bebedouro dizia "só o mais recente", e com um retroativo isso contradizia o "Último registro" do resumo | "Só o primeiro da lista (o último lançado no sistema) pode ser excluído."; teste com o retroativo no topo |
-| Ao fechar o histórico completo da área, o conteúdo sumia antes da animação de saída: uma barra vazia no popup e uma tela branca no celular | O `HistoricoMovimentacoes` sem condição dentro do diálogo; teste de que, fechado, nada monta nem consulta; no harness o texto fica até o fim, nos 3 tamanhos |
+| Ao fechar o histórico completo da área, o conteúdo sumia antes da animação de saída: uma barra vazia no popup e uma tela branca no celular | O `HistoricoMovimentacoes` sem condição dentro do diálogo. Testes: fechado, nada monta nem consulta; ao fechar, o histórico fica até o fim da animação de saída (simulada no jsdom). No harness o texto fica até o fim, nos 3 tamanhos |
 | A permissão da pílula "Histórico completo" sem teste | Teste com só a Forragem: sem pílula, sem rodapé e sem linha da área |
 | O depósito sem local de estoque (consulta desligada) sem teste | Teste: "Nenhum registro ainda.", nunca "Carregando histórico..." para sempre |
 | O carregando do bebedouro provado só com o hook trocado por dublê | `bebedouroHistoricoCarregando`, com o hook real |
@@ -225,6 +229,24 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - **O depósito sem rede, que diz "Nenhum registro ainda.":** era igual antes da missão. A consulta pausada não é nem carregando nem erro. Sem rede e sem cópia no aparelho, o detalhe inteiro do depósito mostra vazios. Quando a rede volta, o histórico chega.
   - **A frase "substitui o Último Registro" sem a permissão:** era texto incompleto, não contradição. A permissão foi acrescentada à frase mesmo assim (D-PROD-220 §3 e §2.3).
 
-### 7.2 Suíte inteira e gates
+### 7.2 Terceira revisão (das correções da 2ª)
 
-Ver o PR, com os números do estado final.
+- **Método:** o mesmo, em 2 frentes: o código com os testes, e os documentos. A base foi d9a11ab, e os commits revistos foram 5d75aa1 e 3c57abf.
+- **Resultado:** 5 achados, 5 confirmados, nenhum refutado. O código estava certo. Os problemas estavam em testes e textos, e foram todos corrigidos:
+
+| Problema confirmado | Correção |
+|---|---|
+| O teste "fechado, nada monta nem consulta" não via o que prometia: a linha do tempo e o histórico completo usam a mesma chave do React Query, então a contagem de chamadas não muda | O teste confere o texto do histórico completo e uma fonte que só ele lê (`suplementacaoLote`), fechado e aberto |
+| A saída do histórico completo sem teste: voltar a montagem condicional não derrubava nada | Teste que simula a animação de saída no jsdom: o histórico e o título com a contagem ficam até o `animationend` |
+| D-PROD-220 §3 e §2.3: sem `visualizar_historico_cocho`, o cartão único não é "o de antes"; ele segue a regra nova (o último lançado, sem reversões) | Texto corrigido aqui, no §3 e na tabela do §7; teste novo que prende a regra sem a permissão |
+| §2.4 ainda dizia que o Excluir do bebedouro "só liga no mais recente" | Texto corrigido, também no JSDoc do `DetalhesBebedouro` |
+| §7.1 dizia que 9eb6a58 era "o estado antes das correções" | Texto corrigido: 9eb6a58 já tinha as correções do cocho, do depósito e da tarefa |
+
+### 7.3 Suíte inteira e gates (estado final)
+
+- **`test:smoke`:** 277 arquivos e 3.462 testes, todos passaram.
+- **`gate:types`:** 422 diagnósticos contra o teto de 625.
+- **Lint do repositório:** 0 erros. Ficam os 2 avisos antigos, de antes da missão (`CategoriasManejo.jsx` e `Produtos.jsx`).
+- **Build e demais gates do `verify:all`:** passaram.
+- **`test:backend`:** precisa de PostgreSQL e roda no CI; a branch não mexe no backend.
+- **CI do GitHub:** roda a cada envio; o resultado do commit final fica no PR.

@@ -16,7 +16,7 @@ rollout pausado **D-PROD-41**)
 | Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12) e **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho), pedidos do proprietário; filtros do mapa como estão |
 | Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho, a pedido do proprietário: "ainda tenho edições") |
 | Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (`src/lib/mapaFoco.js`); Detalhes do Lote v12 (`.mk-dp`); casca v12 de uma tela (`CascaDetalhe`) no cocho, no depósito (com cocho empilhado), no bebedouro, na tarefa e no Histórico da Área (com a Forragem da D-PROD-219 e as abas do curral); popup a partir de 768 px |
-| Testes | ver os relatórios (suíte inteira e gates na conferência final) |
+| Testes | `test:smoke` 277 arquivos e 3.462 testes; `gate:types` 422 de 625; lint sem erros; build e demais gates do `verify:all` passam; `test:backend` no CI (precisa de PostgreSQL). Três revisões independentes com verificação adversarial: relatório da D-PROD-220, §7 |
 | Relatórios | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) · [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md) |
 
 ## Missão anterior (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)

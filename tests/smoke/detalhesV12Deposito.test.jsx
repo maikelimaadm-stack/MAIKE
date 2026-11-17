@@ -384,6 +384,21 @@ describe('DV-7 — linha do tempo do depósito', () => {
     expect(cartoesDoHistorico().map((c) => linhasDoCartao(c)[2])).toEqual(['Quantidade (kg): 70,00', 'Quantidade (kg): 60,00', 'Quantidade (kg): 50,00', 'Quantidade (kg): 40,00', 'Quantidade (kg): 30,00']);
   });
 
+  it('sem a permissão, o cartão único segue a regra do histórico: o último lançado, sem reversão (não o de data mais recente)', async () => {
+    dados.movimentacoes = [
+      // Retroativo: lançado por último (12/11), com data de 01/11.
+      mov('m-retro', { data_movimentacao: '2026-11-01T12:00:00.000Z', created_date: '2026-11-12T12:00:00.000Z', tipo_movimentacao: 'Entrada', quantidade: 11, local_estoque_destino: LOCAL }),
+      mov('m-normal', { ...em('2026-11-10'), tipo_movimentacao: 'Entrada', quantidade: 22, local_estoque_destino: LOCAL }),
+      // A reversão é a mais nova de todas, mas não entra (regra do histórico completo).
+      mov('m-rev', { ...em('2026-11-13'), tipo_movimentacao: 'Entrada', origem_sistema: 'reversao', quantidade: 33, local_estoque_destino: LOCAL }),
+    ];
+    await montar({ permissions: { visualizar_historico_cocho: false } });
+    const ultimo = await screen.findByRole('list', { name: 'Último registro' });
+    await waitFor(() => expect(ultimo.querySelectorAll('.mk-dp-tl__card')).toHaveLength(1));
+    expect(ultimo.textContent).toContain('11,00');
+    expect(ultimo.textContent).not.toContain('33,00');
+  });
+
   it('sem "Ver histórico de cocho / depósito": só o último registro (como antes do v12), sem a pílula Histórico', async () => {
     dados.movimentacoes = Array.from({ length: 7 }, (_, i) =>
       mov(`m${i}`, { ...em(`2026-11-0${i + 1}`), tipo_movimentacao: 'Entrada', quantidade: 10 * (i + 1), local_estoque_destino: LOCAL }));

@@ -7768,7 +7768,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - **Saldo por produto:** os produtos em litros ficam à parte (D-PROD-162).
    - **Pastos atendidos:** os cochos vinculados, com o ícone do marcador e o farol da leitura. Tocar num cocho abre o detalhe dele como tela empilhada, com ‹ Voltar. Isso exige `visualizar_detalhes_cochos`, a mesma permissão que o mapa pede.
    - **Informações do depósito:** "Cochos vinculados" mostra os nomes, não a contagem.
-   - **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais. Sem essa permissão, continua o "Último registro" de antes, com uma movimentação só.
+   - **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais. Sem essa permissão, o bloco continua "Último registro", com uma movimentação só, mas pela mesma regra: a última lançada, sem reversões nem o lado errado de uma transferência, e não mais a de data mais recente.
    - **Formato:** kg no formato do SSOT ("1.400 kg").
    - **Carregando ou com erro:** o histórico diz isso, em vez de "Nenhum registro ainda.".
    - **Fica de fora:** "Frequência padrão" do v12, porque o cadastro não tem esse campo.
@@ -7809,13 +7809,19 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Revisão independente:** cada tela teve um revisor de código, dados, permissões, testes e desenho, e cada achado passou por um verificador que tentou refutá-lo. De 28 achados, 16 foram confirmados e corrigidos com teste. Dos 12 refutados, quatro viraram melhorias mesmo assim: o `LancField`, o carregando e o erro dos históricos do bebedouro e do depósito, e a rolagem do abate.
 
-**2ª revisão, das correções da 1ª:** 17 achados: 15 confirmados e 2 refutados. Os confirmados se resumem a 12 problemas, porque alguns apareceram para mais de um revisor. Todos foram corrigidos:
+**2ª revisão, da última leva de correções da 1ª:** 17 achados: 15 confirmados e 2 refutados. Os confirmados se resumem a 12 problemas, porque alguns apareceram para mais de um revisor. Todos foram corrigidos:
 - as `areas` não chegavam à aba Histórico do pasto;
 - o `title` do Excluir do bebedouro dava a razão errada com um retroativo;
 - o histórico completo da área esvaziava antes da animação de saída;
 - faltavam testes para a permissão da pílula, o depósito sem local, o hook real do bebedouro e o fio das `areas` no mapa;
 - o efeito do `LancField` fora do mapa não estava registrado (item 7 acima);
 - havia comentários e trechos do relatório desatualizados.
+
+**3ª revisão, das correções da 2ª:** 5 achados, 5 confirmados, nenhum refutado. O código estava certo; os problemas estavam em testes e textos. Todos foram corrigidos:
+- o teste do histórico completo fechado passou a conferir o que só ele monta e lê;
+- entrou um teste da animação de saída;
+- o texto do cartão único do depósito sem a permissão foi corrigido, com um teste da regra;
+- dois textos do relatório foram corrigidos.
 
 Ver o relatório, §7.
 
