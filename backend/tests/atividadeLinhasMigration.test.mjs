@@ -149,6 +149,7 @@ const DA_AREA_CULTURA = /^AreaPastagem(_cliente_id_empresa_id_cultura_id_|\.cult
 const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const DO_REFORCO = /^AtividadeApontamento_empresa_atividade_id_key:/;
 /** Das migrations posteriores (D-PROD-203, D-PROD-205, D-PROD-206, D-PROD-207, D-PROD-208, D-PROD-210, D-PROD-211, D-PROD-216 e D-PROD-217): constraint, índice, `tabela:política` ou tabela. */
 const dasPosteriores = (l) => daFormulacao(l) || DA_MAO_OBRA.test(l) || DO_PARCEIRO.test(l) || DO_ABASTECIMENTO.test(l) || DA_AREA_CULTURA.test(l) || DO_REFORCO.test(l) || NOVAS_MAO_OBRA.includes(l);
@@ -416,8 +417,8 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.equal(ANTERIORES.length, 53, 'produção hoje: 53 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     // D-PROD-203 (ver o cabeçalho): só a EXPAND das Formulações tem nome posterior a esta, e fica fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME), [NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM], 'só as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207, as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-210 e da D-PROD-211, a EXPAND da D-PROD-215 e as CONTRACT da D-PROD-216 e da D-PROD-217 têm nome posterior a esta');
-    assert.equal(TOTAL_MIGRATIONS, 66);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME), [NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO], 'só as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207, as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-210 e da D-PROD-211, a EXPAND da D-PROD-215 e as CONTRACT da D-PROD-216 e da D-PROD-217 têm nome posterior a esta');
+    assert.equal(TOTAL_MIGRATIONS, 67);
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [53, 0, 0]);
     const tabelas = partida.tabelas.split(',');
@@ -455,7 +456,7 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     const linhas = await db.$queryRawUnsafe('SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations');
     const locais = PASTAS.map((n) => ({ nome: n, checksum: createHash('sha256').update(readFileSync(join(MIGRATIONS, n, 'migration.sql'), 'utf8')).digest('hex') }));
     const h = conferirHistoricoRemoto({ locais, linhas });
-    assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM], falhas: [] });
+    assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO], falhas: [] });
     // D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-216 e D-PROD-217: as CONTRACT pendentes são as posteriores (esta e a D-PROD-215 são EXPAND).
     assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), [{ nome: NOME_PARCEIRO, decisao: 'D-PROD-208' }, { nome: NOME_TIPO, decisao: 'D-PROD-209' }, { nome: NOME_BASE, decisao: 'D-PROD-210' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-211' }, { nome: NOME_AREA_CULTURA, decisao: 'D-PROD-216' }, { nome: NOME_REFORCO, decisao: 'D-PROD-217' }]);
   });
@@ -504,7 +505,7 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.ok(r.saida.indexOf(`Applying migration \`${NOME_LEITURA}\``) < r.saida.indexOf(`Applying migration \`${NOME_FAIXA}\``), 'a D-PROD-205 antes da D-PROD-206');
     // D-PROD-207: a EXPAND da mão de obra e do serviço sobe por último.
     assert.ok(r.saida.includes(`Applying migration \`${NOME_MAO_OBRA}\``), r.saida);
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-13), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM]);
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-14), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
     assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_PARCEIRO} (D-PROD-208).`), r.saida);
     assert.ok(!vazou(r.saida, URL_T));
 
@@ -565,7 +566,7 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     // O postcheck foi escrito para o dia desta (54 / 0, 87 tabelas); aqui as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 também estão aplicadas
     // (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03) antes do runner.
     const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '96' };
-    assert.equal(TOTAL_MIGRATIONS, 66);
+    assert.equal(TOTAL_MIGRATIONS, 67);
     for (const [item, v] of Object.entries(pos)) {
       if (item === 'VEREDITO') continue;
       if (item in CONTAGENS) assert.deepEqual([v.valor, v.status], [CONTAGENS[item], 'PARAR'], item);
@@ -787,8 +788,8 @@ describe('D-PROD-202 — caminho B do runbook (uma transação pelo conector), n
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_MAO_OBRA}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_PARCEIRO}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_TIPO}\``), runner.saida);
-    for (const n of [NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM]) assert.ok(runner.saida.includes(`Applying migration \`${n}\``), runner.saida);
-    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-13), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM]);
+    for (const n of [NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]) assert.ok(runner.saida.includes(`Applying migration \`${n}\``), runner.saida);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-14), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
     assert.ok(!runner.saida.includes(`Applying migration \`${NOME}\``), runner.saida);
     const segunda = await aplicarPeloRunner(URL_B);
     assert.equal(segunda.status, 0, segunda.saida);

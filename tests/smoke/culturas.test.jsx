@@ -41,7 +41,7 @@ vi.mock("@/hooks/useGestaoSessao", async (importOriginal) => ({
 
 const { default: FormularioCultura, FORMULARIO_CULTURA_ID } = await import("@/components/culturas/FormularioCultura");
 const { getCulturaFieldValue, compararCulturasParaOrdenar } = await import("@/components/culturas/TabelaCulturas");
-const { lerAlturaCm, formatarAlturaCm } = await import("@/services/culturaCadastroService");
+const { lerAlturaCm, formatarAlturaCm, lerDiasDescanso } = await import("@/services/culturaCadastroService");
 
 const ROTULOS = [
   "Código",
@@ -51,6 +51,7 @@ const ROTULOS = [
   "Cultivar",
   "Altura de entrada (cm)",
   "Altura de saída (cm)",
+  "Dias de descanso",
   "Ativo",
   "Observações",
 ];
@@ -95,7 +96,7 @@ afterEach(() => {
 });
 
 describe("CULT-FORM — formulário de cultura", () => {
-  it("CULT-FORM-1 — nove campos, nesta ordem; sem campo de fazenda, área ou lote", () => {
+  it("CULT-FORM-1 — dez campos, nesta ordem; sem campo de fazenda, área ou lote", () => {
     const { form } = montar();
     expect(rotulos(form)).toEqual(ROTULOS);
     expect(form.textContent).not.toMatch(/Fazenda|Empresa|Lote|Área/i);
@@ -133,9 +134,29 @@ describe("CULT-FORM — formulário de cultura", () => {
       cultivar: null,
       altura_entrada_cm: "25.5",
       altura_saida_cm: "15",
+      dias_descanso: null,
       observacoes: null,
       ativo: true,
     });
+  });
+
+  it("CULT-FORM-8 — dias de descanso (D-PROD-223): inteiro de 1 a 365 vai como número; 0, 366, decimal e texto não enviam", async () => {
+    const { form, onSubmit } = montar({ initialData: { nome: "X", tipo: "PASTAGEM" } });
+    const campo = within(form).getByLabelText("Dias de descanso");
+    for (const ruim of ["0", "366", "30,5", "abc"]) {
+      fireEvent.change(campo, { target: { value: ruim } });
+      enviar();
+    }
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(notify.notifyWarning).toHaveBeenLastCalledWith("Atenção", "Os dias de descanso são um número inteiro de 1 a 365.");
+    fireEvent.change(campo, { target: { value: "30" } });
+    enviar();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ dias_descanso: 30 }));
+  });
+
+  it("CULT-FORM-9 — editando: mostra os dias de descanso gravados", () => {
+    const { form } = montar({ isEditing: true, initialData: { ...MARANDU, dias_descanso: 30 } });
+    expect(within(form).getByLabelText("Dias de descanso").value).toBe("30");
   });
 
   it("CULT-FORM-5 — saída maior ou igual à entrada, altura com 2 casas ou zero não enviam", async () => {
@@ -180,11 +201,14 @@ describe("CULT-GRADE — valores, ordenação e leitura das alturas", () => {
     expect(getCulturaFieldValue({ ...MARANDU, altura_saida_cm: null }, "altura_saida_cm")).toBe("");
     expect(getCulturaFieldValue(MARANDU, "tipo")).toBe("PASTAGEM");
     expect(getCulturaFieldValue(MARANDU, "codigo")).toBe("001");
+    expect(getCulturaFieldValue({ ...MARANDU, dias_descanso: 30 }, "dias_descanso")).toBe("30");
+    expect(getCulturaFieldValue(MARANDU, "dias_descanso")).toBe("");
   });
 
   it("CULT-GRADE-2 — alturas ordenam pelo número (100 depois de 25), vazio por último", () => {
     expect(compararCulturasParaOrdenar({ altura_entrada_cm: 25 }, { altura_entrada_cm: 100 }, "altura_entrada_cm")).toBeLessThan(0);
     expect(compararCulturasParaOrdenar({ altura_entrada_cm: 25 }, {}, "altura_entrada_cm")).toBe(-1);
+    expect(compararCulturasParaOrdenar({ dias_descanso: 28 }, { dias_descanso: 100 }, "dias_descanso")).toBeLessThan(0);
     expect(compararCulturasParaOrdenar({}, {}, "nome")).toBeNull();
   });
 
@@ -194,6 +218,13 @@ describe("CULT-GRADE — valores, ordenação e leitura das alturas", () => {
     expect(lerAlturaCm("")).toBeNull();
     for (const ruim of ["0", "-1", "10,25", "abc", "1001"]) expect(lerAlturaCm(ruim)).toBeUndefined();
     expect(formatarAlturaCm(90)).toBe("90");
+  });
+
+  it("CULT-GRADE-4 — lerDiasDescanso: inteiro de 1 a 365; vazio é null", () => {
+    expect(lerDiasDescanso("30")).toBe(30);
+    expect(lerDiasDescanso(" 365 ")).toBe(365);
+    expect(lerDiasDescanso("")).toBeNull();
+    for (const ruim of ["0", "366", "30,5", "-3", "abc"]) expect(lerDiasDescanso(ruim)).toBeUndefined();
   });
 });
 

@@ -11,8 +11,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
-import { invalido } from '../gestao/gestaoComum.js';
-import { listar, obter, criar, atualizar, excluir, incluirListaReferencia, TIPOS_CULTURA } from './culturaService.js';
+import { listar, obter, criar, atualizar, excluir, incluirListaReferencia, TIPOS_CULTURA, exigirParametrosSemCoercao } from './culturaService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 /**
@@ -21,25 +20,12 @@ const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_
  * coagiria para 1, é barrado antes por `alturasSemCoercao`.
  */
 const ALTURA = { type: ['number', 'string', 'null'], maxLength: 16 };
-const CAMPOS_ALTURA = Object.freeze(['altura_entrada_cm', 'altura_saida_cm']);
-
 /**
- * O AJV do app usa a coerção padrão do Fastify (`coerceTypes: 'array'`): `true`
- * viraria 1 cm e um objeto solto viraria lista. Antes da validação, o corpo
- * BRUTO precisa trazer número, texto ou null de verdade.
+ * D-PROD-223: a mesma barreira de coerção vale na Área (parâmetros próprios do pasto);
+ * fica no serviço das culturas (`exigirParametrosSemCoercao`).
  * @param {import('fastify').FastifyRequest} request
  */
-const alturasSemCoercao = async (request) => {
-  const corpo = /** @type {Record<string, unknown>|null} */ (request.body);
-  if (!corpo || typeof corpo !== 'object') return;
-  for (const campo of CAMPOS_ALTURA) {
-    if (!Object.prototype.hasOwnProperty.call(corpo, campo)) continue;
-    const v = corpo[campo];
-    if (v !== null && typeof v !== 'number' && typeof v !== 'string') {
-      throw invalido(`${campo} deve ser um número em cm`, { field: campo, reason: 'altura_invalida' });
-    }
-  }
-};
+const alturasSemCoercao = async (request) => exigirParametrosSemCoercao(request.body);
 const TEXTO_OPCIONAL = { type: ['string', 'null'], maxLength: 120 };
 
 const CAMPOS = Object.freeze({
@@ -50,6 +36,8 @@ const CAMPOS = Object.freeze({
   cultivar: TEXTO_OPCIONAL,
   altura_entrada_cm: ALTURA,
   altura_saida_cm: ALTURA,
+  // D-PROD-223 — dias de descanso (1..365); número, texto "30" ou null.
+  dias_descanso: { type: ['integer', 'string', 'null'], maxLength: 4 },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
 });

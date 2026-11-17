@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-FAROL-FORRAGEM: farol de forragem no Mapa Geral (D-PROD-221)
+## Missão ativa (2026-11-17) — MAIKE-DESCANSO-ESTIMADO: farol de forragem estimado pelos dias de descanso e parâmetros próprios do pasto (D-PROD-223)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-223** (a D-PROD-222 está reservada pela branch `claude/design-filters-implementation-agzxk8`), pedido do proprietário: sem medição recente, o farol do pasto estimado pelos dias desde a saída do último lote contra os dias de descanso da cultura |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `9b4bf78f` (PR #311, D-PROD-221) |
+| Escopo | `CADCULTURAS.dias_descanso` (API 1..365, formulário e grade "Dias de descanso", lista de referência com os valores); `GET /medicoes-forragem/descanso` (ocupação e última saída por pasto pelo ledger do rebanho); `dias_descanso` na cultura embutida de `/areas-pastagem`; regra pura (Descanso < D ≤ Pronto ≤ arredondar(D×1,5) < Passou; nunca Rapado); farol estimado no modo "Forragem" (tom bem claro, "(estimado)" na legenda) e no painel Forragem do pasto ("Em pastejo" com lote dentro); **parâmetros próprios do pasto** na Área (alturas de entrada/saída e dias de descanso; vazio = os da cultura), usados na Medição de Forragem, na estimativa e no painel, com a seção opcional no formulário da Área |
+| Migration | `20261117300000_descanso_e_alturas_por_area`, **EXPAND** (4 colunas anuláveis em tabelas antigas, sem CHECK — faixas na API), SHA-256 `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e`. Produção 66 → 67 (a anterior é a `20261117200000_medicao_forragem`, D-PROD-219); tabelas 96 (nenhuma nova) |
+| Dados | Depois da migration, os dias de descanso de referência nas 11 culturas da fazenda (só onde vazio, por código e nome; DML guardado, uma transação, evento na auditoria) — [runbook](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md) §4 |
+| Release | **Aplicada em produção** em 2026-11-17 às 13:48:31 UTC (caminho B do [runbook](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md), GO do proprietário): preflight 66 / 0, postcheck 67 / 0, as 4 colunas presentes, 96 tabelas. Passo de dados às 13:48:50 UTC: 11 culturas com os dias de descanso de referência, auditado (`d-prod-223-backfill`). Merge depois do CI verde |
+| Relatório | [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-FAROL-FORRAGEM: farol de forragem no Mapa Geral (D-PROD-221)
 
 | Campo | Valor |
 |---|---|

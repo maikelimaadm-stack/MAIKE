@@ -178,6 +178,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261117100000_abastecimento_fk_apontamento_atividade': '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e',
   // D-PROD-219: EXPAND — Medição de Forragem (MEDICAOFORRAGEM), só tabela nova.
   '20261117200000_medicao_forragem': '66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f',
+  // D-PROD-223: EXPAND — dias de descanso da cultura (CADCULTURAS.dias_descanso) e os parâmetros próprios
+  // do pasto (AreaPastagem.altura_entrada_cm, altura_saida_cm e dias_descanso); 4 colunas anuláveis, sem CHECK.
+  '20261117300000_descanso_e_alturas_por_area': 'c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

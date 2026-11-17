@@ -9,10 +9,17 @@
  * (pasto sem cultura) também fica cinza. Medição "no olho" usa a mesma cor, um tom mais
  * claro, e é marcada com 👁 — o proprietário vê que não foi régua.
  * Sem nenhuma medição: `null` (o mapa pinta de neutro "sem medição").
- * A estimativa pelos dias de descanso NÃO entra aqui (fica para depois).
+ *
+ * D-PROD-223 — sem medição válida, o farol pode vir ESTIMADO pelos dias de descanso:
+ * dias desde que o último lote saiu do pasto (ledger do rebanho) contra os dias de
+ * descanso que valem para o pasto (D): os próprios da Área ou, vazios, os da cultura:
+ *   dias < D → DESCANSO · D ≤ dias ≤ arredondar(D × 1,5) → PRONTO · acima → PASSOU.
+ * Nunca RAPADO por estimativa. Pasto ocupado agora fica "Em pastejo" (sem estimativa);
+ * sem cultura, sem D ou sem saída conhecida, sem estimativa. Medição válida sempre vence.
+ * O estimado usa a mesma família de cor, bem mais clara, e diz "(estimado)".
  */
 import { diasEntre, ehDiaValido } from '@/lib/diaCivil';
-import { ROTULO_SITUACAO } from './medicaoForragem';
+import { ROTULO_SITUACAO, parametrosDoPasto } from './medicaoForragem';
 
 /** Depois de quantos dias a medição deixa de valer no farol. */
 export const DIAS_VALIDADE_FORRAGEM = 15;
@@ -32,15 +39,6 @@ export const COR_FORRAGEM_SEM_MEDICAO = '#e5e7eb';
 export const MARCA_OLHO = '👁';
 
 /** Legenda do modo "Forragem" (rótulo → cor), na ordem em que aparece. */
-export const LEGENDA_FORRAGEM = Object.freeze({
-  Rapado: COR_SITUACAO_FORRAGEM.RAPADO,
-  Descanso: COR_SITUACAO_FORRAGEM.DESCANSO,
-  Pronto: COR_SITUACAO_FORRAGEM.PRONTO,
-  'Passou do ponto': COR_SITUACAO_FORRAGEM.PASSOU,
-  [`Sem medição recente (> ${DIAS_VALIDADE_FORRAGEM} dias)`]: COR_FORRAGEM_VENCIDA,
-  'Nunca medido': COR_FORRAGEM_SEM_MEDICAO,
-});
-
 /**
  * Clareia um hex (#rrggbb) misturando com branco. @param {string} hex @param {number} t 0..1
  */
@@ -50,6 +48,25 @@ export const clarear = (hex, t = 0.45) => {
   const canal = (h) => Math.round(parseInt(h, 16) + (255 - parseInt(h, 16)) * t).toString(16).padStart(2, '0');
   return `#${canal(m[1])}${canal(m[2])}${canal(m[3])}`;
 };
+
+/** D-PROD-223: quanto o farol estimado clareia a cor da situação (o "no olho" usa 0,45). */
+export const TOM_ESTIMADO = 0.7;
+/** D-PROD-223: acima de arredondar(D × 1,5) dias de descanso o pasto passou do ponto. */
+export const FATOR_PASSOU_DESCANSO = 1.5;
+/** Cor do farol estimado de uma situação. @param {'DESCANSO'|'PRONTO'|'PASSOU'} situacao */
+export const corEstimada = (situacao) => clarear(COR_SITUACAO_FORRAGEM[situacao], TOM_ESTIMADO);
+
+export const LEGENDA_FORRAGEM = Object.freeze({
+  Rapado: COR_SITUACAO_FORRAGEM.RAPADO,
+  Descanso: COR_SITUACAO_FORRAGEM.DESCANSO,
+  Pronto: COR_SITUACAO_FORRAGEM.PRONTO,
+  'Passou do ponto': COR_SITUACAO_FORRAGEM.PASSOU,
+  'Descanso (estimado)': corEstimada('DESCANSO'),
+  'Pronto (estimado)': corEstimada('PRONTO'),
+  'Passou do ponto (estimado)': corEstimada('PASSOU'),
+  [`Sem medição recente (> ${DIAS_VALIDADE_FORRAGEM} dias)`]: COR_FORRAGEM_VENCIDA,
+  'Nunca medido': COR_FORRAGEM_SEM_MEDICAO,
+});
 
 /** @param {any} m */
 const chaveDeOrdem = (m) => `${String(m?.data_medicao ?? '').slice(0, 10)}|${String(m?.created_date ?? m?.createdAt ?? '')}|${String(m?.id ?? '')}`;
@@ -134,16 +151,114 @@ export const farolForragemPorArea = (medicoes, hoje) => {
   return out;
 };
 
+/**
+ * D-PROD-223 — situação estimada pelos dias desde a saída do último lote e os dias de
+ * descanso da cultura. `null` quando não há como estimar. Nunca RAPADO.
+ * @param {number|null|undefined} diasDesdeSaida @param {number|null|undefined} diasDescanso
+ * @returns {'DESCANSO'|'PRONTO'|'PASSOU'|null}
+ */
+export const estimarSituacaoPorDescanso = (diasDesdeSaida, diasDescanso) => {
+  if (diasDesdeSaida === null || diasDesdeSaida === undefined || diasDescanso === null || diasDescanso === undefined) return null;
+  const d = Number(diasDesdeSaida);
+  const D = Number(diasDescanso);
+  if (!Number.isInteger(d) || d < 0 || !Number.isInteger(D) || D < 1) return null;
+  if (d < D) return 'DESCANSO';
+  if (d <= Math.round(D * FATOR_PASSOU_DESCANSO)) return 'PRONTO';
+  return 'PASSOU';
+};
+
+/**
+ * @typedef {{
+ *   estimado: true,
+ *   emPastejo: boolean,
+ *   situacao: 'DESCANSO'|'PRONTO'|'PASSOU'|null,
+ *   diasDesdeSaida: number|null,
+ *   diasDescanso: number|null,
+ *   origemDescanso: 'PASTO'|'CULTURA'|null,
+ *   ultimaSaida: string|null,
+ *   cor: string|null,
+ *   rotulo: string,
+ * }} EstimativaDescanso
+ */
+
+/**
+ * D-PROD-223 — estimativa de UM pasto. `null` = sem informação de ocupação (nada a dizer).
+ * Ocupado agora: "Em pastejo", sem situação e sem cor. Sem cultura/D ou saída futura: sem
+ * situação ("Sem estimativa").
+ * @param {any} area pasto (com `dias_descanso` próprio e/ou `cultura.dias_descanso`, D-PROD-216/223)
+ * @param {{ ocupada?: boolean, ultima_saida?: string|null }|null|undefined} descanso linha do `/medicoes-forragem/descanso`
+ * @param {string|null|undefined} hoje dia civil da fazenda
+ * @returns {EstimativaDescanso|null}
+ */
+export const estimativaDoPasto = (area, descanso, hoje) => {
+  if (!descanso) return null;
+  // Os dias de descanso que valem: os próprios do pasto ou, vazios, os da cultura.
+  const parametros = parametrosDoPasto(area, area?.cultura);
+  const diasDescanso = Number.isInteger(parametros.dias_descanso) ? parametros.dias_descanso : null;
+  const base = { estimado: /** @type {true} */ (true), diasDescanso, origemDescanso: diasDescanso === null ? null : parametros.origem.dias_descanso };
+  if (descanso.ocupada) {
+    return { ...base, emPastejo: true, situacao: null, diasDesdeSaida: null, ultimaSaida: null, cor: null, rotulo: 'Em pastejo' };
+  }
+  const ultimaSaida = ehDiaValido(String(descanso.ultima_saida ?? '')) ? String(descanso.ultima_saida) : null;
+  const diasDesdeSaida = ultimaSaida && ehDiaValido(String(hoje ?? '')) ? diasEntre(ultimaSaida, /** @type {string} */ (hoje)) : null;
+  const situacao = diasDesdeSaida !== null && diasDesdeSaida >= 0 ? estimarSituacaoPorDescanso(diasDesdeSaida, diasDescanso) : null;
+  return {
+    ...base,
+    emPastejo: false,
+    situacao,
+    diasDesdeSaida,
+    ultimaSaida,
+    cor: situacao ? corEstimada(situacao) : null,
+    rotulo: situacao ? `${ROTULO_SITUACAO[situacao]} (estimado)` : 'Sem estimativa',
+  };
+};
+
+/**
+ * D-PROD-223 — o farol que vale para o pasto: medição válida (≤ 15 dias, com situação)
+ * vence; senão a estimativa pelos dias de descanso; senão o farol da medição (vencida /
+ * sem situação) ou nada.
+ * @param {FarolForragem|null|undefined} farolMedicao @param {EstimativaDescanso|null|undefined} estimativa
+ * @returns {FarolForragem|EstimativaDescanso|null}
+ */
+export const farolQueVale = (farolMedicao, estimativa) => {
+  if (farolMedicao && !farolMedicao.vencida && farolMedicao.situacao) return farolMedicao;
+  if (estimativa?.situacao) return estimativa;
+  return farolMedicao ?? null;
+};
+
+/**
+ * D-PROD-223 — farol de todos os pastos com a estimativa (uma vez por render).
+ * @param {any[]|null|undefined} areas @param {any[]|null|undefined} medicoes
+ * @param {any[]|null|undefined} descansos linhas do `/medicoes-forragem/descanso`
+ * @param {string|null|undefined} hoje
+ * @returns {Record<string, FarolForragem|EstimativaDescanso>} por area_id
+ */
+export const farolForragemComEstimativaPorArea = (areas, medicoes, descansos, hoje) => {
+  const porMedicao = farolForragemPorArea(medicoes, hoje);
+  /** @type {Record<string, any>} */
+  const descansoPorArea = {};
+  for (const d of Array.isArray(descansos) ? descansos : []) if (d?.area_id) descansoPorArea[String(d.area_id)] = d;
+  /** @type {Record<string, any>} */
+  const out = { ...porMedicao };
+  for (const area of Array.isArray(areas) ? areas : []) {
+    if (!area?.id) continue;
+    const k = String(area.id);
+    const vale = farolQueVale(porMedicao[k], estimativaDoPasto(area, descansoPorArea[k], hoje));
+    if (vale) out[k] = vale;
+  }
+  return out;
+};
+
 /** Tipos de uso que não têm forragem: o mapa os deixa com a cor normal. */
 export const USOS_SEM_FORRAGEM = Object.freeze(['Infraestrutura', 'Reserva', 'APP']);
 
 /**
  * Cor do polígono no modo "Forragem": `null` = cor normal da área (infraestrutura,
- * reserva, APP); nunca medido = neutro; senão a cor do farol.
- * @param {any} area @param {Record<string, FarolForragem>} faroisPorArea
+ * reserva, APP); nunca medido = neutro; senão a cor do farol (medido ou estimado).
+ * @param {any} area @param {Record<string, FarolForragem|EstimativaDescanso>} faroisPorArea
  */
 export const corForragemDaArea = (area, faroisPorArea) => {
   if (!area || USOS_SEM_FORRAGEM.includes(area.tipo_cultura)) return null;
   const farol = faroisPorArea?.[String(area.id)];
-  return farol ? farol.cor : COR_FORRAGEM_SEM_MEDICAO;
+  return farol?.cor ? farol.cor : COR_FORRAGEM_SEM_MEDICAO;
 };

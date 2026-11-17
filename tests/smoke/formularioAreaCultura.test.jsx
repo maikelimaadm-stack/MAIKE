@@ -183,3 +183,59 @@ describe("D-PROD-216 — FormularioArea com o cadastro de Culturas", () => {
     expect(enviado).not.toHaveProperty("cultura_id");
   });
 });
+
+describe("D-PROD-223 — parâmetros próprios do pasto no formulário da Área", () => {
+  const MARANDU_PARAMS = { ...MARANDU, altura_entrada_cm: 25, altura_saida_cm: 15, dias_descanso: 30 };
+  const base = { setor_id: "s1", tamanho_hectares: 10, area_pastejada: 10, tipo_pastagem: MARANDU.nome, coordenadas: { coords: QUADRADO } };
+
+  it("pasto com cultura: a seção opcional mostra os valores da cultura como dica; vazio manda null e o preenchido vai", async () => {
+    svc.listarCulturas.mockResolvedValue([MARANDU_PARAMS]);
+    const item = { ...base, id: "a5", nome: "PIQUETE FRACO", tipo_cultura: "Pastagem", cultura_id: "c1", cultura: MARANDU_PARAMS, dias_descanso: 40 };
+    await montar({ item });
+    await waitFor(() => expect(screen.getByTestId("parametros-do-pasto-titulo").textContent).toBe("Parâmetros do pasto (opcional — vazio usa os da cultura)"));
+    const entrada = screen.getByLabelText("Altura de entrada do pasto (cm)");
+    const saida = screen.getByLabelText("Altura de saída do pasto (cm)");
+    const dias = screen.getByLabelText("Dias de descanso do pasto");
+    await waitFor(() => expect(entrada).toHaveAttribute("placeholder", "25"));
+    expect(saida).toHaveAttribute("placeholder", "15");
+    expect(dias).toHaveAttribute("placeholder", "30");
+    expect(dias).toHaveValue("40");
+    expect(screen.getByText("Da cultura: 30 dias")).toBeInTheDocument();
+    fireEvent.change(saida, { target: { value: "12,5" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    });
+    await waitFor(() => expect(svc.atualizarArea).toHaveBeenCalledTimes(1));
+    expect(svc.atualizarArea.mock.calls[0][1]).toMatchObject({ altura_entrada_cm: null, altura_saida_cm: "12.5", dias_descanso: 40 });
+  });
+
+  it("saída maior ou igual à entrada do pasto, altura inválida ou dias fora de 1..365 não salvam", async () => {
+    svc.listarCulturas.mockResolvedValue([MARANDU_PARAMS]);
+    const item = { ...base, id: "a6", nome: "PIQUETE", tipo_cultura: "Pastagem", cultura_id: "c1", cultura: MARANDU_PARAMS };
+    await montar({ item });
+    await waitFor(() => expect(screen.getByLabelText("Altura de entrada do pasto (cm)")).toBeInTheDocument());
+    const salvar = async () => act(async () => { fireEvent.click(screen.getByRole("button", { name: "Salvar" })); });
+    fireEvent.change(screen.getByLabelText("Altura de entrada do pasto (cm)"), { target: { value: "20" } });
+    fireEvent.change(screen.getByLabelText("Altura de saída do pasto (cm)"), { target: { value: "20" } });
+    await salvar();
+    fireEvent.change(screen.getByLabelText("Altura de saída do pasto (cm)"), { target: { value: "10,25" } });
+    await salvar();
+    fireEvent.change(screen.getByLabelText("Altura de saída do pasto (cm)"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Dias de descanso do pasto"), { target: { value: "366" } });
+    await salvar();
+    expect(svc.atualizarArea).not.toHaveBeenCalled();
+  });
+
+  it("Reserva (uso sem cultura): sem a seção, e os parâmetros vão nulos", async () => {
+    svc.listarCulturas.mockResolvedValue([MARANDU_PARAMS]);
+    const item = { ...base, id: "a7", nome: "RESERVA", tipo_cultura: "Reserva", tipo_pastagem: "", cultura_id: null, cultura: null, area_pastejada: 0, dias_descanso: 40 };
+    await montar({ item });
+    expect(screen.queryByTestId("parametros-do-pasto-titulo")).toBeNull();
+    expect(screen.queryByLabelText("Dias de descanso do pasto")).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    });
+    await waitFor(() => expect(svc.atualizarArea).toHaveBeenCalledTimes(1));
+    expect(svc.atualizarArea.mock.calls[0][1]).toMatchObject({ altura_entrada_cm: null, altura_saida_cm: null, dias_descanso: null });
+  });
+});
