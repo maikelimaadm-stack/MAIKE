@@ -325,6 +325,12 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
 
   // 502/503/504 são indisponibilidade de infraestrutura, não erro de contrato:
   // o corpo pode nem ser do nosso backend (proxy, load balancer).
+  // Exceção: 503 do PRÓPRIO backend com código do assistente (D-PROD-230) mostra a
+  // mensagem do assistente, não a de infraestrutura.
+  const codigoAssistente = ehObjeto(corpo) && String(corpo.code ?? '').startsWith('ASSISTENTE_') ? CODIGOS_PRESERVADOS[corpo.code] : null;
+  if (resposta.status === 503 && codigoAssistente) {
+    throw new ApiError(codigoAssistente, { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(corpo, contexto.details), cause: corpo });
+  }
   if (resposta.status === 502 || resposta.status === 503 || resposta.status === 504) {
     throw erroDeIndisponibilidade(contexto, new Error(`HTTP ${resposta.status}`));
   }

@@ -45,7 +45,13 @@ const naoConfigurado = () =>
 const criarCliente = () => {
   if (fabricaDeTeste) return fabricaDeTeste();
   if (!process.env.ANTHROPIC_API_KEY) throw naoConfigurado();
-  return new Anthropic({ maxRetries: 1, timeout: 45_000 });
+  // Chave da organização (sem workspace) exige o cabeçalho com o workspace a usar.
+  const workspace = String(process.env.ANTHROPIC_WORKSPACE_ID ?? '').trim();
+  return new Anthropic({
+    maxRetries: 1,
+    timeout: 45_000,
+    ...(workspace ? { defaultHeaders: { 'anthropic-workspace-id': workspace } } : {}),
+  });
 };
 
 /** @param {any} resposta */
