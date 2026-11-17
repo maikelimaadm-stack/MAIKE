@@ -125,7 +125,13 @@ export const criarExecutor = async (contexto, empresaId) => {
     listar_pastos: async () => {
       const [areas, medicoes, descansos] = await Promise.all([
         listarAreas(contexto),
-        listarMedicoes(contexto, { empresa_id: empresa, limit: 2000 }),
+        // A última medição de CADA pasto (DISTINCT ON area_id), sem corte global de linhas.
+        prisma.medicaoForragem.findMany({
+          where: { cliente_id: auth.clienteId, empresa_id: empresa },
+          orderBy: [{ area_id: 'asc' }, { data_medicao: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+          distinct: ['area_id'],
+          select: { area_id: true, data_medicao: true, situacao: true, metodo: true, altura_media_cm: true },
+        }),
         descansoDosPastos(contexto, { empresa_id: empresa }),
       ]);
       const ultimaPorPasto = new Map();
@@ -204,7 +210,7 @@ export const criarExecutor = async (contexto, empresaId) => {
   /** Grupos do rebanho: posições do ledger quando ativo; senão o cadastro de lotes. */
   const grupos = async () => {
     const pos = await listarPosicoes(contexto, { empresa_id: empresa, incluir_vazias: 'false' });
-    const fonte = pos.ativo ? pos.itens : daFazenda(await listarLotes(contexto)).filter((l) => Number(l.quantidade_cabecas) > 0);
+    const fonte = pos.ativo ? pos.itens : daFazenda(await listarLotes(contexto)).filter((l) => l.status === 'Ativo' && Number(l.quantidade_cabecas) > 0);
     return fonte.map((g) => ({
       nome: g.nome,
       cabecas: Number(g.quantidade_cabecas) || 0,

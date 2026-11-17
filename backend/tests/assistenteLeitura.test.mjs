@@ -122,6 +122,32 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     assert.deepEqual(depois, antes);
   });
 
+  test('última medição de CADA pasto (sem corte global) e lote inativo fora do rebanho', async () => {
+    const a = await tenantComPasto('PASTO 1');
+    const outro = await prisma().areaPastagem.create({
+      data: { cliente_id: a.clienteId, empresa_id: a.empresa.id, setor_id: a.pasto.setor_id, setor_nome: a.pasto.setor_nome, numero_area: `AS-X-${randomUUID().slice(0, 6)}`, nome: 'PASTO 2', tamanho_hectares: 5, cultura_id: a.pasto.cultura_id, tipo_pastagem: 'MARANDU' },
+    });
+    // O PASTO 1 tem várias medições mais novas; a do PASTO 2 é a mais antiga da fazenda.
+    for (const d of ['2027-06-11', '2027-06-12', '2027-06-13']) {
+      await prisma().medicaoForragem.create({ data: { id: randomUUID(), cliente_id: a.clienteId, empresa_id: a.empresa.id, area_id: a.pasto.id, data_medicao: new Date(`${d}T00:00:00Z`), metodo: 'OLHO', situacao: 'DESCANSO', updatedAt: new Date() } });
+    }
+    await prisma().medicaoForragem.create({ data: { id: randomUUID(), cliente_id: a.clienteId, empresa_id: a.empresa.id, area_id: outro.id, data_medicao: new Date('2027-06-05T00:00:00Z'), metodo: 'OLHO', situacao: 'PRONTO', updatedAt: new Date() } });
+    const base = { cliente_id: a.clienteId, empresa_id: a.empresa.id, quantidade_entrada: 10, motivo_entrada: 'Compra' };
+    await prisma().lote.create({ data: { ...base, numero_lote: 'L1', nome: 'LOTE ATIVO', quantidade_cabecas: 10, status: 'Ativo' } });
+    await prisma().lote.create({ data: { ...base, numero_lote: 'L2', nome: 'LOTE INATIVO', quantidade_cabecas: 7, status: 'Inativo' } });
+
+    const pedidos = roteiro([usar('listar_pastos'), usar('resumo_rebanho'), final('ok')]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'Como estão os pastos e o rebanho?' });
+    assert.equal(r.statusCode, 200, r.body);
+    const pastos = resultadoDe(pedidos[1]);
+    const porNome = Object.fromEntries(pastos.map((p) => [p.nome, p.forragem]));
+    assert.equal(porNome['PASTO 1'].data_medicao, '2027-06-13');
+    assert.equal(porNome['PASTO 2'].data_medicao, '2027-06-05');
+    assert.equal(porNome['PASTO 2'].situacao, 'Pronto');
+    assert.doesNotMatch(JSON.stringify(resultadoDe(pedidos[2])), /LOTE INATIVO/);
+    assert.match(JSON.stringify(resultadoDe(pedidos[2])), /"cabecas":10/);
+  });
+
   test('tenant só da sessão: cliente_id no corpo é 400 e fazenda de outro tenant é recusada', async () => {
     const a = await tenantComPasto('PASTO DO A');
     const b = await tenantComPasto('PASTO DO B');

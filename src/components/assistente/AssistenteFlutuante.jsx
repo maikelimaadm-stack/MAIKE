@@ -27,6 +27,15 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
   const [carregando, setCarregando] = useState(false);
   const fimRef = useRef(/** @type {HTMLDivElement|null} */ (null));
 
+  // A conversa é de UMA fazenda: trocar a fazenda no topo começa outra, e uma resposta
+  // ainda em andamento da fazenda anterior é descartada.
+  const empresaAtualRef = useRef(empresaId);
+  useEffect(() => {
+    empresaAtualRef.current = empresaId;
+    setFalas([]);
+    setCarregando(false);
+  }, [empresaId]);
+
   useEffect(() => {
     fimRef.current?.scrollIntoView?.({ block: 'end' });
   }, [falas, carregando, aberto]);
@@ -43,13 +52,15 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
     setFalas((f) => [...f, { papel: 'usuario', texto: p }]);
     setTexto('');
     setCarregando(true);
+    const empresaDaPergunta = empresaId;
+    const aindaMesmaFazenda = () => empresaAtualRef.current === empresaDaPergunta;
     try {
       const r = await perguntarAssistente({ empresa_id: empresaId, pergunta: p.slice(0, 1000), tela, historico });
-      setFalas((f) => [...f, { papel: 'assistente', texto: r?.resposta || 'Sem resposta.' }]);
+      if (aindaMesmaFazenda()) setFalas((f) => [...f, { papel: 'assistente', texto: r?.resposta || 'Sem resposta.' }]);
     } catch (erro) {
-      setFalas((f) => [...f, { papel: 'assistente', texto: getApiErrorMessage(erro, 'Não consegui consultar agora. Tente de novo.'), erro: true }]);
+      if (aindaMesmaFazenda()) setFalas((f) => [...f, { papel: 'assistente', texto: getApiErrorMessage(erro, 'Não consegui consultar agora. Tente de novo.'), erro: true }]);
     } finally {
-      setCarregando(false);
+      if (aindaMesmaFazenda()) setCarregando(false);
     }
   };
 

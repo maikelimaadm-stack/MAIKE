@@ -54,6 +54,23 @@ describe('AssistenteFlutuante', () => {
     });
   });
 
+  it('trocar de fazenda começa outra conversa e descarta a resposta atrasada da fazenda anterior', async () => {
+    let soltar;
+    perguntar.mockImplementationOnce(() => new Promise((r) => { soltar = r; })).mockResolvedValueOnce({ resposta: 'Resposta da fazenda 2' });
+    const { rerender } = render(<AssistenteFlutuante empresaId="emp-1" tela="MapaGeral" />);
+    fireEvent.click(screen.getByTestId('assistente-botao'));
+    perguntarPeloCampo('Pergunta na fazenda 1');
+    expect(screen.getByText('Pergunta na fazenda 1')).toBeTruthy();
+    rerender(<AssistenteFlutuante empresaId="emp-2" tela="MapaGeral" />);
+    expect(screen.queryByText('Pergunta na fazenda 1')).toBeNull();
+    soltar({ resposta: 'Resposta atrasada da fazenda 1' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('Resposta atrasada da fazenda 1')).toBeNull();
+    perguntarPeloCampo('Pergunta na fazenda 2');
+    await waitFor(() => expect(screen.getByText('Resposta da fazenda 2')).toBeTruthy());
+    expect(perguntar.mock.calls[1][0]).toEqual({ empresa_id: 'emp-2', pergunta: 'Pergunta na fazenda 2', tela: 'MapaGeral', historico: [] });
+  });
+
   it('mostra a mensagem de "não configurado" e não manda o erro como histórico', async () => {
     perguntar.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.ASSISTENTE_NAO_CONFIGURADO));
     render(<AssistenteFlutuante empresaId="emp-1" />);
