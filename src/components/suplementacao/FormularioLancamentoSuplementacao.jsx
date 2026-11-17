@@ -282,9 +282,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     setSobraHerdadaDecidida(true);
   };
 
-  // D-PROD-222: o diálogo da sobra (Radix, sem gatilho) não devolve o foco ao fechar — ficava no <body>,
-  // fora do lançamento. Decidida a sobra, o foco volta ao diálogo do lançamento, no primeiro controle
-  // (onde o `LancLoteDialogo` o põe ao abrir). Fora de um diálogo, nada muda.
+  // D-PROD-222: o diálogo da sobra (um `LancLoteDialogo` sem gatilho) não devolve o foco ao fechar — ficava
+  // no <body>, fora do lançamento. Decidida a sobra, o foco volta ao diálogo do lançamento, no primeiro
+  // controle (onde o `LancLoteDialogo` o põe ao abrir). Fora de um diálogo, nada muda.
   const formRef = useRef(/** @type {HTMLFormElement | null} */ (null));
   useEffect(() => {
     if (!sobraHerdadaDecidida) return undefined;

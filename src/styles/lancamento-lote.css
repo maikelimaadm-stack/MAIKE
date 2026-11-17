@@ -485,6 +485,23 @@
   font-size: 12px;
 }
 
+/* Opção com explicação longa (D-PROD-222, sobra do ciclo anterior): o título em cima e a explicação
+   embaixo, quebrando linha — nunca mais larga que o diálogo. */
+.mk-ll__opcao--coluna {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.mk-ll__opcao--coluna > span:first-child {
+  color: var(--mkq-0f172a, #0f172a);
+  font-weight: 600;
+}
+
 .mk-ll__texto {
   font-size: 12.5px;
   color: var(--mkq-475569, #475569);

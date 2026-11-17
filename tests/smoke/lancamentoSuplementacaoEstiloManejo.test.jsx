@@ -376,6 +376,15 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     await montar();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Lançar" })); });
     const confirmacao = await screen.findByRole("dialog", { name: "Sobra do ciclo anterior" });
+    // A confirmação também no desenho do manejo: LancLoteDialogo, o cocho no subtítulo, avisos e as opções do
+    // manejo (antes o diálogo antigo cortava o texto à direita). A data é o dia gravado (20/10, não 19/10).
+    expect(confirmacao.classList.contains("mk-ll-dlg")).toBe(true);
+    expect(confirmacao.querySelector(".mk-ll-dlg__lotes")?.textContent).toBe("COCHO 1");
+    expect(within(confirmacao).getByTestId("sobra-herdada-registrada").textContent).toBe("Sobra registrada: 30,00 kg · Fechamento em 20/10/2026");
+    expect([...confirmacao.querySelectorAll(".mk-ll__opcao.mk-ll__opcao--coluna")].map((b) => b.firstElementChild?.textContent)).toEqual([
+      "Usar essa sobra no novo ciclo",
+      "Sobra já foi descartada/baixada",
+    ]);
     await act(async () => { fireEvent.click(within(confirmacao).getByRole("button", { name: /Usar essa sobra no novo ciclo/ })); });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sobra do ciclo anterior" })).toBeNull());
 
@@ -388,6 +397,28 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     // O foco volta ao lançamento (o diálogo da sobra, sem gatilho, o deixava no <body>): no ✕, como ao abrir.
     await waitFor(() => expect(dialogo.contains(document.activeElement)).toBe(true));
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancelar");
+  });
+
+  it("LM-13 — a data do fechamento na confirmação da sobra é o dia gravado, sem passar por fuso", async () => {
+    const { diaDoFechamento } = await import("@/components/suplementacao/SobraHerdadaDialog");
+    expect(diaDoFechamento("2026-10-20")).toBe("20/10/2026");
+    // 23:30 no Brasil já é o dia 21 em UTC: o dia gravado continua 20.
+    expect(diaDoFechamento("2026-10-20T23:30:00-03:00")).toBe("20/10/2026");
+    expect(diaDoFechamento(null)).toBeNull();
+    expect(diaDoFechamento("")).toBeNull();
+  });
+
+  it("LM-12 — o ✕ da confirmação da sobra sai do lançamento, como o \"Cancelar\" de antes, sem gravar", async () => {
+    largura(1280);
+    estado.ultimoEvento = { id: "ev-0", data_lancamento: "2026-10-20", quantidade_total_kg: 100, sobra_kg: 30, dias_periodo: 5 };
+    await montar();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Lançar" })); });
+    const confirmacao = await screen.findByRole("dialog", { name: "Sobra do ciclo anterior" });
+    await act(async () => { fireEvent.click(within(confirmacao).getByRole("button", { name: "Fechar" })); });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sobra do ciclo anterior" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Lançar Suplementação" })).toBeNull());
+    expect(saida).not.toHaveBeenCalled();
+    expect(lancar).not.toHaveBeenCalled();
   });
 
   it("LM-11 — a prévia do fechamento no aviso usa as células sem borda dos números do aviso (Fornecido, Consumido…): sem caixa dentro de caixa", async () => {
