@@ -188,10 +188,10 @@ const DIFERENCA_DAS_POSTERIORES = [
   '  [+] Added foreign key on columns (cliente_id, empresa_id, atividade_id, apontamento_id)',
   '',
   '[*] Changed the `AreaPastagem` table',
-  '  [+] Added column `cultura_id`',
-  // D-PROD-223: os parâmetros próprios do pasto (EXPAND posterior).
+  // D-PROD-223: os parâmetros próprios do pasto (EXPAND posterior); o Prisma lista as colunas em ordem alfabética.
   '  [+] Added column `altura_entrada_cm`',
   '  [+] Added column `altura_saida_cm`',
+  '  [+] Added column `cultura_id`',
   '  [+] Added column `dias_descanso`',
   '  [+] Added index on columns (cliente_id, empresa_id, cultura_id)',
   '  [+] Added foreign key on columns (cliente_id, empresa_id, cultura_id)',

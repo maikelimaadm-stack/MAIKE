@@ -199,7 +199,8 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
 /**
  * Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho
  * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK). D-PROD-216
- * (posterior, sobe no GREEN): sem a coluna, a FK e o índice da Área ligada à Cultura em AreaPastagem.
+ * (posterior, sobe no GREEN): sem a coluna, a FK e o índice da Área ligada à Cultura em AreaPastagem. D-PROD-223
+ * (posterior): sem as 3 colunas dos parâmetros próprios do pasto em AreaPastagem.
  */
 export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
 tab AS (
@@ -219,6 +220,8 @@ linhas AS (
    WHERE NOT (t.t = 'Fornecedor' AND a.attname::text IN ('funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria'))
      -- D-PROD-216 (posterior, sobe no GREEN): a coluna da Área ligada à Cultura.
      AND NOT (t.t = 'AreaPastagem' AND a.attname::text = 'cultura_id')
+     -- D-PROD-223 (posterior, sobe no GREEN): os parâmetros próprios do pasto.
+     AND NOT (t.t = 'AreaPastagem' AND a.attname::text IN ('altura_entrada_cm', 'altura_saida_cm', 'dias_descanso'))
   UNION ALL
   SELECT 'constraint', t.t || '|' || k.conname::text || '|' || k.contype::text || '|' || pg_get_constraintdef(k.oid, true)
     FROM tab t JOIN pg_constraint k ON k.conrelid = t.oid
