@@ -517,8 +517,8 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // D-PROD-216 (reforço da D-PROD-211): o apontamento do abastecimento tem de ser da atividade gravada nele. Sem DROP
   // TABLE, sem tabela nova e sem resto: depois da guarda (hash pinado; confere que as 2 tabelas existem, que a FK
   // "AbastecimentoBem_apontamento_fkey" ainda é a de 3 colunas para "AtividadeApontamento", que o CHECK
-  // "AbastecimentoBem_atividade_check" existe e que o UNIQUE novo não; trava "AtividadeApontamento" em SHARE ROW
-  // EXCLUSIVE e "AbastecimentoBem" em ACCESS EXCLUSIVE e aborta se algum abastecimento apontar para um apontamento de
+  // "AbastecimentoBem_atividade_check" existe e que o UNIQUE novo não; trava "AtividadeApontamento" e depois
+  // "AbastecimentoBem" em ACCESS EXCLUSIVE e aborta se algum abastecimento apontar para um apontamento de
   // outra atividade), EXATAMENTE as 3 instruções abaixo, nesta ordem (texto pinado): o UNIQUE (cliente_id, empresa_id,
   // atividade_id, id) em "AtividadeApontamento" (o alvo que a FK composta exige; a allowlist EXPAND recusa UNIQUE em
   // tabela antiga), o DROP da FK de 3 colunas e o ADD da FK de 4 colunas com o MESMO nome (o descritor a declara em
