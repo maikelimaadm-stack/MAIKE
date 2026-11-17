@@ -1,5 +1,5 @@
 /*
- * Detalhes do Lote v12 (D-PROD-214) — visual comum. Peças em
+ * Detalhes do Lote v12 (D-PROD-V12) — visual comum. Peças em
  * src/components/mapa/detalhes-lote/blocos.jsx; valores da especificação v12
  * (§0.2 tokens, A casca, B abas, C corpo e blocos, E rodapé, G modos).
  *
@@ -19,7 +19,7 @@
  * ── Mapa de uso (marcação de referência) ────────────────────────────────
  * raiz        div.mk-dp[data-modo] > Abas + div.mk-dp__corpo.mk-dp__corpo--cards|--lista + div.mk-dp__rodape
  * troca       corpo com nova key + .mk-dp-anim--empurrar|--voltar|--aba-dir|--aba-esq|--troca
- * Abas        div.mk-dp-abas[role=tablist] > button.mk-dp-aba[role=tab][aria-selected](.is-on) > texto + span.mk-dp-aba__badge
+ * Abas        div.mk-dp-abas[role=tablist] > button.mk-dp-aba[role=tab][aria-selected](.is-on) > texto + span.mk-dp-aba__badge (badge 0 → sem span)
  * Cabeçalho   div.mk-dp-cab > button.mk-dp-redondo.mk-dp-cab__voltar + div.mk-dp-cab__txt > h2.mk-dp-cab__titulo + p.mk-dp-cab__sub
  * TituloBloco div.mk-dp-titulo > h3.mk-dp-titulo__h + button.mk-dp-link
  * Cartao      div.mk-dp-cartao > div.mk-dp-cartao__cab(> span.mk-dp-cartao__img | svg.mk-dp-cartao__ic, div.mk-dp-cartao__txt > strong + span, .mk-dp-chip) + partes
@@ -89,13 +89,16 @@
   list-style: none;
 }
 
+/* Foco do v12 (`.v11 :focus-visible`): 2 px teal por fora, inclusive nas abas e na Busca. */
 .mk-dp :focus-visible {
   outline: 2px solid #3db5c9;
   outline-offset: 2px;
 }
 
-/* Linhas e faixas que encostam na borda do cartão: contorno por dentro */
-.mk-dp :is(.mk-dp-aba, .mk-dp-linha, .mk-dp-grupo__cab, .mk-dp-grupo__item):focus-visible {
+/* Diferença deliberada do v12: lá a Linha clicável e as linhas do grupo de marcar
+   são <div> sem foco de teclado; aqui são botões. Como ocupam a largura toda do
+   cartão/corpo (overflow escondido), o anel por fora perderia as laterais. */
+.mk-dp :is(.mk-dp-linha, .mk-dp-grupo__cab, .mk-dp-grupo__item):focus-visible {
   outline-offset: -2px;
 }
 
@@ -925,10 +928,6 @@
   cursor: text;
 }
 
-.mk-dp .mk-dp-busca:focus-within {
-  border-color: #3db5c9;
-}
-
 .mk-dp .mk-dp__corpo--lista > .mk-dp-busca {
   margin: 12px 16px 4px;
 }
@@ -954,8 +953,16 @@
   font-size: 14px;
 }
 
+/* Como o v12: o campo focado ganha o anel de 2 px (o rótulo não muda). Vence o
+   `outline: 0` acima e o `[type="search"] { outline-offset: -2px }` do preflight. */
+.mk-dp .mk-dp-busca__in:focus-visible {
+  outline: 2px solid #3db5c9;
+  outline-offset: 2px;
+}
+
+/* Cor medida no v12 (#757575, contraste 4,6:1); sem esta regra entraria o #9ca3af do preflight */
 .mk-dp .mk-dp-busca__in::placeholder {
-  color: #9aa1a9;
+  color: #757575;
   opacity: 1;
 }
 
@@ -1227,6 +1234,15 @@
   min-height: 0;
   padding: 0;
   overflow: hidden;
+}
+
+/* O anel de foco das abas (2 px por fora, como o v12) passa por cima do
+   cabeçalho; só as laterais ficam presas (a troca de tela desliza na horizontal). */
+@supports (overflow: clip) {
+  .mk-ll-dlg:has(> .mk-ll > .mk-dp) > .mk-ll:not(#mk-padrao) {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
 }
 
 .mk-ll-dlg > .mk-ll > .mk-dp:not(#mk-padrao) {
