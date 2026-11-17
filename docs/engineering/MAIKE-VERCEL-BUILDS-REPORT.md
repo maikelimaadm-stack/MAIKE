@@ -10,8 +10,9 @@ foram 100 deploys (93 previews e 7 de produção), em dois projetos a cada push 
   `main`. As PRs continuam validadas pelo GitHub Actions (`verify:all`); só deixam de ter
   link de preview.
 - `apps/admin/vercel.json` (projeto `admmakgestao`): pula o build fora da `main` e, na
-  `main`, quando o commit não mexe em `apps/admin`, `package.json` nem `package-lock.json`.
-  Se o commit anterior não estiver disponível no clone, o `git diff` falha e o build roda
+  `main`, quando nada mudou em `apps/admin`, `package.json` nem `package-lock.json` desde o
+  último deploy bem-sucedido (`VERCEL_GIT_PREVIOUS_SHA`; cobre push com vários commits e
+  deploy anterior que falhou). Sem esse SHA, ou se ele não estiver no clone, o build roda
   (falha aberta para o deploy, nunca para pular).
 
 Convenção da Vercel: `ignoreCommand` com saída 0 pula o build; diferente de 0, builda.
