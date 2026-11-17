@@ -77,6 +77,7 @@ export default function AbaHistorico() {
     empresaId: dados?.empresaId,
     areaId: dados?.areaId,
     areaNome: dados?.areaNome,
+    areas: dados?.areas ?? null,
     eventos: dados?.suplementacao?.eventos ?? null,
     filtro,
   });
@@ -149,7 +150,7 @@ export default function AbaHistorico() {
       </div>
     );
   } else if (h.dias.length) {
-    conteudo = <LinhaDoTempo dias={h.dias} />;
+    conteudo = <LinhaDoTempo dias={h.dias} rotulo={daArea ? "Registros da área" : undefined} />;
   } else {
     conteudo = <Vazio icone={History}>{semCopiaNoAparelho ? SEM_COPIA_NO_APARELHO : daArea ? VAZIO_DA_AREA : VAZIO_DO_FILTRO}</Vazio>;
   }

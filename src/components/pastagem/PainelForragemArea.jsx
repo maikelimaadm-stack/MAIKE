@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import FormularioMedicaoForragem, { BOLINHA_SITUACAO } from "./FormularioMedicaoForragem";
+import FormularioMedicaoForragem from "./FormularioMedicaoForragem";
 import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
 import { listarCulturas } from "@/services/culturaCadastroService";
@@ -64,12 +63,12 @@ function useCacheDoMapa(chave, empresaId) {
  * D-PROD-219 — Forragem do pasto no detalhe da área (Mapa Geral): o botão
  * "Medição de Forragem", a última medição e as últimas 5, com excluir. Só aparece
  * para quem tem a chave do mapa `medir_forragem` (o detalhe decide).
- * `estilo="v12"` (D-PROD-220): o mesmo painel no desenho do Detalhes do Lote
- * v12 (título de seção com o link "Medição de Forragem", cartão com a última
- * medição e as últimas 5 com "Excluir"), para o Histórico da Área.
- * @param {{ area: any, estilo?: "padrao" | "v12" }} props
+ * No desenho do Detalhes do Lote v12 (D-PROD-220): título de seção com o link
+ * "Medição de Forragem", cartão com a última medição e as últimas 5 com
+ * "Excluir". O desenho antigo saiu: o detalhe da área era o único uso.
+ * @param {{ area: any }} props
  */
-export default function PainelForragemArea({ area, estilo = "padrao" }) {
+export default function PainelForragemArea({ area }) {
   const queryClient = useQueryClient();
   const empresaId = area?.empresa_id ?? null;
   const [aberto, setAberto] = useState(false);
@@ -147,83 +146,46 @@ export default function PainelForragemArea({ area, estilo = "padrao" }) {
     </LancLoteDialogo>
   );
 
-  if (estilo === "v12") {
-    return (
-      <section className="mk-dp-forragem" aria-label="Forragem do pasto" data-testid="painel-forragem">
-        <TituloBloco link="Medição de Forragem" onLink={() => setAberto(true)}>
-          Forragem
-        </TituloBloco>
-        <Cartao>
-          {ultima ? (
-            <Linha
-              data-testid="ultima-medicao"
-              rotulo={resumoDaMedicao(ultima)}
-              sub={ultima.observacoes || null}
-              bolinha={ultima.situacao ? COR_SITUACAO[ultima.situacao] : null}
-              valor={`${dia(ultima)}${ultima.registrado_por_nome ? ` · ${ultima.registrado_por_nome}` : ""}`}
-            />
-          ) : (
-            <Linha rotulo="Nenhuma medição registrada." />
-          )}
-          {doPasto.length > 0 ? (
-            <ul className="mk-dp-forragem__lista" aria-label="Últimas medições">
-              {doPasto.slice(0, 5).map((m) => (
-                <li key={m.id}>
-                  <Linha
-                    className="mk-dp-forragem__item"
-                    rotulo={dia(m)}
-                    sub={m.observacoes || null}
-                    bolinha={m.situacao ? COR_SITUACAO[m.situacao] : null}
-                    valor={
-                      <>
-                        {resumoDaMedicao(m)}
-                        <Acao tom="perigo" onClick={() => excluir(m)} aria-label={`Excluir a medição de ${dia(m)}`}>
-                          Excluir
-                        </Acao>
-                      </>
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </Cartao>
-        {dialogo}
-      </section>
-    );
-  }
-
   return (
-    <section className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1 text-[11px]" aria-label="Forragem do pasto" data-testid="painel-forragem">
-      <div className="flex items-center justify-between gap-2">
-        <div className="font-bold text-slate-900">Forragem</div>
-        <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setAberto(true)}>Medição de Forragem</Button>
-      </div>
-      {ultima ? (
-        <div className="text-slate-700" data-testid="ultima-medicao">
-          {ultima.situacao ? `${BOLINHA_SITUACAO[ultima.situacao]} ` : null}
-          <span className="font-semibold text-slate-900">{resumoDaMedicao(ultima)}</span>
-          <span className="text-slate-500"> · {dia(ultima)}{ultima.registrado_por_nome ? ` · ${ultima.registrado_por_nome}` : ""}</span>
-        </div>
-      ) : (
-        <div className="text-slate-500">Nenhuma medição registrada.</div>
-      )}
-      {doPasto.length > 0 ? (
-        <ul className="divide-y divide-slate-100 rounded border border-slate-200" aria-label="Últimas medições">
-          {doPasto.slice(0, 5).map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-2 px-2 py-0.5">
-              <span className="text-slate-700">
-                {dia(m)} · {resumoDaMedicao(m)}
-                {m.observacoes ? <span className="italic text-slate-500"> · {m.observacoes}</span> : null}
-              </span>
-              <button type="button" className="shrink-0 text-red-600 hover:underline" onClick={() => excluir(m)} aria-label={`Excluir a medição de ${dia(m)}`}>
-                Excluir
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
+    <section className="mk-dp-forragem" aria-label="Forragem do pasto" data-testid="painel-forragem">
+      <TituloBloco link="Medição de Forragem" onLink={() => setAberto(true)}>
+        Forragem
+      </TituloBloco>
+      <Cartao>
+        {ultima ? (
+          <Linha
+            data-testid="ultima-medicao"
+            rotulo={resumoDaMedicao(ultima)}
+            sub={ultima.observacoes || null}
+            bolinha={ultima.situacao ? COR_SITUACAO[ultima.situacao] : null}
+            valor={`${dia(ultima)}${ultima.registrado_por_nome ? ` · ${ultima.registrado_por_nome}` : ""}`}
+          />
+        ) : (
+          <Linha rotulo="Nenhuma medição registrada." />
+        )}
+        {doPasto.length > 0 ? (
+          <ul className="mk-dp-forragem__lista" aria-label="Últimas medições">
+            {doPasto.slice(0, 5).map((m) => (
+              <li key={m.id}>
+                <Linha
+                  className="mk-dp-forragem__item"
+                  rotulo={dia(m)}
+                  sub={m.observacoes || null}
+                  bolinha={m.situacao ? COR_SITUACAO[m.situacao] : null}
+                  valor={
+                    <>
+                      {resumoDaMedicao(m)}
+                      <Acao tom="perigo" onClick={() => excluir(m)} aria-label={`Excluir a medição de ${dia(m)}`}>
+                        Excluir
+                      </Acao>
+                    </>
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Cartao>
       {dialogo}
     </section>
   );

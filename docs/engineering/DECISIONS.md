@@ -7752,10 +7752,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 **Decisão.**
 1. **Casca de uma tela** (`CascaDetalhe`, raiz `.mk-dp` filha do `.mk-ll` do `LancLoteDialogo`): os detalhes que abrem pelo mapa usam o desenho do Detalhes do Lote v12 (D-PROD-218):
    - popup a partir de 768 px (`popupDesde="tablet"`) e tela cheia no celular;
-   - título e subtítulo no cabeçalho do diálogo, e ‹ Voltar nas telas empilhadas (o Esc volta);
+   - título e subtítulo no cabeçalho do diálogo, e ‹ Voltar nas telas empilhadas (o Esc volta). Num **formulário** empilhado o Esc é ignorado (`escVolta={false}`), para um Esc sem querer não apagar o que foi digitado, como no popup (D-PROD-125);
    - cartões, títulos de seção, grade de células, linhas rótulo/valor, linha do tempo e rodapé de pílulas.
 
-   Peças novas: `Nivel` e `Acao` em `blocos.jsx`, que agora repassam `id`, `data-*` e `aria-*`; `MedidorLimiteOperacional estilo="v12"` (célula da grade, mesma semântica de `meter`); ícone próprio na `LinhaDoTempo`.
+   Peças novas: `Nivel` e `Acao` em `blocos.jsx`, que agora repassam `id`, `data-*` e `aria-*`; `MedidorLimiteOperacional estilo="v12"` (célula da grade, mesma semântica de `meter`); ícone próprio e pé de ação (`acoes`) no cartão da `LinhaDoTempo`.
 2. **Cocho** (`DetalhesPontoSuplementacao`). Título = cocho, subtítulo = áreas · setor. Rodapé **Lançar · Leitura · Histórico**, com as mesmas permissões e os mesmos formulários.
    - **Nível do cocho:** região acessível com o percentual uma vez, grande, e as linhas do SSOT (D-PROD-178). Embaixo, o cartão com uso do limite, saldo ou sobra, duração e próxima reposição. Esse cartão aparece também no estado neutro, porque o limite tem estado próprio.
    - **Leitura do cocho** (D-PROD-205): farol, avisos e as 5 últimas leituras, inclusive a mais recente, com Excluir.
@@ -7770,6 +7770,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - **Informações do depósito:** "Cochos vinculados" mostra os nomes, não a contagem.
    - **Histórico do depósito:** as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais.
    - **Formato:** kg no formato do SSOT ("1.400 kg").
+   - **Carregando ou com erro:** o histórico diz isso, em vez de "Nenhum registro ainda.".
    - **Fica de fora:** "Frequência padrão" do v12, porque o cadastro não tem esse campo.
 4. **Bebedouro** (`DetalhesBebedouro`). Rodapé **Lançar · Histórico**.
    - **Cartão do bebedouro:** subícone configurado (ou gota) e status.
@@ -7777,7 +7778,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - **Último registro:** "Registrado por" sai do `responsavel`.
    - **Informações.**
    - **Histórico:** os 5 últimos, com "Ver tudo".
-   - **Telas empilhadas com ‹ Voltar:** o lançamento e o histórico completo, com Excluir (D-PROD-137).
+   - **Telas empilhadas com ‹ Voltar:**
+     - o lançamento, com o formulário de hoje; ali o Esc é ignorado;
+     - o histórico completo na linha do tempo v12: os mesmos cartões do resumo, mais a hora, na ordem do servidor, com "Lançamentos (N)" e o Excluir no pé do cartão. A regra continua (D-PROD-137): só o mais recente liga, só com `podeExcluir`, a mesma confirmação, a mensagem do 409 e as mesmas invalidações.
+   - **Carregando ou com erro:** o detalhe diz isso, em vez de "Nenhum lançamento ainda." e custo R$ 0,00.
    - **Página Bebedouros:** a casca fica sem o cabeçalho próprio.
 5. **Tarefa** (`DetalhesTarefaMapa`). Título = tarefa, subtítulo "Detalhes da tarefa" (substitui o "Tarefa: …" da D-PROD-118).
    - **Cartão:** o status nas cores do v12.
@@ -7789,14 +7793,19 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
      - os "Últimos eventos" abriam vazios na primeira vez (`initialData: []` com `staleTime`, como a Gestão de Tarefas da D-PROD-218);
      - as datas de dia apareciam um dia antes no fuso do Brasil;
      - sai a consulta de ícones de prioridade, que não era desenhada.
-6. **Área** (clique no contorno, D-PROD-94a). O "Histórico da Área" passa a ser a mesma linha do tempo da aba Histórico do pasto: filtro Mostrar, Carregar mais, aviso offline e só leitura, com os textos "nesta área". O cabeçalho é "Histórico da Área" com "área · setor".
-   - Com a chave `medir_forragem` (D-PROD-219), o painel Forragem vem em cima, na variante v12, com os mesmos nomes e testids.
-   - No curral, as abas são **Abate · Histórico da Área**.
+6. **Área** (clique no contorno, D-PROD-94a). O "Histórico da Área" passa a ser a mesma linha do tempo da aba Histórico do pasto: filtro Mostrar, Carregar mais, aviso offline e só leitura, com os textos "nesta área" e a lista "Registros da área". O cabeçalho é "Histórico da Área" com "área · setor".
+   - **Histórico completo:** com a permissão de histórico, o rodapé tem a pílula "Histórico completo". Ela abre por cima o Histórico de Movimentação da área de hoje (`HistoricoMovimentacoes`, sem lotes), como o "Manejos e históricos" do pasto (D-PROD-218). Ali continuam o "Excluir movimentação" do administrador (D-PROD-110) e os dados de auditoria que a linha do tempo resumida não traz: registrado em, observações, cancelado em … por …, vínculo pelo nome, lote excluído, matrizes e nutrição.
+   - **Nome da outra área:** quando um registro antigo gravou o nome vazio, a linha do tempo usa as áreas do mapa, como o histórico completo. Vale também para a aba Histórico do pasto.
+   - Com a chave `medir_forragem` (D-PROD-219), o painel Forragem vem em cima, no desenho v12, com os mesmos nomes e testids. O desenho antigo do painel saiu, porque o detalhe da área era o único uso.
+   - No curral, as abas são **Abate · Histórico da Área**. O abate continua o histórico de hoje, sem a rolagem própria de 500 px.
    - Sai o `src/components/ui/tabs.jsx`, que ficou sem uso.
-7. **Regras que não mudam:**
+7. **Campo de lançamento (`LancField`):** um Select do Radix que já monta com valor (ex.: a Qualidade do bebedouro, que remonta ao trocar o Tipo) ficava com o rótulo por cima do valor, porque o texto do item só chega depois de montar. Agora "tem valor" vem da falta de `data-placeholder`. Sai o render a mais que o bebedouro usava para contornar isso.
+8. **Regras que não mudam:**
    - consultas, caches e invalidações (`atualizar-mapa`) e permissões;
-   - formulários e históricos completos;
+   - formulários e históricos completos, com as mesmas ações;
    - listas de escolha no padrão do sistema e filtros do mapa.
+
+**Revisão independente:** cada tela teve um revisor de código, dados, permissões, testes e desenho, e cada achado passou por um verificador que tentou refutá-lo. De 28 achados, 16 foram confirmados e corrigidos com teste. Dos 12 refutados, quatro viraram melhorias mesmo assim: o `LancField`, o carregando e o erro dos históricos do bebedouro e do depósito, e a rolagem do abate. Ver o relatório, §7.
 
 **Fora do escopo:** Gestão de Tarefas, Insights e Resumo do Rebanho, que são painéis e não detalhes.
 

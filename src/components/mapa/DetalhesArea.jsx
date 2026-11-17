@@ -1,11 +1,14 @@
 import React from "react";
+import { History } from "lucide-react";
 import HistoricoAbateCurral from "./HistoricoAbateCurral";
+import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
+import { LancLoteDialogo } from "../lotes/LancamentoLoteUi";
 import { ehCurral, podeMedirForragemNaArea, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import PainelForragemArea from "../pastagem/PainelForragemArea";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import AbaHistorico from "./detalhes-lote/AbaHistorico";
-import { Abas, TituloBloco, idsDaAba } from "./detalhes-lote/blocos";
+import { Abas, RodapePilulas, TituloBloco, idsDaAba } from "./detalhes-lote/blocos";
 import { PastoCtx, useModoPasto } from "./detalhes-lote/pastoContexto";
 
 /**
@@ -25,37 +28,75 @@ import { PastoCtx, useModoPasto } from "./detalhes-lote/pastoContexto";
  *   de abate de hoje (`HistoricoAbateCurral`); são fatos de naturezas
  *   diferentes e nenhum é copiado para o outro.
  *
- * @param {{ area: any, permissions?: Record<string, any>, setorNome?: string, eventosSuplementacao?: any[] | null }} props
+ * Com a permissão de histórico, o rodapé tem a pílula "Histórico completo": o
+ * Histórico de Movimentação da área de hoje (`HistoricoMovimentacoes`, lotes=[]),
+ * num diálogo por cima, como o "Manejos e históricos" do pasto (D-PROD-218). É
+ * lá que ficam o "Excluir movimentação" do administrador (D-PROD-110) e os
+ * dados de auditoria que a linha do tempo resumida não traz (registrado em,
+ * observações, cancelado em … por …, vínculo pelo nome, lote excluído, nutrição).
+ *
+ * `areas` (as do mapa) dão o nome da outra área quando o registro antigo gravou
+ * o nome vazio, como no histórico completo.
+ *
+ * @param {{ area: any, permissions?: Record<string, any>, setorNome?: string, eventosSuplementacao?: any[] | null, areas?: Array<{ id?: string, nome?: string }> }} props
  */
-export default function DetalhesArea({ area, permissions, setorNome = "", eventosSuplementacao = null }) {
+export default function DetalhesArea({ area, permissions, setorNome = "", eventosSuplementacao = null, areas = SEM_AREAS }) {
   const curral = ehCurral(area);
   const historicoDaArea = podeVerHistoricoDaArea(permissions);
   const forragem = podeMedirForragemNaArea(permissions, area);
   const [aba, setAba] = React.useState(curral ? "abate" : "historico");
   const [anim, setAnim] = React.useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));
+  const [completoAberto, setCompletoAberto] = React.useState(false);
 
   if (!area?.id || (!curral && !historicoDaArea && !forragem)) return null;
 
-  const historico = <HistoricoDaArea area={area} setorNome={setorNome} eventos={eventosSuplementacao} />;
+  const historico = <HistoricoDaArea area={area} setorNome={setorNome} eventos={eventosSuplementacao} areas={areas} />;
+
+  // Histórico completo da área (com o "Excluir movimentação" do administrador), por cima.
+  const rodape = historicoDaArea ? (
+    <RodapePilulas
+      itens={[
+        {
+          chave: "completo",
+          rotulo: "Histórico completo",
+          icone: History,
+          onClick: () => setCompletoAberto(true),
+          title: area.nome ? `Histórico completo da área: ${area.nome}` : "Histórico completo da área",
+        },
+      ]}
+      rotulo="Ações da área"
+    />
+  ) : null;
+  const completo = historicoDaArea ? (
+    <LancLoteDialogo open={completoAberto} onOpenChange={setCompletoAberto} titulo="Histórico da Área" largo somenteLeitura>
+      {completoAberto ? <HistoricoMovimentacoes lotes={[]} areaId={area.id} /> : null}
+    </LancLoteDialogo>
+  ) : null;
 
   if (!curral) {
     if (forragem) {
       return (
-        <CascaDetalhe titulo={area.nome || "Pasto"} sub={setorNome}>
-          <PainelForragemArea area={area} estilo="v12" />
-          {historicoDaArea ? (
-            <>
-              <TituloBloco>Histórico da área</TituloBloco>
-              {historico}
-            </>
-          ) : null}
-        </CascaDetalhe>
+        <>
+          <CascaDetalhe titulo={area.nome || "Pasto"} sub={setorNome} rodape={rodape}>
+            <PainelForragemArea area={area} />
+            {historicoDaArea ? (
+              <>
+                <TituloBloco>Histórico da área</TituloBloco>
+                {historico}
+              </>
+            ) : null}
+          </CascaDetalhe>
+          {completo}
+        </>
       );
     }
     return (
-      <CascaDetalhe titulo="Histórico da Área" sub={[area.nome, setorNome].filter(Boolean).join(" · ")}>
-        {historico}
-      </CascaDetalhe>
+      <>
+        <CascaDetalhe titulo="Histórico da Área" sub={[area.nome, setorNome].filter(Boolean).join(" · ")} rodape={rodape}>
+          {historico}
+        </CascaDetalhe>
+        {completo}
+      </>
     );
   }
 
@@ -78,11 +119,13 @@ export default function DetalhesArea({ area, permissions, setorNome = "", evento
     setAba(nova);
   };
   return (
+    <>
     <CascaDetalhe
       titulo={titulo}
       sub={setorNome}
       chaveTela={`aba:${aba}`}
       anim={anim}
+      rodape={rodape}
       cabecalhoDoCorpo={
         <Abas
           abas={[
@@ -99,15 +142,20 @@ export default function DetalhesArea({ area, permissions, setorNome = "", evento
     >
       {aba === "abate" ? abate : historico}
     </CascaDetalhe>
+    {completo}
+    </>
   );
 }
+
+/** @type {Array<{ id?: string, nome?: string }>} */
+const SEM_AREAS = [];
 
 /**
  * A aba Histórico do pasto lê tudo da casca (`usePasto().dados`): aqui ela
  * recebe só a área (sem lotes, sem permissões de manejo — é só leitura).
- * @param {{ area: any, setorNome: string, eventos: any[] | null }} props
+ * @param {{ area: any, setorNome: string, eventos: any[] | null, areas: Array<{ id?: string, nome?: string }> }} props
  */
-function HistoricoDaArea({ area, setorNome, eventos }) {
+function HistoricoDaArea({ area, setorNome, eventos, areas }) {
   const empresaId = useEmpresaSelecionadaId();
   const modo = useModoPasto();
   const valor = React.useMemo(() => {
@@ -125,6 +173,7 @@ function HistoricoDaArea({ area, setorNome, eventos }) {
         suplementacao: Array.isArray(eventos) ? { pontos: [], eventos, hoje: null } : null,
         onAbrirCocho: null,
         tipoLocal: "area",
+        areas,
       },
       permissoes: { mover: false, pesar: false, historico: true, supl: false, detalhesCocho: false, lancarSupl: false, historicoCocho: false },
       escopoPreferencias: null,
@@ -136,7 +185,7 @@ function HistoricoDaArea({ area, setorNome, eventos }) {
       slotRodape: null,
       marcarRodapeProprio: nada,
     });
-  }, [modo, area.id, area.nome, setorNome, empresaId, eventos]);
+  }, [modo, area.id, area.nome, setorNome, empresaId, eventos, areas]);
   return (
     <PastoCtx.Provider value={valor}>
       <AbaHistorico />

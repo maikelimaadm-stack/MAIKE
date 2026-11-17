@@ -73,7 +73,8 @@ export default function HistoricoAbateCurral({ areaId }) {
         <CardTitle className="text-sm font-semibold">Histórico de Abate ({historico.length})</CardTitle>
       </CardHeader>
       <CardContent className="mk-hist p-2">
-        <div className="mk-hist__lista max-h-[500px] overflow-y-auto">
+        {/* Sem rolagem própria: dentro do detalhe v12 o corpo é a única área que rola (D-PROD-220). */}
+        <div className="mk-hist__lista">
           {historico.map((item) => (
             <div key={item.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
               <div className="flex items-start justify-between gap-3">

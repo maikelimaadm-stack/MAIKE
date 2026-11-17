@@ -1,19 +1,6 @@
 import React, { useCallback, useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  ClipboardList,
-  Droplet,
-  Droplets,
-  Eye,
-  FlaskConical,
-  History,
-  Plus,
-  Sparkles,
-  TestTube,
-  TriangleAlert,
-  Wrench,
-} from "lucide-react";
+import { ArrowLeft, Droplet, History, Plus } from "lucide-react";
 import { listarIconesPorTipoEntidade, listarPontosDaEmpresa } from "@/services/mapaService";
 import { listarTodosLotes } from "@/services/loteManejoService";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
@@ -21,8 +8,9 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
 import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
 import { Aviso, Cartao, Celula, Chip, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
-import { VAZIO, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoPasto";
+import { VAZIO } from "@/components/mapa/detalhes-lote/historicoDoPasto";
 import BebedouroTimeline from "./BebedouroTimeline";
+import { diasDoHistorico, fmtMoeda, temTexto, textoOuVazio } from "./cartoesDoBebedouro";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
 import { ordenarHistoricoBebedouroPorData, resumoHistoricoBebedouro } from "./historicoBebedouroPorData";
 import "@/styles/mk-dp-bebedouro.css";
@@ -40,18 +28,23 @@ import "@/styles/mk-dp-bebedouro.css";
  * Só a apresentação mudou: consultas, permissões (D-PROD-137), cálculo das
  * próximas datas pela data do lançamento (`resumoHistoricoBebedouro`) e o ponto
  * de referência são os de antes. "Lançar" e "Histórico" abrem como telas
- * empilhadas na mesma janela (‹ Voltar; no diálogo o Esc volta), com o MESMO
- * formulário e a MESMA linha do tempo de hoje (o "Excluir" do mais recente
- * continua lá).
+ * empilhadas na mesma janela (‹ Voltar), com o MESMO formulário e o histórico
+ * completo (`BebedouroTimeline`, na linha do tempo v12, com o "Excluir" do mais
+ * recente). No diálogo, o Esc volta do Histórico; no formulário ele é ignorado
+ * (`escVolta={false}`), para um Esc sem querer não apagar o que foi digitado.
+ *
+ * Histórico carregando ou com erro (sem cópia): o detalhe diz isso, em vez de
+ * "Nenhum lançamento ainda." e custo R$ 0,00.
  *
  * Ícone do cartão: o subícone configurado do bebedouro (o mesmo do mapa,
  * mostrado aqui antes do v12); sem ícone configurado, a gota do v12.
  */
 
 const LIMITE_DO_RESUMO = 5;
+/** @type {any[]} */
+const SEM_HISTORICO = [];
 const SEM_CADASTRO = "Ponto sem cadastro de bebedouro: cadastre-o no Mapa Cadastro para registrar lançamentos.";
 
-const formatDecimal = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "";
 const addDaysToDate = (value, days) => {
   if (!value || !days) return VAZIO;
@@ -68,98 +61,8 @@ const getPeriodDays = (periodicidade, personalizado) => {
 };
 const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
-/** @param {unknown} valor */
-const temTexto = (valor) => valor != null && String(valor).trim() !== "";
-
-/**
- * Texto do cadastro, ou "—". O ponto sem cadastro chega com "-" em campos
- * vazios (montado pelo MapaGeral): também vira "—".
- * @param {unknown} valor
- */
-const textoOuVazio = (valor) => (temTexto(valor) && String(valor).trim() !== "-" ? String(valor) : VAZIO);
-
-/** @param {unknown} valor */
-const numeroValido = (valor) => temTexto(valor) && Number.isFinite(Number(valor));
-
-/** @param {unknown} valor */
-const fmtMoeda = (valor) => `R$ ${formatDecimal(valor)}`;
-
-/**
- * Quantidade ou escore como foram gravados: número em pt-BR (até 2 casas);
- * texto (registro antigo) como está.
- * @param {unknown} valor
- */
-const fmtNumeroLivre = (valor) =>
-  numeroValido(valor) ? Number(valor).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : String(valor).trim();
-
 /** Status do cadastro (BEBEDOURO_STATUS) → tom do chip: Ativo em dia, manutenção em atenção, o resto neutro. */
 const TOM_DO_STATUS = /** @type {Record<string, "ok" | "atencao">} */ ({ Ativo: "ok", "Em manutenção": "atencao" });
-
-/**
- * Ícone da linha do tempo por tipo de lançamento (BEBEDOURO_HISTORICO_TIPOS).
- * Limpeza e Inspeção são os do v12; os demais seguem o assunto do tipo.
- * @type {Record<string, import("lucide-react").LucideIcon>}
- */
-const ICONE_DO_TIPO = {
-  Limpeza: Sparkles,
-  "Inspeção": Eye,
-  "Tratamento da água": FlaskConical,
-  "Aplicação de produto": FlaskConical,
-  "Análise da água": TestTube,
-  "Contaminação": TriangleAlert,
-  "Manutenção": Wrench,
-  Vazamento: Droplets,
-  "Troca de boia": Wrench,
-  "Troca de encanamento": Wrench,
-  Abastecimento: Droplet,
-};
-
-/**
- * Linhas do cartão de um lançamento: a descrição sempre (o cartão nunca fica
- * vazio); o resto só quando o lançamento tem o dado. O status só aparece fora
- * do normal (Pendente, Emergencial). "Registrado por" é o `responsavel`, que o
- * lançamento grava com o usuário da sessão.
- * @param {any} item
- * @returns {Array<{ rotulo: string, valor: string }>}
- */
-function linhasDoLancamento(item) {
-  const linhas = [{ rotulo: "Descrição", valor: textoOuVazio(item?.descricao) }];
-  if (temTexto(item?.responsavel)) linhas.push({ rotulo: "Registrado por", valor: String(item.responsavel) });
-  if (temTexto(item?.status) && item.status !== "Concluído") linhas.push({ rotulo: "Status", valor: String(item.status) });
-  if (numeroValido(item?.custo)) linhas.push({ rotulo: "Custo", valor: fmtMoeda(item.custo) });
-  if (temTexto(item?.produto_utilizado)) linhas.push({ rotulo: "Produto", valor: String(item.produto_utilizado) });
-  if (temTexto(item?.quantidade_utilizada)) linhas.push({ rotulo: "Quantidade", valor: fmtNumeroLivre(item.quantidade_utilizada) });
-  if (temTexto(item?.qualidade_agua)) linhas.push({ rotulo: "Qualidade da água", valor: String(item.qualidade_agua) });
-  if (temTexto(item?.escore_agua)) linhas.push({ rotulo: "Escore da água", valor: fmtNumeroLivre(item.escore_agua) });
-  return linhas;
-}
-
-/**
- * Dias da linha do tempo do resumo: os lançamentos já na ordem da data do
- * lançamento (a mesma do "Último registro"), agrupados por dia ("10 NOV.
- * 2026"); sem data, no fim ("DATA NÃO INFORMADA").
- * @param {any[]} porData
- */
-function diasDoHistorico(porData) {
-  /** @type {Array<{ chave: string, rotulo: string, cartoes: Array<{ chave: string, Icone: import("lucide-react").LucideIcon, titulo: string, linhas: Array<{ rotulo: string, valor: string }> }> }>} */
-  const dias = [];
-  porData.forEach((item, i) => {
-    const dia = String(item?.data_lancamento || "").split("T")[0];
-    const chave = dia || "sem-data";
-    let grupo = dias[dias.length - 1];
-    if (!grupo || grupo.chave !== chave) {
-      grupo = { chave, rotulo: rotuloDoDia(dia), cartoes: [] };
-      dias.push(grupo);
-    }
-    grupo.cartoes.push({
-      chave: String(item?.id ?? `lancamento-${i}`),
-      Icone: ICONE_DO_TIPO[item?.tipo_lancamento] || ClipboardList,
-      titulo: item?.tipo_lancamento || "Lançamento",
-      linhas: linhasDoLancamento(item),
-    });
-  });
-  return dias;
-}
 
 /**
  * D-PROD-137 (BEB-01/BEB-03/BEB-04): "Lançar" e "Excluir" seguem a regra do
@@ -262,7 +165,12 @@ export default function DetalhesBebedouro({
     enabled: !!empresaId,
     staleTime: 60 * 1000
   });
-  const { data: historico = [] } = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
+  const consultaHistorico = useBebedouroHistorico(empresaId, registroReal ? bebedouro?.id : null);
+  const historico = Array.isArray(consultaHistorico.data) ? consultaHistorico.data : SEM_HISTORICO;
+  // O hook preenche `[]` enquanto busca (placeholder): isso não é "nenhum lançamento".
+  const carregandoHistorico = registroReal && Boolean(consultaHistorico.isPlaceholderData);
+  const erroHistorico = registroReal && Boolean(consultaHistorico.isError) && historico.length === 0;
+  const historicoIndisponivel = carregandoHistorico || erroHistorico;
   // Resumo pela data do lançamento, não pela ordem de criação (lançamento retroativo).
   const { ultimoLancamento, ultimaLimpeza: ultimoLancamentoLimpeza, ultimaInspecao } = useMemo(() => resumoHistoricoBebedouro(historico), [historico]);
   // A linha do tempo do resumo usa a mesma ordem; a completa (Histórico) fica na do servidor (o "Excluir" vale para o mais recente por criação).
@@ -309,21 +217,14 @@ export default function DetalhesBebedouro({
   const tela = subView === "lancamento" && !lancamentoDisponivel ? "main" : subView;
   const animTela = tela === subView ? anim : "voltar";
 
-  // Os campos do formulário (`LancField`) leem "tem valor" do DOM a cada render, e o
-  // Select do Radix só escreve o valor escolhido depois da montagem: sem um novo
-  // render, Tipo, Status e Qualidade abriam com o rótulo por cima do valor (na tela
-  // Bebedouros quem re-renderiza é a barra do registro). Um render a mais ao abrir.
-  const [, releitura] = React.useReducer((/** @type {number} */ n) => n + 1, 0);
-  React.useEffect(() => {
-    if (tela === "lancamento") releitura();
-  }, [tela]);
-
   if (tela === "lancamento") {
     return (
       <CascaDetalhe
         titulo="Lançamento no Bebedouro"
         sub={nome}
         onVoltar={voltarAoResumo}
+        // Formulário: o ‹ Voltar fica, o Esc não (um Esc sem querer apagaria o que foi digitado).
+        escVolta={false}
         chaveTela="lancamento"
         anim={animTela}
         semCabecalho={semCabecalho}
@@ -350,7 +251,17 @@ export default function DetalhesBebedouro({
         semCabecalho={semCabecalho}
         className="mk-dp-bebedouro"
       >
-        <BebedouroTimeline historico={historico} podeExcluir={podeExcluir === true} />
+        {carregandoHistorico ? (
+          <div role="status" className="mk-dp-hist__estado">
+            Carregando histórico...
+          </div>
+        ) : erroHistorico ? (
+          <div role="alert" className="mk-dp-hist__estado">
+            Não foi possível carregar o histórico.
+          </div>
+        ) : (
+          <BebedouroTimeline historico={historico} podeExcluir={podeExcluir === true} />
+        )}
       </CascaDetalhe>
     );
   }
@@ -395,7 +306,7 @@ export default function DetalhesBebedouro({
           <Celula rotulo="Animais consumindo água" valor={totalAnimaisAgua ? `${totalAnimaisAgua.toLocaleString("pt-BR")} cab` : VAZIO} />
           <Celula rotulo="Próxima limpeza" valor={proximaLimpeza} />
           <Celula rotulo="Próxima inspeção" valor={proximaInspecao} />
-          <Celula rotulo="Custo acumulado" valor={fmtMoeda(custoTotal)} />
+          <Celula rotulo="Custo acumulado" valor={historicoIndisponivel ? VAZIO : fmtMoeda(custoTotal)} />
         </Grade>
       </Cartao>
 
@@ -408,7 +319,10 @@ export default function DetalhesBebedouro({
             valor={ultimoValor}
           />
         ) : (
-          <Linha rotulo="Nenhum lançamento ainda." className="mk-dp-bebedouro__fraco" />
+          <Linha
+            rotulo={carregandoHistorico ? "Carregando..." : erroHistorico ? "Não foi possível carregar o histórico." : "Nenhum lançamento ainda."}
+            className="mk-dp-bebedouro__fraco"
+          />
         )}
       </Cartao>
 
@@ -434,7 +348,15 @@ export default function DetalhesBebedouro({
       >
         Histórico do bebedouro
       </TituloBloco>
-      {diasDoResumo.length ? (
+      {carregandoHistorico ? (
+        <div role="status" className="mk-dp-hist__estado">
+          Carregando histórico...
+        </div>
+      ) : erroHistorico ? (
+        <div role="alert" className="mk-dp-hist__estado">
+          Não foi possível carregar o histórico.
+        </div>
+      ) : diasDoResumo.length ? (
         <LinhaDoTempo dias={diasDoResumo} rotulo="Registros do bebedouro" />
       ) : (
         <Vazio icone={History}>Nenhum registro.</Vazio>

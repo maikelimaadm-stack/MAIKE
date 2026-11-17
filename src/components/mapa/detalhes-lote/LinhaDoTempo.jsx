@@ -13,6 +13,7 @@ import "@/styles/mk-dp-historico.css";
  * Marcação: ol.mk-dp-tl > li.mk-dp-tl__grupo > h3.mk-dp-tl__dia(> span.mk-dp-tl__ponto)
  *           + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card(.is-cancelado)
  *             > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong + .mk-dp-chip) + dl.mk-dp-tl__linhas > div.mk-dp-tl__row > dt + dd
+ *             (+ div.mk-dp-tl__acoes, quando o cartão tem `acoes`: ex. o "Excluir" do histórico completo)
  */
 
 /** @typedef {import("./historicoDoPasto").DiaHistorico} DiaHistorico */
@@ -35,7 +36,10 @@ const ICONES = {
  * `dias`: `[{ chave, rotulo: "09 NOV. 2026", cartoes: [{ chave, icone | Icone, titulo, cancelado?, linhas: [{ rotulo, valor }] }] }]`.
  * Fora do pasto, monte os dias com `rotuloDoDia("2026-11-09")` de historicoDoPasto.js
  * e passe `Icone` (lucide) quando o desenho não é um dos do histórico do pasto.
- * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }> }> }>, rotulo?: string }} props
+ * `acoes` (opcional) entra no pé do cartão, embaixo das linhas: o "Excluir" do
+ * histórico completo do bebedouro e o "Excluir movimentação" do abate do curral
+ * (D-PROD-220), com as regras de quem monta o cartão.
+ * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }>, acoes?: React.ReactNode }> }>, rotulo?: string }} props
  */
 export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
   const lista = Array.isArray(dias) ? dias : [];
@@ -71,6 +75,7 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
                       </div>
                     ))}
                   </dl>
+                  {"acoes" in c && c.acoes ? <div className="mk-dp-tl__acoes">{c.acoes}</div> : null}
                 </li>
               );
             })}

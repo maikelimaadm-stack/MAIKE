@@ -160,7 +160,7 @@ describe('BEB-01 — botões do bebedouro no Mapa Geral seguem a regra do servid
     await abrirPontoNoMapa();
     expect(botao('Lançar'), 'servidor exige Bebedouros novo/salvar ou Mapa Geral salvar').toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Histórico' }));
-    expect(await screen.findByText(/Histórico do Bebedouro \(2\)/)).toBeTruthy();
+    expect(await screen.findByText(/Lançamentos \(2\)/)).toBeTruthy();
     expect(botao('Excluir'), 'servidor exige Bebedouros excluir').toBeNull();
     expect(posts()).toEqual([]);
     expect(deletes()).toEqual([]);

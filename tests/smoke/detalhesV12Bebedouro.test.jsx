@@ -16,6 +16,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const estado = vi.hoisted(() => ({
   historico: /** @type {any[]} */ ([]),
+  /** Campos extras da consulta do histórico (ex.: `isPlaceholderData`, `isError`). */
+  consulta: /** @type {Record<string, any>} */ ({}),
   lotes: /** @type {any[]} */ ([]),
   pontos: /** @type {any[]} */ ([]),
   icones: /** @type {any[]} */ ([]),
@@ -26,7 +28,7 @@ const servico = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/useBebedouroHistorico", () => ({
-  useBebedouroHistorico: (_empresaId, bebedouroId) => ({ data: bebedouroId ? estado.historico : [] }),
+  useBebedouroHistorico: (_empresaId, bebedouroId) => ({ data: bebedouroId ? estado.historico : [], ...estado.consulta }),
 }));
 vi.mock("@/services/mapaService", () => ({
   listarIconesPorTipoEntidade: async () => estado.icones,
@@ -94,6 +96,7 @@ const LOTES = [
 beforeEach(() => {
   localStorage.setItem("empresa_selecionada_id", EMPRESA);
   estado.historico = HISTORICO;
+  estado.consulta = {};
   estado.lotes = LOTES;
   estado.pontos = [{ id: "p-1", nome: "Bebedouro 01", numero_ponto: "BB-01", ativo: true }];
   estado.icones = [];
@@ -246,7 +249,7 @@ describe("Detalhe do bebedouro v12 no diálogo do mapa", () => {
 
     await clicar(screen.getByRole("button", { name: "Ver tudo" }));
     expect(tituloDoDialogo()).toBe("Histórico do bebedouro");
-    expect(screen.getByText("Histórico do Bebedouro (7)")).toBeTruthy();
+    expect(screen.getByText("Lançamentos (7)")).toBeTruthy();
   });
 
   it("sem lançamento: 'Nenhum lançamento ainda.' no último registro e a linha do tempo vazia; sem 'Ver tudo'", async () => {
@@ -311,7 +314,7 @@ describe("Telas empilhadas na mesma janela", () => {
     expect(screen.getByRole("button", { name: "Voltar" })).toBeTruthy();
     expect(corpo().className).toContain("mk-dp-anim--empurrar");
     expect(document.querySelector(".mk-dp__rodape")?.childElementCount).toBe(0);
-    expect(screen.getByText("Histórico do Bebedouro (2)")).toBeTruthy();
+    expect(screen.getByText("Lançamentos (2)")).toBeTruthy();
     const excluir = screen.getAllByRole("button", { name: "Excluir" });
     expect(excluir).toHaveLength(2);
     expect(excluir[0]).not.toBeDisabled();
@@ -331,10 +334,54 @@ describe("Telas empilhadas na mesma janela", () => {
     noDialogo({});
     await screen.findByText("189 cab");
     await clicar(screen.getByRole("button", { name: "Histórico" }));
-    expect(screen.getByText("Histórico do Bebedouro (2)")).toBeTruthy();
+    expect(screen.getByText("Lançamentos (2)")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
     await clicar(screen.getByRole("button", { name: "Voltar" }));
     expect(tituloDoDialogo()).toBe("Bebedouro 01");
+  });
+
+  it("Histórico completo no desenho v12: os cartões do resumo com a hora, na ordem do servidor, sem rolagem própria; Excluir no pé do cartão", async () => {
+    largura(1280);
+    // Ordem do servidor (criação desc.): um lançamento retroativo (10/10) entrou depois do de 01/11.
+    estado.historico = [HISTORICO[0], { id: "h-retro", tipo_lancamento: "Manutenção", status: "Pendente", data_lancamento: "2026-10-10", descricao: "boia presa" }, HISTORICO[1]];
+    noDialogo({ podeExcluir: true });
+    await screen.findByText("189 cab");
+    await clicar(screen.getByRole("button", { name: "Histórico" }));
+    const lista = screen.getByRole("list", { name: "Lançamentos do bebedouro" });
+    expect([...lista.querySelectorAll(".mk-dp-tl__dia")].map((d) => d.textContent)).toEqual(["10 NOV. 2026", "10 OUT. 2026", "01 NOV. 2026"]);
+    const cartoes = [...lista.querySelectorAll(".mk-dp-tl__card")];
+    expect(cartoes.map((c) => c.querySelector(".mk-dp-tl__titulo")?.textContent)).toEqual(["Inspeção", "Manutenção", "Limpeza"]);
+    const linhas = (c) => [...c.querySelectorAll(".mk-dp-tl__row")].map((r) => `${r.querySelector("dt")?.textContent}: ${r.querySelector("dd")?.textContent}`);
+    expect(linhas(cartoes[0])).toEqual(["Hora: 08:30", "Descrição: Nível bom, boia funcionando.", "Registrado por: João", "Qualidade da água: Boa", "Escore da água: 4,5"]);
+    expect(linhas(cartoes[1])).toEqual(["Descrição: boia presa", "Status: Pendente"]);
+    // O "Excluir" fica no pé de cada cartão; só o mais recente (índice 0 do servidor) liga.
+    const pes = cartoes.map((c) => c.querySelector(".mk-dp-tl__acoes button"));
+    expect(pes.map((b) => b?.textContent)).toEqual(["Excluir", "Excluir", "Excluir"]);
+    expect(pes.map((b) => b?.disabled)).toEqual([false, true, true]);
+    expect(pes[1]?.getAttribute("title")).toBe("Só o lançamento mais recente pode ser excluído.");
+    expect(pes[0]?.closest("[data-permissao-explicita]")).toBeTruthy();
+    // Nada do desenho antigo: sem cartão com cabeçalho próprio nem rolagem de 60vh dentro do corpo.
+    expect(corpo().querySelector('[class*="max-h-"]')).toBeNull();
+    expect(corpo().querySelector(".mk-dp-tl")).toBe(lista);
+  });
+
+  it("Lançar: o Esc no formulário não apaga o que foi digitado (o ‹ Voltar continua); no Histórico o Esc segue voltando", async () => {
+    for (const w of [1280, 390]) {
+      largura(w);
+      noDialogo({ podeLancar: true });
+      await screen.findByText("189 cab");
+      await clicar(screen.getByRole("button", { name: "Lançar" }));
+      const obs = screen.getByLabelText("Observação");
+      fireEvent.change(obs, { target: { value: "BOIA VAZANDO" } });
+      obs.focus();
+      await esc();
+      expect(tituloDoDialogo(), `Esc a ${w}px`).toBe("Lançamento no Bebedouro");
+      expect(/** @type {HTMLTextAreaElement} */ (screen.getByLabelText("Observação")).value).toBe("BOIA VAZANDO");
+      expect(screen.getByRole("button", { name: "Voltar" })).toBeTruthy();
+      await clicar(screen.getByRole("button", { name: "Voltar" }));
+      expect(tituloDoDialogo()).toBe("Bebedouro 01");
+      cleanup();
+    }
   });
 
   it("Lançar: o formulário de hoje; Cancelar e Salvar voltam ao resumo; permissão revogada com o formulário aberto volta ao resumo", async () => {
@@ -407,5 +454,45 @@ describe("Fora do diálogo", () => {
     expect(screen.getByRole("heading", { name: "Histórico do bebedouro" })).toBeTruthy();
     await clicar(screen.getByRole("button", { name: "Voltar" }));
     expect(screen.getByRole("heading", { name: "Bebedouro 01" })).toBeTruthy();
+  });
+});
+
+describe("Histórico carregando ou com erro", () => {
+  it("carregando: o detalhe diz que está carregando, sem 'Nenhum lançamento ainda.' nem custo R$ 0,00", async () => {
+    largura(1280);
+    estado.historico = [];
+    estado.consulta = { isPlaceholderData: true };
+    noDialogo({ podeExcluir: true });
+    await screen.findByText("189 cab");
+    expect(within(grupo("Último registro")).getByText("Carregando...")).toBeTruthy();
+    expect(screen.queryByText("Nenhum lançamento ainda.")).toBeNull();
+    expect(celula(grupo("Resumo operacional"), "Custo acumulado")).toBe("—");
+    expect(screen.getByRole("status").textContent).toBe("Carregando histórico...");
+    expect(screen.queryByText("Nenhum registro.")).toBeNull();
+    await clicar(screen.getByRole("button", { name: "Histórico" }));
+    expect(screen.getByRole("status").textContent).toBe("Carregando histórico...");
+    expect(screen.queryByText("Nenhum lançamento encontrado.")).toBeNull();
+  });
+
+  it("erro sem dados: o aviso 'Não foi possível carregar o histórico.' no resumo e na tela Histórico", async () => {
+    largura(1280);
+    estado.historico = [];
+    estado.consulta = { isError: true };
+    noDialogo({});
+    await screen.findByText("189 cab");
+    expect(screen.getByRole("alert").textContent).toBe("Não foi possível carregar o histórico.");
+    expect(celula(grupo("Resumo operacional"), "Custo acumulado")).toBe("—");
+    expect(screen.queryByText("Nenhum lançamento ainda.")).toBeNull();
+    await clicar(screen.getByRole("button", { name: "Histórico" }));
+    expect(screen.getByRole("alert").textContent).toBe("Não foi possível carregar o histórico.");
+  });
+
+  it("erro com a lista já lida: mostra a lista (o erro não apaga o que já se sabe)", async () => {
+    largura(1280);
+    estado.consulta = { isError: true };
+    noDialogo({});
+    await screen.findByText("189 cab");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("list", { name: "Registros do bebedouro" })).toBeTruthy();
   });
 });

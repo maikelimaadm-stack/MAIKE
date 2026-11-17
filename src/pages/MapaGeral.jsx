@@ -1346,7 +1346,7 @@ export default function MapaGeral() {
 
       <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo={mapaGeralPermissions.medir_forragem === true && selectedArea?.tipo_cultura !== "Infraestrutura" ? "Pasto" : "Histórico da Área"} lotes={mapaGeralPermissions.medir_forragem === true && selectedArea?.nome ? [{ nome: selectedArea.nome }] : undefined} largo somenteLeitura popupDesde="tablet">
 
-          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} setorNome={setorDaAreaSelecionada} eventosSuplementacao={eventosSupl} />}
+          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} setorNome={setorDaAreaSelecionada} eventosSuplementacao={eventosSupl} areas={areas} />}
         </LancLoteDialogo>
 
       <LancLoteDialogo open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro} titulo="Bebedouro" largo somenteLeitura popupDesde="tablet">

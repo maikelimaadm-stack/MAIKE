@@ -264,7 +264,9 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
     empresaId: empresaSelecionadaId || null,
     suplementacao,
     onAbrirCocho,
-  }), [areaIdDoPasto, areaNomeDoPasto, setorNome, lotesDoPasto, movimentacoes, empresaSelecionadaId, suplementacao, onAbrirCocho]);
+    // Nome da outra área quando o registro antigo gravou o nome vazio (aba Histórico).
+    areas,
+  }), [areaIdDoPasto, areaNomeDoPasto, setorNome, lotesDoPasto, movimentacoes, empresaSelecionadaId, suplementacao, onAbrirCocho, areas]);
   const permissoesDoPasto = useMemo(() => ({
     mover: permissions.mover_lotes !== false,
     pesar: permissions.pesar_lotes !== false,

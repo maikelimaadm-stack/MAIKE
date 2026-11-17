@@ -35,13 +35,16 @@ import { hojeNoFuso, somarDias } from '@/lib/diaCivil';
 import { calcularNivelCocho } from '@/domain/suplementacao/nivelSuplementacao';
 import { COR_FAROL } from '@/domain/suplementacao/leituraCocho';
 
-const dados = vi.hoisted(() => ({ lotesNota: [], produtos: [], movimentacoes: [], pontos: [], areas: [], cache: {}, pendente: false }));
+const dados = vi.hoisted(() => ({ lotesNota: [], produtos: [], movimentacoes: [], pontos: [], areas: [], cache: {}, pendente: false, movimentacoesPendentes: false, movimentacoesComErro: false }));
 
 vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () => 'emp-1' }));
 vi.mock('@/services/estoqueMapaService', () => ({
   listarTodosLotesNota: vi.fn(async () => (dados.pendente ? new Promise(() => {}) : dados.lotesNota)),
   listarTodosProdutos: vi.fn(async () => dados.produtos),
-  listarTodasMovimentacoes: vi.fn(async () => dados.movimentacoes),
+  listarTodasMovimentacoes: vi.fn(async () => {
+    if (dados.movimentacoesComErro) throw new Error('rede caiu');
+    return dados.movimentacoesPendentes ? new Promise(() => {}) : dados.movimentacoes;
+  }),
 }));
 vi.mock('@/services/mapaService', () => ({
   listarPontosSuplementacaoAtivos: vi.fn(async () => dados.pontos),
@@ -150,6 +153,8 @@ beforeEach(() => {
   dados.areas = AREAS;
   dados.cache = { leiturasCocho: [leitura('lt-02', 'c02', 'ADEQUADO'), leitura('lt-05', 'c05', 'VAZIO')], eventosSuplementacao: [EVENTO_C02] };
   dados.pendente = false;
+  dados.movimentacoesPendentes = false;
+  dados.movimentacoesComErro = false;
 });
 afterEach(() => cleanup());
 
@@ -394,8 +399,22 @@ describe('DV-7 — linha do tempo do depósito', () => {
   it('sem movimentação: "Nenhum registro ainda."', async () => {
     dados.movimentacoes = [];
     await montar();
-    expect(screen.getByText('Nenhum registro ainda.').closest('.mk-dp-vazio')).toBeTruthy();
+    expect((await screen.findByText('Nenhum registro ainda.')).closest('.mk-dp-vazio')).toBeTruthy();
     expect(screen.queryByRole('list', { name: 'Histórico do depósito' })).toBeNull();
+  });
+
+  it('movimentações ainda chegando: "Carregando histórico...", sem afirmar "Nenhum registro ainda."', async () => {
+    dados.movimentacoesPendentes = true;
+    await montar();
+    expect(screen.getByRole('status').textContent).toBe('Carregando histórico...');
+    expect(screen.queryByText('Nenhum registro ainda.')).toBeNull();
+  });
+
+  it('a consulta das movimentações falhou: o aviso de erro, não "Nenhum registro ainda."', async () => {
+    dados.movimentacoesComErro = true;
+    await montar();
+    expect((await screen.findByRole('alert')).textContent).toBe('Não foi possível carregar o histórico.');
+    expect(screen.queryByText('Nenhum registro ainda.')).toBeNull();
   });
 });
 

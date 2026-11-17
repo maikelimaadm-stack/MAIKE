@@ -11,6 +11,7 @@ import { montarHistoricoDoPasto } from "./historicoDoPasto";
  * reinício do cursor recusado — `usePaginasDoHistorico`) e os eventos de
  * suplementação que a casca já tem (`dados.suplementacao.eventos`, filtrados
  * pela área). Só existe enquanto a aba está aberta (a casca só monta a aba ativa).
+ * `areas` (as do mapa, `dados.areas`) completam o nome vazio da outra área.
  */
 
 /**
@@ -27,11 +28,12 @@ import { montarHistoricoDoPasto } from "./historicoDoPasto";
  *   empresaId: string | null | undefined,
  *   areaId: string | null | undefined,
  *   areaNome?: string | null,
+ *   areas?: Array<{ id?: string, nome?: string }> | null,
  *   eventos?: any[] | null,
  *   filtro: string,
  * }} p
  */
-export function useHistoricoDoPasto({ empresaId, areaId, areaNome = null, eventos = null, filtro }) {
+export function useHistoricoDoPasto({ empresaId, areaId, areaNome = null, areas = null, eventos = null, filtro }) {
   const queryClient = useQueryClient();
   const area = areaId || null;
   const habilitada = Boolean(empresaId && area);
@@ -61,12 +63,15 @@ export function useHistoricoDoPasto({ empresaId, areaId, areaNome = null, evento
         eventos: Array.isArray(eventos) ? eventos : [],
         areaId: area,
         areaNome,
+        // As áreas do mapa: o nome da outra área quando o registro antigo gravou o nome vazio
+        // (o mesmo socorro do Histórico de Movimentação, `nomeDaAreaDoMovimento`).
+        areas: Array.isArray(areas) ? areas : [],
         empresaId: empresaId || null,
         doServidor: doServidorH2,
         haMaisPaginas,
         filtro,
       }),
-    [movimentacoesCarregadas, eventos, area, areaNome, empresaId, doServidorH2, haMaisPaginas, filtro]
+    [movimentacoesCarregadas, eventos, area, areaNome, areas, empresaId, doServidorH2, haMaisPaginas, filtro]
   );
 
   /** @type {AvisoOffline | null} */

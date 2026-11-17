@@ -21,7 +21,11 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
  * título e sub no lugar dos props; com `voltar`, o botão ‹ "Voltar" (no popup
  * antes do título, o ✕ continua à direita; na tela cheia no lugar do ✕) e o Esc
  * volta um nível em vez de fechar.
- * @typedef {{ titulo: string, sub?: string, voltar?: () => void }} CabecalhoLancLote
+ *
+ * `escVolta: false` (formulário empilhado, ex.: o lançamento do bebedouro,
+ * D-PROD-220): o ‹ Voltar continua, mas o Esc é ignorado em qualquer modo — um
+ * Esc sem querer não apaga o que foi digitado (como o popup, D-PROD-125).
+ * @typedef {{ titulo: string, sub?: string, voltar?: () => void, escVolta?: boolean }} CabecalhoLancLote
  */
 
 /**
@@ -120,9 +124,11 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
         onOpenAutoFocus={somenteLeitura ? (e) => e.preventDefault() : undefined}
         // Popup: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
         onInteractOutside={popup ? (e) => e.preventDefault() : undefined}
-        // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-218).
+        // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-218);
+        // formulário empilhado (`escVolta: false`): Esc ignorado, para não perder o que foi digitado.
         onEscapeKeyDown={(e) => {
-          if (voltar) {
+          if (cabecalho?.escVolta === false) e.preventDefault();
+          else if (voltar) {
             e.preventDefault();
             voltar();
           } else if (popup) e.preventDefault();

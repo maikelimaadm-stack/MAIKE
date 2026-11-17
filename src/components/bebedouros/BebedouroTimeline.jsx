@@ -1,28 +1,27 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { History } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { excluirHistorico } from "@/services/bebedouroDataService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
+import { Acao, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import { diasDoHistorico } from "./cartoesDoBebedouro";
 
-const statusClass = {
-  Pendente: "text-amber-700 border-amber-200 bg-amber-50",
-  Concluído: "text-emerald-700 border-emerald-200 bg-emerald-50",
-  Emergencial: "text-red-700 border-red-200 bg-red-50"
-};
-
-const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
-const formatMoney = (value) => value ? `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-";
+const SO_O_ULTIMO = "Só o lançamento mais recente pode ser excluído.";
 
 /**
- * Linha do tempo do bebedouro. Só o lançamento mais recente (índice 0, a mesma
- * ordem do servidor) é excluível — o servidor recusa os demais (409).
- * D-PROD-137 (BEB-01): "Excluir" só com `podeExcluir` (a regra do servidor,
- * calculada por quem monta; padrão `false`) e a recusa do servidor vira
- * mensagem — antes a rejeição ficava sem tratamento e o botão travado.
+ * Histórico completo do bebedouro (tela empilhada do detalhe), no desenho do
+ * Detalhes do Lote v12 (D-PROD-220): a linha do tempo com os MESMOS cartões do
+ * resumo, mais a hora, em ORDEM DO SERVIDOR, e a contagem em "Lançamentos (N)".
+ * Sem rolagem própria: o corpo da casca é a única área que rola.
+ *
+ * Regras de antes: só o lançamento mais recente (índice 0, a mesma ordem do
+ * servidor) é excluível — o servidor recusa os demais (409) e o "Excluir" deles
+ * fica desligado. D-PROD-137 (BEB-01): "Excluir" só com `podeExcluir` (a regra
+ * do servidor, calculada por quem monta; padrão `false`) e a recusa do servidor
+ * vira mensagem — antes a rejeição ficava sem tratamento e o botão travado.
  *
  * @param {{ historico?: any[], podeExcluir?: boolean }} props
  */
@@ -52,68 +51,30 @@ export default function BebedouroTimeline({ historico = [], podeExcluir = false 
     }
   };
 
-  if (!historico.length) return <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div>;
+  if (!historico.length) return <Vazio icone={History}>Nenhum lançamento encontrado.</Vazio>;
+
+  const dias = diasDoHistorico(historico, {
+    comHora: true,
+    acoes: podeExcluir
+      ? (item, index) => (
+          <Acao
+            tom="perigo"
+            // Fora da heurística de texto do Layout: a regra é a do servidor (D-PROD-137).
+            data-permissao-explicita=""
+            disabled={index !== 0 || deletingId === item.id}
+            title={index !== 0 ? SO_O_ULTIMO : undefined}
+            onClick={() => handleDelete(item, index)}
+          >
+            Excluir
+          </Acao>
+        )
+      : null,
+  });
 
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="bg-[#FAFCFE] border-b py-3 px-3">
-        <CardTitle className="text-sm font-semibold">Histórico do Bebedouro ({historico.length})</CardTitle>
-      </CardHeader>
-      <CardContent className="p-2">
-        <div className="max-h-[60vh] overflow-y-auto space-y-1">
-          {historico.map((item, index) => (
-            <div key={item.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1">
-                  <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{formatDateBR(item.data_lancamento)}</span>
-                  <Badge variant="outline" className={`text-[10px] ${statusClass[item.status] || statusClass.Concluído}`}>{item.status || "Concluído"}</Badge>
-                </div>
-                {podeExcluir ? (
-                  <Button variant="destructive" size="sm" data-permissao-explicita="" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === item.id} onClick={() => handleDelete(item, index)}>Excluir</Button>
-                ) : null}
-              </div>
-
-              <div className="text-xs font-semibold text-slate-900">{item.tipo_lancamento || "Lançamento"}</div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-[10px]">
-                <InfoBox label="Hora" value={item.hora_lancamento || "-"} />
-                <InfoBox label="Custo" value={formatMoney(item.custo)} />
-                <InfoBox label="Status" value={item.status || "-"} />
-              </div>
-
-              {(item.produto_utilizado || item.quantidade_utilizada) && (
-                <div>
-                  <SectionLabel>PRODUTO</SectionLabel>
-                  <div className="grid grid-cols-2 gap-1 text-[10px]">
-                    <InfoBox label="Produto" value={item.produto_utilizado || "-"} />
-                    <InfoBox label="Quantidade" value={item.quantidade_utilizada || "-"} />
-                  </div>
-                </div>
-              )}
-
-              {(item.qualidade_agua || item.escore_agua) && (
-                <div>
-                  <SectionLabel>QUALIDADE DA ÁGUA</SectionLabel>
-                  <div className="grid grid-cols-2 gap-1 text-[10px]">
-                    <InfoBox label="Qualidade" value={item.qualidade_agua || "-"} />
-                    <InfoBox label="Escore" value={item.escore_agua || "-"} />
-                  </div>
-                </div>
-              )}
-
-              {item.descricao && <div className="text-[10px] text-slate-500 break-words">Obs: {item.descricao}</div>}
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <>
+      <TituloBloco>{`Lançamentos (${historico.length})`}</TituloBloco>
+      <LinhaDoTempo dias={dias} rotulo="Lançamentos do bebedouro" />
+    </>
   );
-}
-
-function SectionLabel({ children }) {
-  return <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1 mb-0.5">{children}</div>;
-}
-
-function InfoBox({ label, value }) {
-  return <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">{label}</div><div className="font-semibold text-slate-900 break-words">{value}</div></div>;
 }

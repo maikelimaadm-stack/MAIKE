@@ -146,7 +146,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     staleTime: 5 * 60 * 1000
   });
 
-  const { data: movimentacoes = [] } = useQuery({
+  const { data: movimentacoes = [], isLoading: loadingMovimentacoes, isError: erroMovimentacoes } = useQuery({
     queryKey: ["movimentacoes-deposito-detalhe", deposito.id],
     queryFn: async () => {
       const all = await listarTodasMovimentacoes();
@@ -371,6 +371,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
             <TituloBloco>{podeHistorico ? "Histórico do depósito" : "Último registro"}</TituloBloco>
             {diasDoHistorico.length > 0 ? (
               <LinhaDoTempo dias={diasDoHistorico} rotulo={podeHistorico ? "Histórico do depósito" : "Último registro"} />
+            ) : loadingMovimentacoes ? (
+              // A consulta traz todas as movimentações: enquanto chega, não afirma "nenhum registro".
+              <div role="status" className="mk-dp-hist__estado">
+                Carregando histórico...
+              </div>
+            ) : erroMovimentacoes ? (
+              <div role="alert" className="mk-dp-hist__estado">
+                Não foi possível carregar o histórico.
+              </div>
             ) : (
               <Vazio icone={History}>Nenhum registro ainda.</Vazio>
             )}
