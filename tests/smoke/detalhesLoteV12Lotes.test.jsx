@@ -328,7 +328,23 @@ describe("aba Lotes › Lista", () => {
     expect(nomesNaTabela()[0]).toBe("L-2026-027");
   });
 
-  it("um lote: '1 lote · 38 cab' (singular)", () => {
+  it("ordenada por uma coluna que saiu da tabela: volta a valer o nome (e a escolha volta com a coluna)", async () => {
+    const escopo = { clienteId: "c-1", login: "ana", empresaId: "emp-1" };
+    render(<CascaDeTeste modelo={modeloV12()} escopoPreferencias={escopo} />);
+    await clicar(screen.getByRole("button", { name: /^Cab\./ }));
+    expect(nomesNaTabela()[0]).toBe("L-2026-027");
+    await clicar(screen.getByRole("button", { name: "Configurar tabela" }));
+    await clicar(screen.getByRole("checkbox", { name: "Cab." }));
+    await clicar(screen.getByRole("button", { name: "Aplicar" }));
+    expect(nomesNaTabela()[0]).toBe("L-2026-008");
+    expect(screen.getAllByRole("columnheader").find((th) => th.textContent.startsWith("Nome")).getAttribute("aria-sort")).toBe("ascending");
+    await clicar(screen.getByRole("button", { name: "Configurar tabela" }));
+    await clicar(screen.getByRole("checkbox", { name: "Cab." }));
+    await clicar(screen.getByRole("button", { name: "Aplicar" }));
+    expect(nomesNaTabela()[0]).toBe("L-2026-027");
+  });
+
+  it("um lote: '1 lote · 86 cab' (singular)", () => {
     render(<CascaDeTeste modelo={modeloV12({ qtd: 1 })} />);
     expect(screen.getByRole("heading", { name: "1 lote · 86 cab" })).toBeTruthy();
   });

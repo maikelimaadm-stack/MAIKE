@@ -29,9 +29,12 @@ export function VistaLista() {
   const { modelo, modo, empurrar, escopoPreferencias } = usePasto();
   const m = /** @type {ModeloDetalhes} */ (modelo);
   const [chaves] = useColunasLote(escopoPreferencias);
-  const [ordem, ordenarPor] = useOrdemLista();
+  const [ordemLembrada, ordenarPor] = useOrdemLista();
   const cols = React.useMemo(() => colunasPorChave(chaves), [chaves]);
-  const lotes = React.useMemo(() => ordenarLotes(m.lotes, { chave: ordem.chave, dir: ordem.dir }), [m.lotes, ordem]);
+  // Ordenada por uma coluna que saiu da tabela: vale o nome (a escolha volta se a coluna voltar).
+  const visivel = ordemLembrada.chave === "nome" || cols.some((c) => c.chave === ordemLembrada.chave);
+  const ordem = visivel ? ordemLembrada : { chave: "nome", dir: 1 };
+  const lotes = React.useMemo(() => ordenarLotes(m.lotes, { chave: ordem.chave, dir: ordem.dir }), [m.lotes, ordem.chave, ordem.dir]);
 
   /** @type {Array<{ rotulo: string, span: number }>} */
   const grupos = [];
