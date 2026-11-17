@@ -928,7 +928,7 @@ function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, pod
 const idsDasLinhas = (ap, tipo) => new Set(linhasDoTipo(ap, tipo).map((l) => String(l.id)));
 
 /**
- * @typedef {{ tipo: string, atividadeId: string, apontamento: any, linha: any, escopo: string, novoDia: NovoDia | null }} DestinoDoEnvio
+ * @typedef {{ tipo: TipoDeLinha, atividadeId: string, apontamento: any, linha: any, escopo: string, novoDia: NovoDia | null }} DestinoDoEnvio
  * @typedef {{ dados: Record<string, any>, versao: number|null, dia?: Record<string, any> | null }} ArgDoEnvio
  */
 
@@ -997,6 +997,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
   const saldo = useSaldoDoProduto(empresaId, form, setForm, editando ? linha : null);
   const antes = useRef(idsDasLinhas(apontamento, LINHA_PRODUTO));
   const fallback = editando ? "Não foi possível alterar o produto. Nada foi alterado." : "Não foi possível lançar o produto. Nada foi gravado.";
+  /** @type {DestinoDoEnvio} */
   const destino = { tipo: LINHA_PRODUTO, atividadeId, apontamento, linha, escopo, novoDia: editando ? null : novoDia };
 
   const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(envioDaLinha(destino), (e) => mensagemDeErroLinha(e, fallback, { unidade: saldo.unidade }));
@@ -1127,6 +1128,7 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
   const fallback = editando ? "Não foi possível alterar a máquina. Nada foi alterado." : "Não foi possível lançar a máquina. Nada foi gravado.";
   const uso = medidor ? usoDaLinha(form, medidor) : null;
   const pedeJustificativa = saltoPedido || passaDoTeto(uso, medidor?.teto ?? null);
+  /** @type {DestinoDoEnvio} */
   const destino = { tipo: LINHA_MAQUINA, atividadeId, apontamento, linha, escopo, novoDia: editando ? null : novoDia };
 
   const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(envioDaLinha(destino), (e) => mensagemDeErroLinha(e, fallback, { medidorUnidade: medidor?.unidade ?? null }));
@@ -1290,6 +1292,7 @@ function JanelaLinhaSemMedidor({
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const antes = useRef(idsDasLinhas(apontamento, tipo));
   const fallback = editando ? rotulos.falhaEdicao : rotulos.falha;
+  /** @type {DestinoDoEnvio} */
   const destino = { tipo, atividadeId, apontamento, linha, escopo, novoDia: editando ? null : novoDia };
 
   const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(envioDaLinha(destino), (e) => mensagemDeErroLinha(e, fallback));
