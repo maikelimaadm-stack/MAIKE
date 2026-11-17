@@ -352,6 +352,31 @@ describe("Rodapé Lançar · Histórico pela regra do servidor (D-PROD-137)", ()
   });
 });
 
+describe("Foco ao abrir e ao fechar o Lançar e o Histórico (D-PROD-222)", () => {
+  it("Lançar: abre no ✕ e, fechado, o foco volta à pílula 'Lançar'; Histórico: abre no próprio diálogo (não no ✕ nem na pílula escondida) e volta à pílula 'Histórico'", async () => {
+    largura(1280);
+    noDialogo({ podeLancar: true, podeExcluir: true });
+    await screen.findByText("189 cab");
+    const lancar = screen.getByRole("button", { name: "Lançar" });
+    lancar.focus();
+    await clicar(lancar);
+    const lanc = ultimoDialogo();
+    await waitFor(() => expect(lanc.contains(document.activeElement)).toBe(true));
+    await clicar(within(lanc).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(dialogos()).toHaveLength(1));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Lançar" })));
+
+    const historico = screen.getByRole("button", { name: "Histórico" });
+    historico.focus();
+    await clicar(historico);
+    const hist = ultimoDialogo();
+    await waitFor(() => expect(document.activeElement).toBe(hist));
+    await clicar(within(hist).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(dialogos()).toHaveLength(1));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Histórico" })));
+  });
+});
+
 describe("Histórico por cima do detalhe, nos cartões do manejo (D-PROD-222)", () => {
   it("abre num LancLoteDialogo largo e só de leitura POR CIMA: título com a contagem, o bebedouro no subtítulo, só o ✕; o detalhe fica por baixo; no popup o Esc não fecha e o ✕ fecha", async () => {
     largura(1280);

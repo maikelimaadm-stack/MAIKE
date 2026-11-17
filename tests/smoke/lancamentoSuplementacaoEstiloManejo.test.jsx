@@ -385,6 +385,10 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
       "Usar essa sobra no novo ciclo",
       "Sobra já foi descartada/baixada",
     ]);
+    // É uma escolha: o foco abre na primeira opção, dentro da confirmação — não no ✕ do lançamento, escondido
+    // por baixo (um Enter ali cancelava o lançamento).
+    await waitFor(() => expect(document.activeElement?.textContent).toMatch(/^Usar essa sobra no novo ciclo/));
+    expect(confirmacao.contains(document.activeElement)).toBe(true);
     await act(async () => { fireEvent.click(within(confirmacao).getByRole("button", { name: /Usar essa sobra no novo ciclo/ })); });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sobra do ciclo anterior" })).toBeNull());
 

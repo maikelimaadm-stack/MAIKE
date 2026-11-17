@@ -58,10 +58,26 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
  * O conteúdo pode publicar um cabeçalho próprio (`setCabecalho`, ver
  * `CabecalhoLancLote`); sem ele e sem `popupDesde`, nada muda.
  *
- * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, folhaMobile?: boolean, popupDesde?: "desktop" | "tablet", children: React.ReactNode }} props
+ * Foco (D-PROD-222): ao abrir, o lançamento foca o primeiro controle (o ✕, como
+ * sempre); o só leitura foca o próprio diálogo — o ✕ não acende (D-PROD-117) e o
+ * foco não fica para trás, no que abriu, escondido sob o diálogo; `focoInicial`
+ * "corpo" foca o primeiro controle do conteúdo (ex.: a primeira escolha da sobra
+ * do cocho). Ao fechar, o foco volta a quem estava focado quando ele abriu (a
+ * pílula que o abriu), se ainda estiver na tela — o Radix, sem gatilho, o deixava
+ * no <body>.
+ *
+ * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, folhaMobile?: boolean, popupDesde?: "desktop" | "tablet", focoInicial?: "corpo", children: React.ReactNode }} props
  */
-export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, folhaMobile = false, popupDesde = "desktop", children }) {
+export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, folhaMobile = false, popupDesde = "desktop", focoInicial = undefined, children }) {
   const nomes = (lotes || []).map((l) => l?.nome).filter(Boolean).join(" · ");
+  const conteudoRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
+  // Quem tinha o foco quando o diálogo abriu (a pílula, o botão): recebe o foco de volta ao fechar.
+  const focoAnterior = React.useRef(/** @type {HTMLElement | null} */ (null));
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    const ativo = document.activeElement;
+    focoAnterior.current = ativo instanceof HTMLElement && ativo !== document.body ? ativo : null;
+  }, [open]);
   const popup = useMediaQuery(popupDesde === "tablet" ? "(min-width: 768px)" : "(min-width: 1024px)");
   const folhaConsulta = useCelular() && folhaMobile;
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
@@ -122,8 +138,32 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
       <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="mk-ll-scrim fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
       <DialogPrimitive.Content
-        // Histórico: nada para preencher — não acende o ✕ ao abrir.
-        onOpenAutoFocus={somenteLeitura ? (e) => e.preventDefault() : undefined}
+        ref={conteudoRef}
+        // Histórico: nada para preencher — não acende o ✕ ao abrir; o foco vai para o próprio diálogo.
+        // "corpo": o primeiro controle do conteúdo. Sem nenhum dos dois, o primeiro controle (o ✕).
+        onOpenAutoFocus={
+          focoInicial === "corpo" || somenteLeitura
+            ? (e) => {
+                e.preventDefault();
+                const dialogo = conteudoRef.current;
+                if (!dialogo) return;
+                const alvo =
+                  focoInicial === "corpo"
+                    ? /** @type {HTMLElement | null} */ (dialogo.querySelector(".mk-ll button:not(:disabled), .mk-ll input:not(:disabled), .mk-ll textarea:not(:disabled), .mk-ll [tabindex]:not([tabindex='-1'])"))
+                    : null;
+                (alvo ?? dialogo).focus();
+              }
+            : undefined
+        }
+        // Ao fechar, o foco volta a quem o tinha quando o diálogo abriu (se ainda estiver na tela).
+        onCloseAutoFocus={(e) => {
+          const alvo = focoAnterior.current;
+          focoAnterior.current = null;
+          if (alvo && alvo.isConnected) {
+            e.preventDefault();
+            alvo.focus();
+          }
+        }}
         // Popup: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
         onInteractOutside={popup ? (e) => e.preventDefault() : undefined}
         // Com uma folha (lista do celular) aberta dentro do diálogo, o Esc é só dela: a folha fecha
@@ -139,7 +179,7 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
           } else if (popup) e.preventDefault();
         }}
         className={cn(
-          "mk-ll-dlg fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "mk-ll-dlg fixed left-[50%] top-[50%] z-50 outline-none translate-x-[-50%] translate-y-[-50%] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           popup ? "is-desktop data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" : "is-tela",
           largo && "mk-ll-dlg--largo",
           amplo && "mk-ll-dlg--amplo",

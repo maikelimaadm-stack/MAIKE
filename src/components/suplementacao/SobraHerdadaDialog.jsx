@@ -35,6 +35,9 @@ export default function SobraHerdadaDialog({ open, sobraKg, pontoNome, ultimoLan
       titulo="Sobra do ciclo anterior"
       lotes={pontoNome ? [{ nome: pontoNome }] : undefined}
       somenteLeitura
+      // É uma escolha: o foco vai para a primeira opção, como no diálogo antigo (não fica no ✕ do lançamento,
+      // escondido por baixo — um Enter ali cancelava o lançamento).
+      focoInicial="corpo"
     >
       <p className="mk-ll__texto">
         O cocho <strong className="font-semibold text-slate-900">{pontoNome}</strong> ficou sem lote no pasto e tinha sobra registrada no fechamento.
