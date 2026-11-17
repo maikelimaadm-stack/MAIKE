@@ -19,9 +19,8 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { listar as listarAreas } from '../areas/areaPastagemService.js';
 import { listar as listarLotes } from '../lotes/loteService.js';
-import { listar as listarMedicoes, descansoDosPastos } from '../medicoesForragem/medicaoForragemService.js';
+import { descansoDosPastos } from '../medicoesForragem/medicaoForragemService.js';
 import { parametrosDoPasto, ROTULO_SITUACAO } from '../medicoesForragem/medicaoForragemCalculo.js';
-import { listar as listarLeiturasCocho } from '../leiturasCocho/leituraCochoService.js';
 import { listarPosicoes } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { agoraDoServidor, diaNoFuso, normalizarFusoIana } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -87,7 +86,7 @@ export const DEFINICOES_FERRAMENTAS = Object.freeze([
   {
     name: 'rebanho_por_pasto',
     description:
-      'Grupos de animais (lotes) da fazenda com cabeças, categoria, sexo, peso médio, peso projetado para hoje, peso objetivo, pasto onde estão, data de entrada e dias no pasto. Filtros opcionais e somados; a resposta diz o total encontrado e quantos vieram.',
+      'Grupos de animais (lotes) da fazenda com cabeças, categoria, sexo, peso médio, peso projetado para hoje, peso objetivo, pasto onde estão, data de entrada do lote na fazenda (data_entrada_fazenda) e há quantos dias o grupo está no pasto atual (no_pasto_desde / dias_no_pasto, pelo histórico do rebanho; null quando não dá para saber, por exemplo grupos que vieram da implantação do sistema). Filtros opcionais e somados; a resposta diz o total encontrado e quantos vieram.',
     input_schema: {
       type: 'object',
       properties: {
@@ -99,8 +98,8 @@ export const DEFINICOES_FERRAMENTAS = Object.freeze([
         cabecas_max: NUMERO('máximo de cabeças no lote'),
         peso_min: NUMERO('peso médio mínimo (kg)'),
         peso_max: NUMERO('peso médio máximo (kg)'),
-        dias_no_pasto_min: NUMERO('há pelo menos N dias no pasto'),
-        dias_no_pasto_max: NUMERO('há no máximo N dias no pasto'),
+        dias_no_pasto_min: NUMERO('há pelo menos N dias no pasto atual (grupos sem data conhecida ficam de fora)'),
+        dias_no_pasto_max: NUMERO('há no máximo N dias no pasto atual (grupos sem data conhecida ficam de fora)'),
         acima_do_objetivo: { type: 'boolean', description: 'true = peso projetado já passou do objetivo; false = ainda abaixo' },
         ordenar_por: { type: 'string', enum: ['nome', 'cabecas', 'peso', 'peso_projetado', 'dias_no_pasto', 'categoria', 'pasto'] },
         ordem: ORDEM,
@@ -289,6 +288,10 @@ export const criarExecutor = async (contexto, empresaId) => {
           (g.peso_projetado_hoje_kg !== null && g.peso_objetivo_kg !== null && (g.peso_projetado_hoje_kg >= g.peso_objetivo_kg) === e.acima_do_objetivo)),
     );
 
+  /** Faixa de datas (colunas DATE) para o `where` do Prisma. @param {string} coluna @param {string|undefined} de @param {string|undefined} ate */
+  const periodoWhere = (coluna, de, ate) =>
+    de || ate ? { [coluna]: { ...(de ? { gte: new Date(`${de}T00:00:00.000Z`) } : {}), ...(ate ? { lte: new Date(`${ate}T00:00:00.000Z`) } : {}) } } : {};
+
   /** @param {string|undefined} de @param {string|undefined} ate */
   const conferirPeriodo = (de, ate) => {
     if (de && ate && de > ate) throw new AppError('REQUEST_VALIDATION_FAILED', 'data_de depois de data_ate');
@@ -316,15 +319,18 @@ export const criarExecutor = async (contexto, empresaId) => {
     medicoes_do_pasto: async (e) => {
       conferirPeriodo(e.data_de, e.data_ate);
       const limite = e.limite ?? 10;
-      const comPeriodo = Boolean(e.data_de || e.data_ate);
-      const lista = await listarMedicoes(contexto, { empresa_id: empresa, area_id: String(e.area_id), limit: comPeriodo ? 500 : limite });
-      return lista
-        .filter((m) => {
-          const d = dia(m.data_medicao);
-          return (!e.data_de || (d && d >= e.data_de)) && (!e.data_ate || (d && d <= e.data_ate));
-        })
-        .slice(0, limite)
-        .map((m) => ({
+      // Filtros NO banco (antes do corte): o período acha medições antigas também.
+      // `where` montado só com valores já validados pelo schema; nunca SQL cru.
+      const where = { cliente_id: auth.clienteId, empresa_id: empresa, area_id: String(e.area_id), ...periodoWhere('data_medicao', e.data_de, e.data_ate) };
+      const [total, lista] = await Promise.all([
+        prisma.medicaoForragem.count({ where }),
+        prisma.medicaoForragem.findMany({ where, orderBy: [{ data_medicao: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }], take: limite }),
+      ]);
+      return {
+        total,
+        mostrados: lista.length,
+        cortado: total > lista.length,
+        medicoes: lista.map((m) => ({
           data: dia(m.data_medicao),
           metodo: m.metodo === 'OLHO' ? 'no olho' : 'régua',
           altura_media_cm: num(m.altura_media_cm),
@@ -333,10 +339,12 @@ export const criarExecutor = async (contexto, empresaId) => {
           materia_seca_pct: num(m.materia_seca_pct),
           massa_seca_kg_ha: num(m.massa_seca_kg_ha),
           observacoes: m.observacoes ? String(m.observacoes).slice(0, 200) : null,
-        }));
+        })),
+      };
     },
     rebanho_por_pasto: async (e) => {
-      const lista = filtrarLotes(await grupos(), e);
+      const todos = await grupos();
+      const lista = filtrarLotes(todos, e);
       const r = ordenarECortar(
         lista,
         e,
@@ -351,7 +359,16 @@ export const criarExecutor = async (contexto, empresaId) => {
         },
         150,
       );
-      return { total: r.total, mostrados: r.mostrados, cortado: r.cortado, cabecas_no_filtro: lista.reduce((s, g) => s + g.cabecas, 0), lotes: r.itens };
+      const usaDias = e.dias_no_pasto_min !== undefined || e.dias_no_pasto_max !== undefined;
+      return {
+        total: r.total,
+        mostrados: r.mostrados,
+        cortado: r.cortado,
+        cabecas_no_filtro: lista.reduce((s, g) => s + g.cabecas, 0),
+        // Filtro por dias no pasto deixa de fora quem não tem data de chegada conhecida.
+        ...(usaDias ? { fora_por_dias_desconhecidos: todos.filter((g) => g.dias_no_pasto === null).length } : {}),
+        lotes: r.itens,
+      };
     },
     resumo_rebanho: async () => {
       const lista = await grupos();
@@ -402,16 +419,28 @@ export const criarExecutor = async (contexto, empresaId) => {
     leituras_cocho_recentes: async (e) => {
       conferirPeriodo(e.data_de, e.data_ate);
       const limite = e.limite ?? 20;
-      const comFiltro = Boolean(e.cocho || e.escore || e.data_de || e.data_ate);
-      const [leituras, pontos] = await Promise.all([
-        listarLeiturasCocho(contexto, { empresa_id: empresa, limit: comFiltro ? 500 : limite }),
-        prisma.pontoSuplementacao.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresa }, select: { id: true, nome_ponto: true } }),
-      ]);
+      const pontos = await prisma.pontoSuplementacao.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresa }, select: { id: true, nome_ponto: true } });
       const nomes = new Map(pontos.map((p) => [p.id, p.nome_ponto]));
-      return leituras
-        .map((l) => ({ data: dia(l.data_leitura), cocho: nomes.get(l.ponto_suplementacao_id) ?? null, escore: l.escore ?? null, acesso: l.acesso ?? null, estrutura: l.estrutura ?? null }))
-        .filter((l) => contem(l.cocho, e.cocho) && (!e.escore || l.escore === e.escore) && (!e.data_de || (l.data && l.data >= e.data_de)) && (!e.data_ate || (l.data && l.data <= e.data_ate)))
-        .slice(0, limite);
+      // O nome do cocho vira lista de ids desta fazenda; escore e período vão no
+      // `where` — tudo antes do corte, para achar leituras antigas também.
+      const idsCocho = e.cocho ? pontos.filter((p) => contem(p.nome_ponto, e.cocho)).map((p) => p.id) : null;
+      const where = {
+        cliente_id: auth.clienteId,
+        empresa_id: empresa,
+        ...(idsCocho ? { ponto_suplementacao_id: { in: idsCocho } } : {}),
+        ...(e.escore ? { escore: e.escore } : {}),
+        ...periodoWhere('data_leitura', e.data_de, e.data_ate),
+      };
+      const [total, leituras] = await Promise.all([
+        prisma.leituraCocho.count({ where }),
+        prisma.leituraCocho.findMany({ where, orderBy: [{ data_leitura: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }], take: limite }),
+      ]);
+      return {
+        total,
+        mostrados: leituras.length,
+        cortado: total > leituras.length,
+        leituras: leituras.map((l) => ({ data: dia(l.data_leitura), cocho: nomes.get(l.ponto_suplementacao_id) ?? null, escore: l.escore ?? null, acesso: l.acesso ?? null, estrutura: l.estrutura ?? null })),
+      };
     },
     calcular: async (e) =>
       e.contas.map((conta) => {
@@ -423,12 +452,47 @@ export const criarExecutor = async (contexto, empresaId) => {
       }),
   };
 
+  /**
+   * Desde quando cada posição do ledger está no pasto atual: a data da partida que
+   * levou o saldo da posição (que é de UM pasto) de zero para positivo pela última
+   * vez (entrada, transferência, junção, nascimento...). Se essa partida é da
+   * implantação do ledger (saldo de abertura), a data real de chegada ao pasto não
+   * é conhecida → fica de fora (null), em vez de uma data errada.
+   * @param {string[]} posicaoIds
+   * @returns {Promise<Map<string, string>>}
+   */
+  const chegadaNoPasto = async (posicaoIds) => {
+    const out = new Map();
+    if (!posicaoIds.length) return out;
+    const partidas = await prisma.partidaRebanho.findMany({
+      where: { cliente_id: auth.clienteId, empresa_id: empresa, posicao_id: { in: posicaoIds }, ativa: true },
+      orderBy: [{ data_operacional: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      select: { posicao_id: true, data_operacional: true, delta: true, evento: { select: { tipo: true, dados: true } } },
+    });
+    /** @type {Map<string, { saldo: number, desde: string|null }>} */
+    const estado = new Map();
+    for (const pt of partidas) {
+      const st = estado.get(pt.posicao_id) ?? { saldo: 0, desde: null };
+      const antes = st.saldo;
+      st.saldo += pt.delta;
+      if (antes <= 0 && st.saldo > 0) {
+        const daImplantacao = pt.evento?.tipo === 'SALDO_ABERTURA' || (pt.evento?.tipo === 'ENTRADA' && Boolean(/** @type {any} */ (pt.evento?.dados)?.ativacao));
+        st.desde = daImplantacao ? null : dia(pt.data_operacional);
+      }
+      estado.set(pt.posicao_id, st);
+    }
+    for (const [id, st] of estado) if (st.saldo > 0 && st.desde) out.set(id, st.desde);
+    return out;
+  };
+
   /** Grupos do rebanho: posições do ledger quando ativo; senão o cadastro de lotes. */
   const grupos = async () => {
     const pos = await listarPosicoes(contexto, { empresa_id: empresa, incluir_vazias: 'false' });
+    // Sem ledger não há histórico de pasto: a data de chegada ao pasto atual é desconhecida.
     const fonte = pos.ativo ? pos.itens : daFazenda(await listarLotes(contexto)).filter((l) => l.status === 'Ativo' && Number(l.quantidade_cabecas) > 0);
+    const chegada = pos.ativo ? await chegadaNoPasto(fonte.map((g) => g.id)) : new Map();
     return fonte.map((g) => {
-      const entrada = dia(g.data_entrada);
+      const noPastoDesde = pos.ativo ? chegada.get(g.id) ?? null : null;
       return {
         nome: g.nome,
         cabecas: Number(g.quantidade_cabecas) || 0,
@@ -438,8 +502,11 @@ export const criarExecutor = async (contexto, empresaId) => {
         peso_projetado_hoje_kg: g.projecao_peso?.disponivel ? num(g.projecao_peso.peso_kg) : null,
         peso_objetivo_kg: num(g.projecao_peso?.peso_objetivo_kg),
         pasto: g.area_atual_nome ?? null,
-        data_entrada: entrada,
-        dias_no_pasto: entrada && hoje ? diasEntre(entrada, hoje) : null,
+        // Entrada do lote na fazenda (compra/nascimento), NÃO no pasto atual.
+        data_entrada_fazenda: dia(g.data_entrada),
+        // Chegada ao pasto atual pelo ledger; null = não dá para saber.
+        no_pasto_desde: noPastoDesde,
+        dias_no_pasto: noPastoDesde && hoje ? diasEntre(noPastoDesde, hoje) : null,
       };
     });
   };

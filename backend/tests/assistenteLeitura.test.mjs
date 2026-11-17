@@ -133,7 +133,8 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     assert.equal(pastos[0].forragem.situacao, 'Pronto');
     assert.equal(pastos[0].dias_descanso, 30);
     // 2ª ferramenta: a IA pediu o pasto do tenant B pelo id — volta vazio.
-    assert.deepEqual(resultadoDe(pedidos[2]), []);
+    assert.deepEqual(resultadoDe(pedidos[2]).medicoes, []);
+    assert.equal(resultadoDe(pedidos[2]).total, 0);
     // O texto de nenhum pedido contém dados do tenant B.
     assert.doesNotMatch(JSON.stringify(pedidos), /PASTO DO B/);
     // A pergunta leva o dia da fazenda; modelo, ferramentas e fallback estão no pedido.
@@ -415,5 +416,77 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     assert.match(PROMPT_SISTEMA, /UA = peso vivo \(kg\) ÷ 450/);
     assert.match(PROMPT_SISTEMA, /GMD/);
     assert.match(PROMPT_SISTEMA, /Filtros/);
+  });
+
+  test('filtros no banco: leituras e medições antigas, fora de qualquer janela de corte, são achadas', async () => {
+    const a = await fazendaComDados();
+    const c = a.clienteId;
+    const e = a.empresa.id;
+    const ponto = await prisma().pontoSuplementacao.create({ data: { cliente_id: c, empresa_id: e, numero_ponto: `C-${randomUUID().slice(0, 6)}`, nome_ponto: 'COCHO VELHO' } });
+    const outro = await prisma().pontoSuplementacao.create({ data: { cliente_id: c, empresa_id: e, numero_ponto: `C-${randomUUID().slice(0, 6)}`, nome_ponto: 'COCHO NOVO' } });
+    const base = { cliente_id: c, empresa_id: e, escore: 'ADEQUADO', acesso: 'BOM', estrutura: 'BOA', updatedAt: new Date() };
+    // 600 leituras recentes de outro cocho; 1 leitura antiga e CHEIA no COCHO VELHO.
+    await prisma().leituraCocho.createMany({
+      data: Array.from({ length: 600 }, (_, i) => ({ ...base, id: randomUUID(), ponto_suplementacao_id: outro.id, data_leitura: new Date(Date.UTC(2027, 5, 14) - (i % 30) * 86400000) })),
+    });
+    await prisma().leituraCocho.create({ data: { ...base, id: randomUUID(), ponto_suplementacao_id: ponto.id, escore: 'CHEIO', data_leitura: new Date('2026-01-10T00:00:00Z') } });
+    // 600 medições recentes no pasto; 1 antiga.
+    const med = { cliente_id: c, empresa_id: e, area_id: a.pasto.id, metodo: 'OLHO', situacao: 'DESCANSO', updatedAt: new Date() };
+    await prisma().medicaoForragem.createMany({ data: Array.from({ length: 600 }, (_, i) => ({ ...med, id: randomUUID(), data_medicao: new Date(Date.UTC(2027, 5, 14) - (i % 60) * 86400000) })) });
+    await prisma().medicaoForragem.create({ data: { ...med, id: randomUUID(), situacao: 'PRONTO', data_medicao: new Date('2025-12-01T00:00:00Z') } });
+
+    const pedidos = roteiro([
+      usar('leituras_cocho_recentes', { escore: 'CHEIO' }),
+      usar('leituras_cocho_recentes', { cocho: 'velho' }),
+      usar('medicoes_do_pasto', { area_id: a.pasto.id, data_ate: '2026-01-01' }),
+      usar('leituras_cocho_recentes', { limite: 5 }),
+      final('ok'),
+    ]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: e, pergunta: 'x' });
+    assert.equal(r.statusCode, 200, r.body);
+    const cheias = resultadoDe(pedidos[1]);
+    assert.equal(cheias.total, 1);
+    assert.deepEqual(cheias.leituras.map((l) => [l.data, l.cocho, l.escore]), [['2026-01-10', 'COCHO VELHO', 'CHEIO']]);
+    assert.equal(resultadoDe(pedidos[2]).total, 1);
+    const antigas = resultadoDe(pedidos[3]);
+    assert.equal(antigas.total, 1);
+    assert.equal(antigas.medicoes[0].data, '2025-12-01');
+    const ultimas = resultadoDe(pedidos[4]);
+    assert.deepEqual([ultimas.total, ultimas.mostrados, ultimas.cortado], [601, 5, true]);
+  });
+
+  test('dias no pasto: grupo transferido conta desde a transferência; implantação fica desconhecida', async () => {
+    const a = await tenantComPasto('PASTO ORIGEM');
+    const c = a.clienteId;
+    const e = a.empresa.id;
+    const destino = await prisma().areaPastagem.create({
+      data: { cliente_id: c, empresa_id: e, setor_id: a.pasto.setor_id, setor_nome: a.pasto.setor_nome, numero_area: `D-${randomUUID().slice(0, 6)}`, nome: 'PASTO DESTINO', tamanho_hectares: 12 },
+    });
+    await prisma().rebanhoLedgerAtivacao.create({ data: { cliente_id: c, empresa_id: e, data_corte: new Date('2027-06-01T00:00:00Z'), modo: 'saldo_abertura' } });
+    const pos = (area, nome, qtd) =>
+      prisma().posicaoRebanho.create({ data: { cliente_id: c, empresa_id: e, area_id: area, chave_identidade: `${nome}-${area}`, nome, categoria: 'Garrote', sexo: 'Macho', quantidade_cabecas: qtd } });
+    const pOrigem = await pos(a.pasto.id, 'LOTE X', 20);
+    const pDestino = await pos(destino.id, 'LOTE X', 30);
+    const evento = (tipo, data, dados = {}) =>
+      prisma().eventoRebanho.create({ data: { cliente_id: c, empresa_id: e, tipo, data_operacional: new Date(`${data}T00:00:00Z`), operation_id: randomUUID(), dados } });
+    const partida = (ev, posicao, data, delta) =>
+      prisma().partidaRebanho.create({ data: { cliente_id: c, empresa_id: e, evento_id: ev.id, posicao_id: posicao.id, data_operacional: new Date(`${data}T00:00:00Z`), delta } });
+    const abertura = await evento('SALDO_ABERTURA', '2027-06-01');
+    await partida(abertura, pOrigem, '2027-06-01', 50);
+    const transf = await evento('TRANSFERENCIA', '2027-06-10');
+    await partida(transf, pOrigem, '2027-06-10', -30);
+    await partida(transf, pDestino, '2027-06-10', 30);
+
+    const pedidos = roteiro([usar('rebanho_por_pasto', { ordenar_por: 'pasto' }), usar('rebanho_por_pasto', { dias_no_pasto_max: 10 }), final('ok')]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: e, pergunta: 'x' });
+    assert.equal(r.statusCode, 200, r.body);
+    const porPasto = Object.fromEntries(resultadoDe(pedidos[1]).lotes.map((l) => [l.pasto, l]));
+    assert.equal(porPasto['PASTO DESTINO'].no_pasto_desde, '2027-06-10');
+    assert.equal(porPasto['PASTO DESTINO'].dias_no_pasto, 5);
+    assert.equal(porPasto['PASTO ORIGEM'].no_pasto_desde, null);
+    assert.equal(porPasto['PASTO ORIGEM'].dias_no_pasto, null);
+    const filtrado = resultadoDe(pedidos[2]);
+    assert.deepEqual(filtrado.lotes.map((l) => l.pasto), ['PASTO DESTINO']);
+    assert.equal(filtrado.fora_por_dias_desconhecidos, 1);
   });
 });

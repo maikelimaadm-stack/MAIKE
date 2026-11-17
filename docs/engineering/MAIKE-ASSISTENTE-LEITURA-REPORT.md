@@ -64,3 +64,8 @@ Pedido do proprietário: o assistente pode fazer contas e filtrar o sistema. Con
 - Entrada fora do schema volta para a IA como erro da ferramenta (`is_error`), sem derrubar a pergunta.
 - Prompt: usar filtros, avisar quando "cortado", usar `calcular`/`resumo_agrupado` para toda conta, fórmulas de UA, lotação e GMD.
 - Testes: `backend/tests/assistenteLeitura.test.mjs` (20): filtros e isolamento entre tenants, parâmetros inválidos, agrupamento, calculadora e recusa do que não é conta.
+
+### Correções da revisão (PR #320)
+- `medicoes_do_pasto` e `leituras_cocho_recentes`: período, escore e cocho (nome → ids da fazenda) entram no `where` do Prisma ANTES do corte; `count` dá o total real. Respostas `{ total, mostrados, cortado, medicoes|leituras }`. Antes, o filtro rodava depois de um `take` de 500 e perdia registros antigos.
+- Dias no pasto: `data_entrada` da posição é a entrada do lote na FAZENDA, não no pasto. Agora `no_pasto_desde` vem do ledger — a partida ativa que levou o saldo da posição (que é de um pasto) de zero para positivo pela última vez (entrada, transferência, junção…). Se essa partida é da implantação (SALDO_ABERTURA / entrada da ativação) ou não há ledger, fica `null`. `dias_no_pasto_min/max` deixam de fora os desconhecidos e a resposta traz `fora_por_dias_desconhecidos`. O campo antigo virou `data_entrada_fazenda`.
+- Testes: leituras e medição antigas achadas com 600 registros recentes na frente; grupo transferido conta 5 dias desde a transferência e o da implantação fica desconhecido.
