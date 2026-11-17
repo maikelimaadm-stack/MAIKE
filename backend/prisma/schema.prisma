@@ -682,8 +682,12 @@ model Cultura {
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  // D-PROD-216 — áreas desta cultura.
+  areas   AreaPastagem[]
 
   @@unique([cliente_id, id])
+  // D-PROD-216 — alvo da FK composta da Área (mesma fazenda por construção).
+  @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, empresa_id, codigo])
   @@unique([cliente_id, empresa_id, nome])
   @@index([cliente_id, empresa_id, ativo])
@@ -901,6 +905,10 @@ model AreaPastagem {
   taxa_crescimento_kg_ha_dia   Decimal? @db.Decimal(14, 4)
   taxa_aproveitamento          Decimal? @db.Decimal(7, 4)
   periodo_estacao              String?  @db.VarChar(32)
+  // D-PROD-216 — cultura do cadastro de Culturas (CADCULTURAS) da MESMA fazenda (FK
+  // composta pelo tenant e pela empresa). Anulável: área antiga, Reserva, APP e Infraestrutura ficam sem cultura. Com
+  // cultura, o servidor deriva `tipo_pastagem` = nome da cultura.
+  cultura_id                   String?  @db.VarChar(64)
   // Polígono do mapa: `{coords: [[lat, lng], ...], cor}`. Json porque a forma
   // pertence ao desenho, não ao domínio — e normalizar vértice em tabela
   // própria só faria sentido se alguém consultasse vértice, o que ninguém faz.
@@ -912,6 +920,7 @@ model AreaPastagem {
 
   cliente       Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   setor         Setor   @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  cultura       Cultura? @relation(fields: [cliente_id, empresa_id, cultura_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
   lotesEntrada  Lote[]             @relation("LoteAreaEntrada")
   lotesAtual    Lote[]             @relation("LoteAreaAtual")
   lancamentos   LancamentoTarefa[]
@@ -927,6 +936,7 @@ model AreaPastagem {
   @@index([cliente_id, setor_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
+  @@index([cliente_id, empresa_id, cultura_id])
 }
 
 // ---------------------------------------------------------------------------

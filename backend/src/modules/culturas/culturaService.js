@@ -27,7 +27,8 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { culturaNotFound, culturaNomeConflito, culturaCodigoConflito } from '../../shared/errors/AppError.js';
+import { culturaNotFound, culturaNomeConflito, culturaCodigoConflito, culturaEmUso } from '../../shared/errors/AppError.js';
+import { registrarPropagacao } from '../referencias/syncEntityReferencesService.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo, travarEscopo, ehViolacaoDeUnique } from '../gestao/gestaoComum.js';
 import {
   listarCulturas,
@@ -37,6 +38,8 @@ import {
   inserirCultura,
   atualizarCulturaPorId,
   excluirCulturaPorId,
+  contarAreasDaCultura,
+  propagarNomeDaCulturaNasAreas,
 } from './culturaRepository.js';
 
 export const TIPOS_CULTURA = Object.freeze(['PASTAGEM', 'CAPINEIRA', 'LAVOURA', 'SILAGEM']);
@@ -327,14 +330,26 @@ export const atualizar = async (contexto, id, entrada) => {
         { acao: 'update', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: comoCulturaPublica(anterior), dadosNovos: publico },
         tx
       );
+      // D-PROD-216: o `tipo_pastagem` das áreas ligadas é cópia do nome; renomear reescreve a cópia (evento-resumo).
+      if (registro.nome !== anterior.nome) {
+        const areas = await propagarNomeDaCulturaNasAreas(tx, auth.clienteId, empresaId, id, registro.nome);
+        await registrarPropagacao(
+          contexto,
+          ENTIDADE,
+          id,
+          { porTabela: { AreaPastagem: areas.length }, ids: { AreaPastagem: areas }, valores: { 'AreaPastagem.tipo_pastagem': registro.nome } },
+          tx
+        );
+      }
       return publico;
     })
   );
 };
 
 /**
- * Exclusão física: nesta fatia nada referencia CADCULTURAS (D-PROD-215). Quando a
- * Área passar a apontar para a cultura, a FK com RESTRICT barra a exclusão.
+ * Exclusão física. Desde a D-PROD-216 a Área aponta para a cultura (FK RESTRICT):
+ * cultura ligada a alguma área da fazenda → 409 `CULTURA_EM_USO`, conferido antes,
+ * na mesma transação (a FK continua barrando no banco).
  * @param {Contexto} contexto
  * @param {string} id
  * @param {{ empresa_id?: unknown }} consulta
@@ -349,6 +364,9 @@ export const excluir = async (contexto, id, consulta) => {
 
     const anterior = await buscarCultura(auth.clienteId, empresaId, id, tx);
     if (!anterior) throw culturaNotFound();
+
+    const areas = await contarAreasDaCultura(tx, auth.clienteId, empresaId, id);
+    if (areas > 0) throw culturaEmUso(undefined, { details: { field: 'id', reason: 'ligada_a_areas', areas } });
 
     await excluirCulturaPorId(tx, auth.clienteId, id);
     await registrarEvento(contexto, { acao: 'delete', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: comoCulturaPublica(anterior) }, tx);

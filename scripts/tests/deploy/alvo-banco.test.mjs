@@ -103,6 +103,8 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261116200000_formulacao_base_consumo', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       // D-PROD-211: a décima primeira CONTRACT (o abastecimento ligado à atividade), B23 em migrations.test.mjs.
       { migration_name: '20261116300000_abastecimento_atividade', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-216: a décima segunda CONTRACT (aditiva: a Área ligada à Cultura), B24 em migrations.test.mjs.
+      { migration_name: '20261117000000_area_cultura', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},
