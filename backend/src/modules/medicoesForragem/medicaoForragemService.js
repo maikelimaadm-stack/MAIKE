@@ -31,8 +31,9 @@ import {
   METODOS, SITUACOES, MAX_LEITURAS, lerLeituras, mediaDasLeituras, situacaoPelaAltura, calcularAmostra, numeroPtBR,
 } from './medicaoForragemCalculo.js';
 import {
-  listarMedicoes, buscarMedicao, buscarArea, buscarCultura, buscarFusoDaEmpresa, buscarNomeDoUsuario, inserirMedicao, excluirMedicaoPorId, ocupacaoPorPasto,
+  listarMedicoes, buscarMedicao, buscarArea, buscarCultura, buscarFusoDaEmpresa, buscarNomeDoUsuario, inserirMedicao, excluirMedicaoPorId,
 } from './medicaoForragemRepository.js';
+import { ocupacaoPorPasto } from '../rebanhoLedger/rebanhoLedgerOcupacaoPasto.js';
 
 export { METODOS, SITUACOES };
 const ENTIDADE = 'MedicaoForragem';

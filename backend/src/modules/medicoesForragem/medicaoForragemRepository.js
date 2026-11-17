@@ -59,30 +59,3 @@ export const inserirMedicao = (tx, dados) => tx.medicaoForragem.create({ data: d
 /** @param {any} tx @param {string} clienteId @param {string} id */
 export const excluirMedicaoPorId = (tx, clienteId, id) =>
   tx.medicaoForragem.delete({ where: { cliente_id_id: { cliente_id: clienteId, id } } });
-
-/**
- * D-PROD-223 — situação de ocupação de cada pasto da fazenda pelo ledger do rebanho
- * (`PartidaRebanho` ativas, somadas por pasto e dia operacional): o saldo de cabeças
- * acumulado no fim e o ÚLTIMO dia em que o saldo ficou em zero (a saída do último
- * lote). Pasto sem nenhuma partida não aparece (nunca ocupado pelo ledger). Só
- * leitura; o tenant é o do auth_context.
- * @param {string} clienteId
- * @param {string} empresaId
- * @returns {Promise<Array<{ area_id: string, saldo: number, ultima_saida: Date|null }>>}
- */
-export const ocupacaoPorPasto = (clienteId, empresaId) =>
-  getPrismaClient().$queryRaw`
-    WITH por_dia AS (
-      SELECT p.area_id, pr.data_operacional AS dia, SUM(pr.delta)::int AS delta
-        FROM "PartidaRebanho" pr
-        JOIN "PosicaoRebanho" p ON p.cliente_id = pr.cliente_id AND p.empresa_id = pr.empresa_id AND p.id = pr.posicao_id
-       WHERE pr.cliente_id = ${clienteId} AND pr.empresa_id = ${empresaId} AND pr.ativa = true
-       GROUP BY p.area_id, pr.data_operacional
-    ), saldos AS (
-      SELECT area_id, dia, SUM(delta) OVER (PARTITION BY area_id ORDER BY dia) AS saldo FROM por_dia
-    )
-    SELECT area_id,
-           ((array_agg(saldo ORDER BY dia DESC))[1])::int AS saldo,
-           MAX(dia) FILTER (WHERE saldo <= 0) AS ultima_saida
-      FROM saldos
-     GROUP BY area_id`;
