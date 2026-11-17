@@ -13,6 +13,7 @@ import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { notifyError, notifySuccess } from "@/lib/maikeNotify";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { ROTULO_SITUACAO } from "@/domain/pastagem/medicaoForragem";
+import { DIAS_VALIDADE_FORRAGEM, farolDaMedicao } from "@/domain/pastagem/farolForragem";
 
 const CHAVE = "medicoesForragem";
 const fmt = (v, casas = 1) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }));
@@ -102,6 +103,8 @@ export default function PainelForragemArea({ area }) {
     [medicoes, area?.id],
   );
   const ultima = doPasto[0] ?? null;
+  // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa.
+  const farol = useMemo(() => (ultima ? farolDaMedicao(ultima, hoje) : null), [ultima, hoje]);
 
   const atualizadas = (lista) => {
     if (Array.isArray(lista)) queryClient.setQueryData(["mapa-cache", CHAVE, empresaId, "default"], lista);
@@ -129,6 +132,18 @@ export default function PainelForragemArea({ area }) {
         <div className="font-bold text-slate-900">Forragem</div>
         <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setAberto(true)}>Medição de Forragem</Button>
       </div>
+      {farol ? (
+        <div className="flex flex-wrap items-center gap-1.5" data-testid="farol-forragem">
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold" style={{ background: `${farol.cor}26`, border: `1px solid ${farol.cor}`, color: "#1f2937" }}>
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: farol.cor }} aria-hidden="true" />
+            {farol.rotulo}
+          </span>
+          <span className="text-slate-500">
+            {farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`}
+            {farol.vencida ? ` · vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null}
+          </span>
+        </div>
+      ) : null}
       {ultima ? (
         <div className="text-slate-700" data-testid="ultima-medicao">
           {ultima.situacao ? `${BOLINHA_SITUACAO[ultima.situacao]} ` : null}
