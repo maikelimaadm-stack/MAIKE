@@ -18,6 +18,9 @@ export const perguntarAssistenteAoVivo = async (dados, opcoes = {}) => {
     return await perguntarAoAssistenteAoVivo(dados, opcoes);
   } catch (erro) {
     if (opcoes.signal?.aborted || /** @type {any} */ (erro)?.recebeuAlgo) throw erro;
-    return perguntarAoAssistente(dados);
+    const resultado = await perguntarAoAssistente(dados, { signal: opcoes.signal });
+    // Parar durante a repetição: nada de resposta "concluída" depois do cancelamento.
+    if (opcoes.signal?.aborted) throw Object.assign(new Error('requisição cancelada'), { name: 'AbortError' });
+    return resultado;
   }
 };

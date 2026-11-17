@@ -17,12 +17,13 @@ const corpoDe = (dados) => {
 
 /**
  * @param {{ empresa_id: string, pergunta: string, tela?: string|null, historico?: Array<{papel: 'usuario'|'assistente', texto: string}> }} dados
+ * @param {{ signal?: AbortSignal }} [opcoes]
  * @returns {Promise<{ resposta: string, ferramentas: string[], recusada: boolean }>}
  */
-export const perguntarAoAssistente = (dados) => {
+export const perguntarAoAssistente = (dados, opcoes = {}) => {
   const body = corpoDe(dados);
   return /** @type {any} */ (
-    nativeRequest('/assistente/perguntar', { method: 'POST', body, autenticado: true, timeoutMs: PRAZO_MS }, { operation: 'perguntarAssistente', resource: 'Assistente' })
+    nativeRequest('/assistente/perguntar', { method: 'POST', body, autenticado: true, timeoutMs: PRAZO_MS, signal: opcoes.signal }, { operation: 'perguntarAssistente', resource: 'Assistente' })
   );
 };
 
@@ -36,16 +37,18 @@ export const perguntarAoAssistente = (dados) => {
  */
 export const perguntarAoAssistenteAoVivo = async (dados, opcoes = {}) => {
   let final = null;
+  let recebeu = false;
   await nativeStream(
     '/assistente/perguntar/stream',
     { body: corpoDe(dados), signal: opcoes.signal },
     { operation: 'perguntarAssistente', resource: 'Assistente' },
     ({ evento, dados: d }) => {
+      recebeu = true;
       if (evento === 'delta' && typeof d?.texto === 'string') opcoes.aoTexto?.(d.texto);
       else if (evento === 'ferramenta' && typeof d?.nome === 'string') opcoes.aoFerramenta?.(d.nome);
       else if (evento === 'fim') final = d;
     },
   );
-  if (!final) throw Object.assign(new Error('fluxo terminou sem resposta final'), { recebeuAlgo: true });
+  if (!final) throw Object.assign(new Error('fluxo terminou sem resposta final'), { recebeuAlgo: recebeu });
   return final;
 };

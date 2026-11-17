@@ -106,4 +106,36 @@ describe('assistente — fluxo no cliente (D-PROD-230)', () => {
     await expect(perguntarAssistenteAoVivo(DADOS, { signal: cancelar.signal })).rejects.toBeTruthy();
     expect(fetch2).not.toHaveBeenCalled();
   });
+
+  it('fluxo que fecha vazio (sem nenhum evento) repete pela rota sem fluxo', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(respostaSse('')).mockResolvedValueOnce(respostaJson(200, { resposta: 'Resposta inteira', ferramentas: [], recusada: false }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { perguntarAssistenteAoVivo } = await carregar();
+    expect((await perguntarAssistenteAoVivo(DADOS)).resposta).toBe('Resposta inteira');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fluxo que manda pedaço e fecha sem `fim` não repete', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(respostaSse(sse('delta', { texto: 'meio' })));
+    vi.stubGlobal('fetch', fetchMock);
+    const { perguntarAssistenteAoVivo } = await carregar();
+    await expect(perguntarAssistenteAoVivo(DADOS)).rejects.toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('Parar durante a repetição cancela a rota sem fluxo e não entrega resposta', async () => {
+    const cancelar = new AbortController();
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockImplementationOnce((_url, init) => {
+        expect(init.signal).toBeTruthy();
+        cancelar.abort();
+        return Promise.resolve(respostaJson(200, { resposta: 'tarde demais', ferramentas: [], recusada: false }));
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    const { perguntarAssistenteAoVivo } = await carregar();
+    await expect(perguntarAssistenteAoVivo(DADOS, { signal: cancelar.signal })).rejects.toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
