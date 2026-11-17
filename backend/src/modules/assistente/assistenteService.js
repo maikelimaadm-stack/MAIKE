@@ -26,7 +26,9 @@ Use SOMENTE os dados que as ferramentas devolverem. Nunca invente números, past
 Se a informação não existir nas ferramentas, diga claramente que o sistema não tem esse dado.
 Você só consulta: não lança, não altera e não exclui nada. Se pedirem para mudar algo, explique que o assistente é só de leitura e diga onde fazer no sistema.
 Situação de forragem: Rapado, Descanso, Pronto, Passou do ponto; "(estimado)" quer dizer que veio dos dias de descanso, não de medição.
-Rapidez: quando precisar de mais de uma ferramenta, peça todas de uma vez na mesma resposta.
+Rapidez: quando precisar de mais de uma ferramenta, peça todas de uma vez na mesma resposta, sem escrever nada antes de pedir.
+Dúvidas: se a pergunta for ambígua (qual pasto, lote, categoria ou período; ou se der para entender de mais de um jeito), não chute: faça UMA pergunta curta de volta, com 2 a 4 opções em lista com "- ", e espere a resposta. Se for claro, responda direto.
+Ao terminar uma resposta, pode oferecer em uma frase curta o próximo passo útil (por exemplo, ver a lista lote por lote).
 Formato (a resposta aparece num balão pequeno de celular):
 - Comece pela resposta direta em 1 ou 2 frases; depois, se precisar, uma lista curta com "- ".
 - Use **negrito** só para o número ou nome principal. Não use tabelas, títulos com "#" nem emojis.
@@ -78,7 +80,20 @@ const comoTexto = (valor) => {
  * @param {{auth: any}} contexto
  * @param {{ empresa_id: string, pergunta: string, tela?: string, historico?: Array<{papel: 'usuario'|'assistente', texto: string}> }} entrada
  */
-export const perguntar = async (contexto, entrada) => {
+/**
+ * Opções de streaming (D-PROD-230): com `aoTexto`, cada rodada usa
+ * `cliente.beta.messages.stream()` e manda os pedaços de texto conforme chegam;
+ * `aoFerramenta` avisa qual consulta está rodando; `sinal` cancela (cliente fechou).
+ * Sem opções, o caminho é o mesmo de antes (`create`), resposta inteira no fim.
+ * @typedef {{ aoTexto?: (t: string) => void, aoFerramenta?: (nome: string) => void, sinal?: AbortSignal }} OpcoesPergunta
+ */
+
+/**
+ * @param {{auth: any}} contexto
+ * @param {{ empresa_id: string, pergunta: string, tela?: string, historico?: Array<{papel: 'usuario'|'assistente', texto: string}> }} entrada
+ * @param {OpcoesPergunta} [opcoes]
+ */
+export const perguntar = async (contexto, entrada, opcoes = {}) => {
   exigirAuthContext(contexto?.auth);
   const executor = await criarExecutor(contexto, entrada.empresa_id);
   const cliente = criarCliente();
@@ -98,7 +113,7 @@ export const perguntar = async (contexto, entrada) => {
     if (restante < PRAZO_MINIMO_CHAMADA_MS) break;
     let resposta;
     try {
-      resposta = await cliente.beta.messages.create({
+      const params = {
         model: MODELO,
         max_tokens: MAX_TOKENS,
         betas: ['server-side-fallback-2026-07-01'],
@@ -108,7 +123,15 @@ export const perguntar = async (contexto, entrada) => {
         system: [{ type: 'text', text: PROMPT_SISTEMA, cache_control: { type: 'ephemeral' } }],
         tools: DEFINICOES_FERRAMENTAS,
         messages: mensagens,
-      }, { timeout: restante, maxRetries: 0 });
+      };
+      const opcoesPedido = { timeout: restante, maxRetries: 0, ...(opcoes.sinal ? { signal: opcoes.sinal } : {}) };
+      if (opcoes.aoTexto) {
+        const fluxo = cliente.beta.messages.stream(params, opcoesPedido);
+        fluxo.on('text', (pedaco) => opcoes.aoTexto?.(pedaco));
+        resposta = await fluxo.finalMessage();
+      } else {
+        resposta = await cliente.beta.messages.create(params, opcoesPedido);
+      }
     } catch (erro) {
       if (erro instanceof Anthropic.AuthenticationError) throw naoConfigurado();
       throw new AppError('ASSISTENTE_INDISPONIVEL', 'o assistente não respondeu agora; tente de novo em instantes', { cause: erro });
@@ -131,6 +154,7 @@ export const perguntar = async (contexto, entrada) => {
     const resultados = [];
     for (const pedido of pedidos) {
       usadas.push(pedido.name);
+      opcoes.aoFerramenta?.(pedido.name);
       try {
         const dados = await executor.executar(pedido.name, pedido.input);
         resultados.push({ type: 'tool_result', tool_use_id: pedido.id, content: comoTexto(dados) });

@@ -15,7 +15,7 @@ import { randomUUID } from 'node:crypto';
 
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
-import { definirFabricaClienteAssistente, MAX_ITERACOES } from '../src/modules/assistente/assistenteService.js';
+import { definirFabricaClienteAssistente, MAX_ITERACOES, PROMPT_SISTEMA } from '../src/modules/assistente/assistenteService.js';
 import { NOMES_FERRAMENTAS, estimarPorDescanso } from '../src/modules/assistente/assistenteFerramentas.js';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -51,6 +51,29 @@ const roteiro = (respostas) => {
           const r = typeof respostas === 'function' ? respostas(i) : respostas[Math.min(i, respostas.length - 1)];
           i += 1;
           return r;
+        },
+        // Imita o MessageStream do SDK: `.on('text', cb)` e `finalMessage()`.
+        stream: (params) => {
+          pedidos.push(structuredClone(params));
+          const r = typeof respostas === 'function' ? respostas(i) : respostas[Math.min(i, respostas.length - 1)];
+          i += 1;
+          const ouvintes = [];
+          return {
+            on(evento, cb) {
+              if (evento === 'text') ouvintes.push(cb);
+              return this;
+            },
+            async finalMessage() {
+              if (r instanceof Error) throw r;
+              for (const b of r.content ?? []) {
+                if (b.type !== 'text') continue;
+                // Dois pedaços por bloco, como chegaria da API.
+                const meio = Math.ceil(b.text.length / 2);
+                for (const pedaco of [b.text.slice(0, meio), b.text.slice(meio)]) if (pedaco) ouvintes.forEach((cb) => cb(pedaco));
+              }
+              return r;
+            },
+          };
         },
       },
     },
@@ -222,5 +245,67 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'oi' });
     assert.equal(r.statusCode, 200);
     assert.deepEqual(resultadoDe(pedidos[1]), { erro: 'ferramenta desconhecida: apagar_tudo' });
+  });
+
+  /** Lê o corpo SSE em [{evento, dados}]. */
+  const eventosSse = (corpo) =>
+    corpo
+      .split('\n\n')
+      .filter((b) => b.trim())
+      .map((b) => {
+        const evento = b.match(/^event: (.+)$/m)?.[1];
+        const dados = JSON.parse(b.match(/^data: (.+)$/m)?.[1] ?? 'null');
+        return { evento, dados };
+      });
+
+  test('stream: ferramenta, pedaços e fim, na ordem; só a própria fazenda; nada gravado', async () => {
+    const a = await tenantComPasto('PASTO DO A');
+    await tenantComPasto('PASTO DO B');
+    const antes = await prisma().medicaoForragem.count();
+    const pedidos = roteiro([usar('listar_pastos'), final('O **PASTO DO A** está pronto.')]);
+    const r = await req('POST', '/assistente/perguntar/stream', a.token, { empresa_id: a.empresa.id, pergunta: 'Quais pastos estão prontos?' });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.match(r.headers['content-type'], /^text\/event-stream/);
+    assert.match(r.headers['cache-control'], /no-store/);
+    assert.equal(r.headers['x-accel-buffering'], 'no');
+    const ev = eventosSse(r.body);
+    assert.deepEqual(ev.map((e) => e.evento), ['ferramenta', 'delta', 'delta', 'fim']);
+    assert.equal(ev[0].dados.nome, 'listar_pastos');
+    assert.equal(ev[1].dados.texto + ev[2].dados.texto, 'O **PASTO DO A** está pronto.');
+    assert.equal(ev[3].dados.resposta, 'O **PASTO DO A** está pronto.');
+    assert.equal(ev[3].dados.recusada, false);
+    assert.deepEqual(resultadoDe(pedidos[1]).map((p) => p.nome), ['PASTO DO A']);
+    assert.doesNotMatch(JSON.stringify(pedidos), /PASTO DO B/);
+    assert.equal(await prisma().medicaoForragem.count(), antes);
+  });
+
+  test('stream: auth e corpo conferidos antes de abrir o fluxo', async () => {
+    const a = await tenantComPasto('PASTO DO A');
+    const b = await tenantComPasto('PASTO DO B');
+    roteiro([final('x')]);
+    assert.equal((await req('POST', '/assistente/perguntar/stream', null, { empresa_id: a.empresa.id, pergunta: 'oi' })).statusCode, 401);
+    assert.equal((await req('POST', '/assistente/perguntar/stream', a.token, { empresa_id: a.empresa.id, pergunta: 'oi', cliente_id: b.clienteId })).statusCode, 400);
+    // Fazenda de outro tenant: o fluxo abre e termina com `erro`, sem dado nenhum.
+    const outra = await req('POST', '/assistente/perguntar/stream', a.token, { empresa_id: b.empresa.id, pergunta: 'oi' });
+    const ev = eventosSse(outra.body);
+    assert.deepEqual(ev.map((e) => e.evento), ['erro']);
+    assert.doesNotMatch(outra.body, /PASTO DO B/);
+  });
+
+  test('stream: recusa vira fim com recusada, falha vira erro ASSISTENTE_INDISPONIVEL', async () => {
+    const a = await tenantComPasto('PASTO DO A');
+    roteiro([{ stop_reason: 'refusal', content: [] }]);
+    let ev = eventosSse((await req('POST', '/assistente/perguntar/stream', a.token, { empresa_id: a.empresa.id, pergunta: 'oi' })).body);
+    assert.equal(ev.at(-1).evento, 'fim');
+    assert.equal(ev.at(-1).dados.recusada, true);
+    roteiro([new Error('rede')]);
+    ev = eventosSse((await req('POST', '/assistente/perguntar/stream', a.token, { empresa_id: a.empresa.id, pergunta: 'oi' })).body);
+    assert.deepEqual(ev.map((e) => e.evento), ['erro']);
+    assert.equal(ev[0].dados.code, 'ASSISTENTE_INDISPONIVEL');
+  });
+
+  test('o prompt manda perguntar de volta quando a pergunta é ambígua', () => {
+    assert.match(PROMPT_SISTEMA, /ambígua/);
+    assert.match(PROMPT_SISTEMA, /2 a 4 opções/);
   });
 });
