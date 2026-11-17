@@ -40,7 +40,7 @@ const percentualVisivel = (texto) => {
 };
 
 describe('Depósito com nível pelo limite operacional', () => {
-  it('mostra no mapa o mesmo nível do subícone e preserva a moldura do cocho', () => {
+  it('mostra no mapa e no detalhe o mesmo nível, com o desenho do marcador (pino + silo) nos dois', () => {
     const { iconUrl } = resolverIconeSuplementacao({ categoria_ponto: 'DEPÓSITO', indicador_percentual: .5 });
     const mapa = xml(decodeURIComponent(iconUrl.split(',')[1]));
     expect(mapa.querySelector('parsererror')).toBeNull();
@@ -54,7 +54,9 @@ describe('Depósito com nível pelo limite operacional', () => {
     percentualVisivel('50%');
     const sub = iconeDe(container);
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
-    expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#a6afb6');
+    // D-PROD-220: o bloco do nível usa o marcador do mapa (como o v12 e o cocho): pino + silo na cor do marcador.
+    expect(sub.querySelector('[data-fundo-ponto]')).not.toBeNull();
+    expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#65717a');
     // Nada de "% do mínimo": o mínimo não é o divisor.
     expect(container.textContent).not.toMatch(/% do (estoque )?mínimo/);
   });

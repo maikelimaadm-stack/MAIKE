@@ -584,6 +584,12 @@
   color: #9ca3af;
 }
 
+.mk-dp .mk-dp-medidor__barra > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
 .mk-dp .mk-dp-cel__barra.mk-dp-medidor__trilha--neutra {
   border: 1px dashed #cbd5e1;
   background: transparent;

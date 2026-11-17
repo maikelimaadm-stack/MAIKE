@@ -89,12 +89,14 @@ function useCacheDoMapa(chave, empresaId, staleTime) {
  *   permissions?: { movimentar_depositos?: boolean, visualizar_historico_cocho?: boolean } & Record<string, any>,
  *   subtitulo?: string,
  *   onAbrirCocho?: ((cocho: any) => void) | null,
+ *   anim?: "voltar" | null,
  * }} props
  *   `subtitulo`: o local do depósito no mapa ("Sede · Sede"). `onAbrirCocho`:
  *   com ele, cada cocho dos pastos atendidos abre (a tela empilhada é de quem
- *   chama); sem ele, os itens só informam.
+ *   chama); sem ele, os itens só informam. `anim`: a volta do cocho empilhado
+ *   anima como o ‹ Voltar do Detalhes do Lote.
  */
-export default function DetalhesDepositoSuplementacao({ deposito, onClose, permissions = {}, subtitulo = "", onAbrirCocho = null }) {
+export default function DetalhesDepositoSuplementacao({ deposito, onClose, permissions = {}, subtitulo = "", onAbrirCocho = null, anim = null }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const [showTransferencia, setShowTransferencia] = useState(false);
@@ -242,6 +244,10 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { numeric: true, sensitivity: "base" }));
   }, [cochosVinculados, areas, eventos, leituras, hoje, pontosSuplementacao]);
 
+  // Sem "Ver histórico de cocho / depósito" a pessoa vê só o último registro,
+  // como antes do v12 (o histórico ficava atrás do botão).
+  const podeHistorico = permissions.visualizar_historico_cocho !== false;
+
   // Linha do tempo: o começo do histórico completo (mesmo filtro e ordem), sem o
   // movimento rotulado `L`, como o "último registro" do SSOT (D-PROD-162).
   const diasDoHistorico = useMemo(() => {
@@ -249,9 +255,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     const cochosPorId = new Map(pontosSuplementacao.map((ponto) => [ponto.id, ponto]));
     const ultimas = movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId: empresaSelecionadaId, localEstoqueId: deposito.local_estoque_id })
       .filter((item) => item.unidade_medida !== "L")
-      .slice(0, LIMITE_LINHA_DO_TEMPO);
+      .slice(0, podeHistorico ? LIMITE_LINHA_DO_TEMPO : 1);
     return agruparPorDia(ultimas.map((mov) => cartaoDaMovimentacao(mov, { localEstoqueId: deposito.local_estoque_id, produtosPorId, cochosPorId })));
-  }, [movimentacoes, produtos, pontosSuplementacao, empresaSelecionadaId, deposito.local_estoque_id]);
+  }, [movimentacoes, produtos, pontosSuplementacao, empresaSelecionadaId, deposito.local_estoque_id, podeHistorico]);
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["saldo-deposito", "cochos-vinculados-deposito", "movimentacoes-deposito-detalhe", "mapa-pontos-supl", "mapa-pontos", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -271,7 +277,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     pilulas.push({ rotulo: "Entrada", icone: Truck, onClick: () => abrirTransferencia("entrada") });
     pilulas.push({ rotulo: "Saída", icone: LogOut, onClick: () => abrirTransferencia("saida") });
   }
-  if (permissions.visualizar_historico_cocho !== false) pilulas.push({ rotulo: "Histórico", icone: History, onClick: () => setShowHistorico(true) });
+  if (podeHistorico) pilulas.push({ rotulo: "Histórico", icone: History, onClick: () => setShowHistorico(true) });
 
   // Os produtos entram: sem eles a unidade dos lotes não é conhecida e o litro cairia no kg no primeiro quadro.
   const loadingInicial = loadingSaldo || loadingProdutos || loadingCochos || loadingAreas;
@@ -284,6 +290,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         className="mk-dp-deposito"
         titulo={deposito.nome_ponto || "Depósito"}
         sub={subtitulo || deposito.local_estoque_nome || "Depósito"}
+        anim={anim}
         rodape={pilulas.length > 0 ? <RodapePilulas itens={pilulas} /> : null}
       >
         {loadingInicial ? (
@@ -361,9 +368,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
               <Linha rotulo="Observações" valor={deposito.observacoes || VAZIO} quebra />
             </Cartao>
 
-            <TituloBloco>Histórico do depósito</TituloBloco>
+            <TituloBloco>{podeHistorico ? "Histórico do depósito" : "Último registro"}</TituloBloco>
             {diasDoHistorico.length > 0 ? (
-              <LinhaDoTempo dias={diasDoHistorico} rotulo="Histórico do depósito" />
+              <LinhaDoTempo dias={diasDoHistorico} rotulo={podeHistorico ? "Histórico do depósito" : "Último registro"} />
             ) : (
               <Vazio icone={History}>Nenhum registro ainda.</Vazio>
             )}

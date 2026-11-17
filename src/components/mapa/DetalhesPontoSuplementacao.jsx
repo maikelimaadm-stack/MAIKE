@@ -132,21 +132,36 @@ function useCacheDoMapa(chave, empresaId, staleTime) {
  * empilhado vale só para o depósito em que foi aberto e segue a mesma
  * permissão do marcador do mapa (`visualizar_detalhes_cochos`, "Abrir detalhes
  * de cocho / depósito"): sem ela, o depósito não oferece o toque.
- * @param {{ ponto: any, onClose?: () => void, permissions?: Record<string, any>, subtitulo?: string }} props
+ * @param {{ ponto: any, onClose?: () => void, permissions?: Record<string, any>, subtitulo?: string, subtituloDoPonto?: ((ponto: any) => string) | null }} props
  *   `subtitulo`: o local do ponto no cabeçalho (o Mapa Geral passa áreas · setor).
+ *   `subtituloDoPonto`: a mesma regra para outro ponto — o cocho empilhado pelo
+ *   depósito ganha "áreas · setor" como se fosse aberto pelo mapa.
  */
-export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions = {}, subtitulo }) {
-  const [empilhado, setEmpilhado] = useState(/** @type {{ depositoId: unknown, cocho: any } | null} */ (null));
-  const cochoDoDeposito = empilhado && empilhado.depositoId === ponto?.id ? empilhado.cocho : null;
+export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions = {}, subtitulo, subtituloDoPonto = null }) {
+  const [empilhado, setEmpilhado] = useState(/** @type {{ depositoId: unknown, cocho: any, anim?: "voltar" | null } | null} */ (null));
+  const doDeposito = empilhado && empilhado.depositoId === ponto?.id ? empilhado : null;
+  const cochoDoDeposito = doDeposito ? doDeposito.cocho : null;
   /** @param {any} cocho */
-  const setCochoDoDeposito = (cocho) => setEmpilhado(cocho ? { depositoId: ponto?.id, cocho } : null);
+  const abrirCochoDoDeposito = (cocho) => setEmpilhado(cocho ? { depositoId: ponto?.id, cocho } : null);
+  // Voltar do cocho anima a volta do depósito, como o ‹ Voltar do Detalhes do Lote.
+  const voltarAoDeposito = () => setEmpilhado({ depositoId: ponto?.id, cocho: null, anim: "voltar" });
 
   if (normalizeText(ponto?.categoria_ponto) === "DEPOSITO") {
     if (cochoDoDeposito) {
-      return <DetalhesCocho ponto={cochoDoDeposito} permissions={permissions} onVoltar={() => setCochoDoDeposito(null)} />;
+      const subCocho = typeof subtituloDoPonto === "function" ? subtituloDoPonto(cochoDoDeposito) : undefined;
+      return <DetalhesCocho ponto={cochoDoDeposito} permissions={permissions} subtitulo={subCocho || undefined} onVoltar={voltarAoDeposito} />;
     }
     const podeAbrirCocho = permissions.visualizar_detalhes_cochos !== false;
-    return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} subtitulo={subtitulo} onAbrirCocho={podeAbrirCocho ? setCochoDoDeposito : null} />;
+    return (
+      <DetalhesDepositoSuplementacao
+        deposito={ponto}
+        permissions={permissions}
+        onClose={onClose}
+        subtitulo={subtitulo}
+        onAbrirCocho={podeAbrirCocho ? abrirCochoDoDeposito : null}
+        anim={doDeposito?.anim ?? null}
+      />
+    );
   }
   return <DetalhesCocho ponto={ponto} permissions={permissions} subtitulo={subtitulo} />;
 }

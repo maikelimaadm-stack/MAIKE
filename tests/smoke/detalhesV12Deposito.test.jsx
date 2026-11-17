@@ -379,6 +379,18 @@ describe('DV-7 — linha do tempo do depósito', () => {
     expect(cartoesDoHistorico().map((c) => linhasDoCartao(c)[2])).toEqual(['Quantidade (kg): 70,00', 'Quantidade (kg): 60,00', 'Quantidade (kg): 50,00', 'Quantidade (kg): 40,00', 'Quantidade (kg): 30,00']);
   });
 
+  it('sem "Ver histórico de cocho / depósito": só o último registro (como antes do v12), sem a pílula Histórico', async () => {
+    dados.movimentacoes = Array.from({ length: 7 }, (_, i) =>
+      mov(`m${i}`, { ...em(`2026-11-0${i + 1}`), tipo_movimentacao: 'Entrada', quantidade: 10 * (i + 1), local_estoque_destino: LOCAL }));
+    await montar({ permissions: { visualizar_historico_cocho: false } });
+    const ultimo = await screen.findByRole('list', { name: 'Último registro' });
+    await waitFor(() => expect(ultimo.querySelectorAll('.mk-dp-tl__card')).toHaveLength(1));
+    expect(ultimo.textContent).toContain('70,00');
+    expect(screen.getByRole('heading', { name: 'Último registro' })).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Histórico do depósito' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Histórico' })).toBeNull();
+  });
+
   it('sem movimentação: "Nenhum registro ainda."', async () => {
     dados.movimentacoes = [];
     await montar();

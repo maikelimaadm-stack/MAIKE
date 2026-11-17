@@ -63,7 +63,8 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
       <Nivel
         data-testid="nivel-do-deposito"
         // Decorativo: o número e o medidor da grade trazem o nível ao leitor de tela.
-        figura={<img data-deposito-icone="" src={urlIconeDeposito(nivel.fracaoParaSvg)} alt="" aria-hidden="true" />}
+        // O desenho do marcador do mapa (pino + silo), como o ícone do v12 e o do cocho.
+        figura={<img data-deposito-icone="" src={urlIconeDeposito(nivel.fracaoParaSvg, true)} alt="" aria-hidden="true" />}
         rotulo={<span aria-hidden="true">{ROTULO_NIVEL}</span>}
         valor={
           uso ? (
@@ -148,16 +149,21 @@ function CelulaEstoqueMinimo({ nivel }) {
     "Abaixo deste saldo o mapa avisa para repor."
   );
 
+  // O grupo nomeado fica DENTRO do dd do valor: um filho do <dl> com role="group"
+  // quebra a lista de definição (axe: definition-list/dlitem).
   return (
     <Celula
-      role="group"
-      aria-labelledby={idRotulo}
-      data-estado-minimo={estado}
       rotulo={<span id={idRotulo}>{ROTULO_ESTOQUE_MINIMO}</span>}
-      valor={texto}
+      valor={
+        <span role="group" aria-labelledby={idRotulo} data-estado-minimo={estado} className="mk-dp-deposito__minimo">
+          <span className="mk-dp-deposito__minimo-linha">
+            {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
+            {texto}
+          </span>
+          <span className="mk-dp-deposito__orientacao">{orientacao}</span>
+        </span>
+      }
       cor={estado === "nao_configurado" ? COR_NEUTRA : null}
-      bolinha={bolinha}
-      sub={orientacao}
     />
   );
 }

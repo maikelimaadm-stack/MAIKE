@@ -101,7 +101,7 @@ export default function MedidorLimiteOperacional({ percentualBruto, rotulo, desc
 
 /**
  * Célula v12 do medidor (D-PROD-220): `div.mk-dp-cel.mk-dp-medidor` com dt/dd,
- * como a `Celula` de blocos.jsx; a barra é o `role="meter"`.
+ * como a `Celula` de blocos.jsx; o `role="meter"` é um span dentro do dd da barra.
  * @param {{ idRotulo: string, valor: number|null, tipo: string, textoValor: string, rotulo: string, descricao: string, textoAcessivel?: string, orientacao: string|null, className: string }} props
  */
 function MedidorV12({ idRotulo, valor, tipo, textoValor, rotulo, descricao, textoAcessivel, orientacao, className }) {
@@ -124,17 +124,20 @@ function MedidorV12({ idRotulo, valor, tipo, textoValor, rotulo, descricao, text
       <dt id={idRotulo} className="mk-dp-cel__rot">{rotulo}</dt>
       <dd aria-hidden="true" className={excesso ? "mk-dp-cel__val mk-dp-medidor__val--excesso" : "mk-dp-cel__val"}>{textoValor}</dd>
       {descricao ? <dd aria-hidden="true" className={excesso ? "mk-dp-cel__sub mk-dp-medidor__sub--excesso" : "mk-dp-cel__sub"}>{descricao}</dd> : null}
-      <dd
-        className="mk-dp-cel__barra"
-        role="meter"
-        aria-labelledby={idRotulo}
-        aria-valuemin={0}
-        aria-valuemax={Math.max(100, Math.round(valor * 100) / 100)}
-        aria-valuenow={Math.round(valor * 100) / 100}
-        aria-valuetext={textoAcessivel || (descricao ? `${textoValor}: ${descricao}` : textoValor)}
-        data-variante={tipo}
-      >
-        <span data-medidor-preenchimento="" style={{ width: `${largura}%`, background: excesso ? "#f59e0b" : "#3fb5c9" }} />
+      {/* O meter fica num span DENTRO do dd: um dd com role="meter" quebra a lista de definição (axe: definition-list). */}
+      <dd className="mk-dp-cel__barra">
+        <span
+          className="mk-dp-medidor__barra"
+          role="meter"
+          aria-labelledby={idRotulo}
+          aria-valuemin={0}
+          aria-valuemax={Math.max(100, Math.round(valor * 100) / 100)}
+          aria-valuenow={Math.round(valor * 100) / 100}
+          aria-valuetext={textoAcessivel || (descricao ? `${textoValor}: ${descricao}` : textoValor)}
+          data-variante={tipo}
+        >
+          <span data-medidor-preenchimento="" style={{ width: `${largura}%`, background: excesso ? "#f59e0b" : "#3fb5c9" }} />
+        </span>
       </dd>
     </div>
   );

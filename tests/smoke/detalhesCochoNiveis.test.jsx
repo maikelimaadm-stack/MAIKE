@@ -120,6 +120,8 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
     // O percentual do ciclo aparece uma vez na figura (o texto do `role="img"`);
     // o número grande do bloco é o mesmo rótulo do SSOT.
     expect(within(medidorCiclo().parentElement).getAllByText(/75%/)).toHaveLength(1);
+    // D-PROD-178 §10 no desenho v12: no texto do bloco do nível o percentual aparece uma vez só (o valor grande).
+    expect(within(secao.querySelector('.mk-dp-nivel__txt')).getAllByText(/75%/)).toHaveLength(1);
     expect(secao.querySelector('.mk-dp-nivel__val')?.textContent).toBe('75%');
     expect(within(secao).getByText('Consumo estimado: 50 kg/dia (%PV no lançamento)')).toBeTruthy();
     expect(within(secao).getByText('Dias desde o abastecimento: 1 · Restam 3 dia(s)')).toBeTruthy();

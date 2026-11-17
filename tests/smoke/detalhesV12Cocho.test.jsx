@@ -61,8 +61,8 @@ vi.mock('@/components/suplementacao/HistoricoSuplementacaoPonto', () => ({ defau
 vi.mock('@/components/mapa/DetalhesDepositoSuplementacao', async () => {
   const { default: CascaDetalhe } = await import('@/components/mapa/detalhes-lote/CascaDetalhe');
   return {
-    default: ({ deposito, subtitulo, onAbrirCocho }) => (
-      <CascaDetalhe titulo={deposito.nome_ponto} sub={subtitulo || 'Depósito'}>
+    default: ({ deposito, subtitulo, onAbrirCocho, anim }) => (
+      <CascaDetalhe titulo={deposito.nome_ponto} sub={subtitulo || 'Depósito'} anim={anim}>
         <button type="button" onClick={() => onAbrirCocho?.({ ...COCHO_DO_DEPOSITO })}>Abrir COCHO 02</button>
       </CascaDetalhe>
     ),
@@ -128,14 +128,14 @@ afterEach(() => {
 });
 
 /** Monta como o Mapa Geral: no `LancLoteDialogo` largo, só leitura, popup a partir do tablet. */
-const noDialogo = async (ponto, { permissions = {}, subtitulo } = {}) => {
+const noDialogo = async (ponto, { permissions = {}, subtitulo, subtituloDoPonto } = {}) => {
   const { default: DetalhesPontoSuplementacao } = await import('@/components/mapa/DetalhesPontoSuplementacao');
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   let fechou = 0;
   const r = render(
     <QueryClientProvider client={qc}>
       <LancLoteDialogo open onOpenChange={(aberto) => { if (!aberto) fechou += 1; }} titulo="Ponto de Suplementação" largo somenteLeitura popupDesde="tablet">
-        <DetalhesPontoSuplementacao ponto={ponto} permissions={permissions} subtitulo={subtitulo} onClose={() => {}} />
+        <DetalhesPontoSuplementacao ponto={ponto} permissions={permissions} subtitulo={subtitulo} subtituloDoPonto={subtituloDoPonto} onClose={() => {}} />
       </LancLoteDialogo>
     </QueryClientProvider>,
   );
@@ -443,11 +443,33 @@ describe('CV-8 — depósito › cocho (tela empilhada)', () => {
     expect(fechou()).toBe(0);
     expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull();
 
+    // A volta anima como o ‹ Voltar do Detalhes do Lote.
+    expect(raiz().querySelector('.mk-dp__corpo')?.className).toContain('mk-dp-anim--voltar');
+
     // ‹ Voltar também volta.
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
     await screen.findByText('Informações do cocho');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Voltar' })); });
     await waitFor(() => expect(tituloDoDialogo()).toBe('DEPÓSITO SEDE'));
+    expect(raiz().querySelector('.mk-dp__corpo')?.className).toContain('mk-dp-anim--voltar');
+  });
+
+  it('com subtituloDoPonto (o Mapa Geral), o cocho empilhado ganha "áreas · setor" como se fosse aberto pelo mapa', async () => {
+    const deposito = { id: 'd1', empresa_id: EMP, nome_ponto: 'DEPÓSITO SEDE', categoria_ponto: 'DEPOSITO', status: 'Ativo' };
+    const vistos = [];
+    await noDialogo(deposito, {
+      subtitulo: 'Sede',
+      subtituloDoPonto: (p) => {
+        vistos.push(p?.id);
+        return p?.id === 'c2' ? 'PASTO 02 · Sede' : '';
+      },
+    });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
+    await screen.findByText('Informações do cocho');
+    await act(async () => {});
+    expect(tituloDoDialogo()).toBe('COCHO 02');
+    expect(subDoDialogo()).toBe('PASTO 02 · Sede');
+    expect(vistos).toContain('c2');
   });
 
   it('sem "Abrir detalhes de cocho / depósito" (a permissão do marcador), o depósito não abre o cocho', async () => {
