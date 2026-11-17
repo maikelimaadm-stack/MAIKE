@@ -41,7 +41,7 @@ beforeEach(() => {
   cache.dados = {
     eventosSuplementacao: [
       { id: "ev-2", empresa_id: EMP, ponto_suplementacao_id: "cocho-1", produto: "SAL MINERAL 80", data_lancamento: "2026-11-09", created_date: "2026-11-09T10:00:00.000Z", total_cabecas_afetadas: 314, peso_medio_lotes_kg: 216.8, unidade_lancamento: "SACO", quantidade_total_kg: 400, area_nomes: ["Pasto 07"], observacoes: "Lançado pelo João." },
-      { id: "ev-1", empresa_id: EMP, ponto_suplementacao_id: "cocho-1", produto: "SAL MINERAL 80", data_lancamento: "2026-10-27", created_date: "2026-10-27T10:00:00.000Z", total_cabecas_afetadas: 314, dias_periodo: 13, quantidade_total_kg: 284.4 },
+      { id: "ev-1", empresa_id: EMP, ponto_suplementacao_id: "cocho-1", produto: "SAL MINERAL 80", data_lancamento: "2026-10-27", created_date: "2026-10-27T10:00:00.000Z", total_cabecas_afetadas: 314, dias_periodo: 13, quantidade_total_kg: 284.4, farol_consumo: "dentro", consumo_g_cab_dia: 75, consumo_real_pv_percentual: 0.034, consumo_esperado_pv_percentual: 0.035, consumo_relacao_esperado: 0.97, custo_cab_dia: 0.12, custo_total_periodo: 273, custo_unitario_kg: 0.7 },
     ],
     movimentacoes: [],
     movimentacaoEstoque: [
@@ -94,9 +94,10 @@ describe("Histórico do cocho no desenho do manejo (D-PROD-222)", () => {
     await screen.findAllByText("SAL MINERAL 80");
     const [aberto, fechado] = cartoes();
     expect(cartoes()).toHaveLength(2);
-    const selos = [...aberto.querySelectorAll(".flex-wrap > *")].map((s) => s.textContent);
+    const selos = [.../** @type {Element} */ (aberto.querySelector(".flex-wrap")).children].map((s) => s.textContent);
     expect(selos).toEqual(["09/11/2026", "Em aberto"]);
-    expect([...fechado.querySelectorAll(".flex-wrap > *")].map((s) => s.textContent)).toEqual(["27/10/2026", "Fechado"]);
+    // A fileira de selos do cartão é a primeira; a do farol do fechamento fica dentro das linhas.
+    expect([.../** @type {Element} */ (fechado.querySelector(".flex-wrap")).children].map((s) => s.textContent)).toEqual(["27/10/2026", "Fechado"]);
     expect(within(aberto).getByText("SAL MINERAL 80").className).toBe("text-xs font-semibold text-slate-900");
     const doAberto = linhas(aberto);
     expect(doAberto.slice(0, 4)).toEqual(["Áreas: Pasto 07", "Cabeças: 314", "Peso médio: 216,8 kg", "Unidade: SACO"]);
@@ -105,6 +106,24 @@ describe("Histórico do cocho no desenho do manejo (D-PROD-222)", () => {
     expect(doAberto.at(-1)).toBe("Observações: Lançado pelo João.");
     // As métricas continuam agrupadas pela seção, como antes.
     expect([...aberto.querySelectorAll("[data-secao]")].map((s) => s.getAttribute("data-secao"))).toEqual(["fornecimento", "lote", "esperado", "projecao"]);
+  });
+
+  it("o fechamento do consumo do período fechado também em linhas \"Rótulo: valor\": nenhuma caixa com borda dentro do cartão", async () => {
+    noDialogo("Histórico de Suplementação", "Cocho 07", <HistoricoSuplementacaoPonto pontoId="cocho-1" pontoNome="Cocho 07" ponto={{ id: "cocho-1" }} />);
+    await screen.findAllByText("SAL MINERAL 80");
+    const [, fechado] = cartoes();
+    const bloco = /** @type {HTMLElement} */ (within(fechado).getByTestId("fechamento-consumo"));
+    // Os mesmos números de antes, cada um numa linha do Histórico de Movimentação.
+    expect(linhas(bloco)).toEqual([
+      "Consumo g/cab/dia: 75 g",
+      "%PV real × esperado: 0,034% × 0,035%",
+      "Custo R$/cab/dia: R$ 0,12",
+      "Custo do período: R$ 273,00 · R$ 0,70/kg",
+    ]);
+    // Nada de caixinha com borda (as células da grade antiga) dentro do cartão; o farol continua um selo.
+    expect(fechado.querySelector("div.rounded.border")).toBeNull();
+    expect(within(bloco).getByTestId("farol-consumo").textContent).toBe("🟢Dentro (±15%)");
+    expect(bloco.querySelector('[data-desenho="linhas"]')).toBeTruthy();
   });
 });
 

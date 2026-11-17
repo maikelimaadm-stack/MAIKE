@@ -390,6 +390,24 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancelar");
   });
 
+  it("LM-11 — a prévia do fechamento no aviso usa as células sem borda dos números do aviso (Fornecido, Consumido…): sem caixa dentro de caixa", async () => {
+    largura(1280);
+    // Ciclo anterior aberto, de dias atrás: o lançamento fecha esse período e mostra a prévia do farol.
+    const dez = new Date(Date.now() - 10 * 86_400_000).toISOString().slice(0, 10);
+    estado.ultimoEvento = { id: "ev-0", ponto_suplementacao_id: "p1", data_lancamento: dez, quantidade_total_kg: 100, total_cabecas_afetadas: 50, formulacao_id: "f-1", peso_medio_lotes_kg: 392 };
+    await montar();
+    const dialogo = await abrirLancar();
+    const previa = await within(dialogo).findByTestId("fechamento-consumo-previa");
+    expect(previa.closest('[data-testid="suplementacao-fechamento-anterior"]')).toBeTruthy();
+    expect(previa.querySelector("div.rounded.border")).toBeNull();
+    const grade = /** @type {HTMLElement} */ (previa.querySelector('dl[data-desenho="kpis"]'));
+    expect([...grade.querySelectorAll("dt")].map((d) => d.textContent)).toEqual(expect.arrayContaining(["Consumo g/cab/dia", "%PV real × esperado", "Custo R$/cab/dia", "Custo do período"]));
+    // O mesmo desenho das células "Fornecido", "Consumido"… logo acima, no mesmo aviso.
+    const fornecido = within(dialogo).getByText("Fornecido", { selector: "dt" });
+    expect(/** @type {HTMLElement} */ (grade.querySelector("dt")).className).toBe(fornecido.className);
+    expect(/** @type {HTMLElement} */ (grade.querySelector("dd")).className).toBe(/** @type {HTMLElement} */ (fornecido.nextElementSibling).className);
+  });
+
   it("LM-10 — Enter num campo não grava (como antes): só o ✓ grava; o lançamento do cocho não tem estorno pela tela", async () => {
     largura(1280);
     await montar();

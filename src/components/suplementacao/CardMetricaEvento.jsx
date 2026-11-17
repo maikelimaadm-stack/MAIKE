@@ -207,7 +207,8 @@ export default function CardMetricaEvento(props) {
           {secao.chave === "real" && fechamento ? (
             <div className="space-y-0.5">
               <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Fechamento do consumo</div>
-              <ResumoFechamentoConsumo resumo={fechamento} />
+              {/* Em linhas "Rótulo: valor", como o resto do cartão (sem caixa dentro de caixa, D-PROD-222). */}
+              <ResumoFechamentoConsumo resumo={fechamento} desenho="linhas" />
             </div>
           ) : null}
         </React.Fragment>

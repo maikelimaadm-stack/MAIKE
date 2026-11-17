@@ -1,5 +1,6 @@
 import React from "react";
 import { FAROL_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
+import { LinhaHistorico } from "@/components/lotes/CartaoHistorico";
 
 /**
  * D-PROD-206 — exibição do fechamento do consumo: o farol (sempre com o texto,
@@ -61,8 +62,25 @@ export function FarolConsumoSelo({ farol, motivo, faixa }) {
   );
 }
 
+/** @typedef {"caixas" | "linhas" | "kpis"} DesenhoDoResumo */
+
+/** Desenho de cada célula: o da grade de caixinhas (padrão) e os dois sem caixa dentro de caixa (D-PROD-222). */
+const DesenhoCtx = React.createContext(/** @type {DesenhoDoResumo} */ ("caixas"));
+
 /** @param {{ label: string, value: React.ReactNode }} props */
 function Celula({ label, value }) {
+  const desenho = React.useContext(DesenhoCtx);
+  // No cartão do histórico: uma linha "Rótulo: valor" do Histórico de Movimentação.
+  if (desenho === "linhas") return <LinhaHistorico rotulo={label}>{value}</LinhaHistorico>;
+  // No aviso do lançamento: a célula sem borda dos números ao lado (Fornecido, Consumido…).
+  if (desenho === "kpis") {
+    return (
+      <div className="min-w-0">
+        <dt className="text-[11px] text-slate-500">{label}</dt>
+        <dd className="font-semibold text-slate-800">{value}</dd>
+      </div>
+    );
+  }
   return (
     <div className="rounded border border-slate-200 bg-white px-1 py-1">
       <div className="text-slate-500">{label}</div>
@@ -71,11 +89,21 @@ function Celula({ label, value }) {
   );
 }
 
+/** Onde as células ficam, por desenho. @type {Record<DesenhoDoResumo, string>} */
+const GRADE_DO_DESENHO = {
+  caixas: "grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]",
+  linhas: "space-y-0.5",
+  kpis: "grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-4",
+};
+
 /**
  * Resumo do fechamento do consumo (`resumoDoFechamento` / `calcularFechamentoConsumo`).
- * @param {{ resumo: ReturnType<typeof import("@/domain/suplementacao/fechamentoConsumo").calcularFechamentoConsumo> | null, previa?: boolean }} props
+ * `desenho` (D-PROD-222): "caixas" (padrão) é a grade de caixinhas; "linhas" põe cada número numa linha
+ * "Rótulo: valor", como os cartões do Histórico de Movimentação (cartão do histórico do cocho); "kpis" usa
+ * as células sem borda dos números do aviso do lançamento. Os números e os textos são os mesmos.
+ * @param {{ resumo: ReturnType<typeof import("@/domain/suplementacao/fechamentoConsumo").calcularFechamentoConsumo> | null, previa?: boolean, desenho?: DesenhoDoResumo }} props
  */
-export function ResumoFechamentoConsumo({ resumo, previa = false }) {
+export function ResumoFechamentoConsumo({ resumo, previa = false, desenho = "caixas" }) {
   if (!resumo) return null;
   const relacaoPct = typeof resumo.consumo_relacao_esperado === "number" ? resumo.consumo_relacao_esperado * 100 : null;
   const pvReal = fmt(resumo.consumo_real_pv_percentual, 3);
@@ -83,6 +111,8 @@ export function ResumoFechamentoConsumo({ resumo, previa = false }) {
   const emGramas = resumo.base_consumo_aplicada === "G_CAB_DIA";
   const gReal = fmt(resumo.consumo_g_cab_dia, 0);
   const gMeta = fmt(resumo.consumo_esperado_g_cab_dia, 0);
+  // "kpis" fica numa lista de definições (<dl>), como os números do aviso; os outros, num <div>.
+  const Grade = desenho === "kpis" ? "dl" : "div";
   return (
     <div className="space-y-1" data-testid={previa ? "fechamento-consumo-previa" : "fechamento-consumo"}>
       <div className="flex flex-wrap items-center gap-1">
@@ -92,39 +122,41 @@ export function ResumoFechamentoConsumo({ resumo, previa = false }) {
           <span className="text-[10px] font-semibold text-amber-700" data-testid="fechamento-aproximado">Aproximado — sobra não informada</span>
         )}
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-        {emGramas ? (
-          <>
-            <Celula label="g/cab/dia real × meta" value={gReal ? `${gReal} g × ${gMeta ? `${gMeta} g` : "-"}` : "-"} />
-            <Celula label="%PV real (informação)" value={pvReal ? `${pvReal}%` : "-"} />
-          </>
-        ) : (
-          <>
-            <Celula label="Consumo g/cab/dia" value={gReal ? `${gReal} g` : "-"} />
-            <Celula label="%PV real × esperado" value={pvReal ? `${pvReal}% × ${pvEsperado ?? "-"}${pvEsperado ? "%" : ""}` : "-"} />
-          </>
-        )}
-        {typeof resumo.peso_medio_periodo_kg === "number" && (
+      <DesenhoCtx.Provider value={desenho}>
+        <Grade className={GRADE_DO_DESENHO[desenho] || GRADE_DO_DESENHO.caixas} data-desenho={desenho}>
+          {emGramas ? (
+            <>
+              <Celula label="g/cab/dia real × meta" value={gReal ? `${gReal} g × ${gMeta ? `${gMeta} g` : "-"}` : "-"} />
+              <Celula label="%PV real (informação)" value={pvReal ? `${pvReal}%` : "-"} />
+            </>
+          ) : (
+            <>
+              <Celula label="Consumo g/cab/dia" value={gReal ? `${gReal} g` : "-"} />
+              <Celula label="%PV real × esperado" value={pvReal ? `${pvReal}% × ${pvEsperado ?? "-"}${pvEsperado ? "%" : ""}` : "-"} />
+            </>
+          )}
+          {typeof resumo.peso_medio_periodo_kg === "number" && (
+            <Celula
+              label="Peso médio do período"
+              value={
+                <span data-testid="peso-medio-periodo">
+                  {fmt(resumo.peso_medio_periodo_kg, 0)} kg
+                  {resumo.peso_medio_periodo_aproximado ? (
+                    <span className="ml-1 font-normal text-amber-700" title={MOTIVO_PESO[resumo.peso_medio_periodo_motivo] ?? ""}>
+                      (aproximado{MOTIVO_PESO[resumo.peso_medio_periodo_motivo] ? `: ${MOTIVO_PESO[resumo.peso_medio_periodo_motivo]}` : ""})
+                    </span>
+                  ) : null}
+                </span>
+              }
+            />
+          )}
+          <Celula label="Custo R$/cab/dia" value={reais(resumo.custo_cab_dia) ?? "Sem custo"} />
           <Celula
-            label="Peso médio do período"
-            value={
-              <span data-testid="peso-medio-periodo">
-                {fmt(resumo.peso_medio_periodo_kg, 0)} kg
-                {resumo.peso_medio_periodo_aproximado ? (
-                  <span className="ml-1 font-normal text-amber-700" title={MOTIVO_PESO[resumo.peso_medio_periodo_motivo] ?? ""}>
-                    (aproximado{MOTIVO_PESO[resumo.peso_medio_periodo_motivo] ? `: ${MOTIVO_PESO[resumo.peso_medio_periodo_motivo]}` : ""})
-                  </span>
-                ) : null}
-              </span>
-            }
+            label="Custo do período"
+            value={reais(resumo.custo_total_periodo) ? `${reais(resumo.custo_total_periodo)} · ${reais(resumo.custo_unitario_kg)}/kg` : "Sem custo"}
           />
-        )}
-        <Celula label="Custo R$/cab/dia" value={reais(resumo.custo_cab_dia) ?? "Sem custo"} />
-        <Celula
-          label="Custo do período"
-          value={reais(resumo.custo_total_periodo) ? `${reais(resumo.custo_total_periodo)} · ${reais(resumo.custo_unitario_kg)}/kg` : "Sem custo"}
-        />
-      </div>
+        </Grade>
+      </DesenhoCtx.Provider>
       {typeof resumo.sobra_herdada_kg === "number" && resumo.sobra_herdada_kg > 0 && typeof resumo.custo_sobra_herdada_kg === "number" && (
         <div className="text-[10px] text-slate-600" data-testid="custo-sobra-herdada">
           Sobra antiga primeiro: {fmt(resumo.sobra_herdada_kg, 2)} kg a {reais(resumo.custo_sobra_herdada_kg)}/kg

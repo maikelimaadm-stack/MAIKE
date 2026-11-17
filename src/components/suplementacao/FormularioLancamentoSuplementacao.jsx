@@ -904,6 +904,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                   <div className="mt-1.5">
                     <ResumoFechamentoConsumo
                       previa
+                      // As células sem borda dos números acima (Fornecido, Consumido…): sem caixa dentro do aviso.
+                      desenho="kpis"
                       resumo={calcularFechamentoConsumo({
                         evento: ultimoEvento,
                         consumoTotalKg: consumidoAnterior,
