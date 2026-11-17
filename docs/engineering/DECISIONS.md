@@ -7899,27 +7899,37 @@ Ver o relatório, §7.
      - um aviso com áreas, depósito, lotes e peso;
      - Formulação no `B1Select`; kg ou sacos em `LancLoteSegmento`; consumo por lote em `LancLoteItens`;
      - o progresso do salvamento fica no topo do formulário, e não mais num diálogo por cima. Enquanto salva, os campos ficam travados e o ✕ desligado;
+     - o ✓ do cabeçalho é um botão comum: **Enter num campo não grava**, como antes. O lançamento do cocho baixa o estoque e fecha o período anterior, e não tem estorno pela tela (D-PROD-94a);
+     - o "Fechamento do consumo" da prévia usa as células sem borda dos números do aviso (sem caixa dentro de caixa);
+     - a confirmação da **sobra do ciclo anterior** também é um `LancLoteDialogo`: o cocho no subtítulo, avisos e as duas escolhas como as opções do manejo. O foco abre na primeira escolha, e o ✕ sai do lançamento, como o "Cancelar" de antes. O diálogo antigo cortava o texto à direita. A data do fechamento é o dia gravado;
      - depois da sobra herdada, o foco volta ao lançamento.
    - **Cocho › Leitura:** o cocho no subtítulo, como nos outros. O formulário já era do manejo (D-PROD-205).
-   - **Depósito › Entrada e Saída** (`FormularioTransferenciaDeposito`): títulos "Entrada no Depósito" e "Saída do Depósito". Produto e Unidade no `B1Select`. O resumo de origem, destino e saldo vai num aviso neutro.
+   - **Depósito › Entrada e Saída** (`FormularioTransferenciaDeposito`): títulos "Entrada no Depósito" e "Saída do Depósito". Produto e Unidade no `B1Select`; escolher de novo o mesmo produto não mexe na unidade nem na quantidade, como antes. O resumo de origem, destino e saldo vai num aviso neutro. O Local de Origem/Destino continua no campo de escolha com pesquisa (`AutocompleteGenerico`), a lista padrão do sistema para locais, por instrução do proprietário ("a lista é pra deixar padrão no sistema").
    - **Bebedouro › Lançar:** título "Lançamento no Bebedouro", por cima do detalhe (antes era tela empilhada).
      - Data, Hora, Tipo e Status em grade.
      - Tipo, Status e Qualidade da água no `B1Select`.
      - Os campos aparecem conforme o Tipo, como antes.
      - Na página Bebedouros funciona igual.
-4. **Esc com uma lista aberta** (`LancLoteDialogo`): no celular, com a folha de uma lista aberta dentro do diálogo, o primeiro Esc fecha só a folha e o segundo fecha o diálogo (D-PROD-161). Antes só o depósito tinha essa guarda; agora ela vale para todos os lançamentos, inclusive os do lote.
+4. **Teclado e foco nas peças comuns** (valem também para os manejos do lote):
+   - Esc com uma lista aberta (`LancLoteDialogo`): no celular, com a folha de uma lista aberta dentro do diálogo, o primeiro Esc fecha só a folha e o segundo fecha o diálogo (D-PROD-161). Antes só o depósito tinha essa guarda;
+   - `B1Select` no desktop e no tablet com até 8 opções (sem pesquisa): com a lista aberta, ↑/↓ andam e Enter escolhe, com o foco no campo (como o `AutocompleteGenerico`). Antes a lista não se escolhia pelo teclado;
+   - `LancLoteDialogo` só leitura (históricos e detalhes): ao abrir, o foco vai para o próprio diálogo, sem acender o ✕ (D-PROD-117), e não fica no que o abriu, escondido por baixo; `focoInicial="corpo"` foca o primeiro controle do conteúdo;
+   - ao fechar, o foco volta a quem o tinha quando o diálogo abriu (a pílula), se ainda estiver na tela. Sem gatilho, o Radix o deixava no `<body>`.
 5. **O que muda por ser o padrão do manejo** (D-PROD-115/125):
    - no desktop o popup não fecha por Esc nem por clique fora, só pelo ✕;
-   - Enter num campo envia o formulário;
+   - Enter num campo: no depósito e no bebedouro envia, como já enviava (eram `<form>` com botão de enviar); no cocho não envia, como antes (item 3);
    - no celular abre em tela cheia;
    - no bebedouro, o Esc da tela cheia fecha o Lançar. Antes era ignorado, porque o formulário era empilhado. O recurso `escVolta` fica no `LancLoteDialogo` e na `CascaDetalhe`, com teste próprio.
-6. **Com a `main` mesclada** (D-PROD-221): o farol do pasto no painel Forragem entra no desenho v12 da D-PROD-220 como a primeira linha do cartão. Os textos são os mesmos, e a cor vai na bolinha.
+6. **Estados dos históricos como os do Histórico de Movimentação:** com a consulta falhando e nada guardado, cocho, depósito, abate, tarefa e bebedouro mostram "Não foi possível carregar o histórico.", o motivo e o "Tentar novamente" (antes diziam "Nenhum … encontrado"); a tarefa mostra o carregando (antes, "Nenhum histórico encontrado."). No abate, o rodapé do "Excluir movimentação" só aparece no abate que tem exclusão (o antigo ficava com uma faixa vazia), e a nota do cancelado traz a data e a hora.
+7. **Com a `main` mesclada** (D-PROD-221): o farol do pasto no painel Forragem entra no desenho v12 da D-PROD-220 como a primeira linha do cartão. Os textos são os mesmos, e a cor vai na bolinha.
 
 **Fica de fora:**
 - o cadastro do ponto (`FormularioPonto`), a importação de áreas e a seleção de áreas no mapa, que não são lançamentos nem históricos;
 - o "Histórico de Suplementação" do lote, que já é do manejo.
 
 **Achado à parte (não corrigido aqui, R7):** na Entrada e na Saída do depósito, o campo Quantidade é `type="number"` e o valor chega com ponto decimal. A conta usa o `parseNumber` pt-BR, que lê o ponto como separador de milhar: 10,5 kg é gravado como 105 kg. Já era assim antes desta missão. A correção é de uma linha (ler o valor como número, como fazem os manejos do lote) e fica para uma missão própria.
+
+**Revisão independente:** quatro revisores (regras, igualdade com o manejo, interação e testes), e cada achado passou por um verificador que tentou refutá-lo. Os confirmados foram corrigidos com teste e conferidos por mutação: o Enter que gravava o cocho, o mesmo produto escolhido de novo no depósito (que zerava a unidade e a quantidade), as caixas do fechamento do consumo, a sobra herdada cortada e sem foco, o rodapé vazio do abate, os estados de erro, o teclado do `B1Select` e o foco dos diálogos. Detalhe no relatório, §7.
 
 **Relatório:** [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md).
 

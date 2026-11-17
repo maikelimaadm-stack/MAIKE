@@ -48,14 +48,19 @@ Todos abrem no `LancLoteDialogo` dos manejos:
 
 | Lançamento | O que mudou |
 |---|---|
-| Cocho › Lançar (`FormularioLancamentoSuplementacao`) | Aviso com áreas, depósito, lotes e peso. Formulação no `B1Select`. Kg ou sacos em `LancLoteSegmento`. Consumo por lote em `LancLoteItens`. O progresso do salvamento fica no topo, com os campos travados e o ✕ desligado. Depois da sobra herdada, o foco volta ao lançamento. |
+| Cocho › Lançar (`FormularioLancamentoSuplementacao`) | Aviso com áreas, depósito, lotes e peso. Formulação no `B1Select`. Kg ou sacos em `LancLoteSegmento`. Consumo por lote em `LancLoteItens`. O progresso do salvamento fica no topo, com os campos travados e o ✕ desligado. O ✓ é um botão comum: Enter num campo não grava, como antes. A prévia do fechamento usa as células sem borda do aviso. A sobra do ciclo anterior virou um `LancLoteDialogo` com as opções do manejo (foco na primeira escolha). Depois da sobra herdada, o foco volta ao lançamento. |
 | Cocho › Leitura | O cocho entra no subtítulo. O formulário já era do manejo (D-PROD-205). |
-| Depósito › Entrada e Saída (`FormularioTransferenciaDeposito`) | Títulos "Entrada no Depósito" e "Saída do Depósito". Produto e Unidade no `B1Select`. Origem · destino · saldo num aviso neutro. No celular, as folhas abrem dentro do diálogo de cima (D-PROD-161). |
+| Depósito › Entrada e Saída (`FormularioTransferenciaDeposito`) | Títulos "Entrada no Depósito" e "Saída do Depósito". Produto e Unidade no `B1Select` (escolher de novo o mesmo produto não mexe na unidade nem na quantidade). Origem · destino · saldo num aviso neutro. No celular, as folhas abrem dentro do diálogo de cima (D-PROD-161). O Local continua no `AutocompleteGenerico`, a lista padrão de locais (instrução do proprietário). |
 | Bebedouro › Lançar (`FormularioLancamentoBebedouro`) | Título "Lançamento no Bebedouro", por cima do detalhe (antes era tela empilhada). Data, Hora, Tipo e Status em grade. Tipo, Status e Qualidade da água no `B1Select`. Os campos aparecem pelo Tipo, como antes. |
 
-### 2.4 Esc com uma lista aberta
+### 2.4 Teclado e foco (nas peças comuns, valem também para os manejos do lote)
 
-No celular, quando há uma folha de lista aberta dentro do `LancLoteDialogo`, o Esc é da folha: o primeiro Esc fecha só a folha e o segundo fecha o diálogo. A regra agora vale para todos os lançamentos, inclusive os do lote. Antes só a Entrada e a Saída do depósito tinham essa guarda, no próprio formulário.
+- **Esc com uma lista aberta:** no celular, quando há uma folha de lista aberta dentro do `LancLoteDialogo`, o primeiro Esc fecha só a folha e o segundo fecha o diálogo. Antes só a Entrada e a Saída do depósito tinham essa guarda, no próprio formulário.
+- **`B1Select` pelo teclado:** no desktop e no tablet, com até 8 opções (sem a caixa de pesquisa), ↑/↓ andam pela lista aberta e Enter escolhe, com o foco no campo — o campo repassa as teclas ao painel, como o `AutocompleteGenerico`. Antes, com a lista aberta, as teclas não faziam nada.
+- **Foco do `LancLoteDialogo`:**
+  - só leitura (históricos e detalhes): ao abrir, o foco vai para o próprio diálogo, sem acender o ✕;
+  - `focoInicial="corpo"`: o primeiro controle do conteúdo (a escolha da sobra);
+  - ao fechar, o foco volta à pílula que abriu o diálogo.
 
 ### 2.5 Com a `main` mesclada (D-PROD-221)
 
@@ -65,17 +70,24 @@ O farol do pasto no painel Forragem entrou no desenho v12 da D-PROD-220 como a p
 - a cor na bolinha;
 - "há N dias" e "vencida (mais de 15 dias)".
 
+### 2.6 Estados dos históricos
+
+Como no Histórico de Movimentação: com a consulta falhando e nada guardado, "Não foi possível carregar o histórico.", o motivo e o "Tentar novamente" (cocho, depósito, abate, tarefa e bebedouro). Antes eles diziam "Nenhum … encontrado". A tarefa também mostra o carregando, e o abate só monta o rodapé do "Excluir movimentação" quando o abate tem exclusão.
+
 ## 3. Mudanças de comportamento (de propósito)
 
 Estas mudanças vêm do padrão dos manejos (D-PROD-115/125):
 
 - **Desktop:** o popup não fecha por Esc nem por clique fora, só pelo ✕.
-- **Teclado:** Enter num campo envia o formulário.
+- **Teclado:** no depósito e no bebedouro, Enter num campo envia, como já enviava (eram `<form>` com botão de enviar). No cocho, não envia, como antes: só o ✓ grava.
 - **Celular:** o lançamento abre em tela cheia. No depósito, isso substitui o cartão centralizado.
 - **Bebedouro:**
   - o Esc da tela cheia fecha o Lançar; antes era ignorado, porque o formulário era empilhado;
   - o recurso `escVolta` continua no `LancLoteDialogo` e na `CascaDetalhe`, com teste próprio.
-- **Foco ao abrir:** vai para o ✕ (o primeiro focável), e não para a data.
+- **Foco:**
+  - ao abrir um lançamento, vai para o ✕ (o primeiro focável), e não para a data;
+  - ao abrir um histórico ou um detalhe, vai para o próprio diálogo;
+  - ao fechar, volta à pílula que abriu o diálogo.
 - **Placeholders:** "Selecione a formulação" e "Não medida" saíram. O rótulo dentro da caixa faz esse papel, como nos manejos.
 
 ## 4. Arquivos
@@ -91,9 +103,17 @@ Estas mudanças vêm do padrão dos manejos (D-PROD-115/125):
   - `FormularioLancamentoSuplementacao`, `FormularioTransferenciaDeposito` e `FormularioLancamentoBebedouro`;
   - os detalhes que os abrem: `DetalhesPontoSuplementacao`, `AcoesCochoPasto`, `DetalhesDepositoSuplementacao` e `DetalhesBebedouro`.
 - **Peças comuns:**
-  - `LancamentoLoteUi` (o Esc com a folha aberta);
+  - `LancamentoLoteUi` (o Esc com a folha aberta; o foco ao abrir e ao fechar; `focoInicial`);
+  - `B1Select` (↑ ↓ Enter repassados ao painel aberto);
+  - `CartaoHistorico` (`EstadoHistorico` com o motivo e o "Tentar novamente");
+  - `FarolConsumo` (`desenho` "linhas" e "kpis" do resumo do fechamento);
   - `CascaDetalhe` e `src/Layout.jsx` (só comentários).
-- **CSS:** `mk-dp-bebedouro.css` (saiu a regra morta do formulário empilhado).
+- **Sobra do ciclo anterior:** `SobraHerdadaDialog` (agora `LancLoteDialogo`).
+- **Detalhe da tarefa:** `DetalhesTarefaMapa` passa carregando, erro e o "Tentar novamente" ao histórico.
+- **CSS:**
+  - `mk-dp-bebedouro.css` (saiu a regra morta do formulário empilhado);
+  - `lancamento-lote.css` (`mk-ll__opcao--coluna`, a opção com explicação longa).
+- **Teste novo da revisão:** `b1SelectTeclado`.
 - **Mescla com a `main`:**
   - `PainelForragemArea` (farol no v12);
   - `MapaGeral` (as medições de forragem ao lado das movimentações da D-PROD-218).
@@ -109,7 +129,8 @@ Estas mudanças vêm do padrão dos manejos (D-PROD-115/125):
   - Depósito: 19.
   - Bebedouro: 26 mais 2.
   - Integração: 7. São elas: bebedouro sem `B1Select`; Leitura sem subtítulo no detalhe e no pasto; "Excluir" sem `destrutiva`; Esc sem a guarda da folha (bebedouro, FT2, TM-8); farol sem a marca de vencida e sem a cor.
-  - Todas foram pegas.
+  - Correções da revisão: 23, uma ou mais por correção (ver §7).
+  - Todas foram pegas. Duas sobreviveram no começo e passaram a ser pegas com testes novos: a data da sobra (os testes rodam em UTC; o teste novo usa um horário em que UTC muda o dia) e a ligação do carregando no detalhe da tarefa.
 - **Resultado:** os números da suíte inteira e dos gates estão no §7.
 
 ## 6. Conferência visual
@@ -128,4 +149,36 @@ O que se vê:
 
 ## 7. Revisão independente e resultado
 
-(preenchido ao fim da revisão)
+### 7.1 Revisão
+
+Quatro revisores, cada um com uma lente, leram o intervalo `465fe6d..HEAD`. Cada achado passou por um verificador que tentou refutá-lo contra o código atual e o de antes.
+
+| Lente | Achado | Resultado |
+|---|---|---|
+| Regras | Depósito: escolher de novo o mesmo produto voltava a unidade para KG e apagava a quantidade (o `B1Select` chama o `onChange` com o mesmo valor; o Select de antes não) | Corrigido, com teste (TM-3) |
+| Igualdade | Cocho: Enter num campo gravava o lançamento (o ✓ era o submit do `<form>`); antes, Enter não fazia nada | Corrigido: o ✓ é botão comum (LM-1, LM-10) |
+| Igualdade | Cocho: o aviso da sobra mandava clicar em "Salvar novo ciclo", que não é mais um botão com texto | Corrigido: aponta para o ✓ (LM-9) |
+| Igualdade | "Fechamento do consumo" em caixinhas com borda dentro do cartão do histórico e do aviso do Lançar | Corrigido: em linhas no histórico, em células sem borda no aviso (LM-11) |
+| Igualdade | Local de Origem/Destino do depósito no `AutocompleteGenerico`, não no `B1Select` | Mantido: é a lista padrão de locais, e o proprietário pediu a lista no padrão do sistema |
+| Igualdade (já era assim) | Sobra do ciclo anterior no diálogo antigo, com o texto cortado à direita | Corrigido: `LancLoteDialogo` com as opções do manejo (LM-9, LM-12, LM-13) |
+| Igualdade (já era assim) | Históricos sem estado de erro ("Nenhum … encontrado" na falha); tarefa sem carregando | Corrigido em cocho, depósito, abate, tarefa e bebedouro |
+| Igualdade (já era assim) | Abate: faixa vazia no pé do cartão do abate antigo; cancelado sem data e hora | Corrigido (regra do Histórico de Movimentação) |
+| Interação | `B1Select` com até 8 opções não se escolhia pelo teclado (desktop e tablet) | Corrigido na peça comum (`b1SelectTeclado`) |
+| Interação | Sobra do ciclo anterior: o foco ficava no ✕ do lançamento, escondido; Enter cancelava o lançamento | Corrigido: foco na primeira escolha (LM-9) |
+| Interação | Bebedouro: fechar o Lançar mandava o foco para o `<body>`; o Histórico abria com o foco na pílula escondida | Corrigido no `LancLoteDialogo`: foco no diálogo ao abrir e de volta à pílula ao fechar |
+
+Os verificadores conferiram os achados contra o HEAD: os corrigidos durante a revisão saíram como "já corrigido", com o commit que corrigiu.
+
+**Ficam para depois (já eram assim, fora do desenho):**
+- Depósito: a Quantidade é `type="number"` e passa pelo `parseNumber` pt-BR, que lê o ponto como milhar: 10,5 kg vira 105 kg. Correção de uma linha, para uma missão própria (R7).
+- Bebedouro: a data padrão do Lançar sai em UTC (depois das 21h no Brasil, o dia seguinte).
+- Cocho: quantidade, sacos e sobra digitados com ponto ("10.5") também passam pelo `parseNumber` pt-BR.
+- Bebedouro: o "Excluir" desligado explica a regra só no `title`, que o teclado e o leitor de tela não alcançam.
+
+### 7.2 Suíte inteira e gates (estado final)
+
+- `test:smoke`: 283 arquivos e 3.526 testes, todos passaram.
+- `gate:types`: 374 diagnósticos contra o teto de 625.
+- `gate:source-closure`, `gate:import-integrity`, `gate:product-scope`, `gate:base44`, `gate:no-secrets` e `gate:governance-paths`: passaram.
+- Lint dos arquivos tocados: sem erros.
+- `test:backend`: no CI (precisa de PostgreSQL); esta missão não mexe no backend.
