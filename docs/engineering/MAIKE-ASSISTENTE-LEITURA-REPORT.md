@@ -89,3 +89,10 @@ Pedido do proprietário: além de responder, o assistente aplica filtros nas tel
   - `tests/smoke/assistenteFiltroCadastroLotes.test.jsx`: lote aberto, lote em edição com recusa, pesquisa ativa e Limpar, pedido consumido.
   - `tests/smoke/assistenteFiltroGrade.test.jsx`: a grade aplica, substitui e limpa.
   - `tests/smoke/assistenteFiltroMapa.test.jsx`: o mapa substitui os filtros salvos e respeita a permissão.
+
+## Desligado por enquanto (2026-11-17)
+Pedido do proprietário: o botão do assistente sai de todas as telas. O `Layout` só monta o
+`AssistenteFlutuante` quando o build tem `VITE_ASSISTENTE_LIGADO=true`
+(`src/components/assistente/assistenteLigado.js`); sem a variável, fica desligado. O código,
+a rota do servidor e a chave continuam como estão; nenhuma pergunta é feita sem o botão. Para
+religar: criar `VITE_ASSISTENTE_LIGADO=true` (Production) na Vercel e publicar de novo.

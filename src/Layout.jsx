@@ -47,6 +47,7 @@ import { instalarTecladoDoFormulario } from "@/lib/tecladoFormulario";
 import useDeslizarParaVoltar, { useDeslizarParaFechar } from "@/hooks/useDeslizarParaVoltar";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
 import AssistenteFlutuante from "@/components/assistente/AssistenteFlutuante";
+import { assistenteLigado } from "@/components/assistente/assistenteLigado";
 import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 import { deveBloquearCliqueMenu } from "@/lib/menuNavigation";
@@ -906,7 +907,7 @@ function LayoutShell({ children, currentPageName }) {
       null}
 
       {/* D-PROD-230 — Assistente só de leitura, em todas as telas logadas (a conversa sobrevive à navegação). */}
-      <AssistenteFlutuante empresaId={empresaSelecionada || null} tela={currentPageName || null} comNavInferior={mostrarNavInferior} navegar={navigate} />
+      {assistenteLigado() ? (<AssistenteFlutuante empresaId={empresaSelecionada || null} tela={currentPageName || null} comNavInferior={mostrarNavInferior} navegar={navigate} />) : null}
 
       </div>);
 

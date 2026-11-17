@@ -136,5 +136,13 @@ describe('AssistenteFlutuante', () => {
   it('o Layout monta o assistente uma vez, para todas as telas logadas', () => {
     const layout = readFileSync('src/Layout.jsx', 'utf8');
     expect(layout.match(/<AssistenteFlutuante /g)?.length).toBe(1);
+    expect(layout).toMatch(/assistenteLigado\(\) \? \(<AssistenteFlutuante /);
+  });
+
+  it('interruptor: desligado sem VITE_ASSISTENTE_LIGADO=true', async () => {
+    const { assistenteLigado } = await import('@/components/assistente/assistenteLigado');
+    expect(assistenteLigado({})).toBe(false);
+    expect(assistenteLigado({ VITE_ASSISTENTE_LIGADO: 'false' })).toBe(false);
+    expect(assistenteLigado({ VITE_ASSISTENTE_LIGADO: 'true' })).toBe(true);
   });
 });
