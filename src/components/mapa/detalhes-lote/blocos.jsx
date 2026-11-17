@@ -15,6 +15,8 @@ import "@/styles/mk-detalhes-pasto.css";
  * sob a raiz `.mk-dp` (fora dela as peças ficam sem estilo).
  *
  * ── Mapa de uso ─────────────────────────────────────────────────────────
+ * Props extras (id, data-*, aria-*, role…) vão para a raiz da peça; no
+ * `TituloBloco`, `id` vai para o h3 (para `aria-labelledby` de uma seção).
  * Raiz e corpo (classes, sem componente; a casca monta):
  *   <div className="mk-dp" data-modo="desktop">
  *     <Abas … />
@@ -232,12 +234,14 @@ export function CabecalhoProprio({ titulo, sub, onVoltar, children, className })
 
 /**
  * Título de seção (h3 15/600) com link opcional à direita, alinhados pela base.
- * @param {{ children: React.ReactNode, link?: React.ReactNode, onLink?: () => void, className?: string }} props
+ * @param {{ children: React.ReactNode, link?: React.ReactNode, onLink?: () => void, id?: string, className?: string } & Record<string, any>} props
  */
-export function TituloBloco({ children, link, onLink, className }) {
+export function TituloBloco({ children, link, onLink, id, className, ...resto }) {
   return (
-    <div className={cls("mk-dp-titulo", className)}>
-      <h3 className="mk-dp-titulo__h">{children}</h3>
+    <div className={cls("mk-dp-titulo", className)} {...resto}>
+      <h3 className="mk-dp-titulo__h" id={id}>
+        {children}
+      </h3>
       {link ? (
         <button type="button" className="mk-dp-link" onClick={onLink}>
           {link}
@@ -251,12 +255,12 @@ export function TituloBloco({ children, link, onLink, className }) {
  * Cartão branco (sombra, raio 12). Cabeçalho opcional: ícone lucide 40 px teal
  * OU imagem 44 px, título, sub e chip. Os filhos são as partes (`Grade`,
  * `Linha`); as divisórias entre elas vêm do CSS.
- * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, titulo?: React.ReactNode, sub?: React.ReactNode, chip?: React.ReactNode, children?: React.ReactNode, className?: string }} props
+ * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, titulo?: React.ReactNode, sub?: React.ReactNode, chip?: React.ReactNode, children?: React.ReactNode, className?: string } & Record<string, any>} props
  */
-export function Cartao({ icone: Icone, imagem, titulo, sub, chip, children, className }) {
+export function Cartao({ icone: Icone, imagem, titulo, sub, chip, children, className, ...resto }) {
   const temCab = Boolean(titulo || sub || Icone || imagem || chip);
   return (
-    <div className={cls("mk-dp-cartao", className)}>
+    <div className={cls("mk-dp-cartao", className)} {...resto}>
       {temCab ? (
         <div className="mk-dp-cartao__cab">
           {imagem ? (
@@ -279,20 +283,24 @@ export function Cartao({ icone: Icone, imagem, titulo, sub, chip, children, clas
 /**
  * Grade de células (5 colunas no desktop, 4 no tablet, 2 no celular), com uma
  * linha de 1 px de ponta a ponta entre as fileiras.
- * @param {{ children?: React.ReactNode, className?: string }} props
+ * @param {{ children?: React.ReactNode, className?: string } & Record<string, any>} props
  */
-export function Grade({ children, className }) {
-  return <dl className={cls("mk-dp-grade", className)}>{children}</dl>;
+export function Grade({ children, className, ...resto }) {
+  return (
+    <dl className={cls("mk-dp-grade", className)} {...resto}>
+      {children}
+    </dl>
+  );
 }
 
 /**
  * Célula da grade: rótulo, valor (cor e bolinha opcionais), sub e barra 0–100.
- * @param {{ rotulo: React.ReactNode, valor: React.ReactNode, cor?: string | null, bolinha?: string | null, sub?: React.ReactNode, barra?: number | null, corBarra?: string | null, title?: string, className?: string }} props
+ * @param {{ rotulo: React.ReactNode, valor: React.ReactNode, cor?: string | null, bolinha?: string | null, sub?: React.ReactNode, barra?: number | null, corBarra?: string | null, title?: string, className?: string } & Record<string, any>} props
  */
-export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, title, className }) {
+export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, title, className, ...resto }) {
   const pct = barra == null || !Number.isFinite(Number(barra)) ? null : Math.max(0, Math.min(100, Number(barra)));
   return (
-    <div className={cls("mk-dp-cel", className)} title={title}>
+    <div className={cls("mk-dp-cel", className)} title={title} {...resto}>
       <dt className="mk-dp-cel__rot">{rotulo}</dt>
       <dd className="mk-dp-cel__val" style={cor ? { color: cor } : undefined}>
         {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
@@ -312,9 +320,9 @@ export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, titl
  * Linha (dentro de um `Cartao`): ícone 22 px teal ou imagem 30 px, rótulo e
  * sub; no fim bolinha, valor à direita e chevron. `quebra`: o valor ocupa o
  * espaço que sobra e quebra em mais linhas. Com `onClick` vira botão.
- * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, rotulo: React.ReactNode, sub?: React.ReactNode, bolinha?: string | null, valor?: React.ReactNode, cor?: string | null, chevron?: boolean, quebra?: boolean, onClick?: () => void, title?: string, className?: string }} props
+ * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, rotulo: React.ReactNode, sub?: React.ReactNode, bolinha?: string | null, valor?: React.ReactNode, cor?: string | null, chevron?: boolean, quebra?: boolean, onClick?: () => void, title?: string, className?: string } & Record<string, any>} props
  */
-export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, chevron = false, quebra = false, onClick, title, className }) {
+export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, chevron = false, quebra = false, onClick, title, className, ...resto }) {
   const temValor = valor != null && valor !== "" && valor !== false;
   const conteudo = (
     <>
@@ -341,13 +349,13 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
   const classes = cls("mk-dp-linha", quebra && "mk-dp-linha--quebra", onClick && "mk-dp-linha--toque", className);
   if (onClick) {
     return (
-      <button type="button" className={classes} onClick={onClick} title={title}>
+      <button type="button" className={classes} onClick={onClick} title={title} {...resto}>
         {conteudo}
       </button>
     );
   }
   return (
-    <div className={classes} title={title}>
+    <div className={classes} title={title} {...resto}>
       {conteudo}
     </div>
   );
@@ -358,12 +366,12 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
  * 76 px à esquerda; rótulo em caixa alta, valor grande (ex.: "65%") e linhas
  * curtas à direita. `figura`: nó pronto (ex.: `<CochoNivel …/>`) ou URL de
  * imagem. `children` entra depois das linhas (ex.: uma orientação).
- * @param {{ figura?: React.ReactNode, rotulo: React.ReactNode, valor?: React.ReactNode, linhas?: React.ReactNode[], children?: React.ReactNode, className?: string }} props
+ * @param {{ figura?: React.ReactNode, rotulo: React.ReactNode, valor?: React.ReactNode, linhas?: React.ReactNode[], children?: React.ReactNode, className?: string } & Record<string, any>} props
  */
-export function Nivel({ figura, rotulo, valor, linhas = [], children, className }) {
+export function Nivel({ figura, rotulo, valor, linhas = [], children, className, ...resto }) {
   const lista = (Array.isArray(linhas) ? linhas : []).filter((l) => l != null && l !== "" && l !== false);
   return (
-    <div className={cls("mk-dp-nivel", className)}>
+    <div className={cls("mk-dp-nivel", className)} {...resto}>
       {figura ? <Imagem imagem={figura} className="mk-dp-nivel__fig" /> : null}
       <div className="mk-dp-nivel__txt">
         <span className="mk-dp-nivel__rot">{rotulo}</span>
@@ -395,13 +403,13 @@ export function Acao({ tom = "link", children, className, type = "button", ...pr
 
 /**
  * Aviso com borda: `atencao` (âmbar, triângulo) ou `neutro` (teal, info).
- * @param {{ tom?: "atencao" | "neutro", children: React.ReactNode, className?: string }} props
+ * @param {{ tom?: "atencao" | "neutro", children: React.ReactNode, className?: string } & Record<string, any>} props
  */
-export function Aviso({ tom = "atencao", children, className }) {
+export function Aviso({ tom = "atencao", children, className, ...resto }) {
   const neutro = tom === "neutro";
   const Icone = neutro ? IconeInfo : TriangleAlert;
   return (
-    <div className={cls("mk-dp-aviso", neutro ? "mk-dp-aviso--neutro" : "mk-dp-aviso--atencao", className)}>
+    <div className={cls("mk-dp-aviso", neutro ? "mk-dp-aviso--neutro" : "mk-dp-aviso--atencao", className)} {...resto}>
       <Icone className="mk-dp-aviso__ic" size={18} aria-hidden="true" />
       <span>{children}</span>
     </div>
@@ -410,19 +418,23 @@ export function Aviso({ tom = "atencao", children, className }) {
 
 /**
  * Nota centralizada 12,5 px cinza (fim do corpo).
- * @param {{ children: React.ReactNode, className?: string }} props
+ * @param {{ children: React.ReactNode, className?: string } & Record<string, any>} props
  */
-export function Nota({ children, className }) {
-  return <p className={cls("mk-dp-nota", className)}>{children}</p>;
+export function Nota({ children, className, ...resto }) {
+  return (
+    <p className={cls("mk-dp-nota", className)} {...resto}>
+      {children}
+    </p>
+  );
 }
 
 /**
  * Estado vazio: ícone 34 px cinza-claro e texto.
- * @param {{ icone?: IconeLucide, children: React.ReactNode, className?: string }} props
+ * @param {{ icone?: IconeLucide, children: React.ReactNode, className?: string } & Record<string, any>} props
  */
-export function Vazio({ icone: Icone, children, className }) {
+export function Vazio({ icone: Icone, children, className, ...resto }) {
   return (
-    <div className={cls("mk-dp-vazio", className)}>
+    <div className={cls("mk-dp-vazio", className)} {...resto}>
       {Icone ? <Icone className="mk-dp-vazio__ic" size={34} aria-hidden="true" /> : null}
       <p>{children}</p>
     </div>
@@ -431,11 +443,15 @@ export function Vazio({ icone: Icone, children, className }) {
 
 /**
  * Chip com bolinha: `ok` ("Em dia"), `atencao` ("Atenção") ou `neutro`.
- * @param {{ tom?: TomChip, children: React.ReactNode, className?: string }} props
+ * @param {{ tom?: TomChip, children: React.ReactNode, className?: string } & Record<string, any>} props
  */
-export function Chip({ tom = "neutro", children, className }) {
+export function Chip({ tom = "neutro", children, className, ...resto }) {
   const t = tom === "ok" || tom === "atencao" ? tom : "neutro";
-  return <span className={cls("mk-dp-chip", `mk-dp-chip--${t}`, className)}>{children}</span>;
+  return (
+    <span className={cls("mk-dp-chip", `mk-dp-chip--${t}`, className)} {...resto}>
+      {children}
+    </span>
+  );
 }
 
 /**
