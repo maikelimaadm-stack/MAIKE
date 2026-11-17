@@ -24,7 +24,20 @@
  *  - O total mostrado (quantidade × unitário, 4 casas HALF_UP) é só prévia.
  */
 
-import { comparar, deUnidades, ehCanonico, ehPositivo, formatarNumero, lerNumeroLocal, multiplicarArredondar, paraTextoDeEdicao, paraUnidades, subtrair } from './dinheiroDecimal.js';
+import {
+  comparar,
+  deUnidades,
+  ehCanonico,
+  ehPositivo,
+  formatarMoeda,
+  formatarNumero,
+  lerNumeroLocal,
+  multiplicarArredondar,
+  paraTextoDeEdicao,
+  paraUnidades,
+  percentualDe,
+  subtrair,
+} from './dinheiroDecimal.js';
 import {
   MEDIDORES_CONTADOR,
   ROTULO_LEITURA,
@@ -1016,6 +1029,63 @@ export const totaisParaExibir = (totais, atividade) => {
     consumoPorBem,
     custo: formatarCustoLinha(t.custo_total) || '—',
     custoPorHa: ehCanonico(t.custo_por_ha) ? `${formatarCusto(t.custo_por_ha)}/${unidadeArea}` : '—',
+  };
+};
+
+// ─── Resumo do "Concluir atividade" (D-PROD-232) ─────────────────────────
+
+/** "03/11" de um dia "2026-11-03"; vazio fora do formato. @param {unknown} dia */
+const diaCurto = (dia) => (typeof dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? `${dia.slice(8, 10)}/${dia.slice(5, 7)}` : '');
+/** Moeda com 2 casas ("R$ 463,31"); null sem valor. @param {unknown} v */
+const moeda2 = (v) => (ehCanonico(v) ? formatarMoeda(/** @type {string} */ (v), { locale: LOCALE_ATIVIDADE, moeda: 'BRL', casas: 2 }) : null);
+
+/**
+ * O resumo do diálogo "Concluir atividade" (protótipo do proprietário, D-PROD-232), SÓ com o que o servidor deu:
+ * nada é inventado — sem o valor, o campo vem `null` (a tela mostra "—").
+ *  - período: início da atividade → "hoje" (ou o dia escolhido para a conclusão) · dias lançados (`totais.dias_com_apontamento`
+ *    do detalhe — dias com apontamento CONFIRMADO);
+ *  - área feita / planejada e o percentual (de `GET /atividades/:id/totais`; sem ele, a do cabeçalho), a barra e o que
+ *    falta quando a feita é menor que a planejada;
+ *  - custo total, custo por hectare e combustível (L e kg à parte), de `/totais`.
+ * @param {{ atividade: any, totais?: any, detalhe?: any, hoje: string, dataConclusao?: string }} p
+ */
+export const resumoParaConcluir = ({ atividade, totais = null, detalhe = null, hoje, dataConclusao = '' }) => {
+  const t = ehObjeto(totais) ? totais : null;
+  const unidade = texto(t?.unidade_area) || 'ha';
+  const inicio = diaCurto(atividade?.data_inicio ?? detalhe?.data_inicio);
+  const fim = !dataConclusao || dataConclusao === hoje ? 'hoje' : diaCurto(dataConclusao) || 'hoje';
+  const diasBrutos = atividade?.totais?.dias_com_apontamento ?? detalhe?.totais?.dias_com_apontamento;
+  const dias = Number.isInteger(diasBrutos) && diasBrutos >= 0 ? /** @type {number} */ (diasBrutos) : null;
+  const textoDias = dias === null ? '' : ` · ${dias} ${dias === 1 ? 'dia lançado' : 'dias lançados'}`;
+  const periodo = inicio ? `${inicio} → ${fim}${textoDias}` : null;
+
+  // Área: a de /totais (mesmo instante das linhas); sem ela, a do cabeçalho.
+  const executada = t && t.area_executada !== undefined ? t.area_executada : atividade?.area_executada;
+  const planejada = t && t.area_planejada !== undefined ? t.area_planejada : atividade?.area_planejada;
+  const execTxt = formatarDecimalLinha(executada);
+  const planTxt = formatarDecimalLinha(planejada);
+  const comPlano = ehCanonico(planejada) && ehPositivo(/** @type {string} */ (planejada));
+  const execOuZero = ehCanonico(executada) ? /** @type {string} */ (executada) : '0';
+  const pct = comPlano ? Number(percentualDe(execOuZero, /** @type {string} */ (planejada), 4, 0)) : null;
+  const area = execTxt || planTxt ? `${execTxt || '—'} / ${planTxt || '—'} ${unidade}${pct !== null ? ` (${pct}%)` : ''}` : null;
+  const faltaCanonica = comPlano && comparar(execOuZero, /** @type {string} */ (planejada)) < 0 ? subtrair(/** @type {string} */ (planejada), execOuZero, 4) : null;
+  const falta = faltaCanonica ? { faltam: formatarDecimalLinha(faltaCanonica), planejada: planTxt, unidade } : null;
+
+  const c = t && ehObjeto(t.combustivel) ? t.combustivel : null;
+  /** @param {unknown} v */
+  const positivo = (v) => (ehCanonico(v) && ehPositivo(/** @type {string} */ (v)) ? v : null);
+  const combustivel = c
+    ? [formatarQuantidadeLinha(positivo(c.quantidade_l), 'L'), formatarQuantidadeLinha(positivo(c.quantidade_kg), 'KG')].filter(Boolean).join(' · ') || null
+    : null;
+
+  return {
+    periodo,
+    area,
+    barra: pct === null ? null : Math.min(100, Math.max(0, pct)),
+    falta,
+    custo: t ? moeda2(t.custo_total) : null,
+    custoPorHa: t ? moeda2(t.custo_por_ha) : null,
+    combustivel,
   };
 };
 

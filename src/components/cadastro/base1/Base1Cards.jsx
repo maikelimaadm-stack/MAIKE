@@ -40,6 +40,8 @@ const gridCls = {
  * @param {string} [props.codeColId]
  * @param {(item: object) => boolean} [props.isInactive] mostra a tag "Inativo" ao lado do código
  * @param {string} [props.emptyText]
+ * @param {(row: object) => import('react').ReactNode} [props.renderAcoesDaLinha] opt-in (D-PROD-232): o botão ⚡ das ações
+ *   do card, no topo, ao lado da caixa de marcar
  */
 export function Base1Cards({
   rows,
@@ -58,7 +60,9 @@ export function Base1Cards({
   codeColId,
   isInactive,
   emptyText = "Nenhum registro encontrado",
+  renderAcoesDaLinha = undefined,
 }) {
+  const comAcoes = typeof renderAcoesDaLinha === "function";
   const byKey = new Map(columns.map((c) => [c.id, c]));
   const idOf = rowKey ?? ((r) => String(r.id));
   const titleCol =
@@ -150,6 +154,8 @@ export function Base1Cards({
             onDoubleClick={() => onOpen?.(r)}
             onKeyDown={(e) => {
               if (e.target instanceof HTMLInputElement) return;
+              // Enter/Espaço no ⚡ ou num item do menu dele (que borbulha pelo portal) não abre nem marca o card.
+              if (e.target instanceof HTMLButtonElement) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 onOpen?.(r);
@@ -161,10 +167,11 @@ export function Base1Cards({
             }}
           >
             <div
-              className="b1-card__select absolute right-3 top-3 z-[1]"
+              className={cn("b1-card__select absolute right-3 top-3 z-[1]", comAcoes && "b1-selacoes")}
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
             >
+              {comAcoes ? renderAcoesDaLinha(r) : null}
               <MgCheck
                 aria-label={`Selecionar ${typeof t === "string" && t ? t : id}`}
                 checked={on}
@@ -175,7 +182,7 @@ export function Base1Cards({
                 }}
               />
             </div>
-            <div className="flex items-center gap-2 pr-7">
+            <div className={cn("flex items-center gap-2", comAcoes ? "pr-12 sm:pr-24" : "pr-7")}>
               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mg-accent)] text-[11px] font-bold text-white">
                 {initials(typeof t === "string" ? t : getFieldValue(r, titleCol?.id))}
               </span>

@@ -110,7 +110,11 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *   permiteMaoObra?: boolean,
  *   permiteServico?: boolean,
  *   escopo?: string,
+ *   lancamentoDoTipo?: { rotulo: string, nota: string } | null,
  * }} props `onMudou`: a atividade ou o lançamento mudou no servidor (versão, status, sumiu) ou o envio ficou sem resposta — quem abriu relê.
+ *   `lancamentoDoTipo` (D-PROD-232, menu ⚡ da lista): o lançamento novo aberto por um tipo ("Trabalho de máquinas",
+ *   "Aplicação de insumos"…): o título leva o tipo e a nota diz o que vem depois de gravar o dia. As janelas próprias de
+ *   cada tipo (lista, Inserir, Salvar e fechar) são a Fatia 2.
  */
 export default function FormularioApontamento({
   atividade,
@@ -124,6 +128,7 @@ export default function FormularioApontamento({
   permiteMaoObra = false,
   permiteServico = false,
   escopo = "",
+  lancamentoDoTipo = null,
 }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const { hoje, fuso, semFuso } = useFusoDaFazenda(empresaId);
@@ -366,7 +371,9 @@ export default function FormularioApontamento({
     ? `Editar lançamento de ${formatarDiaAtividade(apontamento?.data_operacional)}${passada ? ` (${passada})` : ""}`
     : repetindo
       ? "Repetir lançamento"
-      : "Novo lançamento";
+      : lancamentoDoTipo?.rotulo
+        ? `Novo lançamento · ${lancamentoDoTipo.rotulo}`
+        : "Novo lançamento";
   const daAtividade = [atividade?.numero != null ? `Atividade nº ${atividade.numero}` : "Atividade", typeof atividade?.nome === "string" ? atividade.nome : ""]
     .filter(Boolean)
     .join(" — ");
@@ -430,6 +437,11 @@ export default function FormularioApontamento({
             <div className="col-span-12">
               <AvisoGestao testId="apontamento-aviso">{aviso}</AvisoGestao>
             </div>
+          ) : null}
+          {lancamentoDoTipo?.nota && !existente && !repetindo ? (
+            <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="apontamento-nota-do-tipo">
+              {lancamentoDoTipo.nota}
+            </p>
           ) : null}
           {esperandoFuso ? (
             <p role="status" className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="apontamento-esperando-fuso">

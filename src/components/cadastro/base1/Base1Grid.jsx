@@ -26,6 +26,8 @@ const ROW_ESTIMATE_PX = 32;
 const VIRTUALIZE_FROM = 80;
 
 export const SELECT_COLUMN_WIDTH = 36;
+/** Célula de seleção com o botão ⚡ das ações da linha (D-PROD-232): caixa + botão (cabeçalho: caixa + "Ações"). */
+export const SELECT_COLUMN_WIDTH_ACOES = 84;
 
 /**
  * Grade Modelo Base1 (referência CONTROLE-DE-ESTOQUE / frota equipamentos).
@@ -58,6 +60,10 @@ export const SELECT_COLUMN_WIDTH = 36;
  * @param {boolean} [props.referenceExtendedColumnMenu]
  * @param {boolean} [props.selecaoSticky]
  * @param {boolean} [props.colunaSelecao]
+ * @param {(r: object) => import('react').ReactNode} [props.renderAcoesDaLinha] opt-in (D-PROD-232): o botão ⚡ da
+ *   linha, na célula de seleção ao lado da caixa; o cabeçalho ganha "Ações" ao lado do "selecionar todos". Sem ele
+ *   (padrão), a grade fica como sempre.
+ * @param {string} [props.rotuloAcoesDaLinha]
  */
 export default function Base1Grid({
   columns,
@@ -87,6 +93,8 @@ export default function Base1Grid({
   referenceExtendedColumnMenu = false,
   selecaoSticky = true,
   colunaSelecao = true,
+  renderAcoesDaLinha = undefined,
+  rotuloAcoesDaLinha = "Ações",
 }) {
   const portalSkin = usePortalComprasSkin();
   const key = rowKey ?? ((r) => String(r.id));
@@ -100,7 +108,8 @@ export default function Base1Grid({
   while (pinnedCount < columns.length && columns[pinnedCount]?.pinned === "left") pinnedCount++;
   const frozenCount = Math.max(0, Math.min(Math.max(frozen, pinnedCount), columns.length));
   const selectCongelado = colunaSelecao && (selecaoSticky || frozenCount > 0);
-  const leftBase = selectCongelado ? SELECT_COLUMN_WIDTH : 0;
+  const comAcoes = colunaSelecao && typeof renderAcoesDaLinha === "function";
+  const leftBase = selectCongelado ? (comAcoes ? SELECT_COLUMN_WIDTH_ACOES : SELECT_COLUMN_WIDTH) : 0;
   const colSpanVazio = columns.length + (colunaSelecao ? 1 : 0);
 
   const measure = React.useCallback(() => {
@@ -289,12 +298,19 @@ export default function Base1Grid({
       >
         {colunaSelecao ? (
           <td
-            className={cn("td-select", selectCongelado && "sticky left-0 z-[2]")}
+            className={cn("td-select", comAcoes && "td-select--acoes", selectCongelado && "sticky left-0 z-[2]")}
             style={selectCongelado ? { background: stickyBg(on, ri) } : undefined}
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
           >
-            <MgCheck aria-label="Selecionar linha" boxStyle={CAIXA_DA_GRADE} checked={on} onChange={() => onToggle(id)} />
+            {comAcoes ? (
+              <div className="b1-selacoes">
+                <MgCheck aria-label="Selecionar linha" boxStyle={CAIXA_DA_GRADE} checked={on} onChange={() => onToggle(id)} />
+                {renderAcoesDaLinha(r)}
+              </div>
+            ) : (
+              <MgCheck aria-label="Selecionar linha" boxStyle={CAIXA_DA_GRADE} checked={on} onChange={() => onToggle(id)} />
+            )}
           </td>
         ) : null}
         {columns.map((c, i) => {
@@ -335,14 +351,27 @@ export default function Base1Grid({
         <thead>
           <tr>
             {colunaSelecao ? (
-              <th className={cn("th-select", selectCongelado && "sticky left-0 z-[4]")}>
-                <MgCheck
-                  aria-label="Selecionar todos"
-                  boxStyle={CAIXA_DA_GRADE}
-                  checked={allOn}
-                  indeterminate={someOn}
-                  onChange={(on) => onToggleAll(on)}
-                />
+              <th className={cn("th-select", comAcoes && "th-select--acoes", selectCongelado && "sticky left-0 z-[4]")}>
+                {comAcoes ? (
+                  <div className="b1-selacoes">
+                    <MgCheck
+                      aria-label="Selecionar todos"
+                      boxStyle={CAIXA_DA_GRADE}
+                      checked={allOn}
+                      indeterminate={someOn}
+                      onChange={(on) => onToggleAll(on)}
+                    />
+                    <span className="b1-selacoes__rotulo">{rotuloAcoesDaLinha}</span>
+                  </div>
+                ) : (
+                  <MgCheck
+                    aria-label="Selecionar todos"
+                    boxStyle={CAIXA_DA_GRADE}
+                    checked={allOn}
+                    indeterminate={someOn}
+                    onChange={(on) => onToggleAll(on)}
+                  />
+                )}
               </th>
             ) : null}
             {columns.map((c, i) => {

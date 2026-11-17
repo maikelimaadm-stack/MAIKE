@@ -726,6 +726,8 @@ body.b1-tela [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(#mk-a):n
 body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
 body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b):hover:not(:disabled){background:#F1F1EE}
 body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b) svg{color:#52514E}
+/* D-PROD-232: no menu ⚡ da linha, o item de perigo (Cancelar atividade) fica vermelho, com o ícone. */
+body.b1-tela .b1-acoes-linha .mg-b1-menuitem.is-danger:not(#mk-a):not(#mk-b),body.b1-tela .b1-acoes-linha .mg-b1-menuitem.is-danger:not(#mk-a):not(#mk-b) svg{color:#DC2626}
 
 /* ---- "Filtrar por campo" */
 body.b1-tela .fpc:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
