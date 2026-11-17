@@ -339,16 +339,19 @@ describe("AS-6 — mesmos formulários e histórico do detalhe do cocho", () => 
     const invalidar = vi.spyOn(qc, "invalidateQueries");
     renderizar();
     fireEvent.click(within(slot()).getByRole("button", { name: "Lançar" }));
-    const dialogo = await screen.findByRole("dialog", { name: "Lançar Suplementação - Cocho 07" });
+    // D-PROD-221: o LancLoteDialogo do lançamento de manejo — título = a ação, subtítulo = o cocho, largo.
+    const dialogo = await screen.findByRole("dialog", { name: "Lançar Suplementação", description: "Cocho 07" });
     const form = within(dialogo).getByTestId("form-lancamento");
     expect(form.getAttribute("data-ponto")).toBe("k07");
     expect(form.getAttribute("data-compartilhado")).toBe("false");
-    expect(dialogo.className).toContain("mk-map-dialog");
-    expect(dialogo.className).toContain("max-w-[880px]");
+    expect(dialogo.className).toContain("mk-ll-dlg");
+    expect(dialogo.className).toContain("mk-ll-dlg--largo");
+    expect(dialogo.querySelector(".mk-ll-dlg__titulo")?.textContent).toBe("Lançar Suplementação");
+    expect(dialogo.querySelector(".mk-ll-dlg__lotes")?.textContent).toBe("Cocho 07");
     expect(eventosMapa).toHaveLength(0);
 
     fireEvent.click(within(dialogo).getByRole("button", { name: "Sair do lançamento" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Lançar Suplementação - Cocho 07" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Lançar Suplementação" })).toBeNull());
     expect(eventosMapa).toHaveLength(1);
     expect(eventosMapa[0].detail).toBeNull();
     expect(invalidar).toHaveBeenCalledTimes(1);

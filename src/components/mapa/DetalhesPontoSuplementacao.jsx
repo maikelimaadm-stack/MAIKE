@@ -2,7 +2,6 @@ import React, { useId, useMemo, useState } from "react";
 import { ClipboardCheck, History, Loader2, Package } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
 import { Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { listarTodosProdutos } from "@/services/estoqueMapaService";
@@ -402,9 +401,19 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
         </Cartao>
       </CascaDetalhe>
 
-      <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
-        <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} cicloCompartilhado={nivel.confiabilidade === "compartilhada"} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
-      </Dialog>
+      {/* Lançar no desenho do lançamento de manejo (D-PROD-221): título = a ação, subtítulo = o cocho; o ✓ do cabeçalho envia. */}
+      <LancLoteDialogo open={showLancamento} onOpenChange={setShowLancamento} titulo="Lançar Suplementação" lotes={[{ nome: ponto.nome_ponto }]} largo>
+        {showLancamento ? (
+          <FormularioLancamentoSuplementacao
+            ponto={ponto}
+            cicloCompartilhado={nivel.confiabilidade === "compartilhada"}
+            onCancel={() => {
+              setShowLancamento(false);
+              handleSaved();
+            }}
+          />
+        ) : null}
+      </LancLoteDialogo>
 
       <LancLoteDialogo open={showLeitura} onOpenChange={setShowLeitura} titulo="Leitura de Cocho">
         {showLeitura ? (

@@ -1,8 +1,6 @@
 import React from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ClipboardCheck, History, Package } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import FormularioLancamentoSuplementacao from "@/components/suplementacao/FormularioLancamentoSuplementacao";
@@ -20,9 +18,10 @@ import { RodapePilulas } from "./blocos";
  * Abre os MESMOS formulários e o MESMO histórico do detalhe do cocho
  * (`src/components/mapa/DetalhesPontoSuplementacao.jsx`), com a mesma fiação e
  * o mesmo refresh depois de salvar:
- *  - Lançar: `FormularioLancamentoSuplementacao` no mesmo diálogo (classes do
- *    `DialogContent` do detalhe, montado com os primitivos do Radix); ao sair,
- *    invalida as consultas do cocho e dispara `atualizar-mapa`;
+ *  - Lançar: `FormularioLancamentoSuplementacao` no mesmo `LancLoteDialogo`
+ *    "Lançar Suplementação" (subtítulo = o cocho, largo), como o lançamento de
+ *    manejo (D-PROD-221); ao sair, invalida as consultas do cocho e dispara
+ *    `atualizar-mapa`;
  *  - Leitura: `FormularioLeituraCocho` em `LancLoteDialogo` "Leitura de Cocho";
  *    depois de salvar relê o cache `leiturasCocho` (D-PROD-205);
  *  - Histórico: `HistoricoSuplementacaoPonto` em `LancLoteDialogo` "Histórico de
@@ -30,16 +29,6 @@ import { RodapePilulas } from "./blocos";
  * Permissões (as mesmas chaves do detalhe): Lançar e Leitura com
  * `lancar_suplementacao`; Histórico com `visualizar_historico_cocho`.
  */
-
-/** Classes do `DialogContent` (`ui/dialog`) com as do detalhe do cocho. */
-const CLASSES_DIALOGO_LANCAMENTO = cn(
-  "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-x-hidden overflow-y-auto border bg-background p-3 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:rounded-lg sm:p-6",
-  "mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden",
-);
-const CLASSES_VEU_LANCAMENTO =
-  "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
-const CLASSES_FECHAR_LANCAMENTO =
-  "absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground sm:right-4 sm:top-4";
 
 /**
  * @param {{
@@ -89,25 +78,18 @@ export default function AcoesCochoPasto({ ponto, nivel, hoje = null, podeLancar,
       <RodapePilulas itens={itens} rotulo="Ações do cocho" />
 
       {podeLancar ? (
-        <DialogPrimitive.Root open={showLancamento} onOpenChange={setShowLancamento}>
-          <DialogPrimitive.Portal>
-            <DialogPrimitive.Overlay className={CLASSES_VEU_LANCAMENTO} />
-            <DialogPrimitive.Content className={CLASSES_DIALOGO_LANCAMENTO} aria-describedby={undefined}>
-              <DialogPrimitive.Title className="sr-only">{nome ? `Lançar Suplementação - ${nome}` : "Lançar Suplementação"}</DialogPrimitive.Title>
-              <FormularioLancamentoSuplementacao
-                ponto={ponto}
-                cicloCompartilhado={nivel?.confiabilidade === "compartilhada"}
-                onCancel={() => {
-                  setShowLancamento(false);
-                  handleSaved();
-                }}
-              />
-              <DialogPrimitive.Close className={CLASSES_FECHAR_LANCAMENTO}>
-                <span className="sr-only">Fechar</span>
-              </DialogPrimitive.Close>
-            </DialogPrimitive.Content>
-          </DialogPrimitive.Portal>
-        </DialogPrimitive.Root>
+        <LancLoteDialogo open={showLancamento} onOpenChange={setShowLancamento} titulo="Lançar Suplementação" lotes={[{ nome: ponto.nome_ponto }]} largo>
+          {showLancamento ? (
+            <FormularioLancamentoSuplementacao
+              ponto={ponto}
+              cicloCompartilhado={nivel?.confiabilidade === "compartilhada"}
+              onCancel={() => {
+                setShowLancamento(false);
+                handleSaved();
+              }}
+            />
+          ) : null}
+        </LancLoteDialogo>
       ) : null}
 
       {podeLancar ? (

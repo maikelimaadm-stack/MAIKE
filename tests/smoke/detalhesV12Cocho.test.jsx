@@ -51,10 +51,8 @@ vi.mock('@/services/mapaCacheService', () => ({
 vi.mock('@/services/estoqueMapaService', () => ({ listarTodosProdutos: vi.fn(async () => dados.produtos) }));
 vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => dados.empresas) }));
 // Os formulários e o histórico completo são os de hoje; aqui só se confere que abrem.
-vi.mock('@/components/suplementacao/FormularioLancamentoSuplementacao', async () => {
-  const { DialogTitle } = await import('@/components/ui/dialog');
-  return { default: ({ ponto }) => <DialogTitle>{`Formulário de lançamento: ${ponto?.nome_ponto}`}</DialogTitle> };
-});
+// O título do Lançar é do LancLoteDialogo (D-PROD-221): o formulário de mentira não traz título próprio.
+vi.mock('@/components/suplementacao/FormularioLancamentoSuplementacao', () => ({ default: ({ ponto }) => <p>{`Formulário de lançamento: ${ponto?.nome_ponto}`}</p> }));
 vi.mock('@/components/suplementacao/FormularioLeituraCocho', () => ({ default: ({ ponto }) => <p>{`Formulário de leitura: ${ponto?.nome_ponto}`}</p> }));
 vi.mock('@/components/suplementacao/HistoricoSuplementacaoPonto', () => ({ default: ({ pontoNome }) => <p>{`Histórico completo: ${pontoNome}`}</p> }));
 // Depósito: a casca de verdade e um toque que abre o cocho de "Pastos atendidos".
@@ -261,6 +259,10 @@ describe('CV-4 — rodapé de pílulas', () => {
     await carregado();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Lançar' })); });
     expect(await screen.findByText('Formulário de lançamento: COCHO 07')).toBeTruthy();
+    // D-PROD-221: como o lançamento de manejo — LancLoteDialogo largo, título = a ação, subtítulo = o cocho.
+    const lancar = screen.getByRole('dialog', { name: 'Lançar Suplementação', description: 'COCHO 07' });
+    expect(lancar.className).toContain('mk-ll-dlg--largo');
+    expect(within(lancar).getByText('Formulário de lançamento: COCHO 07')).toBeTruthy();
     cleanup();
 
     await noDialogo(cocho());
