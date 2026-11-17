@@ -7699,7 +7699,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 10. **Suplementação (aba):** cochos da área (pontos decorados do mapa), KPIs/Fornecimento/Consumo do primeiro cocho por nome (com 2+ cochos, o título leva o nome dele), tolerância real do fechamento (padrão 15%).
 11. **Visual:** tipografia, cores e medidas do v12 (valores 14 px, rótulos 12,5, títulos 15, texto `#1f2937`) **só** no Detalhes v12 — supera, para este painel, a D-PROD-175 e a cor `#374151` da D-PROD-120/124. Unidade depois do número, como no v12 ("449,5 kg"). O deslize lateral do v8 sai; o gesto da borda (D-PROD-120) continua.
 
-**Fora do escopo:** formulários de manejo, detalhe do cocho/depósito/bebedouro/tarefa, painel de tarefas, cabeçalho/menu do sistema, painel Opções do mapa e listas de filtro do v12 (o dono manteve os de hoje).
+**Fora do escopo:** formulários de manejo, detalhe do cocho/depósito/bebedouro/tarefa, painel de tarefas, cabeçalho/menu do sistema, painel Opções do mapa e listas de filtro e de escolha do v12 (o dono manteve as listas no padrão do sistema). **Correção junto:** a Gestão de Tarefas (aberta pelo segmento Tarefas) abria vazia na primeira vez por causa do `initialData: []` com `staleTime` em `TarefasMapaPanel.jsx`; agora busca ao abrir.
 
 **Relatório:** [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md). **Design versionado:** `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html`.
 

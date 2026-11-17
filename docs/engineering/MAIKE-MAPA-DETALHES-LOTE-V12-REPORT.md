@@ -101,7 +101,7 @@ A fonte da verdade é `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html
 ## 7. Fora do escopo e achados
 
 - **Fora do escopo:** formulários de manejo, detalhe do cocho/depósito/bebedouro/tarefa, painel de tarefas, cabeçalho/menu do sistema, e o clique no contorno da área (continua no "Histórico da Área").
-- **Bug que já existia, achado no harness e não corrigido aqui:** a Gestão de Tarefas abre vazia na primeira vez.
-  - Causa: o `useQuery` de `TarefasMapaPanel.jsx` tem `initialData: []` com `staleTime`.
-  - Correção sugerida: `placeholderData`.
+- **Bug que já existia, achado no harness e corrigido nesta PR:** a Gestão de Tarefas (aberta pelo segmento Tarefas) abria vazia na primeira vez.
+  - Causa: o `useQuery` de `TarefasMapaPanel.jsx` tinha `initialData: []` com `staleTime`, e o React Query tratava a lista vazia como dado novo, sem buscar.
+  - Correção: sai o `initialData` (o padrão `= []` cobre o carregamento). Teste `tarefasMapaPrimeiraAbertura` (falha sem a correção).
 - **Harness E2E versionado desatualizado:** o `tests/e2e/harness` (cena `geral`) quebra sem `AuthProvider`. O harness local desta missão contorna com um stub.
