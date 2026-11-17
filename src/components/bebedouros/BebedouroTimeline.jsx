@@ -1,12 +1,10 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { excluirHistorico } from "@/services/bebedouroDataService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import CartaoHistorico, { EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
-import { cn } from "@/lib/utils";
+import CartaoHistorico, { AcaoHistorico, EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
 import { diaDoLancamento, linhasDoLancamento, statusForaDoNormal } from "./cartoesDoBebedouro";
 
 // A regra é a ordem de cadastro (a do servidor), não a data do lançamento: um
@@ -94,12 +92,9 @@ export default function BebedouroTimeline({ historico = [], podeExcluir = false,
             titulo={bebedouroNome || undefined}
             rodape={
               podeExcluir ? (
-                // O botão do "Excluir movimentação" do manejo: contorno, texto vermelho quando ligado.
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={cn("h-8 text-xs", ligado ? "text-red-700" : "text-slate-500")}
+                // O botão do "Excluir movimentação" do manejo (o mesmo dos outros históricos do mapa).
+                <AcaoHistorico
+                  destrutiva
                   // Fora da heurística de texto do Layout: a regra é a do servidor (D-PROD-137).
                   data-permissao-explicita=""
                   disabled={!ligado}
@@ -107,7 +102,7 @@ export default function BebedouroTimeline({ historico = [], podeExcluir = false,
                   onClick={() => handleDelete(item, index)}
                 >
                   Excluir
-                </Button>
+                </AcaoHistorico>
               ) : null
             }
           >

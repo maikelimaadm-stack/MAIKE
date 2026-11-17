@@ -375,7 +375,9 @@ describe("AS-6 — mesmos formulários e histórico do detalhe do cocho", () => 
     const invalidar = vi.spyOn(qc, "invalidateQueries");
     renderizar();
     fireEvent.click(within(slot()).getByRole("button", { name: "Leitura" }));
-    const dialogo = await screen.findByRole("dialog", { name: "Leitura de Cocho" });
+    // D-PROD-221: como os demais lançamentos — o cocho no subtítulo do diálogo.
+    const dialogo = await screen.findByRole("dialog", { name: "Leitura de Cocho", description: "Cocho 07" });
+    expect(dialogo.querySelector(".mk-ll-dlg__lotes")?.textContent).toBe("Cocho 07");
     const form = within(dialogo).getByTestId("form-leitura");
     expect(form.getAttribute("data-ponto")).toBe("k07");
     expect(form.getAttribute("data-hoje")).toBe(HOJE);
@@ -407,7 +409,7 @@ describe("AS-6 — mesmos formulários e histórico do detalhe do cocho", () => 
     const supl = exemploV12();
     renderizar({ suplementacao: supl });
     fireEvent.click(within(slot()).getByRole("button", { name: "Histórico" }));
-    const dialogo = await screen.findByRole("dialog", { name: "Histórico de Suplementação" });
+    const dialogo = await screen.findByRole("dialog", { name: "Histórico de Suplementação", description: "Cocho 07" });
     const hist = within(dialogo).getByTestId("historico-ponto");
     expect(hist.getAttribute("data-ponto")).toBe("k07");
     expect(hist.getAttribute("data-nome")).toBe("Cocho 07");

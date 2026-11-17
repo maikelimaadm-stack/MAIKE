@@ -16,11 +16,12 @@ import { useModoPasto } from "./pastoContexto";
  * fora do diálogo (ex.: página de cadastro) a casca desenha o
  * `CabecalhoProprio`, salvo `semCabecalho`.
  *
- * Telas empilhadas (ex.: depósito › cocho, bebedouro › histórico) são da
- * própria tela: ela troca `chaveTela` e passa `onVoltar`; a casca anima a
- * troca (`anim`) e o Esc do diálogo chama o ‹ Voltar. Num formulário empilhado
- * (ex.: o lançamento do bebedouro) passe `escVolta={false}`: o ‹ Voltar fica e o
- * Esc é ignorado, para um Esc sem querer não apagar o que foi digitado.
+ * Telas empilhadas (ex.: depósito › cocho) são da própria tela: ela troca
+ * `chaveTela` e passa `onVoltar`; a casca anima a troca (`anim`) e o Esc do
+ * diálogo chama o ‹ Voltar. Num formulário empilhado passe `escVolta={false}`:
+ * o ‹ Voltar fica e o Esc é ignorado, para um Esc sem querer não apagar o que
+ * foi digitado. Lançamentos e históricos dos detalhes do mapa não empilham:
+ * abrem num `LancLoteDialogo` por cima do detalhe (D-PROD-221).
  *
  * `cabecalhoDoCorpo` entra entre o cabeçalho e o corpo, fora da rolagem (ex.:
  * as `Abas` do curral: Abate · Histórico da Área); `propsDoCorpo` vai para o

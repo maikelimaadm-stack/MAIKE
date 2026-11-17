@@ -93,7 +93,7 @@ export default function AcoesCochoPasto({ ponto, nivel, hoje = null, podeLancar,
       ) : null}
 
       {podeLancar ? (
-        <LancLoteDialogo open={showLeitura} onOpenChange={setShowLeitura} titulo="Leitura de Cocho">
+        <LancLoteDialogo open={showLeitura} onOpenChange={setShowLeitura} titulo="Leitura de Cocho" lotes={[{ nome: ponto.nome_ponto }]}>
           {showLeitura ? (
             <FormularioLeituraCocho
               ponto={ponto}

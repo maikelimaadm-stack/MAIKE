@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { criarHistorico } from "@/services/bebedouroDataService";
 import { getCurrentUser } from "@/services/sessionService";
@@ -10,6 +9,7 @@ import { BEBEDOURO_HISTORICO_STATUS, BEBEDOURO_HISTORICO_TIPOS } from "@/service
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
+import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 import { LancLoteForm, LancLoteGrade, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 
@@ -25,9 +25,12 @@ const SEM_CADASTRO = "Ponto sem cadastro de bebedouro: cadastre-o no Mapa Cadast
  * `DetalhesBebedouro` abre por cima ("Lançamento no Bebedouro", o bebedouro no
  * subtítulo); cada campo num `LancField` (rótulo dentro da caixa); campos lado a
  * lado em `LancLoteGrade`; o `LancLoteRodape` vira o ✕ / ✓ do cabeçalho do
- * diálogo (o ✓ envia o formulário). Mesmos campos, padrões, validações e envio
- * de antes; os campos de produto, custo e qualidade da água aparecem pelo Tipo
- * (a Qualidade remonta com o valor ao voltar a um tipo que a pede).
+ * diálogo (o ✓ envia o formulário). Tipo, Status e Qualidade da água são o
+ * campo de escolha dos manejos (`B1Select`, como Categoria e Causa): o painel
+ * das listas no desktop e a folha no celular. Mesmos campos, padrões,
+ * validações e envio de antes; os campos de produto, custo e qualidade da água
+ * aparecem pelo Tipo (a Qualidade remonta com o valor ao voltar a um tipo que
+ * a pede).
  *
  * D-PROD-137: a recusa do servidor (403, 400, 404…) vira mensagem e o
  * formulário fica aberto. Sem `bebedouro.id` real não envia: o histórico
@@ -123,16 +126,14 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
           <Input type="time" value={form.hora_lancamento} onChange={(e) => setForm({ ...form, hora_lancamento: e.target.value })} className={LL_CTL} />
         </LancField>
         <LancField label="Tipo" required>
-          <Select value={form.tipo_lancamento} onValueChange={(value) => setForm({ ...form, tipo_lancamento: value })}>
-            <SelectTrigger className={LL_CTL}><SelectValue /></SelectTrigger>
-            <SelectContent>{BEBEDOURO_HISTORICO_TIPOS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent>
-          </Select>
+          <B1Select value={form.tipo_lancamento} onChange={(e) => setForm({ ...form, tipo_lancamento: e.target.value })} className={LL_CTL}>
+            {BEBEDOURO_HISTORICO_TIPOS.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+          </B1Select>
         </LancField>
         <LancField label="Status" required>
-          <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}>
-            <SelectTrigger className={LL_CTL}><SelectValue /></SelectTrigger>
-            <SelectContent>{BEBEDOURO_HISTORICO_STATUS.map((status) => <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>)}</SelectContent>
-          </Select>
+          <B1Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={LL_CTL}>
+            {BEBEDOURO_HISTORICO_STATUS.map((status) => <option key={status} value={status}>{status}</option>)}
+          </B1Select>
         </LancField>
       </LancLoteGrade>
 
@@ -154,10 +155,9 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
             <Input type="number" step="0.1" value={form.escore_agua} onChange={(e) => setForm({ ...form, escore_agua: e.target.value })} className={LL_CTL} />
           </LancField>
           <LancField label="Qualidade da água">
-            <Select value={form.qualidade_agua} onValueChange={(value) => setForm({ ...form, qualidade_agua: value })}>
-              <SelectTrigger className={LL_CTL}><SelectValue /></SelectTrigger>
-              <SelectContent>{QUALIDADES_DA_AGUA.map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent>
-            </Select>
+            <B1Select value={form.qualidade_agua} onChange={(e) => setForm({ ...form, qualidade_agua: e.target.value })} className={LL_CTL}>
+              {QUALIDADES_DA_AGUA.map((item) => <option key={item} value={item}>{item}</option>)}
+            </B1Select>
           </LancField>
         </LancLoteGrade>
       ) : null}

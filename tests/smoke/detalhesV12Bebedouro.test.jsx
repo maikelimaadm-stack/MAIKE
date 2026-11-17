@@ -585,6 +585,18 @@ describe("Lançar por cima do detalhe, no desenho do manejo (D-PROD-221)", () =>
     ]);
     // Campos lado a lado na grade do manejo.
     expect(form.querySelector(".mk-ll__grade")?.children).toHaveLength(4);
+    // Tipo, Status e Qualidade da água são o campo de escolha dos manejos (B1Select, como Categoria e
+    // Causa), não o Select do Radix: o botão do B1Select, e a lista abre no painel das listas do sistema.
+    const escolhas = /** @type {HTMLElement[]} */ ([...form.querySelectorAll('button[role="combobox"]')]);
+    expect(escolhas.map((b) => b.closest(".mg-field")?.querySelector("label")?.textContent)).toEqual(["Tipo *", "Status *", "Qualidade da água"]);
+    for (const b of escolhas) {
+      expect(b.classList.contains("b1-select-btn")).toBe(true);
+      expect(b.hasAttribute("aria-autocomplete")).toBe(false);
+    }
+    await clicar(escolhas[0]);
+    const painel = await screen.findByRole("listbox", { name: "opções" });
+    expect(painel.classList.contains("mk-sel-lista")).toBe(true);
+    expect(within(painel).getByRole("option", { name: "Inspeção" }).getAttribute("aria-selected")).toBe("true");
     // Nada do desenho antigo: sem cartão, faixa de título, caixa interna, rodapé de botões nem "Salvar lançamento".
     expect(form.querySelector(".mk-ll__rodape, .tb-btn, .rounded-md.border")).toBeNull();
     expect(within(lanc).queryByRole("button", { name: /Salvar lançamento/ })).toBeNull();
@@ -605,6 +617,26 @@ describe("Lançar por cima do detalhe, no desenho do manejo (D-PROD-221)", () =>
     expect(esquerda.getAttribute("aria-label")).toBe("Cancelar");
     expect(meio.querySelector(".mk-ll-dlg__titulo")?.textContent).toBe("Lançamento no Bebedouro");
     expect(direita.getAttribute("aria-label")).toBe("Registrar Lançamento");
+    // As listas do Tipo, Status e Qualidade são a folha dos manejos, DENTRO deste diálogo (D-PROD-161).
+    await clicar(within(lanc).getByRole("combobox", { name: /^Status/ }));
+    const opcao = await screen.findByRole("option", { name: "Pendente" });
+    expect(opcao.closest(".mk-sheet")).toBeTruthy();
+    expect(opcao.closest(".mk-ll-dlg")).toBe(lanc);
+    await clicar(opcao);
+    expect(within(lanc).getByRole("combobox", { name: /^Status/ })).toHaveTextContent("Pendente");
+
+    // Com a lista aberta, o Esc fecha só a lista (o Lançar fica, com o que foi escolhido); o segundo
+    // Esc fecha o Lançar, como nos demais manejos (D-PROD-161: a regra é do LancLoteDialogo).
+    await clicar(within(lanc).getByRole("combobox", { name: /^Tipo/ }));
+    expect(await screen.findByRole("option", { name: "Limpeza" })).toBeTruthy();
+    await esc();
+    await waitFor(() => expect(screen.queryByRole("option", { name: "Limpeza" })).toBeNull());
+    expect(lanc.isConnected).toBe(true);
+    expect(dialogos()).toHaveLength(2);
+    expect(within(lanc).getByRole("combobox", { name: /^Status/ })).toHaveTextContent("Pendente");
+    await esc();
+    await waitFor(() => expect(dialogos()).toHaveLength(1));
+    expect(servico.criados).toEqual([]);
   });
 
   it("o ✓ do cabeçalho envia os campos e padrões de antes (Data hoje, Hora agora, Inspeção, Concluído, Qualidade Boa; texto em maiúsculas); mensagem de sucesso, as duas invalidações, e o diálogo fecha", async () => {

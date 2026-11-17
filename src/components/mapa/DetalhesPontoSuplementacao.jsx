@@ -415,7 +415,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
         ) : null}
       </LancLoteDialogo>
 
-      <LancLoteDialogo open={showLeitura} onOpenChange={setShowLeitura} titulo="Leitura de Cocho">
+      <LancLoteDialogo open={showLeitura} onOpenChange={setShowLeitura} titulo="Leitura de Cocho" lotes={[{ nome: ponto.nome_ponto }]}>
         {showLeitura ? (
           <FormularioLeituraCocho
             ponto={ponto}

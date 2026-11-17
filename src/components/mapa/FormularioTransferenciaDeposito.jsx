@@ -46,7 +46,6 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const direction = initialDirection;
-  const formRef = useRef(/** @type {HTMLFormElement | null} */ (null));
   const [localRelacionadoId, setLocalRelacionadoId] = useState("");
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
@@ -182,15 +181,6 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     }
   };
 
-  // D-PROD-161: no celular as folhas das listas (Local, Produto, Unidade) nascem DENTRO do
-  // `LancLoteDialogo` (o alvo das folhas que ele entrega aos filhos). Com uma aberta, o Esc fecha só
-  // a folha: o pedido de fechar o diálogo — que o LancLoteDialogo entrega a este cancelar (o ✕ do
-  // cabeçalho) — é ignorado enquanto houver folha aberta dentro do diálogo; o segundo Esc fecha o diálogo.
-  const cancelar = () => {
-    if (formRef.current?.closest(".mk-ll-dlg")?.querySelector(".mk-sheet-root")) return;
-    onCancel?.();
-  };
-
   // Origem · Destino · Saldo: os mesmos números e textos de antes, numa linha só (quebra entre os itens).
   /** @type {Array<[string, string]>} */
   const resumo = [
@@ -201,7 +191,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   if (suportaSacos) resumo.push(["Saldo (sacas)", saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })]);
 
   return (
-    <LancLoteForm ref={formRef} onSubmit={handleSubmit} data-testid="form-transferencia-deposito">
+    <LancLoteForm onSubmit={handleSubmit} data-testid="form-transferencia-deposito">
       <LancLoteGrade>
         <LancField label="Data da movimentação" required>
           <Input type="date" value={dataMovimentacao} max={hojeFazenda} onChange={(e) => { dataEditada.current = true; setDataMovimentacao(e.target.value); }} className={LL_CTL} />
@@ -249,7 +239,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       </LancField>
 
       <LancLoteRodape
-        onCancelar={cancelar}
+        onCancelar={onCancel}
         textoAcao={direction === "entrada" ? "Registrar Entrada" : "Registrar Saída"}
         textoEnviando="Salvando..."
         enviando={saving}

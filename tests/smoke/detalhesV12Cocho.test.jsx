@@ -269,14 +269,15 @@ describe('CV-4 — rodapé de pílulas', () => {
     await carregado();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Leitura' })); });
     expect(await screen.findByText('Formulário de leitura: COCHO 07')).toBeTruthy();
-    expect(screen.getByRole('dialog', { name: 'Leitura de Cocho' })).toBeTruthy();
+    // D-PROD-221: como os demais lançamentos — o cocho no subtítulo do diálogo.
+    expect(screen.getByRole('dialog', { name: 'Leitura de Cocho', description: 'COCHO 07' })).toBeTruthy();
     cleanup();
 
     await noDialogo(cocho());
     await carregado();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Histórico' })); });
     expect(await screen.findByText('Histórico completo: COCHO 07')).toBeTruthy();
-    expect(screen.getByRole('dialog', { name: 'Histórico de Suplementação' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Histórico de Suplementação', description: 'COCHO 07' })).toBeTruthy();
   });
 });
 

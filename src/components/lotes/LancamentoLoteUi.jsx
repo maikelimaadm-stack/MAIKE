@@ -22,9 +22,11 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
  * antes do título, o ✕ continua à direita; na tela cheia no lugar do ✕) e o Esc
  * volta um nível em vez de fechar.
  *
- * `escVolta: false` (formulário empilhado, ex.: o lançamento do bebedouro,
+ * `escVolta: false` (formulário empilhado na própria tela do detalhe,
  * D-PROD-220): o ‹ Voltar continua, mas o Esc é ignorado em qualquer modo — um
- * Esc sem querer não apaga o que foi digitado (como o popup, D-PROD-125).
+ * Esc sem querer não apaga o que foi digitado (como o popup, D-PROD-125). Os
+ * lançamentos dos detalhes do mapa não empilham mais: abrem num
+ * `LancLoteDialogo` por cima (D-PROD-221).
  * @typedef {{ titulo: string, sub?: string, voltar?: () => void, escVolta?: boolean }} CabecalhoLancLote
  */
 
@@ -124,10 +126,13 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
         onOpenAutoFocus={somenteLeitura ? (e) => e.preventDefault() : undefined}
         // Popup: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
         onInteractOutside={popup ? (e) => e.preventDefault() : undefined}
+        // Com uma folha (lista do celular) aberta dentro do diálogo, o Esc é só dela: a folha fecha
+        // sozinha (ela ouve o Esc) e o diálogo fica — em todos os lançamentos (D-PROD-161, D-PROD-221).
         // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-218);
         // formulário empilhado (`escVolta: false`): Esc ignorado, para não perder o que foi digitado.
         onEscapeKeyDown={(e) => {
-          if (cabecalho?.escVolta === false) e.preventDefault();
+          if (alvoFolha?.querySelector(".mk-sheet-root")) e.preventDefault();
+          else if (cabecalho?.escVolta === false) e.preventDefault();
           else if (voltar) {
             e.preventDefault();
             voltar();
