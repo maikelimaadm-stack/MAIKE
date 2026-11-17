@@ -294,6 +294,36 @@ describe('vínculo com o lançamento (apontamento) e centro de custo', () => {
     assert.equal(await estoqueAtual(s.diesel.id), estoqueInicial, 'estoque de volta');
   });
 
+  test('D-PROD-217 — o banco recusa (23503) gravar à mão um abastecimento com o apontamento de OUTRA atividade (UPDATE e INSERT); o par certo passa', async () => {
+    const s = await montarLinhasCusto(app);
+    const p = prisma();
+    const ap = await s.apontar();
+    const b = await s.abrir();
+    const apB = await s.apontar({ data_operacional: '2027-06-12' }, { a: b });
+    const ligado = await A.confirmarOk(s.token, corpoAbastecimento(s, { apontamento_id: ap.id }));
+    const antes = await p.abastecimentoBem.findUnique({ where: { id: ligado.id } });
+    const recusa = async (sql, ...valores) => {
+      await assert.rejects(p.$executeRawUnsafe(sql, ...valores), (e) => {
+        const texto = `${e.message} ${JSON.stringify(e.meta ?? {})}`;
+        assert.ok(texto.includes('23503') && texto.includes('AbastecimentoBem_apontamento_fkey'), texto);
+        return true;
+      });
+    };
+    // UPDATE: o apontamento da outra atividade com a atividade de antes, ou só a atividade trocada.
+    await recusa('UPDATE "AbastecimentoBem" SET apontamento_id = $1 WHERE id = $2', apB.id, ligado.id);
+    await recusa('UPDATE "AbastecimentoBem" SET atividade_id = $1 WHERE id = $2', b.id, ligado.id);
+    assert.deepEqual(await p.abastecimentoBem.findUnique({ where: { id: ligado.id } }), antes, 'nada mudou');
+    // INSERT (um EXTERNO copiado do ligado): com o apontamento da outra atividade recusa; com o par certo entra.
+    const inserir = (id, apontamento) => p.$executeRawUnsafe(`INSERT INTO "AbastecimentoBem" (id, cliente_id, empresa_id, numero, status, bem_id, tanque_id, produto_id,
+        data_operacional, quantidade, unidade, custo_total, custo_unitario, medidor_tipo, operation_id, origem, atividade_id, apontamento_id, "updatedAt")
+      SELECT $1, cliente_id, empresa_id, $1, 'CONFIRMADO', bem_id, tanque_id, produto_id, data_operacional, 1, unidade, 1, 1, 'SEM_MEDIDOR', 'op-' || $1, 'EXTERNO', atividade_id, $2, now()
+        FROM "AbastecimentoBem" WHERE id = $3`, id, apontamento, ligado.id);
+    await assert.rejects(inserir('x-213-a', apB.id), (e) => /23503/.test(e.message) && /AbastecimentoBem_apontamento_fkey/.test(`${e.message} ${JSON.stringify(e.meta ?? {})}`));
+    assert.equal(await inserir('x-213-b', ap.id), 1);
+    assert.deepEqual(await p.abastecimentoBem.findMany({ where: { id: { in: ['x-213-a', 'x-213-b'] } }, select: { id: true, atividade_id: true, apontamento_id: true } }),
+      [{ id: 'x-213-b', atividade_id: s.atividade.id, apontamento_id: ap.id }]);
+  });
+
   test('editar o apontamento (data e área) não mexe nos abastecimentos ligados', async () => {
     const s = await montarLinhasCusto(app);
     const ap = await s.apontar({ area_executada_dia: '5' });

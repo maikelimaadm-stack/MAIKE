@@ -46,7 +46,10 @@
  *     D-PROD-211, sem DROP TABLE, as 18
  *     instruções em AbastecimentoBem — 7 ADD COLUMN, 2 delas NOT NULL DEFAULT, 2 DROP
  *     NOT NULL, o UPDATE do centro de custo vindo do bem, o CHECK de status recriado,
- *     3 CHECKs novos e 3 FKs compostas para tabelas antigas).
+ *     3 CHECKs novos e 3 FKs compostas para tabelas antigas; na D-PROD-217, sem DROP
+ *     TABLE e sem resto, as 3 instruções do reforço — o UNIQUE (cliente_id, empresa_id,
+ *     atividade_id, id) em AtividadeApontamento e a FK do apontamento de AbastecimentoBem
+ *     recriada com o mesmo nome, agora com a atividade).
  *     Formato CONVERSÃO (D-PROD-200; a entrada tem `conversao` não vazia): os dados
  *     das tabelas que saem vão para as que entram ANTES do DROP. A ordem passa a ser
  *     guarda → `alter_antigas` (na D-PROD-200, nenhuma) → RESTO pela allowlist EXPAND
@@ -168,6 +171,11 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261116500000_cadculturas': '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715',
   // D-PROD-216: CONTRACT aditiva — a Área ligada à Cultura (coluna anulável, UNIQUE em CADCULTURAS e FK composta).
   '20261117000000_area_cultura': 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26',
+  // D-PROD-217: CONTRACT aprovado pelo proprietário ("pode fazer o reforço no banco") — o apontamento do abastecimento
+  // tem de ser DA atividade gravada nele: UNIQUE (cliente_id, empresa_id, atividade_id, id) em AtividadeApontamento e a
+  // FK "AbastecimentoBem_apontamento_fkey" recriada com 4 colunas. A guarda aborta se algum abastecimento apontar para
+  // um apontamento de outra atividade. Nenhuma coluna, tabela ou dado muda.
+  '20261117100000_abastecimento_fk_apontamento_atividade': '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -215,12 +223,15 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São onze, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * exige decisão. São treze, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
  * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre), D-PROD-208
  * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto),
  * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto), D-PROD-210
- * (formato de sempre: a base do consumo nas 3 tabelas VAZIAS das Formulações, sem DROP TABLE e sem resto) e D-PROD-211
- * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices).
+ * (formato de sempre: a base do consumo nas 3 tabelas VAZIAS das Formulações, sem DROP TABLE e sem resto), D-PROD-211
+ * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices),
+ * D-PROD-216 (formato de sempre: a coluna, o UNIQUE e a FK aditivos da Área ligada à Cultura; no resto, só o índice) e
+ * D-PROD-217 (formato de sempre: o UNIQUE e a FK recriada do reforço, pinados em tabelas antigas, sem DROP TABLE e sem
+ * resto).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -524,6 +535,26 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "AreaPastagem" ADD COLUMN "cultura_id" VARCHAR(64)',
       'CREATE UNIQUE INDEX "CADCULTURAS_cliente_id_empresa_id_id_key" ON "CADCULTURAS"("cliente_id", "empresa_id", "id")',
       'ALTER TABLE "AreaPastagem" ADD CONSTRAINT "AreaPastagem_cliente_id_empresa_id_cultura_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "cultura_id") REFERENCES "CADCULTURAS"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-217 (reforço da D-PROD-211): o apontamento do abastecimento tem de ser da atividade gravada nele. Sem DROP
+  // TABLE, sem tabela nova e sem resto: depois da guarda (hash pinado; confere que as 2 tabelas existem, que a FK
+  // "AbastecimentoBem_apontamento_fkey" ainda é a de 3 colunas para "AtividadeApontamento", que o CHECK
+  // "AbastecimentoBem_atividade_check" existe e que o UNIQUE novo não; trava "AtividadeApontamento" e depois
+  // "AbastecimentoBem" em ACCESS EXCLUSIVE e aborta se algum abastecimento apontar para um apontamento de
+  // outra atividade), EXATAMENTE as 3 instruções abaixo, nesta ordem (texto pinado): o UNIQUE (cliente_id, empresa_id,
+  // atividade_id, id) em "AtividadeApontamento" (o alvo que a FK composta exige; a allowlist EXPAND recusa UNIQUE em
+  // tabela antiga), o DROP da FK de 3 colunas e o ADD da FK de 4 colunas com o MESMO nome (o descritor a declara em
+  // `constraints_alargadas`: recriada), RESTRICT. A guarda só cita as 2 tabelas.
+  '20261117100000_abastecimento_fk_apontamento_atividade': Object.freeze({
+    decisao: 'D-PROD-217',
+    guarda_sha256: '8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AbastecimentoBem', 'AtividadeApontamento']),
+    alter_antigas: Object.freeze([
+      'CREATE UNIQUE INDEX "AtividadeApontamento_empresa_atividade_id_key" ON "AtividadeApontamento"("cliente_id", "empresa_id", "atividade_id", "id")',
+      'ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_apontamento_fkey"',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_apontamento_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "atividade_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "atividade_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ]),
   }),
 });
