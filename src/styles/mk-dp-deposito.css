@@ -1,0 +1,84 @@
+/*
+ * Detalhe do DEPÓSITO no desenho do Detalhes do Lote v12 (D-PROD-220) — só o
+ * que as peças comuns (src/components/mapa/detalhes-lote/blocos.jsx +
+ * mk-detalhes-pasto.css) não têm. Tudo vale só sob a raiz `.mk-dp`.
+ *
+ * ── Mapa de uso ─────────────────────────────────────────────────────────
+ * section.mk-dp-deposito__nivel > h3.mk-dp-deposito__oculto + .mk-dp-nivel + .mk-dp-aviso… + .mk-dp-cartao
+ * .mk-dp-nivel__val > span.mk-dp-deposito__excesso | span.mk-dp-deposito__neutro
+ * .mk-dp-cartao > .mk-dp-linha… + div.mk-dp-deposito__litros[role=group] > p.mk-dp-deposito__litros-tit + .mk-dp-linha…
+ * span.mk-dp-deposito__alerta   texto curto em âmbar ("unidade não confirmada", "Reposição recomendada.")
+ * .mk-dp-linha.mk-dp-deposito__linha--fraca   seção vazia ("Sem saldo…", "Nenhum cocho vinculado…")
+ * div.mk-dp-vazio.mk-dp-deposito__carregando[role=status]   "Carregando detalhes do depósito..."
+ */
+
+/* Região "Nível do depósito": nível, avisos e grade com o mesmo respiro do corpo. */
+.mk-dp .mk-dp-deposito__nivel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Só para o leitor de tela: o v12 não mostra título acima do nível. */
+.mk-dp .mk-dp-deposito__oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Percentual acima do limite operacional: o âmbar do medidor. */
+.mk-dp .mk-dp-deposito__excesso {
+  color: #b45309;
+}
+
+/* Rótulo neutro ("Sem limite") no lugar do número: não é um nível — menor e
+   cinza, como o estado sem estimativa do cocho. */
+.mk-dp .mk-dp-deposito__neutro {
+  color: #4b5563;
+  font-size: 18px;
+}
+
+.mk-dp .mk-dp-deposito__alerta {
+  color: #b45309;
+  font-weight: 600;
+}
+
+/* Produtos em litros: grupo à parte no fim do cartão do saldo. */
+.mk-dp .mk-dp-linha + .mk-dp-deposito__litros {
+  border-top: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-deposito__litros-tit {
+  padding: 10px 14px 0;
+  color: #6b7280;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Seção vazia: a linha fraca do v12 (`v11-row--fraco`), 12,5 px cinza. */
+.mk-dp .mk-dp-deposito__linha--fraca .mk-dp-linha__rot {
+  color: #6b7280;
+  font-size: 12.5px;
+}
+
+/* Carregando: o estado vazio do v12 com o ícone girando (sem animação se o
+   sistema pede menos movimento). */
+@keyframes mk-dp-deposito-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk-dp .mk-dp-deposito__carregando .mk-dp-vazio__ic {
+    animation: mk-dp-deposito-girar 1s linear infinite;
+  }
+}

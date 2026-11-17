@@ -34,6 +34,48 @@ function getLabelTipoDetalhado(tipo) {
   return map[tipo] || tipo || "-";
 }
 
+/**
+ * Movimentações do histórico do depósito, da mais nova para a mais antiga.
+ *
+ * Entram as da empresa que tocam o local de estoque do depósito, menos as
+ * reversões; cada lado de uma transferência (e a baixa da suplementação) só
+ * aparece no depósito certo — a saída na origem, a entrada no destino —,
+ * porque o par da transferência grava origem e destino nas DUAS linhas.
+ * Ordem: o registro criado por último primeiro (`created_date`); empate, a
+ * data da movimentação.
+ *
+ * Pura, para a linha do tempo do detalhe do depósito (D-PROD-220) mostrar o
+ * começo deste mesmo histórico, com a mesma regra.
+ *
+ * @param {any[] | null | undefined} movimentacoes
+ * @param {{ empresaId: string | null | undefined, localEstoqueId: string | null | undefined }} filtro
+ * @returns {any[]}
+ */
+export function movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId, localEstoqueId }) {
+  return (Array.isArray(movimentacoes) ? movimentacoes : [])
+    .filter((item) => {
+      if (item.empresa_id !== empresaId) return false;
+      if (item.origem_sistema === "reversao") return false;
+      if (item.tipo_detalhado === "ajuste_positivo" && String(item.observacoes || "").includes("Reversão do lançamento do cocho")) return false;
+
+      const isOrigin = item.local_estoque_origem === localEstoqueId;
+      const isDestination = item.local_estoque_destino === localEstoqueId;
+
+      if (!isOrigin && !isDestination) return false;
+
+      if (item.tipo_detalhado === "transferencia_enviada" && !isOrigin) return false;
+      if (item.tipo_detalhado === "transferencia_recebida" && !isDestination) return false;
+      if (item.tipo_detalhado === "suplementacao" && !isOrigin) return false;
+
+      return true;
+    })
+    .sort((a, b) => {
+      const createdDiff = new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return new Date(b.data_movimentacao || 0).getTime() - new Date(a.data_movimentacao || 0).getTime();
+    });
+}
+
 export default function HistoricoDepositoSuplementacao({ deposito }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
@@ -43,29 +85,8 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     queryKey: ["historico-deposito", deposito.id],
     queryFn: async () => {
       const depositoLocalId = deposito.local_estoque_id;
-      
-      const applyFilter = (all) => all
-        .filter((item) => {
-          if (item.empresa_id !== empresaSelecionadaId) return false;
-          if (item.origem_sistema === "reversao") return false;
-          if (item.tipo_detalhado === "ajuste_positivo" && String(item.observacoes || "").includes("Reversão do lançamento do cocho")) return false;
 
-          const isOrigin = item.local_estoque_origem === depositoLocalId;
-          const isDestination = item.local_estoque_destino === depositoLocalId;
-
-          if (!isOrigin && !isDestination) return false;
-
-          if (item.tipo_detalhado === "transferencia_enviada" && !isOrigin) return false;
-          if (item.tipo_detalhado === "transferencia_recebida" && !isDestination) return false;
-          if (item.tipo_detalhado === "suplementacao" && !isOrigin) return false;
-
-          return true;
-        })
-        .sort((a, b) => {
-          const createdDiff = new Date(b.created_date || 0) - new Date(a.created_date || 0);
-          if (createdDiff !== 0) return createdDiff;
-          return new Date(b.data_movimentacao || 0) - new Date(a.data_movimentacao || 0);
-        });
+      const applyFilter = (all) => movimentacoesDoHistoricoDeposito(all, { empresaId: empresaSelecionadaId, localEstoqueId: depositoLocalId });
 
       const cached = await getMapaCachedData('movimentacaoEstoque', empresaSelecionadaId);
       

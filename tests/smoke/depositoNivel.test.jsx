@@ -7,6 +7,10 @@
  * mínimo é um LIMIAR independente (acima/abaixo, margem em kg): nunca é
  * divisor nem teto do percentual. Antes (D-PROD-176) o nível era saldo ÷ mínimo
  * e o texto dizia "% do mínimo".
+ *
+ * D-PROD-220 (desenho do Detalhes do Lote v12): o percentual bruto é o número
+ * grande do bloco do nível E o da célula do medidor na grade — as duas
+ * aparições são verificadas.
  */
 import React from 'react';
 import { render, screen, cleanup, within } from '@testing-library/react';
@@ -29,6 +33,11 @@ const nivelDe = ({ saldo, limite = null, minimo = null }) => calcularNivelDeposi
 const iconeDe = (container) => xml(decodeURIComponent(container.querySelector('img[data-deposito-icone]').src.split(',')[1]));
 const medidorLimite = () => screen.getByRole('meter', { name: 'Ocupação do limite operacional' });
 const painelMinimo = () => screen.getByRole('group', { name: 'Estoque mínimo' });
+/** O percentual visível: no bloco do nível e na célula do medidor (as duas aparições). */
+const percentualVisivel = (texto) => {
+  expect(within(screen.getByTestId('nivel-do-deposito')).getByText(texto)).toBeTruthy();
+  expect(screen.getAllByText(texto)).toHaveLength(2);
+};
 
 describe('Depósito com nível pelo limite operacional', () => {
   it('mostra no mapa o mesmo nível do subícone e preserva a moldura do cocho', () => {
@@ -42,7 +51,7 @@ describe('Depósito com nível pelo limite operacional', () => {
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('50');
     expect(medidorLimite().getAttribute('aria-valuetext')).toBe('50% do limite operacional: 500 kg de 1.000 kg, dentro do limite');
     expect(screen.getByText('500 kg de 1.000 kg · dentro do limite')).toBeTruthy();
-    expect(screen.getByText('50%')).toBeTruthy();
+    percentualVisivel('50%');
     const sub = iconeDe(container);
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
     expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#a6afb6');
@@ -52,7 +61,7 @@ describe('Depósito com nível pelo limite operacional', () => {
 
   it('acima do limite: percentual bruto fora do ícone, ícone cheio e excesso em kg', () => {
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 2000, limite: 1000 })} />);
-    expect(screen.getByText('200%')).toBeTruthy();
+    percentualVisivel('200%');
     expect(screen.getByText('2.000 kg de 1.000 kg · 1.000 kg acima do limite')).toBeTruthy();
     expect(medidorLimite().getAttribute('aria-valuetext')).toBe('200% do limite operacional: 2.000 kg de 1.000 kg, 1.000 kg acima');
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('200');

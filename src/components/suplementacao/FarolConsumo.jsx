@@ -12,7 +12,8 @@ import { FAROL_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
  * no custo do período.
  */
 
-const MOTIVO_PESO = Object.freeze({
+/** Por que o peso médio do período é aproximado; exportado para o detalhe do cocho v12 (D-PROD-220). */
+export const MOTIVO_PESO = Object.freeze({
   sem_data: "sem data do lançamento",
   sem_lotes: "sem os lotes do período",
   sem_curva: "lote sem curva de ganho gravada",
@@ -26,7 +27,8 @@ const COR_SELO = Object.freeze({
   neutro: "border-slate-200 bg-slate-50 text-slate-600",
 });
 
-const MOTIVO = Object.freeze({
+/** Por que o farol ficou sem referência; exportado para o detalhe do cocho v12 (D-PROD-220). */
+export const MOTIVO_SEM_REFERENCIA = Object.freeze({
   sem_esperado: "sem consumo esperado (formulação ou peso)",
   cocho_compartilhado: "cocho compartilhado",
 });
@@ -45,7 +47,7 @@ const reais = (v) => (typeof v === "number" && Number.isFinite(v) ? v.toLocaleSt
 export function FarolConsumoSelo({ farol, motivo, faixa }) {
   const info = FAROL_CONSUMO[farol] ?? FAROL_CONSUMO.sem_referencia;
   const detalhe = farol === "sem_referencia"
-    ? (motivo && MOTIVO[motivo] ? ` — ${MOTIVO[motivo]}` : "")
+    ? (motivo && MOTIVO_SEM_REFERENCIA[motivo] ? ` — ${MOTIVO_SEM_REFERENCIA[motivo]}` : "")
     : typeof faixa === "number" ? ` (±${fmt(faixa, 0) ?? faixa}%)` : "";
   return (
     <span

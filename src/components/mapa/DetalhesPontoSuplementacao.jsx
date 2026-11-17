@@ -1,12 +1,13 @@
-import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import React, { useId, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ClipboardCheck, History, Loader2, Package } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
+import { Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { listarTodosProdutos } from "@/services/estoqueMapaService";
 import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
@@ -14,9 +15,10 @@ import CochoNivel from "./CochoNivel";
 import MedidorLimiteOperacional from "./MedidorLimiteOperacional";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
-import CardMetricaEvento from "../suplementacao/CardMetricaEvento";
-import { ResumoFechamentoConsumo } from "../suplementacao/FarolConsumo";
-import { resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
+import { metricasDoEvento } from "../suplementacao/CardMetricaEvento";
+import DesvioConsumoTag from "../suplementacao/DesvioConsumoTag";
+import { MOTIVO_PESO, MOTIVO_SEM_REFERENCIA } from "../suplementacao/FarolConsumo";
+import { FAROL_CONSUMO, resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
 import FormularioLeituraCocho from "../suplementacao/FormularioLeituraCocho";
 import { excluirLeituraCocho } from "@/services/leituraCochoService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
@@ -44,13 +46,51 @@ import {
   formatarPercentualNivel,
   formatarTaxaNivel,
 } from "@/domain/suplementacao/nivelSuplementacao";
+import "@/styles/mk-dp-cocho.css";
+
+/*
+ * Detalhe do ponto de suplementação aberto pelo Mapa Geral — cocho (aqui) e
+ * depósito (`DetalhesDepositoSuplementacao`) — no MESMO desenho do Detalhes do
+ * Lote v12 (D-PROD-220, sobre o D-PROD-218): a casca `CascaDetalhe` publica
+ * título e subtítulo no cabeçalho do diálogo, o corpo é feito das peças de
+ * `detalhes-lote/blocos` e as ações ficam no rodapé de pílulas.
+ *
+ * Cocho, na ordem do v12 (`telaCocho`): nível do ciclo (região "Nível do
+ * cocho": bloco do nível + cartão do limite, saldo, duração e reposição),
+ * "Leitura do cocho" (farol, avisos e as últimas leituras), "Último período
+ * fechado", "Total fornecido por produto", "Último registro" (do MAIKE: o
+ * v12 não tem) e "Informações do cocho". Os dados, as regras, as consultas, as
+ * permissões e os formulários são os de antes (D-PROD-178, D-PROD-205,
+ * D-PROD-206); só a apresentação mudou.
+ *
+ * Visual próprio em src/styles/mk-dp-cocho.css (o comum fica em
+ * mk-detalhes-pasto.css).
+ */
 
 const ROTULO_RESTANTE_CICLO = "Restante do ciclo (estimado)";
 const ROTULO_USO_LIMITE = "Uso do limite operacional";
 const NOTA_LIMITE_ATUAL = "O limite é o valor configurado hoje; mudanças no cadastro não refazem lançamentos antigos.";
+const NOTA_DESCONTO_DIARIO = "No dia do abastecimento, mantém o total disponível. O desconto diário começa no dia seguinte, sem considerar o horário do registro.";
 
 /** Dias com até 1 casa ("4", "2,3"); o SSOT não arredonda. @param {number} dias */
 const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+
+/** Número pt-BR com casas fixas, ou null. @param {unknown} v @param {number} casas */
+const numero = (v, casas) =>
+  typeof v === "number" && Number.isFinite(v) ? v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }) : null;
+
+/** "R$ 1.080,00", ou null. @param {unknown} v */
+const reais = (v) =>
+  typeof v === "number" && Number.isFinite(v) ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
+
+/** Dia da leitura ou do lançamento em dd/mm/aaaa. @param {unknown} data */
+const diaBR = (data) => formatarDia(String(data ?? "").slice(0, 10));
+
+/** @param {unknown} texto */
+const minusculo = (texto) => String(texto ?? "").toLowerCase();
+
+/** Cor do farol do consumo (D-PROD-206) nas cores do sistema; sem referência, cinza. */
+const COR_DO_FAROL_CONSUMO = Object.freeze({ vermelho: COR_FAROL.vermelho, verde: COR_FAROL.verde, azul: COR_FAROL.azul });
 
 /**
  * Leitura do cache local do mapa (rápida), com atualização em segundo plano.
@@ -85,11 +125,30 @@ function useCacheDoMapa(chave, empresaId, staleTime) {
   });
 }
 
-export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions = {} }) {
+/**
+ * Despachante do detalhe aberto pelo marcador: depósito ou cocho. No depósito,
+ * um cocho de "Pastos atendidos" (`onAbrirCocho`) abre como tela EMPILHADA na
+ * mesma janela — ‹ Voltar e o Esc voltam ao depósito (D-PROD-220). O cocho
+ * empilhado vale só para o depósito em que foi aberto e segue a mesma
+ * permissão do marcador do mapa (`visualizar_detalhes_cochos`, "Abrir detalhes
+ * de cocho / depósito"): sem ela, o depósito não oferece o toque.
+ * @param {{ ponto: any, onClose?: () => void, permissions?: Record<string, any>, subtitulo?: string }} props
+ *   `subtitulo`: o local do ponto no cabeçalho (o Mapa Geral passa áreas · setor).
+ */
+export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions = {}, subtitulo }) {
+  const [empilhado, setEmpilhado] = useState(/** @type {{ depositoId: unknown, cocho: any } | null} */ (null));
+  const cochoDoDeposito = empilhado && empilhado.depositoId === ponto?.id ? empilhado.cocho : null;
+  /** @param {any} cocho */
+  const setCochoDoDeposito = (cocho) => setEmpilhado(cocho ? { depositoId: ponto?.id, cocho } : null);
+
   if (normalizeText(ponto?.categoria_ponto) === "DEPOSITO") {
-    return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} />;
+    if (cochoDoDeposito) {
+      return <DetalhesCocho ponto={cochoDoDeposito} permissions={permissions} onVoltar={() => setCochoDoDeposito(null)} />;
+    }
+    const podeAbrirCocho = permissions.visualizar_detalhes_cochos !== false;
+    return <DetalhesDepositoSuplementacao deposito={ponto} permissions={permissions} onClose={onClose} subtitulo={subtitulo} onAbrirCocho={podeAbrirCocho ? setCochoDoDeposito : null} />;
   }
-  return <DetalhesCocho ponto={ponto} permissions={permissions} />;
+  return <DetalhesCocho ponto={ponto} permissions={permissions} subtitulo={subtitulo} />;
 }
 
 /**
@@ -98,10 +157,18 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
  * eventos da fazenda, os pontos de suplementação ativos (cochos que dividem os
  * mesmos animais) e o dia civil no fuso da fazenda (`useDiaCivil`), que vira
  * sozinho à meia-noite. Esta tela não calcula saldo, taxa nem percentual.
+ *
+ * Cabeçalho: o nome do cocho e o `subtitulo` (sem ele, as áreas vinculadas).
+ * Rodapé: Lançar e Leitura com `lancar_suplementacao`; Histórico com
+ * `visualizar_historico_cocho` (sem a permissão, a pílula não aparece).
+ * `onVoltar`: aberto por cima do depósito (tela empilhada).
+ * @param {{ ponto: any, permissions: Record<string, any>, subtitulo?: string, onVoltar?: (() => void) | null }} props
  */
-function DetalhesCocho({ ponto, permissions }) {
+function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
+  const idNivel = useId();
+  const idLeitura = useId();
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [showLeitura, setShowLeitura] = useState(false);
@@ -202,6 +269,8 @@ function DetalhesCocho({ ponto, permissions }) {
   const projecaoCartao = projecaoDoCartaoDoNivel(nivel);
   const duracaoCicloDias = projecaoCartao.duracaoEstimada ?? null;
   const proximaReposicao = projecaoCartao.proximaReposicao ?? null;
+  // Os mesmos rótulos e valores do cartão do Histórico (`CardMetricaEvento`).
+  const metricasUltimo = metricasDoEvento({ evento: ultimoEvento, sacos: ultimoEventoSacos, showProjecao: true, ...projecaoCartao });
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -232,111 +301,91 @@ function DetalhesCocho({ ponto, permissions }) {
   // compartilhamento entre cochos não seria detectado no primeiro quadro).
   const loadingInicial = (loadingEventos && eventos.length === 0) || (loadingAreas && areas.length === 0) || (loadingPontos && pontosSuplementacao.length === 0);
 
+  const podeLancar = permissions.lancar_suplementacao !== false;
+  const podeHistorico = permissions.visualizar_historico_cocho !== false;
+  // Aberto por cima do depósito, a tela entra empurrando (como as telas empilhadas do lote).
+  const casca = {
+    titulo: String(ponto?.nome_ponto ?? ""),
+    sub: subtitulo || areaNomesRelacionadas.join(", "),
+    onVoltar,
+    chaveTela: "cocho",
+    anim: onVoltar ? /** @type {const} */ ("empurrar") : null,
+  };
+
   if (loadingInicial) {
     return (
-      <div className="mk-map-details space-y-1" translate="no">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
-          <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
-          <span className="text-xs font-medium text-slate-700">Carregando detalhes do cocho...</span>
-        </div>
-      </div>
+      <CascaDetalhe {...casca}>
+        <Vazio icone={Loader2} className="mk-dp-cocho__carregando" role="status">Carregando detalhes do cocho...</Vazio>
+      </CascaDetalhe>
     );
   }
 
+  /** @type {Array<{ chave: string, rotulo: string, icone: import("lucide-react").LucideIcon, onClick: () => void }>} */
+  const pilulas = [];
+  if (podeLancar) {
+    pilulas.push({ chave: "lancar", rotulo: "Lançar", icone: Package, onClick: () => setShowLancamento(true) });
+    pilulas.push({ chave: "leitura", rotulo: "Leitura", icone: ClipboardCheck, onClick: () => setShowLeitura(true) });
+  }
+  if (podeHistorico) pilulas.push({ chave: "historico", rotulo: "Histórico", icone: History, onClick: () => setShowHistorico(true) });
+
   return (
-    <div className="mk-map-details space-y-1" translate="no">
-      <div className="pb-1 border-b space-y-1">
-        <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {ponto.nome_ponto}</Badge>
-        </div>
-      </div>
+    <>
+      <CascaDetalhe {...casca} rodape={pilulas.length ? <RodapePilulas itens={pilulas} rotulo="Ações do cocho" /> : null}>
+        <section aria-labelledby={idNivel} className="mk-dp-cocho__regiao">
+          <h3 id={idNivel} className="mk-dp-cocho__oculto">Nível do cocho</h3>
+          <BlocoNivel nivel={nivel} />
+          <CartaoDoNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} />
+        </section>
 
-      <div className={permissions.lancar_suplementacao !== false ? "grid grid-cols-3 gap-1" : "grid grid-cols-2 gap-1"}>
-        {permissions.lancar_suplementacao !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>}
-        {permissions.lancar_suplementacao !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLeitura(true)}>Leitura</Button>}
-        {permissions.visualizar_historico_cocho !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
-      </div>
+        <section aria-labelledby={idLeitura} className="mk-dp-cocho__regiao">
+          <TituloBloco id={idLeitura}>Leitura do cocho</TituloBloco>
+          <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={podeLancar} onExcluir={excluirLeitura} />
+        </section>
 
-      <CardSection title="Nível do cocho" regiao>
-        {/* Celular: um medidor embaixo do outro; a partir de 768 px, lado a lado. */}
-        <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
-          <PainelRestanteCiclo nivel={nivel} />
-          <PainelUsoLimite nivel={nivel} />
-        </div>
-        <CartoesNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} />
-      </CardSection>
+        <TituloBloco>Último período fechado</TituloBloco>
+        <CartaoPeriodoFechado evento={ultimoFechado} resumo={resumoUltimoFechado} />
 
-      <CardSection title="Leitura do cocho" regiao>
-        <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={permissions.lancar_suplementacao !== false} onExcluir={excluirLeitura} />
-      </CardSection>
-
-      <CardSection title="Último período fechado">
-        {ultimoFechado && resumoUltimoFechado ?
-        <div className="space-y-1" data-testid="ultimo-periodo-fechado">
-            <div className="text-[10px] text-slate-500">
-              {ultimoFechado.produto || "-"} · {formatarDia(String(ultimoFechado.data_lancamento ?? "").slice(0, 10))} · {ultimoFechado.dias_periodo} dia(s)
-            </div>
-            <ResumoFechamentoConsumo resumo={resumoUltimoFechado} />
-          </div> :
-        <div className="text-xs text-slate-500">Nenhum período fechado ainda.</div>
-        }
-      </CardSection>
-
-      <CardSection title="Total Fornecido por Produto">
-        {resumoProdutos.length === 0 ?
-        <div className="text-xs text-slate-500">Nenhum produto lançado ainda.</div> :
-
-        <div className="space-y-1">
-            {resumoProdutos.map((item) =>
-          <div key={item.produto} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-2 py-1.5">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
-                  <div className="truncate font-medium text-slate-900">{item.produto}</div>
-                  <div className="whitespace-nowrap font-semibold text-slate-900">{item.sacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
-                  <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.kg)}</div>
-                </div>
-              </div>
+        <TituloBloco>Total fornecido por produto</TituloBloco>
+        <Cartao>
+          {resumoProdutos.length === 0 ?
+          <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum produto lançado ainda." /> :
+          resumoProdutos.map((item) =>
+          <Linha
+            key={item.produto ?? ""}
+            rotulo={item.produto || "-"}
+            valor={`${item.sacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos · ${formatKg(item.kg)}`} />
           )}
-          </div>
-        }
-      </CardSection>
+        </Cartao>
 
-      <CardSection title="Último Registro">
-        {ultimoEvento ?
-        <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-1 text-[11px] space-y-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 break-words font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
-              <span className="shrink-0 text-slate-500 px-1">Data: {formatarDia(nivel.dataLancamento)}</span>
-            </div>
-            <CardMetricaEvento
-            evento={ultimoEvento}
-            sacos={ultimoEventoSacos}
-            showProjecao={true}
-            {...projecaoCartao} />
-            {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
-          </div> :
-        <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
+        <TituloBloco>Último registro</TituloBloco>
+        {ultimoEvento && metricasUltimo ?
+        <CartaoUltimoRegistro evento={ultimoEvento} dia={formatarDia(nivel.dataLancamento)} metricas={metricasUltimo} /> :
+        <Cartao>
+            <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum lançamento ainda." />
+          </Cartao>
         }
-      </CardSection>
 
-      <CardSection title="Informações do Cocho">
-        <div className="space-y-1 text-[10px]">
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Número:</span><span className="font-semibold text-slate-900">{ponto.numero_ponto || '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Sigla:</span><span className="font-semibold text-slate-900">{ponto.sigla || '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{ponto.tipo || '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Depósito vinculado:</span><span className="font-semibold text-slate-900">{ponto.deposito_origem_nome || '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Áreas vinculadas:</span><span className="font-semibold text-slate-900">{areaNomesRelacionadas.join(', ') || '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{ponto.produto_padrao || '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Limite operacional:</span><span className="font-semibold text-slate-900">{nivel.limiteOperacionalKg != null ? formatKg(nivel.limiteOperacionalKg) : '-'}</span></div>
-          {ponto.metragem_cocho_m && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Metragem:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
-          {ponto.cobertura_cocho && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cobertura:</span><span className="font-semibold text-slate-900">{ponto.cobertura_cocho}</span></div>}
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Consumo ideal/cab:</span><span className="font-semibold text-slate-900">{ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Consumo mín./cab/dia:</span><span className="font-semibold text-slate-900">{ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Consumo máx./cab/dia:</span><span className="font-semibold text-slate-900">{ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Dias alerta reposição:</span><span className="font-semibold text-slate-900">{ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{ponto.observacoes || '-'}</span></div>
-        </div>
-      </CardSection>
+        <TituloBloco>Informações do cocho</TituloBloco>
+        <Cartao>
+          <Grade>
+            <Celula rotulo="Número" valor={ponto.numero_ponto || "-"} />
+            <Celula rotulo="Sigla" valor={ponto.sigla || "-"} />
+            <Celula rotulo="Tipo" valor={ponto.tipo || "-"} />
+            <Celula rotulo="Depósito vinculado" valor={ponto.deposito_origem_nome || "-"} />
+            <Celula rotulo="Áreas vinculadas" valor={areaNomesRelacionadas.join(", ") || "-"} />
+            <Celula rotulo="Produto padrão" valor={ponto.produto_padrao || "-"} />
+            <Celula rotulo="Limite operacional" valor={nivel.limiteOperacionalKg != null ? formatKg(nivel.limiteOperacionalKg) : "-"} />
+            {ponto.metragem_cocho_m ? <Celula rotulo="Metragem" valor={`${formatDecimal(ponto.metragem_cocho_m)} m`} /> : null}
+            {ponto.cobertura_cocho ? <Celula rotulo="Cobertura" valor={ponto.cobertura_cocho} /> : null}
+            <Celula rotulo="Consumo ideal/cab" valor={ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : "-"} />
+            <Celula rotulo="Consumo mín./cab/dia" valor={ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : "-"} />
+            <Celula rotulo="Consumo máx./cab/dia" valor={ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : "-"} />
+            <Celula rotulo="Dias alerta reposição" valor={ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : "-"} />
+            <Celula rotulo="Alerta sem lançamento" valor={ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : "-"} />
+          </Grade>
+          <Linha rotulo="Observações" valor={ponto.observacoes || "-"} quebra />
+        </Cartao>
+      </CascaDetalhe>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
         <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} cicloCompartilhado={nivel.confiabilidade === "compartilhada"} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
@@ -359,18 +408,26 @@ function DetalhesCocho({ ponto, permissions }) {
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" largo somenteLeitura>
           <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
         </LancLoteDialogo>
-    </div>);
+    </>);
 
 }
 
 /**
- * Medidor 1 — quanto resta do ciclo aberto (fração do SSOT). O percentual
- * aparece uma vez, sob o ícone (`CochoNivel`); a linha de baixo traz os kg.
- * Neutro (sem estimativa, período fechado, sem lançamento…) mostra a mensagem
- * do estado e, quando há, o que fazer para a estimativa voltar.
+ * Bloco do nível do ciclo (o `v11-nivel` do v12): o marcador do mapa com o
+ * nível do SSOT, "RESTANTE DO CICLO (ESTIMADO)", o percentual UMA vez, grande
+ * (sem estimativa, o estado: "Período fechado", "Sem lançamento"…), e as linhas
+ * (kg, consumo, dias). Neutro (sem estimativa, período fechado, sem
+ * lançamento…) mostra a mensagem do estado e, quando há, o que fazer para a
+ * estimativa voltar e a base do ciclo.
+ *
+ * Mesma marcação e classes do `Nivel` de blocos.jsx, com uma diferença: lá a
+ * figura é sempre decorativa (`aria-hidden`); aqui o `CochoNivel` é o
+ * `role="img"` "Restante do ciclo (estimado): …" (D-PROD-178) — o leitor de
+ * tela ouve o nível por ele, e o rótulo e o valor visíveis (o mesmo texto)
+ * saem da árvore acessível para não serem lidos duas vezes.
  * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho }} props
  */
-function PainelRestanteCiclo({ nivel }) {
+function BlocoNivel({ nivel }) {
   const estimado = nivel.confiabilidade === "estimada" && !nivel.neutro && nivel.saldoKg != null && nivel.baseCicloKg != null;
   const mensagem = nivel.confiabilidade === "indisponivel" && nivel.motivo ? `${nivel.mensagem}: ${nivel.motivo}.` : nivel.mensagem;
   const baseSemEstimativa = !estimado && nivel.estado === "ciclo_aberto" && nivel.baseCicloKg != null && nivel.baseCicloKg > 0;
@@ -382,42 +439,52 @@ function PainelRestanteCiclo({ nivel }) {
       ? MENSAGENS_NIVEL.orientacaoSemPeso
       : null;
 
+  /** @type {Array<string|null>} */
+  const linhas = estimado ?
+  [
+    `${formatarKgNivel(/** @type {number} */ (nivel.saldoKg))} de ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))}`,
+    `Consumo estimado: ${formatarTaxaNivel(/** @type {number} */ (nivel.taxaConsumoKgDia))} (${nivel.evento?.base_consumo === "G_CAB_DIA" ? "g/cab/dia" : "%PV"} no lançamento)`,
+    nivel.diasDecorridos != null && nivel.diasRestantesEstimados != null ?
+    `Dias desde o abastecimento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)` :
+    null] :
+
+  [
+    mensagem,
+    orientacao,
+    baseSemEstimativa ?
+    nivel.sobraAnteriorKg ?
+    `No início do ciclo: ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))} (${formatarKgNivel(nivel.fornecidoKg ?? 0)} fornecidos + ${formatarKgNivel(nivel.sobraAnteriorKg)} de sobra anterior)` :
+    `No início do ciclo: ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))} fornecidos` :
+    null];
+
+
   return (
-    <div className="flex min-w-0 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2">
-      <div className="self-stretch text-[10px] font-medium text-slate-500">{ROTULO_RESTANTE_CICLO}</div>
-      <CochoNivel percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
-      {estimado ?
-      <div className="space-y-0.5 text-center text-[11px] leading-snug text-slate-700">
-          <div className="font-semibold text-slate-900">{`${formatarKgNivel(nivel.saldoKg)} de ${formatarKgNivel(nivel.baseCicloKg)}`}</div>
-          <div>{`Consumo estimado: ${formatarTaxaNivel(nivel.taxaConsumoKgDia)} (${nivel.evento?.base_consumo === "G_CAB_DIA" ? "g/cab/dia" : "%PV"} no lançamento)`}</div>
-          {nivel.diasDecorridos != null && nivel.diasRestantesEstimados != null &&
-        <div>{`Dias desde o abastecimento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)`}</div>
-        }
-          <p className="max-w-[320px] text-[10px] text-slate-500">No dia do abastecimento, mantém o total disponível. O desconto diário começa no dia seguinte, sem considerar o horário do registro.</p>
-        </div> :
-      <div className="space-y-0.5 text-center text-[11px] leading-snug text-slate-600">
-          <p className="max-w-[320px] break-words">{mensagem}</p>
-          {orientacao && <p className="max-w-[320px] break-words text-[10px] text-slate-500">{orientacao}</p>}
-          {baseSemEstimativa &&
-        <p className="text-[10px] text-slate-500">
-              {nivel.sobraAnteriorKg ?
-          `No início do ciclo: ${formatarKgNivel(nivel.baseCicloKg)} (${formatarKgNivel(nivel.fornecidoKg ?? 0)} fornecidos + ${formatarKgNivel(nivel.sobraAnteriorKg)} de sobra anterior)` :
-          `No início do ciclo: ${formatarKgNivel(nivel.baseCicloKg)} fornecidos`}
-            </p>
-        }
-        </div>
-      }
+    <div className={nivel.neutro ? "mk-dp-nivel mk-dp-cocho__nivel mk-dp-cocho__nivel--neutro" : "mk-dp-nivel mk-dp-cocho__nivel"}>
+      <span className="mk-dp-nivel__fig mk-dp-cocho__fig">
+        <CochoNivel marcador percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
+      </span>
+      <div className="mk-dp-nivel__txt">
+        <span className="mk-dp-nivel__rot" aria-hidden="true">{ROTULO_RESTANTE_CICLO}</span>
+        <strong className="mk-dp-nivel__val" aria-hidden="true">{nivel.rotuloCurto}</strong>
+        {linhas.filter(Boolean).map((linha, i) =>
+        <small key={i} className="mk-dp-nivel__linha">{linha}</small>
+        )}
+        {estimado ? <small className="mk-dp-nivel__linha mk-dp-cocho__obs">{NOTA_DESCONTO_DIARIO}</small> : null}
+      </div>
     </div>);
 
 }
 
 /**
- * Medidor 2 — uso do LIMITE OPERACIONAL configurado hoje. Percentual bruto
- * (pode passar de 100%); a barra só preenche até 100%. A linha "No
- * lançamento" fica visível depois do consumo.
- * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho }} props
+ * Cartão abaixo do nível (o v12 mostra só com estimativa; aqui sempre, porque o
+ * limite operacional tem estado próprio): uso do LIMITE OPERACIONAL configurado
+ * hoje (percentual bruto, pode passar de 100%; neutro com a mensagem e o que
+ * fazer), o saldo (estimado, ou a sobra informada no fechamento — sem
+ * estimativa, nada é chamado de saldo), a duração do ciclo e a próxima
+ * reposição; depois, a linha "No lançamento" e a nota de que o limite é o de hoje.
+ * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, duracaoCicloDias: number|null, proximaReposicao: string|null }} props
  */
-function PainelUsoLimite({ nivel }) {
+function CartaoDoNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
   const limite = nivel.limiteOperacionalKg;
   // Mesmo padrão de texto do depósito (`descreverUsoDoLimite`).
   const uso = limite != null && nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null ?
@@ -429,124 +496,207 @@ function PainelUsoLimite({ nivel }) {
   const linhaLancamento = nivel.ocupacaoNoLancamentoPercentual != null ?
   `No lançamento: ${formatarPercentualNivel(nivel.ocupacaoNoLancamentoPercentual)}${nivel.excessoNoLancamentoKg ? ` (${formatarKgNivel(nivel.excessoNoLancamentoKg)} acima)` : ""}` :
   null;
+  const nota = limite != null && nivel.evento ? NOTA_LIMITE_ATUAL : null;
 
   return (
-    <div className="flex min-w-0 flex-col justify-center gap-1.5 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2">
-      <MedidorLimiteOperacional
-        percentualBruto={uso ? nivel.ocupacaoAtualPercentual : null}
-        rotulo={ROTULO_USO_LIMITE}
-        descricao={descricao}
-        textoAcessivel={uso?.textoAcessivel}
-        orientacao={limite == null ? MENSAGENS_NIVEL.orientacaoLimite : null} />
-      {linhaLancamento && <div className={`text-[11px] ${nivel.excessoNoLancamentoKg ? "font-medium text-amber-800" : "text-slate-700"}`}>{linhaLancamento}</div>}
-      {limite != null && nivel.evento && <p className="text-[10px] leading-snug text-slate-500">{NOTA_LIMITE_ATUAL}</p>}
-    </div>);
+    <Cartao className="mk-dp-cocho__cartao-nivel">
+      <Grade>
+        <MedidorLimiteOperacional
+          estilo="v12"
+          percentualBruto={uso ? nivel.ocupacaoAtualPercentual : null}
+          rotulo={ROTULO_USO_LIMITE}
+          descricao={descricao}
+          textoAcessivel={uso?.textoAcessivel}
+          orientacao={limite == null ? MENSAGENS_NIVEL.orientacaoLimite : null} />
+        {nivel.saldoKg != null && nivel.saldoTipo ?
+        <Celula
+          rotulo={nivel.saldoTipo === "informado" ? "Sobra informada" : "Saldo estimado"}
+          valor={formatarKgNivel(nivel.saldoKg)}
+          sub={nivel.saldoTipo === "estimado" && nivel.taxaConsumoKgDia != null ? formatarTaxaNivel(nivel.taxaConsumoKgDia) : null} /> :
+        null}
+        {duracaoCicloDias != null ? <Celula rotulo="Duração estimada" valor={`${formatarDias(duracaoCicloDias)} dia(s)`} /> : null}
+        {proximaReposicao ? <Celula rotulo="Próxima reposição" valor={proximaReposicao} /> : null}
+      </Grade>
+      {linhaLancamento ?
+      <Linha rotulo={<span className={nivel.excessoNoLancamentoKg ? "mk-dp-cocho__atencao" : undefined}>{linhaLancamento}</span>} sub={nota} /> :
+      nota ?
+      <Linha className="mk-dp-cocho__linha--fraca" rotulo={nota} /> :
+      null}
+    </Cartao>);
 
 }
 
 /**
- * Cartões do SSOT: saldo (estimado ou a sobra informada no fechamento),
- * duração do ciclo e próxima reposição. Sem estimativa, nada é chamado de saldo.
- * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, duracaoCicloDias: number|null, proximaReposicao: string|null }} props
- */
-function CartoesNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
-  /** @type {Array<{ rotulo: string, valor: string, detalhe?: string }>} */
-  const cartoes = [];
-  if (nivel.saldoKg != null && nivel.saldoTipo) {
-    cartoes.push({
-      rotulo: nivel.saldoTipo === "informado" ? "Sobra informada" : "Saldo estimado",
-      valor: formatarKgNivel(nivel.saldoKg),
-      detalhe: nivel.saldoTipo === "estimado" && nivel.taxaConsumoKgDia != null ? formatarTaxaNivel(nivel.taxaConsumoKgDia) : undefined,
-    });
-  }
-  if (duracaoCicloDias != null) cartoes.push({ rotulo: "Duração estimada", valor: `${formatarDias(duracaoCicloDias)} dia(s)` });
-  if (proximaReposicao) cartoes.push({ rotulo: "Próxima reposição", valor: proximaReposicao });
-  if (!cartoes.length) return null;
-
-  return (
-    <div className="grid grid-cols-1 gap-1 text-[10px] sm:grid-cols-3">
-      {cartoes.map((cartao) =>
-      <div key={cartao.rotulo} className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
-          <div className="text-slate-500">{cartao.rotulo}</div>
-          <div className="text-sm font-bold text-slate-900">{cartao.valor}</div>
-          {cartao.detalhe && <div className="text-[11px] text-slate-600 mt-0.5">{cartao.detalhe}</div>}
-        </div>
-      )}
-    </div>);
-
-}
-
-/**
- * D-PROD-205 — farol da última leitura (cor + rótulo + data e quem leu), os avisos
- * de acesso/estrutura e as últimas leituras (até 5), com excluir.
+ * D-PROD-205 — leitura do cocho como no v12: a primeira linha é o farol da
+ * última leitura (cor + rótulo, escore · acesso · estrutura, data e quem leu);
+ * depois as últimas leituras (até 5, a mais recente primeiro), cada uma com o
+ * "Excluir"; os avisos de acesso/estrutura da última leitura vêm abaixo do cartão.
  * @param {{ farol: import("@/domain/suplementacao/leituraCocho").FarolCocho, ultimas: any[], podeExcluir: boolean, onExcluir: (l: any) => void }} props
  */
 function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir }) {
   const l = farol.leitura;
+  const diaDaUltima = l ? diaBR(l.data_leitura) : "";
   return (
-    <div className="space-y-1 text-[11px]" data-testid="painel-leitura-cocho">
-      <div className="flex items-center gap-2">
-        <span aria-hidden className="inline-block h-3 w-3 rounded-full border border-white shadow" style={{ backgroundColor: COR_FAROL[farol.cor] }} />
-        <span className="font-semibold text-slate-900" data-testid="farol-cocho" data-cor={farol.cor}>{farol.rotulo}</span>
-        {l ? <span className="text-slate-500">· {formatarDia(String(l.data_leitura).slice(0, 10))}{l.registrado_por_nome ? ` · ${l.registrado_por_nome}` : ""}</span> : null}
-      </div>
-      {l ? (
-        <div className="text-slate-600">
-          Escore: <span className="font-semibold text-slate-900">{ROTULO_ESCORE[l.escore] ?? l.escore}</span>
-          {" · "}Acesso: <span className="font-semibold text-slate-900">{ROTULO_ACESSO[l.acesso] ?? l.acesso}</span>
-          {" · "}Estrutura: <span className="font-semibold text-slate-900">{ROTULO_ESTRUTURA[l.estrutura] ?? l.estrutura}</span>
-        </div>
-      ) : (
-        <div className="text-slate-500">Nenhuma leitura registrada.</div>
+    <>
+      <Cartao data-testid="painel-leitura-cocho">
+        <Linha
+          rotulo={<span data-testid="farol-cocho" data-cor={farol.cor}>{farol.rotulo}</span>}
+          sub={l ?
+          `Escore ${minusculo(ROTULO_ESCORE[l.escore] ?? l.escore)} · acesso ${minusculo(ROTULO_ACESSO[l.acesso] ?? l.acesso)} · estrutura ${minusculo(ROTULO_ESTRUTURA[l.estrutura] ?? l.estrutura)}` :
+          "Nenhuma leitura registrada."}
+          bolinha={COR_FAROL[farol.cor]}
+          valor={l ? `${diaDaUltima}${l.registrado_por_nome ? ` · ${l.registrado_por_nome}` : ""}` : "—"} />
+        {ultimas.length > 0 ?
+        <ul className="mk-dp-cocho__leituras" aria-label="Últimas leituras">
+            {ultimas.map((u) => {
+            const dia = diaBR(u.data_leitura);
+            return (
+              <li key={u.id}>
+                  {/* A bolinha vai junto do texto (não na `bolinha` da Linha): sem espaço, só o "Excluir" desce.
+                      A observação (texto livre, às vezes longo) fica embaixo, na largura toda. */}
+                  <Linha
+                  className={u.observacoes ? "mk-dp-cocho__linha--fraca mk-dp-cocho__linha--com-obs" : "mk-dp-cocho__linha--fraca"}
+                  rotulo={dia}
+                  valor={
+                  <>
+                        <span className="mk-dp-cocho__escore">
+                          <span className="mk-dp-bolinha" style={{ background: corDoEscore(u) }} aria-hidden="true" />
+                          {[u.escore, u.acesso, u.estrutura].map((v) => String(v ?? "—").toUpperCase()).join(" · ")}
+                        </span>
+                        {podeExcluir ?
+                    <Acao tom="perigo" onClick={() => onExcluir(u)} aria-label={`Excluir a leitura de ${dia}`}>
+                            Excluir
+                          </Acao> :
+                    null}
+                      </>
+                  } />
+                  {u.observacoes ? <p className="mk-dp-cocho__obs-leitura">{u.observacoes}</p> : null}
+                </li>);
+
+          })}
+          </ul> :
+        null}
+      </Cartao>
+      {farol.avisos.map((a) =>
+      <Aviso key={a.texto} data-testid="aviso-leitura-cocho">{`${a.texto} (leitura de ${diaDaUltima})`}</Aviso>
       )}
-      {farol.avisos.map((a) => (
-        <div key={a.texto} className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-800" data-testid="aviso-leitura-cocho">
-          {a.texto} (leitura de {formatarDia(String(l.data_leitura).slice(0, 10))})
-        </div>
-      ))}
-      {ultimas.length > 0 ? (
-        <ul className="divide-y divide-slate-100 rounded border border-slate-200" aria-label="Últimas leituras">
-          {ultimas.map((u) => (
-            <li key={u.id} className="flex items-center justify-between gap-2 px-2 py-0.5">
-              <span className="text-slate-700">
-                {formatarDia(String(u.data_leitura).slice(0, 10))} · {ROTULO_ESCORE[u.escore] ?? u.escore}
-                {u.acesso === "RUIM" ? " · acesso ruim" : ""}
-                {u.estrutura !== "BOA" ? ` · ${String(ROTULO_ESTRUTURA[u.estrutura] ?? u.estrutura).toLowerCase()}` : ""}
-                {u.observacoes ? <span className="italic text-slate-500"> · {u.observacoes}</span> : null}
-              </span>
-              {podeExcluir ? (
-                <button type="button" className="shrink-0 text-red-600 hover:underline" onClick={() => onExcluir(u)} aria-label={`Excluir a leitura de ${formatarDia(String(u.data_leitura).slice(0, 10))}`}>
-                  Excluir
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
+    </>);
+
 }
 
 /**
- * @param {{ title: string, regiao?: boolean, children: React.ReactNode }} props
- *   `regiao`: vira `<section>` nomeada pelo título (região acessível).
+ * Cor do escore de UMA leitura: o farol no próprio dia dela (idade 0), para a
+ * regra escore → cor ficar só no domínio (`farolDoCocho`).
+ * @param {any} leitura
  */
-function CardSection({ title, regiao = false, children }) {
-  const idTitulo = useId();
-  const classes = "border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1";
-  const cabecalho = <div id={regiao ? idTitulo : undefined} className="text-[11px] font-bold text-slate-900">{title}</div>;
-  if (regiao) {
+const corDoEscore = (leitura) =>
+  farolDoCocho({ leituras: [leitura], pontoId: leitura?.ponto_suplementacao_id, hoje: String(leitura?.data_leitura ?? "").slice(0, 10) }).hex;
+
+/**
+ * D-PROD-206 — o período FECHADO mais recente no desenho do v12: produto,
+ * lançamento e dias, real × esperado com a cor e o texto do farol, custo por
+ * cabeça/dia e, no mesmo desenho, o resto do resumo de hoje (consumo g/cab/dia,
+ * % do esperado, peso médio do período, custo do período, sobra antiga e o
+ * aviso de sobra não informada). Na base g/cab/dia (D-PROD-210) a comparação é
+ * em gramas e o %PV real é só informação.
+ * @param {{ evento: any, resumo: ReturnType<typeof resumoDoFechamento> }} props
+ */
+function CartaoPeriodoFechado({ evento, resumo }) {
+  if (!evento || !resumo) {
     return (
-      <section aria-labelledby={idTitulo} className={classes}>
-        {cabecalho}
-        {children}
-      </section>);
+      <Cartao>
+        <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum período fechado ainda." />
+      </Cartao>);
 
   }
+  const farol = FAROL_CONSUMO[resumo.farol_consumo] ?? FAROL_CONSUMO.sem_referencia;
+  const corFarol = COR_DO_FAROL_CONSUMO[farol.cor] ?? COR_FAROL.cinza;
+  const semReferencia = resumo.farol_consumo === "sem_referencia";
+  const motivo = semReferencia && resumo.farol_consumo_motivo ? MOTIVO_SEM_REFERENCIA[resumo.farol_consumo_motivo] : null;
+  const faixa = numero(resumo.faixa_tolerancia_aplicada, 0);
+  // O texto sempre acompanha a cor (D-PROD-206): "abaixo da faixa da formulação (±15%)".
+  const textoFarol = semReferencia ?
+  `${minusculo(farol.rotulo)}${motivo ? ` — ${motivo}` : ""}` :
+  `${minusculo(farol.rotulo)} da faixa da formulação${faixa ? ` (±${faixa}%)` : ""}`;
+  const subFarol = <span data-testid="farol-consumo" data-farol={resumo.farol_consumo}>{textoFarol}</span>;
+
+  const emGramas = resumo.base_consumo_aplicada === "G_CAB_DIA";
+  const pvReal = numero(resumo.consumo_real_pv_percentual, 3);
+  const pvEsperado = numero(resumo.consumo_esperado_pv_percentual, 3);
+  const gReal = numero(resumo.consumo_g_cab_dia, 0);
+  const gMeta = numero(resumo.consumo_esperado_g_cab_dia, 0);
+  const relacaoPct = typeof resumo.consumo_relacao_esperado === "number" ? resumo.consumo_relacao_esperado * 100 : null;
+  const motivoPeso = resumo.peso_medio_periodo_motivo ? MOTIVO_PESO[resumo.peso_medio_periodo_motivo] : null;
+  const sobraHerdada = typeof resumo.sobra_herdada_kg === "number" && resumo.sobra_herdada_kg > 0 && typeof resumo.custo_sobra_herdada_kg === "number";
+
   return (
-    <div className={classes}>
-      {cabecalho}
-      {children}
-    </div>);
+    <Cartao data-testid="ultimo-periodo-fechado">
+      <Grade>
+        <Celula rotulo="Produto" valor={evento.produto || "-"} />
+        <Celula rotulo="Lançamento" valor={`${diaBR(evento.data_lancamento)} · ${evento.dias_periodo} dia(s)`} />
+        {emGramas ?
+        <Celula rotulo="g/cab/dia real × meta" valor={gReal ? `${gReal} g × ${gMeta ? `${gMeta} g` : "-"}` : "-"} bolinha={corFarol} sub={subFarol} /> :
+        <Celula rotulo="%PV real × esperado" valor={pvReal ? `${pvReal}% × ${pvEsperado ? `${pvEsperado}%` : "-"}` : "-"} bolinha={corFarol} sub={subFarol} />
+        }
+        <Celula rotulo="Custo por cab/dia (R$)" valor={numero(resumo.custo_cab_dia, 2) ?? "Sem custo"} />
+        {emGramas ?
+        <Celula rotulo="%PV real (informação)" valor={pvReal ? `${pvReal}%` : "-"} /> :
+        <Celula rotulo="Consumo g/cab/dia" valor={gReal ? `${gReal} g` : "-"} />
+        }
+        {relacaoPct !== null ? <Celula rotulo="% do esperado" valor={`${numero(relacaoPct, 0)}%`} /> : null}
+        {typeof resumo.peso_medio_periodo_kg === "number" ?
+        <Celula
+          rotulo="Peso médio do período"
+          valor={`${numero(resumo.peso_medio_periodo_kg, 0)} kg`}
+          sub={resumo.peso_medio_periodo_aproximado ? <span className="mk-dp-cocho__atencao">{`aproximado${motivoPeso ? `: ${motivoPeso}` : ""}`}</span> : null}
+          data-testid="peso-medio-periodo" /> :
+        null}
+        <Celula
+          rotulo="Custo do período"
+          valor={reais(resumo.custo_total_periodo) ? `${reais(resumo.custo_total_periodo)} · ${reais(resumo.custo_unitario_kg)}/kg` : "Sem custo"} />
+        {sobraHerdada ?
+        <Celula
+          rotulo="Sobra antiga primeiro"
+          valor={`${numero(resumo.sobra_herdada_kg, 2)} kg a ${reais(resumo.custo_sobra_herdada_kg)}/kg`}
+          sub={resumo.custo_sobra_aproximado ? <span className="mk-dp-cocho__atencao">custo da sobra aproximado</span> : null}
+          data-testid="custo-sobra-herdada" /> :
+        null}
+      </Grade>
+      {resumo.sobra_informada === false ?
+      <Linha className="mk-dp-cocho__linha--atencao" rotulo="Aproximado — sobra não informada" data-testid="fechamento-aproximado" /> :
+      null}
+    </Cartao>);
+
+}
+
+/**
+ * "Último registro" (o v12 não tem; o MAIKE tem): o último lançamento com os
+ * MESMOS rótulos e valores do cartão do Histórico (`metricasDoEvento`) —
+ * fornecimento, dados do lote, consumo esperado, consumo real (fechado) e
+ * projeção —, numa grade só, e as observações. O fechamento do consumo fica no
+ * "Último período fechado".
+ * @param {{ evento: any, dia: string, metricas: NonNullable<ReturnType<typeof metricasDoEvento>> }} props
+ */
+function CartaoUltimoRegistro({ evento, dia, metricas }) {
+  return (
+    <Cartao icone={Package} titulo={evento.produto || "-"} sub={`Data: ${dia}`}>
+      <Grade>
+        {metricas.secoes.flatMap((secao) =>
+        secao.celulas.map((celula) =>
+        <Celula
+          key={`${secao.chave}-${celula.chave}`}
+          rotulo={celula.rotulo}
+          valor={celula.desvio ?
+          <>
+                  <DesvioConsumoTag real={celula.desvio.real} esperado={celula.desvio.esperado} />
+                  {celula.valor}
+                </> :
+          celula.valor} />
+
+        )
+        )}
+      </Grade>
+      {evento.observacoes ? <Linha rotulo="Observações" valor={evento.observacoes} quebra /> : null}
+    </Cartao>);
 
 }

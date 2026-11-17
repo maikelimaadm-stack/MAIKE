@@ -13,6 +13,9 @@
  *         só com o KG; o diesel aparece no saldo por produto com "L" e sem
  *         sacos; o último registro não é o do diesel. Sem Produto em L, o
  *         detalhe é idêntico ao renderizado com a lista de produtos sem L.
+ *         D-PROD-220 (desenho v12): o "último registro" é o primeiro cartão da
+ *         linha do tempo "Histórico do depósito", e o kg sai no formato do
+ *         SSOT ("250 kg").
  *
  * D-PROD-178 trocou a regra do nível: o percentual do depósito é o saldo sobre o
  * LIMITE OPERACIONAL (`capacidade_cocho_kg`), bruto (pode passar de 100%); o
@@ -21,7 +24,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { getDepositoIndicator } from '@/components/mapa/pontoStatusUtils';
@@ -40,8 +43,12 @@ vi.mock('@/services/mapaService', () => ({
   listarIconesPorTipoEntidade: vi.fn(async () => []),
 }));
 vi.mock('@/services/loteManejoService', () => ({ listarTodosLotes: vi.fn(async () => []) }));
+// Farol e nível dos cochos vinculados (cache do mapa) e o fuso da fazenda: sem cochos aqui.
+vi.mock('@/services/mapaCacheService', () => ({ getMapaCachedData: vi.fn(async () => []), refreshMapaCacheEntry: vi.fn(async () => []) }));
+vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => []) }));
 vi.mock('@/components/mapa/FormularioTransferenciaDeposito', () => ({ default: () => null }));
-vi.mock('@/components/suplementacao/HistoricoDepositoSuplementacao', () => ({ default: () => null }));
+// A linha do tempo usa a regra (pura) do histórico; só o componente do histórico completo sai.
+vi.mock('@/components/suplementacao/HistoricoDepositoSuplementacao', async (importOriginal) => ({ ...(await importOriginal()), default: () => null }));
 
 const DEPOSITO = { id: 'dep1', nome_ponto: 'DEPÓSITO SEDE', categoria_ponto: 'DEPOSITO', local_estoque_id: 'loc1', capacidade_cocho_kg: 1000, estoque_minimo_kg: 300 };
 const RACAO = { id: 'pr-racao', empresa_id: 'emp-1', nome_produto: 'RAÇÃO', unidade_principal_estoque: 'KG', peso_por_saco_kg: 25 };
@@ -136,7 +143,7 @@ describe('DEP-3 — detalhe do depósito', () => {
         <DetalhesDepositoSuplementacao deposito={DEPOSITO} onClose={() => {}} />
       </QueryClientProvider>,
     );
-    await waitFor(() => expect(screen.getByText('Saldo por Produto')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Saldo por produto')).toBeTruthy());
     await waitFor(() => expect(screen.queryByText('Sem saldo disponível neste depósito.')).toBeNull());
     return r;
   };
@@ -148,13 +155,22 @@ describe('DEP-3 — detalhe do depósito', () => {
     dados.movimentacoes = MOVS;
     await renderizar();
     await waitFor(() => expect(screen.getByTestId('saldo-litros-pr-diesel')).toBeTruthy());
-    expect(valorDe('Saldo atual kg')).toBe('250,00 kg');
-    expect(valorDe('Necessidade reposição kg')).toBe('750,00 kg');
+    expect(valorDe('Saldo atual kg')).toBe('250 kg');
+    expect(valorDe('Necessidade reposição kg')).toBe('750 kg');
     expect(valorDe('Saldo em sacos')).toBe('10,00 sacos');
     expect(screen.getByTestId('saldo-litros-pr-diesel').textContent).toBe('5.000,00 L');
-    expect(screen.getByTestId('saldo-litros-pr-diesel').previousElementSibling?.textContent).toBe('—');
-    // Último registro: o da ração (o movimento `L` do diesel, mais novo, fica fora); o diesel só no saldo por produto.
+    // Sacos do produto em litros: "—" (o sub da linha dele).
+    const linhaDiesel = screen.getByTestId('saldo-litros-pr-diesel').closest('[data-unidade-confirmada]');
+    expect(within(linhaDiesel).getByText('—')).toBeTruthy();
+    expect(linhaDiesel.textContent).not.toMatch(/sacos/);
+    // Último registro = o 1º cartão da linha do tempo: o da ração (o movimento `L` do diesel, mais
+    // novo, fica fora); o diesel só no saldo por produto.
     await waitFor(() => expect(screen.queryByText('Nenhum registro ainda.')).toBeNull());
+    const historico = screen.getByRole('list', { name: 'Histórico do depósito' });
+    const cartoes = historico.querySelectorAll('.mk-dp-tl__card');
+    expect(cartoes).toHaveLength(1);
+    expect(within(cartoes[0]).getByText('RAÇÃO')).toBeTruthy();
+    expect(historico.textContent).not.toContain('DIESEL');
     expect(screen.getAllByText('RAÇÃO')).toHaveLength(2);
     expect(screen.getAllByText('DIESEL S10 (L)')).toHaveLength(1);
   });
@@ -164,10 +180,11 @@ describe('DEP-3 — detalhe do depósito', () => {
     dados.produtos = [RACAO];
     dados.movimentacoes = [mov('m1', RACAO, '2026-11-01', 'KG')];
     const { container } = await renderizar();
-    await waitFor(() => expect(valorDe('Saldo atual kg')).toBe('250,00 kg'));
+    await waitFor(() => expect(valorDe('Saldo atual kg')).toBe('250 kg'));
     expect(valorDe('Saldo em sacos')).toBe('10,00 sacos');
     expect(screen.queryByTestId(/^saldo-litros-/)).toBeNull();
     expect(container.textContent).not.toMatch(/\d L\b/);
-    expect(container.textContent).toContain('10,00 sacos250,00 kg');
+    // Linha do produto: sacos (sub) e o saldo em kg (valor), lado a lado no texto.
+    expect(container.textContent).toContain('10,00 sacos250 kg');
   });
 });

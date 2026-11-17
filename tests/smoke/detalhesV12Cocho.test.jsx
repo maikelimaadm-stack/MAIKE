@@ -1,0 +1,472 @@
+// @vitest-environment jsdom
+/**
+ * D-PROD-220 — detalhe do COCHO no desenho do Detalhes do Lote v12 (tela
+ * `telaCocho`). Os dados e as regras são os de hoje (D-PROD-178, D-PROD-205,
+ * D-PROD-206, D-PROD-210, D-PROD-212 — ver detalhesCochoNiveis e leituraCocho);
+ * aqui, a apresentação:
+ *
+ *  CV-1. casca v12: `.mk-dp` filha direta do `.mk-ll` do diálogo; título = nome
+ *        do cocho; sub = `subtitulo`, ou as áreas vinculadas sem ele. Markup novo
+ *        só com classes do v12.
+ *  CV-2. seções na ordem do v12 (nível, leitura, último período fechado, total
+ *        fornecido) + "Último registro" do MAIKE antes de "Informações do cocho".
+ *  CV-3. nível: a figura é o marcador do mapa (CochoNivel `marcador`) e continua
+ *        o `role="img"` acessível; o percentual aparece UMA vez, grande, no
+ *        valor; o rótulo e o valor visíveis não são lidos de novo. Neutro: o
+ *        estado no lugar do número.
+ *  CV-4. rodapé Lançar · Leitura · Histórico pelas permissões de hoje (sem a
+ *        permissão a pílula não aparece; sem nenhuma, sem rodapé); as pílulas
+ *        abrem os diálogos de hoje.
+ *  CV-5. leitura: farol na primeira linha; "Últimas leituras" com data,
+ *        ESCORE · ACESSO · ESTRUTURA, observação embaixo e "Excluir" (com
+ *        permissão); avisos da última leitura abaixo do cartão.
+ *  CV-6. último período fechado: a grade do v12 (produto, lançamento, real ×
+ *        esperado com a cor e o texto do farol, custo por cab/dia em R$) e o
+ *        resto do resumo de hoje; base g/cab/dia; sobra antiga e peso médio.
+ *  CV-7. último registro: os MESMOS rótulos e valores do cartão do Histórico
+ *        (`CardMetricaEvento`) e as observações; informações do cocho na grade.
+ *  CV-8. depósito › cocho: o despachante repassa `subtitulo` e `onAbrirCocho`
+ *        ao depósito (este só com a permissão do marcador,
+ *        `visualizar_detalhes_cochos`); o cocho abre empilhado (‹ Voltar no
+ *        cabeçalho, o Esc volta ao depósito sem fechar o diálogo).
+ *  CV-9. carregando dentro da casca, sem rodapé.
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LancLoteDialogo } from '@/components/lotes/LancamentoLoteUi';
+import CardMetricaEvento from '@/components/suplementacao/CardMetricaEvento';
+import { COR_FAROL } from '@/domain/suplementacao/leituraCocho';
+
+const EMP = 'emp-1';
+const dados = vi.hoisted(() => ({ cache: {}, produtos: [], empresas: [], pendente: false }));
+
+vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () => 'emp-1' }));
+vi.mock('@/services/mapaCacheService', () => ({
+  getMapaCachedData: vi.fn(async (chave) => (dados.pendente ? new Promise(() => {}) : dados.cache[chave] || [])),
+  refreshMapaCacheEntry: vi.fn(async (chave) => (dados.pendente ? new Promise(() => {}) : dados.cache[chave] || [])),
+  updateMapaCachedData: vi.fn(),
+}));
+vi.mock('@/services/estoqueMapaService', () => ({ listarTodosProdutos: vi.fn(async () => dados.produtos) }));
+vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => dados.empresas) }));
+// Os formulários e o histórico completo são os de hoje; aqui só se confere que abrem.
+vi.mock('@/components/suplementacao/FormularioLancamentoSuplementacao', async () => {
+  const { DialogTitle } = await import('@/components/ui/dialog');
+  return { default: ({ ponto }) => <DialogTitle>{`Formulário de lançamento: ${ponto?.nome_ponto}`}</DialogTitle> };
+});
+vi.mock('@/components/suplementacao/FormularioLeituraCocho', () => ({ default: ({ ponto }) => <p>{`Formulário de leitura: ${ponto?.nome_ponto}`}</p> }));
+vi.mock('@/components/suplementacao/HistoricoSuplementacaoPonto', () => ({ default: ({ pontoNome }) => <p>{`Histórico completo: ${pontoNome}`}</p> }));
+// Depósito: a casca de verdade e um toque que abre o cocho de "Pastos atendidos".
+vi.mock('@/components/mapa/DetalhesDepositoSuplementacao', async () => {
+  const { default: CascaDetalhe } = await import('@/components/mapa/detalhes-lote/CascaDetalhe');
+  return {
+    default: ({ deposito, subtitulo, onAbrirCocho }) => (
+      <CascaDetalhe titulo={deposito.nome_ponto} sub={subtitulo || 'Depósito'}>
+        <button type="button" onClick={() => onAbrirCocho?.({ ...COCHO_DO_DEPOSITO })}>Abrir COCHO 02</button>
+      </CascaDetalhe>
+    ),
+  };
+});
+
+const COCHO_DO_DEPOSITO = { id: 'c2', empresa_id: 'emp-1', nome_ponto: 'COCHO 02', categoria_ponto: 'COCHO', status: 'Ativo', area_vinculada_ids: ['a2'] };
+
+const cocho = (extra = {}) => ({
+  id: 'c1', empresa_id: EMP, nome_ponto: 'COCHO 07', categoria_ponto: 'COCHO', status: 'Ativo',
+  area_vinculada_id: 'a1', area_vinculada_ids: ['a1'], capacidade_cocho_kg: 300, numero_ponto: 'CC-07', sigla: 'C07',
+  tipo: 'Cocho coberto', deposito_origem_nome: 'Depósito Retiro', produto_padrao: 'SAL MINERAL 80', metragem_cocho_m: 12,
+  consumo_ideal_por_cabeca_kg: 0.075, limite_minimo_consumo: 0.06, limite_maximo_consumo: 0.11, dias_alerta_reposicao: 3,
+  alerta_sem_lancamento_dias: 15, observacoes: 'Cocho perto da porteira.', ...extra,
+});
+const evento = (id, extra = {}) => ({
+  id, empresa_id: EMP, ponto_suplementacao_id: 'c1', produto: 'SAL MINERAL 80', produto_id: 'p-sal',
+  data_lancamento: '2026-11-10', quantidade_total_kg: 200, sobra_kg: 0, dias_periodo: null,
+  consumo_esperado_pv_kg: 50, total_cabecas_afetadas: 100, peso_medio_lotes_kg: 400, created_date: '2026-11-10T12:00:00.000Z', ...extra,
+});
+const fechado = (extra = {}) => evento('e-fechado', {
+  data_lancamento: '2026-10-27', dias_periodo: 13, sobra_kg: 10, consumo_diario_grupo_kg: 30, farol_consumo: 'dentro',
+  consumo_relacao_esperado: 0.99, faixa_tolerancia_aplicada: 20, sobra_informada: true, consumo_g_cab_dia: 75,
+  consumo_real_pv_percentual: 0.034, consumo_esperado_pv_percentual: 0.035, custo_cab_dia: 0.21, custo_total_periodo: 273,
+  custo_unitario_kg: 0.7, created_date: '2026-10-27T12:00:00.000Z', ...extra,
+});
+const leitura = (id, data_leitura, escore, extra = {}) => ({
+  id, empresa_id: EMP, ponto_suplementacao_id: 'c1', data_leitura, escore, acesso: 'BOM', estrutura: 'BOA',
+  created_date: `${data_leitura}T12:00:00.000Z`, registrado_por_nome: 'JOÃO', ...extra,
+});
+
+/** Largura da tela para os `matchMedia` (desktop 1280, tablet 820, celular 390). */
+const largura = (w) => {
+  window.matchMedia = /** @type {any} */ ((q) => {
+    const min = /min-width:\s*(\d+)px/.exec(q);
+    const max = /max-width:\s*(\d+)px/.exec(q);
+    const matches = (!min || w >= Number(min[1])) && (!max || w <= Number(max[1]));
+    return { matches, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} };
+  });
+};
+const matchMediaOriginal = window.matchMedia;
+
+beforeEach(() => {
+  // 15:00 UTC de 12/11 = 12:00 em São Paulo: o dia da fazenda é 12/11 (dia 2 do ciclo de 10/11).
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-12T15:00:00.000Z'));
+  largura(1280);
+  dados.pendente = false;
+  dados.produtos = [{ id: 'p-sal', empresa_id: EMP, nome_produto: 'SAL MINERAL 80', peso_por_saco_kg: 25 }];
+  dados.empresas = [{ id: EMP, nome: 'FAZENDA', fuso_horario: 'America/Sao_Paulo' }];
+  dados.cache = {
+    areas: [{ id: 'a1', empresa_id: EMP, nome: 'PASTO 07' }, { id: 'a2', empresa_id: EMP, nome: 'PASTO 02' }],
+    pontosSuplementacao: [cocho()],
+    eventosSuplementacao: [fechado(), evento('e-aberto')],
+    leiturasCocho: [],
+  };
+});
+
+afterEach(() => {
+  cleanup();
+  window.matchMedia = matchMediaOriginal;
+  vi.useRealTimers();
+});
+
+/** Monta como o Mapa Geral: no `LancLoteDialogo` largo, só leitura, popup a partir do tablet. */
+const noDialogo = async (ponto, { permissions = {}, subtitulo } = {}) => {
+  const { default: DetalhesPontoSuplementacao } = await import('@/components/mapa/DetalhesPontoSuplementacao');
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let fechou = 0;
+  const r = render(
+    <QueryClientProvider client={qc}>
+      <LancLoteDialogo open onOpenChange={(aberto) => { if (!aberto) fechou += 1; }} titulo="Ponto de Suplementação" largo somenteLeitura popupDesde="tablet">
+        <DetalhesPontoSuplementacao ponto={ponto} permissions={permissions} subtitulo={subtitulo} onClose={() => {}} />
+      </LancLoteDialogo>
+    </QueryClientProvider>,
+  );
+  return { ...r, fechou: () => fechou };
+};
+const carregado = async () => {
+  await screen.findByText('Informações do cocho');
+  await act(async () => {});
+};
+const tituloDoDialogo = () => document.querySelector('.mk-ll-dlg__titulo')?.textContent;
+const subDoDialogo = () => document.querySelector('.mk-ll-dlg__lotes')?.textContent ?? null;
+const raiz = () => /** @type {HTMLElement} */ (document.querySelector('.mk-ll > .mk-dp'));
+const valorDe = (el, rotulo) => within(el).getByText(rotulo).nextElementSibling?.textContent;
+const pilulas = () => [...raiz().querySelectorAll('.mk-dp__rodape .mk-dp-pilula')].map((b) => b.textContent);
+const secaoNivel = () => screen.getByRole('region', { name: 'Nível do cocho' });
+const secaoLeitura = () => screen.getByRole('region', { name: 'Leitura do cocho' });
+
+describe('CV-1 — casca v12', () => {
+  it('raiz .mk-dp filha direta do .mk-ll; título = cocho; sub = subtitulo, ou as áreas vinculadas', async () => {
+    await noDialogo(cocho(), { subtitulo: 'Pasto 07 · Retiro' });
+    await carregado();
+    expect(raiz()).toBeTruthy();
+    expect(raiz().getAttribute('data-modo')).toBe('desktop');
+    expect(raiz().querySelector(':scope > .mk-dp__corpo--cards')).toBeTruthy();
+    expect(tituloDoDialogo()).toBe('COCHO 07');
+    expect(subDoDialogo()).toBe('Pasto 07 · Retiro');
+    // Fora da raiz v12 não sobra nada do desenho antigo.
+    expect(document.querySelector('.mk-map-details')).toBeNull();
+    cleanup();
+
+    await noDialogo(cocho());
+    await carregado();
+    expect(tituloDoDialogo()).toBe('COCHO 07');
+    expect(subDoDialogo()).toBe('PASTO 07');
+  });
+
+  it('markup novo só com classes do v12 (o CochoNivel e o ícone do desvio são componentes de hoje)', async () => {
+    dados.cache.eventosSuplementacao = [evento('e-fechado-ultimo', { dias_periodo: 5, consumo_diario_grupo_kg: 30, sobra_kg: 10 })];
+    await noDialogo(cocho());
+    await carregado();
+    const corpo = /** @type {HTMLElement} */ (raiz().querySelector('.mk-dp__corpo'));
+    expect(corpo.querySelectorAll('[class]').length).toBeGreaterThan(80);
+    expect(corpo.querySelector('.mk-dp-cel__val svg.lucide')).toBeTruthy(); // o ícone do desvio (período fechado) está lá
+    const foraDoV12 = [...corpo.querySelectorAll('[class]')]
+      .filter((el) => !el.closest('[role="img"]') && !(el.tagName.toLowerCase() === 'svg' && el.closest('.mk-dp-cel__val')) && !el.closest('svg.lucide'))
+      .flatMap((el) => String(el.getAttribute('class')).split(/\s+/).filter(Boolean))
+      .filter((c) => !c.startsWith('mk-dp') && !c.startsWith('lucide'));
+    expect(foraDoV12).toEqual([]);
+  });
+});
+
+describe('CV-2 — seções na ordem do v12', () => {
+  it('nível, leitura, último período fechado, total fornecido, último registro e informações', async () => {
+    await noDialogo(cocho());
+    await carregado();
+    const titulos = [...raiz().querySelectorAll('h3')].map((h) => h.textContent);
+    expect(titulos).toEqual(['Nível do cocho', 'Leitura do cocho', 'Último período fechado', 'Total fornecido por produto', 'Último registro', 'Informações do cocho']);
+    // O título do nível existe só para o leitor de tela (o v12 não mostra título acima do nível).
+    expect(secaoNivel().querySelector('h3')?.className).toBe('mk-dp-cocho__oculto');
+  });
+});
+
+describe('CV-3 — bloco do nível', () => {
+  it('marcador do mapa como figura acessível; percentual uma vez no valor; neutro com o estado', async () => {
+    await noDialogo(cocho());
+    await carregado();
+    // Dia 2 de 200 kg a 50 kg/dia: 100 kg (50%).
+    const img = await within(secaoNivel()).findByRole('img', { name: 'Restante do ciclo (estimado): 50%' });
+    expect(img.querySelector('[data-cocho-marcador]')).toBeTruthy();
+    expect(img.querySelector('[data-cocho-nivel]')?.getAttribute('data-cocho-nivel')).toBe('50');
+    expect(img.closest('.mk-dp-nivel__fig')).toBeTruthy();
+    const valor = /** @type {HTMLElement} */ (secaoNivel().querySelector('.mk-dp-nivel__val'));
+    expect(valor.textContent).toBe('50%');
+    // O rótulo e o valor visíveis repetem o nome do `role="img"`: ficam fora da árvore acessível.
+    expect(valor.getAttribute('aria-hidden')).toBe('true');
+    expect(secaoNivel().querySelector('.mk-dp-nivel__rot')?.getAttribute('aria-hidden')).toBe('true');
+    expect(within(secaoNivel()).getByText('100 kg de 200 kg').className).toBe('mk-dp-nivel__linha');
+    expect(within(secaoNivel()).getByText(/^No dia do abastecimento, mantém o total disponível/)).toBeTruthy();
+    // Cartão do nível: medidor do limite e os números do SSOT numa grade.
+    const medidor = within(secaoNivel()).getByRole('meter', { name: 'Uso do limite operacional' });
+    expect(medidor.closest('dl.mk-dp-grade')).toBeTruthy();
+    expect(valorDe(secaoNivel(), 'Saldo estimado')).toBe('100 kg');
+    expect(valorDe(secaoNivel(), 'Duração estimada')).toBe('4 dia(s)');
+    expect(valorDe(secaoNivel(), 'Próxima reposição')).toBe('14/11/2026');
+    cleanup();
+
+    dados.cache.eventosSuplementacao = [];
+    await noDialogo(cocho());
+    await carregado();
+    expect(within(secaoNivel()).getByRole('img').getAttribute('aria-label')).toBe('Restante do ciclo (estimado): Sem lançamento');
+    expect(secaoNivel().querySelector('.mk-dp-nivel')?.classList.contains('mk-dp-cocho__nivel--neutro')).toBe(true);
+    expect(secaoNivel().querySelector('.mk-dp-nivel__val')?.textContent).toBe('Sem lançamento');
+    expect(within(secaoNivel()).getByText('Nenhum lançamento registrado neste cocho.')).toBeTruthy();
+  });
+});
+
+describe('CV-4 — rodapé de pílulas', () => {
+  it('Lançar · Leitura · Histórico pelas permissões de hoje; sem nenhuma, sem rodapé', async () => {
+    await noDialogo(cocho());
+    await carregado();
+    expect(pilulas()).toEqual(['Lançar', 'Leitura', 'Histórico']);
+    expect(raiz().querySelectorAll('.mk-dp__rodape .mk-dp-pilula svg')).toHaveLength(3);
+    cleanup();
+
+    await noDialogo(cocho(), { permissions: { lancar_suplementacao: false } });
+    await carregado();
+    expect(pilulas()).toEqual(['Histórico']);
+    cleanup();
+
+    await noDialogo(cocho(), { permissions: { visualizar_historico_cocho: false } });
+    await carregado();
+    expect(pilulas()).toEqual(['Lançar', 'Leitura']);
+    cleanup();
+
+    await noDialogo(cocho(), { permissions: { lancar_suplementacao: false, visualizar_historico_cocho: false } });
+    await carregado();
+    expect(pilulas()).toEqual([]);
+    expect(raiz().querySelector('.mk-dp__rodape')?.childElementCount).toBe(0);
+  });
+
+  it('as pílulas abrem o lançamento, a leitura e o histórico de hoje', async () => {
+    await noDialogo(cocho());
+    await carregado();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Lançar' })); });
+    expect(await screen.findByText('Formulário de lançamento: COCHO 07')).toBeTruthy();
+    cleanup();
+
+    await noDialogo(cocho());
+    await carregado();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Leitura' })); });
+    expect(await screen.findByText('Formulário de leitura: COCHO 07')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Leitura de Cocho' })).toBeTruthy();
+    cleanup();
+
+    await noDialogo(cocho());
+    await carregado();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Histórico' })); });
+    expect(await screen.findByText('Histórico completo: COCHO 07')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Histórico de Suplementação' })).toBeTruthy();
+  });
+});
+
+describe('CV-5 — leitura do cocho', () => {
+  it('farol na primeira linha; últimas leituras com escore · acesso · estrutura, observação e Excluir; avisos abaixo', async () => {
+    dados.cache.leiturasCocho = [
+      leitura('l-1', '2026-11-09', 'CHEIO'),
+      leitura('l-2', '2026-11-12', 'ADEQUADO', { acesso: 'RUIM', estrutura: 'REPARO', observacoes: 'Lama na entrada.' }),
+    ];
+    await noDialogo(cocho());
+    await carregado();
+    const secao = secaoLeitura();
+    const farol = within(secao).getByTestId('farol-cocho');
+    expect(farol.getAttribute('data-cor')).toBe('verde');
+    const linhaFarol = /** @type {HTMLElement} */ (farol.closest('.mk-dp-linha'));
+    expect(linhaFarol.querySelector('.mk-dp-linha__sub')?.textContent).toBe('Escore adequado · acesso ruim · estrutura precisa de reparo');
+    expect(linhaFarol.querySelector('.mk-dp-linha__val')?.textContent).toBe('12/11/2026 · JOÃO');
+    expect(/** @type {HTMLElement} */ (linhaFarol.querySelector('.mk-dp-bolinha')).style.background).toBeTruthy();
+
+    const itens = within(within(secao).getByRole('list', { name: 'Últimas leituras' })).getAllByRole('listitem');
+    expect(itens).toHaveLength(2);
+    expect(within(itens[0]).getByText('12/11/2026')).toBeTruthy();
+    expect(within(itens[0]).getByText('ADEQUADO · RUIM · REPARO')).toBeTruthy();
+    expect(within(itens[0]).getByText('Lama na entrada.').className).toBe('mk-dp-cocho__obs-leitura');
+    expect(within(itens[0]).getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }).className).toContain('mk-dp-acao--perigo');
+    expect(within(itens[1]).getByText('CHEIO · BOM · BOA')).toBeTruthy();
+    // A bolinha de cada leitura é a cor do escore (CHEIO = azul).
+    expect(/** @type {HTMLElement} */ (itens[1].querySelector('.mk-dp-bolinha')).style.background).toBe('rgb(37, 99, 235)');
+    expect(COR_FAROL.azul).toBe('#2563eb');
+
+    // Avisos: abaixo do cartão, ainda dentro da região.
+    const avisos = within(secao).getAllByTestId('aviso-leitura-cocho');
+    expect(avisos.map((a) => a.textContent)).toEqual(['Acesso ruim ao cocho (leitura de 12/11/2026)', 'Estrutura precisa de reparo (leitura de 12/11/2026)']);
+    expect(avisos[0].className).toContain('mk-dp-aviso--atencao');
+    expect(avisos[0].previousElementSibling?.classList.contains('mk-dp-cartao')).toBe(true);
+  });
+
+  it('sem leitura: "Sem leitura recente" cinza e "Nenhuma leitura registrada."; sem permissão, sem Excluir', async () => {
+    await noDialogo(cocho());
+    await carregado();
+    expect(within(secaoLeitura()).getByTestId('farol-cocho').getAttribute('data-cor')).toBe('cinza');
+    expect(within(secaoLeitura()).getByText('Nenhuma leitura registrada.').className).toBe('mk-dp-linha__sub');
+    expect(within(secaoLeitura()).queryByRole('list')).toBeNull();
+    cleanup();
+
+    dados.cache.leiturasCocho = [leitura('l-2', '2026-11-12', 'VAZIO')];
+    await noDialogo(cocho(), { permissions: { lancar_suplementacao: false } });
+    await carregado();
+    await waitFor(() => expect(within(secaoLeitura()).getByTestId('farol-cocho').getAttribute('data-cor')).toBe('vermelho'));
+    expect(within(secaoLeitura()).queryByRole('button', { name: /Excluir/ })).toBeNull();
+  });
+});
+
+describe('CV-6 — último período fechado', () => {
+  it('grade do v12 com o farol (cor e texto) e o resto do resumo de hoje', async () => {
+    dados.cache.eventosSuplementacao = [
+      fechado({ sobra_informada: false, peso_medio_periodo_kg: 217, peso_medio_periodo_aproximado: true, peso_medio_periodo_motivo: 'sem_lotes', sobra_herdada_kg: 20, custo_sobra_herdada_kg: 0.6, custo_sobra_aproximado: true }),
+      evento('e-aberto'),
+    ];
+    await noDialogo(cocho());
+    await carregado();
+    const cartao = screen.getByTestId('ultimo-periodo-fechado');
+    expect(cartao.className).toContain('mk-dp-cartao');
+    const rotulos = [...cartao.querySelectorAll('dt')].map((dt) => dt.textContent);
+    expect(rotulos.slice(0, 4)).toEqual(['Produto', 'Lançamento', '%PV real × esperado', 'Custo por cab/dia (R$)']);
+    expect(rotulos.slice(4)).toEqual(['Consumo g/cab/dia', '% do esperado', 'Peso médio do período', 'Custo do período', 'Sobra antiga primeiro']);
+    expect(valorDe(cartao, 'Produto')).toBe('SAL MINERAL 80');
+    expect(valorDe(cartao, 'Lançamento')).toBe('27/10/2026 · 13 dia(s)');
+    expect(valorDe(cartao, '%PV real × esperado')).toBe('0,034% × 0,035%');
+    const farol = within(cartao).getByTestId('farol-consumo');
+    expect(farol.textContent).toBe('dentro da faixa da formulação (±20%)');
+    expect(farol.getAttribute('data-farol')).toBe('dentro');
+    const bolinha = /** @type {HTMLElement} */ (within(cartao).getByText('%PV real × esperado').parentElement?.querySelector('.mk-dp-bolinha'));
+    expect(bolinha.style.background).toBe('rgb(22, 163, 74)');
+    expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('0,21');
+    expect(valorDe(cartao, 'Consumo g/cab/dia')).toBe('75 g');
+    expect(valorDe(cartao, '% do esperado')).toBe('99%');
+    expect(within(cartao).getByTestId('peso-medio-periodo').textContent).toBe('Peso médio do período217 kgaproximado: sem os lotes do período');
+    expect(valorDe(cartao, 'Custo do período')).toMatch(/^R\$\s273,00 · R\$\s0,70\/kg$/);
+    expect(within(cartao).getByTestId('custo-sobra-herdada').textContent).toMatch(/^Sobra antiga primeiro20,00 kg a R\$\s0,60\/kgcusto da sobra aproximado$/);
+    expect(within(cartao).getByTestId('fechamento-aproximado').textContent).toBe('Aproximado — sobra não informada');
+  });
+
+  it('base g/cab/dia (D-PROD-210): a comparação em gramas e o %PV real só como informação; sem período: "Nenhum período fechado ainda."', async () => {
+    dados.cache.eventosSuplementacao = [
+      fechado({ base_consumo: 'G_CAB_DIA', base_consumo_aplicada: 'G_CAB_DIA', consumo_esperado_g_cab_dia: 80, consumo_esperado_pv_percentual: null, farol_consumo: 'abaixo', faixa_tolerancia_aplicada: 15, custo_cab_dia: null, custo_total_periodo: null }),
+      evento('e-aberto'),
+    ];
+    await noDialogo(cocho());
+    await carregado();
+    const cartao = screen.getByTestId('ultimo-periodo-fechado');
+    expect(valorDe(cartao, 'g/cab/dia real × meta')).toBe('75 g × 80 g');
+    expect(valorDe(cartao, '%PV real (informação)')).toBe('0,034%');
+    expect(within(cartao).getByTestId('farol-consumo').textContent).toBe('abaixo da faixa da formulação (±15%)');
+    expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('Sem custo');
+    expect(valorDe(cartao, 'Custo do período')).toBe('Sem custo');
+    expect(within(cartao).queryByText('%PV real × esperado')).toBeNull();
+    cleanup();
+
+    dados.cache.eventosSuplementacao = [evento('e-aberto')];
+    await noDialogo(cocho());
+    await carregado();
+    expect(screen.queryByTestId('ultimo-periodo-fechado')).toBeNull();
+    expect(screen.getByText('Nenhum período fechado ainda.').closest('.mk-dp-cartao')).toBeTruthy();
+  });
+});
+
+describe('CV-7 — último registro, total fornecido e informações do cocho', () => {
+  it('os mesmos rótulos e valores do cartão do Histórico; total por produto em sacos e kg; o cadastro na grade', async () => {
+    dados.cache.eventosSuplementacao = [fechado(), evento('e-aberto', { observacoes: 'Lançado pelo João.' })];
+    await noDialogo(cocho());
+    await carregado();
+    const titulo = screen.getByRole('heading', { name: 'Último registro' });
+    const cartao = /** @type {HTMLElement} */ (titulo.parentElement?.nextElementSibling);
+    expect(cartao.querySelector('.mk-dp-cartao__titulo')?.textContent).toBe('SAL MINERAL 80');
+    expect(cartao.querySelector('.mk-dp-cartao__sub')?.textContent).toBe('Data: 10/11/2026');
+    const doDetalhe = [...cartao.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    // O Histórico com a projeção do SSOT para o último lançamento (taxa 50 kg/dia, 4 dias, 14/11).
+    const historico = render(<CardMetricaEvento evento={evento('e-aberto')} sacos={8} showProjecao consumoEsperadoDiaKg={50} duracaoEstimada={4} proximaReposicao="14/11/2026" />);
+    const celulas = [...historico.container.querySelectorAll('.text-slate-500')].filter((el) => el.nextElementSibling && !el.className.includes('uppercase'));
+    const doHistorico = celulas.map((el) => [el.textContent, el.nextElementSibling?.textContent]);
+    expect(doDetalhe).toEqual(doHistorico);
+    expect(doDetalhe.map(([rotulo]) => rotulo)).toEqual(['Quantidade kg', 'Quantidade sacos', 'Sobra', 'Qtd. Cabeças', 'Peso médio', 'Consumo Lote PV/dia', 'Esperado/cab/dia', 'Fechamento', 'Duração estimada', 'Próx. reposição']);
+    expect(within(cartao).getByText('Observações').closest('.mk-dp-linha')?.classList.contains('mk-dp-linha--quebra')).toBe(true);
+    expect(within(cartao).getByText('Lançado pelo João.')).toBeTruthy();
+
+    // Total fornecido: uma linha por produto, "sacos · kg".
+    const total = /** @type {HTMLElement} */ (screen.getByRole('heading', { name: 'Total fornecido por produto' }).parentElement?.nextElementSibling);
+    expect(total.querySelector('.mk-dp-linha__rot')?.textContent).toBe('SAL MINERAL 80');
+    expect(total.querySelector('.mk-dp-linha__val')?.textContent).toBe('16,00 sacos · 400,00 kg');
+
+    // Informações do cocho: a grade do cadastro e as observações numa linha que quebra.
+    const info = /** @type {HTMLElement} */ (screen.getByRole('heading', { name: 'Informações do cocho' }).parentElement?.nextElementSibling);
+    expect([...info.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual([
+      'Número', 'Sigla', 'Tipo', 'Depósito vinculado', 'Áreas vinculadas', 'Produto padrão', 'Limite operacional', 'Metragem',
+      'Consumo ideal/cab', 'Consumo mín./cab/dia', 'Consumo máx./cab/dia', 'Dias alerta reposição', 'Alerta sem lançamento',
+    ]);
+    expect(valorDe(info, 'Áreas vinculadas')).toBe('PASTO 07');
+    expect(valorDe(info, 'Limite operacional')).toBe('300,00 kg');
+    expect(valorDe(info, 'Metragem')).toBe('12,00 m');
+    expect(valorDe(info, 'Dias alerta reposição')).toBe('3 dia(s)');
+    expect(within(info).getByText('Cocho perto da porteira.').closest('.mk-dp-linha--quebra')).toBeTruthy();
+  });
+});
+
+describe('CV-8 — depósito › cocho (tela empilhada)', () => {
+  it('repassa subtitulo e onAbrirCocho ao depósito; o cocho abre com ‹ Voltar e o Esc volta ao depósito', async () => {
+    const deposito = { id: 'd1', empresa_id: EMP, nome_ponto: 'DEPÓSITO SEDE', categoria_ponto: 'DEPOSITO', status: 'Ativo' };
+    const { fechou } = await noDialogo(deposito, { subtitulo: 'Sede · Sede' });
+    expect(tituloDoDialogo()).toBe('DEPÓSITO SEDE');
+    expect(subDoDialogo()).toBe('Sede · Sede');
+    expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull();
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
+    await screen.findByText('Informações do cocho');
+    await act(async () => {});
+    // O cocho empilhado: o nome dele, as áreas dele (não o local do depósito) e o ‹ Voltar no cabeçalho.
+    expect(tituloDoDialogo()).toBe('COCHO 02');
+    expect(subDoDialogo()).toBe('PASTO 02');
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeTruthy();
+    expect(raiz().querySelector('.mk-dp__corpo')?.className).toContain('mk-dp-anim--empurrar');
+
+    // Esc: volta ao depósito, sem fechar o diálogo.
+    await act(async () => { fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape', code: 'Escape' }); });
+    await waitFor(() => expect(tituloDoDialogo()).toBe('DEPÓSITO SEDE'));
+    expect(fechou()).toBe(0);
+    expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull();
+
+    // ‹ Voltar também volta.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
+    await screen.findByText('Informações do cocho');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Voltar' })); });
+    await waitFor(() => expect(tituloDoDialogo()).toBe('DEPÓSITO SEDE'));
+  });
+
+  it('sem "Abrir detalhes de cocho / depósito" (a permissão do marcador), o depósito não abre o cocho', async () => {
+    const deposito = { id: 'd1', empresa_id: EMP, nome_ponto: 'DEPÓSITO SEDE', categoria_ponto: 'DEPOSITO', status: 'Ativo' };
+    await noDialogo(deposito, { permissions: { visualizar_detalhes_cochos: false } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
+    expect(tituloDoDialogo()).toBe('DEPÓSITO SEDE');
+    expect(screen.queryByText('Informações do cocho')).toBeNull();
+  });
+});
+
+describe('CV-9 — carregando', () => {
+  it('dentro da casca, com o aviso de carregamento e sem rodapé', async () => {
+    dados.pendente = true;
+    await noDialogo(cocho());
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toBe('Carregando detalhes do cocho...');
+    expect(status.closest('.mk-ll > .mk-dp')).toBeTruthy();
+    expect(raiz().querySelector('.mk-dp__rodape')?.childElementCount).toBe(0);
+    expect(tituloDoDialogo()).toBe('COCHO 07');
+  });
+});

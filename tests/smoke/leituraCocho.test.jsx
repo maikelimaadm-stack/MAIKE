@@ -11,6 +11,8 @@
  *  - porta: o POST leva só os campos que o servidor aceita (o replay offline traz mais);
  *  - detalhe do cocho: botão "Leitura" com `lancar_suplementacao`, seção "Leitura do
  *    cocho" com o farol, os avisos e as últimas leituras, e excluir com confirmação.
+ *    D-PROD-220 (desenho v12): cada leitura é uma linha — a data à esquerda, a
+ *    observação embaixo dela e "ESCORE · ACESSO · ESTRUTURA" à direita.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -182,7 +184,7 @@ describe('D-PROD-205 — detalhe do cocho', () => {
         <DetalhesPontoSuplementacao ponto={PONTO} permissions={permissions} onClose={() => {}} />
       </QueryClientProvider>,
     );
-    await screen.findByText('Informações do Cocho');
+    await screen.findByText('Informações do cocho');
     await act(async () => {});
   };
   const secao = () => screen.getByRole('region', { name: 'Leitura do cocho' });
@@ -211,7 +213,12 @@ describe('D-PROD-205 — detalhe do cocho', () => {
     ]);
     const itens = within(within(secao()).getByRole('list', { name: 'Últimas leituras' })).getAllByRole('listitem');
     expect(itens).toHaveLength(2);
-    expect(itens[0].textContent).toMatch(/12\/11\/2026 · Vazio · acesso ruim · quebrada · cocho virado/);
+    // A mais recente primeiro: data, escore · acesso · estrutura e a observação.
+    expect(within(itens[0]).getByText('12/11/2026')).toBeTruthy();
+    expect(within(itens[0]).getByText('VAZIO · RUIM · QUEBRADA')).toBeTruthy();
+    expect(within(itens[0]).getByText('cocho virado')).toBeTruthy();
+    expect(within(itens[1]).getByText('11/11/2026')).toBeTruthy();
+    expect(within(itens[1]).getByText('CHEIO · BOM · BOA')).toBeTruthy();
 
     avisos.confirmar.mockResolvedValueOnce(false);
     await act(async () => {

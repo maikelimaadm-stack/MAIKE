@@ -52,6 +52,8 @@ vi.mock('@/apis/estoque', () => ({
   listProdutos: async () => bruto.produtos,
 }));
 vi.mock('@/apis/tarefas', () => ({ listLancamentos: async () => [], listHistorico: async () => [] }));
+// O detalhe do depósito lê as leituras de cocho (farol dos cochos vinculados) pelo mesmo cache.
+vi.mock('@/apis/leituras-cocho', () => ({ listLeiturasCocho: async () => [], createLeituraCocho: vi.fn(), deleteLeituraCocho: vi.fn() }));
 vi.mock('@/apis/session', () => ({ listPermissoes: async () => [] }));
 vi.mock('@/apis/rebanho', () => ({
   listAplicacoesMedicamento: async () => [],
@@ -72,14 +74,16 @@ vi.mock('@/services/mapaService', () => ({
   listarIconesPorTipoEntidade: vi.fn(async () => []),
 }));
 vi.mock('@/services/loteManejoService', () => ({ listarTodosLotes: vi.fn(async () => []) }));
+vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => []) }));
 vi.mock('@/components/mapa/FormularioTransferenciaDeposito', () => ({ default: () => null }));
-vi.mock('@/components/suplementacao/HistoricoDepositoSuplementacao', () => ({ default: () => null }));
+// A linha do tempo do detalhe usa a regra (pura) do histórico; só o componente do histórico completo sai.
+vi.mock('@/components/suplementacao/HistoricoDepositoSuplementacao', async (importOriginal) => ({ ...(await importOriginal()), default: () => null }));
 
 const { getDepositoIndicator } = await import('@/components/mapa/pontoStatusUtils');
 const { buildMapaAlertasSuplementacao } = await import('@/components/mapa/mapaAlertasSuplementacaoUtils');
 const { calcularNivelCocho } = await import('@/domain/suplementacao/nivelSuplementacao');
 const { refreshMapaCacheEntry, __resetMapaCachePolicy } = await import('@/services/mapaCacheService');
-const { formatKg } = await import('@/components/suplementacao/formatters');
+const { formatarKgNivel } = await import('@/domain/suplementacao/nivelSuplementacao');
 const { default: DetalhesDepositoSuplementacao } = await import('@/components/mapa/DetalhesDepositoSuplementacao');
 
 const RACAO = { id: 'pr-racao', empresa_id: 'emp-1', nome_produto: 'RAÇÃO', unidade_principal_estoque: 'KG', peso_por_saco_kg: 30, ativo: true, percentual_consumo_pv: 0.1 };
@@ -180,7 +184,8 @@ describe('FU — mapa, detalhes e alertas na mesma fonte (D-PROD-178)', () => {
     const secao = await screen.findByRole('region', { name: 'Nível do depósito' });
     const medidor = within(secao).getByRole('meter', { name: 'Ocupação do limite operacional' });
     await waitFor(() => expect(medidor.getAttribute('aria-valuenow')).toBe(String(nivelMapa.ocupacaoPercentual)));
-    expect(within(secao).getByText('Saldo atual kg').nextElementSibling?.textContent).toBe(formatKg(nivelMapa.saldoKg));
+    // D-PROD-220: a célula do v12 mostra o kg no formato do SSOT ("150 kg").
+    expect(within(secao).getByText('Saldo atual kg').nextElementSibling?.textContent).toBe(formatarKgNivel(nivelMapa.saldoKg));
     expect(within(secao).queryByText(nivelMapa.mensagemUnidade ?? '— sem aviso de unidade —')).toBeNull();
     expect(screen.queryByText(/Unidade de alguns produtos não confirmada/)).toBeNull();
   });
