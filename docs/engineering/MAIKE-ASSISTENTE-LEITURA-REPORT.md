@@ -38,3 +38,7 @@
 - Cada pergunta manda à Anthropic a pergunta, o histórico curto e os dados das ferramentas usadas.
 - A conversa some ao recarregar a página (não é salva).
 - A regra de forragem do servidor é espelho da tela (`src/domain/pastagem/farolForragem.js`); se uma mudar, a outra muda junto (teste de espelho cobre a estimativa).
+
+## Ajuste pós-release (2026-11-17)
+- Produção recusou a chave do proprietário: chave da organização sem workspace (400 "This API key is not scoped to a workspace"). Nova variável opcional `ANTHROPIC_WORKSPACE_ID` (o id `wrkspc_…`, não é segredo): quando presente, o cliente envia o cabeçalho `anthropic-workspace-id`. Chave criada dentro de um workspace dispensa a variável.
+- O `nativeHttpClient` tratava todo 503 como "Serviço de dados indisponível"; 503 do backend com código `ASSISTENTE_*` agora mostra a mensagem do assistente (`tests/smoke/nativeHttpClientAssistente.test.js`).
