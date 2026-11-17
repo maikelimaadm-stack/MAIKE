@@ -6,8 +6,6 @@ import { listarPontosSuplementacaoAtivos, listarAreasAtivas } from "@/services/m
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent as DialogContentUi, DialogHeader as DialogHeaderUi, DialogTitle as DialogTitleUi } from "@/components/ui/dialog";
-import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao, { movimentacoesDoHistoricoDeposito } from "../suplementacao/HistoricoDepositoSuplementacao";
@@ -25,11 +23,6 @@ import { descreverFarol, farolDoCocho } from "@/domain/suplementacao/leituraCoch
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import "@/styles/mk-dp-deposito.css";
-
-// `ui/dialog` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
-/** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
-/** @type {React.ComponentType<any>} */ const DialogHeader = DialogHeaderUi;
-/** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /** Cartões da linha do tempo do detalhe; o histórico completo abre pela pílula "Histórico". */
 const LIMITE_LINHA_DO_TEMPO = 5;
@@ -81,7 +74,8 @@ function useCacheDoMapa(chave, empresaId, staleTime) {
  * Os dados e as regras não mudaram: o nível é só o SSOT (D-PROD-178,
  * `getDepositoIndicator`); produto em litros fica fora do kg (D-PROD-162,
  * P-11); a transferência e o histórico completo são os mesmos componentes,
- * em diálogos por cima (D-PROD-161 para as folhas do celular).
+ * em diálogos por cima (D-PROD-161 para as folhas do celular). D-PROD-221:
+ * Entrada e Saída abrem como os lançamentos de manejo (`LancLoteDialogo`).
  *
  * @param {{
  *   deposito: any,
@@ -102,8 +96,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
-  // Alvo das folhas do celular DENTRO do diálogo da transferência (D-PROD-161).
-  const [alvoFolhaTransferencia, setAlvoFolhaTransferencia] = useState(/** @type {HTMLElement | null} */ (null));
   const idTituloSaldo = useId();
   const idGrupoLitros = useId();
   const idTituloInfo = useId();
@@ -388,30 +380,26 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       </CascaDetalhe>
 
       {/*
-        D-PROD-161: este diálogo abre POR CIMA do "Depósito de Suplementação"
-        (LancLoteDialogo), que entrega aos filhos o alvo das folhas do celular.
-        Herdado, a folha "Local" nascia no diálogo de BAIXO — aria-hidden, sem
-        toque e atrás deste. Aqui ela nasce DENTRO deste diálogo (camada de
-        cima: foco, toque e leitor de tela); no celular ele centraliza sem
-        transform para a folha (position: fixed) ocupar a tela, não o cartão;
-        Escape com a folha aberta fecha só a folha (o pedido de fechar o
-        diálogo é ignorado enquanto houver folha aberta dentro dele).
+        D-PROD-221: Entrada e Saída abrem como os lançamentos de manejo — o
+        `LancLoteDialogo` com o título da ação e o depósito no subtítulo; popup
+        no desktop, tela cheia no celular, ✕/✓ no cabeçalho (o ✓ envia o
+        formulário). D-PROD-161: ele abre POR CIMA do "Depósito de
+        Suplementação" (outro LancLoteDialogo) e entrega aos filhos o PRÓPRIO
+        alvo das folhas do celular: a folha "Local" nasce DENTRO deste diálogo
+        (camada de cima: foco, toque e leitor de tela), não no de baixo
+        (aria-hidden, sem toque); em tela cheia ele não tem transform, então a
+        folha (position: fixed) ocupa a tela. Com a folha aberta, o Esc fecha só
+        a folha (o formulário ignora o cancelar enquanto houver folha aberta).
       */}
-      <Dialog
+      <LancLoteDialogo
         open={showTransferencia}
-        onOpenChange={(aberto) => {
-          if (!aberto && alvoFolhaTransferencia?.querySelector(".mk-sheet-root")) return;
-          setShowTransferencia(aberto);
-        }}>
-        <DialogContent
-          className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto max-sm:inset-0 max-sm:m-auto max-sm:h-fit max-sm:transform-none max-sm:data-[state=open]:slide-in-from-left-0 max-sm:data-[state=open]:slide-in-from-top-0 max-sm:data-[state=closed]:slide-out-to-left-0 max-sm:data-[state=closed]:slide-out-to-top-0">
-          <DialogHeader><DialogTitle className="text-sm">{transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</DialogTitle></DialogHeader>
-          <MobileSheetPortalCtx.Provider value={alvoFolhaTransferencia}>
-            <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
-          </MobileSheetPortalCtx.Provider>
-          <div ref={setAlvoFolhaTransferencia} className="contents" />
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setShowTransferencia}
+        titulo={transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}
+        lotes={[{ nome: deposito.nome_ponto }]}
+        largo
+      >
+        <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
+      </LancLoteDialogo>
 
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico do Depósito" lotes={deposito.nome_ponto ? [{ nome: deposito.nome_ponto }] : undefined} largo somenteLeitura>
         <HistoricoDepositoSuplementacao deposito={deposito} />
