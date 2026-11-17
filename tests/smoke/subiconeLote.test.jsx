@@ -226,7 +226,7 @@ describe("pasto que mistura sexos: o mapa é misto; os detalhes, nunca", () => {
     for (const f of [...modelo.lotes.map((l) => l.subicone), ...Object.values(porNome)]) expect(figurasDosMistos).not.toContain(f);
   });
 
-  it("na tela (Detalhes › Categorias 30 px, Lotes › Resumo 34 px, Lotes › Lote 44 px): só animais, na cor do sexo; nada vermelho", async () => {
+  it("na tela (Detalhes › Categorias 26 px, Lotes › Resumo 30 px, Lotes › Lote 36 px — densidade compacta, D-PROD-224): só animais, na cor do sexo; nada vermelho", async () => {
     const posicoes = PASTO();
     const esperado = posicoes.map((p) => p.categoria_manejo_id.slice(3));
     const modelo = modeloDe(posicoes);
@@ -244,13 +244,13 @@ describe("pasto que mistura sexos: o mapa é misto; os detalhes, nunca", () => {
     };
 
     // Detalhes: uma linha por categoria da área.
-    expect(imagens(30)).toEqual(modelo.area.categorias.map((k) => k.subicone));
+    expect(imagens(26)).toEqual(modelo.area.categorias.map((k) => k.subicone));
     // Lotes › Resumo (o celular abre no Resumo): um item por lote, por nome.
     await aba("Lotes");
-    expect(imagens(34).sort()).toEqual([...esperado].sort());
+    expect(imagens(30).sort()).toEqual([...esperado].sort());
     // Lotes › Lote: o cartão do lote.
     await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
-    const [umLote] = imagens(44);
+    const [umLote] = imagens(36);
     expect(esperado).toContain(umLote);
   });
 });
@@ -396,7 +396,7 @@ describe("formulários de manejo: subícone do código", () => {
 
 describe("DetalhesLote: as categorias de manejo vêm do cache do mapa", () => {
   // DetalhesLote REAL com a casca v12 real (PainelPasto): roda depois da integração das peças
-  // do Detalhes v12 (D-PROD-218). No celular a aba Lotes abre no Resumo (subícone 34 px).
+  // do Detalhes v12 (D-PROD-218). No celular a aba Lotes abre no Resumo (subícone 30 px, D-PROD-224).
   it("lê 'categoriasManejo' do cache, mostra o subícone do código e o passa ao formulário de Morte", async () => {
     window.matchMedia = /** @type {any} */ ((q) => ({ matches: /max-width/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
     // 9–12 só sai da Categoria de Manejo: pelo texto oficial ("Bezerra 0 a 12 meses") seria 0–8.
@@ -409,7 +409,7 @@ describe("DetalhesLote: as categorias de manejo vêm do cache do mapa", () => {
 
     expect(cache.getMapaCachedData).toHaveBeenCalledWith("categoriasManejo", "emp-1");
     const itens = [...screen.getByRole("tabpanel").querySelectorAll("img")];
-    expect(itens.map((img) => img.getAttribute("src"))).toEqual([urlSubiconeLote("femea-9-12", 34), urlSubiconeLote("macho-25-36", 34)]);
+    expect(itens.map((img) => img.getAttribute("src"))).toEqual([urlSubiconeLote("femea-9-12", 30), urlSubiconeLote("macho-25-36", 30)]);
 
     // Rodapé "Manejos" → tela "Manejos e históricos" → "Morte".
     await clicar(screen.getByRole("button", { name: "Manejos", exact: true }));
