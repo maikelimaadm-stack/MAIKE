@@ -7722,4 +7722,23 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Ajuste depois da release (2026-11-17, pedido do proprietário pelo print do celular).** O campo único "Leituras (cm)" com os valores separados por espaço não funciona no iPhone: o teclado decimal não tem espaço. Passa a ser **uma leitura por vez**: o campo + o botão **"+"** (também Enter e sair do campo) põem a leitura numa lista; cada item tem **×** para tirar; a leitura digitada e ainda não confirmada também conta na média e vai no envio. Texto com espaço (colar, computador) continua aceito. Só a tela muda: corpo da API, banco e regras iguais.
 
-<!-- Próxima decisão: D-PROD-220 -->
+## D-PROD-221 — Farol de forragem no Mapa Geral (modo de coloração "Forragem")
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-220`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, aberta) já usa a D-PROD-220. Para não duplicar, esta decisão é a **D-PROD-221**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário, combinado na D-PROD-219 ("o farol no mapa a gente vai deixar para assim que terminar a medição"; "Ok pode fazer") · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Farol = a última medição do pasto** (D-PROD-219): o dia da medição e, no mesmo dia, a hora do registro. Cor pela situação gravada: Rapado **vermelho**, Descanso **amarelo**, Pronto **verde**, Passou do ponto **roxo**. Fonte única pura em `src/domain/pastagem/farolForragem.js` (`farolForragemPorArea`, `farolForragemDaArea`, `corForragemDaArea`), calculada uma vez por render para todos os pastos.
+2. **Validade de 15 dias** (decisão do proprietário): medição com mais de 15 dias no dia civil da fazenda → **cinza "sem medição recente"**. Régua sem situação (pasto sem cultura) também cinza. Pasto **nunca medido** → neutro claro "nunca medido". Infraestrutura, Reserva e APP ficam com a **cor normal** da área.
+3. **No olho**: a mesma cor num tom mais claro, e o rótulo leva **👁** — o proprietário vê que não foi régua. A legenda explica.
+4. **No mapa**: é um **modo de coloração** a mais, "Forragem", no painel Visualização (onde já estão Tipo de Cultura, Ocupação, Situação do Pasto…), com a mesma preferência por usuário e a mesma permissão de colorir. Fora desse modo nada muda. As medições só são carregadas com o modo ligado.
+5. **Detalhe do pasto**: o painel Forragem mostra o mesmo farol (situação, "há N dias", "vencida" depois de 15 dias).
+
+**Fora do escopo:** estimativa pelos dias de descanso (precisa do campo "dias de descanso" na cultura), lotação e dias de pastejo pela medição, produtividade por pasto.
+
+**Release.** Sem migration: merge e deploy normais.
+
+**Relatório:** [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-222 -->

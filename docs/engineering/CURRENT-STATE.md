@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)
+## Missão ativa (2026-11-17) — MAIKE-FAROL-FORRAGEM: farol de forragem no Mapa Geral (D-PROD-221)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-221**, pedido do proprietário: depois da Medição de Forragem, o farol no mapa (cada pasto pintado pela última medição) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `e58cbbc9` (PR #310, ajuste da D-PROD-219) |
+| Escopo | Modo de coloração **"Forragem"** no painel Visualização (preferência por usuário, como os outros modos); cor do pasto pela última medição (Rapado vermelho, Descanso amarelo, Pronto verde, Passou do ponto roxo; mais de 15 dias → cinza; nunca medido → neutro; no olho → tom mais claro + 👁); infraestrutura, reserva e APP com a cor normal; legenda; chip do farol no detalhe do pasto. Domínio puro em `src/domain/pastagem/farolForragem.js` |
+| Release | **Sem migration** (lê a `MEDICAOFORRAGEM` da D-PROD-219): merge e deploy normais |
+| Relatório | [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)
 
 | Campo | Valor |
 |---|---|
