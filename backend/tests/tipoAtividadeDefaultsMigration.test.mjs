@@ -825,7 +825,7 @@ describe('D-PROD-197 — caminho B do runbook (uma transação pelo conector), n
     const hB = await historico(dbB);
     assert.deepEqual([hB.concluidas, hB.abertas, hB.contract_concluida], [TOTAL_MIGRATIONS, 0, 1]);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), runner.saida);
-    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-(7 + POSTERIORES.length)), [NOME_CONTRACT, ...[NOME_PESO_OBJETIVO, ...POSTERIORES, NOME_LEITURA, NOME_FAIXA, NOME_CULTURAS, NOME_AREA_CULTURA].sort()]);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-(7 + POSTERIORES.length)), [NOME_CONTRACT, ...[NOME_PESO_OBJETIVO, ...POSTERIORES, NOME_LEITURA, NOME_FAIXA, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM].sort()]);
     const [linhaDepois] = await dbB.$queryRawUnsafe(`SELECT checksum FROM _prisma_migrations WHERE migration_name = '${NOME_CONTRACT}'`);
     assert.equal(linhaDepois.checksum, CHECKSUM, 'a linha do caminho B continua a mesma');
     const segunda = await aplicarPeloRunner(URL_B);

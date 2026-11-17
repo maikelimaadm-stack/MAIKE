@@ -180,6 +180,7 @@ const runnerAteAreaCultura = (urlMigracao, { runtime, extras = {} } = {}) =>
 const DIFERENCA_DAS_POSTERIORES = [
   '[+] Added tables',
   '  - CADCULTURAS',
+  '  - MEDICAOFORRAGEM',
   '',
   '[*] Changed the `AbastecimentoBem` table',
   '  [-] Removed foreign key on columns (cliente_id, empresa_id, apontamento_id)',
@@ -726,9 +727,10 @@ describe('D-PROD-211 — ordem de produção com a D-PROD-215, a D-PROD-216 e a 
       assert.ok(!r.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), r.saida);
       assert.ok(!r.saida.includes(`Applying migration \`${NOME_AREA_CULTURA}\``), r.saida);
       assert.ok(!vazou(r.saida, url));
-      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [65, 0]);
+      // D-PROD-219: a EXPAND da Medição de Forragem sobe no mesmo passo, depois do reforço, sem decisão.
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [66, 0]);
       const fim = await retrato(dbo);
-      assert.equal(fim.tabelas.split(',').length, 95);
+      assert.equal(fim.tabelas.split(',').length, 96);
       assert.equal(fim.abastecimentos, meio.abastecimentos, 'o abastecimento não mudou');
       const diff = await migrateDiff(url);
       assert.equal(diff.status, 0, diff.saida);
