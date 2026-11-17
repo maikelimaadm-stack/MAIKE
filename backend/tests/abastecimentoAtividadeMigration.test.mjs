@@ -202,6 +202,16 @@ const DIFERENCA_DAS_POSTERIORES = [
   '  [+] Added unique index on columns (cliente_id, empresa_id, nome)',
   '  [+] Added foreign key on columns (cliente_id)',
   '  [+] Added foreign key on columns (cliente_id, empresa_id)',
+  '',
+  '[*] Changed the `MEDICAOFORRAGEM` table',
+  '  [+] Added index on columns (cliente_id, empresa_id, data_medicao)',
+  '  [+] Added index on columns (cliente_id, area_id, data_medicao)',
+  '  [+] Added index on columns (cliente_id, empresa_id, cultura_id)',
+  '  [+] Added unique index on columns (cliente_id, id)',
+  '  [+] Added foreign key on columns (cliente_id)',
+  '  [+] Added foreign key on columns (cliente_id, empresa_id)',
+  '  [+] Added foreign key on columns (cliente_id, area_id)',
+  '  [+] Added foreign key on columns (cliente_id, empresa_id, cultura_id)',
 ].join('\n');
 const soDiferencaDasPosteriores = (diff) => {
   assert.equal(diff.status, 2, diff.saida);
