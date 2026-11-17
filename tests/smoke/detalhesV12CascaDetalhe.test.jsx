@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-219 — casca v12 dos detalhes de uma tela (cocho, depósito, bebedouro,
+ * D-PROD-220 — casca v12 dos detalhes de uma tela (cocho, depósito, bebedouro,
  * tarefa): `CascaDetalhe` publica título, sub e ‹ Voltar no `LancLoteDialogo`
  * (o Esc volta), fica filha direta do `.mk-ll` (o popup a partir de 768 px
  * depende disso), desenha o corpo e o rodapé, e fora do diálogo usa o

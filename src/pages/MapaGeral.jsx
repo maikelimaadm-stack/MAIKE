@@ -467,7 +467,7 @@ export default function MapaGeral() {
     return setores.find((setor) => setor.id === area.setor_id)?.nome || area.setor_nome || "";
   }, [selectedLote, areas, setores]);
 
-  // D-PROD-219: subtítulo do detalhe do cocho/depósito = áreas vinculadas · setor
+  // D-PROD-220: subtítulo do detalhe do cocho/depósito = áreas vinculadas · setor
   // (o depósito sem área mostra só o setor), como o "Pasto 07 · Retiro" do v12.
   const localDoPontoSupl = useMemo(() => {
     const p = selectedPontoSupl;
@@ -479,7 +479,7 @@ export default function MapaGeral() {
     const setor = (setorId && setores.find((s) => s.id === setorId)?.nome) || areasDoPonto[0]?.setor_nome || p.setor_nome || "";
     return [nomes.join(", "), setor].filter(Boolean).join(" · ");
   }, [selectedPontoSupl, areas, setores]);
-  // D-PROD-219: o Histórico da Área (clique no contorno) tem o setor como subtítulo, como o Detalhes do Lote.
+  // D-PROD-220: o Histórico da Área (clique no contorno) tem o setor como subtítulo, como o Detalhes do Lote.
   const setorDaAreaSelecionada = useMemo(() => {
     if (!selectedArea) return "";
     return setores.find((setor) => setor.id === selectedArea.setor_id)?.nome || selectedArea.setor_nome || "";

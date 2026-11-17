@@ -9,7 +9,7 @@ import { PastoCtx, useModoPasto } from "./detalhes-lote/pastoContexto";
 
 /**
  * Detalhes da área no Mapa Geral (D-PROD-94a), no desenho do Detalhes do Lote
- * v12 (D-PROD-219): o clique no contorno continua abrindo o "Histórico da
+ * v12 (D-PROD-220): o clique no contorno continua abrindo o "Histórico da
  * Área" — a MESMA linha do tempo da aba Histórico do pasto (`AbaHistorico`:
  * filtro "Mostrar", "Carregar mais", aviso offline), só leitura, consultando o
  * servidor pela área (origem, destino ou local), sem depender de lote presente.

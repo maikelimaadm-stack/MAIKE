@@ -1,7 +1,7 @@
 /**
  * Histórico da Área acessível pelo contorno no Mapa Geral
  * (MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1.1, D-PROD-94a), no desenho do
- * Detalhes do Lote v12 (D-PROD-219): a mesma linha do tempo da aba Histórico do
+ * Detalhes do Lote v12 (D-PROD-220): a mesma linha do tempo da aba Histórico do
  * pasto, só leitura; curral com as abas Abate · Histórico da Área. Testes de
  * componente (mock de serviço).
  */

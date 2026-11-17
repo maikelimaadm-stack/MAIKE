@@ -28,7 +28,7 @@ import { formatarPercentualNivel } from "@/domain/suplementacao/nivelSuplementac
  * }} props
  *   `variante` ausente: neutro sem valor, excesso acima de 100, normal no resto.
  *   `textoAcessivel` ausente: "75%: <descricao>".
- *   `estilo="v12"` (D-PROD-219): desenho de uma célula da `Grade` do Detalhes
+ *   `estilo="v12"` (D-PROD-220): desenho de uma célula da `Grade` do Detalhes
  *   v12 (rótulo, número, descrição e barra teal; âmbar no excesso), com a mesma
  *   semântica (`role="meter"`, neutro sem meter). Vai dentro de uma `Grade`.
  */
@@ -100,7 +100,7 @@ export default function MedidorLimiteOperacional({ percentualBruto, rotulo, desc
 }
 
 /**
- * Célula v12 do medidor (D-PROD-219): `div.mk-dp-cel.mk-dp-medidor` com dt/dd,
+ * Célula v12 do medidor (D-PROD-220): `div.mk-dp-cel.mk-dp-medidor` com dt/dd,
  * como a `Celula` de blocos.jsx; a barra é o `role="meter"`.
  * @param {{ idRotulo: string, valor: number|null, tipo: string, textoValor: string, rotulo: string, descricao: string, textoAcessivel?: string, orientacao: string|null, className: string }} props
  */

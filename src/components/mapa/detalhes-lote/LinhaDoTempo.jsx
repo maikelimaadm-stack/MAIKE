@@ -50,7 +50,7 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
           <ul className="mk-dp-tl__cartoes">
             {dia.cartoes.map((c) => {
               // `Icone` (componente lucide) vale sobre a chave `icone`: as linhas do
-              // tempo do depósito, do bebedouro e da tarefa (D-PROD-219) têm desenhos próprios.
+              // tempo do depósito, do bebedouro e da tarefa (D-PROD-220) têm desenhos próprios.
               const Icone = c.Icone ?? ICONES[c.icone] ?? History;
               return (
                 <li key={c.chave} className={c.cancelado ? "mk-dp-tl__card is-cancelado" : "mk-dp-tl__card"}>

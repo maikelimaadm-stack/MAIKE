@@ -56,7 +56,7 @@ import "@/styles/mk-detalhes-pasto.css";
  * <GrupoMarcar titulo="Alertas" itens={[{ chave: "alNivel", rotulo: "Situação", marcado: true }]} onAlternar={fn} onAlternarTodos={fn} />
  * <BotaoFiltro ref={ancora} aria-expanded={aberta} onClick={abrirLista}>Todos os registros</BotaoFiltro>
  * <Nivel figura={<CochoNivel … />} rotulo="Restante do ciclo (estimado)" valor="65%" linhas={["260 kg de 400 kg", "Consumo estimado: 23,4 kg/dia"]} />
- *     (cocho e depósito — D-PROD-219; `figura`: nó pronto ou URL; sem `valor`, só rótulo e linhas)
+ *     (cocho e depósito — D-PROD-220; `figura`: nó pronto ou URL; sem `valor`, só rótulo e linhas)
  * <Acao tom="perigo" onClick={excluir} aria-label="Excluir a leitura de 12/11/2026">Excluir</Acao>   // ação curta dentro de uma Linha/Celula
  * <RodapePilulas itens={[{ rotulo: "Mover lotes", icone: ArrowRightLeft, onClick: fn, desabilitado: !temLote }]} />
  * <RodapeBotoes itens={[{ rotulo: "Redefinir", onClick: fn }, { rotulo: "Aplicar", tom: "verde", onClick: fn }]} />
@@ -362,7 +362,7 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
 }
 
 /**
- * Bloco do nível do cocho/depósito (D-PROD-219, `v11-nivel` do v12): figura de
+ * Bloco do nível do cocho/depósito (D-PROD-220, `v11-nivel` do v12): figura de
  * 76 px à esquerda; rótulo em caixa alta, valor grande (ex.: "65%") e linhas
  * curtas à direita. `figura`: nó pronto (ex.: `<CochoNivel …/>`) ou URL de
  * imagem. `children` entra depois das linhas (ex.: uma orientação).

@@ -5,7 +5,7 @@ import { useModoPasto } from "./pastoContexto";
 
 /*
  * Casca v12 dos detalhes de UMA tela abertos pelo mapa — cocho, depósito,
- * bebedouro e tarefa (D-PROD-219), no mesmo desenho do Detalhes do Lote
+ * bebedouro e tarefa (D-PROD-220), no mesmo desenho do Detalhes do Lote
  * (`PainelPasto`, D-PROD-218), sem abas:
  *
  *   div.mk-dp[data-modo] > div.mk-dp__corpo.mk-dp__corpo--cards|--lista + div.mk-dp__rodape

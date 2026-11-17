@@ -30,7 +30,7 @@ let filtroDaSessao = FILTRO_PADRAO;
 
 const NOTA = "Registros de todas as movimentações, pesagens e manejos que passaram por este pasto.";
 const VAZIO_DO_FILTRO = "Nenhum registro deste tipo neste pasto.";
-// Histórico da Área (clique no contorno, D-PROD-219): a área pode ser reserva, curral…
+// Histórico da Área (clique no contorno, D-PROD-220): a área pode ser reserva, curral…
 const NOTA_DA_AREA = "Registros de todas as movimentações, pesagens e manejos que passaram por esta área.";
 const VAZIO_DA_AREA = "Nenhum registro deste tipo nesta área.";
 const SEM_COPIA_NO_APARELHO = "Este aparelho ainda não tem movimentações salvas para consulta sem conexão.";
