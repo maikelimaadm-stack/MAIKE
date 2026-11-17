@@ -591,10 +591,10 @@ const executarLargura = async (browser, largura) => {
     await page.locator(`.mg-marker[title^="${s.deposito.nome}"]`).waitFor({ state: 'visible', timeout: 45000 });
     await page.waitForTimeout(1500);
   };
-  const abrirPonto = async (nome, tituloDialogo) => {
+  const abrirPonto = async (nome) => {
     await toque(page.locator(`.mg-marker[title^="${nome}"]`).first(), `marcador ${nome}`);
-    await page.getByText(tituloDialogo, { exact: true }).first().waitFor({ state: 'visible' });
-    await page.getByText(nome).filter({ visible: true }).first().waitFor();
+    // D-PROD-220: o título do diálogo é o nome do ponto (casca v12 do cocho/depósito).
+    await page.getByRole('dialog', { name: nome, exact: true }).first().waitFor({ state: 'visible' });
     await page.waitForTimeout(800);
   };
 
@@ -642,7 +642,7 @@ const executarLargura = async (browser, largura) => {
       const movsAntes = await prisma.movimentacaoEstoque.count({ where: { cliente_id: s.cliente_id, produto_id: s.produto.id } });
       await abrirMapa();
       await shot('mapa');
-      await abrirPonto(s.cocho.nome, 'Ponto de Suplementação');
+      await abrirPonto(s.cocho.nome);
       await shot('cocho-detalhes');
       await toque(page.getByRole('button', { name: 'Lançar', exact: true }).filter({ visible: true }).first(), 'Lançar no cocho');
       const dlg = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Salvar novo ciclo' }) }).last();
@@ -710,7 +710,7 @@ const executarLargura = async (browser, largura) => {
       const totalAntes = await somaDisponivel(s);
       const cacheAntes = await cacheDe(s);
       await abrirMapa();
-      await abrirPonto(s.deposito.nome, 'Depósito de Suplementação');
+      await abrirPonto(s.deposito.nome);
       await shot('deposito-detalhes');
       await toque(page.getByRole('button', { name: 'Saída', exact: true }).filter({ visible: true }).first(), 'Saída do depósito');
       const dlg = page.getByRole('dialog').filter({ hasText: 'Saída do Depósito' }).last();
