@@ -82,8 +82,10 @@
  * mesmas tabelas.
  * D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela nova CADCULTURAS; não existia no dia desta) fica FORA da
  * partida, como a da Leitura de cocho, e sobe no GREEN por último: 95 tabelas no fim.
+ * D-PROD-216: a CONTRACT aditiva `20261117000000_area_cultura` (a Área ligada à Cultura; depende da CADCULTURAS) fica
+ * FORA da partida e sobe no fim do CC-04, pelo repositório, com a decisão dela.
  * D-PROD-217: a CONTRACT `20261117100000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento do
- * abastecimento; não toca CADCATEGORIA), ainda posterior, entra na partida: partida 57, 64 migrations.
+ * abastecimento; não toca CADCATEGORIA), ainda posterior, entra na partida: partida 57, 65 migrations.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -95,6 +97,7 @@ import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
+import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
 import { encerrar } from './helpers.mjs';
 import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
 
@@ -127,7 +130,9 @@ const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
 const NOME_BASE = '20261116200000_formulacao_base_consumo';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas, de nome posterior, também fica fora da partida (ver o cabeçalho). */
 const NOME_CULTURAS = '20261116500000_cadculturas';
-const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS]);
+/** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura (coluna, UNIQUE em CADCULTURAS e FK), ainda posterior. */
+const NOME_AREA_CULTURA = '20261117000000_area_cultura';
+const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA]);
 /** D-PROD-202: a EXPAND das linhas de produto e de máquina, de nome posterior, sobe na partida (ver o cabeçalho). */
 const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
 /** D-PROD-207: a EXPAND da mão de obra e do serviço, de nome posterior, também sobe na partida (ver o cabeçalho). */
@@ -263,6 +268,17 @@ const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
+/**
+ * D-PROD-216 — o runner oficial NO DIA DA D-PROD-215 (espelho com as pastas até ela; ver `espelhoDoRunner.mjs`): a
+ * CONTRACT aditiva da Área ligada à Cultura, posterior, pende junto no diretório real; no espelho só esta pende
+ * (CC-03/CC-04), e a D-PROD-216 sobe no fim do CC-04, pelo repositório, com a decisão dela.
+ */
+let ESPELHO_215;
+const runnerAte215 = (urlMigracao, { runtime, extras = {} } = {}) =>
+  rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: ESPELHO_215,
+    env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
+  });
 const resolverRevertida = (url) => prisma(['migrate', 'resolve', '--rolled-back', NOME_CONTRACT, '--schema', SCHEMA], url);
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);
 
@@ -395,6 +411,7 @@ let partida;
 before(async () => {
   const p = getPrismaClient();
   URL_T = comBanco(exigirUrlLocal(process.env.DATABASE_URL), BANCO);
+  ESPELHO_215 = criarEspelhoDoRunner({ raiz: RAIZ, ate: NOME_CULTURAS }).dir;
   await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO} WITH (FORCE)`);
   await p.$executeRawUnsafe(`CREATE DATABASE ${BANCO}`);
   await aplicarMigrationsAnteriores(URL_T);
@@ -404,6 +421,7 @@ before(async () => {
 });
 
 after(async () => {
+  if (ESPELHO_215) rmSync(ESPELHO_215, { recursive: true, force: true });
   await db?.$disconnect();
   await getPrismaClient().$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO} WITH (FORCE)`);
   await encerrar();
@@ -414,10 +432,10 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116300000_abastecimento_atividade', '20261117100000_abastecimento_fk_apontamento_atividade'], 'só as CONTRACT da D-PROD-197, da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-211 e da D-PROD-217 têm nome posterior a esta (a da D-PROD-210 fica fora da partida)');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     // D-PROD-198, D-PROD-203, D-PROD-205 e D-PROD-206: as EXPAND do peso objetivo, das Formulações, da Leitura de cocho e
-    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 e as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-211 e da D-PROD-217 entram; a CONTRACT da D-PROD-210 e a EXPAND da D-PROD-215 ficam fora (64 pastas; partida 57).
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', NOME_CULTURAS, '20261117100000_abastecimento_fk_apontamento_atividade']);
+    // da faixa de tolerância ficam fora da partida; as EXPAND da D-PROD-202 e da D-PROD-207 e as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-211 e da D-PROD-217 entram; a CONTRACT da D-PROD-210, a EXPAND da D-PROD-215 e a CONTRACT da D-PROD-216 ficam fora (65 pastas; partida 57).
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', NOME_CULTURAS, NOME_AREA_CULTURA, '20261117100000_abastecimento_fk_apontamento_atividade']);
     assert.equal(MIGRATIONS_PARTIDA, 57);
-    assert.equal(TOTAL_MIGRATIONS, 64);
+    assert.equal(TOTAL_MIGRATIONS, 65);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.peso_concluida, 0, 'a D-PROD-198 ainda não existia no dia desta CONTRACT');
@@ -494,7 +512,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     const sid = await sistema(db);
     const linhasAntes = (await historico(db)).total;
     for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-194' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-187' }, { MIGRATION_CONTRACT_AUTORIZADO: 'd-prod-195' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-19' }]) {
-      const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, ...extra } });
+      const r = await runnerAte215(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, ...extra } });
       assert.equal(r.status, 1, r.saida);
       assert.match(r.saida, /alvo conferido nas duas conexões/);
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
@@ -511,14 +529,14 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
 
   test('CC-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-195): esta e depois a EXPAND da D-PROD-198, todas/0, cada categoria na CURVA PADRÃO da fazenda, NOT NULL, índice e FK composta com os nomes do Prisma, UNIQUE por fazenda em CADCURVAGANHO, mesmas tabelas e linhas e migrate diff vazio', async () => {
     const sid = await sistema(db);
-    const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+    const r = await runnerAte215(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /alvo conferido nas duas conexões/);
     assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_CONTRACT} (${DECISAO})`), r.saida);
     assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, TOTAL_MIGRATIONS);
+    assert.equal(h.concluidas, TOTAL_MIGRATIONS - 1, 'todas menos a D-PROD-216 (posterior, sobe no fim deste teste)');
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     // As EXPAND da D-PROD-198 e da D-PROD-203 sobem junto, depois desta (pela ordem dos nomes; só esta pede a decisão).
@@ -561,6 +579,12 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
       assert.equal(c.curva_ganho_id, CURVA_ESPERADA[c.id]);
       assert.deepEqual(c.curvaGanho, { id: CURVA_ESPERADA[c.id], nome: CURVA_PADRAO });
     }
+
+    // D-PROD-216: por último, pelo repositório, a CONTRACT aditiva da Área ligada à Cultura, com a decisão dela.
+    const r216 = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-216' } });
+    assert.equal(r216.status, 0, r216.saida);
+    assert.ok(r216.saida.includes(`CONTRACT autorizado: ${NOME_AREA_CULTURA} (D-PROD-216).`), r216.saida);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS);
 
     const diff = await migrateDiff(URL_T);
     assert.equal(diff.status, 0, diff.saida);

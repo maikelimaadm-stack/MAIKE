@@ -61,8 +61,8 @@
  *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
  *     impressão na URL) esta, a D-PROD-190, a D-PROD-193, a D-PROD-200, a
  *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208 e as seguintes (a EXPAND da
- *     D-PROD-215, CADCULTURAS, e por último a CONTRACT da D-PROD-217, sem tabela nova), e confere: todas concluídas, 95
- *     tabelas (+ a CADCULTURAS)
+ *     D-PROD-215, CADCULTURAS, a CONTRACT aditiva da D-PROD-216 e por último a CONTRACT da D-PROD-217, sem tabela nova),
+ *     e confere: todas concluídas, 95 tabelas (+ a CADCULTURAS)
  *     (as 82 do formato novo + Atividade e AtividadeApontamento + as 3 das linhas de
  *     produto e de máquina + as 3 das Formulações + a LEITURACOCHO + as 3 da mão de obra e do serviço que ficam (a
  *     Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208);
@@ -151,13 +151,15 @@ export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_ativid
  * no dia desta CONTRACT: fora da partida como as outras, sobe por último no GREEN. +1 tabela no fim.
  */
 export const NOME_CULTURAS = '20261116500000_cadculturas';
+/** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura depende da CADCULTURAS (D-PROD-215): também fica para o GREEN, por último. */
+export const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 /**
  * D-PROD-217 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
- * atividade) exige a D-PROD-211: vem por último, depois dela e da EXPAND da D-PROD-215 (a ordem de produção), fora da
- * partida como as outras; sem tabela nova.
+ * atividade) exige a D-PROD-211: vem por último, depois dela, da EXPAND da D-PROD-215 e da CONTRACT aditiva da D-PROD-216
+ * (a ordem de produção), fora da partida como as outras; sem tabela nova.
  */
 export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261117100000_abastecimento_fk_apontamento_atividade';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_ABASTECIMENTO_FK_APONTAMENTO]);
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
@@ -193,7 +195,8 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
 
 /**
  * Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho
- * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK).
+ * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK). D-PROD-216
+ * (posterior, sobe no GREEN): sem a coluna, a FK e o índice da Área ligada à Cultura em AreaPastagem.
  */
 export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
 tab AS (
@@ -211,14 +214,18 @@ linhas AS (
     LEFT JOIN pg_collation co ON co.oid = a.attcollation AND a.attcollation <> 0
    -- D-PROD-208 (posterior, sobe no GREEN): as 4 colunas do papel funcionário em Fornecedor não são desta CONTRACT.
    WHERE NOT (t.t = 'Fornecedor' AND a.attname::text IN ('funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria'))
+     -- D-PROD-216 (posterior, sobe no GREEN): a coluna da Área ligada à Cultura.
+     AND NOT (t.t = 'AreaPastagem' AND a.attname::text = 'cultura_id')
   UNION ALL
   SELECT 'constraint', t.t || '|' || k.conname::text || '|' || k.contype::text || '|' || pg_get_constraintdef(k.oid, true)
     FROM tab t JOIN pg_constraint k ON k.conrelid = t.oid
    WHERE NOT (t.t = 'OperacaoFinanceiraItem' AND k.conname IN ('OperacaoFinanceiraItem_unidade_check', 'OperacaoFinanceiraItem_forma_check'))
      AND NOT (t.t = 'Fornecedor' AND k.conname = 'Fornecedor_funcionario_check')
+     AND NOT (t.t = 'AreaPastagem' AND k.conname = 'AreaPastagem_cliente_id_empresa_id_cultura_id_fkey')
   UNION ALL
   SELECT 'indice', t.t || '|' || i.relname::text || '|' || pg_get_indexdef(i.oid)
     FROM tab t JOIN pg_index x ON x.indrelid = t.oid JOIN pg_class i ON i.oid = x.indexrelid
+   WHERE NOT (t.t = 'AreaPastagem' AND i.relname::text = 'AreaPastagem_cliente_id_empresa_id_cultura_id_idx')
   UNION ALL
   SELECT 'politica', p.tablename::text || '|' || p.policyname::text || '|' || p.cmd || '|' || array_to_string(p.roles, ',') || '|' || coalesce(p.qual, '') || '|' || coalesce(p.with_check, '')
     FROM pg_policies p JOIN tab t ON t.t = p.tablename::text WHERE p.schemaname = 'public'

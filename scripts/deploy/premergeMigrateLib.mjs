@@ -169,6 +169,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261116300000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
   // D-PROD-215: EXPAND — Cadastro de Culturas (CADCULTURAS), só tabela nova.
   '20261116500000_cadculturas': '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715',
+  // D-PROD-216: CONTRACT aditiva — a Área ligada à Cultura (coluna anulável, UNIQUE em CADCULTURAS e FK composta).
+  '20261117000000_area_cultura': 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26',
   // D-PROD-217: CONTRACT aprovado pelo proprietário ("pode fazer o reforço no banco") — o apontamento do abastecimento
   // tem de ser DA atividade gravada nele: UNIQUE (cliente_id, empresa_id, atividade_id, id) em AtividadeApontamento e a
   // FK "AbastecimentoBem_apontamento_fkey" recriada com 4 colunas. A guarda aborta se algum abastecimento apontar para
@@ -221,12 +223,13 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São doze, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * exige decisão. São treze, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
  * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre), D-PROD-208
  * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto),
  * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto), D-PROD-210
  * (formato de sempre: a base do consumo nas 3 tabelas VAZIAS das Formulações, sem DROP TABLE e sem resto), D-PROD-211
- * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices) e
+ * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices),
+ * D-PROD-216 (formato de sempre: a coluna, o UNIQUE e a FK aditivos da Área ligada à Cultura; no resto, só o índice) e
  * D-PROD-217 (formato de sempre: o UNIQUE e a FK recriada do reforço, pinados em tabelas antigas, sem DROP TABLE e sem
  * resto).
  */
@@ -512,6 +515,26 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_atividade_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "atividade_id") REFERENCES "Atividade"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_apontamento_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_centro_custo_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_custo_id") REFERENCES "CentroCusto"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-216: a Área do mapa ligada à Cultura da mesma fazenda. A mudança é ADITIVA: nenhuma linha muda de valor,
+  // nenhuma coluna existente é tocada, nenhuma tabela é criada ou apagada, nenhum DROP. Só é CONTRACT porque a allowlist
+  // EXPAND recusa UNIQUE em tabela antiga e FK de tabela antiga para tabela ANTIGA (como na D-PROD-195 e na D-PROD-197).
+  // Depois da guarda (hash pinado; confere que as 2 tabelas existem, que a coluna, o UNIQUE e a FK novos não existem, e
+  // trava "AreaPastagem" em ACCESS EXCLUSIVE), EXATAMENTE as 3 instruções abaixo, nesta ordem (texto pinado): a coluna
+  // anulável sem DEFAULT, o UNIQUE (cliente_id, empresa_id, id) que a FK composta exige em CADCULTURAS e a FK composta
+  // pelo tenant e pela empresa, RESTRICT. O resto é o CREATE INDEX não-único pela allowlist EXPAND, que continua
+  // recusando DML, ALTER COLUMN e qualquer outra coisa. A guarda só cita AreaPastagem e CADCULTURAS. O vínculo das áreas
+  // existentes (DML) NÃO está aqui: é um passo de dados separado, com aprovação própria (runbook da D-PROD-216).
+  '20261117000000_area_cultura': Object.freeze({
+    decisao: 'D-PROD-216',
+    guarda_sha256: 'e60b6bdc95568ba28c0406649d95cd76da6a2394dc3bdfdb1daf06a6469f3da6',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AreaPastagem', 'CADCULTURAS']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AreaPastagem" ADD COLUMN "cultura_id" VARCHAR(64)',
+      'CREATE UNIQUE INDEX "CADCULTURAS_cliente_id_empresa_id_id_key" ON "CADCULTURAS"("cliente_id", "empresa_id", "id")',
+      'ALTER TABLE "AreaPastagem" ADD CONSTRAINT "AreaPastagem_cliente_id_empresa_id_cultura_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "cultura_id") REFERENCES "CADCULTURAS"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ]),
   }),
   // D-PROD-217 (reforço da D-PROD-211): o apontamento do abastecimento tem de ser da atividade gravada nele. Sem DROP

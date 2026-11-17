@@ -9,16 +9,28 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-217)
+## Missão ativa (2026-11-17) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-217)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-217** (nasceu D-PROD-213, depois D-PROD-214; a `main` deu a 213 ao Resumo do Rebanho, a 214 aos ajustes do mapa e a 215 às Culturas), pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
-| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213) e a `main` `133c6ed4` (PRs #304, #305 e #306, D-PROD-214 e D-PROD-215) por merge · PR **#303** |
+| Decisão | **D-PROD-217** (nasceu D-PROD-213, depois D-PROD-214 e D-PROD-216; a `main` deu a 213 ao Resumo do Rebanho, a 214 aos ajustes do mapa, a 215 às Culturas e a 216 à Área ligada à Cultura, PR #307), pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
+| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213), a `main` `133c6ed4` (PRs #304, #305 e #306, D-PROD-214 e D-PROD-215) e a `main` `effc50be` (PR #307, D-PROD-216) por merge · PR **#303** |
 | Escopo | Só banco: `AtividadeApontamento` ganha o UNIQUE (`cliente_id`, `empresa_id`, `atividade_id`, `id`) e a FK `AbastecimentoBem_apontamento_fkey` passa a 4 colunas (com a atividade): o banco recusa um abastecimento ligado a apontamento de outra atividade. Código do servidor e da tela sem mudança |
-| Migration | `20261117100000_abastecimento_fk_apontamento_atividade` (a pasta era `20261116400000_…`; renomeada para vir depois da `20261116500000_cadculturas`, já aplicada em produção, e a ordem do repositório ser a de produção; conteúdo idêntico), **CONTRACT** (décima segunda de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 63 → 64 (a anterior é a `20261116500000_cadculturas`, D-PROD-215); tabelas 95 (sem mudança) |
-| Release | Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md). `SCHEMA_APPLIED_PROD: NÃO` |
-| Documentos | [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) · [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) |
+| Migration | `20261117100000_abastecimento_fk_apontamento_atividade` — o nome com que foi registrada em produção (a pasta nasceu `20261116400000_…` e foi `20261116600000_…`; conteúdo idêntico), **CONTRACT** (décima terceira de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 64 → 65 (a anterior é a `20261117000000_area_cultura`, D-PROD-216); tabelas 95 (sem mudança) |
+| Release | **Aplicada em produção** em 2026-11-17 às 00:43:48 UTC (caminho B do [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md), GO do proprietário): preflight PRONTO (64 / 0), postcheck 65 / 0, a FK de 4 colunas e o UNIQUE presentes, 95 tabelas, dados intactos. `SCHEMA_APPLIED_PROD: SIM (2026-11-17)` |
+| Documentos | [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) · [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (§9, registro da execução) |
+
+## Missão anterior (2026-11-16) — MAIKE-AREA-CULTURA: Área ligada à Cultura e o vínculo das áreas à 001 Marandu (D-PROD-216)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-216**, pedido do proprietário: a área aponta para a cultura do cadastro; as pastagens atuais viram 001 Marandu, uso Pastagem |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `133c6ed4` (PR #306) |
+| Escopo | `AreaPastagem.cultura_id` (FK composta pela fazenda, RESTRICT); `tipo_pastagem` derivado do nome da cultura; API das áreas com `cultura_id` e `cultura`; `CULTURA_EM_USO` (409) na exclusão; formulário da Área com o campo "Cultura" ("001 · NOME"); grade com o rótulo; SQL Editor 01–04 na ordem nova. Sem alturas no pasto ou no lote |
+| Migration | `20261117000000_area_cultura`, **CONTRACT aditiva** (D-PROD-216), SHA-256 `e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26`. Produção 63 → 64 (a anterior é a `20261116500000_cadculturas`, D-PROD-215); 95 tabelas (nenhuma nova) |
+| Dados | Depois da migration, o vínculo das 107 áreas à cultura 001 (DML guardado, uma transação, evento na auditoria) — [runbook](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md) §4 |
+| Release | **Aplicada em produção** em 2026-11-17 às 00:24:16 UTC (caminho B do [runbook](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md), GO do proprietário); postcheck 64 / 0, FK e índices presentes. Vínculo às 00:24:38 UTC: 107 áreas → cultura 001 Marandu, uso Pastagem, auditado |
+| Relatório | [`MAIKE-AREA-CULTURA-REPORT.md`](./MAIKE-AREA-CULTURA-REPORT.md) |
 
 ## Missão anterior (2026-11-16) — MAIKE-CULTURAS: Cadastro de Culturas, tabela `CADCULTURAS`, com lista de referência (D-PROD-215)
 

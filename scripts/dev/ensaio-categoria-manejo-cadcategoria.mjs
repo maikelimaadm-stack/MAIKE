@@ -152,7 +152,13 @@ export const NOME_BASE = '20261116200000_formulacao_base_consumo';
  * ainda posterior, não existia no dia desta CONTRACT: fora da partida, sobe no GREEN por último. +1 tabela no GREEN.
  */
 export const NOME_CULTURAS = '20261116500000_cadculturas';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS]);
+/**
+ * D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura (coluna anulável em AreaPastagem, UNIQUE em CADCULTURAS e FK
+ * composta), de nome ainda posterior: depende da CADCULTURAS (D-PROD-215), então também fica fora da partida e sobe no
+ * GREEN por último. Nenhuma tabela nova.
+ */
+export const NOME_AREA_CULTURA = '20261117000000_area_cultura';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()
