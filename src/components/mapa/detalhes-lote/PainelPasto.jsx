@@ -1,8 +1,7 @@
 import React from "react";
-import { useMediaQuery } from "@/components/common/MobileSheet";
 import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { VAZIO } from "./catalogo";
-import { PastoCtx } from "./pastoContexto";
+import { PastoCtx, useModoPasto } from "./pastoContexto";
 import { Abas, CabecalhoProprio, idsDaAba } from "./blocos";
 import RodapePasto from "./RodapePasto";
 import AbaDetalhes from "./AbaDetalhes";
@@ -40,16 +39,6 @@ import TelaConfigurarTabela from "./TelaConfigurarTabela";
 
 /** Ordem das abas (a direção da animação sai daqui). */
 const ORDEM_ABAS = ["detalhes", "lotes", "historico", "supl"];
-
-/**
- * Celular < 768 px · tablet 768–1023 · desktop ≥ 1024 (mesmos cortes do CSS).
- * @returns {ModoPasto}
- */
-function useModoPasto() {
-  const desktop = useMediaQuery("(min-width: 1024px)");
-  const tabletOuMais = useMediaQuery("(min-width: 768px)");
-  return desktop ? "desktop" : tabletOuMais ? "tablet" : "celular";
-}
 
 /**
  * Resume o alvo numa chave (ordem não importa); "" = todos.

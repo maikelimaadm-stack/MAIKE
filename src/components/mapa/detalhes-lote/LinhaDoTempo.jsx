@@ -32,7 +32,10 @@ const ICONES = {
 };
 
 /**
- * @param {{ dias: DiaHistorico[], rotulo?: string }} props
+ * `dias`: `[{ chave, rotulo: "09 NOV. 2026", cartoes: [{ chave, icone | Icone, titulo, cancelado?, linhas: [{ rotulo, valor }] }] }]`.
+ * Fora do pasto, monte os dias com `rotuloDoDia("2026-11-09")` de historicoDoPasto.js
+ * e passe `Icone` (lucide) quando o desenho não é um dos do histórico do pasto.
+ * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }> }> }>, rotulo?: string }} props
  */
 export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
   const lista = Array.isArray(dias) ? dias : [];
@@ -46,7 +49,9 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
           </h3>
           <ul className="mk-dp-tl__cartoes">
             {dia.cartoes.map((c) => {
-              const Icone = ICONES[c.icone] ?? History;
+              // `Icone` (componente lucide) vale sobre a chave `icone`: as linhas do
+              // tempo do depósito, do bebedouro e da tarefa (D-PROD-219) têm desenhos próprios.
+              const Icone = c.Icone ?? ICONES[c.icone] ?? History;
               return (
                 <li key={c.chave} className={c.cancelado ? "mk-dp-tl__card is-cancelado" : "mk-dp-tl__card"}>
                   <div className="mk-dp-tl__cab">

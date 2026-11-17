@@ -1,4 +1,5 @@
 import React from "react";
+import { useMediaQuery } from "@/components/common/MobileSheet";
 
 /*
  * Contexto da casca do Detalhes do Lote v12 (`PainelPasto`, D-PROD-218).
@@ -85,4 +86,15 @@ export function useRodapeProprio(ativo) {
     marcarRodapeProprio(1);
     return () => marcarRodapeProprio(-1);
   }, [ativo, marcarRodapeProprio]);
+}
+
+/**
+ * Celular < 768 px · tablet 768–1023 · desktop ≥ 1024 (mesmos cortes do CSS).
+ * Usado pela casca do pasto e pela casca dos detalhes de uma tela (`CascaDetalhe`).
+ * @returns {ModoPasto}
+ */
+export function useModoPasto() {
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const tabletOuMais = useMediaQuery("(min-width: 768px)");
+  return desktop ? "desktop" : tabletOuMais ? "tablet" : "celular";
 }

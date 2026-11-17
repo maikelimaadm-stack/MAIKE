@@ -53,6 +53,9 @@ import "@/styles/mk-detalhes-pasto.css";
  * <Busca valor={busca} onMudar={setBusca} placeholder="Filtrar" />
  * <GrupoMarcar titulo="Alertas" itens={[{ chave: "alNivel", rotulo: "Situação", marcado: true }]} onAlternar={fn} onAlternarTodos={fn} />
  * <BotaoFiltro ref={ancora} aria-expanded={aberta} onClick={abrirLista}>Todos os registros</BotaoFiltro>
+ * <Nivel figura={<CochoNivel … />} rotulo="Restante do ciclo (estimado)" valor="65%" linhas={["260 kg de 400 kg", "Consumo estimado: 23,4 kg/dia"]} />
+ *     (cocho e depósito — D-PROD-219; `figura`: nó pronto ou URL; sem `valor`, só rótulo e linhas)
+ * <Acao tom="perigo" onClick={excluir} aria-label="Excluir a leitura de 12/11/2026">Excluir</Acao>   // ação curta dentro de uma Linha/Celula
  * <RodapePilulas itens={[{ rotulo: "Mover lotes", icone: ArrowRightLeft, onClick: fn, desabilitado: !temLote }]} />
  * <RodapeBotoes itens={[{ rotulo: "Redefinir", onClick: fn }, { rotulo: "Aplicar", tom: "verde", onClick: fn }]} />
  */
@@ -347,6 +350,46 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
     <div className={classes} title={title}>
       {conteudo}
     </div>
+  );
+}
+
+/**
+ * Bloco do nível do cocho/depósito (D-PROD-219, `v11-nivel` do v12): figura de
+ * 76 px à esquerda; rótulo em caixa alta, valor grande (ex.: "65%") e linhas
+ * curtas à direita. `figura`: nó pronto (ex.: `<CochoNivel …/>`) ou URL de
+ * imagem. `children` entra depois das linhas (ex.: uma orientação).
+ * @param {{ figura?: React.ReactNode, rotulo: React.ReactNode, valor?: React.ReactNode, linhas?: React.ReactNode[], children?: React.ReactNode, className?: string }} props
+ */
+export function Nivel({ figura, rotulo, valor, linhas = [], children, className }) {
+  const lista = (Array.isArray(linhas) ? linhas : []).filter((l) => l != null && l !== "" && l !== false);
+  return (
+    <div className={cls("mk-dp-nivel", className)}>
+      {figura ? <Imagem imagem={figura} className="mk-dp-nivel__fig" /> : null}
+      <div className="mk-dp-nivel__txt">
+        <span className="mk-dp-nivel__rot">{rotulo}</span>
+        {valor != null && valor !== "" ? <strong className="mk-dp-nivel__val">{valor}</strong> : null}
+        {lista.map((l, i) => (
+          <small key={i} className="mk-dp-nivel__linha">
+            {l}
+          </small>
+        ))}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Ação curta em texto (ex.: "Excluir" de uma leitura, "Ver tudo"), para usar
+ * dentro de uma `Linha`/`Celula` sem virar pílula. `perigo` = vermelho.
+ * Repassa as props do `<button>` (aria-label, disabled…).
+ * @param {{ tom?: "link" | "perigo", children: React.ReactNode, className?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>} props
+ */
+export function Acao({ tom = "link", children, className, type = "button", ...props }) {
+  return (
+    <button type={type} className={cls("mk-dp-acao", tom === "perigo" && "mk-dp-acao--perigo", className)} {...props}>
+      {children}
+    </button>
   );
 }
 

@@ -1,0 +1,81 @@
+import React from "react";
+import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import { CabecalhoProprio } from "./blocos";
+import { useModoPasto } from "./pastoContexto";
+
+/*
+ * Casca v12 dos detalhes de UMA tela abertos pelo mapa — cocho, depósito,
+ * bebedouro e tarefa (D-PROD-219), no mesmo desenho do Detalhes do Lote
+ * (`PainelPasto`, D-PROD-218), sem abas:
+ *
+ *   div.mk-dp[data-modo] > div.mk-dp__corpo.mk-dp__corpo--cards|--lista + div.mk-dp__rodape
+ *
+ * A raiz é filha direta do `.mk-ll` do `LancLoteDialogo` (o CSS do popup a
+ * partir de 768 px depende disso: `popupDesde="tablet"`). O título, o
+ * subtítulo e o ‹ Voltar vão para o cabeçalho do diálogo (`setCabecalho`);
+ * fora do diálogo (ex.: página de cadastro) a casca desenha o
+ * `CabecalhoProprio`, salvo `semCabecalho`.
+ *
+ * Telas empilhadas (ex.: depósito › cocho, bebedouro › histórico) são da
+ * própria tela: ela troca `chaveTela` e passa `onVoltar`; a casca anima a
+ * troca (`anim`) e o Esc do diálogo chama o ‹ Voltar.
+ */
+
+/**
+ * @param {{
+ *   titulo: string,
+ *   sub?: string,
+ *   onVoltar?: (() => void) | null,
+ *   corpo?: "cards" | "lista",
+ *   rodape?: React.ReactNode,
+ *   chaveTela?: string,
+ *   anim?: "empurrar" | "voltar" | "troca" | null,
+ *   semCabecalho?: boolean,
+ *   className?: string,
+ *   children: React.ReactNode,
+ * } & Omit<React.HTMLAttributes<HTMLDivElement>, "children" | "className">} props
+ */
+export default function CascaDetalhe({
+  titulo,
+  sub = "",
+  onVoltar = null,
+  corpo = "cards",
+  rodape = null,
+  chaveTela = "principal",
+  anim = null,
+  semCabecalho = false,
+  className,
+  children,
+  ...resto
+}) {
+  const modo = useModoPasto();
+  const dialogo = useLancLoteDialogo();
+  const setCabecalho = dialogo?.setCabecalho || null;
+
+  // O ‹ Voltar publicado é estável: quem chama passa funções novas a cada
+  // render, e o cabeçalho só muda quando muda o título, o sub ou a presença do voltar.
+  const voltarRef = React.useRef(onVoltar);
+  voltarRef.current = onVoltar;
+  const temVoltar = typeof onVoltar === "function";
+  const voltarEstavel = React.useCallback(() => voltarRef.current?.(), []);
+
+  React.useEffect(() => {
+    if (!setCabecalho) return undefined;
+    setCabecalho(titulo ? { titulo, sub: sub || "", voltar: temVoltar ? voltarEstavel : null } : null);
+    return () => setCabecalho(null);
+  }, [setCabecalho, titulo, sub, temVoltar, voltarEstavel]);
+
+  const classesCorpo = ["mk-dp__corpo", `mk-dp__corpo--${corpo === "lista" ? "lista" : "cards"}`, anim ? `mk-dp-anim--${anim}` : ""]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={["mk-dp", className].filter(Boolean).join(" ")} data-modo={modo} translate="no" {...resto}>
+      {!setCabecalho && !semCabecalho ? <CabecalhoProprio titulo={titulo} sub={sub} onVoltar={temVoltar ? voltarEstavel : null} /> : null}
+      <div key={chaveTela} className={classesCorpo}>
+        {children}
+      </div>
+      <div className="mk-dp__rodape">{rodape}</div>
+    </div>
+  );
+}

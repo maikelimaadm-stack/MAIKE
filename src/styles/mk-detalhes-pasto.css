@@ -518,6 +518,104 @@
   color: #9aa1a9;
 }
 
+/* ── Nível do cocho/depósito (D-PROD-219; `v11-nivel` do v12) ────────── */
+.mk-dp .mk-dp-nivel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(20, 20, 19, 0.1);
+}
+
+.mk-dp .mk-dp-nivel__fig {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  background: center / contain no-repeat;
+}
+
+.mk-dp .mk-dp-nivel__fig > :is(img, svg) {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.mk-dp .mk-dp-nivel__txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-nivel__rot {
+  color: #6b7280;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mk-dp .mk-dp-nivel__val {
+  color: #1f2328;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.mk-dp .mk-dp-nivel__linha {
+  color: #4b5563;
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ── Medidor do limite operacional na Grade (MedidorLimiteOperacional estilo="v12") ── */
+.mk-dp .mk-dp-medidor__val--excesso,
+.mk-dp .mk-dp-medidor__sub--excesso {
+  color: #b45309;
+}
+
+.mk-dp .mk-dp-medidor__vazio {
+  color: #9ca3af;
+}
+
+.mk-dp .mk-dp-cel__barra.mk-dp-medidor__trilha--neutra {
+  border: 1px dashed #cbd5e1;
+  background: transparent;
+}
+
+/* ── Ação curta em texto (Excluir, Ver tudo) ──────────────────────────── */
+.mk-dp .mk-dp-acao {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: 6px;
+  color: #0e8fa6;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-acao--perigo {
+  color: #b91c1c;
+}
+
+.mk-dp .mk-dp-acao:disabled {
+  opacity: 0.4;
+}
+
+@media (hover: hover) {
+  .mk-dp .mk-dp-acao:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+}
+
 /* ── Aviso, nota, vazio ───────────────────────────────────────────────── */
 .mk-dp .mk-dp-aviso {
   display: flex;
