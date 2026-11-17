@@ -1,41 +1,44 @@
-/* A mesma abertura de ações no desktop, tablet e celular. As cores e o
-   contraste são locais para resistir às regras globais dos botões do mapa. */
-.mk-al-dock.mk-al-menu:not(#mk-padrao) {
+/* Quadros de Manejos e Históricos (AcoesDoLote) — D-PROD-119; v12 (D-PROD-V12,
+   especificação §F.2): a grade da tela empilhada "Manejos e históricos" da casca
+   do Detalhes do Lote, 3 colunas em todos os modos, quadro #65d1ec.
+   Os seletores levam `:not(#mk-padrao)` (e `!important` nas cores) para vencer
+   as regras globais dos quadros e botões (lancamento-lote.css e afins entram
+   depois, pelo index.css). */
+.mk-al.mk-acoes-modulos:not(#mk-padrao) {
   box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
-  padding: 12px;
-  border: 0;
-  background: transparent !important;
-}
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos:not(#mk-padrao) {
   display: flex;
   flex-direction: column;
   gap: 18px;
   width: 100%;
+  min-width: 0;
+  padding: 12px;
+  background: transparent;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo:not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__grupo:not(#mk-padrao) {
   display: flex;
   flex-direction: column;
   flex: none;
+  gap: 8px;
   width: 100%;
   min-width: 0;
-  gap: 8px;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo-titulo:not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__grupo-titulo:not(#mk-padrao) {
   margin: 0;
+  padding: 0;
   color: #64748b;
   font-size: 12px !important;
   font-weight: 600;
+  letter-spacing: normal;
   line-height: 1.4;
   text-transform: uppercase;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__quadros:not(#mk-padrao) {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__quadro:not(#mk-padrao) {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -43,22 +46,35 @@
   gap: 9px;
   min-width: 0;
   min-height: 112px;
+  margin: 0;
   padding: 12px 6px;
   border: 0 !important;
   border-radius: 12px;
   background: #65d1ec !important;
   color: #fff !important;
   box-shadow: none !important;
+  font: inherit;
   text-align: center;
   cursor: pointer;
+  transform: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):is(:hover, :active, :focus-visible) {
+.mk-al.mk-acoes-modulos .mk-al__quadro:not(#mk-padrao):is(:hover, :active, :focus-visible) {
   background: #65d1ec !important;
   color: #fff !important;
   box-shadow: none !important;
   transform: none;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__quadro:not(#mk-padrao):focus-visible {
+  outline: 2px solid #15803d !important;
+  outline-offset: 2px;
+}
+.mk-al.mk-acoes-modulos .mk-al__quadro:not(#mk-padrao):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* Ícone: caixa 44 × 44 com o desenho em 36 px (Mover: 68 × 44), sempre branco */
+.mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__icone:not(#mk-padrao) {
   display: flex;
   flex: 0 0 44px;
   align-items: center;
@@ -68,7 +84,7 @@
   border: 0;
   background: transparent;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone :is(svg, img):not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__icone :is(svg, img):not(#mk-padrao) {
   display: block;
   flex: 0 0 36px;
   width: 36px;
@@ -79,16 +95,22 @@
   color: #fff !important;
   filter: none;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__quadro .mk-al__img g {
+.mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__img g:not(#mk-padrao) {
   color: inherit;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
   width: 68px;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone .mk-al__img--mover:not(#mk-padrao) {
+/* Mover: o v12 desenha a imagem como fundo `contain` na caixa 68 × 44, o que dá
+   56,6 × 31,5 px de desenho, centrado. O svg do ícone (120 × 64, com folga dos
+   lados) chega no mesmo tamanho com 59,15 px de largura. */
+.mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__icone .mk-al__img--mover:not(#mk-padrao) {
+  flex: 0 0 59.15px !important;
+  width: 59.15px !important;
+  max-width: none !important;
   height: 44px;
 }
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro > span:last-child:not(#mk-padrao) {
+.mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__nome:not(#mk-padrao) {
   min-width: 0;
   max-width: 100%;
   color: #fff !important;
@@ -98,24 +120,6 @@
   text-align: center;
   white-space: normal;
   overflow-wrap: break-word;
+  word-break: normal;
   text-wrap: pretty;
-}
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):focus-visible {
-  outline: 2px solid #15803d !important;
-  outline-offset: 2px;
-}
-.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):disabled {
-  opacity: .45;
-  cursor: not-allowed;
-}
-@media (max-width: 639px) {
-  .mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-}
-@media (max-width: 359px) {
-  .mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
