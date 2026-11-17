@@ -21,7 +21,7 @@ const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_
  * coagiria para 1, é barrado antes por `alturasSemCoercao`.
  */
 const ALTURA = { type: ['number', 'string', 'null'], maxLength: 16 };
-const CAMPOS_ALTURA = Object.freeze(['altura_entrada_cm', 'altura_saida_cm']);
+const CAMPOS_ALTURA = Object.freeze(['altura_entrada_cm', 'altura_saida_cm', 'dias_descanso']);
 
 /**
  * O AJV do app usa a coerção padrão do Fastify (`coerceTypes: 'array'`): `true`
@@ -36,6 +36,7 @@ const alturasSemCoercao = async (request) => {
     if (!Object.prototype.hasOwnProperty.call(corpo, campo)) continue;
     const v = corpo[campo];
     if (v !== null && typeof v !== 'number' && typeof v !== 'string') {
+      if (campo === 'dias_descanso') throw invalido('dias_descanso deve ser um número inteiro de dias', { field: campo, reason: 'dias_descanso_invalido' });
       throw invalido(`${campo} deve ser um número em cm`, { field: campo, reason: 'altura_invalida' });
     }
   }
@@ -50,6 +51,8 @@ const CAMPOS = Object.freeze({
   cultivar: TEXTO_OPCIONAL,
   altura_entrada_cm: ALTURA,
   altura_saida_cm: ALTURA,
+  // D-PROD-223 — dias de descanso (1..365); número, texto "30" ou null.
+  dias_descanso: { type: ['integer', 'string', 'null'], maxLength: 4 },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
 });

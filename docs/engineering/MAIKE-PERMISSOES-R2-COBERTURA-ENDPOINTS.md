@@ -228,6 +228,8 @@ D-PROD-205: +3 rotas: `/leituras-cocho` (Leitura de cocho, tabela LEITURACOCHO).
 
 D-PROD-219: +3 rotas: `/medicoes-forragem` (Medição de Forragem, tabela MEDICAOFORRAGEM). `GET` classe (d), leitura autenticada isolada por tenant (o detalhe do pasto no mapa mostra as últimas medições); `POST` e `DELETE` classe (a), chave do mapa `medir_forragem` (gravadora: operador só com a chave gravada `true`).
 
+D-PROD-223: +1 rota: `GET /medicoes-forragem/descanso?empresa_id=` (classe (d), só leitura, tenant do auth_context): ocupação de cada pasto pelo ledger do rebanho e o dia em que o último lote saiu, para o farol estimado.
+
 D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
 
 D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabela CADCULTURAS). Leitura e escrita pela tela `pec-culturas` (leitura com `visualizar`); o comando `POST /culturas/comandos/lista-referencia` cria registros e exige a ação de criar (`novo`/`salvar`). Sem concessão automática.
@@ -344,6 +346,7 @@ D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabel
 | POST | `/leituras-cocho` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:55` | a — GUARDAS.leituraCocho.criar (D-PROD-205: mapa `lancar_suplementacao`) |
 | DELETE | `/leituras-cocho/:id` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:61` | a — GUARDAS.leituraCocho.excluir (D-PROD-205: mapa `lancar_suplementacao`) |
 | GET | `/medicoes-forragem` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js:63` | d — leitura autenticada, isolada por tenant (sem checagem de tela; D-PROD-219) |
+| GET | `/medicoes-forragem/descanso` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js` | d — leitura autenticada, isolada por tenant (D-PROD-223: descanso dos pastos para o farol estimado) |
 | POST | `/medicoes-forragem` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js:68` | a — GUARDAS.medicaoForragem.criar (D-PROD-219: mapa `medir_forragem`) |
 | DELETE | `/medicoes-forragem/:id` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js:74` | a — GUARDAS.medicaoForragem.excluir (D-PROD-219: mapa `medir_forragem`) |
 | GET | `/fornecedores` | `backend/src/modules/fornecedores/fornecedorRoutes.js:42` | a — porQualquer([TELAS.LOTES, 'visualizar']). (D-PROD-137) Projeção com CPF mascarado; completo só com acesso total |

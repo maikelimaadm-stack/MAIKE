@@ -20,6 +20,7 @@ const SELECAO = Object.freeze({
   cultivar: true,
   altura_entrada_cm: true,
   altura_saida_cm: true,
+  dias_descanso: true,
   observacoes: true,
   ativo: true,
   createdAt: true,

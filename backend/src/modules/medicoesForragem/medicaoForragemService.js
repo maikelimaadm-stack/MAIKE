@@ -31,7 +31,7 @@ import {
   METODOS, SITUACOES, MAX_LEITURAS, lerLeituras, mediaDasLeituras, situacaoPelaAltura, calcularAmostra, numeroPtBR,
 } from './medicaoForragemCalculo.js';
 import {
-  listarMedicoes, buscarMedicao, buscarArea, buscarCultura, buscarFusoDaEmpresa, buscarNomeDoUsuario, inserirMedicao, excluirMedicaoPorId,
+  listarMedicoes, buscarMedicao, buscarArea, buscarCultura, buscarFusoDaEmpresa, buscarNomeDoUsuario, inserirMedicao, excluirMedicaoPorId, ocupacaoPorPasto,
 } from './medicaoForragemRepository.js';
 
 export { METODOS, SITUACOES };
@@ -141,6 +141,24 @@ const amostraDoCorpo = (entrada) => {
  * @param {any} contexto auth_context da requisição (`contexto.auth`)
  * @param {{ empresa_id?: string, area_id?: string, limit?: unknown }} filtros
  */
+/**
+ * D-PROD-223 — descanso de cada pasto da fazenda, para o farol estimado: ocupado
+ * agora (saldo de cabeças > 0) ou o dia (AAAA-MM-DD) em que o último lote saiu.
+ * Pasto sem histórico no ledger não vem na lista.
+ * @param {any} contexto auth_context da requisição (`contexto.auth`)
+ * @param {{ empresa_id?: unknown }} filtros
+ */
+export const descansoDosPastos = async (contexto, filtros = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const empresaId = await exigirEmpresaDoTenant(getPrismaClient(), auth.clienteId, filtros.empresa_id);
+  const linhas = await ocupacaoPorPasto(auth.clienteId, empresaId);
+  return linhas.map((l) => {
+    const ocupada = Number(l.saldo) > 0;
+    const saida = !ocupada && l.ultima_saida instanceof Date ? l.ultima_saida.toISOString().slice(0, 10) : null;
+    return { area_id: l.area_id, ocupada, ultima_saida: saida };
+  });
+};
+
 export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarMedicoes(auth.clienteId, filtros);

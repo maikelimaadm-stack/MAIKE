@@ -36,7 +36,7 @@ beforeEach(async () => {
 });
 
 const CAMPOS_PUBLICOS = [
-  'altura_entrada_cm', 'altura_saida_cm', 'ativo', 'codigo', 'created_date', 'cultivar', 'empresa_id', 'especie', 'id', 'nome',
+  'altura_entrada_cm', 'altura_saida_cm', 'ativo', 'codigo', 'created_date', 'cultivar', 'dias_descanso', 'empresa_id', 'especie', 'id', 'nome',
   'observacoes', 'tipo', 'updated_date',
 ];
 
@@ -196,6 +196,23 @@ describe('D-PROD-215 — Culturas: validação do corpo', () => {
     assert.equal(await prisma().cultura.count(), 1);
   });
 
+  test('D-PROD-223 dias de descanso: inteiro 1..365 (número ou texto), null limpa; fora da faixa, fração, texto ou booleano → 400', async () => {
+    const { token, e1 } = await cenario();
+    const r = await criar(token, base(e1.id, { dias_descanso: '30' }));
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().dias_descanso, 30);
+    for (const [valor, reason] of [[0, 'dias_descanso_fora_da_faixa'], [366, 'dias_descanso_fora_da_faixa'], ['abc', 'dias_descanso_invalido'], ['3,5', 'dias_descanso_invalido'], [true, 'dias_descanso_invalido']]) {
+      const ruim = await req('PATCH', `/culturas/${r.json().id}`, token, { empresa_id: e1.id, dias_descanso: valor });
+      assert.equal(ruim.statusCode, 400, String(valor));
+      assert.equal(ruim.json().field, 'dias_descanso', String(valor));
+      assert.equal(ruim.json().reason, reason, String(valor));
+    }
+    const ok = await req('PATCH', `/culturas/${r.json().id}`, token, { empresa_id: e1.id, dias_descanso: 28 });
+    assert.equal(ok.json().dias_descanso, 28);
+    const limpa = await req('PATCH', `/culturas/${r.json().id}`, token, { empresa_id: e1.id, dias_descanso: null });
+    assert.equal(limpa.json().dias_descanso, null);
+  });
+
   test('código com caractere inválido → 400 codigo_invalido', async () => {
     const { token, e1 } = await cenario();
     const r = await criar(token, base(e1.id, { codigo: '0 1' }));
@@ -266,9 +283,12 @@ describe('D-PROD-215 — Culturas: lista de referência', () => {
     assert.equal(marandu.nome, 'BRACHIARIA BRIZANTHA CV. MARANDU');
     assert.equal(marandu.altura_entrada_cm, 25);
     assert.equal(marandu.altura_saida_cm, 15);
+    assert.equal(marandu.dias_descanso, 30, 'D-PROD-223: dias de descanso de referência');
     assert.equal(marandu.observacoes, 'Valor de referência (manejo rotacionado). Ajuste para a fazenda.');
     const mombaca = r.json().culturas.find((c) => c.codigo === '007');
     assert.equal(mombaca.altura_entrada_cm, 90);
+    assert.equal(mombaca.dias_descanso, 35);
+    assert.equal(r.json().culturas.find((c) => c.codigo === '011').dias_descanso, 25);
     const de_novo = await listaReferencia(token, e1.id);
     assert.equal(de_novo.json().criadas, 0);
     assert.equal(de_novo.json().ja_existiam, 11);

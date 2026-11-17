@@ -297,4 +297,38 @@ describe('D-PROD-219 — medição de forragem (API)', () => {
       'cultura de outra fazenda não entra (FK pela fazenda)',
     );
   });
+
+  test('MF-10 (D-PROD-223) descanso dos pastos pelo ledger: ocupado agora, dia da saída do último lote, pasto sem histórico fora da lista; partida cancelada não conta; empresa de outro tenant → 404', async () => {
+    const { token, clienteId: c, e1, e2, pasto, semCultura, infra } = await cenario();
+    const p = prisma();
+    const dia = (d) => new Date(`${d}T00:00:00.000Z`);
+    let n = 0;
+    const lancar = async (area, movimentos) => {
+      n += 1;
+      const pos = await p.posicaoRebanho.create({ data: { cliente_id: c, empresa_id: e1.id, area_id: area.id, chave_identidade: `k${n}`, nome: `LOTE ${n}`, quantidade_cabecas: 0 } });
+      for (const [d, delta, ativa = true] of movimentos) {
+        n += 1;
+        const ev = await p.eventoRebanho.create({ data: { cliente_id: c, empresa_id: e1.id, tipo: 'TRANSFERENCIA', data_operacional: dia(d), operation_id: `op${n}` } });
+        await p.partidaRebanho.create({ data: { cliente_id: c, empresa_id: e1.id, evento_id: ev.id, posicao_id: pos.id, data_operacional: dia(d), delta, ativa } });
+      }
+    };
+    // Pasto: dois lotes entram e saem; o último sai em 2027-05-20. Uma volta cancelada depois não conta.
+    await lancar(pasto, [['2027-05-01', 10], ['2027-05-10', -10]]);
+    await lancar(pasto, [['2027-05-05', 7], ['2027-05-20', -7], ['2027-06-01', 3, false]]);
+    // Sem cultura: entrou e não saiu.
+    await lancar(semCultura, [['2027-06-10', 5]]);
+    const r = await req('GET', `/medicoes-forragem/descanso?empresa_id=${e1.id}`, token);
+    assert.equal(r.statusCode, 200, r.body);
+    const porArea = Object.fromEntries(r.json().map((x) => [x.area_id, x]));
+    assert.deepEqual(porArea[pasto.id], { area_id: pasto.id, ocupada: false, ultima_saida: '2027-05-20' });
+    assert.deepEqual(porArea[semCultura.id], { area_id: semCultura.id, ocupada: true, ultima_saida: null });
+    assert.equal(porArea[infra.id], undefined, 'sem histórico no ledger: fora da lista');
+    const outra = await req('GET', `/medicoes-forragem/descanso?empresa_id=${e2.id}`, token);
+    assert.deepEqual(outra.json(), [], 'outra fazenda do mesmo tenant: só os pastos dela');
+    const estranho = await criarTenant({ papelTenant: 'administrador' });
+    const { corpo } = await autenticarNoApp(app, estranho.credenciais);
+    const alheia = await req('GET', `/medicoes-forragem/descanso?empresa_id=${e1.id}`, corpo.token);
+    assert.equal(alheia.statusCode, 404, 'fazenda de outro tenant');
+    assert.equal((await req('GET', '/medicoes-forragem/descanso', token)).statusCode, 400, 'empresa_id obrigatório');
+  });
 });
