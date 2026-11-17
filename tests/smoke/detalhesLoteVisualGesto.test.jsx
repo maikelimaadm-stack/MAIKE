@@ -17,6 +17,12 @@ import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { readFileSync } from "node:fs";
 import { useDeslizarParaFechar } from "@/hooks/useDeslizarParaVoltar";
 
+// O conteúdo da aba Lotes é de outra peça (LOTES); aqui só a casca importa.
+vi.mock("@/components/mapa/detalhes-lote/AbaLotes", async () => {
+  const { createElement } = await import("react");
+  return { default: () => createElement("div", { "data-testid": "aba-lotes" }) };
+});
+
 afterEach(() => {
   cleanup();
   document.body.innerHTML = "";

@@ -14,6 +14,12 @@ import PainelPasto from "@/components/mapa/detalhes-lote/PainelPasto";
 import { montarModeloDetalhes } from "@/components/mapa/detalhes-lote/catalogo";
 import { readFileSync } from "node:fs";
 
+// O conteúdo da aba Lotes é de outra peça (LOTES); aqui só a casca importa.
+vi.mock("@/components/mapa/detalhes-lote/AbaLotes", async () => {
+  const { createElement } = await import("react");
+  return { default: () => createElement("div", { "data-testid": "aba-lotes" }) };
+});
+
 afterEach(cleanup);
 
 const fonte = readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8");
