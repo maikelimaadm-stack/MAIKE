@@ -467,6 +467,24 @@ export default function MapaGeral() {
     return setores.find((setor) => setor.id === area.setor_id)?.nome || area.setor_nome || "";
   }, [selectedLote, areas, setores]);
 
+  // D-PROD-219: subtítulo do detalhe do cocho/depósito = áreas vinculadas · setor
+  // (o depósito sem área mostra só o setor), como o "Pasto 07 · Retiro" do v12.
+  const localDoPontoSupl = useMemo(() => {
+    const p = selectedPontoSupl;
+    if (!p) return "";
+    const ids = Array.isArray(p.area_vinculada_ids) && p.area_vinculada_ids.length ? p.area_vinculada_ids : p.area_vinculada_id ? [p.area_vinculada_id] : [];
+    const areasDoPonto = ids.map((id) => areas.find((a) => a.id === id)).filter(Boolean);
+    const nomes = areasDoPonto.length ? areasDoPonto.map((a) => a.nome).filter(Boolean) : Array.isArray(p.area_vinculada_nomes) && p.area_vinculada_nomes.length ? p.area_vinculada_nomes.filter(Boolean) : p.area_vinculada_nome ? [p.area_vinculada_nome] : [];
+    const setorId = areasDoPonto[0]?.setor_id || p.setor_id || null;
+    const setor = (setorId && setores.find((s) => s.id === setorId)?.nome) || areasDoPonto[0]?.setor_nome || p.setor_nome || "";
+    return [nomes.join(", "), setor].filter(Boolean).join(" · ");
+  }, [selectedPontoSupl, areas, setores]);
+  // D-PROD-219: o Histórico da Área (clique no contorno) tem o setor como subtítulo, como o Detalhes do Lote.
+  const setorDaAreaSelecionada = useMemo(() => {
+    if (!selectedArea) return "";
+    return setores.find((setor) => setor.id === selectedArea.setor_id)?.nome || selectedArea.setor_nome || "";
+  }, [selectedArea, setores]);
+
   const lotes = useMemo(() => {
     return lotesBase.filter((lote) =>
     lote?.empresa_id === empresaSelecionadaId &&
@@ -1325,26 +1343,26 @@ export default function MapaGeral() {
           <PainelResumoRebanho posicoes={lotes} areas={areas} categoriasManejo={categoriasManejo} hoje={hoje} />
       </LancLoteDialogo>
 
-      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo="Histórico da Área" largo somenteLeitura>
+      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo="Histórico da Área" largo somenteLeitura popupDesde="tablet">
 
-          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} />}
+          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} setorNome={setorDaAreaSelecionada} eventosSuplementacao={eventosSupl} />}
         </LancLoteDialogo>
 
-      <LancLoteDialogo open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro} titulo="Bebedouro" largo somenteLeitura>
+      <LancLoteDialogo open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro} titulo="Bebedouro" largo somenteLeitura popupDesde="tablet">
 
           {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} podeLancar={podeLancarBebedouro} podeExcluir={podeExcluirBebedouro} />}
         </LancLoteDialogo>
 
-      <LancLoteDialogo open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) {refetchEventosSupl();refetchLotes();refetchPontosSupl();}}} titulo={selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'} largo somenteLeitura>
+      <LancLoteDialogo open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) {refetchEventosSupl();refetchLotes();refetchPontosSupl();}}} titulo={selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'} largo somenteLeitura popupDesde="tablet">
 
-          {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesPontoSupl(false);refetchEventosSupl();refetchLotes();refetchPontosSupl();}} />}
+          {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} permissions={mapaGeralPermissions} subtitulo={localDoPontoSupl} onClose={() => {setShowDetalhesPontoSupl(false);refetchEventosSupl();refetchLotes();refetchPontosSupl();}} />}
         </LancLoteDialogo>
 
       <LancLoteDialogo open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Gestão de Tarefas" lotes={localDasTarefas ? [{ nome: localDasTarefas }] : []} amplo somenteLeitura>
           <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
       </LancLoteDialogo>
 
-      <LancLoteDialogo open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Detalhes da tarefa" largo somenteLeitura>
+      <LancLoteDialogo open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Detalhes da tarefa" largo somenteLeitura popupDesde="tablet">
           {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} />}
       </LancLoteDialogo>
 

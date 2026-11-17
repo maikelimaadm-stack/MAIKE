@@ -19,6 +19,10 @@ import { useModoPasto } from "./pastoContexto";
  * Telas empilhadas (ex.: depósito › cocho, bebedouro › histórico) são da
  * própria tela: ela troca `chaveTela` e passa `onVoltar`; a casca anima a
  * troca (`anim`) e o Esc do diálogo chama o ‹ Voltar.
+ *
+ * `cabecalhoDoCorpo` entra entre o cabeçalho e o corpo, fora da rolagem (ex.:
+ * as `Abas` do curral: Abate · Histórico da Área); `propsDoCorpo` vai para o
+ * corpo (ex.: `role="tabpanel"` + `aria-labelledby` da aba ativa).
  */
 
 /**
@@ -29,8 +33,10 @@ import { useModoPasto } from "./pastoContexto";
  *   corpo?: "cards" | "lista",
  *   rodape?: React.ReactNode,
  *   chaveTela?: string,
- *   anim?: "empurrar" | "voltar" | "troca" | null,
+ *   anim?: "empurrar" | "voltar" | "troca" | "aba-dir" | "aba-esq" | null,
  *   semCabecalho?: boolean,
+ *   cabecalhoDoCorpo?: React.ReactNode,
+ *   propsDoCorpo?: React.HTMLAttributes<HTMLDivElement> & Record<string, any>,
  *   className?: string,
  *   children: React.ReactNode,
  * } & Omit<React.HTMLAttributes<HTMLDivElement>, "children" | "className">} props
@@ -44,6 +50,8 @@ export default function CascaDetalhe({
   chaveTela = "principal",
   anim = null,
   semCabecalho = false,
+  cabecalhoDoCorpo = null,
+  propsDoCorpo = undefined,
   className,
   children,
   ...resto
@@ -72,7 +80,8 @@ export default function CascaDetalhe({
   return (
     <div className={["mk-dp", className].filter(Boolean).join(" ")} data-modo={modo} translate="no" {...resto}>
       {!setCabecalho && !semCabecalho ? <CabecalhoProprio titulo={titulo} sub={sub} onVoltar={temVoltar ? voltarEstavel : null} /> : null}
-      <div key={chaveTela} className={classesCorpo}>
+      {cabecalhoDoCorpo}
+      <div key={chaveTela} className={classesCorpo} {...propsDoCorpo}>
         {children}
       </div>
       <div className="mk-dp__rodape">{rodape}</div>

@@ -28,6 +28,7 @@ import { useMediaQuery } from "@/components/common/MobileSheet";
  *   empresaId: string | null,
  *   suplementacao: null | { pontos: any[], eventos: any[], hoje: any },
  *   onAbrirCocho: null | ((ponto: any) => void),
+ *   tipoLocal?: "pasto" | "area",
  * }} DadosPasto
  */
 

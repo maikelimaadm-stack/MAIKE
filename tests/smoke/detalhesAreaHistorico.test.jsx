@@ -1,7 +1,9 @@
 /**
  * Histórico da Área acessível pelo contorno no Mapa Geral
- * (MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1.1, D-PROD-94a). Testes de componente
- * (mock de serviço) — a prova no navegador real está no relatório (E2E local).
+ * (MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1.1, D-PROD-94a), no desenho do
+ * Detalhes do Lote v12 (D-PROD-219): a mesma linha do tempo da aba Histórico do
+ * pasto, só leitura; curral com as abas Abate · Histórico da Área. Testes de
+ * componente (mock de serviço).
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -91,10 +93,16 @@ describe("política do clique na área", () => {
 describe("DetalhesArea", () => {
   it("T04: pasto vazio com saída antiga mostra a saída — consulta pela área, sem lotes atuais", async () => {
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([saidaAntiga]));
-    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
-    expect(await screen.findByText("Movimentações: 1 de 1")).toBeTruthy();
-    expect(screen.getByText("Saída")).toBeTruthy();
-    expect(screen.getByText("Histórico da Área PASTO A (1)")).toBeTruthy();
+    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} setorNome="Retiro" />);
+    // v12: casca .mk-dp (fora do diálogo, cabeçalho próprio "Histórico da Área" · "área · setor") e a linha do tempo da área.
+    expect(screen.getByRole("heading", { name: "Histórico da Área" })).toBeTruthy();
+    expect(screen.getByText("PASTO A · Retiro")).toBeTruthy();
+    expect(document.querySelector(".mk-dp .mk-dp__corpo--cards")).toBeTruthy();
+    const linha = await screen.findByRole("list", { name: "Registros do pasto" });
+    expect(linha.textContent).toContain("Movimentação · saída");
+    expect(linha.textContent).toContain("NELORE 1");
+    expect(linha.textContent).toContain("PASTO B");
+    expect(screen.getByText("Registros de todas as movimentações, pesagens e manejos que passaram por esta área.")).toBeTruthy();
     const chamada = servico.listarHistoricoMovimentacoesPagina.mock.calls[0][0];
     expect(chamada).toMatchObject({ empresaId: "emp-1", areaId: "area-A" });
     expect(chamada.loteIds).toBeUndefined();
@@ -104,7 +112,7 @@ describe("DetalhesArea", () => {
 
   it("T06: área sem movimento mostra vazio verdadeiro, não erro", async () => {
     renderizar(<DetalhesArea area={RESERVA} permissions={PERMITE} />);
-    expect(await screen.findByText("Nenhum lançamento encontrado")).toBeTruthy();
+    expect(await screen.findByText("Nenhum registro deste tipo nesta área.")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -123,9 +131,10 @@ describe("DetalhesArea", () => {
     expect(screen.getByRole("tab", { name: "Abate" }).getAttribute("aria-selected")).toBe("true");
     expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
     const aba = screen.getByRole("tab", { name: "Histórico da Área" });
-    fireEvent.mouseDown(aba);
     fireEvent.click(aba);
-    expect(await screen.findByText("Nenhum lançamento encontrado")).toBeTruthy();
+    expect(aba.getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByTestId("abate-curral")).toBeNull();
+    expect(await screen.findByText("Nenhum registro deste tipo nesta área.")).toBeTruthy();
     expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledWith(expect.objectContaining({ areaId: "area-C" }));
   });
 

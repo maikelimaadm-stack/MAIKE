@@ -30,6 +30,9 @@ let filtroDaSessao = FILTRO_PADRAO;
 
 const NOTA = "Registros de todas as movimentações, pesagens e manejos que passaram por este pasto.";
 const VAZIO_DO_FILTRO = "Nenhum registro deste tipo neste pasto.";
+// Histórico da Área (clique no contorno, D-PROD-219): a área pode ser reserva, curral…
+const NOTA_DA_AREA = "Registros de todas as movimentações, pesagens e manejos que passaram por esta área.";
+const VAZIO_DA_AREA = "Nenhum registro deste tipo nesta área.";
 const SEM_COPIA_NO_APARELHO = "Este aparelho ainda não tem movimentações salvas para consulta sem conexão.";
 
 /** @param {string | null} iso */
@@ -62,6 +65,7 @@ function AvisoOffline({ aviso }) {
 
 export default function AbaHistorico() {
   const { dados } = usePasto();
+  const daArea = dados?.tipoLocal === "area";
   const celular = useCelular();
   const [filtro, setFiltro] = React.useState(() => filtroValido(filtroDaSessao));
   const [aberta, setAberta] = React.useState(false);
@@ -147,7 +151,7 @@ export default function AbaHistorico() {
   } else if (h.dias.length) {
     conteudo = <LinhaDoTempo dias={h.dias} />;
   } else {
-    conteudo = <Vazio icone={History}>{semCopiaNoAparelho ? SEM_COPIA_NO_APARELHO : VAZIO_DO_FILTRO}</Vazio>;
+    conteudo = <Vazio icone={History}>{semCopiaNoAparelho ? SEM_COPIA_NO_APARELHO : daArea ? VAZIO_DA_AREA : VAZIO_DO_FILTRO}</Vazio>;
   }
 
   // "Carregar mais" só pede movimentações: com "Suplementação" (tudo do aparelho) não aparece.
@@ -194,7 +198,7 @@ export default function AbaHistorico() {
           ) : null}
         </div>
       ) : null}
-      <Nota>{NOTA}</Nota>
+      <Nota>{daArea ? NOTA_DA_AREA : NOTA}</Nota>
       {celular && aberta ? (
         <MobileSheet open onClose={() => setAberta(false)} label="Mostrar" title="Mostrar">
           <div className="mgs__lista" role="listbox" aria-label="Mostrar">
