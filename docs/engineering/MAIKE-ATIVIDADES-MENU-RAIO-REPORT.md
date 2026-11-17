@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADES-MENU-RAIO — Relatório
 
-> **fatia:** 1 (menu ⚡ e concluir) · **branch:** `feat/atividades-menu-raio` · **PR:** a abrir
+> **fatia:** 1 (menu ⚡ e concluir) · **branch:** `feat/atividades-menu-raio` · **PR:** #316
 
 Decisão: [D-PROD-232](./DECISIONS.md) · a partir da `main` `64310bd4` (PR #313).
 
