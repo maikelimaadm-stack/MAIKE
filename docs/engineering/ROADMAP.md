@@ -557,7 +557,7 @@ própria, com decisão própria, quando o proprietário pedir.
 **Relatórios**
 10. Relatórios de manejo e pastagem.
 
-**Assistente (IA) só de leitura** — iniciado em 2026-11-17, missão própria
+**Assistente (IA) só de leitura** — D-PROD-230, implementado (botão flutuante em todas as telas)
 11. Assistente no Mapa Geral que responde perguntas sobre os dados da fazenda usando a
     API do Claude (chave do proprietário em variável de ambiente do servidor). Só
     leitura, tenant pelo `auth_context`, consultas fechadas no servidor; sem migration.

@@ -7764,4 +7764,25 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-224 -->
+## D-PROD-230 — Assistente só de leitura (IA) em todas as telas
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-224`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, PR #308 em rascunho) já usa da D-PROD-224 à D-PROD-228 e indica a D-PROD-229 como a próxima dela. Para não duplicar, esta decisão é a **D-PROD-230**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ("vamos fazer isso então já vou colocar minha api lá"): uma IA no sistema para ajudar no negócio, começando só de leitura, com a chave da API do Claude dele; depois, o pedido de que o botão fique flutuante em todas as telas · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Rota.** `POST /assistente/perguntar` com `{ empresa_id, pergunta (≤ 1000), tela? , historico? (≤ 10 falas de ≤ 4000) }`, corpo fechado (`cliente_id` ou chave fora do schema → 400). Autenticada, sem chave de permissão própria: as ferramentas leem o mesmo que o Mapa Geral já mostra a qualquer usuário logado. O tenant vem **só** do `auth_context` (R11); a fazenda é a aberta no topo da tela e é conferida no tenant antes de qualquer leitura. `tela` é só uma dica de contexto (`^[A-Za-z0-9_-]{1,64}$`), nunca escolhe tenant nem fazenda.
+2. **Laço de ferramentas no servidor.** Modelo `claude-opus-5-5` (API da Anthropic, SDK oficial `@anthropic-ai/sdk`, chave em `ANTHROPIC_API_KEY`, nunca literal), esforço `medium`, recuo do lado do servidor em caso de recusa (`fallbacks: "default"`), no máximo **8** voltas; recusa vira mensagem amigável; falha da API → 503 `ASSISTENTE_INDISPONIVEL`; chave ausente ou inválida → 503 `ASSISTENTE_NAO_CONFIGURADO`.
+3. **Ferramentas: conjunto fechado e só de leitura** (`assistenteFerramentas.js`), cada uma chamando o serviço que já existe com o contexto da requisição: `listar_pastos` (cultura, parâmetros que valem, cabeças agora e a situação de forragem: medição válida até 15 dias, senão estimada pelos dias de descanso, mesma regra da D-PROD-223), `medicoes_do_pasto`, `rebanho_por_pasto` (posições do ledger; sem ledger, o cadastro de lotes), `resumo_rebanho`, `leituras_cocho_recentes`. A IA não grava, não manda SQL, não escolhe cliente nem fazenda; ferramenta desconhecida não executa nada.
+4. **Dados mínimos.** As respostas das ferramentas não levam CPF, telefone, fornecedor, nota fiscal, GTA, valores de compra nem o nome de quem registrou.
+5. **Tela.** Botão redondo flutuante (canto inferior direito, acima da navegação inferior do celular) em **todas as telas logadas**, montado uma vez no `Layout` (login não tem o botão). Abre o painel: de baixo no celular, lateral no desktop. A conversa fica no estado do componente do Layout: sobrevive à navegação entre telas, some ao recarregar. Nada vai para o banco nem para a fila offline.
+
+**Por que não é o "motor de intelligence genérico" fora do roadmap.** É uma tela de perguntas e respostas sobre os módulos que já existem, com um conjunto fechado de leituras escritas aqui; não há motor configurável, regras low-code, nem execução de ações.
+
+**Privacidade e custo.** A cada pergunta, o texto da pergunta, o histórico curto e o resultado das ferramentas usadas vão para a API da Anthropic, que os processa para responder (pelos termos comerciais da API, não são usados para treinar modelos). O custo é por uso, cobrado na conta da chave do proprietário: centavos por pergunta; recomenda-se limite de gasto mensal no console da Anthropic.
+
+**Fora do escopo:** lançar, alterar ou excluir pelo assistente; histórico salvo no servidor; resumo diário automático; ferramentas de financeiro, estoque ou patrimônio.
+
+**Release.** Sem migration. Depois do deploy, o proprietário cadastra `ANTHROPIC_API_KEY` na Vercel (produção) e faz um novo deploy para valer.
+
+<!-- Próxima decisão: D-PROD-231 -->

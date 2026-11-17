@@ -47,6 +47,7 @@ import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoute
 import { registrarCulturaRoutes } from './modules/culturas/culturaRoutes.js';
 import { registrarLeituraCochoRoutes } from './modules/leiturasCocho/leituraCochoRoutes.js';
 import { registrarMedicaoForragemRoutes } from './modules/medicoesForragem/medicaoForragemRoutes.js';
+import { registrarAssistenteRoutes } from './modules/assistente/assistenteRoutes.js';
 import { registrarServicoRoutes } from './modules/servicos/servicoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
@@ -228,6 +229,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarLeituraCochoRoutes);
   // D-PROD-219 — Medição de Forragem do pasto (régua, no olho e amostra de MS; tabela MEDICAOFORRAGEM).
   await app.register(registrarMedicaoForragemRoutes);
+  // D-PROD-230 — Assistente só de leitura (perguntas sobre os dados da fazenda; não grava nada).
+  await app.register(registrarAssistenteRoutes);
   // D-PROD-207 (Fatia 4) — cadastro de Serviço da fazenda (sem DELETE). D-PROD-208: o Funcionário
   // virou papel do parceiro (`/parceiros`); o cadastro próprio saiu.
   await app.register(registrarServicoRoutes);

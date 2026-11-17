@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-DESCANSO-ESTIMADO: farol de forragem estimado pelos dias de descanso e parâmetros próprios do pasto (D-PROD-223)
+## Missão ativa (2026-11-17) — MAIKE-ASSISTENTE-LEITURA: assistente só de leitura em todas as telas (D-PROD-230)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-230** (a `main` indica D-PROD-224, mas a branch `claude/design-filters-implementation-agzxk8` já usa da D-PROD-224 à D-PROD-228 e indica a 229 como a próxima dela), pedido do proprietário: uma IA que responda perguntas sobre os dados da fazenda, só de leitura, com a chave da API do Claude dele |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `cdd8d79d` (PR #312, D-PROD-223) |
+| Escopo | `POST /assistente/perguntar` (tenant só da sessão, fazenda conferida, corpo fechado, histórico curto do cliente, dica da tela); 5 ferramentas fechadas e só de leitura sobre os serviços que já existem (pastos com forragem, medições do pasto, rebanho por pasto, resumo do rebanho, leituras de cocho); botão flutuante do assistente em todas as telas logadas, montado uma vez no Layout |
+| Migration | **Nenhuma.** Nada é gravado: sem tabela, sem histórico no servidor |
+| Configuração | `ANTHROPIC_API_KEY` nas variáveis de ambiente da Vercel (produção). Sem ela, o assistente responde "não configurado" (503 `ASSISTENTE_NAO_CONFIGURADO`) |
+| Relatório | [`MAIKE-ASSISTENTE-LEITURA-REPORT.md`](./MAIKE-ASSISTENTE-LEITURA-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-DESCANSO-ESTIMADO: farol de forragem estimado pelos dias de descanso e parâmetros próprios do pasto (D-PROD-223)
 
 | Campo | Valor |
 |---|---|
