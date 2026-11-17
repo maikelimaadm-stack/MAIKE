@@ -7574,7 +7574,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 5. **Migration CONTRACT `20261116300000_abastecimento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`): 7 colunas novas, `local_estoque_id` e `movimentacao_estoque_id` passam a aceitar nulo (só no `EXTERNO`), CHECK de status trocado, CHECKs novos de origem, vínculo e intervalo, 3 FKs e 3 índices; backfill do centro de custo das linhas existentes pelo bem. SHA-256 `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`; 60 → 61 migrations, 94 tabelas.
 6. Abastecimento ligado a atividade **concluída** não se cancela (409, a atividade precisa ser reaberta antes): os totais da concluída ficam congelados. O sem vínculo cancela como sempre.
 7. Permissões: ligar e cancelar o abastecimento seguem as permissões da tela de Abastecimentos; a cascata (cancelar o lançamento ou a atividade) cancela os ligados pela permissão da atividade, como já fazia com as linhas.
-8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro — **feito na D-PROD-214** (FK composta de 4 colunas, [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
+8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro — **feito na D-PROD-216** (FK composta de 4 colunas, [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
 9. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
 
 **Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-211` no caminho A; o envelope no caminho B).
@@ -7623,23 +7623,61 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md).
 
-## D-PROD-214 — Reforço no banco: o apontamento do abastecimento é da atividade dele
+## D-PROD-214 — Cadastros do mapa e ligações: ligação estrita ponto↔cocho/depósito/bebedouro, exclusão com histórico bloqueada, ocupação derivada e propagação de nomes
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário ("verifique toda a minha situação de cadastros de pontos no mapa, cadastro em lotes, ligações de áreas, pontos etc., pois há vários bugs") · **Branch:** `fix/mapa-cadastros-ligacoes`.
+
+**Decisão.**
+1. **Ligação ponto do mapa ↔ registro operacional** numa regra só (`src/domain/mapa/ligacaoPontoReferencia.js`): bebedouro **somente** por `ponto_referencia_id`; cocho/depósito por mesma empresa + categoria compatível com o tipo do ponto + nome normalizado (coordenadas desempatam; sigla sozinha nunca liga). Ambiguidade não altera nem apaga nada. Sem migration: um `ponto_referencia_id` em `PontoSuplementacao` fica para uma EXPAND futura, se o proprietário quiser.
+2. **Exclusão do ponto** só leva junto cocho/depósito/bebedouro **sem histórico** (leituras de cocho, eventos de suplementação, movimentações/saldo de estoque; histórico/sanidade de bebedouro). Com histórico: bloqueio 409 (`PONTO_SUPLEMENTACAO_COM_HISTORICO`, `BEBEDOURO_COM_HISTORICO`), conferido também no DELETE do servidor. O `LocalEstoque` do depósito é **inativado**, não apagado (D-PROD-137). Falha no meio nunca aparece como sucesso.
+3. **`numero_ponto` do cocho/depósito é do servidor** (sequência do tenant, nova tentativa em colisão); o local do depósito novo nasce na mesma transação.
+4. **Ocupação da área** (`quantidade_atual`, `status_ocupacao`) é **derivada na leitura** dos lotes/posições ativos (mesma fonte do mapa), não mais o valor gravado que ninguém atualizava. Faixas: sem gado "Disponível"; UA/capacidade até 70% "Médio", até 110% "Alto", acima "Sobrepastoreado".
+5. **Renomear área ou setor** propaga o nome para lotes, cochos, bebedouros, tarefas e movimentações na mesma transação, por id e `cliente_id` do `auth_context`.
+6. **Reatribuir códigos de áreas** por comando próprio `POST /areas-pastagem/renumerar` (transação, duas fases), só online; o PATCH genérico continua sem `numero_area`.
+7. **Mapa Geral** relê do servidor as chaves afetadas depois de qualquer cadastro (`invalidarCachesDoMapa`). Ícones são do tenant (`empresa_id` nulo vale para todas as empresas).
+
+**Fora do escopo (pausa nos lotes, pedido do proprietário):** 12 bugs confirmados de lote/movimentação listados no relatório §6; fila offline que trava num 4xx definitivo.
+
+**Relatório:** [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md).
+
+## D-PROD-215 — Cadastro de Culturas (tabela `CADCULTURAS`) com lista de referência
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-214`, mas a D-PROD-214 já está em uso (PR #303, reforço da FK do apontamento do abastecimento, e PR #305, cadastros do mapa, já mergeada). Para não duplicar, esta decisão é a **D-PROD-215**. O número não está no `migration.sql`, então o checksum não muda. A #303 também usa o prefixo `20261116400000` (`…_abastecimento_fk_apontamento_atividade`): a pasta desta passou a `20261116500000_cadculturas` (conteúdo idêntico); a ordem de release com a #303 está no runbook.
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário, primeiro passo da produção de forragem e das medições ("vamos primeiro fazer o cadastro de culturas ok, no banco eu quero que se chama CADCULTURAS"; os parâmetros ficam no catálogo de cultura, "pré cadastrado com uma numeração") · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Cadastro novo, por fazenda**: model Prisma `Cultura`, tabela física **`CADCULTURAS`** (nome fixado pelo proprietário), `cliente_id` + `empresa_id` com FKs compostas para Cliente e Empresa (`RESTRICT`), RLS no padrão, uniques e índice começando por `cliente_id` (R9/R10). O tenant vem só da sessão (R11).
+2. **Campos:** `codigo` (texto curto, "001", "002"…; único na fazenda; vazio na criação = o servidor usa o próximo número livre depois do maior código numérico, com 3 dígitos), `tipo` (`PASTAGEM | CAPINEIRA | LAVOURA | SILAGEM`, CHECK no banco), `nome` (MAIÚSCULAS, único na fazenda), `especie` e `cultivar` opcionais, `altura_entrada_cm` e `altura_saida_cm` (DECIMAL(6,1), anuláveis; > 0, até 1.000 cm, 1 casa; com as duas, saída < entrada — CHECK no banco e 400 com `field`/`reason` na API), `observacoes`, `ativo` e datas. Números em pt-BR ("25,5") aceitos pela API.
+3. **Lista de referência sem DML:** o botão "Incluir lista de referência" chama o comando **`POST /culturas/comandos/lista-referencia`**, idempotente pelo nome: cria na fazenda as 11 forrageiras que faltam — 001 MARANDU 25/15, 002 XARAÉS 30/15, 003 PIATÃ 35/20, 004 PAIAGUÁS 30/15, 005 DECUMBENS (Basilisk) 20/10, 006 HUMIDICOLA 20/10, 007 MOMBAÇA 90/45, 008 TANZÂNIA 70/35, 009 ZURI 75/35, 010 MASSAI 55/25, 011 TIFTON 85 25/10 (entrada/saída em cm, manejo rotacionado), todas `PASTAGEM`, com a observação "Valor de referência (manejo rotacionado). Ajuste para a fazenda." Nome já cadastrado é pulado; código de referência ocupado por outra cultura → o próximo número livre. Repetir não duplica (`{ criadas, ja_existiam, culturas }`). A migration não semeia nada.
+4. **API `/culturas`** (GET lista e detalhe, POST, PATCH, DELETE com `empresa_id`), corpo fechado (`additionalProperties: false`), auditoria de create/update/delete (`Cultura`), exclusão física. Excluir a fazenda com cultura → 409 `EMPRESA_COM_VINCULOS`. Erros novos: `CULTURA_NOT_FOUND` (404), `CULTURA_NAME_CONFLICT` e `CULTURA_CODIGO_CONFLICT` (409).
+5. **Permissão `pec-culturas`** (módulo `manejo`), leitura incluída, **sem concessão automática**; o comando da lista exige a ação de criar.
+6. **Tela "Culturas"** no padrão Base1 (como Estações e Formulações), no menu Manejo logo depois de Estações; rota `/culturas` no escopo do produto (`config/mapa-manejo-scope.json`, 31 páginas).
+7. **Migration EXPAND `20261116500000_cadculturas`**: só a tabela nova (CREATE TABLE, índice, uniques, FKs, 2 CHECKs e o bloco de RLS pinado). SHA-256 `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`; 62 → 63 migrations, 94 → 95 tabelas, 79 → 80 de tenant.
+
+**Fora do escopo (próximas missões):** ligar a Área à Cultura (a Área continua com o texto de antes), altura de entrada no pasto e de saída no lote, Monitoramento de Forragem (medições) e calibragem.
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-CULTURAS-RUNBOOK-RELEASE.md) (caminho A sem `--contract`; caminho B pelo envelope).
+
+**Relatório:** [`MAIKE-CULTURAS-REPORT.md`](./MAIKE-CULTURAS-REPORT.md).
+
+## D-PROD-216 — Reforço no banco: o apontamento do abastecimento é da atividade dele
 
 **Data:** 2026-11-16 · **Origem:** pedido do proprietário: "pode fazer o reforço no banco" · **Branch:** `feat/abastecimento-fk-apontamento-atividade` · **Continua:** D-PROD-211 (item 8, "reforço futuro")
 
-> **Numeração:** nasceu como D-PROD-213; a `main` deu a D-PROD-213 ao Resumo do Rebanho (PR #302, sem migration). O checksum não mudou: o número da decisão não está no `migration.sql`.
+> **Numeração:** nasceu como D-PROD-213 e depois foi D-PROD-214; a `main` deu a D-PROD-213 ao Resumo do Rebanho (PR #302, sem migration), a D-PROD-214 aos ajustes do mapa (PRs #305 e #306, sem migration) e a D-PROD-215 ao Cadastro de Culturas (PR #304, EXPAND `20261116500000_cadculturas`, já aplicada em produção). Esta decisão é a **D-PROD-216**. A pasta da migration passou de `20261116400000_abastecimento_fk_apontamento_atividade` para `20261116600000_abastecimento_fk_apontamento_atividade`, para vir depois da `20261116500000_cadculturas` e a ordem do repositório ser a ordem de aplicação em produção. O conteúdo é idêntico e o checksum não mudou: nem o número da decisão nem o nome da pasta estão no `migration.sql`.
 
 **O problema.** Desde a D-PROD-211, `AbastecimentoBem` tem duas FKs independentes: `AbastecimentoBem_atividade_fkey` (`cliente_id`, `empresa_id`, `atividade_id`) → `Atividade` e `AbastecimentoBem_apontamento_fkey` (`cliente_id`, `empresa_id`, `apontamento_id`) → `AtividadeApontamento`, mais o CHECK `AbastecimentoBem_atividade_check` (apontamento ⇒ atividade). Nada no banco impede uma linha cujo apontamento é de **outra** atividade; só o servidor garante (ele deriva a atividade do apontamento). Uma gravação à mão, um script ou um defeito futuro do servidor deixariam o combustível somado na atividade errada.
 
 **Decisão.**
 1. `AtividadeApontamento` ganha o índice único `AtividadeApontamento_empresa_atividade_id_key` (`cliente_id`, `empresa_id`, `atividade_id`, `id`): trivialmente único (o `id` já é), começa por `cliente_id` (R10) e é o alvo que a FK composta exige.
 2. A FK `AbastecimentoBem_apontamento_fkey` é recriada **com o mesmo nome** e 4 colunas: (`cliente_id`, `empresa_id`, `atividade_id`, `apontamento_id`) → `AtividadeApontamento`(`cliente_id`, `empresa_id`, `atividade_id`, `id`), `ON DELETE RESTRICT ON UPDATE CASCADE`. Com `MATCH SIMPLE` e o CHECK da atividade, toda linha com apontamento tem as 4 colunas preenchidas: a FK sempre confere. Sem vínculo, nada muda (`ESTOQUE` e `EXTERNO`). A FK da atividade fica como está. Se a atividade de um apontamento mudar, a do abastecimento vai junto (CASCADE): o par continua coerente.
-3. **Migration CONTRACT `20261116400000_abastecimento_fk_apontamento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, a décima segunda, formato de sempre, sem resto): guarda pinada (formato anterior: FK de 3 colunas, CHECK da atividade presente, UNIQUE ausente; trava `AtividadeApontamento` e depois `AbastecimentoBem` em `ACCESS EXCLUSIVE`, a referenciada primeiro e já no modo que o `DROP CONSTRAINT` pede nela, sem subir de trava no meio da transação (subir fecharia ciclo com a confirmação do abastecimento, que lê o apontamento e depois grava o abastecimento); aborta se algum abastecimento apontar para um apontamento de outra atividade) e as 3 instruções pinadas (o UNIQUE, o DROP e o ADD da FK). SHA-256 `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`; guarda `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c`; 62 → 63 migrations, 94 tabelas. O número da decisão fica fora do `migration.sql`.
+3. **Migration CONTRACT `20261116600000_abastecimento_fk_apontamento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, a décima segunda, formato de sempre, sem resto): guarda pinada (formato anterior: FK de 3 colunas, CHECK da atividade presente, UNIQUE ausente; trava `AtividadeApontamento` e depois `AbastecimentoBem` em `ACCESS EXCLUSIVE`, a referenciada primeiro e já no modo que o `DROP CONSTRAINT` pede nela, sem subir de trava no meio da transação (subir fecharia ciclo com a confirmação do abastecimento, que lê o apontamento e depois grava o abastecimento); aborta se algum abastecimento apontar para um apontamento de outra atividade) e as 3 instruções pinadas (o UNIQUE, o DROP e o ADD da FK). SHA-256 `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`; guarda `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c`; 63 → 64 migrations, 95 tabelas. O número da decisão fica fora do `migration.sql`.
 4. Nenhuma coluna, tabela ou dado muda; o código do servidor e da tela não muda (o servidor já grava sempre o par certo). O `schema.prisma` acompanha: a relação `apontamento` de `AbastecimentoBem` passa a 4 campos e `AtividadeApontamento` ganha o `@@unique`.
 5. Sem nota de Constituição: dentro do escopo do manejo (o mesmo vínculo da D-PROD-211).
 
-**Release.** Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-214` no caminho A; o envelope no caminho B). Produção hoje: 62 migrations, 0 em aberto, 94 tabelas, 1 abastecimento sem vínculo (a guarda passa).
+**Release.** Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-216` no caminho A; o envelope no caminho B). Produção hoje: 63 migrations (a última a `20261116500000_cadculturas`, D-PROD-215), 0 em aberto, 95 tabelas, 1 abastecimento sem vínculo (a guarda passa).
 
 **Relatório:** [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-215 -->
+<!-- Próxima decisão: D-PROD-217 -->

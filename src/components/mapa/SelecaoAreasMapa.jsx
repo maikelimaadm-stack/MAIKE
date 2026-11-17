@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { listarAreasAtivas, atualizarArea } from "@/services/mapaService";
+import { listarAreasAtivas, atualizarArea, renumerarAreas } from "@/services/mapaService";
+import { mensagemErroRenumeracao } from "@/domain/areas/mensagemErroRenumeracao";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -28,6 +29,8 @@ import {
   syncSelectedIds,
 } from "@/lib/maplibre/selecaoAreasMapa.js";
 import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
+import { planejarLoteUsoCultura, textoDasIgnoradas } from "@/domain/areas/loteUsoCulturaAreas";
+import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 
 const CORES_DISPONIVEIS = [
   { nome: "Branco", cor: "#f8f9fa" },
@@ -345,10 +348,9 @@ export default function SelecaoAreasMapa({
     applyFeatureStates(map);
   }, [selectionTick, mapReady, applyFeatureStates]);
 
+  // Lista de áreas daqui e do cadastro + leituras do Mapa Geral ('mapa-cache').
   const invalidateAreas = () => {
-    queryClient.invalidateQueries({
-      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "areas",
-    });
+    void invalidarCachesDoMapa(queryClient, ["areas"]);
   };
 
   const aplicarLote = async () => {
@@ -363,18 +365,24 @@ export default function SelecaoAreasMapa({
     try {
       /** @type {Promise<unknown>[]} */
       const jobs = [];
+      /** Áreas que a regra do cadastro deixou de fora (uso/cultura). */
+      let avisoIgnoradas = "";
 
       if (batchType === "aproveitamento") {
         for (const id of ids) {
           jobs.push(atualizarArea(id, { aproveitamento_classificacao: batchValue }));
         }
-      } else if (batchType === "uso") {
-        for (const id of ids) {
-          jobs.push(atualizarArea(id, { tipo_cultura: batchValue }));
+      } else if (batchType === "uso" || batchType === "cultura") {
+        // Mesma regra do cadastro: uso e cultura andam juntos (em Infraestrutura o
+        // tipo_pastagem guarda o tipo da infraestrutura) — combinação inválida fica de fora.
+        const plano = planejarLoteUsoCultura({ areas: areasRef.current, ids, tipo: batchType, valor: batchValue });
+        if (plano.erro) {
+          toast.error(plano.erro);
+          return;
         }
-      } else if (batchType === "cultura") {
-        for (const id of ids) {
-          jobs.push(atualizarArea(id, { tipo_pastagem: batchValue }));
+        avisoIgnoradas = textoDasIgnoradas(plano.ignoradas);
+        for (const { id, dados } of plano.aplicar) {
+          jobs.push(atualizarArea(id, dados));
         }
       } else if (batchType === "cor") {
         if (!batchValue) {
@@ -396,7 +404,14 @@ export default function SelecaoAreasMapa({
       const results = await Promise.allSettled(jobs);
       const summary = summarizeBatchResults(results);
 
-      if (summary.allOk) {
+      if (summary.allOk && avisoIgnoradas) {
+        // Parte da seleção não aceitava a alteração: aplica no resto e mantém a seleção.
+        toast.success(`Atualizado (${summary.ok})`);
+        toast.error(avisoIgnoradas);
+        setBatchType(null);
+        setBatchValue("");
+        invalidateAreas();
+      } else if (summary.allOk) {
         toast.success(`Atualizado (${summary.ok})`);
         setBatchType(null);
         setBatchValue("");
@@ -429,13 +444,17 @@ export default function SelecaoAreasMapa({
       return;
     }
     const plan = planned.plan;
+    // A renumeração é só online (não tem fila offline): avisa antes de tentar.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast.error("Reatribuir códigos precisa de conexão com a internet. Tente de novo quando estiver online.");
+      return;
+    }
 
     setBatchBusy(true);
     try {
-      // Fail-fast sequencial — não finge sucesso total
-      for (const step of plan) {
-        await atualizarArea(step.id, { numero_area: step.numero_area });
-      }
+      // Uma operação só, atômica no servidor (POST /areas-pastagem/renumerar): troca 1↔2
+      // entre áreas da seleção funciona, e uma recusa não deixa códigos pela metade.
+      await renumerarAreas(plan);
       toast.success("Códigos reatribuídos");
       setBatchType(null);
       setStartNumber("");
@@ -443,8 +462,8 @@ export default function SelecaoAreasMapa({
       userTouchedRef.current = false;
       setSelectionTick((n) => n + 1);
       invalidateAreas();
-    } catch {
-      toast.error("Falha na renumeração. Verifique conflitos e tente de novo. Seleção preservada.");
+    } catch (erro) {
+      toast.error(`${mensagemErroRenumeracao(erro)} Seleção preservada.`);
       invalidateAreas();
     } finally {
       setBatchBusy(false);

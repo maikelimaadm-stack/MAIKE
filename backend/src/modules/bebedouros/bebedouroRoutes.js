@@ -2,7 +2,7 @@
  * Rotas de Bebedouro (P5.4).
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir } from './bebedouroService.js';
+import { listar, criar, atualizar, excluir, elegibilidadeExclusao } from './bebedouroService.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
@@ -41,6 +41,13 @@ export const registrarBebedouroRoutes = async (app) => {
     let registros = await listar(request.contexto, query);
 
     return registros;
+  });
+
+  // Só leitura: a tela pergunta antes de excluir o ponto do mapa (bebedouro com histórico não sai).
+  app.get('/bebedouros/:id/elegibilidade-exclusao', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return elegibilidadeExclusao(request.contexto, id);
   });
 
   app.post('/bebedouros', { onRequest: [app.autenticar], preHandler: [GUARDAS.bebedouro.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {

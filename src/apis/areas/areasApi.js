@@ -19,7 +19,12 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { areaPastagemPort, filtrarEmMemoria } from './areaPastagemNativePort.js';
+import {
+  areaPastagemPort,
+  filtrarEmMemoria,
+  renumerarAreasNativa,
+  temCampoDeAtualizacao,
+} from './areaPastagemNativePort.js';
 import { conferirImportacaoNativa, importarAreasNativa } from './areaImportacaoNativePort.js';
 
 const RESOURCE = 'AreaPastagem';
@@ -60,11 +65,62 @@ export const createArea = async (dados) => {
   return runProviderCall(() => areaPastagemPort.create(dados), contexto);
 };
 
+const temNumeroArea = (dados) =>
+  Object.prototype.hasOwnProperty.call(dados, 'numero_area') &&
+  dados.numero_area !== undefined &&
+  dados.numero_area !== null &&
+  String(dados.numero_area).trim() !== '';
+
+/**
+ * Reatribui códigos (`numero_area`) de várias áreas numa operação só do
+ * servidor (G4). É o caminho para "Reatribuir códigos": troca entre áreas da
+ * seleção (1↔2) funciona, código já usado por área fora da seleção é recusado
+ * com a área citada. Online sempre — não entra na fila offline.
+ *
+ * @param {Array<{id: string, numero_area: string | number}>} itens
+ * @returns {Promise<any[]>} as áreas renumeradas, na ordem pedida
+ */
+export const renumerarAreas = async (itens) => {
+  const contexto = ctx('renumerarAreas');
+  assertArgument(Array.isArray(itens) && itens.length > 0, 'itens', contexto);
+  assertArgument(
+    itens.every((item) => isObjeto(item) && isId(item.id) && temNumeroArea(item)),
+    'itens',
+    contexto
+  );
+  const resposta = await runProviderCall(() => renumerarAreasNativa(itens), contexto);
+  return comoLista(resposta?.itens);
+};
+
+/**
+ * Atualiza uma área.
+ *
+ * `numero_area` não vai no PATCH (o servidor o recusa): quando vem, segue pela
+ * renumeração própria (`renumerarAreas`), online. Os demais campos seguem pelo
+ * PATCH de sempre, com fila offline. Dados sem nenhum campo gravável são
+ * recusados aqui, antes de qualquer cache otimista ou fila.
+ */
 export const updateArea = async (id, dados) => {
   const contexto = ctx('updateArea');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => areaPastagemPort.update(id, dados), { ...contexto, details: { id } });
+
+  const renumera = temNumeroArea(dados);
+  const atualiza = temCampoDeAtualizacao(dados);
+  assertArgument(renumera || atualiza, 'dados', contexto);
+
+  let renumerada = null;
+  if (renumera) {
+    const [area] = await renumerarAreas([{ id, numero_area: dados.numero_area }]);
+    renumerada = area ?? null;
+  }
+  if (!atualiza) return renumerada ?? { id, numero_area: String(dados.numero_area).trim() };
+
+  // Sem `numero_area`: o cache otimista do offline nunca mostra código que o
+  // servidor não confirmou.
+  const semCodigo = Object.fromEntries(Object.entries(dados).filter(([campo]) => campo !== 'numero_area'));
+  const atualizada = await runProviderCall(() => areaPastagemPort.update(id, semCodigo), { ...contexto, details: { id } });
+  return renumerada && isObjeto(atualizada) ? { ...renumerada, ...atualizada } : atualizada;
 };
 
 /**

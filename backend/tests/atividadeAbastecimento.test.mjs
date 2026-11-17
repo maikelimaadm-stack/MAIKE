@@ -294,7 +294,7 @@ describe('vínculo com o lançamento (apontamento) e centro de custo', () => {
     assert.equal(await estoqueAtual(s.diesel.id), estoqueInicial, 'estoque de volta');
   });
 
-  test('D-PROD-214 — o banco recusa (23503) gravar à mão um abastecimento com o apontamento de OUTRA atividade (UPDATE e INSERT); o par certo passa', async () => {
+  test('D-PROD-216 — o banco recusa (23503) gravar à mão um abastecimento com o apontamento de OUTRA atividade (UPDATE e INSERT); o par certo passa', async () => {
     const s = await montarLinhasCusto(app);
     const p = prisma();
     const ap = await s.apontar();

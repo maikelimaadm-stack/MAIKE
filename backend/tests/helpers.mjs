@@ -80,6 +80,8 @@ const ORDEM_DE_LIMPEZA = [
   'cadEstacao',
   // D-PROD-189 — CADCURVAGANHO referencia Empresa (FK composta, Restrict).
   'cadCurvaGanho',
+  // D-PROD-215 — CADCULTURAS referencia Empresa (FK composta, Restrict).
+  'cultura',
   'empresa',
   'produto',
   'localEstoque',

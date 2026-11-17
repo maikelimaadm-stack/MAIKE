@@ -60,7 +60,9 @@
  *     (nunca duas CONTRACT de uma vez; como a D-PROD-195 na D-PROD-187); então
  *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
  *     impressão na URL) esta, a D-PROD-190, a D-PROD-193, a D-PROD-200, a
- *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207 e a D-PROD-208, e confere: todas concluídas, 94 tabelas
+ *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208 e as seguintes (a EXPAND da
+ *     D-PROD-215, CADCULTURAS, e por último a CONTRACT da D-PROD-216, sem tabela nova), e confere: todas concluídas, 95
+ *     tabelas (+ a CADCULTURAS)
  *     (as 82 do formato novo + Atividade e AtividadeApontamento + as 3 das linhas de
  *     produto e de máquina + as 3 das Formulações + a LEITURACOCHO + as 3 da mão de obra e do serviço que ficam (a
  *     Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208);
@@ -145,18 +147,24 @@ export const NOME_BASE = '20261116200000_formulacao_base_consumo';
  */
 export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_atividade';
 /**
- * D-PROD-214 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
- * atividade) exige a D-PROD-211: vem por último, depois dela, fora da partida como as outras; sem tabela nova.
+ * D-PROD-215 — a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS; referencia só Cliente e Empresa) não existia
+ * no dia desta CONTRACT: fora da partida como as outras, sobe por último no GREEN. +1 tabela no fim.
  */
-export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261116400000_abastecimento_fk_apontamento_atividade';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_ABASTECIMENTO_FK_APONTAMENTO]);
+export const NOME_CULTURAS = '20261116500000_cadculturas';
+/**
+ * D-PROD-216 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
+ * atividade) exige a D-PROD-211: vem por último, depois dela e da EXPAND da D-PROD-215 (a ordem de produção), fora da
+ * partida como as outras; sem tabela nova.
+ */
+export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261116600000_abastecimento_fk_apontamento_atividade';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_ABASTECIMENTO_FK_APONTAMENTO]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
 /** As 3 tabelas das Formulações (D-PROD-203). */
 const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA'];
-/** A tabela da Leitura de cocho (D-PROD-205). */
-const TABELAS_LEITURA = ['LEITURACOCHO'];
+/** A tabela da Leitura de cocho (D-PROD-205) e a do Cadastro de Culturas (D-PROD-215). */
+const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
 // D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
@@ -642,8 +650,9 @@ if (ehEntradaDireta()) {
       // D-PROD-190/191/198: 84 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento
       // (D-PROD-200); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-200.
       // D-PROD-202: + as 3 das linhas de produto e de máquina = 87; D-PROD-203: + as 3 das Formulações = 90;
-      // D-PROD-205: + a LEITURACOCHO = 91; D-PROD-207: + as 4 da mão de obra e do serviço = 95; D-PROD-208: − Funcionario = 94.
-      if (g.status !== 0 || g.tabelas !== 94 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
+      // D-PROD-205: + a LEITURACOCHO = 91; D-PROD-207: + as 4 da mão de obra e do serviço = 95; D-PROD-208: − Funcionario = 94;
+      // D-PROD-215: + a CADCULTURAS = 95.
+      if (g.status !== 0 || g.tabelas !== 95 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

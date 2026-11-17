@@ -34,7 +34,7 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar } from './areaPastagemService.js';
+import { listar, criar, atualizar, renumerar } from './areaPastagemService.js';
 import { porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 /** Enums fechados do cadastro, herdados de `base44/entities/AreaPastagem.jsonc`. */
@@ -119,6 +119,35 @@ const ATUALIZAR_SCHEMA = {
 };
 
 /**
+ * Renumeração explícita (G4). `numero_area` continua fora do PATCH genérico: a
+ * reatribuição de códigos é uma operação própria, em lote e atômica, para que
+ * trocar códigos entre áreas (1↔2) não colida no unique no meio do caminho.
+ */
+const RENUMERAR_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['itens'],
+    additionalProperties: false,
+    properties: {
+      itens: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 5000,
+        items: {
+          type: 'object',
+          required: ['id', 'numero_area'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
+            numero_area: { type: 'string', minLength: 1, maxLength: 32, pattern: '\\S' },
+          },
+        },
+      },
+    },
+  },
+};
+
+/**
  * O corpo já passou pelo schema quando chega aqui.
  *
  * A afirmação é sobre esse fato, não um `any` para calar o compilador: o
@@ -143,6 +172,15 @@ export const registrarAreaPastagemRoutes = async (app) => {
       exigirAuthContext(request.contexto.auth);
       const area = await criar(request.contexto, corpoValidado(request.body));
       return reply.status(201).send(area);
+    }
+  );
+
+  app.post(
+    '/areas-pastagem/renumerar',
+    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], schema: RENUMERAR_SCHEMA },
+    async (request) => {
+      exigirAuthContext(request.contexto.auth);
+      return renumerar(request.contexto, /** @type {any} */ (corpoValidado(request.body)));
     }
   );
 

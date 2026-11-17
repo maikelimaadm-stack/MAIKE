@@ -219,7 +219,7 @@ function readFonte() {
 /*
  * Barreira do CONTRACT contra a pasta REAL `backend/prisma/migrations`, que tem
  * DOZE migrations CONTRACT: a D-PROD-162, a D-PROD-183, a D-PROD-187, a
- * D-PROD-194, a D-PROD-195, a D-PROD-197, a D-PROD-200, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211 e a D-PROD-214. Como `MIGRATION_CONTRACT_AUTORIZADO` tem um só valor, cada caso
+ * D-PROD-194, a D-PROD-195, a D-PROD-197, a D-PROD-200, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211 e a D-PROD-216. Como `MIGRATION_CONTRACT_AUTORIZADO` tem um só valor, cada caso
  * simula no histórico as OUTRAS CONTRACT já concluídas quando quer provar o
  * comportamento de uma só — senão uma outra, pendente, recusaria por conta
  * própria e o caso passaria (ou quebraria) pelo motivo errado.
@@ -248,18 +248,18 @@ const com210Concluida = (h) => (h.some((l) => l.migration_name === CONTRACT_210)
  */
 const CONTRACT_211 = '20261116300000_abastecimento_atividade';
 /**
- * D-PROD-214 — a décima segunda CONTRACT (o reforço: o apontamento do abastecimento é da atividade dele), posterior à
+ * D-PROD-216 — a décima segunda CONTRACT (o reforço: o apontamento do abastecimento é da atividade dele), posterior à
  * D-PROD-211. Os cenários das CONTRACT anteriores (B11…B23) são de antes dela: `rodarBarreiraContract` a acrescenta
  * como CONCLUÍDA a esses históricos (como as POSTERIORES de cada um), salvo quando o histórico já a cita ou o cenário
- * pede `sem213` (o B24, que a testa, e os cenários em que ela pende junto).
+ * pede `sem216` (o B24, que a testa, e os cenários em que ela pende junto).
  */
-const CONTRACT_213 = '20261116400000_abastecimento_fk_apontamento_atividade';
-/** O histórico com a D-PROD-214 concluída (se ele ainda não a cita). */
-const com213Concluida = (h) => (h.some((l) => l.migration_name === CONTRACT_213) ? h : [...h, concluida(CONTRACT_213)]);
+const CONTRACT_216 = '20261116600000_abastecimento_fk_apontamento_atividade';
+/** O histórico com a D-PROD-216 concluída (se ele ainda não a cita). */
+const com216Concluida = (h) => (h.some((l) => l.migration_name === CONTRACT_216) ? h : [...h, concluida(CONTRACT_216)]);
 const ALVO_REMOTO = `postgresql://ops:${SENHA_FIXTURE}@db.exemplo.invalido:5432/postgres`;
 const ALVO_LOCAL = 'postgresql://postgres@localhost:5432/maike_ci';
 const concluida = (n, extra = {}) => ({ migration_name: n, checksum: 'x', finished_at: new Date(), rolled_back_at: null, ...extra });
-const rodarBarreiraContract = async (env, lerHistorico, { sem210 = false, sem213 = false } = {}) => {
+const rodarBarreiraContract = async (env, lerHistorico, { sem210 = false, sem216 = false } = {}) => {
   const saida = criarSaida();
   let leu = 0;
   const pode = await exigirContractAutorizado({
@@ -270,7 +270,7 @@ const rodarBarreiraContract = async (env, lerHistorico, { sem210 = false, sem213
       assert.equal(url, env[VARIAVEL_DE_MIGRATION]);
       const h = await lerHistorico();
       const h210 = sem210 ? h : com210Concluida(h);
-      return sem213 ? h210 : com213Concluida(h210);
+      return sem216 ? h210 : com216Concluida(h210);
     },
     erro: saida.erro,
     log: saida.log,
@@ -346,7 +346,7 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
     const SID = '7692130048193495360';
     const env = { [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID };
     let leu = 0;
-    const lerHistorico = async () => (leu++, com213Concluida(com210Concluida([...OUTRAS_CONCLUIDAS()])));
+    const lerHistorico = async () => (leu++, com216Concluida(com210Concluida([...OUTRAS_CONCLUIDAS()])));
     const silencio = { log: () => {}, erro: () => {}, resolverRuntime: async () => REMOTO, lerHistorico };
     assert.equal(await exigirAlvoConferido({ env, conferir: async () => ({ ok: false, falhas: ['x'], resumo: '' }), ...silencio }), false);
     assert.equal(leu, 0);
@@ -1324,7 +1324,7 @@ describe('B23 (D-PROD-211) — o abastecimento ligado à atividade (colunas, bac
       ['D-PROD-209 também pendente', sem(CONTRACT_209), D209],
       ['D-PROD-208 também pendente', sem(CONTRACT_208), D208],
       ['D-PROD-200 também pendente', sem(CONTRACT_198), D198],
-      ['as doze pendentes', () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')], D162, { sem210: true, sem213: true }],
+      ['as doze pendentes', () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')], D162, { sem210: true, sem216: true }],
     ];
     for (const [rotulo, historico, outra, opcoes = {}] of cenarios) {
       const com211 = await rodarBarreiraContract(remoto('D-PROD-211'), historico, opcoes);
@@ -1381,17 +1381,17 @@ describe('B23 (D-PROD-211) — o abastecimento ligado à atividade (colunas, bac
   });
 });
 
-describe('B24 (D-PROD-214) — o reforço do abastecimento (UNIQUE em AtividadeApontamento e a FK do apontamento com a atividade) só passa pelo runner com a própria decisão, e nunca junto de outra CONTRACT', () => {
-  const D213 = `${CONTRACT_213} (D-PROD-214)`;
+describe('B24 (D-PROD-216) — o reforço do abastecimento (UNIQUE em AtividadeApontamento e a FK do apontamento com a atividade) só passa pelo runner com a própria decisão, e nunca junto de outra CONTRACT', () => {
+  const D216 = `${CONTRACT_216} (D-PROD-216)`;
   const D211 = `${CONTRACT_211} (D-PROD-211)`;
   const D210 = `${CONTRACT_210} (D-PROD-210)`;
   const D198 = `${CONTRACT_198} (D-PROD-200)`;
   const D162 = `${CONTRACT_162} (D-PROD-162)`;
-  // Produção hoje: as onze CONTRACT anteriores já estão concluídas (a D-PROD-211 por último); a D-PROD-214 é a única
-  // CONTRACT pendente. Todo cenário passa `sem213` (a D-PROD-214 só entra no histórico quando o cenário a põe).
+  // Produção hoje: as onze CONTRACT anteriores já estão concluídas (a D-PROD-211 por último); a D-PROD-216 é a única
+  // CONTRACT pendente. Todo cenário passa `sem216` (a D-PROD-216 só entra no histórico quando o cenário a põe).
   const ANTERIORES = [CONTRACT_162, CONTRACT_183, CONTRACT_187, CONTRACT_194, CONTRACT_195, CONTRACT_196, CONTRACT_198, CONTRACT_208, CONTRACT_209, CONTRACT_210, CONTRACT_211];
   const PRODUCAO = () => ANTERIORES.map((n) => concluida(n));
-  const SEM213 = { sem213: true };
+  const SEM216 = { sem216: true };
   const remoto = (autorizado) => ({
     [VARIAVEL_DE_MIGRATION]: ALVO_REMOTO,
     ...(autorizado === undefined ? {} : { MIGRATION_CONTRACT_AUTORIZADO: autorizado }),
@@ -1406,86 +1406,86 @@ describe('B24 (D-PROD-214) — o reforço do abastecimento (UNIQUE em AtividadeA
     assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), `${rotulo}: a saída expôs a URL:\n${r.texto}`);
   };
 
-  test('B24-1 as onze CONTRACT anteriores concluídas e a D-PROD-214 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-214', async () => {
+  test('B24-1 as onze CONTRACT anteriores concluídas e a D-PROD-216 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-216', async () => {
     // 'D-PROD-211' é a CONTRACT que o reforço completa e 'D-PROD-212' não é CONTRACT: nenhuma autoriza esta; nem a decisão
     // em minúsculas, com espaço, cortada ou com um dígito a mais (comparação exata).
-    for (const autorizado of [undefined, '', 'D-PROD-162', 'D-PROD-200', 'D-PROD-210', 'D-PROD-211', 'D-PROD-212', 'd-prod-213', ' D-PROD-214 ', ' D-PROD-214', 'D-PROD-214 ', 'D-PROD-21', 'D-PROD-2140']) {
-      const r = await rodarBarreiraContract(remoto(autorizado), PRODUCAO, SEM213);
-      assertRecusa(r, D213, String(autorizado));
+    for (const autorizado of [undefined, '', 'D-PROD-162', 'D-PROD-200', 'D-PROD-210', 'D-PROD-211', 'D-PROD-212', 'd-prod-216', ' D-PROD-216 ', ' D-PROD-216', 'D-PROD-216 ', 'D-PROD-21', 'D-PROD-2160']) {
+      const r = await rodarBarreiraContract(remoto(autorizado), PRODUCAO, SEM216);
+      assertRecusa(r, D216, String(autorizado));
       for (const anterior of ANTERIORES) assert.ok(!r.texto.includes(anterior), `${anterior} já está concluída e não pode ser citada:\n${r.texto}`);
     }
   });
 
-  test('B24-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-214 → segue e registra a autorização', async () => {
-    const r = await rodarBarreiraContract(remoto('D-PROD-214'), PRODUCAO, SEM213);
+  test('B24-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-216 → segue e registra a autorização', async () => {
+    const r = await rodarBarreiraContract(remoto('D-PROD-216'), PRODUCAO, SEM216);
     assert.equal(r.pode, true);
     assert.equal(r.leu, 1);
-    assert.ok(r.texto.includes(`CONTRACT autorizado: ${D213}`), r.texto);
+    assert.ok(r.texto.includes(`CONTRACT autorizado: ${D216}`), r.texto);
     assert.ok(!r.texto.includes('FALHOU'), r.texto);
     for (const anterior of ANTERIORES) assert.ok(!r.texto.includes(anterior), r.texto);
     assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), r.texto);
   });
 
-  test('B24-3 D-PROD-214 pendente junto de outra CONTRACT → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
+  test('B24-3 D-PROD-216 pendente junto de outra CONTRACT → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
     const sem = (n) => () => ANTERIORES.filter((x) => x !== n).map((x) => concluida(x));
     const cenarios = [
       // [rótulo, histórico, a outra pendente, opções] — `sem210` deixa também a D-PROD-210 fora do histórico (pendente).
-      ['D-PROD-211 também pendente', sem(CONTRACT_211), D211, SEM213],
-      ['D-PROD-210 também pendente', sem(CONTRACT_210), D210, { sem210: true, sem213: true }],
-      ['D-PROD-200 também pendente', sem(CONTRACT_198), D198, SEM213],
-      ['as doze pendentes', () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')], D162, { sem210: true, sem213: true }],
+      ['D-PROD-211 também pendente', sem(CONTRACT_211), D211, SEM216],
+      ['D-PROD-210 também pendente', sem(CONTRACT_210), D210, { sem210: true, sem216: true }],
+      ['D-PROD-200 também pendente', sem(CONTRACT_198), D198, SEM216],
+      ['as doze pendentes', () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')], D162, { sem210: true, sem216: true }],
     ];
     for (const [rotulo, historico, outra, opcoes] of cenarios) {
-      const com213 = await rodarBarreiraContract(remoto('D-PROD-214'), historico, opcoes);
-      assertRecusa(com213, outra, `${rotulo} / D-PROD-214`);
-      assert.ok(!com213.texto.includes(D213), `${rotulo}: a D-PROD-214 autorizada não é a que falta:\n${com213.texto}`);
+      const com216 = await rodarBarreiraContract(remoto('D-PROD-216'), historico, opcoes);
+      assertRecusa(com216, outra, `${rotulo} / D-PROD-216`);
+      assert.ok(!com216.texto.includes(D216), `${rotulo}: a D-PROD-216 autorizada não é a que falta:\n${com216.texto}`);
       for (const decisao of ['D-PROD-162', 'D-PROD-200', 'D-PROD-210', 'D-PROD-211']) {
-        assertRecusa(await rodarBarreiraContract(remoto(decisao), historico, opcoes), D213, `${rotulo} / ${decisao}`);
+        assertRecusa(await rodarBarreiraContract(remoto(decisao), historico, opcoes), D216, `${rotulo} / ${decisao}`);
       }
       const semVariavel = await rodarBarreiraContract(remoto(undefined), historico, opcoes);
-      assertRecusa(semVariavel, D213, `${rotulo} / sem variável`);
+      assertRecusa(semVariavel, D216, `${rotulo} / sem variável`);
       assert.ok(semVariavel.texto.includes(outra), `${rotulo}: ${semVariavel.texto}`);
-      for (const composto of ['D-PROD-211,D-PROD-214', 'D-PROD-211 D-PROD-214']) {
+      for (const composto of ['D-PROD-211,D-PROD-216', 'D-PROD-211 D-PROD-216']) {
         const r = await rodarBarreiraContract(remoto(composto), historico, opcoes);
-        assertRecusa(r, D213, `${rotulo} / ${composto}`);
+        assertRecusa(r, D216, `${rotulo} / ${composto}`);
         assert.ok(r.texto.includes(outra), `${rotulo} / ${composto}: a outra também fica sem autorização\n${r.texto}`);
       }
     }
   });
 
-  test('B24-4 D-PROD-214 com linha aberta (finished_at null) ou revertida continua pendente', async () => {
+  test('B24-4 D-PROD-216 com linha aberta (finished_at null) ou revertida continua pendente', async () => {
     for (const [rotulo, linha] of [
-      ['aberta', concluida(CONTRACT_213, { finished_at: null })],
-      ['revertida', concluida(CONTRACT_213, { rolled_back_at: new Date() })],
+      ['aberta', concluida(CONTRACT_216, { finished_at: null })],
+      ['revertida', concluida(CONTRACT_216, { rolled_back_at: new Date() })],
     ]) {
       const historico = () => [...PRODUCAO(), linha];
-      assertRecusa(await rodarBarreiraContract(remoto(undefined), historico, SEM213), D213, rotulo);
-      const autorizada = await rodarBarreiraContract(remoto('D-PROD-214'), historico, SEM213);
+      assertRecusa(await rodarBarreiraContract(remoto(undefined), historico, SEM216), D216, rotulo);
+      const autorizada = await rodarBarreiraContract(remoto('D-PROD-216'), historico, SEM216);
       assert.equal(autorizada.pode, true, rotulo);
-      assert.ok(autorizada.texto.includes(`CONTRACT autorizado: ${D213}`), `${rotulo}:\n${autorizada.texto}`);
+      assert.ok(autorizada.texto.includes(`CONTRACT autorizado: ${D216}`), `${rotulo}:\n${autorizada.texto}`);
     }
   });
 
   test('B24-5 as doze CONTRACT concluídas no alvo → segue sem a variável e sem anunciar autorização', async () => {
     for (const historico of [
-      () => [...PRODUCAO(), concluida(CONTRACT_213)],
-      () => [...PRODUCAO(), concluida(CONTRACT_213, { rolled_back_at: new Date() }), concluida(CONTRACT_213)],
+      () => [...PRODUCAO(), concluida(CONTRACT_216)],
+      () => [...PRODUCAO(), concluida(CONTRACT_216, { rolled_back_at: new Date() }), concluida(CONTRACT_216)],
     ]) {
-      const r = await rodarBarreiraContract(remoto(undefined), historico, SEM213);
+      const r = await rodarBarreiraContract(remoto(undefined), historico, SEM216);
       assert.equal(r.pode, true);
       assert.equal(r.leu, 1);
       assert.equal(r.texto, '', `nada a autorizar, nada a dizer:\n${r.texto}`);
     }
   });
 
-  test('B24-6 URL local sem MIGRATION_EXIGIR_CONFERENCIA → segue sem ler o histórico; com a conferência exigida → recusa a D-PROD-214 pendente', async () => {
+  test('B24-6 URL local sem MIGRATION_EXIGIR_CONFERENCIA → segue sem ler o histórico; com a conferência exigida → recusa a D-PROD-216 pendente', async () => {
     for (const autorizado of [undefined, 'D-PROD-211']) {
       const env = { [VARIAVEL_DE_MIGRATION]: ALVO_LOCAL, ...(autorizado === undefined ? {} : { MIGRATION_CONTRACT_AUTORIZADO: autorizado }) };
-      const livre = await rodarBarreiraContract(env, () => [], SEM213);
+      const livre = await rodarBarreiraContract(env, () => [], SEM216);
       assert.equal(livre.pode, true, String(autorizado));
       assert.equal(livre.leu, 0, String(autorizado));
     }
-    const exigida = await rodarBarreiraContract({ [VARIAVEL_DE_MIGRATION]: ALVO_LOCAL, MIGRATION_EXIGIR_CONFERENCIA: 'sim' }, PRODUCAO, SEM213);
-    assertRecusa(exigida, D213, 'conferência exigida');
+    const exigida = await rodarBarreiraContract({ [VARIAVEL_DE_MIGRATION]: ALVO_LOCAL, MIGRATION_EXIGIR_CONFERENCIA: 'sim' }, PRODUCAO, SEM216);
+    assertRecusa(exigida, D216, 'conferência exigida');
   });
 });

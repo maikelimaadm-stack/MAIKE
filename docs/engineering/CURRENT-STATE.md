@@ -9,16 +9,37 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-214)
+## Missão ativa (2026-11-16) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-216)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-214**, pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
-| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213) por merge · PR **#303** |
+| Decisão | **D-PROD-216** (nasceu D-PROD-213, depois D-PROD-214; a `main` deu a 213 ao Resumo do Rebanho, a 214 aos ajustes do mapa e a 215 às Culturas), pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
+| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213) e a `main` `133c6ed4` (PRs #304, #305 e #306, D-PROD-214 e D-PROD-215) por merge · PR **#303** |
 | Escopo | Só banco: `AtividadeApontamento` ganha o UNIQUE (`cliente_id`, `empresa_id`, `atividade_id`, `id`) e a FK `AbastecimentoBem_apontamento_fkey` passa a 4 colunas (com a atividade): o banco recusa um abastecimento ligado a apontamento de outra atividade. Código do servidor e da tela sem mudança |
-| Migration | `20261116400000_abastecimento_fk_apontamento_atividade`, **CONTRACT** (décima segunda de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 62 → 63 (a anterior é a `20261116300000_abastecimento_atividade`, D-PROD-211); tabelas 94 (sem mudança) |
+| Migration | `20261116600000_abastecimento_fk_apontamento_atividade` (a pasta era `20261116400000_…`; renomeada para vir depois da `20261116500000_cadculturas`, já aplicada em produção, e a ordem do repositório ser a de produção; conteúdo idêntico), **CONTRACT** (décima segunda de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 63 → 64 (a anterior é a `20261116500000_cadculturas`, D-PROD-215); tabelas 95 (sem mudança) |
 | Release | Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md). `SCHEMA_APPLIED_PROD: NÃO` |
 | Documentos | [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) · [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-CULTURAS: Cadastro de Culturas, tabela `CADCULTURAS`, com lista de referência (D-PROD-215)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-215**, pedido do proprietário: primeiro passo da produção de forragem e das medições; o catálogo de culturas traz as alturas de referência, numerado |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `83206ab5` (PR #302, D-PROD-213) |
+| Escopo | Model `Cultura` / tabela `CADCULTURAS` por fazenda; API `/culturas` + comando idempotente `POST /culturas/comandos/lista-referencia` (11 forrageiras); tela "Culturas" Base1 no menu Manejo; permissão `pec-culturas` sem concessão automática. Sem vínculo com Área, pasto ou lote |
+| Migration | `20261116500000_cadculturas`, **EXPAND** (só a tabela nova), SHA-256 `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`. Produção 62 → 63 (a anterior é a `20261116300000_abastecimento_atividade`, D-PROD-211); tabelas 94 → 95 |
+| Release | **Aplicada em produção** em 2026-11-16 às 22:54:49 UTC, caminho B do [runbook](./MAIKE-CULTURAS-RUNBOOK-RELEASE.md), com o GO escrito do proprietário; postcheck 63 / 0, checksum igual ao pinado, `CADCULTURAS` com RLS e 1 política, 5 constraints, `anon` sem SELECT, 95 tabelas |
+| Relatório | [`MAIKE-CULTURAS-REPORT.md`](./MAIKE-CULTURAS-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-MAPA-CADASTROS-LIGACOES: bugs dos cadastros do mapa e das ligações (D-PROD-214)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-214**, pedido do proprietário: verificar e corrigir os cadastros do mapa (pontos, áreas, linhas, cochos, depósitos, bebedouros), o cadastro em lote e as ligações entre áreas, pontos e lotes |
+| Branch / PR | `fix/mapa-cadastros-ligacoes`, a partir da `main` `83206ab5` (PR #302) · PR **#305** |
+| Escopo | Ligação estrita ponto↔cocho/depósito/bebedouro; exclusão com histórico bloqueada; `numero_ponto` no servidor; ocupação derivada; propagação de nome de área/setor; renumeração de áreas; Mapa Geral relendo depois de cadastros. Bugs de lote/movimentação só registrados (pausa nos lotes) |
+| Release | Sem migration: merge e deploy normais |
+| Relatório | [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md) |
 
 ## Missão anterior (2026-11-16) — MAIKE-RESUMO-REBANHO: Resumo do Rebanho no Mapa Geral (D-PROD-213)
 

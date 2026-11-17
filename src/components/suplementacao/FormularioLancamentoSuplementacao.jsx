@@ -38,7 +38,6 @@ import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeCon
 import { baseDoConsumo, consumoEsperadoPorFormulacao, pesoDeConsumoDoLote, resumoPesoDosLotes } from "./consumoPVUtils";
 import { curvaDaProjecaoDePeso } from "@/domain/rebanho/ganhoPelaCurva";
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
-import { confirmar } from "@/lib/maikeConfirmar";
 import { listEmpresas } from "@/services/empresaService";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { createPageUrl } from "@/utils";
@@ -318,35 +317,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const consumoEsperadoCabDiaPV = consumoPV.cabecasConsomem > 0 ? safeDivide(consumoEsperadoGrupoDiaPV, consumoPV.cabecasConsomem) : 0;
   const consumoDoLote = useMemo(() => new Map(consumoPV.porLote.map((l) => [l.id, l])), [consumoPV]);
 
-  // Consumo estimado do novo lançamento
-  const frequenciaMinima = Math.max(0, Number(ponto?.frequencia_esperada_dias_minimo || 0));
-  const frequenciaMaxima = Math.max(frequenciaMinima || 0, Number(ponto?.frequencia_esperada_dias_maximo || ponto?.frequencia_esperada_dias || 0));
-  const frequenciaMedia = frequenciaMinima > 0 && frequenciaMaxima > 0
-    ? (frequenciaMinima + frequenciaMaxima) / 2
-    : Math.max(1, Number(ponto?.frequencia_esperada_dias || 1));
+  // Consumo estimado do novo lançamento.
+  // O cocho não tem faixa de frequência esperada (não existe `frequencia_esperada_dias*` em
+  // PontoSuplementacao): a confirmação "Duração fora do esperado" lia campos inexistentes e nunca aparecia.
   const consumoReferenciaGrupoDia = consumoEsperadoGrupoDiaPV > 0
     ? consumoEsperadoGrupoDiaPV
     : (Number(ponto?.consumo_ideal_por_cabeca_kg || 0) * totalCabecas);
   const totalDisponivelNovo = Math.max(0, quantidadeKg + sobraInformada);
-  const consumoEstimadoCabDia = totalCabecas > 0 && frequenciaMedia > 0 ? safeDivide(totalDisponivelNovo, totalCabecas * frequenciaMedia) : 0;
-  const consumoEstimadoGramas = consumoEstimadoCabDia * 1000;
   const duracaoDiasNovoPeriodo = consumoReferenciaGrupoDia > 0 ? safeDivide(totalDisponivelNovo, consumoReferenciaGrupoDia) : 0;
   const duracaoDiasInteira = Math.max(0, Math.round(duracaoDiasNovoPeriodo || 0));
   const dataEstimadaProxima = (() => {
     const dataBase = parseDateLocal(formData.data_lancamento);
     if (!dataBase || duracaoDiasInteira <= 0) return null;
     return new Date(dataBase.getTime() + duracaoDiasInteira * 86400000);
-  })();
-
-  const statusDuracao = (() => {
-    if (duracaoDiasInteira <= 0) return { status: "sem_dados", label: "Sem referência", message: "Não foi possível calcular a duração estimada." };
-    if (frequenciaMinima > 0 && duracaoDiasInteira < frequenciaMinima) {
-      return { status: "baixo", label: "Abaixo do mínimo", message: `A duração estimada ficou abaixo da frequência mínima (${formatDecimal(frequenciaMinima, 0, true)} dia(s)).` };
-    }
-    if (frequenciaMaxima > 0 && duracaoDiasInteira > frequenciaMaxima) {
-      return { status: "alto", label: "Acima do máximo", message: `A duração estimada ficou acima da frequência máxima (${formatDecimal(frequenciaMaxima, 0, true)} dia(s)).` };
-    }
-    return { status: "normal", label: "Dentro do limite", message: "A duração estimada ficou dentro da faixa esperada do cocho." };
   })();
 
 
@@ -467,11 +450,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }
     }
 
-    if (statusDuracao.status === "baixo" || statusDuracao.status === "alto") {
-      const confirmarDuracao = await confirmar({ titulo: "Duração fora do esperado", descricao: `${statusDuracao.message}\n\nDeseja salvar mesmo assim?`, textoConfirmar: "Salvar mesmo assim" });
-      if (!confirmarDuracao) return;
-    }
-
     if (!operacaoRef.current) {
       operacaoRef.current = {
         id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -526,7 +504,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           localOrigemId: depositoVinculado.local_estoque_id,
           localOrigemNome: depositoVinculado.local_estoque_nome,
           areaId: areaIdsVinculados[0] || ponto.area_vinculada_id,
-          areaNome: areaNomesResolvidos.join(", ") || ponto.area_vinculada_nome,
+          // O movimento guarda o nome em VarChar(255) e a rota recusa (400) texto maior: cocho com
+          // muitos pastos impedia o lançamento. O vínculo real é `area_id`/`ponto_suplementacao_id`.
+          areaNome: rotuloDeAreasDaSaida(areaNomesResolvidos, ponto.area_vinculada_nome),
           observacoes: `Saída automática para o cocho ${ponto.nome_ponto}${formData.observacoes ? ` - ${formData.observacoes}` : ""}`,
           lotesNota,
           depositoId: depositoVinculado.id,
@@ -989,6 +969,34 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
  */
 export function chaveDaSaida({ produtoId, quantidadeKg, data, localId }) {
   return [String(produtoId ?? ""), Number(quantidadeKg || 0).toFixed(4), String(data ?? ""), String(localId ?? "")].join("|");
+}
+
+/** Tamanho máximo de `area_nome` no comando de saída de estoque (VarChar(255) no movimento). */
+export const MAX_ROTULO_AREAS_SAIDA = 255;
+
+/**
+ * Rótulo das áreas do cocho para a saída de estoque, cabendo em `max` caracteres: todos os nomes
+ * quando cabem; senão os primeiros e "+N" ("PASTO A, PASTO B +10"); em último caso, o texto cortado
+ * com "…". Sem nomes, o `fallback` (também limitado). Nada → null.
+ * @param {unknown[]} nomes
+ * @param {unknown} [fallback]
+ * @param {number} [max]
+ * @returns {string | null}
+ */
+export function rotuloDeAreasDaSaida(nomes, fallback, max = MAX_ROTULO_AREAS_SAIDA) {
+  const lista = (Array.isArray(nomes) ? nomes : []).map((n) => String(n ?? "").trim()).filter(Boolean);
+  const cortar = (/** @type {string} */ t) => (t.length <= max ? t : `${t.slice(0, Math.max(0, max - 1))}…`);
+  if (!lista.length) {
+    const reserva = String(fallback ?? "").trim();
+    return reserva ? cortar(reserva) : null;
+  }
+  const completo = lista.join(", ");
+  if (completo.length <= max) return completo;
+  for (let k = lista.length - 1; k >= 1; k -= 1) {
+    const rotulo = `${lista.slice(0, k).join(", ")} +${lista.length - k}`;
+    if (rotulo.length <= max) return rotulo;
+  }
+  return cortar(completo);
 }
 
 /**

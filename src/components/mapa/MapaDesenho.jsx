@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIconesDaEmpresa } from "@/services/mapaService";
+import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIconesAtivos } from "@/services/mapaService";
+import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { X, Target } from "lucide-react";
@@ -197,9 +198,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     enabled: !!empresaSelecionadaId,
   });
 
+  // Ícone é configuração do tenant (gravado sem empresa), como no Mapa Geral:
+  // filtrar por empresa devolvia lista vazia e o ponto virava círculo genérico.
+  // Chave própria: ["configuracao-icones", empresa] é usada com outra queryFn.
   const { data: iconesConfig = [] } = useQuery({
-    queryKey: ["configuracao-icones", empresaSelecionadaId],
-    queryFn: async () => listarIconesDaEmpresa(empresaSelecionadaId),
+    queryKey: ["configuracao-icones-editor-mapa", empresaSelecionadaId],
+    queryFn: async () => listarIconesAtivos(),
     enabled: !!empresaSelecionadaId,
   });
 
@@ -1564,7 +1568,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               setShowFormularioArea(false);
               setCorPrevia(null);
               cancelarDesenho();
-              queryClient.invalidateQueries({ queryKey: ["areas"] });
+              invalidarCachesDoMapa(queryClient, ["areas"]);
               onSalvar();
             }}
             onCancel={() => {
@@ -1588,11 +1592,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             onSave={() => {
               setShowFormularioPonto(false);
               cancelarDesenho();
-              queryClient.invalidateQueries({
-                predicate: (query) =>
-                  Array.isArray(query.queryKey) &&
-                  ["pontos", "pontos-suplementacao", "mapa-pontos", "mapa-pontos-supl"].includes(query.queryKey[0]),
-              });
+              invalidarCachesDoMapa(queryClient, ["pontos", "pontos-suplementacao", "mapa-pontos", "mapa-pontos-supl"]);
               window.dispatchEvent(new CustomEvent("atualizar-mapa"));
               onSalvar();
             }}
@@ -1616,7 +1616,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             onSave={() => {
               setShowFormularioLinha(false);
               cancelarDesenho();
-              queryClient.invalidateQueries({ queryKey: ["linhas"] });
+              invalidarCachesDoMapa(queryClient, ["linhas"]);
               onSalvar();
             }}
             onCancel={() => setShowFormularioLinha(false)}

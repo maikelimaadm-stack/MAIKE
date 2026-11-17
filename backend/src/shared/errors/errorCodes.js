@@ -343,6 +343,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
   },
+  // D-PROD-215 — Cadastro de Culturas da fazenda (tabela CADCULTURAS).
+  CULTURA_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica cultura desta fazenda neste tenant',
+  },
+  CULTURA_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe cultura com este nome nesta fazenda',
+  },
+  CULTURA_CODIGO_CONFLICT: {
+    http: 409,
+    meaning: 'já existe cultura com este código nesta fazenda',
+  },
   // D-PROD-207 — cadastro de Serviço da fazenda (Fatia 4 do Lançamento de Atividades).
   // D-PROD-208: o código 404 do cadastro de Funcionário saiu com ele (o funcionário é papel do parceiro).
   SERVICO_NOT_FOUND: {
@@ -431,6 +444,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // D-PROD-137 (BEB-02/BEB-03): os services de bebedouro já lançavam estes
   // códigos, mas fora do catálogo eles viravam 500 ("erro interno").
   BEBEDOURO_NOT_FOUND: { http: 404, meaning: 'id não identifica bebedouro deste tenant (e desta empresa, no histórico)' },
+  // D-PROD-214: exclusão do ponto do mapa com cocho/depósito/bebedouro ligado.
+  BEBEDOURO_COM_HISTORICO: { http: 409, meaning: 'bebedouro com lançamentos de histórico ou sanidade não é excluído; nada foi apagado' },
+  PONTO_SUPLEMENTACAO_NOT_FOUND: { http: 404, meaning: 'id não identifica ponto de suplementação (cocho/depósito) deste tenant' },
+  PONTO_SUPLEMENTACAO_COM_HISTORICO: { http: 409, meaning: 'cocho/depósito com leituras, eventos de suplementação, movimentações ou saldo de estoque não é excluído; nada foi apagado' },
   BEBEDOUROHISTORICO_NOT_FOUND: { http: 404, meaning: 'id não identifica lançamento de bebedouro deste tenant' },
   BEBEDOUROHISTORICO_SOMENTE_ULTIMO: {
     http: 409,
