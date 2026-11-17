@@ -7680,4 +7680,27 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-AREA-CULTURA-REPORT.md`](./MAIKE-AREA-CULTURA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-217 -->
+## D-PROD-217 — Mapa Geral: barra do topo v12 (⚙ · Lotes · Pastos · Tarefas) e Detalhes do Lote v12
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário: implementar o design "Detalhes do Lote v12" (canvas aprovado) com os componentes do sistema — os botões do mapa, os campos de cima (Tarefas, Lote…) e o Detalhes do Lote, "tudo igual". No meio do trabalho ele fixou: **"os filtros deixe do jeito que está atualmente"**, e escolheu a barra do v12 com os filtros de hoje · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308.
+
+**Decisão — mapa.**
+1. **Barra do topo** (`MapaControlesMobile`, `.mk-mapa-barra`): a barra escura do v12 substitui os botões de canto Tarefas/Filtros. O ⚙ (nome acessível "Filtros") abre o painel de Filtros de sempre, **sem mudança**; os segmentos **Lotes · Pastos · Tarefas** trocam o foco do mapa; Tarefas também abre a Gestão de Tarefas que já existe. Coluna da direita (Visualização, Atualizar, Localizar, Mover), legenda, resumo e todos os filtros/listas ficam como estavam.
+2. **Foco** (`src/lib/mapaFoco.js`, estado da página, não salvo; abre sempre em Lotes): **Lotes** = como antes; **Pastos** = sem marcadores de lote e sem tarefas, rótulo da área com "x,x UA (y,yy/ha)" (ou "Descanso Nd" na área vazia em descanso), mesmo com a cor "Situação do Pasto"; **Tarefas** = sem marcadores de lote e sem cochos/depósitos. Só os argumentos dos `renderer.sync*` mudam (renderer intacto). Pastos exige `visualizar_areas`; Tarefas, a permissão das tarefas do mapa; perdeu a permissão do foco atual → volta para Lotes. A consulta de movimentações fica ligada também no foco Pastos (chave estável).
+3. **Celular:** a barra vai da esquerda até antes da coluna da direita (não cobre Visualização). O aviso do satélite desce para baixo da barra (só no Mapa Geral).
+
+**Decisão — Detalhes do Lote** (raiz CSS nova `.mk-dp`; a casca v8 `.mk-dl8` fica para o Resumo do Rebanho, D-PROD-213).
+4. **Casca:** popup a partir de **768 px** (computador e tablet; prop nova `popupDesde="tablet"` do `LancLoteDialogo`, aditiva), tela cheia no celular. Título = área, subtítulo = setor. Pilha de telas na mesma janela (tela do lote, "Manejos e históricos", "Configurar tabela") com **‹ Voltar** (contexto novo `setCabecalho` do `LancLoteDialogo`). Esc volta um nível; na raiz do popup não fecha (D-PROD-125 mantida); clique no véu não fecha.
+5. **Abas:** Detalhes · Lotes (badge, fora do celular) · Histórico (com `visualizar_historico_movimentacoes_lote`) · Suplementação ("Supl." no celular; com `visualizar_cochos_suplementacao`). Aberto pelo marcador, abre em **Lotes**. O clique no contorno da área continua abrindo o "Histórico da Área" (sem mudança).
+6. **Lotes:** Resumo (KPIs + lista com caixa de marcar), Lote (‹ ›, todos os alertas, Lotação/Pesagem/Identificação abertas) e Lista (colunas por usuário — `colunasLote` no escopo D-PROD-135, padrão Alertas + Lotação + Pesagem — e "Configurar tabela"). Vista inicial como o v12: **Lista** no computador/tablet e **Resumo** no celular, lembrada por área na sessão — substitui o "sempre Resumo" do v8. O "Filtrar"/"Mostrar informações" do v8 saem.
+7. **Rodapé:** **Mover lotes · Pesar · Manejos** (desabilitados sem lote; pílula some sem a permissão). Alvo dos manejos: lote da tela do lote → senão os marcados → senão todos (inclusive Juntar, avaliado sobre o alvo). Na aba Suplementação com cocho: **Lançar · Leitura · Histórico** (os mesmos formulários do detalhe do cocho).
+8. **Manejos e históricos** vira tela da pilha (3 colunas em todos os modos, D-PROD-119 atualizada). Formulários e os históricos completos (Excluir, Carregar mais, D-PROD-110/117) continuam abrindo como diálogos por cima. Depois de salvar um manejo o Detalhes fecha, como antes (o diálogo recebe um retrato das posições).
+9. **Histórico (aba):** linha do tempo do v12 com dados reais da área (mesma consulta paginada e o mesmo fallback offline do histórico de hoje; eventos de suplementação da área). "Registrado por" e o peso da transferência não existem como dado → não aparecem. Cancelados com chip "Cancelado".
+10. **Suplementação (aba):** cochos da área (pontos decorados do mapa), KPIs/Fornecimento/Consumo do primeiro cocho por nome (com 2+ cochos, o título leva o nome dele), tolerância real do fechamento (padrão 15%).
+11. **Visual:** tipografia, cores e medidas do v12 (valores 14 px, rótulos 12,5, títulos 15, texto `#1f2937`) **só** no Detalhes v12 — supera, para este painel, a D-PROD-175 e a cor `#374151` da D-PROD-120/124. Unidade depois do número, como no v12 ("449,5 kg"). O deslize lateral do v8 sai; o gesto da borda (D-PROD-120) continua.
+
+**Fora do escopo:** formulários de manejo, detalhe do cocho/depósito/bebedouro/tarefa, painel de tarefas, cabeçalho/menu do sistema, painel Opções do mapa e listas de filtro do v12 (o dono manteve os de hoje).
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md). **Design versionado:** `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html`.
+
+<!-- Próxima decisão: D-PROD-218 -->

@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-AREA-CULTURA: Área ligada à Cultura e o vínculo das áreas à 001 Marandu (D-PROD-216)
+## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12 e Detalhes do Lote v12 (D-PROD-217)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-217**, pedido do proprietário: implementar o design "Detalhes do Lote v12" com os componentes do sistema, mantendo os filtros do mapa como estão |
+| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho até a conferência final) |
+| Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (⚙ abre os Filtros de sempre; foco Lotes/Pastos/Tarefas em `src/lib/mapaFoco.js`). Detalhes do Lote v12 (`.mk-dp`): popup a partir de 768 px, pilha de telas com ‹ Voltar, abas Detalhes · Lotes · Histórico · Suplementação, rodapé Mover lotes · Pesar · Manejos com alvo por seleção, Manejos e históricos em tela. Manejos, ledger e permissões sem mudança. Sem backend, sem migration |
+| Testes | `test:smoke` 265 arquivos / 3.315 testes verdes no conjunto integrado; gates de fonte, tipos (465 ≤ 625), escopo, base44, segredos e fronteira verdes |
+| Relatório | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-AREA-CULTURA: Área ligada à Cultura e o vínculo das áreas à 001 Marandu (D-PROD-216)
 
 | Campo | Valor |
 |---|---|
