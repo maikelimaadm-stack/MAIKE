@@ -29,7 +29,8 @@ Geral. O farol no mapa, a lotação pela massa seca e a produtividade ficam para
 | Detalhe da área | `tests/smoke/detalhesAreaHistorico.test.jsx` verde (sem a chave, nada muda) |
 | Ferramental de deploy | `premerge-migrate.test.mjs` (B33a/b/k, contagens 65) e `preflight-schema.test.mjs` verdes |
 | SQL Editor 01–04 | `sqlEditorBootstrap` e `sqlEditorPreservaMaike` verdes (a MEDICAOFORRAGEM antes da AreaPastagem, da CADCULTURAS e da Empresa; 96 tabelas, 81 de tenant) |
-| Testes de migration | ver o PR |
+| Testes de migration (11 arquivos) e `scripts/tests/deploy` | verdes depois do ajuste (65 migrations, 96 tabelas; a MEDICAOFORRAGEM sobe por último, sem decisão) |
+| `test:smoke` completo | 260 arquivos, 3183 testes verdes |
 | Ensaio do caminho B | §3 do runbook: recusa com o alvo de produção, aplica 64 → 65, `migrate diff` vazio, repetição recusada |
 
 ## 3. Pendências e notas

@@ -471,7 +471,7 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.deepEqual(depois.colunas, [...COLUNAS_DEPOIS]);
     for (const c of COLUNAS_ESTACAO) assert.ok(!depois.colunas.includes(c), `${c} saiu`);
     assert.equal(depois.curvas, 0, 'a tabela volta vazia');
-    assert.equal(depois.tabelas, partida.tabelas + 10, '85 → 95 (a D-PROD-215 acrescenta a CADCULTURAS; a D-PROD-208 tira a Funcionario que a D-PROD-207 criou): a D-PROD-200 troca as 3 do apontamento antigo pelas 2 da atividade, a D-PROD-202 acrescenta as 3 das linhas, a D-PROD-203 as 3 das Formulações, a D-PROD-205 a LEITURACOCHO e a D-PROD-207 as 4 da mão de obra e do serviço; esta, a D-PROD-195, a D-PROD-197, a D-PROD-198 e a D-PROD-206 não criam nem apagam tabela');
+    assert.equal(depois.tabelas, partida.tabelas + 11, '85 → 96 (a D-PROD-219 acrescenta a MEDICAOFORRAGEM; a D-PROD-215 acrescenta a CADCULTURAS; a D-PROD-208 tira a Funcionario que a D-PROD-207 criou): a D-PROD-200 troca as 3 do apontamento antigo pelas 2 da atividade, a D-PROD-202 acrescenta as 3 das linhas, a D-PROD-203 as 3 das Formulações, a D-PROD-205 a LEITURACOCHO e a D-PROD-207 as 4 da mão de obra e do serviço; esta, a D-PROD-195, a D-PROD-197, a D-PROD-198 e a D-PROD-206 não criam nem apagam tabela');
     assert.notEqual(depois.seguranca.oid, partida.seguranca.oid, 'a tabela foi recriada');
     assert.equal(depois.seguranca.rls, true, 'RLS ligado');
     assert.equal(depois.seguranca.force, false, 'sem FORCE');

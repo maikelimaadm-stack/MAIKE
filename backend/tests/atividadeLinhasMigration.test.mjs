@@ -117,7 +117,7 @@ const NOME_LEITURA = '20261115100000_leitura_cocho';
 const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
 const TABELAS_POSTERIORES = Object.freeze([...TABELAS_FORMULACOES, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM']);
 // D-PROD-215: a CADCULTURAS (EXPAND posterior, ver o cabeçalho) entra com as das Formulações e a da Leitura de cocho.
-const daFormulacao = (l) => /^(CADFORMULACAO|LEITURACOCHO|CADCULTURAS)/.test(l);
+const daFormulacao = (l) => /^(CADFORMULACAO|LEITURACOCHO|CADCULTURAS|MEDICAOFORRAGEM)/.test(l);
 /** D-PROD-207: a EXPAND da mão de obra e do serviço, de nome posterior; não existia no dia desta (ver o cabeçalho). */
 const NOME_MAO_OBRA = '20261115900000_atividade_mao_obra_servico';
 const NOVAS_MAO_OBRA = Object.freeze(['AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico']);
