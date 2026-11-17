@@ -18,7 +18,7 @@ rollout pausado **D-PROD-41**)
 | Escopo | `AreaPastagem.cultura_id` (FK composta pela fazenda, RESTRICT); `tipo_pastagem` derivado do nome da cultura; API das áreas com `cultura_id` e `cultura`; `CULTURA_EM_USO` (409) na exclusão; formulário da Área com o campo "Cultura" ("001 · NOME"); grade com o rótulo; SQL Editor 01–04 na ordem nova. Sem alturas no pasto ou no lote |
 | Migration | `20261117000000_area_cultura`, **CONTRACT aditiva** (D-PROD-216), SHA-256 `e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26`. Produção 63 → 64 (a anterior é a `20261116500000_cadculturas`, D-PROD-215); 95 tabelas (nenhuma nova) |
 | Dados | Depois da migration, o vínculo das 107 áreas à cultura 001 (DML guardado, uma transação, evento na auditoria) — [runbook](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md) §4 |
-| Release | **Pendente**: GO escrito do proprietário para a migration (e para o vínculo), antes do merge |
+| Release | **Aplicada em produção** em 2026-11-17 às 00:24:16 UTC (caminho B do [runbook](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md), GO do proprietário); postcheck 64 / 0, FK e índices presentes. Vínculo às 00:24:38 UTC: 107 áreas → cultura 001 Marandu, uso Pastagem, auditado |
 | Relatório | [`MAIKE-AREA-CULTURA-REPORT.md`](./MAIKE-AREA-CULTURA-REPORT.md) |
 
 ## Missão anterior (2026-11-16) — MAIKE-CULTURAS: Cadastro de Culturas, tabela `CADCULTURAS`, com lista de referência (D-PROD-215)

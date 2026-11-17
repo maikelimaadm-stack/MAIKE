@@ -276,10 +276,10 @@ com o nome da cultura). Com o código novo no ar, reverter o código primeiro.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | `<…>` |
-| Caminho | `<A ou B>` |
-| GO | `<texto do proprietário>` |
-| Preflight (§2) | `<…>` |
-| Postcheck (§4) | `<…>` |
-| Vínculo (§4b) | `<…>` |
-| Resultado | `<…>` |
+| Data/hora (UTC) | migration **2026-11-17 00:24:16** (`finished_at`); vínculo **2026-11-17 00:24:38** |
+| Caminho | **B** (uma transação via `execute_sql`, guarda + corpo idêntico ao `migration.sql` + registro em `_prisma_migrations`) |
+| GO | migration: "manda a autorização" (pedido de autorização da D-PROD-216, aprovado na janela do computador); vínculo: "você já altera os dados do banco, pastagens tudo brachiaria marandu código 001 da cultura e tipo tudo pastagem" |
+| Preflight (§2) | alvo `7692130048193495360`; 63 concluídas / 0 com falha; anterior `20261116500000_cadculturas` (`37a71c46…`); `cultura_id` ausente; 107 áreas não-infraestrutura, todas `Pastagem` / `Brachiaria`; CADCULTURAS 001 = BRACHIARIA BRIZANTHA CV. MARANDU |
+| Postcheck (§4) | 64 / 0; `20261117000000_area_cultura` com checksum `e7fd7ee6…8ff26`; `cultura_id` varchar(64) anulável; FK `(cliente_id, empresa_id, cultura_id) → CADCULTURAS` ON UPDATE CASCADE ON DELETE RESTRICT; os 2 índices presentes; 0 áreas ligadas antes do vínculo |
+| Vínculo (§4b) | 107 áreas → cultura 001, `tipo_cultura` Pastagem, `tipo_pastagem` "BRACHIARIA BRIZANTHA CV. MARANDU"; evento `backfill_cultura_area` na auditoria (`total_atualizado` 107, `request_id` `d-prod-216-backfill`) |
+| Resultado | **EXECUTADO**. Merge depois do CI verde. A PR #303 (outra sessão) precisa guardar 64 migrations, com a `20261117000000_area_cultura` como a anterior |
