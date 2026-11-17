@@ -9,8 +9,8 @@
  * e o texto dizia "% do mínimo".
  *
  * D-PROD-220 (desenho do Detalhes do Lote v12): o percentual bruto é o número
- * grande do bloco do nível E o da célula do medidor na grade — as duas
- * aparições são verificadas.
+ * grande do bloco do nível. D-PROD-227: aparece uma vez na tela; o medidor
+ * mantém o percentual e a descrição acessíveis, sem repetir o número.
  *
  * D-PROD-225: no detalhe, o ícone é o SUBÍCONE do depósito (o desenho dos
  * detalhes, sem o pino do mapa, nas cores configuradas para o subícone); o
@@ -37,10 +37,10 @@ const nivelDe = ({ saldo, limite = null, minimo = null }) => calcularNivelDeposi
 const iconeDe = (container) => xml(decodeURIComponent(container.querySelector('img[data-deposito-icone]').src.split(',')[1]));
 const medidorLimite = () => screen.getByRole('meter', { name: 'Ocupação do limite operacional' });
 const painelMinimo = () => screen.getByRole('group', { name: 'Estoque mínimo' });
-/** O percentual visível: no bloco do nível e na célula do medidor (as duas aparições). */
+/** Percentual visível uma vez; o role=meter conserva o valor acessível. */
 const percentualVisivel = (texto) => {
   expect(within(screen.getByTestId('nivel-do-deposito')).getByText(texto)).toBeTruthy();
-  expect(screen.getAllByText(texto)).toHaveLength(2);
+  expect(screen.getAllByText(texto)).toHaveLength(1);
 };
 
 describe('Depósito com nível pelo limite operacional', () => {

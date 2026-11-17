@@ -27,7 +27,8 @@ const COR_NEUTRA = "#6b7280";
  *     depósito (o dos detalhes, sem o pino do mapa, D-PROD-225) preenche com
  *     `fracaoParaSvg` (≤ 100%, a mesma fração do marcador do mapa) e o
  *     percentual BRUTO (pode passar de 100%) é o número grande do `Nivel` e o
- *     da célula do medidor acessível (`role="meter"`), com o saldo, o limite e
+ *     do medidor acessível (`role="meter"`), sem repetir o número visível,
+ *     com o saldo, o limite e
  *     o excesso em kg. Sem limite não há percentual: o `Nivel` mostra o rótulo
  *     neutro do SSOT ("Sem limite") com a mensagem e o que fazer, e o medidor
  *     fica neutro (sem `role="meter"`) — o texto não se repete na grade.
