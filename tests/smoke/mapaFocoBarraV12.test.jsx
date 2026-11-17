@@ -8,7 +8,9 @@
  * BARRA-1  regra pura do foco (src/lib/mapaFoco.js).
  * BARRA-2  barra: ⚙ "Filtros", segmentos por permissão, aria-pressed, Tarefas
  *          liga o foco e abre a Gestão de Tarefas a cada toque, setas.
- * BARRA-3  MapaGeral: argumentos dos renderer.sync* em Lotes, Pastos e Tarefas.
+ * BARRA-3  MapaGeral: argumentos dos renderer.sync* em Lotes, Pastos e Tarefas;
+ *          movimentações lidas só quando o foco/cor pedem e relidas no servidor
+ *          pelo "Atualizar mapa" no foco Pastos.
  * BARRA-4  rótulo do foco Pastos: "x,x UA (y,yy/ha)", "x,x UA", "Descanso Nd".
  * BARRA-5  perdeu a permissão do foco atual → volta para Lotes.
  */
@@ -23,8 +25,11 @@ import { FOCOS_MAPA, FOCO_PADRAO, camadasDoFoco, focoEmVigor, focosPermitidos } 
 import { salvarFiltrosMapaGeral } from '@/lib/mapaGeralFiltrosStorage';
 
 const sessao = vi.hoisted(() => ({ usuario: null, permissoes: null }));
-/** Dados "do servidor" por empresa e as chaves pedidas ao cache do mapa. */
-const dados = vi.hoisted(() => ({ porEmpresa: {}, pedidas: [] }));
+/**
+ * Dados "do servidor" por empresa, a cópia local (o IndexedDB do cache do mapa),
+ * as chaves pedidas ao cache e, dessas, as pedidas com `force: true`.
+ */
+const dados = vi.hoisted(() => ({ porEmpresa: {}, local: {}, pedidas: [], forcadas: [] }));
 const mapa = vi.hoisted(() => ({ atual: null }));
 /** Última chamada de cada `sync*` do renderer: é o que aparece no mapa. */
 const desenho = vi.hoisted(() => ({ ultimo: {} }));
@@ -45,9 +50,16 @@ vi.mock('@/services/sessionService', async (importOriginal) => {
 });
 vi.mock('@/services/mapaCacheService', () => ({
   getMapaCachedData: () => Promise.resolve([]),
-  refreshMapaCacheEntry: (k, emp) => {
+  // Como o serviço real dentro da janela de 60 s: sem `force`, uma chave já
+  // lida devolve a cópia local; com `force`, vai ao servidor e troca a cópia.
+  refreshMapaCacheEntry: (k, emp, opts) => {
+    const forcar = opts?.force === true;
     dados.pedidas.push(k);
-    return Promise.resolve(dados.porEmpresa[emp]?.[k] ?? []);
+    if (forcar) dados.forcadas.push(k);
+    if (!dados.local[emp]) dados.local[emp] = {};
+    const local = dados.local[emp];
+    if (forcar || !(k in local)) local[k] = dados.porEmpresa[emp]?.[k] ?? [];
+    return Promise.resolve(local[k]);
   },
 }));
 vi.mock('@/services/mapaService', async (importOriginal) => ({
@@ -178,6 +190,8 @@ const LOTES = [
 const MOVIMENTACOES = [
   { id: 'm1', empresa_id: 'emp-1', tipo: 'Transferência de Área', lote_id: 'l1', area_origem_id: 'a2', area_destino_id: 'a1', data_movimentacao: diaCivilAtras(21) },
 ];
+/** Chega ao servidor com o mapa já aberto: a saída do A3, há 5 dias. */
+const SAIDA_DO_A3 = { id: 'm2', empresa_id: 'emp-1', tipo: 'Transferência de Área', lote_id: 'l2', area_origem_id: 'a3', area_destino_id: 'a4', data_movimentacao: diaCivilAtras(5) };
 const PONTOS_SUPL = [
   { id: 'c1', empresa_id: 'emp-1', status: 'Ativo', categoria_ponto: 'COCHO', area_vinculada_ids: ['a1'], coordenadas: { lat: -15.005, lng: -47.005 } },
 ];
@@ -216,6 +230,10 @@ const tocar = async (nome) => {
   await act(async () => { fireEvent.click(barra().getByRole('button', { name: nome })); });
   await assentar();
 };
+const atualizarMapa = async () => {
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Atualizar mapa' })); });
+  await assentar();
+};
 const fecharTarefas = async () => {
   const dialogo = screen.getByRole('dialog', { name: 'Gestão de Tarefas' });
   await act(async () => { fireEvent.click(within(dialogo).getByRole('button', { name: 'Fechar' })); });
@@ -240,7 +258,9 @@ beforeEach(() => {
   dados.porEmpresa = {
     'emp-1': { areas: [A1, A2, A3, A4], lotes: LOTES, movimentacoes: MOVIMENTACOES, pontosSuplementacao: PONTOS_SUPL, tarefas: TAREFAS },
   };
+  dados.local = {};
   dados.pedidas = [];
+  dados.forcadas = [];
   desenho.ultimo = {};
   mapa.atual = null;
 });
@@ -389,11 +409,24 @@ describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
     expect(within(screen.getByRole('dialog', { name: 'Filtro' })).getByRole('checkbox', { name: 'Lotes' })).toBeInTheDocument();
   });
 
-  it('as movimentações (dias de descanso) só são lidas quando o foco Pastos ou a cor "Situação do Pasto" pedem', async () => {
+  it('as movimentações (dias de descanso) só são lidas quando o foco Pastos ou a cor "Situação do Pasto" pedem; no foco Pastos, "Atualizar mapa" relê no servidor', async () => {
     await abrir();
     expect(dados.pedidas).not.toContain('movimentacoes');
+    await atualizarMapa();
+    expect(dados.pedidas, 'foco Lotes: nem o "Atualizar mapa" lê').not.toContain('movimentacoes');
+
     await tocar('Pastos');
     await waitFor(() => expect(dados.pedidas).toContain('movimentacoes'));
+    await waitFor(() => expect(rotulo(A2)).toBe('Descanso 21d'));
+    expect(rotulo(A3)).toBeNull();
+
+    // Sem `force` a leitura devolveria a cópia local: o "Atualizar mapa" tem de
+    // ir ao servidor E reler a consulta para o rótulo do A3 mudar.
+    dados.porEmpresa['emp-1'].movimentacoes = [...MOVIMENTACOES, SAIDA_DO_A3];
+    dados.forcadas = [];
+    await atualizarMapa();
+    expect(dados.forcadas, 'vai ao servidor').toContain('movimentacoes');
+    await waitFor(() => expect(rotulo(A3), 'e o rótulo usa o dado novo').toBe('Descanso 5d'));
   });
 });
 
