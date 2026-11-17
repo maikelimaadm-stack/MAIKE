@@ -61,7 +61,7 @@ const SELECAO = Object.freeze({
  */
 const SELECAO_COM_CULTURA = Object.freeze({
   ...SELECAO,
-  cultura: { select: { id: true, codigo: true, nome: true, tipo: true } },
+  cultura: { select: { id: true, codigo: true, nome: true, tipo: true, dias_descanso: true } },
 });
 
 /**

@@ -13,9 +13,12 @@ import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { notifyError, notifySuccess } from "@/lib/maikeNotify";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { ROTULO_SITUACAO } from "@/domain/pastagem/medicaoForragem";
-import { DIAS_VALIDADE_FORRAGEM, farolDaMedicao } from "@/domain/pastagem/farolForragem";
+import { DIAS_VALIDADE_FORRAGEM, estimativaDoPasto, farolDaMedicao, farolQueVale } from "@/domain/pastagem/farolForragem";
 
 const CHAVE = "medicoesForragem";
+/** D-PROD-223: ocupação e última saída de lote por pasto (farol estimado). */
+const CHAVE_DESCANSO = "descansoPastos";
+const diasTexto = (n) => `${n} ${n === 1 ? "dia" : "dias"}`;
 const fmt = (v, casas = 1) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }));
 const fmtInt = (v) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 const dia = (m) => formatarDia(String(m?.data_medicao ?? "").slice(0, 10));
@@ -103,8 +106,14 @@ export default function PainelForragemArea({ area }) {
     [medicoes, area?.id],
   );
   const ultima = doPasto[0] ?? null;
-  // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa.
-  const farol = useMemo(() => (ultima ? farolDaMedicao(ultima, hoje) : null), [ultima, hoje]);
+  // D-PROD-223: lote dentro agora e a última saída, para a estimativa pelos dias de descanso da cultura.
+  const { data: descansos = [] } = useCacheDoMapa(CHAVE_DESCANSO, empresaId);
+  const estimativa = useMemo(() => {
+    const doPastoAgora = (Array.isArray(descansos) ? descansos : []).find((d) => d?.area_id === area?.id) ?? null;
+    return estimativaDoPasto({ cultura }, doPastoAgora, hoje);
+  }, [descansos, area?.id, cultura, hoje]);
+  // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa (D-PROD-223: com a estimativa).
+  const farol = useMemo(() => farolQueVale(ultima ? farolDaMedicao(ultima, hoje) : null, estimativa), [ultima, hoje, estimativa]);
 
   const atualizadas = (lista) => {
     if (Array.isArray(lista)) queryClient.setQueryData(["mapa-cache", CHAVE, empresaId, "default"], lista);
@@ -138,10 +147,22 @@ export default function PainelForragemArea({ area }) {
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: farol.cor }} aria-hidden="true" />
             {farol.rotulo}
           </span>
-          <span className="text-slate-500">
-            {farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`}
-            {farol.vencida ? ` · vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null}
-          </span>
+          {"estimado" in farol ? (
+            <span className="text-slate-500" data-testid="farol-forragem-estimado">
+              {`lote saiu há ${diasTexto(farol.diasDesdeSaida)} · descanso da cultura ${diasTexto(farol.diasDescanso)}`}
+            </span>
+          ) : (
+            <span className="text-slate-500">
+              {farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`}
+              {farol.vencida ? ` · vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null}
+            </span>
+          )}
+        </div>
+      ) : null}
+      {estimativa?.emPastejo ? (
+        <div className="text-slate-700" data-testid="forragem-em-pastejo">
+          <span className="font-semibold text-slate-900">Em pastejo</span>
+          <span className="text-slate-500"> · lote no pasto agora (sem estimativa pelos dias de descanso)</span>
         </div>
       ) : null}
       {ultima ? (

@@ -162,7 +162,9 @@ const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   });
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);
 /** D-PROD-219: o schema.prisma já tem a MedicaoForragem (posterior a esta): os blocos dela saem do diff "no dia desta". */
-const semMedicao = (texto) => texto.trim().split(/\n\s*\n/).filter((b) => !b.includes('MEDICAOFORRAGEM')).join('\n\n').trim();
+// D-PROD-223: a coluna CADCULTURAS.dias_descanso (EXPAND posterior) também fica fora da conta.
+const DIFERENCA_DIAS_DESCANSO = '[*] Changed the `CADCULTURAS` table\n  [+] Added column `dias_descanso`';
+const semMedicao = (texto) => texto.trim().split(/\n\s*\n/).filter((b) => !b.includes('MEDICAOFORRAGEM') && b.trim() !== DIFERENCA_DIAS_DESCANSO).join('\n\n').trim();
 /** D-PROD-219: o runner oficial no espelho com as pastas até esta (no dia dela); criado no `before`. */
 let ESPELHO_217;
 const runnerAte217 = (urlMigracao, { runtime, extras = {} } = {}) =>

@@ -14,6 +14,7 @@ export const CULTURAS_COLUNAS = [
   { id: "cultivar", label: "Cultivar", default: false, sortable: true, width: 150 },
   { id: "altura_entrada_cm", label: "Entrada (cm)", default: true, sortable: true, width: 120, align: "right" },
   { id: "altura_saida_cm", label: "Saída (cm)", default: true, sortable: true, width: 110, align: "right" },
+  { id: "dias_descanso", label: "Dias de descanso", default: true, sortable: true, width: 140, align: "right" },
   { id: "observacoes", label: "Observações", default: false, sortable: true, width: 300 },
   {
     id: "ativo",
@@ -47,6 +48,7 @@ export function getCulturaFieldValue(item, colunaId) {
   if (colunaId === "cultivar") return item.cultivar || "";
   if (colunaId === "altura_entrada_cm") return formatarAlturaCm(item.altura_entrada_cm);
   if (colunaId === "altura_saida_cm") return formatarAlturaCm(item.altura_saida_cm);
+  if (colunaId === "dias_descanso") return item.dias_descanso == null ? "" : String(item.dias_descanso);
   if (colunaId === "observacoes") return item.observacoes || "";
   if (colunaId === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
   if (colunaId === "created_date") return formatarDataHora(item.created_date);
@@ -58,13 +60,13 @@ export function getCulturaFieldValue(item, colunaId) {
 const numeroOuNulo = (v) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
 /**
- * Alturas ordenam pelo número (o texto "100" viria antes de "25"); instantes
+ * Alturas e dias de descanso ordenam pelo número (o texto "100" viria antes de "25"); instantes
  * pelo ISO. Vazio por último. Demais colunas: regra da grade.
  * @param {any} a @param {any} b @param {string} colId
  * @returns {number|null}
  */
 export const compararCulturasParaOrdenar = (a, b, colId) => {
-  if (colId === "altura_entrada_cm" || colId === "altura_saida_cm") {
+  if (colId === "altura_entrada_cm" || colId === "altura_saida_cm" || colId === "dias_descanso") {
     const va = numeroOuNulo(a?.[colId]);
     const vb = numeroOuNulo(b?.[colId]);
     if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;

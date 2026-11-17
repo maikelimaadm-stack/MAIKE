@@ -505,7 +505,7 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.ok(r.saida.indexOf(`Applying migration \`${NOME_LEITURA}\``) < r.saida.indexOf(`Applying migration \`${NOME_FAIXA}\``), 'a D-PROD-205 antes da D-PROD-206');
     // D-PROD-207: a EXPAND da mão de obra e do serviço sobe por último.
     assert.ok(r.saida.includes(`Applying migration \`${NOME_MAO_OBRA}\``), r.saida);
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-13), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-14), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
     assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_PARCEIRO} (D-PROD-208).`), r.saida);
     assert.ok(!vazou(r.saida, URL_T));
 
@@ -789,7 +789,7 @@ describe('D-PROD-202 — caminho B do runbook (uma transação pelo conector), n
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_PARCEIRO}\``), runner.saida);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_TIPO}\``), runner.saida);
     for (const n of [NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]) assert.ok(runner.saida.includes(`Applying migration \`${n}\``), runner.saida);
-    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-13), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-14), [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
     assert.ok(!runner.saida.includes(`Applying migration \`${NOME}\``), runner.saida);
     const segunda = await aplicarPeloRunner(URL_B);
     assert.equal(segunda.status, 0, segunda.saida);

@@ -7741,4 +7741,25 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-222 -->
+## D-PROD-223 — Farol de forragem estimado pelos dias de descanso da cultura
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-222`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, aberta) já reserva a D-PROD-222. Para não duplicar, esta decisão é a **D-PROD-223**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ("perfeito vamos iniciar isso"), o passo seguinte do Manejo de Pastagens combinado na D-PROD-221 (estimativa pelos dias de descanso, que precisava do campo na cultura) · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Dias de descanso na cultura.** `CADCULTURAS.dias_descanso` (INTEGER, anulável): o descanso normal do pasto entre a saída do gado e a próxima entrada. A API `/culturas` aceita e devolve o campo; a faixa **1 a 365** é conferida pela API (`dias_descanso_invalido` / `dias_descanso_fora_da_faixa`), não por CHECK — a allowlist EXPAND recusa CHECK em tabela antiga. A tela Culturas ganha o campo **"Dias de descanso"** no formulário e a coluna na grade. A lista de referência traz os valores (Marandu 30, Xaraés 30, Piatã 30, Paiaguás 28, Decumbens 25, Humidicola 25, Mombaça 35, Tanzânia 32, Zuri 35, Massai 28, Tifton 85 25); as culturas já cadastradas em produção recebem os mesmos valores por um passo de dados próprio (só onde está vazio, casando código **e** nome), com GO separado.
+2. **Data da saída do último lote, de fonte confiável: o ledger do rebanho.** `GET /medicoes-forragem/descanso?empresa_id=…` (autenticado; fazenda conferida no tenant) soma as `PartidaRebanho` **ativas** por pasto (`PosicaoRebanho.area_id`) e dia operacional. Saldo final > 0 → **ocupado agora** ("Em pastejo", sem estimativa). Saldo zerado → a **última saída** é o último dia em que o saldo acumulado chegou a 0. Pasto sem partida → **desconhecido** (sem estimativa). Não usa a Movimentação legada nem o `status_ocupacao` gravado na área.
+3. **Regra da estimativa (domínio puro, `src/domain/pastagem/farolForragem.js`).** Com D = dias de descanso da cultura e `dias` = dias civis da fazenda desde a última saída: `dias < D` → **Descanso**; `D ≤ dias ≤ arredondar(D × 1,5)` → **Pronto**; acima → **Passou do ponto**. **Nunca Rapado** por estimativa. Pasto sem cultura, cultura sem D ou saída desconhecida → sem estimativa.
+4. **O farol que vale.** Medição **válida** (até 15 dias, com situação — D-PROD-221) sempre vence; senão a **estimativa**; senão o de antes (cinza "sem medição recente" ou neutro "nunca medido"). O estimado usa a **mesma família de cor, num tom bem mais claro** que o "no olho", e o rótulo leva **"(estimado)"**; a legenda do modo "Forragem" ganha "Descanso / Pronto / Passou do ponto (estimado)". O painel Forragem do pasto mostra, por exemplo, **"Pronto (estimado) · lote saiu há 32 dias · descanso da cultura 30 dias"**, e **"Em pastejo"** quando há lote no pasto agora.
+5. **Leitura das áreas.** A `cultura` embutida em `/areas-pastagem` (D-PROD-216) passa a trazer `dias_descanso` — o mapa estima sem carregar o cadastro de Culturas. O `/medicoes-forragem/descanso` entra no cache do mapa (`descansoPastos`), carregado só com o modo "Forragem" ligado, como as medições.
+
+**Ressalvas registradas.** (a) Fazenda que ainda não ativou o ledger do rebanho, ou pasto cujo histórico é anterior à virada para o ledger, não tem partida: sem estimativa até a próxima movimentação. (b) A saída é a do último lote do pasto (saldo zerado), não a de cada lote. (c) Partida retroativa muda a data da saída — o farol acompanha na próxima leitura.
+
+**Fora do escopo:** taxa de crescimento por época do ano (descanso variável por estação), lotação e dias de pastejo pela forragem, alerta de pasto passado.
+
+**Release.** Migration **EXPAND** `20261117300000_cultura_dias_descanso` (SHA-256 `5a266b174b20a6bc3ca51a7dc15d852378a875d506a805bb7eedfbba01191a4b`), produção 66 → 67, tabelas 96 (nenhuma nova), **antes do merge** e com GO do proprietário; depois, o passo de dados das 11 culturas, com GO próprio. Runbook: [`MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md`](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md).
+
+**Relatório:** [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-224 -->

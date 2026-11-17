@@ -7,9 +7,11 @@ import B1Select from "@/components/cadastro/base1/B1Select";
 import { notifyWarning } from "@/lib/maikeNotify";
 import {
   ALTURA_MAXIMA_CM,
+  DIAS_DESCANSO_MAXIMO,
   TIPOS_CULTURA,
   formatarAlturaCm,
   lerAlturaCm,
+  lerDiasDescanso,
   rotuloTipoCultura,
 } from "@/services/culturaCadastroService";
 
@@ -30,6 +32,7 @@ const UPPERCASE_FIELDS = ["codigo", "nome"];
  *   cultivar?: string | null,
  *   altura_entrada_cm?: number | null,
  *   altura_saida_cm?: number | null,
+ *   dias_descanso?: number | null,
  *   observacoes?: string | null,
  *   ativo?: boolean,
  * }} CulturaInicial
@@ -41,6 +44,7 @@ const UPPERCASE_FIELDS = ["codigo", "nome"];
  *   cultivar: string | null,
  *   altura_entrada_cm: string | null,
  *   altura_saida_cm: string | null,
+ *   dias_descanso: number | null,
  *   observacoes: string | null,
  *   ativo: boolean,
  * }} CulturaEnvio
@@ -92,6 +96,7 @@ export default function FormularioCultura({
     cultivar: initialData?.cultivar || "",
     altura_entrada_cm: formatarAlturaCm(initialData?.altura_entrada_cm),
     altura_saida_cm: formatarAlturaCm(initialData?.altura_saida_cm),
+    dias_descanso: initialData?.dias_descanso == null ? "" : String(initialData.dias_descanso),
     observacoes: initialData?.observacoes || "",
     ativo: initialData?.ativo ?? true,
   }));
@@ -142,6 +147,12 @@ export default function FormularioCultura({
       notifyWarning("Atenção", `A altura é em cm, maior que 0 e até ${ALTURA_MAXIMA_CM}, com no máximo 1 casa decimal.`);
       return;
     }
+    const diasDescanso = lerDiasDescanso(formData.dias_descanso);
+    if (diasDescanso === undefined) {
+      setInvalidFields(["dias_descanso"]);
+      notifyWarning("Atenção", `Os dias de descanso são um número inteiro de 1 a ${DIAS_DESCANSO_MAXIMO}.`);
+      return;
+    }
     if (entrada != null && saida != null && saida >= entrada) {
       setInvalidFields(["altura_saida_cm"]);
       notifyWarning("Atenção", "A altura de saída precisa ser menor que a altura de entrada.");
@@ -155,6 +166,7 @@ export default function FormularioCultura({
       cultivar: textoOuNulo(formData.cultivar),
       altura_entrada_cm: entrada == null ? null : String(entrada),
       altura_saida_cm: saida == null ? null : String(saida),
+      dias_descanso: diasDescanso,
       observacoes: textoOuNulo(formData.observacoes),
       ativo: formData.ativo !== false,
     });
@@ -309,6 +321,28 @@ export default function FormularioCultura({
           onChange={(e) => handleChange("altura_saida_cm", e.target.value)}
           placeholder="EX.: 15"
           maxLength={8}
+          className={`${B1_FIELD_CTL_CLS} tabular-nums`}
+          readOnly={readOnly}
+        />
+      </B1Field>
+
+      <B1Field
+        label="Dias de descanso"
+        span={4}
+        hasValue={String(formData.dias_descanso ?? "").trim() !== ""}
+        locked={readOnly}
+        disabled={travado}
+        error={erroDe("dias_descanso", `De 1 a ${DIAS_DESCANSO_MAXIMO}`)}
+        dica="Descanso normal do pasto depois da saída dos animais. Sem medição recente, o mapa estima a forragem por ele."
+      >
+        <input
+          type="text"
+          inputMode="numeric"
+          aria-label="Dias de descanso"
+          value={formData.dias_descanso}
+          onChange={(e) => handleChange("dias_descanso", e.target.value)}
+          placeholder="EX.: 30"
+          maxLength={3}
           className={`${B1_FIELD_CTL_CLS} tabular-nums`}
           readOnly={readOnly}
         />

@@ -138,9 +138,16 @@ export const comoAreaPublica = (registro) => ({
   taxa_aproveitamento: comoNumero(registro.taxa_aproveitamento),
   periodo_estacao: registro.periodo_estacao ?? null,
   // D-PROD-216 — cultura do cadastro de Culturas (código, nome e tipo para a tela).
+  // D-PROD-223 — e os dias de descanso dela, para o farol estimado do mapa.
   cultura_id: registro.cultura_id ?? null,
   cultura: registro.cultura
-    ? { id: registro.cultura.id, codigo: registro.cultura.codigo, nome: registro.cultura.nome, tipo: registro.cultura.tipo }
+    ? {
+        id: registro.cultura.id,
+        codigo: registro.cultura.codigo,
+        nome: registro.cultura.nome,
+        tipo: registro.cultura.tipo,
+        dias_descanso: registro.cultura.dias_descanso ?? null,
+      }
     : null,
   coordenadas: registro.coordenadas ?? null,
   observacoes: registro.observacoes ?? null,

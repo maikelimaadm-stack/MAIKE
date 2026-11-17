@@ -254,6 +254,7 @@ export default function MapaFiltrosAvancados({
               {modoColoracao === 'situacao_pasto' && Object.entries(CORES_SITUACAO_PASTO).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
               {modoColoracao === 'forragem' && Object.entries(LEGENDA_FORRAGEM).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
               {modoColoracao === 'forragem' && <div className="text-[10px] text-slate-500">{MARCA_OLHO} Tom mais claro: avaliado no olho</div>}
+              {modoColoracao === 'forragem' && <div className="text-[10px] text-slate-500">(estimado) Tom bem claro: sem medição recente, pelos dias de descanso da cultura</div>}
             </div>
         }
         </div>

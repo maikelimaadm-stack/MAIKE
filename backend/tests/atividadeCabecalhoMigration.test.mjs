@@ -725,7 +725,7 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
     assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, TOTAL_MIGRATIONS - 8, 'todas menos a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217 e a D-PROD-219');
+    assert.equal(h.concluidas, TOTAL_MIGRATIONS - 9, 'todas menos a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219 e a D-PROD-223');
     assert.equal(TOTAL_MIGRATIONS, 67);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
@@ -771,28 +771,28 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
     assert.equal(ajuste.status, 0, ajuste.saida);
     assert.ok(ajuste.saida.includes(`CONTRACT autorizado: ${NOME_PARCEIRO} (D-PROD-208).`), ajuste.saida);
     assert.ok(!ajuste.saida.includes(`Applying migration \`${NOME_CONTRACT}\``), ajuste.saida);
-    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 7);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 8);
     assert.equal((await ordemDeAplicacao(db)).at(-1), NOME_PARCEIRO);
     assert.deepEqual(await tabelasDe(db), tabelas.filter((t) => t !== 'Funcionario'));
     // D-PROD-209, depois, pelo runner do dia dela (espelho até ela), com a decisão DELA: só ela pende; nenhuma tabela muda.
     const tipo = await runnerAteTipo(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-209' } });
     assert.equal(tipo.status, 0, tipo.saida);
     assert.ok(tipo.saida.includes(`CONTRACT autorizado: ${NOME_TIPO} (D-PROD-209).`), tipo.saida);
-    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 6);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 7);
     assert.equal((await ordemDeAplicacao(db)).at(-1), NOME_TIPO);
     assert.deepEqual(await tabelasDe(db), tabelas.filter((t) => t !== 'Funcionario'));
     // D-PROD-210, depois, pelo runner do dia dela (espelho até ela), com a decisão DELA: só ela pende; nenhuma tabela muda.
     const base = await runnerAteBase(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-210' } });
     assert.equal(base.status, 0, base.saida);
     assert.ok(base.saida.includes(`CONTRACT autorizado: ${NOME_BASE} (D-PROD-210).`), base.saida);
-    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 5);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 6);
     assert.equal((await ordemDeAplicacao(db)).at(-1), NOME_BASE);
     assert.deepEqual(await tabelasDe(db), tabelas.filter((t) => t !== 'Funcionario'));
     // D-PROD-211, pelo espelho até ela (no dia dela), com a decisão DELA: só ela pende; nenhuma tabela muda.
     const abastecimento = await runnerAteAbastecimento(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-211' } });
     assert.equal(abastecimento.status, 0, abastecimento.saida);
     assert.ok(abastecimento.saida.includes(`CONTRACT autorizado: ${NOME_ABASTECIMENTO} (D-PROD-211).`), abastecimento.saida);
-    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 4);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 5);
     assert.equal((await ordemDeAplicacao(db)).at(-1), NOME_ABASTECIMENTO);
     // Pelo espelho até a D-PROD-216 (no dia dela), com a decisão DELA: a EXPAND da CADCULTURAS (D-PROD-215, sem decisão,
     // + 1 tabela) e depois a Área ligada à Cultura (só ela é CONTRACT pendente; nenhuma tabela muda).
@@ -800,7 +800,7 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
     assert.equal(areaCultura.status, 0, areaCultura.saida);
     assert.ok(areaCultura.saida.includes(`CONTRACT autorizado: ${NOME_AREA_CULTURA} (D-PROD-216).`), areaCultura.saida);
     assert.ok(areaCultura.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), areaCultura.saida);
-    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 2);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS - 3);
     assert.deepEqual((await ordemDeAplicacao(db)).slice(-2), [NOME_CULTURAS, NOME_AREA_CULTURA]);
     // Por último, pelo runner do repositório, com a decisão da D-PROD-217: só o reforço pende (nenhuma tabela dele muda),
     // a ordem de produção.
@@ -812,7 +812,7 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
     assert.ok(reforco.saida.includes(`Applying migration \`${NOME_MEDICAO_FORRAGEM}\``), reforco.saida);
     assert.ok(reforco.saida.includes(`Applying migration \`${NOME_DIAS_DESCANSO}\``), reforco.saida);
     assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS);
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-5), [NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-6), [NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
     const tabelasFim = await tabelasDe(db);
     assert.ok(tabelasFim.includes('CADCULTURAS') && tabelasFim.includes('MEDICAOFORRAGEM'));
     assert.deepEqual(tabelasFim.filter((t) => t !== 'CADCULTURAS' && t !== 'MEDICAOFORRAGEM'), tabelas.filter((t) => t !== 'Funcionario'));
@@ -1055,7 +1055,7 @@ describe('D-PROD-200 — caminho B do runbook (uma transação pelo conector), n
     assert.ok(!runner.saida.includes(`Applying migration \`${NOME_CONTRACT}\``), runner.saida);
     const hB = await historico(dbB);
     assert.deepEqual([hB.concluidas, hB.abertas, hB.contract_concluida], [TOTAL_MIGRATIONS, 0, 1]);
-    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-14), [NOME_CONTRACT, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-15), [NOME_CONTRACT, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
     const segunda = await aplicarPeloRunner(URL_B);
     assert.equal(segunda.status, 0, segunda.saida);
     assert.match(segunda.saida, /No pending migrations to apply/);

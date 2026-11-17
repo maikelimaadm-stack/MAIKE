@@ -52,6 +52,24 @@ export const lerAlturaCm = (texto) => {
   return n;
 };
 
+/** D-PROD-223 — mesmo teto do servidor para os dias de descanso. */
+export const DIAS_DESCANSO_MAXIMO = 365;
+
+/**
+ * Lê os dias de descanso digitados. `null` = vazio; `undefined` = inválido
+ * (não inteiro, zero, negativo ou acima de 365).
+ * @param {unknown} texto
+ * @returns {number|null|undefined}
+ */
+export const lerDiasDescanso = (texto) => {
+  const t = String(texto ?? '').trim();
+  if (!t) return null;
+  if (!/^\d+$/.test(t)) return undefined;
+  const n = Number(t);
+  if (!Number.isInteger(n) || n < 1 || n > DIAS_DESCANSO_MAXIMO) return undefined;
+  return n;
+};
+
 /** @param {string} empresaId */
 export const listarCulturas = (empresaId) => listCulturas(empresaId);
 

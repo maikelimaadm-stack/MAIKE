@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-FAROL-FORRAGEM: farol de forragem no Mapa Geral (D-PROD-221)
+## Missão ativa (2026-11-17) — MAIKE-DESCANSO-ESTIMADO: farol de forragem estimado pelos dias de descanso (D-PROD-223)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-223** (a D-PROD-222 está reservada pela branch `claude/design-filters-implementation-agzxk8`), pedido do proprietário: sem medição recente, o farol do pasto estimado pelos dias desde a saída do último lote contra os dias de descanso da cultura |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `9b4bf78f` (PR #311, D-PROD-221) |
+| Escopo | `CADCULTURAS.dias_descanso` (API 1..365, formulário e grade "Dias de descanso", lista de referência com os valores); `GET /medicoes-forragem/descanso` (ocupação e última saída por pasto pelo ledger do rebanho); `dias_descanso` na cultura embutida de `/areas-pastagem`; regra pura (Descanso < D ≤ Pronto ≤ arredondar(D×1,5) < Passou; nunca Rapado); farol estimado no modo "Forragem" (tom bem claro, "(estimado)" na legenda) e no painel Forragem do pasto ("Em pastejo" com lote dentro) |
+| Migration | `20261117300000_cultura_dias_descanso`, **EXPAND** (coluna anulável em tabela antiga), SHA-256 `5a266b174b20a6bc3ca51a7dc15d852378a875d506a805bb7eedfbba01191a4b`. Produção 66 → 67 (a anterior é a `20261117200000_medicao_forragem`, D-PROD-219); tabelas 96 (nenhuma nova) |
+| Dados | Depois da migration, os dias de descanso de referência nas 11 culturas da fazenda (só onde vazio, por código e nome; DML guardado, uma transação, evento na auditoria) — [runbook](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md) §4 |
+| Release | **Pendente**: migration antes do merge, com GO do proprietário (caminho A ou B do runbook); `SCHEMA_APPLIED_PROD: NÃO` |
+| Relatório | [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-FAROL-FORRAGEM: farol de forragem no Mapa Geral (D-PROD-221)
 
 | Campo | Valor |
 |---|---|
