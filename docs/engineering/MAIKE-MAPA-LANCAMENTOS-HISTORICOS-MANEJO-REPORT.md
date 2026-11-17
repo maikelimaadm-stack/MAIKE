@@ -184,7 +184,7 @@ Os verificadores conferiram os achados contra o HEAD: os corrigidos durante a re
 
 ### 7.2 Suíte inteira e gates (estado final)
 
-- `test:smoke`: 283 arquivos e 3.526 testes, todos passaram.
+- `test:smoke`: 283 arquivos e 3.529 testes, todos passaram.
 - `gate:types`: 374 diagnósticos contra o teto de 625.
 - `gate:source-closure`, `gate:import-integrity`, `gate:product-scope`, `gate:base44`, `gate:no-secrets` e `gate:governance-paths`: passaram.
 - Lint dos arquivos tocados: sem erros.
