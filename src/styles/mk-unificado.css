@@ -59,7 +59,7 @@
 }
 /* Apenas ações: seletores, chaves e checkboxes conservam seus contratos. */
 :is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
- .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn,
  .mk-config-restore, .mk-colcfg__restaurar, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) {
   box-sizing: border-box;
   height: var(--mk-action-height) !important;
@@ -71,7 +71,7 @@
   gap: 6px;
 }
 :is(.tb-btn-icon, .mk-sheet__close, .mk-sheet__new, .mg-rec-pager__btn,
- .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn,
  .mk-ll__remover):not(#mk-padrao) {
   width: var(--mk-action-height) !important;
   min-width: var(--mk-action-height) !important;
@@ -84,7 +84,7 @@
   padding: 0 12px !important;
 }
 :is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
- .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn,
  .view-seg button, .mk-mhdr__round, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg:not(.mk-al__img),
 .mk-mhdr__back > span:not(#mk-padrao) > svg {
   width: var(--mk-action-icon) !important;
@@ -295,7 +295,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   --portal-acao-hover: var(--mk-btn-hover);
 }
 :is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-ll-dlg__redondo,
- .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn, .mk-mapa-chip):not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.mk-sheet__new):not(.mk-btn-ok):not(.mk-mhdr__round--salvar):not(.mk-ll-dlg__redondo--salvar):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+ .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn):not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.mk-sheet__new):not(.mk-btn-ok):not(.mk-mhdr__round--salvar):not(.mk-ll-dlg__redondo--salvar):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
   border: 1px solid transparent;

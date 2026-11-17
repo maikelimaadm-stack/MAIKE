@@ -48,6 +48,7 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import { listEmpresas } from "@/services/empresaService";
 import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis, preferenciaAplicada } from "@/lib/mapaGeralFiltrosStorage";
+import { camadasDoFoco, focoEmVigor, focosPermitidos } from "@/lib/mapaFoco";
 import { useAuth } from "@/lib/AuthContext";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 
@@ -109,6 +110,9 @@ export default function MapaGeral() {
   const [showFiltros, setShowFiltros] = useState(false);
   const [prefShowTaskIcons, setShowTaskIcons] = useState(true);
   const [prefDragLotesEnabled, setDragLotesEnabled] = useState(false);
+  // D-PROD-V12 (B3): foco da barra do topo (Lotes · Pastos · Tarefas). Estado
+  // da página, NÃO salvo: o mapa abre sempre em Lotes, como no v12.
+  const [foco, setFoco] = useState('lotes');
 
   const empresaSelecionadaId = useEmpresaSelecionadaId();
 
@@ -230,6 +234,21 @@ export default function MapaGeral() {
     () => ({ ...mapaGeralPermissions, visualizar_tarefas: podeUsarTarefasMapa }),
     [mapaGeralPermissions, podeUsarTarefasMapa]
   );
+
+  // ─── Foco do mapa (D-PROD-V12, B2/B3) ───
+  // Segmentos por permissão: Lotes sempre; Pastos com "Ver áreas"; Tarefas com
+  // a mesma regra do antigo botão Tarefas. Perdeu a permissão do foco atual →
+  // volta para Lotes (o desenho já usa o foco em vigor; o efeito acerta o estado).
+  const focosDoMapa = useMemo(() => focosPermitidos({
+    visualizarAreas: mapaGeralPermissions.visualizar_areas === true,
+    usarTarefas: podeUsarTarefasMapa === true,
+  }), [mapaGeralPermissions.visualizar_areas, podeUsarTarefasMapa]);
+  const focoAtivo = focoEmVigor(foco, focosDoMapa);
+  useEffect(() => {
+    if (focoAtivo !== foco) setFoco(focoAtivo);
+  }, [foco, focoAtivo]);
+  // Objeto constante por foco: serve de dependência dos `sync*` sem redesenhar à toa.
+  const camadasFoco = camadasDoFoco(focoAtivo);
 
   // ─── Preferências de camadas/filtros POR USUÁRIO (fazenda + conta + empresa) ───
   // O que o usuário escolheu (pref*) fica salvo; o que aparece no mapa é a
@@ -450,8 +469,11 @@ export default function MapaGeral() {
     );
   }, [lotesBase, empresaSelecionadaId, areaIdsValidos]);
 
-  // Movimentações para calcular situação do pasto
-  const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery(createMapaQuery('movimentacoes', { enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto', enabledKey: modoColoracao }));
+  // Movimentações para calcular situação do pasto: cor "Situação do Pasto" e os
+  // dias de descanso no rótulo do foco Pastos (D-PROD-V12). Chave estável
+  // on/off: trocar a cor ou o foco não abre outra entrada de cache.
+  const precisaMovimentacoes = modoColoracao === 'situacao_pasto' || camadasFoco.lotacaoNoRotulo;
+  const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery(createMapaQuery('movimentacoes', { enabled: !!empresaSelecionadaId && precisaMovimentacoes, enabledKey: precisaMovimentacoes ? 'on' : 'off' }));
 
   // ─── Dados derivados ───
   const alertasMapa = useMemo(() => buildMapaAlertasSuplementacao({
@@ -886,7 +908,7 @@ export default function MapaGeral() {
     const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'leiturasCocho', 'pontosSuplementacao', 'pontos', 'linhas', 'estoqueLotes', 'categoriasManejo'];
     const refreshTasks = keysToRefresh.map((key) => refreshMapaCacheEntry(key, empresaSelecionadaId, refreshOptions));
 
-    if (modoColoracao === 'situacao_pasto' && !keysToRefresh.includes('movimentacoes')) refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
+    if (precisaMovimentacoes && !keysToRefresh.includes('movimentacoes')) refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
     if (podeUsarTarefasMapa && !keysToRefresh.includes('tarefas') && !cacheKeys?.length) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, refreshOptions));
     await Promise.all(refreshTasks);
 
@@ -902,10 +924,10 @@ export default function MapaGeral() {
     // D-PROD-191: a faixa da Categoria de Manejo muda o desenho do lote.
     if (keysToRefresh.includes('categoriasManejo')) refetchTasks.push(refetchCategoriasManejo());
     await Promise.all(refetchTasks);
-    if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();
+    if (precisaMovimentacoes) await refetchMovimentacoes();
     if (podeUsarTarefasMapa && (!cacheKeys?.length || keysToRefresh.includes('tarefas'))) await refetchTarefas();
     if (showToast) toast.success('Mapa atualizado');
-  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLeiturasCocho, refetchLinhas, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, precisaMovimentacoes, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLeiturasCocho, refetchLinhas, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleRefresh = useCallback(async () => {
     await executarRefreshMapa(true, true);
@@ -1063,11 +1085,16 @@ export default function MapaGeral() {
 
   // ─── Renderização incremental ───
   useEffect(() => {if (mapReady) renderer.syncAreas(areasFiltradas, mapaGeralPermissions.visualizar_areas && showAreas, handleClickArea, handleRightClickArea, getAreaColor);}, [areasFiltradas, showAreas, mapReady, getAreaColor, handleClickArea, handleRightClickArea, mapaGeralPermissions.visualizar_areas]);
-  // Função de texto extra para labels (UA/ha ou situação do pasto)
+  // Função de texto extra para labels (UA/ha ou situação do pasto). No foco
+  // Pastos (D-PROD-V12) vale sempre a lotação, mesmo com "Situação do Pasto";
+  // área sem gado mostra só os dias de descanso, quando está em descanso.
   const getLabelExtraText = useCallback((area) => {
-    if (modoColoracao === 'ua_ha') {
+    if (modoColoracao === 'ua_ha' || camadasFoco.lotacaoNoRotulo) {
       const info = uaPorAreaMap[area.id];
-      if (!info || info.ua === 0) return null;
+      if (!info || info.ua === 0) {
+        const situacao = camadasFoco.lotacaoNoRotulo ? situacaoPastoMap[area.id] : null;
+        return situacao?.tipo === 'descanso' ? `Descanso ${situacao.dias}d` : null;
+      }
       const ha = getAreaEfetiva(area); // Usa área efetiva!
       const uaStr = info.ua.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
       if (ha > 0) {
@@ -1084,17 +1111,17 @@ export default function MapaGeral() {
       return `Ocupado ${info.dias}d`;
     }
     return null;
-  }, [modoColoracao, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
+  }, [modoColoracao, camadasFoco, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
 
   useEffect(() => {
     if (!mapReady) return;
     renderer.syncLabels(
       areasFiltradas,
       mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas,
-      modoColoracao === 'ua_ha' || modoColoracao === 'situacao_pasto' ? getLabelExtraText : null,
+      modoColoracao === 'ua_ha' || modoColoracao === 'situacao_pasto' || camadasFoco.lotacaoNoRotulo ? getLabelExtraText : null,
       showHectaresAreas
     );
-  }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, modoColoracao, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
+  }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, modoColoracao, camadasFoco, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
     return pontos.filter((p) => {
@@ -1111,10 +1138,12 @@ export default function MapaGeral() {
     ...(showCochos ? cochosFiltrados : []),
     ...(showDepositos ? depositosFiltrados : [])];
 
-    renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos), iconesConfig, handleClickPontoSupl);
-  }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
-  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, categoriasManejo, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, categoriasManejo, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, handleClickTarefa]);
+    // Foco Tarefas (D-PROD-V12): sem cochos e depósitos.
+    renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos) && camadasFoco.suplementacao, iconesConfig, handleClickPontoSupl);
+  }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, camadasFoco, handleClickPontoSupl]);
+  // Lotes só no foco Lotes; tarefas em Lotes e Tarefas (D-PROD-V12).
+  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes && camadasFoco.lotes, categoriasManejo, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, camadasFoco, categoriasManejo, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons && camadasFoco.tarefas ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, camadasFoco, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
@@ -1174,7 +1203,11 @@ export default function MapaGeral() {
           showMoverButton={mapaGeralPermissions.mover_lotes}
           dragEnabled={dragLotesEnabled}
           onToggleDrag={() => {if (!mapaGeralPermissions.mover_lotes) return;setDragLotesEnabled((prev) => !prev);}}
-          showTarefasButton={podeUsarTarefasMapa}
+          /* D-PROD-V12: barra do topo ⚙ · Lotes · Pastos · Tarefas no lugar dos
+             botões Tarefas e Filtros; o ⚙ abre o mesmo painel Filtro de hoje. */
+          foco={focoAtivo}
+          onFoco={setFoco}
+          focosPermitidos={focosDoMapa}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
           onOpenTarefas={() => {if (!podeUsarTarefasMapa) return;setTarefasContext({});setShowTarefas(true);}}
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}

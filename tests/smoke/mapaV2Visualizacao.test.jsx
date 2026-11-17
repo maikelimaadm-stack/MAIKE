@@ -3,6 +3,8 @@
  * D-PROD-132 — Mapa Geral: sem o ✕ e sem botão de fazenda/menu lateral;
  * painel "Visualização" (tipo de mapa, estilo e cores dos pastos, o que
  * mostrar); controles flutuantes; atribuição do satélite discreta.
+ * D-PROD-V12 — a barra do topo (⚙ · Lotes · Pastos · Tarefas) fica no mesmo
+ * MapaControlesMobile.jsx, no lugar dos botões Tarefas e Filtros.
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
@@ -30,7 +32,10 @@ describe("Shell e controles (D-PROD-132)", () => {
     expect(layout).not.toMatch(/MenuLateral|MapaShellContext/);
     const css = readFileSync("src/styles/mapa-geral.css", "utf8");
     expect(css).toMatch(/@media \(max-width: 1023px\) \{\s*\.mk-shell--mapa > header \{\s*display: none !important;/);
+    // O arquivo lido é o da barra do topo (D-PROD-V12): nem ela nem a coluna da
+    // direita trazem ✕, menu lateral ou troca de fazenda.
     const fonte = readFileSync("src/components/mapa/MapaControlesMobile.jsx", "utf8");
+    expect(fonte).toMatch(/role="toolbar"/);
     expect(fonte).not.toMatch(/navigate\(-1\)|Trocar empresa|Abrir menu/);
   });
 
