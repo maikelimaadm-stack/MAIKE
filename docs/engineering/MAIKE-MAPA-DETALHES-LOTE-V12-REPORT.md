@@ -109,7 +109,7 @@ A fonte da verdade é `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html
 
 ## Revisão D-PROD-229 — detalhes do lote organizados e sem duplicações
 
-O nome do lote fica no cabeçalho/navegação; o cartão não o repete. Categoria e sexo ficam no subtítulo e deixam de se repetir em Identificação quando conhecidos. Campos sem informação continuam explícitos. Cat. de manejo permanece, pois não equivale à categoria do animal.
+O nome do lote fica no cabeçalho/navegação; o cartão não o repete. Categoria e sexo ficam na identidade/cabeçalho e deixam de se repetir em Identificação quando conhecidos. Na tela empilhada, categoria e pasto não são repetidos no cartão. Campos sem informação continuam explícitos. Cat. de manejo permanece, pois não equivale à categoria do animal.
 
 Os cartões passam a ser Lotação, Pesagem, Projeção de peso e Identificação. Peso médio atual sai de Lotação para Pesagem, sem mudar o valor. A projeção fica separada dos dados de pesagem, mesmo quando os números coincidem. Participações nas cabeças e na UA ganham rótulos claros. A pastagem deixa de se repetir na grade da área quando já está no subtítulo.
 

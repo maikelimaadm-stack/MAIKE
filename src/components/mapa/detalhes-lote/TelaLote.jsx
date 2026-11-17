@@ -13,7 +13,7 @@ export function TelaLote({ loteId }) {
   const { modelo } = usePasto();
   const lote = (modelo?.lotes || []).find((/** @type {{ id: string }} */ l) => l.id === String(loteId));
   if (!lote) return <Vazio icone={Beef}>Este lote não está mais neste pasto.</Vazio>;
-  return <BlocosLote lote={lote} mostrarNome={false} />;
+  return <BlocosLote lote={lote} mostrarNome={false} categoriaNoCabecalho />;
 }
 
 export default TelaLote;

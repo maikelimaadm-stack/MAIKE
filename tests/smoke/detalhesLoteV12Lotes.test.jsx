@@ -216,7 +216,7 @@ describe("aba Lotes › Lote", () => {
     const cartao = painel.querySelector(".mk-dp-cartao");
     expect(cartao.querySelector(".mk-dp-cartao__titulo")).toBeNull();
     expect(screen.getAllByText("L-2026-008")).toHaveLength(1);
-    expect(cartao.querySelector(".mk-dp-cartao__sub").textContent).toBe("VACA · FÊMEA · Pasto 07");
+    expect(cartao.querySelector(".mk-dp-cartao__sub").textContent).toBe("VACA · FÊMEA");
     expect(cartao.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");
     expect(cartao.querySelector("img").getAttribute("src")).toBe(urlSubiconeLote("femea-37-mais", 36));
     expect([...painel.querySelectorAll(".mk-dp-aviso--atencao")].map((a) => a.textContent)).toEqual(["Faz 82 dias sem pesar"]);
@@ -393,7 +393,8 @@ describe("tela do lote", () => {
     expect(document.querySelector(".mk-dp-nav")).toBeNull();
     expect(document.querySelector(".mk-dp-cartao__titulo")).toBeNull();
     expect(screen.getAllByText("L-2026-025")).toHaveLength(1);
-    expect(document.querySelector(".mk-dp-cartao__sub").textContent).toBe("BEZERRO · MACHO · Pasto 07");
+    expect(screen.getAllByText(/BEZERRO/)).toHaveLength(1);
+    expect(document.querySelector(".mk-dp-cartao__sub").textContent).toBe("MACHO");
     expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Projeção de peso", "Identificação"]);
     expect(screen.getByRole("group", { name: "Ações" }).textContent).toBe("MoverPesarManejos");
   });

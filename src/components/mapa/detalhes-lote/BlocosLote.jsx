@@ -2,7 +2,6 @@ import React from "react";
 import { Aviso, Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe } from "@/components/mapa/detalhes-lote/blocos";
 import { IconeCategoria } from "@/components/mapa/detalhes-lote/pecas";
 import { VAZIO, camposDoLote } from "@/components/mapa/detalhes-lote/catalogo";
-import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').LoteVm} LoteVm */
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').CampoTexto} CampoTexto */
@@ -80,17 +79,15 @@ export function PartesDoCartao({ campos }) {
 
 /**
  * Blocos de um lote (vista Lote e tela do lote, v12): cartão com o subícone, o
- * nome, "CATEGORIA · SEXO · Pasto" e a situação; um aviso por alerta (nível 2 em
+ * identidade e situação; nome e categoria não se repetem quando já estão no cabeçalho; um aviso por alerta (nível 2 em
  * âmbar, nível 1 em informação); Lotação, Pesagem, Projeção de peso e
  * Identificação abertas. D-PROD-229: sem repetir nome, categoria e sexo.
- * @param {{ lote: LoteVm, mostrarNome?: boolean }} props
+ * @param {{ lote: LoteVm, mostrarNome?: boolean, categoriaNoCabecalho?: boolean }} props
  */
-export function BlocosLote({ lote, mostrarNome = true }) {
-  const { modelo, dados } = usePasto();
-  const areaNome = modelo?.area?.nome || dados.areaNome;
-  const sub = [lote.categoria, lote.sexo, areaNome].filter((t) => t && t !== VAZIO).join(" · ");
+export function BlocosLote({ lote, mostrarNome = true, categoriaNoCabecalho = false }) {
+  const sub = [categoriaNoCabecalho ? null : lote.categoria, lote.sexo].filter((t) => t && t !== VAZIO).join(" · ");
   // Só reorganiza a apresentação: o catálogo da Lista e suas preferências
-  // continuam completos. Categoria e sexo já estão no cartão de identidade.
+  // continuam completos. Categoria e sexo já estão na identidade/cabeçalho.
   const lotacao = camposDoLote(lote, "Lotação");
   const pesagem = camposDoLote(lote, "Pesagem");
   const chavesProjecao = new Set(["projetado", "projArroba", "gmdMes", "baseProj", "objetivo", "atinge", "pesPrev", "projMeses"]);
