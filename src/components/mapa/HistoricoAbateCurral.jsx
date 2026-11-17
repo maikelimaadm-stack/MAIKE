@@ -35,7 +35,7 @@ export default function HistoricoAbateCurral({ areaId }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   // R2A (D-PROD-99): a exclusão antiga (somar no lote e apagar o movimento em
   // duas chamadas) saiu. Cancelar abate é o comando do servidor.
-  const { data: historico = [], isLoading } = useQuery({
+  const { data: historico = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["historico-abate-curral", areaId, empresaSelecionadaId],
     queryFn: async () => {
       const movimentacoes = await listarTodasMovimentacoes();
@@ -60,6 +60,16 @@ export default function HistoricoAbateCurral({ areaId }) {
   });
 
   const titulo = <TituloBloco>{`Histórico de Abate${!isLoading && historico.length > 0 ? ` (${historico.length})` : ""}`}</TituloBloco>;
+
+  // Erro: o estado de erro do Histórico de Movimentação (não "nenhum abate").
+  if (isError && historico.length === 0) {
+    return (
+      <>
+        {titulo}
+        <MolduraHistorico estado={<EstadoHistorico tipo="erro" erro={error} onTentarDeNovo={() => refetch()} />} />
+      </>
+    );
+  }
 
   if (isLoading) {
     return (

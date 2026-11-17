@@ -33,11 +33,12 @@ const TOM_DO_STATUS = /** @type {Record<string, "ambar" | "vermelho">} */ ({ Pen
  * (`data-permissao-explicita`), e a recusa do servidor vira mensagem.
  *
  * `carregando` e `erro` (sem cópia da lista): o estado no lugar da lista, sem
- * "Nenhum lançamento encontrado." nem contagem.
+ * "Nenhum lançamento encontrado." nem contagem. No erro, como no Histórico de
+ * Movimentação, o motivo (`causaDoErro`) e o "Tentar novamente" (`onTentarDeNovo`).
  *
- * @param {{ historico?: any[], podeExcluir?: boolean, carregando?: boolean, erro?: boolean, bebedouroNome?: string }} props
+ * @param {{ historico?: any[], podeExcluir?: boolean, carregando?: boolean, erro?: boolean, causaDoErro?: unknown, onTentarDeNovo?: () => void, bebedouroNome?: string }} props
  */
-export default function BebedouroTimeline({ historico = [], podeExcluir = false, carregando = false, erro = false, bebedouroNome = "" }) {
+export default function BebedouroTimeline({ historico = [], podeExcluir = false, carregando = false, erro = false, causaDoErro, onTentarDeNovo, bebedouroNome = "" }) {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
   const lista = Array.isArray(historico) ? historico : [];
@@ -70,7 +71,7 @@ export default function BebedouroTimeline({ historico = [], podeExcluir = false,
   };
 
   if (carregando) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="carregando" />} />;
-  if (erro) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="erro" />} />;
+  if (erro) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="erro" erro={causaDoErro} onTentarDeNovo={onTentarDeNovo} />} />;
   if (!lista.length) return <MolduraHistorico barra={barra} estado={<EstadoHistorico>Nenhum lançamento encontrado.</EstadoHistorico>} />;
 
   return (

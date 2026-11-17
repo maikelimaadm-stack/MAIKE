@@ -385,6 +385,38 @@ describe("Últimos eventos", () => {
     expect(within(dialogo).getByText("Tarefa criada pelo mapa.")).toBeTruthy();
     expect(within(dialogo).getByText("Pendente → Em andamento")).toBeTruthy();
   });
+
+  it("'Ver histórico' com o histórico carregando ou com erro: o diálogo mostra o estado da referência (D-PROD-222), não 'Nenhum histórico encontrado.'", async () => {
+    largura(1280);
+    refreshMapaCacheEntry.mockReturnValue(new Promise(() => {}));
+    const { unmount } = noDialogo();
+    await screen.findByRole("status");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Ver histórico" }));
+    });
+    const carregando = await screen.findByRole("dialog", { name: "Histórico da Tarefa" });
+    expect(within(carregando).getByRole("status").textContent).toBe("Carregando histórico...");
+    expect(within(carregando).queryByText("Nenhum histórico encontrado.")).toBeNull();
+    unmount();
+
+    qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    getMapaCachedData.mockResolvedValue([]);
+    refreshMapaCacheEntry.mockRejectedValue(new Error("falha de rede"));
+    noDialogo();
+    await screen.findByRole("alert");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Ver histórico" }));
+    });
+    const comErro = await screen.findByRole("dialog", { name: "Histórico da Tarefa" });
+    const alerta = within(comErro).getByRole("alert");
+    expect([...alerta.children].map((c) => c.textContent)).toEqual(["Não foi possível carregar o histórico.", "Tente novamente em instantes.", "Tentar novamente"]);
+    // O "Tentar novamente" lê de novo; dando certo, os eventos aparecem com a contagem.
+    refreshMapaCacheEntry.mockResolvedValue(EVENTOS);
+    await act(async () => {
+      fireEvent.click(within(alerta).getByRole("button", { name: "Tentar novamente" }));
+    });
+    expect(await screen.findByRole("dialog", { name: "Histórico da Tarefa (2)" })).toBeTruthy();
+  });
 });
 
 describe("Rodapé: Editar · Registrar evento · Concluir", () => {

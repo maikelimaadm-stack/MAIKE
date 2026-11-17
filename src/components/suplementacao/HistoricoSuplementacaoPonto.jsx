@@ -44,7 +44,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
 
   const { data: user } = useQuery({ queryKey: ["user-historico-suplementacao"], queryFn: () => getCurrentUser() });
 
-  const { data: eventos = [], isLoading } = useQuery({
+  const { data: eventos = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["suplementacao-ponto", pontoId],
     queryFn: async () => {
       const cached = await getMapaCachedData('eventosSuplementacao', empresaSelecionadaId);
@@ -136,12 +136,16 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
     }
   };
 
-  const contagem = isLoading ? null : eventos.length;
+  // Erro sem nada guardado: o estado de erro do Histórico de Movimentação (não "nenhum lançamento").
+  const falhou = isError && eventos.length === 0;
+  const contagem = isLoading || falhou ? null : eventos.length;
   const noDialogo = useTituloDoHistorico("Histórico do Cocho", contagem);
   // Fora do diálogo (sem cabeçalho para o título), o título fica na barra.
   const barra = noDialogo ? null : <h3 className="text-sm font-semibold text-slate-900">{`Histórico do Cocho${contagem != null ? ` (${contagem})` : ""}`}</h3>;
 
   if (isLoading) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="carregando" />} />;
+
+  if (falhou) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="erro" erro={error} onTentarDeNovo={() => refetch()} />} />;
 
   if (eventos.length === 0) return <MolduraHistorico barra={barra} estado={<EstadoHistorico />} />;
 

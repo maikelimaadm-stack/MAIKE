@@ -318,6 +318,8 @@ export default function DetalhesBebedouro({
           podeExcluir={podeExcluir === true}
           carregando={carregandoHistorico}
           erro={erroHistorico}
+          causaDoErro={consultaHistorico.error}
+          onTentarDeNovo={() => consultaHistorico.refetch()}
           bebedouroNome={nome}
         />
       </LancLoteDialogo>

@@ -26,15 +26,20 @@ const formatDateTimeBR = (value) => {
  * cabeçalho (D-PROD-118); cada evento é um `CartaoHistorico` (selos de data e
  * status, a tarefa em negrito, as linhas "Rótulo: valor") com o "Excluir" no
  * rodapé. Só o mais recente (índice 0) é excluível, como antes.
- * @param {{ tarefaId: any, tarefaTitulo?: string, historico?: any[] }} props
+ * `carregando` e `erro` (a consulta é do detalhe da tarefa): os estados do
+ * Histórico de Movimentação, em vez de "Nenhum histórico encontrado." — o erro
+ * com o motivo (`causaDoErro`) e o "Tentar novamente" (`onTentarDeNovo`).
+ * @param {{ tarefaId: any, tarefaTitulo?: string, historico?: any[], carregando?: boolean, erro?: boolean, causaDoErro?: unknown, onTentarDeNovo?: () => void }} props
  */
-export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico = [] }) {
+export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico = [], carregando = false, erro = false, causaDoErro, onTentarDeNovo }) {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
+  const semLista = carregando || (erro && historico.length === 0);
+  const contagem = semLista ? null : historico.length;
   // D-PROD-118: no diálogo padrão o título (com a contagem) vai para o cabeçalho.
-  const noDialogo = useTituloDoHistorico("Histórico da Tarefa", historico.length);
+  const noDialogo = useTituloDoHistorico("Histórico da Tarefa", contagem);
   // Fora do diálogo (sem cabeçalho para o título), o título fica na barra.
-  const barra = noDialogo ? null : <h3 className="text-sm font-semibold text-slate-900">{`Histórico da Tarefa (${historico.length})`}</h3>;
+  const barra = noDialogo ? null : <h3 className="text-sm font-semibold text-slate-900">{`Histórico da Tarefa${contagem != null ? ` (${contagem})` : ""}`}</h3>;
 
   const handleDelete = async (item, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último histórico.");
@@ -52,6 +57,10 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
     }
   };
 
+  if (carregando) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="carregando" />} />;
+  if (erro && historico.length === 0) {
+    return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="erro" erro={causaDoErro} onTentarDeNovo={onTentarDeNovo} />} />;
+  }
   if (historico.length === 0) return <MolduraHistorico barra={barra} estado={<EstadoHistorico>Nenhum histórico encontrado.</EstadoHistorico>} />;
 
   return (

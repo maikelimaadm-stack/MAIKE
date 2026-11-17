@@ -89,7 +89,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
 
-  const { data: movimentacoes = [], isLoading } = useQuery({
+  const { data: movimentacoes = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["historico-deposito", deposito.id],
     queryFn: async () => {
       const depositoLocalId = deposito.local_estoque_id;
@@ -137,12 +137,16 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     }
   };
 
-  const contagem = isLoading ? null : movimentacoes.length;
+  // Erro sem nada guardado: o estado de erro do Histórico de Movimentação (não "nenhum registro").
+  const falhou = isError && movimentacoes.length === 0;
+  const contagem = isLoading || falhou ? null : movimentacoes.length;
   const noDialogo = useTituloDoHistorico("Histórico do Depósito", contagem);
   // Fora do diálogo (sem cabeçalho para o título), o título fica na barra.
   const barra = noDialogo ? null : <h3 className="text-sm font-semibold text-slate-900">{`Histórico do Depósito${contagem != null ? ` (${contagem})` : ""}`}</h3>;
 
   if (isLoading) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="carregando" />} />;
+
+  if (falhou) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="erro" erro={error} onTentarDeNovo={() => refetch()} />} />;
 
   if (movimentacoes.length === 0) return <MolduraHistorico barra={barra} estado={<EstadoHistorico>Nenhum registro encontrado</EstadoHistorico>} />;
 

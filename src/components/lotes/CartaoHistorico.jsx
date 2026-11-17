@@ -2,6 +2,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { cn } from "@/lib/utils";
 
 /*
@@ -103,18 +104,29 @@ export default function CartaoHistorico({ selos, titulo, rodape, cancelado = fal
  * Estado do histórico sem cartões, com os textos e as classes do Histórico de
  * Movimentação: carregando (`role="status"`), erro (`role="alert"`, com a ação
  * de tentar de novo) e vazio.
- * @param {{ tipo?: "carregando" | "erro" | "vazio", children?: React.ReactNode, detalhe?: React.ReactNode, acao?: React.ReactNode }} props
+ * No erro, `erro` (o erro da consulta) vira o motivo, como lá
+ * (`getApiErrorMessage`, "Tente novamente em instantes."), e `onTentarDeNovo`
+ * põe o botão "Tentar novamente" da referência.
+ * @param {{ tipo?: "carregando" | "erro" | "vazio", children?: React.ReactNode, detalhe?: React.ReactNode, acao?: React.ReactNode, erro?: unknown, onTentarDeNovo?: () => void }} props
  */
-export function EstadoHistorico({ tipo = "vazio", children, detalhe, acao }) {
+export function EstadoHistorico({ tipo = "vazio", children, detalhe, acao, erro, onTentarDeNovo }) {
   if (tipo === "carregando") {
     return <div role="status" className="text-center text-sm text-slate-500">{children || "Carregando histórico..."}</div>;
   }
   if (tipo === "erro") {
+    const motivo = detalhe ?? (erro !== undefined && erro !== null ? getApiErrorMessage(erro, "Tente novamente em instantes.") : null);
+    const botao =
+      acao ??
+      (onTentarDeNovo ? (
+        <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => onTentarDeNovo()}>
+          Tentar novamente
+        </Button>
+      ) : null);
     return (
       <div role="alert" className="space-y-2 py-6 text-center text-sm text-slate-600">
         <div>{children || "Não foi possível carregar o histórico."}</div>
-        {detalhe ? <div className="text-[11px] text-slate-500">{detalhe}</div> : null}
-        {acao}
+        {motivo ? <div className="text-[11px] text-slate-500">{motivo}</div> : null}
+        {botao}
       </div>
     );
   }

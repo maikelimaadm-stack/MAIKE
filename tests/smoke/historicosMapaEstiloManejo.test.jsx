@@ -13,18 +13,23 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, within, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, within, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
 
-const cache = vi.hoisted(() => ({ dados: {} }));
+const cache = vi.hoisted(() => ({ dados: {}, falhar: new Set() }));
+/** Lê o cache falso: com a chave em `cache.falhar`, a leitura falha (sem rede e sem nada guardado). */
+const lerCache = vi.hoisted(() => async (chave) => {
+  if (cache.falhar.has(chave)) throw new Error("falhou");
+  return cache.dados[chave] || [];
+});
 vi.mock("@/services/suplementacaoHistoricoService", () => ({ excluirEventoSuplementacaoComReversao: vi.fn(), excluirTransferenciaDeposito: vi.fn() }));
 vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ email: "operador@exemplo.test" }) }));
 vi.mock("@/services/tarefasMapaService", () => ({ excluirHistorico: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 vi.mock("@/services/mapaCacheService", () => ({
-  getMapaCachedData: async (chave) => cache.dados[chave] || [],
-  refreshMapaCacheEntry: async (chave) => cache.dados[chave] || [],
+  getMapaCachedData: (chave) => lerCache(chave),
+  refreshMapaCacheEntry: (chave) => lerCache(chave),
   updateMapaCachedData: vi.fn(),
 }));
 
@@ -36,6 +41,7 @@ const { default: HistoricoTarefaPanel } = await import("@/components/mapa/Histor
 const EMP = "emp-1";
 
 beforeEach(() => {
+  cache.falhar = new Set();
   localStorage.setItem("empresa_selecionada_id", EMP);
   Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
   cache.dados = {
@@ -183,3 +189,52 @@ describe("Histórico da tarefa no desenho do manejo (D-PROD-222)", () => {
     expect(within(/** @type {HTMLElement} */ (antigo)).getByText("Somente o último histórico pode ser excluído.")).toBeTruthy();
   });
 });
+
+describe("Erro e carregando no desenho do Histórico de Movimentação (D-PROD-222)", () => {
+  /** Os filhos do aviso de erro, em ordem: a frase, o motivo e o botão. */
+  const partesDoErro = () => [...screen.getByRole("alert").children].map((c) => c.textContent);
+  const ERRO_DO_MANEJO = ["Não foi possível carregar o histórico.", "Tente novamente em instantes.", "Tentar novamente"];
+
+  it("cocho: a consulta falha sem nada guardado — o erro da referência, não \"Nenhum lançamento\"; o \"Tentar novamente\" lê de novo", async () => {
+    cache.falhar.add("eventosSuplementacao");
+    noDialogo("Histórico de Suplementação", "Cocho 07", <HistoricoSuplementacaoPonto pontoId="cocho-1" pontoNome="Cocho 07" ponto={{ id: "cocho-1" }} />);
+    await screen.findByRole("alert");
+    expect(partesDoErro()).toEqual(ERRO_DO_MANEJO);
+    expect(screen.queryByText("Nenhum lançamento encontrado")).toBeNull();
+    expect(titulo()).toBe("Histórico do Cocho");
+    cache.falhar.clear();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await waitFor(() => expect(cartoes()).toHaveLength(2));
+    await waitFor(() => expect(titulo()).toBe("Histórico do Cocho (2)"));
+  });
+
+  it("depósito: o mesmo erro da referência e o \"Tentar novamente\"", async () => {
+    cache.falhar.add("movimentacaoEstoque");
+    noDialogo("Histórico do Depósito", "Depósito Sede", <HistoricoDepositoSuplementacao deposito={{ id: "dep-1", local_estoque_id: "local-1" }} />);
+    await screen.findByRole("alert");
+    expect(partesDoErro()).toEqual(ERRO_DO_MANEJO);
+    expect(screen.queryByText("Nenhum registro encontrado")).toBeNull();
+    cache.falhar.clear();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await waitFor(() => expect(cartoes()).toHaveLength(1));
+  });
+
+  it("tarefa: carregando e erro vêm do detalhe da tarefa — os estados da referência, sem \"Nenhum histórico encontrado.\" nem contagem", async () => {
+    const { rerender } = noDialogo("Histórico da tarefa", "Consertar cerca", <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={[]} carregando />);
+    expect(screen.getByRole("status").textContent).toBe("Carregando histórico...");
+    expect(screen.queryByText("Nenhum histórico encontrado.")).toBeNull();
+    const tentarDeNovo = vi.fn();
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <LancLoteDialogo open onOpenChange={() => {}} titulo="Histórico da tarefa" lotes={[{ nome: "Consertar cerca" }]} largo somenteLeitura>
+          <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={[]} erro causaDoErro={new Error("falhou")} onTentarDeNovo={tentarDeNovo} />
+        </LancLoteDialogo>
+      </QueryClientProvider>,
+    );
+    expect(partesDoErro()).toEqual(ERRO_DO_MANEJO);
+    expect(titulo()).toBe("Histórico da Tarefa");
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(tentarDeNovo).toHaveBeenCalledTimes(1);
+  });
+});
+

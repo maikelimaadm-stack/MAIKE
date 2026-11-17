@@ -185,7 +185,7 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
     setCurrentTarefa(tarefa);
   }, [tarefa]);
 
-  const { data: historico = [], isLoading: loadingHistorico, isError: erroHistorico } = useQuery({
+  const { data: historico = [], isLoading: loadingHistorico, isError: erroHistorico, error: causaErroHistorico, refetch: refetchHistorico } = useQuery({
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
       const cached = await getMapaCachedData('historicoTarefa', currentTarefa.empresa_id);
@@ -514,7 +514,15 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico da tarefa" lotes={[{ nome: currentTarefa.titulo }]} largo somenteLeitura>
-        <HistoricoTarefaPanel tarefaId={currentTarefa.id} tarefaTitulo={currentTarefa.titulo} historico={historico} />
+        <HistoricoTarefaPanel
+          tarefaId={currentTarefa.id}
+          tarefaTitulo={currentTarefa.titulo}
+          historico={historico}
+          carregando={loadingHistorico}
+          erro={erroHistorico}
+          causaDoErro={causaErroHistorico}
+          onTentarDeNovo={() => refetchHistorico()}
+        />
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showEvento} onOpenChange={setShowEvento} titulo="Registrar evento" lotes={[{ nome: currentTarefa.titulo }]}>

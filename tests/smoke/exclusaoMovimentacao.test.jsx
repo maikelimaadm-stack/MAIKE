@@ -685,6 +685,20 @@ describe("Histórico de Abate do Curral", () => {
   });
 });
 
+describe("Histórico de Abate do Curral — erro (D-PROD-222)", () => {
+  it("a consulta falha: o erro do Histórico de Movimentação (não \"Nenhum abate encontrado\"); o \"Tentar novamente\" lê de novo", async () => {
+    servico.listarTodasMovimentacoes.mockRejectedValueOnce(new Error("falhou"));
+    await renderizar(<HistoricoAbateCurral areaId="curral" />);
+    const alerta = await screen.findByRole("alert");
+    expect([...alerta.children].map((c) => c.textContent)).toEqual(["Não foi possível carregar o histórico.", "Tente novamente em instantes.", "Tentar novamente"]);
+    expect(screen.queryByText("Nenhum abate encontrado")).toBeNull();
+    expect(screen.getByText("Histórico de Abate")).toBeTruthy();
+    servico.listarTodasMovimentacoes.mockImplementation(async () => [{ ...TRANSF, id: "ab-1", tipo: "Abate", area_origem_id: "curral" }]);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" })); });
+    expect(await screen.findByText("Histórico de Abate (1)")).toBeTruthy();
+  });
+});
+
 describe("Renomear Lote", () => {
   it("'Usar nome original' só preenche; salvar cria renomeação nova e nada é apagado", async () => {
     servico.listarTodasMovimentacoes.mockImplementation(async () => [

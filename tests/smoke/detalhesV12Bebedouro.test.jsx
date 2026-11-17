@@ -840,7 +840,8 @@ describe("Histórico carregando ou com erro", () => {
   it("erro sem dados: o aviso 'Não foi possível carregar o histórico.' no resumo e no diálogo do Histórico", async () => {
     largura(1280);
     estado.historico = [];
-    estado.consulta = { isError: true };
+    const tentarDeNovo = vi.fn();
+    estado.consulta = { isError: true, error: new Error("Sem conexão com o servidor."), refetch: tentarDeNovo };
     noDialogo({});
     await screen.findByText("189 cab");
     expect(screen.getByRole("alert").textContent).toBe("Não foi possível carregar o histórico.");
@@ -848,7 +849,12 @@ describe("Histórico carregando ou com erro", () => {
     expect(screen.queryByText("Nenhum lançamento ainda.")).toBeNull();
     await clicar(screen.getByRole("button", { name: "Histórico" }));
     const hist = ultimoDialogo();
-    expect(within(hist).getByRole("alert").textContent).toBe("Não foi possível carregar o histórico.");
+    // O estado de erro do Histórico de Movimentação: a frase, o motivo e o "Tentar novamente" (D-PROD-222).
+    const alerta = within(hist).getByRole("alert");
+    // Um erro que não é do servidor não mostra a mensagem crua: o texto padrão, como na referência.
+    expect([...alerta.children].map((c) => c.textContent)).toEqual(["Não foi possível carregar o histórico.", "Tente novamente em instantes.", "Tentar novamente"]);
+    await clicar(within(alerta).getByRole("button", { name: "Tentar novamente" }));
+    expect(tentarDeNovo).toHaveBeenCalledTimes(1);
     expect(tituloDe(hist)).toBe("Histórico do Bebedouro");
     expect(within(hist).queryByText("Nenhum lançamento encontrado.")).toBeNull();
   });
