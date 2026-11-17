@@ -1,33 +1,30 @@
-import { useCallback, useEffect, useState } from 'react';
-import { SECOES_AREA, SECOES_LOTE } from '@/components/mapa/detalhes-lote/catalogo';
+import { useCallback, useSyncExternalStore } from 'react';
+import { COLUNAS_PADRAO, normalizarColunas } from '@/components/mapa/detalhes-lote/catalogo';
 
 /**
  * Preferências do Detalhes do Lote — POR USUÁRIO, como os filtros do Mapa Geral
  * (src/lib/mapaGeralFiltrosStorage.js, D-PROD-135).
  *
  * Chave: fazenda (cliente) + conta (login) + empresa — as TRÊS obrigatórias.
- * Sem escopo conhecido não há leitura nem gravação: vale o padrão.
+ * Sem escopo conhecido (conta ainda carregando) vale o padrão e nada é gravado.
  *
- * O que fica salvo: as informações marcadas no "Filtrar" da aba Lotes (Alertas,
- * Lotação, Pesagem, Identificação) e no "Mostrar informações" da aba Área.
- * Padrão (pedido do proprietário): SEM filtro — tudo marcado.
- * O filtro de ALERTA e a vista (Resumo/Lote/Lista) não são preferência: toda
- * abertura começa em "Todos os lotes" e em Resumo.
+ * O que fica salvo (v12, D-PROD-V12): as colunas da Lista da aba Lotes
+ * (`colunasLote`, chaves do catálogo), escolhidas em "Configurar tabela".
+ * Padrão: Alertas + Lotação + Pesagem (`COLUNAS_PADRAO`). Lista vazia é escolha
+ * do usuário e é respeitada. As seções do v8 (`secoesLote`, `secoesArea`) não
+ * são mais lidas e somem na próxima gravação.
  *
- * Legado: as chaves antigas sem titular (`mk-dl-v8-secoes`,
- * `mk-dl-v8-secoes-area`) não são herdadas nem apagadas (mesma regra do mapa).
+ * Quem lê fica avisado quando alguém grava: a Lista continua montada por baixo
+ * da tela empilhada "Configurar tabela" e troca as colunas ao Aplicar.
  */
 
 const PREFIXO = 'detalhes_lote_pref_u:';
 
 /** @typedef {{ clienteId: string, login: string, empresaId: string }} EscopoPreferencias */
-/** @typedef {{ secoesLote: string[], secoesArea: string[] }} PreferenciasDetalhes */
+/** @typedef {{ colunasLote: string[] }} PreferenciasDetalhes */
 
-/** @type {PreferenciasDetalhes} */
-export const PADRAO_PREFERENCIAS = Object.freeze({
-  secoesLote: [...SECOES_LOTE],
-  secoesArea: [...SECOES_AREA],
-});
+/** @type {Readonly<PreferenciasDetalhes>} */
+export const PADRAO_PREFERENCIAS = Object.freeze({ colunasLote: [...COLUNAS_PADRAO] });
 
 /** @param {any} escopo @returns {escopo is EscopoPreferencias} */
 export const escopoValido = (escopo) =>
@@ -36,72 +33,112 @@ export const escopoValido = (escopo) =>
 /** @param {EscopoPreferencias} escopo */
 export const chavePreferencias = (escopo) => `${PREFIXO}${escopo.clienteId}:${escopo.login}:${escopo.empresaId}`;
 
-/** Mantém só as seções conhecidas, sem repetição, na ordem oficial. */
-const filtrarSecoes = (valor, oficiais) =>
-  Array.isArray(valor) ? oficiais.filter((s) => valor.includes(s)) : null;
-
 /**
  * Estado completo: o padrão, sobrescrito só pelo que foi salvo com tipo válido.
- * Uma lista salva vazia é escolha do usuário ("Nenhuma") e é respeitada.
  * @param {any} salvo
  * @returns {PreferenciasDetalhes}
  */
 export const normalizarPreferencias = (salvo) => {
   const s = salvo && typeof salvo === 'object' && !Array.isArray(salvo) ? salvo : {};
-  return {
-    secoesLote: filtrarSecoes(s.secoesLote, SECOES_LOTE) ?? [...PADRAO_PREFERENCIAS.secoesLote],
-    secoesArea: filtrarSecoes(s.secoesArea, SECOES_AREA) ?? [...PADRAO_PREFERENCIAS.secoesArea],
-  };
+  return { colunasLote: normalizarColunas(s.colunasLote) ?? [...COLUNAS_PADRAO] };
 };
 
 /** @param {EscopoPreferencias|null|undefined} escopo */
-export const lerPreferencias = (escopo) => {
-  if (typeof window === 'undefined' || !escopoValido(escopo)) return normalizarPreferencias(null);
+const textoSalvo = (escopo) => {
+  if (typeof window === 'undefined' || !escopoValido(escopo)) return null;
   try {
-    return normalizarPreferencias(JSON.parse(window.localStorage.getItem(chavePreferencias(escopo)) || 'null'));
+    return window.localStorage.getItem(chavePreferencias(escopo));
+  } catch {
+    return null;
+  }
+};
+
+/** @param {string|null} bruto @returns {PreferenciasDetalhes} */
+const lerTexto = (bruto) => {
+  try {
+    return normalizarPreferencias(JSON.parse(bruto || 'null'));
   } catch {
     return normalizarPreferencias(null);
   }
 };
 
-/** @param {EscopoPreferencias|null|undefined} escopo @param {PreferenciasDetalhes} pref */
+/** @param {EscopoPreferencias|null|undefined} escopo @returns {PreferenciasDetalhes} */
+export const lerPreferencias = (escopo) => lerTexto(textoSalvo(escopo));
+
+/**
+ * Grava (só com escopo completo). Fica salvo só o que é preferência hoje.
+ * @param {EscopoPreferencias|null|undefined} escopo
+ * @param {PreferenciasDetalhes} pref
+ */
 export const salvarPreferencias = (escopo, pref) => {
   if (typeof window === 'undefined' || !escopoValido(escopo)) return;
   try {
     window.localStorage.setItem(chavePreferencias(escopo), JSON.stringify(normalizarPreferencias(pref)));
   } catch {
-    /* localStorage pode lançar (modo privado, cota): a tela segue com o estado em memória */
+    /* localStorage pode lançar (modo privado, cota): a tela segue com o que estava */
   }
 };
 
+// ─── Assinantes (todas as telas abertas leem o mesmo valor) ─────────────────
+
+/** @type {Set<() => void>} */
+const assinantes = new Set();
+
+/** @param {() => void} avisar */
+const assinar = (avisar) => {
+  assinantes.add(avisar);
+  return () => {
+    assinantes.delete(avisar);
+  };
+};
+
+const avisarTodos = () => {
+  for (const avisar of [...assinantes]) avisar();
+};
+
 /**
- * Preferências do usuário deste escopo. Troca de conta/empresa → relê (nada do
- * escopo anterior sobrevive). Sem escopo ainda (usuário carregando) → padrão,
- * sem gravar.
- * @param {EscopoPreferencias|null|undefined} escopo
- * @returns {{ preferencias: PreferenciasDetalhes, alterar: (campo: keyof PreferenciasDetalhes, valor: string[]) => void }}
+ * Sem escopo (conta carregando) a escolha vale só nesta sessão, em memória:
+ * nada vai para o localStorage.
+ * @type {string[] | null}
  */
-export function usePreferenciasDetalhes(escopo) {
-  const chave = escopoValido(escopo) ? chavePreferencias(escopo) : null;
-  const [estado, setEstado] = useState(() => ({ chave, preferencias: lerPreferencias(escopo) }));
+let colunasSemEscopo = null;
 
-  useEffect(() => {
-    // `escopo` entra só pela `chave`, que o resume (fazenda + conta + empresa).
-    if (estado.chave !== chave) setEstado({ chave, preferencias: lerPreferencias(escopo) });
-  }, [chave, estado.chave]);
+/** Último valor lido por chave (o mesmo array enquanto o texto salvo não muda). */
+/** @type {Map<string, { bruto: string|null, colunas: string[] }>} */
+const lidas = new Map();
 
-  const preferencias = estado.chave === chave ? estado.preferencias : lerPreferencias(escopo);
+/** @param {EscopoPreferencias|null|undefined} escopo @returns {string[]} */
+const colunasDe = (escopo) => {
+  if (!escopoValido(escopo)) return colunasSemEscopo ?? PADRAO_PREFERENCIAS.colunasLote;
+  const chave = chavePreferencias(escopo);
+  const bruto = textoSalvo(escopo);
+  const ultima = lidas.get(chave);
+  if (ultima && ultima.bruto === bruto) return ultima.colunas;
+  const colunas = lerTexto(bruto).colunasLote;
+  lidas.set(chave, { bruto, colunas });
+  return colunas;
+};
 
-  const alterar = useCallback(
-    (/** @type {keyof PreferenciasDetalhes} */ campo, /** @type {string[]} */ valor) => {
-      setEstado((atual) => {
-        const proximas = normalizarPreferencias({ ...atual.preferencias, [campo]: valor });
-        salvarPreferencias(escopo, proximas);
-        return { chave: atual.chave, preferencias: proximas };
-      });
-    },
-    [chave],
-  );
+/**
+ * Grava as colunas da Lista do usuário deste escopo e avisa quem está lendo.
+ * @param {EscopoPreferencias|null|undefined} escopo
+ * @param {readonly string[]} colunas
+ */
+export function gravarColunasLote(escopo, colunas) {
+  const limpas = normalizarColunas([...colunas]) ?? [...COLUNAS_PADRAO];
+  if (escopoValido(escopo)) salvarPreferencias(escopo, { ...lerPreferencias(escopo), colunasLote: limpas });
+  else colunasSemEscopo = limpas;
+  avisarTodos();
+}
 
-  return { preferencias, alterar };
+/**
+ * Colunas da Lista (chaves, na ordem do catálogo) do usuário deste escopo, e a
+ * função que grava. Troca de conta/empresa → relê; outro leitor gravou → relê.
+ * @param {EscopoPreferencias|null|undefined} escopo
+ * @returns {[string[], (colunas: readonly string[]) => void]}
+ */
+export function useColunasLote(escopo) {
+  const colunas = useSyncExternalStore(assinar, () => colunasDe(escopo), () => PADRAO_PREFERENCIAS.colunasLote);
+  const gravar = useCallback((/** @type {readonly string[]} */ novas) => gravarColunasLote(escopo, novas), [escopo]);
+  return [colunas, gravar];
 }

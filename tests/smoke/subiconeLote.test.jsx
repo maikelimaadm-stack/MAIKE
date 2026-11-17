@@ -10,8 +10,10 @@
  * cada categoria aparece com o animal DELE, na cor do sexo DELE, mesmo quando o pasto
  * mistura sexos (o marcador do mapa é que vira misto).
  *
- * Tudo REAL (catálogo, peças, painel, formulários, DetalhesLote); mocks só na borda
- * (cache do mapa, serviços de rede, sessão, toast).
+ * Tudo REAL (catálogo, peças, abas do Detalhes v12, formulários, DetalhesLote); mocks só
+ * na borda (cache do mapa, serviços de rede, sessão, toast). As abas do v12 (D-PROD-V12)
+ * rodam na casca de teste (tests/smoke/fixtures/pastoV12.jsx); o último bloco usa o
+ * DetalhesLote real com a casca real (PainelPasto).
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -48,7 +50,6 @@ vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ id:
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
 vi.mock("@/components/lotes/ExcluirMovimentacao", () => ({ escopoDoUsuario: () => "c-1:u-1" }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() }) }));
-vi.mock("@/components/suplementacao/ResumoSuplementacao", vazio("resumo-supl"));
 vi.mock("@/components/lotes/HistoricoMovimentacoes", vazio("historico"));
 vi.mock("@/components/suplementacao/HistoricoSuplementacaoLote", vazio("historico-supl"));
 
@@ -58,7 +59,8 @@ const { resolverFiguraDoPasto, urlSubiconeLote } = await import("@/assets/icones
 const { FAIXAS_IDADE_CATEGORIA_MANEJO, categoriaOficialDaCategoriaManejo } = await import("@/domain/lotes/categoriaOficialDerivada");
 const { montarModeloDetalhes } = await import("@/components/mapa/detalhes-lote/catalogo");
 const { IconeCategoria } = await import("@/components/mapa/detalhes-lote/pecas");
-const { default: PainelDetalhesLote } = await import("@/components/mapa/detalhes-lote/PainelDetalhesLote");
+const { CascaDeTeste } = await import("./fixtures/pastoV12.jsx");
+const { esquecerEstadoLotes } = await import("@/components/mapa/detalhes-lote/useEstadoLotes");
 const { default: FormularioMorte } = await import("@/components/lotes/FormularioMorte");
 const { default: FormularioPesagem } = await import("@/components/lotes/FormularioPesagem");
 const { default: DetalhesLote } = await import("@/components/mapa/DetalhesLote");
@@ -148,11 +150,11 @@ const comCliente = (ui) => (
 
 beforeEach(() => {
   seq = 0;
+  esquecerEstadoLotes();
   Object.assign(dados, { areas: [], lotes: [], movimentacoes: [], categoriasManejo: [] });
   window.localStorage.clear();
   window.localStorage.setItem("empresa_selecionada_id", "emp-1");
   Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
-  // Desktop: a aba Tudo mostra os cartões (subícone 36 px).
   window.matchMedia = /** @type {any} */ ((q) => ({ matches: /min-width: 1024px/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
   for (const fn of Object.values(icones)) fn.mockClear();
   cache.getMapaCachedData.mockClear();
@@ -174,7 +176,8 @@ describe("subícone do lote: as 10 combinações sexo + faixa", () => {
 
   it("IconeCategoria desenha o svg da figura, na cor do sexo, montado no tamanho em que aparece", () => {
     for (const c of COMBINACOES) {
-      for (const tamanho of [22, 32, 36]) {
+      // 22: formulários; 30: categorias da aba Detalhes; 34: itens do Resumo; 44: cartão do lote.
+      for (const tamanho of [22, 30, 34, 44]) {
         const { container, unmount } = render(<IconeCategoria figura={c.figura} tamanho={tamanho} alt={c.figura} />);
         const img = /** @type {HTMLImageElement} */ (container.querySelector("img"));
         expect(img, c.figura).toBeTruthy();
@@ -223,11 +226,11 @@ describe("pasto que mistura sexos: o mapa é misto; os detalhes, nunca", () => {
     for (const f of [...modelo.lotes.map((l) => l.subicone), ...Object.values(porNome)]) expect(figurasDosMistos).not.toContain(f);
   });
 
-  it("na tela (Tudo 36 px, Área 22 px, Lotes › Resumo 22 px, Lotes › Lote 32 px): só animais, na cor do sexo; nada vermelho", async () => {
+  it("na tela (Detalhes › Categorias 30 px, Lotes › Resumo 34 px, Lotes › Lote 44 px): só animais, na cor do sexo; nada vermelho", async () => {
     const posicoes = PASTO();
     const esperado = posicoes.map((p) => p.categoria_manejo_id.slice(3));
     const modelo = modeloDe(posicoes);
-    render(<PainelDetalhesLote modelo={modelo} suplementacao={null} acoes={null} escopoPreferencias={null} />);
+    render(<CascaDeTeste modelo={modelo} modo="celular" abaInicial="detalhes" areaId="a1" />);
 
     /** Todas as imagens do painel visível, conferidas uma a uma. @param {number} tamanho */
     const imagens = (tamanho) => {
@@ -240,14 +243,14 @@ describe("pasto que mistura sexos: o mapa é misto; os detalhes, nunca", () => {
       return imgs.map(figuraDaImg);
     };
 
-    // Tudo: um cartão por lote, na ordem do modelo.
-    expect(imagens(36)).toEqual(esperado);
-    await aba("Área");
-    expect(imagens(22)).toEqual(modelo.area.categorias.map((k) => k.subicone));
+    // Detalhes: uma linha por categoria da área.
+    expect(imagens(30)).toEqual(modelo.area.categorias.map((k) => k.subicone));
+    // Lotes › Resumo (o celular abre no Resumo): um item por lote, por nome.
     await aba("Lotes");
-    expect(imagens(22).sort()).toEqual([...esperado].sort());
+    expect(imagens(34).sort()).toEqual([...esperado].sort());
+    // Lotes › Lote: o cartão do lote.
     await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
-    const [umLote] = imagens(32);
+    const [umLote] = imagens(44);
     expect(esperado).toContain(umLote);
   });
 });
@@ -289,7 +292,8 @@ describe("posição sem sexo ou sem faixa: sem ícone (quadrado tracejado)", () 
 
   it("a tela mostra o quadrado tracejado, sem imagem", () => {
     const modelo = modeloDe(semFigura(), { categoriasManejo: [...CATEGORIAS, SEM_IDADE] });
-    const { container } = render(<PainelDetalhesLote modelo={modelo} suplementacao={null} acoes={null} escopoPreferencias={null} />);
+    // Lotes › Resumo (celular): os 4 lotes sem figura.
+    const { container } = render(<CascaDeTeste modelo={modelo} modo="celular" areaId="a1" />);
     expect(container.querySelectorAll("img")).toHaveLength(0);
     expect(tracejados(screen.getByRole("tabpanel"))).toHaveLength(4);
     for (const figura of [null, undefined, "", "misto1", "boi-gordo"]) {
@@ -391,7 +395,10 @@ describe("formulários de manejo: subícone do código", () => {
 // ── DetalhesLote: categorias do cache do mapa → modelo e formulários ─────────
 
 describe("DetalhesLote: as categorias de manejo vêm do cache do mapa", () => {
+  // DetalhesLote REAL com a casca v12 real (PainelPasto): roda depois da integração das peças
+  // do Detalhes v12 (D-PROD-V12). No celular a aba Lotes abre no Resumo (subícone 34 px).
   it("lê 'categoriasManejo' do cache, mostra o subícone do código e o passa ao formulário de Morte", async () => {
+    window.matchMedia = /** @type {any} */ ((q) => ({ matches: /max-width/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
     // 9–12 só sai da Categoria de Manejo: pelo texto oficial ("Bezerra 0 a 12 meses") seria 0–8.
     const posicoes = [posicao("femea-9-12", 20), posicao("macho-25-36", 5)];
     dados.areas = [AREA];
@@ -401,11 +408,11 @@ describe("DetalhesLote: as categorias de manejo vêm do cache do mapa", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
 
     expect(cache.getMapaCachedData).toHaveBeenCalledWith("categoriasManejo", "emp-1");
-    const cartoes = [...screen.getByRole("tabpanel").querySelectorAll("img")];
-    expect(cartoes.map((img) => img.getAttribute("src"))).toEqual([urlSubiconeLote("femea-9-12", 36), urlSubiconeLote("macho-25-36", 36)]);
+    const itens = [...screen.getByRole("tabpanel").querySelectorAll("img")];
+    expect(itens.map((img) => img.getAttribute("src"))).toEqual([urlSubiconeLote("femea-9-12", 34), urlSubiconeLote("macho-25-36", 34)]);
 
-    const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-    if (botaoUnico) await clicar(botaoUnico);
+    // Rodapé "Manejos" → tela "Manejos e históricos" → "Morte".
+    await clicar(screen.getByRole("button", { name: "Manejos", exact: true }));
     await clicar(screen.getByRole("button", { name: "Morte" }));
     await clicar(screen.getByRole("button", { name: /Adicionar Categoria/ }));
     // 1ª categoria: Bezerra 0 a 12 meses — a figura veio das categorias que o DetalhesLote passou.

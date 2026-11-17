@@ -5,7 +5,7 @@
  * e os próximos fins de mês.
  */
 import { describe, it, expect } from "vitest";
-import { montarModeloDetalhes, camposCartaoTudo, camposDaSecao } from "@/components/mapa/detalhes-lote/catalogo";
+import { montarModeloDetalhes, camposDoLote, camposDaSecao } from "@/components/mapa/detalhes-lote/catalogo";
 
 const AREA = { id: "a1", nome: "PASTO A", tamanho_hectares: 10 };
 const projecao = (extra = {}) => ({
@@ -44,8 +44,10 @@ describe("D-PROD-198 — peso projetado nos Detalhes do Lote", () => {
     expect(valor(l, "atinge")).toBe("11/07/2027 (26 d)");
     expect(valor(l, "pesPrev")).toBe("97,7% do previsto");
     expect(valor(l, "projMeses")).toBe("30/06: 415 · 31/07: 430 · 31/08: 446");
-    expect(camposCartaoTudo(l).find((c) => c.rotulo === "Peso projetado (kg)")?.texto).toBe("407,0");
-    // os campos novos ficam na seção Pesagem (visível por padrão)
+    // v12 (D-PROD-V12): os blocos do lote (vista Lote e tela do lote) mostram o projetado, com a dica.
+    const projetado = camposDoLote(l, "Pesagem").find((c) => c.rotulo === "Peso projetado (kg)");
+    expect(projetado).toMatchObject({ texto: "407,0", dica: "último peso + ganho diário da curva da categoria, até hoje" });
+    // os campos novos ficam na seção Pesagem (coluna padrão da Lista)
     expect(camposDaSecao("Pesagem").map((c) => c.chave).slice(0, 8)).toEqual(["projetado", "projArroba", "gmdMes", "baseProj", "objetivo", "atinge", "pesPrev", "projMeses"]);
   });
 
