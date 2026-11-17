@@ -136,9 +136,6 @@ const secao = () => screen.getByRole('region', { name: 'Nível do depósito' });
 const corpo = () => document.querySelector('.mk-dp__corpo');
 const pilulas = () => within(screen.getByRole('group', { name: 'Ações' })).getAllByRole('button').map((b) => b.textContent);
 const informacoes = () => screen.getByRole('group', { name: 'Informações do depósito' });
-const historico = () => screen.getByRole('list', { name: 'Histórico do depósito' });
-const cartoesDoHistorico = () => Array.from(historico().querySelectorAll('.mk-dp-tl__card'));
-const linhasDoCartao = (cartao) => Array.from(cartao.querySelectorAll('.mk-dp-tl__row')).map((r) => `${r.querySelector('dt').textContent}: ${r.querySelector('dd').textContent}`);
 const tocar = async (el) => {
   await act(async () => {
     fireEvent.click(el);
@@ -182,7 +179,6 @@ describe('DV-1 — casca v12 e cabeçalho', () => {
 
   it('o markup novo só usa as classes do v12 (sem Tailwind no corpo)', async () => {
     await montar();
-    await waitFor(() => expect(historico()).toBeTruthy());
     const estranhas = Array.from(corpo().querySelectorAll('[class]'))
       .flatMap((el) => String(el.getAttribute('class')).split(/\s+/))
       .filter((c) => c && !/^(mk-dp|lucide|is-)/.test(c));
@@ -193,10 +189,9 @@ describe('DV-1 — casca v12 e cabeçalho', () => {
 describe('DV-2 — seções na ordem do v12', () => {
   it('nível, saldo por produto, pastos atendidos, informações e histórico; o bloco do nível com o texto do v12', async () => {
     await montar();
-    await waitFor(() => expect(cartoesDoHistorico()).toHaveLength(2));
     const titulos = within(corpo()).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
     expect(titulos).toEqual([
-      'Nível do depósito', 'Saldo por produto', 'Pastos atendidos', 'Informações do depósito', 'Histórico do depósito', '09 NOV. 2026', '04 NOV. 2026',
+      'Nível do depósito', 'Saldo por produto', 'Pastos atendidos', 'Informações do depósito',
     ]);
     // Os pares do popup (D-PROD-226) contam com isto: o corpo é filho da raiz .mk-dp-deposito, a região
     // do nível e os títulos são filhos diretos do corpo, e Saldo por produto | Pastos atendidos vêm
@@ -205,7 +200,7 @@ describe('DV-2 — seções na ordem do v12', () => {
     const filhos = Array.from(corpo().children);
     expect(filhos[0].classList.contains('mk-dp-deposito__nivel')).toBe(true);
     expect(filhos.filter((f) => f.classList.contains('mk-dp-secao')).map((t) => t.querySelector('h3')?.textContent)).toEqual([
-      'Saldo por produto', 'Pastos atendidos', 'Informações do depósito', 'Histórico do depósito',
+      'Saldo por produto', 'Pastos atendidos', 'Informações do depósito',
     ]);
     // Bloco do nível: rótulo, o percentual do SSOT e as duas linhas do v12.
     const nivel = within(secao()).getByTestId('nivel-do-deposito');
@@ -369,83 +364,22 @@ describe('DV-6 — informações do depósito', () => {
   });
 });
 
-describe('DV-7 — linha do tempo do depósito', () => {
-  it('a regra do histórico completo, sem o L: saída e entrada com as linhas do v12', async () => {
+describe('DV-7 — histórico somente pelo botão', () => {
+  it('resumo não monta registros; Histórico abre a tela existente', async () => {
     await montar();
-    await waitFor(() => expect(cartoesDoHistorico()).toHaveLength(2));
-    const [saida, entrada] = cartoesDoHistorico();
-    expect(saida.querySelector('.mk-dp-tl__titulo')?.textContent).toBe('Saída do depósito');
-    expect(saida.querySelector('svg')?.getAttribute('class')).toContain('lucide-log-out');
-    expect(linhasDoCartao(saida)).toEqual(['Destino: Suplementação · Cocho 02', 'Produto: SAL MINERAL 80', 'Quantidade (kg): 400,00', 'Sacos: 16,00']);
-    expect(entrada.querySelector('.mk-dp-tl__titulo')?.textContent).toBe('Entrada no depósito');
-    expect(entrada.querySelector('svg')?.getAttribute('class')).toContain('lucide-truck');
-    expect(linhasDoCartao(entrada)).toEqual(['Origem: Galpão Central', 'Produto: SAL MINERAL 80', 'Quantidade (kg): 1.000,00', 'Sacos: 40,00', 'Observações: NF 4.512']);
-    expect(within(historico()).getAllByRole('heading').map((h) => h.textContent)).toEqual(['09 NOV. 2026', '04 NOV. 2026']);
-    // Reversão, o lado "enviada" da transferência e o litro ficam fora (como no histórico / último registro).
-    expect(historico().textContent).not.toContain('ÓLEO');
-    expect(historico().textContent).not.toContain('50,00');
-  });
-
-  it('no máximo 5 cartões (a pílula Histórico abre o resto), na ordem do histórico completo', async () => {
-    dados.movimentacoes = Array.from({ length: 7 }, (_, i) =>
-      mov(`m${i}`, { ...em(`2026-11-0${i + 1}`), tipo_movimentacao: 'Entrada', quantidade: 10 * (i + 1), local_estoque_destino: LOCAL }));
-    await montar();
-    await waitFor(() => expect(cartoesDoHistorico()).toHaveLength(5));
-    expect(cartoesDoHistorico().map((c) => linhasDoCartao(c)[2])).toEqual(['Quantidade (kg): 70,00', 'Quantidade (kg): 60,00', 'Quantidade (kg): 50,00', 'Quantidade (kg): 40,00', 'Quantidade (kg): 30,00']);
-  });
-
-  it('sem a permissão, o cartão único segue a regra do histórico: o último lançado, sem reversão (não o de data mais recente)', async () => {
-    dados.movimentacoes = [
-      // Retroativo: lançado por último (12/11), com data de 01/11.
-      mov('m-retro', { data_movimentacao: '2026-11-01T12:00:00.000Z', created_date: '2026-11-12T12:00:00.000Z', tipo_movimentacao: 'Entrada', quantidade: 11, local_estoque_destino: LOCAL }),
-      mov('m-normal', { ...em('2026-11-10'), tipo_movimentacao: 'Entrada', quantidade: 22, local_estoque_destino: LOCAL }),
-      // A reversão é a mais nova de todas, mas não entra (regra do histórico completo).
-      mov('m-rev', { ...em('2026-11-13'), tipo_movimentacao: 'Entrada', origem_sistema: 'reversao', quantidade: 33, local_estoque_destino: LOCAL }),
-    ];
-    await montar({ permissions: { visualizar_historico_cocho: false } });
-    const ultimo = await screen.findByRole('list', { name: 'Último registro' });
-    await waitFor(() => expect(ultimo.querySelectorAll('.mk-dp-tl__card')).toHaveLength(1));
-    expect(ultimo.textContent).toContain('11,00');
-    expect(ultimo.textContent).not.toContain('33,00');
-  });
-
-  it('sem "Ver histórico de cocho / depósito": só o último registro (como antes do v12), sem a pílula Histórico', async () => {
-    dados.movimentacoes = Array.from({ length: 7 }, (_, i) =>
-      mov(`m${i}`, { ...em(`2026-11-0${i + 1}`), tipo_movimentacao: 'Entrada', quantidade: 10 * (i + 1), local_estoque_destino: LOCAL }));
-    await montar({ permissions: { visualizar_historico_cocho: false } });
-    const ultimo = await screen.findByRole('list', { name: 'Último registro' });
-    await waitFor(() => expect(ultimo.querySelectorAll('.mk-dp-tl__card')).toHaveLength(1));
-    expect(ultimo.textContent).toContain('70,00');
-    expect(screen.getByRole('heading', { name: 'Último registro' })).toBeTruthy();
     expect(screen.queryByRole('list', { name: 'Histórico do depósito' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Histórico do depósito' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
+    expect(screen.queryByText(/Histórico completo:/)).toBeNull();
+    await tocar(screen.getByRole('button', { name: 'Histórico' }));
+    expect(screen.getByRole('dialog', { name: 'Histórico do Depósito', description: 'Depósito Sede' })).toBeTruthy();
+  });
+
+  it('sem permissão, não mostra Histórico nem registros no resumo', async () => {
+    await montar({ permissions: { visualizar_historico_cocho: false } });
     expect(screen.queryByRole('button', { name: 'Histórico' })).toBeNull();
-  });
-
-  it('sem movimentação: "Nenhum registro ainda."', async () => {
-    dados.movimentacoes = [];
-    await montar();
-    expect((await screen.findByText('Nenhum registro ainda.')).closest('.mk-dp-vazio')).toBeTruthy();
-    expect(screen.queryByRole('list', { name: 'Histórico do depósito' })).toBeNull();
-  });
-
-  it('movimentações ainda chegando: "Carregando histórico...", sem afirmar "Nenhum registro ainda."', async () => {
-    dados.movimentacoesPendentes = true;
-    await montar();
-    expect(screen.getByRole('status').textContent).toBe('Carregando histórico...');
-    expect(screen.queryByText('Nenhum registro ainda.')).toBeNull();
-  });
-
-  it('a consulta das movimentações falhou: o aviso de erro, não "Nenhum registro ainda."', async () => {
-    dados.movimentacoesComErro = true;
-    await montar();
-    expect((await screen.findByRole('alert')).textContent).toBe('Não foi possível carregar o histórico.');
-    expect(screen.queryByText('Nenhum registro ainda.')).toBeNull();
-  });
-
-  it('depósito sem local de estoque (consulta desligada): "Nenhum registro ainda.", sem "Carregando histórico..." para sempre', async () => {
-    await montar({ deposito: { ...DEPOSITO, local_estoque_id: null } });
-    expect(await screen.findByText('Nenhum registro ainda.')).toBeTruthy();
-    expect(screen.queryByText('Carregando histórico...')).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Último registro' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
   });
 });
 

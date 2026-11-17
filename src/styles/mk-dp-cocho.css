@@ -191,26 +191,38 @@
   }
 }
 
-/* O registro descreve o lançamento; a projeção do ciclo aberto já está no
-   nível. Subgrupos evitam misturar quantidade, lote e consumo numa só grade. */
-.mk-dp .mk-dp-cocho__metricas-registro {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 0;
+/* Listas históricas só são montadas nos diálogos das ações do rodapé. */
+.mk-dp-cocho__historico {
+  display: block;
+  overflow: auto;
+  padding: 12px;
 }
 
-.mk-dp .mk-dp-cocho__grupo-metricas {
-  min-width: 0;
-  border-top: 1px solid #edf0f2;
+.mk-dp-cocho__historico .mk-dp-grade {
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
 }
 
-.mk-dp .mk-dp-cocho__grupo-metricas > h4 {
-  padding: 10px 12px 0;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #60717c;
+.mk-dp-cocho__fechamentos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.mk-dp .mk-dp-cocho__grupo-metricas .mk-dp-grade {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 767px) {
+  .mk-dp-cocho .mk-dp__rodape .mk-dp-pilula {
+    flex-direction: column;
+    height: auto;
+    min-height: 52px;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 11.5px;
+  }
+
+  .mk-dp-cocho .mk-dp__rodape .mk-dp-pilula > span {
+    overflow: visible;
+    text-overflow: clip;
+  }
 }

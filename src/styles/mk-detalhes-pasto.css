@@ -1412,7 +1412,7 @@
     grid-column: 1 / -1;
   }
 
-  .mk-dp.mk-dp--suplementacao-organizada > .mk-dp__corpo--cards > :is(.mk-dp-cocho__leitura, .mk-dp-cocho__produtos, .mk-dp-deposito__saldo, .mk-dp-deposito__pastos) {
+  .mk-dp.mk-dp--suplementacao-organizada > .mk-dp__corpo--cards > :is(.mk-dp-deposito__saldo, .mk-dp-deposito__pastos) {
     grid-column: auto;
   }
 

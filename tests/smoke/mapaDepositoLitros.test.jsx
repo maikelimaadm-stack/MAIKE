@@ -163,15 +163,8 @@ describe('DEP-3 — detalhe do depósito', () => {
     const linhaDiesel = screen.getByTestId('saldo-litros-pr-diesel').closest('[data-unidade-confirmada]');
     expect(within(linhaDiesel).getByText('—')).toBeTruthy();
     expect(linhaDiesel.textContent).not.toMatch(/sacos/);
-    // Último registro = o 1º cartão da linha do tempo: o da ração (o movimento `L` do diesel, mais
-    // novo, fica fora); o diesel só no saldo por produto.
-    await waitFor(() => expect(screen.queryByText('Nenhum registro ainda.')).toBeNull());
-    const historico = screen.getByRole('list', { name: 'Histórico do depósito' });
-    const cartoes = historico.querySelectorAll('.mk-dp-tl__card');
-    expect(cartoes).toHaveLength(1);
-    expect(within(cartoes[0]).getByText('RAÇÃO')).toBeTruthy();
-    expect(historico.textContent).not.toContain('DIESEL');
-    expect(screen.getAllByText('RAÇÃO')).toHaveLength(2);
+    expect(screen.queryByRole('list', { name: 'Histórico do depósito' })).toBeNull();
+    expect(screen.getAllByText('RAÇÃO')).toHaveLength(1);
     expect(screen.getAllByText('DIESEL S10 (L)')).toHaveLength(1);
   });
 

@@ -8,12 +8,11 @@ import { listEmpresas } from "@/services/empresaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
-import HistoricoDepositoSuplementacao, { movimentacoesDoHistoricoDeposito } from "../suplementacao/HistoricoDepositoSuplementacao";
+import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import DepositoNivel from "./DepositoNivel";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
-import LinhaDoTempo from "./detalhes-lote/LinhaDoTempo";
 import { Cartao, Celula, Grade, Item, Linha, ListaItens, RodapePilulas, SecaoDetalhe, Vazio } from "./detalhes-lote/blocos";
-import { VAZIO, fmtNumero, rotuloDoDia } from "./detalhes-lote/historicoDoPasto";
+import { VAZIO } from "./detalhes-lote/historicoDoPasto";
 import { formatDecimal } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
@@ -24,8 +23,6 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import "@/styles/mk-dp-deposito.css";
 
-/** Cartões da linha do tempo do detalhe; o histórico completo abre pela pílula "Histórico". */
-const LIMITE_LINHA_DO_TEMPO = 5;
 
 /**
  * Leitura do cache local do mapa (rápida), com atualização em segundo plano.
@@ -66,8 +63,8 @@ function useCacheDoMapa(chave, empresaId, staleTime) {
  * publica o nome do depósito e o subtítulo (área · setor do mapa; sem ele, o
  * local de estoque) no cabeçalho do diálogo, e o corpo segue a ordem do v12 —
  * nível do depósito, saldo por produto, pastos atendidos (os cochos que puxam
- * deste depósito), informações do cadastro e a linha do tempo com as últimas
- * movimentações. Rodapé: Entrada · Saída · Histórico, com as permissões de hoje.
+ * deste depósito) e informações do cadastro. D-PROD-228: movimentações só
+ * aparecem no Histórico, aberto pelo rodapé, com as permissões existentes.
  *
  * Os dados e as regras não mudaram: o nível é só o SSOT (D-PROD-178,
  * `getDepositoIndicator`); produto em litros fica fora do kg (D-PROD-162,
@@ -136,7 +133,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     staleTime: 5 * 60 * 1000
   });
 
-  const { data: movimentacoes = [], isLoading: loadingMovimentacoes, isError: erroMovimentacoes } = useQuery({
+  const { data: movimentacoes = [] } = useQuery({
     queryKey: ["movimentacoes-deposito-detalhe", deposito.id],
     queryFn: async () => {
       const all = await listarTodasMovimentacoes();
@@ -235,20 +232,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { numeric: true, sensitivity: "base" }));
   }, [cochosVinculados, areas, eventos, leituras, hoje, pontosSuplementacao]);
 
-  // Sem "Ver histórico de cocho / depósito" a pessoa vê só o último registro,
-  // como antes do v12 (o histórico ficava atrás do botão).
+  // D-PROD-228: histórico somente pela ação, com a mesma permissão de antes.
   const podeHistorico = permissions.visualizar_historico_cocho !== false;
-
-  // Linha do tempo: o começo do histórico completo (mesmo filtro e ordem), sem o
-  // movimento rotulado `L`, como o "último registro" do SSOT (D-PROD-162).
-  const diasDoHistorico = useMemo(() => {
-    const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
-    const cochosPorId = new Map(pontosSuplementacao.map((ponto) => [ponto.id, ponto]));
-    const ultimas = movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId: empresaSelecionadaId, localEstoqueId: deposito.local_estoque_id })
-      .filter((item) => item.unidade_medida !== "L")
-      .slice(0, podeHistorico ? LIMITE_LINHA_DO_TEMPO : 1);
-    return agruparPorDia(ultimas.map((mov) => cartaoDaMovimentacao(mov, { localEstoqueId: deposito.local_estoque_id, produtosPorId, cochosPorId })));
-  }, [movimentacoes, produtos, pontosSuplementacao, empresaSelecionadaId, deposito.local_estoque_id, podeHistorico]);
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["saldo-deposito", "cochos-vinculados-deposito", "movimentacoes-deposito-detalhe", "mapa-pontos-supl", "mapa-pontos", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -362,22 +347,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
             </SecaoDetalhe>
 
-            <SecaoDetalhe titulo={podeHistorico ? "Histórico do depósito" : "Último registro"}>
-            {diasDoHistorico.length > 0 ? (
-              <LinhaDoTempo dias={diasDoHistorico} rotulo={podeHistorico ? "Histórico do depósito" : "Último registro"} />
-            ) : loadingMovimentacoes ? (
-              // A consulta traz todas as movimentações: enquanto chega, não afirma "nenhum registro".
-              <div role="status" className="mk-dp-hist__estado">
-                Carregando histórico...
-              </div>
-            ) : erroMovimentacoes ? (
-              <div role="alert" className="mk-dp-hist__estado">
-                Não foi possível carregar o histórico.
-              </div>
-            ) : (
-              <Vazio icone={History}>Nenhum registro ainda.</Vazio>
-            )}
-            </SecaoDetalhe>
           </>
         )}
       </CascaDetalhe>
@@ -407,7 +376,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico do Depósito" lotes={deposito.nome_ponto ? [{ nome: deposito.nome_ponto }] : undefined} largo somenteLeitura>
-        <HistoricoDepositoSuplementacao deposito={deposito} />
+        {showHistorico ? <HistoricoDepositoSuplementacao deposito={deposito} /> : null}
       </LancLoteDialogo>
     </>
   );
@@ -444,101 +413,4 @@ function LinhaSaldoProduto({ item }) {
     formatarKgNivel(item.saldo)
   );
   return <Linha data-unidade-confirmada={String(item.unidadeConfirmada)} rotulo={item.produto_nome} sub={sub} valor={valor} />;
-}
-
-/**
- * @typedef {{
- *   chave: string,
- *   dia: string | null,
- *   Icone: import("lucide-react").LucideIcon,
- *   titulo: string,
- *   linhas: Array<{ rotulo: string, valor: string }>,
- * }} CartaoDoDeposito
- */
-
-/**
- * Dia literal da movimentação ('AAAA-MM-DD'), a mesma data que o histórico
- * completo mostra (a parte antes do "T"); sem data válida → null.
- * @param {any} mov
- */
-function diaDaMovimentacao(mov) {
-  const dia = String(mov?.data_movimentacao ?? "").slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : null;
-}
-
-/**
- * Entrada ou saída DESTE depósito: pelo tipo gravado; sem tipo conhecido, pelo
- * lado do local (destino = entrada).
- * @param {any} mov
- * @param {string | null | undefined} localEstoqueId
- */
-function ehEntradaNoDeposito(mov, localEstoqueId) {
-  const tipo = normalizeText(mov?.tipo_movimentacao || "");
-  if (tipo.startsWith("ENTRADA")) return true;
-  if (tipo.startsWith("SAIDA")) return false;
-  return mov?.local_estoque_destino === localEstoqueId && mov?.local_estoque_origem !== localEstoqueId;
-}
-
-/**
- * Destino de uma saída: a suplementação — com o cocho do lançamento
- * (`ponto_suplementacao_id`, enquanto o ponto está ativo) ou, sem ele, o pasto
- * gravado na baixa — ou o local de destino da transferência.
- * @param {any} mov
- * @param {Map<any, any>} cochosPorId
- */
-function destinoDaSaida(mov, cochosPorId) {
-  if (mov?.tipo_detalhado === "suplementacao") {
-    const cocho = mov.ponto_suplementacao_id != null ? cochosPorId.get(mov.ponto_suplementacao_id) : null;
-    const para = cocho?.nome_ponto || mov.area_vinculada_nome || "";
-    return para ? `Suplementação · ${para}` : "Suplementação";
-  }
-  return mov?.local_destino || VAZIO;
-}
-
-/**
- * Cartão da linha do tempo (v12): "Entrada no depósito" (caminhão) ou "Saída
- * do depósito"; origem ou destino, produto, quantidade, sacos (pelo peso do
- * saco do produto) e as observações, quando há.
- * @param {any} mov
- * @param {{ localEstoqueId: string | null | undefined, produtosPorId: Map<any, any>, cochosPorId: Map<any, any> }} ctx
- * @returns {CartaoDoDeposito}
- */
-function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId }) {
-  const entrada = ehEntradaNoDeposito(mov, localEstoqueId);
-  const pesoPorSaco = Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
-  const linhas = [
-    entrada ? { rotulo: "Origem", valor: mov?.local_origem || VAZIO } : { rotulo: "Destino", valor: destinoDaSaida(mov, cochosPorId) },
-    { rotulo: "Produto", valor: mov?.produto_nome || VAZIO },
-    { rotulo: "Quantidade (kg)", valor: fmtNumero(mov?.quantidade ?? 0, 2) },
-    { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2) : VAZIO },
-  ];
-  const observacoes = typeof mov?.observacoes === "string" ? mov.observacoes.trim() : "";
-  if (observacoes) linhas.push({ rotulo: "Observações", valor: observacoes });
-  return {
-    chave: `mov-${mov?.id ?? "sem-id"}`,
-    dia: diaDaMovimentacao(mov),
-    Icone: entrada ? Truck : LogOut,
-    titulo: entrada ? "Entrada no depósito" : "Saída do depósito",
-    linhas,
-  };
-}
-
-/**
- * Agrupa os cartões por dia na ordem em que chegam (a do histórico): dias
- * seguidos iguais viram um grupo; a chave leva a posição, porque a ordem é a do
- * registro e o mesmo dia pode voltar depois.
- * @param {CartaoDoDeposito[]} cartoes
- */
-function agruparPorDia(cartoes) {
-  /** @type {Array<{ chave: string, dia: string | null, rotulo: string, cartoes: CartaoDoDeposito[] }>} */
-  const dias = [];
-  cartoes.forEach((cartao) => {
-    let grupo = dias[dias.length - 1];
-    if (!grupo || grupo.dia !== cartao.dia) {
-      grupo = { chave: `${cartao.dia ?? "sem-data"}-${dias.length}`, dia: cartao.dia, rotulo: rotuloDoDia(cartao.dia), cartoes: [] };
-      dias.push(grupo);
-    }
-    grupo.cartoes.push(cartao);
-  });
-  return dias;
 }

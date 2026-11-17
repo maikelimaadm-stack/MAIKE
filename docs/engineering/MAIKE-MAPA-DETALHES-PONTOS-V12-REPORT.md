@@ -396,3 +396,10 @@ Pedido do proprietário na PR #308: organizar melhor os detalhes de cocho e dep�
 - Depósito: necessidade de reposição aparece só na grade operacional; o cadastro não repete limite, mínimo ou a relação de cochos já disponível em Pastos atendidos.
 - Mesmas consultas, cálculos de domínio, permissões e ações. O Histórico completo mantém suas métricas.
 - Revisão visual com os componentes reais e dados de demonstração em 1280, 820 e 390 px, sem transbordo horizontal. Os testes dos detalhes verificam os valores, a ausência de projeção repetida e a preservação das comparações históricas.
+
+
+## 12. D-PROD-228 — históricos sob demanda e Fechamentos
+
+O resumo do depósito deixa de mostrar a linha do tempo/último registro. O cocho deixa de mostrar último registro, período fechado, total fornecido e lista de leituras no resumo; mantém a leitura atual com os avisos. Total e leituras anteriores aparecem somente no Histórico. O novo botão Fechamentos lista todos os períodos fechados do ponto, em ordem decrescente, com os mesmos cartões e regras de antes. Ambos os botões obedecem à permissão de visualização do histórico; as exclusões de leitura continuam exigindo a permissão de lançamento. Os componentes históricos não montam antes de abrir os diálogos. Nenhuma alteração nos detalhes de lote.
+
+Verificações: 89 testes dos detalhes, leituras, unidades e apresentação passaram; tipos sem regressão (374 diagnósticos herdados). Casos incluem ausência dos históricos no resumo, abertura por ação, vazio, ordem dos fechamentos, exclusão do ciclo aberto e eventos de outro ponto e permissões.

@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from "react";
-import { ClipboardCheck, History, Loader2, Package } from "lucide-react";
+import { CalendarCheck, ClipboardCheck, History, Loader2, Package } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
@@ -14,8 +14,6 @@ import CochoNivel from "./CochoNivel";
 import MedidorLimiteOperacional from "./MedidorLimiteOperacional";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
-import { metricasDoEvento } from "../suplementacao/CardMetricaEvento";
-import DesvioConsumoTag from "../suplementacao/DesvioConsumoTag";
 import { MOTIVO_PESO, MOTIVO_SEM_REFERENCIA } from "../suplementacao/FarolConsumo";
 import { FAROL_CONSUMO, resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
 import FormularioLeituraCocho from "../suplementacao/FormularioLeituraCocho";
@@ -54,13 +52,10 @@ import "@/styles/mk-dp-cocho.css";
  * título e subtítulo no cabeçalho do diálogo, o corpo é feito das peças de
  * `detalhes-lote/blocos` e as ações ficam no rodapé de pílulas.
  *
- * Cocho, na ordem do v12 (`telaCocho`): nível do ciclo (região "Nível do
- * cocho": bloco do nível + cartão do limite, saldo, duração e reposição),
- * "Leitura do cocho" (farol, avisos e as últimas leituras), "Total fornecido
- * por produto", "Último período fechado", "Último registro" (do MAIKE: o
- * v12 não tem) e "Informações do cocho". Os dados, as regras, as consultas, as
- * permissões e os formulários são os de antes (D-PROD-178, D-PROD-205,
- * D-PROD-206); só a apresentação mudou.
+ * D-PROD-228: o resumo mostra nível, leitura atual e cadastro. Histórico
+ * abre lançamentos, total fornecido e leituras anteriores; Fechamentos abre
+ * todos os períodos fechados do ponto. As duas ações seguem a permissão de
+ * histórico. Dados, regras e formulários permanecem os existentes.
  *
  * Visual próprio em src/styles/mk-dp-cocho.css (o comum fica em
  * mk-detalhes-pasto.css).
@@ -185,6 +180,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const idLeitura = useId();
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [showFechamentos, setShowFechamentos] = useState(false);
   const [showLeitura, setShowLeitura] = useState(false);
 
   // Fuso da FAZENDA: o mesmo resumo de empresas do Layout (`['empresas']`).
@@ -210,7 +206,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   // D-PROD-205: leituras de cocho (o farol), do mesmo cache do mapa.
   const { data: leituras = [] } = useCacheDoMapa("leiturasCocho", empresaSelecionadaId, 60 * 1000);
   const farol = useMemo(() => farolDoCocho({ leituras, pontoId: ponto?.id, hoje }), [leituras, ponto?.id, hoje]);
-  const ultimasLeituras = useMemo(() => leiturasDoPonto(leituras, ponto?.id).slice(0, 5), [leituras, ponto?.id]);
+  const ultimasLeituras = useMemo(() => leiturasDoPonto(leituras, ponto?.id), [leituras, ponto?.id]);
 
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-ponto-detalhe", empresaSelecionadaId],
@@ -230,17 +226,14 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     () => calcularNivelCocho({ ponto, eventos, hoje, pontos: pontosSuplementacao }),
     [ponto, eventos, hoje, pontosSuplementacao],
   );
-  const ultimoEvento = nivel.evento;
   const eventosDoPonto = useMemo(
     () => eventos.filter((evento) => String(evento?.ponto_suplementacao_id) === String(ponto?.id)),
     [eventos, ponto?.id],
   );
-  // D-PROD-206: o período FECHADO mais recente do cocho (pela data do lançamento; empate, o último da lista).
-  const ultimoFechado = useMemo(() => {
-    const fechados = eventosDoPonto.filter((evento) => Number(evento?.dias_periodo) > 0);
-    return fechados.reduce((maisNovo, evento) => (!maisNovo || String(evento.data_lancamento ?? "") >= String(maisNovo.data_lancamento ?? "") ? evento : maisNovo), null);
-  }, [eventosDoPonto]);
-  const resumoUltimoFechado = useMemo(() => (ultimoFechado ? resumoDoFechamento(ultimoFechado) : null), [ultimoFechado]);
+  const fechamentos = useMemo(() => eventosDoPonto
+    .filter((evento) => Number(evento?.dias_periodo) > 0)
+    .slice()
+    .sort((a, b) => String(b.data_lancamento ?? "").localeCompare(String(a.data_lancamento ?? "")) || String(b.created_date ?? "").localeCompare(String(a.created_date ?? ""))), [eventosDoPonto]);
 
   const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0 ?
   ponto.area_vinculada_ids :
@@ -254,15 +247,6 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     if (Array.isArray(ponto.area_vinculada_nomes) && ponto.area_vinculada_nomes.length > 0) return ponto.area_vinculada_nomes.filter(Boolean);
     return ponto.area_vinculada_nome ? [ponto.area_vinculada_nome] : [];
   }, [areas, areaIdsRelacionadas, ponto.area_vinculada_nomes, ponto.area_vinculada_nome]);
-  const ultimoProduto = useMemo(() => {
-    if (!ultimoEvento?.produto) return null;
-    return produtos.find((produto) => normalizeText(produto.nome_produto || "") === normalizeText(ultimoEvento.produto || "")) || null;
-  }, [produtos, ultimoEvento]);
-  const ultimoEventoSacos = useMemo(() => {
-    const pesoPorSaco = Number(ultimoProduto?.peso_por_saco_kg || 0);
-    if (!ultimoEvento || pesoPorSaco <= 0) return null;
-    return kgParaSacos(ultimoEvento.quantidade_total_kg || 0, pesoPorSaco);
-  }, [ultimoProduto, ultimoEvento]);
   const resumoProdutos = useMemo(() => {
     const mapa = new Map();
     eventosDoPonto.forEach((evento) => {
@@ -276,16 +260,10 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
   }, [eventosDoPonto, produtos]);
 
-  // "Último registro" e Histórico: a MESMA projeção do SSOT. No ciclo aberto,
-  // taxa/duração/reposição do nível (null = sem estimativa confiável); fora
-  // dele (período fechado, futuro, data inválida) o cartão usa o gravado no
-  // evento — a comparação real × esperado do fechamento não é projeção.
+  // Duração e reposição atuais vêm da mesma projeção do SSOT usada pelo Histórico.
   const projecaoCartao = projecaoDoCartaoDoNivel(nivel);
   const duracaoCicloDias = projecaoCartao.duracaoEstimada ?? null;
   const proximaReposicao = projecaoCartao.proximaReposicao ?? null;
-  // Mesmos valores do Histórico; a projeção do ciclo aberto já está no nível.
-  const metricasUltimo = metricasDoEvento({ evento: ultimoEvento, sacos: ultimoEventoSacos, showProjecao: nivel.estado !== "ciclo_aberto", ...projecaoCartao });
-
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
@@ -340,7 +318,10 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     pilulas.push({ chave: "lancar", rotulo: "Lançar", icone: Package, onClick: () => setShowLancamento(true) });
     pilulas.push({ chave: "leitura", rotulo: "Leitura", icone: ClipboardCheck, onClick: () => setShowLeitura(true) });
   }
-  if (podeHistorico) pilulas.push({ chave: "historico", rotulo: "Histórico", icone: History, onClick: () => setShowHistorico(true) });
+  if (podeHistorico) {
+    pilulas.push({ chave: "fechamentos", rotulo: "Fechamentos", icone: CalendarCheck, onClick: () => setShowFechamentos(true) });
+    pilulas.push({ chave: "historico", rotulo: "Histórico", icone: History, onClick: () => setShowHistorico(true) });
+  }
 
   return (
     <>
@@ -353,36 +334,8 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
 
         <section aria-labelledby={idLeitura} className="mk-dp-cocho__regiao mk-dp-secao mk-dp-cocho__leitura">
           <TituloBloco id={idLeitura}>Leitura do cocho</TituloBloco>
-          <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={podeLancar} onExcluir={excluirLeitura} />
+          <PainelLeitura farol={farol} ultimas={[]} podeExcluir={false} onExcluir={excluirLeitura} />
         </section>
-
-        <SecaoDetalhe titulo="Total fornecido por produto" className="mk-dp-cocho__produtos">
-        <Cartao>
-          {resumoProdutos.length === 0 ?
-          <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum produto lançado ainda." /> :
-          resumoProdutos.map((item) =>
-          <Linha
-            key={item.produto ?? ""}
-            rotulo={item.produto || "-"}
-            valor={`${item.sacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos · ${formatKg(item.kg)}`} />
-          )}
-        </Cartao>
-
-        </SecaoDetalhe>
-
-        <SecaoDetalhe titulo="Último período fechado" className="mk-dp-cocho__fechamento">
-          <CartaoPeriodoFechado evento={ultimoFechado} resumo={resumoUltimoFechado} />
-        </SecaoDetalhe>
-
-        <SecaoDetalhe titulo="Último registro">
-        {ultimoEvento && metricasUltimo ?
-        <CartaoUltimoRegistro evento={ultimoEvento} dia={formatarDia(nivel.dataLancamento)} metricas={metricasUltimo} /> :
-        <Cartao>
-            <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum lançamento ainda." />
-          </Cartao>
-        }
-
-        </SecaoDetalhe>
 
         <SecaoDetalhe titulo="Informações do cocho">
         <Cartao>
@@ -434,8 +387,46 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
         ) : null}
       </LancLoteDialogo>
 
+      <LancLoteDialogo open={showFechamentos} onOpenChange={setShowFechamentos} titulo="Fechamentos do Cocho" lotes={ponto.nome_ponto ? [{ nome: ponto.nome_ponto }] : undefined} largo somenteLeitura>
+        {showFechamentos ? (
+          <CascaDetalhe titulo="Fechamentos do Cocho" sub={ponto.nome_ponto} className="mk-dp-cocho">
+            {fechamentos.length ? (
+              <ul className="mk-dp-cocho__fechamentos" aria-label="Fechamentos do cocho">
+                {fechamentos.map((evento) => (
+                  <li key={evento.id}>
+                    <CartaoPeriodoFechado evento={evento} resumo={resumoDoFechamento(evento)} />
+                  </li>
+                ))}
+              </ul>
+            ) : <Vazio icone={CalendarCheck}>Nenhum período fechado ainda.</Vazio>}
+          </CascaDetalhe>
+        ) : null}
+      </LancLoteDialogo>
+
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" lotes={ponto.nome_ponto ? [{ nome: ponto.nome_ponto }] : undefined} largo somenteLeitura>
-          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
+          {showHistorico ? (
+            <div className="mk-dp mk-dp-cocho__historico">
+        <SecaoDetalhe titulo="Total fornecido por produto" className="mk-dp-cocho__produtos">
+        <Cartao>
+          {resumoProdutos.length === 0 ?
+          <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum produto lançado ainda." /> :
+          resumoProdutos.map((item) =>
+          <Linha
+            key={item.produto ?? ""}
+            rotulo={item.produto || "-"}
+            valor={`${item.sacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos · ${formatKg(item.kg)}`} />
+          )}
+        </Cartao>
+
+        </SecaoDetalhe>
+
+
+              <SecaoDetalhe titulo="Leituras do cocho">
+                <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={podeLancar} onExcluir={excluirLeitura} mostrarResumo={false} />
+              </SecaoDetalhe>
+              <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
+            </div>
+          ) : null}
         </LancLoteDialogo>
     </>);
 
@@ -558,23 +549,23 @@ function CartaoDoNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
 /**
  * D-PROD-205 — leitura do cocho como no v12: a primeira linha é o farol da
  * última leitura (cor + rótulo, escore · acesso · estrutura, data e quem leu);
- * depois as últimas leituras (até 5, a mais recente primeiro), cada uma com o
+ * no Histórico, a lista completa (mais recente primeiro), cada uma com o
  * "Excluir"; os avisos de acesso/estrutura da última leitura vêm abaixo do cartão.
- * @param {{ farol: import("@/domain/suplementacao/leituraCocho").FarolCocho, ultimas: any[], podeExcluir: boolean, onExcluir: (l: any) => void }} props
+ * @param {{ farol: import("@/domain/suplementacao/leituraCocho").FarolCocho, ultimas: any[], podeExcluir: boolean, onExcluir: (l: any) => void, mostrarResumo?: boolean }} props
  */
-function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir }) {
+function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir, mostrarResumo = true }) {
   const l = farol.leitura;
   const diaDaUltima = l ? diaBR(l.data_leitura) : "";
   return (
     <>
       <Cartao data-testid="painel-leitura-cocho">
-        <Linha
+        {mostrarResumo ? <Linha
           rotulo={<span data-testid="farol-cocho" data-cor={farol.cor}>{farol.rotulo}</span>}
           sub={l ?
           `Escore ${minusculo(ROTULO_ESCORE[l.escore] ?? l.escore)} · acesso ${minusculo(ROTULO_ACESSO[l.acesso] ?? l.acesso)} · estrutura ${minusculo(ROTULO_ESTRUTURA[l.estrutura] ?? l.estrutura)}` :
           "Nenhuma leitura registrada."}
           bolinha={COR_FAROL[farol.cor]}
-          valor={l ? `${diaDaUltima}${l.registrado_por_nome ? ` · ${l.registrado_por_nome}` : ""}` : "—"} />
+          valor={l ? `${diaDaUltima}${l.registrado_por_nome ? ` · ${l.registrado_por_nome}` : ""}` : "—"} /> : null}
         {ultimas.length > 0 ?
         <ul className="mk-dp-cocho__leituras" aria-label="Últimas leituras">
             {ultimas.map((u) => {
@@ -606,9 +597,10 @@ function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir }) {
           </ul> :
         null}
       </Cartao>
-      {farol.avisos.map((a) =>
+      {mostrarResumo ? farol.avisos.map((a) =>
       <Aviso key={a.texto} data-testid="aviso-leitura-cocho">{`${a.texto} (leitura de ${diaDaUltima})`}</Aviso>
-      )}
+      ) : null}
+      {!mostrarResumo && !ultimas.length ? <Vazio icone={ClipboardCheck}>Nenhuma leitura registrada.</Vazio> : null}
     </>);
 
 }
@@ -694,39 +686,6 @@ function CartaoPeriodoFechado({ evento, resumo }) {
       {resumo.sobra_informada === false ?
       <Linha className="mk-dp-cocho__linha--atencao" rotulo="Aproximado — sobra não informada" data-testid="fechamento-aproximado" /> :
       null}
-    </Cartao>);
-
-}
-
-/**
- * "Último registro" (o v12 não tem; o MAIKE tem): o último lançamento com os
- * MESMOS rótulos e valores do cartão do Histórico (`metricasDoEvento`) —
- * fornecimento, dados do lote, consumo esperado, consumo real (fechado) e
- * projeção histórica —, agrupados por assunto, e as observações. A projeção
- * do ciclo aberto aparece apenas no nível, sem repetir neste registro. O fechamento do consumo fica no
- * "Último período fechado".
- * @param {{ evento: any, dia: string, metricas: NonNullable<ReturnType<typeof metricasDoEvento>> }} props
- */
-function CartaoUltimoRegistro({ evento, dia, metricas }) {
-  return (
-    <Cartao icone={Package} titulo={evento.produto || "-"} sub={`Data: ${dia}`}>
-      <div className="mk-dp-cocho__metricas-registro">
-        {metricas.secoes.map((secao) => (
-          <section key={secao.chave} className="mk-dp-cocho__grupo-metricas" aria-label={secao.titulo}>
-            <h4>{secao.titulo}</h4>
-            <Grade>
-              {secao.celulas.map((celula) => (
-                <Celula
-                  key={celula.chave}
-                  rotulo={celula.rotulo}
-                  valor={celula.desvio ? <><DesvioConsumoTag real={celula.desvio.real} esperado={celula.desvio.esperado} />{celula.valor}</> : celula.valor}
-                />
-              ))}
-            </Grade>
-          </section>
-        ))}
-      </div>
-      {evento.observacoes ? <Linha rotulo="Observações" valor={evento.observacoes} quebra /> : null}
     </Cartao>);
 
 }

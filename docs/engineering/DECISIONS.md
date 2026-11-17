@@ -8144,4 +8144,14 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - No depósito, o percentual aparece uma vez no bloco do nível; o medidor mantém percentual e descrição completos para tecnologia assistiva, sem repetir o número visível.
 - Sem mudança em cálculos, consultas, permissões, lançamentos, histórico completo ou persistência.
 
-<!-- Próxima decisão: D-PROD-228 -->
+## D-PROD-228 — Histórico sob demanda e ação Fechamentos no cocho (2026-11-17)
+
+**Pedido do proprietário:** os históricos do depósito e do cocho devem aparecer somente pelo botão Histórico; no cocho, adicionar Fechamentos para mostrar os períodos fechados.
+
+- Detalhe do depósito sem linha do tempo ou último registro. O histórico existente só monta ao abrir Histórico, com a mesma permissão de visualização.
+- Detalhe do cocho mantém nível, leitura atual/avisos e cadastro. Total fornecido e leituras anteriores ficam no Histórico; não há último registro ou período fechado no resumo.
+- Fechamentos abre lista própria, somente dos eventos do ponto com período fechado, do mais recente ao mais antigo. Preserva valores, farol, custos e estados vazios do cartão existente. Segue a mesma permissão do Histórico.
+- Rodapé do cocho com Lançar, Leitura, Fechamentos e Histórico; no celular os ícones ficam acima do nome para acomodar as quatro ações.
+- Nenhuma mudança de cálculo, persistência ou manejo. Detalhes do lote não foram alterados nesta revisão.
+
+<!-- Próxima decisão: D-PROD-229 -->
