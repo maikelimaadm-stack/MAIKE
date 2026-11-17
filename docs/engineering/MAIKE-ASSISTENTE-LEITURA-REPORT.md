@@ -43,3 +43,4 @@
 - Produção recusou a chave do proprietário: chave da organização sem workspace (400 "This API key is not scoped to a workspace"). Nova variável opcional `ANTHROPIC_WORKSPACE_ID` (o id `wrkspc_…`, não é segredo): quando presente, o cliente envia o cabeçalho `anthropic-workspace-id`. Chave criada dentro de um workspace dispensa a variável.
 - O `nativeHttpClient` tratava todo 503 como "Serviço de dados indisponível"; 503 do backend com código `ASSISTENTE_*` agora mostra a mensagem do assistente (`tests/smoke/nativeHttpClientAssistente.test.js`).
 - Formato das respostas: o painel mostrava `**` crus. `TextoAssistente.jsx` renderiza negrito e listas sem HTML (React só com texto); o prompt pede resposta direta primeiro, listas curtas, sem tabelas/títulos/emojis e números no padrão brasileiro (`tests/smoke/textoAssistente.test.jsx`).
+- Rapidez: esforço de raciocínio `low`, `max_tokens` 4000 e instrução para pedir várias ferramentas de uma vez.
