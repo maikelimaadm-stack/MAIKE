@@ -96,6 +96,9 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-216: a Área lê e grava a cultura; sem a migration `20261117000000_area_cultura`,
   // `/areas-pastagem` responde 500.
   ['AreaPastagem', 'cultura_id'],
+  // D-PROD-219: a Medição de Forragem lê e grava a tabela nova; sem a migration
+  // `20261117200000_medicao_forragem`, `/medicoes-forragem` responde 500.
+  ['MEDICAOFORRAGEM', 'massa_seca_kg_ha'],
 ]);
 
 /**

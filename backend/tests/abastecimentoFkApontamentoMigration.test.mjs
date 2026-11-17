@@ -42,6 +42,7 @@ import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -75,7 +76,10 @@ const NOME_CULTURAS = '20261116500000_cadculturas';
 const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 const CHECKSUM_ABASTECIMENTO = '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436';
 /** Pastas do repositório: a partida é o que vem ANTES desta (a partida de produção); o GREEN, todas (produção hoje). */
-const PASTAS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+/** D-PROD-219: a EXPAND da Medição de Forragem veio depois desta (a 66ª); os testes são "no dia desta", com o espelho do runner. */
+const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
+const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
 const FK = 'AbastecimentoBem_apontamento_fkey';
@@ -156,6 +160,15 @@ const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);
+/** D-PROD-219: o schema.prisma já tem a MedicaoForragem (posterior a esta): os blocos dela saem do diff "no dia desta". */
+const semMedicao = (texto) => texto.trim().split(/\n\s*\n/).filter((b) => !b.includes('MEDICAOFORRAGEM')).join('\n\n').trim();
+/** D-PROD-219: o runner oficial no espelho com as pastas até esta (no dia dela); criado no `before`. */
+let ESPELHO_217;
+const runnerAte217 = (urlMigracao, { runtime, extras = {} } = {}) =>
+  rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: ESPELHO_217,
+    env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
+  });
 
 /** psql sem .psqlrc, saída crua e SQLSTATE nas mensagens de erro. */
 const psql = (url, args) => {
@@ -329,6 +342,7 @@ const emBancoNovo = async (sufixo, fn) => {
 before(async () => {
   const p = getPrismaClient();
   BASE_URL = exigirUrlLocal(process.env.DATABASE_URL);
+  ESPELHO_217 = criarEspelhoDoRunner({ raiz: RAIZ, ate: NOME }).dir;
   PREFIXO = new URL(BASE_URL).pathname.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40) || 'maike';
   BANCO_MODELO = `${PREFIXO}_afk_modelo`;
   for (const b of [`${PREFIXO}_afk`, `${PREFIXO}_afk_b`, BANCO_MODELO]) await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${b} WITH (FORCE)`);
@@ -349,6 +363,7 @@ before(async () => {
 
 after(async () => {
   await db?.$disconnect();
+  if (ESPELHO_217) rmSync(ESPELHO_217, { recursive: true, force: true });
   for (const b of [`${PREFIXO}_afk`, `${PREFIXO}_afk_b`, BANCO_MODELO]) if (PREFIXO) await apagar(b);
   await closePrismaClient();
 });
@@ -357,8 +372,9 @@ describe('D-PROD-217 — migration CONTRACT do reforço da FK do apontamento do 
   test('AF-01 partida: as 64 migrations de nome anterior a esta (a D-PROD-211, a D-PROD-215 e, por último, a D-PROD-216), 95 tabelas, a FK de 3 colunas; o banco ainda ACEITA o apontamento de outra atividade; schema × banco acusa só o reforço; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     assert.equal(ANTERIORES.length, 64, 'a partida de produção: 64 migrations');
     assert.deepEqual(ANTERIORES.slice(-3), [NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_ANTERIOR], 'a ordem dos nomes é a de produção: a D-PROD-211, a D-PROD-215 e depois a D-PROD-216');
-    assert.equal(PASTAS.at(-1), NOME, 'esta é a migration de nome mais recente');
+    assert.equal(PASTAS.at(-1), NOME, 'no dia desta, era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 65);
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_MEDICAO_FORRAGEM], 'D-PROD-219: só a Medição de Forragem tem nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [64, 0, 0]);
     assert.equal(partida.tabelas.split(',').length, 95);
@@ -374,7 +390,7 @@ describe('D-PROD-217 — migration CONTRACT do reforço da FK do apontamento do 
     await aceita(db, [novo(`${C1}-x0`, { atividade: `'${ATV1}'`, apontamento: `'${AP2}'` })]);
     const diff = await migrateDiff(URL_T);
     assert.equal(diff.status, 2, diff.saida);
-    assert.equal(diff.stdout.trim(), DIFERENCA_DO_REFORCO, 'o schema.prisma já é o desta release: só o reforço aparece');
+    assert.equal(semMedicao(diff.stdout), DIFERENCA_DO_REFORCO, 'o schema.prisma já é o desta release (com a D-PROD-219 depois): só o reforço aparece');
 
     const q = quadro(await consulta(URL_T, comSidLocal(blocoDoRunbook('preflight'), SID)));
     for (const [item, v] of Object.entries(q)) if (item !== 'VEREDITO') assert.ok(v.status === 'OK' || v.status.startsWith('ATENÇÃO'), `${item}: ${v.status} (${v.valor})`);
@@ -518,7 +534,7 @@ describe('D-PROD-217 — migration CONTRACT do reforço da FK do apontamento do 
   });
 
   test('AF-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-217): 65/0, 95 tabelas, só a FK do apontamento (4 colunas, mesmo nome) e o UNIQUE novo mudam; nenhum dado muda; migrate diff vazio', async () => {
-    const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+    const r = await runnerAte217(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /alvo conferido nas duas conexões/);
     assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME} (${DECISAO})`), r.saida);
@@ -548,7 +564,7 @@ describe('D-PROD-217 — migration CONTRACT do reforço da FK do apontamento do 
     assert.deepEqual(indicesAgora.filter((i) => !indicesAntes.includes(i)), [UNICO_DEPOIS]);
 
     const diff = await migrateDiff(URL_T);
-    assert.equal(diff.status, 0, diff.saida);
+    assert.equal(semMedicao(diff.stdout), '', diff.saida);
   });
 
   test('AF-05 postcheck do runbook no banco aplicado pelo runner: tudo OK e VEREDITO APLICADA; o preflight agora manda parar', async () => {
@@ -606,7 +622,7 @@ describe('D-PROD-217 — migration CONTRACT do reforço da FK do apontamento do 
     assert.notEqual(r.status, 0, r.saida);
     assert.match(r.saida, /guarda: o vínculo do abastecimento com o apontamento não está no formato anterior/);
     assert.deepEqual(await retrato(db), antes);
-    const segunda = await aplicarPeloRunner(URL_T);
+    const segunda = await runnerAte217(URL_T);
     assert.equal(segunda.status, 0, segunda.saida);
     assert.match(segunda.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
@@ -700,11 +716,11 @@ describe('D-PROD-217 — caminho B do runbook (uma transação pelo conector), n
     for (const [item, v] of Object.entries(pos)) if (item !== 'VEREDITO') assert.equal(v.status, 'OK', `${item}: ${v.status} (${v.valor})`);
     assert.match(pos.VEREDITO.valor, /^APLICADA E CONFERIDA/);
 
-    const runner = await aplicarPeloRunner(URL_B);
+    const runner = await runnerAte217(URL_B);
     assert.equal(runner.status, 0, runner.saida);
     assert.match(runner.saida, /No pending migrations to apply/);
     const diff = await migrateDiff(URL_B);
-    assert.equal(diff.status, 0, diff.saida);
+    assert.equal(semMedicao(diff.stdout), '', diff.saida);
   });
 
   test('TB-04 repetir o envelope recusa (migration já registrada) e nada muda', async () => {

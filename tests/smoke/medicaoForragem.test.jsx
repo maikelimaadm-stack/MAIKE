@@ -1,0 +1,188 @@
+/**
+ * D-PROD-219 — Medição de Forragem do pasto.
+ *
+ *  - formulário: régua com leituras pt-BR → prévia da média e da situação pelas
+ *    alturas da cultura; amostra de corte → matéria verde, MS% e massa seca e o total
+ *    no pasto; no olho → só a situação; envia só o que o servidor aceita e grava no
+ *    cache do mapa;
+ *  - porta: o POST leva só os campos aceitos (derivados e cliente_id ficam de fora);
+ *  - detalhe da área: com `medir_forragem` aparece o painel Forragem com o botão, a
+ *    última medição e as últimas, com excluir; sem a chave, nada; o clique no pasto
+ *    abre o detalhe com a chave mesmo sem a permissão de histórico.
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { corpoDaMedicao } from '@/apis/medicoes-forragem/medicaoForragemNativePort';
+import { acaoDoCliqueNaArea, podeMedirForragemNaArea } from '@/domain/mapa/cliqueArea';
+
+const EMP = 'emp-1';
+const dados = vi.hoisted(() => ({ cache: {}, culturas: [] }));
+const servico = vi.hoisted(() => ({ registrar: vi.fn(), excluir: vi.fn() }));
+const avisos = vi.hoisted(() => ({ warning: vi.fn(), success: vi.fn(), error: vi.fn(), confirmar: vi.fn() }));
+
+vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () => 'emp-1' }));
+vi.mock('@/services/mapaCacheService', () => ({
+  getMapaCachedData: vi.fn(async (chave) => dados.cache[chave] || []),
+  getMapaCacheSnapshot: vi.fn(async () => ({ items: [], atualizadoEm: null })),
+  refreshMapaCacheEntry: vi.fn(async (chave) => dados.cache[chave] || []),
+  updateMapaCachedData: vi.fn(async (chave, _e, fn) => {
+    dados.cache[chave] = fn(dados.cache[chave] || []);
+    return dados.cache[chave];
+  }),
+}));
+vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => [{ id: 'emp-1', fuso_horario: 'America/Sao_Paulo' }]) }));
+vi.mock('@/services/culturaCadastroService', () => ({ listarCulturas: vi.fn(async () => dados.culturas) }));
+vi.mock('@/services/medicaoForragemService', () => ({
+  registrarMedicaoForragem: (...a) => servico.registrar(...a),
+  excluirMedicaoForragem: (...a) => servico.excluir(...a),
+}));
+vi.mock('@/services/loteManejoService', () => ({ listarHistoricoMovimentacoesPagina: vi.fn(async () => ({ items: [], next_cursor: null, has_more: false, total: 0, limit: 100 })) }));
+vi.mock('@/lib/maikeNotify', () => ({
+  notifyWarning: (...a) => avisos.warning(...a),
+  notifySuccess: (...a) => avisos.success(...a),
+  notifyError: (...a) => avisos.error(...a),
+  notifyInfo: vi.fn(),
+}));
+vi.mock('@/lib/maikeConfirmar', () => ({ confirmarExclusao: (...a) => avisos.confirmar(...a), confirmar: vi.fn(), avisar: vi.fn() }));
+
+const { default: FormularioMedicaoForragem } = await import('@/components/pastagem/FormularioMedicaoForragem');
+const { default: DetalhesArea } = await import('@/components/mapa/DetalhesArea');
+
+const MARANDU = { id: 'cu-1', codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', altura_entrada_cm: 25, altura_saida_cm: 15 };
+const PASTO = { id: 'area-12', empresa_id: EMP, nome: 'PASTO 12', tamanho_hectares: 8, tipo_cultura: 'Pastagem', cultura_id: 'cu-1' };
+const HOJE = '2027-06-15';
+
+const renderizar = (ui) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+};
+
+beforeEach(() => {
+  dados.cache = {};
+  dados.culturas = [MARANDU];
+  Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+  servico.registrar.mockImplementation(async (corpo) => ({ id: 'mf-1', ...corpo, altura_media_cm: 24, situacao: 'DESCANSO', data_medicao: corpo.data_medicao }));
+  servico.excluir.mockResolvedValue(undefined);
+  avisos.confirmar.mockResolvedValue(true);
+});
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+describe('D-PROD-219 — formulário da medição', () => {
+  it('régua + amostra: prévia da média/situação e da matéria verde/seca; envia leituras e a amostra, sem derivados', async () => {
+    const onSaved = vi.fn();
+    renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} onSaved={onSaved} />);
+    expect(screen.getByTestId('medicao-cabecalho').textContent).toContain('001 · BRACHIARIA BRIZANTHA CV. MARANDU');
+    expect(screen.getByRole('radio', { name: 'Régua' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '22 26 24 20 28 25 23 27 24 21' } });
+    expect(screen.getByTestId('medicao-media').textContent).toMatch(/Média 24,0 cm.*10 leituras.*Descanso.*a partir de 25,0 cm/);
+    fireEvent.change(screen.getByTestId('medicao-quadro'), { target: { value: '0,25' } });
+    fireEvent.change(screen.getByTestId('medicao-peso-verde'), { target: { value: '450' } });
+    fireEvent.change(screen.getByTestId('medicao-peso-seco'), { target: { value: '112,5' } });
+    const amostra = screen.getByTestId('medicao-amostra').textContent;
+    expect(amostra).toContain('18.000');
+    expect(amostra).toContain('25,0');
+    expect(amostra).toContain('4.500');
+    expect(amostra).toContain('36,0 t de matéria seca');
+    expect(screen.queryByTestId('medicao-ms-pct'), 'com peso seco, a % digitada some').toBeNull();
+    await act(async () => {
+      fireEvent.submit(screen.getByTestId('form-medicao-forragem'));
+    });
+    expect(servico.registrar).toHaveBeenCalledTimes(1);
+    const corpo = servico.registrar.mock.calls[0][0];
+    expect(corpo).toMatchObject({ empresa_id: EMP, area_id: 'area-12', data_medicao: HOJE, metodo: 'REGUA', leituras_cm: [22, 26, 24, 20, 28, 25, 23, 27, 24, 21], quadro_m2: '0,25', peso_verde_g: '450', peso_seco_g: '112,5' });
+    expect(corpo.materia_seca_pct).toBeUndefined();
+    expect(corpo.situacao).toBeUndefined();
+    expect(dados.cache.medicoesForragem.map((m) => m.id)).toEqual(['mf-1']);
+    expect(onSaved).toHaveBeenCalled();
+  });
+
+  it('régua: PRONTO e PASSOU pelos limites; sem cultura, só a média; leituras vazias avisam e não enviam', async () => {
+    renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
+    fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '30' } });
+    expect(screen.getByTestId('medicao-media').textContent).toContain('Pronto');
+    fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '30,1' } });
+    expect(screen.getByTestId('medicao-media').textContent).toContain('Passou do ponto');
+    fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '' } });
+    await act(async () => {
+      fireEvent.submit(screen.getByTestId('form-medicao-forragem'));
+    });
+    expect(servico.registrar).not.toHaveBeenCalled();
+    expect(avisos.warning).toHaveBeenCalled();
+    cleanup();
+    renderizar(<FormularioMedicaoForragem area={{ ...PASTO, cultura_id: null }} cultura={null} hoje={HOJE} onCancel={() => {}} />);
+    expect(screen.getByTestId('medicao-cabecalho').textContent).toContain('sem cultura');
+    fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '20 22' } });
+    expect(screen.getByTestId('medicao-media').textContent).toContain('só a média');
+  });
+
+  it('MS% do laboratório sem peso seco; no olho envia só a situação', async () => {
+    renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
+    fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '24' } });
+    fireEvent.change(screen.getByTestId('medicao-quadro'), { target: { value: '1' } });
+    fireEvent.change(screen.getByTestId('medicao-peso-verde'), { target: { value: '1200' } });
+    fireEvent.change(screen.getByTestId('medicao-ms-pct'), { target: { value: '22,5' } });
+    expect(screen.getByTestId('medicao-amostra').textContent).toContain('2.700');
+    await act(async () => {
+      fireEvent.submit(screen.getByTestId('form-medicao-forragem'));
+    });
+    expect(servico.registrar.mock.calls[0][0]).toMatchObject({ materia_seca_pct: '22,5', peso_seco_g: undefined });
+    cleanup();
+    servico.registrar.mockClear();
+    renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'No olho' }));
+    expect(screen.queryByTestId('medicao-leituras')).toBeNull();
+    await act(async () => {
+      fireEvent.submit(screen.getByTestId('form-medicao-forragem'));
+    });
+    expect(servico.registrar, 'sem situação não envia').not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('radio', { name: 'Pronto' }));
+    expect(screen.getByTestId('medicao-olho').textContent).toContain('Pronto');
+    await act(async () => {
+      fireEvent.submit(screen.getByTestId('form-medicao-forragem'));
+    });
+    const corpo = servico.registrar.mock.calls[0][0];
+    expect(corpo).toMatchObject({ metodo: 'OLHO', situacao: 'PRONTO' });
+    expect(corpo.leituras_cm).toBeUndefined();
+    expect(corpo.quadro_m2).toBeUndefined();
+  });
+
+  it('porta: o POST leva só os campos aceitos pelo servidor', () => {
+    expect(corpoDaMedicao({ empresa_id: 'e', area_id: 'a', data_medicao: HOJE, metodo: 'OLHO', situacao: 'PRONTO', altura_media_cm: 9, massa_seca_kg_ha: 1, cliente_id: 'x', created_date: 'y', _isOffline: true }))
+      .toEqual({ empresa_id: 'e', area_id: 'a', data_medicao: HOJE, metodo: 'OLHO', situacao: 'PRONTO' });
+  });
+});
+
+describe('D-PROD-219 — botão no pasto (detalhe da área)', () => {
+  it('a chave medir_forragem abre o detalhe do pasto mesmo sem o histórico; infraestrutura não', () => {
+    const so = { visualizar_historico_movimentacoes_lote: false, medir_forragem: true };
+    expect(acaoDoCliqueNaArea({ area: PASTO, selecionandoLocalTarefa: false, toqueLongoAcabouDeDisparar: false, permissoes: so })).toBe('abrir-detalhes');
+    expect(podeMedirForragemNaArea(so, { ...PASTO, tipo_cultura: 'Infraestrutura' })).toBe(false);
+    expect(podeMedirForragemNaArea({ medir_forragem: undefined }, PASTO), 'gravadora: ausente não libera').toBe(false);
+  });
+
+  it('com a chave: painel Forragem com o botão, a última medição e excluir; sem a chave, nada', async () => {
+    dados.cache.medicoesForragem = [
+      { id: 'm1', empresa_id: EMP, area_id: 'area-12', data_medicao: '2027-06-10', metodo: 'REGUA', altura_media_cm: 24, situacao: 'DESCANSO', massa_seca_kg_ha: 4500, registrado_por_nome: 'MAIKE' },
+      { id: 'm2', empresa_id: EMP, area_id: 'area-12', data_medicao: '2027-06-14', metodo: 'OLHO', situacao: 'PRONTO' },
+      { id: 'm3', empresa_id: EMP, area_id: 'outra', data_medicao: '2027-06-15', metodo: 'OLHO', situacao: 'RAPADO' },
+    ];
+    renderizar(<DetalhesArea area={PASTO} permissions={{ visualizar_historico_movimentacoes_lote: false, medir_forragem: true }} />);
+    expect(await screen.findByTestId('painel-forragem')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Medição de Forragem' })).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('ultima-medicao').textContent).toContain('No olho · Pronto'));
+    expect(screen.getAllByRole('button', { name: /Excluir a medição/ })).toHaveLength(2);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Excluir a medição de 10/06/2027' }));
+    });
+    expect(servico.excluir).toHaveBeenCalledWith('m1');
+    expect(dados.cache.medicoesForragem.map((m) => m.id)).toEqual(['m2', 'm3']);
+    cleanup();
+    const { container } = renderizar(<DetalhesArea area={PASTO} permissions={{ visualizar_historico_movimentacoes_lote: false }} />);
+    expect(container.textContent).toBe('');
+  });
+});

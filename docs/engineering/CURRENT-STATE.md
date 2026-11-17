@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-217)
+## Missão ativa (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-219**, pedido do proprietário: medição pela régua, no olho e a amostra de matéria seca, pelo botão no pasto do Mapa Geral |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `effc50be` (PR #307, D-PROD-216), com a `main` `d0b49099` (PR #303, D-PROD-217) mesclada |
+| Escopo | Model `MedicaoForragem` / tabela `MEDICAOFORRAGEM`; API `/medicoes-forragem` (GET autenticado; POST/DELETE com a chave nova do mapa `medir_forragem`); contas no servidor (média, situação pelas alturas da cultura, matéria verde, MS%, massa seca) e prévia na tela; painel **Forragem** no detalhe do pasto com o botão "Medição de Forragem" e as últimas medições; fila offline e cache do mapa. Farol no mapa fica para a próxima missão |
+| Migration | `20261117200000_medicao_forragem`, **EXPAND** (só a tabela nova), SHA-256 `66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f`. Produção 65 → 66 (a anterior é a `20261117100000_abastecimento_fk_apontamento_atividade`, D-PROD-217, mergeada e aplicada antes); tabelas 95 → 96 |
+| Release | **Aplicada em produção** em 2026-11-17 às 03:04:47 UTC (caminho B do [runbook](./MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md), GO do proprietário): preflight 65 / 0, postcheck 66 / 0, `MEDICAOFORRAGEM` com RLS e 1 política, 9 constraints, 5 índices, `anon` sem SELECT, 96 tabelas |
+| Relatório | [`MAIKE-MEDICAO-FORRAGEM-REPORT.md`](./MAIKE-MEDICAO-FORRAGEM-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-217)
 
 | Campo | Valor |
 |---|---|

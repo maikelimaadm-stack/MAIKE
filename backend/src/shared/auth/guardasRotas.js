@@ -185,6 +185,11 @@ export const GUARDAS = Object.freeze({
     criar: porQualquer({ mapa: 'lancar_suplementacao' }),
     excluir: porQualquer({ mapa: 'lancar_suplementacao' }),
   },
+  // D-PROD-219 — Medição de Forragem do pasto: chave gravadora própria do mapa. Listar é só autenticado.
+  medicaoForragem: {
+    criar: porQualquer({ mapa: 'medir_forragem' }),
+    excluir: porQualquer({ mapa: 'medir_forragem' }),
+  },
   suplementacaoEvento: {
     criar: porQualquer({ mapa: 'lancar_suplementacao' }),
     lancamento: porQualquer({ mapa: 'lancar_suplementacao' }),

@@ -170,6 +170,8 @@ export const API_ERROR_CODES = Object.freeze({
   FORMULACAO_EM_USO: 'FORMULACAO_EM_USO',
   // D-PROD-205 — Leitura de cocho.
   LEITURA_COCHO_NOT_FOUND: 'LEITURA_COCHO_NOT_FOUND',
+  // D-PROD-219 — Medição de Forragem.
+  MEDICAO_FORRAGEM_NOT_FOUND: 'MEDICAO_FORRAGEM_NOT_FOUND',
 
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
@@ -315,6 +317,7 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.FORMULACAO_EM_USO]:
     'Esta formulação já foi usada em lançamento(s) de suplementação e não pode ser excluída. Inative-a.',
   [API_ERROR_CODES.LEITURA_COCHO_NOT_FOUND]: 'Esta leitura de cocho não foi encontrada. Atualize o mapa e tente novamente.',
+  [API_ERROR_CODES.MEDICAO_FORRAGEM_NOT_FOUND]: 'Esta medição de forragem não foi encontrada. Atualize o mapa e tente novamente.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',

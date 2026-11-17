@@ -398,6 +398,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'a formulação já foi usada em lançamento(s) de suplementação (details.lancamentos): inative-a em vez de excluir; nada foi apagado',
   },
+  // D-PROD-219 — Medição de Forragem (tabela MEDICAOFORRAGEM).
+  MEDICAO_FORRAGEM_NOT_FOUND: { http: 404, meaning: 'id não identifica medição de forragem deste tenant' },
   // D-PROD-205 — Leitura de cocho (tabela LEITURACOCHO).
   LEITURA_COCHO_NOT_FOUND: { http: 404, meaning: 'id não identifica leitura de cocho deste tenant' },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
