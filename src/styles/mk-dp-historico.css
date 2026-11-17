@@ -1,0 +1,222 @@
+/*
+ * Detalhes do Lote v12 — aba Histórico (D-PROD-V12; número definitivo no PR).
+ * Linha do tempo (LinhaDoTempo.jsx), estados e "Carregar mais" (AbaHistorico.jsx).
+ * O comum (raiz, corpo, botão de filtro, aviso, vazio, nota, chip) está em
+ * mk-detalhes-pasto.css; aqui só o que é da aba. Tudo sob a raiz `.mk-dp`.
+ *
+ * Valores da especificação v12 §C.2 "Linha do tempo", conferidos na medição:
+ * trilho 2 px #e1e4e8 (left 5, top 10, bottom 4); dia 12,5/600 .04em #6b7280,
+ * recuado -16 px com o ponto de 12 px #5aa7e0 e anel da cor do fundo; cartão com
+ * borda 1 px #e7e9ec, raio 10, sem sombra; cabeçalho 48 px, ícone 22 px teal,
+ * título 15/600; linha 14 px 10/14, rótulo #6b7280, valor #1f2328 à direita,
+ * divisória #f0f1f3; 8 px entre dia e cartões.
+ *
+ * Marcação:
+ *   div.mk-dp-hist > div.mk-dp-botoes > button.mk-dp-filtro
+ *                  + div.mk-dp-hist__aviso[role=status] > .mk-dp-aviso   (offline)
+ *                  + ol.mk-dp-tl | div.mk-dp-hist__estado | .mk-dp-vazio
+ *                  + div.mk-dp-hist__mais > button.mk-dp-hist__botao + p.mk-dp-hist__contagem
+ *                  + p.mk-dp-nota
+ *   ol.mk-dp-tl > li.mk-dp-tl__grupo > h3.mk-dp-tl__dia(> span.mk-dp-tl__ponto)
+ *     + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card(.is-cancelado)
+ *       > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong.mk-dp-tl__titulo + .mk-dp-chip.mk-dp-tl__chip)
+ *       + dl.mk-dp-tl__linhas > div.mk-dp-tl__row > dt + dd
+ */
+
+/* A aba é um bloco do corpo: coluna com o mesmo espaço do corpo (10 px) */
+.mk-dp .mk-dp-hist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ── Linha do tempo ───────────────────────────────────────────────────── */
+.mk-dp .mk-dp-tl {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+}
+
+.mk-dp .mk-dp-tl::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 4px;
+  left: 5px;
+  width: 2px;
+  border-radius: 2px;
+  background: #e1e4e8;
+}
+
+.mk-dp .mk-dp-tl__grupo,
+.mk-dp .mk-dp-tl__cartoes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-tl__dia {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 6px 0 0 -16px;
+  padding-left: 24px;
+  color: #6b7280;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+
+.mk-dp .mk-dp-tl__ponto {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 999px;
+  background: #5aa7e0;
+  box-shadow: 0 0 0 3px #F9F9F7;
+}
+
+.mk-dp .mk-dp-tl__card {
+  overflow: hidden;
+  border: 1px solid #e7e9ec;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mk-dp .mk-dp-tl__cab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-tl__ic {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: #3db5c9;
+}
+
+.mk-dp .mk-dp-tl__titulo {
+  min-width: 0;
+  color: #1f2328;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Cancelado: o chip vai para o fim do cabeçalho */
+.mk-dp .mk-dp-tl__chip {
+  margin-left: auto;
+}
+
+.mk-dp .mk-dp-tl__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.mk-dp .mk-dp-tl__row + .mk-dp-tl__row {
+  border-top: 1px solid #f0f1f3;
+}
+
+.mk-dp .mk-dp-tl__row > dt {
+  color: #6b7280;
+}
+
+.mk-dp .mk-dp-tl__row > dd {
+  min-width: 0;
+  color: #1f2328;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* ── Estados (carregando, erro) ───────────────────────────────────────── */
+.mk-dp .mk-dp-hist__estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 20px;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
+.mk-dp .mk-dp-hist__detalhe {
+  font-size: 12.5px;
+}
+
+.mk-dp .mk-dp-hist__aviso strong {
+  font-weight: 600;
+}
+
+/* ── "Carregar mais" (e "Tentar novamente"): o desenho do botão de filtro ── */
+.mk-dp .mk-dp-hist__botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 16px;
+  border: 1px solid #d6dadf;
+  border-radius: 8px;
+  background: #fff;
+  color: #2b2f33;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+
+.mk-dp .mk-dp-hist__botao:disabled {
+  opacity: 0.6;
+}
+
+@media (hover: hover) {
+  .mk-dp .mk-dp-hist__botao:not(:disabled):hover {
+    background: #f6f7f8;
+  }
+}
+
+.mk-dp .mk-dp-hist__botao:active:not(:disabled) {
+  background: #F1F1EE;
+}
+
+.mk-dp .mk-dp-hist__mais {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.mk-dp .mk-dp-hist__contagem,
+.mk-dp .mk-dp-hist__erro {
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.mk-dp .mk-dp-hist__contagem {
+  color: #6b7280;
+}
+
+.mk-dp .mk-dp-hist__erro {
+  color: #b91c1c;
+}
