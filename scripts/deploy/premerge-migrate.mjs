@@ -39,8 +39,9 @@
  *   … --verificar-alvo --contract D-PROD-200 / … --aplicar --contract D-PROD-200   (Atividade cabeçalho: conversão e DROP das 3 tabelas antigas)
  *   … --verificar-alvo --contract D-PROD-208 / … --aplicar --contract D-PROD-208   (funcionário como papel do parceiro: DROP de Funcionario, vazia, no fim)
  *   … --verificar-alvo --contract D-PROD-209 / … --aplicar --contract D-PROD-209   (tipo do funcionário: TERCEIRIZADO no lugar de TAREFEIRO no CHECK de Fornecedor)
- *   … --verificar-alvo --contract D-PROD-211 / … --aplicar --contract D-PROD-211   (base do consumo na Formulação: base_consumo, %PV anulável, g_cab_dia e CHECKs, tabelas vazias)
+ *   … --verificar-alvo --contract D-PROD-210 / … --aplicar --contract D-PROD-210   (base do consumo na Formulação: base_consumo, %PV anulável, g_cab_dia e CHECKs, tabelas vazias)
  *   … --verificar-alvo --contract D-PROD-211 / … --aplicar --contract D-PROD-211   (abastecimento ligado à atividade: colunas, backfill, CHECKs e FKs em AbastecimentoBem)
+ *   … --verificar-alvo --contract D-PROD-217 / … --aplicar --contract D-PROD-217   (reforço: o apontamento do abastecimento é da atividade dele; UNIQUE e FK de 4 colunas)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';

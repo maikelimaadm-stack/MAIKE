@@ -60,8 +60,9 @@
  *     (nunca duas CONTRACT de uma vez; como a D-PROD-195 na D-PROD-187); então
  *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
  *     impressão na URL) esta, a D-PROD-190, a D-PROD-193, a D-PROD-200, a
- *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208 e as seguintes (a última, a EXPAND
- *     da D-PROD-215, CADCULTURAS), e confere: todas concluídas, 95 tabelas (+ a CADCULTURAS)
+ *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208 e as seguintes (a EXPAND da
+ *     D-PROD-215, CADCULTURAS, a CONTRACT aditiva da D-PROD-216 e por último a CONTRACT da D-PROD-217, sem tabela nova),
+ *     e confere: todas concluídas, 95 tabelas (+ a CADCULTURAS)
  *     (as 82 do formato novo + Atividade e AtividadeApontamento + as 3 das linhas de
  *     produto e de máquina + as 3 das Formulações + a LEITURACOCHO + as 3 da mão de obra e do serviço que ficam (a
  *     Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208);
@@ -152,9 +153,15 @@ export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_ativid
 export const NOME_CULTURAS = '20261116500000_cadculturas';
 /** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura depende da CADCULTURAS (D-PROD-215): também fica para o GREEN, por último. */
 export const NOME_AREA_CULTURA = '20261117000000_area_cultura';
-/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior; o runner do repositório a sobe sem decisão. */
+/**
+ * D-PROD-217 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
+ * atividade) exige a D-PROD-211: vem por último, depois dela, da EXPAND da D-PROD-215 e da CONTRACT aditiva da D-PROD-216
+ * (a ordem de produção), fora da partida como as outras; sem tabela nova.
+ */
+export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261117100000_abastecimento_fk_apontamento_atividade';
+/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 export const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM]);
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];

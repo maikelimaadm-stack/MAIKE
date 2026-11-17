@@ -44,7 +44,10 @@
  * do AM-08 (59/0) o `migrate diff` acusa só as diferenças delas (exit 2); a ordem com a D-PROD-210 e a D-PROD-211 é
  * provada em atividadeMaoObraParceiroMigration (MP-08) e em funcionarioTipoTerceirizadoMigration (FT-08). D-PROD-215: a
  * EXPAND `20261116500000_cadculturas` (tabela nova CADCULTURAS), ainda posterior, também entra no `migrate diff` do fim
- * do AM-08; a ordem com ela é provada em abastecimentoAtividadeMigration (AA-08).
+ * do AM-08; a ordem com ela é provada em abastecimentoAtividadeMigration (AA-08). D-PROD-216: a CONTRACT aditiva
+ * `20261117000000_area_cultura` (a Área ligada à Cultura) e D-PROD-217: a CONTRACT
+ * `20261117100000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento), de nomes posteriores ao da
+ * CADCULTURAS, entram na mesma conta (a diferença do reforço também é de AbastecimentoBem e AtividadeApontamento).
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -91,7 +94,9 @@ const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 const NOME_CULTURAS = '20261116500000_cadculturas';
 /** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura (coluna, UNIQUE em CADCULTURAS e FK), ainda posterior. */
 const NOME_AREA_CULTURA = '20261117000000_area_cultura';
-/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior; o runner do repositório a sobe sem decisão. */
+/** D-PROD-217: a CONTRACT do reforço da FK do apontamento do abastecimento, ainda posterior (ver o cabeçalho). */
+const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
+/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
@@ -320,7 +325,7 @@ describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terce
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     assert.equal(PASTAS.at(-1), NOME, 'no dia da D-PROD-207, esta era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 58);
-    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM], 'D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211 e D-PROD-215: só o ajuste, o tipo Terceirizado, a base do consumo, o abastecimento ligado à atividade e o Cadastro de Culturas têm nome posterior a esta');
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM], 'D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-215, D-PROD-216 e D-PROD-217: só o ajuste, o tipo Terceirizado, a base do consumo, o abastecimento ligado à atividade, o Cadastro de Culturas, a Área ligada à Cultura e o reforço têm nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [57, 0, 0]);
     const tabelas = partida.tabelas.split(',');
@@ -366,8 +371,8 @@ describe('D-PROD-207 — migration EXPAND da mão de obra e do serviço de terce
     assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), []);
     // Hoje (D-PROD-208), com as pastas do repositório, o ajuste também pende, e é ele a CONTRACT a autorizar.
     const hoje = PASTAS_HOJE.map((n) => ({ nome: n, checksum: createHash('sha256').update(readFileSync(join(MIGRATIONS, n, 'migration.sql'), 'utf8')).digest('hex') }));
-    assert.deepEqual(conferirHistoricoRemoto({ locais: hoje, linhas }).pendentes, [NOME, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM]);
-    assert.deepEqual(contractsPendentes({ locais: PASTAS_HOJE, linhas }), [{ nome: NOME_PARCEIRO, decisao: 'D-PROD-208' }, { nome: NOME_TIPO, decisao: 'D-PROD-209' }, { nome: NOME_BASE, decisao: 'D-PROD-210' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-211' }, { nome: NOME_AREA_CULTURA, decisao: 'D-PROD-216' }]);
+    assert.deepEqual(conferirHistoricoRemoto({ locais: hoje, linhas }).pendentes, [NOME, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM]);
+    assert.deepEqual(contractsPendentes({ locais: PASTAS_HOJE, linhas }), [{ nome: NOME_PARCEIRO, decisao: 'D-PROD-208' }, { nome: NOME_TIPO, decisao: 'D-PROD-209' }, { nome: NOME_BASE, decisao: 'D-PROD-210' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-211' }, { nome: NOME_AREA_CULTURA, decisao: 'D-PROD-216' }, { nome: NOME_REFORCO, decisao: 'D-PROD-217' }]);
   });
 
   test('AM-03 GREEN pelo runner oficial do dia (alvo conferido, SEM MIGRATION_CONTRACT_AUTORIZADO): 58/0, 95 tabelas, RLS sem FORCE e a política nas 4, nenhum grant público, nenhuma coluna nova nas tabelas antigas, as constraints e os índices antigos intactos, índices pelo cliente; o schema.prisma de hoje (D-PROD-208) acusa a diferença', async () => {

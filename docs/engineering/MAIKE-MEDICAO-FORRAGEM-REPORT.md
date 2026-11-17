@@ -27,14 +27,14 @@ Geral. O farol no mapa, a lotação pela massa seca e a produtividade ficam para
 | Testes novos | `backend/tests/medicaoForragemNativo.test.mjs` 10/10; `tests/smoke/medicaoForragem.test.jsx` 6/6 |
 | Permissões | `permissoesR2Rotas.test.mjs` verde (POST/DELETE sem a chave → 403) |
 | Detalhe da área | `tests/smoke/detalhesAreaHistorico.test.jsx` verde (sem a chave, nada muda) |
-| Ferramental de deploy | `premerge-migrate.test.mjs` (B33a/b/k, contagens 65) e `preflight-schema.test.mjs` verdes |
+| Ferramental de deploy | `premerge-migrate.test.mjs` (B34a/b/k, contagens 66; o B33m do reforço passa a ser "no dia dela") e `preflight-schema.test.mjs` verdes |
 | SQL Editor 01–04 | `sqlEditorBootstrap` e `sqlEditorPreservaMaike` verdes (a MEDICAOFORRAGEM antes da AreaPastagem, da CADCULTURAS e da Empresa; 96 tabelas, 81 de tenant) |
-| Testes de migration (11 arquivos) e `scripts/tests/deploy` | verdes depois do ajuste (65 migrations, 96 tabelas; a MEDICAOFORRAGEM sobe por último, sem decisão) |
+| Testes de migration e `scripts/tests/deploy` | verdes, depois do merge da #303 (D-PROD-217): 66 migrations, 96 tabelas; a MEDICAOFORRAGEM sobe por último, depois do reforço, sem decisão |
 | `test:smoke` completo | 260 arquivos, 3183 testes verdes |
-| Ensaio do caminho B | §3 do runbook: recusa com o alvo de produção, aplica 64 → 65, `migrate diff` vazio, repetição recusada |
+| Ensaio do caminho B | §3 do runbook: recusa com o alvo de produção, aplica 65 → 66, `migrate diff` vazio, repetição recusada |
 
 ## 3. Pendências e notas
 
 - GO escrito do proprietário para a migration (EXPAND D-PROD-219), antes do merge.
-- PR #303 (outra sessão, prefixo `20261117100000`) continua independente; se for aplicada antes, a guarda desta passa a 65.
+- PR #303 (D-PROD-217) mergeada e aplicada antes: a guarda desta exige 65 concluídas, com a `20261117100000_abastecimento_fk_apontamento_atividade` como anterior.
 - Próximo passo combinado: o farol de forragem no mapa (cor do pasto pela última medição).

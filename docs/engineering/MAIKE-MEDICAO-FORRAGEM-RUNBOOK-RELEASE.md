@@ -20,7 +20,7 @@ Precedente executado: [`MAIKE-CULTURAS-RUNBOOK-RELEASE.md`](./MAIKE-CULTURAS-RUN
 | Natureza | **expand-only**: 1 tabela NOVA — `MEDICAOFORRAGEM` — com 3 índices e 1 unique (todos começando por `cliente_id`), FKs compostas pelo tenant (Cliente, Empresa, AreaPastagem e CADCULTURAS pela fazenda, todas `RESTRICT`), 4 CHECKs (método, situação, campos do método, valores) e o bloco RLS/REVOKE dela. Nenhuma tabela existente é alterada (a FK para CADCULTURAS usa o UNIQUE `(cliente_id, empresa_id, id)` que a D-PROD-216 já criou), nenhum dado migrado ou semeado |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f` |
 | Bloco RLS (`DO_RLS_APROVADOS`) | `b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718` (mesmo corpo de sempre, lista nova) |
-| `_prisma_migrations` | esperado **64** concluídas, 0 abertas (a última `20261117000000_area_cultura`, D-PROD-216, checksum `e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26`); depois **65**. Recontar no §2 |
+| `_prisma_migrations` | esperado **65** concluídas, 0 abertas (a última `20261117100000_abastecimento_fk_apontamento_atividade`, D-PROD-217, checksum `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`); depois **66**. Recontar no §2 |
 | Tabelas em `public` | **95** antes, **96** depois |
 
 **Por que antes do merge (D-PROD-72 item 1):** a Vercel publica a `main` sozinha.
@@ -35,15 +35,7 @@ segue igual com o banco migrado — **não há janela**.
 fim da transação (milissegundos; a tabela nasce vazia). Uma espera além do
 `lock_timeout` de 5 s aborta tudo sem aplicar nada.
 
-**Ordem com a PR #303 (outra sessão).** A PR #303 traz a migration
-`20261117100000_abastecimento_fk_apontamento_atividade` (prefixo anterior a este). A
-guarda abaixo exige **64** concluídas com a anterior `20261117000000_area_cultura`,
-isto é, que esta suba **antes** da #303. Se a #303 for aplicada em produção primeiro,
-a guarda recusa (`65 concluídas`) e **precisa ser ajustada** antes de pedir o GO: 65
-concluídas e a anterior passa a ser a `20261117100000_abastecimento_fk_apontamento_atividade`
-com o checksum dela. As duas são independentes (a #303 só toca AbastecimentoBem; esta
-só cria a MEDICAOFORRAGEM). A #303, por sua vez, passa a guardar 65 com esta como
-anterior se esta for primeiro.
+**Depois da PR #303 (D-PROD-217).** A #303 (`20261117100000_abastecimento_fk_apontamento_atividade`) foi mergeada e aplicada em produção antes desta: produção tem 65 concluídas, a última é ela. Esta é a 66ª, com ela como anterior; as duas são independentes (a #303 só toca AbastecimentoBem; esta só cria a MEDICAOFORRAGEM).
 
 ## 1. Caminhos
 
@@ -66,10 +58,10 @@ anterior se esta for primeiro.
 SELECT system_identifier FROM pg_control_system();            -- 7692130048193495360
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS ok,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) AS ruim
-  FROM _prisma_migrations;                                     -- 64, 0
+  FROM _prisma_migrations;                                     -- 65, 0
 SELECT migration_name, checksum FROM _prisma_migrations
  WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
- ORDER BY finished_at DESC LIMIT 1;                            -- 20261117000000_area_cultura, e7fd7ee6…
+ ORDER BY finished_at DESC LIMIT 1;                            -- 20261117100000_abastecimento_fk_apontamento_atividade, 1ee8d5a3…
 SELECT to_regclass('public."MEDICAOFORRAGEM"');                -- null
 SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 95
 ```
@@ -77,7 +69,7 @@ SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 95
 E, localmente, no `<SHA_APROVADO>`: `sha256sum` do `migration.sql` igual ao
 pinado, e `classificarMigrations` com `modo: EXPAND`,
 `tabelas_novas = ["MEDICAOFORRAGEM"]`, `colunas_novas_em_tabelas_antigas = []` e
-`violacoes: []` (teste B33a).
+`violacoes: []` (teste B34a).
 
 ## 3. Caminho B — uma transação
 
@@ -97,14 +89,14 @@ BEGIN
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
     INTO n_ok, n_ruim FROM _prisma_migrations;
-  IF n_ok <> 64 OR n_ruim <> 0 THEN
+  IF n_ok <> 65 OR n_ruim <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % com falha', n_ok, n_ruim;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM _prisma_migrations
-                  WHERE migration_name = '20261117000000_area_cultura'
-                    AND checksum = 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26'
+                  WHERE migration_name = '20261117100000_abastecimento_fk_apontamento_atividade'
+                    AND checksum = '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e'
                     AND finished_at IS NOT NULL AND rolled_back_at IS NULL) THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261117000000_area_cultura) não está concluída com o checksum do repositório';
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261117100000_abastecimento_fk_apontamento_atividade) não está concluída com o checksum do repositório';
   END IF;
   IF to_regclass('public."MEDICAOFORRAGEM"') IS NOT NULL THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: tabela MEDICAOFORRAGEM já existe';
@@ -125,11 +117,11 @@ rascunho da sessão (`aplicar219.sql`); confira o SHA-256 do trecho da migration
 antes de usar. Qualquer falha desfaz tudo. Confirme pelo §4 que a tabela não
 existe e que não há linha nova, corrija a causa e peça novo GO.
 
-**Ensaio local (2026-11-17):** o script acima, com o `migration.sql` integral, num
-banco à parte com as 64 migrations da `main` (`prisma migrate deploy` de uma cópia
-com as pastas até a `20261117000000_area_cultura`: 64 / 0): com o `system_identifier`
-de produção recusou (`RELEASE_BLOCKED: alvo divergente`, nada aplicado, 64); com o
-local, aplicou numa transação (64 → 65, checksum pinado, a tabela com RLS ligado, 96
+**Ensaio local (2026-11-17, refeito depois do merge da #303):** o script acima, com o `migration.sql` integral, num
+banco à parte com as 65 migrations da `main` (`prisma migrate deploy` de uma cópia
+com as pastas até a `20261117100000_abastecimento_fk_apontamento_atividade`: 65 / 0): com o `system_identifier`
+de produção recusou (`RELEASE_BLOCKED: alvo divergente`, nada aplicado, 65); com o
+local, aplicou numa transação (65 → 66, checksum pinado, a tabela com RLS ligado, 96
 tabelas em `public`); o `migrate diff --exit-code` contra o `schema.prisma` disse "No
 difference detected." (exit 0) e a 2ª execução recusou (`RELEASE_BLOCKED: migration
 já registrada`), sem linha nova.
@@ -140,7 +132,7 @@ já registrada`), sem linha nova.
 SELECT migration_name, checksum, rolled_back_at, applied_steps_count FROM _prisma_migrations
  WHERE migration_name = '20261117200000_medicao_forragem';  -- 1 linha, checksum pinado, null, 1
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
-       count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 65, 0
+       count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 66, 0
 SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
  WHERE relname = 'MEDICAOFORRAGEM' AND relkind = 'r';          -- 1 linha, t, f
 SELECT tablename, policyname FROM pg_policies WHERE tablename = 'MEDICAOFORRAGEM';  -- maike_backend_all
