@@ -17,7 +17,7 @@ import { DEFINICOES_FERRAMENTAS, criarExecutor } from './assistenteFerramentas.j
 
 export const MODELO = 'claude-opus-5-5';
 export const MAX_ITERACOES = 8;
-const MAX_TOKENS = 8000;
+const MAX_TOKENS = 4000;
 const MAX_RESULTADO_CHARS = 60000;
 
 export const PROMPT_SISTEMA = `Você é o assistente do MAIKE, sistema de pecuária (Mapa Geral e manejo) de uma fazenda.
@@ -26,7 +26,13 @@ Use SOMENTE os dados que as ferramentas devolverem. Nunca invente números, past
 Se a informação não existir nas ferramentas, diga claramente que o sistema não tem esse dado.
 Você só consulta: não lança, não altera e não exclui nada. Se pedirem para mudar algo, explique que o assistente é só de leitura e diga onde fazer no sistema.
 Situação de forragem: Rapado, Descanso, Pronto, Passou do ponto; "(estimado)" quer dizer que veio dos dias de descanso, não de medição.
-Prefira listas curtas; cite o nome do pasto ou do lote.`;
+Rapidez: quando precisar de mais de uma ferramenta, peça todas de uma vez na mesma resposta.
+Formato (a resposta aparece num balão pequeno de celular):
+- Comece pela resposta direta em 1 ou 2 frases; depois, se precisar, uma lista curta com "- ".
+- Use **negrito** só para o número ou nome principal. Não use tabelas, títulos com "#" nem emojis.
+- No máximo 8 itens por lista; se houver mais, resuma e ofereça mostrar o resto.
+- Números no padrão brasileiro (4.425 cabeças, 327,5 kg); datas como 05/11.
+- Cite o nome do pasto ou do lote. Não explique como o sistema calcula, a não ser que perguntem.`;
 
 /** @type {(() => any) | null} */
 let fabricaDeTeste = null;
@@ -97,7 +103,8 @@ export const perguntar = async (contexto, entrada) => {
         max_tokens: MAX_TOKENS,
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default',
-        output_config: { effort: 'medium' },
+        // Rapidez: perguntas de consulta não precisam de raciocínio longo.
+        output_config: { effort: 'low' },
         system: [{ type: 'text', text: PROMPT_SISTEMA, cache_control: { type: 'ephemeral' } }],
         tools: DEFINICOES_FERRAMENTAS,
         messages: mensagens,

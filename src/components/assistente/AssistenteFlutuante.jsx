@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Send, X, Loader2 } from 'lucide-react';
 import { perguntarAssistente } from '@/services/assistenteService';
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
+import TextoAssistente from '@/components/assistente/TextoAssistente';
 
 /** Quantas falas anteriores vão como contexto (o servidor aceita até 10). */
 export const MAX_HISTORICO = 10;
@@ -119,7 +120,7 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
                         ? { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }
                         : { background: '#F1F5F9', color: '#0F172A' }
                   }>
-                  {f.texto}
+                  {f.papel === 'assistente' && !f.erro ? <TextoAssistente texto={f.texto} /> : f.texto}
                 </div>
               </div>
             ))}
