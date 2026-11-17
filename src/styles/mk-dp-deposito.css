@@ -94,8 +94,14 @@
 
 .mk-dp .mk-dp-deposito__minimo-linha {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
+}
+
+/* A bolinha acompanha a 1ª linha quando o texto quebra (coluna estreita). */
+.mk-dp .mk-dp-deposito__minimo-linha > .mk-dp-bolinha {
+  flex: 0 0 auto;
+  margin-top: 4px;
 }
 
 .mk-dp .mk-dp-deposito__orientacao {
