@@ -51,7 +51,6 @@ describe("aba Detalhes", () => {
       Setor: "Retiro",
       Hectares: "109,30",
       "Área pastejada (ha)": "102,70",
-      Pastagem: "Braquiária Brizantha",
       Status: "OCUPADO",
       "Dias pastejo": "26",
     });
@@ -215,33 +214,34 @@ describe("aba Lotes › Lote", () => {
     await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
     const painel = screen.getByRole("tabpanel");
     const cartao = painel.querySelector(".mk-dp-cartao");
-    expect(cartao.querySelector(".mk-dp-cartao__titulo").textContent).toBe("L-2026-008");
+    expect(cartao.querySelector(".mk-dp-cartao__titulo")).toBeNull();
+    expect(screen.getAllByText("L-2026-008")).toHaveLength(1);
     expect(cartao.querySelector(".mk-dp-cartao__sub").textContent).toBe("VACA · FÊMEA · Pasto 07");
     expect(cartao.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");
     expect(cartao.querySelector("img").getAttribute("src")).toBe(urlSubiconeLote("femea-37-mais", 36));
     expect([...painel.querySelectorAll(".mk-dp-aviso--atencao")].map((a) => a.textContent)).toEqual(["Faz 82 dias sem pesar"]);
-    expect(within(painel).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Identificação"]);
+    expect(within(painel).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Projeção de peso", "Identificação"]);
 
-    const [, lotacao, pesagem, ident] = painel.querySelectorAll(".mk-dp-cartao");
+    const [, lotacao, pesagem, projecao, ident] = painel.querySelectorAll(".mk-dp-cartao");
     expect(grade(lotacao)).toEqual({
-      "Cab.": "38", "Peso médio (kg)": "449,5", "% área": "12%", UA: "37,96", "% lotação": "16%",
+      "Cab.": "38", "% das cabeças do pasto": "12%", UA: "37,96", "% da UA do pasto": "16%",
       "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081", "Ocupação (UA × dias)": "2.126",
     });
     expect(lotacao.querySelectorAll(".mk-dp-cel__barra")).toHaveLength(2);
     expect(lotacao.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
 
-    // Pesagem: grade → linha "Projeção (fim do mês)" (quebra) → grade.
-    expect([...pesagem.children].map((p) => p.className.split(" ")[0])).toEqual(["mk-dp-grade", "mk-dp-linha", "mk-dp-grade"]);
-    expect(grade(pesagem)).toMatchObject({ "Peso projetado (kg)": "465,9", "@ projetadas": "15,53", "GMD do mês (kg/dia)": "0,200", "Base da projeção": "PESAGEM 25/08", "Peso objetivo (kg)": "480", "Atinge o objetivo": "25/01/2027 (71 d)", "Pesado × previsto": "98,7% do previsto", "Última": "25/08/2026", Origem: "MEDIDO" });
-    const linha = pesagem.querySelector(".mk-dp-linha--quebra");
+    expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026", Origem: "MEDIDO" });
+    expect(within(pesagem).queryByText("Peso projetado (kg)")).toBeNull();
+    expect(grade(projecao)).toMatchObject({ "Peso projetado (kg)": "465,9", "@ projetadas": "15,53", "GMD do mês (kg/dia)": "0,200", "Base da projeção": "PESAGEM 25/08", "Peso objetivo (kg)": "480", "Atinge o objetivo": "25/01/2027 (71 d)", "Pesado × previsto": "98,7% do previsto" });
+    const linha = projecao.querySelector(".mk-dp-linha--quebra");
     expect(linha.querySelector(".mk-dp-linha__rot").textContent).toBe("Projeção (fim do mês)");
     expect(linha.querySelector(".mk-dp-linha__val").textContent).toBe("30/11: 469 · 31/12: 475 · 31/01: 481");
-    const comDica = [...pesagem.querySelectorAll(".mk-dp-cel")].filter((c) => c.querySelector(".mk-dp-cel__sub")).map((c) => c.querySelector("dt").textContent);
-    expect(comDica).toEqual(["Peso projetado (kg)", "@ projetadas"]);
-    expect(linha.querySelector(".mk-dp-linha__sub").textContent).toBe("peso projetado no último dia dos próximos meses");
-
-    expect(Object.keys(grade(ident))).toEqual(["Categoria", "Sexo", "Sist. Rep.", "Identificador", "Sigla", "Entrada", "Cat. de manejo"]);
-    expect(grade(ident)).toMatchObject({ Categoria: "VACA", Identificador: "VERMELHO", "Cat. de manejo": "CRIA" });
+    expect(within(projecao).queryByText("Peso médio (kg)")).toBeNull();
+    expect(within(painel).getAllByText("Peso médio (kg)")).toHaveLength(1);
+    expect(within(painel).queryByText("Sexo", { exact: true })).toBeNull();
+    expect(within(painel).queryByText("Categoria", { exact: true })).toBeNull();
+    expect(Object.keys(grade(ident))).toEqual(["Sist. Rep.", "Identificador", "Sigla", "Entrada", "Cat. de manejo"]);
+    expect(grade(ident)).toMatchObject({ Identificador: "VERMELHO", "Cat. de manejo": "CRIA" });
     const identificador = [...ident.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "Identificador");
     expect(identificador.querySelector(".mk-dp-bolinha").style.background).toBe("rgb(239, 68, 68)");
     expect(ident.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
@@ -391,9 +391,10 @@ describe("tela do lote", () => {
   it("mostra os blocos do lote pedido, sem a navegação ‹ ›; o rodapé é da casca", () => {
     render(<CascaDeTeste modelo={modeloV12()} pilhaInicial={[{ tipo: "lote", loteId: "p-e" }]} />);
     expect(document.querySelector(".mk-dp-nav")).toBeNull();
-    expect(document.querySelector(".mk-dp-cartao__titulo").textContent).toBe("L-2026-025");
+    expect(document.querySelector(".mk-dp-cartao__titulo")).toBeNull();
+    expect(screen.getAllByText("L-2026-025")).toHaveLength(1);
     expect(document.querySelector(".mk-dp-cartao__sub").textContent).toBe("BEZERRO · MACHO · Pasto 07");
-    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Identificação"]);
+    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Projeção de peso", "Identificação"]);
     expect(screen.getByRole("group", { name: "Ações" }).textContent).toBe("MoverPesarManejos");
   });
 
@@ -454,4 +455,27 @@ describe("Configurar tabela", () => {
     // Voltou para a Lista, já com a coluna nova.
     expect(cabecalhos()).toContain("Sexo");
   });
+});
+
+it("não confunde peso atual com projeção quando os números coincidem", async () => {
+  const m = modeloV12();
+  const lote = m.lotes.find((l) => l.nome === "L-2026-008");
+  lote.valores.projetado = { ...lote.valores.projetado, texto: lote.valores.peso.texto };
+  render(<CascaDeTeste modelo={m} />);
+  await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
+  const atual = screen.getByRole("region", { name: "Pesagem" });
+  const projecao = screen.getByRole("region", { name: "Projeção de peso" });
+  expect(grade(atual)["Peso médio (kg)"]).toBe("449,5");
+  expect(grade(projecao)["Peso projetado (kg)"]).toBe("449,5");
+});
+
+it("mantém o campo Sexo quando ele está sem informação no cabeçalho", async () => {
+  const m = modeloV12();
+  const lote = m.lotes.find((l) => l.nome === "L-2026-008");
+  lote.sexo = "—";
+  lote.valores.sexo = { ...lote.valores.sexo, texto: "—" };
+  render(<CascaDeTeste modelo={m} />);
+  await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
+  const identificacao = screen.getByRole("region", { name: "Identificação" });
+  expect(grade(identificacao).Sexo).toBe("—");
 });

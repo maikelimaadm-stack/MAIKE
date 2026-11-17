@@ -235,3 +235,31 @@
 .mk-dp .mk-dp-tabela :is(.mk-dp-tabela__ordenar, .mk-dp-tabela__abrir):focus-visible {
   outline-offset: -2px;
 }
+
+/* Uma identidade por lote e campos agrupados por assunto. Não afeta a Lista. */
+.mk-dp .mk-dp-lote-organizado {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-lote-organizado > * {
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-lote-organizado__secao > .mk-dp-cartao .mk-dp-grade {
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+}
+
+@media (min-width: 1024px) {
+  .mk-dp .mk-dp-lote-organizado {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .mk-dp .mk-dp-lote-organizado > .mk-dp-cartao,
+  .mk-dp .mk-dp-lote-organizado > .mk-dp-aviso {
+    grid-column: 1 / -1;
+  }
+}

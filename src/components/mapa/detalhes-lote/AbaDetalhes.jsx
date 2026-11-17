@@ -3,7 +3,7 @@ import { Beef, Sprout } from "lucide-react";
 import { Aviso, Cartao, Linha, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { IconeCategoria } from "@/components/mapa/detalhes-lote/pecas";
 import { PartesDoCartao } from "@/components/mapa/detalhes-lote/BlocosLote";
-import { camposDoCartaoDaArea, statusDaArea } from "@/components/mapa/detalhes-lote/catalogo";
+import { camposDoCartaoDaArea, statusDaArea, VAZIO } from "@/components/mapa/detalhes-lote/catalogo";
 import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
@@ -21,7 +21,9 @@ export function AbaDetalhes() {
     () => statusDaArea({ areaId: dados.areaId, cab: area.cab, movimentacoes: dados.movimentacoes, hoje: modelo.ctx?.hoje }),
     [dados.areaId, dados.movimentacoes, area.cab, modelo.ctx?.hoje],
   );
-  const campos = camposDoCartaoDaArea(area, { setor: dados.setorNome, status });
+  const pastagemNoSubtitulo = area.campos.pastagem.texto !== VAZIO && area.sub.includes(area.campos.pastagem.texto);
+  const campos = camposDoCartaoDaArea(area, { setor: dados.setorNome, status })
+    .filter((campo) => campo.chave !== "pastagem" || !pastagemNoSubtitulo);
 
   return (
     <>

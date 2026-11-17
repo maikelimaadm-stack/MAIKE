@@ -105,3 +105,12 @@ A fonte da verdade é `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html
   - Causa: o `useQuery` de `TarefasMapaPanel.jsx` tinha `initialData: []` com `staleTime`, e o React Query tratava a lista vazia como dado novo, sem buscar.
   - Correção: sai o `initialData` (o padrão `= []` cobre o carregamento). Teste `tarefasMapaPrimeiraAbertura` (falha sem a correção).
 - **Harness E2E versionado desatualizado:** o `tests/e2e/harness` (cena `geral`) quebra sem `AuthProvider`. O harness local desta missão contorna com um stub.
+
+
+## Revisão D-PROD-229 — detalhes do lote organizados e sem duplicações
+
+O nome do lote fica no cabeçalho/navegação; o cartão não o repete. Categoria e sexo ficam no subtítulo e deixam de se repetir em Identificação quando conhecidos. Campos sem informação continuam explícitos. Cat. de manejo permanece, pois não equivale à categoria do animal.
+
+Os cartões passam a ser Lotação, Pesagem, Projeção de peso e Identificação. Peso médio atual sai de Lotação para Pesagem, sem mudar o valor. A projeção fica separada dos dados de pesagem, mesmo quando os números coincidem. Participações nas cabeças e na UA ganham rótulos claros. A pastagem deixa de se repetir na grade da área quando já está no subtítulo.
+
+A organização usa pares no computador (a partir de 1024 px) e uma coluna nas telas menores. Catálogo, colunas e preferências da tabela, múltiplos lotes, ordenação, fórmulas, alertas, manejo e permissões preservados. Conferência visual com componentes reais e dados de demonstração em 1280, 820 e 390 px, sem transbordo horizontal. Testes verificam identidade única, peso atual e projetado preservados mesmo com números iguais e campo Sexo explícito quando sem informação; tipos sem regressão, lint, build e gates de governança/imports/fechamento de código aprovados.

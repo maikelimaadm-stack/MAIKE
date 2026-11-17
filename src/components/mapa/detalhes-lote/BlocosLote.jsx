@@ -1,7 +1,7 @@
 import React from "react";
-import { Aviso, Cartao, Celula, Chip, Grade, Linha, TituloBloco } from "@/components/mapa/detalhes-lote/blocos";
+import { Aviso, Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe } from "@/components/mapa/detalhes-lote/blocos";
 import { IconeCategoria } from "@/components/mapa/detalhes-lote/pecas";
-import { SECOES_DO_LOTE, VAZIO, camposDoLote } from "@/components/mapa/detalhes-lote/catalogo";
+import { VAZIO, camposDoLote } from "@/components/mapa/detalhes-lote/catalogo";
 import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').LoteVm} LoteVm */
@@ -81,18 +81,30 @@ export function PartesDoCartao({ campos }) {
 /**
  * Blocos de um lote (vista Lote e tela do lote, v12): cartão com o subícone, o
  * nome, "CATEGORIA · SEXO · Pasto" e a situação; um aviso por alerta (nível 2 em
- * âmbar, nível 1 em informação); Lotação, Pesagem e Identificação abertas.
- * @param {{ lote: LoteVm }} props
+ * âmbar, nível 1 em informação); Lotação, Pesagem, Projeção de peso e
+ * Identificação abertas. D-PROD-229: sem repetir nome, categoria e sexo.
+ * @param {{ lote: LoteVm, mostrarNome?: boolean }} props
  */
-export function BlocosLote({ lote }) {
+export function BlocosLote({ lote, mostrarNome = true }) {
   const { modelo, dados } = usePasto();
   const areaNome = modelo?.area?.nome || dados.areaNome;
   const sub = [lote.categoria, lote.sexo, areaNome].filter((t) => t && t !== VAZIO).join(" · ");
+  // Só reorganiza a apresentação: o catálogo da Lista e suas preferências
+  // continuam completos. Categoria e sexo já estão no cartão de identidade.
+  const lotacao = camposDoLote(lote, "Lotação");
+  const pesagem = camposDoLote(lote, "Pesagem");
+  const chavesProjecao = new Set(["projetado", "projArroba", "gmdMes", "baseProj", "objetivo", "atinge", "pesPrev", "projMeses"]);
+  const secoes = [
+    { titulo: "Lotação", campos: lotacao.filter((c) => c.chave !== "peso").map((c) => ({ ...c, rotulo: c.chave === "partCab" ? "% das cabeças do pasto" : c.chave === "partUA" ? "% da UA do pasto" : c.rotulo })) },
+    { titulo: "Pesagem", campos: [...lotacao.filter((c) => c.chave === "peso"), ...pesagem.filter((c) => !chavesProjecao.has(c.chave || ""))] },
+    { titulo: "Projeção de peso", campos: pesagem.filter((c) => chavesProjecao.has(c.chave || "")) },
+    { titulo: "Identificação", campos: camposDoLote(lote, "Identificação").filter((c) => (c.chave !== "categoria" || lote.categoria === VAZIO) && (c.chave !== "sexo" || lote.sexo === VAZIO)) },
+  ];
   return (
-    <>
+    <div className="mk-dp-lote-organizado">
       <Cartao
         imagem={<IconeCategoria figura={lote.subicone} tamanho={36} />}
-        titulo={lote.nome}
+        titulo={mostrarNome ? lote.nome : undefined}
         sub={sub || undefined}
         chip={<ChipSituacao situacao={lote.situacao} />}
       />
@@ -101,15 +113,14 @@ export function BlocosLote({ lote }) {
           {a.frase}
         </Aviso>
       ))}
-      {SECOES_DO_LOTE.map((secao) => (
-        <React.Fragment key={secao}>
-          <TituloBloco>{secao}</TituloBloco>
+      {secoes.map(({ titulo, campos }) => (
+        <SecaoDetalhe key={titulo} titulo={titulo} className="mk-dp-lote-organizado__secao">
           <Cartao>
-            <PartesDoCartao campos={camposDoLote(lote, secao)} />
+            <PartesDoCartao campos={campos} />
           </Cartao>
-        </React.Fragment>
+        </SecaoDetalhe>
       ))}
-    </>
+    </div>
   );
 }
 

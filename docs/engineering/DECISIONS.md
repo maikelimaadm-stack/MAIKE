@@ -8154,4 +8154,15 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Rodapé do cocho com Lançar, Leitura, Fechamentos e Histórico; no celular os ícones ficam acima do nome para acomodar as quatro ações.
 - Nenhuma mudança de cálculo, persistência ou manejo. Detalhes do lote não foram alterados nesta revisão.
 
-<!-- Próxima decisão: D-PROD-229 -->
+## D-PROD-229 — Organização dos detalhes de lote e duplicações (2026-11-17)
+
+**Pedido do proprietário:** organizar os detalhes de lotes e revisar informações duplicadas, continuando a PR #308.
+
+- Nas vistas Lote e tela empilhada, o nome aparece na navegação/cabeçalho, sem outra cópia no cartão. Categoria e sexo ficam no subtítulo; não se repetem na Identificação quando já informados. Campos sem informação continuam explícitos.
+- Peso médio atual fica em Pesagem; projeção, curva, objetivo e previsão mensal ganham o bloco Projeção de peso. Não se elimina um valor só por coincidir numericamente com outro: representam dados diferentes.
+- Lotação mantém as métricas do lote e esclarece a participação nas cabeças e na UA do pasto. Cat. de manejo permanece em Identificação, pois é distinta da categoria do animal.
+- No computador, as quatro seções ficam em pares; no celular e tablet, uma coluna, com título junto do cartão.
+- A aba Detalhes não repete a pastagem na grade quando ela já está no subtítulo. Se faltar informação, o campo continua visível.
+- Cálculos, catálogo da tabela, ordenação, preferências de colunas, múltiplos lotes, manejo e permissões preservados.
+
+<!-- Próxima decisão: D-PROD-230 -->
