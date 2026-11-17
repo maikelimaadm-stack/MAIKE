@@ -1,7 +1,7 @@
 # MAIKE — Reforço do abastecimento ligado à atividade: runbook de release CONTRACT (D-PROD-217)
 
-> **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** Aplicação só com o GO explícito e
-> escrito do proprietário para **esta** migration.
+> **Estado: EXECUTADO. `SCHEMA_APPLIED_PROD: SIM` (2026-11-17 00:43:48 UTC, caminho B,
+> com o GO explícito e escrito do proprietário para esta migration; registro no §9).**
 >
 > Cada passo para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>`
 > são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
@@ -10,7 +10,9 @@ Decisão: [D-PROD-217](./DECISIONS.md) (continua a D-PROD-211) · Relatório:
 [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) ·
 Precedente executado:
 [`MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md)
-(D-PROD-211, o vínculo que este reforça). A anterior em produção é a D-PROD-215
+(D-PROD-211, o vínculo que este reforça). A anterior em produção é a D-PROD-216
+([`MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md`](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md), CONTRACT aditiva,
+aplicada), depois da D-PROD-215
 ([`MAIKE-CULTURAS-RUNBOOK-RELEASE.md`](./MAIKE-CULTURAS-RUNBOOK-RELEASE.md), EXPAND, aplicada).
 
 ## 0. O que muda no banco
@@ -26,14 +28,15 @@ Precedente executado:
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e` |
 | Guarda (`guarda_sha256`) | `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c` |
 | Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-217`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_apontamento_fkey"]` (mesmo nome, recriada; o rótulo do runner é o de sempre, "1 CHECKs alargados"), o resto vazio; o `UNIQUE` é a 1ª das 3 instruções pinadas; não há resto |
-| `_prisma_migrations` | antes **63** concluídas, 0 em aberto (a última, a D-PROD-215, `20261116500000_cadculturas`, checksum `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`; antes dela a D-PROD-211, `20261116300000_abastecimento_atividade`, checksum `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`); depois **64** |
+| `_prisma_migrations` | antes **64** concluídas, 0 em aberto (a última, a D-PROD-216, `20261117000000_area_cultura`, checksum `e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26`; antes dela a D-PROD-215, `20261116500000_cadculturas`, e a D-PROD-211, `20261116300000_abastecimento_atividade`, checksum `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`); depois **65** |
 | Tabelas em `public` | **95** antes e depois |
 
 **Nome da pasta.** A migration nasceu como `20261116400000_abastecimento_fk_apontamento_atividade`.
-A `20261116500000_cadculturas` (D-PROD-215, EXPAND) foi aplicada em produção antes dela;
-para a ordem dos nomes no repositório ser a ordem de aplicação em produção, a pasta
-passou a **`20261117100000_abastecimento_fk_apontamento_atividade`** (conteúdo idêntico,
-mesmo SHA-256). O registro em `_prisma_migrations` usa o nome novo.
+A `20261116500000_cadculturas` (D-PROD-215, EXPAND) foi aplicada em produção antes dela e a
+pasta passou a `20261116600000_…`; depois a `20261117000000_area_cultura` (D-PROD-216, CONTRACT
+aditiva) também foi aplicada antes. Para a ordem dos nomes no repositório ser a ordem de
+aplicação em produção, a pasta é **`20261117100000_abastecimento_fk_apontamento_atividade`**
+(conteúdo idêntico, mesmo SHA-256): o nome com que ela foi registrada em `_prisma_migrations`.
 
 **Ordem:** o código não muda nesta release (o servidor já deriva a atividade do
 apontamento e grava as duas juntas, D-PROD-211). A migration pode ir antes ou depois do
@@ -85,8 +88,8 @@ aplicar nada** (no caminho A, a linha falha em `_prisma_migrations` pede
 
 | GO | O quê | Situação |
 |---|---|---|
-| GO-1 | preflight **só leitura** em produção (§4) | `<pendente>` |
-| GO-2 | aplicar a CONTRACT D-PROD-217 (§5) e mergear em seguida | `<pendente>` |
+| GO-1 | preflight **só leitura** em produção (§4) | dado (2026-11-17) |
+| GO-2 | aplicar a CONTRACT D-PROD-217 (§5) e mergear em seguida | dado (2026-11-17): aplicada pelo caminho B; o merge segue a revisão da PR #303 |
 
 ## 3. Ordem
 
@@ -107,8 +110,8 @@ mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
          count(*) FILTER (WHERE migration_name = '20261117100000_abastecimento_fk_apontamento_atividade' AND rolled_back_at IS NULL) AS esta,
-         count(*) FILTER (WHERE migration_name = '20261116500000_cadculturas'
-                            AND checksum = '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715'
+         count(*) FILTER (WHERE migration_name = '20261117000000_area_cultura'
+                            AND checksum = 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior,
          count(*) FILTER (WHERE migration_name = '20261116300000_abastecimento_atividade'
                             AND checksum = '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436'
@@ -152,13 +155,13 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '63 / 0',
-         CASE WHEN (SELECT concluidas = 63 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '64 / 0',
+         CASE WHEN (SELECT concluidas = 64 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, '20261117100000_abastecimento_fk_apontamento_atividade já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 4, 'a anterior (D-PROD-215, cadculturas) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
+  SELECT 4, 'a anterior (D-PROD-216, area_cultura) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
          CASE WHEN (SELECT anterior FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 5, 'a D-PROD-211 (abastecimento ligado à atividade) concluída com o checksum do repositório', (SELECT abastecimento::text FROM mig), '1',
@@ -195,26 +198,28 @@ SELECT item, valor, esperado, status FROM (
 ```
 <!-- /sql:preflight -->
 
-Esperado hoje: `7692130048193495360`; `63 / 0`; `0`; `1`; `1`; `1`; `0`; `1`;
+Esperado na partida: `7692130048193495360`; `64 / 0`; `0`; `1`; `1`; `1`; `0`; `1`;
 `1 / 0 / 0` (a linha de produção, sem vínculo); `95`; `0`; `0`;
-`PRONTO PARA APLICAR`. E, localmente, `sha256sum` do arquivo igual ao do §0.
+`PRONTO PARA APLICAR`. E, localmente, `sha256sum` do arquivo igual ao do §0. Foi o que
+produção mostrou em 2026-11-17 (§9). Depois da aplicação, este preflight diz `PARAR`
+(65 / 0 e a migration registrada): é o esperado.
 
 ### 4.2 Ensaio local
 
 Automatizado em `backend/tests/abastecimentoFkApontamentoMigration.test.mjs`
 (PostgreSQL local, bancos próprios). Roda **este** preflight, **este** envelope e
 **este** postcheck (entre os marcadores `sql:…`), trocando só o `system_identifier`:
-partida com as 63 anteriores (a última, a CADCULTURAS da D-PROD-215, depois da D-PROD-211,
-na ordem de produção) e abastecimentos de 2 clientes (um ligado ao apontamento
+partida com as 64 anteriores (a última, a Área ligada à Cultura da D-PROD-216, depois da
+CADCULTURAS da D-PROD-215 e da D-PROD-211, na ordem de produção) e abastecimentos de 2 clientes (um ligado ao apontamento
 da própria atividade, um sem vínculo `ESTOQUE`, um `EXTERNO` sem vínculo); classificador
 e barreira do runner (sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-217` exato recusa antes
 do DDL); RED (um abastecimento ligado a apontamento de outra atividade, ou a FK já com 4
-colunas, ou o UNIQUE já presente: a guarda recusa e nada muda); GREEN pelo runner (64/0,
+colunas, ou o UNIQUE já presente: a guarda recusa e nada muda); GREEN pelo runner (65/0,
 95 tabelas, só a FK e o índice mudam, o banco recusa o apontamento de outra atividade
 com `23503` e aceita o vínculo certo e os sem vínculo, `migrate diff` vazio, postcheck
 `APLICADA`; reaplicar é recusado pela guarda); caminho B (o SID de produção, histórico
-fora de 63/0, a D-PROD-215 ou a D-PROD-211 com outro checksum ou o UNIQUE já presente
-recusam antes do DDL; o envelope aplica 63 → 64; repetir recusa).
+fora de 64/0, a D-PROD-216 ou a D-PROD-211 com outro checksum ou o UNIQUE já presente
+recusam antes do DDL; o envelope aplica 64 → 65; repetir recusa).
 
 ## 5. Aplicação — só com o GO-2
 
@@ -242,14 +247,14 @@ BEGIN
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)
     INTO n_ok, n_aberta FROM _prisma_migrations;
-  IF n_ok <> 63 OR n_aberta <> 0 THEN
+  IF n_ok <> 64 OR n_aberta <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % em aberto', n_ok, n_aberta;
   END IF;
   IF (SELECT count(*) FROM _prisma_migrations
        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
-         AND migration_name = '20261116500000_cadculturas'
-         AND checksum = '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715') <> 1 THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-215) ausente ou com checksum divergente';
+         AND migration_name = '20261117000000_area_cultura'
+         AND checksum = 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26') <> 1 THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (D-PROD-216) ausente ou com checksum divergente';
   END IF;
   IF (SELECT count(*) FROM _prisma_migrations
        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
@@ -340,8 +345,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, '20261117100000_abastecimento_fk_apontamento_atividade concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '64 / 0',
-         CASE WHEN (SELECT concluidas = 64 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '65 / 0',
+         CASE WHEN (SELECT concluidas = 65 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'FK AbastecimentoBem_apontamento_fkey com 4 colunas (com a atividade), RESTRICT, validada', (SELECT n::text FROM fk_nova), '1',
          CASE WHEN (SELECT n FROM fk_nova) = 1 THEN 'OK' ELSE 'PARAR' END
@@ -371,7 +376,7 @@ SELECT item, valor, esperado, status FROM (
 ```
 <!-- /sql:postcheck -->
 
-Esperado: `1`; `64 / 0`; `1`; `1`; `14 / 10`; `1`; `0`; `95`; VEREDITO
+Esperado: `1`; `65 / 0`; `1`; `1`; `14 / 10`; `1`; `0`; `95`; VEREDITO
 `APLICADA E CONFERIDA`. `get_advisors`: nada novo (o índice
 `AbastecimentoBem_apontamento_idx` continua cobrindo a FK pelo prefixo
 `cliente_id, empresa_id`).
@@ -385,7 +390,7 @@ Esperado: `1`; `64 / 0`; `1`; `1`; `14 / 10`; `1`; `0`; `95`; VEREDITO
 ## 8. `RELEASE_BLOCKED`
 
 Sem o GO-2; validação local não verde; `system_identifier` diferente; histórico
-diferente de 63/0, a D-PROD-215 ou a D-PROD-211 com outro checksum ou a D-PROD-217 já
+diferente de 64/0, a D-PROD-216 ou a D-PROD-211 com outro checksum ou a D-PROD-217 já
 registrada; o
 vínculo fora do formato anterior; algum abastecimento ligado a apontamento de outra
 atividade; qualquer `PARAR` no preflight; outra migration nova na mesma release;
@@ -395,11 +400,14 @@ SHA-256 diferente do pinado; ensaio local sem passar.
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | `<pendente>` |
-| Caminho | `<pendente>` |
-| `<SHA_APROVADO>` | `<pendente>` |
-| Ensaio local (§4.2) | `<pendente>` |
-| Preflight (§4) | `<pendente>` |
-| Aplicação | `<pendente>` |
-| Postcheck (§6) | `<pendente>` |
-| Merge e deploy | `<pendente>` |
+| GO-1 e GO-2 | dados pelo proprietário, por escrito, para **esta** migration (2026-11-17) |
+| Caminho | **B** (conector, uma `execute_sql`; o envelope do §5 com o `migration.sql` integral) |
+| `<SHA_APROVADO>` | o `migration.sql` com SHA-256 `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e` (o mesmo desde a abertura da PR #303) |
+| Ensaio local (§4.2) | verde: `backend/tests/abastecimentoFkApontamentoMigration.test.mjs` com a partida de 64 (a Área ligada à Cultura por último) → 65 |
+| Tentativas anteriores | duas, paradas no preflight com `PARAR` na linha 2 (a produção com `63` concluídas quando o runbook esperava `62`, e depois com `64` quando esperava `63`), porque outra sessão aplicou antes a `20261116500000_cadculturas` (D-PROD-215) e depois a `20261117000000_area_cultura` (D-PROD-216). **Nada foi aplicado** nessas duas; o preflight e o envelope passaram à partida real (64/0, a anterior = a D-PROD-216) |
+| Preflight (§4) | **PRONTO PARA APLICAR**: `64 / 0`; a migration ainda não registrada (`0`); a anterior `20261117000000_area_cultura` com o checksum `e7fd7ee6…` (`1`); a D-PROD-211 com o checksum `6dfc825c…` (`1`); a FK de 3 colunas (`1`); o UNIQUE ausente (`0`); o CHECK da atividade presente (`1`); `1 / 0 / 0`; 95 tabelas; 0 travas; 0 transações longas |
+| Envelope (§5) | guardas: `n_ok <> 64`, a anterior = `20261117000000_area_cultura` (`e7fd7ee6…`), a D-PROD-211 (`6dfc825c…`), o UNIQUE ausente; `INSERT` com o nome `20261117100000_abastecimento_fk_apontamento_atividade` e o checksum `1ee8d5a3…` |
+| Aplicação | **2026-11-17 00:43:48 UTC**, caminho B, numa transação; `SCHEMA_APPLIED_PROD: SIM` |
+| Postcheck (§6) | **APLICADA E CONFERIDA**: `65 / 0`; a última registrada é esta, checksum `1ee8d5a3…`; FK = `FOREIGN KEY (cliente_id, empresa_id, atividade_id, apontamento_id) REFERENCES "AtividadeApontamento"(cliente_id, empresa_id, atividade_id, id) ON UPDATE CASCADE ON DELETE RESTRICT`; UNIQUE `AtividadeApontamento_empresa_atividade_id_key` em (`cliente_id`, `empresa_id`, `atividade_id`, `id`); `AbastecimentoBem_atividade_fkey` e `AbastecimentoBem_atividade_check` presentes; 95 tabelas; dados intactos (`AbastecimentoBem` 1 linha, `AtividadeApontamento` 4) |
+| Ordem em produção | … `20261116300000_abastecimento_atividade` (D-PROD-211) → `20261116500000_cadculturas` (D-PROD-215) → `20261117000000_area_cultura` (D-PROD-216) → **`20261117100000_abastecimento_fk_apontamento_atividade` (D-PROD-217)**: a mesma ordem dos nomes no repositório |
+| Merge e deploy | depois da revisão da PR #303 (o código não muda nesta release; o `schema.prisma` já é o de produção) |
