@@ -36,13 +36,16 @@ export const definirFabricaClienteAssistente = (fabrica) => {
   fabricaDeTeste = fabrica;
 };
 
+const PRAZO_TOTAL_MS = 50_000;
+const PRAZO_MINIMO_CHAMADA_MS = 5_000;
+
 const naoConfigurado = () =>
   new AppError('ASSISTENTE_NAO_CONFIGURADO', 'o assistente não está configurado neste servidor (falta a chave da API)');
 
 const criarCliente = () => {
   if (fabricaDeTeste) return fabricaDeTeste();
   if (!process.env.ANTHROPIC_API_KEY) throw naoConfigurado();
-  return new Anthropic({ maxRetries: 2, timeout: 90_000 });
+  return new Anthropic({ maxRetries: 1, timeout: 45_000 });
 };
 
 /** @param {any} resposta */
@@ -76,7 +79,11 @@ export const perguntar = async (contexto, entrada) => {
   mensagens.push({ role: 'user', content: `Hoje é ${executor.hoje}.${entrada.tela ? ` Tela aberta: ${entrada.tela}.` : ''}\n\n${entrada.pergunta}` });
 
   const usadas = [];
+  // A função da Vercel tem no máximo 60 s (vercel.json): a conversa inteira cabe em ~50 s.
+  const prazo = Date.now() + PRAZO_TOTAL_MS;
   for (let i = 0; i < MAX_ITERACOES; i += 1) {
+    const restante = prazo - Date.now();
+    if (restante < PRAZO_MINIMO_CHAMADA_MS) break;
     let resposta;
     try {
       resposta = await cliente.beta.messages.create({
@@ -88,7 +95,7 @@ export const perguntar = async (contexto, entrada) => {
         system: [{ type: 'text', text: PROMPT_SISTEMA, cache_control: { type: 'ephemeral' } }],
         tools: DEFINICOES_FERRAMENTAS,
         messages: mensagens,
-      });
+      }, { timeout: restante, maxRetries: 0 });
     } catch (erro) {
       if (erro instanceof Anthropic.AuthenticationError) throw naoConfigurado();
       throw new AppError('ASSISTENTE_INDISPONIVEL', 'o assistente não respondeu agora; tente de novo em instantes', { cause: erro });
