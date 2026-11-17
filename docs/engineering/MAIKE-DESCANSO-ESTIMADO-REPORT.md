@@ -74,7 +74,15 @@ D (os dias de descanso que valem) = os do pasto, senão os da cultura.
 
 ## 4. Validação local
 
-`RESULTADOS_DA_VALIDACAO`
+| Etapa | Resultado |
+|---|---|
+| `npm run verify:all -- --pular=test:backend` | **38/38 etapas PASS** (gates, `test:gates` 1031/0, `gate:types` sem regressão, `typecheck:backend`, lint, `test:smoke` 261 arquivos / 3210 testes, build e build:admin) |
+| `npm run test:backend`, 4 shards locais (`TEST_BACKEND_SHARD=k/4`, um banco por shard) | 1/4: 606 testes, 605 pass, 0 fail (1 todo) · 2/4: 537/537 · 3/4: 578 testes, 573 pass, 0 fail (5 todo) · 4/4: 583/583 |
+| Família de migration (`backend/tests/*Migration.test.mjs` e `sqlEditor*.test.mjs`, PostgreSQL real) | 230 testes verdes com a 67ª posterior "no dia" de cada migration (contagens, listas, `slice`, o diff esperado do schema com as colunas do pasto em ordem alfabética e a impressão digital do Patrimônio sem elas) |
+| Ferramental de release (`scripts/tests/deploy/premerge-migrate` e `preflight-schema`) | 195/195: B35a (EXPAND, as 4 colunas), B35b (CHECK em CADCULTURAS ou AreaPastagem, NOT NULL e UPDATE recusados; byte diferente diverge), B35k (66 concluídas → só esta pendente → 67) |
+| Backend novo | `culturaNativo` (dias 1..365), `areaCulturaNativa` AP-01..03 (parâmetros do pasto: gravação pt-BR, leitura, validação, saída < entrada), `medicaoForragemNativo` MF-10 (ocupação pelo ledger), MF-11 (alturas do pasto na situação e no retrato), MF-12 (`parametrosDoPasto` servidor = tela) |
+| Smoke novo | farol estimado (regra, origem do descanso, prioridade da medição, todos os pastos, legenda), painel ("Pronto (estimado) · lote saiu há 32 dias · descanso da cultura 30 dias", "Em pastejo", origem dos parâmetros), formulário da medição ("(do pasto)"), formulário da Área (seção opcional, dicas, validação, Reserva sem a seção), Culturas (campo e coluna "Dias de descanso") |
+| Ensaio do caminho B (banco à parte, 66 migrations) | `aplicar223.sql`: alvo de produção recusado; local 66 → 67, `migrate diff` vazio, 2ª execução recusada. `backfill223.sql`: recusado antes da migration; 11 preenchidas (a 012 fora da lista intacta), auditado; 2ª execução recusada |
 
 ## 5. Sem CHECK no banco (desvio do pedido, registrado)
 
