@@ -7720,4 +7720,6 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-MEDICAO-FORRAGEM-REPORT.md`](./MAIKE-MEDICAO-FORRAGEM-REPORT.md).
 
+**Ajuste depois da release (2026-11-17, pedido do proprietário pelo print do celular).** O campo único "Leituras (cm)" com os valores separados por espaço não funciona no iPhone: o teclado decimal não tem espaço. Passa a ser **uma leitura por vez**: o campo + o botão **"+"** (também Enter e sair do campo) põem a leitura numa lista; cada item tem **×** para tirar; a leitura digitada e ainda não confirmada também conta na média e vai no envio. Texto com espaço (colar, computador) continua aceito. Só a tela muda: corpo da API, banco e regras iguais.
+
 <!-- Próxima decisão: D-PROD-220 -->

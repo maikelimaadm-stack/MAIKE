@@ -101,6 +101,30 @@ describe('D-PROD-219 — formulário da medição', () => {
     expect(onSaved).toHaveBeenCalled();
   });
 
+  it('celular: cada leitura entra pelo "+" (ou Enter/sair do campo), vira um item removível e conta na média; a digitada sem "+" também vai', async () => {
+    renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
+    const campo = screen.getByTestId('medicao-leituras');
+    for (const v of ['22', '26', '24,5']) {
+      fireEvent.change(campo, { target: { value: v } });
+      fireEvent.click(screen.getByTestId('medicao-adicionar-leitura'));
+    }
+    expect(campo.value).toBe('');
+    expect(screen.getByTestId('medicao-lista-leituras').textContent).toContain('24,5');
+    fireEvent.change(campo, { target: { value: '30' } });
+    fireEvent.keyDown(campo, { key: 'Enter' });
+    expect(screen.getByTestId('medicao-media').textContent).toMatch(/Média 25,6 cm.*4 leituras/);
+    fireEvent.click(screen.getByLabelText('Remover a leitura 30,0 cm'));
+    expect(screen.getByTestId('medicao-media').textContent).toMatch(/3 leituras/);
+    fireEvent.change(campo, { target: { value: '20' } });
+    fireEvent.blur(campo);
+    expect(screen.getByTestId('medicao-media').textContent).toMatch(/4 leituras/);
+    fireEvent.change(campo, { target: { value: '21' } });
+    await act(async () => {
+      fireEvent.submit(screen.getByTestId('form-medicao-forragem'));
+    });
+    expect(servico.registrar.mock.calls[0][0].leituras_cm).toEqual([22, 26, 24.5, 20, 21]);
+  });
+
   it('régua: PRONTO e PASSOU pelos limites; sem cultura, só a média; leituras vazias avisam e não enviam', async () => {
     renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
     fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '30' } });
