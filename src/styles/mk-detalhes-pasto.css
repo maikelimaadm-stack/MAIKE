@@ -1727,3 +1727,15 @@
 .mk-dp--suplementacao-organizada > .mk-dp__corpo--cards {
   gap: 12px;
 }
+
+/* Projeções mensais: uma data e um peso por coluna, sem texto corrido. */
+.mk-dp .mk-dp-projecao-mensal {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.mk-dp .mk-dp-projecao-mensal h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}

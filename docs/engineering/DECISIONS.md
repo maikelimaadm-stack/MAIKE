@@ -8173,4 +8173,11 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - No celular, a barra usa a largura disponível. Atualizar, Localizar e Mover continuam na coluna da direita, abaixo da barra, sem sobreposição.
 - Visualização continua disponível quando há apenas Lotes e sem permissão de filtros, como antes; os segmentos e Filtros mantêm suas permissões.
 
-<!-- Próxima decisão: D-PROD-231 -->
+### D-PROD-231 — Leitura dos detalhes de lotes e áreas (2026-11-17)
+
+- Pedido do dono: retirar explicações de fórmulas nos detalhes e organizar as projeções mensais.
+- Detalhes do lote sem as dicas de peso projetado, arrobas e UA. Fim de mês em colunas de data e peso com unidade, até três meses.
+- Área mostra hectares ao lado do nome, sem repetir hectares e setor na grade; UA total e capacidade sem fórmulas auxiliares.
+- Catálogo da tabela, cálculos, consultas e permissões preservados.
+
+<!-- Próxima decisão: D-PROD-232 -->

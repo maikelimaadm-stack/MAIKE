@@ -44,12 +44,10 @@ describe("aba Detalhes", () => {
     const painel = screen.getByRole("tabpanel");
     const [cartaoArea, cartaoLotacao, cartaoCategorias] = painel.querySelectorAll(".mk-dp-cartao");
 
-    expect(within(cartaoArea).getByText("Pasto 07")).toBeTruthy();
+    expect(within(cartaoArea).getByText("Pasto 07 · 109,30 ha")).toBeTruthy();
     expect(within(cartaoArea).getByText("Pastagem / Braquiária Brizantha")).toBeTruthy();
     expect(cartaoArea.querySelector("svg.mk-dp-cartao__ic")).toBeTruthy(); // broto
     expect(grade(cartaoArea)).toEqual({
-      Setor: "Retiro",
-      Hectares: "109,30",
       "Área pastejada (ha)": "102,70",
       Status: "OCUPADO",
       "Dias pastejo": "26",
@@ -99,7 +97,7 @@ describe("aba Detalhes", () => {
     const painel = screen.getByRole("tabpanel");
     const [cartaoArea, cartaoLotacao] = painel.querySelectorAll(".mk-dp-cartao");
     const area = grade(cartaoArea);
-    expect(area.Setor).toBe("—");
+    expect(area.Setor).toBeUndefined();
     expect(area.Status).toBe("VAZIO · descanso há 21 dias");
     expect(area["Dias pastejo"]).toBe("—");
     const status = [...cartaoArea.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "Status");
@@ -233,9 +231,11 @@ describe("aba Lotes › Lote", () => {
     expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026", Origem: "MEDIDO" });
     expect(within(pesagem).queryByText("Peso projetado (kg)")).toBeNull();
     expect(grade(projecao)).toMatchObject({ "Peso projetado (kg)": "465,9", "@ projetadas": "15,53", "GMD do mês (kg/dia)": "0,200", "Base da projeção": "PESAGEM 25/08", "Peso objetivo (kg)": "480", "Atinge o objetivo": "25/01/2027 (71 d)", "Pesado × previsto": "98,7% do previsto" });
-    const linha = projecao.querySelector(".mk-dp-linha--quebra");
-    expect(linha.querySelector(".mk-dp-linha__rot").textContent).toBe("Projeção (fim do mês)");
-    expect(linha.querySelector(".mk-dp-linha__val").textContent).toBe("30/11: 469 · 31/12: 475 · 31/01: 481");
+    const mensal = projecao.querySelector(".mk-dp-projecao-mensal");
+    expect(within(mensal).getByRole("heading", { name: "Projeção de fim de mês" })).toBeTruthy();
+    expect(grade(mensal)).toEqual({ "30/11": "469 kg", "31/12": "475 kg", "31/01": "481 kg" });
+    expect(projecao.textContent).not.toContain("último peso +");
+    expect(projecao.textContent).not.toContain("peso projetado ÷ 30");
     expect(within(projecao).queryByText("Peso médio (kg)")).toBeNull();
     expect(within(painel).getAllByText("Peso médio (kg)")).toHaveLength(1);
     expect(within(painel).queryByText("Sexo", { exact: true })).toBeNull();

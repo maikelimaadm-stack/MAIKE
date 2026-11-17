@@ -1,7 +1,7 @@
 import React from "react";
 import { Aviso, Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe } from "@/components/mapa/detalhes-lote/blocos";
 import { IconeCategoria } from "@/components/mapa/detalhes-lote/pecas";
-import { VAZIO, camposDoLote } from "@/components/mapa/detalhes-lote/catalogo";
+import { VAZIO, camposDoLote, fmtDataCurta, fmtNum } from "@/components/mapa/detalhes-lote/catalogo";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').LoteVm} LoteVm */
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').CampoTexto} CampoTexto */
@@ -88,13 +88,13 @@ export function BlocosLote({ lote, mostrarNome = true, categoriaNoCabecalho = fa
   const sub = [categoriaNoCabecalho ? null : lote.categoria, lote.sexo].filter((t) => t && t !== VAZIO).join(" · ");
   // Só reorganiza a apresentação: o catálogo da Lista e suas preferências
   // continuam completos. Categoria e sexo já estão na identidade/cabeçalho.
-  const lotacao = camposDoLote(lote, "Lotação");
-  const pesagem = camposDoLote(lote, "Pesagem");
+  const lotacao = camposDoLote(lote, "Lotação").map((c) => c.chave === "ua" ? { ...c, dica: undefined } : c);
+  const pesagem = camposDoLote(lote, "Pesagem").map((c) => ["projetado", "projArroba"].includes(c.chave || "") ? { ...c, dica: undefined } : c);
   const chavesProjecao = new Set(["projetado", "projArroba", "gmdMes", "baseProj", "objetivo", "atinge", "pesPrev", "projMeses"]);
   const secoes = [
     { titulo: "Lotação", campos: lotacao.filter((c) => c.chave !== "peso").map((c) => ({ ...c, rotulo: c.chave === "partCab" ? "% das cabeças do pasto" : c.chave === "partUA" ? "% da UA do pasto" : c.rotulo })) },
     { titulo: "Pesagem", campos: [...lotacao.filter((c) => c.chave === "peso"), ...pesagem.filter((c) => !chavesProjecao.has(c.chave || ""))] },
-    { titulo: "Projeção de peso", campos: pesagem.filter((c) => chavesProjecao.has(c.chave || "")) },
+    { titulo: "Projeção de peso", campos: pesagem.filter((c) => chavesProjecao.has(c.chave || "") && c.chave !== "projMeses") },
     { titulo: "Identificação", campos: camposDoLote(lote, "Identificação").filter((c) => (c.chave !== "categoria" || lote.categoria === VAZIO) && (c.chave !== "sexo" || lote.sexo === VAZIO)) },
   ];
   return (
@@ -114,6 +114,18 @@ export function BlocosLote({ lote, mostrarNome = true, categoriaNoCabecalho = fa
         <SecaoDetalhe key={titulo} titulo={titulo} className="mk-dp-lote-organizado__secao">
           <Cartao>
             <PartesDoCartao campos={campos} />
+            {titulo === "Projeção de peso" ? (
+              <div className="mk-dp-projecao-mensal">
+                <h4>Projeção de fim de mês</h4>
+                {lote.projecao?.projecao_mensal?.length ? (
+                  <Grade>
+                    {lote.projecao.projecao_mensal.slice(0, 3).map((mes) => (
+                      <Celula key={mes.dia} rotulo={fmtDataCurta(mes.dia)} valor={`${fmtNum(mes.peso_kg, 0)} kg`} />
+                    ))}
+                  </Grade>
+                ) : <Linha rotulo="Peso projetado (kg)" valor={VAZIO} />}
+              </div>
+            ) : null}
           </Cartao>
         </SecaoDetalhe>
       ))}

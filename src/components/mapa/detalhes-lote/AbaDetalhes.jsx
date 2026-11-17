@@ -23,11 +23,11 @@ export function AbaDetalhes() {
   );
   const pastagemNoSubtitulo = area.campos.pastagem.texto !== VAZIO && area.sub.includes(area.campos.pastagem.texto);
   const campos = camposDoCartaoDaArea(area, { setor: dados.setorNome, status })
-    .filter((campo) => campo.chave !== "pastagem" || !pastagemNoSubtitulo);
+    .filter((campo) => !["setor", "hectares"].includes(campo.chave || "") && (campo.chave !== "pastagem" || !pastagemNoSubtitulo));
 
   return (
     <>
-      <Cartao icone={Sprout} titulo={area.nome || dados.areaNome} sub={area.sub || undefined}>
+      <Cartao icone={Sprout} titulo={`${area.nome || dados.areaNome} · ${area.campos.hectares.texto} ha`} sub={area.sub || undefined}>
         <PartesDoCartao campos={campos} />
       </Cartao>
       {area.alertas.map((a) => (
@@ -37,7 +37,7 @@ export function AbaDetalhes() {
       ))}
       <TituloBloco>Lotação</TituloBloco>
       <Cartao>
-        <PartesDoCartao campos={area.lotacao} />
+        <PartesDoCartao campos={area.lotacao.map((campo) => ["uaTotal", "capacidade"].includes(campo.chave || "") ? { ...campo, dica: undefined } : campo)} />
       </Cartao>
       {area.categorias.length ? (
         <>
