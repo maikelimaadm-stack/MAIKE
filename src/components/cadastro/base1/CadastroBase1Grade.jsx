@@ -53,6 +53,8 @@ export function colunasBase1(defs) {
  * @param {(open: boolean) => void} [props.setShowConfigColunas]
  * @param {string} [props.searchQuery]
  * @param {number} [props.resetFiltersKey]
+ * @param {{ chave: number, filtros: Record<string, { op: string, v1: string, v2: string, valores: Set<string> | null }> } | null} [props.filtrosExternos]
+ *   filtros de cabeçalho vindos de fora (Assistente, D-PROD-230): cada `chave` nova SUBSTITUI os filtros da grade
  * @param {(ids: string[]) => void} [props.onSelectionChange]
  * @param {(active: boolean) => void} [props.onFiltersActiveChange]
  * @param {(item: object, query: string) => boolean} [props.matchesSearch]
@@ -118,6 +120,7 @@ export default function CadastroBase1Grade({
   selecaoSticky = true,
   compararParaOrdenar,
   renderAcoesDaLinha = undefined,
+  filtrosExternos = undefined,
 }) {
   // Dentro da lista integrada (chrome com portalComprasSkin) a grade herda os
   // cabeçalhos de referência e o "Filtrar por campo" do motor: antes cada tela
@@ -188,6 +191,10 @@ export default function CadastroBase1Grade({
       return next;
     });
   }, [rows, rowKey]);
+
+  useEffect(() => {
+    if (filtrosExternos?.filtros) setHeaderFilters(filtrosExternos.filtros);
+  }, [filtrosExternos]);
 
   useEffect(() => {
     if (resetFiltersKey > 0) {

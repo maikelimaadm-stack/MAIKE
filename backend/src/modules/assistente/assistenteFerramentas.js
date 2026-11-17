@@ -24,6 +24,7 @@ import { parametrosDoPasto, ROTULO_SITUACAO } from '../medicoesForragem/medicaoF
 import { listarPosicoes } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { agoraDoServidor, diaNoFuso, normalizarFusoIana } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { AppError } from '../../shared/errors/AppError.js';
+import { DEFINICAO_APLICAR_FILTRO, montarAcaoFiltro } from './assistenteAcoes.js';
 import { agrupar, arred, avaliarExpressao, contem, naFaixa, ordenarECortar, validarEntrada } from './assistenteFiltros.js';
 
 /** Espelho das regras do farol da tela (src/domain/pastagem/farolForragem.js, D-PROD-221/223). */
@@ -163,6 +164,7 @@ export const DEFINICOES_FERRAMENTAS = Object.freeze([
       additionalProperties: false,
     },
   },
+  DEFINICAO_APLICAR_FILTRO,
 ]);
 
 export const NOMES_FERRAMENTAS = Object.freeze(DEFINICOES_FERRAMENTAS.map((f) => f.name));
@@ -442,6 +444,8 @@ export const criarExecutor = async (contexto, empresaId) => {
         leituras: leituras.map((l) => ({ data: dia(l.data_leitura), cocho: nomes.get(l.ponto_suplementacao_id) ?? null, escore: l.escore ?? null, acesso: l.acesso ?? null, estrutura: l.estrutura ?? null })),
       };
     },
+    // Não lê dados: devolve a ação validada que a tela aplica (assistenteAcoes.js).
+    aplicar_filtro_tela: async (e) => ({ acao: montarAcaoFiltro(/** @type {any} */ (e)) }),
     calcular: async (e) =>
       e.contas.map((conta) => {
         try {

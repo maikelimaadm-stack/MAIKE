@@ -31,6 +31,7 @@ Contas: para qualquer conta com números do sistema (totais, médias, média pon
 Fórmulas de referência: UA = peso vivo (kg) ÷ 450; lotação (UA/ha) = soma das UA ÷ hectares; GMD (kg/dia) = (peso final − peso inicial) ÷ dias; média de peso do rebanho = média ponderada pelo número de cabeças.
 Rapidez: quando precisar de mais de uma ferramenta, peça todas de uma vez na mesma resposta, sem escrever nada antes de pedir.
 Dúvidas: se a pergunta for ambígua (qual pasto, lote, categoria ou período; ou se der para entender de mais de um jeito), não chute: faça UMA pergunta curta de volta, com 2 a 4 opções em lista com "- ", e espere a resposta. Se for claro, responda direto.
+Filtrar a tela: quando o usuário pedir para mostrar, filtrar ou ver algo no mapa ou na lista de lotes ("me mostra os lotes de garrote acima de 350 kg", "filtra o mapa no setor KM"), use aplicar_filtro_tela com os nomes exatos que as consultas devolvem (consulte antes se precisar). Depois diga em uma frase o que o filtro mostra; o sistema põe o botão para abrir a tela filtrada. Use aplicar_agora = true só se ele pediu claramente para aplicar já. Para "pastos prontos/rapados" no mapa use colorir_por = forragem. Se o filtro que ele quer não existir na tela, diga quais filtros existem.
 Ao terminar uma resposta, pode oferecer em uma frase curta o próximo passo útil (por exemplo, ver a lista lote por lote).
 Formato (a resposta aparece num balão pequeno de celular):
 - Comece pela resposta direta em 1 ou 2 frases; depois, se precisar, uma lista curta com "- ".
@@ -88,7 +89,7 @@ const comoTexto = (valor) => {
  * `cliente.beta.messages.stream()` e manda os pedaços de texto conforme chegam;
  * `aoFerramenta` avisa qual consulta está rodando; `sinal` cancela (cliente fechou).
  * Sem opções, o caminho é o mesmo de antes (`create`), resposta inteira no fim.
- * @typedef {{ aoTexto?: (t: string) => void, aoFerramenta?: (nome: string) => void, sinal?: AbortSignal }} OpcoesPergunta
+ * @typedef {{ aoTexto?: (t: string) => void, aoFerramenta?: (nome: string) => void, aoAcao?: (acao: any) => void, sinal?: AbortSignal }} OpcoesPergunta
  */
 
 /**
@@ -109,6 +110,8 @@ export const perguntar = async (contexto, entrada, opcoes = {}) => {
   mensagens.push({ role: 'user', content: `Hoje é ${executor.hoje}.${entrada.tela ? ` Tela aberta: ${entrada.tela}.` : ''}\n\n${entrada.pergunta}` });
 
   const usadas = [];
+  /** Filtros de tela pedidos pela IA (aplicar_filtro_tela), na ordem. */
+  const acoes = [];
   // A função da Vercel tem no máximo 60 s (vercel.json): a conversa inteira cabe em ~50 s.
   const prazo = Date.now() + PRAZO_TOTAL_MS;
   for (let i = 0; i < MAX_ITERACOES; i += 1) {
@@ -141,7 +144,7 @@ export const perguntar = async (contexto, entrada, opcoes = {}) => {
     }
 
     if (resposta.stop_reason === 'refusal') {
-      return { resposta: 'Não consigo responder essa pergunta. Tente perguntar de outro jeito, sobre os pastos, o rebanho ou o cocho.', ferramentas: usadas, recusada: true };
+      return { resposta: 'Não consigo responder essa pergunta. Tente perguntar de outro jeito, sobre os pastos, o rebanho ou o cocho.', ferramentas: usadas, recusada: true, acoes };
     }
     if (resposta.stop_reason === 'pause_turn') {
       mensagens.push({ role: 'assistant', content: resposta.content });
@@ -150,7 +153,7 @@ export const perguntar = async (contexto, entrada, opcoes = {}) => {
     const pedidos = (resposta.content ?? []).filter((b) => b?.type === 'tool_use');
     if (resposta.stop_reason !== 'tool_use' || pedidos.length === 0) {
       const texto = textoDe(resposta);
-      return { resposta: texto || 'Não encontrei uma resposta para isso nos dados do sistema.', ferramentas: usadas, recusada: false };
+      return { resposta: texto || 'Não encontrei uma resposta para isso nos dados do sistema.', ferramentas: usadas, recusada: false, acoes };
     }
 
     mensagens.push({ role: 'assistant', content: resposta.content });
@@ -160,6 +163,10 @@ export const perguntar = async (contexto, entrada, opcoes = {}) => {
       opcoes.aoFerramenta?.(pedido.name);
       try {
         const dados = await executor.executar(pedido.name, pedido.input);
+        if (pedido.name === 'aplicar_filtro_tela' && dados && typeof dados === 'object' && 'acao' in dados) {
+          acoes.push(dados.acao);
+          opcoes.aoAcao?.(dados.acao);
+        }
         resultados.push({ type: 'tool_result', tool_use_id: pedido.id, content: comoTexto(dados) });
       } catch (erro) {
         const mensagem = erro instanceof AppError ? erro.message : 'falha ao ler os dados';
@@ -168,5 +175,5 @@ export const perguntar = async (contexto, entrada, opcoes = {}) => {
     }
     mensagens.push({ role: 'user', content: resultados });
   }
-  return { resposta: 'A pergunta ficou grande demais para responder de uma vez. Tente dividir em perguntas menores.', ferramentas: usadas, recusada: false };
+  return { resposta: 'A pergunta ficou grande demais para responder de uma vez. Tente dividir em perguntas menores.', ferramentas: usadas, recusada: false, acoes };
 };
