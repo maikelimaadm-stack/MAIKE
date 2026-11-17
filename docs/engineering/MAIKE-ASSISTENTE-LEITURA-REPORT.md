@@ -51,3 +51,16 @@
 - Prompt: pergunta ambígua (qual pasto, lote, categoria, período, mais de uma leitura) recebe UMA pergunta de volta com 2 a 4 opções em vez de chute; pode terminar oferecendo o próximo passo em uma frase; não escreve nada antes de pedir ferramentas.
 - Modelo inalterado (`claude-opus-5-5`, esforço `low`).
 - Testes: `backend/tests/assistenteLeitura.test.mjs` (15: ordem dos eventos, isolamento entre tenants, auth antes do fluxo, recusa e erro no fluxo), `tests/smoke/assistenteFluxo.test.js` (leitor SSE com cortes no meio do evento, erro com código, volta para a rota sem fluxo), `tests/smoke/assistenteFlutuante.test.jsx` (texto aos pedaços, status, Parar).
+
+## Filtros, agrupamento e calculadora (2026-11-17)
+Pedido do proprietário: o assistente pode fazer contas e filtrar o sistema. Continua só de leitura, mesmo modelo.
+- Filtros opcionais e fechados por schema (`additionalProperties: false`), aplicados em memória sobre dados já do tenant e da fazenda — nada vira SQL:
+  - `listar_pastos`: nome, setor, cultura, situacao (lista), ocupado, hectares_min/max, cabecas_min/max, ordenar_por (nome, setor, hectares, cabecas, dias_descanso, dias_desde_saida), ordem, limite (≤300). Resposta `{ total, mostrados, cortado, pastos }`.
+  - `rebanho_por_pasto`: nome, categoria, sexo, pasto, cabecas_min/max, peso_min/max, dias_no_pasto_min/max, acima_do_objetivo, ordenar_por, ordem, limite. Resposta `{ total, mostrados, cortado, cabecas_no_filtro, lotes }`; cada lote ganha `dias_no_pasto`.
+  - `medicoes_do_pasto`: data_de/data_ate; `leituras_cocho_recentes`: cocho, escore, data_de/data_ate.
+  - Texto compara sem acento e sem caixa ("contém").
+- `resumo_agrupado`: rebanho por categoria/sexo/pasto (lotes, cabeças, peso médio ponderado, peso total) ou pastos por setor/situação/cultura (pastos, hectares, cabeças) — contas feitas no servidor.
+- `calcular`: analisador aritmético próprio (`assistenteFiltros.js`, sem `eval`/`Function`): números, + − × ÷ % ^, parênteses e as funções soma, media, media_ponderada, minimo, maximo, arred, pct, raiz, abs; várias contas por chamada; limites de tamanho e profundidade.
+- Entrada fora do schema volta para a IA como erro da ferramenta (`is_error`), sem derrubar a pergunta.
+- Prompt: usar filtros, avisar quando "cortado", usar `calcular`/`resumo_agrupado` para toda conta, fórmulas de UA, lotação e GMD.
+- Testes: `backend/tests/assistenteLeitura.test.mjs` (20): filtros e isolamento entre tenants, parâmetros inválidos, agrupamento, calculadora e recusa do que não é conta.

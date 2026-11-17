@@ -105,7 +105,7 @@ const tenantComPasto = async (nomePasto) => {
 
 describe('assistente só de leitura (D-PROD-230)', () => {
   test('as ferramentas são um conjunto fechado e só de leitura', () => {
-    assert.deepEqual([...NOMES_FERRAMENTAS].sort(), ['leituras_cocho_recentes', 'listar_pastos', 'medicoes_do_pasto', 'rebanho_por_pasto', 'resumo_rebanho']);
+    assert.deepEqual([...NOMES_FERRAMENTAS].sort(), ['calcular', 'leituras_cocho_recentes', 'listar_pastos', 'medicoes_do_pasto', 'rebanho_por_pasto', 'resumo_agrupado', 'resumo_rebanho']);
     for (const nome of NOMES_FERRAMENTAS) assert.doesNotMatch(nome, /criar|gravar|excluir|alterar|atualizar|mover|lancar|sql/i);
   });
 
@@ -128,7 +128,7 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     assert.deepEqual(corpo.ferramentas, ['listar_pastos', 'medicoes_do_pasto']);
 
     // 1ª ferramenta: só o pasto do tenant A, com a situação da medição válida.
-    const pastos = resultadoDe(pedidos[1]);
+    const pastos = resultadoDe(pedidos[1]).pastos;
     assert.deepEqual(pastos.map((p) => p.nome), ['PASTO DO A']);
     assert.equal(pastos[0].forragem.situacao, 'Pronto');
     assert.equal(pastos[0].dias_descanso, 30);
@@ -162,7 +162,7 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     const pedidos = roteiro([usar('listar_pastos'), usar('resumo_rebanho'), final('ok')]);
     const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'Como estão os pastos e o rebanho?' });
     assert.equal(r.statusCode, 200, r.body);
-    const pastos = resultadoDe(pedidos[1]);
+    const pastos = resultadoDe(pedidos[1]).pastos;
     const porNome = Object.fromEntries(pastos.map((p) => [p.nome, p.forragem]));
     assert.equal(porNome['PASTO 1'].data_medicao, '2027-06-13');
     assert.equal(porNome['PASTO 2'].data_medicao, '2027-06-05');
@@ -274,7 +274,7 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     assert.equal(ev[1].dados.texto + ev[2].dados.texto, 'O **PASTO DO A** está pronto.');
     assert.equal(ev[3].dados.resposta, 'O **PASTO DO A** está pronto.');
     assert.equal(ev[3].dados.recusada, false);
-    assert.deepEqual(resultadoDe(pedidos[1]).map((p) => p.nome), ['PASTO DO A']);
+    assert.deepEqual(resultadoDe(pedidos[1]).pastos.map((p) => p.nome), ['PASTO DO A']);
     assert.doesNotMatch(JSON.stringify(pedidos), /PASTO DO B/);
     assert.equal(await prisma().medicaoForragem.count(), antes);
   });
@@ -307,5 +307,113 @@ describe('assistente só de leitura (D-PROD-230)', () => {
   test('o prompt manda perguntar de volta quando a pergunta é ambígua', () => {
     assert.match(PROMPT_SISTEMA, /ambígua/);
     assert.match(PROMPT_SISTEMA, /2 a 4 opções/);
+  });
+
+  // ---- Filtros, agrupamento e calculadora --------------------------------
+  const resultadoBruto = (pedido) => pedido.messages.at(-1).content[0];
+
+  /** Fazenda A com 3 pastos e 3 lotes; tenant B com o mesmo nome de pasto. */
+  const fazendaComDados = async () => {
+    const a = await tenantComPasto('PASTO 1');
+    const base = { cliente_id: a.clienteId, empresa_id: a.empresa.id, setor_id: a.pasto.setor_id, setor_nome: a.pasto.setor_nome, cultura_id: a.pasto.cultura_id, tipo_pastagem: 'MARANDU' };
+    await prisma().areaPastagem.create({ data: { ...base, numero_area: `F2-${randomUUID().slice(0, 6)}`, nome: 'PASTO 2', tamanho_hectares: 25 } });
+    await prisma().areaPastagem.create({ data: { ...base, numero_area: `F3-${randomUUID().slice(0, 6)}`, nome: 'RESERVA NORTE', tamanho_hectares: 40, tipo_cultura: 'Reserva' } });
+    const lote = { cliente_id: a.clienteId, empresa_id: a.empresa.id, quantidade_entrada: 10, motivo_entrada: 'Compra', status: 'Ativo' };
+    await prisma().lote.create({ data: { ...lote, numero_lote: 'G1', nome: 'GARROTE A', quantidade_cabecas: 100, categoria: 'Garrote', sexo: 'Macho', peso_medio_kg: 300 } });
+    await prisma().lote.create({ data: { ...lote, numero_lote: 'G2', nome: 'GARROTE B', quantidade_cabecas: 50, categoria: 'Garrote', sexo: 'Macho', peso_medio_kg: 280 } });
+    await prisma().lote.create({ data: { ...lote, numero_lote: 'V1', nome: 'VACAS', quantidade_cabecas: 20, categoria: 'Vaca', sexo: 'Fêmea', peso_medio_kg: 450 } });
+    const b = await tenantComPasto('PASTO 2');
+    await prisma().lote.create({ data: { cliente_id: b.clienteId, empresa_id: b.empresa.id, quantidade_entrada: 1, motivo_entrada: 'Compra', status: 'Ativo', numero_lote: 'X', nome: 'GARROTE DO B', quantidade_cabecas: 999, categoria: 'Garrote', sexo: 'Macho', peso_medio_kg: 999 } });
+    return a;
+  };
+
+  test('filtros: pastos e lotes estreitam, ordenam, cortam e não veem outro tenant', async () => {
+    const a = await fazendaComDados();
+    const pedidos = roteiro([
+      usar('listar_pastos', { nome: 'pasto', ordenar_por: 'hectares', ordem: 'desc', limite: 1 }),
+      usar('rebanho_por_pasto', { categoria: 'garrote', peso_min: 290 }),
+      usar('rebanho_por_pasto', { sexo: 'femea', ordenar_por: 'peso' }),
+      final('ok'),
+    ]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'filtros' });
+    assert.equal(r.statusCode, 200, r.body);
+    const pastos = resultadoDe(pedidos[1]);
+    assert.equal(pastos.total, 2);
+    assert.equal(pastos.mostrados, 1);
+    assert.equal(pastos.cortado, true);
+    assert.equal(pastos.pastos[0].nome, 'PASTO 2');
+    const garrotes = resultadoDe(pedidos[2]);
+    assert.deepEqual(garrotes.lotes.map((l) => l.nome), ['GARROTE A']);
+    assert.equal(garrotes.cabecas_no_filtro, 100);
+    const femeas = resultadoDe(pedidos[3]);
+    assert.deepEqual(femeas.lotes.map((l) => l.nome), ['VACAS']);
+    assert.doesNotMatch(JSON.stringify(pedidos), /GARROTE DO B|999/);
+  });
+
+  test('filtros fora do schema voltam como erro da ferramenta, sem derrubar a pergunta', async () => {
+    const a = await fazendaComDados();
+    const pedidos = roteiro([
+      usar('listar_pastos', { cliente_id: 'outro' }),
+      usar('rebanho_por_pasto', { peso_min: -5 }),
+      usar('leituras_cocho_recentes', { escore: 'TALVEZ' }),
+      usar('medicoes_do_pasto', { area_id: a.pasto.id, data_de: '2027-06-20', data_ate: '2027-06-01' }),
+      final('ok'),
+    ]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'x' });
+    assert.equal(r.statusCode, 200, r.body);
+    for (const i of [1, 2, 3, 4]) {
+      const bloco = resultadoBruto(pedidos[i]);
+      assert.equal(bloco.is_error, true, `pedido ${i}: ${JSON.stringify(bloco)}`);
+    }
+    assert.match(resultadoBruto(pedidos[1]).content, /parâmetro desconhecido "cliente_id"/);
+  });
+
+  test('resumo_agrupado: contas do rebanho e dos pastos feitas no servidor', async () => {
+    const a = await fazendaComDados();
+    const pedidos = roteiro([
+      usar('resumo_agrupado', { origem: 'rebanho', agrupar_por: 'categoria' }),
+      usar('resumo_agrupado', { origem: 'pastos', agrupar_por: 'situacao' }),
+      usar('resumo_agrupado', { origem: 'pastos', agrupar_por: 'sexo' }),
+      final('ok'),
+    ]);
+    await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'x' });
+    const rebanho = resultadoDe(pedidos[1]);
+    assert.equal(rebanho.cabecas, 170);
+    const garrote = rebanho.grupos.find((g) => g.grupo === 'Garrote');
+    assert.deepEqual(garrote, { grupo: 'Garrote', itens: 2, cabecas: 150, peso_medio_kg: 293.3, peso_total_kg: 44000 });
+    assert.equal(rebanho.grupos[0].grupo, 'Garrote');
+    const pastos = resultadoDe(pedidos[2]);
+    assert.equal(pastos.pastos, 3);
+    assert.equal(pastos.grupos.reduce((s, g) => s + g.itens, 0), 3);
+    assert.equal(resultadoBruto(pedidos[3]).is_error, true);
+  });
+
+  test('calcular: contas exatas, várias de uma vez, e recusa o que não é conta', async () => {
+    const a = await fazendaComDados();
+    const contas = [
+      '1 + 2 * 3',
+      'media_ponderada([300, 280], [100, 50])',
+      'arred(4425 / 73, 1)',
+      'pct(38, 4425)',
+      '(410 - 380) / 30',
+      'process.exit(1)',
+      'constructor',
+      '1 / 0',
+      'soma(',
+    ];
+    const pedidos = roteiro([usar('calcular', { contas }), usar('calcular', { contas: 'não é lista' }), final('ok')]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'contas' });
+    assert.equal(r.statusCode, 200, r.body);
+    const res = resultadoDe(pedidos[1]);
+    assert.deepEqual(res.slice(0, 5).map((x) => x.resultado), [7, 293.333333, 60.6, 0.858757, 1]);
+    for (const x of res.slice(5)) assert.ok(x.erro && x.resultado === undefined, JSON.stringify(x));
+    assert.equal(resultadoBruto(pedidos[2]).is_error, true);
+  });
+
+  test('o prompt manda usar calcular e os filtros em vez de conta de cabeça', () => {
+    assert.match(PROMPT_SISTEMA, /calcular/);
+    assert.match(PROMPT_SISTEMA, /UA = peso vivo \(kg\) ÷ 450/);
+    assert.match(PROMPT_SISTEMA, /GMD/);
+    assert.match(PROMPT_SISTEMA, /Filtros/);
   });
 });
