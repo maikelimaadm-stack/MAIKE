@@ -1,6 +1,6 @@
 /*
  * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações.
- * - Barra do topo (D-PROD-218): ⚙ (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
+ * - Barra do topo (D-PROD-218): filtro (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
  *   Os segmentos e o que cada foco mostra vêm de src/lib/mapaFoco.js.
  * - Visualização fica no fim da barra escura (D-PROD-230).
  * - Coluna da direita: Atualizar, Minha localização e Mover.
@@ -9,7 +9,7 @@
  */
 import React from "react";
 import MapaFiltrosPainel from "./MapaFiltrosPainel";
-import { Layers, Move, RefreshCw, Settings, Target } from "lucide-react";
+import { Filter, Map, Move, RefreshCw, Target } from "lucide-react";
 import { FOCOS_MAPA } from "@/lib/mapaFoco";
 
 const CAMADAS = [
@@ -38,7 +38,7 @@ function andarNaBarra(event) {
  *
  * - Alto, no centro (celular: da esquerda até a coluna da direita): a barra do
  *   v12 (D-PROD-218) no lugar dos antigos botões Tarefas e Filtros.
- *   - ⚙ "Filtros" (`showFiltrosButton`) abre o painel Filtro de hoje (`onOpenFiltros`).
+ *   - filtro "Filtros" (`showFiltrosButton`) abre o painel Filtro de hoje (`onOpenFiltros`).
  *   - Segmentos `focosPermitidos` (Lotes sempre; Pastos e Tarefas pela
  *     permissão), com `aria-pressed` no `foco` atual; o toque chama `onFoco(id)`.
  *     Tarefas também abre a Gestão de Tarefas (`onOpenTarefas`) a cada toque.
@@ -93,7 +93,7 @@ export default function MapaControlesMobile({
         onKeyDown={andarNaBarra}>
         {showFiltrosButton ? (
           <button type="button" className="mk-mapa-barra__cfg" onClick={onOpenFiltros} aria-label="Filtros" title="Filtros">
-            <Settings size={22} aria-hidden />
+            <Filter size={22} aria-hidden />
           </button>
         ) : null}
         {segmentos.map((f) => (
@@ -117,7 +117,7 @@ export default function MapaControlesMobile({
           aria-haspopup="true"
           aria-label={`Visualização do mapa: ${camadaAtual.label}`}
           title="Visualização">
-          <Layers size={22} aria-hidden />
+          <Map size={22} aria-hidden />
         </button>
       </div>
 
