@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Pencil, Plus } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
-import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
 import FormularioAbastecimento from "@/components/patrimonio/FormularioAbastecimento";
 import { BOTAO_PERIGO, BOTAO_SECUNDARIO, DialogoCancelarAbastecimento, DialogoPreviaAbastecimento } from "@/components/patrimonio/DialogosAbastecimento";
@@ -15,11 +14,11 @@ import { formatarQuantidadeCurta, formularioDoApontamento, rotuloDaOrigem, rotul
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import { detalharAbastecimento, listarAbastecimentosPagina } from "@/services/abastecimentoService";
-import { JanelaLinhaMaoObra, JanelaLinhaMaquina, JanelaLinhaProduto, JanelaLinhaServico } from "@/components/lancamento-atividades/JanelasDaLinha";
+import { DialogoCancelarLinha, JanelaLinhaMaoObra, JanelaLinhaMaquina, JanelaLinhaProduto, JanelaLinhaServico } from "@/components/lancamento-atividades/JanelasDaLinha";
 import { formatarInstante } from "@/lib/diaCivil";
-import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
-import { LOCALE_ATIVIDADE, MOTIVO_MINIMO, STATUS_CANCELADO, STATUS_CONFIRMADO, formatarDiaAtividade, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
-import { chaveApontamentos, itensDaLista, normalizarRespostaDeEscrita, pedeReleitura } from "@/lib/atividadeApontamentoRegras";
+import { notifyWarning } from "@/lib/maikeNotify";
+import { LOCALE_ATIVIDADE, STATUS_CANCELADO, STATUS_CONFIRMADO, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
+import { chaveApontamentos, itensDaLista } from "@/lib/atividadeApontamentoRegras";
 import {
   LINHA_MAO_OBRA,
   LINHA_MAQUINA,
@@ -35,8 +34,6 @@ import {
   formatarQuantidadeServico,
   formatarUso,
   linhasDoApontamento,
-  linhasDoTipo,
-  mensagemDeErroLinha,
   rotuloDaMaquinaDaLinha,
   rotuloDaUnidadeDoMedidor,
   comMarcaDeTerceiro,
@@ -51,11 +48,6 @@ import {
   statusDaLinha,
   chaveTotais,
 } from "@/lib/atividadeLinhasRegras";
-import { ACAO_CANCELAR_LINHA, alvoDaLinha, cancelarLinha, limparPendenciaDaLinha, obterApontamento } from "@/services/lancamentoAtividadesService";
-import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
-
-/** Formatação das mensagens do diálogo de ação (o custo aparece em reais). */
-const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL", casas: 2 });
 
 /** Linha de produto/máquina/mão de obra/serviço: o desenho das linhas de lançamento (`ListaApontamentos`). */
 const LINHA = "flex flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-[12px]";
@@ -81,24 +73,6 @@ const textoDoCancelamento = (l, fuso) => {
  * @typedef {{ tipo: TipoDeLinha, linha: any | null, chave: number }} JanelaDaLinha
  * @typedef {{ tipo: TipoDeLinha, linha: any, apontamento: any }} CancelamentoDaLinha
  */
-
-/** O nome da linha no diálogo de cancelamento e nas mensagens. @param {TipoDeLinha} tipo @param {any} l */
-const nomeDaLinhaDoTipo = (tipo, l) => {
-  if (tipo === LINHA_PRODUTO) return `o produto ${rotuloDoProdutoDaLinha(l) || ""}`.trim();
-  if (tipo === LINHA_MAQUINA) return `a máquina ${rotuloDaMaquinaDaLinha(l) || ""}`.trim();
-  if (tipo === LINHA_MAO_OBRA) return `a mão de obra ${rotuloDaMaoObraDaLinha(l) ? `de ${rotuloDaMaoObraDaLinha(l)}` : ""}`.trim();
-  return `o serviço ${rotuloDoServicoDaLinha(l) || ""}`.trim();
-};
-
-/** O que acontece ao cancelar cada tipo de linha (a descrição do diálogo). */
-const EFEITO_DO_CANCELAMENTO = Object.freeze(
-  /** @type {Record<string, string>} */ ({
-    [LINHA_PRODUTO]: "A quantidade volta exatamente aos lotes de onde saiu (estorno exato).",
-    [LINHA_MAQUINA]: "A leitura desta linha deixa de contar como leitura atual do bem.",
-    [LINHA_MAO_OBRA]: "O custo desta mão de obra deixa de contar na atividade.",
-    [LINHA_SERVICO]: "O valor deste serviço deixa de contar na atividade.",
-  }),
-);
 
 /** Os abastecimentos de um lançamento (uma página basta: são os do dia de uma máquina ou poucas). */
 const LIMITE_ABASTECIMENTOS_DO_LANCAMENTO = 100;
@@ -314,8 +288,7 @@ function AbastecimentosDoApontamento({ atividade, apontamento, gravavel, fuso })
  *   fuso: string|null,
  *   onEscrita: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string) => void,
  *   onMudou: () => void,
- *   abrirAoMontar?: { tipo: string, chave: number } | null,
- * }} props `abrirAoMontar` (D-PROD-232): abre UMA vez a janela de adicionar daquele tipo, se ele for permitido aqui.
+ * }} props O cancelamento da linha é o `DialogoCancelarLinha` (o mesmo da janela por tipo, D-PROD-233).
  */
 export default function LinhasDoApontamento({
   atividade,
@@ -332,22 +305,10 @@ export default function LinhasDoApontamento({
   fuso,
   onEscrita,
   onMudou,
-  abrirAoMontar = null,
 }) {
   const [janela, setJanela] = useState(/** @type {JanelaDaLinha | null} */ (null));
   const [cancelando, setCancelando] = useState(/** @type {CancelamentoDaLinha | null} */ (null));
-  const aberturaFeita = useRef(/** @type {number | null} */ (null));
-  const podeAdicionarTipo = (/** @type {string|undefined} */ tipo) =>
-    apontamento?.status === STATUS_CONFIRMADO &&
-    podeLancar &&
-    (tipo === LINHA_MAQUINA || (tipo === LINHA_PRODUTO && permiteProduto) || (tipo === LINHA_MAO_OBRA && permiteMaoObra) || (tipo === LINHA_SERVICO && permiteServico));
-  useEffect(() => {
-    if (!abrirAoMontar || aberturaFeita.current === abrirAoMontar.chave) return;
-    aberturaFeita.current = abrirAoMontar.chave;
-    if (podeAdicionarTipo(abrirAoMontar.tipo)) setJanela({ tipo: /** @type {TipoDeLinha} */ (abrirAoMontar.tipo), linha: null, chave: Date.now() });
-  }, [abrirAoMontar?.chave]);
   const apId = String(apontamento?.id ?? "");
-  const atividadeId = String(atividade?.id ?? "");
   const { produtos, maquinas, mao_obra: maoObra, servicos } = linhasDoApontamento(apontamento);
   const confirmado = apontamento?.status === STATUS_CONFIRMADO;
   const adicionar = confirmado && podeLancar;
@@ -525,52 +486,6 @@ export default function LinhasDoApontamento({
     );
   };
 
-  // ─── Cancelamento da linha (motivo; o produto volta exatamente aos lotes de origem) ─
-  const nomeDaLinha = (/** @type {CancelamentoDaLinha} */ c) => nomeDaLinhaDoTipo(c.tipo, c.linha);
-
-  /** A frase do sucesso do cancelamento. @param {CancelamentoDaLinha} c */
-  const textoDoCancelado = (c) => {
-    if (c.tipo === LINHA_PRODUTO) return `Produto ${rotuloDoProdutoDaLinha(c.linha)} cancelado: a quantidade voltou ao estoque, aos lotes de origem.`;
-    if (c.tipo === LINHA_MAQUINA) return `Máquina ${rotuloDaMaquinaDaLinha(c.linha)} cancelada: a leitura dela deixa de contar.`;
-    if (c.tipo === LINHA_MAO_OBRA) return `Mão de obra de ${rotuloDaMaoObraDaLinha(c.linha)} cancelada: o custo dela deixa de contar.`;
-    return `Serviço ${rotuloDoServicoDaLinha(c.linha)} cancelado: o valor dele deixa de contar.`;
-  };
-
-  /** O serviço confere o motivo (3 a 500 caracteres) ANTES da rede; a `versao` é a do apontamento lida ao abrir. @param {string} motivo @param {{ retentativa: boolean }} o */
-  const enviarCancelamento = async (motivo, o) => {
-    const alvo = cancelando;
-    if (!alvo) return;
-    try {
-      const r = normalizarRespostaDeEscrita(await cancelarLinha(alvo.tipo, atividadeId, alvo.apontamento, alvo.linha, motivo, { escopo, retentativa: o?.retentativa === true }));
-      setCancelando(null);
-      onEscrita(r, textoDoCancelado(alvo));
-    } catch (erro) {
-      if (!ehResultadoIncerto(erro)) notifyWarning("Atenção", mensagemDeErroLinha(erro, "Não foi possível cancelar a linha. Nada foi alterado."));
-      if (ehResultadoIncerto(erro) || pedeReleitura(erro)) onMudou();
-      throw erro;
-    }
-  };
-
-  /** "Consultar" depois de um cancelamento sem resposta: o apontamento relido mostra a linha cancelada? */
-  const consultarCancelamento = async () => {
-    const alvo = cancelando;
-    if (!alvo) return;
-    try {
-      const lido = /** @type {any} */ (await obterApontamento(atividadeId, apId));
-      const atual = linhasDoTipo(lido, alvo.tipo).find((l) => String(l.id) === String(alvo.linha.id));
-      if (atual?.status === STATUS_CANCELADO) {
-        limparPendenciaDaLinha(escopo, ACAO_CANCELAR_LINHA, alvoDaLinha(alvo.tipo, String(alvo.linha.id)));
-        setCancelando(null);
-        notifySuccess("Linha cancelada", `O cancelamento de ${nomeDaLinha(alvo)} foi gravado.`);
-        onMudou();
-      } else {
-        notifyInfo("Ainda confirmada", "O cancelamento não aparece gravado. Repita o envio: com a mesma chave, ele não é gravado duas vezes.");
-      }
-    } catch (erro) {
-      notifyWarning("Atenção", mensagemDeErroLinha(erro, "Não foi possível consultar agora. Tente de novo."));
-    }
-  };
-
   return (
     <div className="min-w-0 basis-full space-y-1.5 pl-2" data-testid={`apontamento-${apId}-linhas`}>
       {mostrarProdutos ? (
@@ -695,17 +610,17 @@ export default function LinhasDoApontamento({
       ) : null}
 
       {cancelando ? (
-        <DialogoAcao
+        <DialogoCancelarLinha
           key={`cancelar-linha-${cancelando.linha.id}`}
-          aberto
-          titulo={`Cancelar ${nomeDaLinha(cancelando)} do lançamento de ${formatarDiaAtividade(apontamento?.data_operacional)}`}
-          descricao={`${EFEITO_DO_CANCELAMENTO[cancelando.tipo] ?? ""} A linha continua no histórico como cancelada e deixa de contar nos totais da atividade. Informe o motivo (pelo menos ${MOTIVO_MINIMO} caracteres).`}
-          rotuloBotao="Cancelar linha"
-          testId="dialogo-cancelar-linha"
-          contexto={CONTEXTO_MENSAGENS}
+          atividade={atividade}
+          cancelando={cancelando}
+          escopo={escopo}
+          onCancelada={(r, texto) => {
+            setCancelando(null);
+            onEscrita(r, texto);
+          }}
           onFechar={() => setCancelando(null)}
-          onEnviar={enviarCancelamento}
-          onConsultar={consultarCancelamento}
+          onMudou={onMudou}
         />
       ) : null}
     </div>

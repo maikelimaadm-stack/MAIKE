@@ -212,6 +212,26 @@ body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):n
 .b1ref .mdlc.b1-janela.b1-janela--estreita:not(#mk-a) {
   width: 560px;
 }
+/* Janela por tipo de lançamento (D-PROD-233: Trabalho de máquinas, Aplicação de insumos…): larga, como no protótipo
+   do proprietário; no celular (`--tela-cheia`), ocupa a tela inteira. */
+.b1ref .mdlc.b1-janela.b1-janela--tipo:not(#mk-a) {
+  width: 960px;
+  max-height: min(90vh, 860px);
+}
+.b1ref.b1-janela__camada.b1-janela__camada--tela-cheia:not(#mk-a) {
+  padding: 0;
+}
+.b1ref .mdlc.b1-janela.b1-janela--tela-cheia:not(#mk-a) {
+  width: 100%;
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+.b1ref .mdlc.b1-janela.b1-janela--tela-cheia .b1-janela__corpo:not(#mk-a) {
+  flex: 1 1 auto;
+  padding: 12px 14px;
+}
 /* Linhas "rótulo · valor" das janelas (prévia do abastecimento): rótulo 13px, valor 14px. */
 .b1-janela__linha {
   display: flex;

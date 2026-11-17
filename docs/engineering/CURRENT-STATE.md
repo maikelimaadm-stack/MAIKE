@@ -9,12 +9,22 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-ATIVIDADES-MENU-RAIO: Lançamento de Atividades, fatia 1 do redesenho pelo protótipo do proprietário — menu ⚡ por linha e Concluir com resumo (D-PROD-232)
+## Missão ativa (2026-11-17) — MAIKE-ATIVIDADES-JANELAS-TIPO: Lançamento de Atividades, fatia 2 do redesenho — janelas por tipo de lançamento (D-PROD-233)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-233**, fatia 2 do plano da D-PROD-232, com a regra do dia aprovada pelo proprietário ("pode ser"): hoje por padrão, ‹ ›, e o dia criado sozinho ao salvar o primeiro item |
+| Branch / PR | `feat/atividades-janelas-tipo`, a partir da `main` `48ec6ca3` (PR #319) · PR a abrir |
+| Escopo | `JanelaLancamentoPorTipo.jsx` (novo): Trabalho de máquinas, Aplicação de insumos, Mão de obra e Custos extras pelo ⚡ da lista; o dia (hoje, ‹ ›, o lançamento do dia quando há mais de um, a área do dia); aba da lista do tipo com o total e o ⚡ da linha (Editar e Cancelar de sempre); aba Dados com o MESMO formulário de `JanelasDaLinha` (casca trocável, destino "dia novo": `criarApontamento` com a linha, `operation_id` persistente), Voltar / Salvar / Salvar e fechar; celular em tela cheia. `DialogoCancelarLinha` compartilhado. Sai o fluxo provisório da fatia 1. Diesel fica no bloco Abastecimentos do dia (fora desta fatia) |
+| Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
+| Relatório | [`MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md`](./MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ATIVIDADES-MENU-RAIO: Lançamento de Atividades, fatia 1 do redesenho pelo protótipo do proprietário — menu ⚡ por linha e Concluir com resumo (D-PROD-232)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-232** (pedida como D-PROD-224; da 224 à 231 já estão em branches abertas de outras sessões), pedido do proprietário com o protótipo HTML dele: seguir a lógica e o estilo, mantendo o modelo visual do sistema. Plano em 4 fatias: 1 menu ⚡ + concluir; 2 janelas por tipo (lista, Inserir, Dados, Salvar e Salvar e fechar; dia com hoje por padrão e setas; dia criado sozinho ao salvar o primeiro item — "pode ser"); 3 atividade aberta (Resumo de custo, tabela dos 4 tipos, aba Resumo da atividade); 4 celular |
-| Branch / PR | `feat/atividades-menu-raio`, a partir da `main` `64310bd4` (PR #313), com a `main` `bd9fc99b` (PR #315, D-PROD-230) por merge · PR **#316** |
+| Branch / PR | `feat/atividades-menu-raio`, a partir da `main` `64310bd4` (PR #313), com a `main` `bd9fc99b` (PR #315, D-PROD-230) por merge · PR **#316**, mergeada |
 | Escopo | Motor Base1: `renderAcoesDaLinha` opt-in em `CadastroBase1Grade` / `Base1Grid` / `Base1Cards` (⚡ na célula de seleção com "Ações" no cabeçalho; no topo do card) e `B1AcoesDaLinha.jsx` (botão + menu: janela no computador, `MobileSheet` no celular). Lançamento de Atividades: menu ⚡ (Trabalho de máquinas / Aplicação de insumos / Mão de obra / Custos extras pelo tipo e pela permissão; Abrir; Alterar, Concluir/Reabrir, Duplicar, Cancelar); lançar pelo ⚡ abre o dia (hoje) e, gravado, a atividade abre com a janela do tipo no dia; `DialogoConcluirAtividade` com o resumo (`/totais` e os dias lançados do detalhe; "—" sem valor) e o aviso da área que falta; "Concluir" à vista na atividade aberta |
 | Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
 | Relatório | [`MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md`](./MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md) |

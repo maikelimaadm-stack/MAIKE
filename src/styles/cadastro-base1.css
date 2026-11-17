@@ -990,6 +990,11 @@
   outline-offset: 1px;
 }
 
+/* O menu do ⚡ também abre dentro das janelas (D-PROD-233: a linha da janela por tipo), que ficam acima do z-50. */
+.cadastro-b1.b1-acoes-linha-pop {
+  z-index: 80;
+}
+
 /* Menu do ⚡: cabeçalho (nº · nome / apoio) e grupos com divisória. */
 .cadastro-b1.b1-acoes-linha {
   display: flex;
@@ -2326,4 +2331,130 @@
     min-width: 0;
     width: 100%;
   }
+}
+
+/* ─── Janela por tipo de lançamento (D-PROD-233) ─────────────────────────
+   Título com o ícone do tipo, o dia do lançamento (‹ data ›, o lançamento do dia, a área), as abas "<Tipo> (n)" /
+   "Dados" no desenho das abas do motor e a tabela do tipo com a linha de total. */
+.b1-tipo-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.b1-tipo-titulo__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(64, 222, 99, 0.14);
+  color: #15803d;
+}
+.cadastro-b1 .b1-tipo-cab {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--mg-divider, #e8e7e2);
+}
+.cadastro-b1 .b1-tipo-cab__dia,
+.cadastro-b1 .b1-tipo-cab__area {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.cadastro-b1 .b1-tipo-cab__dia > .tb-btn,
+.cadastro-b1 .b1-tipo-cab__area > .tb-btn {
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+/* O corpo da janela é uma coluna que rola: cabeçalho, abas e painel não encolhem (no celular, com o formulário longo,
+   as abas sumiam). */
+.cadastro-b1 .b1-tipo-cab,
+.cadastro-b1 .b1-tipo-abas,
+.cadastro-b1 .b1-tipo-painel {
+  flex-shrink: 0;
+}
+.cadastro-b1 .b1-tipo-abas {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid #d5d4ce;
+  scrollbar-width: thin;
+}
+.cadastro-b1 .b1-tipo-abas .b1-panel-tab:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.cadastro-b1 .b1-tipo-tabela__rolagem {
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid #ecebe6;
+  border-radius: 10px;
+  background: #fff;
+}
+.cadastro-b1 .b1-tipo-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #262624;
+}
+.cadastro-b1 .b1-tipo-tabela th {
+  padding: 8px 10px;
+  border-bottom: 1px solid #ecebe6;
+  background: #fafaf8;
+  color: #52514e;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.cadastro-b1 .b1-tipo-tabela td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f2f2ef;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.cadastro-b1 .b1-tipo-tabela .is-numero {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cadastro-b1 .b1-tipo-tabela td.is-nome {
+  min-width: 180px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: normal;
+}
+.cadastro-b1 .b1-tipo-tabela .b1-tipo-tabela__acoes {
+  width: 64px;
+}
+.cadastro-b1 .b1-tipo-tabela tr.is-cancelada td {
+  color: #8a8984;
+  text-decoration: line-through;
+}
+.cadastro-b1 .b1-tipo-tabela tr.is-cancelada td.b1-tipo-tabela__acoes {
+  text-decoration: none;
+}
+.cadastro-b1 .b1-tipo-tabela tfoot td {
+  border-bottom: 0;
+  background: #fafaf8;
+  font-size: 12px;
+  font-weight: 700;
+}
+.cadastro-b1 .b1-tipo-canceladas {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--mg-text-2, #475569);
+  cursor: pointer;
 }

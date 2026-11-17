@@ -2066,3 +2066,303 @@ describe("LL-TOTAIS — totalizador com o combustível (Fatia 5)", () => {
     expect(within(totais).queryByTestId("totalizador-combustivel-ha")).toBeNull();
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════
+// D-PROD-233 — janelas por tipo de lançamento (fatia 2 do redesenho pelo protótipo do proprietário)
+/** Abre o ⚡ da linha da lista e escolhe o item. @param {string} id @param {string} item */
+const pelaRaio = async (id, item) => {
+  fireEvent.click(screen.getByTestId(`atividade-acoes-${id}`));
+  const menu = await screen.findByTestId(`atividade-acoes-${id}-menu`);
+  fireEvent.click(within(menu).getByRole("menuitem", { name: item }));
+  const janela = await screen.findByTestId("janela-tipo");
+  await waitFor(() => expect(within(janela).queryByTestId("janela-tipo-carregando")).toBeNull());
+  return janela;
+};
+/** Volta `n` dias pela seta ‹. @param {HTMLElement} janela @param {number} n */
+const voltarDias = (janela, n) => {
+  for (let k = 0; k < n; k += 1) fireEvent.click(within(janela).getByTestId("janela-tipo-dia-anterior"));
+};
+/** Ids das linhas da tabela do tipo. @param {HTMLElement} janela */
+const linhasDaTabela = (janela) => [...janela.querySelectorAll('tbody tr[data-testid^="linha-tipo-"]')].map((tr) => tr.getAttribute("data-testid")?.replace("linha-tipo-", ""));
+/** Preenche a máquina (o trator do cabeçalho vem escolhido): espera a leitura inicial sugerida e digita a final. @param {HTMLElement} janela @param {string} final */
+const preencherMaquina = async (janela, final) => {
+  await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-inicial")).toHaveValue("1.550"));
+  fireEvent.change(within(janela).getByTestId("linha-maquina-leitura-final"), { target: { value: final } });
+};
+
+describe("LL-JANELA-TIPO — janelas por tipo de lançamento (D-PROD-233)", () => {
+  it("LL-JANELA-TIPO-1 — pelo ⚡, hoje; sem lançamento no dia, o PRIMEIRO item salvo cria o dia (POST do lançamento com a linha e a área); Salvar fica num Dados vazio", async () => {
+    await montar();
+    const janela = await pelaRaio("a1", "Trabalho de máquinas");
+    expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
+    expect(within(janela).getByTestId("janela-tipo-dia-seguinte")).toBeDisabled();
+    expect(within(janela).getByTestId("janela-tipo-dia-novo")).toHaveTextContent("Nenhum lançamento em 14/11/2026: o primeiro item salvo cria o lançamento do dia (a área do dia é opcional).");
+    expect(within(janela).getByTestId("janela-tipo-vazio")).toHaveTextContent("Nenhum registro neste lançamento. Clique em Inserir.");
+    fireEvent.change(within(janela).getByTestId("janela-tipo-area-nova"), { target: { value: "4,5" } });
+    fireEvent.click(within(janela).getByTestId("janela-tipo-inserir"));
+    expect(within(janela).getByTestId("janela-tipo-aba-dados")).toHaveAttribute("aria-selected", "true");
+    // O formulário é o da janela de máquina (medidor do bem na data escolhida).
+    await preencherMaquina(janela, "1558");
+    expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/medidor")?.query).toMatchObject({ bem_id: "b1", data: HOJE });
+    expect(within(janela).getByTestId("linha-maquina-uso")).toHaveTextContent("8 h");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({
+      method: "POST",
+      path: "/atividades/a1/apontamentos",
+      query: {},
+      body: {
+        empresa_id: "emp-1",
+        data_operacional: HOJE,
+        area_executada_dia: "4.5",
+        maquinas: [{ bem_id: "b1", sem_medidor: false, leitura_inicial: "1550", leitura_final: "1558" }],
+        operation_id: expect.stringMatching(/^lanc-/),
+      },
+    });
+    await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Máquina TP-02 — Trator lançada (8 h). O lançamento de 14/11/2026 foi criado com ele."));
+    // Salvar: continua em Dados, com o formulário vazio para o próximo item.
+    await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-final")).toHaveValue(""));
+    expect(within(janela).getByTestId("janela-tipo-aba-dados")).toHaveAttribute("aria-selected", "true");
+    // O dia existe agora: a área dele aparece e a lista traz a máquina, com o total.
+    expect(await within(janela).findByTestId("janela-tipo-area-dia")).toHaveTextContent("4,5");
+    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Lançamento de 14/11/2026 · 4,5 ha");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-voltar"));
+    expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Trabalhos de máquinas (1)");
+    // (o lançamento novo é o apn1; a linha dele, ml-n2)
+    expect(linhasDaTabela(janela)).toEqual(["ml-n2"]);
+    expect(within(janela).getByTestId("linha-tipo-ml-n2-trabalhado")).toHaveTextContent("8 h");
+    expect(within(janela).getByTestId("janela-tipo-total-valor")).toHaveTextContent("R$ 400,00");
+    // O segundo item do dia vai pela rota da linha, no lançamento criado (com a versão nova).
+    fireEvent.click(within(janela).getByTestId("janela-tipo-inserir"));
+    await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-inicial")).toHaveValue("1.550"));
+    fireEvent.change(within(janela).getByTestId("linha-maquina-leitura-final"), { target: { value: "1560" } });
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar-fechar"));
+    await waitFor(() => expect(escritas()).toHaveLength(2));
+    expect(ultimaEscrita()).toMatchObject({ method: "POST", path: "/atividades/a1/apontamentos/apn1/maquinas", body: { versao: 1, bem_id: "b1", leitura_final: "1560" } });
+    // Salvar e fechar: a janela fecha.
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+  });
+
+  it("LL-JANELA-TIPO-2 — dia com UM lançamento: o item vai pela rota da linha (versão do dia); ‹ › trocam o dia e a lista; › para em hoje", async () => {
+    await montar();
+    const janela = await pelaRaio("a1", "Trabalho de máquinas");
+    voltarDias(janela, 1);
+    expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue("2026-11-13");
+    expect(within(janela).getByTestId("janela-tipo-dia-seguinte")).not.toBeDisabled();
+    expect(linhasDaTabela(janela)).toEqual([]);
+    voltarDias(janela, 1);
+    expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue("2026-11-12");
+    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Lançamento de 12/11/2026 · 10 ha");
+    expect(within(janela).getByTestId("janela-tipo-area-dia")).toHaveTextContent("10");
+    expect(within(janela).queryByTestId("janela-tipo-area-nova")).toBeNull();
+    expect(linhasDaTabela(janela)).toEqual(["ml1"]);
+    expect(within(janela).getByTestId("linha-tipo-ml1-inicial")).toHaveTextContent("1.542");
+    expect(within(janela).getByTestId("linha-tipo-ml1-final")).toHaveTextContent("1.550");
+    // O dia 11 só tem um lançamento CANCELADO: conta como sem lançamento.
+    voltarDias(janela, 1);
+    expect(within(janela).getByTestId("janela-tipo-dia-novo")).toBeTruthy();
+    fireEvent.click(within(janela).getByTestId("janela-tipo-dia-seguinte"));
+    expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue("2026-11-12");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-inserir"));
+    await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-inicial")).toHaveValue("1.550"));
+    fireEvent.change(within(janela).getByTestId("linha-maquina-leitura-final"), { target: { value: "1555" } });
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar-fechar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({
+      method: "POST",
+      path: "/atividades/a1/apontamentos/ap1/maquinas",
+      query: {},
+      body: { empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), bem_id: "b1", sem_medidor: false, leitura_inicial: "1550", leitura_final: "1555" },
+    });
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Máquina TP-02 — Trator lançada (5 h).");
+  });
+
+  it("LL-JANELA-TIPO-3 — dia com mais de um lançamento: o seletor aparece, o padrão é o mais recente e a lista segue a escolha", async () => {
+    apontamentosPorAtividade.set("a1", [
+      ...(apontamentosPorAtividade.get("a1") ?? []),
+      apontamento({ id: "ap2", turno: "TARDE", sequencia: 2, versao: 5, createdAt: "2026-11-12T18:00:00.000Z", maquinas: [] }),
+    ]);
+    await montar();
+    const janela = await pelaRaio("a1", "Trabalho de máquinas");
+    expect(within(janela).queryByRole("combobox", { name: "Lançamento do dia" })).toBeNull();
+    voltarDias(janela, 2);
+    const seletor = within(janela).getByRole("combobox", { name: "Lançamento do dia" });
+    expect(seletor).toHaveTextContent(/Tarde · 2ª passada/i);
+    expect(within(janela).getByTestId("janela-tipo-varios")).toHaveTextContent("2 lançamentos neste dia");
+    expect(linhasDaTabela(janela)).toEqual([]);
+    fireEvent.click(seletor);
+    fireEvent.click(await screen.findByRole("option", { name: /Manhã · 1ª passada/i }));
+    await waitFor(() => expect(linhasDaTabela(janela)).toEqual(["ml1"]));
+    // O item novo entra no escolhido.
+    fireEvent.click(within(janela).getByTestId("janela-tipo-inserir"));
+    await preencherMaquina(janela, "1556");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita().path).toBe("/atividades/a1/apontamentos/ap1/maquinas");
+  });
+
+  it("LL-JANELA-TIPO-4 — a lista é só do tipo e do dia: insumos com almoxarifado, dose, quantidade, valores e o total; a cancelada fica atrás de \"Mostrar canceladas\"", async () => {
+    await montar();
+    const janela = await pelaRaio("a1", "Aplicação de insumos");
+    expect(within(janela).getByRole("heading", { name: "Aplicação de insumos" })).toBeTruthy();
+    voltarDias(janela, 2);
+    expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Insumos aplicados (1)");
+    expect(linhasDaTabela(janela)).toEqual(["pl1"]);
+    expect([...janela.querySelectorAll("thead th")].map((th) => th.textContent)).toEqual(["Ações", "Insumo", "Almoxarifado", "Qtd/ha", "Quantidade total", "Valor unitário", "Valor total"]);
+    expect(within(janela).getByTestId("linha-tipo-pl1-insumo")).toHaveTextContent("Glifosato");
+    expect(within(janela).getByTestId("linha-tipo-pl1-local")).toHaveTextContent("Galpão");
+    expect(within(janela).getByTestId("linha-tipo-pl1-dose")).toHaveTextContent("2,5 L/ha");
+    expect(within(janela).getByTestId("linha-tipo-pl1-quantidade")).toHaveTextContent("25 L");
+    expect(within(janela).getByTestId("linha-tipo-pl1-unitario")).toHaveTextContent("R$ 5,00");
+    expect(within(janela).getByTestId("janela-tipo-total-valor")).toHaveTextContent("R$ 125,00");
+    // Nada de máquina aqui.
+    expect(within(janela).queryByTestId("linha-tipo-ml1")).toBeNull();
+    fireEvent.click(within(janela).getByTestId("janela-tipo-mostrar-canceladas"));
+    expect(linhasDaTabela(janela)).toEqual(["pl1", "pl2"]);
+    expect(within(janela).getByTestId("linha-tipo-pl2")).toHaveClass("is-cancelada");
+    expect(within(janela).queryByTestId("linha-tipo-acoes-pl2")).toBeNull();
+    // A cancelada não entra no total.
+    expect(within(janela).getByTestId("janela-tipo-total-valor")).toHaveTextContent("R$ 125,00");
+  });
+
+  it("LL-JANELA-TIPO-5 — o ⚡ da linha: Editar abre a janela de edição de sempre (PATCH com a versão) e Cancelar, o diálogo de sempre (motivo)", async () => {
+    await montar();
+    const janela = await pelaRaio("a1", "Trabalho de máquinas");
+    voltarDias(janela, 2);
+    fireEvent.click(within(janela).getByTestId("linha-tipo-acoes-ml1"));
+    let menu = await screen.findByTestId("linha-tipo-acoes-ml1-menu");
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent.trim())).toEqual(["Editar", "Cancelar"]);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Editar" }));
+    const edicao = await screen.findByTestId("janela-linha-maquina");
+    expect(edicao).toHaveTextContent("Editar máquina TP-02 — Trator");
+    fireEvent.change(await within(edicao).findByTestId("linha-maquina-leitura-final"), { target: { value: "1552" } });
+    fireEvent.click(within(edicao).getByTestId("janela-linha-maquina-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toMatchObject({ method: "PATCH", path: "/atividades/a1/apontamentos/ap1/maquinas/ml1", body: { versao: 3, leitura_final: "1552" } });
+    await waitFor(() => expect(screen.queryByTestId("janela-linha-maquina")).toBeNull());
+    // A lista se relê: a substituta no lugar da editada.
+    await waitFor(() => expect(linhasDaTabela(janela)).toEqual(["ml-n1"]));
+    fireEvent.click(within(janela).getByTestId("linha-tipo-acoes-ml-n1"));
+    menu = await screen.findByTestId("linha-tipo-acoes-ml-n1-menu");
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Cancelar" }));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-linha");
+    expect(dialogo).toHaveTextContent("A leitura desta linha deixa de contar como leitura atual do bem.");
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-linha-motivo"), { target: { value: "lançada no dia errado" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-linha-enviar"));
+    await waitFor(() => expect(ultimaEscrita().path).toBe("/atividades/a1/apontamentos/ap1/maquinas/ml-n1/cancelar"));
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 4, operation_id: expect.stringMatching(/^lanc-/), motivo: "lançada no dia errado" });
+    await waitFor(() => expect(linhasDaTabela(janela)).toEqual([]));
+    expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Trabalhos de máquinas (0)");
+  });
+
+  it("LL-JANELA-TIPO-6 — sem resposta ao criar o dia: \"Repetir o mesmo envio\" reenvia o MESMO corpo com a MESMA chave e o dia não é criado duas vezes", async () => {
+    await montar();
+    const janela = await pelaRaio("a1", "Trabalho de máquinas");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-inserir"));
+    await preencherMaquina(janela, "1558");
+    perderResposta = true;
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar"));
+    expect(await within(janela).findByTestId("resultado-incerto")).toBeTruthy();
+    expect(within(janela).getByTestId("janela-tipo-salvar")).toHaveTextContent("Repetir o mesmo envio");
+    // Mexer na área depois não muda o envio repetido.
+    fireEvent.change(within(janela).getByTestId("janela-tipo-area-nova"), { target: { value: "9" } });
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(2));
+    const [primeiro, segundo] = escritas();
+    expect(segundo.body).toEqual(primeiro.body);
+    expect(segundo.body).not.toHaveProperty("area_executada_dia");
+    expect((apontamentosPorAtividade.get("a1") ?? []).filter((a) => a.data_operacional === HOJE)).toHaveLength(1);
+    await waitFor(() => expect(within(janela).queryByTestId("resultado-incerto")).toBeNull());
+  });
+
+  it("LL-JANELA-TIPO-7 — mão de obra e custos extras: as colunas do protótipo com os dados da linha; o custo extra novo cria o dia com `servicos[]`", async () => {
+    await montar();
+    let janela = await pelaRaio("a4", "Mão de obra");
+    voltarDias(janela, 2);
+    expect([...janela.querySelectorAll("thead th")].map((th) => th.textContent)).toEqual(["Ações", "Funcionário", "Tipo", "Quantidade", "Valor unitário", "Valor total"]);
+    expect(linhasDaTabela(janela)).toEqual(["mo1"]);
+    expect(within(janela).getByTestId("linha-tipo-mo1-funcionario")).toHaveTextContent("José Silva");
+    expect(within(janela).getByTestId("linha-tipo-mo1-valor")).toHaveTextContent("R$ 160,00");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-fechar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+
+    janela = await pelaRaio("a4", "Custos extras");
+    expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Custos extras (0)");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-inserir"));
+    await escolherNoSeletor(janela, "linha-servico-servico", /Frete/);
+    fireEvent.change(within(janela).getByTestId("linha-servico-quantidade"), { target: { value: "12" } });
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar-fechar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toMatchObject({
+      method: "POST",
+      path: "/atividades/a4/apontamentos",
+      body: { data_operacional: HOJE, servicos: [{ servico_id: "s1", quantidade: "12", valor_unitario: "5" }], operation_id: expect.stringMatching(/^lanc-/) },
+    });
+    expect(ultimaEscrita().body).not.toHaveProperty("area_executada_dia");
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+  });
+
+  it("LL-JANELA-TIPO-8 — só leitura: atividade concluída (sem Inserir, sem Dados, sem ⚡ na linha) e sem a ação de lançar", async () => {
+    const { default: JanelaLancamentoPorTipo } = await import("@/components/lancamento-atividades/JanelaLancamentoPorTipo");
+    const { definirFazendaDaTela } = await import("@/services/lancamentoAtividadesService");
+    definirFazendaDaTela("emp-1");
+    const flags = { permiteProduto: true, permiteImplemento: true, permiteMaoObra: false, permiteServico: false };
+    const todas = { ver: true, editar: true, lancarApontamento: true, editarApontamento: true, cancelarApontamento: true, login: "operador" };
+    const renderizar = (/** @type {any} */ atividade, /** @type {any} */ acoes) =>
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <JanelaLancamentoPorTipo atividade={atividade} tipo="produtos" acoes={acoes} flags={flags} escopo="cli-1:operador" onFechar={() => {}} />
+        </QueryClientProvider>,
+      );
+    renderizar(atividades.get("a3"), todas);
+    let janela = await screen.findByTestId("janela-tipo");
+    expect(within(janela).getByTestId("janela-tipo-aviso")).toHaveTextContent("Atividade concluída");
+    voltarDias(janela, 2);
+    await waitFor(() => expect(linhasDaTabela(janela)).toEqual(["pl5"]));
+    expect(within(janela).queryByTestId("janela-tipo-inserir")).toBeNull();
+    expect(within(janela).getByTestId("janela-tipo-aba-dados")).toBeDisabled();
+    expect(within(janela).queryByTestId("linha-tipo-acoes-pl5")).toBeNull();
+    expect(within(janela).queryByTestId("janela-tipo-alterar-dia")).toBeNull();
+    cleanup();
+
+    renderizar(atividades.get("a1"), { ...todas, lancarApontamento: false, editarApontamento: false });
+    janela = await screen.findByTestId("janela-tipo");
+    await waitFor(() => expect(within(janela).getByTestId("janela-tipo-vazio")).toHaveTextContent("Nenhum registro neste lançamento."));
+    expect(within(janela).queryByTestId("janela-tipo-inserir")).toBeNull();
+    expect(within(janela).queryByTestId("janela-tipo-area-nova")).toBeNull();
+    voltarDias(janela, 2);
+    await waitFor(() => expect(linhasDaTabela(janela)).toEqual(["pl1"]));
+    // Só a ação de cancelar: o ⚡ traz só Cancelar.
+    fireEvent.click(within(janela).getByTestId("linha-tipo-acoes-pl1"));
+    const menu = await screen.findByTestId("linha-tipo-acoes-pl1-menu");
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent.trim())).toEqual(["Cancelar"]);
+    expect(escritas()).toEqual([]);
+  });
+
+  it("LL-JANELA-TIPO-9 — celular: a janela ocupa a tela (folha cheia) e abre pelo ⚡ do card", async () => {
+    vi.stubGlobal("matchMedia", (/** @type {string} */ query) => ({
+      matches: query.includes("max-width: 639px") || query.includes("max-width: 767px") || query.includes("max-width: 1023px"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }));
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <LancamentoAtividades />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByTestId("b1-card").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByTestId("atividade-acoes-a1"));
+    const menu = await screen.findByTestId("atividade-acoes-a1-menu");
+    expect(menu.closest(".mk-sheet")).toBeTruthy();
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Trabalho de máquinas" }));
+    const janela = await screen.findByTestId("janela-tipo");
+    expect(janela).toHaveAttribute("data-celular");
+    expect(janela).toHaveClass("b1-janela__camada--tela-cheia");
+    expect(janela.querySelector(".mdlc.b1-janela")).toHaveClass("b1-janela--tela-cheia");
+    vi.unstubAllGlobals();
+  });
+});

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CircleCheck, Copy, FlaskConical, List, Pencil, ReceiptText, RotateCcw, Tractor, User } from "lucide-react";
+import { Ban, CircleCheck, Copy, List, Pencil, RotateCcw } from "lucide-react";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
@@ -15,15 +15,14 @@ import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
-import FormularioApontamento from "@/components/lancamento-atividades/FormularioApontamento";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
+import JanelaLancamentoPorTipo, { LANCAMENTOS_POR_TIPO, lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import ListaApontamentos from "@/components/lancamento-atividades/ListaApontamentos";
 import TotalizadorAtividade from "@/components/lancamento-atividades/TotalizadorAtividade";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
-import { chaveApontamentos } from "@/lib/atividadeApontamentoRegras";
-import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
+import { flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
 import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarInstante } from "@/lib/diaCivil";
 import { confirmar } from "@/lib/maikeConfirmar";
@@ -45,7 +44,6 @@ import {
   formatarDiaAtividade,
   formatarProducaoDaAtividade,
   mensagemDeErroAtividade,
-  mensagemDoAlertaAtividade,
   rotuloDaArea,
   rotuloDaTarefa,
   rotuloDaUnidadeDeProducao,
@@ -160,22 +158,6 @@ export const compararAtividadesParaOrdenar = (a, b, colId) => {
 const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${atividade.numero}` : "");
 
 /**
- * Os quatro lançamentos do menu ⚡ (D-PROD-232, protótipo do proprietário), cada um com a linha que ele grava no dia:
- * Trabalho de máquinas = linhas de máquina (o diesel é o abastecimento ligado ao dia), Aplicação de insumos = linhas
- * de produto, Mão de obra = linhas de mão de obra, Custos extras = linhas de serviço. `flag`: o que o TIPO da atividade
- * precisa permitir (máquina não depende de flag). Fatia 1: abre o formulário do DIA (hoje, no fuso da fazenda) e, ao
- * gravar, a atividade abre com a janela daquele tipo já aberta no dia gravado. As janelas próprias de cada tipo (lista,
- * Inserir, Dados, Salvar e Salvar e fechar; o dia criado sozinho ao salvar o primeiro item) são a Fatia 2.
- * @type {ReadonlyArray<{ tipo: string, rotulo: string, flag: 'permiteProduto'|'permiteMaoObra'|'permiteServico'|null, depois: string, Icone: any }>}
- */
-const LANCAMENTOS_DO_MENU = Object.freeze([
-  { tipo: LINHA_MAQUINA, rotulo: "Trabalho de máquinas", flag: null, depois: "a máquina (e, depois, o diesel)", Icone: Tractor },
-  { tipo: LINHA_PRODUTO, rotulo: "Aplicação de insumos", flag: "permiteProduto", depois: "o produto aplicado", Icone: FlaskConical },
-  { tipo: LINHA_MAO_OBRA, rotulo: "Mão de obra", flag: "permiteMaoObra", depois: "a mão de obra", Icone: User },
-  { tipo: LINHA_SERVICO, rotulo: "Custos extras", flag: "permiteServico", depois: "o serviço (custo extra)", Icone: ReceiptText },
-]);
-
-/**
  * Lançamento de Atividades (D-PROD-200, Fatia 2) — a EXECUÇÃO de um Tipo de
  * Atividade na fazenda selecionada, em dois níveis: a ATIVIDADE (o cabeçalho
  * aberto, "Cigarrinha Pasto 01") e os APONTAMENTOS dela, por dia e turno.
@@ -220,10 +202,8 @@ export default function LancamentoAtividades() {
   const [dataConclusao, setDataConclusao] = useState("");
   const [erroDataConclusao, setErroDataConclusao] = useState(/** @type {string|null} */ (null));
   const [duplicando, setDuplicando] = useState(false);
-  /** Lançamento aberto pelo menu ⚡ da lista: o dia de UM tipo, sobre a atividade da linha. */
+  /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, chave: number } | null} */ (null));
-  /** Depois de gravar o dia pelo ⚡: a janela daquele tipo abre no lançamento gravado (uma vez). */
-  const [linhaPendente, setLinhaPendente] = useState(/** @type {{ atividadeId: string, apontamentoId: string, tipo: string, chave: number } | null} */ (null));
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
   const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
@@ -297,7 +277,6 @@ export default function LancamentoAtividades() {
     closeForm();
     setDialogo(null);
     setLancando(null);
-    setLinhaPendente(null);
     setAreaFiltro("");
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
@@ -322,10 +301,6 @@ export default function LancamentoAtividades() {
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
   });
-  // Saiu da atividade (ou abriu outra): a janela pendente do ⚡ não abre mais.
-  useEffect(() => {
-    if (linhaPendente && linhaPendente.atividadeId !== idAberto) setLinhaPendente(null);
-  }, [idAberto, linhaPendente]);
   const detalheBruto = /** @type {any} */ (detalheQuery.data ?? null);
   const detalhe = detalheBruto && idAberto && String(detalheBruto.id) === idAberto ? detalheBruto : null;
   // O detalhe vale quando é da mesma versão (ou mais nova) que a linha aberta; senão, a linha até ele ser relido.
@@ -556,27 +531,14 @@ export default function LancamentoAtividades() {
   const lancarDoMenu = (atividade, tipo) => setLancando({ atividade, tipo, chave: Date.now() });
 
   /**
-   * O dia gravado pelo ⚡: lista, totais e lançamentos relidos; a atividade abre (só leitura) e a janela do tipo abre
-   * no dia gravado. Alerta (fora do período) não bloqueia: vira aviso.
-   * @param {{ apontamento: any, atividade: any, alertas: any[] }} r
+   * Escrita feita na janela por tipo (D-PROD-233): a lista (área executada) e o totalizador se relêem; o cabeçalho
+   * devolvido pelo servidor (com os totais recalculados) vai para o cache do detalhe.
+   * @param {any|null} atividade
    */
-  const aoLancarDoMenu = (r) => {
-    const atual = lancando;
-    const emp = empresaId;
-    setLancando(null);
-    if (!atual) return;
-    const atividadeId = String(atual.atividade.id);
+  const aoEscreverNaJanelaDoTipo = (atividade) => {
     invalidarLista();
     invalidarTotais();
-    queryClient.invalidateQueries({ queryKey: chaveApontamentos(emp, atividadeId) });
-    const dia = formatarDiaAtividade(r.apontamento?.data_operacional);
-    const doTipo = LANCAMENTOS_DO_MENU.find((l) => l.tipo === atual.tipo);
-    notifySuccess("Sucesso", `Lançamento${dia ? ` de ${dia}` : ""} gravado.${doTipo ? ` Agora informe ${doTipo.depois}.` : ""}`);
-    const alertas = Array.isArray(r.alertas) ? r.alertas : [];
-    if (alertas.length) notifyWarning("Atenção", `${dia ? `${dia}: ` : ""}${mensagemDoAlertaAtividade(alertas[0])}`);
-    if (!daEmpresaAtual(emp)) return;
-    mostrarAtividade(r.atividade?.id && String(r.atividade.id) === atividadeId ? r.atividade : atual.atividade, emp);
-    if (r.apontamento?.id != null) setLinhaPendente({ atividadeId, apontamentoId: String(r.apontamento.id), tipo: atual.tipo, chave: Date.now() });
+    if (atividade?.id) queryClient.setQueryData(chaveDetalhe(empresaId, String(atividade.id)), atividade);
   };
 
   /**
@@ -590,7 +552,7 @@ export default function LancamentoAtividades() {
     const flags = flagsDoTipoDaAtividade(a, /** @type {any[]} */ (tipos));
     const lancar =
       podeGravar && ac.lancarApontamento
-        ? LANCAMENTOS_DO_MENU.filter((l) => !l.flag || flags[l.flag]).map((l) => ({
+        ? LANCAMENTOS_POR_TIPO.filter((l) => !l.flag || flags[l.flag]).map((l) => ({
             key: `lancar-${l.tipo}`,
             label: l.rotulo,
             icon: <l.Icone size={16} strokeWidth={1.75} />,
@@ -814,7 +776,6 @@ export default function LancamentoAtividades() {
             atividade={registroAberto}
             acoes={acoesDosApontamentos}
             onAtividadeAtualizada={aoAtualizarAtividade}
-            abrirLinha={linhaPendente && linhaPendente.atividadeId === String(registroAberto.id) ? linhaPendente : null}
           />
         </CadastroFormShell>
       );
@@ -853,7 +814,7 @@ export default function LancamentoAtividades() {
     ) : null;
 
   const flagsDoLancando = lancando ? flagsDoTipoDaAtividade(lancando.atividade, /** @type {any[]} */ (tipos)) : null;
-  const tipoDoLancando = lancando ? LANCAMENTOS_DO_MENU.find((l) => l.tipo === lancando.tipo) ?? null : null;
+  const tipoDoLancando = lancando ? lancamentoDoTipo(lancando.tipo) : null;
 
   return (
     // Os botões seguem a regra EXATA do servidor (permissão e status da
@@ -935,24 +896,15 @@ export default function LancamentoAtividades() {
         ) : null}
 
         {lancando && tipoDoLancando && flagsDoLancando ? (
-          <FormularioApontamento
+          <JanelaLancamentoPorTipo
             key={lancando.chave}
             atividade={lancando.atividade}
-            permiteProduto={flagsDoLancando.permiteProduto}
-            permiteImplemento={flagsDoLancando.permiteImplemento}
-            permiteMaoObra={flagsDoLancando.permiteMaoObra}
-            permiteServico={flagsDoLancando.permiteServico}
+            tipo={lancando.tipo}
+            acoes={acoes}
+            flags={flagsDoLancando}
             escopo={escopo}
-            lancamentoDoTipo={{
-              rotulo: tipoDoLancando.rotulo,
-              nota: `Primeiro o dia do lançamento (hoje por padrão). Ao lançar, a atividade abre com a janela para informar ${tipoDoLancando.depois} neste dia.`,
-            }}
-            onSalvo={aoLancarDoMenu}
-            onCancelar={() => setLancando(null)}
-            onMudou={() => {
-              invalidarLista();
-              invalidarTotais();
-            }}
+            onFechar={() => setLancando(null)}
+            onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
           />
         ) : null}
 

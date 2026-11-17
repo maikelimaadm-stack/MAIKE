@@ -1708,24 +1708,23 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(/** @type {HTMLInputElement} */ (within(form).getByLabelText(/^Nome da atividade/)).value).toBe("Cigarrinha Pasto 01");
   });
 
-  it("LA-RAIO-5 — \"Trabalho de máquinas\" abre o dia (hoje) da atividade da linha; ao lançar, a atividade abre com a janela da máquina no dia gravado", async () => {
+  it("LA-RAIO-5 — \"Trabalho de máquinas\" abre a janela do tipo (D-PROD-233) sobre a atividade da linha, no dia de hoje, sem gravar nada; Fechar fecha", async () => {
     await montarComLista();
     await itensDoRaio("a1");
     fireEvent.click(screen.getByRole("menuitem", { name: "Trabalho de máquinas" }));
-    const janela = await screen.findByTestId("janela-apontamento");
-    expect(janela).toHaveTextContent("Novo lançamento · Trabalho de máquinas");
-    expect(within(janela).getByTestId("apontamento-nota-do-tipo")).toHaveTextContent("a máquina");
-    expect(within(janela).getByTestId("apontamento-data")).toHaveValue(HOJE);
-    // Ainda na lista: nada aberto atrás da janela.
+    const janela = await screen.findByTestId("janela-tipo");
+    expect(within(janela).getByRole("heading", { name: "Trabalho de máquinas" })).toBeTruthy();
+    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Atividade Nº 3 · APLICAÇÃO · Talhão: 01 — Pasto 01 · Lançamento de 14/11/2026");
+    expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
+    // Hoje não tem lançamento: a lista vazia e a regra do dia (o primeiro item cria o lançamento).
+    await waitFor(() => expect(within(janela).getByTestId("janela-tipo-dia-novo")).toHaveTextContent("o primeiro item salvo cria o lançamento do dia"));
+    expect(within(janela).getByTestId("janela-tipo-vazio")).toHaveTextContent("Nenhum registro neste lançamento. Clique em Inserir.");
+    expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Trabalhos de máquinas (0)");
+    // Ainda na lista: nada aberto atrás da janela, nada gravado.
     expect(screen.queryByTestId("atividade-cabecalho")).toBeNull();
-    fireEvent.change(within(janela).getByTestId("apontamento-area-dia"), { target: { value: "3,5" } });
-    fireEvent.click(within(janela).getByTestId("apontamento-salvar"));
-    await waitFor(() => expect(escritas()).toHaveLength(1));
-    expect(ultimaEscrita()).toMatchObject({ method: "POST", path: "/atividades/a1/apontamentos", body: { empresa_id: "emp-1", data_operacional: HOJE, area_executada_dia: "3.5" } });
-    // A atividade abre e a janela da máquina abre sozinha no lançamento gravado.
-    expect(await screen.findByTestId("atividade-cabecalho")).toBeTruthy();
-    expect(await screen.findByTestId("janela-linha-maquina")).toBeTruthy();
-    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Lançamento de 14/11/2026 gravado. Agora informe a máquina (e, depois, o diesel).");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-fechar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+    expect(escritas()).toEqual([]);
   });
 
   it("LA-RAIO-6 — Concluir pelo ⚡: o diálogo novo com o resumo (período, área feita e barra, custos, combustível) e o aviso da área que falta", async () => {
