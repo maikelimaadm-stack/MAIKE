@@ -420,7 +420,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
         ) : null}
       </LancLoteDialogo>
 
-      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" largo somenteLeitura>
+      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" lotes={ponto.nome_ponto ? [{ nome: ponto.nome_ponto }] : undefined} largo somenteLeitura>
           <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
         </LancLoteDialogo>
     </>);

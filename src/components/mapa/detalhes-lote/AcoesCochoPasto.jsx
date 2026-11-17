@@ -127,7 +127,7 @@ export default function AcoesCochoPasto({ ponto, nivel, hoje = null, podeLancar,
       ) : null}
 
       {podeHistorico ? (
-        <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" largo somenteLeitura>
+        <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" lotes={nome ? [{ nome }] : undefined} largo somenteLeitura>
           <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
         </LancLoteDialogo>
       ) : null}

@@ -394,8 +394,11 @@ describe('CV-7 — último registro, total fornecido e informações do cocho', 
     const doDetalhe = [...cartao.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
     // O Histórico com a projeção do SSOT para o último lançamento (taxa 50 kg/dia, 4 dias, 14/11).
     const historico = render(<CardMetricaEvento evento={evento('e-aberto')} sacos={8} showProjecao consumoEsperadoDiaKg={50} duracaoEstimada={4} proximaReposicao="14/11/2026" />);
-    const celulas = [...historico.container.querySelectorAll('.text-slate-500')].filter((el) => el.nextElementSibling && !el.className.includes('uppercase'));
-    const doHistorico = celulas.map((el) => [el.textContent, el.nextElementSibling?.textContent]);
+    // D-PROD-221: no Histórico cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
+    const doHistorico = [...historico.container.querySelectorAll('[data-metrica]')].map((linha) => {
+      const forte = /** @type {HTMLElement} */ (linha.querySelector('strong'));
+      return [forte.textContent?.replace(/:$/, ''), linha.textContent?.slice(forte.textContent?.length ?? 0).trim()];
+    });
     expect(doDetalhe).toEqual(doHistorico);
     expect(doDetalhe.map(([rotulo]) => rotulo)).toEqual(['Quantidade kg', 'Quantidade sacos', 'Sobra', 'Qtd. Cabeças', 'Peso médio', 'Consumo Lote PV/dia', 'Esperado/cab/dia', 'Fechamento', 'Duração estimada', 'Próx. reposição']);
     expect(within(cartao).getByText('Observações').closest('.mk-dp-linha')?.classList.contains('mk-dp-linha--quebra')).toBe(true);

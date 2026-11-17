@@ -413,7 +413,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         </DialogContent>
       </Dialog>
 
-      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico do Depósito" largo somenteLeitura>
+      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico do Depósito" lotes={deposito.nome_ponto ? [{ nome: deposito.nome_ponto }] : undefined} largo somenteLeitura>
         <HistoricoDepositoSuplementacao deposito={deposito} />
       </LancLoteDialogo>
     </>

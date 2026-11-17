@@ -7,6 +7,7 @@ import { formatarDia, somarDias } from "@/lib/diaCivil";
 import { baseDoCicloDoEvento } from "@/domain/suplementacao/nivelSuplementacao";
 import { resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
 import { ResumoFechamentoConsumo } from "./FarolConsumo";
+import { LinhaHistorico } from "@/components/lotes/CartaoHistorico";
 
 /** Dias com até 1 casa ("4", "6,7"). @param {number} dias */
 const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -168,18 +169,12 @@ export function metricasDoEvento({
   return { periodoFechado, secoes };
 }
 
-/** Grade de cada seção do cartão (classes inteiras, para o Tailwind achar). */
-const GRADE_DA_SECAO = Object.freeze({
-  fornecimento: "grid grid-cols-3 gap-1 text-[10px]",
-  lote: "grid grid-cols-2 gap-1 text-[10px]",
-  esperado: "grid grid-cols-2 gap-1 text-[10px]",
-  real: "grid grid-cols-2 gap-1 text-[10px]",
-  projecao: "grid grid-cols-3 gap-1 text-[10px]",
-});
-
 /**
- * Métricas de um lançamento de suplementação (Histórico). Os números vêm de
- * `metricasDoEvento` (regras da taxa e da projeção descritas lá).
+ * Métricas de um lançamento de suplementação no cartão do Histórico do cocho.
+ * Os números vêm de `metricasDoEvento` (regras da taxa e da projeção descritas
+ * lá). D-PROD-221: no desenho do histórico do manejo (`CartaoHistorico`), cada
+ * métrica é uma linha "Rótulo: valor", agrupada pelo título da seção; o
+ * fechamento do consumo (D-PROD-206) entra depois do consumo real.
  *
  * @param {PropsMetricaEvento} props
  */
@@ -189,50 +184,34 @@ export default function CardMetricaEvento(props) {
   const fechamento = metricas.periodoFechado ? resumoDoFechamento(props.evento) : null;
 
   return (
-    <div className="space-y-1.5">
-      {metricas.secoes.map((secao) =>
-      <React.Fragment key={secao.chave}>
-          <div>
-            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">{secao.titulo}</div>
-            <div className={GRADE_DA_SECAO[secao.chave]}>
-              {secao.celulas.map((celula) =>
-            celula.chave === "desvio" ?
-            <div key={celula.chave} className="rounded border border-slate-200 bg-white px-1.5 py-1">
-                  <div className="text-slate-500">{celula.rotulo}</div>
-                  <div className="font-semibold text-slate-900 flex items-center gap-1">
-                    {celula.desvio ?
-                <>
-                        <DesvioConsumoTag real={celula.desvio.real} esperado={celula.desvio.esperado} />
-                        {celula.valor}
-                      </> :
-                celula.valor}
-                  </div>
-                </div> :
-
-            <MetricCell key={celula.chave} label={celula.rotulo} value={celula.valor} />
-            )}
-            </div>
+    <div className="space-y-1" data-testid="metricas-evento">
+      {metricas.secoes.map((secao) => (
+        <React.Fragment key={secao.chave}>
+          <div className="space-y-0.5" data-secao={secao.chave}>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{secao.titulo}</div>
+            {secao.celulas.map((celula) => (
+              <LinhaHistorico key={celula.chave} rotulo={celula.rotulo} data-metrica={celula.chave}>
+                {celula.desvio ? (
+                  <span className="inline-flex items-center gap-1 align-middle">
+                    <DesvioConsumoTag real={celula.desvio.real} esperado={celula.desvio.esperado} />
+                    {celula.valor}
+                  </span>
+                ) : (
+                  celula.valor
+                )}
+              </LinhaHistorico>
+            ))}
           </div>
 
           {/* FECHAMENTO DO CONSUMO (D-PROD-206) - farol real × esperado, %PV e custo; só período fechado, depois do consumo real */}
-          {secao.chave === "real" && fechamento &&
-        <div>
-              <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fechamento do consumo</div>
+          {secao.chave === "real" && fechamento ? (
+            <div className="space-y-0.5">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Fechamento do consumo</div>
               <ResumoFechamentoConsumo resumo={fechamento} />
             </div>
-        }
+          ) : null}
         </React.Fragment>
-      )}
-    </div>);
-
-}
-
-/** @param {{ label: string, value: React.ReactNode }} props */
-function MetricCell({ label, value }) {
-  return (
-    <div className="rounded border border-slate-200 bg-white px-1 py-1">
-      <div className="text-slate-500">{label}</div>
-      <div className="font-semibold text-slate-900">{value}</div>
-    </div>);
-
+      ))}
+    </div>
+  );
 }

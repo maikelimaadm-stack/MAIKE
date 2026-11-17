@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Card as CardUi, CardContent as CardContentUi, CardHeader as CardHeaderUi, CardTitle as CardTitleUi } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import CartaoHistorico, { EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/services/sessionService";
 import { toast } from "sonner";
@@ -15,11 +14,12 @@ import { CANCELAMENTO_COCHO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/doma
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { projecaoDoCartaoDoNivel } from "@/domain/suplementacao/nivelSuplementacao";
 
-// `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
-/** @type {React.ComponentType<any>} */ const Card = CardUi;
-/** @type {React.ComponentType<any>} */ const CardContent = CardContentUi;
-/** @type {React.ComponentType<any>} */ const CardHeader = CardHeaderUi;
-/** @type {React.ComponentType<any>} */ const CardTitle = CardTitleUi;
+/** "2026-11-10" ou ISO → "10/11/2026" (dia civil gravado, sem fuso). @param {any} valor */
+const diaDoLancamento = (valor) => {
+  if (!valor) return "-";
+  const [ano, mes, dia] = String(valor).split("T")[0].split("-");
+  return `${dia}/${mes}/${ano}`;
+};
 
 /**
  * Histórico de lançamentos do cocho.
@@ -28,6 +28,13 @@ import { projecaoDoCartaoDoNivel } from "@/domain/suplementacao/nivelSuplementac
  * último lançamento sai com a MESMA projeção do detalhe
  * (`projecaoDoCartaoDoNivel`) — inclusive "sem estimativa" quando os cochos
  * dividem os mesmos animais; os outros mostram o que ficou gravado no evento.
+ *
+ * D-PROD-221: no desenho do histórico do manejo (o do Histórico de
+ * Movimentação): dentro do `LancLoteDialogo` o título com a contagem vai para o
+ * cabeçalho do diálogo, sem cartão em volta; cada lançamento é um
+ * `CartaoHistorico` (selos de data e período, o produto em negrito, as linhas
+ * "Rótulo: valor" e as métricas por seção). Regras, consultas e a política de
+ * estorno (D-PROD-94a) não mudam.
  *
  * @param {{ pontoId: any, pontoNome?: string, ponto?: any, nivel?: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho|null }} props
  */
@@ -130,77 +137,66 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
     }
   };
 
-  if (isLoading) return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
+  const contagem = isLoading ? null : eventos.length;
+  const noDialogo = useTituloDoHistorico("Histórico do Cocho", contagem);
+  // Fora do diálogo (sem cabeçalho para o título), o título fica na barra.
+  const barra = noDialogo ? null : <h3 className="text-sm font-semibold text-slate-900">{`Histórico do Cocho${contagem != null ? ` (${contagem})` : ""}`}</h3>;
+
+  if (isLoading) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="carregando" />} />;
+
+  if (eventos.length === 0) return <MolduraHistorico barra={barra} estado={<EstadoHistorico />} />;
+
+  const aviso = !CANCELAMENTO_COCHO_HABILITADO ? (
+    <div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">{MENSAGEM_ESTORNO_SUSPENSO}</div>
+  ) : null;
 
   return (
-    <div className="space-y-3">
-      <Card className="mk-hist border-slate-200 shadow-sm">
-        <CardHeader className="bg-[#FAFCFE] border-b py-3 px-3">
-          <CardTitle className="text-sm font-semibold">Histórico do Cocho ({eventos.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="p-2">
-          {!CANCELAMENTO_COCHO_HABILITADO && eventos.length > 0 &&
-          <div role="note" className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">{MENSAGEM_ESTORNO_SUSPENSO}</div>
-          }
-          {eventos.length === 0 ?
-          <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div> :
-          <div className="max-h-[60vh] overflow-y-auto space-y-1">
-            {eventos.map((evento, index) => {
-              const periodoFechado = (evento.dias_periodo || 0) > 0;
-              const cabecas = evento.total_cabecas_afetadas || 0;
-              const consumoDiarioGrupo = evento.consumo_diario_grupo_kg || 0;
-              const consumoCabDia = cabecas > 0 ? safeDivide(consumoDiarioGrupo, cabecas) : 0;
-              const consumoEsperadoPV = evento.consumo_esperado_pv_kg || 0;
-              const consumoEsperadoCabDia = consumoEsperadoPV > 0 && cabecas > 0 ? consumoEsperadoPV / cabecas : 0;
+    <MolduraHistorico barra={barra} antes={aviso}>
+      {eventos.map((evento, index) => {
+        const periodoFechado = (evento.dias_periodo || 0) > 0;
+        const cabecas = evento.total_cabecas_afetadas || 0;
+        const consumoDiarioGrupo = evento.consumo_diario_grupo_kg || 0;
+        const consumoCabDia = cabecas > 0 ? safeDivide(consumoDiarioGrupo, cabecas) : 0;
+        const consumoEsperadoPV = evento.consumo_esperado_pv_kg || 0;
+        const consumoEsperadoCabDia = consumoEsperadoPV > 0 && cabecas > 0 ? consumoEsperadoPV / cabecas : 0;
+        const areas = Array.isArray(evento.area_nomes) && evento.area_nomes.length > 0 ? evento.area_nomes.join(", ") : evento.area_nome || "-";
+        const pesoMedio = evento.peso_medio_lotes_kg
+          ? `${Number(evento.peso_medio_lotes_kg).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`
+          : "-";
 
-              return (
-                <div key={evento.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
-                  {/* Header com data e botão */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{(() => {
-                        if (!evento.data_lancamento) return "-";
-                        const [ano, mes, dia] = evento.data_lancamento.split("T")[0].split("-");
-                        return `${dia}/${mes}/${ano}`;
-                      })()}</span>
-                      <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
-                        {periodoFechado ? 'Fechado' : 'Em aberto'}
-                      </Badge>
-                      {periodoFechado && consumoEsperadoCabDia > 0 &&
-                        <DesvioConsumoTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
-                      }
-                    </div>
-                    {CANCELAMENTO_COCHO_HABILITADO &&
-                    <div className="flex gap-1 shrink-0">
-                      <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id || bloqueiosPorEvento[evento.id]} onClick={() => handleDelete(evento, index)}>Excluir</Button>
-                    </div>
-                    }
-                  </div>
+        return (
+          <CartaoHistorico
+            key={evento.id}
+            selos={
+              <>
+                <SeloHistorico tom="data">{diaDoLancamento(evento.data_lancamento)}</SeloHistorico>
+                <SeloHistorico>{periodoFechado ? "Fechado" : "Em aberto"}</SeloHistorico>
+                {periodoFechado && consumoEsperadoCabDia > 0 ? <DesvioConsumoTag real={consumoCabDia} esperado={consumoEsperadoCabDia} /> : null}
+              </>
+            }
+            titulo={evento.produto}
+            rodape={
+              CANCELAMENTO_COCHO_HABILITADO ? (
+                <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id || bloqueiosPorEvento[evento.id]} onClick={() => handleDelete(evento, index)}>
+                  Excluir
+                </Button>
+              ) : null
+            }
+          >
+            <LinhaHistorico rotulo="Áreas">{areas}</LinhaHistorico>
+            <LinhaHistorico rotulo="Cabeças">{evento.total_cabecas_afetadas || 0}</LinhaHistorico>
+            <LinhaHistorico rotulo="Peso médio">{pesoMedio}</LinhaHistorico>
+            <LinhaHistorico rotulo="Unidade">{evento.unidade_lancamento || "KG"}</LinhaHistorico>
 
-                  {/* Produto */}
-                  <div className="text-xs font-semibold text-slate-900">{evento.produto}</div>
+            {/* Métricas por seção, com a projeção do SSOT no último lançamento (D-PROD-178). */}
+            <CardMetricaEvento evento={evento} showProjecao={true} {...(nivel?.evento?.id != null && evento.id === nivel.evento.id ? projecaoDoCartaoDoNivel(nivel) : {})} />
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Áreas</div><div className="font-semibold text-slate-900">{Array.isArray(evento.area_nomes) && evento.area_nomes.length > 0 ? evento.area_nomes.join(', ') : evento.area_nome || '-'}</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Cabeças</div><div className="font-semibold text-slate-900">{evento.total_cabecas_afetadas || 0}</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Peso médio</div><div className="font-semibold text-slate-900">{evento.peso_medio_lotes_kg ? `${Number(evento.peso_medio_lotes_kg).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : '-'}</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Unidade</div><div className="font-semibold text-slate-900">{evento.unidade_lancamento || 'KG'}</div></div>
-                  </div>
-
-                  {/* Métricas organizadas por seção */}
-                  <CardMetricaEvento evento={evento} showProjecao={true} {...(nivel?.evento?.id != null && evento.id === nivel.evento.id ? projecaoDoCartaoDoNivel(nivel) : {})} />
-
-                  {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
-                  {CANCELAMENTO_COCHO_HABILITADO && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">Existem registros criados depois deste lançamento na mesma área.</div>}
-                  {CANCELAMENTO_COCHO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
-                </div>
-              );
-            })}
-          </div>
-          }
-        </CardContent>
-      </Card>
-
-    </div>
+            {evento.observacoes ? <LinhaHistorico rotulo="Observações">{evento.observacoes}</LinhaHistorico> : null}
+            {CANCELAMENTO_COCHO_HABILITADO && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">Existem registros criados depois deste lançamento na mesma área.</div>}
+            {CANCELAMENTO_COCHO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
+          </CartaoHistorico>
+        );
+      })}
+    </MolduraHistorico>
   );
 }
