@@ -168,9 +168,9 @@ editando esta. Com o código novo no ar, reverter o código primeiro.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | `<…>` |
-| Caminho | `<A ou B>` |
-| GO | `<texto do proprietário>` |
-| Preflight (§2) | `<…>` |
-| Postcheck (§4) | `<…>` |
-| Resultado | `<…>` |
+| Data/hora (UTC) | **2026-11-17 03:04:47** (`finished_at`) |
+| Caminho | **B** (uma transação via `execute_sql`: guarda + corpo idêntico ao `migration.sql` + registro em `_prisma_migrations`) |
+| GO | "Pode aplicar" (pedido de autorização da D-PROD-219, aprovado na janela do computador) |
+| Preflight (§2) | alvo `7692130048193495360`; 65 concluídas / 0 com falha; anterior `20261117100000_abastecimento_fk_apontamento_atividade` (`1ee8d5a3…`); `MEDICAOFORRAGEM` ausente; 95 tabelas |
+| Postcheck (§4) | 66 / 0; `20261117200000_medicao_forragem` com checksum `66f5fb51…62e92e7b62f`; `MEDICAOFORRAGEM` com RLS ligado e 1 política (`maike_backend_all`), 9 constraints (PK, 4 FKs, 4 CHECKs), 5 índices, `anon` sem SELECT; 96 tabelas |
+| Resultado | **EXECUTADO**. Merge depois do CI verde |
