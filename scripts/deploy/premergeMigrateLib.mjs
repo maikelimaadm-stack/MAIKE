@@ -168,6 +168,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261116500000_cadculturas': '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715',
   // D-PROD-216: CONTRACT aditiva — a Área ligada à Cultura (coluna anulável, UNIQUE em CADCULTURAS e FK composta).
   '20261117000000_area_cultura': 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26',
+  // D-PROD-219: EXPAND — Medição de Forragem (MEDICAOFORRAGEM), só tabela nova.
+  '20261117200000_medicao_forragem': '66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -211,6 +213,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403',
   // D-PROD-215: RLS/REVOKE da CADCULTURAS (mesmo corpo, lista nova).
   'cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b',
+  // D-PROD-219: RLS/REVOKE da MEDICAOFORRAGEM (mesmo corpo, lista nova).
+  'b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718',
 ]);
 
 /**

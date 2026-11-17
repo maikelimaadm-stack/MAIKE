@@ -78,6 +78,7 @@ model Cliente {
   leiturasCocho          LeituraCocho[]
   // D-PROD-215 — culturas (pastagem, capineira, lavoura, silagem) por fazenda; tabela CADCULTURAS.
   culturas               Cultura[]
+  medicoesForragem       MedicaoForragem[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -684,6 +685,8 @@ model Cultura {
   empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
   // D-PROD-216 — áreas desta cultura.
   areas   AreaPastagem[]
+  // D-PROD-219 — medições de forragem feitas com esta cultura na área (retrato do dia).
+  medicoesForragem MedicaoForragem[]
 
   @@unique([cliente_id, id])
   // D-PROD-216 — alvo da FK composta da Área (mesma fazenda por construção).
@@ -930,6 +933,8 @@ model AreaPastagem {
   bensPatrimoniais BemPatrimonial[]
   // D-PROD-190 — área onde a atividade foi executada.
   atividades Atividade[]
+  // D-PROD-219 — medições de forragem do pasto.
+  medicoesForragem MedicaoForragem[]
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -1366,6 +1371,7 @@ model Empresa {
   leiturasCocho          LeituraCocho[]
   // D-PROD-215 — culturas da fazenda.
   culturas               Cultura[]
+  medicoesForragem       MedicaoForragem[]
   // D-PROD-190 — apontamentos de atividade da fazenda.
   atividades            Atividade[]
   atividadeApontamentos AtividadeApontamento[]
@@ -1598,6 +1604,52 @@ model LeituraCocho {
   @@index([cliente_id, empresa_id, data_leitura])
   @@index([cliente_id, ponto_suplementacao_id, data_leitura])
   @@map("LEITURACOCHO")
+}
+
+// ---------------------------------------------------------------------------
+// MedicaoForragem — Medição de Forragem do pasto (D-PROD-219), tabela física
+// MEDICAOFORRAGEM. Uma linha por medição: pela régua (leituras em cm, média e a
+// situação calculada pelas alturas de entrada e de saída da cultura da área) ou
+// no olho (situação escolhida). A amostra de corte (opcional, só na régua) grava
+// matéria verde, % de matéria seca e massa seca por hectare. Os derivados são
+// calculados no servidor; as alturas da cultura são o retrato do dia.
+// ---------------------------------------------------------------------------
+model MedicaoForragem {
+  id                  String   @id @default(cuid())
+  cliente_id          String   @db.VarChar(64)
+  empresa_id          String   @db.VarChar(64)
+  area_id             String   @db.VarChar(64)
+  cultura_id          String?  @db.VarChar(64)
+  data_medicao        DateTime @db.Date
+  metodo              String   @db.VarChar(8)
+  leituras_cm         Json?
+  qtd_leituras        Int?
+  altura_media_cm     Decimal? @db.Decimal(6, 1)
+  situacao            String?  @db.VarChar(16)
+  altura_entrada_cm   Decimal? @db.Decimal(6, 1)
+  altura_saida_cm     Decimal? @db.Decimal(6, 1)
+  quadro_m2           Decimal? @db.Decimal(6, 3)
+  qtd_amostras        Int?
+  peso_verde_g        Decimal? @db.Decimal(10, 1)
+  peso_seco_g         Decimal? @db.Decimal(10, 1)
+  materia_seca_pct    Decimal? @db.Decimal(5, 2)
+  massa_verde_kg_ha   Decimal? @db.Decimal(12, 1)
+  massa_seca_kg_ha    Decimal? @db.Decimal(12, 1)
+  observacoes         String?  @db.VarChar(2000)
+  registrado_por_nome String?  @db.VarChar(255)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  cliente Cliente      @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa      @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  area    AreaPastagem @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
+  cultura Cultura?     @relation(fields: [cliente_id, empresa_id, cultura_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id, data_medicao])
+  @@index([cliente_id, area_id, data_medicao])
+  @@index([cliente_id, empresa_id, cultura_id])
+  @@map("MEDICAOFORRAGEM")
 }
 
 model EstoqueLoteNota {
