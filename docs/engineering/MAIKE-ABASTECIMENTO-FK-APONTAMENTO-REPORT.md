@@ -43,16 +43,20 @@ abastecimentos sem vínculo. Mudar a atividade de um apontamento leva junto a do
 
 ## 4. Validação local
 
+Depois do merge da `main` `133c6ed4` (PRs #304, #305 e #306), com a pasta renomeada e a decisão D-PROD-216, em
+bancos novos (PostgreSQL 16 local):
+
 | Verificação | Resultado |
 |---|---|
-| `prisma migrate deploy` das 63 / `migrate diff --exit-code` | 63, sem drift |
-| `abastecimentoFkApontamentoMigration` | 14/14 |
-| `atividadeAbastecimento` | 16/16 |
-| `abastecimentoAtividadeMigration` | 14/14 |
-| testes de migration das CONTRACT anteriores (63ª pasta) | `funcionarioTipoTerceirizado` 13/13 · `atividadeMaoObraParceiro` 14/14 · `atividadeMaoObra` 12/12 · `atividadeLinhas` 11/11 · `atividadeCabecalho` 28/28 · `tipoAtividadeDefaults` 25/25 · `cadCategoriaCurvaGanho` 10/10 · `cadCurvaGanhoMensal` 10/10 · `categoriaManejoCadcategoria` 20/20 · `patrimonioSimplifica` 14/14 · `tipoTarefaDropColunas` 15/15 · `estoqueP1M7Transacao` 8/8 · `alvoMigrationDuplaConexao` 4/4 |
-| `patrimonioP1Abastecimentos` · `atividadeLinhaMaoObra` · `atividadeLinhaProduto` | 15/15 · 23/23 · 20/20 |
-| `sqlEditorBootstrap` · `sqlEditorPreservaMaike` · `patrimonioP1AbastecimentosSeguranca` · `patrimonioP1Seguranca` | 14/14 · 7/7 · 8/8 · 12/12 |
-| `scripts/tests/deploy` premerge-migrate / migrations / alvo-banco | 173/173 · 83/83 · 6/6 |
+| `sha256sum` do `migration.sql` | `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e` (o mesmo de antes da renomeação) |
+| `prisma migrate deploy` das 64 / `migrate diff --from-migrations … --exit-code` | 64 / 0, 95 tabelas, a ordem 211 → 215 → 216; sem drift (exit 0) |
+| runbook à mão num banco na partida de produção (63 / 0, a CADCULTURAS por último) | preflight `PRONTO PARA APLICAR`; envelope com o SID de produção recusa (`alvo divergente`); com o local aplica; postcheck 64 / 0, 95 tabelas, `APLICADA E CONFERIDA`; repetir o envelope recusa; o Prisma não vê pendência e o `migrate diff` fica vazio |
+| `abastecimentoFkApontamentoMigration` | 14/14 (com a concorrência, AF-RED-3) |
+| `atividadeAbastecimento` · `abastecimentoAtividadeMigration` | 16/16 · 14/14 |
+| testes de migration das CONTRACT anteriores (64 pastas) | `funcionarioTipoTerceirizado` 13/13 · `atividadeMaoObraParceiro` 14/14 · `atividadeMaoObra` 12/12 · `atividadeLinhas` 11/11 · `atividadeCabecalho` 28/28 · `tipoAtividadeDefaults` 25/25 · `cadCategoriaCurvaGanho` 10/10 · `cadCurvaGanhoMensal` 10/10 · `categoriaManejoCadcategoria` 20/20 · `patrimonioSimplifica` 14/14 · `tipoTarefaDropColunas` 15/15 |
+| da `main` (D-PROD-215) e vizinhos | `culturaNativo` 20/20 · `formulacaoNativo` 24/24 · `permissoesR2Rotas` 11/11 · `sqlEditorBootstrap` 14/14 · `movimentacaoCancelamentoR2A` 9/9 |
+| `patrimonioP1Abastecimentos` · `patrimonioP1AbastecimentosSeguranca` · `patrimonioP1Seguranca` · `atividadeLinhaMaoObra` · `atividadeLinhaProduto` | 15/15 · 8/8 · 12/12 · 23/23 · 20/20 |
+| `scripts/tests/deploy` (premerge-migrate / migrations / alvo-banco / todos) | 176/176 · 83/83 · 6/6 · 288/288 |
 | `verify-all --pular=test:backend` | todas as etapas passaram (gates, tipos, lint, smoke, builds) |
 
 ## 5. Release
