@@ -7768,7 +7768,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - **Saldo por produto:** os produtos em litros ficam à parte (D-PROD-162).
    - **Pastos atendidos:** os cochos vinculados, com o ícone do marcador e o farol da leitura. Tocar num cocho abre o detalhe dele como tela empilhada, com ‹ Voltar. Isso exige `visualizar_detalhes_cochos`, a mesma permissão que o mapa pede.
    - **Informações do depósito:** "Cochos vinculados" mostra os nomes, não a contagem.
-   - **Histórico do depósito:** as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais.
+   - **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais. Sem essa permissão, continua o "Último registro" de antes, com uma movimentação só.
    - **Formato:** kg no formato do SSOT ("1.400 kg").
    - **Carregando ou com erro:** o histórico diz isso, em vez de "Nenhum registro ainda.".
    - **Fica de fora:** "Frequência padrão" do v12, porque o cadastro não tem esse campo.
@@ -7780,7 +7780,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - **Histórico:** os 5 últimos, com "Ver tudo".
    - **Telas empilhadas com ‹ Voltar:**
      - o lançamento, com o formulário de hoje; ali o Esc é ignorado;
-     - o histórico completo na linha do tempo v12: os mesmos cartões do resumo, mais a hora, na ordem do servidor, com "Lançamentos (N)" e o Excluir no pé do cartão. A regra continua (D-PROD-137): só o mais recente liga, só com `podeExcluir`, a mesma confirmação, a mensagem do 409 e as mesmas invalidações.
+     - o histórico completo na linha do tempo v12: os mesmos cartões do resumo, mais a hora, na ordem do servidor, com "Lançamentos (N)" e o Excluir no pé do cartão. A regra continua (D-PROD-137): só liga o último lançado no sistema (o primeiro da lista, mesmo que seja um retroativo), só com `podeExcluir`, a mesma confirmação, a mensagem do 409 e as mesmas invalidações. O Excluir desligado explica a regra no `title`: "Só o primeiro da lista (o último lançado no sistema) pode ser excluído.".
    - **Carregando ou com erro:** o detalhe diz isso, em vez de "Nenhum lançamento ainda." e custo R$ 0,00.
    - **Página Bebedouros:** a casca fica sem o cabeçalho próprio.
 5. **Tarefa** (`DetalhesTarefaMapa`). Título = tarefa, subtítulo "Detalhes da tarefa" (substitui o "Tarefa: …" da D-PROD-118).
@@ -7795,17 +7795,28 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
      - sai a consulta de ícones de prioridade, que não era desenhada.
 6. **Área** (clique no contorno, D-PROD-94a). O "Histórico da Área" passa a ser a mesma linha do tempo da aba Histórico do pasto: filtro Mostrar, Carregar mais, aviso offline e só leitura, com os textos "nesta área" e a lista "Registros da área". O cabeçalho é "Histórico da Área" com "área · setor".
    - **Histórico completo:** com a permissão de histórico, o rodapé tem a pílula "Histórico completo". Ela abre por cima o Histórico de Movimentação da área de hoje (`HistoricoMovimentacoes`, sem lotes), como o "Manejos e históricos" do pasto (D-PROD-218). Ali continuam o "Excluir movimentação" do administrador (D-PROD-110) e os dados de auditoria que a linha do tempo resumida não traz: registrado em, observações, cancelado em … por …, vínculo pelo nome, lote excluído, matrizes e nutrição.
-   - **Nome da outra área:** quando um registro antigo gravou o nome vazio, a linha do tempo usa as áreas do mapa, como o histórico completo. Vale também para a aba Histórico do pasto.
+   - **Nome da outra área:** quando um registro antigo gravou o nome vazio, a linha do tempo usa as áreas do mapa, como o histórico completo. Vale também para a aba Histórico do pasto: o `PainelPasto` repassa as `areas` do `DetalhesLote` à aba.
+   - **Fechar o histórico completo:** o conteúdo fica até o fim da animação de saída. Fechado, o Radix não monta nem consulta nada.
    - Com a chave `medir_forragem` (D-PROD-219), o painel Forragem vem em cima, no desenho v12, com os mesmos nomes e testids. O desenho antigo do painel saiu, porque o detalhe da área era o único uso.
    - No curral, as abas são **Abate · Histórico da Área**. O abate continua o histórico de hoje, sem a rolagem própria de 500 px.
    - Sai o `src/components/ui/tabs.jsx`, que ficou sem uso.
 7. **Campo de lançamento (`LancField`):** um Select do Radix que já monta com valor (ex.: a Qualidade do bebedouro, que remonta ao trocar o Tipo) ficava com o rótulo por cima do valor, porque o texto do item só chega depois de montar. Agora "tem valor" vem da falta de `data-placeholder`. Sai o render a mais que o bebedouro usava para contornar isso.
+   - **Alcance fora do mapa:** dos formulários com `LancField`, só dois têm Select do Radix: o lançamento do bebedouro e **Permissões › editar usuário**. Neste, o campo "Usuário" (travado na edição) passa a mostrar o rótulo em cima e o nome do usuário desde o primeiro desenho; antes o nome ficava invisível. Os outros usam `B1Select` ou `SelectDoMotor` e não mudam.
 8. **Regras que não mudam:**
    - consultas, caches e invalidações (`atualizar-mapa`) e permissões;
    - formulários e históricos completos, com as mesmas ações;
    - listas de escolha no padrão do sistema e filtros do mapa.
 
-**Revisão independente:** cada tela teve um revisor de código, dados, permissões, testes e desenho, e cada achado passou por um verificador que tentou refutá-lo. De 28 achados, 16 foram confirmados e corrigidos com teste. Dos 12 refutados, quatro viraram melhorias mesmo assim: o `LancField`, o carregando e o erro dos históricos do bebedouro e do depósito, e a rolagem do abate. Ver o relatório, §7.
+**Revisão independente:** cada tela teve um revisor de código, dados, permissões, testes e desenho, e cada achado passou por um verificador que tentou refutá-lo. De 28 achados, 16 foram confirmados e corrigidos com teste. Dos 12 refutados, quatro viraram melhorias mesmo assim: o `LancField`, o carregando e o erro dos históricos do bebedouro e do depósito, e a rolagem do abate.
+
+**2ª revisão, das correções da 1ª:** 17 achados; 15 confirmados, que eram 11 problemas distintos (alguns apareceram para mais de um revisor), e 2 refutados. Todos corrigidos:
+- as `areas` não chegavam à aba Histórico do pasto;
+- o `title` do Excluir do bebedouro dava a razão errada com um retroativo;
+- o histórico completo da área esvaziava antes da animação de saída;
+- faltavam testes para a permissão da pílula, o depósito sem local, o hook real do bebedouro e o fio das `areas` no mapa;
+- havia comentários e trechos do relatório desatualizados.
+
+Ver o relatório, §7.
 
 **Fora do escopo:** Gestão de Tarefas, Insights e Resumo do Rebanho, que são painéis e não detalhes.
 

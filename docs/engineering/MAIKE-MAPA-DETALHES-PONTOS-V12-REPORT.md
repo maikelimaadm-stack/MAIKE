@@ -56,7 +56,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - Rodapé **Entrada · Saída · Histórico**. A transferência (D-PROD-161) não muda.
 - **Seções:**
   1. **Nível do depósito** (SSOT):
-     - bloco do nível com o ícone de hoje e o percentual bruto;
+     - bloco do nível com o desenho do marcador do mapa (pino + silo), como o v12, e o percentual bruto;
      - avisos: abaixo do mínimo, unidade não confirmada e produtos em litros;
      - grade com o medidor, o Estoque mínimo, o saldo em kg e em sacos e a necessidade de reposição.
   2. **Saldo por produto:** produtos em litros num grupo à parte (D-PROD-162).
@@ -64,7 +64,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
      - cada cocho vinculado com o ícone do marcador e o farol da última leitura;
      - tocar num cocho abre o detalhe dele empilhado, com ‹ Voltar, se o usuário tiver `visualizar_detalhes_cochos`.
   4. **Informações do depósito:** os 7 campos, mais "Cochos vinculados" com os nomes e "Observações".
-  5. **Histórico do depósito:** as 5 últimas movimentações, com a mesma regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". Enquanto carrega, mostra "Carregando histórico..."; se a consulta falha, o aviso de erro.
+  5. **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a mesma regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". Enquanto carrega, mostra "Carregando histórico..."; se a consulta falha, o aviso de erro. Sem a permissão, continua o "Último registro" de antes, com uma movimentação só.
 
 ### 2.4 Bebedouro (`DetalhesBebedouro`)
 
@@ -102,7 +102,8 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 - **Histórico completo:** com a permissão de histórico, o rodapé tem a pílula "Histórico completo".
   - Ela abre por cima o Histórico de Movimentação da área de hoje (`HistoricoMovimentacoes`, sem lotes), como o "Manejos e históricos" do pasto.
   - Ali continuam o "Excluir movimentação" do administrador (D-PROD-110) e os dados de auditoria que os cartões resumidos não trazem: registrado em, observações, cancelado em … por …, vínculo pelo nome, lote excluído, matrizes e nutrição.
-- **Nome da outra área:** registro antigo com o nome vazio mostra o nome das áreas do mapa, e não "Área …123456". Vale também para a aba Histórico do pasto.
+- **Nome da outra área:** registro antigo com o nome vazio mostra o nome das áreas do mapa, e não "Área …123456". Vale também para a aba Histórico do pasto: o `PainelPasto` repassa as `areas` do `DetalhesLote` à aba.
+- **Fechar o histórico completo:** o conteúdo fica até o fim da animação de saída, sem a barra vazia. Fechado, nada monta nem consulta.
 - **Chave `medir_forragem`** (D-PROD-219): o painel Forragem vem em cima, no desenho v12 do `PainelForragemArea`, com os mesmos nomes e testids. O cabeçalho passa a ser a área e o setor. O desenho antigo do painel saiu: o detalhe da área era o único uso.
 - **Curral:** abas **Abate · Histórico da Área**. O abate continua o histórico de hoje, agora sem a rolagem própria de 500 px.
 
@@ -123,8 +124,12 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - O Esc no formulário de lançamento é ignorado. No desktop já era assim; no tablet e no celular o Esc fechava o diálogo inteiro e perdia o que foi digitado.
   - O carregando e o erro do histórico aparecem como tal. Antes diziam "Nenhum lançamento ainda." e R$ 0,00.
   - O histórico completo passou para a linha do tempo v12, com "Lançamentos (N)" no lugar de "Histórico do Bebedouro (N)".
+  - O Excluir desligado explica a regra no `title`: "Só o primeiro da lista (o último lançado no sistema) pode ser excluído.". A regra é a ordem de cadastro, então um retroativo lançado por último é o único excluível, mesmo que o "Último registro" do resumo (pela data) seja outro.
 - **Área:** o "Histórico completo" é o mesmo Histórico da Área de antes, agora atrás de uma pílula. O resumo em cima é a linha do tempo.
-- **Campos de lançamento (`LancField`):** um Select que já monta com valor mostra o rótulo em cima desde o primeiro desenho. Antes, o rótulo ficava por cima do valor até a primeira digitação. Isso vale para todos os formulários de lançamento.
+- **Campos de lançamento (`LancField`):** um Select do Radix que já monta com valor mostra o rótulo em cima desde o primeiro desenho. Antes, o rótulo ficava por cima do valor até a primeira digitação.
+  - Só dois formulários com `LancField` têm Select do Radix: o lançamento do bebedouro e **Permissões › editar usuário**.
+  - Neste, o campo "Usuário" (travado na edição) passa a mostrar o nome do usuário desde o primeiro desenho; antes o nome ficava invisível.
+  - Os outros usam `B1Select` ou `SelectDoMotor` e não mudam.
 
 ## 4. Arquivos
 
@@ -132,7 +137,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - `src/components/mapa/detalhes-lote/CascaDetalhe.jsx`;
   - `src/components/bebedouros/cartoesDoBebedouro.js`: os cartões do bebedouro, compartilhados pelo resumo e pelo histórico completo;
   - CSS: `src/styles/mk-dp-cocho.css`, `mk-dp-deposito.css`, `mk-dp-bebedouro.css` e `mk-dp-tarefa.css`;
-  - testes: `tests/smoke/detalhesV12CascaDetalhe.test.jsx`, `detalhesV12Cocho`, `detalhesV12Deposito`, `detalhesV12Bebedouro` e `detalhesV12Tarefa`.
+  - testes: `tests/smoke/detalhesV12CascaDetalhe.test.jsx`, `detalhesV12Cocho`, `detalhesV12Deposito`, `detalhesV12Bebedouro`, `detalhesV12Tarefa`, `bebedouroHistoricoCarregando` (o carregando com o hook real) e `detalhesLoteHistoricoAreas` (o nome da outra área na aba Histórico do pasto, de ponta a ponta).
 - **Reescritos:** `DetalhesPontoSuplementacao`, `DetalhesDepositoSuplementacao`, `DepositoNivel`, `DetalhesBebedouro`, `BebedouroTimeline` (mesma regra de exclusão), `DetalhesTarefaMapa` e `DetalhesArea`.
 - **Ajustados:**
   - `blocos.jsx`, `LinhaDoTempo`, `pastoContexto`, `PainelPasto`, `AbaHistorico`, `useHistoricoDoPasto` e `DetalhesLote` (as áreas do mapa no histórico);
@@ -149,10 +154,17 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - `detalhesCochoNiveis`, `leituraCocho`;
   - `detalhesDepositoNiveis`, `mapaDepositoLitros`, `mapaNiveisFonteUnica`, `depositoNivel`;
   - `bebedouroHistoricoPorData`, `bebedouroMapaPermissoes`, `bebedourosTelaParidade`;
-  - `detalhesAreaHistorico`, `mobileParidadeV2` (`LancField`).
+  - `detalhesAreaHistorico`, `mobileParidadeV2` (`LancField`);
+  - `detalhesLoteVisualGesto`: a conferência do Esc do `LancLoteDialogo` agora inclui o formulário empilhado (`escVolta === false`);
+  - `g3MapaGeralIntegrado`: caso novo G3-INT-7, em que o contorno abre o `DetalhesArea` com as áreas do mapa (o `DetalhesArea` vira um dublê que guarda as props).
   - Os rótulos com dois-pontos viraram `dt`/`dd`, com os mesmos valores.
   - "Histórico do Bebedouro (N)" virou "Lançamentos (N)", com a mesma contagem e os mesmos Excluir.
 - **Testes de mutação:** os implementadores tiraram regras de propósito (permissão, filtro de litros, limite de 5, farol, chevron, `data-permissao-explicita`, cadastro real). Os testes novos pegaram todas.
+- **Mutações da 2ª revisão**, todas pegas pelos testes novos:
+  - tirar as `areas` do `PainelPasto`, do `DetalhesLote` ou do `<DetalhesArea>` no `MapaGeral`;
+  - tirar o `placeholderData: []` do hook do bebedouro;
+  - trocar `isLoading` por `isPending` no depósito;
+  - mostrar a pílula "Histórico completo" sem a permissão de histórico.
 - **Suíte inteira e gates:** ver §7.
 
 ## 6. Conferência visual
@@ -188,4 +200,30 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - o abate do curral no desenho do histórico de hoje;
   - no cocho, a leitura mais recente também na lista, para o Excluir dela;
   - no depósito: as observações dos cartões sem formatar o kg, "Origem: —" e "Destino: —" na compra e na venda (o motor não grava esses locais) e os dias na ordem de cadastro, a mesma do histórico completo.
-- **Suíte inteira e gates:** ver o PR. `npm run verify:all` verde no fim da integração.
+
+### 7.1 Segunda revisão (das correções da 1ª)
+
+- **Método:** o mesmo, em 4 frentes: as peças compartilhadas, o bebedouro, a área, e o depósito com os testes e os docs. A comparação foi com o estado antes das correções (9eb6a58) e com o de antes da missão (62819a7).
+- **Resultado:** 17 achados. Foram 15 confirmados, que eram 11 problemas distintos, porque alguns apareceram para mais de um revisor, e 2 refutados.
+
+| Problema confirmado | Correção |
+|---|---|
+| As `areas` não chegavam à aba Histórico do pasto: o `PainelPasto` refazia o contexto sem elas. Os docs diziam que sim. | O `PainelPasto` repassa as `areas`; teste de ponta a ponta (`detalhesLoteHistoricoAreas`). |
+| O fio `MapaGeral` → `DetalhesArea` das `areas` sem teste | G3-INT-7 no `g3MapaGeralIntegrado` |
+| O `title` do Excluir do bebedouro dizia "só o mais recente", e com um retroativo isso contradizia o "Último registro" do resumo | "Só o primeiro da lista (o último lançado no sistema) pode ser excluído."; teste com o retroativo no topo |
+| Ao fechar o histórico completo da área, o conteúdo sumia antes da animação de saída: uma barra vazia no popup e uma tela branca no celular | O `HistoricoMovimentacoes` sem condição dentro do diálogo; teste de que, fechado, nada monta nem consulta; no harness o texto fica até o fim, nos 3 tamanhos |
+| A permissão da pílula "Histórico completo" sem teste | Teste com só a Forragem: sem pílula, sem rodapé e sem linha da área |
+| O depósito sem local de estoque (consulta desligada) sem teste | Teste: "Nenhum registro ainda.", nunca "Carregando histórico..." para sempre |
+| O carregando do bebedouro provado só com o hook trocado por dublê | `bebedouroHistoricoCarregando`, com o hook real |
+| O efeito do `LancField` fora do mapa sem registro | D-PROD-220 §7 e §3 deste relatório: Permissões › editar usuário |
+| O JSDoc da `LinhaDoTempo` citava o abate do curral, que não usa o pé de ação | Comentário corrigido |
+| O CSS citava a prop `estilo` do `PainelForragemArea`, que saiu | Comentário corrigido |
+| No relatório, o ícone do nível do depósito (§2.3) e o `detalhesLoteVisualGesto` fora da lista do §5 | Texto corrigido |
+
+- **Refutados:**
+  - **O depósito sem rede, que diz "Nenhum registro ainda.":** era igual antes da missão. A consulta pausada não é nem carregando nem erro. Sem rede e sem cópia no aparelho, o detalhe inteiro do depósito mostra vazios. Quando a rede volta, o histórico chega.
+  - **A frase "substitui o Último Registro" sem a permissão:** era texto incompleto, não contradição. A permissão foi acrescentada à frase mesmo assim (D-PROD-220 §3 e §2.3).
+
+### 7.2 Suíte inteira e gates
+
+Ver o PR, com os números do estado final.

@@ -1534,7 +1534,7 @@
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
 }
 
-/* ── Forragem do pasto no Histórico da Área (PainelForragemArea estilo="v12", D-PROD-220) ── */
+/* ── Forragem do pasto no Histórico da Área (PainelForragemArea, desenho v12, D-PROD-220) ── */
 .mk-dp .mk-dp-forragem {
   display: flex;
   flex-direction: column;

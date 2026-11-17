@@ -416,6 +416,12 @@ describe('DV-7 — linha do tempo do depósito', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Não foi possível carregar o histórico.');
     expect(screen.queryByText('Nenhum registro ainda.')).toBeNull();
   });
+
+  it('depósito sem local de estoque (consulta desligada): "Nenhum registro ainda.", sem "Carregando histórico..." para sempre', async () => {
+    await montar({ deposito: { ...DEPOSITO, local_estoque_id: null } });
+    expect(await screen.findByText('Nenhum registro ainda.')).toBeTruthy();
+    expect(screen.queryByText('Carregando histórico...')).toBeNull();
+  });
 });
 
 describe('DV-8 — carregando', () => {

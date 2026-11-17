@@ -9,7 +9,9 @@ import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
 import { Acao, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { diasDoHistorico } from "./cartoesDoBebedouro";
 
-const SO_O_ULTIMO = "Só o lançamento mais recente pode ser excluído.";
+// A regra é a ordem de cadastro (a do servidor), não a data do lançamento: um
+// retroativo lançado por último é o primeiro da lista, mesmo com data antiga.
+const SO_O_ULTIMO = "Só o primeiro da lista (o último lançado no sistema) pode ser excluído.";
 
 /**
  * Histórico completo do bebedouro (tela empilhada do detalhe), no desenho do
@@ -17,11 +19,12 @@ const SO_O_ULTIMO = "Só o lançamento mais recente pode ser excluído.";
  * resumo, mais a hora, em ORDEM DO SERVIDOR, e a contagem em "Lançamentos (N)".
  * Sem rolagem própria: o corpo da casca é a única área que rola.
  *
- * Regras de antes: só o lançamento mais recente (índice 0, a mesma ordem do
- * servidor) é excluível — o servidor recusa os demais (409) e o "Excluir" deles
- * fica desligado. D-PROD-137 (BEB-01): "Excluir" só com `podeExcluir` (a regra
- * do servidor, calculada por quem monta; padrão `false`) e a recusa do servidor
- * vira mensagem — antes a rejeição ficava sem tratamento e o botão travado.
+ * Regras de antes: só o último lançado no sistema (índice 0 da ordem do
+ * servidor, por criação) é excluível — o servidor recusa os demais (409) e o
+ * "Excluir" deles fica desligado. D-PROD-137 (BEB-01): "Excluir" só com
+ * `podeExcluir` (a regra do servidor, calculada por quem monta; padrão `false`)
+ * e a recusa do servidor vira mensagem — antes a rejeição ficava sem tratamento
+ * e o botão travado.
  *
  * @param {{ historico?: any[], podeExcluir?: boolean }} props
  */

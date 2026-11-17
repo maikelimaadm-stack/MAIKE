@@ -69,7 +69,9 @@ export default function DetalhesArea({ area, permissions, setorNome = "", evento
   ) : null;
   const completo = historicoDaArea ? (
     <LancLoteDialogo open={completoAberto} onOpenChange={setCompletoAberto} titulo="Histórico da Área" largo somenteLeitura>
-      {completoAberto ? <HistoricoMovimentacoes lotes={[]} areaId={area.id} /> : null}
+      {/* Sem condição: fechado, o Radix não monta o conteúdo (nem consulta); ao fechar,
+          o histórico fica até o fim da animação de saída, sem a barra vazia. */}
+      <HistoricoMovimentacoes lotes={[]} areaId={area.id} />
     </LancLoteDialogo>
   ) : null;
 

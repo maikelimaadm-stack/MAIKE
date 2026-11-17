@@ -358,11 +358,32 @@ describe("Telas empilhadas na mesma janela", () => {
     const pes = cartoes.map((c) => c.querySelector(".mk-dp-tl__acoes button"));
     expect(pes.map((b) => b?.textContent)).toEqual(["Excluir", "Excluir", "Excluir"]);
     expect(pes.map((b) => b?.disabled)).toEqual([false, true, true]);
-    expect(pes[1]?.getAttribute("title")).toBe("Só o lançamento mais recente pode ser excluído.");
+    expect(pes[1]?.getAttribute("title")).toBe("Só o primeiro da lista (o último lançado no sistema) pode ser excluído.");
     expect(pes[0]?.closest("[data-permissao-explicita]")).toBeTruthy();
     // Nada do desenho antigo: sem cartão com cabeçalho próprio nem rolagem de 60vh dentro do corpo.
     expect(corpo().querySelector('[class*="max-h-"]')).toBeNull();
     expect(corpo().querySelector(".mk-dp-tl")).toBe(lista);
+  });
+
+  it("Histórico: o retroativo lançado por último é o 1º da lista e o único com Excluir; o 'Último registro' (pela data) fica desligado, com a regra no title", async () => {
+    largura(1280);
+    // Ordem do servidor (criação desc.): a Limpeza de 01/11 foi lançada depois da Inspeção de 10/11.
+    estado.historico = [
+      { id: "h3", tipo_lancamento: "Limpeza", status: "Concluído", data_lancamento: "2026-11-01", hora_lancamento: "09:00", descricao: "retroativa" },
+      ...HISTORICO,
+    ];
+    noDialogo({ podeExcluir: true });
+    await screen.findByText("189 cab");
+    expect(grupo("Último registro").querySelector(".mk-dp-linha__rot")?.textContent).toBe("Inspeção");
+    await clicar(screen.getByRole("button", { name: "Histórico" }));
+    const lista = screen.getByRole("list", { name: "Lançamentos do bebedouro" });
+    const cartoes = [...lista.querySelectorAll(".mk-dp-tl__card")];
+    expect(cartoes.map((c) => c.querySelector(".mk-dp-tl__titulo")?.textContent)).toEqual(["Limpeza", "Inspeção", "Limpeza"]);
+    const pes = cartoes.map((c) => c.querySelector(".mk-dp-tl__acoes button"));
+    expect(pes.map((b) => b?.disabled)).toEqual([false, true, true]);
+    expect(pes[0]?.getAttribute("title")).toBeNull();
+    // A Inspeção de 10/11 é o "Último registro" do resumo: o title não diz que ela "não é a mais recente".
+    expect(pes[1]?.getAttribute("title")).toBe("Só o primeiro da lista (o último lançado no sistema) pode ser excluído.");
   });
 
   it("Lançar: o Esc no formulário não apaga o que foi digitado (o ‹ Voltar continua); no Histórico o Esc segue voltando", async () => {

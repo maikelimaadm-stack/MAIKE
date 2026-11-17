@@ -36,9 +36,9 @@ const ICONES = {
  * `dias`: `[{ chave, rotulo: "09 NOV. 2026", cartoes: [{ chave, icone | Icone, titulo, cancelado?, linhas: [{ rotulo, valor }] }] }]`.
  * Fora do pasto, monte os dias com `rotuloDoDia("2026-11-09")` de historicoDoPasto.js
  * e passe `Icone` (lucide) quando o desenho não é um dos do histórico do pasto.
- * `acoes` (opcional) entra no pé do cartão, embaixo das linhas: o "Excluir" do
- * histórico completo do bebedouro e o "Excluir movimentação" do abate do curral
- * (D-PROD-220), com as regras de quem monta o cartão.
+ * `acoes` (opcional) entra no pé do cartão, embaixo das linhas, com as regras de
+ * quem monta o cartão. Hoje só o histórico completo do bebedouro usa (o
+ * "Excluir", D-PROD-220).
  * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }>, acoes?: React.ReactNode }> }>, rotulo?: string }} props
  */
 export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {

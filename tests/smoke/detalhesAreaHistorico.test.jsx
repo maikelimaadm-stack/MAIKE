@@ -213,6 +213,28 @@ describe("DetalhesArea", () => {
     expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
   });
 
+  it("só a Forragem (sem a permissão de histórico): sem a pílula 'Histórico completo', sem o rodapé e sem a linha da área", async () => {
+    renderizar(<DetalhesArea area={PASTO_A} permissions={{ visualizar_historico_movimentacoes_lote: false, medir_forragem: true }} />);
+    expect(screen.getByTestId("painel-forragem")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Histórico completo" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Ações da área" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Registros da área" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
+  });
+
+  it("Histórico completo fechado: nada monta nem consulta (só a linha do tempo); aberto, o histórico aparece por cima", async () => {
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([saidaAntiga]));
+    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
+    expect((await screen.findByRole("list", { name: "Registros da área" })).textContent).toContain("NELORE 1");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Histórico completo" }));
+    const dialogo = await screen.findByRole("dialog");
+    expect(await within(dialogo).findByText("NELORE 1")).toBeTruthy();
+    expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledTimes(2);
+  });
+
   it("A3: registro antigo com o nome da outra área vazio mostra o nome do cadastro de áreas do mapa", async () => {
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([{ ...saidaAntiga, area_destino_nome: "" }]));
     renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} areas={[{ id: "area-B", nome: "PASTO B" }]} />);

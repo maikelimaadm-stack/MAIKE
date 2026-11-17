@@ -114,6 +114,8 @@ export default function PainelPasto({
       empresaId: dados?.empresaId ?? null,
       suplementacao: dados?.suplementacao ?? null,
       onAbrirCocho: dados?.onAbrirCocho ?? null,
+      // Áreas do mapa: nome da outra área quando o registro antigo gravou vazio (D-PROD-220).
+      areas: Array.isArray(dados?.areas) ? dados.areas : [],
     }),
     [dados, modelo, setorNome],
   );
