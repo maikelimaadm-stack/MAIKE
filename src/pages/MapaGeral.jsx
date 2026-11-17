@@ -459,6 +459,13 @@ export default function MapaGeral() {
     const primeiro = Array.isArray(selectedLote) ? selectedLote[0] : selectedLote;
     return areas.find((a) => a.id === primeiro?.area_atual_id)?.nome || primeiro?.area_atual_nome || "";
   }, [selectedLote, areas]);
+  // Detalhes do Lote v12 (D-PROD-V12): o setor da área é o subtítulo do diálogo e a célula "Setor".
+  const setorDoDetalhe = useMemo(() => {
+    const primeiro = Array.isArray(selectedLote) ? selectedLote[0] : selectedLote;
+    const area = areas.find((a) => a.id === primeiro?.area_atual_id);
+    if (!area) return "";
+    return setores.find((setor) => setor.id === area.setor_id)?.nome || area.setor_nome || "";
+  }, [selectedLote, areas, setores]);
 
   const lotes = useMemo(() => {
     return lotesBase.filter((lote) =>
@@ -1310,8 +1317,8 @@ export default function MapaGeral() {
       </MapaFiltrosPainel>
 
       {/* ─── Dialogs ─── */}
-      <LancLoteDialogo open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) refetchLotes();}} titulo="Detalhes do Lote" lotes={areaDoDetalhe ? [{ nome: areaDoDetalhe }] : undefined} largo somenteLeitura>
-          {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesLote(false);refetchLotes();}} />}
+      <LancLoteDialogo open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) refetchLotes();}} titulo={areaDoDetalhe || "Detalhes do Lote"} lotes={setorDoDetalhe ? [{ nome: setorDoDetalhe }] : undefined} largo somenteLeitura popupDesde="tablet">
+          {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} permissions={mapaGeralPermissions} setorNome={setorDoDetalhe} suplementacao={{ pontos: pontosSuplementacaoDecorados, eventos: eventosSupl, hoje }} onAbrirCocho={handleClickPontoSupl} onClose={() => {setShowDetalhesLote(false);refetchLotes();}} />}
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showResumoRebanho && mapaGeralPermissions.visualizar_lotes} onOpenChange={setShowResumoRebanho} titulo="Resumo do Rebanho" lotes={hoje ? [{ nome: `Posição em ${hoje.slice(8, 10)}/${hoje.slice(5, 7)}/${hoje.slice(0, 4)}` }] : undefined} largo somenteLeitura>
