@@ -36,6 +36,7 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import { useBebedouros } from "@/hooks/useBebedouros";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
 import { descreverFarol, farolDoCocho } from "@/domain/suplementacao/leituraCocho";
+import { corForragemDaArea, farolForragemPorArea } from "@/domain/pastagem/farolForragem";
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 import { BASEMAP_IDS, CENTRO_PADRAO } from "@/lib/maplibre/basemap.js";
@@ -500,6 +501,8 @@ export default function MapaGeral() {
   // on/off: trocar a cor ou o foco não abre outra entrada de cache.
   const precisaMovimentacoes = modoColoracao === 'situacao_pasto' || camadasFoco.lotacaoNoRotulo;
   const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery(createMapaQuery('movimentacoes', { enabled: !!empresaSelecionadaId && precisaMovimentacoes, enabledKey: precisaMovimentacoes ? 'on' : 'off' }));
+  // D-PROD-221: medições de forragem só quando o modo "Forragem" está ligado.
+  const { data: medicoesForragem = [], refetch: refetchMedicoesForragem } = useQuery(createMapaQuery('medicoesForragem', { enabled: !!empresaSelecionadaId && modoColoracao === 'forragem', enabledKey: modoColoracao }));
 
   // ─── Dados derivados ───
   const alertasMapa = useMemo(() => buildMapaAlertasSuplementacao({
@@ -646,8 +649,15 @@ export default function MapaGeral() {
   // gravado na área ficava "Disponível" com lote ativo dentro).
   const ocupacaoPorArea = useMemo(() => statusOcupacaoPorArea(areas, lotes), [areas, lotes]);
 
+  // D-PROD-221: farol de forragem de todos os pastos de uma vez (última medição, 15 dias).
+  const faroisForragem = useMemo(
+    () => (modoColoracao === 'forragem' ? farolForragemPorArea(medicoesForragem, hoje) : {}),
+    [modoColoracao, medicoesForragem, hoje]
+  );
+
   // Função de cor para áreas baseada no modo de coloração
   const getAreaColor = useCallback((area) => {
+    if (modoColoracao === 'forragem') return corForragemDaArea(area, faroisForragem);
     if (modoColoracao === 'tipo_cultura') return CORES_TIPO_CULTURA[area.tipo_cultura] || '#94a3b8';
     if (modoColoracao === 'aproveitamento') return CORES_APROVEITAMENTO[area.aproveitamento_classificacao] || '#94a3b8';
     if (modoColoracao === 'ocupacao') return CORES_OCUPACAO[ocupacaoPorArea[area.id]] || '#94a3b8';
@@ -682,7 +692,7 @@ export default function MapaGeral() {
       return '#ef4444'; // crítico
     }
     return null; // padrao: usar cor da área
-  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, ocupacaoPorArea, getAreaEfetiva]);
+  }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, ocupacaoPorArea, getAreaEfetiva, faroisForragem]);
 
   const teardownMapInstance = useCallback(() => {
     renderer.clearAll();
@@ -935,6 +945,7 @@ export default function MapaGeral() {
     const refreshTasks = keysToRefresh.map((key) => refreshMapaCacheEntry(key, empresaSelecionadaId, refreshOptions));
 
     if (precisaMovimentacoes && !keysToRefresh.includes('movimentacoes')) refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
+    if (modoColoracao === 'forragem' && !keysToRefresh.includes('medicoesForragem')) refreshTasks.push(refreshMapaCacheEntry('medicoesForragem', empresaSelecionadaId, refreshOptions));
     if (podeUsarTarefasMapa && !keysToRefresh.includes('tarefas') && !cacheKeys?.length) refreshTasks.push(refreshMapaCacheEntry('tarefas', empresaSelecionadaId, refreshOptions));
     await Promise.all(refreshTasks);
 
@@ -951,9 +962,10 @@ export default function MapaGeral() {
     if (keysToRefresh.includes('categoriasManejo')) refetchTasks.push(refetchCategoriasManejo());
     await Promise.all(refetchTasks);
     if (precisaMovimentacoes) await refetchMovimentacoes();
+    if (modoColoracao === 'forragem') await refetchMedicoesForragem();
     if (podeUsarTarefasMapa && (!cacheKeys?.length || keysToRefresh.includes('tarefas'))) await refetchTarefas();
     if (showToast) toast.success('Mapa atualizado');
-  }, [empresaSelecionadaId, precisaMovimentacoes, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLeiturasCocho, refetchLinhas, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, modoColoracao, precisaMovimentacoes, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLeiturasCocho, refetchLinhas, refetchLotes, refetchMedicoesForragem, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleRefresh = useCallback(async () => {
     await executarRefreshMapa(true, true);

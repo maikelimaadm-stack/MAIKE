@@ -9,6 +9,7 @@ import { FilterX } from "lucide-react";
 import MapaFiltroSelecao from "./MapaFiltroSelecao";
 import { filtroSemRestricao } from "@/lib/mapaFiltroSelecao";
 import { MapaFiltrosHeaderRightCtx } from "./MapaFiltrosPainel";
+import { LEGENDA_FORRAGEM, MARCA_OLHO } from "@/domain/pastagem/farolForragem";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -66,7 +67,9 @@ export const MODOS_COLORACAO = [
 { id: 'categoria_gado', label: 'Categoria de Manejo' },
 { id: 'tipo_pastagem', label: 'Tipo de Pastagem' },
 { id: 'ua_ha', label: 'UA por Hectare' },
-{ id: 'situacao_pasto', label: 'Situação do Pasto' }];
+{ id: 'situacao_pasto', label: 'Situação do Pasto' },
+// D-PROD-221: farol de forragem (última medição do pasto, 15 dias).
+{ id: 'forragem', label: 'Forragem' }];
 
 /**
  * Camadas que o usuário pode ligar/desligar, conforme as permissões.
@@ -249,6 +252,8 @@ export default function MapaFiltrosAvancados({
                 </>
           }
               {modoColoracao === 'situacao_pasto' && Object.entries(CORES_SITUACAO_PASTO).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
+              {modoColoracao === 'forragem' && Object.entries(LEGENDA_FORRAGEM).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
+              {modoColoracao === 'forragem' && <div className="text-[10px] text-slate-500">{MARCA_OLHO} Tom mais claro: avaliado no olho</div>}
             </div>
         }
         </div>

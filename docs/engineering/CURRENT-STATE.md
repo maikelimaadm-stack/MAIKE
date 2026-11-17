@@ -9,15 +9,25 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218) e os detalhes do mapa no mesmo desenho (D-PROD-220)
+## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218), os detalhes do mapa no mesmo desenho (D-PROD-220) e os lançamentos e históricos deles no desenho do manejo (D-PROD-222)
 
 | Campo | Valor |
 |---|---|
-| Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12) e **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho), pedidos do proprietário; filtros do mapa como estão |
-| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho, a pedido do proprietário: "ainda tenho edições") |
-| Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (`src/lib/mapaFoco.js`); Detalhes do Lote v12 (`.mk-dp`); casca v12 de uma tela (`CascaDetalhe`) no cocho, no depósito (com cocho empilhado), no bebedouro, na tarefa e no Histórico da Área (com a Forragem da D-PROD-219 e as abas do curral); popup a partir de 768 px |
-| Testes | `test:smoke` 277 arquivos e 3.462 testes; `gate:types` 422 de 625; lint sem erros; build e demais gates do `verify:all` passam; `test:backend` no CI (precisa de PostgreSQL). Três revisões independentes com verificação adversarial: relatório da D-PROD-220, §7 |
-| Relatórios | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) · [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md) |
+| Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12), **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho) e **D-PROD-222** (lançamentos e históricos que abrem desses detalhes iguais aos do manejo do lote), pedidos do proprietário; filtros do mapa como estão |
+| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho, a pedido do proprietário: "ainda tenho edições"); `main` `9b4bf78` (PR #311, D-PROD-221) mesclada |
+| Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (`src/lib/mapaFoco.js`); Detalhes do Lote v12 (`.mk-dp`); casca v12 de uma tela (`CascaDetalhe`) no cocho, no depósito (com cocho empilhado), no bebedouro, na tarefa e no Histórico da Área (com a Forragem da D-PROD-219, o farol da D-PROD-221 e as abas do curral); popup a partir de 768 px. D-PROD-222: cartão comum dos históricos (`CartaoHistorico`, as classes do Histórico de Movimentação) no cocho, no depósito, no bebedouro, na tarefa e no abate do curral; Lançar e Leitura do cocho, Entrada e Saída do depósito e Lançar do bebedouro no `LancLoteDialogo` + `LancField` + `B1Select` dos manejos; Esc com lista aberta fecha só a lista em todos os lançamentos |
+| Testes | `test:smoke` 282 arquivos e 3.505 testes; `gate:types` 378 de 625; lint sem erros; build e demais gates do `verify:all` passam; `test:backend` no CI (precisa de PostgreSQL). Revisões independentes com verificação adversarial: relatórios da D-PROD-220 (§7) e da D-PROD-222 |
+| Relatórios | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) · [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md) · [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-FAROL-FORRAGEM: farol de forragem no Mapa Geral (D-PROD-221)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-221**, pedido do proprietário: depois da Medição de Forragem, o farol no mapa (cada pasto pintado pela última medição) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `e58cbbc9` (PR #310, ajuste da D-PROD-219) |
+| Escopo | Modo de coloração **"Forragem"** no painel Visualização (preferência por usuário, como os outros modos); cor do pasto pela última medição (Rapado vermelho, Descanso amarelo, Pronto verde, Passou do ponto roxo; mais de 15 dias → cinza; nunca medido → neutro; no olho → tom mais claro + 👁); infraestrutura, reserva e APP com a cor normal; legenda; chip do farol no detalhe do pasto. Domínio puro em `src/domain/pastagem/farolForragem.js` |
+| Release | **Sem migration** (lê a `MEDICAOFORRAGEM` da D-PROD-219): merge e deploy normais |
+| Relatório | [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md) |
 
 ## Missão anterior (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)
 

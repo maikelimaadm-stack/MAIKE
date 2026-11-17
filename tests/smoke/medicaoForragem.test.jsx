@@ -209,4 +209,39 @@ describe('D-PROD-219 — botão no pasto (detalhe da área)', () => {
     const { container } = renderizar(<DetalhesArea area={PASTO} permissions={{ visualizar_historico_movimentacoes_lote: false }} />);
     expect(container.textContent).toBe('');
   });
+
+  it('D-PROD-221 no desenho v12 (D-PROD-220): o farol do pasto é a 1ª linha do cartão — cor, rótulo, há quantos dias e vencida', async () => {
+    // Só o relógio: o "hoje" da fazenda (useDiaCivil, America/Sao_Paulo) vira 15/06/2027.
+    vi.useFakeTimers({ now: new Date('2027-06-15T15:00:00Z'), toFake: ['Date'] });
+    try {
+      const linhaDoFarol = async () => {
+        const farol = await screen.findByTestId('farol-forragem');
+        const cartao = /** @type {HTMLElement} */ (screen.getByTestId('painel-forragem').querySelector('.mk-dp-cartao'));
+        // Antes da última medição, dentro do mesmo cartão (linha do v12, não o selo do desenho antigo).
+        expect(cartao.firstElementChild).toBe(farol);
+        expect(farol.classList.contains('mk-dp-linha')).toBe(true);
+        return {
+          rotulo: farol.querySelector('.mk-dp-linha__rot')?.textContent,
+          valor: farol.querySelector('.mk-dp-linha__val')?.textContent,
+          cor: /** @type {HTMLElement | null} */ (farol.querySelector('.mk-dp-bolinha'))?.style.background,
+        };
+      };
+      dados.cache.medicoesForragem = [
+        { id: 'm1', empresa_id: EMP, area_id: 'area-12', data_medicao: '2027-06-10', metodo: 'REGUA', altura_media_cm: 24, situacao: 'DESCANSO' },
+        { id: 'm2', empresa_id: EMP, area_id: 'area-12', data_medicao: '2027-06-14', metodo: 'REGUA', altura_media_cm: 30, situacao: 'PRONTO' },
+      ];
+      renderizar(<DetalhesArea area={PASTO} permissions={{ visualizar_historico_movimentacoes_lote: false, medir_forragem: true }} />);
+      await waitFor(async () => expect((await linhaDoFarol()).valor).toBe('há 1 dia'));
+      expect(await linhaDoFarol()).toEqual({ rotulo: 'Pronto', valor: 'há 1 dia', cor: 'rgb(22, 163, 74)' });
+      cleanup();
+
+      // Mais de 15 dias: "Sem medição recente", cinza, e o aviso de vencida.
+      dados.cache.medicoesForragem = [{ id: 'm9', empresa_id: EMP, area_id: 'area-12', data_medicao: '2027-05-01', metodo: 'OLHO', situacao: 'PRONTO' }];
+      renderizar(<DetalhesArea area={PASTO} permissions={{ visualizar_historico_movimentacoes_lote: false, medir_forragem: true }} />);
+      await waitFor(async () => expect((await linhaDoFarol()).rotulo).toBe('Sem medição recente'));
+      expect(await linhaDoFarol()).toEqual({ rotulo: 'Sem medição recente', valor: 'há 45 dias · vencida (mais de 15 dias)', cor: 'rgb(148, 163, 184)' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

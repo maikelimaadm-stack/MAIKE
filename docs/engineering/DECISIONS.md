@@ -7829,4 +7829,98 @@ Ver o relatório, §7.
 
 **Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-221 -->
+## D-PROD-221 — Farol de forragem no Mapa Geral (modo de coloração "Forragem")
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-220`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, aberta) já usa a D-PROD-220. Para não duplicar, esta decisão é a **D-PROD-221**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário, combinado na D-PROD-219 ("o farol no mapa a gente vai deixar para assim que terminar a medição"; "Ok pode fazer") · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Farol = a última medição do pasto** (D-PROD-219): o dia da medição e, no mesmo dia, a hora do registro. Cor pela situação gravada: Rapado **vermelho**, Descanso **amarelo**, Pronto **verde**, Passou do ponto **roxo**. Fonte única pura em `src/domain/pastagem/farolForragem.js` (`farolForragemPorArea`, `farolForragemDaArea`, `corForragemDaArea`), calculada uma vez por render para todos os pastos.
+2. **Validade de 15 dias** (decisão do proprietário): medição com mais de 15 dias no dia civil da fazenda → **cinza "sem medição recente"**. Régua sem situação (pasto sem cultura) também cinza. Pasto **nunca medido** → neutro claro "nunca medido". Infraestrutura, Reserva e APP ficam com a **cor normal** da área.
+3. **No olho**: a mesma cor num tom mais claro, e o rótulo leva **👁** — o proprietário vê que não foi régua. A legenda explica.
+4. **No mapa**: é um **modo de coloração** a mais, "Forragem", no painel Visualização (onde já estão Tipo de Cultura, Ocupação, Situação do Pasto…), com a mesma preferência por usuário e a mesma permissão de colorir. Fora desse modo nada muda. As medições só são carregadas com o modo ligado.
+5. **Detalhe do pasto**: o painel Forragem mostra o mesmo farol (situação, "há N dias", "vencida" depois de 15 dias).
+
+**Fora do escopo:** estimativa pelos dias de descanso (precisa do campo "dias de descanso" na cultura), lotação e dias de pastejo pela medição, produtividade por pasto.
+
+**Release.** Sem migration: merge e deploy normais.
+
+**Relatório:** [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md).
+
+## D-PROD-222 — Mapa Geral: lançamentos e históricos dos detalhes no desenho do lançamento de manejo
+
+**Data:** 2026-11-17 · **Numeração:** nasceu D-PROD-221 nesta branch; a `main` deu a D-PROD-221 ao Farol de forragem (PR #311, mergeada antes) e esta passou a **D-PROD-222** · **Origem:** pedido do proprietário, depois da D-PROD-220: "os campos de lançamentos [e] históricos [no] estilo do lançamento de manejo têm que ser a mesma coisa" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão.** O que se lança ou se consulta a partir dos detalhes do mapa abre como os lançamentos e o Histórico de Movimentação do lote (D-PROD-115/117/125). Só o desenho muda. Ficam como antes: dados, consultas, validações, mensagens, permissões (D-PROD-137), a política de estorno (D-PROD-94a), invalidações e o envio.
+
+1. **Cartão comum dos históricos** (`src/components/lotes/CartaoHistorico.jsx`). Usa as mesmas classes do cartão do `HistoricoMovimentacoes`:
+   - selos: a data primeiro, depois o tipo e a situação;
+   - título em negrito e linhas "Rótulo: valor";
+   - rodapé de ações com o botão do "Excluir movimentação" (`AcaoHistorico`).
+
+   Junto vêm três peças:
+   - `MolduraHistorico`: sem cartão em volta e sem rolagem própria (quem rola é o diálogo);
+   - `EstadoHistorico`: carregando, erro e vazio, com os textos do manejo;
+   - `useTituloDoHistorico`: dentro do `LancLoteDialogo`, o título com a contagem vai para o cabeçalho, como em "Histórico da Área Pasto 07 (8)".
+
+   Um teste compara, parte a parte, as classes do cartão comum com as do Histórico de Movimentação.
+2. **Históricos no cartão comum:**
+   - **Cocho:** título "Histórico do Cocho (N)", com o cocho no subtítulo.
+     - Selos: data, Fechado ou Em aberto, desvio.
+     - Produto em negrito.
+     - Linhas: Áreas, Cabeças, Peso médio, Unidade, as métricas por seção (`CardMetricaEvento`, agora em linhas "Rótulo: valor") e Observações.
+     - A política de estorno continua: com `CANCELAMENTO_COCHO_HABILITADO` desligado, o aviso aparece e não há "Excluir".
+   - **Depósito:** título "Histórico do Depósito (N)".
+     - Selos: data e tipo. Produto em negrito.
+     - Linhas: Quantidade, Unidade, Origem, Destino, Saldo antes e depois, Valor total, Custo médio, Observações.
+     - Os mesmos avisos de antes.
+   - **Bebedouro:** título "Histórico do Bebedouro (N)". Agora abre num `LancLoteDialogo` por cima do detalhe; antes era uma tela empilhada.
+     - Ordem do servidor.
+     - Selos: data, tipo e status fora do normal (Pendente em âmbar, Emergencial em vermelho). O bebedouro em negrito.
+     - Linhas: Hora (quando gravada), Descrição, Registrado por, Custo, Produto, Quantidade, Qualidade da água e Escore da água.
+     - "Excluir" no rodapé, com as regras da D-PROD-137: só no índice 0 e só com `podeExcluir`; `data-permissao-explicita`; a mesma confirmação, a mensagem do 409 e as duas invalidações.
+   - **Tarefa:** título "Histórico da Tarefa (N)".
+     - Selos: data e status. A tarefa em negrito.
+     - Linhas: Evento, Responsável, Descrição, Hora.
+     - "Excluir" do manejo, ligado só no mais recente.
+   - **Abate do curral:**
+     - Selos: data, Abate, Ativo ou Cancelado. O lote em negrito.
+     - Linhas: Quantidade, Data, Peso médio, Destino, Detalhes.
+     - "Excluir movimentação" do manejo.
+3. **Lançamentos no `LancLoteDialogo` dos manejos.** O título é a ação e o subtítulo é o nome (cocho, depósito ou bebedouro).
+   - No desktop abre como popup, com ✕ e ✓ no cabeçalho. No celular abre em tela cheia: ✕ à esquerda, título no meio, ✓ à direita.
+   - Cada campo fica num `LancField`: rótulo dentro da caixa e * nos obrigatórios.
+   - As escolhas usam o `B1Select`: o painel das listas no desktop e a folha no celular.
+   - Os avisos ficam em `LancLoteAviso`, e o ✓ do cabeçalho envia.
+
+   Em cada tela:
+   - **Cocho › Lançar** (`FormularioLancamentoSuplementacao`, no detalhe do cocho e no rodapé do cocho no pasto):
+     - um aviso com áreas, depósito, lotes e peso;
+     - Formulação no `B1Select`; kg ou sacos em `LancLoteSegmento`; consumo por lote em `LancLoteItens`;
+     - o progresso do salvamento fica no topo do formulário, e não mais num diálogo por cima. Enquanto salva, os campos ficam travados e o ✕ desligado;
+     - depois da sobra herdada, o foco volta ao lançamento.
+   - **Cocho › Leitura:** o cocho no subtítulo, como nos outros. O formulário já era do manejo (D-PROD-205).
+   - **Depósito › Entrada e Saída** (`FormularioTransferenciaDeposito`): títulos "Entrada no Depósito" e "Saída do Depósito". Produto e Unidade no `B1Select`. O resumo de origem, destino e saldo vai num aviso neutro.
+   - **Bebedouro › Lançar:** título "Lançamento no Bebedouro", por cima do detalhe (antes era tela empilhada).
+     - Data, Hora, Tipo e Status em grade.
+     - Tipo, Status e Qualidade da água no `B1Select`.
+     - Os campos aparecem conforme o Tipo, como antes.
+     - Na página Bebedouros funciona igual.
+4. **Esc com uma lista aberta** (`LancLoteDialogo`): no celular, com a folha de uma lista aberta dentro do diálogo, o primeiro Esc fecha só a folha e o segundo fecha o diálogo (D-PROD-161). Antes só o depósito tinha essa guarda; agora ela vale para todos os lançamentos, inclusive os do lote.
+5. **O que muda por ser o padrão do manejo** (D-PROD-115/125):
+   - no desktop o popup não fecha por Esc nem por clique fora, só pelo ✕;
+   - Enter num campo envia o formulário;
+   - no celular abre em tela cheia;
+   - no bebedouro, o Esc da tela cheia fecha o Lançar. Antes era ignorado, porque o formulário era empilhado. O recurso `escVolta` fica no `LancLoteDialogo` e na `CascaDetalhe`, com teste próprio.
+6. **Com a `main` mesclada** (D-PROD-221): o farol do pasto no painel Forragem entra no desenho v12 da D-PROD-220 como a primeira linha do cartão. Os textos são os mesmos, e a cor vai na bolinha.
+
+**Fica de fora:**
+- o cadastro do ponto (`FormularioPonto`), a importação de áreas e a seleção de áreas no mapa, que não são lançamentos nem históricos;
+- o "Histórico de Suplementação" do lote, que já é do manejo.
+
+**Achado à parte (não corrigido aqui, R7):** na Entrada e na Saída do depósito, o campo Quantidade é `type="number"` e o valor chega com ponto decimal. A conta usa o `parseNumber` pt-BR, que lê o ponto como separador de milhar: 10,5 kg é gravado como 105 kg. Já era assim antes desta missão. A correção é de uma linha (ler o valor como número, como fazem os manejos do lote) e fica para uma missão própria.
+
+**Relatório:** [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-223 -->

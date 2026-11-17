@@ -12,6 +12,7 @@ import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { notifyError, notifySuccess } from "@/lib/maikeNotify";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { ROTULO_SITUACAO } from "@/domain/pastagem/medicaoForragem";
+import { DIAS_VALIDADE_FORRAGEM, farolDaMedicao } from "@/domain/pastagem/farolForragem";
 import { Acao, Cartao, Linha, TituloBloco } from "@/components/mapa/detalhes-lote/blocos";
 
 /** Cores das bolinhas da situação no desenho v12 (as mesmas do 🔴🟡🟢🟣 do formulário). */
@@ -108,6 +109,8 @@ export default function PainelForragemArea({ area }) {
     [medicoes, area?.id],
   );
   const ultima = doPasto[0] ?? null;
+  // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa.
+  const farol = useMemo(() => (ultima ? farolDaMedicao(ultima, hoje) : null), [ultima, hoje]);
 
   const atualizadas = (lista) => {
     if (Array.isArray(lista)) queryClient.setQueryData(["mapa-cache", CHAVE, empresaId, "default"], lista);
@@ -152,6 +155,22 @@ export default function PainelForragemArea({ area }) {
         Forragem
       </TituloBloco>
       <Cartao>
+        {farol ? (
+          // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa, como linha do v12.
+          <Linha
+            data-testid="farol-forragem"
+            rotulo={farol.rotulo}
+            bolinha={farol.cor}
+            valor={
+              [
+                farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`,
+                farol.vencida ? `vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || null
+            }
+          />
+        ) : null}
         {ultima ? (
           <Linha
             data-testid="ultima-medicao"
