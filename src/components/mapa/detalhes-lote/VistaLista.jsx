@@ -1,295 +1,168 @@
 import React from "react";
-import { useDlUi, COR } from "@/components/mapa/detalhes-lote/pecas";
-import { colunasAtivas, TONS } from "@/components/mapa/detalhes-lote/catalogo";
+import { TituloBloco } from "@/components/mapa/detalhes-lote/blocos";
+import { TONS, colunasPorChave, fmtInt, ordenarLotes } from "@/components/mapa/detalhes-lote/catalogo";
+import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
+import { useColunasLote } from "@/components/mapa/detalhes-lote/preferencias";
+import { useOrdemLista } from "@/components/mapa/detalhes-lote/useEstadoLotes";
+import "@/styles/mk-dp-lotes.css";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').CampoDef} CampoDef */
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').LoteVm} LoteVm */
-/** @typedef {import('@/components/mapa/detalhes-lote/useEstadoLotes').EstadoLotes} EstadoLotes */
-
-const SEP = `1px solid ${COR.divisor}`;
-
-// Piso de largura = maior palavra do cabeçalho, para o título quebrar em 2 linhas
-// sem invadir a coluna vizinha (mockup v8, script linhas 900–904).
-/** @param {string} rotulo */
-const palavraMax = (rotulo) => Math.max(...String(rotulo).split(/[ /]+/).map((w) => w.length));
-/** @param {string} rotulo */
-const pisoCab = (rotulo) => Math.min(170, Math.max(46, palavraMax(rotulo) * 6.7 + 26));
-// No celular o piso é curto: o título quebra em 2 linhas em vez de alargar a coluna.
-/** @param {string} rotulo */
-const pisoCabCel = (rotulo) => Math.min(84, Math.max(40, palavraMax(rotulo) * 6.2 + 14));
-
-/** @param {CampoDef[]} cols @param {number} i */
-const primeiraDoGrupo = (cols, i) => i === 0 || cols[i - 1].secao !== cols[i].secao;
-
-/** @type {React.CSSProperties} */
-const FIXA = { position: "sticky", left: 0, zIndex: 1, borderRight: SEP, minWidth: 0, overflow: "hidden" };
-
-/** @type {React.CSSProperties} */
-const EYEBROW = { fontSize: 9, fontWeight: 700, color: COR.meta, textTransform: "uppercase", letterSpacing: "0.05em" };
-
-/** @type {React.CSSProperties} */
-const AVISO = { padding: "10px 12px", borderTop: SEP, fontSize: 11, color: COR.meta };
 
 /**
- * Vista Lista da aba Lotes: tabela em grid com as colunas das seções marcadas em
- * "Filtrar" (Alertas · Lotação · Pesagem · Identificação). Mockup v8, linhas 343–390.
- * Tracks iguais em todas as linhas (grupo, cabeçalho, dados, total); primeira coluna fixa.
- *
- * @param {{ modelo: ModeloDetalhes, estado: EstadoLotes }} props
+ * Junta classes, ignorando vazias.
+ * @param {...(string | false | null | undefined)} partes
  */
-export default function VistaLista({ modelo, estado }) {
-  const ui = useDlUi();
-  const celular = ui.celular;
-  const cols = colunasAtivas(estado.secoes);
-  const lotes = estado.lotesVisiveis;
-  const ord = estado.ordenar;
+const cls = (...partes) => partes.filter(Boolean).join(" ");
 
-  const gridCols = celular
-    ? `120px ${cols.map((c) => `${Math.max(c.larguraCel, pisoCabCel(c.rotulo))}px`).join(" ")}`
-    : `190px ${cols.map((c) => `minmax(${Math.max(c.larguraDesk, pisoCab(c.rotulo))}px, 1fr)`).join(" ")}`;
-  const celPad = celular ? "6px 6px" : "6px 10px";
-  const celPadTh = celular ? "4px 6px 6px" : "4px 10px 6px";
-  const barraLarg = celular ? 22 : 32;
+/** A coluna abre uma seção nova (leva a linha vertical à esquerda). @param {CampoDef[]} cols @param {number} i */
+const abreSecao = (cols, i) => i > 0 && cols[i - 1].secao !== cols[i].secao;
+
+/**
+ * Vista Lista da aba Lotes (v12): "N lotes · N cab" + "Configurar tabela" e a
+ * tabela com as colunas que o usuário escolheu (padrão: Alertas, Lotação e
+ * Pesagem), agrupadas por seção. Cabeçalho ordenável; Lote, Nome e "Total da
+ * área" ficam presos à esquerda ao rolar; tocar no nome abre a tela do lote.
+ */
+export function VistaLista() {
+  const { modelo, modo, empurrar, escopoPreferencias } = usePasto();
+  const m = /** @type {ModeloDetalhes} */ (modelo);
+  const [chaves] = useColunasLote(escopoPreferencias);
+  const [ordem, ordenarPor] = useOrdemLista();
+  const cols = React.useMemo(() => colunasPorChave(chaves), [chaves]);
+  const lotes = React.useMemo(() => ordenarLotes(m.lotes, { chave: ordem.chave, dir: ordem.dir }), [m.lotes, ordem]);
 
   /** @type {Array<{ rotulo: string, span: number }>} */
   const grupos = [];
   cols.forEach((c, i) => {
-    if (primeiraDoGrupo(cols, i)) grupos.push({ rotulo: c.secao, span: 1 });
+    if (i === 0 || abreSecao(cols, i)) grupos.push({ rotulo: c.secao, span: 1 });
     else grupos[grupos.length - 1].span += 1;
   });
 
-  /** @param {string|null} chave */
-  const seta = (chave) => (ord.chave === chave ? (ord.dir > 0 ? "▲" : "▼") : "");
-  /** @param {string|null} chave */
-  const corCab = (chave) => (ord.chave === chave ? COR.titulo : COR.meta);
-
-  /** @type {React.CSSProperties} */
-  const linhaGrid = { display: "grid", gridTemplateColumns: gridCols, alignItems: "stretch" };
-
-  /** @type {React.CSSProperties} */
-  const botaoCab = {
-    display: "inline-flex",
-    alignItems: "flex-end",
-    gap: 3,
-    maxWidth: "100%",
-    padding: 0,
-    border: 0,
-    background: "transparent",
-    fontSize: 10.5,
-    fontWeight: 500,
-    lineHeight: 1.2,
-    textAlign: "left",
-    whiteSpace: "normal",
-    overflowWrap: "anywhere",
-    cursor: "pointer",
-  };
+  const larguraNome = modo === "celular" ? "138px" : "170px";
+  const trilhas = [larguraNome, ...cols.map((c) => c.largura)].join(" ");
+  const n = m.lotes.length;
+  const titulo = `${fmtInt(n)} ${n === 1 ? "lote" : "lotes"} · ${m.resumo.cab} cab`;
 
   return (
-    <div style={{ borderRadius: 12, background: "#fff", boxShadow: ui.sombra, overflow: "hidden" }}>
-      <div data-sem-deslize="" style={{ overflowX: "auto", overscrollBehaviorX: "contain" }}>
-        <div style={{ width: "max-content", minWidth: "100%", fontSize: 10.5, color: COR.texto }}>
-          {cols.length > 0 && (
-            <div style={{ ...linhaGrid, background: COR.fundo }}>
-              <div style={{ ...FIXA, ...EYEBROW, padding: "6px 10px 2px", background: COR.fundo }}>Lote</div>
-              {grupos.map((g) => (
+    <>
+      <TituloBloco link="Configurar tabela" onLink={() => empurrar({ tipo: "configurarTabela" })}>
+        {titulo}
+      </TituloBloco>
+      <div className="mk-dp-tabela">
+        <div className="mk-dp-tabela__rolo">
+          <div className="mk-dp-tabela__in" role="table" aria-label="Lotes do pasto" style={{ gridTemplateColumns: trilhas }}>
+            <div role="row" className="mk-dp-tabela__linha">
+              <div role="columnheader" className="mk-dp-tabela__g mk-dp-fixo">
+                Lote
+              </div>
+              {grupos.map((g, i) => (
                 <div
                   key={g.rotulo}
-                  style={{
-                    ...EYEBROW,
-                    gridColumn: `span ${g.span}`,
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    padding: "6px 10px 2px",
-                    borderLeft: SEP,
-                    whiteSpace: "nowrap",
-                  }}
+                  role="columnheader"
+                  aria-colspan={g.span}
+                  className={cls("mk-dp-tabela__g", i > 0 && "mk-dp-sep")}
+                  style={{ gridColumn: `span ${g.span}` }}
                 >
                   {g.rotulo}
                 </div>
               ))}
             </div>
-          )}
-
-          <div style={{ ...linhaGrid, background: COR.fundo, borderBottom: SEP }}>
-            <div
-              style={{
-                ...FIXA,
-                display: "flex",
-                alignItems: "flex-end",
-                minWidth: 0,
-                overflow: "hidden",
-                padding: celPadTh,
-                background: COR.fundo,
-              }}
-            >
-              <button type="button" onClick={() => estado.ordenarPor("nome")} style={{ ...botaoCab, color: corCab("nome") }}>
-                Nome<span style={{ flex: "0 0 auto", fontSize: 9 }}>{seta("nome")}</span>
-              </button>
+            <div role="row" className="mk-dp-tabela__linha">
+              <CabecalhoColuna chave="nome" rotulo="Nome" ordem={ordem} onOrdenar={ordenarPor} className="mk-dp-fixo" />
+              {cols.map((c, i) => (
+                <CabecalhoColuna
+                  key={c.chave}
+                  chave={c.chave}
+                  rotulo={c.rotulo}
+                  dica={c.dica}
+                  ordem={ordem}
+                  onOrdenar={ordenarPor}
+                  className={abreSecao(cols, i) ? "mk-dp-sep" : undefined}
+                />
+              ))}
             </div>
-            {cols.map((c, i) => (
-              <div
-                key={c.chave}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-end",
-                  minWidth: 0,
-                  overflow: "hidden",
-                  padding: celPadTh,
-                  borderLeft: primeiraDoGrupo(cols, i) ? SEP : 0,
-                }}
-              >
-                <button
-                  type="button"
-                  title={c.dica || undefined}
-                  onClick={() => estado.ordenarPor(c.chave)}
-                  style={{ ...botaoCab, color: corCab(c.chave), hyphens: "auto" }}
-                >
-                  <span style={{ minWidth: 0 }}>{c.rotulo}</span>
-                  <span style={{ flex: "0 0 auto", fontSize: 9 }}>{seta(c.chave)}</span>
-                </button>
-              </div>
+            {lotes.map((l) => (
+              <LinhaDaTabela key={l.id} lote={l} cols={cols} onAbrir={() => empurrar({ tipo: "lote", loteId: l.id })} />
             ))}
-          </div>
-
-          {lotes.map((lote, li) => (
-            <LinhaTabela
-              key={lote.id}
-              lote={lote}
-              cols={cols}
-              primeira={li === 0}
-              linhaGrid={linhaGrid}
-              celPad={celPad}
-              barraLarg={barraLarg}
-            />
-          ))}
-
-          <div style={{ ...linhaGrid, background: COR.fundo, borderTop: SEP, fontWeight: 700 }}>
-            <div style={{ ...FIXA, padding: celPad, background: COR.fundo }}>Total da área</div>
-            {cols.map((c, i) => (
-              <div
-                key={c.chave}
-                style={{
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  padding: celPad,
-                  borderLeft: primeiraDoGrupo(cols, i) ? SEP : 0,
-                  whiteSpace: "nowrap",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {modelo.totais?.[c.chave] ?? ""}
+            <div role="row" className="mk-dp-tabela__linha">
+              <div role="rowheader" className="mk-dp-tabela__tot mk-dp-fixo">
+                Total da área
               </div>
-            ))}
+              {cols.map((c, i) => (
+                <div key={c.chave} role="cell" className={cls("mk-dp-tabela__tot", abreSecao(cols, i) && "mk-dp-sep")}>
+                  {m.totais?.[c.chave] || ""}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-      {cols.length === 0 && <div style={AVISO}>Marque uma seção em “Filtrar” para ver as colunas.</div>}
-      {lotes.length === 0 && <div style={AVISO}>Nenhum lote com esse alerta. Troque o filtro para ver os outros.</div>}
+    </>
+  );
+}
+
+/**
+ * Cabeçalho ordenável: clicar ordena pela coluna (nova → crescente; a mesma → inverte).
+ * @param {{ chave: string, rotulo: string, dica?: string, ordem: { chave: string, dir: number }, onOrdenar: (chave: string) => void, className?: string }} props
+ */
+function CabecalhoColuna({ chave, rotulo, dica, ordem, onOrdenar, className }) {
+  const ativa = ordem.chave === chave;
+  const crescente = ordem.dir > 0;
+  return (
+    <div role="columnheader" aria-sort={ativa ? (crescente ? "ascending" : "descending") : undefined} className={cls("mk-dp-tabela__th", ativa && "is-on", className)}>
+      <button type="button" className="mk-dp-tabela__ordenar" title={dica || undefined} onClick={() => onOrdenar(chave)}>
+        <span>{rotulo}</span>
+        <span className="mk-dp-tabela__seta" aria-hidden="true">
+          {ativa ? (crescente ? "▲" : "▼") : ""}
+        </span>
+      </button>
     </div>
   );
 }
 
 /**
- * Uma linha de dados: primeira coluna fixa (bolinha da situação + nome + sub) e uma
- * célula por coluna ativa, com cor/bolinha/barra vindas de `lote.valores[chave]`.
- *
- * @param {{ lote: LoteVm, cols: CampoDef[], primeira: boolean, linhaGrid: React.CSSProperties, celPad: string, barraLarg: number }} props
+ * Uma linha de lote: célula do nome (bolinha da situação, nome e "CATEGORIA ·
+ * SEXO"; abre a tela do lote) e uma célula por coluna, com cor, bolinha e
+ * mini barra vindas de `lote.valores[chave]`.
+ * @param {{ lote: LoteVm, cols: CampoDef[], onAbrir: () => void }} props
  */
-function LinhaTabela({ lote, cols, primeira, linhaGrid, celPad, barraLarg }) {
-  const tom = TONS[lote.situacao?.tom] || TONS.neutro;
+function LinhaDaTabela({ lote, cols, onAbrir }) {
+  const corSituacao = (TONS[lote.situacao?.tom] || TONS.neutro).texto;
   return (
-    <div style={{ ...linhaGrid, borderTop: `1px solid ${primeira ? "transparent" : COR.divisor}`, background: "#fff" }}>
-      <div style={{ ...FIXA, display: "flex", alignItems: "center", gap: 8, minWidth: 0, padding: celPad, background: "#fff" }}>
-        <span style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden" }} title={lote.nome}>
-          <span style={{ display: "flex", alignItems: "flex-start", gap: 5, minWidth: 0, fontSize: 11, fontWeight: 700, lineHeight: 1.25 }}>
-            <span
-              title={lote.situacao?.rotulo}
-              style={{ width: 7, height: 7, flex: "0 0 auto", marginTop: 3, borderRadius: 999, background: tom.texto }}
-            />
-            {/* Nome longo quebra em até 2 linhas e corta com reticências: nunca invade a coluna vizinha. */}
-            <span style={{ minWidth: 0, overflow: "hidden", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{lote.nome}</span>
+    <div role="row" className="mk-dp-tabela__linha">
+      <div role="rowheader" className="mk-dp-tabela__nome mk-dp-fixo">
+        <button type="button" className="mk-dp-tabela__abrir" onClick={onAbrir}>
+          <span className="mk-dp-tabela__bolinha" style={{ background: corSituacao }} aria-hidden="true" />
+          <span className="mk-dp-tabela__nome-txt">
+            <strong>{lote.nome}</strong>
+            <small>{lote.sub}</small>
           </span>
-          <span
-            style={{
-              display: "block",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              fontSize: 10,
-              fontWeight: 500,
-              color: COR.meta,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {lote.sub}
-          </span>
-        </span>
+        </button>
       </div>
       {cols.map((c, i) => {
         const cel = lote.valores?.[c.chave];
-        const temBarra = typeof cel?.barra === "number" && Number.isFinite(cel.barra);
+        const barra = typeof cel?.barra === "number" && Number.isFinite(cel.barra) ? Math.max(0, Math.min(100, cel.barra)) : null;
         return (
           <div
             key={c.chave}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              minWidth: 0,
-              overflow: "hidden",
-              padding: celPad,
-              borderLeft: primeiraDoGrupo(cols, i) ? SEP : 0,
-              whiteSpace: cel?.quebra ? "normal" : "nowrap",
-              overflowWrap: "anywhere",
-              fontWeight: 600,
-              color: cel?.cor || COR.texto,
-              fontVariantNumeric: "tabular-nums",
-            }}
+            role="cell"
+            className={cls("mk-dp-tabela__td", cel?.dot && "com-bolinha", cel?.quebra && "is-quebra", abreSecao(cols, i) && "mk-dp-sep")}
+            style={cel?.cor ? { color: cel.cor } : undefined}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              {cel?.dot && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 8,
-                    height: 8,
-                    flex: "0 0 auto",
-                    border: `1px solid ${COR.marcador}`,
-                    borderRadius: 999,
-                    backgroundColor: cel.dot,
-                  }}
-                />
-              )}
-              {cel?.texto ?? "—"}
-              {temBarra && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: "inline-block",
-                    flex: "0 0 auto",
-                    width: barraLarg,
-                    height: 4,
-                    borderRadius: 999,
-                    background: COR.divisor,
-                    overflow: "hidden",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "block",
-                      width: `${Math.max(0, Math.min(100, Number(cel?.barra)))}%`,
-                      height: "100%",
-                      borderRadius: 999,
-                      background: COR.barra,
-                    }}
-                  />
-                </span>
-              )}
-            </span>
+            {cel?.dot ? <span className="mk-dp-tabela__bolinha mk-dp-tabela__bolinha--p" style={{ background: cel.dot }} aria-hidden="true" /> : null}
+            <span>{cel?.texto ?? "—"}</span>
+            {barra !== null ? (
+              <span className="mk-dp-tabela__mini" aria-hidden="true">
+                <span style={{ width: `${barra.toFixed(0)}%` }} />
+              </span>
+            ) : null}
           </div>
         );
       })}
     </div>
   );
 }
+
+export default VistaLista;

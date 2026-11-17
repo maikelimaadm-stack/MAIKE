@@ -6,6 +6,11 @@
  * query das movimentações (staleTime 60 s) devolvia a lista antiga da memória
  * sem reler — mesmo com o cache do mapa já atualizado pelo 'atualizar-mapa'.
  * DetalhesLote REAL; mocks só na borda (cache do mapa, serviços, toast).
+ *
+ * v12 (D-PROD-V12): a aba Lotes abre na Lista no desktop e as colunas padrão
+ * (Alertas + Lotação + Pesagem) têm "Última" e "Origem". O teste com o
+ * DetalhesLote real usa a casca real (PainelPasto) e roda depois da integração
+ * das peças do Detalhes v12; o da casca de teste vale já.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -29,11 +34,13 @@ vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ id:
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
 vi.mock("@/components/lotes/ExcluirMovimentacao", () => ({ escopoDoUsuario: () => "c-1:u-1" }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() } }));
-vi.mock("@/components/suplementacao/ResumoSuplementacao", formulario("resumo-supl"));
 vi.mock("@/components/lotes/HistoricoMovimentacoes", formulario("historico"));
 vi.mock("@/components/suplementacao/HistoricoSuplementacaoLote", formulario("historico-supl"));
 
 const { default: DetalhesLote } = await import("@/components/mapa/DetalhesLote");
+const { montarModeloDetalhes } = await import("@/components/mapa/detalhes-lote/catalogo");
+const { esquecerEstadoLotes } = await import("@/components/mapa/detalhes-lote/useEstadoLotes");
+const { CascaDeTeste } = await import("./fixtures/pastoV12.jsx");
 
 const posicao = {
   id: "p1", posicao_id: "p1", __posicao: true, nome: "LOTE PESADO", categoria: "BOI MAGRO", sexo: "Macho",
@@ -58,6 +65,7 @@ const abrir = async (client) => {
 };
 
 beforeEach(() => {
+  esquecerEstadoLotes();
   Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
   window.matchMedia = /** @type {any} */ ((q) => ({ matches: /min-width: 1024px/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
   dados.areas = [{ id: "a1", nome: "PASTO A", tamanho_hectares: 50, tipo_pastagem: "Brachiaria", tipo_cultura: "Pastagem" }];
@@ -66,7 +74,7 @@ beforeEach(() => {
 });
 afterEach(() => cleanup());
 
-describe("Detalhes do Lote v8: pesagem nova aparece ao reabrir", () => {
+describe("Detalhes do Lote: pesagem nova aparece ao reabrir", () => {
   it("reabrir logo depois de pesar mostra a pesagem (sem esperar 1 minuto)", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -83,6 +91,24 @@ describe("Detalhes do Lote v8: pesagem nova aparece ao reabrir", () => {
     await abrir(client);
     expect(screen.getByText("05/11/2026")).toBeTruthy(); // Última pesagem
     expect(screen.getByText("MEDIDO")).toBeTruthy(); // peso atual = peso da pesagem
+  });
+});
+
+describe("Detalhes do Lote v12: Lista com as colunas da pesagem", () => {
+  it("aba Lotes → Lista: 'Última' e 'Origem' com a pesagem do cache de movimentações", async () => {
+    const area = dados.areas[0];
+    const sem = montarModeloDetalhes({ area, lotes: [posicao], movimentacoes: [], hoje: new Date(2026, 10, 9) });
+    const primeira = render(<CascaDeTeste modelo={sem} />);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Lista", exact: true })); });
+    expect(screen.getByText("Última")).toBeTruthy();
+    expect(screen.getByText("Origem")).toBeTruthy();
+    expect(screen.queryByText("05/11/2026")).toBeNull();
+    primeira.unmount();
+
+    const com = montarModeloDetalhes({ area, lotes: [posicao], movimentacoes: [pesagem], hoje: new Date(2026, 10, 9) });
+    render(<CascaDeTeste modelo={com} />);
+    expect(screen.getByText("05/11/2026")).toBeTruthy();
+    expect(screen.getByText("MEDIDO")).toBeTruthy();
   });
 });
 
