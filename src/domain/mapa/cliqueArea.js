@@ -9,7 +9,8 @@
  *     área entra só com a permissão de histórico);
  *  4. qualquer outra área (com ou sem lote) → abre detalhes SE o usuário pode
  *     ver histórico de movimentações (`visualizar_historico_movimentacoes_lote`,
- *     a mesma permissão que já abre o histórico pelo lote); sem ela, nada.
+ *     a mesma permissão que já abre o histórico pelo lote) OU lançar medição de
+ *     forragem (`medir_forragem`, D-PROD-219, fora da infraestrutura); sem elas, nada.
  */
 
 /** @param {any} area */
@@ -21,6 +22,15 @@ export const ehCurral = (area) =>
 export const podeVerHistoricoDaArea = (permissoes) => permissoes?.visualizar_historico_movimentacoes_lote !== false;
 
 /**
+ * D-PROD-219 — o botão "Medição de Forragem" aparece no detalhe do pasto: chave
+ * gravadora do mapa (`=== true`) e área que não é infraestrutura.
+ * @param {Record<string, any>|null|undefined} permissoes
+ * @param {any} area
+ */
+export const podeMedirForragemNaArea = (permissoes, area) =>
+  permissoes?.medir_forragem === true && Boolean(area) && area?.tipo_cultura !== 'Infraestrutura';
+
+/**
  * @param {{ area: any, selecionandoLocalTarefa: boolean, toqueLongoAcabouDeDisparar: boolean, permissoes: Record<string, any>|null|undefined }} p
  * @returns {'selecionar-local'|'ignorar'|'abrir-detalhes'}
  */
@@ -28,5 +38,5 @@ export const acaoDoCliqueNaArea = ({ area, selecionandoLocalTarefa, toqueLongoAc
   if (selecionandoLocalTarefa) return 'selecionar-local';
   if (!area || toqueLongoAcabouDeDisparar) return 'ignorar';
   if (ehCurral(area)) return 'abrir-detalhes';
-  return podeVerHistoricoDaArea(permissoes) ? 'abrir-detalhes' : 'ignorar';
+  return podeVerHistoricoDaArea(permissoes) || podeMedirForragemNaArea(permissoes, area) ? 'abrir-detalhes' : 'ignorar';
 };

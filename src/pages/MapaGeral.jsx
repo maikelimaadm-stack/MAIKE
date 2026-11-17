@@ -1285,7 +1285,7 @@ export default function MapaGeral() {
           <PainelResumoRebanho posicoes={lotes} areas={areas} categoriasManejo={categoriasManejo} hoje={hoje} />
       </LancLoteDialogo>
 
-      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo="Histórico da Área" largo somenteLeitura>
+      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo={mapaGeralPermissions.medir_forragem === true && selectedArea?.tipo_cultura !== "Infraestrutura" ? "Pasto" : "Histórico da Área"} lotes={mapaGeralPermissions.medir_forragem === true && selectedArea?.nome ? [{ nome: selectedArea.nome }] : undefined} largo somenteLeitura>
 
           {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} />}
         </LancLoteDialogo>

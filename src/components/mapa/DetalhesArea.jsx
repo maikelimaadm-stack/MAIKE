@@ -2,7 +2,8 @@ import React from "react";
 import { Tabs as TabsUi, TabsContent as TabsContentUi, TabsList as TabsListUi, TabsTrigger as TabsTriggerUi } from "@/components/ui/tabs";
 import HistoricoAbateCurral from "./HistoricoAbateCurral";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
-import { ehCurral, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
+import { ehCurral, podeMedirForragemNaArea, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
+import PainelForragemArea from "../pastagem/PainelForragemArea";
 
 // `ui/tabs` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Tabs = TabsUi;
@@ -18,19 +19,23 @@ import { ehCurral, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
  *   presente (`lotes=[]`). Área vazia não perde histórico.
  * - Curral: mantém o histórico de abate, numa aba própria. São fatos de
  *   naturezas diferentes; nenhum é copiado para o outro.
+ * - D-PROD-219: pasto (fora da infraestrutura) com a chave `medir_forragem`:
+ *   o painel Forragem (botão "Medição de Forragem" e as últimas medições) em cima.
  */
 export default function DetalhesArea({ area, permissions }) {
   const curral = ehCurral(area);
   const historicoDaArea = podeVerHistoricoDaArea(permissions);
+  const forragem = podeMedirForragemNaArea(permissions, area);
 
-  if (!area?.id || (!curral && !historicoDaArea)) return null;
+  if (!area?.id || (!curral && !historicoDaArea && !forragem)) return null;
 
   const abaArea = <HistoricoMovimentacoes lotes={[]} areaId={area.id} />;
 
   if (!curral) {
     return (
       <div className="mk-map-details space-y-1" translate="no">
-        {abaArea}
+        {forragem ? <PainelForragemArea area={area} /> : null}
+        {historicoDaArea ? abaArea : null}
       </div>
     );
   }
