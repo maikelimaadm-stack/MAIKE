@@ -153,6 +153,8 @@ export const chaveMapaDoTipo = (tipo) => {
 export const ACOES_GRAVADORAS_MAPA = Object.freeze([
   'mover_lotes', 'pesar_lotes', 'mudar_categoria_lotes', 'registrar_nascimento', 'registrar_morte',
   'registrar_abate', 'renomear_lotes', 'juntar_lotes', 'lancar_suplementacao', 'movimentar_depositos',
+  // D-PROD-219 — Medição de Forragem do pasto.
+  'medir_forragem',
 ]);
 
 const semAcento = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();

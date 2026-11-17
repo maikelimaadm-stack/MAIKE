@@ -770,6 +770,10 @@ export const formulacaoEmUso = (lancamentos, options) =>
     { ...options, details: { ...(options?.details ?? {}), lancamentos } }
   );
 
+// D-PROD-219 — Medição de Forragem (tabela MEDICAOFORRAGEM).
+export const medicaoForragemNotFound = (message, options) =>
+  new AppError('MEDICAO_FORRAGEM_NOT_FOUND', message || 'medição de forragem não encontrada', options);
+
 // D-PROD-205 — Leitura de cocho (tabela LEITURACOCHO).
 export const leituraCochoNotFound = (message, options) =>
   new AppError('LEITURA_COCHO_NOT_FOUND', message || 'leitura de cocho não encontrada', options);
