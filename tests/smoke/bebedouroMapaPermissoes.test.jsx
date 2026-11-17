@@ -15,6 +15,9 @@
  *
  * Mocks só nas bordas: rede (`nativeRequest`), sessão, motor do mapa (WebGL /
  * MapLibre, que o jsdom não roda) e o `toast` (para ler a mensagem mostrada).
+ *
+ * D-PROD-221: "Lançar" e "Histórico" abrem num diálogo por cima do detalhe,
+ * como os manejos do lote; o ✓ do cabeçalho ("Registrar Lançamento") envia.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -133,6 +136,8 @@ const abrirPontoNoMapa = async () => {
   expect(document.querySelector('.mk-ll > .mk-dp .mk-dp-cartao__titulo')?.textContent).toBe('BEBEDOURO NORTE');
 };
 const botao = (nome) => screen.queryByRole('button', { name: nome });
+/** Título do diálogo aberto por cima do detalhe (o último do documento). */
+const tituloPorCima = () => [...document.querySelectorAll('.mk-ll-dlg__titulo')].at(-1)?.textContent;
 const posts = () => rede.chamadas.filter((c) => c.metodo === 'POST');
 const deletes = () => rede.chamadas.filter((c) => c.metodo === 'DELETE');
 const negado = () => { throw new ApiError(API_ERROR_CODES.ACAO_NAO_PERMITIDA, { operation: 'teste', resource: 'BebedouroHistorico' }); };
@@ -160,7 +165,7 @@ describe('BEB-01 — botões do bebedouro no Mapa Geral seguem a regra do servid
     await abrirPontoNoMapa();
     expect(botao('Lançar'), 'servidor exige Bebedouros novo/salvar ou Mapa Geral salvar').toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Histórico' }));
-    expect(await screen.findByText(/Lançamentos \(2\)/)).toBeTruthy();
+    await waitFor(() => expect(tituloPorCima()).toBe('Histórico do Bebedouro (2)'));
     expect(botao('Excluir'), 'servidor exige Bebedouros excluir').toBeNull();
     expect(posts()).toEqual([]);
     expect(deletes()).toEqual([]);
@@ -172,11 +177,12 @@ describe('BEB-01 — botões do bebedouro no Mapa Geral seguem a regra do servid
     rede.post = negado;
     await abrirPontoNoMapa();
     fireEvent.click(screen.getByRole('button', { name: 'Lançar' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Salvar lançamento/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar Lançamento' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expect(String(toast.error.mock.calls[0][0])).toMatch(/não tem permissão/i);
     expect(toast.success).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /Salvar lançamento/ }), 'o formulário continua aberto para o usuário decidir').not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Registrar Lançamento' }), 'o formulário continua aberto para o usuário decidir').not.toBeDisabled();
+    expect(tituloPorCima()).toBe('Lançamento no Bebedouro');
     expect(posts()).toHaveLength(1);
   });
 
@@ -214,7 +220,7 @@ describe('BEB-01 — botões do bebedouro no Mapa Geral seguem a regra do servid
     sessao.usuario = dono;
     await abrirPontoNoMapa();
     fireEvent.click(screen.getByRole('button', { name: 'Lançar' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Salvar lançamento/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar Lançamento' }));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Lançamento registrado.'));
     expect(posts()).toHaveLength(1);
     expect(posts()[0].body).toMatchObject({ empresa_id: EMPRESA, bebedouro_id: 'beb-1' });

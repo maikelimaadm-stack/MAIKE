@@ -83,7 +83,7 @@ describe("Ajustes D-PROD-125", () => {
       /onEscapeKeyDown=\{\(e\) => \{\s*if \(cabecalho\?\.escVolta === false\) e\.preventDefault\(\);\s*else if \(voltar\) \{\s*e\.preventDefault\(\);\s*voltar\(\);\s*\} else if \(popup\) e\.preventDefault\(\);\s*\}\}/
     );
     // O comportamento (popup no desktop e no tablet, Esc) é provado em detalhesLoteV12Casca.test.jsx;
-    // o Esc ignorado no formulário empilhado, em detalhesV12Bebedouro.test.jsx.
+    // o Esc ignorado no formulário empilhado, em detalhesV12CascaDetalhe.test.jsx.
   });
 
   it("sub-ícone maior sem aumentar a linha; cabeçalho cinza e ✕ branco", () => {

@@ -1,10 +1,10 @@
 import React, { useCallback, useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Droplet, History, Plus } from "lucide-react";
+import { Droplet, History, Plus } from "lucide-react";
 import { listarIconesPorTipoEntidade, listarPontosDaEmpresa } from "@/services/mapaService";
 import { listarTodosLotes } from "@/services/loteManejoService";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
-import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
+import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
 import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
 import { Aviso, Cartao, Celula, Chip, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
@@ -27,14 +27,21 @@ import "@/styles/mk-dp-bebedouro.css";
  *
  * Só a apresentação mudou: consultas, permissões (D-PROD-137), cálculo das
  * próximas datas pela data do lançamento (`resumoHistoricoBebedouro`) e o ponto
- * de referência são os de antes. "Lançar" e "Histórico" abrem como telas
- * empilhadas na mesma janela (‹ Voltar), com o MESMO formulário e o histórico
- * completo (`BebedouroTimeline`, na linha do tempo v12, com o "Excluir" do último
- * lançado no sistema). No diálogo, o Esc volta do Histórico; no formulário ele é ignorado
- * (`escVolta={false}`), para um Esc sem querer não apagar o que foi digitado.
+ * de referência são os de antes.
+ *
+ * D-PROD-221: "Lançar" e "Histórico" abrem como os manejos do lote, num
+ * `LancLoteDialogo` POR CIMA do detalhe (popup no desktop, tela cheia no
+ * celular), com o bebedouro no subtítulo — o detalhe fica por baixo, sem telas
+ * empilhadas:
+ *   - Lançar: "Lançamento no Bebedouro", o MESMO formulário no desenho do manejo
+ *     (`FormularioLancamentoBebedouro`); o ✕ fecha, o ✓ envia;
+ *   - Histórico (e o "Ver tudo" do resumo): largo e só de leitura, o histórico
+ *     completo nos cartões do manejo (`BebedouroTimeline`), com o "Excluir" do
+ *     último lançado no sistema.
+ * Na tela Bebedouros (fora do mapa) é igual: os diálogos abrem por cima da página.
  *
  * Histórico carregando ou com erro (sem cópia): o detalhe diz isso, em vez de
- * "Nenhum lançamento ainda." e custo R$ 0,00.
+ * "Nenhum lançamento ainda." e custo R$ 0,00; o diálogo do Histórico também.
  *
  * Ícone do cartão: o subícone configurado do bebedouro (o mesmo do mapa,
  * mostrado aqui antes do v12); sem ícone configurado, a gota do v12.
@@ -74,14 +81,16 @@ const TOM_DO_STATUS = /** @type {Record<string, "ok" | "atencao">} */ ({ Ativo: 
  * ficaria órfão (sem `bebedouro_id`), e o servidor recusa.
  *
  * Na tela Bebedouros (quem passa `onRecordToolbarChange`) a página já tem o
- * próprio cabeçalho e o "Voltar ao resumo" da barra do registro: a casca fica
- * sem o cabeçalho próprio (`semCabecalho`).
+ * próprio cabeçalho: a casca fica sem o cabeçalho próprio (`semCabecalho`). A
+ * barra do registro fica vazia — o resumo nunca sai da tela, e os diálogos de
+ * Lançar e Histórico fecham pelo próprio ✕ —, e `onSubFlowChange(true)` trava a
+ * navegação entre registros enquanto um deles está aberto.
  *
  * @param {object} props
  * @param {object} props.bebedouro
  * @param {boolean} [props.podeLancar] a permissão efetiva cobre o POST do histórico
  * @param {boolean} [props.podeExcluir] a permissão efetiva cobre o DELETE do histórico
- * @param {(locked: boolean) => void} [props.onSubFlowChange] true enquanto lançamento/histórico ocupa a tela
+ * @param {(locked: boolean) => void} [props.onSubFlowChange] true enquanto o lançamento ou o histórico está aberto por cima
  * @param {(toolbar: import('react').ReactNode) => void} [props.onRecordToolbarChange]
  * @param {boolean} [props.semCabecalho] fora do diálogo, sem o cabeçalho da casca (padrão: quando há `onRecordToolbarChange`)
  */
@@ -94,49 +103,33 @@ export default function DetalhesBebedouro({
   semCabecalho = typeof onRecordToolbarChange === "function",
 }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
-  const [subView, setSubView] = useState(/** @type {'main'|'lancamento'|'historico'} */ ("main"));
-  // Animação da troca de tela (corpo com nova chave): empurrar ao abrir, voltar ao sair.
-  const [anim, setAnim] = useState(/** @type {"empurrar" | "voltar" | null} */ (null));
+  // Diálogo aberto por cima do detalhe (D-PROD-221): o lançamento ou o histórico completo.
+  const [aberto, setAberto] = useState(/** @type {null | "lancamento" | "historico"} */ (null));
   const registroReal = Boolean(bebedouro?.id && !String(bebedouro.id).startsWith("ponto-"));
   const lancamentoDisponivel = podeLancar === true && registroReal;
   const idBase = useId();
   const ids = { resumo: `${idBase}-resumo`, ultimo: `${idBase}-ultimo`, info: `${idBase}-info`, historico: `${idBase}-historico` };
 
-  const abrir = useCallback((/** @type {'lancamento'|'historico'} */ tela) => {
-    setAnim("empurrar");
-    setSubView(tela);
-  }, []);
-  const voltarAoResumo = useCallback(() => {
-    setAnim("voltar");
-    setSubView("main");
-  }, []);
+  const abrir = useCallback((/** @type {"lancamento" | "historico"} */ qual) => setAberto(qual), []);
+  const fechar = useCallback(() => setAberto(null), []);
 
   React.useEffect(() => {
-    onSubFlowChange?.(subView !== "main");
-  }, [subView, onSubFlowChange]);
+    onSubFlowChange?.(aberto !== null);
+  }, [aberto, onSubFlowChange]);
 
+  // A barra do registro (tela Bebedouros) fica vazia: nada sai da tela para precisar de "Voltar".
   React.useEffect(() => {
-    if (subView === "lancamento" || subView === "historico") {
-      onRecordToolbarChange?.(
-        <PillBtn tone="gray" type="button" onClick={voltarAoResumo}>
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-          Voltar ao resumo
-        </PillBtn>,
-      );
-      return;
-    }
     onRecordToolbarChange?.(null);
-  }, [subView, onRecordToolbarChange, voltarAoResumo]);
+  }, [onRecordToolbarChange]);
 
   React.useEffect(() => {
-    setAnim(null);
-    setSubView("main");
+    setAberto(null);
   }, [bebedouro?.id]);
 
-  // Permissão revogada (revalidada no foco/minuto) com o formulário aberto: volta ao resumo.
+  // Permissão revogada (revalidada no foco/minuto) com o formulário aberto: o diálogo fecha.
   React.useEffect(() => {
-    if (subView === "lancamento" && !lancamentoDisponivel) voltarAoResumo();
-  }, [subView, lancamentoDisponivel, voltarAoResumo]);
+    if (aberto === "lancamento" && !lancamentoDisponivel) setAberto(null);
+  }, [aberto, lancamentoDisponivel]);
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones-bebedouro-detalhe", empresaId],
@@ -213,58 +206,11 @@ export default function DetalhesBebedouro({
   const rotinaLimpeza = bebedouro.dias_limpeza_personalizado ? `${bebedouro.dias_limpeza_personalizado} dia(s)` : bebedouro.periodicidade_limpeza;
   const rotinaInspecao = bebedouro.dias_inspecao_personalizado ? `${bebedouro.dias_inspecao_personalizado} dia(s)` : bebedouro.periodicidade_inspecao;
 
-  // Formulário aberto e a permissão (ou o cadastro) sumiu: o resumo já volta neste desenho; o efeito acima acerta o estado.
-  const tela = subView === "lancamento" && !lancamentoDisponivel ? "main" : subView;
-  const animTela = tela === subView ? anim : "voltar";
-
-  if (tela === "lancamento") {
-    return (
-      <CascaDetalhe
-        titulo="Lançamento no Bebedouro"
-        sub={nome}
-        onVoltar={voltarAoResumo}
-        // Formulário: o ‹ Voltar fica, o Esc não (um Esc sem querer apagaria o que foi digitado).
-        escVolta={false}
-        chaveTela="lancamento"
-        anim={animTela}
-        semCabecalho={semCabecalho}
-        className="mk-dp-bebedouro"
-      >
-        <Cartao className="mk-dp-bebedouro__form">
-          {/* O formulário é do Base1: botões, tokens e caixas dele vivem sob `.cadastro-b1` (como na tela Bebedouros). */}
-          <div className="cadastro-b1">
-            <FormularioLancamentoBebedouro bebedouro={bebedouro} onCancel={voltarAoResumo} onSaved={voltarAoResumo} />
-          </div>
-        </Cartao>
-      </CascaDetalhe>
-    );
-  }
-
-  if (tela === "historico") {
-    return (
-      <CascaDetalhe
-        titulo="Histórico do bebedouro"
-        sub={nome}
-        onVoltar={voltarAoResumo}
-        chaveTela="historico"
-        anim={animTela}
-        semCabecalho={semCabecalho}
-        className="mk-dp-bebedouro"
-      >
-        {carregandoHistorico ? (
-          <div role="status" className="mk-dp-hist__estado">
-            Carregando histórico...
-          </div>
-        ) : erroHistorico ? (
-          <div role="alert" className="mk-dp-hist__estado">
-            Não foi possível carregar o histórico.
-          </div>
-        ) : (
-          <BebedouroTimeline historico={historico} podeExcluir={podeExcluir === true} />
-        )}
-      </CascaDetalhe>
-    );
-  }
+  // Formulário aberto e a permissão (ou o cadastro) sumiu: o diálogo já fecha neste desenho; o efeito acima acerta o estado.
+  const lancamentoAberto = aberto === "lancamento" && lancamentoDisponivel;
+  const historicoAberto = aberto === "historico";
+  // O bebedouro no subtítulo dos diálogos, como os lotes nos manejos do lote.
+  const doBebedouro = [{ nome }];
 
   /** @type {Array<{ chave: string, rotulo: string, icone: import("lucide-react").LucideIcon, onClick: () => void, title: string }>} */
   const pilulas = [];
@@ -278,89 +224,103 @@ export default function DetalhesBebedouro({
     : "";
 
   return (
-    <CascaDetalhe
-      titulo={nome || "Bebedouro"}
-      sub={nome ? "Bebedouro" : ""}
-      chaveTela="principal"
-      anim={animTela}
-      semCabecalho={semCabecalho}
-      className="mk-dp-bebedouro"
-      rodape={
-        <div className="mk-dp-bebedouro__rodape" data-permissao-explicita="">
-          <RodapePilulas itens={pilulas} rotulo="Ações do bebedouro" />
-        </div>
-      }
-    >
-      <Cartao
-        icone={subIconePonto ? undefined : Droplet}
-        imagem={subIconePonto || undefined}
+    <>
+      <CascaDetalhe
         titulo={nome || "Bebedouro"}
-        sub={[bebedouro.tipo, capacidade].filter(temTexto).join(" · ") || undefined}
-        chip={status ? <Chip tom={TOM_DO_STATUS[status] || "neutro"}>{status}</Chip> : null}
-      />
-      {!registroReal ? <Aviso role="note">{SEM_CADASTRO}</Aviso> : null}
-
-      <TituloBloco id={ids.resumo}>Resumo operacional</TituloBloco>
-      <Cartao role="group" aria-labelledby={ids.resumo}>
-        <Grade>
-          <Celula rotulo="Animais consumindo água" valor={totalAnimaisAgua ? `${totalAnimaisAgua.toLocaleString("pt-BR")} cab` : VAZIO} />
-          <Celula rotulo="Próxima limpeza" valor={proximaLimpeza} />
-          <Celula rotulo="Próxima inspeção" valor={proximaInspecao} />
-          <Celula rotulo="Custo acumulado" valor={historicoIndisponivel ? VAZIO : fmtMoeda(custoTotal)} />
-        </Grade>
-      </Cartao>
-
-      <TituloBloco id={ids.ultimo}>Último registro</TituloBloco>
-      <Cartao role="group" aria-labelledby={ids.ultimo}>
-        {ultimoLancamento ? (
-          <Linha
-            rotulo={ultimoLancamento.tipo_lancamento || "Lançamento"}
-            sub={temTexto(ultimoLancamento.descricao) ? ultimoLancamento.descricao : undefined}
-            valor={ultimoValor}
-          />
-        ) : (
-          <Linha
-            rotulo={carregandoHistorico ? "Carregando..." : erroHistorico ? "Não foi possível carregar o histórico." : "Nenhum lançamento ainda."}
-            className="mk-dp-bebedouro__fraco"
-          />
-        )}
-      </Cartao>
-
-      <TituloBloco id={ids.info}>Informações do bebedouro</TituloBloco>
-      <Cartao role="group" aria-labelledby={ids.info}>
-        <Grade>
-          <Celula rotulo="Número" valor={textoOuVazio(numeroBebedouro)} />
-          <Celula rotulo="Tipo" valor={textoOuVazio(bebedouro.tipo)} />
-          <Celula rotulo="Status" valor={textoOuVazio(status)} />
-          <Celula rotulo="Capacidade" valor={textoOuVazio(capacidade)} />
-          <Celula rotulo="Origem da água" valor={textoOuVazio(bebedouro.origem_agua)} />
-          <Celula rotulo="Pastos atendidos" valor={textoOuVazio(nomesPastos.join(", "))} />
-          <Celula rotulo="Rotina limpeza" valor={textoOuVazio(rotinaLimpeza)} />
-          <Celula rotulo="Rotina inspeção" valor={textoOuVazio(rotinaInspecao)} />
-        </Grade>
-        <Linha rotulo="Observações" valor={textoOuVazio(bebedouro.observacoes)} quebra />
-      </Cartao>
-
-      <TituloBloco
-        id={ids.historico}
-        link={historico.length > LIMITE_DO_RESUMO ? "Ver tudo" : undefined}
-        onLink={() => abrir("historico")}
+        sub={nome ? "Bebedouro" : ""}
+        semCabecalho={semCabecalho}
+        className="mk-dp-bebedouro"
+        rodape={
+          <div className="mk-dp-bebedouro__rodape" data-permissao-explicita="">
+            <RodapePilulas itens={pilulas} rotulo="Ações do bebedouro" />
+          </div>
+        }
       >
-        Histórico do bebedouro
-      </TituloBloco>
-      {carregandoHistorico ? (
-        <div role="status" className="mk-dp-hist__estado">
-          Carregando histórico...
-        </div>
-      ) : erroHistorico ? (
-        <div role="alert" className="mk-dp-hist__estado">
-          Não foi possível carregar o histórico.
-        </div>
-      ) : diasDoResumo.length ? (
-        <LinhaDoTempo dias={diasDoResumo} rotulo="Registros do bebedouro" />
-      ) : (
-        <Vazio icone={History}>Nenhum registro.</Vazio>
-      )}
-    </CascaDetalhe>
+        <Cartao
+          icone={subIconePonto ? undefined : Droplet}
+          imagem={subIconePonto || undefined}
+          titulo={nome || "Bebedouro"}
+          sub={[bebedouro.tipo, capacidade].filter(temTexto).join(" · ") || undefined}
+          chip={status ? <Chip tom={TOM_DO_STATUS[status] || "neutro"}>{status}</Chip> : null}
+        />
+        {!registroReal ? <Aviso role="note">{SEM_CADASTRO}</Aviso> : null}
+
+        <TituloBloco id={ids.resumo}>Resumo operacional</TituloBloco>
+        <Cartao role="group" aria-labelledby={ids.resumo}>
+          <Grade>
+            <Celula rotulo="Animais consumindo água" valor={totalAnimaisAgua ? `${totalAnimaisAgua.toLocaleString("pt-BR")} cab` : VAZIO} />
+            <Celula rotulo="Próxima limpeza" valor={proximaLimpeza} />
+            <Celula rotulo="Próxima inspeção" valor={proximaInspecao} />
+            <Celula rotulo="Custo acumulado" valor={historicoIndisponivel ? VAZIO : fmtMoeda(custoTotal)} />
+          </Grade>
+        </Cartao>
+
+        <TituloBloco id={ids.ultimo}>Último registro</TituloBloco>
+        <Cartao role="group" aria-labelledby={ids.ultimo}>
+          {ultimoLancamento ? (
+            <Linha
+              rotulo={ultimoLancamento.tipo_lancamento || "Lançamento"}
+              sub={temTexto(ultimoLancamento.descricao) ? ultimoLancamento.descricao : undefined}
+              valor={ultimoValor}
+            />
+          ) : (
+            <Linha
+              rotulo={carregandoHistorico ? "Carregando..." : erroHistorico ? "Não foi possível carregar o histórico." : "Nenhum lançamento ainda."}
+              className="mk-dp-bebedouro__fraco"
+            />
+          )}
+        </Cartao>
+
+        <TituloBloco id={ids.info}>Informações do bebedouro</TituloBloco>
+        <Cartao role="group" aria-labelledby={ids.info}>
+          <Grade>
+            <Celula rotulo="Número" valor={textoOuVazio(numeroBebedouro)} />
+            <Celula rotulo="Tipo" valor={textoOuVazio(bebedouro.tipo)} />
+            <Celula rotulo="Status" valor={textoOuVazio(status)} />
+            <Celula rotulo="Capacidade" valor={textoOuVazio(capacidade)} />
+            <Celula rotulo="Origem da água" valor={textoOuVazio(bebedouro.origem_agua)} />
+            <Celula rotulo="Pastos atendidos" valor={textoOuVazio(nomesPastos.join(", "))} />
+            <Celula rotulo="Rotina limpeza" valor={textoOuVazio(rotinaLimpeza)} />
+            <Celula rotulo="Rotina inspeção" valor={textoOuVazio(rotinaInspecao)} />
+          </Grade>
+          <Linha rotulo="Observações" valor={textoOuVazio(bebedouro.observacoes)} quebra />
+        </Cartao>
+
+        <TituloBloco
+          id={ids.historico}
+          link={historico.length > LIMITE_DO_RESUMO ? "Ver tudo" : undefined}
+          onLink={() => abrir("historico")}
+        >
+          Histórico do bebedouro
+        </TituloBloco>
+        {carregandoHistorico ? (
+          <div role="status" className="mk-dp-hist__estado">
+            Carregando histórico...
+          </div>
+        ) : erroHistorico ? (
+          <div role="alert" className="mk-dp-hist__estado">
+            Não foi possível carregar o histórico.
+          </div>
+        ) : diasDoResumo.length ? (
+          <LinhaDoTempo dias={diasDoResumo} rotulo="Registros do bebedouro" />
+        ) : (
+          <Vazio icone={History}>Nenhum registro.</Vazio>
+        )}
+      </CascaDetalhe>
+
+      <LancLoteDialogo open={lancamentoAberto} onOpenChange={(v) => { if (!v) fechar(); }} titulo="Lançamento no Bebedouro" lotes={doBebedouro}>
+        {lancamentoAberto ? <FormularioLancamentoBebedouro bebedouro={bebedouro} onCancel={fechar} onSaved={fechar} /> : null}
+      </LancLoteDialogo>
+
+      <LancLoteDialogo open={historicoAberto} onOpenChange={(v) => { if (!v) fechar(); }} titulo="Histórico do Bebedouro" lotes={doBebedouro} largo somenteLeitura>
+        <BebedouroTimeline
+          historico={historico}
+          podeExcluir={podeExcluir === true}
+          carregando={carregandoHistorico}
+          erro={erroHistorico}
+          bebedouroNome={nome}
+        />
+      </LancLoteDialogo>
+    </>
   );
 }

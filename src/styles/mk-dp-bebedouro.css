@@ -8,17 +8,14 @@
  * Marcação:
  *   div.mk-dp.mk-dp-bebedouro > div.mk-dp__corpo > …blocos…
  *     Último registro sem lançamento: div.mk-dp-linha.mk-dp-bebedouro__fraco
- *     Lançamento (tela empilhada): div.mk-dp-cartao.mk-dp-bebedouro__form > formulário de hoje
  *   + div.mk-dp__rodape > div.mk-dp-bebedouro__rodape[data-permissao-explicita] > div.mk-dp-rodape--pilulas
+ *
+ * Lançar e Histórico (D-PROD-221) abrem num LancLoteDialogo por cima, no
+ * desenho dos manejos do lote (lancamento-lote.css): nada deles mora aqui.
  */
 
 /* "Nenhum lançamento ainda.": a linha fraca do v12 (`v11-row--fraco`), 12,5 px cinza */
 .mk-dp .mk-dp-bebedouro__fraco .mk-dp-linha__rot {
   color: #6b7280;
   font-size: 12.5px;
-}
-
-/* Lançamento: o formulário de hoje (campos Base1) num cartão branco do v12 */
-.mk-dp .mk-dp-bebedouro__form {
-  padding: 14px 14px 12px;
 }
