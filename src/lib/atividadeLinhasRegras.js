@@ -36,6 +36,7 @@ import {
   paraTextoDeEdicao,
   paraUnidades,
   percentualDe,
+  somar,
   subtrair,
 } from './dinheiroDecimal.js';
 import {
@@ -1330,3 +1331,33 @@ export const ehSaltoDoMedidor = (erro) => lerErroGestao(erro).code === 'ATIVIDAD
 
 /** O status da linha para o selo (CONFIRMADO | CANCELADO). @param {any} l */
 export const statusDaLinha = (l) => (l?.status === STATUS_CANCELADO ? STATUS_CANCELADO : STATUS_CONFIRMADO);
+
+// ─── Janela por tipo de lançamento (D-PROD-233) ──────────────────────────
+
+/** O campo do valor de cada tipo de linha (o serviço tem `valor_total`; os outros, `custo_total`). */
+export const CAMPO_DO_VALOR_DA_LINHA = Object.freeze(
+  /** @type {Record<string, 'custo_total'|'valor_total'>} */ ({
+    [LINHA_PRODUTO]: 'custo_total',
+    [LINHA_MAQUINA]: 'custo_total',
+    [LINHA_MAO_OBRA]: 'custo_total',
+    [LINHA_SERVICO]: 'valor_total',
+  }),
+);
+
+/**
+ * Soma do valor das linhas CONFIRMADAS de um tipo, em texto canônico (4 casas), só com o que o servidor devolveu:
+ * linha sem valor (ex.: máquina sem custo de uso no cadastro) não entra; nenhuma com valor = null (a janela mostra "—").
+ * @param {any[]} linhas @param {string} tipo
+ * @returns {string|null}
+ */
+export const totalDasLinhas = (linhas, tipo) => {
+  const campo = CAMPO_DO_VALOR_DA_LINHA[tipo] ?? 'custo_total';
+  const valores = (Array.isArray(linhas) ? linhas : [])
+    .filter((l) => statusDaLinha(l) === STATUS_CONFIRMADO)
+    .map((l) => l?.[campo])
+    .filter((v) => ehCanonico(v));
+  return valores.length ? somar(valores, 4) : null;
+};
+
+/** "Manhã · 2ª passada" (o seletor da janela por tipo quando o dia tem mais de um lançamento). @param {any} ap */
+export const rotuloDoLancamentoNoDia = (ap) => [rotuloDoTurno(ap?.turno), rotuloDaPassada(ap?.sequencia)].filter(Boolean).join(' · ') || 'Lançamento';

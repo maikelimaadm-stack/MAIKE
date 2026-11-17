@@ -96,17 +96,13 @@ const textoDoCancelamento = (ap, fuso) => {
  * o lançamento já foi gravado. Recusa que diz "mudou" (versão, status, não
  * encontrado) e resultado incerto relêem a lista e o cabeçalho.
  *
- * D-PROD-232: `abrirLinha` (o menu ⚡ da lista gravou o dia de um tipo) abre, uma vez, a janela de adicionar daquele
- * tipo no lançamento recém-gravado (máquina, produto, mão de obra ou serviço), assim que ele aparece na lista.
- *
  * @param {{
  *   atividade: any,
  *   acoes: AcoesDosLancamentos & Record<string, any>,
  *   onAtividadeAtualizada: (atividade: any) => void,
- *   abrirLinha?: { apontamentoId: string, tipo: string, chave: number } | null,
  * }} props
  */
-export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualizada, abrirLinha = null }) {
+export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualizada }) {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   const { fuso, semFuso } = useFusoDaFazenda(empresaId);
@@ -363,7 +359,6 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
           fuso={fuso}
           onEscrita={aplicarEscrita}
           onMudou={relerTudo}
-          abrirAoMontar={abrirLinha && String(abrirLinha.apontamentoId) === id ? abrirLinha : null}
         />
       </li>
     );

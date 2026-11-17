@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
+import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
@@ -13,9 +14,10 @@ import { useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSess
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { rotuloDaUnidade, rotuloDoBem } from "@/lib/abastecimentoRegras";
 import { somar } from "@/lib/dinheiroDecimal";
-import { LOCALE_ATIVIDADE, STATUS_CANCELADO, STATUS_CONFIRMADO, formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
-import { RAIZ_CONSULTAS_ATIVIDADES, normalizarPaginaDeOpcoes, normalizarRespostaDeEscrita, pedeReleitura } from "@/lib/atividadeApontamentoRegras";
+import { LOCALE_ATIVIDADE, MOTIVO_MINIMO, STATUS_CANCELADO, STATUS_CONFIRMADO, formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { RAIZ_CONSULTAS_ATIVIDADES, itensDaLista, normalizarPaginaDeOpcoes, normalizarRespostaDeEscrita, pedeReleitura } from "@/lib/atividadeApontamentoRegras";
 import {
+  COLECAO_DA_LINHA,
   JUSTIFICATIVA_MAXIMA,
   LIMITES_LINHA,
   LINHA_MAO_OBRA,
@@ -48,6 +50,7 @@ import {
   mudancaDoServicoEscolhido,
   parceiroEscolhido,
   rotuloDaMaoObraDaLinha,
+  rotuloDaMaquinaDaLinha,
   rotuloDoServicoDaLinha,
   siglaDaUnidade,
   unidadeDaMedida,
@@ -82,13 +85,18 @@ import {
   validarLinhaProduto,
 } from "@/lib/atividadeLinhasRegras";
 import {
+  ACAO_CANCELAR_LINHA,
   ACAO_EDITAR_LINHA,
   ACAO_LANCAR_LINHA,
   adicionarLinha,
   alvoDaLinha,
   alvoDasLinhas,
+  alvoDosApontamentos,
+  cancelarLinha,
+  criarApontamento,
   editarLinha,
   limparPendenciaDaLinha,
+  listarApontamentos,
   listarLocaisDoProduto,
   listarOpcoesBens,
   listarOpcoesImplementos,
@@ -826,6 +834,22 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
 // ─── Janelas ─────────────────────────────────────────────────────────────
 
 /**
+ * O dia que AINDA NÃO EXISTE (D-PROD-233, janela por tipo): a linha nasce junto com o lançamento do dia, no MESMO
+ * envio — `criarApontamento` com a coleção da linha (uma transação no servidor, com o `operation_id` persistente do
+ * lançamento com linhas, o mesmo do "Repetir"). `corpo` devolve o corpo do dia já conferido (data, área do dia…) ou
+ * `null` quando o cabeçalho da janela tem erro (quem chama avisa); `idsAntes` são os lançamentos que já existiam (o
+ * "Consultar" acha o novo); `aoRecusar` recebe a recusa definitiva (ela pode apontar um campo do dia).
+ * @typedef {{ corpo: () => Record<string, any> | null, idsAntes: Set<string>, aoRecusar?: (erro: unknown) => void }} NovoDia
+ */
+
+/**
+ * O que a casca da janela recebe: o padrão é a janela própria (`Janela`, abaixo); a janela por tipo (D-PROD-233) troca
+ * por uma casca embutida na aba "Dados", com Voltar / Salvar / Salvar e fechar.
+ * @typedef {{ titulo: string, descricao: string, testId: string, enviando: boolean, rotuloEnvio: string, incerto: boolean,
+ *   podeEnviar: boolean, formId: string, onFechar: () => void, onEnviar: () => void, children: React.ReactNode }} PropsDaCasca
+ */
+
+/**
  * @typedef {{
  *   atividade: any,
  *   apontamento: any,
@@ -834,7 +858,10 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
  *   onSalvo: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string) => void,
  *   onCancelar: () => void,
  *   onMudou?: (() => void) | null,
- * }} PropsDaJanela
+ *   novoDia?: NovoDia | null,
+ *   Casca?: React.ComponentType<PropsDaCasca>,
+ * }} PropsDaJanela `novoDia` (só ao adicionar): `apontamento` é o dia ainda não gravado (`{ id: null, data_operacional,
+ *   area_executada_dia }`) e a linha vai no lançamento novo. `Casca`: onde o formulário aparece (padrão: a janela própria).
  */
 
 /** "Lançamento de 12/11/2026 — Atividade nº 3 — Cigarrinha Pasto 01". @param {any} atividade @param {any} apontamento */
@@ -849,8 +876,7 @@ const descricaoDaJanela = (atividade, apontamento) =>
 
 /**
  * A janela em curso, com o corpo, o rodapé e as folhas do celular dentro dela.
- * @param {{ titulo: string, descricao: string, testId: string, enviando: boolean, rotuloEnvio: string, incerto: boolean,
- *   podeEnviar: boolean, formId: string, onFechar: () => void, onEnviar: () => void, children: React.ReactNode }} props
+ * @param {PropsDaCasca} props
  */
 function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, podeEnviar, formId, onFechar, onEnviar, children }) {
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
@@ -902,12 +928,67 @@ function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, pod
 const idsDasLinhas = (ap, tipo) => new Set(linhasDoTipo(ap, tipo).map((l) => String(l.id)));
 
 /**
+ * @typedef {{ tipo: string, atividadeId: string, apontamento: any, linha: any, escopo: string, novoDia: NovoDia | null }} DestinoDoEnvio
+ * @typedef {{ dados: Record<string, any>, versao: number|null, dia?: Record<string, any> | null }} ArgDoEnvio
+ */
+
+/**
+ * O envio da linha: editar (cancela e cria outra), adicionar ao dia que existe ou — sem o dia (D-PROD-233) — o
+ * lançamento novo do dia com a linha dentro. O `arg` guarda o corpo do dia do PRIMEIRO envio: a retentativa repete
+ * exatamente aquele corpo (a pendência casa a chave).
+ * @param {DestinoDoEnvio} d
+ */
+const envioDaLinha = ({ tipo, atividadeId, apontamento, linha, escopo, novoDia }) =>
+  /** @param {ArgDoEnvio} arg @param {{ retentativa: boolean }} o */
+  (arg, o) => {
+    const opcoes = { escopo, retentativa: o.retentativa };
+    if (linha?.id) return editarLinha(tipo, atividadeId, { id: String(apontamento.id), versao: /** @type {number} */ (arg.versao) }, linha, arg.dados, opcoes);
+    if (novoDia) return criarApontamento(atividadeId, { ...(arg.dia ?? {}), [COLECAO_DA_LINHA[tipo]]: [arg.dados] }, opcoes);
+    return adicionarLinha(tipo, atividadeId, { id: String(apontamento.id), versao: /** @type {number} */ (arg.versao) }, arg.dados, opcoes);
+  };
+
+/** A chave da pendência do envio (a mesma que o service usou). @param {DestinoDoEnvio} d */
+const alvoDoEnvio = ({ tipo, atividadeId, apontamento, linha, novoDia }) =>
+  linha?.id ? alvoDaLinha(tipo, String(linha.id)) : novoDia ? alvoDosApontamentos(atividadeId) : alvoDasLinhas(tipo, String(apontamento.id));
+
+/**
+ * O argumento do envio: o corpo da linha, a `versao` do dia e, sem o dia, o corpo dele (null = o cabeçalho da janela
+ * tem erro: nada sai).
+ * @param {NovoDia | null} novoDia @param {any} apontamento @param {Record<string, any>} dados
+ * @returns {ArgDoEnvio | null}
+ */
+const argDoEnvio = (novoDia, apontamento, dados) => {
+  if (!novoDia) return { dados, versao: apontamento?.versao ?? null };
+  const dia = novoDia.corpo();
+  return dia ? { dados, versao: null, dia } : null;
+};
+
+/**
+ * "Consultar" depois de um envio sem resposta: relê o dia (ou, sem ele, os lançamentos da atividade, à procura do
+ * lançamento novo daquele dia que nasceu com a linha) e devolve o apontamento que mostra o efeito, ou null.
+ * @param {DestinoDoEnvio & { gravou: (linhas: any[]) => boolean }} p
+ */
+const lerEfeitoDoEnvio = async ({ tipo, atividadeId, apontamento, novoDia, gravou }) => {
+  if (!novoDia) {
+    const lido = /** @type {any} */ (await obterApontamento(atividadeId, String(apontamento.id)));
+    return gravou(linhasDoTipo(lido, tipo)) ? lido : null;
+  }
+  const dia = String(apontamento?.data_operacional ?? "");
+  const itens = itensDaLista(await listarApontamentos(atividadeId));
+  return (
+    itens.find(
+      (ap) => ap?.status === STATUS_CONFIRMADO && String(ap.data_operacional ?? "") === dia && !novoDia.idsAntes.has(String(ap.id)) && gravou(linhasDoTipo(ap, tipo)),
+    ) ?? null
+  );
+};
+
+/**
  * Janela da linha de PRODUTO (adicionar ou editar). A baixa sai do estoque pelo MESMO motor FIFO do abastecimento, no
  * servidor; editar = estorno exato + nova saída. Toda escrita leva a `versao` do apontamento e o `operation_id`
  * persistente.
  * @param {PropsDaJanela} props
  */
-export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null }) {
+export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, Casca = Janela }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const editando = Boolean(linha?.id);
   const atividadeId = String(atividade?.id ?? "");
@@ -916,13 +997,9 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
   const saldo = useSaldoDoProduto(empresaId, form, setForm, editando ? linha : null);
   const antes = useRef(idsDasLinhas(apontamento, LINHA_PRODUTO));
   const fallback = editando ? "Não foi possível alterar o produto. Nada foi alterado." : "Não foi possível lançar o produto. Nada foi gravado.";
+  const destino = { tipo: LINHA_PRODUTO, atividadeId, apontamento, linha, escopo, novoDia: editando ? null : novoDia };
 
-  /** @param {{ dados: Record<string, any>, versao: number }} arg @param {{ retentativa: boolean }} o */
-  const enviar = (arg, o) => {
-    const ap = { id: String(apontamento.id), versao: arg.versao };
-    return editando ? editarLinha(LINHA_PRODUTO, atividadeId, ap, linha, arg.dados, { escopo, retentativa: o.retentativa }) : adicionarLinha(LINHA_PRODUTO, atividadeId, ap, arg.dados, { escopo, retentativa: o.retentativa });
-  };
-  const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(enviar, (e) => mensagemDeErroLinha(e, fallback, { unidade: saldo.unidade }));
+  const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(envioDaLinha(destino), (e) => mensagemDeErroLinha(e, fallback, { unidade: saldo.unidade }));
   const enviando = estado.fase === "enviando";
 
   /** @param {Record<string, any>} mudanca @param {string[]} campos */
@@ -954,7 +1031,9 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
         return;
       }
     }
-    const r = await disparar({ dados, versao: apontamento.versao });
+    const arg = argDoEnvio(destino.novoDia, apontamento, dados);
+    if (!arg) return;
+    const r = await disparar(arg);
     if (!r) return;
     if (r.ok) {
       onSalvo(
@@ -968,19 +1047,24 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
     if (campo) setErros((e) => ({ ...e, [campo]: mensagem }));
     if (codigoDoServidor(r.erro) === "ESTOQUE_SALDO_INSUFICIENTE") saldo.consulta.refetch();
     if (ehResultadoIncerto(r.erro) || pedeReleitura(r.erro)) onMudou?.();
-    if (!ehResultadoIncerto(r.erro) && /** @type {any} */ (r.erro)?.code !== CODIGO_ENVIO_PENDENTE) notifyWarning("Atenção", mensagem);
+    if (!ehResultadoIncerto(r.erro) && /** @type {any} */ (r.erro)?.code !== CODIGO_ENVIO_PENDENTE) {
+      destino.novoDia?.aoRecusar?.(r.erro);
+      notifyWarning("Atenção", mensagem);
+    }
   };
 
   /** "Consultar" depois de um envio sem resposta: o apontamento relido mostra o efeito? */
   const consultar = async () => {
     try {
-      const lido = /** @type {any} */ (await obterApontamento(atividadeId, String(apontamento.id)));
-      const { produtos } = linhasDoApontamento(lido);
-      const gravou = editando
-        ? produtos.some((l) => String(l.id) === String(linha.id) && l.status === STATUS_CANCELADO)
-        : produtos.some((l) => !antes.current.has(String(l.id)) && l.status === STATUS_CONFIRMADO && String(l.produto_id) === String(form.produto?.id ?? ""));
-      if (gravou) {
-        limparPendenciaDaLinha(escopo, editando ? ACAO_EDITAR_LINHA : ACAO_LANCAR_LINHA, editando ? alvoDaLinha(LINHA_PRODUTO, String(linha.id)) : alvoDasLinhas(LINHA_PRODUTO, String(apontamento.id)));
+      const lido = await lerEfeitoDoEnvio({
+        ...destino,
+        gravou: (produtos) =>
+          editando
+            ? produtos.some((l) => String(l.id) === String(linha.id) && l.status === STATUS_CANCELADO)
+            : produtos.some((l) => !antes.current.has(String(l.id)) && l.status === STATUS_CONFIRMADO && String(l.produto_id) === String(form.produto?.id ?? "")),
+      });
+      if (lido) {
+        limparPendenciaDaLinha(escopo, editando ? ACAO_EDITAR_LINHA : ACAO_LANCAR_LINHA, alvoDoEnvio(destino));
         notifySuccess("Gravado", `O envio anterior do produto ${nome} foi gravado.`);
         onSalvo({ apontamento: lido, atividade: null, alertas: [] }, `Produto ${nome} gravado.`);
         return;
@@ -992,7 +1076,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
   };
 
   return (
-    <Janela
+    <Casca
       titulo={editando ? `Editar produto ${rotuloDoProdutoDaLinha(linha)}`.trim() : "Adicionar produto"}
       descricao={`${descricaoDaJanela(atividade, apontamento)}.${editando ? " Salvar estorna exatamente a baixa anterior e baixa a nova quantidade." : ""}`}
       testId="janela-linha-produto"
@@ -1019,7 +1103,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
       <div className="col-span-12 min-w-0">
         <AvisoEnvioDaLinha estado={estado} produto onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>
-    </Janela>
+    </Casca>
   );
 }
 
@@ -1029,7 +1113,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
  * Passou do teto (ou o servidor respondeu ATIVIDADE_SALTO_MEDIDOR): a justificativa aparece e o envio repete com ela.
  * @param {PropsDaJanela & { permiteImplemento: boolean }} props
  */
-export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permiteImplemento, escopo, onSalvo, onCancelar, onMudou = null }) {
+export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permiteImplemento, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, Casca = Janela }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const editando = Boolean(linha?.id);
   const atividadeId = String(atividade?.id ?? "");
@@ -1043,13 +1127,9 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
   const fallback = editando ? "Não foi possível alterar a máquina. Nada foi alterado." : "Não foi possível lançar a máquina. Nada foi gravado.";
   const uso = medidor ? usoDaLinha(form, medidor) : null;
   const pedeJustificativa = saltoPedido || passaDoTeto(uso, medidor?.teto ?? null);
+  const destino = { tipo: LINHA_MAQUINA, atividadeId, apontamento, linha, escopo, novoDia: editando ? null : novoDia };
 
-  /** @param {{ dados: Record<string, any>, versao: number }} arg @param {{ retentativa: boolean }} o */
-  const enviar = (arg, o) => {
-    const ap = { id: String(apontamento.id), versao: arg.versao };
-    return editando ? editarLinha(LINHA_MAQUINA, atividadeId, ap, linha, arg.dados, { escopo, retentativa: o.retentativa }) : adicionarLinha(LINHA_MAQUINA, atividadeId, ap, arg.dados, { escopo, retentativa: o.retentativa });
-  };
-  const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(enviar, (e) => mensagemDeErroLinha(e, fallback, { medidorUnidade: medidor?.unidade ?? null }));
+  const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(envioDaLinha(destino), (e) => mensagemDeErroLinha(e, fallback, { medidorUnidade: medidor?.unidade ?? null }));
   const enviando = estado.fase === "enviando";
 
   /** @param {Record<string, any>} mudanca @param {string[]} campos */
@@ -1081,7 +1161,9 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
         return;
       }
     }
-    const r = await disparar({ dados, versao: apontamento.versao });
+    const arg = argDoEnvio(destino.novoDia, apontamento, dados);
+    if (!arg) return;
+    const r = await disparar(arg);
     if (!r) return;
     if (r.ok) {
       onSalvo(normalizarRespostaDeEscrita(r.resposta), editando ? `Máquina ${nome} alterada.` : `Máquina ${nome} lançada${uso ? ` (${formatarUso(uso, medidor.tipo, medidor.unidade)})` : ""}.`);
@@ -1092,18 +1174,23 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
     const mensagem = mensagemDeErroLinha(r.erro, fallback, { medidorUnidade: medidor.unidade });
     if (campo) setErros((e) => ({ ...e, [campo]: mensagem }));
     if (ehResultadoIncerto(r.erro) || pedeReleitura(r.erro)) onMudou?.();
-    if (!ehResultadoIncerto(r.erro) && /** @type {any} */ (r.erro)?.code !== CODIGO_ENVIO_PENDENTE) notifyWarning("Atenção", mensagem);
+    if (!ehResultadoIncerto(r.erro) && /** @type {any} */ (r.erro)?.code !== CODIGO_ENVIO_PENDENTE) {
+      destino.novoDia?.aoRecusar?.(r.erro);
+      notifyWarning("Atenção", mensagem);
+    }
   };
 
   const consultar = async () => {
     try {
-      const lido = /** @type {any} */ (await obterApontamento(atividadeId, String(apontamento.id)));
-      const { maquinas } = linhasDoApontamento(lido);
-      const gravou = editando
-        ? maquinas.some((l) => String(l.id) === String(linha.id) && l.status === STATUS_CANCELADO)
-        : maquinas.some((l) => !antes.current.has(String(l.id)) && l.status === STATUS_CONFIRMADO && String(l.bem_id) === String(form.bem?.id ?? ""));
-      if (gravou) {
-        limparPendenciaDaLinha(escopo, editando ? ACAO_EDITAR_LINHA : ACAO_LANCAR_LINHA, editando ? alvoDaLinha(LINHA_MAQUINA, String(linha.id)) : alvoDasLinhas(LINHA_MAQUINA, String(apontamento.id)));
+      const lido = await lerEfeitoDoEnvio({
+        ...destino,
+        gravou: (maquinas) =>
+          editando
+            ? maquinas.some((l) => String(l.id) === String(linha.id) && l.status === STATUS_CANCELADO)
+            : maquinas.some((l) => !antes.current.has(String(l.id)) && l.status === STATUS_CONFIRMADO && String(l.bem_id) === String(form.bem?.id ?? "")),
+      });
+      if (lido) {
+        limparPendenciaDaLinha(escopo, editando ? ACAO_EDITAR_LINHA : ACAO_LANCAR_LINHA, alvoDoEnvio(destino));
         notifySuccess("Gravado", `O envio anterior da máquina ${nome} foi gravado.`);
         onSalvo({ apontamento: lido, atividade: null, alertas: [] }, `Máquina ${nome} gravada.`);
         return;
@@ -1115,7 +1202,7 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
   };
 
   return (
-    <Janela
+    <Casca
       titulo={editando ? `Editar máquina ${nome}`.trim() : "Adicionar máquina"}
       descricao={`${descricaoDaJanela(atividade, apontamento)}.${editando ? " Salvar cancela esta linha e lança outra com os dados novos." : ""}`}
       testId="janela-linha-maquina"
@@ -1150,7 +1237,7 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
       <div className="col-span-12 min-w-0">
         <AvisoEnvioDaLinha estado={estado} produto={false} onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>
-    </Janela>
+    </Casca>
   );
 }
 
@@ -1183,6 +1270,8 @@ function JanelaLinhaSemMedidor({
   onSalvo,
   onCancelar,
   onMudou = null,
+  novoDia = null,
+  Casca = Janela,
   formInicial,
   validar,
   corpo,
@@ -1201,13 +1290,9 @@ function JanelaLinhaSemMedidor({
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const antes = useRef(idsDasLinhas(apontamento, tipo));
   const fallback = editando ? rotulos.falhaEdicao : rotulos.falha;
+  const destino = { tipo, atividadeId, apontamento, linha, escopo, novoDia: editando ? null : novoDia };
 
-  /** @param {{ dados: Record<string, any>, versao: number }} arg @param {{ retentativa: boolean }} o */
-  const enviar = (arg, o) => {
-    const ap = { id: String(apontamento.id), versao: arg.versao };
-    return editando ? editarLinha(tipo, atividadeId, ap, linha, arg.dados, { escopo, retentativa: o.retentativa }) : adicionarLinha(tipo, atividadeId, ap, arg.dados, { escopo, retentativa: o.retentativa });
-  };
-  const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(enviar, (e) => mensagemDeErroLinha(e, fallback));
+  const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(envioDaLinha(destino), (e) => mensagemDeErroLinha(e, fallback));
   const enviando = estado.fase === "enviando";
 
   /** @param {Record<string, any>} mudanca @param {string[]} camposMudados */
@@ -1238,7 +1323,9 @@ function JanelaLinhaSemMedidor({
         return;
       }
     }
-    const r = await disparar({ dados, versao: apontamento.versao });
+    const arg = argDoEnvio(destino.novoDia, apontamento, dados);
+    if (!arg) return;
+    const r = await disparar(arg);
     if (!r) return;
     if (r.ok) {
       onSalvo(normalizarRespostaDeEscrita(r.resposta), (editando ? rotulos.sucessoEdicao : rotulos.sucesso).replace("{nome}", nome));
@@ -1254,19 +1341,24 @@ function JanelaLinhaSemMedidor({
     const mensagem = mensagemDeErroLinha(r.erro, fallback);
     if (campo) setErros((e) => ({ ...e, [campo]: mensagem }));
     if (ehResultadoIncerto(r.erro) || pedeReleitura(r.erro)) onMudou?.();
-    if (!ehResultadoIncerto(r.erro) && /** @type {any} */ (r.erro)?.code !== CODIGO_ENVIO_PENDENTE) notifyWarning("Atenção", mensagem);
+    if (!ehResultadoIncerto(r.erro) && /** @type {any} */ (r.erro)?.code !== CODIGO_ENVIO_PENDENTE) {
+      destino.novoDia?.aoRecusar?.(r.erro);
+      notifyWarning("Atenção", mensagem);
+    }
   };
 
   /** "Consultar" depois de um envio sem resposta: o apontamento relido mostra o efeito? */
   const consultar = async () => {
     try {
-      const lido = /** @type {any} */ (await obterApontamento(atividadeId, String(apontamento.id)));
-      const linhas = linhasDoTipo(lido, tipo);
-      const gravou = editando
-        ? linhas.some((l) => String(l.id) === String(linha.id) && l.status === STATUS_CANCELADO)
-        : linhas.some((l) => !antes.current.has(String(l.id)) && l.status === STATUS_CONFIRMADO && String(l[campoDoCadastro]) === String(idDoCadastro(form) ?? ""));
-      if (gravou) {
-        limparPendenciaDaLinha(escopo, editando ? ACAO_EDITAR_LINHA : ACAO_LANCAR_LINHA, editando ? alvoDaLinha(tipo, String(linha.id)) : alvoDasLinhas(tipo, String(apontamento.id)));
+      const lido = await lerEfeitoDoEnvio({
+        ...destino,
+        gravou: (linhas) =>
+          editando
+            ? linhas.some((l) => String(l.id) === String(linha.id) && l.status === STATUS_CANCELADO)
+            : linhas.some((l) => !antes.current.has(String(l.id)) && l.status === STATUS_CONFIRMADO && String(l[campoDoCadastro]) === String(idDoCadastro(form) ?? "")),
+      });
+      if (lido) {
+        limparPendenciaDaLinha(escopo, editando ? ACAO_EDITAR_LINHA : ACAO_LANCAR_LINHA, alvoDoEnvio(destino));
         notifySuccess("Gravado", `O envio anterior ${rotulos.objeto} ${nome} foi gravado.`);
         onSalvo({ apontamento: lido, atividade: null, alertas: [] }, `${nome} gravado.`);
         return;
@@ -1278,7 +1370,7 @@ function JanelaLinhaSemMedidor({
   };
 
   return (
-    <Janela
+    <Casca
       titulo={editando ? rotulos.tituloEdicao.replace("{nome}", nome).trim() : rotulos.titulo}
       descricao={`${descricaoDaJanela(atividade, apontamento)}.${editando ? " Salvar cancela esta linha e lança outra com os dados novos." : ""}`}
       testId={testId}
@@ -1295,7 +1387,7 @@ function JanelaLinhaSemMedidor({
       <div className="col-span-12 min-w-0">
         <AvisoEnvioDaLinha estado={estado} produto={false} lancado={rotulos.lancado} onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>
-    </Janela>
+    </Casca>
   );
 }
 
@@ -1368,6 +1460,108 @@ export function JanelaLinhaServico({ linha = null, ...props }) {
       }}
       campos={(p) => <CamposDaLinhaServico {...p} prefixo="linha-servico" />}
       nota="O serviço entra no custo da atividade. Nada vai para o financeiro: título ou pagamento ao parceiro são lançados à parte."
+    />
+  );
+}
+
+// ─── Cancelamento da linha (motivo; o produto volta exatamente aos lotes de origem) ─
+
+/** Formatação das mensagens do diálogo de ação (o custo aparece em reais). */
+const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL", casas: 2 });
+
+/**
+ * @typedef {'produtos'|'maquinas'|'mao-obra'|'servicos'} TipoDeLinha
+ * @typedef {{ tipo: TipoDeLinha, linha: any, apontamento: any }} CancelamentoDaLinha
+ */
+
+/** O nome da linha no diálogo de cancelamento e nas mensagens. @param {string} tipo @param {any} l */
+export const nomeDaLinhaDoTipo = (tipo, l) => {
+  if (tipo === LINHA_PRODUTO) return `o produto ${rotuloDoProdutoDaLinha(l) || ""}`.trim();
+  if (tipo === LINHA_MAQUINA) return `a máquina ${rotuloDaMaquinaDaLinha(l) || ""}`.trim();
+  if (tipo === LINHA_MAO_OBRA) return `a mão de obra ${rotuloDaMaoObraDaLinha(l) ? `de ${rotuloDaMaoObraDaLinha(l)}` : ""}`.trim();
+  return `o serviço ${rotuloDoServicoDaLinha(l) || ""}`.trim();
+};
+
+/** O que acontece ao cancelar cada tipo de linha (a descrição do diálogo). */
+const EFEITO_DO_CANCELAMENTO = Object.freeze(
+  /** @type {Record<string, string>} */ ({
+    [LINHA_PRODUTO]: "A quantidade volta exatamente aos lotes de onde saiu (estorno exato).",
+    [LINHA_MAQUINA]: "A leitura desta linha deixa de contar como leitura atual do bem.",
+    [LINHA_MAO_OBRA]: "O custo desta mão de obra deixa de contar na atividade.",
+    [LINHA_SERVICO]: "O valor deste serviço deixa de contar na atividade.",
+  }),
+);
+
+/** A frase do sucesso do cancelamento. @param {CancelamentoDaLinha} c */
+const textoDoCancelado = (c) => {
+  if (c.tipo === LINHA_PRODUTO) return `Produto ${rotuloDoProdutoDaLinha(c.linha)} cancelado: a quantidade voltou ao estoque, aos lotes de origem.`;
+  if (c.tipo === LINHA_MAQUINA) return `Máquina ${rotuloDaMaquinaDaLinha(c.linha)} cancelada: a leitura dela deixa de contar.`;
+  if (c.tipo === LINHA_MAO_OBRA) return `Mão de obra de ${rotuloDaMaoObraDaLinha(c.linha)} cancelada: o custo dela deixa de contar.`;
+  return `Serviço ${rotuloDoServicoDaLinha(c.linha)} cancelado: o valor dele deixa de contar.`;
+};
+
+/**
+ * Diálogo "Cancelar linha" (motivo de 3 a 500 caracteres, conferido pelo serviço ANTES da rede): a `versao` é a do
+ * apontamento lida ao abrir e o `operation_id` é persistente; sem resposta, "Consultar" relê o apontamento. Usado
+ * pelos blocos do lançamento (`LinhasDoApontamento`) e pela janela por tipo (D-PROD-233).
+ * @param {{
+ *   atividade: any,
+ *   cancelando: CancelamentoDaLinha,
+ *   escopo: string,
+ *   onCancelada: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string) => void,
+ *   onFechar: () => void,
+ *   onMudou: () => void,
+ * }} props `onCancelada` recebe a resposta da escrita; `onMudou` relê (sem resposta, recusa que pede releitura, ou o
+ *   "Consultar" que achou o cancelamento gravado).
+ */
+export function DialogoCancelarLinha({ atividade, cancelando, escopo, onCancelada, onFechar, onMudou }) {
+  const atividadeId = String(atividade?.id ?? "");
+  const apId = String(cancelando.apontamento?.id ?? "");
+  const nome = nomeDaLinhaDoTipo(cancelando.tipo, cancelando.linha);
+
+  /** @param {string} motivo @param {{ retentativa: boolean }} o */
+  const enviar = async (motivo, o) => {
+    try {
+      const r = normalizarRespostaDeEscrita(
+        await cancelarLinha(cancelando.tipo, atividadeId, cancelando.apontamento, cancelando.linha, motivo, { escopo, retentativa: o?.retentativa === true }),
+      );
+      onCancelada(r, textoDoCancelado(cancelando));
+    } catch (erro) {
+      if (!ehResultadoIncerto(erro)) notifyWarning("Atenção", mensagemDeErroLinha(erro, "Não foi possível cancelar a linha. Nada foi alterado."));
+      if (ehResultadoIncerto(erro) || pedeReleitura(erro)) onMudou();
+      throw erro;
+    }
+  };
+
+  /** "Consultar" depois de um cancelamento sem resposta: o apontamento relido mostra a linha cancelada? */
+  const consultar = async () => {
+    try {
+      const lido = /** @type {any} */ (await obterApontamento(atividadeId, apId));
+      const atual = linhasDoTipo(lido, cancelando.tipo).find((l) => String(l.id) === String(cancelando.linha.id));
+      if (atual?.status === STATUS_CANCELADO) {
+        limparPendenciaDaLinha(escopo, ACAO_CANCELAR_LINHA, alvoDaLinha(cancelando.tipo, String(cancelando.linha.id)));
+        onFechar();
+        notifySuccess("Linha cancelada", `O cancelamento de ${nome} foi gravado.`);
+        onMudou();
+      } else {
+        notifyInfo("Ainda confirmada", "O cancelamento não aparece gravado. Repita o envio: com a mesma chave, ele não é gravado duas vezes.");
+      }
+    } catch (erro) {
+      notifyWarning("Atenção", mensagemDeErroLinha(erro, "Não foi possível consultar agora. Tente de novo."));
+    }
+  };
+
+  return (
+    <DialogoAcao
+      aberto
+      titulo={`Cancelar ${nome} do lançamento de ${formatarDiaAtividade(cancelando.apontamento?.data_operacional)}`}
+      descricao={`${EFEITO_DO_CANCELAMENTO[cancelando.tipo] ?? ""} A linha continua no histórico como cancelada e deixa de contar nos totais da atividade. Informe o motivo (pelo menos ${MOTIVO_MINIMO} caracteres).`}
+      rotuloBotao="Cancelar linha"
+      testId="dialogo-cancelar-linha"
+      contexto={CONTEXTO_MENSAGENS}
+      onFechar={onFechar}
+      onEnviar={enviar}
+      onConsultar={consultar}
     />
   );
 }
