@@ -7809,11 +7809,12 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Revisão independente:** cada tela teve um revisor de código, dados, permissões, testes e desenho, e cada achado passou por um verificador que tentou refutá-lo. De 28 achados, 16 foram confirmados e corrigidos com teste. Dos 12 refutados, quatro viraram melhorias mesmo assim: o `LancField`, o carregando e o erro dos históricos do bebedouro e do depósito, e a rolagem do abate.
 
-**2ª revisão, das correções da 1ª:** 17 achados; 15 confirmados, que eram 11 problemas distintos (alguns apareceram para mais de um revisor), e 2 refutados. Todos corrigidos:
+**2ª revisão, das correções da 1ª:** 17 achados: 15 confirmados e 2 refutados. Os confirmados se resumem a 12 problemas, porque alguns apareceram para mais de um revisor. Todos foram corrigidos:
 - as `areas` não chegavam à aba Histórico do pasto;
 - o `title` do Excluir do bebedouro dava a razão errada com um retroativo;
 - o histórico completo da área esvaziava antes da animação de saída;
 - faltavam testes para a permissão da pílula, o depósito sem local, o hook real do bebedouro e o fio das `areas` no mapa;
+- o efeito do `LancField` fora do mapa não estava registrado (item 7 acima);
 - havia comentários e trechos do relatório desatualizados.
 
 Ver o relatório, §7.

@@ -9,7 +9,7 @@
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const servico = vi.hoisted(() => ({
@@ -88,15 +88,13 @@ describe("aba Histórico do pasto: nome da outra área pelas áreas do mapa (D-P
         <DetalhesLote lotes={[POSICAO]} onClose={() => {}} permissions={{}} setorNome="Sede" />
       </QueryClientProvider>,
     );
+    // As áreas do mapa chegaram ao DetalhesLote antes de abrir a aba.
+    await waitFor(() => expect(client.getQueryData(["mapa-areas", EMP])).toEqual(AREAS_DO_MAPA));
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 60));
-    });
-    // As áreas do mapa chegaram ao DetalhesLote.
-    expect(client.getQueryData(["mapa-areas", EMP])).toEqual(AREAS_DO_MAPA);
-    await act(async () => {
-      fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+      fireEvent.click(await screen.findByRole("tab", { name: "Histórico" }));
     });
     const lista = await screen.findByRole("list", { name: "Registros do pasto" });
+    await waitFor(() => expect(lista.textContent).toContain("ANGUS 3"));
     expect(lista.textContent).toContain("RETIRO DE ORIGEM");
     expect(lista.textContent).not.toContain("Área …");
   });

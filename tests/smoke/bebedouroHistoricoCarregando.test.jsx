@@ -27,6 +27,7 @@ vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ ful
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 const { default: DetalhesBebedouro } = await import("@/components/bebedouros/DetalhesBebedouro");
+const { listarHistorico } = await import("@/services/bebedouroDataService");
 
 const BEBEDOURO = { id: "beb-1", empresa_id: "emp-1", nome: "Bebedouro 01", tipo: "Australiano", status: "Ativo", ponto_referencia_id: "p-1" };
 
@@ -54,14 +55,15 @@ const montar = async () => {
 
 it("lista ainda chegando (hook real): 'Carregando...' no Último registro e 'Carregando histórico...', sem 'Nenhum lançamento ainda.'", async () => {
   await montar();
-  expect(screen.getByText("Carregando...")).toBeTruthy();
+  expect(await screen.findByText("Carregando...")).toBeTruthy();
   expect(screen.getByRole("status").textContent).toBe("Carregando histórico...");
   expect(screen.queryByText("Nenhum lançamento ainda.")).toBeNull();
+  expect(listarHistorico).toHaveBeenCalled();
 });
 
 it("lista vazia do servidor (hook real): 'Nenhum lançamento ainda.', sem carregando", async () => {
   estado.pendente = false;
   await montar();
-  expect(screen.getByText("Nenhum lançamento ainda.")).toBeTruthy();
+  expect(await screen.findByText("Nenhum lançamento ainda.")).toBeTruthy();
   expect(screen.queryAllByRole("status")).toHaveLength(0);
 });

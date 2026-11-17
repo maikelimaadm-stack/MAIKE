@@ -204,7 +204,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 ### 7.1 Segunda revisão (das correções da 1ª)
 
 - **Método:** o mesmo, em 4 frentes: as peças compartilhadas, o bebedouro, a área, e o depósito com os testes e os docs. A comparação foi com o estado antes das correções (9eb6a58) e com o de antes da missão (62819a7).
-- **Resultado:** 17 achados. Foram 15 confirmados, que eram 11 problemas distintos, porque alguns apareceram para mais de um revisor, e 2 refutados.
+- **Resultado:** 17 achados: 15 confirmados e 2 refutados. Os confirmados se resumem aos 12 problemas da tabela, porque alguns apareceram para mais de um revisor.
 
 | Problema confirmado | Correção |
 |---|---|
@@ -218,7 +218,8 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 | O efeito do `LancField` fora do mapa sem registro | D-PROD-220 §7 e §3 deste relatório: Permissões › editar usuário |
 | O JSDoc da `LinhaDoTempo` citava o abate do curral, que não usa o pé de ação | Comentário corrigido |
 | O CSS citava a prop `estilo` do `PainelForragemArea`, que saiu | Comentário corrigido |
-| No relatório, o ícone do nível do depósito (§2.3) e o `detalhesLoteVisualGesto` fora da lista do §5 | Texto corrigido |
+| No relatório, o ícone do nível do depósito (§2.3) | Texto corrigido: o desenho do marcador do mapa |
+| No relatório, o `detalhesLoteVisualGesto` fora da lista do §5 | Acrescentado à lista |
 
 - **Refutados:**
   - **O depósito sem rede, que diz "Nenhum registro ainda.":** era igual antes da missão. A consulta pausada não é nem carregando nem erro. Sem rede e sem cópia no aparelho, o detalhe inteiro do depósito mostra vazios. Quando a rede volta, o histórico chega.
