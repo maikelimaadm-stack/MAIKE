@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-221 — o cartão comum dos históricos (`CartaoHistorico`) tem o MESMO
+ * D-PROD-222 — o cartão comum dos históricos (`CartaoHistorico`) tem o MESMO
  * desenho do cartão do Histórico de Movimentação do manejo
  * (`HistoricoMovimentacoes`): as mesmas classes na raiz, na fileira de selos,
  * no selo da data, nos selos de tipo e situação, no título, nas linhas e no
@@ -91,7 +91,7 @@ const partes = (seloData) => {
   };
 };
 
-describe("CartaoHistorico = cartão do Histórico de Movimentação (D-PROD-221)", () => {
+describe("CartaoHistorico = cartão do Histórico de Movimentação (D-PROD-222)", () => {
   it("mesmas classes em cada parte do cartão e na lista", async () => {
     noDialogo(<HistoricoMovimentacoes lotes={[]} areaId="area-A" />);
     // O selo da data é o primeiro "10/10/2026" que é um <span> (a ocorrência repete a data numa linha).

@@ -46,7 +46,7 @@ const fechado = (extra = {}) => aberto({
   consumo_esperado_pv_kg: 50, total_cabecas_afetadas: 100, created_date: '2026-11-03T12:00:00.000Z', ...extra,
 });
 
-// D-PROD-221: no Histórico do cocho cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
+// D-PROD-222: no Histórico do cocho cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
 /** @param {HTMLElement} forte o <strong> com "Rótulo:" */
 const textoDaLinha = (forte) => forte.parentElement?.textContent?.slice(forte.textContent?.length ?? 0).trim();
 const valor = (raiz, rotulo) => textoDaLinha(within(raiz).getByText(`${rotulo}:`, { selector: 'strong' }));
@@ -130,7 +130,7 @@ describe('CM-4 — Histórico com o nível do detalhe', () => {
         <HistoricoSuplementacaoPonto pontoId="c1" pontoNome="COCHO 1" ponto={COCHO} nivel={nivel} />
       </QueryClientProvider>,
     );
-    // O título já aparece no carregando; com a contagem, a lista chegou (D-PROD-221).
+    // O título já aparece no carregando; com a contagem, a lista chegou (D-PROD-222).
     await screen.findByText(/Histórico do Cocho \(\d+\)/);
   };
 

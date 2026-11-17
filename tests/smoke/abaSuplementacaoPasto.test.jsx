@@ -339,7 +339,7 @@ describe("AS-6 — mesmos formulários e histórico do detalhe do cocho", () => 
     const invalidar = vi.spyOn(qc, "invalidateQueries");
     renderizar();
     fireEvent.click(within(slot()).getByRole("button", { name: "Lançar" }));
-    // D-PROD-221: o LancLoteDialogo do lançamento de manejo — título = a ação, subtítulo = o cocho, largo.
+    // D-PROD-222: o LancLoteDialogo do lançamento de manejo — título = a ação, subtítulo = o cocho, largo.
     const dialogo = await screen.findByRole("dialog", { name: "Lançar Suplementação", description: "Cocho 07" });
     const form = within(dialogo).getByTestId("form-lancamento");
     expect(form.getAttribute("data-ponto")).toBe("k07");
@@ -375,7 +375,7 @@ describe("AS-6 — mesmos formulários e histórico do detalhe do cocho", () => 
     const invalidar = vi.spyOn(qc, "invalidateQueries");
     renderizar();
     fireEvent.click(within(slot()).getByRole("button", { name: "Leitura" }));
-    // D-PROD-221: como os demais lançamentos — o cocho no subtítulo do diálogo.
+    // D-PROD-222: como os demais lançamentos — o cocho no subtítulo do diálogo.
     const dialogo = await screen.findByRole("dialog", { name: "Leitura de Cocho", description: "Cocho 07" });
     expect(dialogo.querySelector(".mk-ll-dlg__lotes")?.textContent).toBe("Cocho 07");
     const form = within(dialogo).getByTestId("form-leitura");

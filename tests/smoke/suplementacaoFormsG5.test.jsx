@@ -55,7 +55,7 @@ vi.mock('@/components/financeiro/AutocompleteGenerico', () => ({
     </select>
   ),
 }));
-// D-PROD-221: Produto e Unidade da transferência são o B1Select do manejo (mesma API do <select>).
+// D-PROD-222: Produto e Unidade da transferência são o B1Select do manejo (mesma API do <select>).
 vi.mock('@/components/cadastro/base1/B1Select', () => ({
   default: ({ value, onChange, disabled, children }) => (
     <select aria-label="produto-ou-unidade" value={value} disabled={disabled} onChange={onChange}>

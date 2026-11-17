@@ -21,7 +21,7 @@
  *  FT5. no celular o diálogo não é bloco de contenção de `position: fixed`
  *       (sem transform), para a folha ocupar a tela e não o cartão.
  *
- * D-PROD-221: a transferência abre como os lançamentos de manejo — também um
+ * D-PROD-222: a transferência abre como os lançamentos de manejo — também um
  * `LancLoteDialogo` (tela cheia no celular). Como diálogo de cima, ele entrega
  * aos filhos o PRÓPRIO alvo das folhas: a folha nasce no `LancLoteDialogo` da
  * transferência, nunca no do depósito (FT1), e a tela cheia é a regra
@@ -96,7 +96,7 @@ const tecla = async (el, key) => {
   });
 };
 
-/** Mesma composição do Mapa Geral: Depósito (LancLoteDialogo) → Saída (LancLoteDialogo, D-PROD-221) → campo Local. */
+/** Mesma composição do Mapa Geral: Depósito (LancLoteDialogo) → Saída (LancLoteDialogo, D-PROD-222) → campo Local. */
 const montar = async () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -143,7 +143,7 @@ describe('D-PROD-161 — Saída do Depósito no celular: folha "Local de Destino
     expect(folha).toBeTruthy();
     // Dentro do diálogo de CIMA (o da transferência), não no "Depósito de Suplementação".
     expect(dialogo.contains(folha)).toBe(true);
-    // D-PROD-221: os dois são LancLoteDialogo; a folha nasce no alvo do de CIMA
+    // D-PROD-222: os dois são LancLoteDialogo; a folha nasce no alvo do de CIMA
     // (`.mk-ll-dlg__folhas` dele) e o de baixo não a contém.
     expect(folha.closest('.mk-ll-dlg')).toBe(dialogo);
     expect(folha.closest('.mk-ll-dlg__folhas')?.parentElement).toBe(dialogo);
@@ -196,7 +196,7 @@ describe('D-PROD-161 — Saída do Depósito no celular: folha "Local de Destino
 
   it('FT5 — no celular o diálogo da transferência abre em tela cheia, sem transform (a folha ocupa a tela)', async () => {
     const { dialogo } = await montar();
-    // D-PROD-221: LancLoteDialogo em tela cheia (`is-tela`), não o popup do desktop.
+    // D-PROD-222: LancLoteDialogo em tela cheia (`is-tela`), não o popup do desktop.
     expect(dialogo.classList.contains('mk-ll-dlg')).toBe(true);
     expect(dialogo.classList.contains('is-tela')).toBe(true);
     expect(dialogo.classList.contains('is-desktop')).toBe(false);

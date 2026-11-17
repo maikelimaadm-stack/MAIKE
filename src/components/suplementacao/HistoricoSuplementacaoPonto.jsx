@@ -28,7 +28,7 @@ const diaDoLancamento = (valor) => {
  * (`projecaoDoCartaoDoNivel`) — inclusive "sem estimativa" quando os cochos
  * dividem os mesmos animais; os outros mostram o que ficou gravado no evento.
  *
- * D-PROD-221: no desenho do histórico do manejo (o do Histórico de
+ * D-PROD-222: no desenho do histórico do manejo (o do Histórico de
  * Movimentação): dentro do `LancLoteDialogo` o título com a contagem vai para o
  * cabeçalho do diálogo, sem cartão em volta; cada lançamento é um
  * `CartaoHistorico` (selos de data e período, o produto em negrito, as linhas

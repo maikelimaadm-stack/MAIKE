@@ -26,7 +26,7 @@ import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 
 /**
  * Entrada e Saída do depósito (transferência entre locais de estoque), no desenho do
- * lançamento de manejo (D-PROD-221): `LancLoteForm` com os campos em `LancField`
+ * lançamento de manejo (D-PROD-222): `LancLoteForm` com os campos em `LancField`
  * (rótulo dentro da caixa), a grade de duas colunas, o resumo Origem · Destino ·
  * Saldo num `LancLoteAviso` neutro e a ação no `LancLoteRodape` — dentro do
  * `LancLoteDialogo` ela vira o ✕/✓ do cabeçalho; fora dele, o rodapé Cancelar/ação.

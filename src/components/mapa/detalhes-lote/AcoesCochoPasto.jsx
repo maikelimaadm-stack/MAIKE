@@ -20,7 +20,7 @@ import { RodapePilulas } from "./blocos";
  * o mesmo refresh depois de salvar:
  *  - Lançar: `FormularioLancamentoSuplementacao` no mesmo `LancLoteDialogo`
  *    "Lançar Suplementação" (subtítulo = o cocho, largo), como o lançamento de
- *    manejo (D-PROD-221); ao sair, invalida as consultas do cocho e dispara
+ *    manejo (D-PROD-222); ao sair, invalida as consultas do cocho e dispara
  *    `atualizar-mapa`;
  *  - Leitura: `FormularioLeituraCocho` em `LancLoteDialogo` "Leitura de Cocho";
  *    depois de salvar relê o cache `leiturasCocho` (D-PROD-205);

@@ -5,7 +5,7 @@ import { VAZIO, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoP
  * Lançamentos do bebedouro na tela. O resumo do detalhe (os últimos, pela data
  * do lançamento) é a linha do tempo do Detalhes do Lote v12 (D-PROD-220,
  * `diasDoHistorico`); o histórico completo (todos, na ordem do servidor, com o
- * "Excluir") usa o cartão dos históricos do manejo (D-PROD-221,
+ * "Excluir") usa o cartão dos históricos do manejo (D-PROD-222,
  * `BebedouroTimeline`). Os dois mostram as MESMAS linhas (`linhasDoLancamento`).
  * Funções puras, sem estado.
  */
@@ -84,7 +84,7 @@ export function diaDoLancamento(valor) {
  * do normal (Pendente, Emergencial). "Registrado por" é o `responsavel`, que o
  * lançamento grava com o usuário da sessão. `comHora` (histórico completo):
  * a hora do lançamento antes da descrição, quando gravada. `comStatus: false`
- * (histórico completo, D-PROD-221): o status vai para um selo do cartão, não
+ * (histórico completo, D-PROD-222): o status vai para um selo do cartão, não
  * para uma linha.
  * @param {any} item
  * @param {{ comHora?: boolean, comStatus?: boolean }} [opcoes]

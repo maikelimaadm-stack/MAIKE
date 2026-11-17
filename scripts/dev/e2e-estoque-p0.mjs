@@ -714,7 +714,7 @@ const executarLargura = async (browser, largura) => {
       await shot('deposito-detalhes');
       await toque(page.getByRole('button', { name: 'Saída', exact: true }).filter({ visible: true }).first(), 'Saída do depósito');
       const dlg = page.getByRole('dialog').filter({ hasText: 'Saída do Depósito' }).last();
-      // D-PROD-221: a transferência é um lançamento de manejo — a ação é o ✓ "Registrar Saída" do cabeçalho.
+      // D-PROD-222: a transferência é um lançamento de manejo — a ação é o ✓ "Registrar Saída" do cabeçalho.
       await dlg.getByRole('button', { name: 'Registrar Saída', exact: true }).waitFor({ state: 'visible' });
       const campoLocal = dlg.locator('input[placeholder="BUSCAR LOCAL..."]').first();
       const opcaoDestino = page.getByRole('option', { name: new RegExp(s.localB.nome) }).filter({ visible: true }).first();
@@ -758,7 +758,7 @@ const executarLargura = async (browser, largura) => {
         await shot('folha-local-destino');
         exigir(prova.existe && prova.dentroDoDialogo && !prova.ariaHidden && prova.hitNaOpcao && prova.pointerEventsCamada !== 'none', `[${rotulo}] folha "Local de Destino" fora da camada de cima do diálogo: ${JSON.stringify(prova)}`);
         conferir(prova.focoNaLista, `[${rotulo}] o foco não entrou na folha ao abrir`);
-        // D-PROD-221: a transferência é um LancLoteDialogo em tela cheia; o vidro dele (backdrop-filter e borda de
+        // D-PROD-222: a transferência é um LancLoteDialogo em tela cheia; o vidro dele (backdrop-filter e borda de
         // 1 px, como em todos os manejos) segura a folha na tela menos essa borda — 1 px, não o cartão de antes.
         conferir(prova.folha && prova.folha.l <= 1 && prova.folha.r >= prova.vw - 1 && prova.folha.b >= prova.vh - 1, `[${rotulo}] a folha não ocupa a largura e o pé da tela (presa no cartão do diálogo?): ${JSON.stringify(prova.folha)}`);
         // (b) Escape fecha SÓ a folha; o diálogo fica e o foco volta ao campo.

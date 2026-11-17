@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-221 — os históricos do cocho e do depósito no desenho do histórico do
+ * D-PROD-222 — os históricos do cocho e do depósito no desenho do histórico do
  * manejo (o do Histórico de Movimentação), dentro do `LancLoteDialogo`:
  * - o título com a contagem vai para o cabeçalho do diálogo e o nome do
  *   cocho/depósito fica no subtítulo; não há cartão nem título por dentro;
@@ -75,7 +75,7 @@ const linhas = (cartao) =>
 /** Os cartões da lista do histórico. */
 const cartoes = () => [...document.querySelectorAll(".mk-hist__lista > .rounded-lg")];
 
-describe("Histórico do cocho no desenho do manejo (D-PROD-221)", () => {
+describe("Histórico do cocho no desenho do manejo (D-PROD-222)", () => {
   it("título com a contagem no cabeçalho do diálogo, o cocho no subtítulo, sem cartão nem título por dentro", async () => {
     noDialogo("Histórico de Suplementação", "Cocho 07", <HistoricoSuplementacaoPonto pontoId="cocho-1" pontoNome="Cocho 07" ponto={{ id: "cocho-1" }} />);
     await screen.findAllByText("SAL MINERAL 80");
@@ -107,7 +107,7 @@ describe("Histórico do cocho no desenho do manejo (D-PROD-221)", () => {
   });
 });
 
-describe("Histórico do depósito no desenho do manejo (D-PROD-221)", () => {
+describe("Histórico do depósito no desenho do manejo (D-PROD-222)", () => {
   it("título com a contagem no cabeçalho, o depósito no subtítulo e o cartão do manejo com os dados de antes", async () => {
     noDialogo("Histórico do Depósito", "Depósito Sede", <HistoricoDepositoSuplementacao deposito={{ id: "dep-1", local_estoque_id: "local-1" }} />);
     await screen.findByText("SAL MINERAL 80");
@@ -140,7 +140,7 @@ describe("Histórico do depósito no desenho do manejo (D-PROD-221)", () => {
   });
 });
 
-describe("Histórico da tarefa no desenho do manejo (D-PROD-221)", () => {
+describe("Histórico da tarefa no desenho do manejo (D-PROD-222)", () => {
   const HISTORICO = [
     { id: "h2", status: "Em andamento", evento: "Pendente → Em andamento", responsavel: "Ana", descricao: "Começou a cerca.", data_evento: "2026-11-12T14:30:00" },
     { id: "h1", status: "Pendente", evento: "Criação", responsavel: "Ana", descricao: "Tarefa criada pelo mapa.", data_evento: "2026-11-10T09:00:00" },

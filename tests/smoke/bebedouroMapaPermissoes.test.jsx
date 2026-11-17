@@ -16,7 +16,7 @@
  * Mocks só nas bordas: rede (`nativeRequest`), sessão, motor do mapa (WebGL /
  * MapLibre, que o jsdom não roda) e o `toast` (para ler a mensagem mostrada).
  *
- * D-PROD-221: "Lançar" e "Histórico" abrem num diálogo por cima do detalhe,
+ * D-PROD-222: "Lançar" e "Histórico" abrem num diálogo por cima do detalhe,
  * como os manejos do lote; o ✓ do cabeçalho ("Registrar Lançamento") envia.
  */
 import React from 'react';

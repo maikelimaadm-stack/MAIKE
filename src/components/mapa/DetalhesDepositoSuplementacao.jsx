@@ -74,7 +74,7 @@ function useCacheDoMapa(chave, empresaId, staleTime) {
  * Os dados e as regras não mudaram: o nível é só o SSOT (D-PROD-178,
  * `getDepositoIndicator`); produto em litros fica fora do kg (D-PROD-162,
  * P-11); a transferência e o histórico completo são os mesmos componentes,
- * em diálogos por cima (D-PROD-161 para as folhas do celular). D-PROD-221:
+ * em diálogos por cima (D-PROD-161 para as folhas do celular). D-PROD-222:
  * Entrada e Saída abrem como os lançamentos de manejo (`LancLoteDialogo`).
  *
  * @param {{
@@ -380,7 +380,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       </CascaDetalhe>
 
       {/*
-        D-PROD-221: Entrada e Saída abrem como os lançamentos de manejo — o
+        D-PROD-222: Entrada e Saída abrem como os lançamentos de manejo — o
         `LancLoteDialogo` com o título da ação e o depósito no subtítulo; popup
         no desktop, tela cheia no celular, ✕/✓ no cabeçalho (o ✓ envia o
         formulário). D-PROD-161: ele abre POR CIMA do "Depósito de

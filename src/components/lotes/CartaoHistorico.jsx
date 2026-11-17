@@ -5,7 +5,7 @@ import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { cn } from "@/lib/utils";
 
 /*
- * D-PROD-221 — o cartão dos históricos do manejo como peça comum.
+ * D-PROD-222 — o cartão dos históricos do manejo como peça comum.
  *
  * É o mesmo desenho (as mesmas classes) do cartão do Histórico de Movimentação
  * (`HistoricoMovimentacoes`): selos (data, tipo, situação), título em negrito,

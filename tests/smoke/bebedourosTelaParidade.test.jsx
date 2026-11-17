@@ -10,7 +10,7 @@
  * Contrato: os botões do bebedouro são controlados explicitamente pela regra
  * do servidor (`src/lib/bebedouroPermissions.js`) e ficam fora da heurística.
  *
- * D-PROD-221: "Lançar" e "Histórico" abrem num diálogo por cima da página, como
+ * D-PROD-222: "Lançar" e "Histórico" abrem num diálogo por cima da página, como
  * os manejos do lote; quem envia é o ✓ do cabeçalho ("Registrar Lançamento"),
  * fora do <form>. O Layout lê o texto de qualquer botão desta tela: o ✓ não
  * pode ser barrado para quem o servidor aceita.
@@ -139,7 +139,7 @@ describe('BEB-04 — tela Bebedouros: "Lançar" e o ✓ "Registrar Lançamento" 
     expect(bloqueio()).toBeNull();
   });
 
-  it('"Histórico" abre por cima da página (D-PROD-221) e o ✕ devolve o registro aberto', async () => {
+  it('"Histórico" abre por cima da página (D-PROD-222) e o ✕ devolve o registro aberto', async () => {
     sessao.permissoes = [comBebedouros({})];
     await abrirRegistroNaTela();
     fireEvent.click(screen.getByRole('button', { name: 'Histórico' }));

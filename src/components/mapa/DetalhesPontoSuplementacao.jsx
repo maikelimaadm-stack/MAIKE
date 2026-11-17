@@ -401,7 +401,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
         </Cartao>
       </CascaDetalhe>
 
-      {/* Lançar no desenho do lançamento de manejo (D-PROD-221): título = a ação, subtítulo = o cocho; o ✓ do cabeçalho envia. */}
+      {/* Lançar no desenho do lançamento de manejo (D-PROD-222): título = a ação, subtítulo = o cocho; o ✓ do cabeçalho envia. */}
       <LancLoteDialogo open={showLancamento} onOpenChange={setShowLancamento} titulo="Lançar Suplementação" lotes={[{ nome: ponto.nome_ponto }]} largo>
         {showLancamento ? (
           <FormularioLancamentoSuplementacao

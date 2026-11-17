@@ -251,7 +251,7 @@ describe('DC-5 — período fechado', () => {
     const historico = render(<CardMetricaEvento evento={dados.cache.eventosSuplementacao[0]} showProjecao />);
     const rotulos = ['Consumo Lote PV/dia', 'Esperado/cab/dia', 'Realizado cab/dia', 'Desvio', 'Duração estimada', 'Diferença dia(s)'];
     const doDetalhe = rotulos.map((rotulo) => screen.getAllByText(rotulo)[0].nextElementSibling?.textContent);
-    // D-PROD-221: no Histórico cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
+    // D-PROD-222: no Histórico cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
     const doHistorico = rotulos.map((rotulo) => {
       const forte = within(historico.container).getByText(`${rotulo}:`, { selector: 'strong' });
       return forte.parentElement?.textContent?.slice(forte.textContent?.length ?? 0).trim();

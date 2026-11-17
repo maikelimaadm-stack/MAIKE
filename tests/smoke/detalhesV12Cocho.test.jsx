@@ -51,7 +51,7 @@ vi.mock('@/services/mapaCacheService', () => ({
 vi.mock('@/services/estoqueMapaService', () => ({ listarTodosProdutos: vi.fn(async () => dados.produtos) }));
 vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => dados.empresas) }));
 // Os formulários e o histórico completo são os de hoje; aqui só se confere que abrem.
-// O título do Lançar é do LancLoteDialogo (D-PROD-221): o formulário de mentira não traz título próprio.
+// O título do Lançar é do LancLoteDialogo (D-PROD-222): o formulário de mentira não traz título próprio.
 vi.mock('@/components/suplementacao/FormularioLancamentoSuplementacao', () => ({ default: ({ ponto }) => <p>{`Formulário de lançamento: ${ponto?.nome_ponto}`}</p> }));
 vi.mock('@/components/suplementacao/FormularioLeituraCocho', () => ({ default: ({ ponto }) => <p>{`Formulário de leitura: ${ponto?.nome_ponto}`}</p> }));
 vi.mock('@/components/suplementacao/HistoricoSuplementacaoPonto', () => ({ default: ({ pontoNome }) => <p>{`Histórico completo: ${pontoNome}`}</p> }));
@@ -259,7 +259,7 @@ describe('CV-4 — rodapé de pílulas', () => {
     await carregado();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Lançar' })); });
     expect(await screen.findByText('Formulário de lançamento: COCHO 07')).toBeTruthy();
-    // D-PROD-221: como o lançamento de manejo — LancLoteDialogo largo, título = a ação, subtítulo = o cocho.
+    // D-PROD-222: como o lançamento de manejo — LancLoteDialogo largo, título = a ação, subtítulo = o cocho.
     const lancar = screen.getByRole('dialog', { name: 'Lançar Suplementação', description: 'COCHO 07' });
     expect(lancar.className).toContain('mk-ll-dlg--largo');
     expect(within(lancar).getByText('Formulário de lançamento: COCHO 07')).toBeTruthy();
@@ -269,7 +269,7 @@ describe('CV-4 — rodapé de pílulas', () => {
     await carregado();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Leitura' })); });
     expect(await screen.findByText('Formulário de leitura: COCHO 07')).toBeTruthy();
-    // D-PROD-221: como os demais lançamentos — o cocho no subtítulo do diálogo.
+    // D-PROD-222: como os demais lançamentos — o cocho no subtítulo do diálogo.
     expect(screen.getByRole('dialog', { name: 'Leitura de Cocho', description: 'COCHO 07' })).toBeTruthy();
     cleanup();
 
@@ -397,7 +397,7 @@ describe('CV-7 — último registro, total fornecido e informações do cocho', 
     const doDetalhe = [...cartao.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
     // O Histórico com a projeção do SSOT para o último lançamento (taxa 50 kg/dia, 4 dias, 14/11).
     const historico = render(<CardMetricaEvento evento={evento('e-aberto')} sacos={8} showProjecao consumoEsperadoDiaKg={50} duracaoEstimada={4} proximaReposicao="14/11/2026" />);
-    // D-PROD-221: no Histórico cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
+    // D-PROD-222: no Histórico cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
     const doHistorico = [...historico.container.querySelectorAll('[data-metrica]')].map((linha) => {
       const forte = /** @type {HTMLElement} */ (linha.querySelector('strong'));
       return [forte.textContent?.replace(/:$/, ''), linha.textContent?.slice(forte.textContent?.length ?? 0).trim()];

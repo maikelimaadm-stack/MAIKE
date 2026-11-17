@@ -75,7 +75,7 @@ const moeda = (valor) => (valor != null ? Number(valor).toLocaleString("pt-BR", 
  * Histórico do depósito (movimentações do local de estoque, pela regra de
  * `movimentacoesDoHistoricoDeposito`).
  *
- * D-PROD-221: no desenho do histórico do manejo (o do Histórico de
+ * D-PROD-222: no desenho do histórico do manejo (o do Histórico de
  * Movimentação): dentro do `LancLoteDialogo` o título com a contagem vai para o
  * cabeçalho do diálogo, sem cartão em volta; cada movimentação é um
  * `CartaoHistorico` (selos de data e tipo, o produto em negrito e as linhas

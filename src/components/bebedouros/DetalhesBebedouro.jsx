@@ -29,7 +29,7 @@ import "@/styles/mk-dp-bebedouro.css";
  * próximas datas pela data do lançamento (`resumoHistoricoBebedouro`) e o ponto
  * de referência são os de antes.
  *
- * D-PROD-221: "Lançar" e "Histórico" abrem como os manejos do lote, num
+ * D-PROD-222: "Lançar" e "Histórico" abrem como os manejos do lote, num
  * `LancLoteDialogo` POR CIMA do detalhe (popup no desktop, tela cheia no
  * celular), com o bebedouro no subtítulo — o detalhe fica por baixo, sem telas
  * empilhadas:
@@ -103,7 +103,7 @@ export default function DetalhesBebedouro({
   semCabecalho = typeof onRecordToolbarChange === "function",
 }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
-  // Diálogo aberto por cima do detalhe (D-PROD-221): o lançamento ou o histórico completo.
+  // Diálogo aberto por cima do detalhe (D-PROD-222): o lançamento ou o histórico completo.
   const [aberto, setAberto] = useState(/** @type {null | "lancamento" | "historico"} */ (null));
   const registroReal = Boolean(bebedouro?.id && !String(bebedouro.id).startsWith("ponto-"));
   const lancamentoDisponivel = podeLancar === true && registroReal;

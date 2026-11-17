@@ -21,7 +21,7 @@ const SEM_CADASTRO = "Ponto sem cadastro de bebedouro: cadastre-o no Mapa Cadast
 
 /**
  * Lançamento no bebedouro, no desenho dos lançamentos de manejo do lote
- * (D-PROD-221): `LancLoteForm` dentro do `LancLoteDialogo` que o
+ * (D-PROD-222): `LancLoteForm` dentro do `LancLoteDialogo` que o
  * `DetalhesBebedouro` abre por cima ("Lançamento no Bebedouro", o bebedouro no
  * subtítulo); cada campo num `LancField` (rótulo dentro da caixa); campos lado a
  * lado em `LancLoteGrade`; o `LancLoteRodape` vira o ✕ / ✓ do cabeçalho do

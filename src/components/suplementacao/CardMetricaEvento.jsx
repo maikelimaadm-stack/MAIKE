@@ -172,7 +172,7 @@ export function metricasDoEvento({
 /**
  * Métricas de um lançamento de suplementação no cartão do Histórico do cocho.
  * Os números vêm de `metricasDoEvento` (regras da taxa e da projeção descritas
- * lá). D-PROD-221: no desenho do histórico do manejo (`CartaoHistorico`), cada
+ * lá). D-PROD-222: no desenho do histórico do manejo (`CartaoHistorico`), cada
  * métrica é uma linha "Rótulo: valor", agrupada pelo título da seção; o
  * fechamento do consumo (D-PROD-206) entra depois do consumo real.
  *

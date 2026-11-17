@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-221 — o "Lançar" do cocho no MESMO desenho do lançamento de manejo do
+ * D-PROD-222 — o "Lançar" do cocho no MESMO desenho do lançamento de manejo do
  * lote (Registrar Pesagem, Morte, Mover…). Montado pelo rodapé do cocho no pasto
  * (`AcoesCochoPasto`) com o `FormularioLancamentoSuplementacao` REAL; só a rede é
  * de mentira. As regras (D-PROD-137, 201, 203, 206, 210) continuam provadas em
@@ -141,7 +141,7 @@ afterEach(() => {
   window.matchMedia = matchMediaOriginal;
 });
 
-describe("D-PROD-221 — Lançar do cocho no desenho do lançamento de manejo", () => {
+describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", () => {
   it("LM-1 — LancLoteDialogo largo: título = a ação, subtítulo = o cocho; popup com ✕/✓ no cabeçalho e nada do desenho antigo", async () => {
     largura(1280);
     await montar();

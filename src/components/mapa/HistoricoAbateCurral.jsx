@@ -18,7 +18,7 @@ function formatDateOnly(value) {
 
 /**
  * Histórico de Abate do curral (aba "Abate" do detalhe da área).
- * D-PROD-221: os cartões são os do Histórico de Movimentação do manejo
+ * D-PROD-222: os cartões são os do Histórico de Movimentação do manejo
  * (`CartaoHistorico`): selos de data, tipo e situação, o lote em negrito, as
  * linhas "Rótulo: valor" e o "Excluir movimentação" no rodapé. Sem rolagem
  * própria: o corpo do detalhe é a única área que rola (D-PROD-220).

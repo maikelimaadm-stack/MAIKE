@@ -17,7 +17,7 @@ const TOM_DO_STATUS = /** @type {Record<string, "ambar" | "vermelho">} */ ({ Pen
 
 /**
  * Histórico completo do bebedouro, no desenho dos históricos do manejo
- * (D-PROD-221, o do Histórico de Movimentação): abre num `LancLoteDialogo`
+ * (D-PROD-222, o do Histórico de Movimentação): abre num `LancLoteDialogo`
  * largo e só de leitura por cima do detalhe; o título com a contagem vai para o
  * cabeçalho do diálogo ("Histórico do Bebedouro (N)"); cada lançamento é um
  * `CartaoHistorico`, NA ORDEM DO SERVIDOR: selos de data ("dd/mm/aaaa"), tipo e

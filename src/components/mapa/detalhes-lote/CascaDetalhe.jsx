@@ -21,7 +21,7 @@ import { useModoPasto } from "./pastoContexto";
  * diálogo chama o ‹ Voltar. Num formulário empilhado passe `escVolta={false}`:
  * o ‹ Voltar fica e o Esc é ignorado, para um Esc sem querer não apagar o que
  * foi digitado. Lançamentos e históricos dos detalhes do mapa não empilham:
- * abrem num `LancLoteDialogo` por cima do detalhe (D-PROD-221).
+ * abrem num `LancLoteDialogo` por cima do detalhe (D-PROD-222).
  *
  * `cabecalhoDoCorpo` entra entre o cabeçalho e o corpo, fora da rolagem (ex.:
  * as `Abas` do curral: Abate · Histórico da Área); `propsDoCorpo` vai para o

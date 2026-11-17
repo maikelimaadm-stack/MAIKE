@@ -51,7 +51,7 @@ import { calcularFechamentoConsumo } from "@/domain/suplementacao/fechamentoCons
 import { ResumoFechamentoConsumo } from "./FarolConsumo";
 
 /**
- * Lançamento de suplementação no cocho, no desenho do lançamento de manejo do lote (D-PROD-221): quem abre
+ * Lançamento de suplementação no cocho, no desenho do lançamento de manejo do lote (D-PROD-222): quem abre
  * é um `LancLoteDialogo` ("Lançar Suplementação", subtítulo = o cocho); aqui o corpo é o `LancLoteForm`
  * (cada campo num `LancField`, avisos e informações em `LancLoteAviso`, a unidade em `LancLoteSegmento`, o
  * consumo por lote em `LancLoteItens`) e o `LancLoteRodape` vira o ✕/✓ do cabeçalho — o ✓ envia o
@@ -281,7 +281,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     setSobraHerdadaDecidida(true);
   };
 
-  // D-PROD-221: o diálogo da sobra (Radix, sem gatilho) não devolve o foco ao fechar — ficava no <body>,
+  // D-PROD-222: o diálogo da sobra (Radix, sem gatilho) não devolve o foco ao fechar — ficava no <body>,
   // fora do lançamento. Decidida a sobra, o foco volta ao diálogo do lançamento, no primeiro controle
   // (onde o `LancLoteDialogo` o põe ao abrir). Fora de um diálogo, nada muda.
   const formRef = useRef(/** @type {HTMLFormElement | null} */ (null));

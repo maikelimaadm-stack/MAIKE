@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-221 — "Entrada" e "Saída" do detalhe do depósito no MESMO desenho do
+ * D-PROD-222 — "Entrada" e "Saída" do detalhe do depósito no MESMO desenho do
  * lançamento de manejo do lote (`src/components/lotes/LancamentoLoteUi.jsx`),
  * com as regras de hoje (só a apresentação mudou):
  *

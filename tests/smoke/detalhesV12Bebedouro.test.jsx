@@ -6,7 +6,7 @@
  * Resumo operacional, Último registro, Informações, Histórico) e o rodapé
  * Lançar · Histórico pela regra do servidor (D-PROD-137).
  *
- * D-PROD-221 — "Lançar" e "Histórico" abrem como os manejos do lote: num
+ * D-PROD-222 — "Lançar" e "Histórico" abrem como os manejos do lote: num
  * `LancLoteDialogo` POR CIMA do detalhe (título = a ação, subtítulo = o
  * bebedouro; popup no desktop, tela cheia no celular), sem telas empilhadas.
  * O lançamento no desenho do manejo (`LancLoteForm` + `LancField`; o ✕ e o ✓
@@ -294,7 +294,7 @@ describe("Detalhe do bebedouro v12 no diálogo do mapa", () => {
     expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
 
     await clicar(screen.getByRole("button", { name: "Ver tudo" }));
-    // D-PROD-221: o MESMO diálogo do Histórico, por cima do detalhe (que fica como estava).
+    // D-PROD-222: o MESMO diálogo do Histórico, por cima do detalhe (que fica como estava).
     expect(dialogos()).toHaveLength(2);
     expect(tituloDe(ultimoDialogo())).toBe("Histórico do Bebedouro (7)");
     expect(cartoes()).toHaveLength(7);
@@ -352,7 +352,7 @@ describe("Rodapé Lançar · Histórico pela regra do servidor (D-PROD-137)", ()
   });
 });
 
-describe("Histórico por cima do detalhe, nos cartões do manejo (D-PROD-221)", () => {
+describe("Histórico por cima do detalhe, nos cartões do manejo (D-PROD-222)", () => {
   it("abre num LancLoteDialogo largo e só de leitura POR CIMA: título com a contagem, o bebedouro no subtítulo, só o ✕; o detalhe fica por baixo; no popup o Esc não fecha e o ✕ fecha", async () => {
     largura(1280);
     noDialogo({ podeLancar: true, podeExcluir: true });
@@ -549,7 +549,7 @@ describe("Histórico por cima do detalhe, nos cartões do manejo (D-PROD-221)", 
   });
 });
 
-describe("Lançar por cima do detalhe, no desenho do manejo (D-PROD-221)", () => {
+describe("Lançar por cima do detalhe, no desenho do manejo (D-PROD-222)", () => {
   it("abre num LancLoteDialogo por cima: 'Lançamento no Bebedouro', o bebedouro no subtítulo, ✕ e ✓ no cabeçalho; os campos em LancField (rótulo dentro); sem cartão, faixa de título nem botões no pé", async () => {
     largura(1280);
     noDialogo({ podeLancar: true });

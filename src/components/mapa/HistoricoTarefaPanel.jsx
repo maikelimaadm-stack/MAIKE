@@ -21,7 +21,7 @@ const formatDateTimeBR = (value) => {
 
 /**
  * Histórico completo da tarefa ("Ver histórico" do detalhe da tarefa).
- * D-PROD-221: no desenho do histórico do manejo (o do Histórico de
+ * D-PROD-222: no desenho do histórico do manejo (o do Histórico de
  * Movimentação): dentro do `LancLoteDialogo` o título com a contagem vai para o
  * cabeçalho (D-PROD-118); cada evento é um `CartaoHistorico` (selos de data e
  * status, a tarefa em negrito, as linhas "Rótulo: valor") com o "Excluir" no
