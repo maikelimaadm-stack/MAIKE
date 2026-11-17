@@ -7743,6 +7743,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-MEDICAO-FORRAGEM-REPORT.md`](./MAIKE-MEDICAO-FORRAGEM-REPORT.md).
 
+**Ajuste depois da release (2026-11-17, pedido do proprietário pelo print do celular).** O campo único "Leituras (cm)" com os valores separados por espaço não funciona no iPhone: o teclado decimal não tem espaço. Passa a ser **uma leitura por vez**: o campo + o botão **"+"** (também Enter e sair do campo) põem a leitura numa lista; cada item tem **×** para tirar; a leitura digitada e ainda não confirmada também conta na média e vai no envio. Texto com espaço (colar, computador) continua aceito. Só a tela muda: corpo da API, banco e regras iguais.
+
 ## D-PROD-220 — Mapa Geral: detalhes do cocho, do depósito, do bebedouro, da tarefa e da área no desenho do Detalhes do Lote v12
 
 **Data:** 2026-11-17 · **Numeração:** nasceu D-PROD-219 nesta branch; a `main` deu a D-PROD-219 à Medição de Forragem (PR #309, mergeada antes), e esta passou a **D-PROD-220** · **Origem:** pedido do proprietário, depois da D-PROD-218: "agora todos os detalhes de cocho, depósitos etc., os detalhes que abrem no meu mapa, você vai deixar igual de lotes — o estilo visual, o modelo de dados, as informações" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import LancField from "@/components/cadastro/base1/LancField";
 import { LancLoteForm, LancLoteGrade, LancLoteSegmento, LancLoteAviso, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
@@ -36,7 +36,7 @@ const campoNumero = (t) => (String(t ?? "").trim() ? String(t).trim() : undefine
  */
 export default function FormularioMedicaoForragem({ area, cultura = null, hoje, onCancel, onSaved }) {
   const [form, setForm] = useState({
-    data_medicao: hoje, metodo: "REGUA", leituras: "", situacao: "",
+    data_medicao: hoje, metodo: "REGUA", leituras: [], novaLeitura: "", situacao: "",
     quadro_m2: "", qtd_amostras: "", peso_verde_g: "", peso_seco_g: "", materia_seca_pct: "", observacoes: "",
   });
   const [salvando, setSalvando] = useState(false);
@@ -45,7 +45,24 @@ export default function FormularioMedicaoForragem({ area, cultura = null, hoje, 
 
   const entrada = cultura?.altura_entrada_cm ?? null;
   const saida = cultura?.altura_saida_cm ?? null;
-  const leituras = useMemo(() => lerLeituras(form.leituras), [form.leituras]);
+  // Leituras já adicionadas (lista) + a que está sendo digitada (ainda não confirmada):
+  // as duas contam na média, para nada se perder se o usuário salvar sem tocar em "+".
+  const leituras = useMemo(() => {
+    const pendente = lerLeituras(form.novaLeitura);
+    return { valores: [...form.leituras, ...pendente.valores], invalidas: pendente.invalidas };
+  }, [form.leituras, form.novaLeitura]);
+  const campoLeitura = useRef(/** @type {HTMLInputElement | null} */ (null));
+  /** Passa a leitura digitada para a lista (o teclado numérico do celular não tem espaço). */
+  const adicionarLeitura = ({ manterFoco = false } = {}) => {
+    const pendente = lerLeituras(form.novaLeitura);
+    if (pendente.invalidas.length) {
+      notifyWarning("Atenção", `Leitura inválida: ${pendente.invalidas.slice(0, 3).join(", ")} (de 0 a 500 cm).`);
+      return;
+    }
+    if (pendente.valores.length) setForm((f) => ({ ...f, leituras: [...f.leituras, ...pendente.valores], novaLeitura: "" }));
+    if (manterFoco) campoLeitura.current?.focus();
+  };
+  const removerLeitura = (indice) => setForm((f) => ({ ...f, leituras: f.leituras.filter((_, i) => i !== indice) }));
   const media = mediaDasLeituras(leituras.valores);
   const situacaoRegua = situacaoPelaAltura(media, entrada, saida);
   const temAmostra = ["quadro_m2", "peso_verde_g", "peso_seco_g", "materia_seca_pct"].some((c) => String(form[c]).trim());
@@ -73,7 +90,7 @@ export default function FormularioMedicaoForragem({ area, cultura = null, hoje, 
         return;
       }
       if (!leituras.valores.length) {
-        notifyWarning("Atenção", "Informe as leituras da régua (cm), separadas por espaço.");
+        notifyWarning("Atenção", "Informe as leituras da régua (cm): digite cada uma e toque em +.");
         return;
       }
       if (temAmostra && (!(numeroPtBR(form.quadro_m2) > 0) || !(numeroPtBR(form.peso_verde_g) > 0))) {
@@ -150,12 +167,35 @@ export default function FormularioMedicaoForragem({ area, cultura = null, hoje, 
       {regua ? (
         <>
           <div className="mk-ll__seg-rotulo">Altura do capim · leituras da régua, em cm</div>
-          <LancField label="Leituras (cm)" required>
-            <Input
-              value={form.leituras} inputMode="decimal" placeholder="22 26 24 20 28"
-              onChange={(e) => muda("leituras")(e.target.value)} className={LL_CTL} data-testid="medicao-leituras"
-            />
-          </LancField>
+          <div className="flex items-stretch gap-2">
+            <LancField label={`Leitura (cm)${form.leituras.length ? ` · ${form.leituras.length + 1}ª` : ""}`} required className="flex-1">
+              <Input
+                ref={campoLeitura}
+                value={form.novaLeitura} inputMode="decimal" enterKeyHint="next" placeholder="Ex.: 24,5"
+                onChange={(e) => muda("novaLeitura")(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionarLeitura({ manterFoco: true }); } }}
+                onBlur={() => adicionarLeitura()}
+                className={LL_CTL} data-testid="medicao-leituras"
+              />
+            </LancField>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => adicionarLeitura({ manterFoco: true })}
+              className="shrink-0 w-14 rounded-xl bg-[#16A34A] text-white text-2xl font-semibold leading-none active:opacity-80"
+              aria-label="Adicionar leitura" data-testid="medicao-adicionar-leitura"
+            >+</button>
+          </div>
+          {form.leituras.length ? (
+            <div className="flex flex-wrap gap-1.5" data-testid="medicao-lista-leituras">
+              {form.leituras.map((v, i) => (
+                <span key={`${i}-${v}`} className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-1 py-1 text-xs font-medium" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#14532D" }}>
+                  {fmt(v)}
+                  <button type="button" onClick={() => removerLeitura(i)} className="w-5 h-5 rounded-full" style={{ color: "#166534" }} aria-label={`Remover a leitura ${fmt(v)} cm`}>×</button>
+                </span>
+              ))}
+            </div>
+          ) : null}
           {media !== null ? (
             <LancLoteAviso tom={situacaoRegua ? TOM_SITUACAO[situacaoRegua] : "neutro"} data-testid="medicao-media">
               {situacaoRegua ? `${BOLINHA_SITUACAO[situacaoRegua]} ` : null}

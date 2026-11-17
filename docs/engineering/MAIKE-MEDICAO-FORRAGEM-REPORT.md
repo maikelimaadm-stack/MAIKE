@@ -38,3 +38,4 @@ Geral. O farol no mapa, a lotação pela massa seca e a produtividade ficam para
 - GO escrito do proprietário para a migration (EXPAND D-PROD-219), antes do merge.
 - PR #303 (D-PROD-217) mergeada e aplicada antes: a guarda desta exige 65 concluídas, com a `20261117100000_abastecimento_fk_apontamento_atividade` como anterior.
 - Próximo passo combinado: o farol de forragem no mapa (cor do pasto pela última medição).
+- **Ajuste depois da release:** leituras da régua uma por vez (campo + botão "+", lista com ×), porque o teclado decimal do iPhone não tem espaço. Teste novo em `tests/smoke/medicaoForragem.test.jsx`; só a tela muda.
