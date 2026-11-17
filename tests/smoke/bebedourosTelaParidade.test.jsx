@@ -89,7 +89,9 @@ const abrirRegistroNaTela = async () => {
   });
   const celula = (await screen.findAllByText('BEBEDOURO NORTE', {}, { timeout: 4000 }))[0];
   await act(async () => { fireEvent.doubleClick(celula); });
-  await screen.findByText(/Local: BEBEDOURO NORTE/);
+  // Desenho v12 (D-PROD-220): o detalhe abre com o cartão do bebedouro e o "Resumo operacional".
+  await screen.findByRole('group', { name: 'Resumo operacional' });
+  expect(document.querySelector('.mk-dp .mk-dp-cartao__titulo')?.textContent).toBe('BEBEDOURO NORTE');
 };
 const bloqueio = () => screen.queryByText(/Você não tem permissão para/);
 const posts = () => rede.chamadas.filter((c) => c.metodo === 'POST');

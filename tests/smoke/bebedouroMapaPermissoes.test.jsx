@@ -128,7 +128,9 @@ const abrirPontoNoMapa = async () => {
   await waitFor(() => expect(mapa.cliquePonto, 'mapa pronto e pontos sincronizados').toBeTypeOf('function'));
   await act(async () => { await mapa.cliquePonto(PONTO); });
   await assentar();
-  expect(await screen.findByText(/Local: BEBEDOURO NORTE/)).toBeTruthy();
+  // Desenho v12 (D-PROD-220): o nome do bebedouro é o título do diálogo e do cartão do detalhe.
+  await waitFor(() => expect(document.querySelector('.mk-ll-dlg__titulo')?.textContent).toBe('BEBEDOURO NORTE'));
+  expect(document.querySelector('.mk-ll > .mk-dp .mk-dp-cartao__titulo')?.textContent).toBe('BEBEDOURO NORTE');
 };
 const botao = (nome) => screen.queryByRole('button', { name: nome });
 const posts = () => rede.chamadas.filter((c) => c.metodo === 'POST');
