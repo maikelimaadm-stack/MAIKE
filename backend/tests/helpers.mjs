@@ -66,6 +66,8 @@ const ORDEM_DE_LIMPEZA = [
   'estoqueLoteNota',
   // D-PROD-205 — LEITURACOCHO referencia PontoSuplementacao (CASCADE) e Empresa (Restrict): antes dos dois.
   'leituraCocho',
+  // D-PROD-219 — MEDICAOFORRAGEM referencia AreaPastagem, CADCULTURAS e Empresa (FKs compostas, Restrict).
+  'medicaoForragem',
   'pontoSuplementacao',
   'bebedouro',
   'fornecedor',

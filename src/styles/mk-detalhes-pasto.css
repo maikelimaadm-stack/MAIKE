@@ -1527,3 +1527,28 @@
 .mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dp) .mk-dp-rodape {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
 }
+
+/* ── Forragem do pasto no Histórico da Área (PainelForragemArea estilo="v12", D-PROD-220) ── */
+.mk-dp .mk-dp-forragem {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mk-dp .mk-dp-forragem__lista {
+  border-top: 1px solid #eef0f2;
+}
+
+.mk-dp .mk-dp-forragem__lista > li + li {
+  border-top: 1px solid #eef0f2;
+}
+
+.mk-dp .mk-dp-forragem__item .mk-dp-linha__rot {
+  color: #6b7280;
+}
+
+.mk-dp .mk-dp-forragem__item .mk-dp-linha__val {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

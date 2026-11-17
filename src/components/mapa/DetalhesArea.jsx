@@ -1,10 +1,11 @@
 import React from "react";
 import HistoricoAbateCurral from "./HistoricoAbateCurral";
-import { ehCurral, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
+import { ehCurral, podeMedirForragemNaArea, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import PainelForragemArea from "../pastagem/PainelForragemArea";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import AbaHistorico from "./detalhes-lote/AbaHistorico";
-import { Abas, idsDaAba } from "./detalhes-lote/blocos";
+import { Abas, TituloBloco, idsDaAba } from "./detalhes-lote/blocos";
 import { PastoCtx, useModoPasto } from "./detalhes-lote/pastoContexto";
 
 /**
@@ -15,28 +16,42 @@ import { PastoCtx, useModoPasto } from "./detalhes-lote/pastoContexto";
  * servidor pela área (origem, destino ou local), sem depender de lote presente.
  * Área vazia não perde histórico.
  *
- * Curral: abas Abate · Histórico da Área (v12). O abate continua o histórico de
- * abate de hoje (`HistoricoAbateCurral`); são fatos de naturezas diferentes e
- * nenhum é copiado para o outro.
- *
- * Cabeçalho: área comum = "Histórico da Área" com "Pasto 07 · Retiro" (área ·
- * setor), como as telas de histórico do v12; curral = nome da área e setor
- * (as abas dizem o que é cada parte).
+ * - Pasto (fora da infraestrutura) com a chave `medir_forragem` (D-PROD-219):
+ *   o painel Forragem (botão "Medição de Forragem" e as últimas medições) em
+ *   cima e, com a permissão, o histórico embaixo. Cabeçalho = área e setor.
+ * - Sem a chave: cabeçalho "Histórico da Área" com "Pasto 07 · Retiro" (área ·
+ *   setor), como as telas de histórico do v12.
+ * - Curral: abas Abate · Histórico da Área (v12). O abate continua o histórico
+ *   de abate de hoje (`HistoricoAbateCurral`); são fatos de naturezas
+ *   diferentes e nenhum é copiado para o outro.
  *
  * @param {{ area: any, permissions?: Record<string, any>, setorNome?: string, eventosSuplementacao?: any[] | null }} props
  */
 export default function DetalhesArea({ area, permissions, setorNome = "", eventosSuplementacao = null }) {
   const curral = ehCurral(area);
   const historicoDaArea = podeVerHistoricoDaArea(permissions);
+  const forragem = podeMedirForragemNaArea(permissions, area);
   const [aba, setAba] = React.useState(curral ? "abate" : "historico");
   const [anim, setAnim] = React.useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));
 
-  if (!area?.id || (!curral && !historicoDaArea)) return null;
+  if (!area?.id || (!curral && !historicoDaArea && !forragem)) return null;
 
-  const titulo = area.nome || "Histórico da Área";
   const historico = <HistoricoDaArea area={area} setorNome={setorNome} eventos={eventosSuplementacao} />;
 
   if (!curral) {
+    if (forragem) {
+      return (
+        <CascaDetalhe titulo={area.nome || "Pasto"} sub={setorNome}>
+          <PainelForragemArea area={area} estilo="v12" />
+          {historicoDaArea ? (
+            <>
+              <TituloBloco>Histórico da área</TituloBloco>
+              {historico}
+            </>
+          ) : null}
+        </CascaDetalhe>
+      );
+    }
     return (
       <CascaDetalhe titulo="Histórico da Área" sub={[area.nome, setorNome].filter(Boolean).join(" · ")}>
         {historico}
@@ -44,6 +59,7 @@ export default function DetalhesArea({ area, permissions, setorNome = "", evento
     );
   }
 
+  const titulo = area.nome || "Histórico da Área";
   const abate = <HistoricoAbateCurral areaId={area.id} />;
   if (!historicoDaArea) {
     return (

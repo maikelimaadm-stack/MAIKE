@@ -99,6 +99,8 @@ const NOME_CULTURAS = '20261116500000_cadculturas';
 const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 /** D-PROD-217: a CONTRACT do reforço, ainda posterior (ver o cabeçalho); muda o schema.prisma. */
 const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
+/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
+const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
@@ -374,7 +376,7 @@ describe('D-PROD-208 — migration CONTRACT do funcionário como papel do parcei
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     assert.equal(PASTAS.at(-1), NOME, 'no dia da D-PROD-208, esta era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 59);
-    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO], 'D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-215, D-PROD-216 e D-PROD-217: só o tipo Terceirizado, a base do consumo, o abastecimento ligado à atividade, o Cadastro de Culturas, a Área ligada à Cultura e o reforço têm nome posterior a esta');
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM], 'D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-215, D-PROD-216 e D-PROD-217: só o tipo Terceirizado, a base do consumo, o abastecimento ligado à atividade, o Cadastro de Culturas, a Área ligada à Cultura e o reforço têm nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [58, 0, 0]);
     const tabelas = partida.tabelas.split(',');
@@ -672,8 +674,10 @@ describe('D-PROD-208 — ordem de produção com a D-PROD-209, a D-PROD-210, a D
       assert.ok(!rReforco.saida.includes(`Applying migration \`${NOME_ABASTECIMENTO}\``), rReforco.saida);
       assert.ok(!rReforco.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), rReforco.saida);
       assert.ok(rReforco.saida.includes(`Applying migration \`${NOME_REFORCO}\``), rReforco.saida);
-      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [65, 0]);
-      assert.equal((await retrato(dbo)).tabelas.split(',').length, 95);
+      assert.ok(rReforco.saida.includes(`Applying migration \`${NOME_MEDICAO_FORRAGEM}\``), rReforco.saida);
+      // D-PROD-219: a EXPAND da Medição de Forragem sobe no mesmo passo, depois do reforço, sem decisão.
+      assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [66, 0]);
+      assert.equal((await retrato(dbo)).tabelas.split(',').length, 96);
       assert.equal(await check(), antes.split("'TAREFEIRO'").join("'TERCEIRIZADO'"));
       const diff = await migrateDiff(url);
       assert.equal(diff.status, 0, diff.saida);
@@ -769,7 +773,7 @@ describe('D-PROD-208 — caminho B do runbook (uma transação pelo conector), n
     // D-PROD-209, D-PROD-210, D-PROD-211 e D-PROD-215 (ver o cabeçalho): o runner do repositório (alvo local) sobe as quatro; o schema bate.
     const hoje = await aplicarPeloRunner(URL_B);
     assert.equal(hoje.status, 0, hoje.saida);
-    for (const n of [NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO]) assert.ok(hoje.saida.includes(`Applying migration \`${n}\``), hoje.saida);
+    for (const n of [NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM]) assert.ok(hoje.saida.includes(`Applying migration \`${n}\``), hoje.saida);
     assert.ok(!hoje.saida.includes(`Applying migration \`${NOME}\``), hoje.saida);
     const diff = await migrateDiff(URL_B);
     assert.equal(diff.status, 0, diff.saida);

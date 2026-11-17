@@ -45,6 +45,7 @@ vi.mock('@/apis/tarefas', () => ({ listLancamentos: async () => [], listHistoric
 vi.mock('@/apis/session', () => ({ listPermissoes: async () => [] }));
 // D-PROD-205: leituras de cocho (o farol do mapa).
 vi.mock('@/apis/leituras-cocho', () => ({ listLeiturasCocho: async () => [] }));
+vi.mock('@/apis/medicoes-forragem', () => ({ listMedicoesForragem: async () => [] }));
 vi.mock('@/apis/rebanho', () => ({
   listAplicacoesMedicamento: async () => [],
   listEventosSanitarios: async () => [],

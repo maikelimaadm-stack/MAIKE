@@ -134,6 +134,9 @@ const ESCRITAS = (c) => {
     // D-PROD-205 — Leitura de cocho: escrita guardada pela chave do mapa lancar_suplementacao.
     ['leitura de cocho (POST)', 'POST', '/leituras-cocho', { empresa_id: E, ponto_suplementacao_id: 'ps-1', data_leitura: '2026-10-27', escore: 'VAZIO' }],
     ['leitura de cocho (DELETE)', 'DELETE', `/leituras-cocho/${ID}`],
+    // D-PROD-219 — Medição de Forragem: escrita guardada pela chave do mapa medir_forragem.
+    ['medição de forragem (POST)', 'POST', '/medicoes-forragem', { empresa_id: E, area_id: 'ar-1', data_medicao: '2026-10-27', metodo: 'OLHO', situacao: 'PRONTO' }],
+    ['medição de forragem (DELETE)', 'DELETE', `/medicoes-forragem/${ID}`],
     // D-PROD-207 — Serviços: escrita guardada pela tela sup-servicos (sem DELETE). D-PROD-208: as rotas de
     // /funcionarios saíram (o funcionário é papel do parceiro, escrita pela tela Parceiros).
     ['serviço (POST)', 'POST', '/servicos', { empresa_id: E, nome: 'HACK', unidade_medida_id: 'um-1' }],

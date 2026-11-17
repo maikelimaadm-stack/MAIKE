@@ -176,6 +176,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // FK "AbastecimentoBem_apontamento_fkey" recriada com 4 colunas. A guarda aborta se algum abastecimento apontar para
   // um apontamento de outra atividade. Nenhuma coluna, tabela ou dado muda.
   '20261117100000_abastecimento_fk_apontamento_atividade': '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e',
+  // D-PROD-219: EXPAND — Medição de Forragem (MEDICAOFORRAGEM), só tabela nova.
+  '20261117200000_medicao_forragem': '66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -219,6 +221,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403',
   // D-PROD-215: RLS/REVOKE da CADCULTURAS (mesmo corpo, lista nova).
   'cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b',
+  // D-PROD-219: RLS/REVOKE da MEDICAOFORRAGEM (mesmo corpo, lista nova).
+  'b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718',
 ]);
 
 /**

@@ -159,14 +159,16 @@ export const NOME_AREA_CULTURA = '20261117000000_area_cultura';
  * (a ordem de produção), fora da partida como as outras; sem tabela nova.
  */
 export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261117100000_abastecimento_fk_apontamento_atividade';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO]);
+/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
+export const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
 /** As 3 tabelas das Formulações (D-PROD-203). */
 const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA'];
 /** A tabela da Leitura de cocho (D-PROD-205) e a do Cadastro de Culturas (D-PROD-215). */
-const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS'];
+const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
 // D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
@@ -658,8 +660,8 @@ if (ehEntradaDireta()) {
       // (D-PROD-200); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-200.
       // D-PROD-202: + as 3 das linhas de produto e de máquina = 87; D-PROD-203: + as 3 das Formulações = 90;
       // D-PROD-205: + a LEITURACOCHO = 91; D-PROD-207: + as 4 da mão de obra e do serviço = 95; D-PROD-208: − Funcionario = 94;
-      // D-PROD-215: + a CADCULTURAS = 95.
-      if (g.status !== 0 || g.tabelas !== 95 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
+      // D-PROD-215: + a CADCULTURAS = 95; D-PROD-219: + a MEDICAOFORRAGEM = 96.
+      if (g.status !== 0 || g.tabelas !== 96 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }
