@@ -4,8 +4,15 @@ import { listarTodasMovimentacoes } from "@/services/loteManejoService";
 import ExcluirMovimentacao from "@/components/lotes/ExcluirMovimentacao";
 import CartaoHistorico, { EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico } from "@/components/lotes/CartaoHistorico";
 import { TituloBloco } from "@/components/mapa/detalhes-lote/blocos";
-import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
+import { ehMovimentoCancelado, tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+
+/** Data e hora do cancelamento, como no Histórico de Movimentação ("dd/mm/aaaa, hh:mm"). @param {any} iso */
+const formatDateTime = (iso) => {
+  const d = new Date(iso || "");
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
 
 function formatDateOnly(value) {
   const raw = String(value || "");
@@ -88,7 +95,9 @@ export default function HistoricoAbateCurral({ areaId }) {
               </>
             }
             titulo={item.lote || "Sem lote"}
-            rodape={item.cancelado ? null : <ExcluirMovimentacao movimento={item.raw} />}
+            // Como no Histórico de Movimentação: o rodapé só existe para o abate que tem exclusão (do
+            // ledger, não cancelado). Sem isso, o abate antigo ficava com uma faixa vazia no pé do cartão.
+            rodape={!item.cancelado && tipoTemExclusao(item.raw) ? <ExcluirMovimentacao movimento={item.raw} /> : null}
           >
             {!!item.quantidade && <LinhaHistorico rotulo="Quantidade">{item.quantidade} cab</LinhaHistorico>}
             <LinhaHistorico rotulo="Data">{formatDateOnly(item.data)}</LinhaHistorico>
@@ -98,6 +107,7 @@ export default function HistoricoAbateCurral({ areaId }) {
             {item.cancelado && (
               <div className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-800">
                 <strong>Cancelado</strong>
+                {item.cancelamento?.em ? ` em ${formatDateTime(item.cancelamento.em) || "-"}` : ""}
                 {item.cancelamento?.por_login ? ` por ${item.cancelamento.por_login}` : ""}
                 {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ""}
               </div>
