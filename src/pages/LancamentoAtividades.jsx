@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ban, CircleCheck, Copy, FlaskConical, List, Pencil, ReceiptText, RotateCcw, Tractor, User } from "lucide-react";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
+import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
+import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -11,11 +14,16 @@ import { CampoDia, ValorCalculado } from "@/components/financeiroGestao/CamposLa
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
+import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
+import FormularioApontamento from "@/components/lancamento-atividades/FormularioApontamento";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import ListaApontamentos from "@/components/lancamento-atividades/ListaApontamentos";
 import TotalizadorAtividade from "@/components/lancamento-atividades/TotalizadorAtividade";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { useAuth } from "@/lib/AuthContext";
+import { chaveApontamentos } from "@/lib/atividadeApontamentoRegras";
+import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
 import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarInstante } from "@/lib/diaCivil";
 import { confirmar } from "@/lib/maikeConfirmar";
@@ -37,6 +45,7 @@ import {
   formatarDiaAtividade,
   formatarProducaoDaAtividade,
   mensagemDeErroAtividade,
+  mensagemDoAlertaAtividade,
   rotuloDaArea,
   rotuloDaTarefa,
   rotuloDaUnidadeDeProducao,
@@ -151,6 +160,22 @@ export const compararAtividadesParaOrdenar = (a, b, colId) => {
 const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${atividade.numero}` : "");
 
 /**
+ * Os quatro lançamentos do menu ⚡ (D-PROD-232, protótipo do proprietário), cada um com a linha que ele grava no dia:
+ * Trabalho de máquinas = linhas de máquina (o diesel é o abastecimento ligado ao dia), Aplicação de insumos = linhas
+ * de produto, Mão de obra = linhas de mão de obra, Custos extras = linhas de serviço. `flag`: o que o TIPO da atividade
+ * precisa permitir (máquina não depende de flag). Fatia 1: abre o formulário do DIA (hoje, no fuso da fazenda) e, ao
+ * gravar, a atividade abre com a janela daquele tipo já aberta no dia gravado. As janelas próprias de cada tipo (lista,
+ * Inserir, Dados, Salvar e Salvar e fechar; o dia criado sozinho ao salvar o primeiro item) são a Fatia 2.
+ * @type {ReadonlyArray<{ tipo: string, rotulo: string, flag: 'permiteProduto'|'permiteMaoObra'|'permiteServico'|null, depois: string, Icone: any }>}
+ */
+const LANCAMENTOS_DO_MENU = Object.freeze([
+  { tipo: LINHA_MAQUINA, rotulo: "Trabalho de máquinas", flag: null, depois: "a máquina (e, depois, o diesel)", Icone: Tractor },
+  { tipo: LINHA_PRODUTO, rotulo: "Aplicação de insumos", flag: "permiteProduto", depois: "o produto aplicado", Icone: FlaskConical },
+  { tipo: LINHA_MAO_OBRA, rotulo: "Mão de obra", flag: "permiteMaoObra", depois: "a mão de obra", Icone: User },
+  { tipo: LINHA_SERVICO, rotulo: "Custos extras", flag: "permiteServico", depois: "o serviço (custo extra)", Icone: ReceiptText },
+]);
+
+/**
  * Lançamento de Atividades (D-PROD-200, Fatia 2) — a EXECUÇÃO de um Tipo de
  * Atividade na fazenda selecionada, em dois níveis: a ATIVIDADE (o cabeçalho
  * aberto, "Cigarrinha Pasto 01") e os APONTAMENTOS dela, por dia e turno.
@@ -195,6 +220,13 @@ export default function LancamentoAtividades() {
   const [dataConclusao, setDataConclusao] = useState("");
   const [erroDataConclusao, setErroDataConclusao] = useState(/** @type {string|null} */ (null));
   const [duplicando, setDuplicando] = useState(false);
+  /** Lançamento aberto pelo menu ⚡ da lista: o dia de UM tipo, sobre a atividade da linha. */
+  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, chave: number } | null} */ (null));
+  /** Depois de gravar o dia pelo ⚡: a janela daquele tipo abre no lançamento gravado (uma vez). */
+  const [linhaPendente, setLinhaPendente] = useState(/** @type {{ atividadeId: string, apontamentoId: string, tipo: string, chave: number } | null} */ (null));
+  const { clienteId } = useAuth();
+  // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
+  const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
 
   const { data: tipos = [] } = useQuery({
     queryKey: [QUERY_RAIZ, "tipos"],
@@ -264,6 +296,8 @@ export default function LancamentoAtividades() {
     empresaAnterior.current = empresaId;
     closeForm();
     setDialogo(null);
+    setLancando(null);
+    setLinhaPendente(null);
     setAreaFiltro("");
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
@@ -288,6 +322,10 @@ export default function LancamentoAtividades() {
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
   });
+  // Saiu da atividade (ou abriu outra): a janela pendente do ⚡ não abre mais.
+  useEffect(() => {
+    if (linhaPendente && linhaPendente.atividadeId !== idAberto) setLinhaPendente(null);
+  }, [idAberto, linhaPendente]);
   const detalheBruto = /** @type {any} */ (detalheQuery.data ?? null);
   const detalhe = detalheBruto && idAberto && String(detalheBruto.id) === idAberto ? detalheBruto : null;
   // O detalhe vale quando é da mesma versão (ou mais nova) que a linha aberta; senão, a linha até ele ser relido.
@@ -493,17 +531,98 @@ export default function LancamentoAtividades() {
     }
   };
 
+  // Na atividade aberta, "Concluir" é o botão à vista na barra (D-PROD-232): o Mais opções não repete.
+  const concluirNaBarra = controller.showForm;
   /** @type {Array<{ key: string, label: string, disabled?: boolean, hidden?: boolean, onSelect: () => void }>} */
   const acoesDoMenu = [];
   if (alvo && podeGravar && versaoValida) {
     acoesDoMenu.push(
-      { key: "concluir", label: "Concluir atividade", hidden: !acoesDoAlvo.concluir, onSelect: () => abrirDialogo("concluir", alvo) },
+      { key: "concluir", label: "Concluir atividade", hidden: !acoesDoAlvo.concluir || concluirNaBarra, onSelect: () => abrirDialogo("concluir", alvo) },
       { key: "reabrir", label: "Reabrir atividade", hidden: !acoesDoAlvo.reabrir, onSelect: () => abrirDialogo("reabrir", alvo) },
       { key: "cancelar", label: "Cancelar atividade", hidden: !acoesDoAlvo.cancelar, onSelect: () => abrirDialogo("cancelar", alvo) },
       { key: "duplicar", label: "Duplicar atividade", hidden: !acoesDoAlvo.duplicar, disabled: duplicando, onSelect: () => void duplicar(alvo) },
     );
   }
   const acoesVisiveisDoMenu = acoesDoMenu.filter((a) => !a.hidden);
+
+  // ─── Menu ⚡ da linha (D-PROD-232) ────────────────────────────────────
+  /** Abre a atividade já na edição do cabeçalho (o "Editar" da barra, sem passar pela seleção). @param {any} atividade */
+  const alterarAtividade = (atividade) => {
+    controller.handleEdit(atividade);
+    controller.setIsEditing(true);
+  };
+
+  /** @param {any} atividade @param {string} tipo */
+  const lancarDoMenu = (atividade, tipo) => setLancando({ atividade, tipo, chave: Date.now() });
+
+  /**
+   * O dia gravado pelo ⚡: lista, totais e lançamentos relidos; a atividade abre (só leitura) e a janela do tipo abre
+   * no dia gravado. Alerta (fora do período) não bloqueia: vira aviso.
+   * @param {{ apontamento: any, atividade: any, alertas: any[] }} r
+   */
+  const aoLancarDoMenu = (r) => {
+    const atual = lancando;
+    const emp = empresaId;
+    setLancando(null);
+    if (!atual) return;
+    const atividadeId = String(atual.atividade.id);
+    invalidarLista();
+    invalidarTotais();
+    queryClient.invalidateQueries({ queryKey: chaveApontamentos(emp, atividadeId) });
+    const dia = formatarDiaAtividade(r.apontamento?.data_operacional);
+    const doTipo = LANCAMENTOS_DO_MENU.find((l) => l.tipo === atual.tipo);
+    notifySuccess("Sucesso", `Lançamento${dia ? ` de ${dia}` : ""} gravado.${doTipo ? ` Agora informe ${doTipo.depois}.` : ""}`);
+    const alertas = Array.isArray(r.alertas) ? r.alertas : [];
+    if (alertas.length) notifyWarning("Atenção", `${dia ? `${dia}: ` : ""}${mensagemDoAlertaAtividade(alertas[0])}`);
+    if (!daEmpresaAtual(emp)) return;
+    mostrarAtividade(r.atividade?.id && String(r.atividade.id) === atividadeId ? r.atividade : atual.atividade, emp);
+    if (r.apontamento?.id != null) setLinhaPendente({ atividadeId, apontamentoId: String(r.apontamento.id), tipo: atual.tipo, chave: Date.now() });
+  };
+
+  /**
+   * Grupos do menu ⚡ de UMA linha, pela permissão e pelo status (a mesma regra do Mais opções) e pelo tipo:
+   * lançar (só ABERTA, com a ação de lançar e o fuso), abrir, e alterar / concluir / reabrir / duplicar / cancelar.
+   * @param {any} a
+   */
+  const gruposDoMenu = (a) => {
+    const ac = acoesDaAtividade(a, acoes);
+    const gravar = podeGravar && Number.isInteger(a?.versao);
+    const flags = flagsDoTipoDaAtividade(a, /** @type {any[]} */ (tipos));
+    const lancar =
+      podeGravar && ac.lancarApontamento
+        ? LANCAMENTOS_DO_MENU.filter((l) => !l.flag || flags[l.flag]).map((l) => ({
+            key: `lancar-${l.tipo}`,
+            label: l.rotulo,
+            icon: <l.Icone size={16} strokeWidth={1.75} />,
+            onSelect: () => lancarDoMenu(a, l.tipo),
+          }))
+        : [];
+    const abrirItem = [{ key: "abrir", label: "Abrir atividade", icon: <List size={16} strokeWidth={1.75} />, onSelect: () => controller.handleEdit(a) }];
+    const gerir = gravar
+      ? [
+          ac.editar ? { key: "alterar", label: "Alterar atividade", icon: <Pencil size={16} strokeWidth={1.75} />, onSelect: () => alterarAtividade(a) } : null,
+          ac.concluir ? { key: "concluir", label: "Concluir atividade", icon: <CircleCheck size={16} strokeWidth={1.75} />, onSelect: () => abrirDialogo("concluir", a) } : null,
+          ac.reabrir ? { key: "reabrir", label: "Reabrir atividade", icon: <RotateCcw size={16} strokeWidth={1.75} />, onSelect: () => abrirDialogo("reabrir", a) } : null,
+          ac.duplicar
+            ? { key: "duplicar", label: "Duplicar atividade", icon: <Copy size={16} strokeWidth={1.75} />, disabled: duplicando, onSelect: () => void duplicar(a) }
+            : null,
+          ac.cancelar ? { key: "cancelar", label: "Cancelar atividade", icon: <Ban size={16} strokeWidth={1.75} />, danger: true, onSelect: () => abrirDialogo("cancelar", a) } : null,
+        ].filter((x) => x !== null)
+      : [];
+    return [lancar, abrirItem, /** @type {any[]} */ (gerir)];
+  };
+
+  /** O ⚡ da linha (grade e cards). @param {any} a */
+  const renderAcoesDaLinha = (a) => (
+    <B1MenuAcoesDaLinha
+      rotulo={`Ações da atividade ${textoDoNumero(a)}`.trim()}
+      titulo={[a?.numero != null ? `Nº ${a.numero}` : "", String(a?.nome ?? "")].filter(Boolean).join(" · ")}
+      // A linha da lista não traz o custo: o valor total só entra quando a atividade o tiver (Fatia 3).
+      subtitulo={[String(a?.tipo_atividade_nome ?? ""), rotuloDaArea(a?.area)].filter(Boolean).join(" · ")}
+      grupos={gruposDoMenu(a)}
+      testId={`atividade-acoes-${a.id}`}
+    />
+  );
 
   // ─── Avisos e filtros ─────────────────────────────────────────────────
   const listErrorMessage = useMemo(
@@ -695,6 +814,7 @@ export default function LancamentoAtividades() {
             atividade={registroAberto}
             acoes={acoesDosApontamentos}
             onAtividadeAtualizada={aoAtualizarAtividade}
+            abrirLinha={linhaPendente && linhaPendente.atividadeId === String(registroAberto.id) ? linhaPendente : null}
           />
         </CadastroFormShell>
       );
@@ -714,6 +834,26 @@ export default function LancamentoAtividades() {
   }, []);
 
   const dialogoAtividade = dialogo?.atividade ?? null;
+
+  // Atividade aberta (fora da edição): "Concluir" à vista na barra, como no protótipo (D-PROD-232).
+  const botaoConcluir =
+    controller.showForm && !controller.isEditing && registroAberto && podeGravar && acoesDoAberto.concluir && Number.isInteger(registroAberto.versao) ? (
+      <PillBtn
+        type="button"
+        tone="outline"
+        onClick={() => abrirDialogo("concluir", registroAberto)}
+        aria-label="Concluir"
+        title="Concluir atividade"
+        className="mg-act-concluir"
+        data-testid="atividade-concluir"
+      >
+        <CircleCheck className="h-4 w-4" aria-hidden />
+        <span>Concluir</span>
+      </PillBtn>
+    ) : null;
+
+  const flagsDoLancando = lancando ? flagsDoTipoDaAtividade(lancando.atividade, /** @type {any[]} */ (tipos)) : null;
+  const tipoDoLancando = lancando ? LANCAMENTOS_DO_MENU.find((l) => l.tipo === lancando.tipo) ?? null : null;
 
   return (
     // Os botões seguem a regra EXATA do servidor (permissão e status da
@@ -735,6 +875,7 @@ export default function LancamentoAtividades() {
           showDuplicate={false}
           showDelete={false}
           additionalMoreActions={acoesVisiveisDoMenu.length ? acoesVisiveisDoMenu : null}
+          extraToolbar={botaoConcluir}
           deleteDialog={{
             title: "Cancelar atividade",
             confirmText: "Cancelar",
@@ -768,6 +909,7 @@ export default function LancamentoAtividades() {
               cardsPerRow={controller.cardsPrefs.cardsPerRow}
               cardsTitleColId="nome"
               cardsCodeColId="status"
+              renderAcoesDaLinha={empresaId && acoes.ver ? renderAcoesDaLinha : undefined}
               {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
               configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
             />
@@ -775,39 +917,42 @@ export default function LancamentoAtividades() {
         />
 
         {dialogo?.tipo === "concluir" && dialogoAtividade ? (
-          <DialogoAcao
+          <DialogoConcluirAtividade
             key={`concluir-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
-            aberto
-            titulo={`Concluir a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
-            descricao="Concluída, a atividade não aceita edição do cabeçalho nem apontamentos novos, editados ou cancelados (só reabrindo, com permissão própria). Se o tipo exige produção, a soma dos apontamentos confirmados tem de ser maior que zero."
-            rotuloBotao="Concluir atividade"
-            testId="dialogo-concluir-atividade"
-            comMotivo={false}
-            perigo={false}
-            contexto={CONTEXTO_MENSAGENS}
-            conteudo={
-              <div className="cadastro-b1">
-                <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2">
-                  <CampoDia
-                    label="Data de conclusão"
-                    value={dataConclusao}
-                    onChange={(v) => {
-                      setDataConclusao(v);
-                      setErroDataConclusao(null);
-                    }}
-                    min={ehDiaValido(dialogoAtividade.data_inicio) ? String(dialogoAtividade.data_inicio) : undefined}
-                    max={hoje || undefined}
-                    required
-                    span={12}
-                    error={erroDataConclusao}
-                    testId="dialogo-concluir-atividade-data"
-                  />
-                </div>
-              </div>
-            }
+            atividade={dialogoAtividade}
+            empresaId={empresaId}
+            hoje={hoje}
+            dataConclusao={dataConclusao}
+            onDataConclusao={(v) => {
+              setDataConclusao(v);
+              setErroDataConclusao(null);
+            }}
+            erroData={erroDataConclusao}
             onFechar={() => setDialogo(null)}
             onEnviar={enviarDialogo}
             onConsultar={consultarDialogo}
+          />
+        ) : null}
+
+        {lancando && tipoDoLancando && flagsDoLancando ? (
+          <FormularioApontamento
+            key={lancando.chave}
+            atividade={lancando.atividade}
+            permiteProduto={flagsDoLancando.permiteProduto}
+            permiteImplemento={flagsDoLancando.permiteImplemento}
+            permiteMaoObra={flagsDoLancando.permiteMaoObra}
+            permiteServico={flagsDoLancando.permiteServico}
+            escopo={escopo}
+            lancamentoDoTipo={{
+              rotulo: tipoDoLancando.rotulo,
+              nota: `Primeiro o dia do lançamento (hoje por padrão). Ao lançar, a atividade abre com a janela para informar ${tipoDoLancando.depois} neste dia.`,
+            }}
+            onSalvo={aoLancarDoMenu}
+            onCancelar={() => setLancando(null)}
+            onMudou={() => {
+              invalidarLista();
+              invalidarTotais();
+            }}
           />
         ) : null}
 

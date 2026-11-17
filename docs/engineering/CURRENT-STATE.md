@@ -9,12 +9,22 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-ASSISTENTE-LEITURA: assistente só de leitura em todas as telas (D-PROD-230)
+## Missão ativa (2026-11-17) — MAIKE-ATIVIDADES-MENU-RAIO: Lançamento de Atividades, fatia 1 do redesenho pelo protótipo do proprietário — menu ⚡ por linha e Concluir com resumo (D-PROD-232)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-232** (pedida como D-PROD-224; da 224 à 231 já estão em branches abertas de outras sessões), pedido do proprietário com o protótipo HTML dele: seguir a lógica e o estilo, mantendo o modelo visual do sistema. Plano em 4 fatias: 1 menu ⚡ + concluir; 2 janelas por tipo (lista, Inserir, Dados, Salvar e Salvar e fechar; dia com hoje por padrão e setas; dia criado sozinho ao salvar o primeiro item — "pode ser"); 3 atividade aberta (Resumo de custo, tabela dos 4 tipos, aba Resumo da atividade); 4 celular |
+| Branch / PR | `feat/atividades-menu-raio`, a partir da `main` `64310bd4` (PR #313), com a `main` `bd9fc99b` (PR #315, D-PROD-230) por merge · PR **#316** |
+| Escopo | Motor Base1: `renderAcoesDaLinha` opt-in em `CadastroBase1Grade` / `Base1Grid` / `Base1Cards` (⚡ na célula de seleção com "Ações" no cabeçalho; no topo do card) e `B1AcoesDaLinha.jsx` (botão + menu: janela no computador, `MobileSheet` no celular). Lançamento de Atividades: menu ⚡ (Trabalho de máquinas / Aplicação de insumos / Mão de obra / Custos extras pelo tipo e pela permissão; Abrir; Alterar, Concluir/Reabrir, Duplicar, Cancelar); lançar pelo ⚡ abre o dia (hoje) e, gravado, a atividade abre com a janela do tipo no dia; `DialogoConcluirAtividade` com o resumo (`/totais` e os dias lançados do detalhe; "—" sem valor) e o aviso da área que falta; "Concluir" à vista na atividade aberta |
+| Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
+| Relatório | [`MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md`](./MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ASSISTENTE-LEITURA: assistente só de leitura em todas as telas (D-PROD-230)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-230** (a `main` indica D-PROD-224, mas a branch `claude/design-filters-implementation-agzxk8` já usa da D-PROD-224 à D-PROD-228 e indica a 229 como a próxima dela), pedido do proprietário: uma IA que responda perguntas sobre os dados da fazenda, só de leitura, com a chave da API do Claude dele |
-| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `cdd8d79d` (PR #312, D-PROD-223) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `cdd8d79d` (PR #312, D-PROD-223) · PR **#315**, mergeada |
 | Escopo | `POST /assistente/perguntar` (tenant só da sessão, fazenda conferida, corpo fechado, histórico curto do cliente, dica da tela); 5 ferramentas fechadas e só de leitura sobre os serviços que já existem (pastos com forragem, medições do pasto, rebanho por pasto, resumo do rebanho, leituras de cocho); botão flutuante do assistente em todas as telas logadas, montado uma vez no Layout |
 | Migration | **Nenhuma.** Nada é gravado: sem tabela, sem histórico no servidor |
 | Configuração | `ANTHROPIC_API_KEY` nas variáveis de ambiente da Vercel (produção). Sem ela, o assistente responde "não configurado" (503 `ASSISTENTE_NAO_CONFIGURADO`) |

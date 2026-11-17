@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Pencil, Plus } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
@@ -314,7 +314,8 @@ function AbastecimentosDoApontamento({ atividade, apontamento, gravavel, fuso })
  *   fuso: string|null,
  *   onEscrita: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string) => void,
  *   onMudou: () => void,
- * }} props
+ *   abrirAoMontar?: { tipo: string, chave: number } | null,
+ * }} props `abrirAoMontar` (D-PROD-232): abre UMA vez a janela de adicionar daquele tipo, se ele for permitido aqui.
  */
 export default function LinhasDoApontamento({
   atividade,
@@ -331,9 +332,20 @@ export default function LinhasDoApontamento({
   fuso,
   onEscrita,
   onMudou,
+  abrirAoMontar = null,
 }) {
   const [janela, setJanela] = useState(/** @type {JanelaDaLinha | null} */ (null));
   const [cancelando, setCancelando] = useState(/** @type {CancelamentoDaLinha | null} */ (null));
+  const aberturaFeita = useRef(/** @type {number | null} */ (null));
+  const podeAdicionarTipo = (/** @type {string|undefined} */ tipo) =>
+    apontamento?.status === STATUS_CONFIRMADO &&
+    podeLancar &&
+    (tipo === LINHA_MAQUINA || (tipo === LINHA_PRODUTO && permiteProduto) || (tipo === LINHA_MAO_OBRA && permiteMaoObra) || (tipo === LINHA_SERVICO && permiteServico));
+  useEffect(() => {
+    if (!abrirAoMontar || aberturaFeita.current === abrirAoMontar.chave) return;
+    aberturaFeita.current = abrirAoMontar.chave;
+    if (podeAdicionarTipo(abrirAoMontar.tipo)) setJanela({ tipo: /** @type {TipoDeLinha} */ (abrirAoMontar.tipo), linha: null, chave: Date.now() });
+  }, [abrirAoMontar?.chave]);
   const apId = String(apontamento?.id ?? "");
   const atividadeId = String(atividade?.id ?? "");
   const { produtos, maquinas, mao_obra: maoObra, servicos } = linhasDoApontamento(apontamento);
