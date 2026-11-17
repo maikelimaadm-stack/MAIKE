@@ -37,7 +37,7 @@ export function AbaDetalhes() {
       ))}
       <TituloBloco>Lotação</TituloBloco>
       <Cartao>
-        <PartesDoCartao campos={area.lotacao.map((campo) => ["uaTotal", "capacidade"].includes(campo.chave || "") ? { ...campo, dica: undefined } : campo)} />
+        <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && campo.dica === "Superlotação (> 2,4 UA/ha)")) ? { ...campo, dica: undefined } : campo)} />
       </Cartao>
       {area.categorias.length ? (
         <>
