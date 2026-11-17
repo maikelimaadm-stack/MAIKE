@@ -44,10 +44,11 @@ describe("aba Detalhes", () => {
     const painel = screen.getByRole("tabpanel");
     const [cartaoArea, cartaoLotacao, cartaoCategorias] = painel.querySelectorAll(".mk-dp-cartao");
 
-    expect(within(cartaoArea).getByText("Pasto 07 · 109,30 ha")).toBeTruthy();
+    expect(within(cartaoArea).getByText("Pasto 07")).toBeTruthy();
     expect(within(cartaoArea).getByText("Pastagem / Braquiária Brizantha")).toBeTruthy();
     expect(cartaoArea.querySelector("svg.mk-dp-cartao__ic")).toBeTruthy(); // broto
     expect(grade(cartaoArea)).toEqual({
+      "Área (ha)": "109,30",
       "Área pastejada (ha)": "102,70",
       Status: "OCUPADO",
       "Dias pastejo": "26",

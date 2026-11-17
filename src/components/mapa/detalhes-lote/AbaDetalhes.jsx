@@ -1,6 +1,6 @@
 import React from "react";
 import { Beef, Sprout } from "lucide-react";
-import { Aviso, Cartao, Linha, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import { Aviso, Cartao, Celula, Grade, Linha, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { IconeCategoria } from "@/components/mapa/detalhes-lote/pecas";
 import { PartesDoCartao } from "@/components/mapa/detalhes-lote/BlocosLote";
 import { camposDoCartaoDaArea, statusDaArea, VAZIO } from "@/components/mapa/detalhes-lote/catalogo";
@@ -23,11 +23,15 @@ export function AbaDetalhes() {
   );
   const pastagemNoSubtitulo = area.campos.pastagem.texto !== VAZIO && area.sub.includes(area.campos.pastagem.texto);
   const campos = camposDoCartaoDaArea(area, { setor: dados.setorNome, status })
-    .filter((campo) => !["setor", "hectares"].includes(campo.chave || "") && (campo.chave !== "pastagem" || !pastagemNoSubtitulo));
+    .filter((campo) => !["setor", "hectares", "haPastejada"].includes(campo.chave || "") && (campo.chave !== "pastagem" || !pastagemNoSubtitulo));
 
   return (
     <>
-      <Cartao icone={Sprout} titulo={`${area.nome || dados.areaNome} · ${area.campos.hectares.texto} ha`} sub={area.sub || undefined}>
+      <Cartao icone={Sprout} titulo={area.nome || dados.areaNome} sub={area.sub || undefined} className="mk-dp-area-resumo">
+        <Grade className="mk-dp-area-superficies">
+          <Celula rotulo="Área (ha)" valor={area.campos.hectares.texto} />
+          <Celula rotulo="Área pastejada (ha)" valor={area.campos.haPastejada.texto} />
+        </Grade>
         <PartesDoCartao campos={campos} />
       </Cartao>
       {area.alertas.map((a) => (
@@ -36,7 +40,7 @@ export function AbaDetalhes() {
         </Aviso>
       ))}
       <TituloBloco>Lotação</TituloBloco>
-      <Cartao>
+      <Cartao className="mk-dp-area-lotacao">
         <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && campo.dica === "Superlotação (> 2,4 UA/ha)")) ? { ...campo, dica: undefined } : campo)} />
       </Cartao>
       {area.categorias.length ? (

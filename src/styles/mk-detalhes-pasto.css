@@ -1739,3 +1739,17 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Área total e pastejada formam um par em todas as telas. */
+.mk-dp .mk-dp-area-superficies,
+.mk-dp .mk-dp-area-resumo > .mk-dp-grade {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 768px) {
+  .mk-dp .mk-dp-area-lotacao > .mk-dp-grade {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.mk-dp .mk-dp-lote-organizado__secao > .mk-dp-cartao .mk-dp-projecao-mensal > .mk-dp-grade {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
