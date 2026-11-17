@@ -347,8 +347,8 @@ const classificarContractFA = classificarContractDe(NOME_FA);
 const NOME_MF = '20261117200000_medicao_forragem';
 const NOVAS_MF = ['MEDICAOFORRAGEM'];
 const DO_MF = 'b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718';
-/** D-PROD-223 — dias de descanso da cultura: EXPAND puro, só a coluna anulável CADCULTURAS.dias_descanso (sem CHECK, sem DML); a 67ª, depois da Medição de Forragem (D-PROD-219). */
-const NOME_DD = '20261117300000_cultura_dias_descanso';
+/** D-PROD-223 — dias de descanso da cultura e parâmetros próprios do pasto: EXPAND puro, 4 colunas anuláveis (CADCULTURAS.dias_descanso e AreaPastagem.altura_entrada_cm/altura_saida_cm/dias_descanso; sem CHECK, sem DML); a 67ª, depois da Medição de Forragem (D-PROD-219). */
+const NOME_DD = '20261117300000_descanso_e_alturas_por_area';
 const codigos = (c) => [...new Set(c.violacoes.map((v) => v.codigo))].sort();
 /** Troca um trecho que tem de aparecer EXATAMENTE uma vez (senão o teste não prova o que diz). */
 const trocar = (sql, de, para) => {
@@ -356,7 +356,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; Formulações (D-PROD-203) só com as 3 tabelas novas; Leitura de cocho (D-PROD-205) só com a tabela nova; faixa de tolerância na CADFORMULACAO (D-PROD-206) só com a coluna anulável; mão de obra e serviço (D-PROD-207) só com as 4 tabelas novas; funcionário como papel do parceiro (D-PROD-208) pelo modo CONTRACT fechado com o DROP no fim; tipo do funcionário com TERCEIRIZADO (D-PROD-209) pelo modo CONTRACT fechado; base do consumo na Formulação (D-PROD-210) pelo modo CONTRACT fechado; abastecimento ligado à atividade (D-PROD-211) pelo modo CONTRACT fechado; Cadastro de Culturas (D-PROD-215) só com a tabela nova; reforço da FK do apontamento do abastecimento (D-PROD-217) pelo modo CONTRACT fechado; Medição de Forragem (D-PROD-219) só com a tabela nova', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; Formulações (D-PROD-203) só com as 3 tabelas novas; Leitura de cocho (D-PROD-205) só com a tabela nova; faixa de tolerância na CADFORMULACAO (D-PROD-206) só com a coluna anulável; mão de obra e serviço (D-PROD-207) só com as 4 tabelas novas; funcionário como papel do parceiro (D-PROD-208) pelo modo CONTRACT fechado com o DROP no fim; tipo do funcionário com TERCEIRIZADO (D-PROD-209) pelo modo CONTRACT fechado; base do consumo na Formulação (D-PROD-210) pelo modo CONTRACT fechado; abastecimento ligado à atividade (D-PROD-211) pelo modo CONTRACT fechado; Cadastro de Culturas (D-PROD-215) só com a tabela nova; reforço da FK do apontamento do abastecimento (D-PROD-217) pelo modo CONTRACT fechado; Medição de Forragem (D-PROD-219) só com a tabela nova; parâmetros do pasto (D-PROD-223) só com as 3 colunas anuláveis em AreaPastagem', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -374,7 +374,7 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   ]);
   // D-PROD-202: as 2 colunas da Fatia 3 não entram aqui — no lote inteiro, BemPatrimonial e TipoPatrimonial são tabelas
   // criadas no próprio lote (D-PROD-162); classificada sozinha (B22a), a Fatia 3 as declara como colunas em tabela antiga.
-  assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['CADCATEGORIA.peso_objetivo_kg', 'Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
+  assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['AreaPastagem.altura_entrada_cm', 'AreaPastagem.altura_saida_cm', 'AreaPastagem.dias_descanso', 'CADCATEGORIA.peso_objetivo_kg', 'Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
   // As sete CONTRACT, na ordem do manifesto: as colunas removidas não viram "coluna nova em tabela antiga", o RENAME
   // da D-PROD-187 não cria tabela nova, a CADCURVAGANHO recriada pela D-PROD-194 não aparece duas vezes em tabelas_novas,
   // as colunas que o texto pinado acrescenta — a NOT NULL da D-PROD-195 e as 13 da D-PROD-197 — ficam no descritor de
@@ -4860,7 +4860,7 @@ test('B34k (D-PROD-219/D-PROD-217): ordem de produção no dia da D-PROD-219 —
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 67);
   // No dia da D-PROD-219 a Medição de Forragem era a pasta de nome mais recente; os dias de descanso (D-PROD-223,
-  // `20261117300000_cultura_dias_descanso`, ver B35k) vieram depois, em release seguinte: 66 pastas.
+  // `20261117300000_descanso_e_alturas_por_area`, ver B35k) vieram depois, em release seguinte: 66 pastas.
   const locais = todas.filter((l) => l.nome <= NOME_MF);
   assert.equal(locais.length, 66);
   assert.ok(todas.some((l) => l.nome === NOME_DD) && !locais.some((l) => l.nome === NOME_DD), NOME_DD);
@@ -4888,29 +4888,31 @@ test('B34k (D-PROD-219/D-PROD-217): ordem de produção no dia da D-PROD-219 —
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B35a (D-PROD-223): os dias de descanso classificados SOZINHOS, como na release: ok, EXPAND puro, só a coluna anulável CADCULTURAS.dias_descanso, nenhuma tabela nova, nenhum CONTRACT; checksum pinado', () => {
+test('B35a (D-PROD-223): os dias de descanso e os parâmetros do pasto classificados SOZINHOS, como na release: ok, EXPAND puro, só as 4 colunas anuláveis, nenhuma tabela nova, nenhum CONTRACT; checksum pinado', () => {
   const c = classificarMigrations([ler(NOME_DD)]);
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
   assert.equal(c.expand, true);
   assert.equal(c.modo, 'EXPAND');
   assert.deepEqual(c.tabelas_novas, []);
-  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, ['CADCULTURAS.dias_descanso']);
+  assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['AreaPastagem.altura_entrada_cm', 'AreaPastagem.altura_saida_cm', 'AreaPastagem.dias_descanso', 'CADCULTURAS.dias_descanso']);
   assert.deepEqual(c.contract, []);
   assert.equal(MIGRATIONS_APROVADAS[NOME_DD], sha256(readFileSync(`backend/prisma/migrations/${NOME_DD}/migration.sql`, 'utf8')));
-  assert.equal(MIGRATIONS_APROVADAS[NOME_DD], '5a266b174b20a6bc3ca51a7dc15d852378a875d506a805bb7eedfbba01191a4b');
+  assert.equal(MIGRATIONS_APROVADAS[NOME_DD], 'c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e');
   assert.equal(Object.prototype.hasOwnProperty.call(MIGRATIONS_CONTRACT_APROVADAS, NOME_DD), false, 'EXPAND: sem entrada CONTRACT');
   assert.equal(NOMES.at(-1), NOME_DD, 'a última do manifesto');
   assert.equal(NOMES.at(-2), NOME_MF, 'depois da Medição de Forragem (D-PROD-219)');
 });
 
-test('B35b (D-PROD-223): o mesmo arquivo com CHECK em CADCULTURAS, coluna NOT NULL, DEFAULT ou semente dos dias (UPDATE) é recusado; byte diferente do pinado diverge', () => {
+test('B35b (D-PROD-223): o mesmo arquivo com CHECK em CADCULTURAS ou AreaPastagem, coluna NOT NULL ou semente dos dias (UPDATE) é recusado; byte diferente do pinado diverge', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_DD}/migration.sql`, 'utf8');
   const comManifesto = (s) => classificarMigrations([{ nome: NOME_DD, sql: s }], { manifesto: { [NOME_DD]: sha256(s) } });
   for (const ruim of [
     'ALTER TABLE "CADCULTURAS" ADD CONSTRAINT "CADCULTURAS_dias_descanso_check" CHECK ("dias_descanso" BETWEEN 1 AND 365);',
     'ALTER TABLE "CADCULTURAS" ADD COLUMN "dias_minimos" INTEGER NOT NULL;',
     'UPDATE "CADCULTURAS" SET "dias_descanso" = 30 WHERE "codigo" = \'001\';',
+    'ALTER TABLE "AreaPastagem" ADD CONSTRAINT "AreaPastagem_alturas_check" CHECK ("altura_saida_cm" < "altura_entrada_cm");',
+    'ALTER TABLE "AreaPastagem" ADD COLUMN "dias_minimos" INTEGER NOT NULL;',
   ]) {
     const c = comManifesto(`${sql}\n${ruim}\n`);
     assert.equal(c.ok, false, ruim);

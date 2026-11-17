@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
-import { situacaoPelaAltura, calcularAmostra, lerLeituras, mediaDasLeituras } from '../src/modules/medicoesForragem/medicaoForragemCalculo.js';
+import { situacaoPelaAltura, calcularAmostra, lerLeituras, mediaDasLeituras, parametrosDoPasto } from '../src/modules/medicoesForragem/medicaoForragemCalculo.js';
 import * as daTela from '../../src/domain/pastagem/medicaoForragem.js';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -155,6 +155,39 @@ describe('D-PROD-219 — medição de forragem (API)', () => {
     assert.deepEqual([lab.json().massa_verde_kg_ha, lab.json().materia_seca_pct, lab.json().massa_seca_kg_ha, lab.json().peso_seco_g, lab.json().qtd_amostras], [12000, 22.5, 2700, null, 1]);
     const semCultura = (await req('GET', `/medicoes-forragem?area_id=${cen.semCultura.id}`, cen.token)).json()[0];
     assert.deepEqual([semCultura.cultura_id, semCultura.altura_entrada_cm, semCultura.altura_saida_cm], [null, null, null]);
+  });
+
+  test('MF-11 (D-PROD-223) parâmetros do pasto: as alturas próprias da área valem antes das da cultura (situação e retrato); só uma própria combina com a outra da cultura; incoerentes → sem situação', async () => {
+    const cen = await cenario();
+    await prisma().areaPastagem.update({ where: { id: cen.pasto.id }, data: { altura_entrada_cm: 20, altura_saida_cm: 12 } });
+    // Média 22: pela cultura (25/15) seria Descanso; pelo pasto (20/12), Pronto.
+    let r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { leituras_cm: '22 22' }));
+    assert.equal(r.statusCode, 201, r.body);
+    assert.deepEqual([r.json().situacao, r.json().altura_entrada_cm, r.json().altura_saida_cm, r.json().cultura_id], ['PRONTO', 20, 12, cen.marandu.id]);
+    // Só a entrada própria: 20 do pasto e 15 da cultura.
+    await prisma().areaPastagem.update({ where: { id: cen.pasto.id }, data: { altura_saida_cm: null } });
+    r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { leituras_cm: '14' }));
+    assert.deepEqual([r.json().situacao, r.json().altura_entrada_cm, r.json().altura_saida_cm], ['RAPADO', 20, 15]);
+    // Entrada própria abaixo da saída da cultura: incoerente → só a média.
+    await prisma().areaPastagem.update({ where: { id: cen.pasto.id }, data: { altura_entrada_cm: 14 } });
+    r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { leituras_cm: '20' }));
+    assert.equal(r.json().situacao, null);
+    // Pasto sem cultura, com as alturas próprias: a situação sai delas.
+    await prisma().areaPastagem.update({ where: { id: cen.semCultura.id }, data: { altura_entrada_cm: 30, altura_saida_cm: 15 } });
+    r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { area_id: cen.semCultura.id, leituras_cm: '31' }));
+    assert.deepEqual([r.json().situacao, r.json().altura_entrada_cm, r.json().altura_saida_cm, r.json().cultura_id], ['PRONTO', 30, 15, null]);
+  });
+
+  test('MF-12 (D-PROD-223) parametrosDoPasto: o do pasto, senão o da cultura, campo a campo, com a origem; a cópia da tela dá o mesmo', () => {
+    for (const f of [parametrosDoPasto, daTela.parametrosDoPasto]) {
+      assert.deepEqual(f({ altura_entrada_cm: '20.0', altura_saida_cm: null, dias_descanso: 40 }, { altura_entrada_cm: 25, altura_saida_cm: 15, dias_descanso: 30 }), {
+        altura_entrada_cm: 20, altura_saida_cm: 15, dias_descanso: 40,
+        origem: { altura_entrada_cm: 'PASTO', altura_saida_cm: 'CULTURA', dias_descanso: 'PASTO' },
+      });
+      assert.deepEqual(f({}, null), { altura_entrada_cm: null, altura_saida_cm: null, dias_descanso: null, origem: { altura_entrada_cm: null, altura_saida_cm: null, dias_descanso: null } });
+      assert.equal(f.length, 2);
+    }
+    for (const m of [situacaoPelaAltura, daTela.situacaoPelaAltura]) assert.equal(m(20, 14, 15), null, 'saída ≥ entrada: sem situação');
   });
 
   test('MF-03 no olho: situação obrigatória e fechada; leitura ou amostra junto → 400; régua não aceita situação', async () => {

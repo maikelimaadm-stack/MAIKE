@@ -12,14 +12,14 @@
  *
  * D-PROD-223 — sem medição válida, o farol pode vir ESTIMADO pelos dias de descanso:
  * dias desde que o último lote saiu do pasto (ledger do rebanho) contra os dias de
- * descanso da cultura (D):
+ * descanso que valem para o pasto (D): os próprios da Área ou, vazios, os da cultura:
  *   dias < D → DESCANSO · D ≤ dias ≤ arredondar(D × 1,5) → PRONTO · acima → PASSOU.
  * Nunca RAPADO por estimativa. Pasto ocupado agora fica "Em pastejo" (sem estimativa);
  * sem cultura, sem D ou sem saída conhecida, sem estimativa. Medição válida sempre vence.
  * O estimado usa a mesma família de cor, bem mais clara, e diz "(estimado)".
  */
 import { diasEntre, ehDiaValido } from '@/lib/diaCivil';
-import { ROTULO_SITUACAO } from './medicaoForragem';
+import { ROTULO_SITUACAO, parametrosDoPasto } from './medicaoForragem';
 
 /** Depois de quantos dias a medição deixa de valer no farol. */
 export const DIAS_VALIDADE_FORRAGEM = 15;
@@ -174,6 +174,7 @@ export const estimarSituacaoPorDescanso = (diasDesdeSaida, diasDescanso) => {
  *   situacao: 'DESCANSO'|'PRONTO'|'PASSOU'|null,
  *   diasDesdeSaida: number|null,
  *   diasDescanso: number|null,
+ *   origemDescanso: 'PASTO'|'CULTURA'|null,
  *   ultimaSaida: string|null,
  *   cor: string|null,
  *   rotulo: string,
@@ -184,15 +185,17 @@ export const estimarSituacaoPorDescanso = (diasDesdeSaida, diasDescanso) => {
  * D-PROD-223 — estimativa de UM pasto. `null` = sem informação de ocupação (nada a dizer).
  * Ocupado agora: "Em pastejo", sem situação e sem cor. Sem cultura/D ou saída futura: sem
  * situação ("Sem estimativa").
- * @param {any} area pasto (com `cultura.dias_descanso`, D-PROD-216/223)
+ * @param {any} area pasto (com `dias_descanso` próprio e/ou `cultura.dias_descanso`, D-PROD-216/223)
  * @param {{ ocupada?: boolean, ultima_saida?: string|null }|null|undefined} descanso linha do `/medicoes-forragem/descanso`
  * @param {string|null|undefined} hoje dia civil da fazenda
  * @returns {EstimativaDescanso|null}
  */
 export const estimativaDoPasto = (area, descanso, hoje) => {
   if (!descanso) return null;
-  const diasDescanso = Number.isInteger(area?.cultura?.dias_descanso) ? area.cultura.dias_descanso : null;
-  const base = { estimado: /** @type {true} */ (true), diasDescanso };
+  // Os dias de descanso que valem: os próprios do pasto ou, vazios, os da cultura.
+  const parametros = parametrosDoPasto(area, area?.cultura);
+  const diasDescanso = Number.isInteger(parametros.dias_descanso) ? parametros.dias_descanso : null;
+  const base = { estimado: /** @type {true} */ (true), diasDescanso, origemDescanso: diasDescanso === null ? null : parametros.origem.dias_descanso };
   if (descanso.ocupada) {
     return { ...base, emPastejo: true, situacao: null, diasDesdeSaida: null, ultimaSaida: null, cor: null, rotulo: 'Em pastejo' };
   }

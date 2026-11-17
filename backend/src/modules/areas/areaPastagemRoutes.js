@@ -35,6 +35,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, renumerar } from './areaPastagemService.js';
+import { exigirParametrosSemCoercao } from '../culturas/culturaService.js';
 import { porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 /** Enums fechados do cadastro, herdados de `base44/entities/AreaPastagem.jsonc`. */
@@ -83,7 +84,16 @@ const CAMPOS = Object.freeze({
   coordenadas: { type: ['object', 'null'] },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
+  // D-PROD-223 — parâmetros próprios do pasto (vazio = os da cultura): número, texto
+  // pt-BR ("25,5") ou null. A faixa é do serviço; o booleano, que o AJV coagiria, é
+  // barrado antes por `parametrosSemCoercao`.
+  altura_entrada_cm: { type: ['number', 'string', 'null'], maxLength: 16 },
+  altura_saida_cm: { type: ['number', 'string', 'null'], maxLength: 16 },
+  dias_descanso: { type: ['integer', 'string', 'null'], maxLength: 4 },
 });
+
+/** @param {import('fastify').FastifyRequest} request */
+const parametrosSemCoercao = async (request) => exigirParametrosSemCoercao(request.body);
 
 const CRIAR_SCHEMA = {
   body: {
@@ -170,7 +180,7 @@ export const registrarAreaPastagemRoutes = async (app) => {
 
   app.post(
     '/areas-pastagem',
-    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'novo')], schema: CRIAR_SCHEMA },
+    { onRequest: [app.autenticar], preValidation: [parametrosSemCoercao], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'novo')], schema: CRIAR_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const area = await criar(request.contexto, corpoValidado(request.body));
@@ -189,7 +199,7 @@ export const registrarAreaPastagemRoutes = async (app) => {
 
   app.patch(
     '/areas-pastagem/:id',
-    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], schema: ATUALIZAR_SCHEMA },
+    { onRequest: [app.autenticar], preValidation: [parametrosSemCoercao], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], schema: ATUALIZAR_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

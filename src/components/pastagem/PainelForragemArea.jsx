@@ -12,14 +12,17 @@ import { formatarDia } from "@/lib/diaCivil";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { notifyError, notifySuccess } from "@/lib/maikeNotify";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { ROTULO_SITUACAO } from "@/domain/pastagem/medicaoForragem";
+import { ROTULO_SITUACAO, parametrosDoPasto } from "@/domain/pastagem/medicaoForragem";
 import { DIAS_VALIDADE_FORRAGEM, estimativaDoPasto, farolDaMedicao, farolQueVale } from "@/domain/pastagem/farolForragem";
 
 const CHAVE = "medicoesForragem";
 /** D-PROD-223: ocupação e última saída de lote por pasto (farol estimado). */
 const CHAVE_DESCANSO = "descansoPastos";
 const diasTexto = (n) => `${n} ${n === 1 ? "dia" : "dias"}`;
+/** D-PROD-223: de onde vem cada parâmetro do pasto. */
+const ORIGEM = Object.freeze({ PASTO: "do pasto", CULTURA: "da cultura" });
 const fmt = (v, casas = 1) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }));
+const fmtCm = (v) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 const fmtInt = (v) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 const dia = (m) => formatarDia(String(m?.data_medicao ?? "").slice(0, 10));
 
@@ -110,8 +113,10 @@ export default function PainelForragemArea({ area }) {
   const { data: descansos = [] } = useCacheDoMapa(CHAVE_DESCANSO, empresaId);
   const estimativa = useMemo(() => {
     const doPastoAgora = (Array.isArray(descansos) ? descansos : []).find((d) => d?.area_id === area?.id) ?? null;
-    return estimativaDoPasto({ cultura }, doPastoAgora, hoje);
-  }, [descansos, area?.id, cultura, hoje]);
+    return estimativaDoPasto({ ...area, cultura }, doPastoAgora, hoje);
+  }, [descansos, area, cultura, hoje]);
+  // D-PROD-223: os parâmetros que valem para o pasto e de onde vêm (do pasto ou da cultura).
+  const parametros = useMemo(() => parametrosDoPasto(area, cultura), [area, cultura]);
   // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa (D-PROD-223: com a estimativa).
   const farol = useMemo(() => farolQueVale(ultima ? farolDaMedicao(ultima, hoje) : null, estimativa), [ultima, hoje, estimativa]);
 
@@ -149,7 +154,7 @@ export default function PainelForragemArea({ area }) {
           </span>
           {"estimado" in farol ? (
             <span className="text-slate-500" data-testid="farol-forragem-estimado">
-              {`lote saiu há ${diasTexto(farol.diasDesdeSaida)} · descanso da cultura ${diasTexto(farol.diasDescanso)}`}
+              {`lote saiu há ${diasTexto(farol.diasDesdeSaida)} · descanso ${farol.origemDescanso === "PASTO" ? "do pasto" : "da cultura"} ${diasTexto(farol.diasDescanso)}`}
             </span>
           ) : (
             <span className="text-slate-500">
@@ -157,6 +162,15 @@ export default function PainelForragemArea({ area }) {
               {farol.vencida ? ` · vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null}
             </span>
           )}
+        </div>
+      ) : null}
+      {parametros.altura_entrada_cm !== null || parametros.altura_saida_cm !== null || parametros.dias_descanso !== null ? (
+        <div className="text-slate-500" data-testid="parametros-do-pasto">
+          {[
+            parametros.altura_entrada_cm !== null ? `entrada ${fmtCm(parametros.altura_entrada_cm)} cm (${ORIGEM[parametros.origem.altura_entrada_cm]})` : null,
+            parametros.altura_saida_cm !== null ? `saída ${fmtCm(parametros.altura_saida_cm)} cm (${ORIGEM[parametros.origem.altura_saida_cm]})` : null,
+            parametros.dias_descanso !== null ? `descanso ${diasTexto(parametros.dias_descanso)} (${ORIGEM[parametros.origem.dias_descanso]})` : null,
+          ].filter(Boolean).join(" · ")}
         </div>
       ) : null}
       {estimativa?.emPastejo ? (

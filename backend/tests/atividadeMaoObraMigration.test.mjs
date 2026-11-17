@@ -98,7 +98,7 @@ const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;

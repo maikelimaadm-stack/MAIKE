@@ -73,7 +73,7 @@ describe('D-PROD-216 — Área ligada à Cultura', () => {
     assert.equal(r.statusCode, 201, r.body);
     const a = r.json();
     assert.equal(a.cultura_id, marandu.id);
-    assert.deepEqual(a.cultura, { id: marandu.id, codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', tipo: 'PASTAGEM', dias_descanso: 30 }, 'D-PROD-223: com os dias de descanso da lista de referência');
+    assert.deepEqual(a.cultura, { id: marandu.id, codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', tipo: 'PASTAGEM', altura_entrada_cm: 25, altura_saida_cm: 15, dias_descanso: 30 }, 'D-PROD-223: com as alturas e os dias de descanso da lista de referência');
     assert.equal(a.tipo_pastagem, 'BRACHIARIA BRIZANTHA CV. MARANDU');
     const lista = await req('GET', '/areas-pastagem', cen.token);
     assert.equal(lista.statusCode, 200);
@@ -194,5 +194,61 @@ describe('D-PROD-216 — Área ligada à Cultura', () => {
       const r = await criarArea(cen, ruim);
       assert.equal(r.statusCode, 400, `${JSON.stringify(ruim)} → ${r.statusCode}`);
     }
+  });
+});
+
+describe('D-PROD-223 — parâmetros próprios do pasto (alturas e dias de descanso na Área)', () => {
+  test('AP-01 vazios por padrão (vale a cultura); POST e PATCH gravam texto pt-BR ou número; GET devolve; null volta a usar a cultura', async () => {
+    const cen = await cenario();
+    const nova = await criarArea(cen, { cultura_id: cen.c1['001'].id });
+    assert.equal(nova.statusCode, 201, nova.body);
+    assert.deepEqual([nova.json().altura_entrada_cm, nova.json().altura_saida_cm, nova.json().dias_descanso], [null, null, null]);
+    const r = await criarArea(cen, { nome: 'PIQUETE FRACO', cultura_id: cen.c1['001'].id, altura_entrada_cm: '20,5', altura_saida_cm: 12, dias_descanso: '40' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.deepEqual([r.json().altura_entrada_cm, r.json().altura_saida_cm, r.json().dias_descanso], [20.5, 12, 40]);
+    const lida = (await req('GET', '/areas-pastagem', cen.token)).json().find((x) => x.id === r.json().id);
+    assert.deepEqual([lida.altura_entrada_cm, lida.altura_saida_cm, lida.dias_descanso], [20.5, 12, 40]);
+    const p = await patch(cen, r.json().id, { dias_descanso: null, altura_saida_cm: '10' });
+    assert.equal(p.statusCode, 200, p.body);
+    assert.deepEqual([p.json().altura_entrada_cm, p.json().altura_saida_cm, p.json().dias_descanso], [20.5, 10, null]);
+  });
+
+  test('AP-02 validação igual à da cultura: altura 0, > 1000, 2 casas, texto ou booleano → 400; dias 0, 366, decimal → 400; nada gravado', async () => {
+    const cen = await cenario();
+    const id = (await criarArea(cen, { cultura_id: cen.c1['001'].id })).json().id;
+    const casos = [
+      [{ altura_entrada_cm: 0 }, 'altura_fora_da_faixa'],
+      [{ altura_entrada_cm: '1000,1' }, 'altura_fora_da_faixa'],
+      [{ altura_saida_cm: '10,25' }, 'altura_casas_decimais'],
+      [{ altura_entrada_cm: 'alto' }, 'altura_invalida'],
+      [{ altura_entrada_cm: true }, 'altura_invalida'],
+      [{ dias_descanso: 0 }, 'dias_descanso_fora_da_faixa'],
+      [{ dias_descanso: 366 }, 'dias_descanso_fora_da_faixa'],
+      [{ dias_descanso: '30,5' }, 'dias_descanso_invalido'],
+      [{ dias_descanso: false }, 'dias_descanso_invalido'],
+    ];
+    for (const [corpo, motivo] of casos) {
+      const r = await patch(cen, id, corpo);
+      assert.equal(r.statusCode, 400, `${JSON.stringify(corpo)} → ${r.statusCode} ${r.body}`);
+      assert.equal(r.json().reason, motivo, JSON.stringify(corpo));
+    }
+    const ruimNoPost = await criarArea(cen, { nome: 'X', dias_descanso: 400 });
+    assert.equal(ruimNoPost.statusCode, 400, ruimNoPost.body);
+    const area = await prisma().areaPastagem.findUnique({ where: { id } });
+    assert.deepEqual([area.altura_entrada_cm, area.altura_saida_cm, area.dias_descanso], [null, null, null]);
+  });
+
+  test('AP-03 saída menor que a entrada, com as duas do pasto (a nova ou a gravada); só uma das duas pode', async () => {
+    const cen = await cenario();
+    const igual = await criarArea(cen, { altura_entrada_cm: 20, altura_saida_cm: 20 });
+    assert.equal(igual.statusCode, 400, igual.body);
+    assert.equal(igual.json().reason, 'altura_saida_maior_ou_igual');
+    const id = (await criarArea(cen, { altura_entrada_cm: 20 })).json().id;
+    const maior = await patch(cen, id, { altura_saida_cm: 21 });
+    assert.equal(maior.statusCode, 400, maior.body);
+    assert.equal(maior.json().reason, 'altura_saida_maior_ou_igual');
+    assert.equal((await patch(cen, id, { altura_saida_cm: 12 })).statusCode, 200);
+    const baixaEntrada = await patch(cen, id, { altura_entrada_cm: 12 });
+    assert.equal(baixaEntrada.statusCode, 400, 'a entrada nova não pode ficar abaixo da saída gravada');
   });
 });

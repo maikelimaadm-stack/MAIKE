@@ -138,7 +138,7 @@ const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const POSTERIORES = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort());
 /** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
 const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200'], [NOME_PARCEIRO, 'D-PROD-208'], [NOME_TIPO, 'D-PROD-209'], [NOME_BASE, 'D-PROD-210'], [NOME_ABASTECIMENTO, 'D-PROD-211'], [NOME_AREA_CULTURA, 'D-PROD-216'], [NOME_REFORCO, 'D-PROD-217']]);

@@ -94,6 +94,16 @@ describe('D-PROD-223 — farol estimado pelos dias de descanso (domínio)', () =
     expect(e.cor).not.toBe(clarear(COR_SITUACAO_FORRAGEM.PRONTO), 'diferente do "no olho"');
   });
 
+  it('os dias de descanso próprios do pasto valem antes dos da cultura (origem PASTO); vazios, os da cultura (origem CULTURA)', () => {
+    const saida = { area_id: 'a1', ocupada: false, ultima_saida: '2026-10-16' }; // 32 dias
+    const daCultura = estimativaDoPasto(PASTO, saida, HOJE);
+    expect(daCultura).toMatchObject({ situacao: 'PRONTO', diasDescanso: 30, origemDescanso: 'CULTURA' });
+    const doPasto = estimativaDoPasto({ ...PASTO, dias_descanso: 40 }, saida, HOJE);
+    expect(doPasto).toMatchObject({ situacao: 'DESCANSO', diasDescanso: 40, origemDescanso: 'PASTO' });
+    const semCultura = estimativaDoPasto({ id: 'a1', dias_descanso: 20, cultura: null }, saida, HOJE);
+    expect(semCultura).toMatchObject({ situacao: 'PASSOU', diasDescanso: 20, origemDescanso: 'PASTO' });
+  });
+
   it('pasto ocupado agora: "Em pastejo", sem situação nem cor; sem ocupação conhecida: null; sem cultura: sem estimativa', () => {
     expect(estimativaDoPasto(PASTO, { area_id: 'a1', ocupada: true, ultima_saida: null }, HOJE)).toMatchObject({ emPastejo: true, situacao: null, cor: null, rotulo: 'Em pastejo' });
     expect(estimativaDoPasto(PASTO, undefined, HOJE)).toBeNull();

@@ -28,7 +28,7 @@ import { medicaoForragemNotFound } from '../../shared/errors/AppError.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { agoraDoServidor, diaNoFuso, normalizarFusoIana } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import {
-  METODOS, SITUACOES, MAX_LEITURAS, lerLeituras, mediaDasLeituras, situacaoPelaAltura, calcularAmostra, numeroPtBR,
+  METODOS, SITUACOES, MAX_LEITURAS, lerLeituras, mediaDasLeituras, situacaoPelaAltura, calcularAmostra, numeroPtBR, parametrosDoPasto,
 } from './medicaoForragemCalculo.js';
 import {
   listarMedicoes, buscarMedicao, buscarArea, buscarCultura, buscarFusoDaEmpresa, buscarNomeDoUsuario, inserirMedicao, excluirMedicaoPorId,
@@ -194,8 +194,10 @@ export const criar = async (contexto, entrada) => {
 
     const metodo = fechado(entrada.metodo, 'metodo', METODOS);
     const cultura = area.cultura_id ? await buscarCultura(tx, auth.clienteId, area.cultura_id) : null;
-    const entradaCm = cultura?.altura_entrada_cm === null || cultura?.altura_entrada_cm === undefined ? null : Number(cultura.altura_entrada_cm);
-    const saidaCm = cultura?.altura_saida_cm === null || cultura?.altura_saida_cm === undefined ? null : Number(cultura.altura_saida_cm);
+    // D-PROD-223: as alturas que valem para o pasto — as próprias da Área ou, vazias, as da cultura.
+    const parametros = parametrosDoPasto(area, cultura);
+    const entradaCm = parametros.altura_entrada_cm;
+    const saidaCm = parametros.altura_saida_cm;
 
     /** @type {Record<string, unknown>} */
     const medidos = {};
@@ -251,8 +253,8 @@ export const criar = async (contexto, entrada) => {
       cultura_id: cultura?.id ?? null,
       data_medicao: new Date(`${dia}T00:00:00.000Z`),
       metodo,
-      altura_entrada_cm: cultura ? entradaCm : null,
-      altura_saida_cm: cultura ? saidaCm : null,
+      altura_entrada_cm: entradaCm,
+      altura_saida_cm: saidaCm,
       ...medidos,
       observacoes,
       registrado_por_nome: nome,

@@ -78,7 +78,7 @@ const CHECKSUM_ABASTECIMENTO = '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af7
 /** Pastas do repositório: a partida é o que vem ANTES desta (a partida de produção); o GREEN, todas (produção hoje). */
 /** D-PROD-219: a EXPAND da Medição de Forragem veio depois desta (a 66ª); os testes são "no dia desta", com o espelho do runner. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
@@ -162,9 +162,15 @@ const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   });
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);
 /** D-PROD-219: o schema.prisma já tem a MedicaoForragem (posterior a esta): os blocos dela saem do diff "no dia desta". */
-// D-PROD-223: a coluna CADCULTURAS.dias_descanso (EXPAND posterior) também fica fora da conta.
-const DIFERENCA_DIAS_DESCANSO = '[*] Changed the `CADCULTURAS` table\n  [+] Added column `dias_descanso`';
-const semMedicao = (texto) => texto.trim().split(/\n\s*\n/).filter((b) => !b.includes('MEDICAOFORRAGEM') && b.trim() !== DIFERENCA_DIAS_DESCANSO).join('\n\n').trim();
+// D-PROD-223: as colunas novas da EXPAND posterior (CADCULTURAS.dias_descanso e os parâmetros do pasto em
+// AreaPastagem) também ficam fora da conta — só os blocos que são EXATAMENTE essas colunas.
+const daD223 = (bloco) => {
+  const [cabecalho, ...linhas] = bloco.trim().split('\n').map((l) => l.trim());
+  return /^\[\*\] Changed the `(CADCULTURAS|AreaPastagem)` table$/.test(cabecalho)
+    && linhas.length > 0
+    && linhas.every((l) => /^\[\+\] Added column `(dias_descanso|altura_entrada_cm|altura_saida_cm)`$/.test(l));
+};
+const semMedicao = (texto) => texto.trim().split(/\n\s*\n/).filter((b) => !b.includes('MEDICAOFORRAGEM') && !daD223(b)).join('\n\n').trim();
 /** D-PROD-219: o runner oficial no espelho com as pastas até esta (no dia dela); criado no `before`. */
 let ESPELHO_217;
 const runnerAte217 = (urlMigracao, { runtime, extras = {} } = {}) =>

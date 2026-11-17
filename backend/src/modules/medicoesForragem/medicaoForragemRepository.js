@@ -35,7 +35,7 @@ export const buscarMedicao = (tx, clienteId, id) =>
 export const buscarArea = (tx, clienteId, id) =>
   tx.areaPastagem.findUnique({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
-    select: { id: true, empresa_id: true, nome: true, tipo_cultura: true, cultura_id: true },
+    select: { id: true, empresa_id: true, nome: true, tipo_cultura: true, cultura_id: true, altura_entrada_cm: true, altura_saida_cm: true },
   });
 
 /** A cultura da área (mesma fazenda por construção da FK). @param {any} tx @param {string} clienteId @param {string} id */

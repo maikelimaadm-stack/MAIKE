@@ -19,56 +19,12 @@ export const TIPOS_CULTURA = Object.freeze([
   Object.freeze({ value: 'SILAGEM', label: 'SILAGEM' }),
 ]);
 
-/** Mesmo teto do servidor (D-PROD-215). */
-export const ALTURA_MAXIMA_CM = 1000;
+// D-PROD-223: as leituras puras das alturas e dos dias de descanso moram no domínio
+// (também usadas pelo formulário da Área); reexportadas aqui como antes.
+export { ALTURA_MAXIMA_CM, DIAS_DESCANSO_MAXIMO, formatarAlturaCm, lerAlturaCm, lerDiasDescanso } from '@/domain/pastagem/parametrosManejo';
 
 /** @param {unknown} tipo @returns {string} */
 export const rotuloTipoCultura = (tipo) => TIPOS_CULTURA.find((t) => t.value === tipo)?.label ?? '';
-
-/**
- * Altura para exibir: "25", "25,5"; vazio quando não há.
- * @param {unknown} valor
- * @returns {string}
- */
-export const formatarAlturaCm = (valor) => {
-  if (valor === null || valor === undefined || valor === '') return '';
-  const n = Number(valor);
-  if (!Number.isFinite(n)) return '';
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
-};
-
-/**
- * Lê a altura digitada (pt-BR). `null` = vazio; `undefined` = inválida
- * (texto, zero, negativa, mais de 1 casa ou acima do teto).
- * @param {unknown} texto
- * @returns {number|null|undefined}
- */
-export const lerAlturaCm = (texto) => {
-  const t = String(texto ?? '').trim();
-  if (!t) return null;
-  if (!/^\d+([.,]\d)?$/.test(t)) return undefined;
-  const n = Number(t.replace(',', '.'));
-  if (!Number.isFinite(n) || n <= 0 || n > ALTURA_MAXIMA_CM) return undefined;
-  return n;
-};
-
-/** D-PROD-223 — mesmo teto do servidor para os dias de descanso. */
-export const DIAS_DESCANSO_MAXIMO = 365;
-
-/**
- * Lê os dias de descanso digitados. `null` = vazio; `undefined` = inválido
- * (não inteiro, zero, negativo ou acima de 365).
- * @param {unknown} texto
- * @returns {number|null|undefined}
- */
-export const lerDiasDescanso = (texto) => {
-  const t = String(texto ?? '').trim();
-  if (!t) return null;
-  if (!/^\d+$/.test(t)) return undefined;
-  const n = Number(t);
-  if (!Number.isInteger(n) || n < 1 || n > DIAS_DESCANSO_MAXIMO) return undefined;
-  return n;
-};
 
 /** @param {string} empresaId */
 export const listarCulturas = (empresaId) => listCulturas(empresaId);

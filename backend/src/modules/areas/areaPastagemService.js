@@ -56,6 +56,7 @@ import { reservarNumero, ESCOPO_TENANT, resolverEscopoId } from '../sequencias/e
 import { garantirLinhaDaSequencia } from '../sequencias/entidadeCodigoRepository.js';
 import { AppError, areaNotFound, setorNotFound, culturaNotFound } from '../../shared/errors/AppError.js';
 import { buscarSetor } from '../setores/setorRepository.js';
+import { alturaDoCorpo, diasDescansoDoCorpo, exigirAlturasCoerentes } from '../culturas/culturaService.js';
 import { DEPENDENTES_NOME_AREA, LISTAS_NOME_AREA } from '../referencias/propagationRules.js';
 import {
   OPCOES_TRANSACAO,
@@ -146,9 +147,15 @@ export const comoAreaPublica = (registro) => ({
         codigo: registro.cultura.codigo,
         nome: registro.cultura.nome,
         tipo: registro.cultura.tipo,
+        altura_entrada_cm: comoNumero(registro.cultura.altura_entrada_cm),
+        altura_saida_cm: comoNumero(registro.cultura.altura_saida_cm),
         dias_descanso: registro.cultura.dias_descanso ?? null,
       }
     : null,
+  // D-PROD-223 — parâmetros próprios do pasto; `null` = vale o da cultura.
+  altura_entrada_cm: comoNumero(registro.altura_entrada_cm),
+  altura_saida_cm: comoNumero(registro.altura_saida_cm),
+  dias_descanso: registro.dias_descanso ?? null,
   coordenadas: registro.coordenadas ?? null,
   observacoes: registro.observacoes ?? null,
   ativo: registro.ativo,
@@ -233,6 +240,11 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   forragem_kg_ha: (v) => (v === null || v === undefined ? null : v),
   taxa_crescimento_kg_ha_dia: (v) => (v === null || v === undefined ? null : v),
   taxa_aproveitamento: (v) => (v === null || v === undefined ? null : v),
+  // D-PROD-223 — parâmetros próprios do pasto: mesmas regras da cultura (alturas > 0, até
+  // 1000 cm, 1 casa, pt-BR; dias de 1 a 365). Vazio = vale o da cultura.
+  altura_entrada_cm: (v) => alturaDoCorpo(v, 'altura_entrada_cm'),
+  altura_saida_cm: (v) => alturaDoCorpo(v, 'altura_saida_cm'),
+  dias_descanso: (v) => diasDescansoDoCorpo(v),
   quantidade_atual: (v) => (v === null || v === undefined ? undefined : v),
   coordenadas: (v) => (v === undefined ? undefined : v),
   ativo: (v) => (v === undefined ? undefined : Boolean(v)),
@@ -352,6 +364,7 @@ export const criar = async (contexto, entrada) => {
 
   return prisma.$transaction(async (tx) => {
     const campos = camposDe(entrada);
+    exigirAlturasCoerentes(campos.altura_entrada_cm, campos.altura_saida_cm);
     const setor = await exigirSetorDoTenant(tx, auth.clienteId, String(campos.setor_id ?? ''));
     await aplicarCultura(
       tx,
@@ -417,6 +430,11 @@ export const atualizar = async (contexto, id, entrada) => {
     if (!anterior) throw areaNotFound();
 
     const campos = camposDe(entrada);
+    // D-PROD-223: com as duas alturas próprias (a nova ou a gravada), a de saída é menor.
+    exigirAlturasCoerentes(
+      campos.altura_entrada_cm !== undefined ? campos.altura_entrada_cm : anterior.altura_entrada_cm,
+      campos.altura_saida_cm !== undefined ? campos.altura_saida_cm : anterior.altura_saida_cm
+    );
 
     if (Object.prototype.hasOwnProperty.call(campos, 'setor_id')) {
       const setor = await exigirSetorDoTenant(tx, auth.clienteId, String(campos.setor_id ?? ''));

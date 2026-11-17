@@ -148,7 +148,7 @@ const NOME_CULTURAS = '20261116500000_cadculturas';
 const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const TABELAS_POSTERIORES = Object.freeze(['LEITURACOCHO', 'CADCULTURAS']);
 const POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA && n !== NOME_CULTURAS && n !== NOME_AREA_CULTURA && n !== NOME_MEDICAO_FORRAGEM && n !== NOME_DIAS_DESCANSO));
 /** Migrations concluídas na ordem REAL de aplicação (finished_at). */

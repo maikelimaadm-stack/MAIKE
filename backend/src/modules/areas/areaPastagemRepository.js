@@ -46,6 +46,10 @@ const SELECAO = Object.freeze({
   periodo_estacao: true,
   // D-PROD-216 — cultura do cadastro de Culturas (CADCULTURAS) da mesma fazenda.
   cultura_id: true,
+  // D-PROD-223 — parâmetros próprios do pasto (vazio = os da cultura).
+  altura_entrada_cm: true,
+  altura_saida_cm: true,
+  dias_descanso: true,
   coordenadas: true,
   observacoes: true,
   ativo: true,
@@ -61,7 +65,7 @@ const SELECAO = Object.freeze({
  */
 const SELECAO_COM_CULTURA = Object.freeze({
   ...SELECAO,
-  cultura: { select: { id: true, codigo: true, nome: true, tipo: true, dias_descanso: true } },
+  cultura: { select: { id: true, codigo: true, nome: true, tipo: true, altura_entrada_cm: true, altura_saida_cm: true, dias_descanso: true } },
 });
 
 /**

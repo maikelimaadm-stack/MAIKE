@@ -172,6 +172,28 @@ export const diasDescansoDoCorpo = (valor) => {
   return numero;
 };
 
+/** D-PROD-223 — os parâmetros do pasto: na cultura e, como exceção do pasto, na Área. */
+export const CAMPOS_PARAMETROS_PASTO = Object.freeze(['altura_entrada_cm', 'altura_saida_cm', 'dias_descanso']);
+
+/**
+ * O AJV do app usa a coerção padrão do Fastify (`coerceTypes: 'array'`): `true`
+ * viraria 1 e um objeto solto viraria lista. Antes da validação, o corpo BRUTO
+ * precisa trazer número, texto ou null de verdade nesses campos.
+ * @param {unknown} corpo
+ */
+export const exigirParametrosSemCoercao = (corpo) => {
+  if (!corpo || typeof corpo !== 'object') return;
+  const registro = /** @type {Record<string, unknown>} */ (corpo);
+  for (const campo of CAMPOS_PARAMETROS_PASTO) {
+    if (!Object.prototype.hasOwnProperty.call(registro, campo)) continue;
+    const v = registro[campo];
+    if (v !== null && typeof v !== 'number' && typeof v !== 'string') {
+      if (campo === 'dias_descanso') throw invalido('dias_descanso deve ser um número inteiro de dias', { field: campo, reason: 'dias_descanso_invalido' });
+      throw invalido(`${campo} deve ser um número em cm`, { field: campo, reason: 'altura_invalida' });
+    }
+  }
+};
+
 /**
  * Campos editáveis do corpo, já normalizados. `empresa_id` NÃO está aqui: é o
  * escopo, conferido à parte e nunca alterado por PATCH.
@@ -207,7 +229,7 @@ const camposDe = (entrada) => {
  * @param {unknown} entrada
  * @param {unknown} saida
  */
-const exigirAlturasCoerentes = (entrada, saida) => {
+export const exigirAlturasCoerentes = (entrada, saida) => {
   if (entrada === null || entrada === undefined || saida === null || saida === undefined) return;
   if (Number(saida) >= Number(entrada)) {
     throw invalido('altura_saida_cm deve ser menor que altura_entrada_cm', {

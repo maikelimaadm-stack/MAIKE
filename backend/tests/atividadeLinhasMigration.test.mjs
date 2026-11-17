@@ -149,7 +149,7 @@ const DA_AREA_CULTURA = /^AreaPastagem(_cliente_id_empresa_id_cultura_id_|\.cult
 const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const DO_REFORCO = /^AtividadeApontamento_empresa_atividade_id_key:/;
 /** Das migrations posteriores (D-PROD-203, D-PROD-205, D-PROD-206, D-PROD-207, D-PROD-208, D-PROD-210, D-PROD-211, D-PROD-216 e D-PROD-217): constraint, índice, `tabela:política` ou tabela. */
 const dasPosteriores = (l) => daFormulacao(l) || DA_MAO_OBRA.test(l) || DO_PARCEIRO.test(l) || DO_ABASTECIMENTO.test(l) || DA_AREA_CULTURA.test(l) || DO_REFORCO.test(l) || NOVAS_MAO_OBRA.includes(l);

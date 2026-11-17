@@ -1,4 +1,4 @@
-# MAIKE — Dias de descanso da cultura: runbook de release expand-only (D-PROD-223)
+# MAIKE — Dias de descanso e parâmetros do pasto: runbook de release expand-only (D-PROD-223)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
@@ -18,13 +18,13 @@ Precedentes executados: [`MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md`](./MAIKE-ME
 
 | Item | Valor |
 |---|---|
-| Migration | `20261117300000_cultura_dias_descanso` |
-| Natureza | **expand-only**: 1 coluna NOVA, anulável e sem DEFAULT, em tabela existente — `CADCULTURAS.dias_descanso INTEGER`. Sem CHECK (a allowlist EXPAND recusa CHECK em tabela antiga; a faixa 1..365 é da API), sem índice, nenhuma linha muda de valor |
-| SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `5a266b174b20a6bc3ca51a7dc15d852378a875d506a805bb7eedfbba01191a4b` |
-| Classificação (`classificarMigrations`) | `modo: EXPAND`, `tabelas_novas: []`, `colunas_novas_em_tabelas_antigas: ["CADCULTURAS.dias_descanso"]`, `violacoes: []` (teste B35a) |
+| Migration | `20261117300000_descanso_e_alturas_por_area` |
+| Natureza | **expand-only**: 4 colunas NOVAS, anuláveis e sem DEFAULT, em tabelas existentes — `CADCULTURAS.dias_descanso INTEGER` e, em `AreaPastagem`, `altura_entrada_cm DECIMAL(6,1)`, `altura_saida_cm DECIMAL(6,1)` e `dias_descanso INTEGER` (parâmetros próprios do pasto; vazio = os da cultura). Sem CHECK (a allowlist EXPAND recusa CHECK em tabela antiga; as faixas são da API — D-PROD-223 item 7), sem índice, nenhuma linha muda de valor |
+| SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e` |
+| Classificação (`classificarMigrations`) | `modo: EXPAND`, `tabelas_novas: []`, `colunas_novas_em_tabelas_antigas: ["AreaPastagem.altura_entrada_cm", "AreaPastagem.altura_saida_cm", "AreaPastagem.dias_descanso", "CADCULTURAS.dias_descanso"]`, `violacoes: []` (teste B35a) |
 | `_prisma_migrations` | esperado **66** concluídas, 0 abertas (a última `20261117200000_medicao_forragem`, D-PROD-219, checksum `66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f`); depois **67**. Recontar no §2 |
 | Tabelas em `public` | **96** antes e depois |
-| Preflight do deploy | `COLUNAS_EXIGIDAS` ganha `CADCULTURAS.dias_descanso` (`scripts/deploy/preflightSchemaLib.mjs`) |
+| Preflight do deploy | `COLUNAS_EXIGIDAS` ganha as 4 colunas (`scripts/deploy/preflightSchemaLib.mjs`) |
 
 **Por que antes do merge (D-PROD-72 item 1):** a Vercel publica a `main` sozinha.
 O runtime novo lê a coluna em `/culturas`, em `/areas-pastagem` (a cultura embutida)
@@ -34,8 +34,8 @@ segue igual com o banco migrado — **não há janela** se a ordem for migration
 
 **Efeito durante a transação:** `ALTER TABLE … ADD COLUMN` anulável sem DEFAULT é só
 catálogo (sem reescrita), mas pede trava `ACCESS EXCLUSIVE` por um instante em
-`CADCULTURAS` — leituras e escritas da tabela esperam o fim da transação
-(milissegundos). Uma espera além do `lock_timeout` de 5 s aborta tudo sem aplicar nada.
+`CADCULTURAS` e em `AreaPastagem` — leituras e escritas dessas tabelas (inclusive o
+mapa lendo as áreas) esperam o fim da transação (milissegundos). Uma espera além do `lock_timeout` de 5 s aborta tudo sem aplicar nada.
 
 ## 1. Caminhos
 
@@ -64,8 +64,10 @@ SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
 SELECT migration_name, checksum FROM _prisma_migrations
  WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
  ORDER BY finished_at DESC LIMIT 1;                            -- 20261117200000_medicao_forragem, 66f5fb51…
-SELECT count(*) FROM information_schema.columns
- WHERE table_schema = 'public' AND table_name = 'CADCULTURAS' AND column_name = 'dias_descanso';  -- 0
+SELECT table_name, column_name FROM information_schema.columns
+ WHERE table_schema = 'public'
+   AND ((table_name = 'CADCULTURAS' AND column_name = 'dias_descanso')
+     OR (table_name = 'AreaPastagem' AND column_name IN ('altura_entrada_cm', 'altura_saida_cm', 'dias_descanso')));  -- 0 linhas
 SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 96
 SELECT codigo, nome FROM "CADCULTURAS"
  WHERE cliente_id = 'ca98fddc19f711cde8c2a6383' AND empresa_id = 'cmw13bo4a0003l508adj0rdw2'
@@ -87,7 +89,7 @@ BEGIN
   IF (SELECT system_identifier FROM pg_control_system()) <> 7692130048193495360 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
-  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261117300000_cultura_dias_descanso') THEN
+  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261117300000_descanso_e_alturas_por_area') THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -102,21 +104,23 @@ BEGIN
                     AND finished_at IS NOT NULL AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261117200000_medicao_forragem) não está concluída com o checksum do repositório';
   END IF;
-  IF to_regclass('public."CADCULTURAS"') IS NULL THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: tabela CADCULTURAS ausente';
+  IF to_regclass('public."CADCULTURAS"') IS NULL OR to_regclass('public."AreaPastagem"') IS NULL THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: tabela CADCULTURAS ou AreaPastagem ausente';
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns
-              WHERE table_schema = 'public' AND table_name = 'CADCULTURAS' AND column_name = 'dias_descanso') THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: coluna CADCULTURAS.dias_descanso já existe';
+              WHERE table_schema = 'public'
+                AND ((table_name = 'CADCULTURAS' AND column_name = 'dias_descanso')
+                  OR (table_name = 'AreaPastagem' AND column_name IN ('altura_entrada_cm', 'altura_saida_cm', 'dias_descanso')))) THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: alguma das 4 colunas novas já existe';
   END IF;
 END $guarda$;
 
--- <migration.sql integral, byte a byte (SHA-256 5a266b17…01191a4b)>
+-- <migration.sql integral, byte a byte (SHA-256 c391e4b0…0239b477e)>
 
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
-VALUES (gen_random_uuid()::text, '5a266b174b20a6bc3ca51a7dc15d852378a875d506a805bb7eedfbba01191a4b', now(),
-        '20261117300000_cultura_dias_descanso', NULL, NULL, now(), 1);
+VALUES (gen_random_uuid()::text, 'c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e', now(),
+        '20261117300000_descanso_e_alturas_por_area', NULL, NULL, now(), 1);
 COMMIT;
 ```
 
@@ -127,9 +131,11 @@ existe e que não há linha nova, corrija a causa e peça novo GO.
 
 **Ensaio local (2026-11-17):** num banco à parte com as 66 migrations da `main`
 (`prisma migrate deploy` de uma cópia das pastas até a `20261117200000_medicao_forragem`:
-66 / 0) e 12 culturas na fazenda (as 11 da lista de referência e uma 012 fora dela):
-com o `system_identifier` de produção recusou (`RELEASE_BLOCKED: alvo divergente`, nada
-aplicado); com o local, aplicou numa transação (66 → 67, checksum pinado); o
+66 / 0) e 12 culturas na fazenda (as 11 da lista de referência e uma 012 fora dela),
+refeito com as 4 colunas: com o `system_identifier` de produção recusou
+(`RELEASE_BLOCKED: alvo divergente`, nada aplicado); com o local, aplicou numa transação
+(66 → 67, checksum pinado; as 3 colunas de `AreaPastagem` `numeric(6,1)`/`integer`
+anuláveis e a de `CADCULTURAS` `integer`, 96 tabelas); o
 `migrate diff --exit-code` contra o `schema.prisma` disse "No difference detected."
 (exit 0), o `migrate status` "Database schema is up to date!", e a 2ª execução recusou
 (`RELEASE_BLOCKED: migration já registrada`), sem linha nova.
@@ -138,11 +144,17 @@ aplicado); com o local, aplicou numa transação (66 → 67, checksum pinado); o
 
 ```sql
 SELECT migration_name, checksum, rolled_back_at, applied_steps_count FROM _prisma_migrations
- WHERE migration_name = '20261117300000_cultura_dias_descanso';  -- 1 linha, checksum pinado, null, 1
+ WHERE migration_name = '20261117300000_descanso_e_alturas_por_area';  -- 1 linha, checksum pinado, null, 1
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 67, 0
-SELECT data_type, is_nullable, column_default FROM information_schema.columns
- WHERE table_schema = 'public' AND table_name = 'CADCULTURAS' AND column_name = 'dias_descanso';  -- integer, YES, null
+SELECT table_name, column_name, data_type, numeric_precision, numeric_scale, is_nullable, column_default
+  FROM information_schema.columns
+ WHERE table_schema = 'public'
+   AND ((table_name = 'CADCULTURAS' AND column_name = 'dias_descanso')
+     OR (table_name = 'AreaPastagem' AND column_name IN ('altura_entrada_cm', 'altura_saida_cm', 'dias_descanso')))
+ ORDER BY 1, 2;   -- 4 linhas: numeric 6/1 (2×) e integer (2×), todas YES, sem DEFAULT
+SELECT count(*) FILTER (WHERE altura_entrada_cm IS NOT NULL OR altura_saida_cm IS NOT NULL OR dias_descanso IS NOT NULL)
+  FROM "AreaPastagem";  -- 0 (sem semente: vale a cultura)
 SELECT count(*) FILTER (WHERE dias_descanso IS NOT NULL) FROM "CADCULTURAS";  -- 0 (antes do §4b)
 SELECT count(*) FROM pg_tables WHERE schemaname = 'public';    -- 96
 ```
@@ -190,12 +202,17 @@ sem sessão → 401; como administrador, **Culturas** mostra a coluna "Dias de d
 (30 na 001 depois do §4b) e o formulário aceita 1..365; no Mapa Geral, Visualização →
 **Forragem**: um pasto sem medição recente, sem lote e com saída conhecida aparece no
 tom bem claro, e o painel Forragem dele diz "<Situação> (estimado) · lote saiu há N
-dias · descanso da cultura D dias"; um pasto com lote diz "Em pastejo".
+dias · descanso da cultura D dias"; um pasto com lote diz "Em pastejo". No cadastro da
+Área (uso Pastagem), a seção "Parâmetros do pasto (opcional — vazio usa os da cultura)"
+mostra os valores da cultura como dica; gravar, por exemplo, dias de descanso 40 num
+piquete faz o painel dizer "descanso 40 dias (do pasto)" e a estimativa usá-los; uma
+Medição de Forragem nesse pasto mostra no cabeçalho as alturas e "(do pasto)" quando
+forem próprias.
 
 ## 6. Rollback
 
-A coluna é nova e nada depende dela no banco. Reverter seria uma migration nova com
-`ALTER TABLE "CADCULTURAS" DROP COLUMN "dias_descanso"` (CONTRACT, com GO próprio),
+As colunas são novas e nada depende delas no banco. Reverter seria uma migration nova com
+`DROP COLUMN` das 4 (CONTRACT, com GO próprio),
 nunca editando esta. Com o código novo no ar, reverter o código primeiro. O passo de
 dados se desfaz com `UPDATE … SET dias_descanso = NULL` nas mesmas 11 linhas.
 

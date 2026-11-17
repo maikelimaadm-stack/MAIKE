@@ -87,7 +87,7 @@ const DECISAO_AREA_CULTURA = 'D-PROD-216';
 const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
@@ -177,7 +177,7 @@ const runnerAteAreaCultura = (urlMigracao, { runtime, extras = {} } = {}) =>
     cwd: ESPELHO_AREA_CULTURA,
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
-/** D-PROD-215, D-PROD-216 e D-PROD-217 (ver o cabeçalho): até as três subirem, o schema.prisma de hoje acusa só a diferença delas. */
+/** D-PROD-215, D-PROD-216 e D-PROD-217 (ver o cabeçalho): até as três subirem, o schema.prisma de hoje acusa só a diferença delas (e a da D-PROD-219 e da D-PROD-223, posteriores). */
 const DIFERENCA_DAS_POSTERIORES = [
   '[+] Added tables',
   '  - CADCULTURAS',
@@ -189,6 +189,10 @@ const DIFERENCA_DAS_POSTERIORES = [
   '',
   '[*] Changed the `AreaPastagem` table',
   '  [+] Added column `cultura_id`',
+  // D-PROD-223: os parâmetros próprios do pasto (EXPAND posterior).
+  '  [+] Added column `altura_entrada_cm`',
+  '  [+] Added column `altura_saida_cm`',
+  '  [+] Added column `dias_descanso`',
   '  [+] Added index on columns (cliente_id, empresa_id, cultura_id)',
   '  [+] Added foreign key on columns (cliente_id, empresa_id, cultura_id)',
   '',

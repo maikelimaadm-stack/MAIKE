@@ -145,7 +145,7 @@ const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
-const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 /** As tabelas das EXPAND posteriores (D-PROD-202, D-PROD-203, D-PROD-205, D-PROD-206 e D-PROD-207; a D-PROD-206 só põe uma coluna), que só existem nos bancos em que o runner as aplicou. */
 const NOVAS_POSTERIORES = Object.freeze([...NOVAS_LINHAS, ...TABELAS_FORMULACOES, 'LEITURACOCHO', ...NOVAS_MAO_OBRA]);
 const TOTAL_MIGRATIONS = PASTAS.length;
