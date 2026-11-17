@@ -12,7 +12,7 @@ import "@/styles/mk-dp-historico.css";
  *
  * Marcação: ol.mk-dp-tl > li.mk-dp-tl__grupo > h3.mk-dp-tl__dia(> span.mk-dp-tl__ponto)
  *           + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card(.is-cancelado)
- *             > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong + .mk-dp-chip) + dl.mk-dp-tl__linhas > div.mk-dp-tl__row > dt + dd
+ *             > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong + .mk-dp-chip) + dl.mk-dp-tl__linhas (grade) > div.mk-dp-tl__row(.mk-dp-tl__row--larga: texto longo) > dt + dd
  */
 
 /** @typedef {import("./historicoDoPasto").DiaHistorico} DiaHistorico */
@@ -39,6 +39,17 @@ const ICONES = {
  * o único que o usava, passou para os cartões do manejo.)
  * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }> }> }>, rotulo?: string }} props
  */
+/** Rótulos de texto livre: ocupam a largura do cartão mesmo quando o texto é curto. */
+const ROTULOS_DE_TEXTO = /^(descrição|observaç(ão|ões)|detalhe|motivo)$/i;
+
+/**
+ * Texto livre (descrição, observações, detalhe, motivo) ou longo ocupa a largura do cartão na grade
+ * compacta das linhas (D-PROD-224); números e nomes curtos ficam lado a lado.
+ * @param {string} rotulo
+ * @param {React.ReactNode} valor
+ */
+const textoLongo = (rotulo, valor) => ROTULOS_DE_TEXTO.test(String(rotulo ?? "").trim()) || (typeof valor === "string" && valor.length > 28);
+
 export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
   const lista = Array.isArray(dias) ? dias : [];
   return (
@@ -67,7 +78,7 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
                   </div>
                   <dl className="mk-dp-tl__linhas">
                     {c.linhas.map((l, i) => (
-                      <div key={`${l.rotulo}-${i}`} className="mk-dp-tl__row">
+                      <div key={`${l.rotulo}-${i}`} className={textoLongo(l.rotulo, l.valor) ? "mk-dp-tl__row mk-dp-tl__row--larga" : "mk-dp-tl__row"}>
                         <dt>{l.rotulo}</dt>
                         <dd>{l.valor}</dd>
                       </div>

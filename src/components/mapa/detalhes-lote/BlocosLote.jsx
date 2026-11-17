@@ -91,7 +91,7 @@ export function BlocosLote({ lote }) {
   return (
     <>
       <Cartao
-        imagem={<IconeCategoria figura={lote.subicone} tamanho={44} />}
+        imagem={<IconeCategoria figura={lote.subicone} tamanho={36} />}
         titulo={lote.nome}
         sub={sub || undefined}
         chip={<ChipSituacao situacao={lote.situacao} />}

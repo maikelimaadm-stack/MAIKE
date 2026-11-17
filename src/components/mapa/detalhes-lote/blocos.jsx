@@ -37,7 +37,7 @@ import "@/styles/mk-detalhes-pasto.css";
  *   </Grade>
  *   <Linha rotulo="Projeção (fim do mês)" sub="peso projetado…" valor="30/11: 469 · 31/12: 475" quebra />
  * </Cartao>
- * <Linha imagem={<IconeCategoria figura="macho-0-8" tamanho={30} />} rotulo="BEZERRO" sub="20% do pasto" valor="62 cab" />
+ * <Linha imagem={<IconeCategoria figura="macho-0-8" tamanho={26} />} rotulo="BEZERRO" sub="20% do pasto" valor="62 cab" />
  * <Aviso tom="atencao">Faz 82 dias sem pesar</Aviso>                    // tom="neutro" → faixa teal com ícone info
  * <Nota>Registros de todas as movimentações…</Nota>
  * <Vazio icone={Beef}>Nenhum lote neste pasto agora.</Vazio>
@@ -46,7 +46,7 @@ import "@/styles/mk-detalhes-pasto.css";
  * <Segmentado rotulo="Vista" opcoes={[{ valor: "resumo", rotulo: "Resumo" }]} valor="resumo" onMudar={fn} />
  * <Kpis itens={[{ rotulo: "Cabeças", valor: "314", nota: "esperado 75 g", corNota: "#64748b" }]} />
  * <ListaItens titulo="Pasto 07 (314)" marcacao="meio" onMarcarTodos={fn}>
- *   <Item marcado onMarcar={fn} imagem={<IconeCategoria figura="femea-37-mais" tamanho={34} />} cor="#ef4444"
+ *   <Item marcado onMarcar={fn} imagem={<IconeCategoria figura="femea-37-mais" tamanho={30} />} cor="#ef4444"
  *     titulo="L-2026-008" meta="38 cb · 38,0 UA · VACA" sub="449,5 kg" chip={<Chip tom="atencao">Atenção</Chip>}
  *     chevron onClick={abrirLote} />
  * </ListaItens>

@@ -88,9 +88,9 @@ describe("aba Detalhes", () => {
       ["NOVILHA", "28% do pasto · peso 304 kg", "87 cab"],
       ["VACA", "12% do pasto · peso 450 kg", "38 cab"],
     ]);
-    // Subícone 30 px, do código (D-PROD-191).
+    // Subícone do código (D-PROD-191), 26 px na densidade compacta (D-PROD-224).
     const imgs = [...cartaoCategorias.querySelectorAll("img")].map((i) => i.getAttribute("src"));
-    expect(imgs).toEqual(["macho-0-8", "macho-25-36", "femea-13-24", "femea-37-mais"].map((f) => urlSubiconeLote(f, 30)));
+    expect(imgs).toEqual(["macho-0-8", "macho-25-36", "femea-13-24", "femea-37-mais"].map((f) => urlSubiconeLote(f, 26)));
   });
 
   it("pasto vazio: VAZIO · descanso desde a última saída (mesma regra do mapa), Sem gado e o aviso de nenhum lote", () => {
@@ -142,7 +142,7 @@ describe("aba Lotes: vistas", () => {
 });
 
 describe("aba Lotes › Resumo", () => {
-  it("4 números, cabeçalho do pasto e os lotes por nome com subícone 34 px, cor do lote, meta, peso e situação", () => {
+  it("4 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
     render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     const kpis = [...document.querySelectorAll(".mk-dp-kpi")].map((k) => [k.querySelector("dt").textContent, k.querySelector(".mk-dp-kpi__val").textContent]);
     expect(kpis).toEqual([["Peso médio (kg)", "329,7"], ["Cabeças", "314"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
@@ -156,7 +156,7 @@ describe("aba Lotes › Resumo", () => {
     expect(primeiro.querySelector(".mk-dp-quad").style.background).toBe("rgb(239, 68, 68)");
     expect(primeiro.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");
     expect(itens[1].querySelector(".mk-dp-chip--ok").textContent).toBe("Em dia");
-    expect(primeiro.querySelector("img").getAttribute("src")).toBe(urlSubiconeLote("femea-37-mais", 34));
+    expect(primeiro.querySelector("img").getAttribute("src")).toBe(urlSubiconeLote("femea-37-mais", 30));
     expect(primeiro.querySelector(".mk-dp-chev")).toBeTruthy();
   });
 
@@ -210,7 +210,7 @@ describe("aba Lotes › Lote", () => {
     expect(screen.getByRole("button", { name: "Próximo lote" }).disabled).toBe(true);
   });
 
-  it("cartão do lote (44 px, 'VACA · FÊMEA · Pasto 07', Atenção), avisos e as 3 seções; dica só nos campos de projeção", async () => {
+  it("cartão do lote (36 px na densidade compacta, D-PROD-224; 'VACA · FÊMEA · Pasto 07', Atenção), avisos e as 3 seções; dica só nos campos de projeção", async () => {
     render(<CascaDeTeste modelo={modeloV12()} />);
     await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
     const painel = screen.getByRole("tabpanel");
@@ -218,7 +218,7 @@ describe("aba Lotes › Lote", () => {
     expect(cartao.querySelector(".mk-dp-cartao__titulo").textContent).toBe("L-2026-008");
     expect(cartao.querySelector(".mk-dp-cartao__sub").textContent).toBe("VACA · FÊMEA · Pasto 07");
     expect(cartao.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");
-    expect(cartao.querySelector("img").getAttribute("src")).toBe(urlSubiconeLote("femea-37-mais", 44));
+    expect(cartao.querySelector("img").getAttribute("src")).toBe(urlSubiconeLote("femea-37-mais", 36));
     expect([...painel.querySelectorAll(".mk-dp-aviso--atencao")].map((a) => a.textContent)).toEqual(["Faz 82 dias sem pesar"]);
     expect(within(painel).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Identificação"]);
 

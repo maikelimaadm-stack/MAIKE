@@ -44,7 +44,7 @@ export function AbaDetalhes() {
             {area.categorias.map((c) => (
               <Linha
                 key={c.nome}
-                imagem={<IconeCategoria figura={c.subicone} tamanho={30} />}
+                imagem={<IconeCategoria figura={c.subicone} tamanho={26} />}
                 rotulo={c.nome}
                 sub={c.descricao}
                 valor={c.valor}

@@ -46,7 +46,7 @@ export function VistaResumo() {
             key={l.id}
             marcado={selecao.has(l.id)}
             onMarcar={() => alternarSelecao(l.id)}
-            imagem={<IconeCategoria figura={l.subicone} tamanho={34} />}
+            imagem={<IconeCategoria figura={l.subicone} tamanho={30} />}
             cor={l.ident.identificadorCor}
             titulo={l.nome}
             meta={l.textos.meta}

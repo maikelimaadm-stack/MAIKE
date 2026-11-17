@@ -21,7 +21,7 @@
 .mk-dp .mk-dp-lotes__blocos {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 

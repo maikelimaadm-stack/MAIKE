@@ -23,7 +23,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -47,7 +47,7 @@
   border: 0;
 }
 
-/* ── Nível: o subícone do cocho (CochoNivel, sem a bolinha do mapa; D-PROD-223) na caixa de 76 px ── */
+/* ── Nível: o subícone do cocho (CochoNivel, sem a bolinha do mapa; D-PROD-223) na caixa de 64 px ── */
 .mk-dp .mk-dp-cocho__fig {
   position: relative;
 }
@@ -76,7 +76,7 @@
 /* Sem estimativa: o estado (ex.: "Período fechado") no lugar do número, menor e cinza. */
 .mk-dp .mk-dp-cocho__nivel--neutro .mk-dp-nivel__val {
   color: #4b5563;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 /* Observação do desconto diário: depois das linhas, mais clara. */
@@ -89,17 +89,17 @@
    leituras anteriores e os "Nenhum … ainda.". */
 .mk-dp .mk-dp-cocho__linha--fraca .mk-dp-linha__rot {
   color: #6b7280;
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 .mk-dp .mk-dp-cocho__linha--fraca .mk-dp-linha__val {
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 /* Aviso dentro do cartão (ex.: "Aproximado — sobra não informada"). */
 .mk-dp .mk-dp-cocho__linha--atencao .mk-dp-linha__rot {
   color: #b45309;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
@@ -144,9 +144,9 @@
 }
 
 .mk-dp .mk-dp-cocho__obs-leitura {
-  padding: 0 14px 10px;
+  padding: 0 12px 8px;
   color: #6b7280;
-  font-size: 12.5px;
+  font-size: 11.5px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -161,5 +161,21 @@
 @media (prefers-reduced-motion: no-preference) {
   .mk-dp .mk-dp-cocho__carregando .mk-dp-vazio__ic {
     animation: mk-dp-cocho-girar 1s linear infinite;
+  }
+}
+
+/* ── Popup (a partir de 768 px, D-PROD-224): o nível do ciclo e o cartão do
+   limite LADO A LADO, como o "Nível do cocho" do estilo antigo (dois painéis
+   e as células embaixo do limite). Só a região do nível; a da leitura segue em
+   coluna. O título oculto é absoluto e não ocupa célula da grade. ── */
+@media (min-width: 768px) {
+  .mk-dp .mk-dp-cocho__regiao:has(> .mk-dp-cocho__nivel) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .mk-dp .mk-dp-cocho__regiao:has(> .mk-dp-cocho__nivel) .mk-dp-cocho__cartao-nivel .mk-dp-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

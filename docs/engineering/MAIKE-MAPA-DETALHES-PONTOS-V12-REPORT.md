@@ -264,3 +264,35 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 - **Testes:** CV-3, `depositoNivel`, DV-5 e AS-1 exigem o subícone. Quatro mutações, uma por lugar, voltaram o marcador ou as cores dele, e todas foram pegas.
 - **Conferência visual:** harness local a 1280 px e a 390 px. O cocho e o depósito aparecem no bloco do nível com 76 × 56 px. Nas listas, o subícone tem 34 px.
 - **Observação:** o subícone é cinza-claro (`#e2e6e9`). Nas listas, um cocho sem lançamento mostra só o contorno, discreto no fundo branco. É a configuração do sistema. Escurecer a cor é uma linha no `COCHO_APARENCIA.subicone`, se o proprietário quiser.
+
+## 9. Detalhes mais compactos e organizados (D-PROD-224)
+
+- **Pedido do proprietário:** "gostei do novo estilo mas está muito grande as informações e espalhadas sendo que pode organizar melhor". Veio com prints do estilo antigo: o "Nível do cocho" em dois painéis e as "Informações da Área" em grade de 4 colunas.
+- **O que mudou:** o desenho v12 ficou, com a densidade do estilo antigo (detalhe na D-PROD-224):
+  - letra menor, com piso de 11 px;
+  - valor da célula em negrito;
+  - menos espaço entre blocos, células e linhas;
+  - 6 colunas na grade do popup;
+  - nível ao lado do cartão dos números no cocho e no depósito;
+  - linha do tempo em grade.
+- **Arquivos:**
+  - CSS: `mk-detalhes-pasto.css`, `mk-dp-cocho.css`, `mk-dp-deposito.css`, `mk-dp-historico.css`, `mk-dp-bebedouro.css`, `mk-dp-tarefa.css` e `mk-dp-lotes.css`;
+  - `LinhaDoTempo.jsx`: classe do texto longo;
+  - `AbaDetalhes.jsx`, `BlocosLote.jsx` e `VistaResumo.jsx`: tamanho dos ícones do animal;
+  - `blocos.jsx`: exemplos do comentário.
+- **Testes:**
+  - `detalhesCompactos` é novo, com DC-1 a DC-4 e cinco mutações pegas;
+  - `detalhesLoteV12Lotes` passou a conferir os ícones de 26, 30 e 36 px.
+- **Medição** (altura do conteúdo no harness, antes → depois):
+
+| Tela | Computador | Celular |
+|---|---|---|
+| Cocho | 1.371 → 1.025 px (−26%) | 2.059 → 1.636 px (−21%) |
+| Depósito | 1.411 → 986 px (−31%) | 1.642 → 1.280 px (−23%) |
+| Bebedouro | 982 → 813 px (−18%) | 1.157 → 983 px (−16%) |
+| Tarefa | 786 → 720 px (cabe sem rolar) | 943 → 804 px (−15%) |
+| Área | 3.112 → 1.854 px (−41%) | 3.165 → 2.443 px (−23%) |
+| Pasto › Detalhes | 760 → 677 px (cabe sem rolar) | 1.023 → 835 px (−19%) |
+| Pasto › Histórico | 2.818 → 1.616 px (−43%) | 2.837 → 2.170 px (−24%) |
+
+- **Conferência visual:** o harness a 1280 px e a 390 px, em todas as cenas, mais a tela do lote e o Resumo. Os ícones do animal ficam dentro das caixas novas, e no celular a grade segue com 2 colunas.
