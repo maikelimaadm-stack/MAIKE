@@ -548,7 +548,7 @@ describe('D-PROD-209 — ordem de produção com a D-PROD-210, a D-PROD-211, a D
       assert.ok(!vazou(r.saida, url));
       // D-PROD-219: a EXPAND da Medição de Forragem sobe no mesmo passo, depois do reforço, sem decisão.
       assert.deepEqual(Object.values(await historico(dbo)).slice(0, 2), [66, 0]);
-      assert.equal((await retrato(dbo)).tabelas.split(',').length, 95);
+      assert.equal((await retrato(dbo)).tabelas.split(',').length, 96);
       assert.equal(await definicaoDoCheck(dbo), check);
       const diff = await migrateDiff(url);
       assert.equal(diff.status, 0, diff.saida);
