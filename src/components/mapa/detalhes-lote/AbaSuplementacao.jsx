@@ -15,7 +15,8 @@ import AcoesCochoPasto from "./AcoesCochoPasto";
  *    `indicador_farol`), por nome;
  *  - KPIs, Fornecimento e Consumo esperado / real do PRIMEIRO cocho; com 2+
  *    cochos os títulos levam o nome dele (`suplementacaoDoPasto.js`);
- *  - item do cocho: o mesmo ícone do marcador do mapa (nível do ciclo), "65% ·
+ *  - item do cocho: o subícone do cocho com o nível do ciclo (o desenho dos
+ *    detalhes, sem a bolinha do mapa, D-PROD-223), "65% ·
  *    restam 260 kg" ou o estado, o produto e a bolinha do farol da leitura; o
  *    toque abre o detalhe do cocho que já existe (`dados.onAbrirCocho`), só com
  *    `permissoes.detalhesCocho`;
@@ -26,13 +27,6 @@ import AcoesCochoPasto from "./AcoesCochoPasto";
  * Sem CSS próprio: só as peças e classes comuns (`blocos.jsx` +
  * `mk-detalhes-pasto.css`) já dão o desenho do v12.
  */
-
-/**
- * Ícone do item (34 px, `.mk-dp-item__img`): o do MARCADOR do mapa (moldura
- * redonda com o nível do ciclo), como na captura do v12 — o subícone claro
- * (`#e2e6e9`) quase some no fundo branco do item.
- */
-const MARCADOR = true;
 
 export default function AbaSuplementacao() {
   const { dados, permissoes, slotRodape } = usePasto();
@@ -81,7 +75,7 @@ export default function AbaSuplementacao() {
         {visao.cochos.map((c) => (
           <Item
             key={c.id || c.nome}
-            imagem={urlIconeCocho(c.fracaoIcone, MARCADOR)}
+            imagem={urlIconeCocho(c.fracaoIcone)}
             titulo={c.nome}
             meta={c.meta}
             sub={

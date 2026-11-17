@@ -26,8 +26,6 @@ import "@/styles/mk-dp-deposito.css";
 
 /** Cartões da linha do tempo do detalhe; o histórico completo abre pela pílula "Histórico". */
 const LIMITE_LINHA_DO_TEMPO = 5;
-/** Ícone do item do cocho: o do MARCADOR do mapa (moldura redonda com o nível), como no v12. */
-const MARCADOR = true;
 
 /**
  * Leitura do cache local do mapa (rápida), com atualização em segundo plano.
@@ -206,8 +204,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const nivel = indicador.nivel;
   const totalSaldoSacos = useMemo(() => saldosAgrupados.emKg.reduce((total, item) => total + (item.saldoSacos || 0), 0), [saldosAgrupados]);
 
-  // Pastos atendidos: cada cocho que puxa deste depósito, com o ícone do marcador
-  // (nível do SSOT, D-PROD-178) e a bolinha do farol da última leitura (D-PROD-205).
+  // Pastos atendidos: cada cocho que puxa deste depósito, com o subícone do cocho
+  // (nível do SSOT, D-PROD-178; o desenho dos detalhes, D-PROD-223) e a bolinha do
+  // farol da última leitura (D-PROD-205).
   const cochos = useMemo(() => {
     const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));
     return cochosVinculados
@@ -327,7 +326,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                 {cochos.map((c) => (
                   <Item
                     key={c.id}
-                    imagem={urlIconeCocho(c.fracao, MARCADOR)}
+                    imagem={urlIconeCocho(c.fracao)}
                     titulo={c.nome}
                     meta={
                       <>

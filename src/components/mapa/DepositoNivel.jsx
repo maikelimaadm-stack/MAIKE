@@ -23,8 +23,9 @@ const COR_NEUTRA = "#6b7280";
  * (`calcularNivelDeposito`, `src/domain/suplementacao/nivelSuplementacao.js`):
  * nenhuma conta de saldo ou percentual acontece aqui.
  *
- *  1. Ocupação do LIMITE OPERACIONAL (`capacidade_cocho_kg`): o ícone preenche
- *     com `fracaoParaSvg` (≤ 100%, o mesmo desenho do marcador do mapa) e o
+ *  1. Ocupação do LIMITE OPERACIONAL (`capacidade_cocho_kg`): o subícone do
+ *     depósito (o dos detalhes, sem o pino do mapa, D-PROD-223) preenche com
+ *     `fracaoParaSvg` (≤ 100%, a mesma fração do marcador do mapa) e o
  *     percentual BRUTO (pode passar de 100%) é o número grande do `Nivel` e o
  *     da célula do medidor acessível (`role="meter"`), com o saldo, o limite e
  *     o excesso em kg. Sem limite não há percentual: o `Nivel` mostra o rótulo
@@ -63,8 +64,8 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
       <Nivel
         data-testid="nivel-do-deposito"
         // Decorativo: o número e o medidor da grade trazem o nível ao leitor de tela.
-        // O desenho do marcador do mapa (pino + silo), como o ícone do v12 e o do cocho.
-        figura={<img data-deposito-icone="" src={urlIconeDeposito(nivel.fracaoParaSvg, true)} alt="" aria-hidden="true" />}
+        // O subícone do depósito, o desenho dos detalhes (sem o pino do mapa), como o do cocho (D-PROD-223).
+        figura={<img data-deposito-icone="" src={urlIconeDeposito(nivel.fracaoParaSvg)} alt="" aria-hidden="true" />}
         rotulo={<span aria-hidden="true">{ROTULO_NIVEL}</span>}
         valor={
           uso ? (

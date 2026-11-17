@@ -10,8 +10,9 @@
  *        só com classes do v12.
  *  CV-2. seções na ordem do v12 (nível, leitura, último período fechado, total
  *        fornecido) + "Último registro" do MAIKE antes de "Informações do cocho".
- *  CV-3. nível: a figura é o marcador do mapa (CochoNivel `marcador`) e continua
- *        o `role="img"` acessível; o percentual aparece UMA vez, grande, no
+ *  CV-3. nível: a figura é o subícone do cocho (CochoNivel: o desenho dos
+ *        detalhes, sem a bolinha do mapa, nas cores de `COCHO_APARENCIA.subicone`,
+ *        D-PROD-223) e continua o `role="img"` acessível; o percentual aparece UMA vez, grande, no
  *        valor; o rótulo e o valor visíveis não são lidos de novo. Neutro: o
  *        estado no lugar do número.
  *  CV-4. rodapé Lançar · Leitura · Histórico pelas permissões de hoje (sem a
@@ -38,6 +39,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LancLoteDialogo } from '@/components/lotes/LancamentoLoteUi';
 import CardMetricaEvento from '@/components/suplementacao/CardMetricaEvento';
 import { COR_FAROL } from '@/domain/suplementacao/leituraCocho';
+import { COCHO_APARENCIA, COCHO_DESCOBERTO_FORMA } from '@/assets/icones/cocho-descoberto';
 
 const EMP = 'emp-1';
 const dados = vi.hoisted(() => ({ cache: {}, produtos: [], empresas: [], pendente: false }));
@@ -197,13 +199,22 @@ describe('CV-2 — seções na ordem do v12', () => {
 });
 
 describe('CV-3 — bloco do nível', () => {
-  it('marcador do mapa como figura acessível; percentual uma vez no valor; neutro com o estado', async () => {
+  it('subícone do cocho (sem a bolinha do mapa) como figura acessível; percentual uma vez no valor; neutro com o estado', async () => {
     await noDialogo(cocho());
     await carregado();
     // Dia 2 de 200 kg a 50 kg/dia: 100 kg (50%).
     const img = await within(secaoNivel()).findByRole('img', { name: 'Restante do ciclo (estimado): 50%' });
-    expect(img.querySelector('[data-cocho-marcador]')).toBeTruthy();
+    // O subícone dos detalhes (D-PROD-223): um só desenho, o do cocho, sem a moldura redonda do marcador,
+    // nas cores e na espessura configuradas para o subícone.
+    const desenhos = img.querySelectorAll('svg');
+    expect(desenhos).toHaveLength(1);
+    expect(desenhos[0].getAttribute('viewBox')).toBe(COCHO_DESCOBERTO_FORMA.viewBox);
+    expect(img.querySelector('image')).toBeNull();
+    const contorno = /** @type {Element} */ ([...desenhos[0].querySelectorAll('path[fill="none"]')].at(-1));
+    expect(contorno.getAttribute('stroke')).toBe(COCHO_APARENCIA.subicone.cor);
+    expect(contorno.getAttribute('stroke-width')).toBe(String(COCHO_APARENCIA.subicone.espessura));
     expect(img.querySelector('[data-cocho-nivel]')?.getAttribute('data-cocho-nivel')).toBe('50');
+    expect(img.querySelector('[data-cocho-nivel]')?.getAttribute('fill')).toBe(COCHO_APARENCIA.subicone.sal);
     expect(img.closest('.mk-dp-nivel__fig')).toBeTruthy();
     const valor = /** @type {HTMLElement} */ (secaoNivel().querySelector('.mk-dp-nivel__val'));
     expect(valor.textContent).toBe('50%');

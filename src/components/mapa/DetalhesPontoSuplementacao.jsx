@@ -437,8 +437,9 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
 }
 
 /**
- * Bloco do nível do ciclo (o `v11-nivel` do v12): o marcador do mapa com o
- * nível do SSOT, "RESTANTE DO CICLO (ESTIMADO)", o percentual UMA vez, grande
+ * Bloco do nível do ciclo (o `v11-nivel` do v12): o subícone do cocho (o
+ * desenho dos detalhes, sem a bolinha do mapa, D-PROD-223) com o nível do
+ * SSOT, "RESTANTE DO CICLO (ESTIMADO)", o percentual UMA vez, grande
  * (sem estimativa, o estado: "Período fechado", "Sem lançamento"…), e as linhas
  * (kg, consumo, dias). Neutro (sem estimativa, período fechado, sem
  * lançamento…) mostra a mensagem do estado e, quando há, o que fazer para a
@@ -485,7 +486,7 @@ function BlocoNivel({ nivel }) {
   return (
     <div className={nivel.neutro ? "mk-dp-nivel mk-dp-cocho__nivel mk-dp-cocho__nivel--neutro" : "mk-dp-nivel mk-dp-cocho__nivel"}>
       <span className="mk-dp-nivel__fig mk-dp-cocho__fig">
-        <CochoNivel marcador percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
+        <CochoNivel percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
       </span>
       <div className="mk-dp-nivel__txt">
         <span className="mk-dp-nivel__rot" aria-hidden="true">{ROTULO_RESTANTE_CICLO}</span>

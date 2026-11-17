@@ -17,7 +17,7 @@
  *        histórico completo nos diálogos de hoje.
  *  DV-5. pastos atendidos: um item por cocho vinculado (ordem de nome), meta
  *        "pastos · produto padrão", bolinha do farol da última leitura e o
- *        ícone do marcador com o nível do SSOT; com `onAbrirCocho`, chevron e
+ *        subícone do cocho com o nível do SSOT (D-PROD-223); com `onAbrirCocho`, chevron e
  *        toque; sem ele, só informa.
  *  DV-6. informações do depósito: a grade do cadastro (sem "Frequência
  *        padrão": o cadastro do ponto não tem esse campo) e as linhas "Cochos
@@ -57,11 +57,11 @@ vi.mock('@/services/mapaCacheService', () => ({
   refreshMapaCacheEntry: vi.fn(async (chave) => dados.cache[chave] || []),
 }));
 vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => []) }));
-// O jsdom não lê um `data:` URL longo em `background-image`: o ícone vira um marcador legível
-// com os argumentos (fração do SSOT e "marcador do mapa").
+// O jsdom não lê um `data:` URL longo em `background-image`: o ícone vira um texto legível
+// com os argumentos (fração do SSOT e o modo "marcador do mapa", desligado nos detalhes).
 vi.mock('@/assets/icones/cocho-descoberto', async (importOriginal) => ({
   ...(await importOriginal()),
-  urlIconeCocho: (fracao, marcador) => `icone-cocho:${fracao}:${marcador}`,
+  urlIconeCocho: (fracao, marcador = false) => `icone-cocho:${fracao}:${marcador}`,
 }));
 vi.mock('@/components/mapa/FormularioTransferenciaDeposito', () => ({
   default: ({ initialDirection }) => <p>formulário da transferência: {initialDirection}</p>,
@@ -293,7 +293,7 @@ describe('DV-4 — rodapé de pílulas com as permissões de hoje', () => {
 });
 
 describe('DV-5 — pastos atendidos', () => {
-  it('um item por cocho do depósito, em ordem de nome, com meta, farol e o ícone do marcador pelo SSOT', async () => {
+  it('um item por cocho do depósito, em ordem de nome, com meta, farol e o subícone do cocho pelo SSOT', async () => {
     await montar();
     const lista = screen.getByRole('list', { name: 'Pastos atendidos' });
     const itens = within(lista).getAllByRole('listitem');
@@ -305,11 +305,12 @@ describe('DV-5 — pastos atendidos', () => {
     expect(itens[1].querySelector('.mk-dp-bolinha')?.style.background).toBe(rgb(COR_FAROL.vermelho));
     expect(itens[0].querySelector('.mk-dp-item__meta')?.textContent).toContain('Leitura: Cocho adequado');
     expect(itens[1].querySelector('.mk-dp-item__corpo')?.getAttribute('title')).toBe('Leitura: Cocho vazio');
-    // Ícone do MARCADOR do mapa com o nível do SSOT (o mesmo número do marcador); sem lançamento, vazio.
+    // O subícone do cocho (o dos detalhes, sem a bolinha do mapa; D-PROD-223) com o nível do SSOT
+    // (o mesmo número do marcador); sem lançamento, vazio.
     const fracao02 = calcularNivelCocho({ ponto: C02, eventos: [EVENTO_C02], hoje: HOJE, pontos: PONTOS }).fracaoParaSvg;
     expect(fracao02).toBeGreaterThan(0);
-    await waitFor(() => expect(itens[0].querySelector('.mk-dp-item__img')?.style.backgroundImage).toBe(`url("icone-cocho:${fracao02}:true")`));
-    expect(itens[1].querySelector('.mk-dp-item__img')?.style.backgroundImage).toBe('url("icone-cocho:0:true")');
+    await waitFor(() => expect(itens[0].querySelector('.mk-dp-item__img')?.style.backgroundImage).toBe(`url("icone-cocho:${fracao02}:false")`));
+    expect(itens[1].querySelector('.mk-dp-item__img')?.style.backgroundImage).toBe('url("icone-cocho:0:false")');
     // Sem `onAbrirCocho`, o item só informa: sem botão nem chevron.
     expect(within(lista).queryAllByRole('button')).toHaveLength(0);
     expect(lista.querySelector('.mk-dp-chev')).toBeNull();

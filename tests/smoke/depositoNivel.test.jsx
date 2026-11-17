@@ -11,6 +11,10 @@
  * D-PROD-220 (desenho do Detalhes do Lote v12): o percentual bruto é o número
  * grande do bloco do nível E o da célula do medidor na grade — as duas
  * aparições são verificadas.
+ *
+ * D-PROD-223: no detalhe, o ícone é o SUBÍCONE do depósito (o desenho dos
+ * detalhes, sem o pino do mapa, nas cores configuradas para o subícone); o
+ * marcador (pino + silo) fica só no mapa.
  */
 import React from 'react';
 import { render, screen, cleanup, within } from '@testing-library/react';
@@ -29,7 +33,7 @@ const nivelDe = ({ saldo, limite = null, minimo = null }) => calcularNivelDeposi
   estoqueLotes: saldo > 0 ? [{ id: 'l1', local_estoque_id: 'loc', produto_id: RACAO.id, quantidade_disponivel: saldo }] : [],
   produtos: [RACAO],
 });
-/** SVG do ícone do detalhe (o mesmo desenho do marcador). */
+/** SVG do ícone do detalhe (o subícone: o desenho dos detalhes, sem o pino do mapa). */
 const iconeDe = (container) => xml(decodeURIComponent(container.querySelector('img[data-deposito-icone]').src.split(',')[1]));
 const medidorLimite = () => screen.getByRole('meter', { name: 'Ocupação do limite operacional' });
 const painelMinimo = () => screen.getByRole('group', { name: 'Estoque mínimo' });
@@ -40,7 +44,7 @@ const percentualVisivel = (texto) => {
 };
 
 describe('Depósito com nível pelo limite operacional', () => {
-  it('mostra no mapa e no detalhe o mesmo nível, com o desenho do marcador (pino + silo) nos dois', () => {
+  it('mostra no mapa e no detalhe o mesmo nível: o marcador (pino + silo) no mapa e o subícone no detalhe', () => {
     const { iconUrl } = resolverIconeSuplementacao({ categoria_ponto: 'DEPÓSITO', indicador_percentual: .5 });
     const mapa = xml(decodeURIComponent(iconUrl.split(',')[1]));
     expect(mapa.querySelector('parsererror')).toBeNull();
@@ -54,9 +58,11 @@ describe('Depósito com nível pelo limite operacional', () => {
     percentualVisivel('50%');
     const sub = iconeDe(container);
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
-    // D-PROD-220: o bloco do nível usa o marcador do mapa (como o v12 e o cocho): pino + silo na cor do marcador.
-    expect(sub.querySelector('[data-fundo-ponto]')).not.toBeNull();
-    expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#65717a');
+    // D-PROD-223: o bloco do nível usa o subícone (como o cocho): sem o pino do mapa, no contorno do subícone.
+    expect(sub.querySelector('[data-fundo-ponto]')).toBeNull();
+    expect(sub.documentElement.getAttribute('viewBox')).toBe('0 0 252 185');
+    expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#a6afb6');
+    expect(new XMLSerializer().serializeToString(sub)).toBe(new XMLSerializer().serializeToString(xml(criarSvgDeposito(0.5))));
     // Nada de "% do mínimo": o mínimo não é o divisor.
     expect(container.textContent).not.toMatch(/% do (estoque )?mínimo/);
   });

@@ -7,7 +7,7 @@
  * Marcação (DetalhesPontoSuplementacao.jsx):
  *   section.mk-dp-cocho__regiao[aria-labelledby] > h3.mk-dp-cocho__oculto | .mk-dp-titulo + blocos
  *   div.mk-dp-nivel.mk-dp-cocho__nivel(.mk-dp-cocho__nivel--neutro)
- *     > span.mk-dp-nivel__fig.mk-dp-cocho__fig > div[role=img] (CochoNivel marcador) > svg + span (só leitor de tela)
+ *     > span.mk-dp-nivel__fig.mk-dp-cocho__fig > div[role=img] (CochoNivel, o subícone) > svg + span (só leitor de tela)
  *     + div.mk-dp-nivel__txt > span.mk-dp-nivel__rot + strong.mk-dp-nivel__val + small.mk-dp-nivel__linha(.mk-dp-cocho__obs)…
  *   .mk-dp-cartao.mk-dp-cocho__cartao-nivel > dl.mk-dp-grade > .mk-dp-medidor + .mk-dp-cel… ; + .mk-dp-linha
  *   .mk-dp-linha.mk-dp-cocho__linha--fraca | .mk-dp-cocho__linha--atencao
@@ -47,7 +47,7 @@
   border: 0;
 }
 
-/* ── Nível: o marcador do mapa (CochoNivel marcador) na caixa de 76 px ──── */
+/* ── Nível: o subícone do cocho (CochoNivel, sem a bolinha do mapa; D-PROD-223) na caixa de 76 px ── */
 .mk-dp .mk-dp-cocho__fig {
   position: relative;
 }
@@ -58,12 +58,12 @@
   justify-content: center;
 }
 
-/* Só o svg de fora: o de dentro (o cocho no encaixe da moldura) tem a própria
-   geometria. 70×75 deixa a bolinha visível com 55×60 px, como o ícone do v12. */
+/* O desenho ocupa a largura da caixa, na proporção dele (os 156 px do
+   CochoNivel são para os lugares com mais espaço). */
 .mk-dp .mk-dp-cocho__fig > [role="img"] > svg {
   display: block;
-  width: 70px;
-  height: 75px;
+  width: 100%;
+  height: auto;
   flex: 0 0 auto;
 }
 

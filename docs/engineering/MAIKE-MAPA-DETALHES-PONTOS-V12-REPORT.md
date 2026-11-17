@@ -47,7 +47,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   4. **Total fornecido por produto.**
   5. **Último registro:** o v12 não tem. Vem do cartão do Histórico pela função pura `metricasDoEvento`, que é a mesma que o Histórico usa.
   6. **Informações do cocho**, mais a linha Observações.
-- **Ícone:** o desenho do marcador do mapa (`CochoNivel marcador`).
+- **Ícone:** o desenho do marcador do mapa (`CochoNivel marcador`). Depois, a D-PROD-223 trocou pelo subícone do sistema (§8).
 
 ### 2.3 Depósito (`DetalhesDepositoSuplementacao`)
 
@@ -56,12 +56,12 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - Rodapé **Entrada · Saída · Histórico**. A transferência (D-PROD-161) não muda.
 - **Seções:**
   1. **Nível do depósito** (SSOT):
-     - bloco do nível com o desenho do marcador do mapa (pino + silo), como o v12, e o percentual bruto;
+     - bloco do nível com o desenho do marcador do mapa (pino + silo), como o v12, e o percentual bruto. Depois, a D-PROD-223 trocou o desenho pelo subícone do sistema (§8);
      - avisos: abaixo do mínimo, unidade não confirmada e produtos em litros;
      - grade com o medidor, o Estoque mínimo, o saldo em kg e em sacos e a necessidade de reposição.
   2. **Saldo por produto:** produtos em litros num grupo à parte (D-PROD-162).
   3. **Pastos atendidos:**
-     - cada cocho vinculado com o ícone do marcador e o farol da última leitura;
+     - cada cocho vinculado com o ícone do marcador e o farol da última leitura. Depois, a D-PROD-223 trocou o ícone pelo subícone (§8);
      - tocar num cocho abre o detalhe dele empilhado, com ‹ Voltar, se o usuário tiver `visualizar_detalhes_cochos`.
   4. **Informações do depósito:** os 7 campos, mais "Cochos vinculados" com os nomes e "Observações".
   5. **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a mesma regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". Enquanto carrega, mostra "Carregando histórico..."; se a consulta falha, o aviso de erro. Sem a permissão, o bloco continua "Último registro", com uma movimentação só, mas pela mesma regra (§3), e não mais a de data mais recente.
@@ -250,3 +250,17 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 - **Build e demais gates do `verify:all`:** passaram.
 - **`test:backend`:** precisa de PostgreSQL e roda no CI; a branch não mexe no backend.
 - **CI do GitHub:** roda a cada envio; o resultado do commit final fica no PR.
+
+## 8. Ajuste depois da prévia: subícone nos detalhes (D-PROD-223)
+
+- **Pedido do proprietário:** "no cocho e depósito, [o que está] mostrando nos detalhes tem que ser apenas o sub ícone, com as configurações que já estavam no meu sistema".
+- **O que mudou:** os detalhes deixaram de desenhar o cocho e o depósito como o marcador do mapa (bolinha, pino) e voltaram ao subícone do sistema (`COCHO_APARENCIA.subicone`; o guia de `src/assets/icones/cocho-descoberto.js` já diz "subicone = desenho sem bolinha, usado nos detalhes"):
+  - o nível do cocho (`CochoNivel`, que voltou a ser o da `main`; o modo marcador saiu, sem uso);
+  - o nível do depósito (`urlIconeDeposito` sem o pino);
+  - os cochos dos Pastos atendidos (depósito) e dos Cochos do pasto (aba Suplementação do Detalhes do Lote).
+- **Arquivos:**
+  - `CochoNivel`, `DetalhesPontoSuplementacao`, `DepositoNivel`, `DetalhesDepositoSuplementacao` e `AbaSuplementacao`;
+  - `mk-dp-cocho.css`: o subícone ocupa a largura da caixa de 76 px, na proporção dele.
+- **Testes:** CV-3, `depositoNivel`, DV-5 e AS-1 exigem o subícone. Quatro mutações, uma por lugar, voltaram o marcador ou as cores dele, e todas foram pegas.
+- **Conferência visual:** harness local a 1280 px e a 390 px. O cocho e o depósito aparecem no bloco do nível com 76 × 56 px. Nas listas, o subícone tem 34 px.
+- **Observação:** o subícone é cinza-claro (`#e2e6e9`). Nas listas, um cocho sem lançamento mostra só o contorno, discreto no fundo branco. É a configuração do sistema. Escurecer a cor é uma linha no `COCHO_APARENCIA.subicone`, se o proprietário quiser.

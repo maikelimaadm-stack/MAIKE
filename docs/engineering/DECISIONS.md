@@ -7933,4 +7933,33 @@ Ver o relatório, §7.
 
 **Relatório:** [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-223 -->
+## D-PROD-223 — Mapa Geral: cocho e depósito nos detalhes com o subícone do sistema
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ao ver a prévia: "no cocho e depósito, [o que está] mostrando nos detalhes tem que ser apenas o sub ícone, com as configurações que já estavam no meu sistema" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Contexto:** para ficar igual ao v12, a D-PROD-218 e a D-PROD-220 desenharam o cocho e o depósito nos detalhes como o **marcador do mapa**: a bolinha branca com a ponteira no cocho, o pino com o silo no depósito, nas cores do mapa. O sistema já tinha o desenho dos detalhes, o **subícone**: sem a bolinha, com cor, espessura e preenchimento próprios (`COCHO_APARENCIA.subicone` em `src/assets/icones/cocho-descoberto.js`; o depósito usa a mesma paleta, com o contorno de `deposito-sal.js`). O guia desse arquivo já dizia: "marcador = desenho dentro da bolinha do mapa; subicone = desenho sem bolinha, usado nos detalhes".
+
+**Decisão:** nos detalhes, o cocho e o depósito aparecem só com o subícone, nas configurações do sistema. O marcador fica só no mapa.
+1. **Nível do cocho** (no detalhe do cocho, também quando ele abre empilhado no depósito): `CochoNivel` sem o modo marcador. Esse modo, criado na D-PROD-220, ficou sem uso e saiu: o `CochoNivel` voltou a ser o da `main`.
+2. **Nível do depósito:** `urlIconeDeposito(fração)`, sem o pino.
+3. **Listas de cochos:** os Pastos atendidos do depósito e os Cochos do pasto da aba Suplementação do Detalhes do Lote usam o subícone do cocho, com o nível do ciclo.
+4. **Tamanho:** na caixa de 76 px do bloco do nível, o subícone ocupa a largura, na proporção dele (76 × 56 px). Nas listas, a caixa de 34 px é a mesma.
+
+**Não muda:**
+- o nível: é a mesma fração do SSOT (D-PROD-178);
+- os números, o farol, os textos e a acessibilidade;
+- os marcadores do mapa;
+- as cores do subícone. São as configuradas no sistema; para mudá-las, `COCHO_APARENCIA.subicone`, como diz o guia do arquivo.
+
+**Observação:** o subícone é cinza-claro (`#e2e6e9`). Nas listas, um cocho sem lançamento mostra só o contorno, que fica discreto no fundo branco. É a configuração do sistema. Escurecer a cor é uma linha no `COCHO_APARENCIA.subicone`, se o proprietário quiser.
+
+**Testes:**
+- CV-3: o cocho tem um só desenho, com o `viewBox` do cocho e a cor, a espessura e o preenchimento do subícone;
+- `depositoNivel`: o SVG do detalhe é o subícone a 50%, sem o pino, e o mapa continua com o marcador;
+- DV-5 (Pastos atendidos) e AS-1 (aba Suplementação): o ícone sem o modo marcador.
+
+Quatro mutações, uma por lugar, voltaram o marcador ou as cores do marcador, e todas foram pegas.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §8.
+
+<!-- Próxima decisão: D-PROD-224 -->

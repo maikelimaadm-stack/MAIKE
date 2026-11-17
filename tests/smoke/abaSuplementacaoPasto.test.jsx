@@ -5,7 +5,7 @@
  * o valor completo, `div.mk-dp` com `Abas`, corpo e o rodapé com o slot.
  *
  *  AS-1. um cocho: KPIs, Fornecimento, Consumo e "Cochos do pasto" com os
- *        números reais; ícone do marcador e farol; rodapé próprio no slot
+ *        números reais; subícone do cocho (D-PROD-223) e farol; rodapé próprio no slot
  *        (Lançar · Leitura · Histórico) no lugar do padrão;
  *  AS-2. dois cochos: títulos com o nome do primeiro e a lista por nome;
  *  AS-3. nenhum cocho (ou sem dados): vazio e rodapé padrão;
@@ -37,7 +37,7 @@ vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () 
 // O SVG real do cocho tem parênteses que o CSS do jsdom recusa em `url(...)`; o
 // desenho é conferido no teste puro e na captura — aqui, só QUAL ícone (nível e moldura).
 vi.mock("@/assets/icones/cocho-descoberto", () => ({
-  urlIconeCocho: (fracao, marcador) => `data:image/svg+xml,cocho-${fracao}-${marcador ? "marcador" : "subicone"}`,
+  urlIconeCocho: (fracao, marcador = false) => `data:image/svg+xml,cocho-${fracao}-${marcador ? "marcador" : "subicone"}`,
 }));
 vi.mock("@/components/suplementacao/FormularioLancamentoSuplementacao", async () => {
   const { createElement } = await import("react");
@@ -227,7 +227,7 @@ describe("AS-1 — um cocho", () => {
     expect(pv.querySelector(".mk-dp-bolinha")?.getAttribute("style")).toMatch(/rgb\(22, 163, 74\)|#16a34a/i);
   });
 
-  it("item do cocho: ícone do marcador com o nível, linha do saldo, produto e farol da leitura", () => {
+  it("item do cocho: subícone com o nível (sem a bolinha do mapa), linha do saldo, produto e farol da leitura", () => {
     renderizar();
     const lista = within(corpo()).getByRole("list", { name: "Cochos do pasto" });
     const itens = within(lista).getAllByRole("listitem");
@@ -238,7 +238,7 @@ describe("AS-1 — um cocho", () => {
     expect(item.querySelector(".mk-dp-item__sub").textContent).toBe("SAL MINERAL 80 · Leitura: Cocho adequado");
     expect(item.querySelector(".mk-dp-item__sub .sr-only").textContent).toBe(" · Leitura: Cocho adequado");
     const img = /** @type {HTMLElement} */ (item.querySelector(".mk-dp-item__img"));
-    expect(img.style.backgroundImage).toBe('url("data:image/svg+xml,cocho-0.65-marcador")');
+    expect(img.style.backgroundImage).toBe('url("data:image/svg+xml,cocho-0.65-subicone")');
     expect(item.querySelector(".mk-dp-bolinha--g")?.getAttribute("style")).toMatch(/rgb\(22, 163, 74\)|#16a34a/i);
     expect(item.querySelector(".mk-dp-chev")).not.toBeNull();
   });
