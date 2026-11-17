@@ -54,9 +54,10 @@ import { ResumoFechamentoConsumo } from "./FarolConsumo";
  * Lançamento de suplementação no cocho, no desenho do lançamento de manejo do lote (D-PROD-222): quem abre
  * é um `LancLoteDialogo` ("Lançar Suplementação", subtítulo = o cocho); aqui o corpo é o `LancLoteForm`
  * (cada campo num `LancField`, avisos e informações em `LancLoteAviso`, a unidade em `LancLoteSegmento`, o
- * consumo por lote em `LancLoteItens`) e o `LancLoteRodape` vira o ✕/✓ do cabeçalho — o ✓ envia o
- * formulário. Os dados, as contas, as validações e as mensagens são os de antes; enquanto salva, os campos
- * ficam travados, o passo aparece no topo e o ✕ não fecha (como fazia o diálogo de progresso).
+ * consumo por lote em `LancLoteItens`) e o `LancLoteRodape` vira o ✕/✓ do cabeçalho — o ✓ grava (botão
+ * comum: Enter num campo não grava, como antes). Os dados, as contas, as validações e as mensagens são os de
+ * antes; enquanto salva, os campos ficam travados, o passo aparece no topo e o ✕ não fecha (como fazia o
+ * diálogo de progresso).
  *
  * `cicloCompartilhado` (D-PROD-206): o nível do cocho marcou o ciclo aberto como compartilhado (os mesmos
  * animais com o mesmo produto em outro cocho). O fechamento desse ciclo vai sem farol ("sem referência"):
@@ -272,7 +273,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     // D-PROD-137 (SUP-02): aqui só se preenche o formulário — nada foi gravado.
     // Antes o toast VERDE dizia "Novo lançamento aberto"; fechar a tela não
     // deixava registro nenhum. O aviso diz o que de fato aconteceu.
-    toast.info(`Sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg aplicada como saldo inicial. Clique em "Salvar novo ciclo" para registrar.`);
+    toast.info(`Sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg aplicada como saldo inicial. Para registrar, confirme no ✓ (Salvar novo ciclo).`);
   };
 
   const handleDescartarSobra = () => {
@@ -700,11 +701,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const salvando = progresso.show;
   const percentualProgresso = progresso.total ? (progresso.atual / progresso.total) * 100 : 0;
 
-  // O ✓ do cabeçalho (ou o do rodapé, fora do diálogo) envia o formulário: as mesmas validações e mensagens de antes.
-  const enviar = (/** @type {React.FormEvent} */ e) => {
-    e?.preventDefault?.();
-    handleSalvar();
-  };
+  // O ✓ do cabeçalho (ou o do rodapé, fora do diálogo) é um botão comum que chama o `handleSalvar`, com as
+  // mesmas validações e mensagens de antes. O <form> não grava sozinho: Enter num campo não envia, como antes
+  // (o "Salvar novo ciclo" era `type="button"`). O lançamento do cocho baixa o estoque e fecha o período
+  // anterior, e não tem estorno pela tela (D-PROD-94a): um Enter para ir ao próximo campo não pode gravar.
+  const naoGravaPeloEnter = (/** @type {React.FormEvent} */ e) => e.preventDefault();
 
   return (
     <>
@@ -718,7 +719,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         onCancel={onCancel}
       />
       {/* `noValidate`: quem valida é o `handleSalvar` (as mensagens de sempre), não o navegador. */}
-      <LancLoteForm ref={formRef} onSubmit={enviar} noValidate data-testid="form-lancamento-suplementacao">
+      <LancLoteForm ref={formRef} onSubmit={naoGravaPeloEnter} noValidate data-testid="form-lancamento-suplementacao">
         {/* Progresso do salvamento (antes um diálogo por cima): fica no topo enquanto salva. */}
         {salvando ? (
           <div className="sticky top-0 z-10">
@@ -1029,6 +1030,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             if (!salvando) onCancel();
           }}
           cancelarDesabilitado={salvando}
+          tipoAcao="button"
+          onAcao={() => handleSalvar()}
           textoAcao="Salvar novo ciclo"
           textoEnviando="Registrando..."
           enviando={salvando}

@@ -158,8 +158,9 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     expect(form.tagName).toBe("FORM");
     expect(form.classList.contains("mk-ll")).toBe(true);
     const ok = within(acoes).getByRole("button", { name: "Salvar novo ciclo" });
-    expect(ok.getAttribute("type")).toBe("submit");
-    expect(ok.getAttribute("form")).toBe(form.id);
+    // O ✓ é um botão comum (não o submit do <form>): Enter num campo não grava, como antes (ver LM-10).
+    expect(ok.getAttribute("type")).toBe("button");
+    expect(ok.hasAttribute("form")).toBe(false);
 
     // Nada do desenho antigo: cartão com a faixa "Lançar Suplementação - …", botões no pé, Select com <select> escondido.
     expect(within(dialogo).queryByText(/Lançar Suplementação - /)).toBeNull();
@@ -382,8 +383,34 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     expect(/** @type {HTMLInputElement} */ (within(dialogo).getByLabelText("Sobra no cocho (kg)")).value).toBe("30.00");
     expect(within(dialogo).getByText(/Herdada do ciclo anterior/).closest("label.mg-field__label")).toBeTruthy();
     expect(toast.success).not.toHaveBeenCalled();
+    // O aviso aponta para o ✓ do cabeçalho (o "Salvar novo ciclo" não é mais um botão com texto).
+    expect(toast.info).toHaveBeenCalledWith("Sobra de 30.00 kg aplicada como saldo inicial. Para registrar, confirme no ✓ (Salvar novo ciclo).");
     // O foco volta ao lançamento (o diálogo da sobra, sem gatilho, o deixava no <body>): no ✕, como ao abrir.
     await waitFor(() => expect(dialogo.contains(document.activeElement)).toBe(true));
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancelar");
+  });
+
+  it("LM-10 — Enter num campo não grava (como antes): só o ✓ grava; o lançamento do cocho não tem estorno pela tela", async () => {
+    largura(1280);
+    await montar();
+    const dialogo = await abrirLancar();
+    const form = /** @type {HTMLFormElement} */ (within(dialogo).getByTestId("form-lancamento-suplementacao"));
+    await act(async () => { fireEvent.change(campoKg(dialogo), { target: { value: "200" } }); });
+    // O ✓ já está ligado; o Enter do navegador numa caixa vira um "submit" do <form> (envio implícito).
+    expect(/** @type {HTMLButtonElement} */ (within(dialogo).getByRole("button", { name: "Salvar novo ciclo" })).disabled).toBe(false);
+    // Nenhum botão de envio do <form> (dentro ou fora dele, pelo atributo `form`): o navegador não tem o que acionar.
+    expect(form.querySelector('button[type="submit"], input[type="submit"]')).toBeNull();
+    expect(document.querySelector(`button[form="${form.id}"]`)).toBeNull();
+    // E, se o <form> for enviado mesmo assim, nada é gravado.
+    await act(async () => { fireEvent.submit(form); });
+    await assentar();
+    expect(saida).not.toHaveBeenCalled();
+    expect(lancar).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Lançar Suplementação" })).toBe(dialogo);
+    // O ✓ grava.
+    await act(async () => { fireEvent.click(within(dialogo).getByRole("button", { name: "Salvar novo ciclo" })); });
+    await assentar();
+    expect(lancar).toHaveBeenCalledTimes(1);
   });
 });
