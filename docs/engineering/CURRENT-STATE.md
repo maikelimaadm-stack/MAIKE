@@ -9,15 +9,15 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12 e Detalhes do Lote v12 (D-PROD-218)
+## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218) e os detalhes do mapa no mesmo desenho (D-PROD-220)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-218**, pedido do proprietário: implementar o design "Detalhes do Lote v12" com os componentes do sistema, mantendo os filtros do mapa como estão |
-| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho até a conferência final) |
-| Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (⚙ abre os Filtros de sempre; foco Lotes/Pastos/Tarefas em `src/lib/mapaFoco.js`). Detalhes do Lote v12 (`.mk-dp`): popup a partir de 768 px, pilha de telas com ‹ Voltar, abas Detalhes · Lotes · Histórico · Suplementação, rodapé Mover lotes · Pesar · Manejos com alvo por seleção, Manejos e históricos em tela. Manejos, ledger e permissões sem mudança. Sem backend, sem migration |
-| Testes | `test:smoke` 265 arquivos / 3.315 testes verdes no conjunto integrado; gates de fonte, tipos (465 ≤ 625), escopo, base44, segredos e fronteira verdes |
-| Relatório | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) |
+| Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12) e **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho), pedidos do proprietário; filtros do mapa como estão |
+| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho, a pedido do proprietário: "ainda tenho edições") |
+| Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (`src/lib/mapaFoco.js`); Detalhes do Lote v12 (`.mk-dp`); casca v12 de uma tela (`CascaDetalhe`) no cocho, no depósito (com cocho empilhado), no bebedouro, na tarefa e no Histórico da Área (com a Forragem da D-PROD-219 e as abas do curral); popup a partir de 768 px |
+| Testes | ver os relatórios (suíte inteira e gates na conferência final) |
+| Relatórios | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) · [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md) |
 
 ## Missão anterior (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)
 

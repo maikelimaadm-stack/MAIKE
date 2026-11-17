@@ -7750,13 +7750,55 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 **Data:** 2026-11-17 · **Numeração:** nasceu D-PROD-219 nesta branch; a `main` deu a D-PROD-219 à Medição de Forragem (PR #309, mergeada antes), e esta passou a **D-PROD-220** · **Origem:** pedido do proprietário, depois da D-PROD-218: "agora todos os detalhes de cocho, depósitos etc., os detalhes que abrem no meu mapa, você vai deixar igual de lotes — o estilo visual, o modelo de dados, as informações" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
 
 **Decisão.**
-1. **Casca de uma tela** (`CascaDetalhe`, raiz `.mk-dp` filha do `.mk-ll` do `LancLoteDialogo`): os detalhes que abrem pelo mapa usam o mesmo desenho do Detalhes do Lote v12 (D-PROD-218) — popup a partir de 768 px (`popupDesde="tablet"`), tela cheia no celular, título e subtítulo no cabeçalho do diálogo, ‹ Voltar nas telas empilhadas (o Esc volta), cartões, títulos de seção, grade de células, linhas rótulo/valor, linha do tempo e rodapé de pílulas. Peças novas em `blocos.jsx`: `Nivel` (o bloco "RESTANTE DO CICLO 65%" / "NÍVEL DO DEPÓSITO 70%") e `Acao` ("Excluir" em texto); `MedidorLimiteOperacional` ganha `estilo="v12"` (célula da grade, mesma semântica de `meter`); a `LinhaDoTempo` aceita ícone próprio.
-2. **Cocho** (`DetalhesPontoSuplementacao`): título = cocho, subtítulo = áreas · setor; nível do SSOT (D-PROD-178) no bloco Nivel + cartão do uso do limite, saldo, duração e próxima reposição; Leitura do cocho (D-PROD-205) com farol, avisos e últimas leituras com Excluir; Último período fechado (D-PROD-206); Total fornecido por produto; Último registro; Informações do cocho. Rodapé **Lançar · Leitura · Histórico** (mesmas permissões e formulários).
-3. **Depósito** (`DetalhesDepositoSuplementacao`): nível do SSOT no bloco Nivel + ocupação do limite e estoque mínimo; Saldo por produto (litros à parte, D-PROD-162); Pastos atendidos (os cochos vinculados, com o farol; tocar abre o cocho como tela empilhada, com ‹ Voltar); Informações do depósito; Histórico do depósito na linha do tempo (as últimas movimentações, mesmo filtro do histórico completo). Rodapé **Entrada · Saída · Histórico** (transferência D-PROD-161 sem mudança).
-4. **Bebedouro** (`DetalhesBebedouro`): cartão do bebedouro com o status; Resumo operacional; Último registro; Informações; Histórico na linha do tempo. Rodapé **Lançar · Histórico**; o lançamento e o histórico completo (com Excluir, D-PROD-137) viram telas empilhadas com ‹ Voltar.
-5. **Tarefa** (`DetalhesTarefaMapa`): título = tarefa, subtítulo "Detalhes da tarefa" (substitui o "Tarefa: …" da D-PROD-118); cartão com o status nas cores do v12; Informações da tarefa (prioridade com bolinha, prazo vencido em vermelho); Descrição; Fotos; Últimos eventos na linha do tempo, com "Ver histórico". Rodapé **Editar · Registrar evento · Concluir** — Concluir abre o mesmo "Registrar evento" já em "Concluída" (não conclui direto; segue os tipos permitidos da D-PROD-118).
-6. **Área** (clique no contorno, D-PROD-94a): o "Histórico da Área" passa a ser a mesma linha do tempo da aba Histórico do pasto (filtro Mostrar, Carregar mais, aviso offline, só leitura), com "Histórico da Área" e "área · setor" no cabeçalho; com a chave `medir_forragem` (D-PROD-219) o painel Forragem vem em cima, no mesmo desenho; curral com as abas **Abate · Histórico da Área**.
-7. **Regras que não mudam:** consultas, caches e invalidações, permissões, formulários e históricos completos, listas de escolha no padrão do sistema, filtros do mapa.
+1. **Casca de uma tela** (`CascaDetalhe`, raiz `.mk-dp` filha do `.mk-ll` do `LancLoteDialogo`): os detalhes que abrem pelo mapa usam o desenho do Detalhes do Lote v12 (D-PROD-218):
+   - popup a partir de 768 px (`popupDesde="tablet"`) e tela cheia no celular;
+   - título e subtítulo no cabeçalho do diálogo, e ‹ Voltar nas telas empilhadas (o Esc volta);
+   - cartões, títulos de seção, grade de células, linhas rótulo/valor, linha do tempo e rodapé de pílulas.
+
+   Peças novas: `Nivel` e `Acao` em `blocos.jsx`, que agora repassam `id`, `data-*` e `aria-*`; `MedidorLimiteOperacional estilo="v12"` (célula da grade, mesma semântica de `meter`); ícone próprio na `LinhaDoTempo`.
+2. **Cocho** (`DetalhesPontoSuplementacao`). Título = cocho, subtítulo = áreas · setor. Rodapé **Lançar · Leitura · Histórico**, com as mesmas permissões e os mesmos formulários.
+   - **Nível do cocho:** região acessível com o percentual uma vez, grande, e as linhas do SSOT (D-PROD-178). Embaixo, o cartão com uso do limite, saldo ou sobra, duração e próxima reposição. Esse cartão aparece também no estado neutro, porque o limite tem estado próprio.
+   - **Leitura do cocho** (D-PROD-205): farol, avisos e as 5 últimas leituras, inclusive a mais recente, com Excluir.
+   - **Último período fechado** (D-PROD-206/212): as 4 células do v12 e, no mesmo desenho, o resto do resumo do fechamento.
+   - **Total fornecido por produto.**
+   - **Último registro** (o v12 não tem): os mesmos números do cartão do Histórico, numa função pura (`metricasDoEvento`).
+   - **Informações do cocho.**
+3. **Depósito** (`DetalhesDepositoSuplementacao`). Rodapé **Entrada · Saída · Histórico**; a transferência (D-PROD-161) não muda.
+   - **Nível do depósito:** o SSOT no bloco do nível, mais a ocupação do limite, o estoque mínimo, o saldo em kg e em sacos e a necessidade de reposição.
+   - **Saldo por produto:** os produtos em litros ficam à parte (D-PROD-162).
+   - **Pastos atendidos:** os cochos vinculados, com o ícone do marcador e o farol da leitura. Tocar num cocho abre o detalhe dele como tela empilhada, com ‹ Voltar. Isso exige `visualizar_detalhes_cochos`, a mesma permissão que o mapa pede.
+   - **Informações do depósito:** "Cochos vinculados" mostra os nomes, não a contagem.
+   - **Histórico do depósito:** as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais.
+   - **Formato:** kg no formato do SSOT ("1.400 kg").
+   - **Fica de fora:** "Frequência padrão" do v12, porque o cadastro não tem esse campo.
+4. **Bebedouro** (`DetalhesBebedouro`). Rodapé **Lançar · Histórico**.
+   - **Cartão do bebedouro:** subícone configurado (ou gota) e status.
+   - **Resumo operacional:** o custo acumulado vem para cá.
+   - **Último registro:** "Registrado por" sai do `responsavel`.
+   - **Informações.**
+   - **Histórico:** os 5 últimos, com "Ver tudo".
+   - **Telas empilhadas com ‹ Voltar:** o lançamento e o histórico completo, com Excluir (D-PROD-137).
+   - **Página Bebedouros:** a casca fica sem o cabeçalho próprio.
+5. **Tarefa** (`DetalhesTarefaMapa`). Título = tarefa, subtítulo "Detalhes da tarefa" (substitui o "Tarefa: …" da D-PROD-118).
+   - **Cartão:** o status nas cores do v12.
+   - **Informações da tarefa:** prioridade com bolinha e prazo vencido em vermelho pelo dia da fazenda (`hoje`).
+   - **Descrição e Fotos.**
+   - **Últimos eventos:** os 5 últimos na linha do tempo, com "Ver histórico".
+   - **Rodapé Editar · Registrar evento · Concluir:** Concluir abre o mesmo "Registrar evento" já em "Concluída" e não conclui direto. Os dois ficam desligados quando o tipo não é permitido (D-PROD-118).
+   - **Correções junto:**
+     - os "Últimos eventos" abriam vazios na primeira vez (`initialData: []` com `staleTime`, como a Gestão de Tarefas da D-PROD-218);
+     - as datas de dia apareciam um dia antes no fuso do Brasil;
+     - sai a consulta de ícones de prioridade, que não era desenhada.
+6. **Área** (clique no contorno, D-PROD-94a). O "Histórico da Área" passa a ser a mesma linha do tempo da aba Histórico do pasto: filtro Mostrar, Carregar mais, aviso offline e só leitura, com os textos "nesta área". O cabeçalho é "Histórico da Área" com "área · setor".
+   - Com a chave `medir_forragem` (D-PROD-219), o painel Forragem vem em cima, na variante v12, com os mesmos nomes e testids.
+   - No curral, as abas são **Abate · Histórico da Área**.
+   - Sai o `src/components/ui/tabs.jsx`, que ficou sem uso.
+7. **Regras que não mudam:**
+   - consultas, caches e invalidações (`atualizar-mapa`) e permissões;
+   - formulários e históricos completos;
+   - listas de escolha no padrão do sistema e filtros do mapa.
+
+**Fora do escopo:** Gestão de Tarefas, Insights e Resumo do Rebanho, que são painéis e não detalhes.
 
 **Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md).
 
