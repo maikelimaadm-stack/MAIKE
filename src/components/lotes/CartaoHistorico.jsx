@@ -1,5 +1,6 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,27 @@ export function LinhaHistorico({ rotulo, children, className, ...props }) {
     <div className={cn("break-words", className)} {...props}>
       <strong>{rotulo}:</strong> {children}
     </div>
+  );
+}
+
+/**
+ * Ação do rodapé do cartão (ex.: "Excluir"), com o botão do "Excluir
+ * movimentação" do manejo: contorno, 32 px de altura, texto vermelho quando é
+ * destrutiva e está ligada; cinza quando desligada.
+ * @param {React.ButtonHTMLAttributes<HTMLButtonElement> & { destrutiva?: boolean }} props
+ */
+export function AcaoHistorico({ destrutiva = false, disabled = false, className, children, ...props }) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className={cn("h-8 text-xs", destrutiva && !disabled ? "text-red-700" : "text-slate-500", className)}
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </Button>
   );
 }
 

@@ -6,7 +6,9 @@
  *   cocho/depósito fica no subtítulo; não há cartão nem título por dentro;
  * - cada registro é um `CartaoHistorico` (selo da data primeiro, o produto em
  *   negrito, linhas "Rótulo: valor"), com os mesmos dados de antes;
- * - a política de estorno (D-PROD-94a) continua: aviso e nenhum "Excluir".
+ * - a política de estorno (D-PROD-94a) continua: aviso e nenhum "Excluir";
+ * - o histórico da tarefa idem, com o "Excluir" do manejo no rodapé e só o mais
+ *   recente ligado (como antes).
  * Dados sintéticos.
  */
 import React from "react";
@@ -18,6 +20,8 @@ import { MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
 const cache = vi.hoisted(() => ({ dados: {} }));
 vi.mock("@/services/suplementacaoHistoricoService", () => ({ excluirEventoSuplementacaoComReversao: vi.fn(), excluirTransferenciaDeposito: vi.fn() }));
 vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ email: "operador@exemplo.test" }) }));
+vi.mock("@/services/tarefasMapaService", () => ({ excluirHistorico: vi.fn() }));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 vi.mock("@/services/mapaCacheService", () => ({
   getMapaCachedData: async (chave) => cache.dados[chave] || [],
   refreshMapaCacheEntry: async (chave) => cache.dados[chave] || [],
@@ -27,6 +31,7 @@ vi.mock("@/services/mapaCacheService", () => ({
 const { LancLoteDialogo } = await import("@/components/lotes/LancamentoLoteUi");
 const { default: HistoricoSuplementacaoPonto } = await import("@/components/suplementacao/HistoricoSuplementacaoPonto");
 const { default: HistoricoDepositoSuplementacao } = await import("@/components/suplementacao/HistoricoDepositoSuplementacao");
+const { default: HistoricoTarefaPanel } = await import("@/components/mapa/HistoricoTarefaPanel");
 
 const EMP = "emp-1";
 
@@ -132,5 +137,28 @@ describe("Histórico do depósito no desenho do manejo (D-PROD-221)", () => {
     expect(await screen.findByText("Nenhum registro encontrado")).toBeTruthy();
     expect(titulo()).toBe("Histórico do Depósito");
     expect(screen.queryByRole("note")).toBeNull();
+  });
+});
+
+describe("Histórico da tarefa no desenho do manejo (D-PROD-221)", () => {
+  const HISTORICO = [
+    { id: "h2", status: "Em andamento", evento: "Pendente → Em andamento", responsavel: "Ana", descricao: "Começou a cerca.", data_evento: "2026-11-12T14:30:00" },
+    { id: "h1", status: "Pendente", evento: "Criação", responsavel: "Ana", descricao: "Tarefa criada pelo mapa.", data_evento: "2026-11-10T09:00:00" },
+  ];
+
+  it("título com a contagem no cabeçalho; cartões do manejo; o \"Excluir\" do manejo no rodapé, só o mais recente ligado", async () => {
+    noDialogo("Histórico da tarefa", "Consertar cerca", <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={HISTORICO} />);
+    expect(titulo()).toBe("Histórico da Tarefa (2)");
+    expect(subtitulo()).toBe("Consertar cerca");
+    const [recente, antigo] = cartoes();
+    expect([...recente.querySelectorAll(".flex-wrap > *")].map((s) => s.textContent)).toEqual(["12/11/2026", "Em andamento"]);
+    expect(linhas(recente)).toEqual(["Evento: Pendente → Em andamento", "Responsável: Ana", "Descrição: Começou a cerca.", "Hora: 14:30:00"]);
+    const excluir = cartoes().map((c) => within(/** @type {HTMLElement} */ (c)).getByRole("button", { name: "Excluir" }));
+    expect(excluir.map((b) => b.disabled)).toEqual([false, true]);
+    // O botão do "Excluir movimentação" do manejo: contorno, 32 px, vermelho quando ligado.
+    expect(excluir[0].className).toMatch(/\bh-8\b/);
+    expect(excluir[0].className).toMatch(/text-red-700/);
+    expect(excluir[1].className).toMatch(/text-slate-500/);
+    expect(within(/** @type {HTMLElement} */ (antigo)).getByText("Somente o último histórico pode ser excluído.")).toBeTruthy();
   });
 });

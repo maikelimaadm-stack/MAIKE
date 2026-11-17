@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import CartaoHistorico, { EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
+import CartaoHistorico, { AcaoHistorico, EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { excluirTransferenciaDeposito } from "@/services/suplementacaoHistoricoService";
@@ -178,9 +177,9 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
             titulo={movimentacao.produto_nome}
             rodape={
               CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO ? (
-                <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>
+                <AcaoHistorico destrutiva disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>
                   Excluir
-                </Button>
+                </AcaoHistorico>
               ) : null
             }
           >

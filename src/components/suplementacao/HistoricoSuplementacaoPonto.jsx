@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import CartaoHistorico, { EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
+import CartaoHistorico, { AcaoHistorico, EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/services/sessionService";
 import { toast } from "sonner";
@@ -177,9 +176,9 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
             titulo={evento.produto}
             rodape={
               CANCELAMENTO_COCHO_HABILITADO ? (
-                <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id || bloqueiosPorEvento[evento.id]} onClick={() => handleDelete(evento, index)}>
+                <AcaoHistorico destrutiva disabled={index !== 0 || deletingId === evento.id || bloqueiosPorEvento[evento.id]} onClick={() => handleDelete(evento, index)}>
                   Excluir
-                </Button>
+                </AcaoHistorico>
               ) : null
             }
           >
