@@ -24,7 +24,7 @@ const COR_NEUTRA = "#6b7280";
  * nenhuma conta de saldo ou percentual acontece aqui.
  *
  *  1. Ocupação do LIMITE OPERACIONAL (`capacidade_cocho_kg`): o subícone do
- *     depósito (o dos detalhes, sem o pino do mapa, D-PROD-223) preenche com
+ *     depósito (o dos detalhes, sem o pino do mapa, D-PROD-225) preenche com
  *     `fracaoParaSvg` (≤ 100%, a mesma fração do marcador do mapa) e o
  *     percentual BRUTO (pode passar de 100%) é o número grande do `Nivel` e o
  *     da célula do medidor acessível (`role="meter"`), com o saldo, o limite e
@@ -64,7 +64,7 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
       <Nivel
         data-testid="nivel-do-deposito"
         // Decorativo: o número e o medidor da grade trazem o nível ao leitor de tela.
-        // O subícone do depósito, o desenho dos detalhes (sem o pino do mapa), como o do cocho (D-PROD-223).
+        // O subícone do depósito, o desenho dos detalhes (sem o pino do mapa), como o do cocho (D-PROD-225).
         figura={<img data-deposito-icone="" src={urlIconeDeposito(nivel.fracaoParaSvg)} alt="" aria-hidden="true" />}
         rotulo={<span aria-hidden="true">{ROTULO_NIVEL}</span>}
         valor={

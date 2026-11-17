@@ -17,7 +17,7 @@
  *        histórico completo nos diálogos de hoje.
  *  DV-5. pastos atendidos: um item por cocho vinculado (ordem de nome), meta
  *        "pastos · produto padrão", bolinha do farol da última leitura e o
- *        subícone do cocho com o nível do SSOT (D-PROD-223); com `onAbrirCocho`, chevron e
+ *        subícone do cocho com o nível do SSOT (D-PROD-225); com `onAbrirCocho`, chevron e
  *        toque; sem ele, só informa.
  *  DV-6. informações do depósito: a grade do cadastro (sem "Frequência
  *        padrão": o cadastro do ponto não tem esse campo) e as linhas "Cochos
@@ -198,6 +198,15 @@ describe('DV-2 — seções na ordem do v12', () => {
     expect(titulos).toEqual([
       'Nível do depósito', 'Saldo por produto', 'Pastos atendidos', 'Informações do depósito', 'Histórico do depósito', '09 NOV. 2026', '04 NOV. 2026',
     ]);
+    // Os pares do popup (D-PROD-226) contam com isto: o corpo é filho da raiz .mk-dp-deposito, a região
+    // do nível e os títulos são filhos diretos do corpo, e Saldo por produto | Pastos atendidos vêm
+    // logo depois dela.
+    expect(corpo().parentElement.classList.contains('mk-dp-deposito')).toBe(true);
+    const filhos = Array.from(corpo().children);
+    expect(filhos[0].classList.contains('mk-dp-deposito__nivel')).toBe(true);
+    expect(filhos.filter((f) => f.classList.contains('mk-dp-titulo')).map((t) => t.textContent)).toEqual([
+      'Saldo por produto', 'Pastos atendidos', 'Informações do depósito', 'Histórico do depósito',
+    ]);
     // Bloco do nível: rótulo, o percentual do SSOT e as duas linhas do v12.
     const nivel = within(secao()).getByTestId('nivel-do-deposito');
     expect(nivel.classList.contains('mk-dp-nivel')).toBe(true);
@@ -305,7 +314,7 @@ describe('DV-5 — pastos atendidos', () => {
     expect(itens[1].querySelector('.mk-dp-bolinha')?.style.background).toBe(rgb(COR_FAROL.vermelho));
     expect(itens[0].querySelector('.mk-dp-item__meta')?.textContent).toContain('Leitura: Cocho adequado');
     expect(itens[1].querySelector('.mk-dp-item__corpo')?.getAttribute('title')).toBe('Leitura: Cocho vazio');
-    // O subícone do cocho (o dos detalhes, sem a bolinha do mapa; D-PROD-223) com o nível do SSOT
+    // O subícone do cocho (o dos detalhes, sem a bolinha do mapa; D-PROD-225) com o nível do SSOT
     // (o mesmo número do marcador); sem lançamento, vazio.
     const fracao02 = calcularNivelCocho({ ponto: C02, eventos: [EVENTO_C02], hoje: HOJE, pontos: PONTOS }).fracaoParaSvg;
     expect(fracao02).toBeGreaterThan(0);

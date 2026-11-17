@@ -12,7 +12,7 @@
  *        fornecido) + "Último registro" do MAIKE antes de "Informações do cocho".
  *  CV-3. nível: a figura é o subícone do cocho (CochoNivel: o desenho dos
  *        detalhes, sem a bolinha do mapa, nas cores de `COCHO_APARENCIA.subicone`,
- *        D-PROD-223) e continua o `role="img"` acessível; o percentual aparece UMA vez, grande, no
+ *        D-PROD-225) e continua o `role="img"` acessível; o percentual aparece UMA vez, grande, no
  *        valor; o rótulo e o valor visíveis não são lidos de novo. Neutro: o
  *        estado no lugar do número.
  *  CV-4. rodapé Lançar · Leitura · Histórico pelas permissões de hoje (sem a
@@ -204,7 +204,7 @@ describe('CV-3 — bloco do nível', () => {
     await carregado();
     // Dia 2 de 200 kg a 50 kg/dia: 100 kg (50%).
     const img = await within(secaoNivel()).findByRole('img', { name: 'Restante do ciclo (estimado): 50%' });
-    // O subícone dos detalhes (D-PROD-223): um só desenho, o do cocho, sem a moldura redonda do marcador,
+    // O subícone dos detalhes (D-PROD-225): um só desenho, o do cocho, sem a moldura redonda do marcador,
     // nas cores e na espessura configuradas para o subícone.
     const desenhos = img.querySelectorAll('svg');
     expect(desenhos).toHaveLength(1);

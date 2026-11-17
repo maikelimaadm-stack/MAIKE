@@ -111,6 +111,23 @@
   line-height: 1.3;
 }
 
+/* Cartão dos números como o DepositoNivel antigo (D-PROD-226), em todos os modos (6 trilhos):
+   Ocupação | Estoque mínimo em cima e Saldo atual | Saldo em sacos | Necessidade embaixo; sem a
+   célula de sacos (4 células), a 2ª fileira fica meio a meio. */
+.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel {
+  grid-column: span 2;
+}
+
+.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(-n + 2),
+.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(3):nth-last-child(2),
+.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(4):last-child {
+  grid-column: span 3;
+}
+
 /* ── Popup (a partir de 768 px, D-PROD-224): o nível e o cartão dos números
    LADO A LADO, como o estilo antigo; os avisos vêm embaixo, de ponta a ponta.
    O título oculto é absoluto e não ocupa célula da grade. ── */
@@ -133,9 +150,5 @@
 
   .mk-dp .mk-dp-deposito__nivel > .mk-dp-aviso {
     grid-column: 1 / -1;
-  }
-
-  .mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

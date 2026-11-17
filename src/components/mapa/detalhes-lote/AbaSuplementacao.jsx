@@ -16,7 +16,7 @@ import AcoesCochoPasto from "./AcoesCochoPasto";
  *  - KPIs, Fornecimento e Consumo esperado / real do PRIMEIRO cocho; com 2+
  *    cochos os títulos levam o nome dele (`suplementacaoDoPasto.js`);
  *  - item do cocho: o subícone do cocho com o nível do ciclo (o desenho dos
- *    detalhes, sem a bolinha do mapa, D-PROD-223), "65% ·
+ *    detalhes, sem a bolinha do mapa, D-PROD-225), "65% ·
  *    restam 260 kg" ou o estado, o produto e a bolinha do farol da leitura; o
  *    toque abre o detalhe do cocho que já existe (`dados.onAbrirCocho`), só com
  *    `permissoes.detalhesCocho`;

@@ -7933,7 +7933,53 @@ Ver o relatório, §7.
 
 **Relatório:** [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md).
 
-## D-PROD-223 — Mapa Geral: cocho e depósito nos detalhes com o subícone do sistema
+## D-PROD-224 — Mapa Geral: detalhes do mapa mais compactos e organizados (a densidade do estilo antigo no desenho v12)
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário: "gostei do novo estilo mas está muito grande as informações e espalhadas sendo que pode organizar melhor". Ele mandou prints do estilo antigo como referência: o "Nível do cocho" em dois painéis lado a lado, e as "Informações da Área" e o cartão do lote em grade de 4 colunas · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão:** o desenho v12 fica (cartões, cores, pílulas, ícones, abas e rodapé), com a densidade do estilo antigo. Vale para todos os detalhes do mapa: lote/pasto, cocho, depósito, bebedouro, tarefa e área.
+1. **Escala:**
+   - texto base de 13 px; títulos de bloco e de cartão de 14 px;
+   - rótulos, subtítulos e notas de 11,5 px; nenhum texto abaixo de 11 px;
+   - valor da célula de 13 px em negrito (600), como no estilo antigo;
+   - percentual do nível de 20 px e número do KPI de 15 px.
+2. **Espaço:**
+   - 8 px entre os blocos do corpo;
+   - células com 7 px em cima e embaixo; linhas, itens e cabeçalhos de cartão mais baixos;
+   - o título do bloco fica a 4 px do seu cartão e a 12 px do bloco de cima;
+   - ícones dos cartões, linhas e itens um pouco menores. Os ícones do animal acompanham: 36 px no cartão do lote, 26 px nas categorias e 30 px no Resumo.
+3. **Mais colunas:** a grade de células usa colunas de 128 px. São 6 no popup e 2 no celular.
+4. **Lado a lado no popup** (a partir de 768 px), como o "Nível do cocho" antigo:
+   - cocho: o nível ao lado do cartão do limite, em 2 × 2 (depois, a D-PROD-226 pôs a barra do limite de ponta a ponta e os três números numa fileira);
+   - depósito: o nível ao lado do cartão dos números, com os avisos embaixo, de ponta a ponta.
+5. **Linha do tempo** (históricos do pasto, da área, do depósito, do bebedouro e da tarefa): as linhas de cada cartão viram uma grade, com o rótulo em cima e o valor embaixo, em vez de uma informação por linha. Texto livre (descrição, observações, detalhe, motivo) ou longo ocupa a largura do cartão.
+6. **Alvos de toque:** linhas clicáveis, itens, abas e grupos continuam com 40 px ou mais.
+
+**Resultado** (altura do conteúdo no harness, antes → depois):
+- computador: cocho 1.371 → 1.025 px (−26%); depósito 1.411 → 986 px (−31%); bebedouro 982 → 813 px (−18%); área 3.112 → 1.854 px (−41%); histórico do pasto 2.818 → 1.616 px (−43%);
+- celular: cocho 2.059 → 1.636 px (−21%); depósito 1.642 → 1.280 px (−23%); área 3.165 → 2.443 px (−23%).
+
+**Não muda:** dados, regras, textos, ordem dos blocos, permissões e acessibilidade (nomes e papéis). Também não mudam o histórico completo no cartão do manejo (D-PROD-222), os lançamentos e o mapa.
+
+**Como foi feito:**
+- Quase tudo é CSS. As exceções são uma classe para o texto longo da linha do tempo (`mk-dp-tl__row--larga`) e o tamanho dos ícones do animal.
+- Uma proposta independente de densidade, medida no harness, confirmou os valores e trouxe dois ajustes: o tamanho dos ícones do animal (sem ele, o ícone vazaria da caixa menor) e a proximidade do título.
+- A medição comparou colunas de 150 px e de 128 px. Com 128 px, todas as telas ficaram iguais ou mais baixas.
+
+**Testes:**
+- `detalhesCompactos`:
+  - DC-1: piso de 11 px em todo o CSS dos detalhes;
+  - DC-2: densidade e alvos de toque;
+  - DC-3: o lado a lado do popup e a estrutura que a grade posiciona;
+  - DC-4: a linha do tempo em grade e o texto longo.
+- Cinco mutações foram pegas.
+- `detalhesLoteV12Lotes` e `subiconeLote` passaram a conferir os tamanhos novos dos ícones do animal (26, 30 e 36 px).
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §9.
+
+## D-PROD-225 — Mapa Geral: cocho e depósito nos detalhes com o subícone do sistema
+
+> **Numeração:** nasceu como D-PROD-223 (commit `d694c65`). A `main` deu a D-PROD-223 ao farol estimado pelos dias de descanso (PR #312), mergeada antes desta. Para não duplicar, esta decisão é a **D-PROD-225**; a D-PROD-224 já era a da densidade, nesta mesma branch.
 
 **Data:** 2026-11-17 · **Origem:** pedido do proprietário ao ver a prévia: "no cocho e depósito, [o que está] mostrando nos detalhes tem que ser apenas o sub ícone, com as configurações que já estavam no meu sistema" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
 
@@ -7962,48 +8008,80 @@ Quatro mutações, uma por lugar, voltaram o marcador ou as cores do marcador, e
 
 **Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §8.
 
-## D-PROD-224 — Mapa Geral: detalhes do mapa mais compactos e organizados (a densidade do estilo antigo no desenho v12)
+## D-PROD-226 — Mapa Geral: detalhes do mapa organizados como o estilo antigo (pares lado a lado no popup), com toque e contraste
 
-**Data:** 2026-11-17 · **Origem:** pedido do proprietário: "gostei do novo estilo mas está muito grande as informações e espalhadas sendo que pode organizar melhor". Ele mandou prints do estilo antigo como referência: o "Nível do cocho" em dois painéis lado a lado, e as "Informações da Área" e o cartão do lote em grade de 4 colunas · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+**Data:** 2026-11-17 · **Origem:** a segunda metade do pedido da D-PROD-224: as informações "espalhadas, sendo que pode organizar melhor", com os prints do estilo antigo como referência · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
 
-**Decisão:** o desenho v12 fica (cartões, cores, pílulas, ícones, abas e rodapé), com a densidade do estilo antigo. Vale para todos os detalhes do mapa: lote/pasto, cocho, depósito, bebedouro, tarefa e área.
-1. **Escala:**
-   - texto base de 13 px; títulos de bloco e de cartão de 14 px;
-   - rótulos, subtítulos e notas de 11,5 px; nenhum texto abaixo de 11 px;
-   - valor da célula de 13 px em negrito (600), como no estilo antigo;
-   - percentual do nível de 20 px e número do KPI de 15 px.
-2. **Espaço:**
-   - 8 px entre os blocos do corpo;
-   - células com 7 px em cima e embaixo; linhas, itens e cabeçalhos de cartão mais baixos;
-   - o título do bloco fica a 4 px do seu cartão e a 12 px do bloco de cima;
-   - ícones dos cartões, linhas e itens um pouco menores. Os ícones do animal acompanham: 36 px no cartão do lote, 26 px nas categorias e 30 px no Resumo.
-3. **Mais colunas:** a grade de células usa colunas de 128 px. São 6 no popup e 2 no celular.
-4. **Lado a lado no popup** (a partir de 768 px), como o "Nível do cocho" antigo:
-   - cocho: o nível ao lado do cartão do limite, em 2 × 2;
-   - depósito: o nível ao lado do cartão dos números, com os avisos embaixo, de ponta a ponta.
-5. **Linha do tempo** (históricos do pasto, da área, do depósito, do bebedouro e da tarefa): as linhas de cada cartão viram uma grade, com o rótulo em cima e o valor embaixo, em vez de uma informação por linha. Texto livre (descrição, observações, detalhe, motivo) ou longo ocupa a largura do cartão.
-6. **Alvos de toque:** linhas clicáveis, itens, abas e grupos continuam com 40 px ou mais.
+**Contexto:** a D-PROD-224 diminuiu a escala. Faltava organizar:
+- no popup, blocos curtos ocupavam a largura toda (cerca de 850 px), com espaço vazio ao lado;
+- o cartão do limite do cocho e o dos números do depósito não seguiam os painéis antigos;
+- o texto livre (Observações) ficava na outra ponta do cartão, longe do rótulo;
+- a linha do tempo em grade não tinha divisória entre as fileiras.
 
-**Resultado** (altura do conteúdo no harness, antes → depois):
-- computador: cocho 1.371 → 1.025 px (−26%); depósito 1.411 → 986 px (−31%); bebedouro 982 → 813 px (−18%); área 3.112 → 1.854 px (−41%); histórico do pasto 2.818 → 1.616 px (−43%);
-- celular: cocho 2.059 → 1.636 px (−21%); depósito 1.642 → 1.280 px (−23%); área 3.165 → 2.443 px (−23%).
+**Como foi escolhido:** três propostas independentes (densidade, organização e fiel ao antigo), cada uma medida no harness. Um juiz comparou as três e montou a especificação a partir da mais fiel ao antigo, com o que valia das outras duas. O que ficou de fora:
+- subir de novo letras e alturas: desfaria a D-PROD-224;
+- três colunas no celular: rótulos e valores quebrariam em duas ou três linhas;
+- figura do nível maior: o cocho ficaria mais alto;
+- juntar blocos mexendo no DOM e posicionar pelo número do filho.
 
-**Não muda:** dados, regras, textos, ordem dos blocos, permissões e acessibilidade (nomes e papéis). Também não mudam o histórico completo no cartão do manejo (D-PROD-222), os lançamentos e o mapa.
+**Decisão:**
+1. **Pares lado a lado no popup** (a partir de 768 px):
+   - Pasto › Detalhes: Lotação | Categorias;
+   - Pasto › Suplementação: Fornecimento | Consumo esperado / real;
+   - bebedouro: Resumo operacional | Último registro;
+   - depósito: Saldo por produto | Pastos atendidos.
 
-**Como foi feito:**
-- Quase tudo é CSS. As exceções são uma classe para o texto longo da linha do tempo (`mk-dp-tl__row--larga`) e o tamanho dos ícones do animal.
-- Uma proposta independente de densidade, medida no harness, confirmou os valores e trouxe dois ajustes: o tamanho dos ícones do animal (sem ele, o ícone vazaria da caixa menor) e a proximidade do título.
-- A medição comparou colunas de 150 px e de 128 px. Com 128 px, todas as telas ficaram iguais ou mais baixas.
+   O resto continua de ponta a ponta. A posição vem do 1º e do 2º título do corpo, não do número do filho, então um aviso opcional antes não desloca o par. A ordem de leitura e de foco continua a do DOM. Sem o 2º bloco (pasto sem lotes, Suplementação sem cocho) ou carregando, o corpo fica em coluna. No celular, nada muda: uma coluna.
+2. **Cocho, como o "Nível do cocho" antigo**, em todos os modos: no cartão do limite, a barra "Uso do limite operacional" de ponta a ponta e Saldo estimado | Duração estimada | Próxima reposição numa fileira.
+3. **Depósito, como o `DepositoNivel` antigo**, em todos os modos: Ocupação do limite | Estoque mínimo meio a meio; embaixo, Saldo atual | Saldo em sacos | Necessidade de reposição numa fileira (sem sacos, meio a meio).
+4. **Texto livre no popup** (Observações, Cochos vinculados, Projeção): o valor logo depois do rótulo, alinhado à esquerda. Listas e tabelas continuam com o valor à direita.
+5. **Linha do tempo:**
+   - linha fina entre as fileiras de cada cartão;
+   - cabeçalho do cartão de 36 px (não é alvo de toque);
+   - 6 px entre os dias e entre os cartões;
+   - o valor que quebra fica em duas linhas equilibradas.
+6. **Toque** (celular e tela de toque): ficam com 40 px ou mais, sem mudar o desenho (áreas de toque invisíveis), e com mouse nada muda:
+   - as pílulas do rodapé;
+   - Resumo/Lote/Lista;
+   - o link do título;
+   - o "Excluir";
+   - a caixa de marcar;
+   - o cabeçalho ordenável da Lista.
+7. **Contraste:** o teal do link, da ação e do número da aba passa de `#0e8fa6` para `#0a7a8f`. O texto é de 11,5 px em negrito e precisa de 4,5:1: o contraste vai de 3,62:1 para 4,75:1 no fundo do corpo.
+
+**Resultado** (altura do conteúdo no harness, D-PROD-224 → D-PROD-226):
+- computador:
+  - depósito: 986 → 839 px;
+  - bebedouro: 813 → 730 px;
+  - área: 1.854 → 1.686 px;
+  - histórico do pasto: 1.616 → 1.450 px;
+  - Pasto › Detalhes: 567 → 406 px (cabe sem rolar);
+  - Suplementação: 383 → 332 px;
+  - cocho: igual (1.025 → 1.026 px), porque o ganho é de organização;
+- celular:
+  - depósito: 1.280 → 1.218 px;
+  - bebedouro: 983 → 953 px;
+  - tarefa: 804 → 774 px;
+  - área: 2.443 → 2.275 px;
+  - histórico: 2.170 → 2.004 px.
+
+**Não muda:**
+- dados, regras e textos;
+- a ordem do DOM e a acessibilidade (nomes e papéis);
+- a escala da D-PROD-224 (nenhuma fonte muda);
+- as permissões e o mapa.
+
+Tudo é CSS.
 
 **Testes:**
 - `detalhesCompactos`:
-  - DC-1: piso de 11 px em todo o CSS dos detalhes;
-  - DC-2: densidade e alvos de toque;
-  - DC-3: o lado a lado do popup e a estrutura que a grade posiciona;
-  - DC-4: a linha do tempo em grade e o texto longo.
-- Cinco mutações foram pegas.
-- `detalhesLoteV12Lotes` passou a conferir os tamanhos novos dos ícones.
+  - DC-2: toque e contraste;
+  - DC-3: o cocho em três, com o medidor de ponta a ponta, e o depósito em seis trilhos;
+  - DC-4: a divisória, os espaços e o cabeçalho de 36 px;
+  - DC-5: os corpos em grade, com linhas `min-content`, e a posição pelo título, não pelo número do filho. Também confere a aba Detalhes com Lotação e Categorias, cada uma antes do seu cartão, e, sem lotes, um título só.
+- `detalhesLoteV12Casca`: o corpo das abas Detalhes e Suplementação é o painel com o id `…-painel-detalhes` / `…-painel-supl`.
+- AS-1 (Suplementação), DV-2 (depósito) e o teste do bebedouro: os blocos que os pares posicionam são filhos diretos do corpo, na ordem.
 
-**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §9.
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §10.
 
-<!-- Próxima decisão: D-PROD-225 -->
+<!-- Próxima decisão: D-PROD-227 -->

@@ -12,7 +12,7 @@
  * grande do bloco do nível E o da célula do medidor na grade — as duas
  * aparições são verificadas.
  *
- * D-PROD-223: no detalhe, o ícone é o SUBÍCONE do depósito (o desenho dos
+ * D-PROD-225: no detalhe, o ícone é o SUBÍCONE do depósito (o desenho dos
  * detalhes, sem o pino do mapa, nas cores configuradas para o subícone); o
  * marcador (pino + silo) fica só no mapa.
  */
@@ -58,7 +58,7 @@ describe('Depósito com nível pelo limite operacional', () => {
     percentualVisivel('50%');
     const sub = iconeDe(container);
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
-    // D-PROD-223: o bloco do nível usa o subícone (como o cocho): sem o pino do mapa, no contorno do subícone.
+    // D-PROD-225: o bloco do nível usa o subícone (como o cocho): sem o pino do mapa, no contorno do subícone.
     expect(sub.querySelector('[data-fundo-ponto]')).toBeNull();
     expect(sub.documentElement.getAttribute('viewBox')).toBe('0 0 252 185');
     expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#a6afb6');

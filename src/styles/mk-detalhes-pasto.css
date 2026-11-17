@@ -189,7 +189,7 @@
   padding: 0 5px;
   border-radius: 999px;
   background: #e7f6f9;
-  color: #0e8fa6;
+  color: #0a7a8f;
   font-size: 11.5px;
   font-weight: 700;
 }
@@ -279,7 +279,7 @@
 }
 
 .mk-dp .mk-dp-link {
-  color: #0e8fa6;
+  color: #0a7a8f;
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -399,6 +399,7 @@
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .mk-dp .mk-dp-cel__sub {
@@ -605,7 +606,7 @@
   min-height: 28px;
   padding: 0 4px;
   border-radius: 6px;
-  color: #0e8fa6;
+  color: #0a7a8f;
   font-size: 11.5px;
   font-weight: 700;
   white-space: nowrap;
@@ -766,11 +767,11 @@
   background: #fff;
 }
 
-/* Área de toque de 40 px sem mudar o desenho */
+/* Área de toque de 40 px sem mudar o desenho (o inset conta da caixa de padding: 16 + 2 × 12) */
 .mk-dp button.mk-dp-cx::before {
   content: "";
   position: absolute;
-  inset: -11px;
+  inset: -12px;
 }
 
 /* ── Segmentado ───────────────────────────────────────────────────────── */
@@ -1269,6 +1270,107 @@
   }
 }
 
+/* ── Toque (celular e tela de toque, D-PROD-226): alvos de 40 px ou mais sem mudar o desenho ── */
+@media (max-width: 767px), (pointer: coarse) {
+  .mk-dp .mk-dp-pilula {
+    height: 40px;
+  }
+
+  .mk-dp .mk-dp-seg__op {
+    height: 40px;
+  }
+
+  .mk-dp :is(.mk-dp-link, .mk-dp-acao) {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Link do título (15,5 px de texto) → 41,5 px; embaixo dele não há alvo. */
+  .mk-dp .mk-dp-link::before {
+    content: "";
+    position: absolute;
+    inset: -13px -6px;
+  }
+
+  /* "Excluir" (28 px) → 40 px, a altura da linha. */
+  .mk-dp .mk-dp-acao::before {
+    content: "";
+    position: absolute;
+    inset: -6px -4px;
+  }
+}
+
+/* ── Popup (a partir de 768 px, D-PROD-226) ───────────────────────────── */
+@media (min-width: 768px) {
+  /* Texto livre (Observações, Cochos vinculados, Projeção): o valor logo depois do rótulo,
+     não na outra ponta do cartão. Listas e tabelas continuam com o valor à direita. */
+  .mk-dp .mk-dp-linha--quebra:has(.mk-dp-linha__val) .mk-dp-linha__txt {
+    flex: 0 1 auto;
+    min-width: 168px;
+    max-width: 50%;
+  }
+
+  .mk-dp .mk-dp-linha--quebra .mk-dp-linha__fim {
+    justify-content: flex-start;
+  }
+
+  .mk-dp .mk-dp-linha--quebra .mk-dp-linha__val {
+    text-align: left;
+  }
+
+  /* Pares lado a lado: o 1º e o 2º título do corpo (com o bloco logo depois de cada um) vão para
+     as colunas 1 e 2; o resto fica de ponta a ponta. Pasto › Detalhes (Lotação | Categorias),
+     Pasto › Suplementação (Fornecimento | Consumo), bebedouro (Resumo | Último registro) e
+     depósito (Saldo por produto | Pastos atendidos). `grid-auto-rows: min-content` é obrigatório:
+     o corpo tem altura definida e os cartões (overflow: hidden) encolheriam e cortariam. */
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo),
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis),
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards,
+  .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row dense;
+    grid-auto-rows: min-content;
+    align-content: start;
+    align-items: start;
+  }
+
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo) > *,
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis) > *,
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > *,
+  .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > * {
+    grid-column: 1 / -1;
+  }
+
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo) > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo),
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo) > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo) + *,
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis) > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo),
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis) > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo) + *,
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo),
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo) + *,
+  .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo),
+  .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo) + * {
+    grid-column: 1;
+  }
+
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo),
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo) + *,
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo),
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo) + *,
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo),
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo) + *,
+  .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo),
+  .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo) + * {
+    grid-column: 2;
+  }
+
+  /* Quatro células em meia coluna: 2 × 2 (Fornecimento, Consumo, Resumo operacional). */
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis) > .mk-dp-cartao .mk-dp-grade,
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo) + .mk-dp-cartao .mk-dp-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Inputs abaixo de 1024 px: 16 px (sem zoom no iOS), como o sistema */
 @media (max-width: 1023px) {
   .mk-dp .mk-dp-busca__in {
@@ -1541,7 +1643,7 @@
 .mk-dp .mk-dp-forragem {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .mk-dp .mk-dp-forragem__lista {

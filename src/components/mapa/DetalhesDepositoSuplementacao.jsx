@@ -205,7 +205,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const totalSaldoSacos = useMemo(() => saldosAgrupados.emKg.reduce((total, item) => total + (item.saldoSacos || 0), 0), [saldosAgrupados]);
 
   // Pastos atendidos: cada cocho que puxa deste depósito, com o subícone do cocho
-  // (nível do SSOT, D-PROD-178; o desenho dos detalhes, D-PROD-223) e a bolinha do
+  // (nível do SSOT, D-PROD-178; o desenho dos detalhes, D-PROD-225) e a bolinha do
   // farol da última leitura (D-PROD-205).
   const cochos = useMemo(() => {
     const nomesPorId = new Map(areas.map((area) => [area.id, area.nome]));

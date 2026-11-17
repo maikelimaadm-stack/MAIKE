@@ -47,7 +47,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   4. **Total fornecido por produto.**
   5. **Último registro:** o v12 não tem. Vem do cartão do Histórico pela função pura `metricasDoEvento`, que é a mesma que o Histórico usa.
   6. **Informações do cocho**, mais a linha Observações.
-- **Ícone:** o desenho do marcador do mapa (`CochoNivel marcador`). Depois, a D-PROD-223 trocou pelo subícone do sistema (§8).
+- **Ícone:** o desenho do marcador do mapa (`CochoNivel marcador`). Depois, a D-PROD-225 trocou pelo subícone do sistema (§8).
 
 ### 2.3 Depósito (`DetalhesDepositoSuplementacao`)
 
@@ -56,12 +56,12 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - Rodapé **Entrada · Saída · Histórico**. A transferência (D-PROD-161) não muda.
 - **Seções:**
   1. **Nível do depósito** (SSOT):
-     - bloco do nível com o desenho do marcador do mapa (pino + silo), como o v12, e o percentual bruto. Depois, a D-PROD-223 trocou o desenho pelo subícone do sistema (§8);
+     - bloco do nível com o desenho do marcador do mapa (pino + silo), como o v12, e o percentual bruto. Depois, a D-PROD-225 trocou o desenho pelo subícone do sistema (§8);
      - avisos: abaixo do mínimo, unidade não confirmada e produtos em litros;
      - grade com o medidor, o Estoque mínimo, o saldo em kg e em sacos e a necessidade de reposição.
   2. **Saldo por produto:** produtos em litros num grupo à parte (D-PROD-162).
   3. **Pastos atendidos:**
-     - cada cocho vinculado com o ícone do marcador e o farol da última leitura. Depois, a D-PROD-223 trocou o ícone pelo subícone (§8);
+     - cada cocho vinculado com o ícone do marcador e o farol da última leitura. Depois, a D-PROD-225 trocou o ícone pelo subícone (§8);
      - tocar num cocho abre o detalhe dele empilhado, com ‹ Voltar, se o usuário tiver `visualizar_detalhes_cochos`.
   4. **Informações do depósito:** os 7 campos, mais "Cochos vinculados" com os nomes e "Observações".
   5. **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a mesma regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". Enquanto carrega, mostra "Carregando histórico..."; se a consulta falha, o aviso de erro. Sem a permissão, o bloco continua "Último registro", com uma movimentação só, mas pela mesma regra (§3), e não mais a de data mais recente.
@@ -251,7 +251,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 - **`test:backend`:** precisa de PostgreSQL e roda no CI; a branch não mexe no backend.
 - **CI do GitHub:** roda a cada envio; o resultado do commit final fica no PR.
 
-## 8. Ajuste depois da prévia: subícone nos detalhes (D-PROD-223)
+## 8. Ajuste depois da prévia: subícone nos detalhes (D-PROD-225)
 
 - **Pedido do proprietário:** "no cocho e depósito, [o que está] mostrando nos detalhes tem que ser apenas o sub ícone, com as configurações que já estavam no meu sistema".
 - **O que mudou:** os detalhes deixaram de desenhar o cocho e o depósito como o marcador do mapa (bolinha, pino) e voltaram ao subícone do sistema (`COCHO_APARENCIA.subicone`; o guia de `src/assets/icones/cocho-descoberto.js` já diz "subicone = desenho sem bolinha, usado nos detalhes"):
@@ -282,7 +282,7 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
   - `blocos.jsx`: exemplos do comentário.
 - **Testes:**
   - `detalhesCompactos` é novo, com DC-1 a DC-4 e cinco mutações pegas;
-  - `detalhesLoteV12Lotes` passou a conferir os ícones de 26, 30 e 36 px.
+  - `detalhesLoteV12Lotes` e `subiconeLote` passaram a conferir os ícones de 26, 30 e 36 px.
 - **Medição** (altura do conteúdo no harness, antes → depois):
 
 | Tela | Computador | Celular |
@@ -296,3 +296,53 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 | Pasto › Histórico | 2.818 → 1.616 px (−43%) | 2.837 → 2.170 px (−24%) |
 
 - **Conferência visual:** o harness a 1280 px e a 390 px, em todas as cenas, mais a tela do lote e o Resumo. Os ícones do animal ficam dentro das caixas novas, e no celular a grade segue com 2 colunas.
+
+## 10. Organização como o estilo antigo, toque e contraste (D-PROD-226)
+
+- **Pedido:** a segunda metade do pedido da D-PROD-224, as informações "espalhadas, sendo que pode organizar melhor".
+- **Como foi escolhido:** três propostas independentes (densidade, organização e fiel ao antigo), cada uma medida no harness. Um juiz montou a especificação a partir da mais fiel ao antigo, com o que valia das outras duas.
+- **O que mudou** (detalhe na D-PROD-226):
+  - **pares lado a lado no popup:**
+    - Lotação | Categorias;
+    - Fornecimento | Consumo;
+    - Resumo operacional | Último registro do bebedouro;
+    - Saldo por produto | Pastos atendidos do depósito;
+  - **cocho:** cartão do limite como o "Nível do cocho" antigo (barra de ponta a ponta e Saldo | Duração | Próxima numa fileira);
+  - **depósito:** cartão dos números como o `DepositoNivel` antigo (Ocupação | Mínimo; Saldo | Sacos | Necessidade);
+  - **texto livre:** o valor logo depois do rótulo no popup;
+  - **linha do tempo:** divisória entre as fileiras, com o espaço do estilo antigo;
+  - **toque:** alvos de 40 px no celular e na tela de toque;
+  - **contraste:** teal AA no link, na ação e no número da aba.
+- **Como:** só CSS:
+  - `mk-detalhes-pasto.css`: pares, texto livre, toque e contraste;
+  - `mk-dp-cocho.css`, `mk-dp-deposito.css` e `mk-dp-historico.css`;
+  - `mk-dp-lotes.css`: cabeçalho ordenável.
+
+  Os pares se apoiam em três coisas:
+  - o 1º e o 2º título do corpo (`:nth-child(1|2 of .mk-dp-titulo)`), nunca no número do filho;
+  - o id do painel da aba (`…-painel-detalhes`, `…-painel-supl`);
+  - a raiz do bebedouro e do depósito.
+
+  O corpo vira grade só no popup, com linhas `min-content`. Carregando, sem o 2º bloco ou no celular, ele fica em coluna.
+- **Testes:**
+  - `detalhesCompactos`: DC-2 (toque e contraste), DC-3 (cocho e depósito), DC-4 (divisória) e DC-5 (pares e a estrutura da aba Detalhes);
+  - `detalhesLoteV12Casca`: o id do painel;
+  - AS-1, DV-2 e o teste do bebedouro: os blocos dos pares como filhos diretos do corpo.
+- **Medição** (altura do conteúdo no harness, D-PROD-224 → D-PROD-226):
+
+| Tela | Computador | Tablet (820) | Celular |
+|---|---|---|---|
+| Cocho | 1.025 → 1.026 px (igual) | 1.026 px | 1.636 → 1.637 px (igual) |
+| Depósito | 986 → 839 px (−15%) | 844 px | 1.280 → 1.218 px (−5%) |
+| Bebedouro | 813 → 730 px (−10%) | 730 px | 983 → 953 px (−3%) |
+| Tarefa | 650 → 620 px | 667 px | 804 → 774 px (−4%) |
+| Área | 1.854 → 1.686 px (−9%) | 1.703 px | 2.443 → 2.275 px (−7%) |
+| Pasto › Detalhes | 567 → 406 px (−28%) | 538 px | 835 px (igual) |
+| Pasto › Suplementação | 383 → 332 px (−13%) | 332 px | igual |
+| Pasto › Histórico | 1.616 → 1.450 px (−10%) | 1.467 px | 2.170 → 2.004 px (−8%) |
+
+- **Conferência:**
+  - nenhum transbordo horizontal a 1280, 820 e 390 px;
+  - menor letra de 11 px (o grupo da tabela de lotes, que já era assim);
+  - corpo em grade só onde há par (depósito, bebedouro, Detalhes e Suplementação no popup);
+  - prints de todas as cenas nas três larguras.

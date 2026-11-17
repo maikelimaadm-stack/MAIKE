@@ -5,7 +5,7 @@
  * o valor completo, `div.mk-dp` com `Abas`, corpo e o rodapé com o slot.
  *
  *  AS-1. um cocho: KPIs, Fornecimento, Consumo e "Cochos do pasto" com os
- *        números reais; subícone do cocho (D-PROD-223) e farol; rodapé próprio no slot
+ *        números reais; subícone do cocho (D-PROD-225) e farol; rodapé próprio no slot
  *        (Lançar · Leitura · Histórico) no lugar do padrão;
  *  AS-2. dois cochos: títulos com o nome do primeiro e a lista por nome;
  *  AS-3. nenhum cocho (ou sem dados): vazio e rodapé padrão;
@@ -209,6 +209,13 @@ describe("AS-1 — um cocho", () => {
   it("KPIs, Fornecimento e Consumo com os números reais do primeiro cocho", () => {
     renderizar();
     expect(titulos()).toEqual(["Fornecimento", "Consumo esperado / real", "Cochos do pasto"]);
+    // Os pares do popup (D-PROD-226) contam com os KPIs e os títulos como filhos diretos do corpo,
+    // e com Fornecimento e Consumo cada um logo antes do seu cartão.
+    const filhos = [...corpo().children];
+    expect(filhos.some((f) => f.classList.contains("mk-dp-kpis"))).toBe(true);
+    const doCorpo = filhos.filter((f) => f.classList.contains("mk-dp-titulo"));
+    expect(doCorpo.map((t) => t.textContent)).toEqual(["Fornecimento", "Consumo esperado / real", "Cochos do pasto"]);
+    expect(doCorpo.slice(0, 2).map((t) => t.nextElementSibling?.classList.contains("mk-dp-cartao"))).toEqual([true, true]);
     expect(valorDe("Por cabeça (g/cab/dia)").textContent).toBe("75");
     expect(valorDe("Por cabeça (g/cab/dia)").nextElementSibling.textContent).toBe("esperado 75 g");
     expect(valorDe("Desvio da meta (%)").textContent).toBe("-0,6");

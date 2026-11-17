@@ -438,7 +438,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
 
 /**
  * Bloco do nível do ciclo (o `v11-nivel` do v12): o subícone do cocho (o
- * desenho dos detalhes, sem a bolinha do mapa, D-PROD-223) com o nível do
+ * desenho dos detalhes, sem a bolinha do mapa, D-PROD-225) com o nível do
  * SSOT, "RESTANTE DO CICLO (ESTIMADO)", o percentual UMA vez, grande
  * (sem estimativa, o estado: "Período fechado", "Sem lançamento"…), e as linhas
  * (kg, consumo, dias). Neutro (sem estimativa, período fechado, sem

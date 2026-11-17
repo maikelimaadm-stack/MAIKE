@@ -181,6 +181,16 @@ describe("abas (D3)", () => {
     expect(document.querySelector(".mk-dp__corpo")?.classList.contains("mk-dp-anim--aba-esq")).toBe(true);
   });
 
+  it("o corpo de cada aba é o tabpanel `.mk-dp__corpo--cards` com o id do painel (…-painel-detalhes, …-painel-supl): os pares do popup (D-PROD-226) se apoiam nele", async () => {
+    montarPainel({ abaInicial: "detalhes" });
+    const corpo = () => /** @type {HTMLElement} */ (document.querySelector(".mk-dp__corpo"));
+    expect(corpo().classList.contains("mk-dp__corpo--cards")).toBe(true);
+    expect(corpo().id).toMatch(/-painel-detalhes$/);
+    await clicar(screen.getByRole("tab", { name: "Suplementação" }));
+    expect(corpo().classList.contains("mk-dp__corpo--cards")).toBe(true);
+    expect(corpo().id).toMatch(/-painel-supl$/);
+  });
+
   it("aba inicial sem permissão cai em Lotes", () => {
     montarPainel({ abaInicial: "historico", permissoes: { ...TODAS, historico: false } });
     expect(screen.getByRole("tab", { name: /Lotes/ }).getAttribute("aria-selected")).toBe("true");

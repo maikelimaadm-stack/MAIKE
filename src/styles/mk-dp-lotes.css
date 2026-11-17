@@ -224,6 +224,13 @@
   border-right: 1px solid #e7e9ec;
 }
 
+/* Toque: o cabeçalho ordenável com 40 px (D-PROD-226) */
+@media (max-width: 767px), (pointer: coarse) {
+  .mk-dp .mk-dp-tabela__ordenar {
+    min-height: 40px;
+  }
+}
+
 /* Foco por dentro da célula (a tabela corta o que passa da borda) */
 .mk-dp .mk-dp-tabela :is(.mk-dp-tabela__ordenar, .mk-dp-tabela__abrir):focus-visible {
   outline-offset: -2px;

@@ -47,7 +47,7 @@
   border: 0;
 }
 
-/* ── Nível: o subícone do cocho (CochoNivel, sem a bolinha do mapa; D-PROD-223) na caixa de 64 px ── */
+/* ── Nível: o subícone do cocho (CochoNivel, sem a bolinha do mapa; D-PROD-225) na caixa de 64 px ── */
 .mk-dp .mk-dp-cocho__fig {
   position: relative;
 }
@@ -67,10 +67,15 @@
   flex: 0 0 auto;
 }
 
-/* Medidor do limite sozinho no cartão (sem saldo, duração nem reposição): duas
-   colunas, para a mensagem e o que fazer não virarem uma coluna estreita. */
-.mk-dp .mk-dp-cocho__cartao-nivel .mk-dp-grade > .mk-dp-medidor:only-child {
-  grid-column: span 2;
+/* Cartão do limite como o "Nível do cocho" antigo (D-PROD-226), em todos os modos: o medidor
+   de ponta a ponta (com ou sem saldo, duração e reposição) e Saldo | Duração | Próxima
+   reposição numa fileira de três. */
+.mk-dp .mk-dp-cocho__cartao-nivel .mk-dp-grade {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mk-dp .mk-dp-cocho__cartao-nivel .mk-dp-grade > .mk-dp-medidor {
+  grid-column: 1 / -1;
 }
 
 /* Sem estimativa: o estado (ex.: "Período fechado") no lugar do número, menor e cinza. */
@@ -173,9 +178,5 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: stretch;
-  }
-
-  .mk-dp .mk-dp-cocho__regiao:has(> .mk-dp-cocho__nivel) .mk-dp-cocho__cartao-nivel .mk-dp-grade {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
