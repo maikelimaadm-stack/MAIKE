@@ -69,3 +69,22 @@ Pedido do proprietário: o assistente pode fazer contas e filtrar o sistema. Con
 - `medicoes_do_pasto` e `leituras_cocho_recentes`: período, escore e cocho (nome → ids da fazenda) entram no `where` do Prisma ANTES do corte; `count` dá o total real. Respostas `{ total, mostrados, cortado, medicoes|leituras }`. Antes, o filtro rodava depois de um `take` de 500 e perdia registros antigos.
 - Dias no pasto: `data_entrada` da posição é a entrada do lote na FAZENDA, não no pasto. Agora `no_pasto_desde` vem do ledger — a partida ativa que levou o saldo da posição (que é de um pasto) de zero para positivo pela última vez (entrada, transferência, junção…). Se essa partida é da implantação (SALDO_ABERTURA / entrada da ativação) ou não há ledger, fica `null`. `dias_no_pasto_min/max` deixam de fora os desconhecidos e a resposta traz `fora_por_dias_desconhecidos`. O campo antigo virou `data_entrada_fazenda`.
 - Testes: leituras e medição antigas achadas com 600 registros recentes na frente; grupo transferido conta 5 dias desde a transferência e o da implantação fica desconhecido.
+
+## Filtros aplicados nas telas (2026-11-17)
+Pedido do proprietário: além de responder, o assistente aplica filtros nas telas ("quero lote assim, assim").
+
+- **Ferramenta `aplicar_filtro_tela`** (`backend/src/modules/assistente/assistenteAcoes.js`): não lê nem grava dados. Valida o pedido da IA contra o conjunto fechado de filtros de cada tela e devolve uma ação `{ tipo: 'filtro_tela', tela, nome_tela, filtros, resumo, aplicar_agora }`. O serviço junta as ações em `acoes` no resultado (JSON e evento `fim`) e emite o evento SSE `acao`. Tela, chave ou valor fora do contrato (ou faixa invertida) voltam para a IA como erro da ferramenta.
+- **Telas e filtros:**
+  - `MapaGeral`: setores, tipos_cultura (Pastagem, Agricultura, Reserva, APP, Infraestrutura), tipos_pastagem, categorias e sistemas dos lotes, peso_min/peso_max dos lotes, colorir_por (os modos de "Demarcar áreas por", incluindo forragem).
+  - `CadastroLotes`: status, categorias_manejo, categorias, sexos, setores, areas, peso_min/peso_max e cabecas_min/cabecas_max — valores de **entrada** do lote, os que a lista mostra.
+- **Contrato de URL** (`src/domain/assistente/filtroTela.js`, espelho do servidor; um teste confere que as chaves são as mesmas): `/<tela>?af=<JSON dos filtros>`. A tela (`useFiltroDoAssistente`) lê o parâmetro ao abrir e quando o assistente avisa que a tela já aberta ganhou filtro novo, valida de novo, aplica e tira o parâmetro da URL.
+- **Como aplica:** o filtro SUBSTITUI os filtros da tela (o que não vier fica sem restrição; filtros vazios = limpar). Nomes casam sem acento e sem caixa com o que a tela já tem (setores, categorias…); o que não casar é avisado ("Não encontrei: …").
+  - Mapa: espera a preferência do usuário e a permissão; sem "Ver filtros e camadas" não aplica. Os filtros aplicados ficam salvos como preferência do usuário (como se ele tivesse escolhido no painel).
+  - Lotes: vira filtros de cabeçalho da grade (`filtrosExternos` no `CadastroBase1Grade`); `peso` e `cabecas` passaram a ser colunas de filtro numérico.
+- **No balão:** botão "Aplicar no Mapa" / "Ver lotes filtrados"; depois de aplicado mostra "Filtro aplicado em …: resumo" com "Abrir de novo" e "Limpar". Aplica sozinho só quando o usuário pediu claramente (`aplicar_agora`).
+- **Fora:** o mapa não esconde pastos por situação de forragem (para "pastos prontos" o assistente pinta com `colorir_por = forragem`); outras telas e a busca de texto da lista de lotes não são filtradas pelo assistente.
+- **Testes:**
+  - `backend/tests/assistenteLeitura.test.mjs`: ação no JSON e no SSE, contrato inválido vira erro, nada gravado.
+  - `tests/smoke/assistenteFiltroTela.test.jsx`: contrato cliente × servidor, URL, hook, balão, TabelaLotes.
+  - `tests/smoke/assistenteFiltroGrade.test.jsx`: a grade aplica, substitui e limpa.
+  - `tests/smoke/assistenteFiltroMapa.test.jsx`: o mapa substitui os filtros salvos e respeita a permissão.

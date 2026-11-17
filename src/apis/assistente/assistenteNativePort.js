@@ -18,7 +18,7 @@ const corpoDe = (dados) => {
 /**
  * @param {{ empresa_id: string, pergunta: string, tela?: string|null, historico?: Array<{papel: 'usuario'|'assistente', texto: string}> }} dados
  * @param {{ signal?: AbortSignal }} [opcoes]
- * @returns {Promise<{ resposta: string, ferramentas: string[], recusada: boolean }>}
+ * @returns {Promise<{ resposta: string, ferramentas: string[], recusada: boolean, acoes?: Array<{ tipo: string, tela: string, nome_tela?: string, filtros: Record<string, any>, resumo?: string, aplicar_agora?: boolean }> }>}
  */
 export const perguntarAoAssistente = (dados, opcoes = {}) => {
   const body = corpoDe(dados);
@@ -32,8 +32,8 @@ export const perguntarAoAssistente = (dados, opcoes = {}) => {
  * cada pedaço, `aoFerramenta` o nome da consulta em andamento. Resolve com o resultado
  * final (o mesmo formato da rota sem fluxo).
  * @param {Parameters<typeof perguntarAoAssistente>[0]} dados
- * @param {{ aoTexto?: (t: string) => void, aoFerramenta?: (nome: string) => void, signal?: AbortSignal }} [opcoes]
- * @returns {Promise<{ resposta: string, ferramentas: string[], recusada: boolean }>}
+ * @param {{ aoTexto?: (t: string) => void, aoFerramenta?: (nome: string) => void, aoAcao?: (acao: any) => void, signal?: AbortSignal }} [opcoes]
+ * @returns {Promise<{ resposta: string, ferramentas: string[], recusada: boolean, acoes?: Array<{ tipo: string, tela: string, nome_tela?: string, filtros: Record<string, any>, resumo?: string, aplicar_agora?: boolean }> }>}
  */
 export const perguntarAoAssistenteAoVivo = async (dados, opcoes = {}) => {
   let final = null;
@@ -46,6 +46,7 @@ export const perguntarAoAssistenteAoVivo = async (dados, opcoes = {}) => {
       recebeu = true;
       if (evento === 'delta' && typeof d?.texto === 'string') opcoes.aoTexto?.(d.texto);
       else if (evento === 'ferramenta' && typeof d?.nome === 'string') opcoes.aoFerramenta?.(d.nome);
+      else if (evento === 'acao' && d && typeof d === 'object') opcoes.aoAcao?.(d);
       else if (evento === 'fim') final = d;
     },
   );

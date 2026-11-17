@@ -7,6 +7,7 @@ import TabelaLotes, { COLUNAS_DISPONIVEIS, getLoteFieldValue } from "@/component
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
   listarLotes,
@@ -45,6 +46,12 @@ export default function CadastroLotes() {
   // Algum selecionado sai por exclusão LÓGICA? Muda o texto da confirmação.
   const [exclusaoLogica, setExclusaoLogica] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
+  // D-PROD-230: filtro pedido pelo Assistente (?af=), aplicado pela TabelaLotes.
+  const { pedido: filtroDoAssistente } = useFiltroDoAssistente("CadastroLotes");
+  const aoAplicarFiltroDoAssistente = useCallback(({ faltando, vazio }) => {
+    if (faltando.length) notifyWarning(`Não encontrei na lista: ${faltando.join(", ")}`);
+    notifySuccess(vazio ? "Filtros da lista limpos" : "Filtro do assistente aplicado na lista");
+  }, []);
 
   // Cadastro = lançamento da ENTRADA no rebanho (D-PROD-85): só lotes que são
   // entrada (compra, ajuste, inventário, nascimento), com os dados lançados.
@@ -433,6 +440,8 @@ export default function CadastroLotes() {
             cardFields={controller.cardsPrefs.cardFields}
             cardsPerRow={controller.cardsPrefs.cardsPerRow}
             configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+            filtroExterno={filtroDoAssistente}
+            onFiltroExternoAplicado={aoAplicarFiltroDoAssistente}
           />
         }
       />

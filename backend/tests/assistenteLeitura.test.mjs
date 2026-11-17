@@ -105,7 +105,7 @@ const tenantComPasto = async (nomePasto) => {
 
 describe('assistente só de leitura (D-PROD-230)', () => {
   test('as ferramentas são um conjunto fechado e só de leitura', () => {
-    assert.deepEqual([...NOMES_FERRAMENTAS].sort(), ['calcular', 'leituras_cocho_recentes', 'listar_pastos', 'medicoes_do_pasto', 'rebanho_por_pasto', 'resumo_agrupado', 'resumo_rebanho']);
+    assert.deepEqual([...NOMES_FERRAMENTAS].sort(), ['aplicar_filtro_tela', 'calcular', 'leituras_cocho_recentes', 'listar_pastos', 'medicoes_do_pasto', 'rebanho_por_pasto', 'resumo_agrupado', 'resumo_rebanho']);
     for (const nome of NOMES_FERRAMENTAS) assert.doesNotMatch(nome, /criar|gravar|excluir|alterar|atualizar|mover|lancar|sql/i);
   });
 
@@ -488,5 +488,61 @@ describe('assistente só de leitura (D-PROD-230)', () => {
     const filtrado = resultadoDe(pedidos[2]);
     assert.deepEqual(filtrado.lotes.map((l) => l.pasto), ['PASTO DESTINO']);
     assert.equal(filtrado.fora_por_dias_desconhecidos, 1);
+  });
+
+  test('aplicar_filtro_tela: ação validada volta no JSON e no stream, sem ler nem gravar dados', async () => {
+    const a = await tenantComPasto('PASTO DO A');
+    const antes = { lotes: await prisma().lote.count(), auditoria: await prisma().auditLog.count() };
+    const pedidos = roteiro([
+      usar('aplicar_filtro_tela', { tela: 'CadastroLotes', filtros: { categorias_manejo: ['Garrote 13 a 24 meses', 'Garrote 13 a 24 meses '], peso_min: 350 }, aplicar_agora: true }),
+      final('Filtrei os garrotes acima de 350 kg.'),
+    ]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'mostra os garrotes acima de 350 kg' });
+    assert.equal(r.statusCode, 200, r.body);
+    const corpo = r.json();
+    assert.deepEqual(corpo.acoes, [
+      {
+        tipo: 'filtro_tela',
+        tela: 'CadastroLotes',
+        nome_tela: 'Lotes',
+        filtros: { categorias_manejo: ['Garrote 13 a 24 meses'], peso_min: 350 },
+        resumo: 'Categoria de manejo: Garrote 13 a 24 meses · Peso ≥ 350 kg',
+        aplicar_agora: true,
+      },
+    ]);
+    // A IA recebe a ação como resultado (sabe que foi montada).
+    assert.equal(resultadoDe(pedidos[1]).acao.tela, 'CadastroLotes');
+    assert.deepEqual({ lotes: await prisma().lote.count(), auditoria: await prisma().auditLog.count() }, antes);
+
+    roteiro([usar('aplicar_filtro_tela', { tela: 'MapaGeral', filtros: { setores: ['KM'], colorir_por: 'forragem' } }), final('Pronto.')]);
+    const s = await req('POST', '/assistente/perguntar/stream', a.token, { empresa_id: a.empresa.id, pergunta: 'mostra o setor KM no mapa' });
+    const ev = eventosSse(s.body);
+    assert.deepEqual(ev.map((e) => e.evento).filter((e) => e !== 'delta'), ['ferramenta', 'acao', 'fim']);
+    const acao = ev.find((e) => e.evento === 'acao').dados;
+    assert.deepEqual(acao.filtros, { setores: ['KM'], colorir_por: 'forragem' });
+    assert.equal(acao.aplicar_agora, false);
+    assert.deepEqual(ev.at(-1).dados.acoes, [acao]);
+  });
+
+  test('aplicar_filtro_tela: tela, chave ou valor fora do contrato voltam como erro da ferramenta', async () => {
+    const a = await tenantComPasto('PASTO DO A');
+    const pedidos = roteiro([
+      usar('aplicar_filtro_tela', { tela: 'Usuarios', filtros: {} }),
+      usar('aplicar_filtro_tela', { tela: 'MapaGeral', filtros: { status: 'Ativo' } }),
+      usar('aplicar_filtro_tela', { tela: 'MapaGeral', filtros: { colorir_por: 'arco-iris' } }),
+      usar('aplicar_filtro_tela', { tela: 'CadastroLotes', filtros: { peso_min: 400, peso_max: 300 } }),
+      usar('aplicar_filtro_tela', { tela: 'CadastroLotes', filtros: { cliente_id: 'outro' } }),
+      final('ok'),
+    ]);
+    const r = await req('POST', '/assistente/perguntar', a.token, { empresa_id: a.empresa.id, pergunta: 'x' });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.deepEqual(r.json().acoes, []);
+    for (const i of [1, 2, 3, 4, 5]) assert.equal(resultadoBruto(pedidos[i]).is_error, true, `pedido ${i}`);
+    assert.match(resultadoBruto(pedidos[5]).content, /parâmetro desconhecido "cliente_id"/);
+  });
+
+  test('o prompt manda usar aplicar_filtro_tela quando pedirem para mostrar na tela', () => {
+    assert.match(PROMPT_SISTEMA, /aplicar_filtro_tela/);
+    assert.match(PROMPT_SISTEMA, /aplicar_agora = true só se ele pediu claramente/);
   });
 });

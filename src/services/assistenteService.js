@@ -11,7 +11,7 @@ export const perguntarAssistente = (dados) => perguntarAoAssistente(dados);
  * coisa (rede, proxy que não deixa passar), repete pela rota sem fluxo. Cancelado por
  * quem chamou, não repete.
  * @param {Parameters<typeof perguntarAoAssistente>[0]} dados
- * @param {{ aoTexto?: (t: string) => void, aoFerramenta?: (nome: string) => void, signal?: AbortSignal }} [opcoes]
+ * @param {{ aoTexto?: (t: string) => void, aoFerramenta?: (nome: string) => void, aoAcao?: (acao: any) => void, signal?: AbortSignal }} [opcoes]
  */
 export const perguntarAssistenteAoVivo = async (dados, opcoes = {}) => {
   try {

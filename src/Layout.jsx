@@ -906,7 +906,7 @@ function LayoutShell({ children, currentPageName }) {
       null}
 
       {/* D-PROD-230 — Assistente só de leitura, em todas as telas logadas (a conversa sobrevive à navegação). */}
-      <AssistenteFlutuante empresaId={empresaSelecionada || null} tela={currentPageName || null} comNavInferior={mostrarNavInferior} />
+      <AssistenteFlutuante empresaId={empresaSelecionada || null} tela={currentPageName || null} comNavInferior={mostrarNavInferior} navegar={navigate} />
 
       </div>);
 

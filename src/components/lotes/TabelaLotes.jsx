@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { casarNomes } from "@/domain/assistente/filtroTela";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 import campoEngine from "@/services/campoEngine";
@@ -25,11 +26,11 @@ export const COLUNAS_DISPONIVEIS = [
   { id: "cor", label: "Cor", default: true, sortable: true, align: "left", width: 130, cellKind: /** @type {'cor'} */ ("cor"), statusField: "identificador_cor", corNomes: NOMES_DAS_CORES },
   // Cadastro = lançamento da entrada (D-PROD-85): a quantidade lançada, que
   // nenhuma movimentação/saída do mapa altera. O id "cabecas" é o do layout salvo.
-  { id: "cabecas", label: "Qtd. entrada", default: true, sortable: true, align: "right", width: 110 },
+  { id: "cabecas", label: "Qtd. entrada", default: true, sortable: true, align: "right", width: 110, filterKind: /** @type {"num"} */ ("num") },
   { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 160 },
   { id: "categoria_manejo", label: "Categoria Manejo", default: true, sortable: true, align: "left", width: 180 },
   { id: "sexo", label: "Sexo", default: true, sortable: true, align: "left", width: 100 },
-  { id: "peso", label: "Peso Médio", default: true, sortable: true, align: "right", width: 120 },
+  { id: "peso", label: "Peso Médio", default: true, sortable: true, align: "right", width: 120, filterKind: /** @type {"num"} */ ("num") },
   { id: "setor", label: "Setor", default: true, sortable: true, align: "left", width: 160 },
   { id: "area", label: "Área Entrada", default: true, sortable: true, align: "left", width: 160 },
   { id: "sistema_produtivo", label: "Sistema Reprodutivo", default: true, sortable: true, align: "left", width: 180 },
@@ -62,6 +63,26 @@ export const getLoteFieldValue = (lote, colId) => {
 };
 
 const STORAGE_KEY = "colunas_cadastro_lotes";
+
+/** Filtro do Assistente (D-PROD-230) → coluna da grade. */
+const LISTAS_DO_ASSISTENTE = Object.freeze({
+  categorias_manejo: "categoria_manejo",
+  categorias: "categoria",
+  sexos: "sexo",
+  setores: "setor",
+  areas: "area",
+});
+
+/** Número no formato que o filtro numérico da grade lê ("327,5"). @param {number} n */
+const numeroDaGrade = (n) => String(n).replace(".", ",");
+
+/** @param {number|undefined} min @param {number|undefined} max */
+const faixaDaGrade = (min, max) => {
+  if (min !== undefined && max !== undefined) return { op: "entre", v1: numeroDaGrade(min), v2: numeroDaGrade(max), valores: null };
+  if (min !== undefined) return { op: "maie", v1: numeroDaGrade(min), v2: "", valores: null };
+  if (max !== undefined) return { op: "mene", v1: numeroDaGrade(max), v2: "", valores: null };
+  return null;
+};
 
 /** Filtros que começam na faixa (D-PROD-164); o usuário troca em "+ Filtro". */
 const FILTROS_RAPIDOS = ["status", "categoria_manejo", "sexo", "setor"];
@@ -119,6 +140,7 @@ function displayPayloadEquivalent(prev, next) {
  * @property {string} [align]
  * @property {number} [width]
  * @property {string} [agregacao_tipo]
+ * @property {'texto'|'num'|'data'} [filterKind]
  * @property {string} [cellKind]
  * @property {string} [statusField]
  * @property {Readonly<Record<string, string>>} [corNomes]
@@ -208,6 +230,8 @@ export default function TabelaLotes({
   cardFields,
   cardsPerRow,
   configureColumnsAnchorRef,
+  filtroExterno = null,
+  onFiltroExternoAplicado = undefined,
 }) {
   const globalSearch = searchQuery || searchTerm;
 
@@ -375,6 +399,34 @@ export default function TabelaLotes({
     onSelectionChange?.([selectedRecordId]);
   }, [selectedRecordId, onSelectionChange]);
 
+  // D-PROD-230: filtro do Assistente — vira filtros de cabeçalho da grade (substitui os
+  // atuais) quando a lista termina de carregar; nomes casados sem acento e sem caixa
+  // com os valores que a coluna mostra.
+  const [filtrosExternos, setFiltrosExternos] = useState(/** @type {any} */ (null));
+  const filtroAplicadoRef = useRef(/** @type {number|null} */ (null));
+  useEffect(() => {
+    if (!filtroExterno || filtroAplicadoRef.current === filtroExterno.id || isLoading) return;
+    filtroAplicadoRef.current = filtroExterno.id;
+    const f = filtroExterno.filtros || {};
+    /** @type {Record<string, any>} */
+    const filtros = {};
+    const faltando = [];
+    for (const [chave, colId] of Object.entries(LISTAS_DO_ASSISTENTE)) {
+      if (!f[chave]?.length) continue;
+      const opcoes = [...new Set(lotes.map((l) => String(getFieldValue(l, colId) ?? "")).filter(Boolean))];
+      const r = casarNomes(f[chave], opcoes, (x) => x);
+      faltando.push(...r.faltando);
+      if (r.valores.length) filtros[colId] = { op: "", v1: "", v2: "", valores: new Set(r.valores) };
+    }
+    if (f.status) filtros.status = { op: "", v1: "", v2: "", valores: new Set([f.status]) };
+    const peso = faixaDaGrade(f.peso_min, f.peso_max);
+    if (peso) filtros.peso = peso;
+    const cabecas = faixaDaGrade(f.cabecas_min, f.cabecas_max);
+    if (cabecas) filtros.cabecas = cabecas;
+    setFiltrosExternos({ chave: filtroExterno.id, filtros });
+    onFiltroExternoAplicado?.({ faltando, vazio: Object.keys(f).length === 0 });
+  }, [filtroExterno, isLoading, lotes, getFieldValue, onFiltroExternoAplicado]);
+
   const matchesSearch = useCallback(
     (lote, q) =>
       colunasDisponiveis.some((col) => String(getFieldValue(lote, col.id) || "").toLowerCase().includes(q)),
@@ -416,6 +468,7 @@ export default function TabelaLotes({
         onDisplayChange={handleDisplayChange}
         matchesSearch={matchesSearch}
         configureColumnsAnchorRef={configureColumnsAnchorRef}
+        filtrosExternos={filtrosExternos}
       />
     </div>
   );

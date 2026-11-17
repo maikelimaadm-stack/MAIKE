@@ -52,7 +52,8 @@ export const registrarAssistenteRoutes = async (app) => {
   /**
    * Mesma pergunta, com a resposta chegando aos pedaços (Server-Sent Events).
    * Eventos: `ferramenta` {nome} enquanto consulta, `delta` {texto} a cada pedaço,
-   * `fim` {resposta, ferramentas, recusada} com o texto final (o cliente troca o que
+   * `acao` {tipo, tela, filtros, resumo, aplicar_agora} quando a IA monta um filtro de tela,
+   * `fim` {resposta, ferramentas, recusada, acoes} com o texto final (o cliente troca o que
    * juntou por ele) e `erro` {code, message} com os mesmos códigos da rota acima.
    * Auth e corpo são conferidos ANTES de abrir o fluxo: 401/400 continuam JSON normal.
    */
@@ -88,6 +89,7 @@ export const registrarAssistenteRoutes = async (app) => {
       const resultado = await perguntar(request.contexto, /** @type {any} */ (request.body), {
         aoTexto: (texto) => enviar('delta', { texto }),
         aoFerramenta: (nome) => enviar('ferramenta', { nome }),
+        aoAcao: (acao) => enviar('acao', acao),
         sinal: cancelar.signal,
       });
       enviar('fim', resultado);

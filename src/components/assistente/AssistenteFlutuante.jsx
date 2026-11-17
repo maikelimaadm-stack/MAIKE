@@ -8,10 +8,11 @@
  * lateral à direita.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Send, X, Loader2, Square } from 'lucide-react';
+import { MessageCircle, Send, X, Loader2, Square, Filter, FilterX } from 'lucide-react';
 import { perguntarAssistenteAoVivo } from '@/services/assistenteService';
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import TextoAssistente from '@/components/assistente/TextoAssistente';
+import { TELAS_COM_FILTRO, avisarFiltroDoAssistente, urlDoFiltro } from '@/domain/assistente/filtroTela';
 
 /** Quantas falas anteriores vão como contexto (o servidor aceita até 10). */
 export const MAX_HISTORICO = 10;
@@ -23,16 +24,42 @@ const STATUS_FERRAMENTA = {
   rebanho_por_pasto: 'Consultando o rebanho por pasto…',
   resumo_rebanho: 'Consultando o rebanho…',
   leituras_cocho_recentes: 'Consultando as leituras de cocho…',
+  resumo_agrupado: 'Somando os dados…',
+  calcular: 'Fazendo as contas…',
+  aplicar_filtro_tela: 'Montando o filtro…',
 };
+
+/** Texto do botão de cada tela filtrável. */
+const ROTULO_APLICAR = { MapaGeral: 'Aplicar no Mapa', CadastroLotes: 'Ver lotes filtrados' };
+
+/**
+ * Ações de filtro válidas vindas do servidor (o resto é ignorado).
+ * @param {any} acoes
+ * @returns {Array<{ tela: string, filtros: Record<string, any>, resumo: string, aplicar_agora: boolean, nome_tela: string }>}
+ */
+const acoesValidas = (acoes) =>
+  (Array.isArray(acoes) ? acoes : [])
+    .filter((a) => a && a.tipo === 'filtro_tela' && TELAS_COM_FILTRO.includes(a.tela))
+    .map((a) => ({
+      tela: a.tela,
+      filtros: a.filtros && typeof a.filtros === 'object' ? a.filtros : {},
+      resumo: typeof a.resumo === 'string' ? a.resumo.slice(0, 300) : '',
+      aplicar_agora: a.aplicar_agora === true,
+      nome_tela: typeof a.nome_tela === 'string' ? a.nome_tela : a.tela,
+    }))
+    .slice(-3);
 
 const SUGESTOES = ['Quais pastos estão prontos?', 'Quantas cabeças tenho hoje?', 'Quais pastos estão sem medição recente?'];
 
+/** Sem roteador (testes, telas fora do shell): navegação normal do navegador. @param {string} url */
+const navegarPadrao = (url) => window.location.assign(url);
+
 /**
- * @param {{ empresaId: string|null, tela?: string|null, comNavInferior?: boolean }} props
+ * @param {{ empresaId: string|null, tela?: string|null, comNavInferior?: boolean, navegar?: (url: string) => void }} props
  */
-export default function AssistenteFlutuante({ empresaId, tela = null, comNavInferior = false }) {
+export default function AssistenteFlutuante({ empresaId, tela = null, comNavInferior = false, navegar = navegarPadrao }) {
   const [aberto, setAberto] = useState(false);
-  const [falas, setFalas] = useState(/** @type {Array<{papel: 'usuario'|'assistente', texto: string, erro?: boolean}>} */ ([]));
+  const [falas, setFalas] = useState(/** @type {Array<{papel: 'usuario'|'assistente', texto: string, erro?: boolean, acoes?: ReturnType<typeof acoesValidas>, aplicada?: number}>} */ ([]));
   const [texto, setTexto] = useState('');
   const [carregando, setCarregando] = useState(false);
   // Resposta em andamento (texto que já chegou) e a consulta que está rodando.
@@ -94,7 +121,13 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
           },
         },
       );
-      if (aindaMesmaFazenda()) setFalas((f) => [...f, { papel: 'assistente', texto: r?.resposta || 'Sem resposta.' }]);
+      if (aindaMesmaFazenda()) {
+        const acoes = acoesValidas(r?.acoes);
+        // Pedido explícito ("aplica", "mostra no mapa"): aplica já o último filtro.
+        const automatica = acoes.length && acoes[acoes.length - 1].aplicar_agora ? acoes.length - 1 : undefined;
+        setFalas((f) => [...f, { papel: 'assistente', texto: r?.resposta || 'Sem resposta.', acoes, aplicada: automatica }]);
+        if (automatica !== undefined) irPara(acoes[automatica]);
+      }
     } catch (erro) {
       if (!aindaMesmaFazenda()) return;
       if (cancelar.signal.aborted) {
@@ -114,6 +147,21 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
   };
 
   const parar = () => cancelarRef.current?.abort();
+
+  /** Abre a tela com o filtro (ou sem filtro nenhum, para limpar). @param {{ tela: string, filtros: Record<string, any> }} acao */
+  const irPara = (acao) => {
+    navegar(urlDoFiltro(acao));
+    // A tela pode já estar aberta: avisa depois que a URL mudou.
+    setTimeout(avisarFiltroDoAssistente, 0);
+  };
+
+  /** @param {number} indiceFala @param {number} indiceAcao */
+  const aplicar = (indiceFala, indiceAcao) => {
+    const acao = falas[indiceFala]?.acoes?.[indiceAcao];
+    if (!acao) return;
+    setFalas((f) => f.map((fala, i) => (i === indiceFala ? { ...fala, aplicada: indiceAcao } : fala)));
+    irPara(acao);
+  };
 
   const baseBotao = comNavInferior ? 'bottom-[calc(78px+env(safe-area-inset-bottom))]' : 'bottom-5';
 
@@ -171,6 +219,38 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
                         : { background: '#F1F5F9', color: '#0F172A' }
                   }>
                   {f.papel === 'assistente' && !f.erro ? <TextoAssistente texto={f.texto} /> : f.texto}
+                  {f.acoes?.length ? (
+                    <div className="mt-2 space-y-2" data-testid="assistente-acoes">
+                      {f.acoes.map((acao, j) =>
+                        f.aplicada === j ? (
+                          <div key={j} className="rounded-lg border bg-white px-2 py-1.5 text-xs text-slate-700" data-testid="assistente-filtro-aplicado">
+                            <p>
+                              <strong>Filtro aplicado em {acao.nome_tela}:</strong> {acao.resumo}
+                            </p>
+                            <div className="mt-1 flex gap-2">
+                              <button type="button" data-testid="assistente-filtro-reaplicar" onClick={() => aplicar(i, j)} className="inline-flex items-center gap-1 font-medium" style={{ color: '#15803D' }}>
+                                <Filter size={12} aria-hidden /> Abrir de novo
+                              </button>
+                              <button type="button" data-testid="assistente-filtro-limpar" onClick={() => irPara({ tela: acao.tela, filtros: {} })} className="inline-flex items-center gap-1 font-medium text-slate-600">
+                                <FilterX size={12} aria-hidden /> Limpar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            key={j}
+                            type="button"
+                            data-testid="assistente-aplicar-filtro"
+                            onClick={() => aplicar(i, j)}
+                            title={acao.resumo}
+                            className="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white"
+                            style={{ background: '#16A34A' }}>
+                            <Filter size={14} aria-hidden /> {ROTULO_APLICAR[acao.tela] ?? `Abrir ${acao.nome_tela}`}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}
