@@ -55,20 +55,20 @@ const OBS_REFERENCIA = 'Valor de referência (manejo rotacionado). Ajuste para a
 
 /**
  * Lista de referência (manejo rotacionado; Embrapa), ajustável pela fazenda.
- * Alturas em cm: [entrada, saída].
+ * Alturas em cm: [entrada, saída]. D-PROD-223: `descanso` = dias de descanso de referência.
  */
 export const LISTA_REFERENCIA = Object.freeze([
-  { codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', especie: 'Urochloa brizantha', cultivar: 'Marandu', entrada: 25, saida: 15 },
-  { codigo: '002', nome: 'BRACHIARIA BRIZANTHA CV. XARAÉS', especie: 'Urochloa brizantha', cultivar: 'Xaraés', entrada: 30, saida: 15 },
-  { codigo: '003', nome: 'BRACHIARIA BRIZANTHA CV. PIATÃ', especie: 'Urochloa brizantha', cultivar: 'Piatã', entrada: 35, saida: 20 },
-  { codigo: '004', nome: 'BRACHIARIA BRIZANTHA CV. PAIAGUÁS', especie: 'Urochloa brizantha', cultivar: 'Paiaguás', entrada: 30, saida: 15 },
-  { codigo: '005', nome: 'BRACHIARIA DECUMBENS', especie: 'Urochloa decumbens', cultivar: 'Basilisk', entrada: 20, saida: 10 },
-  { codigo: '006', nome: 'BRACHIARIA HUMIDICOLA', especie: 'Urochloa humidicola', cultivar: null, entrada: 20, saida: 10 },
-  { codigo: '007', nome: 'PANICUM CV. MOMBAÇA', especie: 'Megathyrsus maximus', cultivar: 'Mombaça', entrada: 90, saida: 45 },
-  { codigo: '008', nome: 'PANICUM CV. TANZÂNIA', especie: 'Megathyrsus maximus', cultivar: 'Tanzânia', entrada: 70, saida: 35 },
-  { codigo: '009', nome: 'PANICUM CV. ZURI', especie: 'Megathyrsus maximus', cultivar: 'Zuri', entrada: 75, saida: 35 },
-  { codigo: '010', nome: 'PANICUM CV. MASSAI', especie: 'Megathyrsus maximus', cultivar: 'Massai', entrada: 55, saida: 25 },
-  { codigo: '011', nome: 'TIFTON 85', especie: 'Cynodon spp.', cultivar: 'Tifton 85', entrada: 25, saida: 10 },
+  { codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', especie: 'Urochloa brizantha', cultivar: 'Marandu', entrada: 25, saida: 15, descanso: 30 },
+  { codigo: '002', nome: 'BRACHIARIA BRIZANTHA CV. XARAÉS', especie: 'Urochloa brizantha', cultivar: 'Xaraés', entrada: 30, saida: 15, descanso: 30 },
+  { codigo: '003', nome: 'BRACHIARIA BRIZANTHA CV. PIATÃ', especie: 'Urochloa brizantha', cultivar: 'Piatã', entrada: 35, saida: 20, descanso: 30 },
+  { codigo: '004', nome: 'BRACHIARIA BRIZANTHA CV. PAIAGUÁS', especie: 'Urochloa brizantha', cultivar: 'Paiaguás', entrada: 30, saida: 15, descanso: 28 },
+  { codigo: '005', nome: 'BRACHIARIA DECUMBENS', especie: 'Urochloa decumbens', cultivar: 'Basilisk', entrada: 20, saida: 10, descanso: 25 },
+  { codigo: '006', nome: 'BRACHIARIA HUMIDICOLA', especie: 'Urochloa humidicola', cultivar: null, entrada: 20, saida: 10, descanso: 25 },
+  { codigo: '007', nome: 'PANICUM CV. MOMBAÇA', especie: 'Megathyrsus maximus', cultivar: 'Mombaça', entrada: 90, saida: 45, descanso: 35 },
+  { codigo: '008', nome: 'PANICUM CV. TANZÂNIA', especie: 'Megathyrsus maximus', cultivar: 'Tanzânia', entrada: 70, saida: 35, descanso: 32 },
+  { codigo: '009', nome: 'PANICUM CV. ZURI', especie: 'Megathyrsus maximus', cultivar: 'Zuri', entrada: 75, saida: 35, descanso: 35 },
+  { codigo: '010', nome: 'PANICUM CV. MASSAI', especie: 'Megathyrsus maximus', cultivar: 'Massai', entrada: 55, saida: 25, descanso: 28 },
+  { codigo: '011', nome: 'TIFTON 85', especie: 'Cynodon spp.', cultivar: 'Tifton 85', entrada: 25, saida: 10, descanso: 25 },
 ].map((item) => Object.freeze({ ...item, tipo: 'PASTAGEM', observacoes: OBS_REFERENCIA })));
 
 /** @param {unknown} valor */
@@ -85,6 +85,7 @@ export const comoCulturaPublica = (registro) => ({
   cultivar: registro.cultivar ?? null,
   altura_entrada_cm: decimalPublico(registro.altura_entrada_cm),
   altura_saida_cm: decimalPublico(registro.altura_saida_cm),
+  dias_descanso: registro.dias_descanso ?? null,
   observacoes: registro.observacoes ?? null,
   ativo: registro.ativo,
   created_date: registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
@@ -150,6 +151,49 @@ export const alturaDoCorpo = (valor, campo) => {
   return (inteiro / 10).toFixed(1);
 };
 
+/** D-PROD-223: faixa dos dias de descanso (a allowlist EXPAND recusa CHECK em tabela antiga; a API confere). */
+export const DIAS_DESCANSO_MAX = 365;
+
+/**
+ * D-PROD-223 — dias de descanso: inteiro de 1 a 365 (número ou texto "30"). Vazio/null = sem descanso.
+ * @param {unknown} valor
+ * @returns {number|null|undefined}
+ */
+export const diasDescansoDoCorpo = (valor) => {
+  if (valor === undefined) return undefined;
+  if (valor === null || valor === '') return null;
+  let numero;
+  if (typeof valor === 'number') numero = valor;
+  else if (typeof valor === 'string' && /^\s*\d+\s*$/.test(valor)) numero = Number(valor.trim());
+  else throw invalido('dias_descanso deve ser um número inteiro de dias', { field: 'dias_descanso', reason: 'dias_descanso_invalido' });
+  if (!Number.isInteger(numero) || numero < 1 || numero > DIAS_DESCANSO_MAX) {
+    throw invalido(`dias_descanso deve ser um inteiro de 1 a ${DIAS_DESCANSO_MAX}`, { field: 'dias_descanso', reason: 'dias_descanso_fora_da_faixa' });
+  }
+  return numero;
+};
+
+/** D-PROD-223 — os parâmetros do pasto: na cultura e, como exceção do pasto, na Área. */
+export const CAMPOS_PARAMETROS_PASTO = Object.freeze(['altura_entrada_cm', 'altura_saida_cm', 'dias_descanso']);
+
+/**
+ * O AJV do app usa a coerção padrão do Fastify (`coerceTypes: 'array'`): `true`
+ * viraria 1 e um objeto solto viraria lista. Antes da validação, o corpo BRUTO
+ * precisa trazer número, texto ou null de verdade nesses campos.
+ * @param {unknown} corpo
+ */
+export const exigirParametrosSemCoercao = (corpo) => {
+  if (!corpo || typeof corpo !== 'object') return;
+  const registro = /** @type {Record<string, unknown>} */ (corpo);
+  for (const campo of CAMPOS_PARAMETROS_PASTO) {
+    if (!Object.prototype.hasOwnProperty.call(registro, campo)) continue;
+    const v = registro[campo];
+    if (v !== null && typeof v !== 'number' && typeof v !== 'string') {
+      if (campo === 'dias_descanso') throw invalido('dias_descanso deve ser um número inteiro de dias', { field: campo, reason: 'dias_descanso_invalido' });
+      throw invalido(`${campo} deve ser um número em cm`, { field: campo, reason: 'altura_invalida' });
+    }
+  }
+};
+
 /**
  * Campos editáveis do corpo, já normalizados. `empresa_id` NÃO está aqui: é o
  * escopo, conferido à parte e nunca alterado por PATCH.
@@ -172,6 +216,8 @@ const camposDe = (entrada) => {
     const altura = alturaDoCorpo(entrada[campo], campo);
     if (altura !== undefined) campos[campo] = altura;
   }
+  const diasDescanso = diasDescansoDoCorpo(entrada.dias_descanso);
+  if (diasDescanso !== undefined) campos.dias_descanso = diasDescanso;
   const observacoes = caberNaColuna(textoDoCorpo(entrada.observacoes, 'observacoes'), 'observacoes');
   if (observacoes !== undefined) campos.observacoes = observacoes;
   if (entrada.ativo !== undefined) campos.ativo = Boolean(entrada.ativo);
@@ -183,7 +229,7 @@ const camposDe = (entrada) => {
  * @param {unknown} entrada
  * @param {unknown} saida
  */
-const exigirAlturasCoerentes = (entrada, saida) => {
+export const exigirAlturasCoerentes = (entrada, saida) => {
   if (entrada === null || entrada === undefined || saida === null || saida === undefined) return;
   if (Number(saida) >= Number(entrada)) {
     throw invalido('altura_saida_cm deve ser menor que altura_entrada_cm', {
@@ -411,6 +457,7 @@ export const incluirListaReferencia = async (contexto, entrada) => {
           cultivar: ref.cultivar,
           altura_entrada_cm: ref.entrada.toFixed(1),
           altura_saida_cm: ref.saida.toFixed(1),
+          dias_descanso: ref.descanso,
           observacoes: ref.observacoes,
           ativo: true,
         });

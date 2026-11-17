@@ -12,7 +12,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
-import { listar, criar, excluir, METODOS, SITUACOES } from './medicaoForragemService.js';
+import { listar, criar, excluir, descansoDosPastos, METODOS, SITUACOES } from './medicaoForragemService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const NUMERO = { type: ['number', 'string', 'null'], maxLength: 32 };
@@ -49,6 +49,11 @@ const CRIAR_SCHEMA = {
   },
 };
 
+/** D-PROD-223 — descanso dos pastos (só leitura): a fazenda é obrigatória. */
+const DESCANSO_SCHEMA = {
+  querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } },
+};
+
 const EXCLUIR_SCHEMA = {
   params: { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } },
 };
@@ -63,6 +68,11 @@ export const registrarMedicaoForragemRoutes = async (app) => {
   app.get('/medicoes-forragem', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto, comoObjeto(request.query));
+  });
+
+  app.get('/medicoes-forragem/descanso', { onRequest: [app.autenticar], schema: DESCANSO_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return descansoDosPastos(request.contexto, comoObjeto(request.query));
   });
 
   app.post('/medicoes-forragem', { onRequest: [app.autenticar], preHandler: [guarda.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {

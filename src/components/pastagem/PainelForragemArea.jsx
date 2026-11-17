@@ -11,15 +11,21 @@ import { formatarDia } from "@/lib/diaCivil";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { notifyError, notifySuccess } from "@/lib/maikeNotify";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { ROTULO_SITUACAO } from "@/domain/pastagem/medicaoForragem";
-import { DIAS_VALIDADE_FORRAGEM, farolDaMedicao } from "@/domain/pastagem/farolForragem";
+import { ROTULO_SITUACAO, parametrosDoPasto } from "@/domain/pastagem/medicaoForragem";
+import { DIAS_VALIDADE_FORRAGEM, estimativaDoPasto, farolDaMedicao, farolQueVale } from "@/domain/pastagem/farolForragem";
 import { Acao, Cartao, Linha, TituloBloco } from "@/components/mapa/detalhes-lote/blocos";
 
 /** Cores das bolinhas da situação no desenho v12 (as mesmas do 🔴🟡🟢🟣 do formulário). */
 const COR_SITUACAO = Object.freeze({ RAPADO: "#dc2626", DESCANSO: "#f59e0b", PRONTO: "#16a34a", PASSOU: "#7c3aed" });
 
 const CHAVE = "medicoesForragem";
+/** D-PROD-223: ocupação e última saída de lote por pasto (farol estimado). */
+const CHAVE_DESCANSO = "descansoPastos";
+const diasTexto = (n) => `${n} ${n === 1 ? "dia" : "dias"}`;
+/** D-PROD-223: de onde vem cada parâmetro do pasto. */
+const ORIGEM = Object.freeze({ PASTO: "do pasto", CULTURA: "da cultura" });
 const fmt = (v, casas = 1) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }));
+const fmtCm = (v) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 const fmtInt = (v) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 const dia = (m) => formatarDia(String(m?.data_medicao ?? "").slice(0, 10));
 
@@ -109,8 +115,23 @@ export default function PainelForragemArea({ area }) {
     [medicoes, area?.id],
   );
   const ultima = doPasto[0] ?? null;
-  // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa.
-  const farol = useMemo(() => (ultima ? farolDaMedicao(ultima, hoje) : null), [ultima, hoje]);
+  // D-PROD-223: lote dentro agora e a última saída, para a estimativa pelos dias de descanso da cultura.
+  const { data: descansos = [] } = useCacheDoMapa(CHAVE_DESCANSO, empresaId);
+  const estimativa = useMemo(() => {
+    const doPastoAgora = (Array.isArray(descansos) ? descansos : []).find((d) => d?.area_id === area?.id) ?? null;
+    return estimativaDoPasto({ ...area, cultura }, doPastoAgora, hoje);
+  }, [descansos, area, cultura, hoje]);
+  // D-PROD-223: os parâmetros que valem para o pasto e de onde vêm (do pasto ou da cultura).
+  const parametros = useMemo(() => parametrosDoPasto(area, cultura), [area, cultura]);
+  // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa (D-PROD-223: com a estimativa).
+  const farol = useMemo(() => farolQueVale(ultima ? farolDaMedicao(ultima, hoje) : null, estimativa), [ultima, hoje, estimativa]);
+  const textoParametros = [
+    parametros.altura_entrada_cm !== null ? `entrada ${fmtCm(parametros.altura_entrada_cm)} cm (${ORIGEM[parametros.origem.altura_entrada_cm]})` : null,
+    parametros.altura_saida_cm !== null ? `saída ${fmtCm(parametros.altura_saida_cm)} cm (${ORIGEM[parametros.origem.altura_saida_cm]})` : null,
+    parametros.dias_descanso !== null ? `descanso ${diasTexto(parametros.dias_descanso)} (${ORIGEM[parametros.origem.dias_descanso]})` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const atualizadas = (lista) => {
     if (Array.isArray(lista)) queryClient.setQueryData(["mapa-cache", CHAVE, empresaId, "default"], lista);
@@ -157,19 +178,33 @@ export default function PainelForragemArea({ area }) {
       <Cartao>
         {farol ? (
           // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa, como linha do v12.
+          // D-PROD-223: sem medição válida, o estimado pelos dias de descanso, com a saída do lote e o descanso.
           <Linha
             data-testid="farol-forragem"
             rotulo={farol.rotulo}
             bolinha={farol.cor}
             valor={
-              [
-                farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`,
-                farol.vencida ? `vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || null
+              "estimado" in farol ? (
+                <span data-testid="farol-forragem-estimado">
+                  {`lote saiu há ${diasTexto(farol.diasDesdeSaida)} · descanso ${farol.origemDescanso === "PASTO" ? "do pasto" : "da cultura"} ${diasTexto(farol.diasDescanso)}`}
+                </span>
+              ) : (
+                [
+                  farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`,
+                  farol.vencida ? `vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || null
+              )
             }
           />
+        ) : null}
+        {textoParametros ? (
+          // D-PROD-223: alturas e descanso que valem para o pasto, e de onde vem cada um.
+          <Linha rotulo="Parâmetros de manejo" valor={<span data-testid="parametros-do-pasto">{textoParametros}</span>} quebra />
+        ) : null}
+        {estimativa?.emPastejo ? (
+          <Linha data-testid="forragem-em-pastejo" rotulo="Em pastejo" sub="lote no pasto agora (sem estimativa pelos dias de descanso)" />
         ) : null}
         {ultima ? (
           <Linha

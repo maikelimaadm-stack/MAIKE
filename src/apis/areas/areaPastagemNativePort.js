@@ -95,6 +95,10 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'coordenadas',
   'observacoes',
   'ativo',
+  // D-PROD-223: parâmetros próprios do pasto (vazio = os da cultura).
+  'altura_entrada_cm',
+  'altura_saida_cm',
+  'dias_descanso',
 ]);
 
 /** Campos aceitos na ATUALIZAÇÃO: os mesmos, menos `empresa_id`. */

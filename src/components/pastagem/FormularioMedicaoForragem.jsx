@@ -7,7 +7,7 @@ import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { registrarMedicaoForragem } from "@/services/medicaoForragemService";
 import { refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import {
-  ROTULO_SITUACAO, SITUACOES, calcularAmostra, lerLeituras, mediaDasLeituras, numeroPtBR, situacaoPelaAltura, toneladasNoPasto,
+  ROTULO_SITUACAO, SITUACOES, calcularAmostra, lerLeituras, mediaDasLeituras, numeroPtBR, parametrosDoPasto, situacaoPelaAltura, toneladasNoPasto,
 } from "@/domain/pastagem/medicaoForragem";
 
 /** Tom do aviso e bolinha por situação (o farol no mapa é a próxima etapa). */
@@ -22,12 +22,13 @@ const campoNumero = (t) => (String(t ?? "").trim() ? String(t).trim() : undefine
 
 /**
  * D-PROD-219 — Medição de Forragem do pasto: pela régua (leituras em cm → média e
- * situação pelas alturas da cultura da área; amostra de corte opcional → matéria
+ * situação pelas alturas que valem para o pasto — as próprias da área (D-PROD-223) ou as
+ * da cultura; amostra de corte opcional → matéria
  * verde, % de matéria seca e massa seca) ou no olho (só a situação). As contas aqui
  * são só a PRÉVIA: o servidor recalcula e grava. Funciona sem rede (fila offline).
  *
  * @param {{
- *   area: { id: string, empresa_id: string, nome?: string, tamanho_hectares?: number|string|null },
+ *   area: { id: string, empresa_id: string, nome?: string, tamanho_hectares?: number|string|null, altura_entrada_cm?: number|null, altura_saida_cm?: number|null },
  *   cultura?: { codigo?: string, nome?: string, altura_entrada_cm?: number|null, altura_saida_cm?: number|null } | null,
  *   hoje: string,
  *   onCancel: () => void,
@@ -43,8 +44,11 @@ export default function FormularioMedicaoForragem({ area, cultura = null, hoje, 
   const muda = (campo) => (valor) => setForm((f) => ({ ...f, [campo]: valor }));
   const regua = form.metodo === "REGUA";
 
-  const entrada = cultura?.altura_entrada_cm ?? null;
-  const saida = cultura?.altura_saida_cm ?? null;
+  // D-PROD-223: as alturas que valem para o pasto — as próprias da área ou, vazias, as da cultura.
+  const parametros = parametrosDoPasto(area, cultura);
+  const entrada = parametros.altura_entrada_cm;
+  const saida = parametros.altura_saida_cm;
+  const alturasDoPasto = parametros.origem.altura_entrada_cm === "PASTO" || parametros.origem.altura_saida_cm === "PASTO";
   // Leituras já adicionadas (lista) + a que está sendo digitada (ainda não confirmada):
   // as duas contam na média, para nada se perder se o usuário salvar sem tocar em "+".
   const leituras = useMemo(() => {
@@ -148,12 +152,13 @@ export default function FormularioMedicaoForragem({ area, cultura = null, hoje, 
       <LancLoteAviso tom="neutro" data-testid="medicao-cabecalho">
         <b>{area?.nome || "Pasto"}</b>
         {area?.tamanho_hectares ? <> · {fmt(area.tamanho_hectares, 1)} ha</> : null}
-        {cultura ? (
-          <>
-            {" · Cultura "}<b>{[cultura.codigo, cultura.nome].filter(Boolean).join(" · ")}</b>
-            {entrada !== null && saida !== null ? <> — entrada {fmt(entrada)} cm · saída {fmt(saida)} cm</> : <> — sem alturas no cadastro</>}
-          </>
-        ) : <> · sem cultura no cadastro da área</>}
+        {cultura ? <>{" · Cultura "}<b>{[cultura.codigo, cultura.nome].filter(Boolean).join(" · ")}</b></> : <> · sem cultura no cadastro da área</>}
+        {entrada !== null && saida !== null ? (
+          <span data-testid="medicao-alturas">
+            {" — entrada "}{fmt(entrada)}{" cm · saída "}{fmt(saida)}{" cm"}
+            {alturasDoPasto ? <> <b>(do pasto)</b></> : null}
+          </span>
+        ) : cultura || alturasDoPasto ? <> — sem alturas no cadastro</> : null}
       </LancLoteAviso>
       <LancField label="Data da Medição" required>
         <Input type="date" value={form.data_medicao} max={hoje || undefined} onChange={(e) => muda("data_medicao")(e.target.value)} className={LL_CTL} required />
@@ -200,7 +205,7 @@ export default function FormularioMedicaoForragem({ area, cultura = null, hoje, 
             <LancLoteAviso tom={situacaoRegua ? TOM_SITUACAO[situacaoRegua] : "neutro"} data-testid="medicao-media">
               {situacaoRegua ? `${BOLINHA_SITUACAO[situacaoRegua]} ` : null}
               <b>Média {fmt(media)} cm</b> ({leituras.valores.length} {leituras.valores.length === 1 ? "leitura" : "leituras"})
-              {situacaoRegua ? <> — <b>{ROTULO_SITUACAO[situacaoRegua]}</b>{situacaoRegua === "DESCANSO" && entrada !== null ? `. Fica pronto a partir de ${fmt(entrada)} cm.` : "."}</> : ". Sem as alturas da cultura, só a média."}
+              {situacaoRegua ? <> — <b>{ROTULO_SITUACAO[situacaoRegua]}</b>{situacaoRegua === "DESCANSO" && entrada !== null ? `. Fica pronto a partir de ${fmt(entrada)} cm.` : "."}</> : ". Sem as alturas do pasto ou da cultura, só a média."}
               {leituras.invalidas.length ? <> Ignorada(s): {leituras.invalidas.join(", ")}.</> : null}
             </LancLoteAviso>
           ) : null}

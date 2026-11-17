@@ -28,6 +28,7 @@ import {
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { listarCulturas } from "@/services/culturaCadastroService";
 import { culturasParaArea, rotuloCultura } from "@/domain/areas/culturaDaArea";
+import { ALTURA_MAXIMA_CM, DIAS_DESCANSO_MAXIMO, formatarAlturaCm, lerAlturaCm, lerDiasDescanso } from "@/domain/pastagem/parametrosManejo";
 
 // Listas e regras compartilhadas com a importação por arquivo (D-PROD-90).
 const CORES_DISPONIVEIS = CORES_CADASTRO;
@@ -97,6 +98,10 @@ export default function FormularioArea({
     tipo_infraestrutura: tipoInfraestruturaDoItem(item),
     // D-PROD-216: a cultura do cadastro de Culturas da fazenda (vazia na área antiga, que guarda só o texto).
     cultura_id: item?.cultura_id || "",
+    // D-PROD-223: parâmetros próprios do pasto (vazio = os da cultura).
+    altura_entrada_cm: formatarAlturaCm(item?.altura_entrada_cm),
+    altura_saida_cm: formatarAlturaCm(item?.altura_saida_cm),
+    dias_descanso: item?.dias_descanso == null ? "" : String(item.dias_descanso),
     cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
     observacoes: item?.observacoes || "",
   });
@@ -205,6 +210,27 @@ export default function FormularioArea({
       return;
     }
 
+    // D-PROD-223: parâmetros do pasto — só para usos com cultura; vazio = os da cultura.
+    const comParametros = usoExploraArea(formData.tipo_cultura);
+    const entradaPasto = comParametros ? lerAlturaCm(formData.altura_entrada_cm) : null;
+    const saidaPasto = comParametros ? lerAlturaCm(formData.altura_saida_cm) : null;
+    const diasPasto = comParametros ? lerDiasDescanso(formData.dias_descanso) : null;
+    const parametrosInvalidos = [
+      ...(entradaPasto === undefined ? ["altura_entrada_cm"] : []),
+      ...(saidaPasto === undefined ? ["altura_saida_cm"] : []),
+      ...(diasPasto === undefined ? ["dias_descanso"] : []),
+    ];
+    if (parametrosInvalidos.length) {
+      setInvalidFields(parametrosInvalidos);
+      toast.error(`Parâmetros do pasto: alturas em cm, maiores que 0 e até ${ALTURA_MAXIMA_CM}, com 1 casa; dias de descanso de 1 a ${DIAS_DESCANSO_MAXIMO}.`);
+      return;
+    }
+    if (entradaPasto != null && saidaPasto != null && saidaPasto >= entradaPasto) {
+      setInvalidFields(["altura_saida_cm"]);
+      toast.error("A altura de saída do pasto precisa ser menor que a de entrada.");
+      return;
+    }
+
     const rawCoords = coordenadasGPS || coordenadas || item?.coordenadas?.coords;
     const inspected = inspectVertices(rawCoords);
     if (Array.isArray(rawCoords) && inspected.invalidCount > 0) {
@@ -240,6 +266,10 @@ export default function FormularioArea({
       cor: formData.cor,
       // D-PROD-216: só com a lista do cadastro na tela; sem ela, a cultura gravada não é tocada.
       ...(comCadastroDeCultura ? { cultura_id: formData.cultura_id || null } : {}),
+      // D-PROD-223: vazio (ou uso sem cultura) grava null — vale o da cultura.
+      altura_entrada_cm: entradaPasto == null ? null : String(entradaPasto),
+      altura_saida_cm: saidaPasto == null ? null : String(saidaPasto),
+      dias_descanso: diasPasto ?? null,
     });
   };
 
@@ -265,6 +295,8 @@ export default function FormularioArea({
         : undefined;
   const bloqueado = readOnly || createAreaMutation.isPending;
   const erro = (campo) => (invalidFields.includes(campo) ? "Obrigatório" : undefined);
+  /** D-PROD-223: parâmetro do pasto inválido (não é campo obrigatório). */
+  const erroParametro = (campo, texto = "Inválido") => (invalidFields.includes(campo) ? texto : undefined);
   const nomeDoSetor = setores.find((s) => s.id === formData.setor_id)?.nome || formData.setor_nome || "";
 
   return (
@@ -483,6 +515,74 @@ export default function FormularioArea({
               </B1Select>
             )}
           </B1Field>
+
+          {usoExploraArea(formData.tipo_cultura) ? (
+            <>
+              <div className="col-span-12 pt-1 text-[11px] font-semibold text-slate-700" data-testid="parametros-do-pasto-titulo">
+                Parâmetros do pasto (opcional — vazio usa os da cultura)
+              </div>
+              <B1Field
+                label="Altura de entrada (cm)"
+                span={larg(4)}
+                hasValue={String(formData.altura_entrada_cm ?? "").trim() !== ""}
+                locked={readOnly}
+                error={erroParametro("altura_entrada_cm")}
+                dica={culturaEscolhida?.altura_entrada_cm != null ? `Da cultura: ${formatarAlturaCm(culturaEscolhida.altura_entrada_cm)} cm` : undefined}
+              >
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  aria-label="Altura de entrada do pasto (cm)"
+                  value={formData.altura_entrada_cm}
+                  onChange={(e) => handleChange("altura_entrada_cm", e.target.value)}
+                  placeholder={culturaEscolhida?.altura_entrada_cm != null ? formatarAlturaCm(culturaEscolhida.altura_entrada_cm) : ""}
+                  maxLength={8}
+                  className={`${B1_FIELD_CTL_CLS} tabular-nums`}
+                  readOnly={readOnly}
+                />
+              </B1Field>
+              <B1Field
+                label="Altura de saída (cm)"
+                span={larg(4)}
+                hasValue={String(formData.altura_saida_cm ?? "").trim() !== ""}
+                locked={readOnly}
+                error={erroParametro("altura_saida_cm", "Menor que a entrada")}
+                dica={culturaEscolhida?.altura_saida_cm != null ? `Da cultura: ${formatarAlturaCm(culturaEscolhida.altura_saida_cm)} cm` : undefined}
+              >
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  aria-label="Altura de saída do pasto (cm)"
+                  value={formData.altura_saida_cm}
+                  onChange={(e) => handleChange("altura_saida_cm", e.target.value)}
+                  placeholder={culturaEscolhida?.altura_saida_cm != null ? formatarAlturaCm(culturaEscolhida.altura_saida_cm) : ""}
+                  maxLength={8}
+                  className={`${B1_FIELD_CTL_CLS} tabular-nums`}
+                  readOnly={readOnly}
+                />
+              </B1Field>
+              <B1Field
+                label="Dias de descanso"
+                span={larg(4)}
+                hasValue={String(formData.dias_descanso ?? "").trim() !== ""}
+                locked={readOnly}
+                error={erroParametro("dias_descanso", "De 1 a 365")}
+                dica={culturaEscolhida?.dias_descanso != null ? `Da cultura: ${culturaEscolhida.dias_descanso} dias` : undefined}
+              >
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="Dias de descanso do pasto"
+                  value={formData.dias_descanso}
+                  onChange={(e) => handleChange("dias_descanso", e.target.value)}
+                  placeholder={culturaEscolhida?.dias_descanso != null ? String(culturaEscolhida.dias_descanso) : ""}
+                  maxLength={3}
+                  className={`${B1_FIELD_CTL_CLS} tabular-nums`}
+                  readOnly={readOnly}
+                />
+              </B1Field>
+            </>
+          ) : null}
         </>
       )}
 

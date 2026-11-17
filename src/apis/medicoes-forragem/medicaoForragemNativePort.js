@@ -43,6 +43,15 @@ const operacoesNativas = Object.freeze({
     nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}`, { method: 'DELETE', autenticado: true }, ctx('deleteMedicaoForragem')),
 });
 
+/**
+ * D-PROD-223 — por pasto da fazenda: se há lote dentro agora e o dia em que o último
+ * lote saiu (pelo ledger do rebanho). Só leitura e só online: o cache do mapa guarda a
+ * última resposta para uso sem rede.
+ * @param {string} empresaId
+ */
+export const descansoDosPastosNativo = (empresaId) =>
+  nativeRequest(`${CAMINHO}/descanso?empresa_id=${encodeURIComponent(empresaId)}`, { autenticado: true }, ctx('listDescansoPastos'));
+
 export const medicaoForragemPort = offlineStorageDisponivel()
   ? createOfflineEntityAdapter({
       entityName: ENTIDADE_OFFLINE,

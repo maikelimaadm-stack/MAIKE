@@ -676,6 +676,8 @@ model Cultura {
   cultivar          String?  @db.VarChar(120)
   altura_entrada_cm Decimal? @db.Decimal(6, 1)
   altura_saida_cm   Decimal? @db.Decimal(6, 1)
+  // D-PROD-223 — descanso normal do pasto (dias), para o farol estimado. 1..365 pela API.
+  dias_descanso     Int?
   observacoes       String?  @db.VarChar(2000)
   ativo             Boolean  @default(true)
   createdAt         DateTime @default(now())
@@ -912,6 +914,11 @@ model AreaPastagem {
   // composta pelo tenant e pela empresa). Anulável: área antiga, Reserva, APP e Infraestrutura ficam sem cultura. Com
   // cultura, o servidor deriva `tipo_pastagem` = nome da cultura.
   cultura_id                   String?  @db.VarChar(64)
+  // D-PROD-223 — parâmetros próprios do pasto (pasto mais fraco que a cultura em geral).
+  // Vazio = vale o da cultura, campo a campo. Faixas conferidas pela API (sem CHECK).
+  altura_entrada_cm            Decimal? @db.Decimal(6, 1)
+  altura_saida_cm              Decimal? @db.Decimal(6, 1)
+  dias_descanso                Int?
   // Polígono do mapa: `{coords: [[lat, lng], ...], cor}`. Json porque a forma
   // pertence ao desenho, não ao domínio — e normalizar vértice em tabela
   // própria só faria sentido se alguém consultasse vértice, o que ninguém faz.

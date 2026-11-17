@@ -82,10 +82,41 @@ export const situacaoPelaAltura = (media, entrada, saida) => {
   const s = saida === null || saida === undefined ? null : Number(saida);
   if (media === null || media === undefined || !Number.isFinite(media)) return null;
   if (!Number.isFinite(e) || !Number.isFinite(s) || e === null || s === null || e <= 0 || s <= 0) return null;
+  // D-PROD-223: alturas do pasto e da cultura combinadas podem ficar incoerentes (saída ≥ entrada): sem situação.
+  if (s >= e) return null;
   if (media < s) return 'RAPADO';
   if (media < e) return 'DESCANSO';
   if (media <= arredondar(e * FATOR_PASSOU, 1)) return 'PRONTO';
   return 'PASSOU';
+};
+
+/**
+ * D-PROD-223 — os parâmetros que valem para o pasto, campo a campo: o próprio do pasto
+ * (Área) quando preenchido; senão o da cultura. `origem` diz de onde veio cada um
+ * ('PASTO', 'CULTURA' ou null quando nenhum dos dois tem).
+ * @param {any} area @param {any} cultura
+ * @returns {{ altura_entrada_cm: number|null, altura_saida_cm: number|null, dias_descanso: number|null,
+ *   origem: { altura_entrada_cm: 'PASTO'|'CULTURA'|null, altura_saida_cm: 'PASTO'|'CULTURA'|null, dias_descanso: 'PASTO'|'CULTURA'|null } }}
+ */
+export const parametrosDoPasto = (area, cultura) => {
+  /** @param {unknown} v */
+  const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  /** @param {'altura_entrada_cm'|'altura_saida_cm'|'dias_descanso'} campo @returns {[number|null, 'PASTO'|'CULTURA'|null]} */
+  const um = (campo) => {
+    const doPasto = num(area?.[campo]);
+    if (doPasto !== null) return [doPasto, 'PASTO'];
+    const daCultura = num(cultura?.[campo]);
+    return daCultura !== null ? [daCultura, 'CULTURA'] : [null, null];
+  };
+  const [entrada, oEntrada] = um('altura_entrada_cm');
+  const [saida, oSaida] = um('altura_saida_cm');
+  const [dias, oDias] = um('dias_descanso');
+  return {
+    altura_entrada_cm: entrada,
+    altura_saida_cm: saida,
+    dias_descanso: dias,
+    origem: { altura_entrada_cm: oEntrada, altura_saida_cm: oSaida, dias_descanso: oDias },
+  };
 };
 
 /**

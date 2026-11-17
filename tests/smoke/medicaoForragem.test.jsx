@@ -144,6 +144,16 @@ describe('D-PROD-219 — formulário da medição', () => {
     expect(screen.getByTestId('medicao-media').textContent).toContain('só a média');
   });
 
+  it('D-PROD-223: com alturas próprias do pasto, o cabeçalho diz "(do pasto)" e a prévia usa as do pasto', () => {
+    renderizar(<FormularioMedicaoForragem area={{ ...PASTO, altura_entrada_cm: 20, altura_saida_cm: 12 }} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
+    expect(screen.getByTestId('medicao-alturas').textContent).toBe(' — entrada 20,0 cm · saída 12,0 cm (do pasto)');
+    fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '22' } });
+    expect(screen.getByTestId('medicao-media').textContent).toContain('Pronto');
+    cleanup();
+    renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
+    expect(screen.getByTestId('medicao-alturas').textContent).toBe(' — entrada 25,0 cm · saída 15,0 cm');
+  });
+
   it('MS% do laboratório sem peso seco; no olho envia só a situação', async () => {
     renderizar(<FormularioMedicaoForragem area={PASTO} cultura={MARANDU} hoje={HOJE} onCancel={() => {}} />);
     fireEvent.change(screen.getByTestId('medicao-leituras'), { target: { value: '24' } });
@@ -243,5 +253,53 @@ describe('D-PROD-219 — botão no pasto (detalhe da área)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('D-PROD-223 — farol estimado no painel do pasto', () => {
+  const PERM = { visualizar_historico_movimentacoes_lote: false, medir_forragem: true };
+  // O dia civil da fazenda vem do relógio: fixa só o Date (os timers do waitFor seguem reais).
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${HOJE}T15:00:00.000Z`) });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('sem medição recente: "Pronto (estimado) · lote saiu há 32 dias · descanso da cultura 30 dias"', async () => {
+    dados.culturas = [{ ...MARANDU, dias_descanso: 30 }];
+    dados.cache.medicoesForragem = [{ id: 'velha', empresa_id: EMP, area_id: 'area-12', data_medicao: '2027-05-01', metodo: 'OLHO', situacao: 'RAPADO' }];
+    dados.cache.descansoPastos = [{ area_id: 'area-12', ocupada: false, ultima_saida: '2027-05-14' }];
+    renderizar(<DetalhesArea area={PASTO} permissions={PERM} />);
+    await waitFor(() => expect(screen.getByTestId('farol-forragem').textContent).toContain('Pronto (estimado)'));
+    expect(screen.getByTestId('farol-forragem-estimado').textContent).toBe('lote saiu há 32 dias · descanso da cultura 30 dias');
+    expect(screen.queryByTestId('forragem-em-pastejo')).toBeNull();
+  });
+
+  it('medição válida vence a estimativa; pasto ocupado mostra "Em pastejo" sem estimativa', async () => {
+    dados.culturas = [{ ...MARANDU, dias_descanso: 30 }];
+    dados.cache.medicoesForragem = [{ id: 'nova', empresa_id: EMP, area_id: 'area-12', data_medicao: '2027-06-14', metodo: 'REGUA', altura_media_cm: 10, situacao: 'RAPADO' }];
+    dados.cache.descansoPastos = [{ area_id: 'area-12', ocupada: true, ultima_saida: null }];
+    renderizar(<DetalhesArea area={PASTO} permissions={PERM} />);
+    await waitFor(() => expect(screen.getByTestId('forragem-em-pastejo').textContent).toContain('Em pastejo'));
+    expect(screen.getByTestId('farol-forragem').textContent).toContain('Rapado');
+    expect(screen.getByTestId('farol-forragem').textContent).not.toContain('estimado');
+  });
+
+  it('pasto com parâmetros próprios: a estimativa usa os dias do pasto e o painel diz de onde vem cada parâmetro', async () => {
+    dados.culturas = [{ ...MARANDU, dias_descanso: 30 }];
+    dados.cache.descansoPastos = [{ area_id: 'area-12', ocupada: false, ultima_saida: '2027-05-14' }];
+    renderizar(<DetalhesArea area={{ ...PASTO, altura_saida_cm: 12, dias_descanso: 40 }} permissions={PERM} />);
+    await waitFor(() => expect(screen.getByTestId('farol-forragem').textContent).toContain('Descanso (estimado)'));
+    expect(screen.getByTestId('farol-forragem-estimado').textContent).toBe('lote saiu há 32 dias · descanso do pasto 40 dias');
+    expect(screen.getByTestId('parametros-do-pasto').textContent).toBe('entrada 25 cm (da cultura) · saída 12 cm (do pasto) · descanso 40 dias (do pasto)');
+  });
+
+  it('cultura sem dias de descanso: nada é estimado', async () => {
+    dados.cache.descansoPastos = [{ area_id: 'area-12', ocupada: false, ultima_saida: '2027-05-14' }];
+    renderizar(<DetalhesArea area={PASTO} permissions={PERM} />);
+    expect(await screen.findByTestId('painel-forragem')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Nenhuma medição registrada.')).toBeTruthy());
+    expect(screen.queryByTestId('farol-forragem')).toBeNull();
   });
 });

@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
-import { situacaoPelaAltura, calcularAmostra, lerLeituras, mediaDasLeituras } from '../src/modules/medicoesForragem/medicaoForragemCalculo.js';
+import { situacaoPelaAltura, calcularAmostra, lerLeituras, mediaDasLeituras, parametrosDoPasto } from '../src/modules/medicoesForragem/medicaoForragemCalculo.js';
 import * as daTela from '../../src/domain/pastagem/medicaoForragem.js';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -155,6 +155,39 @@ describe('D-PROD-219 — medição de forragem (API)', () => {
     assert.deepEqual([lab.json().massa_verde_kg_ha, lab.json().materia_seca_pct, lab.json().massa_seca_kg_ha, lab.json().peso_seco_g, lab.json().qtd_amostras], [12000, 22.5, 2700, null, 1]);
     const semCultura = (await req('GET', `/medicoes-forragem?area_id=${cen.semCultura.id}`, cen.token)).json()[0];
     assert.deepEqual([semCultura.cultura_id, semCultura.altura_entrada_cm, semCultura.altura_saida_cm], [null, null, null]);
+  });
+
+  test('MF-11 (D-PROD-223) parâmetros do pasto: as alturas próprias da área valem antes das da cultura (situação e retrato); só uma própria combina com a outra da cultura; incoerentes → sem situação', async () => {
+    const cen = await cenario();
+    await prisma().areaPastagem.update({ where: { id: cen.pasto.id }, data: { altura_entrada_cm: 20, altura_saida_cm: 12 } });
+    // Média 22: pela cultura (25/15) seria Descanso; pelo pasto (20/12), Pronto.
+    let r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { leituras_cm: '22 22' }));
+    assert.equal(r.statusCode, 201, r.body);
+    assert.deepEqual([r.json().situacao, r.json().altura_entrada_cm, r.json().altura_saida_cm, r.json().cultura_id], ['PRONTO', 20, 12, cen.marandu.id]);
+    // Só a entrada própria: 20 do pasto e 15 da cultura.
+    await prisma().areaPastagem.update({ where: { id: cen.pasto.id }, data: { altura_saida_cm: null } });
+    r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { leituras_cm: '14' }));
+    assert.deepEqual([r.json().situacao, r.json().altura_entrada_cm, r.json().altura_saida_cm], ['RAPADO', 20, 15]);
+    // Entrada própria abaixo da saída da cultura: incoerente → só a média.
+    await prisma().areaPastagem.update({ where: { id: cen.pasto.id }, data: { altura_entrada_cm: 14 } });
+    r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { leituras_cm: '20' }));
+    assert.equal(r.json().situacao, null);
+    // Pasto sem cultura, com as alturas próprias: a situação sai delas.
+    await prisma().areaPastagem.update({ where: { id: cen.semCultura.id }, data: { altura_entrada_cm: 30, altura_saida_cm: 15 } });
+    r = await req('POST', '/medicoes-forragem', cen.token, regua(cen, { area_id: cen.semCultura.id, leituras_cm: '31' }));
+    assert.deepEqual([r.json().situacao, r.json().altura_entrada_cm, r.json().altura_saida_cm, r.json().cultura_id], ['PRONTO', 30, 15, null]);
+  });
+
+  test('MF-12 (D-PROD-223) parametrosDoPasto: o do pasto, senão o da cultura, campo a campo, com a origem; a cópia da tela dá o mesmo', () => {
+    for (const f of [parametrosDoPasto, daTela.parametrosDoPasto]) {
+      assert.deepEqual(f({ altura_entrada_cm: '20.0', altura_saida_cm: null, dias_descanso: 40 }, { altura_entrada_cm: 25, altura_saida_cm: 15, dias_descanso: 30 }), {
+        altura_entrada_cm: 20, altura_saida_cm: 15, dias_descanso: 40,
+        origem: { altura_entrada_cm: 'PASTO', altura_saida_cm: 'CULTURA', dias_descanso: 'PASTO' },
+      });
+      assert.deepEqual(f({}, null), { altura_entrada_cm: null, altura_saida_cm: null, dias_descanso: null, origem: { altura_entrada_cm: null, altura_saida_cm: null, dias_descanso: null } });
+      assert.equal(f.length, 2);
+    }
+    for (const m of [situacaoPelaAltura, daTela.situacaoPelaAltura]) assert.equal(m(20, 14, 15), null, 'saída ≥ entrada: sem situação');
   });
 
   test('MF-03 no olho: situação obrigatória e fechada; leitura ou amostra junto → 400; régua não aceita situação', async () => {
@@ -296,5 +329,39 @@ describe('D-PROD-219 — medição de forragem (API)', () => {
       /Foreign key|foreign key/i,
       'cultura de outra fazenda não entra (FK pela fazenda)',
     );
+  });
+
+  test('MF-10 (D-PROD-223) descanso dos pastos pelo ledger: ocupado agora, dia da saída do último lote, pasto sem histórico fora da lista; partida cancelada não conta; empresa de outro tenant → 404', async () => {
+    const { token, clienteId: c, e1, e2, pasto, semCultura, infra } = await cenario();
+    const p = prisma();
+    const dia = (d) => new Date(`${d}T00:00:00.000Z`);
+    let n = 0;
+    const lancar = async (area, movimentos) => {
+      n += 1;
+      const pos = await p.posicaoRebanho.create({ data: { cliente_id: c, empresa_id: e1.id, area_id: area.id, chave_identidade: `k${n}`, nome: `LOTE ${n}`, quantidade_cabecas: 0 } });
+      for (const [d, delta, ativa = true] of movimentos) {
+        n += 1;
+        const ev = await p.eventoRebanho.create({ data: { cliente_id: c, empresa_id: e1.id, tipo: 'TRANSFERENCIA', data_operacional: dia(d), operation_id: `op${n}` } });
+        await p.partidaRebanho.create({ data: { cliente_id: c, empresa_id: e1.id, evento_id: ev.id, posicao_id: pos.id, data_operacional: dia(d), delta, ativa } });
+      }
+    };
+    // Pasto: dois lotes entram e saem; o último sai em 2027-05-20. Uma volta cancelada depois não conta.
+    await lancar(pasto, [['2027-05-01', 10], ['2027-05-10', -10]]);
+    await lancar(pasto, [['2027-05-05', 7], ['2027-05-20', -7], ['2027-06-01', 3, false]]);
+    // Sem cultura: entrou e não saiu.
+    await lancar(semCultura, [['2027-06-10', 5]]);
+    const r = await req('GET', `/medicoes-forragem/descanso?empresa_id=${e1.id}`, token);
+    assert.equal(r.statusCode, 200, r.body);
+    const porArea = Object.fromEntries(r.json().map((x) => [x.area_id, x]));
+    assert.deepEqual(porArea[pasto.id], { area_id: pasto.id, ocupada: false, ultima_saida: '2027-05-20' });
+    assert.deepEqual(porArea[semCultura.id], { area_id: semCultura.id, ocupada: true, ultima_saida: null });
+    assert.equal(porArea[infra.id], undefined, 'sem histórico no ledger: fora da lista');
+    const outra = await req('GET', `/medicoes-forragem/descanso?empresa_id=${e2.id}`, token);
+    assert.deepEqual(outra.json(), [], 'outra fazenda do mesmo tenant: só os pastos dela');
+    const estranho = await criarTenant({ papelTenant: 'administrador' });
+    const { corpo } = await autenticarNoApp(app, estranho.credenciais);
+    const alheia = await req('GET', `/medicoes-forragem/descanso?empresa_id=${e1.id}`, corpo.token);
+    assert.equal(alheia.statusCode, 404, 'fazenda de outro tenant');
+    assert.equal((await req('GET', '/medicoes-forragem/descanso', token)).statusCode, 400, 'empresa_id obrigatório');
   });
 });

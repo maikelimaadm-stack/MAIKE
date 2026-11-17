@@ -57,7 +57,10 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
             </div>
           ))}
           {modoColoracao === 'forragem' ? (
-            <div className="text-[10px] text-slate-500 leading-tight pt-0.5" data-testid="legenda-forragem-olho">{MARCA_OLHO} Tom mais claro: avaliado no olho</div>
+            <>
+              <div className="text-[10px] text-slate-500 leading-tight pt-0.5" data-testid="legenda-forragem-olho">{MARCA_OLHO} Tom mais claro: avaliado no olho</div>
+              <div className="text-[10px] text-slate-500 leading-tight pt-0.5" data-testid="legenda-forragem-estimado">(estimado) Tom bem claro: sem medição recente, pelos dias de descanso da cultura</div>
+            </>
           ) : null}
         </div>
       )}
