@@ -309,6 +309,9 @@ export const GUARDAS = Object.freeze({
   tipoAtividade: { ...cadastro(T.TIPOS_ATIVIDADE), opcoes: porQualquer(...TIPOS_ATIVIDADE_CRIAR_OU_EDITAR) },
   // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
+  // D-PROD-215 — Cadastro de Culturas: leitura também pela tela (dado por fazenda). Incluir a lista de
+  // referência cria registros: exige criar (novo ou salvar) na própria tela.
+  cultura: { ...cadastro(T.CULTURAS), ver: porTela(T.CULTURAS, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).
   curvaGanho: { ...cadastro(T.CURVAS_GANHO), ver: porTela(T.CURVAS_GANHO, 'visualizar') },
   // D-PROD-203 — Formulações de suplemento: cadastro e leitura pela tela `pec-formulacoes`. O lançamento de

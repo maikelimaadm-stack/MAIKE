@@ -164,6 +164,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // existentes vem do bem), da leitura anterior, do delta e do intervalo confiável; local e movimento passam a anuláveis;
   // o CHECK de status é recriado e entram 3 CHECKs, 3 FKs e 3 índices. Nenhuma tabela criada ou apagada.
   '20261116300000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
+  // D-PROD-215: EXPAND — Cadastro de Culturas (CADCULTURAS), só tabela nova.
+  '20261116500000_cadculturas': '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715',
+  // D-PROD-216: CONTRACT aditiva — a Área ligada à Cultura (coluna anulável, UNIQUE em CADCULTURAS e FK composta).
+  '20261117000000_area_cultura': 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -205,6 +209,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '60149f94e07596da2c93471f82110e6f37b5f014bcf721c1dc366a2d4b4bcce8',
   // D-PROD-207 (Fatia 4): RLS/REVOKE das 4 tabelas de mão de obra e serviço (mesmo corpo, lista nova).
   '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403',
+  // D-PROD-215: RLS/REVOKE da CADCULTURAS (mesmo corpo, lista nova).
+  'cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b',
 ]);
 
 /**
@@ -498,6 +504,26 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_atividade_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "atividade_id") REFERENCES "Atividade"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_apontamento_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_centro_custo_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_custo_id") REFERENCES "CentroCusto"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-216: a Área do mapa ligada à Cultura da mesma fazenda. A mudança é ADITIVA: nenhuma linha muda de valor,
+  // nenhuma coluna existente é tocada, nenhuma tabela é criada ou apagada, nenhum DROP. Só é CONTRACT porque a allowlist
+  // EXPAND recusa UNIQUE em tabela antiga e FK de tabela antiga para tabela ANTIGA (como na D-PROD-195 e na D-PROD-197).
+  // Depois da guarda (hash pinado; confere que as 2 tabelas existem, que a coluna, o UNIQUE e a FK novos não existem, e
+  // trava "AreaPastagem" em ACCESS EXCLUSIVE), EXATAMENTE as 3 instruções abaixo, nesta ordem (texto pinado): a coluna
+  // anulável sem DEFAULT, o UNIQUE (cliente_id, empresa_id, id) que a FK composta exige em CADCULTURAS e a FK composta
+  // pelo tenant e pela empresa, RESTRICT. O resto é o CREATE INDEX não-único pela allowlist EXPAND, que continua
+  // recusando DML, ALTER COLUMN e qualquer outra coisa. A guarda só cita AreaPastagem e CADCULTURAS. O vínculo das áreas
+  // existentes (DML) NÃO está aqui: é um passo de dados separado, com aprovação própria (runbook da D-PROD-216).
+  '20261117000000_area_cultura': Object.freeze({
+    decisao: 'D-PROD-216',
+    guarda_sha256: 'e60b6bdc95568ba28c0406649d95cd76da6a2394dc3bdfdb1daf06a6469f3da6',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AreaPastagem', 'CADCULTURAS']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AreaPastagem" ADD COLUMN "cultura_id" VARCHAR(64)',
+      'CREATE UNIQUE INDEX "CADCULTURAS_cliente_id_empresa_id_id_key" ON "CADCULTURAS"("cliente_id", "empresa_id", "id")',
+      'ALTER TABLE "AreaPastagem" ADD CONSTRAINT "AreaPastagem_cliente_id_empresa_id_cultura_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "cultura_id") REFERENCES "CADCULTURAS"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ]),
   }),
 });

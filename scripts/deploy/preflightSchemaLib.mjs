@@ -90,6 +90,12 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // `20261116200000_formulacao_base_consumo`, `/formulacoes` responde 500.
   ['CADFORMULACAO', 'base_consumo'],
   ['CADFORMULACAOREGRA', 'g_cab_dia'],
+  // D-PROD-215: o Cadastro de Culturas lê e grava a tabela nova; sem a migration
+  // `20261116500000_cadculturas`, `/culturas` responde 500.
+  ['CADCULTURAS', 'altura_entrada_cm'],
+  // D-PROD-216: a Área lê e grava a cultura; sem a migration `20261117000000_area_cultura`,
+  // `/areas-pastagem` responde 500.
+  ['AreaPastagem', 'cultura_id'],
 ]);
 
 /**

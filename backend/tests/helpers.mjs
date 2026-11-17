@@ -80,6 +80,8 @@ const ORDEM_DE_LIMPEZA = [
   'cadEstacao',
   // D-PROD-189 — CADCURVAGANHO referencia Empresa (FK composta, Restrict).
   'cadCurvaGanho',
+  // D-PROD-215 — CADCULTURAS referencia Empresa (FK composta, Restrict).
+  'cultura',
   'empresa',
   'produto',
   'localEstoque',
@@ -178,6 +180,9 @@ export const limparBanco = async () => {
   await prisma.centroResultado.deleteMany({});
   await prisma.naturezaFinanceira.updateMany({ where: { pai_id: { not: null } }, data: { pai_id: null } });
   await prisma.naturezaFinanceira.deleteMany({});
+  // D-PROD-216 — AreaPastagem aponta para CADCULTURAS (FK composta, Restrict) e a
+  // cultura sai antes da área na ordem abaixo: o vínculo é desfeito primeiro.
+  await prisma.areaPastagem.updateMany({ where: { cultura_id: { not: null } }, data: { cultura_id: null } });
   for (const model of ORDEM_DE_LIMPEZA) {
     await prisma[model].deleteMany({});
   }

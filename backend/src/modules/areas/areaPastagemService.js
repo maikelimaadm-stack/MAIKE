@@ -54,7 +54,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT, resolverEscopoId } from '../sequencias/entidadeCodigoService.js';
 import { garantirLinhaDaSequencia } from '../sequencias/entidadeCodigoRepository.js';
-import { AppError, areaNotFound, setorNotFound } from '../../shared/errors/AppError.js';
+import { AppError, areaNotFound, setorNotFound, culturaNotFound } from '../../shared/errors/AppError.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { DEPENDENTES_NOME_AREA, LISTAS_NOME_AREA } from '../referencias/propagationRules.js';
 import {
@@ -75,6 +75,7 @@ import {
   liberarCodigos,
   alinharSequenciaAoMaiorCodigo,
   propagarSetorDaAreaParaTarefas,
+  buscarCulturaDoTenant,
 } from './areaPastagemRepository.js';
 
 /** Nome da sequência. Literal, para não depender de nome de model do Prisma. */
@@ -136,6 +137,11 @@ export const comoAreaPublica = (registro) => ({
   taxa_crescimento_kg_ha_dia: comoNumero(registro.taxa_crescimento_kg_ha_dia),
   taxa_aproveitamento: comoNumero(registro.taxa_aproveitamento),
   periodo_estacao: registro.periodo_estacao ?? null,
+  // D-PROD-216 — cultura do cadastro de Culturas (código, nome e tipo para a tela).
+  cultura_id: registro.cultura_id ?? null,
+  cultura: registro.cultura
+    ? { id: registro.cultura.id, codigo: registro.cultura.codigo, nome: registro.cultura.nome, tipo: registro.cultura.tipo }
+    : null,
   coordenadas: registro.coordenadas ?? null,
   observacoes: registro.observacoes ?? null,
   ativo: registro.ativo,
@@ -207,6 +213,7 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   nome: (v) => textoOuNulo(v),
   sigla: (v) => textoOuNulo(v),
   tipo_pastagem: (v) => textoOuNulo(v),
+  cultura_id: (v) => textoOuNulo(v),
   aproveitamento_classificacao: (v) => textoOuNulo(v),
   tipo_cultura: (v) => textoOuNulo(v),
   cor: (v) => textoOuNulo(v),
@@ -258,6 +265,60 @@ const exigirSetorDoTenant = async (tx, clienteId, setorId) => {
 };
 
 /**
+ * Usos da área que NÃO têm cultura (D-PROD-216): reserva, APP e infraestrutura não
+ * são exploradas com forrageira nem lavoura. Pastagem e Agricultura aceitam cultura.
+ */
+const USOS_SEM_CULTURA = Object.freeze(['Reserva', 'APP', 'Infraestrutura']);
+
+/** 400 da cultura da área, com `field`/`reason` para a tela. */
+const culturaInvalida = (mensagem, reason) =>
+  new AppError('REQUEST_VALIDATION_FAILED', mensagem, { details: { field: 'cultura_id', reason } });
+
+/**
+ * D-PROD-216 — resolve a cultura da escrita, na transação de quem chama, e deriva
+ * `tipo_pastagem` = nome da cultura (como `setor_nome` vem do setor: o corpo não
+ * tem voz). Regras:
+ *  - `cultura_id` informado: tem de ser cultura DESTE tenant (senão 404, sem
+ *    oráculo), da MESMA fazenda da área (400 `outra_fazenda`), ativa quando é
+ *    troca (400 `inativa`; manter a mesma cultura inativa não bloqueia a edição),
+ *    e o uso da área tem de aceitar cultura (400 `uso_sem_cultura`);
+ *  - uso mudando para Reserva/APP/Infraestrutura sem `cultura_id` no corpo: a
+ *    cultura sai junto (`cultura_id = null`), e `tipo_pastagem` segue o corpo;
+ *    área que continua com a cultura ignora `tipo_pastagem` do corpo;
+ *  - `cultura_id: null`: desliga, e `tipo_pastagem` volta a ser o do corpo (ou o
+ *    gravado).
+ * A FK composta (cliente_id, empresa_id, cultura_id) garante o mesmo no banco.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {Record<string, any>} campos  campos da escrita (mutados)
+ * @param {{empresa_id: string, tipo_cultura: string, cultura_id: string | null}} efetivo  estado depois da escrita
+ * @param {string | null} culturaAnterior
+ */
+const aplicarCultura = async (tx, clienteId, campos, efetivo, culturaAnterior) => {
+  const informou = Object.prototype.hasOwnProperty.call(campos, 'cultura_id');
+  if (!informou) {
+    if (!culturaAnterior) return;
+    if (USOS_SEM_CULTURA.includes(efetivo.tipo_cultura)) campos.cultura_id = null;
+    // A área continua com a cultura: o texto é a cópia do nome dela, e o corpo não o troca.
+    else delete campos.tipo_pastagem;
+    return;
+  }
+  const culturaId = campos.cultura_id;
+  if (culturaId === null) return;
+  if (USOS_SEM_CULTURA.includes(efetivo.tipo_cultura)) {
+    throw culturaInvalida(`área de uso ${efetivo.tipo_cultura} não tem cultura`, 'uso_sem_cultura');
+  }
+  const cultura = await buscarCulturaDoTenant(tx, clienteId, String(culturaId));
+  if (!cultura) throw culturaNotFound('cultura vinculada não encontrada', { details: { field: 'cultura_id' } });
+  if (cultura.empresa_id !== efetivo.empresa_id) {
+    throw culturaInvalida('a cultura é de outra fazenda', 'outra_fazenda');
+  }
+  if (!cultura.ativo && cultura.id !== culturaAnterior) throw culturaInvalida('a cultura está inativa', 'inativa');
+  campos.tipo_pastagem = cultura.nome;
+};
+
+/**
  * Lista as áreas do tenant autenticado.
  *
  * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
@@ -285,6 +346,13 @@ export const criar = async (contexto, entrada) => {
   return prisma.$transaction(async (tx) => {
     const campos = camposDe(entrada);
     const setor = await exigirSetorDoTenant(tx, auth.clienteId, String(campos.setor_id ?? ''));
+    await aplicarCultura(
+      tx,
+      auth.clienteId,
+      campos,
+      { empresa_id: String(campos.empresa_id ?? ''), tipo_cultura: String(campos.tipo_cultura ?? 'Pastagem'), cultura_id: null },
+      null
+    );
 
     const numero = await reservarNumero(tx, {
       clienteId: auth.clienteId,
@@ -347,6 +415,18 @@ export const atualizar = async (contexto, id, entrada) => {
       const setor = await exigirSetorDoTenant(tx, auth.clienteId, String(campos.setor_id ?? ''));
       campos.setor_nome = setor.nome;
     }
+
+    await aplicarCultura(
+      tx,
+      auth.clienteId,
+      campos,
+      {
+        empresa_id: String(anterior.empresa_id),
+        tipo_cultura: String(campos.tipo_cultura ?? anterior.tipo_cultura),
+        cultura_id: anterior.cultura_id ?? null,
+      },
+      anterior.cultura_id ?? null
+    );
 
     const registro = Object.keys(campos).length
       ? await atualizarAreaPorId(tx, auth.clienteId, id, campos)

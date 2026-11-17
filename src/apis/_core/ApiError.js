@@ -152,6 +152,10 @@ export const API_ERROR_CODES = Object.freeze({
   ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
   ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
   ESTACAO_PERIODO_SOBREPOSTO: 'ESTACAO_PERIODO_SOBREPOSTO',
+  CULTURA_NOT_FOUND: 'CULTURA_NOT_FOUND',
+  CULTURA_NAME_CONFLICT: 'CULTURA_NAME_CONFLICT',
+  CULTURA_CODIGO_CONFLICT: 'CULTURA_CODIGO_CONFLICT',
+  CULTURA_EM_USO: 'CULTURA_EM_USO',
   // D-PROD-207 — Serviços da fazenda (o funcionário é papel do parceiro desde a D-PROD-208).
   SERVICO_NOT_FOUND: 'SERVICO_NOT_FOUND',
   SERVICO_REFERENCIA_INVALIDA: 'SERVICO_REFERENCIA_INVALIDA',
@@ -291,6 +295,10 @@ const MENSAGENS = Object.freeze({
     'O estorno exato do produto não é seguro agora (o lote de origem já foi consumido, transferido ou mudou). Nada foi alterado.',
   [API_ERROR_CODES.ATIVIDADE_DATA_COM_LINHAS]:
     'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.',
+  [API_ERROR_CODES.CULTURA_NOT_FOUND]: 'Esta cultura não foi encontrada. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.CULTURA_NAME_CONFLICT]: 'Já existe uma cultura com este nome nesta fazenda.',
+  [API_ERROR_CODES.CULTURA_CODIGO_CONFLICT]: 'Já existe uma cultura com este código nesta fazenda.',
+  [API_ERROR_CODES.CULTURA_EM_USO]: 'Esta cultura está ligada a áreas do mapa. Troque a cultura dessas áreas ou inative a cultura.',
   [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:

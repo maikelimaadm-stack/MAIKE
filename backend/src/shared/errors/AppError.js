@@ -692,6 +692,20 @@ export const estacaoPeriodoSobreposto = (message, options) =>
     options
   );
 
+// D-PROD-215 — Cadastro de Culturas da fazenda (tabela CADCULTURAS).
+export const culturaNotFound = (message, options) =>
+  new AppError('CULTURA_NOT_FOUND', message || 'cultura não encontrada', options);
+
+export const culturaNomeConflito = (message, options) =>
+  new AppError('CULTURA_NAME_CONFLICT', message || 'já existe cultura com este nome nesta fazenda', options);
+
+export const culturaCodigoConflito = (message, options) =>
+  new AppError('CULTURA_CODIGO_CONFLICT', message || 'já existe cultura com este código nesta fazenda', options);
+
+// D-PROD-216 — cultura ligada a áreas não sai (FK RESTRICT).
+export const culturaEmUso = (message, options) =>
+  new AppError('CULTURA_EM_USO', message || 'a cultura está ligada a áreas e não pode ser excluída', options);
+
 // D-PROD-207 — cadastro de Serviço da fazenda (Fatia 4). D-PROD-208: o de Funcionário saiu.
 export const servicoNotFound = (message, options) =>
   new AppError('SERVICO_NOT_FOUND', message || 'serviço não encontrado nesta fazenda', options);

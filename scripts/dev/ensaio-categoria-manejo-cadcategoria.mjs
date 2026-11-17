@@ -59,7 +59,8 @@
  *     concluídas (CONCLUIDAS_DEPOIS; esta depois da CADCURVAGANHO, do ApontamentoAtividade,
  *     dos itens do apontamento e das CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-200,
  *     e as EXPAND da D-PROD-202 e da D-PROD-207 e a CONTRACT da D-PROD-208, e a D-PROD-195, a D-PROD-198 e as EXPAND da D-PROD-203, da D-PROD-205 e da D-PROD-206 por último),
- *     90 tabelas na partida e 94 no fim (+ as 3 das Formulações, D-PROD-203, e a LEITURACOCHO, D-PROD-205),
+ *     90 tabelas na partida e 95 no fim (+ as 3 das Formulações, D-PROD-203, a LEITURACOCHO, D-PROD-205, e a
+ *     CADCULTURAS, D-PROD-215),
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam mais a curva_ganho_id da D-PROD-195 (cada
  *     categoria na CURVA PADRÃO da fazenda) e a peso_objetivo_kg da D-PROD-198 (vazia),
@@ -134,8 +135,8 @@ export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULA
  * GREEN por último, depois da D-PROD-203 (pela ordem dos nomes; EXPAND). +1 tabela no GREEN.
  */
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
-/** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203) e a LEITURACOCHO (D-PROD-205). */
-export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO']);
+/** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215). */
+export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS']);
 /**
  * D-PROD-206: a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO, que só existe depois da D-PROD-203),
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
@@ -146,7 +147,18 @@ export const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
  */
 export const NOME_BASE = '20261116200000_formulacao_base_consumo';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE]);
+/**
+ * D-PROD-215: a EXPAND do Cadastro de Culturas (1 tabela nova, CADCULTURAS; referencia só Cliente e Empresa), de nome
+ * ainda posterior, não existia no dia desta CONTRACT: fora da partida, sobe no GREEN por último. +1 tabela no GREEN.
+ */
+export const NOME_CULTURAS = '20261116500000_cadculturas';
+/**
+ * D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura (coluna anulável em AreaPastagem, UNIQUE em CADCULTURAS e FK
+ * composta), de nome ainda posterior: depende da CADCULTURAS (D-PROD-215), então também fica fora da partida e sobe no
+ * GREEN por último. Nenhuma tabela nova.
+ */
+export const NOME_AREA_CULTURA = '20261117000000_area_cultura';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()
@@ -178,7 +190,7 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1 - NOMES_DEPOIS_DO_CONTRACT.length;
 export const TABELAS_PUBLIC = 90;
-/** Depois do GREEN: as da partida + as 3 das Formulações (D-PROD-203) e a LEITURACOCHO (D-PROD-205), aplicadas por último: 94. */
+/** Depois do GREEN: as da partida + as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215), aplicadas por último: 95. */
 export const TABELAS_DEPOIS = TABELAS_PUBLIC + TABELAS_CRIADAS_NO_GREEN.length;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');

@@ -62,6 +62,10 @@ const COLUNAS_OK = [
   // D-PROD-210: a base do consumo e os gramas da regra.
   { table_name: 'CADFORMULACAO', column_name: 'base_consumo' },
   { table_name: 'CADFORMULACAOREGRA', column_name: 'g_cab_dia' },
+  // D-PROD-215: o Cadastro de Culturas (tabela nova).
+  { table_name: 'CADCULTURAS', column_name: 'altura_entrada_cm' },
+  // D-PROD-216: a Área ligada à Cultura.
+  { table_name: 'AreaPastagem', column_name: 'cultura_id' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -99,6 +103,8 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /CADFORMULACAOINGREDIENTE\.quantidade_kg/);
   assert.match(r.falhas.join('\n'), /CADFORMULACAOREGRA\.consome/);
   assert.match(r.falhas.join('\n'), /LEITURACOCHO\.escore/);
+  assert.match(r.falhas.join('\n'), /CADCULTURAS\.altura_entrada_cm/);
+  assert.match(r.falhas.join('\n'), /AreaPastagem\.cultura_id/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 

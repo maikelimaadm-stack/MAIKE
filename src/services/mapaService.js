@@ -201,13 +201,16 @@ export const excluirLinha = async (id) => {
  * @returns {Promise<{pontoId: string, pontosSuplementacaoRemovidos: number, bebedourosRemovidos: number}>}
  */
 export const excluirPontoComCascata = async (pontoId, empresaId, pontoConhecido = null) => {
-  const ponto = pontoConhecido || (await listPontos()).find((item) => item.id === pontoId) || null;
+  // A lista completa também diz de quem é cada lugar: o cocho/depósito que está
+  // no lugar de OUTRO ponto não é deste (ligacaoPontoReferencia, `outrosPontos`).
+  const todosPontos = await listPontos();
+  const ponto = pontoConhecido || todosPontos.find((item) => item.id === pontoId) || null;
   const empresa = ponto?.empresa_id ?? empresaId ?? null;
   const pontoComEmpresa = ponto ? { ...ponto, id: pontoId, empresa_id: empresa } : null;
 
   const [todosSupl, todosBebedouros] = await Promise.all([listPontosSuplementacao(), listBebedouros()]);
   const ativosDaEmpresa = todosSupl.filter((item) => item.empresa_id === empresa && item.status === 'Ativo');
-  const ligacao = resolverSuplementacaoDoPonto(pontoComEmpresa, ativosDaEmpresa);
+  const ligacao = resolverSuplementacaoDoPonto(pontoComEmpresa, ativosDaEmpresa, { outrosPontos: todosPontos });
   if (ligacao.ambiguo) {
     throw new ApiError(API_ERROR_CODES.MAPA_DELETE_BLOCKED, {
       operation: 'excluirPontoComCascata',

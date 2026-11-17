@@ -5,6 +5,7 @@
  */
 
 import { resolverSuplementacaoDoPonto, bebedourosDoPonto, tipoEhBebedouro } from "@/domain/mapa/ligacaoPontoReferencia";
+import { textoDaCulturaDaArea } from "@/domain/areas/culturaDaArea";
 
 /** @param {unknown} valor @param {number} casas */
 const numeroBr = (valor, casas) => {
@@ -35,7 +36,8 @@ export function valorDaArea(item, coluna) {
   if (coluna === "nome") return item.nome || "";
   if (coluna === "setor") return item.setor_nome || "";
   if (coluna === "uso") return item.tipo_cultura || "";
-  if (coluna === "cultura") return item.tipo_pastagem || "";
+  // D-PROD-216: com cultura do cadastro, "001 · NOME"; área antiga, o texto de antes.
+  if (coluna === "cultura") return textoDaCulturaDaArea(item);
   if (coluna === "tamanho") return item.tamanho_hectares != null ? String(item.tamanho_hectares) : "";
   if (coluna === "capacidade") return item.capacidade_maxima != null ? String(item.capacidade_maxima) : "";
   if (coluna === "ocupacao") return `${item.quantidade_atual || 0} / ${item.capacidade_maxima || 0}`;
@@ -83,7 +85,7 @@ export const COLUNAS_PONTOS = [
  */
 export function pontosComDetalhes(pontos, pontosSuplementacao, bebedouros) {
   return (pontos || []).map((item) => {
-    const ligacao = resolverSuplementacaoDoPonto(item, pontosSuplementacao);
+    const ligacao = resolverSuplementacaoDoPonto(item, pontosSuplementacao, { outrosPontos: pontos });
     const bebedouro = tipoEhBebedouro(item.tipo) ? bebedourosDoPonto(item, bebedouros)[0] || null : null;
     return {
       ...item,

@@ -89,7 +89,9 @@ const semear = async ({ clientes = 1 } = {}) => {
     await p.permissao.create({ data: { cliente_id: c, user_email: t.usuario.login, is_admin: true } });
     const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
     const setor = await p.setor.create({ data: { cliente_id: c, empresa_id: emp.id, numero_setor: '1', nome: 'S' } });
-    const area = await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
+    // D-PROD-216: a área ligada a uma cultura (FK RESTRICT) prova a ordem AreaPastagem → CADCULTURAS → Empresa.
+    const culturaDaArea = await p.cultura.create({ data: { cliente_id: c, empresa_id: emp.id, codigo: '001', tipo: 'PASTAGEM', nome: 'MARANDU' } });
+    const area = await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1, cultura_id: culturaDaArea.id } });
     const lote = await p.lote.create({ data: { cliente_id: c, empresa_id: emp.id, numero_lote: '1', nome: 'L', quantidade_cabecas: 5, quantidade_entrada: 5, motivo_entrada: 'Compra' } });
     const pai = await p.categoria.create({ data: { cliente_id: c, numero_categoria: '1', nome: 'PAI' } });
     await p.categoria.create({ data: { cliente_id: c, numero_categoria: '2', nome: 'FILHA', categoria_pai_id: pai.id } });
@@ -216,7 +218,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '94', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-200) + 3 das linhas de produto e de máquina (D-PROD-202) + 3 das Formulações (D-PROD-203) + 1 LEITURACOCHO (D-PROD-205) + 4 da mão de obra e do serviço (D-PROD-207) − Funcionario (D-PROD-208)');
+    assert.equal(l['tabelas em public'].valor, '95', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-200) + 3 das linhas de produto e de máquina (D-PROD-202) + 3 das Formulações (D-PROD-203) + 1 LEITURACOCHO (D-PROD-205) + 4 da mão de obra e do serviço (D-PROD-207) − Funcionario (D-PROD-208) + CADCULTURAS (D-PROD-215)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
@@ -333,11 +335,11 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
       + "    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).\n"
       + "    'TipoAtividade',\n";
     assert.equal(RESET.split(blocoNovo).length, 2, 'o 02 tem a posição nova do TipoAtividade');
-    assert.equal(RESET.split("'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'").length, 2);
+    assert.equal(RESET.split("'TipoTarefa','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'").length, 2);
     // A conferência da ordem (passo 5) vem antes da impressão (passo 7): a recusa é pela árvore de FKs.
     const ordemAntiga = reset({ impressao: impressaoAtual() })
       .replace(blocoNovo, '')
-      .replace("'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'", "'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor'");
+      .replace("'TipoTarefa','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'", "'TipoTarefa','TipoAtividade','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'");
     const r = psql(ordemAntiga);
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /ordem de FK inválida \(TipoAtividade → (CentroCusto|CentroResultado|UnidadeMedida)\)/);
@@ -356,7 +358,7 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     // A conferência da ordem (passo 5) vem antes da impressão (passo 7): a recusa é pela árvore de FKs.
     for (const [ordemErrada, re] of [
       [reset({ impressao: impressaoAtual() }).replace(LINHA_FILHO, '').replace(LINHA_PAI, `${LINHA_PAI}${LINHA_FILHO}`), /ordem de FK inválida \(AtividadeApontamento → Atividade\)/],
-      [reset({ impressao: impressaoAtual() }).replace(LINHA_PAI, '').replace("'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'", "'TipoTarefa','Atividade','AreaPastagem','GrupoAtividade','Setor'"), /ordem de FK inválida \(Atividade → [A-Za-z]+\)/],
+      [reset({ impressao: impressaoAtual() }).replace(LINHA_PAI, '').replace("'TipoTarefa','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'", "'TipoTarefa','Atividade','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'"), /ordem de FK inválida \(Atividade → [A-Za-z]+\)/],
     ]) {
       const r = psql(ordemErrada);
       assert.notEqual(r.status, 0);
@@ -399,6 +401,23 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
       [reset({ impressao: impressaoAtual() }).replace(NOVAS, "    'Servico','AtividadeApontamentoMaoObra','AtividadeApontamentoServico',\n"), /ordem de FK inválida \(AtividadeApontamentoServico → Servico\)/],
       [reset({ impressao: impressaoAtual() }).replace(NOVAS, "    'AtividadeApontamentoServico','Servico',\n").replace(FILHO, `${FILHO}    'AtividadeApontamentoMaoObra',\n`), /ordem de FK inválida \(AtividadeApontamentoMaoObra → AtividadeApontamento\)/],
       [reset({ impressao: impressaoAtual() }).replace(NOVAS, "    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico',\n").replace(UNIDADE, `${UNIDADE}'Servico',`), /ordem de FK inválida \(Servico → (Empresa|UnidadeMedida|CentroCusto)\)/],
+    ]) {
+      const r = psql(ordemErrada);
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, re);
+      assert.match(r.stderr, /Nada foi alterado/);
+    }
+    assert.deepEqual(await contar(), antes);
+  });
+
+  test('SE-07f (D-PROD-216) a área ligada à cultura: com a CADCULTURAS antes da AreaPastagem, ou a Empresa antes da CADCULTURAS, a conferência da árvore real de FKs recusa antes de apagar', async () => {
+    await semear();
+    const antes = await contar();
+    const FIM = "'TipoTarefa','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'";
+    assert.equal(RESET.split(FIM).length, 2, 'a Área sai antes da cultura, e a cultura antes da Empresa (no fim)');
+    for (const [ordemErrada, re] of [
+      [reset({ impressao: impressaoAtual() }).replace(FIM, "'TipoTarefa','CADCULTURAS','AreaPastagem','GrupoAtividade','Setor','Empresa'"), /ordem de FK inválida \(AreaPastagem → CADCULTURAS\)/],
+      [reset({ impressao: impressaoAtual() }).replace(FIM, "'TipoTarefa','AreaPastagem','Empresa','CADCULTURAS','GrupoAtividade','Setor'"), /ordem de FK inválida \(CADCULTURAS → Empresa\)/],
     ]) {
       const r = psql(ordemErrada);
       assert.notEqual(r.status, 0);

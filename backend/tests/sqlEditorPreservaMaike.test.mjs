@@ -92,7 +92,9 @@ const semearMaike = async () => {
   await p.permissao.create({ data: { cliente_id: c, user_email: 'maike', is_admin: true } });
   const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
   const setor = await p.setor.create({ data: { cliente_id: c, empresa_id: emp.id, numero_setor: '1', nome: 'S' } });
-  await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
+  // D-PROD-216: a área ligada a uma cultura (FK RESTRICT) prova a ordem AreaPastagem → CADCULTURAS → Empresa.
+  const culturaDaArea = await p.cultura.create({ data: { cliente_id: c, empresa_id: emp.id, codigo: '001', tipo: 'PASTAGEM', nome: 'MARANDU' } });
+  await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1, cultura_id: culturaDaArea.id } });
   const lote = await p.lote.create({ data: { cliente_id: c, empresa_id: emp.id, numero_lote: '1', nome: 'L', quantidade_cabecas: 5, quantidade_entrada: 5, motivo_entrada: 'Compra' } });
   const pai = await p.categoria.create({ data: { cliente_id: c, numero_categoria: '1', nome: 'PAI' } });
   await p.categoria.create({ data: { cliente_id: c, numero_categoria: '2', nome: 'FILHA', categoria_pai_id: pai.id } });
@@ -101,9 +103,9 @@ const semearMaike = async () => {
   const tarefa = await p.lancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, titulo: 'X', tipo: 'Tarefa', tipo_tarefa_id: tt.id, tipo_tarefa_nome: 'T', lote_id: lote.id } });
   await p.historicoLancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, tarefa_id: tarefa.id, evento: 'criada', data_evento: new Date() } });
   for (let k = 0; k < 3; k += 1) await p.movimentacaoMapa.create({ data: { cliente_id: c, empresa_id: emp.id } });
-  // 14 linhas acima (fora a conta) + 110 de auditoria = 124, como em produção.
+  // 15 linhas acima (fora a conta; a cultura da D-PROD-216 incluída) + 109 de auditoria = 124, como em produção.
   await p.auditLog.createMany({
-    data: Array.from({ length: 110 }, (_, k) => ({ cliente_id: c, usuario_id: t.usuario.id, acao: ['create', 'update', 'delete'][k % 3], entidade: 'Lote', entidade_id: lote.id, request_id: `req-${k}` })),
+    data: Array.from({ length: 109 }, (_, k) => ({ cliente_id: c, usuario_id: t.usuario.id, acao: ['create', 'update', 'delete'][k % 3], entidade: 'Lote', entidade_id: lote.id, request_id: `req-${k}` })),
   });
   return t;
 };
@@ -133,7 +135,7 @@ describe('01 precheck — falso positivo corrigido', () => {
     const l = pre();
     assert.equal(l['cliente "maike" / login "maike" já existem'].status, 'MAIKE EXISTENTE (caminho 04)');
     assert.equal(l['conta "maike": papel_tenant administrador'].status, 'AINDA NÃO');
-    assert.equal(l['linhas de tenant além do cliente, da conta e da auditoria'].valor, '14');
+    assert.equal(l['linhas de tenant além do cliente, da conta e da auditoria'].valor, '15');
     assert.match(l.VEREDITO.valor, /^MAIKE EXISTENTE — LIMPEZA CONTROLADA NECESSÁRIA/);
     assert.doesNotMatch(l.VEREDITO.valor, /INICIALIZADO/);
     for (const [item, v] of Object.entries(l)) assert.doesNotMatch(v.status ?? '', /^PARAR/, item);
@@ -179,7 +181,7 @@ describe('04 limpeza preservando maike — falha fechada', () => {
     // cliente extra
     await criarTenant({ semPermissao: true, codigo: 'outro-tenant', login: 'outro' });
     assert.match(psql(limpeza({ impressao: pre()[ITEM_IMPRESSAO].valor })).stderr, /ANOMALIA — o banco não tem exatamente 1 cliente/);
-    assert.equal(await p.auditLog.count(), 110);
+    assert.equal(await p.auditLog.count(), 109);
   });
 
   test('PM-04 dependência em preservada (OperadorProdutoMaike) e checksum adulterado de migration: recusa', async () => {

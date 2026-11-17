@@ -3,6 +3,7 @@ import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   listarIconesPorTipoEntidade,
   listarTodosPontosSuplementacao,
+  listarPontosAtivos,
   listarTodosBebedouros,
   criarPonto,
   atualizarPonto,
@@ -46,6 +47,7 @@ import {
   resolverSuplementacaoDoPonto,
   bebedourosDoPonto,
   categoriaDoRegistroSuplementacao,
+  categoriaSuplementacaoDoTipo,
   tipoEhBebedouro,
 } from "@/domain/mapa/ligacaoPontoReferencia";
 import { montarPayloadBebedouro, montarPayloadSuplementacao } from "@/domain/mapa/payloadsPontoMapa";
@@ -67,6 +69,7 @@ const AJUDA_ESTOQUE_MINIMO = "Abaixo deste saldo o mapa avisa para repor.";
 // mínimo maior ou igual ao limite faz o depósito pedir reposição e acusar
 // excesso ao mesmo tempo. É só um AVISO (não bloqueia o salvar): a regra de
 // cadastro não muda nesta missão e pontos antigos continuam editáveis.
+const MSG_LIGACAO_PENDENTE = "A ligação deste ponto com o cocho/depósito ainda está carregando. Aguarde um instante e salve de novo (se continuar, recarregue a página). Nada foi alterado.";
 const MSG_LIGACAO_AMBIGUA = "Há mais de um cocho/depósito com o mesmo nome deste ponto nesta fazenda e não foi possível saber qual é o dele. Nada foi alterado.";
 const MSG_TROCA_COM_HISTORICO = "Não é possível trocar o tipo deste ponto: o cocho/depósito dele tem histórico (leituras, lançamentos ou estoque). Nada foi alterado.";
 const AVISO_MINIMO_ACIMA_DO_LIMITE = "Atenção: o estoque mínimo está igual ou acima do limite operacional; o mapa vai pedir reposição e acusar excesso ao mesmo tempo.";
@@ -205,6 +208,14 @@ export default function FormularioPonto({
     enabled: !!empresaSelecionadaId
   });
 
+  // Pontos de referência da empresa: dizem de quem é cada lugar, para um
+  // cocho/depósito no lugar de OUTRO ponto não ligar a este pelo nome.
+  const { data: pontosReferenciaForm = [], isSuccess: pontosReferenciaLoaded } = useQuery({
+    queryKey: ["pontos-referencia-form", empresaSelecionadaId],
+    queryFn: () => listarPontosAtivos(empresaSelecionadaId),
+    enabled: !!empresaSelecionadaId
+  });
+
   const { data: bebedourosForm = [] } = useQuery({
     queryKey: ["bebedouros-form", empresaSelecionadaId],
     queryFn: async () => {
@@ -220,8 +231,17 @@ export default function FormularioPonto({
   const ligacaoSuplementacao = useMemo(() => {
     if (!item) return { registro: null, ambiguo: false };
     if (item.detalhe_suplementacao?.id) return { registro: item.detalhe_suplementacao, ambiguo: false };
-    return resolverSuplementacaoDoPonto({ ...item, empresa_id: item.empresa_id ?? empresaSelecionadaId }, pontosSuplementacao);
-  }, [item, pontosSuplementacao, empresaSelecionadaId]);
+    // Sem a lista de pontos não dá para saber de quem é cada lugar: a ligação
+    // fica PENDENTE (o formulário espera e o salvar recusa) em vez de cair na
+    // regra só por nome, que ligaria a sobra ao depósito de outro ponto.
+    const precisaLigacao = categoriaSuplementacaoDoTipo(item.tipo) !== null;
+    if (precisaLigacao && !pontosReferenciaLoaded) return { registro: null, ambiguo: false, pendente: true };
+    return resolverSuplementacaoDoPonto(
+      { ...item, empresa_id: item.empresa_id ?? empresaSelecionadaId },
+      pontosSuplementacao,
+      { outrosPontos: pontosReferenciaForm }
+    );
+  }, [item, pontosSuplementacao, pontosReferenciaForm, pontosReferenciaLoaded, empresaSelecionadaId]);
   const pontoSuplementacaoExistente = ligacaoSuplementacao.registro;
 
   // Bebedouro: SOMENTE pelo `ponto_referencia_id` (nome/sigla iguais não ligam).
@@ -248,7 +268,7 @@ export default function FormularioPonto({
     // Para itens existentes que são cochosD depósitos, aguardar a query carregar antes de popular
     const tipoNorm = normalizeText(item.tipo || "");
     const precisaSupl = tipoNorm.includes("COCHO") || tipoNorm.includes("DEPOSITO");
-    if (precisaSupl && !pontosSuplementacaoLoaded) return;
+    if (precisaSupl && (!pontosSuplementacaoLoaded || !pontosReferenciaLoaded)) return;
 
     const isBatchItem = Boolean(onBatchUpdate);
     setFormData({
@@ -277,7 +297,7 @@ export default function FormularioPonto({
       dias_limpeza_personalizado: (!isBatchItem ? bebedouroExistente?.dias_limpeza_personalizado : "") || "30",
       dias_inspecao_personalizado: (!isBatchItem ? bebedouroExistente?.dias_inspecao_personalizado : "") || "7"
     });
-  }, [item, pontoSuplementacaoExistente, bebedouroExistente, areas, pontosSuplementacaoLoaded]);
+  }, [item, pontoSuplementacaoExistente, bebedouroExistente, areas, pontosSuplementacaoLoaded, pontosReferenciaLoaded]);
 
   const handleCapturaGPS = (localizacao) => {
     setCoordenadasGPS(localizacao);
@@ -388,6 +408,7 @@ export default function FormularioPonto({
       const coordenadasPonto = coordenadasGPS || coordenadas;
 
       // ── Conferências antes de gravar qualquer coisa ──────────────────────
+      if (item && ligacaoSuplementacao.pendente) throw new Error(MSG_LIGACAO_PENDENTE);
       if (item && ligacaoSuplementacao.ambiguo) throw new Error(MSG_LIGACAO_AMBIGUA);
       // Trocar o tipo (cocho ↔ depósito, ou deixar de ser cocho/depósito) remove o
       // registro antigo — nunca o reaproveita com outra categoria. Com histórico, bloqueia.
@@ -555,7 +576,7 @@ export default function FormularioPonto({
     },
     onSuccess: () => {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      invalidarCachesDoMapa(queryClient, ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao", "bebedouros", "bebedouros-form", "locais-estoque", "saldo-deposito", "historico-deposito", "movimentacoes-deposito-detalhe", "mapa-estoque-lotes", "movimentacoes"]);
+      invalidarCachesDoMapa(queryClient, ["pontos", "pontos-suplementacao-form", "pontos-referencia-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao", "bebedouros", "bebedouros-form", "locais-estoque", "saldo-deposito", "historico-deposito", "movimentacoes-deposito-detalhe", "mapa-estoque-lotes", "movimentacoes"]);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success(item ? "Ponto atualizado com sucesso." : "Ponto cadastrado com sucesso.");
       onSave();

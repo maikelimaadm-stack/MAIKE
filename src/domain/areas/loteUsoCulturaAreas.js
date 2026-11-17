@@ -50,11 +50,18 @@ export function planejarLoteUsoCultura({ areas, ids, tipo, valor }) {
       ignoradas.push({ id, nome, motivo: "Área de infraestrutura não tem tipo de cultura." });
       continue;
     }
+    // D-PROD-216: a área ligada a uma cultura do cadastro guarda o nome dela em `tipo_pastagem` (o servidor ignora o
+    // texto enviado); a troca é feita no registro da área, escolhendo outra cultura.
+    if (tipo === "cultura" && area.cultura_id) {
+      ignoradas.push({ id, nome, motivo: "Área ligada a uma cultura do cadastro: troque a cultura no registro da área." });
+      continue;
+    }
     const pendencia = pendenciasDaArea({
       nome: "-",
       setor_id: "-",
       tipo_cultura: area.tipo_cultura,
       tipo_pastagem: area.tipo_pastagem,
+      cultura_id: area.cultura_id ?? null,
       area_pastejada: 0,
       [campo]: valor,
     }).find((p) => CAMPOS_DO_LOTE.has(p.campo));

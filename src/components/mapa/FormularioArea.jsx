@@ -26,6 +26,8 @@ import {
   usoExploraArea,
 } from "@/domain/areas/regrasCadastroArea";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { listarCulturas } from "@/services/culturaCadastroService";
+import { culturasParaArea, rotuloCultura } from "@/domain/areas/culturaDaArea";
 
 // Listas e regras compartilhadas com a importação por arquivo (D-PROD-90).
 const CORES_DISPONIVEIS = CORES_CADASTRO;
@@ -93,6 +95,8 @@ export default function FormularioArea({
     // abaixo); no estado do formulário fica o marcador que a troca de uso já usa.
     tipo_pastagem: item?.tipo_cultura === "Infraestrutura" ? "Infraestrutura" : item?.tipo_pastagem || "",
     tipo_infraestrutura: tipoInfraestruturaDoItem(item),
+    // D-PROD-216: a cultura do cadastro de Culturas da fazenda (vazia na área antiga, que guarda só o texto).
+    cultura_id: item?.cultura_id || "",
     cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
     observacoes: item?.observacoes || "",
   });
@@ -111,6 +115,24 @@ export default function FormularioArea({
     enabled: !!empresaSelecionadaId,
     initialData: [],
   });
+
+  // D-PROD-216: as culturas da fazenda (cadastro de Culturas). Sem permissão de leitura, erro ou lista vazia, o
+  // formulário continua com a lista fixa de antes (o texto em `tipo_pastagem`), sem ligar cultura nenhuma.
+  const { data: culturasDaFazenda = [] } = useQuery({
+    queryKey: ["culturas-form-area", empresaSelecionadaId],
+    queryFn: async () => {
+      try {
+        const lista = await listarCulturas(empresaSelecionadaId);
+        return Array.isArray(lista) ? lista : [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: [],
+    retry: false,
+  });
+  const culturasOferecidas = culturasParaArea(culturasDaFazenda, item?.cultura_id || null);
 
   const handleChange = (field, value) => { setFormData((prev) => ({ ...prev, [field]: value })); setInvalidFields((prev) => prev.filter((item) => item !== field)); };
 
@@ -159,6 +181,7 @@ export default function FormularioArea({
     e.preventDefault();
     if (readOnly) return;
     const infraestrutura = formData.tipo_cultura === 'Infraestrutura';
+    const comCadastroDeCultura = culturasOferecidas.length > 0 && usoExploraArea(formData.tipo_cultura);
     // "1.234,56" e "1.500" (pt-BR, ponto de milhar) e "10.5" (ponto decimal do teclado):
     // "1.500" é 1500 ha, como nos demais formulários; "10.5" continua 10,5.
     const haDigitado = (valor) => lerHectaresDigitados(valor);
@@ -169,6 +192,7 @@ export default function FormularioArea({
       setor_id: formData.setor_id,
       tipo_cultura: formData.tipo_cultura,
       tipo_pastagem: infraestrutura ? formData.tipo_infraestrutura : formData.tipo_pastagem,
+      cultura_id: usoExploraArea(formData.tipo_cultura) ? formData.cultura_id || null : null,
       area_pastejada: infraestrutura ? null : haDigitado(formData.area_pastejada),
       total_ha: infraestrutura ? null : haDigitado(formData.area_total),
     });
@@ -214,6 +238,8 @@ export default function FormularioArea({
       area_pastejada: formData.tipo_cultura === 'Infraestrutura' ? 0 : (Number.isFinite(pastejadaDigitada) ? pastejadaDigitada : 0),
       observacoes: formData.observacoes?.toUpperCase(),
       cor: formData.cor,
+      // D-PROD-216: só com a lista do cadastro na tela; sem ela, a cultura gravada não é tocada.
+      ...(comCadastroDeCultura ? { cultura_id: formData.cultura_id || null } : {}),
     });
   };
 
@@ -225,6 +251,18 @@ export default function FormularioArea({
   /** Largura do campo: no registro, a grade do motor; no painel do desenho, uma coluna. */
   const larg = (n) => (registro ? n : 12);
   const infraestrutura = formData.tipo_cultura === "Infraestrutura";
+  const comCadastroDeCultura = culturasOferecidas.length > 0 && usoExploraArea(formData.tipo_cultura);
+  const culturaEscolhida = culturasOferecidas.find((c) => c.id === formData.cultura_id) || (item?.cultura?.id === formData.cultura_id ? item.cultura : null);
+  const textoDaCultura = culturaEscolhida ? rotuloCultura(culturaEscolhida) : String(formData.tipo_pastagem || "");
+  // Área ligada a uma cultura, sem a lista do cadastro na tela (sem permissão ou erro): o campo fica travado com o
+  // nome da cultura, e a cultura gravada não é tocada.
+  const culturaTravada = !comCadastroDeCultura && Boolean(formData.cultura_id) && usoExploraArea(formData.tipo_cultura);
+  const dicaDaCultura =
+    comCadastroDeCultura && !formData.cultura_id && formData.tipo_pastagem
+      ? `Cultura anterior: ${String(formData.tipo_pastagem).toUpperCase()} — escolha a do cadastro`
+      : culturaTravada
+        ? "Cultura do cadastro de Culturas"
+        : undefined;
   const bloqueado = readOnly || createAreaMutation.isPending;
   const erro = (campo) => (invalidFields.includes(campo) ? "Obrigatório" : undefined);
   const nomeDoSetor = setores.find((s) => s.id === formData.setor_id)?.nome || formData.setor_nome || "";
@@ -373,15 +411,37 @@ export default function FormularioArea({
       ) : (
         <>
           <B1Field
-            label="Tipo de cultura"
+            label={comCadastroDeCultura || culturaTravada ? "Cultura" : "Tipo de cultura"}
             required={usoExploraArea(formData.tipo_cultura)}
             span={larg(4)}
-            hasValue={Boolean(formData.tipo_pastagem)}
-            locked={readOnly}
+            hasValue={Boolean(comCadastroDeCultura ? formData.cultura_id || formData.tipo_pastagem : formData.tipo_pastagem)}
+            locked={readOnly || culturaTravada}
             error={erro("tipo_pastagem")}
+            dica={readOnly ? undefined : dicaDaCultura}
           >
-            {readOnly ? (
-              <input type="text" readOnly value={String(formData.tipo_pastagem || "").toUpperCase()} className={B1_FIELD_CTL_CLS} />
+            {readOnly || culturaTravada ? (
+              <input type="text" readOnly aria-label="Cultura" value={textoDaCultura.toUpperCase()} className={B1_FIELD_CTL_CLS} />
+            ) : comCadastroDeCultura ? (
+              <B1Select
+                aria-label="Cultura"
+                value={formData.cultura_id || ""}
+                onChange={(e) => {
+                  const escolhida = culturasOferecidas.find((c) => c.id === e.target.value);
+                  setFormData((prev) => ({ ...prev, cultura_id: e.target.value, tipo_pastagem: escolhida ? String(escolhida.nome || "") : prev.tipo_pastagem }));
+                  setInvalidFields((prev) => prev.filter((campo) => campo !== "tipo_pastagem"));
+                }}
+                className={B1_FIELD_CTL_CLS}
+                pesquisa="sempre"
+                semOpcaoVazia={Boolean(formData.cultura_id)}
+                maiusculas
+              >
+                {formData.cultura_id ? null : <option value="" />}
+                {culturasOferecidas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {rotuloCultura(c)}
+                  </option>
+                ))}
+              </B1Select>
             ) : (
               <B1Select
                 aria-label="Tipo de cultura"

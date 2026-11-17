@@ -49,15 +49,18 @@ tenant(nome) AS (
     'CADFORMULACAOREGRA','CADFORMULACAOINGREDIENTE','CADFORMULACAO',
     -- D-PROD-205: as leituras de cocho antes de PontoSuplementacao (CASCADE) e de Empresa (RESTRICT), que elas referenciam.
     'LEITURACOCHO',
+    -- D-PROD-215: o Cadastro de Culturas referencia Empresa (RESTRICT). D-PROD-216: a Área passou a referenciar a
+    -- cultura (RESTRICT): a CADCULTURAS sai logo DEPOIS de AreaPastagem, e a Empresa foi para o fim (antes de Cliente) —
+    -- nenhuma tabela da lista a referencia depois dela, e ela só referencia Cliente.
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
     -- D-PROD-189/D-PROD-195: CADCURVAGANHO (curvas de ganho) depois de CADCATEGORIA, que a referencia, e antes de Empresa.
-    'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
+    'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
-    'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'
+    'TipoTarefa','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'
   ]::text[])
 ),
 contagem AS (
