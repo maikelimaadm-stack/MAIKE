@@ -8,7 +8,7 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const servico = vi.hoisted(() => ({
@@ -35,7 +35,7 @@ vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () 
 
 const { default: HistoricoMovimentacoes } = await import("@/components/lotes/HistoricoMovimentacoes");
 const { LancLoteDialogo } = await import("@/components/lotes/LancamentoLoteUi");
-const { default: CartaoHistorico, SeloHistorico, LinhaHistorico, MolduraHistorico, useTituloDoHistorico } = await import("@/components/lotes/CartaoHistorico");
+const { default: CartaoHistorico, SeloHistorico, LinhaHistorico, MolduraHistorico, AcaoHistorico, useTituloDoHistorico } = await import("@/components/lotes/CartaoHistorico");
 
 const MORTE = {
   id: "mv-m",
@@ -122,6 +122,47 @@ describe("CartaoHistorico = cartão do Histórico de Movimentação (D-PROD-222)
     noDialogo(<Comum />);
     const comum = partes(screen.getAllByText("10/10/2026").find((el) => el.tagName === "SPAN"));
     expect(comum).toEqual(ref);
+  });
+
+  it("o cartão cancelado, os selos vermelho (Cancelado) e âmbar (Vínculo pelo nome) e o botão do 'Excluir' (contorno) também são os do Histórico de Movimentação", async () => {
+    // Um cancelado e antigo (sem lote_id: "Vínculo pelo nome") ao lado da morte ativa, que tem o "Excluir movimentação".
+    const CANCELADO_LEGADO = { ...MORTE, id: "mv-c", lote_id: null, situacao: "cancelado", cancelamento: { por_login: "admin" } };
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([MORTE, CANCELADO_LEGADO]));
+    noDialogo(<HistoricoMovimentacoes lotes={[]} areaId="area-A" />);
+    const excluirRef = /** @type {HTMLButtonElement} */ (await screen.findByRole("button", { name: "Excluir movimentação" }));
+    await waitFor(() => expect(excluirRef.disabled).toBe(false));
+    const vinculoRef = screen.getByText("Vínculo pelo nome");
+    const ref = {
+      cancelado: /** @type {HTMLElement} */ (vinculoRef.closest(".rounded-lg")).className,
+      vermelho: /** @type {HTMLElement} */ (screen.getAllByText("Cancelado").find((el) => el.className.includes("border-red-300"))).className,
+      ambar: vinculoRef.className,
+      excluir: excluirRef.className,
+    };
+    cleanup();
+
+    noDialogo(
+      <MolduraHistorico>
+        <CartaoHistorico
+          cancelado
+          selos={
+            <>
+              <SeloHistorico tom="data">10/10/2026</SeloHistorico>
+              <SeloHistorico tom="vermelho">Cancelado</SeloHistorico>
+              <SeloHistorico tom="ambar">Vínculo pelo nome</SeloHistorico>
+            </>
+          }
+          titulo="NELORE 1"
+        />
+        <CartaoHistorico titulo="NELORE 2" rodape={<AcaoHistorico destrutiva>Excluir</AcaoHistorico>} />
+      </MolduraHistorico>,
+    );
+    const vinculo = screen.getByText("Vínculo pelo nome");
+    expect({
+      cancelado: /** @type {HTMLElement} */ (vinculo.closest(".rounded-lg")).className,
+      vermelho: screen.getByText("Cancelado").className,
+      ambar: vinculo.className,
+      excluir: screen.getByRole("button", { name: "Excluir" }).className,
+    }).toEqual(ref);
   });
 
   it("título do diálogo com a contagem; sem contagem quando zero ou nula", () => {

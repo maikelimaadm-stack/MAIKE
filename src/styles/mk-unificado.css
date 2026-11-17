@@ -330,7 +330,6 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   .mk-sheet__new,
   .mk-btn-ok,
   .mk-ll__btn--verde,
-  .mk-launch-action.tb-btn-green,
   .mk-mhdr__round--salvar,
   .mk-ll-dlg__redondo--salvar
 ):not(#mk-padrao) {
@@ -346,7 +345,6 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   .mk-sheet__new,
   .mk-btn-ok,
   .mk-ll__btn--verde,
-  .mk-launch-action.tb-btn-green,
   .mk-mhdr__round--salvar,
   .mk-ll-dlg__redondo--salvar
 ):not(#mk-padrao) svg {
@@ -361,7 +359,6 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     .mk-sheet__new,
     .mk-btn-ok,
     .mk-ll__btn--verde,
-    .mk-launch-action.tb-btn-green,
     .mk-mhdr__round--salvar,
     .mk-ll-dlg__redondo--salvar
   ):not(#mk-padrao):hover:not(:disabled) {

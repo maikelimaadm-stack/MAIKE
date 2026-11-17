@@ -282,9 +282,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     setSobraHerdadaDecidida(true);
   };
 
-  // D-PROD-222: o diálogo da sobra (um `LancLoteDialogo` sem gatilho) não devolve o foco ao fechar — ficava
-  // no <body>, fora do lançamento. Decidida a sobra, o foco volta ao diálogo do lançamento, no primeiro
-  // controle (onde o `LancLoteDialogo` o põe ao abrir). Fora de um diálogo, nada muda.
+  // D-PROD-222: decidida a sobra, o foco tem de estar no lançamento. O `LancLoteDialogo` da sobra devolve o
+  // foco a quem o tinha quando ela abriu; se ela abriu junto com o lançamento (dados já em cache), esse alguém
+  // é a pílula que abriu o lançamento, por baixo dele. Por isso, se o foco não estiver dentro do diálogo do
+  // lançamento, ele vai ao primeiro controle (onde o `LancLoteDialogo` o põe ao abrir). Fora de um diálogo,
+  // nada muda.
   const formRef = useRef(/** @type {HTMLFormElement | null} */ (null));
   useEffect(() => {
     if (!sobraHerdadaDecidida) return undefined;

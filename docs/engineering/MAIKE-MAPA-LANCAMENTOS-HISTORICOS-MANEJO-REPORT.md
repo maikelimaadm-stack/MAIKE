@@ -83,7 +83,7 @@ Estas mudanças vêm do padrão dos manejos (D-PROD-115/125):
 - **Celular:** o lançamento abre em tela cheia. No depósito, isso substitui o cartão centralizado.
 - **Bebedouro:**
   - o Esc da tela cheia fecha o Lançar; antes era ignorado, porque o formulário era empilhado;
-  - o recurso `escVolta` continua no `LancLoteDialogo` e na `CascaDetalhe`, com teste próprio.
+  - era o único formulário empilhado: o recurso `escVolta` da D-PROD-220 ficou sem uso e saiu do `LancLoteDialogo` e da `CascaDetalhe`.
 - **Foco:**
   - ao abrir um lançamento, vai para o ✕ (o primeiro focável), e não para a data;
   - ao abrir um histórico ou um detalhe, vai para o próprio diálogo;
@@ -103,17 +103,19 @@ Estas mudanças vêm do padrão dos manejos (D-PROD-115/125):
   - `FormularioLancamentoSuplementacao`, `FormularioTransferenciaDeposito` e `FormularioLancamentoBebedouro`;
   - os detalhes que os abrem: `DetalhesPontoSuplementacao`, `AcoesCochoPasto`, `DetalhesDepositoSuplementacao` e `DetalhesBebedouro`.
 - **Peças comuns:**
-  - `LancamentoLoteUi` (o Esc com a folha aberta; o foco ao abrir e ao fechar; `focoInicial`);
+  - `LancamentoLoteUi` (o Esc com a folha aberta; o foco ao abrir e ao fechar; `focoInicial`; saiu o `escVolta`);
   - `B1Select` (↑ ↓ Enter repassados ao painel aberto);
-  - `CartaoHistorico` (`EstadoHistorico` com o motivo e o "Tentar novamente");
+  - `CartaoHistorico` (`EstadoHistorico` com o motivo e o "Tentar novamente"; sem as props que ninguém usava);
   - `FarolConsumo` (`desenho` "linhas" e "kpis" do resumo do fechamento);
-  - `CascaDetalhe` e `src/Layout.jsx` (só comentários).
+  - `CascaDetalhe` (saiu o `escVolta`), `LinhaDoTempo` (saiu o ramo das ações, sem uso) e `src/Layout.jsx` (só comentários).
 - **Sobra do ciclo anterior:** `SobraHerdadaDialog` (agora `LancLoteDialogo`).
 - **Detalhe da tarefa:** `DetalhesTarefaMapa` passa carregando, erro e o "Tentar novamente" ao histórico.
+- **Tela Bebedouros:** `src/pages/Bebedouros.jsx` passa `semCabecalho` ao detalhe; saiu a barra do registro, que ficou sempre vazia.
 - **CSS:**
   - `mk-dp-bebedouro.css` (saiu a regra morta do formulário empilhado);
-  - `lancamento-lote.css` (`mk-ll__opcao--coluna`, a opção com explicação longa).
-- **Teste novo da revisão:** `b1SelectTeclado`.
+  - `lancamento-lote.css` (`mk-ll__opcao--coluna`, a opção com explicação longa);
+  - regras sem uso que saíram: `.mk-launch-action.tb-btn-green` (`lancamento-lote.css` e `mk-unificado.css`), `.mk-map-dialog` (`mk-mapa-superficie.css`) e `.mk-dp-tl__acoes` (`mk-dp-historico.css`).
+- **Teste novo da revisão:** `b1SelectTeclado`. Reforçados: `cartaoHistoricoIgualManejo`, `detalhesV12Bebedouro` e `bebedourosTelaParidade`.
 - **Mescla com a `main`:**
   - `PainelForragemArea` (farol no v12);
   - `MapaGeral` (as medições de forragem ao lado das movimentações da D-PROD-218).
@@ -130,6 +132,7 @@ Estas mudanças vêm do padrão dos manejos (D-PROD-115/125):
   - Bebedouro: 26 mais 2.
   - Integração: 7. São elas: bebedouro sem `B1Select`; Leitura sem subtítulo no detalhe e no pasto; "Excluir" sem `destrutiva`; Esc sem a guarda da folha (bebedouro, FT2, TM-8); farol sem a marca de vencida e sem a cor.
   - Correções da revisão: 23, uma ou mais por correção (ver §7).
+  - Lente dos testes: 9. O cartão cancelado, os selos vermelho e âmbar e o "Excluir" (4); o selo de data do bebedouro (4); o cabeçalho da tela Bebedouros (1).
   - Todas foram pegas. Duas sobreviveram no começo e passaram a ser pegas com testes novos: a data da sobra (os testes rodam em UTC; o teste novo usa um horário em que UTC muda o dia) e a ligação do carregando no detalhe da tarefa.
 - **Resultado:** os números da suíte inteira e dos gates estão no §7.
 
@@ -166,6 +169,10 @@ Quatro revisores, cada um com uma lente, leram o intervalo `465fe6d..HEAD`. Cada
 | Interação | `B1Select` com até 8 opções não se escolhia pelo teclado (desktop e tablet) | Corrigido na peça comum (`b1SelectTeclado`) |
 | Interação | Sobra do ciclo anterior: o foco ficava no ✕ do lançamento, escondido; Enter cancelava o lançamento | Corrigido: foco na primeira escolha (LM-9) |
 | Interação | Bebedouro: fechar o Lançar mandava o foco para o `<body>`; o Histórico abria com o foco na pílula escondida | Corrigido no `LancLoteDialogo`: foco no diálogo ao abrir e de volta à pílula ao fechar |
+| Testes | A comparação do cartão com o do manejo não cobria o cancelado, os selos vermelho e âmbar nem o "Excluir" | Corrigido: `cartaoHistoricoIgualManejo` compara os quatro com a referência |
+| Testes | Selo de data do bebedouro sem teste para "Sem data" nem para data fora do padrão | Corrigido, com teste |
+| Testes | Código que a missão deixou sem uso: `escVolta`, as ações da `LinhaDoTempo`, a barra do registro da tela Bebedouros, as props `descricao`, `detalhe` e `acao` do cartão, classes CSS | Removido; a tela Bebedouros ganhou teste do cabeçalho |
+| Testes | Comentários com o comportamento antigo (foco depois da sobra, depósito, bebedouro, `LancField`) e o polyfill do Select do Radix em dois testes que não usam mais esse Select (as escolhas são `B1Select`) | Corrigidos; o polyfill saiu |
 
 Os verificadores conferiram os achados contra o HEAD: os corrigidos durante a revisão saíram como "já corrigido", com o commit que corrigiu.
 

@@ -20,14 +20,10 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
  * Cabeçalho que o conteúdo publica no diálogo (Detalhes do Lote v12, D-PROD-218):
  * título e sub no lugar dos props; com `voltar`, o botão ‹ "Voltar" (no popup
  * antes do título, o ✕ continua à direita; na tela cheia no lugar do ✕) e o Esc
- * volta um nível em vez de fechar.
- *
- * `escVolta: false` (formulário empilhado na própria tela do detalhe,
- * D-PROD-220): o ‹ Voltar continua, mas o Esc é ignorado em qualquer modo — um
- * Esc sem querer não apaga o que foi digitado (como o popup, D-PROD-125). Os
- * lançamentos dos detalhes do mapa não empilham mais: abrem num
- * `LancLoteDialogo` por cima (D-PROD-222).
- * @typedef {{ titulo: string, sub?: string, voltar?: () => void, escVolta?: boolean }} CabecalhoLancLote
+ * volta um nível em vez de fechar. Formulários não empilham: abrem num
+ * `LancLoteDialogo` por cima (D-PROD-222; saiu o `escVolta`, que só o
+ * lançamento empilhado do bebedouro usava).
+ * @typedef {{ titulo: string, sub?: string, voltar?: () => void }} CabecalhoLancLote
  */
 
 /**
@@ -168,11 +164,9 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
         onInteractOutside={popup ? (e) => e.preventDefault() : undefined}
         // Com uma folha (lista do celular) aberta dentro do diálogo, o Esc é só dela: a folha fecha
         // sozinha (ela ouve o Esc) e o diálogo fica — em todos os lançamentos (D-PROD-161, D-PROD-222).
-        // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-218);
-        // formulário empilhado (`escVolta: false`): Esc ignorado, para não perder o que foi digitado.
+        // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-218).
         onEscapeKeyDown={(e) => {
           if (alvoFolha?.querySelector(".mk-sheet-root")) e.preventDefault();
-          else if (cabecalho?.escVolta === false) e.preventDefault();
           else if (voltar) {
             e.preventDefault();
             voltar();

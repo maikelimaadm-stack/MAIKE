@@ -398,7 +398,7 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     expect(toast.success).not.toHaveBeenCalled();
     // O aviso aponta para o ✓ do cabeçalho (o "Salvar novo ciclo" não é mais um botão com texto).
     expect(toast.info).toHaveBeenCalledWith("Sobra de 30.00 kg aplicada como saldo inicial. Para registrar, confirme no ✓ (Salvar novo ciclo).");
-    // O foco volta ao lançamento (o diálogo da sobra, sem gatilho, o deixava no <body>): no ✕, como ao abrir.
+    // O foco volta ao lançamento, no ✕, como ao abrir (o diálogo da sobra devolve o foco a quem o tinha).
     await waitFor(() => expect(dialogo.contains(document.activeElement)).toBe(true));
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancelar");
   });

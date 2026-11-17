@@ -80,27 +80,25 @@ const TOM_DO_STATUS = /** @type {Record<string, "ok" | "atencao">} */ ({ Ativo: 
  * "novo" OU "salvar". Ponto BEBEDOURO sem cadastro não lança: o histórico
  * ficaria órfão (sem `bebedouro_id`), e o servidor recusa.
  *
- * Na tela Bebedouros (quem passa `onRecordToolbarChange`) a página já tem o
- * próprio cabeçalho: a casca fica sem o cabeçalho próprio (`semCabecalho`). A
- * barra do registro fica vazia — o resumo nunca sai da tela, e os diálogos de
- * Lançar e Histórico fecham pelo próprio ✕ —, e `onSubFlowChange(true)` trava a
- * navegação entre registros enquanto um deles está aberto.
+ * Na tela Bebedouros a página já tem o próprio cabeçalho: ela passa
+ * `semCabecalho`, e a casca fica sem o cabeçalho próprio. Não há barra do
+ * registro — o resumo nunca sai da tela, e os diálogos de Lançar e Histórico
+ * fecham pelo próprio ✕ —, e `onSubFlowChange(true)` trava a navegação entre
+ * registros enquanto um deles está aberto.
  *
  * @param {object} props
  * @param {object} props.bebedouro
  * @param {boolean} [props.podeLancar] a permissão efetiva cobre o POST do histórico
  * @param {boolean} [props.podeExcluir] a permissão efetiva cobre o DELETE do histórico
  * @param {(locked: boolean) => void} [props.onSubFlowChange] true enquanto o lançamento ou o histórico está aberto por cima
- * @param {(toolbar: import('react').ReactNode) => void} [props.onRecordToolbarChange]
- * @param {boolean} [props.semCabecalho] fora do diálogo, sem o cabeçalho da casca (padrão: quando há `onRecordToolbarChange`)
+ * @param {boolean} [props.semCabecalho] fora do diálogo, sem o cabeçalho da casca (a tela Bebedouros, que tem o próprio)
  */
 export default function DetalhesBebedouro({
   bebedouro,
   podeLancar = false,
   podeExcluir = false,
   onSubFlowChange,
-  onRecordToolbarChange,
-  semCabecalho = typeof onRecordToolbarChange === "function",
+  semCabecalho = false,
 }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   // Diálogo aberto por cima do detalhe (D-PROD-222): o lançamento ou o histórico completo.
@@ -116,11 +114,6 @@ export default function DetalhesBebedouro({
   React.useEffect(() => {
     onSubFlowChange?.(aberto !== null);
   }, [aberto, onSubFlowChange]);
-
-  // A barra do registro (tela Bebedouros) fica vazia: nada sai da tela para precisar de "Voltar".
-  React.useEffect(() => {
-    onRecordToolbarChange?.(null);
-  }, [onRecordToolbarChange]);
 
   React.useEffect(() => {
     setAberto(null);

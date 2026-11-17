@@ -97,6 +97,8 @@ const abrirRegistroNaTela = async () => {
   // Desenho v12 (D-PROD-220): o detalhe abre com o cartão do bebedouro e o "Resumo operacional".
   await screen.findByRole('group', { name: 'Resumo operacional' });
   expect(document.querySelector('.mk-dp .mk-dp-cartao__titulo')?.textContent).toBe('BEBEDOURO NORTE');
+  // A página já tem o cabeçalho do registro: a casca do detalhe fica sem o próprio (`semCabecalho`).
+  expect(document.querySelector('.mk-dp-cab')).toBeNull();
 };
 const bloqueio = () => screen.queryByText(/Você não tem permissão para/);
 const posts = () => rede.chamadas.filter((c) => c.metodo === 'POST');

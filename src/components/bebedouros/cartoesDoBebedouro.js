@@ -6,7 +6,8 @@ import { VAZIO, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoP
  * do lançamento) é a linha do tempo do Detalhes do Lote v12 (D-PROD-220,
  * `diasDoHistorico`); o histórico completo (todos, na ordem do servidor, com o
  * "Excluir") usa o cartão dos históricos do manejo (D-PROD-222,
- * `BebedouroTimeline`). Os dois mostram as MESMAS linhas (`linhasDoLancamento`).
+ * `BebedouroTimeline`). Os dois montam as linhas com `linhasDoLancamento`; o
+ * histórico completo acrescenta a Hora e passa o Status para um selo.
  * Funções puras, sem estado.
  */
 

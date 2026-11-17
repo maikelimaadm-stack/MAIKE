@@ -147,16 +147,6 @@
   overflow-wrap: anywhere;
 }
 
-/* Pé do cartão (D-PROD-220): a ação do registro (ex.: "Excluir"), embaixo das linhas */
-.mk-dp .mk-dp-tl__acoes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px 8px;
-  border-top: 1px solid #f0f1f3;
-}
-
 /* ── Estados (carregando, erro) ───────────────────────────────────────── */
 .mk-dp .mk-dp-hist__estado {
   display: flex;

@@ -387,9 +387,11 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         Suplementação" (outro LancLoteDialogo) e entrega aos filhos o PRÓPRIO
         alvo das folhas do celular: a folha "Local" nasce DENTRO deste diálogo
         (camada de cima: foco, toque e leitor de tela), não no de baixo
-        (aria-hidden, sem toque); em tela cheia ele não tem transform, então a
-        folha (position: fixed) ocupa a tela. Com a folha aberta, o Esc fecha só
-        a folha (o formulário ignora o cancelar enquanto houver folha aberta).
+        (aria-hidden, sem toque). Em tela cheia ele não tem transform, mas o
+        vidro (backdrop-filter e a borda de 1 px do .mk-ll-dlg) o torna o bloco
+        de contenção da folha (position: fixed): ela ocupa o diálogo, que ocupa
+        a tela menos essa borda. Com a folha aberta, o Esc fecha só a folha — a
+        regra é do LancLoteDialogo, para todos os lançamentos.
       */}
       <LancLoteDialogo
         open={showTransferencia}

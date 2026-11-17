@@ -44,8 +44,8 @@ export default function LancField({ label, required = false, error = false, data
     if (!valor && combo) {
       // Select do Radix (`aria-autocomplete="none"` + `data-state`): sem `data-placeholder` há valor
       // escolhido, mesmo antes de o texto do item chegar ao SelectValue — ele só chega depois de montar,
-      // e nada re-renderiza o campo. Sem isso, o campo que monta já com valor (ex.: a Qualidade do
-      // bebedouro, que remonta ao trocar o Tipo) ficava com o rótulo por cima do valor (D-PROD-220).
+      // e nada re-renderiza o campo. Sem isso, o campo que monta já com valor (ex.: um Select do Radix que
+      // remonta ao trocar outro campo) ficava com o rótulo por cima do valor (D-PROD-220).
       const selectRadix = combo.getAttribute("aria-autocomplete") === "none" && combo.hasAttribute("data-state");
       valor = !combo.hasAttribute("data-placeholder") && (selectRadix || (combo.textContent ?? "").trim() !== "");
     }

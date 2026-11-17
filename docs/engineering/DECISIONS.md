@@ -7919,7 +7919,7 @@ Ver o relatório, §7.
    - no desktop o popup não fecha por Esc nem por clique fora, só pelo ✕;
    - Enter num campo: no depósito e no bebedouro envia, como já enviava (eram `<form>` com botão de enviar); no cocho não envia, como antes (item 3);
    - no celular abre em tela cheia;
-   - no bebedouro, o Esc da tela cheia fecha o Lançar. Antes era ignorado, porque o formulário era empilhado. O recurso `escVolta` fica no `LancLoteDialogo` e na `CascaDetalhe`, com teste próprio.
+   - no bebedouro, o Esc da tela cheia fecha o Lançar. Antes era ignorado, porque o formulário era empilhado. Era o único formulário empilhado: o recurso `escVolta` da D-PROD-220 ficou sem uso e saiu do `LancLoteDialogo` e da `CascaDetalhe`.
 6. **Estados dos históricos como os do Histórico de Movimentação:** com a consulta falhando e nada guardado, cocho, depósito, abate, tarefa e bebedouro mostram "Não foi possível carregar o histórico.", o motivo e o "Tentar novamente" (antes diziam "Nenhum … encontrado"); a tarefa mostra o carregando (antes, "Nenhum histórico encontrado."). No abate, o rodapé do "Excluir movimentação" só aparece no abate que tem exclusão (o antigo ficava com uma faixa vazia), e a nota do cancelado traz a data e a hora.
 7. **Com a `main` mesclada** (D-PROD-221): o farol do pasto no painel Forragem entra no desenho v12 da D-PROD-220 como a primeira linha do cartão. Os textos são os mesmos, e a cor vai na bolinha.
 
@@ -7929,7 +7929,7 @@ Ver o relatório, §7.
 
 **Achado à parte (não corrigido aqui, R7):** na Entrada e na Saída do depósito, o campo Quantidade é `type="number"` e o valor chega com ponto decimal. A conta usa o `parseNumber` pt-BR, que lê o ponto como separador de milhar: 10,5 kg é gravado como 105 kg. Já era assim antes desta missão. A correção é de uma linha (ler o valor como número, como fazem os manejos do lote) e fica para uma missão própria.
 
-**Revisão independente:** quatro revisores (regras, igualdade com o manejo, interação e testes), e cada achado passou por um verificador que tentou refutá-lo. Os confirmados foram corrigidos com teste e conferidos por mutação: o Enter que gravava o cocho, o mesmo produto escolhido de novo no depósito (que zerava a unidade e a quantidade), as caixas do fechamento do consumo, a sobra herdada cortada e sem foco, o rodapé vazio do abate, os estados de erro, o teclado do `B1Select` e o foco dos diálogos. Detalhe no relatório, §7.
+**Revisão independente:** quatro revisores (regras, igualdade com o manejo, interação e testes), e cada achado passou por um verificador que tentou refutá-lo. Os confirmados foram corrigidos com teste e conferidos por mutação: o Enter que gravava o cocho, o mesmo produto escolhido de novo no depósito (que zerava a unidade e a quantidade), as caixas do fechamento do consumo, a sobra herdada cortada e sem foco, o rodapé vazio do abate, os estados de erro, o teclado do `B1Select` e o foco dos diálogos. A lente dos testes reforçou a comparação do cartão com o do manejo (o cancelado, os selos vermelho e âmbar e o "Excluir"), cobriu o selo de data do bebedouro e o cabeçalho da tela Bebedouros, e tirou o que a missão deixou sem uso: o `escVolta`, as ações da linha do tempo, a barra do registro da tela Bebedouros, props do cartão e classes CSS. Detalhe no relatório, §7.
 
 **Relatório:** [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md).
 

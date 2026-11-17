@@ -102,26 +102,23 @@ export default function CartaoHistorico({ selos, titulo, rodape, cancelado = fal
 
 /**
  * Estado do histórico sem cartões, com os textos e as classes do Histórico de
- * Movimentação: carregando (`role="status"`), erro (`role="alert"`, com a ação
- * de tentar de novo) e vazio.
+ * Movimentação: carregando (`role="status"`), erro (`role="alert"`) e vazio.
  * No erro, `erro` (o erro da consulta) vira o motivo, como lá
  * (`getApiErrorMessage`, "Tente novamente em instantes."), e `onTentarDeNovo`
  * põe o botão "Tentar novamente" da referência.
- * @param {{ tipo?: "carregando" | "erro" | "vazio", children?: React.ReactNode, detalhe?: React.ReactNode, acao?: React.ReactNode, erro?: unknown, onTentarDeNovo?: () => void }} props
+ * @param {{ tipo?: "carregando" | "erro" | "vazio", children?: React.ReactNode, erro?: unknown, onTentarDeNovo?: () => void }} props
  */
-export function EstadoHistorico({ tipo = "vazio", children, detalhe, acao, erro, onTentarDeNovo }) {
+export function EstadoHistorico({ tipo = "vazio", children, erro, onTentarDeNovo }) {
   if (tipo === "carregando") {
     return <div role="status" className="text-center text-sm text-slate-500">{children || "Carregando histórico..."}</div>;
   }
   if (tipo === "erro") {
-    const motivo = detalhe ?? (erro !== undefined && erro !== null ? getApiErrorMessage(erro, "Tente novamente em instantes.") : null);
-    const botao =
-      acao ??
-      (onTentarDeNovo ? (
-        <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => onTentarDeNovo()}>
-          Tentar novamente
-        </Button>
-      ) : null);
+    const motivo = erro !== undefined && erro !== null ? getApiErrorMessage(erro, "Tente novamente em instantes.") : null;
+    const botao = onTentarDeNovo ? (
+      <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => onTentarDeNovo()}>
+        Tentar novamente
+      </Button>
+    ) : null;
     return (
       <div role="alert" className="space-y-2 py-6 text-center text-sm text-slate-600">
         <div>{children || "Não foi possível carregar o histórico."}</div>
@@ -135,21 +132,16 @@ export function EstadoHistorico({ tipo = "vazio", children, detalhe, acao, erro,
 
 /**
  * Moldura do histórico, como a do Histórico de Movimentação dentro do
- * `LancLoteDialogo` (D-PROD-117): sem cartão em volta, a descrição na barra e a
- * lista sem rolagem própria (o diálogo é quem rola).
- * `antes` entra entre a barra e a lista (avisos); `estado` (carregando, erro,
- * vazio: `EstadoHistorico`) entra no lugar da lista.
- * @param {{ descricao?: React.ReactNode, barra?: React.ReactNode, antes?: React.ReactNode, estado?: React.ReactNode, children?: React.ReactNode }} props
+ * `LancLoteDialogo` (D-PROD-117): sem cartão em volta e a lista sem rolagem
+ * própria (o diálogo é quem rola). `barra` (o título fora do diálogo) fica em
+ * cima; `antes` entra entre a barra e a lista (avisos); `estado` (carregando,
+ * erro, vazio: `EstadoHistorico`) entra no lugar da lista.
+ * @param {{ barra?: React.ReactNode, antes?: React.ReactNode, estado?: React.ReactNode, children?: React.ReactNode }} props
  */
-export function MolduraHistorico({ descricao, barra, antes, estado, children }) {
+export function MolduraHistorico({ barra, antes, estado, children }) {
   return (
     <div className="mk-hist">
-      {barra || descricao ? (
-        <div className="mk-hist__barra">
-          {barra}
-          {descricao ? <p className="mk-hist__desc">{descricao}</p> : null}
-        </div>
-      ) : null}
+      {barra ? <div className="mk-hist__barra">{barra}</div> : null}
       {antes}
       <div className="mk-hist__corpo">{estado || <div className="mk-hist__lista">{children}</div>}</div>
     </div>

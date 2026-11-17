@@ -18,14 +18,16 @@
  *       destino e o diálogo continua aberto;
  *  FT4. teclado: Enter no campo abre a folha e o foco entra nela; Enter na
  *       opção escolhe;
- *  FT5. no celular o diálogo não é bloco de contenção de `position: fixed`
- *       (sem transform), para a folha ocupar a tela e não o cartão.
+ *  FT5. no celular o diálogo é tela cheia, sem transform (`.mk-ll-dlg.is-tela`):
+ *       a folha ocupa o diálogo, não um cartão no meio. (O vidro do diálogo —
+ *       backdrop-filter e borda de 1 px — o torna o bloco de contenção da folha;
+ *       a medida real, menos essa borda, está no roteiro E2E de dev.)
  *
  * D-PROD-222: a transferência abre como os lançamentos de manejo — também um
  * `LancLoteDialogo` (tela cheia no celular). Como diálogo de cima, ele entrega
  * aos filhos o PRÓPRIO alvo das folhas: a folha nasce no `LancLoteDialogo` da
  * transferência, nunca no do depósito (FT1), e a tela cheia é a regra
- * `.mk-ll-dlg.is-tela` sem transform (FT5).
+ * `.mk-ll-dlg.is-tela` sem transform (FT5, pelo texto da regra).
  */
 import React from 'react';
 import { readFileSync } from 'node:fs';

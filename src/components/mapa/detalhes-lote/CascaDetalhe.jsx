@@ -18,10 +18,8 @@ import { useModoPasto } from "./pastoContexto";
  *
  * Telas empilhadas (ex.: depósito › cocho) são da própria tela: ela troca
  * `chaveTela` e passa `onVoltar`; a casca anima a troca (`anim`) e o Esc do
- * diálogo chama o ‹ Voltar. Num formulário empilhado passe `escVolta={false}`:
- * o ‹ Voltar fica e o Esc é ignorado, para um Esc sem querer não apagar o que
- * foi digitado. Lançamentos e históricos dos detalhes do mapa não empilham:
- * abrem num `LancLoteDialogo` por cima do detalhe (D-PROD-222).
+ * diálogo chama o ‹ Voltar. Lançamentos e históricos dos detalhes do mapa não
+ * empilham: abrem num `LancLoteDialogo` por cima do detalhe (D-PROD-222).
  *
  * `cabecalhoDoCorpo` entra entre o cabeçalho e o corpo, fora da rolagem (ex.:
  * as `Abas` do curral: Abate · Histórico da Área); `propsDoCorpo` vai para o
@@ -33,7 +31,6 @@ import { useModoPasto } from "./pastoContexto";
  *   titulo: string,
  *   sub?: string,
  *   onVoltar?: (() => void) | null,
- *   escVolta?: boolean,
  *   corpo?: "cards" | "lista",
  *   rodape?: React.ReactNode,
  *   chaveTela?: string,
@@ -49,7 +46,6 @@ export default function CascaDetalhe({
   titulo,
   sub = "",
   onVoltar = null,
-  escVolta = true,
   corpo = "cards",
   rodape = null,
   chaveTela = "principal",
@@ -76,11 +72,11 @@ export default function CascaDetalhe({
     if (!setCabecalho) return undefined;
     setCabecalho(
       titulo
-        ? { titulo, sub: sub || "", voltar: temVoltar ? voltarEstavel : null, ...(escVolta === false ? { escVolta: false } : {}) }
+        ? { titulo, sub: sub || "", voltar: temVoltar ? voltarEstavel : null }
         : null
     );
     return () => setCabecalho(null);
-  }, [setCabecalho, titulo, sub, temVoltar, voltarEstavel, escVolta]);
+  }, [setCabecalho, titulo, sub, temVoltar, voltarEstavel]);
 
   const classesCorpo = ["mk-dp__corpo", `mk-dp__corpo--${corpo === "lista" ? "lista" : "cards"}`, anim ? `mk-dp-anim--${anim}` : ""]
     .filter(Boolean)

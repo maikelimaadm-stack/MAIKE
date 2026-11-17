@@ -1284,8 +1284,3 @@
     border-radius: 999px;
   }
 }
-.mk-launch-action.tb-btn-green:not(#mk-padrao) {
-  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
-  color: #fff !important;
-}
-.mk-launch-action.tb-btn-green:not(#mk-padrao) svg { color: #fff !important; }

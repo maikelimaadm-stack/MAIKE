@@ -29,7 +29,7 @@
  *        folha aberta fecha só a folha (D-PROD-161, também a do Produto).
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -96,12 +96,6 @@ const largura = (px) => {
 const TITULO = { Entrada: 'Entrada no Depósito', 'Saída': 'Saída do Depósito' };
 const ACAO = { Entrada: 'Registrar Entrada', 'Saída': 'Registrar Saída' };
 
-beforeAll(() => {
-  // Select do Radix no jsdom.
-  Element.prototype.hasPointerCapture ??= () => false;
-  Element.prototype.releasePointerCapture ??= () => {};
-  Element.prototype.scrollIntoView ??= () => {};
-});
 beforeEach(() => {
   h.registrar.mockReset();
   h.registrar.mockImplementation(async () => ({ committed: true }));

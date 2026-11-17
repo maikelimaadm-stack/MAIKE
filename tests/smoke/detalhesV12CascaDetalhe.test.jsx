@@ -2,8 +2,8 @@
 /**
  * D-PROD-220 — casca v12 dos detalhes de uma tela (cocho, depósito, bebedouro,
  * tarefa): `CascaDetalhe` publica título, sub e ‹ Voltar no `LancLoteDialogo`
- * (o Esc volta; num formulário empilhado, `escVolta={false}`, o Esc é
- * ignorado), fica filha direta do `.mk-ll` (o popup a partir de 768 px
+ * (o Esc volta; o `escVolta` saiu na D-PROD-222, sem uso), fica filha
+ * direta do `.mk-ll` (o popup a partir de 768 px
  * depende disso), desenha o corpo e o rodapé, e fora do diálogo usa o
  * cabeçalho próprio. Peças novas: `Nivel` e `Acao`.
  */
@@ -92,37 +92,6 @@ describe("CascaDetalhe no diálogo", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Histórico" })); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Voltar" })); });
     expect(screen.getByTestId("corpo-principal")).toBeTruthy();
-  });
-
-  it("formulário empilhado (escVolta={false}, D-PROD-220): o ‹ Voltar fica e o Esc é ignorado no popup e na tela cheia — o que foi digitado não se perde", async () => {
-    function FormularioEmpilhado() {
-      const [tela, setTela] = React.useState("form");
-      return tela === "form" ? (
-        <CascaDetalhe titulo="Lançamento" sub="Cocho 07" onVoltar={() => setTela("principal")} escVolta={false} chaveTela="form">
-          <textarea aria-label="Observação" />
-        </CascaDetalhe>
-      ) : (
-        <CascaDetalhe titulo="Cocho 07" chaveTela="principal">
-          <div data-testid="corpo-principal" />
-        </CascaDetalhe>
-      );
-    }
-    for (const w of [1280, 390]) {
-      largura(w);
-      let fechou = 0;
-      noDialogo(<FormularioEmpilhado />, (aberto) => { if (!aberto) fechou += 1; });
-      const campo = /** @type {HTMLTextAreaElement} */ (screen.getByLabelText("Observação"));
-      fireEvent.change(campo, { target: { value: "BOIA VAZANDO" } });
-      campo.focus();
-      await esc();
-      expect(tituloDoDialogo(), `Esc a ${w}px`).toBe("Lançamento");
-      expect(/** @type {HTMLTextAreaElement} */ (screen.getByLabelText("Observação")).value).toBe("BOIA VAZANDO");
-      expect(fechou).toBe(0);
-      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Voltar" })); });
-      expect(screen.getByTestId("corpo-principal")).toBeTruthy();
-      expect(tituloDoDialogo()).toBe("Cocho 07");
-      cleanup();
-    }
   });
 
   it("ao sair, devolve o título do diálogo", () => {

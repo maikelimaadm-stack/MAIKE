@@ -17,7 +17,7 @@
  * e os diálogos abrem por cima dela também.
  */
 import React from "react";
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, act, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -66,6 +66,7 @@ import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import CartaoHistorico, { LinhaHistorico, SeloHistorico } from "@/components/lotes/CartaoHistorico";
 import DetalhesBebedouro from "@/components/bebedouros/DetalhesBebedouro";
+import { diaDoLancamento } from "@/components/bebedouros/cartoesDoBebedouro";
 
 /** Largura da tela para os `matchMedia` (desktop 1280, tablet 820, celular 390). */
 const largura = (w) => {
@@ -109,12 +110,6 @@ const LOTES = [
   { id: "l4", empresa_id: EMPRESA, status: "Inativo", area_atual_id: "a-p01", quantidade_cabecas: 30 },
 ];
 
-beforeAll(() => {
-  // O Select do Radix (Tipo, Status, Qualidade da água) no jsdom.
-  Element.prototype.hasPointerCapture ??= () => false;
-  Element.prototype.releasePointerCapture ??= () => {};
-  Element.prototype.scrollIntoView ??= () => {};
-});
 beforeEach(() => {
   localStorage.setItem("empresa_selecionada_id", EMPRESA);
   estado.historico = HISTORICO;
@@ -783,20 +778,18 @@ describe("Lançar por cima do detalhe, no desenho do manejo (D-PROD-222)", () =>
 });
 
 describe("Fora do diálogo", () => {
-  it("tela Bebedouros (barra do registro): sem o cabeçalho próprio; Lançar e Histórico abrem por cima da página; onSubFlowChange trava a navegação enquanto um deles está aberto; a barra do registro fica vazia", async () => {
+  it("tela Bebedouros (semCabecalho): sem o cabeçalho próprio; Lançar e Histórico abrem por cima da página; onSubFlowChange trava a navegação enquanto um deles está aberto", async () => {
     largura(1280);
     const subFluxo = vi.fn();
-    const barra = vi.fn();
     render(
       <QueryClientProvider client={novoCliente()}>
-        <DetalhesBebedouro bebedouro={BEBEDOURO} podeLancar onSubFlowChange={subFluxo} onRecordToolbarChange={barra} />
+        <DetalhesBebedouro bebedouro={BEBEDOURO} podeLancar onSubFlowChange={subFluxo} semCabecalho />
       </QueryClientProvider>,
     );
     await screen.findByText("189 cab");
     expect(document.querySelector(".mk-dp")).toBeTruthy();
     expect(document.querySelector(".mk-dp-cab")).toBeNull();
     expect(subFluxo).toHaveBeenLastCalledWith(false);
-    expect(barra).toHaveBeenLastCalledWith(null);
     expect(dialogos()).toHaveLength(0);
 
     await clicar(screen.getByRole("button", { name: "Histórico" }));
@@ -805,7 +798,6 @@ describe("Fora do diálogo", () => {
     expect(subDe(ultimoDialogo())).toBe("Bebedouro 01");
     expect(subFluxo).toHaveBeenLastCalledWith(true);
     // Sem "Voltar ao resumo": o resumo continua na página, por baixo do diálogo.
-    expect(barra.mock.calls.every(([b]) => b === null)).toBe(true);
     expect(document.querySelector(".mk-dp-cab")).toBeNull();
     await clicar(within(ultimoDialogo()).getByRole("button", { name: "Fechar" }));
     expect(dialogos()).toHaveLength(0);
@@ -818,7 +810,6 @@ describe("Fora do diálogo", () => {
     await clicar(within(ultimoDialogo()).getByRole("button", { name: "Cancelar" }));
     expect(dialogos()).toHaveLength(0);
     expect(subFluxo).toHaveBeenLastCalledWith(false);
-    expect(barra.mock.calls.every(([b]) => b === null)).toBe(true);
     expect(servico.criados).toEqual([]);
   });
 
@@ -906,5 +897,23 @@ describe("Histórico carregando ou com erro", () => {
     expect(within(hist).getByText("Nenhum lançamento encontrado.")).toBeTruthy();
     expect(tituloDe(hist)).toBe("Histórico do Bebedouro");
     expect(cartoes()).toHaveLength(0);
+  });
+});
+
+describe("Selo de data dos cartões do Histórico (diaDoLancamento)", () => {
+  it("sem data (ausente, vazia ou só espaços): 'Sem data'", () => {
+    expect([undefined, null, "", "   "].map(diaDoLancamento)).toEqual(["Sem data", "Sem data", "Sem data", "Sem data"]);
+  });
+
+  it("AAAA-MM-DD ou ISO: dd/mm/aaaa pelo dia gravado, sem passar por fuso", () => {
+    expect(diaDoLancamento("2026-11-10")).toBe("10/11/2026");
+    expect(diaDoLancamento(" 2026-11-10 ")).toBe("10/11/2026");
+    // 23:30 em Brasília já é dia 06 em UTC: o selo mostra o dia gravado.
+    expect(diaDoLancamento("2026-10-05T23:30:00-03:00")).toBe("05/10/2026");
+  });
+
+  it("outro formato: a data que o navegador lê, em dd/mm/aaaa; o que não for data aparece como foi gravado", () => {
+    expect(diaDoLancamento("2026/11/10")).toBe("10/11/2026");
+    expect(diaDoLancamento("ontem")).toBe("ontem");
   });
 });
