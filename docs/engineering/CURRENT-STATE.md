@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-AREA-CULTURA: Área ligada à Cultura e o vínculo das áreas à 001 Marandu (D-PROD-216)
+## Missão ativa (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-219**, pedido do proprietário: medição pela régua, no olho e a amostra de matéria seca, pelo botão no pasto do Mapa Geral |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `effc50be` (PR #307, D-PROD-216) |
+| Escopo | Model `MedicaoForragem` / tabela `MEDICAOFORRAGEM`; API `/medicoes-forragem` (GET autenticado; POST/DELETE com a chave nova do mapa `medir_forragem`); contas no servidor (média, situação pelas alturas da cultura, matéria verde, MS%, massa seca) e prévia na tela; painel **Forragem** no detalhe do pasto com o botão "Medição de Forragem" e as últimas medições; fila offline e cache do mapa. Farol no mapa fica para a próxima missão |
+| Migration | `20261117200000_medicao_forragem`, **EXPAND** (só a tabela nova), SHA-256 `66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f`. Produção 64 → 65 (a anterior é a `20261117000000_area_cultura`, D-PROD-216); tabelas 95 → 96 |
+| Release | **Pendente**: GO escrito do proprietário para a migration, antes do merge ([runbook](./MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md)) |
+| Relatório | [`MAIKE-MEDICAO-FORRAGEM-REPORT.md`](./MAIKE-MEDICAO-FORRAGEM-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-AREA-CULTURA: Área ligada à Cultura e o vínculo das áreas à 001 Marandu (D-PROD-216)
 
 | Campo | Valor |
 |---|---|

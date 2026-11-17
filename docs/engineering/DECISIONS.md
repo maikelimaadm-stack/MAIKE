@@ -7680,4 +7680,25 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-AREA-CULTURA-REPORT.md`](./MAIKE-AREA-CULTURA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-217 -->
+## D-PROD-219 — Medição de Forragem do pasto (tabela `MEDICAOFORRAGEM`): régua, no olho e amostra de matéria seca
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-217`, mas a D-PROD-217 já está em uso em duas branches abertas (PR #303, reforço da FK do apontamento do abastecimento, e `claude/design-filters-implementation-agzxk8`), e a D-PROD-218 é a próxima de uma delas. Para não duplicar, esta decisão é a **D-PROD-219**. O número não está no `migration.sql`, então o checksum não muda. A #303 usa o prefixo `20261117100000`; esta pasta é `20261117200000_medicao_forragem` (a ordem de release está no runbook).
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário, terceiro passo do Manejo de Pastagens ("vamos fazer a medição de régua, no olho e a amostra de matéria seca… a medição da forragem é quando a gente clica no pasto, aparece o botão… O farol no mapa a gente vai deixar para assim que terminar a medição"), depois de aprovar o modelo visual feito com os componentes reais · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Lançamento novo, por pasto:** model Prisma `MedicaoForragem`, tabela física **`MEDICAOFORRAGEM`**, `cliente_id` + `empresa_id`, FKs compostas pelo tenant para Cliente, Empresa, AreaPastagem e CADCULTURAS (esta pela fazenda, usando o UNIQUE da D-PROD-216), todas `RESTRICT` (pasto ou cultura com medição não saem). RLS no padrão; índices começando por `cliente_id` (R9/R10). O tenant vem só da sessão (R11).
+2. **Dois métodos:** `REGUA` — as leituras em cm (texto pt-BR, "22 26 24,5", separadas por espaço, `;` ou `/`; de 0 a 500 cm; até 200) viram a **média** (1 casa) e a **situação** pelas alturas da cultura da área: abaixo da saída → `RAPADO`; da saída até antes da entrada → `DESCANSO`; da entrada até entrada × 1,2 → `PRONTO`; acima → `PASSOU` (do ponto; os 20% acima são a regra combinada com o proprietário). Sem cultura ou sem as duas alturas, só a média. `OLHO` — a situação escolhida, sem número (leitura ou amostra junto → 400 `nao_aceita`).
+3. **Amostra de corte (opcional, só na régua):** quadrado (m²), quantas amostras, peso verde médio e peso seco médio (g) — ou a **% de MS digitada** (laboratório/micro-ondas) quando não há peso seco. Contas: matéria verde (kg/ha) = peso verde ÷ quadrado × 10; MS% = seco ÷ verde × 100; massa seca (kg MS/ha) = verde × MS% ÷ 100. O total no pasto (t) = massa seca × hectares só aparece na tela.
+4. **O servidor calcula e grava os derivados** (média, quantidade, situação da régua, matéria verde, MS%, massa seca) e o **retrato do dia** da cultura (`cultura_id`, alturas de entrada e de saída); o corpo é fechado (derivados, `cliente_id` e `cultura_id` no corpo → 400). A tela tem uma cópia das mesmas contas (`src/domain/pastagem/medicaoForragem.js`) só para a prévia; um teste do backend compara as duas.
+5. **API `/medicoes-forragem`:** GET autenticado (lista do tenant, mais recente primeiro, filtros `empresa_id` e `area_id`), POST e DELETE com a **chave nova do mapa `medir_forragem`** ("Lançar medição de forragem", grupo **Pastos** das permissões do Mapa Geral), gravadora: administrador sempre; operador só com a chave gravada `true` (não há concessão automática). Pasto de outra fazenda/tenant/inexistente ou de infraestrutura → 400; data futura no fuso da fazenda → 400; auditoria de create/delete (`MedicaoForragem`); exclusão física; `MEDICAO_FORRAGEM_NOT_FOUND` (404).
+6. **Tela:** no Mapa Geral, clicar no pasto (fora da infraestrutura) com a chave abre o detalhe do pasto com o painel **Forragem**: o botão **"Medição de Forragem"** (o formulário no padrão dos lançamentos do mapa: data, Régua | No olho, leituras com a prévia da média e da situação, amostra com matéria verde/MS/massa seca e o total no pasto, situação no olho, observação), a última medição e as últimas 5 com excluir. Sem rede, a medição entra na fila offline e no cache do mapa (`medicoesForragem`).
+7. **Migration EXPAND `20261117200000_medicao_forragem`**: só a tabela nova. SHA-256 `66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f`; 64 → 65 migrations, 95 → 96 tabelas, 80 → 81 de tenant.
+
+**Fora do escopo (próximas missões):** o farol de forragem no mapa (cor do pasto pela última medição), a estimativa pelos dias de descanso, lotação/dias de pastejo pela massa seca, a calibragem altura → kg MS e a produtividade por pasto.
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md) (caminho A sem `--contract`; caminho B pelo envelope).
+
+**Relatório:** [`MAIKE-MEDICAO-FORRAGEM-REPORT.md`](./MAIKE-MEDICAO-FORRAGEM-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-220 -->
