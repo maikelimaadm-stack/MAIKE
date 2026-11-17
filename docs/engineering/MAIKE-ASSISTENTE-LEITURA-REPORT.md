@@ -93,6 +93,6 @@ Pedido do proprietário: além de responder, o assistente aplica filtros nas tel
 ## Desligado por enquanto (2026-11-17)
 Pedido do proprietário: o botão do assistente sai de todas as telas. O `Layout` só monta o
 `AssistenteFlutuante` quando o build tem `VITE_ASSISTENTE_LIGADO=true`
-(`src/components/assistente/assistenteLigado.js`); sem a variável, fica desligado. O código,
+(`isAssistenteLigado` em `src/config/runtimeConfig.js`); sem a variável, fica desligado. O código,
 a rota do servidor e a chave continuam como estão; nenhuma pergunta é feita sem o botão. Para
 religar: criar `VITE_ASSISTENTE_LIGADO=true` (Production) na Vercel e publicar de novo.

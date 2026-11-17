@@ -140,9 +140,16 @@ describe('AssistenteFlutuante', () => {
   });
 
   it('interruptor: desligado sem VITE_ASSISTENTE_LIGADO=true', async () => {
-    const { assistenteLigado } = await import('@/components/assistente/assistenteLigado');
-    expect(assistenteLigado({})).toBe(false);
-    expect(assistenteLigado({ VITE_ASSISTENTE_LIGADO: 'false' })).toBe(false);
-    expect(assistenteLigado({ VITE_ASSISTENTE_LIGADO: 'true' })).toBe(true);
+    const carregar = async () => {
+      vi.resetModules();
+      return (await import('@/components/assistente/assistenteLigado')).assistenteLigado();
+    };
+    vi.stubEnv('VITE_ASSISTENTE_LIGADO', '');
+    expect(await carregar()).toBe(false);
+    vi.stubEnv('VITE_ASSISTENTE_LIGADO', 'false');
+    expect(await carregar()).toBe(false);
+    vi.stubEnv('VITE_ASSISTENTE_LIGADO', 'true');
+    expect(await carregar()).toBe(true);
+    vi.unstubAllEnvs();
   });
 });
