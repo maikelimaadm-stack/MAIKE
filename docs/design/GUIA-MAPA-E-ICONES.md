@@ -22,7 +22,7 @@ Este documento é um índice dos arquivos reais do sistema. As tabelas indicam *
 | Posição da barra do topo, dos botões e do resumo do mapa | `src/styles/mapa-geral.css` → `.mk-mapa-barra` (barra ⚙ · Lotes · Pastos · Tarefas), `.mk-mapa-dir`, `.mk-mapa-resumo` |
 | Estilo final dos botões e painéis | `src/styles/mk-mapa-superficie.css` (sobrescreve parte dos estilos anteriores) |
 | Ordem e ícones dos botões | `src/components/mapa/MapaControlesMobile.jsx` |
-| O que cada foco (Lotes, Pastos, Tarefas) mostra no mapa | `src/lib/mapaFoco.js` → `camadasDoFoco` (D-PROD-V12) |
+| O que cada foco (Lotes, Pastos, Tarefas) mostra no mapa | `src/lib/mapaFoco.js` → `camadasDoFoco` (D-PROD-217) |
 | Opções e ordem dos filtros | `src/components/mapa/MapaFiltrosAvancados.jsx` |
 | Lado em que abre o painel | `src/components/mapa/MapaFiltrosPainel.jsx` → `side` e chamadas desse componente |
 | Imagens pré-cadastradas e origem de cada ícone | Seção 2 abaixo |
@@ -134,7 +134,7 @@ Uma cor salva na área pode prevalecer sobre a cor padrão. Mudar a paleta não 
 ## 6. Posição das configurações, filtros e painéis
 
 - `src/pages/MapaGeral.jsx`: montagem da tela, dados, quais painéis estão abertos e ligação entre filtros, controles e renderização.
-- `src/components/mapa/MapaControlesMobile.jsx`: barra do topo ⚙ · Lotes · Pastos · Tarefas (D-PROD-V12: o ⚙ abre o painel de Filtros; os segmentos trocam o foco do mapa e Tarefas abre a Gestão de Tarefas); Visualização e ações à direita; imports de ícones e ordem dos botões.
+- `src/components/mapa/MapaControlesMobile.jsx`: barra do topo ⚙ · Lotes · Pastos · Tarefas (D-PROD-217: o ⚙ abre o painel de Filtros; os segmentos trocam o foco do mapa e Tarefas abre a Gestão de Tarefas); Visualização e ações à direita; imports de ícones e ordem dos botões.
 - `src/lib/mapaFoco.js`: focos permitidos por permissão e o que cada foco mostra (lotes, cochos/depósitos, tarefas, lotação no rótulo).
 - `src/styles/mapa-geral.css`: posição dos grupos, resumo, margens, dimensões, espaçamento e regras responsivas. Procure `.mk-mapa-barra`, `.mk-mapa-dir`, `.mk-mapa-resumo` e `@media`.
 - `src/styles/mk-mapa-superficie.css`: aparência final de botões, painéis e detalhes. Regras de maior especificidade e `!important` podem sobrescrever o CSS anterior.

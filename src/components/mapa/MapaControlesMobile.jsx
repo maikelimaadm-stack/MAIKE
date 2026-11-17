@@ -1,6 +1,6 @@
 /*
  * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações.
- * - Barra do topo (D-PROD-V12): ⚙ (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
+ * - Barra do topo (D-PROD-217): ⚙ (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
  *   Os segmentos e o que cada foco mostra vêm de src/lib/mapaFoco.js.
  * - Coluna da direita: Visualização; Atualizar, Minha localização e Mover.
  * Posição e espaçamento ficam em mapa-geral.css (.mk-mapa-barra, .mk-mapa-dir) e mk-mapa-superficie.css.
@@ -36,7 +36,7 @@ function andarNaBarra(event) {
  * Controles flutuantes do Mapa Geral (D-PROD-132), iguais no celular, tablet e computador.
  *
  * - Alto, no centro (celular: da esquerda até a coluna da direita): a barra do
- *   v12 (D-PROD-V12) no lugar dos antigos botões Tarefas e Filtros.
+ *   v12 (D-PROD-217) no lugar dos antigos botões Tarefas e Filtros.
  *   - ⚙ "Filtros" (`showFiltrosButton`) abre o painel Filtro de hoje (`onOpenFiltros`).
  *   - Segmentos `focosPermitidos` (Lotes sempre; Pastos e Tarefas pela
  *     permissão), com `aria-pressed` no `foco` atual; o toque chama `onFoco(id)`.
@@ -54,7 +54,7 @@ export default function MapaControlesMobile({
   showFiltrosButton = true,
   foco = "lotes",
   onFoco = null,
-  // Fecha por padrão: Pastos e Tarefas só entram com a permissão (D-PROD-V12, B2).
+  // Fecha por padrão: Pastos e Tarefas só entram com a permissão (D-PROD-217, B2).
   focosPermitidos = ["lotes"],
   // Fecha por padrão (D-PROD-137, PREF-04): sem a permissão, Mover só mudaria
   // uma preferência gravada sem efeito e Localizar ligaria uma camada proibida.

@@ -8,7 +8,7 @@ import { COLUNAS_PADRAO, normalizarColunas } from '@/components/mapa/detalhes-lo
  * Chave: fazenda (cliente) + conta (login) + empresa — as TRÊS obrigatórias.
  * Sem escopo conhecido (conta ainda carregando) vale o padrão e nada é gravado.
  *
- * O que fica salvo (v12, D-PROD-V12): as colunas da Lista da aba Lotes
+ * O que fica salvo (v12, D-PROD-217): as colunas da Lista da aba Lotes
  * (`colunasLote`, chaves do catálogo), escolhidas em "Configurar tabela".
  * Padrão: Alertas + Lotação + Pesagem (`COLUNAS_PADRAO`). Lista vazia é escolha
  * do usuário e é respeitada. As seções do v8 (`secoesLote`, `secoesArea`) não

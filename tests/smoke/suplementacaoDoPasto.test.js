@@ -1,5 +1,5 @@
 /**
- * D-PROD-V12 (número definitivo no PR) — aba Suplementação do Detalhes do Lote
+ * D-PROD-217 (número definitivo no PR) — aba Suplementação do Detalhes do Lote
  * v12: `src/components/mapa/detalhes-lote/suplementacaoDoPasto.js` (puro).
  *
  *  SP-1. cochos da área: só COCHO (categoria vazia conta), ligados por

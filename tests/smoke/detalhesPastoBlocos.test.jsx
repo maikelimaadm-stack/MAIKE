@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Detalhes do Lote v12 (D-PROD-V12) — peças puras de
+ * Detalhes do Lote v12 (D-PROD-217) — peças puras de
  * `src/components/mapa/detalhes-lote/blocos.jsx` e o visual comum de
  * `src/styles/mk-detalhes-pasto.css`.
  *

@@ -1,5 +1,5 @@
 /**
- * Aba Suplementação do Detalhes do Lote v12 (D-PROD-V12 — número definitivo no
+ * Aba Suplementação do Detalhes do Lote v12 (D-PROD-217 — número definitivo no
  * PR): os cochos do pasto e os números do PRIMEIRO cocho (por nome).
  *
  * Puro: sem React, sem rede, sem storage e sem `new Date()`. Os números saem

@@ -1,5 +1,5 @@
 /**
- * Catálogo de dados do "Detalhes do Lote" (v12, D-PROD-V12 — número definitivo no PR).
+ * Catálogo de dados do "Detalhes do Lote" (v12, D-PROD-217).
  *
  * Puro: sem React, sem rede, sem cache. Recebe o que o mapa já tem (área,
  * posições/lotes, movimentações, categorias de manejo) e devolve o modelo pronto
@@ -11,7 +11,7 @@
  * - A célula de um campo (grade e tabela) leva só o número: a unidade vai no
  *   rótulo ("Peso médio (kg)"). Os textos corridos do v12 levam a unidade depois
  *   do número ("449,5 kg", "62 cab", "38 cb · 38,0 UA · VACA"); são montados
- *   aqui, com o mesmo formatador (D12 da D-PROD-V12).
+ *   aqui, com o mesmo formatador (D12 da D-PROD-217).
  * - Subícone (D-PROD-191): vem do CÓDIGO pela chave sexo + faixa de idade da
  *   Categoria de Manejo (`@/assets/icones/lotes`), nunca de upload. O modelo leva
  *   só a FIGURA ('femea-13-24'); a tela monta o desenho no tamanho em que o mostra.

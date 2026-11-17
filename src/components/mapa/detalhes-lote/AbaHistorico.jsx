@@ -12,7 +12,7 @@ import { useHistoricoDoPasto } from "./useHistoricoDoPasto";
 import "@/styles/mk-dp-historico.css";
 
 /*
- * Aba Histórico do pasto (Detalhes do Lote v12, D-PROD-V12 — número definitivo
+ * Aba Histórico do pasto (Detalhes do Lote v12, D-PROD-217 — número definitivo
  * no PR): filtro "Mostrar" + linha do tempo da área (movimentações do servidor,
  * em ordem H2 por ocorrência — D-PROD-123 —, e lançamentos de suplementação da
  * área), com "Carregar mais" e o aviso offline do histórico de hoje. Só

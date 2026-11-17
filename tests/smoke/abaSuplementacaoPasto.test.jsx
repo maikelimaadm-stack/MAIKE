@@ -1,5 +1,5 @@
 /**
- * D-PROD-V12 (número definitivo no PR) — aba Suplementação do Detalhes do Lote
+ * D-PROD-217 (número definitivo no PR) — aba Suplementação do Detalhes do Lote
  * v12 (`AbaSuplementacao` + `AcoesCochoPasto`), renderizada numa CASCA DE TESTE
  * (a casca real, `PainelPasto`, chega na integração): `PastoCtx.Provider` com
  * o valor completo, `div.mk-dp` com `Abas`, corpo e o rodapé com o slot.

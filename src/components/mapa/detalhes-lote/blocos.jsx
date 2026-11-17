@@ -10,7 +10,7 @@ import {
 import "@/styles/mk-detalhes-pasto.css";
 
 /*
- * Peças visuais do Detalhes do Lote v12 (D-PROD-V12). Puras: só props, sem
+ * Peças visuais do Detalhes do Lote v12 (D-PROD-217). Puras: só props, sem
  * dados, sem consultas e sem PastoCtx. Visual em src/styles/mk-detalhes-pasto.css,
  * sob a raiz `.mk-dp` (fora dela as peças ficam sem estilo).
  *

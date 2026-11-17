@@ -78,7 +78,7 @@ const renderizar = async (lotes, permissions = {}) => {
 };
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
 /**
- * D-PROD-119: manejos e históricos em quadros. D-PROD-V12: "Manejos" do rodapé
+ * D-PROD-119: manejos e históricos em quadros. D-PROD-217: "Manejos" do rodapé
  * empilha a tela "Manejos e históricos"; nela não há rodapé (o quadro é o único botão).
  */
 const acao = async (nome) => {
@@ -151,7 +151,7 @@ describe("Juntar Lotes permanece visível quando indisponível", () => {
     const botao = screen.getByRole("button", { name: "Juntar Lotes" });
     expect(botao.disabled).toBe(true);
     expect(botao.title).toBe(motivo);
-    // D-PROD-V12: a grade fica na tela empilhada "Manejos e históricos" do próprio Detalhes
+    // D-PROD-217: a grade fica na tela empilhada "Manejos e históricos" do próprio Detalhes
     // (sem diálogo). O clique no botão desabilitado não abre nada: nenhum diálogo de junção.
     expect(screen.queryAllByRole("dialog")).toHaveLength(0);
     expect(screen.getByRole("heading", { name: "Manejos e históricos" })).toBeTruthy();

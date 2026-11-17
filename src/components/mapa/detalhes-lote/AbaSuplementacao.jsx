@@ -8,7 +8,7 @@ import { suplementacaoDoPasto } from "./suplementacaoDoPasto";
 import AcoesCochoPasto from "./AcoesCochoPasto";
 
 /*
- * Aba Suplementação do Detalhes do Lote v12 (D-PROD-V12 — número definitivo
+ * Aba Suplementação do Detalhes do Lote v12 (D-PROD-217 — número definitivo
  * no PR; spec 06 §D.4). Tudo vem da casca (`usePasto()`):
  *  - cochos da área: os pontos decorados do Mapa Geral
  *    (`dados.suplementacao.pontos`, com `nivel_suplementacao` e

@@ -3,7 +3,7 @@ import { LayoutGrid } from "lucide-react";
 import { Vazio } from "./blocos";
 
 /*
- * Tela empilhada "Manejos e históricos" do Detalhes do Lote v12 (D-PROD-V12,
+ * Tela empilhada "Manejos e históricos" do Detalhes do Lote v12 (D-PROD-217,
  * especificação §F.2): os quadros de manejo e de histórico (`AcoesDoLote`,
  * montados pelo DetalhesLote com as permissões e as ações de hoje), no corpo
  * "lista" da casca. Sem rodapé. O título ("Manejos e históricos") e o sub

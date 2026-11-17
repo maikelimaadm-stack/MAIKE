@@ -3,7 +3,7 @@ import { ArrowRightLeft, LayoutGrid, Scale } from "lucide-react";
 import { RodapePilulas } from "./blocos";
 
 /*
- * Rodapé padrão do Detalhes do Lote v12 (D-PROD-V12, especificação §E): três
+ * Rodapé padrão do Detalhes do Lote v12 (D-PROD-217, especificação §E): três
  * pílulas fixas embaixo do corpo.
  * - pasto (abas Detalhes, Lotes, Histórico; Supl. sem cocho): "Mover lotes" ·
  *   "Pesar" · "Manejos", as três desabilitadas quando o pasto não tem lote;

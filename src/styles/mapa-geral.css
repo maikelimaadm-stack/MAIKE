@@ -1,5 +1,5 @@
 /*
- * GUIA DE EDIÇÃO — POSIÇÃO DO MAPA: .mk-mapa-barra (barra do topo ⚙ · Lotes · Pastos · Tarefas, D-PROD-V12;
+ * GUIA DE EDIÇÃO — POSIÇÃO DO MAPA: .mk-mapa-barra (barra do topo ⚙ · Lotes · Pastos · Tarefas, D-PROD-217;
  * --mk-mapa-barra-topo e --mk-mapa-barra-alto), .mk-mapa-dir, .mk-mapa-resumo, --mk-mapa-gap e --mk-mapa-alto.
  * A barra usa classes próprias (não herda o !important de .mk-mapa-btn/.mk-mapa-card); no celular ela
  * vai da esquerda até antes da coluna da direita. O aviso do satélite (.mk-mapa-aviso) fica abaixo dela.
@@ -69,7 +69,7 @@
   outline-offset: 2px;
 }
 
-/* ── Barra do topo v12 (D-PROD-V12): ⚙ · Lotes · Pastos · Tarefas ────────────
+/* ── Barra do topo v12 (D-PROD-217): ⚙ · Lotes · Pastos · Tarefas ────────────
    Medidas do v12 dentro do .mk-mapa: o mapa já começa abaixo do cabeçalho e
    do menu (desktop) e à direita do trilho (tablet), então os 106/96 px do
    quadro do v12 viram 12 px aqui. Sem fundo no segmento ativo: só a cor muda. */
@@ -354,7 +354,7 @@
   color: var(--mkq-1e293b, #1e293b);
   animation: mk-mapa-pop 0.16s ease-out;
 }
-/* Com a barra do topo (D-PROD-V12) o aviso desce para baixo dela. Só no Mapa
+/* Com a barra do topo (D-PROD-217) o aviso desce para baixo dela. Só no Mapa
    Geral: o editor (MapaDesenho) usa o mesmo BasemapAtribuicao e não muda. */
 .mk-mapa:has(.mk-mapa-barra) .mk-mapa-aviso {
   top: calc(var(--mk-mapa-barra-topo) + var(--mk-mapa-barra-alto) + 8px);
