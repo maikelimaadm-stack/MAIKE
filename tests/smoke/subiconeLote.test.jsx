@@ -11,7 +11,7 @@
  * mistura sexos (o marcador do mapa é que vira misto).
  *
  * Tudo REAL (catálogo, peças, abas do Detalhes v12, formulários, DetalhesLote); mocks só
- * na borda (cache do mapa, serviços de rede, sessão, toast). As abas do v12 (D-PROD-217)
+ * na borda (cache do mapa, serviços de rede, sessão, toast). As abas do v12 (D-PROD-218)
  * rodam na casca de teste (tests/smoke/fixtures/pastoV12.jsx); o último bloco usa o
  * DetalhesLote real com a casca real (PainelPasto).
  */
@@ -396,7 +396,7 @@ describe("formulários de manejo: subícone do código", () => {
 
 describe("DetalhesLote: as categorias de manejo vêm do cache do mapa", () => {
   // DetalhesLote REAL com a casca v12 real (PainelPasto): roda depois da integração das peças
-  // do Detalhes v12 (D-PROD-217). No celular a aba Lotes abre no Resumo (subícone 34 px).
+  // do Detalhes v12 (D-PROD-218). No celular a aba Lotes abre no Resumo (subícone 34 px).
   it("lê 'categoriasManejo' do cache, mostra o subícone do código e o passa ao formulário de Morte", async () => {
     window.matchMedia = /** @type {any} */ ((q) => ({ matches: /max-width/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
     // 9–12 só sai da Categoria de Manejo: pelo texto oficial ("Bezerra 0 a 12 meses") seria 0–8.

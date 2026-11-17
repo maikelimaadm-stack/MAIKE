@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * Detalhes do Lote — preferências e memória da aba Lotes. Era o teste do v8
- * (seções do "Filtrar" por usuário, "sempre Resumo"); no v12 (D-PROD-217):
+ * (seções do "Filtrar" por usuário, "sempre Resumo"); no v12 (D-PROD-218):
  *  1. as COLUNAS da Lista (Configurar tabela) são preferência do usuário
  *     (fazenda + conta + empresa, D-PROD-135), padrão Alertas + Lotação + Pesagem;
  *  2. sem as três partes do escopo, vale o padrão e nada é gravado;

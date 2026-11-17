@@ -38,7 +38,7 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
     expect(dl).not.toMatch(/nome: 'Abate'|ArrowLeftRight|\bScale\b|\bBaby\b|\bBeef\b|HeartCrack|\bCombine\b|\bTags\b|PencilLine|nome: 'Renomear Lote'/);
   });
 
-  // D-PROD-217: a grade aparece direto (na tela empilhada "Manejos e históricos" da casca).
+  // D-PROD-218: a grade aparece direto (na tela empilhada "Manejos e históricos" da casca).
   it("aparecem no quadro, com o nome, sem descer a linha", () => {
     render(
       <AcoesDoLote grupos={[{ titulo: "Manejos", itens: [

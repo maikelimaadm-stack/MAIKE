@@ -80,7 +80,12 @@
  * TipoAtividade nem as Formulações) sobe do mesmo jeito, fora de ordem pelo Prisma direto, depois da D-PROD-210 (as
  * mesmas tabelas): 62 / 0 e 94 no banco do runner.
  * D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela nova CADCULTURAS; não toca TipoAtividade) não existia no
- * dia desta: fica para o runner, como a da Leitura de cocho, e sobe por último: 63 / 0 e 95 no banco do runner.
+ * dia desta: fica para o runner, como a da Leitura de cocho. D-PROD-217: a CONTRACT
+ * `20261117100000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento do abastecimento; não toca
+ * TipoAtividade) sobe do mesmo jeito, fora de ordem pelo Prisma direto, depois da D-PROD-211 (a D-PROD-215 fica para
+ * o runner). D-PROD-216: a CONTRACT aditiva `20261117000000_area_cultura` (a Área ligada à Cultura; depende da
+ * CADCULTURAS) também fica fora da partida e sobe no fim, pelo repositório, com a decisão dela: 65 / 0 e 95 no banco
+ * do runner.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -484,9 +489,9 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(ANTERIORES.at(-1), '20261114200000_cadcategoria_curva_ganho');
     // D-PROD-198, D-PROD-200, D-PROD-202, D-PROD-203, D-PROD-205, D-PROD-206, D-PROD-207 e D-PROD-208: a EXPAND do peso objetivo, a
     // Atividade cabeçalho, as linhas de produto e de máquina, a EXPAND das Formulações, a da Leitura de cocho, a da faixa
-    // de tolerância e a mão de obra e o serviço e o ajuste dela (D-PROD-208) têm nome posterior a esta (D-PROD-209: e o tipo Terceirizado; D-PROD-210: e a base do consumo; D-PROD-211: e o abastecimento ligado à atividade; D-PROD-215: e o Cadastro de Culturas; D-PROD-216: e a Área ligada à Cultura; 64 pastas no total); as treze ficam fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', NOME_CULTURAS, NOME_AREA_CULTURA]);
-    assert.equal(TOTAL_MIGRATIONS, 64);
+    // de tolerância e a mão de obra e o serviço e o ajuste dela (D-PROD-208) têm nome posterior a esta (D-PROD-209: e o tipo Terceirizado; D-PROD-210: e a base do consumo; D-PROD-211: e o abastecimento ligado à atividade; D-PROD-215: e o Cadastro de Culturas; D-PROD-216: e a Área ligada à Cultura; D-PROD-217: e o reforço; 65 pastas no total); as catorze ficam fora da partida.
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', NOME_CULTURAS, NOME_AREA_CULTURA, '20261117100000_abastecimento_fk_apontamento_atividade']);
+    assert.equal(TOTAL_MIGRATIONS, 65);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_PESO_OBJETIVO), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_FORMULACOES), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_LEITURA), false);
@@ -543,7 +548,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
 
   test('TA-02 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-197, antes de qualquer DDL', async () => {
     // D-PROD-200 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
-    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade'], 'sobem fora de ordem: as CONTRACT da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-210 e da D-PROD-211 e as EXPAND da D-PROD-202, da D-PROD-203 (de que a D-PROD-210 depende) e da D-PROD-207 (fora a D-PROD-198)');
+    assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', '20261117100000_abastecimento_fk_apontamento_atividade'], 'sobem fora de ordem: as CONTRACT da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-210, da D-PROD-211 e da D-PROD-217 e as EXPAND da D-PROD-202, da D-PROD-203 (de que a D-PROD-210 depende) e da D-PROD-207 (fora a D-PROD-198)');
     // As EXPAND da D-PROD-198 e da D-PROD-203 ficam para o runner, depois desta (como em produção).
     await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA && n !== NOME_CULTURAS && n !== NOME_AREA_CULTURA));
     partida = await retrato(db);
@@ -721,13 +726,13 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     assert.equal(n, 4);
   });
 
-  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215 e a D-PROD-216, posteriores, mudam (64 / 0 e 95 tabelas); o preflight agora manda parar', async () => {
+  test('TA-10 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-198, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216 e a D-PROD-217, posteriores, mudam (65 / 0 e 95 tabelas); o preflight agora manda parar', async () => {
     const pos = quadro(await consulta(URL_T, blocoDoRunbook('postcheck').split(SID_PRODUCAO).join(SID)));
     // O postcheck foi escrito para o dia desta (51 / 0, 85 tabelas); aqui a EXPAND da D-PROD-198, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206 e a D-PROD-207 também
     // estão aplicadas (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03), que
     // fica nesse estado antes do runner.
     const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '95' };
-    assert.equal(TOTAL_MIGRATIONS, 64);
+    assert.equal(TOTAL_MIGRATIONS, 65);
     for (const [item, v] of Object.entries(pos)) {
       if (item === 'VEREDITO') continue;
       if (item in CONTAGENS) assert.deepEqual([v.valor, v.status], [CONTAGENS[item], 'PARAR'], item);

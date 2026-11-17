@@ -14,7 +14,7 @@ import TelaManejos from "./TelaManejos";
 import TelaConfigurarTabela from "./TelaConfigurarTabela";
 
 /*
- * Casca do Detalhes do Lote v12 (D-PROD-217). Raiz
+ * Casca do Detalhes do Lote v12 (D-PROD-218). Raiz
  * `.mk-dp[data-modo]`, filha direta do `.mk-ll` do `LancLoteDialogo`:
  *
  *   [Abas]  ·  corpo (só ele rola)  ·  rodapé (padrão ou próprio da aba/tela)

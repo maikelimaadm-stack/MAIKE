@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-217 — casca do Detalhes do Lote v12 (`PainelPasto`) e o que ela pede
+ * D-PROD-218 — casca do Detalhes do Lote v12 (`PainelPasto`) e o que ela pede
  * ao diálogo (`LancLoteDialogo`: `popupDesde`, `setCabecalho`, ‹ Voltar, Esc).
  *
  * As abas e as telas são de outras peças: aqui elas são trocadas por versões de

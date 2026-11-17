@@ -7574,7 +7574,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 5. **Migration CONTRACT `20261116300000_abastecimento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`): 7 colunas novas, `local_estoque_id` e `movimentacao_estoque_id` passam a aceitar nulo (só no `EXTERNO`), CHECK de status trocado, CHECKs novos de origem, vínculo e intervalo, 3 FKs e 3 índices; backfill do centro de custo das linhas existentes pelo bem. SHA-256 `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`; 60 → 61 migrations, 94 tabelas.
 6. Abastecimento ligado a atividade **concluída** não se cancela (409, a atividade precisa ser reaberta antes): os totais da concluída ficam congelados. O sem vínculo cancela como sempre.
 7. Permissões: ligar e cancelar o abastecimento seguem as permissões da tela de Abastecimentos; a cascata (cancelar o lançamento ou a atividade) cancela os ligados pela permissão da atividade, como já fazia com as linhas.
-8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro.
+8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro — **feito na D-PROD-217** (FK composta de 4 colunas, [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
 9. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
 
 **Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-211` no caminho A; o envelope no caminho B).
@@ -7680,9 +7680,28 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-AREA-CULTURA-REPORT.md`](./MAIKE-AREA-CULTURA-REPORT.md).
 
-## D-PROD-217 — Mapa Geral: barra do topo v12 (⚙ · Lotes · Pastos · Tarefas) e Detalhes do Lote v12
+## D-PROD-217 — Reforço no banco: o apontamento do abastecimento é da atividade dele
 
-**Data:** 2026-11-17 · **Origem:** pedido do proprietário: implementar o design "Detalhes do Lote v12" (canvas aprovado) com os componentes do sistema — os botões do mapa, os campos de cima (Tarefas, Lote…) e o Detalhes do Lote, "tudo igual". No meio do trabalho ele fixou: **"os filtros deixe do jeito que está atualmente"**, e escolheu a barra do v12 com os filtros de hoje · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308.
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário: "pode fazer o reforço no banco" · **Branch:** `feat/abastecimento-fk-apontamento-atividade` · **Continua:** D-PROD-211 (item 8, "reforço futuro")
+
+> **Numeração:** nasceu como D-PROD-213 e depois foi D-PROD-214 e D-PROD-216 (213 → 214 → 216 → 217); a `main` deu a D-PROD-213 ao Resumo do Rebanho (PR #302, sem migration), a D-PROD-214 aos ajustes do mapa (PRs #305 e #306, sem migration), a D-PROD-215 ao Cadastro de Culturas (PR #304, EXPAND `20261116500000_cadculturas`) e a D-PROD-216 à Área ligada à Cultura (PR #307, CONTRACT aditiva `20261117000000_area_cultura`), as duas já aplicadas em produção. Esta decisão é a **D-PROD-217**. A pasta da migration nasceu `20261116400000_abastecimento_fk_apontamento_atividade`, passou a `20261116600000_abastecimento_fk_apontamento_atividade` (para vir depois da `20261116500000_cadculturas`) e é hoje `20261117100000_abastecimento_fk_apontamento_atividade`: o nome com que foi registrada em produção, depois da `20261117000000_area_cultura`, para a ordem do repositório ser a ordem de aplicação em produção. O conteúdo é idêntico e o checksum não mudou: nem o número da decisão nem o nome da pasta estão no `migration.sql`.
+
+**O problema.** Desde a D-PROD-211, `AbastecimentoBem` tem duas FKs independentes: `AbastecimentoBem_atividade_fkey` (`cliente_id`, `empresa_id`, `atividade_id`) → `Atividade` e `AbastecimentoBem_apontamento_fkey` (`cliente_id`, `empresa_id`, `apontamento_id`) → `AtividadeApontamento`, mais o CHECK `AbastecimentoBem_atividade_check` (apontamento ⇒ atividade). Nada no banco impede uma linha cujo apontamento é de **outra** atividade; só o servidor garante (ele deriva a atividade do apontamento). Uma gravação à mão, um script ou um defeito futuro do servidor deixariam o combustível somado na atividade errada.
+
+**Decisão.**
+1. `AtividadeApontamento` ganha o índice único `AtividadeApontamento_empresa_atividade_id_key` (`cliente_id`, `empresa_id`, `atividade_id`, `id`): trivialmente único (o `id` já é), começa por `cliente_id` (R10) e é o alvo que a FK composta exige.
+2. A FK `AbastecimentoBem_apontamento_fkey` é recriada **com o mesmo nome** e 4 colunas: (`cliente_id`, `empresa_id`, `atividade_id`, `apontamento_id`) → `AtividadeApontamento`(`cliente_id`, `empresa_id`, `atividade_id`, `id`), `ON DELETE RESTRICT ON UPDATE CASCADE`. Com `MATCH SIMPLE` e o CHECK da atividade, toda linha com apontamento tem as 4 colunas preenchidas: a FK sempre confere. Sem vínculo, nada muda (`ESTOQUE` e `EXTERNO`). A FK da atividade fica como está. Se a atividade de um apontamento mudar, a do abastecimento vai junto (CASCADE): o par continua coerente.
+3. **Migration CONTRACT `20261117100000_abastecimento_fk_apontamento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, a décima terceira, formato de sempre, sem resto): guarda pinada (formato anterior: FK de 3 colunas, CHECK da atividade presente, UNIQUE ausente; trava `AtividadeApontamento` e depois `AbastecimentoBem` em `ACCESS EXCLUSIVE`, a referenciada primeiro e já no modo que o `DROP CONSTRAINT` pede nela, sem subir de trava no meio da transação (subir fecharia ciclo com a confirmação do abastecimento, que lê o apontamento e depois grava o abastecimento); aborta se algum abastecimento apontar para um apontamento de outra atividade) e as 3 instruções pinadas (o UNIQUE, o DROP e o ADD da FK). SHA-256 `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`; guarda `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c`; 64 → 65 migrations, 95 tabelas. O número da decisão fica fora do `migration.sql`.
+4. Nenhuma coluna, tabela ou dado muda; o código do servidor e da tela não muda (o servidor já grava sempre o par certo). O `schema.prisma` acompanha: a relação `apontamento` de `AbastecimentoBem` passa a 4 campos e `AtividadeApontamento` ganha o `@@unique`.
+5. Sem nota de Constituição: dentro do escopo do manejo (o mesmo vínculo da D-PROD-211).
+
+**Release.** Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-217` no caminho A; o envelope no caminho B). Partida: 64 migrations (a última a `20261117000000_area_cultura`, D-PROD-216), 0 em aberto, 95 tabelas, 1 abastecimento sem vínculo (a guarda passa). **Aplicada em produção em 2026-11-17 00:43:48 UTC pelo caminho B, com o GO do proprietário; postcheck 65/0, 95 tabelas** (registrada como `20261117100000_abastecimento_fk_apontamento_atividade`, checksum `1ee8d5a3…`; a FK de 4 colunas e o UNIQUE presentes; dados intactos). Registro no §9 do runbook.
+
+**Relatório:** [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md).
+
+## D-PROD-218 — Mapa Geral: barra do topo v12 (⚙ · Lotes · Pastos · Tarefas) e Detalhes do Lote v12
+
+**Data:** 2026-11-17 · **Numeração:** a PR #303 (reforço do apontamento do abastecimento) foi mergeada antes como D-PROD-217; esta passou a **D-PROD-218** · **Origem:** pedido do proprietário: implementar o design "Detalhes do Lote v12" (canvas aprovado) com os componentes do sistema — os botões do mapa, os campos de cima (Tarefas, Lote…) e o Detalhes do Lote, "tudo igual". No meio do trabalho ele fixou: **"os filtros deixe do jeito que está atualmente"**, e escolheu a barra do v12 com os filtros de hoje · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308.
 
 **Decisão — mapa.**
 1. **Barra do topo** (`MapaControlesMobile`, `.mk-mapa-barra`): a barra escura do v12 substitui os botões de canto Tarefas/Filtros. O ⚙ (nome acessível "Filtros") abre o painel de Filtros de sempre, **sem mudança**; os segmentos **Lotes · Pastos · Tarefas** trocam o foco do mapa; Tarefas também abre a Gestão de Tarefas que já existe. Coluna da direita (Visualização, Atualizar, Localizar, Mover), legenda, resumo e todos os filtros/listas ficam como estavam.
@@ -7703,4 +7722,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md). **Design versionado:** `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html`.
 
-<!-- Próxima decisão: D-PROD-218 -->
+<!-- Próxima decisão: D-PROD-219 -->

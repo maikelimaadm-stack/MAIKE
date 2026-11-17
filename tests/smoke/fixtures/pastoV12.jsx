@@ -1,5 +1,5 @@
 /**
- * Detalhes do Lote v12 (D-PROD-217) — dados de exemplo iguais aos do design
+ * Detalhes do Lote v12 (D-PROD-218) — dados de exemplo iguais aos do design
  * (Pasto 07, setor Retiro, 6 lotes, 314 cab, hoje 15/11/2026) e uma CASCA DE
  * TESTE: o mesmo contrato da casca real (`PastoCtx` com todas as chaves de
  * `Pasto`, raiz `.mk-dp[data-modo]`, `Abas`, corpo e o rodapé que serve de

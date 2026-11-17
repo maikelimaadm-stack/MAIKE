@@ -14,7 +14,7 @@ import { RodapePilulas } from "./blocos";
 
 /*
  * Rodapé da aba Suplementação quando o pasto tem cocho (Detalhes do Lote v12,
- * D-PROD-217): Lançar · Leitura · Histórico do cocho
+ * D-PROD-218): Lançar · Leitura · Histórico do cocho
  * dos números da aba (o primeiro por nome).
  *
  * Abre os MESMOS formulários e o MESMO histórico do detalhe do cocho

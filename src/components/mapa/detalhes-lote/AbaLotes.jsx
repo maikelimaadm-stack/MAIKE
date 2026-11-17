@@ -18,7 +18,7 @@ const OPCOES_VISTA = [
 ];
 
 /**
- * Aba Lotes do pasto (v12, D-PROD-217): Resumo · Lote · Lista. Abre na Lista no
+ * Aba Lotes do pasto (v12, D-PROD-218): Resumo · Lote · Lista. Abre na Lista no
  * desktop e no tablet e no Resumo no celular; a vista escolhida fica lembrada
  * por área na sessão (D5). Sem lotes, só o aviso.
  */

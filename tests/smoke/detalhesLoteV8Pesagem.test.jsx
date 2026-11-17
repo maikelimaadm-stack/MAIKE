@@ -7,7 +7,7 @@
  * sem reler — mesmo com o cache do mapa já atualizado pelo 'atualizar-mapa'.
  * DetalhesLote REAL; mocks só na borda (cache do mapa, serviços, toast).
  *
- * v12 (D-PROD-217): a aba Lotes abre na Lista no desktop e as colunas padrão
+ * v12 (D-PROD-218): a aba Lotes abre na Lista no desktop e as colunas padrão
  * (Alertas + Lotação + Pesagem) têm "Última" e "Origem". O teste com o
  * DetalhesLote real usa a casca real (PainelPasto) e roda depois da integração
  * das peças do Detalhes v12; o da casca de teste vale já.

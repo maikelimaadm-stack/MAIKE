@@ -3,7 +3,7 @@
  * D-PROD-120 — Detalhes do Lote sem "Alertas do lote", nomes de área/lote na
  * cor dos botões (verde), e o deslizar da borda esquerda fecha a janela de cima
  * no celular (lançamentos, históricos, detalhes e folhas).
- * D-PROD-217 — os cartões v8 (aba Tudo) saíram; o botão "Manejos" foi para o
+ * D-PROD-218 — os cartões v8 (aba Tudo) saíram; o botão "Manejos" foi para o
  * rodapé da casca; o popup (desktop e, no Detalhes, tablet) fecha só pelo ✕.
  */
 import React from "react";
@@ -40,7 +40,7 @@ describe("Detalhes do Lote: visual (D-PROD-120)", () => {
   });
 
   it("nomes de área e lote em texto simples, sem o amarelo", () => {
-    // D-PROD-144: o nome da área vai no cabeçalho do diálogo (D-PROD-217: título = pasto).
+    // D-PROD-144: o nome da área vai no cabeçalho do diálogo (D-PROD-218: título = pasto).
     expect(detalhes).not.toMatch(/mk-dl__area-nome/);
     for (const f of [detalhes, pecas]) expect(f).not.toMatch(/yellow|amber/);
     // UI-DETALHES-LOTE-V8: pílula de título (texto #374151, 700), ainda usada pelo Resumo do Rebanho.
@@ -76,7 +76,7 @@ describe("Campos numa linha só, texto corre se não couber (D-PROD-124)", () =>
 });
 
 describe("Ajustes D-PROD-125", () => {
-  it("popup fecha só pelo ✕ (sem clique fora nem Esc); D-PROD-217: Esc numa tela empilhada volta um nível", () => {
+  it("popup fecha só pelo ✕ (sem clique fora nem Esc); D-PROD-218: Esc numa tela empilhada volta um nível", () => {
     const ui = readFileSync("src/components/lotes/LancamentoLoteUi.jsx", "utf8");
     expect(ui).toMatch(/onInteractOutside=\{popup \? \(e\) => e\.preventDefault\(\) : undefined\}/);
     expect(ui).toMatch(/onEscapeKeyDown=\{\(e\) => \{\s*if \(voltar\) \{\s*e\.preventDefault\(\);\s*voltar\(\);\s*\} else if \(popup\) e\.preventDefault\(\);\s*\}\}/);
@@ -97,7 +97,7 @@ describe("Ajustes D-PROD-125", () => {
   });
 });
 
-describe("Celular: botão de manejos no rodapé (D-PROD-120 → D-PROD-217)", () => {
+describe("Celular: botão de manejos no rodapé (D-PROD-120 → D-PROD-218)", () => {
   it("\"Manejos\" fica no rodapé da casca (não no cabeçalho) e empilha a tela dos quadros, com ‹ no lugar do ✕", async () => {
     window.matchMedia = /** @type {any} */ ((q) => ({ matches: /max-width/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
     const pesar = vi.fn();

@@ -1,5 +1,5 @@
 /**
- * Linha do tempo da aba Histórico do pasto (Detalhes do Lote v12, D-PROD-217 —
+ * Linha do tempo da aba Histórico do pasto (Detalhes do Lote v12, D-PROD-218 —
  * número definitivo no PR). Funções puras: nada de rede, cache ou React.
  *
  * Entra: as movimentações do pasto (servidor H2, ordem por ocorrência,

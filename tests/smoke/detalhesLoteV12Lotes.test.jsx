@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Detalhes do Lote v12 (D-PROD-217) — abas Detalhes e Lotes, tela do lote e
+ * Detalhes do Lote v12 (D-PROD-218) — abas Detalhes e Lotes, tela do lote e
  * "Configurar tabela", com os componentes REAIS dentro de uma casca de teste
  * (mesmo contrato do `PainelPasto`: `PastoCtx` completo, `.mk-dp`, abas, corpo e
  * o rodapé que serve de `slotRodape`). Dados do v12: Pasto 07, Retiro, 6 lotes.

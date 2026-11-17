@@ -50,7 +50,7 @@ const recusarManejoSemLedger = () => {
 };
 
 /**
- * Detalhes do Lote v12 (D-PROD-217): a casca `PainelPasto` mostra o pasto
+ * Detalhes do Lote v12 (D-PROD-218): a casca `PainelPasto` mostra o pasto
  * (abas, telas empilhadas, rodapé); aqui ficam os dados e TODA a orquestração
  * dos manejos (comandos do ledger e os diálogos dos formulários e históricos).
  *
@@ -620,7 +620,7 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
     );
   }
 
-  // D-PROD-119: os quadros de Manejos e Históricos (separados); D-PROD-217: numa
+  // D-PROD-119: os quadros de Manejos e Históricos (separados); D-PROD-218: numa
   // tela empilhada da casca ("Manejos e históricos"), aberta pelo rodapé.
   const acoes = (() => {
         const porCategoria = {};

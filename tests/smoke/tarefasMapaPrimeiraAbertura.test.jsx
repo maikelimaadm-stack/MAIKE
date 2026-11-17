@@ -1,5 +1,5 @@
 /**
- * D-PROD-217 — a Gestão de Tarefas (aberta pela barra do mapa, segmento
+ * D-PROD-218 — a Gestão de Tarefas (aberta pela barra do mapa, segmento
  * "Tarefas") busca a lista já na primeira abertura. Antes, `initialData: []`
  * com `staleTime` fazia o React Query tratar a lista vazia como dado novo e
  * não buscar: o painel abria vazio com tarefas no mapa.
@@ -25,7 +25,7 @@ vi.mock("@/components/offline/IndexedDBManager", () => ({ saveTarefaOffline: vi.
 
 import TarefasMapaPanel from "@/components/mapa/TarefasMapaPanel";
 
-describe("Gestão de Tarefas: primeira abertura (D-PROD-217)", () => {
+describe("Gestão de Tarefas: primeira abertura (D-PROD-218)", () => {
   it("busca as tarefas ao montar e mostra a lista, sem abrir vazia", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><TarefasMapaPanel onClose={() => {}} /></QueryClientProvider>);

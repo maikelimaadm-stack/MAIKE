@@ -28,7 +28,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     enabled: !!empresaSelecionadaId,
     // Sem initialData: com ele o React Query trata a lista vazia como dado novo
     // e não busca ao montar (staleTime), então a Gestão de Tarefas abria vazia
-    // na primeira vez (D-PROD-217). O padrão `= []` cobre o carregamento.
+    // na primeira vez (D-PROD-218). O padrão `= []` cobre o carregamento.
     staleTime: 60 * 1000,
   });
 

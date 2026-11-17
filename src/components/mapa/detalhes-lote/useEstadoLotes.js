@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 /**
- * Estado das vistas da aba Lotes (v12, D-PROD-217), lembrado NA SESSÃO, em
+ * Estado das vistas da aba Lotes (v12, D-PROD-218), lembrado NA SESSÃO, em
  * memória do módulo (fechar e reabrir o pasto volta como estava; recarregar a
  * página começa de novo). Não é preferência do usuário (nada vai para o
  * localStorage):

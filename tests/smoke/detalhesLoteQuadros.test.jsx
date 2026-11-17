@@ -2,7 +2,7 @@
 /**
  * D-PROD-119 — Detalhes do Lote: os manejos e os históricos em quadros (ícone +
  * nome), em grupos separados; sem os menus "Eventos"/"Históricos".
- * D-PROD-217 — a grade é a tela empilhada "Manejos e históricos" da casca do
+ * D-PROD-218 — a grade é a tela empilhada "Manejos e históricos" da casca do
  * Detalhes v12, aberta pelo "Manejos" do rodapé, com 3 colunas em todos os modos.
  */
 import React from "react";

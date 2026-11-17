@@ -1,5 +1,5 @@
 /**
- * Detalhes do Lote v12 — aba Histórico do pasto (D-PROD-217; número
+ * Detalhes do Lote v12 — aba Histórico do pasto (D-PROD-218; número
  * definitivo no PR). Renderiza a aba REAL dentro de uma casca de teste (o
  * `PastoCtx` com todas as chaves, `div.mk-dp` com as Abas, o corpo e o
  * rodapé), com o serviço do histórico e o cache do mapa trocados por dublês.

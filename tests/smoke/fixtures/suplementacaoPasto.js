@@ -1,5 +1,5 @@
 /**
- * Dados de exemplo da aba Suplementação do Detalhes v12 (D-PROD-217), com as
+ * Dados de exemplo da aba Suplementação do Detalhes v12 (D-PROD-218), com as
  * MESMAS funções do sistema: o período fechado é o patch real de
  * `calcularFechamentoDePeriodo` (o que o serviço grava no evento) e o ponto é
  * decorado como o Mapa Geral faz (nível do SSOT + farol da leitura).

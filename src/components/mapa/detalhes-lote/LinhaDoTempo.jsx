@@ -4,7 +4,7 @@ import { Chip } from "./blocos";
 import "@/styles/mk-dp-historico.css";
 
 /*
- * Linha do tempo do Detalhes do Lote v12 (aba Histórico, D-PROD-217): trilho
+ * Linha do tempo do Detalhes do Lote v12 (aba Histórico, D-PROD-218): trilho
  * à esquerda, um ponto azul por dia ("09 NOV. 2026") e, embaixo, os cartões do
  * dia — cabeçalho com ícone teal e título, linhas rótulo/valor. Só desenho:
  * os cartões chegam prontos de `historicoDoPasto.js`. Visual em

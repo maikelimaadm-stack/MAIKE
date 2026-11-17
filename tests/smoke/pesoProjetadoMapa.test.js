@@ -44,7 +44,7 @@ describe("D-PROD-198 — peso projetado nos Detalhes do Lote", () => {
     expect(valor(l, "atinge")).toBe("11/07/2027 (26 d)");
     expect(valor(l, "pesPrev")).toBe("97,7% do previsto");
     expect(valor(l, "projMeses")).toBe("30/06: 415 · 31/07: 430 · 31/08: 446");
-    // v12 (D-PROD-217): os blocos do lote (vista Lote e tela do lote) mostram o projetado, com a dica.
+    // v12 (D-PROD-218): os blocos do lote (vista Lote e tela do lote) mostram o projetado, com a dica.
     const projetado = camposDoLote(l, "Pesagem").find((c) => c.rotulo === "Peso projetado (kg)");
     expect(projetado).toMatchObject({ texto: "407,0", dica: "último peso + ganho diário da curva da categoria, até hoje" });
     // os campos novos ficam na seção Pesagem (coluna padrão da Lista)

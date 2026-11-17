@@ -5,7 +5,7 @@ import { LIMITE_CACHE_MOVIMENTACOES, usePaginasDoHistorico } from "@/components/
 import { montarHistoricoDoPasto } from "./historicoDoPasto";
 
 /*
- * Dados da aba Histórico do pasto (Detalhes do Lote v12, D-PROD-217): as
+ * Dados da aba Histórico do pasto (Detalhes do Lote v12, D-PROD-218): as
  * movimentações da área pela MESMA consulta do Histórico de Movimentação de
  * hoje (servidor paginado em ordem H2, cópia do aparelho sem conexão,
  * reinício do cursor recusado — `usePaginasDoHistorico`) e os eventos de

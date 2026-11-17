@@ -84,7 +84,7 @@ const renderizar = async (lotes, permissions = {}) => {
   return utils;
 };
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
-/** D-PROD-217: "Manejos" do rodapé empilha a tela "Manejos e históricos" com os quadros. */
+/** D-PROD-218: "Manejos" do rodapé empilha a tela "Manejos e históricos" com os quadros. */
 const abrirManejos = async () => {
   const rodapeManejos = screen.queryByRole("button", { name: "Manejos" });
   if (rodapeManejos) await clicar(rodapeManejos);

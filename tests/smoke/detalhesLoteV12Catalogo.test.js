@@ -1,5 +1,5 @@
 /**
- * Detalhes do Lote v12 (D-PROD-217) — catálogo puro: colunas por chave, células
+ * Detalhes do Lote v12 (D-PROD-218) — catálogo puro: colunas por chave, células
  * da aba Detalhes e dos blocos do lote, status/descanso da área (a mesma regra
  * do mapa) e os números do exemplo do v12.
  *

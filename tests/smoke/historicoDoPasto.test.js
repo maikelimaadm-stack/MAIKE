@@ -1,6 +1,6 @@
 /**
  * Detalhes do Lote v12 — aba Histórico: linha do tempo do pasto, pura
- * (`historicoDoPasto.js`, D-PROD-217; número definitivo no PR).
+ * (`historicoDoPasto.js`, D-PROD-218; número definitivo no PR).
  *
  * Os movimentos têm a forma dos documentos que o servidor grava no ledger
  * (`rebanhoLedgerService.js` / `rebanhoLedgerManejos.js`): transferência com

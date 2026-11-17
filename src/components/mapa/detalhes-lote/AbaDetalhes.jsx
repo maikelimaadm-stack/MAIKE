@@ -9,7 +9,7 @@ import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
 
 /**
- * Aba Detalhes do pasto (v12, D-PROD-217): cartão da área (setor, hectares,
+ * Aba Detalhes do pasto (v12, D-PROD-218): cartão da área (setor, hectares,
  * pastagem, status e dias de pastejo), aviso de capacidade, Lotação e a
  * composição por categoria. Tudo vem da casca (`usePasto()`); a área usa todas
  * as posições ativas dela (`lotesDaArea` do modelo), como antes.

@@ -17,7 +17,7 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
  */
 
 /**
- * Cabeçalho que o conteúdo publica no diálogo (Detalhes do Lote v12, D-PROD-217):
+ * Cabeçalho que o conteúdo publica no diálogo (Detalhes do Lote v12, D-PROD-218):
  * título e sub no lugar dos props; com `voltar`, o botão ‹ "Voltar" (no popup
  * antes do título, o ✕ continua à direita; na tela cheia no lugar do ✕) e o Esc
  * volta um nível em vez de fechar.
@@ -46,7 +46,7 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
  * para listas de ações e escolhas; detalhes mantêm sua abertura em tela. Um conteúdo pode trocar o título do diálogo pelo contexto
  * (`useLancLoteDialogo().setTitulo`), para não repetir o título dentro.
  *
- * `popupDesde` (D-PROD-217): a partir de que largura o diálogo abre como popup
+ * `popupDesde` (D-PROD-218): a partir de que largura o diálogo abre como popup
  * (título à esquerda, ✕ à direita, fecha só pelo ✕). "desktop" (padrão) = 1024 px,
  * como sempre; "tablet" = 768 px (Detalhes do Lote v12). Abaixo, tela cheia.
  * O conteúdo pode publicar um cabeçalho próprio (`setCabecalho`, ver
@@ -120,7 +120,7 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
         onOpenAutoFocus={somenteLeitura ? (e) => e.preventDefault() : undefined}
         // Popup: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
         onInteractOutside={popup ? (e) => e.preventDefault() : undefined}
-        // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-217).
+        // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-218).
         onEscapeKeyDown={(e) => {
           if (voltar) {
             e.preventDefault();

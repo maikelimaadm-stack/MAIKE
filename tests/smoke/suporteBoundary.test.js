@@ -29,7 +29,7 @@ const arquivosDe = (dir) =>
 
 /**
  * Os 23 caminhos do inventário da missão. `ResumoSuplementacao.jsx` saiu do
- * produto na D-PROD-217 (a aba Suplementação do Detalhes do Lote v12 o substitui).
+ * produto na D-PROD-218 (a aba Suplementação do Detalhes do Lote v12 o substitui).
  */
 const INVENTARIO = [
   'src/Layout.jsx',

@@ -1,7 +1,7 @@
 import React from "react";
 
 /*
- * Contexto da casca do Detalhes do Lote v12 (`PainelPasto`, D-PROD-217).
+ * Contexto da casca do Detalhes do Lote v12 (`PainelPasto`, D-PROD-218).
  *
  * A casca desenha o cabeçalho (pelo `LancLoteDialogo`), as abas, o corpo e o
  * rodapé, e guarda a pilha de telas (pasto › lote › manejos › configurar

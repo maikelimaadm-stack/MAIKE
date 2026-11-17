@@ -10,7 +10,7 @@ import { ESCOPO_AREA, ESCOPO_LOTES, filtrarMovimentacoes } from "@/domain/lotes/
  * (ordem H2 por ocorrência), a cópia do aparelho sem conexão (ou com o
  * servidor fora e cache) e o reinício da paginação quando o servidor recusa o
  * cursor. Saiu de `HistoricoMovimentacoes.jsx` sem mudar nada do que ele faz,
- * para a aba Histórico do pasto (Detalhes do Lote v12, D-PROD-217) usar a
+ * para a aba Histórico do pasto (Detalhes do Lote v12, D-PROD-218) usar a
  * mesma consulta — mesma chave, mesmo cache do React Query.
  */
 

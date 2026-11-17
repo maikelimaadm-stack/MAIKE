@@ -9,15 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12 e Detalhes do Lote v12 (D-PROD-217)
+## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12 e Detalhes do Lote v12 (D-PROD-218)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-217**, pedido do proprietário: implementar o design "Detalhes do Lote v12" com os componentes do sistema, mantendo os filtros do mapa como estão |
+| Decisão | **D-PROD-218**, pedido do proprietário: implementar o design "Detalhes do Lote v12" com os componentes do sistema, mantendo os filtros do mapa como estão |
 | Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho até a conferência final) |
 | Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (⚙ abre os Filtros de sempre; foco Lotes/Pastos/Tarefas em `src/lib/mapaFoco.js`). Detalhes do Lote v12 (`.mk-dp`): popup a partir de 768 px, pilha de telas com ‹ Voltar, abas Detalhes · Lotes · Histórico · Suplementação, rodapé Mover lotes · Pesar · Manejos com alvo por seleção, Manejos e históricos em tela. Manejos, ledger e permissões sem mudança. Sem backend, sem migration |
 | Testes | `test:smoke` 265 arquivos / 3.315 testes verdes no conjunto integrado; gates de fonte, tipos (465 ≤ 625), escopo, base44, segredos e fronteira verdes |
 | Relatório | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-217)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-217** (nasceu D-PROD-213, depois D-PROD-214 e D-PROD-216; a `main` deu a 213 ao Resumo do Rebanho, a 214 aos ajustes do mapa, a 215 às Culturas e a 216 à Área ligada à Cultura, PR #307), pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
+| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213), a `main` `133c6ed4` (PRs #304, #305 e #306, D-PROD-214 e D-PROD-215) e a `main` `effc50be` (PR #307, D-PROD-216) por merge · PR **#303** |
+| Escopo | Só banco: `AtividadeApontamento` ganha o UNIQUE (`cliente_id`, `empresa_id`, `atividade_id`, `id`) e a FK `AbastecimentoBem_apontamento_fkey` passa a 4 colunas (com a atividade): o banco recusa um abastecimento ligado a apontamento de outra atividade. Código do servidor e da tela sem mudança |
+| Migration | `20261117100000_abastecimento_fk_apontamento_atividade` — o nome com que foi registrada em produção (a pasta nasceu `20261116400000_…` e foi `20261116600000_…`; conteúdo idêntico), **CONTRACT** (décima terceira de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 64 → 65 (a anterior é a `20261117000000_area_cultura`, D-PROD-216); tabelas 95 (sem mudança) |
+| Release | **Aplicada em produção** em 2026-11-17 às 00:43:48 UTC (caminho B do [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md), GO do proprietário): preflight PRONTO (64 / 0), postcheck 65 / 0, a FK de 4 colunas e o UNIQUE presentes, 95 tabelas, dados intactos. `SCHEMA_APPLIED_PROD: SIM (2026-11-17)` |
+| Documentos | [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) · [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (§9, registro da execução) |
 
 ## Missão anterior (2026-11-16) — MAIKE-AREA-CULTURA: Área ligada à Cultura e o vínculo das áreas à 001 Marandu (D-PROD-216)
 
@@ -57,7 +68,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-213**, pedido do proprietário: relação do rebanho por categoria com peso hoje, peso projetado em 90 dias, arrobas e lotação por pasto, no padrão visual do sistema |
-| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `387903f2` |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `387903f2` · PR **#302**, mergeada (`83206ab5`) |
 | Escopo | Cartão do resumo inferior do Mapa Geral abre o diálogo (casca do Detalhes do Lote v8); contas puras em `src/domain/rebanho/resumoDoRebanho.js`; sem backend, sem migration, sem permissão nova |
 | Release | Sem migration: merge e deploy normais |
 | Relatório | [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md) |

@@ -4,7 +4,7 @@ import "@/styles/acoes-lote-modulos.css";
 /**
  * Manejos e Históricos do Detalhes do Lote (D-PROD-119), em quadros (ícone em
  * cima, nome embaixo), em grupos separados; cada quadro abre a ação com um
- * clique. D-PROD-217: é só a grade — quem a mostra é a tela empilhada
+ * clique. D-PROD-218: é só a grade — quem a mostra é a tela empilhada
  * "Manejos e históricos" da casca (aberta pelo "Manejos" do rodapé), com 3
  * colunas em todos os modos. Ordem alfabética; o desabilitado continua visível
  * com o motivo no `title`.

@@ -1,4 +1,4 @@
-/* Quadros de Manejos e Históricos (AcoesDoLote) — D-PROD-119; v12 (D-PROD-217,
+/* Quadros de Manejos e Históricos (AcoesDoLote) — D-PROD-119; v12 (D-PROD-218,
    especificação §F.2): a grade da tela empilhada "Manejos e históricos" da casca
    do Detalhes do Lote, 3 colunas em todos os modos, quadro #65d1ec.
    Os seletores levam `:not(#mk-padrao)` (e `!important` nas cores) para vencer
