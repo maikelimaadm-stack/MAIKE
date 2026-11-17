@@ -1,24 +1,12 @@
-import ControlesLotes from '@/components/mapa/detalhes-lote/ControlesLotes';
-import VistaResumo from '@/components/mapa/detalhes-lote/VistaResumo';
-import VistaLote from '@/components/mapa/detalhes-lote/VistaLote';
-import VistaLista from '@/components/mapa/detalhes-lote/VistaLista';
+import React from "react";
+import { Beef } from "lucide-react";
+import { Vazio } from "./blocos";
 
-/** @typedef {import('./useEstadoLotes').EstadoLotes} EstadoLotes */
-/** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
-
-/**
- * Aba Lotes: linha de controles + a vista escolhida (Resumo · Lote · Lista).
- * O estado vem do Painel (`useEstadoLotes`), que também o usa no deslize e no Tudo.
- *
- * @param {{ modelo: ModeloDetalhes, estado: EstadoLotes }} props
+/*
+ * Aba Lotes do Detalhes do Lote v12 (D-PROD-V12). Provisório da casca: a peça
+ * LOTES entrega o conteúdo (Resumo · Lote · Lista, seleção, tela do lote e
+ * Configurar tabela por `usePasto().empurrar`), lendo tudo de `usePasto()`.
  */
-export default function AbaLotes({ modelo, estado }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <ControlesLotes modelo={modelo} estado={estado} />
-      {estado.vista === 'resumo' && <VistaResumo modelo={modelo} estado={estado} />}
-      {estado.vista === 'lote' && <VistaLote modelo={modelo} estado={estado} />}
-      {estado.vista === 'lista' && <VistaLista modelo={modelo} estado={estado} />}
-    </div>
-  );
+export default function AbaLotes() {
+  return <Vazio icone={Beef}>Em construção.</Vazio>;
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, Loader2, Plus, X } from "lucide-react";
+import { Check, ChevronLeft, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import MobileSheet, { useCelular, useMediaQuery, MobileSheetPortalCtx } from "@/components/common/MobileSheet";
@@ -17,9 +17,17 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
  */
 
 /**
+ * Cabeçalho que o conteúdo publica no diálogo (Detalhes do Lote v12, D-PROD-V12):
+ * título e sub no lugar dos props; com `voltar`, o botão ‹ "Voltar" (no popup
+ * antes do título, o ✕ continua à direita; na tela cheia no lugar do ✕) e o Esc
+ * volta um nível em vez de fechar.
+ * @typedef {{ titulo: string, sub?: string, voltar?: () => void }} CabecalhoLancLote
+ */
+
+/**
  * Contexto do diálogo: o rodapé do formulário (`LancLoteRodape`) entrega a
  * ação aqui e ela vira o ✓ do cabeçalho; o `<form>` ganha o id do ✓.
- * @type {React.Context<null | { formId: string, setAcao: (a: any) => void, setTitulo: (t: string | null) => void, slotDireito: HTMLElement | null }>}
+ * @type {React.Context<null | { formId: string, setAcao: (a: any) => void, setTitulo: (t: string | null) => void, slotDireito: HTMLElement | null, setCabecalho: (cab: CabecalhoLancLote | null) => void }>}
  */
 const LancLoteCtx = React.createContext(null);
 
@@ -38,22 +46,33 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
  * para listas de ações e escolhas; detalhes mantêm sua abertura em tela. Um conteúdo pode trocar o título do diálogo pelo contexto
  * (`useLancLoteDialogo().setTitulo`), para não repetir o título dentro.
  *
- * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, folhaMobile?: boolean, children: React.ReactNode }} props
+ * `popupDesde` (D-PROD-V12): a partir de que largura o diálogo abre como popup
+ * (título à esquerda, ✕ à direita, fecha só pelo ✕). "desktop" (padrão) = 1024 px,
+ * como sempre; "tablet" = 768 px (Detalhes do Lote v12). Abaixo, tela cheia.
+ * O conteúdo pode publicar um cabeçalho próprio (`setCabecalho`, ver
+ * `CabecalhoLancLote`); sem ele e sem `popupDesde`, nada muda.
+ *
+ * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, folhaMobile?: boolean, popupDesde?: "desktop" | "tablet", children: React.ReactNode }} props
  */
-export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, folhaMobile = false, children }) {
+export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, folhaMobile = false, popupDesde = "desktop", children }) {
   const nomes = (lotes || []).map((l) => l?.nome).filter(Boolean).join(" · ");
-  const desktop = useMediaQuery("(min-width: 1024px)");
+  const popup = useMediaQuery(popupDesde === "tablet" ? "(min-width: 768px)" : "(min-width: 1024px)");
   const folhaConsulta = useCelular() && folhaMobile;
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
   const [acao, setAcao] = React.useState(/** @type {any} */ (null));
   // As listas do celular (folha) abrem dentro do diálogo (D-PROD-116).
   const [alvoFolha, setAlvoFolha] = React.useState(/** @type {HTMLElement | null} */ (null));
   const [tituloDoConteudo, setTitulo] = React.useState(/** @type {string | null} */ (null));
+  // Cabeçalho publicado pelo conteúdo (tela empilhada do Detalhes do Lote v12).
+  const [cabecalho, setCabecalho] = React.useState(/** @type {CabecalhoLancLote | null} */ (null));
   // Celular, só leitura: o lugar à direita do título (espelho do ✕) recebe um
   // botão do conteúdo, ex.: "Manejos e históricos" do Detalhes do Lote (D-PROD-120).
   const [slotDireito, setSlotDireito] = React.useState(/** @type {HTMLElement | null} */ (null));
-  const ctx = React.useMemo(() => ({ formId, setAcao, setTitulo, slotDireito }), [formId, slotDireito]);
-  const tituloVisivel = tituloDoConteudo || titulo;
+  const ctx = React.useMemo(() => ({ formId, setAcao, setTitulo, slotDireito, setCabecalho }), [formId, slotDireito]);
+  const tituloVisivel = cabecalho?.titulo || tituloDoConteudo || titulo;
+  // Com cabeçalho publicado, a descrição é o `sub` dele (vazio: só para o leitor de tela).
+  const descricao = cabecalho ? cabecalho.sub || "" : nomes;
+  const voltar = cabecalho?.voltar || null;
   const fechar = () => (acao?.onCancelar ? acao.onCancelar() : onOpenChange(false));
   const ocupado = Boolean(acao?.enviando);
   const rotulo = ocupado && acao?.textoEnviando ? acao.textoEnviando : acao?.textoAcao || "Salvar";
@@ -99,28 +118,39 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
       <DialogPrimitive.Content
         // Histórico: nada para preencher — não acende o ✕ ao abrir.
         onOpenAutoFocus={somenteLeitura ? (e) => e.preventDefault() : undefined}
-        // Desktop: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
-        onInteractOutside={desktop ? (e) => e.preventDefault() : undefined}
-        onEscapeKeyDown={desktop ? (e) => e.preventDefault() : undefined}
+        // Popup: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
+        onInteractOutside={popup ? (e) => e.preventDefault() : undefined}
+        // Tela empilhada (cabeçalho com voltar): Esc volta um nível, em qualquer modo (D-PROD-V12).
+        onEscapeKeyDown={(e) => {
+          if (voltar) {
+            e.preventDefault();
+            voltar();
+          } else if (popup) e.preventDefault();
+        }}
         className={cn(
           "mk-ll-dlg fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-          desktop ? "is-desktop data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" : "is-tela",
+          popup ? "is-desktop data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" : "is-tela",
           largo && "mk-ll-dlg--largo",
           amplo && "mk-ll-dlg--amplo",
         )}
       >
         <div className="mk-ll-dlg__head">
-          {!desktop ? (
+          {voltar ? (
+            // ‹ Voltar: no popup antes do título (o ✕ fica à direita); na tela cheia no lugar do ✕.
+            <button type="button" className="mk-ll-dlg__redondo mk-ll-dlg__voltar" onClick={voltar} aria-label="Voltar" title="Voltar">
+              <ChevronLeft aria-hidden />
+            </button>
+          ) : !popup ? (
             <button type="button" className="mk-ll-dlg__redondo" onClick={fechar} aria-label={somenteLeitura ? "Fechar" : "Cancelar"} title={somenteLeitura ? "Fechar" : "Cancelar"} disabled={acao?.cancelarDesabilitado}>
               <X aria-hidden />
             </button>
           ) : null}
           <div className="mk-ll-dlg__txt">
             <DialogPrimitive.Title className="mk-ll-dlg__titulo">{tituloVisivel}</DialogPrimitive.Title>
-            <DialogPrimitive.Description className={nomes ? "mk-ll-dlg__lotes" : "sr-only"}>{nomes || tituloVisivel}</DialogPrimitive.Description>
+            <DialogPrimitive.Description className={descricao ? "mk-ll-dlg__lotes" : "sr-only"}>{descricao || tituloVisivel}</DialogPrimitive.Description>
           </div>
           {somenteLeitura ? (
-            desktop ? (
+            popup ? (
               <div className="mk-ll-dlg__acoes cadastro-b1">
                 <PillBtn tone="gray" className="mg-act-ic mg-act-cancelar" onClick={fechar} aria-label="Fechar" title="Fechar">
                   <X className="h-4 w-4" aria-hidden />
@@ -129,7 +159,7 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
             ) : (
               <div ref={setSlotDireito} className="mk-ll-dlg__slot" />
             )
-          ) : desktop ? (
+          ) : popup ? (
             <div className="mk-ll-dlg__acoes cadastro-b1">
               <PillBtn tone="gray" className="mg-act-ic mg-act-cancelar" onClick={fechar} disabled={acao?.cancelarDesabilitado} aria-label="Cancelar" title="Cancelar">
                 <X className="h-4 w-4" aria-hidden />

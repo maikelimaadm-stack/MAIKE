@@ -3,15 +3,25 @@
  * D-PROD-120 — Detalhes do Lote sem "Alertas do lote", nomes de área/lote na
  * cor dos botões (verde), e o deslizar da borda esquerda fecha a janela de cima
  * no celular (lançamentos, históricos, detalhes e folhas).
+ * D-PROD-V12 — os cartões v8 (aba Tudo) saíram; o botão "Manejos" foi para o
+ * rodapé da casca; o popup (desktop e, no Detalhes, tablet) fecha só pelo ✕.
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, cleanup, screen, fireEvent } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent, act } from "@testing-library/react";
 import { Scale } from "lucide-react";
 import AcoesDoLote from "@/components/mapa/AcoesDoLote";
+import PainelPasto from "@/components/mapa/detalhes-lote/PainelPasto";
+import { montarModeloDetalhes } from "@/components/mapa/detalhes-lote/catalogo";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { readFileSync } from "node:fs";
 import { useDeslizarParaFechar } from "@/hooks/useDeslizarParaVoltar";
+
+// O conteúdo da aba Lotes é de outra peça (LOTES); aqui só a casca importa.
+vi.mock("@/components/mapa/detalhes-lote/AbaLotes", async () => {
+  const { createElement } = await import("react");
+  return { default: () => createElement("div", { "data-testid": "aba-lotes" }) };
+});
 
 afterEach(() => {
   cleanup();
@@ -20,10 +30,8 @@ afterEach(() => {
 });
 
 const detalhes = readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8");
-const area = readFileSync("src/components/mapa/InformacoesArea.jsx", "utf8");
 const css = readFileSync("src/styles/lancamento-lote.css", "utf8");
-// UI-DETALHES-LOTE-V8: o cartão do lote (aba Tudo) e as pílulas de título saíram do DetalhesLote.
-const cartoesTudo = readFileSync("src/components/mapa/detalhes-lote/CartoesLoteTudo.jsx", "utf8");
+// As pílulas de título (pecas.jsx) seguem no Resumo do Rebanho (D-PROD-213).
 const pecas = readFileSync("src/components/mapa/detalhes-lote/pecas.jsx", "utf8");
 
 describe("Detalhes do Lote: visual (D-PROD-120)", () => {
@@ -32,12 +40,10 @@ describe("Detalhes do Lote: visual (D-PROD-120)", () => {
   });
 
   it("nomes de área e lote em texto simples, sem o amarelo", () => {
-    // UI-DETALHES-LOTE-V8: nome do lote e título da área em pílula de título (texto #374151, 700), sem amarelo.
-    expect(cartoesTudo).toMatch(/<PilulaTitulo>\{`Lote: \$\{lote\.nome\}`\}<\/PilulaTitulo>/);
-    // D-PROD-144: o nome da área sai do cartão e do lote; vai no cabeçalho do diálogo.
-    for (const f of [detalhes, area, cartoesTudo]) expect(f).not.toMatch(/mk-dl__area-nome/);
-    expect(area).toMatch(/<PilulaTitulo>Informações da Área<\/PilulaTitulo>/);
-    for (const f of [detalhes, area, cartoesTudo, pecas]) expect(f).not.toMatch(/yellow|amber/);
+    // D-PROD-144: o nome da área vai no cabeçalho do diálogo (D-PROD-V12: título = pasto).
+    expect(detalhes).not.toMatch(/mk-dl__area-nome/);
+    for (const f of [detalhes, pecas]) expect(f).not.toMatch(/yellow|amber/);
+    // UI-DETALHES-LOTE-V8: pílula de título (texto #374151, 700), ainda usada pelo Resumo do Rebanho.
     expect(pecas).toMatch(/export function PilulaTitulo[\s\S]*?color: COR\.texto,[\s\S]*?fontWeight: 700,/);
     expect(pecas).toMatch(/texto: "#374151"/);
   });
@@ -70,10 +76,11 @@ describe("Campos numa linha só, texto corre se não couber (D-PROD-124)", () =>
 });
 
 describe("Ajustes D-PROD-125", () => {
-  it("desktop fecha só pelo ✕ (sem clique fora nem Esc)", () => {
+  it("popup fecha só pelo ✕ (sem clique fora nem Esc); D-PROD-V12: Esc numa tela empilhada volta um nível", () => {
     const ui = readFileSync("src/components/lotes/LancamentoLoteUi.jsx", "utf8");
-    expect(ui).toMatch(/onInteractOutside=\{desktop \? \(e\) => e\.preventDefault\(\) : undefined\}/);
-    expect(ui).toMatch(/onEscapeKeyDown=\{desktop \? \(e\) => e\.preventDefault\(\) : undefined\}/);
+    expect(ui).toMatch(/onInteractOutside=\{popup \? \(e\) => e\.preventDefault\(\) : undefined\}/);
+    expect(ui).toMatch(/onEscapeKeyDown=\{\(e\) => \{\s*if \(voltar\) \{\s*e\.preventDefault\(\);\s*voltar\(\);\s*\} else if \(popup\) e\.preventDefault\(\);\s*\}\}/);
+    // O comportamento (popup no desktop e no tablet, Esc) é provado em detalhesLoteV12Casca.test.jsx.
   });
 
   it("sub-ícone maior sem aumentar a linha; cabeçalho cinza e ✕ branco", () => {
@@ -90,19 +97,31 @@ describe("Ajustes D-PROD-125", () => {
   });
 });
 
-describe("Celular: botão de manejos no alto, à direita do título (D-PROD-120)", () => {
-  it("fica no cabeçalho do diálogo (espelho do ✕) e abre a folha", () => {
+describe("Celular: botão de manejos no rodapé (D-PROD-120 → D-PROD-V12)", () => {
+  it("\"Manejos\" fica no rodapé da casca (não no cabeçalho) e empilha a tela dos quadros, com ‹ no lugar do ✕", async () => {
     window.matchMedia = /** @type {any} */ ((q) => ({ matches: /max-width/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
     const pesar = vi.fn();
+    const modelo = montarModeloDetalhes({
+      area: { id: "a1", nome: "Pasto 07" },
+      lotes: [{ id: "p1", nome: "L-1", categoria: "BOI", quantidade_cabecas: 10, area_atual_id: "a1", __posicao: true }],
+    });
     render(
-      <LancLoteDialogo open onOpenChange={() => {}} titulo="Detalhes do Lote" largo somenteLeitura>
-        <AcoesDoLote grupos={[{ titulo: "Manejos", itens: [{ nome: "Pesar", Icone: Scale, onClick: pesar }] }]} />
+      <LancLoteDialogo open onOpenChange={() => {}} titulo="Pasto 07" lotes={[{ nome: "Retiro" }]} largo somenteLeitura popupDesde="tablet">
+        <PainelPasto
+          modelo={modelo}
+          permissoes={{ mover: true, pesar: true, historico: true, supl: true, detalhesCocho: true, lancarSupl: true, historicoCocho: true }}
+          dados={{ areaNome: "Pasto 07", setorNome: "Retiro" }}
+          manejos={<AcoesDoLote grupos={[{ titulo: "Manejos", itens: [{ nome: "Pesar", Icone: Scale, onClick: pesar }] }]} />}
+        />
       </LancLoteDialogo>,
     );
-    const botao = screen.getByRole("button", { name: "Manejos e históricos" });
-    expect(botao.closest(".mk-ll-dlg__head")).not.toBeNull();
-    expect(botao.parentElement?.className).toBe("mk-ll-dlg__slot");
-    fireEvent.click(botao);
+    expect(document.querySelector(".mk-ll-dlg")?.classList.contains("is-tela")).toBe(true);
+    const botao = screen.getByRole("button", { name: "Manejos" });
+    expect(botao.closest(".mk-ll-dlg__head")).toBeNull();
+    expect(botao.closest(".mk-dp__rodape")).not.toBeNull();
+    await act(async () => { fireEvent.click(botao); });
+    expect(screen.queryByRole("button", { name: "Fechar" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Voltar" }).closest(".mk-ll-dlg__head")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Pesar" }));
     expect(pesar).toHaveBeenCalledTimes(1);
   });

@@ -27,7 +27,10 @@ const arquivosDe = (dir) =>
     .filter((f) => f.endsWith('.jsx') || f.endsWith('.js'))
     .map((f) => `${dir}/${f}`);
 
-/** Os 23 caminhos do inventário da missão. */
+/**
+ * Os 23 caminhos do inventário da missão. `ResumoSuplementacao.jsx` saiu do
+ * produto na D-PROD-V12 (a aba Suplementação do Detalhes do Lote v12 o substitui).
+ */
 const INVENTARIO = [
   'src/Layout.jsx',
   'src/lib/AuthContext.jsx',
@@ -48,7 +51,6 @@ const INVENTARIO = [
   'src/components/suplementacao/HistoricoDepositoSuplementacao.jsx',
   'src/components/suplementacao/HistoricoSuplementacaoLote.jsx',
   'src/components/suplementacao/HistoricoSuplementacaoPonto.jsx',
-  'src/components/suplementacao/ResumoSuplementacao.jsx',
   'src/components/suplementacao/estoqueSuplementacaoUtils.jsx',
   'src/components/utils/consumoUtils.jsx',
 ];
