@@ -58,7 +58,7 @@ export default function FormularioMedicaoForragem({ area, cultura = null, hoje, 
     }),
     [form.quadro_m2, form.peso_verde_g, form.peso_seco_g, form.materia_seca_pct],
   );
-  const toneladas = toneladasNoPasto(contas.massa_seca_kg_ha, area?.tamanho_hectares);
+  const toneladas = toneladasNoPasto(contas.massa_seca_kg_ha, Number(area?.tamanho_hectares));
 
   const enviar = async (e) => {
     e?.preventDefault?.();
