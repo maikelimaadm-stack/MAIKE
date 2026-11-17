@@ -13,7 +13,7 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
 
@@ -79,7 +79,8 @@ describe("Histórico do cocho no desenho do manejo (D-PROD-222)", () => {
   it("título com a contagem no cabeçalho do diálogo, o cocho no subtítulo, sem cartão nem título por dentro", async () => {
     noDialogo("Histórico de Suplementação", "Cocho 07", <HistoricoSuplementacaoPonto pontoId="cocho-1" pontoNome="Cocho 07" ponto={{ id: "cocho-1" }} />);
     await screen.findAllByText("SAL MINERAL 80");
-    expect(titulo()).toBe("Histórico do Cocho (2)");
+    // O título com a contagem chega um passo depois da lista (efeito do useTituloDoHistorico): espera por ele.
+    await waitFor(() => expect(titulo()).toBe("Histórico do Cocho (2)"));
     expect(subtitulo()).toBe("Cocho 07");
     // Um título só (o do cabeçalho): nada de "Histórico do Cocho (2)" dentro do corpo.
     expect(screen.getAllByText("Histórico do Cocho (2)")).toHaveLength(1);
@@ -111,7 +112,8 @@ describe("Histórico do depósito no desenho do manejo (D-PROD-222)", () => {
   it("título com a contagem no cabeçalho, o depósito no subtítulo e o cartão do manejo com os dados de antes", async () => {
     noDialogo("Histórico do Depósito", "Depósito Sede", <HistoricoDepositoSuplementacao deposito={{ id: "dep-1", local_estoque_id: "local-1" }} />);
     await screen.findByText("SAL MINERAL 80");
-    expect(titulo()).toBe("Histórico do Depósito (1)");
+    // O título com a contagem chega um passo depois da lista (efeito do useTituloDoHistorico): espera por ele.
+    await waitFor(() => expect(titulo()).toBe("Histórico do Depósito (1)"));
     expect(subtitulo()).toBe("Depósito Sede");
     expect(screen.getAllByText("Histórico do Depósito (1)")).toHaveLength(1);
     const [cartao] = cartoes();
@@ -148,7 +150,7 @@ describe("Histórico da tarefa no desenho do manejo (D-PROD-222)", () => {
 
   it("título com a contagem no cabeçalho; cartões do manejo; o \"Excluir\" do manejo no rodapé, só o mais recente ligado", async () => {
     noDialogo("Histórico da tarefa", "Consertar cerca", <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={HISTORICO} />);
-    expect(titulo()).toBe("Histórico da Tarefa (2)");
+    await waitFor(() => expect(titulo()).toBe("Histórico da Tarefa (2)"));
     expect(subtitulo()).toBe("Consertar cerca");
     const [recente, antigo] = cartoes();
     expect([...recente.querySelectorAll(".flex-wrap > *")].map((s) => s.textContent)).toEqual(["12/11/2026", "Em andamento"]);
