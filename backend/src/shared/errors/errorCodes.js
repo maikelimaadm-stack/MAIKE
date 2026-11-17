@@ -400,6 +400,9 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   // D-PROD-219 — Medição de Forragem (tabela MEDICAOFORRAGEM).
   MEDICAO_FORRAGEM_NOT_FOUND: { http: 404, meaning: 'id não identifica medição de forragem deste tenant' },
+  // D-PROD-230 — Assistente só de leitura.
+  ASSISTENTE_NAO_CONFIGURADO: { http: 503, meaning: 'assistente sem chave da API da Anthropic neste servidor (ANTHROPIC_API_KEY)' },
+  ASSISTENTE_INDISPONIVEL: { http: 503, meaning: 'a API do assistente não respondeu; tentar de novo' },
   // D-PROD-205 — Leitura de cocho (tabela LEITURACOCHO).
   LEITURA_COCHO_NOT_FOUND: { http: 404, meaning: 'id não identifica leitura de cocho deste tenant' },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
