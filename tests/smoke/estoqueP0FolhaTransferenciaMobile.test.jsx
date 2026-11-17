@@ -196,14 +196,15 @@ describe('D-PROD-161 — Saída do Depósito no celular: folha "Local de Destino
     expect(document.activeElement).toBe(campo);
   });
 
-  it('FT5 — no celular o diálogo da transferência abre em tela cheia, sem transform (a folha ocupa a tela)', async () => {
+  it('FT5 — no celular o diálogo da transferência abre em tela cheia, sem transform (regra .mk-ll-dlg.is-tela; a folha ocupa o diálogo)', async () => {
     const { dialogo } = await montar();
     // D-PROD-222: LancLoteDialogo em tela cheia (`is-tela`), não o popup do desktop.
     expect(dialogo.classList.contains('mk-ll-dlg')).toBe(true);
     expect(dialogo.classList.contains('is-tela')).toBe(true);
     expect(dialogo.classList.contains('is-desktop')).toBe(false);
-    // O jsdom não aplica o CSS: a prova é a regra da tela cheia — ocupa a tela e tira o transform
-    // (sem ele o diálogo não é bloco de contenção da folha `position: fixed`).
+    // O jsdom não aplica o CSS: a prova é a regra da tela cheia — ocupa a tela (inset 0) e tira o transform
+    // do popup. A folha `position: fixed` continua contida no diálogo pelo vidro do .mk-ll-dlg (backdrop-filter
+    // e borda de 1 px) e ocupa o diálogo — a tela menos a borda; a medida real está no roteiro E2E de dev.
     const css = readFileSync('src/styles/lancamento-lote.css', 'utf8');
     const regra = css.match(/\.mk-ll-dlg\.is-tela:not\(#mk-padrao\) \{([^}]*)\}/)?.[1] ?? '';
     expect(regra).toMatch(/(^|\s)inset: 0;/);

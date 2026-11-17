@@ -36,6 +36,12 @@ const LancLoteCtx = React.createContext(null);
 /** Dentro de um `LancLoteDialogo`? Devolve o contexto (ou `null`). */
 export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
 
+/** Controles que recebem foco (para devolver o foco ao diálogo de cima). */
+const FOCAVEIS = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])';
+
+/** Escondido por um diálogo aberto por cima (o Radix marca o resto da página com `aria-hidden`). */
+const escondido = (/** @type {Element} */ el) => Boolean(el.closest('[aria-hidden="true"], [inert]'));
+
 /**
  * Abertura do lançamento — igual ao cadastro rápido (ex.: "Novo setor" no
  * Cadastro de Lotes, D-PROD-106):
@@ -151,14 +157,24 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
               }
             : undefined
         }
-        // Ao fechar, o foco volta a quem o tinha quando o diálogo abriu (se ainda estiver na tela).
+        // Ao fechar, o foco volta a quem o tinha quando o diálogo abriu (se ainda estiver na tela). Se esse alguém
+        // ficou por baixo de outro diálogo aberto (escondido por ele: ex. a pílula, quando este diálogo abriu junto
+        // com o de baixo), o foco vai para o diálogo de cima, no primeiro controle, como ao abrir (D-PROD-222).
         onCloseAutoFocus={(e) => {
           const alvo = focoAnterior.current;
           focoAnterior.current = null;
-          if (alvo && alvo.isConnected) {
-            e.preventDefault();
+          if (!alvo || !alvo.isConnected) return;
+          e.preventDefault();
+          if (!escondido(alvo)) {
             alvo.focus();
+            return;
           }
+          const ativo = document.activeElement;
+          if (ativo instanceof HTMLElement && ativo !== document.body && ativo.isConnected && !escondido(ativo)) return;
+          const topo = Array.from(document.querySelectorAll('[role="dialog"]')).filter((d) => d instanceof HTMLElement && !escondido(d)).at(-1);
+          if (!(topo instanceof HTMLElement)) return;
+          const controle = topo.querySelector(FOCAVEIS);
+          (controle instanceof HTMLElement ? controle : topo).focus();
         }}
         // Popup: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
         onInteractOutside={popup ? (e) => e.preventDefault() : undefined}

@@ -13,7 +13,7 @@
  * do cabeçalho), com os mesmos campos, padrões, envio, mensagens e
  * invalidações; o histórico completo nos cartões do manejo (`CartaoHistorico`),
  * na ordem do servidor, com o "Excluir" e todas as regras de antes. Fora do
- * diálogo: a tela Bebedouros (barra do registro) fica sem o cabeçalho próprio,
+ * diálogo: a tela Bebedouros (que passa `semCabecalho`) fica sem o cabeçalho próprio,
  * e os diálogos abrem por cima dela também.
  */
 import React from "react";
@@ -813,7 +813,7 @@ describe("Fora do diálogo", () => {
     expect(servico.criados).toEqual([]);
   });
 
-  it("sem a barra do registro: cabeçalho próprio com o nome; o Histórico abre por cima (tela cheia no celular) e o ✕ devolve o detalhe", async () => {
+  it("sem semCabecalho (padrão): cabeçalho próprio com o nome; o Histórico abre por cima (tela cheia no celular) e o ✕ devolve o detalhe", async () => {
     largura(390);
     render(
       <QueryClientProvider client={novoCliente()}>

@@ -103,11 +103,11 @@ Estas mudanças vêm do padrão dos manejos (D-PROD-115/125):
   - `FormularioLancamentoSuplementacao`, `FormularioTransferenciaDeposito` e `FormularioLancamentoBebedouro`;
   - os detalhes que os abrem: `DetalhesPontoSuplementacao`, `AcoesCochoPasto`, `DetalhesDepositoSuplementacao` e `DetalhesBebedouro`.
 - **Peças comuns:**
-  - `LancamentoLoteUi` (o Esc com a folha aberta; o foco ao abrir e ao fechar; `focoInicial`; saiu o `escVolta`);
+  - `LancamentoLoteUi` (o Esc com a folha aberta; o foco ao abrir e ao fechar, com o diálogo de cima quando quem tinha o foco ficou escondido; `focoInicial`; saiu o `escVolta`);
   - `B1Select` (↑ ↓ Enter repassados ao painel aberto);
   - `CartaoHistorico` (`EstadoHistorico` com o motivo e o "Tentar novamente"; sem as props que ninguém usava);
   - `FarolConsumo` (`desenho` "linhas" e "kpis" do resumo do fechamento);
-  - `CascaDetalhe` (saiu o `escVolta`), `LinhaDoTempo` (saiu o ramo das ações, sem uso) e `src/Layout.jsx` (só comentários).
+  - `CascaDetalhe` (saiu o `escVolta`), `LinhaDoTempo` (saiu o ramo das ações, sem uso), `LancField` e `src/Layout.jsx` (só comentários).
 - **Sobra do ciclo anterior:** `SobraHerdadaDialog` (agora `LancLoteDialogo`).
 - **Detalhe da tarefa:** `DetalhesTarefaMapa` passa carregando, erro e o "Tentar novamente" ao histórico.
 - **Tela Bebedouros:** `src/pages/Bebedouros.jsx` passa `semCabecalho` ao detalhe; saiu a barra do registro, que ficou sempre vazia.
@@ -182,9 +182,22 @@ Os verificadores conferiram os achados contra o HEAD: os corrigidos durante a re
 - Cocho: quantidade, sacos e sobra digitados com ponto ("10.5") também passam pelo `parseNumber` pt-BR.
 - Bebedouro: o "Excluir" desligado explica a regra só no `title`, que o teclado e o leitor de tela não alcançam.
 
-### 7.2 Suíte inteira e gates (estado final)
+### 7.2 Revisão da limpeza (commit 2124d68)
 
-- `test:smoke`: 283 arquivos e 3.529 testes, todos passaram.
+Três revisores (remoções, testes e documentação) leram o commit da limpeza, e cada achado passou por um verificador que tentou refutá-lo. Foram 6 achados: 5 confirmados e corrigidos, 1 refutado.
+
+| Achado confirmado | Correção |
+|---|---|
+| Cocho: com o último lançamento já em cache, a confirmação da sobra abre junto com o lançamento. Decidida a sobra, o foco voltava à pílula "Lançar", escondida por baixo do lançamento: o efeito que devia levá-lo ao lançamento perdia a corrida com a devolução do foco do Radix. Nenhum teste cobria esse caminho | No `LancLoteDialogo`: se quem tinha o foco ficou escondido por outro diálogo aberto, o foco vai para o diálogo de cima, no primeiro controle. O efeito do formulário saiu. Teste novo, LM-9b, com o cache quente; duas mutações pegas |
+| FT5: o nome e o comentário ainda diziam que a folha ocupa a tela, contra o cabeçalho corrigido (ela ocupa o diálogo) | Texto corrigido, também no roteiro E2E de dev |
+| `detalhesV12Bebedouro`: o cabeçalho e um teste ainda falavam da "barra do registro", que saiu | Texto corrigido |
+| §4 sem o `LancField`, que a limpeza tocou (comentário) | Acrescentado |
+
+Refutado: a frase "props do cartão" para as props da `MolduraHistorico` e do `EstadoHistorico`. Os dois são parte do módulo do cartão (`CartaoHistorico.jsx`), como o §2.1 o descreve.
+
+### 7.3 Suíte inteira e gates (estado final)
+
+- `test:smoke`: 283 arquivos e 3.530 testes, todos passaram.
 - `gate:types`: 374 diagnósticos contra o teto de 625.
 - `gate:source-closure`, `gate:import-integrity`, `gate:product-scope`, `gate:base44`, `gate:no-secrets` e `gate:governance-paths`: passaram.
 - Lint dos arquivos tocados: sem erros.

@@ -99,7 +99,7 @@ const montar = async () => {
       <AcoesCochoPasto ponto={estado.ponto} nivel={null} hoje="2026-11-15" podeLancar podeHistorico={false} />
     </QueryClientProvider>,
   );
-  return { invalidar };
+  return { invalidar, qc };
 };
 /** Toca em "Lançar" e espera o formulário com o rebanho carregado. */
 const abrirLancar = async () => {
@@ -399,6 +399,28 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     // O aviso aponta para o ✓ do cabeçalho (o "Salvar novo ciclo" não é mais um botão com texto).
     expect(toast.info).toHaveBeenCalledWith("Sobra de 30.00 kg aplicada como saldo inicial. Para registrar, confirme no ✓ (Salvar novo ciclo).");
     // O foco volta ao lançamento, no ✕, como ao abrir (o diálogo da sobra devolve o foco a quem o tinha).
+    await waitFor(() => expect(dialogo.contains(document.activeElement)).toBe(true));
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancelar");
+  });
+
+  it("LM-9b — com o último lançamento já em cache, a confirmação abre junto com o lançamento; decidida a sobra, o foco fica no lançamento, não na pílula escondida por baixo", async () => {
+    largura(1280);
+    estado.ultimoEvento = { id: "ev-0", data_lancamento: "2026-10-20", quantidade_total_kg: 100, sobra_kg: 30, dias_periodo: 5 };
+    const { qc } = await montar();
+    // Cache quente (ex.: o Lançar reaberto dentro do gcTime): a sobra abre no mesmo render do lançamento,
+    // e quem tinha o foco era a pílula — que fica por baixo, escondida pelo diálogo do lançamento.
+    qc.setQueryData(["ultimo-evento-ponto", "emp-1", "p1"], estado.ultimoEvento);
+    const pilula = screen.getByRole("button", { name: "Lançar" });
+    pilula.focus();
+    await act(async () => { fireEvent.click(pilula); });
+    const confirmacao = await screen.findByRole("dialog", { name: "Sobra do ciclo anterior" });
+    await waitFor(() => expect(confirmacao.contains(document.activeElement)).toBe(true));
+    await act(async () => { fireEvent.click(within(confirmacao).getByRole("button", { name: /Usar essa sobra no novo ciclo/ })); });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sobra do ciclo anterior" })).toBeNull());
+    const dialogo = await screen.findByRole("dialog", { name: "Lançar Suplementação" });
+    await assentar();
+    // O foco não volta à pílula escondida: fica no lançamento, no ✕, como ao abrir.
+    expect(document.activeElement).not.toBe(pilula);
     await waitFor(() => expect(dialogo.contains(document.activeElement)).toBe(true));
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancelar");
   });

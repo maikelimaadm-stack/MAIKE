@@ -282,22 +282,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     setSobraHerdadaDecidida(true);
   };
 
-  // D-PROD-222: decidida a sobra, o foco tem de estar no lançamento. O `LancLoteDialogo` da sobra devolve o
-  // foco a quem o tinha quando ela abriu; se ela abriu junto com o lançamento (dados já em cache), esse alguém
-  // é a pílula que abriu o lançamento, por baixo dele. Por isso, se o foco não estiver dentro do diálogo do
-  // lançamento, ele vai ao primeiro controle (onde o `LancLoteDialogo` o põe ao abrir). Fora de um diálogo,
-  // nada muda.
-  const formRef = useRef(/** @type {HTMLFormElement | null} */ (null));
-  useEffect(() => {
-    if (!sobraHerdadaDecidida) return undefined;
-    const t = setTimeout(() => {
-      const dialogo = /** @type {HTMLElement | null} */ (formRef.current?.closest('[role="dialog"]') ?? null);
-      if (!dialogo || dialogo.contains(document.activeElement)) return;
-      const alvo = /** @type {HTMLElement | null} */ (dialogo.querySelector('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'));
-      (alvo ?? dialogo).focus();
-    }, 0);
-    return () => clearTimeout(t);
-  }, [sobraHerdadaDecidida]);
+  // D-PROD-222: decidida a sobra, o foco volta ao lançamento pelo `LancLoteDialogo` da sobra: ao ✕ do
+  // lançamento (quem tinha o foco quando ela abriu) ou, se ela abriu junto com ele (dados já em cache), ao
+  // primeiro controle do lançamento — a pílula que o abriu fica escondida por baixo.
 
   // === CÁLCULOS ===
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
@@ -721,7 +708,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         onCancel={onCancel}
       />
       {/* `noValidate`: quem valida é o `handleSalvar` (as mensagens de sempre), não o navegador. */}
-      <LancLoteForm ref={formRef} onSubmit={naoGravaPeloEnter} noValidate data-testid="form-lancamento-suplementacao">
+      <LancLoteForm onSubmit={naoGravaPeloEnter} noValidate data-testid="form-lancamento-suplementacao">
         {/* Progresso do salvamento (antes um diálogo por cima): fica no topo enquanto salva. */}
         {salvando ? (
           <div className="sticky top-0 z-10">

@@ -719,7 +719,7 @@ const executarLargura = async (browser, largura) => {
       const campoLocal = dlg.locator('input[placeholder="BUSCAR LOCAL..."]').first();
       const opcaoDestino = page.getByRole('option', { name: new RegExp(s.localB.nome) }).filter({ visible: true }).first();
       const vp = page.viewportSize();
-      // O diálogo continua centralizado (no celular sem transform, para a folha ocupar a tela).
+      // O diálogo continua centralizado (no celular, tela cheia sem transform; a folha ocupa o diálogo).
       const caixa = await dlg.boundingBox();
       anotar(rotulo, 'dialogo_transferencia', { x: Math.round(caixa.x), y: Math.round(caixa.y), w: Math.round(caixa.width), h: Math.round(caixa.height), vw: vp.width, vh: vp.height });
       conferir(Math.abs(caixa.x + caixa.width / 2 - vp.width / 2) <= 2 && Math.abs(caixa.y + caixa.height / 2 - vp.height / 2) <= 2, `[${rotulo}] diálogo da transferência fora do centro: ${JSON.stringify(caixa)}`);
