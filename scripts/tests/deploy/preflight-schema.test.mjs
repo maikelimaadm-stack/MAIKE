@@ -66,6 +66,8 @@ const COLUNAS_OK = [
   { table_name: 'CADCULTURAS', column_name: 'altura_entrada_cm' },
   // D-PROD-216: a Área ligada à Cultura.
   { table_name: 'AreaPastagem', column_name: 'cultura_id' },
+  // D-PROD-219: a Medição de Forragem (tabela nova).
+  { table_name: 'MEDICAOFORRAGEM', column_name: 'massa_seca_kg_ha' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -105,6 +107,7 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /LEITURACOCHO\.escore/);
   assert.match(r.falhas.join('\n'), /CADCULTURAS\.altura_entrada_cm/);
   assert.match(r.falhas.join('\n'), /AreaPastagem\.cultura_id/);
+  assert.match(r.falhas.join('\n'), /MEDICAOFORRAGEM\.massa_seca_kg_ha/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 
