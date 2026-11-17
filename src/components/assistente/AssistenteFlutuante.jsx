@@ -8,13 +8,22 @@
  * lateral à direita.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Send, X, Loader2 } from 'lucide-react';
-import { perguntarAssistente } from '@/services/assistenteService';
+import { MessageCircle, Send, X, Loader2, Square } from 'lucide-react';
+import { perguntarAssistenteAoVivo } from '@/services/assistenteService';
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import TextoAssistente from '@/components/assistente/TextoAssistente';
 
 /** Quantas falas anteriores vão como contexto (o servidor aceita até 10). */
 export const MAX_HISTORICO = 10;
+
+/** O que mostrar enquanto cada consulta roda. */
+const STATUS_FERRAMENTA = {
+  listar_pastos: 'Consultando os pastos…',
+  medicoes_do_pasto: 'Consultando as medições do pasto…',
+  rebanho_por_pasto: 'Consultando o rebanho por pasto…',
+  resumo_rebanho: 'Consultando o rebanho…',
+  leituras_cocho_recentes: 'Consultando as leituras de cocho…',
+};
 
 const SUGESTOES = ['Quais pastos estão prontos?', 'Quantas cabeças tenho hoje?', 'Quais pastos estão sem medição recente?'];
 
@@ -26,6 +35,10 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
   const [falas, setFalas] = useState(/** @type {Array<{papel: 'usuario'|'assistente', texto: string, erro?: boolean}>} */ ([]));
   const [texto, setTexto] = useState('');
   const [carregando, setCarregando] = useState(false);
+  // Resposta em andamento (texto que já chegou) e a consulta que está rodando.
+  const [parcial, setParcial] = useState('');
+  const [status, setStatus] = useState('');
+  const cancelarRef = useRef(/** @type {AbortController|null} */ (null));
   const fimRef = useRef(/** @type {HTMLDivElement|null} */ (null));
 
   // A conversa é de UMA fazenda: trocar a fazenda no topo começa outra, e uma resposta
@@ -33,13 +46,17 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
   const empresaAtualRef = useRef(empresaId);
   useEffect(() => {
     empresaAtualRef.current = empresaId;
+    cancelarRef.current?.abort();
+    cancelarRef.current = null;
     setFalas([]);
+    setParcial('');
+    setStatus('');
     setCarregando(false);
   }, [empresaId]);
 
   useEffect(() => {
     fimRef.current?.scrollIntoView?.({ block: 'end' });
-  }, [falas, carregando, aberto]);
+  }, [falas, carregando, aberto, parcial, status]);
 
   const enviar = async (pergunta) => {
     const p = String(pergunta ?? '').trim();
@@ -53,17 +70,50 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
     setFalas((f) => [...f, { papel: 'usuario', texto: p }]);
     setTexto('');
     setCarregando(true);
+    setParcial('');
+    setStatus('Pensando…');
     const empresaDaPergunta = empresaId;
     const aindaMesmaFazenda = () => empresaAtualRef.current === empresaDaPergunta;
+    const cancelar = new AbortController();
+    cancelarRef.current = cancelar;
+    let juntou = '';
     try {
-      const r = await perguntarAssistente({ empresa_id: empresaId, pergunta: p.slice(0, 1000), tela, historico });
+      const r = await perguntarAssistenteAoVivo(
+        { empresa_id: empresaId, pergunta: p.slice(0, 1000), tela, historico },
+        {
+          signal: cancelar.signal,
+          aoTexto: (pedaco) => {
+            if (!aindaMesmaFazenda() || cancelar.signal.aborted) return;
+            juntou += pedaco;
+            setParcial(juntou);
+            setStatus('');
+          },
+          aoFerramenta: (nome) => {
+            if (!aindaMesmaFazenda() || cancelar.signal.aborted) return;
+            setStatus(STATUS_FERRAMENTA[nome] ?? 'Consultando os dados…');
+          },
+        },
+      );
       if (aindaMesmaFazenda()) setFalas((f) => [...f, { papel: 'assistente', texto: r?.resposta || 'Sem resposta.' }]);
     } catch (erro) {
-      if (aindaMesmaFazenda()) setFalas((f) => [...f, { papel: 'assistente', texto: getApiErrorMessage(erro, 'Não consegui consultar agora. Tente de novo.'), erro: true }]);
+      if (!aindaMesmaFazenda()) return;
+      if (cancelar.signal.aborted) {
+        // Parado por quem perguntou: fica o que já tinha chegado, marcado como interrompido.
+        setFalas((f) => [...f, { papel: 'assistente', texto: juntou ? `${juntou}\n\n(resposta interrompida)` : 'Resposta interrompida.', erro: !juntou }]);
+      } else {
+        setFalas((f) => [...f, { papel: 'assistente', texto: getApiErrorMessage(erro, 'Não consegui consultar agora. Tente de novo.'), erro: true }]);
+      }
     } finally {
-      if (aindaMesmaFazenda()) setCarregando(false);
+      if (aindaMesmaFazenda()) {
+        if (cancelarRef.current === cancelar) cancelarRef.current = null;
+        setParcial('');
+        setStatus('');
+        setCarregando(false);
+      }
     }
   };
+
+  const parar = () => cancelarRef.current?.abort();
 
   const baseBotao = comNavInferior ? 'bottom-[calc(78px+env(safe-area-inset-bottom))]' : 'bottom-5';
 
@@ -124,9 +174,21 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
                 </div>
               </div>
             ))}
-            {carregando ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500" data-testid="assistente-carregando">
-                <Loader2 size={16} className="animate-spin" aria-hidden /> Consultando os dados…
+            {carregando && parcial ? (
+              <div className="flex justify-start">
+                <div
+                  data-testid="assistente-fala-parcial"
+                  aria-live="polite"
+                  className="max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm"
+                  style={{ background: '#F1F5F9', color: '#0F172A' }}>
+                  <TextoAssistente texto={parcial} />
+                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm align-middle" style={{ background: '#16A34A' }} aria-hidden />
+                </div>
+              </div>
+            ) : null}
+            {carregando && !parcial ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500" data-testid="assistente-carregando" aria-live="polite">
+                <Loader2 size={16} className="animate-spin" aria-hidden /> <span data-testid="assistente-status">{status || 'Consultando os dados…'}</span>
               </div>
             ) : null}
             <div ref={fimRef} />
@@ -154,15 +216,26 @@ export default function AssistenteFlutuante({ empresaId, tela = null, comNavInfe
               placeholder="Escreva sua pergunta"
               className="min-h-[44px] flex-1 resize-none rounded-xl border px-3 py-2 text-base"
             />
-            <button
-              type="submit"
-              data-testid="assistente-enviar"
-              aria-label="Enviar"
-              disabled={carregando || !texto.trim()}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-white disabled:opacity-50"
-              style={{ background: '#16A34A' }}>
-              <Send size={18} aria-hidden />
-            </button>
+            {carregando ? (
+              <button
+                type="button"
+                data-testid="assistente-parar"
+                aria-label="Parar a resposta"
+                onClick={parar}
+                className="flex h-11 w-11 items-center justify-center rounded-full border text-slate-700 hover:bg-slate-50">
+                <Square size={16} aria-hidden />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                data-testid="assistente-enviar"
+                aria-label="Enviar"
+                disabled={!texto.trim()}
+                className="flex h-11 w-11 items-center justify-center rounded-full text-white disabled:opacity-50"
+                style={{ background: '#16A34A' }}>
+                <Send size={18} aria-hidden />
+              </button>
+            )}
           </form>
         </section>
       ) : null}
