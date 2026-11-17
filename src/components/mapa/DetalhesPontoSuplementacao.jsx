@@ -3,7 +3,7 @@ import { ClipboardCheck, History, Loader2, Package } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
-import { Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import { Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, SecaoDetalhe, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { listarTodosProdutos } from "@/services/estoqueMapaService";
 import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
@@ -56,8 +56,8 @@ import "@/styles/mk-dp-cocho.css";
  *
  * Cocho, na ordem do v12 (`telaCocho`): nível do ciclo (região "Nível do
  * cocho": bloco do nível + cartão do limite, saldo, duração e reposição),
- * "Leitura do cocho" (farol, avisos e as últimas leituras), "Último período
- * fechado", "Total fornecido por produto", "Último registro" (do MAIKE: o
+ * "Leitura do cocho" (farol, avisos e as últimas leituras), "Total fornecido
+ * por produto", "Último período fechado", "Último registro" (do MAIKE: o
  * v12 não tem) e "Informações do cocho". Os dados, as regras, as consultas, as
  * permissões e os formulários são os de antes (D-PROD-178, D-PROD-205,
  * D-PROD-206); só a apresentação mudou.
@@ -283,8 +283,8 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const projecaoCartao = projecaoDoCartaoDoNivel(nivel);
   const duracaoCicloDias = projecaoCartao.duracaoEstimada ?? null;
   const proximaReposicao = projecaoCartao.proximaReposicao ?? null;
-  // Os mesmos rótulos e valores do cartão do Histórico (`CardMetricaEvento`).
-  const metricasUltimo = metricasDoEvento({ evento: ultimoEvento, sacos: ultimoEventoSacos, showProjecao: true, ...projecaoCartao });
+  // Mesmos valores do Histórico; a projeção do ciclo aberto já está no nível.
+  const metricasUltimo = metricasDoEvento({ evento: ultimoEvento, sacos: ultimoEventoSacos, showProjecao: nivel.estado !== "ciclo_aberto", ...projecaoCartao });
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -344,22 +344,19 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
 
   return (
     <>
-      <CascaDetalhe {...casca} rodape={pilulas.length ? <RodapePilulas itens={pilulas} rotulo="Ações do cocho" /> : null}>
+      <CascaDetalhe {...casca} className="mk-dp-cocho mk-dp--suplementacao-organizada" rodape={pilulas.length ? <RodapePilulas itens={pilulas} rotulo="Ações do cocho" /> : null}>
         <section aria-labelledby={idNivel} className="mk-dp-cocho__regiao">
           <h3 id={idNivel} className="mk-dp-cocho__oculto">Nível do cocho</h3>
           <BlocoNivel nivel={nivel} />
           <CartaoDoNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} />
         </section>
 
-        <section aria-labelledby={idLeitura} className="mk-dp-cocho__regiao">
+        <section aria-labelledby={idLeitura} className="mk-dp-cocho__regiao mk-dp-secao mk-dp-cocho__leitura">
           <TituloBloco id={idLeitura}>Leitura do cocho</TituloBloco>
           <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={podeLancar} onExcluir={excluirLeitura} />
         </section>
 
-        <TituloBloco>Último período fechado</TituloBloco>
-        <CartaoPeriodoFechado evento={ultimoFechado} resumo={resumoUltimoFechado} />
-
-        <TituloBloco>Total fornecido por produto</TituloBloco>
+        <SecaoDetalhe titulo="Total fornecido por produto" className="mk-dp-cocho__produtos">
         <Cartao>
           {resumoProdutos.length === 0 ?
           <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum produto lançado ainda." /> :
@@ -371,7 +368,13 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           )}
         </Cartao>
 
-        <TituloBloco>Último registro</TituloBloco>
+        </SecaoDetalhe>
+
+        <SecaoDetalhe titulo="Último período fechado" className="mk-dp-cocho__fechamento">
+          <CartaoPeriodoFechado evento={ultimoFechado} resumo={resumoUltimoFechado} />
+        </SecaoDetalhe>
+
+        <SecaoDetalhe titulo="Último registro">
         {ultimoEvento && metricasUltimo ?
         <CartaoUltimoRegistro evento={ultimoEvento} dia={formatarDia(nivel.dataLancamento)} metricas={metricasUltimo} /> :
         <Cartao>
@@ -379,7 +382,9 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           </Cartao>
         }
 
-        <TituloBloco>Informações do cocho</TituloBloco>
+        </SecaoDetalhe>
+
+        <SecaoDetalhe titulo="Informações do cocho">
         <Cartao>
           <Grade>
             <Celula rotulo="Número" valor={ponto.numero_ponto || "-"} />
@@ -388,7 +393,6 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
             <Celula rotulo="Depósito vinculado" valor={ponto.deposito_origem_nome || "-"} />
             <Celula rotulo="Áreas vinculadas" valor={areaNomesRelacionadas.join(", ") || "-"} />
             <Celula rotulo="Produto padrão" valor={ponto.produto_padrao || "-"} />
-            <Celula rotulo="Limite operacional" valor={nivel.limiteOperacionalKg != null ? formatKg(nivel.limiteOperacionalKg) : "-"} />
             {ponto.metragem_cocho_m ? <Celula rotulo="Metragem" valor={`${formatDecimal(ponto.metragem_cocho_m)} m`} /> : null}
             {ponto.cobertura_cocho ? <Celula rotulo="Cobertura" valor={ponto.cobertura_cocho} /> : null}
             <Celula rotulo="Consumo ideal/cab" valor={ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : "-"} />
@@ -399,6 +403,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           </Grade>
           <Linha rotulo="Observações" valor={ponto.observacoes || "-"} quebra />
         </Cartao>
+        </SecaoDetalhe>
       </CascaDetalhe>
 
       {/* Lançar no desenho do lançamento de manejo (D-PROD-222): título = a ação, subtítulo = o cocho; o ✓ do cabeçalho envia. */}
@@ -467,7 +472,7 @@ function BlocoNivel({ nivel }) {
   /** @type {Array<string|null>} */
   const linhas = estimado ?
   [
-    `${formatarKgNivel(/** @type {number} */ (nivel.saldoKg))} de ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))}`,
+    `Base do ciclo: ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))}`,
     `Consumo estimado: ${formatarTaxaNivel(/** @type {number} */ (nivel.taxaConsumoKgDia))} (${nivel.evento?.base_consumo === "G_CAB_DIA" ? "g/cab/dia" : "%PV"} no lançamento)`,
     nivel.diasDecorridos != null && nivel.diasRestantesEstimados != null ?
     `Dias desde o abastecimento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)` :
@@ -536,8 +541,7 @@ function CartaoDoNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
         {nivel.saldoKg != null && nivel.saldoTipo ?
         <Celula
           rotulo={nivel.saldoTipo === "informado" ? "Sobra informada" : "Saldo estimado"}
-          valor={formatarKgNivel(nivel.saldoKg)}
-          sub={nivel.saldoTipo === "estimado" && nivel.taxaConsumoKgDia != null ? formatarTaxaNivel(nivel.taxaConsumoKgDia) : null} /> :
+          valor={formatarKgNivel(nivel.saldoKg)} /> :
         null}
         {duracaoCicloDias != null ? <Celula rotulo="Duração estimada" valor={`${formatarDias(duracaoCicloDias)} dia(s)`} /> : null}
         {proximaReposicao ? <Celula rotulo="Próxima reposição" valor={proximaReposicao} /> : null}
@@ -698,29 +702,30 @@ function CartaoPeriodoFechado({ evento, resumo }) {
  * "Último registro" (o v12 não tem; o MAIKE tem): o último lançamento com os
  * MESMOS rótulos e valores do cartão do Histórico (`metricasDoEvento`) —
  * fornecimento, dados do lote, consumo esperado, consumo real (fechado) e
- * projeção —, numa grade só, e as observações. O fechamento do consumo fica no
+ * projeção histórica —, agrupados por assunto, e as observações. A projeção
+ * do ciclo aberto aparece apenas no nível, sem repetir neste registro. O fechamento do consumo fica no
  * "Último período fechado".
  * @param {{ evento: any, dia: string, metricas: NonNullable<ReturnType<typeof metricasDoEvento>> }} props
  */
 function CartaoUltimoRegistro({ evento, dia, metricas }) {
   return (
     <Cartao icone={Package} titulo={evento.produto || "-"} sub={`Data: ${dia}`}>
-      <Grade>
-        {metricas.secoes.flatMap((secao) =>
-        secao.celulas.map((celula) =>
-        <Celula
-          key={`${secao.chave}-${celula.chave}`}
-          rotulo={celula.rotulo}
-          valor={celula.desvio ?
-          <>
-                  <DesvioConsumoTag real={celula.desvio.real} esperado={celula.desvio.esperado} />
-                  {celula.valor}
-                </> :
-          celula.valor} />
-
-        )
-        )}
-      </Grade>
+      <div className="mk-dp-cocho__metricas-registro">
+        {metricas.secoes.map((secao) => (
+          <section key={secao.chave} className="mk-dp-cocho__grupo-metricas" aria-label={secao.titulo}>
+            <h4>{secao.titulo}</h4>
+            <Grade>
+              {secao.celulas.map((celula) => (
+                <Celula
+                  key={celula.chave}
+                  rotulo={celula.rotulo}
+                  valor={celula.desvio ? <><DesvioConsumoTag real={celula.desvio.real} esperado={celula.desvio.esperado} />{celula.valor}</> : celula.valor}
+                />
+              ))}
+            </Grade>
+          </section>
+        ))}
+      </div>
       {evento.observacoes ? <Linha rotulo="Observações" valor={evento.observacoes} quebra /> : null}
     </Cartao>);
 

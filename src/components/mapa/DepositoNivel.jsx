@@ -52,7 +52,7 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
   const acimaDoLimite = Boolean(uso && nivel.excessoKg != null && nivel.excessoKg > 0);
 
   const linhas = uso && limite != null
-    ? [`${formatarKgNivel(nivel.saldoKg)} de ${formatarKgNivel(limite)} (limite operacional)`, `Necessidade de reposição: ${formatarKgNivel(nivel.necessidadeReposicaoKg)}`]
+    ? [`Limite operacional: ${formatarKgNivel(limite)}`]
     : [nivel.mensagemLimite || MENSAGENS_NIVEL.limiteNaoConfiguradoDeposito, MENSAGENS_NIVEL.orientacaoLimite];
 
   return (
@@ -69,7 +69,7 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
         rotulo={<span aria-hidden="true">{ROTULO_NIVEL}</span>}
         valor={
           uso ? (
-            <span className={acimaDoLimite ? "mk-dp-deposito__excesso" : undefined}>{nivel.rotuloCurto}</span>
+            <span aria-hidden="true" className={acimaDoLimite ? "mk-dp-deposito__excesso" : undefined}>{nivel.rotuloCurto}</span>
           ) : (
             // Ícone vazio sem limite não é "depósito vazio": o rótulo neutro diz o porquê (como o cocho).
             <span data-deposito-rotulo-neutro="" className="mk-dp-deposito__neutro">
@@ -88,6 +88,7 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
         <Grade>
           <MedidorLimiteOperacional
             estilo="v12"
+            mostrarValor={false}
             percentualBruto={uso ? nivel.ocupacaoPercentual : null}
             rotulo={ROTULO_OCUPACAO_LIMITE}
             descricao={uso ? uso.descricao : ""}

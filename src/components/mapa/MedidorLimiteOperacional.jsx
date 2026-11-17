@@ -25,14 +25,17 @@ import { formatarPercentualNivel } from "@/domain/suplementacao/nivelSuplementac
  *   variante?: 'normal'|'excesso'|'neutro',
  *   estilo?: 'padrao'|'v12',
  *   className?: string,
+ *   mostrarValor?: boolean,
  * }} props
  *   `variante` ausente: neutro sem valor, excesso acima de 100, normal no resto.
  *   `textoAcessivel` ausente: "75%: <descricao>".
  *   `estilo="v12"` (D-PROD-220): desenho de uma célula da `Grade` do Detalhes
  *   v12 (rótulo, número, descrição e barra teal; âmbar no excesso), com a mesma
  *   semântica (`role="meter"`, neutro sem meter). Vai dentro de uma `Grade`.
+ *   `mostrarValor=false` no v12 evita repetir o percentual visível do nível;
+ *   o medidor conserva o valor e o texto acessíveis.
  */
-export default function MedidorLimiteOperacional({ percentualBruto, rotulo, descricao = "", textoAcessivel, orientacao = null, variante, estilo = "padrao", className = "" }) {
+export default function MedidorLimiteOperacional({ percentualBruto, rotulo, descricao = "", textoAcessivel, orientacao = null, variante, estilo = "padrao", className = "", mostrarValor = true }) {
   const idRotulo = `${useId()}-rotulo`;
   const temValor = typeof percentualBruto === "number" && Number.isFinite(percentualBruto);
   const valor = temValor ? Math.max(0, /** @type {number} */ (percentualBruto)) : null;
@@ -42,6 +45,7 @@ export default function MedidorLimiteOperacional({ percentualBruto, rotulo, desc
   if (estilo === "v12") {
     return (
       <MedidorV12
+        mostrarValor={mostrarValor}
         idRotulo={idRotulo}
         valor={valor}
         tipo={tipo}
@@ -102,9 +106,9 @@ export default function MedidorLimiteOperacional({ percentualBruto, rotulo, desc
 /**
  * Célula v12 do medidor (D-PROD-220): `div.mk-dp-cel.mk-dp-medidor` com dt/dd,
  * como a `Celula` de blocos.jsx; o `role="meter"` é um span dentro do dd da barra.
- * @param {{ idRotulo: string, valor: number|null, tipo: string, textoValor: string, rotulo: string, descricao: string, textoAcessivel?: string, orientacao: string|null, className: string }} props
+ * @param {{ idRotulo: string, valor: number|null, tipo: string, textoValor: string, rotulo: string, descricao: string, textoAcessivel?: string, orientacao: string|null, className: string, mostrarValor: boolean }} props
  */
-function MedidorV12({ idRotulo, valor, tipo, textoValor, rotulo, descricao, textoAcessivel, orientacao, className }) {
+function MedidorV12({ idRotulo, valor, tipo, textoValor, rotulo, descricao, textoAcessivel, orientacao, className, mostrarValor }) {
   const classes = ["mk-dp-cel", "mk-dp-medidor", className].filter(Boolean).join(" ");
   if (valor == null) {
     return (
@@ -122,7 +126,7 @@ function MedidorV12({ idRotulo, valor, tipo, textoValor, rotulo, descricao, text
   return (
     <div className={classes} data-variante={tipo}>
       <dt id={idRotulo} className="mk-dp-cel__rot">{rotulo}</dt>
-      <dd aria-hidden="true" className={excesso ? "mk-dp-cel__val mk-dp-medidor__val--excesso" : "mk-dp-cel__val"}>{textoValor}</dd>
+      {mostrarValor ? <dd aria-hidden="true" className={excesso ? "mk-dp-cel__val mk-dp-medidor__val--excesso" : "mk-dp-cel__val"}>{textoValor}</dd> : null}
       {descricao ? <dd aria-hidden="true" className={excesso ? "mk-dp-cel__sub mk-dp-medidor__sub--excesso" : "mk-dp-cel__sub"}>{descricao}</dd> : null}
       {/* O meter fica num span DENTRO do dd: um dd com role="meter" quebra a lista de definição (axe: definition-list). */}
       <dd className="mk-dp-cel__barra">

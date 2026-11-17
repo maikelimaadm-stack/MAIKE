@@ -116,7 +116,7 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
 
     await waitFor(() => expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): 75%'));
     const secao = secaoCocho();
-    expect(within(secao).getByText('150 kg de 200 kg')).toBeTruthy();
+    expect(within(secao).getByText('Base do ciclo: 200 kg')).toBeTruthy();
     // O percentual do ciclo aparece uma vez na figura (o texto do `role="img"`);
     // o número grande do bloco é o mesmo rótulo do SSOT.
     expect(within(medidorCiclo().parentElement).getAllByText(/75%/)).toHaveLength(1);
@@ -141,7 +141,7 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
     // "Último registro" usa a taxa do SSOT.
     expect(screen.getByText('Consumo Lote PV/dia').nextElementSibling?.textContent).toBe('50,00 kg');
     // Cadastro: o campo é o limite operacional; os limites de consumo dizem que são por cabeça/dia.
-    expect(screen.getByText('Limite operacional').tagName).toBe('DT');
+    expect(screen.queryByText('Limite operacional')).toBeNull();
     expect(screen.queryByText('Capacidade')).toBeNull();
     expect(screen.getByText('Consumo mín./cab/dia').tagName).toBe('DT');
     expect(screen.getByText('Consumo máx./cab/dia').tagName).toBe('DT');
@@ -169,7 +169,7 @@ describe('DC-2 — limite operacional', () => {
     expect(within(secao).getByText('150 kg de 120 kg · 30 kg acima do limite')).toBeTruthy();
     expect(within(secao).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
     expect(within(secao).getByText(/O limite é o valor configurado hoje/)).toBeTruthy();
-    expect(screen.getByText('Limite operacional').nextElementSibling?.textContent).toBe('120,00 kg');
+    expect(screen.queryByText('Limite operacional')).toBeNull();
 
     // Dois dias depois (13/11 na fazenda, sem refetch): saldo 50 kg, dentro do limite; o lançamento continua visível.
     vi.setSystemTime(new Date('2026-11-14T01:00:00.000Z'));
@@ -202,7 +202,7 @@ describe('DC-3 — sem taxa no lançamento', () => {
     expect(within(secao).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
     // Sem taxa do SSOT, o "Último registro" não projeta nada.
     expect(screen.getByText('Consumo Lote PV/dia').nextElementSibling?.textContent).toBe('-');
-    expect(screen.getByText('Próx. reposição').nextElementSibling?.textContent).toBe('-');
+    expect(screen.queryByText('Próx. reposição')).toBeNull();
   });
 });
 

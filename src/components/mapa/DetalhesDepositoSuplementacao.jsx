@@ -12,7 +12,7 @@ import HistoricoDepositoSuplementacao, { movimentacoesDoHistoricoDeposito } from
 import DepositoNivel from "./DepositoNivel";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import LinhaDoTempo from "./detalhes-lote/LinhaDoTempo";
-import { Cartao, Celula, Grade, Item, Linha, ListaItens, RodapePilulas, TituloBloco, Vazio } from "./detalhes-lote/blocos";
+import { Cartao, Celula, Grade, Item, Linha, ListaItens, RodapePilulas, SecaoDetalhe, Vazio } from "./detalhes-lote/blocos";
 import { VAZIO, fmtNumero, rotuloDoDia } from "./detalhes-lote/historicoDoPasto";
 import { formatDecimal } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
@@ -278,7 +278,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   return (
     <>
       <CascaDetalhe
-        className="mk-dp-deposito"
+        className="mk-dp-deposito mk-dp--suplementacao-organizada"
         titulo={deposito.nome_ponto || "Depósito"}
         sub={subtitulo || deposito.local_estoque_nome || "Depósito"}
         anim={anim}
@@ -292,7 +292,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
           <>
             <DepositoNivel nivel={nivel} saldoSacos={totalSaldoSacos} />
 
-            <TituloBloco id={idTituloSaldo}>Saldo por produto</TituloBloco>
+            <SecaoDetalhe id={idTituloSaldo} titulo="Saldo por produto" className="mk-dp-deposito__saldo">
             {semSaldo ? (
               // Seção vazia dentro do detalhe: a linha fraca do v12 (`v11-row--fraco`).
               <Cartao>
@@ -316,7 +316,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
               </Cartao>
             )}
 
-            <TituloBloco>Pastos atendidos</TituloBloco>
+            </SecaoDetalhe>
+
+            <SecaoDetalhe titulo="Pastos atendidos" className="mk-dp-deposito__pastos">
             {cochos.length === 0 ? (
               <Cartao>
                 <Linha className="mk-dp-deposito__linha--fraca" rotulo="Nenhum cocho vinculado a este depósito." />
@@ -344,7 +346,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
               </ListaItens>
             )}
 
-            <TituloBloco id={idTituloInfo}>Informações do depósito</TituloBloco>
+            </SecaoDetalhe>
+
+            <SecaoDetalhe id={idTituloInfo} titulo="Informações do depósito">
             <Cartao role="group" aria-labelledby={idTituloInfo}>
               <Grade>
                 <Celula rotulo="Número" valor={deposito.numero_ponto || VAZIO} />
@@ -352,14 +356,13 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                 <Celula rotulo="Tipo" valor={deposito.tipo || VAZIO} />
                 <Celula rotulo="Local de estoque" valor={deposito.local_estoque_nome || VAZIO} />
                 <Celula rotulo="Produto padrão" valor={deposito.produto_padrao || VAZIO} />
-                <Celula rotulo="Limite operacional" valor={nivel.limiteOperacionalKg != null ? formatarKgNivel(nivel.limiteOperacionalKg) : VAZIO} />
-                <Celula rotulo="Estoque mínimo" valor={nivel.estoqueMinimoKg != null ? formatarKgNivel(nivel.estoqueMinimoKg) : VAZIO} />
               </Grade>
-              <Linha rotulo="Cochos vinculados" valor={cochos.map((c) => c.nome).join(", ") || VAZIO} quebra />
               <Linha rotulo="Observações" valor={deposito.observacoes || VAZIO} quebra />
             </Cartao>
 
-            <TituloBloco>{podeHistorico ? "Histórico do depósito" : "Último registro"}</TituloBloco>
+            </SecaoDetalhe>
+
+            <SecaoDetalhe titulo={podeHistorico ? "Histórico do depósito" : "Último registro"}>
             {diasDoHistorico.length > 0 ? (
               <LinhaDoTempo dias={diasDoHistorico} rotulo={podeHistorico ? "Histórico do depósito" : "Último registro"} />
             ) : loadingMovimentacoes ? (
@@ -374,6 +377,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
             ) : (
               <Vazio icone={History}>Nenhum registro ainda.</Vazio>
             )}
+            </SecaoDetalhe>
           </>
         )}
       </CascaDetalhe>

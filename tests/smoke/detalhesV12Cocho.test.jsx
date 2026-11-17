@@ -192,7 +192,7 @@ describe('CV-2 — seções na ordem do v12', () => {
     await noDialogo(cocho());
     await carregado();
     const titulos = [...raiz().querySelectorAll('h3')].map((h) => h.textContent);
-    expect(titulos).toEqual(['Nível do cocho', 'Leitura do cocho', 'Último período fechado', 'Total fornecido por produto', 'Último registro', 'Informações do cocho']);
+    expect(titulos).toEqual(['Nível do cocho', 'Leitura do cocho', 'Total fornecido por produto', 'Último período fechado', 'Último registro', 'Informações do cocho']);
     // O título do nível existe só para o leitor de tela (o v12 não mostra título acima do nível).
     expect(secaoNivel().querySelector('h3')?.className).toBe('mk-dp-cocho__oculto');
   });
@@ -221,7 +221,7 @@ describe('CV-3 — bloco do nível', () => {
     // O rótulo e o valor visíveis repetem o nome do `role="img"`: ficam fora da árvore acessível.
     expect(valor.getAttribute('aria-hidden')).toBe('true');
     expect(secaoNivel().querySelector('.mk-dp-nivel__rot')?.getAttribute('aria-hidden')).toBe('true');
-    expect(within(secaoNivel()).getByText('100 kg de 200 kg').className).toBe('mk-dp-nivel__linha');
+    expect(within(secaoNivel()).getByText('Base do ciclo: 200 kg').className).toBe('mk-dp-nivel__linha');
     expect(within(secaoNivel()).getByText(/^No dia do abastecimento, mantém o total disponível/)).toBeTruthy();
     // Cartão do nível: medidor do limite e os números do SSOT numa grade.
     const medidor = within(secaoNivel()).getByRole('meter', { name: 'Uso do limite operacional' });
@@ -417,15 +417,15 @@ describe('CV-7 — último registro, total fornecido e informações do cocho', 
     expect(cartao.querySelector('.mk-dp-cartao__titulo')?.textContent).toBe('SAL MINERAL 80');
     expect(cartao.querySelector('.mk-dp-cartao__sub')?.textContent).toBe('Data: 10/11/2026');
     const doDetalhe = [...cartao.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
-    // O Histórico com a projeção do SSOT para o último lançamento (taxa 50 kg/dia, 4 dias, 14/11).
-    const historico = render(<CardMetricaEvento evento={evento('e-aberto')} sacos={8} showProjecao consumoEsperadoDiaKg={50} duracaoEstimada={4} proximaReposicao="14/11/2026" />);
+    // Compara as métricas do registro. A projeção do ciclo aberto fica somente no nível.
+    const historico = render(<CardMetricaEvento evento={evento('e-aberto')} sacos={8} showProjecao={false} consumoEsperadoDiaKg={50} duracaoEstimada={4} proximaReposicao="14/11/2026" />);
     // D-PROD-222: no Histórico cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
     const doHistorico = [...historico.container.querySelectorAll('[data-metrica]')].map((linha) => {
       const forte = /** @type {HTMLElement} */ (linha.querySelector('strong'));
       return [forte.textContent?.replace(/:$/, ''), linha.textContent?.slice(forte.textContent?.length ?? 0).trim()];
     });
     expect(doDetalhe).toEqual(doHistorico);
-    expect(doDetalhe.map(([rotulo]) => rotulo)).toEqual(['Quantidade kg', 'Quantidade sacos', 'Sobra', 'Qtd. Cabeças', 'Peso médio', 'Consumo Lote PV/dia', 'Esperado/cab/dia', 'Fechamento', 'Duração estimada', 'Próx. reposição']);
+    expect(doDetalhe.map(([rotulo]) => rotulo)).toEqual(['Quantidade kg', 'Quantidade sacos', 'Sobra', 'Qtd. Cabeças', 'Peso médio', 'Consumo Lote PV/dia', 'Esperado/cab/dia']);
     expect(within(cartao).getByText('Observações').closest('.mk-dp-linha')?.classList.contains('mk-dp-linha--quebra')).toBe(true);
     expect(within(cartao).getByText('Lançado pelo João.')).toBeTruthy();
 
@@ -437,11 +437,15 @@ describe('CV-7 — último registro, total fornecido e informações do cocho', 
     // Informações do cocho: a grade do cadastro e as observações numa linha que quebra.
     const info = /** @type {HTMLElement} */ (screen.getByRole('heading', { name: 'Informações do cocho' }).parentElement?.nextElementSibling);
     expect([...info.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual([
-      'Número', 'Sigla', 'Tipo', 'Depósito vinculado', 'Áreas vinculadas', 'Produto padrão', 'Limite operacional', 'Metragem',
+      'Número', 'Sigla', 'Tipo', 'Depósito vinculado', 'Áreas vinculadas', 'Produto padrão', 'Metragem',
       'Consumo ideal/cab', 'Consumo mín./cab/dia', 'Consumo máx./cab/dia', 'Dias alerta reposição', 'Alerta sem lançamento',
     ]);
     expect(valorDe(info, 'Áreas vinculadas')).toBe('PASTO 07');
-    expect(valorDe(info, 'Limite operacional')).toBe('300,00 kg');
+    expect(within(info).queryByText('Limite operacional')).toBeNull();
+    expect(screen.getAllByText('Duração estimada')).toHaveLength(1);
+    expect(screen.queryByText('Próx. reposição')).toBeNull();
+    expect(within(cartao).getByRole('region', { name: 'Fornecimento' })).toBeTruthy();
+    expect(within(cartao).getByRole('region', { name: 'Dados do Lote' })).toBeTruthy();
     expect(valorDe(info, 'Metragem')).toBe('12,00 m');
     expect(valorDe(info, 'Dias alerta reposição')).toBe('3 dia(s)');
     expect(within(info).getByText('Cocho perto da porteira.').closest('.mk-dp-linha--quebra')).toBeTruthy();
@@ -519,4 +523,16 @@ describe('CV-9 — carregando', () => {
     expect(raiz().querySelector('.mk-dp__rodape')?.childElementCount).toBe(0);
     expect(tituloDoDialogo()).toBe('COCHO 07');
   });
+});
+
+// A limpeza do ciclo atual não pode apagar comparações de um registro histórico.
+it('mantém fechamento e diferença de dias quando o último registro é um período fechado', async () => {
+  dados.cache.eventosSuplementacao = [fechado()];
+  await noDialogo(cocho());
+  await carregado();
+  const titulo = screen.getByRole('heading', { name: 'Último registro' });
+  const cartao = titulo.parentElement.nextElementSibling;
+  expect(within(cartao).getByText('Fechamento').nextElementSibling.textContent).toBe('13 dia(s)');
+  expect(within(cartao).getByText('Diferença dia(s)')).toBeTruthy();
+  expect(within(cartao).getByRole('region', { name: 'Projeção' })).toBeTruthy();
 });

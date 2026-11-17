@@ -1399,6 +1399,23 @@
   .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo) + .mk-dp-cartao .mk-dp-grade {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .mk-dp.mk-dp--suplementacao-organizada > .mk-dp__corpo--cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: min-content;
+    align-items: start;
+    align-content: start;
+  }
+
+  .mk-dp.mk-dp--suplementacao-organizada > .mk-dp__corpo--cards > * {
+    grid-column: 1 / -1;
+  }
+
+  .mk-dp.mk-dp--suplementacao-organizada > .mk-dp__corpo--cards > :is(.mk-dp-cocho__leitura, .mk-dp-cocho__produtos, .mk-dp-deposito__saldo, .mk-dp-deposito__pastos) {
+    grid-column: auto;
+  }
+
 }
 
 /* Inputs abaixo de 1024 px: 16 px (sem zoom no iOS), como o sistema */
@@ -1692,4 +1709,21 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Suplementação: cada título acompanha seu conteúdo, inclusive em pares de
+   alturas diferentes. O fluxo de leitura é o mesmo no desktop e no celular. */
+.mk-dp .mk-dp-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-secao > .mk-dp-titulo {
+  margin: 0;
+}
+
+.mk-dp--suplementacao-organizada > .mk-dp__corpo--cards {
+  gap: 12px;
 }

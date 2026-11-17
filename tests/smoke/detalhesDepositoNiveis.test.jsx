@@ -81,12 +81,10 @@ const icone = () => {
 };
 const nivelIcone = () => icone().querySelector('[data-deposito-nivel]')?.getAttribute('data-deposito-nivel') ?? null;
 const valorDe = (rotulo) => screen.getByText(rotulo).nextElementSibling?.textContent;
-/** Célula do cartão "Informações do depósito" (`dt` → `dd`). */
-const informacao = (rotulo) => within(screen.getByRole('group', { name: 'Informações do depósito' })).getByText(rotulo).nextElementSibling?.textContent;
 /** O percentual bruto: número do bloco do nível e da célula do medidor, os dois na região. */
 const percentualNaSecao = (texto) => {
   expect(within(within(secao()).getByTestId('nivel-do-deposito')).getByText(texto)).toBeTruthy();
-  expect(within(secao()).getAllByText(texto)).toHaveLength(2);
+  expect(within(secao()).getAllByText(texto)).toHaveLength(1);
 };
 
 beforeEach(() => {
@@ -109,7 +107,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     expect(secao().querySelector('[data-medidor-preenchimento]').style.width).toBe('100%');
     expect(valorDe('Saldo atual kg')).toBe('600 kg');
     expect(valorDe('Necessidade reposição kg')).toBe('0 kg');
-    expect(informacao('Limite operacional')).toBe('300 kg');
+    expect(screen.queryByText('Limite operacional')).toBeNull();
     expect(screen.queryByText('Capacidade:')).toBeNull();
     expect(screen.queryByText('Capacidade')).toBeNull();
     expect(screen.queryByText(/do mínimo/)).toBeNull();
@@ -126,7 +124,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     expect(within(painelMinimo()).getByText('Mínimo 100 kg · 50 kg acima do mínimo')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('acima');
     expect(valorDe('Necessidade reposição kg')).toBe('150 kg');
-    expect(informacao('Estoque mínimo')).toBe('100 kg');
+    expect(screen.getAllByRole('group', { name: 'Estoque mínimo' })).toHaveLength(1);
   });
 
   it('DD-3 — limite 300, saldo 90, mínimo 100: 30% e abaixo do mínimo (faltam 10 kg)', async () => {
@@ -152,7 +150,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     expect(nivelIcone()).toBeNull();
     expect(within(painelMinimo()).getByText('Estoque mínimo não configurado.')).toBeTruthy();
     expect(valorDe('Necessidade reposição kg')).toBe('0 kg');
-    expect(informacao('Limite operacional')).toBe('—');
+    expect(screen.queryByText('Limite operacional')).toBeNull();
   });
 
   it('DD-5 — produto em L fica fora do saldo em kg e do percentual; aparece separado no saldo por produto', async () => {

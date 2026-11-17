@@ -8132,4 +8132,16 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 
 **Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §10.
 
-<!-- Próxima decisão: D-PROD-227 -->
+## D-PROD-227 — Cocho e depósito: seções explícitas e dados sem repetição (2026-11-17)
+
+**Pedido do proprietário:** continuar a PR #308, procurar informações duplicadas e organizar melhor a visualização dos detalhes de cocho e depósito.
+
+- Cada seção mantém título e conteúdo juntos (`SecaoDetalhe`); pares de leitura/total fornecido no cocho e saldo/pastos no depósito no popup, uma coluna no celular.
+- Ciclo aberto: duração e próxima reposição ficam no nível, sem repetir a projeção no último registro. O Histórico completo conserva todas as métricas. Períodos fechados mantêm sua comparação e projeção histórica.
+- No nível do cocho, a base do ciclo identifica o abastecimento; saldo atual e consumo aparecem em seus próprios campos, sem duplicar a taxa no subtexto.
+- Último registro agrupa Fornecimento, Dados do Lote e Consumo, preservando os rótulos e os valores da projeção existente.
+- Limite operacional (cocho e depósito), estoque mínimo e necessidade de reposição (depósito) ficam no resumo operacional; o cadastro não repete esses números. Os cochos vinculados aparecem na lista de pastos atendidos, sem nova lista textual no cadastro.
+- No depósito, o percentual aparece uma vez no bloco do nível; o medidor mantém percentual e descrição completos para tecnologia assistiva, sem repetir o número visível.
+- Sem mudança em cálculos, consultas, permissões, lançamentos, histórico completo ou persistência.
+
+<!-- Próxima decisão: D-PROD-228 -->

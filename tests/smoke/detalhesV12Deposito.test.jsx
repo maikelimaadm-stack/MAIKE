@@ -204,15 +204,16 @@ describe('DV-2 — seções na ordem do v12', () => {
     expect(corpo().parentElement.classList.contains('mk-dp-deposito')).toBe(true);
     const filhos = Array.from(corpo().children);
     expect(filhos[0].classList.contains('mk-dp-deposito__nivel')).toBe(true);
-    expect(filhos.filter((f) => f.classList.contains('mk-dp-titulo')).map((t) => t.textContent)).toEqual([
+    expect(filhos.filter((f) => f.classList.contains('mk-dp-secao')).map((t) => t.querySelector('h3')?.textContent)).toEqual([
       'Saldo por produto', 'Pastos atendidos', 'Informações do depósito', 'Histórico do depósito',
     ]);
     // Bloco do nível: rótulo, o percentual do SSOT e as duas linhas do v12.
     const nivel = within(secao()).getByTestId('nivel-do-deposito');
     expect(nivel.classList.contains('mk-dp-nivel')).toBe(true);
     expect(within(nivel).getByText('70%')).toBeTruthy();
-    expect(within(nivel).getByText('1.400 kg de 2.000 kg (limite operacional)')).toBeTruthy();
-    expect(within(nivel).getByText('Necessidade de reposição: 600 kg')).toBeTruthy();
+    expect(within(nivel).getByText('Limite operacional: 2.000 kg')).toBeTruthy();
+    expect(within(nivel).queryByText(/Necessidade de reposição:/)).toBeNull();
+    expect(within(secao()).getByText('Necessidade reposição kg').nextElementSibling?.textContent).toBe('600 kg');
     expect(nivel.querySelector('img[data-deposito-icone]')).toBeTruthy();
     // Grade da região: o medidor e as células de hoje, na ordem.
     const rotulos = Array.from(secao().querySelectorAll('.mk-dp-grade > .mk-dp-cel > dt')).map((dt) => dt.textContent);
@@ -351,11 +352,10 @@ describe('DV-6 — informações do depósito', () => {
     const celulas = Array.from(info.querySelectorAll('.mk-dp-cel')).map((c) => `${c.querySelector('dt').textContent}: ${c.querySelector('dd').textContent}`);
     expect(celulas).toEqual([
       'Número: DP-01', 'Sigla: DS', 'Tipo: Galpão', 'Local de estoque: Galpão Sede', 'Produto padrão: SAL MINERAL 80',
-      'Limite operacional: 2.000 kg', 'Estoque mínimo: 500 kg',
     ]);
     const linhas = Array.from(info.querySelectorAll('.mk-dp-linha')).map((l) => `${l.querySelector('.mk-dp-linha__rot').textContent}: ${l.querySelector('.mk-dp-linha__val').textContent}`);
-    expect(linhas).toEqual(['Cochos vinculados: Cocho 02, Cocho 05', 'Observações: Conferir a lona do galpão nas chuvas.']);
-    expect(info.querySelectorAll('.mk-dp-linha--quebra')).toHaveLength(2);
+    expect(linhas).toEqual(['Observações: Conferir a lona do galpão nas chuvas.']);
+    expect(info.querySelectorAll('.mk-dp-linha--quebra')).toHaveLength(1);
     expect(screen.queryByText(/Frequência/)).toBeNull();
   });
 
@@ -364,8 +364,8 @@ describe('DV-6 — informações do depósito', () => {
     await montar({ deposito: { ...DEPOSITO, numero_ponto: null, sigla: '', tipo: null, produto_padrao: null, observacoes: null, capacidade_cocho_kg: null, estoque_minimo_kg: null } });
     const info = informacoes();
     const valores = Array.from(info.querySelectorAll('.mk-dp-cel dd')).map((dd) => dd.textContent);
-    expect(valores).toEqual(['—', '—', '—', 'Galpão Sede', '—', '—', '—']);
-    expect(Array.from(info.querySelectorAll('.mk-dp-linha__val')).map((v) => v.textContent)).toEqual(['—', '—']);
+    expect(valores).toEqual(['—', '—', '—', 'Galpão Sede', '—']);
+    expect(Array.from(info.querySelectorAll('.mk-dp-linha__val')).map((v) => v.textContent)).toEqual(['—']);
   });
 });
 

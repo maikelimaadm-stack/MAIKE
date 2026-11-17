@@ -252,6 +252,22 @@ export function TituloBloco({ children, link, onLink, id, className, ...resto })
 }
 
 /**
+ * Seção nomeada dos detalhes: mantém o título junto do cartão, sem depender
+ * da posição dos títulos no corpo para organizar colunas.
+ * @param {{ titulo: string, id?: string, className?: string, children?: React.ReactNode }} props
+ */
+export function SecaoDetalhe({ titulo, id, className, children }) {
+  const automatico = React.useId();
+  const tituloId = id || automatico;
+  return (
+    <section className={cls("mk-dp-secao", className)} aria-labelledby={tituloId}>
+      <TituloBloco id={tituloId}>{titulo}</TituloBloco>
+      {children}
+    </section>
+  );
+}
+
+/**
  * Cartão branco (sombra, raio 12). Cabeçalho opcional: ícone lucide 32 px teal
  * OU imagem 36 px (tamanhos da D-PROD-224), título, sub e chip. Os filhos são as partes (`Grade`,
  * `Linha`); as divisórias entre elas vêm do CSS.

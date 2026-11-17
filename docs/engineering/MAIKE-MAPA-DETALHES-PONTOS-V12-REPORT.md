@@ -384,3 +384,15 @@ Depois do Detalhes do Lote v12 (D-PROD-218), o proprietário pediu: "agora todos
 - **Mutações:** 18, todas pegas pelo teste certo:
   - no CSS: a grade sem o bebedouro, o 2º título de ponta a ponta, os pares fora do `@media`, os títulos sem `align-self`, a grade sem o `:has`, o texto livre preso ao popup, o `balance` de volta na célula, o ✕ sem área, a pílula encolhendo, a divisória sem `content`, a região do cocho fora do popup, o cocho e o depósito sem subgrid, o cabeçalho sem os 40 px;
   - na marcação e no comportamento: o cartão do limite e o nível do cocho sem as classes, a raiz do bebedouro trocada e a Lista sem a rolagem no foco.
+
+
+## 11. D-PROD-227 — revisão de informações repetidas (2026-11-17)
+
+Pedido do proprietário na PR #308: organizar melhor os detalhes de cocho e depósito e procurar duplicações.
+
+- Seções nomeadas com título e conteúdo no mesmo contêiner; pares definidos por classe, não pela posição dos títulos.
+- Cocho: leitura e total fornecido em pares; período fechado em largura inteira; último registro separado em Fornecimento, Dados do Lote e Consumo. A projeção do ciclo aberto fica no nível; registros fechados conservam fechamento e diferença de dias.
+- Base do ciclo, saldo e taxa ganham lugares distintos. O cadastro não repete o limite operacional.
+- Depósito: necessidade de reposição aparece só na grade operacional; o cadastro não repete limite, mínimo ou a relação de cochos já disponível em Pastos atendidos.
+- Mesmas consultas, cálculos de domínio, permissões e ações. O Histórico completo mantém suas métricas.
+- Revisão visual com os componentes reais e dados de demonstração em 1280, 820 e 390 px, sem transbordo horizontal. Os testes dos detalhes verificam os valores, a ausência de projeção repetida e a preservação das comparações históricas.
