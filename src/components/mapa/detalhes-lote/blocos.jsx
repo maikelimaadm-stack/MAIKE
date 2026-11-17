@@ -10,7 +10,7 @@ import {
 import "@/styles/mk-detalhes-pasto.css";
 
 /*
- * Peças visuais do Detalhes do Lote v12 (D-PROD-214). Puras: só props, sem
+ * Peças visuais do Detalhes do Lote v12 (D-PROD-V12). Puras: só props, sem
  * dados, sem consultas e sem PastoCtx. Visual em src/styles/mk-detalhes-pasto.css,
  * sob a raiz `.mk-dp` (fora dela as peças ficam sem estilo).
  *
@@ -23,7 +23,8 @@ import "@/styles/mk-detalhes-pasto.css";
  *   </div>
  *   Troca animada: nova `key` no corpo + `mk-dp-anim--empurrar | --voltar | --aba-dir | --aba-esq | --troca`.
  *
- * <Abas abas={[{ id: "lotes", rotulo: "Lotes", badge: 6 }]} ativa="lotes" onMudar={setAba} idBase="pasto" />
+ * <Abas abas={[{ id: "lotes", rotulo: "Lotes", badge: lotes.length }]} ativa="lotes" onMudar={setAba} idBase="pasto" />
+ *     badge 0, null, "" ou false → sem badge (pasto sem lote: só "Lotes", como o v12)
  *     painel: <div role="tabpanel" id={idsDaAba("pasto", aba).painel} aria-labelledby={idsDaAba("pasto", aba).aba}>
  * <CabecalhoProprio titulo="L-2026-008" sub="VACA · Pasto 07" onVoltar={voltar} />   // só sem o diálogo
  * <TituloBloco link="Configurar tabela" onLink={abrir}>6 lotes · 314 cab</TituloBloco>
@@ -39,7 +40,7 @@ import "@/styles/mk-detalhes-pasto.css";
  * <Nota>Registros de todas as movimentações…</Nota>
  * <Vazio icone={Beef}>Nenhum lote neste pasto agora.</Vazio>
  * <Chip tom="atencao">Atenção</Chip>                                     // ok | atencao | neutro
- * <CaixaMarcar estado="meio" rotulo="Selecionar todos" onAlternar={fn} /> // vazia | marcada | meio (ou boolean)
+ * <CaixaMarcar estado="meio" rotulo="Selecionar todos" onAlternar={fn} desabilitado={false} /> // vazia | marcada | meio (ou boolean)
  * <Segmentado rotulo="Vista" opcoes={[{ valor: "resumo", rotulo: "Resumo" }]} valor="resumo" onMudar={fn} />
  * <Kpis itens={[{ rotulo: "Cabeças", valor: "314", nota: "esperado 75 g", corNota: "#64748b" }]} />
  * <ListaItens titulo="Pasto 07 (314)" marcacao="meio" onMarcarTodos={fn}>
@@ -125,8 +126,16 @@ export function idsDaAba(idBase, id) {
  */
 
 /**
+ * Badge da aba: 0 (ex.: `lotes.length` de um pasto vazio), null, "" e false
+ * não desenham nada — no v12 o pasto sem lote mostra só "Lotes".
+ * @param {React.ReactNode} badge
+ * @returns {boolean}
+ */
+const temBadgeAba = (badge) => badge != null && badge !== "" && badge !== false && badge !== 0;
+
+/**
  * Faixa de abas v12: larguras iguais, traço verde de 3 px na ativa, badge teal
- * opcional. Acessível: tablist/tab, `aria-selected`, `aria-controls` (só na
+ * opcional (0 = sem badge). Acessível: tablist/tab, `aria-selected`, `aria-controls` (só na
  * ativa: os painéis inativos não existem no DOM), tabindex móvel; ← → Home End
  * mudam de aba (ativação automática). No celular passe "Supl." e sem badge (o
  * CSS também esconde o badge abaixo de 768 px).
@@ -163,7 +172,7 @@ export function Abas({ abas, ativa, onMudar, idBase, rotulo = "Seções do pasto
       {lista.map((aba, i) => {
         const on = aba.id === ativa;
         const ids = idsDaAba(base, aba.id);
-        const temBadge = aba.badge != null && aba.badge !== "" && aba.badge !== false;
+        const temBadge = temBadgeAba(aba.badge);
         return (
           <button
             key={aba.id}
@@ -388,10 +397,11 @@ export function Chip({ tom = "neutro", children, className }) {
 
 /**
  * Caixa de marcar 18 px (`#32D65E` marcada). Botão `role="checkbox"`; o clique
- * não sobe para o item (marca/desmarca sem abrir).
- * @param {{ estado?: boolean | EstadoCaixa | null, rotulo: string, onAlternar?: () => void, disabled?: boolean, className?: string }} props
+ * não sobe para o item (marca/desmarca sem abrir). `desabilitado` como nos
+ * rodapés (`disabled` vale como apelido).
+ * @param {{ estado?: boolean | EstadoCaixa | null, rotulo: string, onAlternar?: () => void, desabilitado?: boolean, disabled?: boolean, className?: string }} props
  */
-export function CaixaMarcar({ estado, rotulo, onAlternar, disabled = false, className }) {
+export function CaixaMarcar({ estado, rotulo, onAlternar, desabilitado = false, disabled = false, className }) {
   const e = estadoDaCaixa(estado);
   return (
     <button
@@ -399,7 +409,7 @@ export function CaixaMarcar({ estado, rotulo, onAlternar, disabled = false, clas
       role="checkbox"
       aria-checked={ARIA_CAIXA[e]}
       aria-label={rotulo}
-      disabled={disabled}
+      disabled={Boolean(desabilitado || disabled)}
       className={classesCaixa(e, className)}
       onClick={(ev) => {
         ev.stopPropagation();
