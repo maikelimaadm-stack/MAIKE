@@ -76,11 +76,14 @@ describe("Campos numa linha só, texto corre se não couber (D-PROD-124)", () =>
 });
 
 describe("Ajustes D-PROD-125", () => {
-  it("popup fecha só pelo ✕ (sem clique fora nem Esc); D-PROD-218: Esc numa tela empilhada volta um nível", () => {
+  it("popup fecha só pelo ✕ (sem clique fora nem Esc); D-PROD-218: Esc numa tela empilhada volta um nível; D-PROD-220: num formulário empilhado (escVolta: false) o Esc é ignorado", () => {
     const ui = readFileSync("src/components/lotes/LancamentoLoteUi.jsx", "utf8");
     expect(ui).toMatch(/onInteractOutside=\{popup \? \(e\) => e\.preventDefault\(\) : undefined\}/);
-    expect(ui).toMatch(/onEscapeKeyDown=\{\(e\) => \{\s*if \(voltar\) \{\s*e\.preventDefault\(\);\s*voltar\(\);\s*\} else if \(popup\) e\.preventDefault\(\);\s*\}\}/);
-    // O comportamento (popup no desktop e no tablet, Esc) é provado em detalhesLoteV12Casca.test.jsx.
+    expect(ui).toMatch(
+      /onEscapeKeyDown=\{\(e\) => \{\s*if \(cabecalho\?\.escVolta === false\) e\.preventDefault\(\);\s*else if \(voltar\) \{\s*e\.preventDefault\(\);\s*voltar\(\);\s*\} else if \(popup\) e\.preventDefault\(\);\s*\}\}/
+    );
+    // O comportamento (popup no desktop e no tablet, Esc) é provado em detalhesLoteV12Casca.test.jsx;
+    // o Esc ignorado no formulário empilhado, em detalhesV12Bebedouro.test.jsx.
   });
 
   it("sub-ícone maior sem aumentar a linha; cabeçalho cinza e ✕ branco", () => {
