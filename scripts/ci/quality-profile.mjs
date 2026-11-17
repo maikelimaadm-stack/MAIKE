@@ -70,7 +70,7 @@ export const DOCS_ACOPLADOS = Object.freeze([
   'docs/engineering/MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md',
   // backend/tests/abastecimentoAtividadeMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-211)
   'docs/engineering/MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md',
-  // backend/tests/abastecimentoFkApontamentoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-216)
+  // backend/tests/abastecimentoFkApontamentoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-217)
   'docs/engineering/MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md',
 ]);
 

@@ -9,14 +9,14 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-16) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-216)
+## Missão ativa (2026-11-16) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-217)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-216** (nasceu D-PROD-213, depois D-PROD-214; a `main` deu a 213 ao Resumo do Rebanho, a 214 aos ajustes do mapa e a 215 às Culturas), pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
+| Decisão | **D-PROD-217** (nasceu D-PROD-213, depois D-PROD-214; a `main` deu a 213 ao Resumo do Rebanho, a 214 aos ajustes do mapa e a 215 às Culturas), pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
 | Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213) e a `main` `133c6ed4` (PRs #304, #305 e #306, D-PROD-214 e D-PROD-215) por merge · PR **#303** |
 | Escopo | Só banco: `AtividadeApontamento` ganha o UNIQUE (`cliente_id`, `empresa_id`, `atividade_id`, `id`) e a FK `AbastecimentoBem_apontamento_fkey` passa a 4 colunas (com a atividade): o banco recusa um abastecimento ligado a apontamento de outra atividade. Código do servidor e da tela sem mudança |
-| Migration | `20261116600000_abastecimento_fk_apontamento_atividade` (a pasta era `20261116400000_…`; renomeada para vir depois da `20261116500000_cadculturas`, já aplicada em produção, e a ordem do repositório ser a de produção; conteúdo idêntico), **CONTRACT** (décima segunda de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 63 → 64 (a anterior é a `20261116500000_cadculturas`, D-PROD-215); tabelas 95 (sem mudança) |
+| Migration | `20261117100000_abastecimento_fk_apontamento_atividade` (a pasta era `20261116400000_…`; renomeada para vir depois da `20261116500000_cadculturas`, já aplicada em produção, e a ordem do repositório ser a de produção; conteúdo idêntico), **CONTRACT** (décima segunda de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 63 → 64 (a anterior é a `20261116500000_cadculturas`, D-PROD-215); tabelas 95 (sem mudança) |
 | Release | Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md). `SCHEMA_APPLIED_PROD: NÃO` |
 | Documentos | [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) · [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) |
 

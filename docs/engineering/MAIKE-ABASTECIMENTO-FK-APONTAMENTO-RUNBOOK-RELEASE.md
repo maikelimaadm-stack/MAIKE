@@ -1,4 +1,4 @@
-# MAIKE — Reforço do abastecimento ligado à atividade: runbook de release CONTRACT (D-PROD-216)
+# MAIKE — Reforço do abastecimento ligado à atividade: runbook de release CONTRACT (D-PROD-217)
 
 > **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** Aplicação só com o GO explícito e
 > escrito do proprietário para **esta** migration.
@@ -6,7 +6,7 @@
 > Cada passo para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>`
 > são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-216](./DECISIONS.md) (continua a D-PROD-211) · Relatório:
+Decisão: [D-PROD-217](./DECISIONS.md) (continua a D-PROD-211) · Relatório:
 [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) ·
 Precedente executado:
 [`MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md)
@@ -17,7 +17,7 @@ Precedente executado:
 
 | Item | Valor |
 |---|---|
-| Migration | `20261116600000_abastecimento_fk_apontamento_atividade` |
+| Migration | `20261117100000_abastecimento_fk_apontamento_atividade` |
 | Natureza | **CONTRACT** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, formato de sempre, sem `DROP TABLE` e sem resto): um `UNIQUE` numa tabela antiga e uma FK recriada (mesmo nome) noutra. A guarda aborta a transação inteira se o vínculo não estiver no formato anterior ou se algum abastecimento apontar para um apontamento de outra atividade |
 | O que muda | `AtividadeApontamento` ganha o índice único `AtividadeApontamento_empresa_atividade_id_key` (`cliente_id`, `empresa_id`, `atividade_id`, `id`; trivialmente único, o `id` já é; começa por `cliente_id`); a FK `AbastecimentoBem_apontamento_fkey` sai (3 colunas: `cliente_id`, `empresa_id`, `apontamento_id`) e volta com o **mesmo nome** e 4 colunas: (`cliente_id`, `empresa_id`, `atividade_id`, `apontamento_id`) → `AtividadeApontamento`(`cliente_id`, `empresa_id`, `atividade_id`, `id`), `ON DELETE RESTRICT ON UPDATE CASCADE` |
 | Efeito | o banco passa a **recusar** (`23503`) um abastecimento cujo apontamento é de **outra** atividade. Com `MATCH SIMPLE` e o CHECK `AbastecimentoBem_atividade_check` (apontamento ⇒ atividade), toda linha com apontamento tem as 4 colunas preenchidas: a FK sempre confere. Abastecimento sem vínculo (as 4 colunas com `apontamento_id` nulo) segue livre, `ESTOQUE` ou `EXTERNO` |
@@ -25,14 +25,14 @@ Precedente executado:
 | O que não muda | nenhuma coluna, tabela, política ou CHECK; a FK `AbastecimentoBem_atividade_fkey` fica como está |
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e` |
 | Guarda (`guarda_sha256`) | `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c` |
-| Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-216`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_apontamento_fkey"]` (mesmo nome, recriada; o rótulo do runner é o de sempre, "1 CHECKs alargados"), o resto vazio; o `UNIQUE` é a 1ª das 3 instruções pinadas; não há resto |
+| Classificador | `modo: CONTRACT`, `violacoes: []`, `contract[0]`: `decisao D-PROD-217`, `constraints_alargadas ["AbastecimentoBem.AbastecimentoBem_apontamento_fkey"]` (mesmo nome, recriada; o rótulo do runner é o de sempre, "1 CHECKs alargados"), o resto vazio; o `UNIQUE` é a 1ª das 3 instruções pinadas; não há resto |
 | `_prisma_migrations` | antes **63** concluídas, 0 em aberto (a última, a D-PROD-215, `20261116500000_cadculturas`, checksum `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`; antes dela a D-PROD-211, `20261116300000_abastecimento_atividade`, checksum `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`); depois **64** |
 | Tabelas em `public` | **95** antes e depois |
 
 **Nome da pasta.** A migration nasceu como `20261116400000_abastecimento_fk_apontamento_atividade`.
 A `20261116500000_cadculturas` (D-PROD-215, EXPAND) foi aplicada em produção antes dela;
 para a ordem dos nomes no repositório ser a ordem de aplicação em produção, a pasta
-passou a **`20261116600000_abastecimento_fk_apontamento_atividade`** (conteúdo idêntico,
+passou a **`20261117100000_abastecimento_fk_apontamento_atividade`** (conteúdo idêntico,
 mesmo SHA-256). O registro em `_prisma_migrations` usa o nome novo.
 
 **Ordem:** o código não muda nesta release (o servidor já deriva a atividade do
@@ -68,9 +68,9 @@ aplicar nada** (no caminho A, a linha falha em `_prisma_migrations` pede
   sessão na 5432), `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360` e a
   conexão do runtime no MESMO banco:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-216: 1 CHECKs alargados)
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-216  # ALVO VERIFICADO — 1 pendente(s) do manifesto
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-216
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-217: 1 CHECKs alargados)
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-217  # ALVO VERIFICADO — 1 pendente(s) do manifesto
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-217
   ```
 - **B — conector Supabase, uma única `execute_sql` (§5):** desvio da D-PROD-74, só
   com o GO escrito do proprietário **para esta migration**, registrado no §9.
@@ -86,7 +86,7 @@ aplicar nada** (no caminho A, a linha falha em `_prisma_migrations` pede
 | GO | O quê | Situação |
 |---|---|---|
 | GO-1 | preflight **só leitura** em produção (§4) | `<pendente>` |
-| GO-2 | aplicar a CONTRACT D-PROD-216 (§5) e mergear em seguida | `<pendente>` |
+| GO-2 | aplicar a CONTRACT D-PROD-217 (§5) e mergear em seguida | `<pendente>` |
 
 ## 3. Ordem
 
@@ -100,13 +100,13 @@ lançamento continua gravando e aparecendo no bloco Abastecimentos.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-216 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-217 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261116600000_abastecimento_fk_apontamento_atividade' AND rolled_back_at IS NULL) AS esta,
+         count(*) FILTER (WHERE migration_name = '20261117100000_abastecimento_fk_apontamento_atividade' AND rolled_back_at IS NULL) AS esta,
          count(*) FILTER (WHERE migration_name = '20261116500000_cadculturas'
                             AND checksum = '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior,
@@ -155,7 +155,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '63 / 0',
          CASE WHEN (SELECT concluidas = 63 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, '20261116600000_abastecimento_fk_apontamento_atividade já registrada', (SELECT esta::text FROM mig), '0',
+  SELECT 3, '20261117100000_abastecimento_fk_apontamento_atividade já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'a anterior (D-PROD-215, cadculturas) concluída com o checksum do repositório', (SELECT anterior::text FROM mig), '1',
@@ -207,7 +207,7 @@ Automatizado em `backend/tests/abastecimentoFkApontamentoMigration.test.mjs`
 partida com as 63 anteriores (a última, a CADCULTURAS da D-PROD-215, depois da D-PROD-211,
 na ordem de produção) e abastecimentos de 2 clientes (um ligado ao apontamento
 da própria atividade, um sem vínculo `ESTOQUE`, um `EXTERNO` sem vínculo); classificador
-e barreira do runner (sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-216` exato recusa antes
+e barreira do runner (sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-217` exato recusa antes
 do DDL); RED (um abastecimento ligado a apontamento de outra atividade, ou a FK já com 4
 colunas, ou o UNIQUE já presente: a guarda recusa e nada muda); GREEN pelo runner (64/0,
 95 tabelas, só a FK e o índice mudam, o banco recusa o apontamento de outra atividade
@@ -220,7 +220,7 @@ recusam antes do DDL; o envelope aplica 63 → 64; repetir recusa).
 
 ### Caminho A
 
-Os comandos do §1 com `--contract D-PROD-216`.
+Os comandos do §1 com `--contract D-PROD-217`.
 
 ### Caminho B (conector, uma `execute_sql`, só com o GO escrito para ESTA migration)
 
@@ -236,7 +236,7 @@ BEGIN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
   IF EXISTS (SELECT 1 FROM _prisma_migrations
-              WHERE migration_name = '20261116600000_abastecimento_fk_apontamento_atividade' AND rolled_back_at IS NULL) THEN
+              WHERE migration_name = '20261117100000_abastecimento_fk_apontamento_atividade' AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -268,7 +268,7 @@ END $alvo$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e', now(),
-        '20261116600000_abastecimento_fk_apontamento_atividade', NULL, NULL, now(), 1);
+        '20261117100000_abastecimento_fk_apontamento_atividade', NULL, NULL, now(), 1);
 COMMIT;
 ```
 <!-- /sql:caminho-b -->
@@ -278,7 +278,7 @@ O `migration.sql` não tem `BEGIN`/`COMMIT`; a guarda `DO $$ … $$` vai como es
 
 **Falha no caminho A** (`55P03`, `40P01`, `guarda: …`): nada fica; conferir pelo
 preflight;
-`DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261116600000_abastecimento_fk_apontamento_atividade --schema backend/prisma/schema.prisma`;
+`DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261117100000_abastecimento_fk_apontamento_atividade --schema backend/prisma/schema.prisma`;
 eliminar a causa e confirmar com o proprietário. Com `guarda: o vínculo do abastecimento
 com o apontamento não está no formato anterior` ou `guarda: há abastecimento ligado a
 um apontamento de outra atividade`: **não** tentar de novo (decisão nova: corrigir o
@@ -290,13 +290,13 @@ proprietário.
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-216 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
+-- MAIKE · D-PROD-217 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261116600000_abastecimento_fk_apontamento_atividade'
+         count(*) FILTER (WHERE migration_name = '20261117100000_abastecimento_fk_apontamento_atividade'
                             AND checksum = '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL AND applied_steps_count = 1) AS esta
     FROM public._prisma_migrations
@@ -337,7 +337,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, '20261116600000_abastecimento_fk_apontamento_atividade concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
+  SELECT 2, '20261117100000_abastecimento_fk_apontamento_atividade concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '64 / 0',
@@ -385,7 +385,7 @@ Esperado: `1`; `64 / 0`; `1`; `1`; `14 / 10`; `1`; `0`; `95`; VEREDITO
 ## 8. `RELEASE_BLOCKED`
 
 Sem o GO-2; validação local não verde; `system_identifier` diferente; histórico
-diferente de 63/0, a D-PROD-215 ou a D-PROD-211 com outro checksum ou a D-PROD-216 já
+diferente de 63/0, a D-PROD-215 ou a D-PROD-211 com outro checksum ou a D-PROD-217 já
 registrada; o
 vínculo fora do formato anterior; algum abastecimento ligado a apontamento de outra
 atividade; qualquer `PARAR` no preflight; outra migration nova na mesma release;

@@ -68,10 +68,10 @@
  * as quatro CONTRACT sobem juntas, por último. D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela nova
  * CADCULTURAS), ainda posterior, não pede decisão.
  *
- * D-PROD-216: a CONTRACT `20261116600000_abastecimento_fk_apontamento_atividade` (o reforço: UNIQUE em
+ * D-PROD-217: a CONTRACT `20261117100000_abastecimento_fk_apontamento_atividade` (o reforço: UNIQUE em
  * AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a atividade), de nome posterior à da CADCULTURAS,
- * também: a D-PROD-211 passa a subir pelo espelho até ela e, pelo runner do repositório com a decisão DA D-PROD-216, a
- * D-PROD-215 (sem decisão) e depois a D-PROD-216 (a ordem de produção); o UNIQUE novo fica fora da conta "o resto
+ * também: a D-PROD-211 passa a subir pelo espelho até ela e, pelo runner do repositório com a decisão DA D-PROD-217, a
+ * D-PROD-215 (sem decisão) e depois a D-PROD-217 (a ordem de produção); o UNIQUE novo fica fora da conta "o resto
  * intacto" (`DO_REFORCO`). No banco do runner: 64 / 0 e 95. Nos runners locais, as cinco CONTRACT e a EXPAND da
  * D-PROD-215 sobem juntas, por último.
  */
@@ -139,10 +139,10 @@ const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
 /** D-PROD-215: a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS), ainda posterior; o runner do repositório a sobe sem decisão. */
 const NOME_CULTURAS = '20261116500000_cadculturas';
 const DO_ABASTECIMENTO = /^AbastecimentoBem_(status_check|origem_check|atividade_check|intervalo_check|atividade_fkey|apontamento_fkey|centro_custo_fkey|atividade_idx|apontamento_idx|centro_custo_idx):/;
-/** D-PROD-216: a CONTRACT do reforço, ainda posterior (ver o cabeçalho); o UNIQUE que ela cria em AtividadeApontamento (a FK fica em DO_ABASTECIMENTO). */
-const NOME_REFORCO = '20261116600000_abastecimento_fk_apontamento_atividade';
+/** D-PROD-217: a CONTRACT do reforço, ainda posterior (ver o cabeçalho); o UNIQUE que ela cria em AtividadeApontamento (a FK fica em DO_ABASTECIMENTO). */
+const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 const DO_REFORCO = /^AtividadeApontamento_empresa_atividade_id_key:/;
-/** Das migrations posteriores (D-PROD-203, D-PROD-205, D-PROD-206, D-PROD-207, D-PROD-208, D-PROD-210, D-PROD-211 e D-PROD-216): constraint, índice, `tabela:política` ou tabela. */
+/** Das migrations posteriores (D-PROD-203, D-PROD-205, D-PROD-206, D-PROD-207, D-PROD-208, D-PROD-210, D-PROD-211 e D-PROD-217): constraint, índice, `tabela:política` ou tabela. */
 const dasPosteriores = (l) => daFormulacao(l) || DA_MAO_OBRA.test(l) || DO_PARCEIRO.test(l) || DO_ABASTECIMENTO.test(l) || DO_REFORCO.test(l) || NOVAS_MAO_OBRA.includes(l);
 /** Migrations concluídas na ordem REAL de aplicação (finished_at). */
 const ordemDeAplicacao = async (db) =>
@@ -219,7 +219,7 @@ const runnerAteBase = (urlMigracao, { runtime, extras = {} } = {}) =>
     cwd: ESPELHO_210,
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
-/** D-PROD-216: o runner oficial no espelho com as pastas até a D-PROD-211 (ver o cabeçalho); criado no `before`. */
+/** D-PROD-217: o runner oficial no espelho com as pastas até a D-PROD-211 (ver o cabeçalho); criado no `before`. */
 let ESPELHO_211;
 const runnerAteAbastecimento = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
@@ -400,7 +400,7 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.equal(ANTERIORES.length, 53, 'produção hoje: 53 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
     // D-PROD-203 (ver o cabeçalho): só a EXPAND das Formulações tem nome posterior a esta, e fica fora da partida.
-    assert.deepEqual(PASTAS.filter((n) => n > NOME), [NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_REFORCO], 'só as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207, as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-210 e da D-PROD-211, a EXPAND da D-PROD-215 e a CONTRACT da D-PROD-216 têm nome posterior a esta');
+    assert.deepEqual(PASTAS.filter((n) => n > NOME), [NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_REFORCO], 'só as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207, as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-210 e da D-PROD-211, a EXPAND da D-PROD-215 e a CONTRACT da D-PROD-217 têm nome posterior a esta');
     assert.equal(TOTAL_MIGRATIONS, 64);
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [53, 0, 0]);
@@ -440,18 +440,18 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     const locais = PASTAS.map((n) => ({ nome: n, checksum: createHash('sha256').update(readFileSync(join(MIGRATIONS, n, 'migration.sql'), 'utf8')).digest('hex') }));
     const h = conferirHistoricoRemoto({ locais, linhas });
     assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_REFORCO], falhas: [] });
-    // D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211 e D-PROD-216: as CONTRACT pendentes são as posteriores (esta e a D-PROD-215 são EXPAND).
-    assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), [{ nome: NOME_PARCEIRO, decisao: 'D-PROD-208' }, { nome: NOME_TIPO, decisao: 'D-PROD-209' }, { nome: NOME_BASE, decisao: 'D-PROD-210' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-211' }, { nome: NOME_REFORCO, decisao: 'D-PROD-216' }]);
+    // D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211 e D-PROD-217: as CONTRACT pendentes são as posteriores (esta e a D-PROD-215 são EXPAND).
+    assert.deepEqual(contractsPendentes({ locais: PASTAS, linhas }), [{ nome: NOME_PARCEIRO, decisao: 'D-PROD-208' }, { nome: NOME_TIPO, decisao: 'D-PROD-209' }, { nome: NOME_BASE, decisao: 'D-PROD-210' }, { nome: NOME_ABASTECIMENTO, decisao: 'D-PROD-211' }, { nome: NOME_REFORCO, decisao: 'D-PROD-217' }]);
   });
 
-  test('LM-03 GREEN pelo runner oficial (alvo conferido; esta, EXPAND, não pede decisão; a D-PROD-208, posterior, leva a dela): esta e depois as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 e as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-210, da D-PROD-211, a EXPAND da D-PROD-215 e a CONTRACT da D-PROD-216 (cada CONTRACT com a decisão dela), 64/0, 87 tabelas mais as 3 das Formulações, a LEITURACOCHO, a CADCULTURAS e as 3 da mão de obra e do serviço que ficam, RLS sem FORCE e a política nas 3, nenhum grant público, as 2 colunas DECIMAL(14,4) anuláveis sem DEFAULT (o bem e o tipo de antes com NULL), o resto intacto e migrate diff vazio', async () => {
+  test('LM-03 GREEN pelo runner oficial (alvo conferido; esta, EXPAND, não pede decisão; a D-PROD-208, posterior, leva a dela): esta e depois as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 e as CONTRACT da D-PROD-208, da D-PROD-209, da D-PROD-210, da D-PROD-211, a EXPAND da D-PROD-215 e a CONTRACT da D-PROD-217 (cada CONTRACT com a decisão dela), 64/0, 87 tabelas mais as 3 das Formulações, a LEITURACOCHO, a CADCULTURAS e as 3 da mão de obra e do serviço que ficam, RLS sem FORCE e a política nas 3, nenhum grant público, as 2 colunas DECIMAL(14,4) anuláveis sem DEFAULT (o bem e o tipo de antes com NULL), o resto intacto e migrate diff vazio', async () => {
     // D-PROD-208 (ver o cabeçalho): a CONTRACT posterior pende junto e só sobe com a decisão DELA; esta não pede nada.
     // D-PROD-209: com o diretório real, as duas CONTRACT posteriores pendem juntas e o runner recusa; no dia da D-PROD-208
     // (espelho até ela) sobem esta, as EXPAND e a D-PROD-208; depois, pelo repositório, a D-PROD-209 com a decisão dela.
     const conferencia = { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID };
     const juntas = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-208' } });
     assert.equal(juntas.status, 1, juntas.saida);
-    assert.ok(juntas.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_TIPO} (D-PROD-209), ${NOME_BASE} (D-PROD-210), ${NOME_ABASTECIMENTO} (D-PROD-211), ${NOME_REFORCO} (D-PROD-216).`), juntas.saida);
+    assert.ok(juntas.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_TIPO} (D-PROD-209), ${NOME_BASE} (D-PROD-210), ${NOME_ABASTECIMENTO} (D-PROD-211), ${NOME_REFORCO} (D-PROD-217).`), juntas.saida);
     assert.match(juntas.saida, /Nenhuma migration foi executada/);
     const r = await runnerAteParceiro(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-208' } });
     assert.equal(r.status, 0, r.saida);
@@ -463,15 +463,15 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     const base = await runnerAteBase(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-210' } });
     assert.equal(base.status, 0, base.saida);
     assert.ok(base.saida.includes(`CONTRACT autorizado: ${NOME_BASE} (D-PROD-210).`), base.saida);
-    // D-PROD-216 (ver o cabeçalho): a D-PROD-211 pelo espelho até ela, a D-PROD-216 pelo repositório, cada uma com a sua.
+    // D-PROD-217 (ver o cabeçalho): a D-PROD-211 pelo espelho até ela, a D-PROD-217 pelo repositório, cada uma com a sua.
     const abastecimento = await runnerAteAbastecimento(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-211' } });
     assert.equal(abastecimento.status, 0, abastecimento.saida);
     assert.ok(abastecimento.saida.includes(`CONTRACT autorizado: ${NOME_ABASTECIMENTO} (D-PROD-211).`), abastecimento.saida);
-    // D-PROD-215 e D-PROD-216: pelo runner do repositório com a decisão da D-PROD-216, a EXPAND do Cadastro de Culturas
+    // D-PROD-215 e D-PROD-217: pelo runner do repositório com a decisão da D-PROD-217, a EXPAND do Cadastro de Culturas
     // (sem decisão) e depois o reforço, a ordem de produção.
-    const reforco = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-216' } });
+    const reforco = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { ...conferencia, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-217' } });
     assert.equal(reforco.status, 0, reforco.saida);
-    assert.ok(reforco.saida.includes(`CONTRACT autorizado: ${NOME_REFORCO} (D-PROD-216).`), reforco.saida);
+    assert.ok(reforco.saida.includes(`CONTRACT autorizado: ${NOME_REFORCO} (D-PROD-217).`), reforco.saida);
     assert.ok(reforco.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), reforco.saida);
     assert.match(r.saida, /alvo conferido nas duas conexões/);
     assert.ok(r.saida.includes(`Applying migration \`${NOME}\``), r.saida);
@@ -537,7 +537,7 @@ describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do
     assert.equal(diff.status, 0, diff.saida);
   });
 
-  test('LM-04 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215 e a D-PROD-216, posteriores, mudam (64 / 0 e 95 tabelas); o preflight agora manda parar', async () => {
+  test('LM-04 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215 e a D-PROD-217, posteriores, mudam (64 / 0 e 95 tabelas); o preflight agora manda parar', async () => {
     const pos = quadro(await consulta(URL_T, comSidLocal(blocoDoRunbook('postcheck'), SID)));
     // O postcheck foi escrito para o dia desta (54 / 0, 87 tabelas); aqui as EXPAND da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 também estão aplicadas
     // (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03) antes do runner.
