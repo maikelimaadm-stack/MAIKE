@@ -210,7 +210,9 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         </LancField>
         {/* Campos de escolha do manejo (B1Select): o painel das listas no desktop e a folha no celular. */}
         <LancField label="Produto de Suplementação" required className="mk-ll__cheio">
-          <B1Select value={produtoId} onChange={(e) => { const v = e.target.value; setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId} className={LL_CTL}>
+          {/* O B1Select chama o onChange também com o item já escolhido (o Select de antes não chamava):
+              só um produto DIFERENTE volta a unidade para KG e limpa a quantidade. */}
+          <B1Select value={produtoId} onChange={(e) => { const v = e.target.value; if (v === produtoId) return; setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId} className={LL_CTL}>
             {produtosDisponiveis.map((p) => <option key={p.id} value={p.id}>{p.nome_produto} ({p.unidade_medida || "KG"})</option>)}
           </B1Select>
         </LancField>

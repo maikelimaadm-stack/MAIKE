@@ -270,6 +270,28 @@ describe('TM-3 — corpo: LancLoteForm com os campos em LancField', () => {
     await escolherNoSelect(entrada.dialogo, /^Unidade/, 'Sacas (30 kg/saco)');
     expect(campo(entrada.dialogo, /^Quantidade \(sacas\)/)).toBeTruthy();
   });
+
+  it('escolher de novo o MESMO produto não mexe na unidade nem na quantidade (como a lista de antes); outro produto volta a KG e limpa', async () => {
+    // Só neste caso: o Galpão Central tem também o sal, para dar para trocar de produto.
+    LOTES.push({ id: 'l-sal-central', empresa_id: EMP, produto_id: SAL.id, produto_nome: SAL.nome_produto, local_estoque_id: LOCAL_CENTRAL.id, local_estoque_nome: LOCAL_CENTRAL.nome, quantidade_disponivel: 300, status: 'Disponivel' });
+    try {
+      const { dialogo } = await montar('Entrada', 1280);
+      await escolherLocal(dialogo, /^Local de Origem/, LOCAL_CENTRAL.nome);
+      await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)');
+      await escolherNoSelect(dialogo, /^Unidade/, 'Sacas (30 kg/saco)');
+      fireEvent.change(campo(dialogo, /^Quantidade \(sacas\)/), { target: { value: '2' } });
+      // O B1Select chama o onChange mesmo com o item que já está escolhido; o Select de antes não.
+      await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)');
+      expect(within(dialogo).getByRole('combobox', { name: /^Unidade/ })).toHaveTextContent('Sacas (30 kg/saco)');
+      expect(/** @type {HTMLInputElement} */ (campo(dialogo, /^Quantidade \(sacas\)/)).value).toBe('2');
+      // Outro produto: como antes, a unidade volta a KG e a quantidade fica vazia.
+      await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'SAL MINERAL 80 (KG)');
+      expect(within(dialogo).getByRole('combobox', { name: /^Unidade/ })).toHaveTextContent('KG');
+      expect(/** @type {HTMLInputElement} */ (campo(dialogo, /^Quantidade \(kg\)/)).value).toBe('');
+    } finally {
+      LOTES.pop();
+    }
+  });
 });
 
 describe('TM-4 — Origem · Destino · Saldo num LancLoteAviso neutro', () => {
