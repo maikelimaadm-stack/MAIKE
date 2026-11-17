@@ -310,7 +310,7 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
 
   it('⚙ "Filtros" abre o painel Filtro de hoje; segmentos na ordem, Lotes pressionado', () => {
     const p = montar();
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos', 'Tarefas']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos', 'Tarefas', 'Visualização do mapa: Mapa']);
     const cfg = barra().getByRole('button', { name: 'Filtros' });
     expect(cfg).toHaveAttribute('title', 'Filtros');
     expect(cfg.className).toBe('mk-mapa-barra__cfg');
@@ -320,6 +320,7 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
     fireEvent.click(cfg);
     expect(p.onOpenFiltros).toHaveBeenCalledTimes(1);
     expect(p.onFoco).not.toHaveBeenCalled();
+    expect(barra().getByRole('button', { name: /Visualização do mapa:/ }).closest('.mk-mapa-dir')).toBeNull();
   });
 
   it('Lotes e Pastos só mudam o foco; Tarefas muda o foco E abre a Gestão de Tarefas a cada toque', () => {
@@ -334,16 +335,16 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
     expect(p.onOpenTarefas).toHaveBeenCalledTimes(2);
   });
 
-  it('segmentos por permissão; sem ⚙ e com um segmento só, a barra não aparece', () => {
+  it('segmentos por permissão; mesmo sem filtros e com um segmento, Visualização permanece na barra', () => {
     montar({ focosPermitidos: ['lotes'] });
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Visualização do mapa: Mapa']);
     cleanup();
     montar({ focosPermitidos: ['lotes', 'pastos'], showFiltrosButton: false });
-    expect(nomesDaBarra()).toEqual(['Lotes', 'Pastos']);
+    expect(nomesDaBarra()).toEqual(['Lotes', 'Pastos', 'Visualização do mapa: Mapa']);
     expect(screen.getByRole('toolbar', { name: 'Mapa' }).className).toContain('mk-mapa-barra--sem-cfg');
     cleanup();
     montar({ focosPermitidos: ['lotes'], showFiltrosButton: false });
-    expect(screen.queryByRole('toolbar', { name: 'Mapa' })).toBeNull();
+    expect(barra().getByRole('button', { name: /Visualização do mapa:/ })).toBeInTheDocument();
     // Os botões da direita continuam iguais.
     expect(screen.getByRole('button', { name: 'Visualização do mapa: Mapa' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Atualizar mapa' })).toBeInTheDocument();
@@ -351,7 +352,7 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
 
   it('padrão fechado: sem focosPermitidos só existe Lotes; os chips antigos sumiram', () => {
     render(<MapaControlesMobile mapType="roadmap" setMapType={() => {}} onRefresh={() => {}} onLocate={() => {}} onToggleDrag={() => {}} onOpenTarefas={() => {}} onOpenFiltros={() => {}} />);
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Visualização do mapa: Mapa']);
     expect(document.querySelector('.mk-mapa-chip, .mk-mapa-topo')).toBeNull();
     // Classes próprias: nada do !important de .mk-mapa-btn/.mk-mapa-card na barra.
     expect(document.querySelector('.mk-mapa-barra :is(.mk-mapa-btn, .mk-mapa-card, .mk-mapa-chip)')).toBeNull();
@@ -364,11 +365,11 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
     fireEvent.keyDown(botao('Lotes'), { key: 'ArrowRight' });
     expect(document.activeElement).toBe(botao('Pastos'));
     fireEvent.keyDown(botao('Pastos'), { key: 'End' });
-    expect(document.activeElement).toBe(botao('Tarefas'));
-    fireEvent.keyDown(botao('Tarefas'), { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(botao('Visualização do mapa: Mapa'));
+    fireEvent.keyDown(botao('Visualização do mapa: Mapa'), { key: 'ArrowRight' });
     expect(document.activeElement, 'dá a volta').toBe(botao('Filtros'));
     fireEvent.keyDown(botao('Filtros'), { key: 'ArrowLeft' });
-    expect(document.activeElement).toBe(botao('Tarefas'));
+    expect(document.activeElement).toBe(botao('Visualização do mapa: Mapa'));
     fireEvent.keyDown(botao('Tarefas'), { key: 'Home' });
     expect(document.activeElement).toBe(botao('Filtros'));
   });
@@ -377,7 +378,7 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
 describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
   it('abre em Lotes (como hoje); Pastos tira lotes e tarefas; Tarefas tira lotes e cochos e abre a Gestão de Tarefas', async () => {
     await abrir();
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos', 'Tarefas']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
     expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: true, tarefas: 1, textoNoRotulo: false });
 
@@ -469,12 +470,12 @@ describe('BARRA-5 — perdeu a permissão do foco atual: volta para Lotes', () =
     expect(noMapa().lotes).toBe(false);
 
     await trocarPermissao(linha({ visualizar_areas: false }, [TELA_TAREFAS]));
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Tarefas']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
     expect(noMapa().lotes).toBe(true);
 
     await trocarPermissao(linha({}, [TELA_TAREFAS]));
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos', 'Tarefas']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes'), 'o foco foi reposto, não só escondido').toBe('true');
   });
 
@@ -487,19 +488,19 @@ describe('BARRA-5 — perdeu a permissão do foco atual: volta para Lotes', () =
 
     await trocarPermissao(linha({}, []));
     expect(screen.queryByRole('dialog', { name: 'Gestão de Tarefas' })).toBeNull();
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pastos', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
     expect(noMapa()).toMatchObject({ lotes: true, cochos: true, tarefas: 0 });
   });
 
-  it('sem filtros, sem áreas e sem tarefas não há barra; sem filtros com áreas, a barra fica sem o ⚙', async () => {
+  it('sem filtros a barra mantém Visualização e só os segmentos autorizados', async () => {
     sessao.usuario = ANA;
     sessao.permissoes = linha({ visualizar_filtros_camadas: false, visualizar_areas: false });
     await abrir();
-    expect(screen.queryByRole('toolbar', { name: 'Mapa' })).toBeNull();
+    expect(barra().getByRole('button', { name: /Visualização do mapa:/ })).toBeInTheDocument();
     expect(noMapa().lotes).toBe(true);
 
     await trocarPermissao(linha({ visualizar_filtros_camadas: false }));
-    expect(nomesDaBarra()).toEqual(['Lotes', 'Pastos']);
+    expect(nomesDaBarra()).toEqual(['Lotes', 'Pastos', 'Visualização do mapa: Satélite']);
   });
 });

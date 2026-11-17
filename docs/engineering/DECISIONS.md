@@ -8165,4 +8165,12 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - A aba Detalhes não repete a pastagem na grade quando ela já está no subtítulo. Se faltar informação, o campo continua visível.
 - Cálculos, catálogo da tabela, ordenação, preferências de colunas, múltiplos lotes, manejo e permissões preservados.
 
-<!-- Próxima decisão: D-PROD-230 -->
+## D-PROD-230 — Visualização dentro da barra escura do mapa (2026-11-17)
+
+**Pedido do proprietário:** incluir o botão Visualização do mapa na mesma linha escura de Filtros, Lotes, Pastos e Tarefas.
+
+- Botão de camadas no fim da barra, branco sobre o fundo escuro, sem a bolinha branca separada. Mesmo painel e estado aberto/fechado; entra na navegação por setas, Home e End.
+- No celular, a barra usa a largura disponível. Atualizar, Localizar e Mover continuam na coluna da direita, abaixo da barra, sem sobreposição.
+- Visualização continua disponível quando há apenas Lotes e sem permissão de filtros, como antes; os segmentos e Filtros mantêm suas permissões.
+
+<!-- Próxima decisão: D-PROD-231 -->

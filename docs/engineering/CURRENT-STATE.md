@@ -14,6 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12), **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho), **D-PROD-222** (lançamentos e históricos que abrem desses detalhes iguais aos do manejo do lote), **D-PROD-224** (detalhes mais compactos, com a densidade do estilo antigo), **D-PROD-225** (cocho e depósito com o subícone do sistema nos detalhes, sem a bolinha do mapa; nasceu como D-PROD-223, que a `main` deu ao farol estimado) e **D-PROD-226** (detalhes organizados como o estilo antigo: pares lado a lado no popup, toque e contraste), pedidos do proprietário; filtros do mapa como estão |
+| Refinamento D-PROD-230 | Botão Visualização integrado ao fim da barra escura do mapa; painel e permissões preservados, ações laterais abaixo da barra. |
 | Refinamento D-PROD-229 | Detalhes de lote com identidade sem repetição, Lotação, Pesagem, Projeção de peso e Identificação separadas; pares no computador e uma coluna no celular. Tabela e regras preservadas. |
 | Refinamento D-PROD-228 | Histórico de cocho e depósito somente pelo botão; nova ação Fechamentos no cocho, com todos os períodos fechados e permissão de histórico. Resumo sem registros antigos; detalhes de lote preservados. |
 | Refinamento D-PROD-227 | Cocho e depósito com seções nomeadas, métricas do último registro agrupadas e projeções/limites sem repetição no resumo; pares explícitos no popup e uma coluna no celular. Regras e permissões preservadas. |

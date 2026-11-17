@@ -130,11 +130,16 @@
   outline-offset: 2px;
 }
 
-/* Alto à direita: camadas + grupo de ações */
+/* Visualização integrada à barra: mesmo ícone e painel, sem a bolinha branca. */
+.mk-mapa-barra__visualizacao[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* À direita, abaixo da barra: grupo de ações do mapa. */
 .mk-mapa-dir {
   position: absolute;
   z-index: 35;
-  top: var(--mk-mapa-gap);
+  top: calc(var(--mk-mapa-barra-topo) + var(--mk-mapa-barra-alto) + 8px);
   right: var(--mk-mapa-gap);
   display: flex;
   flex-direction: column;
@@ -410,11 +415,10 @@
     --mk-mapa-barra-topo: var(--mk-mapa-gap);
     --mk-mapa-barra-alto: 44px;
   }
-  /* Barra da esquerda até antes da coluna da direita (o botão Visualização e
-     a cápsula continuam à vista), com os três segmentos por igual. */
+  /* A barra ocupa a largura disponível; ações da direita ficam abaixo dela. */
   .mk-mapa-barra {
     left: var(--mk-mapa-gap);
-    right: calc(var(--mk-mapa-alto) + var(--mk-mapa-gap) * 2);
+    right: var(--mk-mapa-gap);
     transform: none;
     justify-content: space-between;
   }

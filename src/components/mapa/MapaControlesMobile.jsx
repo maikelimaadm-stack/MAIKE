@@ -2,7 +2,8 @@
  * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações.
  * - Barra do topo (D-PROD-218): ⚙ (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
  *   Os segmentos e o que cada foco mostra vêm de src/lib/mapaFoco.js.
- * - Coluna da direita: Visualização; Atualizar, Minha localização e Mover.
+ * - Visualização fica no fim da barra escura (D-PROD-230).
+ * - Coluna da direita: Atualizar, Minha localização e Mover.
  * Posição e espaçamento ficam em mapa-geral.css (.mk-mapa-barra, .mk-mapa-dir) e mk-mapa-superficie.css.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
@@ -41,10 +42,9 @@ function andarNaBarra(event) {
  *   - Segmentos `focosPermitidos` (Lotes sempre; Pastos e Tarefas pela
  *     permissão), com `aria-pressed` no `foco` atual; o toque chama `onFoco(id)`.
  *     Tarefas também abre a Gestão de Tarefas (`onOpenTarefas`) a cada toque.
- *   - A barra só aparece com o ⚙ ou com dois segmentos ou mais.
- * - Alto à direita: Visualização (tipo de mapa, estilo e cores dos pastos, o
- *   que mostrar — `painel`) e Atualizar, Minha localização e Mover lotes num
- *   grupo único.
+ *   - Visualização fecha a barra, inclusive quando só Lotes está liberado.
+ * - Visualização (tipo, estilo e cores — `painel`) fica no fim da barra.
+ * - À direita, abaixo dela: Atualizar, Minha localização e Mover lotes.
  */
 export default function MapaControlesMobile({
   mapType, setMapType,
@@ -65,7 +65,6 @@ export default function MapaControlesMobile({
   const [camadasAberto, setCamadasAberto] = React.useState(false);
 
   const segmentos = FOCOS_MAPA.filter((f) => focosPermitidos.includes(f.id));
-  const mostrarBarra = showFiltrosButton || segmentos.length >= 2;
 
   const camadaAtual = CAMADAS.find((c) => c.id === mapType) || CAMADAS[0];
 
@@ -87,48 +86,42 @@ export default function MapaControlesMobile({
 
   return (
     <>
-      {mostrarBarra ? (
-        <div
-          className={`mk-mapa-barra${showFiltrosButton ? "" : " mk-mapa-barra--sem-cfg"}`}
-          role="toolbar"
-          aria-label="Mapa"
-          onKeyDown={andarNaBarra}>
-          {showFiltrosButton ? (
-            <button type="button" className="mk-mapa-barra__cfg" onClick={onOpenFiltros} aria-label="Filtros" title="Filtros">
-              <Settings size={22} aria-hidden />
-            </button>
-          ) : null}
-          {segmentos.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              className="mk-mapa-barra__seg"
-              aria-pressed={foco === f.id}
-              onClick={() => {
-                onFoco?.(f.id);
-                if (f.id === "tarefas") onOpenTarefas?.();
-              }}>
-              {f.rotulo}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div
+        className={`mk-mapa-barra${showFiltrosButton ? "" : " mk-mapa-barra--sem-cfg"}`}
+        role="toolbar"
+        aria-label="Mapa"
+        onKeyDown={andarNaBarra}>
+        {showFiltrosButton ? (
+          <button type="button" className="mk-mapa-barra__cfg" onClick={onOpenFiltros} aria-label="Filtros" title="Filtros">
+            <Settings size={22} aria-hidden />
+          </button>
+        ) : null}
+        {segmentos.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className="mk-mapa-barra__seg"
+            aria-pressed={foco === f.id}
+            onClick={() => {
+              onFoco?.(f.id);
+              if (f.id === "tarefas") onOpenTarefas?.();
+            }}>
+            {f.rotulo}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="mk-mapa-barra__cfg mk-mapa-barra__visualizacao"
+          onClick={() => setCamadasAberto((v) => !v)}
+          aria-expanded={camadasAberto}
+          aria-haspopup="true"
+          aria-label={`Visualização do mapa: ${camadaAtual.label}`}
+          title="Visualização">
+          <Layers size={22} aria-hidden />
+        </button>
+      </div>
 
       <div className="mk-mapa-dir">
-        <div className="mk-mapa-camadas">
-          <button
-            type="button"
-            className={`mk-mapa-card mk-mapa-btn mk-mapa-btn--solo${camadasAberto ? " is-on" : ""}`}
-            onClick={() => setCamadasAberto((v) => !v)}
-            aria-expanded={camadasAberto}
-            aria-haspopup="true"
-            aria-label={`Visualização do mapa: ${camadaAtual.label}`}
-            title="Visualização">
-            <Layers size={18} aria-hidden />
-          </button>
-
-        </div>
-
         <div className="mk-mapa-card mk-mapa-pilha">
           <button type="button" className="mk-mapa-btn" onClick={onRefresh} aria-label="Atualizar mapa" title="Atualizar mapa">
             <RefreshCw size={17} aria-hidden />
