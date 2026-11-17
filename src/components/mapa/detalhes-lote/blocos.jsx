@@ -252,8 +252,8 @@ export function TituloBloco({ children, link, onLink, id, className, ...resto })
 }
 
 /**
- * Cartão branco (sombra, raio 12). Cabeçalho opcional: ícone lucide 40 px teal
- * OU imagem 44 px, título, sub e chip. Os filhos são as partes (`Grade`,
+ * Cartão branco (sombra, raio 12). Cabeçalho opcional: ícone lucide 32 px teal
+ * OU imagem 36 px (tamanhos da D-PROD-224), título, sub e chip. Os filhos são as partes (`Grade`,
  * `Linha`); as divisórias entre elas vêm do CSS.
  * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, titulo?: React.ReactNode, sub?: React.ReactNode, chip?: React.ReactNode, children?: React.ReactNode, className?: string } & Record<string, any>} props
  */
@@ -317,7 +317,7 @@ export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, titl
 }
 
 /**
- * Linha (dentro de um `Cartao`): ícone 22 px teal ou imagem 30 px, rótulo e
+ * Linha (dentro de um `Cartao`): ícone 20 px teal ou imagem 26 px (D-PROD-224), rótulo e
  * sub; no fim bolinha, valor à direita e chevron. `quebra`: o valor ocupa o
  * espaço que sobra e quebra em mais linhas. Com `onClick` vira botão.
  * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, rotulo: React.ReactNode, sub?: React.ReactNode, bolinha?: string | null, valor?: React.ReactNode, cor?: string | null, chevron?: boolean, quebra?: boolean, onClick?: () => void, title?: string, className?: string } & Record<string, any>} props
@@ -363,7 +363,7 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
 
 /**
  * Bloco do nível do cocho/depósito (D-PROD-220, `v11-nivel` do v12): figura de
- * 76 px à esquerda; rótulo em caixa alta, valor grande (ex.: "65%") e linhas
+ * 64 px (D-PROD-224) à esquerda; rótulo em caixa alta, valor grande (ex.: "65%") e linhas
  * curtas à direita. `figura`: nó pronto (ex.: `<CochoNivel …/>`) ou URL de
  * imagem. `children` entra depois das linhas (ex.: uma orientação).
  * @param {{ figura?: React.ReactNode, rotulo: React.ReactNode, valor?: React.ReactNode, linhas?: React.ReactNode[], children?: React.ReactNode, className?: string } & Record<string, any>} props
@@ -429,7 +429,7 @@ export function Nota({ children, className, ...resto }) {
 }
 
 /**
- * Estado vazio: ícone 34 px cinza-claro e texto.
+ * Estado vazio: ícone 28 px cinza-claro e texto.
  * @param {{ icone?: IconeLucide, children: React.ReactNode, className?: string } & Record<string, any>} props
  */
 export function Vazio({ icone: Icone, children, className, ...resto }) {
@@ -574,7 +574,7 @@ export function ListaItens({ titulo, marcacao, onMarcarTodos, rotuloTodos = "Sel
 }
 
 /**
- * Item da `ListaItens`: caixa, imagem 34 px ou ícone 26 px, quadradinho de cor,
+ * Item da `ListaItens`: caixa, imagem 30 px ou ícone 24 px (D-PROD-224), quadradinho de cor,
  * título (até 2 linhas), meta, sub, chip, bolinha e chevron. Com `onClick` o
  * item inteiro abre (o corpo vira botão para o teclado); a caixa não abre.
  * @param {{ titulo: React.ReactNode, meta?: React.ReactNode, sub?: React.ReactNode, imagem?: React.ReactNode, icone?: IconeLucide, cor?: string | null, chip?: React.ReactNode, bolinha?: string | null, chevron?: boolean, marcado?: boolean | EstadoCaixa | null, onMarcar?: () => void, rotuloMarcar?: string, onClick?: () => void, title?: string, className?: string }} props
@@ -775,7 +775,7 @@ BotaoFiltro.displayName = "BotaoFiltro";
  */
 
 /**
- * Rodapé de pílulas (36 px, até 220 px, ícone 16 px). Desabilitada: `.is-off` + `disabled`.
+ * Rodapé de pílulas (36 px; 40 px no celular e na tela de toque; até 220 px, ícone 16 px). Desabilitada: `.is-off` + `disabled`.
  * @param {{ itens: Pilula[], rotulo?: string, className?: string }} props
  */
 export function RodapePilulas({ itens, rotulo = "Ações", className }) {

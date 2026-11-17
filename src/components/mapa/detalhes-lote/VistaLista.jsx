@@ -107,6 +107,24 @@ export function VistaLista() {
 }
 
 /**
+ * Cabeçalho focado (Tab) aparece inteiro na rolagem lateral da tabela. O navegador só rola quando
+ * ele está todo escondido; em parte visível, o rótulo e o anel de foco ficavam cortados na borda.
+ * À esquerda, a borda é a coluna presa (Nome), que fica por cima ao rolar.
+ * @param {React.FocusEvent<HTMLButtonElement>} e
+ */
+function mostrarInteiro(e) {
+  const celula = e.currentTarget.closest('[role="columnheader"]');
+  const rolo = e.currentTarget.closest(".mk-dp-tabela__rolo");
+  if (!(celula instanceof HTMLElement) || !(rolo instanceof HTMLElement) || celula.classList.contains("mk-dp-fixo")) return;
+  const r = celula.getBoundingClientRect();
+  const c = rolo.getBoundingClientRect();
+  const presa = rolo.querySelector('.mk-dp-tabela__th.mk-dp-fixo');
+  const esquerda = presa instanceof HTMLElement ? presa.getBoundingClientRect().right : c.left;
+  if (r.right > c.right) rolo.scrollLeft += Math.ceil(r.right - c.right);
+  else if (r.left < esquerda) rolo.scrollLeft -= Math.ceil(esquerda - r.left);
+}
+
+/**
  * Cabeçalho ordenável: clicar ordena pela coluna (nova → crescente; a mesma → inverte).
  * @param {{ chave: string, rotulo: string, dica?: string, ordem: { chave: string, dir: number }, onOrdenar: (chave: string) => void, className?: string }} props
  */
@@ -115,7 +133,7 @@ function CabecalhoColuna({ chave, rotulo, dica, ordem, onOrdenar, className }) {
   const crescente = ordem.dir > 0;
   return (
     <div role="columnheader" aria-sort={ativa ? (crescente ? "ascending" : "descending") : undefined} className={cls("mk-dp-tabela__th", ativa && "is-on", className)}>
-      <button type="button" className="mk-dp-tabela__ordenar" title={dica || undefined} onClick={() => onOrdenar(chave)}>
+      <button type="button" className="mk-dp-tabela__ordenar" title={dica || undefined} onClick={() => onOrdenar(chave)} onFocus={mostrarInteiro}>
         <span>{rotulo}</span>
         <span className="mk-dp-tabela__seta" aria-hidden="true">
           {ativa ? (crescente ? "▲" : "▼") : ""}

@@ -63,7 +63,7 @@
   line-height: 1.3;
 }
 
-/* Seção vazia: a linha fraca do v12 (`v11-row--fraco`), 12,5 px cinza. */
+/* Seção vazia: a linha fraca do v12 (`v11-row--fraco`), 11,5 px cinza (D-PROD-224). */
 .mk-dp .mk-dp-deposito__linha--fraca .mk-dp-linha__rot {
   color: #6b7280;
   font-size: 11.5px;
@@ -126,6 +126,15 @@
 .mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(3):nth-last-child(2),
 .mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(4):last-child {
   grid-column: span 3;
+}
+
+/* 2ª fileira com os valores na mesma linha: "Necessidade reposição kg" quebra em duas linhas, e
+   cada célula usa os trilhos da grade (subgrid) para rótulo, valor e sub. Sem subgrid, fica como antes. */
+.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(n + 3) {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 1px;
 }
 
 /* ── Popup (a partir de 768 px, D-PROD-224): o nível e o cartão dos números

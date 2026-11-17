@@ -18,7 +18,7 @@
  *   div.mk-dp-vazio.mk-dp-cocho__carregando[role=status]
  */
 
-/* ── Regiões (nível, leitura): coluna com o mesmo espaço do corpo (10 px) ── */
+/* ── Regiões (nível, leitura): coluna com o mesmo espaço do corpo (8 px) ── */
 .mk-dp .mk-dp-cocho__regiao {
   position: relative;
   display: flex;
@@ -78,6 +78,16 @@
   grid-column: 1 / -1;
 }
 
+/* Os três números com o valor na mesma linha, mesmo quando um rótulo quebra em duas (ex.:
+   "Próxima reposição" no popup do tablet): cada célula usa os trilhos da grade (subgrid) para
+   rótulo, valor e sub. Sem subgrid, a célula fica como antes. */
+.mk-dp .mk-dp-cocho__cartao-nivel .mk-dp-grade > .mk-dp-cel:not(.mk-dp-medidor) {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 1px;
+}
+
 /* Sem estimativa: o estado (ex.: "Período fechado") no lugar do número, menor e cinza. */
 .mk-dp .mk-dp-cocho__nivel--neutro .mk-dp-nivel__val {
   color: #4b5563;
@@ -90,7 +100,7 @@
 }
 
 /* ── Linhas ───────────────────────────────────────────────────────────── */
-/* "Fraca" do v12 (`v11-row--fraco`): rótulo cinza, rótulo e valor em 12,5 px —
+/* "Fraca" do v12 (`v11-row--fraco`): rótulo cinza, rótulo e valor em 11,5 px (D-PROD-224) —
    leituras anteriores e os "Nenhum … ainda.". */
 .mk-dp .mk-dp-cocho__linha--fraca .mk-dp-linha__rot {
   color: #6b7280;

@@ -187,6 +187,9 @@ describe("Detalhe do bebedouro v12 no diálogo do mapa", () => {
     expect(document.querySelector(".mk-dp-cab")).toBeNull();
     const blocos = [...corpo().children].map((el) => el.className.split(" ")[0]);
     expect(blocos).toEqual(["mk-dp-cartao", "mk-dp-titulo", "mk-dp-cartao", "mk-dp-titulo", "mk-dp-cartao", "mk-dp-titulo", "mk-dp-cartao", "mk-dp-titulo", "mk-dp-tl"]);
+    // Os pares do popup (D-PROD-226) contam com o corpo como filho direto da raiz `.mk-dp.mk-dp-bebedouro`.
+    expect(corpo().parentElement).toBe(raiz);
+    expect(raiz?.classList.contains("mk-dp-bebedouro")).toBe(true);
     expect([...corpo().querySelectorAll(".mk-dp-titulo__h")].map((h) => h.textContent)).toEqual([
       "Resumo operacional",
       "Último registro",

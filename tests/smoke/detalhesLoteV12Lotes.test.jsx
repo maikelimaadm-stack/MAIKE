@@ -297,6 +297,32 @@ describe("aba Lotes › Lista", () => {
     expect(totais.slice(0, 15)).toEqual(["Total da área", "", "", "", "314", "329,7", "100%", "230,09", "100%", "2,24", "1.008", "26", "103.540", "6.457", "342,6"]);
   });
 
+  it("Tab num cabeçalho só em parte visível rola a tabela até ele aparecer inteiro (à esquerda, a coluna presa Nome conta como borda)", () => {
+    render(<CascaDeTeste modelo={modeloV12()} />);
+    const rolo = /** @type {HTMLElement} */ (document.querySelector(".mk-dp-tabela__rolo"));
+    const ths = screen.getAllByRole("columnheader").filter((th) => th.querySelector("button"));
+    const caixa = (/** @type {Element} */ el, esquerda, direita) => {
+      el.getBoundingClientRect = () => /** @type {DOMRect} */ ({ left: esquerda, right: direita, top: 0, bottom: 30, width: direita - esquerda, height: 30, x: esquerda, y: 0, toJSON() {} });
+    };
+    caixa(rolo, 0, 400);
+    caixa(ths[0], 0, 120); // Nome, presa à esquerda
+    // Cortado na borda direita: rola o que falta (44 px).
+    caixa(ths[4], 360, 444);
+    act(() => ths[4].querySelector("button").focus());
+    expect(rolo.scrollLeft).toBe(44);
+    // Escondido em parte embaixo da coluna presa: volta o que falta (40 px).
+    caixa(ths[2], 80, 164);
+    act(() => ths[2].querySelector("button").focus());
+    expect(rolo.scrollLeft).toBe(4);
+    // Inteiro à vista: não rola.
+    caixa(ths[3], 200, 300);
+    act(() => ths[3].querySelector("button").focus());
+    expect(rolo.scrollLeft).toBe(4);
+    // A própria coluna presa nunca rola a tabela.
+    act(() => ths[0].querySelector("button").focus());
+    expect(rolo.scrollLeft).toBe(4);
+  });
+
   it("ordenação: Nome ▲ no começo; coluna nova crescente, a mesma inverte, vazios no fim", async () => {
     render(<CascaDeTeste modelo={modeloV12()} />);
     const nome = screen.getAllByRole("columnheader").find((th) => th.textContent.startsWith("Nome"));

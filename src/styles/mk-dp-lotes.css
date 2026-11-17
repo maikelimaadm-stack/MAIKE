@@ -16,7 +16,7 @@
  *     > div.mk-dp-tabela__tot(.mk-dp-fixo | .mk-dp-sep)
  */
 
-/* ── Invólucros das vistas (mantêm o espaço de 10 px entre os blocos) ─── */
+/* ── Invólucros das vistas (mantêm o espaço de 8 px entre os blocos) ──── */
 .mk-dp .mk-dp-lotes__vista,
 .mk-dp .mk-dp-lotes__blocos {
   display: flex;

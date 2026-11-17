@@ -399,7 +399,9 @@
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
-  text-wrap: balance;
+  /* Sem palavra sozinha na última linha ("27/10/2026 ·" / "13 dia(s)") e sem mexer nas outras quebras
+     ("900 kg" / "acima do mínimo"; "Pasto 01, Pasto 02," / "Pasto 03…"), que o balance piorava. */
+  text-wrap: pretty;
 }
 
 .mk-dp .mk-dp-cel__sub {
@@ -505,14 +507,27 @@
   text-align: right;
 }
 
+/* Texto livre (Observações, Cochos vinculados, Projeção, Parâmetros de manejo), em todas as
+   larguras (D-PROD-226): o rótulo numa coluna (168 px no popup, um terço no celular, no máximo a
+   metade) e o valor logo depois, alinhado à esquerda, quebrando nas palavras. O rótulo não encolhe
+   abaixo da coluna: com um valor longo ele não fica por cima do valor nem é partido no meio. */
+.mk-dp .mk-dp-linha--quebra:has(.mk-dp-linha__val) .mk-dp-linha__txt {
+  flex: 0 1 auto;
+  min-width: min(168px, 33%);
+  max-width: 50%;
+}
+
 .mk-dp .mk-dp-linha--quebra .mk-dp-linha__fim {
-  flex: 1 1 auto;
-  justify-content: flex-end;
+  flex: 1 1 0;
+  justify-content: flex-start;
+  min-width: 0;
   max-width: none;
 }
 
 .mk-dp .mk-dp-linha--quebra .mk-dp-linha__val {
   white-space: normal;
+  text-align: left;
+  overflow-wrap: break-word;
 }
 
 .mk-dp .mk-dp-chev {
@@ -1298,31 +1313,36 @@
     position: absolute;
     inset: -6px -4px;
   }
+
+  /* ✕ do popup dos detalhes (36 px, tablet ou computador com toque) → 40 px. */
+  .mk-ll-dlg:has(> .mk-ll > .mk-dp) .mk-ll-dlg__acoes .tb-btn.mg-act-cancelar {
+    position: relative;
+  }
+
+  .mk-ll-dlg:has(> .mk-ll > .mk-dp) .mk-ll-dlg__acoes .tb-btn.mg-act-cancelar::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+  }
+}
+
+/* Celular de 360 px ou mais: a pílula não encolhe abaixo do próprio texto ("Registrar evento" sem
+   reticências); as outras cedem o espaço. Abaixo de 360 px, as reticências continuam. */
+@media (min-width: 360px) and (max-width: 767px) {
+  .mk-dp .mk-dp-pilula {
+    min-width: auto;
+  }
 }
 
 /* ── Popup (a partir de 768 px, D-PROD-226) ───────────────────────────── */
 @media (min-width: 768px) {
-  /* Texto livre (Observações, Cochos vinculados, Projeção): o valor logo depois do rótulo,
-     não na outra ponta do cartão. Listas e tabelas continuam com o valor à direita. */
-  .mk-dp .mk-dp-linha--quebra:has(.mk-dp-linha__val) .mk-dp-linha__txt {
-    flex: 0 1 auto;
-    min-width: 168px;
-    max-width: 50%;
-  }
-
-  .mk-dp .mk-dp-linha--quebra .mk-dp-linha__fim {
-    justify-content: flex-start;
-  }
-
-  .mk-dp .mk-dp-linha--quebra .mk-dp-linha__val {
-    text-align: left;
-  }
-
   /* Pares lado a lado: o 1º e o 2º título do corpo (com o bloco logo depois de cada um) vão para
      as colunas 1 e 2; o resto fica de ponta a ponta. Pasto › Detalhes (Lotação | Categorias),
      Pasto › Suplementação (Fornecimento | Consumo), bebedouro (Resumo | Último registro) e
      depósito (Saldo por produto | Pastos atendidos). `grid-auto-rows: min-content` é obrigatório:
-     o corpo tem altura definida e os cartões (overflow: hidden) encolheriam e cortariam. */
+     o corpo tem altura definida e os cartões (overflow: hidden) encolheriam e cortariam.
+     A media query é da largura da tela: o bebedouro também fica em pares na tela Bebedouros,
+     que mostra o mesmo detalhe na página (a partir de 768 px). */
   .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo),
   .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis),
   .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards,
@@ -1362,6 +1382,16 @@
   .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo),
   .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > .mk-dp-titulo:nth-child(2 of .mk-dp-titulo) + * {
     grid-column: 2;
+  }
+
+  /* Títulos do par no fim da fileira: cada um fica a 4 px do seu cartão, mesmo quando o vizinho
+     quebra em duas linhas (ex.: "Consumo esperado / real · <cocho de nome longo>"). Os títulos de
+     ponta a ponta ocupam a fileira sozinhos, então não mudam. */
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-detalhes"]:has(> .mk-dp-titulo ~ .mk-dp-titulo) > .mk-dp-titulo,
+  .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]:has(> .mk-dp-kpis) > .mk-dp-titulo,
+  .mk-dp.mk-dp-bebedouro > .mk-dp__corpo--cards > .mk-dp-titulo,
+  .mk-dp.mk-dp-deposito > .mk-dp__corpo--cards:has(> .mk-dp-deposito__nivel) > .mk-dp-titulo {
+    align-self: end;
   }
 
   /* Quatro células em meia coluna: 2 × 2 (Fornecimento, Consumo, Resumo operacional). */

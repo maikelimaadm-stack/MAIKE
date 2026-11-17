@@ -14,7 +14,7 @@
  * desenho dos manejos do lote (lancamento-lote.css): nada deles mora aqui.
  */
 
-/* "Nenhum lançamento ainda.": a linha fraca do v12 (`v11-row--fraco`), 12,5 px cinza */
+/* "Nenhum lançamento ainda.": a linha fraca do v12 (`v11-row--fraco`), 11,5 px cinza (D-PROD-224) */
 .mk-dp .mk-dp-bebedouro__fraco .mk-dp-linha__rot {
   color: #6b7280;
   font-size: 11.5px;

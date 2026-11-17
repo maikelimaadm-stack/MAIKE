@@ -229,6 +229,17 @@ describe('CV-3 — bloco do nível', () => {
     expect(valorDe(secaoNivel(), 'Saldo estimado')).toBe('100 kg');
     expect(valorDe(secaoNivel(), 'Duração estimada')).toBe('4 dia(s)');
     expect(valorDe(secaoNivel(), 'Próxima reposição')).toBe('14/11/2026');
+    // O lado a lado do popup (D-PROD-224) e o cartão de três números (D-PROD-226) contam com esta
+    // marcação: na região, o título oculto, o nível e o cartão do limite como filhos diretos; na
+    // grade do cartão, o medidor e as três células dos números.
+    const [tituloOculto, nivelEl, cartaoEl, ...outros] = [...secaoNivel().children];
+    expect(secaoNivel().classList.contains('mk-dp-cocho__regiao')).toBe(true);
+    expect(outros).toHaveLength(0);
+    expect(tituloOculto.classList.contains('mk-dp-cocho__oculto')).toBe(true);
+    expect(nivelEl.classList.contains('mk-dp-cocho__nivel')).toBe(true);
+    expect(cartaoEl.classList.contains('mk-dp-cocho__cartao-nivel')).toBe(true);
+    const celulas = [...cartaoEl.querySelectorAll(':scope > .mk-dp-grade > .mk-dp-cel')];
+    expect(celulas.map((c) => c.classList.contains('mk-dp-medidor'))).toEqual([true, false, false, false]);
     cleanup();
 
     dados.cache.eventosSuplementacao = [];

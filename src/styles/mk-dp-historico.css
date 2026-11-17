@@ -10,7 +10,8 @@
  * #5aa7e0 e anel da cor do fundo; cartão com borda 1 px #e7e9ec, raio 10, sem
  * sombra; cabeçalho 36 px, ícone 20 px teal, título 14/600; linhas em grade
  * (rótulo 11,5 #6b7280 em cima, valor 13/600 #1f2328 embaixo) com a divisória
- * #f0f1f3 entre as fileiras; 6 px entre dia e cartões (D-PROD-226).
+ * #f0f1f3 entre as fileiras; 6 px entre dia e cartões; o valor que quebra em
+ * duas linhas equilibradas (D-PROD-226).
  *
  * Marcação:
  *   div.mk-dp-hist > div.mk-dp-botoes > button.mk-dp-filtro
@@ -24,7 +25,7 @@
  *       + dl.mk-dp-tl__linhas (grade) > div.mk-dp-tl__row(.mk-dp-tl__row--larga) > dt + dd
  */
 
-/* A aba é um bloco do corpo: coluna com o mesmo espaço do corpo (10 px) */
+/* A aba é um bloco do corpo: coluna com o mesmo espaço do corpo (8 px) */
 .mk-dp .mk-dp-hist {
   display: flex;
   flex-direction: column;
@@ -173,6 +174,7 @@
   color: #1f2328;
   font-weight: 600;
   overflow-wrap: anywhere;
+  /* Equilibrada: "L-2026-020" / "· L-2026-021" em vez de partir o código do lote no hífen. */
   text-wrap: balance;
 }
 

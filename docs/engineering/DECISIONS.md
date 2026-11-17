@@ -7970,8 +7970,8 @@ Ver o relatório, §7.
    - 8 px entre os blocos do corpo;
    - células com 7 px em cima e embaixo; linhas, itens e cabeçalhos de cartão mais baixos;
    - o título do bloco fica a 4 px do seu cartão e a 12 px do bloco de cima;
-   - ícones dos cartões, linhas e itens um pouco menores. Os ícones do animal acompanham: 36 px no cartão do lote, 26 px nas categorias e 30 px no Resumo.
-3. **Mais colunas:** a grade de células usa colunas de 128 px. São 6 no popup e 2 no celular.
+   - ícones dos cartões, linhas e itens um pouco menores: a figura do nível do cocho e do depósito passa de 76 para 64 px, e o ícone das listas (Pastos atendidos, Cochos do pasto) de 34 para 30 px. Os ícones do animal acompanham: 36 px no cartão do lote, 26 px nas categorias e 30 px no Resumo.
+3. **Mais colunas:** a grade de células usa colunas de 128 px. São 6 no popup do computador (880 px, a partir de cerca de 864 px de tela), 5 no popup do tablet (768 a 863 px) e 2 no celular. Os cartões dos números do cocho e do depósito têm grade própria (D-PROD-226).
 4. **Lado a lado no popup** (a partir de 768 px), como o "Nível do cocho" antigo:
    - cocho: o nível ao lado do cartão do limite, em 2 × 2 (depois, a D-PROD-226 pôs a barra do limite de ponta a ponta e os três números numa fileira);
    - depósito: o nível ao lado do cartão dos números, com os avisos embaixo, de ponta a ponta.
@@ -7979,8 +7979,8 @@ Ver o relatório, §7.
 6. **Alvos de toque:** linhas clicáveis, itens, abas e grupos continuam com 40 px ou mais.
 
 **Resultado** (altura do conteúdo no harness, antes → depois):
-- computador: cocho 1.371 → 1.025 px (−26%); depósito 1.411 → 986 px (−31%); bebedouro 982 → 813 px (−18%); área 3.112 → 1.854 px (−41%); histórico do pasto 2.818 → 1.616 px (−43%);
-- celular: cocho 2.059 → 1.636 px (−21%); depósito 1.642 → 1.280 px (−23%); área 3.165 → 2.443 px (−23%).
+- computador: cocho 1.371 → 1.025 px (−25%); depósito 1.411 → 986 px (−30%); bebedouro 982 → 813 px (−17%); área 3.112 → 1.854 px (−40%); histórico do pasto 2.818 → 1.616 px (−43%);
+- celular: cocho 2.059 → 1.636 px (−21%); depósito 1.642 → 1.280 px (−22%); área 3.165 → 2.443 px (−23%).
 
 **Não muda:** dados, regras, textos, ordem dos blocos, permissões e acessibilidade (nomes e papéis). Também não mudam o histórico completo no cartão do manejo (D-PROD-222), os lançamentos e o mapa.
 
@@ -8012,7 +8012,7 @@ Ver o relatório, §7.
 1. **Nível do cocho** (no detalhe do cocho, também quando ele abre empilhado no depósito): `CochoNivel` sem o modo marcador. Esse modo, criado na D-PROD-220, ficou sem uso e saiu: o `CochoNivel` voltou a ser o da `main`.
 2. **Nível do depósito:** `urlIconeDeposito(fração)`, sem o pino.
 3. **Listas de cochos:** os Pastos atendidos do depósito e os Cochos do pasto da aba Suplementação do Detalhes do Lote usam o subícone do cocho, com o nível do ciclo.
-4. **Tamanho:** na caixa de 76 px do bloco do nível, o subícone ocupa a largura, na proporção dele (76 × 56 px). Nas listas, a caixa de 34 px é a mesma.
+4. **Tamanho:** na caixa do bloco do nível, o subícone ocupa a largura, na proporção dele: 76 × 56 px quando esta decisão foi feita. Nas listas, a caixa é a mesma do marcador. Depois, a D-PROD-224 reduziu a caixa do nível para 64 px (o subícone fica com 64 × 47 px) e a das listas de 34 para 30 px.
 
 **Não muda:**
 - o nível: é a mesma fração do SSOT (D-PROD-178);
@@ -8043,38 +8043,44 @@ Quatro mutações, uma por lugar, voltaram o marcador ou as cores do marcador, e
 
 **Como foi escolhido:** três propostas independentes (densidade, organização e fiel ao antigo), cada uma medida no harness. Um juiz comparou as três e montou a especificação a partir da mais fiel ao antigo, com o que valia das outras duas. O que ficou de fora:
 - subir de novo letras e alturas: desfaria a D-PROD-224;
-- três colunas no celular: rótulos e valores quebrariam em duas ou três linhas;
+- três colunas na grade comum do celular: rótulos e valores quebrariam em duas ou três linhas. A exceção são os dois cartões de números conhecidos (itens 2 e 3): os rótulos são curtos, e os valores ficam na mesma linha mesmo quando um rótulo quebra;
 - figura do nível maior: o cocho ficaria mais alto;
 - juntar blocos mexendo no DOM e posicionar pelo número do filho.
 
 **Decisão:**
-1. **Pares lado a lado no popup** (a partir de 768 px):
+1. **Pares lado a lado a partir de 768 px de tela** (no popup do mapa e também na tela Bebedouros, que mostra o mesmo detalhe na página):
    - Pasto › Detalhes: Lotação | Categorias;
    - Pasto › Suplementação: Fornecimento | Consumo esperado / real;
    - bebedouro: Resumo operacional | Último registro;
    - depósito: Saldo por produto | Pastos atendidos.
 
-   O resto continua de ponta a ponta. A posição vem do 1º e do 2º título do corpo, não do número do filho, então um aviso opcional antes não desloca o par. A ordem de leitura e de foco continua a do DOM. Sem o 2º bloco (pasto sem lotes, Suplementação sem cocho) ou carregando, o corpo fica em coluna. No celular, nada muda: uma coluna.
-2. **Cocho, como o "Nível do cocho" antigo**, em todos os modos: no cartão do limite, a barra "Uso do limite operacional" de ponta a ponta e Saldo estimado | Duração estimada | Próxima reposição numa fileira.
-3. **Depósito, como o `DepositoNivel` antigo**, em todos os modos: Ocupação do limite | Estoque mínimo meio a meio; embaixo, Saldo atual | Saldo em sacos | Necessidade de reposição numa fileira (sem sacos, meio a meio).
-4. **Texto livre no popup** (Observações, Cochos vinculados, Projeção): o valor logo depois do rótulo, alinhado à esquerda. Listas e tabelas continuam com o valor à direita.
+   O resto continua de ponta a ponta. A posição vem do 1º e do 2º título do corpo, não do número do filho, então um aviso opcional antes não desloca o par. Os dois títulos ficam no fim da fileira, cada um a 4 px do seu cartão, mesmo quando o vizinho quebra em duas linhas. A ordem de leitura e de foco continua a do DOM. Sem o 2º bloco (pasto sem lotes, Suplementação sem cocho) ou carregando, o corpo fica em coluna. No celular, nada muda: uma coluna.
+2. **Cocho, como o "Nível do cocho" antigo**, em todos os modos: no cartão do limite, a barra "Uso do limite operacional" de ponta a ponta e Saldo estimado | Duração estimada | Próxima reposição numa fileira, com os valores na mesma linha mesmo quando um rótulo quebra (subgrid).
+3. **Depósito, como o `DepositoNivel` antigo**, em todos os modos: Ocupação do limite | Estoque mínimo meio a meio; embaixo, Saldo atual | Saldo em sacos | Necessidade de reposição numa fileira (sem sacos, meio a meio), também com os valores na mesma linha ("Necessidade reposição kg" quebra em duas).
+4. **Texto livre** (Observações, Cochos vinculados, Projeção, Parâmetros de manejo), em todas as larguras: o rótulo numa coluna (168 px no popup, um terço no celular, no máximo a metade) e o valor logo depois, alinhado à esquerda e quebrando nas palavras. O rótulo não encolhe abaixo da coluna, então não fica por cima de um valor longo nem é partido no meio. Listas e tabelas continuam com o valor à direita.
 5. **Linha do tempo:**
    - linha fina entre as fileiras de cada cartão;
    - cabeçalho do cartão de 36 px (não é alvo de toque);
    - 6 px entre os dias e entre os cartões;
-   - o valor que quebra fica em duas linhas equilibradas.
-6. **Toque** (celular e tela de toque): ficam com 40 px ou mais, sem mudar o desenho (áreas de toque invisíveis), e com mouse nada muda:
-   - as pílulas do rodapé;
-   - Resumo/Lote/Lista;
-   - o link do título;
-   - o "Excluir";
-   - a caixa de marcar;
-   - o cabeçalho ordenável da Lista.
+   - o valor que quebra fica em duas linhas equilibradas (`text-wrap: balance`): "L-2026-020" / "· L-2026-021", sem partir o código do lote no hífen. Nas células, o valor que quebra não deixa uma palavra sozinha na última linha (`text-wrap: pretty`: "27/10/2026 ·" / "13 dia(s)"). Ali o `balance` piorava outras quebras ("900 / kg acima do mínimo", "Pasto 01, Pasto / 02").
+6. **Toque:** no celular e na tela de toque, os alvos ficam com 40 px ou mais.
+   - Crescem para 40 px:
+     - as pílulas do rodapé (de 36);
+     - o Resumo/Lote/Lista (de 38);
+     - o cabeçalho ordenável da Lista (altura mínima).
+   - Ganham uma área de toque invisível de 40 px, sem mudar o desenho:
+     - o link do título;
+     - o "Excluir";
+     - o ✕ do popup.
+   - A caixa de marcar passa a ter área invisível de 40 px também com mouse (era 38).
+   - Com mouse, o desenho fica como antes.
+   - No celular a partir de 360 px, a pílula não encolhe abaixo do próprio texto: "Registrar evento" sem reticências; as outras cedem o espaço.
 7. **Contraste:** o teal do link, da ação e do número da aba passa de `#0e8fa6` para `#0a7a8f`. O texto é de 11,5 px em negrito e precisa de 4,5:1: o contraste vai de 3,62:1 para 4,75:1 no fundo do corpo.
+8. **Lista de lotes pelo teclado:** o cabeçalho focado com Tab aparece inteiro na rolagem lateral, com a coluna presa (Nome) contando como borda. O navegador só rolava quando o cabeçalho estava todo escondido.
 
 **Resultado** (altura do conteúdo no harness, D-PROD-224 → D-PROD-226):
 - computador:
-  - depósito: 986 → 839 px;
+  - depósito: 986 → 840 px;
   - bebedouro: 813 → 730 px;
   - área: 1.854 → 1.686 px;
   - histórico do pasto: 1.616 → 1.450 px;
@@ -8082,7 +8088,7 @@ Quatro mutações, uma por lugar, voltaram o marcador ou as cores do marcador, e
   - Suplementação: 383 → 332 px;
   - cocho: igual (1.025 → 1.026 px), porque o ganho é de organização;
 - celular:
-  - depósito: 1.280 → 1.218 px;
+  - depósito: 1.280 → 1.229 px (com o texto livre ao lado do rótulo, a observação quebra em duas linhas);
   - bebedouro: 983 → 953 px;
   - tarefa: 804 → 774 px;
   - área: 2.443 → 2.275 px;
@@ -8094,16 +8100,35 @@ Quatro mutações, uma por lugar, voltaram o marcador ou as cores do marcador, e
 - a escala da D-PROD-224 (nenhuma fonte muda);
 - as permissões e o mapa.
 
-Tudo é CSS.
+Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.jsx`).
 
-**Testes:**
+**Testes:** o `detalhesCompactos` lê o CSS regra a regra: chaves balanceadas, lista de seletores e o bloco `@media` certo. Assim, uma regra fora do lugar ou sem a declaração não passa.
 - `detalhesCompactos`:
-  - DC-2: toque e contraste;
-  - DC-3: o cocho em três, com o medidor de ponta a ponta, e o depósito em seis trilhos;
-  - DC-4: a divisória, os espaços e o cabeçalho de 36 px;
-  - DC-5: os corpos em grade, com linhas `min-content`, e a posição pelo título, não pelo número do filho. Também confere a aba Detalhes com Lotação e Categorias, cada uma antes do seu cartão, e, sem lotes, um título só.
+  - DC-2: toque (inclusive o ✕ e o cabeçalho ordenável), contraste, as pílulas sem reticências, o texto livre em todas as larguras, o `pretty` nas células e o `balance` na linha do tempo;
+  - DC-3: a região do nível do cocho e a do depósito só no popup; o cocho em três e o depósito em seis trilhos, com subgrid;
+  - DC-4: a divisória inteira (`content`, posição e ponta a ponta), os espaços e o cabeçalho de 36 px;
+  - DC-5: os quatro corpos na mesma regra da grade e só no bloco do popup, as colunas 1 e 2 pelo título, os títulos no fim da fileira e o 2 × 2; também a aba Detalhes com Lotação e Categorias, cada uma antes do seu cartão, e, sem lotes, um título só.
 - `detalhesLoteV12Casca`: o corpo das abas Detalhes e Suplementação é o painel com o id `…-painel-detalhes` / `…-painel-supl`.
-- AS-1 (Suplementação), DV-2 (depósito) e o teste do bebedouro: os blocos que os pares posicionam são filhos diretos do corpo, na ordem.
+- AS-1 (Suplementação), DV-2 (depósito), CV-3 (cocho) e o teste do bebedouro: as classes e os filhos diretos que as regras posicionam.
+- `detalhesLoteV12Lotes`: o Tab num cabeçalho em parte visível rola a tabela.
+
+**Revisão independente:** quatro lentes (CSS e cascata, o visual no app, testes e documentação, e a mesclagem da `main`). Cada achado passou por um cético que tentou refutá-lo.
+- **Números:** 22 achados, 17 confirmados e 5 refutados. A lente da mesclagem não achou defeito: o painel de Forragem manteve tudo o que a PR #312 trouxe.
+- **Confirmados, todos corrigidos:**
+  - os testes do DC-3 ao DC-5 passavam com os pares e o lado a lado quebrados: a regex não lia a regra certa e o trecho do popup ia até o fim do arquivo. Agora leem regra a regra;
+  - a divisória da linha do tempo podia sumir com o teste verde;
+  - nenhum teste prendia as classes do cocho e a raiz do bebedouro, nem o cabeçalho ordenável;
+  - os valores desalinhados nas fileiras de três do cocho e do depósito: subgrid;
+  - o título do par longe do seu cartão quando o vizinho quebrava: no fim da fileira;
+  - nos documentos: as 5 colunas do popup do tablet, os tamanhos do subícone depois da D-PROD-224, as alturas e os percentuais da D-PROD-224, o "só no popup" (vale também na tela Bebedouros) e o item do toque. Também os comentários com os valores antigos no CSS e no `blocos.jsx`.
+- **Refutados:**
+  - quatro foram refutados só por serem anteriores à D-PROD-224/226, mas vêm da D-PROD-218/220, desta mesma PR. Por isso também foram corrigidos:
+    - o rótulo do texto livre por cima de um valor longo no celular (e "Obser/vaçõe/s" partido na tarefa);
+    - o ✕ do popup com 36 px na tela de toque;
+    - o Tab na Lista com o cabeçalho cortado;
+    - "Registrar evento" com reticências no celular;
+  - o quinto era o `balance` na célula, refutado como troca e não como regressão. A medição decidiu: `pretty` nas células e `balance` na linha do tempo.
+- **Mutações:** 18 mutações (14 no CSS e 4 na marcação e no comportamento) foram pegas pelos testes certos. Detalhe no relatório, §10.1.
 
 **Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §10.
 
