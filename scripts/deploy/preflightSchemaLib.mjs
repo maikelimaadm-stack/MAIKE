@@ -99,6 +99,9 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-219: a Medição de Forragem lê e grava a tabela nova; sem a migration
   // `20261117200000_medicao_forragem`, `/medicoes-forragem` responde 500.
   ['MEDICAOFORRAGEM', 'massa_seca_kg_ha'],
+  // D-PROD-223: o Cadastro de Culturas lê e grava os dias de descanso; sem a migration
+  // `20261117300000_cultura_dias_descanso`, `/culturas` responde 500.
+  ['CADCULTURAS', 'dias_descanso'],
 ]);
 
 /**

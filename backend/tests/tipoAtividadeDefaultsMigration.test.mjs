@@ -148,8 +148,9 @@ const NOME_CULTURAS = '20261116500000_cadculturas';
 const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
+const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const TABELAS_POSTERIORES = Object.freeze(['LEITURACOCHO', 'CADCULTURAS']);
-const POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA && n !== NOME_CULTURAS && n !== NOME_AREA_CULTURA && n !== NOME_MEDICAO_FORRAGEM));
+const POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA && n !== NOME_CULTURAS && n !== NOME_AREA_CULTURA && n !== NOME_MEDICAO_FORRAGEM && n !== NOME_DIAS_DESCANSO));
 /** Migrations concluídas na ordem REAL de aplicação (finished_at). */
 const ordemDeAplicacao = async (db) =>
   (await db.$queryRawUnsafe(`SELECT migration_name AS n FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
@@ -493,7 +494,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     // Atividade cabeçalho, as linhas de produto e de máquina, a EXPAND das Formulações, a da Leitura de cocho, a da faixa
     // de tolerância e a mão de obra e o serviço e o ajuste dela (D-PROD-208) têm nome posterior a esta (D-PROD-209: e o tipo Terceirizado; D-PROD-210: e a base do consumo; D-PROD-211: e o abastecimento ligado à atividade; D-PROD-215: e o Cadastro de Culturas; D-PROD-216: e a Área ligada à Cultura; D-PROD-217: e o reforço; 65 pastas no total); as catorze ficam fora da partida.
     assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', NOME_CULTURAS, NOME_AREA_CULTURA, '20261117100000_abastecimento_fk_apontamento_atividade', '20261117200000_medicao_forragem']);
-    assert.equal(TOTAL_MIGRATIONS, 66);
+    assert.equal(TOTAL_MIGRATIONS, 67);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_PESO_OBJETIVO), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_FORMULACOES), false);
     assert.equal((await ordemDeAplicacao(db)).includes(NOME_LEITURA), false);
@@ -552,7 +553,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     // D-PROD-200 (ver o cabeçalho): a CONTRACT posterior sobe fora de ordem, pelo Prisma direto, para só esta pender no runner.
     assert.deepEqual(POSTERIORES, ['20261114500000_atividade_cabecalho', '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', NOME_BASE, '20261116300000_abastecimento_atividade', '20261117100000_abastecimento_fk_apontamento_atividade'], 'sobem fora de ordem: as CONTRACT da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-210, da D-PROD-211 e da D-PROD-217 e as EXPAND da D-PROD-202, da D-PROD-203 (de que a D-PROD-210 depende) e da D-PROD-207 (fora a D-PROD-198)');
     // As EXPAND da D-PROD-198 e da D-PROD-203 ficam para o runner, depois desta (como em produção).
-    await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA && n !== NOME_CULTURAS && n !== NOME_AREA_CULTURA && n !== NOME_MEDICAO_FORRAGEM));
+    await aplicarAnteriores(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT && n !== NOME_PESO_OBJETIVO && n !== NOME_LEITURA && n !== NOME_FAIXA && n !== NOME_CULTURAS && n !== NOME_AREA_CULTURA && n !== NOME_MEDICAO_FORRAGEM && n !== NOME_DIAS_DESCANSO));
     partida = await retrato(db);
     linhasPartida = partida.linhas;
     assert.equal((await historico(db)).concluidas, ANTERIORES.length + POSTERIORES.length);
@@ -734,7 +735,7 @@ describe('D-PROD-197 — migration CONTRACT dos padrões e das flags do TipoAtiv
     // estão aplicadas (ver o cabeçalho). O postcheck inteiro, APLICADA, é provado no banco do caminho B (TB-03), que
     // fica nesse estado antes do runner.
     const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '96' };
-    assert.equal(TOTAL_MIGRATIONS, 66);
+    assert.equal(TOTAL_MIGRATIONS, 67);
     for (const [item, v] of Object.entries(pos)) {
       if (item === 'VEREDITO') continue;
       if (item in CONTAGENS) assert.deepEqual([v.valor, v.status], [CONTAGENS[item], 'PARAR'], item);
@@ -825,7 +826,7 @@ describe('D-PROD-197 — caminho B do runbook (uma transação pelo conector), n
     const hB = await historico(dbB);
     assert.deepEqual([hB.concluidas, hB.abertas, hB.contract_concluida], [TOTAL_MIGRATIONS, 0, 1]);
     assert.ok(runner.saida.includes(`Applying migration \`${NOME_CULTURAS}\``), runner.saida);
-    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-(7 + POSTERIORES.length)), [NOME_CONTRACT, ...[NOME_PESO_OBJETIVO, ...POSTERIORES, NOME_LEITURA, NOME_FAIXA, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM].sort()]);
+    assert.deepEqual((await ordemDeAplicacao(dbB)).slice(-(7 + POSTERIORES.length)), [NOME_CONTRACT, ...[NOME_PESO_OBJETIVO, ...POSTERIORES, NOME_LEITURA, NOME_FAIXA, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO].sort()]);
     const [linhaDepois] = await dbB.$queryRawUnsafe(`SELECT checksum FROM _prisma_migrations WHERE migration_name = '${NOME_CONTRACT}'`);
     assert.equal(linhaDepois.checksum, CHECKSUM, 'a linha do caminho B continua a mesma');
     const segunda = await aplicarPeloRunner(URL_B);

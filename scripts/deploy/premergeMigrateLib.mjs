@@ -178,6 +178,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261117100000_abastecimento_fk_apontamento_atividade': '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e',
   // D-PROD-219: EXPAND — Medição de Forragem (MEDICAOFORRAGEM), só tabela nova.
   '20261117200000_medicao_forragem': '66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f',
+  // D-PROD-223: EXPAND — dias de descanso da cultura (CADCULTURAS.dias_descanso, coluna anulável).
+  '20261117300000_cultura_dias_descanso': '5a266b174b20a6bc3ca51a7dc15d852378a875d506a805bb7eedfbba01191a4b',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

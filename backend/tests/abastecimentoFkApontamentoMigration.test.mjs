@@ -78,6 +78,7 @@ const CHECKSUM_ABASTECIMENTO = '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af7
 /** Pastas do repositório: a partida é o que vem ANTES desta (a partida de produção); o GREEN, todas (produção hoje). */
 /** D-PROD-219: a EXPAND da Medição de Forragem veio depois desta (a 66ª); os testes são "no dia desta", com o espelho do runner. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
+const NOME_DIAS_DESCANSO = '20261117300000_cultura_dias_descanso'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
@@ -374,7 +375,7 @@ describe('D-PROD-217 — migration CONTRACT do reforço da FK do apontamento do 
     assert.deepEqual(ANTERIORES.slice(-3), [NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_ANTERIOR], 'a ordem dos nomes é a de produção: a D-PROD-211, a D-PROD-215 e depois a D-PROD-216');
     assert.equal(PASTAS.at(-1), NOME, 'no dia desta, era a migration de nome mais recente');
     assert.equal(TOTAL_MIGRATIONS, 65);
-    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_MEDICAO_FORRAGEM], 'D-PROD-219: só a Medição de Forragem tem nome posterior a esta');
+    assert.deepEqual(PASTAS_HOJE.filter((n) => n > NOME), [NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO], 'D-PROD-219: só a Medição de Forragem tem nome posterior a esta');
     const h = await historico(db);
     assert.deepEqual([h.concluidas, h.abertas, h.esta], [64, 0, 0]);
     assert.equal(partida.tabelas.split(',').length, 95);
