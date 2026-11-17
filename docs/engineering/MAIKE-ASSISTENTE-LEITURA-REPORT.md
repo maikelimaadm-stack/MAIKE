@@ -80,11 +80,12 @@ Pedido do proprietário: além de responder, o assistente aplica filtros nas tel
 - **Contrato de URL** (`src/domain/assistente/filtroTela.js`, espelho do servidor; um teste confere que as chaves são as mesmas): `/<tela>?af=<JSON dos filtros>`. A tela (`useFiltroDoAssistente`) lê o parâmetro ao abrir e quando o assistente avisa que a tela já aberta ganhou filtro novo, valida de novo, aplica e tira o parâmetro da URL.
 - **Como aplica:** o filtro SUBSTITUI os filtros da tela (o que não vier fica sem restrição; filtros vazios = limpar). Nomes casam sem acento e sem caixa com o que a tela já tem (setores, categorias…); o que não casar é avisado ("Não encontrei: …").
   - Mapa: espera a preferência do usuário e a permissão; sem "Ver filtros e camadas" não aplica. Os filtros aplicados ficam salvos como preferência do usuário (como se ele tivesse escolhido no painel).
-  - Lotes: vira filtros de cabeçalho da grade (`filtrosExternos` no `CadastroBase1Grade`); `peso` e `cabecas` passaram a ser colunas de filtro numérico.
+  - Lotes: a página prepara a lista antes — fecha o lote aberto (em edição, só se o usuário aceitar descartar; senão o pedido é descartado com aviso), tira a pesquisa e a sugestão ativas (também no Limpar) — e consome o pedido ao aplicar, para abrir um lote e voltar não refazer o filtro antigo. Depois vira filtros de cabeçalho da grade (`filtrosExternos` no `CadastroBase1Grade`); `peso` e `cabecas` passaram a ser colunas de filtro numérico.
 - **No balão:** botão "Aplicar no Mapa" / "Ver lotes filtrados"; depois de aplicado mostra "Filtro aplicado em …: resumo" com "Abrir de novo" e "Limpar". Aplica sozinho só quando o usuário pediu claramente (`aplicar_agora`).
 - **Fora:** o mapa não esconde pastos por situação de forragem (para "pastos prontos" o assistente pinta com `colorir_por = forragem`); outras telas e a busca de texto da lista de lotes não são filtradas pelo assistente.
 - **Testes:**
   - `backend/tests/assistenteLeitura.test.mjs`: ação no JSON e no SSE, contrato inválido vira erro, nada gravado.
   - `tests/smoke/assistenteFiltroTela.test.jsx`: contrato cliente × servidor, URL, hook, balão, TabelaLotes.
+  - `tests/smoke/assistenteFiltroCadastroLotes.test.jsx`: lote aberto, lote em edição com recusa, pesquisa ativa e Limpar, pedido consumido.
   - `tests/smoke/assistenteFiltroGrade.test.jsx`: a grade aplica, substitui e limpa.
   - `tests/smoke/assistenteFiltroMapa.test.jsx`: o mapa substitui os filtros salvos e respeita a permissão.
