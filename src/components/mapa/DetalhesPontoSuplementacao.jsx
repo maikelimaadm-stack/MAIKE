@@ -389,7 +389,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
 
       <LancLoteDialogo open={showFechamentos} onOpenChange={setShowFechamentos} titulo="Fechamentos do Cocho" lotes={ponto.nome_ponto ? [{ nome: ponto.nome_ponto }] : undefined} largo somenteLeitura>
         {showFechamentos ? (
-          <CascaDetalhe titulo="Fechamentos do Cocho" sub={ponto.nome_ponto} className="mk-dp-cocho">
+          <CascaDetalhe titulo="Fechamentos do Cocho" sub={ponto.nome_ponto} onVoltar={() => setShowFechamentos(false)} className="mk-dp-cocho">
             {fechamentos.length ? (
               <ul className="mk-dp-cocho__fechamentos" aria-label="Fechamentos do cocho">
                 {fechamentos.map((evento) => (

@@ -520,4 +520,7 @@ it('Fechamentos lista todos os períodos fechados do ponto, mais novo primeiro; 
   expect(itens).toHaveLength(2);
   expect(itens[0].textContent).toContain('27/10/2026');
   expect(itens[1].textContent).toContain('01/10/2026');
+  fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+  await waitFor(() => expect(screen.queryByRole('list', { name: 'Fechamentos do cocho' })).toBeNull());
+  expect(screen.getByRole('button', { name: 'Fechamentos' })).toBeTruthy();
 });
