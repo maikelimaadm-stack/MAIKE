@@ -8312,5 +8312,12 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Passagem automática somente no texto que excede a largura; mede novamente ao redimensionar, pausa ao passar o mouse, permite leitura manual ao focar e respeita movimento reduzido. Texto original e título nativo preservados, sem cópias para leitores de tela.
 - Controles de histórico e configurar tabela menores; preferências e regras de seleção de colunas permanecem iguais. Apenas branch de prévia, sem merge.
 
-<!-- Próxima decisão: D-PROD-243 -->
+### D-PROD-243 — Leitura no celular, abas sem rolagem e divisórias (2026-11-18)
+
+- Correção pedida pelo dono: no celular o valor fica à frente do rótulo; desktop/tablet continuam com o valor abaixo e quatro informações por linha.
+- Abas no celular dividem a largura disponível, sem rolagem horizontal ou vertical. Mantida a indicação da aba ativa e a navegação por teclado.
+- Divisórias restauradas entre fileiras de dados; primeira fileira sem borda superior sobrando no cartão. Respeitados os pares de áreas e trio de projeções mensais.
+- Mantidos texto automático, popup estável e alterações somente na prévia.
+
+<!-- Próxima decisão: D-PROD-244 -->
 

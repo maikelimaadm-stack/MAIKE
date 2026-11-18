@@ -2030,3 +2030,37 @@
 .mk-dp .mk-dp-filtro > span { min-width: 0; }
 .mk-dp .mk-dp-hist__botao.mk-dp-hist__botao { min-height: 30px; height: 30px; padding: 0 10px; font-size: 12px; }
 .mk-dp .mk-dp-botao { height: 32px; font-size: 12px; }
+
+/* D-PROD-243 — divisórias somente entre fileiras que têm dados. */
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade > .mk-dp-cel:nth-child(n + 5) {
+  border-top: 1px solid #e7e9ec;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade + .mk-dp-grade {
+  border-top: 1px solid #e7e9ec;
+}
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel { border-top: 0; }
+/* O traço ativo das abas não pode criar uma rolagem vertical de 1px. */
+.mk-dp .mk-dp-abas { overflow: hidden; }
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-abas {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 0;
+    padding: 0 6px;
+  }
+  .mk-dp .mk-dp-aba { width: 100%; padding: 0 4px; font-size: 12.5px; }
+  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel,
+  .mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel,
+  .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__val,
+  .mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel__val,
+  .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel__val { text-align: right; }
+  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade > .mk-dp-cel:nth-child(n + 2) {
+    border-top: 1px solid #e7e9ec;
+  }
+  .mk-dp .mk-dp-area-organizada .mk-dp-area-resumo .mk-dp-grade > .mk-dp-cel:nth-child(-n + 2),
+  .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-grade > .mk-dp-cel { border-top: 0; }
+}
