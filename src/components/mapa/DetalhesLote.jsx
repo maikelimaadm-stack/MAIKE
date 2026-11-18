@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   listarProdutosDaEmpresa,
@@ -11,12 +11,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { aplicarFechamentoSeAindaAberto } from "@/services/suplementacaoService";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle } from
-"@/components/ui/dialog";
 import AcoesDoLote from "./AcoesDoLote";
 import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
 import FormularioMorte from "../lotes/FormularioMorte";
@@ -31,11 +25,12 @@ import RenomearLoteForm from "../lotes/RenomearLoteForm";
 import EditarInformacaoPosicaoForm from "../lotes/EditarInformacaoPosicaoForm";
 import { LancLoteDialogo, LancLoteForm, LancLoteAviso, LancLoteRodape, LL_CTL } from "../lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
-import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
-import PainelDetalhesLote from "./detalhes-lote/PainelDetalhesLote";
+import PainelPasto from "./detalhes-lote/PainelPasto";
 import { montarModeloDetalhes } from "@/components/mapa/detalhes-lote/catalogo";
+import { escopoValido } from "@/components/mapa/detalhes-lote/preferencias";
+// Mantido aqui: é o ponto de carga do CSS da casca `.mk-dl8` (Resumo do Rebanho);
+// tirá-lo mudaria a ordem da cascata daquele painel.
 import "@/styles/mk-detalhes-lote.css";
-import { Progress } from "@/components/ui/progress";
 import { IconeEditarInformacao, IconeHistoricoMovimentacao, IconeHistoricoSuplementacao, IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeMudarCategoria, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
@@ -54,7 +49,41 @@ const recusarManejoSemLedger = () => {
   toast.error(MENSAGENS_MANEJO_REBANHO.REBANHO_CUTOVER_PENDENTE);
 };
 
-export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
+/**
+ * Detalhes do Lote v12 (D-PROD-218): a casca `PainelPasto` mostra o pasto
+ * (abas, telas empilhadas, rodapé); aqui ficam os dados e TODA a orquestração
+ * dos manejos (comandos do ledger e os diálogos dos formulários e históricos).
+ *
+ * `lotes` são as posições do pasto clicado (marcador). Os manejos agem sobre o
+ * ALVO que a casca escolhe (lote da tela do lote › marcados › todos): por isso
+ * a prop chega como `lotesDoPasto` e `lotes`, abaixo, é o alvo — o código dos
+ * manejos continua lendo `lotes`. O modelo e a exibição usam `lotesDoPasto`.
+ *
+ * @param {{
+ *   lotes: any[],
+ *   onClose: () => void,
+ *   permissions?: Record<string, boolean>,
+ *   setorNome?: string,
+ *   suplementacao?: null | { pontos: any[], eventos: any[], hoje: any },
+ *   onAbrirCocho?: null | ((ponto: any) => void),
+ * }} props
+ */
+export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions = {}, setorNome = "", suplementacao = null, onAbrirCocho = null }) {
+  /** Alvo dos manejos (ids das posições); `null` = o pasto inteiro. */
+  const [alvoIds, setAlvoIds] = useState(/** @type {string[] | null} */ (null));
+  const lotes = useMemo(() => {
+    if (!alvoIds) return lotesDoPasto;
+    const ids = new Set(alvoIds);
+    const doAlvo = (lotesDoPasto || []).filter((l) => ids.has(String(l?.id)));
+    return doAlvo.length ? doAlvo : lotesDoPasto;
+  }, [alvoIds, lotesDoPasto]);
+  const aoMudarAlvo = useCallback((/** @type {string[] | null} */ ids) => {
+    setAlvoIds((atual) => {
+      const novo = ids && ids.length ? ids.map(String) : null;
+      const mesmo = (atual || []).join("|") === (novo || []).join("|") && Boolean(atual) === Boolean(novo);
+      return mesmo ? atual : novo;
+    });
+  }, []);
   /** R2E-P1 (D-PROD-107): o mapa entregou POSIÇÕES do ledger (empresa ativada), não Lotes. */
   const modoLedger = (lotes || []).some(ehPosicaoDoLedger);
   const transferenciaEmAndamento = useRef(false);
@@ -80,7 +109,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   useEffect(() => {
     if (!showMovimentacao) chaveTransferenciaLedger.current = null;
   }, [showMovimentacao]);
-  const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const [showJuntarLotes, setShowJuntarLotes] = useState(false);
   const [lotePrincipalJuncao, setLotePrincipalJuncao] = useState(null);
   const [categoriaSelecionadaJuncao, setCategoriaSelecionadaJuncao] = useState(null);
@@ -160,7 +188,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     staleTime: 5 * 60 * 1000
   });
 
-  const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id) || { nome: lotes[0]?.area_atual_nome || 'Desconhecida' };
+  const areaAtual = areas.find((a) => a.id === lotesDoPasto[0]?.area_atual_id) || { nome: lotesDoPasto[0]?.area_atual_nome || 'Desconhecida' };
 
   // Buscar todos os lotes ativos na mesma área (para métricas da área)
   const { data: todosLotesNaArea = [], isLoading: loadingLotesArea } = useQuery({
@@ -180,7 +208,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 60 * 1000,
-    select: (data) => data.filter(l => l.area_atual_id === lotes[0]?.area_atual_id)
+    select: (data) => data.filter(l => l.area_atual_id === lotesDoPasto[0]?.area_atual_id)
   });
 
   // Movimentações do mapa (pesagens dos lotes, Detalhes do Lote v8). Mesmo
@@ -215,15 +243,39 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   // Preferências do Detalhes do Lote POR USUÁRIO (fazenda + conta + empresa),
   // como os filtros do Mapa Geral. Sem as três partes, vale o padrão (sem filtro).
   const escopoPreferencias = useMemo(() => {
-    const clienteId = user?.cliente_id || null;
-    const login = user?.login || user?.email || null;
-    return clienteId && login && empresaSelecionadaId ? { clienteId, login, empresaId: empresaSelecionadaId } : null;
+    const escopo = { clienteId: user?.cliente_id || null, login: user?.login || user?.email || null, empresaId: empresaSelecionadaId || null };
+    return escopoValido(escopo) ? escopo : null;
   }, [user?.cliente_id, user?.login, user?.email, empresaSelecionadaId]);
 
   const modelo = useMemo(
-    () => montarModeloDetalhes({ area: areaAtual, lotes, lotesDaArea: todosLotesNaArea, movimentacoes, categoriasManejo, hoje: new Date() }),
-    [areaAtual, lotes, todosLotesNaArea, movimentacoes, categoriasManejo]
+    () => montarModeloDetalhes({ area: areaAtual, lotes: lotesDoPasto, lotesDaArea: todosLotesNaArea, movimentacoes, categoriasManejo, hoje: new Date() }),
+    [areaAtual, lotesDoPasto, todosLotesNaArea, movimentacoes, categoriasManejo]
   );
+
+  // Casca v12 (PainelPasto): o que as abas leem e o que cada permissão libera.
+  const areaIdDoPasto = areaAtual?.id || lotesDoPasto[0]?.area_atual_id || null;
+  const areaNomeDoPasto = areaAtual?.nome || '';
+  const dadosDoPasto = useMemo(() => ({
+    areaId: areaIdDoPasto,
+    areaNome: areaNomeDoPasto,
+    setorNome: setorNome || '',
+    lotesDoPasto,
+    movimentacoes,
+    empresaId: empresaSelecionadaId || null,
+    suplementacao,
+    onAbrirCocho,
+    // Nome da outra área quando o registro antigo gravou o nome vazio (aba Histórico).
+    areas,
+  }), [areaIdDoPasto, areaNomeDoPasto, setorNome, lotesDoPasto, movimentacoes, empresaSelecionadaId, suplementacao, onAbrirCocho, areas]);
+  const permissoesDoPasto = useMemo(() => ({
+    mover: permissions.mover_lotes !== false,
+    pesar: permissions.pesar_lotes !== false,
+    historico: permissions.visualizar_historico_movimentacoes_lote !== false,
+    supl: permissions.visualizar_cochos_suplementacao !== false,
+    detalhesCocho: permissions.visualizar_detalhes_cochos !== false,
+    lancarSupl: permissions.lancar_suplementacao !== false,
+    historicoCocho: permissions.visualizar_historico_cocho !== false,
+  }), [permissions]);
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
@@ -558,9 +610,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   if (loadingInicial) {
     return (
-      // Mesma casca do v8 (diálogo já na altura final, sem pular quando os dados chegam).
-      <div className="mk-dl mk-dl8" translate="no">
-        <div className="mk-dl8__corpo">
+      // Mesma raiz da casca v12 (diálogo já no tamanho final, sem pular quando os dados chegam).
+      <div className="mk-dp" translate="no">
+        <div className="mk-dp__corpo mk-dp__corpo--cards">
           <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
             <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
             <span className="text-xs font-medium text-slate-700">Carregando detalhes do lote...</span>
@@ -570,7 +622,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     );
   }
 
-  // D-PROD-119: um botão só abre os quadros de Manejos e Históricos (separados).
+  // D-PROD-119: os quadros de Manejos e Históricos (separados); D-PROD-218: numa
+  // tela empilhada da casca ("Manejos e históricos"), aberta pelo rodapé.
   const acoes = (() => {
         const porCategoria = {};
         lotes.forEach((l) => {
@@ -620,14 +673,19 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         return <AcoesDoLote grupos={[{ titulo: 'Manejos', itens: manejos }, { titulo: 'Históricos', itens: historicos }]} />;
       })();
 
-  // A raiz do conteúdo é o `.mk-dl8` do Painel (filho direto do `.mk-ll` do
-  // diálogo: o CSS do v8 depende disso). Os diálogos abaixo são portais.
+  // A raiz do conteúdo é o `.mk-dp` da casca (filho direto do `.mk-ll` do
+  // diálogo: o CSS v12 depende disso). Os diálogos abaixo são portais.
   return (
     <>
-      <PainelDetalhesLote
+      <PainelPasto
         modelo={modelo}
-        suplementacao={<ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />}
-        acoes={acoes}
+        setorNome={setorNome}
+        permissoes={permissoesDoPasto}
+        dados={dadosDoPasto}
+        manejos={acoes}
+        onMover={() => abrirManejo(setShowMovimentacao)}
+        onPesar={() => abrirManejo(setShowPesagem)}
+        onAlvo={aoMudarAlvo}
         escopoPreferencias={escopoPreferencias} />
 
       {/* Dialog Juntar Lotes */}
@@ -840,18 +898,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
             null}
       </LancLoteDialogo>
-
-    <Dialog open={progresso.show} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-sm">Processando...</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-2">
-          <p className="text-xs text-slate-600">{progresso.mensagem}</p>
-          <Progress value={progresso.atual / progresso.total * 100} className="w-full h-1.5" />
-        </div>
-      </DialogContent>
-    </Dialog>
     </>);
 
 }

@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import FormularioMedicaoForragem, { BOLINHA_SITUACAO } from "./FormularioMedicaoForragem";
+import FormularioMedicaoForragem from "./FormularioMedicaoForragem";
 import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
 import { listarCulturas } from "@/services/culturaCadastroService";
@@ -14,6 +13,10 @@ import { notifyError, notifySuccess } from "@/lib/maikeNotify";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { ROTULO_SITUACAO, parametrosDoPasto } from "@/domain/pastagem/medicaoForragem";
 import { DIAS_VALIDADE_FORRAGEM, estimativaDoPasto, farolDaMedicao, farolQueVale } from "@/domain/pastagem/farolForragem";
+import { Acao, Cartao, Linha, TituloBloco } from "@/components/mapa/detalhes-lote/blocos";
+
+/** Cores das bolinhas da situação no desenho v12 (as mesmas do 🔴🟡🟢🟣 do formulário). */
+const COR_SITUACAO = Object.freeze({ RAPADO: "#dc2626", DESCANSO: "#f59e0b", PRONTO: "#16a34a", PASSOU: "#7c3aed" });
 
 const CHAVE = "medicoesForragem";
 /** D-PROD-223: ocupação e última saída de lote por pasto (farol estimado). */
@@ -67,6 +70,9 @@ function useCacheDoMapa(chave, empresaId) {
  * D-PROD-219 — Forragem do pasto no detalhe da área (Mapa Geral): o botão
  * "Medição de Forragem", a última medição e as últimas 5, com excluir. Só aparece
  * para quem tem a chave do mapa `medir_forragem` (o detalhe decide).
+ * No desenho do Detalhes do Lote v12 (D-PROD-220): título de seção com o link
+ * "Medição de Forragem", cartão com a última medição e as últimas 5 com
+ * "Excluir". O desenho antigo saiu: o detalhe da área era o único uso.
  * @param {{ area: any }} props
  */
 export default function PainelForragemArea({ area }) {
@@ -119,6 +125,13 @@ export default function PainelForragemArea({ area }) {
   const parametros = useMemo(() => parametrosDoPasto(area, cultura), [area, cultura]);
   // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa (D-PROD-223: com a estimativa).
   const farol = useMemo(() => farolQueVale(ultima ? farolDaMedicao(ultima, hoje) : null, estimativa), [ultima, hoje, estimativa]);
+  const textoParametros = [
+    parametros.altura_entrada_cm !== null ? `entrada ${fmtCm(parametros.altura_entrada_cm)} cm (${ORIGEM[parametros.origem.altura_entrada_cm]})` : null,
+    parametros.altura_saida_cm !== null ? `saída ${fmtCm(parametros.altura_saida_cm)} cm (${ORIGEM[parametros.origem.altura_saida_cm]})` : null,
+    parametros.dias_descanso !== null ? `descanso ${diasTexto(parametros.dias_descanso)} (${ORIGEM[parametros.origem.dias_descanso]})` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const atualizadas = (lista) => {
     if (Array.isArray(lista)) queryClient.setQueryData(["mapa-cache", CHAVE, empresaId, "default"], lista);
@@ -140,84 +153,94 @@ export default function PainelForragemArea({ area }) {
 
   if (!area?.id) return null;
 
-  return (
-    <section className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1 text-[11px]" aria-label="Forragem do pasto" data-testid="painel-forragem">
-      <div className="flex items-center justify-between gap-2">
-        <div className="font-bold text-slate-900">Forragem</div>
-        <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setAberto(true)}>Medição de Forragem</Button>
-      </div>
-      {farol ? (
-        <div className="flex flex-wrap items-center gap-1.5" data-testid="farol-forragem">
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold" style={{ background: `${farol.cor}26`, border: `1px solid ${farol.cor}`, color: "#1f2937" }}>
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: farol.cor }} aria-hidden="true" />
-            {farol.rotulo}
-          </span>
-          {"estimado" in farol ? (
-            <span className="text-slate-500" data-testid="farol-forragem-estimado">
-              {`lote saiu há ${diasTexto(farol.diasDesdeSaida)} · descanso ${farol.origemDescanso === "PASTO" ? "do pasto" : "da cultura"} ${diasTexto(farol.diasDescanso)}`}
-            </span>
-          ) : (
-            <span className="text-slate-500">
-              {farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`}
-              {farol.vencida ? ` · vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null}
-            </span>
-          )}
-        </div>
+  const dialogo = (
+    <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Medição de Forragem" lotes={area?.nome ? [{ nome: area.nome }] : undefined} largo>
+      {aberto ? (
+        <FormularioMedicaoForragem
+          area={area}
+          cultura={cultura}
+          hoje={hoje}
+          onCancel={() => setAberto(false)}
+          onSaved={async () => {
+            setAberto(false);
+            atualizadas(await getMapaCachedData(CHAVE, empresaId));
+          }}
+        />
       ) : null}
-      {parametros.altura_entrada_cm !== null || parametros.altura_saida_cm !== null || parametros.dias_descanso !== null ? (
-        <div className="text-slate-500" data-testid="parametros-do-pasto">
-          {[
-            parametros.altura_entrada_cm !== null ? `entrada ${fmtCm(parametros.altura_entrada_cm)} cm (${ORIGEM[parametros.origem.altura_entrada_cm]})` : null,
-            parametros.altura_saida_cm !== null ? `saída ${fmtCm(parametros.altura_saida_cm)} cm (${ORIGEM[parametros.origem.altura_saida_cm]})` : null,
-            parametros.dias_descanso !== null ? `descanso ${diasTexto(parametros.dias_descanso)} (${ORIGEM[parametros.origem.dias_descanso]})` : null,
-          ].filter(Boolean).join(" · ")}
-        </div>
-      ) : null}
-      {estimativa?.emPastejo ? (
-        <div className="text-slate-700" data-testid="forragem-em-pastejo">
-          <span className="font-semibold text-slate-900">Em pastejo</span>
-          <span className="text-slate-500"> · lote no pasto agora (sem estimativa pelos dias de descanso)</span>
-        </div>
-      ) : null}
-      {ultima ? (
-        <div className="text-slate-700" data-testid="ultima-medicao">
-          {ultima.situacao ? `${BOLINHA_SITUACAO[ultima.situacao]} ` : null}
-          <span className="font-semibold text-slate-900">{resumoDaMedicao(ultima)}</span>
-          <span className="text-slate-500"> · {dia(ultima)}{ultima.registrado_por_nome ? ` · ${ultima.registrado_por_nome}` : ""}</span>
-        </div>
-      ) : (
-        <div className="text-slate-500">Nenhuma medição registrada.</div>
-      )}
-      {doPasto.length > 0 ? (
-        <ul className="divide-y divide-slate-100 rounded border border-slate-200" aria-label="Últimas medições">
-          {doPasto.slice(0, 5).map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-2 px-2 py-0.5">
-              <span className="text-slate-700">
-                {dia(m)} · {resumoDaMedicao(m)}
-                {m.observacoes ? <span className="italic text-slate-500"> · {m.observacoes}</span> : null}
-              </span>
-              <button type="button" className="shrink-0 text-red-600 hover:underline" onClick={() => excluir(m)} aria-label={`Excluir a medição de ${dia(m)}`}>
-                Excluir
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+    </LancLoteDialogo>
+  );
 
-      <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Medição de Forragem" lotes={area?.nome ? [{ nome: area.nome }] : undefined} largo>
-        {aberto ? (
-          <FormularioMedicaoForragem
-            area={area}
-            cultura={cultura}
-            hoje={hoje}
-            onCancel={() => setAberto(false)}
-            onSaved={async () => {
-              setAberto(false);
-              atualizadas(await getMapaCachedData(CHAVE, empresaId));
-            }}
+  return (
+    <section className="mk-dp-forragem" aria-label="Forragem do pasto" data-testid="painel-forragem">
+      <TituloBloco link="Medição de Forragem" onLink={() => setAberto(true)}>
+        Forragem
+      </TituloBloco>
+      <Cartao>
+        {farol ? (
+          // D-PROD-221: o mesmo farol que pinta o pasto no modo "Forragem" do mapa, como linha do v12.
+          // D-PROD-223: sem medição válida, o estimado pelos dias de descanso, com a saída do lote e o descanso.
+          <Linha
+            data-testid="farol-forragem"
+            rotulo={farol.rotulo}
+            bolinha={farol.cor}
+            valor={
+              "estimado" in farol ? (
+                <span data-testid="farol-forragem-estimado">
+                  {`lote saiu há ${diasTexto(farol.diasDesdeSaida)} · descanso ${farol.origemDescanso === "PASTO" ? "do pasto" : "da cultura"} ${diasTexto(farol.diasDescanso)}`}
+                </span>
+              ) : (
+                [
+                  farol.dias === null ? null : farol.dias === 0 ? "medido hoje" : `há ${farol.dias} ${farol.dias === 1 ? "dia" : "dias"}`,
+                  farol.vencida ? `vencida (mais de ${DIAS_VALIDADE_FORRAGEM} dias)` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || null
+              )
+            }
           />
         ) : null}
-      </LancLoteDialogo>
+        {textoParametros ? (
+          // D-PROD-223: alturas e descanso que valem para o pasto, e de onde vem cada um.
+          <Linha rotulo="Parâmetros de manejo" valor={<span data-testid="parametros-do-pasto">{textoParametros}</span>} quebra />
+        ) : null}
+        {estimativa?.emPastejo ? (
+          <Linha data-testid="forragem-em-pastejo" rotulo="Em pastejo" sub="lote no pasto agora (sem estimativa pelos dias de descanso)" />
+        ) : null}
+        {ultima ? (
+          <Linha
+            data-testid="ultima-medicao"
+            rotulo={resumoDaMedicao(ultima)}
+            sub={ultima.observacoes || null}
+            bolinha={ultima.situacao ? COR_SITUACAO[ultima.situacao] : null}
+            valor={`${dia(ultima)}${ultima.registrado_por_nome ? ` · ${ultima.registrado_por_nome}` : ""}`}
+          />
+        ) : (
+          <Linha rotulo="Nenhuma medição registrada." />
+        )}
+        {doPasto.length > 0 ? (
+          <ul className="mk-dp-forragem__lista" aria-label="Últimas medições">
+            {doPasto.slice(0, 5).map((m) => (
+              <li key={m.id}>
+                <Linha
+                  className="mk-dp-forragem__item"
+                  rotulo={dia(m)}
+                  sub={m.observacoes || null}
+                  bolinha={m.situacao ? COR_SITUACAO[m.situacao] : null}
+                  valor={
+                    <>
+                      {resumoDaMedicao(m)}
+                      <Acao tom="perigo" onClick={() => excluir(m)} aria-label={`Excluir a medição de ${dia(m)}`}>
+                        Excluir
+                      </Acao>
+                    </>
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Cartao>
+      {dialogo}
     </section>
   );
 }

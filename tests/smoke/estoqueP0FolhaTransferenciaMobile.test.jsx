@@ -18,10 +18,19 @@
  *       destino e o diálogo continua aberto;
  *  FT4. teclado: Enter no campo abre a folha e o foco entra nela; Enter na
  *       opção escolhe;
- *  FT5. no celular o diálogo não é bloco de contenção de `position: fixed`
- *       (sem transform), para a folha ocupar a tela e não o cartão.
+ *  FT5. no celular o diálogo é tela cheia, sem transform (`.mk-ll-dlg.is-tela`):
+ *       a folha ocupa o diálogo, não um cartão no meio. (O vidro do diálogo —
+ *       backdrop-filter e borda de 1 px — o torna o bloco de contenção da folha;
+ *       a medida real, menos essa borda, está no roteiro E2E de dev.)
+ *
+ * D-PROD-222: a transferência abre como os lançamentos de manejo — também um
+ * `LancLoteDialogo` (tela cheia no celular). Como diálogo de cima, ele entrega
+ * aos filhos o PRÓPRIO alvo das folhas: a folha nasce no `LancLoteDialogo` da
+ * transferência, nunca no do depósito (FT1), e a tela cheia é a regra
+ * `.mk-ll-dlg.is-tela` sem transform (FT5, pelo texto da regra).
  */
 import React from 'react';
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -89,7 +98,7 @@ const tecla = async (el, key) => {
   });
 };
 
-/** Mesma composição do Mapa Geral: Depósito (LancLoteDialogo) → Saída (Dialog) → campo Local. */
+/** Mesma composição do Mapa Geral: Depósito (LancLoteDialogo) → Saída (LancLoteDialogo, D-PROD-222) → campo Local. */
 const montar = async () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -136,7 +145,13 @@ describe('D-PROD-161 — Saída do Depósito no celular: folha "Local de Destino
     expect(folha).toBeTruthy();
     // Dentro do diálogo de CIMA (o da transferência), não no "Depósito de Suplementação".
     expect(dialogo.contains(folha)).toBe(true);
-    expect(folha.closest('.mk-ll-dlg')).toBeNull();
+    // D-PROD-222: os dois são LancLoteDialogo; a folha nasce no alvo do de CIMA
+    // (`.mk-ll-dlg__folhas` dele) e o de baixo não a contém.
+    expect(folha.closest('.mk-ll-dlg')).toBe(dialogo);
+    expect(folha.closest('.mk-ll-dlg__folhas')?.parentElement).toBe(dialogo);
+    const deBaixo = Array.from(document.querySelectorAll('.mk-ll-dlg')).filter((d) => d !== dialogo);
+    expect(deBaixo).toHaveLength(1);
+    expect(deBaixo[0].contains(folha)).toBe(false);
     // Nada acima da opção está escondido do leitor de tela nem sem toque.
     expect(opcao.closest('[aria-hidden="true"]')).toBeNull();
     expect(peHerdado(opcao)).not.toBe('none');
@@ -181,9 +196,18 @@ describe('D-PROD-161 — Saída do Depósito no celular: folha "Local de Destino
     expect(document.activeElement).toBe(campo);
   });
 
-  it('FT5 — no celular o diálogo da transferência centraliza sem transform (a folha ocupa a tela)', async () => {
+  it('FT5 — no celular o diálogo da transferência abre em tela cheia, sem transform (regra .mk-ll-dlg.is-tela; a folha ocupa o diálogo)', async () => {
     const { dialogo } = await montar();
-    expect(dialogo.className).toMatch(/(^|\s)max-sm:transform-none(\s|$)/);
-    expect(dialogo.className).toMatch(/(^|\s)max-sm:inset-0(\s|$)/);
+    // D-PROD-222: LancLoteDialogo em tela cheia (`is-tela`), não o popup do desktop.
+    expect(dialogo.classList.contains('mk-ll-dlg')).toBe(true);
+    expect(dialogo.classList.contains('is-tela')).toBe(true);
+    expect(dialogo.classList.contains('is-desktop')).toBe(false);
+    // O jsdom não aplica o CSS: a prova é a regra da tela cheia — ocupa a tela (inset 0) e tira o transform
+    // do popup. A folha `position: fixed` continua contida no diálogo pelo vidro do .mk-ll-dlg (backdrop-filter
+    // e borda de 1 px) e ocupa o diálogo — a tela menos a borda; a medida real está no roteiro E2E de dev.
+    const css = readFileSync('src/styles/lancamento-lote.css', 'utf8');
+    const regra = css.match(/\.mk-ll-dlg\.is-tela:not\(#mk-padrao\) \{([^}]*)\}/)?.[1] ?? '';
+    expect(regra).toMatch(/(^|\s)inset: 0;/);
+    expect(regra).toMatch(/(^|\s)transform: none;/);
   });
 });

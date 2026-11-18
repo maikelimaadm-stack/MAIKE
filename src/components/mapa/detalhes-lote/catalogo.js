@@ -1,25 +1,27 @@
 /**
- * Catálogo de dados do diálogo "Detalhes do Lote" (v8).
+ * Catálogo de dados do "Detalhes do Lote" (v12, D-PROD-218).
  *
  * Puro: sem React, sem rede, sem cache. Recebe o que o mapa já tem (área,
  * posições/lotes, movimentações, categorias de manejo) e devolve o modelo pronto
  * para a tela.
  *
- * Regras fixas desta fatia:
- * - Só os dados da lista fechada do dono (item 3 do prompt). GMD, arroba, preço,
- *   projeção, CV, custo e sanidade NÃO EXISTEM no sistema e não aparecem aqui.
- * - Número na tela NUNCA leva unidade depois ("449,5", não "449,5 kg"): a
- *   unidade vai no rótulo. Vazio = "—". As frases de alerta são a exceção.
- * - Um formatador único (fmtNum/fmtInt/fmtPct/fmtData) para todos os agentes.
+ * Regras fixas:
+ * - Só os dados que o sistema tem. Sem dado → "—" (VAZIO); nada é inventado.
+ * - Um formatador único (fmtNum/fmtInt/fmtPct/fmtData) para todas as telas.
+ * - A célula de um campo (grade e tabela) leva só o número: a unidade vai no
+ *   rótulo ("Peso médio (kg)"). Os textos corridos do v12 levam a unidade depois
+ *   do número ("449,5 kg", "62 cab", "38 cb · 38,0 UA · VACA"); são montados
+ *   aqui, com o mesmo formatador (D12 da D-PROD-218).
  * - Subícone (D-PROD-191): vem do CÓDIGO pela chave sexo + faixa de idade da
  *   Categoria de Manejo (`@/assets/icones/lotes`), nunca de upload. O modelo leva
  *   só a FIGURA ('femea-13-24'); a tela monta o desenho no tamanho em que o mostra.
  *   Nunca misto: cada lote e cada categoria aparece com o animal dele, na cor do
  *   sexo dele, mesmo quando o pasto mistura sexos.
  */
-import { CORES_UA_HA, CORES_CATEGORIA_GADO } from '@/components/mapa/MapaFiltrosAvancados';
+import { CORES_UA_HA } from '@/components/mapa/MapaFiltrosAvancados';
 import { PESAGEM } from '@/domain/lotes/manejoRebanho';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
+import { calcularSituacaoPasto } from '@/domain/mapa/mapaGeralDerivados';
 import { figuraDaPosicao, figuraDoGrupo, mapaDeCategorias } from '@/assets/icones/lotes';
 
 export const VAZIO = '—';
@@ -32,10 +34,12 @@ export const INTERVALO_MINIMO = 28;
 /** Próxima pesagem = última + 60 dias. */
 export const PROXIMA_PESAGEM_DIAS = 60;
 
+/** Seções dos campos do lote (grupos da tabela e do "Configurar tabela"). */
 export const SECOES_LOTE = ['Alertas', 'Lotação', 'Pesagem', 'Identificação'];
-export const TOPICOS_LOTE = ['Lotação', 'Pesagem', 'Identificação'];
+/** Seções abertas na vista Lote e na tela do lote (os alertas viram avisos). */
+export const SECOES_DO_LOTE = ['Lotação', 'Pesagem', 'Identificação'];
+/** Seções das colunas padrão da Lista. */
 export const SECOES_PADRAO = ['Alertas', 'Lotação', 'Pesagem'];
-export const SECOES_AREA = ['Área', 'Lotação', 'Categorias'];
 
 export const TONS = {
   ok: { texto: '#166534', fundo: '#f0fdf4', borda: '#bbf7d0' },
@@ -44,10 +48,14 @@ export const TONS = {
   neutro: { texto: '#374151', fundo: '#FAFCFE', borda: '#e2e8f0' },
 };
 
-const COR_TEXTO = '#374151';
+/** Cor dos valores no v12 (padrão das células). */
+const COR_TEXTO = '#1f2937';
+/** Cor de "—" e dos textos apagados (status VAZIO). */
 const COR_META = '#64748b';
 const COR_ATENCAO = '#b45309';
 const COR_INVESTIGAR = '#b91c1c';
+/** Barra da "% da capacidade" acima de 100%. */
+const COR_BARRA_ATENCAO = '#f59e0b';
 const DIA_MS = 86400000;
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
@@ -55,9 +63,9 @@ const DIA_MS = 86400000;
 /** @typedef {'ok'|'atencao'|'investigar'|'neutro'} Tom */
 
 /**
- * texto = já formatado; cor = cor do texto (padrão #374151); ordem = chave de ordenação
+ * texto = já formatado; cor = cor do texto (padrão #1f2937); ordem = chave de ordenação
  * ('' = vazio, vai sempre para o fim); dot = cor da bolinha antes do texto;
- * barra = 0..100 (barrinha depois do texto); quebra = true → white-space normal.
+ * barra = 0..100 (barrinha depois do texto); quebra = true → o texto quebra em linhas.
  * @typedef {{ texto: string, cor?: string, ordem: number|string, dot?: string, barra?: number, quebra?: boolean }} Celula
  */
 
@@ -83,6 +91,9 @@ const DIA_MS = 86400000;
  * subicone = figura do animal da posição ('femea-13-24'), pela Categoria de Manejo dela
  * (reserva: sexo e categoria oficial gravados); null = sem sexo ou sem faixa conhecidos
  * (a tela mostra o quadrado tracejado). Nunca misto.
+ * alertas = todos (a vista Lote mostra os dois níveis); alertasVisiveis = só os de nível 2
+ * (os que mudam a situação e aparecem nas colunas de Alertas).
+ * textos.meta = "38 cb · 38,0 UA · VACA"; textos.pesoKg = "449,5 kg" (item do Resumo).
  * @typedef {{
  *   id: string, nome: string, categoria: string, sexo: string, sub: string,
  *   subicone: string|null,
@@ -94,46 +105,51 @@ const DIA_MS = 86400000;
  *   alertas: Alerta[], alertasVisiveis: Alerta[],
  *   gravidade: number, situacao: Situacao,
  *   valores: Record<string, Celula>,
- *   textos: { cab: string, peso: string, kgPvHa: string, diasSemPesar: string, diasSemPesarCor: string },
+ *   textos: { meta: string, pesoKg: string },
  *   raw: any
  * }} LoteVm
  */
 
 /**
+ * largura = trilha da coluna na tabela (v12: 'minmax(84px, auto)' ou fixa).
  * @typedef {{ chave: string, secao: 'Alertas'|'Lotação'|'Pesagem'|'Identificação', rotulo: string, dica: string,
- *   larguraCel: number, larguraDesk: number,
+ *   largura: string,
  *   get: (l: LoteVm) => Celula, total: (m: ModeloDetalhes) => string }} CampoDef
  */
 
-/** @typedef {{ rotulo: string, texto: string, cor?: string, dot?: string, barra?: number, quebra?: boolean, dica?: string }} CampoTexto */
-/** @typedef {{ titulo: string, campos: CampoTexto[] }} GrupoCampos */
-/** @typedef {{ id: string, rotulo: string, cor: string, qtd: number }} OpcaoAlerta */
+/**
+ * Célula de texto pronta para a grade (rótulo, valor, cor, bolinha, sub, barra).
+ * @typedef {{ chave?: string, rotulo: string, texto: string, cor?: string, dot?: string, barra?: number,
+ *   corBarra?: string, quebra?: boolean, dica?: string }} CampoTexto
+ */
 
 /**
  * subicone = figura do grupo: a combinação sexo+faixa com mais cabeças entre as posições
  * da categoria (empate: a faixa mais velha), na cor do sexo dela; null = nenhuma conhecida.
- * @typedef {{ nome: string, cab: number, pct: number, pctTexto: string, resumo: string, cor: string, subicone: string|null }} CategoriaVm
+ * descricao = "20% do pasto · peso 196 kg"; valor = "62 cab".
+ * @typedef {{ nome: string, cab: number, pct: number, pctTexto: string, descricao: string, valor: string, subicone: string|null }} CategoriaVm
  */
 
 /**
+ * Aba Detalhes. `campos` são as células fixas do cartão da área; Setor e Status
+ * entram por `camposDoCartaoDaArea` (o setor vem do mapa; o status depende das
+ * movimentações). `lotacao` são as 9 células do bloco Lotação.
  * @typedef {{
- *   nome: string, ehCurral: boolean, tipoInfra: string, tipoCultura: string,
+ *   nome: string, sub: string,
  *   hectares: number|null, haPastejada: number|null, ha: number|null,
+ *   cab: number,
  *   faixa: { rotulo: string, rotuloLongo: string, cor: string },
- *   faixaCurta: string,
- *   camposResumo: CampoTexto[],
- *   camposCurral: CampoTexto[],
- *   secoes: GrupoCampos[],
+ *   campos: { hectares: CampoTexto, haPastejada: CampoTexto, pastagem: CampoTexto, dias: CampoTexto },
+ *   lotacao: CampoTexto[],
  *   categorias: CategoriaVm[],
- *   cabTotal: string,
  *   alertas: Array<{ frase: string, tom: Tom }>,
  * }} AreaVm
  */
 
 /**
  * @typedef {{
- *   area: AreaVm, lotes: LoteVm[], temVarios: boolean,
- *   resumo: { pesoMedio: string, cab: string, uaHa: string, kgPvHa: string, faixa: string },
+ *   area: AreaVm, lotes: LoteVm[],
+ *   resumo: { pesoMedio: string, cab: string, uaHa: string, kgPvHa: string },
  *   totais: Record<string, string>,
  *   ctx: { ha: number|null, totalCab: number, uaTotal: number, pesoVivoTotal: number, hoje: Date }
  * }} ModeloDetalhes
@@ -243,6 +259,9 @@ const cru = (v) => {
   return s || VAZIO;
 };
 
+/** Junta as partes com " · ", sem as vazias. @param {Array<string|null|undefined>} partes */
+const juntar = (partes) => partes.filter((t) => t && t !== VAZIO).join(' · ');
+
 /** Timestamp da data (para ordenar) ou '' quando vazia. @param {unknown} v */
 const ordemData = (v) => {
   const d = dataLocal(v);
@@ -286,10 +305,7 @@ const faixaDe = (cab, uaHa) => {
   return de(5);
 };
 
-/** Faixa de Superlotação (para pintar UA/ha de vermelho). */
-const SUPERLOTACAO = Object.keys(CORES_UA_HA)[5];
-
-// ─── Larguras da Lista (px; LARG_CEL / LARG do mockup) ──────────────────────
+// ─── Larguras da Lista (trilhas do grid; v12) ───────────────────────────────
 
 /** Rótulo curto do fato que gravou a base da projeção. */
 const ROTULO_BASE = Object.freeze({
@@ -297,10 +313,10 @@ const ROTULO_BASE = Object.freeze({
   MUDANCA_CATEGORIA: 'MUD. CAT.', JUNCAO: 'JUNÇÃO', NASCIMENTO: 'NASCIMENTO',
 });
 
-/** @type {Record<string, number>} */
-const LARG_CEL = { projetado: 76, projArroba: 60, gmdMes: 60, baseProj: 92, objetivo: 64, atinge: 96, pesPrev: 70, projMeses: 160, alNivel: 96, alTipo: 150, alValor: 130, peso: 76, kgpvha: 70, manejo: 112, ident: 92, dias: 64, pesoTotal: 84, origem: 74, prox: 72, entrada: 72, cab: 40, partCab: 66, ua: 50, partUA: 70, uaha: 54, ult: 72, intervalo: 60, nPes: 58, sexo: 56, sist: 60, sigla: 44 };
-/** @type {Record<string, number>} */
-const LARG = { projetado: 96, baseProj: 110, atinge: 120, pesPrev: 96, projMeses: 220, alNivel: 118, alTipo: 190, alValor: 170, manejo: 140, ident: 116, dias: 88, pesoTotal: 100, origem: 90, prox: 88, entrada: 88 };
+/** Colunas de largura fixa; as demais crescem com o conteúdo a partir de 84 px. */
+/** @type {Record<string, string>} */
+const LARGURA = { projMeses: '172px', alTipo: '128px', atinge: '128px', pesPrev: '116px', baseProj: '116px' };
+const LARGURA_PADRAO = 'minmax(84px, auto)';
 
 // ─── Catálogo de campos do lote ─────────────────────────────────────────────
 
@@ -351,14 +367,14 @@ const ocupacaoDe = (l) => (l.ua !== null && l.diasPastejo !== null ? l.ua * l.di
  * @returns {CampoDef}
  */
 const campo = (chave, secao, rotulo, dica, get, total = () => '') => ({
-  chave, secao, rotulo, dica, larguraCel: LARG_CEL[chave] || 64, larguraDesk: LARG[chave] || 84, get, total,
+  chave, secao, rotulo, dica, largura: LARGURA[chave] || LARGURA_PADRAO, get, total,
 });
 
-/** Primeiro alerta visível (nível 2) do lote, se houver. @param {LoteVm} l */
+/** Cor dos alertas visíveis (nível 2) do lote; sem alerta, a cor de "—". @param {LoteVm} l */
 const corAlerta = (l) => (l.alertasVisiveis.length ? TONS[l.alertasVisiveis[0].tom].texto : COR_META);
 
 /**
- * Uma definição por campo: rótulo, seção, dica, larguras, valor da célula e total.
+ * Uma definição por campo: rótulo, seção, dica, largura, valor da célula e total.
  * As células são pré-calculadas em `LoteVm.valores` (use `valores[chave]`).
  * @type {CampoDef[]}
  */
@@ -370,11 +386,11 @@ export const CAMPOS_LOTE = [
   }),
   campo('alTipo', 'Alertas', 'Tipo de alerta', 'o que disparou o alerta', (l) => {
     const v = l.alertasVisiveis;
-    return cel(v.length ? v.map((a) => a.rotuloTipo).join(' · ') : VAZIO, v.length ? v[0].rotuloTipo : '', { cor: corAlerta(l), quebra: true });
+    return cel(v.length ? v.map((a) => a.rotuloTipo).join(' · ') : VAZIO, v.length ? v[0].rotuloTipo : '', { cor: corAlerta(l) });
   }),
   campo('alValor', 'Alertas', 'Valor do alerta (dias)', 'valor que gerou o alerta', (l) => {
     const v = l.alertasVisiveis;
-    return cel(v.length ? v.map((a) => a.valor).join(' · ') : VAZIO, v.length ? ordemNum(num(v[0].valor)) : '', { cor: corAlerta(l), quebra: true });
+    return cel(v.length ? v.map((a) => a.valor).join(' · ') : VAZIO, v.length ? ordemNum(num(v[0].valor)) : '', { cor: corAlerta(l) });
   }),
 
   // Lotação
@@ -471,79 +487,64 @@ export const CAMPOS_LOTE = [
   campo('manejo', 'Identificação', 'Cat. de manejo', '', (l) => cel(l.ident.catManejo, ordemTxt(l.ident.catManejo))),
 ];
 
+/** Colunas padrão da Lista (v12): Alertas + Lotação + Pesagem. */
+export const COLUNAS_PADRAO = Object.freeze(CAMPOS_LOTE.filter((c) => SECOES_PADRAO.includes(c.secao)).map((c) => c.chave));
+
 /** @param {string} secao @returns {CampoDef[]} */
 export function camposDaSecao(secao) {
   return CAMPOS_LOTE.filter((c) => c.secao === secao);
 }
 
-/** Colunas das seções marcadas, na ordem de SECOES_LOTE. @param {string[]} secoesMarcadas @returns {CampoDef[]} */
-export function colunasAtivas(secoesMarcadas) {
-  return SECOES_LOTE.filter((s) => secoesMarcadas.includes(s)).flatMap(camposDaSecao);
-}
-
 /**
- * "Total da área" agrupado pelas seções marcadas (sem total → VAZIO).
- * @param {ModeloDetalhes} modelo
- * @param {string[]} secoesMarcadas
- * @returns {GrupoCampos[]}
+ * Colunas da Lista pelas chaves marcadas, sempre na ordem do catálogo (as seções
+ * ficam juntas). Chave desconhecida é ignorada.
+ * @param {readonly string[]|null|undefined} chaves
+ * @returns {CampoDef[]}
  */
-export function totaisPorSecao(modelo, secoesMarcadas) {
-  return SECOES_LOTE.filter((s) => secoesMarcadas.includes(s)).map((s) => ({
-    titulo: s,
-    campos: camposDaSecao(s).map((c) => ({ rotulo: c.rotulo, texto: modelo.totais[c.chave] || VAZIO })),
-  }));
+export function colunasPorChave(chaves) {
+  const marcadas = new Set(Array.isArray(chaves) ? chaves : []);
+  return CAMPOS_LOTE.filter((c) => marcadas.has(c.chave));
 }
 
 /**
- * Tópicos recolhíveis do card do lote (só os de TOPICOS_LOTE que estão marcados).
+ * Lista de chaves de colunas saneada: só as conhecidas, sem repetição, na ordem do
+ * catálogo. Lista vazia é escolha do usuário e é respeitada; o que não for lista → null.
+ * @param {unknown} valor
+ * @returns {string[]|null}
+ */
+export function normalizarColunas(valor) {
+  if (!Array.isArray(valor)) return null;
+  return colunasPorChave(valor.map(String)).map((c) => c.chave);
+}
+
+/**
+ * Células de uma seção do lote para a vista Lote e a tela do lote. A dica só
+ * aparece nos campos de projeção da Pesagem (`proj*`); Identificação começa por
+ * "Categoria" (que não é coluna da tabela).
  * @param {LoteVm} lote
- * @param {string[]} secoesMarcadas
- * @returns {GrupoCampos[]}
+ * @param {string} secao
+ * @returns {CampoTexto[]}
  */
-export function topicosDoLote(lote, secoesMarcadas) {
-  return TOPICOS_LOTE.filter((t) => secoesMarcadas.includes(t)).map((t) => ({
-    titulo: t,
-    campos: camposDaSecao(t).map((c) => {
-      const { ordem: _ordem, ...resto } = lote.valores[c.chave] || cel(VAZIO, '');
-      return { rotulo: c.rotulo, dica: c.dica || undefined, ...resto };
-    }),
-  }));
+export function camposDoLote(lote, secao) {
+  /** @type {CampoTexto[]} */
+  const campos = camposDaSecao(secao).map((c) => {
+    const v = lote.valores[c.chave] || cel(VAZIO, '');
+    return {
+      chave: c.chave,
+      rotulo: c.rotulo,
+      texto: v.texto,
+      cor: v.cor,
+      dot: v.dot,
+      barra: v.barra,
+      quebra: v.quebra,
+      dica: secao === 'Pesagem' && c.chave.startsWith('proj') && c.dica ? c.dica : undefined,
+    };
+  });
+  if (secao === 'Identificação') campos.unshift({ chave: 'categoria', rotulo: 'Categoria', texto: lote.categoria, cor: COR_TEXTO });
+  return campos;
 }
 
-// ─── Alertas: filtro e ordenação ────────────────────────────────────────────
-
-const TIPOS_ALERTA = [
-  { id: 'pesagem', rotulo: 'Pesagem atrasada', cor: COR_ATENCAO },
-  { id: 'intervalo', rotulo: 'Intervalo curto', cor: COR_META },
-];
-
-/**
- * Opções do grupo ALERTAS do Filtrar: todos, com alerta, e um por tipo presente nos dados.
- * @param {LoteVm[]} lotes
- * @returns {OpcaoAlerta[]}
- */
-export function opcoesDeAlerta(lotes) {
-  const com = lotes.filter((l) => l.gravidade >= 2).length;
-  const tipos = TIPOS_ALERTA
-    .map((t) => ({ ...t, qtd: lotes.filter((l) => l.alertas.some((a) => a.tipo === t.id)).length }))
-    .filter((t) => t.qtd > 0);
-  return [
-    { id: 'todos', rotulo: 'Todos os lotes', cor: '#cbd5e1', qtd: lotes.length },
-    { id: 'com', rotulo: 'Com alerta', cor: COR_ATENCAO, qtd: com },
-    ...tipos,
-  ];
-}
-
-/**
- * @param {LoteVm[]} lotes
- * @param {string} alerta 'todos'|'com'|'pesagem'|'intervalo'
- * @returns {LoteVm[]}
- */
-export function filtrarPorAlerta(lotes, alerta) {
-  if (alerta === 'com') return lotes.filter((l) => l.gravidade >= 2);
-  if (alerta === 'pesagem' || alerta === 'intervalo') return lotes.filter((l) => l.alertas.some((a) => a.tipo === alerta));
-  return [...lotes];
-}
+// ─── Ordenação ──────────────────────────────────────────────────────────────
 
 /** @param {string} a @param {string} b */
 const porNome = (a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' });
@@ -561,19 +562,15 @@ const comparaOrdem = (x, y, dir) => {
 };
 
 /**
- * Cópia ordenada. porGravidade: Atenção antes (gravidade desc). chave null|'nome' → nome × dir;
- * senão valores[chave].ordem × dir (empate → nome asc).
+ * Cópia ordenada. chave null|'nome' → nome × dir; senão valores[chave].ordem × dir
+ * (vazios no fim; empate → nome crescente).
  * @param {LoteVm[]} lotes
- * @param {{ porGravidade?: boolean, chave?: string|null, dir?: number }} opcoes
+ * @param {{ chave?: string|null, dir?: number }} [opcoes]
  * @returns {LoteVm[]}
  */
-export function ordenarLotes(lotes, { porGravidade = false, chave = null, dir = 1 } = {}) {
+export function ordenarLotes(lotes, { chave = null, dir = 1 } = {}) {
   const d = dir < 0 ? -1 : 1;
   return [...lotes].sort((a, b) => {
-    if (porGravidade) {
-      const g = b.gravidade - a.gravidade;
-      if (g) return g;
-    }
     if (!chave || chave === 'nome') return porNome(a.nome, b.nome) * d;
     const r = comparaOrdem(a.valores[chave]?.ordem ?? '', b.valores[chave]?.ordem ?? '', d);
     return r || porNome(a.nome, b.nome);
@@ -689,7 +686,7 @@ const agregados = (lista, hoje) => {
 };
 
 /**
- * Modelo da aba Área / card Informações da Área.
+ * Modelo da aba Detalhes (cartão da área, Lotação e Categorias).
  * @param {any} area @param {any[]} lista lotes ativos na área @param {Date} hoje
  * @param {Map<string, any>} categoriasPorId Categorias de Manejo por id (subícone)
  * @returns {AreaVm}
@@ -705,13 +702,9 @@ const montarArea = (area, lista, hoje, categoriasPorId) => {
   const capacidade = positivo(area?.capacidade_maxima); // UA TOTAL da área (MapaInsights)
   const capUAha = capacidade !== null && ha !== null ? capacidade / ha : null;
   const pctCap = capacidade !== null && ua !== null ? (ua / capacidade) * 100 : null;
-  const ehCurral = area?.tipo_cultura === 'Infraestrutura' && String(area?.tipo_infraestrutura || area?.tipo_pastagem || '').trim().toLowerCase() === 'curral';
-  const pastagem = cru(area?.tipo_pastagem);
-  const hectaresTexto = fmtNum(hectares ?? ha);
-  const corUaHa = faixa.rotuloLongo === SUPERLOTACAO ? COR_INVESTIGAR
-    : capUAha !== null && uaHa !== null && uaHa > capUAha ? COR_ATENCAO : COR_TEXTO;
+  const acimaDaCapacidade = pctCap !== null && pctCap > 100;
 
-  // Composição por categoria (ordem alfabética → cor de CORES_CATEGORIA_GADO)
+  // Composição por categoria (ordem alfabética)
   /** @type {Map<string, { cab: number, peso: number, cabPeso: number, posicoes: any[] }>} */
   const porCat = new Map();
   for (const l of lista) {
@@ -724,16 +717,19 @@ const montarArea = (area, lista, hoje, categoriasPorId) => {
     g.posicoes.push(l);
     porCat.set(nome, g);
   }
-  const categorias = [...porCat.keys()].sort(porNome).map((nome, i) => {
+  const categorias = [...porCat.keys()].sort(porNome).map((nome) => {
     const g = /** @type {{ cab: number, peso: number, cabPeso: number, posicoes: any[] }} */ (porCat.get(nome));
     const pct = ag.cab > 0 ? (g.cab / ag.cab) * 100 : 0;
+    const pctTexto = fmtPct(pct);
+    const peso = g.cabPeso > 0 ? fmtInt(g.peso / g.cabPeso) : VAZIO;
     return {
       nome,
       cab: g.cab,
       pct,
-      pctTexto: fmtPct(pct),
-      resumo: `${fmtInt(g.cab)} cab · peso ${fmtNum(g.cabPeso > 0 ? g.peso / g.cabPeso : null, 0)}`,
-      cor: CORES_CATEGORIA_GADO[i % CORES_CATEGORIA_GADO.length],
+      pctTexto,
+      // "20% do pasto · peso 196 kg" (sem peso, só a participação).
+      descricao: peso === VAZIO ? `${pctTexto} do pasto` : `${pctTexto} do pasto · peso ${peso} kg`,
+      valor: `${fmtInt(g.cab)} cab`,
       // D-PROD-191: o animal do grupo (mais cabeças; empate → faixa mais velha), nunca misto.
       subicone: figuraDoGrupo(g.posicoes, categoriasPorId)?.figura ?? null,
     };
@@ -741,7 +737,7 @@ const montarArea = (area, lista, hoje, categoriasPorId) => {
 
   /** @type {Array<{ frase: string, tom: Tom }>} */
   const alertas = [];
-  if (pctCap !== null && pctCap > 100) {
+  if (acimaDaCapacidade) {
     alertas.push({
       frase: uaHa !== null && capUAha !== null
         ? `Lotação de ${fmtNum(uaHa)} UA/ha acima da capacidade cadastrada (${fmtNum(capUAha)} UA/ha).`
@@ -752,63 +748,73 @@ const montarArea = (area, lista, hoje, categoriasPorId) => {
 
   return {
     nome: area?.nome ? String(area.nome) : '',
-    ehCurral,
-    tipoInfra: cru(area?.tipo_infraestrutura || area?.tipo_pastagem),
-    tipoCultura: cru(area?.tipo_cultura),
+    sub: [area?.tipo_cultura, area?.tipo_pastagem].map((v) => (v === null || v === undefined ? '' : String(v).trim())).filter(Boolean).join(' / '),
     hectares,
     haPastejada,
     ha,
+    cab: ag.cab,
     faixa,
-    faixaCurta: faixa.rotulo === VAZIO ? '' : ag.cab > 0 ? `Lotação ${faixa.rotulo.toLocaleLowerCase('pt-BR')} · UA/ha ${fmtNum(uaHa)}` : faixa.rotulo,
-    camposResumo: [
-      { rotulo: 'Hectares', texto: hectaresTexto },
-      { rotulo: 'UA/ha', texto: fmtNum(uaHa) },
-      { rotulo: 'UA total', texto: fmtNum(ua ?? (ag.cab > 0 ? null : 0)) },
-      { rotulo: 'Qtd. Lotes', texto: fmtInt(lista.length) },
-      { rotulo: 'Qtd. Cabeças', texto: fmtInt(ag.cab) },
-      { rotulo: 'Média geral (kg)', texto: fmtNum(ag.pesoMedio) },
-      { rotulo: 'Pastagem', texto: pastagem },
-      { rotulo: 'Dias pastejo', texto: fmtInt(ag.dias) },
-    ],
-    camposCurral: [
-      { rotulo: 'Tipo de infraestrutura', texto: cru(area?.tipo_infraestrutura || area?.tipo_pastagem) },
-      { rotulo: 'Tipo de área', texto: cru(area?.tipo_cultura) },
-    ],
-    secoes: [
+    campos: {
+      hectares: { chave: 'hectares', rotulo: 'Hectares', texto: fmtNum(hectares ?? ha) },
+      haPastejada: { chave: 'haPastejada', rotulo: 'Área pastejada (ha)', texto: fmtNum(haPastejada) },
+      pastagem: { chave: 'pastagem', rotulo: 'Pastagem', texto: cru(area?.tipo_pastagem) },
+      dias: { chave: 'dias', rotulo: 'Dias pastejo', texto: fmtInt(ag.dias) },
+    },
+    lotacao: [
+      { chave: 'qtdLotes', rotulo: 'Qtd. Lotes', texto: fmtInt(lista.length) },
+      { chave: 'qtdCab', rotulo: 'Qtd. Cabeças', texto: fmtInt(ag.cab) },
+      { chave: 'uaTotal', rotulo: 'UA total', texto: fmtNum(ua ?? (ag.cab > 0 ? null : 0)), dica: 'peso vivo ÷ 450' },
+      { chave: 'uaHa', rotulo: 'UA/ha', texto: fmtNum(uaHa), dot: faixa.cor, ...(faixa.rotuloLongo !== VAZIO ? { dica: faixa.rotuloLongo } : {}) },
+      { chave: 'capacidade', rotulo: 'Capacidade (UA/ha)', texto: fmtNum(capUAha), dica: 'capacidade máxima ÷ hectares' },
       {
-        titulo: 'Área',
-        campos: [
-          { rotulo: 'Hectares', texto: hectaresTexto },
-          { rotulo: 'Área pastejada (ha)', texto: fmtNum(haPastejada) },
-          { rotulo: 'Pastagem', texto: pastagem },
-          { rotulo: 'Status', texto: ag.cab > 0 ? 'OCUPADO' : 'VAZIO' },
-          { rotulo: 'Dias pastejo', texto: fmtInt(ag.dias) },
-        ],
+        chave: 'pctCap', rotulo: '% da capacidade', texto: fmtPct(pctCap), cor: acimaDaCapacidade ? COR_ATENCAO : COR_TEXTO,
+        ...(pctCap !== null ? { barra: Math.min(100, pctCap) } : {}),
+        ...(acimaDaCapacidade ? { corBarra: COR_BARRA_ATENCAO } : {}),
       },
-      {
-        titulo: 'Lotação',
-        campos: [
-          { rotulo: 'Qtd. Lotes', texto: fmtInt(lista.length) },
-          { rotulo: 'Qtd. Cabeças', texto: fmtInt(ag.cab) },
-          { rotulo: 'UA total', texto: fmtNum(ua ?? (ag.cab > 0 ? null : 0)), dica: 'peso vivo ÷ 450' },
-          { rotulo: 'UA/ha', texto: fmtNum(uaHa), cor: corUaHa },
-          { rotulo: 'Capacidade (UA/ha)', texto: fmtNum(capUAha), dica: 'capacidade máxima cadastrada ÷ hectares' },
-          {
-            rotulo: '% da capacidade', texto: fmtPct(pctCap), dica: 'UA total ÷ capacidade máxima cadastrada',
-            cor: pctCap !== null && pctCap > 100 ? COR_ATENCAO : COR_TEXTO,
-            ...(pctCap !== null ? { barra: Math.min(100, pctCap) } : {}),
-          },
-          { rotulo: 'kg PV/ha', texto: ha !== null && ag.temPeso ? fmtInt(ag.pesoVivo / ha) : VAZIO },
-          { rotulo: 'Cab/ha', texto: ha !== null ? fmtNum(ag.cab / ha) : VAZIO },
-          { rotulo: 'Peso médio geral (kg)', texto: fmtNum(ag.pesoMedio) },
-        ],
-      },
+      { chave: 'kgPvHa', rotulo: 'kg PV/ha', texto: ha !== null && ag.temPeso ? fmtInt(ag.pesoVivo / ha) : VAZIO },
+      { chave: 'cabHa', rotulo: 'Cab/ha', texto: ha !== null && ag.cab > 0 ? fmtNum(ag.cab / ha) : VAZIO },
+      { chave: 'pesoMedio', rotulo: 'Peso médio geral (kg)', texto: fmtNum(ag.pesoMedio) },
     ],
     categorias,
-    cabTotal: fmtInt(ag.cab),
     alertas,
   };
 };
+
+/**
+ * Status do cartão da área: OCUPADO com cabeças; vazio com saída registrada →
+ * "VAZIO · descanso há N dias" desde a saída MAIS RECENTE (a mesma regra da
+ * situação do pasto no mapa, `calcularSituacaoPasto`); senão VAZIO. Vazio em cinza.
+ * @param {{ areaId?: string|null, cab: number, movimentacoes?: any[]|null, hoje?: Date }} p
+ * @returns {{ texto: string, cor: string, descansoDias: number|null }}
+ */
+export function statusDaArea({ areaId, cab, movimentacoes, hoje }) {
+  if (cab > 0) return { texto: 'OCUPADO', cor: COR_TEXTO, descansoDias: null };
+  const id = areaId ? String(areaId) : '';
+  const situacao = id
+    ? calcularSituacaoPasto({ areas: [{ id }], lotes: [], movimentacoes: Array.isArray(movimentacoes) ? movimentacoes : [], agora: hoje instanceof Date ? hoje : new Date() })[id]
+    : null;
+  const dias = situacao?.tipo === 'descanso' && situacao.dias ? situacao.dias : null;
+  if (dias === null) return { texto: 'VAZIO', cor: COR_META, descansoDias: null };
+  return { texto: `VAZIO · descanso há ${fmtInt(dias)} ${dias === 1 ? 'dia' : 'dias'}`, cor: COR_META, descansoDias: dias };
+}
+
+/**
+ * As 6 células do cartão da área, na ordem do v12: Setor · Hectares · Área
+ * pastejada (ha) · Pastagem · Status · Dias pastejo.
+ * @param {AreaVm} area
+ * @param {{ setor?: string|null, status: { texto: string, cor: string } }} extra
+ * @returns {CampoTexto[]}
+ */
+export function camposDoCartaoDaArea(area, { setor, status }) {
+  return [
+    { chave: 'setor', rotulo: 'Setor', texto: cru(setor) },
+    area.campos.hectares,
+    area.campos.haPastejada,
+    area.campos.pastagem,
+    { chave: 'status', rotulo: 'Status', texto: status.texto, cor: status.cor },
+    area.campos.dias,
+  ];
+}
 
 /**
  * Modelo de um lote/posição.
@@ -831,7 +837,6 @@ const montarLote = (raw, ctx) => {
   /** @type {Situacao} */
   const situacao = gravidade >= 2 ? { rotulo: 'Atenção', tom: 'atencao' } : { rotulo: 'Em dia', tom: 'ok' };
   const kgPvHa = pesoTotal !== null && ctx.ha !== null ? pesoTotal / ctx.ha : null;
-  const atrasada = pesagem.diasSemPesar !== null && pesagem.diasSemPesar > DIAS_PESAGEM_ATRASADA;
 
   /** @type {LoteVm} */
   const vm = {
@@ -839,7 +844,7 @@ const montarLote = (raw, ctx) => {
     nome: raw?.nome ? String(raw.nome) : VAZIO,
     categoria,
     sexo,
-    sub: [categoria, sexo].filter((t) => t !== VAZIO).join(' · ') || VAZIO,
+    sub: juntar([categoria, sexo]) || VAZIO,
     // D-PROD-191: o animal desta posição, na cor do sexo dela (nunca misto).
     subicone: figuraDaPosicao(raw, ctx.categoriasPorId)?.figura ?? null,
     cab,
@@ -869,11 +874,9 @@ const montarLote = (raw, ctx) => {
     situacao,
     valores: {},
     textos: {
-      cab: fmtInt(cab),
-      peso: fmtNum(peso, 1),
-      kgPvHa: fmtInt(kgPvHa),
-      diasSemPesar: fmtInt(pesagem.diasSemPesar),
-      diasSemPesarCor: atrasada ? COR_ATENCAO : COR_TEXTO,
+      // "38 cb · 38,0 UA · VACA" (sem UA ou sem categoria, a parte some).
+      meta: juntar([`${fmtInt(cab)} cb`, ua !== null ? `${fmtNum(ua, 1)} UA` : null, categoria]),
+      pesoKg: peso !== null ? `${fmtNum(peso, 1)} kg` : VAZIO,
     },
     raw,
   };
@@ -883,8 +886,8 @@ const montarLote = (raw, ctx) => {
 
 /**
  * Monta tudo o que o diálogo mostra.
- * - `lotes`: os do diálogo (prop `lotes` do DetalhesLote) → LoteVm, % e totais da aba Lotes.
- * - `lotesDaArea`: todos os ativos na área → métricas da aba Área (vazio → usa `lotes`).
+ * - `lotes`: os do diálogo (as posições do pasto clicado) → LoteVm, % e totais da aba Lotes.
+ * - `lotesDaArea`: todos os ativos na área → aba Detalhes (vazio → usa `lotes`).
  * - `movimentacoes`: cache 'movimentacoes' do mapa → pesagens (canceladas são ignoradas).
  * - `categoriasManejo`: cache 'categoriasManejo' do mapa (lista ou Map por id) → subícone de
  *   cada lote e de cada categoria da área (D-PROD-191). Ícone por upload (ConfiguracaoIcone)
@@ -910,35 +913,15 @@ export function montarModeloDetalhes({ area, lotes = [], lotesDaArea = [], movim
   const modelo = {
     area: areaVm,
     lotes: lotesVm,
-    temVarios: lotesVm.length > 1,
     resumo: {
       pesoMedio: fmtNum(ag.pesoMedio, 1),
       cab: fmtInt(ag.cab),
       uaHa: fmtNum(uaHa),
       kgPvHa: ag.temPeso && ha !== null ? fmtInt(ag.pesoVivo / ha) : VAZIO,
-      faixa: faixaDe(ag.cab, uaHa).rotulo,
     },
     totais: {},
     ctx: { ha, totalCab: ag.cab, uaTotal: ag.ua, pesoVivoTotal: ag.pesoVivo, hoje: h },
   };
   modelo.totais = Object.fromEntries(CAMPOS_LOTE.map((c) => [c.chave, c.total(modelo)]));
   return modelo;
-}
-
-/**
- * Campos do card do lote na aba Tudo (desktop/tablet).
- * @param {LoteVm} lote
- * @returns {CampoTexto[]}
- */
-export function camposCartaoTudo(lote) {
-  return [
-    { rotulo: 'Qtd. Cabeças', texto: lote.textos.cab },
-    { rotulo: 'Peso médio (kg)', texto: fmtNum(lote.peso) },
-    { rotulo: 'Peso projetado (kg)', texto: lote.projecao ? fmtNum(lote.projecao.peso_kg, 1) : VAZIO },
-    { rotulo: 'Sexo', texto: lote.ident.sexo },
-    { rotulo: 'Sist. Rep.', texto: lote.ident.sistema },
-    { rotulo: 'Dias de pastejo', texto: fmtInt(lote.diasPastejo) },
-    { rotulo: 'Identificador', texto: lote.ident.identificador, ...(lote.ident.identificadorCor ? { dot: lote.ident.identificadorCor } : {}) },
-    { rotulo: 'Sigla', texto: lote.ident.sigla },
-  ];
 }

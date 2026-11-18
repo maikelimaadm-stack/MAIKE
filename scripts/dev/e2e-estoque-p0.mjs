@@ -591,10 +591,10 @@ const executarLargura = async (browser, largura) => {
     await page.locator(`.mg-marker[title^="${s.deposito.nome}"]`).waitFor({ state: 'visible', timeout: 45000 });
     await page.waitForTimeout(1500);
   };
-  const abrirPonto = async (nome, tituloDialogo) => {
+  const abrirPonto = async (nome) => {
     await toque(page.locator(`.mg-marker[title^="${nome}"]`).first(), `marcador ${nome}`);
-    await page.getByText(tituloDialogo, { exact: true }).first().waitFor({ state: 'visible' });
-    await page.getByText(nome).filter({ visible: true }).first().waitFor();
+    // D-PROD-220: o título do diálogo é o nome do ponto (casca v12 do cocho/depósito).
+    await page.getByRole('dialog', { name: nome, exact: true }).first().waitFor({ state: 'visible' });
     await page.waitForTimeout(800);
   };
 
@@ -642,7 +642,7 @@ const executarLargura = async (browser, largura) => {
       const movsAntes = await prisma.movimentacaoEstoque.count({ where: { cliente_id: s.cliente_id, produto_id: s.produto.id } });
       await abrirMapa();
       await shot('mapa');
-      await abrirPonto(s.cocho.nome, 'Ponto de Suplementação');
+      await abrirPonto(s.cocho.nome);
       await shot('cocho-detalhes');
       await toque(page.getByRole('button', { name: 'Lançar', exact: true }).filter({ visible: true }).first(), 'Lançar no cocho');
       const dlg = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Salvar novo ciclo' }) }).last();
@@ -710,15 +710,16 @@ const executarLargura = async (browser, largura) => {
       const totalAntes = await somaDisponivel(s);
       const cacheAntes = await cacheDe(s);
       await abrirMapa();
-      await abrirPonto(s.deposito.nome, 'Depósito de Suplementação');
+      await abrirPonto(s.deposito.nome);
       await shot('deposito-detalhes');
       await toque(page.getByRole('button', { name: 'Saída', exact: true }).filter({ visible: true }).first(), 'Saída do depósito');
       const dlg = page.getByRole('dialog').filter({ hasText: 'Saída do Depósito' }).last();
-      await dlg.getByRole('button', { name: 'Salvar', exact: true }).waitFor({ state: 'visible' });
+      // D-PROD-222: a transferência é um lançamento de manejo — a ação é o ✓ "Registrar Saída" do cabeçalho.
+      await dlg.getByRole('button', { name: 'Registrar Saída', exact: true }).waitFor({ state: 'visible' });
       const campoLocal = dlg.locator('input[placeholder="BUSCAR LOCAL..."]').first();
       const opcaoDestino = page.getByRole('option', { name: new RegExp(s.localB.nome) }).filter({ visible: true }).first();
       const vp = page.viewportSize();
-      // O diálogo continua centralizado (no celular sem transform, para a folha ocupar a tela).
+      // O diálogo continua centralizado (no celular, tela cheia sem transform; a folha ocupa o diálogo).
       const caixa = await dlg.boundingBox();
       anotar(rotulo, 'dialogo_transferencia', { x: Math.round(caixa.x), y: Math.round(caixa.y), w: Math.round(caixa.width), h: Math.round(caixa.height), vw: vp.width, vh: vp.height });
       conferir(Math.abs(caixa.x + caixa.width / 2 - vp.width / 2) <= 2 && Math.abs(caixa.y + caixa.height / 2 - vp.height / 2) <= 2, `[${rotulo}] diálogo da transferência fora do centro: ${JSON.stringify(caixa)}`);
@@ -757,7 +758,9 @@ const executarLargura = async (browser, largura) => {
         await shot('folha-local-destino');
         exigir(prova.existe && prova.dentroDoDialogo && !prova.ariaHidden && prova.hitNaOpcao && prova.pointerEventsCamada !== 'none', `[${rotulo}] folha "Local de Destino" fora da camada de cima do diálogo: ${JSON.stringify(prova)}`);
         conferir(prova.focoNaLista, `[${rotulo}] o foco não entrou na folha ao abrir`);
-        conferir(prova.folha && prova.folha.l <= 0 && prova.folha.r >= prova.vw && prova.folha.b >= prova.vh - 1, `[${rotulo}] a folha não ocupa a largura e o pé da tela (presa no cartão do diálogo?): ${JSON.stringify(prova.folha)}`);
+        // D-PROD-222: a transferência é um LancLoteDialogo em tela cheia; o vidro dele (backdrop-filter e borda de
+        // 1 px, como em todos os manejos) segura a folha na tela menos essa borda — 1 px, não o cartão de antes.
+        conferir(prova.folha && prova.folha.l <= 1 && prova.folha.r >= prova.vw - 1 && prova.folha.b >= prova.vh - 1, `[${rotulo}] a folha não ocupa a largura e o pé da tela (presa no cartão do diálogo?): ${JSON.stringify(prova.folha)}`);
         // (b) Escape fecha SÓ a folha; o diálogo fica e o foco volta ao campo.
         await page.keyboard.press('Escape');
         await opcaoDestino.waitFor({ state: 'hidden' });
@@ -804,7 +807,7 @@ const executarLargura = async (browser, largura) => {
       const t0 = await nToasts();
       const desde = escritas.length;
       const resp = page.waitForResponse((r) => /comandos\/transferencia-locais/.test(r.url()) && r.request().method() === 'POST', { timeout: 30000 });
-      await toque(dlg.getByRole('button', { name: 'Salvar', exact: true }), 'Salvar transferência');
+      await toque(dlg.getByRole('button', { name: 'Registrar Saída', exact: true }), 'Registrar Saída (✓ do cabeçalho)');
       const rt = await resp;
       igual(rt.status(), 201, `[${rotulo}] comando de transferência pela tela`);
       const corpoResp = await rt.json().catch(() => ({}));

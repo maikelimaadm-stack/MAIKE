@@ -50,6 +50,9 @@ export default function B1Select(props) {
   const [aberto, setAberto] = React.useState(false);
   const [busca, setBusca] = React.useState("");
   const botao = React.useRef(/** @type {HTMLButtonElement | null} */ (null));
+  // Desktop/tablet: com a lista aberta e sem pesquisa, o foco fica no botão do campo; ↑ ↓ Enter vão para o
+  // painel por aqui (como o AutocompleteGenerico), senão a lista não se escolhe pelo teclado (D-PROD-222).
+  const controlePainel = React.useRef(/** @type {null | { tecla: (e: React.KeyboardEvent) => void }} */ (null));
   const ancora = React.useCallback(() => botao.current?.closest(".mg-field") ?? botao.current, []);
 
   const opcoes = opcoesDe(children);
@@ -112,6 +115,7 @@ export default function B1Select(props) {
         pesquisavel={pesquisavel}
         rotulo={props["aria-label"] || "opções"}
         className={maiusculas ? "b1-maiusculas" : undefined}
+        controleRef={controlePainel}
       >
         {comLimpar(
         <button
@@ -129,6 +133,10 @@ export default function B1Select(props) {
           {...(vazio ? { "data-placeholder": "" } : {})}
           onClick={() => setAberto((v) => !v)}
           onKeyDown={(e) => {
+            if (aberto && controlePainel.current && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter")) {
+              controlePainel.current.tecla(e);
+              return;
+            }
             if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               setAberto(true);

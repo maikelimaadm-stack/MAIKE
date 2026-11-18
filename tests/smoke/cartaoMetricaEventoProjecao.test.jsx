@@ -46,7 +46,11 @@ const fechado = (extra = {}) => aberto({
   consumo_esperado_pv_kg: 50, total_cabecas_afetadas: 100, created_date: '2026-11-03T12:00:00.000Z', ...extra,
 });
 
-const valor = (raiz, rotulo) => within(raiz).getByText(rotulo).nextElementSibling?.textContent;
+// D-PROD-222: no Histórico do cocho cada métrica é uma linha "Rótulo: valor" (LinhaHistorico).
+/** @param {HTMLElement} forte o <strong> com "Rótulo:" */
+const textoDaLinha = (forte) => forte.parentElement?.textContent?.slice(forte.textContent?.length ?? 0).trim();
+const valor = (raiz, rotulo) => textoDaLinha(within(raiz).getByText(`${rotulo}:`, { selector: 'strong' }));
+const valores = (rotulo) => screen.getAllByText(`${rotulo}:`, { selector: 'strong' }).map(textoDaLinha);
 
 beforeEach(() => {
   localStorage.setItem('empresa_selecionada_id', EMP);
@@ -126,7 +130,8 @@ describe('CM-4 — Histórico com o nível do detalhe', () => {
         <HistoricoSuplementacaoPonto pontoId="c1" pontoNome="COCHO 1" ponto={COCHO} nivel={nivel} />
       </QueryClientProvider>,
     );
-    await screen.findByText(/Histórico do Cocho/);
+    // O título já aparece no carregando; com a contagem, a lista chegou (D-PROD-222).
+    await screen.findByText(/Histórico do Cocho \(\d+\)/);
   };
 
   it('o último evento do cocho compartilhado não projeta nada, como o detalhe; o fechado continua com o gravado', async () => {
@@ -137,18 +142,18 @@ describe('CM-4 — Histórico com o nível do detalhe', () => {
     expect(nivel.confiabilidade).toBe('compartilhada');
     await renderizarHistorico(nivel);
 
-    const duracoes = screen.getAllByText('Duração estimada').map((rotulo) => rotulo.nextElementSibling?.textContent);
+    const duracoes = valores('Duração estimada');
     // Ordem do histórico: o aberto (último, 10/11) e depois o fechado (03/11).
     expect(duracoes).toEqual(['-', '4 dia(s)']);
-    expect(screen.getByText('Próx. reposição').nextElementSibling?.textContent).toBe('-');
-    expect(screen.getAllByText('Consumo Lote PV/dia').map((rotulo) => rotulo.nextElementSibling?.textContent)).toEqual(['-', '50,00 kg']);
+    expect(valores('Próx. reposição')).toEqual(['-']);
+    expect(valores('Consumo Lote PV/dia')).toEqual(['-', '50,00 kg']);
   });
 
   it('cocho estimado: o último evento sai com a projeção do SSOT', async () => {
     cache.dados = { eventosSuplementacao: [aberto()], movimentacoes: [] };
     const nivel = calcularNivelCocho({ ponto: COCHO, eventos: [aberto()], hoje: '2026-11-11', pontos: [COCHO] });
     await renderizarHistorico(nivel);
-    expect(screen.getByText('Duração estimada').nextElementSibling?.textContent).toBe('4,4 dia(s)');
-    expect(screen.getByText('Próx. reposição').nextElementSibling?.textContent).toBe('15/11/2026');
+    expect(valores('Duração estimada')).toEqual(['4,4 dia(s)']);
+    expect(valores('Próx. reposição')).toEqual(['15/11/2026']);
   });
 });

@@ -11,6 +11,8 @@
  *  - porta: o POST leva só os campos que o servidor aceita (o replay offline traz mais);
  *  - detalhe do cocho: botão "Leitura" com `lancar_suplementacao`, seção "Leitura do
  *    cocho" com o farol, os avisos e as últimas leituras, e excluir com confirmação.
+ *    D-PROD-220 (desenho v12): cada leitura é uma linha — a data à esquerda, a
+ *    observação embaixo dela e "ESCORE · ACESSO · ESTRUTURA" à direita.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -182,7 +184,7 @@ describe('D-PROD-205 — detalhe do cocho', () => {
         <DetalhesPontoSuplementacao ponto={PONTO} permissions={permissions} onClose={() => {}} />
       </QueryClientProvider>,
     );
-    await screen.findByText('Informações do Cocho');
+    await screen.findByText('Informações do cocho');
     await act(async () => {});
   };
   const secao = () => screen.getByRole('region', { name: 'Leitura do cocho' });
@@ -209,23 +211,31 @@ describe('D-PROD-205 — detalhe do cocho', () => {
     expect(within(secao()).getAllByTestId('aviso-leitura-cocho').map((a) => a.textContent)).toEqual([
       'Acesso ruim ao cocho (leitura de 12/11/2026)', 'Estrutura quebrada (leitura de 12/11/2026)',
     ]);
-    const itens = within(within(secao()).getByRole('list', { name: 'Últimas leituras' })).getAllByRole('listitem');
+    const resumoPrincipal = secao();
+    expect(within(resumoPrincipal).queryByRole('list')).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Histórico' })); });
+    const itens = within(screen.getByRole('list', { name: 'Últimas leituras' })).getAllByRole('listitem');
     expect(itens).toHaveLength(2);
-    expect(itens[0].textContent).toMatch(/12\/11\/2026 · Vazio · acesso ruim · quebrada · cocho virado/);
+    // A mais recente primeiro: data, escore · acesso · estrutura e a observação.
+    expect(within(itens[0]).getByText('12/11/2026')).toBeTruthy();
+    expect(within(itens[0]).getByText('VAZIO · RUIM · QUEBRADA')).toBeTruthy();
+    expect(within(itens[0]).getByText('cocho virado')).toBeTruthy();
+    expect(within(itens[1]).getByText('11/11/2026')).toBeTruthy();
+    expect(within(itens[1]).getByText('CHEIO · BOM · BOA')).toBeTruthy();
 
     avisos.confirmar.mockResolvedValueOnce(false);
     await act(async () => {
-      fireEvent.click(within(secao()).getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }));
     });
     expect(servico.excluir).not.toHaveBeenCalled();
 
     avisos.confirmar.mockResolvedValueOnce(true);
     servico.excluir.mockResolvedValueOnce(undefined);
     await act(async () => {
-      fireEvent.click(within(secao()).getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }));
     });
     expect(servico.excluir).toHaveBeenCalledWith('l-2');
-    await waitFor(() => expect(within(secao()).getByTestId('farol-cocho')).toHaveAttribute('data-cor', 'azul'));
+    await waitFor(() => expect(within(resumoPrincipal).getByTestId('farol-cocho')).toHaveAttribute('data-cor', 'azul'));
   });
 
   it('sem lancar_suplementacao não há "Excluir" nas leituras', async () => {

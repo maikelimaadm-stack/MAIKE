@@ -12,7 +12,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const estado = vi.hoisted(() => ({ historico: /** @type {any[]} */ ([]) }));
@@ -55,9 +55,10 @@ afterEach(() => {
   localStorage.clear();
 });
 
+// Desenho v12 (D-PROD-220): a métrica é uma célula da grade do "Resumo operacional" (dt → dd).
 function valorDaMetrica(label) {
-  const rotulo = screen.getByText(label);
-  return rotulo.parentElement.lastChild.textContent;
+  const resumo = screen.getByRole('group', { name: 'Resumo operacional' });
+  return within(resumo).getByText(label, { selector: 'dt' }).nextElementSibling.textContent;
 }
 
 describe('#39 ficha do bebedouro usa a data do lançamento', () => {
@@ -73,8 +74,11 @@ describe('#39 ficha do bebedouro usa a data do lançamento', () => {
 
     expect(valorDaMetrica('Próxima limpeza')).toBe(brasil('2026-12-16'));
     expect(valorDaMetrica('Próxima inspeção')).toBe(brasil('2026-11-17'));
-    expect(screen.getByText(`${brasil('2026-11-16')} · 07:00`)).toBeTruthy();
-    expect(screen.getByText('Obs: limpeza do dia')).toBeTruthy();
+    // "Último registro" (v12): linha com o tipo, a descrição embaixo e a data · hora à direita.
+    const ultimo = screen.getByRole('group', { name: 'Último registro' });
+    expect(within(ultimo).getByText('Limpeza', { selector: '.mk-dp-linha__rot' })).toBeTruthy();
+    expect(within(ultimo).getByText(`${brasil('2026-11-16')} · 07:00`)).toBeTruthy();
+    expect(within(ultimo).getByText('limpeza do dia', { selector: '.mk-dp-linha__sub' })).toBeTruthy();
   });
 
   it('limpeza pendente não adia a próxima limpeza (mesma regra da lista)', () => {

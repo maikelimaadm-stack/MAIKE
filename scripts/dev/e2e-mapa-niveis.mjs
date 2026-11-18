@@ -584,14 +584,16 @@ const executarLargura = async (browser, largura) => {
     // ── 2. Detalhe do cocho ─────────────────────────────────────────────────
     await passo('2 Detalhe do cocho: 75% e 150 kg de 200 kg, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)', async () => {
       await toque(marcador(s.cocho.nome), `marcador ${s.cocho.nome}`);
-      await page.getByText('Ponto de Suplementação', { exact: true }).first().waitFor({ state: 'visible' });
+      // D-PROD-220: o título do diálogo é o nome do cocho (casca v12).
+      await page.getByRole('dialog', { name: s.cocho.nome, exact: true }).first().waitFor({ state: 'visible' });
       const regiao = page.getByRole('region', { name: 'Nível do cocho' }).filter({ visible: true }).first();
       await regiao.waitFor({ state: 'visible', timeout: 30000 });
       await regiao.scrollIntoViewIfNeeded();
       const restante = regiao.getByRole('img', { name: /^Restante do ciclo \(estimado\):/ });
       igual(await restante.getAttribute('aria-label'), 'Restante do ciclo (estimado): 75%', `[${rotulo}] medidor do ciclo (aria-label)`);
       igual(await regiao.getByText('150 kg de 200 kg', { exact: true }).count(), 1, `[${rotulo}] texto "150 kg de 200 kg"`);
-      igual(await regiao.getByText(/75%/).count(), 1, `[${rotulo}] o percentual do ciclo aparece uma vez`);
+      // D-PROD-220: o percentual do ciclo aparece uma vez, grande, no bloco do nível.
+      igual((await regiao.locator('.mk-dp-nivel__val').first().textContent())?.trim(), '75%', `[${rotulo}] o percentual do ciclo no bloco do nível`);
       igual(await regiao.getByText('Consumo estimado: 50 kg/dia (%PV no lançamento)', { exact: true }).count(), 1, `[${rotulo}] taxa do %PV no lançamento`);
       igual(await regiao.getByText('Dias desde o lançamento: 1 · Restam 3 dia(s)', { exact: true }).count(), 1, `[${rotulo}] dias decorridos e restantes`);
       const medidor = regiao.getByRole('meter', { name: 'Uso do limite operacional' });
@@ -604,7 +606,7 @@ const executarLargura = async (browser, largura) => {
       igual(await regiao.getByText('No lançamento: 166,67% (80 kg acima)', { exact: true }).count(), 1, `[${rotulo}] linha "No lançamento" 166,67% (80 kg acima)`);
       const largBarra = await regiao.locator('[data-medidor-preenchimento]').first().evaluate((el) => el.style.width);
       igual(largBarra, '100%', `[${rotulo}] preenchimento da barra limitado a 100%`);
-      const cartao = async (rot) => (await regiao.getByText(rot, { exact: true }).locator('xpath=following-sibling::div[1]').textContent())?.trim();
+      const cartao = async (rot) => (await regiao.getByText(rot, { exact: true }).locator('xpath=following-sibling::dd[1]').textContent())?.trim();
       igual(await cartao('Saldo estimado'), '150 kg', `[${rotulo}] cartão Saldo estimado`);
       igual(await cartao('Duração estimada'), '4 dia(s)', `[${rotulo}] cartão Duração estimada`);
       igual(await cartao('Próxima reposição'), formatarDia(somarDias(ontem, 4)), `[${rotulo}] cartão Próxima reposição`);
@@ -617,7 +619,8 @@ const executarLargura = async (browser, largura) => {
     await passo('3 Detalhe do depósito: 200% (300 kg acima), ícone cheio, mínimo 100 kg com 500 kg acima, saldo 600 kg', async () => {
       await marcador(s.deposito.nome).waitFor({ state: 'visible' });
       await toque(marcador(s.deposito.nome), `marcador ${s.deposito.nome}`);
-      await page.getByText('Depósito de Suplementação', { exact: true }).first().waitFor({ state: 'visible' });
+      // D-PROD-220: o título do diálogo é o nome do depósito (casca v12).
+      await page.getByRole('dialog', { name: s.deposito.nome, exact: true }).first().waitFor({ state: 'visible' });
       const regiao = page.getByRole('region', { name: 'Nível do depósito' }).filter({ visible: true }).first();
       await regiao.waitFor({ state: 'visible', timeout: 30000 });
       await regiao.scrollIntoViewIfNeeded();
@@ -625,7 +628,8 @@ const executarLargura = async (browser, largura) => {
       igual(await medidor.getAttribute('aria-valuenow'), '200', `[${rotulo}] medidor do depósito (aria-valuenow bruto)`);
       igual(await medidor.getAttribute('aria-valuetext'), '200% do limite operacional: 600 kg de 300 kg, 300 kg acima', `[${rotulo}] medidor do depósito (aria-valuetext)`);
       igual(await medidor.getAttribute('aria-describedby'), null, `[${rotulo}] medidor do depósito sem aria-describedby repetido`);
-      igual(await regiao.getByText('200%', { exact: true }).count(), 1, `[${rotulo}] 200% visível fora do ícone`);
+      // D-PROD-220: o percentual aparece no bloco do nível e na célula do medidor.
+      igual(await regiao.getByText('200%', { exact: true }).count(), 2, `[${rotulo}] 200% visível fora do ícone (nível e medidor)`);
       igual(await regiao.getByText('600 kg de 300 kg · 300 kg acima do limite', { exact: true }).count(), 1, `[${rotulo}] 600 kg de 300 kg · 300 kg acima do limite`);
       const nivelIcone = await regiao.locator('img[data-deposito-icone]').evaluate((img) => {
         const svg = decodeURIComponent(img.getAttribute('src').split(',')[1] || '');
@@ -635,9 +639,9 @@ const executarLargura = async (browser, largura) => {
       const minimo = regiao.getByRole('group', { name: 'Estoque mínimo' });
       igual(await minimo.getByText('Mínimo 100 kg · 500 kg acima do mínimo', { exact: true }).count(), 1, `[${rotulo}] estoque mínimo como limiar`);
       igual(await minimo.getAttribute('data-estado-minimo'), 'acima', `[${rotulo}] estado do mínimo`);
-      const cartao = async (rot) => (await regiao.getByText(rot, { exact: true }).locator('xpath=following-sibling::div[1]').textContent())?.trim();
-      igual(await cartao('Saldo atual kg'), '600,00 kg', `[${rotulo}] cartão Saldo atual kg`);
-      igual(await cartao('Necessidade reposição kg'), '0,00 kg', `[${rotulo}] cartão Necessidade reposição kg`);
+      const cartao = async (rot) => (await regiao.getByText(rot, { exact: true }).locator('xpath=following-sibling::dd[1]').textContent())?.trim();
+      igual(await cartao('Saldo atual kg'), '600 kg', `[${rotulo}] cartão Saldo atual kg`);
+      igual(await cartao('Necessidade reposição kg'), '0 kg', `[${rotulo}] cartão Necessidade reposição kg`);
       await shot('03-detalhe-deposito', regiao);
       await fecharDialogo();
     });
@@ -668,7 +672,8 @@ const executarLargura = async (browser, largura) => {
       await shot('04-mapa-apos-virada');
       await page.clock.resume();
       await toque(marcador(s.cocho.nome), `marcador ${s.cocho.nome} depois da virada`);
-      await page.getByText('Ponto de Suplementação', { exact: true }).first().waitFor({ state: 'visible' });
+      // D-PROD-220: o título do diálogo é o nome do cocho (casca v12).
+      await page.getByRole('dialog', { name: s.cocho.nome, exact: true }).first().waitFor({ state: 'visible' });
       const regiao = page.getByRole('region', { name: 'Nível do cocho' }).filter({ visible: true }).first();
       await regiao.waitFor({ state: 'visible', timeout: 30000 });
       await regiao.scrollIntoViewIfNeeded();

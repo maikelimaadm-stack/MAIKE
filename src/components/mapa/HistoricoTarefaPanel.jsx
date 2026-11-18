@@ -1,8 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import React, { useState } from "react";
+import CartaoHistorico, { AcaoHistorico, EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
 import { useQueryClient } from "@tanstack/react-query";
 import { excluirHistorico } from "@/services/tarefasMapaService";
 import { toast } from "sonner";
@@ -22,17 +19,27 @@ const formatDateTimeBR = (value) => {
   return date.toLocaleString("pt-BR");
 };
 
-export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico = [] }) {
+/**
+ * Histórico completo da tarefa ("Ver histórico" do detalhe da tarefa).
+ * D-PROD-222: no desenho do histórico do manejo (o do Histórico de
+ * Movimentação): dentro do `LancLoteDialogo` o título com a contagem vai para o
+ * cabeçalho (D-PROD-118); cada evento é um `CartaoHistorico` (selos de data e
+ * status, a tarefa em negrito, as linhas "Rótulo: valor") com o "Excluir" no
+ * rodapé. Só o mais recente (índice 0) é excluível, como antes.
+ * `carregando` e `erro` (a consulta é do detalhe da tarefa): os estados do
+ * Histórico de Movimentação, em vez de "Nenhum histórico encontrado." — o erro
+ * com o motivo (`causaDoErro`) e o "Tentar novamente" (`onTentarDeNovo`).
+ * @param {{ tarefaId: any, tarefaTitulo?: string, historico?: any[], carregando?: boolean, erro?: boolean, causaDoErro?: unknown, onTentarDeNovo?: () => void }} props
+ */
+export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico = [], carregando = false, erro = false, causaDoErro, onTentarDeNovo }) {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
+  const semLista = carregando || (erro && historico.length === 0);
+  const contagem = semLista ? null : historico.length;
   // D-PROD-118: no diálogo padrão o título (com a contagem) vai para o cabeçalho.
-  const noDialogo = useLancLoteDialogo();
-  const titulo = `Histórico da Tarefa (${historico.length})`;
-  useEffect(() => {
-    if (!noDialogo) return undefined;
-    noDialogo.setTitulo(titulo);
-    return () => noDialogo.setTitulo(null);
-  }, [noDialogo, titulo]);
+  const noDialogo = useTituloDoHistorico("Histórico da Tarefa", contagem);
+  // Fora do diálogo (sem cabeçalho para o título), o título fica na barra.
+  const barra = noDialogo ? null : <h3 className="text-sm font-semibold text-slate-900">{`Histórico da Tarefa${contagem != null ? ` (${contagem})` : ""}`}</h3>;
 
   const handleDelete = async (item, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último histórico.");
@@ -50,66 +57,40 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
     }
   };
 
-  const lista = (
-        <>
-          {historico.length === 0 ? (
-            <div className="text-center py-8 text-xs text-slate-500">Nenhum histórico encontrado.</div>
-          ) : (
-            <div className={noDialogo ? "mk-hist__lista" : "max-h-[60vh] overflow-y-auto space-y-1"}>
-              {historico.map((item, index) => (
-                <div key={item.id} className="border border-slate-200 rounded-lg bg-white p-2 space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <div className="text-[11px] font-bold text-slate-900">{tarefaTitulo}</div>
-                      {item.status && (
-                        <Badge className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
-                          {item.status}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-7 text-[10px] px-2"
-                        disabled={index !== 0 || deletingId === item.id}
-                        onClick={() => handleDelete(item, index)}
-                      >
-                        Excluir
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 text-[10px]">
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Evento:</span><span className="font-semibold text-slate-900">{item.evento || "-"}</span></div>
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável:</span><span className="font-semibold text-slate-900">{item.responsavel || "-"}</span></div>
-                    <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição:</span><span className="font-semibold text-slate-900 break-words">{item.descricao || "-"}</span></div>
-                  </div>
-
-                  <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-200">
-                    Data: {formatDateBR(item.data_evento || item.created_date)} • {formatDateTimeBR(item.data_evento || item.created_date).split(", ")[1] || "-"}
-                  </div>
-
-                  {index !== 0 && <div className="text-[10px] text-slate-400">Somente o último histórico pode ser excluído.</div>}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-  );
-
-  if (noDialogo) return <div className="mk-hist">{lista}</div>;
+  if (carregando) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="carregando" />} />;
+  if (erro && historico.length === 0) {
+    return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="erro" erro={causaDoErro} onTentarDeNovo={onTentarDeNovo} />} />;
+  }
+  if (historico.length === 0) return <MolduraHistorico barra={barra} estado={<EstadoHistorico>Nenhum histórico encontrado.</EstadoHistorico>} />;
 
   return (
-    <div className="space-y-3">
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-[#FAFCFE] border-b py-3 px-3">
-          <CardTitle className="text-sm font-semibold">Histórico da Tarefa ({historico.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="p-2">
-          {lista}
-        </CardContent>
-      </Card>
-    </div>
+    <MolduraHistorico barra={barra}>
+      {historico.map((item, index) => {
+        const quando = item.data_evento || item.created_date;
+        return (
+          <CartaoHistorico
+            key={item.id}
+            selos={
+              <>
+                <SeloHistorico tom="data">{formatDateBR(quando)}</SeloHistorico>
+                {item.status ? <SeloHistorico>{item.status}</SeloHistorico> : null}
+              </>
+            }
+            titulo={tarefaTitulo}
+            rodape={
+              <AcaoHistorico destrutiva disabled={index !== 0 || deletingId === item.id} onClick={() => handleDelete(item, index)}>
+                Excluir
+              </AcaoHistorico>
+            }
+          >
+            <LinhaHistorico rotulo="Evento">{item.evento || "-"}</LinhaHistorico>
+            <LinhaHistorico rotulo="Responsável">{item.responsavel || "-"}</LinhaHistorico>
+            <LinhaHistorico rotulo="Descrição">{item.descricao || "-"}</LinhaHistorico>
+            <LinhaHistorico rotulo="Hora">{formatDateTimeBR(quando).split(", ")[1] || "-"}</LinhaHistorico>
+            {index !== 0 && <div className="text-[10px] text-slate-400">Somente o último histórico pode ser excluído.</div>}
+          </CartaoHistorico>
+        );
+      })}
+    </MolduraHistorico>
   );
 }

@@ -56,9 +56,7 @@ vi.mock("@/components/lotes/FormularioMudancaCategoria", formulario("mudanca"));
 vi.mock("@/components/lotes/FormularioPesagem", formulario("pesagem"));
 vi.mock("@/components/lotes/HistoricoMovimentacoes", formulario("historico"));
 vi.mock("@/components/suplementacao/HistoricoSuplementacaoLote", formulario("historico-supl"));
-vi.mock("@/components/suplementacao/ResumoSuplementacao", formulario("resumo-supl"));
 vi.mock("@/components/lotes/RenomearLoteForm", formulario("renomear"));
-vi.mock("@/components/mapa/InformacoesArea", formulario("info-area"));
 
 const { default: DetalhesLote } = await import("@/components/mapa/DetalhesLote");
 
@@ -86,9 +84,13 @@ const renderizar = async (lotes, permissions = {}) => {
   return utils;
 };
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
+/** D-PROD-218: "Manejos" do rodapé empilha a tela "Manejos e históricos" com os quadros. */
+const abrirManejos = async () => {
+  const rodapeManejos = screen.queryByRole("button", { name: "Manejos" });
+  if (rodapeManejos) await clicar(rodapeManejos);
+};
 const acao = async (nome) => {
-  const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-  if (botaoUnico) await clicar(botaoUnico);
+  await abrirManejos();
   await clicar(screen.getByRole("button", { name: nome }));
 };
 const digitar = (rotulo, valor) => act(async () => { fireEvent.change(screen.getByLabelText(rotulo), { target: { value: valor } }); });
@@ -236,8 +238,9 @@ describe("Editar Informação da posição (controle por posições)", () => {
 
   it("sem renomear_lotes: o botão não aparece", async () => {
     await renderizar([posicao("p1")], { renomear_lotes: false });
-    const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-    if (botaoUnico) await clicar(botaoUnico);
+    await abrirManejos();
+    expect(screen.getByRole("heading", { name: "Manejos e históricos" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pesar" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Editar Informação" })).toBeNull();
   });
 

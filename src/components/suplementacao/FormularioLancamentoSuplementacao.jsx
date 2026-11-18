@@ -1,12 +1,20 @@
-import { X, Check, Loader2 } from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import LancField from "@/components/cadastro/base1/LancField";
+import B1Select from "@/components/cadastro/base1/B1Select";
+import {
+  LancLoteAviso,
+  LancLoteForm,
+  LancLoteGrade,
+  LancLoteItem,
+  LancLoteItens,
+  LancLoteRodape,
+  LancLoteSegmento,
+  LL_CTL,
+} from "@/components/lotes/LancamentoLoteUi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/services/sessionService";
 import {
   carregarPontoAtualizado,
@@ -22,12 +30,9 @@ import {
   registrarLancamento,
   fecharPeriodoSuplementacao,
 } from "@/services/suplementacaoService";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { updateMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
-import { Progress } from "@/components/ui/progress";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, validarBaixaFIFO } from "./estoqueSuplementacaoUtils";
 import { registrarSaidaSuplementacao } from "@/services/suplementacaoEstoqueService";
 import { formatDecimal } from "./formatters";
@@ -46,6 +51,14 @@ import { calcularFechamentoConsumo } from "@/domain/suplementacao/fechamentoCons
 import { ResumoFechamentoConsumo } from "./FarolConsumo";
 
 /**
+ * Lançamento de suplementação no cocho, no desenho do lançamento de manejo do lote (D-PROD-222): quem abre
+ * é um `LancLoteDialogo` ("Lançar Suplementação", subtítulo = o cocho); aqui o corpo é o `LancLoteForm`
+ * (cada campo num `LancField`, avisos e informações em `LancLoteAviso`, a unidade em `LancLoteSegmento`, o
+ * consumo por lote em `LancLoteItens`) e o `LancLoteRodape` vira o ✕/✓ do cabeçalho — o ✓ grava (botão
+ * comum: Enter num campo não grava, como antes). Os dados, as contas, as validações e as mensagens são os de
+ * antes; enquanto salva, os campos ficam travados, o passo aparece no topo e o ✕ não fecha (como fazia o
+ * diálogo de progresso).
+ *
  * `cicloCompartilhado` (D-PROD-206): o nível do cocho marcou o ciclo aberto como compartilhado (os mesmos
  * animais com o mesmo produto em outro cocho). O fechamento desse ciclo vai sem farol ("sem referência"):
  * não se rateia o consumo. Sem a prop, o serviço confere pelo cache do mapa.
@@ -53,6 +66,8 @@ import { ResumoFechamentoConsumo } from "./FarolConsumo";
  */
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel, cicloCompartilhado }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  // Ajuda da data do abastecimento (aria-describedby do campo).
+  const idRegraData = useId();
   const parseDateLocal = (value) => {
     if (!value) return null;
     if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -258,7 +273,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     // D-PROD-137 (SUP-02): aqui só se preenche o formulário — nada foi gravado.
     // Antes o toast VERDE dizia "Novo lançamento aberto"; fechar a tela não
     // deixava registro nenhum. O aviso diz o que de fato aconteceu.
-    toast.info(`Sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg aplicada como saldo inicial. Clique em "Salvar novo ciclo" para registrar.`);
+    toast.info(`Sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg aplicada como saldo inicial. Para registrar, confirme no ✓ (Salvar novo ciclo).`);
   };
 
   const handleDescartarSobra = () => {
@@ -266,6 +281,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     setFormData((prev) => ({ ...prev, sobra_kg: "0" }));
     setSobraHerdadaDecidida(true);
   };
+
+  // D-PROD-222: decidida a sobra, o foco volta ao lançamento pelo `LancLoteDialogo` da sobra: ao ✕ do
+  // lançamento (quem tinha o foco quando ela abriu) ou, se ela abriu junto com ele (dados já em cache), ao
+  // primeiro controle do lançamento — a pílula que o abriu fica escondida por baixo.
 
   // === CÁLCULOS ===
   const totalCabecas = lotes.reduce((total, lote) => total + (lote.quantidade_cabecas || 0), 0);
@@ -668,6 +687,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const botaoHabilitado = totalCabecas > 0 && Boolean(formulacaoSelecionada) && totalDisponivelNovo > 0 && !loadingUltimoEvento;
   const semFormulacao = !!empresaSelecionadaId && !loadingFormulacoes && formulacoes.length === 0;
+  const salvando = progresso.show;
+  const percentualProgresso = progresso.total ? (progresso.atual / progresso.total) * 100 : 0;
+
+  // O ✓ do cabeçalho (ou o do rodapé, fora do diálogo) é um botão comum que chama o `handleSalvar`, com as
+  // mesmas validações e mensagens de antes. O <form> não grava sozinho: Enter num campo não envia, como antes
+  // (o "Salvar novo ciclo" era `type="button"`). O lançamento do cocho baixa o estoque e fecha o período
+  // anterior, e não tem estorno pela tela (D-PROD-94a): um Enter para ir ao próximo campo não pode gravar.
+  const naoGravaPeloEnter = (/** @type {React.FormEvent} */ e) => e.preventDefault();
 
   return (
     <>
@@ -680,159 +707,194 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         onDescartar={handleDescartarSobra}
         onCancel={onCancel}
       />
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-emerald-50 border-b border-emerald-200 py-2 px-3"><CardTitle className="text-sm font-bold text-emerald-900">Lançar Suplementação - {ponto?.nome_ponto}</CardTitle></CardHeader>
-        <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden">
-          <div className="space-y-1">
-            {/* Resumo do ponto */}
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2 text-[11px] space-y-1">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Áreas: <span className="font-semibold text-slate-900">{areaNomesResolvidos.join(", ") || ponto?.area_vinculada_nome || "-"}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Depósito: <span className="font-semibold text-slate-900">{loadingPontoFresh ? "..." : (depositoVinculado?.nome_ponto || depositoOrigemNome || "Não vinculado")}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Lotes: <span className="font-semibold text-slate-900">{loadingLotes ? "..." : `${formatDecimal(lotes.length, 0, true)} lote(s) - ${formatDecimal(totalCabecas, 0, true)} cabeças`}</span></div>
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Peso médio: <span className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${formatDecimal(pesoMedioGeral, 1)} kg` : "-"}</span></div>
+      {/* `noValidate`: quem valida é o `handleSalvar` (as mensagens de sempre), não o navegador. */}
+      <LancLoteForm onSubmit={naoGravaPeloEnter} noValidate data-testid="form-lancamento-suplementacao">
+        {/* Progresso do salvamento (antes um diálogo por cima): fica no topo enquanto salva. */}
+        {salvando ? (
+          <div className="sticky top-0 z-10">
+            <LancLoteAviso tom="neutro" data-testid="suplementacao-progresso">
+              <div className="flex items-center justify-between gap-2">
+                <span role="status" aria-live="polite">
+                  <strong className="font-semibold">Salvando...</strong> {progresso.mensagem}
+                </span>
+                <span className="text-[11px] text-slate-500">{progresso.atual}/{progresso.total}</span>
               </div>
-              <AvisoPesoDoRebanho resumo={resumoPeso} totalCabecas={totalCabecas} baseEmGramas={baseEmGramas} />
-              {ultimoEvento && diasPeriodo && <div className="text-[10px] text-slate-600 pt-1 border-t border-emerald-200">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
-            </div>
+              <div
+                role="progressbar"
+                aria-label="Progresso do salvamento"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(percentualProgresso)}
+                className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"
+              >
+                <div className="h-full rounded-full bg-[#40de63] transition-all duration-300" style={{ width: `${percentualProgresso}%` }} />
+              </div>
+            </LancLoteAviso>
+          </div>
+        ) : null}
 
-            {!depositoVinculado?.local_estoque_id && <div className="rounded border border-slate-200 bg-[#FAFCFE] px-2 py-1 text-[10px] text-slate-600">Este cocho ainda não tem depósito vinculado. Lançamento sem baixa automática.</div>}
-            {semFormulacao && (
-              <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800" role="alert" data-testid="suplementacao-sem-formulacao">
-                Não há formulação ativa nesta fazenda: o lançamento precisa de uma. Cadastre em{" "}
-                <a href={createPageUrl("Formulacoes")} className="font-semibold underline">Formulações</a> (menu Manejo) o produto pronto ou a batelada e o consumo (% PV ou g/cab/dia).
+        {/* Enquanto salva, nada muda (o diálogo de progresso cobria a tela): os campos ficam travados. */}
+        <fieldset disabled={salvando} className="mk-ll m-0 min-w-0 border-0 p-0">
+          {/* Resumo do cocho: o que o lançamento vai usar. */}
+          <LancLoteAviso tom="neutro" data-testid="suplementacao-resumo-cocho">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-4">
+              <Info rotulo="Áreas">{areaNomesResolvidos.join(", ") || ponto?.area_vinculada_nome || "-"}</Info>
+              <Info rotulo="Depósito">{loadingPontoFresh ? "..." : (depositoVinculado?.nome_ponto || depositoOrigemNome || "Não vinculado")}</Info>
+              <Info rotulo="Lotes">{loadingLotes ? "..." : `${formatDecimal(lotes.length, 0, true)} lote(s) - ${formatDecimal(totalCabecas, 0, true)} cabeças`}</Info>
+              <Info rotulo="Peso médio">{pesoMedioGeral > 0 ? `${formatDecimal(pesoMedioGeral, 1)} kg` : "-"}</Info>
+            </div>
+            <OrigemDoPeso resumo={resumoPeso} totalCabecas={totalCabecas} baseEmGramas={baseEmGramas} />
+            {ultimoEvento && diasPeriodo ? (
+              <p className="mt-1 text-[11px] text-slate-500">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</p>
+            ) : null}
+          </LancLoteAviso>
+          <AvisoSemPeso resumo={resumoPeso} totalCabecas={totalCabecas} baseEmGramas={baseEmGramas} />
+
+          {!depositoVinculado?.local_estoque_id ? (
+            <LancLoteAviso tom="neutro" data-testid="suplementacao-sem-deposito">Este cocho ainda não tem depósito vinculado. Lançamento sem baixa automática.</LancLoteAviso>
+          ) : null}
+          {semFormulacao ? (
+            <LancLoteAviso tom="ambar" role="alert" data-testid="suplementacao-sem-formulacao">
+              Não há formulação ativa nesta fazenda: o lançamento precisa de uma. Cadastre em{" "}
+              <a href={createPageUrl("Formulacoes")} className="font-semibold underline">Formulações</a> (menu Manejo) o produto pronto ou a batelada e o consumo (% PV ou g/cab/dia).
+            </LancLoteAviso>
+          ) : null}
+
+          <LancLoteGrade className="items-start">
+            <LancField label="Data do abastecimento" required>
+              <Input
+                type="date"
+                aria-label="Data em que o sal foi colocado no cocho"
+                aria-describedby={idRegraData}
+                value={formData.data_lancamento}
+                onChange={(e) => {
+                  dataLancamentoEditada.current = true;
+                  setFormData((prev) => ({ ...prev, data_lancamento: e.target.value }));
+                }}
+                className={LL_CTL}
+              />
+            </LancField>
+            <LancField label="Data fim consumo anterior">
+              <Input type="date" value={formData.data_fim_consumo_anterior} onChange={(e) => setFormData((prev) => ({ ...prev, data_fim_consumo_anterior: e.target.value }))} className={LL_CTL} />
+            </LancField>
+          </LancLoteGrade>
+          <p id={idRegraData} className="mk-ll__item-rodape">Informe o dia em que o sal foi colocado, mesmo que esteja registrando depois. A estimativa desconta o consumo por dia, a partir do dia seguinte ao abastecimento.</p>
+
+          <LancField label="Formulação" required>
+            <B1Select
+              value={formData.formulacao_id}
+              onChange={(e) => {
+                const valor = e.target.value;
+                setFormData((prev) => ({ ...prev, formulacao_id: valor }));
+              }}
+              disabled={semFormulacao}
+              className={LL_CTL}
+            >
+              {formulacoesDisponiveis.map((f) => (
+                <option key={f.id} value={String(f.id)}>{rotuloDaFormulacao(f, produtoDaFormulacao(f))}</option>
+              ))}
+            </B1Select>
+          </LancField>
+          {formulacaoSelecionada ? (
+            <p className="mk-ll__item-rodape" data-testid="suplementacao-produto-da-formulacao">Produto no cocho: {nomeProduto}</p>
+          ) : null}
+
+          {/* Produto em sacos: a unidade do lançamento (o estoque é sempre em kg). */}
+          {suportaSacos ? (
+            <LancLoteSegmento
+              rotulo="Unidade de lançamento"
+              name="unidade_lancamento"
+              opcoes={[
+                { value: "KG", label: "Quilogramas (KG)" },
+                { value: "SACO", label: `Sacos (${pesoPorSaco} kg/saco)` },
+              ]}
+              valor={formData.unidade_lancamento}
+              onChange={(valor) => setFormData((prev) => ({ ...prev, unidade_lancamento: valor }))}
+            />
+          ) : null}
+
+          <LancLoteGrade className="items-start">
+            {formData.unidade_lancamento === "SACO" && suportaSacos ? (
+              <>
+                <LancField label="Quantidade de sacos" required>
+                  <Input type="text" inputMode="decimal" value={formData.quantidade_sacos} onChange={(e) => handleQuantidadeSacosChange(e.target.value)} className={LL_CTL} placeholder="0" />
+                </LancField>
+                <LancField label="Equivalente em kg">
+                  <div className="mg-input" data-testid="suplementacao-equivalente-kg">{formatDecimal(quantidadeKg)} kg</div>
+                </LancField>
+              </>
+            ) : (
+              <div className="flex min-w-0 flex-col gap-1">
+                <LancField label="Quantidade total fornecida (kg)" required>
+                  <Input type="text" inputMode="decimal" value={formData.quantidade_total_kg} onChange={(e) => handleQuantidadeKgChange(e.target.value)} className={LL_CTL} placeholder="0,00" />
+                </LancField>
+                {suportaSacos && pesoPorSaco > 0 && quantidadeKg > 0 ? (
+                  <p className="mk-ll__item-rodape" data-testid="suplementacao-kg-em-sacos">≈ {formatDecimal(kgParaSacos(quantidadeKg, pesoPorSaco), 1)} saco(s)</p>
+                ) : null}
               </div>
             )}
-
-            {/* Formulário principal */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <div>
-                <label className="text-[12px] text-slate-500 pl-1 leading-none">Data do abastecimento <span className="text-red-500">*</span></label>
-                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" aria-label="Data em que o sal foi colocado no cocho" aria-describedby="regra-data-abastecimento" value={formData.data_lancamento} onChange={(e) => { dataLancamentoEditada.current = true; setFormData((prev) => ({ ...prev, data_lancamento: e.target.value })); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
-                <p id="regra-data-abastecimento" className="mt-1 text-[10px] leading-snug text-slate-500">Informe o dia em que o sal foi colocado, mesmo que esteja registrando depois. A estimativa desconta o consumo por dia, a partir do dia seguinte ao abastecimento.</p>
-              </div>
-              <div>
-                <label className="text-[12px] text-slate-500 pl-1 leading-none">Data fim consumo anterior</label>
-                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_fim_consumo_anterior} onChange={(e) => setFormData((prev) => ({ ...prev, data_fim_consumo_anterior: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
-              </div>
-              <div>
-                <label className="text-[12px] text-slate-500 pl-1 leading-none">Formulação <span className="text-red-500">*</span></label>
-                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={formData.formulacao_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, formulacao_id: value }))} disabled={semFormulacao}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione a formulação" /></SelectTrigger>
-                  <SelectContent>
-                    {formulacoesDisponiveis.map((f) => {
-                      const produto = produtoDaFormulacao(f);
-                      return (
-                        <SelectItem key={f.id} value={f.id} className="text-xs">
-                          {f.nome}
-                          {` • ${rotuloDoTipo(f.tipo)}`}
-                          {f.base_consumo === "G_CAB_DIA"
-                            ? ` (${formatDecimal(Number(f.consumo_objetivo_g_cab_dia || 0), 0, true)} g/cab/dia)`
-                            : ` (${formatDecimal(Number(f.percentual_pv_padrao || 0), 3)}% PV)`}
-                          {produto?.unidade_principal_estoque === "SACO" ? ` • Saco ${produto.peso_por_saco_kg}kg` : ""}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select></div>
-                {formulacaoSelecionada && (
-                  <div className="text-[10px] text-slate-500 pl-1" data-testid="suplementacao-produto-da-formulacao">Produto no cocho: {nomeProduto}</div>
-                )}
-              </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <LancField
+                label={
+                  <>
+                    Sobra no cocho (kg)
+                    {sobraHerdadaKg > 0 ? <span className="ml-1 font-semibold text-amber-700">• Herdada do ciclo anterior</span> : null}
+                  </>
+                }
+              >
+                <Input type="text" inputMode="decimal" aria-label="Sobra no cocho (kg)" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className={LL_CTL} placeholder="Não medida" />
+              </LancField>
+              {ultimoEvento && ultimoEvento.dias_periodo == null && !sobraFoiInformada ? (
+                <p className="mk-ll__item-rodape" data-testid="suplementacao-sobra-nao-medida">Sem sobra medida, o fechamento conta 0 e fica marcado como aproximado.</p>
+              ) : null}
             </div>
+          </LancLoteGrade>
 
-            {/* Campos de quantidade com suporte a sacos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              {suportaSacos && (
-                <div>
-                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Unidade de lançamento</label>
-                  <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={formData.unidade_lancamento} onValueChange={(value) => setFormData((prev) => ({ ...prev, unidade_lancamento: value }))}>
-                    <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="KG" className="text-xs">Quilogramas (KG)</SelectItem>
-                      <SelectItem value="SACO" className="text-xs">Sacos ({pesoPorSaco} kg/saco)</SelectItem>
-                    </SelectContent>
-                  </Select></div>
-                </div>
-              )}
-
-              {formData.unidade_lancamento === "SACO" && suportaSacos ? (
-                <>
-                  <div>
-                    <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade de sacos <span className="text-red-500">*</span></label>
-                    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="text" inputMode="decimal" value={formData.quantidade_sacos} onChange={(e) => handleQuantidadeSacosChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0" /></div>
-                  </div>
-                  <div>
-                    <label className="text-[12px] text-slate-500 pl-1 leading-none">Equivalente em kg</label>
-                    <div className="h-7 flex items-center px-3 bg-slate-100 rounded-md text-xs font-semibold text-slate-700 border border-slate-300">{formatDecimal(quantidadeKg)} kg</div>
-                  </div>
-                </>
-              ) : (
-                <div className={`${suportaSacos ? "" : "lg:col-span-2"}`}>
-                  <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade total fornecida (kg) <span className="text-red-500">*</span></label>
-                  <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="text" inputMode="decimal" value={formData.quantidade_total_kg} onChange={(e) => handleQuantidadeKgChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></div>
-                  {suportaSacos && pesoPorSaco > 0 && quantidadeKg > 0 && (
-                    <div className="text-[10px] text-slate-500">≈ {formatDecimal(kgParaSacos(quantidadeKg, pesoPorSaco), 1)} saco(s)</div>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <label className="text-[12px] text-slate-500 pl-1 leading-none">
-                  Sobra no cocho (kg)
-                  {sobraHerdadaKg > 0 && <span className="ml-1 text-amber-700 font-semibold">• Herdada do ciclo anterior</span>}
-                </label>
-                <div className={`rounded-md border ${sobraHerdadaKg > 0 ? "border-amber-300 bg-amber-50" : "border-slate-300"} focus-within:border-emerald-500 transition-colors`}>
-                  <Input type="text" inputMode="decimal" aria-label="Sobra no cocho (kg)" value={formData.sobra_kg} onChange={(e) => setFormData((prev) => ({ ...prev, sobra_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="Não medida" />
-                </div>
-                {ultimoEvento && ultimoEvento.dias_periodo == null && !sobraFoiInformada && (
-                  <div className="text-[10px] text-slate-500" data-testid="suplementacao-sobra-nao-medida">
-                    Sem sobra medida, o fechamento conta 0 e fica marcado como aproximado.
-                  </div>
-                )}
+          {/* Saldo do depósito e a baixa automática. */}
+          {depositoVinculado?.local_estoque_id && produtoSelecionado ? (
+            <LancLoteAviso tom="neutro" data-testid="suplementacao-saldo-deposito">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-4">
+                <Info rotulo="Saldo depósito">{`${saldoNoDeposito.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${produtoSelecionado.unidade_medida || "KG"}`}</Info>
+                {suportaSacos && pesoPorSaco > 0 ? (
+                  <Info rotulo="Sacos">{`${kgParaSacos(saldoNoDeposito, pesoPorSaco).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos`}</Info>
+                ) : null}
+                <Info rotulo="Baixa automática"><span className="text-emerald-700">Ativa</span></Info>
               </div>
-            </div>
+            </LancLoteAviso>
+          ) : null}
+          {depositoVinculado?.local_estoque_id && formulacaoSelecionada && produtoSelecionado && saldoNoDeposito <= 0 ? (
+            <LancLoteAviso tom="vermelho" data-testid="suplementacao-sem-saldo">Produto sem saldo disponível neste depósito/local de estoque.</LancLoteAviso>
+          ) : null}
 
-            {/* Saldo depósito */}
-            {depositoVinculado?.local_estoque_id && produtoSelecionado && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo depósito: <span className="font-semibold text-slate-900">{saldoNoDeposito.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {produtoSelecionado.unidade_medida || "KG"}</span></div>
-                {suportaSacos && pesoPorSaco > 0 && <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Sacos: <span className="font-semibold text-slate-900">{kgParaSacos(saldoNoDeposito, pesoPorSaco).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} sacos</span></div>}
-                <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Baixa automática: <span className="font-semibold text-emerald-700">Ativa</span></div>
-              </div>
-            )}
-            {depositoVinculado?.local_estoque_id && formulacaoSelecionada && produtoSelecionado && saldoNoDeposito <= 0 && (
-              <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-700">
-                Produto sem saldo disponível neste depósito/local de estoque.
-              </div>
-            )}
-
-
-
-            {/* Consumo do fechamento / estimativa */}
-            {ultimoEvento && (() => {
-              const sobraAnterior = ultimoEvento.sobra_kg || 0;
-              const fornecidoAnterior = ultimoEvento.quantidade_total_kg || 0;
-              const diasAnterior = ultimoEvento.dias_periodo || diasPeriodo || 0;
-              const totalDisponivelAnterior = ultimoEvento.dias_periodo != null ? fornecidoAnterior : fornecidoAnterior + sobraAnterior;
-              const sobraFechamento = ultimoEvento.dias_periodo != null ? sobraAnterior : sobraInformada;
-              const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(Math.max(0, totalDisponivelAnterior - sobraFechamento), diasAnterior);
-              const consumoPorCabAnterior = safeDivide(consumoDiarioAnterior, ultimoEvento.total_cabecas_afetadas || 0);
-              const consumidoAnterior = Math.max(0, totalDisponivelAnterior - sobraFechamento);
-              return (
-                <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
-                  <div className="text-xs font-semibold text-slate-900">Consumo do fechamento / estimativa</div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{fornecidoAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumido</div><div className="font-bold text-slate-900">{consumidoAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/dia</div><div className="font-bold text-slate-900">{consumoDiarioAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
-                    <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Consumo/cab/dia</div><div className="font-bold text-slate-900">{consumoPorCabAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg</div></div>
-                  </div>
-                  <div className="text-[10px] text-slate-600">Período analisado: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</div>
-                  {/* D-PROD-206: prévia do farol do fechamento (o que será gravado ao salvar). */}
-                  {ultimoEvento.dias_periodo == null && diasAnterior > 0 && (
+          {/* Consumo do fechamento / estimativa */}
+          {ultimoEvento ? (() => {
+            const sobraAnterior = ultimoEvento.sobra_kg || 0;
+            const fornecidoAnterior = ultimoEvento.quantidade_total_kg || 0;
+            const diasAnterior = ultimoEvento.dias_periodo || diasPeriodo || 0;
+            const totalDisponivelAnterior = ultimoEvento.dias_periodo != null ? fornecidoAnterior : fornecidoAnterior + sobraAnterior;
+            const sobraFechamento = ultimoEvento.dias_periodo != null ? sobraAnterior : sobraInformada;
+            const consumoDiarioAnterior = ultimoEvento.consumo_diario_grupo_kg || safeDivide(Math.max(0, totalDisponivelAnterior - sobraFechamento), diasAnterior);
+            const consumoPorCabAnterior = safeDivide(consumoDiarioAnterior, ultimoEvento.total_cabecas_afetadas || 0);
+            const consumidoAnterior = Math.max(0, totalDisponivelAnterior - sobraFechamento);
+            return (
+              <LancLoteAviso tom="neutro" data-testid="suplementacao-fechamento-anterior">
+                <p className="font-semibold text-slate-800">Consumo do fechamento / estimativa</p>
+                <Kpis
+                  itens={[
+                    { rotulo: "Fornecido", valor: `${fornecidoAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` },
+                    { rotulo: "Consumido", valor: `${consumidoAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` },
+                    { rotulo: "Consumo/dia", valor: `${consumoDiarioAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` },
+                    { rotulo: "Consumo/cab/dia", valor: `${consumoPorCabAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg` },
+                  ]}
+                />
+                <p className="mt-1 text-[11px] text-slate-500">Período analisado: {formatDecimal(diasAnterior, 0, true)} dia(s) • Cabeças: {formatDecimal(ultimoEvento.total_cabecas_afetadas || 0, 0, true)}</p>
+                {/* D-PROD-206: prévia do farol do fechamento (o que será gravado ao salvar). */}
+                {ultimoEvento.dias_periodo == null && diasAnterior > 0 ? (
+                  <div className="mt-1.5">
                     <ResumoFechamentoConsumo
                       previa
+                      // As células sem borda dos números acima (Fornecido, Consumido…): sem caixa dentro do aviso.
+                      desenho="kpis"
                       resumo={calcularFechamentoConsumo({
                         evento: ultimoEvento,
                         consumoTotalKg: consumidoAnterior,
@@ -845,120 +907,128 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                         compartilhado: cicloCompartilhado === true,
                       })}
                     />
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* D-PROD-210: painel da base g/cab/dia — meta fixa por cabeça, sem peso. */}
-            {baseEmGramas && consumoPV.cabecasConsomem > 0 && consumoEsperadoGrupoDiaPV > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1" data-testid="suplementacao-painel-g">
-                <div className="text-xs font-semibold text-slate-900">Consumo esperado em g/cab/dia da formulação</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Meta/cab/dia</div><div className="font-bold text-slate-900" data-testid="suplementacao-meta-g">{formatDecimal(consumoPV.gCabDiaEsperado || 0, 0, true)} g</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Cabeças que consomem</div><div className="font-bold text-slate-900">{formatDecimal(consumoPV.cabecasConsomem, 0, true)}</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900" data-testid="suplementacao-esperado-grupo">{consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
-                </div>
-                {consumoPV.cabecasNaoConsomem > 0 && (
-                  <div className="text-[10px] text-slate-600" data-testid="suplementacao-nao-consomem">
-                    {formatDecimal(consumoPV.cabecasNaoConsomem, 0, true)} cabeça(s) não consomem esta formulação (regra da categoria): ficam fora do esperado.
                   </div>
-                )}
-                {consumoPV.porLote.some((l) => l.origem === "regra") && (
-                  <div className="text-[10px] text-slate-600">Categorias com g/cab/dia próprio na formulação entram com os gramas delas.</div>
-                )}
-              </div>
-            )}
+                ) : null}
+              </LancLoteAviso>
+            );
+          })() : null}
 
-            {/* Painel %PV - quando disponível */}
-            {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1" data-testid="suplementacao-painel-pv">
-                <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV da formulação</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">%PV</div><div className="font-bold text-slate-900">{formatDecimal(pctPV, 3)}%</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioGeral.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado/cab/dia</div><div className="font-bold text-slate-900">{consumoEsperadoCabDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900" data-testid="suplementacao-esperado-grupo">{consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
-                </div>
-                {consumoPV.cabecasNaoConsomem > 0 && (
-                  <div className="text-[10px] text-slate-600" data-testid="suplementacao-nao-consomem">
-                    {formatDecimal(consumoPV.cabecasNaoConsomem, 0, true)} cabeça(s) não consomem esta formulação (regra da categoria): ficam fora do esperado.
-                  </div>
-                )}
-                {consumoPV.porLote.some((l) => l.origem === "regra") && (
-                  <div className="text-[10px] text-slate-600">Categorias com % PV próprio na formulação entram com o % delas.</div>
-                )}
-              </div>
-            )}
+          {/* D-PROD-210: painel da base g/cab/dia — meta fixa por cabeça, sem peso. */}
+          {baseEmGramas && consumoPV.cabecasConsomem > 0 && consumoEsperadoGrupoDiaPV > 0 ? (
+            <LancLoteAviso tom="neutro" data-testid="suplementacao-painel-g">
+              <p className="font-semibold text-slate-800">Consumo esperado em g/cab/dia da formulação</p>
+              <Kpis
+                itens={[
+                  { rotulo: "Meta/cab/dia", valor: `${formatDecimal(consumoPV.gCabDiaEsperado || 0, 0, true)} g`, testId: "suplementacao-meta-g" },
+                  { rotulo: "Cabeças que consomem", valor: formatDecimal(consumoPV.cabecasConsomem, 0, true) },
+                  { rotulo: "Esperado grupo/dia", valor: `${consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`, testId: "suplementacao-esperado-grupo" },
+                ]}
+              />
+              {consumoPV.cabecasNaoConsomem > 0 ? (
+                <p className="mt-1 text-[11px] text-slate-500" data-testid="suplementacao-nao-consomem">
+                  {formatDecimal(consumoPV.cabecasNaoConsomem, 0, true)} cabeça(s) não consomem esta formulação (regra da categoria): ficam fora do esperado.
+                </p>
+              ) : null}
+              {consumoPV.porLote.some((l) => l.origem === "regra") ? (
+                <p className="mt-1 text-[11px] text-slate-500">Categorias com g/cab/dia próprio na formulação entram com os gramas delas.</p>
+              ) : null}
+            </LancLoteAviso>
+          ) : null}
 
-            {/* Consumo por lote */}
-            {quantidadeKg > 0 && totalCabecas > 0 && lotes.length > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
-                <div className="flex items-center justify-between gap-1">
-                  <div className="text-xs font-semibold text-slate-900">Consumo por Lote (novo lançamento)</div>
-                  <Button data-mk-map-action="" type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarConsumoLote((prev) => !prev)}>
-                    {mostrarConsumoLote ? "Ocultar" : "Ver"}
-                  </Button>
-                </div>
-                {mostrarConsumoLote && (
-                  <div className="space-y-1">
-                    {lotes.map((lote) => {
-                      const percentualConsumo = totalCabecas > 0 ? ((lote.quantidade_cabecas || 0) / totalCabecas) * 100 : 0;
-                      const pesoMedioLote = Number(lote.peso_medio_kg || 0);
-                      const quantidadeLoteKg = totalDisponivelNovo * (percentualConsumo / 100);
-                      const esperadoLote = consumoDoLote.get(lote.id)?.esperadoKgDia || 0;
-                      const duracaoLoteDias = lote.quantidade_cabecas > 0 && esperadoLote > 0
-                        ? Math.max(0, Math.round(safeDivide(quantidadeLoteKg, esperadoLote)))
-                        : duracaoDiasInteira;
-                      const dataReposicaoLote = (() => {
-                        const dataBase = parseDateLocal(formData.data_lancamento);
-                        if (!dataBase || duracaoLoteDias <= 0) return null;
-                        return new Date(dataBase.getTime() + duracaoLoteDias * 86400000);
-                      })();
-                      return (
-                        <div key={lote.id} className="rounded-lg border border-slate-200 bg-white p-2 space-y-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
-                            <Badge variant="outline" className="text-[10px]">{formatDecimal(percentualConsumo, 1)}%</Badge>
-                          </div>
-                          <div className="text-[10px] text-slate-600">Área: {lote.area_atual_nome || areaNomesResolvidos.join(', ') || ponto.area_vinculada_nome || '-'}</div>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-1 text-[10px]">
-                            <div><div className="text-slate-500">Cabeças</div><div className="font-bold text-slate-900">{formatDecimal(lote.quantidade_cabecas || 0, 0, true)}</div></div>
-                            <div><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : '-'}</div></div>
-                            <div><div className="text-slate-500">Qtd. lote</div><div className="font-bold text-slate-900">{formatDecimal(quantidadeLoteKg, 2)} kg</div></div>
-                            <div><div className="text-slate-500">Duração</div><div className="font-bold text-slate-900">{duracaoLoteDias > 0 ? `${formatDecimal(duracaoLoteDias, 0, true)} dia(s)` : '-'}</div></div>
-                            <div><div className="text-slate-500">Próx. reposição</div><div className="font-bold text-slate-900">{dataReposicaoLote ? dataReposicaoLote.toLocaleDateString('pt-BR') : '-'}</div></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+          {/* Painel %PV - quando disponível */}
+          {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 ? (
+            <LancLoteAviso tom="neutro" data-testid="suplementacao-painel-pv">
+              <p className="font-semibold text-slate-800">Consumo esperado por %PV da formulação</p>
+              <Kpis
+                itens={[
+                  { rotulo: "%PV", valor: `${formatDecimal(pctPV, 3)}%` },
+                  { rotulo: "Peso médio", valor: `${pesoMedioGeral.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` },
+                  { rotulo: "Esperado/cab/dia", valor: `${consumoEsperadoCabDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg` },
+                  { rotulo: "Esperado grupo/dia", valor: `${consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`, testId: "suplementacao-esperado-grupo" },
+                ]}
+              />
+              {consumoPV.cabecasNaoConsomem > 0 ? (
+                <p className="mt-1 text-[11px] text-slate-500" data-testid="suplementacao-nao-consomem">
+                  {formatDecimal(consumoPV.cabecasNaoConsomem, 0, true)} cabeça(s) não consomem esta formulação (regra da categoria): ficam fora do esperado.
+                </p>
+              ) : null}
+              {consumoPV.porLote.some((l) => l.origem === "regra") ? (
+                <p className="mt-1 text-[11px] text-slate-500">Categorias com % PV próprio na formulação entram com o % delas.</p>
+              ) : null}
+            </LancLoteAviso>
+          ) : null}
 
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={3} /></div>
-            </div>
-            <div className="flex justify-end gap-1 pt-1 border-t">
-              <Button data-mk-map-action="" type="button" variant="outline" onClick={onCancel} size="sm" className="tb-btn tb-btn-gray h-7 text-xs mk-launch-action" aria-label="Cancelar" title="Cancelar"><X aria-hidden /><span className="mk-launch-action-label">Cancelar</span></Button>
-              <Button data-mk-map-action="" type="button" onClick={handleSalvar} size="sm" className="tb-btn tb-btn-green h-7 text-xs mk-launch-action" aria-label={progresso.show ? "Registrando..." : "Salvar novo ciclo"} title="Salvar novo ciclo" aria-busy={progresso.show || undefined} disabled={!botaoHabilitado || progresso.show}>{progresso.show ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}<span className="mk-launch-action-label">{progresso.show ? "Registrando..." : "Salvar novo ciclo"}</span></Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Dialog open={progresso.show} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Salvando...</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <p className="text-xs text-slate-600">{progresso.mensagem}</p>
-            <Progress value={progresso.total ? (progresso.atual / progresso.total) * 100 : 0} className="w-full h-1.5" />
-          </div>
-        </DialogContent>
-      </Dialog>
+          {/* Consumo por lote (novo lançamento): um item por lote, como os itens dos manejos. */}
+          {quantidadeKg > 0 && totalCabecas > 0 && lotes.length > 0 ? (
+            <LancLoteItens>
+              <button
+                type="button"
+                className="mk-ll__opcao"
+                aria-expanded={mostrarConsumoLote}
+                data-testid="suplementacao-consumo-por-lote"
+                onClick={() => setMostrarConsumoLote((prev) => !prev)}
+              >
+                <span>Consumo por Lote (novo lançamento)</span>
+                <span>{mostrarConsumoLote ? "Ocultar" : "Ver"}</span>
+              </button>
+              {mostrarConsumoLote
+                ? lotes.map((lote) => {
+                    const percentualConsumo = totalCabecas > 0 ? ((lote.quantidade_cabecas || 0) / totalCabecas) * 100 : 0;
+                    const pesoMedioLote = Number(lote.peso_medio_kg || 0);
+                    const quantidadeLoteKg = totalDisponivelNovo * (percentualConsumo / 100);
+                    const esperadoLote = consumoDoLote.get(lote.id)?.esperadoKgDia || 0;
+                    const duracaoLoteDias = lote.quantidade_cabecas > 0 && esperadoLote > 0
+                      ? Math.max(0, Math.round(safeDivide(quantidadeLoteKg, esperadoLote)))
+                      : duracaoDiasInteira;
+                    const dataReposicaoLote = (() => {
+                      const dataBase = parseDateLocal(formData.data_lancamento);
+                      if (!dataBase || duracaoLoteDias <= 0) return null;
+                      return new Date(dataBase.getTime() + duracaoLoteDias * 86400000);
+                    })();
+                    return (
+                      <LancLoteItem
+                        key={lote.id}
+                        titulo={lote.nome}
+                        sub={`Área: ${lote.area_atual_nome || areaNomesResolvidos.join(", ") || ponto.area_vinculada_nome || "-"} · ${formatDecimal(percentualConsumo, 1)}%`}
+                      >
+                        <Kpis
+                          className="mk-ll__cheio"
+                          colunas={5}
+                          itens={[
+                            { rotulo: "Cabeças", valor: formatDecimal(lote.quantidade_cabecas || 0, 0, true) },
+                            { rotulo: "Peso médio", valor: pesoMedioLote > 0 ? `${formatDecimal(pesoMedioLote, 0)} kg` : "-" },
+                            { rotulo: "Qtd. lote", valor: `${formatDecimal(quantidadeLoteKg, 2)} kg` },
+                            { rotulo: "Duração", valor: duracaoLoteDias > 0 ? `${formatDecimal(duracaoLoteDias, 0, true)} dia(s)` : "-" },
+                            { rotulo: "Próx. reposição", valor: dataReposicaoLote ? dataReposicaoLote.toLocaleDateString("pt-BR") : "-" },
+                          ]}
+                        />
+                      </LancLoteItem>
+                    );
+                  })
+                : null}
+            </LancLoteItens>
+          ) : null}
+
+          <LancField label="Observações">
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className={LL_CTL} rows={3} />
+          </LancField>
+        </fieldset>
+
+        {/* Dentro do diálogo vira o ✕/✓ do cabeçalho; fora dele, o rodapé Cancelar + Salvar. */}
+        <LancLoteRodape
+          onCancelar={() => {
+            // Salvando, o ✕ (e o Esc da tela cheia) não fecha: o diálogo de progresso também não deixava.
+            if (!salvando) onCancel();
+          }}
+          cancelarDesabilitado={salvando}
+          tipoAcao="button"
+          onAcao={() => handleSalvar()}
+          textoAcao="Salvar novo ciclo"
+          textoEnviando="Registrando..."
+          enviando={salvando}
+          disabled={!botaoHabilitado}
+        />
+      </LancLoteForm>
     </>
   );
 }
@@ -1049,29 +1119,72 @@ export function erroDeDataDoLancamento({ dataLancamento, dataFimAnterior, ultima
 }
 
 /**
- * D-PROD-201 — de onde vem o peso do consumo por %PV e o aviso de cabeças sem
- * peso (elas não entram na média; antes entravam como 0 kg).
+ * Texto da formulação na lista: nome • tipo (meta de consumo) • saco do produto — o mesmo de antes.
+ * @param {any} f formulação
+ * @param {any} produto produto da formulação (cadastro de Produtos)
+ */
+const rotuloDaFormulacao = (f, produto) =>
+  `${f.nome} • ${rotuloDoTipo(f.tipo)}${
+    f.base_consumo === "G_CAB_DIA"
+      ? ` (${formatDecimal(Number(f.consumo_objetivo_g_cab_dia || 0), 0, true)} g/cab/dia)`
+      : ` (${formatDecimal(Number(f.percentual_pv_padrao || 0), 3)}% PV)`
+  }${produto?.unidade_principal_estoque === "SACO" ? ` • Saco ${produto.peso_por_saco_kg}kg` : ""}`;
+
+/**
+ * Uma informação do resumo ("Áreas: PASTO 07"), dentro de um `LancLoteAviso`.
+ * @param {{ rotulo: string, children: React.ReactNode }} props
+ */
+function Info({ rotulo, children }) {
+  return (
+    <div className="min-w-0 text-slate-500">
+      {rotulo}: <strong className="font-semibold text-slate-800">{children}</strong>
+    </div>
+  );
+}
+
+/**
+ * Números de um painel (rótulo em cima, valor embaixo), sem caixa dentro de caixa.
+ * @param {{ itens: Array<{ rotulo: string, valor: React.ReactNode, testId?: string }>, colunas?: 4 | 5, className?: string }} props
+ */
+function Kpis({ itens, colunas = 4, className }) {
+  return (
+    <dl className={cn("mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5", colunas === 5 ? "sm:grid-cols-5" : "sm:grid-cols-4", className)}>
+      {itens.map((item) => (
+        <div key={item.rotulo} className="min-w-0">
+          <dt className="text-[11px] text-slate-500">{item.rotulo}</dt>
+          <dd className="font-semibold text-slate-800" data-testid={item.testId}>{item.valor}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * D-PROD-201 — de onde vem o peso do consumo por %PV (linha do resumo).
+ * D-PROD-210: na base g/cab/dia a meta não usa peso — a linha não aparece.
+ * @param {{ resumo: ReturnType<typeof resumoPesoDosLotes>, totalCabecas: number, baseEmGramas?: boolean }} props
+ */
+function OrigemDoPeso({ resumo, totalCabecas, baseEmGramas = false }) {
+  if (!(totalCabecas > 0) || baseEmGramas || !(resumo.cabecasComPeso > 0)) return null;
+  return (
+    <p className="mt-1 text-[11px] text-slate-500" data-testid="suplementacao-peso-origem">
+      Peso para o consumo: {resumo.cabecasProjetado === resumo.cabecasComPeso ? "peso projetado de hoje" : resumo.cabecasProjetado > 0 ? "peso projetado de hoje (ou o último peso, sem projeção)" : "último peso (pesagem ou entrada)"}.
+    </p>
+  );
+}
+
+/**
+ * D-PROD-201 — aviso de cabeças sem peso (elas não entram na média; antes entravam como 0 kg).
  * D-PROD-210: na base g/cab/dia a meta não usa peso — o aviso de falta de peso não aparece.
  * @param {{ resumo: ReturnType<typeof resumoPesoDosLotes>, totalCabecas: number, baseEmGramas?: boolean }} props
  */
-function AvisoPesoDoRebanho({ resumo, totalCabecas, baseEmGramas = false }) {
-  if (!(totalCabecas > 0) || baseEmGramas) return null;
-  const linhas = [];
-  if (resumo.cabecasComPeso > 0) {
-    linhas.push(
-      <div key="origem" className="text-[10px] text-slate-500" data-testid="suplementacao-peso-origem">
-        Peso para o consumo: {resumo.cabecasProjetado === resumo.cabecasComPeso ? "peso projetado de hoje" : resumo.cabecasProjetado > 0 ? "peso projetado de hoje (ou o último peso, sem projeção)" : "último peso (pesagem ou entrada)"}.
-      </div>,
-    );
-  }
-  if (resumo.cabecasSemPeso > 0) {
-    linhas.push(
-      <div key="sem-peso" className="text-[10px] text-amber-700" data-testid="suplementacao-sem-peso">
-        {resumo.cabecasComPeso > 0
-          ? `${formatDecimal(resumo.cabecasSemPeso, 0, true)} cabeça(s) sem peso (${resumo.lotesSemPeso.map((l) => l.nome).filter(Boolean).join(", ") || "lote sem nome"}): o consumo esperado usa o peso médio dos lotes com peso.`
-          : "Nenhum lote do pasto tem peso: o consumo esperado por %PV não é calculado. Registre uma pesagem."}
-      </div>,
-    );
-  }
-  return linhas.length ? <div className="pt-1 border-t border-emerald-200 space-y-0.5">{linhas}</div> : null;
+function AvisoSemPeso({ resumo, totalCabecas, baseEmGramas = false }) {
+  if (!(totalCabecas > 0) || baseEmGramas || !(resumo.cabecasSemPeso > 0)) return null;
+  return (
+    <LancLoteAviso tom="ambar" data-testid="suplementacao-sem-peso">
+      {resumo.cabecasComPeso > 0
+        ? `${formatDecimal(resumo.cabecasSemPeso, 0, true)} cabeça(s) sem peso (${resumo.lotesSemPeso.map((l) => l.nome).filter(Boolean).join(", ") || "lote sem nome"}): o consumo esperado usa o peso médio dos lotes com peso.`
+        : "Nenhum lote do pasto tem peso: o consumo esperado por %PV não é calculado. Registre uma pesagem."}
+    </LancLoteAviso>
+  );
 }

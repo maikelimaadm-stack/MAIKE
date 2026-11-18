@@ -38,7 +38,6 @@ export default function Bebedouros() {
   });
   const [detalhe, setDetalhe] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [recordToolbar, setRecordToolbar] = useState(null);
   const [subFlowLocked, setSubFlowLocked] = useState(false);
   const { data: bebedouros = [] } = useBebedouros(empresaId);
   const { data: historico = [] } = useQuery({
@@ -123,7 +122,6 @@ export default function Bebedouros() {
 
   const exitRecord = useCallback(() => {
     setDetalhe(null);
-    setRecordToolbar(null);
     setSubFlowLocked(false);
     chrome.exitRecordView();
   }, [chrome]);
@@ -223,7 +221,6 @@ export default function Bebedouros() {
         {...BASE1_LISTA_INTEGRADA_VISUAL.chrome}
         recordMode={inRecord}
         secondaryToolsLocked={inRecord && subFlowLocked}
-        recordToolbar={recordToolbar}
         recordHeader={
           inRecord && detalhe ? (
             <CadastroRecordHeader
@@ -243,7 +240,7 @@ export default function Bebedouros() {
               podeLancar={podeLancar}
               podeExcluir={podeExcluir}
               onSubFlowChange={setSubFlowLocked}
-              onRecordToolbarChange={setRecordToolbar}
+              semCabecalho
             />
           ) : null
         }

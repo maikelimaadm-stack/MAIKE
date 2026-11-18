@@ -38,6 +38,7 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
     expect(dl).not.toMatch(/nome: 'Abate'|ArrowLeftRight|\bScale\b|\bBaby\b|\bBeef\b|HeartCrack|\bCombine\b|\bTags\b|PencilLine|nome: 'Renomear Lote'/);
   });
 
+  // D-PROD-218: a grade aparece direto (na tela empilhada "Manejos e históricos" da casca).
   it("aparecem no quadro, com o nome, sem descer a linha", () => {
     render(
       <AcoesDoLote grupos={[{ titulo: "Manejos", itens: [
@@ -53,7 +54,6 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
         { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
       ] }]} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" }));
     expect(screen.getByRole("button", { name: "Mover" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 120 64");
     expect(screen.getByRole("button", { name: "Pesar" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
     expect(screen.getByRole("button", { name: "Nascimento" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
@@ -79,7 +79,6 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
       { nome: "Juntar Lotes", Icone: IconeJuntarLotes, onClick: juntar, disabled: true, motivoBloqueio: "Dois lotes da mesma categoria são necessários." },
       { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
     ] }]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" }));
     expect([...document.querySelectorAll(".mk-al__quadro")].map(b => b.textContent)).toEqual(["Editar Informação", "Juntar Lotes", "Pesar"]);
     const button = screen.getByRole("button", { name: "Juntar Lotes" });
     expect(button.disabled).toBe(true);
