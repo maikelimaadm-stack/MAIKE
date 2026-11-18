@@ -124,6 +124,9 @@ O apontamento (lista e detalhe) passa a trazer `produtos[]` e `maquinas[]`, incl
 ```
 
 Os totais somam só as linhas confirmadas de apontamentos confirmados; `custo_por_ha` é nulo sem área.
+D-PROD-234 (só leitura): a resposta acrescenta `custo_por_tipo: { maquinas, produtos, mao_obra, servicos, combustivel }`
+(as parcelas do `custo_total`, cada uma nula sem custo) e `litros_combustivel_por_ha` (litros de combustível ÷ área
+executada, 4 casas; nulo sem área ou sem litros; o quilo não entra).
 
 ## 5. Tela (só componentes existentes)
 
