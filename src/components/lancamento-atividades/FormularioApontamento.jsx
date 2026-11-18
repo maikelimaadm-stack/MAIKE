@@ -9,6 +9,7 @@ import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginado
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import LinhasDoLancamento from "@/components/lancamento-atividades/LinhasDoLancamento";
+import { areaDaAtividadePorId, areasEmAndamento, rotuloDaAreaDaAtividade, temAreas } from "@/lib/atividadeAreasRegras";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { notifyInfo, notifyWarning } from "@/lib/maikeNotify";
 import {
@@ -110,7 +111,9 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *   permiteMaoObra?: boolean,
  *   permiteServico?: boolean,
  *   escopo?: string,
+ *   areaPadrao?: string|null,
  * }} props `onMudou`: a atividade ou o lançamento mudou no servidor (versão, status, sumiu) ou o envio ficou sem resposta — quem abriu relê.
+ *   `areaPadrao` (D-PROD-238): a área da atividade em que o lançamento NOVO começa (a lista filtrada por área).
  */
 export default function FormularioApontamento({
   atividade,
@@ -124,6 +127,7 @@ export default function FormularioApontamento({
   permiteMaoObra = false,
   permiteServico = false,
   escopo = "",
+  areaPadrao = null,
 }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const { hoje, fuso, semFuso } = useFusoDaFazenda(empresaId);
@@ -139,7 +143,19 @@ export default function FormularioApontamento({
   const sigla = siglaDaProducao(atividade);
 
   const [form, setForm] = useState(() =>
-    existente ? formularioDoApontamento(apontamento) : repetindo ? formularioDaBase(base, hoje) : formularioApontamentoVazio(hoje),
+    existente
+      ? formularioDoApontamento(apontamento)
+      : repetindo
+        ? formularioDaBase(base, hoje)
+        : // D-PROD-238: o lançamento novo vai para a única área em andamento, se houver só uma.
+          {
+            ...formularioApontamentoVazio(hoje),
+            atividade_area_id: areaPadrao && areasEmAndamento(atividade).some((a) => String(a.id) === String(areaPadrao))
+              ? String(areaPadrao)
+              : areasEmAndamento(atividade).length === 1
+                ? String(areasEmAndamento(atividade)[0].id)
+                : "",
+          },
   );
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const [erroGeral, setErroGeral] = useState(/** @type {string|null} */ (null));
@@ -205,6 +221,14 @@ export default function FormularioApontamento({
   }, [hoje]);
 
   const bloqueado = somenteLeitura || enviando;
+  // D-PROD-238: a atividade com áreas pergunta a área do lançamento — só as EM ANDAMENTO (e a gravada, na edição).
+  const temCampoArea = temAreas(atividade);
+  const opcoesDaArea = (() => {
+    const lista = areasEmAndamento(atividade).map((a) => ({ value: String(a.id), label: rotuloDaAreaDaAtividade(a) }));
+    const gravada = existente ? areaDaAtividadePorId(atividade, apontamento?.atividade_area_id) : null;
+    if (gravada && !lista.some((o) => o.value === String(gravada.id))) lista.unshift({ value: String(gravada.id), label: `${rotuloDaAreaDaAtividade(gravada)} (não está em andamento)` });
+    return lista;
+  })();
 
   /** @param {Partial<import("@/lib/atividadeApontamentoRegras").FormularioApontamento>} mudanca @param {string[]} campos */
   const mudar = (mudanca, campos) => {
@@ -270,6 +294,8 @@ export default function FormularioApontamento({
   const enviar = async () => {
     if (emCurso.current || !podeGravar) return;
     const v = validarFormularioApontamento(form, { hoje });
+    // D-PROD-238: com várias áreas, a área do lançamento é obrigatória (o servidor confere que está em andamento).
+    if (temCampoArea && !form.atividade_area_id) v.atividade_area_id = "Escolha a área do lançamento.";
     setErros(v);
     if (Object.keys(v).length) {
       notifyWarning("Atenção", "Revise os campos destacados.");
@@ -460,6 +486,19 @@ export default function FormularioApontamento({
             span={6}
             error={erros.turno}
           />
+          {temCampoArea ? (
+            <CampoSelect
+              label="Área"
+              value={form.atividade_area_id ?? ""}
+              onChange={(v) => mudar({ atividade_area_id: v }, ["atividade_area_id"])}
+              options={opcoesDaArea}
+              placeholder="Escolha a área em andamento"
+              readOnly={bloqueado}
+              required
+              span={12}
+              error={erros.atividade_area_id}
+            />
+          ) : null}
           {fora ? (
             <div className="col-span-12">
               <AvisoGestao testId="apontamento-fora-do-periodo">

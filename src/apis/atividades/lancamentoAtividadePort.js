@@ -63,8 +63,23 @@ export const CAMPOS_DA_ATIVIDADE = Object.freeze([
   'observacao',
 ]);
 
-/** POST /atividades (§10): a empresa e o tipo, mais os dados. */
-export const CAMPOS_DE_ABERTURA = Object.freeze(['empresa_id', 'tipo_atividade_id', ...CAMPOS_DA_ATIVIDADE]);
+/** POST /atividades (§10): a empresa e o tipo, mais os dados. D-PROD-238: ou `areas[]` (várias áreas) no lugar de `area_id`. */
+export const CAMPOS_DE_ABERTURA = Object.freeze(['empresa_id', 'tipo_atividade_id', ...CAMPOS_DA_ATIVIDADE, 'areas']);
+/** D-PROD-238 — cada item de `areas[]` da abertura (a área planejada ausente = o tamanho da área, no servidor). */
+export const CAMPOS_DA_AREA_NA_ABERTURA = Object.freeze(['area_id', 'area_planejada']);
+/** D-PROD-238 — POST /atividades/:id/areas (mais uma área, PLANEJADA). */
+export const CAMPOS_DE_ADICAO_AREA = Object.freeze(['empresa_id', 'area_id', 'area_planejada']);
+/** D-PROD-238 — PATCH /atividades/:id/areas/:areaId (a área planejada; `null` limpa). */
+export const CAMPOS_DE_EDICAO_AREA = Object.freeze(['empresa_id', 'versao', 'area_planejada']);
+/** D-PROD-238 — as ações da área e o corpo de cada uma (a data é opcional: padrão hoje na fazenda). */
+export const ACOES_DA_AREA = Object.freeze(
+  /** @type {Record<string, readonly string[]>} */ ({
+    iniciar: Object.freeze(['empresa_id', 'versao', 'data_inicio']),
+    concluir: Object.freeze(['empresa_id', 'versao', 'data_conclusao']),
+    reabrir: Object.freeze(['empresa_id', 'versao']),
+    remover: Object.freeze(['empresa_id', 'versao']),
+  }),
+);
 /** PATCH /atividades/:id (§10): os dados de abertura menos empresa e tipo (o tipo é imutável), mais a `versao` (CAS). */
 export const CAMPOS_DE_EDICAO = Object.freeze(['versao', ...CAMPOS_DA_ATIVIDADE]);
 /** POST /atividades/:id/concluir. */
@@ -87,6 +102,8 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
   'quantidade_produzida_dia',
   'observacao',
   'origem',
+  // D-PROD-238: a área da atividade em que o lançamento é feito (obrigatória com várias áreas).
+  'atividade_area_id',
 ]);
 
 // ─── Linhas de produto e de máquina do apontamento (D-PROD-202, Fatia 3) ─
@@ -167,7 +184,7 @@ export const CAMPOS_DE_CANCELAMENTO_APONTAMENTO = Object.freeze(['empresa_id', '
  * POST …/:apontamentoId/duplicar ("Repetir"): o dia (padrão hoje no servidor) e, desde a Fatia 3, as linhas com um
  * `operation_id` (a tela manda o "Repetir" com linhas pela criação; a rota aceita o mesmo corpo).
  */
-export const CAMPOS_DE_DUPLICACAO_APONTAMENTO = Object.freeze(['empresa_id', 'data_operacional', 'operation_id', 'produtos', 'maquinas', 'mao_obra', 'servicos']);
+export const CAMPOS_DE_DUPLICACAO_APONTAMENTO = Object.freeze(['empresa_id', 'data_operacional', 'atividade_area_id', 'operation_id', 'produtos', 'maquinas', 'mao_obra', 'servicos']);
 
 /**
  * Linhas embutidas no corpo da criação do apontamento: cada item só com as chaves da linha (sem envelope: o
@@ -321,8 +338,14 @@ export const operacoesNativas = Object.freeze({
   get: (id, empresaId) => nativeRequest(comEmpresa(daAtividade(id), empresaId), { autenticado: true }, ctx('getAtividade', { id })),
 
   /** @param {Record<string, unknown>} dados */
-  create: (dados) =>
-    nativeRequest(CAMINHO, { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_ABERTURA), autenticado: true }, ctx('createAtividade')),
+  create: (dados) => {
+    const corpo = corpoSemVazios(dados, CAMPOS_DE_ABERTURA);
+    // D-PROD-238: cada área só com as chaves dela (sem as vazias: a planejada ausente vira o tamanho no servidor).
+    const areas = linhasDeEnvio(dados?.areas, CAMPOS_DA_AREA_NA_ABERTURA);
+    if (areas) corpo.areas = areas;
+    else delete corpo.areas;
+    return nativeRequest(CAMINHO, { method: 'POST', body: corpo, autenticado: true }, ctx('createAtividade'));
+  },
 
   /** @param {string} id @param {Record<string, unknown>} dados */
   update: (id, dados) =>
@@ -407,6 +430,27 @@ export const operacoesNativas = Object.freeze({
       `${doApontamento(atividadeId, apontamentoId)}/duplicar`,
       { method: 'POST', body: corpoDaCriacaoDoApontamento(dados, CAMPOS_DE_DUPLICACAO_APONTAMENTO), autenticado: true },
       ctx('duplicateAtividadeApontamento', { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
+    ),
+
+  // ── Áreas da atividade (D-PROD-238) ──
+  /** @param {string} atividadeId @param {Record<string, unknown>} dados */
+  adicionarArea: (atividadeId, dados) =>
+    nativeRequest(`${daAtividade(atividadeId)}/areas`, { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_ADICAO_AREA), autenticado: true }, ctx('addAtividadeArea', { atividadeId })),
+
+  /** @param {string} atividadeId @param {string} areaId @param {Record<string, unknown>} dados */
+  editarArea: (atividadeId, areaId, dados) =>
+    nativeRequest(
+      `${daAtividade(atividadeId)}/areas/${encodeURIComponent(areaId)}`,
+      { method: 'PATCH', body: corpoDeEnvio(dados, CAMPOS_DE_EDICAO_AREA), autenticado: true },
+      ctx('updateAtividadeArea', { atividadeId, areaId }),
+    ),
+
+  /** @param {string} atividadeId @param {string} areaId @param {'iniciar'|'concluir'|'reabrir'|'remover'} acao @param {Record<string, unknown>} dados */
+  acaoArea: (atividadeId, areaId, acao, dados) =>
+    nativeRequest(
+      `${daAtividade(atividadeId)}/areas/${encodeURIComponent(areaId)}/${acao}`,
+      { method: 'POST', body: corpoSemVazios(dados, ACOES_DA_AREA[acao] ?? ACOES_DA_AREA.reabrir), autenticado: true },
+      ctx('actionAtividadeArea', { atividadeId, areaId, acao }),
     ),
 
   // ── Totais da atividade (Fatia 3) ──

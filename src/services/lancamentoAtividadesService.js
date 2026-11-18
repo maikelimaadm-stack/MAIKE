@@ -39,6 +39,9 @@ import {
   duplicateAtividadeApontamento,
   listOpcoesAtividade,
   getAtividadeTotais,
+  addAtividadeArea,
+  updateAtividadeArea,
+  actionAtividadeArea,
   createAtividadeLinha,
   updateAtividadeLinha,
   cancelAtividadeLinha,
@@ -192,6 +195,49 @@ export const duplicarAtividade = async (id, dados = {}) =>
     empresa_id: fazenda('duplicarAtividade'),
     ...soOsInformados(comoObjeto(dados), ['nome', 'data_inicio', 'data_prevista_fim']),
   });
+
+// ─── Áreas da atividade (D-PROD-238) ─────────────────────────────────────
+
+/**
+ * Mais uma área na atividade (entra PLANEJADA; a área planejada vazia = o tamanho da área, no servidor). Devolve
+ * `{ area, atividade }`.
+ * @param {string} atividadeId @param {{ area_id: string, area_planejada?: string|null }} dados
+ */
+export const adicionarAreaAtividade = async (atividadeId, dados) => {
+  const d = comoObjeto(dados);
+  return addAtividadeArea(String(atividadeId ?? ''), {
+    empresa_id: fazenda('adicionarAreaAtividade'),
+    area_id: String(d.area_id ?? ''),
+    ...soOsInformados(d, ['area_planejada']),
+  });
+};
+
+/**
+ * A área planejada de uma área da atividade (`null` limpa), com a `versao` da área. Devolve `{ area, atividade }`.
+ * @param {string} atividadeId @param {{ id: string, versao: number }} area @param {string|null} areaPlanejada
+ */
+export const editarAreaAtividade = async (atividadeId, area, areaPlanejada) =>
+  updateAtividadeArea(String(atividadeId ?? ''), String(area?.id ?? ''), {
+    empresa_id: fazenda('editarAreaAtividade'),
+    versao: area?.versao,
+    area_planejada: typeof areaPlanejada === 'string' && areaPlanejada.trim() ? areaPlanejada.trim() : null,
+  });
+
+/**
+ * Iniciar (com a data de início), concluir (com a data de conclusão), reabrir ou remover uma área da atividade, com a
+ * `versao` da área. Sem data, o servidor usa hoje na fazenda. Devolve `{ area, atividade }` (remover: `{ removida, atividade }`).
+ * @param {string} atividadeId @param {{ id: string, versao: number }} area @param {'iniciar'|'concluir'|'reabrir'|'remover'} acao
+ * @param {{ data?: string|null }} [opcoes]
+ */
+export const acaoAreaAtividade = async (atividadeId, area, acao, opcoes = {}) => {
+  const campoDaData = acao === 'iniciar' ? 'data_inicio' : acao === 'concluir' ? 'data_conclusao' : null;
+  const data = textoOuIndefinido(comoObjeto(opcoes).data);
+  return actionAtividadeArea(String(atividadeId ?? ''), String(area?.id ?? ''), acao, {
+    empresa_id: fazenda('acaoAreaAtividade'),
+    versao: area?.versao,
+    ...(campoDaData && data ? { [campoDaData]: data } : {}),
+  });
+};
 
 // ─── Apontamentos da atividade ───────────────────────────────────────────
 

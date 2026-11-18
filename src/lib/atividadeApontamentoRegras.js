@@ -365,6 +365,7 @@ export const camposAlteradosDaAtividade = (original, corpo) => diferencas(origin
  *   area_executada_dia: string,
  *   quantidade_produzida_dia: string,
  *   observacao: string,
+ *   atividade_area_id?: string,
  * }} FormularioApontamento
  */
 
@@ -376,6 +377,7 @@ export const formularioApontamentoVazio = (hoje) => ({
   area_executada_dia: '',
   quantidade_produzida_dia: '',
   observacao: '',
+  atividade_area_id: '',
 });
 
 /** Formulário a partir do apontamento gravado. @param {any} ap @returns {FormularioApontamento} */
@@ -386,6 +388,8 @@ export const formularioDoApontamento = (ap) => ({
   area_executada_dia: decimalParaEdicao(ap?.area_executada_dia),
   quantidade_produzida_dia: decimalParaEdicao(ap?.quantidade_produzida_dia),
   observacao: typeof ap?.observacao === 'string' ? ap.observacao : '',
+  // D-PROD-238: a área da atividade do lançamento.
+  atividade_area_id: texto(ap?.atividade_area_id),
 });
 
 /**
@@ -437,6 +441,8 @@ export const corpoDoApontamento = (form) => ({
   area_executada_dia: lerDecimal(form.area_executada_dia, '').valor,
   quantidade_produzida_dia: lerDecimal(form.quantidade_produzida_dia, '').valor,
   observacao: texto(form.observacao) || null,
+  // D-PROD-238: a área da atividade (nula na atividade sem área; com uma área só, o servidor usa ela).
+  atividade_area_id: texto(form.atividade_area_id) || null,
 });
 
 /**
