@@ -136,7 +136,8 @@ export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULA
  */
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215). */
-export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM']);
+// D-PROD-249: e a AtividadeArea (as áreas da atividade), da última CONTRACT.
+export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea']);
 /**
  * D-PROD-206: a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO, que só existe depois da D-PROD-203),
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
@@ -161,7 +162,12 @@ export const NOME_AREA_CULTURA = '20261117000000_area_cultura';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior; o runner do repositório a sobe sem decisão. */
 export const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
 export const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
+/**
+ * D-PROD-249: a CONTRACT das áreas da atividade (tabela nova AtividadeArea e a área do lançamento), de nome ainda
+ * posterior: fora da partida (como as outras do fim), sobe no GREEN por último. +1 tabela no GREEN.
+ */
+export const NOME_ATIVIDADE_AREAS = '20261118100000_atividade_areas';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()

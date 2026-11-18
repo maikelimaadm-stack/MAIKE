@@ -9,6 +9,8 @@ import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import { LANCAMENTOS_POR_TIPO } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import ListaApontamentos from "@/components/lancamento-atividades/ListaApontamentos";
 import TotalizadorAtividade from "@/components/lancamento-atividades/TotalizadorAtividade";
+import CardAreasDaAtividade from "@/components/lancamento-atividades/CardAreasDaAtividade";
+import { areaDaAtividadePorId, rotuloDaAreaDaAtividade, temAreas, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { chaveApontamentos, itensDaLista, RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import {
   chaveTotais,
@@ -86,7 +88,7 @@ const CELULAS_DO_RESUMO = Object.freeze([
  *   cabecalho: React.ReactNode,
  *   avisos?: React.ReactNode,
  *   onAtividadeAtualizada: (atividade: any) => void,
- *   onLancar: (tipo: string, aba: 'lista'|'dados') => void,
+ *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null) => void,
  *   onFechar: () => void,
  *   onConcluir?: (() => void) | null,
  * }} props `acoes`: as dos lançamentos (já com o status, a permissão e o fuso); `onLancar`: abre a janela do tipo
@@ -97,6 +99,10 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
   const id = atividade?.id ? String(atividade.id) : null;
   const [aba, setAba] = useState(/** @type {'lancamentos'|'resumo'} */ ("lancamentos"));
   const [diasAbertos, setDiasAbertos] = useState(false);
+  // D-PROD-249: "Ver lançamentos da área" abre os dias lançados só daquela área.
+  const [areaDosDias, setAreaDosDias] = useState(/** @type {string|null} */ (null));
+  const diasRef = useRef(/** @type {HTMLElement | null} */ (null));
+  const comAreas = temAreas(atividade);
   // ‹ › do registro na linha das abas (computador e tablet); no celular, no rodapé da casca.
   const navInfo = useNavegacaoDoRegistro(!celular);
   // O contêiner do registro no modo do design com abas (como `Base1PanelTabs`): abas fora, cartões sobre o fundo.
@@ -150,7 +156,8 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
   // O total da tabela é o custo total do servidor (a soma das parcelas); sem ele, a soma das parcelas mostradas.
   const totalValor = typeof totais?.custo_total === "string" ? totais.custo_total : valoresDosTipos.length ? somar(valoresDosTipos, 4) : null;
 
-  const nomeArea = rotuloDaArea(atividade?.area);
+  // D-PROD-249: com várias áreas, o nome do card é "N áreas" (cada área tem a linha dela no card das áreas).
+  const nomeArea = comAreas ? textoDaColunaArea(atividade) : rotuloDaArea(atividade?.area);
   const executada = formatarDecimalLinha(totais?.area_executada ?? atividade?.area_executada);
   const subtituloDosLancamentos = [
     nomeArea,
@@ -368,10 +375,30 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
     </section>
   );
 
+  // ─── D-PROD-249: o card "Áreas da atividade" (o principal, com várias áreas) ───
+  const podeGerirAreas = aberta && acoes?.editar === true && habilitado;
+  const cardAreas = comAreas ? (
+    <CardAreasDaAtividade
+      atividade={atividade}
+      totais={totais}
+      lendoTotais={lendoTotais}
+      podeGerir={podeGerirAreas}
+      lancamentos={linhasDosTipos.map((l) => ({ tipo: l.tipo, rotulo: l.rotulo, Icone: l.Icone, lancar: l.lancar }))}
+      onLancarNaArea={(tipo, abaDaJanela, atividadeAreaId) => onLancar(tipo, abaDaJanela, atividadeAreaId)}
+      onVerLancamentosDaArea={(atividadeAreaId) => {
+        setAreaDosDias(atividadeAreaId);
+        setDiasAbertos(true);
+        requestAnimationFrame(() => diasRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }));
+      }}
+      onAtividadeAtualizada={onAtividadeAtualizada}
+    />
+  ) : null;
+  const areaDosDiasObj = areaDosDias ? areaDaAtividadePorId(atividade, areaDosDias) : null;
+
   // ─── Dias lançados (a lista de sempre, recolhível) ───────────────────
-  const dias = itens.length;
+  const dias = areaDosDias ? itens.filter((a) => String(a?.atividade_area_id ?? "") === areaDosDias).length : itens.length;
   const cardDias = (
-    <section className="b1-aba-cartao b1-aberta-cartao" data-testid="atividade-dias">
+    <section ref={diasRef} className="b1-aba-cartao b1-aberta-cartao" data-testid="atividade-dias">
       <button
         type="button"
         className="b1-aberta-dias__toggle"
@@ -381,13 +408,28 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
         data-testid="atividade-dias-toggle"
       >
         {diasAbertos ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}
-        <span className="b1-aba-cartao__titulo">Dias lançados</span>
+        <span className="b1-aba-cartao__titulo">{areaDosDiasObj ? `Lançamentos · ${rotuloDaAreaDaAtividade(areaDosDiasObj)}` : "Dias lançados"}</span>
         <span className={NOTA}>
           {lendoLinhas ? "" : `${dias} ${dias === 1 ? "lançamento" : "lançamentos"} · novo, repetir, editar e cancelar o dia, linhas e abastecimentos`}
         </span>
       </button>
       <div id="atividade-dias-corpo" hidden={!diasAbertos} className="mt-2 min-w-0">
-        <ListaApontamentos key={String(atividade?.id ?? "")} atividade={atividade} acoes={acoes} onAtividadeAtualizada={onAtividadeAtualizada} titulo="Lançamentos por dia" />
+        {areaDosDiasObj ? (
+          <p className={`${NOTA} mb-2`} data-testid="atividade-dias-filtro-area">
+            Só os lançamentos de {rotuloDaAreaDaAtividade(areaDosDiasObj)}.{" "}
+            <button type="button" className="underline" onClick={() => setAreaDosDias(null)} data-testid="atividade-dias-todas-areas">
+              Ver todas as áreas
+            </button>
+          </p>
+        ) : null}
+        <ListaApontamentos
+          key={String(atividade?.id ?? "")}
+          atividade={atividade}
+          acoes={acoes}
+          onAtividadeAtualizada={onAtividadeAtualizada}
+          titulo={comAreas && !areaDosDias ? "Lançamentos por dia (todas as áreas)" : "Lançamentos por dia"}
+          areaFiltro={areaDosDias}
+        />
       </div>
     </section>
   );
@@ -425,6 +467,7 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
       </div>
       {avisos}
       <div role="tabpanel" id="atividade-painel-lancamentos" aria-labelledby="atividade-aba-lancamentos" hidden={aba !== "lancamentos"} className="b1-aberta-painel" data-testid="atividade-painel-lancamentos">
+        {cardAreas}
         {cardResumo}
         {cardLancamentos}
         {cardDias}

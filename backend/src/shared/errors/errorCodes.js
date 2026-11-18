@@ -281,9 +281,18 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'apontamentoId não identifica apontamento desta atividade, desta empresa e deste tenant',
   },
+  // D-PROD-249 — várias áreas por atividade (AtividadeArea).
+  ATIVIDADE_AREA_NOT_FOUND: {
+    http: 404,
+    meaning: 'areaId não identifica área desta atividade, desta empresa e deste tenant',
+  },
+  ATIVIDADE_AREA_COM_LANCAMENTOS: {
+    http: 409,
+    meaning: 'a área da atividade tem lançamento (confirmado ou cancelado) e não sai da atividade: nada com custo é apagado (details.confirmados/cancelados); conclua a área; nada foi apagado',
+  },
   ATIVIDADE_REFERENCIA_INVALIDA: {
     http: 422,
-    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo | natureza — a máquina, bem_id, só MAQUINA, VEICULO ou EQUIPAMENTO); nada foi gravado',
+    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo | natureza — a máquina, bem_id, só MAQUINA, VEICULO ou EQUIPAMENTO; D-PROD-249: areas[n].area_id e area_id duplicada | ja_na_atividade | varias_areas | com_lancamentos, area_planejada varias_areas, atividade_area_id obrigatorio | inexistente | sem_areas); nada foi gravado',
   },
   ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,
@@ -291,11 +300,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
-    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | periodo_invertido | data_inexistente); nada foi gravado',
+    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | antes_do_inicio_da_area — D-PROD-249 — | periodo_invertido | data_inexistente); nada foi gravado',
   },
   ATIVIDADE_STATUS_INVALIDO: {
     http: 409,
-    meaning: 'a ação não é permitida no status atual da atividade, do apontamento ou da linha (details.status, details.acao, details.entidade: atividade | apontamento | linha_produto | linha_maquina | linha_mao_obra | linha_servico); nada foi alterado',
+    meaning: 'a ação não é permitida no status atual da atividade, do apontamento, da linha ou da área (details.status, details.acao, details.entidade: atividade | apontamento | linha_produto | linha_maquina | linha_mao_obra | linha_servico | area — D-PROD-249); nada foi alterado',
   },
   ATIVIDADE_VERSAO_CONFLITO: {
     http: 409,

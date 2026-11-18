@@ -41,6 +41,8 @@ import { listarTarefasDaEmpresa } from "@/services/tarefasMapaService";
 import { listarTiposAtividade } from "@/services/tipoAtividadeCadastroService";
 import { criarAtividade, editarAtividade, listarOpcoesBens } from "@/services/lancamentoAtividadesService";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
+import SeletorAreasDaAtividade from "@/components/lancamento-atividades/SeletorAreasDaAtividade";
+import { areasDaAtividade, corpoDasAreasDaAbertura, errosDasAreasDaAbertura, rotuloDaAreaDaAtividade, temAreas, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 
 export const FORMULARIO_ATIVIDADE_ID = "formulario-atividade-base1";
 
@@ -99,6 +101,10 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
   const somenteLeitura = !empresaId || naoAberta;
 
   const [form, setForm] = useState(() => (existente ? formularioDaAtividade(atividade) : formularioAtividadeVazio(hoje)));
+  // D-PROD-249: as ÁREAS da abertura (várias áreas por atividade), cada uma com a área planejada (padrão = o tamanho).
+  const [areasEscolhidas, setAreasEscolhidas] = useState(/** @type {import("@/lib/atividadeAreasRegras").LinhaDaAbertura[]} */ ([]));
+  // Na edição, a atividade com áreas muda as áreas pelo card "Áreas da atividade" (o formulário só as mostra).
+  const comAreas = existente && temAreas(atividade);
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const [erroGeral, setErroGeral] = useState(/** @type {string|null} */ (null));
   const [enviando, setEnviando] = useState(false);
@@ -118,6 +124,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
     empresaDoFormulario.current = empresaId;
     const gravado = existente ? formularioDaAtividade(atividade) : null;
     setForm((f) => ({ ...f, area_id: gravado?.area_id ?? "", bem: gravado?.bem ?? null, lancamento_tarefa_id: gravado?.lancamento_tarefa_id ?? "" }));
+    setAreasEscolhidas([]);
     setErros({});
     setErroGeral(null);
   }, [empresaId, existente, atividade]);
@@ -238,13 +245,24 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
       notifyInfo("Aguarde", "Lendo o fuso horário da fazenda para conferir as datas. Tente de novo em instantes.");
       return;
     }
-    const v = validarFormularioAtividade(form, { hoje, novo: !existente, exigencias, nomeDoTipo });
+    // D-PROD-249: na abertura, a exigência de área do tipo vale para a lista de áreas (ao menos uma); com áreas, a edição não mexe nelas.
+    const v = {
+      ...validarFormularioAtividade(form, { hoje, novo: !existente, exigencias: { ...exigencias, area: exigencias.area && existente && !comAreas }, nomeDoTipo }),
+      ...(existente ? {} : errosDasAreasDaAbertura(areasEscolhidas, { exigeArea: exigencias.area, nomeDoTipo })),
+    };
     setErros(v);
     if (Object.keys(v).length) {
       notifyWarning("Atenção", "Revise os campos destacados.");
       return;
     }
     const corpo = corpoDaAtividade(form, { novo: !existente });
+    // D-PROD-249: a abertura manda `areas[]` (e nunca `area_id` nem a planejada do cabeçalho); a edição da atividade com
+    // áreas não manda nenhum dos dois (as áreas mudam pelo card).
+    if (!existente || comAreas) {
+      delete corpo.area_id;
+      delete corpo.area_planejada;
+    }
+    if (!existente && areasEscolhidas.length) corpo.areas = corpoDasAreasDaAbertura(areasEscolhidas);
     emCurso.current = true;
     setEnviando(true);
     setErroGeral(null);
@@ -350,18 +368,47 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
       <CampoTexto label="Grupo de atividade" value={nomeDoGrupo} onChange={() => {}} readOnly span={6} />
 
       <SecaoForm titulo="Onde e com o quê" />
-      <CampoSelect
-        label="Área"
-        value={form.area_id}
-        onChange={(v) => mudar({ area_id: v }, ["area_id"])}
-        options={opcoesArea}
-        placeholder={exigencias.area ? undefined : "Sem área"}
-        readOnly={bloqueado}
-        required={exigencias.area}
-        span={6}
-        error={erros.area_id}
-      />
-      <CampoTexto label="Setor (da área)" value={travado(setor, form.area_id ? "Área sem setor" : "")} onChange={() => {}} readOnly span={6} />
+      {!existente ? (
+        <SeletorAreasDaAtividade
+          areasDoMapa={areas}
+          linhas={areasEscolhidas}
+          onChange={(l) => {
+            setAreasEscolhidas(l);
+            setErros((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== "areas" && !k.startsWith("area:"))));
+            setErroGeral(null);
+          }}
+          erros={erros}
+          obrigatorio={exigencias.area}
+          readOnly={bloqueado}
+          carregando={areasQuery.isLoading}
+        />
+      ) : comAreas ? (
+        <div className="col-span-12 min-w-0" data-testid="atividade-areas-somente-leitura">
+          <CampoTexto
+            label={`Áreas (${areasDaAtividade(atividade).length})`}
+            value={`${textoDaColunaArea(atividade)} — ${areasDaAtividade(atividade).map(rotuloDaAreaDaAtividade).join(", ")}`}
+            onChange={() => {}}
+            readOnly
+            span={12}
+          />
+          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">As áreas, a área planejada de cada uma e o início e a conclusão mudam no card &quot;Áreas da atividade&quot;.</p>
+        </div>
+      ) : (
+        <>
+          <CampoSelect
+            label="Área"
+            value={form.area_id}
+            onChange={(v) => mudar({ area_id: v }, ["area_id"])}
+            options={opcoesArea}
+            placeholder={exigencias.area ? undefined : "Sem área"}
+            readOnly={bloqueado}
+            required={exigencias.area}
+            span={6}
+            error={erros.area_id}
+          />
+          <CampoTexto label="Setor (da área)" value={travado(setor, form.area_id ? "Área sem setor" : "")} onChange={() => {}} readOnly span={6} />
+        </>
+      )}
       <SeletorPaginadoGestao
         rotulo="Máquina"
         testId="atividade-maquina"
@@ -451,17 +498,19 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
         error={erros.data_prevista_fim}
         testId="atividade-data-prevista-fim"
       />
-      <CampoNumero
-        label="Área planejada (ha)"
-        value={form.area_planejada}
-        onChange={(v) => mudar({ area_planejada: v }, ["area_planejada"])}
-        locale={LOCALE_ATIVIDADE}
-        limites={LIMITES_DECIMAL_ATIVIDADE}
-        readOnly={bloqueado}
-        span={4}
-        error={erros.area_planejada}
-        testId="atividade-area-planejada"
-      />
+      {existente && !comAreas ? (
+        <CampoNumero
+          label="Área planejada (ha)"
+          value={form.area_planejada}
+          onChange={(v) => mudar({ area_planejada: v }, ["area_planejada"])}
+          locale={LOCALE_ATIVIDADE}
+          limites={LIMITES_DECIMAL_ATIVIDADE}
+          readOnly={bloqueado}
+          span={4}
+          error={erros.area_planejada}
+          testId="atividade-area-planejada"
+        />
+      ) : null}
 
       <SecaoForm titulo="Origem e observação" />
       <CampoSelect

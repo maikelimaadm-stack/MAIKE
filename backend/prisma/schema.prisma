@@ -141,6 +141,8 @@ model Cliente {
   // D-PROD-200 — Lançamento de Atividades: a atividade (cabeçalho) e os apontamentos (dia/turno).
   atividades                   Atividade[]
   atividadeApontamentos        AtividadeApontamento[]
+  // D-PROD-249 — as áreas de cada atividade (várias áreas por atividade).
+  atividadeAreas               AtividadeArea[]
   // D-PROD-202 — linhas de produto (com fatias FIFO) e de máquina do apontamento.
   atividadeApontamentoProdutos      AtividadeApontamentoProduto[]
   atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
@@ -216,6 +218,8 @@ model Usuario {
   atividadeApontamentosOperados   AtividadeApontamento[]        @relation("AtividadeApontamentoOperador")
   atividadeApontamentosCriados    AtividadeApontamento[]        @relation("AtividadeApontamentoCriadoPor")
   atividadeApontamentosCancelados AtividadeApontamento[]        @relation("AtividadeApontamentoCanceladoPor")
+  // D-PROD-249 — quem pôs a área na atividade.
+  atividadeAreasCriadas           AtividadeArea[]               @relation("AtividadeAreaCriadaPor")
   // D-PROD-202 — autores das linhas do apontamento.
   atividadeProdutosCriados    AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCriadoPor")
   atividadeProdutosCancelados AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCanceladoPor")
@@ -433,6 +437,8 @@ model Setor {
   lotes   Lote[]
   // D-PROD-200 — snapshot do setor da área na atividade.
   atividades Atividade[]
+  // D-PROD-249 — snapshot do setor de cada área da atividade.
+  atividadeAreas AtividadeArea[]
 
   @@unique([cliente_id, numero_setor])
   @@unique([cliente_id, id])
@@ -940,6 +946,8 @@ model AreaPastagem {
   bensPatrimoniais BemPatrimonial[]
   // D-PROD-190 — área onde a atividade foi executada.
   atividades Atividade[]
+  // D-PROD-249 — a área numa atividade de várias áreas.
+  atividadeAreas AtividadeArea[]
   // D-PROD-219 — medições de forragem do pasto.
   medicoesForragem MedicaoForragem[]
   @@unique([cliente_id, numero_area])
@@ -1382,6 +1390,8 @@ model Empresa {
   // D-PROD-190 — apontamentos de atividade da fazenda.
   atividades            Atividade[]
   atividadeApontamentos AtividadeApontamento[]
+  // D-PROD-249 — as áreas das atividades da fazenda.
+  atividadeAreas        AtividadeArea[]
   // D-PROD-207 — funcionários e serviços da fazenda.
   servicos              Servico[]
   @@unique([cliente_id, id])
@@ -3280,6 +3290,8 @@ model Atividade {
   canceladoPor     Usuario?               @relation("AtividadeCanceladaPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_cancelado_por_fkey")
   reabertaPor      Usuario?               @relation("AtividadeReabertaPor", fields: [cliente_id, reaberta_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_reaberta_por_fkey")
   apontamentos     AtividadeApontamento[]
+  // D-PROD-249 — as áreas da atividade (várias áreas; `area_id` acima fica com a 1ª, por compatibilidade).
+  areas            AtividadeArea[]
 
   abastecimentos   AbastecimentoBem[]     // D-PROD-211
   @@unique([cliente_id, id])
@@ -3321,10 +3333,14 @@ model AtividadeApontamento {
   versao                   Int       @default(1)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
+  /// D-PROD-249 — a área da atividade em que este lançamento foi feito (obrigatória no servidor quando a atividade tem
+  /// áreas; nula na atividade sem área). A FK composta prova que a área é DESTA atividade.
+  atividade_area_id        String?   @db.VarChar(64)
 
   cliente      Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa      Empresa   @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
   atividade    Atividade @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamento_atividade_fkey")
+  atividadeArea AtividadeArea? @relation(fields: [cliente_id, empresa_id, atividade_id, atividade_area_id], references: [cliente_id, empresa_id, atividade_id, id], onDelete: Restrict, map: "AtividadeApontamento_atividade_area_fkey")
   operador     Usuario?  @relation("AtividadeApontamentoOperador", fields: [cliente_id, operador_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_operador_fkey")
   criadoPor    Usuario?  @relation("AtividadeApontamentoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_criado_por_fkey")
   canceladoPor Usuario?  @relation("AtividadeApontamentoCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_cancelado_por_fkey")
@@ -3342,6 +3358,50 @@ model AtividadeApontamento {
   @@unique([cliente_id, atividade_id, data_operacional, turno, sequencia], map: "AtividadeApontamento_atividade_dia_turno_sequencia_key")
   @@index([cliente_id, empresa_id, atividade_id])
   @@index([cliente_id, operador_usuario_id])
+  // D-PROD-249 — os lançamentos de uma área da atividade (e o lado que referencia da FK composta).
+  @@index([cliente_id, empresa_id, atividade_id, atividade_area_id], map: "AtividadeApontamento_atividade_area_idx")
+}
+
+/// D-PROD-249 — as ÁREAS de uma atividade: uma atividade ("Combate à cigarrinha") feita em vários pastos ao longo do
+/// tempo; cada lançamento (AtividadeApontamento) é de UMA área. Setor = SNAPSHOT da área (como na atividade).
+/// `area_planejada` padrão = o tamanho da área. Ciclo: PLANEJADA (ao abrir a atividade) → EM_ANDAMENTO ("Iniciar área",
+/// com `data_inicio`) → CONCLUIDA (`data_conclusao`); reabrir volta a EM_ANDAMENTO. Só a área EM_ANDAMENTO aceita
+/// lançamento. Sem DELETE físico com lançamento: só sai a área PLANEJADA sem nenhum lançamento.
+model AtividadeArea {
+  id                    String    @id @default(cuid())
+  cliente_id            String    @db.VarChar(64)
+  empresa_id            String    @db.VarChar(64)
+  atividade_id          String    @db.VarChar(64)
+  area_id               String    @db.VarChar(64)
+  /// HERDADO da área (nunca digitado); snapshot.
+  setor_id              String?   @db.VarChar(64)
+  setor_nome            String?   @db.VarChar(255)
+  area_planejada        Decimal?  @db.Decimal(14, 4)
+  /// PLANEJADA | EM_ANDAMENTO | CONCLUIDA (CHECK, com a coerência das datas).
+  status                String    @default("PLANEJADA") @db.VarChar(16)
+  data_inicio           DateTime? @db.Date
+  data_conclusao        DateTime? @db.Date
+  /// 1, 2, 3… na ordem em que a área entrou na atividade (a 1ª é a `area_id` da atividade).
+  ordem                 Int
+  criado_por_usuario_id String?   @db.VarChar(64)
+  versao                Int       @default(1)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  cliente      Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa      Empresa                @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  atividade    Atividade              @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeArea_atividade_fkey")
+  area         AreaPastagem           @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeArea_area_fkey")
+  setor        Setor?                 @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeArea_setor_fkey")
+  criadoPor    Usuario?               @relation("AtividadeAreaCriadaPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeArea_criado_por_fkey")
+  apontamentos AtividadeApontamento[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, atividade_id, area_id], map: "AtividadeArea_atividade_area_key")
+  /// Alvo da FK composta do lançamento: a área é DESTA atividade.
+  @@unique([cliente_id, empresa_id, atividade_id, id], map: "AtividadeArea_empresa_atividade_id_key")
+  @@index([cliente_id, area_id])
+  @@index([cliente_id, setor_id])
 }
 
 /// D-PROD-202 (Fatia 3) — LINHA DE PRODUTO do apontamento: baixa FÍSICA pelo motor único de estoque (FIFO por lote,

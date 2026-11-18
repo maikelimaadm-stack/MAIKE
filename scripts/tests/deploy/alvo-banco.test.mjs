@@ -87,7 +87,7 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     conferir: async () => ({ ok: true, falhas: [], resumo: 'banco=postgres' }),
     resolverRuntime: async () => REMOTO,
     // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197, D-PROD-200, D-PROD-208, D-PROD-209, D-PROD-210,
-    // D-PROD-211, D-PROD-216 e D-PROD-217: alvo já com as treze CONTRACT concluídas (a barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17, B18, B19, B20, B21, B22, B23, B24 e B25). Sem alguma
+    // D-PROD-211, D-PROD-216, D-PROD-217 e D-PROD-249: alvo já com as quatorze CONTRACT concluídas (a barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17, B18, B19, B20, B21, B22, B23, B24 e B25; a D-PROD-249 em backend/tests/atividadeAreasMigration.test.mjs). Sem alguma
     // das linhas, a CONTRACT pendente recusaria por conta própria.
     lerHistorico: async () => [
       { migration_name: '20261110300000_patrimonio_simplifica', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
@@ -107,6 +107,8 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261117000000_area_cultura', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       // D-PROD-217: a décima terceira CONTRACT (o reforço da FK do apontamento do abastecimento), B25 em migrations.test.mjs.
       { migration_name: '20261117100000_abastecimento_fk_apontamento_atividade', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-249: a décima quarta CONTRACT (as áreas da atividade).
+      { migration_name: '20261118100000_atividade_areas', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},

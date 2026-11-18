@@ -26,8 +26,11 @@ tenant(nome) AS (
     -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
     -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) e o abastecimento (D-PROD-211) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
     'AtividadeApontamento',
+    -- D-PROD-249: a área da atividade (AtividadeArea) sai logo depois do apontamento, que a referencia (FK composta), e
+    -- antes da atividade, da área (AreaPastagem), do setor e dos usuários, que ela referencia.
+    'AtividadeArea',
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
-    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia e o abastecimento (acima) a referenciam.
+    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia, a área da atividade (D-PROD-249) e o abastecimento (acima) a referenciam.
     'Atividade',
     -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-200) e ANTES dos
     -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).

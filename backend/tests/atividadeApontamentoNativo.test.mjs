@@ -47,7 +47,10 @@ beforeEach(async () => {
 const CAMPOS_APONTAMENTO = [
   'id', 'empresa_id', 'atividade_id', 'data_operacional', 'turno', 'sequencia',
   'operador_usuario_id', 'operador',
-  'area_executada_dia', 'quantidade_produzida_dia', 'observacao', 'origem', 'status', 'versao',
+  'area_executada_dia', 'quantidade_produzida_dia', 'observacao',
+  // D-PROD-249: a área da atividade do lançamento.
+  'atividade_area_id', 'atividade_area',
+  'origem', 'status', 'versao',
   'cancelado_em', 'cancelado_por', 'motivo_cancelamento',
   'criado_por', 'createdAt', 'updatedAt',
   // D-PROD-202 (Fatia 3): as linhas de produto e de máquina, inclusive as canceladas.

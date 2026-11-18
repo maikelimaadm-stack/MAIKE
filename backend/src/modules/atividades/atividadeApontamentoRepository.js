@@ -28,6 +28,8 @@ export const INCLUIR_APONTAMENTO = Object.freeze({
   operador: USUARIO_RESUMO,
   criadoPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
+  // D-PROD-249: a área da atividade em que o lançamento foi feito.
+  atividadeArea: { select: { id: true, area: { select: { id: true, numero_area: true, nome: true } } } },
   produtos: { include: INCLUIR_LINHA_PRODUTO, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
   maquinas: { include: INCLUIR_LINHA_MAQUINA, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
   maoObras: { include: INCLUIR_LINHA_MAO_OBRA, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },

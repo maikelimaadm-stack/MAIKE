@@ -576,6 +576,8 @@ test('linhas: "Repetir" com as linhas numa transação, reenvio sem resposta com
     data_operacional: HOJE,
     turno: 'MANHA',
     area_executada_dia: '4',
+    // D-PROD-249: a atividade tem uma área (a do cabeçalho); o "Repetir" herda a área da base.
+    atividade_area_id: base.atividade_area_id,
     produtos: [{ produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '40' }],
     maquinas: [{ bem_id: s.trator.id, sem_medidor: false, leitura_inicial: '1526', leitura_final: '1531.5' }],
   });
@@ -1042,7 +1044,7 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
   assert.equal(enviados.at(-1).caminho, `/api/native/atividades/${a.id}/totais?empresa_id=${s.e1.id}`);
   assert.deepEqual(Object.keys(recebidos.at(-1).corpo).sort(), [
     'area_executada', 'area_planejada', 'combustivel', 'consumo_por_bem', 'custo_combustivel_por_ha', 'custo_por_ha', 'custo_por_tipo', 'custo_total',
-    'litros_combustivel_por_ha', 'mao_obra', 'maquinas', 'produtos', 'servicos', 'unidade_area',
+    'litros_combustivel_por_ha', 'mao_obra', 'maquinas', 'por_area', 'produtos', 'servicos', 'unidade_area',
   ]);
   assert.deepEqual(t.mao_obra.map((x) => [x.parceiro_id, x.nome, x.origem, x.tipo_medida, x.quantidade, x.custo_total]), [
     [s.joao.id, 'João Mensalista', 'FUNCIONARIO', 'DIARIA', '1.0000', '180.0000'],
@@ -1126,6 +1128,8 @@ test('mão de obra e serviço: "Repetir" com mao_obra[] e servicos[] (rede cai d
     data_operacional: HOJE,
     turno: 'MANHA',
     area_executada_dia: '3',
+    // D-PROD-249: o "Repetir" herda a área da base.
+    atividade_area_id: base.atividade_area_id,
     mao_obra: [
       { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '6' },
       { parceiro_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' },

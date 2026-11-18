@@ -6,7 +6,8 @@ import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { chaveTotais, resumoParaConcluir } from "@/lib/atividadeLinhasRegras";
 import { ehDiaValido } from "@/lib/diaCivil";
-import { LOCALE_ATIVIDADE } from "@/lib/lancamentoAtividadesRegras";
+import { LOCALE_ATIVIDADE, formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { STATUS_AREA, areasDaAtividade, rotuloDaAreaDaAtividade } from "@/lib/atividadeAreasRegras";
 import { obterAtividade, obterTotaisAtividade } from "@/services/lancamentoAtividadesService";
 
 /** Formatação das mensagens do diálogo de ação. */
@@ -155,6 +156,25 @@ export default function DialogoConcluirAtividade({ atividade, empresaId, hoje, d
               />
             </div>
           </div>
+          {areasDaAtividade(atividade).some((a) => a.status !== STATUS_AREA.CONCLUIDA) ? (
+            <div className="min-w-0 rounded-[10px] border border-[var(--mg-divider,#E8E7E2)] bg-white px-3.5 py-2.5 text-[12.5px]" data-testid="concluir-areas">
+              <p className="font-semibold">Áreas que ainda não estão concluídas</p>
+              <ul className="mt-1 space-y-0.5">
+                {areasDaAtividade(atividade)
+                  .filter((a) => a.status !== STATUS_AREA.CONCLUIDA)
+                  .map((a) => (
+                    <li key={String(a.id)} className="flex min-w-0 justify-between gap-3" data-testid={`concluir-area-${a.id}`}>
+                      <span className="min-w-0 truncate">{rotuloDaAreaDaAtividade(a)}</span>
+                      <span className="shrink-0 text-[var(--mg-text-2,#475569)]">
+                        {a.status === STATUS_AREA.EM_ANDAMENTO
+                          ? `conclui junto${dataConclusao ? ` em ${formatarDiaAtividade(dataConclusao)}` : ""}`
+                          : "fica não iniciada"}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
           {resumo.falta ? (
             <p
               role="status"

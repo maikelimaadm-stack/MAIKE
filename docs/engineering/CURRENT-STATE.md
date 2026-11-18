@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-LISTA: Lançamento de Atividades, fatia 4 (última) do redesenho — a lista: filtros em pílulas e cards do celular (D-PROD-237)
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADE-AREAS: várias áreas por atividade, cada lançamento datado de uma área (D-PROD-249)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-249**, pedido do proprietário ("nessa atividade são vários pastos que vou fazendo ao decorrer do tempo … cada custo e lançamento é feito para aquela área"); uma atividade com várias áreas, não uma atividade por área |
+| Branch / PR | `feat/atividade-varias-areas`, a partir da `main` `e260a305` (PR #325, D-PROD-237) · PR a abrir |
+| Escopo | Tabela `AtividadeArea` (ciclo PLANEJADA → EM_ANDAMENTO → CONCLUIDA, com as datas) e `AtividadeApontamento.atividade_area_id` com FK composta; rotas da área (adicionar, planejada, iniciar, concluir, reabrir, remover); lançamento só em área em andamento; `por_area` nos totais; "Abrir atividade" com Áreas; card "Áreas da atividade"; janela do tipo presa na área; coluna Área "2 de 5 em andamento" |
+| Migration | `20261118100000_atividade_areas`, **CONTRACT** (CONVERSÃO, sem `DROP`; backfill da área nº 1 das atividades com área), SHA `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06`. Produção 67 → 68; tabelas 96 → 97 |
+| Release | **Não aplicada. `SCHEMA_APPLIED_PROD: NÃO`.** Só com o GO explícito do proprietário, migration antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) (§9 pendente) |
+| Documentos | [contrato](./MAIKE-ATIVIDADE-AREAS-CONTRATO.md) · [relatório](./MAIKE-ATIVIDADE-AREAS-REPORT.md) · [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-LISTA: Lançamento de Atividades, fatia 4 (última) do redesenho — a lista: filtros em pílulas e cards do celular (D-PROD-237)
 
 | Campo | Valor |
 |---|---|

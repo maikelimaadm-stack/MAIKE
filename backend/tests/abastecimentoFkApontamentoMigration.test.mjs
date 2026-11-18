@@ -43,6 +43,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
+import { ateD223, espelhoDoDiaD223, schemaDoDiaD223 } from './diaDaD223.mjs';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -59,7 +60,9 @@ import {
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+// D-PROD-249: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
+const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME = '20261117100000_abastecimento_fk_apontamento_atividade';
@@ -79,7 +82,7 @@ const CHECKSUM_ABASTECIMENTO = '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af7
 /** D-PROD-219: a EXPAND da Medição de Forragem veio depois desta (a 66ª); os testes são "no dia desta", com o espelho do runner. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
 const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
-const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+const PASTAS_HOJE = ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 const PASTAS = Object.freeze(PASTAS_HOJE.filter((n) => n <= NOME));
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME));
 const TOTAL_MIGRATIONS = PASTAS.length;
@@ -158,6 +161,7 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 /** O runner oficial (`npm run deploy:migrate`). `runtime` é a conexão do runtime quando a conferência de alvo é exigida. */
 const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: espelhoDoDiaD223(),
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);

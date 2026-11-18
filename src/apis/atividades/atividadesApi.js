@@ -209,6 +209,55 @@ export const duplicateAtividade = async (id, corpo) => {
   return runProviderCall(() => atividadeNativa.duplicar(id, corpo), { ...contexto, details: { id } });
 };
 
+// ─── Áreas da atividade (D-PROD-249) ─────────────────────────────────────
+
+/**
+ * Mais uma área na atividade ABERTA (entra PLANEJADA). Devolve `{ area, atividade }`.
+ * @param {string} atividadeId @param {{ empresa_id: string, area_id: string, area_planejada?: string|null }} corpo
+ */
+export const addAtividadeArea = async (atividadeId, corpo) => {
+  const contexto = ctxAtividade('addAtividadeArea');
+  assertArgument(isId(atividadeId), 'id', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(isId(corpo.area_id), 'area_id', contexto);
+  return runProviderCall(() => atividadeNativa.adicionarArea(atividadeId, corpo), { ...contexto, details: { id: atividadeId } });
+};
+
+/**
+ * A área planejada de uma área (CAS pela `versao` da área). Devolve `{ area, atividade }`.
+ * @param {string} atividadeId @param {string} areaId @param {{ empresa_id: string, versao: number, area_planejada: string|null }} corpo
+ */
+export const updateAtividadeArea = async (atividadeId, areaId, corpo) => {
+  const contexto = ctxAtividade('updateAtividadeArea');
+  assertArgument(isId(atividadeId), 'id', contexto);
+  assertArgument(isId(areaId), 'area_id', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  return runProviderCall(() => atividadeNativa.editarArea(atividadeId, areaId, corpo), { ...contexto, details: { id: atividadeId } });
+};
+
+/** As ações da área (D-PROD-249). */
+export const ACOES_AREA_ATIVIDADE = Object.freeze(['iniciar', 'concluir', 'reabrir', 'remover']);
+
+/**
+ * Iniciar (PLANEJADA → EM_ANDAMENTO), concluir, reabrir ou remover (só PLANEJADA sem lançamento) uma área, com a `versao`.
+ * Devolve `{ area, atividade }` (remover: `{ removida, atividade }`).
+ * @param {string} atividadeId @param {string} areaId @param {'iniciar'|'concluir'|'reabrir'|'remover'} acao
+ * @param {{ empresa_id: string, versao: number, data_inicio?: string, data_conclusao?: string }} corpo
+ */
+export const actionAtividadeArea = async (atividadeId, areaId, acao, corpo) => {
+  const contexto = ctxAtividade('actionAtividadeArea');
+  assertArgument(isId(atividadeId), 'id', contexto);
+  assertArgument(isId(areaId), 'area_id', contexto);
+  assertArgument(ACOES_AREA_ATIVIDADE.includes(acao), 'acao', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  for (const campo of ['data_inicio', 'data_conclusao']) {
+    if (/** @type {any} */ (corpo)[campo] !== undefined) assertArgument(ehDia(/** @type {any} */ (corpo)[campo]), campo, contexto);
+  }
+  return runProviderCall(() => atividadeNativa.acaoArea(atividadeId, areaId, acao, corpo), { ...contexto, details: { id: atividadeId, acao } });
+};
+
 /**
  * Apontamentos da atividade: `{ items }` (sem paginação; dia desc, turno, sequência).
  * @param {string} atividadeId @param {string} empresaId

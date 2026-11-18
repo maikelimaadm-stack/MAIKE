@@ -387,7 +387,7 @@ describe('totais da atividade com as quatro linhas', () => {
     const t = await s.totais();
     assert.deepEqual(Object.keys(t), [
       'area_executada', 'area_planejada', 'unidade_area', 'produtos', 'maquinas', 'mao_obra', 'servicos', 'combustivel', 'consumo_por_bem', 'custo_total', 'custo_por_ha',
-      'custo_combustivel_por_ha', 'custo_por_tipo', 'litros_combustivel_por_ha',
+      'custo_combustivel_por_ha', 'custo_por_tipo', 'litros_combustivel_por_ha', 'por_area',
     ], 'D-PROD-211: combustível, consumo por bem e custo de combustível/ha; D-PROD-234: custo por tipo e litros por ha');
     // D-PROD-234: a mão de obra sem custo (Pedro) não soma na parcela dela; o total geral é a soma das parcelas.
     assert.deepEqual(t.custo_por_tipo, { maquinas: '80.0000', produtos: '50.0000', mao_obra: '255.0000', servicos: '1500.0000', combustivel: null });

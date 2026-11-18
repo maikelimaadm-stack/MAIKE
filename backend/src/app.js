@@ -41,6 +41,7 @@ import { registrarAtividadeApontamentoProdutoRoutes } from './modules/atividades
 import { registrarAtividadeApontamentoMaquinaRoutes } from './modules/atividades/atividadeApontamentoMaquinaRoutes.js';
 import { registrarAtividadeApontamentoMaoObraRoutes } from './modules/atividades/atividadeApontamentoMaoObraRoutes.js';
 import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades/atividadeApontamentoServicoRoutes.js';
+import { registrarAtividadeAreaRoutes } from './modules/atividades/atividadeAreaRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
 import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoutes.js';
@@ -246,6 +247,8 @@ export const construirApp = async (opcoes = {}) => {
   // D-PROD-207 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.
   await app.register(registrarAtividadeApontamentoMaoObraRoutes);
   await app.register(registrarAtividadeApontamentoServicoRoutes);
+  // D-PROD-249 — as ÁREAS da atividade (várias áreas; iniciar, concluir, reabrir, remover a não iniciada).
+  await app.register(registrarAtividadeAreaRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);

@@ -42,6 +42,7 @@
  *   … --verificar-alvo --contract D-PROD-210 / … --aplicar --contract D-PROD-210   (base do consumo na Formulação: base_consumo, %PV anulável, g_cab_dia e CHECKs, tabelas vazias)
  *   … --verificar-alvo --contract D-PROD-211 / … --aplicar --contract D-PROD-211   (abastecimento ligado à atividade: colunas, backfill, CHECKs e FKs em AbastecimentoBem)
  *   … --verificar-alvo --contract D-PROD-217 / … --aplicar --contract D-PROD-217   (reforço: o apontamento do abastecimento é da atividade dele; UNIQUE e FK de 4 colunas)
+ *   … --verificar-alvo --contract D-PROD-249 / … --aplicar --contract D-PROD-249   (várias áreas por atividade: AtividadeArea, a área do lançamento, backfill e FK de 4 colunas)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';

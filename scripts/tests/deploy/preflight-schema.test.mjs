@@ -73,6 +73,9 @@ const COLUNAS_OK = [
   { table_name: 'AreaPastagem', column_name: 'altura_entrada_cm' },
   { table_name: 'AreaPastagem', column_name: 'altura_saida_cm' },
   { table_name: 'AreaPastagem', column_name: 'dias_descanso' },
+  // D-PROD-249: as áreas da atividade e a área do lançamento.
+  { table_name: 'AtividadeArea', column_name: 'status' },
+  { table_name: 'AtividadeApontamento', column_name: 'atividade_area_id' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -117,6 +120,8 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /AreaPastagem\.altura_entrada_cm/);
   assert.match(r.falhas.join('\n'), /AreaPastagem\.altura_saida_cm/);
   assert.match(r.falhas.join('\n'), /AreaPastagem\.dias_descanso/);
+  assert.match(r.falhas.join('\n'), /AtividadeArea\.status/);
+  assert.match(r.falhas.join('\n'), /AtividadeApontamento\.atividade_area_id/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 

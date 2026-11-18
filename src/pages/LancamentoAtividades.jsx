@@ -19,6 +19,7 @@ import AtividadeAberta from "@/components/lancamento-atividades/AtividadeAberta"
 import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import JanelaLancamentoPorTipo, { LANCAMENTOS_POR_TIPO, lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
+import { areasDaAtividade, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -138,7 +139,8 @@ export const valorDoCampoAtividade = (item, id) => {
   if (id === "nome") return String(item?.nome ?? "");
   if (id === "tipo") return String(item?.tipo_atividade_nome ?? "");
   if (id === "grupo") return String(item?.grupo_atividade_nome ?? "");
-  if (id === "area") return rotuloDaArea(item?.area);
+  // D-PROD-249: a atividade de várias áreas mostra "2 de 5 em andamento"; a de uma área, o nome dela.
+  if (id === "area") return textoDaColunaArea(item);
   if (id === "setor") return rotuloDoSetor(item);
   if (id === "bem") return rotuloDoBem(item?.bem);
   if (id === "safra") return String(item?.safra_ciclo ?? "");
@@ -251,7 +253,7 @@ export default function LancamentoAtividades() {
   const [erroDataConclusao, setErroDataConclusao] = useState(/** @type {string|null} */ (null));
   const [duplicando, setDuplicando] = useState(false);
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
-  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', chave: number } | null} */ (null));
+  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
@@ -301,7 +303,7 @@ export default function LancamentoAtividades() {
     getRecordTitle: (/** @type {any} */ item) => (item?.id ? `Atividade ${textoDoNumero(item)}${item.nome ? ` — ${item.nome}` : ""}` : "Abrir atividade"),
     getRecordCode: (/** @type {any} */ item) => (item?.id && item?.numero != null ? String(item.numero) : undefined),
     getSearchHaystack: (/** @type {any} */ a) =>
-      [a.numero, a.nome, a.tipo_atividade_nome, rotuloDaArea(a.area)].filter((v) => v != null && v !== "").join(" "),
+      [a.numero, a.nome, a.tipo_atividade_nome, rotuloDaArea(a.area), ...areasDaAtividade(a).map(rotuloDaAreaDaAtividade)].filter((v) => v != null && v !== "").join(" "),
     mapSearchSuggestion: (/** @type {any} */ a) => ({
       id: String(a.id),
       label: `Nº ${a.numero ?? ""} — ${a.nome ?? ""}`,
@@ -578,10 +580,12 @@ export default function LancamentoAtividades() {
 
   /**
    * A janela do tipo (D-PROD-233) sobre a atividade: pelo ⚡ da lista (na lista do dia) ou pela tabela dos tipos da
-   * atividade aberta (D-PROD-234: "Inserir" e "+ Lançar" abrem nos Dados).
-   * @param {any} atividade @param {string} tipo @param {'lista'|'dados'} [aba]
+   * atividade aberta (D-PROD-234: "Inserir" e "+ Lançar" abrem nos Dados). D-PROD-249: pelo ⚡ de uma área (card "Áreas da
+   * atividade"), a janela abre FIXA naquela área; sem área, com o seletor das áreas em andamento.
+   * @param {any} atividade @param {string} tipo @param {'lista'|'dados'} [aba] @param {string|null} [areaId]
    */
-  const lancarDoMenu = (atividade, tipo, aba = "lista") => setLancando({ atividade, tipo, aba, chave: Date.now() });
+  const lancarDoMenu = (atividade, tipo, aba = "lista", areaId = null) =>
+    setLancando({ atividade, tipo, aba, areaId: areaId ? String(areaId) : null, chave: Date.now() });
 
   /**
    * Escrita feita na janela por tipo (D-PROD-233): a lista (área executada) e o totalizador se relêem; o cabeçalho
@@ -633,7 +637,7 @@ export default function LancamentoAtividades() {
       rotulo={`Ações da atividade ${textoDoNumero(a)}`.trim()}
       titulo={[a?.numero != null ? `Nº ${a.numero}` : "", String(a?.nome ?? "")].filter(Boolean).join(" · ")}
       // D-PROD-234: o valor total vem da lista (o `custo_total` que o servidor soma por página); sem custo, fica de fora.
-      subtitulo={[String(a?.tipo_atividade_nome ?? ""), rotuloDaArea(a?.area), formatarMoedaAtividade(a?.custo_total)].filter(Boolean).join(" · ")}
+      subtitulo={[String(a?.tipo_atividade_nome ?? ""), textoDaColunaArea(a), formatarMoedaAtividade(a?.custo_total)].filter(Boolean).join(" · ")}
       grupos={gruposDoMenu(a)}
       testId={`atividade-acoes-${a.id}`}
     />
@@ -788,7 +792,13 @@ export default function LancamentoAtividades() {
         <CampoTexto label="Grupo de atividade" value={String(a?.grupo_atividade_nome ?? "")} onChange={semEdicao} readOnly span={6} />
 
         <SecaoForm titulo="Onde e com o quê" />
-        <CampoTexto label="Área" value={rotuloDaArea(a?.area)} onChange={semEdicao} readOnly span={6} />
+        <CampoTexto
+          label={areasDaAtividade(a).length > 1 ? `Áreas (${areasDaAtividade(a).length})` : "Área"}
+          value={areasDaAtividade(a).length > 1 ? areasDaAtividade(a).map(rotuloDaAreaDaAtividade).join(", ") : textoDaColunaArea(a)}
+          onChange={semEdicao}
+          readOnly
+          span={6}
+        />
         <CampoTexto label="Setor (da área)" value={rotuloDoSetor(a)} onChange={semEdicao} readOnly span={6} />
         <CampoTexto label="Máquina" value={rotuloDoBem(a?.bem)} onChange={semEdicao} readOnly span={6} />
         <CampoTexto label="Safra" value={String(a?.safra_ciclo ?? "")} onChange={semEdicao} readOnly span={6} />
@@ -854,7 +864,7 @@ export default function LancamentoAtividades() {
             cabecalho={cabecalhoDaAtividade(registroAberto)}
             avisos={avisosDaAtividade(registroAberto)}
             onAtividadeAtualizada={aoAtualizarAtividade}
-            onLancar={(tipo, aba) => lancarDoMenu(registroAberto, tipo, aba)}
+            onLancar={(tipo, aba, areaId) => lancarDoMenu(registroAberto, tipo, aba, areaId ?? null)}
             onFechar={() => controller.onViewModeChange("table")}
             onConcluir={podeConcluirAberta ? () => abrirDialogo("concluir", registroAberto) : null}
           />
@@ -994,6 +1004,8 @@ export default function LancamentoAtividades() {
             onFechar={() => setLancando(null)}
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
             abaInicial={lancando.aba}
+            areaInicial={lancando.areaId ?? null}
+            areaFixa={Boolean(lancando.areaId)}
           />
         ) : null}
 

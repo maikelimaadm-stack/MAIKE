@@ -92,6 +92,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
+import { ateD223, espelhoDoDiaD223, schemaDoDiaD223 } from './diaDaD223.mjs';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
@@ -99,7 +100,9 @@ import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+// D-PROD-249: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
+const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME_CONTRACT = '20261114100000_cadcurvaganho_mensal';
@@ -139,14 +142,14 @@ const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
 /** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
 const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
 const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
-const POSTERIORES = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort());
+const POSTERIORES = Object.freeze(ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort()));
 /** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
 const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200'], [NOME_PARCEIRO, 'D-PROD-208'], [NOME_TIPO, 'D-PROD-209'], [NOME_BASE, 'D-PROD-210'], [NOME_ABASTECIMENTO, 'D-PROD-211'], [NOME_AREA_CULTURA, 'D-PROD-216'], [NOME_REFORCO, 'D-PROD-217']]);
 /** O que a recusa do runner cita: todas as CONTRACT pendentes menos a autorizada (MIGRATION_CONTRACT_AUTORIZADO). */
 const pendentesSemAutorizacao = (autorizada) =>
   `migration CONTRACT pendente no alvo: ${CONTRACTS_PENDENTES.filter(([, d]) => d !== autorizada).map(([n, d]) => `${n} (${d})`).join(', ')}.`;
 /** Pastas do repositório: a partida (as de nome anterior) e o total depois do GREEN (esta e as posteriores). */
-const TOTAL_MIGRATIONS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+const TOTAL_MIGRATIONS = ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)).length;
 const MIGRATIONS_PARTIDA = TOTAL_MIGRATIONS - 1 - POSTERIORES.length;
 const CONTRACTS_ANTERIORES = Object.freeze(['20261110300000_patrimonio_simplifica', '20261113200000_tipo_tarefa_drop_colunas', '20261113500000_categoria_manejo_cadcategoria']);
 const BANCO = 'maike_ccg_mensal_teste';
@@ -242,6 +245,7 @@ const aplicarMigrationsAnteriores = async (url) => {
 /** O runner oficial (`npm run deploy:migrate`). `runtime` é a conexão do runtime (DATABASE_URL) quando a conferência de alvo é exigida. */
 const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: espelhoDoDiaD223(),
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 const resolverRevertida = (url) => prisma(['migrate', 'resolve', '--rolled-back', NOME_CONTRACT, '--schema', SCHEMA], url);

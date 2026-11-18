@@ -101,9 +101,12 @@ const textoDoCancelamento = (ap, fuso) => {
  *   acoes: AcoesDosLancamentos & Record<string, any>,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   titulo?: string,
+ *   areaFiltro?: string|null,
  * }} props `titulo`: o da seção (D-PROD-234: "Lançamentos por dia", dentro de "Dias lançados" da atividade aberta).
+ *   `areaFiltro` (D-PROD-249): só os lançamentos daquela área da atividade (o "Ver lançamentos da área"); o lançamento
+ *   novo já vem nela.
  */
-export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualizada, titulo = "Lançamentos" }) {
+export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualizada, titulo = "Lançamentos", areaFiltro = null }) {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   const { fuso, semFuso } = useFusoDaFazenda(empresaId);
@@ -129,7 +132,10 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo par do abastecimento.
   const { clienteId } = useAuth();
   const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
-  const itens = useMemo(() => itensDaLista(consulta.data), [consulta.data]);
+  const itens = useMemo(() => {
+    const todos = itensDaLista(consulta.data);
+    return areaFiltro ? todos.filter((a) => String(a?.atividade_area_id ?? "") === String(areaFiltro)) : todos;
+  }, [consulta.data, areaFiltro]);
   const dias = useMemo(() => apontamentosPorDia(itens), [itens]);
   const ultimo = useMemo(() => maisRecenteConfirmado(itens), [itens]);
 
@@ -441,6 +447,7 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
           atividade={atividade}
           apontamento={janela.modo === "editar" ? janela.apontamento : null}
           base={janela.modo === "repetir" ? janela.apontamento : null}
+          areaPadrao={areaFiltro}
           permiteProduto={permiteProduto}
           permiteImplemento={permiteImplemento}
           permiteMaoObra={permiteMaoObra}

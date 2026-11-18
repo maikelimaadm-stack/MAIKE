@@ -94,10 +94,13 @@ import { PrismaClient } from '@prisma/client';
 import { closePrismaClient, getPrismaClient } from '../src/database/prismaClient.js';
 import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
 import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
+import { ateD223, espelhoDoDiaD223, schemaDoDiaD223 } from './diaDaD223.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+// D-PROD-249: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
+const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME_CONTRACT = '20261114500000_atividade_cabecalho';
@@ -112,7 +115,7 @@ const CONTRACTS_ANTERIORES = Object.freeze([
   '20261114200000_cadcategoria_curva_ganho', '20261114300000_tipo_atividade_defaults',
 ]);
 /** Pastas do repositório: a partida é o que vem ANTES desta (produção hoje); o GREEN, todas. */
-const PASTAS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+const PASTAS = ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME_CONTRACT));
 /** D-PROD-198: a EXPAND do peso objetivo, a última que produção concluiu antes desta (o preflight e o envelope a conferem). */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
@@ -255,6 +258,7 @@ const runnerAte216 = (urlMigracao, { runtime, extras = {} } = {}) =>
   });
 const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: espelhoDoDiaD223(),
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 const resolverRevertida = (url) => prisma(['migrate', 'resolve', '--rolled-back', NOME_CONTRACT, '--schema', SCHEMA], url);

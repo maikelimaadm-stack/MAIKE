@@ -27,6 +27,7 @@ import {
   STATUS_CANCELADA,
   STATUS_CANCELADO,
   STATUS_CONCLUIDA,
+  STATUS_CONFIRMADO,
   acoesDaAtividade,
   formatarDiaAtividade,
   mensagemDeErroAtividade,
@@ -77,6 +78,8 @@ import {
   totalDasLinhas,
 } from "@/lib/atividadeLinhasRegras";
 import { listarApontamentos } from "@/services/lancamentoAtividadesService";
+import DialogoAreaDaAtividade from "@/components/lancamento-atividades/DialogoAreaDaAtividade";
+import { STATUS_AREA, areaDaAtividadePorId, areasDaAtividade, areasEmAndamento, rotuloDaAreaDaAtividade, temAreas } from "@/lib/atividadeAreasRegras";
 
 /**
  * Os quatro lançamentos por tipo (D-PROD-232 / D-PROD-233, protótipo do proprietário), cada um com a linha que ele
@@ -236,11 +239,31 @@ function CascaDaAbaDados({ testId, enviando, incerto, podeEnviar, formId, onFech
  *   onFechar: () => void,
  *   onAtividadeAtualizada?: (atividade: any | null) => void,
  *   abaInicial?: 'lista'|'dados',
- * }} props `acoes`: as da tela (`useAcoesTelaAtividades`); `onAtividadeAtualizada`: depois de toda escrita (o cabeçalho com
+ *   areaInicial?: string|null,
+ *   areaFixa?: boolean,
+ * }} props `areaInicial` / `areaFixa` (D-PROD-249, várias áreas por atividade): a área da atividade em que a janela abre
+ *   e se ela fica FIXA (aberta pelo ⚡ da área, no card "Áreas da atividade") ou com o seletor das áreas EM ANDAMENTO
+ *   (aberta pelo ⚡ da lista ou da tabela dos tipos). Na atividade com áreas, a lista mostra os lançamentos do tipo
+ *   naquela área em TODOS os dias (com a coluna Data) e o item salvo entra no dia escolhido daquela área (sem
+ *   lançamento da área no dia, ele nasce com o item). Sem área em andamento, a janela diz como iniciar uma.
+ * Outras props: `acoes`: as da tela (`useAcoesTelaAtividades`); `onAtividadeAtualizada`: depois de toda escrita (o cabeçalho com
  *   os totais recalculados, quando o servidor o devolve) — a tela relê a lista e o totalizador. `abaInicial`: a aba em
  *   que a janela abre (D-PROD-234: "Inserir" / "+ Lançar" da atividade aberta abrem nos Dados; sem poder lançar, a lista).
  */
-export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags, escopo, onFechar, onAtividadeAtualizada = undefined, abaInicial = "lista" }) {
+export default function JanelaLancamentoPorTipo({
+  atividade: atividadeRecebida,
+  tipo,
+  acoes,
+  flags,
+  escopo,
+  onFechar,
+  onAtividadeAtualizada = undefined,
+  abaInicial = "lista",
+  areaInicial = null,
+  areaFixa = false,
+}) {
+  // D-PROD-249: a atividade daqui acompanha o que a janela muda nas áreas (iniciar uma área para lançar).
+  const [atividade, setAtividadeLocal] = useState(atividadeRecebida);
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   const { fuso, hoje } = useFusoDaFazenda(empresaId);
@@ -254,7 +277,14 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
   const aberta = atividade?.status === STATUS_ABERTA;
   const gravavel = Boolean(empresaId) && Boolean(fuso) && aberta;
   const tipoPermitido = !doTipo.flag || flags?.[doTipo.flag] === true;
-  const podeLancar = gravavel && ac.lancarApontamento && tipoPermitido;
+  // ─── D-PROD-249: a área do lançamento ────────────────────────────────
+  const comAreas = temAreas(atividade);
+  const emAndamento = areasEmAndamento(atividade);
+  const [areaId, setAreaId] = useState(() => (areaInicial ? String(areaInicial) : emAndamento.length === 1 ? String(emAndamento[0].id) : ""));
+  const areaEscolhida = comAreas ? areaDaAtividadePorId(atividade, areaId) : null;
+  const areaLanca = !comAreas || areaEscolhida?.status === STATUS_AREA.EM_ANDAMENTO;
+  const [iniciandoArea, setIniciandoArea] = useState(false);
+  const podeLancar = gravavel && ac.lancarApontamento && tipoPermitido && areaLanca;
   const podeEditar = gravavel && ac.editarApontamento;
   const podeCancelar = gravavel && ac.cancelarApontamento;
 
@@ -275,7 +305,12 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
     enabled: Boolean(empresaId && atividadeId && acoes?.ver),
     staleTime: 15 * 1000,
   });
-  const itens = useMemo(() => itensDaLista(consulta.data), [consulta.data]);
+  const todosOsItens = useMemo(() => itensDaLista(consulta.data), [consulta.data]);
+  // D-PROD-249: na atividade com áreas, só os lançamentos da área escolhida.
+  const itens = useMemo(
+    () => (comAreas ? todosOsItens.filter((a) => String(a?.atividade_area_id ?? "") === areaId) : todosOsItens),
+    [todosOsItens, comAreas, areaId],
+  );
   const doDia = useMemo(() => confirmadosDoDia(itens, dia), [itens, dia]);
   const apontamento = doDia.find((a) => String(a.id) === escolhidoId) ?? doDia[0] ?? null;
 
@@ -342,6 +377,7 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
     queryClient.invalidateQueries({ queryKey: chave });
     queryClient.invalidateQueries({ queryKey: chaveTotais(empresaId, atividadeId) });
     onAtividadeAtualizada?.(r.atividade && String(r.atividade.id) === atividadeId ? r.atividade : null);
+    if (r.atividade && String(r.atividade.id) === atividadeId) setAtividadeLocal(r.atividade);
     if (r.apontamento?.id != null) setEscolhidoId(String(r.apontamento.id));
     const diaGravado = formatarDiaAtividade(r.apontamento?.data_operacional);
     notifySuccess("Sucesso", criouDia ? `${texto} O lançamento de ${diaGravado || "hoje"} foi criado com ele.` : texto);
@@ -350,10 +386,10 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
   };
 
   // ─── O dia que ainda não existe: nasce com o primeiro item ────────────
-  const formDoDia = { ...formularioApontamentoVazio(dia), area_executada_dia: areaNova };
+  const formDoDia = { ...formularioApontamentoVazio(dia), area_executada_dia: areaNova, atividade_area_id: comAreas ? areaId : "" };
   const errosDoDiaAgora = validarFormularioApontamento(formDoDia, { hoje });
   const areaPrevia = errosDoDiaAgora.area_executada_dia ? null : corpoDoApontamento(formDoDia).area_executada_dia;
-  const idsAntes = useMemo(() => new Set(itens.map((a) => String(a?.id))), [itens]);
+  const idsAntes = useMemo(() => new Set(todosOsItens.map((a) => String(a?.id))), [todosOsItens]);
   /** @type {import("@/components/lancamento-atividades/JanelasDaLinha").NovoDia | null} */
   const novoDia = apontamento
     ? null
@@ -389,17 +425,27 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
     setChaveDados((k) => k + 1);
   };
 
-  // ─── Lista do tipo no dia ────────────────────────────────────────────
-  const todas = apontamento ? linhasDoTipo(apontamento, tipo) : [];
+  // ─── Lista do tipo: na atividade com ÁREAS (D-PROD-249), TODOS os dias da área, com a coluna Data; na sem área, o dia
+  // escolhido (como na D-PROD-233) ─────
+  const apontamentosDaLista = useMemo(
+    () =>
+      (comAreas ? itens : apontamento ? [apontamento] : [])
+        .filter((a) => a && a.status === STATUS_CONFIRMADO)
+        .slice()
+        .sort((a, b) => String(b.data_operacional ?? "").localeCompare(String(a.data_operacional ?? "")) || (Number(b.sequencia) || 0) - (Number(a.sequencia) || 0)),
+    [itens, comAreas, apontamento],
+  );
+  const todasComDia = apontamentosDaLista.flatMap((ap) => linhasDoTipo(ap, tipo).map((/** @type {any} */ l) => ({ l, ap })));
+  const todas = todasComDia.map((x) => x.l);
   const confirmadas = todas.filter((l) => statusDaLinha(l) !== STATUS_CANCELADO);
   const canceladas = todas.filter((l) => statusDaLinha(l) === STATUS_CANCELADO);
-  const visiveis = mostrarCanceladas ? todas : confirmadas;
+  const visiveis = mostrarCanceladas ? todasComDia : todasComDia.filter((x) => statusDaLinha(x.l) !== STATUS_CANCELADO);
   const total = totalDasLinhas(todas, tipo);
   const colunas = COLUNAS[tipo] ?? COLUNAS[LINHA_MAQUINA];
-  const linhasEditaveis = apontamento && (podeEditar || podeCancelar);
+  const linhasEditaveis = podeEditar || podeCancelar;
 
-  /** O ⚡ de uma linha: Editar e Cancelar (o que a permissão deixa). @param {any} l */
-  const acoesDaLinha = (l) => {
+  /** O ⚡ de uma linha: Editar e Cancelar (o que a permissão deixa). @param {any} l @param {any} apontamento */
+  const acoesDaLinha = (l, apontamento) => {
     if (!linhasEditaveis || statusDaLinha(l) === STATUS_CANCELADO) return null;
     const id = String(l.id);
     const grupos = [
@@ -415,10 +461,11 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
 
   // ─── Cabeçalho ───────────────────────────────────────────────────────
   const areaDoDia = apontamento ? formatarDecimalLinha(apontamento.area_executada_dia) : "";
+  const nomeDaAreaDaJanela = comAreas ? (areaEscolhida ? rotuloDaAreaDaAtividade(areaEscolhida) : "") : rotuloDaArea(atividade?.area);
   const subtitulo = [
     atividade?.numero != null ? `Atividade Nº ${atividade.numero}` : "Atividade",
     String(atividade?.tipo_atividade_nome ?? ""),
-    rotuloDaArea(atividade?.area) ? `Talhão: ${rotuloDaArea(atividade.area)}` : "",
+    nomeDaAreaDaJanela ? `Área: ${nomeDaAreaDaJanela}` : "",
     dia ? `Lançamento de ${formatarDiaAtividade(dia)}` : "",
     areaDoDia ? `${areaDoDia} ha` : "",
   ]
@@ -433,9 +480,46 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
   else if (aberta && !fuso && empresaId) avisoStatus = "Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de lançar: o servidor recusa sem ele.";
   else if (aberta && !tipoPermitido) avisoStatus = `O tipo desta atividade não permite mais ${doTipo.rotulo.toLowerCase()}: o que já foi lançado fica para consulta.`;
 
+  // D-PROD-249: a área da janela — fixa (aberta pela área) ou o seletor das EM ANDAMENTO; sem nenhuma, como iniciar uma.
+  const planejadas = areasDaAtividade(atividade).filter((a) => a.status === STATUS_AREA.PLANEJADA);
+  const podeIniciarArea = aberta && acoes?.editar === true;
+  const seletorDaArea = !comAreas ? null : areaFixa && areaEscolhida ? (
+    <div className="col-span-12 sm:col-span-4">
+      <ValorCalculado label="Área" valor={rotuloDaAreaDaAtividade(areaEscolhida)} span={12} testId="janela-tipo-area" />
+    </div>
+  ) : emAndamento.length ? (
+    <CampoSelect
+      label="Área"
+      value={areaId}
+      onChange={(v) => {
+        setAreaId(v || "");
+        setEscolhidoId(null);
+        setErrosDia({});
+      }}
+      options={emAndamento.map((a) => ({ value: String(a.id), label: rotuloDaAreaDaAtividade(a) }))}
+      placeholder="Escolha a área em andamento"
+      required
+      span={4}
+    />
+  ) : null;
+  const semAreaEmAndamento = comAreas && aberta && !emAndamento.length;
+
   const cabecalho = (
     <div className="b1-tipo-cab" data-testid="janela-tipo-dia">
+      {semAreaEmAndamento ? (
+        <AvisoGestao tone="blue" testId="janela-tipo-sem-area">
+          Nenhuma área em andamento — inicie uma área para lançar.{" "}
+          {podeIniciarArea && planejadas.length ? (
+            <button type="button" className="underline" onClick={() => setIniciandoArea(true)} data-testid="janela-tipo-iniciar-area">
+              Iniciar uma área
+            </button>
+          ) : (
+            "As concluídas voltam pelo Reabrir área, no card Áreas da atividade."
+          )}
+        </AvisoGestao>
+      ) : null}
       <div className="b1 mg-b1-form-grid" data-densidade={DENSIDADE_BASE1}>
+        {seletorDaArea}
         <div className="b1-tipo-cab__dia col-span-12 sm:col-span-5">
           <button
             type="button"
@@ -553,7 +637,13 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
         </AvisoGestao>
       ) : !visiveis.length ? (
         <AvisoGestao tone="blue" testId="janela-tipo-vazio">
-          {podeLancar ? "Nenhum registro neste lançamento. Clique em Inserir." : "Nenhum registro neste lançamento."}
+          {comAreas && !areaEscolhida
+            ? "Escolha a área para ver os lançamentos dela."
+            : comAreas
+              ? `Nenhum lançamento de ${doTipo.rotulo.toLowerCase()} nesta área.${podeLancar ? " Clique em Inserir." : ""}`
+              : podeLancar
+                ? "Nenhum registro neste lançamento. Clique em Inserir."
+                : "Nenhum registro neste lançamento."}
         </AvisoGestao>
       ) : (
         <div className="b1-tipo-tabela__rolagem">
@@ -563,6 +653,7 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
                 <th scope="col" className="b1-tipo-tabela__acoes">
                   Ações
                 </th>
+                {comAreas ? <th scope="col">Data</th> : null}
                 {colunas.map((c) => (
                   <th key={c.id} scope="col" className={c.numero ? "is-numero" : undefined}>
                     {c.rotulo}
@@ -571,15 +662,16 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
               </tr>
             </thead>
             <tbody>
-              {visiveis.map((l) => {
+              {visiveis.map(({ l, ap }) => {
                 const id = String(l.id);
                 const cancelada = statusDaLinha(l) === STATUS_CANCELADO;
                 return (
                   <tr key={id} className={cancelada ? "is-cancelada" : undefined} data-testid={`linha-tipo-${id}`} data-status={statusDaLinha(l)}>
-                    <td className="b1-tipo-tabela__acoes">{acoesDaLinha(l)}</td>
+                    <td className="b1-tipo-tabela__acoes">{acoesDaLinha(l, ap)}</td>
+                    {comAreas ? <td data-testid={`linha-tipo-${id}-data`}>{formatarDiaAtividade(ap?.data_operacional)}</td> : null}
                     {colunas.map((c, i) => (
                       <td key={c.id} className={[c.numero ? "is-numero" : "", i === 0 ? "is-nome" : ""].filter(Boolean).join(" ") || undefined} data-testid={`linha-tipo-${id}-${c.id}`}>
-                        {c.valor(l, apontamento)}
+                        {c.valor(l, ap)}
                       </td>
                     ))}
                   </tr>
@@ -589,7 +681,7 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
             <tfoot>
               <tr data-testid="janela-tipo-total">
                 <td />
-                <td colSpan={colunas.length - 1}>Total</td>
+                <td colSpan={comAreas ? colunas.length : colunas.length - 1}>Total</td>
                 <td className="is-numero" data-testid="janela-tipo-total-valor">
                   {formatarCustoLinha(total) || "—"}
                 </td>
@@ -731,6 +823,22 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
       </MobileSheetPortalCtx.Provider>
 
       {janelaEdicao}
+      {iniciandoArea ? (
+        <DialogoAreaDaAtividade
+          modo="iniciar"
+          atividade={atividade}
+          escolher={planejadas}
+          onFechar={() => setIniciandoArea(false)}
+          onFeito={(r) => {
+            setIniciandoArea(false);
+            if (r?.atividade) {
+              setAtividadeLocal(r.atividade);
+              onAtividadeAtualizada?.(r.atividade);
+            }
+            if (r?.area?.id) setAreaId(String(r.area.id));
+          }}
+        />
+      ) : null}
       {cancelando ? (
         <DialogoCancelarLinha
           key={`cancelar-linha-${cancelando.linha.id}`}

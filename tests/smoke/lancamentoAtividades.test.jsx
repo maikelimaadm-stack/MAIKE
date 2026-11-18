@@ -358,7 +358,8 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
   if (partes.length === 1 && method === "POST") {
     proximoId += 1;
     const tipo = TIPOS.find((t) => t.id === body.tipo_atividade_id);
-    const area = AREAS.find((a) => a.id === body.area_id) ?? null;
+    // D-PROD-249: a abertura nova manda `areas[]` (a 1ª é a área do cabeçalho, como no servidor).
+    const area = AREAS.find((a) => a.id === (body.area_id ?? body.areas?.[0]?.area_id)) ?? null;
     const nova = {
       ...ATV_A1,
       id: `n${proximoId}`,
@@ -960,7 +961,7 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
 
     // Herdados do tipo e da área: travados (só leitura), nunca digitados.
     const campo = (/** @type {string} */ rotulo) => /** @type {HTMLInputElement} */ (within(form).getByLabelText(rotulo));
-    for (const rotulo of ["Grupo de atividade", "Centro de custo", "Centro de resultado", "Unidade de produção", "Setor (da área)"]) {
+    for (const rotulo of ["Grupo de atividade", "Centro de custo", "Centro de resultado", "Unidade de produção"]) {
       expect(campo(rotulo), rotulo).toHaveAttribute("readonly");
     }
     expect(campo("Grupo de atividade").value).toBe("PASTAGEM");
@@ -968,22 +969,23 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     expect(campo("Centro de resultado").value).toBe("Sem centro de resultado");
     expect(campo("Unidade de produção").value).toBe("SC — Saco");
     expect(screen.getByTestId("atividade-heranca")).toHaveTextContent("O centro de resultado padrão do tipo é de outra fazenda");
-    // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não.
-    expect(marcadoObrigatorio(form, "Área")).toBe(true);
+    // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não. D-PROD-249: a área é a lista "Áreas".
+    expect(within(form).getByTestId("areas-abertura")).toHaveTextContent(/Áreas\s*\*/);
     expect(marcadoObrigatorio(form, "Máquina")).toBe(true);
     expect(marcadoObrigatorio(form, "Safra")).toBe(false);
 
     fireEvent.change(within(form).getByLabelText(/^Nome da atividade/), { target: { value: "Cigarrinha Pasto 09" } });
     fireEvent.submit(form);
-    expect(await within(form).findByText("O tipo APLICAÇÃO exige a área.")).toBeTruthy();
+    expect(await within(form).findByText("O tipo APLICAÇÃO exige ao menos uma área.")).toBeTruthy();
     expect(within(form).getByText("O tipo APLICAÇÃO exige a máquina.")).toBeTruthy();
     expect(escritas()).toEqual([]);
 
-    await escolherNoCombo(form, "Área", /01 — Pasto 01/i);
-    expect(campo("Setor (da área)").value).toBe("SETOR NORTE");
+    // D-PROD-249: marcar a área a põe na lista abaixo (Área · Setor · Tamanho · Área planejada · ✕).
+    fireEvent.click(within(form).getByTestId("areas-abertura-opcao-ar1"));
+    expect(within(form).getByTestId("areas-abertura-linha-ar1")).toHaveTextContent("SETOR NORTE");
     await escolherNoSeletor(form, "atividade-maquina", /TP-02 — Trator/);
     expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/bens")?.query).toMatchObject({ empresa_id: "emp-1" });
-    fireEvent.change(within(form).getByTestId("atividade-area-planejada"), { target: { value: "12,5" } });
+    fireEvent.change(within(form).getByTestId("areas-abertura-planejada-ar1"), { target: { value: "12,5" } });
     fireEvent.submit(form);
     await waitFor(() => expect(escritas()).toHaveLength(1));
     const { method, path, body } = ultimaEscrita();
@@ -993,12 +995,11 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
       empresa_id: "emp-1",
       tipo_atividade_id: "t1",
       nome: "Cigarrinha Pasto 09",
-      area_id: "ar1",
       bem_id: "b1",
       data_inicio: HOJE,
-      area_planejada: "12.5",
+      areas: [{ area_id: "ar1", area_planejada: "12.5" }],
     });
-    expect(typeof body.area_planejada).toBe("string");
+    expect(typeof body.areas[0].area_planejada).toBe("string");
     // A atividade aberta aparece só leitura, com o que o servidor herdou.
     const cabecalho = await screen.findByTestId("atividade-cabecalho");
     expect(within(cabecalho).getByTestId("atividade-numero")).toHaveTextContent("9");
@@ -1216,7 +1217,7 @@ describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVA
       http: Number(m[2]),
     }));
 
-  it("LA-ERRO-1 — paridade: os 14 ATIVIDADE_* do servidor (9 da Fatia 2 + 5 das linhas, D-PROD-202) estão no catálogo do cliente e no transporte, com mensagem própria", () => {
+  it("LA-ERRO-1 — paridade: os 16 ATIVIDADE_* do servidor (9 da Fatia 2 + 5 das linhas, D-PROD-202, + 2 das áreas, D-PROD-249) estão no catálogo do cliente e no transporte, com mensagem própria", () => {
     const servidor = codigosDoServidor();
     expect(servidor.map((c) => c.code).sort()).toEqual(
       [
@@ -1235,6 +1236,9 @@ describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVA
         "ATIVIDADE_SALTO_MEDIDOR",
         "ATIVIDADE_ESTORNO_BLOQUEADO",
         "ATIVIDADE_DATA_COM_LINHAS",
+        // D-PROD-249 — várias áreas por atividade.
+        "ATIVIDADE_AREA_NOT_FOUND",
+        "ATIVIDADE_AREA_COM_LANCAMENTOS",
       ].sort(),
     );
     const cliente = Object.keys(API_ERROR_CODES).filter((c) => c.startsWith("ATIVIDADE_"));
@@ -1721,7 +1725,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     fireEvent.click(screen.getByRole("menuitem", { name: "Trabalho de máquinas" }));
     const janela = await screen.findByTestId("janela-tipo");
     expect(within(janela).getByRole("heading", { name: "Trabalho de máquinas" })).toBeTruthy();
-    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Atividade Nº 3 · APLICAÇÃO · Talhão: 01 — Pasto 01 · Lançamento de 14/11/2026");
+    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Atividade Nº 3 · APLICAÇÃO · Área: 01 — Pasto 01 · Lançamento de 14/11/2026");
     expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
     // Hoje não tem lançamento: a lista vazia e a regra do dia (o primeiro item cria o lançamento).
     await waitFor(() => expect(within(janela).getByTestId("janela-tipo-dia-novo")).toHaveTextContent("o primeiro item salvo cria o lançamento do dia"));
