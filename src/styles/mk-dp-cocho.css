@@ -210,19 +210,3 @@
   margin: 0;
   padding: 0;
 }
-
-@media (max-width: 767px) {
-  .mk-dp-cocho .mk-dp__rodape .mk-dp-pilula {
-    flex-direction: column;
-    height: auto;
-    min-height: 52px;
-    gap: 3px;
-    padding: 6px 2px;
-    font-size: 11.5px;
-  }
-
-  .mk-dp-cocho .mk-dp__rodape .mk-dp-pilula > span {
-    overflow: visible;
-    text-overflow: clip;
-  }
-}

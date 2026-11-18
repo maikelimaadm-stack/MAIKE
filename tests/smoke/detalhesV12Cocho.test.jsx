@@ -141,7 +141,7 @@ const noDialogo = async (ponto, { permissions = {}, subtitulo, subtituloDoPonto 
   return { ...r, fechou: () => fechou };
 };
 const carregado = async () => {
-  await screen.findByText('Informações do cocho');
+  await screen.findByRole('region', { name: 'Nível do cocho' });
   await act(async () => {});
 };
 const tituloDoDialogo = () => document.querySelector('.mk-ll-dlg__titulo')?.textContent;
@@ -176,7 +176,7 @@ describe('CV-1 — casca v12', () => {
     await noDialogo(cocho());
     await carregado();
     const corpo = /** @type {HTMLElement} */ (raiz().querySelector('.mk-dp__corpo'));
-    expect(corpo.querySelectorAll('[class]').length).toBeGreaterThan(50);
+    expect(corpo.querySelectorAll('[class]').length).toBeGreaterThan(25);
     expect(corpo.querySelector('[data-testid="ultimo-periodo-fechado"]')).toBeNull(); // o ícone do desvio (período fechado) está lá
     const foraDoV12 = [...corpo.querySelectorAll('[class]')]
       .filter((el) => !el.closest('[role="img"]') && !(el.tagName.toLowerCase() === 'svg' && el.closest('.mk-dp-cel__val')) && !el.closest('svg.lucide'))
@@ -186,19 +186,21 @@ describe('CV-1 — casca v12', () => {
   });
 });
 
-describe('CV-2 — seções na ordem do v12', () => {
-  it('nível, leitura, último período fechado, total fornecido, último registro e informações', async () => {
+describe('CV-2 — abas e seções na ordem do v12', () => {
+  it('abas Detalhes · Fechamentos · Informações · Histórico; na aba Detalhes, nível e leitura', async () => {
     await noDialogo(cocho());
     await carregado();
+    const abas = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(abas).toEqual(['Detalhes', 'Fechamentos', 'Informações', 'Histórico']);
     const titulos = [...raiz().querySelectorAll('h3')].map((h) => h.textContent);
-    expect(titulos).toEqual(['Nível do cocho', 'Leitura do cocho', 'Informações do cocho']);
+    expect(titulos).toEqual(['Nível do cocho', 'Estimativas de consumo', 'Leitura do cocho']);
     // O título do nível existe só para o leitor de tela (o v12 não mostra título acima do nível).
     expect(secaoNivel().querySelector('h3')?.className).toBe('mk-dp-cocho__oculto');
   });
 });
 
 describe('CV-3 — bloco do nível', () => {
-  it('subícone do cocho (sem a bolinha do mapa) como figura acessível; percentual uma vez no valor; neutro com o estado', async () => {
+  it('subícone do cocho (sem a bolinha do mapa) como figura acessível; percentual dentro do ícone; neutro com o estado', async () => {
     await noDialogo(cocho());
     await carregado();
     // Dia 2 de 200 kg a 50 kg/dia: 100 kg (50%).
@@ -215,30 +217,28 @@ describe('CV-3 — bloco do nível', () => {
     expect(img.querySelector('[data-cocho-nivel]')?.getAttribute('data-cocho-nivel')).toBe('50');
     expect(img.querySelector('[data-cocho-nivel]')?.getAttribute('fill')).toBe(COCHO_APARENCIA.subicone.sal);
     expect(img.closest('.mk-dp-nivel__fig')).toBeTruthy();
-    const valor = /** @type {HTMLElement} */ (secaoNivel().querySelector('.mk-dp-nivel__val'));
+    const valor = /** @type {HTMLElement} */ (secaoNivel().querySelector('.mk-dp-cocho__pct'));
     expect(valor.textContent).toBe('50%');
-    // O rótulo e o valor visíveis repetem o nome do `role="img"`: ficam fora da árvore acessível.
+    // O percentual visível fica fora da árvore acessível (o `role="img"` já anuncia o valor).
     expect(valor.getAttribute('aria-hidden')).toBe('true');
-    expect(secaoNivel().querySelector('.mk-dp-nivel__rot')?.getAttribute('aria-hidden')).toBe('true');
-    expect(within(secaoNivel()).getByText('Base do ciclo: 200 kg').className).toBe('mk-dp-nivel__linha');
-    expect(within(secaoNivel()).getByText(/^No dia do abastecimento, mantém o total disponível/)).toBeTruthy();
-    // Cartão do nível: medidor do limite e os números do SSOT numa grade.
-    const medidor = within(secaoNivel()).getByRole('meter', { name: 'Uso do limite operacional' });
-    expect(medidor.closest('dl.mk-dp-grade')).toBeTruthy();
-    expect(valorDe(secaoNivel(), 'Saldo estimado')).toBe('100 kg');
+    expect(within(secaoNivel()).queryByText(/Base do ciclo:/)).toBeNull();
+    expect(within(secaoNivel()).queryByText(/%PV no lançamento/)).toBeNull();
+    // Cartão de nível: saldo estimado do cocho (com sacos) e consumo estimado/dia (com sacos/dia);
+    // cartão de estimativas de consumo: duração estimada e próxima reposição.
+    expect(valorDe(secaoNivel(), 'Saldo estimado do cocho')).toBe('100 kg');
+    expect(within(secaoNivel()).getByText('4,00 sacos')).toBeTruthy();
+    expect(valorDe(secaoNivel(), 'Consumo estimado/dia')).toBe('50 kg/dia');
+    expect(within(secaoNivel()).getByText('2,00 sacos/dia')).toBeTruthy();
     expect(valorDe(secaoNivel(), 'Duração estimada')).toBe('4 dia(s)');
     expect(valorDe(secaoNivel(), 'Próxima reposição')).toBe('14/11/2026');
-    // O lado a lado do popup (D-PROD-224) e o cartão de três números (D-PROD-226) contam com esta
-    // marcação: na região, o título oculto, o nível e o cartão do limite como filhos diretos; na
-    // grade do cartão, o medidor e as três células dos números.
     const [tituloOculto, nivelEl, cartaoEl, ...outros] = [...secaoNivel().children];
     expect(secaoNivel().classList.contains('mk-dp-cocho__regiao')).toBe(true);
     expect(outros).toHaveLength(0);
     expect(tituloOculto.classList.contains('mk-dp-cocho__oculto')).toBe(true);
     expect(nivelEl.classList.contains('mk-dp-cocho__nivel')).toBe(true);
     expect(cartaoEl.classList.contains('mk-dp-cocho__cartao-nivel')).toBe(true);
-    const celulas = [...cartaoEl.querySelectorAll(':scope > .mk-dp-grade > .mk-dp-cel')];
-    expect(celulas.map((c) => c.classList.contains('mk-dp-medidor'))).toEqual([true, false, false, false]);
+    const celulas = [...cartaoEl.querySelectorAll('.mk-dp-grade > .mk-dp-cel > dt')].map((dt) => dt.textContent);
+    expect(celulas).toEqual(['Duração estimada', 'Próxima reposição']);
     cleanup();
 
     dados.cache.eventosSuplementacao = [];
@@ -246,22 +246,22 @@ describe('CV-3 — bloco do nível', () => {
     await carregado();
     expect(within(secaoNivel()).getByRole('img').getAttribute('aria-label')).toBe('Restante do ciclo (estimado): Sem lançamento');
     expect(secaoNivel().querySelector('.mk-dp-nivel')?.classList.contains('mk-dp-cocho__nivel--neutro')).toBe(true);
-    expect(secaoNivel().querySelector('.mk-dp-nivel__val')?.textContent).toBe('Sem lançamento');
+    expect(secaoNivel().querySelector('.mk-dp-cocho__pct')?.textContent).toBe('Sem lançamento');
     expect(within(secaoNivel()).getByText('Nenhum lançamento registrado neste cocho.')).toBeTruthy();
   });
 });
 
 describe('CV-4 — rodapé de pílulas', () => {
-  it('Lançar · Leitura · Histórico pelas permissões de hoje; sem nenhuma, sem rodapé', async () => {
+  it('Lançar · Leitura pelas permissões de hoje; sem nenhuma, sem rodapé', async () => {
     await noDialogo(cocho());
     await carregado();
-    expect(pilulas()).toEqual(['Lançar', 'Leitura', 'Fechamentos', 'Histórico']);
-    expect(raiz().querySelectorAll('.mk-dp__rodape .mk-dp-pilula svg')).toHaveLength(4);
+    expect(pilulas()).toEqual(['Lançar', 'Leitura']);
+    expect(raiz().querySelectorAll('.mk-dp__rodape .mk-dp-pilula svg')).toHaveLength(2);
     cleanup();
 
     await noDialogo(cocho(), { permissions: { lancar_suplementacao: false } });
     await carregado();
-    expect(pilulas()).toEqual(['Fechamentos', 'Histórico']);
+    expect(pilulas()).toEqual([]);
     cleanup();
 
     await noDialogo(cocho(), { permissions: { visualizar_historico_cocho: false } });
@@ -275,7 +275,7 @@ describe('CV-4 — rodapé de pílulas', () => {
     expect(raiz().querySelector('.mk-dp__rodape')?.childElementCount).toBe(0);
   });
 
-  it('as pílulas abrem o lançamento, a leitura e o histórico de hoje', async () => {
+  it('as pílulas abrem o lançamento e a leitura de hoje; aba Histórico mostra o histórico completo', async () => {
     await noDialogo(cocho());
     await carregado();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Lançar' })); });
@@ -296,9 +296,9 @@ describe('CV-4 — rodapé de pílulas', () => {
 
     await noDialogo(cocho());
     await carregado();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Histórico' })); });
-    expect(await screen.findByText('Histórico completo: COCHO 07')).toBeTruthy();
-    expect(screen.getByRole('dialog', { name: 'Histórico de Suplementação', description: 'COCHO 07' })).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Histórico' })); });
+    expect(screen.getByRole('button', { name: 'Mostrar: Todos os registros' })).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Lançamentos do cocho' })).toBeTruthy();
   });
 });
 
@@ -319,7 +319,7 @@ describe('CV-5 — leitura do cocho', () => {
     expect(/** @type {HTMLElement} */ (linhaFarol.querySelector('.mk-dp-bolinha')).style.background).toBeTruthy();
 
     expect(within(secao).queryByRole('list')).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Histórico' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Histórico' })); });
     const itens = within(screen.getByRole('list', { name: 'Últimas leituras' })).getAllByRole('listitem');
     expect(itens).toHaveLength(2);
     expect(within(itens[0]).getByText('12/11/2026')).toBeTruthy();
@@ -330,12 +330,8 @@ describe('CV-5 — leitura do cocho', () => {
     // A bolinha de cada leitura é a cor do escore (CHEIO = azul).
     expect(/** @type {HTMLElement} */ (itens[1].querySelector('.mk-dp-bolinha')).style.background).toBe('rgb(37, 99, 235)');
     expect(COR_FAROL.azul).toBe('#2563eb');
-
-    // Avisos: abaixo do cartão, ainda dentro da região.
-    const avisos = within(secao).getAllByTestId('aviso-leitura-cocho');
-    expect(avisos.map((a) => a.textContent)).toEqual(['Acesso ruim ao cocho (leitura de 12/11/2026)', 'Estrutura precisa de reparo (leitura de 12/11/2026)']);
-    expect(avisos[0].className).toContain('mk-dp-aviso--atencao');
-    expect(avisos[0].previousElementSibling?.classList.contains('mk-dp-cartao')).toBe(true);
+    // Sem faixas de aviso repetidas abaixo do cartão (a informação já aparece na linha do farol).
+    expect(within(secao).queryAllByTestId('aviso-leitura-cocho')).toHaveLength(0);
   });
 
   it('sem leitura: "Sem leitura recente" cinza e "Nenhuma leitura registrada."; sem permissão, sem Excluir', async () => {
@@ -363,71 +359,81 @@ describe('CV-6 — último período fechado', () => {
     await noDialogo(cocho());
     await carregado();
     expect(screen.queryByTestId('ultimo-periodo-fechado')).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Fechamentos' })); });
     const cartao = screen.getByTestId('ultimo-periodo-fechado');
     expect(cartao.className).toContain('mk-dp-cartao');
     const rotulos = [...cartao.querySelectorAll('dt')].map((dt) => dt.textContent);
-    expect(rotulos.slice(0, 4)).toEqual(['Produto', 'Lançamento', '%PV real × esperado', 'Custo por cab/dia (R$)']);
-    expect(rotulos.slice(4)).toEqual(['Consumo g/cab/dia', '% do esperado', 'Peso médio do período', 'Custo do período', 'Sobra antiga primeiro']);
+    expect(rotulos).toEqual([
+      'Produto',
+      'Lançamento',
+      'Consumo real',
+      'Consumo esperado',
+      'Desvio',
+      'Peso médio do período',
+      'Custo por cab/dia (R$)',
+      'Custo do período',
+      'Sobra antiga primeiro',
+    ]);
     expect(valorDe(cartao, 'Produto')).toBe('SAL MINERAL 80');
     expect(valorDe(cartao, 'Lançamento')).toBe('27/10/2026 · 13 dia(s)');
-    expect(valorDe(cartao, '%PV real × esperado')).toBe('0,034% × 0,035%');
+    expect(valorDe(cartao, 'Consumo real')).toBe('75 g');
+    expect(valorDe(cartao, 'Consumo esperado')).toBe('500 g');
     const farol = within(cartao).getByTestId('farol-consumo');
-    expect(farol.textContent).toBe('dentro da faixa da formulação (±20%)');
+    expect(farol.textContent).toBe('Dentro (-1%)');
     expect(farol.getAttribute('data-farol')).toBe('dentro');
-    const bolinha = /** @type {HTMLElement} */ (within(cartao).getByText('%PV real × esperado').parentElement?.querySelector('.mk-dp-bolinha'));
+    const bolinha = /** @type {HTMLElement} */ (within(cartao).getByText('Desvio').parentElement?.querySelector('.mk-dp-bolinha'));
     expect(bolinha.style.background).toBe('rgb(22, 163, 74)');
     expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('0,21');
-    expect(valorDe(cartao, 'Consumo g/cab/dia')).toBe('75 g');
-    expect(valorDe(cartao, '% do esperado')).toBe('99%');
     expect(within(cartao).getByTestId('peso-medio-periodo').textContent).toBe('Peso médio do período217 kgaproximado: sem os lotes do período');
     expect(valorDe(cartao, 'Custo do período')).toMatch(/^R\$\s273,00 · R\$\s0,70\/kg$/);
     expect(within(cartao).getByTestId('custo-sobra-herdada').textContent).toMatch(/^Sobra antiga primeiro20,00 kg a R\$\s0,60\/kgcusto da sobra aproximado$/);
     expect(within(cartao).getByTestId('fechamento-aproximado').textContent).toBe('Aproximado — sobra não informada');
   });
 
-  it('base g/cab/dia (D-PROD-210): a comparação em gramas e o %PV real só como informação; sem período: "Nenhum período fechado ainda."', async () => {
+  it('base g/cab/dia (D-PROD-210): consumo real e esperado em g/kg; sem período: "Nenhum período fechado ainda."', async () => {
     dados.cache.eventosSuplementacao = [
-      fechado({ base_consumo: 'G_CAB_DIA', base_consumo_aplicada: 'G_CAB_DIA', consumo_esperado_g_cab_dia: 80, consumo_esperado_pv_percentual: null, farol_consumo: 'abaixo', faixa_tolerancia_aplicada: 15, custo_cab_dia: null, custo_total_periodo: null }),
+      fechado({ base_consumo: 'G_CAB_DIA', base_consumo_aplicada: 'G_CAB_DIA', consumo_esperado_g_cab_dia: 80, consumo_esperado_pv_percentual: null, farol_consumo: 'abaixo', consumo_relacao_esperado: 0.94, faixa_tolerancia_aplicada: 15, custo_cab_dia: null, custo_total_periodo: null }),
       evento('e-aberto'),
     ];
     await noDialogo(cocho());
     await carregado();
     expect(screen.queryByTestId('ultimo-periodo-fechado')).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Fechamentos' })); });
     const cartao = screen.getByTestId('ultimo-periodo-fechado');
-    expect(valorDe(cartao, 'g/cab/dia real × meta')).toBe('75 g × 80 g');
-    expect(valorDe(cartao, '%PV real (informação)')).toBe('0,034%');
-    expect(within(cartao).getByTestId('farol-consumo').textContent).toBe('abaixo da faixa da formulação (±15%)');
+    expect(valorDe(cartao, 'Consumo real')).toBe('75 g');
+    expect(valorDe(cartao, 'Consumo esperado')).toBe('80 g');
+    expect(within(cartao).getByTestId('farol-consumo').textContent).toBe('Abaixo (-6%)');
     expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('Sem custo');
     expect(valorDe(cartao, 'Custo do período')).toBe('Sem custo');
-    expect(within(cartao).queryByText('%PV real × esperado')).toBeNull();
+    expect(within(cartao).queryByText(/%PV/)).toBeNull();
     cleanup();
 
     dados.cache.eventosSuplementacao = [evento('e-aberto')];
     await noDialogo(cocho());
     await carregado();
     expect(screen.queryByTestId('ultimo-periodo-fechado')).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Fechamentos' })); });
     expect(screen.queryByTestId('ultimo-periodo-fechado')).toBeNull();
     expect(screen.getByText('Nenhum período fechado ainda.').closest('.mk-dp-vazio')).toBeTruthy();
   });
 });
 
-describe('CV-7 — histórico fora do resumo', () => {
-  it('cadastro permanece no resumo; total fornecido só no Histórico', async () => {
+describe('CV-7 — cadastro na aba Informações e total fornecido na aba Histórico', () => {
+  it('cadastro na aba Informações; total fornecido na aba Histórico', async () => {
     await noDialogo(cocho());
     await carregado();
     expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Total fornecido por produto' })).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Informações' })); });
     const info = screen.getByRole('region', { name: 'Informações do cocho' });
     expect(valorDe(info, 'Áreas vinculadas')).toBe('PASTO 07');
     expect(valorDe(info, 'Metragem')).toBe('12,00 m');
     expect(within(info).getByText('Cocho perto da porteira.')).toBeTruthy();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Histórico' })); });
-    expect(await screen.findByText('Histórico completo: COCHO 07')).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Histórico' })); });
+    expect(screen.getByRole('button', { name: 'Mostrar: Todos os registros' })).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Lançamentos do cocho' })).toBeTruthy();
     const total = screen.getByRole('region', { name: 'Total fornecido por produto' });
-    expect(total.textContent).toContain('16,00 sacos · 400,00 kg');
+    expect(total.textContent).toContain('16,00 sacos · 400 kg');
   });
 });
 
@@ -440,7 +446,7 @@ describe('CV-8 — depósito › cocho (tela empilhada)', () => {
     expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull();
 
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
-    await screen.findByText('Informações do cocho');
+    await screen.findByRole('region', { name: 'Nível do cocho' });
     await act(async () => {});
     // O cocho empilhado: o nome dele, as áreas dele (não o local do depósito) e o ‹ Voltar no cabeçalho.
     expect(tituloDoDialogo()).toBe('COCHO 02');
@@ -459,7 +465,7 @@ describe('CV-8 — depósito › cocho (tela empilhada)', () => {
 
     // ‹ Voltar também volta.
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
-    await screen.findByText('Informações do cocho');
+    await screen.findByRole('region', { name: 'Nível do cocho' });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Voltar' })); });
     await waitFor(() => expect(tituloDoDialogo()).toBe('DEPÓSITO SEDE'));
     expect(raiz().querySelector('.mk-dp__corpo')?.className).toContain('mk-dp-anim--voltar');
@@ -476,7 +482,7 @@ describe('CV-8 — depósito › cocho (tela empilhada)', () => {
       },
     });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Abrir COCHO 02' })); });
-    await screen.findByText('Informações do cocho');
+    await screen.findByRole('region', { name: 'Nível do cocho' });
     await act(async () => {});
     expect(tituloDoDialogo()).toBe('COCHO 02');
     expect(subDoDialogo()).toBe('PASTO 02 · Sede');
@@ -514,13 +520,13 @@ it('Fechamentos lista todos os períodos fechados do ponto, mais novo primeiro; 
   await noDialogo(cocho());
   await carregado();
   expect(screen.queryByTestId('ultimo-periodo-fechado')).toBeNull();
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' })); });
+  await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Fechamentos' })); });
   const lista = screen.getByRole('list', { name: 'Fechamentos do cocho' });
   const itens = within(lista).getAllByRole('listitem');
   expect(itens).toHaveLength(2);
   expect(itens[0].textContent).toContain('27/10/2026');
   expect(itens[1].textContent).toContain('01/10/2026');
-  fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+  await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Detalhes' })); });
   await waitFor(() => expect(screen.queryByRole('list', { name: 'Fechamentos do cocho' })).toBeNull());
-  expect(screen.getByRole('button', { name: 'Fechamentos' })).toBeTruthy();
+  expect(screen.getByRole('tab', { name: 'Fechamentos' })).toBeTruthy();
 });

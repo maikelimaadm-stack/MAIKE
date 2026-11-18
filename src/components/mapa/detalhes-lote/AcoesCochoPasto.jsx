@@ -1,5 +1,6 @@
 import React from "react";
-import { ClipboardCheck, History, Package } from "lucide-react";
+import { ClipboardCheck, History } from "lucide-react";
+import IconeLancarSuplementacao from "../IconeLancarSuplementacao";
 import { useQueryClient } from "@tanstack/react-query";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
@@ -65,7 +66,7 @@ export default function AcoesCochoPasto({ ponto, nivel, hoje = null, podeLancar,
   /** @type {Array<{ chave: string, rotulo: string, icone: import("lucide-react").LucideIcon, onClick: () => void, title: string }>} */
   const itens = [];
   if (podeLancar) {
-    itens.push({ chave: "lancar", rotulo: "Lançar", icone: Package, onClick: () => setShowLancamento(true), title: nome ? `Lançar suplementação: ${nome}` : "Lançar suplementação" });
+    itens.push({ chave: "lancar", rotulo: "Lançar", icone: IconeLancarSuplementacao, onClick: () => setShowLancamento(true), title: nome ? `Lançar suplementação: ${nome}` : "Lançar suplementação" });
     itens.push({ chave: "leitura", rotulo: "Leitura", icone: ClipboardCheck, onClick: () => setShowLeitura(true), title: nome ? `Leitura de cocho: ${nome}` : "Leitura de cocho" });
   }
   if (podeHistorico) {

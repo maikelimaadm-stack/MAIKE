@@ -67,10 +67,10 @@
 .mk-dp .mk-dp-tarefa__fotos > div:first-child {
   margin: 0;
   padding: 9px 12px;
-  border: 1px solid transparent;
-  border-radius: 12px;
+  border: 1px solid #eef0f2;
+  border-radius: 6px;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(20, 20, 19, 0.1);
+  box-shadow: 0 2px 3px rgb(20 20 19 / 7%);
 }
 
 /* O título da galeria ("FOTOS (n)") sai; a grade das miniaturas sobe junto. */
