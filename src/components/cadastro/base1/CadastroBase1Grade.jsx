@@ -80,6 +80,10 @@ export function colunasBase1(defs) {
  *   para a coluna (ex.: dinheiro e dia pelo valor canônico, não pelo texto formatado); `null`/`undefined` = regra padrão da grade
  * @param {(row: object) => import('react').ReactNode} [props.renderAcoesDaLinha] opt-in (D-PROD-232): o botão ⚡ das
  *   ações da linha — na grade, na célula de seleção (cabeçalho "Ações"); nos cards, no topo do card. Padrão: desligado.
+ * @param {(row: object) => ({ texto: string, cor?: string } | null)} [props.cardsAvatar] opt-in (D-PROD-237): o selo do
+ *   card (texto e cor); padrão: as iniciais do título
+ * @param {(row: object) => import('react').ReactNode} [props.cardsSubtitle] opt-in (D-PROD-237): a linha abaixo do
+ *   título do card; padrão: o código
  */
 export default function CadastroBase1Grade({
   rows = EMPTY_ROWS,
@@ -121,6 +125,8 @@ export default function CadastroBase1Grade({
   compararParaOrdenar,
   renderAcoesDaLinha = undefined,
   filtrosExternos = undefined,
+  cardsAvatar = undefined,
+  cardsSubtitle = undefined,
 }) {
   // Dentro da lista integrada (chrome com portalComprasSkin) a grade herda os
   // cabeçalhos de referência e o "Filtrar por campo" do motor: antes cada tela
@@ -750,6 +756,8 @@ export default function CadastroBase1Grade({
           isInactive={ehInativo}
           emptyText={emptyText}
           renderAcoesDaLinha={renderAcoesDaLinha}
+          avatar={cardsAvatar}
+          subtitle={cardsSubtitle}
         />
         {referenceHeaders
           ? dataCols.map((c) => renderReferenceFilter(c.id))

@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218), os detalhes do mapa no mesmo desenho (D-PROD-220) e os lançamentos e históricos deles no desenho do manejo (D-PROD-222), com a densidade (D-PROD-224) e a organização (D-PROD-226) do estilo antigo e o subícone do sistema nos detalhes (D-PROD-225)
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-LISTA: Lançamento de Atividades, fatia 4 (última) do redesenho — a lista: filtros em pílulas e cards do celular (D-PROD-237)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-237**, fatia 4 (última) do plano da D-PROD-232: os filtros da lista na faixa de pílulas e os cards do celular no desenho do protótipo |
+| Branch / PR | `feat/atividades-lista-filtros-celular`, a partir da `main` `83d08e5c` (PR #324) · PR a abrir |
+| Escopo | Sai a caixa solta (Tipo, Área, Início de / até); a faixa fica Ordenar · Status · Tipo de atividade · Área · Início (uma pílula com De / Até e o período no rótulo) · + Filtro, todos na query do servidor de sempre. Motor (opt-in): filtro de período da tela, `ocultarPadrao`, pesquisa acima de 8 opções, coluna coberta fora da faixa salva e do "+ Filtro", selo e subtítulo do card. Celular: cards com a sigla do tipo na cor do tipo, "Nº · Status", ⚡ e Nº / Tipo / Área / Início / Valor total |
+| Backend | Nenhuma mudança |
+| Release | Merge e deploy normais (só frontend); nenhuma migration, nenhum dado muda |
+| Relatório | [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218), os detalhes do mapa no mesmo desenho (D-PROD-220) e os lançamentos e históricos deles no desenho do manejo (D-PROD-222), com a densidade (D-PROD-224) e a organização (D-PROD-226) do estilo antigo e o subícone do sistema nos detalhes (D-PROD-225)
 
 | Campo | Valor |
 |---|---|
