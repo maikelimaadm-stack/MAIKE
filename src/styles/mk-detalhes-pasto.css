@@ -1754,7 +1754,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* D-PROD-232 — detalhes em linhas, inspirados na referência do proprietário.
+/* D-PROD-236 (nasceu D-PROD-232) — detalhes em linhas, inspirados na referência do proprietário.
    Escopo: detalhes da área e cartões individuais do lote; tabelas e históricos
    mantêm seu comportamento. Área total e pastejada continuam lado a lado. */
 .mk-dp .mk-dp-area-organizada {

@@ -51,6 +51,8 @@ import { listEmpresas } from "@/services/empresaService";
 import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis, preferenciaAplicada } from "@/lib/mapaGeralFiltrosStorage";
 import { camadasDoFoco, focoEmVigor, focosPermitidos } from "@/lib/mapaFoco";
 import { useAuth } from "@/lib/AuthContext";
+import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
+import { casarNomes } from "@/domain/assistente/filtroTela";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 
 export default function MapaGeral() {
@@ -527,6 +529,53 @@ export default function MapaGeral() {
   const identificadores = useMemo(() => [...new Set(lotes.map((l) => l.identificador_nome || l.identificador_sigla).filter(Boolean))].sort(), [lotes]);
   const tiposPastagem = useMemo(() => [...new Set(areas.map((a) => a.tipo_pastagem).filter(Boolean))].sort(), [areas]);
   const sistemasProdutivos = useMemo(() => [...new Set(lotes.map((l) => l.sistema_produtivo).filter(Boolean))].sort(), [lotes]);
+
+  // D-PROD-230: filtro pedido pelo Assistente (?af=). SUBSTITUI os filtros do mapa (o
+  // que não vier fica sem restrição) depois que a preferência do usuário foi aplicada,
+  // casando os nomes com os setores, categorias, sistemas e pastagens que o mapa já tem.
+  const { pedido: pedidoAssistente, concluir: concluirPedidoAssistente } = useFiltroDoAssistente('MapaGeral');
+  const [esperaAssistenteEsgotada, setEsperaAssistenteEsgotada] = useState(0);
+  useEffect(() => {
+    if (!pedidoAssistente) return undefined;
+    const t = setTimeout(() => setEsperaAssistenteEsgotada(pedidoAssistente.id), 6000);
+    return () => clearTimeout(t);
+  }, [pedidoAssistente]);
+  useEffect(() => {
+    if (!pedidoAssistente) return;
+    if (!escopoFiltros || filtrosCarregados !== escopoFiltros.chave) return;
+    // Espera a permissão chegar: carregando, ela vale "nada liberado".
+    if (!acessoTotalTelas && !permissaoAtual) return;
+    const f = pedidoAssistente.filtros;
+    if (!podeFiltrar) {
+      toast.warning('Seu usuário não tem permissão para usar os filtros do mapa.');
+      concluirPedidoAssistente();
+      return;
+    }
+    const aguardando = (pedidos, opcoes) => Boolean(pedidos?.length) && !opcoes.length;
+    const carregando = aguardando(f.setores, setores) || aguardando(f.categorias, categorias) || aguardando(f.sistemas, sistemasProdutivos) || aguardando(f.tipos_pastagem, tiposPastagem);
+    if (carregando && esperaAssistenteEsgotada !== pedidoAssistente.id) return;
+    const setor = casarNomes(f.setores, setores, (x) => x.nome, (x) => x.id);
+    const categoria = casarNomes(f.categorias, categorias, (x) => x);
+    const sistema = casarNomes(f.sistemas, sistemasProdutivos, (x) => x);
+    const pastagem = casarNomes(f.tipos_pastagem, tiposPastagem, (x) => x);
+    setFiltroSetor(setor.valores.length ? setor.valores : 'todos');
+    setFiltroTipoCultura(f.tipos_cultura?.length ? f.tipos_cultura : 'todas');
+    setFiltroTipoPastagem(pastagem.valores.length ? pastagem.valores : 'todas');
+    setFiltroCategoria(categoria.valores.length ? categoria.valores : 'todas');
+    setFiltroSistema(sistema.valores.length ? sistema.valores : 'todos');
+    setFiltroIdentificador('todos');
+    setFiltroStatus('todos');
+    setFiltroAlertaTipo('todos');
+    setFiltroPesoMin(f.peso_min ?? null);
+    setFiltroPesoMax(f.peso_max ?? null);
+    if (f.colorir_por && (podeColorir || f.colorir_por === 'padrao')) setModoColoracao(f.colorir_por);
+    if (f.categorias?.length || f.sistemas?.length || f.peso_min !== undefined || f.peso_max !== undefined) setShowLotes(true);
+    if (f.colorir_por || f.setores?.length || f.tipos_cultura?.length || f.tipos_pastagem?.length) setShowAreas(true);
+    const faltando = [...setor.faltando, ...categoria.faltando, ...sistema.faltando, ...pastagem.faltando];
+    if (faltando.length) toast.warning(`Não encontrei no mapa: ${faltando.join(', ')}`);
+    toast.success(Object.keys(f).length ? 'Filtro do assistente aplicado no mapa' : 'Filtros do mapa limpos');
+    concluirPedidoAssistente();
+  }, [pedidoAssistente, escopoFiltros, filtrosCarregados, acessoTotalTelas, permissaoAtual, podeFiltrar, podeColorir, setores, categorias, sistemasProdutivos, tiposPastagem, esperaAssistenteEsgotada, concluirPedidoAssistente]);
 
   // Nível de cocho/depósito: SÓ o SSOT (D-PROD-178), no mesmo `hoje` dos
   // alertas. `pontosSuplementacao` já são os ativos (detecção de cochos que

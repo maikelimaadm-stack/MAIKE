@@ -14,15 +14,57 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12), **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho), **D-PROD-222** (lançamentos e históricos que abrem desses detalhes iguais aos do manejo do lote), **D-PROD-224** (detalhes mais compactos, com a densidade do estilo antigo), **D-PROD-225** (cocho e depósito com o subícone do sistema nos detalhes, sem a bolinha do mapa; nasceu como D-PROD-223, que a `main` deu ao farol estimado) e **D-PROD-226** (detalhes organizados como o estilo antigo: pares lado a lado no popup, toque e contraste), pedidos do proprietário; filtros do mapa como estão |
-| Refinamento D-PROD-230 | Botão Visualização integrado ao fim da barra escura do mapa; painel e permissões preservados, ações laterais abaixo da barra. |
-| Refinamento D-PROD-232 | Detalhes de área e lote com cartões em linhas, rótulos à esquerda e valores à direita; blocos empilhados no celular/tablet e em pares no desktop, preservando os dados. |
+| Refinamento D-PROD-235 (nasceu D-PROD-230) | Botão Visualização integrado ao fim da barra escura do mapa; painel e permissões preservados, ações laterais abaixo da barra. |
+| Refinamento D-PROD-236 (nasceu D-PROD-232) | Detalhes de área e lote com cartões em linhas, rótulos à esquerda e valores à direita; blocos empilhados no celular/tablet e em pares no desktop, preservando os dados. |
 | Refinamento D-PROD-229 | Detalhes de lote com identidade sem repetição, Lotação, Pesagem, Projeção de peso e Identificação separadas; pares no computador e uma coluna no celular. Tabela e regras preservadas. |
 | Refinamento D-PROD-228 | Histórico de cocho e depósito somente pelo botão; nova ação Fechamentos no cocho, com todos os períodos fechados e permissão de histórico. Resumo sem registros antigos; detalhes de lote preservados. |
 | Refinamento D-PROD-227 | Cocho e depósito com seções nomeadas, métricas do último registro agrupadas e projeções/limites sem repetição no resumo; pares explícitos no popup e uma coluna no celular. Regras e permissões preservadas. |
-| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (rascunho, a pedido do proprietário: "ainda tenho edições"); `main` `cdd8d79` (PR #312, D-PROD-223) mesclada |
+| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (merge a pedido do proprietário: "Tiver pronto faça o merge"); `main` `83d08e5` (PR #324, D-PROD-234) mesclada |
 | Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (`src/lib/mapaFoco.js`); Detalhes do Lote v12 (`.mk-dp`); casca v12 de uma tela (`CascaDetalhe`) no cocho, no depósito (com cocho empilhado), no bebedouro, na tarefa e no Histórico da Área (com a Forragem da D-PROD-219, o farol da D-PROD-221 e as abas do curral); popup a partir de 768 px. D-PROD-222: cartão comum dos históricos (`CartaoHistorico`, as classes do Histórico de Movimentação) no cocho, no depósito, no bebedouro, na tarefa e no abate do curral; Lançar e Leitura do cocho, Entrada e Saída do depósito e Lançar do bebedouro no `LancLoteDialogo` + `LancField` + `B1Select` dos manejos; Esc com lista aberta fecha só a lista em todos os lançamentos. D-PROD-225: nos detalhes (nível do cocho e do depósito, listas de cochos), o subícone do sistema (`COCHO_APARENCIA.subicone`); o marcador fica só no mapa. D-PROD-224: densidade do estilo antigo no v12 (letra menor com piso de 11 px, valor em negrito, 6 colunas no popup do computador (5 no do tablet), nível ao lado do cartão no cocho e no depósito, linha do tempo em grade). D-PROD-226: a partir de 768 px, pares lado a lado (Lotação | Categorias, Fornecimento | Consumo, Resumo | Último registro, Saldo | Pastos atendidos); cartões do limite do cocho e dos números do depósito como os antigos, com os valores alinhados; texto livre com o rótulo numa coluna em todas as larguras; divisória na linha do tempo; alvos de toque de 40 px (inclusive o ✕); teal AA; Tab na Lista mostra o cabeçalho inteiro |
 | Testes | `test:smoke` 284 arquivos e 3.570 testes (com a `main` da PR #312 e a revisão da D-PROD-226); `gate:types` 374 de 625; lint sem erros; build e demais gates do `verify:all` passam; `test:backend` no CI (precisa de PostgreSQL). Revisões independentes com verificação adversarial: relatórios da D-PROD-220 (§7 e §10.1) e da D-PROD-222 |
 | Relatórios | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) · [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md) · [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-ABERTA-RESUMO: Lançamento de Atividades, fatia 3 do redesenho — a atividade aberta (D-PROD-234)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-234**, fatia 3 do plano da D-PROD-232: a atividade aberta no desenho do protótipo do proprietário, no modelo visual do sistema |
+| Branch / PR | `feat/atividades-aberta-resumo`, a partir da `main` `0facca65` (PR #322) · PR a abrir |
+| Escopo | `AtividadeAberta.jsx` (novo): abas Lançamentos / Resumo da atividade com a navegação do registro; "Resumo de custo · ÁREA"; a tabela dos tipos (Itens, Resumo, Valor, Total, ⚡ Inserir / Ver lançamentos e "+ Lançar" que abrem a janela da fatia 2); "Dias lançados" recolhível com a lista de sempre; a aba Resumo com os totais por item e os dados só leitura; celular com a cabeça ✕ / Concluir e os tipos em cartões. Lista: coluna Valor total e o R$ no cabeçalho do ⚡ |
+| Backend | **Só leitura, sem migration:** `GET /atividades/:id/totais` + `custo_por_tipo` e `litros_combustivel_por_ha`; `GET /atividades` + `custo_total` por item (uma consulta agrupada por página) |
+| Release | Merge e deploy normais (frontend e API juntos); nenhuma migration, nenhum dado muda |
+| Relatório | [`MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md`](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ATIVIDADES-JANELAS-TIPO: Lançamento de Atividades, fatia 2 do redesenho — janelas por tipo de lançamento (D-PROD-233)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-233**, fatia 2 do plano da D-PROD-232, com a regra do dia aprovada pelo proprietário ("pode ser"): hoje por padrão, ‹ ›, e o dia criado sozinho ao salvar o primeiro item |
+| Branch / PR | `feat/atividades-janelas-tipo`, a partir da `main` `48ec6ca3` (PR #319) · PR **#322**, mergeada |
+| Escopo | `JanelaLancamentoPorTipo.jsx` (novo): Trabalho de máquinas, Aplicação de insumos, Mão de obra e Custos extras pelo ⚡ da lista; o dia (hoje, ‹ ›, o lançamento do dia quando há mais de um, a área do dia); aba da lista do tipo com o total e o ⚡ da linha (Editar e Cancelar de sempre); aba Dados com o MESMO formulário de `JanelasDaLinha` (casca trocável, destino "dia novo": `criarApontamento` com a linha, `operation_id` persistente), Voltar / Salvar / Salvar e fechar; celular em tela cheia. `DialogoCancelarLinha` compartilhado. Sai o fluxo provisório da fatia 1. Diesel fica no bloco Abastecimentos do dia (fora desta fatia) |
+| Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
+| Relatório | [`MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md`](./MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ATIVIDADES-MENU-RAIO: Lançamento de Atividades, fatia 1 do redesenho pelo protótipo do proprietário — menu ⚡ por linha e Concluir com resumo (D-PROD-232)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-232** (pedida como D-PROD-224; da 224 à 231 já estão em branches abertas de outras sessões), pedido do proprietário com o protótipo HTML dele: seguir a lógica e o estilo, mantendo o modelo visual do sistema. Plano em 4 fatias: 1 menu ⚡ + concluir; 2 janelas por tipo (lista, Inserir, Dados, Salvar e Salvar e fechar; dia com hoje por padrão e setas; dia criado sozinho ao salvar o primeiro item — "pode ser"); 3 atividade aberta (Resumo de custo, tabela dos 4 tipos, aba Resumo da atividade); 4 celular |
+| Branch / PR | `feat/atividades-menu-raio`, a partir da `main` `64310bd4` (PR #313), com a `main` `bd9fc99b` (PR #315, D-PROD-230) por merge · PR **#316**, mergeada |
+| Escopo | Motor Base1: `renderAcoesDaLinha` opt-in em `CadastroBase1Grade` / `Base1Grid` / `Base1Cards` (⚡ na célula de seleção com "Ações" no cabeçalho; no topo do card) e `B1AcoesDaLinha.jsx` (botão + menu: janela no computador, `MobileSheet` no celular). Lançamento de Atividades: menu ⚡ (Trabalho de máquinas / Aplicação de insumos / Mão de obra / Custos extras pelo tipo e pela permissão; Abrir; Alterar, Concluir/Reabrir, Duplicar, Cancelar); lançar pelo ⚡ abre o dia (hoje) e, gravado, a atividade abre com a janela do tipo no dia; `DialogoConcluirAtividade` com o resumo (`/totais` e os dias lançados do detalhe; "—" sem valor) e o aviso da área que falta; "Concluir" à vista na atividade aberta |
+| Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
+| Relatório | [`MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md`](./MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ASSISTENTE-LEITURA: assistente só de leitura em todas as telas (D-PROD-230)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-230** (a `main` indica D-PROD-224, mas a branch `claude/design-filters-implementation-agzxk8` já usa da D-PROD-224 à D-PROD-228 e indica a 229 como a próxima dela), pedido do proprietário: uma IA que responda perguntas sobre os dados da fazenda, só de leitura, com a chave da API do Claude dele |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `cdd8d79d` (PR #312, D-PROD-223) · PR **#315**, mergeada |
+| Escopo | `POST /assistente/perguntar` (tenant só da sessão, fazenda conferida, corpo fechado, histórico curto do cliente, dica da tela); 5 ferramentas fechadas e só de leitura sobre os serviços que já existem (pastos com forragem, medições do pasto, rebanho por pasto, resumo do rebanho, leituras de cocho); botão flutuante do assistente em todas as telas logadas, montado uma vez no Layout |
+| Migration | **Nenhuma.** Nada é gravado: sem tabela, sem histórico no servidor |
+| Configuração | `ANTHROPIC_API_KEY` nas variáveis de ambiente da Vercel (produção). Sem ela, o assistente responde "não configurado" (503 `ASSISTENTE_NAO_CONFIGURADO`) |
+| Relatório | [`MAIKE-ASSISTENTE-LEITURA-REPORT.md`](./MAIKE-ASSISTENTE-LEITURA-REPORT.md) |
 
 ## Missão anterior (2026-11-17) — MAIKE-DESCANSO-ESTIMADO: farol de forragem estimado pelos dias de descanso e parâmetros próprios do pasto (D-PROD-223)
 

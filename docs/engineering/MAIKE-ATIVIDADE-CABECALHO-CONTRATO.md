@@ -263,6 +263,11 @@ O detalhe (`GET /atividades/:id`) acrescenta `totais: { apontamentos_confirmados
 dias_com_apontamento }`. A lista devolve a mesma forma de lista paginada do módulo antigo (`listarApontamentos` →
 helper keyset; mesmo envelope).
 
+> **D-PROD-234 (só leitura, sem migration):** cada item da lista (`GET /atividades`) traz também `custo_total` — o
+> mesmo `custo_total` de `GET /atividades/:id/totais` (linhas CONFIRMADO de apontamentos CONFIRMADO + abastecimentos
+> CONFIRMADO ligados), texto com 4 casas, nulo sem nenhum custo; lido para a página inteira numa consulta agrupada só
+> (`custosTotaisDasAtividades`, sem N+1). O detalhe não muda.
+
 **Corpo de criar:**
 - `{ empresa_id, nome, tipo_atividade_id, area_id?, bem_id?, safra_ciclo?, data_inicio?, data_prevista_fim?,
   area_planejada?, lancamento_tarefa_id?, observacao? }`;

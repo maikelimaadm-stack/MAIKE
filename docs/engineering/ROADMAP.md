@@ -532,6 +532,38 @@ peças, compras do Patrimônio, custo/hora, apuração de depreciação, transfe
 fazendas, saldo de tanque, abastecimento em unidade que não seja L nem KG (ex.: GNV em
 m³), conversão entre unidades, mapas novos e dashboards.
 
+## Próximas etapas combinadas — Pastagens, cocho e assistente (registro de 2026-11-17)
+
+Sequência combinada com o proprietário depois das D-PROD-215 a D-PROD-223 (culturas,
+área↔cultura, medição de forragem, farol de forragem e descanso estimado). Registro
+de memória: **nenhum item está autorizado por esta lista**; cada um entra como missão
+própria, com decisão própria, quando o proprietário pedir.
+
+**Pastagens**
+1. Campo "último pastejo saiu em" na Área, para estimar os pastos sem histórico no
+   ledger (hoje 36 dos 107 pastos ficam sem estimativa; o ledger começa em 2026-11-05).
+2. Lotação e dias de pastejo: oferta de MS do pasto → quantos dias ele aguenta o lote,
+   "hora de tirar" e a lista de pastos prontos na hora de mover.
+3. Produtividade por pasto (kg MS/ha/ano) e adubação.
+4. Lançamento opcional de "Reforma de pastagem".
+5. Calibração altura → kg MS pelas amostras de corte.
+
+**Cocho e trato** (em espera)
+6. Farol por lote para o cocho compartilhado (casinha).
+7. Mix sal + proteinado.
+8. Roteiro do tratador.
+9. Produção de batelada (2b).
+
+**Relatórios**
+10. Relatórios de manejo e pastagem.
+
+**Assistente (IA) só de leitura** — D-PROD-230, implementado (botão flutuante em todas as telas)
+11. Assistente no Mapa Geral que responde perguntas sobre os dados da fazenda usando a
+    API do Claude (chave do proprietário em variável de ambiente do servidor). Só
+    leitura, tenant pelo `auth_context`, consultas fechadas no servidor; sem migration.
+    Não é o "motor de intelligence genérico" fora do roadmap: é uma tela de perguntas
+    sobre os módulos que já existem, com decisão própria.
+
 ## Fora do roadmap
 
 Plataforma low-code, Studio, MDP/MMM, marketplace, runtime universal, motor de

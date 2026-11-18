@@ -386,6 +386,9 @@ describe('totalizador', () => {
       custo_total: '168.0000',
       custo_por_ha: '11.2000',
       custo_combustivel_por_ha: null,
+      // D-PROD-234: as parcelas do custo por tipo (só produto aqui) e os litros por ha (sem combustível, nulo).
+      custo_por_tipo: { maquinas: null, produtos: '168.0000', mao_obra: null, servicos: null, combustivel: null },
+      litros_combustivel_por_ha: null,
     });
     // sem linha: custo nulo; outra fazenda → 404
     const b = await s.abrir();

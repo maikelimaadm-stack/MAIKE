@@ -468,7 +468,10 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   onConsultar?: (() => void) | null,
  *   conteudo?: React.ReactNode,
  *   confirmacaoExplicita?: string | null,
- * }} props
+ *   icone?: React.ReactNode,
+ *   iconeBotao?: React.ReactNode,
+ * }} props `icone` (opcional): o selo ao lado do título (o "Concluir atividade" da D-PROD-232); `iconeBotao`: o ícone
+ *   do botão de envio. Sem eles, o diálogo fica como sempre foi.
  */
 export function DialogoAcao({
   aberto,
@@ -484,6 +487,8 @@ export function DialogoAcao({
   onConsultar = null,
   conteudo = null,
   confirmacaoExplicita = null,
+  icone = null,
+  iconeBotao = null,
 }) {
   const [motivo, setMotivo] = useState("");
   const [ciente, setCiente] = useState(false);
@@ -493,10 +498,22 @@ export function DialogoAcao({
   return (
     <Dialog open={aberto} onOpenChange={(o) => (!o && !enviando ? onFechar() : undefined)}>
       <DialogContent data-permissao-explicita="" data-testid={testId} className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
-          <DialogDescription>{descricao}</DialogDescription>
-        </DialogHeader>
+        {icone ? (
+          <DialogHeader className="flex-row items-center gap-3 space-y-0 text-left">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-emerald-100 bg-emerald-50 text-emerald-600" aria-hidden>
+              {icone}
+            </span>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <DialogTitle>{titulo}</DialogTitle>
+              <DialogDescription className="break-words">{descricao}</DialogDescription>
+            </span>
+          </DialogHeader>
+        ) : (
+          <DialogHeader>
+            <DialogTitle>{titulo}</DialogTitle>
+            <DialogDescription>{descricao}</DialogDescription>
+          </DialogHeader>
+        )}
         {conteudo ? <div className="min-w-0 text-[13px]">{conteudo}</div> : null}
         {comMotivo ? (
           <label className="min-w-0 text-[12px]">
@@ -537,7 +554,7 @@ export function DialogoAcao({
             data-testid={`${testId}-enviar`}
             onClick={() => disparar(motivo.trim())}
           >
-            {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
+            {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : iconeBotao}
             {enviando ? "Enviando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : rotuloBotao}
           </button>
         </DialogFooter>

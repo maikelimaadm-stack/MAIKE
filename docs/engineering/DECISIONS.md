@@ -8165,14 +8165,6 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - A aba Detalhes não repete a pastagem na grade quando ela já está no subtítulo. Se faltar informação, o campo continua visível.
 - Cálculos, catálogo da tabela, ordenação, preferências de colunas, múltiplos lotes, manejo e permissões preservados.
 
-## D-PROD-230 — Visualização dentro da barra escura do mapa (2026-11-17)
-
-**Pedido do proprietário:** incluir o botão Visualização do mapa na mesma linha escura de Filtros, Lotes, Pastos e Tarefas.
-
-- Botão de camadas no fim da barra, branco sobre o fundo escuro, sem a bolinha branca separada. Mesmo painel e estado aberto/fechado; entra na navegação por setas, Home e End.
-- No celular, a barra usa a largura disponível. Atualizar, Localizar e Mover continuam na coluna da direita, abaixo da barra, sem sobreposição.
-- Visualização continua disponível quando há apenas Lotes e sem permissão de filtros, como antes; os segmentos e Filtros mantêm suas permissões.
-
 ### D-PROD-231 — Leitura dos detalhes de lotes e áreas (2026-11-17)
 
 - Pedido do dono: retirar explicações de fórmulas nos detalhes e organizar as projeções mensais.
@@ -8180,11 +8172,102 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Área mostra hectares ao lado do nome, sem repetir hectares e setor na grade; UA total e capacidade sem fórmulas auxiliares.
 - Catálogo da tabela, cálculos, consultas e permissões preservados.
 
-### D-PROD-232 — Estilo dos detalhes inspirado na referência do dono (2026-11-17)
+## D-PROD-230 — Assistente só de leitura (IA) em todas as telas
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-224`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, PR #308 em rascunho) já usa da D-PROD-224 à D-PROD-228 e indica a D-PROD-229 como a próxima dela. Para não duplicar, esta decisão é a **D-PROD-230**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ("vamos fazer isso então já vou colocar minha api lá"): uma IA no sistema para ajudar no negócio, começando só de leitura, com a chave da API do Claude dele; depois, o pedido de que o botão fique flutuante em todas as telas · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Rota.** `POST /assistente/perguntar` com `{ empresa_id, pergunta (≤ 1000), tela? , historico? (≤ 10 falas de ≤ 4000) }`, corpo fechado (`cliente_id` ou chave fora do schema → 400). Autenticada, sem chave de permissão própria: as ferramentas leem o mesmo que o Mapa Geral já mostra a qualquer usuário logado. O tenant vem **só** do `auth_context` (R11); a fazenda é a aberta no topo da tela e é conferida no tenant antes de qualquer leitura. `tela` é só uma dica de contexto (`^[A-Za-z0-9_-]{1,64}$`), nunca escolhe tenant nem fazenda.
+2. **Laço de ferramentas no servidor.** Modelo `claude-opus-5-5` (API da Anthropic, SDK oficial `@anthropic-ai/sdk`, chave em `ANTHROPIC_API_KEY`, nunca literal), esforço `medium`, recuo do lado do servidor em caso de recusa (`fallbacks: "default"`), no máximo **8** voltas; recusa vira mensagem amigável; falha da API → 503 `ASSISTENTE_INDISPONIVEL`; chave ausente ou inválida → 503 `ASSISTENTE_NAO_CONFIGURADO`.
+3. **Ferramentas: conjunto fechado e só de leitura** (`assistenteFerramentas.js`), cada uma chamando o serviço que já existe com o contexto da requisição: `listar_pastos` (cultura, parâmetros que valem, cabeças agora e a situação de forragem: medição válida até 15 dias, senão estimada pelos dias de descanso, mesma regra da D-PROD-223), `medicoes_do_pasto`, `rebanho_por_pasto` (posições do ledger; sem ledger, o cadastro de lotes), `resumo_rebanho`, `leituras_cocho_recentes`. A IA não grava, não manda SQL, não escolhe cliente nem fazenda; ferramenta desconhecida não executa nada.
+4. **Dados mínimos.** As respostas das ferramentas não levam CPF, telefone, fornecedor, nota fiscal, GTA, valores de compra nem o nome de quem registrou.
+5. **Tela.** Botão redondo flutuante (canto inferior direito, acima da navegação inferior do celular) em **todas as telas logadas**, montado uma vez no `Layout` (login não tem o botão). Abre o painel: de baixo no celular, lateral no desktop. A conversa fica no estado do componente do Layout: sobrevive à navegação entre telas, some ao recarregar. Nada vai para o banco nem para a fila offline.
+
+**Por que não é o "motor de intelligence genérico" fora do roadmap.** É uma tela de perguntas e respostas sobre os módulos que já existem, com um conjunto fechado de leituras escritas aqui; não há motor configurável, regras low-code, nem execução de ações.
+
+**Privacidade e custo.** A cada pergunta, o texto da pergunta, o histórico curto e o resultado das ferramentas usadas vão para a API da Anthropic, que os processa para responder (pelos termos comerciais da API, não são usados para treinar modelos). O custo é por uso, cobrado na conta da chave do proprietário: centavos por pergunta; recomenda-se limite de gasto mensal no console da Anthropic.
+
+**Fora do escopo:** lançar, alterar ou excluir pelo assistente; histórico salvo no servidor; resumo diário automático; ferramentas de financeiro, estoque ou patrimônio.
+
+**Release.** Sem migration. Depois do deploy, o proprietário cadastra `ANTHROPIC_API_KEY` na Vercel (produção) e faz um novo deploy para valer.
+
+## D-PROD-232 — Lançamento de Atividades, fatia 1 do redesenho pelo protótipo do proprietário: menu ⚡ por linha e Concluir com resumo
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-224`, mas as branches abertas de outras sessões já usam da D-PROD-224 à D-PROD-231 (`claude/design-filters-implementation-agzxk8`: 224 a 229, 230 e 231, marcador em 232; `claude/kind-knuth-tztu1v`: 230, marcador em 231). Para não duplicar, esta decisão é a **D-PROD-232**. A missão foi pedida como "D-PROD-224".
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário, com o protótipo HTML dele ("Lançamento de Atividades", estados lista, ⚡ da linha no computador e no celular, concluir, atividade aberta) aprovado como referência: seguir a lógica e o estilo do protótipo, **mantendo o modelo visual do sistema** (grade Base1, tokens, diálogos, `MobileSheet`, botões — sem importar o CSS do protótipo) · **Branch:** `feat/atividades-menu-raio`.
+
+**Plano do redesenho em 4 fatias (uma PR por fatia):**
+1. **Menu ⚡ por linha e Concluir com resumo** (esta).
+2. **Janelas por tipo de lançamento** (Trabalho de máquinas, Aplicação de insumos, Mão de obra, Custos extras), cada uma com a lista do tipo, **Inserir**, **Dados**, **Salvar** e **Salvar e fechar**; o **dia do lançamento** no topo, com **hoje por padrão** e setas para o dia anterior / seguinte; o **dia é criado sozinho ao salvar o primeiro item** do tipo (decisão do proprietário sobre o dia: "pode ser").
+3. **Atividade aberta** no desenho do protótipo: **Resumo de custo** e a tabela dos 4 tipos (itens, resumo, valor, total), e a aba **Resumo da atividade**.
+4. **Celular**: os cards e a atividade aberta no desenho do protótipo (além do ⚡, que já entra nesta fatia).
+
+**Decisão (fatia 1).**
+1. **⚡ por linha, opt-in no motor Base1.** `CadastroBase1Grade` / `Base1Grid` / `Base1Cards` ganham `renderAcoesDaLinha(linha)`: na grade, o botão fica na **célula de seleção, ao lado da caixa de marcar** (84 px; o cabeçalho mostra **"Ações"** ao lado do "selecionar todos"); nos cards, no **topo do card** (no celular, onde a caixa de marcar já não aparece, só o ⚡). **Padrão desligado:** nenhuma outra tela muda. O botão e o menu são genéricos (`B1AcoesDaLinha.jsx`: `B1BotaoAcoesDaLinha`, `B1MenuAcoesDaLinha`) — no computador, a janela presa ao botão (`B1Popover`); no celular, a folha de baixo (`MobileSheet`), com o título da linha no título da folha. Teclado: `aria-expanded`, Esc fecha, ↑ ↓ andam pelos itens, o foco volta ao botão. Clicar no ⚡ não seleciona nem abre a linha; clicar na linha continua como sempre.
+2. **O menu da atividade** (Lançamento de Atividades): cabeçalho **"Nº 7 · NOME"** e a linha **"TIPO · ÁREA"** (o valor total **não** entra: a linha da lista não traz custo; volta quando a atividade aberta o tiver, Fatia 3). Grupos com divisória: (a) **Trabalho de máquinas** (linhas de máquina; o diesel é o abastecimento ligado ao dia), **Aplicação de insumos** (linhas de produto, só com `permite_produto`), **Mão de obra** (só com `permite_mao_obra`), **Custos extras** (linhas de serviço, só com `permite_servico`) — todos só com a atividade **ABERTA**, a ação de lançar apontamento e o fuso da fazenda; (b) **Abrir atividade**; (c) **Alterar atividade**, **Concluir** / **Reabrir**, **Duplicar** e **Cancelar** (vermelho), com a mesma regra de permissão × status do Mais opções (`acoesDaAtividade`, fuso, `versao`). O que não pode, não aparece.
+3. **Lançar pelo ⚡ nesta fatia** (as janelas por tipo são a Fatia 2): o item abre o **formulário do dia** existente (`FormularioApontamento`, modo novo, **hoje no fuso da fazenda**) sobre a atividade da linha, sem abrir a atividade antes; o título leva o tipo ("Novo lançamento · Trabalho de máquinas") e uma nota diz o que vem depois. Ao **Lançar**, a lista e os totais se relêem, a atividade abre (só leitura) e a **janela de adicionar daquele tipo abre sozinha no dia gravado** (máquina, produto, mão de obra ou serviço — `abrirLinha` em `ListaApontamentos` → `abrirAoMontar` em `LinhasDoApontamento`, uma vez). Nenhuma rota, corpo ou regra do servidor muda.
+4. **Concluir atividade com resumo** (como o protótipo, no `DialogoAcao` do sistema, que ganha `icone` e `iconeBotao` opcionais): selo + **"Concluir atividade"** + "Nº · NOME"; o resumo **Período** ("03/11 → hoje · 1 dia lançado"; o fim acompanha a data escolhida), **Área feita** ("9,2 / 18,4 ha (50%)" com a barra verde), **Custo total**, **Custo por hectare** e **Combustível**; o campo **Data de conclusão** com a regra de sempre (`erroDaDataDeConclusao`: obrigatória, nunca futura, nunca antes do início); o aviso **"Faltam X ha dos Y planejados. Pode concluir assim mesmo: a área fica como foi lançada."** quando a feita é menor que a planejada; a nota **"Concluída, a atividade fica só para consulta. Dá para reabrir depois."**; **Voltar** / **Concluir atividade**. Os números vêm **só do servidor**: `GET /atividades/:id/totais` (o do totalizador) e, para os dias lançados, `totais.dias_com_apontamento` do detalhe (`GET /atividades/:id`). **Nada é inventado:** sem o valor, "—" (lendo, "…"); sem os totais, a área do cabeçalho e uma nota. Reabrir e Cancelar ficam como estão.
+5. **"Concluir" à vista na atividade aberta**: botão na barra (ao lado de Abrir atividade e Editar), o mesmo diálogo. Para não repetir, o Mais opções da atividade **aberta** deixa de listar "Concluir atividade" (na lista, com a linha selecionada, continua).
+
+**Fora do escopo:** janelas por tipo (Fatia 2), atividade aberta redesenhada (Fatia 3), cards do celular além do ⚡ (Fatia 4), "Múltiplos talhões". Sem backend, sem banco, sem migration.
+
+**Relatório:** [`MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md`](./MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md).
+
+## D-PROD-233 — Lançamento de Atividades, fatia 2 do redesenho pelo protótipo do proprietário: janelas por tipo de lançamento
+
+**Data:** 2026-11-17 · **Origem:** plano em 4 fatias da **D-PROD-232** (acima; fatia 2) e a regra do dia aprovada pelo proprietário ("pode ser") · **Branch:** `feat/atividades-janelas-tipo`.
+
+**Decisão.**
+1. **Uma janela por tipo de lançamento**, aberta pelo ⚡ da linha da lista (os itens da fatia 1, pelas mesmas flags do tipo e a mesma permissão): **Trabalho de máquinas** (linhas de máquina), **Aplicação de insumos** (linhas de produto), **Mão de obra** (linhas de mão de obra) e **Custos extras** (linhas de serviço). No desenho do sistema (`B1Janela`, larga no computador; **no celular, ocupa a tela**): ícone + o tipo no título; a linha "Atividade Nº 7 · TIPO · Talhão: ÁREA · Lançamento de DD/MM/AAAA · N ha"; o dia do lançamento; as abas **"<Tipo> (n)"** e **"Dados"**; rodapé **Fechar** (na aba Dados, **Voltar / Salvar / Salvar e fechar**).
+2. **Regra do dia** (aprovada): o dia do lançamento vem **hoje no fuso da fazenda**, com **‹ ›** (nunca depois de hoje) e o campo de data. Ninguém "cria o dia": **sem lançamento CONFIRMADO na data**, o primeiro item salvo cria o lançamento do dia **no mesmo envio** — `criarApontamento` com a coleção da linha (`maquinas[]`, `produtos[]`, `mao_obra[]` ou `servicos[]`), uma transação no servidor com o `operation_id` persistente do lançamento com linhas (o mesmo mecanismo do "Repetir"); o corpo leva a data e, se informada, a **área do dia** do cabeçalho (opcional, como no servidor; nada mais). **Com um** lançamento confirmado, os itens entram nele pelas rotas de linha de sempre (com a `versao` dele). **Com mais de um** (turnos / passadas), o seletor "Lançamento do dia" aparece, com o **mais recente** (maior passada) por padrão. A área do dia que existe aparece e muda pelo **lápis** (o formulário do dia de sempre, PATCH com a `versao`). Lançamento só CANCELADO no dia conta como sem lançamento.
+3. **Aba da lista**: as linhas **CONFIRMADAS** daquele tipo no dia escolhido, com as colunas do protótipo **que a linha gravada tem** (nada inventado): máquinas — Máquina, Implemento, Operador (o do dia), Inicial, Final, Trabalhado, Valor total; insumos — Insumo, Almoxarifado, Qtd/ha, Quantidade total, Valor unitário, Valor total; mão de obra — Funcionário, Tipo, Quantidade, Valor unitário, Valor total; custos extras — Serviço, Parceiro, Documento, Quantidade, Valor unitário, Valor total. Linha de **Total** (soma do valor que o servidor devolveu, só das confirmadas; sem valor, "—"). As canceladas ficam atrás de **"Mostrar canceladas (k)"**, riscadas. O ⚡ da linha (`B1MenuAcoesDaLinha`) traz **Editar** (a janela de edição de sempre, por cima) e **Cancelar** (o diálogo de sempre, com motivo), pela permissão. Vazio: "Nenhum registro neste lançamento. Clique em Inserir."
+4. **Aba Dados = o MESMO formulário das janelas de linha** (`JanelasDaLinha.jsx`): os campos, a validação, o saldo e o FIFO do produto, o medidor ("Última leitura", leitura sugerida, salto com justificativa), os custos do cadastro, o `operation_id` persistente, o "resultado incerto" com Consultar / Repetir o mesmo envio. As janelas ganharam a **casca trocável** (`Casca`: a janela própria por padrão; a aba Dados na janela por tipo) e o destino **dia novo** (`novoDia`: o corpo do dia guardado no envio, então a retentativa repete o mesmo corpo com a mesma chave; o Consultar procura o lançamento novo do dia). O diálogo de cancelar linha virou `DialogoCancelarLinha`, usado pelos blocos do lançamento e pela janela por tipo. **Salvar** grava, avisa e fica num formulário vazio para o próximo item; **Salvar e fechar** grava e fecha; depois de cada escrita a lista, os lançamentos e os totais se relêem (as chaves da tela).
+5. **Só leitura**: atividade concluída ou cancelada, sem a ação de lançar (sem Inserir e sem Dados), sem a de editar / cancelar lançamento (sem esses itens no ⚡), sem o fuso da fazenda, ou o tipo que já não permite aquela linha.
+6. **Sai o fluxo provisório da fatia 1** (o formulário do dia e, depois, a janela da linha abrindo sozinha na atividade aberta): saem `lancamentoDoTipo` (FormularioApontamento), `abrirLinha` (ListaApontamentos) e `abrirAoMontar` (LinhasDoApontamento). Os blocos e a edição / repetição dos dias na atividade aberta continuam como estão.
+7. **Diesel fora desta fatia.** O abastecimento ligado ao dia (`AbastecimentoBem` com `apontamento_id`, D-PROD-211) é o fluxo do `useFluxoAbastecimento`: produto, origem (estoque ou posto), prévia do custo e confirmação, e precisa do lançamento já gravado. Um campo "Diesel (L)" dentro da máquina seria outro envio (fora da transação da linha) e outra tela de custo — o que a regra proíbe. O diesel continua no bloco **Abastecimentos** do dia, na atividade aberta.
+
+**Fora do escopo:** atividade aberta redesenhada (Fatia 3), cards do celular (Fatia 4), "Múltiplos talhões", o operador do dia dentro da janela (ele é do lançamento: muda pelo lápis do dia). Sem backend, sem banco, sem migration; nenhuma rota, corpo ou regra do servidor mudou.
+
+**Relatório:** [`MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md`](./MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md).
+
+## D-PROD-234 — Lançamento de Atividades, fatia 3 do redesenho pelo protótipo do proprietário: a atividade aberta (Resumo de custo, tipos, Resumo da atividade)
+
+**Data:** 2026-11-18 · **Origem:** plano em 4 fatias da **D-PROD-232** (fatia 3), protótipo HTML do proprietário (estados "abrir" no computador e no celular e a aba "Resumo da atividade") · **Branch:** `feat/atividades-aberta-resumo`.
+
+**Decisão.**
+1. **A atividade aberta ganha duas abas**, no modelo visual do sistema (`AtividadeAberta.jsx`, abas do motor com o registro no modo "abas fora", cartões `b1-aba-cartao`): **Lançamentos** (padrão) e **Resumo da atividade**. A navegação **‹‹ ‹ n/N › ››** é a do motor (`NavegacaoDoRegistro`, na ordem da lista), agora na linha das abas; no celular continua no rodapé. As duas abas ficam montadas (a escondida com `hidden`): trocar de aba não perde o que está aberto.
+2. **"Resumo de custo · ÁREA"** (aba Lançamentos), células de rótulo / valor: Área (ha) / planejada, % feito, Custo total, Custo por hectare, Trabalho de máquinas, Aplicação de insumos, Mão de obra, Custos extras, **Combustível (L)**, **Combustível por ha**, Data (início) e Safra. **Só o que o servidor deu** (`GET /atividades/:id/totais` e o cabeçalho); sem valor, "—". Os rótulos do protótipo "Diesel" ficam **"Combustível"**: o abastecimento ligado pode ser de qualquer combustível (D-PROD-211). **O combustível entra no "Trabalho de máquinas"** (no protótipo o diesel é da máquina): assim a soma dos quatro tipos é o custo total.
+3. **Leitura nova no servidor, só agregação (sem migration, sem schema):** `GET /atividades/:id/totais` acrescenta `custo_por_tipo { maquinas, produtos, mao_obra, servicos, combustivel }` (as parcelas que o `custo_total` já somava, cada uma nula sem custo) e `litros_combustivel_por_ha` (litros ÷ área executada, 4 casas; nulo sem área ou sem litros; o quilo não entra). **Por que no servidor e não no cliente:** as parcelas já existiam no serviço; devolvê-las é exato e não cria um segundo cálculo de custo na tela.
+4. **Card "Lançamentos": uma linha por tipo** que o tipo da atividade permite (as mesmas flags do ⚡ da lista; um tipo que deixou de ser permitido mas tem linha continua, para consulta): **Ações** (⚡: **Inserir** — a janela do tipo da D-PROD-233 já na aba Dados, só com a ação de lançar e a atividade ABERTA — e **Ver lançamentos** — a janela na lista), **Lançamento** (clicar abre a janela), **Itens** (linhas CONFIRMADAS do tipo em lançamentos CONFIRMADOS, todos os dias), **Resumo** (máquinas: uso por unidade do medidor e os litros dos abastecimentos, "8 h · 43 L"; insumos: o primeiro produto e quantos outros, "NPK (+1)"; mão de obra: pessoas distintas e quantidade por medida, "1 pessoa · 5 h"; custos extras: "N itens"), **Valor** (a parcela do servidor) e a linha de **Total** (itens e o custo total). Tipo sem linha: **"+ Lançar"** (abre a janela nos Dados; sem poder lançar, "—"). Subtítulo "ÁREA · N ha · DD/MM/AAAA · R$ total".
+5. **Os dias continuam ao alcance**: abaixo, o cartão recolhível **"Dias lançados"** com a `ListaApontamentos` de sempre (Novo lançamento, Repetir, Editar e Cancelar o dia, os blocos das linhas e dos abastecimentos, o lápis do dia). Nada que era possível deixou de ser.
+6. **"Resumo da atividade"**: os totais com o detalhe por item (`TotalizadorAtividade`: cada produto, máquina, pessoa, serviço, o combustível e o consumo — agora sem ficar preso ao topo nesta aba) e os dados da atividade só leitura (o cabeçalho de sempre). Os avisos de status (cancelada, concluída, reaberta) sobem para cima das abas.
+7. **Lista**: coluna **"Valor total"** (padrão ligada, ordenável pelo valor canônico) e o **R$ total no cabeçalho do menu ⚡** (o que a fatia 1 deixou de fora). **Leitura nova no servidor, só agregação:** cada item de `GET /atividades` traz `custo_total` — o mesmo do `/totais` (produtos, máquinas, mão de obra, serviços e abastecimentos ligados, só CONFIRMADOS) — calculado para a **página inteira numa consulta agrupada só** (`custosTotaisDasAtividades`, `UNION ALL` + `GROUP BY atividade_id`, tenant do `auth_context`, sem N+1). Sem custo: nulo ("–" na grade, fora do cabeçalho do menu).
+8. **Celular** (a atividade aberta; os cartões da lista ficam para a fatia 4): a cabeça com **✕** (volta à lista), o nome, o status, "Nº · executada / planejada ha" e o **Concluir** no canto de cima (sai da barra no celular); as mesmas abas; o Resumo de custo em duas colunas; os tipos em cartões (contador, nome, valor, ⚡ e o resumo).
+
+**Fora do escopo:** diesel dentro da janela da máquina, operador por máquina, "Múltiplos talhões", a limitação da primeira linha do dia, os cartões da lista no celular (fatia 4). Sem migration; sem mudança de rota, corpo ou regra de escrita.
+
+**Relatório:** [`MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md`](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md).
+
+## D-PROD-235 — Visualização dentro da barra escura do mapa (2026-11-17)
+
+> **Numeração:** nasceu D-PROD-230 nesta branch. A `main` deu a D-PROD-230 ao assistente só de leitura (PR #315) e chegou a `Próxima decisão: D-PROD-235`; esta decisão é a **D-PROD-235**.
+
+**Pedido do proprietário:** incluir o botão Visualização do mapa na mesma linha escura de Filtros, Lotes, Pastos e Tarefas.
+
+- Botão de camadas no fim da barra, branco sobre o fundo escuro, sem a bolinha branca separada. Mesmo painel e estado aberto/fechado; entra na navegação por setas, Home e End.
+- No celular, a barra usa a largura disponível. Atualizar, Localizar e Mover continuam na coluna da direita, abaixo da barra, sem sobreposição.
+- Visualização continua disponível quando há apenas Lotes e sem permissão de filtros, como antes; os segmentos e Filtros mantêm suas permissões.
+
+### D-PROD-236 — Estilo dos detalhes inspirado na referência do dono (2026-11-17)
+
+> **Numeração:** nasceu D-PROD-232 nesta branch. A `main` deu a D-PROD-232 à fatia 1 do Lançamento de Atividades; esta decisão é a **D-PROD-236**. A D-PROD-231 fica com o número de origem, que a `main` deixou reservado para esta branch.
 
 - Pedido: seguir o estilo visual enviado, preservando as informações do sistema em celular e desktop.
 - Detalhes da área e do lote: cartões de cantos discretos, divisórias locais e cada informação em linha, rótulo à esquerda e valor à direita; sem alterar os cálculos ou consultas.
 - Área: resumo e lotação em duas colunas a partir de 1024 px, avisos e categorias em largura total. No celular e tablet os cartões empilham. Área total e pastejada continuam juntas; projeções mensais em três colunas.
 - Estilos limitados a esses detalhes, sem alterar tabelas, históricos ou permissões.
 
-<!-- Próxima decisão: D-PROD-233 -->
+<!-- Próxima decisão: D-PROD-237 -->

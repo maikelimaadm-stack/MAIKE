@@ -533,6 +533,23 @@ export const maisRecenteConfirmado = (itens) => {
   });
 };
 
+/**
+ * Os lançamentos CONFIRMADOS de UM dia, o mais recente primeiro (a maior passada; no empate, o criado por último): o
+ * dia da janela por tipo (D-PROD-233) — nenhum = o primeiro item salvo cria o dia; um = os itens entram nele; mais de
+ * um = a janela pergunta qual (padrão: o mais recente).
+ * @param {any[]} itens @param {string} dia
+ * @returns {any[]}
+ */
+export const confirmadosDoDia = (itens, dia) =>
+  (Array.isArray(itens) ? itens : [])
+    .filter((a) => ehObjeto(a) && a.id != null && a.status === STATUS_CONFIRMADO && texto(a.data_operacional) === texto(dia))
+    .sort((a, b) => {
+      const sa = Number.isInteger(a.sequencia) ? a.sequencia : 0;
+      const sb = Number.isInteger(b.sequencia) ? b.sequencia : 0;
+      if (sa !== sb) return sb - sa;
+      return instante(b.createdAt) - instante(a.createdAt);
+    });
+
 // ─── Respostas e erros do servidor ───────────────────────────────────────
 
 /**

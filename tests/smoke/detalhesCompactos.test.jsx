@@ -336,17 +336,22 @@ describe("DC-5 — popup: pares lado a lado (D-PROD-226)", () => {
     ).toMatch(/grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   });
 
-  it("aba Detalhes do pasto: o corpo é o painel `…-painel-detalhes` e os dois títulos são Lotação e Categorias, cada um logo antes do seu cartão; sem lotes, um título só (o corpo fica em coluna)", () => {
-    const titulosDoCorpo = (corpo) => [...corpo.children].filter((f) => f.classList.contains("mk-dp-titulo"));
+  it("aba Detalhes do pasto (D-PROD-232 do dono): o corpo é o painel `…-painel-detalhes`, com a grade `.mk-dp-area-organizada` de seções Lotação e Categorias, cada título logo antes do seu cartão; sem lotes, só Lotação", () => {
+    const secoesDoCorpo = (corpo) => [...corpo.querySelectorAll(":scope > .mk-dp-area-organizada > .mk-dp-secao")];
     const { unmount } = render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
     const corpo = screen.getByRole("tabpanel");
     expect(corpo.id).toMatch(/-painel-detalhes$/);
     expect(corpo.classList.contains("mk-dp__corpo--cards")).toBe(true);
-    const titulos = titulosDoCorpo(corpo);
-    expect(titulos.map((t) => t.textContent)).toEqual(["Lotação", "Categorias"]);
-    for (const t of titulos) expect(t.nextElementSibling?.classList.contains("mk-dp-cartao"), t.textContent).toBe(true);
+    const secoes = secoesDoCorpo(corpo);
+    expect(secoes.map((s) => s.firstElementChild?.textContent)).toEqual(["Lotação", "Categorias"]);
+    for (const s of secoes) {
+      const titulo = s.firstElementChild;
+      expect(titulo.classList.contains("mk-dp-titulo"), titulo.textContent).toBe(true);
+      expect(s.getAttribute("aria-labelledby")).toBe(titulo.querySelector("h3")?.id);
+      expect(titulo.nextElementSibling?.classList.contains("mk-dp-cartao"), titulo.textContent).toBe(true);
+    }
     unmount();
     render(<CascaDeTeste modelo={modeloV12({ qtd: 0 })} abaInicial="detalhes" />);
-    expect(titulosDoCorpo(screen.getByRole("tabpanel")).map((t) => t.textContent)).toEqual(["Lotação"]);
+    expect(secoesDoCorpo(screen.getByRole("tabpanel")).map((s) => s.firstElementChild?.textContent)).toEqual(["Lotação"]);
   });
 });

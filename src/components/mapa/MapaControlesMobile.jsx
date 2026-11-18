@@ -2,7 +2,7 @@
  * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações.
  * - Barra do topo (D-PROD-218): filtro (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
  *   Os segmentos e o que cada foco mostra vêm de src/lib/mapaFoco.js.
- * - Visualização fica no fim da barra escura (D-PROD-230).
+ * - Visualização fica no fim da barra escura (D-PROD-235).
  * - Coluna da direita: Atualizar, Minha localização e Mover.
  * Posição e espaçamento ficam em mapa-geral.css (.mk-mapa-barra, .mk-mapa-dir) e mk-mapa-superficie.css.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md

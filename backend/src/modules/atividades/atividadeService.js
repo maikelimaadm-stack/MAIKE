@@ -123,6 +123,7 @@ import {
   lerBem,
   lerEmpresaDaAtividade,
   lerLancamentoTarefa,
+  custosTotaisDasAtividades,
   lerTipoAtividade,
   listarAtividades,
 } from './atividadeRepository.js';
@@ -409,7 +410,10 @@ const gravarComVersao = async (tx, { clienteId, empresaId, id, versao, statusEsp
  * Lista keyset (`createdAt desc, id desc`) da empresa. Filtros: `status`,
  * `tipo_atividade_id`, `area_id` e o período `data_de`/`data_ate` sobre
  * `data_inicio`; `q` busca no número e no nome (literal; o nome sem
- * diferenciar maiúsculas). Cada item na forma pública (sem `totais`).
+ * diferenciar maiúsculas). Cada item na forma pública (sem `totais`) e, desde
+ * a D-PROD-234, com o `custo_total` da atividade (o mesmo do `custo_total` de
+ * `GET /atividades/:id/totais`; nulo sem nenhum custo), lido para a PÁGINA
+ * inteira numa consulta agrupada só (`custosTotaisDasAtividades`, sem N+1).
  * @param {{ auth: AuthContext }} contexto @param {Record<string, any>} [query]
  */
 export const listar = async (contexto, query = {}) => {
@@ -427,7 +431,12 @@ export const listar = async (contexto, query = {}) => {
   if (de || ate) where.data_inicio = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
   const q = termoDeBusca(query.q);
   const busca = q ? [{ numero: { contains: q } }, { nome: { contains: q, mode: 'insensitive' } }] : [];
-  return listarAtividades({ where, busca, query, mapItem: comoAtividadePublica });
+  const pagina = await listarAtividades({ where, busca, query, mapItem: comoAtividadePublica });
+  const itens = /** @type {any[]} */ (pagina.items);
+  if (!itens.length) return pagina;
+  const custos = await custosTotaisDasAtividades(getPrismaClient(), cli, empresaId, itens.map((i) => String(i.id)));
+  const custoDe = new Map(custos.map((c) => [c.atividade_id, c.custo_total === null || c.custo_total === undefined ? null : t4(c.custo_total)]));
+  return { ...pagina, items: itens.map((i) => ({ ...i, custo_total: custoDe.get(i.id) ?? null })) };
 };
 
 /**
@@ -454,15 +463,21 @@ export const obter = async (contexto, id, query = {}) => {
  *    servicos: [{ servico_id, nome, unidade, quantidade, custo_total }],
  *    combustivel: { quantidade_l, quantidade_kg, custo_total },
  *    consumo_por_bem: [{ bem, medidor_tipo, uso, quantidade, unidade, quantidade_l, quantidade_kg, metrica, unidade_metrica, valor, custo_total }],
- *    custo_total, custo_por_ha, custo_combustivel_por_ha }`.
+ *    custo_total, custo_por_ha, custo_combustivel_por_ha,
+ *    custo_por_tipo: { maquinas, produtos, mao_obra, servicos, combustivel },
+ *    litros_combustivel_por_ha }`.
  * `custo_total` = Σ produtos + Σ máquinas com custo + Σ mão de obra com custo +
  * Σ serviços (D-PROD-207, Fatia 4) + combustível (D-PROD-211, Fatia 5: os
  * abastecimentos CONFIRMADO ligados à atividade); nulo sem nenhum custo;
  * `custo_por_ha` = custo_total / area_executada (4 casas), nulo sem área ou
  * sem custo; `custo_combustivel_por_ha` = custo do combustível / área, idem.
  * `consumo_por_bem` (L/h, km/L… de `abastecimentoConsumo.metricaDoMedidor`) é
- * de `combustivelDaAtividade`. Decimais como texto com 4 casas. Outra fazenda
- * ou tenant → 404.
+ * de `combustivelDaAtividade`. D-PROD-234 (a atividade aberta no desenho do
+ * protótipo, só leitura): `custo_por_tipo` = as parcelas do `custo_total`, cada
+ * uma nula sem custo (`produtos` = Σ dos produtos, nula sem produto); e
+ * `litros_combustivel_por_ha` = litros de combustível / área executada, nulo
+ * sem área ou sem litros (o quilo não entra). Decimais como texto com 4 casas.
+ * Outra fazenda ou tenant → 404.
  * @param {{ auth: AuthContext }} contexto @param {string} id @param {Record<string, any>} [query]
  */
 export const obterTotais = async (contexto, id, query = {}) => {
@@ -490,7 +505,9 @@ export const obterTotais = async (contexto, id, query = {}) => {
       ...[maquinas.custo_total, maoObra.custo_total, servicos.custo_total, combustivel.custo_total].filter((v) => v !== null),
     ];
     const custoTotal = parcelas.length ? parcelas.reduce((t, v) => t.plus(dec(v)), dec(0)) : null;
+    const custoProdutos = produtos.length ? t4(produtos.reduce((t, p) => t.plus(dec(p.custo_total)), dec(0))) : null;
     const area = areaExecutada === null ? null : dec(areaExecutada);
+    const comArea = area !== null && area.gt(0);
     return {
       area_executada: areaExecutada,
       area_planejada: t4(atividade.area_planejada),
@@ -505,6 +522,15 @@ export const obterTotais = async (contexto, id, query = {}) => {
       custo_por_ha: custoTotal !== null && area !== null && area.gt(0) ? t4(arredondar(custoTotal.dividedBy(area), 4)) : null,
       custo_combustivel_por_ha:
         combustivel.custo_total !== null && area !== null && area.gt(0) ? t4(arredondar(dec(combustivel.custo_total).dividedBy(area), 4)) : null,
+      custo_por_tipo: {
+        maquinas: maquinas.custo_total,
+        produtos: custoProdutos,
+        mao_obra: maoObra.custo_total,
+        servicos: servicos.custo_total,
+        combustivel: combustivel.custo_total,
+      },
+      litros_combustivel_por_ha:
+        combustivel.quantidade_l !== null && comArea ? t4(arredondar(dec(combustivel.quantidade_l).dividedBy(/** @type {any} */ (area)), 4)) : null,
     };
   });
 };

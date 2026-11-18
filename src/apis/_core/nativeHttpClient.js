@@ -114,6 +114,9 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   LEITURA_COCHO_NOT_FOUND: API_ERROR_CODES.LEITURA_COCHO_NOT_FOUND,
   // D-PROD-219 — Medição de Forragem.
   MEDICAO_FORRAGEM_NOT_FOUND: API_ERROR_CODES.MEDICAO_FORRAGEM_NOT_FOUND,
+  // D-PROD-230 — Assistente só de leitura.
+  ASSISTENTE_NAO_CONFIGURADO: API_ERROR_CODES.ASSISTENTE_NAO_CONFIGURADO,
+  ASSISTENTE_INDISPONIVEL: API_ERROR_CODES.ASSISTENTE_INDISPONIVEL,
   USUARIO_NOT_FOUND: API_ERROR_CODES.USUARIO_NOT_FOUND,
   USUARIO_LOGIN_DUPLICADO: API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO,
   USUARIO_SELF_DEACTIVATE: API_ERROR_CODES.USUARIO_SELF_DEACTIVATE,
@@ -322,6 +325,12 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
 
   // 502/503/504 são indisponibilidade de infraestrutura, não erro de contrato:
   // o corpo pode nem ser do nosso backend (proxy, load balancer).
+  // Exceção: 503 do PRÓPRIO backend com código do assistente (D-PROD-230) mostra a
+  // mensagem do assistente, não a de infraestrutura.
+  const codigoAssistente = ehObjeto(corpo) && String(corpo.code ?? '').startsWith('ASSISTENTE_') ? CODIGOS_PRESERVADOS[corpo.code] : null;
+  if (resposta.status === 503 && codigoAssistente) {
+    throw new ApiError(codigoAssistente, { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(corpo, contexto.details), cause: corpo });
+  }
   if (resposta.status === 502 || resposta.status === 503 || resposta.status === 504) {
     throw erroDeIndisponibilidade(contexto, new Error(`HTTP ${resposta.status}`));
   }
@@ -336,4 +345,108 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
     // enumerável — some de `JSON.stringify`, inclusive a `message` do servidor.
     cause: corpo,
   });
+};
+
+/**
+ * D-PROD-230 — POST que responde em Server-Sent Events. Mesmas regras de URL, token e
+ * erros HTTP de `nativeRequest` (resposta que não é 200 vira o mesmo `ApiError`).
+ * Cada evento chega em `aoEvento({ evento, dados })`; um evento `erro` vira `ApiError`
+ * com o código do servidor. `recebeuAlgo` no erro diz se algum byte do fluxo chegou
+ * (quem chama decide se dá para repetir pelo caminho sem fluxo).
+ *
+ * @param {string} caminho
+ * @param {{ body: object, signal?: AbortSignal }} opcoes
+ * @param {{operation: string, resource: string, details?: object}} contexto
+ * @param {(e: { evento: string, dados: any }) => void} aoEvento
+ */
+export const nativeStream = async (caminho, opcoes, contexto, aoEvento) => {
+  const base = getNativeApiUrl();
+  if (!base) throw erroDeIndisponibilidade(contexto, new Error('VITE_MAIKE_API_URL ausente'));
+  const token = getNativeToken();
+  if (!token) {
+    throw new ApiError(API_ERROR_CODES.TENANT_CONTEXT_REQUIRED, { operation: contexto.operation, resource: contexto.resource, details: contexto.details ?? null });
+  }
+  const marcar = (erro, recebeuAlgo) => Object.assign(erro, { recebeuAlgo });
+  if (opcoes.signal?.aborted) throw marcar(erroDeIndisponibilidade(contexto, Object.assign(new Error('requisição cancelada'), { name: 'AbortError' })), false);
+
+  let resposta;
+  try {
+    resposta = await fetch(montarUrl(base, caminho), {
+      method: 'POST',
+      headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(opcoes.body),
+      signal: opcoes.signal,
+      credentials: 'omit',
+    });
+  } catch (erro) {
+    throw marcar(erroDeIndisponibilidade(contexto, erro), false);
+  }
+
+  if (!resposta.ok) {
+    let corpo = null;
+    try {
+      corpo = await lerCorpo(resposta);
+    } catch {
+      corpo = null;
+    }
+    const codigoAssistente = ehObjeto(corpo) && String(corpo.code ?? '').startsWith('ASSISTENTE_') ? CODIGOS_PRESERVADOS[corpo.code] : null;
+    if (resposta.status === 503 && codigoAssistente) {
+      throw marcar(new ApiError(codigoAssistente, { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(corpo, contexto.details), cause: corpo }), true);
+    }
+    if (resposta.status === 502 || resposta.status === 503 || resposta.status === 504) {
+      throw marcar(erroDeIndisponibilidade(contexto, new Error(`HTTP ${resposta.status}`)), false);
+    }
+    throw marcar(
+      new ApiError(traduzirCodigo(ehObjeto(corpo) ? corpo.code : null), { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(corpo, contexto.details), cause: corpo }),
+      true,
+    );
+  }
+
+  const tipo = resposta.headers?.get?.('content-type') ?? '';
+  if (!resposta.body || !tipo.includes('text/event-stream')) {
+    // Algum proxy no caminho não deixou o fluxo passar: quem chama repete sem fluxo.
+    throw marcar(erroDeIndisponibilidade(contexto, new Error('resposta sem fluxo')), false);
+  }
+
+  const leitor = resposta.body.getReader();
+  const decodificador = new TextDecoder();
+  let resto = '';
+  let recebeuAlgo = false;
+  const processarBloco = (bloco) => {
+    let evento = 'message';
+    let dados = '';
+    for (const linha of bloco.split('\n')) {
+      if (linha.startsWith('event:')) evento = linha.slice(6).trim();
+      else if (linha.startsWith('data:')) dados += linha.slice(5).trim();
+    }
+    if (!dados) return;
+    let valor;
+    try {
+      valor = JSON.parse(dados);
+    } catch {
+      return;
+    }
+    if (evento === 'erro') {
+      throw marcar(new ApiError(traduzirCodigo(ehObjeto(valor) ? valor.code : null), { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(valor, contexto.details), cause: valor }), true);
+    }
+    aoEvento({ evento, dados: valor });
+  };
+  try {
+    for (;;) {
+      const { value, done } = await leitor.read();
+      if (done) break;
+      recebeuAlgo = true;
+      resto += decodificador.decode(value, { stream: true });
+      let fim;
+      while ((fim = resto.indexOf('\n\n')) >= 0) {
+        const bloco = resto.slice(0, fim);
+        resto = resto.slice(fim + 2);
+        processarBloco(bloco);
+      }
+    }
+    if (resto.trim()) processarBloco(resto);
+  } catch (erro) {
+    if (erro instanceof ApiError) throw erro;
+    throw marcar(erroDeIndisponibilidade(contexto, erro), recebeuAlgo);
+  }
 };

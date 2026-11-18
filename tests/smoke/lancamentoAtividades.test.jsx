@@ -284,6 +284,8 @@ let atividades;
 let apontamentosPorAtividade;
 /** Resposta injetada na PRÓXIMA escrita (não-GET). @type {{ status: number, body?: unknown } | null} */
 let proxima;
+/** `GET /atividades/:id/totais` (D-PROD-232: o resumo do Concluir); sem entrada, a rota falsa responde 404. @type {Map<string, any>} */
+let totaisPorAtividade;
 
 const t4 = (/** @type {number} */ n) => n.toFixed(4);
 /** Totais do cabeçalho: soma dos apontamentos CONFIRMADO (nenhum com valor → null). @param {any[]} lista @param {string} campo */
@@ -425,6 +427,10 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     atividades.set(id, nova);
     return { status: 200, body: nova };
   }
+  if (partes.length === 3 && partes[2] === "totais" && method === "GET") {
+    const t = totaisPorAtividade.get(id);
+    return t ? { status: 200, body: t } : undefined;
+  }
   if (partes[2] !== "apontamentos") return undefined;
   const lista = apontamentosPorAtividade.get(id) ?? [];
   if (partes.length === 3 && method === "GET") return { status: 200, body: { items: lista } };
@@ -472,6 +478,7 @@ beforeEach(async () => {
   sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
   sessao.fuso = "America/Cuiaba";
   proxima = null;
+  totaisPorAtividade = new Map();
   proximoId = 0;
   atividades = new Map([ATV_A1, ATV_A2, ATV_A3].map((a) => [a.id, { ...a }]));
   apontamentosPorAtividade = new Map([
@@ -573,6 +580,8 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
       "Status",
       "Área executada / planejada",
       "Início",
+      // D-PROD-234: o custo total da atividade, que a lista do servidor traz.
+      "Valor total",
     ]);
     // Só a empresa e a página vão na query (nenhum filtro ligado).
     expect(listagens()[0].query.empresa_id).toBe("emp-1");
@@ -848,7 +857,9 @@ describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)",
   it("LA-ACOES-1 — concluir pede a data (padrão hoje; futura não sai) e manda {empresa_id, versao, data_conclusao}", async () => {
     await montarComLista();
     await abrir("a1");
-    await escolherNoMenu("Concluir atividade");
+    // D-PROD-232: na atividade aberta, "Concluir" fica à vista na barra (o Mais opções não repete).
+    expect(await acoesDoMenu()).toEqual(["Cancelar atividade", "Duplicar atividade"]);
+    fireEvent.click(screen.getByTestId("atividade-concluir"));
     const dialogo = await screen.findByTestId("dialogo-concluir-atividade");
     const data = within(dialogo).getByTestId("dialogo-concluir-atividade-data");
     expect(data).toHaveValue(HOJE);
@@ -1249,7 +1260,7 @@ describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVA
   it("LA-ERRO-3 — no diálogo de concluir, ATIVIDADE_EXIGIDA_PELO_TIPO aparece com a mensagem do catálogo (não a genérica) e nada muda", async () => {
     await montarComLista();
     await abrir("a1");
-    await escolherNoMenu("Concluir atividade");
+    fireEvent.click(screen.getByTestId("atividade-concluir"));
     const dialogo = await screen.findByTestId("dialogo-concluir-atividade");
     proxima = erroServidor(422, "ATIVIDADE_EXIGIDA_PELO_TIPO", { field: "quantidade_produzida", reason: "exige_producao" });
     fireEvent.click(within(dialogo).getByTestId("dialogo-concluir-atividade-enviar"));
@@ -1598,5 +1609,237 @@ describe("LA-TIPOS — a tela de Tipos de Atividade continua funcionando (rotulo
     expect(getApiErrorMessage(new ApiError(API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED))).toBe(
       "Não é possível excluir o tipo de atividade: há atividades vinculadas. Inative o tipo em vez de excluir.",
     );
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+// D-PROD-232 — Fatia 1 do redesenho pelo protótipo do proprietário: o ⚡ por linha e o Concluir com resumo.
+/** O ⚡ da linha (grade ou card). @param {string} id */
+const botaoRaio = (id) => screen.getByTestId(`atividade-acoes-${id}`);
+/** Abre o menu ⚡ da linha e devolve os rótulos dos itens, na ordem. @param {string} id */
+const itensDoRaio = async (id) => {
+  fireEvent.click(botaoRaio(id));
+  const menu = await screen.findByTestId(`atividade-acoes-${id}-menu`);
+  return within(menu).queryAllByRole("menuitem").map((i) => i.textContent.trim());
+};
+const fecharRaio = async (/** @type {string} */ id) => {
+  fireEvent.keyDown(screen.getByTestId(`atividade-acoes-${id}-menu`), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByTestId(`atividade-acoes-${id}-menu`)).toBeNull());
+};
+const TIPO_T1_COM_TUDO = { ...TIPOS[0], permite_produto: true, permite_implemento: true, permite_mao_obra: true, permite_servico: true };
+
+describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", () => {
+  it("LA-RAIO-1 — ⚡ em cada linha, com \"Ações\" no cabeçalho; o clique no ⚡ não seleciona a linha; o menu traz o cabeçalho e os grupos", async () => {
+    await montarComLista();
+    for (const id of ["a1", "a2", "a3"]) expect(botaoRaio(id)).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector("th.th-select--acoes")).toHaveTextContent("Ações");
+    const linha = /** @type {HTMLElement} */ (botaoRaio("a1").closest('[data-testid="b1-row"]'));
+    expect(within(linha).getByRole("checkbox", { name: "Selecionar linha" })).toBeTruthy();
+
+    expect(await itensDoRaio("a1")).toEqual([
+      "Trabalho de máquinas",
+      "Abrir atividade",
+      "Alterar atividade",
+      "Concluir atividade",
+      "Duplicar atividade",
+      "Cancelar atividade",
+    ]);
+    expect(botaoRaio("a1")).toHaveAttribute("aria-expanded", "true");
+    expect(linha).toHaveAttribute("aria-selected", "false");
+    const menu = screen.getByTestId("atividade-acoes-a1-menu");
+    expect(menu).toHaveTextContent("Nº 3 · Cigarrinha Pasto 01");
+    expect(menu).toHaveTextContent("APLICAÇÃO · 01 — Pasto 01");
+    // Os três grupos (lançar · abrir · alterar…) com divisória; o cancelar em vermelho.
+    expect(within(menu).getAllByRole("group")).toHaveLength(3);
+    expect(within(menu).getByRole("menuitem", { name: "Cancelar atividade" })).toHaveClass("is-danger");
+    // Esc fecha e o foco volta ao ⚡.
+    await fecharRaio("a1");
+    expect(botaoRaio("a1")).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(botaoRaio("a1")).toHaveFocus());
+
+    // Concluída: abrir, reabrir (com a extra) e duplicar; cancelada: abrir e duplicar. Nada de lançar.
+    expect(await itensDoRaio("a2")).toEqual(["Abrir atividade", "Reabrir atividade", "Duplicar atividade"]);
+    await fecharRaio("a2");
+    expect(await itensDoRaio("a3")).toEqual(["Abrir atividade", "Duplicar atividade"]);
+    await fecharRaio("a3");
+    expect(escritas()).toEqual([]);
+  });
+
+  it("LA-RAIO-2 — os lançamentos seguem o tipo: insumos (permite_produto), mão de obra e custos extras (serviço); máquina sempre", async () => {
+    tiposSrv.listarTiposAtividade.mockResolvedValue([TIPO_T1_COM_TUDO, ...TIPOS.slice(1)]);
+    await montarComLista();
+    await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
+    await assentar();
+    expect((await itensDoRaio("a1")).slice(0, 4)).toEqual(["Trabalho de máquinas", "Aplicação de insumos", "Mão de obra", "Custos extras"]);
+    await fecharRaio("a1");
+    // Só mão de obra no tipo (a flag que a atividade trouxer vale sobre a da lista de tipos).
+    atividades.set("a1", { ...atividades.get("a1"), permite_produto: false, permite_servico: false, permite_mao_obra: true });
+    cleanup();
+    await montarComLista();
+    await assentar();
+    expect((await itensDoRaio("a1")).slice(0, 3)).toEqual(["Trabalho de máquinas", "Mão de obra", "Abrir atividade"]);
+  });
+
+  it("LA-RAIO-3 — por permissão: só ver = só Abrir; sem a extra de lançar, nada de lançar; sem o fuso, só Abrir", async () => {
+    sessao.permissao = permissaoCom({});
+    await montarComLista();
+    expect(await itensDoRaio("a1")).toEqual(["Abrir atividade"]);
+    cleanup();
+
+    sessao.permissao = permissaoCom(ACOES_PADRAO);
+    await montarComLista();
+    expect(await itensDoRaio("a1")).toEqual(["Abrir atividade", "Alterar atividade", "Concluir atividade", "Duplicar atividade", "Cancelar atividade"]);
+    cleanup();
+
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    sessao.fuso = null;
+    await montarComLista();
+    expect(await itensDoRaio("a1")).toEqual(["Abrir atividade"]);
+  });
+
+  it("LA-RAIO-4 — Abrir e Alterar pelo ⚡: a atividade abre só leitura, ou já na edição do cabeçalho", async () => {
+    await montarComLista();
+    await itensDoRaio("a1");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Abrir atividade" }));
+    expect(await screen.findByTestId("atividade-cabecalho")).toBeTruthy();
+    cleanup();
+    await montarComLista();
+    await itensDoRaio("a1");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Alterar atividade" }));
+    const form = await screen.findByTestId("b1-form-atividade");
+    expect(/** @type {HTMLInputElement} */ (within(form).getByLabelText(/^Nome da atividade/)).value).toBe("Cigarrinha Pasto 01");
+  });
+
+  it("LA-RAIO-5 — \"Trabalho de máquinas\" abre a janela do tipo (D-PROD-233) sobre a atividade da linha, no dia de hoje, sem gravar nada; Fechar fecha", async () => {
+    await montarComLista();
+    await itensDoRaio("a1");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Trabalho de máquinas" }));
+    const janela = await screen.findByTestId("janela-tipo");
+    expect(within(janela).getByRole("heading", { name: "Trabalho de máquinas" })).toBeTruthy();
+    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Atividade Nº 3 · APLICAÇÃO · Talhão: 01 — Pasto 01 · Lançamento de 14/11/2026");
+    expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
+    // Hoje não tem lançamento: a lista vazia e a regra do dia (o primeiro item cria o lançamento).
+    await waitFor(() => expect(within(janela).getByTestId("janela-tipo-dia-novo")).toHaveTextContent("o primeiro item salvo cria o lançamento do dia"));
+    expect(within(janela).getByTestId("janela-tipo-vazio")).toHaveTextContent("Nenhum registro neste lançamento. Clique em Inserir.");
+    expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Trabalhos de máquinas (0)");
+    // Ainda na lista: nada aberto atrás da janela, nada gravado.
+    expect(screen.queryByTestId("atividade-cabecalho")).toBeNull();
+    fireEvent.click(within(janela).getByTestId("janela-tipo-fechar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+    expect(escritas()).toEqual([]);
+  });
+
+  it("LA-RAIO-6 — Concluir pelo ⚡: o diálogo novo com o resumo (período, área feita e barra, custos, combustível) e o aviso da área que falta", async () => {
+    atividades.set("a1", { ...atividades.get("a1"), totais: { apontamentos_confirmados: 2, apontamentos_cancelados: 1, dias_com_apontamento: 1 } });
+    totaisPorAtividade.set("a1", {
+      area_executada: "12.5000",
+      area_planejada: "40.0000",
+      unidade_area: "ha",
+      produtos: [],
+      maquinas: [],
+      mao_obra: [],
+      servicos: [],
+      combustivel: { quantidade_l: "43.0000", quantidade_kg: null, custo_total: "250.0000" },
+      consumo_por_bem: [],
+      custo_total: "4262.4700",
+      custo_por_ha: "340.9976",
+      custo_combustivel_por_ha: "20.0000",
+    });
+    await montarComLista();
+    await itensDoRaio("a1");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Concluir atividade" }));
+    const dialogo = await screen.findByTestId("dialogo-concluir-atividade");
+    expect(within(dialogo).getByRole("heading", { name: "Concluir atividade" })).toBeTruthy();
+    expect(dialogo).toHaveTextContent("Nº 3 · CIGARRINHA PASTO 01");
+    await waitFor(() => expect(within(dialogo).getByTestId("concluir-resumo-periodo")).toHaveTextContent("01/11 → hoje · 1 dia lançado"));
+    await waitFor(() => expect(within(dialogo).getByTestId("concluir-resumo-area")).toHaveTextContent("12,5 / 40 ha (31%)"));
+    expect(within(dialogo).getByTestId("concluir-resumo-barra")).toHaveAttribute("aria-valuenow", "31");
+    expect(within(dialogo).getByTestId("concluir-resumo-custo")).toHaveTextContent("R$ 4.262,47");
+    expect(within(dialogo).getByTestId("concluir-resumo-custo-ha")).toHaveTextContent("R$ 341,00");
+    expect(within(dialogo).getByTestId("concluir-resumo-combustivel")).toHaveTextContent("43 L");
+    expect(within(dialogo).getByTestId("concluir-falta-area")).toHaveTextContent("Faltam 27,5 ha dos 40 planejados. Pode concluir assim mesmo: a área fica como foi lançada.");
+    expect(within(dialogo).getByTestId("concluir-nota")).toHaveTextContent("Concluída, a atividade fica só para consulta. Dá para reabrir depois.");
+    // A data (padrão hoje) e o período acompanham a escolha.
+    const data = within(dialogo).getByTestId("dialogo-concluir-atividade-data");
+    expect(data).toHaveValue(HOJE);
+    fireEvent.change(data, { target: { value: "2026-11-12" } });
+    expect(within(dialogo).getByTestId("concluir-resumo-periodo")).toHaveTextContent("01/11 → 12/11 · 1 dia lançado");
+    fireEvent.click(within(dialogo).getByTestId("dialogo-concluir-atividade-enviar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/concluir", query: {}, body: { empresa_id: "emp-1", versao: 4, data_conclusao: "2026-11-12" } });
+    expect(await screen.findByTestId("atividade-concluida")).toHaveTextContent("Atividade concluída em 12/11/2026");
+  });
+
+  it("LA-RAIO-7 — sem os totais do servidor o resumo não inventa: \"—\" nos custos e no combustível, a área do cabeçalho e a nota do erro", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(screen.getByTestId("atividade-concluir"));
+    const dialogo = await screen.findByTestId("dialogo-concluir-atividade");
+    await waitFor(() => expect(within(dialogo).getByTestId("concluir-resumo-erro")).toBeTruthy());
+    expect(within(dialogo).getByTestId("concluir-resumo-custo")).toHaveTextContent("—");
+    expect(within(dialogo).getByTestId("concluir-resumo-custo-ha")).toHaveTextContent("—");
+    expect(within(dialogo).getByTestId("concluir-resumo-combustivel")).toHaveTextContent("—");
+    expect(within(dialogo).getByTestId("concluir-resumo-area")).toHaveTextContent("12,5 / 40 ha (31%)");
+    // O detalhe do fake não traz `totais`: sem os dias, o período fica só com as datas.
+    expect(within(dialogo).getByTestId("concluir-resumo-periodo")).toHaveTextContent(/^01\/11 → hoje$/);
+  });
+
+  it("LA-RAIO-8 — celular: o ⚡ fica no card e o menu abre na folha de baixo (não na janela presa ao botão)", async () => {
+    vi.stubGlobal("matchMedia", (/** @type {string} */ query) => ({
+      matches: query.includes("max-width: 639px") || query.includes("max-width: 767px") || query.includes("max-width: 1023px"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }));
+    await montar();
+    await waitFor(() => expect(screen.getAllByTestId("b1-card").length).toBe(3));
+    const card = /** @type {HTMLElement} */ (botaoRaio("a1").closest('[data-testid="b1-card"]'));
+    expect(card).toBeTruthy();
+    fireEvent.click(botaoRaio("a1"));
+    const menu = await screen.findByTestId("atividade-acoes-a1-menu");
+    expect(menu.closest(".mk-sheet")).toBeTruthy();
+    expect(menu.closest("[data-radix-popper-content-wrapper]")).toBeNull();
+    expect(card).toHaveAttribute("aria-selected", "false");
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Concluir atividade" }));
+    expect(await screen.findByTestId("dialogo-concluir-atividade")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByTestId("atividade-acoes-a1-menu")).toBeNull());
+  });
+});
+
+describe("LA-RAIO-GRADE — a grade e os cards das outras telas não mudam (o ⚡ é opt-in)", () => {
+  it("LA-RAIO-GRADE-1 — sem renderAcoesDaLinha: só a caixa de marcar, sem \"Ações\" nem ⚡; com ele: caixa + ⚡ e \"Ações\"", async () => {
+    const { default: Base1Grid } = await import("@/components/cadastro/base1/Base1Grid");
+    const { Base1Cards } = await import("@/components/cadastro/base1/Base1Cards");
+    const linhas = [{ id: "r1", nome: "Um" }];
+    const colunas = [{ key: "nome", label: "Nome" }];
+    const comum = { columns: colunas, rows: linhas, selected: new Set(), onSelectClick: vi.fn(), onToggle: vi.fn(), onToggleAll: vi.fn() };
+    const { unmount } = render(<Base1Grid {...comum} />);
+    expect(document.querySelector("th.th-select--acoes, td.td-select--acoes, .b1-raio, .b1-selacoes")).toBeNull();
+    expect(screen.queryByText("Ações")).toBeNull();
+    unmount();
+    render(<Base1Grid {...comum} renderAcoesDaLinha={(/** @type {any} */ r) => <button type="button" className="b1-raio" aria-label={`ações ${r.id}`} />} />);
+    expect(document.querySelector("th.th-select--acoes")).toHaveTextContent("Ações");
+    expect(screen.getByRole("button", { name: "ações r1" }).closest("td.td-select--acoes")).toBeTruthy();
+    cleanup();
+
+    const cartoes = { rows: linhas, columns: [{ id: "nome", label: "Nome" }], fields: ["nome"], perRow: /** @type {1} */ (1), selected: new Set(), onSelectClick: vi.fn(), getFieldValue: (/** @type {any} */ r) => r.nome };
+    const sem = render(<Base1Cards {...cartoes} />);
+    expect(document.querySelector(".b1-raio, .b1-selacoes")).toBeNull();
+    sem.unmount();
+    render(<Base1Cards {...cartoes} renderAcoesDaLinha={() => <button type="button" className="b1-raio" aria-label="ações do card" />} />);
+    expect(screen.getByRole("button", { name: "ações do card" }).closest(".b1-card__select")).toBeTruthy();
+  });
+
+  it("LA-RAIO-GRADE-2 — resumoParaConcluir: sem totais, nada de custo inventado; a área que falta só com a planejada maior", async () => {
+    const { resumoParaConcluir } = await import("@/lib/atividadeLinhasRegras");
+    const base = { data_inicio: "2026-11-03", area_executada: "9.2000", area_planejada: "18.4000" };
+    const r = resumoParaConcluir({ atividade: base, totais: null, hoje: HOJE, dataConclusao: HOJE });
+    expect(r).toEqual({ periodo: "03/11 → hoje", area: "9,2 / 18,4 ha (50%)", barra: 50, falta: { faltam: "9,2", planejada: "18,4", unidade: "ha" }, custo: null, custoPorHa: null, combustivel: null });
+    const cheia = resumoParaConcluir({ atividade: { ...base, area_executada: "18.4000", totais: { dias_com_apontamento: 3 } }, totais: null, hoje: HOJE });
+    expect(cheia.falta).toBeNull();
+    expect(cheia.periodo).toBe("03/11 → hoje · 3 dias lançados");
+    expect(resumoParaConcluir({ atividade: {}, totais: null, hoje: HOJE })).toMatchObject({ periodo: null, area: null, barra: null, falta: null });
   });
 });

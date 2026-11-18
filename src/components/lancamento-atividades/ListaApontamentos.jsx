@@ -100,9 +100,10 @@ const textoDoCancelamento = (ap, fuso) => {
  *   atividade: any,
  *   acoes: AcoesDosLancamentos & Record<string, any>,
  *   onAtividadeAtualizada: (atividade: any) => void,
- * }} props
+ *   titulo?: string,
+ * }} props `titulo`: o da seção (D-PROD-234: "Lançamentos por dia", dentro de "Dias lançados" da atividade aberta).
  */
-export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualizada }) {
+export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualizada, titulo = "Lançamentos" }) {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   const { fuso, semFuso } = useFusoDaFazenda(empresaId);
@@ -371,7 +372,7 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
     // Os botões seguem as ações da tela (lançar, editar e cancelar apontamento): a heurística de texto do Layout não vale.
     <section className="cadastro-b1 min-w-0" data-permissao-explicita="" data-testid="lista-apontamentos">
       <div className="b1 mg-b1-form-grid w-full min-h-0">
-        <SecaoForm titulo="Lançamentos" />
+        <SecaoForm titulo={titulo} />
         {aviso ? (
           <div className="col-span-12">
             <AvisoGestao testId="apontamentos-aviso">{aviso}</AvisoGestao>
