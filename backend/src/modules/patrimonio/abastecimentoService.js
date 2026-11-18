@@ -450,7 +450,8 @@ const conflitoDeChave = (operationId) => () =>
 
 /**
  * D-PROD-252: a unique `(cliente_id, operation_id)` do abastecimento, conferível
- * sem o alvo do P2002 (o mesmo que a D-PROD-193 faz no item do apontamento).
+ * sem o alvo do P2002 (o molde da D-PROD-193, hoje também nas linhas do
+ * Lançamento de Atividades).
  * @param {string} cli @param {string} operationId
  * @returns {import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio}
  */

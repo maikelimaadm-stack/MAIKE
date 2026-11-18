@@ -144,59 +144,64 @@ A verificação de registro é o `verify:all` abaixo, que roda todas.
 
 ### `npm run verify:all`
 
-Rodado localmente no head `7213c90` (esta branch já integrada com a `main` `a65ea46`), com o banco de teste **recriado do zero** (as 49 migrations aplicadas pelo runner de deploy, como na CI), PostgreSQL 16.15 e Node 22; sem `NODE_ENV` no ambiente (o `verify:all` fixa `production` no build). O GitHub Actions do proprietário está pausado (§8, R7), então esta é a verificação de registro desta PR, como na PR #273.
+Rodado localmente no head `946b5965` (esta branch integrada com a `main` `3a329d90`), com o banco de teste **recriado do zero** (as 68 migrations aplicadas pelo runner de deploy, como na CI), PostgreSQL 16.15 e Node 22; sem `NODE_ENV` no ambiente (o `verify:all` fixa `production` no build).
 
-- `test:gates`: 846/846;
-- `test:backend`: 148 arquivos, 1887 testes, 1882 passaram, 0 falharam, 5 `todo` (do roteiro do ledger pecuário, anteriores a esta missão);
-- `test:smoke`: 226 arquivos, 2805/2805.
+- `test:gates`: 1038/1038;
+- `test:backend`: 176 arquivos, 2370 testes, 2364 passaram, 0 falharam, 6 `todo` (5 do roteiro do ledger pecuário e 1 da suplementação, anteriores a esta missão);
+- `test:smoke`: 297 arquivos, 3682/3682.
 
 ```
-  test:gates           PASS           0      73.7s  npm run test:gates
-  governance-paths     PASS           0      181ms  npm run gate:governance-paths
-  package-sync         PASS           0      150ms  npm run gate:package-sync
-  product-scope        PASS           0      604ms  npm run gate:product-scope
-  api-boundary         PASS           0       2.1s  npm run gate:api-boundary
-  native-api           PASS           0      228ms  npm run gate:native-api
-  setor-native         PASS           0      237ms  npm run gate:setor-native
-  marca-native         PASS           0      196ms  npm run gate:marca-native
-  unidade-medida-native PASS           0      208ms  npm run gate:unidade-medida-native
-  tarefa-cadastro-native PASS           0      176ms  npm run gate:tarefa-cadastro-native
-  lote-native          PASS           0      217ms  npm run gate:lote-native
-  lancamento-tarefa-native PASS           0      234ms  npm run gate:lancamento-tarefa-native
-  p52-cadastros-estoque-native PASS           0      258ms  npm run gate:p52-cadastros-estoque-native
-  p54-base44-exit      PASS           0      156ms  npm run gate:p54-base44-exit
-  p55-base44-exit-final PASS           0      167ms  npm run gate:p55-base44-exit-final
-  area-pastagem-native PASS           0      222ms  npm run gate:area-pastagem-native
-  map-geography-native PASS           0      209ms  npm run gate:map-geography-native
-  usuario-admin        PASS           0      169ms  npm run gate:usuario-admin
-  source-closure       PASS           0      238ms  npm run gate:source-closure
-  import-integrity     PASS           0      217ms  npm run gate:import-integrity
-  admin-isolation      PASS           0      194ms  npm run gate:admin-isolation
+  ETAPA                RESULTADO   EXIT    DURAÇÃO  COMANDO
+  test:gates           PASS           0      61.5s  npm run test:gates
+  governance-paths     PASS           0      132ms  npm run gate:governance-paths
+  package-sync         PASS           0      126ms  npm run gate:package-sync
+  product-scope        PASS           0      461ms  npm run gate:product-scope
+  api-boundary         PASS           0       1.9s  npm run gate:api-boundary
+  native-api           PASS           0      207ms  npm run gate:native-api
+  setor-native         PASS           0      183ms  npm run gate:setor-native
+  marca-native         PASS           0      162ms  npm run gate:marca-native
+  unidade-medida-native PASS           0      195ms  npm run gate:unidade-medida-native
+  tarefa-cadastro-native PASS           0      189ms  npm run gate:tarefa-cadastro-native
+  lote-native          PASS           0      190ms  npm run gate:lote-native
+  lancamento-tarefa-native PASS           0      204ms  npm run gate:lancamento-tarefa-native
+  p52-cadastros-estoque-native PASS           0      241ms  npm run gate:p52-cadastros-estoque-native
+  p54-base44-exit      PASS           0      132ms  npm run gate:p54-base44-exit
+  p55-base44-exit-final PASS           0      146ms  npm run gate:p55-base44-exit-final
+  area-pastagem-native PASS           0      193ms  npm run gate:area-pastagem-native
+  map-geography-native PASS           0      176ms  npm run gate:map-geography-native
+  usuario-admin        PASS           0      145ms  npm run gate:usuario-admin
+  source-closure       PASS           0      216ms  npm run gate:source-closure
+  import-integrity     PASS           0      200ms  npm run gate:import-integrity
+  admin-isolation      PASS           0      200ms  npm run gate:admin-isolation
   no-secrets           PASS           0       1.9s  npm run gate:no-secrets
-  base44               PASS           0      210ms  npm run gate:base44
-  modelobase1-pecuario PASS           0      143ms  npm run gate:modelobase1-pecuario
-  motorbase1-independence PASS           0      746ms  npm run gate:motorbase1-independence
-  tenancy              PASS           0      232ms  npm run gate:tenancy
-  rebanho-ssot         PASS           0      178ms  npm run gate:rebanho-ssot
-  indices              PASS           0      154ms  npm run gate:indices
-  deploy-migrations    PASS           0      201ms  npm run gate:deploy-migrations
-  supabase-public-grants PASS           0      144ms  npm run gate:supabase-public-grants
-  prisma:generate      PASS           0       2.6s  npm run prisma:generate
-  types                PASS           0      14.5s  npm run gate:types
-  typecheck:backend    PASS           0      11.2s  npm run typecheck:backend
-  lint                 PASS           0      13.8s  npm run lint
-  test:backend         PASS           0    1561.1s  npm run test:backend
-  test:smoke           PASS           0     203.4s  npm run test:smoke
-  build                PASS           0      19.7s  npm run build
-  build:admin          PASS           0       1.6s  npm run build:admin
-  admin-isolation:bundles PASS           0      246ms  npm run gate:admin-isolation
+  base44               PASS           0      156ms  npm run gate:base44
+  modelobase1-pecuario PASS           0      126ms  npm run gate:modelobase1-pecuario
+  motorbase1-independence PASS           0      567ms  npm run gate:motorbase1-independence
+  tenancy              PASS           0      216ms  npm run gate:tenancy
+  rebanho-ssot         PASS           0      157ms  npm run gate:rebanho-ssot
+  indices              PASS           0      138ms  npm run gate:indices
+  deploy-migrations    PASS           0      200ms  npm run gate:deploy-migrations
+  supabase-public-grants PASS           0      136ms  npm run gate:supabase-public-grants
+  prisma:generate      PASS           0       3.1s  npm run prisma:generate
+  types                PASS           0      14.4s  npm run gate:types
+  typecheck:backend    PASS           0      12.1s  npm run typecheck:backend
+  lint                 PASS           0      21.8s  npm run lint
+  test:backend         PASS           0    1860.5s  npm run test:backend
+  test:smoke           PASS           0     215.2s  npm run test:smoke
+  build                PASS           0      18.3s  npm run build
+  build:admin          PASS           0       1.3s  npm run build:admin
+  admin-isolation:bundles PASS           0      200ms  npm run gate:admin-isolation
 
-  Total: 1912.1s
+  Total: 2217.6s
 
 TODAS AS ETAPAS PASSARAM
 
 verify:all exit=0
 ```
+
+**A CI da PR rodou a mesma cadeia no mesmo head e ficou verde** (o GitHub Actions voltou; §8, R7): `classify`, `verify:full` (estático, backend 1/4 a 4/4, smoke 1/2 e 2/2) e o agregado `verify:all`. Depois do `946b5965` vieram só o merge da `main` `0981d262` (PR #330, só frontend, sem arquivo em comum com esta branch) e o commit destes documentos, com uma linha de comentário no `abastecimentoService.js`; a CI da PR cobre o head final.
+
+Antes, no head `7213c90` (integrado com a `main` `a65ea46`), o mesmo `verify:all` local tinha passado: 39 etapas, backend 1882/1887 com 5 `todo`, smoke 2805/2805, gates 846/846.
 
 ## 7. Divergências em relação ao molde do PROJETOMG
 
@@ -211,8 +216,8 @@ Nenhuma. A tradução continua na camada de serviço (API → service → reposi
 | R3 | A conferência roda depois do rollback: se a linha que ocupou a chave sumir nesse intervalo, não há conferência | o resultado é o caminho de antes (409 genérico), e o reenvio cai na pré-conferência. As chaves conferidas (`operation_id`, estorno da liquidação) não são apagadas; nome e número da empresa raramente mudam no mesmo instante |
 | R4 | Custo da conferência | só no caminho de falha (P2002 sem alvo), uma leitura por unique do mapa, numa transação curta (2 s/5 s). O caminho feliz não muda, salvo as pré-conferências novas (abastecimento e linhas de máquina, de mão de obra e de serviço), cada uma uma leitura pelo índice da unique |
 | R5 | Uma entrada nova no mapa sem conferência | o tipo reprova (`typecheck:backend`); `soPeloAlvo` novo reprova o S1 até ser inventariado |
-| R6 | A `main` andou enquanto esta corria: a PR #273 (`a65ea46`) e as PRs #276 a #329 (`3a329d90`) | integradas por merge, sem rebase. No primeiro, o único conflito foi o fim do `DECISIONS.md`. No segundo, o fim do `DECISIONS.md` e o topo do `CURRENT-STATE.md`, e o apontamento antigo que a `main` apagou (D-PROD-200), aceito com as mudanças desta branch nele; os mapas novos do módulo `atividades` foram convertidos no próprio merge (o tipo os reprovava) e as culturas corrigidas pela releitura do inventário |
-| R7 | O GitHub Actions está pausado na conta do proprietário: a CI `quality` da PR morre em ~2 s, sem executar passos e sem log (o mesmo na `main` `a65ea46` e na #273) | a verificação de registro é o `verify:all` local acima; dito uma vez na PR. Quando o Actions voltar, a CI da PR roda a mesma cadeia |
+| R6 | A `main` andou enquanto esta corria: a PR #273 (`a65ea46`), as PRs #276 a #329 (`3a329d90`) e a PR #330 (`0981d262`) | integradas por merge, sem rebase. No primeiro, o único conflito foi o fim do `DECISIONS.md`; no terceiro, nenhum (só frontend). No segundo, o fim do `DECISIONS.md` e o topo do `CURRENT-STATE.md`, e o apontamento antigo que a `main` apagou (D-PROD-200), aceito com as mudanças desta branch nele; os mapas novos do módulo `atividades` foram convertidos no próprio merge (o tipo os reprovava) e as culturas corrigidas pela releitura do inventário |
+| R7 | O GitHub Actions esteve pausado na conta do proprietário: a CI `quality` da PR morria em ~2 s, sem executar passos e sem log (o mesmo na `main` `a65ea46` e na #273) | a verificação de registro foi o `verify:all` local, dito uma vez na PR. O Actions voltou em 2026-11-18: a CI da PR rodou a cadeia inteira no `946b5965` e ficou verde (§6) |
 | R8 | Um tradutor novo que leia o alvo por um caminho que nenhuma regex do S1 pega (por exemplo, percorrer as chaves do erro) | o S1 reprova `.target`, `['target']`, o `meta` inteiro (`.meta`, `['meta']`) e a desestruturação de `target` e de `meta`; outro caminho passa, e a revisão humana continua sendo a última rede. O AGENTS.md avisa a armadilha |
 
 ## 9. Fora do escopo

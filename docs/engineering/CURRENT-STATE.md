@@ -13,14 +13,14 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-252** (nasceu D-PROD-195; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e chegou a `Próxima decisão: D-PROD-252`; a PR #330, aberta, não cria decisão) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273) e com a `main` `3a329d90` (PRs #276 a #329, inclusive o módulo novo `atividades`). PR **#275** (rascunho), exclusiva desta correção |
+| Decisão | **D-PROD-252** (nasceu D-PROD-195; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e chegou a `Próxima decisão: D-PROD-252`; a PR #330, mergeada depois, não cria decisão) |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) e com a `main` `0981d262` (PR #330, só frontend). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
 | Testes | `backend/tests/p2002SemAlvo.test.mjs` (14, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, L1–L3, C1, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
 | Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão (a do aceite do tanque passou a ler o `meta` por campo, com o mesmo resultado) |
-| Validação | `npm run verify:all` local **verde** no `7213c90` (39 etapas; backend 1882/1887 com 5 `todo` antigos, smoke 2805/2805, gates 846/846), com banco recriado. O GitHub Actions do proprietário está pausado: a CI da PR morre em ~2 s sem log, como na `main` ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
+| Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
 ## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
