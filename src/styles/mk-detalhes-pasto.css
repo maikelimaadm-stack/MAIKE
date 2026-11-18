@@ -1850,7 +1850,7 @@
   .mk-dp .mk-dp-area-organizada,
   .mk-dp .mk-dp-lote-organizado {
     grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
+    gap: 12px;
     align-items: start;
   }
   .mk-dp .mk-dp-area-organizada > :is(.mk-dp-aviso, .mk-dp-vazio),
@@ -1859,8 +1859,8 @@
     grid-column: 1 / -1;
   }
   .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 20px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 12px;
   }
   .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel {
     grid-template-columns: minmax(0, 1fr);
@@ -1871,12 +1871,76 @@
     text-align: left;
   }
 }
-@media (min-width: 1280px) {
-  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
 /* O par de áreas permanece junto também nas grades de três colunas. */
 .mk-dp .mk-dp-area-organizada .mk-dp-grade.mk-dp-area-superficies {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* D-PROD-240 — densidade compacta e controles no tamanho do rótulo. */
+.mk-dp .mk-dp-abas {
+  gap: 4px;
+  padding: 0 12px;
+  overflow-x: auto;
+}
+.mk-dp .mk-dp-aba {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.mk-dp .mk-dp-seg {
+  display: inline-flex;
+  align-self: flex-start;
+  width: max-content;
+  max-width: 100%;
+  padding: 2px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+.mk-dp .mk-dp-seg__op {
+  flex: 0 0 auto;
+  min-width: 64px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 3px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) { gap: 12px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__cab { padding: 12px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade { padding: 0 12px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel { padding: 8px 0; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha {
+  margin: 0 12px;
+  padding: 8px 0;
+}
+/* O texto comprido permanece em uma linha e pode ser percorrido horizontalmente. */
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) :is(.mk-dp-cel__rot, .mk-dp-cel__val, .mk-dp-cel__sub, .mk-dp-linha__rot, .mk-dp-linha__val) {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  text-wrap: nowrap;
+  overflow-x: auto;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__val { display: block; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__val .mk-dp-bolinha {
+  display: inline-block;
+  margin-right: 6px;
+}
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal { margin: 0 12px; padding-top: 10px; }
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal > .mk-dp-grade { padding: 0; }
+@media (min-width: 768px) {
+  /* Quatro dados do resumo da área na mesma linha, sem duas grades separadas. */
+  .mk-dp .mk-dp-area-resumo {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 16px;
+    padding: 0 12px;
+  }
+  .mk-dp .mk-dp-area-resumo > .mk-dp-cartao__cab {
+    grid-column: 1 / -1;
+    margin: 0 -12px;
+  }
+  .mk-dp .mk-dp-area-resumo > .mk-dp-grade { display: contents; }
 }

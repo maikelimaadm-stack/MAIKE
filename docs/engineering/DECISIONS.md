@@ -8290,5 +8290,12 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - A regra `ignoreCommand` também permite a branch exata `codex/previa-detalhes-mapa`; demais branches continuam ignoradas e main segue publicando como antes.
 - Alteração restrita à branch da prévia, sem promover deployment, alterar produção ou mesclar código. Inclui os cartões largos empilhados com campos internos em colunas (D-PROD-238).
 
-<!-- Próxima decisão: D-PROD-240 -->
+### D-PROD-240 — Quatro campos por linha e controles compactos (2026-11-18)
+
+- Pedido: quatro informações por linha em desktop/tablet, texto sem quebra com leitura horizontal, alturas menores em todas as telas e abas/segmentos compactos como a referência.
+- Grades dos detalhes da área e do lote com quatro colunas a partir de 768 px; resumo da área une suas duas grades visualmente. Projeção mensal continua com até três datas existentes.
+- Textos de campos não quebram: rolagem horizontal individual e rótulo/valor completos no título nativo da célula. Dados preservados.
+- Cartões/linhas com espaçamento menor em todas as telas; abas e Resumo/Lote/Lista ocupam a largura de seus rótulos. Popup continua estável. Apenas prévia, sem merge.
+
+<!-- Próxima decisão: D-PROD-241 -->
 

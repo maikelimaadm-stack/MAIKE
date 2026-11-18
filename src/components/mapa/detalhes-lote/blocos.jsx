@@ -317,8 +317,8 @@ export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, titl
   const pct = barra == null || !Number.isFinite(Number(barra)) ? null : Math.max(0, Math.min(100, Number(barra)));
   return (
     <div className={cls("mk-dp-cel", className)} title={title} {...resto}>
-      <dt className="mk-dp-cel__rot">{rotulo}</dt>
-      <dd className="mk-dp-cel__val" style={cor ? { color: cor } : undefined}>
+      <dt className="mk-dp-cel__rot" title={textoDe(rotulo) || undefined}>{rotulo}</dt>
+      <dd className="mk-dp-cel__val" title={textoDe(valor) || undefined} style={cor ? { color: cor } : undefined}>
         {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
         {valor}
       </dd>
