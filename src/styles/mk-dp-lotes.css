@@ -248,9 +248,6 @@
   min-width: 0;
 }
 
-.mk-dp .mk-dp-lote-organizado__secao > .mk-dp-cartao .mk-dp-grade {
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-}
 
 @media (min-width: 1024px) {
   .mk-dp .mk-dp-lote-organizado {

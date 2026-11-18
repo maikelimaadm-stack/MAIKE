@@ -1,6 +1,6 @@
 import React from "react";
 import { Beef, Sprout } from "lucide-react";
-import { Aviso, Cartao, Celula, Grade, Linha, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import { Aviso, Cartao, Celula, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { IconeCategoria } from "@/components/mapa/detalhes-lote/pecas";
 import { PartesDoCartao } from "@/components/mapa/detalhes-lote/BlocosLote";
 import { camposDoCartaoDaArea, statusDaArea, VAZIO } from "@/components/mapa/detalhes-lote/catalogo";
@@ -26,7 +26,7 @@ export function AbaDetalhes() {
     .filter((campo) => !["setor", "hectares", "haPastejada"].includes(campo.chave || "") && (campo.chave !== "pastagem" || !pastagemNoSubtitulo));
 
   return (
-    <>
+    <div className="mk-dp-area-organizada">
       <Cartao icone={Sprout} titulo={area.nome || dados.areaNome} sub={area.sub || undefined} className="mk-dp-area-resumo">
         <Grade className="mk-dp-area-superficies">
           <Celula rotulo="Área (ha)" valor={area.campos.hectares.texto} />
@@ -34,18 +34,18 @@ export function AbaDetalhes() {
         </Grade>
         <PartesDoCartao campos={campos} />
       </Cartao>
+      <SecaoDetalhe titulo="Lotação" className="mk-dp-area-organizada__lotacao">
+        <Cartao className="mk-dp-area-lotacao">
+          <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && campo.dica === "Superlotação (> 2,4 UA/ha)")) ? { ...campo, dica: undefined } : campo)} />
+        </Cartao>
+      </SecaoDetalhe>
       {area.alertas.map((a) => (
         <Aviso key={a.frase} tom={a.tom === "atencao" ? "atencao" : "neutro"}>
           {a.frase}
         </Aviso>
       ))}
-      <TituloBloco>Lotação</TituloBloco>
-      <Cartao className="mk-dp-area-lotacao">
-        <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && campo.dica === "Superlotação (> 2,4 UA/ha)")) ? { ...campo, dica: undefined } : campo)} />
-      </Cartao>
       {area.categorias.length ? (
-        <>
-          <TituloBloco>Categorias</TituloBloco>
+        <SecaoDetalhe titulo="Categorias" className="mk-dp-area-organizada__categorias">
           <Cartao>
             {area.categorias.map((c) => (
               <Linha
@@ -57,11 +57,11 @@ export function AbaDetalhes() {
               />
             ))}
           </Cartao>
-        </>
+        </SecaoDetalhe>
       ) : (
         <Vazio icone={Beef}>Nenhum lote neste pasto agora.</Vazio>
       )}
-    </>
+    </div>
   );
 }
 

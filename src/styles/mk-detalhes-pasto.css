@@ -1753,3 +1753,96 @@
 .mk-dp .mk-dp-lote-organizado__secao > .mk-dp-cartao .mk-dp-projecao-mensal > .mk-dp-grade {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+
+/* D-PROD-232 — detalhes em linhas, inspirados na referência do proprietário.
+   Escopo: detalhes da área e cartões individuais do lote; tabelas e históricos
+   mantêm seu comportamento. Área total e pastejada continuam lado a lado. */
+.mk-dp .mk-dp-area-organizada {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.mk-dp .mk-dp-area-organizada > * { min-width: 0; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao {
+  border-radius: 6px;
+  border-color: #eef0f2;
+  box-shadow: 0 2px 3px rgb(20 20 19 / 7%);
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__cab {
+  padding: 18px;
+  gap: 14px;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__titulo {
+  font-size: 17px;
+  font-weight: 500;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__sub {
+  font-size: 13px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 18px;
+  clip-path: none;
+  border-top: 0;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 16px;
+  row-gap: 4px;
+  padding: 13px 0;
+  border-top: 1px solid #e7e9ec;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel::before { display: none; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__rot {
+  color: #656970;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__val {
+  justify-content: flex-end;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) :is(.mk-dp-cel__sub, .mk-dp-cel__barra) {
+  grid-column: 1 / -1;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha {
+  margin: 0 18px;
+  padding: 13px 0;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha__rot { font-size: 13px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha__val {
+  font-size: 14px;
+  font-weight: 500;
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-area-superficies {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel__val {
+  justify-content: flex-start;
+  text-align: left;
+}
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal { margin: 0 18px; padding-top: 16px; }
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal > .mk-dp-grade {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+}
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel { grid-template-columns: minmax(0, 1fr); }
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel__val { justify-content: flex-start; text-align: left; }
+@media (min-width: 1024px) {
+  .mk-dp .mk-dp-area-organizada { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .mk-dp .mk-dp-area-organizada > :is(.mk-dp-aviso, .mk-dp-vazio),
+  .mk-dp .mk-dp-area-organizada__categorias { grid-column: 1 / -1; }
+}

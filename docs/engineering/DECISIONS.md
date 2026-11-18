@@ -8180,4 +8180,11 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Área mostra hectares ao lado do nome, sem repetir hectares e setor na grade; UA total e capacidade sem fórmulas auxiliares.
 - Catálogo da tabela, cálculos, consultas e permissões preservados.
 
-<!-- Próxima decisão: D-PROD-232 -->
+### D-PROD-232 — Estilo dos detalhes inspirado na referência do dono (2026-11-17)
+
+- Pedido: seguir o estilo visual enviado, preservando as informações do sistema em celular e desktop.
+- Detalhes da área e do lote: cartões de cantos discretos, divisórias locais e cada informação em linha, rótulo à esquerda e valor à direita; sem alterar os cálculos ou consultas.
+- Área: resumo e lotação em duas colunas a partir de 1024 px, avisos e categorias em largura total. No celular e tablet os cartões empilham. Área total e pastejada continuam juntas; projeções mensais em três colunas.
+- Estilos limitados a esses detalhes, sem alterar tabelas, históricos ou permissões.
+
+<!-- Próxima decisão: D-PROD-233 -->
