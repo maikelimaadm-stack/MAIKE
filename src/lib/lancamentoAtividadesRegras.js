@@ -100,6 +100,45 @@ export const rotuloDaArea = (a) => {
   return numero && nome ? `${numero} — ${nome}` : nome || numero;
 };
 
+/**
+ * Sigla do tipo de atividade no selo do card da lista (D-PROD-235): as 3 primeiras letras ou dígitos do nome, em
+ * maiúsculas ("ADUBAÇÃO DE COBERTURA" → "ADU"); sem nome, "".
+ * @param {unknown} nome
+ */
+export const siglaDoTipoAtividade = (nome) =>
+  texto(nome)
+    .replace(/[^\p{L}\p{N}]/gu, '')
+    .slice(0, 3)
+    .toLocaleUpperCase(LOCALE_ATIVIDADE);
+
+/**
+ * Paleta do selo do tipo (o cadastro de tipos não tem cor): tons escuros o bastante para o texto branco (contraste
+ * ≥ 4,5:1), um por tipo, sempre o mesmo para o mesmo tipo.
+ */
+export const PALETA_TIPO_ATIVIDADE = Object.freeze([
+  '#15803d',
+  '#1d4ed8',
+  '#0f766e',
+  '#b45309',
+  '#7c3aed',
+  '#be185d',
+  '#0369a1',
+  '#4d7c0f',
+]);
+
+/**
+ * Cor do selo do tipo, determinística pela chave (o id do tipo; sem ele, o nome): a mesma chave dá sempre a mesma cor.
+ * Sem chave, a primeira cor.
+ * @param {unknown} chave
+ */
+export const corDoTipoAtividade = (chave) => {
+  const k = texto(chave);
+  if (!k) return PALETA_TIPO_ATIVIDADE[0];
+  let h = 0;
+  for (const ch of k) h = (Math.imul(h, 31) + /** @type {number} */ (ch.codePointAt(0))) >>> 0;
+  return PALETA_TIPO_ATIVIDADE[h % PALETA_TIPO_ATIVIDADE.length];
+};
+
 /** Usuário público (`{ id, nome }`), como o operador. @param {{ nome?: unknown } | null | undefined} u */
 export const rotuloDoUsuario = (u) => (u && typeof u === 'object' ? texto(u.nome) : '');
 

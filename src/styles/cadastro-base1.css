@@ -2722,3 +2722,67 @@
   min-height: 28px;
   padding: 0 10px;
 }
+
+/* ─── Filtro de período da faixa (D-PROD-235): "De" e "Até" lado a lado na janela da pílula; rascunho até o ✓.
+   A janela é desenhada por portal no body (fora de .cadastro-b1), por isso o escopo é body.b1-tela. ─── */
+body.b1-tela .b1-fr-periodo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 4px 4px 2px;
+}
+body.b1-tela .b1-fr-periodo__campo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+body.b1-tela .b1-fr-periodo__rot {
+  color: #73726c;
+  font-size: 12px;
+  font-weight: 500;
+}
+body.b1-tela .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid #e2e1dc !important;
+  border-radius: 8px;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  color: #141413;
+  font: inherit;
+  outline: 0;
+}
+body.b1-tela .b1-fr-periodo .b1-fr-periodo__in:focus:not(#mk-a):not(#mk-b) {
+  border-color: #5acbe9 !important;
+}
+body.b1-tela .b1-fr-periodo .b1-fr-periodo__in[aria-invalid="true"]:not(#mk-a):not(#mk-b) {
+  border-color: #dc2626 !important;
+}
+body.b1-tela .b1-fr-periodo__erro {
+  margin: 4px 4px 0;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.35;
+}
+body.b1-tela .b1-fr-acoes .b1-fr-periodo__limpar:not(#mk-a) {
+  margin: 0;
+  padding: 4px 6px;
+}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:disabled:not(#mk-a):not(#mk-b) {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+/* Celular (folha "Filtros" → Início): um campo embaixo do outro, com altura de toque. */
+body.b1-tela .mk-sheet .b1-fr-periodo {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
+  height: 44px;
+}

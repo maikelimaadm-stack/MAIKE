@@ -42,6 +42,10 @@ const gridCls = {
  * @param {string} [props.emptyText]
  * @param {(row: object) => import('react').ReactNode} [props.renderAcoesDaLinha] opt-in (D-PROD-232): o botão ⚡ das ações
  *   do card, no topo, ao lado da caixa de marcar
+ * @param {(row: object) => ({ texto: string, cor?: string } | null)} [props.avatar] opt-in (D-PROD-235): o selo do card
+ *   (texto e cor) — padrão: as 3 primeiras letras do título, na cor de destaque
+ * @param {(row: object) => import('react').ReactNode} [props.subtitle] opt-in (D-PROD-235): a linha abaixo do título —
+ *   padrão: "<rótulo do código> <código>"
  */
 export function Base1Cards({
   rows,
@@ -61,6 +65,8 @@ export function Base1Cards({
   isInactive,
   emptyText = "Nenhum registro encontrado",
   renderAcoesDaLinha = undefined,
+  avatar = undefined,
+  subtitle = undefined,
 }) {
   const comAcoes = typeof renderAcoesDaLinha === "function";
   const byKey = new Map(columns.map((c) => [c.id, c]));
@@ -129,6 +135,8 @@ export function Base1Cards({
         const on = selected.has(id);
         const t = titleCol ? text(titleCol, r) : "";
         const code = codeCol ? text(codeCol, r) : "";
+        const selo = avatar ? avatar(r) : null;
+        const sub = subtitle ? subtitle(r) : null;
         return (
           <div
             key={id}
@@ -183,12 +191,22 @@ export function Base1Cards({
               />
             </div>
             <div className={cn("flex items-center gap-2", comAcoes ? "pr-12 sm:pr-24" : "pr-7")}>
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mg-accent)] text-[11px] font-bold text-white">
-                {initials(typeof t === "string" ? t : getFieldValue(r, titleCol?.id))}
+              <span
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mg-accent)] text-[11px] font-bold text-white"
+                style={selo?.cor ? { backgroundColor: selo.cor } : undefined}
+                data-testid="b1-card-avatar"
+                aria-hidden={selo ? true : undefined}
+              >
+                {selo ? selo.texto || "—" : initials(typeof t === "string" ? t : getFieldValue(r, titleCol?.id))}
               </span>
               <span className="mg-b1-card__head">
                 <span className="mg-b1-card__title">{t}</span>
-                {code || isInactive?.(r) ? (
+                {sub != null && sub !== "" ? (
+                  <span className="mg-b1-card__sub b1-card__sub" data-testid="b1-card-sub">
+                    {sub}
+                    {isInactive?.(r) ? <span className="b1-tag-inativo">Inativo</span> : null}
+                  </span>
+                ) : code || isInactive?.(r) ? (
                   <span className="mg-b1-card__sub b1-card__sub">
                     {code ? `${codeCol?.label ?? ""} ${code}`.trim() : null}
                     {isInactive?.(r) ? <span className="b1-tag-inativo">Inativo</span> : null}
