@@ -8284,5 +8284,11 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Área e lote deixam de dividir os cartões em pares. Mantidas duas colunas de campos no tablet e três no desktop amplo; área total/pastejada juntas e projeções mensais em trio.
 - Preservados o popup dimensionado pela viewport (D-PROD-237), as linhas do celular, dados, cálculos e permissões.
 
-<!-- Próxima decisão: D-PROD-239 -->
+### D-PROD-239 — Prévia dos detalhes sem merge (2026-11-18)
+
+- Autorização do dono: visualizar as alterações dos detalhes sem fazer merge.
+- A regra `ignoreCommand` também permite a branch exata `codex/previa-detalhes-mapa`; demais branches continuam ignoradas e main segue publicando como antes.
+- Alteração restrita à branch da prévia, sem promover deployment, alterar produção ou mesclar código. Inclui os cartões largos empilhados com campos internos em colunas (D-PROD-238).
+
+<!-- Próxima decisão: D-PROD-240 -->
 
