@@ -8305,5 +8305,12 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Quatro campos por linha em desktop/tablet com rótulo e valor alinhados na horizontal. Celular também usa texto menor e menos espaçamento. Textos completos com rolagem horizontal individual.
 - Apenas branch de prévia; sem merge ou publicação em produção.
 
-<!-- Próxima decisão: D-PROD-242 -->
+### D-PROD-242 — Valores abaixo dos rótulos e passagem automática (2026-11-18)
+
+- Pedido: retornar os valores para baixo das labels, texto longo passando automaticamente, retirar divisórias vazias e compactar histórico/configuração.
+- Quatro campos por linha em desktop/tablet preservados; cada campo mostra rótulo acima do valor. Retiradas as bordas superiores individuais dos campos.
+- Passagem automática somente no texto que excede a largura; mede novamente ao redimensionar, pausa ao passar o mouse, permite leitura manual ao focar e respeita movimento reduzido. Texto original e título nativo preservados, sem cópias para leitores de tela.
+- Controles de histórico e configurar tabela menores; preferências e regras de seleção de colunas permanecem iguais. Apenas branch de prévia, sem merge.
+
+<!-- Próxima decisão: D-PROD-243 -->
 

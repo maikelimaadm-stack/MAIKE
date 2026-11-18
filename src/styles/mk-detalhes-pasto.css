@@ -1945,11 +1945,11 @@
   .mk-dp .mk-dp-area-resumo > .mk-dp-grade { display: contents; }
 }
 
-/* D-PROD-241 — leitura suave: rótulo e valor na mesma linha, inclusive nas quatro colunas. */
+/* D-PROD-241 — leitura suave: fontes pequenas e valores abaixo dos rótulos, inclusive nas quatro colunas. */
 .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel,
 .mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel,
 .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel {
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   column-gap: 8px;
   row-gap: 2px;
   padding: 6px 0;
@@ -1958,7 +1958,7 @@
 .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__val,
 .mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel__val,
 .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel__val {
-  text-align: right;
+  text-align: left;
   font-size: 12.5px;
   font-weight: 400;
 }
@@ -1994,3 +1994,39 @@
   font-size: 12px;
   font-weight: 500;
 }
+
+/* D-PROD-242 — texto automático e superfícies sem divisórias vazias. */
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel { border-top: 0; }
+.mk-dp .mk-dp-cel__val > .mk-dp-texto-auto { display: inline-block; vertical-align: middle; }
+.mk-dp .mk-dp-texto-auto {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.mk-dp .mk-dp-texto-auto__conteudo { display: inline-block; width: max-content; max-width: none; vertical-align: top; }
+.mk-dp .mk-dp-texto-auto.is-longo > .mk-dp-texto-auto__conteudo {
+  animation: mk-dp-passagem 6s linear infinite alternate;
+}
+.mk-dp .mk-dp-texto-auto:hover > .mk-dp-texto-auto__conteudo { animation-play-state: paused; }
+.mk-dp .mk-dp-texto-auto:focus { overflow-x: auto; }
+.mk-dp .mk-dp-texto-auto:focus > .mk-dp-texto-auto__conteudo { animation: none; transform: none; }
+@keyframes mk-dp-passagem {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--mk-dp-deslocamento, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-dp .mk-dp-texto-auto.is-longo { overflow-x: auto; }
+  .mk-dp .mk-dp-texto-auto.is-longo > .mk-dp-texto-auto__conteudo { animation: none; }
+}
+.mk-dp .mk-dp-grupo__texto { min-width: 0; flex: 1 1 auto; }
+.mk-dp .mk-dp-grupo__cab { min-height: 30px; padding: 6px 10px; font-size: 12px; }
+.mk-dp .mk-dp-grupo__item { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+.mk-dp .mk-dp-info { padding: 8px 10px; font-size: 12px; }
+.mk-dp .mk-dp-info__txt { font-size: 12px; }
+.mk-dp .mk-dp-busca__in { height: 32px; font-size: 12px; }
+.mk-dp .mk-dp-filtro { height: 32px; max-width: 100%; padding: 0 10px; border-radius: 4px; font-size: 12px; }
+.mk-dp .mk-dp-filtro > span { min-width: 0; }
+.mk-dp .mk-dp-hist__botao.mk-dp-hist__botao { min-height: 30px; height: 30px; padding: 0 10px; font-size: 12px; }
+.mk-dp .mk-dp-botao { height: 32px; font-size: 12px; }

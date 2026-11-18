@@ -100,6 +100,37 @@ const classesCaixa = (estado, extra) =>
  */
 const textoDe = (no) => (typeof no === "string" || typeof no === "number" ? String(no) : "");
 
+/** Texto completo em uma linha; passa automaticamente somente quando não cabe.
+ * @param {{ children: React.ReactNode }} props
+ */
+function TextoDeslizante({ children }) {
+  const caixa = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
+  const texto = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
+  const [excede, setExcede] = React.useState(false);
+  React.useLayoutEffect(() => {
+    const medir = () => {
+      const fora = caixa.current;
+      const dentro = texto.current;
+      if (!fora || !dentro) return;
+      const distancia = Math.max(0, dentro.scrollWidth - fora.clientWidth);
+      dentro.style.setProperty("--mk-dp-deslocamento", `${-distancia}px`);
+      dentro.style.animationDuration = `${Math.max(6, distancia / 30 + 3)}s`;
+      setExcede(distancia > 1);
+    };
+    medir();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(medir);
+    if (caixa.current) observer?.observe(caixa.current);
+    if (texto.current) observer?.observe(texto.current);
+    window.addEventListener("resize", medir);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", medir); };
+  }, [children]);
+  return (
+    <span ref={caixa} className={cls("mk-dp-texto-auto", excede && "is-longo")} title={textoDe(children) || undefined} tabIndex={excede ? 0 : undefined}>
+      <span ref={texto} className="mk-dp-texto-auto__conteudo">{children}</span>
+    </span>
+  );
+}
+
 /**
  * Imagem de subícone: URL (fundo `contain`, como o v12) ou um nó pronto
  * (ex.: `<IconeCategoria figura tamanho />` de pecas.jsx).
@@ -317,10 +348,10 @@ export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, titl
   const pct = barra == null || !Number.isFinite(Number(barra)) ? null : Math.max(0, Math.min(100, Number(barra)));
   return (
     <div className={cls("mk-dp-cel", className)} title={title} {...resto}>
-      <dt className="mk-dp-cel__rot" title={textoDe(rotulo) || undefined}>{rotulo}</dt>
+      <dt className="mk-dp-cel__rot" title={textoDe(rotulo) || undefined}><TextoDeslizante>{rotulo}</TextoDeslizante></dt>
       <dd className="mk-dp-cel__val" title={textoDe(valor) || undefined} style={cor ? { color: cor } : undefined}>
         {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
-        {valor}
+        <TextoDeslizante>{valor}</TextoDeslizante>
       </dd>
       {sub ? <dd className="mk-dp-cel__sub">{sub}</dd> : null}
       {pct != null ? (
@@ -549,9 +580,9 @@ export function Kpis({ itens, colunas, className }) {
     <dl className={cls("mk-dp-kpis", className)} style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
       {lista.map((k, i) => (
         <div key={k.chave ?? i} className="mk-dp-kpi">
-          <dt className="mk-dp-kpi__rot">{k.rotulo}</dt>
+          <dt className="mk-dp-kpi__rot"><TextoDeslizante>{k.rotulo}</TextoDeslizante></dt>
           <dd className="mk-dp-kpi__val" style={k.cor ? { color: k.cor } : undefined}>
-            {k.valor}
+            <TextoDeslizante>{k.valor}</TextoDeslizante>
           </dd>
           {k.nota ? (
             <dd className="mk-dp-kpi__nota" style={{ color: k.corNota || "#64748b" }}>
@@ -762,7 +793,7 @@ export function GrupoMarcar({ titulo, itens, onAlternar, onAlternarTodos, classN
           onClick={() => onAlternar(it.chave)}
         >
           <CaixaDesenho estado={it.marcado ? "marcada" : "vazia"} />
-          <span>{it.rotulo}</span>
+          <span className="mk-dp-grupo__texto"><TextoDeslizante>{it.rotulo}</TextoDeslizante></span>
         </button>
       ))}
     </div>
@@ -774,7 +805,7 @@ export function GrupoMarcar({ titulo, itens, onAlternar, onAlternarTodos, classN
 /** @type {React.ForwardRefRenderFunction<HTMLButtonElement, BotaoFiltroProps>} */
 const BotaoFiltroRender = ({ children, className, type = "button", ...props }, ref) => (
   <button ref={ref} type={type} className={cls("mk-dp-filtro", className)} {...props}>
-    <span>{children}</span>
+    <span><TextoDeslizante>{children}</TextoDeslizante></span>
     <ChevronDown size={16} aria-hidden="true" />
   </button>
 );
