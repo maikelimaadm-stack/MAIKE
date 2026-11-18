@@ -3,7 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { AvisoGestao, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import { chaveTotais, totaisParaExibir } from "@/lib/atividadeLinhasRegras";
+import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
 import { obterTotaisAtividade } from "@/services/lancamentoAtividadesService";
+
+const COLUNAS_DOS_ITENS = [
+  { id: "tipo", label: "Tipo", sortable: true, width: 130 },
+  { id: "item", label: "Item", sortable: true, width: 280 },
+  { id: "quantidade", label: "Quantidade", sortable: true, align: "right", width: 130 },
+  { id: "custo", label: "Custo", sortable: true, align: "right", width: 130 },
+];
 
 /**
  * Totalizador FIXO no topo da atividade aberta (D-PROD-202, §5): área executada / planejada, o total de cada produto
@@ -13,6 +21,8 @@ import { obterTotaisAtividade } from "@/services/lancamentoAtividadesService";
  * combustível) e o custo por hectare. Lê
  * `GET /atividades/:id/totais` (só linhas confirmadas de apontamentos confirmados); toda escrita invalida a chave
  * (`chaveTotais`) e ele se relê. Sem resposta, mostra a área do cabeçalho.
+ * Emenda 2 da D-PROD-252: os produtos, as máquinas, a mão de obra e os serviços saem numa tabela Base1 (Tipo, Item,
+ * Quantidade, Custo), não mais um campo por item; os valores únicos (área, custo, combustível e consumo) continuam campos do detalhe.
  * D-PROD-234: na aba "Resumo da atividade" ele não fica preso ao topo (`fixo={false}`).
  * @param {{ atividade: any, empresaId: string|null, habilitado: boolean, fixo?: boolean }} props
  */
@@ -26,36 +36,20 @@ export default function TotalizadorAtividade({ atividade, empresaId, habilitado,
     refetchOnWindowFocus: false,
   });
   const t = totaisParaExibir(consulta.data ?? null, atividade);
+  // O que foi gasto por item: uma tabela Base1 (Tipo, Item, Quantidade, Custo) em vez de um campo por item.
+  const itens = [
+    ...t.produtos.map((p) => ({ id: `produto-${p.chave}`, tipo: "Insumo", item: p.nome, quantidade: p.quantidade, custo: p.custo })),
+    ...t.maquinas.map((m) => ({ id: `maquina-${m.chave}`, tipo: "Máquina", item: m.nome, quantidade: m.uso, custo: m.custo })),
+    ...t.maoObra.map((o) => ({ id: `mao-obra-${o.chave}`, tipo: "Mão de obra", item: o.nome, quantidade: o.quantidade, custo: o.custo })),
+    ...t.servicos.map((v) => ({ id: `servico-${v.chave}`, tipo: "Serviço", item: v.nome, quantidade: v.quantidade, custo: v.custo })),
+  ];
+  const TEXTO = /** @type {Record<string, (i: any) => string>} */ ({ tipo: (i) => i.tipo, item: (i) => i.item, quantidade: (i) => i.quantidade || "—", custo: (i) => i.custo || "—" });
   return (
     <div className={`b1 mg-b1-form-grid w-full min-h-0 bg-white${fixo ? " sticky top-0 z-10" : ""}`} data-testid="totalizador-atividade">
       <SecaoForm titulo="Totais da atividade" />
       <ValorCalculado label="Área executada / planejada" valor={t.area} span={4} testId="totalizador-area" />
       <ValorCalculado label="Custo acumulado" valor={t.custo} span={4} testId="totalizador-custo" destaque />
       <ValorCalculado label="Custo por hectare" valor={t.custoPorHa} span={4} testId="totalizador-custo-ha" />
-      {t.produtos.map((p) => (
-        <ValorCalculado
-          key={`p-${p.chave}`}
-          label={p.nome}
-          valor={p.custo ? `${p.quantidade} · ${p.custo}` : p.quantidade}
-          span={4}
-          testId={`totalizador-produto-${p.chave}`}
-        />
-      ))}
-      {t.maquinas.map((m) => (
-        <ValorCalculado key={`m-${m.chave}`} label={m.nome} valor={m.custo ? `${m.uso} · ${m.custo}` : m.uso} span={4} testId={`totalizador-maquina-${m.chave}`} />
-      ))}
-      {t.maoObra.map((o) => (
-        <ValorCalculado
-          key={`o-${o.chave}`}
-          label={`Mão de obra — ${o.nome}`}
-          valor={o.custo ? `${o.quantidade} · ${o.custo}` : o.quantidade}
-          span={4}
-          testId={`totalizador-mao-obra-${o.chave}`}
-        />
-      ))}
-      {t.servicos.map((v) => (
-        <ValorCalculado key={`s-${v.chave}`} label={`Serviço — ${v.nome}`} valor={v.custo ? `${v.quantidade} · ${v.custo}` : v.quantidade} span={4} testId={`totalizador-servico-${v.chave}`} />
-      ))}
       {t.combustivel !== null ? <ValorCalculado label="Combustível" valor={t.combustivel} span={4} testId="totalizador-combustivel" /> : null}
       {t.custoCombustivelPorHa !== null ? (
         <ValorCalculado label="Custo de combustível por hectare" valor={t.custoCombustivelPorHa} span={4} testId="totalizador-combustivel-ha" />
@@ -63,6 +57,21 @@ export default function TotalizadorAtividade({ atividade, empresaId, habilitado,
       {t.consumoPorBem.map((b) => (
         <ValorCalculado key={`c-${b.chave}`} label={`Consumo — ${b.nome}`} valor={b.valor} span={4} testId={`totalizador-consumo-${b.chave}`} />
       ))}
+      {itens.length ? (
+        <div className="col-span-12 min-w-0 pb-2">
+          <TabelaBase1
+            solta
+            testId="totalizador-itens"
+            chave="lancamento-atividade-totais-itens"
+            colunas={COLUNAS_DOS_ITENS}
+            linhas={itens}
+            valorDoCampo={(i, id) => TEXTO[id](i)}
+            renderCelula={(i, id) =>
+              id === "quantidade" || id === "custo" ? <span data-testid={id === "quantidade" ? `totalizador-${i.id}` : `totalizador-${i.id}-custo`}>{TEXTO[id](i)}</span> : TEXTO[id](i)
+            }
+          />
+        </div>
+      ) : null}
       {consulta.isError ? (
         <div className="col-span-12">
           <AvisoGestao testId="totalizador-erro">

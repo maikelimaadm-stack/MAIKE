@@ -198,31 +198,6 @@ export const textoFeitaDePlanejada = (l) => {
 };
 
 /**
- * "R$ 3.610,00 (R$ 180,50 por ha)" — o custo e o custo por hectare, só do que o servidor deu. Sem custo, "".
- * @param {unknown} custoTotal @param {unknown} custoPorHa
- */
-export const textoCustoComPorHa = (custoTotal, custoPorHa) => {
-  const total = formatarMoedaAtividade(custoTotal);
-  if (!total) return '';
-  const porHa = formatarMoedaAtividade(custoPorHa);
-  return porHa ? `${total} (${porHa} por ha)` : total;
-};
-
-/**
- * A linha de texto do alto da atividade: "Aberta · desde 03/11/2026 · 28 de 70 ha · custo total R$ 4.710,00 (R$ 168,21 por ha)".
- * @param {{ situacao: string, desde: string, feitaDePlanejada: string, custoTotal: unknown, custoPorHa: unknown }} p
- */
-export const linhaResumoDaAtividade = ({ situacao, desde, feitaDePlanejada, custoTotal, custoPorHa }) =>
-  [
-    situacao,
-    desde ? `desde ${desde}` : '',
-    feitaDePlanejada && feitaDePlanejada !== '—' ? feitaDePlanejada : '',
-    textoCustoComPorHa(custoTotal, custoPorHa) ? `custo total ${textoCustoComPorHa(custoTotal, custoPorHa)}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-/**
  * O Resumo das áreas (emenda da D-PROD-252): uma linha por área da atividade (a ordem do servidor) com os hectares ("20 de 40"),
  * o custo por tipo (máquinas, insumos, mão de obra, serviços, abastecimento), o total e o R$/ha, e a linha de total da
  * atividade. Tudo do `por_area` e dos totais do servidor, juntado pela área da atividade; zero ou sem valor mostra "—". O custo

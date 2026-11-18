@@ -4,6 +4,7 @@ import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { useCelular } from "@/components/common/MobileSheet";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import DialogoAreaDaAtividade from "@/components/lancamento-atividades/DialogoAreaDaAtividade";
+import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
 import {
   CHAVE_DO_SELO_AREA,
   STATUS_AREA,
@@ -11,7 +12,6 @@ import {
   linhaDaAreaParaExibir,
   podeRemoverArea,
   rotuloDoStatusArea,
-  textoDosContadores,
   totaisDaArea,
 } from "@/lib/atividadeAreasRegras";
 import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
@@ -36,12 +36,12 @@ function Barra({ barra, texto, testId }) {
 }
 
 /**
- * A tabela "Áreas da atividade" (D-PROD-249, a única lista de áreas da D-PROD-252): UMA tabela com todas as áreas, na ordem
- * da atividade — Área, Situação, Planejada, Feita, %, Custo, Último lançamento e o ⚡ — e a linha de total. O nome da área
- * abre a área (a tela dos lançamentos dela); o ⚡ abre a área e inicia, conclui, reabre, altera a planejada ou remove (o
- * que o status e a permissão deixam). Os números vêm só do servidor (`por_area` dos totais); sem valor, "—". No celular
- * continua uma tabela (`b1-tipo-tabela__rolagem`, rola na horizontal), com as colunas principais primeiro: Ações, Área,
- * Custo, Feita, %, e depois o resto. O texto de ajuda e os grupos "Em andamento / A iniciar / Concluídas" saíram.
+ * A tabela das áreas da atividade (D-PROD-249, a única lista de áreas da D-PROD-252; emenda 2: a grade Base1 da lista, sem
+ * cartão, título nem contadores): UMA tabela (`TabelaBase1`) com todas as áreas, na ordem da atividade — Área, Situação,
+ * Planejada, Feita, %, Custo, Último lançamento e o ⚡ — e a linha de total no `<tfoot>`. O nome da área (ou dois cliques na
+ * linha) abre a área; o ⚡ abre a área e inicia, conclui, reabre, altera a planejada ou remove (o que o status e a permissão
+ * deixam). Os números vêm só do servidor (`por_area` dos totais); sem valor, "—". No celular as colunas principais vêm
+ * primeiro: Área, Custo, Feita, %, e depois o resto.
  *
  * @param {{
  *   atividade: any,
@@ -98,125 +98,99 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
 
   // As colunas, na ordem do computador e do celular (o dado principal — Custo, Feita — aparece sem rolar).
   const COLUNAS = [
-    { id: "situacao", rotulo: "Situação", numero: false },
-    { id: "planejada", rotulo: "Planejada", numero: true },
-    { id: "feita", rotulo: "Feita", numero: true },
-    { id: "percentual", rotulo: "%", numero: false },
-    { id: "custo", rotulo: "Custo", numero: true },
-    { id: "ultimo", rotulo: "Último lançamento", numero: false },
+    { id: "area", label: "Área", sortable: true, width: 200 },
+    { id: "situacao", label: "Situação", sortable: true, width: 130 },
+    { id: "planejada", label: "Planejada", sortable: true, align: "right", width: 110 },
+    { id: "feita", label: "Feita", sortable: true, align: "right", width: 110 },
+    { id: "percentual", label: "%", sortable: true, width: 130 },
+    { id: "custo", label: "Custo", sortable: true, align: "right", width: 130 },
+    { id: "ultimo", label: "Último lançamento", sortable: true, width: 150 },
   ];
-  const ORDEM_CELULAR = ["custo", "feita", "percentual", "situacao", "planejada", "ultimo"];
+  const ORDEM_CELULAR = ["area", "custo", "feita", "percentual", "situacao", "planejada", "ultimo"];
   const colunas = celular ? ORDEM_CELULAR.map((id) => /** @type {any} */ (COLUNAS.find((c) => c.id === id))) : COLUNAS;
+
+  /** O texto de cada coluna de uma área (também o do filtro, da ordem e do balão da grade). @param {any} area @param {string} coluna */
+  const texto = (area, coluna) => {
+    const id = String(area.id);
+    const l = linhaDaAreaParaExibir(area, totaisDaArea(totais, id));
+    if (coluna === "area") return l.nome;
+    if (coluna === "situacao") return rotuloDoStatusArea(area.status);
+    if (coluna === "planejada") return l.planejada;
+    if (area.status === STATUS_AREA.PLANEJADA) return "—";
+    if (coluna === "ultimo") return area.status === STATUS_AREA.EM_ANDAMENTO ? numeroOuLendo(area, "ultimo") : l.conclusao;
+    return numeroOuLendo(area, coluna);
+  };
 
   /** @param {any} area @param {string} coluna */
   const celula = (area, coluna) => {
     const id = String(area.id);
     const l = linhaDaAreaParaExibir(area, totaisDaArea(totais, id));
-    const planejada = area.status === STATUS_AREA.PLANEJADA;
-    if (coluna === "situacao") return <Selo status={CHAVE_DO_SELO_AREA[area.status] ?? area.status} rotulo={rotuloDoStatusArea(area.status)} testId={`area-${id}-situacao`} />;
-    if (coluna === "planejada") return l.planejada;
-    if (planejada) return "—";
-    if (coluna === "feita") {
-      const valor = numeroOuLendo(area, "feita");
-      return podeInformarFeita ? (
-        <button type="button" className="b1-tipo-tabela__abrir" onClick={() => setDialogo({ modo: "feita", area })} title="Informar os hectares feitos" data-testid={`area-${id}-feita-editar`}>
+    const valor = texto(area, coluna);
+    if (coluna === "area") {
+      return area.status !== STATUS_AREA.PLANEJADA ? (
+        <button type="button" className="b1-tipo-tabela__abrir" onClick={() => onAbrirArea(id)} data-testid={`area-${id}-abrir`}>
           {valor}
         </button>
       ) : (
-        valor
+        <span data-testid={`area-${id}-nome`}>{valor}</span>
       );
     }
-    if (coluna === "percentual") return <Barra barra={l.barra} texto={numeroOuLendo(area, "percentual")} testId={`area-${id}-percentual`} />;
-    if (coluna === "custo") return numeroOuLendo(area, "custo");
-    return area.status === STATUS_AREA.EM_ANDAMENTO ? numeroOuLendo(area, "ultimo") : l.conclusao;
+    if (coluna === "situacao") return <Selo status={CHAVE_DO_SELO_AREA[area.status] ?? area.status} rotulo={valor} testId={`area-${id}-situacao`} />;
+    if (coluna === "percentual" && area.status !== STATUS_AREA.PLANEJADA) return <Barra barra={l.barra} texto={valor} testId={`area-${id}-percentual`} />;
+    if (coluna === "feita" && podeInformarFeita && area.status !== STATUS_AREA.PLANEJADA) {
+      return (
+        <button type="button" className="b1-tipo-tabela__abrir" onClick={() => setDialogo({ modo: "feita", area })} title="Informar os hectares feitos" data-testid={`area-${id}-feita-editar`}>
+          {valor}
+        </button>
+      );
+    }
+    return <span data-testid={`area-${id}-${coluna}`}>{valor}</span>;
   };
 
   const totalPlanejada = linhaDaAreaParaExibir({ area_planejada: totais?.area_planejada ?? atividade?.area_planejada }, { area_executada: totais?.area_executada ?? atividade?.area_executada });
   /** @param {string} coluna */
   const celulaDoTotal = (coluna) => {
+    if (coluna === "area") return "Total";
     if (coluna === "planejada") return totalPlanejada.planejada;
     if (coluna === "feita") return lendoTotais && totalPlanejada.feita === "—" ? "…" : totalPlanejada.feita;
     if (coluna === "custo") return formatarMoedaAtividade(totais?.custo_total) || (lendoTotais ? "…" : "—");
     return "";
   };
 
-  const tabela = (
-    <div className="b1-tipo-tabela__rolagem">
-      <table className="b1-tipo-tabela b1-areas-tabela" data-testid="areas-tabela">
-        <thead>
-          <tr>
-            <th scope="col" className="b1-tipo-tabela__acoes">
-              Ações
-            </th>
-            <th scope="col">Área</th>
-            {colunas.map((c) => (
-              <th key={c.id} scope="col" className={c.numero ? "is-numero" : undefined}>
-                {c.rotulo}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {areas.map((area) => {
-            const id = String(area.id);
-            const l = linhaDaAreaParaExibir(area, totaisDaArea(totais, id));
-            return (
-              <tr key={id} data-testid={`area-${id}`} data-status={area.status}>
-                <td className="b1-tipo-tabela__acoes">{menuDaArea(area)}</td>
-                <td className={celular ? undefined : "is-nome"}>
-                  {area.status !== STATUS_AREA.PLANEJADA ? (
-                    <button type="button" className="b1-tipo-tabela__abrir" onClick={() => onAbrirArea(id)} data-testid={`area-${id}-abrir`}>
-                      {l.nome}
-                    </button>
-                  ) : (
-                    l.nome
-                  )}
-                </td>
-                {colunas.map((c) => (
-                  <td key={c.id} className={c.numero ? "is-numero" : undefined} data-testid={c.id === "situacao" || c.id === "percentual" ? undefined : `area-${id}-${c.id}`}>
-                    {celula(area, c.id)}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr data-testid="areas-total">
-            <td />
-            <td>Total</td>
-            {colunas.map((c) => (
-              <td key={c.id} className={c.numero ? "is-numero" : undefined} data-testid={c.numero ? `areas-total-${c.id}` : undefined}>
-                {celulaDoTotal(c.id)}
-              </td>
-            ))}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-
   return (
-    <section className="b1-aba-cartao b1-aberta-cartao" aria-labelledby="atividade-areas-t" data-testid="atividade-areas">
-      <div className="b1-aba-cartao__cab b1-aberta-cartao__cab">
-        <h3 className="b1-aba-cartao__titulo" id="atividade-areas-t">
-          Áreas da atividade
-        </h3>
-        <span className="b1-aberta-cartao__sub" data-testid="atividade-areas-contadores">
-          {textoDosContadores(atividade)}
-        </span>
-        {podeGerir ? (
-          <button type="button" className="b1-tipo-lancar ml-auto" onClick={() => setDialogo({ modo: "adicionar", area: null })} data-testid="atividade-areas-adicionar">
+    <section className="b1-tabela-tela" aria-label="Áreas da atividade" data-testid="atividade-areas">
+      {podeGerir ? (
+        <div className="b1-tabela-tela__acoes">
+          <button type="button" className="b1-tipo-lancar" onClick={() => setDialogo({ modo: "adicionar", area: null })} data-testid="atividade-areas-adicionar">
             <Plus size={13} strokeWidth={2} aria-hidden /> Adicionar área
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {areas.length === 0 ? (
         <p className={NOTA} data-testid="atividade-areas-vazio">
           Esta atividade não tem áreas.{podeGerir ? " Use + Adicionar área." : ""}
         </p>
       ) : (
-        tabela
+        <TabelaBase1
+          testId="areas-tabela"
+          chave="lancamento-atividade-areas"
+          colunas={colunas}
+          linhas={areas}
+          valorDoCampo={texto}
+          renderCelula={celula}
+          renderAcoes={menuDaArea}
+          onAbrir={(area) => area.status !== STATUS_AREA.PLANEJADA && onAbrirArea(String(area.id))}
+          rodape={(ids, comSelecao) => (
+            <tr data-testid="areas-total">
+              {comSelecao ? <td /> : null}
+              {ids.map((id) => (
+                <td key={id} className={id === "planejada" || id === "feita" || id === "custo" ? "is-numero text-right tabular-nums" : undefined}>
+                  <span data-testid={id === "area" || id === "percentual" || id === "situacao" || id === "ultimo" ? undefined : `areas-total-${id}`}>{celulaDoTotal(id)}</span>
+                </td>
+              ))}
+            </tr>
+          )}
+        />
       )}
       {dialogo ? (
         <DialogoAreaDaAtividade

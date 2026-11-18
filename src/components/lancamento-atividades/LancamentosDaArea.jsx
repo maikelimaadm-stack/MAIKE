@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, ChevronLeft, Pencil, Plus } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { useCelular } from "@/components/common/MobileSheet";
+import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import JanelaAbastecimentoDaArea from "@/components/lancamento-atividades/JanelaAbastecimentoDaArea";
 import {
@@ -38,11 +39,12 @@ const JANELA_DO_TIPO = Object.freeze({
 });
 
 /**
- * A tela de uma área da atividade (D-PROD-252, emenda): o "‹ Áreas", o nome da área e o da atividade, a fileira de botões "+" e
- * UMA tabela com tudo o que foi lançado ali — Ações · Tipo · Dia · Item · Quantidade · Valor (no celular:
- * Ações · Tipo · Valor · Quantidade · Item · Dia, que rola na horizontal) — com o total no rodapé. O implemento é texto da
- * linha da máquina ("com GR-01"); o abastecimento é uma linha como as outras (dia, máquina, litros, valor). O ⚡ da linha
- * edita e cancela (as janelas de linha de sempre); o abastecimento se cancela na tela Abastecimentos.
+ * A tela de uma área da atividade (D-PROD-252, emendas 1 e 2): o "‹ Áreas" com o nome da área e o da atividade, a fileira de
+ * botões "+" e UMA tabela Base1 (`TabelaBase1`, a grade da lista, sem cartão) com tudo o que foi lançado ali — Tipo · Dia ·
+ * Item · Quantidade · Valor e o ⚡ (no celular: Tipo · Valor · Quantidade · Item · Dia) — com o total no `<tfoot>`. O
+ * implemento é texto da linha da máquina ("com GR-01"); o abastecimento é uma linha como as outras (dia, máquina, litros,
+ * valor). O ⚡ da linha edita e cancela (as janelas de linha de sempre); o abastecimento se cancela na tela Abastecimentos.
+ * Gravou o abastecimento: o aviso é o toast do app.
  *
  * Os botões abrem a janela do lançamento (`onLancar`, um nível só) ou a do abastecimento (a mesma janela, com a revisão
  * dentro). O total (um só, no rodapé) vem do servidor (`por_area` dos totais); sem ele, a soma das linhas. Os hectares e o
@@ -59,9 +61,7 @@ const JANELA_DO_TIPO = Object.freeze({
  *   podeLancar: boolean,
  *   flags: { permiteProduto?: boolean, permiteImplemento?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean },
  *   escopo: string,
- *   avisoRecado?: React.ReactNode,
  *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null) => void,
- *   onGravouAbastecimento: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   onVoltar: (() => void) | null,
  * }} props `area`: a área da atividade (null na atividade antiga, sem áreas). `podeLancar`: a atividade aberta com a permissão
@@ -78,9 +78,7 @@ export default function LancamentosDaArea({
   podeLancar,
   flags,
   escopo,
-  avisoRecado = null,
   onLancar,
-  onGravouAbastecimento,
   onAtividadeAtualizada,
   onVoltar,
 }) {
@@ -166,88 +164,69 @@ export default function LancamentosDaArea({
 
   // As colunas, na ordem do computador e do celular (o dado principal — Valor — aparece sem rolar).
   const COLUNAS = [
-    { id: "dia", rotulo: "Dia", numero: false, valor: (/** @type {any} */ r) => r.diaTexto },
-    { id: "item", rotulo: "Item", numero: false, valor: (/** @type {any} */ r) => r.item },
-    { id: "quantidade", rotulo: "Quantidade", numero: true, valor: (/** @type {any} */ r) => r.quantidade },
-    { id: "valor", rotulo: "Valor", numero: true, valor: (/** @type {any} */ r) => r.valorTexto },
+    { id: "tipo", label: "Tipo", sortable: true, width: 130 },
+    { id: "dia", label: "Dia", sortable: true, width: 110 },
+    { id: "item", label: "Item", sortable: true, width: 280 },
+    { id: "quantidade", label: "Quantidade", sortable: true, align: "right", width: 130 },
+    { id: "valor", label: "Valor", sortable: true, align: "right", width: 130 },
   ];
-  const ORDEM_CELULAR = ["valor", "quantidade", "item", "dia"];
+  const ORDEM_CELULAR = ["tipo", "valor", "quantidade", "item", "dia"];
   const colunas = celular ? ORDEM_CELULAR.map((id) => /** @type {any} */ (COLUNAS.find((c) => c.id === id))) : COLUNAS;
+  /** @type {Record<string, (r: any) => string>} */
+  const TEXTO = { tipo: (r) => r.rotuloDoTipo, dia: (r) => r.diaTexto, item: (r) => r.item, quantidade: (r) => r.quantidade, valor: (r) => r.valorTexto };
+  // Dia e valor se ordenam pelo valor canônico (a data ISO e o decimal), não pelo texto "13/11/2026" / "R$ 1.200,00".
+  const comparar = (/** @type {any} */ a, /** @type {any} */ b, /** @type {string} */ coluna) => {
+    if (coluna === "dia") return String(a.dia).localeCompare(String(b.dia));
+    if (coluna === "valor") return Number(a.valor ?? Number.NEGATIVE_INFINITY) - Number(b.valor ?? Number.NEGATIVE_INFINITY);
+    return undefined;
+  };
 
   const botoes = podeRegistrar ? opcoesDeRegistro(flags, { abastecimento: podeAbastecer }) : [];
 
   /** @type {any} */
   const JanelaDeEdicao = editando ? JANELA_DO_TIPO[/** @type {keyof typeof JANELA_DO_TIPO} */ (editando.tipo)] : null;
   const tabela = (
-    <div className="b1-tipo-tabela__rolagem">
-      <table className="b1-tipo-tabela" data-testid="area-lancamentos-tabela">
-        <thead>
-          <tr>
-            <th scope="col" className="b1-tipo-tabela__acoes">
-              Ações
-            </th>
-            <th scope="col">Tipo</th>
-            {colunas.map((c) => (
-              <th key={c.id} scope="col" className={c.numero ? "is-numero" : undefined}>
-                {c.rotulo}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((r) => (
-            <tr key={r.id} data-testid={`lancamento-${r.id}`} data-tipo={r.tipo}>
-              <td className="b1-tipo-tabela__acoes">{menuDaLinha(r)}</td>
-              <td data-testid={`lancamento-${r.id}-tipo`}>{r.rotuloDoTipo}</td>
-              {colunas.map((c) => (
-                <td key={c.id} className={c.numero ? "is-numero" : undefined} data-testid={`lancamento-${r.id}-${c.id}`}>
-                  {c.valor(r)}
-                </td>
-              ))}
-            </tr>
+    <TabelaBase1
+      testId="area-lancamentos-tabela"
+      chave="lancamento-atividade-area-lancamentos"
+      colunas={colunas}
+      linhas={linhas}
+      valorDoCampo={(r, id) => TEXTO[id](r)}
+      renderCelula={(r, id) => <span data-testid={`lancamento-${r.id}-${id}`}>{TEXTO[id](r)}</span>}
+      renderAcoes={podeEditar || podeCancelar ? menuDaLinha : undefined}
+      comparar={comparar}
+      carregando={lendoLinhas && linhas.length === 0}
+      vazio="Nada registrado aqui ainda."
+      rodape={(ids, comSelecao) => (
+        <tr data-testid="area-lancamentos-total">
+          {comSelecao ? <td /> : null}
+          {ids.map((id) => (
+            <td key={id} className={id === "valor" ? "text-right tabular-nums" : undefined}>
+              {id === "tipo" ? "Total" : id === "valor" ? <span data-testid="area-lancamentos-total-valor">{totalTexto}</span> : null}
+            </td>
           ))}
-        </tbody>
-        <tfoot>
-          <tr data-testid="area-lancamentos-total">
-            <td />
-            <td colSpan={celular ? 1 : 3}>Total</td>
-            {celular ? (
-              <>
-                <td className="is-numero" data-testid="area-lancamentos-total-valor">
-                  {totalTexto}
-                </td>
-                <td colSpan={3} />
-              </>
-            ) : (
-              <>
-                <td />
-                <td className="is-numero" data-testid="area-lancamentos-total-valor">
-                  {totalTexto}
-                </td>
-              </>
-            )}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+        </tr>
+      )}
+    />
   );
 
   return (
-    <section className="min-w-0" data-testid="detalhe-area">
-      {onVoltar ? (
-        <button type="button" className="mb-2 inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-emerald-800" onClick={onVoltar} data-testid="detalhe-area-voltar">
-          <ChevronLeft className="h-4 w-4" aria-hidden /> Áreas
-        </button>
-      ) : null}
-      {avisoRecado}
-      <h2 className="text-lg font-semibold" data-testid="detalhe-area-nome">
-        {nome}
-      </h2>
-      <p className="text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="detalhe-area-atividade">
-        {String(atividade?.nome ?? "")}
-      </p>
+    <section className="b1-tabela-tela" data-testid="detalhe-area">
+      <div className="b1-tabela-tela__cab">
+        {onVoltar ? (
+          <button type="button" className="b1-tabela-tela__voltar" onClick={onVoltar} data-testid="detalhe-area-voltar">
+            <ChevronLeft className="h-4 w-4" aria-hidden /> Áreas
+          </button>
+        ) : null}
+        <h2 className="b1-tabela-tela__titulo" data-testid="detalhe-area-nome">
+          {nome}
+        </h2>
+        <span className="b1-tabela-tela__sub" data-testid="detalhe-area-atividade">
+          {String(atividade?.nome ?? "")}
+        </span>
+      </div>
       {botoes.length ? (
-        <div className="mb-3 flex flex-wrap gap-2" data-testid="escolher-registro">
+        <div className="b1-tabela-tela__acoes" data-testid="escolher-registro">
           {botoes.map((o) => (
             <button key={o.id} type="button" className={BOTAO_PRIMARIO} onClick={() => abrirRegistro(o.id)} data-testid={`escolher-${o.id}`}>
               <Plus className="h-4 w-4" aria-hidden /> {o.rotulo}
@@ -261,13 +240,7 @@ export default function LancamentosDaArea({
           Esta área ainda não começou. Inicie a área pelo ⚡ da tabela de áreas para lançar nela.
         </AvisoGestao>
       ) : null}
-      {lendoLinhas && linhas.length === 0 ? <p className="text-[13px] text-[var(--mg-text-2,#475569)]">Lendo…</p> : null}
       {tabela}
-      {linhas.length === 0 && !lendoLinhas ? (
-        <p className="mt-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="area-lancamentos-vazio">
-          Nada registrado aqui ainda.
-        </p>
-      ) : null}
       {abastecendo ? (
         <JanelaAbastecimentoDaArea
           atividade={atividade}
@@ -276,7 +249,7 @@ export default function LancamentosDaArea({
           onFechar={() => setAbastecendo(null)}
           onGravou={(texto) => {
             releer();
-            onGravouAbastecimento({ texto, areaId, nomeArea: nome, nomeAtividade: String(atividade?.nome ?? "") });
+            notifySuccess("Sucesso", texto);
           }}
         />
       ) : null}

@@ -842,7 +842,10 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     expect(await screen.findByTestId("linha-produto-pl-n1")).toHaveTextContent("Glifosato");
     // O totalizador foi relido (e agora soma 50 L).
     await waitFor(() => expect(leiturasDosTotais("a1")).toBeGreaterThan(totaisAntes));
-    await waitFor(() => expect(screen.getByTestId("totalizador-produto-p1")).toHaveTextContent("50 L · R$ 250,00"));
+    await waitFor(() => {
+      expect(screen.getByTestId("totalizador-produto-p1")).toHaveTextContent("50 L");
+      expect(screen.getByTestId("totalizador-produto-p1-custo")).toHaveTextContent("R$ 250,00");
+    });
   });
 
   it("LL-PRODUTO-2 — saldo insuficiente: aviso com disponível × pedido antes de enviar e a recusa do servidor com a mensagem do motor", async () => {
@@ -980,7 +983,10 @@ describe("LL-MAQUINA — janela da linha de máquina", () => {
     });
     await waitFor(() => expect(screen.queryByTestId("janela-linha-maquina")).toBeNull());
     expect(await screen.findByTestId("linha-maquina-ml-n1-nome")).toHaveTextContent("TP-02 — Trator + GR-01 — Grade");
-    await waitFor(() => expect(screen.getByTestId("totalizador-maquina-b1-h")).toHaveTextContent("16 h · R$ 800,00"));
+    await waitFor(() => {
+      expect(screen.getByTestId("totalizador-maquina-b1-h")).toHaveTextContent("16 h");
+      expect(screen.getByTestId("totalizador-maquina-b1-h-custo")).toHaveTextContent("R$ 800,00");
+    });
   });
 
   it("LL-MAQUINA-2 — salto do medidor: ATIVIDADE_SALTO_MEDIDOR mostra a justificativa e o reenvio a leva", async () => {
@@ -1070,9 +1076,11 @@ describe("LL-TOTAIS — totalizador fixo no topo da atividade", () => {
     await waitFor(() => expect(within(totais).getByTestId("totalizador-custo")).toHaveTextContent("R$ 525,00"));
     expect(within(totais).getByTestId("totalizador-area")).toHaveTextContent("10 / 40 ha");
     // A Ureia cancelada não conta.
-    expect(within(totais).getByTestId("totalizador-produto-p1")).toHaveTextContent("25 L · R$ 125,00");
+    expect(within(totais).getByTestId("totalizador-produto-p1")).toHaveTextContent("25 L");
+    expect(within(totais).getByTestId("totalizador-produto-p1-custo")).toHaveTextContent("R$ 125,00");
     expect(within(totais).queryByTestId("totalizador-produto-p2")).toBeNull();
-    expect(within(totais).getByTestId("totalizador-maquina-b1-h")).toHaveTextContent("8 h · R$ 400,00");
+    expect(within(totais).getByTestId("totalizador-maquina-b1-h")).toHaveTextContent("8 h");
+    expect(within(totais).getByTestId("totalizador-maquina-b1-h-custo")).toHaveTextContent("R$ 400,00");
     expect(within(totais).getByTestId("totalizador-custo-ha")).toHaveTextContent("R$ 52,50/ha");
     // O totalizador vem antes do cabeçalho.
     const cabecalho = screen.getByTestId("atividade-cabecalho");
@@ -1303,7 +1311,10 @@ describe("LL-MAO-OBRA — janela da linha de mão de obra", () => {
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Mão de obra de José Silva lançada.");
     expect(await screen.findByTestId("linha-mao-obra-mo-n1-custo")).toHaveTextContent("custo R$ 160,00");
     await waitFor(() => expect(leiturasDosTotais("a4")).toBeGreaterThan(totaisAntes));
-    await waitFor(() => expect(screen.getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("16 h · R$ 320,00"));
+    await waitFor(() => {
+      expect(screen.getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("16 h");
+      expect(screen.getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA-custo")).toHaveTextContent("R$ 320,00");
+    });
   });
 
   it("LL-MAO-OBRA-2 — tarefa: custo digitado e obrigatório, vai no corpo; diarista sugere diária; terceirizado sugere hora (D-PROD-209); sem custo no cadastro avisa", async () => {
@@ -1502,10 +1513,13 @@ describe("LL-MAO-OBRA-TERCEIRO — funcionário ou terceiro (D-PROD-208)", () =>
     expect(await screen.findByTestId("linha-mao-obra-mo-n1-nome")).toHaveTextContent("Empreiteira Rocha (terceiro)");
     expect(screen.getByTestId("linha-mao-obra-mo-n1-custo")).toHaveTextContent("custo R$ 240,00");
     const totais = screen.getByTestId("totalizador-atividade");
-    await waitFor(() => expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA")).toHaveTextContent("8 h · R$ 240,00"));
-    expect(within(totais).getByText("Mão de obra — Empreiteira Rocha (terceiro)")).toBeTruthy();
+    await waitFor(() => {
+      expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA")).toHaveTextContent("8 h");
+      expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA-custo")).toHaveTextContent("R$ 240,00");
+    });
+    expect(within(totais).getByText("Empreiteira Rocha (terceiro)")).toBeTruthy();
     // O funcionário continua sem a marca.
-    expect(within(totais).getByText("Mão de obra — José Silva")).toBeTruthy();
+    expect(within(totais).getByText("José Silva")).toBeTruthy();
     await waitFor(() => expect(within(totais).getByTestId("totalizador-custo")).toHaveTextContent("R$ 450,00"));
   });
 
@@ -1634,10 +1648,14 @@ describe("LL-MAO-OBRA-ORIGEM — origem gravada × origem atual do parceiro (D-P
     await montar();
     await abrir("a4", "ap7");
     const totais = await screen.findByTestId("totalizador-atividade");
-    await waitFor(() => expect(within(totais).getByTestId("totalizador-mao-obra-pp2-FUNCIONARIO-HORA")).toHaveTextContent("1 h · R$ 10,00"));
-    expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA")).toHaveTextContent("2 h · R$ 60,00");
-    expect(within(totais).getByText("Mão de obra — Empreiteira Rocha")).toBeTruthy();
-    expect(within(totais).getByText("Mão de obra — Empreiteira Rocha (terceiro)")).toBeTruthy();
+    await waitFor(() => {
+      expect(within(totais).getByTestId("totalizador-mao-obra-pp2-FUNCIONARIO-HORA")).toHaveTextContent("1 h");
+      expect(within(totais).getByTestId("totalizador-mao-obra-pp2-FUNCIONARIO-HORA-custo")).toHaveTextContent("R$ 10,00");
+    });
+    expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA")).toHaveTextContent("2 h");
+    expect(within(totais).getByTestId("totalizador-mao-obra-pp2-TERCEIRO-HORA-custo")).toHaveTextContent("R$ 60,00");
+    expect(within(totais).getByText("Empreiteira Rocha")).toBeTruthy();
+    expect(within(totais).getByText("Empreiteira Rocha (terceiro)")).toBeTruthy();
   });
 });
 
@@ -1674,7 +1692,10 @@ describe("LL-SERVICO — janela da linha de serviço", () => {
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Serviço Frete lançado.");
     expect(await screen.findByTestId("linha-servico-sv-n1-valor")).toHaveTextContent("valor R$ 50,00");
     expect(screen.queryByTestId("linha-servico-sv-n1-parceiro")).toBeNull();
-    await waitFor(() => expect(screen.getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("20 KM · R$ 100,00"));
+    await waitFor(() => {
+      expect(screen.getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("20 KM");
+      expect(screen.getByTestId("totalizador-servico-s1-KM-custo")).toHaveTextContent("R$ 100,00");
+    });
   });
 
   it("LL-SERVICO-2 — parceiro opcional (só prestadores): recusa uniforme do servidor; com parceiro vai o id; editar limpando o parceiro manda null", async () => {
@@ -1710,7 +1731,10 @@ describe("LL-SERVICO — janela da linha de serviço", () => {
   it("LL-SERVICO-3 — cancelar o serviço com motivo; deixa de contar no totalizador", async () => {
     await montar();
     await abrir("a4", "ap7");
-    await waitFor(() => expect(screen.getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM · R$ 50,00"));
+    await waitFor(() => {
+      expect(screen.getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM");
+      expect(screen.getByTestId("totalizador-servico-s1-KM-custo")).toHaveTextContent("R$ 50,00");
+    });
     fireEvent.click(screen.getByTestId("linha-servico-sv1-cancelar"));
     const dialogo = await screen.findByTestId("dialogo-cancelar-linha");
     expect(dialogo).toHaveTextContent("O valor deste serviço deixa de contar na atividade.");
@@ -1729,12 +1753,14 @@ describe("LL-TOTAIS — totalizador com mão de obra e serviços (Fatia 4)", () 
     await abrir("a4", "ap7");
     const totais = await screen.findByTestId("totalizador-atividade");
     await waitFor(() => expect(within(totais).getByTestId("totalizador-custo")).toHaveTextContent("R$ 210,00"));
-    expect(within(totais).getByText("Mão de obra — José Silva")).toBeTruthy();
-    expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("8 h · R$ 160,00");
+    expect(within(totais).getByText("José Silva")).toBeTruthy();
+    expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("8 h");
+    expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA-custo")).toHaveTextContent("R$ 160,00");
     // A tarefa cancelada da Ana não conta.
     expect(within(totais).queryByTestId("totalizador-mao-obra-f2-FUNCIONARIO-TAREFA")).toBeNull();
-    expect(within(totais).getByText("Serviço — Frete")).toBeTruthy();
-    expect(within(totais).getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM · R$ 50,00");
+    expect(within(totais).getByText("Frete")).toBeTruthy();
+    expect(within(totais).getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM");
+    expect(within(totais).getByTestId("totalizador-servico-s1-KM-custo")).toHaveTextContent("R$ 50,00");
     expect(within(totais).getByTestId("totalizador-custo-ha")).toHaveTextContent("R$ 21,00/ha");
   });
 });
@@ -1746,9 +1772,13 @@ describe("LL-TOTAIS — o serviço agrupa por serviço E unidade", () => {
     await montar();
     await abrir("a4", "ap7");
     const totais = await screen.findByTestId("totalizador-atividade");
-    await waitFor(() => expect(within(totais).getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM · R$ 50,00"));
-    expect(within(totais).getByTestId("totalizador-servico-s1-H")).toHaveTextContent("2 H · R$ 60,00");
-    expect(within(totais).getAllByText("Serviço — Frete")).toHaveLength(2);
+    await waitFor(() => {
+      expect(within(totais).getByTestId("totalizador-servico-s1-KM")).toHaveTextContent("10 KM");
+      expect(within(totais).getByTestId("totalizador-servico-s1-KM-custo")).toHaveTextContent("R$ 50,00");
+    });
+    expect(within(totais).getByTestId("totalizador-servico-s1-H")).toHaveTextContent("2 H");
+    expect(within(totais).getByTestId("totalizador-servico-s1-H-custo")).toHaveTextContent("R$ 60,00");
+    expect(within(totais).getAllByText("Frete")).toHaveLength(2);
   });
 });
 
@@ -2023,8 +2053,10 @@ describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia
     await act(async () => {
       fireEvent.click(within(janela).getByTestId("abastecimento-confirmar"));
     });
-    const frase = await screen.findByTestId("registro-confirmado-frase");
-    expect(frase.textContent).toMatch(/^Abastecimento de .+ registrado\. Foi anotado em /);
+    // O aviso é o toast do app: nada de banner "Foi anotado em…" na tela.
+    await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", expect.stringMatching(/^Abastecimento de .+ registrado\.$/)));
+    expect(screen.queryByTestId("registro-confirmado")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Foi anotado em/);
     expect(screen.queryByTestId("janela-abastecimento-area")).toBeNull();
     expect(backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos").at(-1)?.body).toMatchObject({ apontamento_id: "ap1", operation_id: expect.any(String) });
   });
@@ -2156,7 +2188,12 @@ const abrirJanela = async (id, botao) => {
   return janela;
 };
 /** Ids das linhas da tabela dos lançamentos da área. */
-const linhasDaArea = () => [...screen.getByTestId("area-lancamentos-tabela").querySelectorAll('tbody tr[data-testid^="lancamento-"]')].map((tr) => tr.getAttribute("data-testid")?.replace("lancamento-", ""));
+const linhasDaArea = () =>
+  [...screen.getByTestId("area-lancamentos-tabela").querySelectorAll('tbody tr [data-testid$="-tipo"][data-testid^="lancamento-"]')].map((el) => el.getAttribute("data-testid")?.replace(/^lancamento-/, "").replace(/-tipo$/, ""));
+/** A linha (tr da grade Base1) de um lançamento da área. */
+const linhaDoLancamento = (/** @type {string} */ id) => /** @type {HTMLElement} */ (screen.getByTestId(`lancamento-${id}-tipo`).closest("tr"));
+/** Os cabeçalhos da grade Base1, sem a caixa de seleção. */
+const cabecalhosDaGrade = (/** @type {HTMLElement} */ tabela) => [...tabela.querySelectorAll("thead th")].map((th) => (th.textContent ?? "").trim()).filter(Boolean);
 /** Preenche a máquina (o trator do cabeçalho vem escolhido): espera a leitura inicial sugerida e digita a final. @param {HTMLElement} janela @param {string} final */
 const preencherMaquina = async (janela, final) => {
   await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-inicial")).toHaveValue("1.550"));
@@ -2200,7 +2237,7 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-final")).toHaveValue(""));
     // A linha já aparece na tabela da área, atrás da janela (o lançamento novo é o apn1; a linha dele, ml-n2).
     await waitFor(() => expect(linhasDaArea()).toContain("ml-n2"));
-    expect(within(screen.getByTestId("lancamento-ml-n2")).getByTestId("lancamento-ml-n2-quantidade")).toHaveTextContent("8 h");
+    expect(within(linhaDoLancamento("ml-n2")).getByTestId("lancamento-ml-n2-quantidade")).toHaveTextContent("8 h");
     // O segundo item do dia vai pela rota da linha, no lançamento criado (com a versão nova).
     await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-inicial")).toHaveValue("1.550"));
     fireEvent.change(within(janela).getByTestId("linha-maquina-leitura-final"), { target: { value: "1560" } });
@@ -2265,7 +2302,9 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     await montar();
     await naArea("a1");
     const tabela = screen.getByTestId("area-lancamentos-tabela");
-    expect([...tabela.querySelectorAll("thead th")].map((th) => th.textContent)).toEqual(["Ações", "Tipo", "Dia", "Item", "Quantidade", "Valor"]);
+    expect(tabela.querySelector("table.mg-grid")).toBeTruthy();
+    expect(tabela.closest(".b1-aba-cartao")).toBeNull();
+    expect(cabecalhosDaGrade(tabela)).toEqual(["Ações", "Tipo", "Dia", "Item", "Quantidade", "Valor"]);
     expect(linhasDaArea()).toEqual(["ml1", "pl1", "mo1", "sv1"]);
     const celula = (/** @type {string} */ id, /** @type {string} */ c) => within(tabela).getByTestId(`lancamento-${id}-${c}`);
     expect(celula("ml1", "tipo")).toHaveTextContent("Máquina");
@@ -2347,7 +2386,7 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     expect(botoes).toEqual(["Máquina", "Mão de obra", "Serviço"]);
     // A tabela da área traz a mão de obra e o serviço do dia 12.
     expect(linhasDaArea()).toEqual(["mo1", "mo2", "sv1"].filter((id) => linhasDaArea().includes(id)));
-    expect(within(screen.getByTestId("lancamento-mo1")).getByTestId("lancamento-mo1-item")).toHaveTextContent("José Silva");
+    expect(within(linhaDoLancamento("mo1")).getByTestId("lancamento-mo1-item")).toHaveTextContent("José Silva");
     fireEvent.click(screen.getByTestId("escolher-mao-obra"));
     let janela = await screen.findByTestId("janela-tipo");
     expect(janela.querySelector(".mdl-t")).toHaveTextContent("Mão de obra");
@@ -2426,8 +2465,8 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     await screen.findByTestId("detalhe-area");
     // No celular a tabela da área continua tabela (rola na horizontal), com o Valor logo depois do Tipo.
     const tabela = screen.getByTestId("area-lancamentos-tabela");
-    expect(tabela.closest(".b1-tipo-tabela__rolagem")).toBeTruthy();
-    expect([...tabela.querySelectorAll("thead th")].map((th) => th.textContent)).toEqual(["Ações", "Tipo", "Valor", "Quantidade", "Item", "Dia"]);
+    expect(tabela.querySelector(".mg-grid-wrap")).toBeTruthy();
+    expect(cabecalhosDaGrade(tabela)).toEqual(["Ações", "Tipo", "Valor", "Quantidade", "Item", "Dia"]);
     expect(document.querySelector(".b1-tipo-card")).toBeNull();
     fireEvent.click(await screen.findByTestId("escolher-maquinas"));
     const janela = await screen.findByTestId("janela-tipo");
@@ -2495,7 +2534,7 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     };
     await montar();
     await abrirAberta("a1");
-    const linha = await screen.findByTestId("lancamento-abastecimento-ab-1");
+    const linha = await waitFor(() => linhaDoLancamento("abastecimento-ab-1"));
     expect(within(linha).getByTestId("lancamento-abastecimento-ab-1-tipo")).toHaveTextContent("Abastecimento");
     expect(within(linha).getByTestId("lancamento-abastecimento-ab-1-dia")).toHaveTextContent("12/11/2026");
     expect(within(linha).getByTestId("lancamento-abastecimento-ab-1-item")).toHaveTextContent("TP-02");
@@ -2565,8 +2604,16 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     expect(screen.getByTestId("atividade-painel-lancamentos")).toHaveAttribute("hidden");
     const totais = within(painel).getByTestId("totalizador-atividade");
     expect(totais).not.toHaveClass("sticky");
-    await waitFor(() => expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("8 h · R$ 160,00"));
-    expect(within(totais).getByText("Serviço — Frete")).toBeTruthy();
+    // Emenda 2: um detalhe só (sem cartões empilhados) e os itens numa tabela Base1 (Tipo, Item, Quantidade, Custo).
+    expect(painel.querySelector(".b1-aba-cartao")).toBeNull();
+    const itens = within(totais).getByTestId("totalizador-itens");
+    expect(itens.querySelector("table.mg-grid")).toBeTruthy();
+    expect(cabecalhosDaGrade(itens)).toEqual(["Tipo", "Item", "Quantidade", "Custo"]);
+    await waitFor(() => {
+      expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("8 h");
+      expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA-custo")).toHaveTextContent("R$ 160,00");
+    });
+    expect(within(totais).getByText("Frete")).toBeTruthy();
     const cab = within(painel).getByTestId("atividade-cabecalho");
     expect(cab).toHaveAttribute("data-somente-leitura");
     expect(within(cab).getByDisplayValue("Colheita Talhão 04")).toBeTruthy();
@@ -2632,7 +2679,7 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     // O Concluir sai da barra e fica na cabeça (no canto de cima).
     expect(screen.queryByTestId("atividade-concluir")).toBeNull();
     // A tabela da área segue tabela (sem cartões) e a navegação fica no rodapé da casca, não nas abas.
-    expect((await screen.findByTestId("area-lancamentos-tabela")).tagName).toBe("TABLE");
+    expect((await screen.findByTestId("area-lancamentos-tabela")).querySelector("table.mg-grid")).toBeTruthy();
     expect(document.querySelector(".b1-tipo-card")).toBeNull();
     expect(within(screen.getByTestId("atividade-aberta")).queryByTestId("cadastro-record-nav")).toBeNull();
     fireEvent.click(within(cabeca).getByTestId("atividade-concluir-celular"));

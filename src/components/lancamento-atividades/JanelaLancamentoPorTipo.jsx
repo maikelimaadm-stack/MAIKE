@@ -133,12 +133,11 @@ function CascaDoFormulario({ testId, enviando, incerto, podeEnviar, formId, onEn
  *   onFechar: () => void,
  *   onAtividadeAtualizada?: (atividade: any | null) => void,
  *   areaInicial?: string|null,
- *   onGravou?: (texto: string) => void,
  * }} props `areaInicial`: a área da atividade onde o lançamento entra (atividade sem áreas: null). `acoes`: as da tela
  *   (`useAcoesTelaAtividades`); `onAtividadeAtualizada`: depois de toda escrita (o cabeçalho com os totais recalculados,
  *   quando o servidor o devolve).
  */
-export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, tipo, acoes, flags, escopo, onFechar, onAtividadeAtualizada = undefined, areaInicial = null, onGravou = undefined }) {
+export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, tipo, acoes, flags, escopo, onFechar, onAtividadeAtualizada = undefined, areaInicial = null }) {
   const [atividade, setAtividadeLocal] = useState(atividadeRecebida);
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
@@ -226,7 +225,6 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
     if (r.atividade && String(r.atividade.id) === atividadeId) setAtividadeLocal(r.atividade);
     const diaGravado = formatarDiaAtividade(r.apontamento?.data_operacional);
     const aviso = textoDoServidor;
-    onGravou?.(textoDoServidor);
     notifySuccess("Sucesso", aviso);
     const alertas = Array.isArray(r.alertas) ? r.alertas : [];
     if (alertas.length) notifyWarning("Atenção", `${diaGravado ? `${diaGravado}: ` : ""}${mensagemDoAlertaAtividade(alertas[0])}`);

@@ -59,7 +59,8 @@ export function colunasBase1(defs) {
  * @param {(active: boolean) => void} [props.onFiltersActiveChange]
  * @param {(item: object, query: string) => boolean} [props.matchesSearch]
  * @param {(row: object) => string} [props.rowKey]
- * @param {import('react').ReactNode} [props.gridFooter] rodapé `<tfoot>` da grade
+ * @param {import('react').ReactNode | ((colunasVisiveis: string[]) => import('react').ReactNode)} [props.gridFooter] rodapé `<tfoot>` da grade;
+ *   em função, recebe os ids das colunas na ordem em que aparecem (ocultar e reordenar não desalinham o total)
  * @param {(payload: { rows: object[]; selectedIds: string[] }) => void} [props.onDisplayChange]
  * @param {'table'|'cards'} [props.viewMode]
  * @param {number} [props.displayLimit] limite de linhas visíveis (paginação incremental)
@@ -814,7 +815,7 @@ export default function CadastroBase1Grade({
         filteredKeys={filteredKeys}
         emptyText={emptyText}
         rowKey={rowKey ? (r) => rowKey(r) : undefined}
-        footer={gridFooter}
+        footer={typeof gridFooter === "function" ? gridFooter(colunasOrdenadas.map((c) => c.id)) : gridFooter}
       />
       {referenceHeaders
         ? dataCols.map((c) => renderReferenceFilter(c.id))

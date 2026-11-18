@@ -23,21 +23,23 @@ const ABAS = Object.freeze([
 ]);
 
 /**
- * A atividade ABERTA, reorganizada na D-PROD-252 (sobre o desenho do protótipo, D-PROD-234), no modelo visual do sistema
- * (`b1-aba-cartao`, abas `b1-panel-tab`, a tabela `b1-tipo-tabela` e o ⚡):
+ * A atividade ABERTA (D-PROD-234, reorganizada na D-PROD-252 e nas emendas 1 e 2), no modelo da lista do sistema: as tabelas
+ * são a grade Base1 (`TabelaBase1` → `CadastroBase1Grade`), sem cartão, e o rodapé do Base1 ("N registros", tamanho da
+ * página) fica no fim da casca:
  *
  *  - abas **Lançamentos**, **Resumo das áreas** e **Resumo da atividade**, com a navegação ‹‹ ‹ n/N › ›› do registro na mesma
  *    linha (a do motor, `NavegacaoDoRegistro`, na ordem da lista); no celular a navegação fica no rodapé, como sempre;
- *  - **Lançamentos** (`FluxoPorArea`): uma linha de resumo no alto e UMA tabela de áreas; o nome da área abre a área, com os
- *    botões "+" e UMA tabela de lançamentos (`LancamentosDaArea`); com a área aberta, as abas e a navegação do registro
- *    saem da frente (o "‹ Áreas" volta). Saíram os cartões de custo, a tabela por tipo e os dias lançados (emenda da
- *    D-PROD-252): o Editar e o Cancelar são do ⚡ de cada linha da área;
- *  - **Resumo das áreas** (`ResumoDasAreas`): o custo por tipo de cada área, do `por_area` dos totais;
- *  - **Resumo da atividade**: os totais com o detalhe por item (`TotalizadorAtividade`) e os dados da atividade, só leitura.
- *    A atividade não mostra "dias": cada linha lançada tem a data dela.
+ *  - **Lançamentos** (`FluxoPorArea`): UMA tabela de áreas, sem linha de resumo; o nome da área abre a área, com os botões
+ *    "+" e UMA tabela de lançamentos (`LancamentosDaArea`); com a área aberta, as abas e a navegação do registro saem da
+ *    frente (o "‹ Áreas" volta). O Editar e o Cancelar são do ⚡ de cada linha;
+ *  - **Resumo das áreas** (`ResumoDasAreas`): o custo por tipo de cada área, do `por_area` dos totais, numa tabela Base1;
+ *  - **Resumo da atividade**: UM detalhe (o do registro dos cadastros: seções e campos só leitura) com os totais — os valores
+ *    únicos como campos e os itens (insumos, máquinas, mão de obra, serviços) numa tabela Base1 — e os dados da atividade
+ *    (`TotalizadorAtividade` e o `cabecalho` da tela). Sem "dias": cada linha lançada tem a data dela.
  *
- * As abas ficam montadas (a escondida com `hidden`): trocar de aba não perde a tela em que a pessoa está. No celular: a
- * cabeça com ✕, o nome, o status, "Nº · área" e o Concluir.
+ * O aviso de uma gravação é o toast do app (`notifySuccess`), nunca um aviso na tela. As abas ficam montadas (a escondida
+ * com `hidden`): trocar de aba não perde a tela em que a pessoa está. No celular: a cabeça com ✕, o nome, o status,
+ * "Nº · área" e o Concluir.
  *
  * @param {{
  *   atividade: any,
@@ -48,15 +50,12 @@ const ABAS = Object.freeze([
  *   avisos?: React.ReactNode,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null) => void,
- *   onGravouAbastecimento?: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
  *   onFechar: () => void,
  *   onConcluir?: (() => void) | null,
- *   recado?: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null,
- *   onLimparRecado?: () => void,
  * }} props `acoes`: as dos lançamentos (já com o status, a permissão e o fuso); `onLancar`: abre a janela do lançamento
  *   sobre esta atividade, presa na área. `onConcluir`: o Concluir da cabeça do celular (null = sem o botão).
  */
-export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null, recado = null, onLimparRecado = () => {}, onGravouAbastecimento = () => {} }) {
+export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null }) {
   const celular = useCelular();
   const { clienteId } = useAuth();
   const id = atividade?.id ? String(atividade.id) : null;
@@ -72,8 +71,8 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
   useLayoutEffect(() => {
     const scroll = raizRef.current?.closest(".mg-form-scroll");
     if (!scroll) return undefined;
-    scroll.classList.add("b1-form--abas-fora");
-    return () => scroll.classList.remove("b1-form--abas-fora");
+    scroll.classList.add("b1-form--abas-fora", "b1-form--tabela");
+    return () => scroll.classList.remove("b1-form--abas-fora", "b1-form--tabela");
   }, []);
 
   const podeVer = acoes?.ver === true;
@@ -178,21 +177,18 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
           podeInformarFeita={aberta && acoes?.editarApontamento === true && habilitado}
           flags={flags}
           onLancar={onLancar}
-          onGravouAbastecimento={onGravouAbastecimento}
           onAtividadeAtualizada={onAtividadeAtualizada}
-          recado={recado}
-          onLimparRecado={onLimparRecado}
           onAreaAberta={setEmArea}
         />
       </div>
       <div role="tabpanel" id="atividade-painel-areas" aria-labelledby="atividade-aba-areas" hidden={aba !== "areas"} className="b1-aberta-painel" data-testid="atividade-painel-areas">
         <ResumoDasAreas atividade={atividade} totais={totais} lendoTotais={lendoTotais} />
       </div>
-      <div role="tabpanel" id="atividade-painel-resumo" aria-labelledby="atividade-aba-resumo" hidden={aba !== "resumo"} className="b1-aberta-painel" data-testid="atividade-painel-resumo">
-        <section className="b1-aba-cartao b1-aberta-cartao">
+      <div role="tabpanel" id="atividade-painel-resumo" aria-labelledby="atividade-aba-resumo" hidden={aba !== "resumo"} className="b1-aberta-painel b1-aberta-painel--detalhe" data-testid="atividade-painel-resumo">
+        <div className="b1-resumo-atividade">
           <TotalizadorAtividade atividade={atividade} empresaId={empresaId} habilitado={habilitado} fixo={false} />
-        </section>
-        <section className="b1-aba-cartao b1-aberta-cartao">{cabecalho}</section>
+          {cabecalho}
+        </div>
       </div>
     </div>
   );

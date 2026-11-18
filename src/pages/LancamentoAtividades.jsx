@@ -261,8 +261,6 @@ export default function LancamentoAtividades() {
   const [duplicando, setDuplicando] = useState(false);
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
-  const recadoPendente = useRef(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
-  const [recado, setRecado] = useState(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
@@ -337,8 +335,6 @@ export default function LancamentoAtividades() {
     closeForm();
     setDialogo(null);
     setLancando(null);
-    recadoPendente.current = null;
-    setRecado(null);
     setAreaFiltro("");
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
@@ -857,11 +853,8 @@ export default function LancamentoAtividades() {
             avisos={avisosDaAtividade(registroAberto)}
             onAtividadeAtualizada={aoAtualizarAtividade}
             onLancar={(tipo, aba, areaId) => lancarDoMenu(registroAberto, tipo, aba, areaId ?? null)}
-            onGravouAbastecimento={setRecado}
             onFechar={() => controller.onViewModeChange("table")}
             onConcluir={podeConcluirAberta ? () => abrirDialogo("concluir", registroAberto) : null}
-            recado={recado}
-            onLimparRecado={() => setRecado(null)}
           />
         </CadastroFormShell>
       );
@@ -996,26 +989,7 @@ export default function LancamentoAtividades() {
             acoes={acoes}
             flags={flagsDoLancando}
             escopo={escopo}
-            onFechar={() => {
-              setLancando(null);
-              if (recadoPendente.current) {
-                setRecado(recadoPendente.current);
-                recadoPendente.current = null;
-              }
-            }}
-            onGravou={
-              lancando.areaId
-                ? (texto) => {
-                    const daArea = areasDaAtividade(lancando.atividade).find((a) => String(a.id) === String(lancando.areaId ?? ""));
-                    recadoPendente.current = {
-                      texto,
-                      areaId: lancando.areaId ?? null,
-                      nomeArea: daArea ? rotuloDaAreaDaAtividade(daArea) : rotuloDaArea(lancando.atividade?.area) || "",
-                      nomeAtividade: String(lancando.atividade?.nome ?? ""),
-                    };
-                  }
-                : undefined
-            }
+            onFechar={() => setLancando(null)}
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
             areaInicial={lancando.areaId ?? null}
           />
