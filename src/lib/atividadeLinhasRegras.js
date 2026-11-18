@@ -1361,3 +1361,131 @@ export const totalDasLinhas = (linhas, tipo) => {
 
 /** "Manhã · 2ª passada" (o seletor da janela por tipo quando o dia tem mais de um lançamento). @param {any} ap */
 export const rotuloDoLancamentoNoDia = (ap) => [rotuloDoTurno(ap?.turno), rotuloDaPassada(ap?.sequencia)].filter(Boolean).join(' · ') || 'Lançamento';
+
+// ─── Atividade aberta no desenho do protótipo (D-PROD-234) ───────────────
+
+/** Moeda com 2 casas para a atividade aberta ("R$ 4.262,47"); vazio sem valor. @param {unknown} v */
+export const formatarMoedaAtividade = (v) => moeda2(v) ?? '';
+
+/**
+ * As linhas CONFIRMADAS de UM tipo em TODOS os lançamentos CONFIRMADOS da atividade (todos os dias): a mesma regra dos
+ * totais do servidor (linha cancelada ou de lançamento cancelado não conta).
+ * @param {any[]} apontamentos @param {string} tipo
+ */
+export const linhasConfirmadasDaAtividade = (apontamentos, tipo) =>
+  (Array.isArray(apontamentos) ? apontamentos : [])
+    .filter((ap) => ehObjeto(ap) && ap.status === STATUS_CONFIRMADO)
+    .flatMap((ap) => linhasDoTipo(ap, tipo).filter((l) => statusDaLinha(l) === STATUS_CONFIRMADO));
+
+/**
+ * Soma de uma quantidade por unidade, na ordem em que a unidade aparece: `[[unidade, total canônico]]`.
+ * @param {any[]} linhas @param {(l: any) => unknown} quantidade @param {(l: any) => string} unidade
+ */
+const somaPorUnidade = (linhas, quantidade, unidade) => {
+  /** @type {Map<string, string[]>} */
+  const porUnidade = new Map();
+  for (const l of linhas) {
+    const q = quantidade(l);
+    if (!ehCanonico(q)) continue;
+    const u = unidade(l);
+    porUnidade.set(u, [...(porUnidade.get(u) ?? []), /** @type {string} */ (q)]);
+  }
+  return [...porUnidade.entries()].map(([u, qs]) => /** @type {[string, string]} */ ([u, somar(qs, 4)]));
+};
+
+/** "NPK 20-05-20" ou "NPK 20-05-20 (+2)": o primeiro nome e quantos outros DIFERENTES. @param {string[]} nomes */
+const primeiroEMais = (nomes) => {
+  const unicos = [...new Set(nomes.filter(Boolean))];
+  if (!unicos.length) return '';
+  return unicos.length > 1 ? `${unicos[0]} (+${unicos.length - 1})` : unicos[0];
+};
+
+/**
+ * O resumo curto de um tipo na tabela "Lançamentos" da atividade aberta (protótipo do proprietário), SÓ com o que as
+ * linhas gravadas e os totais do servidor têm — sem linha, vazio (a tela oferece "+ Lançar"):
+ *  - máquinas: o uso somado por unidade do medidor ("5 h", "5 h · 120 km") e os litros de combustível dos
+ *    abastecimentos ligados (`totais.combustivel.quantidade_l`, "43 L");
+ *  - insumos: o primeiro produto e quantos outros ("NPK 20-05-20 (+1)");
+ *  - mão de obra: quantas pessoas (parceiros distintos) e a quantidade por medida ("1 pessoa · 5 h");
+ *  - custos extras: quantos itens ("2 itens").
+ * @param {string} tipo @param {any[]} linhas (as CONFIRMADAS do tipo na atividade) @param {any} [totais]
+ */
+export const resumoDoTipoNaAtividade = (tipo, linhas, totais = null) => {
+  const ls = Array.isArray(linhas) ? linhas : [];
+  if (!ls.length) return '';
+  if (tipo === LINHA_MAQUINA) {
+    const usos = somaPorUnidade(ls, (l) => l?.quantidade_uso, (l) => rotuloDaUnidadeDoMedidor(l?.medidor_tipo, l?.medidor_unidade))
+      .map(([u, q]) => (u ? `${formatarDecimalLinha(q)} ${u}` : formatarDecimalLinha(q)));
+    const c = ehObjeto(totais) && ehObjeto(totais.combustivel) ? totais.combustivel : null;
+    const litros = c && ehCanonico(c.quantidade_l) && ehPositivo(c.quantidade_l) ? formatarQuantidadeLinha(c.quantidade_l, 'L') : '';
+    return [...usos, litros].filter(Boolean).join(' · ') || `${ls.length} ${ls.length === 1 ? 'máquina' : 'máquinas'}`;
+  }
+  if (tipo === LINHA_PRODUTO) return primeiroEMais(ls.map((l) => rotuloDoProdutoDaLinha(l))) || `${ls.length} ${ls.length === 1 ? 'insumo' : 'insumos'}`;
+  if (tipo === LINHA_MAO_OBRA) {
+    const pessoas = new Set(ls.map((l) => String(l?.parceiro_id ?? l?.parceiro?.id ?? rotuloDaMaoObraDaLinha(l)))).size;
+    const qtds = somaPorUnidade(ls, (l) => l?.quantidade, (l) => String(l?.tipo_medida ?? '')).map(([m, q]) => formatarQuantidadeMaoObra(q, m));
+    return [`${pessoas} ${pessoas === 1 ? 'pessoa' : 'pessoas'}`, ...qtds].filter(Boolean).join(' · ');
+  }
+  return `${ls.length} ${ls.length === 1 ? 'item' : 'itens'}`;
+};
+
+/**
+ * O valor de um tipo na atividade aberta, da parcela que o servidor calcula (`totais.custo_por_tipo`, D-PROD-234).
+ * "Trabalho de máquinas" leva também o combustível dos abastecimentos ligados aos dias (no protótipo, o diesel é da
+ * máquina): assim a soma dos quatro tipos é o custo total. Sem a parcela (nenhuma linha com custo), null ("—").
+ * @param {string} tipo @param {any} totais
+ * @returns {string|null}
+ */
+export const valorDoTipoNaAtividade = (tipo, totais) => {
+  const p = ehObjeto(totais) && ehObjeto(totais.custo_por_tipo) ? totais.custo_por_tipo : null;
+  if (!p) return null;
+  /** @param {unknown} v */
+  const canonico = (v) => (ehCanonico(v) ? /** @type {string} */ (v) : null);
+  if (tipo === LINHA_MAQUINA) {
+    const partes = [canonico(p.maquinas), canonico(p.combustivel)].filter((v) => v !== null);
+    return partes.length ? somar(/** @type {string[]} */ (partes), 4) : null;
+  }
+  if (tipo === LINHA_PRODUTO) return canonico(p.produtos);
+  if (tipo === LINHA_MAO_OBRA) return canonico(p.mao_obra);
+  if (tipo === LINHA_SERVICO) return canonico(p.servicos);
+  return null;
+};
+
+/**
+ * O card "Resumo de custo" da atividade aberta (protótipo do proprietário), SÓ com o que o servidor deu
+ * (`GET /atividades/:id/totais` e o cabeçalho): sem o valor, "—". Área executada / planejada e o % feito; custo total e
+ * por hectare; o valor de cada tipo (`valorDoTipoNaAtividade`); combustível em litros (e quilos, à parte) e litros por
+ * hectare (`litros_combustivel_por_ha`: litros ÷ área executada, do servidor); data de início e safra.
+ * @param {{ totais?: any, atividade: any }} p
+ */
+export const resumoDeCustoParaExibir = ({ totais = null, atividade }) => {
+  const t = ehObjeto(totais) ? totais : null;
+  const executada = t && t.area_executada !== undefined ? t.area_executada : atividade?.area_executada;
+  const planejada = t && t.area_planejada !== undefined ? t.area_planejada : atividade?.area_planejada;
+  const execTxt = formatarDecimalLinha(executada);
+  const planTxt = formatarDecimalLinha(planejada);
+  const unidade = texto(t?.unidade_area) || 'ha';
+  const comPlano = ehCanonico(planejada) && ehPositivo(/** @type {string} */ (planejada));
+  const feito = comPlano ? `${percentualDe(ehCanonico(executada) ? /** @type {string} */ (executada) : '0', /** @type {string} */ (planejada), 4, 0)}%` : '—';
+  const c = t && ehObjeto(t.combustivel) ? t.combustivel : null;
+  /** @param {unknown} v */
+  const positivo = (v) => (ehCanonico(v) && ehPositivo(/** @type {string} */ (v)) ? v : null);
+  const combustivel = c ? [formatarQuantidadeLinha(positivo(c.quantidade_l), 'L'), formatarQuantidadeLinha(positivo(c.quantidade_kg), 'KG')].filter(Boolean).join(' · ') : '';
+  const lHa = t && ehCanonico(t.litros_combustivel_por_ha)
+    ? `${formatarNumero(/** @type {string} */ (t.litros_combustivel_por_ha), { locale: LOCALE_ATIVIDADE, casasMin: 0, casasMax: 2 })} L/${unidade}`
+    : '';
+  return {
+    area: execTxt || planTxt ? `${execTxt || '—'} / ${planTxt || '—'} ${unidade}` : '—',
+    feito,
+    custo: t ? moeda2(t.custo_total) ?? '—' : '—',
+    custoPorHa: t ? moeda2(t.custo_por_ha) ?? '—' : '—',
+    maquinas: formatarMoedaAtividade(valorDoTipoNaAtividade(LINHA_MAQUINA, t)) || '—',
+    produtos: formatarMoedaAtividade(valorDoTipoNaAtividade(LINHA_PRODUTO, t)) || '—',
+    maoObra: formatarMoedaAtividade(valorDoTipoNaAtividade(LINHA_MAO_OBRA, t)) || '—',
+    servicos: formatarMoedaAtividade(valorDoTipoNaAtividade(LINHA_SERVICO, t)) || '—',
+    combustivel: combustivel || '—',
+    combustivelPorHa: lHa || '—',
+    data: formatarDiaAtividade(atividade?.data_inicio) || '—',
+    safra: texto(atividade?.safra_ciclo) || '—',
+  };
+};

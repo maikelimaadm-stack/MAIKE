@@ -435,6 +435,12 @@ const totaisDe = (id) => {
   const svs = new Map();
   let custo = 0;
   let area = 0;
+  /** D-PROD-234: as parcelas do custo por tipo (null sem nenhuma linha com custo daquele tipo). @type {Record<string, number|null>} */
+  const porTipo = { maquinas: null, produtos: null, mao_obra: null, servicos: null };
+  const somaTipo = (/** @type {string} */ k, /** @type {unknown} */ v) => {
+    if (v == null) return;
+    porTipo[k] = (porTipo[k] ?? 0) + Number(v);
+  };
   for (const a of aps) {
     area += Number(a.area_executada_dia ?? 0);
     for (const l of a.produtos.filter((/** @type {any} */ x) => x.status === "CONFIRMADO")) {
@@ -443,6 +449,7 @@ const totaisDe = (id) => {
       t.c += Number(l.custo_total);
       prods.set(l.produto_id, t);
       custo += Number(l.custo_total);
+      somaTipo("produtos", l.custo_total);
     }
     for (const l of a.maquinas.filter((/** @type {any} */ x) => x.status === "CONFIRMADO")) {
       const t = maqs.get(l.bem_id) ?? { bem_id: l.bem_id, nome: l.bem.nome, medidor_unidade: l.medidor_unidade, u: 0, c: 0 };
@@ -450,6 +457,7 @@ const totaisDe = (id) => {
       t.c += Number(l.custo_total ?? 0);
       maqs.set(l.bem_id, t);
       custo += Number(l.custo_total ?? 0);
+      somaTipo("maquinas", l.custo_total);
     }
     for (const l of (a.mao_obra ?? []).filter((/** @type {any} */ x) => x.status === "CONFIRMADO")) {
       const k = `${l.parceiro_id}-${l.origem}-${l.tipo_medida}`;
@@ -458,6 +466,7 @@ const totaisDe = (id) => {
       t.c += Number(l.custo_total ?? 0);
       mos.set(k, t);
       custo += Number(l.custo_total ?? 0);
+      somaTipo("mao_obra", l.custo_total);
     }
     for (const l of (a.servicos ?? []).filter((/** @type {any} */ x) => x.status === "CONFIRMADO")) {
       const k = `${l.servico_id}-${l.unidade}`;
@@ -466,6 +475,7 @@ const totaisDe = (id) => {
       t.c += Number(l.valor_total);
       svs.set(k, t);
       custo += Number(l.valor_total);
+      somaTipo("servicos", l.valor_total);
     }
   }
   return {
@@ -478,6 +488,8 @@ const totaisDe = (id) => {
     servicos: [...svs.values()].map((t) => ({ servico_id: t.servico_id, nome: t.nome, unidade: t.unidade, quantidade: t4(t.q), custo_total: t4(t.c) })),
     custo_total: custo ? t4(custo) : null,
     custo_por_ha: custo && area ? t4(custo / area) : null,
+    custo_por_tipo: { ...Object.fromEntries(Object.entries(porTipo).map(([k, v]) => [k, v == null ? null : t4(v)])), combustivel: null },
+    litros_combustivel_por_ha: null,
     ...(totaisExtra ?? {}),
   };
 };
@@ -2364,5 +2376,266 @@ describe("LL-JANELA-TIPO — janelas por tipo de lançamento (D-PROD-233)", () =
     expect(janela).toHaveClass("b1-janela__camada--tela-cheia");
     expect(janela.querySelector(".mdlc.b1-janela")).toHaveClass("b1-janela--tela-cheia");
     vi.unstubAllGlobals();
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)", () => {
+  /** Abre a atividade pela grade e espera o resumo de custo com os totais lidos. @param {string} id */
+  const abrirAberta = async (id) => {
+    fireEvent.doubleClick(screen.getByTestId(`atividade-numero-${id}`));
+    await screen.findByTestId("atividade-aberta");
+    await waitFor(() => expect(screen.getByTestId("resumo-custo-custo")).not.toHaveTextContent("…"));
+  };
+  const linhaDoTipo = (/** @type {string} */ tipo) => screen.getByTestId(`tipo-${tipo}`);
+
+  it("LL-ABERTA-1 — abas Lançamentos (padrão) e Resumo da atividade; o Resumo de custo só com o que o servidor deu", async () => {
+    await montar();
+    await abrirAberta("a1");
+    expect(screen.getByTestId("atividade-aba-lancamentos")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("atividade-aba-resumo")).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByTestId("atividade-painel-lancamentos")).not.toHaveAttribute("hidden");
+    expect(screen.getByTestId("atividade-painel-resumo")).toHaveAttribute("hidden");
+    const card = screen.getByTestId("atividade-resumo-custo");
+    expect(within(card).getByRole("heading")).toHaveTextContent("Resumo de custo · 01 — Pasto 01");
+    const valor = (/** @type {string} */ c) => screen.getByTestId(`resumo-custo-${c}`);
+    expect(valor("area")).toHaveTextContent("10 / 40 ha");
+    expect(valor("feito")).toHaveTextContent("25%");
+    expect(valor("custo")).toHaveTextContent("R$ 525,00");
+    expect(valor("custo-ha")).toHaveTextContent("R$ 52,50");
+    expect(valor("maquinas")).toHaveTextContent("R$ 400,00");
+    expect(valor("produtos")).toHaveTextContent("R$ 125,00");
+    // Sem linha daquele tipo, sem combustível: "—" (nada inventado).
+    for (const c of ["mao-obra", "servicos", "combustivel", "combustivel-ha"]) expect(valor(c)).toHaveTextContent(/^—$/);
+    expect(valor("data")).toHaveTextContent("01/11/2026");
+    expect(valor("safra")).toHaveTextContent(String(ATV.safra_ciclo ?? "—"));
+  });
+
+  it("LL-ABERTA-2 — combustível: litros e L/ha do servidor; o diesel entra no Trabalho de máquinas (a soma dos tipos é o custo total)", async () => {
+    totaisExtra = {
+      combustivel: { quantidade_l: "40.0000", quantidade_kg: null, custo_total: "200.0000" },
+      custo_total: "725.0000",
+      custo_por_ha: "72.5000",
+      custo_por_tipo: { maquinas: "400.0000", produtos: "125.0000", mao_obra: null, servicos: null, combustivel: "200.0000" },
+      litros_combustivel_por_ha: "4.0000",
+    };
+    await montar();
+    await abrirAberta("a1");
+    expect(screen.getByTestId("resumo-custo-maquinas")).toHaveTextContent("R$ 600,00");
+    expect(screen.getByTestId("resumo-custo-combustivel")).toHaveTextContent("40 L");
+    expect(screen.getByTestId("resumo-custo-combustivel-ha")).toHaveTextContent("4 L/ha");
+    expect(screen.getByTestId("tipo-maquinas-resumo")).toHaveTextContent("8 h · 40 L");
+    expect(screen.getByTestId("tipo-maquinas-valor")).toHaveTextContent("R$ 600,00");
+    expect(screen.getByTestId("tipos-total-valor")).toHaveTextContent("R$ 725,00");
+  });
+
+  it("LL-ABERTA-3 — uma linha por tipo que o tipo permite: itens (só confirmadas, todos os dias), resumo, valor e o total; sem linha, \"+ Lançar\"", async () => {
+    await montar();
+    await abrirAberta("a1");
+    // APLICAÇÃO (t1): máquina e insumo; sem mão de obra nem custos extras.
+    expect(screen.queryByTestId("tipo-mao-obra")).toBeNull();
+    expect(screen.queryByTestId("tipo-servicos")).toBeNull();
+    expect(within(linhaDoTipo("maquinas")).getByText("Trabalho de máquinas")).toBeTruthy();
+    expect(screen.getByTestId("tipo-maquinas-itens")).toHaveTextContent(/^1$/);
+    expect(screen.getByTestId("tipo-maquinas-resumo")).toHaveTextContent(/^8 h$/);
+    expect(screen.getByTestId("tipo-maquinas-valor")).toHaveTextContent("R$ 400,00");
+    // A Ureia cancelada e o lançamento cancelado não contam.
+    expect(screen.getByTestId("tipo-produtos-itens")).toHaveTextContent(/^1$/);
+    expect(screen.getByTestId("tipo-produtos-resumo")).toHaveTextContent(/^Glifosato$/);
+    expect(screen.getByTestId("tipo-produtos-valor")).toHaveTextContent("R$ 125,00");
+    expect(screen.getByTestId("tipos-total-itens")).toHaveTextContent(/^2$/);
+    expect(screen.getByTestId("tipos-total-valor")).toHaveTextContent("R$ 525,00");
+    expect(screen.getByTestId("atividade-lancamentos-subtitulo")).toHaveTextContent("01 — Pasto 01 · 10 ha · 01/11/2026 · R$ 525,00");
+
+    // COLHEITA MANUAL (t3): mão de obra e custos extras; máquina sem linha oferece "+ Lançar".
+    fireEvent.click(screen.getByRole("button", { name: "Próximo registro" }));
+    await waitFor(() => expect(screen.queryByTestId("tipo-produtos")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Primeiro registro" }));
+    await waitFor(() => expect(screen.getByTestId("tipo-mao-obra")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("tipo-mao-obra-resumo")).toHaveTextContent("1 pessoa · 8 h"));
+    expect(screen.getByTestId("tipo-mao-obra-itens")).toHaveTextContent(/^1$/);
+    expect(screen.getByTestId("tipo-servicos-resumo")).toHaveTextContent(/^1 item$/);
+    expect(screen.getByTestId("tipo-servicos-valor")).toHaveTextContent("R$ 50,00");
+    expect(screen.getByTestId("tipo-maquinas-itens")).toHaveTextContent(/^0$/);
+    expect(screen.getByTestId("tipo-maquinas-lancar")).toHaveTextContent("Lançar");
+    expect(screen.getByTestId("tipo-maquinas-valor")).toHaveTextContent(/^—$/);
+  });
+
+  it("LL-ABERTA-4 — o ⚡ do tipo abre a janela da fatia 2: Inserir (nos Dados) e Ver lançamentos (a lista); \"+ Lançar\" abre nos Dados", async () => {
+    await montar();
+    await abrirAberta("a1");
+    fireEvent.click(screen.getByTestId("tipo-produtos-acoes"));
+    const menu = await screen.findByTestId("tipo-produtos-acoes-menu");
+    expect(menu).toHaveTextContent("Aplicação de insumos");
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Inserir" }));
+    let janela = await screen.findByTestId("janela-tipo");
+    expect(janela).toHaveAttribute("data-tipo", "produtos");
+    expect(screen.getByTestId("janela-tipo-aba-dados")).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByTestId("janela-tipo-voltar"));
+    await waitFor(() => expect(screen.getByTestId("janela-tipo-aba-lista")).toHaveAttribute("aria-selected", "true"));
+    fireEvent.click(screen.getByTestId("janela-tipo-fechar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+
+    fireEvent.click(screen.getByTestId("tipo-maquinas-acoes"));
+    fireEvent.click(within(await screen.findByTestId("tipo-maquinas-acoes-menu")).getByRole("menuitem", { name: "Ver lançamentos" }));
+    janela = await screen.findByTestId("janela-tipo");
+    expect(janela).toHaveAttribute("data-tipo", "maquinas");
+    expect(screen.getByTestId("janela-tipo-aba-lista")).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByTestId("janela-tipo-fechar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+
+    // Clicar no nome do tipo abre a lista; "+ Lançar" do tipo vazio abre nos Dados (a4: máquina sem linha).
+    fireEvent.click(screen.getByTestId("tipo-produtos-abrir"));
+    expect(await screen.findByTestId("janela-tipo")).toHaveAttribute("data-tipo", "produtos");
+    fireEvent.click(screen.getByTestId("janela-tipo-fechar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Primeiro registro" }));
+    fireEvent.click(await screen.findByTestId("tipo-maquinas-lancar"));
+    expect(await screen.findByTestId("janela-tipo")).toHaveAttribute("data-tipo", "maquinas");
+    expect(screen.getByTestId("janela-tipo-aba-dados")).toHaveAttribute("aria-selected", "true");
+    // Nada foi gravado só por abrir.
+    expect(escritas()).toHaveLength(0);
+  });
+
+  it("LL-ABERTA-5 — só leitura (concluída): sem \"+ Lançar\" nem Inserir no ⚡; Ver lançamentos continua", async () => {
+    await montar();
+    await abrirAberta("a3");
+    expect(screen.getByTestId("tipo-produtos-itens")).toHaveTextContent(/^1$/);
+    fireEvent.click(screen.getByTestId("tipo-produtos-acoes"));
+    const menu = await screen.findByTestId("tipo-produtos-acoes-menu");
+    expect(within(menu).queryByRole("menuitem", { name: "Inserir" })).toBeNull();
+    expect(within(menu).getByRole("menuitem", { name: "Ver lançamentos" })).toBeTruthy();
+    expect(screen.queryByTestId("tipo-maquinas-lancar")).toBeNull();
+    expect(screen.getByTestId("atividade-concluida")).toBeTruthy();
+  });
+
+  it("LL-ABERTA-6 — os dias continuam ao alcance: \"Dias lançados\" abre a lista de sempre com Novo, Repetir, Editar, Cancelar e as linhas", async () => {
+    await montar();
+    await abrirAberta("a1");
+    const toggle = screen.getByTestId("atividade-dias-toggle");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("atividade-dias-corpo")).toHaveAttribute("hidden");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("atividade-dias-corpo")).not.toHaveAttribute("hidden");
+    const dias = screen.getByTestId("atividade-dias");
+    expect(within(dias).getByText("Lançamentos por dia")).toBeTruthy();
+    expect(within(dias).getByTestId("apontamento-novo")).toBeTruthy();
+    expect(within(dias).getByTestId("apontamento-ap1-repetir")).toBeTruthy();
+    expect(within(dias).getByTestId("apontamento-ap1-linhas")).toBeTruthy();
+    fireEvent.click(within(dias).getByTestId("apontamento-ap1-editar"));
+    expect(await screen.findByTestId("janela-apontamento")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("apontamento-voltar"));
+    await waitFor(() => expect(screen.queryByTestId("janela-apontamento")).toBeNull());
+    fireEvent.click(within(dias).getByTestId("apontamento-ap1-cancelar"));
+    expect(await screen.findByTestId("dialogo-cancelar-apontamento")).toBeTruthy();
+  });
+
+  it("LL-ABERTA-7 — Resumo da atividade: totais com o detalhe por item e os dados da atividade, só leitura", async () => {
+    await montar();
+    await abrirAberta("a4");
+    fireEvent.click(screen.getByTestId("atividade-aba-resumo"));
+    const painel = screen.getByTestId("atividade-painel-resumo");
+    expect(painel).not.toHaveAttribute("hidden");
+    expect(screen.getByTestId("atividade-painel-lancamentos")).toHaveAttribute("hidden");
+    const totais = within(painel).getByTestId("totalizador-atividade");
+    expect(totais).not.toHaveClass("sticky");
+    await waitFor(() => expect(within(totais).getByTestId("totalizador-mao-obra-f1-FUNCIONARIO-HORA")).toHaveTextContent("8 h · R$ 160,00"));
+    expect(within(totais).getByText("Serviço — Frete")).toBeTruthy();
+    const cab = within(painel).getByTestId("atividade-cabecalho");
+    expect(cab).toHaveAttribute("data-somente-leitura");
+    expect(within(cab).getByDisplayValue("Colheita Talhão 04")).toBeTruthy();
+    // ← → trocam de aba pelo teclado.
+    fireEvent.keyDown(screen.getByTestId("atividade-aba-resumo"), { key: "ArrowLeft" });
+    expect(screen.getByTestId("atividade-aba-lancamentos")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("LL-ABERTA-8 — navegação ‹‹ ‹ n/N › ›› na linha das abas, na ordem da lista (Nº, maior primeiro)", async () => {
+    await montar();
+    await abrirAberta("a1");
+    const nav = within(screen.getByTestId("atividade-aberta")).getByTestId("cadastro-record-nav");
+    expect(nav).toHaveTextContent("2/4");
+    fireEvent.click(within(nav).getByRole("button", { name: "Próximo registro" }));
+    await waitFor(() => expect(backend.chamadas.some((c) => c.method === "GET" && c.path === "/atividades/a2")).toBe(true));
+    await waitFor(() => expect(within(screen.getByTestId("atividade-aberta")).getByTestId("cadastro-record-nav")).toHaveTextContent("3/4"));
+    fireEvent.click(screen.getByRole("button", { name: "Último registro" }));
+    await waitFor(() => expect(within(screen.getByTestId("atividade-aberta")).getByTestId("cadastro-record-nav")).toHaveTextContent("4/4"));
+    await waitFor(() => expect(screen.getByTestId("atividade-concluida")).toBeTruthy());
+  });
+
+  it("LL-ABERTA-9 — a lista traz a coluna Valor total e o ⚡ mostra o R$ total no cabeçalho (o custo_total da lista)", async () => {
+    atividades.set("a1", { ...atividades.get("a1"), custo_total: "525.0000" });
+    atividades.set("a2", { ...atividades.get("a2"), custo_total: null });
+    const { ATIVIDADES_COLUNAS, valorDoCampoAtividade, compararAtividadesParaOrdenar } = await import("@/pages/LancamentoAtividades");
+    expect(ATIVIDADES_COLUNAS.find((c) => c.id === "valor_total")).toMatchObject({ label: "Valor total", default: true, align: "right" });
+    expect(valorDoCampoAtividade({ custo_total: "1234.5000" }, "valor_total")).toMatch(/^R\$\s1\.234,50$/);
+    expect(valorDoCampoAtividade({ custo_total: null }, "valor_total")).toBe("");
+    expect(compararAtividadesParaOrdenar({ custo_total: "9.0000" }, { custo_total: "10.0000" }, "valor_total")).toBeLessThan(0);
+    await montar();
+    const linha = /** @type {HTMLElement} */ (screen.getByTestId("atividade-numero-a1").closest("tr"));
+    expect(within(linha).getByText(/R\$\s525,00/)).toBeTruthy();
+    fireEvent.click(screen.getByTestId("atividade-acoes-a1"));
+    expect(await screen.findByTestId("atividade-acoes-a1-menu")).toHaveTextContent("APLICAÇÃO · 01 — Pasto 01 · R$ 525,00");
+    fireEvent.keyDown(screen.getByTestId("atividade-acoes-a1-menu"), { key: "Escape" });
+    fireEvent.click(screen.getByTestId("atividade-acoes-a2"));
+    expect(await screen.findByTestId("atividade-acoes-a2-menu")).not.toHaveTextContent("R$");
+  });
+
+  it("LL-ABERTA-10 — celular: a cabeça com ✕, nome, status, \"Nº · área\" e Concluir; os tipos em cartões; Concluir abre o resumo; ✕ volta à lista", async () => {
+    vi.stubGlobal("matchMedia", (/** @type {string} */ query) => ({
+      matches: query.includes("max-width: 639px") || query.includes("max-width: 767px") || query.includes("max-width: 1023px"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }));
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <LancamentoAtividades />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByTestId("b1-card").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByTestId("atividade-acoes-a1"));
+    fireEvent.click(within(await screen.findByTestId("atividade-acoes-a1-menu")).getByRole("menuitem", { name: "Abrir atividade" }));
+    const cabeca = await screen.findByTestId("atividade-cabeca-celular");
+    expect(cabeca).toHaveTextContent("Cigarrinha Pasto 01");
+    expect(within(cabeca).getByTestId("atividade-cabeca-status")).toHaveTextContent("Aberta");
+    expect(cabeca).toHaveTextContent("Nº 3 · 10 / 40 ha");
+    // O Concluir sai da barra e fica na cabeça (no canto de cima).
+    expect(screen.queryByTestId("atividade-concluir")).toBeNull();
+    // Os tipos viram cartões (sem tabela) e a navegação fica no rodapé da casca, não nas abas.
+    expect(screen.getByTestId("atividade-tipos").tagName).toBe("UL");
+    await waitFor(() => expect(screen.getByTestId("tipo-maquinas-itens")).toHaveTextContent(/^1$/));
+    expect(within(screen.getByTestId("atividade-aberta")).queryByTestId("cadastro-record-nav")).toBeNull();
+    fireEvent.click(within(cabeca).getByTestId("atividade-concluir-celular"));
+    expect(await screen.findByTestId("dialogo-concluir-atividade")).toBeTruthy();
+    fireEvent.click(within(screen.getByTestId("dialogo-concluir-atividade")).getByRole("button", { name: "Voltar" }));
+    await waitFor(() => expect(screen.queryByTestId("dialogo-concluir-atividade")).toBeNull());
+    fireEvent.click(within(cabeca).getByTestId("atividade-fechar-celular"));
+    await waitFor(() => expect(screen.queryByTestId("atividade-aberta")).toBeNull());
+    vi.unstubAllGlobals();
+  });
+
+  it("LL-ABERTA-11 — regras puras: resumo do tipo, valor do tipo e o resumo de custo sem totais (\"—\", nada inventado)", async () => {
+    const LR = await import("@/lib/atividadeLinhasRegras");
+    const m = (/** @type {any} */ x) => ({ status: "CONFIRMADO", ...x });
+    expect(LR.resumoDoTipoNaAtividade("maquinas", [m({ quantidade_uso: "5.0000", medidor_tipo: "HORIMETRO", medidor_unidade: "h" }), m({ quantidade_uso: "120.0000", medidor_tipo: "ODOMETRO", medidor_unidade: "km" })], { combustivel: { quantidade_l: "43.0000" } })).toBe("5 h · 120 km · 43 L");
+    expect(LR.resumoDoTipoNaAtividade("produtos", [m({ produto: { nome: "NPK" } }), m({ produto: { nome: "Ureia" } }), m({ produto: { nome: "NPK" } })])).toBe("NPK (+1)");
+    expect(LR.resumoDoTipoNaAtividade("mao-obra", [m({ parceiro_id: "f1", tipo_medida: "HORA", quantidade: "5.0000" }), m({ parceiro_id: "f2", tipo_medida: "HORA", quantidade: "3.0000" }), m({ parceiro_id: "f2", tipo_medida: "DIARIA", quantidade: "1.0000" })])).toBe("2 pessoas · 8 h · 1 diária(s)");
+    expect(LR.resumoDoTipoNaAtividade("servicos", [m({}), m({})])).toBe("2 itens");
+    expect(LR.resumoDoTipoNaAtividade("servicos", [])).toBe("");
+    // A linha cancelada e o lançamento cancelado ficam fora.
+    const aps = [
+      { status: "CONFIRMADO", produtos: [m({ id: "x" }), { id: "y", status: "CANCELADO" }], maquinas: [], mao_obra: [], servicos: [] },
+      { status: "CANCELADO", produtos: [m({ id: "z" })], maquinas: [], mao_obra: [], servicos: [] },
+    ];
+    expect(LR.linhasConfirmadasDaAtividade(aps, "produtos").map((l) => l.id)).toEqual(["x"]);
+    const t = { custo_por_tipo: { maquinas: null, produtos: "10.0000", mao_obra: null, servicos: null, combustivel: "5.5000" } };
+    expect(LR.valorDoTipoNaAtividade("maquinas", t)).toBe("5.5000");
+    expect(LR.valorDoTipoNaAtividade("mao-obra", t)).toBeNull();
+    expect(LR.valorDoTipoNaAtividade("produtos", null)).toBeNull();
+    const semTotais = LR.resumoDeCustoParaExibir({ totais: null, atividade: { area_executada: null, area_planejada: null } });
+    expect([semTotais.area, semTotais.feito, semTotais.custo, semTotais.maquinas, semTotais.combustivel, semTotais.combustivelPorHa, semTotais.data, semTotais.safra]).toEqual(["—", "—", "—", "—", "—", "—", "—", "—"]);
   });
 });

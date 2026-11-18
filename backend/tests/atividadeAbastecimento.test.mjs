@@ -459,6 +459,12 @@ describe('totais da atividade com combustível', () => {
     // gerador: 10 L do lote B a 5,50 = 55,00 (o trator já levou os 50 do A e 30 do B)
     assert.deepEqual(t.combustivel, { quantidade_l: '100.0000', quantidade_kg: null, custo_total: '540.0000' });
     assert.deepEqual([t.custo_total, t.custo_por_ha, t.custo_combustivel_por_ha], ['540.0000', '54.0000', '54.0000']);
+    // D-PROD-234: o combustível é parcela própria do custo por tipo; litros / área executada (100 L em 10 ha).
+    assert.deepEqual(t.custo_por_tipo, { maquinas: null, produtos: null, mao_obra: null, servicos: null, combustivel: '540.0000' });
+    assert.equal(t.litros_combustivel_por_ha, '10.0000');
+    // A lista soma os abastecimentos CONFIRMADO ligados (o cancelado não), como os totais.
+    const naLista = async (atv) => (await s.H.ok(s.H.req('GET', `/atividades?empresa_id=${s.e1.id}`, s.token))).items.find((i) => i.id === atv.id).custo_total;
+    assert.equal(await naLista(s.atividade), '540.0000');
     const porNome = Object.fromEntries(t.consumo_por_bem.map((c) => [c.bem.nome, c]));
     assert.deepEqual(Object.keys(porNome).sort(), ['Caminhonete UT-04', 'Gerador da sede', 'Trator TP-02']);
     const trator = porNome['Trator TP-02'];
@@ -474,6 +480,7 @@ describe('totais da atividade com combustível', () => {
     const misto = t2.consumo_por_bem.find((c) => c.bem.id === s.trator.id);
     assert.deepEqual([misto.quantidade, misto.unidade, misto.quantidade_l, misto.quantidade_kg, misto.metrica, misto.valor], [null, null, '80.0000', '10.0000', null, null]);
     assert.deepEqual([t2.combustivel.quantidade_l, t2.combustivel.quantidade_kg, t2.combustivel.custo_total], ['100.0000', '10.0000', '601.0000']);
+    assert.deepEqual([t2.custo_por_tipo.combustivel, t2.litros_combustivel_por_ha, await naLista(s.atividade)], ['601.0000', '10.0000', '601.0000'], 'o quilo não entra nos litros por ha');
     // sem uso (nenhuma linha de máquina do bem na atividade): valor nulo
     const b = await s.abrir();
     const apB = await s.apontar({ data_operacional: '2027-06-12' }, { a: b });
@@ -481,5 +488,6 @@ describe('totais da atividade com combustível', () => {
     const tb = await s.totais(b);
     assert.deepEqual([tb.consumo_por_bem[0].uso, tb.consumo_por_bem[0].metrica, tb.consumo_por_bem[0].valor, tb.custo_total, tb.custo_por_ha, tb.custo_combustivel_por_ha],
       [null, 'LITROS_POR_HORA', null, '50.0000', null, null]);
+    assert.deepEqual([tb.litros_combustivel_por_ha, await naLista(b)], [null, '50.0000'], 'sem área, sem litros por ha');
   });
 });

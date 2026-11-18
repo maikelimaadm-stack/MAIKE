@@ -235,10 +235,12 @@ function CascaDaAbaDados({ testId, enviando, incerto, podeEnviar, formId, onFech
  *   escopo: string,
  *   onFechar: () => void,
  *   onAtividadeAtualizada?: (atividade: any | null) => void,
+ *   abaInicial?: 'lista'|'dados',
  * }} props `acoes`: as da tela (`useAcoesTelaAtividades`); `onAtividadeAtualizada`: depois de toda escrita (o cabeçalho com
- *   os totais recalculados, quando o servidor o devolve) — a tela relê a lista e o totalizador.
+ *   os totais recalculados, quando o servidor o devolve) — a tela relê a lista e o totalizador. `abaInicial`: a aba em
+ *   que a janela abre (D-PROD-234: "Inserir" / "+ Lançar" da atividade aberta abrem nos Dados; sem poder lançar, a lista).
  */
-export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags, escopo, onFechar, onAtividadeAtualizada = undefined }) {
+export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags, escopo, onFechar, onAtividadeAtualizada = undefined, abaInicial = "lista" }) {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   const { fuso, hoje } = useFusoDaFazenda(empresaId);
@@ -288,7 +290,7 @@ export default function JanelaLancamentoPorTipo({ atividade, tipo, acoes, flags,
   const podeAvancar = Boolean(dia) && Boolean(hoje) && dia < hoje;
 
   // ─── Abas, janelas e diálogos ────────────────────────────────────────
-  const [aba, setAba] = useState(/** @type {'lista'|'dados'} */ ("lista"));
+  const [aba, setAba] = useState(/** @type {'lista'|'dados'} */ (abaInicial === "dados" && podeLancar ? "dados" : "lista"));
   const [chaveDados, setChaveDados] = useState(0);
   const [editandoLinha, setEditandoLinha] = useState(/** @type {{ linha: any, apontamento: any, chave: number } | null} */ (null));
   const [cancelando, setCancelando] = useState(/** @type {{ tipo: any, linha: any, apontamento: any } | null} */ (null));

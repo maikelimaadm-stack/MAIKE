@@ -13,9 +13,10 @@ import { obterTotaisAtividade } from "@/services/lancamentoAtividadesService";
  * combustível) e o custo por hectare. Lê
  * `GET /atividades/:id/totais` (só linhas confirmadas de apontamentos confirmados); toda escrita invalida a chave
  * (`chaveTotais`) e ele se relê. Sem resposta, mostra a área do cabeçalho.
- * @param {{ atividade: any, empresaId: string|null, habilitado: boolean }} props
+ * D-PROD-234: na aba "Resumo da atividade" ele não fica preso ao topo (`fixo={false}`).
+ * @param {{ atividade: any, empresaId: string|null, habilitado: boolean, fixo?: boolean }} props
  */
-export default function TotalizadorAtividade({ atividade, empresaId, habilitado }) {
+export default function TotalizadorAtividade({ atividade, empresaId, habilitado, fixo = true }) {
   const id = atividade?.id ? String(atividade.id) : null;
   const consulta = useQuery({
     queryKey: chaveTotais(empresaId, id),
@@ -26,7 +27,7 @@ export default function TotalizadorAtividade({ atividade, empresaId, habilitado 
   });
   const t = totaisParaExibir(consulta.data ?? null, atividade);
   return (
-    <div className="b1 mg-b1-form-grid sticky top-0 z-10 w-full min-h-0 bg-white" data-testid="totalizador-atividade">
+    <div className={`b1 mg-b1-form-grid w-full min-h-0 bg-white${fixo ? " sticky top-0 z-10" : ""}`} data-testid="totalizador-atividade">
       <SecaoForm titulo="Totais da atividade" />
       <ValorCalculado label="Área executada / planejada" valor={t.area} span={4} testId="totalizador-area" />
       <ValorCalculado label="Custo acumulado" valor={t.custo} span={4} testId="totalizador-custo" destaque />

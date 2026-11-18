@@ -9,12 +9,23 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-ATIVIDADES-JANELAS-TIPO: Lançamento de Atividades, fatia 2 do redesenho — janelas por tipo de lançamento (D-PROD-233)
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-ABERTA-RESUMO: Lançamento de Atividades, fatia 3 do redesenho — a atividade aberta (D-PROD-234)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-234**, fatia 3 do plano da D-PROD-232: a atividade aberta no desenho do protótipo do proprietário, no modelo visual do sistema |
+| Branch / PR | `feat/atividades-aberta-resumo`, a partir da `main` `0facca65` (PR #322) · PR a abrir |
+| Escopo | `AtividadeAberta.jsx` (novo): abas Lançamentos / Resumo da atividade com a navegação do registro; "Resumo de custo · ÁREA"; a tabela dos tipos (Itens, Resumo, Valor, Total, ⚡ Inserir / Ver lançamentos e "+ Lançar" que abrem a janela da fatia 2); "Dias lançados" recolhível com a lista de sempre; a aba Resumo com os totais por item e os dados só leitura; celular com a cabeça ✕ / Concluir e os tipos em cartões. Lista: coluna Valor total e o R$ no cabeçalho do ⚡ |
+| Backend | **Só leitura, sem migration:** `GET /atividades/:id/totais` + `custo_por_tipo` e `litros_combustivel_por_ha`; `GET /atividades` + `custo_total` por item (uma consulta agrupada por página) |
+| Release | Merge e deploy normais (frontend e API juntos); nenhuma migration, nenhum dado muda |
+| Relatório | [`MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md`](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ATIVIDADES-JANELAS-TIPO: Lançamento de Atividades, fatia 2 do redesenho — janelas por tipo de lançamento (D-PROD-233)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-233**, fatia 2 do plano da D-PROD-232, com a regra do dia aprovada pelo proprietário ("pode ser"): hoje por padrão, ‹ ›, e o dia criado sozinho ao salvar o primeiro item |
-| Branch / PR | `feat/atividades-janelas-tipo`, a partir da `main` `48ec6ca3` (PR #319) · PR a abrir |
+| Branch / PR | `feat/atividades-janelas-tipo`, a partir da `main` `48ec6ca3` (PR #319) · PR **#322**, mergeada |
 | Escopo | `JanelaLancamentoPorTipo.jsx` (novo): Trabalho de máquinas, Aplicação de insumos, Mão de obra e Custos extras pelo ⚡ da lista; o dia (hoje, ‹ ›, o lançamento do dia quando há mais de um, a área do dia); aba da lista do tipo com o total e o ⚡ da linha (Editar e Cancelar de sempre); aba Dados com o MESMO formulário de `JanelasDaLinha` (casca trocável, destino "dia novo": `criarApontamento` com a linha, `operation_id` persistente), Voltar / Salvar / Salvar e fechar; celular em tela cheia. `DialogoCancelarLinha` compartilhado. Sai o fluxo provisório da fatia 1. Diesel fica no bloco Abastecimentos do dia (fora desta fatia) |
 | Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
 | Relatório | [`MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md`](./MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md) |

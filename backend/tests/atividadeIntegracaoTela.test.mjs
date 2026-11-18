@@ -1041,8 +1041,8 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
   const t = await S.obterTotaisAtividade(a.id);
   assert.equal(enviados.at(-1).caminho, `/api/native/atividades/${a.id}/totais?empresa_id=${s.e1.id}`);
   assert.deepEqual(Object.keys(recebidos.at(-1).corpo).sort(), [
-    'area_executada', 'area_planejada', 'combustivel', 'consumo_por_bem', 'custo_combustivel_por_ha', 'custo_por_ha', 'custo_total', 'mao_obra', 'maquinas', 'produtos',
-    'servicos', 'unidade_area',
+    'area_executada', 'area_planejada', 'combustivel', 'consumo_por_bem', 'custo_combustivel_por_ha', 'custo_por_ha', 'custo_por_tipo', 'custo_total',
+    'litros_combustivel_por_ha', 'mao_obra', 'maquinas', 'produtos', 'servicos', 'unidade_area',
   ]);
   assert.deepEqual(t.mao_obra.map((x) => [x.parceiro_id, x.nome, x.origem, x.tipo_medida, x.quantidade, x.custo_total]), [
     [s.joao.id, 'João Mensalista', 'FUNCIONARIO', 'DIARIA', '1.0000', '180.0000'],
@@ -1053,6 +1053,14 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
   assert.deepEqual([t.produtos.map((x) => x.custo_total), t.maquinas.map((x) => x.custo_total)], [['52.0000'], ['200.0000']]);
   // 52 + 200 + 204 + 180 + 600 = 1236 em 4 ha.
   assert.deepEqual([t.area_executada, t.custo_total, t.custo_por_ha], ['4.0000', '1236.0000', '309.0000']);
+  // D-PROD-234: as parcelas do custo por tipo (a atividade aberta e a tabela dos lançamentos); sem combustível, nulos.
+  assert.deepEqual(t.custo_por_tipo, { maquinas: '200.0000', produtos: '52.0000', mao_obra: '384.0000', servicos: '600.0000', combustivel: null });
+  assert.equal(t.litros_combustivel_por_ha, null);
+  // D-PROD-234: a lista traz o custo total de cada atividade, o MESMO dos totais (uma consulta agrupada pela página).
+  const pagina = await S.listarAtividades();
+  const naLista = pagina.items.find((x) => x.id === a.id);
+  assert.equal(naLista.custo_total, '1236.0000');
+  assert.ok(pagina.items.filter((x) => x.id !== a.id).every((x) => x.custo_total === null), 'sem nenhum custo, nulo');
 
   // ── o totalizador da tela (os quatro blocos, o custo e o custo/ha).
   const tela = LR.totaisParaExibir(t, await S.obterAtividade(a.id));

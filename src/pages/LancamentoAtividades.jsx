@@ -14,15 +14,15 @@ import { CampoDia, ValorCalculado } from "@/components/financeiroGestao/CamposLa
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
+import { useCelular } from "@/components/common/MobileSheet";
+import AtividadeAberta from "@/components/lancamento-atividades/AtividadeAberta";
 import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import JanelaLancamentoPorTipo, { LANCAMENTOS_POR_TIPO, lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
-import ListaApontamentos from "@/components/lancamento-atividades/ListaApontamentos";
-import TotalizadorAtividade from "@/components/lancamento-atividades/TotalizadorAtividade";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
-import { flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
+import { flagsDoTipoDaAtividade, formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarInstante } from "@/lib/diaCivil";
 import { confirmar } from "@/lib/maikeConfirmar";
@@ -82,7 +82,7 @@ const OPCOES_STATUS = [
 export const ATIVIDADES_STORAGE_KEY = "colunas_lancamento_atividades_v1";
 
 /**
- * Padrão: Nº | Nome | Tipo | Área | Status | Área executada / planejada | Início.
+ * Padrão: Nº | Nome | Tipo | Área | Status | Área executada / planejada | Início | Valor total.
  * Os demais dados do cabeçalho ficam como colunas opcionais (desligadas). Tipo,
  * grupo, setor, centros e unidade mostram o que ficou GRAVADO na atividade
  * (snapshot): renomear o cadastro depois não reescreve o histórico.
@@ -95,6 +95,8 @@ export const ATIVIDADES_COLUNAS = [
   { id: "status", label: "Status", default: true, sortable: true, width: 110 },
   { id: "area_execucao", label: "Área executada / planejada", default: true, sortable: true, align: "right", width: 160 },
   { id: "data_inicio", label: "Início", default: true, sortable: true, width: 101 },
+  // D-PROD-234: o custo total da atividade (o mesmo dos totais), que a lista do servidor traz por página.
+  { id: "valor_total", label: "Valor total", default: true, sortable: true, align: "right", width: 130 },
   { id: "grupo", label: "Grupo", default: false, sortable: true, width: 150 },
   { id: "setor", label: "Setor", default: false, sortable: true, width: 140 },
   { id: "bem", label: "Máquina", default: false, sortable: true, width: 160 },
@@ -125,12 +127,13 @@ export const valorDoCampoAtividade = (item, id) => {
   if (id === "data_inicio" || id === "data_prevista_fim" || id === "data_conclusao") return formatarDiaAtividade(item?.[id]);
   if (id === "centro_custo") return rotuloDoCentro(item?.centro_custo);
   if (id === "centro_resultado") return rotuloDoCentro(item?.centro_resultado);
+  if (id === "valor_total") return formatarMoedaAtividade(item?.custo_total);
   return "";
 };
 
 /** Colunas ordenadas pelo valor CANÔNICO do servidor (nunca pelo texto formatado). */
 const CANONICO_DA_COLUNA = Object.freeze(
-  /** @type {Record<string, string>} */ ({ numero: "numero", area_execucao: "area_executada", producao: "quantidade_produzida" }),
+  /** @type {Record<string, string>} */ ({ numero: "numero", area_execucao: "area_executada", producao: "quantidade_produzida", valor_total: "custo_total" }),
 );
 const COLUNAS_DE_DIA = Object.freeze(["data_inicio", "data_prevista_fim", "data_conclusao"]);
 
@@ -164,16 +167,17 @@ const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${ativida
  *
  * Lista keyset das atividades (filtros de status, tipo, área e período sobre o
  * início) com Nº, nome, tipo, área, status, área executada / planejada e
- * início. "Abrir atividade" cria (FormularioAtividade). Na linha selecionada
+ * início (e, D-PROD-234, o valor total que a lista do servidor traz). "Abrir atividade" cria (FormularioAtividade). Na linha selecionada
  * (ou na atividade aberta), o menu Mais opções traz o que a permissão e o
  * status deixam: concluir (com a data), reabrir e cancelar (com motivo) e
  * duplicar.
  *
- * Atividade aberta: o totalizador FIXO no topo (D-PROD-202: área executada /
- * planejada, total por produto, horas ou km por máquina, custo acumulado e
- * custo/ha, relido depois de toda escrita), o cabeçalho, SÓ LEITURA, com os campos herdados
- * (setor da área; centros e unidade do tipo — nunca digitados) e, logo abaixo,
- * os apontamentos (ListaApontamentos). "Editar" abre o FormularioAtividade só
+ * Atividade aberta (D-PROD-234, `AtividadeAberta`): abas "Lançamentos" (o
+ * Resumo de custo, a tabela dos tipos com o ⚡ que abre a janela do tipo e os
+ * "Dias lançados" — a ListaApontamentos de sempre) e "Resumo da atividade" (o
+ * totalizador da D-PROD-202 com o detalhe por item e o cabeçalho, SÓ LEITURA,
+ * com os campos herdados: setor da área; centros e unidade do tipo — nunca
+ * digitados). "Editar" abre o FormularioAtividade só
  * enquanto a atividade está ABERTA; concluída ou cancelada fica toda só
  * leitura (o servidor também recusa).
  *
@@ -203,7 +207,8 @@ export default function LancamentoAtividades() {
   const [erroDataConclusao, setErroDataConclusao] = useState(/** @type {string|null} */ (null));
   const [duplicando, setDuplicando] = useState(false);
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
-  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, chave: number } | null} */ (null));
+  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', chave: number } | null} */ (null));
+  const celular = useCelular();
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
   const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
@@ -527,8 +532,12 @@ export default function LancamentoAtividades() {
     controller.setIsEditing(true);
   };
 
-  /** @param {any} atividade @param {string} tipo */
-  const lancarDoMenu = (atividade, tipo) => setLancando({ atividade, tipo, chave: Date.now() });
+  /**
+   * A janela do tipo (D-PROD-233) sobre a atividade: pelo ⚡ da lista (na lista do dia) ou pela tabela dos tipos da
+   * atividade aberta (D-PROD-234: "Inserir" e "+ Lançar" abrem nos Dados).
+   * @param {any} atividade @param {string} tipo @param {'lista'|'dados'} [aba]
+   */
+  const lancarDoMenu = (atividade, tipo, aba = "lista") => setLancando({ atividade, tipo, aba, chave: Date.now() });
 
   /**
    * Escrita feita na janela por tipo (D-PROD-233): a lista (área executada) e o totalizador se relêem; o cabeçalho
@@ -579,8 +588,8 @@ export default function LancamentoAtividades() {
     <B1MenuAcoesDaLinha
       rotulo={`Ações da atividade ${textoDoNumero(a)}`.trim()}
       titulo={[a?.numero != null ? `Nº ${a.numero}` : "", String(a?.nome ?? "")].filter(Boolean).join(" · ")}
-      // A linha da lista não traz o custo: o valor total só entra quando a atividade o tiver (Fatia 3).
-      subtitulo={[String(a?.tipo_atividade_nome ?? ""), rotuloDaArea(a?.area)].filter(Boolean).join(" · ")}
+      // D-PROD-234: o valor total vem da lista (o `custo_total` que o servidor soma por página); sem custo, fica de fora.
+      subtitulo={[String(a?.tipo_atividade_nome ?? ""), rotuloDaArea(a?.area), formatarMoedaAtividade(a?.custo_total)].filter(Boolean).join(" · ")}
       grupos={gruposDoMenu(a)}
       testId={`atividade-acoes-${a.id}`}
     />
@@ -666,6 +675,44 @@ export default function LancamentoAtividades() {
     cancelarApontamento: acoesDoAberto.cancelarApontamento && podeGravar,
   };
 
+  /**
+   * Os avisos do status (cancelada, concluída, reaberta), acima das abas da atividade aberta (D-PROD-234: valem para as
+   * duas abas).
+   * @param {any} a
+   */
+  const avisosDaAtividade = (a) => (
+    <div className="b1-aberta-avisos">
+      {a?.status === STATUS_CANCELADA ? (
+        <div>
+          <AvisoGestao testId="atividade-cancelada">
+            Atividade cancelada
+            {a.cancelada_em ? ` em ${formatarInstante(a.cancelada_em, LOCALE_ATIVIDADE, fuso)}` : ""}
+            {rotuloDoUsuario(a.cancelado_por) ? ` por ${rotuloDoUsuario(a.cancelado_por)}` : ""}.
+            {a.motivo_cancelamento ? ` Motivo: ${a.motivo_cancelamento}` : ""} Ela continua no histórico; nada é apagado e nada pode ser alterado.
+          </AvisoGestao>
+        </div>
+      ) : null}
+      {a?.status === STATUS_CONCLUIDA ? (
+        <div>
+          <AvisoGestao tone="blue" testId="atividade-concluida">
+            Atividade concluída
+            {a.data_conclusao ? ` em ${formatarDiaAtividade(a.data_conclusao)}` : ""}
+            {rotuloDoUsuario(a.concluida_por) ? ` por ${rotuloDoUsuario(a.concluida_por)}` : ""}. Ela fica só leitura; para mudar algo, reabra-a.
+          </AvisoGestao>
+        </div>
+      ) : null}
+      {a?.status === STATUS_ABERTA && a?.reaberta_em ? (
+        <div>
+          <AvisoGestao tone="blue" testId="atividade-reaberta">
+            Reaberta em {formatarInstante(a.reaberta_em, LOCALE_ATIVIDADE, fuso)}
+            {rotuloDoUsuario(a.reaberta_por) ? ` por ${rotuloDoUsuario(a.reaberta_por)}` : ""}.
+            {a.motivo_reabertura ? ` Motivo: ${a.motivo_reabertura}` : ""}
+          </AvisoGestao>
+        </div>
+      ) : null}
+    </div>
+  );
+
   /** Cabeçalho da atividade, SÓ LEITURA: os campos herdados ficam travados (ninguém digita setor, centros ou unidade). @param {any} a */
   const cabecalhoDaAtividade = (a) => {
     const semEdicao = () => {};
@@ -679,35 +726,6 @@ export default function LancamentoAtividades() {
         data-somente-leitura=""
         data-status={String(a?.status ?? "")}
       >
-        {a?.status === STATUS_CANCELADA ? (
-          <div className="col-span-12">
-            <AvisoGestao testId="atividade-cancelada">
-              Atividade cancelada
-              {a.cancelada_em ? ` em ${formatarInstante(a.cancelada_em, LOCALE_ATIVIDADE, fuso)}` : ""}
-              {rotuloDoUsuario(a.cancelado_por) ? ` por ${rotuloDoUsuario(a.cancelado_por)}` : ""}.
-              {a.motivo_cancelamento ? ` Motivo: ${a.motivo_cancelamento}` : ""} Ela continua no histórico; nada é apagado e nada pode ser alterado.
-            </AvisoGestao>
-          </div>
-        ) : null}
-        {a?.status === STATUS_CONCLUIDA ? (
-          <div className="col-span-12">
-            <AvisoGestao tone="blue" testId="atividade-concluida">
-              Atividade concluída
-              {a.data_conclusao ? ` em ${formatarDiaAtividade(a.data_conclusao)}` : ""}
-              {rotuloDoUsuario(a.concluida_por) ? ` por ${rotuloDoUsuario(a.concluida_por)}` : ""}. Ela fica só leitura; para mudar algo, reabra-a.
-            </AvisoGestao>
-          </div>
-        ) : null}
-        {a?.status === STATUS_ABERTA && a?.reaberta_em ? (
-          <div className="col-span-12">
-            <AvisoGestao tone="blue" testId="atividade-reaberta">
-              Reaberta em {formatarInstante(a.reaberta_em, LOCALE_ATIVIDADE, fuso)}
-              {rotuloDoUsuario(a.reaberta_por) ? ` por ${rotuloDoUsuario(a.reaberta_por)}` : ""}.
-              {a.motivo_reabertura ? ` Motivo: ${a.motivo_reabertura}` : ""}
-            </AvisoGestao>
-          </div>
-        ) : null}
-
         <SecaoForm titulo="Atividade" />
         <CampoTexto label="Nome" value={String(a?.nome ?? "")} onChange={semEdicao} readOnly span={6} />
         <ValorCalculado label="Status" valor={rotuloDoStatusAtividade(a?.status) || "—"} span={3} testId="atividade-status" />
@@ -742,6 +760,10 @@ export default function LancamentoAtividades() {
     );
   };
 
+  const podeConcluirAberta = Boolean(
+    controller.showForm && !controller.isEditing && registroAberto && podeGravar && acoesDoAberto.concluir && Number.isInteger(registroAberto?.versao),
+  );
+
   let conteudoRegistro = null;
   // Na renderização da troca de fazenda o registro ainda está aberto (o efeito acima o fecha logo depois): nada dele
   // monta com a fazenda nova, senão os lançamentos da atividade anterior seriam pedidos com o `empresa_id` da nova.
@@ -767,15 +789,20 @@ export default function LancamentoAtividades() {
         );
       }
     } else if (registroAberto) {
+      // D-PROD-234: a atividade aberta no desenho do protótipo (abas Lançamentos / Resumo da atividade).
       conteudoRegistro = (
         <CadastroFormShell embedded>
-          <TotalizadorAtividade atividade={registroAberto} empresaId={empresaId} habilitado={acoes.ver && !trocandoEmpresa} />
-          {cabecalhoDaAtividade(registroAberto)}
-          <ListaApontamentos
-            key={String(registroAberto.id)}
+          <AtividadeAberta
             atividade={registroAberto}
+            empresaId={empresaId}
             acoes={acoesDosApontamentos}
+            habilitado={acoes.ver && !trocandoEmpresa}
+            cabecalho={cabecalhoDaAtividade(registroAberto)}
+            avisos={avisosDaAtividade(registroAberto)}
             onAtividadeAtualizada={aoAtualizarAtividade}
+            onLancar={(tipo, aba) => lancarDoMenu(registroAberto, tipo, aba)}
+            onFechar={() => controller.onViewModeChange("table")}
+            onConcluir={podeConcluirAberta ? () => abrirDialogo("concluir", registroAberto) : null}
           />
         </CadastroFormShell>
       );
@@ -796,9 +823,10 @@ export default function LancamentoAtividades() {
 
   const dialogoAtividade = dialogo?.atividade ?? null;
 
-  // Atividade aberta (fora da edição): "Concluir" à vista na barra, como no protótipo (D-PROD-232).
+  // Atividade aberta (fora da edição): "Concluir" à vista na barra, como no protótipo (D-PROD-232); no celular, na
+  // cabeça da atividade aberta, no canto de cima (D-PROD-234).
   const botaoConcluir =
-    controller.showForm && !controller.isEditing && registroAberto && podeGravar && acoesDoAberto.concluir && Number.isInteger(registroAberto.versao) ? (
+    podeConcluirAberta && !celular ? (
       <PillBtn
         type="button"
         tone="outline"
@@ -905,6 +933,7 @@ export default function LancamentoAtividades() {
             escopo={escopo}
             onFechar={() => setLancando(null)}
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
+            abaInicial={lancando.aba}
           />
         ) : null}
 
