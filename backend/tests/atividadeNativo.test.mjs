@@ -57,6 +57,8 @@ const CAMPOS_PUBLICOS = [
   'lancamento_tarefa_id', 'lancamento_tarefa', 'observacao',
   'concluida_em', 'concluida_por', 'cancelada_em', 'cancelado_por', 'motivo_cancelamento',
   'reaberta_em', 'reaberta_por', 'motivo_reabertura', 'criado_por', 'createdAt', 'updatedAt',
+  // D-PROD-238: as áreas da atividade (várias áreas) e quantas são.
+  'areas', 'areas_count',
 ];
 const TOTAIS_VAZIOS = Object.freeze({ apontamentos_confirmados: 0, apontamentos_cancelados: 0, dias_com_apontamento: 0 });
 
@@ -702,7 +704,8 @@ describe('duplicar atividade', () => {
     assert.deepEqual(erro(await acao(s, a, 'duplicar')), [422, 'ATIVIDADE_EXIGIDA_PELO_TIPO', 'safra_ciclo', 'exige_safra']);
     await p.tipoAtividade.update({ where: { id: s.tipo.id }, data: { exige_safra: false } });
     await p.areaPastagem.update({ where: { id: s.area1.id }, data: { ativo: false } });
-    assert.deepEqual(erro(await acao(s, a, 'duplicar')), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'area_id', 'inativo']);
+    // D-PROD-238: a duplicação copia as ÁREAS da origem (areas[]): o campo do erro é o da área na lista.
+    assert.deepEqual(erro(await acao(s, a, 'duplicar')), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'areas[0].area_id', 'inativo']);
     await p.areaPastagem.update({ where: { id: s.area1.id }, data: { ativo: true } });
     await p.tipoAtividade.update({ where: { id: s.tipo.id }, data: { ativo: false } });
     assert.deepEqual(erro(await acao(s, a, 'duplicar')), [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'tipo_atividade_id', 'inativo']);

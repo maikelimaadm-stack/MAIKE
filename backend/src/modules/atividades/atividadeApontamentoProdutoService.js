@@ -106,6 +106,7 @@ import {
 } from './atividadeApontamentoProdutoRepository.js';
 import { buscarApontamento } from './atividadeApontamentoRepository.js';
 import { comoApontamentoPublico } from './atividadeApontamentoService.js';
+import { exigirAreaDoApontamentoEmAndamento } from './atividadeAreaService.js';
 
 /** Entidade da auditoria da linha. */
 export const ENTIDADE_LINHA_PRODUTO = 'AtividadeApontamentoProduto';
@@ -639,6 +640,8 @@ const abrirEscritaDeLinha = async (tx, clienteId, { empresaDoCorpo, atividadeId,
   const atividade = await travarELerAtividade(tx, clienteId, empresaId, atividadeId); // Atividade FOR UPDATE
   const apontamento = await lerApontamentoDaLinha(tx, clienteId, empresaId, atividadeId, apontamentoId);
   exigirLinhaGravavel(atividade, apontamento, acao);
+  // D-PROD-238: a linha NOVA só entra em lançamento de área EM_ANDAMENTO.
+  if (acao === 'lancar_linha') await exigirAreaDoApontamentoEmAndamento(tx, clienteId, empresaId, atividadeId, apontamentoId);
   exigirVersao(apontamento, versao, 'apontamento');
   return { empresaId, tempo, atividade, apontamento };
 };

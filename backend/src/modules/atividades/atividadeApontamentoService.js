@@ -161,6 +161,7 @@ import {
 import { existeLinhaComChave as existeLinhaMaoObraComChave } from './atividadeApontamentoMaoObraRepository.js';
 import { existeLinhaComChave as existeLinhaServicoComChave } from './atividadeApontamentoServicoRepository.js';
 import { cancelarAbastecimentosDosApontamentos } from '../patrimonio/abastecimentoService.js';
+import { exigirAreaDoLancamento } from './atividadeAreaService.js';
 
 /** Código do alerta de data fora do período da atividade (não bloqueia). */
 export const ALERTA_FORA_DO_INTERVALO = 'FORA_DO_INTERVALO';
@@ -218,6 +219,8 @@ const CAMPOS_DO_DIA = Object.freeze({
   area_executada_dia: (v) => decimalDoCorpo(v, 'area_executada_dia'),
   quantidade_produzida_dia: (v) => decimalDoCorpo(v, 'quantidade_produzida_dia'),
   observacao: (v) => textoDoCorpo(v, 'observacao') ?? null,
+  // D-PROD-238: a área da atividade em que o lançamento é feito (conferida sob a trava: desta atividade e EM_ANDAMENTO).
+  atividade_area_id: (v) => idOuNulo(v, 'atividade_area_id'),
 });
 
 /** Os campos de dado do apontamento, na ordem do formulário. */
@@ -225,7 +228,7 @@ export const CAMPOS_DE_DADO_DO_APONTAMENTO = Object.freeze(Object.keys(CAMPOS_DO
 
 /**
  * @typedef {{ data_operacional: string|null, turno: string|null, operador_usuario_id: string|null,
- *   area_executada_dia: string|null, quantidade_produzida_dia: string|null, observacao: string|null }} EstadoDoDia
+ *   area_executada_dia: string|null, quantidade_produzida_dia: string|null, observacao: string|null, atividade_area_id: string|null }} EstadoDoDia
  */
 
 /** @type {Readonly<EstadoDoDia>} */
@@ -236,6 +239,7 @@ const VAZIO = Object.freeze({
   area_executada_dia: null,
   quantidade_produzida_dia: null,
   observacao: null,
+  atividade_area_id: null,
 });
 
 /**
@@ -266,6 +270,7 @@ const estadoGravado = (r) => ({
   area_executada_dia: t4(r.area_executada_dia),
   quantidade_produzida_dia: t4(r.quantidade_produzida_dia),
   observacao: r.observacao ?? null,
+  atividade_area_id: r.atividade_area_id ?? null,
 });
 
 /** A data do lançamento é obrigatória no estado final. @param {Partial<EstadoDoDia>} estado */
@@ -361,6 +366,9 @@ export const comoApontamentoPublico = (r) => ({
   area_executada_dia: t4(r.area_executada_dia),
   quantidade_produzida_dia: t4(r.quantidade_produzida_dia),
   observacao: r.observacao ?? null,
+  // D-PROD-238: a área da atividade em que o lançamento foi feito (nula na atividade sem área).
+  atividade_area_id: r.atividade_area_id ?? null,
+  atividade_area: r.atividadeArea ? { id: r.atividadeArea.id, area: r.atividadeArea.area ? { id: r.atividadeArea.area.id, numero_area: r.atividadeArea.area.numero_area, nome: r.atividadeArea.area.nome } : null } : null,
   origem: r.origem,
   status: r.status,
   versao: r.versao,
@@ -394,6 +402,7 @@ const paraAuditoria = (r) => ({
   operador_usuario_id: r.operador_usuario_id ?? null,
   area_executada_dia: t4(r.area_executada_dia),
   quantidade_produzida_dia: t4(r.quantidade_produzida_dia),
+  atividade_area_id: r.atividade_area_id ?? null,
   origem: r.origem,
   status: r.status,
   versao: r.versao,
@@ -769,7 +778,11 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
       exigirStatusDaAtividade(atividade, 'lancar_apontamento');
       exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
       await exigirOperador(tx, cli, estado.operador_usuario_id);
-      return gravarNovo(tx, contexto, { clienteId: cli, empresaId, atividade, estado, origem, acao: ACOES_AUDITORIA_APONTAMENTO.lancar, linhas });
+      // D-PROD-238: a área do lançamento (desta atividade e EM_ANDAMENTO; com uma área só, ela mesma).
+      const atividadeAreaId = await exigirAreaDoLancamento(tx, { clienteId: cli, empresaId, atividadeId, atividadeAreaId: estado.atividade_area_id });
+      return gravarNovo(tx, contexto, {
+        clienteId: cli, empresaId, atividade, estado: { ...estado, atividade_area_id: atividadeAreaId }, origem, acao: ACOES_AUDITORIA_APONTAMENTO.lancar, linhas,
+      });
     },
   });
 };
@@ -787,6 +800,8 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
 export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, corpo) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   const diaInformado = diaDoCorpo(corpo.data_operacional, 'data_operacional');
+  // D-PROD-238: a área do lançamento novo (padrão: a da base).
+  const areaInformada = corpo.atividade_area_id === undefined ? undefined : idOuNulo(corpo.atividade_area_id, 'atividade_area_id');
   const linhas = linhasDoCorpo(corpo);
 
   return comReciboOpcional(contexto, {
@@ -795,6 +810,7 @@ export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, 
     fingerprint: () =>
       fingerprintDePayload({
         v: 1, atividade_id: atividadeId, base_id: apontamentoId, empresa_id: corpo.empresa_id, data_operacional: diaInformado ?? null, produtos: linhas.produtos, maquinas: canonico(linhas.maquinas),
+        ...(areaInformada !== undefined ? { atividade_area_id: areaInformada } : {}),
         ...linhasNovasDoFingerprint(linhas),
       }),
     executar: async (tx) => {
@@ -807,6 +823,10 @@ export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, 
       const estado = { ...estadoGravado(base), data_operacional: diaInformado ?? tempo.hoje };
       exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
       await exigirOperador(tx, cli, estado.operador_usuario_id); // vínculo novo: o operador tem de estar ativo
+      // D-PROD-238: a área do lançamento novo tem de estar EM_ANDAMENTO (a da base, ou a do corpo).
+      estado.atividade_area_id = await exigirAreaDoLancamento(tx, {
+        clienteId: cli, empresaId, atividadeId, atividadeAreaId: areaInformada === undefined ? estado.atividade_area_id : areaInformada,
+      });
       return gravarNovo(tx, contexto, {
         clienteId: cli,
         empresaId,
@@ -880,6 +900,12 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
       }
       await exigirOperador(tx, cli, estado.operador_usuario_id, gravado.operador_usuario_id);
       const dados = paraGravacao(campos);
+      // D-PROD-238: trocar a área do lançamento: a nova é desta atividade e está EM_ANDAMENTO (manter a gravada não confere).
+      if (temCampo(campos, 'atividade_area_id') && campos.atividade_area_id !== gravado.atividade_area_id) {
+        dados.atividade_area_id = await exigirAreaDoLancamento(tx, { clienteId: cli, empresaId, atividadeId, atividadeAreaId: campos.atividade_area_id });
+      } else {
+        delete dados.atividade_area_id;
+      }
       if (estado.data_operacional !== gravado.data_operacional || estado.turno !== gravado.turno) {
         dados.sequencia = await proximaSequencia(tx, {
           clienteId: cli,

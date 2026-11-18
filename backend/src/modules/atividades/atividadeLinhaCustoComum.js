@@ -43,6 +43,7 @@ import {
 import { buscarApontamento, lerAtividadeBase } from './atividadeApontamentoRepository.js';
 import { lerApontamentoDaLinha } from './atividadeApontamentoMaquinaRepository.js';
 import { comoApontamentoPublico } from './atividadeApontamentoService.js';
+import { exigirAreaDoApontamentoEmAndamento } from './atividadeAreaService.js';
 
 /** Limite de Decimal(14, 4) (custo/valor total da linha). */
 export const LIMITE_DECIMAL_14_4 = new Dec('9999999999.9999');
@@ -135,6 +136,8 @@ export const escreverLinhaDoApontamento = async (contexto, pedido) => {
             const apontamento = await lerApontamentoDaLinha(tx, cli, empresaId, atividadeId, apontamentoId);
             if (!apontamento) throw atividadeApontamentoNotFound();
             if (apontamento.status !== STATUS_APONTAMENTO.CONFIRMADO) throw atividadeStatusInvalido({ status: apontamento.status, acao, entidade: 'apontamento' });
+            // D-PROD-238: a linha NOVA só entra em lançamento de área EM_ANDAMENTO.
+            if (acao === 'lancar_linha') await exigirAreaDoApontamentoEmAndamento(tx, cli, empresaId, atividadeId, apontamentoId);
             exigirVersao(apontamento, versao, 'apontamento');
             const linha = await executar(tx, { clienteId: cli, empresaId, agora, dia: /** @type {string} */ (diaDe(apontamento.data_operacional)) });
             const alvo = { clienteId: cli, empresaId, id: apontamentoId, versao, statusEsperado: STATUS_APONTAMENTO.CONFIRMADO, onde: { atividade_id: atividadeId } };

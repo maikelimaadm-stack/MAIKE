@@ -108,6 +108,8 @@ const CAMPOS_DO_DIA = Object.freeze({
   area_executada_dia: DECIMAL_NULO,
   quantidade_produzida_dia: DECIMAL_NULO,
   observacao: OBSERVACAO,
+  // D-PROD-238: a área da atividade do lançamento (obrigatória com várias áreas; conferida no serviço).
+  atividade_area_id: ID_NULO,
 });
 
 const LISTAR = { params: PARAMS, querystring: SO_EMPRESA };
@@ -149,7 +151,7 @@ const DUPLICAR = {
     type: 'object',
     required: ['empresa_id'],
     additionalProperties: false,
-    properties: { empresa_id: ID, data_operacional: DIA, ...LINHAS_DO_LANCAMENTO },
+    properties: { empresa_id: ID, data_operacional: DIA, atividade_area_id: ID_NULO, ...LINHAS_DO_LANCAMENTO },
   },
 };
 

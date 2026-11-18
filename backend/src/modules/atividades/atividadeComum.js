@@ -28,6 +28,7 @@
 
 import {
   atividadeApontamentoNotFound,
+  atividadeAreaNotFound,
   atividadeDataInvalida,
   atividadeMotivoInvalido,
   atividadeNotFound,
@@ -118,6 +119,13 @@ export const STATUS_EXIGIDO_DA_ATIVIDADE = Object.freeze({
   cancelar_apontamento: STATUS_ATIVIDADE.ABERTA,
   // D-PROD-211 (Fatia 5): cancelar um abastecimento ligado à atividade (a concluída tem os totais fechados: reabra antes).
   cancelar_abastecimento: STATUS_ATIVIDADE.ABERTA,
+  // D-PROD-238: as áreas da atividade só mudam com ela ABERTA.
+  adicionar_area: STATUS_ATIVIDADE.ABERTA,
+  iniciar_area: STATUS_ATIVIDADE.ABERTA,
+  editar_area: STATUS_ATIVIDADE.ABERTA,
+  concluir_area: STATUS_ATIVIDADE.ABERTA,
+  reabrir_area: STATUS_ATIVIDADE.ABERTA,
+  remover_area: STATUS_ATIVIDADE.ABERTA,
 });
 
 // ─── normalização do corpo ──────────────────────────────────────────────────
@@ -287,7 +295,7 @@ export const exigirApontamentoConfirmado = (apontamento, acao) => {
  * escrita); senão 409 `ATIVIDADE_VERSAO_CONFLITO` com `versao_atual`,
  * `versao_informada` e `entidade`.
  * @param {{ versao: number }} registro @param {unknown} versaoInformada
- * @param {'atividade'|'apontamento'} [entidade]
+ * @param {'atividade'|'apontamento'|'area'} [entidade]
  */
 export const exigirVersao = (registro, versaoInformada, entidade = 'atividade') => {
   if (registro.versao !== versaoInformada) throw atividadeVersaoConflito(registro.versao, versaoInformada, { entidade });
@@ -317,14 +325,14 @@ export const atualizarComVersao = async (delegado, { clienteId, empresaId, id, v
  * de status) ou 409 `ATIVIDADE_VERSAO_CONFLITO` (outra versão).
  * @param {any} delegado  `tx.atividade` ou `tx.atividadeApontamento`
  * @param {{ clienteId: string, empresaId: string, id: string, versao: number, statusEsperado: string,
- *   acao: string, entidade?: 'atividade'|'apontamento', onde?: Record<string, unknown> }} pedido
+ *   acao: string, entidade?: 'atividade'|'apontamento'|'area', onde?: Record<string, unknown> }} pedido
  */
 export const erroDoCasPerdido = async (delegado, { clienteId, empresaId, id, versao, statusEsperado, acao, entidade = 'atividade', onde = {} }) => {
   const atual = await delegado.findFirst({
     where: { ...onde, cliente_id: clienteId, empresa_id: empresaId, id },
     select: { versao: true, status: true },
   });
-  if (!atual) return entidade === 'apontamento' ? atividadeApontamentoNotFound() : atividadeNotFound();
+  if (!atual) return entidade === 'apontamento' ? atividadeApontamentoNotFound() : entidade === 'area' ? atividadeAreaNotFound() : atividadeNotFound();
   if (atual.status !== statusEsperado) return atividadeStatusInvalido({ status: atual.status, acao, entidade });
   return atividadeVersaoConflito(atual.versao, versao, { entidade });
 };
@@ -343,6 +351,8 @@ const CAMPOS_DE_REFERENCIA = Object.freeze([
   'unidade_producao_id',
   'lancamento_tarefa_id',
   'operador_usuario_id',
+  // D-PROD-238: a área do lançamento (FK composta para AtividadeArea).
+  'atividade_area_id',
 ]);
 
 /**
@@ -405,8 +415,37 @@ export const AREA_RESUMO = Object.freeze({ select: { id: true, numero_area: true
 export const UNIDADE_RESUMO = Object.freeze({ select: { id: true, sigla: true, descricao: true } });
 export const TAREFA_RESUMO = Object.freeze({ select: { id: true, titulo: true, status: true } });
 
+/** D-PROD-238 — resumo da área de uma atividade de várias áreas (com o tamanho, para a área planejada padrão). */
+export const AREA_DA_ATIVIDADE_RESUMO = Object.freeze({ select: { id: true, numero_area: true, nome: true, tamanho_hectares: true } });
+
+/** D-PROD-238 — as áreas da atividade, na ordem em que entraram. */
+export const INCLUIR_AREAS_DA_ATIVIDADE = Object.freeze({ orderBy: [{ ordem: 'asc' }, { id: 'asc' }], include: { area: AREA_DA_ATIVIDADE_RESUMO } });
+
+/**
+ * D-PROD-238 — forma pública de UMA área da atividade.
+ * @param {any} r  registro de `AtividadeArea` com `area`
+ */
+export const comoAreaDaAtividadePublica = (r) => ({
+  id: r.id,
+  atividade_id: r.atividade_id,
+  area_id: r.area_id,
+  area: r.area ? { id: r.area.id, numero_area: r.area.numero_area, nome: r.area.nome, tamanho_hectares: t4(r.area.tamanho_hectares) } : null,
+  setor_id: r.setor_id ?? null,
+  setor_nome: r.setor_nome ?? null,
+  area_planejada: t4(r.area_planejada),
+  status: r.status,
+  data_inicio: diaDe(r.data_inicio),
+  data_conclusao: diaDe(r.data_conclusao),
+  ordem: r.ordem,
+  versao: r.versao,
+  createdAt: iso(r.createdAt),
+  updatedAt: iso(r.updatedAt),
+});
+
 /** `include` da atividade: o resumo ao lado de cada id da forma pública. */
 export const INCLUIR_ATIVIDADE = Object.freeze({
+  // D-PROD-238: as áreas (várias áreas por atividade).
+  areas: INCLUIR_AREAS_DA_ATIVIDADE,
   area: AREA_RESUMO,
   bem: BEM_RESUMO,
   centroCusto: CENTRO_RESUMO,
@@ -469,6 +508,9 @@ export const comoAtividadePublica = (r) => ({
   criado_por: usuarioPublico(r.criadoPor),
   createdAt: iso(r.createdAt),
   updatedAt: iso(r.updatedAt),
+  // D-PROD-238: as áreas da atividade (a 1ª é a `area_id` acima) e quantas são.
+  areas: (r.areas ?? []).map(comoAreaDaAtividadePublica),
+  areas_count: (r.areas ?? []).length,
 });
 
 /**

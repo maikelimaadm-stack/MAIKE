@@ -37,7 +37,8 @@ import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from '../patrimonio/patrimonioComum.js';
 import { NATUREZAS } from '../patrimonio/patrimonioDominio.js';
-import { DECIMAIS_DA_ATIVIDADE, PADRAO_DECIMAL, recusarCoercao } from './atividadeComum.js';
+import { DECIMAIS_DA_ATIVIDADE, PADRAO_DECIMAL, recusarCoercao, recusarCoercaoNasListas } from './atividadeComum.js';
+import { AREAS_NA_ABERTURA_MAXIMO } from './atividadeAreaService.js';
 import { opcoesBens, opcoesOperadores } from './atividadeOpcoesService.js';
 import { NOME_MAXIMO, STATUS, atualizar, cancelar, concluir, criar, duplicar, listar, obter, obterTotais, reabrir } from './atividadeService.js';
 
@@ -93,12 +94,22 @@ const LISTAR = {
   },
 };
 const DETALHE = { params: PARAMS, querystring: SO_EMPRESA };
+/**
+ * D-PROD-238: várias áreas na abertura (cada uma com a sua área planejada; ausente = o tamanho da área). Com `areas`, o
+ * corpo não traz `area_id` nem `area_planejada` (o serviço recusa: 400 `areas_e_area_id`).
+ */
+const AREAS_DA_ABERTURA = Object.freeze({
+  type: 'array',
+  minItems: 1,
+  maxItems: AREAS_NA_ABERTURA_MAXIMO,
+  items: { type: 'object', required: ['area_id'], additionalProperties: false, properties: { area_id: ID, area_planejada: DECIMAL_NULO } },
+});
 const CRIAR = {
   body: {
     type: 'object',
     required: ['empresa_id', 'nome', 'tipo_atividade_id'],
     additionalProperties: false,
-    properties: { empresa_id: ID, tipo_atividade_id: ID, ...CAMPOS },
+    properties: { empresa_id: ID, tipo_atividade_id: ID, ...CAMPOS, areas: AREAS_DA_ABERTURA },
   },
 };
 const ATUALIZAR = {
@@ -171,6 +182,7 @@ export const registrarAtividadeRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
   app.addHook('preValidation', async (request) => {
     recusarCoercao(request.body, DECIMAIS_DA_ATIVIDADE);
+    recusarCoercaoNasListas(request.body, { areas: ['area_planejada'] });
   });
 
   app.get('/atividades', { ...autenticado, preHandler: [g.ver], schema: LISTAR }, async (request) => listar(ctx(request), consulta(request)));

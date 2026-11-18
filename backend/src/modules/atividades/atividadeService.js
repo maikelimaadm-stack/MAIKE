@@ -118,8 +118,17 @@ import { totaisDosServicosDaAtividade } from './atividadeApontamentoServicoServi
 import { totaisPorProduto } from './atividadeApontamentoProdutoRepository.js';
 import { combustivelDaAtividade } from '../patrimonio/abastecimentoConsumo.js';
 import {
+  STATUS_AREA,
+  areasDoCorpo,
+  concluirAreasEmAndamento,
+  exigirAreaDoMapa,
+  reabrirAreasConcluidasJunto,
+  gravarAreasDaAbertura,
+  totaisPorArea,
+} from './atividadeAreaService.js';
+import { contarLancamentosDaArea, inserirAreaDaAtividade, listarAreasDaAtividade } from './atividadeAreaRepository.js';
+import {
   inserirAtividade,
-  lerArea,
   lerBem,
   lerEmpresaDaAtividade,
   lerLancamentoTarefa,
@@ -265,11 +274,8 @@ const exigirTipoParaAbertura = async (tx, clienteId, id) => {
  * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} id
  */
 const exigirArea = async (tx, clienteId, empresaId, id) => {
-  const area = await lerArea(tx, clienteId, id);
-  if (!area) throw atividadeReferenciaInvalida('area_id', 'inexistente');
-  if (area.empresa_id !== empresaId) throw atividadeReferenciaInvalida('area_id', 'outra_empresa');
-  if (!area.ativo) throw atividadeReferenciaInvalida('area_id', 'inativo');
-  return { setor_id: area.setor_id, setor_nome: area.setor_nome };
+  const { setor_id: setorId, setor_nome: setorNome } = await exigirAreaDoMapa(tx, clienteId, empresaId, id);
+  return { setor_id: setorId, setor_nome: setorNome };
 };
 
 /** Naturezas do bem que servem de MÁQUINA da atividade (contrato §3); implemento, benfeitoria e outro não. */
@@ -425,9 +431,11 @@ export const listar = async (contexto, query = {}) => {
   if (de && ate && de > ate) throw invalido('o período está invertido: data_de é posterior a data_ate', { field: 'data_ate', reason: 'periodo_invertido' });
   /** @type {Record<string, any>} */
   const where = { cliente_id: cli, empresa_id: empresaId };
-  for (const campo of ['status', 'tipo_atividade_id', 'area_id']) {
+  for (const campo of ['status', 'tipo_atividade_id']) {
     if (typeof query[campo] === 'string' && query[campo]) where[campo] = query[campo];
   }
+  // D-PROD-238: a atividade de VÁRIAS áreas aparece no filtro de qualquer uma delas (a 1ª também está em `areas`).
+  if (typeof query.area_id === 'string' && query.area_id) where.areas = { some: { area_id: query.area_id } };
   if (de || ate) where.data_inicio = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
   const q = termoDeBusca(query.q);
   const busca = q ? [{ numero: { contains: q } }, { nome: { contains: q, mode: 'insensitive' } }] : [];
@@ -500,6 +508,8 @@ export const obterTotais = async (contexto, id, query = {}) => {
     const maoObra = await totaisDaMaoObraDaAtividade(tx, cli, empresaId, id);
     const servicos = await totaisDosServicosDaAtividade(tx, cli, empresaId, id);
     const { combustivel, consumo_por_bem: consumoPorBem } = await combustivelDaAtividade(tx, cli, empresaId, id);
+    // D-PROD-238: os números de cada área (as mesmas parcelas; o total da atividade continua a soma de tudo).
+    const porArea = await totaisPorArea(tx, cli, empresaId, id);
     const parcelas = [
       ...produtos.map((p) => p.custo_total),
       ...[maquinas.custo_total, maoObra.custo_total, servicos.custo_total, combustivel.custo_total].filter((v) => v !== null),
@@ -531,6 +541,7 @@ export const obterTotais = async (contexto, id, query = {}) => {
       },
       litros_combustivel_por_ha:
         combustivel.quantidade_l !== null && comArea ? t4(arredondar(dec(combustivel.quantidade_l).dividedBy(/** @type {any} */ (area)), 4)) : null,
+      por_area: porArea,
     };
   });
 };
@@ -546,12 +557,30 @@ export const obterTotais = async (contexto, id, query = {}) => {
  * @param {{ clienteId: string, empresaId: string, tempo: { agora: Date, hoje: string, fuso: string },
  *   tipoAtividadeId: string, estado: Record<string, any>, acao: string, auditoriaExtra?: Record<string, unknown> }} abertura
  */
-const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoAtividadeId, estado, acao, auditoriaExtra = {} }) => {
+const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoAtividadeId, estado: estadoDoCorpo, acao, auditoriaExtra = {} }) => {
+  let estado = estadoDoCorpo;
   const tipo = await exigirTipoParaAbertura(tx, clienteId, tipoAtividadeId);
   const dataInicio = estado.data_inicio ?? tempo.hoje;
   exigirDiaNaoFuturo(tempo, dataInicio, 'data_inicio');
   exigirPeriodo(dataInicio, estado.data_prevista_fim ?? null);
-  const setor = estado.area_id ? await exigirArea(tx, clienteId, empresaId, estado.area_id) : { setor_id: null, setor_nome: null };
+  // D-PROD-238: as ÁREAS da abertura. `areas[]` (o cliente novo): cada uma conferida (fazenda, ativa), planejada padrão
+  // = o tamanho, todas PLANEJADAS ("a iniciar"). `area_id` único (o cliente antigo): UMA área, com a planejada do corpo,
+  // já EM_ANDAMENTO desde o início da atividade (como sempre foi: a atividade de uma área lança logo).
+  const novas = [];
+  if (estado.areas) {
+    for (const [i, item] of estado.areas.entries()) {
+      const mapa = await exigirAreaDoMapa(tx, clienteId, empresaId, item.area_id, `areas[${i}].area_id`);
+      novas.push({ area_id: item.area_id, area_planejada: item.area_planejada === undefined ? mapa.tamanho : item.area_planejada, setor_id: mapa.setor_id, setor_nome: mapa.setor_nome });
+    }
+  }
+  const legado = !estado.areas && Boolean(estado.area_id);
+  const setor = estado.area_id ? await exigirArea(tx, clienteId, empresaId, estado.area_id) : novas.length ? { setor_id: novas[0].setor_id, setor_nome: novas[0].setor_nome } : { setor_id: null, setor_nome: null };
+  if (legado) novas.push({ area_id: estado.area_id, area_planejada: estado.area_planejada ?? null, setor_id: setor.setor_id, setor_nome: setor.setor_nome });
+  if (estado.areas) {
+    estado = { ...estado, area_id: novas[0].area_id };
+    const comPlanejada = novas.filter((a) => a.area_planejada !== null);
+    estado.area_planejada = comPlanejada.length ? t4(comPlanejada.reduce((t, a) => t.plus(dec(a.area_planejada)), dec(0))) : null;
+  }
   if (estado.bem_id) await exigirBem(tx, clienteId, empresaId, estado.bem_id);
   if (estado.lancamento_tarefa_id) await exigirTarefa(tx, clienteId, empresaId, estado.lancamento_tarefa_id);
   exigirFlagsDoTipo(regrasDoTipo(tipo), estado);
@@ -580,8 +609,23 @@ const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoAtividad
       versao: 1,
     })
   );
+  if (novas.length) {
+    await gravarAreasDaAbertura(tx, {
+      clienteId,
+      empresaId,
+      atividadeId: id,
+      usuarioId: contexto.auth.usuarioId ?? null,
+      status: legado ? STATUS_AREA.EM_ANDAMENTO : STATUS_AREA.PLANEJADA,
+      dataInicio,
+      areas: novas,
+    });
+  }
   const registro = await relerNa(tx, clienteId, empresaId, id);
-  await registrarEvento(contexto, { acao, entidade: ENTIDADE_ATIVIDADE, entidadeId: id, dadosNovos: { ...paraAuditoria(registro), ...auditoriaExtra } }, tx);
+  await registrarEvento(
+    contexto,
+    { acao, entidade: ENTIDADE_ATIVIDADE, entidadeId: id, dadosNovos: { ...paraAuditoria(registro), areas: novas.map((a) => a.area_id), ...auditoriaExtra } },
+    tx
+  );
   return detalheDe(tx, clienteId, empresaId, registro);
 };
 
@@ -594,6 +638,12 @@ export const criar = async (contexto, corpo) => {
   const cli = auth.clienteId;
   const estado = camposDoCorpo(corpo, CAMPOS_DA_ATIVIDADE);
   if (!estado.nome) throw invalido('nome é obrigatório', { field: 'nome', reason: 'obrigatorio' });
+  // D-PROD-238: `areas[]` (várias áreas) OU o `area_id` único de antes, nunca os dois (nem a planejada do cabeçalho).
+  const areas = areasDoCorpo(corpo.areas);
+  if (areas && (corpo.area_id !== undefined || corpo.area_planejada !== undefined)) {
+    throw invalido('envie as áreas em areas[] (cada uma com a sua área planejada) ou a área única em area_id, nunca os dois', { field: 'areas', reason: 'areas_e_area_id' });
+  }
+  if (areas) estado.areas = areas;
   const tipoAtividadeId = idOuNulo(corpo.tipo_atividade_id, 'tipo_atividade_id');
   if (!tipoAtividadeId) throw invalido('tipo_atividade_id é obrigatório', { field: 'tipo_atividade_id', reason: 'obrigatorio' });
 
@@ -626,9 +676,12 @@ export const duplicar = async (contexto, id, corpo) => {
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
       // A origem só é LIDA (nada nela muda): sem trava.
       const origem = await relerNa(tx, cli, empresaId, id);
+      // D-PROD-238: as áreas da origem vêm todas, PLANEJADAS (a atividade nova ainda não começou), com a planejada de cada uma.
+      const areasDaOrigem = (origem.areas ?? []).map((/** @type {any} */ a) => ({ area_id: a.area_id, area_planejada: t4(a.area_planejada) }));
       const estado = {
+        ...(areasDaOrigem.length ? { areas: areasDaOrigem } : {}),
         nome: origem.nome,
-        area_id: origem.area_id ?? null,
+        area_id: areasDaOrigem.length ? null : origem.area_id ?? null,
         bem_id: origem.bem_id ?? null,
         safra_ciclo: origem.safra_ciclo ?? null,
         area_planejada: t4(origem.area_planejada),
@@ -695,9 +748,41 @@ export const atualizar = async (contexto, id, corpo) => {
       const trocou = (campo) => temCampo(campos, campo) && campos[campo] !== gravado[campo];
       /** @type {Record<string, any>} */
       const dados = paraGravacao(campos);
+      // D-PROD-238: o `area_id` e a `area_planejada` do cabeçalho seguem as áreas. Com VÁRIAS áreas, eles mudam pelo card
+      // das áreas (422 `varias_areas`); com UMA, o PATCH troca a área dela (sem lançamento) ou a planejada dela; sem área,
+      // a área do PATCH vira a área nº 1, já em andamento (o cliente antigo).
+      const areasGravadas = trocou('area_id') || trocou('area_planejada') ? /** @type {any[]} */ (await listarAreasDaAtividade(tx, cli, empresaId, id)) : [];
+      if (areasGravadas.length > 1) {
+        if (trocou('area_id')) throw atividadeReferenciaInvalida('area_id', 'varias_areas');
+        throw atividadeReferenciaInvalida('area_planejada', 'varias_areas');
+      }
       if (trocou('area_id')) {
         const setor = estado.area_id ? await exigirArea(tx, cli, empresaId, estado.area_id) : { setor_id: null, setor_nome: null };
         Object.assign(dados, setor); // o setor é o da área NOVA (ou nenhum)
+        const [unica] = areasGravadas;
+        if (unica) {
+          const uso = await contarLancamentosDaArea(tx, cli, empresaId, id, unica.id);
+          if (uso.confirmados + uso.cancelados > 0) throw atividadeReferenciaInvalida('area_id', 'com_lancamentos');
+          if (estado.area_id) {
+            await tx.atividadeArea.updateMany({
+              where: { cliente_id: cli, empresa_id: empresaId, atividade_id: id, id: unica.id },
+              data: { area_id: estado.area_id, ...setor, area_planejada: estado.area_planejada ?? null, versao: { increment: 1 } },
+            });
+          } else {
+            await tx.atividadeArea.deleteMany({ where: { cliente_id: cli, empresa_id: empresaId, atividade_id: id, id: unica.id } });
+          }
+        } else if (estado.area_id) {
+          await inserirAreaDaAtividade(tx, {
+            cliente_id: cli, empresa_id: empresaId, atividade_id: id, area_id: estado.area_id, ...setor, area_planejada: estado.area_planejada ?? null,
+            status: STATUS_AREA.EM_ANDAMENTO, data_inicio: comoData(estado.data_inicio ?? diaDe(anterior.createdAt)), ordem: 1,
+            criado_por_usuario_id: auth.usuarioId ?? null, versao: 1,
+          });
+        }
+      } else if (trocou('area_planejada') && areasGravadas.length === 1) {
+        await tx.atividadeArea.updateMany({
+          where: { cliente_id: cli, empresa_id: empresaId, atividade_id: id, id: areasGravadas[0].id },
+          data: { area_planejada: estado.area_planejada ?? null, versao: { increment: 1 } },
+        });
       }
       if (trocou('bem_id') && estado.bem_id) await exigirBem(tx, cli, empresaId, estado.bem_id);
       if (trocou('lancamento_tarefa_id') && estado.lancamento_tarefa_id) await exigirTarefa(tx, cli, empresaId, estado.lancamento_tarefa_id);
@@ -753,6 +838,8 @@ export const concluir = async (contexto, id, corpo) => {
         const { quantidade_produzida: producao } = await somarApontamentosConfirmados(tx, cli, empresaId, id);
         if (producao === null || !dec(producao).gt(0)) throw atividadeExigidaPeloTipo('quantidade_produzida', { details: { quantidade_produzida: producao } });
       }
+      // D-PROD-238: as áreas EM ANDAMENTO concluem junto, com a mesma data; as PLANEJADAS ficam "não iniciadas".
+      const areasConcluidas = await concluirAreasEmAndamento(tx, { clienteId: cli, empresaId, atividadeId: id, dia });
       await gravarComVersao(tx, {
         clienteId: cli,
         empresaId,
@@ -770,7 +857,13 @@ export const concluir = async (contexto, id, corpo) => {
       const registro = await relerNa(tx, cli, empresaId, id);
       await registrarEvento(
         contexto,
-        { acao: 'atividade.concluir', entidade: ENTIDADE_ATIVIDADE, entidadeId: id, dadosAnteriores: paraAuditoria(anterior), dadosNovos: paraAuditoria(registro) },
+        {
+          acao: 'atividade.concluir',
+          entidade: ENTIDADE_ATIVIDADE,
+          entidadeId: id,
+          dadosAnteriores: paraAuditoria(anterior),
+          dadosNovos: { ...paraAuditoria(registro), areas_concluidas: areasConcluidas },
+        },
         tx
       );
       return detalheDe(tx, cli, empresaId, registro);
@@ -797,6 +890,9 @@ export const reabrir = async (contexto, id, corpo) => {
     async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const anterior = await travarELer(tx, cli, empresaId, id, 'reabrir', versao);
+      // D-PROD-238: reabrir desfaz o concluir: as áreas concluídas na data de conclusão da atividade (as que concluíram
+      // junto com ela) voltam a EM_ANDAMENTO; as concluídas antes, em outro dia, ficam concluídas.
+      const areasReabertas = await reabrirAreasConcluidasJunto(tx, { clienteId: cli, empresaId, atividadeId: id, dia: diaDe(anterior.data_conclusao) });
       await gravarComVersao(tx, {
         clienteId: cli,
         empresaId,
@@ -822,7 +918,7 @@ export const reabrir = async (contexto, id, corpo) => {
           entidade: ENTIDADE_ATIVIDADE,
           entidadeId: id,
           dadosAnteriores: paraAuditoria(anterior),
-          dadosNovos: { ...paraAuditoria(registro), motivo_reabertura: motivo },
+          dadosNovos: { ...paraAuditoria(registro), motivo_reabertura: motivo, areas_reabertas: areasReabertas },
         },
         tx
       );
