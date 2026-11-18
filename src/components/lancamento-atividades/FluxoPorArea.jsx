@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Check, ChevronLeft, Play } from "lucide-react";
+import { Check, ChevronLeft, Play, X } from "lucide-react";
+import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import DialogoAreaDaAtividade from "@/components/lancamento-atividades/DialogoAreaDaAtividade";
 import JanelaAbastecimentoDaArea from "@/components/lancamento-atividades/JanelaAbastecimentoDaArea";
@@ -28,8 +29,9 @@ import {
 } from "@/lib/atividadeFluxoCampo";
 import { formatarAreaExecutadaPlanejada, formatarDiaAtividade, rotuloDaArea } from "@/lib/lancamentoAtividadesRegras";
 
-const BOTAO = `${BOTAO_PRIMARIO} min-h-12 w-full justify-center text-[15px]`;
-const BOTAO_CLARO = `${BOTAO_SECUNDARIO} min-h-12 w-full justify-center text-[15px]`;
+// Os botões são os de sempre do app (os mesmos dos formulários de lançamento): nada de botão gigante só para celular.
+const BOTAO = BOTAO_PRIMARIO;
+const BOTAO_CLARO = BOTAO_SECUNDARIO;
 
 /**
  * A atividade pelo lugar do custo: um cartão por área, o registro saindo dali,
@@ -84,121 +86,66 @@ export default function FluxoPorArea({
     return rotuloDaAreaDaAtividade(areas.find((a) => String(a.id) === String(id))) || "esta área";
   };
 
-  if (recado) {
-    const frase = fraseDoRegistro({ texto: recado.texto, area: recado.nomeArea, atividade: recado.nomeAtividade });
-    return (
-      <section className="mx-auto flex min-h-[280px] w-full max-w-md flex-col items-center justify-center px-2 py-8 text-center" data-testid="registro-confirmado">
-        <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-white" aria-hidden>
-          <Check className="h-7 w-7" />
-        </span>
-        <h2 className="mt-4 text-xl font-semibold">Registrado</h2>
-        <p className="mt-2 text-[15px] text-[var(--mg-text-1,#0f172a)]" data-testid="registro-confirmado-frase">
-          {frase}
+  /** @param {string} id @param {string|null} areaId */
+  const escolher = (id, areaId) => {
+    if (id === REGISTRO_ABASTECIMENTO) {
+      const registro = registroDoDiaParaAbastecer(apontamentos, areaId, hoje || "");
+      if (!registro) {
+        setAvisoCombustivel("Para registrar o abastecimento, registre antes uma máquina neste lugar.");
+        return;
+      }
+      setAvisoCombustivel("");
+      setAbastecendo({ apontamento: registro, areaId });
+      return;
+    }
+    if (id === REGISTRO_IMPLEMENTO) {
+      onLancar(LINHA_MAQUINA, "dados", areaId, true, "Registrar implemento");
+      return;
+    }
+    onLancar(id, "dados", areaId, true);
+  };
+
+  // A confirmação é um aviso no alto da área (como os avisos das outras telas), não uma tela à parte.
+  // "Escolher" é a mesma tela da área: "O que você quer registrar?" fica ali, junto do que já foi feito.
+  const telaAtual = recado && tela.nome === "cartoes" && recado.areaId ? { nome: "area", id: recado.areaId } : tela;
+  const tela_ = telaAtual.nome === "escolher" ? { nome: "area", id: telaAtual.id } : telaAtual;
+  const fecharRecado = () => {
+    if (recado && tela.nome === "cartoes" && recado.areaId) setTela({ nome: "area", id: recado.areaId });
+    onLimparRecado();
+  };
+  const avisoRecado = recado ? (
+    <AvisoGestao tone="blue" testId="registro-confirmado">
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 text-[13px]" data-testid="registro-confirmado-frase">
+          {fraseDoRegistro({ texto: recado.texto, area: recado.nomeArea, atividade: recado.nomeAtividade })}
         </p>
-        <div className="mt-6 flex w-full flex-col gap-2">
-          <button
-            type="button"
-            className={BOTAO}
-            onClick={() => {
-              onLimparRecado();
-              setTela({ nome: "escolher", id: recado.areaId });
-            }}
-            data-testid="registro-outra"
-          >
-            Registrar outra coisa
-          </button>
-          <button
-            type="button"
-            className={BOTAO_CLARO}
-            onClick={() => {
-              onLimparRecado();
-              setTela(recado.areaId ? { nome: "area", id: recado.areaId } : { nome: "cartoes" });
-            }}
-            data-testid="registro-voltar-area"
-          >
-            Voltar para {recado.nomeArea || "a atividade"}
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  if (tela.nome === "escolher") {
-    const opcoes = opcoesDeRegistro(flags, { abastecimento: podeAbastecer });
-    const nome = nomeDa(tela.id);
-    return (
-      <section className="min-w-0" data-testid="escolher-registro">
-        <button type="button" className="mb-2 inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-emerald-800" onClick={() => setTela(tela.id ? { nome: "area", id: tela.id } : { nome: "cartoes" })}>
-          <ChevronLeft className="h-4 w-4" aria-hidden /> Voltar
+        <button type="button" className={BOTAO_CLARO} onClick={fecharRecado} aria-label="Fechar o aviso" data-testid="registro-voltar-area">
+          <X className="h-4 w-4" aria-hidden /> Fechar
         </button>
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-700">{nome}</p>
-        <h2 className="text-lg font-semibold">O que você quer registrar?</h2>
-        <p className="mb-3 text-[13px] text-[var(--mg-text-2,#475569)]">Uma coisa de cada vez. Depois você pode registrar outra. Tudo entra só nesta área.</p>
-        {avisoCombustivel ? (
-          <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-900" role="alert" data-testid="aviso-abastecimento">
-            {avisoCombustivel}
-          </p>
-        ) : null}
-        <ul className="flex flex-col gap-2">
-          {opcoes.map((o) => (
-            <li key={o.id}>
-              <button
-                type="button"
-                className="b1-aba-cartao w-full min-h-[64px] px-3 py-3 text-left"
-                onClick={() => {
-                  if (o.id === REGISTRO_ABASTECIMENTO) {
-                    const registro = registroDoDiaParaAbastecer(apontamentos, tela.id, hoje || "");
-                    if (!registro) {
-                      setAvisoCombustivel("Para registrar o abastecimento, registre antes uma máquina neste lugar.");
-                      return;
-                    }
-                    setAvisoCombustivel("");
-                    setAbastecendo({ apontamento: registro, areaId: tela.id });
-                    return;
-                  }
-                  if (o.id === REGISTRO_IMPLEMENTO) {
-                    onLancar(LINHA_MAQUINA, "dados", tela.id, true, "Registrar implemento");
-                    return;
-                  }
-                  onLancar(o.id, "dados", tela.id, true);
-                }}
-                data-testid={`escolher-${o.id}`}
-              >
-                <span className="block text-[15px] font-semibold">{o.rotulo}</span>
-                <span className="block text-[12.5px] text-[var(--mg-text-2,#475569)]">{o.detalhe}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        {abastecendo ? (
-          <JanelaAbastecimentoDaArea
-            atividade={atividade}
-            apontamento={abastecendo.apontamento}
-            nomeArea={nome}
-            onFechar={() => setAbastecendo(null)}
-            onGravou={(texto) => onGravouAbastecimento({ texto, areaId: abastecendo.areaId, nomeArea: nome, nomeAtividade: String(atividade?.nome ?? "") })}
-          />
-        ) : null}
-      </section>
-    );
-  }
+      </div>
+    </AvisoGestao>
+  ) : null;
 
-  if (tela.nome === "area") {
-    const area = tela.id ? areas.find((a) => String(a.id) === String(tela.id)) : null;
-    const numeros = tela.id ? totaisDaArea(totais, tela.id) : null;
+  if (tela_.nome === "area") {
+    const area = tela_.id ? areas.find((a) => String(a.id) === String(tela_.id)) : null;
+    const numeros = tela_.id ? totaisDaArea(totais, tela_.id) : null;
     const linha = area ? linhaDaAreaParaExibir(area, numeros) : null;
-    const nome = nomeDa(tela.id);
+    const nome = nomeDa(tela_.id);
     const custoTipo = numeros?.custo_por_tipo ?? totais?.custo_por_tipo ?? null;
-    const grupos = movimentosDaArea(apontamentos, tela.id, custoTipo);
+    const grupos = movimentosDaArea(apontamentos, tela_.id, custoTipo);
     const combustivel = numeros?.combustivel ?? totais?.combustivel ?? null;
     const custoCombustivel = formatarMoedaAtividade(custoTipo?.combustivel) || "";
     const podeRegistrar = podeLancar && (!area || area.status === STATUS_AREA.EM_ANDAMENTO);
     const feita = linha ? linha.feita : formatarAreaExecutadaPlanejada(atividade) ? `${formatarAreaExecutadaPlanejada(atividade)} ha` : "—";
     return (
       <section className="min-w-0" data-testid="detalhe-area">
-        <button type="button" className="mb-2 inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-emerald-800" onClick={() => setTela({ nome: "cartoes" })}>
+        <button type="button" className="mb-2 inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-emerald-800" onClick={() => {
+            setTela({ nome: "cartoes" });
+            if (recado) onLimparRecado();
+          }}>
           <ChevronLeft className="h-4 w-4" aria-hidden /> Áreas
         </button>
+        {avisoRecado}
         <h2 className="text-lg font-semibold" data-testid="detalhe-area-nome">
           {nome}
         </h2>
@@ -249,13 +196,40 @@ export default function FluxoPorArea({
           </ul>
         </section>
         {podeRegistrar ? (
-          <button type="button" className={BOTAO} onClick={() => setTela({ nome: "escolher", id: tela.id })} data-testid="registrar-na-area">
-            + Registrar nesta área
-          </button>
+          <section className="b1-aba-cartao mb-3" aria-label="O que você quer registrar?" data-testid="escolher-registro">
+            <h3 className="mb-1 text-[14px] font-semibold">O que você quer registrar?</h3>
+            <p className="mb-3 text-[12px] text-[var(--mg-text-2,#475569)]">Escolha o tipo e preencha o formulário. Tudo entra só {comAreas ? `em ${nome}` : "nesta atividade"}.</p>
+            {avisoCombustivel ? (
+              <AvisoGestao testId="aviso-abastecimento">{avisoCombustivel}</AvisoGestao>
+            ) : null}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {opcoesDeRegistro(flags, { abastecimento: podeAbastecer }).map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  className={`${BOTAO_CLARO} h-auto flex-col items-start justify-start gap-0 py-2 text-left`}
+                  onClick={() => escolher(o.id, tela_.id)}
+                  data-testid={`escolher-${o.id}`}
+                >
+                  <span className="text-[13px] font-semibold">{o.rotulo}</span>
+                  <span className="text-[12px] font-normal text-[var(--mg-text-2,#475569)]">{o.detalhe}</span>
+                </button>
+              ))}
+            </div>
+          </section>
         ) : null}
-        <button type="button" className={`${BOTAO_CLARO} mt-2`} onClick={() => onAbrirAjustes(tela.id)} data-testid="ajustar-dia">
+        <button type="button" className={BOTAO_CLARO} onClick={() => onAbrirAjustes(tela_.id)} data-testid="ajustar-dia">
           Ajustar um dia
         </button>
+        {abastecendo ? (
+          <JanelaAbastecimentoDaArea
+            atividade={atividade}
+            apontamento={abastecendo.apontamento}
+            nomeArea={nome}
+            onFechar={() => setAbastecendo(null)}
+            onGravou={(texto) => onGravouAbastecimento({ texto, areaId: abastecendo.areaId, nomeArea: nome, nomeAtividade: String(atividade?.nome ?? "") })}
+          />
+        ) : null}
       </section>
     );
   }
@@ -298,7 +272,7 @@ export default function FluxoPorArea({
           </button>
         ) : null}
         {emAndamento && podeLancar ? (
-          <button type="button" className={BOTAO} onClick={() => setTela({ nome: "escolher", id })} data-testid={id ? `registrar-area-${id}` : "registrar-area-unica"}>
+          <button type="button" className={BOTAO} onClick={() => setTela({ nome: "area", id })} data-testid={id ? `registrar-area-${id}` : "registrar-area-unica"}>
             Registrar nesta área
           </button>
         ) : null}
@@ -313,6 +287,7 @@ export default function FluxoPorArea({
 
   return (
     <section className="min-w-0" data-testid="fluxo-por-area">
+      {avisoRecado}
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="fluxo-resumo">
         <p className="b1-aba-cartao px-3 py-2">
           <span className="block text-[11px] text-[var(--mg-text-2,#475569)]">Custo total</span>

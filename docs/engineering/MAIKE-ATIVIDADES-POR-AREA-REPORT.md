@@ -62,3 +62,27 @@ O backend, se for o mesmo da porta 3333 que já está no ar, não precisa de out
 | Testes novos | `tests/smoke/atividadeFluxoCampo.test.js` (4), `LL-ABAST-AREA-1` e `-2` (abastecimento pela área, permissão), implemento em `LA-RAIO-2` |
 
 Palavras da confirmação: "Registro salvo. Foi anotado em Pasto 01, na atividade Adubação."
+
+## 6. Ajuste do visual (feedback do proprietário)
+
+O caminho foi aprovado; o visual dos lançamentos, não ("parecia tudo feito só para celular; abre janela atrás de janela, uma pergunta por tela"). A entrega passa a reusar o padrão que o app já tem.
+
+**Padrão adotado (lido no código, não suposto):**
+
+| Peça | Componente |
+|---|---|
+| Janela do lançamento por tipo (abas, cabeçalho, dia, rodapé Voltar / Salvar / Confirmar) | `JanelaLancamentoPorTipo` + `B1Janela` (já responsiva; tela cheia só no celular, como no resto do app) |
+| Formulários de máquina, implemento, produto, mão de obra e serviço | `JanelasDaLinha` (`JanelaLinhaMaquina`, `JanelaLinhaProduto`, `JanelaLinhaMaoObra`, `JanelaLinhaServico`) com `CampoSelect`, `CampoDia`, `CampoNumero` |
+| Abastecimento | `FormularioAbastecimento` + `DialogoPreviaAbastecimento` (`useFluxoAbastecimento`) |
+| Botões e avisos | `BOTAO_PRIMARIO` / `BOTAO_SECUNDARIO`, `AvisoGestao`, cartão `b1-aba-cartao` |
+
+**O que mudou (só `FluxoPorArea.jsx`):**
+
+- some a tela "O que você quer registrar?" à parte: ela virou uma seção dentro da tela da área, em grade de 1, 2 ou 3 colunas conforme a largura;
+- a confirmação deixou de ser uma tela cheia com botões grandes: é um aviso no alto da área, com a mesma frase ("Foi anotado em …") e o botão Fechar;
+- botões no tamanho padrão do app (sem `min-h-12 w-full`);
+- cada opção abre direto o formulário de sempre (um passo a menos).
+
+**Mantido:** fluxo tipo → áreas → área → registrar; agrupamento por tipo; totais por área; frases em português simples; assistente de três passos para abrir a atividade; testids. Backend, API e migrations **sem mudança**. A `20261118100000_atividade_areas` continua **não aplicada** em produção (o proprietário pediu para não migrar ainda).
+
+Verificação desta rodada: testes de lançamento 161 passam; `npm run test:smoke` 3.665 passam e 3 falham (LD-1, LD-2, LD-3 em `lancamentoSuplementacaoDataFazenda.test.jsx`, fuso do relógio, já falhavam antes); `verify:all` passa em tudo, exceto `test:backend` (sem PostgreSQL aqui) e esse `test:smoke`.
