@@ -15,7 +15,7 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-:is(.mk-mapa-btn--solo, .mk-mapa-chip, .mk-mapa-pilha):not(#mk-padrao) { border-radius: 999px; }
+:is(.mk-mapa-btn--solo, .mk-mapa-pilha):not(#mk-padrao) { border-radius: 999px; }
 /* Pilha (atualizar / localização / movimentos): cápsula que recorta os botões. */
 .mk-mapa-pilha:not(#mk-padrao) {
   overflow: hidden;
@@ -33,11 +33,10 @@
 .mk-mapa-btn:not(#mk-padrao),
 .mk-mapa-btn.is-on:not(#mk-padrao),
 .mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao),
-.mk-mapa-chip:not(#mk-padrao),
 .mk-mapa-camada.is-on:not(#mk-padrao) { color: var(--mkq-292a2d, #292a2d); }
 .mk-mapa-btn.is-on:not(#mk-padrao),
 .mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao) { background: rgba(64, 222, 99, 0.14); }
-:is(.mk-mapa-btn, .mk-mapa-chip, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg:not(.mk-al__img) {
+:is(.mk-mapa-btn, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg:not(.mk-al__img) {
   width: var(--mk-action-icon);
   height: var(--mk-action-icon);
   stroke-width: var(--mk-action-stroke, 2.25);
@@ -45,7 +44,6 @@
 }
 .mk-mapa-camadas__menu:not(#mk-padrao),
 .mk-map-filter-sheet:not(#mk-padrao),
-.mk-map-dialog:not(#mk-padrao),
 :is(.mk-al__painel, .mk-al__folha):not(#mk-padrao) { background: var(--mk-sup-fundo); }
 .mk-mapa-camadas__opcoes:not(#mk-padrao) { background: #fff; padding: 8px; border-radius: 14px; }
 .mk-mapa-camadas__x:not(#mk-padrao) {
@@ -161,7 +159,6 @@ button[data-mk-map-action]:not(#mk-padrao) svg {
 .mk-vis__lista li + li { border-top: 0; }
 .mk-vis__linha:not(#mk-padrao) { min-height: 44px; }
 .mk-vis__linha-ic { width: 16px; height: 16px; }
-.mk-map-details:not(#mk-padrao) { background: var(--mk-sup-fundo); padding: 8px; }
 .mk-map-legend:not(#mk-padrao) { background: #fff; border-radius: 14px; box-shadow: var(--mk-btn-sombra); }
 .mk-map-legend > button { min-height: 36px; }
 .mk-map-legend > button svg { width: 16px; height: 16px; }
@@ -255,10 +252,6 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 @media (max-width: 639px) {
   .mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao) { box-shadow: 0 -16px 0 var(--mk-sup-fundo); }
 }
-
-/* Tarefas/Filtros do mapa: apenas ícone; nome acessível preservado. */
-.mk-mapa-chip:not(#mk-padrao) { width: var(--mk-mapa-alto); min-width: var(--mk-mapa-alto); padding: 0; justify-content: center; }
-.mk-mapa-chip__txt { display: none; }
 
 /* O modal ocupa a viewport; só o painel interno tem largura/rolagem lateral.
    Assim, seletores filhos não herdam o recorte nem o transform do drawer. */

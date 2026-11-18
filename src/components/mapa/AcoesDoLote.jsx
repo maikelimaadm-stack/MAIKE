@@ -1,41 +1,30 @@
 import React from "react";
-import { createPortal } from "react-dom";
-import { ChevronDown, LayoutGrid } from "lucide-react";
-import { useMediaQuery } from "@/components/common/MobileSheet";
-import { LancLoteDialogo, useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import "@/styles/acoes-lote-modulos.css";
 
 /**
  * Manejos e Históricos do Detalhes do Lote (D-PROD-119), em quadros (ícone em
- * cima, nome embaixo — como o "Adicionar contexto" do app do Claude), em
- * grupos separados; cada quadro abre a ação com um clique.
- * - celular: um botão só, "Manejos e históricos", abre a folha de baixo (✕ e título);
- *   dentro do diálogo ele fica no alto, à direita (espelho do ✕) (D-PROD-120);
- * - tablet/desktop: os quadros ficam à vista, menores, embaixo do Detalhes do Lote.
+ * cima, nome embaixo), em grupos separados; cada quadro abre a ação com um
+ * clique. D-PROD-218: é só a grade — quem a mostra é a tela empilhada
+ * "Manejos e históricos" da casca (aberta pelo "Manejos" do rodapé), com 3
+ * colunas em todos os modos. Ordem alfabética; o desabilitado continua visível
+ * com o motivo no `title`.
  *
  * @param {{ grupos: Array<{ titulo: string, itens: Array<{ nome: string, rotulo?: string, Icone: React.ComponentType<any>, onClick: () => void, disabled?: boolean, motivoBloqueio?: string }> }> }} props
  */
 export default function AcoesDoLote({ grupos }) {
-  const celular = useMediaQuery("(max-width: 639px)");
-  const [aberto, setAberto] = React.useState(false);
-  const slot = useLancLoteDialogo()?.slotDireito || null;
   const visiveis = grupos.filter((g) => g.itens.length > 0).map((g) => ({ ...g, itens: [...g.itens].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" })) }));
   if (!visiveis.length) return null;
 
-  const escolher = (onClick) => {
-    setAberto(false);
-    onClick();
-  };
-
-  const conteudo = (
-    <div className="mk-al__grupos">
+  return (
+    <div className="mk-al mk-acoes-modulos">
       {visiveis.map((g) => (
         <section key={g.titulo} className="mk-al__grupo" aria-label={g.titulo}>
           <h3 className="mk-al__grupo-titulo">{g.titulo}</h3>
           <div className="mk-al__quadros">
             {g.itens.map(({ nome, rotulo, Icone, onClick, disabled = false, motivoBloqueio }) => (
-              <button key={nome} type="button" className="mk-al__quadro" disabled={disabled} onClick={() => { if (!disabled) escolher(onClick); }} aria-label={rotulo || nome} title={disabled && motivoBloqueio ? motivoBloqueio : rotulo || nome}>
-                <Icone aria-hidden />
-                <span>{nome}</span>
+              <button key={nome} type="button" className="mk-al__quadro" disabled={disabled} onClick={() => { if (!disabled) onClick(); }} aria-label={rotulo || nome} title={disabled && motivoBloqueio ? motivoBloqueio : rotulo || nome}>
+                <span className="mk-al__icone" aria-hidden="true"><Icone /></span>
+                <span className="mk-al__nome">{nome}</span>
               </button>
             ))}
           </div>
@@ -43,28 +32,4 @@ export default function AcoesDoLote({ grupos }) {
       ))}
     </div>
   );
-
-  const gatilho = slot ? (
-    <button type="button" className="mk-ll-dlg__redondo mk-al__redondo" aria-haspopup="dialog" aria-expanded={aberto} aria-label="Manejos e históricos" title="Manejos e históricos">
-      <LayoutGrid aria-hidden />
-    </button>
-  ) : (
-    <button type="button" className="mk-al__botao" aria-haspopup="dialog" aria-expanded={aberto}>
-      <LayoutGrid aria-hidden />
-      <span>Manejos e históricos</span>
-      <ChevronDown aria-hidden className="mk-al__chev" />
-    </button>
-  );
-
-  if (celular) {
-    const botao = React.cloneElement(gatilho, { onClick: () => setAberto(true) });
-    return <>
-      {slot ? createPortal(botao, slot) : botao}
-      <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Manejos e históricos" somenteLeitura folhaMobile>
-        <div className="mk-map-action-choices mk-dl8-folha">{conteudo}</div>
-      </LancLoteDialogo>
-    </>;
-  }
-
-  return <div className="mk-al--embaixo">{conteudo}</div>;
 }

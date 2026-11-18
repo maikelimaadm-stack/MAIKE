@@ -20,6 +20,10 @@
  *  - auditoria por allowlist (`comoAuditoriaFornecedor`): sem documento, contato,
  *    endereço, nome ou texto livre — só identificadores, situação e papéis.
  *  - `GET /fornecedores` (seletor do Cadastro de Lotes, projeção sem PII) não muda.
+ *  - D-PROD-208: papel `funcionario` com os dados do funcionário (`funcionario_tipo`,
+ *    `funcionario_cargo`, `funcionario_custo_hora`, `funcionario_custo_diaria`):
+ *    aceitos só com o papel nos papéis finais (sem ele → 422
+ *    `PARCEIRO_FUNCIONARIO_SEM_PAPEL`); tirar o papel limpa os quatro.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -29,14 +33,15 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { decodificarCursor, normalizarLimite, montarEnvelopeKeyset, clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
 import {
-  PAPEIS, camposAlterados, cnpjValido, comoAuditoriaFornecedor, cpfValido, digitos, exigirDocumentoLivre, lerPapeis,
+  PAPEIS, TIPOS_FUNCIONARIO, aplicarPapelFuncionario, camposAlterados, cnpjValido, comoAuditoriaFornecedor, cpfValido, custo4,
+  dadosFuncionarioDoCorpo, digitos, exigirDocumentoLivre, lerPapeis,
 } from '../fornecedores/fornecedorDominio.js';
 import { exigirEmpresaDoTenant, invalido, iso, textoDoCorpo } from './gestaoComum.js';
 
 /** Mesma sequência do cadastro de Fornecedor: um só contador de código. */
 export const ENTIDADE_SEQUENCIA = 'Fornecedor';
 
-export { PAPEIS, lerPapeis };
+export { PAPEIS, TIPOS_FUNCIONARIO, lerPapeis };
 export const TIPOS_PESSOA = Object.freeze(['Física', 'Jurídica']);
 
 export { cpfValido, cnpjValido };
@@ -75,6 +80,11 @@ export const comoParceiroPublico = (r) => {
     observacoes: r.observacoes ?? null,
     papeis,
     tipos_legados: legados,
+    // D-PROD-208 — dados do papel funcionário (nulos sem o papel).
+    funcionario_tipo: r.funcionario_tipo ?? null,
+    funcionario_cargo: r.funcionario_cargo ?? null,
+    funcionario_custo_hora: custo4(r.funcionario_custo_hora),
+    funcionario_custo_diaria: custo4(r.funcionario_custo_diaria),
     ativo: r.ativo,
     created_date: iso(r.createdAt),
     updated_date: iso(r.updatedAt),
@@ -113,7 +123,7 @@ const dadosDoCorpo = (entrada, { criacao }) => {
     } else d.data_nascimento = new Date(`${entrada.data_nascimento}T00:00:00Z`);
   }
   if (entrada.ativo !== undefined) d.ativo = entrada.ativo === true;
-  return d;
+  return { ...d, ...dadosFuncionarioDoCorpo(entrada) };
 };
 
 const papeisDoCorpo = (papeis) => {
@@ -121,7 +131,7 @@ const papeisDoCorpo = (papeis) => {
   if (!Array.isArray(papeis) || papeis.some((p) => !PAPEIS.includes(p))) throw invalido(`papeis aceita só ${PAPEIS.join(', ')}`, { field: 'papeis', reason: 'papel_invalido' });
   // B4/R2: todo parceiro gravado por esta API tem ao menos um papel. `tipos=[]`
   // fica só para o legado (lido como fornecedor por retrocompatibilidade).
-  if (!papeis.length) throw invalido('informe ao menos um papel (fornecedor, cliente, prestador de serviço, transportador ou outros)', { field: 'papeis', reason: 'papel_obrigatorio' });
+  if (!papeis.length) throw invalido('informe ao menos um papel (fornecedor, cliente, prestador de serviço, transportador, funcionário ou outros)', { field: 'papeis', reason: 'papel_obrigatorio' });
   return PAPEIS.filter((p) => papeis.includes(p));
 };
 
@@ -186,6 +196,7 @@ export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const dados = dadosDoCorpo(entrada, { criacao: true });
   const papeis = papeisDoCorpo(entrada.papeis ?? []);
+  Object.assign(dados, aplicarPapelFuncionario(dados, papeis));
   return getPrismaClient().$transaction(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada.empresa_id);
     await exigirDocumentoLivre(tx, auth.clienteId, empresaId, 'cpf', dados.cpf);
@@ -213,6 +224,14 @@ export const atualizar = async (contexto, id, entrada) => {
     if (dados.cpf !== undefined && dados.cpf === digitos(antes.cpf)) delete dados.cpf; // mesmo documento (só formatação): não regrava
     if (dados.cnpj !== undefined && dados.cnpj === digitos(antes.cnpj)) delete dados.cnpj;
     if (papeis !== undefined) dados.tipos = [...papeis, ...lerPapeis(antes.tipos).legados]; // valores antigos desconhecidos ficam
+    // D-PROD-208: dados do funcionário só com o papel (o final: o enviado ou o gravado); tirar o papel limpa.
+    Object.assign(dados, aplicarPapelFuncionario(dados, dados.tipos ?? antes.tipos, antes));
+    for (const campo of ['funcionario_custo_hora', 'funcionario_custo_diaria']) {
+      if (dados[campo] !== undefined && dados[campo] === custo4(antes[campo])) delete dados[campo]; // mesmo valor: não regrava
+    }
+    for (const campo of ['funcionario_tipo', 'funcionario_cargo']) {
+      if (dados[campo] !== undefined && dados[campo] === (antes[campo] ?? null)) delete dados[campo];
+    }
     if (!Object.keys(dados).length) return comoParceiroPublico(antes);
     const depois = await tx.fornecedor.update({ where: { cliente_id_id: { cliente_id: auth.clienteId, id } }, data: dados });
     await registrarEvento(

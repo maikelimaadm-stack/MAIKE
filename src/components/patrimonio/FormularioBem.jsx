@@ -31,11 +31,15 @@ import {
   medidorCorrigivel,
   mostraLeituraAtual,
   rotuloDoCentro,
+  usaCustoDeUso,
   validarBem,
 } from "@/components/patrimonio/bemFormulario";
 
 export const FORMULARIO_BEM_ID = "formulario-bem-patrimonial-base1";
 const FORMULARIO_TIPO_RAPIDO_ID = "formulario-tipo-rapido-bem";
+
+/** D-PROD-202: unidade do "Custo por hora/km" pelo medidor do bem (snapshot na linha de máquina da atividade). */
+const SUFIXO_DO_CUSTO = /** @type {Record<string, string>} */ ({ HORIMETRO: "R$/h", ODOMETRO: "R$/km", CICLOS: "R$/ciclo" });
 
 /** @typedef {import('./bemFormulario').EstadoBem} EstadoBem */
 /** @typedef {import('./TanquesBem').ProdutoRecusado} ProdutoRecusado */
@@ -80,13 +84,17 @@ function CadastroRapidoTipoBem({ pedido, onFechar, onEscolher }) {
     onFechar();
   };
 
-  /** @param {{ natureza: string, nome: string }} dados */
+  /** @param {{ natureza: string, nome: string, salto_maximo_medidor?: string|null }} dados */
   const salvar = async (dados) => {
     if (!pedido || salvando) return;
     setSalvando(true);
     setDuplicado(null);
     try {
-      const criado = await criarCatalogo(RECURSOS_CATALOGO.TIPOS, { natureza: pedido.natureza, nome: dados.nome });
+      const criado = await criarCatalogo(RECURSOS_CATALOGO.TIPOS, {
+        natureza: pedido.natureza,
+        nome: dados.nome,
+        salto_maximo_medidor: dados.salto_maximo_medidor ?? null,
+      });
       await queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_PATRIMONIO });
       notifySuccess("Sucesso", "Tipo criado");
       onEscolher(criado);
@@ -447,13 +455,27 @@ export default function FormularioBem({
         hoje={hoje}
         motivoFixo={
           medidorOperacional
-            ? `Há leitura registrada por abastecimento: o tipo e a leitura inicial não mudam, e um ajuste não pode ser menor que ${formatarNumero(
+            ? `Há leitura registrada por ${medidorOperacional.origem === "ATIVIDADE" ? "lançamento de atividade" : "abastecimento"}: o tipo e a leitura inicial não mudam, e um ajuste não pode ser menor que ${formatarNumero(
                 String(medidorOperacional.leitura ?? ""),
                 { locale: LOCALE_BEM, casasMin: 0, casasMax: 4 },
               )} nem anterior a ${formatarDia(medidorOperacional.data, LOCALE_BEM)}.`
             : null
         }
       />
+      {usaCustoDeUso(natureza) ? (
+        <CampoNumero
+          label="Custo por hora/km"
+          sufixo={SUFIXO_DO_CUSTO[form.medidor.tipo] ?? "R$"}
+          value={form.custo_uso_unitario}
+          onChange={(v) => set("custo_uso_unitario", v)}
+          locale={LOCALE_BEM}
+          limites={LIMITES_BEM.MEDIDA}
+          readOnly={readOnly}
+          span={4}
+          error={erros.custo_uso_unitario || null}
+          testId="bem-custo-uso"
+        />
+      ) : null}
       {cap?.tanques ? (
         <>
           <SecaoForm titulo="Tanques" />

@@ -34,7 +34,8 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar } from './areaPastagemService.js';
+import { listar, criar, atualizar, renumerar } from './areaPastagemService.js';
+import { exigirParametrosSemCoercao } from '../culturas/culturaService.js';
 import { porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 /** Enums fechados do cadastro, herdados de `base44/entities/AreaPastagem.jsonc`. */
@@ -64,6 +65,9 @@ const CAMPOS = Object.freeze({
   area_pastejada: { type: ['number', 'null'], minimum: 0, maximum: 99999999.9999 },
   capacidade_maxima: { type: ['number', 'null'], minimum: 0, maximum: 99999999.9999 },
   tipo_pastagem: { type: ['string', 'null'], maxLength: 128 },
+  // D-PROD-216 — cultura do cadastro de Culturas da MESMA fazenda; `null` desliga.
+  // Com cultura, o servidor deriva `tipo_pastagem` do nome dela (o enviado é ignorado).
+  cultura_id: { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '\\S' },
   aproveitamento_classificacao: { type: 'string', enum: CLASSIFICACOES },
   tipo_cultura: { type: 'string', enum: CULTURAS },
   cor: { type: ['string', 'null'], maxLength: 32 },
@@ -80,7 +84,16 @@ const CAMPOS = Object.freeze({
   coordenadas: { type: ['object', 'null'] },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
+  // D-PROD-223 — parâmetros próprios do pasto (vazio = os da cultura): número, texto
+  // pt-BR ("25,5") ou null. A faixa é do serviço; o booleano, que o AJV coagiria, é
+  // barrado antes por `parametrosSemCoercao`.
+  altura_entrada_cm: { type: ['number', 'string', 'null'], maxLength: 16 },
+  altura_saida_cm: { type: ['number', 'string', 'null'], maxLength: 16 },
+  dias_descanso: { type: ['integer', 'string', 'null'], maxLength: 4 },
 });
+
+/** @param {import('fastify').FastifyRequest} request */
+const parametrosSemCoercao = async (request) => exigirParametrosSemCoercao(request.body);
 
 const CRIAR_SCHEMA = {
   body: {
@@ -119,6 +132,35 @@ const ATUALIZAR_SCHEMA = {
 };
 
 /**
+ * Renumeração explícita (G4). `numero_area` continua fora do PATCH genérico: a
+ * reatribuição de códigos é uma operação própria, em lote e atômica, para que
+ * trocar códigos entre áreas (1↔2) não colida no unique no meio do caminho.
+ */
+const RENUMERAR_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['itens'],
+    additionalProperties: false,
+    properties: {
+      itens: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 5000,
+        items: {
+          type: 'object',
+          required: ['id', 'numero_area'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
+            numero_area: { type: 'string', minLength: 1, maxLength: 32, pattern: '\\S' },
+          },
+        },
+      },
+    },
+  },
+};
+
+/**
  * O corpo já passou pelo schema quando chega aqui.
  *
  * A afirmação é sobre esse fato, não um `any` para calar o compilador: o
@@ -138,7 +180,7 @@ export const registrarAreaPastagemRoutes = async (app) => {
 
   app.post(
     '/areas-pastagem',
-    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'novo')], schema: CRIAR_SCHEMA },
+    { onRequest: [app.autenticar], preValidation: [parametrosSemCoercao], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'novo')], schema: CRIAR_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const area = await criar(request.contexto, corpoValidado(request.body));
@@ -146,9 +188,18 @@ export const registrarAreaPastagemRoutes = async (app) => {
     }
   );
 
+  app.post(
+    '/areas-pastagem/renumerar',
+    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], schema: RENUMERAR_SCHEMA },
+    async (request) => {
+      exigirAuthContext(request.contexto.auth);
+      return renumerar(request.contexto, /** @type {any} */ (corpoValidado(request.body)));
+    }
+  );
+
   app.patch(
     '/areas-pastagem/:id',
-    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], schema: ATUALIZAR_SCHEMA },
+    { onRequest: [app.autenticar], preValidation: [parametrosSemCoercao], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], schema: ATUALIZAR_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

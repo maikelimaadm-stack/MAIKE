@@ -10,6 +10,11 @@
  * Contrato: os botões do bebedouro são controlados explicitamente pela regra
  * do servidor (`src/lib/bebedouroPermissions.js`) e ficam fora da heurística.
  *
+ * D-PROD-222: "Lançar" e "Histórico" abrem num diálogo por cima da página, como
+ * os manejos do lote; quem envia é o ✓ do cabeçalho ("Registrar Lançamento"),
+ * fora do <form>. O Layout lê o texto de qualquer botão desta tela: o ✓ não
+ * pode ser barrado para quem o servidor aceita.
+ *
  * Mocks só nas bordas: API de sessão, rede (`nativeRequest`), cache local do
  * mapa e o `toast`.
  */
@@ -89,10 +94,16 @@ const abrirRegistroNaTela = async () => {
   });
   const celula = (await screen.findAllByText('BEBEDOURO NORTE', {}, { timeout: 4000 }))[0];
   await act(async () => { fireEvent.doubleClick(celula); });
-  await screen.findByText(/Local: BEBEDOURO NORTE/);
+  // Desenho v12 (D-PROD-220): o detalhe abre com o cartão do bebedouro e o "Resumo operacional".
+  await screen.findByRole('group', { name: 'Resumo operacional' });
+  expect(document.querySelector('.mk-dp .mk-dp-cartao__titulo')?.textContent).toBe('BEBEDOURO NORTE');
+  // A página já tem o cabeçalho do registro: a casca do detalhe fica sem o próprio (`semCabecalho`).
+  expect(document.querySelector('.mk-dp-cab')).toBeNull();
 };
 const bloqueio = () => screen.queryByText(/Você não tem permissão para/);
 const posts = () => rede.chamadas.filter((c) => c.metodo === 'POST');
+/** O diálogo aberto por cima da página (o último do documento). */
+const porCima = () => /** @type {HTMLElement | undefined} */ ([...document.querySelectorAll('.mk-ll-dlg')].at(-1));
 
 beforeEach(() => {
   cleanup();
@@ -105,12 +116,15 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-describe('BEB-04 — tela Bebedouros: "Lançar"/"Salvar lançamento" seguem o servidor (novo OU salvar)', () => {
-  it('só "novo": abre o formulário e salva (o servidor aceita "novo")', async () => {
+describe('BEB-04 — tela Bebedouros: "Lançar" e o ✓ "Registrar Lançamento" seguem o servidor (novo OU salvar)', () => {
+  it('só "novo": abre o formulário por cima da página e o ✓ do cabeçalho grava (o servidor aceita "novo")', async () => {
     sessao.permissoes = [comBebedouros({ novo: true })];
     await abrirRegistroNaTela();
     fireEvent.click(screen.getByRole('button', { name: 'Lançar' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Salvar lançamento/ }));
+    const ok = await screen.findByRole('button', { name: 'Registrar Lançamento' });
+    expect(porCima()?.querySelector('.mk-ll-dlg__titulo')?.textContent).toBe('Lançamento no Bebedouro');
+    expect(ok.closest('.mk-ll-dlg__head'), 'o ✓ fica no cabeçalho do diálogo, fora do <form>').toBeTruthy();
+    fireEvent.click(ok);
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Lançamento registrado.'));
     expect(bloqueio(), 'a heurística de texto não barra o envio').toBeNull();
     expect(posts()).toHaveLength(1);
@@ -122,8 +136,23 @@ describe('BEB-04 — tela Bebedouros: "Lançar"/"Salvar lançamento" seguem o se
     await abrirRegistroNaTela();
     fireEvent.click(screen.getByRole('button', { name: 'Lançar' }));
     expect(bloqueio()).toBeNull();
-    fireEvent.click(await screen.findByRole('button', { name: /Salvar lançamento/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar Lançamento' }));
     await waitFor(() => expect(posts()).toHaveLength(1));
+    expect(bloqueio()).toBeNull();
+  });
+
+  it('"Histórico" abre por cima da página (D-PROD-222) e o ✕ devolve o registro aberto', async () => {
+    sessao.permissoes = [comBebedouros({})];
+    await abrirRegistroNaTela();
+    fireEvent.click(screen.getByRole('button', { name: 'Histórico' }));
+    await waitFor(() => expect(porCima()?.querySelector('.mk-ll-dlg__titulo')?.textContent).toBe('Histórico do Bebedouro'));
+    expect(porCima()?.querySelector('.mk-ll-dlg__lotes')?.textContent).toBe('BEBEDOURO NORTE');
+    expect(screen.getByText('Nenhum lançamento encontrado.')).toBeTruthy();
+    expect(bloqueio()).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(document.querySelector('.mk-ll-dlg')).toBeNull());
+    expect(screen.getByRole('group', { name: 'Resumo operacional' })).toBeTruthy();
+    expect(document.querySelector('.mk-dp .mk-dp-cartao__titulo')?.textContent).toBe('BEBEDOURO NORTE');
   });
 
   it('só "visualizar": "Lançar" não aparece (o servidor recusaria)', async () => {

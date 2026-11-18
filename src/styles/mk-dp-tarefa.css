@@ -1,0 +1,96 @@
+/*
+ * Detalhe da tarefa no desenho do Detalhes do Lote v12 (D-PROD-220, tela
+ * `telaTarefa`; src/components/mapa/DetalhesTarefaMapa.jsx). O comum — casca,
+ * cartão, grade, linha, chip, títulos e rodapé — está em mk-detalhes-pasto.css,
+ * e a linha do tempo (com o estado "Carregando histórico...") em
+ * mk-dp-historico.css. Aqui só o que é da tarefa, tudo sob a raiz `.mk-dp`:
+ *   - as cores do chip do status (v12 `.v11-chip--t0…t3`);
+ *   - a descrição: texto que quebra com entrelinha 1,4 (v12 `.v11-row--quebra`
+ *     sem valor) e "Sem descrição." apagada (v12 `.v11-row--fraco`);
+ *   - descrição e observações vêm de caixas de texto: as quebras de linha ficam;
+ *   - a galeria de fotos de hoje (`FotosTarefaGaleria`) no cartão do v12, sem
+ *     o título dela (o da seção, "Fotos", já diz; as miniaturas seguem numeradas);
+ *   - texto só para o leitor de tela (o "(vencido)" do prazo, que na tela é a cor).
+ *
+ * Marcação:
+ *   div.mk-dp.mk-dp-tarefa > div.mk-dp__corpo
+ *     > .mk-dp-cartao (cabeçalho: ícone, título, sub e
+ *         span.mk-dp-chip.mk-dp-tarefa__status.mk-dp-tarefa__status--pendente|--andamento|--concluida|--cancelada)
+ *     + .mk-dp-titulo + .mk-dp-cartao > dl.mk-dp-grade (Prazo vencido: dd > span.mk-dp-tarefa__leitor)
+ *     + .mk-dp-titulo + .mk-dp-cartao.mk-dp-tarefa__textos
+ *         > .mk-dp-linha.mk-dp-tarefa__descricao(.mk-dp-tarefa__fraco) + .mk-dp-linha (Observações, Obs. conclusão)
+ *     + [.mk-dp-titulo + div.mk-dp-tarefa__fotos > galeria]
+ *     + .mk-dp-titulo + ol.mk-dp-tl | div.mk-dp-hist__estado | .mk-dp-vazio
+ */
+
+/* ── Chip do status (cores do v12) ────────────────────────────────────── */
+.mk-dp .mk-dp-chip.mk-dp-tarefa__status--pendente {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.mk-dp .mk-dp-chip.mk-dp-tarefa__status--andamento {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.mk-dp .mk-dp-chip.mk-dp-tarefa__status--concluida {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mk-dp .mk-dp-chip.mk-dp-tarefa__status--cancelada {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* ── Descrição e observações ──────────────────────────────────────────── */
+.mk-dp .mk-dp-tarefa__textos .mk-dp-linha :is(.mk-dp-linha__rot, .mk-dp-linha__val) {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.mk-dp .mk-dp-tarefa__textos .mk-dp-tarefa__descricao .mk-dp-linha__rot {
+  line-height: 1.4;
+}
+
+.mk-dp .mk-dp-tarefa__textos .mk-dp-tarefa__fraco .mk-dp-linha__rot {
+  color: #6b7280;
+  font-size: 11.5px;
+}
+
+/* ── Galeria de fotos de hoje no cartão do v12 ────────────────────────── */
+.mk-dp .mk-dp-tarefa__fotos {
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-tarefa__fotos > div:first-child {
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(20, 20, 19, 0.1);
+}
+
+/* O título da galeria ("FOTOS (n)") sai; a grade das miniaturas sobe junto. */
+.mk-dp .mk-dp-tarefa__fotos > div:first-child > div:first-child:has(> p) {
+  display: none;
+}
+
+.mk-dp .mk-dp-tarefa__fotos > div:first-child > div:first-child:has(> p) + * {
+  margin-top: 0;
+}
+
+/* ── Só para o leitor de tela ─────────────────────────────────────────── */
+.mk-dp .mk-dp-tarefa__leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

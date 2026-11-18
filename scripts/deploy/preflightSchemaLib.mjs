@@ -37,6 +37,10 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-187: CategoriaManejo é a tabela física CADCATEGORIA (@@map) e o vínculo com o ícone saiu do banco.
   // O runtime desta PR lê CADCATEGORIA; sem ela (ou com o nome antigo) a Categoria de Manejo responde 500.
   ['CADCATEGORIA', 'idade_minima_meses'],
+  // D-PROD-195: a Categoria de Manejo lê e grava a curva de ganho obrigatória; sem a coluna, a categoria responde 500.
+  ['CADCATEGORIA', 'curva_ganho_id'],
+  // D-PROD-198: a categoria lê e grava o peso objetivo; a lista de posições projeta o peso com ele.
+  ['CADCATEGORIA', 'peso_objetivo_kg'],
   // MAIKE-LOTES-R1: a listagem de lotes filtra `excluido_em IS NULL`.
   ['Lote', 'excluido_em'],
   ['Lote', 'excluido_por_usuario_id'],
@@ -49,6 +53,63 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AbastecimentoBem', 'quantidade'],
   ['AbastecimentoBem', 'unidade'],
   ['TanqueBemProduto', 'produto_id'],
+  // D-PROD-200: o Lançamento de Atividades lê e grava a atividade (cabeçalho) e o apontamento do dia; sem as 2 tabelas
+  // (a migration CONTRACT da Atividade cabeçalho ainda não aplicada), a tela nova responde 500.
+  ['Atividade', 'unidade_producao_sigla'],
+  ['AtividadeApontamento', 'sequencia'],
+  // D-PROD-202 (Fatia 3): as linhas de produto e de máquina do apontamento, o custo de uso do bem e o teto do salto do
+  // medidor; sem a migration EXPAND das linhas, o apontamento novo responde 500.
+  ['AtividadeApontamentoProduto', 'movimentacao_estoque_id'],
+  ['AtividadeApontamentoProdutoConsumoLote', 'estoque_lote_nota_id'],
+  ['AtividadeApontamentoMaquina', 'quantidade_uso'],
+  ['BemPatrimonial', 'custo_uso_unitario'],
+  ['TipoPatrimonial', 'salto_maximo_medidor'],
+  // D-PROD-203: o cadastro de Formulações e o lançamento de suplementação (formulação obrigatória) leem as 3 tabelas
+  // novas; sem a migration `20261114700000_cadformulacao`, a tela e as opções do lançamento respondem 500.
+  ['CADFORMULACAO', 'percentual_pv_padrao'],
+  ['CADFORMULACAOINGREDIENTE', 'quantidade_kg'],
+  ['CADFORMULACAOREGRA', 'consome'],
+  // D-PROD-205: a leitura de cocho e o farol do mapa leem a tabela nova; sem a migration
+  // `20261115100000_leitura_cocho`, `/leituras-cocho` responde 500.
+  ['LEITURACOCHO', 'escore'],
+  // D-PROD-206: a Formulação lê e grava a faixa do farol de consumo; sem a migration
+  // `20261115200000_formulacao_faixa_tolerancia`, `/formulacoes` responde 500.
+  ['CADFORMULACAO', 'faixa_tolerancia_percentual'],
+  // D-PROD-207 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
+  // apontamento; sem a migration EXPAND da mão de obra e do serviço, os cadastros e o apontamento novo respondem 500.
+  // D-PROD-208: a tabela Funcionario saiu (o funcionário é papel do parceiro); o cadastro de parceiros lê os dados do
+  // papel e a linha de mão de obra aponta para o parceiro com a origem; sem a migration CONTRACT
+  // `20261116000000_mao_obra_parceiro`, Parceiros e o apontamento respondem 500.
+  ['Servico', 'unidade_medida_id'],
+  ['AtividadeApontamentoMaoObra', 'tipo_medida'],
+  ['AtividadeApontamentoServico', 'fornecedor_parceiro_id'],
+  ['Fornecedor', 'funcionario_tipo'],
+  ['AtividadeApontamentoMaoObra', 'parceiro_id'],
+  ['AtividadeApontamentoMaoObra', 'origem'],
+  // D-PROD-210: a base do consumo da Formulação e os gramas da regra; sem a migration
+  // `20261116200000_formulacao_base_consumo`, `/formulacoes` responde 500.
+  ['CADFORMULACAO', 'base_consumo'],
+  ['CADFORMULACAOREGRA', 'g_cab_dia'],
+  // D-PROD-215: o Cadastro de Culturas lê e grava a tabela nova; sem a migration
+  // `20261116500000_cadculturas`, `/culturas` responde 500.
+  ['CADCULTURAS', 'altura_entrada_cm'],
+  // D-PROD-216: a Área lê e grava a cultura; sem a migration `20261117000000_area_cultura`,
+  // `/areas-pastagem` responde 500.
+  ['AreaPastagem', 'cultura_id'],
+  // D-PROD-219: a Medição de Forragem lê e grava a tabela nova; sem a migration
+  // `20261117200000_medicao_forragem`, `/medicoes-forragem` responde 500.
+  ['MEDICAOFORRAGEM', 'massa_seca_kg_ha'],
+  // D-PROD-223: o Cadastro de Culturas lê e grava os dias de descanso e a Área os
+  // parâmetros próprios do pasto; sem a migration `20261117300000_descanso_e_alturas_por_area`,
+  // `/culturas` e `/areas-pastagem` respondem 500.
+  ['CADCULTURAS', 'dias_descanso'],
+  ['AreaPastagem', 'altura_entrada_cm'],
+  ['AreaPastagem', 'altura_saida_cm'],
+  ['AreaPastagem', 'dias_descanso'],
+  // D-PROD-249: o Lançamento de Atividades lê e grava as áreas da atividade e a área do lançamento; sem a migration
+  // `20261118100000_atividade_areas`, `/atividades` responde 500.
+  ['AtividadeArea', 'status'],
+  ['AtividadeApontamento', 'atividade_area_id'],
 ]);
 
 /**

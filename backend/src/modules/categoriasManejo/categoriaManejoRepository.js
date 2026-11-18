@@ -10,6 +10,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
  * `ganho_peso_anual_kg`, `gmd_janeiro`…`gmd_dezembro` e o vínculo com o ícone
  * oficial (`catalogo_categoria_visual_id`) saíram do contrato e do banco. A
  * seleção explícita garante que coluna nova não vaze para a API sem decisão.
+ * D-PROD-195: entra `curva_ganho_id` e o `nome` da curva pela relação.
  */
 const SELECAO = Object.freeze({
   id: true,
@@ -21,6 +22,10 @@ const SELECAO = Object.freeze({
   sexo: true,
   idade_minima_meses: true,
   idade_maxima_meses: true,
+  // D-PROD-195: a curva de ganho obrigatória (mesma fazenda) e o nome dela, para a resposta.
+  curva_ganho_id: true,
+  peso_objetivo_kg: true,
+  curvaGanho: { select: { nome: true } },
   ativo: true,
   createdAt: true,
   updatedAt: true,

@@ -55,9 +55,7 @@ vi.mock("@/components/lotes/FormularioMudancaCategoria", formulario("mudanca"));
 vi.mock("@/components/lotes/FormularioPesagem", formulario("pesagem"));
 vi.mock("@/components/lotes/HistoricoMovimentacoes", formulario("historico"));
 vi.mock("@/components/suplementacao/HistoricoSuplementacaoLote", formulario("historico-supl"));
-vi.mock("@/components/suplementacao/ResumoSuplementacao", formulario("resumo-supl"));
 vi.mock("@/components/lotes/RenomearLoteForm", formulario("renomear"));
-vi.mock("@/components/mapa/InformacoesArea", formulario("info-area"));
 
 const { default: DetalhesLote } = await import("@/components/mapa/DetalhesLote");
 const { MENSAGENS_MANEJO_REBANHO } = await import("@/services/manejoRebanhoService");
@@ -79,10 +77,13 @@ const renderizar = async (lotes, permissions = {}) => {
   return utils;
 };
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
-/** D-PROD-119: manejos e históricos em quadros (no celular, atrás do botão "Manejos e históricos"). */
+/**
+ * D-PROD-119: manejos e históricos em quadros. D-PROD-218: "Manejos" do rodapé
+ * empilha a tela "Manejos e históricos"; nela não há rodapé (o quadro é o único botão).
+ */
 const acao = async (nome) => {
-  const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-  if (botaoUnico) await clicar(botaoUnico); // celular; no desktop os quadros já estão à vista
+  const rodapeManejos = screen.queryByRole("button", { name: "Manejos" });
+  if (rodapeManejos) await clicar(rodapeManejos); // na tela de manejos o rodapé some
   await clicar(screen.getByRole("button", { name: nome }));
 };
 const nenhumaEscrita = () => {
@@ -150,7 +151,11 @@ describe("Juntar Lotes permanece visível quando indisponível", () => {
     const botao = screen.getByRole("button", { name: "Juntar Lotes" });
     expect(botao.disabled).toBe(true);
     expect(botao.title).toBe(motivo);
-    expect(screen.queryByRole("dialog")).toBe(null);
+    // D-PROD-218: a grade fica na tela empilhada "Manejos e históricos" do próprio Detalhes
+    // (sem diálogo). O clique no botão desabilitado não abre nada: nenhum diálogo de junção.
+    expect(screen.queryAllByRole("dialog")).toHaveLength(0);
+    expect(screen.getByRole("heading", { name: "Manejos e históricos" })).toBeTruthy();
+    expect(screen.queryByText("Selecione o lote que receberá os animais (lote principal):")).toBe(null);
     expect(toast.error).not.toHaveBeenCalled();
     nenhumaEscrita();
   });

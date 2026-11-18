@@ -16,7 +16,12 @@ const api = {
   createArea: vi.fn(), createPonto: vi.fn(), createPontoSuplementacao: vi.fn(), createLinha: vi.fn(),
   updatePonto: vi.fn(),
 };
-const lotes = { listLotes: vi.fn(), listMovimentacoes: vi.fn(), listMovimentacoesPecuarias: vi.fn(), listSuplementacaoEventos: vi.fn() };
+const lotes = {
+  listLotes: vi.fn(), listMovimentacoes: vi.fn(), listTodasMovimentacoes: vi.fn(),
+  listHistoricoMovimentacoesPagina: vi.fn(), listMovimentacoesPecuarias: vi.fn(), listSuplementacaoEventos: vi.fn(),
+};
+const pontosSupl = { consultarElegibilidadeExclusaoPontoSuplementacao: vi.fn() };
+const bebedourosApi = { consultarElegibilidadeExclusaoBebedouro: vi.fn() };
 const tarefas = { listLancamentos: vi.fn() };
 const rebanho = { listManejosTecnicos: vi.fn() };
 const estoque = { deleteLocal: vi.fn(), listLocais: vi.fn() };
@@ -26,6 +31,8 @@ vi.mock('@/apis/lotes', () => lotes);
 vi.mock('@/apis/tarefas', () => tarefas);
 vi.mock('@/apis/rebanho', () => rebanho);
 vi.mock('@/apis/estoque', () => estoque);
+vi.mock('@/apis/pontos-suplementacao', () => pontosSupl);
+vi.mock('@/apis/bebedouros', () => bebedourosApi);
 
 const mapaService = await import('@/services/mapaService');
 const { ApiError, API_ERROR_CODES, hasApiErrorCode, getApiErrorMessage, isApiError } = await import('@/apis/_core/ApiError');
@@ -39,6 +46,9 @@ beforeEach(() => {
   }
   estoque.listLocais.mockResolvedValue([]);
   estoque.deleteLocal.mockResolvedValue(undefined);
+  lotes.listHistoricoMovimentacoesPagina.mockResolvedValue({ items: [] });
+  pontosSupl.consultarElegibilidadeExclusaoPontoSuplementacao.mockResolvedValue({ pode_excluir: true, motivos: [] });
+  bebedourosApi.consultarElegibilidadeExclusaoBebedouro.mockResolvedValue({ pode_excluir: true, motivos: [] });
 });
 
 describe('MapaCadastro — listagens', () => {
@@ -100,13 +110,13 @@ describe('MapaCadastro — exclusão de área', () => {
   });
 });
 
-describe('MapaCadastro — exclusão de ponto com cascata', () => {
-  const ponto = { id: 'pt1', nome: 'Cocho 1', empresa_id: EMPRESA };
+describe('MapaCadastro — exclusão de ponto com cascata (D-PROD-214)', () => {
+  const ponto = { id: 'pt1', nome: 'Cocho 1', tipo: 'Cocho', empresa_id: EMPRESA };
 
-  it('MC7 — remove ponto e os pontos de suplementação vinculados pelo nome', async () => {
+  it('MC7 — remove o ponto e só o cocho ligado (mesmo nome e categoria compatível)', async () => {
     api.listPontosSuplementacao.mockResolvedValue([
-      { id: 's1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'cocho 1', categoria_ponto: 'Cocho' },
-      { id: 's2', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Outro', categoria_ponto: 'Cocho' },
+      { id: 's1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'cocho 1', categoria_ponto: 'COCHO' },
+      { id: 's2', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Outro', categoria_ponto: 'COCHO' },
     ]);
     const r = await mapaService.excluirPontoComCascata('pt1', EMPRESA, ponto);
     expect(api.deletePonto).toHaveBeenCalledWith('pt1');
@@ -115,37 +125,35 @@ describe('MapaCadastro — exclusão de ponto com cascata', () => {
     expect(r.pontosSuplementacaoRemovidos).toBe(1);
   });
 
-  it('MC8 — LocalEstoque ausente é tolerado e contabilizado', async () => {
+  it('MC8 — cocho com histórico bloqueia a exclusão e nada é apagado', async () => {
     api.listPontosSuplementacao.mockResolvedValue([
-      { id: 'd1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Cocho 1', categoria_ponto: 'Depósito', local_estoque_id: 'le1' },
+      { id: 's1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Cocho 1', categoria_ponto: 'COCHO' },
     ]);
-    estoque.deleteLocal.mockRejectedValue(new Error('não encontrado'));
-    const r = await mapaService.excluirPontoComCascata('pt1', EMPRESA, ponto);
-    expect(r.locaisEstoqueIgnorados).toBe(1);
-    expect(api.deletePontoSuplementacao).toHaveBeenCalledWith('d1');
+    pontosSupl.consultarElegibilidadeExclusaoPontoSuplementacao.mockResolvedValue({ pode_excluir: false, motivos: ['leituras'] });
+    const erro = await mapaService.excluirPontoComCascata('pt1', EMPRESA, ponto).catch((e) => e);
+    expect(hasApiErrorCode(erro, API_ERROR_CODES.MAPA_DELETE_BLOCKED)).toBe(true);
+    expect(api.deletePonto).not.toHaveBeenCalled();
+    expect(api.deletePontoSuplementacao).not.toHaveBeenCalled();
   });
 
-  it('MC9 — cocho que apontava para o depósito é desvinculado', async () => {
+  it('MC9 — ponto comum não apaga cocho de outro tipo com o mesmo nome', async () => {
     api.listPontosSuplementacao.mockResolvedValue([
-      { id: 'd1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Cocho 1', categoria_ponto: 'DEPOSITO', local_estoque_id: 'le1' },
-      { id: 'c9', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Outro', deposito_origem_id: 'd1' },
+      { id: 's1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Cocho 1', categoria_ponto: 'COCHO' },
     ]);
-    const r = await mapaService.excluirPontoComCascata('pt1', EMPRESA, ponto);
-    expect(api.updatePontoSuplementacao).toHaveBeenCalledWith('c9', {
-      deposito_origem_id: null, deposito_origem_nome: null,
-    });
-    expect(r.cochosDesvinculados).toBe(1);
+    await mapaService.excluirPontoComCascata('pt1', EMPRESA, { ...ponto, tipo: 'Porteira' });
+    expect(api.deletePonto).toHaveBeenCalledWith('pt1');
+    expect(api.deletePontoSuplementacao).not.toHaveBeenCalled();
   });
 
-  it('a ordem é preservada: o ponto sai antes da cascata', async () => {
+  it('a ordem: o cocho sai antes do ponto (o ponto não fica sem cocho conferido)', async () => {
     const ordem = [];
     api.deletePonto.mockImplementation(async () => { ordem.push('ponto'); });
     api.deletePontoSuplementacao.mockImplementation(async () => { ordem.push('supl'); });
     api.listPontosSuplementacao.mockResolvedValue([
-      { id: 's1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Cocho 1' },
+      { id: 's1', empresa_id: EMPRESA, status: 'Ativo', nome_ponto: 'Cocho 1', categoria_ponto: 'COCHO' },
     ]);
     await mapaService.excluirPontoComCascata('pt1', EMPRESA, ponto);
-    expect(ordem).toEqual(['ponto', 'supl']);
+    expect(ordem).toEqual(['supl', 'ponto']);
   });
 });
 

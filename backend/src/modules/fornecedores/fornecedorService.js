@@ -15,7 +15,10 @@ import {
   atualizarRegistroPorId,
   excluirRegistroPorId,
 } from './fornecedorRepository.js';
-import { comoAuditoriaFornecedor, camposAlterados, exigirDocumentosDoLegado, mascararCpf } from './fornecedorDominio.js';
+import {
+  CAMPOS_FUNCIONARIO, aplicarPapelFuncionario, comoAuditoriaFornecedor, camposAlterados, custo4, dadosFuncionarioDoCorpo, exigirDocumentosDoLegado,
+  mascararCpf,
+} from './fornecedorDominio.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 
 export { mascararCpf };
@@ -24,12 +27,36 @@ export const ENTIDADE_SEQUENCIA = 'Fornecedor';
 
 const erroNaoEncontrado = () => new AppError('FORNECEDOR_NOT_FOUND', 'Fornecedor não encontrado');
 
+/**
+ * D-PROD-208 — os dados do papel funcionário no CRUD legado: tira os quatro
+ * campos do que veio, normaliza-os pela MESMA regra das Parceiros (tipo na
+ * lista, cargo em maiúsculas, custos texto decimal ≥ 0) e aplica a regra do
+ * papel sobre os `tipos` finais (sem o papel → 422; tirar o papel limpa).
+ * @param {Record<string, unknown>} dados  colunas gravaveis do corpo (mutado: os 4 campos saem)
+ * @param {unknown} tiposFinais
+ * @param {Record<string, any>|null} [antes]
+ */
+const dadosFuncionarioDoLegado = (dados, tiposFinais, antes = null) => {
+  /** @type {Record<string, unknown>} */
+  const recebidos = {};
+  for (const campo of CAMPOS_FUNCIONARIO) {
+    if (campo in dados) {
+      recebidos[campo] = dados[campo];
+      delete dados[campo];
+    }
+  }
+  return aplicarPapelFuncionario(dadosFuncionarioDoCorpo(recebidos), tiposFinais, antes);
+};
+
 /** @param {Record<string, unknown>} registro */
 export const comoPublico = (registro) => {
   // eslint-disable-next-line no-unused-vars -- tenant não exposto na API pública
   const { createdAt, updatedAt, cliente_id, ...resto } = registro;
   return {
     ...resto,
+    // D-PROD-208: custos do funcionário como texto com 4 casas (o Decimal do banco não sai cru).
+    ...('funcionario_custo_hora' in resto ? { funcionario_custo_hora: custo4(resto.funcionario_custo_hora) } : {}),
+    ...('funcionario_custo_diaria' in resto ? { funcionario_custo_diaria: custo4(resto.funcionario_custo_diaria) } : {}),
     created_date: createdAt instanceof Date ? createdAt.toISOString() : createdAt,
     updated_date: updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt,
   };
@@ -79,6 +106,7 @@ export const criar = async (contexto, entrada) => {
     /** @type {Record<string, unknown>} */
     const dados = { ...exigirSomenteColunasGravaveis('Fornecedor', entrada), cliente_id: auth.clienteId };
     // B2/R2: empresa real DESTE tenant, obrigatória (falha fechada: 400 sem, 404 fora).
+    Object.assign(dados, dadosFuncionarioDoLegado(dados, dados.tipos ?? []));
     dados.empresa_id = await exigirEmpresaDoTenant(tx, auth.clienteId, dados.empresa_id);
     await exigirDocumentosDoLegado(tx, auth.clienteId, /** @type {string} */ (dados.empresa_id), dados);
     if (!dados.numero_cadastro) {
@@ -123,6 +151,7 @@ export const atualizar = async (contexto, id, entrada) => {
       if (dados.numero_cadastro !== existente.numero_cadastro) throw imutavel('numero_cadastro');
       delete dados.numero_cadastro;
     }
+    Object.assign(dados, dadosFuncionarioDoLegado(dados, 'tipos' in dados ? dados.tipos : existente.tipos, existente));
     await exigirDocumentosDoLegado(tx, auth.clienteId, String(existente.empresa_id), dados, existente);
     const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, dados);
     await registrarEvento(
@@ -159,17 +188,27 @@ export const excluir = async (contexto, id) => {
     // devolvia o enganoso 403 TENANT_SCOPE_VIOLATION.
     // D-PROD-157: bem patrimonial que o tem como proprietário OU fornecedor
     // também o segura (mesma FK RESTRICT; mesmo 409, nunca 403).
-    const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos, bens] = await Promise.all([
+    // D-PROD-207: linha de serviço de atividade com ele como prestador também (mesma FK RESTRICT).
+    // D-PROD-208: e linha de mão de obra com ele como funcionário ou terceiro (mesma FK RESTRICT).
+    const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos, bens, servicosAtividade, maoObraAtividade] = await Promise.all([
       tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.estoqueLoteNota.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.movimentacaoEstoque.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.operacaoFinanceira.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
       tx.tituloFinanceiro.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
       tx.bemPatrimonial.count({ where: { cliente_id: auth.clienteId, OR: [{ proprietario_parceiro_id: id }, { fornecedor_parceiro_id: id }] } }),
+      tx.atividadeApontamentoServico.count({ where: { cliente_id: auth.clienteId, fornecedor_parceiro_id: id } }),
+      tx.atividadeApontamentoMaoObra.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
     ]);
-    if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos + bens > 0) {
+    if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos + bens + servicosAtividade + maoObraAtividade > 0) {
       throw new AppError('PARCEIRO_EM_USO', 'fornecedor com histórico não pode ser excluído; inative-o na tela Parceiros', {
-        details: { lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos, bens },
+        // D-PROD-207: a contagem das linhas de serviço só aparece quando há (os `details` de antes não mudam).
+        // D-PROD-208: idem a das linhas de mão de obra.
+        details: {
+          lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos, bens,
+          ...(servicosAtividade ? { servicos_atividade: servicosAtividade } : {}),
+          ...(maoObraAtividade ? { mao_obra_atividade: maoObraAtividade } : {}),
+        },
       });
     }
     await excluirRegistroPorId(tx, auth.clienteId, id);

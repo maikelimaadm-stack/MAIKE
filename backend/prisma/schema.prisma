@@ -70,6 +70,15 @@ model Cliente {
   estacoes           CadEstacao[]
   // D-PROD-189 — curvas de ganho de peso (GMD por estação) por fazenda; tabela CADCURVAGANHO.
   curvasGanho        CadCurvaGanho[]
+  // D-PROD-203 — formulações de suplemento por fazenda; tabela CADFORMULACAO.
+  formulacoes        Formulacao[]
+  ingredientesFormulacao FormulacaoIngrediente[]
+  regrasFormulacao       FormulacaoRegraCategoria[]
+  // D-PROD-205 — leituras de cocho (escore, acesso, estrutura); tabela LEITURACOCHO.
+  leiturasCocho          LeituraCocho[]
+  // D-PROD-215 — culturas (pastagem, capineira, lavoura, silagem) por fazenda; tabela CADCULTURAS.
+  culturas               Cultura[]
+  medicoesForragem       MedicaoForragem[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -129,11 +138,19 @@ model Cliente {
   // D-PROD-159/161 — Patrimônio: abastecimentos e fatias FIFO.
   abastecimentosBem            AbastecimentoBem[]
   abastecimentosBemConsumos    AbastecimentoBemConsumoLote[]
-  // D-PROD-190 — apontamentos de atividade (execução).
-  apontamentosAtividade        ApontamentoAtividade[]
-  // D-PROD-193 — itens de custo do apontamento e fatias FIFO dos itens PRODUTO.
-  apontamentoAtividadeItens    ApontamentoAtividadeItem[]
-  apontamentoAtividadeItemConsumos ApontamentoAtividadeItemConsumoLote[]
+  // D-PROD-200 — Lançamento de Atividades: a atividade (cabeçalho) e os apontamentos (dia/turno).
+  atividades                   Atividade[]
+  atividadeApontamentos        AtividadeApontamento[]
+  // D-PROD-249 — as áreas de cada atividade (várias áreas por atividade).
+  atividadeAreas               AtividadeArea[]
+  // D-PROD-202 — linhas de produto (com fatias FIFO) e de máquina do apontamento.
+  atividadeApontamentoProdutos      AtividadeApontamentoProduto[]
+  atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
+  atividadeApontamentoMaquinas      AtividadeApontamentoMaquina[]
+  // D-PROD-207 — cadastros de mão de obra e serviço e as linhas do apontamento.
+  servicos                          Servico[]
+  atividadeApontamentoMaoObras      AtividadeApontamentoMaoObra[]
+  atividadeApontamentoServicos      AtividadeApontamentoServico[]
 
   @@index([nome])
   @@index([ativo])
@@ -193,13 +210,26 @@ model Usuario {
   // D-PROD-159/161 — autores do abastecimento (FK composta por tenant).
   abastecimentosCriados           AbastecimentoBem[]            @relation("AbastecimentoBemCriadoPor")
   abastecimentosCancelados        AbastecimentoBem[]            @relation("AbastecimentoBemCanceladoPor")
-  // D-PROD-190 — operador e autores do apontamento de atividade (FK composta por tenant).
-  apontamentosAtividadeOperados   ApontamentoAtividade[]        @relation("ApontamentoAtividadeOperador")
-  apontamentosAtividadeCriados    ApontamentoAtividade[]        @relation("ApontamentoAtividadeCriadoPor")
-  apontamentosAtividadeCancelados ApontamentoAtividade[]        @relation("ApontamentoAtividadeCanceladoPor")
-  // D-PROD-193 — autores dos itens do apontamento de atividade (FK composta por tenant).
-  apontamentoItensCriados         ApontamentoAtividadeItem[]    @relation("ApontamentoAtividadeItemCriadoPor")
-  apontamentoItensCancelados      ApontamentoAtividadeItem[]    @relation("ApontamentoAtividadeItemCanceladoPor")
+  // D-PROD-200 — autores da atividade (cabeçalho) e operador/autores do apontamento (FK composta por tenant).
+  atividadesCriadas               Atividade[]                   @relation("AtividadeCriadaPor")
+  atividadesConcluidas            Atividade[]                   @relation("AtividadeConcluidaPor")
+  atividadesCanceladas            Atividade[]                   @relation("AtividadeCanceladaPor")
+  atividadesReabertas             Atividade[]                   @relation("AtividadeReabertaPor")
+  atividadeApontamentosOperados   AtividadeApontamento[]        @relation("AtividadeApontamentoOperador")
+  atividadeApontamentosCriados    AtividadeApontamento[]        @relation("AtividadeApontamentoCriadoPor")
+  atividadeApontamentosCancelados AtividadeApontamento[]        @relation("AtividadeApontamentoCanceladoPor")
+  // D-PROD-249 — quem pôs a área na atividade.
+  atividadeAreasCriadas           AtividadeArea[]               @relation("AtividadeAreaCriadaPor")
+  // D-PROD-202 — autores das linhas do apontamento.
+  atividadeProdutosCriados    AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCriadoPor")
+  atividadeProdutosCancelados AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCanceladoPor")
+  atividadeMaquinasCriadas    AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaCriadoPor")
+  atividadeMaquinasCanceladas AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaCanceladoPor")
+  // D-PROD-207 — autores das linhas de mão de obra e serviço.
+  atividadeMaoObrasCriadas    AtividadeApontamentoMaoObra[] @relation("AtividadeApontamentoMaoObraCriadoPor")
+  atividadeMaoObrasCanceladas AtividadeApontamentoMaoObra[] @relation("AtividadeApontamentoMaoObraCanceladoPor")
+  atividadeServicosCriados    AtividadeApontamentoServico[] @relation("AtividadeApontamentoServicoCriadoPor")
+  atividadeServicosCancelados AtividadeApontamentoServico[] @relation("AtividadeApontamentoServicoCanceladoPor")
 
   @@unique([cliente_id, login])
   // Chave referenciável tenant-aware. Existe para que quem aponta para um
@@ -405,6 +435,10 @@ model Setor {
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   areas   AreaPastagem[]
   lotes   Lote[]
+  // D-PROD-200 — snapshot do setor da área na atividade.
+  atividades Atividade[]
+  // D-PROD-249 — snapshot do setor de cada área da atividade.
+  atividadeAreas AtividadeArea[]
 
   @@unique([cliente_id, numero_setor])
   @@unique([cliente_id, id])
@@ -464,6 +498,12 @@ model UnidadeMedida {
   updatedAt      DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // D-PROD-197 — unidade de produção padrão dos tipos de atividade (RESTRICT).
+  tiposAtividadeProducao TipoAtividade[]
+  // D-PROD-200 — snapshot da unidade de produção do tipo na abertura da atividade.
+  atividadesProducao     Atividade[]
+  // D-PROD-207 — unidade de medida do serviço (RESTRICT).
+  servicos               Servico[]
 
   @@unique([cliente_id, numero_unidade])
   @@unique([cliente_id, id])
@@ -493,7 +533,7 @@ model GrupoAtividade {
   tiposAtividade        TipoAtividade[]
   lancamentos           LancamentoTarefa[]
   // D-PROD-190 — snapshot do grupo no apontamento de atividade.
-  apontamentosAtividade ApontamentoAtividade[]
+  atividades Atividade[]
 
   @@unique([cliente_id, nome_grupo])
   @@unique([cliente_id, id])
@@ -534,8 +574,14 @@ model TipoTarefa {
 // TipoAtividade — cadastro de tipos de atividade (D-PROD-182).
 //
 // Mesmo molde do TipoTarefa (FK composta para GrupoAtividade, cache
-// `grupo_atividade_nome` derivado do grupo na escrita), SEM flags
-// exige_area/pode_ter_* e sem dependentes.
+// `grupo_atividade_nome` derivado do grupo na escrita).
+//
+// D-PROD-197 (Fatia 1 do Lançamento de Atividades): o tipo ganha os PADRÕES
+// (categoria, centro de custo, centro de resultado, unidade de produção de
+// UnidadeMedida e coeficiente) e as 8 flags de como a atividade funciona. As
+// flags são do TIPO DE ATIVIDADE, nunca do TipoTarefa (D-PROD-181/183). Os
+// centros são por empresa e o tipo é por cliente: a FK composta (cliente_id, …)
+// prende o tenant; o padrão só vale numa atividade da MESMA empresa do centro.
 // ---------------------------------------------------------------------------
 model TipoAtividade {
   id                   String   @id @default(cuid())
@@ -545,18 +591,40 @@ model TipoAtividade {
   grupo_atividade_nome String   @db.VarChar(255)
   ativo                Boolean  @default(true)
   descricao            String?  @db.VarChar(2000)
+  // D-PROD-197 — padrões do tipo (snapshot na atividade, nunca relidos depois).
+  categoria                  String?  @db.VarChar(24)
+  centro_custo_padrao_id     String?  @db.VarChar(64)
+  centro_resultado_padrao_id String?  @db.VarChar(64)
+  unidade_producao_id        String?  @db.VarChar(64)
+  coeficiente_padrao         Decimal? @db.Decimal(14, 4)
+  // D-PROD-197 — como a atividade deste tipo funciona.
+  exige_area                 Boolean  @default(false)
+  exige_safra                Boolean  @default(false)
+  exige_maquina              Boolean  @default(false)
+  permite_implemento         Boolean  @default(false)
+  permite_produto            Boolean  @default(false)
+  permite_servico            Boolean  @default(false)
+  permite_mao_obra           Boolean  @default(false)
+  exige_producao             Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   cliente      Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   grupo        GrupoAtividade         @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  // D-PROD-197 — FKs compostas pelo tenant; RESTRICT barra apagar o cadastro usado como padrão.
+  centroCustoPadrao     CentroCusto?     @relation(fields: [cliente_id, centro_custo_padrao_id], references: [cliente_id, id], onDelete: Restrict)
+  centroResultadoPadrao CentroResultado? @relation(fields: [cliente_id, centro_resultado_padrao_id], references: [cliente_id, id], onDelete: Restrict)
+  unidadeProducao       UnidadeMedida?   @relation(fields: [cliente_id, unidade_producao_id], references: [cliente_id, id], onDelete: Restrict)
   // D-PROD-190 — execuções deste tipo (a FK RESTRICT barra a exclusão do tipo usado).
-  apontamentos ApontamentoAtividade[]
+  atividades Atividade[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, grupo_atividade_id, nome_tipo])
   @@index([cliente_id, grupo_atividade_id])
   @@index([cliente_id, ativo])
+  @@index([cliente_id, centro_custo_padrao_id])
+  @@index([cliente_id, centro_resultado_padrao_id])
+  @@index([cliente_id, unidade_producao_id])
 }
 
 // ---------------------------------------------------------------------------
@@ -593,6 +661,51 @@ model CadEstacao {
 }
 
 // ---------------------------------------------------------------------------
+// Cultura — Cadastro de Culturas da fazenda (D-PROD-215), tabela física
+// "CADCULTURAS" (nome fixado pelo proprietário). Cada cultura tem um código de
+// numeração da fazenda ("001", "002"…), o tipo (PASTAGEM | CAPINEIRA | LAVOURA |
+// SILAGEM, por CHECK), o nome em MAIÚSCULAS, espécie e cultivar opcionais e as
+// alturas de referência de pastejo (entrada e saída, em cm; anuláveis, > 0 e
+// saída < entrada quando as duas existem, por CHECK). Primeira fatia SEM vínculo:
+// nada referencia CADCULTURAS ainda (a Área continua com o texto de antes); as
+// únicas FKs são o escopo (Cliente e Empresa). A lista de referência é criada
+// pelo serviço (rota de comando idempotente), nunca por DML de migration.
+// ---------------------------------------------------------------------------
+model Cultura {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  empresa_id        String   @db.VarChar(64)
+  codigo            String   @db.VarChar(16)
+  tipo              String   @db.VarChar(16)
+  nome              String   @db.VarChar(120)
+  especie           String?  @db.VarChar(120)
+  cultivar          String?  @db.VarChar(120)
+  altura_entrada_cm Decimal? @db.Decimal(6, 1)
+  altura_saida_cm   Decimal? @db.Decimal(6, 1)
+  // D-PROD-223 — descanso normal do pasto (dias), para o farol estimado. 1..365 pela API.
+  dias_descanso     Int?
+  observacoes       String?  @db.VarChar(2000)
+  ativo             Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  // D-PROD-216 — áreas desta cultura.
+  areas   AreaPastagem[]
+  // D-PROD-219 — medições de forragem feitas com esta cultura na área (retrato do dia).
+  medicoesForragem MedicaoForragem[]
+
+  @@unique([cliente_id, id])
+  // D-PROD-216 — alvo da FK composta da Área (mesma fazenda por construção).
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, empresa_id, codigo])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@map("CADCULTURAS")
+}
+
+// ---------------------------------------------------------------------------
 // CadCurvaGanho — cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189,
 // mensal desde a D-PROD-194). Ganho médio diário (GMD, kg/dia) previsto em cada
 // mês do calendário, de janeiro (gmd_jan) a dezembro (gmd_dez). Nome físico da
@@ -625,10 +738,118 @@ model CadCurvaGanho {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
 
+  // D-PROD-195: categorias de manejo que usam esta curva (excluir a curva em uso é barrado).
+  categorias CategoriaManejo[]
+
   @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, empresa_id, nome])
   @@index([cliente_id, empresa_id, ativo])
   @@map("CADCURVAGANHO")
+}
+
+// ---------------------------------------------------------------------------
+// Formulacao — formulações de suplemento da fazenda (D-PROD-203, etapa 2a da
+// suplementação). Tabela física "CADFORMULACAO". Uma formulação é um PRODUTO
+// PRONTO (sal mineral comprado pronto) ou uma BATELADA (mistura feita na
+// fazenda com produtos do estoque, em kg por batida). `produto_id` é o produto
+// que vai ao cocho: o próprio produto pronto, ou o produto misturado cadastrado
+// antes em Produtos. Consumo alvo em %PV (peso vivo), com exceção opcional por
+// Categoria de Manejo (FormulacaoRegraCategoria). A produção da batelada
+// (movimento de estoque) NÃO existe aqui — é a etapa 2b.
+// FKs tenant-safe: (cliente_id, empresa_id) → Empresa; (cliente_id, produto_id)
+// → Produto(cliente_id, id), Restrict. Valores de `tipo` e faixas por CHECK.
+// ---------------------------------------------------------------------------
+model Formulacao {
+  id                         String   @id @default(cuid())
+  cliente_id                 String   @db.VarChar(64)
+  empresa_id                 String   @db.VarChar(64)
+  nome                       String   @db.VarChar(120)
+  tipo                       String   @db.VarChar(16)
+  produto_id                 String   @db.VarChar(64)
+  // D-PROD-210: base do consumo — 'PV' (% do peso vivo; exige percentual_pv_padrao) ou 'G_CAB_DIA' (gramas por
+  // cabeça por dia; exige consumo_objetivo_g_cab_dia e %PV nulo). CHECK "CADFORMULACAO_base_consumo_check".
+  base_consumo               String   @default("PV") @db.VarChar(16)
+  percentual_pv_padrao       Decimal? @db.Decimal(8, 4)
+  consumo_objetivo_g_cab_dia Decimal? @db.Decimal(10, 2)
+  // D-PROD-206: faixa de tolerância do farol de consumo (% do esperado); null = padrão de 15%.
+  faixa_tolerancia_percentual Decimal? @db.Decimal(5, 2)
+  observacoes                String?  @db.VarChar(2000)
+  ativo                      Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  produto Produto @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+
+  ingredientes FormulacaoIngrediente[]
+  regras       FormulacaoRegraCategoria[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@index([cliente_id, produto_id])
+  @@map("CADFORMULACAO")
+}
+
+// ---------------------------------------------------------------------------
+// FormulacaoIngrediente — ingrediente de uma formulação BATELADA (D-PROD-203):
+// produto do estoque e a quantidade em kg POR BATIDA (ex.: milho 600, farelo
+// 300, núcleo 100 numa batida de 1.000 kg). Tabela "CADFORMULACAOINGREDIENTE".
+// Da MESMA fazenda da formulação por construção (FK composta com empresa_id),
+// apagado junto com ela (CASCADE); produto com Restrict.
+// ---------------------------------------------------------------------------
+model FormulacaoIngrediente {
+  id            String   @id @default(cuid())
+  cliente_id    String   @db.VarChar(64)
+  empresa_id    String   @db.VarChar(64)
+  formulacao_id String   @db.VarChar(64)
+  produto_id    String   @db.VarChar(64)
+  quantidade_kg Decimal  @db.Decimal(12, 3)
+  ordem         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cliente    Cliente    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  formulacao Formulacao @relation(fields: [cliente_id, empresa_id, formulacao_id], references: [cliente_id, empresa_id, id], onDelete: Cascade)
+  produto    Produto    @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, formulacao_id, produto_id])
+  @@index([cliente_id, produto_id])
+  @@map("CADFORMULACAOINGREDIENTE")
+}
+
+// ---------------------------------------------------------------------------
+// FormulacaoRegraCategoria — exceção de consumo de uma formulação para uma
+// Categoria de Manejo (D-PROD-203): `consome = false` (ex.: BEZERRO MAMANDO não
+// consome) ou `consome = true` com o %PV próprio (ex.: VACA LEITEIRA 0,15%).
+// Tabela "CADFORMULACAOREGRA". Mesma fazenda da formulação (FK composta),
+// apagada junto com ela; categoria com Restrict. Forma por CHECK.
+// ---------------------------------------------------------------------------
+model FormulacaoRegraCategoria {
+  id                  String   @id @default(cuid())
+  cliente_id          String   @db.VarChar(64)
+  empresa_id          String   @db.VarChar(64)
+  formulacao_id       String   @db.VarChar(64)
+  categoria_manejo_id String   @db.VarChar(64)
+  consome             Boolean
+  percentual_pv       Decimal? @db.Decimal(8, 4)
+  // D-PROD-210: na base G_CAB_DIA a regra que consome leva os gramas por cabeça por dia (e não o %PV).
+  g_cab_dia           Decimal? @db.Decimal(10, 2)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  cliente         Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  formulacao      Formulacao      @relation(fields: [cliente_id, empresa_id, formulacao_id], references: [cliente_id, empresa_id, id], onDelete: Cascade)
+  categoriaManejo CategoriaManejo @relation(fields: [cliente_id, categoria_manejo_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, formulacao_id, categoria_manejo_id])
+  @@index([cliente_id, categoria_manejo_id])
+  @@map("CADFORMULACAOREGRA")
 }
 
 // ---------------------------------------------------------------------------
@@ -695,6 +916,15 @@ model AreaPastagem {
   taxa_crescimento_kg_ha_dia   Decimal? @db.Decimal(14, 4)
   taxa_aproveitamento          Decimal? @db.Decimal(7, 4)
   periodo_estacao              String?  @db.VarChar(32)
+  // D-PROD-216 — cultura do cadastro de Culturas (CADCULTURAS) da MESMA fazenda (FK
+  // composta pelo tenant e pela empresa). Anulável: área antiga, Reserva, APP e Infraestrutura ficam sem cultura. Com
+  // cultura, o servidor deriva `tipo_pastagem` = nome da cultura.
+  cultura_id                   String?  @db.VarChar(64)
+  // D-PROD-223 — parâmetros próprios do pasto (pasto mais fraco que a cultura em geral).
+  // Vazio = vale o da cultura, campo a campo. Faixas conferidas pela API (sem CHECK).
+  altura_entrada_cm            Decimal? @db.Decimal(6, 1)
+  altura_saida_cm              Decimal? @db.Decimal(6, 1)
+  dias_descanso                Int?
   // Polígono do mapa: `{coords: [[lat, lng], ...], cor}`. Json porque a forma
   // pertence ao desenho, não ao domínio — e normalizar vértice em tabela
   // própria só faria sentido se alguém consultasse vértice, o que ninguém faz.
@@ -706,6 +936,7 @@ model AreaPastagem {
 
   cliente       Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   setor         Setor   @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  cultura       Cultura? @relation(fields: [cliente_id, empresa_id, cultura_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
   lotesEntrada  Lote[]             @relation("LoteAreaEntrada")
   lotesAtual    Lote[]             @relation("LoteAreaAtual")
   lancamentos   LancamentoTarefa[]
@@ -714,13 +945,18 @@ model AreaPastagem {
   // D-PROD-157 — localização opcional do bem patrimonial.
   bensPatrimoniais BemPatrimonial[]
   // D-PROD-190 — área onde a atividade foi executada.
-  apontamentosAtividade ApontamentoAtividade[]
+  atividades Atividade[]
+  // D-PROD-249 — a área numa atividade de várias áreas.
+  atividadeAreas AtividadeArea[]
+  // D-PROD-219 — medições de forragem do pasto.
+  medicoesForragem MedicaoForragem[]
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, setor_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
+  @@index([cliente_id, empresa_id, cultura_id])
 }
 
 // ---------------------------------------------------------------------------
@@ -941,8 +1177,8 @@ model LocalEstoque {
   itensFinanceiros OperacaoFinanceiraItem[]
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
-  // D-PROD-193 — itens PRODUTO de apontamento de atividade que baixaram estoque deste local.
-  apontamentoAtividadeItens ApontamentoAtividadeItem[]
+  // D-PROD-202 — linhas de produto que baixaram estoque deste local.
+  atividadeApontamentoProdutos AtividadeApontamentoProduto[]
 
   @@unique([cliente_id, numero_local])
   @@unique([cliente_id, id])
@@ -988,8 +1224,12 @@ model Produto {
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
-  // D-PROD-193 — itens PRODUTO de apontamento de atividade deste produto.
-  apontamentoAtividadeItens ApontamentoAtividadeItem[]
+  // D-PROD-203 — formulações que vão ao cocho com este produto e ingredientes de
+  // batelada (só relação Prisma; zero DDL em Produto).
+  formulacoes            Formulacao[]
+  ingredientesFormulacao FormulacaoIngrediente[]
+  // D-PROD-202 — linhas de produto do lançamento de atividades.
+  atividadeApontamentoProdutos AtividadeApontamentoProduto[]
 
   @@unique([cliente_id, numero_produto])
   @@unique([cliente_id, id])
@@ -1051,7 +1291,7 @@ model LancamentoTarefa {
   area     AreaPastagem?   @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
   historicos HistoricoLancamentoTarefa[]
   // D-PROD-190 — atividades executadas a partir desta demanda.
-  apontamentosAtividade ApontamentoAtividade[]
+  atividades Atividade[]
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -1140,8 +1380,20 @@ model Empresa {
   estacoes               CadEstacao[]
   // D-PROD-189 — curvas de ganho de peso da fazenda.
   curvasGanho            CadCurvaGanho[]
+  // D-PROD-203 — formulações de suplemento da fazenda.
+  formulacoes            Formulacao[]
+  // D-PROD-205 — leituras de cocho da fazenda.
+  leiturasCocho          LeituraCocho[]
+  // D-PROD-215 — culturas da fazenda.
+  culturas               Cultura[]
+  medicoesForragem       MedicaoForragem[]
   // D-PROD-190 — apontamentos de atividade da fazenda.
-  apontamentosAtividade  ApontamentoAtividade[]
+  atividades            Atividade[]
+  atividadeApontamentos AtividadeApontamento[]
+  // D-PROD-249 — as áreas das atividades da fazenda.
+  atividadeAreas        AtividadeArea[]
+  // D-PROD-207 — funcionários e serviços da fazenda.
+  servicos              Servico[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -1191,6 +1443,12 @@ model Fornecedor {
   observacoes        String?   @db.VarChar(2000)
   tipos              String[]  @default([])
   ativo              Boolean   @default(true)
+  /// D-PROD-208 — dados do papel `funcionario` (só com esse papel; CHECK).
+  /// MENSALISTA | DIARISTA | TERCEIRIZADO (D-PROD-209: TERCEIRIZADO no lugar de TAREFEIRO).
+  funcionario_tipo       String?  @db.VarChar(16)
+  funcionario_cargo      String?  @db.VarChar(120)
+  funcionario_custo_hora   Decimal? @db.Decimal(14, 4)
+  funcionario_custo_diaria Decimal? @db.Decimal(14, 4)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -1201,6 +1459,10 @@ model Fornecedor {
   // D-PROD-157 — proprietário (bem de terceiro) e fornecedor da aquisição.
   bensComoProprietario BemPatrimonial[]   @relation("BemPatrimonialProprietario")
   bensComoFornecedor   BemPatrimonial[]   @relation("BemPatrimonialFornecedor")
+  // D-PROD-207 — parceiro (prestador) da linha de serviço do apontamento.
+  atividadeServicos    AtividadeApontamentoServico[]
+  // D-PROD-208 — funcionário ou terceiro da linha de mão de obra.
+  atividadeMaoObras    AtividadeApontamentoMaoObra[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_cadastro])
@@ -1228,14 +1490,23 @@ model CategoriaManejo {
   sexo                  String?  @db.VarChar(32)
   idade_minima_meses    Int?
   idade_maxima_meses    Int?
+  // D-PROD-195: curva de ganho da categoria, obrigatória e da MESMA fazenda (FK composta).
+  curva_ganho_id        String   @db.VarChar(64)
+  // D-PROD-198: peso que a categoria quer atingir (kg por cabeça), opcional; a
+  // projeção do lote mostra quando ele chega lá.
+  peso_objetivo_kg      Decimal? @db.Decimal(10, 2)
   ativo                 Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  cliente    Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  curvaGanho CadCurvaGanho @relation(fields: [cliente_id, empresa_id, curva_ganho_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  // D-PROD-203 — exceções de consumo das formulações (só relação Prisma; zero DDL em CADCATEGORIA).
+  regrasFormulacao FormulacaoRegraCategoria[]
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
+  @@index([cliente_id, empresa_id, curva_ganho_id])
   @@map("CADCATEGORIA")
 }
 
@@ -1310,9 +1581,92 @@ model PontoSuplementacao {
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
+  // D-PROD-205 — leituras do cocho (só relação Prisma; zero DDL em PontoSuplementacao).
+  leituras LeituraCocho[]
+
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_ponto])
   @@index([cliente_id, empresa_id])
+}
+
+// ---------------------------------------------------------------------------
+// LeituraCocho — leitura de cocho feita no campo (D-PROD-205, etapa 3 da
+// suplementação). Tabela física "LEITURACOCHO". Registra o que se viu no cocho
+// num dia: escore (VAZIO | ADEQUADO | CHEIO), acesso (BOM | RUIM) e estrutura
+// (BOA | REPARO | QUEBRADA). NÃO movimenta estoque. Alimenta o farol do cocho
+// no mapa. `registrado_por_nome` vem do auth_context, nunca do corpo.
+// FKs tenant-safe: (cliente_id, empresa_id) → Empresa, Restrict;
+// (cliente_id, ponto_suplementacao_id) → PontoSuplementacao(cliente_id, id),
+// CASCADE (apagar o cocho apaga as leituras dele). Valores por CHECK.
+// ---------------------------------------------------------------------------
+model LeituraCocho {
+  id                     String   @id @default(cuid())
+  cliente_id             String   @db.VarChar(64)
+  empresa_id             String   @db.VarChar(64)
+  ponto_suplementacao_id String   @db.VarChar(64)
+  data_leitura           DateTime @db.Date
+  escore                 String   @db.VarChar(16)
+  acesso                 String   @db.VarChar(8)
+  estrutura              String   @db.VarChar(16)
+  observacoes            String?  @db.VarChar(2000)
+  registrado_por_nome    String?  @db.VarChar(255)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  cliente Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa            @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  ponto   PontoSuplementacao @relation(fields: [cliente_id, ponto_suplementacao_id], references: [cliente_id, id], onDelete: Cascade)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id, data_leitura])
+  @@index([cliente_id, ponto_suplementacao_id, data_leitura])
+  @@map("LEITURACOCHO")
+}
+
+// ---------------------------------------------------------------------------
+// MedicaoForragem — Medição de Forragem do pasto (D-PROD-219), tabela física
+// MEDICAOFORRAGEM. Uma linha por medição: pela régua (leituras em cm, média e a
+// situação calculada pelas alturas de entrada e de saída da cultura da área) ou
+// no olho (situação escolhida). A amostra de corte (opcional, só na régua) grava
+// matéria verde, % de matéria seca e massa seca por hectare. Os derivados são
+// calculados no servidor; as alturas da cultura são o retrato do dia.
+// ---------------------------------------------------------------------------
+model MedicaoForragem {
+  id                  String   @id @default(cuid())
+  cliente_id          String   @db.VarChar(64)
+  empresa_id          String   @db.VarChar(64)
+  area_id             String   @db.VarChar(64)
+  cultura_id          String?  @db.VarChar(64)
+  data_medicao        DateTime @db.Date
+  metodo              String   @db.VarChar(8)
+  leituras_cm         Json?
+  qtd_leituras        Int?
+  altura_media_cm     Decimal? @db.Decimal(6, 1)
+  situacao            String?  @db.VarChar(16)
+  altura_entrada_cm   Decimal? @db.Decimal(6, 1)
+  altura_saida_cm     Decimal? @db.Decimal(6, 1)
+  quadro_m2           Decimal? @db.Decimal(6, 3)
+  qtd_amostras        Int?
+  peso_verde_g        Decimal? @db.Decimal(10, 1)
+  peso_seco_g         Decimal? @db.Decimal(10, 1)
+  materia_seca_pct    Decimal? @db.Decimal(5, 2)
+  massa_verde_kg_ha   Decimal? @db.Decimal(12, 1)
+  massa_seca_kg_ha    Decimal? @db.Decimal(12, 1)
+  observacoes         String?  @db.VarChar(2000)
+  registrado_por_nome String?  @db.VarChar(255)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  cliente Cliente      @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa      @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  area    AreaPastagem @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
+  cultura Cultura?     @relation(fields: [cliente_id, empresa_id, cultura_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id, data_medicao])
+  @@index([cliente_id, area_id, data_medicao])
+  @@index([cliente_id, empresa_id, cultura_id])
+  @@map("MEDICAOFORRAGEM")
 }
 
 model EstoqueLoteNota {
@@ -1342,8 +1696,8 @@ model EstoqueLoteNota {
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
   // D-PROD-159 — fatias FIFO consumidas por abastecimento de bem.
   consumosAbastecimento AbastecimentoBemConsumoLote[]   @relation("AbastecimentoBemConsumoDoLote")
-  // D-PROD-193 — fatias FIFO consumidas por item PRODUTO de apontamento de atividade.
-  consumosApontamentoItem ApontamentoAtividadeItemConsumoLote[] @relation("ApontamentoAtividadeItemConsumoDoLote")
+  // D-PROD-202 — fatias FIFO consumidas por linha de produto de atividade.
+  consumosAtividadeProduto AtividadeApontamentoProdutoConsumoLote[] @relation("AtividadeApontamentoProdutoConsumoDoLote")
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -1422,9 +1776,9 @@ model MovimentacaoEstoque {
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
   abastecimentoBem        AbastecimentoBem? @relation("AbastecimentoBemMovimento")
   abastecimentoBemEstorno AbastecimentoBem? @relation("AbastecimentoBemEstorno")
-  // D-PROD-193 — item de apontamento de atividade que gerou / estornou este movimento.
-  apontamentoAtividadeItem        ApontamentoAtividadeItem? @relation("ApontamentoAtividadeItemMovimento")
-  apontamentoAtividadeItemEstorno ApontamentoAtividadeItem? @relation("ApontamentoAtividadeItemEstorno")
+  // D-PROD-202 — linha de produto de atividade que gerou / estornou este movimento.
+  atividadeApontamentoProduto        AtividadeApontamentoProduto? @relation("AtividadeApontamentoProdutoMovimento")
+  atividadeApontamentoProdutoEstorno AtividadeApontamentoProduto? @relation("AtividadeApontamentoProdutoEstorno")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_movimentacao])
@@ -2010,8 +2364,13 @@ model CentroCusto {
   // D-PROD-157 — centro de custo do bem (mesma empresa pela FK composta).
   bensPatrimoniais BemPatrimonial[]
   // D-PROD-190 — snapshot do centro de custo no apontamento de atividade.
-  apontamentosAtividade ApontamentoAtividade[]
+  atividades Atividade[]
+  // D-PROD-197 — centro de custo padrão dos tipos de atividade.
+  tiposAtividadePadrao  TipoAtividade[]
+  // D-PROD-207 — centro de custo padrão do serviço.
+  servicosPadrao        Servico[]
 
+  abastecimentos AbastecimentoBem[] // D-PROD-211
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2044,7 +2403,9 @@ model CentroResultado {
   rateiosFinanceiros OperacaoFinanceiraRateio[]
   rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
   // D-PROD-190 — centro de resultado informado no apontamento de atividade.
-  apontamentosAtividade ApontamentoAtividade[]
+  atividades Atividade[]
+  // D-PROD-197 — centro de resultado padrão dos tipos de atividade.
+  tiposAtividadePadrao  TipoAtividade[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
@@ -2556,6 +2917,8 @@ model TipoPatrimonial {
   nome                     String   @db.VarChar(120)
   descricao                String?  @db.VarChar(500)
   vida_util_meses_sugerida Int?
+  /// D-PROD-202 — teto do salto do medidor por lançamento (acima dele a linha de máquina pede justificativa).
+  salto_maximo_medidor     Decimal?  @db.Decimal(14, 4)
   ativo                    Boolean  @default(true)
   versao                   Int      @default(1)
   createdAt                DateTime @default(now())
@@ -2621,6 +2984,8 @@ model BemPatrimonial {
   data_disponibilidade     DateTime? @db.Date
   valor_aquisicao          Decimal?  @db.Decimal(18, 4)
   custo_incorporacao       Decimal?  @db.Decimal(18, 4)
+  /// D-PROD-202 — custo por hora ou km de uso (snapshot na linha de máquina da atividade).
+  custo_uso_unitario       Decimal?  @db.Decimal(14, 4)
   fornecedor_parceiro_id   String?   @db.VarChar(64)
   documento_referencia     String?   @db.VarChar(80)
   garantia_ate             DateTime? @db.Date
@@ -2648,9 +3013,11 @@ model BemPatrimonial {
   tanques      TanqueBem[]
   // D-PROD-159 — abastecimentos do bem (a leitura do medidor do abastecimento vive lá).
   abastecimentos AbastecimentoBem[]
-  // D-PROD-190 — atividades executadas com o bem (máquina/veículo) e como implemento.
-  apontamentosAtividade      ApontamentoAtividade[] @relation("ApontamentoAtividadeBem")
-  apontamentosComoImplemento ApontamentoAtividade[] @relation("ApontamentoAtividadeImplemento")
+  // D-PROD-200 — atividades (cabeçalho) que têm este bem como máquina.
+  atividades     Atividade[]    @relation("AtividadeBem")
+  // D-PROD-202 — linhas de máquina (como máquina e como implemento).
+  atividadeMaquinas           AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaBem")
+  atividadeMaquinasImplemento AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaImplemento")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
@@ -2734,7 +3101,7 @@ model AbastecimentoBem {
   bem_id                   String    @db.VarChar(64)
   tanque_id                String    @db.VarChar(64)
   produto_id               String    @db.VarChar(64)
-  local_estoque_id         String    @db.VarChar(64)
+  local_estoque_id         String?   @db.VarChar(64)
   data_operacional         DateTime  @db.Date
   quantidade               Decimal   @db.Decimal(14, 4)
   unidade                  String    @db.VarChar(4)
@@ -2745,10 +3112,21 @@ model AbastecimentoBem {
   medidor_unidade          String?   @db.VarChar(8)
   medidor_leitura          Decimal?  @db.Decimal(14, 4)
   medidor_origem           String?   @db.VarChar(24)
+  /// D-PROD-211 — snapshot na confirmação: o ponto anterior do medidor, o delta e se o intervalo é confiável.
+  medidor_leitura_anterior Decimal?  @db.Decimal(14, 4)
+  medidor_delta            Decimal?  @db.Decimal(14, 4)
+  intervalo_confiavel      Boolean   @default(false)
+  /// D-PROD-211 — ESTOQUE (baixa FIFO) | EXTERNO (posto de estrada, sem estoque). CHECK.
+  origem                   String    @default("ESTOQUE") @db.VarChar(8)
+  /// D-PROD-211 — o lançamento do dia (a atividade é derivada dele pelo servidor).
+  atividade_id             String?   @db.VarChar(64)
+  apontamento_id           String?   @db.VarChar(64)
+  /// D-PROD-211 — snapshot: o da atividade, senão o do bem.
+  centro_custo_id          String?   @db.VarChar(64)
   observacao               String?   @db.VarChar(500)
   referencia_externa       String?   @db.VarChar(64)
   operation_id             String    @db.VarChar(128)
-  movimentacao_estoque_id  String    @db.VarChar(64)
+  movimentacao_estoque_id  String?   @db.VarChar(64)
   movimentacao_estorno_id  String?   @db.VarChar(64)
   criado_por_usuario_id    String?   @db.VarChar(64)
   cancelado_por_usuario_id String?   @db.VarChar(64)
@@ -2764,11 +3142,14 @@ model AbastecimentoBem {
   tanque              TanqueBem                     @relation(fields: [cliente_id, bem_id, tanque_id], references: [cliente_id, bem_id, id], onDelete: Restrict)
   produto             Produto                       @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
   aceite              TanqueBemProduto              @relation(fields: [cliente_id, tanque_id, produto_id], references: [cliente_id, tanque_id, produto_id], onDelete: Restrict)
-  localEstoque        LocalEstoque                  @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
-  movimentacao        MovimentacaoEstoque           @relation("AbastecimentoBemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_movimentacao_fkey")
+  localEstoque        LocalEstoque?                 @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
+  movimentacao        MovimentacaoEstoque?          @relation("AbastecimentoBemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_movimentacao_fkey")
   movimentacaoEstorno MovimentacaoEstoque?          @relation("AbastecimentoBemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_estorno_fkey")
   criadoPor           Usuario?                      @relation("AbastecimentoBemCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_criado_por_fkey")
   canceladoPor        Usuario?                      @relation("AbastecimentoBemCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_cancelado_por_fkey")
+  atividade           Atividade?                    @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AbastecimentoBem_atividade_fkey")
+  apontamento         AtividadeApontamento?         @relation(fields: [cliente_id, empresa_id, atividade_id, apontamento_id], references: [cliente_id, empresa_id, atividade_id, id], onDelete: Restrict, map: "AbastecimentoBem_apontamento_fkey")
+  centroCusto         CentroCusto?                  @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AbastecimentoBem_centro_custo_fkey")
   consumos            AbastecimentoBemConsumoLote[]
 
   @@unique([cliente_id, id])
@@ -2784,6 +3165,9 @@ model AbastecimentoBem {
   @@index([cliente_id, empresa_id, produto_id])
   @@index([cliente_id, produto_id])
   @@index([cliente_id, local_estoque_id])
+  @@index([cliente_id, empresa_id, atividade_id], map: "AbastecimentoBem_atividade_idx")
+  @@index([cliente_id, empresa_id, apontamento_id], map: "AbastecimentoBem_apontamento_idx")
+  @@index([cliente_id, empresa_id, centro_custo_id], map: "AbastecimentoBem_centro_custo_idx")
 }
 
 /// D-PROD-159 (Patrimônio P1-02; D-PROD-162) — fatia FIFO consumida pelo
@@ -2814,165 +3198,274 @@ model AbastecimentoBemConsumoLote {
 }
 
 // ---------------------------------------------------------------------------
-// ApontamentoAtividade — EXECUÇÃO de uma atividade (D-PROD-190, Fatia C).
+// D-PROD-200 (Fatia 2 do Lançamento de Atividades) — dois níveis no lugar do
+// apontamento de linha única (D-PROD-190/193, removido nesta fatia):
 //
-// A TAREFA (`LancamentoTarefa`) é a demanda; a ATIVIDADE é a operação
-// executada, que consome máquina, combustível e insumo. Cabeçalho enxuto: os
-// itens de custo (PRODUTO, SERVICO, OUTRO) vivem em `ApontamentoAtividadeItem`
-// (D-PROD-193, Fatia D), sem centro próprio — vale o `centro_custo_id` (snapshot)
-// deste cabeçalho; o abastecimento se pendura aqui na Fatia E.
+//   Atividade (CABEÇALHO, aberta: "Cigarrinha Pasto 01")
+//     └─ AtividadeApontamento (um por dia/turno; `sequencia` 1, 2, … são as passadas)
+//
+// O que vem do cabeçalho é HERDADO e TRAVADO no apontamento: o apontamento não
+// tem área, setor, safra, centro nem unidade. O cabeçalho tira do TIPO os
+// snapshots de centro de custo, centro de resultado e unidade de produção
+// (nunca relidos depois) e da ÁREA o setor. Sem DELETE físico: cancelar muda o
+// status. As linhas de produto, máquina, mão de obra e serviço chegam nas
+// Fatias 3 e 4, penduradas no apontamento.
 //
 // Escopo garantido pelo banco: toda FK é composta e tenant-aware, RESTRICT.
-// Bem, implemento, centro de custo e centro de resultado apontam para
-// (cliente_id, empresa_id, id): são da MESMA empresa por construção. Área e
-// lançamento de tarefa só têm unique (cliente_id, id) nas tabelas antigas (a
-// migration EXPAND não cria unique em tabela antiga): a empresa deles é
-// conferida no SERVIÇO.
-//
-// Snapshots gravados na criação (e na troca do tipo): `tipo_atividade_nome`,
-// `grupo_atividade_id` e `grupo_atividade_nome`; renomear o tipo ou o grupo
-// depois NÃO propaga. `centro_custo_id`: na CRIAÇÃO, se vier nulo ou ausente e
-// houver bem, o serviço copia o centro de custo do cadastro do bem, só se esse
-// centro estiver ativo (o informado vence); depois é SNAPSHOT, nunca relido do
-// bem (na edição só muda se vier explícito). `centro_resultado_id`: o escolhido
-// pelo usuário entre os centros de resultado ativos da empresa; nunca vem do
-// bem. Sem DELETE físico: cancelar muda `status` para CANCELADO e incrementa
-// `versao`. As flags de exigência do antigo Tipo de Tarefa (D-PROD-181) não
-// voltam aqui.
+// Bem e centros apontam para (cliente_id, empresa_id, id): mesma empresa por
+// construção; o apontamento aponta para a atividade por (cliente_id,
+// empresa_id, id). Área, setor, tarefa e unidade só têm unique (cliente_id, id)
+// nas tabelas antigas: a empresa da área, do setor e da tarefa é conferida no
+// serviço (a unidade é do cliente).
 // ---------------------------------------------------------------------------
-model ApontamentoAtividade {
+
+/// D-PROD-200 — CABEÇALHO do Lançamento de Atividades. `numero`: sequência do tenant (entidade `Atividade`).
+model Atividade {
   id                       String    @id @default(cuid())
   cliente_id               String    @db.VarChar(64)
   empresa_id               String    @db.VarChar(64)
   numero                   String    @db.VarChar(32)
+  /// O nome que o operador reconhece: "Cigarrinha Pasto 01".
+  nome                     String    @db.VarChar(120)
   tipo_atividade_id        String    @db.VarChar(64)
+  /// SNAPSHOT do tipo na abertura.
   tipo_atividade_nome      String    @db.VarChar(255)
   grupo_atividade_id       String    @db.VarChar(64)
+  /// SNAPSHOT do grupo do tipo na abertura.
   grupo_atividade_nome     String    @db.VarChar(255)
-  data_operacional         DateTime  @db.Date
-  hora_inicio              DateTime?
-  hora_fim                 DateTime?
-  /// Máquina/veículo que executou a atividade.
-  bem_id                   String?   @db.VarChar(64)
-  implemento_bem_id        String?   @db.VarChar(64)
-  operador_usuario_id      String?   @db.VarChar(64)
   area_id                  String?   @db.VarChar(64)
-  /// SNAPSHOT: na criação, sem centro informado e com bem, cópia do centro ATIVO do bem; depois nunca relido do bem.
-  centro_custo_id          String?   @db.VarChar(64)
-  /// O escolhido no apontamento (lista de centros de resultado ativos da empresa); nunca vem do bem.
-  centro_resultado_id      String?   @db.VarChar(64)
+  /// HERDADO da área (nunca digitado); snapshot.
+  setor_id                 String?   @db.VarChar(64)
+  setor_nome               String?   @db.VarChar(255)
+  /// Máquina da atividade: é o que a flag `exige_maquina` do tipo confere na abertura.
+  bem_id                   String?   @db.VarChar(64)
   safra_ciclo              String?   @db.VarChar(32)
+  /// SNAPSHOT do tipo (`centro_custo_padrao_id`), só se o centro for da mesma empresa e estiver ativo.
+  centro_custo_id          String?   @db.VarChar(64)
+  /// SNAPSHOT do tipo (`centro_resultado_padrao_id`), mesma regra.
+  centro_resultado_id      String?   @db.VarChar(64)
+  /// SNAPSHOT do tipo (`unidade_producao_id`, de UnidadeMedida).
+  unidade_producao_id      String?   @db.VarChar(64)
+  /// SNAPSHOT da sigla da unidade (também guarda a unidade de texto dos apontamentos convertidos).
+  unidade_producao_sigla   String?   @db.VarChar(32)
+  data_inicio              DateTime? @db.Date
+  data_prevista_fim        DateTime? @db.Date
+  data_conclusao           DateTime? @db.Date
+  area_planejada           Decimal?  @db.Decimal(14, 4)
+  /// Σ `area_executada_dia` dos apontamentos CONFIRMADO, recalculada a cada lançamento.
+  area_executada           Decimal?  @db.Decimal(14, 4)
+  /// Σ `quantidade_produzida_dia` dos apontamentos CONFIRMADO, recalculada a cada lançamento.
   quantidade_produzida     Decimal?  @db.Decimal(14, 4)
-  /// HA | CAB | TON | KM (conferido no serviço).
-  unidade_producao         String?   @db.VarChar(8)
-  horas_trabalhadas        Decimal?  @db.Decimal(14, 4)
-  /// Demanda de origem (a tarefa que pediu a atividade).
+  /// A demanda de origem (a tarefa que pediu a atividade).
   lancamento_tarefa_id     String?   @db.VarChar(64)
   observacao               String?   @db.VarChar(2000)
-  status                   String    @default("CONFIRMADO") @db.VarChar(16)
+  /// ABERTA | CONCLUIDA | CANCELADA (CHECK).
+  status                   String    @default("ABERTA") @db.VarChar(16)
+  concluida_em             DateTime?
+  concluida_por_usuario_id String?   @db.VarChar(64)
+  cancelada_em             DateTime?
   cancelado_por_usuario_id String?   @db.VarChar(64)
-  cancelado_em             DateTime?
   motivo_cancelamento      String?   @db.VarChar(500)
+  reaberta_em              DateTime?
+  reaberta_por_usuario_id  String?   @db.VarChar(64)
+  motivo_reabertura        String?   @db.VarChar(500)
   criado_por_usuario_id    String?   @db.VarChar(64)
   versao                   Int       @default(1)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
-  cliente          Cliente                    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  empresa          Empresa                    @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
-  tipoAtividade    TipoAtividade              @relation(fields: [cliente_id, tipo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
-  grupoAtividade   GrupoAtividade             @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
-  bem              BemPatrimonial?            @relation("ApontamentoAtividadeBem", fields: [cliente_id, empresa_id, bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "ApontamentoAtividade_bem_fkey")
-  implemento       BemPatrimonial?            @relation("ApontamentoAtividadeImplemento", fields: [cliente_id, empresa_id, implemento_bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "ApontamentoAtividade_implemento_fkey")
-  operador         Usuario?                   @relation("ApontamentoAtividadeOperador", fields: [cliente_id, operador_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividade_operador_fkey")
-  area             AreaPastagem?              @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
-  centroCusto      CentroCusto?               @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "ApontamentoAtividade_centro_custo_fkey")
-  centroResultado  CentroResultado?           @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "ApontamentoAtividade_centro_resultado_fkey")
-  lancamentoTarefa LancamentoTarefa?          @relation(fields: [cliente_id, lancamento_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
-  criadoPor        Usuario?                   @relation("ApontamentoAtividadeCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividade_criado_por_fkey")
-  canceladoPor     Usuario?                   @relation("ApontamentoAtividadeCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividade_cancelado_por_fkey")
-  // D-PROD-193 — itens de custo do apontamento (inclui os cancelados: histórico).
-  itens            ApontamentoAtividadeItem[]
+  cliente          Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa          Empresa                @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  tipoAtividade    TipoAtividade          @relation(fields: [cliente_id, tipo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  grupoAtividade   GrupoAtividade         @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  area             AreaPastagem?          @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
+  setor            Setor?                 @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  bem              BemPatrimonial?        @relation("AtividadeBem", fields: [cliente_id, empresa_id, bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "Atividade_bem_fkey")
+  centroCusto      CentroCusto?           @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "Atividade_centro_custo_fkey")
+  centroResultado  CentroResultado?       @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "Atividade_centro_resultado_fkey")
+  unidadeProducao  UnidadeMedida?         @relation(fields: [cliente_id, unidade_producao_id], references: [cliente_id, id], onDelete: Restrict)
+  lancamentoTarefa LancamentoTarefa?      @relation(fields: [cliente_id, lancamento_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
+  criadoPor        Usuario?               @relation("AtividadeCriadaPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_criado_por_fkey")
+  concluidaPor     Usuario?               @relation("AtividadeConcluidaPor", fields: [cliente_id, concluida_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_concluida_por_fkey")
+  canceladoPor     Usuario?               @relation("AtividadeCanceladaPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_cancelado_por_fkey")
+  reabertaPor      Usuario?               @relation("AtividadeReabertaPor", fields: [cliente_id, reaberta_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Atividade_reaberta_por_fkey")
+  apontamentos     AtividadeApontamento[]
+  // D-PROD-249 — as áreas da atividade (várias áreas; `area_id` acima fica com a 1ª, por compatibilidade).
+  areas            AtividadeArea[]
 
+  abastecimentos   AbastecimentoBem[]     // D-PROD-211
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
   @@index([cliente_id, empresa_id, createdAt, id])
-  @@index([cliente_id, empresa_id, bem_id, data_operacional], map: "ApontamentoAtividade_empresa_bem_data_idx")
-  @@index([cliente_id, empresa_id, tipo_atividade_id, data_operacional], map: "ApontamentoAtividade_empresa_tipo_data_idx")
+  @@index([cliente_id, empresa_id, status, createdAt, id])
+  @@index([cliente_id, empresa_id, tipo_atividade_id])
   @@index([cliente_id, area_id])
+  @@index([cliente_id, setor_id])
+  @@index([cliente_id, empresa_id, bem_id])
   @@index([cliente_id, lancamento_tarefa_id])
 }
 
-/// D-PROD-193 (Fatia D do apontamento) — ITEM de custo de um apontamento CONFIRMADO.
-/// PRODUTO: baixa FÍSICA real pelo motor único (FIFO por lote; custo = Σ fatia × custo do lote; estorno exato).
-/// SERVICO / OUTRO: descrição livre + quantidade + valor unitário; total calculado no servidor (Decimal, 4 casas);
-/// sem cadastro de serviço, sem fornecedor, sem efeito de estoque nem financeiro.
-/// Imutável: sem PATCH/DELETE; corrigir = cancelar (estorno) e lançar de novo. Sem centro próprio: vale o centro
-/// de custo (snapshot, R-e) do cabeçalho.
-model ApontamentoAtividadeItem {
+/// D-PROD-200 — APONTAMENTO de um dia/turno, filho da atividade (o antigo ApontamentoAtividade, virando filho).
+/// `sequencia`: 1, 2, 3… por (atividade, dia, turno), calculada no servidor sob a trava da atividade — as passadas.
+/// O unique trata `turno` nulo como valor (NULLS NOT DISTINCT, no migration.sql).
+model AtividadeApontamento {
+  id                       String    @id @default(cuid())
+  cliente_id               String    @db.VarChar(64)
+  empresa_id               String    @db.VarChar(64)
+  atividade_id             String    @db.VarChar(64)
+  data_operacional         DateTime  @db.Date
+  /// MANHA | TARDE | NOITE | nulo (CHECK).
+  turno                    String?   @db.VarChar(16)
+  sequencia                Int
+  operador_usuario_id      String?   @db.VarChar(64)
+  area_executada_dia       Decimal?  @db.Decimal(14, 4)
+  quantidade_produzida_dia Decimal?  @db.Decimal(14, 4)
+  observacao               String?   @db.VarChar(2000)
+  /// WEB | APP (CHECK).
+  origem                   String    @default("WEB") @db.VarChar(16)
+  /// CONFIRMADO | CANCELADO (CHECK).
+  status                   String    @default("CONFIRMADO") @db.VarChar(16)
+  cancelado_em             DateTime?
+  cancelado_por_usuario_id String?   @db.VarChar(64)
+  motivo_cancelamento      String?   @db.VarChar(500)
+  criado_por_usuario_id    String?   @db.VarChar(64)
+  versao                   Int       @default(1)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  /// D-PROD-249 — a área da atividade em que este lançamento foi feito (obrigatória no servidor quando a atividade tem
+  /// áreas; nula na atividade sem área). A FK composta prova que a área é DESTA atividade.
+  atividade_area_id        String?   @db.VarChar(64)
+
+  cliente      Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa      Empresa   @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  atividade    Atividade @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamento_atividade_fkey")
+  atividadeArea AtividadeArea? @relation(fields: [cliente_id, empresa_id, atividade_id, atividade_area_id], references: [cliente_id, empresa_id, atividade_id, id], onDelete: Restrict, map: "AtividadeApontamento_atividade_area_fkey")
+  operador     Usuario?  @relation("AtividadeApontamentoOperador", fields: [cliente_id, operador_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_operador_fkey")
+  criadoPor    Usuario?  @relation("AtividadeApontamentoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_criado_por_fkey")
+  canceladoPor Usuario?  @relation("AtividadeApontamentoCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_cancelado_por_fkey")
+  // D-PROD-202 — linhas de produto e de máquina (inclui as canceladas: histórico).
+  produtos     AtividadeApontamentoProduto[]
+  maquinas     AtividadeApontamentoMaquina[]
+  maoObras     AtividadeApontamentoMaoObra[]
+  servicos     AtividadeApontamentoServico[]
+
+  abastecimentos           AbastecimentoBem[]          // D-PROD-211
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  // D-PROD-217 — alvo da FK composta do abastecimento: o apontamento é da atividade gravada no abastecimento.
+  @@unique([cliente_id, empresa_id, atividade_id, id], map: "AtividadeApontamento_empresa_atividade_id_key")
+  @@unique([cliente_id, atividade_id, data_operacional, turno, sequencia], map: "AtividadeApontamento_atividade_dia_turno_sequencia_key")
+  @@index([cliente_id, empresa_id, atividade_id])
+  @@index([cliente_id, operador_usuario_id])
+  // D-PROD-249 — os lançamentos de uma área da atividade (e o lado que referencia da FK composta).
+  @@index([cliente_id, empresa_id, atividade_id, atividade_area_id], map: "AtividadeApontamento_atividade_area_idx")
+}
+
+/// D-PROD-249 — as ÁREAS de uma atividade: uma atividade ("Combate à cigarrinha") feita em vários pastos ao longo do
+/// tempo; cada lançamento (AtividadeApontamento) é de UMA área. Setor = SNAPSHOT da área (como na atividade).
+/// `area_planejada` padrão = o tamanho da área. Ciclo: PLANEJADA (ao abrir a atividade) → EM_ANDAMENTO ("Iniciar área",
+/// com `data_inicio`) → CONCLUIDA (`data_conclusao`); reabrir volta a EM_ANDAMENTO. Só a área EM_ANDAMENTO aceita
+/// lançamento. Sem DELETE físico com lançamento: só sai a área PLANEJADA sem nenhum lançamento.
+model AtividadeArea {
+  id                    String    @id @default(cuid())
+  cliente_id            String    @db.VarChar(64)
+  empresa_id            String    @db.VarChar(64)
+  atividade_id          String    @db.VarChar(64)
+  area_id               String    @db.VarChar(64)
+  /// HERDADO da área (nunca digitado); snapshot.
+  setor_id              String?   @db.VarChar(64)
+  setor_nome            String?   @db.VarChar(255)
+  area_planejada        Decimal?  @db.Decimal(14, 4)
+  /// PLANEJADA | EM_ANDAMENTO | CONCLUIDA (CHECK, com a coerência das datas).
+  status                String    @default("PLANEJADA") @db.VarChar(16)
+  data_inicio           DateTime? @db.Date
+  data_conclusao        DateTime? @db.Date
+  /// 1, 2, 3… na ordem em que a área entrou na atividade (a 1ª é a `area_id` da atividade).
+  ordem                 Int
+  criado_por_usuario_id String?   @db.VarChar(64)
+  versao                Int       @default(1)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  cliente      Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa      Empresa                @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  atividade    Atividade              @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeArea_atividade_fkey")
+  area         AreaPastagem           @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeArea_area_fkey")
+  setor        Setor?                 @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeArea_setor_fkey")
+  criadoPor    Usuario?               @relation("AtividadeAreaCriadaPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeArea_criado_por_fkey")
+  apontamentos AtividadeApontamento[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, atividade_id, area_id], map: "AtividadeArea_atividade_area_key")
+  /// Alvo da FK composta do lançamento: a área é DESTA atividade.
+  @@unique([cliente_id, empresa_id, atividade_id, id], map: "AtividadeArea_empresa_atividade_id_key")
+  @@index([cliente_id, area_id])
+  @@index([cliente_id, setor_id])
+}
+
+/// D-PROD-202 (Fatia 3) — LINHA DE PRODUTO do apontamento: baixa FÍSICA pelo motor único de estoque (FIFO por lote,
+/// custo FIFO, estorno exato), como o abastecimento. Imutável: editar = estornar a linha (cancelamento_origem EDICAO) e
+/// lançar outra na mesma transação; cancelar = estorno exato. `unidade` é a unidade EFETIVA do estoque do produto
+/// (L | KG; SACO guarda kg), sem conversão. `dose_ha` = quantidade / área do dia (só leitura).
+model AtividadeApontamentoProduto {
   id                       String    @id @default(cuid())
   cliente_id               String    @db.VarChar(64)
   empresa_id               String    @db.VarChar(64)
   apontamento_id           String    @db.VarChar(64)
-  /// 1..n dentro do apontamento (máx+1 sob a trava do apontamento; nunca reaproveitado).
+  /// 1..n dentro do apontamento (máx+1 sob a trava; nunca reaproveitado).
   ordem                    Int
-  /// PRODUTO | SERVICO | OUTRO (CHECK).
-  tipo                     String    @db.VarChar(8)
   /// CONFIRMADO | CANCELADO (CHECK).
   status                   String    @db.VarChar(16)
-  /// SERVICO/OUTRO: obrigatória; PRODUTO: nula (CHECK).
-  descricao                String?   @db.VarChar(255)
-  produto_id               String?   @db.VarChar(64)
-  local_estoque_id         String?   @db.VarChar(64)
-  /// PRODUTO: na unidade EFETIVA do estoque do Produto (L | KG; SACO guarda kg), sem conversão.
+  produto_id               String    @db.VarChar(64)
+  local_estoque_id         String    @db.VarChar(64)
   quantidade               Decimal   @db.Decimal(14, 4)
-  /// PRODUTO: 'L' | 'KG' (unidade efetiva); SERVICO/OUTRO: nula.
-  unidade                  String?   @db.VarChar(4)
-  /// PRODUTO: custo unitário FIFO do motor (4 casas); SERVICO/OUTRO: o digitado (até 12+6).
-  valor_unitario           Decimal   @db.Decimal(18, 6)
-  /// PRODUTO: custo total FIFO do motor; SERVICO/OUTRO: ROUND_HALF_UP(quantidade × valor_unitario, 4).
-  valor_total              Decimal   @db.Decimal(18, 4)
+  /// L | KG (CHECK): snapshot da unidade efetiva do produto.
+  unidade                  String    @db.VarChar(8)
+  dose_ha                  Decimal?  @db.Decimal(14, 4)
+  custo_unitario           Decimal   @db.Decimal(14, 4)
+  custo_total              Decimal   @db.Decimal(14, 4)
   operation_id             String    @db.VarChar(128)
-  movimentacao_estoque_id  String?   @db.VarChar(64)
+  movimentacao_estoque_id  String    @db.VarChar(64)
   movimentacao_estorno_id  String?   @db.VarChar(64)
+  observacao               String?   @db.VarChar(500)
   criado_por_usuario_id    String?   @db.VarChar(64)
   cancelado_por_usuario_id String?   @db.VarChar(64)
   cancelado_em             DateTime?
   motivo_cancelamento      String?   @db.VarChar(500)
-  /// ITEM (cancelado sozinho) | APONTAMENTO (cancelado junto com o apontamento) (CHECK).
+  /// LINHA | EDICAO | APONTAMENTO | ATIVIDADE (CHECK).
   cancelamento_origem      String?   @db.VarChar(12)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
-  cliente             Cliente                               @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  apontamento         ApontamentoAtividade                  @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "ApontamentoAtividadeItem_apontamento_fkey")
-  produto             Produto?                              @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
-  localEstoque        LocalEstoque?                         @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
-  movimentacao        MovimentacaoEstoque?                  @relation("ApontamentoAtividadeItemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividadeItem_movimentacao_fkey")
-  movimentacaoEstorno MovimentacaoEstoque?                  @relation("ApontamentoAtividadeItemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividadeItem_estorno_fkey")
-  criadoPor           Usuario?                              @relation("ApontamentoAtividadeItemCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividadeItem_criado_por_fkey")
-  canceladoPor        Usuario?                              @relation("ApontamentoAtividadeItemCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividadeItem_cancelado_por_fkey")
-  consumos            ApontamentoAtividadeItemConsumoLote[]
+  cliente             Cliente                                  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  apontamento         AtividadeApontamento                     @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_apontamento_fkey")
+  produto             Produto                                  @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+  localEstoque        LocalEstoque                             @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
+  movimentacao        MovimentacaoEstoque                      @relation("AtividadeApontamentoProdutoMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_movimentacao_fkey")
+  movimentacaoEstorno MovimentacaoEstoque?                     @relation("AtividadeApontamentoProdutoEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_estorno_fkey")
+  criadoPor           Usuario?                                 @relation("AtividadeApontamentoProdutoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_criado_por_fkey")
+  canceladoPor        Usuario?                                 @relation("AtividadeApontamentoProdutoCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_cancelado_por_fkey")
+  consumos            AtividadeApontamentoProdutoConsumoLote[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, operation_id])
-  @@unique([cliente_id, apontamento_id, ordem], map: "ApontamentoAtividadeItem_apontamento_ordem_key")
-  @@unique([cliente_id, movimentacao_estoque_id], map: "ApontamentoAtividadeItem_movimentacao_key")
-  @@unique([cliente_id, movimentacao_estorno_id], map: "ApontamentoAtividadeItem_estorno_key")
+  @@unique([cliente_id, apontamento_id, ordem], map: "AtividadeApontamentoProduto_apontamento_ordem_key")
+  @@unique([cliente_id, movimentacao_estoque_id], map: "AtividadeApontamentoProduto_movimentacao_key")
+  @@unique([cliente_id, movimentacao_estorno_id], map: "AtividadeApontamentoProduto_estorno_key")
+  @@index([cliente_id, empresa_id, apontamento_id])
   @@index([cliente_id, produto_id])
   @@index([cliente_id, local_estoque_id])
 }
 
-/// D-PROD-193 — fatia FIFO consumida pelo item PRODUTO: de qual lote, quanto (na unidade do item, L ou KG) e a
-/// que custo, na ordem FIFO. O cancelamento devolve cada fatia ao SEU lote (Σ quantidade = `quantidade` do item,
-/// conferido no serviço). O histórico fica (item cancelado mantém as fatias).
-model ApontamentoAtividadeItemConsumoLote {
+/// D-PROD-202 — fatia FIFO consumida pela linha de produto (de qual lote, quanto, a que custo). O estorno devolve cada
+/// fatia ao SEU lote. O histórico fica.
+model AtividadeApontamentoProdutoConsumoLote {
   id                   String   @id @default(cuid())
   cliente_id           String   @db.VarChar(64)
   empresa_id           String   @db.VarChar(64)
-  item_id              String   @db.VarChar(64)
+  linha_id             String   @db.VarChar(64)
   estoque_lote_nota_id String   @db.VarChar(64)
   ordem                Int
   quantidade           Decimal  @db.Decimal(14, 4)
@@ -2980,13 +3473,184 @@ model ApontamentoAtividadeItemConsumoLote {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  cliente Cliente                  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  item    ApontamentoAtividadeItem @relation(fields: [cliente_id, empresa_id, item_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "ApontamentoAtividadeItemConsumoLote_item_fkey")
-  lote    EstoqueLoteNota          @relation("ApontamentoAtividadeItemConsumoDoLote", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividadeItemConsumoLote_lote_fkey")
+  cliente Cliente                     @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  linha   AtividadeApontamentoProduto @relation(fields: [cliente_id, empresa_id, linha_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoProdutoConsumoLote_linha_fkey")
+  lote    EstoqueLoteNota             @relation("AtividadeApontamentoProdutoConsumoDoLote", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProdutoConsumoLote_lote_fkey")
 
   @@unique([cliente_id, id])
-  @@unique([cliente_id, item_id, estoque_lote_nota_id], map: "ApontamentoAtividadeItemConsumoLote_item_lote_key")
-  @@unique([cliente_id, item_id, ordem], map: "ApontamentoAtividadeItemConsumoLote_item_ordem_key")
-  /// Bloqueio de PATCH/DELETE administrativo do lote (X1) e checagem da FK.
-  @@index([cliente_id, estoque_lote_nota_id], map: "ApontamentoAtividadeItemConsumoLote_lote_idx")
+  @@unique([cliente_id, linha_id, estoque_lote_nota_id], map: "AtividadeApontamentoProdutoConsumoLote_linha_lote_key")
+  @@unique([cliente_id, linha_id, ordem], map: "AtividadeApontamentoProdutoConsumoLote_linha_ordem_key")
+  @@index([cliente_id, estoque_lote_nota_id], map: "AtividadeApontamentoProdutoConsumoLote_lote_idx")
+}
+
+/// D-PROD-202 — LINHA DE MÁQUINA do apontamento. `medidor_tipo`/`medidor_unidade` são snapshot do bem (nunca do
+/// usuário). A leitura vive AQUI (como no abastecimento): a leitura vigente do bem passa a considerar as linhas
+/// confirmadas; nada é gravado em BemPatrimonial. `sem_medidor`: horas/km informados direto, sem leitura.
+model AtividadeApontamentoMaquina {
+  id                       String    @id @default(cuid())
+  cliente_id               String    @db.VarChar(64)
+  empresa_id               String    @db.VarChar(64)
+  apontamento_id           String    @db.VarChar(64)
+  ordem                    Int
+  /// CONFIRMADO | CANCELADO (CHECK).
+  status                   String    @db.VarChar(16)
+  bem_id                   String    @db.VarChar(64)
+  implemento_bem_id        String?   @db.VarChar(64)
+  medidor_tipo             String    @db.VarChar(16)
+  medidor_unidade          String?   @db.VarChar(8)
+  leitura_inicial          Decimal?  @db.Decimal(14, 4)
+  leitura_final            Decimal?  @db.Decimal(14, 4)
+  quantidade_uso           Decimal   @db.Decimal(14, 4)
+  sem_medidor              Boolean   @default(false)
+  /// Obrigatória quando o salto passa do teto do tipo do bem (não bloqueia).
+  justificativa_salto      String?   @db.VarChar(500)
+  custo_unitario_uso       Decimal?  @db.Decimal(14, 4)
+  custo_total              Decimal?  @db.Decimal(14, 4)
+  operation_id             String    @db.VarChar(128)
+  observacao               String?   @db.VarChar(500)
+  criado_por_usuario_id    String?   @db.VarChar(64)
+  cancelado_por_usuario_id String?   @db.VarChar(64)
+  cancelado_em             DateTime?
+  motivo_cancelamento      String?   @db.VarChar(500)
+  /// LINHA | EDICAO | APONTAMENTO | ATIVIDADE (CHECK).
+  cancelamento_origem      String?   @db.VarChar(12)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  cliente      Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  apontamento  AtividadeApontamento @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_apontamento_fkey")
+  bem          BemPatrimonial       @relation("AtividadeApontamentoMaquinaBem", fields: [cliente_id, empresa_id, bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_bem_fkey")
+  implemento   BemPatrimonial?      @relation("AtividadeApontamentoMaquinaImplemento", fields: [cliente_id, empresa_id, implemento_bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_implemento_fkey")
+  criadoPor    Usuario?             @relation("AtividadeApontamentoMaquinaCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_criado_por_fkey")
+  canceladoPor Usuario?             @relation("AtividadeApontamentoMaquinaCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_cancelado_por_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, operation_id])
+  @@unique([cliente_id, apontamento_id, ordem], map: "AtividadeApontamentoMaquina_apontamento_ordem_key")
+  @@index([cliente_id, empresa_id, apontamento_id])
+  @@index([cliente_id, empresa_id, bem_id])
+  @@index([cliente_id, empresa_id, implemento_bem_id])
+}
+
+// ---------------------------------------------------------------------------
+// D-PROD-207 — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades).
+// Cadastros mínimos por fazenda (Servico; o funcionário é papel do parceiro desde a D-PROD-208) e as linhas de custo do
+// apontamento (mão de obra e serviço de terceiro). Nada é apagado: cadastro
+// inativa; linha cancela. FKs compostas pelo tenant, RESTRICT.
+// ---------------------------------------------------------------------------
+
+/// Serviço de terceiro contratado (empreitada, hora de trator alugado, etc.).
+model Servico {
+  id                     String   @id @default(cuid())
+  cliente_id             String   @db.VarChar(64)
+  empresa_id             String   @db.VarChar(64)
+  numero                 String   @db.VarChar(32)
+  nome                   String   @db.VarChar(255)
+  unidade_medida_id      String   @db.VarChar(64)
+  centro_custo_padrao_id String?  @db.VarChar(64)
+  valor_referencia       Decimal? @db.Decimal(14, 4)
+  ativo                  Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  cliente           Cliente                       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa           Empresa                       @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  unidadeMedida     UnidadeMedida                 @relation(fields: [cliente_id, unidade_medida_id], references: [cliente_id, id], onDelete: Restrict)
+  centroCustoPadrao CentroCusto?                  @relation(fields: [cliente_id, empresa_id, centro_custo_padrao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "Servico_centro_custo_padrao_fkey")
+  linhas            AtividadeApontamentoServico[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, numero])
+  @@index([cliente_id, empresa_id, ativo])
+  @@index([cliente_id, unidade_medida_id])
+  @@index([cliente_id, empresa_id, centro_custo_padrao_id])
+}
+
+model AtividadeApontamentoMaoObra {
+  id                       String    @id @default(cuid())
+  cliente_id               String    @db.VarChar(64)
+  empresa_id               String    @db.VarChar(64)
+  apontamento_id           String    @db.VarChar(64)
+  ordem                    Int
+  /// CONFIRMADO | CANCELADO (CHECK).
+  status                   String    @db.VarChar(16)
+  /// Parceiro com papel `funcionario` ou `prestador_servico` (terceiro); mesma fazenda conferida no serviço.
+  parceiro_id              String    @db.VarChar(64)
+  /// FUNCIONARIO | TERCEIRO (CHECK): o papel com que o parceiro entrou na linha.
+  origem                   String    @db.VarChar(12)
+  /// HORA | DIARIA | TAREFA (CHECK).
+  tipo_medida              String    @db.VarChar(8)
+  quantidade               Decimal   @db.Decimal(14, 4)
+  /// Snapshot do cadastro (hora/diária) ou digitado (tarefa). Nulo sem custo.
+  custo_unitario           Decimal?  @db.Decimal(14, 4)
+  custo_total              Decimal?  @db.Decimal(14, 4)
+  operation_id             String    @db.VarChar(128)
+  observacao               String?   @db.VarChar(500)
+  criado_por_usuario_id    String?   @db.VarChar(64)
+  cancelado_por_usuario_id String?   @db.VarChar(64)
+  cancelado_em             DateTime?
+  motivo_cancelamento      String?   @db.VarChar(500)
+  /// LINHA | EDICAO | APONTAMENTO | ATIVIDADE (CHECK).
+  cancelamento_origem      String?   @db.VarChar(12)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  cliente      Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  apontamento  AtividadeApontamento @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_apontamento_fkey")
+  parceiro     Fornecedor           @relation(fields: [cliente_id, parceiro_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_parceiro_fkey")
+  criadoPor    Usuario?             @relation("AtividadeApontamentoMaoObraCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_criado_por_fkey")
+  canceladoPor Usuario?             @relation("AtividadeApontamentoMaoObraCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaoObra_cancelado_por_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, operation_id])
+  @@unique([cliente_id, apontamento_id, ordem], map: "AtividadeApontamentoMaoObra_apontamento_ordem_key")
+  @@index([cliente_id, empresa_id, apontamento_id])
+  @@index([cliente_id, parceiro_id])
+}
+
+model AtividadeApontamentoServico {
+  id                       String    @id @default(cuid())
+  cliente_id               String    @db.VarChar(64)
+  empresa_id               String    @db.VarChar(64)
+  apontamento_id           String    @db.VarChar(64)
+  ordem                    Int
+  /// CONFIRMADO | CANCELADO (CHECK).
+  status                   String    @db.VarChar(16)
+  servico_id               String    @db.VarChar(64)
+  /// Parceiro com papel prestador de serviço (cadastro de Parceiros); mesma fazenda conferida no serviço.
+  fornecedor_parceiro_id   String?   @db.VarChar(64)
+  quantidade               Decimal   @db.Decimal(14, 4)
+  /// Snapshot da sigla da unidade de medida do serviço.
+  unidade                  String    @db.VarChar(32)
+  valor_unitario           Decimal   @db.Decimal(14, 4)
+  valor_total              Decimal   @db.Decimal(14, 4)
+  documento_referencia     String?   @db.VarChar(120)
+  operation_id             String    @db.VarChar(128)
+  observacao               String?   @db.VarChar(500)
+  criado_por_usuario_id    String?   @db.VarChar(64)
+  cancelado_por_usuario_id String?   @db.VarChar(64)
+  cancelado_em             DateTime?
+  motivo_cancelamento      String?   @db.VarChar(500)
+  /// LINHA | EDICAO | APONTAMENTO | ATIVIDADE (CHECK).
+  cancelamento_origem      String?   @db.VarChar(12)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  cliente      Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  apontamento  AtividadeApontamento @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoServico_apontamento_fkey")
+  servico      Servico              @relation(fields: [cliente_id, empresa_id, servico_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoServico_servico_fkey")
+  parceiro     Fornecedor?          @relation(fields: [cliente_id, fornecedor_parceiro_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoServico_parceiro_fkey")
+  criadoPor    Usuario?             @relation("AtividadeApontamentoServicoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoServico_criado_por_fkey")
+  canceladoPor Usuario?             @relation("AtividadeApontamentoServicoCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoServico_cancelado_por_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, operation_id])
+  @@unique([cliente_id, apontamento_id, ordem], map: "AtividadeApontamentoServico_apontamento_ordem_key")
+  @@index([cliente_id, empresa_id, apontamento_id])
+  @@index([cliente_id, empresa_id, servico_id])
+  @@index([cliente_id, fornecedor_parceiro_id])
 }

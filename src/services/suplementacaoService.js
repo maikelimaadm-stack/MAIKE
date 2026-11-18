@@ -30,7 +30,12 @@ import {
   PATCH_REABERTURA_LOTE,
 } from '@/components/utils/consumoUtils';
 import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos';
+import { listarPosicoesRebanhoServidor } from '@/apis/lotes';
+import { listFormulacoesOpcoesLancamento } from '@/apis/formulacoes';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { getMapaCachedData } from '@/services/mapaCacheService';
+import { calcularNivelCocho } from '@/domain/suplementacao/nivelSuplementacao';
+import { somarDias } from '@/lib/diaCivil';
 
 const novaOperationId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -63,7 +68,29 @@ export const carregarPontoAtualizado = async (pontoId) => {
 export const listarPontosDaEmpresa = async (empresaId) => daEmpresa(await listPontosSuplementacao(), empresaId);
 export const listarAreasDaEmpresa = async (empresaId) => daEmpresa(await listAreas(), empresaId);
 export const listarLotesDaEmpresa = async (empresaId) => daEmpresa(await listLotesRebanho(), empresaId);
+
+/**
+ * D-PROD-201 — rebanho ATIVO da empresa para o lançamento de suplementação, da
+ * MESMA fonte do mapa (D-PROD-107): empresa no ledger → as POSIÇÕES (cabeças
+ * atuais por área, com `projecao_peso`); legado → os Lotes ativos. Antes o
+ * formulário lia o cadastro de Lote, que no ledger é só o cadastro de entrada
+ * (cabeças e área desatualizados). Erro na consulta propaga: nunca cai para o
+ * Lote como saldo numa empresa ativada.
+ * @param {string} empresaId
+ */
+export const listarRebanhoParaSuplementacao = async (empresaId) => {
+  const ledger = /** @type {{ativo?: boolean, itens?: any[]}} */ (await listarPosicoesRebanhoServidor(empresaId));
+  if (ledger?.ativo) return (Array.isArray(ledger.itens) ? ledger.itens : []).filter((p) => p?.status === 'Ativo');
+  return (await listarLotesDaEmpresa(empresaId)).filter((l) => l?.status === 'Ativo');
+};
 export const listarProdutosDaEmpresa = async (empresaId) => daEmpresa(await listProdutos(), empresaId);
+/**
+ * D-PROD-203 — formulações ATIVAS da fazenda para o lançamento (obrigatório
+ * escolher uma): produto que vai ao cocho, %PV padrão e regras por Categoria de
+ * Manejo. Rota própria, também liberada a quem só lança suplementação no mapa.
+ * @param {string} empresaId
+ */
+export const listarFormulacoesParaLancamento = async (empresaId) => listFormulacoesOpcoesLancamento(empresaId);
 export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await listLotesNota(), empresaId);
 export const listarMovimentacoesPecuariasDaEmpresa = async (empresaId) =>
   daEmpresa(await listMovimentacoesPecuarias(), empresaId);
@@ -106,6 +133,104 @@ export const registrarLancamento = async ({ evento, lotes, operationId }) => {
 
 // ── Fechamento e reabertura de período ────────────────────────────────────
 
+/** @param {unknown} v */
+const numeroOuNulo = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+
+/**
+ * D-PROD-206 — faixa de tolerância do farol de consumo. O lançamento novo grava a da formulação
+ * (`faixa_tolerancia_percentual`, null = padrão); evento anterior a esta decisão busca a formulação
+ * pelo `formulacao_id` (só as ativas aparecem nas opções); sem ela, null (= 15%).
+ * @param {any} evento
+ */
+const faixaDoEvento = async (evento) => {
+  if (Object.prototype.hasOwnProperty.call(evento ?? {}, 'faixa_tolerancia_percentual')) return numeroOuNulo(evento.faixa_tolerancia_percentual);
+  if (!evento?.formulacao_id || !evento?.empresa_id) return null;
+  try {
+    const formulacoes = await listFormulacoesOpcoesLancamento(evento.empresa_id);
+    const f = (Array.isArray(formulacoes) ? formulacoes : []).find((item) => String(item?.id) === String(evento.formulacao_id));
+    return numeroOuNulo(f?.faixa_tolerancia_percentual);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * D-PROD-206 — R$/kg da saída de estoque do lançamento. O lançamento novo grava `custo_unitario_kg`;
+ * evento anterior busca o movimento (`movimentacao_estoque_id`) no cache do mapa. Sem nada: null.
+ * @param {any} evento
+ */
+const custoDoEvento = async (evento) => {
+  const gravado = numeroOuNulo(evento?.custo_unitario_kg);
+  if (gravado !== null) return gravado;
+  if (!evento?.movimentacao_estoque_id || !evento?.empresa_id) return null;
+  try {
+    const movimentos = await getMapaCachedData('movimentacaoEstoque', evento.empresa_id);
+    const m = (Array.isArray(movimentos) ? movimentos : []).find((item) => String(item?.id) === String(evento.movimentacao_estoque_id));
+    return numeroOuNulo(m?.valor_unitario);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * D-PROD-206 — o ciclo é de um cocho COMPARTILHADO (os mesmos animais com o mesmo produto em outro
+ * cocho)? Mesma regra do nível do cocho (`calcularNivelCocho`, D-PROD-178), no dia do fechamento,
+ * com os eventos e os cochos do cache do mapa. Na dúvida (sem cache, erro), não marca.
+ * @param {any} evento
+ * @param {number} diasPeriodo
+ */
+const cicloCompartilhadoNoCache = async (evento, diasPeriodo) => {
+  try {
+    if (!evento?.empresa_id || !evento?.ponto_suplementacao_id || !evento?.data_lancamento) return false;
+    const [eventos, pontos] = await Promise.all([
+      getMapaCachedData('eventosSuplementacao', evento.empresa_id),
+      getMapaCachedData('pontosSuplementacao', evento.empresa_id),
+    ]);
+    const ponto = (pontos || []).find((p) => String(p?.id) === String(evento.ponto_suplementacao_id));
+    if (!ponto) return false;
+    const dia = String(evento.data_lancamento).slice(0, 10);
+    const hoje = somarDias(dia, Math.max(0, Math.round(Number(diasPeriodo) || 0)));
+    if (!hoje) return false;
+    const nivel = calcularNivelCocho({ ponto, eventos: eventos || [], hoje, pontos: pontos || [] });
+    return nivel?.confiabilidade === 'compartilhada' && String(nivel?.evento?.id) === String(evento.id);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * D-PROD-212 — de onde vem o custo da sobra que o período HERDOU: o fechamento
+ * anterior do mesmo cocho (o evento fechado mais recente antes deste). Com as
+ * camadas que ele gravou (`sobra_final_camadas`), elas; senão, o custo/kg do
+ * lançamento dele (gravado ou achado pelo movimento de estoque). Sem anterior,
+ * sem rede ou sem custo: `{}` — o cálculo usa o custo do lançamento atual e
+ * marca aproximado. Só leitura; erro de leitura não impede o fechamento.
+ * @param {any} evento
+ * @returns {Promise<{ camadas?: unknown, custoAnteriorKg?: number|null }>}
+ */
+const sobraHerdadaDoEvento = async (evento) => {
+  try {
+    if (!evento?.ponto_suplementacao_id || !evento?.data_lancamento) return {};
+    const eventos = await listEventos();
+    const dia = String(evento.data_lancamento).slice(0, 10);
+    const anteriores = (Array.isArray(eventos) ? eventos : []).filter((item) =>
+      item && String(item.id) !== String(evento.id)
+      && String(item.ponto_suplementacao_id) === String(evento.ponto_suplementacao_id)
+      && (!evento.empresa_id || item.empresa_id === evento.empresa_id)
+      && item.dias_periodo !== null && item.dias_periodo !== undefined
+      && String(item.data_lancamento ?? '').slice(0, 10) <= dia);
+    if (anteriores.length === 0) return {};
+    const chave = (item) => `${String(item.data_lancamento ?? '').slice(0, 10)}|${String(item.createdAt ?? item.created_date ?? '')}`;
+    const anterior = anteriores.reduce((a, b) => (chave(b) > chave(a) ? b : a));
+    if (Array.isArray(anterior.sobra_final_camadas) && anterior.sobra_final_camadas.length > 0) {
+      return { camadas: anterior.sobra_final_camadas };
+    }
+    return { custoAnteriorKg: await custoDoEvento(anterior) };
+  } catch {
+    return {};
+  }
+};
+
 /** Alocações ponderadas por tempo, com os dados carregados aqui. */
 export const calcularAlocacoesDoPeriodo = async ({ evento, diasPeriodo, consumoTotal }) => {
   const [todosLotesSupl, lotesAtivos, movimentacoes] = await Promise.all([
@@ -138,10 +263,21 @@ export const calcularAlocacoesDoPeriodo = async ({ evento, diasPeriodo, consumoT
  * @param {number} p.diasPeriodo
  * @param {number} p.sobraFinal
  * @param {number} [p.sobraInicial]
+ * @param {boolean|null} [p.sobraInformada] D-PROD-206: a sobra final foi medida? null = não se sabe
+ * @param {boolean} [p.compartilhado] D-PROD-206: ciclo de cocho compartilhado; sem ele, confere pelo cache do mapa
  */
-export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFinal, sobraInicial }) => {
+export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada = null, compartilhado }) => {
   const lotesSupl = await listLotesSuplementacao();
   const lotesDoEvento = lotesSupl.filter((lote) => lote.suplementacao_evento_id === evento.id);
+  // D-PROD-206: faixa da formulação, custo da saída de estoque e cocho compartilhado — o que o fechamento do
+  // consumo precisa e que um evento anterior a esta decisão não traz gravado.
+  // D-PROD-212: e o custo da sobra herdada (a sobra antiga sai primeiro no custo do período).
+  const [faixaPercentual, custoUnitarioKg, cicloCompartilhado, sobraHerdada] = await Promise.all([
+    faixaDoEvento(evento),
+    custoDoEvento(evento),
+    compartilhado === undefined ? cicloCompartilhadoNoCache(evento, diasPeriodo) : Promise.resolve(Boolean(compartilhado)),
+    sobraHerdadaDoEvento(evento),
+  ]);
 
   const metricas = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
@@ -164,6 +300,11 @@ export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFina
     sobraInicial,
     lotesDoEvento,
     alocacoes,
+    sobraInformada,
+    faixaPercentual,
+    custoUnitarioKg,
+    compartilhado: cicloCompartilhado,
+    sobraHerdada,
   });
 
   return {
@@ -215,10 +356,12 @@ export const aplicarFechamentoSeAindaAberto = async (preparado) => {
  * @param {number} p.diasPeriodo
  * @param {number} p.sobraFinal
  * @param {number} [p.sobraInicial]
+ * @param {boolean|null} [p.sobraInformada] D-PROD-206: a sobra final foi medida? null = não se sabe
+ * @param {boolean} [p.compartilhado] D-PROD-206: ciclo de cocho compartilhado; sem ele, confere pelo cache do mapa
  * @param {(mensagem: string) => void} [p.onProgress]
  */
-export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, onProgress }) => {
-  const preparado = await prepararFechamentoPeriodo({ evento, diasPeriodo, sobraFinal, sobraInicial });
+export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada = null, compartilhado, onProgress }) => {
+  const preparado = await prepararFechamentoPeriodo({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada, compartilhado });
   await aplicarFechamentoPeriodo(preparado, { onProgress });
   return {
     consumoTotal: preparado.consumoTotal,

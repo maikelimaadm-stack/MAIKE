@@ -1,73 +1,62 @@
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw, Trash2 } from "lucide-react";
+import { LancLoteAviso, LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { formatKg } from "./formatters";
 
+/**
+ * "2026-10-20" ou ISO → "20/10/2026", pelo dia gravado: sem passar por fuso ("2026-10-20" não vira 19/10
+ * no Brasil, e "2026-10-20T23:30:00-03:00" não vira 21/10 em UTC).
+ * @param {any} valor
+ */
+export const diaDoFechamento = (valor) => {
+  const [ano, mes, dia] = String(valor ?? "").slice(0, 10).split("-");
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : null;
+};
+
+/**
+ * Sobra do ciclo anterior: aparece no "Lançar" do cocho quando o último fechamento deixou sobra, para
+ * decidir se ela entra como saldo inicial do novo lançamento (D-PROD-137, SUP-02: escolher só preenche o
+ * formulário; o registro nasce ao salvar).
+ *
+ * D-PROD-222: no desenho dos lançamentos de manejo — `LancLoteDialogo` (o título, o cocho no subtítulo e o
+ * ✕ no cabeçalho), os avisos em `LancLoteAviso` e as duas escolhas como as opções do manejo
+ * (`mk-ll__opcao`, como o "Editar Informação" quando há mais de um lote). Antes, o diálogo antigo cortava o
+ * texto à direita (as escolhas não quebravam linha). O ✕ faz o que o "Cancelar" fazia: sai do lançamento.
+ *
+ * @param {{ open: boolean, sobraKg: number, pontoNome?: string, ultimoLancamentoData?: string | null, onAproveitar: () => void, onDescartar: () => void, onCancel?: () => void }} props
+ */
 export default function SobraHerdadaDialog({ open, sobraKg, pontoNome, ultimoLancamentoData, onAproveitar, onDescartar, onCancel }) {
+  const dia = diaDoFechamento(ultimoLancamentoData);
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onCancel?.()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
-            Sobra do ciclo anterior
-          </DialogTitle>
-          <DialogDescription className="text-xs text-slate-600 pt-1">
-            O cocho <span className="font-semibold text-slate-900">{pontoNome}</span> ficou sem lote no pasto e tinha sobra registrada no fechamento.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center">
-          <div className="text-xs text-amber-700">Sobra registrada</div>
-          <div className="text-2xl font-bold text-amber-900">{formatKg(sobraKg)}</div>
-          {ultimoLancamentoData && (
-            <div className="text-[10px] text-amber-700 mt-1">
-              Fechamento em {new Date(ultimoLancamentoData).toLocaleDateString("pt-BR")}
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-          Essa ação não altera o último fechamento. Ela apenas decide se a sobra entra como saldo inicial do novo lançamento.
-        </div>
-
-        <div className="text-xs font-medium text-slate-700">Como deseja iniciar o novo lançamento?</div>
-
-        <div className="grid gap-2">
-          <Button
-            type="button"
-            onClick={onAproveitar}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white justify-start h-auto py-2.5"
-          >
-            <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
-            <div className="text-left">
-              {/* D-PROD-137 (SUP-02): o botão só preenche o formulário; o registro nasce ao salvar. */}
-              <div className="text-xs font-semibold">Usar essa sobra no novo ciclo</div>
-              <div className="text-[10px] font-normal opacity-90">Preenche {formatKg(sobraKg)} como saldo inicial do novo lançamento — o registro só é criado ao salvar; o fechamento anterior não é reaberto</div>
-            </div>
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onDescartar}
-            className="justify-start h-auto py-2.5 border-slate-300"
-          >
-            <Trash2 className="w-4 h-4 mr-2 shrink-0 text-slate-500" />
-            <div className="text-left">
-              <div className="text-xs font-semibold">Sobra já foi descartada/baixada</div>
-              <div className="text-[10px] font-normal text-slate-500">Faz um lançamento novo do zero</div>
-            </div>
-          </Button>
-        </div>
-
-        <div className="flex justify-end pt-1 border-t">
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="h-7 text-xs text-slate-500">
-            Cancelar
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <LancLoteDialogo
+      open={open}
+      onOpenChange={(aberto) => {
+        if (!aberto) onCancel?.();
+      }}
+      titulo="Sobra do ciclo anterior"
+      lotes={pontoNome ? [{ nome: pontoNome }] : undefined}
+      somenteLeitura
+      // É uma escolha: o foco vai para a primeira opção, como no diálogo antigo (não fica no ✕ do lançamento,
+      // escondido por baixo — um Enter ali cancelava o lançamento).
+      focoInicial="corpo"
+    >
+      <p className="mk-ll__texto">
+        O cocho <strong className="font-semibold text-slate-900">{pontoNome}</strong> ficou sem lote no pasto e tinha sobra registrada no fechamento.
+      </p>
+      <LancLoteAviso tom="ambar" data-testid="sobra-herdada-registrada">
+        Sobra registrada: <strong>{formatKg(sobraKg)}</strong>
+        {dia ? ` · Fechamento em ${dia}` : null}
+      </LancLoteAviso>
+      <LancLoteAviso tom="neutro">Essa ação não altera o último fechamento. Ela apenas decide se a sobra entra como saldo inicial do novo lançamento.</LancLoteAviso>
+      <p className="mk-ll__texto">Como deseja iniciar o novo lançamento?</p>
+      {/* D-PROD-137 (SUP-02): a escolha só preenche o formulário; o registro nasce ao salvar. */}
+      <button type="button" className="mk-ll__opcao mk-ll__opcao--coluna" onClick={onAproveitar}>
+        <span>Usar essa sobra no novo ciclo</span>
+        <span>Preenche {formatKg(sobraKg)} como saldo inicial do novo lançamento — o registro só é criado ao salvar; o fechamento anterior não é reaberto</span>
+      </button>
+      <button type="button" className="mk-ll__opcao mk-ll__opcao--coluna" onClick={onDescartar}>
+        <span>Sobra já foi descartada/baixada</span>
+        <span>Faz um lançamento novo do zero</span>
+      </button>
+    </LancLoteDialogo>
   );
 }

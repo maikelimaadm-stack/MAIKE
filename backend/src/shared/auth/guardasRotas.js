@@ -63,6 +63,16 @@ const patrimonio = (alvo) => ({
  */
 const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, 'salvar'], [T.PATRIMONIO_BENS, 'editar']];
 
+/**
+ * D-PROD-197 — quem CRIA (novo|salvar) ou EDITA (editar|salvar) tipo de
+ * atividade lista os centros ATIVOS da fazenda no formulário (Apropriação);
+ * não depende das telas de centros, como os seletores próprios da atividade.
+ */
+const TIPOS_ATIVIDADE_CRIAR_OU_EDITAR = [[T.TIPOS_ATIVIDADE, 'novo'], [T.TIPOS_ATIVIDADE, 'salvar'], [T.TIPOS_ATIVIDADE, 'editar']];
+
+/** D-PROD-200 — o cabeçalho da atividade segue o esquema do cadastro na tela `op-atividades`. */
+const CADASTRO_ATIVIDADES = cadastro(T.ATIVIDADES);
+
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EDITAR = [[T.MAPA_CADASTRO, 'editar'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EXCLUIR = [[T.MAPA_CADASTRO, 'excluir']];
@@ -170,6 +180,16 @@ export const GUARDAS = Object.freeze({
     editar: porQualquer({ mapa: 'lancar_suplementacao' }),
     excluir: SO_ADMIN, // estorno suspenso na interface (politicaEstorno)
   },
+  // D-PROD-205 — Leitura de cocho: quem lança no cocho também lê (mesma chave do mapa). Listar é só autenticado.
+  leituraCocho: {
+    criar: porQualquer({ mapa: 'lancar_suplementacao' }),
+    excluir: porQualquer({ mapa: 'lancar_suplementacao' }),
+  },
+  // D-PROD-219 — Medição de Forragem do pasto: chave gravadora própria do mapa. Listar é só autenticado.
+  medicaoForragem: {
+    criar: porQualquer({ mapa: 'medir_forragem' }),
+    excluir: porQualquer({ mapa: 'medir_forragem' }),
+  },
   suplementacaoEvento: {
     criar: porQualquer({ mapa: 'lancar_suplementacao' }),
     lancamento: porQualquer({ mapa: 'lancar_suplementacao' }),
@@ -213,7 +233,14 @@ export const GUARDAS = Object.freeze({
   tarefa: porAcessoTotal(),
   // ── Cadastros do menu (tela + cadastro rápido) ──
   setor: cadastro(T.SETORES, { criar: LOTES_GRAVAR }),
-  categoriaManejo: cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
+  categoriaManejo: {
+    ...cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
+    // D-PROD-195 — seletor de curva de ganho: quem cria OU edita categoria (o
+    // cadastro rápido do lote incluído) lê as curvas da fazenda, sem a tela de curvas.
+    opcoesCurvas: porQualquer(
+      [T.CATEGORIAS_MANEJO, 'novo'], [T.CATEGORIAS_MANEJO, 'salvar'], [T.CATEGORIAS_MANEJO, 'editar'], ...LOTES_GRAVAR,
+    ),
+  },
   // F6 (D-PROD-137): pelo Mapa Cadastro só cria o local do depósito novo e renomeia
   // o local de um depósito; desativar/capacidade/excluir só na tela Locais.
   localEstoque: { ...cadastro(T.LOCAIS, { criar: MAPA_CAD_CRIAR }), editar: localEstoqueEditar },
@@ -283,25 +310,59 @@ export const GUARDAS = Object.freeze({
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
-  tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
+  // D-PROD-182. D-PROD-197: opções de centro padrão do formulário = criar OU editar tipo.
+  tipoAtividade: { ...cadastro(T.TIPOS_ATIVIDADE), opcoes: porQualquer(...TIPOS_ATIVIDADE_CRIAR_OU_EDITAR) },
   // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
+  // D-PROD-215 — Cadastro de Culturas: leitura também pela tela (dado por fazenda). Incluir a lista de
+  // referência cria registros: exige criar (novo ou salvar) na própria tela.
+  cultura: { ...cadastro(T.CULTURAS), ver: porTela(T.CULTURAS, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).
   curvaGanho: { ...cadastro(T.CURVAS_GANHO), ver: porTela(T.CURVAS_GANHO, 'visualizar') },
-  // D-PROD-190 — Apontamento de Atividade: o esquema do cadastro (criar =
-  // novo|salvar; editar = editar|salvar). Sem DELETE físico: cancelar é a
-  // ação `excluir` da tela. Leitura e seletores = visualizar DESTA tela (dado
-  // operacional da fazenda; não dependem das telas de bens nem de centros).
-  // D-PROD-193 (D-3), sem ação nova: adicionar item = `editar` (editar|salvar);
-  // cancelar item = `cancelar` (excluir); produtos = `ver`; locais com saldo =
-  // `editar` (saldo é de quem lança). Nenhum perfil recebe acesso por padrão.
-  apontamentoAtividade: {
-    ver: porTela(T.APONTAMENTOS_ATIVIDADE, 'visualizar'),
-    criar: cadastro(T.APONTAMENTOS_ATIVIDADE).criar,
-    editar: cadastro(T.APONTAMENTOS_ATIVIDADE).editar,
-    cancelar: cadastro(T.APONTAMENTOS_ATIVIDADE).excluir,
+  // D-PROD-203 — Formulações de suplemento: cadastro e leitura pela tela `pec-formulacoes`. O lançamento de
+  // suplementação (formulação obrigatória) lê só as ATIVAS pelas opções, com a chave do mapa
+  // `lancar_suplementacao` (o vaqueiro que lança não precisa da tela do cadastro) ou com a própria tela.
+  formulacao: {
+    ...cadastro(T.FORMULACOES),
+    ver: porTela(T.FORMULACOES, 'visualizar'),
+    opcoesLancamento: porQualquer({ mapa: 'lancar_suplementacao' }, [T.FORMULACOES, 'visualizar']),
+  },
+  // D-PROD-200 — Lançamento de Atividades, tela `op-atividades` (contrato §5;
+  // substitui `apontamentoAtividade`, da D-PROD-190/193). Cabeçalho pelas ações
+  // PADRÃO da tela, no esquema do cadastro: ver = visualizar (lista, detalhe,
+  // apontamentos e os seletores próprios, que não dependem das telas de bens nem
+  // de usuários); criar ou duplicar = novo|salvar; editar ou concluir =
+  // editar|salvar; cancelar = excluir (sem DELETE físico). Reabrir é a ação
+  // EXTRA `reabrir`, separada.
+  atividades: {
+    ver: porTela(T.ATIVIDADES, 'visualizar'),
+    criar: CADASTRO_ATIVIDADES.criar,
+    editar: CADASTRO_ATIVIDADES.editar,
+    cancelar: CADASTRO_ATIVIDADES.excluir,
+    reabrir: porTela(T.ATIVIDADES, 'reabrir'),
+  },
+  // Apontamentos da atividade: ver = visualizar da tela; lançar (criar e repetir
+  // o último), editar e cancelar são AÇÕES EXTRAS da mesma linha
+  // (`ACOES_ATIVIDADES_EXTRAS`), que nascem desligadas. Nenhuma concessão
+  // automática: só o administrador real e `is_admin` passam sem a caixa marcada.
+  atividadeApontamentos: {
+    ver: porTela(T.ATIVIDADES, 'visualizar'),
+    criar: porTela(T.ATIVIDADES, 'lancar_apontamento'),
+    editar: porTela(T.ATIVIDADES, 'editar_apontamento'),
+    cancelar: porTela(T.ATIVIDADES, 'cancelar_apontamento'),
   },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
+  // D-PROD-207 — Serviços da fazenda: leitura pela própria tela (dado por
+  // fazenda); inativar e reativar são edição do registro (editar|salvar, como nos
+  // centros da D-PROD-146). Sem DELETE físico (cadastro com custo). D-PROD-208: o
+  // cadastro de Funcionário saiu (o funcionário é papel do parceiro).
+  // Opções do centro de custo padrão do formulário do serviço = criar OU editar
+  // serviço (não exigem a tela de Centros de Custo), como em `tipoAtividade.opcoes`.
+  servico: {
+    ...cadastro(T.SERVICOS),
+    ver: porTela(T.SERVICOS, 'visualizar'),
+    opcoes: porQualquer([T.SERVICOS, 'novo'], [T.SERVICOS, 'salvar'], [T.SERVICOS, 'editar']),
+  },
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
   anexo: { criar: porQualquer(...LOTES_GRAVAR), excluir: porQualquer([T.LOTES, 'excluir']) },
   upload: porQualquer(...LOTES_GRAVAR, [T.EMPRESA, 'novo'], [T.EMPRESA, 'editar'], [T.EMPRESA, 'salvar']),

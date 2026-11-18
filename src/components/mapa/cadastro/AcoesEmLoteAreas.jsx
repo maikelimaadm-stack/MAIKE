@@ -4,10 +4,13 @@ import { toast } from "sonner";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import B1Select from "@/components/cadastro/base1/B1Select";
-import { atualizarArea } from "@/services/mapaService";
+import { atualizarArea, renumerarAreas } from "@/services/mapaService";
+import { mensagemErroRenumeracao } from "@/domain/areas/mensagemErroRenumeracao";
 import { CORES_DISPONIVEIS } from "@/domain/areas/regrasCadastroArea";
 
 const TITULOS = { setor: "Definir setor", cor: "Definir cor no mapa", renumerar: "Reatribuir códigos" };
+
+const navegadorOffline = () => typeof navigator !== "undefined" && navigator.onLine === false;
 
 /**
  * Ações em lote das áreas selecionadas (D-PROD-174), na janela do motor. Mesma gravação da tabela antiga:
@@ -32,17 +35,24 @@ export default function AcoesEmLoteAreas({ acao, areas, setores, onFechar, onApl
       toast.error("Selecione ao menos uma área!");
       return;
     }
+    if (acao === "renumerar" && navegadorOffline()) {
+      // A renumeração é só online (não tem fila offline): avisa antes de tentar.
+      toast.error("Reatribuir códigos precisa de conexão com a internet. Tente de novo quando estiver online.");
+      return;
+    }
     setAplicando(true);
     try {
+      /** @type {Array<() => Promise<unknown>>} */
+      let gravacoes = [];
       if (acao === "setor") {
         const setor = setores.find((s) => s.id === setorId);
         if (!setor) {
           toast.error("Selecione um setor válido");
           return;
         }
-        await Promise.all(areas.map((a) => atualizarArea(a.id, { setor_id: setor.id, setor_nome: setor.nome })));
+        gravacoes = areas.map((a) => () => atualizarArea(a.id, { setor_id: setor.id, setor_nome: setor.nome }));
       } else if (acao === "cor") {
-        await Promise.all(areas.map((a) => atualizarArea(a.id, { cor, coordenadas: { coords: a?.coordenadas?.coords || [], cor } })));
+        gravacoes = areas.map((a) => () => atualizarArea(a.id, { cor, coordenadas: { coords: a?.coordenadas?.coords || [], cor } }));
       } else if (acao === "renumerar") {
         const primeiro = parseInt(inicio || "1", 10);
         if (Number.isNaN(primeiro)) {
@@ -50,10 +60,31 @@ export default function AcoesEmLoteAreas({ acao, areas, setores, onFechar, onApl
           return;
         }
         const ordenadas = [...areas].sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
-        await Promise.all(ordenadas.map((a, i) => atualizarArea(a.id, { numero_area: String(primeiro + i) })));
+        // Uma operação só, atômica no servidor (POST /areas-pastagem/renumerar): troca 1↔2
+        // entre áreas da seleção funciona, e uma recusa não deixa códigos pela metade.
+        try {
+          await renumerarAreas(ordenadas.map((a, i) => ({ id: a.id, numero_area: String(primeiro + i) })));
+        } catch (erro) {
+          toast.error(mensagemErroRenumeracao(erro));
+          return;
+        }
+        toast.success("Códigos reatribuídos");
+        onAplicado();
+        return;
       }
-      toast.success("Atualizado com sucesso");
-      onAplicado();
+      const resultados = await Promise.allSettled(gravacoes.map((gravar) => gravar()));
+      const falhas = resultados.filter((r) => r.status === "rejected").length;
+      const certas = resultados.length - falhas;
+      if (!falhas) {
+        toast.success("Atualizado com sucesso");
+        onAplicado();
+      } else if (certas) {
+        // Parte foi gravada: a lista precisa mostrar o que mudou.
+        toast.error(`Atualização parcial: ${certas} ${certas === 1 ? "área atualizada" : "áreas atualizadas"}, ${falhas} com falha.`);
+        onAplicado();
+      } else {
+        toast.error("Falha ao aplicar alterações");
+      }
     } catch {
       toast.error("Falha ao aplicar alterações");
     } finally {

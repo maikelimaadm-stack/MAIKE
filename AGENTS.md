@@ -185,7 +185,8 @@ Para adicionar uma página ou entidade:
   chega). Os testes rodam como DONO e veem o alvo, então o defeito não aparece
   neles. Não traduza P2002 pelo alvo: o mapa `unicos` do `emTransacao` exige
   `{ erro, conferir }` (o `typecheck:backend` reprova a fábrica solta), o alvo
-  só se lê em `alvoDaUnique`, e a prova é sob `comPapelNaoDono`
+  só se lê em `alvoDaUnique` (nem o `meta` inteiro do erro, que o leva junto:
+  fora dele, só por campo), e a prova é sob `comPapelNaoDono`
   (`backend/tests/papelNaoDono.mjs`).
 - **Backend sem banco não testa.** `npm run test:backend` **falha** sem
   `DATABASE_URL`, em vez de pular. Suíte que se auto-desliga reporta verde sem

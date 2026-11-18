@@ -404,3 +404,24 @@ describe('PREF-02 — preferenciaAplicada (regra pura)', () => {
     expect(preferenciaAplicada(pref, { podeFiltrar: true, podeColorir: true })).toEqual(pref);
   });
 });
+
+describe('D-PROD-213 — Resumo do Rebanho abre pelo cartão do resumo inferior', () => {
+  it('com visualizar_lotes: o cartão é um botão e abre o diálogo com as abas Rebanho e Pastos', async () => {
+    sessao.permissoes = linha({ visualizar_lotes: true });
+    await abrir();
+    const cartao = screen.getByRole('button', { name: 'Resumo do mapa' });
+    await act(async () => { fireEvent.click(cartao); });
+    const dialogo = within(await screen.findByRole('dialog', { name: 'Resumo do Rebanho' }));
+    expect(dialogo.getByRole('tab', { name: 'Rebanho' })).toHaveAttribute('aria-selected', 'true');
+    expect(dialogo.getAllByText('15').length).toBeGreaterThan(0);
+    await act(async () => { fireEvent.click(dialogo.getByRole('tab', { name: 'Pastos' })); });
+    expect(dialogo.getByText('Pastos · 2')).toBeInTheDocument();
+  });
+
+  it('sem visualizar_lotes: o cartão não vira botão', async () => {
+    sessao.permissoes = linha({ visualizar_lotes: false });
+    await abrir();
+    expect(screen.queryByRole('button', { name: 'Resumo do mapa' })).toBeNull();
+    expect(document.querySelector('.mk-mapa-resumo')).not.toBeNull();
+  });
+});

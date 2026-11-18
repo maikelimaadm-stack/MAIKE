@@ -8,14 +8,15 @@ import {
   CardTitle as CardTitleUi,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { buscarLoteDoHistorico, listarHistoricoMovimentacoesPagina } from "@/services/loteManejoService";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { buscarLoteDoHistorico } from "@/services/loteManejoService";
 import { Button } from "@/components/ui/button";
 import { normalizeText, getJuncaoLotesSnapshot } from "../utils/pecuariaUtils";
 import { ehMovimentoCancelado, motivoSemCancelamento, tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import ExcluirMovimentacao from "./ExcluirMovimentacao";
 import { useLancLoteDialogo } from "./LancamentoLoteUi";
-import { getMapaCachedData, getMapaCacheSnapshot, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { LIMITE_CACHE_MOVIMENTACOES, estaOnline, usePaginasDoHistorico } from "./usePaginasDoHistorico";
 import { nomeDaAreaDoMovimento } from "@/domain/lotes/movimentacaoLote";
 import {
   ESCOPO_AREA,
@@ -23,7 +24,6 @@ import {
   chaveDeRegistro,
   chaveDoMovimento,
   entradasNaArea,
-  filtrarMovimentacoes,
   filtrarRegistrosDeLote,
   fluxoNaArea,
   ordenarItensDoHistorico,
@@ -103,23 +103,11 @@ const formatHistoricoObservacoes = (item) => {
  * servidor segue recusando DELETE/PATCH genéricos de movimentação.
  */
 
-/** Página do servidor; "Carregar mais" busca a próxima. */
-const TAMANHO_PAGINA = 100;
-
-/** Teto do cache do mapa para movimentações (`listMovimentacoes`). */
-const LIMITE_CACHE_MOVIMENTACOES = 500;
-
-const estaOnline = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
-
 const formatDateTime = (iso) => {
   const d = new Date(iso || '');
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
-
-/** Cursor recusado pelo servidor (v1, adulterado, de outra consulta): recomeçar do início — D-PROD-123. */
-const CODIGO_CURSOR_INVALIDO = 'HISTORICO_CURSOR_INVALIDO';
-const codigoDoServidor = (erro) => (typeof erro?.cause?.code === 'string' ? erro.cause.code : null);
 
 /** "Ocorrência" do card: o dia do fato, ou a ausência dita com todas as letras. */
 const textoDaOcorrencia = (dia) => (dia ? formatDateOnly(dia) : 'Data da ocorrência não informada');
@@ -181,55 +169,15 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     !!empresaSelecionadaId && (escopoEfetivo === ESCOPO_AREA ? !!areaId : loteIds.length > 0 || loteNomes.length > 0);
 
   // Movimentações: servidor paginado; offline (ou servidor fora com cache) → cache, dito como cache.
-  const chaveDaConsulta = React.useMemo(
-    () => [
-      'historico-movimentacoes',
-      empresaSelecionadaId,
-      escopoEfetivo,
-      escopoEfetivo === ESCOPO_AREA ? areaId : null,
-      escopoEfetivo === ESCOPO_LOTES ? chaveLotes : null,
-    ],
-    [empresaSelecionadaId, escopoEfetivo, areaId, chaveLotes]
-  );
-  const movimentacoesQuery = useInfiniteQuery({
-    queryKey: chaveDaConsulta,
-    networkMode: 'always',
-    initialPageParam: null,
-    queryFn: async ({ pageParam }) => {
-      const doCache = async (falha) => {
-        const snapshot = await getMapaCacheSnapshot('movimentacoesHistorico', empresaSelecionadaId);
-        return {
-          origem: 'cache',
-          items: filtrarMovimentacoes(snapshot.items, contexto),
-          brutos: snapshot.items.length,
-          next_cursor: null,
-          has_more: false,
-          total: null,
-          atualizadoEm: snapshot.atualizadoEm,
-          falha,
-        };
-      };
-      if (!estaOnline()) return doCache(null);
-      try {
-        const pagina = await listarHistoricoMovimentacoesPagina({
-          empresaId: empresaSelecionadaId,
-          ...(escopoEfetivo === ESCOPO_AREA ? { areaId } : { loteIds, loteNomes }),
-          cursor: pageParam,
-          limit: TAMANHO_PAGINA,
-        });
-        // Guarda cópia para consulta offline (política do cache: intervalo
-        // mínimo e cooldown). Sem await e sem invalidar esta query.
-        if (!pageParam) refreshMapaCacheEntry('movimentacoesHistorico', empresaSelecionadaId).catch(() => {});
-        return { origem: 'servidor', ...pagina };
-      } catch (erro) {
-        if (pageParam) throw erro;
-        const cache = await doCache(getApiErrorMessage(erro, 'Servidor indisponível'));
-        if (cache.items.length > 0) return cache;
-        throw erro;
-      }
-    },
-    getNextPageParam: (ultima) => (ultima?.origem === 'servidor' && ultima.has_more ? ultima.next_cursor : undefined),
-    enabled: consultaHabilitada,
+  const { query: movimentacoesQuery, primeiraPagina, origem, doServidorH2, movimentacoesCarregadas } = usePaginasDoHistorico({
+    empresaId: empresaSelecionadaId,
+    escopo: escopoEfetivo,
+    areaId,
+    loteIds,
+    loteNomes,
+    chaveLotes,
+    contexto,
+    habilitada: consultaHabilitada,
   });
 
   // Demais fontes do histórico: cache do mapa, atualizado sob a política dele
@@ -263,26 +211,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     return () => window.removeEventListener('atualizar-mapa', aoAtualizarMapa);
   }, [queryClient]);
 
-  /** @type {any[]} */
-  const paginas = movimentacoesQuery.data?.pages ?? [];
-  /** @type {any} */
-  const primeiraPagina = paginas[0] ?? null;
-  const origem = primeiraPagina?.origem ?? null;
-  // Datas `historico_*` só valem vindas do endpoint H2 (PR191-R2).
-  const doServidorH2 = origem === 'servidor' && primeiraPagina?.ordem === 'ocorrencia_desc_v2';
-  const movimentacoesCarregadas = React.useMemo(() => {
-    const vistos = new Set();
-    const saida = [];
-    for (const pagina of paginas) {
-      for (const mov of pagina.items ?? []) {
-        if (!mov?.id || vistos.has(mov.id)) continue;
-        vistos.add(mov.id);
-        saida.push(mov);
-      }
-    }
-    return saida;
-  }, [paginas]);
-
   // Lote excluído do Cadastro (MAIKE-LOTES-R1): o movimento cancelado continua
   // aqui; o servidor resolve a identidade do lote (inclusive excluído) por id.
   const idsDeLotesCancelados = React.useMemo(
@@ -311,33 +239,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const registros = registrosQuery.data;
   const haMaisPaginas = !!movimentacoesQuery.hasNextPage;
 
-  // Cursor recusado (v1 de antes do H2, adulterado, de outra consulta): o
-  // servidor responde 400 HISTORICO_CURSOR_INVALIDO; só nesse código (lido do
-  // corpo, em `cause.code`) o histórico recomeça da primeira página. Qualquer
-  // outra falha (401, 403, 500, rede, 400 genérico) fica visível.
-  //
-  // PR191-R2: o reinício vale por INCIDENTE = consulta (chave) + estado da
-  // paginação (cursores das páginas carregadas). Muda o filtro, a empresa, o
-  // escopo, ou a página 1 recarregada traz outro cursor → incidente novo,
-  // reinicia de novo. O MESMO incidente repetido logo após o reinício (o
-  // servidor recusa de novo o mesmo cursor) não reinicia: o erro aparece — sem
-  // laço. O reset atinge só a consulta atual (`exact`), nunca o cache de outra
-  // empresa ou escopo.
-  const ultimoIncidente = React.useRef(/** @type {string|null} */ (null));
-  const dadosPaginados = /** @type {any} */ (movimentacoesQuery.data);
-  const cursorRecusado = codigoDoServidor(movimentacoesQuery.error) === CODIGO_CURSOR_INVALIDO;
-  React.useEffect(() => {
-    if (!cursorRecusado || !movimentacoesQuery.isError) return;
-    const paginasAtuais = dadosPaginados?.pages ?? [];
-    const incidente = JSON.stringify([
-      chaveDaConsulta,
-      dadosPaginados?.pageParams ?? [],
-      paginasAtuais[paginasAtuais.length - 1]?.next_cursor ?? null,
-    ]);
-    if (ultimoIncidente.current === incidente) return;
-    ultimoIncidente.current = incidente;
-    queryClient.resetQueries({ queryKey: chaveDaConsulta, exact: true });
-  }, [cursorRecusado, movimentacoesQuery.isError, movimentacoesQuery.errorUpdatedAt, dadosPaginados, chaveDaConsulta, queryClient]);
   const areasRaw = registros?.areas ?? [];
   const areaNome = areaId ? areasRaw.find((a) => a.id === areaId)?.nome || lotesEmFoco[0]?.area_atual_nome || '' : '';
 

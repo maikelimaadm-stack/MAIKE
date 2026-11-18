@@ -91,6 +91,8 @@ describe("D-PROD-187: o ícone oficial saiu do cadastro de Categoria de Manejo e
         initialData={buildFormInitialFromRecord({
           id: "cm-bez", nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho",
           idade_minima_meses: 0, idade_maxima_meses: 8,
+          // D-PROD-195: toda categoria gravada tem curva de ganho (a migração ligou as antigas à CURVA PADRÃO).
+          curva_ganho_id: "cg-1", curva_ganho_nome: "CURVA PADRÃO",
           catalogo_categoria_visual_id: "cv-bez",
         })}
         isEditing

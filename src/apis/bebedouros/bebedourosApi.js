@@ -7,7 +7,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { bebedouroPort } from './bebedouroNativePort.js';
+import { bebedouroPort, consultarElegibilidadeExclusaoBebedouroNativa } from './bebedouroNativePort.js';
 import {
   listBebedouroHistoricoNativo,
   createBebedouroHistoricoNativo,
@@ -71,3 +71,19 @@ export const createSanidade = async (dados) => {
 
 export const listAlertas = async (ordenacao = ALERTA_DEFAULT_ORDER) =>
   comoLista(await runProviderCall(() => listBebedouroAlertasNativo(ordenacao), ctx('listAlertas')));
+
+/**
+ * `{ id, pode_excluir: boolean, motivos: string[] }` — motivos: historico, sanidade.
+ * @param {string} id
+ * @returns {Promise<{ id: string, pode_excluir: boolean, motivos: string[] }>}
+ */
+export const consultarElegibilidadeExclusaoBebedouro = async (id) => {
+  const contexto = ctx('consultarElegibilidadeExclusaoBebedouro');
+  assertArgument(isId(id), 'id', contexto);
+  const r = /** @type {any} */ (await runProviderCall(() => consultarElegibilidadeExclusaoBebedouroNativa(id), contexto));
+  return {
+    id,
+    pode_excluir: r?.pode_excluir === true,
+    motivos: Array.isArray(r?.motivos) ? r.motivos.filter((m) => typeof m === 'string') : [],
+  };
+};

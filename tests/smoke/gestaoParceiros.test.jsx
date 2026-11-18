@@ -310,6 +310,110 @@ describe('Parceiros — formulário', () => {
   });
 });
 
+describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
+  const FUNC = {
+    ...PJ, id: 'p3', numero_cadastro: '10', tipo_pessoa: 'Física', nome: 'JOSÉ SILVA', razao_social: null, cnpj: null, cpf: null,
+    inscricao_estadual: null, papeis: ['funcionario'], funcionario_tipo: 'MENSALISTA', funcionario_cargo: 'TRATORISTA',
+    funcionario_custo_hora: '20.0000', funcionario_custo_diaria: '160.0000',
+  };
+
+  it('D-PROD-209: a escolha do tipo do funcionário é Mensalista, Diarista ou Terceirizado (TERCEIRIZADO no lugar de TAREFEIRO)', async () => {
+    const { TIPOS_FUNCIONARIO, rotuloTipoFuncionario } = await import('@/services/parceiroService');
+    expect(TIPOS_FUNCIONARIO.map((t) => [t.value, t.label])).toEqual([['MENSALISTA', 'Mensalista'], ['DIARISTA', 'Diarista'], ['TERCEIRIZADO', 'Terceirizado']]);
+    expect(rotuloTipoFuncionario('TAREFEIRO')).toBe('');
+  });
+
+  it('o papel Funcionário está na lista; os dados do funcionário só aparecem com ele; tipo obrigatório; POST com os custos em texto', async () => {
+    empresaSelecionada('emp-1');
+    await montar();
+    await screen.findByText('AGRO SOL');
+    fireEvent.click(screen.getByRole('button', { name: 'Novo' }));
+    const form = await screen.findByTestId('b1-form');
+    await escolherOpcao(within(form).getByLabelText(/Tipo de pessoa/), 'Pessoa física');
+    fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'josé silva' } });
+    // Sem o papel, nada do funcionário na tela.
+    expect(within(form).queryByLabelText(/Tipo do funcionário/)).toBeNull();
+    expect(within(form).queryByTestId('parceiro-funcionario-custo-hora')).toBeNull();
+    await marcarPapel(form, 'Funcionário');
+    expect(within(form).getByLabelText(/Tipo do funcionário/)).toBeTruthy();
+    expect(within(form).getByLabelText(/^Cargo/)).toBeTruthy();
+    expect(within(form).getByTestId('parceiro-funcionario-custo-hora')).toBeTruthy();
+    expect(within(form).getByTestId('parceiro-funcionario-custo-diaria')).toBeTruthy();
+    // Tipo do funcionário obrigatório: sem ele, nada vai.
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(backend.chamadas.some((c) => c.method === 'POST')).toBe(false);
+    await escolherOpcao(within(form).getByLabelText(/Tipo do funcionário/), /Diarista/i);
+    fireEvent.change(within(form).getByLabelText(/^Cargo/), { target: { value: 'tratorista' } });
+    fireEvent.change(within(form).getByTestId('parceiro-funcionario-custo-hora'), { target: { value: '20,5' } });
+    fireEvent.change(within(form).getByTestId('parceiro-funcionario-custo-diaria'), { target: { value: '150' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Parceiro criado');
+    const post = backend.chamadas.find((c) => c.method === 'POST');
+    expect(post.body).toEqual({
+      empresa_id: 'emp-1', tipo_pessoa: 'Física', nome: 'JOSÉ SILVA', papeis: ['funcionario'],
+      funcionario_tipo: 'DIARISTA', funcionario_cargo: 'TRATORISTA', funcionario_custo_hora: '20.5', funcionario_custo_diaria: '150',
+    });
+    expect(typeof post.body.funcionario_custo_hora).toBe('string');
+  });
+
+  it('custo com mais de 4 casas é recusado no campo; tirar o papel esconde os dados do funcionário e eles não vão', async () => {
+    empresaSelecionada('emp-1');
+    await montar();
+    await screen.findByText('AGRO SOL');
+    fireEvent.click(screen.getByRole('button', { name: 'Novo' }));
+    const form = await screen.findByTestId('b1-form');
+    fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Empreiteira Rocha' } });
+    await marcarPapel(form, 'Funcionário');
+    await escolherOpcao(within(form).getByLabelText(/Tipo do funcionário/), /Terceirizado/i);
+    fireEvent.change(within(form).getByTestId('parceiro-funcionario-custo-hora'), { target: { value: '12,34567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(await within(form).findByText(/no máximo 4 casas decimais/)).toBeTruthy();
+    expect(backend.chamadas.some((c) => c.method === 'POST')).toBe(false);
+    // Tirar o papel: os campos somem e não vão (nem o tipo já escolhido).
+    await marcarPapel(form, 'Funcionário');
+    await marcarPapel(form, 'Prestador de serviço');
+    expect(within(form).queryByLabelText(/Tipo do funcionário/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Parceiro criado');
+    const post = backend.chamadas.find((c) => c.method === 'POST');
+    expect(post.body.papeis).toEqual(['prestador_servico']);
+    for (const campo of ['funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria']) expect(post.body, campo).not.toHaveProperty(campo);
+  });
+
+  it('editar: lê os dados gravados; custo igual pelo valor não é alteração; desmarcar o papel não envia os campos (o servidor limpa)', async () => {
+    registros['emp-1'] = [PJ, LEGADO, FUNC];
+    empresaSelecionada('emp-1');
+    await montar();
+    await abrirRegistro('JOSÉ SILVA');
+    let form = screen.getByTestId('b1-form');
+    expect(within(form).getByLabelText(/^Cargo/)).toHaveValue('TRATORISTA');
+    expect(within(form).getByTestId('parceiro-funcionario-custo-hora')).toHaveValue('20');
+    expect(within(form).getByTestId('parceiro-funcionario-custo-diaria')).toHaveValue('160');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    form = screen.getByTestId('b1-form');
+    fireEvent.change(within(form).getByLabelText(/^Cargo/), { target: { value: 'operador' } });
+    fireEvent.change(within(form).getByTestId('parceiro-funcionario-custo-diaria'), { target: { value: '170' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Parceiro atualizado');
+    let patch = backend.chamadas.filter((c) => c.method === 'PATCH').at(-1);
+    expect(patch.body).toEqual({ empresa_id: 'emp-1', funcionario_cargo: 'OPERADOR', funcionario_custo_diaria: '170' });
+
+    cleanup();
+    await montar();
+    await abrirRegistro('JOSÉ SILVA');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    form = screen.getByTestId('b1-form');
+    await marcarPapel(form, 'Outros');
+    await marcarPapel(form, 'Funcionário');
+    expect(within(form).queryByTestId('parceiro-funcionario-custo-hora')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Parceiro atualizado');
+    patch = backend.chamadas.filter((c) => c.method === 'PATCH').at(-1);
+    expect(patch.body).toEqual({ empresa_id: 'emp-1', papeis: ['outros'] });
+  });
+});
+
 describe('Parceiros — mensagens por código do servidor (nunca sucesso falso)', () => {
   const casos = [
     [erroServidor(409, 'PARCEIRO_DOCUMENTO_DUPLICADO', { details: { numero_cadastro: '42' }, field: 'cnpj' }), /Já existe um parceiro com este CNPJ nesta empresa \(cadastro nº 42\)/],
@@ -318,6 +422,7 @@ describe('Parceiros — mensagens por código do servidor (nunca sucesso falso)'
     [erroServidor(404, 'EMPRESA_NOT_FOUND', { details: { field: 'empresa_id' } }), /Empresa não encontrada/],
     [erroServidor(404, 'PARCEIRO_NOT_FOUND'), /Parceiro não encontrado nesta empresa/],
     [erroServidor(400, 'REQUEST_VALIDATION_FAILED', { details: { field: 'email' } }), /Dados inválidos no campo "email"/],
+    [erroServidor(422, 'PARCEIRO_FUNCIONARIO_SEM_PAPEL', { details: { field: 'funcionario_tipo', reason: 'exige_papel_funcionario' } }), /só valem com o papel Funcionário marcado/],
   ];
   it.each(casos)('%#: mostra a mensagem do código', async (falha, mensagem) => {
     empresaSelecionada('emp-1');

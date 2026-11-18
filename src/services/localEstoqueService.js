@@ -25,6 +25,7 @@ import {
 import { listPontosSuplementacao, updatePontoSuplementacao, listPontos, updatePonto } from '@/apis/mapa';
 import { listProdutos } from '@/apis/produtos';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { resolverPontoReferenciaDaSuplementacao } from '@/domain/mapa/ligacaoPontoReferencia';
 
 const CATEGORIA_DEPOSITO = 'DEPOSITO';
 
@@ -62,12 +63,16 @@ export const numerarLocaisSemNumero = async (locais) => {
   return { numerados: [], falhas: semNumero.map((local) => local.id) };
 };
 
-const mesmasCoordenadas = (a, b) =>
-  Boolean(a && b) && a.lat === b.lat && a.lng === b.lng;
-
 /**
- * Propaga o novo nome para o depósito vinculado, o ponto de referência que
- * ocupa as mesmas coordenadas e os cochos que apontam para esse depósito.
+ * Propaga o novo nome para o depósito vinculado, o ponto de referência do
+ * depósito e os cochos que apontam para esse depósito.
+ *
+ * O ponto de referência vem da regra única de ligação
+ * (`resolverPontoReferenciaDaSuplementacao`): mesma empresa e mesmas
+ * coordenadas do depósito; havendo mais de um no lugar, desempata pelo tipo
+ * depósito e pelo nome. Ligação ambígua NÃO renomeia ponto nenhum (antes era
+ * o primeiro ponto qualquer nas mesmas coordenadas, de qualquer empresa) e
+ * vira falha parcial, com o rastro do que já foi feito.
  *
  * As etapas são acumuladas num array **do chamador** (P1.4-R1). A versão
  * anterior montava a lista aqui dentro e a devolvia só no caminho feliz; em
@@ -94,9 +99,10 @@ const propagarRename = async (localId, novoNome, etapas) => {
   etapas.push('deposito');
 
   const pontosReferencia = await listPontos();
-  const referencia = pontosReferencia.find((ponto) => mesmasCoordenadas(ponto.coordenadas, deposito.coordenadas));
-  if (referencia) {
-    await updatePonto(referencia.id, { nome: novoNome });
+  const ligacao = resolverPontoReferenciaDaSuplementacao(deposito, pontosReferencia);
+  if (ligacao.ambiguo) throw new Error('ponto de referência do depósito ambíguo');
+  if (ligacao.registro) {
+    await updatePonto(ligacao.registro.id, { nome: novoNome });
     etapas.push('ponto_referencia');
   }
 

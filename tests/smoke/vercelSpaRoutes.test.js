@@ -25,12 +25,14 @@ const PAGINAS_COLISAO_HISTORICA = [
 ];
 
 /**
- * Todas as páginas permitidas (28: +3 de Gestão Rural, D-PROD-146; +1 Naturezas
+ * Todas as páginas permitidas (30: +3 de Gestão Rural, D-PROD-146; +1 Naturezas
  * Financeiras, D-PROD-153; +1 Lançamentos Financeiros, D-PROD-155; +5 Patrimônio
  * e Frota, D-PROD-157; +1 Abastecimentos, D-PROD-159; −4 Famílias, Tipos, Perfis
  * de Medição e Combustíveis, D-PROD-162; +1 Tipos de Atividade, D-PROD-182;
  * +1 Estações, D-PROD-188; +1 Curvas de Ganho, D-PROD-189; +1 Apontamentos de
- * Atividade, D-PROD-190).
+ * Atividade, D-PROD-190; trocado por Lançamento de Atividades, D-PROD-200; +1 Formulações, D-PROD-203;
+ * +2 Funcionários e Serviços, D-PROD-207; −1 Funcionários, papel do parceiro, D-PROD-208;
+ * +1 Culturas, D-PROD-215).
  */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',
@@ -40,7 +42,9 @@ const TODAS_PAGINAS_SPA = [
   'CategoriasManejo',
   'ConfiguracoesGerais',
   'CurvasGanho',
+  'Formulacoes',
   'Estacoes',
+  'Culturas',
   'Empresa',
   'GruposAtividades',
   'LocaisEstoque',
@@ -50,7 +54,8 @@ const TODAS_PAGINAS_SPA = [
   'Produtos',
   'TiposTarefa',
   'TiposAtividade',
-  'ApontamentosAtividade',
+  'LancamentoAtividades',
+  'Servicos',
   'UnidadesMedida',
   'Usuarios',
   'Permissoes',
@@ -63,8 +68,11 @@ const TODAS_PAGINAS_SPA = [
   'Abastecimentos',
 ];
 
-/** D-PROD-162: páginas removidas — sem rewrite SPA (o deep link cai no 404 da Vercel, não no app). */
-const PAGINAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
+/**
+ * Páginas removidas — sem rewrite SPA (o deep link cai no 404 da Vercel, não no app): D-PROD-162 e o
+ * antigo Apontamentos de Atividade (D-PROD-200).
+ */
+const PAGINAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis', 'ApontamentosAtividade'];
 
 describe('VERCEL-INGRESS — contrato handler ↔ normalizador (PR #107)', () => {
   it('counterexample /api/native/{rota}?__native_route= não vaza metadado', () => {
@@ -141,15 +149,16 @@ describe('VERCEL-SPA — documento vs JSON', () => {
 });
 
 describe('VERCEL-SPA — matriz das páginas', () => {
-  it('a matriz tem as 28 páginas do manifesto, nem mais nem menos', () => {
+  it('a matriz tem as 31 páginas do manifesto, nem mais nem menos', () => {
     const scope = JSON.parse(readFileSync('config/mapa-manejo-scope.json', 'utf8'));
-    expect(TODAS_PAGINAS_SPA).toHaveLength(28);
+    expect(TODAS_PAGINAS_SPA).toHaveLength(31);
     expect([...TODAS_PAGINAS_SPA].sort()).toEqual([...scope.allowedPages].sort());
     // 2 rewrites da API nativa + 4 por página (minúsculas e PascalCase, com e sem barra final).
-    expect(rewrites).toHaveLength(2 + 4 * 28);
+    expect(rewrites).toHaveLength(2 + 4 * 31);
   });
 
-  it('as quatro páginas removidas pela D-PROD-162 não têm rewrite (nem no vercel.json)', () => {
+  it('as páginas removidas (as quatro da D-PROD-162 e o Apontamentos de Atividade, D-PROD-200) não têm rewrite (nem no vercel.json)', () => {
+    expect(PAGINAS_REMOVIDAS).toHaveLength(5);
     for (const nome of PAGINAS_REMOVIDAS) {
       for (const source of [`/${nome.toLowerCase()}`, `/${nome.toLowerCase()}/`, `/${nome}`, `/${nome}/`]) {
         expect(rewrites.find((r) => r.source === source), source).toBeUndefined();

@@ -118,7 +118,7 @@ que o servidor faz em `1e2b9fc5`.
 
 | Classe | Rotas | No HEAD |
 |---|---|---|
-| **MAPA_NECESSARIO** (o mapa desenha e abre os detalhes com elas) | `/areas-pastagem`, `/pontos-referencia`, `/linhas-geograficas`, `/pontos-suplementacao`, `/configuracao-icones`, `/lotes` e `/lotes/:id`, `/rebanho/posicoes`, `/setores`, `/categorias-manejo`, `/bebedouros`, `/bebedouros-historico`, `/suplementacao-eventos`, `/suplementacao-lotes`, `/estoque-lotes-nota`, `/produtos`, `/movimentacoes-estoque`, `/movimentacoes-mapa`, `/movimentacoes-mapa/historico`, `/movimentacoes-mapa/:id/elegibilidade-cancelamento` e `-exclusao`, `/aplicacoes-medicamento`, `/eventos-sanitarios`, `/manejos-tecnico-rebanho`, `/movimentacoes-pecuaria`, `/catalogo-global/*`, `/auth/contexto` | só tenant, **de propósito**: guardar pela tela do cadastro quebraria o operador real |
+| **MAPA_NECESSARIO** (o mapa desenha e abre os detalhes com elas) | `/areas-pastagem`, `/pontos-referencia`, `/linhas-geograficas`, `/pontos-suplementacao`, `/configuracao-icones`, `/lotes` e `/lotes/:id`, `/rebanho/posicoes`, `/setores`, `/categorias-manejo`, `/bebedouros`, `/bebedouros-historico`, `/suplementacao-eventos`, `/leituras-cocho` (D-PROD-205), `/medicoes-forragem` (D-PROD-219), `/suplementacao-lotes`, `/estoque-lotes-nota`, `/produtos`, `/movimentacoes-estoque`, `/movimentacoes-mapa`, `/movimentacoes-mapa/historico`, `/movimentacoes-mapa/:id/elegibilidade-cancelamento` e `-exclusao`, `/aplicacoes-medicamento`, `/eventos-sanitarios`, `/manejos-tecnico-rebanho`, `/movimentacoes-pecuaria`, `/catalogo-global/*`, `/auth/contexto` | só tenant, **de propósito**: guardar pela tela do cadastro quebraria o operador real |
 | **MAPA_NECESSARIO condicional** (painel de tarefas, `podeUsarTarefasMapa`) | `/lancamentos-tarefa`, `/historicos-lancamento-tarefa`, `/tipos-tarefa`, `/grupos-atividade` | só tenant. A guarda proposta no diagnóstico não foi aplicada |
 | **Projeção por quem pede** (D-PROD-137). O Layout de todo usuário as lê, então não há 403 | `/empresas`, `/usuarios`, `/permissoes` | projeção no service (abaixo) |
 | **CADASTRO com guarda** (D-PROD-137) | `/fornecedores` | `porQualquer([TELAS.LOTES, 'visualizar'])` + projeção |
@@ -190,7 +190,7 @@ permite gravar e sob qual condição o servidor confere. Todas as condições s�
 | Mapa Cadastro `excluir` | excluir pontos e cochos; desvincular cochos do depósito excluído. **Não exclui local de estoque** (D-PROD-137) | PATCH de cocho só com `deposito_origem_id` e `deposito_origem_nome` **iguais a null**, e só num cocho que **está** vinculado (relido no banco). `DELETE /locais-estoque` → 403; a cascata do mapa conta a recusa como "local ignorado", como já fazia com o 409 |
 | Locais `editar`/`salvar` | cadastro de locais (qualquer campo) + renomear o depósito ligado | `nome_ponto`/`local_estoque_nome` só num **DEPÓSITO ligado a um local**; `deposito_origem_nome` só num cocho **vinculado**. O registro é relido no banco (R3 deixava renomear qualquer ponto) |
 | Locais `excluir` | excluir local de estoque (D-PROD-137: única via, além do acesso total) | ação da tela. O service continua recusando local com vínculo (depósito do mapa, produtos, movimentações): 409 `LOCAL_ESTOQUE_DELETE_BLOCKED` |
-| Cadastro de Lotes `novo`/`editar`/`salvar` | lotes; setor e categoria de manejo rápidos (**só criar**); upload. Anexos **só em `Lote`** (D-PROD-137) | ação da tela. Anexo (D-PROD-137): sem acesso total, `entidade` precisa ser `Lote` (senão 403); o Lote precisa existir no tenant (404 `ATTACHMENT_OWNER_INVALID`) e não estar excluído (409 `LOTE_EXCLUIDO`). Remover exige `excluir`, e só anexo de Lote |
+| Cadastro de Lotes `novo`/`editar`/`salvar` | lotes; setor e categoria de manejo rápidos (**só criar**), com as opções de curva de ganho da categoria (D-PROD-195); upload. Anexos **só em `Lote`** (D-PROD-137) | ação da tela. Anexo (D-PROD-137): sem acesso total, `entidade` precisa ser `Lote` (senão 403); o Lote precisa existir no tenant (404 `ATTACHMENT_OWNER_INVALID`) e não estar excluído (409 `LOTE_EXCLUIDO`). Remover exige `excluir`, e só anexo de Lote |
 | Cadastro de Lotes `visualizar` | `GET /fornecedores`, só com a projeção do seletor (D-PROD-137) | `porQualquer([TELAS.LOTES, 'visualizar'])`; CPF mascarado |
 | tela X `editar`/`salvar` (Lote, Produto, Setor, Grupo, Tipo de tarefa) | `/referencias/sincronizar` **da própria entidade X**: recopia nos dependentes, por id, os valores **atuais** de X lidos no banco (D-PROD-137) | `entity_name` do corpo precisa ser a entidade da tela concedida. `data.id` precisa existir no tenant (senão 404). `data.*`, `old_data` e `changed_fields` não são lidos. Tudo numa transação, com um evento `propagar_referencias` no `AuditLog` |
 | Bebedouros `novo`/`salvar`, ou Mapa Geral `salvar` | lançar no histórico de bebedouro (D-PROD-137: o botão "Lançar" do mapa e da tela Bebedouros só aparece com uma destas) | ação da tela. `bebedouro_id` obrigatório (400) e de um Bebedouro do tenant e da mesma empresa (404 `BEBEDOURO_NOT_FOUND`); o nome gravado é o do cadastro (D-PROD-137) |
@@ -220,7 +220,19 @@ D-PROD-162: −20 rotas e +1, classe (a). A tabela passa de 299 para 280 linhas 
 
 D-PROD-189: +5 rotas, todas classe (a): `/curvas-ganho` (Curvas de Ganho de Peso, tabela CADCURVAGANHO). Leitura também pela tela `pec-curvas-ganho` (`visualizar`).
 
+D-PROD-195: +1 rota, classe (a): `GET /categorias-manejo-opcoes/curvas-ganho` (seletor obrigatório de curva da Categoria de Manejo; só `{id, nome, ativo}` da fazenda, `exigirEmpresaDoTenant`). Guarda: quem cria OU edita categoria — `pec-categorias-manejo` `novo`/`salvar`/`editar` ou `pec-lotes` `novo`/`editar`/`salvar` (cadastro rápido); a tela `pec-curvas-ganho` sozinha não lê. `DELETE /curvas-ganho/:id` mantém guarda e classe e ganha a recusa 409 `CURVA_GANHO_EM_USO` `{ categorias }`.
+
+D-PROD-203: +6 rotas, todas classe (a): `/formulacoes` (Formulações de suplemento, tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA). Leitura e escrita pela tela `pec-formulacoes`; `GET /formulacoes/opcoes-lancamento` (só as ativas, para o lançamento de suplementação) também pela chave do mapa `lancar_suplementacao`. `DELETE /formulacoes/:id` recusa com 409 `FORMULACAO_EM_USO` `{ lancamentos }` a formulação citada por lançamento de suplementação.
+
+D-PROD-205: +3 rotas: `/leituras-cocho` (Leitura de cocho, tabela LEITURACOCHO). `GET` classe (d), leitura autenticada isolada por tenant (o mapa desenha o farol do cocho com ela, como `/suplementacao-eventos`); `POST` e `DELETE` classe (a), chave do mapa `lancar_suplementacao`.
+
+D-PROD-219: +3 rotas: `/medicoes-forragem` (Medição de Forragem, tabela MEDICAOFORRAGEM). `GET` classe (d), leitura autenticada isolada por tenant (o detalhe do pasto no mapa mostra as últimas medições); `POST` e `DELETE` classe (a), chave do mapa `medir_forragem` (gravadora: operador só com a chave gravada `true`).
+
+D-PROD-223: +1 rota: `GET /medicoes-forragem/descanso?empresa_id=` (classe (d), só leitura, tenant do auth_context): ocupação de cada pasto pelo ledger do rebanho e o dia em que o último lote saiu, para o farol estimado.
+
 D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
+
+D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabela CADCULTURAS). Leitura e escrita pela tela `pec-culturas` (leitura com `visualizar`); o comando `POST /culturas/comandos/lista-referencia` cria registros e exige a ação de criar (`novo`/`salvar`). Sem concessão automática.
 
 | Método | Rota | Arquivo:linha | Classe — guarda |
 |---|---|---|---|
@@ -288,15 +300,16 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/categorias` | `backend/src/modules/categorias/categoriaRoutes.js:60` | a — GUARDAS.categoria.criar |
 | PATCH | `/categorias/:id` | `backend/src/modules/categorias/categoriaRoutes.js:66` | a — GUARDAS.categoria.editar |
 | DELETE | `/categorias/:id` | `backend/src/modules/categorias/categoriaRoutes.js:72` | a — GUARDAS.categoria.excluir |
-| GET | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:38` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
-| POST | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:46` | a — GUARDAS.categoriaManejo.criar |
-| PATCH | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:52` | a — GUARDAS.categoriaManejo.editar |
-| DELETE | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:58` | a — GUARDAS.categoriaManejo.excluir |
-| GET | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:79` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
-| GET | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:84` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
-| POST | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:90` | a — GUARDAS.curvaGanho.criar (D-PROD-189) |
-| PATCH | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:96` | a — GUARDAS.curvaGanho.editar (D-PROD-189) |
-| DELETE | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:102` | a — GUARDAS.curvaGanho.excluir (D-PROD-189) |
+| GET | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:52` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
+| POST | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:60` | a — GUARDAS.categoriaManejo.criar |
+| PATCH | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:66` | a — GUARDAS.categoriaManejo.editar |
+| DELETE | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:72` | a — GUARDAS.categoriaManejo.excluir |
+| GET | `/categorias-manejo-opcoes/curvas-ganho` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:79` | a — GUARDAS.categoriaManejo.opcoesCurvas (D-PROD-195: criar OU editar categoria, inclui `pec-lotes` novo/editar/salvar) |
+| GET | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:78` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
+| GET | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:83` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
+| POST | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:89` | a — GUARDAS.curvaGanho.criar (D-PROD-189) |
+| PATCH | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:95` | a — GUARDAS.curvaGanho.editar (D-PROD-189) |
+| DELETE | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:101` | a — GUARDAS.curvaGanho.excluir (D-PROD-189); D-PROD-195: curva ligada a categoria → 409 `CURVA_GANHO_EM_USO` `{ categorias }` |
 | GET | `/empresas` | `backend/src/modules/empresas/empresaRoutes.js:85` | d — leitura autenticada, isolada por tenant. (D-PROD-137) Projeção: sem a tela Empresa, resumo sem dados pessoais |
 | POST | `/empresas` | `backend/src/modules/empresas/empresaRoutes.js:93` | a — porTela(TELAS.EMPRESA, 'novo') |
 | PATCH | `/empresas/:id` | `backend/src/modules/empresas/empresaRoutes.js:99` | a — porTela(TELAS.EMPRESA, 'editar') |
@@ -307,6 +320,12 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/estacoes` | `backend/src/modules/estacoes/estacaoRoutes.js:72` | a — GUARDAS.estacao.criar (D-PROD-188) |
 | PATCH | `/estacoes/:id` | `backend/src/modules/estacoes/estacaoRoutes.js:78` | a — GUARDAS.estacao.editar (D-PROD-188) |
 | DELETE | `/estacoes/:id` | `backend/src/modules/estacoes/estacaoRoutes.js:84` | a — GUARDAS.estacao.excluir (D-PROD-188) |
+| GET | `/culturas` | `backend/src/modules/culturas/culturaRoutes.js:93` | a — GUARDAS.cultura.ver (D-PROD-215) |
+| GET | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:98` | a — GUARDAS.cultura.ver (D-PROD-215) |
+| POST | `/culturas` | `backend/src/modules/culturas/culturaRoutes.js:104` | a — GUARDAS.cultura.criar (D-PROD-215) |
+| POST | `/culturas/comandos/lista-referencia` | `backend/src/modules/culturas/culturaRoutes.js:114` | a — GUARDAS.cultura.criar (D-PROD-215: comando idempotente, inclui as 11 culturas de referência que faltam pelo nome) |
+| PATCH | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:123` | a — GUARDAS.cultura.editar (D-PROD-215) |
+| DELETE | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:133` | a — GUARDAS.cultura.excluir (D-PROD-215) |
 | GET | `/estoque-fisico/reconciliacao` | `backend/src/modules/estoqueFisico/estoqueFisicoRoutes.js:39` | c — GUARDAS.estoqueFisico.reconciliar (só administrador real; somente leitura, `RepeatableRead` + `READ ONLY`, sem tela; querystring fechada; `cursor` assinado por HMAC e amarrado ao tenant e ao escopo, qualquer desvio → 400 `cursor_invalido` antes do banco; D-PROD-161) |
 | GET | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:40` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | GET | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:46` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
@@ -317,6 +336,19 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/eventos-sanitarios` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:40` | c — GUARDAS.semTela (só administrador real) |
 | PATCH | `/eventos-sanitarios/:id` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:46` | c — GUARDAS.semTela (só administrador real) |
 | DELETE | `/eventos-sanitarios/:id` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:52` | c — GUARDAS.semTela (só administrador real) |
+| GET | `/formulacoes` | `backend/src/modules/formulacoes/formulacaoRoutes.js:125` | a — GUARDAS.formulacao.ver (D-PROD-203) |
+| GET | `/formulacoes/opcoes-lancamento` | `backend/src/modules/formulacoes/formulacaoRoutes.js:131` | a — GUARDAS.formulacao.opcoesLancamento (D-PROD-203: mapa `lancar_suplementacao` OU `pec-formulacoes` visualizar; só as ativas) |
+| GET | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:136` | a — GUARDAS.formulacao.ver (D-PROD-203) |
+| POST | `/formulacoes` | `backend/src/modules/formulacoes/formulacaoRoutes.js:142` | a — GUARDAS.formulacao.criar (D-PROD-203) |
+| PATCH | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:148` | a — GUARDAS.formulacao.editar (D-PROD-203) |
+| DELETE | `/formulacoes/:id` | `backend/src/modules/formulacoes/formulacaoRoutes.js:154` | a — GUARDAS.formulacao.excluir (D-PROD-203); citada por lançamento de suplementação → 409 `FORMULACAO_EM_USO` `{ lancamentos }` |
+| GET | `/leituras-cocho` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:50` | d — leitura autenticada, isolada por tenant (sem checagem de tela; D-PROD-205) |
+| POST | `/leituras-cocho` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:55` | a — GUARDAS.leituraCocho.criar (D-PROD-205: mapa `lancar_suplementacao`) |
+| DELETE | `/leituras-cocho/:id` | `backend/src/modules/leiturasCocho/leituraCochoRoutes.js:61` | a — GUARDAS.leituraCocho.excluir (D-PROD-205: mapa `lancar_suplementacao`) |
+| GET | `/medicoes-forragem` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js:63` | d — leitura autenticada, isolada por tenant (sem checagem de tela; D-PROD-219) |
+| GET | `/medicoes-forragem/descanso` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js` | d — leitura autenticada, isolada por tenant (D-PROD-223: descanso dos pastos para o farol estimado) |
+| POST | `/medicoes-forragem` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js:68` | a — GUARDAS.medicaoForragem.criar (D-PROD-219: mapa `medir_forragem`) |
+| DELETE | `/medicoes-forragem/:id` | `backend/src/modules/medicoesForragem/medicaoForragemRoutes.js:74` | a — GUARDAS.medicaoForragem.excluir (D-PROD-219: mapa `medir_forragem`) |
 | GET | `/fornecedores` | `backend/src/modules/fornecedores/fornecedorRoutes.js:42` | a — porQualquer([TELAS.LOTES, 'visualizar']). (D-PROD-137) Projeção com CPF mascarado; completo só com acesso total |
 | POST | `/fornecedores` | `backend/src/modules/fornecedores/fornecedorRoutes.js:50` | c — GUARDAS.semTela (só administrador real) |
 | PATCH | `/fornecedores/:id` | `backend/src/modules/fornecedores/fornecedorRoutes.js:56` | c — GUARDAS.semTela (só administrador real) |

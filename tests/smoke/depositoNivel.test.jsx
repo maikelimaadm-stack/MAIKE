@@ -7,6 +7,14 @@
  * mínimo é um LIMIAR independente (acima/abaixo, margem em kg): nunca é
  * divisor nem teto do percentual. Antes (D-PROD-176) o nível era saldo ÷ mínimo
  * e o texto dizia "% do mínimo".
+ *
+ * D-PROD-220 (desenho do Detalhes do Lote v12): o percentual bruto é o número
+ * grande do bloco do nível. D-PROD-227: aparece uma vez na tela; o medidor
+ * mantém o percentual e a descrição acessíveis, sem repetir o número.
+ *
+ * D-PROD-225: no detalhe, o ícone é o SUBÍCONE do depósito (o desenho dos
+ * detalhes, sem o pino do mapa, nas cores configuradas para o subícone); o
+ * marcador (pino + silo) fica só no mapa.
  */
 import React from 'react';
 import { render, screen, cleanup, within } from '@testing-library/react';
@@ -25,34 +33,43 @@ const nivelDe = ({ saldo, limite = null, minimo = null }) => calcularNivelDeposi
   estoqueLotes: saldo > 0 ? [{ id: 'l1', local_estoque_id: 'loc', produto_id: RACAO.id, quantidade_disponivel: saldo }] : [],
   produtos: [RACAO],
 });
-/** SVG do ícone do detalhe (o mesmo desenho do marcador). */
+/** SVG do ícone do detalhe (o subícone: o desenho dos detalhes, sem o pino do mapa). */
 const iconeDe = (container) => xml(decodeURIComponent(container.querySelector('img[data-deposito-icone]').src.split(',')[1]));
 const medidorLimite = () => screen.getByRole('meter', { name: 'Ocupação do limite operacional' });
 const painelMinimo = () => screen.getByRole('group', { name: 'Estoque mínimo' });
+/** Percentual visível uma vez; o role=meter conserva o valor acessível. */
+const percentualVisivel = (texto) => {
+  expect(within(screen.getByTestId('nivel-do-deposito')).getByText(texto)).toBeTruthy();
+  expect(screen.getAllByText(texto)).toHaveLength(1);
+};
 
 describe('Depósito com nível pelo limite operacional', () => {
-  it('mostra no mapa o mesmo nível do subícone e preserva a moldura do cocho', () => {
+  it('mostra no mapa e no detalhe o mesmo nível: o marcador (pino + silo) no mapa e o subícone no detalhe', () => {
     const { iconUrl } = resolverIconeSuplementacao({ categoria_ponto: 'DEPÓSITO', indicador_percentual: .5 });
     const mapa = xml(decodeURIComponent(iconUrl.split(',')[1]));
     expect(mapa.querySelector('parsererror')).toBeNull();
     expect(mapa.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
-    expect(mapa.querySelector('svg > path').getAttribute('stroke')).toBe('#bbb7b7');
+    expect(mapa.querySelector('[data-fundo-ponto] path').getAttribute('stroke')).toBe('#bbb7b7');
     // 500 kg de um limite de 1000 kg: 50% no medidor e no subícone.
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 500, limite: 1000, minimo: 1000 })} />);
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('50');
     expect(medidorLimite().getAttribute('aria-valuetext')).toBe('50% do limite operacional: 500 kg de 1.000 kg, dentro do limite');
     expect(screen.getByText('500 kg de 1.000 kg · dentro do limite')).toBeTruthy();
-    expect(screen.getByText('50%')).toBeTruthy();
+    percentualVisivel('50%');
     const sub = iconeDe(container);
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
+    // D-PROD-225: o bloco do nível usa o subícone (como o cocho): sem o pino do mapa, no contorno do subícone.
+    expect(sub.querySelector('[data-fundo-ponto]')).toBeNull();
+    expect(sub.documentElement.getAttribute('viewBox')).toBe('0 0 252 185');
     expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#a6afb6');
+    expect(new XMLSerializer().serializeToString(sub)).toBe(new XMLSerializer().serializeToString(xml(criarSvgDeposito(0.5))));
     // Nada de "% do mínimo": o mínimo não é o divisor.
     expect(container.textContent).not.toMatch(/% do (estoque )?mínimo/);
   });
 
   it('acima do limite: percentual bruto fora do ícone, ícone cheio e excesso em kg', () => {
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 2000, limite: 1000 })} />);
-    expect(screen.getByText('200%')).toBeTruthy();
+    percentualVisivel('200%');
     expect(screen.getByText('2.000 kg de 1.000 kg · 1.000 kg acima do limite')).toBeTruthy();
     expect(medidorLimite().getAttribute('aria-valuetext')).toBe('200% do limite operacional: 2.000 kg de 1.000 kg, 1.000 kg acima');
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('200');
@@ -119,8 +136,8 @@ describe('Depósito com nível pelo limite operacional', () => {
     const cheio = xml(criarSvgDeposito(1, true));
     expect(cheio.querySelector('parsererror')).toBeNull();
     expect(cheio.querySelector('[data-deposito-sacos]')).toBeNull();
-    expect(cheio.querySelector('svg svg').getAttribute('width')).toBe('44');
-    expect(cheio.querySelector('svg svg').getAttribute('height')).toBe('33');
+    expect(cheio.querySelector('svg svg').getAttribute('width')).toBe('64');
+    expect(cheio.querySelector('svg svg').getAttribute('height')).toBe('47');
     expect(cheio.getElementById('cintas')).toBeNull();
     expect(vazio.getElementById('cintas')).toBeNull();
     expect(cheio.querySelectorAll('circle, image, script')).toHaveLength(0);

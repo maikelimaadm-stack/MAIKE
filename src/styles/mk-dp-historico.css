@@ -1,0 +1,321 @@
+/*
+ * Detalhes do Lote v12 — aba Histórico (D-PROD-218; número definitivo no PR).
+ * Linha do tempo (LinhaDoTempo.jsx), estados e "Carregar mais" (AbaHistorico.jsx).
+ * O comum (raiz, corpo, botão de filtro, aviso, vazio, nota, chip) está em
+ * mk-detalhes-pasto.css; aqui só o que é da aba. Tudo sob a raiz `.mk-dp`.
+ *
+ * Valores da especificação v12 §C.2 "Linha do tempo", na densidade compacta
+ * pedida pelo proprietário (D-PROD-224): trilho 2 px #e1e4e8 (left 5, top 10,
+ * bottom 4); dia 11,5/600 .04em #6b7280, recuado -16 px com o ponto de 12 px
+ * #5aa7e0 e anel da cor do fundo; cartão com borda 1 px #e7e9ec, raio 10, sem
+ * sombra; cabeçalho 36 px, ícone 20 px teal, título 14/600; linhas em grade
+ * (rótulo 11,5 #6b7280 em cima, valor 13/600 #1f2328 embaixo) com a divisória
+ * #f0f1f3 entre as fileiras; 6 px entre dia e cartões; o valor que quebra em
+ * duas linhas equilibradas (D-PROD-226).
+ *
+ * Marcação:
+ *   div.mk-dp-hist > div.mk-dp-botoes > button.mk-dp-filtro
+ *                  + div.mk-dp-hist__aviso[role=status] > .mk-dp-aviso   (offline)
+ *                  + ol.mk-dp-tl | div.mk-dp-hist__estado | .mk-dp-vazio
+ *                  + div.mk-dp-hist__mais > button.mk-dp-hist__botao + p.mk-dp-hist__contagem
+ *                  + p.mk-dp-nota
+ *   ol.mk-dp-tl > li.mk-dp-tl__grupo > h3.mk-dp-tl__dia(> span.mk-dp-tl__ponto)
+ *     + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card(.is-cancelado)
+ *       > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong.mk-dp-tl__titulo + .mk-dp-chip.mk-dp-tl__chip)
+ *       + dl.mk-dp-tl__linhas (grade) > div.mk-dp-tl__row(.mk-dp-tl__row--larga) > dt + dd
+ */
+
+/* A aba é um bloco do corpo: coluna com o mesmo espaço do corpo (8 px) */
+.mk-dp .mk-dp-hist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ── Linha do tempo ───────────────────────────────────────────────────── */
+.mk-dp .mk-dp-tl {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+}
+
+.mk-dp .mk-dp-tl::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 4px;
+  left: 5px;
+  width: 2px;
+  border-radius: 2px;
+  background: #e1e4e8;
+}
+
+.mk-dp .mk-dp-tl__grupo,
+.mk-dp .mk-dp-tl__cartoes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-tl__dia {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 4px 0 0 -16px;
+  padding-left: 24px;
+  color: #6b7280;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+
+.mk-dp .mk-dp-tl__ponto {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 999px;
+  background: #5aa7e0;
+  box-shadow: 0 0 0 3px #F9F9F7;
+}
+
+.mk-dp .mk-dp-tl__card {
+  overflow: hidden;
+  border: 1px solid #e7e9ec;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mk-dp .mk-dp-tl__cab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-bottom: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-tl__ic {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: #3db5c9;
+}
+
+.mk-dp .mk-dp-tl__titulo {
+  min-width: 0;
+  color: #1f2328;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Cancelado: o chip vai para o fim do cabeçalho */
+.mk-dp .mk-dp-tl__chip {
+  margin-left: auto;
+}
+
+.mk-dp .mk-dp-tl__linhas {
+  /* D-PROD-224: as linhas do cartão em grade, como as células dos detalhes (rótulo pequeno em cima, valor
+     embaixo), em vez de uma informação por linha: o mesmo conteúdo em bem menos altura. */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  padding: 0 12px;
+  clip-path: inset(0 12px);
+}
+
+.mk-dp .mk-dp-tl__row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 10px 6px 0;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/* Linha fina entre as fileiras, de ponta a ponta (como a .mk-dp-cel); a 1ª fileira fica sem
+   (cortada pelo clip-path da grade). D-PROD-226. */
+.mk-dp .mk-dp-tl__row::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -2000px;
+  right: -2000px;
+  height: 1px;
+  background: #f0f1f3;
+  pointer-events: none;
+}
+
+/* Uma linha só, ou um texto longo (descrição, observações): de ponta a ponta do cartão. */
+.mk-dp .mk-dp-tl__row:only-child,
+.mk-dp .mk-dp-tl__row--larga {
+  grid-column: 1 / -1;
+}
+
+.mk-dp .mk-dp-tl__row > dt {
+  color: #6b7280;
+  font-size: 11.5px;
+}
+
+.mk-dp .mk-dp-tl__row > dd {
+  min-width: 0;
+  color: #1f2328;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  /* Equilibrada: "L-2026-020" / "· L-2026-021" em vez de partir o código do lote no hífen. */
+  text-wrap: balance;
+}
+
+/* ── Estados (carregando, erro) ───────────────────────────────────────── */
+.mk-dp .mk-dp-hist__estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 16px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+.mk-dp .mk-dp-hist__detalhe {
+  font-size: 11.5px;
+}
+
+.mk-dp .mk-dp-hist__aviso strong {
+  font-weight: 600;
+}
+
+/* ── "Carregar mais" (e "Tentar novamente"): o desenho do botão de filtro ── */
+.mk-dp .mk-dp-hist__botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 16px;
+  border: 1px solid #d6dadf;
+  border-radius: 8px;
+  background: #fff;
+  color: #2b2f33;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+
+.mk-dp .mk-dp-hist__botao:disabled {
+  opacity: 0.6;
+}
+
+@media (hover: hover) {
+  .mk-dp .mk-dp-hist__botao:not(:disabled):hover {
+    background: #f6f7f8;
+  }
+}
+
+.mk-dp .mk-dp-hist__botao:active:not(:disabled) {
+  background: #F1F1EE;
+}
+
+.mk-dp .mk-dp-hist__mais {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.mk-dp .mk-dp-hist__contagem,
+.mk-dp .mk-dp-hist__erro {
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.mk-dp .mk-dp-hist__contagem {
+  color: #6b7280;
+}
+
+.mk-dp .mk-dp-hist__erro {
+  color: #b91c1c;
+}
+
+/* D-PROD-245 — histórico no mesmo padrão compacto dos detalhes. */
+.mk-dp .mk-dp-hist { gap: 10px; }
+.mk-dp .mk-dp-hist .mk-dp-tl { gap: 12px; padding-left: 12px; }
+.mk-dp .mk-dp-hist .mk-dp-tl::before { left: 3px; width: 1px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__dia {
+  margin-left: -12px;
+  padding-left: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.mk-dp .mk-dp-hist .mk-dp-tl__ponto { width: 8px; height: 8px; margin-top: -4px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__cartoes { gap: 8px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__card { border-radius: 6px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__cab { min-height: 30px; gap: 8px; padding: 5px 10px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__ic { width: 16px; height: 16px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__titulo { flex: 1 1 auto; font-size: 12.5px; font-weight: 500; }
+.mk-dp .mk-dp-hist .mk-dp-tl__linhas {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 16px;
+  padding: 0 10px;
+  /* As divisórias atravessam apenas as fileiras de dados; a primeira fica recortada. */
+  clip-path: inset(0 10px);
+}
+.mk-dp .mk-dp-hist .mk-dp-tl__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+  padding: 6px 0;
+}
+.mk-dp .mk-dp-hist .mk-dp-tl__row::before { display: block; }
+.mk-dp .mk-dp-hist .mk-dp-tl__row > dt { min-width: 0; font-size: 12px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__row > dd { font-size: 12.5px; font-weight: 400; text-wrap: nowrap; }
+.mk-dp .mk-dp-hist .mk-dp-hist__mais {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.mk-dp .mk-dp-hist .mk-dp-hist__contagem { text-align: left; }
+.mk-dp .mk-dp-hist .mk-dp-hist__erro { flex-basis: 100%; text-align: left; }
+.mk-dp .mk-dp-hist .mk-dp-hist__botao { height: 30px; padding: 0 10px; border-radius: 4px; font-size: 12px; }
+.mk-dp .mk-dp-hist .mk-dp-nota { font-size: 11.5px; }
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-hist .mk-dp-tl__linhas { grid-template-columns: minmax(0, 1fr); }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: baseline;
+  }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row > dd { text-align: right; }
+}
+
+@media (min-width: 768px) {
+  .mk-dp .mk-dp-hist .mk-dp-tl__cab { border-bottom: 0; }
+}
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-hist .mk-dp-tl__dia { font-size: 12px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__cab { min-height: 34px; padding: 7px 10px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__titulo { font-size: 13.5px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row { padding: 8px 0; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row > dt { font-size: 13px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row > dd { font-size: 13.5px; }
+  .mk-dp .mk-dp-hist .mk-dp-hist__contagem { font-size: 12px; }
+}

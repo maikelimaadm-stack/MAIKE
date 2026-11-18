@@ -1394,6 +1394,15 @@
     display: none;
   }
 
+  /* D-PROD-232: com o ⚡ das ações no card, o canto mostra só o ⚡ (a caixa continua escondida). */
+  .cadastro-b1--full-page .b1-card__select.b1-selacoes {
+    display: flex;
+  }
+
+  .cadastro-b1--full-page .b1-card__select.b1-selacoes > .mg-check {
+    display: none;
+  }
+
   .cadastro-b1--full-page .b1-card .pl-7 {
     padding-left: 0;
   }

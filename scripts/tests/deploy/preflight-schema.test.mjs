@@ -21,6 +21,10 @@ const COLUNAS_OK = [
   { table_name: 'Usuario', column_name: 'papel_tenant' },
   // D-PROD-187: o nome físico novo da Categoria de Manejo.
   { table_name: 'CADCATEGORIA', column_name: 'idade_minima_meses' },
+  // D-PROD-195: a curva de ganho obrigatória da categoria.
+  { table_name: 'CADCATEGORIA', column_name: 'curva_ganho_id' },
+  // D-PROD-198: peso objetivo da categoria.
+  { table_name: 'CADCATEGORIA', column_name: 'peso_objetivo_kg' },
   { table_name: 'Lote', column_name: 'excluido_em' },
   { table_name: 'Lote', column_name: 'excluido_por_usuario_id' },
   { table_name: 'Cliente', column_name: 'sessao_epoca' },
@@ -30,6 +34,48 @@ const COLUNAS_OK = [
   { table_name: 'AbastecimentoBem', column_name: 'quantidade' },
   { table_name: 'AbastecimentoBem', column_name: 'unidade' },
   { table_name: 'TanqueBemProduto', column_name: 'produto_id' },
+  // D-PROD-200: a atividade (cabeçalho) e o apontamento do dia.
+  { table_name: 'Atividade', column_name: 'unidade_producao_sigla' },
+  { table_name: 'AtividadeApontamento', column_name: 'sequencia' },
+  // D-PROD-202: as linhas de produto e de máquina, o custo de uso do bem e o teto do salto do medidor.
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'movimentacao_estoque_id' },
+  { table_name: 'AtividadeApontamentoProdutoConsumoLote', column_name: 'estoque_lote_nota_id' },
+  { table_name: 'AtividadeApontamentoMaquina', column_name: 'quantidade_uso' },
+  { table_name: 'BemPatrimonial', column_name: 'custo_uso_unitario' },
+  { table_name: 'TipoPatrimonial', column_name: 'salto_maximo_medidor' },
+  // D-PROD-203: as 3 tabelas das Formulações.
+  { table_name: 'CADFORMULACAO', column_name: 'percentual_pv_padrao' },
+  { table_name: 'CADFORMULACAOINGREDIENTE', column_name: 'quantidade_kg' },
+  { table_name: 'CADFORMULACAOREGRA', column_name: 'consome' },
+  // D-PROD-205: a leitura de cocho.
+  { table_name: 'LEITURACOCHO', column_name: 'escore' },
+  // D-PROD-206: a faixa do farol de consumo.
+  { table_name: 'CADFORMULACAO', column_name: 'faixa_tolerancia_percentual' },
+  // D-PROD-207: os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço.
+  // D-PROD-208: Funcionario saiu; o papel funcionário no parceiro e a linha de mão de obra pelo parceiro.
+  { table_name: 'Servico', column_name: 'unidade_medida_id' },
+  { table_name: 'AtividadeApontamentoMaoObra', column_name: 'tipo_medida' },
+  { table_name: 'AtividadeApontamentoServico', column_name: 'fornecedor_parceiro_id' },
+  { table_name: 'Fornecedor', column_name: 'funcionario_tipo' },
+  { table_name: 'AtividadeApontamentoMaoObra', column_name: 'parceiro_id' },
+  { table_name: 'AtividadeApontamentoMaoObra', column_name: 'origem' },
+  // D-PROD-210: a base do consumo e os gramas da regra.
+  { table_name: 'CADFORMULACAO', column_name: 'base_consumo' },
+  { table_name: 'CADFORMULACAOREGRA', column_name: 'g_cab_dia' },
+  // D-PROD-215: o Cadastro de Culturas (tabela nova).
+  { table_name: 'CADCULTURAS', column_name: 'altura_entrada_cm' },
+  // D-PROD-216: a Área ligada à Cultura.
+  { table_name: 'AreaPastagem', column_name: 'cultura_id' },
+  // D-PROD-219: a Medição de Forragem (tabela nova).
+  { table_name: 'MEDICAOFORRAGEM', column_name: 'massa_seca_kg_ha' },
+  // D-PROD-223: os dias de descanso da cultura e os parâmetros próprios do pasto.
+  { table_name: 'CADCULTURAS', column_name: 'dias_descanso' },
+  { table_name: 'AreaPastagem', column_name: 'altura_entrada_cm' },
+  { table_name: 'AreaPastagem', column_name: 'altura_saida_cm' },
+  { table_name: 'AreaPastagem', column_name: 'dias_descanso' },
+  // D-PROD-249: as áreas da atividade e a área do lançamento.
+  { table_name: 'AtividadeArea', column_name: 'status' },
+  { table_name: 'AtividadeApontamento', column_name: 'atividade_area_id' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -56,6 +102,26 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /migrations pendentes \(2\): 20261029300000_admin, 20261029400000_papel/);
   assert.match(r.falhas.join('\n'), /Usuario\.papel_tenant/);
   assert.match(r.falhas.join('\n'), /CADCATEGORIA\.idade_minima_meses/);
+  assert.match(r.falhas.join('\n'), /CADCATEGORIA\.curva_ganho_id/);
+  assert.match(r.falhas.join('\n'), /CADCATEGORIA\.peso_objetivo_kg/);
+  assert.match(r.falhas.join('\n'), /Atividade\.unidade_producao_sigla/);
+  assert.match(r.falhas.join('\n'), /AtividadeApontamento\.sequencia/);
+  for (const k of ['AtividadeApontamentoProduto.movimentacao_estoque_id', 'AtividadeApontamentoProdutoConsumoLote.estoque_lote_nota_id', 'AtividadeApontamentoMaquina.quantidade_uso', 'BemPatrimonial.custo_uso_unitario', 'TipoPatrimonial.salto_maximo_medidor']) {
+    assert.ok(r.falhas.join('\n').includes(k), k);
+  }
+  assert.match(r.falhas.join('\n'), /CADFORMULACAO\.percentual_pv_padrao/);
+  assert.match(r.falhas.join('\n'), /CADFORMULACAOINGREDIENTE\.quantidade_kg/);
+  assert.match(r.falhas.join('\n'), /CADFORMULACAOREGRA\.consome/);
+  assert.match(r.falhas.join('\n'), /LEITURACOCHO\.escore/);
+  assert.match(r.falhas.join('\n'), /CADCULTURAS\.altura_entrada_cm/);
+  assert.match(r.falhas.join('\n'), /AreaPastagem\.cultura_id/);
+  assert.match(r.falhas.join('\n'), /MEDICAOFORRAGEM\.massa_seca_kg_ha/);
+  assert.match(r.falhas.join('\n'), /CADCULTURAS\.dias_descanso/);
+  assert.match(r.falhas.join('\n'), /AreaPastagem\.altura_entrada_cm/);
+  assert.match(r.falhas.join('\n'), /AreaPastagem\.altura_saida_cm/);
+  assert.match(r.falhas.join('\n'), /AreaPastagem\.dias_descanso/);
+  assert.match(r.falhas.join('\n'), /AtividadeArea\.status/);
+  assert.match(r.falhas.join('\n'), /AtividadeApontamento\.atividade_area_id/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 

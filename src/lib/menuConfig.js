@@ -24,8 +24,12 @@ export const DEFAULT_MENU = [
       { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
       // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
       { id: "pec-estacoes", title: "Estações", url: "Estacoes" },
+      // D-PROD-215 — Culturas (forrageiras e lavouras; tabela CADCULTURAS).
+      { id: "pec-culturas", title: "Culturas", url: "Culturas" },
       // D-PROD-189 — Curvas de Ganho de Peso (tabela CADCURVAGANHO).
       { id: "pec-curvas-ganho", title: "Curvas de Ganho", url: "CurvasGanho" },
+      // D-PROD-203 — Formulações de suplemento (produto pronto ou batelada; tabela CADFORMULACAO).
+      { id: "pec-formulacoes", title: "Formulações", url: "Formulacoes" },
       { id: "pec-bebedouros", title: "Bebedouros", url: "Bebedouros" },
     ],
   },
@@ -41,9 +45,11 @@ export const DEFAULT_MENU = [
       { id: "sup-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
       { id: "sup-tipos-tarefa", title: "Tipos de Tarefa", url: "TiposTarefa" },
       { id: "sup-tipos-atividade", title: "Tipos de Atividade", url: "TiposAtividade" },
-      // D-PROD-190 — a EXECUÇÃO de um Tipo de Atividade, logo abaixo do cadastro dos tipos.
-      { id: "op-apontamentos-atividade", title: "Apontamentos de Atividade", url: "ApontamentosAtividade" },
+      // D-PROD-200 — a EXECUÇÃO de um Tipo de Atividade (atividade aberta + apontamentos por dia), logo abaixo do cadastro dos tipos.
+      { id: "op-atividades", title: "Lançamento de Atividades", url: "LancamentoAtividades" },
       { id: "sup-grupos-atividades", title: "Grupos de Atividades", url: "GruposAtividades" },
+      // D-PROD-207 — cadastro do serviço de terceiro do Lançamento de Atividades (Fatia 4); o funcionário é papel do parceiro (D-PROD-208).
+      { id: "sup-servicos", title: "Serviços", url: "Servicos" },
     ],
   },
   {

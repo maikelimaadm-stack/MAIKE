@@ -25,10 +25,17 @@
  *        (`['mapa-cache', chave, empresa, 'default']`): com o mapa já tendo a
  *        lista nova (outro cocho no mesmo pasto), o detalhe mostra o mesmo
  *        estado do marcador, mesmo que o cache local esteja velho.
+ *
+ * D-PROD-220: a tela está no desenho do Detalhes do Lote v12. As verificações
+ * são as mesmas; mudou só onde o valor está: o cadastro e os cartões são
+ * células da grade (`dt` rótulo → `dd` valor, sem os dois-pontos), as seções
+ * têm o título do v12 ("Informações do cocho") e o farol do período fechado
+ * diz "abaixo da faixa da formulação (±15%)", com o custo por cab/dia em R$
+ * no rótulo da célula.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { getCochoIndicator } from '@/components/mapa/pontoStatusUtils';
@@ -92,7 +99,7 @@ const renderizar = async (ponto) => {
       <DetalhesPontoSuplementacao ponto={ponto} permissions={{}} onClose={() => {}} />
     </QueryClientProvider>,
   );
-  await screen.findByText('Informações do Cocho');
+  await screen.findByText('Informações do cocho');
   // O fuso vem do resumo de empresas (a mesma consulta `['empresas']` do Layout);
   // as asserções de dia usam `waitFor` até ele chegar.
   await act(async () => {});
@@ -109,11 +116,15 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
 
     await waitFor(() => expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): 75%'));
     const secao = secaoCocho();
-    expect(within(secao).getByText('150 kg de 200 kg')).toBeTruthy();
-    // O percentual do ciclo aparece uma vez só (sob o ícone).
+    expect(within(secao).getByText('Base do ciclo: 200 kg')).toBeTruthy();
+    // O percentual do ciclo aparece uma vez na figura (o texto do `role="img"`);
+    // o número grande do bloco é o mesmo rótulo do SSOT.
     expect(within(medidorCiclo().parentElement).getAllByText(/75%/)).toHaveLength(1);
+    // D-PROD-178 §10 no desenho v12: no texto do bloco do nível o percentual aparece uma vez só (o valor grande).
+    expect(within(secao.querySelector('.mk-dp-nivel__txt')).getAllByText(/75%/)).toHaveLength(1);
+    expect(secao.querySelector('.mk-dp-nivel__val')?.textContent).toBe('75%');
     expect(within(secao).getByText('Consumo estimado: 50 kg/dia (%PV no lançamento)')).toBeTruthy();
-    expect(within(secao).getByText('Dias desde o lançamento: 1 · Restam 3 dia(s)')).toBeTruthy();
+    expect(within(secao).getByText('Dias desde o abastecimento: 1 · Restam 3 dia(s)')).toBeTruthy();
     expect(valorDe(secao, 'Saldo estimado')).toBe('150 kg');
     expect(valorDe(secao, 'Duração estimada')).toBe('4 dia(s)');
     expect(valorDe(secao, 'Próxima reposição')).toBe('14/11/2026');
@@ -128,14 +139,14 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
     expect(medidorCiclo().textContent).toContain(mapa.badgeLabel);
 
     // "Último registro" usa a taxa do SSOT.
-    expect(screen.getByText('Consumo Lote PV/dia').nextElementSibling?.textContent).toBe('50,00 kg');
+    expect(screen.queryByText('Consumo Lote PV/dia')).toBeNull();
     // Cadastro: o campo é o limite operacional; os limites de consumo dizem que são por cabeça/dia.
-    expect(screen.getByText('Limite operacional:')).toBeTruthy();
-    expect(screen.queryByText('Capacidade:')).toBeNull();
-    expect(screen.getByText('Consumo mín./cab/dia:')).toBeTruthy();
-    expect(screen.getByText('Consumo máx./cab/dia:')).toBeTruthy();
-    expect(screen.queryByText('Limite mínimo:')).toBeNull();
-    expect(screen.queryByText('Limite máximo:')).toBeNull();
+    expect(screen.queryByText('Limite operacional')).toBeNull();
+    expect(screen.queryByText('Capacidade')).toBeNull();
+    expect(screen.getByText('Consumo mín./cab/dia').tagName).toBe('DT');
+    expect(screen.getByText('Consumo máx./cab/dia').tagName).toBe('DT');
+    expect(screen.queryByText('Limite mínimo')).toBeNull();
+    expect(screen.queryByText('Limite máximo')).toBeNull();
     // Nada de polling de 60 s: a virada do dia vem de useDiaCivil.
     expect(setIntervalSpy.mock.calls.some(([, ms]) => ms === 60_000)).toBe(false);
   });
@@ -158,7 +169,7 @@ describe('DC-2 — limite operacional', () => {
     expect(within(secao).getByText('150 kg de 120 kg · 30 kg acima do limite')).toBeTruthy();
     expect(within(secao).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
     expect(within(secao).getByText(/O limite é o valor configurado hoje/)).toBeTruthy();
-    expect(screen.getByText('Limite operacional:').nextElementSibling?.textContent).toBe('120,00 kg');
+    expect(screen.queryByText('Limite operacional')).toBeNull();
 
     // Dois dias depois (13/11 na fazenda, sem refetch): saldo 50 kg, dentro do limite; o lançamento continua visível.
     vi.setSystemTime(new Date('2026-11-14T01:00:00.000Z'));
@@ -190,8 +201,8 @@ describe('DC-3 — sem taxa no lançamento', () => {
     expect(within(secao).queryByRole('meter')).toBeNull();
     expect(within(secao).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
     // Sem taxa do SSOT, o "Último registro" não projeta nada.
-    expect(screen.getByText('Consumo Lote PV/dia').nextElementSibling?.textContent).toBe('-');
-    expect(screen.getByText('Próx. reposição').nextElementSibling?.textContent).toBe('-');
+    expect(screen.queryByText('Consumo Lote PV/dia')).toBeNull();
+    expect(screen.queryByText('Próx. reposição')).toBeNull();
   });
 });
 
@@ -211,7 +222,7 @@ describe('DC-4 — cochos compartilhando os mesmos animais', () => {
     expect(within(secao).getByText('A estimativa volta quando só um cocho com este produto atender estes animais.')).toBeTruthy();
     expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): Sem estimativa');
     expect(container.textContent).not.toMatch(/saldo/i);
-    expect(screen.getByText('Consumo Lote PV/dia').nextElementSibling?.textContent).toBe('-');
+    expect(screen.queryByText('Consumo Lote PV/dia')).toBeNull();
     // O mapa diz o mesmo.
     expect(getCochoIndicator(c1, dados.cache.eventosSuplementacao, { hoje: '2026-11-11', pontos: [c1, c2] }).nivel.confiabilidade).toBe('compartilhada');
   });
@@ -234,17 +245,8 @@ describe('DC-5 — período fechado', () => {
     expect(medidor.getAttribute('aria-valuenow')).toBe('25');
     expect(within(secao).queryByText(/^No lançamento:/)).toBeNull();
 
-    // "Último Registro": o fechamento compara real × esperado com a taxa GRAVADA
-    // no evento — os mesmos números do Histórico (CardMetricaEvento sem as props).
-    const { default: CardMetricaEvento } = await import('@/components/suplementacao/CardMetricaEvento');
-    const historico = render(<CardMetricaEvento evento={dados.cache.eventosSuplementacao[0]} showProjecao />);
-    const rotulos = ['Consumo Lote PV/dia', 'Esperado/cab/dia', 'Realizado cab/dia', 'Desvio', 'Duração estimada', 'Diferença dia(s)'];
-    const doDetalhe = rotulos.map((rotulo) => screen.getAllByText(rotulo)[0].nextElementSibling?.textContent);
-    const doHistorico = rotulos.map((rotulo) => valorDe(historico.container, rotulo));
-    expect(doDetalhe).toEqual(doHistorico);
-    expect(doDetalhe.slice(0, 2)).toEqual(['50,00 kg', '0,500 kg']);
-    expect(doDetalhe[3]).toContain('-0,160 kg');
-    expect(doDetalhe.slice(4)).toEqual(['4 dia(s)', '-1 dia(s)']);
+    expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
+
   });
 });
 
@@ -260,7 +262,7 @@ describe('DC-6 — sem lançamento', () => {
     expect(secao.querySelector('[data-cocho-nivel]')).toBeNull();
     expect(within(secao).queryByRole('meter')).toBeNull();
     expect(within(secao).queryByText(/\d+%/)).toBeNull();
-    expect(screen.getByText('Nenhum lançamento ainda.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
   });
 });
 
@@ -276,7 +278,7 @@ describe('DC-7 — lançamento com data futura', () => {
     await waitFor(() => expect(within(secao).getByText('Lançamento com data futura (12/11/2026); a estimativa começa nessa data.')).toBeTruthy());
     expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): Lançamento futuro');
     expect(secao.querySelector('[data-cocho-nivel]')).toBeNull();
-    expect(screen.getByText(/^Data:/).textContent).toBe('Data: 12/11/2026');
+    expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
   });
 });
 
@@ -320,10 +322,35 @@ describe('DC-8 — mesma fonte de dados do mapa', () => {
         <DetalhesPontoSuplementacao ponto={a} permissions={{}} onClose={() => {}} />
       </QueryClientProvider>,
     );
-    await screen.findByText('Informações do Cocho');
+    await screen.findByText('Informações do cocho');
     await act(async () => {});
     const marcador = getCochoIndicator(a, eventos, { hoje: '2026-11-11', pontos: [a, b] });
     expect(marcador.nivel.confiabilidade).toBe('compartilhada');
     await waitFor(() => expect(within(secaoCocho()).getAllByText(/Estimativa não confiável: 2 cochos/).length).toBeGreaterThan(0));
+  });
+});
+
+describe('DC-206 — D-PROD-206: cartão "Último período fechado" no detalhe do cocho', () => {
+  it('mostra o período fechado mais recente com o farol (texto), %PV e custo; sem período fechado, avisa', async () => {
+    const ponto = cocho('c9');
+    dados.cache.pontosSuplementacao = [ponto];
+    dados.cache.eventosSuplementacao = [
+      evento('e-antigo', 'c9', { data_lancamento: '2026-10-01', dias_periodo: 10, consumo_diario_grupo_kg: 50, farol_consumo: 'acima', consumo_relacao_esperado: 1.3, faixa_tolerancia_aplicada: 15, sobra_informada: true }),
+      evento('e-fechado', 'c9', { data_lancamento: '2026-11-01', dias_periodo: 9, consumo_diario_grupo_kg: 40, farol_consumo: 'abaixo', consumo_relacao_esperado: 0.8, faixa_tolerancia_aplicada: 15, sobra_informada: false, custo_cab_dia: 1.2, custo_total_periodo: 1080, custo_unitario_kg: 3 }),
+      evento('e-aberto', 'c9', { data_lancamento: '2026-11-10' }),
+    ];
+    await renderizar(ponto);
+    fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' }));
+    const cartao = (await screen.findAllByTestId('ultimo-periodo-fechado'))[0];
+    expect(cartao.textContent).toMatch(/01\/11\/2026 · 9 dia\(s\)/);
+    expect(within(cartao).getByTestId('farol-consumo').textContent).toBe('abaixo da faixa da formulação (±15%)');
+    expect(within(cartao).getByTestId('farol-consumo').getAttribute('data-farol')).toBe('abaixo');
+    expect(within(cartao).getByTestId('fechamento-aproximado')).toBeTruthy();
+    expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('1,20');
+    cleanup();
+    dados.cache.eventosSuplementacao = [evento('e-aberto', 'c9')];
+    await renderizar(ponto);
+    fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' }));
+    expect(screen.getByText('Nenhum período fechado ainda.')).toBeTruthy();
   });
 });

@@ -96,11 +96,162 @@ export function avaliarConsumoPV(consumoRealKgCabDia, pesoMedioKg, produto) {
 }
 
 /**
- * Calcula o peso médio ponderado dos lotes pela quantidade de cabeças.
+ * D-PROD-201 — peso de um lote para a conta de consumo por %PV: o PESO
+ * PROJETADO de hoje (D-PROD-198; sem curva ele já é o último peso), senão o
+ * último peso gravado (pesagem ou entrada). Sem peso: 0 e origem 'sem_peso' —
+ * o lote NÃO entra na média como peso zero.
+ * @param {{ projecao_peso?: { disponivel?: boolean, peso_kg?: number } | null, peso_medio_kg?: unknown } | null | undefined} lote
+ * @returns {{ peso: number, origem: 'projetado' | 'ultimo_peso' | 'sem_peso' }}
+ */
+export function pesoDeConsumoDoLote(lote) {
+  const projecao = lote?.projecao_peso;
+  const projetado = Number(projecao?.peso_kg);
+  if (projecao?.disponivel && Number.isFinite(projetado) && projetado > 0) return { peso: projetado, origem: "projetado" };
+  const ultimo = Number(lote?.peso_medio_kg);
+  if (Number.isFinite(ultimo) && ultimo > 0) return { peso: ultimo, origem: "ultimo_peso" };
+  return { peso: 0, origem: "sem_peso" };
+}
+
+/**
+ * D-PROD-201 — peso médio dos lotes, ponderado pelas cabeças, SÓ entre os lotes
+ * com peso (projetado ou último). Antes, lote sem peso entrava como 0 kg e
+ * puxava a média para baixo (30 cab × 400 kg + 20 cab sem peso → 240 kg).
+ * `cabecasSemPeso`/`lotesSemPeso` permitem avisar na tela.
+ * @param {Array<any>} lotes
+ */
+export function resumoPesoDosLotes(lotes) {
+  let cabecasComPeso = 0;
+  let somaPesos = 0;
+  let cabecasSemPeso = 0;
+  let cabecasProjetado = 0;
+  const lotesSemPeso = [];
+  for (const lote of lotes || []) {
+    const cab = Number(lote?.quantidade_cabecas || 0);
+    if (!(cab > 0)) continue;
+    const { peso, origem } = pesoDeConsumoDoLote(lote);
+    if (origem === "sem_peso") {
+      cabecasSemPeso += cab;
+      lotesSemPeso.push(lote);
+      continue;
+    }
+    cabecasComPeso += cab;
+    somaPesos += peso * cab;
+    if (origem === "projetado") cabecasProjetado += cab;
+  }
+  return {
+    pesoMedio: cabecasComPeso > 0 ? safeDivide(somaPesos, cabecasComPeso) : 0,
+    cabecasComPeso,
+    cabecasSemPeso,
+    cabecasProjetado,
+    lotesSemPeso,
+  };
+}
+
+/**
+ * Peso médio ponderado pelas cabeças, só entre os lotes com peso (D-PROD-201).
+ * @param {Array<any>} lotes
  */
 export function pesoMedioPonderadoLotes(lotes) {
-  const totalCabecas = lotes.reduce((sum, l) => sum + Number(l.quantidade_cabecas || 0), 0);
-  if (totalCabecas <= 0) return 0;
-  const somaPesos = lotes.reduce((sum, l) => sum + (Number(l.peso_medio_kg || 0) * Number(l.quantidade_cabecas || 0)), 0);
-  return safeDivide(somaPesos, totalCabecas);
+  return resumoPesoDosLotes(lotes).pesoMedio;
+}
+
+/**
+ * D-PROD-203 — %PV de um lote para a formulação: a regra da Categoria de Manejo
+ * do lote, quando houver (não consome → 0; consome → o %PV da regra), senão o
+ * %PV padrão da formulação.
+ * @param {{ categoria_manejo_id?: string | null } | null | undefined} lote
+ * @param {{ percentual_pv_padrao?: unknown, regras?: Array<{ categoria_manejo_id?: string, consome?: boolean, percentual_pv?: unknown }> } | null | undefined} formulacao
+ * @returns {{ percentual: number, consome: boolean, origem: 'padrao' | 'regra' | 'nao_consome' }}
+ */
+export function percentualPVDoLote(lote, formulacao) {
+  const categoria = lote?.categoria_manejo_id ? String(lote.categoria_manejo_id) : null;
+  const regra = categoria ? (formulacao?.regras || []).find((r) => String(r?.categoria_manejo_id) === categoria) : null;
+  if (regra && regra.consome === false) return { percentual: 0, consome: false, origem: "nao_consome" };
+  if (regra) {
+    const pv = Number(regra.percentual_pv);
+    return { percentual: Number.isFinite(pv) && pv > 0 ? pv : 0, consome: true, origem: "regra" };
+  }
+  const padrao = Number(formulacao?.percentual_pv_padrao);
+  return { percentual: Number.isFinite(padrao) && padrao > 0 ? padrao : 0, consome: true, origem: "padrao" };
+}
+
+/** D-PROD-210 — a base do consumo da formulação: 'G_CAB_DIA' (gramas por cabeça por dia) ou 'PV' (padrão, inclusive sem o campo). */
+export const baseDoConsumo = (formulacao) => (formulacao?.base_consumo === "G_CAB_DIA" ? "G_CAB_DIA" : "PV");
+
+/**
+ * D-PROD-210 — gramas por cabeça por dia de um lote numa formulação da base
+ * G_CAB_DIA: a regra da Categoria de Manejo do lote, quando houver (não consome
+ * → 0; consome → os gramas da regra), senão o padrão (`consumo_objetivo_g_cab_dia`).
+ * @param {{ categoria_manejo_id?: string | null } | null | undefined} lote
+ * @param {{ consumo_objetivo_g_cab_dia?: unknown, regras?: Array<{ categoria_manejo_id?: string, consome?: boolean, g_cab_dia?: unknown }> } | null | undefined} formulacao
+ * @returns {{ gramas: number, consome: boolean, origem: 'padrao' | 'regra' | 'nao_consome' }}
+ */
+export function gramasDoLote(lote, formulacao) {
+  const categoria = lote?.categoria_manejo_id ? String(lote.categoria_manejo_id) : null;
+  const regra = categoria ? (formulacao?.regras || []).find((r) => String(r?.categoria_manejo_id) === categoria) : null;
+  if (regra && regra.consome === false) return { gramas: 0, consome: false, origem: "nao_consome" };
+  if (regra) {
+    const g = Number(regra.g_cab_dia);
+    return { gramas: Number.isFinite(g) && g > 0 ? g : 0, consome: true, origem: "regra" };
+  }
+  const padrao = Number(formulacao?.consumo_objetivo_g_cab_dia);
+  return { gramas: Number.isFinite(padrao) && padrao > 0 ? padrao : 0, consome: true, origem: "padrao" };
+}
+
+/**
+ * D-PROD-203 — consumo esperado (kg/dia) por FORMULAÇÃO, lote a lote:
+ * `peso do lote × %PV do lote / 100 × cabeças`, com o %PV da regra da categoria
+ * (ou o padrão). Lote sem peso usa o peso médio ponderado dos lotes COM peso
+ * (a mesma extrapolação da D-PROD-201), com o %PV da própria categoria. Lote
+ * cuja categoria não consome entra com 0 kg. Sem formulação, tudo 0.
+ *
+ * D-PROD-210 — na base G_CAB_DIA a meta é FIXA por cabeça e não usa peso:
+ * `cabeças × gramas do lote / 1000` (regra da categoria, senão o padrão); lote
+ * sem peso não impede o esperado. `gCabDiaEsperado` é a média dos gramas
+ * ponderada pelas cabeças que consomem (null na base PV ou sem quem consome).
+ * @param {{ lotes: Array<any>, formulacao: any }} p
+ * @returns {{
+ *   base: 'PV' | 'G_CAB_DIA',
+ *   totalKgDia: number,
+ *   gCabDiaEsperado: number | null,
+ *   porLote: Array<{ id: unknown, cabecas: number, peso: number, pesoExtrapolado: boolean, percentualPV: number, gCabDia: number | null, consome: boolean, origem: string, esperadoKgDia: number | null }>,
+ *   cabecasNaoConsomem: number,
+ *   cabecasConsomem: number,
+ *   cabecasSemPeso: number,
+ *   pesoMedioReferencia: number,
+ * }}
+ */
+export function consumoEsperadoPorFormulacao({ lotes, formulacao }) {
+  const resumo = resumoPesoDosLotes(lotes);
+  const base = baseDoConsumo(formulacao);
+  let totalKgDia = 0;
+  let cabecasNaoConsomem = 0;
+  let cabecasConsomem = 0;
+  const porLote = [];
+  for (const lote of lotes || []) {
+    const cabecas = Number(lote?.quantidade_cabecas || 0);
+    if (!(cabecas > 0)) continue;
+    const { peso: pesoProprio, origem: origemPeso } = pesoDeConsumoDoLote(lote);
+    const pesoExtrapolado = origemPeso === "sem_peso";
+    const peso = pesoExtrapolado ? resumo.pesoMedio : pesoProprio;
+    if (base === "G_CAB_DIA") {
+      const g = gramasDoLote(lote, formulacao);
+      if (!g.consome) cabecasNaoConsomem += cabecas;
+      else cabecasConsomem += cabecas;
+      const esperadoKgDia = !g.consome ? 0 : g.gramas > 0 ? (g.gramas * cabecas) / 1000 : null;
+      if (esperadoKgDia) totalKgDia += esperadoKgDia;
+      porLote.push({ id: lote?.id, cabecas, peso, pesoExtrapolado, percentualPV: 0, gCabDia: g.consome ? g.gramas : 0, consome: g.consome, origem: g.origem, esperadoKgDia });
+      continue;
+    }
+    const pv = formulacao ? percentualPVDoLote(lote, formulacao) : { percentual: 0, consome: true, origem: "padrao" };
+    if (!pv.consome) cabecasNaoConsomem += cabecas;
+    else cabecasConsomem += cabecas;
+    let esperadoKgDia = null;
+    if (!pv.consome) esperadoKgDia = 0;
+    else if (peso > 0 && pv.percentual > 0) esperadoKgDia = consumoEsperadoPorCabecaDia(peso, pv.percentual) * cabecas;
+    if (esperadoKgDia) totalKgDia += esperadoKgDia;
+    porLote.push({ id: lote?.id, cabecas, peso, pesoExtrapolado, percentualPV: pv.percentual, gCabDia: null, consome: pv.consome, origem: pv.origem, esperadoKgDia });
+  }
+  const gCabDiaEsperado = base === "G_CAB_DIA" && cabecasConsomem > 0 ? (totalKgDia * 1000) / cabecasConsomem : null;
+  return { base, totalKgDia, gCabDiaEsperado, porLote, cabecasNaoConsomem, cabecasConsomem, cabecasSemPeso: resumo.cabecasSemPeso, pesoMedioReferencia: resumo.pesoMedio };
 }

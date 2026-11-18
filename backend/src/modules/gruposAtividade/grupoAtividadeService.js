@@ -10,7 +10,7 @@ import {
   grupoAtividadeNomeConflito,
   grupoAtividadeDeleteBlocked,
 } from '../../shared/errors/AppError.js';
-import { vinculoComApontamentoAtividade } from '../../shared/errors/vinculoApontamentoAtividade.js';
+import { vinculoComAtividade } from '../../shared/errors/vinculoAtividade.js';
 import {
   listarGrupos,
   buscarGrupo,
@@ -188,14 +188,15 @@ export const excluir = async (contexto, id) => {
       throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com tipos de atividade vinculados');
     }
 
-    // D-PROD-190 — o grupo guardado como snapshot num apontamento de atividade
+    // D-PROD-190 / D-PROD-200 — o grupo guardado como snapshot numa atividade
     // (mesmo que o tipo tenha mudado de grupo depois) é barrado pela FK RESTRICT
-    // da tabela nova; este módulo não a consulta (lição do hotfix #259).
+    // da tabela `Atividade`, reconhecida pelo nome da FK; este módulo não a
+    // consulta (lição do hotfix #259).
     try {
       await excluirGrupoPorId(tx, auth.clienteId, id);
     } catch (erro) {
-      if (vinculoComApontamentoAtividade(erro)) {
-        throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com apontamentos de atividade vinculados', { cause: erro });
+      if (vinculoComAtividade(erro)) {
+        throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com atividades vinculadas', { cause: erro });
       }
       throw erro;
     }

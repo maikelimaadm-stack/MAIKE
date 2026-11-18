@@ -120,38 +120,64 @@ export const API_ERROR_CODES = Object.freeze({
   // Cadastro de TipoAtividade (D-PROD-182).
   TIPO_ATIVIDADE_NOT_FOUND: 'TIPO_ATIVIDADE_NOT_FOUND',
   TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
-  // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-190/198 — a FK RESTRICT da atividade barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: 'TIPO_ATIVIDADE_DELETE_BLOCKED',
+  // D-PROD-197 — padrão recusado (centro, unidade de produção ou coeficiente):
+  // `details.field` diz qual e `details.reason`, por quê (texto por motivo).
+  TIPO_ATIVIDADE_PADRAO_INVALIDO: 'TIPO_ATIVIDADE_PADRAO_INVALIDO',
 
-  // Apontamento de Atividade, a EXECUÇÃO de um tipo (D-PROD-190). A tela age
-  // sobre cada um: relê a lista (não encontrado, cancelado, versão velha) ou
-  // destaca o campo recusado (referência, horário, data, implemento, produção).
-  APONTAMENTO_ATIVIDADE_NOT_FOUND: 'APONTAMENTO_ATIVIDADE_NOT_FOUND',
-  APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA: 'APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA',
-  APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO: 'APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO',
-  APONTAMENTO_ATIVIDADE_DATA_FUTURA: 'APONTAMENTO_ATIVIDADE_DATA_FUTURA',
-  APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO: 'APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO',
-  APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA: 'APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA',
-  APONTAMENTO_ATIVIDADE_STATUS_INVALIDO: 'APONTAMENTO_ATIVIDADE_STATUS_INVALIDO',
-  APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO: 'APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO',
-  // Exclusão de cadastro (área, centro, tarefa…) barrada por um apontamento.
-  APONTAMENTO_ATIVIDADE_VINCULADO: 'APONTAMENTO_ATIVIDADE_VINCULADO',
-  // D-PROD-193 — itens do apontamento (produto, serviço, outro custo). A tela
-  // relê o detalhe (item sumiu, já cancelado, limite, data com item) ou diz no
-  // card do item o que foi recusado (produto, local, quantidade, valor, estorno).
-  APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND: 'APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND',
-  APONTAMENTO_ATIVIDADE_ITEM_INVALIDO: 'APONTAMENTO_ATIVIDADE_ITEM_INVALIDO',
-  APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO: 'APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO',
-  APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS: 'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS',
-  APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO: 'APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO',
-  APONTAMENTO_ATIVIDADE_DATA_COM_ITENS: 'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS',
+  // Lançamento de Atividades (D-PROD-200): a ATIVIDADE (cabeçalho aberto) e o
+  // APONTAMENTO do dia/turno. A tela age sobre cada um: relê (não encontrado,
+  // status, versão velha) ou diz o campo recusado (referência, exigência do
+  // tipo, data, motivo). `details.field`/`details.reason` dizem qual e por quê.
+  ATIVIDADE_NOT_FOUND: 'ATIVIDADE_NOT_FOUND',
+  ATIVIDADE_APONTAMENTO_NOT_FOUND: 'ATIVIDADE_APONTAMENTO_NOT_FOUND',
+  // D-PROD-249 — várias áreas por atividade: a área não é desta atividade (relê) e a área com lançamento não sai.
+  ATIVIDADE_AREA_NOT_FOUND: 'ATIVIDADE_AREA_NOT_FOUND',
+  ATIVIDADE_AREA_COM_LANCAMENTOS: 'ATIVIDADE_AREA_COM_LANCAMENTOS',
+  ATIVIDADE_REFERENCIA_INVALIDA: 'ATIVIDADE_REFERENCIA_INVALIDA',
+  ATIVIDADE_EXIGIDA_PELO_TIPO: 'ATIVIDADE_EXIGIDA_PELO_TIPO',
+  ATIVIDADE_DATA_INVALIDA: 'ATIVIDADE_DATA_INVALIDA',
+  ATIVIDADE_STATUS_INVALIDO: 'ATIVIDADE_STATUS_INVALIDO',
+  ATIVIDADE_VERSAO_CONFLITO: 'ATIVIDADE_VERSAO_CONFLITO',
+  ATIVIDADE_MOTIVO_INVALIDO: 'ATIVIDADE_MOTIVO_INVALIDO',
+  // Exclusão de cadastro (tipo, grupo, área, setor, unidade, tarefa, bem, centro…) barrada por uma atividade.
+  ATIVIDADE_VINCULADA: 'ATIVIDADE_VINCULADA',
+  // D-PROD-202 (Fatia 3) — linhas de produto e de máquina do apontamento: linha não encontrada (relê), recusada
+  // (`details.field`/`reason`), salto do medidor que pede justificativa, estorno exato bloqueado (explicação do motor)
+  // e data do apontamento travada com linha confirmada.
+  ATIVIDADE_LINHA_NOT_FOUND: 'ATIVIDADE_LINHA_NOT_FOUND',
+  ATIVIDADE_LINHA_INVALIDA: 'ATIVIDADE_LINHA_INVALIDA',
+  ATIVIDADE_SALTO_MEDIDOR: 'ATIVIDADE_SALTO_MEDIDOR',
+  ATIVIDADE_ESTORNO_BLOQUEADO: 'ATIVIDADE_ESTORNO_BLOQUEADO',
+  ATIVIDADE_DATA_COM_LINHAS: 'ATIVIDADE_DATA_COM_LINHAS',
   // D-PROD-188 — Estações da fazenda.
   ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
   ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
   ESTACAO_PERIODO_SOBREPOSTO: 'ESTACAO_PERIODO_SOBREPOSTO',
+  CULTURA_NOT_FOUND: 'CULTURA_NOT_FOUND',
+  CULTURA_NAME_CONFLICT: 'CULTURA_NAME_CONFLICT',
+  CULTURA_CODIGO_CONFLICT: 'CULTURA_CODIGO_CONFLICT',
+  CULTURA_EM_USO: 'CULTURA_EM_USO',
+  // D-PROD-207 — Serviços da fazenda (o funcionário é papel do parceiro desde a D-PROD-208).
+  SERVICO_NOT_FOUND: 'SERVICO_NOT_FOUND',
+  SERVICO_REFERENCIA_INVALIDA: 'SERVICO_REFERENCIA_INVALIDA',
   // D-PROD-189 — Curvas de Ganho de Peso.
   CURVA_GANHO_NOT_FOUND: 'CURVA_GANHO_NOT_FOUND',
   CURVA_GANHO_NAME_CONFLICT: 'CURVA_GANHO_NAME_CONFLICT',
+  // D-PROD-195 — curva ligada a categoria de manejo não se exclui (details.categorias = quantas).
+  CURVA_GANHO_EM_USO: 'CURVA_GANHO_EM_USO',
+  // D-PROD-203 — Formulações de suplemento (details.lancamentos no EM_USO).
+  FORMULACAO_NOT_FOUND: 'FORMULACAO_NOT_FOUND',
+  FORMULACAO_NAME_CONFLICT: 'FORMULACAO_NAME_CONFLICT',
+  FORMULACAO_EM_USO: 'FORMULACAO_EM_USO',
+  // D-PROD-205 — Leitura de cocho.
+  LEITURA_COCHO_NOT_FOUND: 'LEITURA_COCHO_NOT_FOUND',
+  // D-PROD-219 — Medição de Forragem.
+  MEDICAO_FORRAGEM_NOT_FOUND: 'MEDICAO_FORRAGEM_NOT_FOUND',
+  // D-PROD-230 — Assistente só de leitura.
+  ASSISTENTE_NAO_CONFIGURADO: 'ASSISTENTE_NAO_CONFIGURADO',
+  ASSISTENTE_INDISPONIVEL: 'ASSISTENTE_INDISPONIVEL',
 
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
@@ -246,42 +272,63 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.TIPO_ATIVIDADE_NAME_CONFLICT]:
     'Já existe um tipo de atividade cadastrado com este nome neste grupo.',
   [API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED]:
-    'Não é possível excluir o tipo de atividade: há apontamentos de atividade vinculados. Inative o tipo em vez de excluir.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_NOT_FOUND]:
-    'Este apontamento de atividade não foi encontrado nesta fazenda. Atualize a lista e tente novamente.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA]:
-    'Um dos cadastros escolhidos (tipo, máquina, implemento, operador, área ou centro) não pode ser usado: não existe, é de outra fazenda ou está inativo. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO]:
-    'O horário foi recusado: fim antes do início, hora depois de agora ou fora da data da atividade. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_FUTURA]:
-    'A data da atividade é posterior a hoje na fazenda: só se aponta atividade já executada. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO]:
-    'O implemento exige uma máquina ou veículo e não pode ser o próprio bem. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA]:
-    'Produção inválida: informe quantidade e unidade juntas, com quantidade maior que zero. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_STATUS_INVALIDO]:
-    'Este apontamento está cancelado e não aceita edição nem novo cancelamento. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO]:
-    'Este apontamento foi alterado por outra pessoa desde que você o abriu. Recarregue e tente de novo. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VINCULADO]:
-    'Não é possível excluir: há apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND]:
-    'Este item não foi encontrado neste apontamento. O apontamento será relido. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_INVALIDO]:
-    'O item foi recusado: Produto, local, quantidade ou valor não pode ser usado. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO]: 'Este item já foi cancelado. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS]:
-    'Este apontamento já tem o número máximo de itens. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO]:
-    'O estorno exato do estoque não é seguro agora: o estoque de origem mudou. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_COM_ITENS]:
-    'A data não pode mudar: o apontamento tem item de Produto lançado, com a saída do estoque nesta data. Cancele os itens de Produto antes de mudar a data. Nada foi gravado.',
+    'Não é possível excluir o tipo de atividade: há atividades vinculadas. Inative o tipo em vez de excluir.',
+  [API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO]:
+    'Um dos padrões do tipo de atividade (centro de custo, centro de resultado, unidade de produção ou coeficiente) não pode ser usado. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_NOT_FOUND]:
+    'Esta atividade não foi encontrada nesta fazenda. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.ATIVIDADE_APONTAMENTO_NOT_FOUND]:
+    'Este apontamento não foi encontrado nesta atividade. Atualize os apontamentos e tente novamente.',
+  [API_ERROR_CODES.ATIVIDADE_AREA_NOT_FOUND]: 'Esta área não está mais nesta atividade. Atualize a atividade e tente de novo.',
+  [API_ERROR_CODES.ATIVIDADE_AREA_COM_LANCAMENTOS]:
+    'Esta área já tem lançamento e não pode sair da atividade (nada com custo é apagado). Conclua a área. Nada foi apagado.',
+  [API_ERROR_CODES.ATIVIDADE_REFERENCIA_INVALIDA]:
+    'Um dos cadastros escolhidos (tipo, área, máquina, tarefa ou operador) não pode ser usado: não existe, está inativo, é de outra fazenda ou o grupo do tipo está inativo. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_EXIGIDA_PELO_TIPO]:
+    'O tipo de atividade exige um dado que não foi informado (área, safra, máquina ou, para concluir, produção nos apontamentos). Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_DATA_INVALIDA]:
+    'A data foi recusada: ela não pode ser futura, anterior ao início da atividade nem inexistente, e o fim previsto não pode ser antes do início. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_STATUS_INVALIDO]:
+    'Esta ação não é permitida no status atual: só a atividade aberta aceita edição, conclusão, cancelamento e apontamentos, e só a concluída é reaberta. Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_VERSAO_CONFLITO]:
+    'Este registro foi alterado por outra pessoa desde que você o abriu. Recarregue e tente de novo. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_MOTIVO_INVALIDO]:
+    'Informe o motivo com pelo menos 3 e no máximo 500 caracteres. Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_VINCULADA]:
+    'Não é possível excluir: há atividades ou apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.',
+  [API_ERROR_CODES.ATIVIDADE_LINHA_NOT_FOUND]:
+    'Esta linha não foi encontrada neste apontamento. Os apontamentos serão relidos. Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_LINHA_INVALIDA]:
+    'A linha de produto ou de máquina foi recusada: confira o produto, o local, a quantidade, a máquina, o implemento e as leituras. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_SALTO_MEDIDOR]:
+    'O uso da máquina passa do teto de salto do medidor: informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_ESTORNO_BLOQUEADO]:
+    'O estorno exato do produto não é seguro agora (o lote de origem já foi consumido, transferido ou mudou). Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_DATA_COM_LINHAS]:
+    'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.',
+  [API_ERROR_CODES.CULTURA_NOT_FOUND]: 'Esta cultura não foi encontrada. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.CULTURA_NAME_CONFLICT]: 'Já existe uma cultura com este nome nesta fazenda.',
+  [API_ERROR_CODES.CULTURA_CODIGO_CONFLICT]: 'Já existe uma cultura com este código nesta fazenda.',
+  [API_ERROR_CODES.CULTURA_EM_USO]: 'Esta cultura está ligada a áreas do mapa. Troque a cultura dessas áreas ou inative a cultura.',
   [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:
     'O período se sobrepõe a outra estação ativa desta fazenda. Ajuste as datas ou inative a outra estação.',
+  [API_ERROR_CODES.SERVICO_NOT_FOUND]: 'Este serviço não foi encontrado nesta fazenda. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.SERVICO_REFERENCIA_INVALIDA]:
+    'A unidade de medida ou o centro de custo escolhido não está disponível (inativo ou de outra fazenda). Escolha outro.',
   [API_ERROR_CODES.CURVA_GANHO_NOT_FOUND]: 'Esta curva de ganho não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.CURVA_GANHO_NAME_CONFLICT]: 'Já existe uma curva de ganho com este nome nesta fazenda.',
+  [API_ERROR_CODES.CURVA_GANHO_EM_USO]:
+    'Esta curva está ligada a categoria(s) de manejo e não pode ser excluída.',
+  [API_ERROR_CODES.FORMULACAO_NOT_FOUND]: 'Esta formulação não foi encontrada. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.FORMULACAO_NAME_CONFLICT]: 'Já existe uma formulação com este nome nesta fazenda.',
+  [API_ERROR_CODES.FORMULACAO_EM_USO]:
+    'Esta formulação já foi usada em lançamento(s) de suplementação e não pode ser excluída. Inative-a.',
+  [API_ERROR_CODES.LEITURA_COCHO_NOT_FOUND]: 'Esta leitura de cocho não foi encontrada. Atualize o mapa e tente novamente.',
+  [API_ERROR_CODES.MEDICAO_FORRAGEM_NOT_FOUND]: 'Esta medição de forragem não foi encontrada. Atualize o mapa e tente novamente.',
+  [API_ERROR_CODES.ASSISTENTE_NAO_CONFIGURADO]: 'O assistente ainda não está configurado. Falta cadastrar a chave da API no servidor.',
+  [API_ERROR_CODES.ASSISTENTE_INDISPONIVEL]: 'O assistente não respondeu agora. Tente de novo em instantes.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',
@@ -300,6 +347,61 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.EMPRESA_COM_VINCULOS]:
     'Não é possível excluir a empresa: existem registros vinculados a ela (setores, áreas, lotes, produtos, tarefas…). Nada foi apagado.',
 });
+
+/**
+ * D-PROD-197 — texto de `TIPO_ATIVIDADE_PADRAO_INVALIDO` por campo (`details.field`)
+ * e motivo (`details.reason`). Vocabulário fechado: nada do servidor é ecoado.
+ * @type {Readonly<Record<string, Readonly<Record<string, string>>>>}
+ */
+const MENSAGENS_PADRAO_TIPO_ATIVIDADE = Object.freeze({
+  centro_custo_padrao_id: Object.freeze({
+    nao_encontrado: 'O centro de custo padrão não foi encontrado. Atualize a lista e escolha outro. Nada foi gravado.',
+    inativo: 'O centro de custo padrão está inativo. Escolha um centro ativo ou deixe o campo vazio. Nada foi gravado.',
+  }),
+  centro_resultado_padrao_id: Object.freeze({
+    nao_encontrado: 'O centro de resultado padrão não foi encontrado. Atualize a lista e escolha outro. Nada foi gravado.',
+    inativo: 'O centro de resultado padrão está inativo. Escolha um centro ativo ou deixe o campo vazio. Nada foi gravado.',
+  }),
+  unidade_producao_id: Object.freeze({
+    nao_encontrado: 'A unidade de produção não foi encontrada. Atualize a lista e escolha outra. Nada foi gravado.',
+    inativo: 'A unidade de produção está inativa. Escolha uma unidade ativa ou deixe o campo vazio. Nada foi gravado.',
+  }),
+});
+
+/**
+ * Por motivo, quando o campo não tem frase própria (e para os motivos de um campo só).
+ * @type {Readonly<Record<string, string>>}
+ */
+const MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO = Object.freeze({
+  nao_encontrado: 'Um dos padrões escolhidos não foi encontrado. Atualize a lista e escolha de novo. Nada foi gravado.',
+  inativo: 'Um dos padrões escolhidos está inativo. Escolha um ativo ou deixe o campo vazio. Nada foi gravado.',
+  empresas_diferentes:
+    'O centro de custo padrão e o centro de resultado padrão são de fazendas diferentes: escolha os dois da mesma fazenda. Nada foi gravado.',
+  nao_positivo: 'O coeficiente padrão precisa ser maior que zero. Nada foi gravado.',
+});
+
+/**
+ * Texto da recusa de padrão do tipo de atividade, ou `null` se o erro não é ela.
+ * Campo e motivo vêm de `details` (o transporte nativo os separa do corpo) e
+ * escolhem a frase do catálogo acima; motivo desconhecido fica com a frase geral.
+ * @param {ApiError} erro
+ * @returns {string|null}
+ */
+const mensagemDoPadraoTipoAtividade = (erro) => {
+  const codigo = API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO;
+  if (erro.code !== codigo) return null;
+  const detalhes = /** @type {{ field?: unknown, reason?: unknown }} */ (erro.details ?? {});
+  const field = typeof detalhes.field === 'string' ? detalhes.field : '';
+  const reason = typeof detalhes.reason === 'string' ? detalhes.reason : '';
+  const doCampo = Object.prototype.hasOwnProperty.call(MENSAGENS_PADRAO_TIPO_ATIVIDADE, field)
+    ? MENSAGENS_PADRAO_TIPO_ATIVIDADE[field]
+    : null;
+  if (doCampo && Object.prototype.hasOwnProperty.call(doCampo, reason)) return doCampo[reason];
+  if (Object.prototype.hasOwnProperty.call(MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO, reason)) {
+    return MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO[reason];
+  }
+  return MENSAGENS[codigo];
+};
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */
 const RETRYABLE = Object.freeze({
@@ -378,6 +480,8 @@ export const getApiErrorMessage = (erro, fallback = MENSAGEM_PADRAO) => {
       const especifica = mensagemValidacaoSegura(erro.details);
       if (especifica) return especifica;
     }
+    const padraoDoTipo = mensagemDoPadraoTipoAtividade(erro);
+    if (padraoDoTipo) return padraoDoTipo;
     if (typeof erro.message === 'string' && erro.message.trim()) {
       return erro.message;
     }

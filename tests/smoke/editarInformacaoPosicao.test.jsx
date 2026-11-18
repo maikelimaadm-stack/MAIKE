@@ -26,7 +26,11 @@ const formulario = vi.hoisted(() => (nome) => async () => {
   const { createElement } = await import("react");
   return { default: () => createElement("div", { "data-testid": `form-${nome}` }) };
 });
-const cache = vi.hoisted(() => ({ getMapaCachedData: vi.fn(async () => []), refreshMapaCacheEntry: vi.fn(async () => []) }));
+const cache = vi.hoisted(() => {
+  const c = { getMapaCachedData: vi.fn(async () => []), refreshMapaCacheEntry: vi.fn(async () => []) };
+  c.refreshMapaCacheEntryDetalhado = vi.fn(async (k, e, o) => ({ dados: await c.refreshMapaCacheEntry(k, e, o), origem: "rede", erro: null }));
+  return c;
+});
 
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => cache);
@@ -56,16 +60,14 @@ vi.mock("@/components/lotes/FormularioMudancaCategoria", formulario("mudanca"));
 vi.mock("@/components/lotes/FormularioPesagem", formulario("pesagem"));
 vi.mock("@/components/lotes/HistoricoMovimentacoes", formulario("historico"));
 vi.mock("@/components/suplementacao/HistoricoSuplementacaoLote", formulario("historico-supl"));
-vi.mock("@/components/suplementacao/ResumoSuplementacao", formulario("resumo-supl"));
 vi.mock("@/components/lotes/RenomearLoteForm", formulario("renomear"));
-vi.mock("@/components/mapa/InformacoesArea", formulario("info-area"));
 
 const { default: DetalhesLote } = await import("@/components/mapa/DetalhesLote");
 
 const posicao = (id, extra = {}) => ({
   id, posicao_id: id, __posicao: true, nome: `GRUPO ${id}`, numero_lote: "7", categoria: "BOI", sexo: "Macho", categoria_manejo_nome: "Recria",
   quantidade_cabecas: 12, peso_medio_kg: 410, area_atual_id: "a1", area_atual_nome: "PASTO A", status: "Ativo", lote_entrada_id: `entrada-${id}`,
-  identificador_nome: "Brinco", identificador_sigla: "BR", identificador_cor: "#2c303e", raca_predominante: "Nelore", sistema_produtivo: "Pasto", data_entrada: "2026-10-25",
+  identificador_nome: "Brinco", identificador_sigla: "BR", identificador_cor: "#2c303e", sistema_produtivo: "Pasto", data_entrada: "2026-10-25",
   ...extra,
 });
 const erroServidor = (code) => Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code } });
@@ -86,9 +88,13 @@ const renderizar = async (lotes, permissions = {}) => {
   return utils;
 };
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
+/** D-PROD-218: "Manejos" do rodapé empilha a tela "Manejos e históricos" com os quadros. */
+const abrirManejos = async () => {
+  const rodapeManejos = screen.queryByRole("button", { name: "Manejos" });
+  if (rodapeManejos) await clicar(rodapeManejos);
+};
 const acao = async (nome) => {
-  const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-  if (botaoUnico) await clicar(botaoUnico);
+  await abrirManejos();
   await clicar(screen.getByRole("button", { name: nome }));
 };
 const digitar = (rotulo, valor) => act(async () => { fireEvent.change(screen.getByLabelText(rotulo), { target: { value: valor } }); });
@@ -117,9 +123,15 @@ describe("Editar Informação da posição (controle por posições)", () => {
       doServidor = doServidor.map((x) => (x.id === id ? { ...x, nome: corpo.nome, identificador_sigla: corpo.identificador_sigla } : x));
       return { alterados: ["nome", "identificador_sigla"], posicao: doServidor.find((x) => x.id === id) };
     });
-    // IndexedDB local ainda com o valor antigo (refresh não forçado < 60 s devolve isto).
-    cache.getMapaCachedData.mockImplementation(async () => [posicao("p1"), posicao("p2")]);
-    cache.refreshMapaCacheEntry.mockImplementation(async () => [posicao("p1"), posicao("p2")]);
+    // IndexedDB local ainda com o valor antigo: o refresh NÃO forçado (< 60 s) devolve
+    // isto; o forçado (D-PROD-250, depois da gravação) vai ao servidor, grava o
+    // IndexedDB e devolve o gravado.
+    let local = [posicao("p1"), posicao("p2")];
+    cache.getMapaCachedData.mockImplementation(async () => local);
+    cache.refreshMapaCacheEntry.mockImplementation(async (chave, _emp, opcoes) => {
+      if (chave === "lotes" && opcoes?.force) local = doServidor;
+      return chave === "lotes" ? local : [];
+    });
     const eventos = [];
     const ouvir = (e) => eventos.push(e.detail);
     window.addEventListener("atualizar-mapa", ouvir);
@@ -134,7 +146,9 @@ describe("Editar Informação da posição (controle por posições)", () => {
     expect(screen.getByTestId("info-posicao-alvo").textContent).toContain("PASTO A");
     expect(screen.getByRole("group", { name: "Informações do grupo (editáveis)" })).toBeTruthy();
     const leitura = screen.getByTestId("info-posicao-somente-leitura");
-    for (const t of ["Nelore", "Pasto", "25/10/2026", "Recria", "410"]) expect(leitura.textContent).toContain(t);
+    for (const t of ["Pasto", "25/10/2026", "Recria", "410"]) expect(leitura.textContent).toContain(t);
+    // D-PROD-196: raça predominante saiu do cadastro do lote.
+    expect(leitura.textContent).not.toMatch(/Raça/i);
     expect(within(leitura).queryByRole("textbox")).toBeNull();
 
     await digitar("Nome do grupo", "  GRUPO NOVO ");
@@ -234,8 +248,9 @@ describe("Editar Informação da posição (controle por posições)", () => {
 
   it("sem renomear_lotes: o botão não aparece", async () => {
     await renderizar([posicao("p1")], { renomear_lotes: false });
-    const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-    if (botaoUnico) await clicar(botaoUnico);
+    await abrirManejos();
+    expect(screen.getByRole("heading", { name: "Manejos e históricos" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pesar" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Editar Informação" })).toBeNull();
   });
 

@@ -2,13 +2,16 @@
 import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   listarIconesPorTipoEntidade,
-  listarTodosPontos,
   listarTodosPontosSuplementacao,
+  listarPontosAtivos,
   listarTodosBebedouros,
   criarPonto,
   atualizarPonto,
   criarPontoSuplementacao,
   atualizarPontoSuplementacao,
+  verificarRemocaoSuplementacao,
+  removerPontoSuplementacao,
+  desfazerCriacaoDePonto,
 } from "@/services/mapaService";
 import {
   listarTodosProdutos,
@@ -40,6 +43,15 @@ import { atualizarBebedouro, criarBebedouro } from "@/services/bebedouroDataServ
 import { BEBEDOURO_ORIGENS_AGUA, BEBEDOURO_TIPOS } from "@/services/bebedouroService";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import LancField from "@/components/cadastro/base1/LancField";
+import {
+  resolverSuplementacaoDoPonto,
+  bebedourosDoPonto,
+  categoriaDoRegistroSuplementacao,
+  categoriaSuplementacaoDoTipo,
+  tipoEhBebedouro,
+} from "@/domain/mapa/ligacaoPontoReferencia";
+import { montarPayloadBebedouro, montarPayloadSuplementacao } from "@/domain/mapa/payloadsPontoMapa";
+import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -57,6 +69,9 @@ const AJUDA_ESTOQUE_MINIMO = "Abaixo deste saldo o mapa avisa para repor.";
 // mínimo maior ou igual ao limite faz o depósito pedir reposição e acusar
 // excesso ao mesmo tempo. É só um AVISO (não bloqueia o salvar): a regra de
 // cadastro não muda nesta missão e pontos antigos continuam editáveis.
+const MSG_LIGACAO_PENDENTE = "A ligação deste ponto com o cocho/depósito ainda está carregando. Aguarde um instante e salve de novo (se continuar, recarregue a página). Nada foi alterado.";
+const MSG_LIGACAO_AMBIGUA = "Há mais de um cocho/depósito com o mesmo nome deste ponto nesta fazenda e não foi possível saber qual é o dele. Nada foi alterado.";
+const MSG_TROCA_COM_HISTORICO = "Não é possível trocar o tipo deste ponto: o cocho/depósito dele tem histórico (leituras, lançamentos ou estoque). Nada foi alterado.";
 const AVISO_MINIMO_ACIMA_DO_LIMITE = "Atenção: o estoque mínimo está igual ou acima do limite operacional; o mapa vai pedir reposição e acusar excesso ao mesmo tempo.";
 /**
  * O `Input` do shadcn é um forwardRef em JS, sem tipos de props: aqui ele é
@@ -167,6 +182,21 @@ export default function FormularioPonto({
     enabled: true
   });
 
+  // Tipos nativos não dependem de um registro de imagem no cadastro de ícones.
+  const tiposPonto = useMemo(() => {
+    const opcoes = iconesConfig.map((icone) => ({
+      valor: icone.id, categoria: icone.categoria, iconeId: icone.id,
+    }));
+    for (const categoria of ["Cocho", "Depósito"]) {
+      if (!opcoes.some((opcao) => normalizeText(opcao.categoria) === normalizeText(categoria))) {
+        opcoes.push({ valor: `nativo:${normalizeText(categoria)}`, categoria, iconeId: "" });
+      }
+    }
+    return opcoes;
+  }, [iconesConfig]);
+  const tipoSelecionado = formData.configuracao_icone_id ||
+    tiposPonto.find((opcao) => normalizeText(opcao.categoria) === normalizeText(formData.tipo))?.valor || "";
+
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
 
   const { data: pontosSuplementacao = [], isSuccess: pontosSuplementacaoLoaded } = useQuery({
@@ -175,6 +205,14 @@ export default function FormularioPonto({
       const all = await listarTodosPontosSuplementacao();
       return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
     },
+    enabled: !!empresaSelecionadaId
+  });
+
+  // Pontos de referência da empresa: dizem de quem é cada lugar, para um
+  // cocho/depósito no lugar de OUTRO ponto não ligar a este pelo nome.
+  const { data: pontosReferenciaForm = [], isSuccess: pontosReferenciaLoaded } = useQuery({
+    queryKey: ["pontos-referencia-form", empresaSelecionadaId],
+    queryFn: () => listarPontosAtivos(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
@@ -187,26 +225,29 @@ export default function FormularioPonto({
     enabled: !!empresaSelecionadaId
   });
 
-  const pontoSuplementacaoExistente = useMemo(() => {
-    if (!item) return null;
-    // Prioridade 1: detalhe já enriquecido pela lista do Cadastro de Pontos (pontosComDetalhes, D-PROD-174)
-    if (item.detalhe_suplementacao?.id) return item.detalhe_suplementacao;
-    // Prioridade 2: por ID explícito
-    if (item.ponto_suplementacao_id) {
-      const porId = pontosSuplementacao.find((ponto) => ponto.id === item.ponto_suplementacao_id);
-      if (porId) return porId;
-    }
-    // Prioridade 3: busca pelo nome (fallback)
-    const nomeAtual = normalizeText(item.nome);
-    const siglaAtual = normalizeText(item.sigla);
-    return pontosSuplementacao.find((ponto) => normalizeText(ponto.nome_ponto) === nomeAtual || (siglaAtual && normalizeText(ponto.sigla) === siglaAtual)) || null;
-  }, [item, pontosSuplementacao]);
+  // Ligação pela regra única (empresa + categoria do tipo ATUAL do ponto + nome;
+  // coordenadas desempatam; sigla sozinha nunca liga). O detalhe que a lista do
+  // Cadastro de Pontos já resolveu (pontosComDetalhes) usa a mesma regra.
+  const ligacaoSuplementacao = useMemo(() => {
+    if (!item) return { registro: null, ambiguo: false };
+    if (item.detalhe_suplementacao?.id) return { registro: item.detalhe_suplementacao, ambiguo: false };
+    // Sem a lista de pontos não dá para saber de quem é cada lugar: a ligação
+    // fica PENDENTE (o formulário espera e o salvar recusa) em vez de cair na
+    // regra só por nome, que ligaria a sobra ao depósito de outro ponto.
+    const precisaLigacao = categoriaSuplementacaoDoTipo(item.tipo) !== null;
+    if (precisaLigacao && !pontosReferenciaLoaded) return { registro: null, ambiguo: false, pendente: true };
+    return resolverSuplementacaoDoPonto(
+      { ...item, empresa_id: item.empresa_id ?? empresaSelecionadaId },
+      pontosSuplementacao,
+      { outrosPontos: pontosReferenciaForm }
+    );
+  }, [item, pontosSuplementacao, pontosReferenciaForm, pontosReferenciaLoaded, empresaSelecionadaId]);
+  const pontoSuplementacaoExistente = ligacaoSuplementacao.registro;
 
+  // Bebedouro: SOMENTE pelo `ponto_referencia_id` (nome/sigla iguais não ligam).
   const bebedouroExistente = useMemo(() => {
-    if (!item) return null;
-    const nomeAtual = normalizeText(item.nome);
-    const siglaAtual = normalizeText(item.sigla);
-    return bebedourosForm.find((bebedouro) => bebedouro.ponto_referencia_id === item.id || normalizeText(bebedouro.nome) === nomeAtual || siglaAtual && normalizeText(bebedouro.codigo_interno) === siglaAtual) || null;
+    if (!item?.id) return null;
+    return bebedourosDoPonto(item, bebedourosForm)[0] || null;
   }, [item, bebedourosForm]);
 
   const depositosDisponiveis = useMemo(() => {
@@ -215,16 +256,19 @@ export default function FormularioPonto({
 
 
 
+  // Ponto novo: o formulário só volta ao vazio quando o item MUDA — não quando
+  // as áreas ou os cochos terminam de carregar (isso apagava o que já fora digitado).
   useEffect(() => {
-    if (!item) {
-      setFormData(createEmptyForm());
-      return;
-    }
+    if (!item) setFormData(createEmptyForm());
+  }, [item]);
+
+  useEffect(() => {
+    if (!item) return;
 
     // Para itens existentes que são cochosD depósitos, aguardar a query carregar antes de popular
     const tipoNorm = normalizeText(item.tipo || "");
     const precisaSupl = tipoNorm.includes("COCHO") || tipoNorm.includes("DEPOSITO");
-    if (precisaSupl && !pontosSuplementacaoLoaded) return;
+    if (precisaSupl && (!pontosSuplementacaoLoaded || !pontosReferenciaLoaded)) return;
 
     const isBatchItem = Boolean(onBatchUpdate);
     setFormData({
@@ -253,7 +297,7 @@ export default function FormularioPonto({
       dias_limpeza_personalizado: (!isBatchItem ? bebedouroExistente?.dias_limpeza_personalizado : "") || "30",
       dias_inspecao_personalizado: (!isBatchItem ? bebedouroExistente?.dias_inspecao_personalizado : "") || "7"
     });
-  }, [item, pontoSuplementacaoExistente, bebedouroExistente, areas, pontosSuplementacaoLoaded]);
+  }, [item, pontoSuplementacaoExistente, bebedouroExistente, areas, pontosSuplementacaoLoaded, pontosReferenciaLoaded]);
 
   const handleCapturaGPS = (localizacao) => {
     setCoordenadasGPS(localizacao);
@@ -357,13 +401,33 @@ export default function FormularioPonto({
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
-      const pontosReferencia = await listarTodosPontos();
-      const maxNumeroPonto = pontosReferencia.reduce((maximo, ponto) => Math.max(maximo, parseInt(ponto.numero_ponto) || 0), 0);
       const configIcone = iconesConfig.find((icone) => icone.id === data.configuracao_icone_id) ||
       iconesConfig.find((icone) => normalizeText(icone.categoria) === normalizeText(data.tipo));
+      const novaCategoria = data.tipo_categoria || null;
+      const novoEhBebedouro = tipoEhBebedouro(data.tipo);
+      const coordenadasPonto = coordenadasGPS || coordenadas;
+
+      // ── Conferências antes de gravar qualquer coisa ──────────────────────
+      if (item && ligacaoSuplementacao.pendente) throw new Error(MSG_LIGACAO_PENDENTE);
+      if (item && ligacaoSuplementacao.ambiguo) throw new Error(MSG_LIGACAO_AMBIGUA);
+      // Trocar o tipo (cocho ↔ depósito, ou deixar de ser cocho/depósito) remove o
+      // registro antigo — nunca o reaproveita com outra categoria. Com histórico, bloqueia.
+      const suplementacaoAntiga = pontoSuplementacaoExistente;
+      const removerSuplementacaoAntiga = Boolean(suplementacaoAntiga) &&
+        categoriaDoRegistroSuplementacao(suplementacaoAntiga) !== novaCategoria;
+      if (removerSuplementacaoAntiga) {
+        try {
+          await verificarRemocaoSuplementacao(suplementacaoAntiga);
+        } catch (erro) {
+          if (erro?.code === "MAPA_DELETE_BLOCKED") throw new Error(MSG_TROCA_COM_HISTORICO);
+          throw erro;
+        }
+      }
+      const suplementacaoParaAtualizar = removerSuplementacaoAntiga ? null : suplementacaoAntiga;
 
       setProgresso({ show: true, atual: 1, total: 3, mensagem: item ? "Atualizando ponto de referência..." : "Criando ponto de referência..." });
 
+      // `numero_ponto` do ponto de referência é do servidor (sequência do tenant).
       const payloadPonto = {
         nome: data.nome,
         sigla: data.sigla,
@@ -373,172 +437,146 @@ export default function FormularioPonto({
         sub_icone_url: configIcone?.sub_icone_url || null,
         observacoes: data.observacoes,
         empresa_id: empresaSelecionadaId,
-        numero_ponto: item?.numero_ponto || String(maxNumeroPonto + 1),
         ativo: true,
         cor: configIcone?.cor_padrao || "#0066ff",
-        coordenadas: coordenadasGPS || coordenadas
+        coordenadas: coordenadasPonto
       };
 
       const pontoReferencia = item ?
       await atualizarPonto(item.id, payloadPonto) :
       await criarPonto(payloadPonto);
+      const pontoReferenciaId = pontoReferencia?.id || item?.id;
+      /** Local do depósito NOVO, criado pelo servidor junto com o depósito. */
+      let localNovo = null;
 
-      if (normalizeText(data.tipo).includes("BEBEDOURO")) {
-        const areasSelecionadas = areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id));
-        const areaSelecionada = areasSelecionadas[0] || null;
-        const bebedouros = await listarTodosBebedouros();
-        const bebedouroExistente = bebedouros.find((bebedouro) => bebedouro.ponto_referencia_id === pontoReferencia.id);
-        const payloadBebedouro = {
-          empresa_id: empresaSelecionadaId,
-          ponto_referencia_id: pontoReferencia.id,
-          nome: data.nome,
-          codigo_interno: data.sigla,
-          pasto_id: areaSelecionada?.id || null,
-          pasto_nome: areaSelecionada?.nome || null,
-          area_vinculada_ids: areasSelecionadas.map((area) => area.id),
-          area_vinculada_nomes: areasSelecionadas.map((area) => area.nome),
-          setor_id: data.setor_id || areaSelecionada?.setor_id || null,
-          setor_nome: areaSelecionada?.setor_nome || setores.find((setor) => setor.id === data.setor_id)?.nome || null,
-          tipo: data.tipo_bebedouro || "Bebedouro australiano",
-          capacidade_litros: data.capacidade_agua_litros ? parseFloat(data.capacidade_agua_litros) : null,
-          origem_agua: data.origem_agua || "Poço",
-          periodicidade_limpeza: "Personalizado",
-          periodicidade_inspecao: "Personalizado",
-          dias_limpeza_personalizado: data.dias_limpeza_personalizado ? parseInt(data.dias_limpeza_personalizado) : 30,
-          dias_inspecao_personalizado: data.dias_inspecao_personalizado ? parseInt(data.dias_inspecao_personalizado) : 7,
-          coordenadas: coordenadasGPS || coordenadas,
-          status: "Ativo",
-          ativo: true,
-          observacoes: data.observacoes || null
-        };
-        if (bebedouroExistente) await atualizarBebedouro(bebedouroExistente.id, payloadBebedouro);
-        else await criarBebedouro(payloadBebedouro);
-      }
-
-      if (!data.tipo_categoria && pontoSuplementacaoExistente) {
-        setProgresso({ show: true, atual: 2, total: 3, mensagem: "Inativando vínculo de suplementação..." });
-        await atualizarPontoSuplementacao(pontoSuplementacaoExistente.id, { status: "Inativo" });
-        return pontoReferencia;
-      }
-
-      if (!data.tipo_categoria) return pontoReferencia;
-
-      setProgresso({ show: true, atual: 2, total: 3, mensagem: data.tipo_categoria === "DEPOSITO" ? "Configurando depósito..." : "Configurando cocho..." });
-
-      const pontosSuplementacaoEmpresa = await listarTodosPontosSuplementacao();
-      const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
-      const maiorNumero = pontosAtivosEmpresa.reduce((maximo, ponto) => Math.max(maximo, parseInt(String(ponto.numero_ponto || "").replace(/\D/g, "")) || 0), 0);
-      const prefixo = data.tipo_categoria === "DEPOSITO" ? "DEP" : "COCHO";
-      const areasVinculadas = data.tipo_categoria === "COCHO" ?
-      areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id)) :
-      [];
-      const areaVinculadaPrincipal = areasVinculadas[0] || null;
-      let localEstoqueId = pontoSuplementacaoExistente?.local_estoque_id || item?.detalhe_suplementacao?.local_estoque_id || null;
-      let localEstoqueNome = pontoSuplementacaoExistente?.local_estoque_nome || item?.detalhe_suplementacao?.local_estoque_nome || null;
-
-      if (data.tipo_categoria === "DEPOSITO") {
-        const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${data.nome}`;
-
-        if (!localEstoqueId && pontoSuplementacaoExistente) {
-          const locais = await listarTodosLocais();
-          const nomesAntigos = [
-            pontoSuplementacaoExistente.local_estoque_nome,
-            pontoSuplementacaoExistente.nome_ponto,
-            item?.nome
-          ].filter(Boolean).map(normalizeText);
-          const localExistente = locais.find((local) =>
-            nomesAntigos.includes(normalizeText(local.nome)) ||
-            nomesAntigos.includes(normalizeText(String(local.descricao || "").replace("DEPÓSITO DE SUPLEMENTAÇÃO -", "")))
-          );
-          if (localExistente) {
-            localEstoqueId = localExistente.id;
-            // D-PROD-137 (F6): pelo Mapa Cadastro o servidor só renomeia o local JÁ
-            // ligado a um depósito. Depósito legado sem vínculo: grava o vínculo
-            // antes de renomear (senão o PATCH do local é recusado com 403).
-            await atualizarPontoSuplementacao(pontoSuplementacaoExistente.id, {
-              categoria_ponto: "DEPOSITO",
-              local_estoque_id: localExistente.id,
-              local_estoque_nome: localExistente.nome
+      try {
+        if (novoEhBebedouro || item) {
+          const bebedouros = await listarTodosBebedouros();
+          const ligados = bebedourosDoPonto({ id: pontoReferenciaId }, bebedouros);
+          if (novoEhBebedouro) {
+            const payloadBebedouro = montarPayloadBebedouro({
+              data, pontoReferenciaId, empresaId: empresaSelecionadaId, areas, setores, coordenadas: coordenadasPonto,
             });
+            if (ligados[0]) await atualizarBebedouro(ligados[0].id, payloadBebedouro);
+            else await criarBebedouro(payloadBebedouro);
+          } else {
+            // Deixou de ser bebedouro: o cadastro do bebedouro é inativado (o histórico fica).
+            for (const bebedouro of ligados.filter((b) => b.ativo !== false)) {
+              await atualizarBebedouro(bebedouro.id, { ativo: false, status: "Inativo" });
+            }
           }
         }
 
-        if (localEstoqueId) {
-          await atualizarLocal(localEstoqueId, { nome: data.nome, descricao: descricaoLocal });
-          localEstoqueNome = data.nome;
-
-          const [lotesEstoque, movimentacoesEstoque] = await Promise.all([
-            buscarLotesNotaPorCriterio({ local_estoque_id: localEstoqueId }),
-            listarMovimentacoesRecentes()
-          ]);
-
-          await Promise.all([
-            ...lotesEstoque.map((lote) => atualizarLoteNota(lote.id, { local_estoque_nome: data.nome })),
-            ...movimentacoesEstoque
-              .filter((mov) => mov.local_estoque_origem === localEstoqueId || mov.local_estoque_destino === localEstoqueId)
-              .map((mov) => atualizarMovimentacao(mov.id, {
-                ...(mov.local_estoque_origem === localEstoqueId ? { local_origem: data.nome } : {}),
-                ...(mov.local_estoque_destino === localEstoqueId ? { local_destino: data.nome } : {})
-              }))
-          ]);
-        } else {
-          const localCriado = await criarLocal({ nome: data.nome, descricao: descricaoLocal });
-          localEstoqueId = localCriado.id;
-          localEstoqueNome = localCriado.nome;
+        if (removerSuplementacaoAntiga) {
+          setProgresso({ show: true, atual: 2, total: 3, mensagem: "Removendo o cocho/depósito anterior..." });
+          await removerPontoSuplementacao(suplementacaoAntiga.id);
         }
-      }
 
-      const depositoSelecionado = depositosDisponiveis.find((ponto) => ponto.id === data.deposito_origem_id);
-      const setorSelecionado = setores.find((setor) => setor.id === data.setor_id);
-      const payloadSuplementacao = {
-        empresa_id: empresaSelecionadaId,
-        numero_ponto: pontoSuplementacaoExistente?.numero_ponto || `${prefixo}-${String(maiorNumero + 1).padStart(4, "0")}`,
-        setor_id: data.setor_id || null,
-        setor_nome: setorSelecionado?.nome || null,
-        nome_ponto: data.nome,
-        sigla: data.sigla,
-        categoria_ponto: data.tipo_categoria,
-        tipo: data.tipo,
-        produto_padrao: data.tipo_categoria === "COCHO" ? data.produto_padrao || null : null,
-        capacidade_cocho_kg: data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
-        metragem_cocho_m: data.tipo_categoria === "COCHO" && data.metragem_cocho_m ? parseFloat(data.metragem_cocho_m) : null,
-        cobertura_cocho: data.tipo_categoria === "COCHO" ? data.cobertura_cocho || null : null,
-        area_vinculada_id: data.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.id || null : null,
-        area_vinculada_nome: data.tipo_categoria === "COCHO" ? areaVinculadaPrincipal?.nome || "" : null,
-        area_vinculada_ids: data.tipo_categoria === "COCHO" ? data.area_vinculada_ids || [] : [],
-        area_vinculada_nomes: data.tipo_categoria === "COCHO" ? areasVinculadas.map((area) => area.nome) : [],
-        deposito_origem_id: data.tipo_categoria === "COCHO" ? data.deposito_origem_id || null : null,
-        deposito_origem_nome: data.tipo_categoria === "COCHO" ? depositoSelecionado?.nome_ponto || null : null,
-        local_estoque_id: data.tipo_categoria === "DEPOSITO" ? localEstoqueId : null,
-        local_estoque_nome: data.tipo_categoria === "DEPOSITO" ? localEstoqueNome : null,
-        coordenadas: coordenadasGPS || coordenadas,
-        status: "Ativo",
-        observacoes: data.observacoes || null,
-        consumo_ideal_por_cabeca_kg: data.tipo_categoria === "COCHO" && data.consumo_ideal_por_cabeca_kg ? parseFloat(data.consumo_ideal_por_cabeca_kg) : null,
-        limite_minimo_consumo: data.tipo_categoria === "COCHO" && data.limite_minimo_consumo ? parseFloat(data.limite_minimo_consumo) : null,
-        limite_maximo_consumo: data.tipo_categoria === "COCHO" && data.limite_maximo_consumo ? parseFloat(data.limite_maximo_consumo) : null,
-        dias_alerta_reposicao: data.tipo_categoria === "COCHO" && data.dias_alerta_reposicao ? parseInt(data.dias_alerta_reposicao) : 3,
-        estoque_minimo_kg: data.tipo_categoria === "DEPOSITO" && data.estoque_minimo_kg ? parseFloat(data.estoque_minimo_kg) : null,
-        alerta_sem_lancamento_dias: data.tipo_categoria === "COCHO" ? parseInt(data.alerta_sem_lancamento_dias || 10) : null
-      };
+        if (!novaCategoria) return pontoReferencia;
 
-      const registroSuplementacao = pontoSuplementacaoExistente ?
-      await atualizarPontoSuplementacao(pontoSuplementacaoExistente.id, payloadSuplementacao) :
-      await criarPontoSuplementacao(payloadSuplementacao);
+        setProgresso({ show: true, atual: 2, total: 3, mensagem: novaCategoria === "DEPOSITO" ? "Configurando depósito..." : "Configurando cocho..." });
 
-      if (data.tipo_categoria === "DEPOSITO") {
-        setProgresso({ show: true, atual: 3, total: 3, mensagem: "Atualizando cochos vinculados..." });
-        const cochosRelacionados = pontosAtivosEmpresa.filter((ponto) => ponto.deposito_origem_id === registroSuplementacao.id);
-        for (const cocho of cochosRelacionados) {
-          await atualizarPontoSuplementacao(cocho.id, { deposito_origem_nome: data.nome });
+        const pontosSuplementacaoEmpresa = await listarTodosPontosSuplementacao();
+        const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
+        let localEstoqueId = suplementacaoParaAtualizar?.local_estoque_id || null;
+        let localEstoqueNome = suplementacaoParaAtualizar?.local_estoque_nome || null;
+
+        if (novaCategoria === "DEPOSITO") {
+          const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${data.nome}`;
+
+          if (!localEstoqueId && suplementacaoParaAtualizar) {
+            const locais = await listarTodosLocais();
+            const nomesAntigos = [
+              suplementacaoParaAtualizar.local_estoque_nome,
+              suplementacaoParaAtualizar.nome_ponto,
+              item?.nome
+            ].filter(Boolean).map(normalizeText);
+            const localExistente = locais.find((local) =>
+              nomesAntigos.includes(normalizeText(local.nome)) ||
+              nomesAntigos.includes(normalizeText(String(local.descricao || "").replace("DEPÓSITO DE SUPLEMENTAÇÃO -", "")))
+            );
+            if (localExistente) {
+              localEstoqueId = localExistente.id;
+              // D-PROD-137 (F6): pelo Mapa Cadastro o servidor só renomeia o local JÁ
+              // ligado a um depósito. Depósito legado sem vínculo: grava o vínculo
+              // antes de renomear (senão o PATCH do local é recusado com 403).
+              await atualizarPontoSuplementacao(suplementacaoParaAtualizar.id, {
+                categoria_ponto: "DEPOSITO",
+                local_estoque_id: localExistente.id,
+                local_estoque_nome: localExistente.nome
+              });
+            }
+          }
+
+          if (localEstoqueId) {
+            await atualizarLocal(localEstoqueId, { nome: data.nome, descricao: descricaoLocal });
+            localEstoqueNome = data.nome;
+
+            const [lotesEstoque, movimentacoesEstoque] = await Promise.all([
+              buscarLotesNotaPorCriterio({ local_estoque_id: localEstoqueId }),
+              listarMovimentacoesRecentes()
+            ]);
+
+            await Promise.all([
+              ...lotesEstoque.map((lote) => atualizarLoteNota(lote.id, { local_estoque_nome: data.nome })),
+              ...movimentacoesEstoque
+                .filter((mov) => mov.local_estoque_origem === localEstoqueId || mov.local_estoque_destino === localEstoqueId)
+                .map((mov) => atualizarMovimentacao(mov.id, {
+                  ...(mov.local_estoque_origem === localEstoqueId ? { local_origem: data.nome } : {}),
+                  ...(mov.local_estoque_destino === localEstoqueId ? { local_destino: data.nome } : {})
+                }))
+            ]);
+          } else if (!suplementacaoParaAtualizar) {
+            // Depósito novo: o servidor cria o local na MESMA transação do depósito,
+            // então uma falha do depósito não deixa local órfão.
+            localNovo = { nome: data.nome, descricao: descricaoLocal };
+          } else {
+            const localCriado = await criarLocal({ nome: data.nome, descricao: descricaoLocal });
+            localEstoqueId = localCriado.id;
+            localEstoqueNome = localCriado.nome;
+          }
         }
-      }
 
-      return pontoReferencia;
+        // `numero_ponto` do cocho/depósito é do servidor: sequência do tenant, na
+        // transação da criação (antes o navegador calculava e colidia no unique).
+        const payloadSuplementacao = montarPayloadSuplementacao({
+          data,
+          empresaId: empresaSelecionadaId,
+          areas,
+          setores,
+          depositoOrigem: depositosDisponiveis.find((ponto) => ponto.id === data.deposito_origem_id) || null,
+          localEstoqueId,
+          localEstoqueNome,
+          coordenadas: coordenadasPonto,
+        });
+
+        const registroSuplementacao = suplementacaoParaAtualizar ?
+        await atualizarPontoSuplementacao(suplementacaoParaAtualizar.id, payloadSuplementacao) :
+        await criarPontoSuplementacao(localNovo ? { ...payloadSuplementacao, local_estoque: localNovo } : payloadSuplementacao);
+
+        if (novaCategoria === "DEPOSITO") {
+          setProgresso({ show: true, atual: 3, total: 3, mensagem: "Atualizando cochos vinculados..." });
+          const cochosRelacionados = pontosAtivosEmpresa.filter((ponto) => ponto.deposito_origem_id === registroSuplementacao.id);
+          for (const cocho of cochosRelacionados) {
+            await atualizarPontoSuplementacao(cocho.id, { deposito_origem_nome: data.nome });
+          }
+        }
+
+        return pontoReferencia;
+      } catch (erro) {
+        if (item) throw erro;
+        // Ponto NOVO: não deixa o ponto de referência órfão quando o cocho/depósito
+        // ou o bebedouro não pôde ser gravado.
+        const desfeito = await desfazerCriacaoDePonto({ pontoId: pontoReferenciaId });
+        const motivo = erro?.message ? `${erro.message} ` : "";
+        throw new Error(desfeito ?
+          `${motivo}O ponto não foi cadastrado.` :
+          `${motivo}O cadastro do ponto ficou incompleto; confira a lista de pontos antes de tentar de novo.`);
+      }
     },
     onSuccess: () => {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao", "bebedouros", "locais-estoque", "saldo-deposito", "historico-deposito", "movimentacoes-deposito-detalhe", "mapa-estoque-lotes", "movimentacoes"].includes(query.queryKey[0]) });
+      invalidarCachesDoMapa(queryClient, ["pontos", "pontos-suplementacao-form", "pontos-referencia-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao", "bebedouros", "bebedouros-form", "locais-estoque", "saldo-deposito", "historico-deposito", "movimentacoes-deposito-detalhe", "mapa-estoque-lotes", "movimentacoes"]);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success(item ? "Ponto atualizado com sucesso." : "Ponto cadastrado com sucesso.");
       onSave();
@@ -716,9 +754,9 @@ export default function FormularioPonto({
           <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
         </div>
         <FL label="Ponto de referência" required>
-          <Select value={formData.configuracao_icone_id} onValueChange={(value) => {const configuracao = iconesConfig.find((itemConfig) => itemConfig.id === value);setFormData((prev) => ({ ...prev, configuracao_icone_id: value, tipo: configuracao?.categoria || prev.tipo }));}}>
+          <Select value={tipoSelecionado} onValueChange={(value) => {const opcao = tiposPonto.find((tipo) => tipo.valor === value);if (opcao) setFormData((prev) => ({ ...prev, configuracao_icone_id: opcao.iconeId, tipo: opcao.categoria }));}}>
             <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o tipo do ponto" /></SelectTrigger>
-            <SelectContent>{iconesConfig.map((itemConfig) => <SelectItem key={itemConfig.id} value={itemConfig.id} className="text-xs">{itemConfig.categoria}</SelectItem>)}</SelectContent>
+            <SelectContent>{tiposPonto.map((opcao) => <SelectItem key={opcao.valor} value={opcao.valor} className="text-xs">{opcao.categoria}</SelectItem>)}</SelectContent>
           </Select>
         </FL>
         <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
@@ -806,7 +844,8 @@ export default function FormularioPonto({
                 </Select>
               </FL>
               <FL label="Dias de alerta para reposição">
-                <Input type="number" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData((prev) => ({ ...prev, dias_alerta_reposicao: e.target.value }))} placeholder="3" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                <Input type="number" min="0" step="1" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData((prev) => ({ ...prev, dias_alerta_reposicao: e.target.value }))} placeholder="3" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                <p className="mt-1 text-[10px] leading-snug text-slate-500">Avisa quando o saldo estimado durar este número de dias ou menos. Não muda o percentual de saldo.</p>
               </FL>
               <FL label="Alerta sem lançamento (dias)">
                 <Input type="number" value={formData.alerta_sem_lancamento_dias} onChange={(e) => setFormData((prev) => ({ ...prev, alerta_sem_lancamento_dias: e.target.value }))} placeholder="10" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />

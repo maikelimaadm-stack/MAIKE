@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card as CardUi, CardContent as CardContentUi, CardHeader as CardHeaderUi, CardTitle as CardTitleUi } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import CartaoHistorico, { AcaoHistorico, EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { excluirTransferenciaDeposito } from "@/services/suplementacaoHistoricoService";
@@ -10,12 +8,6 @@ import { formatKg } from "./formatters";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
-
-// `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
-/** @type {React.ComponentType<any>} */ const Card = CardUi;
-/** @type {React.ComponentType<any>} */ const CardContent = CardContentUi;
-/** @type {React.ComponentType<any>} */ const CardHeader = CardHeaderUi;
-/** @type {React.ComponentType<any>} */ const CardTitle = CardTitleUi;
 
 function formatObsKgPtBR(obs) {
   if (!obs) return "";
@@ -34,38 +26,75 @@ function getLabelTipoDetalhado(tipo) {
   return map[tipo] || tipo || "-";
 }
 
+/**
+ * Movimentações do histórico do depósito, da mais nova para a mais antiga.
+ *
+ * Entram as da empresa que tocam o local de estoque do depósito, menos as
+ * reversões; cada lado de uma transferência (e a baixa da suplementação) só
+ * aparece no depósito certo — a saída na origem, a entrada no destino —,
+ * porque o par da transferência grava origem e destino nas DUAS linhas.
+ * Ordem: o registro criado por último primeiro (`created_date`); empate, a
+ * data da movimentação.
+ *
+ * Pura, para a linha do tempo do detalhe do depósito (D-PROD-220) mostrar o
+ * começo deste mesmo histórico, com a mesma regra.
+ *
+ * @param {any[] | null | undefined} movimentacoes
+ * @param {{ empresaId: string | null | undefined, localEstoqueId: string | null | undefined }} filtro
+ * @returns {any[]}
+ */
+export function movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId, localEstoqueId }) {
+  return (Array.isArray(movimentacoes) ? movimentacoes : [])
+    .filter((item) => {
+      if (item.empresa_id !== empresaId) return false;
+      if (item.origem_sistema === "reversao") return false;
+      if (item.tipo_detalhado === "ajuste_positivo" && String(item.observacoes || "").includes("Reversão do lançamento do cocho")) return false;
+
+      const isOrigin = item.local_estoque_origem === localEstoqueId;
+      const isDestination = item.local_estoque_destino === localEstoqueId;
+
+      if (!isOrigin && !isDestination) return false;
+
+      if (item.tipo_detalhado === "transferencia_enviada" && !isOrigin) return false;
+      if (item.tipo_detalhado === "transferencia_recebida" && !isDestination) return false;
+      if (item.tipo_detalhado === "suplementacao" && !isOrigin) return false;
+
+      return true;
+    })
+    .sort((a, b) => {
+      const createdDiff = new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return new Date(b.data_movimentacao || 0).getTime() - new Date(a.data_movimentacao || 0).getTime();
+    });
+}
+
+/** @param {any} valor */
+const moeda = (valor) => (valor != null ? Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "-");
+
+/**
+ * Histórico do depósito (movimentações do local de estoque, pela regra de
+ * `movimentacoesDoHistoricoDeposito`).
+ *
+ * D-PROD-222: no desenho do histórico do manejo (o do Histórico de
+ * Movimentação): dentro do `LancLoteDialogo` o título com a contagem vai para o
+ * cabeçalho do diálogo, sem cartão em volta; cada movimentação é um
+ * `CartaoHistorico` (selos de data e tipo, o produto em negrito e as linhas
+ * "Rótulo: valor"). Regras, consultas e a política de estorno (D-PROD-94a) não
+ * mudam.
+ *
+ * @param {{ deposito: any }} props
+ */
 export default function HistoricoDepositoSuplementacao({ deposito }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
 
-  const { data: movimentacoes = [], isLoading } = useQuery({
+  const { data: movimentacoes = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["historico-deposito", deposito.id],
     queryFn: async () => {
       const depositoLocalId = deposito.local_estoque_id;
-      
-      const applyFilter = (all) => all
-        .filter((item) => {
-          if (item.empresa_id !== empresaSelecionadaId) return false;
-          if (item.origem_sistema === "reversao") return false;
-          if (item.tipo_detalhado === "ajuste_positivo" && String(item.observacoes || "").includes("Reversão do lançamento do cocho")) return false;
 
-          const isOrigin = item.local_estoque_origem === depositoLocalId;
-          const isDestination = item.local_estoque_destino === depositoLocalId;
-
-          if (!isOrigin && !isDestination) return false;
-
-          if (item.tipo_detalhado === "transferencia_enviada" && !isOrigin) return false;
-          if (item.tipo_detalhado === "transferencia_recebida" && !isDestination) return false;
-          if (item.tipo_detalhado === "suplementacao" && !isOrigin) return false;
-
-          return true;
-        })
-        .sort((a, b) => {
-          const createdDiff = new Date(b.created_date || 0) - new Date(a.created_date || 0);
-          if (createdDiff !== 0) return createdDiff;
-          return new Date(b.data_movimentacao || 0) - new Date(a.data_movimentacao || 0);
-        });
+      const applyFilter = (all) => movimentacoesDoHistoricoDeposito(all, { empresaId: empresaSelecionadaId, localEstoqueId: depositoLocalId });
 
       const cached = await getMapaCachedData('movimentacaoEstoque', empresaSelecionadaId);
       
@@ -108,83 +137,70 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     }
   };
 
-  if (isLoading) return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
+  // Erro sem nada guardado: o estado de erro do Histórico de Movimentação (não "nenhum registro").
+  const falhou = isError && movimentacoes.length === 0;
+  const contagem = isLoading || falhou ? null : movimentacoes.length;
+  const noDialogo = useTituloDoHistorico("Histórico do Depósito", contagem);
+  // Fora do diálogo (sem cabeçalho para o título), o título fica na barra.
+  const barra = noDialogo ? null : <h3 className="text-sm font-semibold text-slate-900">{`Histórico do Depósito${contagem != null ? ` (${contagem})` : ""}`}</h3>;
+
+  if (isLoading) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="carregando" />} />;
+
+  if (falhou) return <MolduraHistorico barra={barra} estado={<EstadoHistorico tipo="erro" erro={error} onTentarDeNovo={() => refetch()} />} />;
+
+  if (movimentacoes.length === 0) return <MolduraHistorico barra={barra} estado={<EstadoHistorico>Nenhum registro encontrado</EstadoHistorico>} />;
+
+  const aviso = !CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO ? (
+    <div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">{MENSAGEM_ESTORNO_SUSPENSO}</div>
+  ) : null;
 
   return (
-    <Card className="mk-hist border-slate-200 shadow-sm">
-      <CardHeader className="bg-[#FAFCFE] border-b py-2 px-3">
-        <CardTitle className="text-sm font-semibold">Histórico do Depósito ({movimentacoes.length})</CardTitle>
-      </CardHeader>
-      <CardContent className="p-2">
-        {!CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO && movimentacoes.length > 0 &&
-        <div role="note" className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">{MENSAGEM_ESTORNO_SUSPENSO}</div>
-        }
-        {movimentacoes.length === 0 ?
-        <div className="text-center py-8 text-xs text-slate-500">Nenhum registro encontrado.</div> :
-        <div className="max-h-[60vh] overflow-y-auto space-y-1">
-          {movimentacoes.map((movimentacao, index) => {
-            const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.exclusao_somente_em === "cocho";
-            const ehMovimentoDeposito = movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
+    <MolduraHistorico barra={barra} antes={aviso}>
+      {movimentacoes.map((movimentacao, index) => {
+        const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.exclusao_somente_em === "cocho";
+        const ehMovimentoDeposito = movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
 
-            const dataRaw = movimentacao.data_movimentacao || "";
-            const dataDisplay = dataRaw.includes("T")
-              ? dataRaw.split("T")[0].split("-").reverse().join("/")
-              : new Date(dataRaw).toLocaleDateString("pt-BR");
+        const dataRaw = movimentacao.data_movimentacao || "";
+        const dataDisplay = dataRaw.includes("T")
+          ? dataRaw.split("T")[0].split("-").reverse().join("/")
+          : new Date(dataRaw).toLocaleDateString("pt-BR");
 
-            const destinoLabel = movimentacao.tipo_detalhado === "suplementacao"
-              ? "Suplementação"
-              : (movimentacao.local_destino || "-");
+        const destinoLabel = movimentacao.tipo_detalhado === "suplementacao"
+          ? "Suplementação"
+          : (movimentacao.local_destino || "-");
 
-            return (
-              <div key={movimentacao.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex flex-wrap items-center gap-1">
-                    <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{dataDisplay}</span>
-                    <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{getLabelTipoDetalhado(movimentacao.tipo_detalhado)}</Badge>
-                  </div>
-                  {CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO &&
-                  <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
-                  }
-                </div>
-
-                <div className="text-xs font-semibold text-slate-900">{movimentacao.produto_nome}</div>
-
-                <div className="space-y-1.5">
-                  <div>
-                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Quantidade</div>
-                    <div className="grid grid-cols-2 gap-1 text-[10px]">
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Quantidade kg</div><div className="font-semibold text-slate-900">{formatKg(movimentacao.quantidade || 0)}</div></div>
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Unidade</div><div className="font-semibold text-slate-900">{movimentacao.unidade_medida || "KG"}</div></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Local</div>
-                    <div className="grid grid-cols-2 gap-1 text-[10px]">
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{movimentacao.local_origem || movimentacao.local_estoque_origem || "-"}</div></div>
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{destinoLabel}</div></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Saldos e custos</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Saldo antes</div><div className="font-semibold text-slate-900">{movimentacao.saldo_antes != null ? formatKg(movimentacao.saldo_antes) : '-'}</div></div>
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Saldo depois</div><div className="font-semibold text-slate-900">{movimentacao.saldo_depois != null ? formatKg(movimentacao.saldo_depois) : '-'}</div></div>
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Valor total</div><div className="font-semibold text-slate-900">{movimentacao.valor_total != null ? Number(movimentacao.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-'}</div></div>
-                      <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Custo médio</div><div className="font-semibold text-slate-900">{movimentacao.custo_medio_depois != null ? Number(movimentacao.custo_medio_depois).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-'}</div></div>
-                    </div>
-                  </div>
-                </div>
-
-                {movimentacao.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {formatObsKgPtBR(movimentacao.observacoes)}</div>}
-                {CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
-                {ehNutricao && <div className="text-[10px] text-slate-400">Lançamento de nutrição: consulta apenas; o cancelamento está temporariamente suspenso.</div>}
-              </div>
-            );
-          })}
-        </div>
-        }
-      </CardContent>
-    </Card>
+        return (
+          <CartaoHistorico
+            key={movimentacao.id}
+            selos={
+              <>
+                <SeloHistorico tom="data">{dataDisplay}</SeloHistorico>
+                <SeloHistorico>{getLabelTipoDetalhado(movimentacao.tipo_detalhado)}</SeloHistorico>
+              </>
+            }
+            titulo={movimentacao.produto_nome}
+            rodape={
+              CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO ? (
+                <AcaoHistorico destrutiva disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>
+                  Excluir
+                </AcaoHistorico>
+              ) : null
+            }
+          >
+            <LinhaHistorico rotulo="Quantidade kg">{formatKg(movimentacao.quantidade || 0)}</LinhaHistorico>
+            <LinhaHistorico rotulo="Unidade">{movimentacao.unidade_medida || "KG"}</LinhaHistorico>
+            <LinhaHistorico rotulo="Origem">{movimentacao.local_origem || movimentacao.local_estoque_origem || "-"}</LinhaHistorico>
+            <LinhaHistorico rotulo="Destino">{destinoLabel}</LinhaHistorico>
+            <LinhaHistorico rotulo="Saldo antes">{movimentacao.saldo_antes != null ? formatKg(movimentacao.saldo_antes) : "-"}</LinhaHistorico>
+            <LinhaHistorico rotulo="Saldo depois">{movimentacao.saldo_depois != null ? formatKg(movimentacao.saldo_depois) : "-"}</LinhaHistorico>
+            <LinhaHistorico rotulo="Valor total">{moeda(movimentacao.valor_total)}</LinhaHistorico>
+            <LinhaHistorico rotulo="Custo médio">{moeda(movimentacao.custo_medio_depois)}</LinhaHistorico>
+            {movimentacao.observacoes ? <LinhaHistorico rotulo="Observações">{formatObsKgPtBR(movimentacao.observacoes)}</LinhaHistorico> : null}
+            {CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
+            {ehNutricao && <div className="text-[10px] text-slate-400">Lançamento de nutrição: consulta apenas; o cancelamento está temporariamente suspenso.</div>}
+          </CartaoHistorico>
+        );
+      })}
+    </MolduraHistorico>
   );
 }

@@ -110,6 +110,43 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * banco LOCAL com curvas de rodadas antigas em CADCURVAGANHO (estrutura por
  * estação) faz a guarda recusar. As mensagens dessa guarda começam com
  * `cadcurvaganho_mensal:`. O remédio é o mesmo: recriar o banco local.
+ *
+ * D-PROD-195: a migration CONTRACT da curva na Categoria de Manejo cria
+ * CADCATEGORIA.curva_ganho_id NOT NULL e liga cada categoria que já existe à
+ * curva chamada 'CURVA PADRÃO' da própria fazenda. A guarda recusa se alguma
+ * fazenda com categoria não tiver exatamente uma CURVA PADRÃO. A CI nasce vazia
+ * e não é afetada; um banco LOCAL com categorias de rodadas antigas e sem a
+ * CURVA PADRÃO na fazenda delas é. As mensagens começam com
+ * `cadcategoria_curva_ganho:`. O remédio é o mesmo: recriar o banco local.
+ *
+ * D-PROD-197: a migration CONTRACT do Tipo de Atividade só ACRESCENTA (5
+ * padrões, 8 flags, 3 FKs, 2 CHECKs e 3 índices em TipoAtividade) e recusa se
+ * qualquer coluna, constraint ou índice novo já existir. A CI nasce vazia; um
+ * banco LOCAL que já recebeu as colunas por fora (`prisma db push` com o schema
+ * novo, rodada interrompida) faz a guarda recusar. As mensagens começam com
+ * `tipo_atividade_defaults:`. Mesmo remédio: recriar o banco local.
+ *
+ * D-PROD-200: a migration CONTRACT da Atividade cabeçalho converte cada
+ * ApontamentoAtividade numa Atividade com um AtividadeApontamento e apaga as 3
+ * tabelas antigas. A guarda recusa se houver item de custo ou fatia FIFO no
+ * apontamento antigo, apontamento com implemento, hora ou horas trabalhadas,
+ * status fora de CONFIRMADO/CANCELADO, contador da entidade Atividade, ou se as
+ * tabelas novas já existirem. A CI nasce vazia; um banco LOCAL com apontamentos
+ * de rodadas antigas (itens, horas) faz a guarda recusar. As mensagens começam
+ * com `guarda:` e a saída do Prisma cita `20261114500000_atividade_cabecalho`.
+ * Mesmo remédio: recriar o banco local.
+ *
+ * D-PROD-208: a migration CONTRACT do funcionário como papel do parceiro só roda
+ * com Funcionario e AtividadeApontamentoMaoObra VAZIAS. Um banco LOCAL que já
+ * rodou a suíte da Fatia 4 (D-PROD-207) tem funcionários e linhas de mão de obra
+ * e a guarda recusa (`guarda: "Funcionario" tem linhas`; a saída do Prisma cita
+ * `20261116000000_mao_obra_parceiro`). Mesmo remédio: recriar o banco local.
+ *
+ * D-PROD-209: a migration CONTRACT do tipo Terceirizado só roda sem parceiro com
+ * funcionario_tipo = TAREFEIRO. Um banco LOCAL que já rodou a suíte da D-PROD-208
+ * pode ter parceiros TAREFEIRO e a guarda recusa (`guarda: há parceiro com
+ * funcionario_tipo = TAREFEIRO`; a saída do Prisma cita
+ * `20261116100000_funcionario_tipo_terceirizado`). Mesmo remédio: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -125,7 +162,23 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Recriar o banco local também resolve. ' +
   'Se cita cadcurvaganho_mensal (a CONTRACT da D-PROD-194), o mais provável é o banco local ter curvas de ganho ' +
   'de rodadas antigas em CADCURVAGANHO (estrutura por estação: gmd_aguas, gmd_transicao, gmd_seca), e a guarda só ' +
-  'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve.';
+  'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita cadcategoria_curva_ganho (a CONTRACT da D-PROD-195), o banco local tem categorias de manejo de rodadas ' +
+  'antigas em CADCATEGORIA numa fazenda sem a curva chamada CURVA PADRÃO (ou a coluna curva_ganho_id já existe), e a ' +
+  'guarda exige exatamente uma CURVA PADRÃO em cada fazenda com categoria; a mensagem da guarda diz o motivo exato. ' +
+  'Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita tipo_atividade_defaults (a CONTRACT da D-PROD-197), o banco local já tem alguma coluna, constraint ou índice ' +
+  'novo de TipoAtividade (por exemplo, de um prisma db push com o schema novo) e a guarda recusa reaplicar; a mensagem ' +
+  'da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita atividade_cabecalho (a CONTRACT da D-PROD-200, mensagens "guarda: …"), o banco local tem apontamentos de ' +
+  'atividade de rodadas antigas que o modelo novo não guarda (itens de custo, fatias FIFO, implemento, horas) ou já tem ' +
+  'as tabelas Atividade/AtividadeApontamento ou o contador da entidade Atividade; a mensagem da guarda diz o motivo ' +
+  'exato. Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita mao_obra_parceiro (a CONTRACT da D-PROD-208, mensagens "guarda: …"), o banco local tem funcionários ou ' +
+  'linhas de mão de obra de rodadas da Fatia 4 (D-PROD-207), e a guarda só aceita as duas tabelas vazias; recriar o ' +
+  'banco local, do mesmo jeito, resolve. ' +
+  'Se cita funcionario_tipo_terceirizado (a CONTRACT da D-PROD-209, mensagens "guarda: …"), o banco local tem parceiros ' +
+  'com o tipo TAREFEIRO de rodadas da D-PROD-208, e a guarda só aceita nenhum; recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

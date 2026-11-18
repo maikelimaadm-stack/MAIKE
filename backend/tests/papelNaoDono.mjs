@@ -1,6 +1,7 @@
 /**
- * O banco como em PRODUÇÃO para os testes de backend (D-PROD-193 IT4g,
- * D-PROD-252). Não é arquivo de teste (sem `.test.`).
+ * O banco como em PRODUÇÃO para os testes de backend (D-PROD-252; nasceu no
+ * IT4g da D-PROD-193, cujo teste saiu com o apontamento antigo na D-PROD-200).
+ * Não é arquivo de teste (sem `.test.`).
  *
  * Em produção o runtime roda como `maike_vercel`: NÃO é dono das tabelas (o
  * dono é `postgres`), não tem BYPASSRLS, e as tabelas têm RLS ligado (sem
@@ -16,8 +17,8 @@ import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 
-/** Nome das políticas do teste (o IT4g confere que saíram). */
-export const POLITICA_DO_TESTE = 'teste_backend_all';
+/** Nome das políticas do teste (saem com o papel, no `DROP OWNED BY`). */
+const POLITICA_DO_TESTE = 'teste_backend_all';
 
 /**
  * Roda `fn` com TODA transação interativa do app (`getPrismaClient().$transaction`)

@@ -7,7 +7,7 @@ import TabelaLotes, { COLUNAS_DISPONIVEIS, getLoteFieldValue } from "@/component
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import {
   listarLotes,
   criarLote,
@@ -21,6 +21,8 @@ import {
 import { ESTADOS_CORRECAO, mensagemDoMotivoCorrecao, somenteCamposAlterados } from "@/domain/lotes/correcaoEntrada";
 import { TIPOS_EXCLUSAO, TEXTO_CONFIRMACAO_LOGICA, mensagemDoMotivoExclusao } from "@/domain/lotes/exclusaoLote";
 import { persistirAnexosPendentes } from "@/services/anexoService";
+import { confirmar } from "@/lib/maikeConfirmar";
+import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
 import { ehEntradaNoRebanho, motivoDeHistoricoDoLote } from "@/domain/lotes/saldoLote";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import {
@@ -45,7 +47,6 @@ export default function CadastroLotes() {
   // Algum selecionado sai por exclusão LÓGICA? Muda o texto da confirmação.
   const [exclusaoLogica, setExclusaoLogica] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
-
   // Cadastro = lançamento da ENTRADA no rebanho (D-PROD-85): só lotes que são
   // entrada (compra, ajuste, inventário, nascimento), com os dados lançados.
   // Lotes gerados por manejo no mapa (destino de movimentação, mudança de
@@ -110,6 +111,51 @@ export default function CadastroLotes() {
     onRequestDeleteMutation: (ids) => deleteRef.current(ids),
   });
 
+  // D-PROD-230: filtro pedido pelo Assistente (?af=). A página prepara a lista antes de
+  // entregá-lo à TabelaLotes: fecha o lote aberto (editando, só se o usuário aceitar
+  // descartar) e tira a pesquisa/sugestão, que estreitariam a lista e esconderiam lotes
+  // do filtro. Aplicado (ou recusado), o pedido é consumido: reabrir a lista não o refaz.
+  const { pedido: pedidoDoAssistente, concluir: concluirPedidoDoAssistente } = useFiltroDoAssistente("CadastroLotes");
+  const [filtroParaLista, setFiltroParaLista] = useState(/** @type {{ id: number, filtros: Record<string, any> } | null} */ (null));
+  const pedidoTratadoRef = useRef(/** @type {number|null} */ (null));
+  useEffect(() => {
+    if (!pedidoDoAssistente || pedidoTratadoRef.current === pedidoDoAssistente.id) return;
+    pedidoTratadoRef.current = pedidoDoAssistente.id;
+    const pedido = pedidoDoAssistente;
+    const prepararLista = () => {
+      controller.closeForm();
+      controller.handleSearchInputChange("");
+      controller.chrome.applySearch("");
+      setFiltroParaLista(pedido);
+    };
+    if (controller.showForm && controller.isEditing) {
+      confirmar({
+        titulo: "Abrir a lista filtrada?",
+        descricao: "O lote está em edição. Descartar as alterações para abrir a lista com o filtro do assistente?",
+        textoConfirmar: "Descartar e abrir",
+        textoCancelar: "Continuar editando",
+      }).then((ok) => {
+        if (ok) {
+          prepararLista();
+          return;
+        }
+        concluirPedidoDoAssistente();
+        notifyWarning("Filtro do assistente não aplicado: o lote continua aberto.");
+      });
+      return;
+    }
+    prepararLista();
+  }, [pedidoDoAssistente, controller, concluirPedidoDoAssistente]);
+  const aoAplicarFiltroDoAssistente = useCallback(
+    ({ faltando, vazio }) => {
+      setFiltroParaLista(null);
+      concluirPedidoDoAssistente();
+      if (faltando.length) notifyWarning(`Não encontrei na lista: ${faltando.join(", ")}`);
+      notifySuccess(vazio ? "Filtros da lista limpos" : "Filtro do assistente aplicado na lista");
+    },
+    [concluirPedidoDoAssistente],
+  );
+
   useEffect(() => {
     if (prevEmpresaRef.current === empresaSelecionadaId) return;
     prevEmpresaRef.current = empresaSelecionadaId;
@@ -121,10 +167,10 @@ export default function CadastroLotes() {
     setNewRecordAttachmentsOpen(false);
   }, [empresaSelecionadaId, controller]);
 
+  // Entrada, correção e exclusão de lote mexem no rebanho: relê do servidor e
+  // invalida todas as telas que mostram saldo, posição e área (D-PROD-250).
   const invalidateLotesComMapa = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["lotes-cadastro", empresaSelecionadaId] });
-    await refreshMapaCacheEntry("lotes", empresaSelecionadaId, { force: true });
-    window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+    await aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
   }, [queryClient, empresaSelecionadaId]);
 
   const createMutation = useMutation({
@@ -433,6 +479,8 @@ export default function CadastroLotes() {
             cardFields={controller.cardsPrefs.cardFields}
             cardsPerRow={controller.cardsPrefs.cardsPerRow}
             configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+            filtroExterno={filtroParaLista}
+            onFiltroExternoAplicado={aoAplicarFiltroDoAssistente}
           />
         }
       />

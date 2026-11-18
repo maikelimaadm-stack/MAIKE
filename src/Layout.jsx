@@ -46,6 +46,8 @@ import { MobileShellProvider, useMobileShellState } from "@/lib/mobileShellConte
 import { instalarTecladoDoFormulario } from "@/lib/tecladoFormulario";
 import useDeslizarParaVoltar, { useDeslizarParaFechar } from "@/hooks/useDeslizarParaVoltar";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
+import AssistenteFlutuante from "@/components/assistente/AssistenteFlutuante";
+import { assistenteLigado } from "@/components/assistente/assistenteLigado";
 import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 import { deveBloquearCliqueMenu } from "@/lib/menuNavigation";
@@ -347,7 +349,7 @@ function LayoutShell({ children, currentPageName }) {
       const interactive = event.target?.closest?.("button, a, [role='button']");
       if (!interactive || interactive.closest("nav")) return;
       // D-PROD-137 (BEB-04): botão cuja visibilidade já segue a regra EXATA do
-      // servidor (ex.: "Lançar"/"Salvar lançamento" do bebedouro, que o servidor
+      // servidor (ex.: o "Lançar" e o formulário do bebedouro, que o servidor
       // aceita com "novo" OU "salvar"). A leitura do texto aqui exigiria uma ação
       // só e barraria quem o servidor aceita. O servidor continua decidindo (403).
       if (interactive.closest("[data-permissao-explicita]")) return;
@@ -903,6 +905,9 @@ function LayoutShell({ children, currentPageName }) {
         })}
         </nav> :
       null}
+
+      {/* D-PROD-230 — Assistente só de leitura, em todas as telas logadas (a conversa sobrevive à navegação). */}
+      {assistenteLigado() ? (<AssistenteFlutuante empresaId={empresaSelecionada || null} tela={currentPageName || null} comNavInferior={mostrarNavInferior} navegar={navigate} />) : null}
 
       </div>);
 

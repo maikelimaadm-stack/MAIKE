@@ -9,6 +9,7 @@ import {
   CORES_SITUACAO_PASTO,
   MODOS_COLORACAO,
 } from "./MapaFiltrosAvancados";
+import { LEGENDA_FORRAGEM, MARCA_OLHO } from "@/domain/pastagem/farolForragem";
 
 export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposPastagemCores }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -32,12 +33,14 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
     items = Object.entries(CORES_UA_HA);
   } else if (modoColoracao === 'situacao_pasto') {
     items = Object.entries(CORES_SITUACAO_PASTO);
+  } else if (modoColoracao === 'forragem') {
+    items = Object.entries(LEGENDA_FORRAGEM);
   }
 
   if (items.length === 0) return null;
 
   return (
-    <div className="mk-map-legend absolute bottom-20 md:bottom-16 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg max-w-[200px]">
+    <div data-testid="mapa-legenda" className="mk-map-legend absolute bottom-20 md:bottom-16 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg max-w-[200px]">
       <button
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-700 uppercase"
@@ -53,6 +56,12 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
               <span className="text-[10px] text-slate-700 leading-tight">{label}</span>
             </div>
           ))}
+          {modoColoracao === 'forragem' ? (
+            <>
+              <div className="text-[10px] text-slate-500 leading-tight pt-0.5" data-testid="legenda-forragem-olho">{MARCA_OLHO} Tom mais claro: avaliado no olho</div>
+              <div className="text-[10px] text-slate-500 leading-tight pt-0.5" data-testid="legenda-forragem-estimado">(estimado) Tom bem claro: sem medição recente, pelos dias de descanso da cultura</div>
+            </>
+          ) : null}
         </div>
       )}
     </div>

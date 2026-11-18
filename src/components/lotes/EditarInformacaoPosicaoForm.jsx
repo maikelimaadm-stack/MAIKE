@@ -94,7 +94,6 @@ export default function EditarInformacaoPosicaoForm({ posicao, empresaSelecionad
           <dt>Categoria de manejo</dt><dd>{texto(posicao.categoria_manejo_nome)}</dd>
           <dt>Cabeças</dt><dd>{texto(posicao.quantidade_cabecas)}</dd>
           <dt>Peso médio (kg)</dt><dd>{texto(posicao.peso_medio_kg)}</dd>
-          <dt>Raça predominante</dt><dd>{texto(posicao.raca_predominante)}</dd>
           <dt>Sistema produtivo</dt><dd>{texto(posicao.sistema_produtivo)}</dd>
           <dt>Data de entrada</dt><dd>{dataBr(posicao.data_entrada)}</dd>
         </dl>

@@ -4,13 +4,8 @@
  * sem mudança: só a grade passou a ser a do motor.
  */
 
-/** @param {unknown} valor */
-const normalizar = (valor = "") =>
-  String(valor ?? "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .trim();
+import { resolverSuplementacaoDoPonto, bebedourosDoPonto, tipoEhBebedouro } from "@/domain/mapa/ligacaoPontoReferencia";
+import { textoDaCulturaDaArea } from "@/domain/areas/culturaDaArea";
 
 /** @param {unknown} valor @param {number} casas */
 const numeroBr = (valor, casas) => {
@@ -41,7 +36,8 @@ export function valorDaArea(item, coluna) {
   if (coluna === "nome") return item.nome || "";
   if (coluna === "setor") return item.setor_nome || "";
   if (coluna === "uso") return item.tipo_cultura || "";
-  if (coluna === "cultura") return item.tipo_pastagem || "";
+  // D-PROD-216: com cultura do cadastro, "001 · NOME"; área antiga, o texto de antes.
+  if (coluna === "cultura") return textoDaCulturaDaArea(item);
   if (coluna === "tamanho") return item.tamanho_hectares != null ? String(item.tamanho_hectares) : "";
   if (coluna === "capacidade") return item.capacidade_maxima != null ? String(item.capacidade_maxima) : "";
   if (coluna === "ocupacao") return `${item.quantidade_atual || 0} / ${item.capacidade_maxima || 0}`;
@@ -80,27 +76,23 @@ export const COLUNAS_PONTOS = [
 ];
 
 /**
- * Junta a cada ponto de referência o detalhe do ponto de suplementação e o bebedouro do mesmo lugar
- * (mesma regra da tabela antiga: id, nome ou sigla).
+ * Junta a cada ponto de referência o cocho/depósito e o bebedouro ligados a ele,
+ * pela regra única de `@/domain/mapa/ligacaoPontoReferencia`: cocho/depósito por
+ * empresa + categoria compatível com o tipo + nome (coordenadas desempatam;
+ * sigla sozinha nunca liga); bebedouro só por `ponto_referencia_id`.
+ * Ligação ambígua fica sem detalhe e marcada em `ligacao_suplementacao_ambigua`.
  * @param {any[]} pontos @param {any[]} pontosSuplementacao @param {any[]} bebedouros
  */
 export function pontosComDetalhes(pontos, pontosSuplementacao, bebedouros) {
   return (pontos || []).map((item) => {
-    const detalhe = (pontosSuplementacao || []).find((sup) => {
-      const mesmoId = item.ponto_suplementacao_id && sup.id === item.ponto_suplementacao_id;
-      const mesmoNome = normalizar(sup.nome_ponto) === normalizar(item.nome);
-      const mesmaSigla = item.sigla && normalizar(sup.sigla) === normalizar(item.sigla);
-      const mesmoNomeSup = normalizar(sup.nome_ponto) === normalizar(item.nome_ponto);
-      const mesmaSiglaSup = item.sigla && normalizar(sup.sigla) === normalizar(item.sigla_ponto || item.sigla);
-      return mesmoId || mesmoNome || mesmaSigla || mesmoNomeSup || mesmaSiglaSup;
-    });
-    const bebedouro = (bebedouros || []).find((beb) => {
-      const mesmoId = beb.ponto_referencia_id && beb.ponto_referencia_id === item.id;
-      const mesmoNome = normalizar(beb.nome) === normalizar(item.nome);
-      const mesmaSigla = item.sigla && normalizar(beb.codigo_interno) === normalizar(item.sigla);
-      return mesmoId || mesmoNome || mesmaSigla;
-    });
-    return { ...item, detalhe_suplementacao: detalhe || null, detalhe_bebedouro: bebedouro || null };
+    const ligacao = resolverSuplementacaoDoPonto(item, pontosSuplementacao, { outrosPontos: pontos });
+    const bebedouro = tipoEhBebedouro(item.tipo) ? bebedourosDoPonto(item, bebedouros)[0] || null : null;
+    return {
+      ...item,
+      detalhe_suplementacao: ligacao.registro,
+      detalhe_bebedouro: bebedouro,
+      ligacao_suplementacao_ambigua: ligacao.ambiguo,
+    };
   });
 }
 
@@ -108,7 +100,7 @@ export function pontosComDetalhes(pontos, pontosSuplementacao, bebedouros) {
 export function valorDoPonto(item, coluna) {
   const detalhe = item.detalhe_suplementacao || {};
   const bebedouro = item.detalhe_bebedouro || {};
-  const ehBebedouro = normalizar(item.tipo).includes("BEBEDOURO") || Boolean(item.detalhe_bebedouro);
+  const ehBebedouro = tipoEhBebedouro(item.tipo);
   if (coluna === "codigo") return item.numero_ponto || detalhe.numero_ponto || bebedouro.codigo_interno || "";
   if (coluna === "nome") return item.nome || detalhe.nome_ponto || bebedouro.nome || "";
   if (coluna === "sigla") return item.sigla || detalhe.sigla || bebedouro.codigo_interno || "";

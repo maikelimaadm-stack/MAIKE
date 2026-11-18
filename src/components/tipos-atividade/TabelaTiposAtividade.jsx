@@ -2,10 +2,21 @@ import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBase1CellKind";
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
+import { rotuloDaCategoriaTipoAtividade } from "@/components/tipos-atividade/FormularioTipoAtividade";
+import { textoDoQuePodeRegistrar } from "@/lib/atividadeFluxoCampo";
+
+/**
+ * Prefixo das preferências da grade e dos cards. D-PROD-197: a coluna Categoria
+ * entrou visível por padrão, e a preferência salva na chave antiga a esconderia
+ * (a lista de visíveis gravada não a tem) — por isso a chave passou a `_v2`.
+ */
+export const TIPOS_ATIVIDADE_STORAGE_KEY = "colunas_largura_tipos_atividade_v3";
 
 export const TIPOS_ATIVIDADE_COLUNAS = [
   { id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, width: 220 },
   { id: "nome_tipo", label: "Tipo de atividade", default: true, sortable: true, width: 240 },
+  { id: "categoria", label: "Categoria", default: true, sortable: true, width: 170 },
+  { id: "pode_registrar", label: "O que pode registrar", default: true, sortable: true, width: 280 },
   { id: "descricao", label: "Descrição", default: true, sortable: true, width: 260 },
   {
     id: "ativo",
@@ -37,6 +48,8 @@ export function getTipoAtividadeFieldValue(item, colunaId, grupos = []) {
   if (colunaId === "nome_tipo") return item.nome_tipo || "";
   if (colunaId === "grupo_atividade_nome")
     return item.grupo_atividade_nome || grupos.find((g) => g.id === item.grupo_atividade_id)?.nome_grupo || "";
+  if (colunaId === "categoria") return rotuloDaCategoriaTipoAtividade(item.categoria);
+  if (colunaId === "pode_registrar") return textoDoQuePodeRegistrar(item);
   if (colunaId === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
   if (colunaId === "descricao") return item.descricao || "";
   if (colunaId === "created_date") return formatarDataHora(item.created_date);
@@ -55,7 +68,7 @@ export default function TabelaTiposAtividade({ tipos = [], grupos = [], ...props
     <Grade
       rows={tipos}
       columns={TIPOS_ATIVIDADE_COLUNAS}
-      storageKey="colunas_largura_tipos_atividade"
+      storageKey={TIPOS_ATIVIDADE_STORAGE_KEY}
       droppableId="colunas-tipos-atividade"
       getFieldValue={getFieldValue}
       renderCell={(/** @type {any} */ item, /** @type {string} */ colId) => getFieldValue(item, colId) || "–"}

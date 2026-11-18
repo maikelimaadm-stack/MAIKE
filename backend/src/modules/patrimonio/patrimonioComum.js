@@ -286,7 +286,7 @@ export const paginarPorNome = async (delegado, { where, campoNome = 'nome', sele
 
 /** Decimais do corpo do bem (POST/PATCH), por caminho. */
 const DECIMAIS_DO_BEM = Object.freeze({
-  topo: Object.freeze(['potencia_cv']),
+  topo: Object.freeze(['potencia_cv', 'custo_uso_unitario']),
   blocos: Object.freeze({
     medidor: Object.freeze(['leitura_inicial', 'leitura_atual']),
     aquisicao: Object.freeze(['valor_aquisicao', 'custo_incorporacao']),

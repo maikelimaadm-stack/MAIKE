@@ -47,6 +47,8 @@ import {
 } from '../../shared/pagination/keysetCursor.js';
 import { propagarNomeDoSetor } from '../areas/areaPastagemRepository.js';
 import { propagarSetorNome } from '../lancamentosTarefa/lancamentoTarefaRepository.js';
+import { ORIGENS } from '../referencias/propagationRules.js';
+import { OPCOES_TRANSACAO, propagarDependentes, registrarPropagacao } from '../referencias/syncEntityReferencesService.js';
 
 /** Nome da sequência. Literal, para não depender de nome de model do Prisma. */
 export const ENTIDADE_SEQUENCIA = 'Setor';
@@ -297,6 +299,17 @@ export const atualizar = async (contexto, id, entrada) => {
       await propagarNomeDoSetor(tx, auth.clienteId, id, registro.nome);
       // Tarefas pela área deste setor, nunca só pelo nome (REF-03, D-PROD-137).
       await propagarSetorNome(tx, auth.clienteId, { setorId: id, nomeAntigo: anterior.nome, nomeNovo: registro.nome });
+      // G4 — as demais cópias do nome (lote, cocho, bebedouro, movimentações do
+      // mapa) também na MESMA transação, casadas por setor_id na empresa do
+      // setor. Antes dependiam de o front chamar /referencias/sincronizar depois
+      // do PATCH; se essa chamada falhasse, o nome antigo ficava.
+      const resultado = await propagarDependentes(
+        tx,
+        { clienteId: auth.clienteId, empresaId: String(registro.empresa_id), id },
+        ORIGENS.Setor.dependentes,
+        registro
+      );
+      await registrarPropagacao(contexto, 'Setor', id, resultado, tx);
     }
 
     const publico = comoSetorPublico(registro);
@@ -314,5 +327,5 @@ export const atualizar = async (contexto, id, entrada) => {
     );
 
     return publico;
-  });
+  }, OPCOES_TRANSACAO);
 };

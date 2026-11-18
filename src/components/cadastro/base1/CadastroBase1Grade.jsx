@@ -53,6 +53,8 @@ export function colunasBase1(defs) {
  * @param {(open: boolean) => void} [props.setShowConfigColunas]
  * @param {string} [props.searchQuery]
  * @param {number} [props.resetFiltersKey]
+ * @param {{ chave: number, filtros: Record<string, { op: string, v1: string, v2: string, valores: Set<string> | null }> } | null} [props.filtrosExternos]
+ *   filtros de cabeçalho vindos de fora (Assistente, D-PROD-230): cada `chave` nova SUBSTITUI os filtros da grade
  * @param {(ids: string[]) => void} [props.onSelectionChange]
  * @param {(active: boolean) => void} [props.onFiltersActiveChange]
  * @param {(item: object, query: string) => boolean} [props.matchesSearch]
@@ -76,6 +78,12 @@ export function colunasBase1(defs) {
  * @param {boolean} [props.selecaoSticky] checkbox sticky à esquerda (SSOT preset Base1)
  * @param {(a: any, b: any, colId: string) => number | null | undefined} [props.compararParaOrdenar] comparação própria da tela
  *   para a coluna (ex.: dinheiro e dia pelo valor canônico, não pelo texto formatado); `null`/`undefined` = regra padrão da grade
+ * @param {(row: object) => import('react').ReactNode} [props.renderAcoesDaLinha] opt-in (D-PROD-232): o botão ⚡ das
+ *   ações da linha — na grade, na célula de seleção (cabeçalho "Ações"); nos cards, no topo do card. Padrão: desligado.
+ * @param {(row: object) => ({ texto: string, cor?: string } | null)} [props.cardsAvatar] opt-in (D-PROD-237): o selo do
+ *   card (texto e cor); padrão: as iniciais do título
+ * @param {(row: object) => import('react').ReactNode} [props.cardsSubtitle] opt-in (D-PROD-237): a linha abaixo do
+ *   título do card; padrão: o código
  */
 export default function CadastroBase1Grade({
   rows = EMPTY_ROWS,
@@ -115,6 +123,10 @@ export default function CadastroBase1Grade({
   colunaSelecao = true,
   selecaoSticky = true,
   compararParaOrdenar,
+  renderAcoesDaLinha = undefined,
+  filtrosExternos = undefined,
+  cardsAvatar = undefined,
+  cardsSubtitle = undefined,
 }) {
   // Dentro da lista integrada (chrome com portalComprasSkin) a grade herda os
   // cabeçalhos de referência e o "Filtrar por campo" do motor: antes cada tela
@@ -185,6 +197,10 @@ export default function CadastroBase1Grade({
       return next;
     });
   }, [rows, rowKey]);
+
+  useEffect(() => {
+    if (filtrosExternos?.filtros) setHeaderFilters(filtrosExternos.filtros);
+  }, [filtrosExternos]);
 
   useEffect(() => {
     if (resetFiltersKey > 0) {
@@ -739,6 +755,9 @@ export default function CadastroBase1Grade({
           codeColId={cardsCodeColId}
           isInactive={ehInativo}
           emptyText={emptyText}
+          renderAcoesDaLinha={renderAcoesDaLinha}
+          avatar={cardsAvatar}
+          subtitle={cardsSubtitle}
         />
         {referenceHeaders
           ? dataCols.map((c) => renderReferenceFilter(c.id))
@@ -772,6 +791,7 @@ export default function CadastroBase1Grade({
         onAutoFit={toggleAutoFit}
         colunaSelecao={colunaSelecao}
         selecaoSticky={selecaoSticky}
+        renderAcoesDaLinha={renderAcoesDaLinha}
         autoFitKeys={autoFitKeys}
         onFilter={(k) => setMenuFiltroAberto(k)}
         onClearFilter={(k) => {

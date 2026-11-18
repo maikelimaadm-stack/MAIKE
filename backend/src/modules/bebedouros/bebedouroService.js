@@ -12,11 +12,22 @@ import {
   inserirRegistro,
   atualizarRegistroPorId,
   excluirRegistroPorId,
+  motivosHistoricoBebedouro,
 } from './bebedouroRepository.js';
 
-
-
 const erroNaoEncontrado = () => new AppError('BEBEDOURO_NOT_FOUND', 'Bebedouro não encontrado');
+
+/**
+ * Recusa de exclusão: o bebedouro tem lançamentos ou avaliações de sanidade
+ * (`details.motivos`). Inative em vez de excluir; nada é apagado.
+ * @param {string} id @param {string[]} motivos
+ */
+export const erroBebedouroComHistorico = (id, motivos) =>
+  new AppError(
+    'BEBEDOURO_COM_HISTORICO',
+    'não é possível excluir o bebedouro: ele tem lançamentos ou avaliações de sanidade',
+    { details: { id, motivos } }
+  );
 
 /** @param {Record<string, unknown>} registro */
 export const comoPublico = (registro) => {
@@ -78,12 +89,23 @@ export const atualizar = async (contexto, id, entrada) => {
   return comoPublico(atualizado);
 };
 
+/** Elegibilidade de exclusão (só leitura): `{ id, pode_excluir, motivos }`. */
+export const elegibilidadeExclusao = async (contexto, id) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const existente = await buscarRegistro(auth.clienteId, id);
+  if (!existente) throw erroNaoEncontrado();
+  const motivos = await motivosHistoricoBebedouro(getPrismaClient(), auth.clienteId, id);
+  return { id, pode_excluir: motivos.length === 0, motivos };
+};
+
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
+    const motivos = await motivosHistoricoBebedouro(tx, auth.clienteId, id);
+    if (motivos.length) throw erroBebedouroComHistorico(id, motivos);
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,

@@ -181,7 +181,7 @@ describe('C2 — tipos por "Tipo de bem" (natureza)', () => {
     ]);
     const item = maquinas.find((i) => i.codigo === 'TRATOR_PNEUS');
     assert.deepEqual(Object.keys(item).sort(), [
-      'ativo', 'bens_em_uso', 'codigo', 'created_date', 'descricao', 'familia', 'familia_id', 'id', 'natureza', 'nome', 'updated_date', 'versao', 'vida_util_meses_sugerida',
+      'ativo', 'bens_em_uso', 'codigo', 'created_date', 'descricao', 'familia', 'familia_id', 'id', 'natureza', 'nome', 'salto_maximo_medidor', 'updated_date', 'versao', 'vida_util_meses_sugerida',
     ]);
     assert.equal(trator.tipo.id, item.id);
     assert.equal((await listarTipos(t, '&natureza=OUTRO')).length, 0, 'OUTROS sem tipos padrão');

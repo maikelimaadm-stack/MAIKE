@@ -15,6 +15,7 @@
 
 import { safeDivide } from "./pecuariaUtils";
 import { buildTimeWeightedLoteAllocations } from "../suplementacao/timeWeightedAllocation";
+import { calcularFechamentoConsumo, pesoMedioDoPeriodo, PATCH_REABERTURA_CONSUMO } from "@/domain/suplementacao/fechamentoConsumo";
 
 export const parseDateLocal = (value) => {
   if (!value) return null;
@@ -153,9 +154,26 @@ export function calcularConsumoLotesPonderadoPorTempo({
  * ponderada para o lote, vale o rateio simples por cabeças.
  *
  * @returns {{consumoTotal: number, consumoDiarioGrupo: number, consumoPorCabecaDia: number,
+ *            fechamentoConsumo: ReturnType<typeof calcularFechamentoConsumo>,
  *            patchEvento: object, patchesDeLote: Array<{id: string, patch: object}>}}
  */
-export function calcularFechamentoDePeriodo({ evento, diasPeriodo, sobraFinal, sobraInicial, lotesDoEvento, alocacoes }) {
+export function calcularFechamentoDePeriodo({
+  evento,
+  diasPeriodo,
+  sobraFinal,
+  sobraInicial,
+  lotesDoEvento,
+  alocacoes,
+  // D-PROD-206: o fechamento do consumo (farol, %PV, custo). Sem eles, o resultado sai sem custo, com a faixa
+  // padrão e sem saber se a sobra foi medida.
+  sobraInformada = null,
+  faixaPercentual = null,
+  custoUnitarioKg = null,
+  compartilhado = false,
+  // D-PROD-212: custo da sobra herdada ({ camadas, custoAnteriorKg }); null = tudo ao custo do lançamento.
+  sobraHerdada = null,
+}) {
+  const sobraInicialKg = Number(sobraInicial ?? evento.sobra_kg ?? 0) || 0;
   const { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia } = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
     sobraFinal,
@@ -187,23 +205,41 @@ export function calcularFechamentoDePeriodo({ evento, diasPeriodo, sobraFinal, s
     };
   });
 
+  // D-PROD-206: consumo real × esperado (farol pela faixa da formulação), %PV e custo do período.
+  // D-PROD-212: o esperado usa o peso médio do período (base PV) e a sobra antiga sai primeiro no custo.
+  const fechamentoConsumo = calcularFechamentoConsumo({
+    evento,
+    consumoTotalKg: consumoTotal,
+    diasPeriodo,
+    sobraInformada,
+    faixaPercentual,
+    custoUnitarioKg,
+    compartilhado,
+    pesoMedio: pesoMedioDoPeriodo({ evento, lotesDoEvento, diasPeriodo }),
+    sobraInicialKg,
+    sobraHerdada,
+  });
+
   return {
     consumoTotal,
     consumoDiarioGrupo,
     consumoPorCabecaDia,
+    fechamentoConsumo,
     patchEvento: {
       sobra_kg: Number(sobraFinal || 0),
       dias_periodo: diasPeriodo,
       consumo_diario_grupo_kg: consumoDiarioGrupo,
+      ...fechamentoConsumo,
     },
     patchesDeLote,
   };
 }
 
-/** Patch que reabre um período: métricas de consumo zeradas no evento. */
+/** Patch que reabre um período: métricas de consumo zeradas no evento (D-PROD-206: e o fechamento do consumo). */
 export const PATCH_REABERTURA_EVENTO = Object.freeze({
   dias_periodo: null,
   consumo_diario_grupo_kg: null,
+  ...PATCH_REABERTURA_CONSUMO,
 });
 
 /** Patch que reabre um período em cada lote do evento. */

@@ -1,30 +1,77 @@
 import React, { useEffect, useState } from "react";
+import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen } from "lucide-react";
 import { atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteSegmento, LL_CTL, useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import { formatarDia } from "@/lib/diaCivil";
+import { useDiaCivil } from "@/hooks/useDiaCivil";
+import { LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteSegmento, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
+import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
+import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
+import { Cartao, Celula, Chip, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import { VAZIO, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoPasto";
+import { TONS } from "@/components/mapa/detalhes-lote/catalogo";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
+// Sem uso (o stub devolve null), como antes: a importação só mantém o arquivo
+// alcançável (`gate:source-closure`) até ele sair junto com esta linha.
 import TarefaResumoVisual from "./TarefaResumoVisual";
 import FotosTarefaGaleria from "@/components/tarefas/FotosTarefaGaleria";
+import "@/styles/mk-dp-tarefa.css";
 
-const PRIORIDADE_CORES = {
-  Baixa: "!bg-blue-300 !text-black hover:!bg-blue-300",
-  Média: "!bg-yellow-300 !text-black hover:!bg-yellow-300",
-  Alta: "!bg-red-400 !text-black hover:!bg-red-400",
-  Concluida: "!bg-slate-300 !text-black hover:!bg-slate-300"
+/*
+ * Detalhe da TAREFA aberto pelo mapa no desenho do Detalhes do Lote v12
+ * (D-PROD-220, tela `telaTarefa`): a casca de uma tela (`CascaDetalhe`)
+ * publica o título (a tarefa) e o sub "Detalhes da tarefa" no cabeçalho do
+ * diálogo — no lugar do `setTitulo("Tarefa: …")` da D-PROD-118 — e o corpo
+ * segue a ordem do v12:
+ *   cartão da tarefa (tipo base · local, chip do status)
+ *   › Informações da tarefa (grade; o que o MAIKE tem a mais entra no fim:
+ *     Tipo base quando difere do tipo de tarefa, Coordenadas)
+ *   › Descrição (descrição, Observações, Obs. conclusão)
+ *   › Fotos (a galeria de hoje, só com foto)
+ *   › Últimos eventos (linha do tempo; "Ver histórico" abre o histórico completo)
+ *   › rodapé Editar · Registrar evento · Concluir.
+ * Concluir abre o MESMO "Registrar evento" já em "Concluída" (não conclui
+ * direto). Os diálogos (Editar tarefa, Registrar evento, Histórico da tarefa),
+ * as mutações, as invalidações e os tipos de evento permitidos (D-PROD-118)
+ * são os de antes; os diálogos são irmãos da casca porque vão por portal.
+ */
+
+/** Últimos eventos no corpo; o histórico inteiro fica no "Ver histórico". */
+const ULTIMOS_EVENTOS = 5;
+
+/** Chip do status com as cores do v12 (`.v11-chip--t0…t3`), em mk-dp-tarefa.css. */
+const CLASSE_DO_STATUS = {
+  Pendente: "mk-dp-tarefa__status--pendente",
+  "Em Andamento": "mk-dp-tarefa__status--andamento",
+  Concluída: "mk-dp-tarefa__status--concluida",
+  Cancelada: "mk-dp-tarefa__status--cancelada",
 };
 
-const STATUS_CORES = {
-  Pendente: "!bg-yellow-300 !text-black hover:!bg-yellow-300",
-  "Em Andamento": "!bg-blue-300 !text-black hover:!bg-blue-300",
-  Concluída: "!bg-emerald-300 !text-black hover:!bg-emerald-300",
-  Cancelada: "!bg-slate-300 !text-black hover:!bg-slate-300"
-};
+/**
+ * Bolinha da prioridade (v12 `COR_PRIORIDADE`). A chave é a prioridade de
+ * `normalizeTaskPriority`, que hoje junta "Urgente" com "Alta".
+ */
+const COR_PRIORIDADE = { Urgente: "#dc2626", Alta: "#f59e0b", Média: "#0ea5e9", Baixa: "#64748b" };
 
+/** Prazo vencido de tarefa em aberto (v12: o valor do Prazo em vermelho). */
+// O vermelho de atraso do v12 (COR_INVESTIGAR), o mesmo da pesagem atrasada do Detalhes do Lote.
+const COR_PRAZO_VENCIDO = TONS.investigar.texto;
+
+/** Ícone de cada evento do histórico (os nomes que o servidor aceita); outro nome: relógio. */
+const ICONE_DO_EVENTO = {
+  Criação: Plus,
+  Edição: SquarePen,
+  "Mudança de Local": MapPin,
+  "Mudança de Status": Repeat,
+  Registro: FileText,
+  Conclusão: Check,
+  Cancelamento: CircleX,
+  Comentário: MessageSquare,
+};
 
 const getDateTimeLocal = (value) => {
   if (!value) return new Date().toISOString().slice(0, 16);
@@ -35,23 +82,98 @@ const getDateTimeLocal = (value) => {
   return local.toISOString().slice(0, 16);
 };
 
-const formatDateBR = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("pt-BR");
-};
+const RE_DIA = /^\d{4}-\d{2}-\d{2}$/;
+/** @param {number} n */
+const doisDigitos = (n) => String(n).padStart(2, "0");
 
-export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequestSelectLocation }) {
+/**
+ * Dia (AAAA-MM-DD) de uma data da tarefa. Os campos de DIA (`data_pedido`,
+ * `data_prevista`, `data_conclusao`) já chegam como "AAAA-MM-DD" e ficam como
+ * estão — `new Date("2026-11-10")` é meia-noite em UTC e virava 09/11 no fuso
+ * do Brasil. Os INSTANTES (`data_inicio`, `data_evento`, `created_date`) viram
+ * o dia no relógio do aparelho, como antes.
+ * @param {unknown} valor
+ * @returns {string | null}
+ */
+function diaDe(valor) {
+  if (valor == null || valor === "") return null;
+  if (typeof valor === "string" && RE_DIA.test(valor.trim())) return valor.trim();
+  const d = new Date(/** @type {string | number | Date} */ (valor));
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}`;
+}
+
+/**
+ * "10/11/2026"; sem data, "—"; texto que não é data aparece como veio (como antes).
+ * @param {unknown} valor
+ */
+function dataBR(valor) {
+  const dia = diaDe(valor);
+  if (dia) return formatarDia(dia);
+  return typeof valor === "string" && valor.trim() ? valor : VAZIO;
+}
+
+/** Instante de um evento para ordenar (sem data: o mais antigo). @param {any} item */
+const instanteDoEvento = (item) => new Date(item?.data_evento || item?.created_date || 0).getTime() || 0;
+
+/**
+ * Eventos desta tarefa, o mais recente primeiro (mesma regra de antes).
+ * @param {any} lista
+ * @param {string} tarefaId
+ * @returns {any[]}
+ */
+const eventosDaTarefa = (lista, tarefaId) =>
+  (Array.isArray(lista) ? lista : []).filter((item) => item.tarefa_id === tarefaId).sort((a, b) => instanteDoEvento(b) - instanteDoEvento(a));
+
+/**
+ * Linha do tempo do v12 com os eventos dados (já em ordem): um grupo por dia
+ * ("12 NOV. 2026"), um cartão por evento com ícone, nome e a linha "Detalhe".
+ * @param {any[]} eventos
+ */
+function diasDosEventos(eventos) {
+  /** @type {Array<{ chave: string, rotulo: string, cartoes: Array<{ chave: string, Icone: import("lucide-react").LucideIcon, titulo: string, linhas: Array<{ rotulo: string, valor: string }> }> }>} */
+  const dias = [];
+  eventos.forEach((item, i) => {
+    const dia = diaDe(item?.data_evento || item?.created_date);
+    const chave = dia || "sem-data";
+    let grupo = dias[dias.length - 1];
+    if (!grupo || grupo.chave !== chave) {
+      grupo = { chave, rotulo: rotuloDoDia(dia), cartoes: [] };
+      dias.push(grupo);
+    }
+    grupo.cartoes.push({
+      chave: String(item?.id ?? `evento-${i}`),
+      Icone: ICONE_DO_EVENTO[item?.evento] || History,
+      titulo: item?.evento || "Evento",
+      linhas: [{ rotulo: "Detalhe", valor: item?.descricao || VAZIO }],
+    });
+  });
+  return dias;
+}
+
+/** @param {unknown} v */
+const textoLimpo = (v) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
+/** @param {string} v */
+const comparavel = (v) => v.toLocaleLowerCase("pt-BR");
+/** @param {unknown} v */
+const coordenada = (v) => (typeof v === "number" && Number.isFinite(v) ? v.toFixed(6) : String(v));
+
+/**
+ * @param {{
+ *   tarefa: any,
+ *   onClose?: () => void,
+ *   onSaved?: (tarefa: any) => void,
+ *   onRequestSelectLocation?: any,
+ *   hoje?: string | null,
+ * }} props
+ *   `onClose`: aceito por compatibilidade (a tela não se fecha sozinha).
+ *   `hoje`: dia civil da fazenda (AAAA-MM-DD), o mesmo do mapa, para o prazo
+ *   vencido; sem ele, o dia do relógio do aparelho.
+ */
+export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLocation, hoje = null }) {
   const queryClient = useQueryClient();
   const [currentTarefa, setCurrentTarefa] = useState(tarefa);
-  // D-PROD-118: aberta no diálogo padrão, o título do diálogo é a tarefa.
-  const noDialogo = useLancLoteDialogo();
-  useEffect(() => {
-    if (!noDialogo) return undefined;
-    noDialogo.setTitulo(currentTarefa?.titulo ? `Tarefa: ${currentTarefa.titulo}` : null);
-    return () => noDialogo.setTitulo(null);
-  }, [noDialogo, currentTarefa?.titulo]);
+  const diaDoAparelho = useDiaCivil(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showEvento, setShowEvento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
@@ -63,62 +185,35 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     setCurrentTarefa(tarefa);
   }, [tarefa]);
 
-  useEffect(() => {
-    if (showEvento) {
-      setEventoTipo(currentTarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
-      setEventoData(getDateTimeLocal());
-      setEventoDescricao("");
-    }
-  }, [showEvento, currentTarefa.status]);
-
-  const { data: historico = [], isLoading: loadingHistorico } = useQuery({
+  const { data: historico = [], isLoading: loadingHistorico, isError: erroHistorico, error: causaErroHistorico, refetch: refetchHistorico } = useQuery({
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
       const cached = await getMapaCachedData('historicoTarefa', currentTarefa.empresa_id);
-      
+
       if (navigator.onLine) {
         if (cached?.length) {
           refreshMapaCacheEntry('historicoTarefa', currentTarefa.empresa_id).then(fresh => {
             if (fresh?.length) {
-              queryClient.setQueryData(["historico-tarefa-detalhe", currentTarefa.id], fresh.filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0)));
+              queryClient.setQueryData(["historico-tarefa-detalhe", currentTarefa.id], eventosDaTarefa(fresh, currentTarefa.id));
             }
           });
-          return cached.filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+          return eventosDaTarefa(cached, currentTarefa.id);
         } else {
           const fresh = await refreshMapaCacheEntry('historicoTarefa', currentTarefa.empresa_id);
-          return fresh.filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+          return eventosDaTarefa(fresh, currentTarefa.id);
         }
       }
-      
-      return (cached || []).filter((item) => item.tarefa_id === currentTarefa.id).sort((a, b) => new Date(b.data_evento || b.created_date || 0) - new Date(a.data_evento || a.created_date || 0));
+
+      return eventosDaTarefa(cached, currentTarefa.id);
     },
-    initialData: [],
+    // Sem initialData: com ele o React Query tratava a lista vazia como dado
+    // novo e não buscava ao montar (staleTime), e os "Últimos eventos" abriam
+    // vazios na primeira vez — a mesma correção da Gestão de Tarefas
+    // (D-PROD-217). O padrão `= []` cobre o carregamento.
     staleTime: 60 * 1000
   });
 
-  const { data: iconesPrioridade = [] } = useQuery({
-    queryKey: ["mapa-icones"],
-    queryFn: async () => {
-      // Ícones são do tenant: o cache resolve o dono pela sessão (D-PROD-137).
-      const cached = await getMapaCachedData('icones', null);
-      if (navigator.onLine) {
-        if (cached?.length) {
-          refreshMapaCacheEntry('icones', null).then(fresh => {
-            if (fresh?.length) queryClient.setQueryData(["mapa-icones"], fresh);
-          });
-          return cached;
-        }
-        return await refreshMapaCacheEntry('icones', null);
-      }
-      return cached || [];
-    },
-    initialData: [],
-    staleTime: 10 * 60 * 1000
-  });
-
   const prioridade = normalizeTaskPriority(currentTarefa?.prioridade);
-  const prioridadeClassName = currentTarefa.status === "Concluída" ? PRIORIDADE_CORES.Concluida : PRIORIDADE_CORES[prioridade] || PRIORIDADE_CORES.Baixa;
-  const iconePrioridade = iconesPrioridade.find((icone) => normalizeTaskPriority(icone.categoria) === prioridade);
   const podeRegistrar = currentTarefa.status === "Em Andamento";
   const podeEntrarEmAndamento = !currentTarefa.data_inicio && currentTarefa.status === "Pendente";
   const podeConcluir = currentTarefa.status !== "Concluída" && currentTarefa.status !== "Cancelada";
@@ -136,7 +231,22 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     if (tipoEventoValido !== eventoTipo) setEventoTipo(tipoEventoValido);
   }, [tipoEventoValido, eventoTipo]);
 
+  /**
+   * Abre o "Registrar evento" limpo (data de agora, sem descrição) no tipo
+   * pedido — o Concluir pede "Concluída" — ou no padrão de antes: "Registro"
+   * com a tarefa em andamento, senão "Em Andamento". O tipo continua passando
+   * por `tipoEventoValido`.
+   * @param {string} [tipo]
+   */
+  const abrirEvento = (tipo) => {
+    setEventoTipo(tipo || (currentTarefa.status === "Em Andamento" ? "Registro" : "Em Andamento"));
+    setEventoData(getDateTimeLocal());
+    setEventoDescricao("");
+    setShowEvento(true);
+  };
+
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: any, pendingImageFiles?: File[] }} variaveis */
     mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
       // Upload de novas imagens antes de salvar
       const uploadedUrls = [];
@@ -178,7 +288,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       // Otimista no mapa e nas listas
       const empresaId = updated?.empresa_id || currentTarefa?.empresa_id;
       if (empresaId) {
-        queryClient.setQueryData(["mapa-tarefas", empresaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
+        queryClient.setQueryData(["mapa-tarefas", empresaId], (/** @type {any[] | undefined} */ old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
       }
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
@@ -232,7 +342,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     onSuccess: (updated) => {
       const empresaId = updated?.empresa_id || currentTarefa?.empresa_id;
       if (empresaId) {
-        queryClient.setQueryData(["mapa-tarefas", empresaId], (old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
+        queryClient.setQueryData(["mapa-tarefas", empresaId], (/** @type {any[] | undefined} */ old = []) => (old || []).map((t) => t.id === updated.id ? updated : t));
       }
       queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
@@ -247,71 +357,140 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
     }
   });
 
+  // ── O que a tela mostra (só apresentação; os dados são os mesmos de antes) ──
+  const titulo = textoLimpo(currentTarefa.titulo);
+  const status = textoLimpo(currentTarefa.status);
+  const encerrada = status === "Concluída" || status === "Cancelada";
+  const tipoDaTarefa = textoLimpo(currentTarefa.tipo_tarefa_nome) || textoLimpo(currentTarefa.tipo);
+  const tipoBase = textoLimpo(currentTarefa.tipo);
+  const mostrarTipoBase = Boolean(tipoBase) && comparavel(tipoBase) !== comparavel(tipoDaTarefa);
+  const local = textoLimpo(currentTarefa.area_nome) || textoLimpo(currentTarefa.lote_nome);
+  const areaLocal = [local, textoLimpo(currentTarefa.setor_nome)].filter(Boolean).join(" · ") || VAZIO;
+  const solicitante = textoLimpo(currentTarefa.solicitante) || textoLimpo(currentTarefa.responsavel_geral);
+  const responsavel = textoLimpo(currentTarefa.responsavel);
+  const solicitanteResponsavel = solicitante || responsavel ? `${solicitante || VAZIO} / ${responsavel || VAZIO}` : VAZIO;
+  // Vencido = o dia do prazo já passou (vencer hoje ainda não é atraso).
+  const diaDoPrazo = diaDe(currentTarefa.data_prevista);
+  const prazoVencido = Boolean(diaDoPrazo) && !encerrada && diaDoPrazo < (hoje || diaDoAparelho);
+  const coord = currentTarefa.coordenadas;
+  const coordenadas = coord && coord.lat != null && coord.lng != null ? `${coordenada(coord.lat)}, ${coordenada(coord.lng)}` : "";
+  const descricao = textoLimpo(currentTarefa.descricao);
+  const observacoes = textoLimpo(currentTarefa.observacoes);
+  const obsConclusao = textoLimpo(currentTarefa.observacoes_conclusao);
+  // Mesma conta da galeria (`fotos` + o legado `anexos_urls`): sem foto ela não desenha nada.
+  const temFotos = [...(currentTarefa.fotos || []), ...(currentTarefa.anexos_urls || [])].filter(Boolean).length > 0;
+  const ultimosDias = diasDosEventos(historico.slice(0, ULTIMOS_EVENTOS));
+
+  const motivoEncerrada = status === "Concluída" ? "A tarefa já está concluída." : "A tarefa está cancelada.";
+  const semTipoDeEvento = opcoesEvento.length === 0;
+  const concluirPermitido = opcoesEvento.some((o) => o.value === "Concluída");
+  const rodape = (
+    <RodapePilulas
+      rotulo="Ações da tarefa"
+      itens={[
+        { chave: "editar", rotulo: "Editar", icone: SquarePen, onClick: () => setShowEdit(true), title: "Editar tarefa" },
+        {
+          chave: "evento",
+          rotulo: "Registrar evento",
+          icone: MessageSquarePlus,
+          onClick: () => abrirEvento(),
+          // Sem tipo permitido (tarefa concluída ou cancelada) não há o que registrar.
+          desabilitado: semTipoDeEvento,
+          title: semTipoDeEvento ? motivoEncerrada : "Registrar evento",
+        },
+        {
+          chave: "concluir",
+          rotulo: "Concluir",
+          icone: Check,
+          onClick: () => abrirEvento("Concluída"),
+          desabilitado: !concluirPermitido,
+          title: concluirPermitido ? "Concluir tarefa" : motivoEncerrada,
+        },
+      ]}
+    />
+  );
+
+  let eventos;
+  if (loadingHistorico) {
+    eventos = (
+      <div role="status" className="mk-dp-hist__estado">
+        Carregando histórico...
+      </div>
+    );
+  } else if (erroHistorico && !historico.length) {
+    eventos = (
+      <div role="alert" className="mk-dp-hist__estado">
+        Não foi possível carregar o histórico.
+      </div>
+    );
+  } else if (ultimosDias.length) {
+    eventos = <LinhaDoTempo dias={ultimosDias} rotulo="Últimos eventos da tarefa" />;
+  } else {
+    eventos = <Vazio icone={History}>Nenhum evento registrado.</Vazio>;
+  }
+
   return (
-    <div className="mk-hist mk-map-details" translate="no">
-      {/* D-PROD-118: dentro do diálogo o título é a tarefa; aqui ficam status, prioridade e as ações. */}
-      {!noDialogo ? <div className="mk-hist__secao-titulo">Tarefa: {currentTarefa.titulo}</div> : null}
-      <div className="mk-tar__chips">
-        <Badge variant="outline" className={`rounded-full text-[11px] border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
-          Status: {currentTarefa.status}
-        </Badge>
-        <Badge variant="outline" className={`rounded-full text-[11px] border-transparent shadow-none ${prioridadeClassName}`}>
-          Prioridade: {prioridade}
-        </Badge>
-      </div>
+    <>
+      <CascaDetalhe titulo={titulo} sub="Detalhes da tarefa" rodape={rodape} className="mk-dp-tarefa">
+        <Cartao
+          icone={ClipboardList}
+          titulo={titulo || "Tarefa"}
+          // "Manutenção · Pasto 04": a categoria (tipo base) cabe numa linha; o tipo de tarefa está na grade.
+          sub={[tipoBase || tipoDaTarefa, local].filter(Boolean).join(" · ") || undefined}
+          chip={status ? <Chip className={["mk-dp-tarefa__status", CLASSE_DO_STATUS[status]].filter(Boolean).join(" ")}>{status}</Chip> : null}
+        />
 
-      <div className="mk-tar__acoes">
-        <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={() => setShowEdit(true)}>Editar</button>
-        <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={() => setShowEvento(true)}>Evento</button>
-        <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={() => setShowHistorico(true)}>Histórico</button>
-      </div>
+        <TituloBloco>Informações da tarefa</TituloBloco>
+        <Cartao>
+          <Grade>
+            <Celula rotulo="Prioridade" valor={prioridade.toUpperCase()} bolinha={COR_PRIORIDADE[prioridade]} />
+            <Celula rotulo="Tipo de tarefa" valor={tipoDaTarefa || VAZIO} />
+            <Celula rotulo="Grupo" valor={textoLimpo(currentTarefa.grupo_atividade_nome) || VAZIO} />
+            <Celula rotulo="Área/Local" valor={areaLocal} />
+            <Celula rotulo="Solicitante / Responsável" valor={solicitanteResponsavel} />
+            <Celula rotulo="Data do pedido" valor={dataBR(currentTarefa.data_pedido)} />
+            <Celula
+              rotulo="Prazo"
+              cor={prazoVencido ? COR_PRAZO_VENCIDO : null}
+              valor={
+                prazoVencido ? (
+                  <>
+                    {dataBR(currentTarefa.data_prevista)}
+                    <span className="mk-dp-tarefa__leitor"> (vencido)</span>
+                  </>
+                ) : (
+                  dataBR(currentTarefa.data_prevista)
+                )
+              }
+            />
+            <Celula rotulo="Data de início" valor={dataBR(currentTarefa.data_inicio)} />
+            <Celula rotulo="Data de conclusão" valor={dataBR(currentTarefa.data_conclusao)} />
+            {mostrarTipoBase ? <Celula rotulo="Tipo base" valor={tipoBase} /> : null}
+            {coordenadas ? <Celula rotulo="Coordenadas" valor={coordenadas} /> : null}
+          </Grade>
+        </Cartao>
 
-      <section className="mk-ll__item">
-        <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Informações da tarefa</div></header>
-        <dl className="mk-tar__info">
-          <div className="mk-tar__campo"><dt>Grupo</dt><dd>{currentTarefa.grupo_atividade_nome || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Tipo base</dt><dd>{currentTarefa.tipo || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Tipo de tarefa</dt><dd>{currentTarefa.tipo_tarefa_nome || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Solicitante / Responsável</dt><dd>{currentTarefa.solicitante || currentTarefa.responsavel_geral || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Responsável execução</dt><dd>{currentTarefa.responsavel || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Data do pedido</dt><dd>{formatDateBR(currentTarefa.data_pedido)}</dd></div>
-          <div className="mk-tar__campo"><dt>Prazo</dt><dd>{formatDateBR(currentTarefa.data_prevista)}</dd></div>
-          <div className="mk-tar__campo"><dt>Data de início</dt><dd>{formatDateBR(currentTarefa.data_inicio)}</dd></div>
-          <div className="mk-tar__campo"><dt>Data de conclusão</dt><dd>{formatDateBR(currentTarefa.data_conclusao)}</dd></div>
-          <div className="mk-tar__campo"><dt>Fazenda/Setor</dt><dd>{currentTarefa.setor_nome || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Área/Local</dt><dd>{currentTarefa.area_nome || currentTarefa.lote_nome || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Descrição</dt><dd>{currentTarefa.descricao || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Observações</dt><dd>{currentTarefa.observacoes || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Obs. conclusão</dt><dd>{currentTarefa.observacoes_conclusao || "-"}</dd></div>
-          <div className="mk-tar__campo"><dt>Coordenadas</dt><dd>{currentTarefa.coordenadas ? `${currentTarefa.coordenadas.lat?.toFixed?.(6) || currentTarefa.coordenadas.lat}, ${currentTarefa.coordenadas.lng?.toFixed?.(6) || currentTarefa.coordenadas.lng}` : "-"}</dd></div>
-        </dl>
-      </section>
+        <TituloBloco>Descrição</TituloBloco>
+        <Cartao className="mk-dp-tarefa__textos">
+          <Linha rotulo={descricao || "Sem descrição."} quebra className={descricao ? "mk-dp-tarefa__descricao" : "mk-dp-tarefa__descricao mk-dp-tarefa__fraco"} />
+          <Linha rotulo="Observações" valor={observacoes || VAZIO} quebra />
+          {obsConclusao ? <Linha rotulo="Obs. conclusão" valor={obsConclusao} quebra /> : null}
+        </Cartao>
 
-      <FotosTarefaGaleria tarefa={currentTarefa} />
-
-      <section className="mk-ll__item">
-        <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Últimos eventos</div></header>
-        <div className="space-y-2 text-[11px]">
-          {loadingHistorico ? (
-            <div className="rounded-lg border border-slate-200 bg-white p-3 flex items-center gap-3">
-              <div className="animate-spin w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full" />
-              <span className="text-slate-500">Carregando histórico...</span>
+        {temFotos ? (
+          <>
+            <TituloBloco>Fotos</TituloBloco>
+            <div className="mk-dp-tarefa__fotos">
+              <FotosTarefaGaleria tarefa={currentTarefa} />
             </div>
-          ) : historico.length === 0 ?
-          <div className="text-slate-500">Nenhum evento registrado.</div> :
+          </>
+        ) : null}
 
-          historico.slice(0, 3).map((item) =>
-          <div key={item.id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-900">{item.evento || "-"}</span>
-                  <span className="text-slate-500">{formatDateBR(item.data_evento || item.created_date)}</span>
-                </div>
-                <div className="text-slate-700 break-words">{item.descricao || "-"}</div>
-              </div>
-          )
-          }
-        </div>
-      </section>
+        <TituloBloco link="Ver histórico" onLink={() => setShowHistorico(true)}>
+          Últimos eventos
+        </TituloBloco>
+        {eventos}
+      </CascaDetalhe>
 
       <LancLoteDialogo open={showEdit} onOpenChange={setShowEdit} titulo="Editar tarefa" lotes={[{ nome: currentTarefa.titulo }]} largo>
             <FormularioTarefaMapa
@@ -335,7 +514,15 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico da tarefa" lotes={[{ nome: currentTarefa.titulo }]} largo somenteLeitura>
-        <HistoricoTarefaPanel tarefaId={currentTarefa.id} tarefaTitulo={currentTarefa.titulo} historico={historico} />
+        <HistoricoTarefaPanel
+          tarefaId={currentTarefa.id}
+          tarefaTitulo={currentTarefa.titulo}
+          historico={historico}
+          carregando={loadingHistorico}
+          erro={erroHistorico}
+          causaDoErro={causaErroHistorico}
+          onTentarDeNovo={() => refetchHistorico()}
+        />
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showEvento} onOpenChange={setShowEvento} titulo="Registrar evento" lotes={[{ nome: currentTarefa.titulo }]}>
@@ -355,10 +542,6 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <LancLoteRodape onCancelar={() => setShowEvento(false)} cancelarDesabilitado={eventoMutation.isPending} textoAcao="Salvar evento" textoEnviando="Salvando..." enviando={eventoMutation.isPending} />
         </LancLoteForm>
       </LancLoteDialogo>
-    </div>);
-
-}
-
-function CardInfo({ label, value }) {
-  return <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
+    </>
+  );
 }

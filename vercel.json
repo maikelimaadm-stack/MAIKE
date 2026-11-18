@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"codex/previa-detalhes-mapa\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"cursor/atividades-por-area-0b6c\" ]",
   "buildCommand": "npm run prisma:generate && npm run build",
   "installCommand": "npm ci",
   "framework": "vite",
@@ -46,14 +47,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/apontamentosatividade/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/ApontamentosAtividade/",
-      "destination": "/index.html"
-    },
-    {
       "source": "/lancamentosfinanceiros",
       "destination": "/index.html"
     },
@@ -62,11 +55,11 @@
       "destination": "/index.html"
     },
     {
-      "source": "/apontamentosatividade",
+      "source": "/lancamentoatividades/",
       "destination": "/index.html"
     },
     {
-      "source": "/ApontamentosAtividade",
+      "source": "/LancamentoAtividades/",
       "destination": "/index.html"
     },
     {
@@ -83,6 +76,14 @@
     },
     {
       "source": "/ConfiguracoesGerais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/lancamentoatividades",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/LancamentoAtividades",
       "destination": "/index.html"
     },
     {
@@ -286,6 +287,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/formulacoes/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Formulacoes/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapacadastro",
       "destination": "/index.html"
     },
@@ -331,6 +340,14 @@
     },
     {
       "source": "/CurvasGanho",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/formulacoes",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Formulacoes",
       "destination": "/index.html"
     },
     {
@@ -398,6 +415,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/culturas/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Culturas/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapageral",
       "destination": "/index.html"
     },
@@ -411,6 +436,14 @@
     },
     {
       "source": "/Produtos/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/servicos/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Servicos/",
       "destination": "/index.html"
     },
     {
@@ -438,6 +471,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/culturas",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Culturas",
+      "destination": "/index.html"
+    },
+    {
       "source": "/empresa/",
       "destination": "/index.html"
     },
@@ -451,6 +492,14 @@
     },
     {
       "source": "/Produtos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/servicos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Servicos",
       "destination": "/index.html"
     },
     {

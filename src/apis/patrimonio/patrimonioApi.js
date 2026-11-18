@@ -219,9 +219,22 @@ const CORPO_BASE_ABASTECIMENTO = Object.freeze([
   'observacao',
   'referencia_externa',
 ]);
+/**
+ * D-PROD-211 — opcionais: `origem` (`ESTOQUE` padrão | `EXTERNO`), `custo_total` (só no `EXTERNO`: o valor da nota,
+ * até 2 casas) e `apontamento_id` (o lançamento da atividade; a atividade o servidor deriva e nunca vai). No
+ * `EXTERNO` o `local_estoque_id` NÃO vai.
+ */
+const OPCIONAIS_ABASTECIMENTO = Object.freeze(['origem', 'custo_total', 'apontamento_id']);
+const CORPO_ABASTECIMENTO = Object.freeze([...CORPO_BASE_ABASTECIMENTO, ...OPCIONAIS_ABASTECIMENTO]);
 const OBRIGATORIAS_PREVIA = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'local_estoque_id', 'data_operacional', 'quantidade']);
 const EXTRAS_CONFIRMACAO = Object.freeze(['operation_id']);
 const CORPO_CONFIRMACAO = Object.freeze([...CORPO_BASE_ABASTECIMENTO, ...EXTRAS_CONFIRMACAO]);
+/** @param {Record<string, unknown>} corpo */
+const ehCorpoExterno = (corpo) => corpo.origem === 'EXTERNO';
+/** As chaves obrigatórias do corpo (o `EXTERNO` sem o local). @param {readonly string[]} chaves @param {Record<string, unknown>} corpo */
+const obrigatoriasDoCorpo = (chaves, corpo) => (ehCorpoExterno(corpo) ? chaves.filter((k) => k !== 'local_estoque_id') : chaves);
+/** Valor da nota do posto externo: texto canônico positivo com até 2 casas. */
+const RE_CUSTO_EXTERNO = /^\d{1,10}(\.\d{1,2})?$/;
 const CORPO_CANCELAMENTO = Object.freeze(['empresa_id', 'versao', 'motivo', 'operation_id']);
 
 /** Quantidade e leitura: texto canônico até 10 inteiros e 4 casas (sem número/float; `PADRAO_QUANTIDADE` no servidor). */
@@ -243,7 +256,17 @@ const textoOuNulo = (v) => v === null || typeof v === 'string';
  */
 const validarCorpoAbastecimento = (corpo, contexto) => {
   assertArgument(isId(corpo.empresa_id), 'empresa_id', contexto);
-  for (const campo of ['bem_id', 'tanque_id', 'produto_id', 'local_estoque_id']) assertArgument(isId(corpo[campo]), campo, contexto);
+  for (const campo of ['bem_id', 'tanque_id', 'produto_id']) assertArgument(isId(corpo[campo]), campo, contexto);
+  if (tem(corpo, 'origem')) assertArgument(corpo.origem === 'ESTOQUE' || corpo.origem === 'EXTERNO', 'origem', contexto);
+  if (ehCorpoExterno(corpo)) {
+    // Posto externo: sem local (o servidor recusaria) e com o valor da nota.
+    assertArgument(!tem(corpo, 'local_estoque_id'), 'local_estoque_id', contexto);
+    assertArgument(typeof corpo.custo_total === 'string' && RE_CUSTO_EXTERNO.test(corpo.custo_total) && /[1-9]/.test(corpo.custo_total), 'custo_total', contexto);
+  } else {
+    assertArgument(isId(corpo.local_estoque_id), 'local_estoque_id', contexto);
+    assertArgument(!tem(corpo, 'custo_total'), 'custo_total', contexto);
+  }
+  if (tem(corpo, 'apontamento_id')) assertArgument(isId(corpo.apontamento_id), 'apontamento_id', contexto);
   assertArgument(typeof corpo.data_operacional === 'string' && RE_DIA.test(corpo.data_operacional), 'data_operacional', contexto);
   assertArgument(typeof corpo.quantidade === 'string' && RE_DECIMAL_4.test(corpo.quantidade), 'quantidade', contexto);
   if (tem(corpo, 'medidor_leitura')) {
@@ -276,8 +299,8 @@ export const getAbastecimento = async (id, empresaId) => {
  */
 export const previaAbastecimento = async (corpo) => {
   const contexto = ctx('previaAbastecimento', RESOURCE_ABASTECIMENTO);
-  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_BASE_ABASTECIMENTO), 'corpo', contexto);
-  assertArgument(comChaves(corpo, OBRIGATORIAS_PREVIA), 'corpo', contexto);
+  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_ABASTECIMENTO), 'corpo', contexto);
+  assertArgument(comChaves(corpo, obrigatoriasDoCorpo(OBRIGATORIAS_PREVIA, corpo)), 'corpo', contexto);
   validarCorpoAbastecimento(corpo, contexto);
   const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.abastecimentoPrevia(corpo), contexto));
   return {
@@ -293,7 +316,11 @@ export const previaAbastecimento = async (corpo) => {
  */
 export const confirmarAbastecimento = async (corpo) => {
   const contexto = ctx('confirmarAbastecimento', RESOURCE_ABASTECIMENTO);
-  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_CONFIRMACAO) && comChaves(corpo, CORPO_CONFIRMACAO), 'corpo', contexto);
+  assertArgument(
+    isObjeto(corpo) && soChaves(corpo, [...CORPO_CONFIRMACAO, ...OPCIONAIS_ABASTECIMENTO]) && comChaves(corpo, obrigatoriasDoCorpo(CORPO_CONFIRMACAO, corpo)),
+    'corpo',
+    contexto,
+  );
   validarCorpoAbastecimento(corpo, contexto);
   assertArgument(typeof corpo.operation_id === 'string' && PADRAO_OPERATION_ID_ABASTECIMENTO.test(corpo.operation_id), 'operation_id', contexto);
   return runProviderCall(() => operacoesNativas.abastecimentoConfirmar(corpo), contexto);

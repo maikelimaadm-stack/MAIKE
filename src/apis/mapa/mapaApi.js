@@ -47,6 +47,8 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
  * vir quando o backend próprio falha. Não existe fallback.
  */
 export { listAreas, filterAreas, createArea, updateArea } from '@/apis/areas';
+/** Reatribuição de `numero_area` em lote (somente online, comando próprio no servidor). */
+export { renumerarAreas } from '@/apis/areas';
 
 /**
  * Geografia nativa desde a P4.3 (D-PROD-32): pontos, linhas e ícones saíram da

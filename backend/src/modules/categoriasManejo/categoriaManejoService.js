@@ -1,10 +1,17 @@
 /**
  * Serviço de CategoriaManejo (P5.4).
+ *
+ * D-PROD-195 — toda categoria tem uma Curva de Ganho (CADCURVAGANHO)
+ * OBRIGATÓRIA e da MESMA fazenda (FK composta cliente_id + empresa_id +
+ * curva_ganho_id, Restrict). A curva é lida `FOR SHARE` na transação da
+ * escrita, o que serializa com a exclusão e a inativação da curva.
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
+import { lerCurvaParaUso, listarOpcoesCurvas } from '../curvasGanho/curvaGanhoRepository.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import {
   FAIXAS_IDADE_CATEGORIA_MANEJO,
@@ -59,14 +66,20 @@ export const CHAVES_LEGADAS_IGNORADAS = Object.freeze([
 const LEGADAS = new Set(CHAVES_LEGADAS_IGNORADAS);
 
 /**
- * Tira as chaves legadas e só então aplica o allowlist de colunas.
+ * D-PROD-195 — eco do servidor: `curva_ganho_nome` vem da relação com a curva
+ * e nunca é gravado; o cliente que reenvia o registro lido não leva 400.
+ */
+const ECOS_DERIVADOS = new Set(['curva_ganho_nome']);
+
+/**
+ * Tira as chaves legadas (e os ecos derivados) e só então aplica o allowlist de colunas.
  * @param {unknown} entrada
  * @returns {Record<string, unknown>}
  */
 const colunasDoCorpo = (entrada) => {
   const corpo =
     entrada && typeof entrada === 'object' && !Array.isArray(entrada)
-      ? Object.fromEntries(Object.entries(entrada).filter(([chave]) => !LEGADAS.has(chave)))
+      ? Object.fromEntries(Object.entries(entrada).filter(([chave]) => !LEGADAS.has(chave) && !ECOS_DERIVADOS.has(chave)))
       : entrada;
   return exigirSomenteColunasGravaveis(ENTIDADE, corpo);
 };
@@ -169,6 +182,111 @@ const validarSexo = (dados, criando) => {
 };
 
 /**
+ * D-PROD-198: peso objetivo (kg por cabeça), opcional. Vazio/null limpa; número
+ * finito > 0 e até 3.000 kg (o mesmo teto por cabeça do manejo), 2 casas.
+ */
+const PESO_OBJETIVO_MAXIMO_KG = 3000;
+/**
+ * Número digitado em pt-BR: "1.200" e "1.200,5" são milhar (não 1,2);
+ * "450,5" e "450.5" são decimais. NaN quando não é número.
+ * @param {string} texto
+ */
+const numeroPtBr = (texto) => {
+  const t = texto.trim();
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) return Number(t.replace(/\./g, '').replace(',', '.'));
+  if (!/^\d+([.,]\d+)?$/.test(t)) return NaN;
+  return Number(t.replace(',', '.'));
+};
+
+const validarPesoObjetivo = (dados) => {
+  if (!tem(dados, 'peso_objetivo_kg')) return dados;
+  const bruto = dados.peso_objetivo_kg;
+  if (bruto === null || bruto === undefined || (typeof bruto === 'string' && bruto.trim() === '')) return { ...dados, peso_objetivo_kg: null };
+  const n = typeof bruto === 'number' ? bruto : typeof bruto === 'string' ? numeroPtBr(bruto) : NaN;
+  if (!Number.isFinite(n) || n <= 0 || n > PESO_OBJETIVO_MAXIMO_KG) {
+    throw campoInvalido('peso_objetivo_kg', 'peso_objetivo_invalido', `o peso objetivo deve ser maior que 0 e até ${PESO_OBJETIVO_MAXIMO_KG} kg`);
+  }
+  return { ...dados, peso_objetivo_kg: Math.round(n * 100) / 100 };
+};
+
+const CAMPO_CURVA = 'curva_ganho_id';
+/** D-PROD-195 — FK composta da categoria para a curva (mesma fazenda). */
+const FK_DA_CURVA = 'CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey';
+
+const curvaObrigatoria = () => campoInvalido(CAMPO_CURVA, 'curva_obrigatoria', 'a curva de ganho é obrigatória');
+const curvaInexistente = () => campoInvalido(CAMPO_CURVA, 'curva_inexistente', 'a curva de ganho não existe nesta fazenda');
+
+/**
+ * Id da curva vindo do corpo: `null`/'' → `curva_obrigatoria`; não texto →
+ * `curva_inexistente` (nenhuma curva tem esse id).
+ * @param {unknown} valor
+ * @returns {string}
+ */
+const idDaCurva = (valor) => {
+  if (valor === null || valor === undefined) throw curvaObrigatoria();
+  if (typeof valor !== 'string') throw curvaInexistente();
+  const limpo = valor.trim();
+  if (limpo === '') throw curvaObrigatoria();
+  return limpo;
+};
+
+/**
+ * Curva de ganho (D-PROD-195), sempre na transação da escrita:
+ *  - POST: obrigatória (`curva_obrigatoria`);
+ *  - PATCH: conferida quando o corpo traz `curva_ganho_id` (null/'' →
+ *    `curva_obrigatoria`) OU troca `empresa_id` (a curva gravada precisa ser
+ *    da fazenda nova);
+ *  - a curva precisa existir no tenant E na fazenda efetiva: outra fazenda,
+ *    outro tenant ou inexistente → `curva_inexistente`, sem oráculo;
+ *  - inativa → `curva_inativa` só quando a curva é informada/trocada; manter a
+ *    curva gravada (mesmo id, mesma fazenda) que depois foi inativada é permitido.
+ * A leitura `FOR SHARE` segura a curva até o commit (exclusão espera).
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {Record<string, unknown>} dados
+ * @param {Record<string, any> | null} existente `null` no POST
+ * @returns {Promise<Record<string, unknown>>}
+ */
+const validarCurva = async (tx, clienteId, dados, existente) => {
+  const enviou = tem(dados, CAMPO_CURVA);
+  if (!existente && !enviou) throw curvaObrigatoria();
+  const mudaEmpresa = Boolean(existente) && tem(dados, 'empresa_id') && dados.empresa_id !== existente?.empresa_id;
+  if (existente && !enviou && !mudaEmpresa) return dados;
+  const saida = { ...dados };
+  if (enviou) saida[CAMPO_CURVA] = idDaCurva(dados[CAMPO_CURVA]);
+  const curvaId = /** @type {string} */ (enviou ? saida[CAMPO_CURVA] : existente?.curva_ganho_id);
+  const empresaId = tem(saida, 'empresa_id') ? saida.empresa_id : existente?.empresa_id;
+  if (typeof empresaId !== 'string' || empresaId.trim() === '') {
+    throw campoInvalido('empresa_id', 'empresa_obrigatoria', 'empresa_id é obrigatório');
+  }
+  const curva = await lerCurvaParaUso(tx, clienteId, empresaId, curvaId);
+  if (!curva) throw curvaInexistente();
+  const mantem = Boolean(existente) && curvaId === existente?.curva_ganho_id && empresaId === existente?.empresa_id;
+  if (!curva.ativo && !mantem) {
+    throw campoInvalido(CAMPO_CURVA, 'curva_inativa', 'a curva de ganho está inativa: escolha uma curva ativa');
+  }
+  return saida;
+};
+
+/**
+ * Rede de segurança da escrita: a FK da curva recusou (P2003) → o mesmo 400
+ * `curva_inexistente` da validação, nunca o 403 genérico do P2003.
+ * @template T
+ * @param {() => Promise<T>} executar
+ * @returns {Promise<T>}
+ */
+const comFkDaCurvaEstavel = async (executar) => {
+  try {
+    return await executar();
+  } catch (erro) {
+    const e = /** @type {any} */ (erro);
+    const texto = `${String(e?.meta?.constraint ?? '')} ${String(e?.meta?.field_name ?? '')} ${String(e?.message ?? '')}`;
+    if (e?.code === 'P2003' && texto.includes(FK_DA_CURVA)) throw curvaInexistente();
+    throw erro;
+  }
+};
+
+/**
  * Saída pública (resposta e auditoria) com lista EXPLÍCITA de campos
  * (D-PROD-186/D-PROD-187): o tenant não sai, e nenhum campo fora do contrato
  * sai, mesmo que alguém passe aqui uma linha lida sem a seleção do repositório.
@@ -183,6 +301,11 @@ export const comoPublico = (registro) => ({
   sexo: registro.sexo ?? null,
   idade_minima_meses: registro.idade_minima_meses ?? null,
   idade_maxima_meses: registro.idade_maxima_meses ?? null,
+  // D-PROD-195: a curva de ganho e o nome dela (da relação; null se a linha veio sem ela).
+  curva_ganho_id: registro.curva_ganho_id ?? null,
+  curva_ganho_nome: /** @type {{ nome?: string } | null | undefined} */ (registro.curvaGanho)?.nome ?? null,
+  // D-PROD-198: peso objetivo (kg/cabeça), opcional.
+  peso_objetivo_kg: registro.peso_objetivo_kg === null || registro.peso_objetivo_kg === undefined ? null : Number(registro.peso_objetivo_kg),
   ativo: registro.ativo,
   created_date: registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
   updated_date: registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
@@ -199,10 +322,10 @@ export const listar = async (contexto, filtros = {}) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
-  const criado = await prisma.$transaction(async (tx) => {
+  const criado = await comFkDaCurvaEstavel(() => prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
     const dados = {
-      ...validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), true), null),
+      ...(await validarCurva(tx, auth.clienteId, validarPesoObjetivo(validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), true), null)), null)),
       cliente_id: auth.clienteId,
     };
 
@@ -213,17 +336,17 @@ export const criar = async (contexto, entrada) => {
       tx
     );
     return registro;
-  });
+  }));
   return comoPublico(criado);
 };
 
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
-  const atualizado = await prisma.$transaction(async (tx) => {
+  const atualizado = await comFkDaCurvaEstavel(() => prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const dados = validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), false), existente);
+    const dados = await validarCurva(tx, auth.clienteId, validarPesoObjetivo(validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), false), existente)), existente);
     // Corpo só com chaves legadas (ou só ecos do servidor): nada a gravar.
     // Mesmo desenho da D-PROD-181 — não toca a linha (nem `updatedAt`) e a
     // auditoria registra a edição com antes = depois.
@@ -242,7 +365,7 @@ export const atualizar = async (contexto, id, entrada) => {
       tx
     );
     return registro;
-  });
+  }));
   return comoPublico(atualizado);
 };
 
@@ -259,4 +382,18 @@ export const excluir = async (contexto, id) => {
       tx
     );
   });
+};
+
+/**
+ * D-PROD-195 — opções do seletor de curva da Categoria de Manejo: as curvas da
+ * fazenda (`exigirEmpresaDoTenant`: outra ou inexistente → 404), só
+ * `{ id, nome, ativo }`, em ordem de nome. Quem cria ou edita categoria (o
+ * cadastro rápido do lote incluído) lê sem precisar da tela de curvas.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{ empresa_id?: unknown }} consulta
+ */
+export const opcoesCurvasGanho = async (contexto, consulta) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const empresaId = await exigirEmpresaDoTenant(getPrismaClient(), auth.clienteId, consulta?.empresa_id);
+  return listarOpcoesCurvas(auth.clienteId, empresaId);
 };

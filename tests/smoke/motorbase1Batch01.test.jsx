@@ -64,6 +64,17 @@ vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({
   useEmpresaSelecionadaId: () => "emp-1",
 }));
 
+// D-PROD-195: o formulário da categoria lista as curvas de ganho da fazenda.
+vi.mock("@/hooks/useOpcoesCurvaGanhoCategoria", () => ({
+  QUERY_OPCOES_CURVAS_GANHO_CATEGORIA: "categorias-manejo-opcoes-curvas-ganho",
+  useOpcoesCurvaGanhoCategoria: () => ({
+    empresaId: "emp-1",
+    curvas: [{ id: "cg-1", nome: "CURVA PADRÃO", ativo: true }],
+    carregando: false,
+    erro: false,
+  }),
+}));
+
 vi.mock("@/lib/maikeNotify", () => ({
   notifySuccess: vi.fn(),
   notifyWarning: vi.fn(),
@@ -259,5 +270,7 @@ describe("MOTORBASE1-BATCH-01", () => {
     expect(form.querySelectorAll('input[type="number"]').length).toBe(0);
     const faixa = screen.getByLabelText(/^Faixa de idade/);
     expect(faixa.getAttribute("role")).toBe("combobox");
+    // D-PROD-195: Curva de ganho é um select obrigatório.
+    expect(screen.getByLabelText(/^Curva de ganho/).getAttribute("role")).toBe("combobox");
   });
 });

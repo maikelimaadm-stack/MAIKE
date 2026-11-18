@@ -151,3 +151,48 @@ Violação exige **rollback**, não flexibilização da regra.
 > serviços ou fornecedor no item; reintroduzir as flags `exige_area`/`pode_ter_*`; conceder a tela ou as ações a
 > perfis existentes por padrão. Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no
 > merge manual (`00-CONSTITUICAO.md` §4).
+
+> **Nota (D-PROD-197):** a proibição de reintroduzir as flags `exige_area`/`pode_ter_*` da nota acima vale para o
+> **TipoTarefa** (D-PROD-181/183) e para o **item do apontamento**. O **Tipo de Atividade** tem, por pedido expresso
+> do proprietário, as 8 flags da D-PROD-197 (`exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`,
+> `permite_produto`, `permite_servico`, `permite_mao_obra`, `exige_producao`), sem os nomes aposentados
+> `pode_ter_*`. Continua proibido: qualquer flag no TipoTarefa; flag digitada no lançamento no lugar da do tipo;
+> lista fixa ou cadastro novo de unidade (a unidade de produção é `UnidadeMedida`). Texto redigido pelo agente; vale
+> só com a aprovação explícita do proprietário no merge manual (`00-CONSTITUICAO.md` §4).
+
+> **Nota (D-PROD-202):** as linhas de produto do Lançamento de Atividades substituem os itens da D-PROD-193. Continua
+> proibido:
+> - baixar fora do motor de estoque, ou por `Produto.estoque_atual -= …`;
+> - gravar o movimento com a origem do abastecimento ou do financeiro;
+> - converter unidade;
+> - editar a linha sem o estorno exato da anterior;
+> - apagar linha (só cancelar com estorno exato);
+> - tratar devolução de sobra como estorno;
+> - gravar a leitura da linha de máquina em `BemPatrimonial.medidor_*`;
+> - deixar o medidor andar para trás;
+> - aceitar salto acima do teto do tipo do bem sem justificativa;
+> - criar `OperacaoFinanceira`, título ou rateio a partir da linha;
+> - conceder as ações de linha a perfis existentes por padrão.
+>
+> Texto redigido pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a
+> "aplica e aprova"), no merge da PR #289 (`00-CONSTITUICAO.md` §4).
+
+> **Nota (D-PROD-207):** os cadastros mínimos de **Funcionário** e de **Serviço**, por fazenda, e as linhas de mão de
+> obra e de serviço do Lançamento de Atividades existem só como **custo da atividade** (snapshot na linha); o parceiro
+> prestador é só uma referência na linha de serviço. Continua **fora**: folha de pagamento (D-PROD-02), salário,
+> encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço. Continua proibido:
+> - apagar cadastro de funcionário ou de serviço (só inativar) ou apagar linha (só cancelar);
+> - criar `OperacaoFinanceira`, título ou rateio a partir das linhas de mão de obra ou de serviço;
+> - usar `Usuario` (conta de acesso) como funcionário;
+> - conceder as telas novas ou as ações das linhas a perfis existentes por padrão.
+>
+> Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("Aplica e aprova")**, no merge da PR #294
+> (`00-CONSTITUICAO.md` §4).
+>
+> **Ajuste (D-PROD-208):** o **Funcionário** deixa de ser cadastro próprio e passa a ser **papel do parceiro**
+> (papel `funcionario`), com tipo, cargo e custos por hora e por diária; a mão de obra pode ser de **funcionário** ou de
+> **terceiro** (parceiro prestador de serviço, custo digitado). Continua **fora** tudo o que a D-PROD-207 deixou fora:
+> folha de pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título e rateio. Continua
+> proibido usar `Usuario` como funcionário, apagar linha (só cancelar) e criar `OperacaoFinanceira`, título ou rateio a
+> partir das linhas. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("aplica e aprova")**, no merge da PR #298
+> (`00-CONSTITUICAO.md` §4).

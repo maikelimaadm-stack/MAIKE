@@ -70,4 +70,8 @@ cadastro próprio. Mesma tabela física, `"CADCURVAGANHO"`, vazia em produção.
 
 ## 5. Verificação completa e revisão
 
-_(preenchido ao fim da missão.)_
+**`npm run verify:all` local** (o GitHub Actions do proprietário estava pausado), no commit `66d4b79c` — o mesmo conteúdo mergeado em `a65ea468` —, num PostgreSQL 16 novo e exclusivo, sem arquivo alterado durante a rodada: **todas as etapas passaram** (gates, tipos, lint, build, `test:backend` com 1.876 testes — 1.871 passaram, 5 pulados, 0 falhas — e `test:smoke` com 226 arquivos e 2.805 testes). Antes, no mesmo commit: ferramental de migration 111/111, migrations em PostgreSQL real 10/20/15/14 e os ensaios das três CONTRACT anteriores.
+
+**Revisão adversarial** (4 lentes, 2 céticos por achado, 16 agentes), sobre `f44492a4`: 2 achados médios confirmados e corrigidos — a chave de preferências de colunas da lista (a preferência salva na tela por estação escondia Média e Ganho no ano; chave `_v2` e teste com o formato real) e o runbook (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE`, conferido em `pg_locks`; aplicar fora de pico). Um detalhe descartado pelos céticos foi corrigido mesmo assim (formatadores nunca mostram "-0"). A revisão do Codex no GitHub não teve achados.
+
+**Mesclas com a `main`:** três (`810a312a`, `565e4a95`, `cfa3e7e9`), porque a Fatia D, o Estoque P1-03, o Apontamento e os itens do apontamento entraram enquanto esta PR esperava; a decisão foi renumerada de D-PROD-190 para D-PROD-191 e depois para **D-PROD-194**, sem mudar o `migration.sql`.

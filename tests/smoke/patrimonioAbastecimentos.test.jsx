@@ -585,3 +585,103 @@ describe('Consumo do bem (D-PROD-162, P-03: métrica pela unidade do Produto)', 
     expect(await screen.findByTestId('consumo-nao-aplica')).toHaveTextContent('Consumo não se aplica a este medidor.');
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════
+// D-PROD-211 — origem (estoque da fazenda × posto externo) e o snapshot do medidor
+describe('FE6 — origem e snapshot do medidor (D-PROD-211)', () => {
+  /** Escolhe a origem no formulário. @param {HTMLElement} form @param {'Estoque da fazenda'|'Posto externo'} nome */
+  const escolherOrigem = (form, nome) => fireEvent.click(within(within(form).getByTestId('abastecimento-origem')).getByRole('radio', { name: nome }));
+
+  it('padrão = Estoque da fazenda: o corpo é o de sempre (sem origem, custo nem apontamento); a consulta mostra origem, centro de custo e o snapshot', async () => {
+    // Um abastecimento anterior com leitura: a próxima tem anterior de ABASTECIMENTO (intervalo confiável).
+    await semearTrator();
+    await montar();
+    const form = await abrirNovo();
+    expect(within(within(form).getByTestId('abastecimento-origem')).getByRole('radio', { name: 'Estoque da fazenda' }).getAttribute('aria-checked')).toBe('true');
+    // Nunca se pergunta o tipo de medidor nem o centro de custo.
+    expect(within(form).queryByText(/Centro de custo/i)).toBeNull();
+    expect(within(form).queryByText(/Tipo de medidor/i)).toBeNull();
+    await preencherTrator(form);
+    const dialogo = await pedirPrevia(form);
+    const corpo = previas().at(-1).body;
+    for (const k of ['origem', 'custo_total', 'apontamento_id', 'atividade_id']) expect(corpo).not.toHaveProperty(k);
+    expect(corpo.local_estoque_id).toBe('l1');
+    expect(within(dialogo).getByTestId('previa-leitura-anterior')).toHaveTextContent('1.530,5 h');
+    expect(within(dialogo).getByTestId('previa-medidor-delta')).toHaveTextContent('20 h');
+    expect(within(dialogo).getByTestId('previa-intervalo-confiavel')).toHaveTextContent('Sim');
+    await act(async () => {
+      fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar'));
+    });
+    const consulta = await screen.findByTestId('abastecimento-consulta');
+    expect(within(consulta).getByTestId('consulta-origem')).toHaveTextContent('Estoque da fazenda');
+    expect(within(consulta).getByTestId('consulta-centro-custo')).toHaveTextContent('Frota');
+    expect(within(consulta).getByTestId('consulta-atividade')).toHaveTextContent('—');
+    expect(within(consulta).getByTestId('consulta-lancamento')).toHaveTextContent('—');
+    expect(within(consulta).getByTestId('consulta-leitura-anterior')).toHaveTextContent('1.530,5 h');
+    expect(within(consulta).getByTestId('consulta-medidor-delta')).toHaveTextContent('20 h');
+    expect(within(consulta).getByTestId('consulta-intervalo-confiavel')).toHaveTextContent('Sim');
+  });
+
+  it('Posto externo: some o local de estoque, pede o valor total da nota (obrigatório, 2 casas); corpo com origem e custo_total e SEM local; nada sai do estoque', async () => {
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    escolherOrigem(form, 'Posto externo');
+    await waitFor(() => expect(within(form).queryByTestId('abastecimento-local-auto')).toBeNull());
+    expect(within(form).getByTestId('abastecimento-externo-nota')).toHaveTextContent('não sai do estoque');
+    expect(within(form).getByText('Valor total da nota (R$)')).toBeTruthy();
+    // Sem o valor: a validação local barra, nada vai ao servidor.
+    await act(async () => {
+      fireEvent.click(within(form).getByTestId('abastecimento-previa'));
+    });
+    expect(await within(form).findByText('Informe o valor total da nota do posto.')).toBeTruthy();
+    expect(previas()).toHaveLength(0);
+    digitar(form, 'abastecimento-custo-total', '1,234');
+    await act(async () => {
+      fireEvent.click(within(form).getByTestId('abastecimento-previa'));
+    });
+    expect(await within(form).findByText('No máximo 2 casas decimais (centavos).')).toBeTruthy();
+    expect(previas()).toHaveLength(0);
+    digitar(form, 'abastecimento-custo-total', '452,8');
+    const dialogo = await pedirPrevia(form);
+    const corpo = previas().at(-1).body;
+    expect(corpo).toMatchObject({ origem: 'EXTERNO', custo_total: '452.8', bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', quantidade: '80' });
+    expect(corpo).not.toHaveProperty('local_estoque_id');
+    expect(within(dialogo).getByTestId('previa-origem')).toHaveTextContent('Posto externo');
+    expect(within(dialogo).getByTestId('previa-valor-nota').textContent).toMatch(/R\$\s452,80/);
+    expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent('Posto externo: sem baixa do estoque');
+    expect(within(dialogo).queryByTestId('previa-local')).toBeNull();
+    expect(within(dialogo).queryByTestId('previa-baixa')).toBeNull();
+    expect(within(dialogo).queryByTestId('previa-detalhes-estoque')).toBeNull();
+    const loteAntes = amb.estado.lotes.find((l) => l.id === 'lote-A').disponivel;
+    await act(async () => {
+      fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar'));
+    });
+    const consulta = await screen.findByTestId('abastecimento-consulta');
+    const enviado = confirmacoes().at(-1).body;
+    expect(Object.keys(enviado).sort()).toEqual(
+      ['bem_id', 'custo_total', 'data_operacional', 'empresa_id', 'medidor_leitura', 'observacao', 'operation_id', 'origem', 'produto_id', 'quantidade', 'referencia_externa', 'tanque_cheio', 'tanque_id'].sort(),
+    );
+    expect(amb.estado.lotes.find((l) => l.id === 'lote-A').disponivel).toBe(loteAntes);
+    expect(within(consulta).getByTestId('consulta-origem')).toHaveTextContent('Posto externo');
+    expect(within(consulta).getByTestId('consulta-custo').textContent).toMatch(/R\$\s452,80/);
+    expect(within(consulta).getByText('— (posto externo)')).toBeTruthy();
+    expect(within(consulta).queryByTestId('consulta-movimento')).toBeNull();
+  });
+
+  it('voltar para Estoque da fazenda limpa o valor da nota e o local volta a ser escolhido', async () => {
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    escolherOrigem(form, 'Posto externo');
+    digitar(form, 'abastecimento-custo-total', '100');
+    escolherOrigem(form, 'Estoque da fazenda');
+    expect(within(form).queryByTestId('abastecimento-custo-total')).toBeNull();
+    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Sai do estoque: Tanque diesel sede'));
+    await pedirPrevia(form);
+    const corpo = previas().at(-1).body;
+    expect(corpo.local_estoque_id).toBe('l1');
+    expect(corpo).not.toHaveProperty('custo_total');
+    expect(corpo).not.toHaveProperty('origem');
+  });
+});

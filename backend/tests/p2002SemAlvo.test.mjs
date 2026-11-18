@@ -23,8 +23,22 @@
  *  - M1 o MAIKE Admin: corrida pelo mesmo código (criar e editar) → código
  *    duplicado (antes, sem o alvo, era "login duplicado"); pelo mesmo login →
  *    login duplicado; o model desconhecido segue o caminho genérico;
- *  - S1 o inventário fechado: um só leitor do alvo, os tradutores que o usam e
- *    as entradas `soPeloAlvo`, cada uma sob trava.
+ *  - L1–L3 o Lançamento de Atividades (módulo `atividades`): a chave de uma
+ *    linha de mão de obra, de serviço ou de máquina já gravada, sem o recibo,
+ *    dá 409 IDEMPOTENCY_CONFLICT (antes, sem o alvo, 409 CONCURRENCY_CONFLICT,
+ *    que o cliente repete para sempre); a chave de um lançamento do dia com
+ *    linhas de mão de obra (as derivadas `:o`) e a de uma linha de produto
+ *    também, e a mesma área de novo dá 422 `ja_na_atividade`; nada gravado.
+ *    Nos três, a chave é conferida no início da escrita e, sem o alvo, de novo
+ *    depois do rollback: tirar só a pré-conferência mantém o teste verde, e
+ *    tirar as duas o deixa vermelho com o 409 CONCURRENCY_CONFLICT;
+ *  - C1 as culturas: na corrida pelo mesmo código, com o alvo, o código (como
+ *    antes); sem ele, o 409 genérico, nunca "nome" por palpite (antes, todo
+ *    P2002 sem alvo virava `CULTURA_NAME_CONFLICT`), e o reenvio cai na
+ *    pré-conferência sob a trava da fazenda, com o código certo;
+ *  - S1 o inventário fechado: um só leitor do alvo, nem o `meta` inteiro do
+ *    erro é lido fora dele, os tradutores que o usam e as entradas
+ *    `soPeloAlvo`, cada uma sob trava.
  *
  * As corridas são DETERMINÍSTICAS, no padrão de
  * `patrimonioP1AbastecimentosConcorrencia.test.mjs`: um "portão" (gatilho
@@ -43,6 +57,7 @@ import { PrismaClient } from '@prisma/client';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarAdminComSessao } from './helpers.mjs';
 import { comPapelNaoDono, papelDaTransacao } from './papelNaoDono.mjs';
 import { acoesAbastecimento, corpoAbastecimento, fotoAbastecimento, montarAbastecimento, prisma } from './patrimonioP1AbastecimentoCenario.mjs';
+import { montarLinhasCusto } from './atividadeLinhaCustoCenario.mjs';
 import { traduzirUnique } from '../src/modules/adminMaike/adminClientesGestaoService.js';
 import { TIPO_CONFIRMAR } from '../src/modules/patrimonio/abastecimentoPlano.js';
 import { AppError } from '../src/shared/errors/AppError.js';
@@ -417,6 +432,176 @@ describe('D-PROD-252 — MAIKE Admin: código e login em corrida, como em produ�
   });
 });
 
+// ═══ Lançamento de Atividades ═══════════════════════════════════════════════
+
+describe('D-PROD-252 — Lançamento de Atividades: a chave sem recibo, como em produção', () => {
+  /** Linhas, apontamentos e recibos do tenant (a auditoria do reenvio é contada à parte). @param {string} c */
+  const fotoAtividade = async (c) => {
+    const p = prisma();
+    const linhas = async (/** @type {any} */ m) => m.findMany({ where: { cliente_id: c }, orderBy: { id: 'asc' } });
+    return JSON.stringify({
+      ap: await linhas(p.atividadeApontamento),
+      maquina: await linhas(p.atividadeApontamentoMaquina),
+      maoObra: await linhas(p.atividadeApontamentoMaoObra),
+      servico: await linhas(p.atividadeApontamentoServico),
+      produto: await linhas(p.atividadeApontamentoProduto),
+      recibos: await linhas(p.operacaoIdempotente),
+    }, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+  };
+  /** @param {string} c @param {string} acao */
+  const reenvios = (c, acao) => prisma().auditLog.count({ where: { cliente_id: c, acao } });
+  /** @param {string} c @param {string} operationId */
+  const apagarRecibos = async (c, operationId) => (await prisma().operacaoIdempotente.deleteMany({ where: { cliente_id: c, operation_key: operationId } })).count;
+
+  test('L1: sob o papel, a chave de uma linha de mão de obra, de serviço ou de máquina JÁ gravada, sem o recibo, dá 409 IDEMPOTENCY_CONFLICT ao lançar e ao editar, auditado e sem efeito', async () => {
+    const s = await montarLinhasCusto(app);
+    const M = s.acoesDaLinha('mao-obra');
+    const S = s.acoesDaLinha('servicos');
+    const versaoDe = (/** @type {string} */ apId) => s.versaoDe(apId);
+    const maquina = (/** @type {any} */ ap, linhaId = null) => `/atividades/${s.atividade.id}/apontamentos/${ap.id}/maquinas${linhaId ? `/${linhaId}` : ''}`;
+    await comPapelNaoDono(async () => {
+      const ap = await s.apontar();
+      const corpoMo = { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' };
+      const opMo = `mo-${randomUUID()}`;
+      const mo = await M.lancarOk(ap, corpoMo, { operation_id: opMo });
+      const corpoSv = { servico_id: s.gradagem.id, quantidade: '2', valor_unitario: '150' };
+      const opSv = `sv-${randomUUID()}`;
+      const sv = await S.lancarOk(ap, corpoSv, { operation_id: opSv });
+      const opMq = `mq-${randomUUID()}`;
+      const rMq = await s.H.req('POST', maquina(ap), s.token, { empresa_id: s.e1.id, versao: await versaoDe(ap.id), operation_id: opMq, bem_id: s.gerador.id, quantidade_uso: '2' });
+      assert.equal(rMq.statusCode, 201, rMq.body);
+      const mq = rMq.json();
+      // O caso: o recibo some (apagado, expurgado ou de outro tipo) e a mesma chave volta.
+      for (const op of [opMo, opSv, opMq]) assert.ok((await apagarRecibos(s.c, op)) >= 1);
+      const casos = [
+        ['mão de obra: lançar de novo', () => M.lancar(ap, corpoMo, { operation_id: opMo }), 'atividade_mao_obra.reenvio_conflitante'],
+        ['mão de obra: editar com a chave da linha', () => M.editar(ap, mo.mao_obra.id, { quantidade: '7' }, { operation_id: opMo }), 'atividade_mao_obra.reenvio_conflitante'],
+        ['serviço: lançar de novo', () => S.lancar(ap, corpoSv, { operation_id: opSv }), 'atividade_servico.reenvio_conflitante'],
+        ['serviço: editar com a chave da linha', () => S.editar(ap, sv.servico.id, { quantidade: '3' }, { operation_id: opSv }), 'atividade_servico.reenvio_conflitante'],
+        ['máquina: lançar de novo', async () => s.H.req('POST', maquina(ap), s.token, { empresa_id: s.e1.id, versao: await versaoDe(ap.id), operation_id: opMq, bem_id: s.gerador.id, quantidade_uso: '2' }), 'atividade_maquina.reenvio_conflitante'],
+        ['máquina: editar com a chave da linha', async () => s.H.req('PATCH', maquina(ap, mq.maquina.id), s.token, { empresa_id: s.e1.id, versao: await versaoDe(ap.id), operation_id: opMq, quantidade_uso: '3' }), 'atividade_maquina.reenvio_conflitante'],
+      ];
+      for (const [rotulo, pedir, acao] of casos) {
+        const antes = await fotoAtividade(s.c);
+        const auditados = await reenvios(s.c, acao);
+        const r = await pedir();
+        assert.deepEqual([r.statusCode, corpoDe(r)?.code], [409, 'IDEMPOTENCY_CONFLICT'], `${rotulo}: ${r.body}`);
+        assert.equal(await fotoAtividade(s.c), antes, `${rotulo}: nada gravado (linhas, apontamento, versão, recibos)`);
+        assert.equal(await reenvios(s.c, acao), auditados + 1, `${rotulo}: o reenvio é auditado`);
+      }
+    }, { exigirRls: ['AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'AtividadeApontamentoMaquina'] });
+  });
+
+  test('L2: sob o papel, o lançamento do dia com chave e linhas de mão de obra: sem o recibo, a mesma chave dá 409 IDEMPOTENCY_CONFLICT (a chave derivada `:o` da linha gravada é conferida antes de tudo), sem efeito', async () => {
+    const s = await montarLinhasCusto(app);
+    await comPapelNaoDono(async () => {
+      const op = `lanc-${randomUUID()}`;
+      const linha = { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' };
+      const primeiro = await s.lancarAp({ operation_id: op, mao_obra: [linha] });
+      assert.equal(primeiro.statusCode, 201, primeiro.body);
+      assert.deepEqual((await prisma().atividadeApontamentoMaoObra.findMany({ where: { cliente_id: s.c } })).map((l) => l.operation_id), [`${op}:o1`]);
+      assert.ok((await apagarRecibos(s.c, op)) >= 1);
+      for (const [rotulo, corpo] of [
+        ['outro corpo', { operation_id: op, mao_obra: [{ ...linha, quantidade: '9' }] }],
+        ['o MESMO corpo: sem recibo não há replay', { operation_id: op, mao_obra: [linha] }],
+      ]) {
+        const antes = await fotoAtividade(s.c);
+        const r = await s.lancarAp(corpo);
+        assert.deepEqual([r.statusCode, corpoDe(r)?.code], [409, 'IDEMPOTENCY_CONFLICT'], `${rotulo}: ${r.body}`);
+        assert.equal(await fotoAtividade(s.c), antes, `${rotulo}: nada gravado (nem o apontamento)`);
+      }
+    }, { exigirRls: ['AtividadeApontamento', 'AtividadeApontamentoMaoObra'] });
+  });
+
+  test('L3: sob o papel, a chave de uma linha de PRODUTO já gravada, sem o recibo, dá 409 IDEMPOTENCY_CONFLICT e a MESMA área de novo na atividade dá 422 `ja_na_atividade`; nada gravado', async () => {
+    const s = await montarLinhasCusto(app);
+    const pasto = await prisma().areaPastagem.create({
+      data: {
+        cliente_id: s.c, empresa_id: s.e1.id, setor_id: s.area1.setor_id, setor_nome: s.area1.setor_nome,
+        numero_area: `AR-${randomUUID().slice(0, 6)}`, nome: 'PASTO P2002', tamanho_hectares: '12',
+      },
+    });
+    await comPapelNaoDono(async () => {
+      const ap = await s.apontar();
+      const produtos = `${s.baseAp(s.atividade)}/${ap.id}/produtos`;
+      const op = `pr-${randomUUID()}`;
+      const corpoPr = async () => ({ empresa_id: s.e1.id, versao: await s.versaoDe(ap.id), operation_id: op, produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '3' });
+      const primeiro = await s.H.req('POST', produtos, s.token, await corpoPr());
+      assert.equal(primeiro.statusCode, 201, primeiro.body);
+      assert.ok((await apagarRecibos(s.c, op)) >= 1);
+      let antes = await fotoAtividade(s.c);
+      const r = await s.H.req('POST', produtos, s.token, await corpoPr());
+      assert.deepEqual([r.statusCode, corpoDe(r)?.code, corpoDe(r)?.details?.operation_id], [409, 'IDEMPOTENCY_CONFLICT', op], `produto: ${r.body}`);
+      assert.equal(await fotoAtividade(s.c), antes, 'produto: nada gravado');
+
+      const areas = `/atividades/${s.atividade.id}/areas`;
+      const ok = await s.H.req('POST', areas, s.token, { empresa_id: s.e1.id, area_id: pasto.id });
+      assert.equal(ok.statusCode, 201, ok.body);
+      antes = JSON.stringify(await prisma().atividadeArea.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } }), (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+      const repetida = await s.H.req('POST', areas, s.token, { empresa_id: s.e1.id, area_id: pasto.id });
+      const e = corpoDe(repetida);
+      assert.deepEqual([repetida.statusCode, e?.code, e?.field, e?.reason], [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'area_id', 'ja_na_atividade'], `área: ${repetida.body}`);
+      assert.equal(JSON.stringify(await prisma().atividadeArea.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } }), (_k, v) => (typeof v === 'bigint' ? v.toString() : v)), antes, 'área: nada gravado');
+    }, { exigirRls: ['AtividadeApontamentoProduto', 'AtividadeArea'] });
+  });
+});
+
+// ═══ Culturas ═══════════════════════════════════════════════════════════════
+
+describe('D-PROD-252 — culturas: o código em corrida, como em produção', () => {
+  /** Tenant administrador com uma fazenda e uma cultura já gravada (a que ocupa o código "por fora"). */
+  const cenarioCulturas = async () => {
+    const adm = await criarTenant({ papelTenant: 'administrador' });
+    const c = adm.cliente.id;
+    const e1 = await prisma().empresa.create({ data: { cliente_id: c, numero_empresa: 1, apelido: 'E1', nome: `Fazenda 1 ${c}` } });
+    const { corpo } = await autenticarNoApp(app, adm.credenciais);
+    assert.ok(corpo.token, 'login');
+    const criar = (/** @type {Record<string, unknown>} */ payload) =>
+      app.inject({ method: 'POST', url: '/culturas', headers: { authorization: `Bearer ${corpo.token}` }, payload: { empresa_id: e1.id, tipo: 'PASTAGEM', ...payload } });
+    const r = await criar({ codigo: '100', nome: 'OCUPANTE' });
+    assert.equal(r.statusCode, 201, r.body);
+    return { c, criar, ocupante: r.json() };
+  };
+  /** @param {string} c */
+  const fotoCulturas = async (c) =>
+    JSON.stringify(await prisma().cultura.findMany({ where: { cliente_id: c }, orderBy: { id: 'asc' } }), (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+  /**
+   * O pedido para no portão do INSERT (a pré-conferência, sob a trava da fazenda, já passou: o código estava livre);
+   * o código é ocupado por fora (UPDATE da outra cultura, fora da trava) e commita; o portão abre.
+   * @param {Awaited<ReturnType<typeof cenarioCulturas>>} s @param {string} codigo @param {string} nome
+   */
+  const corridaPeloCodigo = async (s, codigo, nome) => {
+    let antes = '';
+    const [r] = await comPedidosNoPortao(
+      { tabela: 'CADCULTURAS', condicao: `NEW.cliente_id = '${s.c}' AND NEW.nome = '${nome}'` },
+      [() => s.criar({ codigo, nome })],
+      {
+        enquanto: async () => {
+          await aux.cultura.update({ where: { id: s.ocupante.id }, data: { codigo } });
+          antes = await fotoCulturas(s.c);
+        },
+      },
+    );
+    return { r, antes };
+  };
+
+  test('C1: corrida pelo mesmo código: como DONO (com o alvo) → 409 CULTURA_CODIGO_CONFLICT, como antes; sob o papel (sem o alvo) → o 409 genérico, nunca "nome" por palpite, e o reenvio → CULTURA_CODIGO_CONFLICT pela pré-conferência; nada gravado', async () => {
+    const s = await cenarioCulturas();
+    const dono = await corridaPeloCodigo(s, '200', 'CORRIDA DO DONO');
+    assert.deepEqual([dono.r.statusCode, corpoDe(dono.r)?.code], [409, 'CULTURA_CODIGO_CONFLICT'], dono.r.body);
+    assert.equal(await fotoCulturas(s.c), dono.antes, 'como dono: nada gravado');
+    await comPapelNaoDono(async () => {
+      const papel = await corridaPeloCodigo(s, '300', 'CORRIDA DO PAPEL');
+      // Antes: `CULTURA_NAME_CONFLICT` (o tradutor procurava "codigo" no `meta` e, sem o alvo, caía no nome).
+      assert.deepEqual([papel.r.statusCode, corpoDe(papel.r)?.code], [409, 'CONCURRENCY_CONFLICT'], papel.r.body);
+      assert.equal(await fotoCulturas(s.c), papel.antes, 'sob o papel: nada gravado');
+      const reenvio = await s.criar({ codigo: '300', nome: 'CORRIDA DO PAPEL' });
+      assert.deepEqual([reenvio.statusCode, corpoDe(reenvio)?.code], [409, 'CULTURA_CODIGO_CONFLICT'], reenvio.body);
+      assert.equal(await fotoCulturas(s.c), papel.antes, 'o reenvio: nada gravado');
+    }, { exigirRls: ['CADCULTURAS'] });
+  });
+});
+
 // ═══ Inventário fechado ═════════════════════════════════════════════════════
 
 describe('D-PROD-252 — inventário fechado dos tradutores de P2002', () => {
@@ -435,16 +620,25 @@ describe('D-PROD-252 — inventário fechado dos tradutores de P2002', () => {
     .filter(([, n]) => n > 0)
     .sort(([x], [y]) => String(x).localeCompare(String(y))));
 
-  test('S1: o alvo do P2002 só é lido em `alvoDaUnique`; os tradutores que o usam são os inventariados (cada um com o caminho sem alvo provado acima); `soPeloAlvo` só nas entradas conferidas sob trava', () => {
+  test('S1: o alvo do P2002 só é lido em `alvoDaUnique` (nem o `meta` inteiro do erro é lido fora dele); os tradutores que o usam são os inventariados (cada um com o caminho sem alvo provado acima); `soPeloAlvo` só nas entradas conferidas sob trava', () => {
     assert.deepEqual(ocorrencias(/\.target\b|\[['"`]target['"`]\]|\btarget\s*[,}]/g), {}, 'ninguém lê `meta.target` fora de `alvoDaUnique` (nem por desestruturação)');
+    // O `meta` do erro do Prisma só se lê POR CAMPO e fora do alvo: `constraint`/`field_name` (P2003: a FK, que o RLS
+    // não esconde), `modelName`, `code`/`message` (P2010). O `meta` inteiro (`JSON.stringify(e.meta)`, `{ meta } = e`)
+    // leva o alvo junto e escapa de `alvoDaUnique`: foi assim que o tradutor das culturas chutava "nome" sem o alvo.
+    assert.deepEqual(ocorrencias(/\.meta\b(?!\??\.(?:constraint|field_name|modelName|code|message)\b)|\[['"`]meta['"`]\]|\{[^{}]*\bmeta\b[^{}]*\}\s*=(?![=>])/g), {}, 'ninguém lê o `meta` inteiro do erro');
     assert.equal((fontes.find((f) => f.arquivo === DEFINICAO)?.texto.match(/\.target\b/g) ?? []).length, 1, 'um único leitor: alvoDaUnique');
     assert.deepEqual(ocorrencias(/\balvoDaUnique\(/g), {
       'modules/adminMaike/adminClientesGestaoService.js': 1, // sem alvo: o model (M1, M2)
+      'modules/culturas/culturaService.js': 1, // sem alvo: o caminho genérico; a pré-conferência sob travarFazenda (C1)
       'modules/empresas/empresaUniqueViolation.js': 1, // sem alvo: a conferência (E1 e empresaUniqueViolation.test.mjs)
       'modules/patrimonio/patrimonioComum.js': 1, // sem alvo: a pré-conferência sob travarEscopo/travarCatalogo
     });
     assert.deepEqual(ocorrencias(/\bsoPeloAlvo\(/g), {
-      'modules/apontamentosAtividade/apontamentoAtividadeItemService.js': 1, // ordem: sob o FOR UPDATE do apontamento, erro transitório
+      // ordem das linhas e sequência do apontamento: nascem sob o FOR UPDATE da atividade, erro transitório
+      'modules/atividades/atividadeApontamentoMaquinaService.js': 1,
+      'modules/atividades/atividadeApontamentoProdutoService.js': 1,
+      'modules/atividades/atividadeApontamentoService.js': 1,
+      'modules/atividades/atividadeLinhaCustoComum.js': 1,
       'modules/financeiro/operacaoFinanceiraService.js': 1, // documento: sob a trava chaveDocumento (confirmar e retificar)
     });
   });

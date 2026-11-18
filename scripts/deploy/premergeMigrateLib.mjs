@@ -33,7 +33,44 @@
  *     COLUMN e os RENAME da tabela CategoriaManejo → CADCATEGORIA e dos seus
  *     índices/constraints — todos pinados letra por letra: RENAME continua
  *     PROIBIDO no caminho EXPAND, só existe como texto pinado de uma entrada;
- *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria).
+ *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria; na D-PROD-195,
+ *     coluna nova NOT NULL com a ligação dos registros existentes, UNIQUE em tabela
+ *     antiga e FK composta entre duas tabelas antigas, todos pinados letra por letra; na
+ *     D-PROD-197, sem DROP nenhum, as 18 instruções ADITIVAS em TipoAtividade que a
+ *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
+ *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs; na D-PROD-209, sem DROP
+ *     nenhum, só o DROP CONSTRAINT e o ADD CONSTRAINT do mesmo CHECK de Fornecedor,
+ *     com TERCEIRIZADO no lugar de TAREFEIRO; na D-PROD-210, sem DROP TABLE, as 7
+ *     instruções nas 3 tabelas VAZIAS das Formulações (a coluna base_consumo NOT NULL
+ *     DEFAULT, o %PV padrão anulável, a coluna g_cab_dia e os CHECKs trocados); na
+ *     D-PROD-211, sem DROP TABLE, as 18
+ *     instruções em AbastecimentoBem — 7 ADD COLUMN, 2 delas NOT NULL DEFAULT, 2 DROP
+ *     NOT NULL, o UPDATE do centro de custo vindo do bem, o CHECK de status recriado,
+ *     3 CHECKs novos e 3 FKs compostas para tabelas antigas; na D-PROD-217, sem DROP
+ *     TABLE e sem resto, as 3 instruções do reforço — o UNIQUE (cliente_id, empresa_id,
+ *     atividade_id, id) em AtividadeApontamento e a FK do apontamento de AbastecimentoBem
+ *     recriada com o mesmo nome, agora com a atividade).
+ *     Formato CONVERSÃO (D-PROD-200; a entrada tem `conversao` não vazia): os dados
+ *     das tabelas que saem vão para as que entram ANTES do DROP. A ordem passa a ser
+ *     guarda → `alter_antigas` (na D-PROD-200, nenhuma) → RESTO pela allowlist EXPAND
+ *     (as tabelas novas, criadas no próprio resto) → EXATAMENTE as instruções
+ *     `conversao` pinadas, na ordem (na D-PROD-200, o INSERT … SELECT de
+ *     ApontamentoAtividade para Atividade, o de ApontamentoAtividade para
+ *     AtividadeApontamento e o UPDATE que passa o contador de EntidadeCodigoSequencia
+ *     para a entidade Atividade) → EXATAMENTE os DROP TABLE de `drop`, na ordem
+ *     (filhas primeiro), como as ÚLTIMAS instruções do arquivo. A cauda (conversão +
+ *     DROP) é casada de trás para frente sobre as últimas peças não vazias, porque o
+ *     resto tem blocos DO com ';'. DML ou DROP no resto, conversão faltando, trocada
+ *     de ordem ou alterada, DROP antes da conversão ou qualquer instrução depois dos
+ *     DROP → recusa (SQL_NAO_RECONHECIDO no resto; CONTRACT_CONVERSAO_FORA_DO_CONTRATO
+ *     ou CONTRACT_DROP_FORA_DO_CONTRATO na cauda). DML continua PROIBIDO no caminho
+ *     EXPAND: só existe como texto pinado da cauda de uma entrada. As entradas sem
+ *     `conversao` (as seis anteriores) seguem o formato de sempre, igual.
+ *     Cauda SEM conversão (D-PROD-208; a entrada tem `drop_no_fim: true` e nenhuma
+ *     `conversao`): guarda → `alter_antigas` → RESTO pela allowlist EXPAND → os DROP
+ *     TABLE de `drop` como as ÚLTIMAS instruções. Serve à tabela que sai mas ainda é
+ *     referenciada por uma FK que só cai nos `alter_antigas` (na D-PROD-208, a FK da
+ *     linha de mão de obra para "Funcionario"). Mesma casagem de trás para frente.
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -91,6 +128,63 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113800000_apontamento_atividade_item': '866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c',
   // D-PROD-194: CONTRACT aprovado pelo proprietário — CADCURVAGANHO VAZIA sai e volta com os 12 GMD mensais.
   '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
+  // D-PROD-195: CONTRACT aprovado pelo proprietário — curva de ganho obrigatória na Categoria de Manejo, da mesma fazenda.
+  '20261114200000_cadcategoria_curva_ganho': 'b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb',
+  // D-PROD-197: CONTRACT aprovado pelo proprietário — TipoAtividade ganha 5 padrões anuláveis, 8 flags NOT NULL
+  // DEFAULT false, 3 FKs (centros e unidade) e 2 CHECKs; mudança aditiva, sem DROP.
+  '20261114300000_tipo_atividade_defaults': 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf',
+  // D-PROD-198: EXPAND — peso objetivo (kg) opcional na Categoria de Manejo (uma coluna anulável em CADCATEGORIA).
+  '20261114400000_cadcategoria_peso_objetivo': 'd44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9',
+  // D-PROD-200: CONTRACT aprovado pelo proprietário — a atividade vira cabeçalho: Atividade e AtividadeApontamento
+  // novas, cada ApontamentoAtividade convertido nas duas (conversão pinada) e as 3 tabelas antigas apagadas no fim.
+  '20261114500000_atividade_cabecalho': 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb',
+  // D-PROD-202 (Fatia 3): EXPAND — linhas de produto e de máquina do apontamento: AtividadeApontamentoProduto,
+  // AtividadeApontamentoProdutoConsumoLote e AtividadeApontamentoMaquina novas, e duas colunas anuláveis sem DEFAULT
+  // (BemPatrimonial.custo_uso_unitario e TipoPatrimonial.salto_maximo_medidor). Nenhum dado migrado.
+  '20261114600000_atividade_linhas_produto_maquina': 'e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489',
+  // D-PROD-203: EXPAND — Formulações de suplemento (CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA), só tabelas novas.
+  '20261114700000_cadformulacao': '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524',
+  // D-PROD-205: EXPAND — Leitura de cocho (LEITURACOCHO), só tabela nova.
+  '20261115100000_leitura_cocho': 'f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1',
+  // D-PROD-206: EXPAND — faixa de tolerância do farol de consumo na Formulação (uma coluna anulável em CADFORMULACAO).
+  '20261115200000_formulacao_faixa_tolerancia': 'bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c',
+  // D-PROD-207 (Fatia 4): EXPAND — mão de obra e serviço de terceiro do apontamento: Funcionario, Servico,
+  // AtividadeApontamentoMaoObra e AtividadeApontamentoServico novas. Nenhuma coluna em tabela antiga; nenhum dado migrado.
+  '20261115900000_atividade_mao_obra_servico': '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725',
+  // D-PROD-208 (ajuste da Fatia 4): CONTRACT aprovado pelo proprietário — o funcionário vira papel do parceiro (4 colunas
+  // anuláveis em Fornecedor), a linha de mão de obra aponta para o parceiro (parceiro_id e origem NOT NULL, tabela vazia)
+  // e a tabela Funcionario, VAZIA, sai no fim. A guarda aborta se Funcionario ou AtividadeApontamentoMaoObra tiverem linha.
+  '20261116000000_mao_obra_parceiro': '65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0',
+  // D-PROD-209: CONTRACT aprovado pelo proprietário — o tipo do funcionário passa a ser Mensalista, Diarista ou
+  // Terceirizado: o CHECK "Fornecedor_funcionario_check" volta igual, com TERCEIRIZADO no lugar de TAREFEIRO. A guarda
+  // aborta se algum parceiro tiver funcionario_tipo = TAREFEIRO. Nenhuma coluna, índice, tabela ou dado muda.
+  '20261116100000_funcionario_tipo_terceirizado': '44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6',
+  // D-PROD-210: CONTRACT aprovado pelo proprietário — base do consumo na Formulação (% do peso vivo ou g/cab/dia):
+  // coluna NOT NULL DEFAULT 'PV', %PV padrão anulável, CHECK por base e regra em gramas; as 3 tabelas VAZIAS.
+  '20261116200000_formulacao_base_consumo': 'a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171',
+  // D-PROD-211: CONTRACT aprovado pelo proprietário (Fatia 5) — o abastecimento ligado à atividade: AbastecimentoBem ganha
+  // origem (ESTOQUE | EXTERNO), o vínculo com o apontamento e a atividade, o snapshot do centro de custo (o das linhas
+  // existentes vem do bem), da leitura anterior, do delta e do intervalo confiável; local e movimento passam a anuláveis;
+  // o CHECK de status é recriado e entram 3 CHECKs, 3 FKs e 3 índices. Nenhuma tabela criada ou apagada.
+  '20261116300000_abastecimento_atividade': '6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436',
+  // D-PROD-215: EXPAND — Cadastro de Culturas (CADCULTURAS), só tabela nova.
+  '20261116500000_cadculturas': '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715',
+  // D-PROD-216: CONTRACT aditiva — a Área ligada à Cultura (coluna anulável, UNIQUE em CADCULTURAS e FK composta).
+  '20261117000000_area_cultura': 'e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26',
+  // D-PROD-217: CONTRACT aprovado pelo proprietário ("pode fazer o reforço no banco") — o apontamento do abastecimento
+  // tem de ser DA atividade gravada nele: UNIQUE (cliente_id, empresa_id, atividade_id, id) em AtividadeApontamento e a
+  // FK "AbastecimentoBem_apontamento_fkey" recriada com 4 colunas. A guarda aborta se algum abastecimento apontar para
+  // um apontamento de outra atividade. Nenhuma coluna, tabela ou dado muda.
+  '20261117100000_abastecimento_fk_apontamento_atividade': '1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e',
+  // D-PROD-219: EXPAND — Medição de Forragem (MEDICAOFORRAGEM), só tabela nova.
+  '20261117200000_medicao_forragem': '66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f',
+  // D-PROD-223: EXPAND — dias de descanso da cultura (CADCULTURAS.dias_descanso) e os parâmetros próprios
+  // do pasto (AreaPastagem.altura_entrada_cm, altura_saida_cm e dias_descanso); 4 colunas anuláveis, sem CHECK.
+  '20261117300000_descanso_e_alturas_por_area': 'c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e',
+  // D-PROD-249: CONTRACT (formato CONVERSÃO, sem DROP) — várias áreas por atividade: tabela nova AtividadeArea, a coluna
+  // anulável AtividadeApontamento.atividade_area_id, o backfill (cada atividade com área ganha a área nº 1 e os
+  // lançamentos dela passam a ser dessa área) e a FK composta (cliente_id, empresa_id, atividade_id, atividade_area_id).
+  '20261118100000_atividade_areas': '098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -122,11 +216,36 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
   // D-PROD-193: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).
   '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710',
+  // D-PROD-200: RLS/REVOKE de Atividade e AtividadeApontamento (mesmo corpo, lista nova).
+  '8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c',
+  // D-PROD-202 (Fatia 3): RLS/REVOKE das 3 tabelas das linhas de produto e de máquina (mesmo corpo, lista nova).
+  '3991bb1cbddf3772bf580b1bf35de71580b77725d20e77c0d6df7d8a1f2e95d8',
+  // D-PROD-203: RLS/REVOKE das 3 tabelas de Formulações (mesmo corpo, lista nova).
+  'b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6',
+  // D-PROD-205: RLS/REVOKE da LEITURACOCHO (mesmo corpo, lista nova).
+  '60149f94e07596da2c93471f82110e6f37b5f014bcf721c1dc366a2d4b4bcce8',
+  // D-PROD-207 (Fatia 4): RLS/REVOKE das 4 tabelas de mão de obra e serviço (mesmo corpo, lista nova).
+  '16d2680d97d675bf0bd429eaee3ebe4caf5813473c43b9564698aa15c28f8403',
+  // D-PROD-215: RLS/REVOKE da CADCULTURAS (mesmo corpo, lista nova).
+  'cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b',
+  // D-PROD-219: RLS/REVOKE da MEDICAOFORRAGEM (mesmo corpo, lista nova).
+  'b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718',
+  // D-PROD-249: RLS/REVOKE da AtividadeArea (mesmo corpo, lista nova).
+  '7121f5a6d09747d8c3479411ef0be47cc92eb9a11cf59865429134b18fdd6984',
 ]);
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão (D-PROD-183 e D-PROD-187 são as seguintes).
+ * exige decisão. São treze, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre), D-PROD-208
+ * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto),
+ * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto), D-PROD-210
+ * (formato de sempre: a base do consumo nas 3 tabelas VAZIAS das Formulações, sem DROP TABLE e sem resto), D-PROD-211
+ * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices),
+ * D-PROD-216 (formato de sempre: a coluna, o UNIQUE e a FK aditivos da Área ligada à Cultura; no resto, só o índice) e
+ * D-PROD-217 (formato de sempre: o UNIQUE e a FK recriada do reforço, pinados em tabelas antigas, sem DROP TABLE e sem
+ * resto) e D-PROD-249 (formato CONVERSÃO sem DROP: a coluna nova em tabela antiga, a tabela nova no resto e, na cauda,
+ * o backfill e a FK composta para a tabela nova, que só existe depois do resto). São quatorze.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -207,6 +326,297 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
     literais_guarda: Object.freeze([]),
     alter_antigas: Object.freeze([]),
   }),
+  // D-PROD-195: a Categoria de Manejo ganha a curva de ganho OBRIGATÓRIA, da mesma fazenda. A guarda exige
+  // exatamente uma 'CURVA PADRÃO' em cada fazenda com categoria; depois dela, EXATAMENTE as 5 instruções abaixo
+  // (texto pinado: a coluna, a ligação das categorias existentes à CURVA PADRÃO da fazenda, o NOT NULL, o UNIQUE
+  // (cliente_id, empresa_id, id) que a FK composta exige em CADCURVAGANHO e a FK). No resto, só o índice não-único.
+  '20261114200000_cadcategoria_curva_ganho': Object.freeze({
+    decisao: 'D-PROD-195',
+    guarda_sha256: '292d2446635c3178f10af0d24c33df0d92513f3725efb1ed2059ccc713cb63a8',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['CADCATEGORIA', 'CADCURVAGANHO']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "CADCATEGORIA" ADD COLUMN "curva_ganho_id" VARCHAR(64)',
+      'UPDATE "CADCATEGORIA" AS c SET "curva_ganho_id" = k."id" FROM "CADCURVAGANHO" AS k WHERE k."cliente_id" = c."cliente_id" AND k."empresa_id" = c."empresa_id" AND k."nome" = \'CURVA PADRÃO\'',
+      'ALTER TABLE "CADCATEGORIA" ALTER COLUMN "curva_ganho_id" SET NOT NULL',
+      'CREATE UNIQUE INDEX "CADCURVAGANHO_cliente_id_empresa_id_id_key" ON "CADCURVAGANHO"("cliente_id", "empresa_id", "id")',
+      'ALTER TABLE "CADCATEGORIA" ADD CONSTRAINT "CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "curva_ganho_id") REFERENCES "CADCURVAGANHO"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-197: o Tipo de Atividade ganha os padrões e as flags. A mudança é ADITIVA: nenhuma linha muda de valor,
+  // nenhuma coluna existente é tocada, nenhuma tabela é criada ou apagada, nenhum DROP. Só é CONTRACT porque a allowlist
+  // EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT (as 8 flags), FK para tabela ANTIGA (CentroCusto,
+  // CentroResultado e UnidadeMedida) e CHECK — o mesmo caminho dos alargamentos de CHECK da D-PROD-162. Depois da
+  // guarda, EXATAMENTE as 18 instruções abaixo, nesta ordem: 13 ADD COLUMN (5 anuláveis sem DEFAULT e as 8 flags), 3 FKs
+  // compostas pelo tenant com RESTRICT e 2 CHECKs (texto pinado: outro tipo, NULL/DEFAULT trocado, outra coluna, outra
+  // tabela ou alvo, SET NULL/CASCADE, NOT VALID, CHECK diferente, uma a mais na sequência, faltando ou fora de ordem →
+  // CONTRACT_ALTER_FORA_DO_CONTRATO). O resto são os 3 CREATE INDEX não-únicos pela allowlist EXPAND, que continua
+  // recusando UNIQUE, ALTER COLUMN, DML e qualquer outra coisa em TipoAtividade. A guarda só cita TipoAtividade e os
+  // três alvos das FKs. As 13 colunas aparecem em `contract[].colunas_adicionadas` e as 5 constraints em
+  // `constraints_adicionadas` (não em `colunas_novas_em_tabelas_antigas`, que é do caminho EXPAND e libera FK para
+  // tabela nova, nem em `constraints_alargadas`: nada aqui alarga constraint existente).
+  '20261114300000_tipo_atividade_defaults': Object.freeze({
+    decisao: 'D-PROD-197',
+    guarda_sha256: 'e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['TipoAtividade', 'CentroCusto', 'CentroResultado', 'UnidadeMedida']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "categoria" VARCHAR(24)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "centro_custo_padrao_id" VARCHAR(64)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "centro_resultado_padrao_id" VARCHAR(64)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "unidade_producao_id" VARCHAR(64)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "coeficiente_padrao" DECIMAL(14,4)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_area" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_safra" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_maquina" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_implemento" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_produto" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_servico" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_mao_obra" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_producao" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_cliente_id_centro_custo_padrao_id_fkey" FOREIGN KEY ("cliente_id", "centro_custo_padrao_id") REFERENCES "CentroCusto"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_cliente_id_centro_resultado_padrao_id_fkey" FOREIGN KEY ("cliente_id", "centro_resultado_padrao_id") REFERENCES "CentroResultado"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_cliente_id_unidade_producao_id_fkey" FOREIGN KEY ("cliente_id", "unidade_producao_id") REFERENCES "UnidadeMedida"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_categoria_check" CHECK ("categoria" IN (\'PREPARO_SOLO\', \'PLANTIO\', \'TRATO_CULTURAL\', \'APLICACAO\', \'COLHEITA\', \'PASTAGEM\', \'BENFEITORIA\', \'MANEJO_ANIMAL\', \'OUTROS\'))',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_coeficiente_padrao_check" CHECK ("coeficiente_padrao" > 0)',
+    ]),
+  }),
+  // D-PROD-200: a atividade vira CABEÇALHO e o apontamento de hoje vira FILHO dela. Formato CONVERSÃO: a guarda (hash
+  // pinado) confere as 3 tabelas antigas e as trava em ACCESS EXCLUSIVE antes de conferir os itens de custo e as fatias
+  // FIFO vazios, os campos sem lugar no modelo novo vazios, os status e o contador; nenhuma instrução em tabela antiga
+  // logo depois dela; no resto, Atividade e AtividadeApontamento pela allowlist EXPAND (CREATE TABLE, índices, CHECKs,
+  // FKs e o RLS de corpo novo); depois EXATAMENTE as 3 instruções `conversao` (texto pinado: cada linha antiga vira
+  // uma Atividade, com id 'atv_' || id antigo e o mesmo número, e um AtividadeApontamento filho com o mesmo id; o
+  // contador passa para a entidade Atividade) e, por ÚLTIMO, EXATAMENTE os 3 DROP TABLE, filhas primeiro. A guarda só
+  // cita as 3 removidas, as 2 criadas no resto e os literais abaixo. As 3 instruções aparecem em `contract[].conversoes`.
+  '20261114500000_atividade_cabecalho': Object.freeze({
+    decisao: 'D-PROD-200',
+    guarda_sha256: '6d192b5423d728d425d20d4a98d28335b7617a6261ae96999162a71578856f64',
+    drop: Object.freeze(['ApontamentoAtividadeItemConsumoLote', 'ApontamentoAtividadeItem', 'ApontamentoAtividade']),
+    literais_guarda: Object.freeze(['CONFIRMADO', 'CANCELADO', 'EntidadeCodigoSequencia']),
+    alter_antigas: Object.freeze([]),
+    conversao: Object.freeze([
+      [
+        'INSERT INTO "Atividade" ("id", "cliente_id", "empresa_id", "numero", "nome", "tipo_atividade_id", "tipo_atividade_nome",',
+        '"grupo_atividade_id", "grupo_atividade_nome", "area_id", "setor_id", "setor_nome", "bem_id", "safra_ciclo",',
+        '"centro_custo_id", "centro_resultado_id", "unidade_producao_id", "unidade_producao_sigla", "data_inicio",',
+        '"area_executada", "quantidade_produzida", "lancamento_tarefa_id", "status", "cancelada_em",',
+        '"cancelado_por_usuario_id", "motivo_cancelamento", "criado_por_usuario_id", "versao", "createdAt", "updatedAt")',
+        'SELECT \'atv_\' || a."id", a."cliente_id", a."empresa_id", a."numero",',
+        'left(a."tipo_atividade_nome" || \' (apontamento nº \' || a."numero" || \')\', 120), a."tipo_atividade_id",',
+        'a."tipo_atividade_nome", a."grupo_atividade_id", a."grupo_atividade_nome", a."area_id", ar."setor_id",',
+        'ar."setor_nome", a."bem_id", a."safra_ciclo", a."centro_custo_id", a."centro_resultado_id", NULL,',
+        'a."unidade_producao", a."data_operacional", NULL,',
+        'CASE WHEN a."status" = \'CONFIRMADO\' THEN a."quantidade_produzida" END, a."lancamento_tarefa_id",',
+        'CASE WHEN a."status" = \'CANCELADO\' THEN \'CANCELADA\' ELSE \'ABERTA\' END, a."cancelado_em",',
+        'a."cancelado_por_usuario_id", a."motivo_cancelamento", a."criado_por_usuario_id", 1, a."createdAt", a."updatedAt"',
+        'FROM "ApontamentoAtividade" AS a',
+        'LEFT JOIN "AreaPastagem" AS ar ON ar."cliente_id" = a."cliente_id" AND ar."id" = a."area_id"',
+      ].join(' '),
+      [
+        'INSERT INTO "AtividadeApontamento" ("id", "cliente_id", "empresa_id", "atividade_id", "data_operacional", "turno",',
+        '"sequencia", "operador_usuario_id", "area_executada_dia", "quantidade_produzida_dia", "observacao", "origem",',
+        '"status", "cancelado_em", "cancelado_por_usuario_id", "motivo_cancelamento", "criado_por_usuario_id", "versao",',
+        '"createdAt", "updatedAt")',
+        'SELECT a."id", a."cliente_id", a."empresa_id", \'atv_\' || a."id", a."data_operacional", NULL, 1,',
+        'a."operador_usuario_id", NULL, a."quantidade_produzida", a."observacao", \'WEB\', a."status", a."cancelado_em",',
+        'a."cancelado_por_usuario_id", a."motivo_cancelamento", a."criado_por_usuario_id", a."versao", a."createdAt",',
+        'a."updatedAt"',
+        'FROM "ApontamentoAtividade" AS a',
+      ].join(' '),
+      'UPDATE "EntidadeCodigoSequencia" SET "entidade" = \'Atividade\', "updatedAt" = CURRENT_TIMESTAMP WHERE "entidade" = \'ApontamentoAtividade\'',
+    ]),
+  }),
+  // D-PROD-208: o funcionário deixa de ser cadastro próprio e vira PAPEL do parceiro; a linha de mão de obra aponta para o
+  // parceiro (funcionário ou terceiro). CONTRACT condicionado a tabelas VAZIAS: a guarda (hash pinado) confere o estado
+  // da Fatia 4 e trava Funcionario e AtividadeApontamentoMaoObra em ACCESS EXCLUSIVE antes de conferir que as duas estão
+  // vazias. Depois dela, EXATAMENTE as 12 instruções abaixo, nesta ordem (texto pinado): sai o vínculo com o funcionário
+  // (FK, índice e coluna), entram parceiro_id e origem NOT NULL sem DEFAULT (só porque a tabela está vazia), as 4 colunas
+  // anuláveis do papel em Fornecedor, os 2 CHECKs e a FK composta pelo tenant, RESTRICT, para Fornecedor (tabela antiga).
+  // No resto, só o índice não-único da FK nova (allowlist EXPAND). `drop_no_fim`: o DROP TABLE "Funcionario" é a ÚLTIMA
+  // instrução (no início ele falharia: a FK da linha de mão de obra ainda o referencia). Nenhuma conversão: não há dado.
+  // A guarda só cita a removida, as duas tabelas antigas tocadas e nenhum outro literal.
+  '20261116000000_mao_obra_parceiro': Object.freeze({
+    decisao: 'D-PROD-208',
+    guarda_sha256: '9ec960b559bb4173342ed76302c828b04b207f07381f5f39b74aea606751d387',
+    drop: Object.freeze(['Funcionario']),
+    drop_no_fim: true,
+    literais_guarda: Object.freeze(['AtividadeApontamentoMaoObra', 'Fornecedor']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AtividadeApontamentoMaoObra" DROP CONSTRAINT "AtividadeApontamentoMaoObra_funcionario_fkey"',
+      'DROP INDEX "AtividadeApontamentoMaoObra_cliente_id_empresa_id_funcionar_idx"',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" DROP COLUMN "funcionario_id"',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD COLUMN "parceiro_id" VARCHAR(64) NOT NULL',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD COLUMN "origem" VARCHAR(12) NOT NULL',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_tipo" VARCHAR(16)',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_cargo" VARCHAR(120)',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_custo_hora" DECIMAL(14,4)',
+      'ALTER TABLE "Fornecedor" ADD COLUMN "funcionario_custo_diaria" DECIMAL(14,4)',
+      'ALTER TABLE "Fornecedor" ADD CONSTRAINT "Fornecedor_funcionario_check" CHECK (("funcionario_tipo" IS NULL OR "funcionario_tipo" IN (\'MENSALISTA\', \'DIARISTA\', \'TAREFEIRO\')) AND ("funcionario_custo_hora" IS NULL OR "funcionario_custo_hora" >= 0) AND ("funcionario_custo_diaria" IS NULL OR "funcionario_custo_diaria" >= 0))',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD CONSTRAINT "AtividadeApontamentoMaoObra_origem_check" CHECK ("origem" IN (\'FUNCIONARIO\', \'TERCEIRO\'))',
+      'ALTER TABLE "AtividadeApontamentoMaoObra" ADD CONSTRAINT "AtividadeApontamentoMaoObra_parceiro_fkey" FOREIGN KEY ("cliente_id", "parceiro_id") REFERENCES "Fornecedor"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-209: o tipo do funcionário passa a ser Mensalista, Diarista ou Terceirizado. Sem DROP TABLE e sem tabela nova:
+  // depois da guarda (hash pinado; confere que "Fornecedor" existe e que o CHECK ainda tem TAREFEIRO e trava "Fornecedor"
+  // em ACCESS EXCLUSIVE antes de conferir que nenhum parceiro tem funcionario_tipo = TAREFEIRO), EXATAMENTE as 2
+  // instruções abaixo, nesta ordem (texto pinado): sai o CHECK e volta igual, com TERCEIRIZADO no lugar de TAREFEIRO
+  // (o descritor o declara em `constraints_alargadas`: mesmo nome, recriado). Resto vazio. A guarda só cita "Fornecedor"
+  // e o valor que sai, 'TAREFEIRO'.
+  '20261116100000_funcionario_tipo_terceirizado': Object.freeze({
+    decisao: 'D-PROD-209',
+    guarda_sha256: '93612d85d6cc9ec3c39b9586619deedb8db72e5198d1ab64fa3ee9d8e911cca9',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['Fornecedor', 'TAREFEIRO']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "Fornecedor" DROP CONSTRAINT "Fornecedor_funcionario_check"',
+      'ALTER TABLE "Fornecedor" ADD CONSTRAINT "Fornecedor_funcionario_check" CHECK (("funcionario_tipo" IS NULL OR "funcionario_tipo" IN (\'MENSALISTA\', \'DIARISTA\', \'TERCEIRIZADO\')) AND ("funcionario_custo_hora" IS NULL OR "funcionario_custo_hora" >= 0) AND ("funcionario_custo_diaria" IS NULL OR "funcionario_custo_diaria" >= 0))',
+    ]),
+  }),
+  // D-PROD-210: a Formulação ganha a BASE DO CONSUMO — % do peso vivo (PV) ou gramas por cabeça por dia (G_CAB_DIA), uma
+  // por formulação, sem mistura. É CONTRACT porque a allowlist EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT,
+  // ALTER COLUMN, DROP CONSTRAINT e CHECK. A guarda (hash pinado) trava as 3 tabelas de Formulações e exige as 3 VAZIAS
+  // (o proprietário autorizou: "os dados eram só teste"; em produção estavam com 0 linhas) — nenhum dado é migrado.
+  // Depois dela, EXATAMENTE as 7 instruções abaixo, nesta ordem (texto pinado): a coluna base_consumo, o %PV padrão
+  // anulável, o CHECK do %PV padrão trocado pelo CHECK por base, a coluna g_cab_dia da regra e o CHECK da forma da
+  // regra recriado (consome com %PV OU com gramas, nunca os dois). Não há resto. A guarda só cita as 3 tabelas.
+  '20261116200000_formulacao_base_consumo': Object.freeze({
+    decisao: 'D-PROD-210',
+    guarda_sha256: 'a66ff13e8427efbe7d434d286459a0354e8331b10a1c5afd9953b83464184819',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "CADFORMULACAO" ADD COLUMN "base_consumo" VARCHAR(16) NOT NULL DEFAULT \'PV\'',
+      'ALTER TABLE "CADFORMULACAO" ALTER COLUMN "percentual_pv_padrao" DROP NOT NULL',
+      'ALTER TABLE "CADFORMULACAO" DROP CONSTRAINT "CADFORMULACAO_percentual_pv_padrao_check"',
+      'ALTER TABLE "CADFORMULACAO" ADD CONSTRAINT "CADFORMULACAO_base_consumo_check" CHECK (("base_consumo" = \'PV\' AND "percentual_pv_padrao" IS NOT NULL AND "percentual_pv_padrao" > 0 AND "percentual_pv_padrao" <= 5) OR ("base_consumo" = \'G_CAB_DIA\' AND "percentual_pv_padrao" IS NULL AND "consumo_objetivo_g_cab_dia" IS NOT NULL AND "consumo_objetivo_g_cab_dia" > 0))',
+      'ALTER TABLE "CADFORMULACAOREGRA" ADD COLUMN "g_cab_dia" DECIMAL(10,2)',
+      'ALTER TABLE "CADFORMULACAOREGRA" DROP CONSTRAINT "CADFORMULACAOREGRA_forma_check"',
+      'ALTER TABLE "CADFORMULACAOREGRA" ADD CONSTRAINT "CADFORMULACAOREGRA_forma_check" CHECK (("consome" = false AND "percentual_pv" IS NULL AND "g_cab_dia" IS NULL) OR ("consome" = true AND "percentual_pv" IS NOT NULL AND "percentual_pv" > 0 AND "percentual_pv" <= 5 AND "g_cab_dia" IS NULL) OR ("consome" = true AND "percentual_pv" IS NULL AND "g_cab_dia" IS NOT NULL AND "g_cab_dia" > 0))',
+    ]),
+  }),
+  // D-PROD-211 (Fatia 5): o abastecimento ligado à atividade. Sem DROP TABLE e sem tabela nova: depois da guarda (hash
+  // pinado; confere que as 5 tabelas existem, que nenhuma coluna nova existe, que local e movimento ainda são NOT NULL,
+  // que o CHECK de status ainda é o antigo e que os 3 CHECKs novos não existem, e trava "AbastecimentoBem" em ACCESS
+  // EXCLUSIVE), EXATAMENTE as 18 instruções abaixo, nesta ordem (texto pinado): 7 ADD COLUMN (origem NOT NULL DEFAULT
+  // 'ESTOQUE' e intervalo_confiavel NOT NULL DEFAULT false; as outras 5 anuláveis, sem DEFAULT), os 2 DROP NOT NULL, o
+  // UPDATE que traz o centro de custo do bem para as linhas existentes, o CHECK de status recriado (o estorno exigido só
+  // na origem ESTOQUE; o descritor o declara em `constraints_alargadas`), os 3 CHECKs novos (origem, apontamento ⇒
+  // atividade, leitura anterior/delta/intervalo) e as 3 FKs compostas pelo tenant e pela empresa, RESTRICT. O resto são
+  // os 3 CREATE INDEX não-únicos pela allowlist EXPAND, que continua recusando UNIQUE, ALTER COLUMN, DML e qualquer outra
+  // coisa em AbastecimentoBem. A guarda só cita as 5 tabelas.
+  '20261116300000_abastecimento_atividade': Object.freeze({
+    decisao: 'D-PROD-211',
+    guarda_sha256: '3f5a3a37959e571e3d2ee68cd2ec87e15138aa1b59903db0f13dbe4c90b502fa',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AbastecimentoBem', 'Atividade', 'AtividadeApontamento', 'CentroCusto', 'BemPatrimonial']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "origem" VARCHAR(8) NOT NULL DEFAULT \'ESTOQUE\'',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "atividade_id" VARCHAR(64)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "apontamento_id" VARCHAR(64)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "centro_custo_id" VARCHAR(64)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "medidor_leitura_anterior" DECIMAL(14,4)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "medidor_delta" DECIMAL(14,4)',
+      'ALTER TABLE "AbastecimentoBem" ADD COLUMN "intervalo_confiavel" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "AbastecimentoBem" ALTER COLUMN "local_estoque_id" DROP NOT NULL',
+      'ALTER TABLE "AbastecimentoBem" ALTER COLUMN "movimentacao_estoque_id" DROP NOT NULL',
+      'UPDATE "AbastecimentoBem" AS a SET "centro_custo_id" = b."centro_custo_id" FROM "BemPatrimonial" AS b WHERE b."cliente_id" = a."cliente_id" AND b."empresa_id" = a."empresa_id" AND b."id" = a."bem_id" AND b."centro_custo_id" IS NOT NULL',
+      'ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_status_check"',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_status_check" CHECK (("status" = \'CONFIRMADO\' AND "movimentacao_estorno_id" IS NULL AND "cancelado_em" IS NULL AND "cancelado_por_usuario_id" IS NULL AND "motivo_cancelamento" IS NULL) OR ("status" = \'CANCELADO\' AND ("origem" = \'EXTERNO\' OR "movimentacao_estorno_id" IS NOT NULL) AND "cancelado_em" IS NOT NULL AND "motivo_cancelamento" IS NOT NULL AND char_length(btrim("motivo_cancelamento")) >= 3))',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_origem_check" CHECK (("origem" = \'ESTOQUE\' AND "local_estoque_id" IS NOT NULL AND "movimentacao_estoque_id" IS NOT NULL) OR ("origem" = \'EXTERNO\' AND "local_estoque_id" IS NULL AND "movimentacao_estoque_id" IS NULL AND "movimentacao_estorno_id" IS NULL))',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_atividade_check" CHECK ("apontamento_id" IS NULL OR "atividade_id" IS NOT NULL)',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_intervalo_check" CHECK ((("medidor_leitura_anterior" IS NULL AND "medidor_delta" IS NULL) OR ("medidor_leitura_anterior" IS NOT NULL AND "medidor_delta" IS NOT NULL AND "medidor_tipo" IN (\'HORIMETRO\', \'ODOMETRO\', \'CICLOS\') AND "medidor_leitura_anterior" >= 0 AND "medidor_delta" = "medidor_leitura" - "medidor_leitura_anterior")) AND ("intervalo_confiavel" = false OR ("medidor_leitura_anterior" IS NOT NULL AND "medidor_delta" IS NOT NULL AND "medidor_delta" > 0)))',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_atividade_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "atividade_id") REFERENCES "Atividade"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_apontamento_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_centro_custo_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_custo_id") REFERENCES "CentroCusto"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-216: a Área do mapa ligada à Cultura da mesma fazenda. A mudança é ADITIVA: nenhuma linha muda de valor,
+  // nenhuma coluna existente é tocada, nenhuma tabela é criada ou apagada, nenhum DROP. Só é CONTRACT porque a allowlist
+  // EXPAND recusa UNIQUE em tabela antiga e FK de tabela antiga para tabela ANTIGA (como na D-PROD-195 e na D-PROD-197).
+  // Depois da guarda (hash pinado; confere que as 2 tabelas existem, que a coluna, o UNIQUE e a FK novos não existem, e
+  // trava "AreaPastagem" em ACCESS EXCLUSIVE), EXATAMENTE as 3 instruções abaixo, nesta ordem (texto pinado): a coluna
+  // anulável sem DEFAULT, o UNIQUE (cliente_id, empresa_id, id) que a FK composta exige em CADCULTURAS e a FK composta
+  // pelo tenant e pela empresa, RESTRICT. O resto é o CREATE INDEX não-único pela allowlist EXPAND, que continua
+  // recusando DML, ALTER COLUMN e qualquer outra coisa. A guarda só cita AreaPastagem e CADCULTURAS. O vínculo das áreas
+  // existentes (DML) NÃO está aqui: é um passo de dados separado, com aprovação própria (runbook da D-PROD-216).
+  '20261117000000_area_cultura': Object.freeze({
+    decisao: 'D-PROD-216',
+    guarda_sha256: 'e60b6bdc95568ba28c0406649d95cd76da6a2394dc3bdfdb1daf06a6469f3da6',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AreaPastagem', 'CADCULTURAS']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AreaPastagem" ADD COLUMN "cultura_id" VARCHAR(64)',
+      'CREATE UNIQUE INDEX "CADCULTURAS_cliente_id_empresa_id_id_key" ON "CADCULTURAS"("cliente_id", "empresa_id", "id")',
+      'ALTER TABLE "AreaPastagem" ADD CONSTRAINT "AreaPastagem_cliente_id_empresa_id_cultura_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "cultura_id") REFERENCES "CADCULTURAS"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-217 (reforço da D-PROD-211): o apontamento do abastecimento tem de ser da atividade gravada nele. Sem DROP
+  // TABLE, sem tabela nova e sem resto: depois da guarda (hash pinado; confere que as 2 tabelas existem, que a FK
+  // "AbastecimentoBem_apontamento_fkey" ainda é a de 3 colunas para "AtividadeApontamento", que o CHECK
+  // "AbastecimentoBem_atividade_check" existe e que o UNIQUE novo não; trava "AtividadeApontamento" e depois
+  // "AbastecimentoBem" em ACCESS EXCLUSIVE e aborta se algum abastecimento apontar para um apontamento de
+  // outra atividade), EXATAMENTE as 3 instruções abaixo, nesta ordem (texto pinado): o UNIQUE (cliente_id, empresa_id,
+  // atividade_id, id) em "AtividadeApontamento" (o alvo que a FK composta exige; a allowlist EXPAND recusa UNIQUE em
+  // tabela antiga), o DROP da FK de 3 colunas e o ADD da FK de 4 colunas com o MESMO nome (o descritor a declara em
+  // `constraints_alargadas`: recriada), RESTRICT. A guarda só cita as 2 tabelas.
+  '20261117100000_abastecimento_fk_apontamento_atividade': Object.freeze({
+    decisao: 'D-PROD-217',
+    guarda_sha256: '8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AbastecimentoBem', 'AtividadeApontamento']),
+    alter_antigas: Object.freeze([
+      'CREATE UNIQUE INDEX "AtividadeApontamento_empresa_atividade_id_key" ON "AtividadeApontamento"("cliente_id", "empresa_id", "atividade_id", "id")',
+      'ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_apontamento_fkey"',
+      'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_apontamento_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "atividade_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "atividade_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-249: várias áreas por atividade. Formato CONVERSÃO (como a D-PROD-200), SEM DROP: depois da guarda (hash
+  // pinado; confere que as 3 tabelas existem, que a tabela e a coluna novas não existem e que o alvo (cliente_id,
+  // empresa_id, id) de "Atividade" existe; trava "AreaPastagem" em SHARE ROW EXCLUSIVE e "Atividade" e
+  // "AtividadeApontamento" em ACCESS EXCLUSIVE, na ordem do app, e aborta se houver atividade CONCLUIDA com área sem
+  // data de conclusão), EXATAMENTE a instrução `alter_antigas` (a coluna anulável, sem DEFAULT, em
+  // "AtividadeApontamento"); no resto, pela allowlist EXPAND, a tabela nova "AtividadeArea" (índices, FKs, CHECKs e o RLS
+  // de corpo novo) e o índice não-único da coluna nova; e, por ÚLTIMO, EXATAMENTE as 3 instruções `conversao` (texto
+  // pinado): o INSERT … SELECT que dá a cada atividade com área a área nº 1 (id 'ara_' || id da atividade, a área
+  // planejada, o setor e o autor dela; já começada: início = o da atividade, o 1º lançamento ou o dia da criação;
+  // CONCLUIDA com a data se a atividade está concluída, senão EM_ANDAMENTO), o UPDATE que
+  // liga os lançamentos dessas atividades a essa área e a FK composta (cliente_id, empresa_id, atividade_id,
+  // atividade_area_id) → "AtividadeArea", RESTRICT — na cauda porque a tabela referenciada só existe depois do resto e
+  // porque assim ela valida o que o backfill gravou (a allowlist EXPAND só aceita a FK de 2 colunas para tabela nova).
+  // A guarda só cita as 3 tabelas antigas, a criada no resto e o status 'CONCLUIDA'.
+  '20261118100000_atividade_areas': Object.freeze({
+    decisao: 'D-PROD-249',
+    guarda_sha256: '0afbc9bb3eab69cdbe52452425b0829c74c68398d44fc81781e70b8c4800ab7e',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AreaPastagem', 'Atividade', 'AtividadeApontamento', 'CONCLUIDA']),
+    alter_antigas: Object.freeze(['ALTER TABLE "AtividadeApontamento" ADD COLUMN "atividade_area_id" VARCHAR(64)']),
+    conversao: Object.freeze([
+      [
+        'INSERT INTO "AtividadeArea" ("id", "cliente_id", "empresa_id", "atividade_id", "area_id", "setor_id",',
+        '"setor_nome", "area_planejada", "status", "data_inicio", "data_conclusao", "ordem", "criado_por_usuario_id",',
+        '"versao", "createdAt", "updatedAt") SELECT \'ara_\' || a."id", a."cliente_id", a."empresa_id", a."id",',
+        'a."area_id", a."setor_id", a."setor_nome", a."area_planejada", CASE WHEN a."status" = \'CONCLUIDA\' THEN',
+        '\'CONCLUIDA\' ELSE \'EM_ANDAMENTO\' END, CASE WHEN a."status" = \'CONCLUIDA\' THEN LEAST(COALESCE(a."data_inicio",',
+        '(SELECT MIN(p."data_operacional") FROM "AtividadeApontamento" AS p WHERE p."cliente_id" = a."cliente_id" AND',
+        'p."empresa_id" = a."empresa_id" AND p."atividade_id" = a."id"), CAST(a."createdAt" AS DATE)),',
+        'a."data_conclusao") ELSE COALESCE(a."data_inicio", (SELECT MIN(p."data_operacional") FROM "AtividadeApontamento"',
+        'AS p WHERE p."cliente_id" = a."cliente_id" AND p."empresa_id" = a."empresa_id" AND p."atividade_id" = a."id"),',
+        'CAST(a."createdAt" AS DATE)) END, CASE WHEN a."status" = \'CONCLUIDA\' THEN a."data_conclusao" END, 1,',
+        'a."criado_por_usuario_id", 1, a."createdAt", CURRENT_TIMESTAMP FROM "Atividade" AS a WHERE a."area_id" IS NOT',
+        'NULL',
+      ].join(' '),
+      [
+        'UPDATE "AtividadeApontamento" AS p SET "atividade_area_id" = aa."id" FROM "AtividadeArea" AS aa',
+        'WHERE aa."cliente_id" = p."cliente_id" AND aa."empresa_id" = p."empresa_id" AND aa."atividade_id" = p."atividade_id"',
+      ].join(' '),
+      [
+        'ALTER TABLE "AtividadeApontamento" ADD CONSTRAINT "AtividadeApontamento_atividade_area_fkey" FOREIGN KEY ("cliente_id",',
+        '"empresa_id", "atividade_id", "atividade_area_id") REFERENCES "AtividadeArea"("cliente_id", "empresa_id", "atividade_id",',
+        '"id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      ].join(' '),
+    ]),
+  }),
 });
 
 /**
@@ -276,9 +686,34 @@ const classificarExpand = (nome, sqlBruto, { novas, colunasNovasEmAntigas, doApr
   }
 };
 
-/** Alvo das constraints alargadas, a partir do texto pinado (`ALTER TABLE "T" ADD CONSTRAINT "C" …`). */
-const constraintsAlargadas = (alterAntigas) =>
-  alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
+/**
+ * `ADD CONSTRAINT` do texto pinado, separados pelo que fazem (`ALTER TABLE "T" ADD CONSTRAINT "C" …` → "T.C"):
+ * ALARGADA é a recriada — o `DROP CONSTRAINT` do mesmo nome, na mesma tabela, vem ANTES dela (D-PROD-162: apaga o CHECK
+ * e o cria mais largo); ADICIONADA é a que não existia (D-PROD-197: FKs e CHECKs novos). Até a D-PROD-194 todo `ADD
+ * CONSTRAINT` pinado era alargamento; o `premerge-migrate` rotula `constraints_alargadas` como "CHECKs alargados".
+ */
+const constraintsPorEfeito = (alterAntigas) => {
+  const apagadas = new Set();
+  const alargadas = [];
+  const adicionadas = [];
+  for (const a of alterAntigas) {
+    const apaga = a.match(new RegExp(`^ALTER TABLE (${ID}) DROP CONSTRAINT (${ID})$`));
+    if (apaga) {
+      apagadas.add(`${q(apaga[1])}.${q(apaga[2])}`);
+      continue;
+    }
+    const cria = a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `));
+    if (cria) {
+      const c = `${q(cria[1])}.${q(cria[2])}`;
+      (apagadas.has(c) ? alargadas : adicionadas).push(c);
+    }
+  }
+  return { alargadas, adicionadas };
+};
+
+/** D-PROD-197 — colunas acrescentadas a tabela antiga, a partir do texto pinado (`ALTER TABLE "T" ADD COLUMN "c" …`). */
+const colunasAdicionadas = (alterAntigas) =>
+  alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD COLUMN (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
 
 /** D-PROD-183 — colunas removidas, a partir do texto pinado (`ALTER TABLE "T" DROP COLUMN "c"`). */
 const colunasRemovidas = (alterAntigas) =>
@@ -312,9 +747,51 @@ const nomesRenomeados = (alterAntigas) =>
     .filter(Boolean).map((x) => `${q(x[1])}→${q(x[2])}`);
 
 /**
+ * D-PROD-200 — o que cada instrução pinada da conversão escreve, a partir do texto pinado (`INSERT INTO "T" …` →
+ * "INSERT INTO T", `UPDATE "T" …` → "UPDATE T"; D-PROD-249: `ALTER TABLE "T" ADD CONSTRAINT "C" …` → "ADD CONSTRAINT
+ * T.C"). Instrução de outra forma sai com o começo do próprio texto.
+ */
+const conversoesDe = (conversao) =>
+  conversao.map((c) => {
+    const x = c.match(new RegExp(`^(INSERT INTO|UPDATE|DELETE FROM) (${ID})`));
+    if (x) return `${x[1]} ${q(x[2])}`;
+    // D-PROD-249: a FK composta para a tabela nova, no fim da cauda ("ADD CONSTRAINT T.C").
+    const fk = c.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `));
+    return fk ? `ADD CONSTRAINT ${q(fk[1])}.${q(fk[2])}` : c.slice(0, 40);
+  });
+
+/**
+ * D-PROD-200 — formato CONVERSÃO: casa a CAUDA do arquivo, de trás para frente, sobre as peças não vazias de
+ * `instrucoes` a partir de `inicio`: por último EXATAMENTE os `DROP TABLE` de `drop`, na ordem, e logo antes deles
+ * EXATAMENTE as instruções `conversao`, na ordem. De trás para frente porque o resto (antes da cauda) tem blocos DO,
+ * que contêm ';'; a cauda não tem DO. Devolve o índice da primeira peça da cauda (o resto acaba nele), ou `null` se a
+ * cauda não casou (a violação já foi registrada).
+ */
+const casarCaudaConversao = (instrucoes, inicio, k, nome, v) => {
+  const drops = k.drop.map((t) => `DROP TABLE "${t}"`);
+  const conversao = k.conversao ?? [];
+  const esperadas = [...conversao, ...drops];
+  let i = instrucoes.length;
+  for (let n = esperadas.length - 1; n >= 0; n--) {
+    do i--; while (i >= inicio && !norm(instrucoes[i]));
+    const achado = i >= inicio ? norm(instrucoes[i]) : '';
+    if (achado === esperadas[n]) continue;
+    if (n >= conversao.length) {
+      v(nome, 'CONTRACT_DROP_FORA_DO_CONTRATO', `posição ${n - conversao.length}: esperado ${esperadas[n]} encontrado ${achado}`);
+    } else {
+      v(nome, 'CONTRACT_CONVERSAO_FORA_DO_CONTRATO', `posição ${n}: esperado ${esperadas[n].slice(0, 30)}… encontrado ${achado}`);
+    }
+    return null;
+  }
+  return i;
+};
+
+/**
  * D-PROD-162 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
  * a guarda pinada, os DROP e os alargamentos na ordem; devolve o RESTO para a
  * allowlist EXPAND, ou `null` se o recorte já falhou (não há como alinhar o resto).
+ * D-PROD-200: com `conversao` não vazia, os DROP saem do início e vão para o FIM, depois da conversão pinada
+ * (`casarCaudaConversao`); o resto fica entre os `alter_antigas` e a cauda.
  */
 const recortarContract = (m, k, v) => {
   const limpo = semComentarios(m.sql).trim();
@@ -326,8 +803,12 @@ const recortarContract = (m, k, v) => {
   const corpo = norm(guarda[1]);
   if (sha256(corpo) !== k.guarda_sha256) v(m.nome, 'CONTRACT_GUARDA_NAO_RECONHECIDA', corpo);
   const instrucoes = limpo.slice(guarda[0].length).split(';');
-  for (let i = 0; i < k.drop.length; i++) {
-    const esperado = `DROP TABLE "${k.drop[i]}"`;
+  // D-PROD-208: `drop_no_fim` leva os DROP para a cauda mesmo sem conversão (a tabela que sai ainda é referenciada por uma
+  // FK que só cai nos `alter_antigas`).
+  const conversao = k.conversao?.length > 0 || k.drop_no_fim === true;
+  const dropsNoInicio = conversao ? [] : k.drop;
+  for (let i = 0; i < dropsNoInicio.length; i++) {
+    const esperado = `DROP TABLE "${dropsNoInicio[i]}"`;
     const achado = norm(instrucoes[i] ?? '');
     if (achado !== esperado) {
       v(m.nome, 'CONTRACT_DROP_FORA_DO_CONTRATO', `posição ${i}: esperado ${esperado} encontrado ${achado}`);
@@ -335,13 +816,16 @@ const recortarContract = (m, k, v) => {
     }
   }
   for (let j = 0; j < k.alter_antigas.length; j++) {
-    const achado = norm(instrucoes[k.drop.length + j] ?? '');
+    const achado = norm(instrucoes[dropsNoInicio.length + j] ?? '');
     if (achado !== k.alter_antigas[j]) {
       v(m.nome, 'CONTRACT_ALTER_FORA_DO_CONTRATO', `posição ${j}: esperado ${k.alter_antigas[j].slice(0, 30)}… encontrado ${achado}`);
       return null;
     }
   }
-  const resto = instrucoes.slice(k.drop.length + k.alter_antigas.length).join(';');
+  const inicioDoResto = dropsNoInicio.length + k.alter_antigas.length;
+  const fimDoResto = conversao ? casarCaudaConversao(instrucoes, inicioDoResto, k, m.nome, v) : instrucoes.length;
+  if (fimDoResto === null) return null;
+  const resto = instrucoes.slice(inicioDoResto, fimDoResto).join(';');
   const permitidas = new Set([...k.drop, ...tabelasCriadas(resto), ...k.literais_guarda]);
   for (const x of corpo.matchAll(CITACAO_DO)) {
     const t = x[1] ?? x[2];
@@ -371,11 +855,14 @@ export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROV
       classificarExpand(m.nome, m.sql, { novas, colunasNovasEmAntigas, doAprovados, v });
       continue;
     }
+    const constraints = constraintsPorEfeito(k.alter_antigas);
     contract.push({
       migration: m.nome, decisao: k.decisao, tabelas_removidas: [...k.drop],
-      constraints_alargadas: constraintsAlargadas(k.alter_antigas), colunas_removidas: colunasRemovidas(k.alter_antigas),
+      constraints_alargadas: constraints.alargadas, colunas_removidas: colunasRemovidas(k.alter_antigas),
       constraints_removidas: constraintsRemovidas(k.alter_antigas), indices_removidos: indicesRemovidos(k.alter_antigas),
       tabelas_renomeadas: tabelasRenomeadas(k.alter_antigas), nomes_renomeados: nomesRenomeados(k.alter_antigas),
+      colunas_adicionadas: colunasAdicionadas(k.alter_antigas), constraints_adicionadas: constraints.adicionadas,
+      conversoes: conversoesDe(k.conversao ?? []),
     });
     const resto = recortarContract(m, k, v);
     if (resto !== null) classificarExpand(m.nome, resto, { novas: new Set(tabelasCriadas(resto)), colunasNovasEmAntigas, doAprovados, v });

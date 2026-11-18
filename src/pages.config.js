@@ -19,9 +19,12 @@ import LocaisEstoque from './pages/LocaisEstoque';
 import TiposTarefa from './pages/TiposTarefa';
 import TiposAtividade from './pages/TiposAtividade';
 import Estacoes from './pages/Estacoes';
+import Culturas from './pages/Culturas';
 import CurvasGanho from './pages/CurvasGanho';
-import ApontamentosAtividade from './pages/ApontamentosAtividade';
+import Formulacoes from './pages/Formulacoes';
+import LancamentoAtividades from './pages/LancamentoAtividades';
 import GruposAtividades from './pages/GruposAtividades';
+import Servicos from './pages/Servicos';
 import Empresa from './pages/Empresa';
 import Usuarios from './pages/Usuarios';
 import Permissoes from './pages/Permissoes';
@@ -50,9 +53,12 @@ export const PAGES = {
     "TiposTarefa": TiposTarefa,
     "TiposAtividade": TiposAtividade,
     "Estacoes": Estacoes,
+    "Culturas": Culturas,
     "CurvasGanho": CurvasGanho,
-    "ApontamentosAtividade": ApontamentosAtividade,
+    "Formulacoes": Formulacoes,
+    "LancamentoAtividades": LancamentoAtividades,
     "GruposAtividades": GruposAtividades,
+    "Servicos": Servicos,
     "Empresa": Empresa,
     "Usuarios": Usuarios,
     "Permissoes": Permissoes,

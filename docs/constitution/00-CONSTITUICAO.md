@@ -127,6 +127,45 @@ mudança no abastecimento. Nesta parte, esta expansão supera apenas o "única" 
 exceção…" da D-PROD-159; o resto dela continua valendo. Texto redigido pelo agente; vale só com a aprovação
 explícita do proprietário no merge manual (§4).
 
+**Expansão autorizada pelo proprietário (D-PROD-202):** **Lançamento de Atividades — linhas de produto e de máquina**
+(página `LancamentoAtividades`, Fatia 3). Substitui a expansão D-PROD-193 acima, cuja página e itens saíram na
+D-PROD-200. A **linha de produto** do apontamento baixa do estoque **exatamente** a quantidade digitada, na unidade de
+estoque do Produto, pelo motor de estoque existente (FIFO por lote, custo FIFO, origem `apontamento_atividade`). Ela
+tem estorno exato ao cancelar a linha, o apontamento ou a atividade. **Editar a linha** é estorno exato mais uma nova
+saída na mesma transação; nunca uma reescrita do movimento. A **linha de máquina** guarda a leitura do medidor na
+própria linha, como o abastecimento; nada é gravado no cadastro do bem. O **custo de uso por hora ou km** é um campo
+do cadastro do bem, copiado na linha como snapshot para o custo da atividade, sem lançamento financeiro. Continua
+**fora**: lançamento financeiro, título ou conta a pagar a partir da linha, rateio, fornecedor na linha, devolução de
+sobra ao estoque, manutenção, peças, relatórios de custo além do totalizador da atividade, e qualquer mudança no
+abastecimento além de respeitar as leituras das linhas. Nesta parte, esta expansão supera a D-PROD-193 e o trecho
+"custo/hora" da lista "fora" da D-PROD-157, só para o custo de uso como snapshot na linha de máquina. Texto redigido
+pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a "aplica e aprova"), no merge
+da PR #289 (§4).
+
+**Expansão autorizada pelo proprietário (D-PROD-207):** **Lançamento de Atividades — mão de obra e serviço de
+terceiro** (página `LancamentoAtividades`, Fatia 4, e as telas de cadastro `Funcionarios` e `Servicos`). Entram dois
+**cadastros mínimos por fazenda**: **Funcionário** (nome, cargo, tipo `MENSALISTA | DIARISTA | TAREFEIRO`, custo por
+hora e por diária, opcionais) e **Serviço** (nome, unidade de medida do cadastro existente, centro de custo padrão e
+valor de referência, opcionais). O funcionário é cadastro próprio, nunca uma conta de acesso (`Usuario`). O apontamento
+recebe a **linha de mão de obra** (funcionário, hora, diária ou tarefa, quantidade e custo) e a **linha de serviço**
+(serviço, quantidade, unidade e valor), como **custo da atividade**: o custo da hora ou da diária é copiado do cadastro
+na linha como snapshot, e o da tarefa e o valor do serviço são digitados. O **parceiro prestador** (cadastro de
+Parceiros, papel `prestador_servico`) é só uma **referência** opcional na linha de serviço. Continua **fora**: folha de
+pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título ou conta a pagar a partir da
+linha, rateio e contrato de serviço. Cadastro e linha nunca são apagados: o cadastro só é inativado, e a linha só é
+cancelada (editar é cancelar e lançar de novo). Nesta parte, esta expansão supera o trecho "fornecedor na linha" da
+lista "fora" da D-PROD-202, só para o parceiro prestador como referência na linha de serviço. Texto redigido pelo
+agente e **aprovado pelo proprietário em 2026-11-15 ("Aplica e aprova")**, no merge da PR #294 (§4).
+
+**Ajuste (D-PROD-208):** o **Funcionário** deixa de ser cadastro próprio e passa a ser **papel do parceiro** (cadastro
+de Parceiros, papel `funcionario`), com tipo `MENSALISTA | DIARISTA | TAREFEIRO`, cargo e custos por hora e por diária,
+opcionais e só com esse papel; a tela e o cadastro próprios de Funcionário saem. A **mão de obra** do apontamento pode
+ser de **funcionário** (parceiro com o papel `funcionario`; hora e diária copiam o custo do papel como snapshot, a
+tarefa é digitada) ou de **terceiro** (parceiro prestador de serviço, papel `prestador_servico`; custo sempre
+digitado). O funcionário continua nunca sendo uma conta de acesso (`Usuario`). Continua **fora** tudo o que a D-PROD-207
+deixou fora: folha de pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título e
+rateio. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("aplica e aprova")**, no merge da PR #298 (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

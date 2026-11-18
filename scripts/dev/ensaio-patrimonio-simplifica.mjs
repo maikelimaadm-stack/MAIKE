@@ -15,21 +15,37 @@
  *     `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e as CONTRACT
  *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183),
  *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187) e
- *     `20261114100000_cadcurvaganho_mensal` (D-PROD-194), que sobem aqui pelo
+ *     `20261114100000_cadcurvaganho_mensal` (D-PROD-194) e
+ *     `20261114200000_cadcategoria_curva_ganho` (D-PROD-195), que sobem aqui pelo
  *     Prisma direto, sem o runner e portanto sem a barreira de
  *     MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa,
- *     CategoriaManejo e CADCURVAGANHO estão vazias nessa hora (as sementes vêm
- *     depois e não criam nenhuma das três). As CONTRACT não criam nem apagam
+ *     CategoriaManejo/CADCATEGORIA e CADCURVAGANHO estão vazias nessa hora (as
+ *     sementes vêm depois e não criam nenhuma das três; a D-PROD-195 só exige a
+ *     CURVA PADRÃO nas fazendas COM categoria). As CONTRACT não criam nem apagam
  *     tabela (a D-PROD-187 só renomeia; a D-PROD-194 troca a estrutura de
- *     CADCURVAGANHO: +1 migration, 0 tabela): as contagens de tabelas não mudam
- *     com elas.
+ *     CADCURVAGANHO; a D-PROD-195 põe a curva em CADCATEGORIA: +1 migration,
+ *     0 tabela cada): as contagens de tabelas não mudam com elas.
  *     A `20261113700000_apontamento_atividade` (D-PROD-190) fica de fora da
  *     partida: a FK dela para BemPatrimonial(cliente_id, empresa_id, id) só
  *     existe no formato NOVO, criado por esta CONTRACT; ela sobe junto, pelo
  *     runner, no passo 4 (em produção a D-PROD-162 já está concluída). A
  *     `20261113800000_apontamento_atividade_item` (D-PROD-193) também fica de
  *     fora: os itens referenciam o ApontamentoAtividade por FK RESTRICT; sobe
- *     no passo 4, depois dele;
+ *     no passo 4, depois dele. A CONTRACT `20261114500000_atividade_cabecalho`
+ *     (D-PROD-200) também fica de fora: a guarda dela exige as 3 tabelas do
+ *     apontamento antigo, que as duas criam; sobe no passo 4, depois delas. A
+ *     EXPAND `20261114600000_atividade_linhas_produto_maquina` (D-PROD-202)
+ *     também fica de fora: as linhas referenciam AtividadeApontamento, que a
+ *     D-PROD-200 cria; sobe no passo 4, depois dela. A EXPAND
+ *     `20261114700000_cadformulacao` (D-PROD-203, Formulações) também fica de
+ *     fora (não existia no dia desta CONTRACT); sobe no passo 4; a EXPAND
+ *     `20261115100000_leitura_cocho` (D-PROD-205) também, e a EXPAND
+ *     `20261115200000_formulacao_faixa_tolerancia` (D-PROD-206) também. A EXPAND
+ *     `20261115900000_atividade_mao_obra_servico` (D-PROD-207) também fica de
+ *     fora: as linhas de mão de obra e de serviço referenciam
+ *     AtividadeApontamento; sobe no passo 4. A CONTRACT
+ *     `20261116000000_mao_obra_parceiro` (D-PROD-208) também: exige a D-PROD-207;
+ *     sobe no passo 4, por último, e tira a Funcionario (vazia);
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
  *     perfis, combustíveis, vínculos, fatores, bens, tanques, medições,
  *     abastecimentos CANCELADOS com saída + estorno + fatias), um lote e uma
@@ -39,13 +55,20 @@
  *     política, publicação, runner sem MIGRATION_CONTRACT_AUTORIZADO no alvo
  *     "remoto" simulado): cada um tem de recusar e não mudar nada; a falha
  *     aberta é resolvida com `migrate resolve --rolled-back`;
- *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
- *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: todas concluídas (esta CONTRACT, a D-PROD-190 e a
- *     D-PROD-193), 85 tabelas (as 82 do formato novo + ApontamentoAtividade +
- *     os 2 de itens do apontamento), as 7 vazias, dono e ACL,
- *     RLS, contagens de constraints, impressão digital das 75 que ficam,
- *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
+ *  4. o runner oficial com a conferência de alvo exigida e
+ *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 RECUSA: a D-PROD-200 pende junto
+ *     (nunca duas CONTRACT de uma vez; como a D-PROD-195 na D-PROD-187); então
+ *     aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a
+ *     impressão na URL) esta, a D-PROD-190, a D-PROD-193, a D-PROD-200, a
+ *     D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208 e as seguintes (a EXPAND da
+ *     D-PROD-215, CADCULTURAS, a CONTRACT aditiva da D-PROD-216 e por último a CONTRACT da D-PROD-217, sem tabela nova),
+ *     e confere: todas concluídas, 95 tabelas (+ a CADCULTURAS)
+ *     (as 82 do formato novo + Atividade e AtividadeApontamento + as 3 das linhas de
+ *     produto e de máquina + as 3 das Formulações + a LEITURACOCHO + as 3 da mão de obra e do serviço que ficam (a
+ *     Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208);
+ *     as 3 do apontamento antigo nascem e saem com a D-PROD-200), as 7 vazias, dono e ACL, RLS, contagens de constraints,
+ *     impressão digital das 75 que ficam, CHECKs alargados, estoque intacto,
+ *     `migrate diff` vazio e 2ª execução.
  *
  * As funções são exportadas e reaproveitadas por
  * `backend/tests/patrimonioSimplificaMigration.test.mjs` (mesma prova no CI).
@@ -79,9 +102,84 @@ export const DECISAO = 'D-PROD-162';
  * produção: ficam fora da partida e sobem pelo runner no GREEN, depois dela. As tabelas que elas criam ficam fora
  * da impressão digital das que FICAM (são novas, como as 7 do formato novo).
  * D-PROD-193 — os itens do apontamento dependem do ApontamentoAtividade (FK RESTRICT): vêm logo depois dele.
+ * D-PROD-200 — a CONTRACT da Atividade cabeçalho exige as 3 tabelas do apontamento antigo (a guarda recusa sem elas),
+ * converte o que houver (aqui, nada) e as apaga, criando Atividade e AtividadeApontamento: vem por último. Por ser
+ * CONTRACT, com ela pendente o runner com a conferência exigida recusa a decisão desta (nunca duas de uma vez).
+ * D-PROD-202 — a EXPAND das linhas de produto e de máquina referencia AtividadeApontamento (da D-PROD-200) e
+ * BemPatrimonial(cliente_id, empresa_id, id) (do formato novo), e acrescenta 2 colunas anuláveis em BemPatrimonial e
+ * TipoPatrimonial: vem depois da D-PROD-200 (EXPAND: o runner não a cita como CONTRACT).
+ * D-PROD-207 — a EXPAND da mão de obra e do serviço cria Funcionario, Servico e as 2 linhas, que referenciam
+ * AtividadeApontamento (da D-PROD-200): vem por último (EXPAND, sem coluna em tabela antiga).
  */
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item']);
-export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote']);
+export const NOME_ATIVIDADE_CABECALHO = '20261114500000_atividade_cabecalho';
+export const NOME_ATIVIDADE_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
+/**
+ * D-PROD-203 — a EXPAND das Formulações (3 tabelas novas) é de uma release muito posterior a esta CONTRACT: no dia
+ * dela não existia. Fica fora da partida e sobe no GREEN, pela ordem dos nomes (depois da D-PROD-202); as 3
+ * tabelas ficam fora da impressão digital das que FICAM, como as da D-PROD-200 e da D-PROD-202.
+ */
+export const NOME_FORMULACOES = '20261114700000_cadformulacao';
+/**
+ * D-PROD-205 — a EXPAND da Leitura de cocho (1 tabela nova, LEITURACOCHO), também muito posterior: fora da partida,
+ * sobe no GREEN depois da D-PROD-203 (a D-PROD-207 vem por último); fica fora da impressão digital das que FICAM.
+ */
+export const NOME_LEITURA = '20261115100000_leitura_cocho';
+/** D-PROD-206 — a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO): fora da partida, depois da D-PROD-205; sem tabela nova. */
+export const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
+export const NOME_ATIVIDADE_MAO_OBRA = '20261115900000_atividade_mao_obra_servico';
+/**
+ * D-PROD-208 — a CONTRACT do ajuste da Fatia 4 (o funcionário vira papel do parceiro; a tabela Funcionario, VAZIA, sai)
+ * exige a D-PROD-207 aplicada e as duas tabelas dela vazias: vem por último, depois dela. Fora da partida, como as
+ * outras; com ela pendente, o runner com a conferência exigida também recusa a decisão desta.
+ */
+export const NOME_MAO_OBRA_PARCEIRO = '20261116000000_mao_obra_parceiro';
+/**
+ * D-PROD-209 — a CONTRACT do tipo Terceirizado (o CHECK de Fornecedor que a D-PROD-208 cria volta com TERCEIRIZADO no
+ * lugar de TAREFEIRO) exige a D-PROD-208: vem por último, depois dela, fora da partida como as outras.
+ */
+export const NOME_FUNCIONARIO_TIPO = '20261116100000_funcionario_tipo_terceirizado';
+/** D-PROD-210 — a CONTRACT da base do consumo (altera as 3 tabelas das Formulações): fora da partida; sem tabela nova. */
+export const NOME_BASE = '20261116200000_formulacao_base_consumo';
+/**
+ * D-PROD-211 — a CONTRACT do abastecimento ligado à atividade (colunas, backfill, CHECKs e FKs em AbastecimentoBem, no
+ * formato desta CONTRACT, para Atividade e AtividadeApontamento, da D-PROD-200) exige as duas: vem por último, depois da
+ * D-PROD-210, fora da partida como as outras.
+ */
+export const NOME_ABASTECIMENTO_ATIVIDADE = '20261116300000_abastecimento_atividade';
+/**
+ * D-PROD-215 — a EXPAND do Cadastro de Culturas (tabela nova CADCULTURAS; referencia só Cliente e Empresa) não existia
+ * no dia desta CONTRACT: fora da partida como as outras, sobe por último no GREEN. +1 tabela no fim.
+ */
+export const NOME_CULTURAS = '20261116500000_cadculturas';
+/** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura depende da CADCULTURAS (D-PROD-215): também fica para o GREEN, por último. */
+export const NOME_AREA_CULTURA = '20261117000000_area_cultura';
+/**
+ * D-PROD-217 — a CONTRACT do reforço (UNIQUE em AtividadeApontamento e a FK do apontamento de AbastecimentoBem com a
+ * atividade) exige a D-PROD-211: vem por último, depois dela, da EXPAND da D-PROD-215 e da CONTRACT aditiva da D-PROD-216
+ * (a ordem de produção), fora da partida como as outras; sem tabela nova.
+ */
+export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261117100000_abastecimento_fk_apontamento_atividade';
+/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
+export const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
+export const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+/**
+ * D-PROD-249 — a CONTRACT das áreas da atividade (tabela nova AtividadeArea, a coluna e a FK do lançamento para a área e
+ * o backfill) exige a Atividade e o apontamento: vem por último, depois da D-PROD-223, fora da partida como as outras.
+ */
+export const NOME_ATIVIDADE_AREAS = '20261118100000_atividade_areas';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS]);
+/** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
+const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
+  'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
+/** As 3 tabelas das Formulações (D-PROD-203). */
+const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA'];
+/** A tabela da Leitura de cocho (D-PROD-205) e a do Cadastro de Culturas (D-PROD-215). */
+const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM'];
+/** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
+// D-PROD-249: AtividadeArea (as áreas da atividade) nasce com a última delas e fica no fim.
+export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
+// D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
+export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
 /**
  * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
  * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —
@@ -104,7 +202,12 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
        left(md5(coalesce(string_agg(tabela || '|' || cliente_id || '|' || n, E'\\n' ORDER BY ord, cliente_id COLLATE "C"), '')), 12) AS impressao
   FROM c`;
 
-/** Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho ensaio/fingerprint_v2.sql). */
+/**
+ * Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho
+ * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK). D-PROD-216
+ * (posterior, sobe no GREEN): sem a coluna, a FK e o índice da Área ligada à Cultura em AreaPastagem. D-PROD-223
+ * (posterior): sem as 3 colunas dos parâmetros próprios do pasto em AreaPastagem.
+ */
 export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
 tab AS (
   SELECT c.oid, c.relname::text AS t, c.relrowsecurity AS rls, c.relforcerowsecurity AS force, coalesce(c.relacl::text, '') AS acl
@@ -119,13 +222,22 @@ linhas AS (
     FROM tab t JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
     LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
     LEFT JOIN pg_collation co ON co.oid = a.attcollation AND a.attcollation <> 0
+   -- D-PROD-208 (posterior, sobe no GREEN): as 4 colunas do papel funcionário em Fornecedor não são desta CONTRACT.
+   WHERE NOT (t.t = 'Fornecedor' AND a.attname::text IN ('funcionario_tipo', 'funcionario_cargo', 'funcionario_custo_hora', 'funcionario_custo_diaria'))
+     -- D-PROD-216 (posterior, sobe no GREEN): a coluna da Área ligada à Cultura.
+     AND NOT (t.t = 'AreaPastagem' AND a.attname::text = 'cultura_id')
+     -- D-PROD-223 (posterior, sobe no GREEN): os parâmetros próprios do pasto.
+     AND NOT (t.t = 'AreaPastagem' AND a.attname::text IN ('altura_entrada_cm', 'altura_saida_cm', 'dias_descanso'))
   UNION ALL
   SELECT 'constraint', t.t || '|' || k.conname::text || '|' || k.contype::text || '|' || pg_get_constraintdef(k.oid, true)
     FROM tab t JOIN pg_constraint k ON k.conrelid = t.oid
    WHERE NOT (t.t = 'OperacaoFinanceiraItem' AND k.conname IN ('OperacaoFinanceiraItem_unidade_check', 'OperacaoFinanceiraItem_forma_check'))
+     AND NOT (t.t = 'Fornecedor' AND k.conname = 'Fornecedor_funcionario_check')
+     AND NOT (t.t = 'AreaPastagem' AND k.conname = 'AreaPastagem_cliente_id_empresa_id_cultura_id_fkey')
   UNION ALL
   SELECT 'indice', t.t || '|' || i.relname::text || '|' || pg_get_indexdef(i.oid)
     FROM tab t JOIN pg_index x ON x.indrelid = t.oid JOIN pg_class i ON i.oid = x.indexrelid
+   WHERE NOT (t.t = 'AreaPastagem' AND i.relname::text = 'AreaPastagem_cliente_id_empresa_id_cultura_id_idx')
   UNION ALL
   SELECT 'politica', p.tablename::text || '|' || p.policyname::text || '|' || p.cmd || '|' || array_to_string(p.roles, ',') || '|' || coalesce(p.qual, '') || '|' || coalesce(p.with_check, '')
     FROM pg_policies p JOIN tab t ON t.t = p.tablename::text WHERE p.schemaname = 'public'
@@ -187,8 +299,9 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 
 /**
  * Todas as migrations do repositório menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT` (MIGRATIONS_PARTIDA),
- * aplicadas pelo Prisma a partir de uma cópia temporária. Inclui as CONTRACT da D-PROD-183, da D-PROD-187 e da
- * D-PROD-194, sem o runner: as guardas delas passam com TipoTarefa, CategoriaManejo e CADCURVAGANHO vazias.
+ * aplicadas pelo Prisma a partir de uma cópia temporária. Inclui as CONTRACT da D-PROD-183, da D-PROD-187, da
+ * D-PROD-194 e da D-PROD-195, sem o runner: as guardas delas passam com TipoTarefa, CategoriaManejo/CADCATEGORIA e
+ * CADCURVAGANHO vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-simplifica-main-'));
@@ -529,7 +642,10 @@ if (ehEntradaDireta()) {
       const sid = await sistema(db);
       const semAutorizacao = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid } });
       relatorio.runner_sem_autorizacao = { status: semAutorizacao.status, recusou: /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/.test(semAutorizacao.saida), tabelas: await contarTabelas(db) };
-      const green = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+      // D-PROD-200: com a conferência e a decisão desta, a D-PROD-200 pende junto: recusa (nunca duas CONTRACT de uma vez).
+      const autorizada = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+      relatorio.runner_autorizado_com_outra_pendente = { status: autorizada.status, recusou: autorizada.saida.includes(`${NOME_ATIVIDADE_CABECALHO} (D-PROD-200)`) && !autorizada.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), tabelas: await contarTabelas(db) };
+      const green = await aplicarPeloRunner(comImpressao(url, imp.impressao));
       const fpDepois = await fingerprintV2(db);
       const retratoDepois = await retrato(db);
       relatorio.green = {
@@ -550,9 +666,12 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      // D-PROD-190/191: 85 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + ApontamentoAtividade + os 2 de
-      // itens do apontamento, que sobem juntos pelo runner, depois desta CONTRACT.
-      if (g.status !== 0 || g.tabelas !== 85 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
+      // D-PROD-190/191/198: 84 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento
+      // (D-PROD-200); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-200.
+      // D-PROD-202: + as 3 das linhas de produto e de máquina = 87; D-PROD-203: + as 3 das Formulações = 90;
+      // D-PROD-205: + a LEITURACOCHO = 91; D-PROD-207: + as 4 da mão de obra e do serviço = 95; D-PROD-208: − Funcionario = 94;
+      // D-PROD-215: + a CADCULTURAS = 95; D-PROD-219: + a MEDICAOFORRAGEM = 96.
+      if (g.status !== 0 || g.tabelas !== 96 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

@@ -9,19 +9,397 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-14) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-252)
+## Missão ativa (2026-11-18) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-252)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-252** (a D-PROD-194 é da PR #273, mergeada na `main` `a65ea46`; a #229 é a D-PROD-154) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273). PR **#275** (rascunho), exclusiva desta correção |
+| Decisão | **D-PROD-252** (nasceu D-PROD-195; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e chegou a `Próxima decisão: D-PROD-252`; a PR #330, aberta, não cria decisão) |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273) e com a `main` `3a329d90` (PRs #276 a #329, inclusive o módulo novo `atividades`). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
-| Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento; conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
+| Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
-| Testes | `backend/tests/p2002SemAlvo.test.mjs` (10, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
-| Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão |
+| Testes | `backend/tests/p2002SemAlvo.test.mjs` (14, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, L1–L3, C1, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
+| Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão (a do aceite do tanque passou a ler o `meta` por campo, com o mesmo resultado) |
 | Validação | `npm run verify:all` local **verde** no `7213c90` (39 etapas; backend 1882/1887 com 5 `todo` antigos, smoke 2805/2805, gates 846/846), com banco recriado. O GitHub Actions do proprietário está pausado: a CI da PR morre em ~2 s sem log, como na `main` ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
+
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-251**, pedido do proprietário: a lógica dos rascunhos (tipo uma vez, abrir em passos, registrar na área) no visual do sistema |
+| Branch / PR | `cursor/atividades-por-area-0b6c`, a partir da `main` `637a3002` (PR #327, D-PROD-249) |
+| Escopo | Assistente de abertura (tipo → áreas → conferir); atividade aberta pelos cartões de área; registro um de cada vez com confirmação na área; lista em palavras simples; Tipos de atividade separado, com "O que pode registrar". O ⚡ da lista não lança. "Mais detalhes" guarda o ajuste por tipo e por dia |
+| Backend | Nenhuma mudança. Nenhuma migration nova |
+| Migration anterior | `20261118100000_atividade_areas` (D-PROD-249) **foi aplicada em produção em 2026-11-18 às 19:05:13 UTC** (caminho B, depois de a #327 já estar na `main`; `SCHEMA_APPLIED_PROD: SIM`). Esta missão não cria migration |
+| Release | Merge normal de frontend. A prévia da Vercel está liberada só para esta branch (`ignoreCommand`) |
+| Relatório | [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADE-AREAS: várias áreas por atividade, cada lançamento datado de uma área (D-PROD-249)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-249**, pedido do proprietário ("nessa atividade são vários pastos que vou fazendo ao decorrer do tempo … cada custo e lançamento é feito para aquela área"); uma atividade com várias áreas, não uma atividade por área |
+| Branch / PR | `feat/atividade-varias-areas`, a partir da `main` `e260a305` (PR #325, D-PROD-237) · PR a abrir |
+| Escopo | Tabela `AtividadeArea` (ciclo PLANEJADA → EM_ANDAMENTO → CONCLUIDA, com as datas) e `AtividadeApontamento.atividade_area_id` com FK composta; rotas da área (adicionar, planejada, iniciar, concluir, reabrir, remover); lançamento só em área em andamento; `por_area` nos totais; "Abrir atividade" com Áreas; card "Áreas da atividade"; janela do tipo presa na área; coluna Área "2 de 5 em andamento" |
+| Migration | `20261118100000_atividade_areas`, **CONTRACT** (CONVERSÃO, sem `DROP`; backfill da área nº 1 das atividades com área), SHA `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06`. Produção 67 → 68; tabelas 96 → 97 |
+| Release | **Aplicada em produção em 2026-11-18 às 19:05:13 UTC** pelo caminho B (Supabase `execute_sql`, envelope do runbook), com GO do proprietário. A PR #327 já estava mergeada, o que fechou o caminho A (`CONTRACT_INESPERADO`, como na D-PROD-183). SHA aprovado `417e065e`. Preflight `PRONTO PARA APLICAR` (67/0; 96 tabelas); postcheck `APLICADA E CONFERIDA` (68/0; 97 tabelas; `AtividadeArea` 4 linhas `EM_ANDAMENTO`; 4/4 lançamentos ligados; FK validada; 0 lints). `SCHEMA_APPLIED_PROD: SIM`. Registro no [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) (§9) |
+| Documentos | [contrato](./MAIKE-ATIVIDADE-AREAS-CONTRATO.md) · [relatório](./MAIKE-ATIVIDADE-AREAS-REPORT.md) · [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-LISTA: Lançamento de Atividades, fatia 4 (última) do redesenho — a lista: filtros em pílulas e cards do celular (D-PROD-237)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-237**, fatia 4 (última) do plano da D-PROD-232: os filtros da lista na faixa de pílulas e os cards do celular no desenho do protótipo |
+| Branch / PR | `feat/atividades-lista-filtros-celular`, a partir da `main` `83d08e5c` (PR #324) · PR a abrir |
+| Escopo | Sai a caixa solta (Tipo, Área, Início de / até); a faixa fica Ordenar · Status · Tipo de atividade · Área · Início (uma pílula com De / Até e o período no rótulo) · + Filtro, todos na query do servidor de sempre. Motor (opt-in): filtro de período da tela, `ocultarPadrao`, pesquisa acima de 8 opções, coluna coberta fora da faixa salva e do "+ Filtro", selo e subtítulo do card. Celular: cards com a sigla do tipo na cor do tipo, "Nº · Status", ⚡ e Nº / Tipo / Área / Início / Valor total |
+| Backend | Nenhuma mudança |
+| Release | Merge e deploy normais (só frontend); nenhuma migration, nenhum dado muda |
+| Relatório | [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218), os detalhes do mapa no mesmo desenho (D-PROD-220) e os lançamentos e históricos deles no desenho do manejo (D-PROD-222), com a densidade (D-PROD-224) e a organização (D-PROD-226) do estilo antigo e o subícone do sistema nos detalhes (D-PROD-225)
+
+| Campo | Valor |
+|---|---|
+| Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12), **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho), **D-PROD-222** (lançamentos e históricos que abrem desses detalhes iguais aos do manejo do lote), **D-PROD-224** (detalhes mais compactos, com a densidade do estilo antigo), **D-PROD-225** (cocho e depósito com o subícone do sistema nos detalhes, sem a bolinha do mapa; nasceu como D-PROD-223, que a `main` deu ao farol estimado) e **D-PROD-226** (detalhes organizados como o estilo antigo: pares lado a lado no popup, toque e contraste), pedidos do proprietário; filtros do mapa como estão |
+| Refinamento D-PROD-235 (nasceu D-PROD-230) | Botão Visualização integrado ao fim da barra escura do mapa; painel e permissões preservados, ações laterais abaixo da barra. |
+| Refinamento D-PROD-236 (nasceu D-PROD-232) | Detalhes de área e lote com cartões em linhas, rótulos à esquerda e valores à direita; blocos empilhados no celular/tablet e em pares no desktop, preservando os dados. |
+| Refinamento D-PROD-248 | Detalhes aprovados: popup estável, resumo com cinco indicadores, média projetada ponderada, projeções responsivas, passagem automática de texto e histórico compacto; PR/merge autorizados pelo dono. |
+| Refinamento D-PROD-238 | Popup dos detalhes dimensionado pela viewport; campos em duas colunas no tablet e três no desktop amplo, mantendo as linhas no celular. |
+| Refinamento D-PROD-239 | Cartões largos empilhados em desktop/tablet, com apenas os campos internos em colunas; popup estável e celular preservados. |
+| Refinamento D-PROD-229 | Detalhes de lote com identidade sem repetição, Lotação, Pesagem, Projeção de peso e Identificação separadas; pares no computador e uma coluna no celular. Tabela e regras preservadas. |
+| Refinamento D-PROD-228 | Histórico de cocho e depósito somente pelo botão; nova ação Fechamentos no cocho, com todos os períodos fechados e permissão de histórico. Resumo sem registros antigos; detalhes de lote preservados. |
+| Refinamento D-PROD-227 | Cocho e depósito com seções nomeadas, métricas do último registro agrupadas e projeções/limites sem repetição no resumo; pares explícitos no popup e uma coluna no celular. Regras e permissões preservadas. |
+| Branch / PR | `claude/design-filters-implementation-agzxk8` · PR **#308** (merge a pedido do proprietário: "Tiver pronto faça o merge"); `main` `83d08e5` (PR #324, D-PROD-234) mesclada |
+| Escopo | Mapa Geral: barra **⚙ · Lotes · Pastos · Tarefas** (`src/lib/mapaFoco.js`); Detalhes do Lote v12 (`.mk-dp`); casca v12 de uma tela (`CascaDetalhe`) no cocho, no depósito (com cocho empilhado), no bebedouro, na tarefa e no Histórico da Área (com a Forragem da D-PROD-219, o farol da D-PROD-221 e as abas do curral); popup a partir de 768 px. D-PROD-222: cartão comum dos históricos (`CartaoHistorico`, as classes do Histórico de Movimentação) no cocho, no depósito, no bebedouro, na tarefa e no abate do curral; Lançar e Leitura do cocho, Entrada e Saída do depósito e Lançar do bebedouro no `LancLoteDialogo` + `LancField` + `B1Select` dos manejos; Esc com lista aberta fecha só a lista em todos os lançamentos. D-PROD-225: nos detalhes (nível do cocho e do depósito, listas de cochos), o subícone do sistema (`COCHO_APARENCIA.subicone`); o marcador fica só no mapa. D-PROD-224: densidade do estilo antigo no v12 (letra menor com piso de 11 px, valor em negrito, 6 colunas no popup do computador (5 no do tablet), nível ao lado do cartão no cocho e no depósito, linha do tempo em grade). D-PROD-226: a partir de 768 px, pares lado a lado (Lotação \| Categorias, Fornecimento \| Consumo, Resumo \| Último registro, Saldo \| Pastos atendidos); cartões do limite do cocho e dos números do depósito como os antigos, com os valores alinhados; texto livre com o rótulo numa coluna em todas as larguras; divisória na linha do tempo; alvos de toque de 40 px (inclusive o ✕); teal AA; Tab na Lista mostra o cabeçalho inteiro |
+| Testes | `test:smoke` 292 arquivos e 3.634 testes (com a `main` da PR #324, D-PROD-234); `gate:types` 374 de 625; lint sem erros; build e demais gates do `verify:all` passam; `test:backend` no CI (precisa de PostgreSQL). Revisões independentes com verificação adversarial: relatórios da D-PROD-220 (§7 e §10.1) e da D-PROD-222 |
+| Relatórios | [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md) · [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md) · [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-ABERTA-RESUMO: Lançamento de Atividades, fatia 3 do redesenho — a atividade aberta (D-PROD-234)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-234**, fatia 3 do plano da D-PROD-232: a atividade aberta no desenho do protótipo do proprietário, no modelo visual do sistema |
+| Branch / PR | `feat/atividades-aberta-resumo`, a partir da `main` `0facca65` (PR #322) · PR a abrir |
+| Escopo | `AtividadeAberta.jsx` (novo): abas Lançamentos / Resumo da atividade com a navegação do registro; "Resumo de custo · ÁREA"; a tabela dos tipos (Itens, Resumo, Valor, Total, ⚡ Inserir / Ver lançamentos e "+ Lançar" que abrem a janela da fatia 2); "Dias lançados" recolhível com a lista de sempre; a aba Resumo com os totais por item e os dados só leitura; celular com a cabeça ✕ / Concluir e os tipos em cartões. Lista: coluna Valor total e o R$ no cabeçalho do ⚡ |
+| Backend | **Só leitura, sem migration:** `GET /atividades/:id/totais` + `custo_por_tipo` e `litros_combustivel_por_ha`; `GET /atividades` + `custo_total` por item (uma consulta agrupada por página) |
+| Release | Merge e deploy normais (frontend e API juntos); nenhuma migration, nenhum dado muda |
+| Relatório | [`MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md`](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ATIVIDADES-JANELAS-TIPO: Lançamento de Atividades, fatia 2 do redesenho — janelas por tipo de lançamento (D-PROD-233)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-233**, fatia 2 do plano da D-PROD-232, com a regra do dia aprovada pelo proprietário ("pode ser"): hoje por padrão, ‹ ›, e o dia criado sozinho ao salvar o primeiro item |
+| Branch / PR | `feat/atividades-janelas-tipo`, a partir da `main` `48ec6ca3` (PR #319) · PR **#322**, mergeada |
+| Escopo | `JanelaLancamentoPorTipo.jsx` (novo): Trabalho de máquinas, Aplicação de insumos, Mão de obra e Custos extras pelo ⚡ da lista; o dia (hoje, ‹ ›, o lançamento do dia quando há mais de um, a área do dia); aba da lista do tipo com o total e o ⚡ da linha (Editar e Cancelar de sempre); aba Dados com o MESMO formulário de `JanelasDaLinha` (casca trocável, destino "dia novo": `criarApontamento` com a linha, `operation_id` persistente), Voltar / Salvar / Salvar e fechar; celular em tela cheia. `DialogoCancelarLinha` compartilhado. Sai o fluxo provisório da fatia 1. Diesel fica no bloco Abastecimentos do dia (fora desta fatia) |
+| Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
+| Relatório | [`MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md`](./MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ATIVIDADES-MENU-RAIO: Lançamento de Atividades, fatia 1 do redesenho pelo protótipo do proprietário — menu ⚡ por linha e Concluir com resumo (D-PROD-232)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-232** (pedida como D-PROD-224; da 224 à 231 já estão em branches abertas de outras sessões), pedido do proprietário com o protótipo HTML dele: seguir a lógica e o estilo, mantendo o modelo visual do sistema. Plano em 4 fatias: 1 menu ⚡ + concluir; 2 janelas por tipo (lista, Inserir, Dados, Salvar e Salvar e fechar; dia com hoje por padrão e setas; dia criado sozinho ao salvar o primeiro item — "pode ser"); 3 atividade aberta (Resumo de custo, tabela dos 4 tipos, aba Resumo da atividade); 4 celular |
+| Branch / PR | `feat/atividades-menu-raio`, a partir da `main` `64310bd4` (PR #313), com a `main` `bd9fc99b` (PR #315, D-PROD-230) por merge · PR **#316**, mergeada |
+| Escopo | Motor Base1: `renderAcoesDaLinha` opt-in em `CadastroBase1Grade` / `Base1Grid` / `Base1Cards` (⚡ na célula de seleção com "Ações" no cabeçalho; no topo do card) e `B1AcoesDaLinha.jsx` (botão + menu: janela no computador, `MobileSheet` no celular). Lançamento de Atividades: menu ⚡ (Trabalho de máquinas / Aplicação de insumos / Mão de obra / Custos extras pelo tipo e pela permissão; Abrir; Alterar, Concluir/Reabrir, Duplicar, Cancelar); lançar pelo ⚡ abre o dia (hoje) e, gravado, a atividade abre com a janela do tipo no dia; `DialogoConcluirAtividade` com o resumo (`/totais` e os dias lançados do detalhe; "—" sem valor) e o aviso da área que falta; "Concluir" à vista na atividade aberta |
+| Release | **Só frontend**: sem backend, banco ou migration — merge e deploy normais |
+| Relatório | [`MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md`](./MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ASSISTENTE-LEITURA: assistente só de leitura em todas as telas (D-PROD-230)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-230** (a `main` indica D-PROD-224, mas a branch `claude/design-filters-implementation-agzxk8` já usa da D-PROD-224 à D-PROD-228 e indica a 229 como a próxima dela), pedido do proprietário: uma IA que responda perguntas sobre os dados da fazenda, só de leitura, com a chave da API do Claude dele |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `cdd8d79d` (PR #312, D-PROD-223) · PR **#315**, mergeada |
+| Escopo | `POST /assistente/perguntar` (tenant só da sessão, fazenda conferida, corpo fechado, histórico curto do cliente, dica da tela); 5 ferramentas fechadas e só de leitura sobre os serviços que já existem (pastos com forragem, medições do pasto, rebanho por pasto, resumo do rebanho, leituras de cocho); botão flutuante do assistente em todas as telas logadas, montado uma vez no Layout |
+| Migration | **Nenhuma.** Nada é gravado: sem tabela, sem histórico no servidor |
+| Configuração | `ANTHROPIC_API_KEY` nas variáveis de ambiente da Vercel (produção). Sem ela, o assistente responde "não configurado" (503 `ASSISTENTE_NAO_CONFIGURADO`) |
+| Relatório | [`MAIKE-ASSISTENTE-LEITURA-REPORT.md`](./MAIKE-ASSISTENTE-LEITURA-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-DESCANSO-ESTIMADO: farol de forragem estimado pelos dias de descanso e parâmetros próprios do pasto (D-PROD-223)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-223** (a D-PROD-222 está reservada pela branch `claude/design-filters-implementation-agzxk8`), pedido do proprietário: sem medição recente, o farol do pasto estimado pelos dias desde a saída do último lote contra os dias de descanso da cultura |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `9b4bf78f` (PR #311, D-PROD-221) |
+| Escopo | `CADCULTURAS.dias_descanso` (API 1..365, formulário e grade "Dias de descanso", lista de referência com os valores); `GET /medicoes-forragem/descanso` (ocupação e última saída por pasto pelo ledger do rebanho); `dias_descanso` na cultura embutida de `/areas-pastagem`; regra pura (Descanso < D ≤ Pronto ≤ arredondar(D×1,5) < Passou; nunca Rapado); farol estimado no modo "Forragem" (tom bem claro, "(estimado)" na legenda) e no painel Forragem do pasto ("Em pastejo" com lote dentro); **parâmetros próprios do pasto** na Área (alturas de entrada/saída e dias de descanso; vazio = os da cultura), usados na Medição de Forragem, na estimativa e no painel, com a seção opcional no formulário da Área |
+| Migration | `20261117300000_descanso_e_alturas_por_area`, **EXPAND** (4 colunas anuláveis em tabelas antigas, sem CHECK — faixas na API), SHA-256 `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e`. Produção 66 → 67 (a anterior é a `20261117200000_medicao_forragem`, D-PROD-219); tabelas 96 (nenhuma nova) |
+| Dados | Depois da migration, os dias de descanso de referência nas 11 culturas da fazenda (só onde vazio, por código e nome; DML guardado, uma transação, evento na auditoria) — [runbook](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md) §4 |
+| Release | **Aplicada em produção** em 2026-11-17 às 13:48:31 UTC (caminho B do [runbook](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md), GO do proprietário): preflight 66 / 0, postcheck 67 / 0, as 4 colunas presentes, 96 tabelas. Passo de dados às 13:48:50 UTC: 11 culturas com os dias de descanso de referência, auditado (`d-prod-223-backfill`). Merge depois do CI verde |
+| Relatório | [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-FAROL-FORRAGEM: farol de forragem no Mapa Geral (D-PROD-221)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-221**, pedido do proprietário: depois da Medição de Forragem, o farol no mapa (cada pasto pintado pela última medição) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `e58cbbc9` (PR #310, ajuste da D-PROD-219) |
+| Escopo | Modo de coloração **"Forragem"** no painel Visualização (preferência por usuário, como os outros modos); cor do pasto pela última medição (Rapado vermelho, Descanso amarelo, Pronto verde, Passou do ponto roxo; mais de 15 dias → cinza; nunca medido → neutro; no olho → tom mais claro + 👁); infraestrutura, reserva e APP com a cor normal; legenda; chip do farol no detalhe do pasto. Domínio puro em `src/domain/pastagem/farolForragem.js` |
+| Release | **Sem migration** (lê a `MEDICAOFORRAGEM` da D-PROD-219): merge e deploy normais |
+| Relatório | [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-MEDICAO-FORRAGEM: Medição de Forragem do pasto, tabela `MEDICAOFORRAGEM` (D-PROD-219)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-219**, pedido do proprietário: medição pela régua, no olho e a amostra de matéria seca, pelo botão no pasto do Mapa Geral |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `effc50be` (PR #307, D-PROD-216), com a `main` `d0b49099` (PR #303, D-PROD-217) mesclada |
+| Escopo | Model `MedicaoForragem` / tabela `MEDICAOFORRAGEM`; API `/medicoes-forragem` (GET autenticado; POST/DELETE com a chave nova do mapa `medir_forragem`); contas no servidor (média, situação pelas alturas da cultura, matéria verde, MS%, massa seca) e prévia na tela; painel **Forragem** no detalhe do pasto com o botão "Medição de Forragem" e as últimas medições; fila offline e cache do mapa. Farol no mapa fica para a próxima missão |
+| Migration | `20261117200000_medicao_forragem`, **EXPAND** (só a tabela nova), SHA-256 `66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f`. Produção 65 → 66 (a anterior é a `20261117100000_abastecimento_fk_apontamento_atividade`, D-PROD-217, mergeada e aplicada antes); tabelas 95 → 96 |
+| Release | **Aplicada em produção** em 2026-11-17 às 03:04:47 UTC (caminho B do [runbook](./MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md), GO do proprietário): preflight 65 / 0, postcheck 66 / 0, `MEDICAOFORRAGEM` com RLS e 1 política, 9 constraints, 5 índices, `anon` sem SELECT, 96 tabelas |
+| Relatório | [`MAIKE-MEDICAO-FORRAGEM-REPORT.md`](./MAIKE-MEDICAO-FORRAGEM-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-ABASTECIMENTO-FK-APONTAMENTO: reforço no banco, o apontamento do abastecimento é da atividade dele (D-PROD-217)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-217** (nasceu D-PROD-213, depois D-PROD-214 e D-PROD-216; a `main` deu a 213 ao Resumo do Rebanho, a 214 aos ajustes do mapa, a 215 às Culturas e a 216 à Área ligada à Cultura, PR #307), pedido do proprietário ("pode fazer o reforço no banco"); continua a D-PROD-211 (item 8, "reforço futuro") |
+| Branch / PR | `feat/abastecimento-fk-apontamento-atividade`, a partir da `main` `387903f2` (merge da PR #300, D-PROD-211), com a `main` `83206ab5` (PR #302, D-PROD-213), a `main` `133c6ed4` (PRs #304, #305 e #306, D-PROD-214 e D-PROD-215) e a `main` `effc50be` (PR #307, D-PROD-216) por merge · PR **#303** |
+| Escopo | Só banco: `AtividadeApontamento` ganha o UNIQUE (`cliente_id`, `empresa_id`, `atividade_id`, `id`) e a FK `AbastecimentoBem_apontamento_fkey` passa a 4 colunas (com a atividade): o banco recusa um abastecimento ligado a apontamento de outra atividade. Código do servidor e da tela sem mudança |
+| Migration | `20261117100000_abastecimento_fk_apontamento_atividade` — o nome com que foi registrada em produção (a pasta nasceu `20261116400000_…` e foi `20261116600000_…`; conteúdo idêntico), **CONTRACT** (décima terceira de `MIGRATIONS_CONTRACT_APROVADAS`; a guarda aborta com qualquer abastecimento ligado a apontamento de outra atividade), SHA `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`. Produção 64 → 65 (a anterior é a `20261117000000_area_cultura`, D-PROD-216); tabelas 95 (sem mudança) |
+| Release | **Aplicada em produção** em 2026-11-17 às 00:43:48 UTC (caminho B do [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md), GO do proprietário): preflight PRONTO (64 / 0), postcheck 65 / 0, a FK de 4 colunas e o UNIQUE presentes, 95 tabelas, dados intactos. `SCHEMA_APPLIED_PROD: SIM (2026-11-17)` |
+| Documentos | [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md) · [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (§9, registro da execução) |
+
+## Missão anterior (2026-11-16) — MAIKE-AREA-CULTURA: Área ligada à Cultura e o vínculo das áreas à 001 Marandu (D-PROD-216)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-216**, pedido do proprietário: a área aponta para a cultura do cadastro; as pastagens atuais viram 001 Marandu, uso Pastagem |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `133c6ed4` (PR #306) |
+| Escopo | `AreaPastagem.cultura_id` (FK composta pela fazenda, RESTRICT); `tipo_pastagem` derivado do nome da cultura; API das áreas com `cultura_id` e `cultura`; `CULTURA_EM_USO` (409) na exclusão; formulário da Área com o campo "Cultura" ("001 · NOME"); grade com o rótulo; SQL Editor 01–04 na ordem nova. Sem alturas no pasto ou no lote |
+| Migration | `20261117000000_area_cultura`, **CONTRACT aditiva** (D-PROD-216), SHA-256 `e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26`. Produção 63 → 64 (a anterior é a `20261116500000_cadculturas`, D-PROD-215); 95 tabelas (nenhuma nova) |
+| Dados | Depois da migration, o vínculo das 107 áreas à cultura 001 (DML guardado, uma transação, evento na auditoria) — [runbook](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md) §4 |
+| Release | **Aplicada em produção** em 2026-11-17 às 00:24:16 UTC (caminho B do [runbook](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md), GO do proprietário); postcheck 64 / 0, FK e índices presentes. Vínculo às 00:24:38 UTC: 107 áreas → cultura 001 Marandu, uso Pastagem, auditado |
+| Relatório | [`MAIKE-AREA-CULTURA-REPORT.md`](./MAIKE-AREA-CULTURA-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-CULTURAS: Cadastro de Culturas, tabela `CADCULTURAS`, com lista de referência (D-PROD-215)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-215**, pedido do proprietário: primeiro passo da produção de forragem e das medições; o catálogo de culturas traz as alturas de referência, numerado |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `83206ab5` (PR #302, D-PROD-213) |
+| Escopo | Model `Cultura` / tabela `CADCULTURAS` por fazenda; API `/culturas` + comando idempotente `POST /culturas/comandos/lista-referencia` (11 forrageiras); tela "Culturas" Base1 no menu Manejo; permissão `pec-culturas` sem concessão automática. Sem vínculo com Área, pasto ou lote |
+| Migration | `20261116500000_cadculturas`, **EXPAND** (só a tabela nova), SHA-256 `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`. Produção 62 → 63 (a anterior é a `20261116300000_abastecimento_atividade`, D-PROD-211); tabelas 94 → 95 |
+| Release | **Aplicada em produção** em 2026-11-16 às 22:54:49 UTC, caminho B do [runbook](./MAIKE-CULTURAS-RUNBOOK-RELEASE.md), com o GO escrito do proprietário; postcheck 63 / 0, checksum igual ao pinado, `CADCULTURAS` com RLS e 1 política, 5 constraints, `anon` sem SELECT, 95 tabelas |
+| Relatório | [`MAIKE-CULTURAS-REPORT.md`](./MAIKE-CULTURAS-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-MAPA-CADASTROS-LIGACOES: bugs dos cadastros do mapa e das ligações (D-PROD-214)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-214**, pedido do proprietário: verificar e corrigir os cadastros do mapa (pontos, áreas, linhas, cochos, depósitos, bebedouros), o cadastro em lote e as ligações entre áreas, pontos e lotes |
+| Branch / PR | `fix/mapa-cadastros-ligacoes`, a partir da `main` `83206ab5` (PR #302) · PR **#305** |
+| Escopo | Ligação estrita ponto↔cocho/depósito/bebedouro; exclusão com histórico bloqueada; `numero_ponto` no servidor; ocupação derivada; propagação de nome de área/setor; renumeração de áreas; Mapa Geral relendo depois de cadastros. Bugs de lote/movimentação só registrados (pausa nos lotes) |
+| Release | Sem migration: merge e deploy normais |
+| Relatório | [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-RESUMO-REBANHO: Resumo do Rebanho no Mapa Geral (D-PROD-213)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-213**, pedido do proprietário: relação do rebanho por categoria com peso hoje, peso projetado em 90 dias, arrobas e lotação por pasto, no padrão visual do sistema |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `387903f2` · PR **#302**, mergeada (`83206ab5`) |
+| Escopo | Cartão do resumo inferior do Mapa Geral abre o diálogo (casca do Detalhes do Lote v8); contas puras em `src/domain/rebanho/resumoDoRebanho.js`; sem backend, sem migration, sem permissão nova |
+| Release | Sem migration: merge e deploy normais |
+| Relatório | [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-ATIVIDADE-ABASTECIMENTO: Fatia 5, abastecimento ligado à atividade (D-PROD-211)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-211** (nasceu D-PROD-210; a `main` deu a D-PROD-210 à base do consumo, PR #297), Fatia 5 do brief do Lançamento de Atividades, liberada pelo proprietário ("pode iniciar a fatia 5") |
+| Branch / PR | `feat/atividade-abastecimento`, a partir da `main` `18426967` (merge da PR #299, D-PROD-209), com a `main` `67f44d76` (PR #297, D-PROD-210) e `72e31cbe` (PR #301, D-PROD-212) por merge · PR **#300** |
+| Escopo | Abastecimento ligado ao lançamento (atividade derivada), origem `EXTERNO` (posto, sem estoque), snapshots de centro de custo, leitura anterior, delta e intervalo confiável; cascata de cancelamento; totalizador com combustível, custo/ha e consumo por bem |
+| Migration | `20261116300000_abastecimento_atividade`, **CONTRACT**, SHA `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`. Produção 61 → 62 (a anterior é a `20261116200000_formulacao_base_consumo`, D-PROD-210); tabelas 94 (sem mudança) |
+| Release | **Aplicada em produção em 2026-11-16** (GO escrito do proprietário, caminho B): postcheck APLICADA E CONFERIDA, produção 62/0, 94 tabelas. Registro no [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) §9 |
+| Documentos | [contrato](./MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md) · [relatório](./MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md) · [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-FECHAMENTO-REFINAMENTOS: peso médio do período no esperado (base %PV) e a sobra antiga primeiro no custo (D-PROD-212)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-212** (a D-PROD-211 fica para a PR #300, aberta), refinamentos 1 e 2 do fechamento do consumo aprovados pelo proprietário |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `67f44d76` (PR #297, D-PROD-210) |
+| Escopo | Esperado do fechamento pelo peso médio do período (curva de ganho do lote, mesma regra do peso projetado D-PROD-198), só na base PV; custo do período com a sobra herdada saindo primeiro (camadas FIFO no cocho); correção do PATCH de `SuplementacaoEvento`, que recusava os campos do fechamento do consumo desde a D-PROD-206 |
+| Migration | **Nenhuma** (campos no documento JSON do evento e do lote) |
+| Release | Merge sem passo de banco |
+| Relatório | [`MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md`](./MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-BASE-CONSUMO: base do consumo na Formulação, % do peso vivo ou g por cabeça por dia (D-PROD-210)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-210** (nasceu D-PROD-207 e depois D-PROD-208; a `main` deu a D-PROD-207 à Fatia 4, a D-PROD-208 ao ajuste dela e a D-PROD-209 ao tipo Terceirizado), pedido do proprietário: sal mineral em g/cab/dia fixo; uma base por formulação, sem mistura; regras por categoria na mesma base |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `f31d3397` (PR #296), com a `main` `18426967` (PR #299, D-PROD-209) por merge · PR **#297** |
+| Escopo | `base_consumo` PV / G_CAB_DIA na Formulação (API, tela, validação sem mistura), regra em gramas, esperado do lançamento na base G (sem peso), farol do fechamento pelos gramas na base G |
+| Migration | `20261116200000_formulacao_base_consumo`, **CONTRACT** (décima de `MIGRATIONS_CONTRACT_APROVADAS`; as 3 tabelas de Formulações vazias pela guarda), SHA-256 `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`. Produção 58 → 59, 95 tabelas. Aprovação do CONTRACT pelo proprietário ("os dados eram só teste"; tabelas com 0 linhas) |
+| Release | **Aplicada em produção** em 2026-11-16 às 02:06:55 UTC, caminho B do [runbook](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md), com o GO escrito do proprietário ("go"); postcheck 61 / 0, checksum igual ao pinado, colunas e CHECKs novos presentes, 94 tabelas em `public` |
+| Relatório | [`MAIKE-BASE-CONSUMO-REPORT.md`](./MAIKE-BASE-CONSUMO-REPORT.md) |
+
+## Missão anterior (2026-11-16) — MAIKE-FUNCIONARIO-TIPO: tipo do funcionário Mensalista, Diarista ou Terceirizado (D-PROD-209)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-209**, pedido do proprietário ("por enquanto deixe a escolha assim, mensalista, diárias, terceirzado") |
+| Branch / PR | `feat/funcionario-tipo-terceirizado`, a partir da `main` `3de613a5` (merge da PR #298, D-PROD-208) · PR **#299** |
+| Escopo | `Fornecedor.funcionario_tipo` ∈ `MENSALISTA \| DIARISTA \| TERCEIRIZADO` (`TERCEIRIZADO` no lugar de `TAREFEIRO`), na tela Parceiros e no servidor; medida sugerida na mão de obra: Terceirizado → hora (Mensalista → hora e Diarista → diária continuam); a medida `TAREFA` da linha continua |
+| Migration | `20261116100000_funcionario_tipo_terceirizado`, **CONTRACT** (troca do CHECK `Fornecedor_funcionario_check`; a guarda aborta com qualquer parceiro `TAREFEIRO`), SHA `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6`. Produção 59 → 60; tabelas 94 (sem mudança) |
+| Release | **Aplicada em produção em 2026-11-16** (GO escrito do proprietário, caminho B): postcheck APLICADA E CONFERIDA, produção 60/0, 94 tabelas, CHECK com `TERCEIRIZADO`. Registro no [runbook](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) §9; validação toda local (GitHub Actions pausado) |
+| Constituição | Sem nota (não muda escopo) |
+| Documentos | [`MAIKE-FUNCIONARIO-TIPO-REPORT.md`](./MAIKE-FUNCIONARIO-TIPO-REPORT.md) · [`MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO (ajuste da Fatia 4): o funcionário vira papel do parceiro, e a mão de obra pode ser de funcionário ou de terceiro (D-PROD-208)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-208**, pedido do proprietário ("o cadastro de funcionários deveria ser lá em parceiros, outra coisa, eu também tenho mão de obra com terceiros não apenas com funcionários […]"); plano aprovado: "sim pode fazer" |
+| Branch / PR | `feat/atividade-mao-obra-parceiro`, a partir da `main` `9a666393` (merge da PR #294, Fatia 4, D-PROD-207) · PR **a abrir** |
+| Escopo | Papel `funcionario` no parceiro com tipo, cargo e custos por hora e por diária; a linha de mão de obra aponta para o parceiro, com a `origem` `FUNCIONARIO`/`TERCEIRO` decidida pelo servidor (funcionário: hora e diária com snapshot, tarefa digitada; terceiro: custo sempre digitado); seletor `GET /atividades-opcoes/mao-obra`; tabela, tela e rotas de Funcionário saem (vazias em produção) |
+| Migration | `20261116000000_mao_obra_parceiro`, **CONTRACT condicionado a tabelas vazias** (`drop_no_fim`), SHA `65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0`. Produção 58 → 59; tabelas 95 → 94; de tenant, 80 → 79 |
+| Release | **Aplicada em produção** em 2026-11-15 às 22:57:36 UTC, antes do merge, caminho B do [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md), com o GO "aplica e aprova"; postcheck 59 / 0, 94 tabelas; validação toda local (GitHub Actions pausado) |
+| Constituição | Nota "Ajuste (D-PROD-208)" no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-15 |
+| Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-ATIVIDADE-MAO-OBRA (Fatia 4 do Lançamento de Atividades): mão de obra e serviço de terceiro (D-PROD-207)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-207**, pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo."); escolha aprovada antes de implementar: Funcionário próprio (não `Usuario`) e prestador do cadastro de Parceiros ("sim, vai de acordo com o cadastro de parceiro") |
+| Branch / PR | `feat/atividade-mao-obra-servico`, a partir da `main` `8d4b36a1`, com a `main` `c181e327` (PR #290, Formulações, D-PROD-203), a `5490308f` (PR #280, D-PROD-204), a `45444d21` (PR #295, leitura de cocho, D-PROD-205) e a `f31d3397` (PR #296, fechamento do consumo, D-PROD-206) mescladas |
+| Escopo | Cadastros mínimos de Funcionário e de Serviço por fazenda (só inativar), linha de mão de obra (hora e diária com snapshot do custo, tarefa digitada), linha de serviço (unidade como snapshot, valor digitado, parceiro prestador opcional), editar/cancelar e cascatas como na Fatia 3, totais e custo por hectare com as quatro linhas |
+| Migration | `20261115900000_atividade_mao_obra_servico`, **EXPAND** (só 4 tabelas novas), SHA `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`. Produção 57 → 58 (depois da faixa de tolerância do fechamento do consumo, D-PROD-206, já aplicada); tabelas 91 → 95; de tenant, 76 → 80 |
+| Release | **Aplicada em produção** em 2026-11-15 às 19:58:35 UTC, antes do merge, caminho B do [runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md), com o GO do proprietário; postcheck 58 / 0, 95 tabelas |
+| Constituição | Expansão D-PROD-207 no `00` e nota no `07`, redigidas pelo agente e **aprovadas pelo proprietário** em 2026-11-15 ("Aplica e aprova") |
+| Documentos | [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-FECHAMENTO-CONSUMO: fechamento do consumo do cocho (%PV real × esperado, farol pela faixa da formulação, custo por cab/dia) (D-PROD-206)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-206**, decisões do proprietário para a etapa 4 da suplementação (abastecimento fecha o período; farol ±faixa da formulação, padrão 15%; custo pelo estoque; sobra não informada = aproximado) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `45444d21` (merge da PR #295, D-PROD-205) |
+| Escopo | Faixa de tolerância na Formulação (API, tela e coluna); o lançamento grava custo/kg da saída FIFO, faixa e peso vivo de quem consome; sobra vazia = não medida; fechamento puro (`fechamentoConsumo.js`) gravado no evento nos dois caminhos que fecham; farol, %PV, g/cab/dia e custo no cartão do lançamento, no detalhe do cocho ("Último período fechado") e na prévia do abastecimento |
+| Migration | `20261115200000_formulacao_faixa_tolerancia`, **EXPAND** (1 coluna anulável em CADFORMULACAO). SHA-256 `bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c`. Release pelo [runbook](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md) |
+| Release | **Aplicada em produção** em 2026-11-15 às 17:27:54 UTC, caminho B do [runbook](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md), com aprovação do proprietário; postcheck 57 / 0, checksum igual ao pinado, coluna `numeric(5,2)` anulável sem default, 91 tabelas em `public` |
+| Próximas etapas | 2b Produção da batelada, quando o proprietário precisar |
+| Relatório | [`MAIKE-FECHAMENTO-CONSUMO-REPORT.md`](./MAIKE-FECHAMENTO-CONSUMO-REPORT.md) |
+
+## Missão anterior (2026-11-15) — MAIKE-LEITURA-COCHO: leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (D-PROD-205)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-205**, decisões do proprietário para a etapa 3 da suplementação (escore Vazio/Adequado/Cheio + acesso + estrutura, sem estoque; farol no mapa; leitura vence depois de 2 dias) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `5490308f` (merge da PR #280, D-PROD-204) |
+| Escopo | Tabela `LEITURACOCHO`, API `/leituras-cocho` (GET autenticado; POST/DELETE com a chave do mapa `lancar_suplementacao`), leitura também offline (fila), farol do cocho (vermelho/verde/azul/cinza) no detalhe e no marcador do mapa, avisos de acesso e estrutura |
+| Migration | `20261115100000_leitura_cocho`, **EXPAND** (1 tabela nova). SHA-256 `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1`. Release pelo [runbook](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md), **antes do merge** (D-PROD-72) |
+| Release | **Aplicada em produção** em 2026-11-15 às 15:20:55 UTC, caminho B do [runbook](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md), com aprovação do proprietário; postcheck 56 / 0, checksum igual ao pinado, `LEITURACOCHO` com RLS e 1 política, 7 constraints, `anon` sem SELECT, 91 tabelas em `public` |
+| Próximas etapas | 4 Fechamento de consumo em %PV com faixa configurável (padrão ±15%) e custo por cab/dia · 2b Produção da batelada, quando o proprietário precisar |
+| Relatório | [`MAIKE-LEITURA-COCHO-REPORT.md`](./MAIKE-LEITURA-COCHO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-OFFLINE-MAPA-IDS: o id do servidor de uma criação offline sobrevive entre passadas do replay (D-PROD-204)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-204** (nasceu D-PROD-198, que a `main` deu ao peso projetado do lote; a D-PROD-203 é da PR #290, mergeada) |
+| Branch / PR | `claude/relaxed-bardeen-jlgbp7`, PR #280, exclusiva desta missão. Nasceu sobre a PR #279 (emenda R2 da D-PROD-195); depois do merge dela, atualizada por merge com a `main` e com a `main` como base |
+| Escopo | `syncOfflineEntityQueue`: depois de um `create` confirmado e antes de tirá-lo da fila, todo item da fila que cita o id offline passa a citar o do servidor (`record_id` e `data`). `substituirIdsMapeados` troca só id `offline_…`, por chave própria do mapa, inclusive dentro de listas. Sem retenção nova. Só frontend, sem migration |
+| Provas | `offlineMapaDeIdsEntrePassadas` (6, todos reprovam com o runtime anterior) + `offlineRuntime`, `estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado`, `loteExclusaoCacheOffline`, `categoriaManejoCriacaoOnline` |
+| Relatório | [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-FORMULACOES: Formulações de suplemento (produto pronto ou batelada, %PV por categoria) e formulação obrigatória no lançamento do cocho (D-PROD-203)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-203**, decisões do proprietário para a etapa 2 da suplementação (pronto × batelada, %PV com exceção por categoria, ingredientes em kg por batida, produto misturado cadastrado antes em Produtos, formulação obrigatória no lançamento) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `10a966e7` (merge da PR #288, D-PROD-201) |
+| Escopo | Etapa 2a de 4 da suplementação: cadastro de Formulações (tela `Formulacoes`, menu Manejo, tela de permissão `pec-formulacoes`), API `/formulacoes` com `opcoes-lancamento` (só ativas; também pela chave do mapa `lancar_suplementacao`), e o lançamento do cocho com a Formulação obrigatória no lugar do Produto e o consumo esperado lote a lote (regra da categoria ou %PV padrão) |
+| Migration | `20261114700000_cadformulacao`, **EXPAND** (3 tabelas novas: `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE`, `CADFORMULACAOREGRA`). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`. Repositório 54 → **55** (a 55ª, depois da `20261114600000_atividade_linhas_produto_maquina` da PR #289); tabelas 87 → **90** |
+| Release | **Aplicada em produção** em 2026-11-14 às 23:41:42 UTC, caminho B do [runbook](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 55 / 0, 3 tabelas com RLS, 90 tabelas, advisors sem achados. A PR #289 (migration `20261114600000`, já aplicada) entrou na `main` (`8d4b36a1`, com a #291) e foi incorporada nesta branch |
+| Próximas etapas | 2b Produção da batelada (baixa dos ingredientes e entrada do misturado pelo motor de estoque) · 3 Leitura de cocho e farol · 4 Fechamento de consumo em %PV com faixa configurável |
+| Relatório | [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-202**, pedido do proprietário ("FATIA 3 — As linhas que geram custo: produto e máquina."), liberada com "pode começar" |
+| Branch / PR | `feat/atividade-itens-produto-maquina`, a partir da `main` `74bd3ee1` |
+| Escopo | Linha de produto (baixa e estorno FIFO pelo motor único), linha de máquina (medidor do bem, leitura na linha), totalizador, repetir com linhas, custo de uso e teto de salto nos cadastros |
+| Migration | `20261114600000_atividade_linhas_produto_maquina`, **EXPAND**, SHA `e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489`. Produção 53 → 54; tabelas 84 → 87 |
+| Release | **Aplicada em produção** em 2026-11-14, antes do merge, com o GO "autorizo vocÇe", pelo caminho B do [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md). Postcheck: 54 / 0, 87 tabelas, APLICADA E CONFERIDA |
+| Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-14 |
+| Documentos | [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) · [`MAIKE-ATIVIDADE-LINHAS-REPORT.md`](./MAIKE-ATIVIDADE-LINHAS-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-201** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `74bd3ee1` (merge da PR #285) |
+| Escopo | Etapa 1 de 4 da suplementação: o lançamento usa o rebanho do mapa (posições) e o peso projetado (ou o último peso); lote sem peso não entra como zero; um `operation_id` por lançamento (salvar de novo não baixa duas vezes); `toast.warning`; recusa de data anterior ao último abastecimento; motivo "sem peso" no mapa |
+| Migration | Nenhuma; servidor inalterado |
+| Próximas etapas | 2 Formulação (pronto × batelada, %PV padrão e por categoria, produção com custo do estoque) · 3 Leitura de cocho (escore, acesso, estrutura) e farol de cocho · 4 Fechamento de consumo em %PV com faixa configurável e custo/cab/dia |
+| Relatório | [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-ATIVIDADE-CABECALHO (Fatia 2 do Lançamento de Atividades): Atividade como cabeçalho e o apontamento do dia como filho (D-PROD-200)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-200**, pedido do proprietário ("FATIA 2 — O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" |
+| Branch / PR | `feat/atividade-cabecalho`, a partir da `main` `1dd44f0c` (merge da PR #276) |
+| Escopo | `Atividade` e `AtividadeApontamento` no lugar do apontamento de linha única e dos itens da D-PROD-193; API `/atividades`; tela "Lançamento de Atividades"; permissões `op-atividades` com as extras de apontamento e de reabrir |
+| Migration | `20261114500000_atividade_cabecalho`, **CONTRACT** com conversão (sétima entrada; formato novo do portão). SHA-256 `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb`. Repositório 51 → **52**; tabelas 85 → **84** |
+| Release | **Aplicada em produção** em 2026-11-14 às 20:25:14 UTC, caminho B, com GO do proprietário; conferência 53 / 0, 84 tabelas |
+| Próxima fatia | Fatia 3 (`feat/atividade-itens-produto-maquina`), só quando o proprietário liberar |
+| Documentos | [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md) · [`MAIKE-ATIVIDADE-CABECALHO-REPORT.md`](./MAIKE-ATIVIDADE-CABECALHO-REPORT.md) |
+
+## Missão ativa (2026-11-14) — MAIKE-PESO-PROJETADO: peso projetado do lote e peso objetivo na Categoria de Manejo (D-PROD-198)
+
+## Missão ativa (2026-11-14) — MAIKE-MUDANCA-CATEGORIA-MANEJO: a Mudança de Categoria mostra e pede a categoria de manejo de destino (D-PROD-199)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-199** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `2b211d7b` (merge da PR #283) e avançada até a `main` `02ea10b5` (PR #284) |
+| Escopo | Mudança de Categoria: mostra a categoria de manejo de destino; escolha obrigatória quando há mais de uma; aviso quando não há nenhuma. Cadastro de Categoria de Manejo: aviso de categoria ativa com o mesmo sexo e a mesma faixa |
+| Migration | Nenhuma; servidor inalterado |
+| Relatório | [`MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md`](./MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-PESO-PROJETADO: peso projetado do lote e peso objetivo na Categoria de Manejo (D-PROD-198)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-198** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `ab63ee26` (merge da PR #282) e atualizada por merge com a `main` `1dd44f0c` (PR #276, D-PROD-197) |
+| Escopo | Peso objetivo opcional na categoria; motor do peso projetado pela curva (base derivada pelo projetado das origens); `projecao_peso` em `GET /rebanho/posicoes`; Detalhes do Lote com projetado, @, GMD, base, objetivo, quando atinge, pesado × previsto e próximos meses |
+| Migration | `20261114400000_cadcategoria_peso_objetivo`, **EXPAND** (uma coluna anulável). SHA-256 `d44f8070…3fb1a9`. Repositório e produção: 51 → **52** (depois da `20261114300000_tipo_atividade_defaults`, já aplicada); tabelas iguais |
+| Release | **Aplicada em produção** em 2026-11-14 às 19:00:00 UTC, caminho B do [runbook](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 52 / 0, coluna `numeric(10,2)` anulável sem default, 10 categorias com o campo vazio, 85 tabelas, advisors de segurança sem achados. Merge da PR #283 depois da aplicação |
+| Próxima fatia | Mudança de Categoria entre Categorias de Manejo com a mesma categoria oficial (pasto → confinamento) |
+| Relatório | [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-TIPO-ATIVIDADE-DEFAULTS (Fatia 1 do Lançamento de Atividades): padrões e flags do Tipo de Atividade (D-PROD-197)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-197** (revê a D-PROD-182 só no ponto "TipoAtividade sem flags"), com o pedido do proprietário literal ("TipoAtividade ganha os defaults e as flags. É a base de tudo."; "estas flags são do TIPO DE ATIVIDADE, não do TipoTarefa") |
+| Branch / PR | `feat/tipo-atividade-defaults`, a partir da `main` `a65ea468` e atualizada por merge (sem rebase) com a `main` `29052ea7` (PRs #278 e #279, D-PROD-195) e depois com a `main` `ab63ee26` (PRs #281 e #282, D-PROD-196, que levou esta para D-PROD-197). PR **#276**, exclusiva desta fatia |
+| Escopo | `TipoAtividade` ganha categoria, centro de custo padrão, centro de resultado padrão, unidade de produção (`UnidadeMedida`), coeficiente padrão e 8 flags; API `/tipos-atividade` com os campos, regras 422 e opções de centros da fazenda; tela em 3 seções; helper puro para a Fatia 2. Apontamento de Atividade de hoje inalterado |
+| Migration | `20261114300000_tipo_atividade_defaults`, **CONTRACT** aditiva (sexta entrada fechada). SHA-256 `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`; guarda `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`. Repositório 50 → **51** (a D-PROD-195 da `main` já está aplicada em produção); tabelas não mudam |
+| Release | **Aplicada em produção** em 2026-11-14 às 17:05:05 UTC, caminho B do [runbook](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("Sim: aplique e faça o merge (Recomendado)"); postcheck `APLICADA E CONFERIDA` (51 / 0). Merge da PR #276 depois da aplicação |
+| Constituição | Nota D-PROD-197 no `07`, redigida pelo agente e **aprovada pelo proprietário** junto com o merge (mesma resposta) |
+| Próxima fatia | Fatia 2 (`feat/atividade-cabecalho`: Atividade + apontamento como filho), liberada pelo proprietário ("Sim, comece a Fatia 2 (Recomendado)") |
+| Documentos | [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md) · [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md) |
+
+## Missão ativa (2026-11-14) — MAIKE-LOTE-SEM-RACA-IDADE: cadastro de lotes sem raça predominante e idade média (D-PROD-196)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-196** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `29052ea7` (merge da PR #279) |
+| Escopo | Raça Predominante e Idade Média (meses) saem do formulário, da grade, da porta, da correção da entrada, do mapa e da posição; a aba Geral fica com duas linhas cheias |
+| Banco | **Sem migration**: colunas ficam no banco com os valores antigos (84 lotes); a API não lê, não grava e não devolve, e aceita e ignora se um cliente antigo enviar |
+| Relatório | [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md) |
 
 ## Missão anterior (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
 
@@ -77,7 +455,21 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-CADCURVAGANHO-MENSAL: Curva de Ganho com 12 GMD mensais, sem ligação com as Estações (D-PROD-194)
+## Missão ativa (2026-11-14) — MAIKE-CADCATEGORIA-CURVA-GANHO: Categoria de Manejo com Curva de Ganho obrigatória (D-PROD-195)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-195** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `a65ea468` (merge da PR #273). PR nova, exclusiva desta missão |
+| Escopo | `CADCATEGORIA.curva_ganho_id` obrigatório, da mesma fazenda (FK composta, `RESTRICT`); API e tela da categoria com o campo "Curva de ganho"; opções `GET /categorias-manejo-opcoes/curvas-ganho`; excluir curva em uso → 409 `CURVA_GANHO_EM_USO` |
+| Dado prévio | `'CURVA PADRÃO'` (0,100 kg/dia nos 12 meses) cadastrada pelo banco em 2026-11-14 13:40:36 UTC na única fazenda com categorias, a pedido do proprietário ([runbook](./MAIKE-CADCATEGORIA-CURVA-GANHO-RUNBOOK-RELEASE.md) §7) |
+| Migration | `20261114200000_cadcategoria_curva_ganho`, **CONTRACT** (liga as 10 categorias à CURVA PADRÃO da fazenda e torna o campo obrigatório). SHA-256 `b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb`; guarda `292d2446…63a8`. Repositório e produção: 49 → **50** migrations; tabelas iguais. **Aplicada em produção em 2026-11-14 14:51:56 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 50/0, coluna `NOT NULL`, 10 categorias na CURVA PADRÃO, FK e índices, advisors sem alerta |
+| Release | Aplicação **antes do merge** pelo runbook; merge logo depois da conferência (na janela, criar categoria falha e excluir curva em uso dá 403 em vez de 409; nada se perde) |
+| Merge | PR #278 em 2026-11-14 (`890eaff6`); produção com o `release` novo, smoke 401 nas duas rotas |
+| Emenda R2 | Fila offline: nenhum item vai ao servidor citando uma criação retida pela política (lote criado offline fica retido junto; edição de registro real vai sem o campo); os demais ids offline seguem como antes; a criação retida some das listas; `criacao: 'somente_online'` no runtime. Só frontend, PR própria |
+| Relatório | [`MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md`](./MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-CADCURVAGANHO-MENSAL: Curva de Ganho com 12 GMD mensais, sem ligação com as Estações (D-PROD-194)
 
 | Campo | Valor |
 |---|---|
@@ -85,7 +477,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `cf07309c` (merge da PR #270) e integrada por merge com a `main` `810a312a` (PR #268, Fatia D) `565e4a95` (PRs #269, #271 e #263) e `cfa3e7e9` (PR #274). PR #273, exclusiva desta missão |
 | Escopo | `"CADCURVAGANHO"` passa de 3 GMD por estação para 12 GMD mensais (`gmd_jan` … `gmd_dez`, kg/dia, -2 a 3). API `/curvas-ganho` com os 12 campos. Tela: 12 meses com o ganho do mês pelos dias reais, atalho "repetir →", ganho no ano, média por dia e gráfico. Estações seguem como cadastro próprio, fora da curva. **Sem vínculo** com categoria ou lote |
 | Migration | `20261114100000_cadcurvaganho_mensal`, **CONTRACT** isolada (tabela vazia sai e volta mensal; guarda recusa se houver curva). SHA-256 `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`; guarda `3cd5adc4…0b6d`. Repositório e produção: 48 → **49** migrations; tabelas iguais. **Aplicada em produção em 2026-11-14 13:29:18 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 49/0, 12 colunas mensais, RLS, advisors sem alerta |
-| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) (caminho A com `--contract D-PROD-194`; caminho B só com GO escrito e específico desta migration). Aplicar **fora de pico** (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` por menos de 1 s). Merge logo depois da conferência: na janela até o deploy, só `/curvas-ganho` dá 500 |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) §7). PR #273 mergeada em `a65ea468` (2026-11-14 13:30 UTC, merge autorizado pelo proprietário); produção conferida: `/health` com `release` = `a65ea468`, `/api/native/curvas-ganho` → 401; `verify:all` local verde (Actions pausado). Planejado: (caminho A com `--contract D-PROD-194`; caminho B só com GO escrito e específico desta migration). Aplicar **fora de pico** (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` por menos de 1 s). Merge logo depois da conferência: na janela até o deploy, só `/curvas-ganho` dá 500 |
 | Relatório | [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md) |
 
 ## Missão ativa (2026-11-14) — MAIKE-ICONES-CATEGORIA-DIGITADA: a categoria digitada no cadastro de ícone não é mais apagada (D-PROD-192)

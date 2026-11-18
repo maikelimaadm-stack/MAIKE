@@ -402,7 +402,8 @@ describe('S6–S8 — o banco é a última rede', () => {
     await recusa(AB('quantidade = 0'), /AbastecimentoBem_quantidade_check/, 'quantidade zero');
     await recusa(AB('custo_unitario = -1'), /AbastecimentoBem_custos_check/, 'custo negativo');
     await recusa(AB('medidor_leitura = NULL'), /AbastecimentoBem_medidor_check/, 'contador sem leitura');
-    await recusa(AB(`medidor_tipo = 'SEM_MEDIDOR'`), /AbastecimentoBem_medidor_check/, 'SEM_MEDIDOR com leitura');
+    // D-PROD-211: a linha tem o snapshot do medidor (anterior e delta), que também exige contador (`…_intervalo_check`).
+    await recusa(AB(`medidor_tipo = 'SEM_MEDIDOR'`), /AbastecimentoBem_medidor_check|AbastecimentoBem_intervalo_check/, 'SEM_MEDIDOR com leitura');
     await recusa(AB(`medidor_origem = 'CADASTRO_INICIAL'`), /AbastecimentoBem_medidor_check/, 'origem ≠ ABASTECIMENTO');
     await recusa(AB(`medidor_unidade = 'km'`), /AbastecimentoBem_medidor_check/, 'horímetro em km');
     await recusa(AB(`status = 'CANCELADO'`), /AbastecimentoBem_status_check/, 'CANCELADO sem estorno');

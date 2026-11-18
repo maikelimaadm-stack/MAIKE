@@ -8,7 +8,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { categoriaManejoPort } from './categoriaManejoNativePort.js';
+import { categoriaManejoPort, listarOpcoesCurvasGanho } from './categoriaManejoNativePort.js';
 
 const RESOURCE = 'CategoriaManejo';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -37,4 +37,15 @@ export const deleteCategoriaManejo = async (id) => {
   const contexto = ctx('deleteCategoriaManejo');
   assertArgument(isId(id), 'id', contexto);
   return runProviderCall(() => categoriaManejoPort.delete(id), contexto);
+};
+
+/**
+ * Curvas de ganho da fazenda para o seletor da categoria (D-PROD-195).
+ * @param {string} empresaId
+ * @returns {Promise<Array<{ id: string, nome: string, ativo: boolean }>>}
+ */
+export const listOpcoesCurvasGanhoCategoriaManejo = async (empresaId) => {
+  const contexto = ctx('listOpcoesCurvasGanhoCategoriaManejo');
+  assertArgument(isId(empresaId), 'empresa_id', contexto);
+  return comoLista(await runProviderCall(() => listarOpcoesCurvasGanho(empresaId), contexto));
 };

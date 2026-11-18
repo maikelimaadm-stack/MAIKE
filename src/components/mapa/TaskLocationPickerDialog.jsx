@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { listarTarefasDaEmpresa, listarIconesDaEmpresa } from "@/services/tarefasMapaService";
+import { listarTarefasDaEmpresa, listarIconesPorTipo } from "@/services/tarefasMapaService";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -109,7 +109,9 @@ export default function TaskLocationPickerDialog({
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["icones-config-picker", empresaSelecionadaId],
-    queryFn: async () => listarIconesDaEmpresa(empresaSelecionadaId),
+    // Ícone de prioridade é configuração do tenant (gravado sem empresa), como
+    // no painel de tarefas e no Mapa Geral; por empresa a lista vinha vazia.
+    queryFn: async () => listarIconesPorTipo("Prioridade Tarefa"),
     enabled: !!empresaSelecionadaId && open,
     initialData: [],
   });

@@ -64,15 +64,26 @@ const ORDEM_DE_LIMPEZA = [
   // fazer (P4.2).
   'movimentacaoEstoque',
   'estoqueLoteNota',
+  // D-PROD-205 — LEITURACOCHO referencia PontoSuplementacao (CASCADE) e Empresa (Restrict): antes dos dois.
+  'leituraCocho',
+  // D-PROD-219 — MEDICAOFORRAGEM referencia AreaPastagem, CADCULTURAS e Empresa (FKs compostas, Restrict).
+  'medicaoForragem',
   'pontoSuplementacao',
   'bebedouro',
   'fornecedor',
+  // D-PROD-203 — as regras e os ingredientes das Formulações referenciam CADCATEGORIA e Produto (Restrict); a
+  // formulação referencia Produto e Empresa. Filhas antes da mãe, todas antes da categoria, do produto e da empresa.
+  'formulacaoRegraCategoria',
+  'formulacaoIngrediente',
+  'formulacao',
   'categoriaManejo',
   'permissao',
   // D-PROD-188 — CADESTACOES referencia Empresa (FK composta, Restrict).
   'cadEstacao',
   // D-PROD-189 — CADCURVAGANHO referencia Empresa (FK composta, Restrict).
   'cadCurvaGanho',
+  // D-PROD-215 — CADCULTURAS referencia Empresa (FK composta, Restrict).
+  'cultura',
   'empresa',
   'produto',
   'localEstoque',
@@ -120,16 +131,31 @@ export const limparBanco = async () => {
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});
   await prisma.perfilFinanceiroEmpresa.deleteMany({});
-  // D-PROD-193: as fatias FIFO do item referenciam o item e o lote; o item
-  // referencia o apontamento, os movimentos (saída e estorno), Produto, local e
-  // usuários (RESTRICT em tudo): fatias → itens, antes do apontamento e antes
-  // do laço (que limpa movimentos, lotes, Produto, local e usuário).
-  await prisma.apontamentoAtividadeItemConsumoLote.deleteMany({});
-  await prisma.apontamentoAtividadeItem.deleteMany({});
-  // D-PROD-190: o apontamento de atividade referencia bem (máquina e
-  // implemento), centros de custo e de resultado, área, tarefa, tipo e grupo de
-  // atividade, usuários e empresa (RESTRICT em tudo): sai antes de todos eles.
-  await prisma.apontamentoAtividade.deleteMany({});
+  // D-PROD-200: o apontamento referencia a atividade, o operador e os
+  // usuários de autoria; a atividade referencia bem (máquina), centros de custo
+  // e de resultado, unidade, área, setor, tarefa, tipo e grupo de atividade,
+  // usuários e empresa (RESTRICT em tudo): apontamentos → atividades, antes de
+  // todos eles.
+  // D-PROD-202: as linhas do apontamento (fatias FIFO → linha de produto; linha
+  // de máquina) referenciam o apontamento, lotes, movimentos, produtos, locais,
+  // bens e usuários (RESTRICT): saem antes do apontamento.
+  // D-PROD-211 (Fatia 5): o abastecimento referencia a atividade, o apontamento e o centro de custo
+  // (RESTRICT): as fatias e o abastecimento saem antes deles (e continuam antes de bem, tanque e produto).
+  await prisma.abastecimentoBemConsumoLote.deleteMany({});
+  await prisma.abastecimentoBem.deleteMany({});
+  await prisma.atividadeApontamentoProdutoConsumoLote.deleteMany({});
+  await prisma.atividadeApontamentoProduto.deleteMany({});
+  await prisma.atividadeApontamentoMaquina.deleteMany({});
+  // D-PROD-207 (Fatia 4): linhas de mão de obra e de serviço (apontamento, parceiro, serviço, usuários).
+  await prisma.atividadeApontamentoMaoObra.deleteMany({});
+  await prisma.atividadeApontamentoServico.deleteMany({});
+  await prisma.atividadeApontamento.deleteMany({});
+  // D-PROD-249: as áreas da atividade (referenciadas pelo apontamento; referenciam atividade, área, setor e usuário).
+  await prisma.atividadeArea.deleteMany({});
+  await prisma.atividade.deleteMany({});
+  // D-PROD-207: o cadastro de Serviço referencia Empresa, UnidadeMedida e CentroCusto (RESTRICT).
+  // D-PROD-208: o Funcionário virou papel do parceiro (tabela "Fornecedor"); a tabela própria saiu.
+  await prisma.servico.deleteMany({});
   // D-PROD-157/161: Patrimônio e Frota simplificado (filhas antes das mães; sem
   // autorreferência). Antes do bloco de Gestão porque o bem referencia o centro
   // de custo, e antes do laço porque referencia Empresa, Fornecedor, Usuario e
@@ -137,13 +163,18 @@ export const limparBanco = async () => {
   // D-PROD-159/161: fatias → abastecimento (referenciam lote, movimento, bem,
   // tanque, Produto aceito, local e usuário — RESTRICT) → Produto aceito pelo
   // tanque (referencia tanque e Produto) → tanque → bem → tipo → família.
-  await prisma.abastecimentoBemConsumoLote.deleteMany({});
-  await prisma.abastecimentoBem.deleteMany({});
+  // (o abastecimento e as fatias já saíram acima, antes da atividade — D-PROD-211)
   await prisma.tanqueBemProduto.deleteMany({});
   await prisma.tanqueBem.deleteMany({});
   await prisma.bemPatrimonial.deleteMany({});
   await prisma.tipoPatrimonial.deleteMany({});
   await prisma.familiaPatrimonial.deleteMany({});
+  // D-PROD-197: os padrões do Tipo de Atividade apontam para centros e unidade
+  // (RESTRICT), que saem antes do tipo; soltá-los primeiro deixa a limpeza na ordem de sempre.
+  await prisma.tipoAtividade.updateMany({
+    where: { OR: [{ centro_custo_padrao_id: { not: null } }, { centro_resultado_padrao_id: { not: null } }, { unidade_producao_id: { not: null } }] },
+    data: { centro_custo_padrao_id: null, centro_resultado_padrao_id: null, unidade_producao_id: null },
+  });
   // D-PROD-146: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
   // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
   await prisma.centroCustoResultado.deleteMany({});
@@ -153,6 +184,9 @@ export const limparBanco = async () => {
   await prisma.centroResultado.deleteMany({});
   await prisma.naturezaFinanceira.updateMany({ where: { pai_id: { not: null } }, data: { pai_id: null } });
   await prisma.naturezaFinanceira.deleteMany({});
+  // D-PROD-216 — AreaPastagem aponta para CADCULTURAS (FK composta, Restrict) e a
+  // cultura sai antes da área na ordem abaixo: o vínculo é desfeito primeiro.
+  await prisma.areaPastagem.updateMany({ where: { cultura_id: { not: null } }, data: { cultura_id: null } });
   for (const model of ORDEM_DE_LIMPEZA) {
     await prisma[model].deleteMany({});
   }
@@ -200,6 +234,36 @@ export const criarTenant = async (opcoes = {}) => {
   }
 
   return { cliente, usuario, credenciais: { login, senha } };
+};
+
+/**
+ * D-PROD-195 — toda Categoria de Manejo exige uma Curva de Ganho da MESMA
+ * fazenda (FK composta para CADCURVAGANHO, que por sua vez exige a Empresa).
+ * Cria a Empresa quando `empresaId` ainda não existe no tenant (testes antigos
+ * usam ids falsos como 'emp-1') e a curva, com os 12 GMD.
+ * @param {import('@prisma/client').PrismaClient | import('@prisma/client').Prisma.TransactionClient} prisma
+ * @param {{ clienteId: string, empresaId: string, nome?: string, ativo?: boolean, gmd?: string }} opcoes
+ * @returns {Promise<{ id: string, empresa_id: string, nome: string, ativo: boolean }>}
+ */
+export const criarCurvaGanhoDeTeste = async (prisma, { clienteId, empresaId, nome, ativo = true, gmd = '0.500' }) => {
+  const empresa = await prisma.empresa.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id: empresaId } }, select: { id: true } });
+  if (!empresa) {
+    const { _max } = await prisma.empresa.aggregate({ where: { cliente_id: clienteId }, _max: { numero_empresa: true } });
+    await prisma.empresa.create({
+      data: { id: empresaId, cliente_id: clienteId, numero_empresa: (_max.numero_empresa ?? 0) + 1, apelido: `E-${empresaId}`.slice(0, 40), nome: `Fazenda ${empresaId} ${clienteId}` },
+    });
+  }
+  const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return prisma.cadCurvaGanho.create({
+    data: {
+      cliente_id: clienteId,
+      empresa_id: empresaId,
+      nome: nome ?? `CURVA ${randomUUID().slice(0, 8).toUpperCase()}`,
+      ativo,
+      ...Object.fromEntries(meses.map((m) => [`gmd_${m}`, gmd])),
+    },
+    select: { id: true, empresa_id: true, nome: true, ativo: true },
+  });
 };
 
 /** Monta o app sem abrir porta. */

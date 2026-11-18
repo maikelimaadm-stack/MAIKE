@@ -25,6 +25,8 @@ export const DEFAULT_MAPA_GERAL_PERMISSIONS = {
   lancar_suplementacao: true,
   movimentar_depositos: true,
   visualizar_historico_cocho: true,
+  // D-PROD-219 — Medição de Forragem do pasto (ação gravadora).
+  medir_forragem: true,
 };
 
 export const MAPA_GERAL_PERMISSION_GROUPS = [
@@ -69,6 +71,13 @@ export const MAPA_GERAL_PERMISSION_GROUPS = [
       { key: 'visualizar_historico_cocho', label: 'Ver histórico de cocho / depósito' },
     ],
   },
+  {
+    title: 'Pastos',
+    items: [
+      // D-PROD-219
+      { key: 'medir_forragem', label: 'Lançar medição de forragem' },
+    ],
+  },
 ];
 
 /**
@@ -78,6 +87,8 @@ export const MAPA_GERAL_PERMISSION_GROUPS = [
 export const MAPA_GERAL_ACOES_GRAVADORAS = Object.freeze([
   'mover_lotes', 'pesar_lotes', 'mudar_categoria_lotes', 'registrar_nascimento', 'registrar_morte',
   'registrar_abate', 'renomear_lotes', 'juntar_lotes', 'lancar_suplementacao', 'movimentar_depositos',
+  // D-PROD-219
+  'medir_forragem',
 ]);
 
 /** Administrador real da fazenda ou concessão `is_admin`: tudo ligado. */

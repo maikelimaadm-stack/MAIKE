@@ -46,6 +46,8 @@ import {
 import { listLotesNota, listMovimentacoes as listMovimentacoesEstoque, listProdutos } from '@/apis/estoque';
 import { listLancamentos, listHistorico } from '@/apis/tarefas';
 import { listPermissoes } from '@/apis/session';
+import { listLeiturasCocho } from '@/apis/leituras-cocho';
+import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
   listEventosSanitarios,
@@ -59,6 +61,13 @@ export const GLOBAL_EMPRESA_KEY = '__GLOBAL__';
 const TENANT_PREFIXO = 'cli:';
 
 const refreshPromises = new Map();
+/**
+ * Leitura FORÇADA em andamento, por dono. Separada da comum: a forçada vem
+ * depois de uma gravação (manejo, cadastro) e não pode reaproveitar uma leitura
+ * comum que saiu ANTES da gravação, senão devolve o dado velho e ainda marca
+ * `lastRefreshAt`, travando a cópia velha por 60 s.
+ */
+const refreshForcados = new Map();
 const lastRefreshAt = new Map();
 const rateLimitedUntil = new Map();
 
@@ -92,6 +101,13 @@ const CAPACIDADES = {
   // inativas: uma posição antiga pode apontar para uma delas.
   categoriasManejo: async (empresaId) => daEmpresa(await listCategoriasManejo(), empresaId),
   eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
+  // D-PROD-205: leituras de cocho (escore, acesso, estrutura) — o farol do cocho no mapa, também sem rede.
+  leiturasCocho: async (empresaId) => daEmpresa(await listLeiturasCocho(), empresaId),
+  // D-PROD-219: medições de forragem dos pastos (régua, no olho, amostra de MS), também sem rede.
+  medicoesForragem: async (empresaId) => daEmpresa(await listMedicoesForragem(), empresaId),
+  // D-PROD-223: por pasto, lote dentro agora e o dia da última saída (ledger), para o farol estimado.
+  // Sem fazenda não há o que pedir: lista vazia.
+  descansoPastos: async (empresaId) => (empresaId ? listDescansoPastos(empresaId) : []),
   estoqueLotes: async (empresaId) =>
     daEmpresa(await listLotesNota(), empresaId).filter((item) => item.status === 'Disponivel'),
   tarefas: async (empresaId) =>
@@ -197,17 +213,35 @@ const mereceCooldown = (erro) =>
  * @param {{force?: boolean}} [options]
  * @returns {Promise<Array<object>>}
  */
-export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) => {
-  if (!temCapacidade(cacheKey)) return [];
+export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =>
+  (await refreshMapaCacheEntryDetalhado(cacheKey, empresaId, options)).dados;
+
+/** @typedef {{ dados: Array<object>, origem: 'rede'|'cache', erro: string|null }} ResultadoLeituraMapa */
+
+/**
+ * Igual a `refreshMapaCacheEntry`, mas diz DE ONDE veio o dado (D-PROD-250):
+ * `origem: 'rede'` só quando o servidor respondeu e a resposta foi gravada;
+ * `'cache'` quando voltou a cópia do aparelho (intervalo de 60 s, cooldown,
+ * falha de rede ou troca de sessão no meio da leitura), com `erro` (código
+ * estável) quando houve falha. Quem precisa SABER se releu do servidor (depois
+ * de um manejo) usa esta.
+ *
+ * @param {string} cacheKey
+ * @param {string|null} empresaId
+ * @param {{force?: boolean}} [options]
+ * @returns {Promise<ResultadoLeituraMapa>}
+ */
+export const refreshMapaCacheEntryDetalhado = async (cacheKey, empresaId, options = {}) => {
+  if (!temCapacidade(cacheKey)) return { dados: [], origem: 'cache', erro: 'SEM_CAPACIDADE' };
 
   const dono = donoDoCache(cacheKey, empresaId);
   // Dado do tenant sem tenant conhecido: só rede, sem cache e sem política em
   // memória — as duas são por dono, e aqui não há dono.
   if (!dono) {
     try {
-      return await CAPACIDADES[cacheKey](empresaId);
-    } catch {
-      return [];
+      return { dados: await CAPACIDADES[cacheKey](empresaId), origem: 'rede', erro: null };
+    } catch (erro) {
+      return { dados: [], origem: 'cache', erro: isApiError(erro) ? erro.code : API_ERROR_CODES.OPERATION_FAILED };
     }
   }
   // Política (dedupe, intervalo, cooldown) também por dono: `icones:__GLOBAL__`
@@ -217,41 +251,57 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
   const agora = Date.now();
   const force = options.force === true;
 
-  // Deduplicação: quem chega no meio de um refresh espera o mesmo resultado.
-  if (refreshPromises.has(requestKey)) return refreshPromises.get(requestKey);
+  // Deduplicação: leitura comum espera a que estiver em andamento (comum ou
+  // forçada). A forçada só se junta a outra forçada; se houver uma comum no
+  // meio, espera ela terminar e busca de novo (a comum pode ter saído antes da
+  // gravação que motivou a forçada).
+  if (force && refreshForcados.has(requestKey)) return refreshForcados.get(requestKey);
+  if (!force && refreshPromises.has(requestKey)) return refreshPromises.get(requestKey);
 
   const emCooldown = agora < (rateLimitedUntil.get(requestKey) || 0);
   const recente = agora - (lastRefreshAt.get(requestKey) || 0) < MIN_REFRESH_INTERVAL_MS;
   if (!force && (emCooldown || recente)) {
-    return (await getEntityCacheItems(storageKey, dono)) || [];
+    return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: null };
   }
 
+  const anterior = force ? refreshPromises.get(requestKey) : null;
+  /** @type {Promise<ResultadoLeituraMapa>} */
   const promise = (async () => {
+    if (anterior) await anterior.catch(() => {});
+    // A sessão (tenant) de quando a leitura saiu: se mudou até a resposta
+    // chegar, a resposta é de OUTRA sessão e não vai para o cache (D-PROD-250).
+    const tenantNaSaida = getOfflineTenant();
     try {
       const items = await CAPACIDADES[cacheKey](empresaId);
+      if (getOfflineTenant() !== tenantNaSaida) {
+        return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: 'TENANT_TROCOU' };
+      }
       await setEntityCacheItems(storageKey, dono, items);
       lastRefreshAt.set(requestKey, Date.now());
       rateLimitedUntil.delete(requestKey);
-      return items;
+      return { dados: items, origem: 'rede', erro: null };
     } catch (erro) {
       if (mereceCooldown(erro)) {
         rateLimitedUntil.set(requestKey, Date.now() + RATE_LIMIT_COOLDOWN_MS);
       }
+      const code = isApiError(erro) ? erro.code : API_ERROR_CODES.OPERATION_FAILED;
       // Só código, operação e chave. Nunca token, URL, payload ou texto do SDK.
       console.warn('[mapa-cache] usando cache offline', {
-        code: isApiError(erro) ? erro.code : API_ERROR_CODES.OPERATION_FAILED,
+        code,
         cacheKey,
         empresa: isChaveDoTenant(cacheKey) ? 'tenant' : dono,
       });
-      return (await getEntityCacheItems(storageKey, dono)) || [];
+      return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: code };
     }
   })();
 
   refreshPromises.set(requestKey, promise);
+  if (force) refreshForcados.set(requestKey, promise);
   try {
     return await promise;
   } finally {
-    refreshPromises.delete(requestKey);
+    if (refreshPromises.get(requestKey) === promise) refreshPromises.delete(requestKey);
+    if (refreshForcados.get(requestKey) === promise) refreshForcados.delete(requestKey);
   }
 };
 
@@ -281,6 +331,7 @@ export const warmMapaCache = async (empresaId) => {
 
 const zerarPolitica = () => {
   refreshPromises.clear();
+  refreshForcados.clear();
   lastRefreshAt.clear();
   rateLimitedUntil.clear();
 };

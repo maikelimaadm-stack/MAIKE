@@ -36,7 +36,9 @@ export const listarTarefasDaEmpresa = async (empresaId, opcoes) =>
   daEmpresa(await listLancamentos(opcoes), empresaId);
 
 /** Ícones da empresa — configuração local, diferente do ícone global do cache. */
-export const listarIconesDaEmpresa = async (empresaId) => ativos(daEmpresa(await listIconesApi(), empresaId));
+/** Ícones são configuração do tenant: `empresa_id` nulo vale para todas as empresas. */
+export const listarIconesDaEmpresa = async (empresaId) =>
+  ativos((await listIconesApi()).filter((item) => item.empresa_id == null || item.empresa_id === empresaId));
 export const listarTiposAtivos = async (empresaId) => ativos(daEmpresa(await listTipos(), empresaId));
 export const listarGruposAtivos = async (empresaId) => ativos(daEmpresa(await listGrupos(), empresaId));
 export const listarTodosTipos = () => listTipos();

@@ -10,6 +10,13 @@ import {
   atualizarPontoPorId,
   excluirPontoPorId,
 } from './pontoReferenciaRepository.js';
+import {
+  listarPorPontoReferencia,
+  motivosHistoricoBebedouro,
+  excluirRegistroPorId as excluirBebedouroPorId,
+  atualizarRegistroPorId as atualizarBebedouroPorId,
+} from '../bebedouros/bebedouroRepository.js';
+import { erroBebedouroComHistorico, comoPublico as comoBebedouroPublico } from '../bebedouros/bebedouroService.js';
 
 export const ENTIDADE_SEQUENCIA = 'PontoReferencia';
 export const escopoDaNumeracao = () => ESCOPO_TENANT;
@@ -145,6 +152,44 @@ export const excluir = async (contexto, id) => {
   return prisma.$transaction(async (tx) => {
     const anterior = await buscarPonto(auth.clienteId, id, tx);
     if (!anterior) throw pontoReferenciaNotFound();
+
+    // O bebedouro é ligado ao ponto SÓ por `ponto_referencia_id`, na mesma transação:
+    //  - sem histórico → sai junto (antes ficava ativo, sem ponto e sem como apagar);
+    //  - INATIVO com histórico (o ponto deixou de ser bebedouro) → fica, inativo,
+    //    com o histórico, e só é desligado do ponto (`ponto_referencia_id = null`);
+    //    antes ele travava para sempre a exclusão do ponto;
+    //  - ATIVO com histórico → 409, nada sai (inative-o trocando o tipo do ponto).
+    const bebedouros = await listarPorPontoReferencia(tx, auth.clienteId, id);
+    const destino = [];
+    for (const bebedouro of bebedouros) {
+      const motivos = await motivosHistoricoBebedouro(tx, auth.clienteId, bebedouro.id);
+      if (!motivos.length) destino.push({ bebedouro, acao: 'excluir' });
+      else if (bebedouro.ativo === false) destino.push({ bebedouro, acao: 'desligar' });
+      else throw erroBebedouroComHistorico(bebedouro.id, motivos);
+    }
+    for (const { bebedouro, acao } of destino) {
+      if (acao === 'excluir') {
+        await excluirBebedouroPorId(tx, auth.clienteId, bebedouro.id);
+        await registrarEvento(
+          contexto,
+          { acao: 'delete', entidade: 'Bebedouro', entidadeId: bebedouro.id, dadosAnteriores: comoBebedouroPublico(bebedouro) },
+          tx
+        );
+      } else {
+        const desligado = await atualizarBebedouroPorId(tx, auth.clienteId, bebedouro.id, { ponto_referencia_id: null });
+        await registrarEvento(
+          contexto,
+          {
+            acao: 'update',
+            entidade: 'Bebedouro',
+            entidadeId: bebedouro.id,
+            dadosAnteriores: comoBebedouroPublico(bebedouro),
+            dadosNovos: comoBebedouroPublico(desligado),
+          },
+          tx
+        );
+      }
+    }
 
     await excluirPontoPorId(tx, auth.clienteId, id);
     const publico = comoPontoPublico(anterior);

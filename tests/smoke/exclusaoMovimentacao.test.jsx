@@ -23,7 +23,11 @@ const servico = vi.hoisted(() => ({
 }));
 const sessao = vi.hoisted(() => ({ usuario: { id: "u-1", cliente_id: "c-1", administrador_fazenda: true } }));
 
-const cache = vi.hoisted(() => ({ refreshMapaCacheEntry: vi.fn(async () => []), updateMapaCachedData: vi.fn(async () => []) }));
+const cache = vi.hoisted(() => {
+  const c = { refreshMapaCacheEntry: vi.fn(async () => []), updateMapaCachedData: vi.fn(async () => []) };
+  c.refreshMapaCacheEntryDetalhado = vi.fn(async (k, e, o) => ({ dados: await c.refreshMapaCacheEntry(k, e, o), origem: "rede", erro: null }));
+  return c;
+});
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => cache);
 vi.mock("@/services/sessionService", () => ({
@@ -662,14 +666,40 @@ describe("Histórico de Abate do Curral", () => {
   it("cancelado antigo aparece marcado (sem limpeza retroativa); ativo do ledger oferece 'Excluir movimentação'; nenhum 'Cancelar'", async () => {
     servico.listarTodasMovimentacoes.mockImplementation(async () => [
       { ...TRANSF, id: "ab-1", tipo: "Abate", area_origem_id: "curral" },
-      { ...TRANSF, id: "ab-2", tipo: "Abate", area_origem_id: "curral", situacao: "cancelado", cancelamento: { por_login: "admin", motivo: "duplicado" } },
+      { ...TRANSF, id: "ab-2", tipo: "Abate", area_origem_id: "curral", situacao: "cancelado", cancelamento: { em: "2026-10-12T15:30:00Z", por_login: "admin", motivo: "duplicado" } },
+      // Abate antigo, sem o efeito do ledger: não tem exclusão.
+      { ...LEGADO, id: "ab-3", tipo: "Abate", area_origem_id: "curral", lote: "ANTIGO" },
     ]);
     await renderizar(<HistoricoAbateCurral areaId="curral" />);
-    expect(await screen.findByText("Histórico de Abate (2)")).toBeTruthy();
-    expect(screen.getByText(/Cancelado por admin — Motivo: duplicado/)).toBeTruthy();
+    expect(await screen.findByText("Histórico de Abate (3)")).toBeTruthy();
+    // D-PROD-222: a nota do cancelado é a do Histórico de Movimentação ("Cancelado" em negrito, quando, quem e o motivo).
+    const quando = new Date("2026-10-12T15:30:00Z").toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    expect(screen.getByText((_, el) => el?.textContent === `Cancelado em ${quando} por admin — Motivo: duplicado`)).toBeTruthy();
     expect(await screen.findAllByRole("button", { name: "Excluir movimentação" })).toHaveLength(1);
+    // Rodapé (o traço e o "Excluir movimentação") só no abate que tem exclusão; o cancelado e o antigo ficam sem
+    // a faixa vazia no pé do cartão, como no Histórico de Movimentação.
+    const rodapeDe = (lote) => {
+      const cartao = /** @type {HTMLElement} */ (screen.getAllByText(lote).find((el) => el.classList.contains("font-semibold"))?.closest(".rounded-lg"));
+      return cartao.querySelector(":scope > .border-t");
+    };
+    expect(rodapeDe("NELORE")).toBeTruthy();
+    expect(rodapeDe("ANTIGO")).toBeNull();
     expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
     expect(servico.atualizarLote).not.toHaveBeenCalled();
+  });
+});
+
+describe("Histórico de Abate do Curral — erro (D-PROD-222)", () => {
+  it("a consulta falha: o erro do Histórico de Movimentação (não \"Nenhum abate encontrado\"); o \"Tentar novamente\" lê de novo", async () => {
+    servico.listarTodasMovimentacoes.mockRejectedValueOnce(new Error("falhou"));
+    await renderizar(<HistoricoAbateCurral areaId="curral" />);
+    const alerta = await screen.findByRole("alert");
+    expect([...alerta.children].map((c) => c.textContent)).toEqual(["Não foi possível carregar o histórico.", "Tente novamente em instantes.", "Tentar novamente"]);
+    expect(screen.queryByText("Nenhum abate encontrado")).toBeNull();
+    expect(screen.getByText("Histórico de Abate")).toBeTruthy();
+    servico.listarTodasMovimentacoes.mockImplementation(async () => [{ ...TRANSF, id: "ab-1", tipo: "Abate", area_origem_id: "curral" }]);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" })); });
+    expect(await screen.findByText("Histórico de Abate (1)")).toBeTruthy();
   });
 });
 

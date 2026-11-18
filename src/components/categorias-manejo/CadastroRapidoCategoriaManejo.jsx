@@ -8,6 +8,31 @@ import FormularioCategoriaManejo, {
 import { criarCategoriaManejo } from "@/services/categoriaManejoService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
+import { useOpcoesCurvaGanhoCategoria } from "@/hooks/useOpcoesCurvaGanhoCategoria";
+
+/**
+ * Formulário do cadastro rápido com as curvas da fazenda (D-PROD-195). Só monta
+ * com a folha aberta: as curvas não são lidas enquanto o lote só está aberto.
+ * @param {{ nomeInicial: string, salvando: boolean, onSubmit: (dados: any) => void, onCancel: () => void }} props
+ */
+function FormularioComCurvas({ nomeInicial, salvando, onSubmit, onCancel }) {
+  const { empresaId, curvas, carregando, erro } = useOpcoesCurvaGanhoCategoria();
+  return (
+    <FormularioCategoriaManejo
+      variant="embedded"
+      toolbarActions
+      isEditing
+      initialData={{ ...getInitialFormData(), nome: nomeInicial.toUpperCase() }}
+      isSubmitting={salvando}
+      onSubmit={onSubmit}
+      onCancel={onCancel}
+      curvasGanho={curvas}
+      carregandoCurvas={carregando}
+      erroCurvas={erro}
+      semFazenda={!empresaId}
+    />
+  );
+}
 
 /**
  * "Nova categoria de manejo" aberta pelo + do campo Categoria de Manejo do Lote.
@@ -41,17 +66,7 @@ export default function CadastroRapidoCategoriaManejo({ open, onClose, empresaId
       formId={FORMULARIO_CATEGORIA_MANEJO_ID}
       saving={salvando}
     >
-      {open ? (
-        <FormularioCategoriaManejo
-          variant="embedded"
-          toolbarActions
-          isEditing
-          initialData={{ ...getInitialFormData(), nome: nomeInicial.toUpperCase() }}
-          isSubmitting={salvando}
-          onSubmit={salvar}
-          onCancel={onClose}
-        />
-      ) : null}
+      {open ? <FormularioComCurvas nomeInicial={nomeInicial} salvando={salvando} onSubmit={salvar} onCancel={onClose} /> : null}
     </CadastroRapidoSheet>
   );
 }

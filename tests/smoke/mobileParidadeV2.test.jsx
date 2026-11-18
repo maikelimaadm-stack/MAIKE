@@ -29,6 +29,44 @@ describe('PAR — campo de lançamento (LancField)', () => {
     expect(caixa).toHaveClass('mg-has-value');
   });
 
+  it('PAR1b — Select que já monta com valor (ou remonta, ex.: Qualidade do bebedouro ao trocar o Tipo) fica com o rótulo em cima (D-PROD-220)', async () => {
+    const { default: LancField } = await import('@/components/cadastro/base1/LancField');
+    const { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } = await import('@/components/ui/select');
+    const Campo = ({ valor, rotulo }) => (
+      <LancField label={rotulo}>
+        <Select value={valor} onValueChange={() => {}}>
+          <SelectTrigger aria-label={rotulo}>
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Boa">Boa</SelectItem>
+            <SelectItem value="Ruim">Ruim</SelectItem>
+          </SelectContent>
+        </Select>
+      </LancField>
+    );
+    const Caso = () => {
+      const [mostra, setMostra] = React.useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setMostra((m) => !m)}>alternar</button>
+          {mostra ? <Campo valor="Boa" rotulo="Qualidade" /> : null}
+          <Campo valor="" rotulo="Status" />
+        </>
+      );
+    };
+    render(<Caso />);
+    const caixa = (nome) => screen.getByRole('combobox', { name: nome }).closest('.mg-field');
+    expect(caixa('Qualidade')).toHaveClass('mg-has-value');
+    expect(caixa('Status')).not.toHaveClass('mg-has-value');
+    // Some e volta (o campo remonta com o valor): continua com o rótulo em cima.
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'alternar' })));
+    expect(screen.queryByRole('combobox', { name: 'Qualidade' })).toBeNull();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'alternar' })));
+    expect(caixa('Qualidade')).toHaveClass('mg-has-value');
+    expect(caixa('Status')).not.toHaveClass('mg-has-value');
+  });
+
   it('PAR2 — nenhum formulário de lançamento mantém o FL antigo (rótulo em cima, borda slate)', () => {
     const arquivos = execSync("grep -rln '^const FL\\b' src", { encoding: 'utf8' }).split('\n').filter(Boolean);
     for (const arq of arquivos) {

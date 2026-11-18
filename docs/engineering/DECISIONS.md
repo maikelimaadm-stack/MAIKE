@@ -7139,11 +7139,1330 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Nota de aplicação (2026-11-14).** A migration `20261114100000_cadcurvaganho_mensal` foi aplicada em produção às 13:29:18 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**, com GO escrito do proprietário (desvio da D-PROD-74 só para esta migration). Com o GitHub Actions pausado pelo proprietário, a análise foi local (ver o relatório). Conferência: 49/0 migrations, 12 colunas mensais, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. Registro no §7 do runbook.
 
+## D-PROD-195 — Categoria de Manejo com Curva de Ganho obrigatória, da mesma fazenda
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("vamos começar incluindo a curva em categorias de manejo"; "a curva é obrigatória"; "cadastre uma curva chamada curva padrão, todos com 0,100 nos mês e você já cadastre nas categorias também, isso tudo via banco") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** A D-PROD-194 deixou a Curva de Ganho mensal pronta e previu, como próxima fatia, que a **categoria escolhe a curva** (várias categorias podem usar a mesma; quando o animal muda de categoria, a projeção passa a usar a curva da categoria nova). Em produção havia 10 categorias, todas numa fazenda, e nenhuma curva.
+
+**Decisão.**
+1. **`CategoriaManejo.curva_ganho_id` obrigatório**, `VARCHAR(64) NOT NULL`, com a FK composta `(cliente_id, empresa_id, curva_ganho_id) → CADCURVAGANHO(cliente_id, empresa_id, id)`, `ON DELETE RESTRICT`: o banco garante que a curva é do **mesmo tenant e da mesma fazenda** da categoria e barra excluir uma curva em uso. Para a FK composta, `CADCURVAGANHO` ganha o `UNIQUE (cliente_id, empresa_id, id)`. Índice `(cliente_id, empresa_id, curva_ganho_id)` na categoria.
+2. **Curva inicial "CURVA PADRÃO"** (0,100 kg/dia em todos os meses), cadastrada pelo banco na única fazenda com categorias, a pedido do proprietário, **antes** da migration: 2026-11-14 13:40:36 UTC, id `cc80b49b6d15531f23a6ab11c`, numa transação com trava (uma só fazenda com categorias; nenhuma CURVA PADRÃO ainda). Escrita direta, sem auditoria da aplicação; registrada aqui e no runbook.
+3. **Migration CONTRACT `20261114200000_cadcategoria_curva_ganho`** (quinta exceção fechada, depois das D-PROD-162, 183, 187 e 194), numa transação:
+   - guarda DO com hash pinado `292d2446635c3178f10af0d24c33df0d92513f3725efb1ed2059ccc713cb63a8`: falha fechada se `CADCATEGORIA` ou `CADCURVAGANHO` não existir, se a coluna já existir, ou se alguma fazenda com categoria não tiver **exatamente uma** curva `'CURVA PADRÃO'`; trava `CADCURVAGANHO` em SHARE e `CADCATEGORIA` em ACCESS EXCLUSIVE antes de contar. Mensagens com o prefixo `cadcategoria_curva_ganho:`; número da decisão fora do arquivo;
+   - depois, EXATAMENTE 5 instruções pinadas em `MIGRATIONS_CONTRACT_APROVADAS`: `ADD COLUMN`, o `UPDATE` que liga cada categoria à `'CURVA PADRÃO'` da própria fazenda, `SET NOT NULL`, o `UNIQUE` em `CADCURVAGANHO` e a FK; no resto, só o índice não-único (allowlist EXPAND). A allowlist EXPAND **não** foi alargada (como na D-PROD-162): o mesmo SQL com outro nome continua recusado;
+   - SHA-256 do arquivo `b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb`; repositório 49 → **50** migrations; tabelas não mudam (85);
+   - release isolada, **antes do merge**, pelo runbook [`MAIKE-CADCATEGORIA-CURVA-GANHO-RUNBOOK-RELEASE.md`](./MAIKE-CADCATEGORIA-CURVA-GANHO-RUNBOOK-RELEASE.md): caminho A com `--contract D-PROD-195`, ou B só com GO escrito e específico. Entre o `COMMIT` e o deploy, o runtime antigo não grava `curva_ganho_id`, então **criar categoria** (inclusive o cadastro rápido do lote) dá erro até o deploy; e **excluir uma curva ligada a categoria** é barrado pela FK, mas o runtime antigo responde 403 `TENANT_SCOPE_VIOLATION` ("vínculo inválido para este tenant") em vez do 409 `CURVA_GANHO_EM_USO`, sem perda de dado. Ler, editar e excluir categoria seguem normais. Por isso o merge vem logo depois da conferência.
+4. **API da categoria:** formato público com `curva_ganho_id` e `curva_ganho_nome`. A curva é obrigatória no `POST` e não pode ser apagada no `PATCH` (`null`/`''` → 400 `curva_obrigatoria`); curva que não existe na mesma fazenda → 400 `curva_inexistente` (outra fazenda ou outro tenant respondem igual, sem oráculo; vale também quando o `PATCH` troca `empresa_id` e a curva gravada não é da fazenda nova); curva informada ou trocada inativa → 400 `curva_inativa` (manter uma curva gravada que depois foi inativada é permitido). Todos com `REQUEST_VALIDATION_FAILED`, `field: 'curva_ganho_id'`.
+5. **Opções para o seletor:** `GET /categorias-manejo-opcoes/curvas-ganho?empresa_id=` devolve `{ id, nome, ativo }` das curvas da fazenda, para quem pode criar ou editar categoria (inclui o cadastro rápido do lote), sem exigir a tela de curvas.
+6. **Excluir curva em uso** → 409 `CURVA_GANHO_EM_USO` com a contagem de categorias.
+7. **Tela:** o formulário da categoria ganha o 6º campo, "Curva de ganho", obrigatório (curvas ativas + a gravada, mesmo inativa); o cadastro rápido do lote herda o campo; a lista ganha a coluna "Curva de ganho" (chave de preferências `_v2`, para a preferência salva não esconder a coluna nova); a tela de curvas mostra o aviso ao excluir uma curva em uso.
+   - **Criar categoria passa a ser só online** (achado da revisão): as opções de curva vêm do servidor, então sem conexão não há como escolher a curva obrigatória. A porta monta o adaptador offline **sem `create`**: a criação vai direto ao servidor, e um POST gravado na fila pela versão anterior (sem `curva_ganho_id`, que o servidor recusaria com `curva_obrigatoria`) fica **retido** no replay (`OFFLINE_ENTITY_UNSUPPORTED`, como na D-PROD-161), sem ser enviado nem apagado, e o resto da fila segue. Editar e excluir categoria continuam com fila offline. Resíduo aceito: uma edição offline que **troca** a curva por outra que alguém inativa ou exclui antes da sincronização recebe 400 `curva_inativa` ou `curva_inexistente` e, como qualquer edição recusada, para a fila até ser corrigida.
+8. **Próximas fatias (fora do escopo):** peso projetado do lote a partir da última pesagem, pela curva da categoria; pesado contra previsto; previsão de meta; e a organização do cadastro de lotes (nomes, campos e dados antigos), pedida pelo proprietário.
+
+**Relatório:** [`MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md`](./MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md).
+
+**Nota de aplicação (2026-11-14).** A migration `20261114200000_cadcategoria_curva_ganho` foi aplicada em produção às 14:51:56 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**, com GO escrito do proprietário (desvio da D-PROD-74 só para esta migration). Conferência: 50/0 migrations, coluna `NOT NULL`, as 10 categorias ligadas à CURVA PADRÃO, FK e índices presentes, 85 tabelas, `get_advisors` sem alerta. Registro no §7 do runbook.
+
+**Emenda R2 (2026-11-14, depois do merge da PR #278; só frontend, sem migration).** A segunda revisão independente achou que reter só o `create` legado da categoria não bastava: (a) um lote (ou edição de lote) criado offline pela versão anterior apontando para essa categoria seguia no replay e ia ao servidor com `categoria_manejo_id = 'offline_…'`, que `POST /lotes` grava sem FK, deixando uma referência solta (antes, o 400 parava a fila antes do lote); (b) a categoria retida aparecia como registro real em todas as listas, inclusive online, e podia ser escolhida, editada ou excluída com o id offline; (c) criar online deixou de atualizar o cache offline. Correção no runtime offline (`src/lib/offline/offlineEntityRuntime.js`), válida para qualquer entidade:
+   - nova política **`criacao: 'somente_online'`** do adaptador, como a `exclusao: 'somente_online'` da PR167-R2: a criação vai direto ao servidor e o registro confirmado entra no cache; `create` legado na fila fica retido (`OFFLINE_ENTITY_UNSUPPORTED`). A porta da categoria passa a usá-la (no lugar de montar o adaptador sem `create`);
+   - no replay, os `create` que a **política** retém (entidade com criação só online, ou porta sem `create`) são conhecidos **antes** do laço; um `create` que **cite** um desses ids offline fica retido junto (`quarentena.depende_de`), em qualquer ordem da fila, e passa a segurar quem o citar; a **edição de um registro real** que cite um deles vai ao servidor **sem os campos** que o citam (sem resto, sai da fila) — reter a edição de um registro real a deixaria para sempre por cima do servidor nas listas e travaria a exclusão do lote por pendência offline (achado da quarta revisão). Edição ou exclusão do próprio registro retido fica retida junto dele. **Só** esses ids seguram outro item: qualquer outro id `offline_…` segue o caminho de sempre (a terceira revisão mostrou que reter todo id sem mapeamento esconderia para sempre cadastros legítimos, como um lote cuja área foi criada numa sincronização anterior);
+   - para entidade com criação só online, o `create` da fila **e a cópia `offline_…` do cache** não aparecem nas listas, online nem offline, decidido pela política (sem depender de um replay antes), como a exclusão retida. O item continua na fila, sem envio e sem apagar nada; descartá-lo pela tela fica para uma fatia própria (hoje só a exclusão retida tem liberação manual). Um lote retido por depender da categoria continua visível;
+   - fora do escopo, registrado como pendência: o mapa `offline_ → id do servidor` vale só para uma passada do replay. Se a passada para entre criar A e enviar B que cita A, B vai depois com o id offline. É um comportamento anterior à D-PROD-195, que a R2 não altera. **Resolvida pela D-PROD-204.**
+
+## D-PROD-196 — Cadastro de lotes sem raça predominante e sem idade média (meses)
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("vamos organizar o cadastro de lotes, e preciso remover, idade média meses, raça predominante, e ajuste tudo") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** O cadastro do lote ainda tinha dois campos herdados do ERP antigo: **Raça Predominante** (texto) e **Idade Média (meses)** (inteiro), os dois marcados com asterisco no formulário. A faixa etária agora vem da Categoria de Manejo (D-PROD-186), e o ganho de peso vem da curva da categoria (D-PROD-195). Os dois campos ficaram redundantes. Em produção, os 84 lotes têm os dois preenchidos (raças NELORE e COMPOSTO).
+
+**Decisão.**
+1. **Saem do sistema:** formulário do lote, incluindo o layout padrão da aba Geral e a lista de campos em maiúsculas; porta nativa do lote (`CAMPOS_DE_CRIACAO`/`ATUALIZACAO`); grade do cadastro (coluna "Raça Predominante"); motor de campos (`campoEngine`); correção da entrada, nos dois lados (`CAMPOS_ADMINISTRATIVOS_DA_ENTRADA`); detalhes do lote no mapa (coluna "Raça" e linha "Raça Predom." no card); informação da posição no controle por posições (`raca_predominante` sai da posição pública do ledger e do formulário "Editar informação").
+2. **API:** `comoLotePublico` não devolve mais os dois campos, e o repositório não os lê. O serviço não os grava: `camposDe` só considera `CAMPOS_EDITAVEIS`. O schema de `POST`/`PATCH /lotes` **continua aceitando** as duas chaves, ignoradas, para não recusar com 400 um bundle antigo nem um item da fila offline gravado pela versão anterior. O comando de correção da entrada passa a recusá-las (400), como qualquer campo não corrigível. Nesse caso não há fila, porque o comando é só online.
+3. **Banco: sem migration.** As colunas `Lote.raca_predominante` e `Lote.idade_media_meses` continuam no banco, com os valores antigos dos 84 lotes intactos. Nada se perde, e a release não exige GO de banco. Lote novo fica com as duas colunas nulas. Apagar as colunas fica para uma migration CONTRACT própria, se o proprietário quiser, junto de outras colunas legadas.
+4. **Layout da aba Geral:** sem os dois campos, a aba fica com duas linhas cheias: **Categoria de Manejo · Sexo · Sistema Produtivo** e **Qtd. Cabeças · Peso Médio**. Uma configuração de layout salva no navegador que ainda cite os ids removidos não quebra: o renderizador descarta ids sem campo, e a ordem salva da aba Geral que cite um deles dá lugar à ordem padrão (com os campos extras da configuração no fim), para não deixar buracos. Abaixo de 1024 px, Sexo e Sistema Produtivo dividem a linha.
+5. **`PATCH` só com chaves ignoradas** (ex.: raça de um cliente antigo) responde 200 com o lote sem mudança e **sem** registro de auditoria.
+
+**Relatório:** [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md).
+
+## D-PROD-197 — Tipo de Atividade com padrões e flags: a base do Lançamento de Atividades (Fatia 1; revê a D-PROD-182 no ponto "sem flags")
+
+> **Numeração:** nasceu como D-PROD-195, que a `main` deu à curva obrigatória na Categoria de Manejo (PR #278, aplicada em produção); passou a D-PROD-196, e a `main` deu a D-PROD-196 ao cadastro de lotes sem raça predominante e sem idade média (PRs #281 e #282, sem migration) antes do merge desta; a `main` indica `Próxima decisão: D-PROD-197`, que é esta. A migration passou de `20261114200000_…` para `20261114300000_tipo_atividade_defaults` para vir depois da `20261114200000_cadcategoria_curva_ganho`. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então renumerar não muda o checksum — nem o registro já aplicado em produção, que guarda só o nome e o checksum. A autorização do proprietário (aplicar, fazer o merge e aprovar a nota da Constituição) foi dada com o número D-PROD-196; é a mesma decisão.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("LANÇAMENTO DE ATIVIDADES — REDESENHO EM 4 FATIAS", Fatia 1: "TipoAtividade ganha os defaults e as flags. É a base de tudo."; "ATENÇÃO: estas flags são do TIPO DE ATIVIDADE, não do TipoTarefa. Elas foram removidas do TipoTarefa de propósito e é aqui que elas fazem sentido: é o tipo de atividade que sabe se gradeação exige máquina e se aplicação de veneno permite produto."; "O que dá para configurar no CADASTRO do tipo de atividade não se digita no lançamento. Centro de custo, centro de resultado e unidade de produção vêm prontos."; "Unidade de produção vem de UnidadeMedida (cadastro geral). NÃO crie lista fixa, NÃO crie cadastro novo de unidade.") · **Branch:** `feat/tipo-atividade-defaults` · **Contrato:** [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md)
+
+**Contexto.** O Apontamento de Atividade de hoje (D-PROD-190/193) é uma linha só. O proprietário redesenhou o lançamento em dois níveis (Atividade aberta → apontamentos por dia/turno → linhas de produto, máquina, mão de obra e serviço), em 4 fatias. A base é o tipo de atividade saber o que a atividade herda (centros, unidade de produção, coeficiente) e como ela funciona (o que exige e o que permite). A D-PROD-182 tinha deixado o tipo **sem** flags ("elas voltam depois como opções do apontamento, nunca do cadastro"); o proprietário decidiu o contrário para o Tipo de Atividade. O TipoTarefa continua sem flags (D-PROD-181/183).
+
+**Decisão.**
+1. **`TipoAtividade` ganha 5 padrões opcionais:** `categoria` (lista fechada de 9: `PREPARO_SOLO`, `PLANTIO`, `TRATO_CULTURAL`, `APLICACAO`, `COLHEITA`, `PASTAGEM`, `BENFEITORIA`, `MANEJO_ANIMAL`, `OUTROS`), `centro_custo_padrao_id`, `centro_resultado_padrao_id`, `unidade_producao_id` (de `UnidadeMedida`) e `coeficiente_padrao` (`DECIMAL(14,4)`, > 0, ex.: h/ha). As FKs são compostas pelo tenant, (`cliente_id`, padrão) → (`cliente_id`, `id`), `ON DELETE RESTRICT`, com um índice por FK começando por `cliente_id`.
+2. **E 8 flags `BOOLEAN NOT NULL DEFAULT false`:** `exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`, `permite_produto`, `permite_servico`, `permite_mao_obra`, `exige_producao`. Os nomes aposentados `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` continuam recusados (400). **Este item revê a D-PROD-182** no ponto "o cadastro não tem flags de exigência"; o resto dela vale. No TipoTarefa nada volta.
+3. **Tipo é do cliente; centro é da fazenda.** A FK prende o tenant. Os dois centros padrão, quando preenchidos, são da **mesma empresa**; o centro tem de estar **ativo** quando é escolhido. Na criação da atividade (Fatia 2), o padrão só é herdado por uma atividade da **mesma empresa** do centro e enquanto ele estiver ativo; senão a atividade nasce sem aquele centro. Padrão que fica inativo depois de gravado continua no tipo.
+4. **Migration CONTRACT `20261114300000_tipo_atividade_defaults`** (sexta exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194 e D-PROD-195). A mudança é **aditiva**, mas a allowlist EXPAND não aceita em tabela antiga coluna `NOT NULL DEFAULT`, FK para tabela antiga nem CHECK; o caminho é o dos alargamentos de CHECK da D-PROD-162:
+   - guarda DO como primeira instrução, hash pinado `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`: falha fechada se `TipoAtividade` não existir, se qualquer das 13 colunas, 5 constraints ou 3 índices novos já existir, ou se algum alvo das FKs não tiver índice único exatamente em (`cliente_id`, `id`);
+   - depois, exatamente 18 instruções pinadas (13 `ADD COLUMN`, 3 FKs, 2 CHECKs, nessa ordem) e, no resto, os 3 `CREATE INDEX` pela allowlist EXPAND;
+   - SHA-256 do arquivo `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`; entrada em `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-197'`, `drop: []`;
+   - repositório: 50 → **51** migrations (a `main` já tem a D-PROD-195, aplicada em produção às 14:51:56 UTC); tabelas não mudam;
+   - release **isolada**, aplicada **antes do merge** (o código novo lê as colunas; o código antigo convive com elas) pelo runbook [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md): caminho A com `--contract D-PROD-197`, ou caminho B só com GO escrito e específico desta migration.
+5. **API `/tipos-atividade`:** os 13 campos novos no corpo (opcionais; flags só booleanos de verdade e coeficiente só string, sem coerção do AJV); resposta com os padrões e os objetos do centro de custo, do centro de resultado e da unidade; recusas 422 `TIPO_ATIVIDADE_PADRAO_INVALIDO` (`nao_encontrado`, `inativo`, `empresas_diferentes`, `nao_positivo`). Rotas novas `GET /tipos-atividade/opcoes/centros-custo` e `/centros-resultado` (`?empresa_id=`, só ativos, para quem cria ou edita tipo, sem depender das telas de centros). Apagar unidade de medida usada como padrão → 409 `UNIDADE_MEDIDA_DELETE_BLOCKED` (reconhecido pela FK, sem consultar `TipoAtividade`).
+6. **"Preparar o terreno":** `tipoAtividadePadroes.js` (puro) entrega `padroesParaAtividade(tipo, { empresaId })` e `regrasDoTipo(tipo)` para o "Abrir atividade" da Fatia 2. Nenhum fluxo de produção usa nesta fatia; o Apontamento de Atividade de hoje não muda.
+7. **Tela Tipos de Atividade:** formulário em 3 seções (Identificação; Apropriação; Como funciona), só com componentes que já existem; lista com a coluna Categoria.
+8. **Gate `gate:tarefa-cadastro-native`:** no TipoAtividade proíbe só os nomes aposentados `pode_ter_*` e exige as 8 flags; no TipoTarefa proíbe as 4 antigas e as 8 novas.
+
+**Testes.**
+- `backend/tests/tipoAtividadeNativo.test.mjs` (41): defaults, flags sem coerção, categoria, coeficiente, regras 422 (`nao_encontrado`, `inativo`, `empresas_diferentes`, `nao_positivo`), corrida de PATCH (revisão A5-1/A6-1), opções de centros (ordem numérica, teto de 1000, guarda), isolamento por tenant; `tipoAtividadePadroes.test.mjs` (12); `unidadeMedidaNativo.test.mjs` (+3: exclusão barrada com 409); `permissoesR2Rotas.test.mjs` (+1).
+- `backend/tests/tipoAtividadeDefaultsMigration.test.mjs` (25, PostgreSQL real): recusas da guarda, runner oficial com e sem a decisão, envelope do caminho B com os blocos do runbook, FKs/CHECKs/RESTRICT, `migrate diff` vazio.
+- Portão e runner (`scripts/tests/deploy/*`, 168): entrada CONTRACT pinada, adulterações recusadas, release isolada, decisão única por CONTRACT; gate `tarefa-cadastro-native` (17).
+- Smoke `tests/smoke/tiposAtividade.test.jsx` (27): 3 seções, caixas de marcar, coeficiente pt-BR, centros da fazenda, chave de colunas `_v2`, transporte dos códigos, cancelar descarta (revisão F1-1).
+- Revisão independente em três frentes, 2 céticos por achado, e conferência no navegador: ver o relatório §6.
+
+**Pontos levados ao proprietário.**
+1. A Fatia 3 fala em "tipo que permite máquina", mas a lista de flags tem `exige_maquina` e não `permite_maquina` (máquina opcional). **Resposta do proprietário:** "Não, segue só com Exige máquina (Recomendado)".
+2. Com mais de uma fazenda no cliente, o centro padrão vale só para a fazenda dele; padrão por fazenda seria uma tabela filha (decidir na Fatia 2).
+
+**Aplicação em produção.** 2026-11-14 às 17:05:05 UTC (`finished_at`), caminho B do runbook, com o GO escrito do proprietário para esta migration ("Sim: aplique e faça o merge (Recomendado)", à pergunta que a chamava de D-PROD-196). Preflight `PRONTO PARA APLICAR` (50 / 0, 85 tabelas, 2 tipos, 0 travas); postcheck `APLICADA E CONFERIDA` (51 / 0, 13 colunas, 5 constraints, 4 índices, RLS e política inalterados, nenhum privilégio novo, nenhum padrão preenchido); alertas do Supabase sem nada novo além de `unused_index` para os 3 índices novos. A mesma resposta aprova a nota D-PROD-197 do `07-DO-NOT-DO.md` no merge da PR #276.
+
+**Relatório:** [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md).
+
+## D-PROD-198 — Peso projetado do lote pela curva de ganho e peso objetivo na Categoria de Manejo
+
+> **Numeração:** nasceu como D-PROD-197, que a `main` deu ao Tipo de Atividade com padrões (PR #276), com a migration `20261114300000_…`; a migration passou a `20261114400000_cadcategoria_peso_objetivo`, depois da `20261114300000_tipo_atividade_defaults`. O número e o nome da pasta não entram no `migration.sql`: o checksum não muda.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("vamos começar com o peso projetado lote"; "inves de criar peso objetivo a gente colocaria no cadastro de categoria, muito mas simples e outra não precisa ser obrigatório"; "também ja ajuste essas contas de curvas objetivos") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** A curva de ganho mensal (D-PROD-194) está ligada a cada Categoria de Manejo (D-PROD-195). Na Prodap, o peso projetado do lote é o último peso mais o GMD do mês da curva da categoria, dia a dia. O lote mostra também o "pesado × previsto" e quando atinge o peso objetivo. O proprietário decidiu:
+- **não** criar um cadastro de "objetivo do lote". Na Prodap ele é só um rótulo de destino, sem efeito no cálculo, e confundiria com a categoria;
+- o **peso objetivo** fica **na Categoria de Manejo**, opcional;
+- a **base** da projeção é o último peso do lote, de qualquer origem: entrada, pesagem estimada ("no olho") ou de balança;
+- a **arroba** é a de peso vivo (kg ÷ 30).
+
+**Decisão.**
+1. **`CADCATEGORIA.peso_objetivo_kg DECIMAL(10,2)`**, opcional. Migration **EXPAND** pura `20261114400000_cadcategoria_peso_objetivo` (uma coluna anulável, sem DEFAULT), SHA-256 `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9`. Repositório 51 → **52** migrations (depois da `20261114300000_tipo_atividade_defaults`); tabelas iguais (85). Release **antes do merge** pelo runbook [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md). Não há janela: o runtime antigo ignora a coluna. **Aplicada em produção em 2026-11-14 às 19:00:00 UTC** (caminho B, GO escrito "go"), conferida: 52 / 0, advisors sem achados.
+2. **API da categoria:** `peso_objetivo_kg` no formato público.
+   - **Validação:** vazio ou `null` limpa; o valor precisa ser número finito > 0 e até 3.000 kg (o teto por cabeça do manejo). Aceita vírgula e milhar pt-BR ("1.200" é 1.200 kg, não 1,2) e grava com 2 casas.
+   - **Erro:** fora disso, 400 `REQUEST_VALIDATION_FAILED` com reason `peso_objetivo_invalido`.
+   - **Tela:** campo "Peso objetivo (kg)" no formulário e coluna na lista, ordenada pelo número. A chave de preferências passa a `_v3` para a coluna nova aparecer.
+3. **Motor do peso projetado** (`backend/src/modules/rebanhoLedger/pesoProjetado.js`, só leitura, nada gravado):
+   - **Cálculo:** projetado = valor da base + Σ GMD(dia) para cada dia depois da base, com o GMD do mês de cada dia na curva da categoria da posição.
+   - **Base:** o último `PesoRebanho` ativo da posição.
+   - **Base derivada:** transferência, mudança de categoria e junção gravam no destino a média do peso registrado das origens. Por isso a base derivada é recalculada com o peso **projetado** de cada origem (e do saldo que já estava no destino) no instante do evento, pelo descritor `dados.pesos_derivados` do evento. Assim o ganho do pasto não se perde quando o lote muda de categoria. O cálculo percorre os pesos da empresa **uma vez, em ordem cronológica** (data operacional, registro, criação, id), sem recursão nem limite de profundidade; um nascimento ou entrada medida no mesmo destino também soma o saldo projetado que já estava lá. Peso desconhecido cai para o valor gravado (nunca inventa).
+   - **Saídas por posição:**
+     - peso e @ de hoje;
+     - GMD do mês;
+     - base (tipo do fato, data, peso gravado e peso usado);
+     - objetivo, quanto falta e data prevista para atingir (busca até 1.095 dias);
+     - **pesado × previsto** da última pesagem, comparada com o projetado logo antes dela ("97,7% do previsto"). Só olha pesagens da **própria posição**: logo depois de uma transferência ou mudança de categoria, a base é derivada e o campo fica vazio até a próxima pesagem;
+     - projeção no último dia dos próximos 12 meses.
+4. **Onde aparece:**
+   - **API:** `GET /rebanho/posicoes` devolve `projecao_peso` em cada item. A projeção carrega posições, categorias, pesos, partidas e eventos da empresa, com uma consulta por tabela filtrada por `cliente_id` e `empresa_id` (sem lista de ids, sem limite de parâmetros); dos eventos lê só `dados -> 'pesos_derivados'`. "Hoje" é o dia no fuso da fazenda, lido **sem trava**; empresa sem fuso responde 200 com `motivo: 'sem_fuso'` (a lista não quebra). **Escala:** o custo cresce com o histórico de pesos da fazenda; se ficar pesado, a próxima fatia guarda um instantâneo projetado por posição.
+   - **Mapa:** nos Detalhes do Lote, na seção **Pesagem**, que já é visível, entram as colunas peso projetado, @ projetadas, GMD do mês, base da projeção, peso objetivo, quando atinge, pesado × previsto e os próximos fins de mês. O card mostra "Peso projetado (kg)".
+5. **Limite registrado (próxima fatia):** hoje o manejo **Mudança de Categoria** escolhe as fontes pela categoria **oficial** e recusa "categoria nova igual à atual". Por isso ainda não dá para trocar BOI PASTO por BOI CONFINAMENTO quando as duas são "Boi 25 a 36 meses" Macho. Liberar a troca entre Categorias de Manejo com a mesma oficial fica para a próxima missão. O motor já trata a base derivada dessa troca.
+
+**Relatório:** [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md).
+
+## D-PROD-199 — Mudança de Categoria mostra e pede a categoria de manejo de destino; cadastro avisa categoria repetida
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário. Ele explicou que a mudança de categoria é a evolução por idade ("eu tenho animais de 13 a 24 meses, exemplo garrote, vamos supor que a nova categoria do garrote vai ser o boi de 25 a 36 meses") e aprovou a proposta ("sim vamos fazer isso") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.**
+- A Mudança de Categoria (garrote 13 a 24 → boi 25 a 36) já funciona. O servidor liga a posição nova à categoria de manejo que deriva a oficial nova.
+- O peso projetado (D-PROD-198) parte do projetado da origem no dia da troca e segue a curva e o objetivo da categoria nova.
+- O formulário, porém, escolhia a categoria de manejo **sozinho e sem mostrar qual**, quando duas ativas derivam a mesma oficial: pela faixa mais avançada e, empatando, pelo id.
+- Em produção há categorias repetidas, com o mesmo sexo e a mesma faixa:
+  - "TESTE" e "BEZERRO MAMANDO", Macho 0 a 8;
+  - "VACA LEITERA" e uma "GARROTE 13 A 24 MESES" Fêmea gravada com faixa 37+.
+- Com elas, a escolha automática pode ligar o lote à categoria errada, com outra curva e outro objetivo. No Nascimento o servidor recusa com `MANEJO_CATEGORIA_AMBIGUA`.
+
+**Decisão** (só tela; sem migration, sem mudança no servidor):
+1. **Mudança de Categoria** (`FormularioMudancaCategoria.jsx`), depois de escolher a categoria nova:
+   - **uma** categoria de manejo possível: a tela mostra qual é e o sexo, e envia o id dela;
+   - **mais de uma**: um select **obrigatório** "Categoria de Manejo", sem pré-escolha. Sem escolher, não envia (aviso "Escolha a categoria de manejo…"). Trocar a categoria nova limpa a escolha;
+   - **nenhuma**: aviso de que o lote fica sem curva de ganho e sem peso objetivo. Envia sem categoria de manejo, como antes.
+   - O id, o nome e o sexo da categoria de manejo são resolvidos **no envio**, a partir das ativas lidas do servidor. Antes eram gravados na hora da escolha e ficavam vazios se a lista chegasse depois.
+   - O servidor não muda: com id, valida (`MANEJO_CATEGORIA_INVALIDA`); sem id e com mais de uma, recusa (`MANEJO_CATEGORIA_AMBIGUA`).
+2. **Cadastro de Categoria de Manejo:**
+   - quando outra categoria **ativa** da fazenda tem o **mesmo sexo e a mesma faixa**, a Faixa de idade mostra "Já existe X com o mesmo sexo e faixa…";
+   - o aviso não bloqueia o salvamento;
+   - faixas diferentes da mesma oficial (0 a 8 e 9 a 12) **não** contam: são etapas, não repetição;
+   - a lista vem da mesma consulta da grade (mesma chave do react-query).
+3. **Funções puras** em `src/domain/lotes/categoriaOficialDerivada.js`:
+   - `categoriasManejoParaMudanca`: todas as candidatas, por nome;
+   - `categoriasManejoDuplicadas`: mesmo sexo e faixa, outra ativa.
+   - A antiga `categoriaManejoParaMudanca`, com a escolha automática, fica só para compatibilidade e não é mais usada pela tela.
+
+**Correção de dados (feita pelo proprietário no cadastro, sem código).**
+- Corrigir a faixa ou o sexo da "GARROTE 13 A 24 MESES" Fêmea (hoje 37+).
+- Inativar "TESTE".
+- Cadastrar as fêmeas de 13 a 24 e de 25 a 36 meses (novilhas), que faltam.
+
+**Relatório:** [`MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md`](./MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md).
+
+## D-PROD-200 — Lançamento de Atividades em dois níveis: a Atividade (cabeçalho) e o apontamento do dia como filho (Fatia 2)
+
+> **Numeração:** nasceu como D-PROD-198, com a migration `20261114400000_atividade_cabecalho`. A `main` deu a D-PROD-198 e o prefixo `20261114400000` ao peso objetivo na Categoria de Manejo (PR #283, aplicada em produção às 19:00 UTC) antes do merge desta. Passou a D-PROD-199, e a `main` deu a D-PROD-199 à Mudança de Categoria (PR #287, sem migration). Esta é a **D-PROD-200** e a migration passou a `20261114500000_atividade_cabecalho`. O número não está no `migration.sql`, então o checksum não muda. O GO do proprietário ("autorizo pode enviar") foi dado para esta migration, com o número antigo.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("LANÇAMENTO DE ATIVIDADES — REDESENHO EM 4 FATIAS", Fatia 2: "O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" · **Branch:** `feat/atividade-cabecalho`
+
+**Contexto.** O Apontamento de Atividade de hoje (D-PROD-190, com os itens da D-PROD-193) é uma linha só: não há onde pendurar 15 dias de lançamentos sob a mesma operação, nem duas passadas no mesmo dia. A Fatia 1 (D-PROD-197) deu ao Tipo de Atividade os padrões e as flags que a abertura da atividade herda.
+
+**Decisão.**
+1. **Dois models novos:** `Atividade` (cabeçalho aberto: nome, tipo e grupo com snapshot, área com o setor herdado, máquina, safra, snapshots do tipo — centro de custo, centro de resultado e unidade de produção —, datas, área planejada e executada, produção, tarefa de origem, status `ABERTA | CONCLUIDA | CANCELADA` com conclusão, cancelamento e reabertura) e `AtividadeApontamento` (dia, turno `MANHA | TARDE | NOITE | nulo`, sequência das passadas, operador, área e produção do dia, observação, origem `WEB | APP`, status `CONFIRMADO | CANCELADO`). Campos fora da lista do pedido: `Atividade.bem_id` (a flag `exige_maquina` é conferida na abertura e é onde fica a máquina dos registros convertidos) e `Atividade.unidade_producao_sigla` (snapshot da sigla; guarda a unidade de texto `KM`/`HA` dos convertidos, que não existe no cadastro do cliente). O unique do apontamento por (atividade, dia, turno, sequência) é `NULLS NOT DISTINCT` no banco.
+2. **Migration CONTRACT `20261114500000_atividade_cabecalho`** (sétima entrada fechada), num formato novo do portão, **conversão**: guarda → tabelas novas pela allowlist EXPAND → conversão pinada → DROP pinados no fim. Os 2 apontamentos de teste viram 2 atividades (mesmo número, id `atv_<id antigo>`) com um apontamento filho cada (mesmo id antigo); nada é descartado (a guarda recusa se houver dado sem lugar no modelo novo, item de custo ou fatia FIFO). As 3 tabelas antigas saem. Produção: 51 → 52 migrations, 85 → 84 tabelas.
+3. **Regras:** tipo inativo recusa; herança do tipo e da área (snapshot, nunca relida); flags `exige_area`, `exige_safra` e `exige_maquina` na abertura e `exige_producao` na conclusão; apontamento no futuro recusa, fora do intervalo da atividade só alerta; concluída não aceita apontamento nem edição; reabrir com permissão própria, motivo e auditoria; cancelar a atividade cancela os apontamentos na mesma transação (o estorno de estoque entra na Fatia 3, quando houver linha de produto); área executada e produção do cabeçalho = soma dos apontamentos confirmados.
+4. **O apontamento antigo sai inteiro** (módulo, tela, itens da D-PROD-193, testes); produto e máquina voltam na Fatia 3 como linhas do apontamento.
+
+**Contrato:** [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md).
+
+**Aplicação em produção.** **Aplicada em produção em 2026-11-14 às 20:25:14 UTC** (`finished_at`), pelo caminho B do runbook, com o GO escrito do proprietário ("autorizo pode enviar"; depois "pode aplicar"). Preflight `PRONTO PARA APLICAR` (52 / 0, 85 tabelas, 2 apontamentos confirmados, 0 itens, 0 fatias, contador tenant / 3, 0 travas). Conferência depois: 53 / 0; checksum `c288cf47…`; 84 tabelas; as 3 antigas saíram; 2 atividades (nº 1 e 2, ABERTA, com máquina, centros, setor do nº 1, unidade KM/HA e produção 1/150) e 2 apontamentos (sequência 1, sem turno, CONFIRMADO); contador `Atividade` / tenant / 3; RLS ligado sem FORCE e política `maike_backend_all` nas 2 novas; nenhum privilégio para `anon`/`authenticated`; unique `NULLS NOT DISTINCT` presente.
+
+## D-PROD-201 — Suplementação de cocho, etapa 1: rebanho e peso certos no lançamento, salvar de novo sem baixar duas vezes, datas em ordem
+
+**Data:** 2026-11-14 · **Origem:** análise da suplementação de cocho pedida pelo proprietário ("você vai analisar toda a parte de suplementação de cocho… cálculos etc resultados"). Ele aprovou a ordem proposta ("vamos começar") e definiu a regra do peso: "a gente tem que fazer com o peso projetado, se não tiver peso projetado vai com base da pesagem atual" · **Branch:** `claude/kind-knuth-tztu1v`
+
+> **Numeração:** a `main` deu a D-PROD-200 ao Lançamento de Atividades (PR #285); esta é a **D-PROD-201**.
+
+**Contexto.** A análise encontrou cinco problemas no lançamento de suplementação (`FormularioLancamentoSuplementacao.jsx`):
+1. **Rebanho errado.** O formulário lia o **cadastro de Lote**, mas numa empresa no ledger o rebanho atual são as **posições** (D-PROD-107).
+   - Em produção os Lotes ativos somavam 5.358 cabeças e as posições, 4.425.
+   - O consumo esperado, a duração e a reposição saíam errados.
+2. **Lote sem peso.** O lote sem peso entrava na média como **0 kg**. Por exemplo, 30 cabeças com 400 kg e 20 sem peso davam média de 240 kg, o que subestimava o consumo e atrasava a reposição.
+3. **Baixa dupla.** Cada clique gerava um `operation_id` novo. Se o evento falhasse depois da baixa de estoque, salvar de novo **baixava outra vez**, e não existe estorno de suplementação.
+4. **Erro falso.** `toast.warn` não existe no sonner. Quando o fechamento do período anterior falhava, o `TypeError` virava "Não foi possível registrar", com o lançamento e a baixa já gravados, o que empurrava para a baixa dupla.
+5. **Data fora de ordem.** O lançamento com data anterior ao último fechava o **período mais novo** com 1 dia, porque `calcularDiasPeriodo` devolve no mínimo 1.
+
+**Decisão** (só tela; sem migration e sem mudança no servidor):
+1. **Rebanho do mapa.** O formulário usa `listarRebanhoParaSuplementacao`, a mesma fonte do mapa:
+   - **empresa no ledger:** as posições ativas da área, com `projecao_peso`;
+   - **legado:** os Lotes ativos.
+   - Um erro na consulta propaga; o sistema nunca cai para o Lote como saldo.
+   - As linhas por lote levam o id da **posição**. O servidor já resolve posição → lote de entrada (`exigirLotesDosDocumentos`).
+2. **Peso do consumo por %PV** (`pesoDeConsumoDoLote`):
+   - o **peso projetado de hoje** (D-PROD-198; sem curva, ele já é o último peso);
+   - senão, o último peso gravado.
+   - Sem peso nenhum, o lote **fica fora da média** (`resumoPesoDosLotes`). A média dos lotes com peso vale para todas as cabeças, e a tela avisa "N cabeça(s) sem peso (LOTE…)".
+   - Se nenhum lote tem peso, não há taxa, e o mapa explica "os lotes do pasto não tinham peso no lançamento", com a orientação de registrar uma pesagem, em vez de "Cadastre o %PV".
+   - O evento grava `cabecas_sem_peso`.
+   - **Limite:** o peso projetado é o de **hoje**, também num lançamento retroativo.
+3. **Uma operação por lançamento.** O `operation_id` nasce no primeiro clique e vale até o sucesso.
+   - Depois de uma falha, salvar de novo **reaproveita a baixa já feita**: não chama a saída de estoque outra vez, e o evento vai com o mesmo `operation_id`, que é idempotente no servidor.
+   - A mensagem de erro diz que a baixa foi registrada e que basta salvar de novo.
+   - Se a quantidade, o produto, a data ou o local mudaram depois da baixa (`chaveDaSaida`), o sistema recusa e pede para voltar aos valores da baixa.
+   - A checagem "saldo insuficiente" é pulada quando a baixa da operação já existe.
+4. **Avisos.** `toast.warning` no lugar de `toast.warn`. A falha ao fechar o período anterior é só um aviso: o lançamento conta como salvo.
+5. **Datas** (`erroDeDataDoLancamento`):
+   - o abastecimento **não pode ser anterior** ao último deste cocho (o mesmo dia é aceito);
+   - o "fim do consumo anterior", quando informado, fica entre o último abastecimento e o novo;
+   - enquanto o último lançamento carrega, não salva.
+
+**Fica para as próximas etapas** (análise de 2026-11-14):
+- **Atomicidade.** A baixa e o evento continuam em duas transações; a defesa desta etapa é a idempotência.
+- **Validação no servidor.** O servidor ainda não confere ponto, produto, kg nem a ligação baixa ↔ evento.
+- **Contas iguais.** A duração e a reposição do formulário (arredondamento e fallback por consumo ideal) ainda diferem das do mapa.
+- **Formulação** (pronto × batelada, %PV por categoria), **leitura de cocho** (escore, acesso, estrutura) com o farol, e **fechamento de consumo** em %PV com faixa configurável.
+
+**Relatório:** [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md).
+
+## D-PROD-202 — Linhas de produto e de máquina no apontamento do Lançamento de Atividades (Fatia 3)
+
+> **Numeração:** nasceu como D-PROD-201; a `main` deu a D-PROD-201 à suplementação de cocho, etapa 1 (PR #288, sem migration), antes do merge desta. Esta é a **D-PROD-202**. O número não está no `migration.sql`.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("FATIA 3 — As linhas que geram custo: produto e máquina. É o coração."), liberada com "pode começar" · **Branch:** `feat/atividade-itens-produto-maquina`
+
+**Decisão.**
+1. **Linha de produto:** baixa no estoque pelo motor único (FIFO, custo FIFO, estorno exato), com origem `apontamento_atividade`. Editar é estorno exato + nova saída. Cancelar o apontamento ou a atividade estorna tudo. Idempotência por `operation_id`. A conciliação do estoque lê as tabelas novas.
+2. **Linha de máquina:** o medidor vem do bem; a leitura fica na linha, como no abastecimento, e a leitura vigente do bem passa a considerar as linhas (nada é gravado em `BemPatrimonial.medidor_*`). Final obrigatória, nunca para trás; salto acima do teto do tipo do bem pede justificativa; "sem medidor" aceita horas ou km direto. O custo de uso é snapshot de `BemPatrimonial.custo_uso_unitario` (coluna nova).
+3. **Migration EXPAND `20261114600000_atividade_linhas_produto_maquina`:** 3 tabelas novas e 2 colunas anuláveis (`BemPatrimonial.custo_uso_unitario`, `TipoPatrimonial.salto_maximo_medidor`). Produção: 53 → 54 migrations, 84 → 87 tabelas.
+4. **Constituição:** nota nova re-ancorando a exceção de estoque da D-PROD-193 na linha de produto, com edição por estorno exato e custo de uso como snapshot, sem financeiro. **Aprovada pelo proprietário** em 2026-11-14.
+
+**Autorização e release.** O proprietário respondeu "autorizo vocÇe" ao pedido "aplica e aprova" (aplicar a migration antes do merge e aprovar a nota da Constituição) e, depois de o primeiro envio expirar sem resposta à confirmação do Supabase, "mande de novo a autorização". Aplicada em produção em 2026-11-14 pelo caminho B do [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md): preflight PRONTO (53 / 0, 84 tabelas, sem travas); postcheck APLICADA E CONFERIDA (54 / 0, 87 tabelas, 3 / 0, 9 CHECKs, 17 / 17 FKs, 20 / 20 / 13 índices, RLS sem FORCE com `maike_backend_all`, 0 grants). Merge da PR #289 em seguida.
+
+**Contrato:** [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md).
+
+## D-PROD-203 — Formulações de suplemento (etapa 2a da suplementação): produto pronto ou batelada, %PV por categoria, obrigatória no lançamento do cocho
+
+> **Numeração:** nasceu como D-PROD-202, com a migration `20261114600000_cadformulacao`. A PR #289 (Fatia 3 do Lançamento de Atividades) usa a D-PROD-202 e a migration `20261114600000_atividade_linhas_produto_maquina`, já aplicada em produção; esta passou a **D-PROD-203** e a `20261114700000_cadformulacao`. O nome da pasta não está no `migration.sql`: o checksum não muda.
+
+**Data:** 2026-11-14 · **Origem:** decisões do proprietário para a etapa 2 da suplementação (D-PROD-201, "Fica para as próximas etapas"): a formulação é um **produto pronto** (ex.: sal mineral comprado pronto) **ou uma batelada** (mistura feita na fazenda com produtos do estoque); o consumo alvo é **%PV** com exceção opcional **por categoria** (ex.: "BEZERRO MAMANDO não consome", "VACA LEITEIRA 0,15%"); os ingredientes da batelada são lançados em **kg por batida** (ex.: milho 600, farelo 300, núcleo 100 numa batida de 1.000 kg); o produto misturado é cadastrado **antes** em Produtos e a formulação aponta para ele; a formulação passa a ser **obrigatória** no lançamento do cocho (os lançamentos antigos ficam como estão) · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** O lançamento de suplementação lia o %PV do **produto** (`Produto.percentual_consumo_pv`) e aplicava a mesma taxa a todas as cabeças do pasto. Não havia como dizer que o bezerro mamando não come o proteinado da vaca, nem que a vaca leiteira consome menos, nem registrar que o "proteinado da seca" é uma mistura da fazenda.
+
+**Decisão.**
+1. **Três tabelas novas** (nomes físicos no padrão dos cadastros), por fazenda:
+   - `CADFORMULACAO` / model `Formulacao`: nome (MAIÚSCULAS, único por fazenda), `tipo` `PRONTO | BATELADA` (CHECK), `produto_id` (o produto que **vai ao cocho**: o pronto, ou o misturado), `percentual_pv_padrao DECIMAL(8,4)` de (0, 5] (CHECK), `consumo_objetivo_g_cab_dia DECIMAL(10,2)` opcional > 0 (CHECK), observações e ativo. FKs pelo tenant: `(cliente_id, empresa_id)` → Empresa e `(cliente_id, produto_id)` → Produto, `RESTRICT`;
+   - `CADFORMULACAOINGREDIENTE` / `FormulacaoIngrediente`: produto e `quantidade_kg DECIMAL(12,3)` > 0 por batida, na ordem digitada; único por (formulação, produto);
+   - `CADFORMULACAOREGRA` / `FormulacaoRegraCategoria`: Categoria de Manejo, `consome` e `percentual_pv` — não consome **sem** %PV, consome **com** %PV de (0, 5] (CHECK); única por (formulação, categoria).
+   - As duas filhas têm `empresa_id` e apontam para a formulação por `(cliente_id, empresa_id, formulacao_id)` → `CADFORMULACAO(cliente_id, empresa_id, id)`: são da **mesma fazenda por construção**, e saem com ela (`ON DELETE CASCADE`). Ingrediente → Produto e regra → `CADCATEGORIA` pelo tenant, `RESTRICT`: excluir produto, categoria ou fazenda em uso é barrado no banco (e a fazenda responde 409 `EMPRESA_COM_VINCULOS`, que conta os models sozinha).
+2. **Migration EXPAND `20261114700000_cadformulacao`**: só `CREATE TABLE`/`INDEX`/FK/CHECK nas 3 novas e o bloco RLS/REVOKE delas (corpo de sempre, lista nova, hash `b04af24e…` em `DO_RLS_APROVADOS`). Nenhuma tabela antiga muda (as relações inversas em Produto, CADCATEGORIA, Empresa e Cliente são só do Prisma). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`, pinado no premerge; o preflight de schema passa a exigir as 3 tabelas. Repositório 54 → **55** migrations (depois da 54ª, a `20261114600000_atividade_linhas_produto_maquina` da PR #289, D-PROD-202); tabelas em `public` 87 → **90** (75 de tenant). Release **antes do merge** pelo runbook [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md); não há janela: o runtime antigo não conhece as tabelas. **Aplicada em produção em 2026-11-14 às 23:41:42 UTC** (caminho B, GO escrito "go", guarda com 54 concluídas por causa da PR #289), conferida: 55 / 0, 90 tabelas, advisors sem achados. Os ensaios das CONTRACT anteriores (D-PROD-162, 187, 194, 195, 197 e 200) passam a tratar esta como release posterior: fora da partida e aplicada por último no GREEN (+3 tabelas).
+3. **API `/formulacoes`** (tenant só do `auth_context`, fazenda conferida em toda rota):
+   - `GET /formulacoes?empresa_id=` lista ativas e inativas, com os ingredientes na ordem, as regras, os nomes do produto e das categorias, o `total_batida_kg` (Σ ingredientes, em gramas inteiras) e o `percentual` de cada ingrediente; `GET /formulacoes/:id`;
+   - `POST` e `PATCH` (o PATCH **substitui por inteiro** as listas enviadas, na mesma transação; a forma final é conferida — trocar para PRONTO exige `ingredientes: []`);
+   - `DELETE` físico só sem lançamento que a cite: `SuplementacaoEvento.dados->>'formulacao_id'` na mesma fazenda; senão 409 **`FORMULACAO_EM_USO`** `{ lancamentos }`, "Inative-a";
+   - **validação** (400 `REQUEST_VALIDATION_FAILED` com `field`/`reason`): produto e ingredientes da **mesma fazenda** (`produto_inexistente`/`ingrediente_inexistente`) e ativos quando a referência é nova (`produto_inativo`/`ingrediente_inativo`; o que já estava gravado e ficou inativo continua aceito); categoria da mesma fazenda (`categoria_inexistente`/`categoria_inativa`); `pronto_com_ingredientes`, `batelada_sem_ingredientes`, `ingrediente_duplicado`, `ingrediente_e_o_produto`; %PV `percentual_pv_invalido|_fora_da_faixa|_casas_decimais` (aceita vírgula: "0,15"); `quantidade_*`, `consumo_objetivo_*`; `regra_duplicada`, `regra_nao_consome_com_pv`, `regra_pv_obrigatorio`, `consome_invalido`. O corpo bruto é conferido antes da coerção do AJV (null → 0, "true" → true, objeto → lista); nome duplicado → 409 `FORMULACAO_NAME_CONFLICT` (também na corrida).
+   - **Permissão:** a tela nova `pec-formulacoes` (módulo Manejo), sem concessão automática: ver = `visualizar`, criar = `novo|salvar`, editar = `editar|salvar`, excluir = `excluir`. **`GET /formulacoes/opcoes-lancamento?empresa_id=`** (só as **ativas**, com produto, %PV e regras, sem ingredientes) aceita também a chave do mapa **`lancar_suplementacao`**: o vaqueiro que lança no cocho não precisa da tela do cadastro.
+4. **Tela Formulações** (menu Manejo, depois de Curvas de Ganho; Base1): Nome, Tipo (Produto pronto / Batelada), Produto (o que vai ao cocho; na batelada, "Produto misturado"), %PV padrão, Consumo objetivo (g/cab/dia), Ativo, Observações; "Regras por categoria" (Categoria de Manejo + Consome? + %PV quando consome); "Ingredientes (kg por batida)" só na BATELADA, com o total da batida e o % de cada um ao vivo. Grade: Nome, Tipo, Produto, %PV padrão, nº de regras, nº de ingredientes / total da batida e Ativo.
+5. **Lançamento do cocho** (`FormularioLancamentoSuplementacao.jsx`), mantido todo o comportamento da D-PROD-201:
+   - o select **Produto** vira **Formulação**, obrigatório; com depósito, só as formulações cujo produto tem saldo nele (ou é o produto padrão do cocho), com saldo primeiro; escolhida sozinha quando é a única. Sem formulação ativa: aviso com o caminho para Formulações e o salvar fica travado;
+   - a baixa de estoque, os sacos/peso por saco e a exibição usam o **produto da formulação**;
+   - **consumo esperado lote a lote** (`consumoEsperadoPorFormulacao`, puro, em `consumoPVUtils.jsx`): %PV do lote = regra da categoria de manejo dele (não consome → 0; consome → o %PV da regra), senão o padrão; esperado do lote = peso × %PV / 100 × cabeças; lote **sem peso** usa a média ponderada dos lotes **com** peso (a extrapolação da D-PROD-201) com o %PV da própria categoria; `consumo_esperado_pv_kg` = Σ (null quando 0: ninguém consome ou ninguém tem peso);
+   - o evento grava `formulacao_id`, `formulacao_nome`, `formulacao_tipo`, `percentual_consumo_pv_usado` = %PV padrão da formulação e `cabecas_nao_consomem`; cada linha de lote grava `percentual_pv_lote` e o seu `consumo_esperado_pv_lote_kg` (0 para quem não consome; o lote sem peso passa a levar o esperado extrapolado). `total_cabecas_afetadas` continua sendo o total de cabeças da área;
+   - o lançamento **não lê mais** `Produto.percentual_consumo_pv` (o campo fica no cadastro de Produtos, intocado nesta missão).
+6. **Fora desta missão:** a **produção da batelada** (baixa dos ingredientes e entrada do produto misturado pelo motor de estoque) é a etapa 2b, com decisão própria; o servidor do lançamento ainda não confere a formulação (o evento é documento JSON); a duração e a reposição do formulário continuam com o rateio por cabeças da D-PROD-201.
+
+**Relatório:** [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md).
+
+## D-PROD-204 — Fila offline: o id que o servidor deu a uma criação offline é gravado na fila antes de a criação sair dela
+
+> **Numeração:** nasceu como D-PROD-198, com a D-PROD-196 e a D-PROD-197 deixadas para as PRs #275 e #276. Antes do merge, a `main` deu a D-PROD-198 ao peso projetado do lote e chegou a `Próxima decisão: D-PROD-203`, e a PR #290 (Formulações, mergeada) usa a D-PROD-203. Esta decisão é a **D-PROD-204**. A PR #275 ainda cita a D-PROD-195 e vai precisar de número próprio (D-PROD-205 ou seguinte).
+
+**Data:** 2026-11-14 · **Origem:** pendência registrada na emenda R2 da D-PROD-195 ("fora do escopo, registrado como pendência"); pedido do proprietário · **Branch:** `claude/relaxed-bardeen-jlgbp7` (PR #280). Nasceu empilhada sobre a PR #279 (emenda R2, que traz `criacoesRetidas`); depois do merge da #279 foi atualizada por merge com a `main` e passou a mirar a `main`
+
+**Contexto.** Em `syncOfflineEntityQueue`, o mapa `mapaDeIds` (`offline_… → id do servidor`) vivia só numa passada do replay. O laço para no primeiro erro. Se uma passada criava a área A, que saía da fila, e depois parava antes de enviar o lote B que cita A, a passada seguinte começava com o mapa vazio. A parada podia vir de uma falha transitória (503, timeout) em B ou em qualquer item entre os dois. Então B ia ao servidor com o id `offline_…` de A. Com FK, o servidor recusava e a fila travava para sempre. Sem FK (`Lote.area_atual_id`, `Lote.categoria_manejo_id`), a referência era gravada solta. Pela mesma razão, a edição ou a exclusão do próprio A, quando ficava para a passada seguinte, seguia com `record_id = offline_…`: o replay pulava o envio, porque o alvo ainda era um id offline, e tirava o item da fila. A edição se perdia, e a exclusão não chegava ao servidor.
+
+**Decisão.**
+1. **A fila guarda o mapeamento.** Logo depois de um `create` confirmado pelo servidor, e **antes** de tirá-lo da fila, o replay relê a fila do armazenamento e reescreve, com `atualizarNaFila`, todo outro item que cita o id offline: troca o `record_id` (edição ou exclusão do próprio registro) e todo valor em `data` (em qualquer profundidade, inclusive dentro de listas). Como a fila é relida, entram também os itens que esta passada não envia (retidos, em quarentena, de outro dono) e os que chegaram à fila durante a passada. A porta de armazenamento não muda e o IndexedDB não ganha store nova. Persistir o mapa à parte foi descartado: exigiria store e versão nova no IndexedDB, e o mapa ainda teria de ser aplicado em todo ponto que lê a fila, como as listas e as pendências do registro.
+2. **Ordem e falha.** A ordem é: criar no servidor, reescrever os dependentes, atualizar o cache e tirar o `create` da fila. Se reescrever falha, o erro propaga como qualquer erro do replay: o `create` **fica** na fila e nenhum dependente fica com id offline sem mapeamento. Resíduo aceito, anterior a esta decisão e igual ao de uma falha do cache logo depois do `create`: sem idempotência no `create`, a passada seguinte cria de novo (duplicata no servidor). Os dependentes já reescritos apontam para o primeiro registro, que existe, e nenhum deles fica solto.
+3. **Sem retenção nova.** Nenhum item é retido por citar um id sem mapeamento. A R2 já mostrou que isso esconde cadastros legítimos. Continuam retidos só os que citam uma criação retida pela política (`criacoesRetidas`), e a reescrita não toca nesses ids, que nunca são criados.
+4. **`substituirIdsMapeados` mais estrita.** Agora troca **só** id `offline_…` e só por chave própria do mapa (o mapa é `Object.create(null)`). Antes, um texto como `"constructor"` casava com o protótipo do objeto e o campo virava função. Id offline dentro de lista (`["offline_…"]`) passa a ser trocado; antes, seguia com o id offline.
+5. **Fica igual:** a ordem do replay, parar no primeiro erro, a retenção por política (D-PROD-161, D-PROD-195 R2), a quarentena da exclusão só online, o `pular`/`descartar` por tenant e o formato das entradas da fila.
+
+**Fora do escopo, registrado:** o cache de **outra** entidade que guarda a cópia offline de um registro dependente (ex.: o lote criado offline, com `area_atual_id = offline_…`) não é reescrito. Na listagem, a criação pendente na fila já leva o id do servidor, e a cópia do cache é trocada pelo registro do servidor quando o lote sincroniza.
+
+**Provas:** `tests/smoke/offlineMapaDeIdsEntrePassadas.test.js` (6 testes, todos reprovam com o runtime anterior): (a) área criada na passada 1 e lote com 503: na passada 2 o lote vai com o id do servidor da área, e entre as passadas a fila persistida já tem esse id; (b) a falha é de um item entre os dois; (c) edição e exclusão do registro criado offline, um item retido na própria passada e um item que entrou na fila durante a passada passam a citar o id do servidor; (d) lista e objeto aninhado são trocados, e `"constructor"` e id real não são tocados; (e) R2: o lote que cita a categoria retida continua retido, com a área já trocada; (f) se reescrever a fila falha, a criação não sai da fila.
+
+**Relatório:** [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md).
+
+## D-PROD-205 — Leitura de cocho (escore, acesso, estrutura) e farol do cocho no mapa (etapa 3 da suplementação)
+
+**Data:** 2026-11-15 · **Origem:** decisões do proprietário para a etapa 3 da suplementação: leitura de cocho = **escore** (Vazio / Adequado / Cheio) + **acesso** + **estrutura**, **sem lançamento de estoque**; farol no mapa; escore com 3 níveis; leitura vence depois de **2 dias**; etapa 3 e etapa 4 (fechamento de consumo) em PRs separadas · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Contexto.** O cocho só mostrava o nível ESTIMADO (D-PROD-178), calculado pelo consumo esperado desde o último abastecimento. Não havia como registrar o que o vaqueiro viu no cocho (vazio, cheio de sobra) nem problema de acesso ou de estrutura.
+
+**Decisão.**
+1. **Tabela nova `LEITURACOCHO`** (model `LeituraCocho`), por fazenda: `ponto_suplementacao_id`, `data_leitura` (DATE), `escore` `VAZIO | ADEQUADO | CHEIO`, `acesso` `BOM | RUIM`, `estrutura` `BOA | REPARO | QUEBRADA` (os três por CHECK), `observacoes` e `registrado_por_nome`. FKs pelo tenant: Empresa (Restrict) e PontoSuplementacao (**CASCADE**: apagar o cocho apaga as leituras dele). Índices começando por `cliente_id`.
+2. **Migration EXPAND `20261115100000_leitura_cocho`**: só `CREATE TABLE`/`INDEX`/FK/CHECK na tabela nova e o bloco RLS/REVOKE dela (mesmo corpo de sempre, lista nova, hash `60149f94…` em `DO_RLS_APROVADOS`). SHA-256 `f31cb0b8dace187b3b7bc76d6b989c0b6f2f0cd96c623834efcd23c0a9bcd1a1`. Nenhuma tabela antiga alterada. 56 migrations e 91 tabelas depois.
+3. **API `/leituras-cocho`** (tenant só do `auth_context`):
+   - `GET` (opcional `empresa_id`, `ponto_suplementacao_id`, `limit`): leitura autenticada isolada por tenant, como `/suplementacao-eventos` (o mapa desenha o farol com ela);
+   - `POST` (corpo fechado): fazenda do tenant (`EMPRESA_NOT_FOUND` 404); cocho do tenant, da MESMA fazenda e que seja cocho (400 `ponto_inexistente`, `ponto_de_outra_fazenda`, `ponto_nao_e_cocho`); `data_leitura` válida e não posterior a hoje no fuso da fazenda (sem fuso configurado, `America/Sao_Paulo`; 400 `data_invalida`, `data_futura`); `escore` obrigatório, `acesso` padrão `BOM`, `estrutura` padrão `BOA`; `registrado_por_nome` da conta autenticada (nome, ou o login), nunca do corpo; auditoria;
+   - `DELETE /:id` físico (404 `LEITURA_COCHO_NOT_FOUND`), com auditoria. Sem PATCH.
+   - **Permissão:** criar e excluir com a chave do mapa `lancar_suplementacao` (quem lança no cocho também lê; nenhuma chave nova a conceder).
+4. **A leitura não movimenta estoque** e não muda o nível estimado do cocho (D-PROD-178).
+5. **Front:**
+   - porta `src/apis/leituras-cocho` com o adaptador offline (`tenantScoped`): **a leitura funciona sem rede** (entra na fila e vai ao servidor no replay); o POST envia só os campos da leitura (o replay acrescenta `created_date`/`updated_date`);
+   - capacidade `leiturasCocho` no cache do mapa;
+   - domínio puro `src/domain/suplementacao/leituraCocho.js`: **farol** pela última leitura (dia mais recente; no mesmo dia, a registrada depois) — VAZIO **vermelho**, ADEQUADO **verde**, CHEIO **azul**; sem leitura ou com mais de **2 dias** (hoje, ontem e anteontem valem) **cinza** "Sem leitura recente"; **avisos** de acesso ruim e de estrutura (reparo/quebrada) sempre da última leitura, mesmo vencida, com a data;
+   - detalhe do cocho no mapa: botão **Leitura** (com `lancar_suplementacao`), seção "Leitura do cocho" com o farol, quem leu, os avisos e as últimas 5 leituras (excluir com confirmação);
+   - marcador do cocho: ponto colorido do farol no canto de baixo (o selo do nível continua no de cima) e o texto do farol no `title`/`aria-label`. Depósito não tem farol.
+6. **Fora desta missão:** etapa 4 — fechamento do consumo em %PV com faixa configurável (padrão ±15%) e custo por cabeça/dia, com decisão e PR próprios. A produção da batelada (etapa 2b) fica para quando o proprietário precisar.
+
+**Relatório:** [`MAIKE-LEITURA-COCHO-REPORT.md`](./MAIKE-LEITURA-COCHO-REPORT.md) · **Runbook:** [`MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md`](./MAIKE-LEITURA-COCHO-RUNBOOK-RELEASE.md).
+
+## D-PROD-206 — Fechamento do consumo do cocho: %PV real × esperado, farol pela faixa da formulação e custo por cabeça/dia (etapa 4 da suplementação)
+
+**Data:** 2026-11-15 · **Origem:** decisões do proprietário para a etapa 4 da suplementação: cada abastecimento novo fecha o período anterior; consumo real em %PV comparado com o esperado da formulação; farol com faixa de tolerância **por formulação** (padrão **±15%**): abaixo **vermelho**, dentro **verde**, acima **azul**; custo por cabeça/dia pelo custo real do estoque; abastecimento sem sobra informada conta 0 e fica marcado como aproximado · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Contexto.** O fechamento do período (abastecimento novo ou saída do gado) já gravava `dias_periodo`, `consumo_diario_grupo_kg` e a sobra final no evento (`SuplementacaoEvento.dados`, JSON), mas ninguém comparava o consumo real com o esperado que o lançamento grava pela formulação (D-PROD-203), não havia custo e a sobra vinha sempre "0" pré-preenchida — medida ou não.
+
+**Decisão.**
+1. **Faixa de tolerância na Formulação.** Coluna anulável `CADFORMULACAO.faixa_tolerancia_percentual DECIMAL(5,2)` pela migration **EXPAND** `20261115200000_formulacao_faixa_tolerancia` (só o `ADD COLUMN`, sem DEFAULT, sem CHECK: a allowlist EXPAND recusa CHECK em tabela antiga). SHA-256 `bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c`. **Vazia = 15%.** A API `/formulacoes` aceita e devolve o campo (0 < x ≤ 100, até 2 casas, vírgula pt-BR; 400 `REQUEST_VALIDATION_FAILED` com `faixa_tolerancia_invalido` / `_fora_da_faixa` / `_casas_decimais`), inclusive em `opcoes-lancamento`. A tela Formulações ganha "Faixa de tolerância (%)" (placeholder 15) e a coluna opcional "Faixa (%)".
+2. **O lançamento grava no evento** o que o fechamento precisa: `custo_unitario_kg` (o `valor_unitario` da saída de estoque FIFO do lançamento; sem saída, null), `faixa_tolerancia_percentual` (a da formulação vigente no lançamento; null = 15%) e `peso_vivo_consumo_kg` (Σ cabeças × peso dos lotes que CONSOMEM; lote sem peso com a média dos com peso, como no esperado).
+3. **Sobra não medida.** O campo Sobra do abastecimento deixa de vir com "0" (placeholder "Não medida"); a sobra herdada de um fechamento sem reabertura continua como antes. Vazio conta 0 e o fechamento grava `sobra_informada: false`; com valor digitado (inclusive 0), `true`. A saída do gado (Movimentação de Lote) continua com o campo obrigatório, que começa em 0: lá a sobra conta como medida.
+4. **Fechamento do consumo** (função pura `calcularFechamentoConsumo`, `src/domain/suplementacao/fechamentoConsumo.js`), gravado no patch do evento por `calcularFechamentoDePeriodo` nos dois caminhos que fecham (abastecimento e saída do gado):
+   - consumo real = fornecido + sobra anterior − sobra final; kg/dia = ÷ dias; **g/cab/dia** = kg/dia ÷ cabeças que consomem (`total_cabecas_afetadas − cabecas_nao_consomem`) × 1000;
+   - **%PV real** = kg/dia ÷ peso vivo de quem consome × 100; **%PV esperado** = `consumo_esperado_pv_kg` ÷ o mesmo peso vivo × 100 (evento antigo sem `peso_vivo_consumo_kg`: peso médio × cabeças que consomem; sem peso, os %PV ficam vazios);
+   - **relação** = real ÷ esperado; **farol**: abaixo de (100 − faixa)% → `abaixo`; acima de (100 + faixa)% → `acima`; entre os dois, **inclusive os limites**, → `dentro`. Sem esperado → `sem_referencia` (`sem_esperado`); **cocho compartilhado** (os mesmos animais com o mesmo produto em outro cocho, a mesma regra do nível do cocho, D-PROD-178) → `sem_referencia` (`cocho_compartilhado`): não se rateia;
+   - **custo**: custo do período = consumo real × R$/kg; **R$/cab/dia** = custo do período ÷ (cabeças que consomem × dias). Sem custo → "Sem custo";
+   - campos gravados: `consumo_g_cab_dia`, `consumo_real_pv_percentual`, `consumo_esperado_pv_percentual`, `consumo_relacao_esperado`, `farol_consumo`, `farol_consumo_motivo`, `faixa_tolerancia_aplicada`, `sobra_informada`, `custo_unitario_kg`, `custo_total_periodo`, `custo_cab_dia`. A **reabertura** limpa todos, menos o `custo_unitario_kg` (dado do lançamento).
+5. **Evento anterior a esta decisão** (sem os campos do item 2): o serviço busca a faixa na formulação pelo `formulacao_id` (opções do lançamento, só as ativas; senão 15%) e o custo no movimento de estoque (`movimentacao_estoque_id`) do cache do mapa; o compartilhamento vem do nível do cocho com o cache do mapa no dia do fechamento (o abastecimento passa o que o detalhe do cocho já sabe). Evento fechado antes desta decisão é calculado **na tela**, com o que há, sem gravar.
+6. **Tela:** o cartão do lançamento (Último Registro e Histórico do cocho) ganha "Fechamento do consumo" para período fechado — o farol **com o texto** (🔴 Abaixo / 🟢 Dentro / 🔵 Acima / ⚪ Sem referência, com a faixa ou o motivo), % do esperado, g/cab/dia, %PV real × esperado, R$/cab/dia, custo do período e R$/kg, e "Aproximado — sobra não informada". O detalhe do cocho ganha o cartão "Último período fechado"; o formulário de abastecimento mostra a prévia do farol do período que vai fechar. O mapa **não** ganha um terceiro indicador.
+7. **Fica igual:** quando o período fecha, o rateio por lote (ponderado por tempo), o nível estimado do cocho (D-PROD-178), a leitura de cocho (D-PROD-205), o estoque.
+
+**Fora do escopo, registrado:** cocho compartilhado não tem farol (o consumo do grupo não é rateado entre os cochos); o custo é o do abastecimento que abriu o período (a sobra herdada de outro ciclo entra pelo mesmo R$/kg); a produção da batelada (etapa 2b) fica para quando o proprietário precisar.
+
+**Relatório:** [`MAIKE-FECHAMENTO-CONSUMO-REPORT.md`](./MAIKE-FECHAMENTO-CONSUMO-REPORT.md) · **Runbook:** [`MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md`](./MAIKE-FECHAMENTO-CONSUMO-RUNBOOK-RELEASE.md).
+
+## D-PROD-207 — Mão de obra e serviço de terceiro no apontamento do Lançamento de Atividades (Fatia 4)
+
+> **Numeração:** nasceu como D-PROD-203; a `main` deu a D-PROD-203 às Formulações (PR #290, migration `20261114700000_cadformulacao`, já em produção) e depois a D-PROD-204 ao mapa de ids da fila offline (PR #280, sem migration), e depois a D-PROD-205 à leitura de cocho (PR #295, migration `20261115100000_leitura_cocho`, já em produção), e depois a D-PROD-206 ao fechamento do consumo (PR #296, migration `20261115200000_formulacao_faixa_tolerancia`, já em produção), antes do merge desta. Esta é a **D-PROD-207**. O número não está no `migration.sql`.
+
+**Data:** 2026-11-15 · **Origem:** pedido do proprietário ("FATIA 4 — Mão de obra e serviço de terceiro. Fecha o custo.") · **Branch:** `feat/atividade-mao-obra-servico`
+
+**Escolha aprovada antes de implementar.** A mão de obra pede uma pessoa com custo. O agente propôs um cadastro próprio de **Funcionário** em vez de usar `Usuario`, porque `Usuario` é conta de acesso: tem login e senha obrigatórios, não tem custo e é por cliente, não por fazenda; e propôs que o prestador do serviço viesse do **cadastro de Parceiros** (tabela `Fornecedor`) com o papel `prestador_servico`. O proprietário aprovou: "sim, vai de acordo com o cadastro de parceiro".
+
+**Decisão.**
+1. **Cadastros mínimos, por fazenda, nunca apagados (só inativar e reativar):** `Funcionario` (número, nome, cargo, tipo `MENSALISTA | DIARISTA | TAREFEIRO`, custo por hora e por diária, opcionais e ≥ 0) e `Servico` (número, nome, unidade de medida do cadastro existente `UnidadeMedida`, centro de custo padrão da mesma fazenda e valor de referência, opcionais). Telas próprias `Funcionarios` e `Servicos`, com permissão de tela própria e sem concessão automática. Não é folha: sem salário, encargos, ponto ou pagamento.
+2. **Linha de mão de obra** (`AtividadeApontamentoMaoObra`): funcionário ativo da mesma fazenda, medida `HORA | DIARIA | TAREFA`, quantidade > 0. Hora e diária copiam o custo do cadastro como snapshot (sem custo no cadastro, a linha entra sem custo); tarefa pede o custo unitário no corpo. Exige a flag `permite_mao_obra` do tipo da atividade.
+3. **Linha de serviço** (`AtividadeApontamentoServico`): serviço ativo da mesma fazenda, unidade copiada como snapshot da sigla da unidade do serviço, valor unitário digitado (a tela sugere o de referência), documento opcional e parceiro opcional — ativo, da mesma fazenda e com o papel `prestador_servico`; o parceiro usado conta como "em uso" na exclusão de parceiro. Exige a flag `permite_servico`.
+4. **Comum às duas, como na Fatia 3:** editar é cancelar e lançar de novo na mesma transação; cancelar o apontamento ou a atividade cancela as linhas; idempotência por `operation_id`; data do apontamento travada com linha confirmada; os totais da atividade e o custo por hectare somam produto, máquina, mão de obra e serviço. Nada de financeiro: nenhuma `OperacaoFinanceira`, título ou rateio a partir das linhas.
+5. **Migration EXPAND `20261115900000_atividade_mao_obra_servico`:** só 4 tabelas novas (`Funcionario`, `Servico`, `AtividadeApontamentoMaoObra`, `AtividadeApontamentoServico`), nenhuma coluna em tabela antiga, nenhum dado migrado. Toda FK é composta pelo tenant e `RESTRICT`; o apontamento, o funcionário, o serviço e o centro de custo entram por `(cliente_id, empresa_id, id)` (mesma fazenda por construção); o parceiro só tem `(cliente_id, id)`, e a mesma fazenda dele é conferida no código. SHA-256 `79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725`, RLS pinado `16d2680d…`. Produção: 57 → 58 migrations, 91 → 95 tabelas (de tenant, 76 → 80), depois da faixa de tolerância do fechamento do consumo (D-PROD-206).
+6. **Constituição:** expansão D-PROD-207 no `00` e nota no `07`: os cadastros mínimos e as linhas como custo da atividade (snapshot), o parceiro prestador como referência; continua fora folha (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço; proibido apagar cadastro ou linha, criar `OperacaoFinanceira` a partir das linhas e usar `Usuario` como funcionário. **Aprovada pelo proprietário** em 2026-11-15 ("Aplica e aprova").
+
+**Release.** Aplicada em produção em 2026-11-15 às 19:58:35 UTC, antes do merge, pelo caminho B do runbook, com o GO do proprietário ("Aplica e aprova"; depois "pode seguir", "sim ele já fez isso já liberou pode continuar" e "mande de novo por favor"). Três outras migrations entraram em produção durante a espera (Formulações, leitura de cocho, faixa de tolerância); a cada vez a guarda recusou sem gravar nada, e a fatia foi renumerada e mesclada. Preflight: 57 / 0, anterior `20261115200000_formulacao_faixa_tolerancia` (`bb8be379…`), 0 tabelas novas, 91 tabelas. Postcheck: 58 / 0, checksum `79f139a0…`, 4 tabelas novas, 95 tabelas, 8 CHECKs, 17 FKs RESTRICT validadas, 23 índices, RLS sem FORCE e `maike_backend_all` nas 4, 0 grants para anon/authenticated/PUBLIC. [Runbook](./MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md).
+
+**Contrato:** [`MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-REPORT.md).
+
+## D-PROD-208 — Ajuste da Fatia 4: o funcionário vira papel do parceiro, e a mão de obra pode ser de funcionário ou de terceiro
+
+**Data:** 2026-11-15 · **Origem:** pedido do proprietário, logo depois da Fatia 4 (D-PROD-207) entrar em produção · **Branch:** `feat/atividade-mao-obra-parceiro` · **Ajusta:** D-PROD-207
+
+**O pedido.** Nas palavras do proprietário: "o cadastro de funcionários deveria ser lá em parceiros, outra coisa, eu também tenho mão de obra com terceiros não apenas com funcionários, tipo assim, lá já tenho as opções papeis do parceiro, só iria incluir quando eu escolher o funcionário os dados dele". O agente propôs o plano abaixo (papel `funcionario` no parceiro com os dados dele; a linha de mão de obra apontando para o parceiro, funcionário ou terceiro; a tabela e a tela Funcionário saindo) e o proprietário aprovou: "sim pode fazer".
+
+**Decisão.**
+1. **Papel `funcionario` no parceiro** (tabela `Fornecedor`, tela Parceiros), com os 4 campos do cadastro que sai, todos opcionais e aceitos só com esse papel nos papéis finais (sem ele → 422 `PARCEIRO_FUNCIONARIO_SEM_PAPEL`): `funcionario_tipo` (`MENSALISTA | DIARISTA | TAREFEIRO`), `funcionario_cargo`, `funcionario_custo_hora` e `funcionario_custo_diaria` (≥ 0). Tirar o papel limpa os 4 campos. O CHECK `Fornecedor_funcionario_check` fecha a lista e os custos no banco.
+2. **A linha de mão de obra aponta para o parceiro** (`parceiro_id`, FK composta pelo tenant, `RESTRICT`), e o **servidor** decide e grava a `origem` pelo parceiro novo: ativo, da mesma fazenda e com o papel `funcionario` → `FUNCIONARIO` (com os dois papéis, vale funcionário); senão com `prestador_servico` → `TERCEIRO`; qualquer outro caso → a mesma recusa 422 `ATIVIDADE_LINHA_INVALIDA` (`reason: parceiro_invalido`, sem oráculo). Custo do funcionário: hora e diária copiam o custo do papel como snapshot (sem custo no papel, a linha entra sem custo; o corpo não aceita `custo_unitario`); tarefa pede o custo digitado. Custo do terceiro: **sempre** digitado, em qualquer medida.
+3. **Edição** (cancelar e lançar de novo, como na Fatia 4): o parceiro mantido fica com a `origem` gravada, mesmo que depois tenha perdido o papel ou sido inativado; trocar só o parceiro mantém o custo digitado gravado e descarta o snapshot. A correção da unidade do serviço mantida na edição, apontada pelo Codex na PR #294, continua valendo.
+4. **Auditoria do parceiro:** `funcionario_tipo` e os 2 custos entram como valor; o cargo, só como `tem_funcionario_cargo`.
+5. **Sai** a tabela `Funcionario`, a tela Funcionários, as rotas `/funcionarios` e o seletor `/atividades-opcoes/funcionarios`; entra o seletor `GET /atividades-opcoes/mao-obra` (os parceiros ativos da fazenda com papel funcionário ou prestador de serviço). Em produção, `Funcionario` e `AtividadeApontamentoMaoObra` estão **vazias** (conferido): nada se perde. O teste de serviço da Fatia 4 passa a ser `backend/tests/servicoNativo.test.mjs`.
+6. **Migration CONTRACT `20261116000000_mao_obra_parceiro`, condicionada a tabelas vazias:** a guarda pinada trava `Funcionario` e `AtividadeApontamentoMaoObra` em `ACCESS EXCLUSIVE` e aborta a transação inteira com qualquer linha em qualquer das duas; depois, as 12 instruções pinadas em tabela antiga (sai a FK, o índice e a coluna `funcionario_id`; entram `parceiro_id` e `origem` `NOT NULL` sem DEFAULT, as 4 colunas anuláveis em `Fornecedor`, os 2 CHECKs e a FK nova), o índice `(cliente_id, parceiro_id)` e, por último, `DROP TABLE "Funcionario"`. Entrada nova em `MIGRATIONS_CONTRACT_APROVADAS`, a primeira com `drop_no_fim` sem conversão (o `DROP` no começo falharia: a FK da linha ainda referencia a tabela). SHA-256 `65a8a4eb8abc7b44e24d3121605a375fee34ea88968bffe875c53b30e9cf9dd0`, guarda `9ec960b5…`. Produção: 58 → 59 migrations, 95 → 94 tabelas (de tenant, 80 → 79). O Instant Rollback deixa de ser seguro depois da aplicação.
+7. **Continua fora**, como na D-PROD-207: folha (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título, rateio e contrato de serviço.
+8. **Constituição:** nota "Ajuste (D-PROD-208)" no `00` e no `07`, logo depois dos textos da D-PROD-207. Redigida pelo agente e **aprovada pelo proprietário** em 2026-11-15 ("aplica e aprova"), no merge manual (§4).
+
+**Release.** Aplicada em produção em 2026-11-15 às 22:57:36 UTC, antes do merge, pelo caminho B do runbook, com o GO do proprietário ("aplica e aprova"). Preflight: 58 / 0, anterior `20261115900000_atividade_mao_obra_servico` (`79f139a0…`), "Funcionario" e "AtividadeApontamentoMaoObra" vazias, 95 tabelas, 0 travas. Postcheck: 59 / 0, checksum `65a8a4eb…`, 94 tabelas, "Funcionario" ausente, `funcionario_id` ausente, 6 colunas novas, 2 CHECKs validados, FK nova RESTRICT, índice novo. [Runbook](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md).
+
+**Contrato:** [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md`](./MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-REPORT.md).
+
+## D-PROD-209 — Tipo do funcionário: Mensalista, Diarista ou Terceirizado
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário · **Branch:** `feat/funcionario-tipo-terceirizado` · **Ajusta:** D-PROD-208
+
+**O pedido.** Nas palavras do proprietário: "por enquanto deixe a escolha assim, mensalista, diárias, terceirzado".
+
+**Decisão.**
+1. A escolha do tipo do funcionário (papel `funcionario` do parceiro, D-PROD-208) passa a ser **Mensalista, Diarista ou Terceirizado**: `Fornecedor.funcionario_tipo` ∈ `MENSALISTA | DIARISTA | TERCEIRIZADO` (`TERCEIRIZADO` no lugar de `TAREFEIRO`). O tipo continua obrigatório na tela quando o papel Funcionário está marcado; o servidor recusa `TAREFEIRO` como qualquer valor fora da lista (400).
+2. A medida **sugerida** na linha de mão de obra: Mensalista → hora, Diarista → diária, **Terceirizado → hora**. A medida `TAREFA` da linha continua existindo (é a medida, não o tipo): o operador a escolhe na linha, com o custo digitado.
+3. **Migration CONTRACT `20261116100000_funcionario_tipo_terceirizado`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, formato de sempre, sem `DROP TABLE`): a guarda pinada confere que o CHECK ainda é o da D-PROD-208 (com `TAREFEIRO`), trava `Fornecedor` em `ACCESS EXCLUSIVE` e aborta a transação inteira se algum parceiro tiver `funcionario_tipo = 'TAREFEIRO'`; depois, as 2 instruções pinadas: `DROP CONSTRAINT "Fornecedor_funcionario_check"` e o `ADD CONSTRAINT` igual com `TERCEIRIZADO` no lugar de `TAREFEIRO`. Nenhuma coluna, índice, tabela ou dado muda; o `schema.prisma` só muda o comentário. SHA-256 `44dd42d800de7b5db034af1c42e0b0425f18666b5e73d260ed599d95d73adab6`; 59 → 60 migrations, 94 tabelas. Em produção nenhum parceiro tem `funcionario_tipo` preenchido (conferido).
+4. Sem nota de Constituição: não muda o escopo (só a lista fechada de um campo que já existe).
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md) (`--contract D-PROD-209` no caminho A; o envelope no caminho B).
+
+**Aplicada em produção em 2026-11-16** (GO escrito do proprietário: "pode aplicar"), caminho B: preflight OK, postcheck APLICADA E CONFERIDA (60/0, CHECK com `TERCEIRIZADO`, 94 tabelas). PR #299.
+
+**Relatório:** [`MAIKE-FUNCIONARIO-TIPO-REPORT.md`](./MAIKE-FUNCIONARIO-TIPO-REPORT.md).
+
+## D-PROD-210 — Base do consumo na Formulação: % do peso vivo OU gramas por cabeça por dia, sem mistura
+
+> **Numeração:** nasceu como D-PROD-207, com a migration `20261115300000_formulacao_base_consumo`. Antes do merge, a `main` deu a D-PROD-207 à Fatia 4 do Lançamento de Atividades (PR #294, migration `20261115900000_atividade_mao_obra_servico`, já em produção): esta decisão é a **D-PROD-210** e a migration passou a `20261116200000_formulacao_base_consumo` (o número da decisão não está no `migration.sql`; o checksum não mudou). Depois, ainda antes do merge, a `main` deu a D-PROD-208 ao ajuste da Fatia 4 (PR #298, migration `20261116000000_mao_obra_parceiro`) e a D-PROD-209 ao tipo Terceirizado (PR #299, `20261116100000_funcionario_tipo_terceirizado`), ambas já aplicadas em produção (60 / 0, 94 tabelas): esta decisão é a **D-PROD-210** e a migration passou de `20261116000000_formulacao_base_consumo` para `20261116200000_formulacao_base_consumo` (conteúdo idêntico; o checksum `a8c42eeb…` e o hash da guarda `a66ff13e…` não mudam).
+
+**Data:** 2026-11-15 · **Origem:** pedido do proprietário depois da D-PROD-206: o sal mineral tem recomendação FIXA em g/cab/dia (ex.: 80 g), que não muda com o peso; o farol em %PV distorce. Decisões dele: **uma base por formulação** ("não quero que fique confuso": kg/cab/dia é meta fixa e %PV é outra coisa, sem mistura); regras por categoria **na mesma base** (ex.: VACA 1.500 g, BEZERRO MAMANDO não consome); o campo em gramas mostra o equivalente em kg ("1500 → = 1,5 kg/cab/dia"); trocar a base **limpa** os valores da antiga. · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Base do consumo** em cada formulação: `PV` (% do peso vivo, como até aqui) ou `G_CAB_DIA` (gramas por cabeça por dia). Formulações existentes = `PV`.
+   - **PV:** `percentual_pv_padrao` obrigatório, em (0, 5]; regras que consomem com `percentual_pv`. O `consumo_objetivo_g_cab_dia` que já existir é só **referência** (exibido como tal, não entra em conta).
+   - **G_CAB_DIA:** `consumo_objetivo_g_cab_dia` obrigatório (> 0, até 20.000 g, até 2 casas; "1.500" = 1.500 g) e `percentual_pv_padrao` **nulo**; regras que consomem com `g_cab_dia`.
+   - Não consome = sem %PV e sem gramas. **Mistura recusada** pelo servidor (400 com `field`/`reason`): `pv_na_base_g`, `g_padrao_obrigatorio`, `pv_padrao_obrigatorio`, `regra_pv_na_base_g`, `regra_g_na_base_pv`, `regra_g_obrigatorio`, `regra_pv_e_g`, `regra_nao_consome_com_g`, `base_consumo_invalida`. A forma final é conferida também no PATCH (trocar a base exige mandar os valores da nova).
+2. **Migration CONTRACT `20261116200000_formulacao_base_consumo`** (décima entrada de `MIGRATIONS_CONTRACT_APROVADAS`): a allowlist EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT, ALTER COLUMN, DROP CONSTRAINT e CHECK. Guarda DO pinada como 1ª instrução (trava as 3 tabelas de Formulações e exige as **3 VAZIAS**; colunas e constraints novas ausentes; os CHECKs da D-PROD-203 presentes) e, depois, **exatamente 7 instruções pinadas**: `base_consumo VARCHAR(16) NOT NULL DEFAULT 'PV'`; `percentual_pv_padrao DROP NOT NULL`; o CHECK do %PV padrão trocado por `CADFORMULACAO_base_consumo_check` (PV exige %PV em (0, 5]; G_CAB_DIA exige %PV nulo e gramas > 0); `CADFORMULACAOREGRA.g_cab_dia DECIMAL(10,2)`; `CADFORMULACAOREGRA_forma_check` recriado (consome com %PV **ou** com gramas, nunca os dois). Nenhum dado migrado. SHA-256 `a8c42eeb8c1fc7667833213d2d87c5a7dffd460ad1dea279ab6d5338732c3171`.
+   - **Aprovação do proprietário para este CONTRACT:** "sobre a tabela que já tem dados pode excluir, não tem problema, os dados eram só teste". Em produção as 3 tabelas de Formulações estavam com **0 linhas** e nenhum `SuplementacaoEvento` tinha `formulacao_id` (conferido só leitura pela sessão coordenadora); a guarda recusa se não estiverem vazias. Nenhum DELETE.
+3. **Lançamento do cocho:** base PV como antes; base G = Σ por lote (cabeças × gramas da regra da categoria de manejo do lote, senão o padrão) ÷ 1000, **sem peso** (lote sem peso não impede o esperado). Continua gravando a taxa em `consumo_esperado_pv_kg` (o nível do cocho, D-PROD-178, lê ela) e grava `base_consumo`, `consumo_esperado_g_cab_dia` (média das cabeças que consomem) e, por lote, `g_cab_dia_lote`. Rótulos sem "%PV" na base G; aviso de falta de peso só na base PV.
+4. **Fechamento (D-PROD-206):** na base G o farol compara **g/cab/dia real × g/cab/dia esperado** (mesma faixa da formulação, padrão 15%); não há %PV esperado e o %PV real aparece só como informação. Evento sem `base_consumo` = PV. O resumo grava `base_consumo_aplicada` (a reabertura limpa) e `consumo_esperado_g_cab_dia`.
+5. **Tela Formulações:** campo **Base do consumo** (% do peso vivo / g por cabeça por dia); só os campos da base aparecem; trocar a base limpa padrão e valores das regras (categorias e "Consome?" ficam); nos gramas, o equivalente em kg ao lado. A grade mostra "Consumo padrão" na base de cada uma ("0,1% PV" ou "80 g/cab/dia").
+
+**Fora do escopo, registrado:** peso médio do período no fechamento, custo da sobra herdada pelo lote antigo e rateio de cocho compartilhado (próximos refinamentos, cada um com decisão própria); o módulo futuro **"Manejo de Pastagens"** (nome escolhido pelo proprietário), com Monitoramento de Forragem e catálogo de culturas pré-preenchido.
+
+**Relatório:** [`MAIKE-BASE-CONSUMO-REPORT.md`](./MAIKE-BASE-CONSUMO-REPORT.md) · **Runbook:** [`MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md`](./MAIKE-BASE-CONSUMO-RUNBOOK-RELEASE.md).
+
+## D-PROD-211 — Fatia 5 do Lançamento de Atividades: abastecimento ligado à atividade
+
+> **Numeração:** nasceu como D-PROD-210, com a migration `20261116200000_abastecimento_atividade`. Antes do merge, a `main` deu a D-PROD-210 à base do consumo na Formulação (PR #297, migration `20261116200000_formulacao_base_consumo`, já aplicada em produção): esta decisão é a **D-PROD-211** e a migration passou a `20261116300000_abastecimento_atividade`, para vir depois da `20261116200000_formulacao_base_consumo`. O número da decisão não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então o checksum não mudou: `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`.
+
+**Data:** 2026-11-16 · **Origem:** brief do proprietário (Fatia 5, "DEPOIS"), liberada com "pode iniciar a fatia 5" · **Branch:** `feat/atividade-abastecimento` · **Continua:** D-PROD-202, D-PROD-207, D-PROD-208
+
+**O pedido.** "AbastecimentoBem ganha atividade_id / apontamento_id, snapshot de centro de custo, leitura anterior do medidor, delta e flag de intervalo confiável, e origem EXTERNO para posto de estrada. É o que fecha L/h, km/L e custo de combustível por hectare. Hoje o diesel do dia do operador não tem onde entrar."
+
+**Decisão.**
+1. O abastecimento pode pertencer a um **lançamento** da atividade (`apontamento_id`); o servidor **deriva** `atividade_id` dele (o cliente nunca o manda). Exige lançamento confirmado de atividade **aberta**. Cancelar o lançamento ou a atividade cancela os abastecimentos ligados, com estorno do estoque pelo mesmo motor; nada é apagado.
+2. **Origem `EXTERNO`** (posto de estrada): sem baixa de estoque nem lote, com o valor total da nota digitado; `ESTOQUE` continua exatamente como antes (FIFO do mesmo motor).
+3. **Snapshots** na confirmação, nunca relidos: o **centro de custo** (o da atividade; sem atividade, o do bem) e a **leitura anterior do medidor**, o **delta** e o **intervalo confiável** (anterior existe, delta > 0 e o anterior não é só o ponto do cadastro do bem).
+4. O consumo do bem pelo **método do tanque cheio** (D-PROD-162) continua sendo o único cálculo do consumo do bem; o totalizador da atividade ganha o combustível, o custo de combustível por hectare e o consumo por bem da atividade (litros ÷ horas, km ÷ litros das linhas de máquina).
+5. **Migration CONTRACT `20261116300000_abastecimento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`): 7 colunas novas, `local_estoque_id` e `movimentacao_estoque_id` passam a aceitar nulo (só no `EXTERNO`), CHECK de status trocado, CHECKs novos de origem, vínculo e intervalo, 3 FKs e 3 índices; backfill do centro de custo das linhas existentes pelo bem. SHA-256 `6dfc825cb908c28e903e66b25d16f2628db5da2cb50b9af73c6f1711b7faa436`; 60 → 61 migrations, 94 tabelas.
+6. Abastecimento ligado a atividade **concluída** não se cancela (409, a atividade precisa ser reaberta antes): os totais da concluída ficam congelados. O sem vínculo cancela como sempre.
+7. Permissões: ligar e cancelar o abastecimento seguem as permissões da tela de Abastecimentos; a cascata (cancelar o lançamento ou a atividade) cancela os ligados pela permissão da atividade, como já fazia com as linhas.
+8. O banco garante `apontamento_id ⇒ atividade_id` (CHECK) e as FKs de cada um; que o lançamento seja **da** atividade é garantido pelo servidor (a atividade é sempre derivada do lançamento). Amarrar os dois por FK composta fica como reforço futuro — **feito na D-PROD-217** (FK composta de 4 colunas, [relatório](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md)).
+9. Sem nota de Constituição: dentro do escopo do manejo (o redesenho do Lançamento de Atividades).
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-211` no caminho A; o envelope no caminho B).
+
+**Aplicada em produção em 2026-11-16** (GO escrito do proprietário: "aplica"), caminho B: preflight todo OK (61/0, colunas novas ausentes, CHECK antigo presente, 94 tabelas), envelope com a migration integral (SHA `6dfc825c…`) e postcheck **APLICADA E CONFERIDA** (62/0, 7 colunas, 4 CHECKs, 3 FKs, 3 índices, backfill conferido, 94 tabelas). PR #300.
+
+**Contrato:** [`MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md`](./MAIKE-ATIVIDADE-ABASTECIMENTO-REPORT.md).
+
+## D-PROD-212 — Fechamento do consumo: peso médio do período no esperado (base %PV) e a sobra antiga sai primeiro no custo
+
+> **Numeração:** a `main` indicava `Próxima decisão: D-PROD-211`, mas a PR #300 (outra sessão, "Fatia 5 — abastecimento ligado à atividade", aberta) vai precisar da D-PROD-211. Para não duplicar, esta decisão é a **D-PROD-212**; a D-PROD-211 fica para a PR #300.
+
+**Data:** 2026-11-16 · **Origem:** refinamentos 1 e 2 do fechamento do consumo (D-PROD-206), explicados ao proprietário com o exemplo do COCHO 01 e aprovados por ele: peso médio — "concordo… o gado não fica mais de 10 dias sem produto… mas em alguns lugares a pessoa acaba ficando 30 dias"; sobra — "a sobra antiga, tudo bem, pode sair primeiro… essa questão da sobra depois a gente vai ter que ajustar". O cocho compartilhado fica para depois ("tenho umas ideias para trocar com você"). · **Branch:** `claude/kind-knuth-tztu1v`. Sem migration.
+
+**Decisão.**
+1. **Peso médio do período no esperado do FECHAMENTO, só na base PV** (`pesoMedioDoPeriodo`, em `src/domain/suplementacao/fechamentoConsumo.js`).
+   - Em cada lote do período que consome, com peso próprio e com a curva de ganho gravada no lançamento: ganho = curva em (data do lançamento, fim do período]; **peso médio = peso do lançamento + ganho ÷ 2**; esperado do lote = esperado do lançamento × peso médio ÷ peso do lançamento (o %PV da regra da categoria não muda). O esperado do fechamento = esperado do lançamento × (Σ esperados corrigidos ÷ Σ esperados dos lotes).
+   - A curva é a da **Categoria de Manejo do lote**, a mesma regra do peso projetado (D-PROD-198, `ganhoNoPeriodo`, GMD do mês de cada dia). O front não importa o backend: a regra vive em `src/domain/rebanho/ganhoPelaCurva.js` com o mesmo nome, e um teste confere as duas lado a lado. A curva chega pela projeção de peso da posição (`projecao_peso`: peso de hoje e o peso no fim dos 12 meses seguintes → GMD de cada mês, `curvaDaProjecaoDePeso`); o lançamento grava em cada lote `gmd_mensal_kg` quando o peso usado é o projetado.
+   - **Sem como projetar** (evento anterior a esta decisão, lote legado, categoria sem curva, lote sem peso próprio, sem data) → fica o peso do lançamento e o resultado é marcado aproximado, com o motivo (`peso_medio_periodo_motivo`: `sem_curva`, `sem_peso`, `sem_lotes`, `sem_data`). Não se inventa GMD.
+   - O esperado do **lançamento** (`consumo_esperado_pv_kg`, a taxa do nível do cocho D-PROD-178) **não muda**. Na base **G_CAB_DIA** a meta não depende do peso; o peso médio só entra no %PV informativo.
+   - Grava `peso_medio_periodo_kg`, `peso_medio_periodo_aproximado`, `peso_medio_periodo_motivo` e `consumo_esperado_fechamento_kg_dia`. Exemplo (teste): 100 cab, 0,3% PV, 306 kg no início e 312 no fim (GMD 0,6, 10 dias) → peso médio 309, esperado 92,7 kg/dia; consumo 95 kg/dia → **102,5%** (antes 103,5%).
+2. **A sobra antiga sai primeiro no custo** (`camadasDaSobraHerdada` e `custoDoConsumoComSobraPrimeiro`, funções puras isoladas para o ajuste futuro que o proprietário anunciou).
+   - O consumo do período é atendido primeiro pela sobra herdada (às camadas de custo dela) e depois pelo fornecido do lançamento (ao custo/kg da saída FIFO). A sobra final fica gravada em camadas, a mais antiga primeiro (`sobra_final_camadas`), e é a sobra herdada do período seguinte (em proporção aos kg herdados).
+   - De onde vem o custo da sobra herdada: as camadas do **fechamento anterior do mesmo cocho**; sem elas (fechamento anterior a esta decisão), o custo/kg do lançamento anterior (gravado ou achado pelo movimento de estoque); sem nada (sem fechamento anterior, sem rede), o custo/kg do lançamento atual, **marcado aproximado** (`custo_sobra_aproximado`). Sem custo do lançamento → "sem custo", como antes.
+   - Grava `sobra_herdada_kg`, `custo_sobra_herdada_kg` (média), `custo_sobra_aproximado` e `sobra_final_camadas`. Exemplo (teste): 100 kg herdados a R$ 3,00 + 900 kg a R$ 3,50, sobra final 50 → 950 kg consumidos → **R$ 3.275,00** (não R$ 3.325,00); 100 cab × 10 dias → **R$ 3,28/cab/dia**.
+   - A prévia do abastecimento e os eventos fechados antes desta decisão continuam com o custo todo pelo lançamento (não há a sobra herdada para calcular).
+3. **Correção junto: o servidor recusava o PATCH do fechamento.** O PATCH de `SuplementacaoEvento` (R2A, D-PROD-99) aceitava só `sobra_kg`, `dias_periodo` e `consumo_diario_grupo_kg`; desde a D-PROD-206 o fechamento manda também farol, %PV e custo (e strings/booleanos), e o servidor recusava o PATCH **inteiro** (`REGISTRO_OPERACIONAL_IMUTAVEL`) — o período não fechava e a tela avisava "Falha ao fechar o período anterior, mas o lançamento foi salvo". A lista fechada passa a ter também os campos do fechamento do consumo, cada um com o seu tipo (`backend/src/modules/suplementacaoEventos/camposFechamentoEvento.js`: números ou null; `farol_consumo`, `farol_consumo_motivo`, `base_consumo_aplicada` e `peso_medio_periodo_motivo` em lista fechada; booleanos; `sobra_final_camadas` como lista de `{ kg, custo_kg }` ≥ 0). Tipo errado → 400 com `field`/`reason`. Campos de lançamento e saldo (quantidade, produto, esperado do lançamento, movimento de estoque…) continuam imutáveis.
+4. A **reabertura** limpa os campos novos do fechamento (o custo/kg do lançamento fica).
+5. **Tela:** o cartão do fechamento (Último Registro, Histórico, "Último período fechado") mostra o **Peso médio do período** (com "aproximado: motivo") e a linha "Sobra antiga primeiro: X kg a R$ Y/kg" (com "custo da sobra aproximado").
+
+**Fora do escopo, registrado:** cocho compartilhado (o proprietário ainda vai trazer ideias); o ajuste futuro da regra da sobra; os períodos que ficaram abertos em produção porque o PATCH do fechamento era recusado (D-PROD-206 → D-PROD-212) — o próximo abastecimento de cada cocho fecha o período aberto mais recente; um período mais antigo que tenha ficado aberto precisa ser conferido à parte.
+
+**Relatório:** [`MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md`](./MAIKE-FECHAMENTO-REFINAMENTOS-REPORT.md).
+
+## D-PROD-213 — Resumo do Rebanho no Mapa Geral (cabeças, peso hoje e em 90 dias, arrobas, lotação por pasto)
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário ("meu patrão quer algum resultado": relação do rebanho atual por categoria, peso, peso projetado, ganho, peso em @). O conteúdo foi aprovado num modelo visual (canvas) e o proprietário exigiu o VISUAL igual ao padrão original do sistema · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Onde:** o cartão do resumo inferior do Mapa Geral (Animais · Peso méd. · Áreas, D-PROD-131) vira o botão que abre o diálogo "Resumo do Rebanho" — sem rota nem página nova (escopo D-PROD-01). Só com `visualizar_lotes` do mapa; sem ele o cartão continua só informativo. Nenhuma permissão nova.
+2. **Visual:** a MESMA casca do Detalhes do Lote v8 — `LancLoteDialogo` (`largo somenteLeitura`, desktop 880 px, tablet/celular tela cheia) com `.mk-dl.mk-dl8[data-modo]`, menu de abas `.mk-dl8__aba` (sublinhado verde), cartões `CartaoDl`, `PilulaTitulo`, cores `COR` e o seletor em pílula do "Ver como" (aba Lotes) para a fazenda. Nenhuma cor ou fonte nova.
+3. **Conteúdo:** filtro de fazenda (setores das áreas com rebanho: "Todas" + um por `setor_nome`, sem o prefixo "FAZENDA "). Aba **Rebanho**: 4 cartões — Cabeças, Peso médio (projetado hoje), Arrobas (peso vivo ÷ 30) e Em 90 dias (+@ do rebanho; peso médio em 90 dias) — e a lista por categoria de manejo (idade mínima da faixa): Cabeças, Peso hoje, Em 90 dias. Aba **Pastos**: Cabeças, peso, fazenda e lotação UA/ha (UA = 450 kg) com barra, do mais carregado para o menos. Rodapé: projeção pela curva; ganho real só depois da segunda pesagem.
+4. **Contas puras** em `src/domain/rebanho/resumoDoRebanho.js`: peso de hoje = `projecao_peso.peso_kg` que o servidor já manda em cada posição (D-PROD-197/198); sem projeção, o `peso_medio_kg` gravado (contado como "sem projeção" e avisado no rodapé). Peso em 90 dias = interpolação linear entre os pontos de `projecao_mensal` (hoje e os fins de mês) — exata, porque o GMD da curva é constante dentro do mês; nenhum GMD é inventado no front. Sem projeção, o peso não muda no horizonte. Usa as posições e áreas já carregadas pelo mapa (sem os filtros de exibição do mapa): nada de backend novo, nada de migration.
+
+**Fora do escopo:** ganho real (precisa da segunda pesagem), exportar PDF/planilha, valor em R$ (preço da @), @ de carcaça.
+
+**Relatório:** [`MAIKE-RESUMO-REBANHO-REPORT.md`](./MAIKE-RESUMO-REBANHO-REPORT.md).
+
+## D-PROD-214 — Cadastros do mapa e ligações: ligação estrita ponto↔cocho/depósito/bebedouro, exclusão com histórico bloqueada, ocupação derivada e propagação de nomes
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário ("verifique toda a minha situação de cadastros de pontos no mapa, cadastro em lotes, ligações de áreas, pontos etc., pois há vários bugs") · **Branch:** `fix/mapa-cadastros-ligacoes`.
+
+**Decisão.**
+1. **Ligação ponto do mapa ↔ registro operacional** numa regra só (`src/domain/mapa/ligacaoPontoReferencia.js`): bebedouro **somente** por `ponto_referencia_id`; cocho/depósito por mesma empresa + categoria compatível com o tipo do ponto + nome normalizado (coordenadas desempatam; sigla sozinha nunca liga). Ambiguidade não altera nem apaga nada. Sem migration: um `ponto_referencia_id` em `PontoSuplementacao` fica para uma EXPAND futura, se o proprietário quiser.
+2. **Exclusão do ponto** só leva junto cocho/depósito/bebedouro **sem histórico** (leituras de cocho, eventos de suplementação, movimentações/saldo de estoque; histórico/sanidade de bebedouro). Com histórico: bloqueio 409 (`PONTO_SUPLEMENTACAO_COM_HISTORICO`, `BEBEDOURO_COM_HISTORICO`), conferido também no DELETE do servidor. O `LocalEstoque` do depósito é **inativado**, não apagado (D-PROD-137). Falha no meio nunca aparece como sucesso.
+3. **`numero_ponto` do cocho/depósito é do servidor** (sequência do tenant, nova tentativa em colisão); o local do depósito novo nasce na mesma transação.
+4. **Ocupação da área** (`quantidade_atual`, `status_ocupacao`) é **derivada na leitura** dos lotes/posições ativos (mesma fonte do mapa), não mais o valor gravado que ninguém atualizava. Faixas: sem gado "Disponível"; UA/capacidade até 70% "Médio", até 110% "Alto", acima "Sobrepastoreado".
+5. **Renomear área ou setor** propaga o nome para lotes, cochos, bebedouros, tarefas e movimentações na mesma transação, por id e `cliente_id` do `auth_context`.
+6. **Reatribuir códigos de áreas** por comando próprio `POST /areas-pastagem/renumerar` (transação, duas fases), só online; o PATCH genérico continua sem `numero_area`.
+7. **Mapa Geral** relê do servidor as chaves afetadas depois de qualquer cadastro (`invalidarCachesDoMapa`). Ícones são do tenant (`empresa_id` nulo vale para todas as empresas).
+
+**Fora do escopo (pausa nos lotes, pedido do proprietário):** 12 bugs confirmados de lote/movimentação listados no relatório §6; fila offline que trava num 4xx definitivo.
+
+**Relatório:** [`MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md`](./MAIKE-MAPA-CADASTROS-LIGACOES-REPORT.md).
+
+## D-PROD-215 — Cadastro de Culturas (tabela `CADCULTURAS`) com lista de referência
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-214`, mas a D-PROD-214 já está em uso (PR #303, reforço da FK do apontamento do abastecimento, e PR #305, cadastros do mapa, já mergeada). Para não duplicar, esta decisão é a **D-PROD-215**. O número não está no `migration.sql`, então o checksum não muda. A #303 também usa o prefixo `20261116400000` (`…_abastecimento_fk_apontamento_atividade`): a pasta desta passou a `20261116500000_cadculturas` (conteúdo idêntico); a ordem de release com a #303 está no runbook.
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário, primeiro passo da produção de forragem e das medições ("vamos primeiro fazer o cadastro de culturas ok, no banco eu quero que se chama CADCULTURAS"; os parâmetros ficam no catálogo de cultura, "pré cadastrado com uma numeração") · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Cadastro novo, por fazenda**: model Prisma `Cultura`, tabela física **`CADCULTURAS`** (nome fixado pelo proprietário), `cliente_id` + `empresa_id` com FKs compostas para Cliente e Empresa (`RESTRICT`), RLS no padrão, uniques e índice começando por `cliente_id` (R9/R10). O tenant vem só da sessão (R11).
+2. **Campos:** `codigo` (texto curto, "001", "002"…; único na fazenda; vazio na criação = o servidor usa o próximo número livre depois do maior código numérico, com 3 dígitos), `tipo` (`PASTAGEM | CAPINEIRA | LAVOURA | SILAGEM`, CHECK no banco), `nome` (MAIÚSCULAS, único na fazenda), `especie` e `cultivar` opcionais, `altura_entrada_cm` e `altura_saida_cm` (DECIMAL(6,1), anuláveis; > 0, até 1.000 cm, 1 casa; com as duas, saída < entrada — CHECK no banco e 400 com `field`/`reason` na API), `observacoes`, `ativo` e datas. Números em pt-BR ("25,5") aceitos pela API.
+3. **Lista de referência sem DML:** o botão "Incluir lista de referência" chama o comando **`POST /culturas/comandos/lista-referencia`**, idempotente pelo nome: cria na fazenda as 11 forrageiras que faltam — 001 MARANDU 25/15, 002 XARAÉS 30/15, 003 PIATÃ 35/20, 004 PAIAGUÁS 30/15, 005 DECUMBENS (Basilisk) 20/10, 006 HUMIDICOLA 20/10, 007 MOMBAÇA 90/45, 008 TANZÂNIA 70/35, 009 ZURI 75/35, 010 MASSAI 55/25, 011 TIFTON 85 25/10 (entrada/saída em cm, manejo rotacionado), todas `PASTAGEM`, com a observação "Valor de referência (manejo rotacionado). Ajuste para a fazenda." Nome já cadastrado é pulado; código de referência ocupado por outra cultura → o próximo número livre. Repetir não duplica (`{ criadas, ja_existiam, culturas }`). A migration não semeia nada.
+4. **API `/culturas`** (GET lista e detalhe, POST, PATCH, DELETE com `empresa_id`), corpo fechado (`additionalProperties: false`), auditoria de create/update/delete (`Cultura`), exclusão física. Excluir a fazenda com cultura → 409 `EMPRESA_COM_VINCULOS`. Erros novos: `CULTURA_NOT_FOUND` (404), `CULTURA_NAME_CONFLICT` e `CULTURA_CODIGO_CONFLICT` (409).
+5. **Permissão `pec-culturas`** (módulo `manejo`), leitura incluída, **sem concessão automática**; o comando da lista exige a ação de criar.
+6. **Tela "Culturas"** no padrão Base1 (como Estações e Formulações), no menu Manejo logo depois de Estações; rota `/culturas` no escopo do produto (`config/mapa-manejo-scope.json`, 31 páginas).
+7. **Migration EXPAND `20261116500000_cadculturas`**: só a tabela nova (CREATE TABLE, índice, uniques, FKs, 2 CHECKs e o bloco de RLS pinado). SHA-256 `37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715`; 62 → 63 migrations, 94 → 95 tabelas, 79 → 80 de tenant.
+
+**Fora do escopo (próximas missões):** ligar a Área à Cultura (a Área continua com o texto de antes), altura de entrada no pasto e de saída no lote, Monitoramento de Forragem (medições) e calibragem.
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-CULTURAS-RUNBOOK-RELEASE.md) (caminho A sem `--contract`; caminho B pelo envelope).
+
+**Relatório:** [`MAIKE-CULTURAS-REPORT.md`](./MAIKE-CULTURAS-REPORT.md).
+
+## D-PROD-216 — Área ligada à Cultura (`AreaPastagem.cultura_id`) e o vínculo das áreas atuais à cultura 001 Marandu
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário, segundo passo do Manejo de Pastagens depois do Cadastro de Culturas (D-PROD-215): "vamos seguir com os próximos passos … você já altera os dados do banco, pastagens tudo brachiaria marandu código 001 da cultura e tipo tudo pastagem". A altura de entrada no pasto e a de saída no lote continuam fora ("vamos pensar depois") · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Coluna nova e anulável `AreaPastagem.cultura_id`** apontando para a Cultura (CADCULTURAS) da **mesma fazenda**: FK composta `(cliente_id, empresa_id, cultura_id) → CADCULTURAS(cliente_id, empresa_id, id)`, `ON DELETE RESTRICT` (cultura em uso não sai), com o UNIQUE `(cliente_id, empresa_id, id)` que ela exige em CADCULTURAS e o índice `(cliente_id, empresa_id, cultura_id)` (R9/R10). Área antiga, Reserva, APP e Infraestrutura ficam sem cultura.
+2. **`tipo_pastagem` vira cópia do nome da cultura** quando há cultura (como `setor_nome` do setor): o servidor deriva na criação e no PATCH e ignora o texto enviado enquanto a área continuar ligada; sem cultura, o texto de antes continua valendo. Renomear a cultura reescreve a cópia nas áreas ligadas, na mesma transação, com evento-resumo de propagação.
+3. **Regras da API das áreas** (`POST/PATCH /areas-pastagem`, corpo fechado): `cultura_id` de outro tenant ou inexistente → 404 `CULTURA_NOT_FOUND` (sem oráculo); de outra fazenda → 400 `field: cultura_id, reason: outra_fazenda`; inativa, quando é troca → 400 `inativa` (manter a mesma cultura depois de inativada não bloqueia a edição); em uso Reserva/APP/Infraestrutura → 400 `uso_sem_cultura`; mudar o uso para um desses desliga a cultura; `cultura_id: null` desliga. As leituras devolvem `cultura_id` e `cultura {id, codigo, nome, tipo}`.
+4. **Excluir cultura ligada a alguma área** → 409 **`CULTURA_EM_USO`** (`details.areas` = quantas), conferido antes da FK.
+5. **Formulário da Área**: com culturas na fazenda, o campo vira **"Cultura"** e lista "001 · NOME" (as ativas, por código; a da própria área mesmo inativa); área antiga mostra a dica "Cultura anterior: …" e salva sem escolher. Sem a lista (sem a tela `pec-culturas`, erro ou nenhuma cultura), o campo segue com a lista fixa de antes, e área já ligada fica travada com o nome da cultura (o `cultura_id` não vai no corpo). A grade do Cadastro de Áreas mostra "001 · NOME". O lote de "tipo de cultura" ignora áreas ligadas (troca no registro da área).
+6. **Migration `20261117000000_area_cultura` — CONTRACT aditiva** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, como a D-PROD-195 e a D-PROD-197): nenhuma linha muda, nenhum DROP, nenhuma tabela nova; é CONTRACT só porque a allowlist EXPAND recusa UNIQUE em tabela antiga e FK de tabela antiga para tabela antiga. Guarda (hash pinado) e as 3 instruções pinadas (coluna, UNIQUE, FK); o índice pelo resto EXPAND. SHA-256 `e7fd7ee674a8cadff6c4b9fc9ee496e04d9157b19f231e97bff1abb758d8ff26`; 63 → 64 migrations, 95 tabelas (nenhuma nova). Os scripts do SQL Editor (01–04) passam a apagar a AreaPastagem antes da CADCULTURAS e a Empresa no fim.
+7. **Vínculo das áreas atuais (DML) é passo separado, depois da migration**, com aprovação própria: as 107 áreas não-infraestrutura da fazenda do proprietário passam a `cultura_id` = 001 (BRACHIARIA BRIZANTHA CV. MARANDU), `tipo_cultura = 'Pastagem'` e `tipo_pastagem` = nome da cultura, numa transação com guarda (alvo, migration concluída, cultura 001 ativa e Marandu, exatamente 107 áreas sem cultura) e um evento na auditoria (`backfill_cultura_area`). O SQL fica no runbook.
+
+**Fora do escopo:** altura de entrada no pasto e de saída no lote (proprietário: "pensar depois"); Monitoramento de Forragem; calibragem; a importação de áreas por arquivo continua só com o texto.
+
+**Release.** CONTRACT: só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-AREA-CULTURA-RUNBOOK-RELEASE.md) (caminho A com `--contract D-PROD-216`; caminho B pelo envelope). O vínculo das áreas vem depois, com o mesmo GO ou um novo.
+
+**Relatório:** [`MAIKE-AREA-CULTURA-REPORT.md`](./MAIKE-AREA-CULTURA-REPORT.md).
+
+## D-PROD-217 — Reforço no banco: o apontamento do abastecimento é da atividade dele
+
+**Data:** 2026-11-16 · **Origem:** pedido do proprietário: "pode fazer o reforço no banco" · **Branch:** `feat/abastecimento-fk-apontamento-atividade` · **Continua:** D-PROD-211 (item 8, "reforço futuro")
+
+> **Numeração:** nasceu como D-PROD-213 e depois foi D-PROD-214 e D-PROD-216 (213 → 214 → 216 → 217); a `main` deu a D-PROD-213 ao Resumo do Rebanho (PR #302, sem migration), a D-PROD-214 aos ajustes do mapa (PRs #305 e #306, sem migration), a D-PROD-215 ao Cadastro de Culturas (PR #304, EXPAND `20261116500000_cadculturas`) e a D-PROD-216 à Área ligada à Cultura (PR #307, CONTRACT aditiva `20261117000000_area_cultura`), as duas já aplicadas em produção. Esta decisão é a **D-PROD-217**. A pasta da migration nasceu `20261116400000_abastecimento_fk_apontamento_atividade`, passou a `20261116600000_abastecimento_fk_apontamento_atividade` (para vir depois da `20261116500000_cadculturas`) e é hoje `20261117100000_abastecimento_fk_apontamento_atividade`: o nome com que foi registrada em produção, depois da `20261117000000_area_cultura`, para a ordem do repositório ser a ordem de aplicação em produção. O conteúdo é idêntico e o checksum não mudou: nem o número da decisão nem o nome da pasta estão no `migration.sql`.
+
+**O problema.** Desde a D-PROD-211, `AbastecimentoBem` tem duas FKs independentes: `AbastecimentoBem_atividade_fkey` (`cliente_id`, `empresa_id`, `atividade_id`) → `Atividade` e `AbastecimentoBem_apontamento_fkey` (`cliente_id`, `empresa_id`, `apontamento_id`) → `AtividadeApontamento`, mais o CHECK `AbastecimentoBem_atividade_check` (apontamento ⇒ atividade). Nada no banco impede uma linha cujo apontamento é de **outra** atividade; só o servidor garante (ele deriva a atividade do apontamento). Uma gravação à mão, um script ou um defeito futuro do servidor deixariam o combustível somado na atividade errada.
+
+**Decisão.**
+1. `AtividadeApontamento` ganha o índice único `AtividadeApontamento_empresa_atividade_id_key` (`cliente_id`, `empresa_id`, `atividade_id`, `id`): trivialmente único (o `id` já é), começa por `cliente_id` (R10) e é o alvo que a FK composta exige.
+2. A FK `AbastecimentoBem_apontamento_fkey` é recriada **com o mesmo nome** e 4 colunas: (`cliente_id`, `empresa_id`, `atividade_id`, `apontamento_id`) → `AtividadeApontamento`(`cliente_id`, `empresa_id`, `atividade_id`, `id`), `ON DELETE RESTRICT ON UPDATE CASCADE`. Com `MATCH SIMPLE` e o CHECK da atividade, toda linha com apontamento tem as 4 colunas preenchidas: a FK sempre confere. Sem vínculo, nada muda (`ESTOQUE` e `EXTERNO`). A FK da atividade fica como está. Se a atividade de um apontamento mudar, a do abastecimento vai junto (CASCADE): o par continua coerente.
+3. **Migration CONTRACT `20261117100000_abastecimento_fk_apontamento_atividade`** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, a décima terceira, formato de sempre, sem resto): guarda pinada (formato anterior: FK de 3 colunas, CHECK da atividade presente, UNIQUE ausente; trava `AtividadeApontamento` e depois `AbastecimentoBem` em `ACCESS EXCLUSIVE`, a referenciada primeiro e já no modo que o `DROP CONSTRAINT` pede nela, sem subir de trava no meio da transação (subir fecharia ciclo com a confirmação do abastecimento, que lê o apontamento e depois grava o abastecimento); aborta se algum abastecimento apontar para um apontamento de outra atividade) e as 3 instruções pinadas (o UNIQUE, o DROP e o ADD da FK). SHA-256 `1ee8d5a3c3dd64e59d27459bd51224795b69f691c7358088fd5bbec375561c0e`; guarda `8982f86da78ebc1e09700c71ca5f2da2f34c9a8d5a6d45f948b9d88e779eef7c`; 64 → 65 migrations, 95 tabelas. O número da decisão fica fora do `migration.sql`.
+4. Nenhuma coluna, tabela ou dado muda; o código do servidor e da tela não muda (o servidor já grava sempre o par certo). O `schema.prisma` acompanha: a relação `apontamento` de `AbastecimentoBem` passa a 4 campos e `AtividadeApontamento` ganha o `@@unique`.
+5. Sem nota de Constituição: dentro do escopo do manejo (o mesmo vínculo da D-PROD-211).
+
+**Release.** Só com o GO escrito do proprietário para esta migration, pelo [runbook](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md) (`--contract D-PROD-217` no caminho A; o envelope no caminho B). Partida: 64 migrations (a última a `20261117000000_area_cultura`, D-PROD-216), 0 em aberto, 95 tabelas, 1 abastecimento sem vínculo (a guarda passa). **Aplicada em produção em 2026-11-17 00:43:48 UTC pelo caminho B, com o GO do proprietário; postcheck 65/0, 95 tabelas** (registrada como `20261117100000_abastecimento_fk_apontamento_atividade`, checksum `1ee8d5a3…`; a FK de 4 colunas e o UNIQUE presentes; dados intactos). Registro no §9 do runbook.
+
+**Relatório:** [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md).
+
+## D-PROD-218 — Mapa Geral: barra do topo v12 (⚙ · Lotes · Pastos · Tarefas) e Detalhes do Lote v12
+
+**Data:** 2026-11-17 · **Numeração:** a PR #303 (reforço do apontamento do abastecimento) foi mergeada antes como D-PROD-217; esta passou a **D-PROD-218** · **Origem:** pedido do proprietário: implementar o design "Detalhes do Lote v12" (canvas aprovado) com os componentes do sistema — os botões do mapa, os campos de cima (Tarefas, Lote…) e o Detalhes do Lote, "tudo igual". No meio do trabalho ele fixou: **"os filtros deixe do jeito que está atualmente"**, e escolheu a barra do v12 com os filtros de hoje · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308.
+
+**Decisão — mapa.**
+1. **Barra do topo** (`MapaControlesMobile`, `.mk-mapa-barra`): a barra escura do v12 substitui os botões de canto Tarefas/Filtros. O ⚙ (nome acessível "Filtros") abre o painel de Filtros de sempre, **sem mudança**; os segmentos **Lotes · Pastos · Tarefas** trocam o foco do mapa; Tarefas também abre a Gestão de Tarefas que já existe. Coluna da direita (Visualização, Atualizar, Localizar, Mover), legenda, resumo e todos os filtros/listas ficam como estavam.
+2. **Foco** (`src/lib/mapaFoco.js`, estado da página, não salvo; abre sempre em Lotes): **Lotes** = como antes; **Pastos** = sem marcadores de lote e sem tarefas, rótulo da área com "x,x UA (y,yy/ha)" (ou "Descanso Nd" na área vazia em descanso), mesmo com a cor "Situação do Pasto"; **Tarefas** = sem marcadores de lote e sem cochos/depósitos. Só os argumentos dos `renderer.sync*` mudam (renderer intacto). Pastos exige `visualizar_areas`; Tarefas, a permissão das tarefas do mapa; perdeu a permissão do foco atual → volta para Lotes. A consulta de movimentações fica ligada também no foco Pastos (chave estável).
+3. **Celular:** a barra vai da esquerda até antes da coluna da direita (não cobre Visualização). O aviso do satélite desce para baixo da barra (só no Mapa Geral).
+
+**Decisão — Detalhes do Lote** (raiz CSS nova `.mk-dp`; a casca v8 `.mk-dl8` fica para o Resumo do Rebanho, D-PROD-213).
+4. **Casca:** popup a partir de **768 px** (computador e tablet; prop nova `popupDesde="tablet"` do `LancLoteDialogo`, aditiva), tela cheia no celular. Título = área, subtítulo = setor. Pilha de telas na mesma janela (tela do lote, "Manejos e históricos", "Configurar tabela") com **‹ Voltar** (contexto novo `setCabecalho` do `LancLoteDialogo`). Esc volta um nível; na raiz do popup não fecha (D-PROD-125 mantida); clique no véu não fecha.
+5. **Abas:** Detalhes · Lotes (badge, fora do celular) · Histórico (com `visualizar_historico_movimentacoes_lote`) · Suplementação ("Supl." no celular; com `visualizar_cochos_suplementacao`). Aberto pelo marcador, abre em **Lotes**. O clique no contorno da área continua abrindo o "Histórico da Área" (sem mudança).
+6. **Lotes:** Resumo (KPIs + lista com caixa de marcar), Lote (‹ ›, todos os alertas, Lotação/Pesagem/Identificação abertas) e Lista (colunas por usuário — `colunasLote` no escopo D-PROD-135, padrão Alertas + Lotação + Pesagem — e "Configurar tabela"). Vista inicial como o v12: **Lista** no computador/tablet e **Resumo** no celular, lembrada por área na sessão — substitui o "sempre Resumo" do v8. O "Filtrar"/"Mostrar informações" do v8 saem.
+7. **Rodapé:** **Mover lotes · Pesar · Manejos** (desabilitados sem lote; pílula some sem a permissão). Alvo dos manejos: lote da tela do lote → senão os marcados → senão todos (inclusive Juntar, avaliado sobre o alvo). Na aba Suplementação com cocho: **Lançar · Leitura · Histórico** (os mesmos formulários do detalhe do cocho).
+8. **Manejos e históricos** vira tela da pilha (3 colunas em todos os modos, D-PROD-119 atualizada). Formulários e os históricos completos (Excluir, Carregar mais, D-PROD-110/117) continuam abrindo como diálogos por cima. Depois de salvar um manejo o Detalhes fecha, como antes (o diálogo recebe um retrato das posições).
+9. **Histórico (aba):** linha do tempo do v12 com dados reais da área (mesma consulta paginada e o mesmo fallback offline do histórico de hoje; eventos de suplementação da área). "Registrado por" e o peso da transferência não existem como dado → não aparecem. Cancelados com chip "Cancelado".
+10. **Suplementação (aba):** cochos da área (pontos decorados do mapa), KPIs/Fornecimento/Consumo do primeiro cocho por nome (com 2+ cochos, o título leva o nome dele), tolerância real do fechamento (padrão 15%).
+11. **Visual:** tipografia, cores e medidas do v12 (valores 14 px, rótulos 12,5, títulos 15, texto `#1f2937`) **só** no Detalhes v12 — supera, para este painel, a D-PROD-175 e a cor `#374151` da D-PROD-120/124. Unidade depois do número, como no v12 ("449,5 kg"). O deslize lateral do v8 sai; o gesto da borda (D-PROD-120) continua.
+
+**Fora do escopo:** formulários de manejo, detalhe do cocho/depósito/bebedouro/tarefa, painel de tarefas, cabeçalho/menu do sistema, painel Opções do mapa e listas de filtro e de escolha do v12 (o dono manteve as listas no padrão do sistema). **Correção junto:** a Gestão de Tarefas (aberta pelo segmento Tarefas) abria vazia na primeira vez por causa do `initialData: []` com `staleTime` em `TarefasMapaPanel.jsx`; agora busca ao abrir.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md). **Design versionado:** `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html`.
+
+## D-PROD-219 — Medição de Forragem do pasto (tabela `MEDICAOFORRAGEM`): régua, no olho e amostra de matéria seca
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-217`, mas a D-PROD-217 é a do reforço da FK do apontamento do abastecimento (PR #303, mergeada e aplicada antes desta) e também está numa branch aberta (`claude/design-filters-implementation-agzxk8`), e a D-PROD-218 é a próxima de uma delas. Para não duplicar, esta decisão é a **D-PROD-219**. O número não está no `migration.sql`, então o checksum não muda. A #303 usa o prefixo `20261117100000` e foi aplicada antes: esta pasta, `20261117200000_medicao_forragem`, é a 66ª e tem a dela como anterior.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário, terceiro passo do Manejo de Pastagens ("vamos fazer a medição de régua, no olho e a amostra de matéria seca… a medição da forragem é quando a gente clica no pasto, aparece o botão… O farol no mapa a gente vai deixar para assim que terminar a medição"), depois de aprovar o modelo visual feito com os componentes reais · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Lançamento novo, por pasto:** model Prisma `MedicaoForragem`, tabela física **`MEDICAOFORRAGEM`**, `cliente_id` + `empresa_id`, FKs compostas pelo tenant para Cliente, Empresa, AreaPastagem e CADCULTURAS (esta pela fazenda, usando o UNIQUE da D-PROD-216), todas `RESTRICT` (pasto ou cultura com medição não saem). RLS no padrão; índices começando por `cliente_id` (R9/R10). O tenant vem só da sessão (R11).
+2. **Dois métodos:** `REGUA` — as leituras em cm (texto pt-BR, "22 26 24,5", separadas por espaço, `;` ou `/`; de 0 a 500 cm; até 200) viram a **média** (1 casa) e a **situação** pelas alturas da cultura da área: abaixo da saída → `RAPADO`; da saída até antes da entrada → `DESCANSO`; da entrada até entrada × 1,2 → `PRONTO`; acima → `PASSOU` (do ponto; os 20% acima são a regra combinada com o proprietário). Sem cultura ou sem as duas alturas, só a média. `OLHO` — a situação escolhida, sem número (leitura ou amostra junto → 400 `nao_aceita`).
+3. **Amostra de corte (opcional, só na régua):** quadrado (m²), quantas amostras, peso verde médio e peso seco médio (g) — ou a **% de MS digitada** (laboratório/micro-ondas) quando não há peso seco. Contas: matéria verde (kg/ha) = peso verde ÷ quadrado × 10; MS% = seco ÷ verde × 100; massa seca (kg MS/ha) = verde × MS% ÷ 100. O total no pasto (t) = massa seca × hectares só aparece na tela.
+4. **O servidor calcula e grava os derivados** (média, quantidade, situação da régua, matéria verde, MS%, massa seca) e o **retrato do dia** da cultura (`cultura_id`, alturas de entrada e de saída); o corpo é fechado (derivados, `cliente_id` e `cultura_id` no corpo → 400). A tela tem uma cópia das mesmas contas (`src/domain/pastagem/medicaoForragem.js`) só para a prévia; um teste do backend compara as duas.
+5. **API `/medicoes-forragem`:** GET autenticado (lista do tenant, mais recente primeiro, filtros `empresa_id` e `area_id`), POST e DELETE com a **chave nova do mapa `medir_forragem`** ("Lançar medição de forragem", grupo **Pastos** das permissões do Mapa Geral), gravadora: administrador sempre; operador só com a chave gravada `true` (não há concessão automática). Pasto de outra fazenda/tenant/inexistente ou de infraestrutura → 400; data futura no fuso da fazenda → 400; auditoria de create/delete (`MedicaoForragem`); exclusão física; `MEDICAO_FORRAGEM_NOT_FOUND` (404).
+6. **Tela:** no Mapa Geral, clicar no pasto (fora da infraestrutura) com a chave abre o detalhe do pasto com o painel **Forragem**: o botão **"Medição de Forragem"** (o formulário no padrão dos lançamentos do mapa: data, Régua | No olho, leituras com a prévia da média e da situação, amostra com matéria verde/MS/massa seca e o total no pasto, situação no olho, observação), a última medição e as últimas 5 com excluir. Sem rede, a medição entra na fila offline e no cache do mapa (`medicoesForragem`).
+7. **Migration EXPAND `20261117200000_medicao_forragem`**: só a tabela nova. SHA-256 `66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f`; 65 → 66 migrations (depois da D-PROD-217), 95 → 96 tabelas, 80 → 81 de tenant.
+
+**Fora do escopo (próximas missões):** o farol de forragem no mapa (cor do pasto pela última medição), a estimativa pelos dias de descanso, lotação/dias de pastejo pela massa seca, a calibragem altura → kg MS e a produtividade por pasto.
+
+**Release.** Só com o GO explícito e escrito do proprietário para esta migration, antes do merge, pelo [runbook](./MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md) (caminho A sem `--contract`; caminho B pelo envelope).
+
+**Relatório:** [`MAIKE-MEDICAO-FORRAGEM-REPORT.md`](./MAIKE-MEDICAO-FORRAGEM-REPORT.md).
+
+**Ajuste depois da release (2026-11-17, pedido do proprietário pelo print do celular).** O campo único "Leituras (cm)" com os valores separados por espaço não funciona no iPhone: o teclado decimal não tem espaço. Passa a ser **uma leitura por vez**: o campo + o botão **"+"** (também Enter e sair do campo) põem a leitura numa lista; cada item tem **×** para tirar; a leitura digitada e ainda não confirmada também conta na média e vai no envio. Texto com espaço (colar, computador) continua aceito. Só a tela muda: corpo da API, banco e regras iguais.
+
+## D-PROD-220 — Mapa Geral: detalhes do cocho, do depósito, do bebedouro, da tarefa e da área no desenho do Detalhes do Lote v12
+
+**Data:** 2026-11-17 · **Numeração:** nasceu D-PROD-219 nesta branch; a `main` deu a D-PROD-219 à Medição de Forragem (PR #309, mergeada antes), e esta passou a **D-PROD-220** · **Origem:** pedido do proprietário, depois da D-PROD-218: "agora todos os detalhes de cocho, depósitos etc., os detalhes que abrem no meu mapa, você vai deixar igual de lotes — o estilo visual, o modelo de dados, as informações" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão.**
+1. **Casca de uma tela** (`CascaDetalhe`, raiz `.mk-dp` filha do `.mk-ll` do `LancLoteDialogo`): os detalhes que abrem pelo mapa usam o desenho do Detalhes do Lote v12 (D-PROD-218):
+   - popup a partir de 768 px (`popupDesde="tablet"`) e tela cheia no celular;
+   - título e subtítulo no cabeçalho do diálogo, e ‹ Voltar nas telas empilhadas (o Esc volta). Num **formulário** empilhado o Esc é ignorado (`escVolta={false}`), para um Esc sem querer não apagar o que foi digitado, como no popup (D-PROD-125);
+   - cartões, títulos de seção, grade de células, linhas rótulo/valor, linha do tempo e rodapé de pílulas.
+
+   Peças novas: `Nivel` e `Acao` em `blocos.jsx`, que agora repassam `id`, `data-*` e `aria-*`; `MedidorLimiteOperacional estilo="v12"` (célula da grade, mesma semântica de `meter`); ícone próprio e pé de ação (`acoes`) no cartão da `LinhaDoTempo`.
+2. **Cocho** (`DetalhesPontoSuplementacao`). Título = cocho, subtítulo = áreas · setor. Rodapé **Lançar · Leitura · Histórico**, com as mesmas permissões e os mesmos formulários.
+   - **Nível do cocho:** região acessível com o percentual uma vez, grande, e as linhas do SSOT (D-PROD-178). Embaixo, o cartão com uso do limite, saldo ou sobra, duração e próxima reposição. Esse cartão aparece também no estado neutro, porque o limite tem estado próprio.
+   - **Leitura do cocho** (D-PROD-205): farol, avisos e as 5 últimas leituras, inclusive a mais recente, com Excluir.
+   - **Último período fechado** (D-PROD-206/212): as 4 células do v12 e, no mesmo desenho, o resto do resumo do fechamento.
+   - **Total fornecido por produto.**
+   - **Último registro** (o v12 não tem): os mesmos números do cartão do Histórico, numa função pura (`metricasDoEvento`).
+   - **Informações do cocho.**
+3. **Depósito** (`DetalhesDepositoSuplementacao`). Rodapé **Entrada · Saída · Histórico**; a transferência (D-PROD-161) não muda.
+   - **Nível do depósito:** o SSOT no bloco do nível, mais a ocupação do limite, o estoque mínimo, o saldo em kg e em sacos e a necessidade de reposição.
+   - **Saldo por produto:** os produtos em litros ficam à parte (D-PROD-162).
+   - **Pastos atendidos:** os cochos vinculados, com o ícone do marcador e o farol da leitura. Tocar num cocho abre o detalhe dele como tela empilhada, com ‹ Voltar. Isso exige `visualizar_detalhes_cochos`, a mesma permissão que o mapa pede.
+   - **Informações do depósito:** "Cochos vinculados" mostra os nomes, não a contagem.
+   - **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais. Sem essa permissão, o bloco continua "Último registro", com uma movimentação só, mas pela mesma regra: a última lançada, sem reversões nem o lado errado de uma transferência, e não mais a de data mais recente.
+   - **Formato:** kg no formato do SSOT ("1.400 kg").
+   - **Carregando ou com erro:** o histórico diz isso, em vez de "Nenhum registro ainda.".
+   - **Fica de fora:** "Frequência padrão" do v12, porque o cadastro não tem esse campo.
+4. **Bebedouro** (`DetalhesBebedouro`). Rodapé **Lançar · Histórico**.
+   - **Cartão do bebedouro:** subícone configurado (ou gota) e status.
+   - **Resumo operacional:** o custo acumulado vem para cá.
+   - **Último registro:** "Registrado por" sai do `responsavel`.
+   - **Informações.**
+   - **Histórico:** os 5 últimos, com "Ver tudo".
+   - **Telas empilhadas com ‹ Voltar:**
+     - o lançamento, com o formulário de hoje; ali o Esc é ignorado;
+     - o histórico completo na linha do tempo v12: os mesmos cartões do resumo, mais a hora, na ordem do servidor, com "Lançamentos (N)" e o Excluir no pé do cartão. A regra continua (D-PROD-137): só liga o último lançado no sistema (o primeiro da lista, mesmo que seja um retroativo), só com `podeExcluir`, a mesma confirmação, a mensagem do 409 e as mesmas invalidações. O Excluir desligado explica a regra no `title`: "Só o primeiro da lista (o último lançado no sistema) pode ser excluído.".
+   - **Carregando ou com erro:** o detalhe diz isso, em vez de "Nenhum lançamento ainda." e custo R$ 0,00.
+   - **Página Bebedouros:** a casca fica sem o cabeçalho próprio.
+5. **Tarefa** (`DetalhesTarefaMapa`). Título = tarefa, subtítulo "Detalhes da tarefa" (substitui o "Tarefa: …" da D-PROD-118).
+   - **Cartão:** o status nas cores do v12.
+   - **Informações da tarefa:** prioridade com bolinha e prazo vencido em vermelho pelo dia da fazenda (`hoje`).
+   - **Descrição e Fotos.**
+   - **Últimos eventos:** os 5 últimos na linha do tempo, com "Ver histórico".
+   - **Rodapé Editar · Registrar evento · Concluir:** Concluir abre o mesmo "Registrar evento" já em "Concluída" e não conclui direto. Os dois ficam desligados quando o tipo não é permitido (D-PROD-118).
+   - **Correções junto:**
+     - os "Últimos eventos" abriam vazios na primeira vez (`initialData: []` com `staleTime`, como a Gestão de Tarefas da D-PROD-218);
+     - as datas de dia apareciam um dia antes no fuso do Brasil;
+     - sai a consulta de ícones de prioridade, que não era desenhada.
+6. **Área** (clique no contorno, D-PROD-94a). O "Histórico da Área" passa a ser a mesma linha do tempo da aba Histórico do pasto: filtro Mostrar, Carregar mais, aviso offline e só leitura, com os textos "nesta área" e a lista "Registros da área". O cabeçalho é "Histórico da Área" com "área · setor".
+   - **Histórico completo:** com a permissão de histórico, o rodapé tem a pílula "Histórico completo". Ela abre por cima o Histórico de Movimentação da área de hoje (`HistoricoMovimentacoes`, sem lotes), como o "Manejos e históricos" do pasto (D-PROD-218). Ali continuam o "Excluir movimentação" do administrador (D-PROD-110) e os dados de auditoria que a linha do tempo resumida não traz: registrado em, observações, cancelado em … por …, vínculo pelo nome, lote excluído, matrizes e nutrição.
+   - **Nome da outra área:** quando um registro antigo gravou o nome vazio, a linha do tempo usa as áreas do mapa, como o histórico completo. Vale também para a aba Histórico do pasto: o `PainelPasto` repassa as `areas` do `DetalhesLote` à aba.
+   - **Fechar o histórico completo:** o conteúdo fica até o fim da animação de saída. Fechado, o Radix não monta nem consulta nada.
+   - Com a chave `medir_forragem` (D-PROD-219), o painel Forragem vem em cima, no desenho v12, com os mesmos nomes e testids. O desenho antigo do painel saiu, porque o detalhe da área era o único uso.
+   - No curral, as abas são **Abate · Histórico da Área**. O abate continua o histórico de hoje, sem a rolagem própria de 500 px.
+   - Sai o `src/components/ui/tabs.jsx`, que ficou sem uso.
+7. **Campo de lançamento (`LancField`):** um Select do Radix que já monta com valor (ex.: a Qualidade do bebedouro, que remonta ao trocar o Tipo) ficava com o rótulo por cima do valor, porque o texto do item só chega depois de montar. Agora "tem valor" vem da falta de `data-placeholder`. Sai o render a mais que o bebedouro usava para contornar isso.
+   - **Alcance fora do mapa:** dos formulários com `LancField`, só dois têm Select do Radix: o lançamento do bebedouro e **Permissões › editar usuário**. Neste, o campo "Usuário" (travado na edição) passa a mostrar o rótulo em cima e o nome do usuário desde o primeiro desenho; antes o nome ficava invisível. Os outros usam `B1Select` ou `SelectDoMotor` e não mudam.
+8. **Regras que não mudam:**
+   - consultas, caches e invalidações (`atualizar-mapa`) e permissões;
+   - formulários e históricos completos, com as mesmas ações;
+   - listas de escolha no padrão do sistema e filtros do mapa.
+
+**Revisão independente:** cada tela teve um revisor de código, dados, permissões, testes e desenho, e cada achado passou por um verificador que tentou refutá-lo. De 28 achados, 16 foram confirmados e corrigidos com teste. Dos 12 refutados, quatro viraram melhorias mesmo assim: o `LancField`, o carregando e o erro dos históricos do bebedouro e do depósito, e a rolagem do abate.
+
+**2ª revisão, da última leva de correções da 1ª:** 17 achados: 15 confirmados e 2 refutados. Os confirmados se resumem a 12 problemas, porque alguns apareceram para mais de um revisor. Todos foram corrigidos:
+- as `areas` não chegavam à aba Histórico do pasto;
+- o `title` do Excluir do bebedouro dava a razão errada com um retroativo;
+- o histórico completo da área esvaziava antes da animação de saída;
+- faltavam testes para a permissão da pílula, o depósito sem local, o hook real do bebedouro e o fio das `areas` no mapa;
+- o efeito do `LancField` fora do mapa não estava registrado (item 7 acima);
+- havia comentários e trechos do relatório desatualizados.
+
+**3ª revisão, das correções da 2ª:** 5 achados, 5 confirmados, nenhum refutado. O código estava certo; os problemas estavam em testes e textos. Todos foram corrigidos:
+- o teste do histórico completo fechado passou a conferir o que só ele monta e lê;
+- entrou um teste da animação de saída;
+- o texto do cartão único do depósito sem a permissão foi corrigido, com um teste da regra;
+- dois textos do relatório foram corrigidos.
+
+Ver o relatório, §7.
+
+**Fora do escopo:** Gestão de Tarefas, Insights e Resumo do Rebanho, que são painéis e não detalhes.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md).
+
+## D-PROD-221 — Farol de forragem no Mapa Geral (modo de coloração "Forragem")
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-220`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, aberta) já usa a D-PROD-220. Para não duplicar, esta decisão é a **D-PROD-221**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário, combinado na D-PROD-219 ("o farol no mapa a gente vai deixar para assim que terminar a medição"; "Ok pode fazer") · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Farol = a última medição do pasto** (D-PROD-219): o dia da medição e, no mesmo dia, a hora do registro. Cor pela situação gravada: Rapado **vermelho**, Descanso **amarelo**, Pronto **verde**, Passou do ponto **roxo**. Fonte única pura em `src/domain/pastagem/farolForragem.js` (`farolForragemPorArea`, `farolForragemDaArea`, `corForragemDaArea`), calculada uma vez por render para todos os pastos.
+2. **Validade de 15 dias** (decisão do proprietário): medição com mais de 15 dias no dia civil da fazenda → **cinza "sem medição recente"**. Régua sem situação (pasto sem cultura) também cinza. Pasto **nunca medido** → neutro claro "nunca medido". Infraestrutura, Reserva e APP ficam com a **cor normal** da área.
+3. **No olho**: a mesma cor num tom mais claro, e o rótulo leva **👁** — o proprietário vê que não foi régua. A legenda explica.
+4. **No mapa**: é um **modo de coloração** a mais, "Forragem", no painel Visualização (onde já estão Tipo de Cultura, Ocupação, Situação do Pasto…), com a mesma preferência por usuário e a mesma permissão de colorir. Fora desse modo nada muda. As medições só são carregadas com o modo ligado.
+5. **Detalhe do pasto**: o painel Forragem mostra o mesmo farol (situação, "há N dias", "vencida" depois de 15 dias).
+
+**Fora do escopo:** estimativa pelos dias de descanso (precisa do campo "dias de descanso" na cultura), lotação e dias de pastejo pela medição, produtividade por pasto.
+
+**Release.** Sem migration: merge e deploy normais.
+
+**Relatório:** [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md).
+
+## D-PROD-222 — Mapa Geral: lançamentos e históricos dos detalhes no desenho do lançamento de manejo
+
+**Data:** 2026-11-17 · **Numeração:** nasceu D-PROD-221 nesta branch; a `main` deu a D-PROD-221 ao Farol de forragem (PR #311, mergeada antes) e esta passou a **D-PROD-222** · **Origem:** pedido do proprietário, depois da D-PROD-220: "os campos de lançamentos [e] históricos [no] estilo do lançamento de manejo têm que ser a mesma coisa" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão.** O que se lança ou se consulta a partir dos detalhes do mapa abre como os lançamentos e o Histórico de Movimentação do lote (D-PROD-115/117/125). Só o desenho muda. Ficam como antes: dados, consultas, validações, mensagens, permissões (D-PROD-137), a política de estorno (D-PROD-94a), invalidações e o envio.
+
+1. **Cartão comum dos históricos** (`src/components/lotes/CartaoHistorico.jsx`). Usa as mesmas classes do cartão do `HistoricoMovimentacoes`:
+   - selos: a data primeiro, depois o tipo e a situação;
+   - título em negrito e linhas "Rótulo: valor";
+   - rodapé de ações com o botão do "Excluir movimentação" (`AcaoHistorico`).
+
+   Junto vêm três peças:
+   - `MolduraHistorico`: sem cartão em volta e sem rolagem própria (quem rola é o diálogo);
+   - `EstadoHistorico`: carregando, erro e vazio, com os textos do manejo;
+   - `useTituloDoHistorico`: dentro do `LancLoteDialogo`, o título com a contagem vai para o cabeçalho, como em "Histórico da Área Pasto 07 (8)".
+
+   Um teste compara, parte a parte, as classes do cartão comum com as do Histórico de Movimentação.
+2. **Históricos no cartão comum:**
+   - **Cocho:** título "Histórico do Cocho (N)", com o cocho no subtítulo.
+     - Selos: data, Fechado ou Em aberto, desvio.
+     - Produto em negrito.
+     - Linhas: Áreas, Cabeças, Peso médio, Unidade, as métricas por seção (`CardMetricaEvento`, agora em linhas "Rótulo: valor") e Observações.
+     - A política de estorno continua: com `CANCELAMENTO_COCHO_HABILITADO` desligado, o aviso aparece e não há "Excluir".
+   - **Depósito:** título "Histórico do Depósito (N)".
+     - Selos: data e tipo. Produto em negrito.
+     - Linhas: Quantidade, Unidade, Origem, Destino, Saldo antes e depois, Valor total, Custo médio, Observações.
+     - Os mesmos avisos de antes.
+   - **Bebedouro:** título "Histórico do Bebedouro (N)". Agora abre num `LancLoteDialogo` por cima do detalhe; antes era uma tela empilhada.
+     - Ordem do servidor.
+     - Selos: data, tipo e status fora do normal (Pendente em âmbar, Emergencial em vermelho). O bebedouro em negrito.
+     - Linhas: Hora (quando gravada), Descrição, Registrado por, Custo, Produto, Quantidade, Qualidade da água e Escore da água.
+     - "Excluir" no rodapé, com as regras da D-PROD-137: só no índice 0 e só com `podeExcluir`; `data-permissao-explicita`; a mesma confirmação, a mensagem do 409 e as duas invalidações.
+   - **Tarefa:** título "Histórico da Tarefa (N)".
+     - Selos: data e status. A tarefa em negrito.
+     - Linhas: Evento, Responsável, Descrição, Hora.
+     - "Excluir" do manejo, ligado só no mais recente.
+   - **Abate do curral:**
+     - Selos: data, Abate, Ativo ou Cancelado. O lote em negrito.
+     - Linhas: Quantidade, Data, Peso médio, Destino, Detalhes.
+     - "Excluir movimentação" do manejo.
+3. **Lançamentos no `LancLoteDialogo` dos manejos.** O título é a ação e o subtítulo é o nome (cocho, depósito ou bebedouro).
+   - No desktop abre como popup, com ✕ e ✓ no cabeçalho. No celular abre em tela cheia: ✕ à esquerda, título no meio, ✓ à direita.
+   - Cada campo fica num `LancField`: rótulo dentro da caixa e * nos obrigatórios.
+   - As escolhas usam o `B1Select`: o painel das listas no desktop e a folha no celular.
+   - Os avisos ficam em `LancLoteAviso`, e o ✓ do cabeçalho envia.
+
+   Em cada tela:
+   - **Cocho › Lançar** (`FormularioLancamentoSuplementacao`, no detalhe do cocho e no rodapé do cocho no pasto):
+     - um aviso com áreas, depósito, lotes e peso;
+     - Formulação no `B1Select`; kg ou sacos em `LancLoteSegmento`; consumo por lote em `LancLoteItens`;
+     - o progresso do salvamento fica no topo do formulário, e não mais num diálogo por cima. Enquanto salva, os campos ficam travados e o ✕ desligado;
+     - o ✓ do cabeçalho é um botão comum: **Enter num campo não grava**, como antes. O lançamento do cocho baixa o estoque e fecha o período anterior, e não tem estorno pela tela (D-PROD-94a);
+     - o "Fechamento do consumo" da prévia usa as células sem borda dos números do aviso (sem caixa dentro de caixa);
+     - a confirmação da **sobra do ciclo anterior** também é um `LancLoteDialogo`: o cocho no subtítulo, avisos e as duas escolhas como as opções do manejo. O foco abre na primeira escolha, e o ✕ sai do lançamento, como o "Cancelar" de antes. O diálogo antigo cortava o texto à direita. A data do fechamento é o dia gravado;
+     - depois da sobra herdada, o foco volta ao lançamento.
+   - **Cocho › Leitura:** o cocho no subtítulo, como nos outros. O formulário já era do manejo (D-PROD-205).
+   - **Depósito › Entrada e Saída** (`FormularioTransferenciaDeposito`): títulos "Entrada no Depósito" e "Saída do Depósito". Produto e Unidade no `B1Select`; escolher de novo o mesmo produto não mexe na unidade nem na quantidade, como antes. O resumo de origem, destino e saldo vai num aviso neutro. O Local de Origem/Destino continua no campo de escolha com pesquisa (`AutocompleteGenerico`), a lista padrão do sistema para locais, por instrução do proprietário ("a lista é pra deixar padrão no sistema").
+   - **Bebedouro › Lançar:** título "Lançamento no Bebedouro", por cima do detalhe (antes era tela empilhada).
+     - Data, Hora, Tipo e Status em grade.
+     - Tipo, Status e Qualidade da água no `B1Select`.
+     - Os campos aparecem conforme o Tipo, como antes.
+     - Na página Bebedouros funciona igual.
+4. **Teclado e foco nas peças comuns** (valem também para os manejos do lote):
+   - Esc com uma lista aberta (`LancLoteDialogo`): no celular, com a folha de uma lista aberta dentro do diálogo, o primeiro Esc fecha só a folha e o segundo fecha o diálogo (D-PROD-161). Antes só o depósito tinha essa guarda;
+   - `B1Select` no desktop e no tablet com até 8 opções (sem pesquisa): com a lista aberta, ↑/↓ andam e Enter escolhe, com o foco no campo (como o `AutocompleteGenerico`). Antes a lista não se escolhia pelo teclado;
+   - `LancLoteDialogo` só leitura (históricos e detalhes): ao abrir, o foco vai para o próprio diálogo, sem acender o ✕ (D-PROD-117), e não fica no que o abriu, escondido por baixo; `focoInicial="corpo"` foca o primeiro controle do conteúdo;
+   - ao fechar, o foco volta a quem o tinha quando o diálogo abriu (a pílula), se ainda estiver na tela. Sem gatilho, o Radix o deixava no `<body>`.
+5. **O que muda por ser o padrão do manejo** (D-PROD-115/125):
+   - no desktop o popup não fecha por Esc nem por clique fora, só pelo ✕;
+   - Enter num campo: no depósito e no bebedouro envia, como já enviava (eram `<form>` com botão de enviar); no cocho não envia, como antes (item 3);
+   - no celular abre em tela cheia;
+   - no bebedouro, o Esc da tela cheia fecha o Lançar. Antes era ignorado, porque o formulário era empilhado. Era o único formulário empilhado: o recurso `escVolta` da D-PROD-220 ficou sem uso e saiu do `LancLoteDialogo` e da `CascaDetalhe`.
+6. **Estados dos históricos como os do Histórico de Movimentação:** com a consulta falhando e nada guardado, cocho, depósito, abate, tarefa e bebedouro mostram "Não foi possível carregar o histórico.", o motivo e o "Tentar novamente" (antes diziam "Nenhum … encontrado"); a tarefa mostra o carregando (antes, "Nenhum histórico encontrado."). No abate, o rodapé do "Excluir movimentação" só aparece no abate que tem exclusão (o antigo ficava com uma faixa vazia), e a nota do cancelado traz a data e a hora.
+7. **Com a `main` mesclada** (D-PROD-221): o farol do pasto no painel Forragem entra no desenho v12 da D-PROD-220 como a primeira linha do cartão. Os textos são os mesmos, e a cor vai na bolinha.
+
+**Fica de fora:**
+- o cadastro do ponto (`FormularioPonto`), a importação de áreas e a seleção de áreas no mapa, que não são lançamentos nem históricos;
+- o "Histórico de Suplementação" do lote, que já é do manejo.
+
+**Achado à parte (não corrigido aqui, R7):** na Entrada e na Saída do depósito, o campo Quantidade é `type="number"` e o valor chega com ponto decimal. A conta usa o `parseNumber` pt-BR, que lê o ponto como separador de milhar: 10,5 kg é gravado como 105 kg. Já era assim antes desta missão. A correção é de uma linha (ler o valor como número, como fazem os manejos do lote) e fica para uma missão própria.
+
+**Revisão independente:** quatro revisores (regras, igualdade com o manejo, interação e testes), e cada achado passou por um verificador que tentou refutá-lo. Os confirmados foram corrigidos com teste e conferidos por mutação: o Enter que gravava o cocho, o mesmo produto escolhido de novo no depósito (que zerava a unidade e a quantidade), as caixas do fechamento do consumo, a sobra herdada cortada e sem foco, o rodapé vazio do abate, os estados de erro, o teclado do `B1Select` e o foco dos diálogos. A lente dos testes reforçou a comparação do cartão com o do manejo (o cancelado, os selos vermelho e âmbar e o "Excluir"), cobriu o selo de data do bebedouro e o cabeçalho da tela Bebedouros, e tirou o que a missão deixou sem uso: o `escVolta`, as ações da linha do tempo, a barra do registro da tela Bebedouros, props do cartão e classes CSS. Uma revisão da limpeza achou o foco da sobra com o cache quente: a confirmação abria junto com o lançamento e, decidida a sobra, o foco voltava à pílula escondida por baixo. Agora o `LancLoteDialogo` leva o foco ao diálogo de cima quando quem o tinha ficou escondido, com teste (LM-9b). Detalhe no relatório, §7.
+
+**Relatório:** [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md).
+
+## D-PROD-223 — Farol de forragem estimado pelos dias de descanso, e parâmetros próprios do pasto
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-222`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, aberta) já reserva a D-PROD-222. Para não duplicar, esta decisão é a **D-PROD-223**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ("perfeito vamos iniciar isso"), o passo seguinte do Manejo de Pastagens combinado na D-PROD-221 (estimativa pelos dias de descanso, que precisava do campo na cultura) · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Dias de descanso na cultura.** `CADCULTURAS.dias_descanso` (INTEGER, anulável): o descanso normal do pasto entre a saída do gado e a próxima entrada. A API `/culturas` aceita e devolve o campo; a faixa **1 a 365** é conferida pela API (`dias_descanso_invalido` / `dias_descanso_fora_da_faixa`), não por CHECK — a allowlist EXPAND recusa CHECK em tabela antiga. A tela Culturas ganha o campo **"Dias de descanso"** no formulário e a coluna na grade. A lista de referência traz os valores (Marandu 30, Xaraés 30, Piatã 30, Paiaguás 28, Decumbens 25, Humidicola 25, Mombaça 35, Tanzânia 32, Zuri 35, Massai 28, Tifton 85 25); as culturas já cadastradas em produção recebem os mesmos valores por um passo de dados próprio (só onde está vazio, casando código **e** nome), com GO separado.
+2. **Data da saída do último lote, de fonte confiável: o ledger do rebanho.** `GET /medicoes-forragem/descanso?empresa_id=…` (autenticado; fazenda conferida no tenant) soma as `PartidaRebanho` **ativas** por pasto (`PosicaoRebanho.area_id`) e dia operacional. Saldo final > 0 → **ocupado agora** ("Em pastejo", sem estimativa). Saldo zerado → a **última saída** é o último dia em que o saldo acumulado chegou a 0. Pasto sem partida → **desconhecido** (sem estimativa). Não usa a Movimentação legada nem o `status_ocupacao` gravado na área.
+3. **Regra da estimativa (domínio puro, `src/domain/pastagem/farolForragem.js`).** Com D = dias de descanso que valem para o pasto (os próprios da Área ou, vazios, os da cultura — item 6) e `dias` = dias civis da fazenda desde a última saída: `dias < D` → **Descanso**; `D ≤ dias ≤ arredondar(D × 1,5)` → **Pronto**; acima → **Passou do ponto**. **Nunca Rapado** por estimativa. Pasto sem cultura, cultura sem D ou saída desconhecida → sem estimativa.
+4. **O farol que vale.** Medição **válida** (até 15 dias, com situação — D-PROD-221) sempre vence; senão a **estimativa**; senão o de antes (cinza "sem medição recente" ou neutro "nunca medido"). O estimado usa a **mesma família de cor, num tom bem mais claro** que o "no olho", e o rótulo leva **"(estimado)"**; a legenda do modo "Forragem" ganha "Descanso / Pronto / Passou do ponto (estimado)". O painel Forragem do pasto mostra, por exemplo, **"Pronto (estimado) · lote saiu há 32 dias · descanso da cultura 30 dias"**, e **"Em pastejo"** quando há lote no pasto agora.
+5. **Leitura das áreas.** A `cultura` embutida em `/areas-pastagem` (D-PROD-216) passa a trazer `altura_entrada_cm`, `altura_saida_cm` e `dias_descanso` — o mapa estima sem carregar o cadastro de Culturas. O `/medicoes-forragem/descanso` entra no cache do mapa (`descansoPastos`), carregado só com o modo "Forragem" ligado, como as medições.
+6. **Parâmetros próprios do pasto** (ampliação pedida pelo proprietário antes de qualquer aplicação: pastos da mesma cultura mais fracos, "meio rapados"). `AreaPastagem` ganha `altura_entrada_cm` e `altura_saida_cm` (DECIMAL(6,1)) e `dias_descanso` (INTEGER), anuláveis, sem semente: **vazio = vale o da cultura, campo a campo** (`parametrosDoPasto`, igual no servidor e na tela). Valem em toda parte: (a) na **Medição de Forragem**, o retrato `altura_entrada_cm`/`altura_saida_cm` e a situação da régua usam as alturas que valem (pasto sem cultura, mas com alturas próprias, também calcula); o cabeçalho do formulário as mostra, com **"(do pasto)"** quando são do pasto; alturas combinadas incoerentes (saída ≥ entrada) → sem situação, só a média; (b) a **estimativa** usa os dias de descanso que valem; (c) o painel Forragem mostra cada parâmetro com a origem ("do pasto" / "da cultura"). Cadastro da Área (`FormularioArea.jsx`), só nos usos com cultura (Pastagem e Agricultura): seção **"Parâmetros do pasto (opcional — vazio usa os da cultura)"** com os 3 campos e os valores da cultura como dica; nos outros usos os 3 vão nulos. A API das áreas aceita e valida (mesmas regras da cultura: alturas pt-BR > 0 e até 1000 cm com 1 casa, saída menor que a entrada quando as duas do pasto existem — a nova ou a gravada —, dias de 1 a 365; booleano/objeto barrados antes da coerção do AJV) e devolve os 3; regras de tenant inalteradas.
+7. **Sem CHECK no banco** nas colunas novas (nem em `CADCULTURAS.dias_descanso`, nem nas três de `AreaPastagem`). O pedido previa CHECKs espelhando os da `CADCULTURAS`, mas a allowlist EXPAND do ferramental (`classificarMigrations`) recusa CHECK em tabela antiga: com eles a migration viraria **CONTRACT** (entrada própria em `MIGRATIONS_CONTRACT_APROVADAS`, guarda, `MIGRATION_CONTRACT_AUTORIZADO` e a sequência de runners "no dia de cada uma" dos testes de migration refeita). As faixas ficam na API (testadas); se o proprietário quiser a barreira no banco, é uma CONTRACT aditiva própria, depois.
+
+**Ressalvas registradas.** (a) Fazenda que ainda não ativou o ledger do rebanho, ou pasto cujo histórico é anterior à virada para o ledger, não tem partida: sem estimativa até a próxima movimentação. (b) A saída é a do último lote do pasto (saldo zerado), não a de cada lote. (c) Partida retroativa muda a data da saída — o farol acompanha na próxima leitura.
+
+**Fora do escopo:** taxa de crescimento por época do ano (descanso variável por estação), lotação e dias de pastejo pela forragem, alerta de pasto passado.
+
+**Release.** Migration **EXPAND** `20261117300000_descanso_e_alturas_por_area` (4 colunas anuláveis; SHA-256 `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e`), produção 66 → 67, tabelas 96 (nenhuma nova), **antes do merge** e com GO do proprietário; depois, o passo de dados das 11 culturas, com GO próprio. Runbook: [`MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md`](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md). **Aplicada em produção** em 2026-11-17 às 13:48:31 UTC (caminho B), com o passo de dados às 13:48:50 UTC.
+
+**Relatório:** [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md).
+
+## D-PROD-224 — Mapa Geral: detalhes do mapa mais compactos e organizados (a densidade do estilo antigo no desenho v12)
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário: "gostei do novo estilo mas está muito grande as informações e espalhadas sendo que pode organizar melhor". Ele mandou prints do estilo antigo como referência: o "Nível do cocho" em dois painéis lado a lado, e as "Informações da Área" e o cartão do lote em grade de 4 colunas · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão:** o desenho v12 fica (cartões, cores, pílulas, ícones, abas e rodapé), com a densidade do estilo antigo. Vale para todos os detalhes do mapa: lote/pasto, cocho, depósito, bebedouro, tarefa e área.
+1. **Escala:**
+   - texto base de 13 px; títulos de bloco e de cartão de 14 px;
+   - rótulos, subtítulos e notas de 11,5 px; nenhum texto abaixo de 11 px;
+   - valor da célula de 13 px em negrito (600), como no estilo antigo;
+   - percentual do nível de 20 px e número do KPI de 15 px.
+2. **Espaço:**
+   - 8 px entre os blocos do corpo;
+   - células com 7 px em cima e embaixo; linhas, itens e cabeçalhos de cartão mais baixos;
+   - o título do bloco fica a 4 px do seu cartão e a 12 px do bloco de cima;
+   - ícones dos cartões, linhas e itens um pouco menores: a figura do nível do cocho e do depósito passa de 76 para 64 px, e o ícone das listas (Pastos atendidos, Cochos do pasto) de 34 para 30 px. Os ícones do animal acompanham: 36 px no cartão do lote, 26 px nas categorias e 30 px no Resumo.
+3. **Mais colunas:** a grade de células usa colunas de 128 px. São 6 no popup do computador (880 px, a partir de cerca de 864 px de tela), 5 no popup do tablet (768 a 863 px) e 2 no celular. Os cartões dos números do cocho e do depósito têm grade própria (D-PROD-226).
+4. **Lado a lado no popup** (a partir de 768 px), como o "Nível do cocho" antigo:
+   - cocho: o nível ao lado do cartão do limite, em 2 × 2 (depois, a D-PROD-226 pôs a barra do limite de ponta a ponta e os três números numa fileira);
+   - depósito: o nível ao lado do cartão dos números, com os avisos embaixo, de ponta a ponta.
+5. **Linha do tempo** (históricos do pasto, da área, do depósito, do bebedouro e da tarefa): as linhas de cada cartão viram uma grade, com o rótulo em cima e o valor embaixo, em vez de uma informação por linha. Texto livre (descrição, observações, detalhe, motivo) ou longo ocupa a largura do cartão.
+6. **Alvos de toque:** linhas clicáveis, itens, abas e grupos continuam com 40 px ou mais.
+
+**Resultado** (altura do conteúdo no harness, antes → depois):
+- computador: cocho 1.371 → 1.025 px (−25%); depósito 1.411 → 986 px (−30%); bebedouro 982 → 813 px (−17%); área 3.112 → 1.854 px (−40%); histórico do pasto 2.818 → 1.616 px (−43%);
+- celular: cocho 2.059 → 1.636 px (−21%); depósito 1.642 → 1.280 px (−22%); área 3.165 → 2.443 px (−23%).
+
+**Não muda:** dados, regras, textos, ordem dos blocos, permissões e acessibilidade (nomes e papéis). Também não mudam o histórico completo no cartão do manejo (D-PROD-222), os lançamentos e o mapa.
+
+**Como foi feito:**
+- Quase tudo é CSS. As exceções são uma classe para o texto longo da linha do tempo (`mk-dp-tl__row--larga`) e o tamanho dos ícones do animal.
+- Uma proposta independente de densidade, medida no harness, confirmou os valores e trouxe dois ajustes: o tamanho dos ícones do animal (sem ele, o ícone vazaria da caixa menor) e a proximidade do título.
+- A medição comparou colunas de 150 px e de 128 px. Com 128 px, todas as telas ficaram iguais ou mais baixas.
+
+**Testes:**
+- `detalhesCompactos`:
+  - DC-1: piso de 11 px em todo o CSS dos detalhes;
+  - DC-2: densidade e alvos de toque;
+  - DC-3: o lado a lado do popup e a estrutura que a grade posiciona;
+  - DC-4: a linha do tempo em grade e o texto longo.
+- Cinco mutações foram pegas.
+- `detalhesLoteV12Lotes` e `subiconeLote` passaram a conferir os tamanhos novos dos ícones do animal (26, 30 e 36 px).
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §9.
+
+## D-PROD-225 — Mapa Geral: cocho e depósito nos detalhes com o subícone do sistema
+
+> **Numeração:** nasceu como D-PROD-223 (commit `d694c65`). A `main` deu a D-PROD-223 ao farol estimado pelos dias de descanso (PR #312), mergeada antes desta. Para não duplicar, esta decisão é a **D-PROD-225**; a D-PROD-224 já era a da densidade, nesta mesma branch.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ao ver a prévia: "no cocho e depósito, [o que está] mostrando nos detalhes tem que ser apenas o sub ícone, com as configurações que já estavam no meu sistema" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Contexto:** para ficar igual ao v12, a D-PROD-218 e a D-PROD-220 desenharam o cocho e o depósito nos detalhes como o **marcador do mapa**: a bolinha branca com a ponteira no cocho, o pino com o silo no depósito, nas cores do mapa. O sistema já tinha o desenho dos detalhes, o **subícone**: sem a bolinha, com cor, espessura e preenchimento próprios (`COCHO_APARENCIA.subicone` em `src/assets/icones/cocho-descoberto.js`; o depósito usa a mesma paleta, com o contorno de `deposito-sal.js`). O guia desse arquivo já dizia: "marcador = desenho dentro da bolinha do mapa; subicone = desenho sem bolinha, usado nos detalhes".
+
+**Decisão:** nos detalhes, o cocho e o depósito aparecem só com o subícone, nas configurações do sistema. O marcador fica só no mapa.
+1. **Nível do cocho** (no detalhe do cocho, também quando ele abre empilhado no depósito): `CochoNivel` sem o modo marcador. Esse modo, criado na D-PROD-220, ficou sem uso e saiu: o `CochoNivel` voltou a ser o da `main`.
+2. **Nível do depósito:** `urlIconeDeposito(fração)`, sem o pino.
+3. **Listas de cochos:** os Pastos atendidos do depósito e os Cochos do pasto da aba Suplementação do Detalhes do Lote usam o subícone do cocho, com o nível do ciclo.
+4. **Tamanho:** na caixa do bloco do nível, o subícone ocupa a largura, na proporção dele: 76 × 56 px quando esta decisão foi feita. Nas listas, a caixa é a mesma do marcador. Depois, a D-PROD-224 reduziu a caixa do nível para 64 px (o subícone fica com 64 × 47 px) e a das listas de 34 para 30 px.
+
+**Não muda:**
+- o nível: é a mesma fração do SSOT (D-PROD-178);
+- os números, o farol, os textos e a acessibilidade;
+- os marcadores do mapa;
+- as cores do subícone. São as configuradas no sistema; para mudá-las, `COCHO_APARENCIA.subicone`, como diz o guia do arquivo.
+
+**Observação:** o subícone é cinza-claro (`#e2e6e9`). Nas listas, um cocho sem lançamento mostra só o contorno, que fica discreto no fundo branco. É a configuração do sistema. Escurecer a cor é uma linha no `COCHO_APARENCIA.subicone`, se o proprietário quiser.
+
+**Testes:**
+- CV-3: o cocho tem um só desenho, com o `viewBox` do cocho e a cor, a espessura e o preenchimento do subícone;
+- `depositoNivel`: o SVG do detalhe é o subícone a 50%, sem o pino, e o mapa continua com o marcador;
+- DV-5 (Pastos atendidos) e AS-1 (aba Suplementação): o ícone sem o modo marcador.
+
+Quatro mutações, uma por lugar, voltaram o marcador ou as cores do marcador, e todas foram pegas.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §8.
+
+## D-PROD-226 — Mapa Geral: detalhes do mapa organizados como o estilo antigo (pares lado a lado no popup), com toque e contraste
+
+**Data:** 2026-11-17 · **Origem:** a segunda metade do pedido da D-PROD-224: as informações "espalhadas, sendo que pode organizar melhor", com os prints do estilo antigo como referência · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Contexto:** a D-PROD-224 diminuiu a escala. Faltava organizar:
+- no popup, blocos curtos ocupavam a largura toda (cerca de 850 px), com espaço vazio ao lado;
+- o cartão do limite do cocho e o dos números do depósito não seguiam os painéis antigos;
+- o texto livre (Observações) ficava na outra ponta do cartão, longe do rótulo;
+- a linha do tempo em grade não tinha divisória entre as fileiras.
+
+**Como foi escolhido:** três propostas independentes (densidade, organização e fiel ao antigo), cada uma medida no harness. Um juiz comparou as três e montou a especificação a partir da mais fiel ao antigo, com o que valia das outras duas. O que ficou de fora:
+- subir de novo letras e alturas: desfaria a D-PROD-224;
+- três colunas na grade comum do celular: rótulos e valores quebrariam em duas ou três linhas. A exceção são os dois cartões de números conhecidos (itens 2 e 3): os rótulos são curtos, e os valores ficam na mesma linha mesmo quando um rótulo quebra;
+- figura do nível maior: o cocho ficaria mais alto;
+- juntar blocos mexendo no DOM e posicionar pelo número do filho.
+
+**Decisão:**
+1. **Pares lado a lado a partir de 768 px de tela** (no popup do mapa e também na tela Bebedouros, que mostra o mesmo detalhe na página):
+   - Pasto › Detalhes: Lotação | Categorias;
+   - Pasto › Suplementação: Fornecimento | Consumo esperado / real;
+   - bebedouro: Resumo operacional | Último registro;
+   - depósito: Saldo por produto | Pastos atendidos.
+
+   O resto continua de ponta a ponta. A posição vem do 1º e do 2º título do corpo, não do número do filho, então um aviso opcional antes não desloca o par. Os dois títulos ficam no fim da fileira, cada um a 4 px do seu cartão, mesmo quando o vizinho quebra em duas linhas. A ordem de leitura e de foco continua a do DOM. Sem o 2º bloco (pasto sem lotes, Suplementação sem cocho) ou carregando, o corpo fica em coluna. No celular, nada muda: uma coluna.
+2. **Cocho, como o "Nível do cocho" antigo**, em todos os modos: no cartão do limite, a barra "Uso do limite operacional" de ponta a ponta e Saldo estimado | Duração estimada | Próxima reposição numa fileira, com os valores na mesma linha mesmo quando um rótulo quebra (subgrid).
+3. **Depósito, como o `DepositoNivel` antigo**, em todos os modos: Ocupação do limite | Estoque mínimo meio a meio; embaixo, Saldo atual | Saldo em sacos | Necessidade de reposição numa fileira (sem sacos, meio a meio), também com os valores na mesma linha ("Necessidade reposição kg" quebra em duas).
+4. **Texto livre** (Observações, Cochos vinculados, Projeção, Parâmetros de manejo), em todas as larguras: o rótulo numa coluna (168 px no popup, um terço no celular, no máximo a metade) e o valor logo depois, alinhado à esquerda e quebrando nas palavras. O rótulo não encolhe abaixo da coluna, então não fica por cima de um valor longo nem é partido no meio. Listas e tabelas continuam com o valor à direita.
+5. **Linha do tempo:**
+   - linha fina entre as fileiras de cada cartão;
+   - cabeçalho do cartão de 36 px (não é alvo de toque);
+   - 6 px entre os dias e entre os cartões;
+   - o valor que quebra fica em duas linhas equilibradas (`text-wrap: balance`): "L-2026-020" / "· L-2026-021", sem partir o código do lote no hífen. Nas células, o valor que quebra não deixa uma palavra sozinha na última linha (`text-wrap: pretty`: "27/10/2026 ·" / "13 dia(s)"). Ali o `balance` piorava outras quebras ("900 / kg acima do mínimo", "Pasto 01, Pasto / 02").
+6. **Toque:** no celular e na tela de toque, os alvos ficam com 40 px ou mais.
+   - Crescem para 40 px:
+     - as pílulas do rodapé (de 36);
+     - o Resumo/Lote/Lista (de 38);
+     - o cabeçalho ordenável da Lista (altura mínima).
+   - Ganham uma área de toque invisível de 40 px, sem mudar o desenho:
+     - o link do título;
+     - o "Excluir";
+     - o ✕ do popup.
+   - A caixa de marcar passa a ter área invisível de 40 px também com mouse (era 38).
+   - Com mouse, o desenho fica como antes.
+   - No celular a partir de 360 px, a pílula não encolhe abaixo do próprio texto: "Registrar evento" sem reticências; as outras cedem o espaço.
+7. **Contraste:** o teal do link, da ação e do número da aba passa de `#0e8fa6` para `#0a7a8f`. O texto é de 11,5 px em negrito e precisa de 4,5:1: o contraste vai de 3,62:1 para 4,75:1 no fundo do corpo.
+8. **Lista de lotes pelo teclado:** o cabeçalho focado com Tab aparece inteiro na rolagem lateral, com a coluna presa (Nome) contando como borda. O navegador só rolava quando o cabeçalho estava todo escondido.
+
+**Resultado** (altura do conteúdo no harness, D-PROD-224 → D-PROD-226):
+- computador:
+  - depósito: 986 → 840 px;
+  - bebedouro: 813 → 730 px;
+  - área: 1.854 → 1.686 px;
+  - histórico do pasto: 1.616 → 1.450 px;
+  - Pasto › Detalhes: 567 → 406 px (cabe sem rolar);
+  - Suplementação: 383 → 332 px;
+  - cocho: igual (1.025 → 1.026 px), porque o ganho é de organização;
+- celular:
+  - depósito: 1.280 → 1.229 px (com o texto livre ao lado do rótulo, a observação quebra em duas linhas);
+  - bebedouro: 983 → 953 px;
+  - tarefa: 804 → 774 px;
+  - área: 2.443 → 2.275 px;
+  - histórico: 2.170 → 2.004 px.
+
+**Não muda:**
+- dados, regras e textos;
+- a ordem do DOM e a acessibilidade (nomes e papéis);
+- a escala da D-PROD-224 (nenhuma fonte muda);
+- as permissões e o mapa.
+
+Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.jsx`).
+
+**Testes:** o `detalhesCompactos` lê o CSS regra a regra: chaves balanceadas, lista de seletores e o bloco `@media` certo. Assim, uma regra fora do lugar ou sem a declaração não passa.
+- `detalhesCompactos`:
+  - DC-2: toque (inclusive o ✕ e o cabeçalho ordenável), contraste, as pílulas sem reticências, o texto livre em todas as larguras, o `pretty` nas células e o `balance` na linha do tempo;
+  - DC-3: a região do nível do cocho e a do depósito só no popup; o cocho em três e o depósito em seis trilhos, com subgrid;
+  - DC-4: a divisória inteira (`content`, posição e ponta a ponta), os espaços e o cabeçalho de 36 px;
+  - DC-5: os quatro corpos na mesma regra da grade e só no bloco do popup, as colunas 1 e 2 pelo título, os títulos no fim da fileira e o 2 × 2; também a aba Detalhes com Lotação e Categorias, cada uma antes do seu cartão, e, sem lotes, um título só.
+- `detalhesLoteV12Casca`: o corpo das abas Detalhes e Suplementação é o painel com o id `…-painel-detalhes` / `…-painel-supl`.
+- AS-1 (Suplementação), DV-2 (depósito), CV-3 (cocho) e o teste do bebedouro: as classes e os filhos diretos que as regras posicionam.
+- `detalhesLoteV12Lotes`: o Tab num cabeçalho em parte visível rola a tabela.
+
+**Revisão independente:** quatro lentes (CSS e cascata, o visual no app, testes e documentação, e a mesclagem da `main`). Cada achado passou por um cético que tentou refutá-lo.
+- **Números:** 22 achados, 17 confirmados e 5 refutados. A lente da mesclagem não achou defeito: o painel de Forragem manteve tudo o que a PR #312 trouxe.
+- **Confirmados, todos corrigidos:**
+  - os testes do DC-3 ao DC-5 passavam com os pares e o lado a lado quebrados: a regex não lia a regra certa e o trecho do popup ia até o fim do arquivo. Agora leem regra a regra;
+  - a divisória da linha do tempo podia sumir com o teste verde;
+  - nenhum teste prendia as classes do cocho e a raiz do bebedouro, nem o cabeçalho ordenável;
+  - os valores desalinhados nas fileiras de três do cocho e do depósito: subgrid;
+  - o título do par longe do seu cartão quando o vizinho quebrava: no fim da fileira;
+  - nos documentos: as 5 colunas do popup do tablet, os tamanhos do subícone depois da D-PROD-224, as alturas e os percentuais da D-PROD-224, o "só no popup" (vale também na tela Bebedouros) e o item do toque. Também os comentários com os valores antigos no CSS e no `blocos.jsx`.
+- **Refutados:**
+  - quatro foram refutados só por serem anteriores à D-PROD-224/226, mas vêm da D-PROD-218/220, desta mesma PR. Por isso também foram corrigidos:
+    - o rótulo do texto livre por cima de um valor longo no celular (e "Obser/vaçõe/s" partido na tarefa);
+    - o ✕ do popup com 36 px na tela de toque;
+    - o Tab na Lista com o cabeçalho cortado;
+    - "Registrar evento" com reticências no celular;
+  - o quinto era o `balance` na célula, refutado como troca e não como regressão. A medição decidiu: `pretty` nas células e `balance` na linha do tempo.
+- **Mutações:** 18 mutações (14 no CSS e 4 na marcação e no comportamento) foram pegas pelos testes certos. Detalhe no relatório, §10.1.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §10.
+
+## D-PROD-227 — Cocho e depósito: seções explícitas e dados sem repetição (2026-11-17)
+
+**Pedido do proprietário:** continuar a PR #308, procurar informações duplicadas e organizar melhor a visualização dos detalhes de cocho e depósito.
+
+- Cada seção mantém título e conteúdo juntos (`SecaoDetalhe`); pares de leitura/total fornecido no cocho e saldo/pastos no depósito no popup, uma coluna no celular.
+- Ciclo aberto: duração e próxima reposição ficam no nível, sem repetir a projeção no último registro. O Histórico completo conserva todas as métricas. Períodos fechados mantêm sua comparação e projeção histórica.
+- No nível do cocho, a base do ciclo identifica o abastecimento; saldo atual e consumo aparecem em seus próprios campos, sem duplicar a taxa no subtexto.
+- Último registro agrupa Fornecimento, Dados do Lote e Consumo, preservando os rótulos e os valores da projeção existente.
+- Limite operacional (cocho e depósito), estoque mínimo e necessidade de reposição (depósito) ficam no resumo operacional; o cadastro não repete esses números. Os cochos vinculados aparecem na lista de pastos atendidos, sem nova lista textual no cadastro.
+- No depósito, o percentual aparece uma vez no bloco do nível; o medidor mantém percentual e descrição completos para tecnologia assistiva, sem repetir o número visível.
+- Sem mudança em cálculos, consultas, permissões, lançamentos, histórico completo ou persistência.
+
+## D-PROD-228 — Histórico sob demanda e ação Fechamentos no cocho (2026-11-17)
+
+**Pedido do proprietário:** os históricos do depósito e do cocho devem aparecer somente pelo botão Histórico; no cocho, adicionar Fechamentos para mostrar os períodos fechados.
+
+- Detalhe do depósito sem linha do tempo ou último registro. O histórico existente só monta ao abrir Histórico, com a mesma permissão de visualização.
+- Detalhe do cocho mantém nível, leitura atual/avisos e cadastro. Total fornecido e leituras anteriores ficam no Histórico; não há último registro ou período fechado no resumo.
+- Fechamentos abre lista própria, somente dos eventos do ponto com período fechado, do mais recente ao mais antigo. Preserva valores, farol, custos e estados vazios do cartão existente. Segue a mesma permissão do Histórico.
+- Rodapé do cocho com Lançar, Leitura, Fechamentos e Histórico; no celular os ícones ficam acima do nome para acomodar as quatro ações.
+- Nenhuma mudança de cálculo, persistência ou manejo. Detalhes do lote não foram alterados nesta revisão.
+
+## D-PROD-229 — Organização dos detalhes de lote e duplicações (2026-11-17)
+
+**Pedido do proprietário:** organizar os detalhes de lotes e revisar informações duplicadas, continuando a PR #308.
+
+- Nas vistas Lote e tela empilhada, o nome aparece na navegação/cabeçalho, sem outra cópia no cartão. Categoria e sexo ficam na identidade/cabeçalho, sem se repetir em Identificação quando conhecidos. Na tela empilhada, categoria e pasto não se repetem no cartão. Campos sem informação continuam explícitos.
+- Peso médio atual fica em Pesagem; projeção, curva, objetivo e previsão mensal ganham o bloco Projeção de peso. Não se elimina um valor só por coincidir numericamente com outro: representam dados diferentes.
+- Lotação mantém as métricas do lote e esclarece a participação nas cabeças e na UA do pasto. Cat. de manejo permanece em Identificação, pois é distinta da categoria do animal.
+- No computador, as quatro seções ficam em pares; no celular e tablet, uma coluna, com título junto do cartão.
+- A aba Detalhes não repete a pastagem na grade quando ela já está no subtítulo. Se faltar informação, o campo continua visível.
+- Cálculos, catálogo da tabela, ordenação, preferências de colunas, múltiplos lotes, manejo e permissões preservados.
+
+## D-PROD-231 — Leitura dos detalhes de lotes e áreas (2026-11-17)
+
+- Pedido do dono: retirar explicações de fórmulas nos detalhes e organizar as projeções mensais.
+- Detalhes do lote sem as dicas de peso projetado, arrobas e UA. Fim de mês em colunas de data e peso com unidade, até três meses.
+- Área mostra hectares ao lado do nome, sem repetir hectares e setor na grade; UA total e capacidade sem fórmulas auxiliares.
+- Catálogo da tabela, cálculos, consultas e permissões preservados.
+
+## D-PROD-230 — Assistente só de leitura (IA) em todas as telas
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-224`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, PR #308 em rascunho) já usa da D-PROD-224 à D-PROD-228 e indica a D-PROD-229 como a próxima dela. Para não duplicar, esta decisão é a **D-PROD-230**.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ("vamos fazer isso então já vou colocar minha api lá"): uma IA no sistema para ajudar no negócio, começando só de leitura, com a chave da API do Claude dele; depois, o pedido de que o botão fique flutuante em todas as telas · **Branch:** `claude/kind-knuth-tztu1v`.
+
+**Decisão.**
+1. **Rota.** `POST /assistente/perguntar` com `{ empresa_id, pergunta (≤ 1000), tela? , historico? (≤ 10 falas de ≤ 4000) }`, corpo fechado (`cliente_id` ou chave fora do schema → 400). Autenticada, sem chave de permissão própria: as ferramentas leem o mesmo que o Mapa Geral já mostra a qualquer usuário logado. O tenant vem **só** do `auth_context` (R11); a fazenda é a aberta no topo da tela e é conferida no tenant antes de qualquer leitura. `tela` é só uma dica de contexto (`^[A-Za-z0-9_-]{1,64}$`), nunca escolhe tenant nem fazenda.
+2. **Laço de ferramentas no servidor.** Modelo `claude-opus-5-5` (API da Anthropic, SDK oficial `@anthropic-ai/sdk`, chave em `ANTHROPIC_API_KEY`, nunca literal), esforço `medium`, recuo do lado do servidor em caso de recusa (`fallbacks: "default"`), no máximo **8** voltas; recusa vira mensagem amigável; falha da API → 503 `ASSISTENTE_INDISPONIVEL`; chave ausente ou inválida → 503 `ASSISTENTE_NAO_CONFIGURADO`.
+3. **Ferramentas: conjunto fechado e só de leitura** (`assistenteFerramentas.js`), cada uma chamando o serviço que já existe com o contexto da requisição: `listar_pastos` (cultura, parâmetros que valem, cabeças agora e a situação de forragem: medição válida até 15 dias, senão estimada pelos dias de descanso, mesma regra da D-PROD-223), `medicoes_do_pasto`, `rebanho_por_pasto` (posições do ledger; sem ledger, o cadastro de lotes), `resumo_rebanho`, `leituras_cocho_recentes`. A IA não grava, não manda SQL, não escolhe cliente nem fazenda; ferramenta desconhecida não executa nada.
+4. **Dados mínimos.** As respostas das ferramentas não levam CPF, telefone, fornecedor, nota fiscal, GTA, valores de compra nem o nome de quem registrou.
+5. **Tela.** Botão redondo flutuante (canto inferior direito, acima da navegação inferior do celular) em **todas as telas logadas**, montado uma vez no `Layout` (login não tem o botão). Abre o painel: de baixo no celular, lateral no desktop. A conversa fica no estado do componente do Layout: sobrevive à navegação entre telas, some ao recarregar. Nada vai para o banco nem para a fila offline.
+
+**Por que não é o "motor de intelligence genérico" fora do roadmap.** É uma tela de perguntas e respostas sobre os módulos que já existem, com um conjunto fechado de leituras escritas aqui; não há motor configurável, regras low-code, nem execução de ações.
+
+**Privacidade e custo.** A cada pergunta, o texto da pergunta, o histórico curto e o resultado das ferramentas usadas vão para a API da Anthropic, que os processa para responder (pelos termos comerciais da API, não são usados para treinar modelos). O custo é por uso, cobrado na conta da chave do proprietário: centavos por pergunta; recomenda-se limite de gasto mensal no console da Anthropic.
+
+**Fora do escopo:** lançar, alterar ou excluir pelo assistente; histórico salvo no servidor; resumo diário automático; ferramentas de financeiro, estoque ou patrimônio.
+
+**Release.** Sem migration. Depois do deploy, o proprietário cadastra `ANTHROPIC_API_KEY` na Vercel (produção) e faz um novo deploy para valer.
+
+## D-PROD-232 — Lançamento de Atividades, fatia 1 do redesenho pelo protótipo do proprietário: menu ⚡ por linha e Concluir com resumo
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-224`, mas as branches abertas de outras sessões já usam da D-PROD-224 à D-PROD-231 (`claude/design-filters-implementation-agzxk8`: 224 a 229, 230 e 231, marcador em 232; `claude/kind-knuth-tztu1v`: 230, marcador em 231). Para não duplicar, esta decisão é a **D-PROD-232**. A missão foi pedida como "D-PROD-224".
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário, com o protótipo HTML dele ("Lançamento de Atividades", estados lista, ⚡ da linha no computador e no celular, concluir, atividade aberta) aprovado como referência: seguir a lógica e o estilo do protótipo, **mantendo o modelo visual do sistema** (grade Base1, tokens, diálogos, `MobileSheet`, botões — sem importar o CSS do protótipo) · **Branch:** `feat/atividades-menu-raio`.
+
+**Plano do redesenho em 4 fatias (uma PR por fatia):**
+1. **Menu ⚡ por linha e Concluir com resumo** (esta).
+2. **Janelas por tipo de lançamento** (Trabalho de máquinas, Aplicação de insumos, Mão de obra, Custos extras), cada uma com a lista do tipo, **Inserir**, **Dados**, **Salvar** e **Salvar e fechar**; o **dia do lançamento** no topo, com **hoje por padrão** e setas para o dia anterior / seguinte; o **dia é criado sozinho ao salvar o primeiro item** do tipo (decisão do proprietário sobre o dia: "pode ser").
+3. **Atividade aberta** no desenho do protótipo: **Resumo de custo** e a tabela dos 4 tipos (itens, resumo, valor, total), e a aba **Resumo da atividade**.
+4. **Celular**: os cards e a atividade aberta no desenho do protótipo (além do ⚡, que já entra nesta fatia).
+
+**Decisão (fatia 1).**
+1. **⚡ por linha, opt-in no motor Base1.** `CadastroBase1Grade` / `Base1Grid` / `Base1Cards` ganham `renderAcoesDaLinha(linha)`: na grade, o botão fica na **célula de seleção, ao lado da caixa de marcar** (84 px; o cabeçalho mostra **"Ações"** ao lado do "selecionar todos"); nos cards, no **topo do card** (no celular, onde a caixa de marcar já não aparece, só o ⚡). **Padrão desligado:** nenhuma outra tela muda. O botão e o menu são genéricos (`B1AcoesDaLinha.jsx`: `B1BotaoAcoesDaLinha`, `B1MenuAcoesDaLinha`) — no computador, a janela presa ao botão (`B1Popover`); no celular, a folha de baixo (`MobileSheet`), com o título da linha no título da folha. Teclado: `aria-expanded`, Esc fecha, ↑ ↓ andam pelos itens, o foco volta ao botão. Clicar no ⚡ não seleciona nem abre a linha; clicar na linha continua como sempre.
+2. **O menu da atividade** (Lançamento de Atividades): cabeçalho **"Nº 7 · NOME"** e a linha **"TIPO · ÁREA"** (o valor total **não** entra: a linha da lista não traz custo; volta quando a atividade aberta o tiver, Fatia 3). Grupos com divisória: (a) **Trabalho de máquinas** (linhas de máquina; o diesel é o abastecimento ligado ao dia), **Aplicação de insumos** (linhas de produto, só com `permite_produto`), **Mão de obra** (só com `permite_mao_obra`), **Custos extras** (linhas de serviço, só com `permite_servico`) — todos só com a atividade **ABERTA**, a ação de lançar apontamento e o fuso da fazenda; (b) **Abrir atividade**; (c) **Alterar atividade**, **Concluir** / **Reabrir**, **Duplicar** e **Cancelar** (vermelho), com a mesma regra de permissão × status do Mais opções (`acoesDaAtividade`, fuso, `versao`). O que não pode, não aparece.
+3. **Lançar pelo ⚡ nesta fatia** (as janelas por tipo são a Fatia 2): o item abre o **formulário do dia** existente (`FormularioApontamento`, modo novo, **hoje no fuso da fazenda**) sobre a atividade da linha, sem abrir a atividade antes; o título leva o tipo ("Novo lançamento · Trabalho de máquinas") e uma nota diz o que vem depois. Ao **Lançar**, a lista e os totais se relêem, a atividade abre (só leitura) e a **janela de adicionar daquele tipo abre sozinha no dia gravado** (máquina, produto, mão de obra ou serviço — `abrirLinha` em `ListaApontamentos` → `abrirAoMontar` em `LinhasDoApontamento`, uma vez). Nenhuma rota, corpo ou regra do servidor muda.
+4. **Concluir atividade com resumo** (como o protótipo, no `DialogoAcao` do sistema, que ganha `icone` e `iconeBotao` opcionais): selo + **"Concluir atividade"** + "Nº · NOME"; o resumo **Período** ("03/11 → hoje · 1 dia lançado"; o fim acompanha a data escolhida), **Área feita** ("9,2 / 18,4 ha (50%)" com a barra verde), **Custo total**, **Custo por hectare** e **Combustível**; o campo **Data de conclusão** com a regra de sempre (`erroDaDataDeConclusao`: obrigatória, nunca futura, nunca antes do início); o aviso **"Faltam X ha dos Y planejados. Pode concluir assim mesmo: a área fica como foi lançada."** quando a feita é menor que a planejada; a nota **"Concluída, a atividade fica só para consulta. Dá para reabrir depois."**; **Voltar** / **Concluir atividade**. Os números vêm **só do servidor**: `GET /atividades/:id/totais` (o do totalizador) e, para os dias lançados, `totais.dias_com_apontamento` do detalhe (`GET /atividades/:id`). **Nada é inventado:** sem o valor, "—" (lendo, "…"); sem os totais, a área do cabeçalho e uma nota. Reabrir e Cancelar ficam como estão.
+5. **"Concluir" à vista na atividade aberta**: botão na barra (ao lado de Abrir atividade e Editar), o mesmo diálogo. Para não repetir, o Mais opções da atividade **aberta** deixa de listar "Concluir atividade" (na lista, com a linha selecionada, continua).
+
+**Fora do escopo:** janelas por tipo (Fatia 2), atividade aberta redesenhada (Fatia 3), cards do celular além do ⚡ (Fatia 4), "Múltiplos talhões". Sem backend, sem banco, sem migration.
+
+**Relatório:** [`MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md`](./MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md).
+
+## D-PROD-233 — Lançamento de Atividades, fatia 2 do redesenho pelo protótipo do proprietário: janelas por tipo de lançamento
+
+**Data:** 2026-11-17 · **Origem:** plano em 4 fatias da **D-PROD-232** (acima; fatia 2) e a regra do dia aprovada pelo proprietário ("pode ser") · **Branch:** `feat/atividades-janelas-tipo`.
+
+**Decisão.**
+1. **Uma janela por tipo de lançamento**, aberta pelo ⚡ da linha da lista (os itens da fatia 1, pelas mesmas flags do tipo e a mesma permissão): **Trabalho de máquinas** (linhas de máquina), **Aplicação de insumos** (linhas de produto), **Mão de obra** (linhas de mão de obra) e **Custos extras** (linhas de serviço). No desenho do sistema (`B1Janela`, larga no computador; **no celular, ocupa a tela**): ícone + o tipo no título; a linha "Atividade Nº 7 · TIPO · Talhão: ÁREA · Lançamento de DD/MM/AAAA · N ha"; o dia do lançamento; as abas **"<Tipo> (n)"** e **"Dados"**; rodapé **Fechar** (na aba Dados, **Voltar / Salvar / Salvar e fechar**).
+2. **Regra do dia** (aprovada): o dia do lançamento vem **hoje no fuso da fazenda**, com **‹ ›** (nunca depois de hoje) e o campo de data. Ninguém "cria o dia": **sem lançamento CONFIRMADO na data**, o primeiro item salvo cria o lançamento do dia **no mesmo envio** — `criarApontamento` com a coleção da linha (`maquinas[]`, `produtos[]`, `mao_obra[]` ou `servicos[]`), uma transação no servidor com o `operation_id` persistente do lançamento com linhas (o mesmo mecanismo do "Repetir"); o corpo leva a data e, se informada, a **área do dia** do cabeçalho (opcional, como no servidor; nada mais). **Com um** lançamento confirmado, os itens entram nele pelas rotas de linha de sempre (com a `versao` dele). **Com mais de um** (turnos / passadas), o seletor "Lançamento do dia" aparece, com o **mais recente** (maior passada) por padrão. A área do dia que existe aparece e muda pelo **lápis** (o formulário do dia de sempre, PATCH com a `versao`). Lançamento só CANCELADO no dia conta como sem lançamento.
+3. **Aba da lista**: as linhas **CONFIRMADAS** daquele tipo no dia escolhido, com as colunas do protótipo **que a linha gravada tem** (nada inventado): máquinas — Máquina, Implemento, Operador (o do dia), Inicial, Final, Trabalhado, Valor total; insumos — Insumo, Almoxarifado, Qtd/ha, Quantidade total, Valor unitário, Valor total; mão de obra — Funcionário, Tipo, Quantidade, Valor unitário, Valor total; custos extras — Serviço, Parceiro, Documento, Quantidade, Valor unitário, Valor total. Linha de **Total** (soma do valor que o servidor devolveu, só das confirmadas; sem valor, "—"). As canceladas ficam atrás de **"Mostrar canceladas (k)"**, riscadas. O ⚡ da linha (`B1MenuAcoesDaLinha`) traz **Editar** (a janela de edição de sempre, por cima) e **Cancelar** (o diálogo de sempre, com motivo), pela permissão. Vazio: "Nenhum registro neste lançamento. Clique em Inserir."
+4. **Aba Dados = o MESMO formulário das janelas de linha** (`JanelasDaLinha.jsx`): os campos, a validação, o saldo e o FIFO do produto, o medidor ("Última leitura", leitura sugerida, salto com justificativa), os custos do cadastro, o `operation_id` persistente, o "resultado incerto" com Consultar / Repetir o mesmo envio. As janelas ganharam a **casca trocável** (`Casca`: a janela própria por padrão; a aba Dados na janela por tipo) e o destino **dia novo** (`novoDia`: o corpo do dia guardado no envio, então a retentativa repete o mesmo corpo com a mesma chave; o Consultar procura o lançamento novo do dia). O diálogo de cancelar linha virou `DialogoCancelarLinha`, usado pelos blocos do lançamento e pela janela por tipo. **Salvar** grava, avisa e fica num formulário vazio para o próximo item; **Salvar e fechar** grava e fecha; depois de cada escrita a lista, os lançamentos e os totais se relêem (as chaves da tela).
+5. **Só leitura**: atividade concluída ou cancelada, sem a ação de lançar (sem Inserir e sem Dados), sem a de editar / cancelar lançamento (sem esses itens no ⚡), sem o fuso da fazenda, ou o tipo que já não permite aquela linha.
+6. **Sai o fluxo provisório da fatia 1** (o formulário do dia e, depois, a janela da linha abrindo sozinha na atividade aberta): saem `lancamentoDoTipo` (FormularioApontamento), `abrirLinha` (ListaApontamentos) e `abrirAoMontar` (LinhasDoApontamento). Os blocos e a edição / repetição dos dias na atividade aberta continuam como estão.
+7. **Diesel fora desta fatia.** O abastecimento ligado ao dia (`AbastecimentoBem` com `apontamento_id`, D-PROD-211) é o fluxo do `useFluxoAbastecimento`: produto, origem (estoque ou posto), prévia do custo e confirmação, e precisa do lançamento já gravado. Um campo "Diesel (L)" dentro da máquina seria outro envio (fora da transação da linha) e outra tela de custo — o que a regra proíbe. O diesel continua no bloco **Abastecimentos** do dia, na atividade aberta.
+
+**Fora do escopo:** atividade aberta redesenhada (Fatia 3), cards do celular (Fatia 4), "Múltiplos talhões", o operador do dia dentro da janela (ele é do lançamento: muda pelo lápis do dia). Sem backend, sem banco, sem migration; nenhuma rota, corpo ou regra do servidor mudou.
+
+**Relatório:** [`MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md`](./MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md).
+
+## D-PROD-234 — Lançamento de Atividades, fatia 3 do redesenho pelo protótipo do proprietário: a atividade aberta (Resumo de custo, tipos, Resumo da atividade)
+
+**Data:** 2026-11-18 · **Origem:** plano em 4 fatias da **D-PROD-232** (fatia 3), protótipo HTML do proprietário (estados "abrir" no computador e no celular e a aba "Resumo da atividade") · **Branch:** `feat/atividades-aberta-resumo`.
+
+**Decisão.**
+1. **A atividade aberta ganha duas abas**, no modelo visual do sistema (`AtividadeAberta.jsx`, abas do motor com o registro no modo "abas fora", cartões `b1-aba-cartao`): **Lançamentos** (padrão) e **Resumo da atividade**. A navegação **‹‹ ‹ n/N › ››** é a do motor (`NavegacaoDoRegistro`, na ordem da lista), agora na linha das abas; no celular continua no rodapé. As duas abas ficam montadas (a escondida com `hidden`): trocar de aba não perde o que está aberto.
+2. **"Resumo de custo · ÁREA"** (aba Lançamentos), células de rótulo / valor: Área (ha) / planejada, % feito, Custo total, Custo por hectare, Trabalho de máquinas, Aplicação de insumos, Mão de obra, Custos extras, **Combustível (L)**, **Combustível por ha**, Data (início) e Safra. **Só o que o servidor deu** (`GET /atividades/:id/totais` e o cabeçalho); sem valor, "—". Os rótulos do protótipo "Diesel" ficam **"Combustível"**: o abastecimento ligado pode ser de qualquer combustível (D-PROD-211). **O combustível entra no "Trabalho de máquinas"** (no protótipo o diesel é da máquina): assim a soma dos quatro tipos é o custo total.
+3. **Leitura nova no servidor, só agregação (sem migration, sem schema):** `GET /atividades/:id/totais` acrescenta `custo_por_tipo { maquinas, produtos, mao_obra, servicos, combustivel }` (as parcelas que o `custo_total` já somava, cada uma nula sem custo) e `litros_combustivel_por_ha` (litros ÷ área executada, 4 casas; nulo sem área ou sem litros; o quilo não entra). **Por que no servidor e não no cliente:** as parcelas já existiam no serviço; devolvê-las é exato e não cria um segundo cálculo de custo na tela.
+4. **Card "Lançamentos": uma linha por tipo** que o tipo da atividade permite (as mesmas flags do ⚡ da lista; um tipo que deixou de ser permitido mas tem linha continua, para consulta): **Ações** (⚡: **Inserir** — a janela do tipo da D-PROD-233 já na aba Dados, só com a ação de lançar e a atividade ABERTA — e **Ver lançamentos** — a janela na lista), **Lançamento** (clicar abre a janela), **Itens** (linhas CONFIRMADAS do tipo em lançamentos CONFIRMADOS, todos os dias), **Resumo** (máquinas: uso por unidade do medidor e os litros dos abastecimentos, "8 h · 43 L"; insumos: o primeiro produto e quantos outros, "NPK (+1)"; mão de obra: pessoas distintas e quantidade por medida, "1 pessoa · 5 h"; custos extras: "N itens"), **Valor** (a parcela do servidor) e a linha de **Total** (itens e o custo total). Tipo sem linha: **"+ Lançar"** (abre a janela nos Dados; sem poder lançar, "—"). Subtítulo "ÁREA · N ha · DD/MM/AAAA · R$ total".
+5. **Os dias continuam ao alcance**: abaixo, o cartão recolhível **"Dias lançados"** com a `ListaApontamentos` de sempre (Novo lançamento, Repetir, Editar e Cancelar o dia, os blocos das linhas e dos abastecimentos, o lápis do dia). Nada que era possível deixou de ser.
+6. **"Resumo da atividade"**: os totais com o detalhe por item (`TotalizadorAtividade`: cada produto, máquina, pessoa, serviço, o combustível e o consumo — agora sem ficar preso ao topo nesta aba) e os dados da atividade só leitura (o cabeçalho de sempre). Os avisos de status (cancelada, concluída, reaberta) sobem para cima das abas.
+7. **Lista**: coluna **"Valor total"** (padrão ligada, ordenável pelo valor canônico) e o **R$ total no cabeçalho do menu ⚡** (o que a fatia 1 deixou de fora). **Leitura nova no servidor, só agregação:** cada item de `GET /atividades` traz `custo_total` — o mesmo do `/totais` (produtos, máquinas, mão de obra, serviços e abastecimentos ligados, só CONFIRMADOS) — calculado para a **página inteira numa consulta agrupada só** (`custosTotaisDasAtividades`, `UNION ALL` + `GROUP BY atividade_id`, tenant do `auth_context`, sem N+1). Sem custo: nulo ("–" na grade, fora do cabeçalho do menu).
+8. **Celular** (a atividade aberta; os cartões da lista ficam para a fatia 4): a cabeça com **✕** (volta à lista), o nome, o status, "Nº · executada / planejada ha" e o **Concluir** no canto de cima (sai da barra no celular); as mesmas abas; o Resumo de custo em duas colunas; os tipos em cartões (contador, nome, valor, ⚡ e o resumo).
+
+**Fora do escopo:** diesel dentro da janela da máquina, operador por máquina, "Múltiplos talhões", a limitação da primeira linha do dia, os cartões da lista no celular (fatia 4). Sem migration; sem mudança de rota, corpo ou regra de escrita.
+
+**Relatório:** [`MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md`](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md).
+
+## D-PROD-235 — Visualização dentro da barra escura do mapa (2026-11-17)
+
+> **Numeração:** nasceu D-PROD-230 nesta branch. A `main` deu a D-PROD-230 ao assistente só de leitura (PR #315) e chegou a `Próxima decisão: D-PROD-235`; esta decisão é a **D-PROD-235**.
+
+**Pedido do proprietário:** incluir o botão Visualização do mapa na mesma linha escura de Filtros, Lotes, Pastos e Tarefas.
+
+- Botão de camadas no fim da barra, branco sobre o fundo escuro, sem a bolinha branca separada. Mesmo painel e estado aberto/fechado; entra na navegação por setas, Home e End.
+- No celular, a barra usa a largura disponível. Atualizar, Localizar e Mover continuam na coluna da direita, abaixo da barra, sem sobreposição.
+- Visualização continua disponível quando há apenas Lotes e sem permissão de filtros, como antes; os segmentos e Filtros mantêm suas permissões.
+- Com a `main` mesclada (D-PROD-230): um filtro de lote pedido pelo assistente com o mapa no foco Pontos ou Tarefas volta o foco para Lotes, porque esses focos escondem os lotes e o filtro apareceria aplicado sem nenhum lote no mapa.
+
+## D-PROD-236 — Estilo dos detalhes inspirado na referência do dono (2026-11-17)
+
+> **Numeração:** nasceu D-PROD-232 nesta branch. A `main` deu a D-PROD-232 à fatia 1 do Lançamento de Atividades; esta decisão é a **D-PROD-236**. A D-PROD-231 fica com o número de origem, que a `main` deixou reservado para esta branch.
+
+- Pedido: seguir o estilo visual enviado, preservando as informações do sistema em celular e desktop.
+- Detalhes da área e do lote: cartões de cantos discretos, divisórias locais e cada informação em linha, rótulo à esquerda e valor à direita; sem alterar os cálculos ou consultas.
+- Área: resumo e lotação em duas colunas a partir de 1024 px, avisos e categorias em largura total. No celular e tablet os cartões empilham. Área total e pastejada continuam juntas; projeções mensais em três colunas.
+- Estilos limitados a esses detalhes, sem alterar tabelas, históricos ou permissões.
+
+## D-PROD-237 — Lançamento de Atividades, fatia 4 (última) do redesenho pelo protótipo do proprietário: a lista (filtros em pílulas e cards do celular)
+
+> **Numeração:** nasceu D-PROD-235; a `main` deu a 235 e a 236 aos refinamentos do Mapa Geral v12 (PR #308).
+
+**Data:** 2026-11-18 · **Origem:** plano em 4 fatias da **D-PROD-232** (fatia 4) e o pedido do proprietário: "renovar também os filtros lá em cima, aqueles 4 filtros que estão soltos: tipo de atividade, área, início, até"; protótipo HTML (lista no computador e no celular) · **Branch:** `feat/atividades-lista-filtros-celular`.
+
+**O redesenho em 4 fatias, agora completo:** (1) **D-PROD-232** — menu ⚡ por linha e Concluir com resumo; (2) **D-PROD-233** — janelas por tipo de lançamento (máquinas, insumos, mão de obra, custos extras) com a regra do dia; (3) **D-PROD-234** — a atividade aberta (Resumo de custo, tabela dos tipos, Dias lançados, aba Resumo da atividade, coluna Valor total na lista); (4) **esta** — a lista: filtros e cards do celular.
+
+**Decisão.**
+1. **Sai a caixa solta de filtros** que ficava acima da grade (Tipo de atividade, Área, Início de, Início até). Todos os filtros da consulta vivem na **faixa de pílulas do motor Base1**, na ordem do protótipo: **⇅ Ordenar · Status · Tipo de atividade · Área · Início · + Filtro**. Acaba o "Tipo de atividade" duplicado (a caixa e a pílula automática da coluna).
+2. **Os filtros continuam no SERVIDOR**, com os mesmos parâmetros de sempre (`status`, `tipo_atividade_id`, `area_id`, `data_de`, `data_ate`) e a lista keyset relida do começo a cada mudança (a chave da consulta leva os filtros). O ✕ de cada pílula tira só aquele; **"Limpar filtros"** volta todos ao padrão numa leitura só. Nenhuma rota, corpo ou regra do servidor mudou.
+3. **Motor (opt-in, as outras telas não mudam):**
+   - `FiltroDaTela` ganha o tipo **`periodo`** (`FiltroDePeriodo`: `de`, `ate`, `onChange({ de, ate })`, `testId`): **uma pílula só** com "De" e "Até" lado a lado; **rascunho até o ✓** (uma leitura só para as duas datas; ✕ descarta); o período aplicado no rótulo ("**Início 03/11 – 17/11**", "desde 03/11", "até 17/11"; o ano aparece fora do ano corrente); **período invertido** mostra o aviso de sempre ("A data final do período é anterior à inicial.") e o ✓ não aplica. No celular, a mesma janela na folha "Filtros" (campos um embaixo do outro, ✓ no topo).
+   - `ocultarPadrao` no filtro de escolha: no padrão a pílula mostra só o rótulo ("Status ⌄"), como no protótipo.
+   - Lista de escolha com **mais de 8 opções** ganha o "Pesquisar…" (áreas de uma fazenda grande); com até 8, igual a antes.
+   - A coluna que um filtro da tela cobre (`coluna`) não ganha pílula própria **nem a salva antes no navegador**, e sai do "+ Filtro" (o motor já dizia "para não haver duas"; agora vale também para a faixa salva).
+   - `Base1Cards` / `CadastroBase1Grade`: `avatar` / `cardsAvatar` (texto e cor do selo) e `subtitle` / `cardsSubtitle` (a linha abaixo do título). Sem eles, o card é o de sempre (iniciais do título e o código).
+4. **Faixa da tela:** começa só com os filtros da consulta (`quickFilterIds` vazio: sem pílulas automáticas das colunas); os demais campos (Nome, Máquina, Conclusão, Valor total…) continuam no **"+ Filtro"**. A ordenação em palavras da tela: **"Nº (mais recentes primeiro)"** (padrão), "Nº (mais antigas primeiro)", e "mais recente / mais antigo", "maior / menor" nos dias e valores.
+5. **Cards do celular** (no componente de card do sistema): **selo com a sigla do tipo** (3 primeiras letras do nome do tipo, maiúsculas: "ADU") na **cor do tipo** — o cadastro de tipos não tem cor, então uma **paleta fixa de 8 tons** (contraste ≥ 4,5:1 com o texto branco) escolhida pelo id do tipo (o mesmo tipo, sempre a mesma cor); título = **nome**; subtítulo **"Nº 7 · Aberta"**; o ⚡ no topo (fatia 1); campos em duas colunas **Nº, Tipo de atividade, Área, Início e Valor total**. É o **padrão**: os campos continuam personalizáveis (Mais opções → campos dos cards; quem já salvou os seus mantém).
+
+**Divergência do protótipo, registrada:** no protótipo o selo do card repete as letras do **nome** da atividade (ex.: "CIG" para "CIGARRINHA PIQUETE 02", do tipo Pulverização). Aqui o selo é a **sigla do tipo**, com cor por tipo, como pedido na missão: o nome já é o título, e a sigla do tipo deixa a lista legível por tipo. Trocar para o nome é uma linha (`seloDoCardAtividade`).
+
+**Fora do escopo:** busca por texto no servidor (a busca continua nas linhas carregadas), filtro por mais de um tipo ou área de uma vez, cor no cadastro de tipos. Sem backend, sem banco, sem migration.
+
+**Relatório:** [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md).
+
+### D-PROD-238 — Campos distribuídos e popup estável (2026-11-18)
+
+- Pedido do dono: campos lado a lado em desktop/tablet e popup dimensionado pela tela, sem variar conforme a quantidade de campos.
+- Popup dos detalhes com até 1440 px e margens de 24 px; altura da viewport menos 48 px. Cabeçalho, abas e rodapé ficam no mesmo lugar entre as vistas; rolagem apenas no corpo.
+- Detalhes da área e do lote: blocos em pares a partir de 768 px; campos em duas colunas no tablet e três no desktop amplo. Celular mantém o visual em linhas. Áreas total/pastejada e projeções mensais preservam os pares/trios.
+- Sem mudança de dados, cálculos, permissões, tabelas ou formulários de lançamento.
+
+### D-PROD-239 — Cartões largos e campos em colunas (2026-11-18)
+
+- Esclarecimento explícito do dono: desktop e tablet devem ter cartões empilhados na largura do popup; somente os campos internos ficam lado a lado.
+- Área e lote deixam de dividir os cartões em pares. Mantidas duas colunas de campos no tablet e três no desktop amplo; área total/pastejada juntas e projeções mensais em trio.
+- Preservados o popup dimensionado pela viewport (D-PROD-238), as linhas do celular, dados, cálculos e permissões.
+
+### D-PROD-240 — Prévia dos detalhes sem merge (2026-11-18)
+
+- Autorização do dono: visualizar as alterações dos detalhes sem fazer merge.
+- A regra `ignoreCommand` também permite a branch exata `codex/previa-detalhes-mapa`; demais branches continuam ignoradas e main segue publicando como antes.
+- Alteração restrita à branch da prévia, sem promover deployment, alterar produção ou mesclar código. Inclui os cartões largos empilhados com campos internos em colunas (D-PROD-239).
+
+### D-PROD-241 — Quatro campos por linha e controles compactos (2026-11-18)
+
+- Pedido: quatro informações por linha em desktop/tablet, texto sem quebra com leitura horizontal, alturas menores em todas as telas e abas/segmentos compactos como a referência.
+- Grades dos detalhes da área e do lote com quatro colunas a partir de 768 px; resumo da área une suas duas grades visualmente. Projeção mensal continua com até três datas existentes.
+- Textos de campos não quebram: rolagem horizontal individual e rótulo/valor completos no título nativo da célula. Dados preservados.
+- Cartões/linhas com espaçamento menor em todas as telas; abas e Resumo/Lote/Lista ocupam a largura de seus rótulos. Popup continua estável. Apenas prévia, sem merge.
+
+### D-PROD-242 — Detalhes suaves e resumo sem seleção (2026-11-18)
+
+- Pedido: fontes menores e leves, valores à frente dos rótulos, menos altura e retirada das caixas de seleção no Resumo dos lotes.
+- Resumo sem caixas; meta e peso juntos, sem repetir a categoria quando já é o nome. Clique continua abrindo o lote, com manejos para o lote/área preservados.
+- Vista Lote com apenas um lote não mostra navegação “1 de 1”; identidade com nome, subícone e situação preservada. Com vários lotes a navegação permanece compacta.
+- Quatro campos por linha em desktop/tablet com rótulo e valor alinhados na horizontal. Celular também usa texto menor e menos espaçamento. Textos completos com rolagem horizontal individual.
+- Apenas branch de prévia; sem merge ou publicação em produção.
+
+### D-PROD-243 — Valores abaixo dos rótulos e passagem automática (2026-11-18)
+
+- Pedido: retornar os valores para baixo das labels, texto longo passando automaticamente, retirar divisórias vazias e compactar histórico/configuração.
+- Quatro campos por linha em desktop/tablet preservados; cada campo mostra rótulo acima do valor. Retiradas as bordas superiores individuais dos campos.
+- Passagem automática somente no texto que excede a largura; mede novamente ao redimensionar, pausa ao passar o mouse, permite leitura manual ao focar e respeita movimento reduzido. Texto original e título nativo preservados, sem cópias para leitores de tela.
+- Controles de histórico e configurar tabela menores; preferências e regras de seleção de colunas permanecem iguais. Apenas branch de prévia, sem merge.
+
+### D-PROD-244 — Leitura no celular, abas sem rolagem e divisórias (2026-11-18)
+
+- Correção pedida pelo dono: no celular o valor fica à frente do rótulo; desktop/tablet continuam com o valor abaixo e quatro informações por linha.
+- Abas no celular dividem a largura disponível, sem rolagem horizontal ou vertical. Mantida a indicação da aba ativa e a navegação por teclado.
+- Divisórias restauradas entre fileiras de dados; primeira fileira sem borda superior sobrando no cartão. Respeitados os pares de áreas e trio de projeções mensais.
+- Mantidos texto automático, popup estável e alterações somente na prévia.
+
+### D-PROD-245 — Histórico dos detalhes no padrão compacto (2026-11-18)
+
+- Pedido: ajustar o histórico, seguindo os detalhes aprovados nas iterações anteriores.
+- Linha do tempo com datas discretas, cabeçalhos e ícones menores. Quatro campos por linha em desktop/tablet, rótulo acima do valor; no celular uma linha por informação, rótulo à esquerda e valor à direita.
+- Textos longos do histórico usam a mesma passagem automática dos detalhes. Preservados os registros completos, agrupamento por dia, cancelamentos, filtros, paginação e estados offline/erro.
+- Contagem e carregar mais compactos e alinhados; estilos limitados à aba de histórico. Apenas prévia, sem merge.
+
+### D-PROD-246 — Leitura mobile e peso médio projetado no resumo (2026-11-18)
+
+- Pedido: letras e espaçamentos um pouco maiores no celular, divisórias ausentes, títulos do histórico sem borda em desktop/tablet, melhorar lotes e acrescentar peso médio projetado após Cabeças e Peso médio. Retirar a dica Ideal da lotação.
+- Resumo com Cabeças, Peso médio, Peso médio projetado e UA/ha. A projeção média usa a média ponderada pelas cabeças com projeção disponível, idêntica ao total projetado da tabela; sem projeções mostra “—”, sem substituir pelo peso atual. kg PV/ha continua em Lotação.
+- Mobile: fontes e espaços maiores; divisória Status/Dias e datas da projeção restauradas. Textos da lista e das categorias passam automaticamente quando longos, e a quantidade da categoria deixa de ser cortada na borda.
+- Desktop/tablet: cabeçalhos dos eventos do histórico sem borda inferior; bordas entre dados preservadas. A dica “Ideal (...)” da UA/ha sai somente da apresentação dos detalhes, mantendo número, cor e regras.
+- Apenas prévia, sem merge nem alteração da produção.
+
+### D-PROD-247 — Resumo completo e projeções lado a lado (2026-11-18)
+
+- Pedido: restaurar kg PV/ha no resumo em todas as telas, retirar Ocupação dos detalhes e manter três projeções por linha, usando duas em celular estreito.
+- Cinco indicadores no resumo: Cabeças, Peso médio, Peso médio projetado, UA/ha e kg PV/ha. Larguras proporcionais, com menos espaço em Cabeças e UA/ha; nenhum indicador oculto no celular.
+- Ocupação (UA × dias) sai dos cartões de detalhes; cálculo e catálogo da tabela preservados.
+- Projeções mensais: três colunas; duas abaixo de 420 px. No celular a data fica acima do peso para legibilidade, sem omitir o terceiro mês.
+- Apenas prévia, sem merge nem alteração da produção.
+
+### D-PROD-248 — Integração dos detalhes aprovados na prévia (2026-11-18)
+
+- O dono aprovou os ajustes e autorizou criar a PR e fazer o merge em 18/11.
+- Integração com a main atual preservando as entregas de atividades e assistente. As decisões desta branch que nasceram D-PROD-237 a 246 foram renumeradas para D-PROD-238 a 247, pois a main já usava D-PROD-237.
+- Resultado: popup estável; detalhes compactos, valores abaixo dos rótulos em desktop/tablet e à frente no celular; cinco indicadores no resumo, incluindo peso médio projetado e kg PV/ha; projeções mensais lado a lado; textos longos automáticos e histórico consistente.
+- Sem mudanças em banco, permissões, transporte ou cálculos já usados na tabela. A média projetada do resumo usa o mesmo total ponderado da tabela. A exceção de preview continua restrita à branch codex/previa-detalhes-mapa.
+- A validação completa identificou dependências de outros detalhes nos componentes compartilhados. A passagem automática foi tornada explícita nos lotes e em seu histórico, mantendo a estrutura original de campos de cochos, depósitos e bebedouros; o piso de leitura de 11 px foi preservado.
+- Merge condicionado à validação da PR; nenhuma regra de proteção ou baseline é afrouxada.
+
+## D-PROD-249 — Várias áreas por atividade: uma atividade, várias áreas, cada lançamento datado de uma área
+
+> **Numeração:** nasceu D-PROD-238 nesta branch (a `main` `e260a305` indicava `Próxima decisão: D-PROD-238`). Antes do commit dos documentos, a `main` (`d311089a`, PR #326, detalhes do mapa) deu da D-PROD-238 à D-PROD-248 e chegou a `Próxima decisão: D-PROD-249`; esta decisão é a **D-PROD-249**. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então o checksum não muda.
+
+**Data:** 2026-11-18 · **Origem:** pedido do proprietário · **Branch:** `feat/atividade-varias-areas` · **Migration:** `20261118100000_atividade_areas` (CONTRACT, **só com o GO do proprietário**).
+
+**O problema, nas palavras do proprietário:** "Eu tenho uma atividade que é combate contra cigarrinha, e nessa atividade são vários pastos que vou fazendo ao decorrer do tempo, alguns são rápidos outros lentos, porém cada custo e lançamento é feito para aquela área. Eu não preciso ficar fazendo resumo de todo dia; os lançamentos vão de acordo com os dias." Hoje a atividade tem **uma** área (`Atividade.area_id`).
+
+**Por que uma atividade com várias áreas (e não uma atividade por área):** o protótipo HTML dele abria uma atividade por área, e ele **recusou**: a atividade é o trabalho (o combate à cigarrinha da safra), as áreas são onde ele acontece, cada uma no seu ritmo. Uma atividade por área espalharia o custo do mesmo trabalho em N cabeçalhos e obrigaria a somar à mão. O fluxo de referência que ele mostrou (escolher as áreas da atividade e ver a lista das escolhidas) vale como lógica; textos e visual são do MAIKE ("Várias áreas").
+
+**Decisão.**
+1. **Modelo:** tabela nova **`AtividadeArea`** (tenant-scoped, R9: `cliente_id`, `empresa_id`, `atividade_id`, `area_id`, setor em snapshot, `area_planejada`, `status`, `data_inicio`, `data_conclusao`, `ordem`, autor, `versao`), a mesma área uma vez só por atividade (UNIQUE), índices e UNIQUEs começando por `cliente_id` (R10). **`AtividadeApontamento.atividade_area_id`** (anulável) com FK composta (`cliente_id`, `empresa_id`, `atividade_id`, `atividade_area_id`) → `AtividadeArea`: **o banco prova que a área do lançamento é da mesma atividade**. O lançamento continua o de sempre: datado, com as linhas de custo e os abastecimentos ligados; o UNIQUE do dia não muda.
+2. **Ciclo da área:** **PLANEJADA** ("a iniciar", padrão ao abrir) → **EM_ANDAMENTO** ("Iniciar área", `data_inicio` padrão hoje no fuso da fazenda, nunca futura, nunca antes do início da atividade) → **CONCLUIDA** (`data_conclusao`, nunca antes do início da área); **Reabrir** volta a EM_ANDAMENTO. CHECK no banco amarra status e datas. **Só a área EM_ANDAMENTO recebe lançamento.** Remover só a PLANEJADA sem nenhum lançamento (é o único DELETE físico, e não tem custo).
+3. **Com a atividade:** Concluir a atividade conclui as áreas EM_ANDAMENTO na mesma data; as PLANEJADA ficam "não iniciadas". Reabrir a atividade reabre as áreas concluídas **na data de conclusão dela** (as concluídas antes, à mão, ficam). O cabeçalho fica sincronizado: `Atividade.area_id` = a 1ª área (por `ordem`), `area_planejada` = Σ — leitores antigos continuam funcionando.
+4. **Servidor (API → service → repository → Prisma, tenant do `auth_context`, R11):** `POST /atividades` aceita `areas[]` (1 a 100; todas PLANEJADA, planejada padrão = tamanho) e continua aceitando o `area_id` legado (vira uma área já EM_ANDAMENTO, para o cliente antigo continuar lançando); rotas da área (`POST /atividades/:id/areas`, `PATCH …/:areaId`, `POST …/:areaId/iniciar|concluir|reabrir|remover`) com CAS por `versao`; o lançamento exige a área quando a atividade tem várias (com uma, é implícita) e só aceita área EM_ANDAMENTO, inclusive nas linhas lançadas por tipo; `GET /atividades/:id/totais` ganha `por_area` (duas consultas agrupadas, sem N+1); a lista traz `areas_count` e o filtro `area_id` casa com qualquer área. Erros novos `ATIVIDADE_AREA_NOT_FOUND` (404) e `ATIVIDADE_AREA_COM_LANCAMENTOS` (409).
+5. **Tela:** "Abrir atividade" com **Áreas** (busca e marcar; a lista das marcadas com Setor, Tamanho, Área planejada editável e total); card **"Áreas da atividade"** na atividade aberta, com os contadores e os grupos **Em andamento** / **A iniciar** (botão Iniciar área, com a data) / **Concluídas** (recolhido), ⚡ por área (os quatro tipos de lançamento presos na área, Ver lançamentos da área, Concluir / Reabrir, Área planejada, Remover); a janela do tipo (D-PROD-233) com a área (seletor só das EM_ANDAMENTO, ou fixa) e a lista daquele tipo na área em todos os dias, com a Data; sem área em andamento, "Nenhuma área em andamento — inicie uma área para lançar"; coluna **Área** da lista com o nome da única área ou "2 de 5 em andamento". Nenhum resumo diário é exigido.
+6. **Migration `20261118100000_atividade_areas`: CONTRACT** no formato CONVERSÃO, **sem `DROP`** (a allowlist EXPAND recusa o backfill e a FK de tabela antiga para a nova): entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-249'`, guarda pinada (lock_timeout, trava 72707369, `AreaPastagem` em SHARE ROW EXCLUSIVE e `Atividade`/`AtividadeApontamento` em ACCESS EXCLUSIVE, estado esperado) e cauda pinada (backfill e FK). SHA-256 `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06`. Produção 67 → 68 migrations, 96 → 97 tabelas.
+7. **Backfill:** cada atividade com área ganha a área nº 1 (`'ara_' || id`), já iniciada (`data_inicio` = início da atividade, senão o 1º lançamento, senão a criação); **CONCLUIDA** se a atividade está concluída, senão **EM_ANDAMENTO — a CANCELADA também** (é só leitura; concluir a área inventaria uma data). Os lançamentos dela passam a ser dessa área. Atividade sem área: nada muda. Nada é apagado.
+8. **Release só com o GO explícito e escrito do proprietário**, migration antes do merge (D-PROD-72), pelo [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) (preflight com veredito, envelope do caminho B, postcheck com as contagens por status). `SCHEMA_APPLIED_PROD: NÃO` no momento da decisão; **aplicada em 2026-11-18 às 19:05:13 UTC** (`SCHEMA_APPLIED_PROD: SIM`, ver a Nota de aplicação abaixo).
+
+**Fora do escopo:** uma atividade por área; resumo diário; área do abastecimento avulso; mover lançamento de uma área para outra (cancelar e lançar de novo).
+
+**Contrato:** [`MAIKE-ATIVIDADE-AREAS-CONTRATO.md`](./MAIKE-ATIVIDADE-AREAS-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-AREAS-REPORT.md`](./MAIKE-ATIVIDADE-AREAS-REPORT.md) · **Runbook:** [`MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md).
+
+**Nota de aplicação (2026-11-18).**
+- **Ordem real:** a PR #327 foi mergeada antes da aplicação. Isso fechou o caminho A, que recusou com `CONTRACT_INESPERADO` (mesma situação da D-PROD-183).
+- **GO:** o proprietário autorizou no chat em 2026-11-18 às 15:04 (America/Cuiaba): "GO: autorizo aplicar a migration 20261118100000_atividade_areas (D-PROD-249) em produção pelo execute_sql do Supabase, seguindo o envelope do runbook, e aceito o desvio da D-PROD-74".
+- **Aplicação:** pelo caminho B (Supabase `execute_sql` com o envelope do runbook), em **2026-11-18 às 19:05:13 UTC**. SHA aprovado `417e065e` (a #327 já está nele).
+- **Preflight:** `PRONTO PARA APLICAR` (67/0 migrations; atividades 5/4/0/0; lançamentos 5/4; 96 tabelas).
+- **Postcheck:** `APLICADA E CONFERIDA` (68/0; 97 tabelas; `AtividadeArea` com 4 linhas `EM_ANDAMENTO`; 4 de 4 lançamentos ligados; FK de 4 colunas validada; índice presente; 0 lints). Health ok na `417e065e`.
+- **Registro completo:** runbook §9.
+
+## D-PROD-250 — Saldo do rebanho na tela logo depois de cada manejo
+
+**Data:** 2026-11-18 · **Origem:** relato do proprietário · **Sem migration.**
+
+**O problema:** o proprietário transferiu cabeças de KM - 06 para KM - 17 e KM - P. 01, pesou, mudou categoria e juntou lotes. O banco gravou tudo na hora (P. 01 com 22 cab = lote 75 × 20 + 2 do lote 73), mas o Detalhes do pasto mostrou números antigos e só "apareceu" minutos depois.
+
+**Causas (frontend):**
+1. Os manejos avisavam só `lotes`/`movimentacoes`. A **ocupação e o saldo da área** (`areas`, derivados do rebanho no servidor) e as consultas próprias do Detalhes (`mapa-lotes` 60 s, `mapa-areas` 5 min) não eram invalidadas: ao reabrir, voltava a cópia da memória.
+2. A leitura **forçada** do cache do mapa se juntava a uma leitura comum em andamento, que podia ter saído **antes** da gravação; devolvia o dado velho e ainda marcava `lastRefreshAt`, travando a cópia velha por 60 s.
+3. Gravação feita em **outra aba** do mesmo navegador não chegava às outras.
+
+**Decisão.**
+1. **Um só caminho depois de qualquer gravação no rebanho:** `aposEscritaNoRebanho(queryClient, empresaId)` (`src/components/mapa/invalidarCachesMapa.js`). Relê do servidor, com `force`, `lotes`, `areas`, `movimentacoes`, `movimentacoesHistorico` e `descansoPastos` (gravando o IndexedDB) e **só então** invalida todas as consultas que mostram dado do rebanho (Mapa Geral, Detalhes, históricos, Cadastro de Lotes, suplementação). Só conta como relido o que veio **do servidor**: `refreshMapaCacheEntryDetalhado` devolve `{ dados, origem: 'rede'|'cache', erro }` (em falha de rede o serviço devolve a cópia do aparelho com `origem: 'cache'`). Chave que não veio da rede fica marcada, o aviso `atualizar-mapa` sai **sem** `jaBuscado` e o Mapa Geral força de novo na próxima leitura. Usado por mover, morte, abate, nascimento, pesagem, mudança de categoria, junção, editar posição, renomear, exclusão de movimento e entrada/correção/exclusão no Cadastro de Lotes.
+2. **Leitura forçada não reaproveita leitura comum:** só se junta a outra forçada; havendo uma comum no ar, espera ela e busca de novo. Leitura comum que chega durante a forçada espera a forçada.
+3. **Outras abas, só da mesma sessão:** aviso por `BroadcastChannel` (`maike-rebanho`), escutado na raiz do app, levando o `clienteId` da sessão. O canal vale para a origem inteira; a aba que recebe ignora o aviso se não houver sessão (sem token) ou se o `clienteId` não for o seu; senão atualiza e não reenvia. Sem sessão conhecida, nada é enviado.
+4. **Cache nunca recebe dado de outra sessão:** a leitura guarda o tenant ao sair; se a sessão trocou até a resposta voltar, a resposta não é gravada (`origem: 'cache'`, `erro: 'TENANT_TROCOU'`).
+5. **Prazos curtos:** posições e áreas no Detalhes e posições no Mapa Geral com `staleTime` de 15 s e releitura ao voltar à aba. Sem polling.
+
+**Fora do escopo:** o Cadastro de Lotes continua mostrando o retrato da **entrada** (D-PROD-85); o saldo de hoje é do Mapa Geral.
+
+**Relatório:** [`MAIKE-ATUALIZACAO-APOS-MANEJO-REPORT.md`](./MAIKE-ATUALIZACAO-APOS-MANEJO-REPORT.md).
+
+## D-PROD-251 — Lançamento de Atividades pelo lugar: a área, em passos, com o tipo separado
+
+> **Numeração:** nasceu D-PROD-250 nesta branch. A `main` deu a D-PROD-250 ao saldo do rebanho na tela logo depois de cada manejo (PR #328, `417e065e`) e chegou a `Próxima decisão: D-PROD-251`; esta decisão é a **D-PROD-251**.
+
+**Data:** 2026-11-18 · **Origem:** pedido do proprietário (Maike) · **Branch:** `cursor/atividades-por-area-0b6c` · **Migration:** nenhuma nova.
+
+O proprietário aprovou a lógica dos rascunhos (tipo cadastrado uma vez, abrir a atividade em passos, registrar no campo pela área) e pediu o visual do sistema, não o do rascunho. A tela de hoje organiza por tipo de lançamento e por dia (menu ⚡ na lista, na tabela de tipos e na área; "apontamento", "custos extras"). Ele quer a área como o lugar do custo, com o total da atividade sendo a soma.
+
+**Decisão.**
+1. **Tipo separado.** O cadastro continua em Tipos de atividade (menu Suporte do Mapa), com a coluna "O que pode registrar" e um aviso de que não é o lançamento do dia. A chave da grade passa a `colunas_largura_tipos_atividade_v3` para a coluna nova aparecer.
+2. **Abrir a atividade em três passos:** tipo → áreas (pastos, lavouras e o resto) → conferir. Nome e data na frente. Safra e máquina só na frente quando o tipo exige. Fim previsto, tarefa de origem, observação e centros ficam em "Mais detalhes". As áreas nascem sem começar (PLANEJADA). O corpo é o de sempre (`areas[]`, sem centro no envio).
+3. **A atividade aberta começa pelas áreas.** Cada cartão mostra situação, feito e custo desta área. "Começar esta área" inicia (a data de sempre). "Registrar nesta área" pergunta uma coisa de cada vez (máquina, implemento, produto, mão de obra, serviço, abastecimento) e abre o mesmo formulário de linha, com "Confirmar registro". O **implemento** é opção própria (só se o tipo permite) e abre o formulário da máquina, onde ele é escolhido; na área tem grupo próprio, com a conta de usos e sem custo próprio (o custo já está em Máquinas). O **abastecimento** tem formulário próprio na área: é o mesmo formulário, revisão e confirmação da tela Abastecimentos (`useFluxoAbastecimento`), ligado ao registro do dia daquela área (o de hoje; sem ele, o mais recente). Sem registro na área, a tela pede antes uma máquina. Só aparece com a permissão de novo abastecimento. Sem rota, servidor nem migration novos. A confirmação diz em qual área entrou. O total da atividade fica no alto; o custo de uma área sem número do servidor não copia o total da atividade.
+4. **Um caminho principal.** O ⚡ da lista não lança mais. Ajustar por tipo, por dia, abastecimento, concluir e cancelar continua em "Mais detalhes", com as mesmas regras.
+5. **Palavras.** Na lista, situação "Em andamento", "A começar" (aberta e nenhuma área começou), "Concluída", "Cancelada". A coluna de custo se chama Custo. Some "Herdado do tipo" do formulário de edição. Os nomes de campo no código não mudam.
+6. **Prévia da Vercel.** `ignoreCommand` também deixa passar a branch exata `cursor/atividades-por-area-0b6c`, para o proprietário ver esta entrega. As outras branches continuam sem build. A `main` segue publicando como antes. A exceção sai quando a branch não for mais necessária.
+7. **Banco.** Nenhuma migration nova. A `20261118100000_atividade_areas` (D-PROD-249) já está no repositório e **foi aplicada em produção em 2026-11-18 às 19:05:13 UTC** (caminho B, depois do merge da PR #327; ver a Nota de aplicação da D-PROD-249). Esta entrega não cria nem aplica migration. Começar área e gravar o registro na área dependem do servidor da D-PROD-249, que já tem o banco.
+
+8. **Emenda — o visual do lançamento é o do app (feedback do proprietário).** O caminho (tipo → áreas → entrar na área → "O que você quer registrar?" → lançar por tipo, com grupos e totais por área) foi aprovado; o visual não. Ele parecia feito só para celular: tela de escolha à parte, tela cheia de confirmação, botões gigantes de largura total. Agora: (a) "O que você quer registrar?" é uma seção (`b1-aba-cartao`) **dentro** da tela da área, em grade responsiva (1, 2 ou 3 colunas), sem tela intermediária; (b) o formulário de cada tipo é o de sempre — `JanelaLancamentoPorTipo` abrindo direto na aba Dados, com os formulários de `JanelasDaLinha` (selects `CampoSelect`, campos `CampoDia`/`CampoNumero`, seleções de campo, Voltar / Salvar / Confirmar registro) — e o abastecimento é o `FormularioAbastecimento` com a prévia `DialogoPreviaAbastecimento`; (c) a confirmação em português simples vira um aviso (`AvisoGestao`) no alto da área, não uma tela separada; (d) os botões são `BOTAO_PRIMARIO` / `BOTAO_SECUNDARIO`, no tamanho dos outros formulários. Mantidos: áreas, agrupamento por tipo, totais por área, frase de confirmação, fluxo de campo. O assistente de três passos para **abrir** a atividade continua. Backend, API e migrations: **sem mudança** (a `20261118100000_atividade_areas` já está aplicada em produção, desde 2026-11-18 19:05:13 UTC; nenhuma migration nova).
+
+9. **Emenda 2 — abrir a atividade também é o formulário do app (feedback do proprietário).** O assistente de três passos (`AssistenteNovaAtividade`: "Que trabalho é este?", cartões de toque, "Continuar") ainda repetia o visual de celular já recusado. Ele foi **removido**. "Nova atividade" abre o `FormularioAtividade` de sempre, numa tela só: `CadastroFormShell` + `CadastroFormActions` (Cancelar / Abrir atividade), `CampoSelect` para o tipo, `SeletorAreasDaAtividade` (busca + caixas de marcar, com a área planejada de cada uma), `CampoDia`, `SeletorPaginadoGestao` (máquina) e `SecaoForm`/`AvisoGestao` de `GestaoFormParts`. Sob o seletor de tipo, uma nota simples diz o que o tipo permite registrar (`textoDoQuePodeRegistrar`). O `modoCampo` também saiu: `JanelaLancamentoPorTipo` usa só os rótulos padrão ("Dia do lançamento", "Lançamento do dia", "Área do dia (ha)", "Salvar e fechar") e o título do tipo; o aviso "Foi anotado em …" na área continua, ligado à área fixa da janela. Fluxo (tipo → áreas → área → lançar), grupos e totais por área, servidor e banco **sem mudança**; nenhuma migration criada ou aplicada por esta entrega (a `20261118100000_atividade_areas` já está aplicada em produção).
+
+10. **Emenda 3 — o campo Áreas é uma lista fechada com pesquisa e a escolha vira tabela (feedback do proprietário).** Em `SeletorAreasDaAtividade` a caixa sempre aberta saiu. Agora há um campo fechado (`B1Field` + botão `b1-select-btn`, "Selecione as áreas…", resumo com o nome ou "N áreas selecionadas") que abre um popover Radix (`mk-map-multi-popup`, o mesmo de `B1MultiSelecao`/`MapaFiltroSelecao`) com "Pesquisar…" e uma caixa por pasto/talhão; marcar atualiza a tabela na hora, sem confirmar, e fechar mantém a escolha. A tabela segue `b1-tipo-tabela` (cartões no celular): Área · Tipo (Pasto/Talhão/Outra, de `grupoDaArea`) · Setor · Tamanho (ha) · **Hectares (ha) editável** · ✕. Tirar a linha desmarca na lista; marcar de novo volta ao tamanho cadastrado (`alternarAreaNaAbertura`). Os hectares editados **são gravados** em `AtividadeArea.area_planejada` (já enviados em `corpo.areas` por `corpoDasAreasDaAbertura` e aceitos por `atividadesApi`). Servidor e migrations **sem mudança**; a `20261118100000_atividade_areas` já está aplicada em produção.
+
+**Fora:** migration nova; mudar a regra de quem pode lançar; apagar o ajuste por dia; custo próprio de implemento.
+
+**Relatório:** [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md).
+
 ## D-PROD-252 — P2002 sem alvo em produção: nenhuma tradução de unique depende só do `meta.target` (MAIKE-P2002-SEM-ALVO)
 
 **Data:** 2026-11-14 · **Origem:** achado fora do escopo da Fatia D do apontamento ([`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9, D-PROD-193), pedido do proprietário · **Branch:** `claude/relaxed-cori-51av1f`
 
-> **Numeração:** nasceu como D-PROD-195 (a `main` `a65ea46` indicava `Próxima decisão: D-PROD-195`). Antes do merge, a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo (PR #278) e chegou a `Próxima decisão: D-PROD-252` (`3a329d90`); a única outra PR aberta, a #330, não cria decisão. Esta decisão é a **D-PROD-252**. A D-PROD-204 já previa que a PR #275 precisaria de número próprio.
+> **Numeração:** nasceu como D-PROD-195 (a `main` `a65ea46` indicava `Próxima decisão: D-PROD-195`). Antes do merge, a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo (PR #278) e chegou a `Próxima decisão: D-PROD-252` (`3a329d90`); a única outra PR aberta, a #330, não cria decisão. Esta decisão é a **D-PROD-252**. A D-PROD-204 já previa que a PR #275 precisaria de número próprio. O mesmo merge trouxe o Lançamento de Atividades (módulo `atividades`, D-PROD-200 a D-PROD-251), com o mesmo defeito, e apagou o apontamento antigo (D-PROD-200, item 4) junto com as mudanças desta branch nele: o inventário abaixo já é o do código integrado.
 
 **Contexto.**
 - Em produção o runtime roda como `maike_vercel`: não é dono das tabelas (o dono é `postgres`), não tem BYPASSRLS, e as 85 tabelas de `public` têm RLS ligado (sem FORCE) com política só para ele ([`P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md`](./P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md)). Nesse arranjo o PostgreSQL omite o DETAIL da violação de unique, e o Prisma 6.19.3 devolve o P2002 com `meta.target` nulo ("Unique constraint failed on the (not available)").
@@ -7156,29 +8475,34 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 |---|---|---|
 | `shared/prisma/transacaoConcorrente.js`: o mapa `unicos` do `emTransacao` | nenhum trecho casava: P2002 cru → 409 `CONCURRENCY_CONFLICT` | `UniqueDeNegocio { erro, conferir }`: a chave é conferida depois do rollback (item 2) |
 | `patrimonio/abastecimentoService.js`: confirmar (`operation_id`) | chave sem recibo → 409 `CONCURRENCY_CONFLICT`, para sempre | pré-conferência na transação, antes de tudo (o molde da D-PROD-193) + a mesma conferência no mapa (item 3) |
-| `apontamentosAtividade/apontamentoAtividadeItemService.js`: `operation_id` | já tinha a pré-conferência (D-PROD-193) | a mesma função vira a conferência do mapa |
-| `apontamentosAtividade/apontamentoAtividadeItemService.js`: `ordem` | erro transitório (o mesmo 409) | `soPeloAlvo`: a ordem nasce sob o FOR UPDATE do apontamento, e o caminho genérico responde o mesmo código |
+| `atividades/atividadeApontamentoMaquinaService.js` e `atividades/atividadeLinhaCustoComum.js` (linhas de máquina, de mão de obra e de serviço): `operation_id` | chave de linha gravada, sem recibo → 409 `CONCURRENCY_CONFLICT`, para sempre | pré-conferência no início das escritas que gravam linha com a chave (lançar, editar) + a mesma conferência no mapa (item 6) |
+| `atividades/atividadeApontamentoProdutoService.js` (linha de produto): `operation_id` | já tinha a pré-conferência (D-PROD-202) | a mesma função vira a conferência do mapa |
+| `atividades/atividadeApontamentoService.js` (lançamento do dia com chave): `operation_id` | já tinha a pré-conferência das chaves derivadas das linhas (`:p`, D-PROD-202; `:o` e `:s`, D-PROD-207) | a mesma conferência no mapa |
+| `atividades/atividadeAreaService.js` (área da atividade): `area_id` | já tinha a pré-conferência, sob a trava da atividade (D-PROD-249) | a mesma busca vira a conferência do mapa |
+| `atividades/…`: `ordem` / `apontamento_ordem` das linhas e `sequencia` do apontamento | erro transitório (o mesmo 409) | `soPeloAlvo`: nascem sob o FOR UPDATE da atividade, e o caminho genérico responde o mesmo código |
 | `financeiro/operacaoFinanceiraService.js`: confirmar e retificar (`documento_chave_ativa`, `direcao_parceiro`) | sem efeito: a mesma transação confere o documento sob a trava `chaveDocumento` antes de gravar | `soPeloAlvo`, sem mudança de comportamento (a chave nasce dentro da transação) |
 | `financeiro/operacaoFinanceiraService.js`: estornar liquidação (`liquidacao_id`) | sem efeito: pré-conferência sob o FOR UPDATE do título | a pré-conferência (`estornoDaLiquidacao`) vira também a conferência do mapa |
 | `patrimonio/patrimonioComum.js`: `comUnicosEstaveis` | sem efeito: código de frota e código/nome do tipo são conferidos sob `travarEscopo('patrimonio:frota:…')` e `travarCatalogo`, por todos os escritores | sem mudança de comportamento; o alvo é lido por `alvoDaUnique` |
+| `culturas/culturaService.js`: `comConflitoEstavel` (código e nome; D-PROD-215, chegou da `main` no merge) | lia o alvo pelo `meta` inteiro (`JSON.stringify(erro.meta)`) e, sem ele, todo P2002 virava `CULTURA_NAME_CONFLICT`, mesmo o do código (palpite). Sem efeito na prática: todo escritor confere código e nome sob `travarFazenda` antes de gravar | pelo `alvoDaUnique`; sem o alvo, o caminho genérico (409 transitório), e o reenvio cai na pré-conferência com o código certo (item 1) |
 | `empresas/empresaUniqueViolation.js` | nome em corrida → 409 `CONCURRENCY_CONFLICT` | conferência depois do rollback: nome ocupado → `EMPRESA_NAME_CONFLICT`; número reservado ocupado → `SEQUENCE_CONFLICT` (item 4) |
 | `adminMaike/adminClientesGestaoService.js` | código em corrida → 409 `ADMIN_LOGIN_DUPLICADO` (errado) | `meta.modelName`: `Cliente` → código; `Usuario` → login; outro → o caminho genérico (item 5) |
 
-Não dependem do alvo (traduzem pelo comando que falhou, e assim continuam): `usuarios/usuarioService.js` (login), `adminMaike/adminService.js` (proprietário e login do admin), `catalogoGlobal/catalogoRevisao.js`, `catalogoGlobal/catalogoGlobalService.js` (relê o vencedor), `estoquePecuarioLedger/ledgerPecuarioComandoService.js` (tenta de novo) e o próprio `errorHandler.js` (genérico).
+Não dependem do alvo (traduzem pelo comando que falhou, e assim continuam): `usuarios/usuarioService.js` (login), `adminMaike/adminService.js` (proprietário e login do admin), os nomes de `gestao/centroService.js`, `gestao/naturezaFinanceiraService.js`, `formulacoes/formulacaoService.js`, `estacoes/estacaoService.js` e `curvasGanho/curvaGanhoService.js` (pelo `ehViolacaoDeUnique` da `gestaoComum`), `catalogoGlobal/catalogoRevisao.js`, `catalogoGlobal/catalogoGlobalService.js` (relê o vencedor), `estoquePecuarioLedger/ledgerPecuarioComandoService.js` (tenta de novo) e o próprio `errorHandler.js` (genérico). As traduções de P2003 (FK) leem o `meta` por campo (`constraint`, `field_name`, `modelName`), que o RLS não esconde (item 10).
 
 **Decisão.**
-1. **Um só leitor do alvo.** `alvoDaUnique(erro)` (`transacaoConcorrente.js`) devolve o alvo do P2002 ou `null`. Nenhum outro arquivo de `backend/src` lê `meta.target`; os tradutores que usam `alvoDaUnique` são uma lista fechada (patrimônio, empresa, admin), cada um com o caminho para o `null` provado por teste (item 7).
+1. **Um só leitor do alvo.** `alvoDaUnique(erro)` (`transacaoConcorrente.js`) devolve o alvo do P2002 ou `null`. Nenhum outro arquivo de `backend/src` lê `meta.target`, nem o `meta` inteiro do erro (`JSON.stringify(erro.meta)` ou `{ meta } = erro`, que levam o alvo junto): fora dele, o `meta` só se lê por campo (`constraint`, `field_name`, `modelName`, `code`, `message`). Por isso o P2003 do aceite do tanque (`criarAbastecimento`) passa a ler `constraint`, `field_name` e a mensagem, com o mesmo resultado. Os tradutores que usam `alvoDaUnique` são uma lista fechada (patrimônio, culturas, empresa, admin), cada um com o caminho para o `null` provado por teste (item 8). Patrimônio e culturas, sem o alvo, seguem o caminho genérico: as duas uniques de cada um são conferidas sob trava por todos os escritores, e o reenvio cai nessa pré-conferência, com o código certo (nunca um código por palpite).
 2. **Mapa do `emTransacao` = `UniqueDeNegocio`.** Cada entrada de `unicos` é `{ erro, conferir }`, obrigatória pelo tipo: o `typecheck:backend` (tolerância zero) reprova a fábrica solta de antes (`TS2322: Type '() => AppError' is not assignable to type 'UniqueDeNegocio'`, conferido por mutação).
    - Com o alvo: o trecho do alvo decide, exatamente como antes, e a conferência nem roda.
    - Sem o alvo: as entradas, na ordem e sem repetir, têm a chave conferida (`chaveOcupada`) numa transação de leitura nova, **depois do rollback** (a do P2002 está abortada). Quem ocupou a chave já commitou, porque o PostgreSQL só acusa a unique contra linha commitada (contra linha em voo ele espera o desfecho). A primeira chave ocupada dá o erro. Nenhuma → o caminho genérico de antes (P2002 cru → 409 `CONCURRENCY_CONFLICT`). Conferência que falha conta como "não": o erro original nunca é mascarado.
-   - `soPeloAlvo(erro, porque)`: entrada reconhecida só pelo alvo, para unique cuja chave nasce dentro da transação e que a mesma transação confere sob trava antes de escrever (sem o alvo, o reenvio cai nessa pré-conferência). Lista fechada, conferida por teste: o documento do financeiro (sob `chaveDocumento`) e a ordem do item do apontamento (sob o FOR UPDATE do apontamento).
-3. **Abastecimento.** `confirmar` confere, dentro da transação e antes de tudo (logo depois do recibo, como o item do apontamento), se `(cliente_id, operation_id)` já tem abastecimento; se tiver, responde o 409 `IDEMPOTENCY_CONFLICT` do reenvio conflitante, com a mesma auditoria (`abastecimento_bem.reenvio_conflitante`). A mesma função é a conferência do mapa, que cobre a corrida em que a chave é ocupada depois da pré-conferência. A unique continua como última rede.
+   - `soPeloAlvo(erro, porque)`: entrada reconhecida só pelo alvo, para unique cuja chave nasce dentro da transação e que a mesma transação confere sob trava antes de escrever (sem o alvo, o reenvio cai nessa pré-conferência). Lista fechada, conferida por teste: o documento do financeiro (sob `chaveDocumento`) e, no Lançamento de Atividades, a ordem das linhas (produto, máquina, mão de obra e serviço) e a sequência do apontamento (sob o FOR UPDATE da atividade).
+3. **Abastecimento.** `confirmar` confere, dentro da transação e antes de tudo (logo depois do recibo, como a linha de produto do Lançamento de Atividades), se `(cliente_id, operation_id)` já tem abastecimento; se tiver, responde o 409 `IDEMPOTENCY_CONFLICT` do reenvio conflitante, com a mesma auditoria (`abastecimento_bem.reenvio_conflitante`). A mesma função é a conferência do mapa, que cobre a corrida em que a chave é ocupada depois da pré-conferência. A unique continua como última rede.
 4. **Empresa.** `lancarSeP2002Empresa` fica assíncrono e recebe as conferências da tentativa: o nome (a mesma `existeNome`, sem diferenciar maiúsculas) e, no criar, o número reservado. Sem o alvo: nome ocupado → `EMPRESA_NAME_CONFLICT`; número ocupado → `SEQUENCE_CONFLICT`; nada ocupado → o 409 `CONCURRENCY_CONFLICT` de antes. Com o alvo, nada muda.
 5. **MAIKE Admin.** Sem o alvo, `traduzirUnique` usa o model que falhou: nas escritas do admin o `Cliente` só tem a unique do código e o `Usuario` só as de login. Outro model segue o caminho genérico, nunca "login" por palpite. Com o alvo, nada muda.
-6. **Por que não `ON CONFLICT … DO NOTHING RETURNING` nem o nome da constraint.** O nome da constraint não chega (item do contexto). O `ON CONFLICT` exigiria reescrever o INSERT de cada chamador (o do abastecimento grava 25 colunas e passa pela FK do aceite do tanque) e não resolve o mapa genérico. A conferência depois do rollback é genérica e resolve a corrida; a pré-conferência continua sendo o primeiro caminho onde a chave chega sem recibo.
-7. **Testes** (PostgreSQL real, sob o papel não dono do IT4g, extraído para `backend/tests/papelNaoDono.mjs`): `backend/tests/p2002SemAlvo.test.mjs` — U0 a pré-condição; U1–U3 o mapa genérico (conferência depois do rollback e como o papel, nada gravado; com o alvo a conferência não roda; chave livre, conferência que falha, `soPeloAlvo` e mapa vazio seguem o caminho de antes); A1 o abastecimento (controle sob o papel; chave sem recibo → 409 `IDEMPOTENCY_CONFLICT` com outro corpo, com o mesmo corpo e acima do saldo, nada gravado, auditado); A2 a corrida, com portão no movimento, em que a chave é ocupada depois da pré-conferência; E1 a empresa em corrida; M1 o admin em corrida (criar e editar o mesmo código, criar o mesmo login); M2 o tradutor do admin; S1 o inventário fechado. `backend/tests/empresaUniqueViolation.test.mjs` passa a cobrir o caminho sem alvo. Mutações (pré-conferência, conferência, empresa e admin, uma por vez) deixam o teste certo vermelho pelo motivo certo.
-8. **Sem migration, sem rota, sem contrato HTTP novo.** Os códigos de erro são os de antes; o que muda é que, em produção, chega o código certo. Nada no frontend.
-9. **O P2003 (FK) não é afetado** (medido na sonda da missão, relatório §2): sob o papel não dono o P2003 continua com `meta.constraint` (o nome da FK), e o SQL bruto (P2010 com `23503`) traz o nome na mensagem. As traduções por FK — `criarAbastecimento` (aceite do tanque) e `vinculoComApontamentoAtividade` no `errorHandler.js` (D-PROD-190) — continuam certas em produção e ficaram como estão.
+6. **Lançamento de Atividades** (módulo `atividades`). As linhas de máquina, de mão de obra e de serviço passam a conferir, no início das escritas que gravam linha com a chave (lançar e editar; o cancelar não grava), se a `operation_id` já tem linha na tabela delas (`buscarLinhaPorOperacao` na máquina; a `existeLinhaComChave` do repositório de cada uma, passada ao esqueleto comum `escreverLinhaDoApontamento`); se tiver, o 409 `IDEMPOTENCY_CONFLICT` do reenvio conflitante, com a mesma auditoria. A linha de produto, o lançamento do dia com chave e a área já tinham a pré-conferência. Nos cinco, a mesma conferência entra no mapa. A linha de máquina criada pelo lançamento do dia deriva a chave do id do apontamento (`criarLinhasMaquina`), novo a cada lançamento: não colide com a chave do pedido e não é conferida.
+7. **Por que não `ON CONFLICT … DO NOTHING RETURNING` nem o nome da constraint.** O nome da constraint não chega (item do contexto). O `ON CONFLICT` exigiria reescrever o INSERT de cada chamador (o do abastecimento grava 25 colunas e passa pela FK do aceite do tanque) e não resolve o mapa genérico. A conferência depois do rollback é genérica e resolve a corrida; a pré-conferência continua sendo o primeiro caminho onde a chave chega sem recibo.
+8. **Testes** (PostgreSQL real, sob o papel não dono do IT4g, extraído para `backend/tests/papelNaoDono.mjs`): `backend/tests/p2002SemAlvo.test.mjs` — U0 a pré-condição; U1–U3 o mapa genérico (conferência depois do rollback e como o papel, nada gravado; com o alvo a conferência não roda; chave livre, conferência que falha, `soPeloAlvo` e mapa vazio seguem o caminho de antes); A1 o abastecimento (controle sob o papel; chave sem recibo → 409 `IDEMPOTENCY_CONFLICT` com outro corpo, com o mesmo corpo e acima do saldo, nada gravado, auditado); A2 a corrida, com portão no movimento, em que a chave é ocupada depois da pré-conferência; E1 a empresa em corrida; M1 o admin em corrida (criar e editar o mesmo código, criar o mesmo login); M2 o tradutor do admin; L1 as linhas de mão de obra, de serviço e de máquina (chave de linha gravada, sem recibo, ao lançar e ao editar → 409 `IDEMPOTENCY_CONFLICT`, nada gravado, auditado); L2 o lançamento do dia com chave e linhas de mão de obra; L3 a linha de produto e a área repetida; C1 as culturas, na corrida pelo mesmo código (com o alvo, o código; sem ele, o 409 genérico, nunca "nome", e o reenvio → o código); S1 o inventário fechado, inclusive o `meta` inteiro. `backend/tests/empresaUniqueViolation.test.mjs` passa a cobrir o caminho sem alvo. Mutações (pré-conferência, conferência, empresa e admin, uma por vez) deixam o teste certo vermelho pelo motivo certo; nos cinco pontos do Lançamento de Atividades, tirar só a pré-conferência mantém L1–L3 verdes (a conferência depois do rollback responde) e tirar as duas os deixa vermelhos com o 409 `CONCURRENCY_CONFLICT` de produção; o tradutor antigo das culturas deixa o C1 vermelho com `CULTURA_NAME_CONFLICT` na corrida do código e o S1 vermelho pelo `meta` inteiro.
+9. **Sem migration, sem rota, sem contrato HTTP novo.** Os códigos de erro são os de antes; o que muda é que, em produção, chega o código certo. Nada no frontend.
+10. **O P2003 (FK) não é afetado** (medido na sonda da missão, relatório §2): sob o papel não dono o P2003 continua com `meta.constraint` (o nome da FK), e o SQL bruto (P2010 com `23503`) traz o nome na mensagem. As traduções por FK — `criarAbastecimento` (aceite do tanque) e `vinculoComApontamentoAtividade` no `errorHandler.js` (D-PROD-190) — continuam certas em produção e ficaram como estão.
 
 **Relatório:** [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md).
 

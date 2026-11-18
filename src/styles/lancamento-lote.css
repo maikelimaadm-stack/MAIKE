@@ -485,6 +485,23 @@
   font-size: 12px;
 }
 
+/* Opção com explicação longa (D-PROD-222, sobra do ciclo anterior): o título em cima e a explicação
+   embaixo, quebrando linha — nunca mais larga que o diálogo. */
+.mk-ll__opcao--coluna {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.mk-ll__opcao--coluna > span:first-child {
+  color: var(--mkq-0f172a, #0f172a);
+  font-weight: 600;
+}
+
 .mk-ll__texto {
   font-size: 12.5px;
   color: var(--mkq-475569, #475569);
@@ -628,73 +645,6 @@
 /* Diálogo amplo (tabelas: Gestão de Tarefas) */
 .mk-ll-dlg--amplo.is-desktop:not(#mk-padrao) {
   width: min(1400px, calc(100vw - 48px));
-}
-
-/* ── Tarefas do Mapa (D-PROD-118) ─────────────────────────────────────── */
-.mk-tar__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.mk-tar__acoes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.mk-tar__acoes .mk-ll__btn {
-  min-width: 0;
-}
-
-.mk-tar__info {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 16px;
-}
-
-@media (min-width: 1024px) {
-  .mk-tar__info {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.mk-tar__campo {
-  min-width: 0;
-}
-
-.mk-tar__campo dt {
-  font-size: 11px;
-  color: var(--mkq-64748b, #64748b);
-}
-
-.mk-tar__campo dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--mkq-1f2937, #1f2937);
-}
-
-.mk-tar__barra:not(#mk-padrao) {
-  display: flex;
-  flex-direction: row;
-  height: auto;
-  background: transparent;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 2px 0 6px;
-}
-
-.mk-tar__barra.is-no-dialogo:not(#mk-padrao) {
-  justify-content: flex-end;
-}
-
-.mk-tar__barra-acoes {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* ── Detalhes do Lote: cartões (mesmos campos) (D-PROD-119) ────────────────────────────────────── */
@@ -1334,8 +1284,3 @@
     border-radius: 999px;
   }
 }
-.mk-launch-action.tb-btn-green:not(#mk-padrao) {
-  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
-  color: #fff !important;
-}
-.mk-launch-action.tb-btn-green:not(#mk-padrao) svg { color: #fff !important; }

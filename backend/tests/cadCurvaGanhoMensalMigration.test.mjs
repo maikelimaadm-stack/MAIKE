@@ -5,7 +5,7 @@
  * PostgreSQL real, em bancos PRÓPRIOS criados e apagados por este teste (o
  * banco da suíte não é tocado).
  *
- * Partida: as 48 migrations da main (todas menos esta CONTRACT; inclui as
+ * Partida: as 48 migrations de nome anterior ao desta CONTRACT (inclui as
  * CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187, já concluídas como em
  * produção; a da D-PROD-187 renomeia CategoriaManejo para CADCATEGORIA e não
  * cria nem apaga tabela; e as EXPAND `20261113300000_estoque_p1_03_indices`,
@@ -14,7 +14,18 @@
  * D-PROD-193, que cria ApontamentoAtividadeItem e
  * ApontamentoAtividadeItemConsumoLote), pelo Prisma a partir de uma cópia
  * temporária; 85 tabelas; CADCURVAGANHO VAZIA com a estrutura por estação; um Cliente e uma
- * Empresa reais.
+ * Empresa reais. As CONTRACT das releases seguintes ficam FORA da partida: a
+ * D-PROD-195 (`20261114200000_cadcategoria_curva_ganho`: CADCATEGORIA.curva_ganho_id
+ * com FK composta para CADCURVAGANHO), porque, aplicada antes desta, a FK dela
+ * faria a guarda desta recusar ("outra tabela referencia CADCURVAGANHO"); e a
+ * D-PROD-197 (`20261114300000_tipo_atividade_defaults`: padrões e flags do
+ * TipoAtividade, aditiva, não toca CADCURVAGANHO), de nome posterior às duas; a
+ * EXPAND da D-PROD-198 (`20261114400000_cadcategoria_peso_objetivo`:
+ * CADCATEGORIA.peso_objetivo_kg), que no dia desta CONTRACT ainda não existia; e a
+ * D-PROD-200 (`20261114500000_atividade_cabecalho`: Atividade cabeçalho, converte
+ * o apontamento antigo e apaga as 3 tabelas dele; não toca CADCURVAGANHO), a de
+ * nome mais recente. Em produção esta, a D-PROD-195, a D-PROD-197 e a D-PROD-198
+ * já estão concluídas e a D-PROD-200 entra depois.
  *
  * RED pelo runner (alvo local; nada muda e a falha aberta é resolvida com
  * `migrate resolve --rolled-back`): 1 curva cadastrada, FK de outra tabela,
@@ -22,11 +33,52 @@
  * migration já aplicada (gmd_jan existente). Toda mensagem começa com
  * `cadcurvaganho_mensal:`.
  *
- * GREEN pelo runner oficial (`npm run deploy:migrate`) com a conferência de alvo
- * exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194: 49/0, as 12 colunas
- * mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK de
- * -2 a 3, mesmos índices, mesmas 85 tabelas e `migrate diff` vazio. Sem a
- * decisão exata, num banco à parte, o runner recusa antes de qualquer DDL.
+ * GREEN pelo runner oficial (`npm run deploy:migrate`): com a conferência de alvo
+ * exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194 ele RECUSA, porque a
+ * D-PROD-195, a D-PROD-197 e a D-PROD-200 também pendem (nunca duas CONTRACT de uma
+ * vez; nada muda); no alvo local, sem a conferência, aplica esta, depois a
+ * D-PROD-195 (a guarda dela passa: nenhuma categoria), a D-PROD-197 (a guarda dela
+ * só exige TipoAtividade e os alvos das FKs), a EXPAND da D-PROD-198 (sem
+ * autorização: não é CONTRACT) e por fim a D-PROD-200 (a guarda dela só olha as 3
+ * tabelas do apontamento antigo, vazias aqui) e as EXPAND da D-PROD-202, da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 (abaixo): 58/0, as 12 colunas mensais na
+ * ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK de -2 a 3, os
+ * mesmos índices mais o UNIQUE (cliente_id, empresa_id, id) da D-PROD-195, 95
+ * tabelas (a D-PROD-200 troca as 3 do apontamento antigo pelas 2 da atividade, a D-PROD-202 e a D-PROD-203 acrescentam
+ * 3 cada, a D-PROD-205, 1, e a D-PROD-207, 4) e
+ * `migrate diff` vazio. Sem a decisão exata, num banco à parte, o runner recusa
+ * antes de qualquer DDL.
+ *
+ * D-PROD-202: a EXPAND `20261114600000_atividade_linhas_produto_maquina` (as 3 tabelas das linhas de produto e de
+ * máquina do apontamento e 2 colunas anuláveis em BemPatrimonial e TipoPatrimonial), de nome posterior, também
+ * fica fora da partida e sobe no GREEN depois da D-PROD-200 (as linhas referenciam AtividadeApontamento; EXPAND, sem
+ * autorização, o runner não a cita como CONTRACT).
+ *
+ * D-PROD-203: a EXPAND `20261114700000_cadformulacao` (as 3 tabelas das Formulações, nada em tabela antiga) também
+ * fica fora da partida e sobe no GREEN depois da D-PROD-202 (EXPAND, sem autorização).
+ *
+ * D-PROD-205: a EXPAND `20261115100000_leitura_cocho` (1 tabela nova), de nome posterior, fica fora da partida e sobe
+ * também, depois da D-PROD-203: + 1 tabela.
+ *
+ * D-PROD-206: a EXPAND `20261115200000_formulacao_faixa_tolerancia` (1 coluna anulável em CADFORMULACAO), de nome
+ * posterior, fica fora da partida e sobe também, depois da D-PROD-205: nenhuma tabela nova.
+ *
+ * D-PROD-207: a EXPAND `20261115900000_atividade_mao_obra_servico` (Funcionario, Servico e as 2 linhas de mão de obra e
+ * de serviço; nenhuma coluna em tabela antiga), agora a de nome mais recente, fica fora da partida e sobe no GREEN por
+ * último, do mesmo jeito: 58/0 e 95 tabelas no fim (85 − 3 + 2 + 3 + 3 + 1 + 4).
+ *
+ * D-PROD-208: a CONTRACT `20261116000000_mao_obra_parceiro` (o funcionário como papel do parceiro; a Funcionario, vazia,
+ * sai), de nome ainda posterior, também fica fora da partida: com a conferência, é mais uma CONTRACT pendente que a
+ * recusa cita; no alvo local sobe por último: 59/0 e 94 tabelas no fim (− Funcionario). D-PROD-209: a CONTRACT
+ * `20261116100000_funcionario_tipo_terceirizado` (só o CHECK de Fornecedor), ainda posterior, do mesmo jeito: 60/0.
+ * D-PROD-210: a CONTRACT `20261116200000_formulacao_base_consumo` (base do consumo; altera as 3 tabelas das
+ * Formulações, vazias), ainda posterior, também: 61/0 e as mesmas 94 tabelas.
+ * D-PROD-211: a CONTRACT `20261116300000_abastecimento_atividade` (o abastecimento ligado à atividade), a de nome mais
+ * posterior, do mesmo jeito: 62/0 e as mesmas 94 tabelas. D-PROD-215: a EXPAND `20261116500000_cadculturas` (tabela
+ * nova CADCULTURAS), de nome posterior, fica fora da partida e sobe no alvo local: 95 tabelas.
+ * D-PROD-216: a CONTRACT aditiva `20261117000000_area_cultura` (a Área ligada à Cultura), ainda posterior, também fica
+ * fora da partida, entra na lista das CONTRACT pendentes que a recusa cita e sobe no alvo local.
+ * D-PROD-217: a CONTRACT `20261117100000_abastecimento_fk_apontamento_atividade` (o reforço da FK do apontamento do
+ * abastecimento), agora a de nome mais posterior, do mesmo jeito: 65/0 e 95 tabelas.
  *
  * As funções seguem as do ensaio da D-PROD-183
  * (`scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`), copiadas aqui com o nome
@@ -40,6 +92,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
+import { ateD223, espelhoDoDiaD223, schemaDoDiaD223 } from './diaDaD223.mjs';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
@@ -47,11 +100,57 @@ import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+// D-PROD-249: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
+const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME_CONTRACT = '20261114100000_cadcurvaganho_mensal';
 const DECISAO = 'D-PROD-194';
+/** D-PROD-195: a CONTRACT da release seguinte, de nome posterior; fora da partida, aplicada pelo runner no GREEN. */
+const NOME_CURVA_NA_CATEGORIA = '20261114200000_cadcategoria_curva_ganho';
+/** D-PROD-197: a CONTRACT aditiva do TipoAtividade, de nome posterior às duas; fora da partida, aplicada pelo runner no GREEN por último. */
+const NOME_TIPO_ATIVIDADE_DEFAULTS = '20261114300000_tipo_atividade_defaults';
+/** D-PROD-198: a EXPAND do peso objetivo em CADCATEGORIA; fora da partida, aplicada pelo runner no GREEN (EXPAND: o runner não a cita como CONTRACT). */
+const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
+/** D-PROD-200: a CONTRACT da Atividade cabeçalho, a de nome mais recente; fora da partida, aplicada pelo runner no GREEN por último. */
+const NOME_ATIVIDADE_CABECALHO = '20261114500000_atividade_cabecalho';
+/** D-PROD-202: a EXPAND das linhas de produto e de máquina; fora da partida, aplicada pelo runner no GREEN depois da D-PROD-200. */
+const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
+/** D-PROD-203: a EXPAND das Formulações (3 tabelas novas); fora da partida, aplicada pelo runner no GREEN depois da D-PROD-202. */
+const NOME_FORMULACOES = '20261114700000_cadformulacao';
+/** D-PROD-205: a EXPAND da Leitura de cocho, de nome posterior (ver o cabeçalho). */
+const NOME_LEITURA = '20261115100000_leitura_cocho';
+/** D-PROD-206: a EXPAND da faixa de tolerância, de nome posterior (ver o cabeçalho). */
+const NOME_FAIXA = '20261115200000_formulacao_faixa_tolerancia';
+/** D-PROD-207: a EXPAND da mão de obra e do serviço, a de nome mais recente; fora da partida, aplicada pelo runner no GREEN por último. */
+const NOME_MAO_OBRA = '20261115900000_atividade_mao_obra_servico';
+/** D-PROD-208: a CONTRACT do ajuste da Fatia 4, de nome posterior à da D-PROD-207 (ver o cabeçalho). */
+const NOME_PARCEIRO = '20261116000000_mao_obra_parceiro';
+/** D-PROD-209: a CONTRACT do tipo Terceirizado, ainda posterior (ver o cabeçalho). */
+const NOME_TIPO = '20261116100000_funcionario_tipo_terceirizado';
+/** D-PROD-210: a CONTRACT da base do consumo na Formulação, ainda posterior (também pendente na partida). */
+const NOME_BASE = '20261116200000_formulacao_base_consumo';
+/** D-PROD-211: a CONTRACT do abastecimento ligado à atividade, a de nome mais posterior (ver o cabeçalho). */
+const NOME_ABASTECIMENTO = '20261116300000_abastecimento_atividade';
+/** D-PROD-215: a EXPAND do Cadastro de Culturas, de nome posterior (ver o cabeçalho); não pede decisão. */
+const NOME_CULTURAS = '20261116500000_cadculturas';
+/** D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura (coluna, UNIQUE em CADCULTURAS e FK), ainda posterior. */
+const NOME_AREA_CULTURA = '20261117000000_area_cultura';
+/** D-PROD-217: a CONTRACT do reforço da FK do apontamento do abastecimento, agora a de nome mais posterior (ver o cabeçalho). */
+const NOME_REFORCO = '20261117100000_abastecimento_fk_apontamento_atividade';
+/** D-PROD-219: a EXPAND da Medição de Forragem (tabela nova MEDICAOFORRAGEM), ainda posterior (depois da D-PROD-217); o runner do repositório a sobe sem decisão. */
+const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
+const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
+const POSTERIORES = Object.freeze(ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort()));
+/** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
+const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197'], [NOME_ATIVIDADE_CABECALHO, 'D-PROD-200'], [NOME_PARCEIRO, 'D-PROD-208'], [NOME_TIPO, 'D-PROD-209'], [NOME_BASE, 'D-PROD-210'], [NOME_ABASTECIMENTO, 'D-PROD-211'], [NOME_AREA_CULTURA, 'D-PROD-216'], [NOME_REFORCO, 'D-PROD-217']]);
+/** O que a recusa do runner cita: todas as CONTRACT pendentes menos a autorizada (MIGRATION_CONTRACT_AUTORIZADO). */
+const pendentesSemAutorizacao = (autorizada) =>
+  `migration CONTRACT pendente no alvo: ${CONTRACTS_PENDENTES.filter(([, d]) => d !== autorizada).map(([n, d]) => `${n} (${d})`).join(', ')}.`;
+/** Pastas do repositório: a partida (as de nome anterior) e o total depois do GREEN (esta e as posteriores). */
+const TOTAL_MIGRATIONS = ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)).length;
+const MIGRATIONS_PARTIDA = TOTAL_MIGRATIONS - 1 - POSTERIORES.length;
 const CONTRACTS_ANTERIORES = Object.freeze(['20261110300000_patrimonio_simplifica', '20261113200000_tipo_tarefa_drop_colunas', '20261113500000_categoria_manejo_cadcategoria']);
 const BANCO = 'maike_ccg_mensal_teste';
 /** Banco à parte para a recusa sem MIGRATION_CONTRACT_AUTORIZADO (o principal já terá aplicado a CONTRACT). */
@@ -67,8 +166,10 @@ const RESTO = Object.freeze(['observacoes', 'ativo', 'createdAt', 'updatedAt']);
 /** Colunas de CADCURVAGANHO na ordem física (attnum), antes e depois da CONTRACT. */
 const COLUNAS_ANTES = Object.freeze([...ESCOPO, ...COLUNAS_ESTACAO, ...RESTO]);
 const COLUNAS_DEPOIS = Object.freeze([...ESCOPO, ...COLUNAS_MESES, ...RESTO]);
-/** Índices (as uniques do Prisma são índices) e constraints: os mesmos nomes antes e depois. */
+/** Índices (as uniques do Prisma são índices) e constraints: os mesmos nomes antes e depois desta CONTRACT. */
 const INDICES = Object.freeze(['CADCURVAGANHO_cliente_id_empresa_id_ativo_idx', 'CADCURVAGANHO_cliente_id_empresa_id_nome_key', 'CADCURVAGANHO_cliente_id_id_key', 'CADCURVAGANHO_pkey']);
+/** Depois de todas as migrations: + o UNIQUE (cliente_id, empresa_id, id) que a FK composta da D-PROD-195 exige. */
+const INDICES_TODAS = Object.freeze(['CADCURVAGANHO_cliente_id_empresa_id_ativo_idx', 'CADCURVAGANHO_cliente_id_empresa_id_id_key', 'CADCURVAGANHO_cliente_id_empresa_id_nome_key', 'CADCURVAGANHO_cliente_id_id_key', 'CADCURVAGANHO_pkey']);
 const CONSTRAINTS = Object.freeze(['CADCURVAGANHO_cliente_id_empresa_id_fkey:f', 'CADCURVAGANHO_cliente_id_fkey:f', 'CADCURVAGANHO_gmd_check:c', 'CADCURVAGANHO_pkey:p']);
 
 const CLIENTE = 'ccg-c1';
@@ -126,12 +227,12 @@ const ambienteBase = () => {
 };
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
-/** As 48 migrations anteriores (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária. */
+/** As 48 migrations anteriores (as pastas de nome anterior ao desta CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária. */
 const aplicarMigrationsAnteriores = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-ccg-mensal-main-'));
   try {
     mkdirSync(join(dir, 'migrations'));
-    for (const d of readdirSync(MIGRATIONS)) if (d !== NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
+    for (const d of readdirSync(MIGRATIONS)) if (d < NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
     if (r.status !== 0) throw new Error(`teste D-PROD-194: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
@@ -144,6 +245,7 @@ const aplicarMigrationsAnteriores = async (url) => {
 /** O runner oficial (`npm run deploy:migrate`). `runtime` é a conexão do runtime (DATABASE_URL) quando a conferência de alvo é exigida. */
 const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: espelhoDoDiaD223(),
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 const resolverRevertida = (url) => prisma(['migrate', 'resolve', '--rolled-back', NOME_CONTRACT, '--schema', SCHEMA], url);
@@ -160,8 +262,13 @@ const historico = async (db) =>
                  count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)::int AS abertas,
                  count(*) FILTER (WHERE migration_name IN (${CONTRACTS_ANTERIORES.map((n) => `'${n}'`).join(', ')}) AND finished_at IS NOT NULL AND rolled_back_at IS NULL)::int AS contracts_anteriores,
                  count(*) FILTER (WHERE migration_name = '${NOME_CONTRACT}' AND finished_at IS NOT NULL AND rolled_back_at IS NULL)::int AS contract_concluida,
-                 count(*) FILTER (WHERE migration_name = '${NOME_CONTRACT}' AND finished_at IS NULL AND rolled_back_at IS NULL)::int AS contract_aberta
+                 count(*) FILTER (WHERE migration_name = '${NOME_CONTRACT}' AND finished_at IS NULL AND rolled_back_at IS NULL)::int AS contract_aberta,
+                 count(*) FILTER (WHERE migration_name IN (${POSTERIORES.map((n) => `'${n}'`).join(', ')}) AND finished_at IS NOT NULL AND rolled_back_at IS NULL)::int AS posteriores_concluidas
             FROM "_prisma_migrations"`);
+/** Migrations concluídas na ordem REAL de aplicação (finished_at). */
+const ordemDeAplicacao = async (db) =>
+  (await db.$queryRawUnsafe(`SELECT migration_name AS n FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+                              ORDER BY finished_at, started_at, migration_name`)).map((x) => x.n);
 
 /**
  * Retrato de CADCURVAGANHO: tabelas de public, colunas na ordem, curvas, índices, constraints, RLS/FORCE e o oid
@@ -284,9 +391,13 @@ after(async () => {
 });
 
 describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD mensais (PostgreSQL real)', () => {
-  test('CM-01 partida: 48 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
+  test('CM-01 partida: 48 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas; a D-PROD-195, a D-PROD-197, a EXPAND da D-PROD-198 e a D-PROD-200, posteriores, ainda não), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
+    assert.deepEqual(POSTERIORES, [NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO], 'só as CONTRACT da D-PROD-195, da D-PROD-197, da D-PROD-200, da D-PROD-208, da D-PROD-209, da D-PROD-210, da D-PROD-211, da D-PROD-216 e da D-PROD-217 e as EXPAND da D-PROD-198, da D-PROD-202, da D-PROD-203, da D-PROD-205, da D-PROD-206, da D-PROD-207 e da D-PROD-215 têm nome posterior a esta');
+    assert.equal(MIGRATIONS_PARTIDA, 48);
+    assert.equal(TOTAL_MIGRATIONS, 67);
     const h = await historico(db);
-    assert.equal(h.concluidas, 48);
+    assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
+    assert.equal(h.posteriores_concluidas, 0);
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 3);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
@@ -302,7 +413,7 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
   });
 
   for (const cenario of CENARIOS_RED) {
-    test(`CM-02 ${cenario.id}: a guarda recusa (cadcurvaganho_mensal:) e NADA muda (colunas por estação, mesma tabela, histórico 48, migration aberta → resolvida)`, async () => {
+    test(`CM-02 ${cenario.id}: a guarda recusa (cadcurvaganho_mensal:) e NADA muda (colunas por estação, mesma tabela, histórico 48 e as posteriores nem começam, migration aberta → resolvida)`, async () => {
       await cenario.preparar(db);
       let r;
       let antes;
@@ -322,12 +433,13 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
       assert.match(r.saida, cenario.esperado);
       assert.deepEqual(antes.colunas, cenario.colunasPreparadas ?? [...COLUNAS_ANTES]);
       assert.deepEqual(depois, antes, 'nenhuma coluna, linha, índice ou política mudou; a tabela é a mesma (oid)');
-      assert.equal(hist.concluidas, 48);
+      assert.equal(hist.concluidas, MIGRATIONS_PARTIDA);
+      assert.equal(hist.posteriores_concluidas, 0, 'o deploy para na primeira que falha');
       assert.equal(hist.contract_concluida, 0);
       assert.equal(hist.contract_aberta, 1, 'a linha da migration fica com finished_at NULL');
       assert.equal(resolvida?.status, 0, resolvida?.saida);
       const h = await historico(db);
-      assert.equal(h.concluidas, 48);
+      assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
       assert.equal(h.contract_aberta, 0);
       assert.deepEqual(await intrusos(db), [], 'o objeto do cenário foi removido');
       assert.deepEqual(await retrato(db), partida, 'o cenário foi desfeito por inteiro');
@@ -335,31 +447,48 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     });
   }
 
-  test('CM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194): 49/0, as 12 colunas mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK, índices e migrate diff vazio', async () => {
+  test('CM-03 GREEN pelo runner oficial: com o alvo conferido e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194 recusa (a D-PROD-195, a D-PROD-197 e a D-PROD-200 também pendem; nada muda); no alvo local aplica esta e as nove posteriores (as EXPAND da D-PROD-198, da D-PROD-202, da D-PROD-203, da D-PROD-205, da D-PROD-206 e da D-PROD-207 entre elas): 58/0, as 12 colunas mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK, índices e migrate diff vazio', async () => {
     const sid = await sistema(db);
-    const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+    // Nunca duas CONTRACT de uma vez: com esta e as três CONTRACT posteriores pendentes, a decisão desta não basta (e a
+    // de nenhuma das outras também não); a recusa cita as outras (a EXPAND da D-PROD-198 não entra na lista).
+    for (const [, autorizada] of CONTRACTS_PENDENTES) {
+      const recusada = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: autorizada } });
+      assert.equal(recusada.status, 1, recusada.saida);
+      assert.match(recusada.saida, /alvo conferido nas duas conexões/);
+      assert.match(recusada.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
+      assert.ok(recusada.saida.includes(pendentesSemAutorizacao(autorizada)), recusada.saida);
+      assert.match(recusada.saida, /Nenhuma migration foi executada/);
+      assert.ok(!vazou(recusada.saida, URL_T));
+      assert.equal((await historico(db)).concluidas, MIGRATIONS_PARTIDA);
+      assert.deepEqual(await retrato(db), partida, 'nada mudou');
+    }
+
+    // Alvo local (sem a conferência exigida): o runner aplica as pendentes pela ordem dos nomes, esta, a D-PROD-195, a
+    // D-PROD-197, a EXPAND da D-PROD-198, a D-PROD-200 e as EXPAND da D-PROD-202 e da D-PROD-203.
+    const r = await aplicarPeloRunner(URL_T);
     assert.equal(r.status, 0, r.saida);
-    assert.match(r.saida, /alvo conferido nas duas conexões/);
-    assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_CONTRACT} (${DECISAO})`), r.saida);
     assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, 49);
+    assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
+    assert.equal(h.posteriores_concluidas, POSTERIORES.length);
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-19), [NOME_CONTRACT, NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO, NOME_ATIVIDADE_CABECALHO, NOME_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_MAO_OBRA, NOME_PARCEIRO, NOME_TIPO, NOME_BASE, NOME_ABASTECIMENTO, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_REFORCO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO]);
 
     const depois = await retrato(db);
     assert.deepEqual(depois.colunas, [...COLUNAS_DEPOIS]);
     for (const c of COLUNAS_ESTACAO) assert.ok(!depois.colunas.includes(c), `${c} saiu`);
     assert.equal(depois.curvas, 0, 'a tabela volta vazia');
-    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (85)');
+    assert.equal(depois.tabelas, partida.tabelas + 11, '85 → 96 (a D-PROD-219 acrescenta a MEDICAOFORRAGEM; a D-PROD-215 acrescenta a CADCULTURAS; a D-PROD-208 tira a Funcionario que a D-PROD-207 criou): a D-PROD-200 troca as 3 do apontamento antigo pelas 2 da atividade, a D-PROD-202 acrescenta as 3 das linhas, a D-PROD-203 as 3 das Formulações, a D-PROD-205 a LEITURACOCHO e a D-PROD-207 as 4 da mão de obra e do serviço; esta, a D-PROD-195, a D-PROD-197, a D-PROD-198 e a D-PROD-206 não criam nem apagam tabela');
     assert.notEqual(depois.seguranca.oid, partida.seguranca.oid, 'a tabela foi recriada');
     assert.equal(depois.seguranca.rls, true, 'RLS ligado');
     assert.equal(depois.seguranca.force, false, 'sem FORCE');
     assert.deepEqual(depois.politicas, comPapel ? [{ nome: 'maike_backend_all', cmd: '*', papeis: PAPEL_BACKEND }] : []);
     assert.equal((await um(db, SQL_GRANTS)).n, 0, 'nenhum grant para anon/authenticated/PUBLIC');
-    assert.deepEqual(depois.indices, [...INDICES]);
-    assert.deepEqual(depois.constraints, [...CONSTRAINTS]);
+    // Os índices desta CONTRACT voltam com os mesmos nomes; o UNIQUE (cliente_id, empresa_id, id) é o da D-PROD-195.
+    assert.deepEqual(depois.indices, [...INDICES_TODAS]);
+    assert.deepEqual(depois.constraints, [...CONSTRAINTS], 'a FK composta da D-PROD-195 mora em CADCATEGORIA');
 
     // Tipo DECIMAL(6,3) NOT NULL nos 12 meses.
     const tipos = await db.$queryRawUnsafe(`SELECT column_name::text AS c, numeric_precision::int AS p, numeric_scale::int AS s, is_nullable::text AS nulo
@@ -379,7 +508,7 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.equal(diff.status, 0, diff.saida);
   });
 
-  test('CM-04 runner com a conferência de alvo exigida e SEM a decisão exata (banco à parte, 48 migrations) → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando D-PROD-194 antes de qualquer DDL', async () => {
+  test('CM-04 runner com a conferência de alvo exigida e SEM a decisão exata (banco à parte, 48 migrations) → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando D-PROD-194 (e as três posteriores, também pendentes) antes de qualquer DDL', async () => {
     const p = getPrismaClient();
     await p.$executeRawUnsafe(`CREATE DATABASE ${BANCO_SEM_AUTORIZACAO}`);
     await aplicarMigrationsAnteriores(URL_S);
@@ -391,20 +520,21 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
       const linhasAntes = (await historico(dbS)).total;
       // D-PROD-190 e D-PROD-191 são os números antigos desta CONTRACT (hoje da PR #269, Apontamento de Atividade, e da
       // PR #271, ícones de lote): também têm de ser recusados; e a D-PROD-193 (PR #274, itens do apontamento), a EXPAND
-      // mais recente da main.
-      for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-183' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-187' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-190' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-191' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-193' }]) {
+      // mais recente da main; e as decisões das três CONTRACT posteriores, D-PROD-195, D-PROD-197 e D-PROD-200.
+      for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-183' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-187' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-190' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-191' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-193' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-195' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-197' }, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-200' }]) {
         const r = await aplicarPeloRunner(URL_S, { runtime: URL_S, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, ...extra } });
         assert.equal(r.status, 1, r.saida);
         assert.match(r.saida, /alvo conferido nas duas conexões/);
         assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
         assert.ok(r.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), r.saida);
-        for (const anterior of CONTRACTS_ANTERIORES) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-194 pende`);
+        assert.ok(r.saida.includes(pendentesSemAutorizacao(extra.MIGRATION_CONTRACT_AUTORIZADO)), r.saida);
+        for (const anterior of CONTRACTS_ANTERIORES) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-194 e as três posteriores pendem`);
         assert.match(r.saida, /Nenhuma migration foi executada/);
         assert.ok(!vazou(r.saida, URL_S));
       }
       const h = await historico(dbS);
       assert.equal(h.total, linhasAntes, 'nenhuma linha nova no histórico');
-      assert.equal(h.concluidas, 48);
+      assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
       assert.deepEqual(await retrato(dbS), partidaS, 'nada mudou');
     } finally {
       await dbS.$disconnect();
@@ -417,6 +547,6 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
-    assert.equal((await historico(db)).concluidas, 49);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS);
   });
 });

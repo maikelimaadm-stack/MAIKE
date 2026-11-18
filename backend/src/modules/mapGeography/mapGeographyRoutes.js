@@ -20,7 +20,93 @@ import {
   criar as criarLinha,
   atualizar as atualizarLinha,
 } from './linhaGeograficaService.js';
-import { apenasAdminTenant, porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
+import {
+  apenasAdminTenant,
+  porTela,
+  TELAS,
+  carregarAutorizacao,
+  telaPermite,
+  somenteCampos,
+  acaoNaoPermitida,
+} from '../../shared/auth/autorizacaoTela.js';
+import { getPrismaClient } from '../../database/prismaClient.js';
+
+/** Mesma tolerância do navegador (`src/domain/mapa/ligacaoPontoReferencia.js`). */
+const mesmasCoordenadas = (a, b) => {
+  const v = [a?.lat, a?.lng, b?.lat, b?.lng].map(Number);
+  return v.every(Number.isFinite) && Math.abs(v[0] - v[2]) <= 1e-7 && Math.abs(v[1] - v[3]) <= 1e-7;
+};
+
+/**
+ * PATCH de ponto de referência:
+ *  - Mapa Cadastro "editar" (ou acesso total) → tudo;
+ *  - Locais "editar"/"salvar" → só `{ nome }`, e só num ponto do tipo depósito
+ *    que esteja nas coordenadas de um depósito (PontoSuplementacao DEPOSITO
+ *    ligado a um local) da MESMA empresa, relido no tenant. É o rename do
+ *    local propagado ao mapa (`localEstoqueService.propagarRename`), espelho de
+ *    `renomearDeposito` no PATCH do cocho/depósito. Antes esse PATCH era 403
+ *    para quem só tem Locais e os nomes ficavam divergentes.
+ * @param {any} request
+ */
+const pontoReferenciaEditar = async (request) => {
+  const aut = await carregarAutorizacao(request.contexto);
+  const MC = TELAS.MAPA_CADASTRO;
+  if (telaPermite(aut, MC, 'editar')) return;
+  const negar = () => acaoNaoPermitida({ tela: MC.tela, acao: 'editar' });
+  const podeLocais = telaPermite(aut, TELAS.LOCAIS, 'editar') || telaPermite(aut, TELAS.LOCAIS, 'salvar');
+  if (!podeLocais || !somenteCampos(request.body, ['nome'])) throw negar();
+  const auth = exigirAuthContext(request.contexto?.auth);
+  const prisma = getPrismaClient();
+  const ponto = await prisma.pontoReferencia.findFirst({
+    where: { cliente_id: auth.clienteId, id: request.params?.id },
+    select: { empresa_id: true, tipo: true, coordenadas: true },
+  });
+  const tipo = String(ponto?.tipo ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  if (!ponto || !tipo.includes('DEPOSITO')) throw negar();
+  const depositos = await prisma.pontoSuplementacao.findMany({
+    where: {
+      cliente_id: auth.clienteId,
+      empresa_id: ponto.empresa_id,
+      categoria_ponto: { equals: 'DEPOSITO', mode: 'insensitive' },
+      local_estoque_id: { not: null },
+    },
+    select: { coordenadas: true },
+  });
+  if (!depositos.some((d) => mesmasCoordenadas(d.coordenadas, ponto.coordenadas))) throw negar();
+};
+
+/** Janela em que quem criou o ponto ainda pode desfazer a criação sem "excluir". */
+export const JANELA_DESFAZER_CRIACAO_MS = 15 * 60 * 1000;
+
+/**
+ * DELETE /pontos-referencia/:id.
+ *  - Mapa Cadastro "excluir" (ou acesso total): exclui.
+ *  - Mapa Cadastro "novo": só DESFAZ a própria criação — o ponto foi criado por
+ *    este usuário há no máximo 15 minutos e ninguém o alterou depois. É a
+ *    compensação do formulário quando o bebedouro/cocho do ponto novo não pôde
+ *    ser gravado; sem ela, quem só pode criar deixava o ponto órfão (403).
+ */
+const pontoReferenciaExcluir = async (request) => {
+  const aut = await carregarAutorizacao(request.contexto);
+  const MC = TELAS.MAPA_CADASTRO;
+  if (telaPermite(aut, MC, 'excluir')) return;
+  const negar = () => acaoNaoPermitida({ tela: MC.tela, acao: 'excluir' });
+  if (!telaPermite(aut, MC, 'novo')) throw negar();
+  const auth = exigirAuthContext(request.contexto?.auth);
+  const id = /** @type {any} */ (request.params)?.id;
+  const eventos = await getPrismaClient().auditLog.findMany({
+    where: { cliente_id: auth.clienteId, entidade: 'PontoReferencia', entidade_id: id },
+    select: { acao: true, usuario_id: true, createdAt: true },
+    take: 2,
+  });
+  const [criacao] = eventos;
+  const desfazPropriaCriacao =
+    eventos.length === 1 &&
+    criacao.acao === 'create' &&
+    criacao.usuario_id === auth.usuarioId &&
+    Date.now() - new Date(criacao.createdAt).getTime() <= JANELA_DESFAZER_CRIACAO_MS;
+  if (!desfazPropriaCriacao) throw negar();
+};
 
 const TIPOS_ENTIDADE_ICONE = [
   'Ponto',
@@ -199,7 +285,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.patch(
     '/pontos-referencia/:id',
-    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], bodyLimit: LIMITE_CORPO_ICONE, schema: ATUALIZAR_PONTO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [pontoReferenciaEditar], bodyLimit: LIMITE_CORPO_ICONE, schema: ATUALIZAR_PONTO_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);
@@ -209,7 +295,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.delete(
     '/pontos-referencia/:id',
-    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'excluir')], schema: { params: PARAM_ID } },
+    { onRequest: [app.autenticar], preHandler: [pontoReferenciaExcluir], schema: { params: PARAM_ID } },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

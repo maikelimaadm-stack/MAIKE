@@ -41,7 +41,14 @@ export default function LancField({ label, required = false, error = false, data
       const tipo = campo.getAttribute("type") || "";
       valor = /^(date|time|datetime-local|month)$/.test(tipo) || String(campo.value ?? "").trim() !== "";
     }
-    if (!valor && combo) valor = !combo.hasAttribute("data-placeholder") && (combo.textContent ?? "").trim() !== "";
+    if (!valor && combo) {
+      // Select do Radix (`aria-autocomplete="none"` + `data-state`): sem `data-placeholder` há valor
+      // escolhido, mesmo antes de o texto do item chegar ao SelectValue — ele só chega depois de montar,
+      // e nada re-renderiza o campo. Sem isso, o campo que monta já com valor (ex.: um Select do Radix que
+      // remonta ao trocar outro campo) ficava com o rótulo por cima do valor (D-PROD-220).
+      const selectRadix = combo.getAttribute("aria-autocomplete") === "none" && combo.hasAttribute("data-state");
+      valor = !combo.hasAttribute("data-placeholder") && (selectRadix || (combo.textContent ?? "").trim() !== "");
+    }
     if (!valor && !campo && !combo) valor = (el.querySelector(".mg-field__control")?.textContent ?? "").trim() !== "";
     setTemValor(valor);
     setMultilinha(Boolean(el.querySelector("textarea")));

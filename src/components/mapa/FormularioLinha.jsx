@@ -55,8 +55,12 @@ export default function FormularioLinha({
   const createLinhaMutation = useMutation({
     mutationFn: async (data) => {
       if (item) {
+        // Traçado novo (ou o mesmo): o comprimento sai dele, como na criação;
+        // sem isso a coluna "Comprimento" continuava com o valor antigo.
+        const vertices = parseVertices(coordenadasGPS || coordenadas || item.coordenadas?.coords);
         return atualizarLinha(item.id, {
           ...data,
+          ...(vertices.length >= 2 ? { comprimento_metros: comprimentoMetros(vertices) } : {}),
           coordenadas: {
             coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),
             cor: data.cor,

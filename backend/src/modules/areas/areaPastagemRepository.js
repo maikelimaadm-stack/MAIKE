@@ -13,6 +13,7 @@
  * transação da reserva de número, da leitura do setor e da auditoria.
  */
 
+import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../../database/prismaClient.js';
 
 /**
@@ -43,11 +44,28 @@ const SELECAO = Object.freeze({
   taxa_crescimento_kg_ha_dia: true,
   taxa_aproveitamento: true,
   periodo_estacao: true,
+  // D-PROD-216 — cultura do cadastro de Culturas (CADCULTURAS) da mesma fazenda.
+  cultura_id: true,
+  // D-PROD-223 — parâmetros próprios do pasto (vazio = os da cultura).
+  altura_entrada_cm: true,
+  altura_saida_cm: true,
+  dias_descanso: true,
   coordenadas: true,
   observacoes: true,
   ativo: true,
   createdAt: true,
   updatedAt: true,
+});
+
+/**
+ * D-PROD-216 — leitura com a cultura ligada (código, nome e tipo), para a tela e o
+ * mapa mostrarem "001 · BRACHIARIA BRIZANTHA CV. MARANDU" sem uma segunda ida ao
+ * banco. A inserção em lote (`createManyAndReturn`) usa a seleção plana: sem
+ * relação ali, `cultura` sai `null` na resposta da importação, que não liga cultura.
+ */
+const SELECAO_COM_CULTURA = Object.freeze({
+  ...SELECAO,
+  cultura: { select: { id: true, codigo: true, nome: true, tipo: true, altura_entrada_cm: true, altura_saida_cm: true, dias_descanso: true } },
 });
 
 /**
@@ -64,7 +82,7 @@ export const listarAreas = async (clienteId) => {
   return prisma.areaPastagem.findMany({
     where: { cliente_id: clienteId },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: SELECAO,
+    select: SELECAO_COM_CULTURA,
   });
 };
 
@@ -80,7 +98,7 @@ export const buscarArea = async (clienteId, id, tx) => {
   const cliente = tx || getPrismaClient();
   return cliente.areaPastagem.findUnique({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
-    select: SELECAO,
+    select: SELECAO_COM_CULTURA,
   });
 };
 
@@ -92,7 +110,7 @@ export const buscarArea = async (clienteId, id, tx) => {
  * @param {object} dados
  */
 export const inserirArea = async (tx, dados) =>
-  tx.areaPastagem.create({ data: dados, select: SELECAO });
+  tx.areaPastagem.create({ data: dados, select: SELECAO_COM_CULTURA });
 
 /**
  * Insere várias áreas numa única ida ao banco e devolve as linhas criadas
@@ -116,7 +134,7 @@ export const atualizarAreaPorId = async (tx, clienteId, id, dados) =>
   tx.areaPastagem.update({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
     data: dados,
-    select: SELECAO,
+    select: SELECAO_COM_CULTURA,
   });
 
 /**
@@ -143,3 +161,138 @@ export const propagarNomeDoSetor = async (tx, clienteId, setorId, setorNome) => 
   });
   return count;
 };
+
+/**
+ * Gado por área, numa consulta agregada por tenant (G4).
+ *
+ * A fonte é a MESMA do Mapa Geral (`mapaCacheService.lotes`): empresa com o
+ * ledger de rebanho ativado (`RebanhoLedgerAtivacao`) mostra as POSIÇÕES com
+ * saldo (`PosicaoRebanho.quantidade_cabecas > 0`); as demais mostram os lotes
+ * `status = 'Ativo'` (não excluídos) pela `area_atual_id`. Só conta gado da
+ * mesma empresa da área, como o mapa, que filtra lotes e áreas pela empresa
+ * selecionada.
+ *
+ * @param {string} clienteId
+ * @param {{areaIds?: string[] | null, tx?: import('@prisma/client').Prisma.TransactionClient}} [opcoes]
+ * @returns {Promise<Map<string, {cabecas: number, kg: number}>>}
+ */
+export const gadoPorArea = async (clienteId, { areaIds = null, tx } = {}) => {
+  const cliente = tx || getPrismaClient();
+  if (Array.isArray(areaIds) && areaIds.length === 0) return new Map();
+  const soAreas = Array.isArray(areaIds) ? Prisma.sql`AND a.id = ANY(${areaIds}::text[])` : Prisma.empty;
+  const linhas = /** @type {Array<{area_id: string, cabecas: number, kg: number}>} */ (await cliente.$queryRaw`
+    WITH ledger AS (
+      SELECT empresa_id FROM "RebanhoLedgerAtivacao" WHERE cliente_id = ${clienteId}
+    ), gado AS (
+      SELECT p.area_id, p.quantidade_cabecas AS cab, COALESCE(p.peso_medio_kg, 0) AS peso
+        FROM "PosicaoRebanho" p
+        JOIN "AreaPastagem" a ON a.cliente_id = p.cliente_id AND a.id = p.area_id AND a.empresa_id = p.empresa_id
+       WHERE p.cliente_id = ${clienteId} ${soAreas}
+         AND p.quantidade_cabecas > 0
+         AND p.empresa_id IN (SELECT empresa_id FROM ledger)
+      UNION ALL
+      SELECT l.area_atual_id AS area_id, l.quantidade_cabecas AS cab, COALESCE(l.peso_medio_kg, 0) AS peso
+        FROM "Lote" l
+        JOIN "AreaPastagem" a ON a.cliente_id = l.cliente_id AND a.id = l.area_atual_id AND a.empresa_id = l.empresa_id
+       WHERE l.cliente_id = ${clienteId} ${soAreas}
+         AND l.status = 'Ativo' AND l.excluido_em IS NULL
+         AND l.quantidade_cabecas > 0
+         AND l.empresa_id NOT IN (SELECT empresa_id FROM ledger)
+    )
+    SELECT area_id, SUM(cab)::float8 AS cabecas, SUM(cab * peso)::float8 AS kg
+      FROM gado
+     GROUP BY area_id`);
+  return new Map(linhas.map((l) => [l.area_id, { cabecas: Number(l.cabecas) || 0, kg: Number(l.kg) || 0 }]));
+};
+
+/**
+ * Áreas do tenant pelos ids, travadas `FOR UPDATE` (renumeração, G4). Devolve
+ * só as que existem neste tenant.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string[]} ids
+ */
+export const travarAreasPorIds = async (tx, clienteId, ids) => {
+  await tx.$queryRaw`SELECT id FROM "AreaPastagem" WHERE cliente_id = ${clienteId} AND id = ANY(${ids}::text[]) ORDER BY id FOR UPDATE`;
+  return tx.areaPastagem.findMany({ where: { cliente_id: clienteId, id: { in: ids } }, select: SELECAO_COM_CULTURA });
+};
+
+/**
+ * Áreas do tenant FORA da lista que já usam algum dos códigos pedidos.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string[]} codigos
+ * @param {string[]} idsDaLista
+ */
+export const areasComCodigos = async (tx, clienteId, codigos, idsDaLista) =>
+  tx.areaPastagem.findMany({
+    where: { cliente_id: clienteId, numero_area: { in: codigos }, id: { notIn: idsDaLista } },
+    select: { id: true, nome: true, numero_area: true, ativo: true },
+  });
+
+/**
+ * Fase 1 da troca de códigos: tira as áreas da lista do caminho com um valor
+ * temporário próprio de cada uma (`#` + hash do id), para que trocas entre
+ * elas (1↔2) não batam no unique `[cliente_id, numero_area]` no meio.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string[]} ids
+ */
+export const liberarCodigos = async (tx, clienteId, ids) =>
+  tx.$executeRaw`
+    UPDATE "AreaPastagem" SET numero_area = '#' || left(md5(id), 31)
+     WHERE cliente_id = ${clienteId} AND id = ANY(${ids}::text[])`;
+
+/**
+ * Mantém a sequência de `numero_area` à frente do maior código numérico do
+ * tenant: depois de uma renumeração para códigos altos, a próxima área criada
+ * não pode receber um número que já existe.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {{clienteId: string, entidade: string, escopoTipo: string, escopoId: string}} chave
+ */
+export const alinharSequenciaAoMaiorCodigo = async (tx, { clienteId, entidade, escopoTipo, escopoId }) =>
+  tx.$executeRaw`
+    UPDATE "EntidadeCodigoSequencia"
+       SET proximo_valor = GREATEST(proximo_valor, (
+             SELECT COALESCE(MAX(numero_area::int), 0) + 1 FROM "AreaPastagem"
+              WHERE cliente_id = ${clienteId} AND numero_area ~ '^[0-9]{1,9}$'
+           )),
+           "updatedAt" = NOW()
+     WHERE cliente_id = ${clienteId} AND entidade = ${entidade}
+       AND escopo_tipo = ${escopoTipo} AND escopo_id = ${escopoId}`;
+
+/**
+ * A área mudou de setor: as tarefas dela que ainda carregam o setor ANTERIOR
+ * da área (o `setor_nome` da tarefa é o da área na atribuição —
+ * lancamentoTarefaService) acompanham. Tarefa com setor próprio fica.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {{areaId: string, setorNomeAnterior: string, setorNomeNovo: string}} troca
+ * @returns {Promise<string[]>} ids das tarefas atualizadas
+ */
+export const propagarSetorDaAreaParaTarefas = async (tx, clienteId, { areaId, setorNomeAnterior, setorNomeNovo }) => {
+  const linhas = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`
+    UPDATE "LancamentoTarefa" SET setor_nome = ${setorNomeNovo}, "updatedAt" = (now() AT TIME ZONE 'UTC')
+     WHERE cliente_id = ${clienteId} AND area_id = ${areaId} AND setor_nome = ${setorNomeAnterior}
+    RETURNING id`);
+  return linhas.map((l) => l.id);
+};
+
+/**
+ * D-PROD-216 — a cultura do tenant pelo id (o serviço confere a fazenda, o uso e
+ * se está ativa). `null` quando não existe ou é de outro cliente.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string} id
+ */
+export const buscarCulturaDoTenant = async (tx, clienteId, id) =>
+  tx.cultura.findUnique({
+    where: { cliente_id_id: { cliente_id: clienteId, id } },
+    select: { id: true, empresa_id: true, codigo: true, nome: true, tipo: true, ativo: true },
+  });

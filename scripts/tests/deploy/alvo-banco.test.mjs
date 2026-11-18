@@ -86,14 +86,29 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     env: { MIGRATION_DATABASE_URL: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID },
     conferir: async () => ({ ok: true, falhas: [], resumo: 'banco=postgres' }),
     resolverRuntime: async () => REMOTO,
-    // D-PROD-162, D-PROD-183, D-PROD-187 e D-PROD-194: alvo já com as quatro CONTRACT concluídas (a barreira delas
-    // tem prova própria em migrations.test.mjs, B11, B14, B16 e B15). Sem alguma das linhas, a CONTRACT pendente
-    // recusaria por conta própria.
+    // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197, D-PROD-200, D-PROD-208, D-PROD-209, D-PROD-210,
+    // D-PROD-211, D-PROD-216, D-PROD-217 e D-PROD-249: alvo já com as quatorze CONTRACT concluídas (a barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17, B18, B19, B20, B21, B22, B23, B24 e B25; a D-PROD-249 em backend/tests/atividadeAreasMigration.test.mjs). Sem alguma
+    // das linhas, a CONTRACT pendente recusaria por conta própria.
     lerHistorico: async () => [
       { migration_name: '20261110300000_patrimonio_simplifica', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261113200000_tipo_tarefa_drop_colunas', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261113500000_categoria_manejo_cadcategoria', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261114100000_cadcurvaganho_mensal', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261114200000_cadcategoria_curva_ganho', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261114300000_tipo_atividade_defaults', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261114500000_atividade_cabecalho', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261116000000_mao_obra_parceiro', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261116100000_funcionario_tipo_terceirizado', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-210: a décima CONTRACT (base do consumo na Formulação), B22 em migrations.test.mjs.
+      { migration_name: '20261116200000_formulacao_base_consumo', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-211: a décima primeira CONTRACT (o abastecimento ligado à atividade), B23 em migrations.test.mjs.
+      { migration_name: '20261116300000_abastecimento_atividade', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-216: a décima segunda CONTRACT (aditiva: a Área ligada à Cultura), B24 em migrations.test.mjs.
+      { migration_name: '20261117000000_area_cultura', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-217: a décima terceira CONTRACT (o reforço da FK do apontamento do abastecimento), B25 em migrations.test.mjs.
+      { migration_name: '20261117100000_abastecimento_fk_apontamento_atividade', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-249: a décima quarta CONTRACT (as áreas da atividade).
+      { migration_name: '20261118100000_atividade_areas', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},

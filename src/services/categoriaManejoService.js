@@ -7,6 +7,7 @@ import {
   createCategoriaManejo,
   updateCategoriaManejo,
   deleteCategoriaManejo,
+  listOpcoesCurvasGanhoCategoriaManejo,
 } from '@/apis/categorias-manejo';
 import { listLotes, listMovimentacoesPecuarias, listSuplementacaoLotes } from '@/apis/lotes';
 import { listManejosTecnicos } from '@/apis/rebanho';
@@ -27,6 +28,8 @@ const inteiroOuNulo = (valor) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
+/** Id escolhido no select; vazio vira `null` (o servidor responde `curva_obrigatoria`). */
+const idOuNulo = (valor) => (typeof valor === 'string' && valor.trim() ? valor.trim() : null);
 
 /**
  * Payload normalizado da categoria de manejo (P1.3-R1).
@@ -42,6 +45,9 @@ const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
  * vínculo com o ícone oficial (D-PROD-187) saíram do cadastro e **não** são
  * enviados, mesmo que o `formData` ainda os traga (registro antigo aberto
  * para edição).
+ *
+ * Curva de ganho (D-PROD-195): obrigatória e da MESMA fazenda; `curva_ganho_id`
+ * vai SEMPRE, no POST e no PATCH (manter a gravada, mesmo inativada, é permitido).
  *
  * Faixa de idade (decisão do proprietário, 2026-11-13): o formulário só
  * oferece as cinco faixas fixas. Na **edição**, as idades só vão no corpo
@@ -60,6 +66,8 @@ export const normalizarCategoriaManejo = (formData, { empresaId, edicao = false 
     sigla: maiusculoOuNulo(formData.sigla),
     especie: formData.especie || null,
     sexo: formData.sexo || null,
+    curva_ganho_id: idOuNulo(formData.curva_ganho_id),
+    peso_objetivo_kg: pesoObjetivoOuNulo(formData.peso_objetivo_kg),
     ativo: true,
   };
   if (edicao && formData.faixa_idade_alterada !== true) return payload;
@@ -69,6 +77,39 @@ export const normalizarCategoriaManejo = (formData, { empresaId, edicao = false 
     idade_maxima_meses: inteiroOuNulo(formData.idade_maxima_meses),
   };
 };
+
+/**
+ * D-PROD-198: número digitado em pt-BR. "1.200" e "1.200,5" são milhar (1200 e
+ * 1200,5), não 1,2; "450,5" e "450.5" são decimais. NaN quando não é número.
+ * @param {string} t texto já sem espaços nas pontas
+ */
+export const numeroPtBr = (t) => {
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) return Number(t.replace(/\./g, '').replace(',', '.'));
+  if (!/^\d+([.,]\d+)?$/.test(t)) return NaN;
+  return Number(t.replace(',', '.'));
+};
+
+/**
+ * D-PROD-198: peso objetivo (kg/cabeça), opcional. Vazio → null (limpa); aceita
+ * vírgula e milhar. Texto que não é número vai como está, e o servidor recusa com 400.
+ * @param {unknown} v
+ */
+export const pesoObjetivoOuNulo = (v) => {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'number') return v;
+  const t = String(v).trim();
+  if (!t) return null;
+  const n = numeroPtBr(t);
+  return Number.isFinite(n) ? n : t;
+};
+
+/**
+ * Curvas de ganho da fazenda para o seletor da categoria (D-PROD-195): ativas
+ * e inativas, em ordem de nome. Rota própria do cadastro, não a da tela de curvas.
+ * @param {string} empresaId
+ * @returns {Promise<Array<{ id: string, nome: string, ativo: boolean }>>}
+ */
+export const listarCurvasGanhoParaCategoria = (empresaId) => listOpcoesCurvasGanhoCategoriaManejo(empresaId);
 
 /**
  * @param {object} formData

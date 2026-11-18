@@ -59,6 +59,9 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   EMPRESA_NAME_CONFLICT: API_ERROR_CODES.EMPRESA_NAME_CONFLICT,
   UNIDADE_MEDIDA_NOT_FOUND: API_ERROR_CODES.UNIDADE_MEDIDA_NOT_FOUND,
   UNIDADE_MEDIDA_SIGLA_CONFLICT: API_ERROR_CODES.UNIDADE_MEDIDA_SIGLA_CONFLICT,
+  // D-PROD-197: a unidade usada como unidade de produção padrão de um Tipo de
+  // Atividade não sai (FK RESTRICT → 409, `details.vinculo`); a tela diz por quê.
+  UNIDADE_MEDIDA_DELETE_BLOCKED: API_ERROR_CODES.UNIDADE_MEDIDA_DELETE_BLOCKED,
   GRUPO_ATIVIDADE_NOT_FOUND: API_ERROR_CODES.GRUPO_ATIVIDADE_NOT_FOUND,
   GRUPO_ATIVIDADE_NAME_CONFLICT: API_ERROR_CODES.GRUPO_ATIVIDADE_NAME_CONFLICT,
   GRUPO_ATIVIDADE_DELETE_BLOCKED: API_ERROR_CODES.GRUPO_ATIVIDADE_DELETE_BLOCKED,
@@ -66,29 +69,56 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   TIPO_TAREFA_NAME_CONFLICT: API_ERROR_CODES.TIPO_TAREFA_NAME_CONFLICT,
   TIPO_ATIVIDADE_NOT_FOUND: API_ERROR_CODES.TIPO_ATIVIDADE_NOT_FOUND,
   TIPO_ATIVIDADE_NAME_CONFLICT: API_ERROR_CODES.TIPO_ATIVIDADE_NAME_CONFLICT,
-  // D-PROD-190 — Apontamento de Atividade e os bloqueios de exclusão que ele causa.
+  // D-PROD-197 — padrão do Tipo de Atividade recusado: `field`/`reason` (em
+  // `details`) escolhem o texto do motivo no catálogo.
+  TIPO_ATIVIDADE_PADRAO_INVALIDO: API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO,
+  // D-PROD-190/198 — a atividade barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED,
-  APONTAMENTO_ATIVIDADE_NOT_FOUND: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_NOT_FOUND,
-  APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA,
-  APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO,
-  APONTAMENTO_ATIVIDADE_DATA_FUTURA: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_FUTURA,
-  APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO,
-  APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA,
-  APONTAMENTO_ATIVIDADE_STATUS_INVALIDO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_STATUS_INVALIDO,
-  APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO,
-  APONTAMENTO_ATIVIDADE_VINCULADO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VINCULADO,
-  // D-PROD-193 — itens do apontamento: relê o detalhe ou diz o que foi recusado.
-  APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND,
-  APONTAMENTO_ATIVIDADE_ITEM_INVALIDO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_INVALIDO,
-  APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO,
-  APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS,
-  APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO,
-  APONTAMENTO_ATIVIDADE_DATA_COM_ITENS: API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_COM_ITENS,
+  // D-PROD-200 — Lançamento de Atividades (cabeçalho e apontamentos): a tela relê
+  // ou diz o campo recusado; sem estes, a recusa viraria OPERATION_FAILED.
+  ATIVIDADE_NOT_FOUND: API_ERROR_CODES.ATIVIDADE_NOT_FOUND,
+  ATIVIDADE_APONTAMENTO_NOT_FOUND: API_ERROR_CODES.ATIVIDADE_APONTAMENTO_NOT_FOUND,
+  ATIVIDADE_AREA_NOT_FOUND: API_ERROR_CODES.ATIVIDADE_AREA_NOT_FOUND,
+  ATIVIDADE_AREA_COM_LANCAMENTOS: API_ERROR_CODES.ATIVIDADE_AREA_COM_LANCAMENTOS,
+  ATIVIDADE_REFERENCIA_INVALIDA: API_ERROR_CODES.ATIVIDADE_REFERENCIA_INVALIDA,
+  ATIVIDADE_EXIGIDA_PELO_TIPO: API_ERROR_CODES.ATIVIDADE_EXIGIDA_PELO_TIPO,
+  ATIVIDADE_DATA_INVALIDA: API_ERROR_CODES.ATIVIDADE_DATA_INVALIDA,
+  ATIVIDADE_STATUS_INVALIDO: API_ERROR_CODES.ATIVIDADE_STATUS_INVALIDO,
+  ATIVIDADE_VERSAO_CONFLITO: API_ERROR_CODES.ATIVIDADE_VERSAO_CONFLITO,
+  ATIVIDADE_MOTIVO_INVALIDO: API_ERROR_CODES.ATIVIDADE_MOTIVO_INVALIDO,
+  // Exclusão de cadastro barrada por atividade ou apontamento (FK reconhecida pelo nome).
+  ATIVIDADE_VINCULADA: API_ERROR_CODES.ATIVIDADE_VINCULADA,
+  // D-PROD-202 — linhas de produto e de máquina: a tela relê (linha sumiu), pede a justificativa do salto e resende,
+  // ou diz por que o estorno exato e a troca de data foram recusados.
+  ATIVIDADE_LINHA_NOT_FOUND: API_ERROR_CODES.ATIVIDADE_LINHA_NOT_FOUND,
+  ATIVIDADE_LINHA_INVALIDA: API_ERROR_CODES.ATIVIDADE_LINHA_INVALIDA,
+  ATIVIDADE_SALTO_MEDIDOR: API_ERROR_CODES.ATIVIDADE_SALTO_MEDIDOR,
+  ATIVIDADE_ESTORNO_BLOQUEADO: API_ERROR_CODES.ATIVIDADE_ESTORNO_BLOQUEADO,
+  ATIVIDADE_DATA_COM_LINHAS: API_ERROR_CODES.ATIVIDADE_DATA_COM_LINHAS,
   ESTACAO_NOT_FOUND: API_ERROR_CODES.ESTACAO_NOT_FOUND,
   ESTACAO_NAME_CONFLICT: API_ERROR_CODES.ESTACAO_NAME_CONFLICT,
   ESTACAO_PERIODO_SOBREPOSTO: API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO,
+  CULTURA_NOT_FOUND: API_ERROR_CODES.CULTURA_NOT_FOUND,
+  CULTURA_NAME_CONFLICT: API_ERROR_CODES.CULTURA_NAME_CONFLICT,
+  CULTURA_CODIGO_CONFLICT: API_ERROR_CODES.CULTURA_CODIGO_CONFLICT,
+  CULTURA_EM_USO: API_ERROR_CODES.CULTURA_EM_USO,
+  SERVICO_NOT_FOUND: API_ERROR_CODES.SERVICO_NOT_FOUND,
+  SERVICO_REFERENCIA_INVALIDA: API_ERROR_CODES.SERVICO_REFERENCIA_INVALIDA,
   CURVA_GANHO_NOT_FOUND: API_ERROR_CODES.CURVA_GANHO_NOT_FOUND,
   CURVA_GANHO_NAME_CONFLICT: API_ERROR_CODES.CURVA_GANHO_NAME_CONFLICT,
+  // D-PROD-195 — 409 ao excluir curva ligada a categoria de manejo.
+  CURVA_GANHO_EM_USO: API_ERROR_CODES.CURVA_GANHO_EM_USO,
+  // D-PROD-203 — Formulações de suplemento.
+  FORMULACAO_NOT_FOUND: API_ERROR_CODES.FORMULACAO_NOT_FOUND,
+  FORMULACAO_NAME_CONFLICT: API_ERROR_CODES.FORMULACAO_NAME_CONFLICT,
+  FORMULACAO_EM_USO: API_ERROR_CODES.FORMULACAO_EM_USO,
+  // D-PROD-205 — Leitura de cocho.
+  LEITURA_COCHO_NOT_FOUND: API_ERROR_CODES.LEITURA_COCHO_NOT_FOUND,
+  // D-PROD-219 — Medição de Forragem.
+  MEDICAO_FORRAGEM_NOT_FOUND: API_ERROR_CODES.MEDICAO_FORRAGEM_NOT_FOUND,
+  // D-PROD-230 — Assistente só de leitura.
+  ASSISTENTE_NAO_CONFIGURADO: API_ERROR_CODES.ASSISTENTE_NAO_CONFIGURADO,
+  ASSISTENTE_INDISPONIVEL: API_ERROR_CODES.ASSISTENTE_INDISPONIVEL,
   USUARIO_NOT_FOUND: API_ERROR_CODES.USUARIO_NOT_FOUND,
   USUARIO_LOGIN_DUPLICADO: API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO,
   USUARIO_SELF_DEACTIVATE: API_ERROR_CODES.USUARIO_SELF_DEACTIVATE,
@@ -297,6 +327,12 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
 
   // 502/503/504 são indisponibilidade de infraestrutura, não erro de contrato:
   // o corpo pode nem ser do nosso backend (proxy, load balancer).
+  // Exceção: 503 do PRÓPRIO backend com código do assistente (D-PROD-230) mostra a
+  // mensagem do assistente, não a de infraestrutura.
+  const codigoAssistente = ehObjeto(corpo) && String(corpo.code ?? '').startsWith('ASSISTENTE_') ? CODIGOS_PRESERVADOS[corpo.code] : null;
+  if (resposta.status === 503 && codigoAssistente) {
+    throw new ApiError(codigoAssistente, { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(corpo, contexto.details), cause: corpo });
+  }
   if (resposta.status === 502 || resposta.status === 503 || resposta.status === 504) {
     throw erroDeIndisponibilidade(contexto, new Error(`HTTP ${resposta.status}`));
   }
@@ -311,4 +347,108 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
     // enumerável — some de `JSON.stringify`, inclusive a `message` do servidor.
     cause: corpo,
   });
+};
+
+/**
+ * D-PROD-230 — POST que responde em Server-Sent Events. Mesmas regras de URL, token e
+ * erros HTTP de `nativeRequest` (resposta que não é 200 vira o mesmo `ApiError`).
+ * Cada evento chega em `aoEvento({ evento, dados })`; um evento `erro` vira `ApiError`
+ * com o código do servidor. `recebeuAlgo` no erro diz se algum byte do fluxo chegou
+ * (quem chama decide se dá para repetir pelo caminho sem fluxo).
+ *
+ * @param {string} caminho
+ * @param {{ body: object, signal?: AbortSignal }} opcoes
+ * @param {{operation: string, resource: string, details?: object}} contexto
+ * @param {(e: { evento: string, dados: any }) => void} aoEvento
+ */
+export const nativeStream = async (caminho, opcoes, contexto, aoEvento) => {
+  const base = getNativeApiUrl();
+  if (!base) throw erroDeIndisponibilidade(contexto, new Error('VITE_MAIKE_API_URL ausente'));
+  const token = getNativeToken();
+  if (!token) {
+    throw new ApiError(API_ERROR_CODES.TENANT_CONTEXT_REQUIRED, { operation: contexto.operation, resource: contexto.resource, details: contexto.details ?? null });
+  }
+  const marcar = (erro, recebeuAlgo) => Object.assign(erro, { recebeuAlgo });
+  if (opcoes.signal?.aborted) throw marcar(erroDeIndisponibilidade(contexto, Object.assign(new Error('requisição cancelada'), { name: 'AbortError' })), false);
+
+  let resposta;
+  try {
+    resposta = await fetch(montarUrl(base, caminho), {
+      method: 'POST',
+      headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(opcoes.body),
+      signal: opcoes.signal,
+      credentials: 'omit',
+    });
+  } catch (erro) {
+    throw marcar(erroDeIndisponibilidade(contexto, erro), false);
+  }
+
+  if (!resposta.ok) {
+    let corpo = null;
+    try {
+      corpo = await lerCorpo(resposta);
+    } catch {
+      corpo = null;
+    }
+    const codigoAssistente = ehObjeto(corpo) && String(corpo.code ?? '').startsWith('ASSISTENTE_') ? CODIGOS_PRESERVADOS[corpo.code] : null;
+    if (resposta.status === 503 && codigoAssistente) {
+      throw marcar(new ApiError(codigoAssistente, { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(corpo, contexto.details), cause: corpo }), true);
+    }
+    if (resposta.status === 502 || resposta.status === 503 || resposta.status === 504) {
+      throw marcar(erroDeIndisponibilidade(contexto, new Error(`HTTP ${resposta.status}`)), false);
+    }
+    throw marcar(
+      new ApiError(traduzirCodigo(ehObjeto(corpo) ? corpo.code : null), { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(corpo, contexto.details), cause: corpo }),
+      true,
+    );
+  }
+
+  const tipo = resposta.headers?.get?.('content-type') ?? '';
+  if (!resposta.body || !tipo.includes('text/event-stream')) {
+    // Algum proxy no caminho não deixou o fluxo passar: quem chama repete sem fluxo.
+    throw marcar(erroDeIndisponibilidade(contexto, new Error('resposta sem fluxo')), false);
+  }
+
+  const leitor = resposta.body.getReader();
+  const decodificador = new TextDecoder();
+  let resto = '';
+  let recebeuAlgo = false;
+  const processarBloco = (bloco) => {
+    let evento = 'message';
+    let dados = '';
+    for (const linha of bloco.split('\n')) {
+      if (linha.startsWith('event:')) evento = linha.slice(6).trim();
+      else if (linha.startsWith('data:')) dados += linha.slice(5).trim();
+    }
+    if (!dados) return;
+    let valor;
+    try {
+      valor = JSON.parse(dados);
+    } catch {
+      return;
+    }
+    if (evento === 'erro') {
+      throw marcar(new ApiError(traduzirCodigo(ehObjeto(valor) ? valor.code : null), { operation: contexto.operation, resource: contexto.resource, details: detalhesSeguros(valor, contexto.details), cause: valor }), true);
+    }
+    aoEvento({ evento, dados: valor });
+  };
+  try {
+    for (;;) {
+      const { value, done } = await leitor.read();
+      if (done) break;
+      recebeuAlgo = true;
+      resto += decodificador.decode(value, { stream: true });
+      let fim;
+      while ((fim = resto.indexOf('\n\n')) >= 0) {
+        const bloco = resto.slice(0, fim);
+        resto = resto.slice(fim + 2);
+        processarBloco(bloco);
+      }
+    }
+    if (resto.trim()) processarBloco(resto);
+  } catch (erro) {
+    if (erro instanceof ApiError) throw erro;
+    throw marcar(erroDeIndisponibilidade(contexto, erro), recebeuAlgo);
+  }
 };

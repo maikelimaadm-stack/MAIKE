@@ -61,13 +61,34 @@ export const lerHectares = (valor) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+/** "1.500" / "12.345.678": só grupos de milhar com ponto, sem vírgula (pt-BR). */
+const SO_MILHAR_PT_BR = /^\d{1,3}(\.\d{3})+$/;
+
+/**
+ * Hectares digitados num formulário em pt-BR. Igual a {@link lerHectares}, mas
+ * "1.500" (ponto separando grupos de 3 dígitos, sem vírgula) é milhar — 1500 ha,
+ * não 1,5 ha —, como já leem os demais formulários do produto. "10.5" e "1.5"
+ * (ponto decimal do teclado) continuam decimais; "1.234,56" segue como pt-BR.
+ *
+ * Não muda a leitura da importação por arquivo, que segue em {@link lerHectares}.
+ * @param {unknown} valor
+ * @returns {number | null | typeof NaN}
+ */
+export const lerHectaresDigitados = (valor) => {
+  if (typeof valor === "string" && SO_MILHAR_PT_BR.test(valor.trim())) {
+    return lerHectares(valor.trim().replace(/\./g, ""));
+  }
+  return lerHectares(valor);
+};
+
 /**
  * Pendências de uma área, na ordem da tela. Vazio = pode gravar.
  *
  * @param {{
  *   nome?: string, sigla?: string, setor_id?: string, tipo_cultura?: string, tipo_pastagem?: string,
- *   area_pastejada?: unknown, total_ha?: number | null
- * }} campos `total_ha` é a área total geodésica (ou `null` se ainda não há contorno)
+ *   area_pastejada?: unknown, total_ha?: number | null, cultura_id?: string | null
+ * }} campos `total_ha` é a área total geodésica (ou `null` se ainda não há contorno). Com `cultura_id` (D-PROD-216),
+ * `tipo_pastagem` é o nome da cultura do cadastro (derivado pelo servidor) e não precisa estar na lista fixa.
  * @returns {{ campo: string, mensagem: string }[]}
  */
 export const pendenciasDaArea = (campos) => {
@@ -101,7 +122,7 @@ export const pendenciasDaArea = (campos) => {
   }
 
   if (usoExploraArea(uso) && !tipo) pend.push({ campo: "tipo_pastagem", mensagem: "Escolha o tipo de cultura." });
-  if (tipo && !TIPOS_CULTURAS.includes(tipo)) pend.push({ campo: "tipo_pastagem", mensagem: "Tipo de cultura desconhecido." });
+  if (tipo && !campos.cultura_id && !TIPOS_CULTURAS.includes(tipo)) pend.push({ campo: "tipo_pastagem", mensagem: "Tipo de cultura desconhecido." });
 
   const pastejada = lerHectares(campos.area_pastejada);
   if (pastejada === null) {

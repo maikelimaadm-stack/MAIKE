@@ -44,6 +44,10 @@ export const TELAS = Object.freeze({
   ESTACOES: Object.freeze({ modulo: 'manejo', tela: 'pec-estacoes' }),
   // D-PROD-189 — mesmo id do item de menu `pec-curvas-ganho`. Sem concessão automática.
   CURVAS_GANHO: Object.freeze({ modulo: 'manejo', tela: 'pec-curvas-ganho' }),
+  // D-PROD-203 — mesmo id do item de menu `pec-formulacoes`. Sem concessão automática.
+  FORMULACOES: Object.freeze({ modulo: 'manejo', tela: 'pec-formulacoes' }),
+  // D-PROD-215 — mesmo id do item de menu `pec-culturas`. Sem concessão automática.
+  CULTURAS: Object.freeze({ modulo: 'manejo', tela: 'pec-culturas' }),
   PRODUTOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-produtos' }),
   CATEGORIAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-categorias' }),
   MARCAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-marcas' }),
@@ -53,6 +57,10 @@ export const TELAS = Object.freeze({
   // D-PROD-182 — mesmo id do item de menu `sup-tipos-atividade`.
   TIPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-atividade' }),
   GRUPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-grupos-atividades' }),
+  // D-PROD-207 — cadastro de Serviço (Fatia 4 do Lançamento de Atividades). Mesmo
+  // id do item de menu. Sem concessão automática. D-PROD-208: o cadastro de
+  // Funcionário (`sup-funcionarios`) saiu — o funcionário é papel do parceiro.
+  SERVICOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-servicos' }),
   EMPRESA: Object.freeze({ modulo: 'administracao', tela: 'adm-empresa' }),
   // D-PROD-146 — Gestão Rural (cadastros; sem financeiro transacional). Nenhuma
   // concessão automática: sem linha de Permissão, só admin real e is_admin.
@@ -72,11 +80,14 @@ export const TELAS = Object.freeze({
   PATRIMONIO_BENS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-bens-patrimoniais' }),
   // D-PROD-159 — Patrimônio P1-02: abastecimentos e consumo (baixa física de estoque). Sem concessão automática.
   PATRIMONIO_ABASTECIMENTOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-abastecimentos' }),
-  // D-PROD-190 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
-  // Mesmo id do item de menu `op-apontamentos-atividade`; o módulo é o id do grupo
-  // de menu que o contém (`suporte-mapa`, logo abaixo de Tipos de Atividade, no
-  // mesmo esquema de `sup-tipos-atividade`). Sem concessão automática a perfis antigos.
-  APONTAMENTOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'op-apontamentos-atividade' }),
+  // D-PROD-200 — Lançamento de Atividades (cabeçalho + apontamentos do dia/turno).
+  // Mesmo id do item de menu `op-atividades`, no grupo `suporte-mapa`, logo abaixo
+  // de Tipos de Atividade. As permissões do apontamento e a de reabrir são AÇÕES
+  // EXTRAS desta mesma linha (`ACOES_ATIVIDADES_EXTRAS`): a tela Permissões só
+  // desenha páginas do menu. Sem concessão automática a perfis antigos. Substitui
+  // a tela `op-apontamentos-atividade` (D-PROD-190): as linhas dela gravadas em
+  // `permissoes_telas` ficam inertes (nenhuma guarda as pede; precedente D-PROD-162).
+  ATIVIDADES: Object.freeze({ modulo: 'suporte-mapa', tela: 'op-atividades' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
@@ -107,6 +118,16 @@ export const ACOES_PATRIMONIO_EXTRAS = Object.freeze(['inativar']);
 export const ACOES_ABASTECIMENTO_EXTRAS = Object.freeze(['cancelar']);
 
 /**
+ * D-PROD-200 — ações EXTRAS da tela `op-atividades` (Lançamento de Atividades),
+ * gravadas na própria linha da tela em `permissoes_telas` (padrão de
+ * ACOES_LANCAMENTOS_FINANCEIROS, D-PROD-155): reabrir a atividade concluída e
+ * lançar (criar e repetir), editar e cancelar apontamento. Nascem desligadas:
+ * ausente/não booleano = negado; administrador real e `is_admin` têm tudo.
+ * Mesma lista no navegador (teste de paridade front↔back).
+ */
+export const ACOES_ATIVIDADES_EXTRAS = Object.freeze(['reabrir', 'lancar_apontamento', 'editar_apontamento', 'cancelar_apontamento']);
+
+/**
  * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo
  * desconhecido → null (o chamador decide; os guardas abaixo negam).
  * @param {unknown} tipo
@@ -132,6 +153,8 @@ export const chaveMapaDoTipo = (tipo) => {
 export const ACOES_GRAVADORAS_MAPA = Object.freeze([
   'mover_lotes', 'pesar_lotes', 'mudar_categoria_lotes', 'registrar_nascimento', 'registrar_morte',
   'registrar_abate', 'renomear_lotes', 'juntar_lotes', 'lancar_suplementacao', 'movimentar_depositos',
+  // D-PROD-219 — Medição de Forragem do pasto.
+  'medir_forragem',
 ]);
 
 const semAcento = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();

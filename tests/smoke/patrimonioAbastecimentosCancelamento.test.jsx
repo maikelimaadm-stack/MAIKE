@@ -173,3 +173,30 @@ describe('FE6 — cancelamento', () => {
     expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '70.0000']);
   });
 });
+
+describe('FE6 — cancelamento do posto externo (D-PROD-211)', () => {
+  it('posto externo: o diálogo diz que nada volta ao estoque; corpo de A5 de sempre; só o status muda (sem estorno)', async () => {
+    await semearAbastecimento(amb.estado, {
+      bem_id: 'b2', tanque_id: 'tq2', produto_id: 'p2', origem: 'EXTERNO', custo_total: '300',
+      data_operacional: '2026-06-11', quantidade: '50', medidor_leitura: '35300', tanque_cheio: false,
+    });
+    const lotes = amb.estado.lotes.map((l) => l.disponivel);
+    await montar();
+    fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-2'));
+    const consulta = await screen.findByTestId('abastecimento-consulta');
+    expect(within(consulta).getByTestId('consulta-origem')).toHaveTextContent('Posto externo');
+    fireEvent.click(within(consulta).getByTestId('abastecimento-cancelar'));
+    const dialogo = await screen.findByTestId('dialogo-cancelamento-abastecimento');
+    expect(dialogo).toHaveTextContent('não houve baixa do estoque, então nada volta ao estoque');
+    expect(dialogo).not.toHaveTextContent('o estoque volta exatamente aos lotes de origem');
+    preencher(dialogo, 'Nota lançada no carro errado');
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('cancelamento-enviar')));
+    expect(await screen.findByText('Abastecimento nº 2 cancelado: deixa de contar no consumo e nos custos.')).toBeTruthy();
+    const chamada = amb.backend.chamadas.filter((c) => c.method === 'POST' && c.path === '/patrimonio-abastecimentos/ab-2/cancelar').at(-1);
+    expect(chamada.body).toEqual({ empresa_id: 'emp-1', versao: 1, motivo: 'Nota lançada no carro errado', operation_id: expect.any(String) });
+    const depois = await screen.findByTestId('abastecimento-consulta');
+    await waitFor(() => expect(within(depois).getByTestId('abastecimento-consulta-situacao')).toHaveTextContent('Cancelado'));
+    expect(within(depois).queryByTestId('consulta-estorno')).toBeNull();
+    expect(amb.estado.lotes.map((l) => l.disponivel)).toEqual(lotes);
+  });
+});

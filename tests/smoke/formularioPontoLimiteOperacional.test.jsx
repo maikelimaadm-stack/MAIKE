@@ -32,6 +32,7 @@ vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () 
 vi.mock('@/services/mapaService', () => ({
   listarIconesPorTipoEntidade: vi.fn(async () => []),
   listarTodosPontos: vi.fn(async () => []),
+  listarPontosAtivos: vi.fn(async () => []),
   listarTodosPontosSuplementacao: vi.fn(async () => []),
   listarTodosBebedouros: vi.fn(async () => []),
   listarSetoresAtivos: vi.fn(async () => [{ id: 's1', nome: 'SETOR 1', empresa_id: 'emp-1' }]),
@@ -192,4 +193,17 @@ describe('FormularioPonto — limite operacional (D-PROD-178)', () => {
     expect(coluna?.label).toBe('Limite op. (kg) / Capac. (L)');
     expect(COLUNAS_PONTOS.some((item) => item.label === 'Capacidade (kg)')).toBe(false);
   });
+});
+
+
+it('oferece Cocho e Depósito sem ícones cadastrados e abre os respectivos campos', async () => {
+  await montar();
+  const seletor = screen.getAllByRole('combobox')[0];
+  fireEvent.click(seletor);
+  fireEvent.click(await screen.findByRole('option', { name: /^COCHO$/i }));
+  expect(screen.getByText('Dados do Cocho')).toBeTruthy();
+  fireEvent.click(seletor);
+  fireEvent.click(await screen.findByRole('option', { name: /^DEPÓSITO$/i }));
+  expect(screen.getByText('Depósito de Suplementação')).toBeTruthy();
+  expect(screen.queryByText('Dados do Cocho')).toBeNull();
 });

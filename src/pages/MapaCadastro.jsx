@@ -26,6 +26,7 @@ import {
   valorDoPonto,
 } from "../components/mapa/cadastro/colunasCadastroMapa";
 import * as mapaService from "@/services/mapaService";
+import { invalidarCachesDoMapa } from "../components/mapa/invalidarCachesMapa";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 
 const TITULO = "Cadastro de Áreas, Pontos e Linhas";
@@ -101,11 +102,17 @@ export default function MapaCadastro() {
     initialData: [],
   });
 
-  // ── Exclusões (mesmas regras e invalidações de antes) ──────────────────
-  const invalidarAreas = useCallback(
-    () => queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "areas" }),
-    [queryClient],
-  );
+  // ── Exclusões e gravações: o cadastro e o Mapa Geral ('mapa-cache') ─────
+  // O Mapa Geral é outra rota (desmontado aqui): sem invalidar 'mapa-cache' ele
+  // voltava mostrando a área/ponto/linha de antes por até 5 minutos.
+  const invalidarAreas = useCallback(() => {
+    invalidarCachesDoMapa(queryClient, ["areas"]);
+    return queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "areas" });
+  }, [queryClient]);
+  const invalidarLinhas = useCallback(() => {
+    invalidarCachesDoMapa(queryClient, ["linhas"]);
+    return queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "linhas" });
+  }, [queryClient]);
 
   const excluirAreas = useCallback(
     async (ids) => {
@@ -125,6 +132,7 @@ export default function MapaCadastro() {
   );
 
   const invalidarPontos = useCallback(() => {
+    invalidarCachesDoMapa(queryClient, ["pontos", "pontos-suplementacao", "pontos-supl", "mapa-pontos", "mapa-pontos-supl"]);
     queryClient.invalidateQueries({
       predicate: (q) =>
         Array.isArray(q.queryKey) && ["pontos", "pontos-suplementacao", "pontos-supl", "mapa-pontos", "mapa-pontos-supl"].includes(q.queryKey[0]),
@@ -157,9 +165,9 @@ export default function MapaCadastro() {
           toast.error(getApiErrorMessage(error, "Erro ao excluir linha"));
         }
       }
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "linhas" });
+      invalidarLinhas();
     },
-    [queryClient],
+    [invalidarLinhas],
   );
 
   // ── Mapa: desenhar, marcar e editar a geometria ────────────────────────
@@ -236,7 +244,10 @@ export default function MapaCadastro() {
               item={item}
               coordenadas={verticesDoItem(item)}
               readOnly={readOnly}
-              onSave={onSalvo}
+              onSave={(...args) => {
+                onSalvo(...args);
+                invalidarAreas();
+              }}
               onCancel={() => {}}
               onSalvandoChange={onSalvandoChange}
             />
@@ -338,7 +349,10 @@ export default function MapaCadastro() {
               item={item}
               coordenadas={verticesDoItem(item)}
               readOnly={readOnly}
-              onSave={onSalvo}
+              onSave={(...args) => {
+                onSalvo(...args);
+                invalidarLinhas();
+              }}
               onCancel={() => {}}
               onSalvandoChange={onSalvandoChange}
             />
@@ -368,8 +382,22 @@ export default function MapaCadastro() {
         }}
       />
 
-      {showImportarAreas && <ImportarAreasDialog open={showImportarAreas} onOpenChange={setShowImportarAreas} />}
-      <ModalCadastroLotePontos open={showCadastroLotePontos} onOpenChange={setShowCadastroLotePontos} />
+      {showImportarAreas && (
+        <ImportarAreasDialog
+          open={showImportarAreas}
+          onOpenChange={(aberto) => {
+            setShowImportarAreas(aberto);
+            if (!aberto) invalidarAreas();
+          }}
+        />
+      )}
+      <ModalCadastroLotePontos
+        open={showCadastroLotePontos}
+        onOpenChange={(aberto) => {
+          setShowCadastroLotePontos(aberto);
+          if (!aberto) invalidarPontos();
+        }}
+      />
 
       {showSelecaoMapa && (
         <SelecaoAreasMapa

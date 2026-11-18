@@ -1,15 +1,24 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-119 — Detalhes do Lote: um botão só ("Manejos e históricos") abre os
- * quadros (ícone + nome) em grupos separados; sem os menus "Eventos"/"Históricos".
- * O resto do Detalhes do Lote fica como era.
+ * D-PROD-119 — Detalhes do Lote: os manejos e os históricos em quadros (ícone +
+ * nome), em grupos separados; sem os menus "Eventos"/"Históricos".
+ * D-PROD-218 — a grade é a tela empilhada "Manejos e históricos" da casca do
+ * Detalhes v12, aberta pelo "Manejos" do rodapé, com 3 colunas em todos os modos.
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import { Scale } from "lucide-react";
 import AcoesDoLote from "@/components/mapa/AcoesDoLote";
+import PainelPasto from "@/components/mapa/detalhes-lote/PainelPasto";
+import { montarModeloDetalhes } from "@/components/mapa/detalhes-lote/catalogo";
 import { readFileSync } from "node:fs";
+
+// O conteúdo da aba Lotes é de outra peça (LOTES); aqui só a casca importa.
+vi.mock("@/components/mapa/detalhes-lote/AbaLotes", async () => {
+  const { createElement } = await import("react");
+  return { default: () => createElement("div", { "data-testid": "aba-lotes" }) };
+});
 
 afterEach(cleanup);
 
@@ -19,9 +28,14 @@ const grupos = (pesar, historico) => [
   { titulo: "Manejos", itens: [{ nome: "Pesar", Icone: Scale, onClick: pesar }] },
   { titulo: "Históricos", itens: [{ nome: "Movimentação", rotulo: "Histórico de Movimentação", Icone: Scale, onClick: historico }] },
 ];
-const comoCelular = (sim) => {
-  window.matchMedia = /** @type {any} */ ((q) => ({ matches: sim && /max-width: 639px/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
-};
+
+const PERMISSOES = { mover: true, pesar: true, historico: true, supl: true, detalhesCocho: true, lancarSupl: true, historicoCocho: true };
+const modelo = () =>
+  montarModeloDetalhes({
+    area: { id: "a1", nome: "Pasto 07", tamanho_hectares: 100 },
+    lotes: [{ id: "p1", nome: "L-2026-008", categoria: "VACA", quantidade_cabecas: 38, peso_medio_kg: 449.5, area_atual_id: "a1", __posicao: true }],
+    hoje: new Date("2026-11-15T12:00:00"),
+  });
 
 describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () => {
   it("sem menus suspensos; dois grupos separados — Manejos e Históricos", () => {
@@ -39,46 +53,52 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     }
   });
 
-  it("mesmos campos do lote e da área (só o visual mudou)", () => {
-    // UI-DETALHES-LOTE-V8: os campos saíram do DetalhesLote para o catálogo único (uma definição por
-    // campo) e para o cartão da aba Tudo; a unidade foi para o rótulo ("Peso médio (kg)").
+  it("D-PROD-124: sem \"Categoria Oficial\" no lote nem \"Sistemas Reprodutivos\"/\"Lotes:\" na área", () => {
+    // Os campos v12 do lote e da área (cartões, grade e tabela) são da aba Lotes/Detalhes (peça LOTES).
     const catalogo = readFileSync("src/components/mapa/detalhes-lote/catalogo.js", "utf8");
-    const cartoesTudo = readFileSync("src/components/mapa/detalhes-lote/CartoesLoteTudo.jsx", "utf8");
-    const area = readFileSync("src/components/mapa/InformacoesArea.jsx", "utf8");
-    const camposLote = catalogo.slice(catalogo.indexOf("export function camposCartaoTudo"));
-    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso médio (kg)", "Dias de pastejo", "Sist. Rep.", "Raça Predom.", "Sexo"]) {
-      expect(camposLote, c).toContain(c);
-    }
-    expect(cartoesTudo).toContain("Categoria de Manejo:");
-    // D-PROD-124: o proprietário tirou "Categoria Oficial" do lote e "Sistemas Reprodutivos"/"Lotes" da área.
-    for (const f of [fonte, catalogo, cartoesTudo]) expect(f).not.toContain("Categoria Oficial");
-    for (const f of [area, catalogo]) expect(f).not.toMatch(/Sistemas Reprodutivos|Lotes:/);
-    expect(area).toContain("area.camposResumo");
-    for (const c of ["Hectares", "UA/ha", "UA total", "Qtd. Lotes", "Qtd. Cabeças", "Média geral", "Pastagem", "Dias pastejo"]) {
-      expect(catalogo, c).toContain(c);
-    }
+    for (const f of [fonte, catalogo]) expect(f).not.toContain("Categoria Oficial");
+    expect(catalogo).not.toMatch(/Sistemas Reprodutivos|Lotes:/);
   });
 
-  it("desktop: quadros à vista; um clique abre a ação", async () => {
-    comoCelular(false);
+  it("a grade é só a grade: grupos com nome, cada quadro chama a ação (sem gatilho nem diálogo próprios)", () => {
     const pesar = vi.fn();
-    render(<AcoesDoLote grupos={grupos(pesar, vi.fn())} />);
-    expect(screen.queryByRole("button", { name: "Manejos e históricos" })).toBeNull();
+    const historico = vi.fn();
+    render(<AcoesDoLote grupos={grupos(pesar, historico)} />);
     expect(screen.getByRole("region", { name: "Manejos" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Históricos" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Manejos e históricos" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Pesar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Histórico de Movimentação" }));
     expect(pesar).toHaveBeenCalledTimes(1);
+    expect(historico).toHaveBeenCalledTimes(1);
   });
 
-  it("celular: um botão só abre a folha; escolher fecha a folha e chama a ação", async () => {
-    comoCelular(true);
-    const historico = vi.fn();
-    render(<AcoesDoLote grupos={grupos(vi.fn(), historico)} />);
-    expect(screen.queryByRole("button", { name: "Histórico de Movimentação" })).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" })); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Histórico de Movimentação" })); });
-    expect(historico).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "Histórico de Movimentação" })).toBeNull();
-    comoCelular(false);
+  it("v12: 3 colunas em todos os modos, quadro #65d1ec de 112 px, desabilitado a 45%", () => {
+    const css = readFileSync("src/styles/acoes-lote-modulos.css", "utf8");
+    expect(css).toMatch(/\.mk-al__quadros:not\(#mk-padrao\) \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[^}]*gap: 10px;/);
+    expect(css).not.toMatch(/@media/);
+    expect(css).toMatch(/\.mk-al__quadro:not\(#mk-padrao\) \{[^}]*min-height: 112px;[^}]*border-radius: 12px;[^}]*background: #65d1ec !important;/);
+    expect(css).toMatch(/\.mk-al__quadro:not\(#mk-padrao\):disabled \{[^}]*opacity: 0\.45;/);
+  });
+
+  it("casca: \"Manejos\" do rodapé empilha \"Manejos e históricos\" com a grade; ‹ volta às abas", async () => {
+    const pesar = vi.fn();
+    render(
+      <PainelPasto modelo={modelo()} permissoes={PERMISSOES} dados={{ areaNome: "Pasto 07", setorNome: "Retiro" }}
+        manejos={<AcoesDoLote grupos={grupos(pesar, vi.fn())} />} />,
+    );
+    expect(screen.queryByRole("region", { name: "Manejos" })).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Manejos" })); });
+    expect(screen.getByRole("heading", { name: "Manejos e históricos" })).toBeTruthy();
+    expect(screen.getByText("Pasto 07")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Manejos" })).toBeTruthy();
+    // Na tela de manejos não há rodapé (nem abas): o quadro "Pesar" é o único botão com esse nome.
+    expect(screen.queryByRole("tablist")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Pesar" }));
+    expect(pesar).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Voltar" })); });
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Manejos" })).toBeNull();
   });
 });
