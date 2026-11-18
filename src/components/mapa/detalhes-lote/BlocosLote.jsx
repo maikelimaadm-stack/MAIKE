@@ -45,6 +45,7 @@ export function PartesDoCartao({ campos }) {
         if (sozinha) {
           return (
             <Linha
+              textoAutomatico
               key={sozinha.chave ?? `l${i}`}
               rotulo={sozinha.rotulo}
               sub={sozinha.dica}
@@ -60,6 +61,7 @@ export function PartesDoCartao({ campos }) {
           <Grade key={itens[0]?.chave ?? `g${i}`}>
             {itens.map((c) => (
               <Celula
+                textoAutomatico
                 key={c.chave ?? c.rotulo}
                 rotulo={c.rotulo}
                 valor={c.texto}
@@ -120,7 +122,7 @@ export function BlocosLote({ lote, mostrarNome = true, categoriaNoCabecalho = fa
                 {lote.projecao?.projecao_mensal?.length ? (
                   <Grade>
                     {lote.projecao.projecao_mensal.slice(0, 3).map((mes) => (
-                      <Celula key={mes.dia} rotulo={fmtDataCurta(mes.dia)} valor={`${fmtNum(mes.peso_kg, 0)} kg`} />
+                      <Celula textoAutomatico key={mes.dia} rotulo={fmtDataCurta(mes.dia)} valor={`${fmtNum(mes.peso_kg, 0)} kg`} />
                     ))}
                   </Grade>
                 ) : <Linha rotulo="Peso projetado (kg)" valor={VAZIO} />}

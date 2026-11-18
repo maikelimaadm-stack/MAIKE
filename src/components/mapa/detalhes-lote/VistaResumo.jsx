@@ -21,6 +21,7 @@ export function VistaResumo() {
   return (
     <>
       <Kpis
+        textoAutomatico
         colunas={5}
         className="mk-dp-resumo-indicadores"
         distribuicao="var(--mk-dp-resumo-colunas)"
@@ -39,6 +40,7 @@ export function VistaResumo() {
       >
         {lotes.map((l) => (
           <Item
+            textoAutomatico
             key={l.id}
             imagem={<IconeCategoria figura={l.subicone} tamanho={30} />}
             cor={l.ident.identificadorCor}

@@ -17,7 +17,7 @@ it('passa apenas o texto que não cabe e para quando o espaço aumenta, mantendo
     observe() {}
     disconnect() { desconectar(); }
   });
-  const { container, unmount } = render(<div className="mk-dp"><Grade><Celula rotulo="Rótulo longo para leitura" valor="12 kg" /></Grade></div>);
+  const { container, unmount } = render(<div className="mk-dp"><Grade><Celula textoAutomatico rotulo="Rótulo longo para leitura" valor="12 kg" /></Grade></div>);
   const rotulo = container.querySelector('dt .mk-dp-texto-auto');
   const valor = container.querySelector('dd .mk-dp-texto-auto');
   expect(rotulo.classList.contains('is-longo')).toBe(true);
@@ -35,10 +35,17 @@ it('texto automático dentro de um botão não cria foco extra e preserva a aber
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(40);
   vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(240);
   const abrir = vi.fn();
-  const { container } = render(<div className="mk-dp"><ul><Item titulo="Nome de lote comprido" meta="Informações completas do lote" onClick={abrir} /></ul></div>);
+  const { container } = render(<div className="mk-dp"><ul><Item textoAutomatico titulo="Nome de lote comprido" meta="Informações completas do lote" onClick={abrir} /></ul></div>);
   const botao = container.querySelector('button');
   expect(botao.querySelectorAll('.mk-dp-texto-auto.is-longo')).toHaveLength(2);
   expect(botao.querySelector('[tabindex]')).toBeNull();
   fireEvent.click(botao);
   expect(abrir).toHaveBeenCalledTimes(1);
+});
+
+it('campos compartilhados preservam rótulo e valor diretos quando a passagem não está habilitada', () => {
+  const { container } = render(<Grade><Celula rotulo="Saldo atual kg" valor="150 kg" /></Grade>);
+  const dt = container.querySelector('dt');
+  expect(dt.children).toHaveLength(0);
+  expect(dt.nextElementSibling.textContent).toBe('150 kg');
 });

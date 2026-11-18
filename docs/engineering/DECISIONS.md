@@ -8374,6 +8374,7 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Integração com a main atual preservando as entregas de atividades e assistente. As decisões desta branch que nasceram D-PROD-237 a 246 foram renumeradas para D-PROD-238 a 247, pois a main já usava D-PROD-237.
 - Resultado: popup estável; detalhes compactos, valores abaixo dos rótulos em desktop/tablet e à frente no celular; cinco indicadores no resumo, incluindo peso médio projetado e kg PV/ha; projeções mensais lado a lado; textos longos automáticos e histórico consistente.
 - Sem mudanças em banco, permissões, transporte ou cálculos já usados na tabela. A média projetada do resumo usa o mesmo total ponderado da tabela. A exceção de preview continua restrita à branch codex/previa-detalhes-mapa.
+- A validação completa identificou dependências de outros detalhes nos componentes compartilhados. A passagem automática foi tornada explícita nos lotes e em seu histórico, mantendo a estrutura original de campos de cochos, depósitos e bebedouros; o piso de leitura de 11 px foi preservado.
 - Merge condicionado à validação da PR; nenhuma regra de proteção ou baseline é afrouxada.
 
 <!-- Próxima decisão: D-PROD-249 -->
