@@ -17,11 +17,11 @@ O proprietário aprovou a lógica dos rascunhos e pediu o visual do MAIKE. O tip
 
 ## 2. Migration `20261118100000_atividade_areas`
 
-Já está no repositório (D-PROD-249, CONTRACT, SHA `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06`). O registro daquela decisão diz **`SCHEMA_APPLIED_PROD: NÃO`**. Esta entrega não cria migration e não aplica aquela. Sem ela no banco, começar a área e gravar o registro na área não funcionam em produção.
+Já está no repositório (D-PROD-249, CONTRACT, SHA `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06`). O registro original daquela decisão dizia **`SCHEMA_APPLIED_PROD: NÃO`**. Depois, em **2026-11-18 às 19:05:13 UTC**, ela foi **aplicada em produção** pelo caminho B (`SCHEMA_APPLIED_PROD: SIM`; postcheck `APLICADA E CONFERIDA`, 68/0, 97 tabelas; registro no runbook §9). Esta entrega não cria nem aplica migration.
 
-### O que depende da migration não aplicada
+### O que depende da migration (já aplicada)
 
-Começar a área e gravar registros na área (inclusive o abastecimento, que se liga ao registro do dia da área) dependem da `20261118100000_atividade_areas` em produção. Até ela ser aplicada, a tela abre, mas essas gravações não funcionam lá. Aplicar é decisão do proprietário, pelo runbook da D-PROD-249.
+Começar a área e gravar registros na área (inclusive o abastecimento, que se liga ao registro do dia da área) dependem da `20261118100000_atividade_areas` em produção, que já está aplicada (2026-11-18 19:05:13 UTC). Falta só esta entrega chegar à `main`.
 
 ### Regras que o campo precisa saber
 
@@ -83,7 +83,7 @@ O caminho foi aprovado; o visual dos lançamentos, não ("parecia tudo feito só
 - botões no tamanho padrão do app (sem `min-h-12 w-full`);
 - cada opção abre direto o formulário de sempre (um passo a menos).
 
-**Mantido:** fluxo tipo → áreas → área → registrar; agrupamento por tipo; totais por área; frases em português simples; testids. Backend, API e migrations **sem mudança**. A `20261118100000_atividade_areas` continua **não aplicada** em produção (o proprietário pediu para não migrar ainda).
+**Mantido:** fluxo tipo → áreas → área → registrar; agrupamento por tipo; totais por área; frases em português simples; testids. Backend, API e migrations **sem mudança**. A `20261118100000_atividade_areas` já está **aplicada** em produção (2026-11-18 19:05:13 UTC); nenhuma migration nova.
 
 Verificação desta rodada: testes de lançamento 161 passam; `npm run test:smoke` 3.665 passam e 3 falham (LD-1, LD-2, LD-3 em `lancamentoSuplementacaoDataFazenda.test.jsx`, fuso do relógio, já falhavam antes); `verify:all` passa em tudo, exceto `test:backend` (sem PostgreSQL aqui) e esse `test:smoke`.
 
@@ -98,7 +98,7 @@ O proprietário mostrou a tela "Que trabalho é este?" (cartões grandes, "Toque
 | Nota do tipo | Sob o seletor de tipo: "Este tipo permite registrar: máquinas, …" (`data-testid="atividade-tipo-registra"`); texto, não cartões |
 | `modoCampo` | Removido de `JanelaLancamentoPorTipo`, `FluxoPorArea`, `AtividadeAberta` e da página. Rótulos e título voltam ao padrão ("Dia do lançamento", "Lançamento do dia", "Área do dia (ha)", "Salvar e fechar"). O aviso na área depende só da área fixa da janela |
 | Mantido | Fluxo tipo → áreas → área → lançar; grupos e totais por área; abastecimento e implemento pela área; `atividadeFluxoCampo.js` (só regras e textos, sem layout) |
-| Servidor / banco | Sem mudança. Nenhuma migration criada ou aplicada; a `20261118100000_atividade_areas` continua **não aplicada** em produção |
+| Servidor / banco | Sem mudança. Nenhuma migration criada ou aplicada por esta entrega; a `20261118100000_atividade_areas` já está **aplicada** em produção |
 | Testes | `LA-CABECALHO-1` volta a ser o formulário numa tela só (e confere a nota do tipo). Os testes do assistente (`assistente-*`) saíram junto com o componente |
 
 ## 8. Terceira rodada: o campo Áreas é uma lista fechada com pesquisa, e a escolha vira tabela
@@ -111,5 +111,5 @@ O proprietário mostrou a tela "Que trabalho é este?" (cartões grandes, "Toque
 | Remover / voltar | ✕ tira a linha e desmarca na lista; marcar de novo restaura o tamanho cadastrado como padrão |
 | Hectares | **Gravados em `AtividadeArea.area_planejada`**: `corpoDasAreasDaAbertura` → `corpo.areas` no `POST /atividades`; `atividadesApi` já aceita `area_planejada`. Nada em modo só leitura |
 | testids | Mantidos; novos `areas-abertura-campo` (o botão) e `areas-abertura-lista` (o popover). Busca e opções só existem com a lista aberta |
-| Servidor / banco | Sem mudança. A `20261118100000_atividade_areas` continua **não aplicada** em produção (o proprietário pediu para não migrar ainda) |
+| Servidor / banco | Sem mudança. A `20261118100000_atividade_areas` já está **aplicada** em produção (2026-11-18 19:05:13 UTC); nenhuma migration nova |
 | Testes | `AR-ABERTURA-1..3` (fechado; busca; marcar; colunas; editar ha; tirar desmarca; marcar de novo restaura) e `LA-CABECALHO-1` abrindo a lista antes de marcar |

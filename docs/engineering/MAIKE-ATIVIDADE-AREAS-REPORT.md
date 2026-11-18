@@ -78,7 +78,7 @@ Iniciar área; "Abrir atividade" com 3 áreas marcadas e a lista; as mesmas no c
 
 ## 5. Release
 
-**Não aplicada. `SCHEMA_APPLIED_PROD: NÃO`.** Só com o GO explícito e escrito do proprietário para esta migration,
+**Nota (2026-11-18): aplicada em produção às 19:05:13 UTC pelo caminho B (`SCHEMA_APPLIED_PROD: SIM`; runbook §9).** No momento deste relatório: não aplicada, `SCHEMA_APPLIED_PROD: NÃO`. Só com o GO explícito e escrito do proprietário para esta migration,
 pelo runbook (migration antes do merge, D-PROD-72): preflight com veredito (SID `7692130048193495360`, 67/0, a
 anterior com o checksum `c391e4b0…`, tabela e coluna ausentes, 96 tabelas), envelope do caminho B e postcheck (68/0,
 97 tabelas, áreas = atividades com área, por status, lançamentos com área = lançamentos dessas atividades). Esperado
