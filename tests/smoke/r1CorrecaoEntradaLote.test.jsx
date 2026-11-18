@@ -99,7 +99,11 @@ vi.mock("@/services/loteCadastroService", async (importOriginal) => {
 });
 vi.mock("@/services/loteManejoService", () => new Proxy({}, { get: () => vi.fn() }));
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
-const mapaCache = vi.hoisted(() => ({ refreshMapaCacheEntry: vi.fn() }));
+const mapaCache = vi.hoisted(() => {
+  const c = { refreshMapaCacheEntry: vi.fn() };
+  c.refreshMapaCacheEntryDetalhado = vi.fn(async (k, e, o) => ({ dados: await c.refreshMapaCacheEntry(k, e, o), origem: "rede", erro: null }));
+  return c;
+});
 vi.mock("@/services/mapaCacheService", () => mapaCache);
 const notify = vi.hoisted(() => ({ notifySuccess: vi.fn(), notifyWarning: vi.fn(), notifyError: vi.fn(), notifyExclusoesEmpilhadas: vi.fn() }));
 vi.mock("@/lib/maikeNotify", () => notify);

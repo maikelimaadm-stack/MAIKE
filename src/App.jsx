@@ -6,6 +6,7 @@ import MaikeAvisosHost from '@/components/common/MaikeAvisosHost';
 import "@/styles/maike-notify.css";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
+import { escutarRebanhoEntreAbas } from '@/components/mapa/invalidarCachesMapa';
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AppRouteContent from '@/components/navigation/AppRouteContent';
@@ -156,6 +157,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  // Manejo do rebanho feito em OUTRA aba deste navegador: esta aba relê e atualiza
+  // as telas na hora (D-PROD-250).
+  useEffect(() => escutarRebanhoEntreAbas(queryClientInstance), []);
 
   return (
     <AuthProvider>
