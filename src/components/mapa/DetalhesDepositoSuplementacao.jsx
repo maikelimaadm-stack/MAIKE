@@ -8,11 +8,13 @@ import { listEmpresas } from "@/services/empresaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
-import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
+import { movimentacoesDoHistoricoDeposito } from "../suplementacao/HistoricoDepositoSuplementacao";
 import DepositoNivel from "./DepositoNivel";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
-import { Cartao, Celula, Grade, Item, Linha, ListaItens, RodapePilulas, SecaoDetalhe, Vazio } from "./detalhes-lote/blocos";
-import { VAZIO } from "./detalhes-lote/historicoDoPasto";
+import FiltroHistorico from "./detalhes-lote/FiltroHistorico";
+import LinhaDoTempo from "./detalhes-lote/LinhaDoTempo";
+import { Abas, Cartao, Celula, Grade, Item, Linha, ListaItens, RodapePilulas, SecaoDetalhe, Vazio, idsDaAba } from "./detalhes-lote/blocos";
+import { VAZIO, fmtNumero, rotuloDoDia } from "./detalhes-lote/historicoDoPasto";
 import { formatDecimal } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
@@ -22,6 +24,14 @@ import { descreverFarol, farolDoCocho } from "@/domain/suplementacao/leituraCoch
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import "@/styles/mk-dp-deposito.css";
+import "@/styles/mk-dp-historico.css";
+
+const FILTROS_DEPOSITO = [
+  { valor: "todos", rotulo: "Todos os registros" },
+  { valor: "entradas", rotulo: "Entradas" },
+  { valor: "saidas", rotulo: "Saídas" },
+  { valor: "suplementacao", rotulo: "Suplementação" },
+];
 
 
 /**
@@ -89,8 +99,11 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const [showTransferencia, setShowTransferencia] = useState(false);
-  const [showHistorico, setShowHistorico] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
+  const [abaAtiva, setAbaAtiva] = useState(/** @type {"detalhes" | "informacoes" | "historico"} */ ("detalhes"));
+  const [animAba, setAnimAba] = useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));
+  const [filtroHistorico, setFiltroHistorico] = useState("todos");
+  const idBaseAbas = `deposito-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const idTituloSaldo = useId();
   const idGrupoLitros = useId();
   const idTituloInfo = useId();
@@ -133,11 +146,32 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     staleTime: 5 * 60 * 1000
   });
 
-  const { data: movimentacoes = [] } = useQuery({
+  const { data: movimentacoes = [], isLoading: loadingMovimentacoes, isError: erroMovimentacoes } = useQuery({
     queryKey: ["movimentacoes-deposito-detalhe", deposito.id],
     queryFn: async () => {
+      const doLocal = (lista) =>
+        (Array.isArray(lista) ? lista : []).filter(
+          (item) =>
+            item.empresa_id === empresaSelecionadaId &&
+            (item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id),
+        );
+      const cached = await getMapaCachedData("movimentacaoEstoque", empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry("movimentacaoEstoque", empresaSelecionadaId)
+            .then((fresh) => {
+              if (fresh?.length) queryClient.setQueryData(["movimentacoes-deposito-detalhe", deposito.id], doLocal(fresh));
+            })
+            .catch(() => {});
+          return doLocal(cached);
+        }
+        const fresh = await refreshMapaCacheEntry("movimentacaoEstoque", empresaSelecionadaId);
+        if (fresh?.length) return doLocal(fresh);
+      } else if (cached?.length) {
+        return doLocal(cached);
+      }
       const all = await listarTodasMovimentacoes();
-      return all.filter((item) => item.empresa_id === empresaSelecionadaId && (item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id));
+      return doLocal(all);
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id
   });
@@ -200,6 +234,19 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   // Nível do SSOT (D-PROD-178): o mesmo número do marcador do mapa.
   const nivel = indicador.nivel;
   const totalSaldoSacos = useMemo(() => saldosAgrupados.emKg.reduce((total, item) => total + (item.saldoSacos || 0), 0), [saldosAgrupados]);
+  const totalNecessidadeSacos = useMemo(() => {
+    const kg = Number(nivel.necessidadeReposicaoKg) || 0;
+    if (kg <= 0) return 0;
+    const prodPadrao = produtos.find(
+      (p) => p.unidade_principal_estoque !== "L" && normalizeText(p.nome_produto || "") === normalizeText(deposito.produto_padrao || ""),
+    );
+    const pesoPadrao = Number(prodPadrao?.peso_por_saco_kg || 0);
+    if (pesoPadrao > 0) return kgParaSacos(kg, pesoPadrao);
+    if (totalSaldoSacos > 0 && nivel.saldoKg > 0) return kgParaSacos(kg, nivel.saldoKg / totalSaldoSacos);
+    const prodKg = produtos.find((p) => p.unidade_principal_estoque !== "L" && Number(p.peso_por_saco_kg) > 0);
+    const pesoKg = Number(prodKg?.peso_por_saco_kg || 0);
+    return pesoKg > 0 ? kgParaSacos(kg, pesoKg) : 0;
+  }, [nivel.necessidadeReposicaoKg, nivel.saldoKg, totalSaldoSacos, produtos, deposito.produto_padrao]);
 
   // Pastos atendidos: cada cocho que puxa deste depósito, com o subícone do cocho
   // (nível do SSOT, D-PROD-178; o desenho dos detalhes, D-PROD-225) e a bolinha do
@@ -232,8 +279,50 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { numeric: true, sensitivity: "base" }));
   }, [cochosVinculados, areas, eventos, leituras, hoje, pontosSuplementacao]);
 
-  // D-PROD-228: histórico somente pela ação, com a mesma permissão de antes.
+  // D-PROD-228: histórico somente com a mesma permissão de antes.
   const podeHistorico = permissions.visualizar_historico_cocho !== false;
+
+  const abas = useMemo(
+    () => [
+      { id: "detalhes", rotulo: "Detalhes" },
+      { id: "informacoes", rotulo: "Informações" },
+      ...(podeHistorico ? [{ id: "historico", rotulo: "Histórico" }] : []),
+    ],
+    [podeHistorico],
+  );
+  const aba = abas.some((a) => a.id === abaAtiva) ? abaAtiva : "detalhes";
+  const idsAba = idsDaAba(idBaseAbas, aba);
+
+  /** @param {string} nova */
+  const irAba = (nova) => {
+    if (nova === aba) return;
+    const ordem = ["detalhes", "informacoes", "historico"];
+    setAnimAba(ordem.indexOf(nova) > ordem.indexOf(aba) ? "aba-dir" : "aba-esq");
+    setAbaAtiva(/** @type {"detalhes" | "informacoes" | "historico"} */ (nova));
+  };
+
+  const diasDoHistorico = useMemo(() => {
+    const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
+    const cochosPorId = new Map(pontosSuplementacao.map((ponto) => [ponto.id, ponto]));
+    const lista = movimentacoesDoHistoricoDeposito(movimentacoes, {
+      empresaId: empresaSelecionadaId,
+      localEstoqueId: deposito.local_estoque_id,
+    }).filter((mov) => {
+      if (filtroHistorico === "entradas") return ehEntradaNoDeposito(mov, deposito.local_estoque_id);
+      if (filtroHistorico === "saidas") return !ehEntradaNoDeposito(mov, deposito.local_estoque_id) && mov?.tipo_detalhado !== "suplementacao";
+      if (filtroHistorico === "suplementacao") return mov?.tipo_detalhado === "suplementacao";
+      return true;
+    });
+    return agruparPorDia(
+      lista.map((mov) =>
+        cartaoDaMovimentacao(mov, {
+          localEstoqueId: deposito.local_estoque_id,
+          produtosPorId,
+          cochosPorId,
+        }),
+      ),
+    );
+  }, [movimentacoes, produtos, pontosSuplementacao, empresaSelecionadaId, deposito.local_estoque_id, filtroHistorico]);
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["saldo-deposito", "cochos-vinculados-deposito", "movimentacoes-deposito-detalhe", "mapa-pontos-supl", "mapa-pontos", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -253,7 +342,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     pilulas.push({ rotulo: "Entrada", icone: Truck, onClick: () => abrirTransferencia("entrada") });
     pilulas.push({ rotulo: "Saída", icone: LogOut, onClick: () => abrirTransferencia("saida") });
   }
-  if (podeHistorico) pilulas.push({ rotulo: "Histórico", icone: History, onClick: () => setShowHistorico(true) });
 
   // Os produtos entram: sem eles a unidade dos lotes não é conhecida e o litro cairia no kg no primeiro quadro.
   const loadingInicial = loadingSaldo || loadingProdutos || loadingCochos || loadingAreas;
@@ -266,88 +354,116 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         className="mk-dp-deposito mk-dp--suplementacao-organizada"
         titulo={deposito.nome_ponto || "Depósito"}
         sub={subtitulo || deposito.local_estoque_nome || "Depósito"}
-        anim={anim}
+        chaveTela={`aba:${aba}`}
+        anim={animAba || anim}
+        cabecalhoDoCorpo={
+          <Abas
+            abas={abas}
+            ativa={aba}
+            onMudar={irAba}
+            idBase={idBaseAbas}
+            rotulo="Seções do depósito"
+          />
+        }
+        propsDoCorpo={{ role: "tabpanel", id: idsAba.painel, "aria-labelledby": idsAba.aba }}
         rodape={pilulas.length > 0 ? <RodapePilulas itens={pilulas} /> : null}
       >
         {loadingInicial ? (
           <Vazio icone={Loader2} className="mk-dp-deposito__carregando" role="status">
             Carregando detalhes do depósito...
           </Vazio>
-        ) : (
+        ) : aba === "detalhes" ? (
           <>
-            <DepositoNivel nivel={nivel} saldoSacos={totalSaldoSacos} />
+            <DepositoNivel nivel={nivel} saldoSacos={totalSaldoSacos} necessidadeSacos={totalNecessidadeSacos} />
 
             <SecaoDetalhe id={idTituloSaldo} titulo="Saldo por produto" className="mk-dp-deposito__saldo">
-            {semSaldo ? (
-              // Seção vazia dentro do detalhe: a linha fraca do v12 (`v11-row--fraco`).
-              <Cartao>
-                <Linha className="mk-dp-deposito__linha--fraca" rotulo="Sem saldo disponível neste depósito." />
-              </Cartao>
-            ) : (
               <Cartao role="group" aria-labelledby={idTituloSaldo}>
-                {saldosAgrupados.emKg.map((item) => (
-                  <LinhaSaldoProduto key={item.produto_id} item={item} />
-                ))}
-                {saldosAgrupados.emLitros.length > 0 ? (
-                  <div role="group" aria-labelledby={idGrupoLitros} className="mk-dp-deposito__litros">
-                    <p id={idGrupoLitros} className="mk-dp-deposito__litros-tit">
-                      Em litros (fora do saldo em kg)
-                    </p>
-                    {saldosAgrupados.emLitros.map((item) => (
+                {semSaldo ? (
+                  // Seção vazia dentro do detalhe: a linha fraca do v12 (`v11-row--fraco`).
+                  <Linha className="mk-dp-deposito__linha--fraca" rotulo="Sem saldo disponível neste depósito." />
+                ) : (
+                  <>
+                    {saldosAgrupados.emKg.map((item) => (
                       <LinhaSaldoProduto key={item.produto_id} item={item} />
                     ))}
-                  </div>
-                ) : null}
+                    {saldosAgrupados.emLitros.length > 0 ? (
+                      <div role="group" aria-labelledby={idGrupoLitros} className="mk-dp-deposito__litros">
+                        <p id={idGrupoLitros} className="mk-dp-deposito__litros-tit">
+                          Em litros (fora do saldo em kg)
+                        </p>
+                        {saldosAgrupados.emLitros.map((item) => (
+                          <LinhaSaldoProduto key={item.produto_id} item={item} />
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </Cartao>
-            )}
-
             </SecaoDetalhe>
-
+          </>
+        ) : aba === "informacoes" ? (
+          <>
             <SecaoDetalhe titulo="Pastos atendidos" className="mk-dp-deposito__pastos">
-            {cochos.length === 0 ? (
-              <Cartao>
-                <Linha className="mk-dp-deposito__linha--fraca" rotulo="Nenhum cocho vinculado a este depósito." />
-              </Cartao>
-            ) : (
-              <ListaItens rotulo="Pastos atendidos">
-                {cochos.map((c) => (
-                  <Item
-                    key={c.id}
-                    imagem={urlIconeCocho(c.fracao)}
-                    titulo={c.nome}
-                    meta={
-                      <>
-                        {c.meta}
-                        {/* A bolinha é só cor: o farol vai em texto ao leitor de tela. */}
-                        <span className="mk-dp-deposito__oculto">{` · ${c.farol.texto}`}</span>
-                      </>
-                    }
-                    bolinha={c.farol.hex}
-                    chevron={Boolean(abrirCocho)}
-                    title={c.farol.texto}
-                    onClick={abrirCocho ? () => abrirCocho(c.ponto) : undefined}
-                  />
-                ))}
-              </ListaItens>
-            )}
-
+              {cochos.length === 0 ? (
+                <Cartao>
+                  <Linha className="mk-dp-deposito__linha--fraca" rotulo="Nenhum cocho vinculado a este depósito." />
+                </Cartao>
+              ) : (
+                <ListaItens rotulo="Pastos atendidos">
+                  {cochos.map((c) => (
+                    <Item
+                      key={c.id}
+                      imagem={urlIconeCocho(c.fracao)}
+                      titulo={c.nome}
+                      meta={
+                        <>
+                          {c.meta}
+                          {/* A bolinha é só cor: o farol vai em texto ao leitor de tela. */}
+                          <span className="mk-dp-deposito__oculto">{` · ${c.farol.texto}`}</span>
+                        </>
+                      }
+                      bolinha={c.farol.hex}
+                      chevron={Boolean(abrirCocho)}
+                      title={c.farol.texto}
+                      onClick={abrirCocho ? () => abrirCocho(c.ponto) : undefined}
+                    />
+                  ))}
+                </ListaItens>
+              )}
             </SecaoDetalhe>
 
             <SecaoDetalhe id={idTituloInfo} titulo="Informações do depósito">
-            <Cartao role="group" aria-labelledby={idTituloInfo}>
-              <Grade>
-                <Celula rotulo="Número" valor={deposito.numero_ponto || VAZIO} />
-                <Celula rotulo="Sigla" valor={deposito.sigla || VAZIO} />
-                <Celula rotulo="Tipo" valor={deposito.tipo || VAZIO} />
-                <Celula rotulo="Local de estoque" valor={deposito.local_estoque_nome || VAZIO} />
-                <Celula rotulo="Produto padrão" valor={deposito.produto_padrao || VAZIO} />
-              </Grade>
-              <Linha rotulo="Observações" valor={deposito.observacoes || VAZIO} quebra />
-            </Cartao>
-
+              <Cartao role="group" aria-labelledby={idTituloInfo}>
+                <Grade>
+                  <Celula rotulo="Número" valor={deposito.numero_ponto || VAZIO} />
+                  <Celula rotulo="Sigla" valor={deposito.sigla || VAZIO} />
+                  <Celula rotulo="Tipo" valor={deposito.tipo || VAZIO} />
+                  <Celula rotulo="Local de estoque" valor={deposito.local_estoque_nome || VAZIO} />
+                  <Celula rotulo="Produto padrão" valor={deposito.produto_padrao || VAZIO} />
+                </Grade>
+                <Linha rotulo="Observações" valor={deposito.observacoes || VAZIO} quebra />
+              </Cartao>
             </SecaoDetalhe>
-
           </>
+        ) : (
+          <div className="mk-dp-hist">
+            <FiltroHistorico opcoes={FILTROS_DEPOSITO} valor={filtroHistorico} onMudar={setFiltroHistorico} />
+            {loadingMovimentacoes && movimentacoes.length === 0 ? (
+              <div role="status" className="mk-dp-hist__estado">
+                Carregando histórico...
+              </div>
+            ) : erroMovimentacoes && movimentacoes.length === 0 ? (
+              <div role="alert" className="mk-dp-hist__estado">
+                Não foi possível carregar o histórico.
+              </div>
+            ) : diasDoHistorico.length > 0 ? (
+              <LinhaDoTempo dias={diasDoHistorico} rotulo="Histórico do depósito" />
+            ) : (
+              <Vazio icone={History}>
+                {filtroHistorico === "todos" ? "Nenhum registro ainda." : "Nenhum registro deste tipo neste depósito."}
+              </Vazio>
+            )}
+          </div>
         )}
       </CascaDetalhe>
 
@@ -373,10 +489,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         largo
       >
         <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
-      </LancLoteDialogo>
-
-      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico do Depósito" lotes={deposito.nome_ponto ? [{ nome: deposito.nome_ponto }] : undefined} largo somenteLeitura>
-        {showHistorico ? <HistoricoDepositoSuplementacao deposito={deposito} /> : null}
       </LancLoteDialogo>
     </>
   );
@@ -413,4 +525,102 @@ function LinhaSaldoProduto({ item }) {
     formatarKgNivel(item.saldo)
   );
   return <Linha data-unidade-confirmada={String(item.unidadeConfirmada)} rotulo={item.produto_nome} sub={sub} valor={valor} />;
+}
+
+/**
+ * @typedef {{
+ *   chave: string,
+ *   dia: string | null,
+ *   Icone: import("lucide-react").LucideIcon,
+ *   titulo: string,
+ *   linhas: Array<{ rotulo: string, valor: string }>,
+ * }} CartaoDoDeposito
+ */
+
+/**
+ * Dia literal da movimentação ('AAAA-MM-DD'), a mesma data que o histórico
+ * completo mostra (a parte antes do "T"); sem data válida → null.
+ * @param {any} mov
+ */
+function diaDaMovimentacao(mov) {
+  const dia = String(mov?.data_movimentacao ?? "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : null;
+}
+
+/**
+ * Entrada ou saída DESTE depósito: pelo tipo gravado; sem tipo conhecido, pelo
+ * lado do local (destino = entrada).
+ * @param {any} mov
+ * @param {string | null | undefined} localEstoqueId
+ */
+function ehEntradaNoDeposito(mov, localEstoqueId) {
+  const tipo = normalizeText(mov?.tipo_movimentacao || "");
+  if (tipo.startsWith("ENTRADA")) return true;
+  if (tipo.startsWith("SAIDA")) return false;
+  return mov?.local_estoque_destino === localEstoqueId && mov?.local_estoque_origem !== localEstoqueId;
+}
+
+/**
+ * Destino de uma saída: a suplementação — com o cocho do lançamento
+ * (`ponto_suplementacao_id`, enquanto o ponto está ativo) ou, sem ele, o pasto
+ * gravado na baixa — ou o local de destino da transferência.
+ * @param {any} mov
+ * @param {Map<any, any>} cochosPorId
+ */
+function destinoDaSaida(mov, cochosPorId) {
+  if (mov?.tipo_detalhado === "suplementacao") {
+    const cocho = mov.ponto_suplementacao_id != null ? cochosPorId.get(mov.ponto_suplementacao_id) : null;
+    const para = cocho?.nome_ponto || mov.area_vinculada_nome || "";
+    return para ? `Suplementação · ${para}` : "Suplementação";
+  }
+  return mov?.local_destino || VAZIO;
+}
+
+/**
+ * Cartão da linha do tempo (v12): "Entrada no depósito" (caminhão) ou "Saída
+ * do depósito"; origem ou destino, produto, quantidade, sacos (pelo peso do
+ * saco do produto) e as observações, quando há.
+ * @param {any} mov
+ * @param {{ localEstoqueId: string | null | undefined, produtosPorId: Map<any, any>, cochosPorId: Map<any, any> }} ctx
+ * @returns {CartaoDoDeposito}
+ */
+function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId }) {
+  const entrada = ehEntradaNoDeposito(mov, localEstoqueId);
+  const emLitros = mov?.unidade_medida === "L";
+  const pesoPorSaco = emLitros ? 0 : Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
+  const linhas = [
+    entrada ? { rotulo: "Origem", valor: mov?.local_origem || VAZIO } : { rotulo: "Destino", valor: destinoDaSaida(mov, cochosPorId) },
+    { rotulo: "Produto", valor: mov?.produto_nome || VAZIO },
+    { rotulo: emLitros ? "Quantidade (L)" : "Quantidade (kg)", valor: fmtNumero(mov?.quantidade ?? 0, 2) },
+    { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2) : VAZIO },
+  ];
+  const observacoes = typeof mov?.observacoes === "string" ? mov.observacoes.trim() : "";
+  if (observacoes) linhas.push({ rotulo: "Observações", valor: observacoes });
+  return {
+    chave: `mov-${mov?.id ?? "sem-id"}`,
+    dia: diaDaMovimentacao(mov),
+    Icone: entrada ? Truck : LogOut,
+    titulo: entrada ? "Entrada no depósito" : "Saída do depósito",
+    linhas,
+  };
+}
+
+/**
+ * Agrupa os cartões por dia na ordem em que chegam (a do histórico): dias
+ * seguidos iguais viram um grupo; a chave leva a posição, porque a ordem é a do
+ * registro e o mesmo dia pode voltar depois.
+ * @param {CartaoDoDeposito[]} cartoes
+ */
+function agruparPorDia(cartoes) {
+  /** @type {Array<{ chave: string, dia: string | null, rotulo: string, cartoes: CartaoDoDeposito[] }>} */
+  const dias = [];
+  cartoes.forEach((cartao) => {
+    let grupo = dias[dias.length - 1];
+    if (!grupo || grupo.dia !== cartao.dia) {
+      grupo = { chave: `${cartao.dia ?? "sem-data"}-${dias.length}`, dia: cartao.dia, rotulo: rotuloDoDia(cartao.dia), cartoes: [] };
+      dias.push(grupo);
+    }
+    grupo.cartoes.push(cartao);
+  });
+  return dias;
 }

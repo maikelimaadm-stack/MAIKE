@@ -186,33 +186,34 @@ describe('DV-1 — casca v12 e cabeçalho', () => {
   });
 });
 
-describe('DV-2 — seções na ordem do v12', () => {
-  it('nível, saldo por produto, pastos atendidos, informações e histórico; o bloco do nível com o texto do v12', async () => {
+describe('DV-2 — abas e seções na ordem do v12', () => {
+  it('abas Detalhes · Informações · Histórico; na aba Detalhes, nível e saldo por produto (com resumo do saldo)', async () => {
     await montar();
+    const abas = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(abas).toEqual(['Detalhes', 'Informações', 'Histórico']);
     const titulos = within(corpo()).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
     expect(titulos).toEqual([
-      'Nível do depósito', 'Saldo por produto', 'Pastos atendidos', 'Informações do depósito',
+      'Nível do depósito', 'Saldo por produto',
     ]);
-    // Os pares do popup (D-PROD-226) contam com isto: o corpo é filho da raiz .mk-dp-deposito, a região
-    // do nível e os títulos são filhos diretos do corpo, e Saldo por produto | Pastos atendidos vêm
-    // logo depois dela.
     expect(corpo().parentElement.classList.contains('mk-dp-deposito')).toBe(true);
     const filhos = Array.from(corpo().children);
     expect(filhos[0].classList.contains('mk-dp-deposito__nivel')).toBe(true);
     expect(filhos.filter((f) => f.classList.contains('mk-dp-secao')).map((t) => t.querySelector('h3')?.textContent)).toEqual([
-      'Saldo por produto', 'Pastos atendidos', 'Informações do depósito',
+      'Saldo por produto',
     ]);
-    // Bloco do nível: rótulo, o percentual do SSOT e as duas linhas do v12.
+    // Bloco do nível: porcentagem dentro da figura do ícone e saldo + necessidade de reposição ao lado.
     const nivel = within(secao()).getByTestId('nivel-do-deposito');
     expect(nivel.classList.contains('mk-dp-nivel')).toBe(true);
     expect(within(nivel).getByText('70%')).toBeTruthy();
-    expect(within(nivel).getByText('Limite operacional: 2.000 kg')).toBeTruthy();
-    expect(within(nivel).queryByText(/Necessidade de reposição:/)).toBeNull();
-    expect(within(secao()).getByText('Necessidade reposição kg').nextElementSibling?.textContent).toBe('600 kg');
+    expect(within(nivel).queryByText(/Limite operacional:/)).toBeNull();
+    expect(within(nivel).getByText('Saldo atual kg').nextElementSibling?.textContent).toBe('1.400 kg');
+    expect(within(nivel).getByText('56,00 sacos')).toBeTruthy();
+    expect(within(nivel).getByText('Necessidade reposição kg').nextElementSibling?.textContent).toBe('600 kg');
+    expect(within(nivel).getByText('24,00 sacos')).toBeTruthy();
     expect(nivel.querySelector('img[data-deposito-icone]')).toBeTruthy();
-    // Grade da região: o medidor e as células de hoje, na ordem.
+    // Grade da região do nível: o medidor e o estoque mínimo.
     const rotulos = Array.from(secao().querySelectorAll('.mk-dp-grade > .mk-dp-cel > dt')).map((dt) => dt.textContent);
-    expect(rotulos).toEqual(['Ocupação do limite operacional', 'Estoque mínimo', 'Saldo atual kg', 'Saldo em sacos', 'Necessidade reposição kg']);
+    expect(rotulos).toEqual(['Ocupação do limite operacional', 'Estoque mínimo']);
     expect(within(secao()).getByRole('meter', { name: 'Ocupação do limite operacional' }).getAttribute('aria-valuenow')).toBe('70');
     expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('Mínimo 500 kg · 900 kg acima do mínimo')).toBeTruthy();
     // Saldo por produto: uma linha por produto (sacos embaixo, kg à direita).
@@ -245,41 +246,38 @@ describe('DV-2 — seções na ordem do v12', () => {
   });
 });
 
-describe('DV-3 — aviso do mínimo (v12)', () => {
-  it('abaixo do mínimo, no mínimo e acima', async () => {
+describe('DV-3 — estado do estoque mínimo sem aviso redundante', () => {
+  it('abaixo do mínimo, no mínimo e acima: estado exibido no cartão Estoque mínimo, sem faixa de aviso duplicada', async () => {
     dados.lotesNota = [loteNota(400)];
     await montar();
-    await waitFor(() => expect(within(secao()).getByText('Saldo 400 kg abaixo do mínimo configurado (500 kg).')).toBeTruthy());
-    expect(within(secao()).getByText('Saldo 400 kg abaixo do mínimo configurado (500 kg).').closest('.mk-dp-aviso--atencao')).toBeTruthy();
+    await waitFor(() => expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('Mínimo 500 kg · abaixo do mínimo (faltam 100 kg)')).toBeTruthy());
+    expect(secao().querySelector('.mk-dp-aviso--atencao')).toBeNull();
     cleanup();
     dados.lotesNota = [loteNota(500)];
     await montar();
-    await waitFor(() => expect(within(secao()).getByText('Saldo 500 kg no mínimo configurado (500 kg).')).toBeTruthy());
+    await waitFor(() => expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('Mínimo 500 kg · no mínimo')).toBeTruthy());
+    expect(secao().querySelector('.mk-dp-aviso--atencao')).toBeNull();
     cleanup();
     dados.lotesNota = [loteNota(1400)];
     await montar();
     expect(secao().querySelector('.mk-dp-aviso--atencao')).toBeNull();
-    expect(within(secao()).queryByText(/mínimo configurado/)).toBeNull();
   });
 });
 
 describe('DV-4 — rodapé de pílulas com as permissões de hoje', () => {
-  it('Entrada · Saída · Histórico; sem a permissão a pílula não aparece; sem nenhuma, rodapé vazio', async () => {
+  it('Entrada · Saída; sem a permissão a pílula não aparece; sem nenhuma, rodapé vazio', async () => {
     await montar();
-    expect(pilulas()).toEqual(['Entrada', 'Saída', 'Histórico']);
+    expect(pilulas()).toEqual(['Entrada', 'Saída']);
     cleanup();
     await montar({ permissions: { movimentar_depositos: false } });
-    expect(pilulas()).toEqual(['Histórico']);
+    expect(screen.queryByRole('group', { name: 'Ações' })).toBeNull();
+    expect(document.querySelector('.mk-dp__rodape')?.childElementCount).toBe(0);
     cleanup();
     await montar({ permissions: { visualizar_historico_cocho: false } });
     expect(pilulas()).toEqual(['Entrada', 'Saída']);
-    cleanup();
-    await montar({ permissions: { movimentar_depositos: false, visualizar_historico_cocho: false } });
-    expect(screen.queryByRole('group', { name: 'Ações' })).toBeNull();
-    expect(document.querySelector('.mk-dp__rodape')?.childElementCount).toBe(0);
   });
 
-  it('Entrada e Saída abrem a transferência de hoje; Histórico abre o histórico completo', async () => {
+  it('Entrada e Saída abrem a transferência de hoje', async () => {
     await montar();
     await tocar(screen.getByRole('button', { name: 'Entrada' }));
     expect(await screen.findByRole('heading', { name: 'Entrada no Depósito' })).toBeTruthy();
@@ -289,17 +287,13 @@ describe('DV-4 — rodapé de pílulas com as permissões de hoje', () => {
     await tocar(screen.getByRole('button', { name: 'Saída' }));
     expect(await screen.findByRole('heading', { name: 'Saída do Depósito' })).toBeTruthy();
     expect(screen.getByText('formulário da transferência: saida')).toBeTruthy();
-    cleanup();
-    await montar();
-    await tocar(screen.getByRole('button', { name: 'Histórico' }));
-    const dialogo = await screen.findByRole('dialog', { name: 'Histórico do Depósito' });
-    expect(within(dialogo).getByText('histórico completo do depósito')).toBeTruthy();
   });
 });
 
 describe('DV-5 — pastos atendidos', () => {
   it('um item por cocho do depósito, em ordem de nome, com meta, farol e o subícone do cocho pelo SSOT', async () => {
     await montar();
+    await tocar(screen.getByRole('tab', { name: 'Informações' }));
     const lista = screen.getByRole('list', { name: 'Pastos atendidos' });
     const itens = within(lista).getAllByRole('listitem');
     expect(itens.map((li) => li.querySelector('.mk-dp-item__nome')?.textContent)).toEqual(['Cocho 02', 'Cocho 05']);
@@ -324,6 +318,7 @@ describe('DV-5 — pastos atendidos', () => {
   it('com onAbrirCocho: chevron e o toque abre o cocho', async () => {
     const onAbrirCocho = vi.fn();
     await montar({ onAbrirCocho });
+    await tocar(screen.getByRole('tab', { name: 'Informações' }));
     const lista = screen.getByRole('list', { name: 'Pastos atendidos' });
     expect(lista.querySelectorAll('.mk-dp-chev')).toHaveLength(2);
     await tocar(within(lista).getByRole('button', { name: /^Cocho 05/ }));
@@ -334,6 +329,7 @@ describe('DV-5 — pastos atendidos', () => {
   it('sem cocho vinculado: "Nenhum cocho vinculado a este depósito."', async () => {
     dados.pontos = [DE_OUTRO_DEPOSITO, DEPOSITO];
     await montar();
+    await tocar(screen.getByRole('tab', { name: 'Informações' }));
     const linha = screen.getByText('Nenhum cocho vinculado a este depósito.').closest('.mk-dp-linha');
     expect(linha.classList.contains('mk-dp-deposito__linha--fraca')).toBe(true);
     expect(screen.queryByRole('list', { name: 'Pastos atendidos' })).toBeNull();
@@ -343,6 +339,7 @@ describe('DV-5 — pastos atendidos', () => {
 describe('DV-6 — informações do depósito', () => {
   it('grade do cadastro, cochos vinculados e observações; sem "Frequência padrão"', async () => {
     await montar();
+    await tocar(screen.getByRole('tab', { name: 'Informações' }));
     const info = informacoes();
     const celulas = Array.from(info.querySelectorAll('.mk-dp-cel')).map((c) => `${c.querySelector('dt').textContent}: ${c.querySelector('dd').textContent}`);
     expect(celulas).toEqual([
@@ -357,6 +354,7 @@ describe('DV-6 — informações do depósito', () => {
   it('cadastro vazio: "—" nas células e nas linhas', async () => {
     dados.pontos = [];
     await montar({ deposito: { ...DEPOSITO, numero_ponto: null, sigla: '', tipo: null, produto_padrao: null, observacoes: null, capacidade_cocho_kg: null, estoque_minimo_kg: null } });
+    await tocar(screen.getByRole('tab', { name: 'Informações' }));
     const info = informacoes();
     const valores = Array.from(info.querySelectorAll('.mk-dp-cel dd')).map((dd) => dd.textContent);
     expect(valores).toEqual(['—', '—', '—', 'Galpão Sede', '—']);
@@ -364,22 +362,21 @@ describe('DV-6 — informações do depósito', () => {
   });
 });
 
-describe('DV-7 — histórico somente pelo botão', () => {
-  it('resumo não monta registros; Histórico abre a tela existente', async () => {
+describe('DV-7 — histórico na aba superior', () => {
+  it('aba Detalhes não monta registros; aba Histórico mostra a linha do tempo sem repetir botão no rodapé', async () => {
     await montar();
     expect(screen.queryByRole('list', { name: 'Histórico do depósito' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Histórico do depósito' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
-    expect(screen.queryByText(/Histórico completo:/)).toBeNull();
-    await tocar(screen.getByRole('button', { name: 'Histórico' }));
-    expect(screen.getByRole('dialog', { name: 'Histórico do Depósito', description: 'Depósito Sede' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Histórico' })).toBeNull();
+    await tocar(screen.getByRole('tab', { name: 'Histórico' }));
+    expect(screen.getByRole('button', { name: 'Mostrar: Todos os registros' })).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Histórico do depósito' })).toBeTruthy();
   });
 
-  it('sem permissão, não mostra Histórico nem registros no resumo', async () => {
+  it('sem permissão, não mostra aba Histórico', async () => {
     await montar({ permissions: { visualizar_historico_cocho: false } });
+    expect(screen.queryByRole('tab', { name: 'Histórico' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Histórico' })).toBeNull();
-    expect(screen.queryByRole('list', { name: 'Último registro' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
   });
 });
 
@@ -396,7 +393,7 @@ describe('DV-8 — carregando', () => {
     expect(status.textContent).toBe('Carregando detalhes do depósito...');
     expect(status.closest('.mk-dp__corpo')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Nível do depósito' })).toBeNull();
-    expect(pilulas()).toEqual(['Entrada', 'Saída', 'Histórico']);
+    expect(pilulas()).toEqual(['Entrada', 'Saída']);
   });
 });
 

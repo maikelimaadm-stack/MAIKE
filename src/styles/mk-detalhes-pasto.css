@@ -1207,6 +1207,12 @@
   height: 16px;
 }
 
+.mk-dp .mk-dp-pilula > svg.mk-dp-icone-lancar {
+  width: 15px;
+  height: 16px;
+  color: #3b3d45;
+}
+
 .mk-dp .mk-dp-pilula > span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1571,6 +1577,11 @@
   border-radius: 12px;
   background: #F9F9F7;
   box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+}
+
+/* Popups dos pontos (depósito, cocho, bebedouro, tarefa): metade da largura do Detalhes do Lote (720 px) em tablet e desktop. */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp:is(.mk-dp-deposito, .mk-dp-cocho, .mk-dp-bebedouro, .mk-dp-tarefa)):not(#mk-padrao) {
+  width: min(720px, calc(100vw - 48px));
 }
 
 .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp) .mk-ll-dlg__head:not(#mk-padrao) {
@@ -2112,5 +2123,557 @@
   }
   .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-grade > .mk-dp-cel:nth-child(n + 3) {
     border-top: 1px solid #e7e9ec;
+  }
+}
+
+/* ── Detalhes dos pontos (depósito, cocho, bebedouro, tarefa e aba Suplementação)
+   no mesmo padrão visual compacto e suave dos detalhes do lote (D-PROD-238 a 247):
+   cartões de 6 px com borda suave, tipografia leve, 4 campos por linha em
+   desktop/tablet (valor abaixo do rótulo) e linhas com valor à frente no celular. ── */
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico, .mk-dp .mk-dp-forragem)
+  :is(.mk-dp-cartao, .mk-dp-itens, .mk-dp-kpis, .mk-dp-nivel) {
+  border-radius: 6px;
+  border-color: #eef0f2;
+  box-shadow: 0 2px 3px rgb(20 20 19 / 7%);
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__cab {
+  padding: 8px 12px;
+  gap: 10px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__titulo {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__sub {
+  font-size: 11.5px;
+  margin-top: 1px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__img {
+  width: 28px;
+  height: 28px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__img img {
+  width: 100%;
+  height: 100%;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__ic {
+  width: 24px;
+  height: 24px;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__painel-nivel {
+  padding: 18px 22px;
+  gap: 24px;
+  min-height: 120px;
+  align-items: center;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__fig--painel {
+  position: relative;
+  width: 128px;
+  height: 94px;
+  flex: 0 0 auto;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__pct {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #9ca3af;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.92), 0 1px 2px rgba(255, 255, 255, 0.96);
+  pointer-events: none;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__pct--neutro {
+  font-size: 11px;
+  text-align: center;
+  white-space: normal;
+  max-width: 96px;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__resumo {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__metricas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  align-items: start;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__metrica {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__metrica-rot {
+  color: #73726c;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__metrica-val {
+  color: #1f2328;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__metrica-sub {
+  color: #73726c;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.mk-dp.mk-dp-cocho .mk-dp-cocho__historico-aba {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__cartao-nivel .mk-dp-grade {
+  padding: 0 12px;
+  column-gap: 12px;
+  clip-path: none;
+}
+
+.mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__cartao-nivel .mk-dp-grade > .mk-dp-cel {
+  padding: 8px 0;
+  row-gap: 2px;
+}
+
+.mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__cartao-nivel .mk-dp-grade > .mk-dp-cel::before {
+  display: none;
+}
+
+/* Cartão de nível do depósito ampliado: figura maior à esquerda com a porcentagem
+   dentro do ícone do depósito, e saldo + necessidade de reposição lado a lado à direita. */
+.mk-dp .mk-dp-deposito__painel-nivel {
+  padding: 18px 22px;
+  gap: 24px;
+  min-height: 120px;
+  align-items: center;
+}
+
+.mk-dp .mk-dp-deposito__fig {
+  position: relative;
+  width: 128px;
+  height: 94px;
+  flex: 0 0 auto;
+}
+
+.mk-dp .mk-dp-deposito__fig > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mk-dp .mk-dp-deposito__pct {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #9ca3af;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.92), 0 1px 2px rgba(255, 255, 255, 0.96);
+  pointer-events: none;
+}
+
+.mk-dp .mk-dp-deposito__pct.mk-dp-deposito__excesso {
+  color: #b45309;
+}
+
+.mk-dp .mk-dp-deposito__pct.mk-dp-deposito__neutro {
+  color: #4b5563;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-deposito__resumo {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-deposito__metricas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  align-items: start;
+}
+
+.mk-dp .mk-dp-deposito__metrica {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mk-dp :is(.mk-dp-deposito__metrica-rot, .mk-dp-cocho__metrica-rot) {
+  color: #656970;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.mk-dp :is(.mk-dp-deposito__metrica-val, .mk-dp-cocho__metrica-val) {
+  color: #1f2328;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.mk-dp :is(.mk-dp-deposito__metrica-sub, .mk-dp-cocho__metrica-sub) {
+  color: #656970;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+  .mk-dp-grade {
+  padding: 0 12px;
+  column-gap: 12px;
+  clip-path: none;
+  border-top: 0;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+  .mk-dp-cel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 6px 0;
+  border-top: 0;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+  .mk-dp-cel::before {
+  display: none;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+  .mk-dp-cel__rot {
+  color: #656970;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+  .mk-dp-cel__val {
+  display: block;
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+  .mk-dp-cel__val .mk-dp-bolinha {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+  :is(.mk-dp-cel__sub, .mk-dp-cel__barra) {
+  grid-column: 1 / -1;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico, .mk-dp .mk-dp-forragem)
+  .mk-dp-linha {
+  width: auto;
+  margin: 0 12px;
+  padding: 8px 0;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico, .mk-dp .mk-dp-forragem)
+  .mk-dp-linha__rot {
+  font-size: 13px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico, .mk-dp .mk-dp-forragem)
+  .mk-dp-linha__val {
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-itens__cab {
+  min-height: 30px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 12px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item {
+  min-height: 44px;
+  padding: 6px 12px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__tit {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__nome {
+  display: block;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-overflow: clip;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__meta {
+  font-size: 11.5px;
+  overflow-x: auto;
+  text-overflow: clip;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__img {
+  width: 26px;
+  height: 26px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__img img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Cartões largos empilhados nos pontos e na aba Suplementação (como D-PROD-239 nos lotes):
+   nenhum cartão fica pela metade; somente os campos internos formam colunas.
+   `:not(#mk-padrao)` garante especificidade superior às grades de 2 colunas de D-PROD-226
+   e aos arquivos mk-dp-deposito.css / mk-dp-cocho.css importados pelos componentes.
+   Sequência visual do depósito: 1º Nível do depósito, 2º Saldo por produto (com saldos atuais),
+   3º Ocupação do limite operacional e estoque mínimo, 4º Pastos atendidos, 5º Informações.
+   Sequência visual do cocho: 1º Nível do cocho, 2º Leitura do cocho, 3º Uso do limite operacional,
+   4º Informações. */
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp.mk-dp--suplementacao-organizada):not(#mk-padrao) > .mk-dp__corpo,
+.mk-dp:not(#mk-padrao) [id$="-painel-supl"]:has(> .mk-dp-kpis) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+:is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp.mk-dp--suplementacao-organizada):not(#mk-padrao) > .mk-dp__corpo > *,
+.mk-dp:not(#mk-padrao) [id$="-painel-supl"]:has(> .mk-dp-kpis) > * {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel,
+.mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__regiao:has(> .mk-dp-cocho__nivel) {
+  display: contents;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > * {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  width: 100%;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > .mk-dp-nivel { order: 1; }
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > .mk-dp-aviso { order: 2; }
+.mk-dp.mk-dp-deposito:not(#mk-padrao) > .mk-dp__corpo > .mk-dp-deposito__saldo { order: 3; }
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > .mk-dp-cartao { order: 4; }
+.mk-dp.mk-dp-deposito:not(#mk-padrao) > .mk-dp__corpo > .mk-dp-deposito__pastos { order: 5; }
+.mk-dp.mk-dp-deposito:not(#mk-padrao) > .mk-dp__corpo > .mk-dp-secao:not(.mk-dp-deposito__saldo):not(.mk-dp-deposito__pastos) { order: 6; }
+
+.mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__regiao > * {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  width: 100%;
+}
+
+.mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__regiao > .mk-dp-cocho__nivel { order: 1; }
+.mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__regiao > .mk-dp-cocho__cartao-nivel { order: 2; }
+.mk-dp.mk-dp-cocho:not(#mk-padrao) > .mk-dp__corpo > .mk-dp-cocho__leitura { order: 3; }
+.mk-dp.mk-dp-cocho:not(#mk-padrao) > .mk-dp__corpo > .mk-dp-secao:not(.mk-dp-cocho__leitura) { order: 4; }
+
+.mk-dp .mk-dp-grade + .mk-dp-deposito__litros {
+  border-top: 1px solid #e7e9ec;
+}
+
+/* Grades gerais dos pontos: 4 colunas em desktop/tablet; a linha divisória (`::before`)
+   cruza toda a largura da grade entre as fileiras, mesmo quando a 2ª fileira é incompleta. */
+@media (min-width: 768px) {
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp.mk-dp--suplementacao-organizada):not(#mk-padrao) > .mk-dp__corpo,
+  .mk-dp:not(#mk-padrao) [id$="-painel-supl"]:has(> .mk-dp-kpis) {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel,
+  .mk-dp.mk-dp-cocho:not(#mk-padrao) .mk-dp-cocho__regiao:has(> .mk-dp-cocho__nivel) {
+    display: contents;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp.mk-dp-cocho__historico, .mk-dp [id$="-painel-supl"]):not(#mk-padrao)
+    .mk-dp-cartao:not(.mk-dp-cocho__cartao-nivel) > .mk-dp-grade:not(.mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade):not(.mk-dp-deposito__saldo-resumo),
+  .mk-dp:not(#mk-padrao) [id$="-painel-supl"]:has(> .mk-dp-kpis) > .mk-dp-cartao .mk-dp-grade,
+  .mk-dp.mk-dp-bebedouro:not(#mk-padrao) > .mk-dp__corpo > .mk-dp-titulo:nth-child(1 of .mk-dp-titulo) + .mk-dp-cartao .mk-dp-grade {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 12px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp.mk-dp-cocho__historico, .mk-dp [id$="-painel-supl"]):not(#mk-padrao)
+    .mk-dp-cartao:not(.mk-dp-cocho__cartao-nivel) > .mk-dp-grade:not(.mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade):not(.mk-dp-deposito__saldo-resumo) > .mk-dp-cel:nth-child(n + 5) {
+    border-top: 1px solid #e7e9ec;
+  }
+}
+
+.mk-dp .mk-dp-deposito__saldo-resumo {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 12px;
+}
+
+/* Cartão de Ocupação do limite operacional e Estoque mínimo: cada item em sua própria
+   linha inteira com a mesma divisória (#e7e9ec) e respiro do Detalhes do Lote. */
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 12px;
+  clip-path: none;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  grid-template-rows: none;
+  padding: 8px 0;
+  row-gap: 2px;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel + .mk-dp-cel {
+  border-top: 1px solid #e7e9ec;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel::before {
+  display: none;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__nivel .mk-dp-cel__barra {
+  margin-top: 4px;
+}
+
+.mk-dp.mk-dp-deposito:not(#mk-padrao) .mk-dp-deposito__minimo {
+  gap: 3px;
+}
+
+/* Celular: campos em linhas (rótulo à esquerda, valor à direita) e leitura confortável. */
+@media (max-width: 767px) {
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-cartao:not(.mk-dp-cocho__cartao-nivel) > .mk-dp-grade:not(.mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-cartao:not(.mk-dp-cocho__cartao-nivel) > .mk-dp-grade:not(.mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade) > .mk-dp-cel {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-cartao:not(.mk-dp-cocho__cartao-nivel) > .mk-dp-grade:not(.mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade) > .mk-dp-cel .mk-dp-cel__val {
+    text-align: right;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-cartao:not(.mk-dp-cocho__cartao-nivel) > .mk-dp-grade:not(.mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade) > .mk-dp-cel:nth-child(n + 2) {
+    border-top: 1px solid #e7e9ec;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-cel__rot {
+    font-size: 13px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-cel__val {
+    font-size: 13.5px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__cab {
+    padding: 10px 12px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__titulo {
+    font-size: 14px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa) .mk-dp-cartao__sub {
+    font-size: 12.5px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item {
+    min-height: 48px;
+    padding: 8px 12px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__tit {
+    font-size: 13.5px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__meta {
+    font-size: 12.5px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-itens__cab {
+    min-height: 34px;
+    font-size: 13px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"]) .mk-dp-item__img {
+    width: 28px;
+    height: 28px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-linha {
+    padding: 9px 0;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-linha__rot {
+    font-size: 13px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-linha__sub {
+    font-size: 12px;
+  }
+
+  :is(.mk-dp.mk-dp-deposito, .mk-dp.mk-dp-cocho, .mk-dp.mk-dp-bebedouro, .mk-dp.mk-dp-tarefa, .mk-dp .mk-dp__corpo--cards[id$="-painel-supl"], .mk-dp.mk-dp-cocho__historico)
+    .mk-dp-linha__val {
+    font-size: 13.5px;
   }
 }

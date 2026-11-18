@@ -1,19 +1,21 @@
 import React, { useId, useMemo, useState } from "react";
-import { CalendarCheck, ClipboardCheck, History, Loader2, Package } from "lucide-react";
+import { CalendarCheck, ClipboardCheck, History, Loader2 } from "lucide-react";
+import IconeLancarSuplementacao from "./IconeLancarSuplementacao";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
-import { Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, SecaoDetalhe, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import FiltroHistorico from "@/components/mapa/detalhes-lote/FiltroHistorico";
+import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
+import { Abas, Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, SecaoDetalhe, TituloBloco, Vazio, idsDaAba } from "@/components/mapa/detalhes-lote/blocos";
+import { VAZIO, fmtNumero, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoPasto";
 import { listarTodosProdutos } from "@/services/estoqueMapaService";
 import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
-import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
 import CochoNivel from "./CochoNivel";
-import MedidorLimiteOperacional from "./MedidorLimiteOperacional";
 
-import { formatDecimal, formatKg } from "../suplementacao/formatters";
+import { formatDecimal } from "../suplementacao/formatters";
 import { MOTIVO_PESO, MOTIVO_SEM_REFERENCIA } from "../suplementacao/FarolConsumo";
 import { FAROL_CONSUMO, resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
 import FormularioLeituraCocho from "../suplementacao/FormularioLeituraCocho";
@@ -37,13 +39,19 @@ import { formatarDia } from "@/lib/diaCivil";
 import {
   MENSAGENS_NIVEL,
   calcularNivelCocho,
-  descreverUsoDoLimite,
   formatarKgNivel,
   projecaoDoCartaoDoNivel,
   formatarPercentualNivel,
   formatarTaxaNivel,
 } from "@/domain/suplementacao/nivelSuplementacao";
 import "@/styles/mk-dp-cocho.css";
+import "@/styles/mk-dp-historico.css";
+
+const FILTROS_COCHO = [
+  { valor: "todos", rotulo: "Todos os registros" },
+  { valor: "lancamentos", rotulo: "Lançamentos" },
+  { valor: "leituras", rotulo: "Leituras" },
+];
 
 /*
  * Detalhe do ponto de suplementação aberto pelo Mapa Geral — cocho (aqui) e
@@ -62,9 +70,6 @@ import "@/styles/mk-dp-cocho.css";
  */
 
 const ROTULO_RESTANTE_CICLO = "Restante do ciclo (estimado)";
-const ROTULO_USO_LIMITE = "Uso do limite operacional";
-const NOTA_LIMITE_ATUAL = "O limite é o valor configurado hoje; mudanças no cadastro não refazem lançamentos antigos.";
-const NOTA_DESCONTO_DIARIO = "No dia do abastecimento, mantém o total disponível. O desconto diário começa no dia seguinte, sem considerar o horário do registro.";
 
 /** Dias com até 1 casa ("4", "2,3"); o SSOT não arredonda. @param {number} dias */
 const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -178,9 +183,11 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const queryClient = useQueryClient();
   const idNivel = useId();
   const idLeitura = useId();
+  const idBaseAbas = `cocho-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const [abaAtiva, setAbaAtiva] = useState(/** @type {"detalhes" | "fechamentos" | "informacoes" | "historico"} */ ("detalhes"));
+  const [animAba, setAnimAba] = useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));
+  const [filtroHistorico, setFiltroHistorico] = useState("todos");
   const [showLancamento, setShowLancamento] = useState(false);
-  const [showHistorico, setShowHistorico] = useState(false);
-  const [showFechamentos, setShowFechamentos] = useState(false);
   const [showLeitura, setShowLeitura] = useState(false);
 
   // Fuso da FAZENDA: o mesmo resumo de empresas do Layout (`['empresas']`).
@@ -226,6 +233,14 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     () => calcularNivelCocho({ ponto, eventos, hoje, pontos: pontosSuplementacao }),
     [ponto, eventos, hoje, pontosSuplementacao],
   );
+  const pesoPorSacoCiclo = useMemo(() => {
+    const nome = normalizeText(nivel.evento?.produto || ponto?.produto_padrao || "");
+    if (!nome) return 0;
+    const prod = produtos.find((item) => normalizeText(item.nome_produto || "") === nome);
+    return Number(prod?.peso_por_saco_kg || 0);
+  }, [produtos, nivel.evento?.produto, ponto?.produto_padrao]);
+  const saldoSacos = pesoPorSacoCiclo > 0 && nivel.saldoKg != null ? kgParaSacos(nivel.saldoKg, pesoPorSacoCiclo) : null;
+  const consumoSacosDia = pesoPorSacoCiclo > 0 && nivel.taxaConsumoKgDia != null ? kgParaSacos(nivel.taxaConsumoKgDia, pesoPorSacoCiclo) : null;
   const eventosDoPonto = useMemo(
     () => eventos.filter((evento) => String(evento?.ponto_suplementacao_id) === String(ponto?.id)),
     [eventos, ponto?.id],
@@ -258,6 +273,52 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
       mapa.set(evento.produto, atual);
     });
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
+  }, [eventosDoPonto, produtos]);
+
+  const diasEventosCocho = useMemo(() => {
+    const ordenados = eventosDoPonto
+      .slice()
+      .sort(
+        (a, b) =>
+          String(b?.data_lancamento ?? "").localeCompare(String(a?.data_lancamento ?? "")) ||
+          String(b?.created_date ?? "").localeCompare(String(a?.created_date ?? "")),
+      );
+    /** @type {Array<{ chave: string, dia: string | null, rotulo: string, cartoes: Array<{ chave: string, dia: string | null, Icone: import("lucide-react").LucideIcon, titulo: string, linhas: Array<{ rotulo: string, valor: string }> }> }>} */
+    const dias = [];
+    ordenados.forEach((ev) => {
+      const diaRaw = String(ev?.data_lancamento ?? "").slice(0, 10);
+      const dia = /^\d{4}-\d{2}-\d{2}$/.test(diaRaw) ? diaRaw : null;
+      const produto = produtos.find((item) => normalizeText(item.nome_produto || "") === normalizeText(ev?.produto || ""));
+      const pesoPorSaco = Number(produto?.peso_por_saco_kg || 0);
+      const qtdKg = Number(ev?.quantidade_total_kg || 0);
+      const sacos = pesoPorSaco > 0 ? kgParaSacos(qtdKg, pesoPorSaco) : 0;
+      const fechado = Number(ev?.dias_periodo) > 0;
+      const linhas = [
+        { rotulo: "Produto", valor: ev?.produto || VAZIO },
+        { rotulo: "Quantidade (kg)", valor: fmtNumero(qtdKg, 2) },
+        { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(sacos, 2) : VAZIO },
+        { rotulo: "Tipo", valor: fechado ? `Período fechado (${ev.dias_periodo} dia(s))` : "Abastecimento" },
+      ];
+      if (Number(ev?.sobra_kg) > 0) {
+        linhas.push({ rotulo: "Sobra (kg)", valor: fmtNumero(ev.sobra_kg, 2) });
+      }
+      const obs = typeof ev?.observacoes === "string" ? ev.observacoes.trim() : "";
+      if (obs) linhas.push({ rotulo: "Observações", valor: obs });
+      const cartao = {
+        chave: `ev-${ev?.id ?? Math.random()}`,
+        dia,
+        Icone: IconeLancarSuplementacao,
+        titulo: fechado ? "Fechamento de período" : "Suplementação",
+        linhas,
+      };
+      let grupo = dias[dias.length - 1];
+      if (!grupo || grupo.dia !== dia) {
+        grupo = { chave: `${dia ?? "sem-data"}-${dias.length}`, dia, rotulo: rotuloDoDia(dia), cartoes: [] };
+        dias.push(grupo);
+      }
+      grupo.cartoes.push(cartao);
+    });
+    return dias;
   }, [eventosDoPonto, produtos]);
 
   // Duração e reposição atuais vêm da mesma projeção do SSOT usada pelo Histórico.
@@ -295,13 +356,33 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
 
   const podeLancar = permissions.lancar_suplementacao !== false;
   const podeHistorico = permissions.visualizar_historico_cocho !== false;
+  const abas = useMemo(
+    () => [
+      { id: "detalhes", rotulo: "Detalhes" },
+      ...(podeHistorico ? [{ id: "fechamentos", rotulo: "Fechamentos" }] : []),
+      { id: "informacoes", rotulo: "Informações" },
+      ...(podeHistorico ? [{ id: "historico", rotulo: "Histórico" }] : []),
+    ],
+    [podeHistorico],
+  );
+  const aba = abas.some((a) => a.id === abaAtiva) ? abaAtiva : "detalhes";
+  const idsAba = idsDaAba(idBaseAbas, aba);
+
+  /** @param {string} nova */
+  const irAba = (nova) => {
+    if (nova === aba) return;
+    const ordem = ["detalhes", "fechamentos", "informacoes", "historico"];
+    setAnimAba(ordem.indexOf(nova) > ordem.indexOf(aba) ? "aba-dir" : "aba-esq");
+    setAbaAtiva(/** @type {"detalhes" | "fechamentos" | "informacoes" | "historico"} */ (nova));
+  };
+
   // Aberto por cima do depósito, a tela entra empurrando (como as telas empilhadas do lote).
   const casca = {
     titulo: String(ponto?.nome_ponto ?? ""),
     sub: subtitulo || areaNomesRelacionadas.join(", "),
     onVoltar,
-    chaveTela: "cocho",
-    anim: onVoltar ? /** @type {const} */ ("empurrar") : null,
+    chaveTela: `cocho:${aba}`,
+    anim: animAba || (onVoltar ? /** @type {const} */ ("empurrar") : null),
   };
 
   if (loadingInicial) {
@@ -315,48 +396,120 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   /** @type {Array<{ chave: string, rotulo: string, icone: import("lucide-react").LucideIcon, onClick: () => void }>} */
   const pilulas = [];
   if (podeLancar) {
-    pilulas.push({ chave: "lancar", rotulo: "Lançar", icone: Package, onClick: () => setShowLancamento(true) });
+    pilulas.push({ chave: "lancar", rotulo: "Lançar", icone: IconeLancarSuplementacao, onClick: () => setShowLancamento(true) });
     pilulas.push({ chave: "leitura", rotulo: "Leitura", icone: ClipboardCheck, onClick: () => setShowLeitura(true) });
-  }
-  if (podeHistorico) {
-    pilulas.push({ chave: "fechamentos", rotulo: "Fechamentos", icone: CalendarCheck, onClick: () => setShowFechamentos(true) });
-    pilulas.push({ chave: "historico", rotulo: "Histórico", icone: History, onClick: () => setShowHistorico(true) });
   }
 
   return (
     <>
-      <CascaDetalhe {...casca} className="mk-dp-cocho mk-dp--suplementacao-organizada" rodape={pilulas.length ? <RodapePilulas itens={pilulas} rotulo="Ações do cocho" /> : null}>
-        <section aria-labelledby={idNivel} className="mk-dp-cocho__regiao">
-          <h3 id={idNivel} className="mk-dp-cocho__oculto">Nível do cocho</h3>
-          <BlocoNivel nivel={nivel} />
-          <CartaoDoNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} />
-        </section>
+      <CascaDetalhe
+        {...casca}
+        className="mk-dp-cocho mk-dp--suplementacao-organizada"
+        cabecalhoDoCorpo={
+          <Abas
+            abas={abas}
+            ativa={aba}
+            onMudar={irAba}
+            idBase={idBaseAbas}
+            rotulo="Seções do cocho"
+          />
+        }
+        propsDoCorpo={{ role: "tabpanel", id: idsAba.painel, "aria-labelledby": idsAba.aba }}
+        rodape={pilulas.length ? <RodapePilulas itens={pilulas} rotulo="Ações do cocho" /> : null}
+      >
+        {aba === "detalhes" ? (
+          <>
+            <section aria-labelledby={idNivel} className="mk-dp-cocho__regiao">
+              <h3 id={idNivel} className="mk-dp-cocho__oculto">Nível do cocho</h3>
+              <BlocoNivel nivel={nivel} saldoSacos={saldoSacos} consumoSacosDia={consumoSacosDia} />
+              <CartaoDoNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} />
+            </section>
 
-        <section aria-labelledby={idLeitura} className="mk-dp-cocho__regiao mk-dp-secao mk-dp-cocho__leitura">
-          <TituloBloco id={idLeitura}>Leitura do cocho</TituloBloco>
-          <PainelLeitura farol={farol} ultimas={[]} podeExcluir={false} onExcluir={excluirLeitura} />
-        </section>
-
-        <SecaoDetalhe titulo="Informações do cocho">
-        <Cartao>
-          <Grade>
-            <Celula rotulo="Número" valor={ponto.numero_ponto || "-"} />
-            <Celula rotulo="Sigla" valor={ponto.sigla || "-"} />
-            <Celula rotulo="Tipo" valor={ponto.tipo || "-"} />
-            <Celula rotulo="Depósito vinculado" valor={ponto.deposito_origem_nome || "-"} />
-            <Celula rotulo="Áreas vinculadas" valor={areaNomesRelacionadas.join(", ") || "-"} />
-            <Celula rotulo="Produto padrão" valor={ponto.produto_padrao || "-"} />
-            {ponto.metragem_cocho_m ? <Celula rotulo="Metragem" valor={`${formatDecimal(ponto.metragem_cocho_m)} m`} /> : null}
-            {ponto.cobertura_cocho ? <Celula rotulo="Cobertura" valor={ponto.cobertura_cocho} /> : null}
-            <Celula rotulo="Consumo ideal/cab" valor={ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : "-"} />
-            <Celula rotulo="Consumo mín./cab/dia" valor={ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : "-"} />
-            <Celula rotulo="Consumo máx./cab/dia" valor={ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : "-"} />
-            <Celula rotulo="Dias alerta reposição" valor={ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : "-"} />
-            <Celula rotulo="Alerta sem lançamento" valor={ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : "-"} />
-          </Grade>
-          <Linha rotulo="Observações" valor={ponto.observacoes || "-"} quebra />
-        </Cartao>
-        </SecaoDetalhe>
+            <section aria-labelledby={idLeitura} className="mk-dp-cocho__regiao mk-dp-secao mk-dp-cocho__leitura">
+              <TituloBloco id={idLeitura}>Leitura do cocho</TituloBloco>
+              <PainelLeitura farol={farol} ultimas={[]} podeExcluir={false} onExcluir={excluirLeitura} />
+            </section>
+          </>
+        ) : aba === "fechamentos" ? (
+          fechamentos.length ? (
+            <ul className="mk-dp-cocho__fechamentos" aria-label="Fechamentos do cocho">
+              {fechamentos.map((evento) => (
+                <li key={evento.id}>
+                  <CartaoPeriodoFechado evento={evento} resumo={resumoDoFechamento(evento)} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Vazio icone={CalendarCheck}>Nenhum período fechado ainda.</Vazio>
+          )
+        ) : aba === "informacoes" ? (
+          <SecaoDetalhe titulo="Informações do cocho">
+            <Cartao>
+              <Grade>
+                <Celula rotulo="Número" valor={ponto.numero_ponto || "-"} />
+                <Celula rotulo="Sigla" valor={ponto.sigla || "-"} />
+                <Celula rotulo="Tipo" valor={ponto.tipo || "-"} />
+                <Celula rotulo="Depósito vinculado" valor={ponto.deposito_origem_nome || "-"} />
+                <Celula rotulo="Áreas vinculadas" valor={areaNomesRelacionadas.join(", ") || "-"} />
+                <Celula rotulo="Produto padrão" valor={ponto.produto_padrao || "-"} />
+                {ponto.metragem_cocho_m ? <Celula rotulo="Metragem" valor={`${formatDecimal(ponto.metragem_cocho_m)} m`} /> : null}
+                {ponto.cobertura_cocho ? <Celula rotulo="Cobertura" valor={ponto.cobertura_cocho} /> : null}
+                <Celula rotulo="Limite operacional" valor={nivel.limiteOperacionalKg != null ? formatarKgNivel(nivel.limiteOperacionalKg) : "-"} />
+                {nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null && nivel.limiteOperacionalKg != null ? (
+                  <Celula
+                    rotulo="Uso do limite"
+                    valor={`${formatarPercentualNivel(nivel.ocupacaoAtualPercentual)}${nivel.excessoAtualKg ? ` (${formatarKgNivel(nivel.excessoAtualKg)} acima)` : ""}`}
+                  />
+                ) : null}
+                {nivel.ocupacaoNoLancamentoPercentual != null ? (
+                  <Celula
+                    rotulo="No lançamento"
+                    valor={`${formatarPercentualNivel(nivel.ocupacaoNoLancamentoPercentual)}${nivel.excessoNoLancamentoKg ? ` (${formatarKgNivel(nivel.excessoNoLancamentoKg)} acima)` : ""}`}
+                  />
+                ) : null}
+                <Celula rotulo="Consumo ideal/cab" valor={ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : "-"} />
+                <Celula rotulo="Consumo mín./cab/dia" valor={ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : "-"} />
+                <Celula rotulo="Consumo máx./cab/dia" valor={ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : "-"} />
+                <Celula rotulo="Dias alerta reposição" valor={ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : "-"} />
+                <Celula rotulo="Alerta sem lançamento" valor={ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : "-"} />
+              </Grade>
+              <Linha rotulo="Observações" valor={ponto.observacoes || "-"} quebra />
+            </Cartao>
+          </SecaoDetalhe>
+        ) : (
+          <div className="mk-dp-hist">
+            <FiltroHistorico opcoes={FILTROS_COCHO} valor={filtroHistorico} onMudar={setFiltroHistorico} />
+            {filtroHistorico !== "leituras" ? (
+              <>
+                <SecaoDetalhe titulo="Total fornecido por produto" className="mk-dp-cocho__produtos">
+                  <Cartao>
+                    {resumoProdutos.length === 0 ? (
+                      <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum produto lançado ainda." />
+                    ) : (
+                      resumoProdutos.map((item) => (
+                        <Linha
+                          key={item.produto ?? ""}
+                          rotulo={item.produto || "-"}
+                          valor={`${item.sacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos · ${formatarKgNivel(item.kg)}`}
+                        />
+                      ))
+                    )}
+                  </Cartao>
+                </SecaoDetalhe>
+                {diasEventosCocho.length > 0 ? (
+                  <LinhaDoTempo dias={diasEventosCocho} rotulo="Lançamentos do cocho" />
+                ) : (
+                  <Vazio icone={History}>Nenhum lançamento registrado neste cocho.</Vazio>
+                )}
+              </>
+            ) : null}
+            {filtroHistorico !== "lancamentos" ? (
+              <SecaoDetalhe titulo="Leituras do cocho">
+                <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={podeLancar} onExcluir={excluirLeitura} mostrarResumo={false} />
+              </SecaoDetalhe>
+            ) : null}
+          </div>
+        )}
       </CascaDetalhe>
 
       {/* Lançar no desenho do lançamento de manejo (D-PROD-222): título = a ação, subtítulo = o cocho; o ✓ do cabeçalho envia. */}
@@ -386,69 +539,17 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           />
         ) : null}
       </LancLoteDialogo>
-
-      <LancLoteDialogo open={showFechamentos} onOpenChange={setShowFechamentos} titulo="Fechamentos do Cocho" lotes={ponto.nome_ponto ? [{ nome: ponto.nome_ponto }] : undefined} largo somenteLeitura>
-        {showFechamentos ? (
-          <CascaDetalhe titulo="Fechamentos do Cocho" sub={ponto.nome_ponto} onVoltar={() => setShowFechamentos(false)} className="mk-dp-cocho">
-            {fechamentos.length ? (
-              <ul className="mk-dp-cocho__fechamentos" aria-label="Fechamentos do cocho">
-                {fechamentos.map((evento) => (
-                  <li key={evento.id}>
-                    <CartaoPeriodoFechado evento={evento} resumo={resumoDoFechamento(evento)} />
-                  </li>
-                ))}
-              </ul>
-            ) : <Vazio icone={CalendarCheck}>Nenhum período fechado ainda.</Vazio>}
-          </CascaDetalhe>
-        ) : null}
-      </LancLoteDialogo>
-
-      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" lotes={ponto.nome_ponto ? [{ nome: ponto.nome_ponto }] : undefined} largo somenteLeitura>
-          {showHistorico ? (
-            <div className="mk-dp mk-dp-cocho__historico">
-        <SecaoDetalhe titulo="Total fornecido por produto" className="mk-dp-cocho__produtos">
-        <Cartao>
-          {resumoProdutos.length === 0 ?
-          <Linha className="mk-dp-cocho__linha--fraca" rotulo="Nenhum produto lançado ainda." /> :
-          resumoProdutos.map((item) =>
-          <Linha
-            key={item.produto ?? ""}
-            rotulo={item.produto || "-"}
-            valor={`${item.sacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos · ${formatKg(item.kg)}`} />
-          )}
-        </Cartao>
-
-        </SecaoDetalhe>
-
-
-              <SecaoDetalhe titulo="Leituras do cocho">
-                <PainelLeitura farol={farol} ultimas={ultimasLeituras} podeExcluir={podeLancar} onExcluir={excluirLeitura} mostrarResumo={false} />
-              </SecaoDetalhe>
-              <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
-            </div>
-          ) : null}
-        </LancLoteDialogo>
     </>);
 
 }
 
 /**
- * Bloco do nível do ciclo (o `v11-nivel` do v12): o subícone do cocho (o
- * desenho dos detalhes, sem a bolinha do mapa, D-PROD-225) com o nível do
- * SSOT, "RESTANTE DO CICLO (ESTIMADO)", o percentual UMA vez, grande
- * (sem estimativa, o estado: "Período fechado", "Sem lançamento"…), e as linhas
- * (kg, consumo, dias). Neutro (sem estimativa, período fechado, sem
- * lançamento…) mostra a mensagem do estado e, quando há, o que fazer para a
- * estimativa voltar e a base do ciclo.
- *
- * Mesma marcação e classes do `Nivel` de blocos.jsx, com uma diferença: lá a
- * figura é sempre decorativa (`aria-hidden`); aqui o `CochoNivel` é o
- * `role="img"` "Restante do ciclo (estimado): …" (D-PROD-178) — o leitor de
- * tela ouve o nível por ele, e o rótulo e o valor visíveis (o mesmo texto)
- * saem da árvore acessível para não serem lidos duas vezes.
- * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho }} props
+ * Bloco do nível do ciclo: subícone ampliado do cocho à esquerda com o
+ * percentual centralizado em cinza claro (`#9ca3af`) e, ao lado, os números
+ * principais do ciclo (Saldo estimado e dias restantes) ou o estado neutro.
+ * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, saldoSacos?: number | null, consumoSacosDia?: number | null }} props
  */
-function BlocoNivel({ nivel }) {
+function BlocoNivel({ nivel, saldoSacos = null, consumoSacosDia = null }) {
   const estimado = nivel.confiabilidade === "estimada" && !nivel.neutro && nivel.saldoKg != null && nivel.baseCicloKg != null;
   const mensagem = nivel.confiabilidade === "indisponivel" && nivel.motivo ? `${nivel.mensagem}: ${nivel.motivo}.` : nivel.mensagem;
   const baseSemEstimativa = !estimado && nivel.estado === "ciclo_aberto" && nivel.baseCicloKg != null && nivel.baseCicloKg > 0;
@@ -461,89 +562,79 @@ function BlocoNivel({ nivel }) {
       : null;
 
   /** @type {Array<string|null>} */
-  const linhas = estimado ?
-  [
-    `Base do ciclo: ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))}`,
-    `Consumo estimado: ${formatarTaxaNivel(/** @type {number} */ (nivel.taxaConsumoKgDia))} (${nivel.evento?.base_consumo === "G_CAB_DIA" ? "g/cab/dia" : "%PV"} no lançamento)`,
-    nivel.diasDecorridos != null && nivel.diasRestantesEstimados != null ?
-    `Dias desde o abastecimento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)` :
-    null] :
-
-  [
+  const linhasNeutras = [
     mensagem,
     orientacao,
     baseSemEstimativa ?
     nivel.sobraAnteriorKg ?
     `No início do ciclo: ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))} (${formatarKgNivel(nivel.fornecidoKg ?? 0)} fornecidos + ${formatarKgNivel(nivel.sobraAnteriorKg)} de sobra anterior)` :
     `No início do ciclo: ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))} fornecidos` :
-    null];
-
+    null,
+  ];
 
   return (
-    <div className={nivel.neutro ? "mk-dp-nivel mk-dp-cocho__nivel mk-dp-cocho__nivel--neutro" : "mk-dp-nivel mk-dp-cocho__nivel"}>
-      <span className="mk-dp-nivel__fig mk-dp-cocho__fig">
+    <div className={nivel.neutro ? "mk-dp-nivel mk-dp-cocho__nivel mk-dp-cocho__painel-nivel mk-dp-cocho__nivel--neutro" : "mk-dp-nivel mk-dp-cocho__nivel mk-dp-cocho__painel-nivel"}>
+      <span className="mk-dp-nivel__fig mk-dp-cocho__fig mk-dp-cocho__fig--painel">
         <CochoNivel percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
+        <strong aria-hidden="true" className={nivel.neutro ? "mk-dp-cocho__pct mk-dp-cocho__pct--neutro" : "mk-dp-cocho__pct"}>
+          {nivel.rotuloCurto}
+        </strong>
       </span>
-      <div className="mk-dp-nivel__txt">
-        <span className="mk-dp-nivel__rot" aria-hidden="true">{ROTULO_RESTANTE_CICLO}</span>
-        <strong className="mk-dp-nivel__val" aria-hidden="true">{nivel.rotuloCurto}</strong>
-        {linhas.filter(Boolean).map((linha, i) =>
-        <small key={i} className="mk-dp-nivel__linha">{linha}</small>
+      <div className="mk-dp-nivel__txt mk-dp-cocho__resumo">
+        {estimado ? (
+          <div className="mk-dp-cocho__metricas">
+            <div className="mk-dp-cocho__metrica">
+              <span className="mk-dp-cocho__metrica-rot">Saldo estimado do cocho</span>
+              <strong className="mk-dp-cocho__metrica-val">{formatarKgNivel(/** @type {number} */ (nivel.saldoKg))}</strong>
+              {saldoSacos != null ? (
+                <small className="mk-dp-cocho__metrica-sub">{`${formatDecimal(saldoSacos)} sacos`}</small>
+              ) : null}
+            </div>
+            <div className="mk-dp-cocho__metrica">
+              <span className="mk-dp-cocho__metrica-rot">Consumo estimado/dia</span>
+              <strong className="mk-dp-cocho__metrica-val">{formatarTaxaNivel(/** @type {number} */ (nivel.taxaConsumoKgDia))}</strong>
+              {consumoSacosDia != null ? (
+                <small className="mk-dp-cocho__metrica-sub">{`${formatDecimal(consumoSacosDia)} sacos/dia`}</small>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          linhasNeutras.filter(Boolean).map((linha, i) => (
+            <small key={i} className="mk-dp-nivel__linha">{linha}</small>
+          ))
         )}
-        {estimado ? <small className="mk-dp-nivel__linha mk-dp-cocho__obs">{NOTA_DESCONTO_DIARIO}</small> : null}
       </div>
-    </div>);
-
+    </div>
+  );
 }
 
 /**
- * Cartão abaixo do nível (o v12 mostra só com estimativa; aqui sempre, porque o
- * limite operacional tem estado próprio): uso do LIMITE OPERACIONAL configurado
- * hoje (percentual bruto, pode passar de 100%; neutro com a mensagem e o que
- * fazer), o saldo (estimado, ou a sobra informada no fechamento — sem
- * estimativa, nada é chamado de saldo), a duração do ciclo e a próxima
- * reposição; depois, a linha "No lançamento" e a nota de que o limite é o de hoje.
+ * Cartão de estimativas de consumo abaixo do nível (consumo estimado/dia,
+ * duração estimada, próxima reposição ou sobra informada no fechamento).
+ * Quando não há nenhum desses dados (ex.: sem lançamento), não renderiza.
  * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, duracaoCicloDias: number|null, proximaReposicao: string|null }} props
  */
 function CartaoDoNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
-  const limite = nivel.limiteOperacionalKg;
-  // Mesmo padrão de texto do depósito (`descreverUsoDoLimite`).
-  const uso = limite != null && nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null ?
-  descreverUsoDoLimite({ percentual: nivel.ocupacaoAtualPercentual, saldoKg: nivel.saldoKg, limiteKg: limite, excessoKg: nivel.excessoAtualKg }) :
-  null;
-  const descricao = uso ? uso.descricao : limite != null ?
-  `Sem estimativa do que há no cocho agora (limite de ${formatarKgNivel(limite)}).` :
-  MENSAGENS_NIVEL.limiteNaoConfigurado;
-  const linhaLancamento = nivel.ocupacaoNoLancamentoPercentual != null ?
-  `No lançamento: ${formatarPercentualNivel(nivel.ocupacaoNoLancamentoPercentual)}${nivel.excessoNoLancamentoKg ? ` (${formatarKgNivel(nivel.excessoNoLancamentoKg)} acima)` : ""}` :
-  null;
-  const nota = limite != null && nivel.evento ? NOTA_LIMITE_ATUAL : null;
+  const temSobra = nivel.saldoKg != null && nivel.saldoTipo === "informado";
+  if (!temSobra && duracaoCicloDias == null && !proximaReposicao) return null;
 
   return (
-    <Cartao className="mk-dp-cocho__cartao-nivel">
-      <Grade>
-        <MedidorLimiteOperacional
-          estilo="v12"
-          percentualBruto={uso ? nivel.ocupacaoAtualPercentual : null}
-          rotulo={ROTULO_USO_LIMITE}
-          descricao={descricao}
-          textoAcessivel={uso?.textoAcessivel}
-          orientacao={limite == null ? MENSAGENS_NIVEL.orientacaoLimite : null} />
-        {nivel.saldoKg != null && nivel.saldoTipo ?
-        <Celula
-          rotulo={nivel.saldoTipo === "informado" ? "Sobra informada" : "Saldo estimado"}
-          valor={formatarKgNivel(nivel.saldoKg)} /> :
-        null}
-        {duracaoCicloDias != null ? <Celula rotulo="Duração estimada" valor={`${formatarDias(duracaoCicloDias)} dia(s)`} /> : null}
-        {proximaReposicao ? <Celula rotulo="Próxima reposição" valor={proximaReposicao} /> : null}
-      </Grade>
-      {linhaLancamento ?
-      <Linha rotulo={<span className={nivel.excessoNoLancamentoKg ? "mk-dp-cocho__atencao" : undefined}>{linhaLancamento}</span>} sub={nota} /> :
-      nota ?
-      <Linha className="mk-dp-cocho__linha--fraca" rotulo={nota} /> :
-      null}
-    </Cartao>);
-
+    <div className="mk-dp-secao mk-dp-cocho__cartao-nivel">
+      <TituloBloco>Estimativas de consumo</TituloBloco>
+      <Cartao>
+        <Grade>
+          {temSobra ? (
+            <Celula
+              rotulo="Sobra informada"
+              valor={formatarKgNivel(/** @type {number} */ (nivel.saldoKg))}
+            />
+          ) : null}
+          {duracaoCicloDias != null ? <Celula rotulo="Duração estimada" valor={`${formatarDias(duracaoCicloDias)} dia(s)`} /> : null}
+          {proximaReposicao ? <Celula rotulo="Próxima reposição" valor={proximaReposicao} /> : null}
+        </Grade>
+      </Cartao>
+    </div>
+  );
 }
 
 /**
@@ -597,9 +688,6 @@ function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir, mostrarResumo =
           </ul> :
         null}
       </Cartao>
-      {mostrarResumo ? farol.avisos.map((a) =>
-      <Aviso key={a.texto} data-testid="aviso-leitura-cocho">{`${a.texto} (leitura de ${diaDaUltima})`}</Aviso>
-      ) : null}
       {!mostrarResumo && !ultimas.length ? <Vazio icone={ClipboardCheck}>Nenhuma leitura registrada.</Vazio> : null}
     </>);
 
@@ -613,13 +701,18 @@ function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir, mostrarResumo =
 const corDoEscore = (leitura) =>
   farolDoCocho({ leituras: [leitura], pontoId: leitura?.ponto_suplementacao_id, hoje: String(leitura?.data_leitura ?? "").slice(0, 10) }).hex;
 
+/** Formata consumo por cabeça/dia em g (< 1 kg) ou kg (≥ 1 kg). @param {number | null} gramas */
+const formatarConsumoCabDia = (gramas) => {
+  if (typeof gramas !== "number" || !Number.isFinite(gramas)) return null;
+  if (gramas >= 1000) return `${numero(gramas / 1000, 2)} kg`;
+  return `${numero(gramas, 0)} g`;
+};
+
 /**
- * D-PROD-206 — o período FECHADO mais recente no desenho do v12: produto,
- * lançamento e dias, real × esperado com a cor e o texto do farol, custo por
- * cabeça/dia e, no mesmo desenho, o resto do resumo de hoje (consumo g/cab/dia,
- * % do esperado, peso médio do período, custo do período, sobra antiga e o
- * aviso de sobra não informada). Na base g/cab/dia (D-PROD-210) a comparação é
- * em gramas e o %PV real é só informação.
+ * D-PROD-206 — cartão de período FECHADO do cocho: produto, lançamento e dias,
+ * consumo real e consumo esperado separados (em g ou kg/cab/dia), desvio com
+ * o farol junto, peso médio, custo por cab/dia antes do custo do período,
+ * sobra antiga e aviso de sobra não informada.
  * @param {{ evento: any, resumo: ReturnType<typeof resumoDoFechamento> }} props
  */
 function CartaoPeriodoFechado({ evento, resumo }) {
@@ -635,18 +728,31 @@ function CartaoPeriodoFechado({ evento, resumo }) {
   const semReferencia = resumo.farol_consumo === "sem_referencia";
   const motivo = semReferencia && resumo.farol_consumo_motivo ? MOTIVO_SEM_REFERENCIA[resumo.farol_consumo_motivo] : null;
   const faixa = numero(resumo.faixa_tolerancia_aplicada, 0);
-  // O texto sempre acompanha a cor (D-PROD-206): "abaixo da faixa da formulação (±15%)".
-  const textoFarol = semReferencia ?
-  `${minusculo(farol.rotulo)}${motivo ? ` — ${motivo}` : ""}` :
-  `${minusculo(farol.rotulo)} da faixa da formulação${faixa ? ` (±${faixa}%)` : ""}`;
-  const subFarol = <span data-testid="farol-consumo" data-farol={resumo.farol_consumo}>{textoFarol}</span>;
 
-  const emGramas = resumo.base_consumo_aplicada === "G_CAB_DIA";
-  const pvReal = numero(resumo.consumo_real_pv_percentual, 3);
-  const pvEsperado = numero(resumo.consumo_esperado_pv_percentual, 3);
-  const gReal = numero(resumo.consumo_g_cab_dia, 0);
-  const gMeta = numero(resumo.consumo_esperado_g_cab_dia, 0);
+  const gReal = typeof resumo.consumo_g_cab_dia === "number" && Number.isFinite(resumo.consumo_g_cab_dia)
+    ? resumo.consumo_g_cab_dia
+    : null;
+  const cab = Number(evento.total_cabecas_afetadas || 0);
+  const gMeta = typeof resumo.consumo_esperado_g_cab_dia === "number" && Number.isFinite(resumo.consumo_esperado_g_cab_dia)
+    ? resumo.consumo_esperado_g_cab_dia
+    : typeof resumo.consumo_esperado_fechamento_kg_dia === "number" && cab > 0
+      ? (resumo.consumo_esperado_fechamento_kg_dia / cab) * 1000
+      : Number(evento.consumo_esperado_pv_kg) > 0 && cab > 0
+        ? (Number(evento.consumo_esperado_pv_kg) / cab) * 1000
+        : gReal !== null && typeof resumo.consumo_relacao_esperado === "number" && resumo.consumo_relacao_esperado > 0
+          ? gReal / resumo.consumo_relacao_esperado
+          : null;
+
   const relacaoPct = typeof resumo.consumo_relacao_esperado === "number" ? resumo.consumo_relacao_esperado * 100 : null;
+  const desvioPct = relacaoPct !== null ? Math.round(relacaoPct - 100) : null;
+  const desvioTexto = desvioPct !== null ? `${desvioPct > 0 ? `+${desvioPct}` : desvioPct}%` : null;
+  const valorFarol = (
+    <span data-testid="farol-consumo" data-farol={resumo.farol_consumo}>
+      {semReferencia ? farol.rotulo : `${farol.rotulo}${desvioTexto ? ` (${desvioTexto})` : ""}`}
+    </span>
+  );
+  const subFarol = semReferencia ? motivo : faixa ? `Faixa ±${faixa}%` : null;
+
   const motivoPeso = resumo.peso_medio_periodo_motivo ? MOTIVO_PESO[resumo.peso_medio_periodo_motivo] : null;
   const sobraHerdada = typeof resumo.sobra_herdada_kg === "number" && resumo.sobra_herdada_kg > 0 && typeof resumo.custo_sobra_herdada_kg === "number";
 
@@ -655,16 +761,9 @@ function CartaoPeriodoFechado({ evento, resumo }) {
       <Grade>
         <Celula rotulo="Produto" valor={evento.produto || "-"} />
         <Celula rotulo="Lançamento" valor={`${diaBR(evento.data_lancamento)} · ${evento.dias_periodo} dia(s)`} />
-        {emGramas ?
-        <Celula rotulo="g/cab/dia real × meta" valor={gReal ? `${gReal} g × ${gMeta ? `${gMeta} g` : "-"}` : "-"} bolinha={corFarol} sub={subFarol} /> :
-        <Celula rotulo="%PV real × esperado" valor={pvReal ? `${pvReal}% × ${pvEsperado ? `${pvEsperado}%` : "-"}` : "-"} bolinha={corFarol} sub={subFarol} />
-        }
-        <Celula rotulo="Custo por cab/dia (R$)" valor={numero(resumo.custo_cab_dia, 2) ?? "Sem custo"} />
-        {emGramas ?
-        <Celula rotulo="%PV real (informação)" valor={pvReal ? `${pvReal}%` : "-"} /> :
-        <Celula rotulo="Consumo g/cab/dia" valor={gReal ? `${gReal} g` : "-"} />
-        }
-        {relacaoPct !== null ? <Celula rotulo="% do esperado" valor={`${numero(relacaoPct, 0)}%`} /> : null}
+        <Celula rotulo="Consumo real" valor={formatarConsumoCabDia(gReal) ?? "-"} />
+        <Celula rotulo="Consumo esperado" valor={formatarConsumoCabDia(gMeta) ?? "-"} />
+        <Celula rotulo="Desvio" valor={valorFarol} bolinha={corFarol} sub={subFarol} />
         {typeof resumo.peso_medio_periodo_kg === "number" ?
         <Celula
           rotulo="Peso médio do período"
@@ -672,6 +771,7 @@ function CartaoPeriodoFechado({ evento, resumo }) {
           sub={resumo.peso_medio_periodo_aproximado ? <span className="mk-dp-cocho__atencao">{`aproximado${motivoPeso ? `: ${motivoPeso}` : ""}`}</span> : null}
           data-testid="peso-medio-periodo" /> :
         null}
+        <Celula rotulo="Custo por cab/dia (R$)" valor={numero(resumo.custo_cab_dia, 2) ?? "Sem custo"} />
         <Celula
           rotulo="Custo do período"
           valor={reais(resumo.custo_total_periodo) ? `${reais(resumo.custo_total_periodo)} · ${reais(resumo.custo_unitario_kg)}/kg` : "Sem custo"} />
