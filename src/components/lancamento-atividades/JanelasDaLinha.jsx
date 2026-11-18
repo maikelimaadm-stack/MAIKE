@@ -4,7 +4,7 @@ import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
-import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
+import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
 import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
@@ -880,6 +880,8 @@ const descricaoDaJanela = (atividade, apontamento) =>
  */
 function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, podeEnviar, formId, onFechar, onEnviar, children }) {
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
+  // D-PROD-252: no celular a janela de uma linha ocupa a tela (como a do lançamento novo), sem caixa flutuante.
+  const celular = useCelular();
   return (
     <B1Janela
       aberto
@@ -889,8 +891,9 @@ function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, pod
       titulo={titulo}
       descricao={descricao}
       testId={testId}
+      className={celular ? "b1-janela--tela-cheia" : ""}
       // Os botões daqui seguem as ações da tela (lançar/editar apontamento): a heurística de texto do Layout não vale.
-      contentProps={{ "data-permissao-explicita": "" }}
+      contentProps={{ "data-permissao-explicita": "", "data-celular": celular ? "" : undefined, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
       fora={<div ref={setAlvoFolha} className="contents" />}
       rodape={
         <>

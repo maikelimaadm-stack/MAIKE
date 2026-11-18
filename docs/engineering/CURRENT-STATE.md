@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
+## Missão ativa (2026-11-18) — MAIKE-LANCAMENTOS-ORGANIZAR: uma tabela de áreas, uma tabela de lançamentos por área e um nível de janela (D-PROD-252)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-252**, pedido do proprietário sobre a auditoria e as maquetes aprovadas (desktop, celular e Resumo das áreas) |
+| Branch / PR | `cursor/lancamentos-organizar`, a partir da `main` `3a329d90` (PR #329, D-PROD-251) · PR a abrir |
+| Escopo | Atividade: linha de resumo + UMA tabela de áreas. Área: botões "+" e UMA tabela de lançamentos (abastecimento e implemento dentro dela). Lançamento novo direto numa janela de um nível (Cancelar / Salvar / Salvar e novo). Abastecimento com a revisão na mesma janela e sem os campos travados. Resumo das áreas (sem coluna Implementos). Celular: janela em tela cheia (padrão `b1-janela--tela-cheia`), nunca caixa flutuante |
+| Backend | Nenhuma mudança. Nenhuma migration nova |
+| Release | Merge normal de frontend. A prévia da Vercel segue a regra da D-PROD-251 (`ignoreCommand`) |
+| Relatório | [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) (seção 9) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
 
 | Campo | Valor |
 |---|---|

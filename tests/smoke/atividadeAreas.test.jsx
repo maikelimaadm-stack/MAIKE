@@ -10,8 +10,9 @@
  *    e quem pode sair (só a não iniciada sem lançamento);
  *  - o campo "Áreas" da abertura (`SeletorAreasDaAtividade`): marcar põe a área na lista com Setor, Tamanho e a área
  *    planejada editável; ✕ tira; o total;
- *  - o card "Áreas da atividade" (`CardAreasDaAtividade`): os três grupos na ordem, os números de cada área, o
- *    "Iniciar área" (o diálogo com a data → `POST …/areas/:id/iniciar`), Concluídas recolhidas, o ⚡ de cada área;
+ *  - a tabela "Áreas da atividade" (`CardAreasDaAtividade`, uma só na D-PROD-252): todas as áreas, a situação de cada uma, os
+ *    números do servidor, o ⚡ (Abrir área, Iniciar área com o diálogo da data → `POST …/areas/:id/iniciar`, Concluir…);
+ *  - o Resumo das áreas e as regras da organização (D-PROD-252: `ResumoDasAreas`, `lancamentosDaAreaRegras`);
  *  - a porta: as allowlists das áreas iguais aos corpos fechados das rotas do servidor.
  */
 import React from "react";
@@ -33,6 +34,7 @@ const servico = vi.hoisted(() => ({
   listarAreasDaFazenda: vi.fn(async () => []),
 }));
 vi.mock("@/services/lancamentoAtividadesService", () => servico);
+vi.mock("@/hooks/usePatrimonioSessao", () => ({ useAcoesTelaAbastecimento: () => ({ ver: false, criar: false, login: "operador" }) }));
 
 import {
   alternarAreaNaAbertura,
@@ -203,53 +205,53 @@ describe("AR-ABERTURA — o campo Áreas da abertura", () => {
   });
 });
 
-describe("AR-CARD — o card Áreas da atividade", () => {
-  const LANCAMENTOS = [
-    { tipo: "maquinas", rotulo: "Trabalho de máquinas", Icone: () => null, lancar: true },
-    { tipo: "produtos", rotulo: "Aplicação de insumos", Icone: () => null, lancar: true },
-  ];
+describe("AR-CARD — a tabela Áreas da atividade (uma só, D-PROD-252)", () => {
   const montar = (props = {}) => {
-    const onLancarNaArea = vi.fn();
-    const onVerLancamentosDaArea = vi.fn();
+    const onAbrirArea = vi.fn();
     const onAtividadeAtualizada = vi.fn();
-    comConsulta(
-      <CardAreasDaAtividade
-        atividade={ATIVIDADE}
-        totais={TOTAIS}
-        lendoTotais={false}
-        podeGerir
-        lancamentos={LANCAMENTOS}
-        onLancarNaArea={onLancarNaArea}
-        onVerLancamentosDaArea={onVerLancamentosDaArea}
-        onAtividadeAtualizada={onAtividadeAtualizada}
-        {...props}
-      />,
-    );
-    return { onLancarNaArea, onVerLancamentosDaArea, onAtividadeAtualizada };
+    comConsulta(<CardAreasDaAtividade atividade={ATIVIDADE} totais={{ ...TOTAIS, area_planejada: "70.0000", area_executada: "4.0000", custo_total: "150.0000" }} lendoTotais={false} podeGerir onAbrirArea={onAbrirArea} onAtividadeAtualizada={onAtividadeAtualizada} {...props} />);
+    return { onAbrirArea, onAtividadeAtualizada };
   };
 
-  it("AR-CARD-1 — os contadores no título, Em andamento com os números do servidor, A iniciar com o Iniciar área, Concluídas recolhidas", () => {
+  it("AR-CARD-1 — UMA tabela com todas as áreas (Área, Situação, Planejada, Feita, %, Custo, Último lançamento) e a linha de total; os contadores no título", () => {
     montar();
     expect(screen.getByTestId("atividade-areas-contadores")).toHaveTextContent("2 em andamento · 2 a iniciar · 1 concluída");
-    const andamento = screen.getByTestId("areas-grupo-EM_ANDAMENTO");
-    expect(within(andamento).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Ações", "Área", "Planejada", "Feita", "%", "Custo", "Custo/ha", "Iniciada em", "Último lançamento"]);
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    const tabela = screen.getByTestId("areas-tabela");
+    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Ações", "Área", "Situação", "Planejada", "Feita", "%", "Custo", "Último lançamento"]);
+    expect([...tabela.querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("data-testid"))).toEqual(["area-p1", "area-p2", "area-p3", "area-p4", "area-p5"]);
+    expect(screen.getByTestId("area-p1-situacao")).toHaveTextContent("Em andamento");
+    expect(screen.getByTestId("area-p2-situacao")).toHaveTextContent("A iniciar");
+    expect(screen.getByTestId("area-p4-situacao")).toHaveTextContent("Concluída");
     expect(screen.getByTestId("area-p1-feita")).toHaveTextContent("4 ha");
     expect(screen.getByTestId("area-p1-percentual")).toHaveTextContent("40%");
-    expect(screen.getByTestId("area-p1-custo-ha")).toHaveTextContent(/37,50/);
+    expect(screen.getByTestId("area-p1-custo")).toHaveTextContent("150,00");
     expect(screen.getByTestId("area-p1-ultimo")).toHaveTextContent("15/11/2026");
     expect(screen.getByTestId("area-p3-feita")).toHaveTextContent("—");
-    expect(screen.getByTestId("area-iniciar-p2")).toBeTruthy();
-    expect(screen.queryByTestId("area-p4")).toBeNull();
-    fireEvent.click(screen.getByTestId("areas-concluidas-toggle"));
-    expect(screen.getByTestId("area-p4-conclusao")).toHaveTextContent("14/11/2026");
+    // A concluída mostra a data de conclusão; a que ainda não começou, "—".
+    expect(screen.getByTestId("area-p4-ultimo")).toHaveTextContent("14/11/2026");
+    expect(screen.getByTestId("area-p2-feita")).toHaveTextContent("—");
+    const total = screen.getByTestId("areas-total");
+    expect(within(total).getByTestId("areas-total-planejada")).toHaveTextContent("70 ha");
+    expect(within(total).getByTestId("areas-total-feita")).toHaveTextContent("4 ha");
+    expect(within(total).getByTestId("areas-total-custo")).toHaveTextContent("150,00");
+    // Nada dos cartões grandes, dos grupos nem do botão "Iniciar área" fixo na tabela.
+    expect(screen.queryByTestId("areas-grupo-EM_ANDAMENTO")).toBeNull();
+    expect(screen.queryByTestId("area-iniciar-p2")).toBeNull();
+    expect(document.querySelector(".b1-tipo-card")).toBeNull();
     expect(screen.getByTestId("atividade-areas-adicionar")).toBeTruthy();
   });
 
-  it("AR-CARD-2 — Iniciar área: o diálogo com a data (padrão hoje na fazenda, nunca futura) → acaoAreaAtividade(iniciar); a atividade devolvida volta para a tela", async () => {
+  it("AR-CARD-2 — o nome da área (começada) abre a área; a que ainda não começou não abre; o ⚡ inicia: o diálogo com a data (padrão hoje na fazenda, nunca futura) → acaoAreaAtividade(iniciar)", async () => {
     const atualizada = { ...ATIVIDADE, versao: 9 };
     servico.acaoAreaAtividade.mockResolvedValue({ area: { ...ATIVIDADE.areas[1], status: "EM_ANDAMENTO" }, atividade: atualizada });
-    const { onAtividadeAtualizada } = montar();
-    fireEvent.click(screen.getByTestId("area-iniciar-p2"));
+    const { onAbrirArea, onAtividadeAtualizada } = montar();
+    fireEvent.click(screen.getByTestId("area-p1-abrir"));
+    expect(onAbrirArea).toHaveBeenCalledWith("p1");
+    expect(screen.queryByTestId("area-p2-abrir")).toBeNull();
+    fireEvent.click(within(screen.getByTestId("area-p2")).getByRole("button", { name: /Ações da área/ }));
+    expect(screen.queryByRole("menuitem", { name: "Abrir área" })).toBeNull();
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Iniciar área" }));
     const dialogo = await screen.findByTestId("dialogo-area-iniciar");
     expect(within(dialogo).getByTestId("dialogo-area-iniciar-data")).toHaveValue("2026-11-18");
     fireEvent.change(within(dialogo).getByTestId("dialogo-area-iniciar-data"), { target: { value: "2026-11-19" } });
@@ -263,15 +265,232 @@ describe("AR-CARD — o card Áreas da atividade", () => {
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "P2 — PASTO 02 foi iniciada: já recebe lançamentos.");
   });
 
-  it("AR-CARD-3 — sem permissão de editar: nada de Iniciar, Adicionar nem os itens de gestão; o ⚡ da área em andamento lança fixo na área", async () => {
-    const { onLancarNaArea } = montar({ podeGerir: false });
-    expect(screen.queryByTestId("area-iniciar-p2")).toBeNull();
+  it("AR-CARD-3 — o ⚡ da área em andamento: Abrir área e Concluir área (com a permissão); sem editar, só Abrir área, sem Adicionar; os tipos de lançamento NÃO estão mais no ⚡ (são os botões + da área)", async () => {
+    const { onAbrirArea } = montar();
+    fireEvent.click(within(screen.getByTestId("area-p1")).getByRole("button", { name: /Ações da área/ }));
+    expect((await screen.findAllByRole("menuitem")).map((i) => i.textContent.trim())).toEqual(["Abrir área", "Concluir área", "Área planejada"]);
+    fireEvent.keyDown(screen.getByTestId("area-acoes-p1-menu"), { key: "Escape" });
+    cleanup();
+    const sem = montar({ podeGerir: false });
     expect(screen.queryByTestId("atividade-areas-adicionar")).toBeNull();
     fireEvent.click(within(screen.getByTestId("area-p1")).getByRole("button", { name: /Ações da área/ }));
-    const item = await screen.findByRole("menuitem", { name: "Trabalho de máquinas" });
+    const item = await screen.findByRole("menuitem", { name: "Abrir área" });
     expect(screen.queryByRole("menuitem", { name: "Concluir área" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Trabalho de máquinas" })).toBeNull();
     fireEvent.click(item);
-    expect(onLancarNaArea).toHaveBeenCalledWith("maquinas", "dados", "p1");
+    expect(sem.onAbrirArea).toHaveBeenCalledWith("p1");
+    expect(onAbrirArea).not.toHaveBeenCalled();
+  });
+
+  it("AR-CARD-4 — no celular a tabela continua tabela (rola na horizontal) com o Custo e o Feito antes do resto; nada de cartões", async () => {
+    vi.stubGlobal("matchMedia", (query) => ({ matches: query.includes("max-width: 639px"), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() }));
+    montar();
+    const tabela = screen.getByTestId("areas-tabela");
+    expect(tabela.closest(".b1-tipo-tabela__rolagem")).toBeTruthy();
+    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Ações", "Área", "Custo", "Feita", "%", "Situação", "Planejada", "Último lançamento"]);
+    expect(document.querySelector(".b1-tipo-card")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("FL — as duas telas da atividade (D-PROD-252)", () => {
+  const TOTAIS_FL = { ...TOTAIS, area_planejada: "70.0000", area_executada: "4.0000", custo_total: "150.0000", custo_por_ha: "37.5000" };
+  const APONTAMENTOS = [
+    {
+      id: "d1",
+      status: "CONFIRMADO",
+      data_operacional: "2026-11-12",
+      atividade_area_id: "p1",
+      produtos: [{ id: "x1", status: "CONFIRMADO", produto: { nome: "Glifosato" }, quantidade: "25.0000", unidade: "L", custo_total: "100.0000" }],
+      maquinas: [{ id: "m1", status: "CONFIRMADO", bem: { codigo_frota: "TP-02", nome: "Trator" }, quantidade_uso: "8.0000", medidor_tipo: "HORIMETRO", medidor_unidade: "h", custo_total: "50.0000" }],
+      mao_obra: [],
+      servicos: [],
+    },
+  ];
+  const montar = async (props = {}) => {
+    const { default: FluxoPorArea } = await import("@/components/lancamento-atividades/FluxoPorArea");
+    const onLancar = vi.fn();
+    comConsulta(
+      <FluxoPorArea
+        atividade={ATIVIDADE}
+        totais={TOTAIS_FL}
+        lendoTotais={false}
+        lendoLinhas={false}
+        apontamentos={APONTAMENTOS}
+        acoes={{ ver: true, editarApontamento: true, cancelarApontamento: true, lancarApontamento: true }}
+        escopo="cli-1:operador"
+        podeLancar
+        podeGerir
+        flags={{ permiteProduto: true, permiteImplemento: true, permiteMaoObra: false, permiteServico: false }}
+        onLancar={onLancar}
+        onAtividadeAtualizada={() => {}}
+        recado={null}
+        onLimparRecado={() => {}}
+        {...props}
+      />,
+    );
+    return { onLancar };
+  };
+  const sp = (/** @type {HTMLElement} */ el) => (el.textContent ?? "").replace(/\u00a0/g, " ");
+
+  it("FL-1 — a atividade: uma linha de resumo (Aberta · desde… · X de Y ha · custo total) e UMA tabela de áreas; sem os cartões Custo total / Áreas / Desde nem os botões \"Registrar nesta área\"", async () => {
+    await montar();
+    expect(sp(screen.getByTestId("fluxo-resumo"))).toBe("Aberta · desde 01/11/2026 · 4 de 70 ha · custo total R$ 150,00 (R$ 37,50 por ha)");
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    expect(screen.queryByTestId("cartao-area-p1")).toBeNull();
+    expect(screen.queryByTestId("registrar-area-p1")).toBeNull();
+    expect(screen.queryByTestId("comecar-area-p2")).toBeNull();
+    expect(screen.queryByText("Ver o que já foi feito")).toBeNull();
+    expect(screen.queryByTestId("detalhe-area")).toBeNull();
+  });
+
+  it("FL-2 — o nome da área abre a área: nome, atividade, \"X de Y ha · R$ … (R$ … por ha)\", os botões + (só o que o tipo permite) e UMA tabela dos lançamentos com o total; os botões chamam onLancar com a área; \"‹ Áreas\" volta", async () => {
+    const { onLancar } = await montar();
+    fireEvent.click(screen.getByTestId("area-p1-abrir"));
+    expect(screen.getByTestId("detalhe-area-nome")).toHaveTextContent("P1 — PASTO 01");
+    expect(screen.getByTestId("detalhe-area-atividade")).toHaveTextContent("COMBATE À CIGARRINHA");
+    expect(sp(screen.getByTestId("detalhe-area-resumo"))).toBe("4 de 10 ha · R$ 150,00 (R$ 37,50 por ha)");
+    expect(within(screen.getByTestId("escolher-registro")).getAllByRole("button").map((b) => b.textContent.trim())).toEqual(["Máquina", "Implemento", "Produto"]);
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    const tabela = screen.getByTestId("area-lancamentos-tabela");
+    expect([...tabela.querySelectorAll("thead th")].map((th) => th.textContent)).toEqual(["Ações", "Tipo", "Dia", "Item", "Quantidade", "Valor"]);
+    expect([...tabela.querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("data-testid"))).toEqual(["lancamento-m1", "lancamento-x1"]);
+    expect(sp(screen.getByTestId("area-lancamentos-total-valor"))).toBe("R$ 150,00");
+    for (const t of ["ajustar-dia", "detalhe-area-aviso", "grupo-maquinas"]) expect(screen.queryByTestId(t)).toBeNull();
+    fireEvent.click(screen.getByTestId("escolher-produtos"));
+    expect(onLancar).toHaveBeenCalledWith("produtos", "dados", "p1");
+    fireEvent.click(screen.getByTestId("escolher-implemento"));
+    expect(onLancar).toHaveBeenLastCalledWith("maquinas", "dados", "p1");
+    // Abastecimento: sem a permissão da tela, o botão nem aparece.
+    expect(screen.queryByTestId("escolher-abastecimento")).toBeNull();
+    fireEvent.click(screen.getByTestId("detalhe-area-voltar"));
+    expect(screen.getByTestId("fluxo-por-area")).toBeTruthy();
+  });
+
+  it("FL-3 — a área concluída ou sem permissão de lançar não mostra os botões +; a atividade sem áreas abre direto na tela da área", async () => {
+    await montar({ podeLancar: false });
+    fireEvent.click(screen.getByTestId("area-p1-abrir"));
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
+    expect(screen.queryByTestId("linha-acoes-m1")).toBeNull();
+    cleanup();
+    await montar({ atividade: { id: "a9", nome: "ANTIGA", status: "ABERTA", area: { id: "m1", numero_area: "01", nome: "PASTO 01" }, areas: [], area_planejada: "40.0000", area_executada: "10.0000" }, totais: null, apontamentos: [] });
+    expect(screen.getByTestId("detalhe-area")).toBeTruthy();
+    expect(screen.queryByTestId("detalhe-area-voltar")).toBeNull();
+    expect(screen.getByTestId("detalhe-area-resumo")).toHaveTextContent("10 de 40 ha");
+  });
+});
+
+describe("RA — Resumo das áreas (D-PROD-252)", () => {
+  const TOTAIS_RA = {
+    area_planejada: "70.0000",
+    area_executada: "28.0000",
+    custo_total: "4710.0000",
+    custo_por_ha: "168.2143",
+    custo_por_tipo: { maquinas: "950.0000", produtos: "3000.0000", mao_obra: "400.0000", servicos: "50.0000", combustivel: "310.0000" },
+    por_area: [
+      {
+        atividade_area_id: "p1",
+        area_executada: "20.0000",
+        custo_total: "3610.0000",
+        custo_por_ha: "180.5000",
+        custo_por_tipo: { maquinas: "700.0000", produtos: "2400.0000", mao_obra: "280.0000", servicos: "50.0000", combustivel: "180.0000" },
+      },
+      { atividade_area_id: "p3", area_executada: "8.0000", custo_total: "1100.0000", custo_por_ha: "137.5000", custo_por_tipo: { maquinas: "250.0000", produtos: "600.0000", mao_obra: "120.0000", servicos: null, combustivel: "130.0000" } },
+    ],
+  };
+  const MAPA = [
+    { id: "m-p1", tipo_cultura: "pastagem" },
+    { id: "m-p3", tipo_cultura: "agricultura" },
+    { id: "m-p4" },
+  ];
+  const montar = async () => {
+    servico.listarAreasDaFazenda.mockResolvedValue(MAPA);
+    const { default: ResumoDasAreas } = await import("@/components/lancamento-atividades/ResumoDasAreas");
+    comConsulta(<ResumoDasAreas atividade={ATIVIDADE} totais={TOTAIS_RA} lendoTotais={false} empresaId="emp-1" habilitado />);
+  };
+
+  it("RA-1 — uma linha por área: Tipo (Pasto/Talhão pelo cadastro do mapa), feita / planejada, o custo por tipo, o Total e o R$/ha; a de sem lançamento mostra \"—\"; a linha de total; SEM coluna de Implementos", async () => {
+    await montar();
+    const tabela = screen.getByTestId("resumo-areas-tabela");
+    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "Tipo", "Feita / planejada", "Máquinas", "Insumos", "Mão de obra", "Serviços", "Abastecimento", "Total", "R$/ha"]);
+    expect(within(tabela).queryByText("Implementos")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("resumo-area-p3-tipo")).toHaveTextContent("Talhão"));
+    expect(screen.getByTestId("resumo-area-p1-tipo")).toHaveTextContent("Pasto");
+    // Sem uso informado, o mapa conta como pasto (a regra de `grupoDaArea`).
+    expect(screen.getByTestId("resumo-area-p4-tipo")).toHaveTextContent("Pasto");
+    expect(screen.getByTestId("resumo-area-p1-nome")).toHaveTextContent("P1 — PASTO 01");
+    expect(screen.getByTestId("resumo-area-p1-feitaDePlanejada")).toHaveTextContent("20 de 10 ha");
+    expect(screen.getByTestId("resumo-area-p1-maquinas")).toHaveTextContent("700,00");
+    expect(screen.getByTestId("resumo-area-p1-insumos")).toHaveTextContent("2.400,00");
+    expect(screen.getByTestId("resumo-area-p1-maoObra")).toHaveTextContent("280,00");
+    expect(screen.getByTestId("resumo-area-p1-servicos")).toHaveTextContent("50,00");
+    expect(screen.getByTestId("resumo-area-p1-abastecimento")).toHaveTextContent("180,00");
+    expect(screen.getByTestId("resumo-area-p1-total")).toHaveTextContent("3.610,00");
+    expect(screen.getByTestId("resumo-area-p1-porHa")).toHaveTextContent("180,50");
+    expect(screen.getByTestId("resumo-area-p3-servicos")).toHaveTextContent(/^—$/);
+    // Área sem nenhum lançamento: tudo "—".
+    for (const c of ["maquinas", "insumos", "maoObra", "servicos", "abastecimento", "total", "porHa"]) expect(screen.getByTestId(`resumo-area-p2-${c}`)).toHaveTextContent(/^—$/);
+    // Total da atividade, do próprio servidor.
+    expect(screen.getByTestId("resumo-areas-total-feitaDePlanejada")).toHaveTextContent("28 de 70 ha");
+    expect(screen.getByTestId("resumo-areas-total-maquinas")).toHaveTextContent("950,00");
+    expect(screen.getByTestId("resumo-areas-total-total")).toHaveTextContent("4.710,00");
+    expect(screen.getByTestId("resumo-areas-total-porHa")).toHaveTextContent("168,21");
+    expect(screen.getByTestId("resumo-areas-nota")).toHaveTextContent("O custo do implemento já está em Máquinas. R$/ha = total ÷ hectares feitos.");
+  });
+
+  it("RA-2 — no celular continua tabela (rola na horizontal), com o Total e o R$/ha antes das colunas de custo", async () => {
+    vi.stubGlobal("matchMedia", (query) => ({ matches: query.includes("max-width: 639px"), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() }));
+    await montar();
+    const tabela = screen.getByTestId("resumo-areas-tabela");
+    expect(tabela.closest(".b1-tipo-tabela__rolagem")).toBeTruthy();
+    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "Total", "R$/ha", "Feita / planejada", "Máquinas", "Insumos", "Mão de obra", "Serviços", "Abastecimento", "Tipo"]);
+    expect(document.querySelector(".b1-tipo-card")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("LAR — regras da organização (D-PROD-252)", () => {
+  it("LAR-1 — a linha de resumo da atividade e o custo com o R$/ha só dizem o que o servidor deu", async () => {
+    const R = await import("@/lib/lancamentosDaAreaRegras");
+    // (a moeda do sistema usa o espaço sem quebra depois do R$)
+    const sp = (/** @type {string} */ t) => t.replace(/\u00a0/g, " ");
+    expect(sp(R.linhaResumoDaAtividade({ situacao: "Aberta", desde: "03/11/2026", feitaDePlanejada: "28 de 70 ha", custoTotal: "4710.0000", custoPorHa: "168.2143" }))).toBe(
+      "Aberta · desde 03/11/2026 · 28 de 70 ha · custo total R$ 4.710,00 (R$ 168,21 por ha)",
+    );
+    expect(R.linhaResumoDaAtividade({ situacao: "Aberta", desde: "", feitaDePlanejada: "—", custoTotal: null, custoPorHa: null })).toBe("Aberta");
+    expect(sp(R.textoCustoComPorHa("3610.0000", null))).toBe("R$ 3.610,00");
+    expect(R.textoCustoComPorHa(null, "1.0000")).toBe("");
+    expect(R.textoFeitaDePlanejada({ feita: "20 ha", planejada: "40 ha" })).toBe("20 de 40 ha");
+    expect(R.textoFeitaDePlanejada({ feita: "—", planejada: "40 ha" })).toBe("40 ha");
+  });
+
+  it("LAR-2 — as linhas da área: só as confirmadas daquela área; o implemento é texto da máquina; o abastecimento é uma linha; do dia mais novo ao mais antigo, e no dia, na ordem dos tipos", async () => {
+    const R = await import("@/lib/lancamentosDaAreaRegras");
+    const ap = (id, dia, area, extra) => ({ id, status: "CONFIRMADO", data_operacional: dia, atividade_area_id: area, produtos: [], maquinas: [], mao_obra: [], servicos: [], ...extra });
+    const apontamentos = [
+      ap("d1", "2026-11-12", "p1", {
+        maquinas: [{ id: "m1", status: "CONFIRMADO", bem: { codigo_frota: "TP-02", nome: "Trator" }, implemento: { codigo_frota: "GR-01", nome: "Grade" }, quantidade_uso: "8.0000", medidor_tipo: "HORIMETRO", medidor_unidade: "h", custo_total: "400.0000" }],
+        produtos: [{ id: "x1", status: "CANCELADO", produto: { nome: "Cancelado" }, quantidade: "1", unidade: "L", custo_total: "9.0000" }],
+      }),
+      ap("d2", "2026-11-14", "p1", { servicos: [{ id: "s1", status: "CONFIRMADO", servico: { nome: "Frete" }, quantidade: "10.0000", unidade: "KM", valor_total: "50.0000" }] }),
+      ap("d3", "2026-11-13", "p3", { maquinas: [{ id: "m9", status: "CONFIRMADO", bem: { nome: "Outro" }, quantidade_uso: "1.0000", custo_total: "10.0000" }] }),
+    ];
+    const abastecimentos = [
+      { id: "ab1", status: "CONFIRMADO", data_operacional: "2026-11-12", bem: { codigo_frota: "TP-02", nome: "Trator" }, quantidade: "40.0000", unidade: "L", custo_total: "200.0000", apontamento: { id: "d1" } },
+      { id: "ab2", status: "CONFIRMADO", data_operacional: "2026-11-13", bem: { nome: "Outro" }, quantidade: "5", unidade: "L", custo_total: "9", apontamento: { id: "d3" } },
+    ];
+    const linhas = R.linhasDaArea({ apontamentos, abastecimentos, areaId: "p1" });
+    expect(linhas.map((l) => [l.id, l.rotuloDoTipo, l.diaTexto])).toEqual([
+      ["s1", "Serviço", "14/11/2026"],
+      ["m1", "Máquina", "12/11/2026"],
+      ["abastecimento-ab1", "Abastecimento", "12/11/2026"],
+    ]);
+    expect(linhas[1].item).toBe("TP-02 — Trator com GR-01 — Grade");
+    expect(linhas[2]).toMatchObject({ item: "TP-02 — Trator", quantidade: "40 L" });
+    expect(linhas[2].valorTexto.replace(/\u00a0/g, " ")).toBe("R$ 200,00");
+    expect(R.somaDasLinhas(linhas)).toBe("650.0000");
+    // Sem a área (atividade antiga), a atividade toda.
+    expect(R.linhasDaArea({ apontamentos, abastecimentos: [], areaId: null })).toHaveLength(3);
   });
 });
 

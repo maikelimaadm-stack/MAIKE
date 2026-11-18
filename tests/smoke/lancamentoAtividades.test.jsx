@@ -543,12 +543,10 @@ const escolherNoSeletor = async (/** @type {HTMLElement} */ raiz, /** @type {str
 };
 /** Seleciona a linha (um clique; o duplo abre). @param {string} id */
 const selecionar = (id) => fireEvent.click(/** @type {HTMLElement} */ (screen.getByTestId(`atividade-numero-${id}`).closest('[data-testid="b1-row"]')));
-/** Abre a atividade (duplo clique na linha), abre "Mais detalhes" e espera o cabeçalho e os lançamentos. @param {string} id */
+/** Abre a atividade (duplo clique na linha), abre a aba "Resumo da atividade" e espera o cabeçalho e os lançamentos. @param {string} id */
 const abrir = async (id) => {
   fireEvent.doubleClick(screen.getByTestId(`atividade-numero-${id}`));
   await screen.findByTestId("atividade-aberta");
-  const mais = screen.getByTestId("atividade-mais-detalhes-toggle");
-  if (mais.getAttribute("aria-expanded") !== "true") fireEvent.click(mais);
   fireEvent.click(screen.getByTestId("atividade-aba-resumo"));
   const cabecalho = await screen.findByTestId("atividade-cabecalho");
   await waitFor(() => expect(screen.queryByTestId("apontamentos-carregando")).toBeNull());
@@ -1686,8 +1684,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
     await assentar();
     fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
-    await screen.findByTestId("fluxo-por-area");
-    fireEvent.click(screen.getByTestId("registrar-area-unica"));
+    await screen.findByTestId("detalhe-area");
     for (const id of ["maquinas", "implemento", "produtos", "mao-obra", "servicos"]) expect(screen.getByTestId(`escolher-${id}`)).toBeTruthy();
     cleanup();
     // A flag gravada na atividade vale sobre a da lista de tipos.
@@ -1695,8 +1692,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     await montarComLista();
     await assentar();
     fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
-    await screen.findByTestId("fluxo-por-area");
-    fireEvent.click(screen.getByTestId("registrar-area-unica"));
+    await screen.findByTestId("detalhe-area");
     expect(screen.getByTestId("escolher-maquinas")).toBeTruthy();
     expect(screen.getByTestId("escolher-mao-obra")).toBeTruthy();
     expect(screen.queryByTestId("escolher-produtos")).toBeNull();
@@ -1733,22 +1729,18 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(/** @type {HTMLInputElement} */ (within(form).getByLabelText(/^Nome da atividade/)).value).toBe("Cigarrinha Pasto 01");
   });
 
-  it("LA-RAIO-5 — ver registros de máquina abre a janela do tipo no dia de hoje, sem gravar nada; Fechar fecha", async () => {
+  it("LA-RAIO-5 — + Máquina abre o formulário direto (um nível só, no dia de hoje), sem gravar nada; Cancelar fecha", async () => {
     await montarComLista();
     fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
     await screen.findByTestId("atividade-aberta");
-    fireEvent.click(screen.getByTestId("atividade-mais-detalhes-toggle"));
-    fireEvent.click(screen.getByTestId("tipo-maquinas-acoes"));
-    fireEvent.click(within(await screen.findByTestId("tipo-maquinas-acoes-menu")).getByRole("menuitem", { name: "Ver lançamentos" }));
+    fireEvent.click(await screen.findByTestId("escolher-maquinas"));
     const janela = await screen.findByTestId("janela-tipo");
-    expect(within(janela).getByRole("heading", { name: "Trabalho de máquinas" })).toBeTruthy();
-    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Atividade Nº 3 · APLICAÇÃO · Área: 01 — Pasto 01 · Lançamento de 14/11/2026");
+    expect(janela.querySelector(".mdl-t")).toHaveTextContent("Trabalho de máquinas");
+    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("01 — Pasto 01 · Cigarrinha Pasto 01");
     expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
-    await waitFor(() => expect(within(janela).getByTestId("janela-tipo-dia-novo")).toHaveTextContent("o primeiro item salvo cria o lançamento do dia"));
-    expect(within(janela).getByTestId("janela-tipo-vazio")).toHaveTextContent("Nenhum registro neste lançamento. Clique em Inserir.");
-    expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Trabalhos de máquinas (0)");
-    expect(screen.getByTestId("fluxo-por-area")).toBeTruthy();
-    fireEvent.click(within(janela).getByTestId("janela-tipo-fechar"));
+    expect(within(janela).queryByRole("tablist")).toBeNull();
+    expect(screen.getByTestId("detalhe-area")).toBeTruthy();
+    fireEvent.click(within(janela).getByTestId("janela-tipo-cancelar"));
     await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
     expect(escritas()).toEqual([]);
   });

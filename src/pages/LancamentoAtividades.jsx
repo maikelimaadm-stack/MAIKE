@@ -1031,9 +1031,7 @@ export default function LancamentoAtividades() {
                 : undefined
             }
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
-            abaInicial={lancando.aba}
             areaInicial={lancando.areaId ?? null}
-            areaFixa={Boolean(lancando.areaId)}
           />
         ) : null}
 

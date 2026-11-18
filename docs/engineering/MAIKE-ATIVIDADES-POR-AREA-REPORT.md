@@ -1,4 +1,4 @@
-# MAIKE — Lançamento de Atividades pela área (relatório, D-PROD-251)
+# MAIKE — Lançamento de Atividades pela área (relatório, D-PROD-251 e D-PROD-252)
 
 > **fatia:** reorganizar o lançamento para quem está no campo · **branch:** `cursor/atividades-por-area-0b6c` · **PR:** a abrir
 > Decisão **D-PROD-251** · a partir da `main` `637a3002` (PR #327, D-PROD-249)
@@ -113,3 +113,18 @@ O proprietário mostrou a tela "Que trabalho é este?" (cartões grandes, "Toque
 | testids | Mantidos; novos `areas-abertura-campo` (o botão) e `areas-abertura-lista` (o popover). Busca e opções só existem com a lista aberta |
 | Servidor / banco | Sem mudança. A `20261118100000_atividade_areas` já está **aplicada** em produção (2026-11-18 19:05:13 UTC); nenhuma migration nova |
 | Testes | `AR-ABERTURA-1..3` (fechado; busca; marcar; colunas; editar ha; tirar desmarca; marcar de novo restaura) e `LA-CABECALHO-1` abrindo a lista antes de marcar |
+
+## 9. Quarta rodada: o lançamento organizado (D-PROD-252)
+
+| Item | Detalhe |
+|---|---|
+| Atividade | `FluxoPorArea`: linha "Aberta · desde… · X de Y ha · custo total R$ … (R$ … por ha)" e `CardAreasDaAtividade` como tabela única (Área, Situação, Planejada, Feita, %, Custo, Último lançamento, ⚡, total). O nome abre a área; o ⚡ abre / inicia / conclui / reabre / altera a planejada / remove. Sem cartões, sem "Registrar nesta área", sem o card de 12 células |
+| Área | `LancamentosDaArea` (novo): cabeçalho, botões "+" e a tabela Ações · Tipo · Dia · Item · Quantidade · Valor (celular: Valor e Quantidade antes de Item e Dia), total do servidor, ⚡ Editar / Cancelar. Regras puras em `src/lib/lancamentosDaAreaRegras.js` |
+| Lançamento novo | `JanelaLancamentoPorTipo` reescrita: um nível, só Dia e os campos do tipo; Cancelar / Salvar / Salvar e novo. Os formulários são os de `JanelasDaLinha` |
+| Abastecimento | `JanelaAbastecimentoDaArea`: sem Atividade / Lançamento travados; "Confira antes de confirmar" na mesma janela (`CorpoDaPreviaAbastecimento`, extraído de `DialogoPreviaAbastecimento`); `FormularioAbastecimento` ganhou `botoesNoRodape` |
+| Resumo das áreas | `ResumoDasAreas`: `por_area` dos totais + Tipo pelo mapa (`listarAreasDaFazenda`); sem Implementos; nota "O custo do implemento já está em Máquinas. R$/ha = total ÷ hectares feitos." |
+| Celular | Janela em tela cheia (`b1-janela--tela-cheia` / `b1-janela__camada--tela-cheia`), também no abastecimento e em Editar uma linha; tabelas continuam tabelas (`b1-tipo-tabela__rolagem`), sem `.b1-tipo-card` |
+| Ajuste do dia | "Dias lançados" foi para o Resumo da atividade, recolhido (única entrada da área feita do dia) |
+| Servidor / banco | Sem mudança; nenhuma migration |
+| Testes | `LL-JANELA-TIPO-1..9` (novo fluxo), `LL-ABERTA-1..8, 10`, `LL-ABAST-AREA-1..2`, `LA-RAIO-2, 5`, `AR-CARD-1..4`, `RA-1..2`, `FL-1..3`, `LAR-1..2`. Capturas do app real: `impl-desktop-*` e `impl-mobile-*` |
+
