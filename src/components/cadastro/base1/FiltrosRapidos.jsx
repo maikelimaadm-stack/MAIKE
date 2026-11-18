@@ -19,10 +19,20 @@ import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
  * Filtro que a TELA controla (consulta ao servidor: situação, tipo de bem, direção…), desenhado como pílula de escolha
  * única na faixa — no lugar dos seletores que ficavam na barra ao lado do "+ Novo" (D-PROD-172). No celular entra na
  * folha "Filtros". `nome` é o nome acessível ("Filtrar por situação"); `coluna`, a coluna da grade que ele já cobre
- * (a pílula automática dela não aparece, para não haver duas).
- * @typedef {{ id: string, rotulo: string, nome: string, opcoes: Array<{ value: string, label: string }>, valor: string,
- *   padrao: string, onChange: (valor: string) => void, coluna?: string }} FiltroDaTela
+ * (a pílula automática dela não aparece, nem em "+ Filtro", para não haver duas — D-PROD-237).
+ * `ocultarPadrao` (opt-in, D-PROD-237): no valor padrão a pílula mostra só o rótulo ("Status ⌄"), sem o texto do padrão.
+ * Com mais de 8 opções, a janela ganha o campo "Pesquisar…".
+ * @typedef {{ id: string, tipo?: 'escolha', rotulo: string, nome: string, opcoes: Array<{ value: string, label: string }>,
+ *   valor: string, padrao: string, onChange: (valor: string) => void, coluna?: string, ocultarPadrao?: boolean }} FiltroDeEscolha
  */
+/**
+ * Filtro de PERÍODO que a tela controla (D-PROD-237): uma pílula só com "De" e "Até" (dias `aaaa-mm-dd`); a pílula
+ * mostra o período escolhido ("Início 03/11 – 17/11"). A janela é rascunho até o ✓; período invertido avisa e não
+ * aplica. `testId` prefixa os campos (`-de`, `-ate`) e o aviso (`-invertido`).
+ * @typedef {{ id: string, tipo: 'periodo', rotulo: string, nome: string, de: string, ate: string,
+ *   onChange: (periodo: { de: string, ate: string }) => void, coluna?: string, testId?: string }} FiltroDePeriodo
+ */
+/** @typedef {FiltroDeEscolha | FiltroDePeriodo} FiltroDaTela */
 /** @type {React.Context<FiltroDaTela[]>} */
 export const FiltrosDaTelaContext = React.createContext(/** @type {FiltroDaTela[]} */ ([]));
 
@@ -39,6 +49,38 @@ const rotuloDoFiltro = (/** @type {{ label: string; cellKind?: string } | undefi
 const LIMITE_OPCOES = 100;
 const MAX_AUTOMATICOS = 4;
 const COLLATOR = new Intl.Collator("pt-BR", { numeric: true, sensitivity: "base" });
+
+/** Aviso do período invertido (o mesmo texto que as telas usavam fora da faixa). */
+export const TEXTO_PERIODO_INVERTIDO = "A data final do período é anterior à inicial.";
+
+/** @param {string} dia aaaa-mm-dd → dd/mm no ano corrente, dd/mm/aaaa nos outros */
+const diaCurto = (dia) => {
+  const m = String(dia || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  return Number(m[1]) === new Date().getFullYear() ? `${m[3]}/${m[2]}` : `${m[3]}/${m[2]}/${m[1]}`;
+};
+
+/**
+ * Período em palavras curtas, para a pílula: "03/11 – 17/11", "desde 03/11", "até 17/11"; sem datas, "".
+ * @param {string} de @param {string} ate
+ */
+export function textoDoPeriodo(de, ate) {
+  const a = diaCurto(de);
+  const b = diaCurto(ate);
+  if (a && b) return `${a} – ${b}`;
+  if (a) return `desde ${a}`;
+  if (b) return `até ${b}`;
+  return "";
+}
+
+/** O filtro da tela está fora do padrão? @param {FiltroDaTela} f */
+export const filtroDaTelaAtivo = (f) => (f.tipo === "periodo" ? Boolean(f.de || f.ate) : f.valor !== f.padrao);
+
+/** Volta o filtro da tela ao padrão (período: sem datas). @param {FiltroDaTela} f */
+const limparFiltroDaTela = (f) => {
+  if (f.tipo === "periodo") f.onChange({ de: "", ate: "" });
+  else f.onChange(f.padrao);
+};
 
 /** @param {string} v */
 const rotuloDoValor = (v) => (v === "" || v === "-" || v === "–" ? "Sem informação" : v);
@@ -471,6 +513,103 @@ export function JanelaDoFiltro({ rotulo, tipo, comCondicao, corNomes, ehCor, val
 }
 
 /**
+ * Janela do filtro de PERÍODO da tela (D-PROD-237): "De" e "Até" lado a lado; rascunho até o ✓. Período invertido
+ * mostra o aviso e o ✓ não aplica. No rodapé: ✕ (cancela), "Limpar datas" e ✓ — na folha do celular, o ✓ fica no
+ * topo da folha (`controleRef`).
+ * @param {{ filtro: FiltroDePeriodo, onAplicar: (periodo: { de: string, ate: string }) => void, onCancelar: () => void,
+ *   semRodape?: boolean, controleRef?: { current: null | { aplicar: () => void } } }} props
+ */
+export function JanelaDoPeriodo({ filtro, onAplicar, onCancelar, semRodape = false, controleRef = undefined }) {
+  const [de, setDe] = useState(filtro.de || "");
+  const [ate, setAte] = useState(filtro.ate || "");
+  const invertido = Boolean(de && ate && de > ate);
+  const aplicar = () => {
+    if (!invertido) onAplicar({ de, ate });
+  };
+  if (controleRef) controleRef.current = { aplicar };
+  const tid = filtro.testId;
+  /** @param {string} rotulo @param {string} valor @param {(v: string) => void} mudar @param {string} sufixo */
+  const campo = (rotulo, valor, mudar, sufixo) => (
+    <label className="b1-fr-periodo__campo">
+      <span className="b1-fr-periodo__rot">{rotulo}</span>
+      <input
+        type="date"
+        className="b1-fr-periodo__in b1-fr-campo"
+        value={valor}
+        max={sufixo === "de" && ate ? ate : undefined}
+        min={sufixo === "ate" && de ? de : undefined}
+        onChange={(e) => mudar(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          aplicar();
+        }}
+        aria-label={`${filtro.rotulo}: ${rotulo.toLowerCase()}`}
+        aria-invalid={invertido || undefined}
+        data-testid={tid ? `${tid}-${sufixo}` : undefined}
+      />
+    </label>
+  );
+  return (
+    <>
+      <div className="b1-fr-periodo" role="group" aria-label={filtro.rotulo}>
+        {campo("De", de, setDe, "de")}
+        {campo("Até", ate, setAte, "ate")}
+      </div>
+      {invertido ? (
+        <p role="alert" className="b1-fr-periodo__erro" data-testid={tid ? `${tid}-invertido` : undefined}>
+          {TEXTO_PERIODO_INVERTIDO}
+        </p>
+      ) : null}
+      {semRodape ? (
+        de || ate ? (
+          <button
+            type="button"
+            className="b1-fr-menu__limpar"
+            onClick={() => {
+              setDe("");
+              setAte("");
+            }}
+          >
+            Limpar datas
+          </button>
+        ) : null
+      ) : (
+        <div className="b1-fr-acoes">
+          <button type="button" className="b1-fr-acoes__x" title="Cancelar" aria-label="Cancelar" onClick={onCancelar}>
+            <X size={16} aria-hidden />
+          </button>
+          <div className="b1-fr-acoes__meio">
+            {de || ate ? (
+              <button
+                type="button"
+                className="b1-fr-menu__limpar b1-fr-periodo__limpar"
+                onClick={() => {
+                  setDe("");
+                  setAte("");
+                }}
+              >
+                Limpar datas
+              </button>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="mk-btn-ok b1-fr-acoes__aplicar"
+            title="Aplicar"
+            aria-label="Aplicar"
+            disabled={invertido}
+            onClick={aplicar}
+          >
+            <Check size={16} aria-hidden />
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
  * @param {object} props
  * @param {Array<{ id: string; label: string; sortable?: boolean; cellKind?: string; filterKind?: 'texto'|'num'|'data'; corNomes?: Readonly<Record<string, string>> }>} props.columns
  * @param {object[]} props.rows todas as linhas carregadas (antes dos filtros)
@@ -593,6 +732,8 @@ export default function FiltrosRapidos({
   const [salvos, setSalvos] = useState(() => lerFaixa(chave));
   const [aberto, setAberto] = useState(/** @type {string | null} */ (null));
   const [buscaCampo, setBuscaCampo] = useState("");
+  // Pesquisa da janela de um filtro da tela com muitas opções (tipos, áreas…).
+  const [buscaTela, setBuscaTela] = useState("");
   // Celular (D-PROD-164, 6.10): o funil abre a folha "Filtros"; dela se vai a Ordenar, a cada filtro e ao "+".
   const [folha, setFolha] = useState(/** @type {null | 'menu' | 'ordem' | 'mais' | { fr: string } | { tela: string }} */ (null));
   const [contaDaFolha, setContaDaFolha] = useState("");
@@ -612,8 +753,10 @@ export default function FiltrosRapidos({
     [defaultIds, columns, rows, getFieldValue],
   );
   const cobertas = useMemo(() => new Set(daTela.map((f) => f.coluna).filter(Boolean)), [daTela]);
+  // A coluna coberta por um filtro da tela não ganha pílula própria, nem salva de antes (D-PROD-237: sem duas pílulas
+  // "Tipo de atividade").
   const fixos = useMemo(
-    () => (salvos ?? automaticos.filter((id) => !cobertas.has(id))).filter((id) => porId.has(id)),
+    () => (salvos ?? automaticos).filter((id) => porId.has(id) && !cobertas.has(id)),
     [salvos, automaticos, porId, cobertas],
   );
   // Coluna filtrada por outro caminho (menu ⋮, "Filtrar por campo") também aparece na faixa.
@@ -623,24 +766,46 @@ export default function FiltrosRapidos({
   );
   const ordens = useMemo(() => ordensDaTela ?? opcoesDeOrdenacao(columns), [ordensDaTela, columns]);
   const camposDoMais = useMemo(() => {
-    if (!camposDaFaixa) return columns;
-    const lista = camposDaFaixa.map((id) => porId.get(id)).filter(Boolean);
-    return [...lista, ...columns.filter((c) => !camposDaFaixa.includes(c.id))];
-  }, [camposDaFaixa, columns, porId]);
+    const base = camposDaFaixa
+      ? [...camposDaFaixa.map((id) => porId.get(id)).filter(Boolean), ...columns.filter((c) => !camposDaFaixa.includes(c.id))]
+      : columns;
+    return /** @type {typeof columns} */ (base).filter((c) => !cobertas.has(c.id));
+  }, [camposDaFaixa, columns, porId, cobertas]);
 
   if (!slot) return null;
 
   const ordemAtual =
     ordens.find((o) => o.key === sort.key && o.dir === (sort.direction === "desc" ? "desc" : "asc"))?.label ??
     `${porId.get(sort.key)?.label ?? "Ordenar"} ${sort.direction === "desc" ? "↓" : "↑"}`;
-  const telaFora = daTela.filter((f) => f.valor !== f.padrao);
+  const telaFora = daTela.filter(filtroDaTelaAtivo);
   const temFiltro = Object.keys(filters).length > 0 || telaFora.length > 0;
   const limparTudo = () => {
     onClearFilters();
-    for (const f of telaFora) f.onChange(f.padrao);
+    for (const f of telaFora) limparFiltroDaTela(f);
   };
-  /** @param {FiltroDaTela} f */
-  const rotuloAtual = (f) => f.opcoes.find((o) => o.value === f.valor)?.label ?? f.valor;
+  /** Valor do filtro da tela em palavras (período: "03/11 – 17/11"; sem datas, "Qualquer data"). @param {FiltroDaTela} f */
+  const rotuloAtual = (f) =>
+    f.tipo === "periodo" ? textoDoPeriodo(f.de, f.ate) || "Qualquer data" : f.opcoes.find((o) => o.value === f.valor)?.label ?? f.valor;
+  const termoTela = buscaTela.trim().toLowerCase();
+  /**
+   * Lista de escolha única de um filtro da tela (pílula e folha do celular), com "Pesquisar…" acima de 8 opções.
+   * @param {FiltroDeEscolha} f @param {(valor: string) => void} escolher
+   */
+  const listaDaTela = (f, escolher) => {
+    const pesquisavel = f.opcoes.length > 8;
+    const visiveis = pesquisavel && termoTela ? f.opcoes.filter((o) => o.label.toLowerCase().includes(termoTela)) : f.opcoes;
+    return (
+      <>
+        {pesquisavel ? <CampoDaJanela valor={buscaTela} onChange={setBuscaTela} onLimpar={() => setBuscaTela("")} rotulo={`Pesquisar ${f.rotulo.toLowerCase()}`} /> : null}
+        <div className="mk-sel-lista b1-lista b1-fr-lista" role="listbox" aria-label={f.rotulo}>
+          {visiveis.length === 0 ? <div className="mk-sel-vazio">Nada encontrado</div> : null}
+          {visiveis.map((o) => (
+            <LinhaDaJanela key={o.value} rotulo={o.label} unica on={o.value === f.valor} onClick={() => escolher(o.value)} />
+          ))}
+        </div>
+      </>
+    );
+  };
 
   /** @param {string} id */
   const alternarNaFaixa = (id) => {
@@ -755,39 +920,51 @@ export default function FiltrosRapidos({
     );
   };
 
-  /** Pílula de um filtro da tela: escolha única, como "Ordenar"; o ✕ volta ao padrão. @param {FiltroDaTela} f */
+  /**
+   * Pílula de um filtro da tela: escolha única, como "Ordenar" (ou o período "De / Até", D-PROD-237); o ✕ volta ao
+   * padrão. @param {FiltroDaTela} f
+   */
   const chipDaTela = (f) => {
     const idJanela = `#tela:${f.id}`;
     const aberta = aberto === idJanela;
-    const ativo = f.valor !== f.padrao;
+    const ativo = filtroDaTelaAtivo(f);
+    const periodo = f.tipo === "periodo";
+    // Período sem datas e escolha com `ocultarPadrao` no padrão: só o rótulo ("Início ⌄").
+    const semValor = !ativo && (periodo || Boolean(f.ocultarPadrao));
     return (
-      <span key={idJanela} className={cn("b1-fr-chip", ativo && "is-on", aberta && "is-open")}>
+      <span key={idJanela} className={cn("b1-fr-chip", ativo && "is-on", aberta && "is-open")} data-filtro-tela={f.id}>
         <JanelaDaFaixa
           open={aberta}
-          onOpenChange={(o) => setAberto((a) => trocaJanela(a, idJanela, o))}
+          onOpenChange={(o) => {
+            setAberto((a) => trocaJanela(a, idJanela, o));
+            setBuscaTela("");
+          }}
           rotulo={f.rotulo}
           trigger={
             <button type="button" role="combobox" className="b1-fr-chip__btn" aria-haspopup="dialog" aria-expanded={aberta} aria-label={f.nome} title={f.nome}>
               <span className="b1-fr-chip__rot">{f.rotulo}</span>
-              <span className={cn("b1-fr-chip__val", !ativo && "b1-fr-chip__val--padrao")}>{rotuloAtual(f)}</span>
+              {semValor ? null : <span className={cn("b1-fr-chip__val", !ativo && "b1-fr-chip__val--padrao")}>{rotuloAtual(f)}</span>}
               {!ativo ? <ChevronDown className="b1-fr-chip__seta" size={14} aria-hidden /> : null}
             </button>
           }
         >
-          <div className="mk-sel-lista b1-lista b1-fr-lista" role="listbox" aria-label={f.rotulo}>
-            {f.opcoes.map((o) => (
-              <LinhaDaJanela
-                key={o.value}
-                rotulo={o.label}
-                unica
-                on={o.value === f.valor}
-                onClick={() => {
-                  f.onChange(o.value);
+          {f.tipo === "periodo" ? (
+            aberta ? (
+              <JanelaDoPeriodo
+                filtro={f}
+                onCancelar={() => setAberto(null)}
+                onAplicar={(p) => {
+                  f.onChange(p);
                   setAberto(null);
                 }}
               />
-            ))}
-          </div>
+            ) : null
+          ) : (
+            listaDaTela(f, (valor) => {
+              f.onChange(valor);
+              setAberto(null);
+            })
+          )}
         </JanelaDaFaixa>
         {ativo ? (
           <button
@@ -797,7 +974,7 @@ export default function FiltrosRapidos({
             title={`Tirar filtro de ${f.rotulo}`}
             onClick={(e) => {
               e.stopPropagation();
-              f.onChange(f.padrao);
+              limparFiltroDaTela(f);
             }}
           >
             <X size={13} aria-hidden />
@@ -850,7 +1027,7 @@ export default function FiltrosRapidos({
       );
       const itens = [
         { id: "#ordem", rotulo: "Ordenar", valor: ordemAtual, ativo: false },
-        ...daTela.map((f) => ({ id: `#tela:${f.id}`, rotulo: f.rotulo, valor: rotuloAtual(f), ativo: f.valor !== f.padrao })),
+        ...daTela.map((f) => ({ id: `#tela:${f.id}`, rotulo: f.rotulo, valor: rotuloAtual(f), ativo: filtroDaTelaAtivo(f) })),
         ...naFaixa.map((id) => {
           const info = infoDoFiltro(id);
           return { id, rotulo: info.rotulo, valor: info.valor || "Todos", ativo: info.ativo };
@@ -864,9 +1041,10 @@ export default function FiltrosRapidos({
                 key={it.id}
                 type="button"
                 className={cn("mk-sel-op b1-fr-op b1-fr-nav", it.ativo && "is-on")}
-                onClick={() =>
-                  setFolha(it.id === "#ordem" ? "ordem" : it.id.startsWith("#tela:") ? { tela: it.id.slice(6) } : { fr: it.id })
-                }
+                onClick={() => {
+                  setBuscaTela("");
+                  setFolha(it.id === "#ordem" ? "ordem" : it.id.startsWith("#tela:") ? { tela: it.id.slice(6) } : { fr: it.id });
+                }}
               >
                 <span className="b1-fr-op__txt">{it.rotulo}</span>
                 <span className="b1-fr-nav__val">{it.valor}</span>
@@ -904,23 +1082,30 @@ export default function FiltrosRapidos({
     } else if (typeof folha === "object" && "tela" in folha) {
       const f = daTela.find((x) => x.id === folha.tela);
       titulo = f?.rotulo ?? "";
-      acao = botaoOk(voltarAoMenu);
-      corpo = f ? (
-        <div className="mk-sel-lista b1-lista b1-fr-lista" role="listbox" aria-label={f.rotulo}>
-          {f.opcoes.map((o) => (
-            <LinhaDaJanela
-              key={o.value}
-              rotulo={o.label}
-              unica
-              on={o.value === f.valor}
-              onClick={() => {
-                f.onChange(o.value);
-                fecharFolhas();
-              }}
-            />
-          ))}
-        </div>
-      ) : null;
+      if (f?.tipo === "periodo") {
+        // Período (D-PROD-237): o ✓ do topo aplica (período invertido não aplica: o aviso fica na folha).
+        acao = botaoOk(() => controleDaFolha.current?.aplicar());
+        corpo = (
+          <JanelaDoPeriodo
+            filtro={f}
+            semRodape
+            controleRef={controleDaFolha}
+            onCancelar={voltarAoMenu}
+            onAplicar={(p) => {
+              f.onChange(p);
+              fecharFolhas();
+            }}
+          />
+        );
+      } else {
+        acao = botaoOk(voltarAoMenu);
+        corpo = f
+          ? listaDaTela(f, (valor) => {
+              f.onChange(valor);
+              fecharFolhas();
+            })
+          : null;
+      }
     } else if (folha === "mais") {
       titulo = "Filtros rápidos";
       aside = "Marque o que aparece na faixa";

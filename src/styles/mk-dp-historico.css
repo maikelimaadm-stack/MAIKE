@@ -252,7 +252,7 @@
   color: #b91c1c;
 }
 
-/* D-PROD-244 — histórico no mesmo padrão compacto dos detalhes. */
+/* D-PROD-245 — histórico no mesmo padrão compacto dos detalhes. */
 .mk-dp .mk-dp-hist { gap: 10px; }
 .mk-dp .mk-dp-hist .mk-dp-tl { gap: 12px; padding-left: 12px; }
 .mk-dp .mk-dp-hist .mk-dp-tl::before { left: 3px; width: 1px; }

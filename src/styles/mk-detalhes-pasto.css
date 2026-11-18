@@ -1842,11 +1842,11 @@
 .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel { grid-template-columns: minmax(0, 1fr); }
 .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel__val { justify-content: flex-start; text-align: left; }
 
-/* D-PROD-237 — tablet/desktop usam a largura da tela para distribuir campos.
+/* D-PROD-238 — tablet/desktop usam a largura da tela para distribuir campos.
    O celular mantém as linhas da referência; o popup tem medidas da viewport,
    independentemente da aba ou da quantidade de dados. */
 @media (min-width: 768px) {
-  /* D-PROD-238: cartões largos empilhados; somente os campos formam colunas. */
+  /* D-PROD-239: cartões largos empilhados; somente os campos formam colunas. */
   .mk-dp .mk-dp-area-organizada,
   .mk-dp .mk-dp-lote-organizado {
     grid-template-columns: minmax(0, 1fr);
@@ -1876,7 +1876,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* D-PROD-240 — densidade compacta e controles no tamanho do rótulo. */
+/* D-PROD-241 — densidade compacta e controles no tamanho do rótulo. */
 .mk-dp .mk-dp-abas {
   gap: 4px;
   padding: 0 12px;
@@ -1945,7 +1945,7 @@
   .mk-dp .mk-dp-area-resumo > .mk-dp-grade { display: contents; }
 }
 
-/* D-PROD-241 — leitura suave: fontes pequenas e valores abaixo dos rótulos, inclusive nas quatro colunas. */
+/* D-PROD-242 — leitura suave: fontes pequenas e valores abaixo dos rótulos, inclusive nas quatro colunas. */
 .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel,
 .mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel,
 .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel {
@@ -1995,7 +1995,7 @@
   font-weight: 500;
 }
 
-/* D-PROD-242 — texto automático e superfícies sem divisórias vazias. */
+/* D-PROD-243 — texto automático e superfícies sem divisórias vazias. */
 .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel { border-top: 0; }
 .mk-dp .mk-dp-cel__val > .mk-dp-texto-auto { display: inline-block; vertical-align: middle; }
 .mk-dp .mk-dp-texto-auto {
@@ -2031,7 +2031,7 @@
 .mk-dp .mk-dp-hist__botao.mk-dp-hist__botao { min-height: 30px; height: 30px; padding: 0 10px; font-size: 12px; }
 .mk-dp .mk-dp-botao { height: 32px; font-size: 12px; }
 
-/* D-PROD-243 — divisórias somente entre fileiras que têm dados. */
+/* D-PROD-244 — divisórias somente entre fileiras que têm dados. */
 .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade > .mk-dp-cel:nth-child(n + 5) {
   border-top: 1px solid #e7e9ec;
 }
@@ -2065,7 +2065,7 @@
   .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-grade > .mk-dp-cel { border-top: 0; }
 }
 
-/* D-PROD-245 — categorias sem corte na borda; conforto de leitura no celular. */
+/* D-PROD-246 — categorias sem corte na borda; conforto de leitura no celular. */
 .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha { width: auto; }
 .mk-dp .mk-dp-area-organizada__categorias .mk-dp-linha__fim { max-width: 35%; }
 @media (max-width: 767px) {
@@ -2094,7 +2094,7 @@
   .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha__val { font-size: 13.5px; }
 }
 
-/* D-PROD-246 — cinco indicadores com espaço proporcional aos rótulos. */
+/* D-PROD-247 — cinco indicadores com espaço proporcional aos rótulos. */
 .mk-dp .mk-dp-resumo-indicadores {
   --mk-dp-resumo-colunas: minmax(0, .85fr) minmax(0, 1.15fr) minmax(0, 1.35fr) minmax(0, .9fr) minmax(0, 1.05fr);
 }

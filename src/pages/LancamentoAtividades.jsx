@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, CircleCheck, Copy, List, Pencil, RotateCcw } from "lucide-react";
-import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
+import { FiltrosDaTelaContext, opcoesDeOrdenacao } from "@/components/cadastro/base1/FiltrosRapidos";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
@@ -9,7 +9,7 @@ import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
-import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoDia, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
@@ -38,6 +38,7 @@ import {
   STATUS_CONCLUIDA,
   STATUS_ATIVIDADE,
   acoesDaAtividade,
+  corDoTipoAtividade,
   codigoDoErroAtividade,
   erroDaDataDeConclusao,
   formatarAreaExecutadaPlanejada,
@@ -52,6 +53,7 @@ import {
   rotuloDoSetor,
   rotuloDoStatusAtividade,
   rotuloDoUsuario,
+  siglaDoTipoAtividade,
 } from "@/lib/lancamentoAtividadesRegras";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 import {
@@ -72,6 +74,8 @@ const QUERY_RAIZ = "lancamento-atividades";
 const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL", casas: 2 });
 
 const STATUS_TODOS = "TODOS";
+/** Faixa sem pílulas automáticas das colunas (referência estável). */
+const SEM_FILTROS_AUTOMATICOS = /** @type {string[]} */ ([]);
 const OPCOES_STATUS = [
   { value: STATUS_TODOS, label: "Todos os status" },
   ...STATUS_ATIVIDADE.map((s) => ({ value: s, label: ROTULO_STATUS_ATIVIDADE[s] ?? s })),
@@ -108,8 +112,25 @@ export const ATIVIDADES_COLUNAS = [
   { id: "centro_resultado", label: "Centro de resultado", default: false, sortable: true, width: 160 },
 ];
 
-/** Cards (celular): o nome é o título e o status vai no subtítulo. */
-export const ATIVIDADES_CAMPOS_CARD = ["numero", "tipo", "area", "data_inicio"];
+/**
+ * Cards (celular): o nome é o título, "Nº 7 · Aberta" o subtítulo e o selo é a sigla do tipo (D-PROD-237); os campos
+ * em duas colunas. É o padrão: os campos continuam personalizáveis (Mais opções → campos dos cards).
+ */
+export const ATIVIDADES_CAMPOS_CARD = ["numero", "tipo", "area", "data_inicio", "valor_total"];
+
+/**
+ * Selo do card: a sigla do tipo de atividade (3 letras) na cor do tipo (paleta determinística pelo id do tipo; o
+ * cadastro de tipos não tem cor). Sem tipo, as iniciais do nome.
+ * @param {any} item
+ */
+export const seloDoCardAtividade = (item) => {
+  const sigla = siglaDoTipoAtividade(item?.tipo_atividade_nome) || siglaDoTipoAtividade(item?.nome);
+  return { texto: sigla, cor: corDoTipoAtividade(item?.tipo_atividade_id || item?.tipo_atividade_nome) };
+};
+
+/** Subtítulo do card: "Nº 7 · Aberta". @param {any} item */
+export const subtituloDoCardAtividade = (item) =>
+  [item?.numero != null ? `Nº ${item.numero}` : "", rotuloDoStatusAtividade(item?.status)].filter(Boolean).join(" · ");
 
 /** @param {any} item @param {string} id */
 export const valorDoCampoAtividade = (item, id) => {
@@ -130,6 +151,29 @@ export const valorDoCampoAtividade = (item, id) => {
   if (id === "valor_total") return formatarMoedaAtividade(item?.custo_total);
   return "";
 };
+
+/** Ordens da pílula "Ordenar" em palavras da tela (D-PROD-237: "Nº (mais recentes primeiro)", como no protótipo). */
+const PALAVRAS_DA_ORDEM = Object.freeze(
+  /** @type {Record<string, { asc: string, desc: string }>} */ ({
+    numero: { asc: "Nº (mais antigas primeiro)", desc: "Nº (mais recentes primeiro)" },
+    data_inicio: { asc: "Início (mais antigo primeiro)", desc: "Início (mais recente primeiro)" },
+    data_prevista_fim: { asc: "Fim previsto (mais antigo primeiro)", desc: "Fim previsto (mais recente primeiro)" },
+    data_conclusao: { asc: "Conclusão (mais antiga primeiro)", desc: "Conclusão (mais recente primeiro)" },
+    area_execucao: { asc: "Área executada (menor primeiro)", desc: "Área executada (maior primeiro)" },
+    producao: { asc: "Produção (menor primeiro)", desc: "Produção (maior primeiro)" },
+    valor_total: { asc: "Valor total (menor primeiro)", desc: "Valor total (maior primeiro)" },
+  }),
+);
+/** As mesmas ordens da grade; só o texto muda nas colunas de número, dia e valor (a mais nova / maior primeiro). */
+export const ORDENS_DA_LISTA_ATIVIDADES = Object.freeze(
+  opcoesDeOrdenacao(ATIVIDADES_COLUNAS).flatMap((o) => {
+    const palavras = PALAVRAS_DA_ORDEM[o.key];
+    if (!palavras) return [o];
+    // Nas colunas reescritas, a mais nova / a maior vem primeiro na lista.
+    if (o.dir === "asc") return [{ key: o.key, dir: /** @type {const} */ ("desc"), label: palavras.desc }, { ...o, label: palavras.asc }];
+    return [];
+  }),
+);
 
 /** Colunas ordenadas pelo valor CANÔNICO do servidor (nunca pelo texto formatado). */
 const CANONICO_DA_COLUNA = Object.freeze(
@@ -166,7 +210,7 @@ const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${ativida
  * aberto, "Cigarrinha Pasto 01") e os APONTAMENTOS dela, por dia e turno.
  *
  * Lista keyset das atividades (filtros de status, tipo, área e período sobre o
- * início) com Nº, nome, tipo, área, status, área executada / planejada e
+ * início — D-PROD-237: todos como pílulas na faixa do motor; no celular, cards com o selo do tipo) com Nº, nome, tipo, área, status, área executada / planejada e
  * início (e, D-PROD-234, o valor total que a lista do servidor traz). "Abrir atividade" cria (FormularioAtividade). Na linha selecionada
  * (ou na atividade aberta), o menu Mais opções traz o que a permissão e o
  * status deixam: concluir (com a data), reabrir e cancelar (com motivo) e
@@ -615,34 +659,19 @@ export default function LancamentoAtividades() {
   }
 
   const opcoesTipoFiltro = useMemo(
-    () =>
-      /** @type {any[]} */ (tipos).map((t) => ({
+    () => [
+      { value: "", label: "Todos os tipos" },
+      ...(/** @type {any[]} */ (tipos)).map((t) => ({
         value: String(t.id),
         label: `${String(t.nome_tipo ?? "")}${t.ativo === false ? " (INATIVO)" : ""}`,
       })),
+    ],
     [tipos],
   );
   const opcoesAreaFiltro = useMemo(
-    () => /** @type {any[]} */ (areas).map((a) => ({ value: String(a.id), label: rotuloDaArea(a) || String(a.id) })),
+    () => [{ value: "", label: "Todas as áreas" }, ...(/** @type {any[]} */ (areas)).map((a) => ({ value: String(a.id), label: rotuloDaArea(a) || String(a.id) }))],
     [areas],
   );
-
-  const filtros =
-    empresaId && acoes.ver && !controller.showForm ? (
-      <div className="cadastro-b1 mg-card mb-2 p-2" data-testid="atividades-filtros">
-        <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2">
-          <CampoSelect label="Tipo de atividade" value={tipoFiltro} onChange={setTipoFiltro} options={opcoesTipoFiltro} placeholder="Todos os tipos" span={4} />
-          <CampoSelect label="Área" value={areaFiltro} onChange={setAreaFiltro} options={opcoesAreaFiltro} placeholder="Todas as áreas" span={4} />
-          <CampoDia label="Início de" value={dataDe} onChange={setDataDe} span={2} testId="atividades-filtro-de" />
-          <CampoDia label="Início até" value={dataAte} onChange={setDataAte} span={2} testId="atividades-filtro-ate" />
-        </div>
-        {periodoInvertido ? (
-          <p role="alert" className="mt-1 text-[12px] text-red-700" data-testid="atividades-periodo-invertido">
-            A data final do período é anterior à inicial.
-          </p>
-        ) : null}
-      </div>
-    ) : null;
 
   const listaVazia = listEnabled && !controller.showForm && !controller.isLoading && !controller.listaErro && controller.visibleRows.length === 0;
 
@@ -655,14 +684,39 @@ export default function LancamentoAtividades() {
           apontamentos: o servidor recusa sem ele.
         </AvisoGestao>
       ) : null}
-      {filtros}
       {listaVazia ? <AvisoGestao testId="atividades-lista-vazia">Nenhuma atividade encontrada com estes filtros.</AvisoGestao> : null}
     </>
   );
 
+  /**
+   * Os filtros da consulta, todos na faixa de pílulas do motor (D-PROD-237: sai a caixa solta de tipo, área e período
+   * que ficava acima da grade), na ordem do protótipo: Status, Tipo de atividade, Área e Início (uma pílula com "De" e
+   * "Até"). Cada um continua indo para a query do SERVIDOR (status, tipo_atividade_id, area_id, data_de, data_ate) e
+   * relendo a lista keyset do começo; "Limpar filtros" volta todos ao padrão. A coluna que cada um cobre não ganha
+   * pílula própria (nem em "+ Filtro").
+   * @type {import("@/components/cadastro/base1/FiltrosRapidos").FiltroDaTela[]}
+   */
   const filtrosDaTela =
     empresaId && acoes.ver
-      ? [{ id: "status", rotulo: "Status", nome: "Filtrar por status", opcoes: OPCOES_STATUS, valor: statusFiltro, padrao: STATUS_TODOS, onChange: setStatusFiltro, coluna: "status" }]
+      ? [
+          { id: "status", rotulo: "Status", nome: "Filtrar por status", opcoes: OPCOES_STATUS, valor: statusFiltro, padrao: STATUS_TODOS, onChange: setStatusFiltro, coluna: "status", ocultarPadrao: true },
+          { id: "tipo", rotulo: "Tipo de atividade", nome: "Filtrar por tipo de atividade", opcoes: opcoesTipoFiltro, valor: tipoFiltro, padrao: "", onChange: setTipoFiltro, coluna: "tipo", ocultarPadrao: true },
+          { id: "area", rotulo: "Área", nome: "Filtrar por área", opcoes: opcoesAreaFiltro, valor: areaFiltro, padrao: "", onChange: setAreaFiltro, coluna: "area", ocultarPadrao: true },
+          {
+            id: "inicio",
+            tipo: /** @type {const} */ ("periodo"),
+            rotulo: "Início",
+            nome: "Filtrar por início",
+            de: dataDe,
+            ate: dataAte,
+            onChange: (/** @type {{ de: string, ate: string }} */ p) => {
+              setDataDe(p.de);
+              setDataAte(p.ate);
+            },
+            coluna: "data_inicio",
+            testId: "atividades-filtro-inicio",
+          },
+        ]
       : [];
 
   // ─── Atividade aberta ─────────────────────────────────────────────────
@@ -898,6 +952,12 @@ export default function LancamentoAtividades() {
               cardsPerRow={controller.cardsPrefs.cardsPerRow}
               cardsTitleColId="nome"
               cardsCodeColId="status"
+              cardsAvatar={seloDoCardAtividade}
+              cardsSubtitle={subtituloDoCardAtividade}
+              // D-PROD-237: a faixa começa só com os filtros da consulta (Status, Tipo, Área, Início); os demais campos
+              // continuam em "+ Filtro".
+              quickFilterIds={SEM_FILTROS_AUTOMATICOS}
+              quickSortOptions={ORDENS_DA_LISTA_ATIVIDADES}
               renderAcoesDaLinha={empresaId && acoes.ver ? renderAcoesDaLinha : undefined}
               {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
               configureColumnsAnchorRef={controller.configureColumnsAnchorRef}

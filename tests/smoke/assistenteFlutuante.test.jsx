@@ -136,5 +136,20 @@ describe('AssistenteFlutuante', () => {
   it('o Layout monta o assistente uma vez, para todas as telas logadas', () => {
     const layout = readFileSync('src/Layout.jsx', 'utf8');
     expect(layout.match(/<AssistenteFlutuante /g)?.length).toBe(1);
+    expect(layout).toMatch(/assistenteLigado\(\) \? \(<AssistenteFlutuante /);
+  });
+
+  it('interruptor: desligado sem VITE_ASSISTENTE_LIGADO=true', async () => {
+    const carregar = async () => {
+      vi.resetModules();
+      return (await import('@/components/assistente/assistenteLigado')).assistenteLigado();
+    };
+    vi.stubEnv('VITE_ASSISTENTE_LIGADO', '');
+    expect(await carregar()).toBe(false);
+    vi.stubEnv('VITE_ASSISTENTE_LIGADO', 'false');
+    expect(await carregar()).toBe(false);
+    vi.stubEnv('VITE_ASSISTENTE_LIGADO', 'true');
+    expect(await carregar()).toBe(true);
+    vi.unstubAllEnvs();
   });
 });

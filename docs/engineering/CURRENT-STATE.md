@@ -9,15 +9,27 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218), os detalhes do mapa no mesmo desenho (D-PROD-220) e os lançamentos e históricos deles no desenho do manejo (D-PROD-222), com a densidade (D-PROD-224) e a organização (D-PROD-226) do estilo antigo e o subícone do sistema nos detalhes (D-PROD-225)
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-LISTA: Lançamento de Atividades, fatia 4 (última) do redesenho — a lista: filtros em pílulas e cards do celular (D-PROD-237)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-237**, fatia 4 (última) do plano da D-PROD-232: os filtros da lista na faixa de pílulas e os cards do celular no desenho do protótipo |
+| Branch / PR | `feat/atividades-lista-filtros-celular`, a partir da `main` `83d08e5c` (PR #324) · PR a abrir |
+| Escopo | Sai a caixa solta (Tipo, Área, Início de / até); a faixa fica Ordenar · Status · Tipo de atividade · Área · Início (uma pílula com De / Até e o período no rótulo) · + Filtro, todos na query do servidor de sempre. Motor (opt-in): filtro de período da tela, `ocultarPadrao`, pesquisa acima de 8 opções, coluna coberta fora da faixa salva e do "+ Filtro", selo e subtítulo do card. Celular: cards com a sigla do tipo na cor do tipo, "Nº · Status", ⚡ e Nº / Tipo / Área / Início / Valor total |
+| Backend | Nenhuma mudança |
+| Release | Merge e deploy normais (só frontend); nenhuma migration, nenhum dado muda |
+| Relatório | [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md) |
+
+## Missão anterior (2026-11-17) — MAIKE-MAPA-DETALHES-V12: barra do topo v12, Detalhes do Lote v12 (D-PROD-218), os detalhes do mapa no mesmo desenho (D-PROD-220) e os lançamentos e históricos deles no desenho do manejo (D-PROD-222), com a densidade (D-PROD-224) e a organização (D-PROD-226) do estilo antigo e o subícone do sistema nos detalhes (D-PROD-225)
 
 | Campo | Valor |
 |---|---|
 | Decisões | **D-PROD-218** (barra ⚙ · Lotes · Pastos · Tarefas e Detalhes do Lote v12), **D-PROD-220** (cocho, depósito, bebedouro, tarefa e Histórico da Área no mesmo desenho), **D-PROD-222** (lançamentos e históricos que abrem desses detalhes iguais aos do manejo do lote), **D-PROD-224** (detalhes mais compactos, com a densidade do estilo antigo), **D-PROD-225** (cocho e depósito com o subícone do sistema nos detalhes, sem a bolinha do mapa; nasceu como D-PROD-223, que a `main` deu ao farol estimado) e **D-PROD-226** (detalhes organizados como o estilo antigo: pares lado a lado no popup, toque e contraste), pedidos do proprietário; filtros do mapa como estão |
 | Refinamento D-PROD-235 (nasceu D-PROD-230) | Botão Visualização integrado ao fim da barra escura do mapa; painel e permissões preservados, ações laterais abaixo da barra. |
 | Refinamento D-PROD-236 (nasceu D-PROD-232) | Detalhes de área e lote com cartões em linhas, rótulos à esquerda e valores à direita; blocos empilhados no celular/tablet e em pares no desktop, preservando os dados. |
-| Refinamento D-PROD-237 | Popup dos detalhes dimensionado pela viewport; campos em duas colunas no tablet e três no desktop amplo, mantendo as linhas no celular. |
-| Refinamento D-PROD-238 | Cartões largos empilhados em desktop/tablet, com apenas os campos internos em colunas; popup estável e celular preservados. |
+| Refinamento D-PROD-248 | Detalhes aprovados: popup estável, resumo com cinco indicadores, média projetada ponderada, projeções responsivas, passagem automática de texto e histórico compacto; PR/merge autorizados pelo dono. |
+| Refinamento D-PROD-238 | Popup dos detalhes dimensionado pela viewport; campos em duas colunas no tablet e três no desktop amplo, mantendo as linhas no celular. |
+| Refinamento D-PROD-239 | Cartões largos empilhados em desktop/tablet, com apenas os campos internos em colunas; popup estável e celular preservados. |
 | Refinamento D-PROD-229 | Detalhes de lote com identidade sem repetição, Lotação, Pesagem, Projeção de peso e Identificação separadas; pares no computador e uma coluna no celular. Tabela e regras preservadas. |
 | Refinamento D-PROD-228 | Histórico de cocho e depósito somente pelo botão; nova ação Fechamentos no cocho, com todos os períodos fechados e permissão de histórico. Resumo sem registros antigos; detalhes de lote preservados. |
 | Refinamento D-PROD-227 | Cocho e depósito com seções nomeadas, métricas do último registro agrupadas e projeções/limites sem repetição no resumo; pares explícitos no popup e uma coluna no celular. Regras e permissões preservadas. |
