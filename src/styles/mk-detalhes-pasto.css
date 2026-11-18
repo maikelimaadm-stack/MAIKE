@@ -1562,11 +1562,11 @@
 
 /* ── Popup (A.1): desktop (e tablet com popupDesde="tablet") ──────────── */
 .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dp):not(#mk-padrao) {
-  width: min(880px, calc(100vw - 48px));
-  height: calc(100vh - 64px);
-  height: calc(100dvh - 64px);
-  max-height: calc(100vh - 64px);
-  max-height: calc(100dvh - 64px);
+  width: min(1440px, calc(100vw - 48px));
+  height: calc(100vh - 48px);
+  height: calc(100dvh - 48px);
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #F9F9F7;
@@ -1845,4 +1845,42 @@
   .mk-dp .mk-dp-area-organizada { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
   .mk-dp .mk-dp-area-organizada > :is(.mk-dp-aviso, .mk-dp-vazio),
   .mk-dp .mk-dp-area-organizada__categorias { grid-column: 1 / -1; }
+}
+
+/* D-PROD-237 — tablet/desktop usam a largura da tela para distribuir campos.
+   O celular mantém as linhas da referência; o popup tem medidas da viewport,
+   independentemente da aba ou da quantidade de dados. */
+@media (min-width: 768px) {
+  .mk-dp .mk-dp-area-organizada,
+  .mk-dp .mk-dp-lote-organizado {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+  }
+  .mk-dp .mk-dp-area-organizada > :is(.mk-dp-aviso, .mk-dp-vazio),
+  .mk-dp .mk-dp-area-organizada__categorias,
+  .mk-dp .mk-dp-lote-organizado > :is(.mk-dp-cartao, .mk-dp-aviso) {
+    grid-column: 1 / -1;
+  }
+  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 20px;
+  }
+  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__val {
+    justify-content: flex-start;
+    text-align: left;
+  }
+}
+@media (min-width: 1280px) {
+  .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-grade {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* O par de áreas permanece junto também nas grades de três colunas. */
+.mk-dp .mk-dp-area-organizada .mk-dp-grade.mk-dp-area-superficies {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }

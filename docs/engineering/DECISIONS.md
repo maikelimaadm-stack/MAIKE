@@ -8271,4 +8271,12 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Área: resumo e lotação em duas colunas a partir de 1024 px, avisos e categorias em largura total. No celular e tablet os cartões empilham. Área total e pastejada continuam juntas; projeções mensais em três colunas.
 - Estilos limitados a esses detalhes, sem alterar tabelas, históricos ou permissões.
 
-<!-- Próxima decisão: D-PROD-237 -->
+### D-PROD-237 — Campos distribuídos e popup estável (2026-11-18)
+
+- Pedido do dono: campos lado a lado em desktop/tablet e popup dimensionado pela tela, sem variar conforme a quantidade de campos.
+- Popup dos detalhes com até 1440 px e margens de 24 px; altura da viewport menos 48 px. Cabeçalho, abas e rodapé ficam no mesmo lugar entre as vistas; rolagem apenas no corpo.
+- Detalhes da área e do lote: blocos em pares a partir de 768 px; campos em duas colunas no tablet e três no desktop amplo. Celular mantém o visual em linhas. Áreas total/pastejada e projeções mensais preservam os pares/trios.
+- Sem mudança de dados, cálculos, permissões, tabelas ou formulários de lançamento.
+
+<!-- Próxima decisão: D-PROD-238 -->
+
