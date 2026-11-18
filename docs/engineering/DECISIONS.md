@@ -8319,5 +8319,12 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Divisórias restauradas entre fileiras de dados; primeira fileira sem borda superior sobrando no cartão. Respeitados os pares de áreas e trio de projeções mensais.
 - Mantidos texto automático, popup estável e alterações somente na prévia.
 
-<!-- Próxima decisão: D-PROD-244 -->
+### D-PROD-244 — Histórico dos detalhes no padrão compacto (2026-11-18)
+
+- Pedido: ajustar o histórico, seguindo os detalhes aprovados nas iterações anteriores.
+- Linha do tempo com datas discretas, cabeçalhos e ícones menores. Quatro campos por linha em desktop/tablet, rótulo acima do valor; no celular uma linha por informação, rótulo à esquerda e valor à direita.
+- Textos longos do histórico usam a mesma passagem automática dos detalhes. Preservados os registros completos, agrupamento por dia, cancelamentos, filtros, paginação e estados offline/erro.
+- Contagem e carregar mais compactos e alinhados; estilos limitados à aba de histórico. Apenas prévia, sem merge.
+
+<!-- Próxima decisão: D-PROD-245 -->
 

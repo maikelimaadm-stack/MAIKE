@@ -251,3 +251,58 @@
 .mk-dp .mk-dp-hist__erro {
   color: #b91c1c;
 }
+
+/* D-PROD-244 — histórico no mesmo padrão compacto dos detalhes. */
+.mk-dp .mk-dp-hist { gap: 10px; }
+.mk-dp .mk-dp-hist .mk-dp-tl { gap: 12px; padding-left: 12px; }
+.mk-dp .mk-dp-hist .mk-dp-tl::before { left: 3px; width: 1px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__dia {
+  margin-left: -12px;
+  padding-left: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.mk-dp .mk-dp-hist .mk-dp-tl__ponto { width: 8px; height: 8px; margin-top: -4px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__cartoes { gap: 8px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__card { border-radius: 6px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__cab { min-height: 30px; gap: 8px; padding: 5px 10px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__ic { width: 16px; height: 16px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__titulo { flex: 1 1 auto; font-size: 12.5px; font-weight: 500; }
+.mk-dp .mk-dp-hist .mk-dp-tl__linhas {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 16px;
+  padding: 0 10px;
+  /* As divisórias atravessam apenas as fileiras de dados; a primeira fica recortada. */
+  clip-path: inset(0 10px);
+}
+.mk-dp .mk-dp-hist .mk-dp-tl__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+  padding: 6px 0;
+}
+.mk-dp .mk-dp-hist .mk-dp-tl__row::before { display: block; }
+.mk-dp .mk-dp-hist .mk-dp-tl__row > dt { min-width: 0; font-size: 12px; }
+.mk-dp .mk-dp-hist .mk-dp-tl__row > dd { font-size: 12.5px; font-weight: 400; text-wrap: nowrap; }
+.mk-dp .mk-dp-hist .mk-dp-hist__mais {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.mk-dp .mk-dp-hist .mk-dp-hist__contagem { text-align: left; }
+.mk-dp .mk-dp-hist .mk-dp-hist__erro { flex-basis: 100%; text-align: left; }
+.mk-dp .mk-dp-hist .mk-dp-hist__botao { height: 30px; padding: 0 10px; border-radius: 4px; font-size: 12px; }
+.mk-dp .mk-dp-hist .mk-dp-nota { font-size: 11.5px; }
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-hist .mk-dp-tl__linhas { grid-template-columns: minmax(0, 1fr); }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: baseline;
+  }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row > dd { text-align: right; }
+}

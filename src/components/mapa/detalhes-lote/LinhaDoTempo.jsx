@@ -1,6 +1,6 @@
 import React from "react";
 import { ArrowRightLeft, Baby, CircleX, Combine, History, Package, Scale, Tags, Truck } from "lucide-react";
-import { Chip } from "./blocos";
+import { Chip, TextoDeslizante } from "./blocos";
 import "@/styles/mk-dp-historico.css";
 
 /*
@@ -69,7 +69,7 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
                 <li key={c.chave} className={c.cancelado ? "mk-dp-tl__card is-cancelado" : "mk-dp-tl__card"}>
                   <div className="mk-dp-tl__cab">
                     <Icone className="mk-dp-tl__ic" size={22} aria-hidden="true" />
-                    <strong className="mk-dp-tl__titulo">{c.titulo}</strong>
+                    <strong className="mk-dp-tl__titulo"><TextoDeslizante>{c.titulo}</TextoDeslizante></strong>
                     {c.cancelado ? (
                       <Chip tom="neutro" className="mk-dp-tl__chip">
                         Cancelado
@@ -79,8 +79,8 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
                   <dl className="mk-dp-tl__linhas">
                     {c.linhas.map((l, i) => (
                       <div key={`${l.rotulo}-${i}`} className={textoLongo(l.rotulo, l.valor) ? "mk-dp-tl__row mk-dp-tl__row--larga" : "mk-dp-tl__row"}>
-                        <dt>{l.rotulo}</dt>
-                        <dd>{l.valor}</dd>
+                        <dt><TextoDeslizante>{l.rotulo}</TextoDeslizante></dt>
+                        <dd><TextoDeslizante>{l.valor}</TextoDeslizante></dd>
                       </div>
                     ))}
                   </dl>

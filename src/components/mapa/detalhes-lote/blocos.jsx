@@ -103,7 +103,7 @@ const textoDe = (no) => (typeof no === "string" || typeof no === "number" ? Stri
 /** Texto completo em uma linha; passa automaticamente somente quando não cabe.
  * @param {{ children: React.ReactNode }} props
  */
-function TextoDeslizante({ children }) {
+export function TextoDeslizante({ children }) {
   const caixa = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
   const texto = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
   const [excede, setExcede] = React.useState(false);
