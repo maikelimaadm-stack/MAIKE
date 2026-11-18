@@ -95,6 +95,21 @@ const lerOrigemDoNavegador = () => {
  *
  * @returns {string|null}
  */
+/**
+ * Interruptor do assistente (D-PROD-230): ligado só com `VITE_ASSISTENTE_LIGADO=true` no
+ * build. Sem a variável, fica desligado (pedido do proprietário em 2026-11-17).
+ */
+const lerAssistenteLigado = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_ASSISTENTE_LIGADO);
+  } catch {
+    return null;
+  }
+};
+
+/** @returns {boolean} */
+export const isAssistenteLigado = () => lerAssistenteLigado() === 'true';
+
 export const getGoogleMapsApiKey = () => lerGoogleMapsApiKey();
 
 /** O Google Maps está configurado? */
