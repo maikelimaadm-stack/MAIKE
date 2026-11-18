@@ -8401,4 +8401,23 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 
 **Contrato:** [`MAIKE-ATIVIDADE-AREAS-CONTRATO.md`](./MAIKE-ATIVIDADE-AREAS-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-AREAS-REPORT.md`](./MAIKE-ATIVIDADE-AREAS-REPORT.md) · **Runbook:** [`MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md).
 
-<!-- Próxima decisão: D-PROD-250 -->
+## D-PROD-250 — Lançamento de Atividades pelo lugar: a área, em passos, com o tipo separado
+
+**Data:** 2026-11-18 · **Origem:** pedido do proprietário (Maike) · **Branch:** `cursor/atividades-por-area-0b6c` · **Migration:** nenhuma nova.
+
+O proprietário aprovou a lógica dos rascunhos (tipo cadastrado uma vez, abrir a atividade em passos, registrar no campo pela área) e pediu o visual do sistema, não o do rascunho. A tela de hoje organiza por tipo de lançamento e por dia (menu ⚡ na lista, na tabela de tipos e na área; "apontamento", "custos extras"). Ele quer a área como o lugar do custo, com o total da atividade sendo a soma.
+
+**Decisão.**
+1. **Tipo separado.** O cadastro continua em Tipos de atividade (menu Suporte do Mapa), com a coluna "O que pode registrar" e um aviso de que não é o lançamento do dia. A chave da grade passa a `colunas_largura_tipos_atividade_v3` para a coluna nova aparecer.
+2. **Abrir a atividade em três passos:** tipo → áreas (pastos, lavouras e o resto) → conferir. Nome e data na frente. Safra e máquina só na frente quando o tipo exige. Fim previsto, tarefa de origem, observação e centros ficam em "Mais detalhes". As áreas nascem sem começar (PLANEJADA). O corpo é o de sempre (`areas[]`, sem centro no envio).
+3. **A atividade aberta começa pelas áreas.** Cada cartão mostra situação, feito e custo desta área. "Começar esta área" inicia (a data de sempre). "Registrar nesta área" pergunta uma coisa de cada vez (máquina, produto, mão de obra, serviço, abastecimento) e abre o mesmo formulário de linha, com "Confirmar registro". A confirmação diz em qual área entrou. O total da atividade fica no alto; o custo de uma área sem número do servidor não copia o total da atividade.
+4. **Um caminho principal.** O ⚡ da lista não lança mais. Ajustar por tipo, por dia, abastecimento, concluir e cancelar continua em "Mais detalhes", com as mesmas regras.
+5. **Palavras.** Na lista, situação "Em andamento", "A começar" (aberta e nenhuma área começou), "Concluída", "Cancelada". A coluna de custo se chama Custo. Some "Herdado do tipo" do formulário de edição. Os nomes de campo no código não mudam.
+6. **Prévia da Vercel.** `ignoreCommand` também deixa passar a branch exata `cursor/atividades-por-area-0b6c`, para o proprietário ver esta entrega. As outras branches continuam sem build. A `main` segue publicando como antes. A exceção sai quando a branch não for mais necessária.
+7. **Banco.** Nenhuma migration nova. A `20261118100000_atividade_areas` (D-PROD-249) já está no repositório e **não estava aplicada em produção** no registro daquela decisão (`SCHEMA_APPLIED_PROD: NÃO`). Esta entrega não a aplica. Sem ela, a tela nova abre, mas começar área e gravar o registro na área depende do servidor da D-PROD-249.
+
+**Fora:** migration nova; mudar a regra de quem pode lançar; apagar o ajuste por dia.
+
+**Relatório:** [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-251 -->

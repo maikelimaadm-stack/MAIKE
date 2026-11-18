@@ -438,7 +438,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
         error={erros.safra_ciclo}
       />
 
-      <SecaoForm titulo="Herdado do tipo" />
+      <SecaoForm titulo="Centros e unidade" />
       <CampoTexto
         label="Centro de custo"
         value={travado(heranca.centro_custo.rotulo, tipoId ? "Sem centro de custo" : "")}
