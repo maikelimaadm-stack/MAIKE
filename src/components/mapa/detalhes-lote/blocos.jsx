@@ -101,9 +101,9 @@ const classesCaixa = (estado, extra) =>
 const textoDe = (no) => (typeof no === "string" || typeof no === "number" ? String(no) : "");
 
 /** Texto completo em uma linha; passa automaticamente somente quando não cabe.
- * @param {{ children: React.ReactNode }} props
+ * @param {{ children: React.ReactNode, permitirFoco?: boolean }} props
  */
-export function TextoDeslizante({ children }) {
+export function TextoDeslizante({ children, permitirFoco = true }) {
   const caixa = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
   const texto = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
   const [excede, setExcede] = React.useState(false);
@@ -125,7 +125,7 @@ export function TextoDeslizante({ children }) {
     return () => { observer?.disconnect(); window.removeEventListener("resize", medir); };
   }, [children]);
   return (
-    <span ref={caixa} className={cls("mk-dp-texto-auto", excede && "is-longo")} title={textoDe(children) || undefined} tabIndex={excede ? 0 : undefined}>
+    <span ref={caixa} className={cls("mk-dp-texto-auto", excede && "is-longo")} title={textoDe(children) || undefined} tabIndex={excede && permitirFoco ? 0 : undefined}>
       <span ref={texto} className="mk-dp-texto-auto__conteudo">{children}</span>
     </span>
   );
@@ -379,8 +379,8 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
         <Icone className="mk-dp-linha__ic" size={22} aria-hidden="true" />
       ) : null}
       <span className="mk-dp-linha__txt">
-        <span className="mk-dp-linha__rot"><TextoDeslizante>{rotulo}</TextoDeslizante></span>
-        {sub ? <span className="mk-dp-linha__sub"><TextoDeslizante>{sub}</TextoDeslizante></span> : null}
+        <span className="mk-dp-linha__rot"><TextoDeslizante permitirFoco={!onClick}>{rotulo}</TextoDeslizante></span>
+        {sub ? <span className="mk-dp-linha__sub"><TextoDeslizante permitirFoco={!onClick}>{sub}</TextoDeslizante></span> : null}
       </span>
       <span className="mk-dp-linha__fim">
         {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
@@ -654,9 +654,9 @@ export function Item({
       <span className="mk-dp-item__txt">
         <span className="mk-dp-item__tit">
           {cor ? <span className="mk-dp-quad" style={{ background: cor }} aria-hidden="true" /> : null}
-          <span className="mk-dp-item__nome"><TextoDeslizante>{titulo}</TextoDeslizante></span>
+          <span className="mk-dp-item__nome"><TextoDeslizante permitirFoco={!toque}>{titulo}</TextoDeslizante></span>
         </span>
-        {meta ? <span className="mk-dp-item__meta"><TextoDeslizante>{meta}</TextoDeslizante></span> : null}
+        {meta ? <span className="mk-dp-item__meta"><TextoDeslizante permitirFoco={!toque}>{meta}</TextoDeslizante></span> : null}
         {sub ? <span className="mk-dp-item__sub">{sub}</span> : null}
       </span>
       {chip || null}
@@ -793,7 +793,7 @@ export function GrupoMarcar({ titulo, itens, onAlternar, onAlternarTodos, classN
           onClick={() => onAlternar(it.chave)}
         >
           <CaixaDesenho estado={it.marcado ? "marcada" : "vazia"} />
-          <span className="mk-dp-grupo__texto"><TextoDeslizante>{it.rotulo}</TextoDeslizante></span>
+          <span className="mk-dp-grupo__texto"><TextoDeslizante permitirFoco={false}>{it.rotulo}</TextoDeslizante></span>
         </button>
       ))}
     </div>
@@ -805,7 +805,7 @@ export function GrupoMarcar({ titulo, itens, onAlternar, onAlternarTodos, classN
 /** @type {React.ForwardRefRenderFunction<HTMLButtonElement, BotaoFiltroProps>} */
 const BotaoFiltroRender = ({ children, className, type = "button", ...props }, ref) => (
   <button ref={ref} type={type} className={cls("mk-dp-filtro", className)} {...props}>
-    <span><TextoDeslizante>{children}</TextoDeslizante></span>
+    <span><TextoDeslizante permitirFoco={false}>{children}</TextoDeslizante></span>
     <ChevronDown size={16} aria-hidden="true" />
   </button>
 );

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { act, cleanup, render } from '@testing-library/react';
-import { Celula, Grade } from '@/components/mapa/detalhes-lote/blocos';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { Celula, Grade, Item } from '@/components/mapa/detalhes-lote/blocos';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -29,4 +29,16 @@ it('passa apenas o texto que não cabe e para quando o espaço aumenta, mantendo
   expect(rotulo.hasAttribute('tabindex')).toBe(false);
   unmount();
   expect(desconectar).toHaveBeenCalled();
+});
+
+it('texto automático dentro de um botão não cria foco extra e preserva a abertura do lote', () => {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(40);
+  vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(240);
+  const abrir = vi.fn();
+  const { container } = render(<div className="mk-dp"><ul><Item titulo="Nome de lote comprido" meta="Informações completas do lote" onClick={abrir} /></ul></div>);
+  const botao = container.querySelector('button');
+  expect(botao.querySelectorAll('.mk-dp-texto-auto.is-longo')).toHaveLength(2);
+  expect(botao.querySelector('[tabindex]')).toBeNull();
+  fireEvent.click(botao);
+  expect(abrir).toHaveBeenCalledTimes(1);
 });
