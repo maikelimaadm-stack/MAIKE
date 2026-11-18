@@ -571,13 +571,13 @@ export function Segmentado({ opcoes, valor, onMudar, rotulo, className }) {
 
 /**
  * Números em N colunas (padrão: um por coluna) com divisórias verticais.
- * @param {{ itens: Kpi[], colunas?: number, className?: string }} props
+ * @param {{ itens: Kpi[], colunas?: number, distribuicao?: string, className?: string }} props
  */
-export function Kpis({ itens, colunas, className }) {
+export function Kpis({ itens, colunas, distribuicao, className }) {
   const lista = Array.isArray(itens) ? itens : [];
   const n = Math.max(1, Number(colunas) || lista.length || 1);
   return (
-    <dl className={cls("mk-dp-kpis", className)} style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+    <dl className={cls("mk-dp-kpis", className)} style={{ gridTemplateColumns: distribuicao || `repeat(${n}, minmax(0, 1fr))` }}>
       {lista.map((k, i) => (
         <div key={k.chave ?? i} className="mk-dp-kpi">
           <dt className="mk-dp-kpi__rot"><TextoDeslizante>{k.rotulo}</TextoDeslizante></dt>

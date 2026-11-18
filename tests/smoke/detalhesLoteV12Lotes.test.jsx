@@ -149,10 +149,10 @@ describe("aba Lotes: vistas", () => {
 });
 
 describe("aba Lotes › Resumo", () => {
-  it("4 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
+  it("5 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
     render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     const kpis = [...document.querySelectorAll(".mk-dp-kpi")].map((k) => [k.querySelector("dt").textContent, k.querySelector(".mk-dp-kpi__val").textContent]);
-    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Peso médio projetado (kg)", "342,6"], ["UA/ha", "2,24"]]);
+    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Peso médio projetado (kg)", "342,6"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
     expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314)");
 
     const itens = [...document.querySelectorAll(".mk-dp-item")];
@@ -225,9 +225,10 @@ describe("aba Lotes › Lote", () => {
     const [, lotacao, pesagem, projecao, ident] = painel.querySelectorAll(".mk-dp-cartao");
     expect(grade(lotacao)).toEqual({
       "Cab.": "38", "% das cabeças do pasto": "12%", UA: "37,96", "% da UA do pasto": "16%",
-      "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081", "Ocupação (UA × dias)": "2.126",
+      "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081",
     });
     expect(lotacao.querySelectorAll(".mk-dp-cel__barra")).toHaveLength(2);
+    expect(within(lotacao).queryByText("Ocupação (UA × dias)")).toBeNull();
     expect(lotacao.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
 
     expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026", Origem: "MEDIDO" });

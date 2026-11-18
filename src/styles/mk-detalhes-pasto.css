@@ -2092,6 +2092,25 @@
   .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha__rot { font-size: 13px; }
   .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha__sub { font-size: 12px; }
   .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-linha__val { font-size: 13.5px; }
-  .mk-dp .mk-dp-lote-organizado__secao > .mk-dp-cartao .mk-dp-projecao-mensal > .mk-dp-grade { grid-template-columns: minmax(0, 1fr); }
-  .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-grade > .mk-dp-cel + .mk-dp-cel { border-top: 1px solid #e7e9ec; }
+}
+
+/* D-PROD-246 — cinco indicadores com espaço proporcional aos rótulos. */
+.mk-dp .mk-dp-resumo-indicadores {
+  --mk-dp-resumo-colunas: minmax(0, .85fr) minmax(0, 1.15fr) minmax(0, 1.35fr) minmax(0, .9fr) minmax(0, 1.05fr);
+}
+.mk-dp .mk-dp-lote-organizado__secao > .mk-dp-cartao .mk-dp-projecao-mensal > .mk-dp-grade {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-resumo-indicadores > .mk-dp-kpi { padding-left: 6px; padding-right: 6px; }
+  .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel { grid-template-columns: minmax(0, 1fr); }
+  .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel__val { text-align: left; }
+}
+@media (max-width: 419px) {
+  .mk-dp .mk-dp-lote-organizado__secao > .mk-dp-cartao .mk-dp-projecao-mensal > .mk-dp-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-grade > .mk-dp-cel:nth-child(n + 3) {
+    border-top: 1px solid #e7e9ec;
+  }
 }

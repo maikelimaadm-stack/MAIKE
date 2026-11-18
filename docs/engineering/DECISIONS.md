@@ -8334,5 +8334,13 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Desktop/tablet: cabeçalhos dos eventos do histórico sem borda inferior; bordas entre dados preservadas. A dica “Ideal (...)” da UA/ha sai somente da apresentação dos detalhes, mantendo número, cor e regras.
 - Apenas prévia, sem merge nem alteração da produção.
 
-<!-- Próxima decisão: D-PROD-246 -->
+### D-PROD-246 — Resumo completo e projeções lado a lado (2026-11-18)
+
+- Pedido: restaurar kg PV/ha no resumo em todas as telas, retirar Ocupação dos detalhes e manter três projeções por linha, usando duas em celular estreito.
+- Cinco indicadores no resumo: Cabeças, Peso médio, Peso médio projetado, UA/ha e kg PV/ha. Larguras proporcionais, com menos espaço em Cabeças e UA/ha; nenhum indicador oculto no celular.
+- Ocupação (UA × dias) sai dos cartões de detalhes; cálculo e catálogo da tabela preservados.
+- Projeções mensais: três colunas; duas abaixo de 420 px. No celular a data fica acima do peso para legibilidade, sem omitir o terceiro mês.
+- Apenas prévia, sem merge nem alteração da produção.
+
+<!-- Próxima decisão: D-PROD-247 -->
 

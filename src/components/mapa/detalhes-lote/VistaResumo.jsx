@@ -8,7 +8,7 @@ import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
 
 /**
- * Vista Resumo da aba Lotes (v12): 4 números do pasto e a lista dos lotes por
+ * Vista Resumo da aba Lotes (v12): 5 números do pasto e a lista dos lotes por
  * nome e toque para abrir o lote. Os manejos continuam acessíveis para a área ou para o lote aberto.
  */
 export function VistaResumo() {
@@ -21,12 +21,15 @@ export function VistaResumo() {
   return (
     <>
       <Kpis
-        colunas={4}
+        colunas={5}
+        className="mk-dp-resumo-indicadores"
+        distribuicao="var(--mk-dp-resumo-colunas)"
         itens={[
           { chave: "cab", rotulo: "Cabeças", valor: m.resumo.cab },
           { chave: "peso", rotulo: "Peso médio (kg)", valor: m.resumo.pesoMedio },
           { chave: "projetado", rotulo: "Peso médio projetado (kg)", valor: m.resumo.pesoMedioProjetado },
           { chave: "uaha", rotulo: "UA/ha", valor: m.resumo.uaHa },
+          { chave: "kgpvha", rotulo: "kg PV/ha", valor: m.resumo.kgPvHa },
         ]}
       />
       <ListaItens
