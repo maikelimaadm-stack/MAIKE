@@ -987,7 +987,8 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     expect(escritas()).toEqual([]);
 
     // D-PROD-238: marcar a área a põe na lista abaixo (Área · Setor · Tamanho · Área planejada · ✕).
-    fireEvent.click(within(form).getByTestId("areas-abertura-opcao-ar1"));
+    fireEvent.click(within(form).getByTestId("areas-abertura-campo"));
+    fireEvent.click(screen.getByTestId("areas-abertura-opcao-ar1"));
     expect(within(form).getByTestId("areas-abertura-linha-ar1")).toHaveTextContent("SETOR NORTE");
     await escolherNoSeletor(form, "atividade-maquina", /TP-02 — Trator/);
     expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/bens")?.query).toMatchObject({ empresa_id: "emp-1" });

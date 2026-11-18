@@ -100,3 +100,16 @@ O proprietário mostrou a tela "Que trabalho é este?" (cartões grandes, "Toque
 | Mantido | Fluxo tipo → áreas → área → lançar; grupos e totais por área; abastecimento e implemento pela área; `atividadeFluxoCampo.js` (só regras e textos, sem layout) |
 | Servidor / banco | Sem mudança. Nenhuma migration criada ou aplicada; a `20261118100000_atividade_areas` continua **não aplicada** em produção |
 | Testes | `LA-CABECALHO-1` volta a ser o formulário numa tela só (e confere a nota do tipo). Os testes do assistente (`assistente-*`) saíram junto com o componente |
+
+## 8. Terceira rodada: o campo Áreas é uma lista fechada com pesquisa, e a escolha vira tabela
+
+| Item | Detalhe |
+|---|---|
+| Campo | `SeletorAreasDaAtividade`: `B1Field` + botão `b1-select-btn` (visual do `CampoSelect`), fechado, "Selecione as áreas…"; com escolhas mostra o nome ou "N áreas selecionadas" |
+| Lista | Popover Radix `mk-map-multi-popup` (o de `B1MultiSelecao` / `MapaFiltroSelecao`, sem tocar neles), com "Pesquisar…" e uma caixa por pasto/talhão (nome, tipo, setor, tamanho). Marcar atualiza a tabela na hora; fechar mantém. Não aparece aberta |
+| Tabela | `b1-tipo-tabela`: Área · Tipo (`grupoDaArea`: Pasto / Talhão / Outra) · Setor · Tamanho (ha) · Hectares (ha) editável · ✕ + total. Celular: os cartões de antes, agora com o tipo |
+| Remover / voltar | ✕ tira a linha e desmarca na lista; marcar de novo restaura o tamanho cadastrado como padrão |
+| Hectares | **Gravados em `AtividadeArea.area_planejada`**: `corpoDasAreasDaAbertura` → `corpo.areas` no `POST /atividades`; `atividadesApi` já aceita `area_planejada`. Nada em modo só leitura |
+| testids | Mantidos; novos `areas-abertura-campo` (o botão) e `areas-abertura-lista` (o popover). Busca e opções só existem com a lista aberta |
+| Servidor / banco | Sem mudança. A `20261118100000_atividade_areas` continua **não aplicada** em produção (o proprietário pediu para não migrar ainda) |
+| Testes | `AR-ABERTURA-1..3` (fechado; busca; marcar; colunas; editar ha; tirar desmarca; marcar de novo restaura) e `LA-CABECALHO-1` abrindo a lista antes de marcar |

@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { ChevronDown, X } from "lucide-react";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { GRUPO_LAVOURA, GRUPO_PASTO, grupoDaArea } from "@/lib/atividadeFluxoCampo";
 import { useCelular } from "@/components/common/MobileSheet";
 import { formatarDecimalLinha } from "@/lib/atividadeLinhasRegras";
 import { rotuloDaArea } from "@/lib/lancamentoAtividadesRegras";
@@ -8,6 +11,12 @@ import { alternarAreaNaAbertura, hectaresCanonicos, planejadaMaiorQueArea, totai
 const NOTA = "min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
 const ENTRADA =
   "h-9 w-full min-w-0 rounded-md border border-[var(--mg-divider,#cbd5e1)] bg-white px-2.5 text-right text-[13px] tabular-nums outline-none focus:border-emerald-500";
+
+/** "Pasto" / "Talhão" / "Outra" — a classificação já usada na escolha de áreas. @param {any} a */
+const rotuloDoTipo = (a) => {
+  const g = grupoDaArea(a);
+  return g === GRUPO_LAVOURA ? "Talhão" : g === GRUPO_PASTO ? "Pasto" : "Outra";
+};
 
 /** "10 ha" (sem valor, "—"). @param {unknown} v */
 const ha = (v) => {
@@ -34,6 +43,7 @@ const ha = (v) => {
 export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange, erros = {}, obrigatorio = false, readOnly = false, carregando = false }) {
   const celular = useCelular();
   const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState(false);
   const ativas = useMemo(() => areasDoMapa.filter((a) => a && a.id != null && a.ativo !== false), [areasDoMapa]);
   const filtradas = useMemo(() => {
     const q = busca.trim().toLocaleLowerCase("pt-BR");
@@ -42,6 +52,11 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
   }, [ativas, busca]);
   const escolhidas = new Set(linhas.map((l) => l.area_id));
   const total = totaisDaAbertura(linhas, ativas);
+  const resumo = !linhas.length
+    ? "Selecione as áreas…"
+    : linhas.length === 1
+      ? rotuloDaArea(ativas.find((a) => String(a.id) === linhas[0].area_id)) || "1 área"
+      : `${linhas.length} áreas selecionadas`;
   const areaDe = (/** @type {string} */ id) => ativas.find((a) => String(a.id) === id) ?? null;
 
   /** @param {string} id @param {string} v */
@@ -89,50 +104,67 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
         Áreas{obrigatorio ? <span className="text-red-600"> *</span> : null}
       </p>
       <p className={`${NOTA} mb-2`}>
-        Marque as áreas (pastos) desta atividade. Elas entram <strong>a iniciar</strong>: os lançamentos começam quando você inicia cada área, no card
+        Abra a lista e marque os pastos ou talhões desta atividade. Elas entram <strong>a iniciar</strong>: os lançamentos começam quando você inicia cada área, no card
         &quot;Áreas da atividade&quot;.
       </p>
-      {!readOnly ? (
-        <div className="b1-areas-seletor rounded-[10px] border border-[var(--mg-divider,#E8E7E2)] bg-white">
-          <label className="flex items-center gap-2 border-b border-[var(--mg-divider,#E8E7E2)] px-3 py-2">
-            <Search className="h-4 w-4 shrink-0 text-[var(--mg-text-3,#64748b)]" aria-hidden />
-            <input
-              type="search"
-              className="h-8 w-full min-w-0 bg-transparent text-[13px] outline-none"
-              placeholder="Pesquisar área ou setor…"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              aria-label="Pesquisar área"
-              data-testid="areas-abertura-busca"
-            />
-          </label>
-          <ul className="max-h-[200px] overflow-y-auto py-1" role="group" aria-label="Áreas da fazenda" data-testid="areas-abertura-opcoes">
-            {carregando ? <li className={`${NOTA} px-3 py-2`}>Carregando as áreas…</li> : null}
-            {!carregando && !filtradas.length ? <li className={`${NOTA} px-3 py-2`}>{ativas.length ? "Nenhuma área com esse nome." : "Nenhuma área ativa nesta fazenda."}</li> : null}
-            {filtradas.map((a) => {
-              const id = String(a.id);
-              const marcada = escolhidas.has(id);
-              return (
-                <li key={id}>
-                  <label className={`flex min-h-10 cursor-pointer items-center gap-2.5 px-3 py-1.5 text-[13px] hover:bg-[var(--mg-hover,#F5F5F2)]${marcada ? " bg-emerald-50/60" : ""}`}>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 shrink-0 accent-emerald-600"
-                      checked={marcada}
-                      onChange={() => onChange(alternarAreaNaAbertura(linhas, a))}
-                      data-testid={`areas-abertura-opcao-${id}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate font-medium">{rotuloDaArea(a) || id}</span>
-                    <span className="shrink-0 text-[12px] text-[var(--mg-text-2,#475569)]">
-                      {[a.setor_nome, ha(a.tamanho_hectares)].filter((x) => x && x !== "—").join(" · ")}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
+      <B1Field label="Áreas" required={obrigatorio} span={12} hasValue={linhas.length > 0} locked={readOnly} disabled={readOnly}>
+        <Popover.Root open={aberto && !readOnly} onOpenChange={(o) => { setAberto(o); setBusca(""); }}>
+          <Popover.Trigger asChild>
+            <button
+              type="button"
+              role="combobox"
+              aria-expanded={aberto}
+              aria-haspopup="dialog"
+              aria-label="Áreas"
+              disabled={readOnly}
+              className={`${B1_FIELD_CTL_CLS} b1-select-btn`}
+              {...(linhas.length ? {} : { "data-placeholder": "" })}
+              data-testid="areas-abertura-campo"
+            >
+              <span className="b1-select-btn__v">{resumo}</span>
+              <ChevronDown aria-hidden className="b1-select-btn__c" />
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              align="start"
+              side="bottom"
+              sideOffset={5}
+              collisionPadding={8}
+              aria-label="Áreas da fazenda"
+              className="mk-map-multi-popup"
+              style={{ width: "var(--radix-popover-trigger-width)", minWidth: 240 }}
+              data-testid="areas-abertura-lista"
+            >
+              <input
+                type="search"
+                placeholder="Pesquisar…"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                aria-label="Pesquisar área"
+                data-testid="areas-abertura-busca"
+              />
+              <div className="mk-map-multi-options" role="group" aria-label="Áreas da fazenda" data-testid="areas-abertura-opcoes">
+                {carregando ? <p className={`${NOTA} px-3 py-2`}>Carregando as áreas…</p> : null}
+                {!carregando && !filtradas.length ? <p className={`${NOTA} px-3 py-2`}>{ativas.length ? "Nenhuma área com esse nome." : "Nenhuma área ativa nesta fazenda."}</p> : null}
+                {filtradas.map((a) => {
+                  const id = String(a.id);
+                  const detalhe = [rotuloDoTipo(a), a.setor_nome, ha(a.tamanho_hectares)].filter((x) => x && x !== "—").join(" · ");
+                  return (
+                    <label key={id}>
+                      <span>
+                        {rotuloDaArea(a) || id}
+                        <small className="ml-2 text-[11px] opacity-70">{detalhe}</small>
+                      </span>
+                      <input type="checkbox" checked={escolhidas.has(id)} onChange={() => onChange(alternarAreaNaAbertura(linhas, a))} data-testid={`areas-abertura-opcao-${id}`} />
+                    </label>
+                  );
+                })}
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+      </B1Field>
       {erros.areas ? (
         <p className="mt-1 text-[12px] text-red-700" role="alert" data-testid="areas-abertura-erro">
           {erros.areas}
@@ -149,12 +181,12 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-semibold">{rotuloDaArea(a) || l.area_id}</p>
-                      <p className={NOTA}>{[a?.setor_nome, `Tamanho ${ha(a?.tamanho_hectares)}`].filter(Boolean).join(" · ")}</p>
+                      <p className={NOTA}>{[rotuloDoTipo(a), a?.setor_nome, `Tamanho ${ha(a?.tamanho_hectares)}`].filter(Boolean).join(" · ")}</p>
                     </div>
                     {botaoRemover(l.area_id)}
                   </div>
                   <div className="mt-2 grid grid-cols-[1fr_120px] items-center gap-2">
-                    <span className="text-[12px] text-[var(--mg-text-2,#475569)]">Área planejada (ha)</span>
+                    <span className="text-[12px] text-[var(--mg-text-2,#475569)]">Hectares (ha)</span>
                     {campoPlanejada(l)}
                   </div>
                 </li>
@@ -173,12 +205,13 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
               <thead>
                 <tr>
                   <th scope="col">Área</th>
+                  <th scope="col">Tipo</th>
                   <th scope="col">Setor</th>
                   <th scope="col" className="is-numero">
                     Tamanho (ha)
                   </th>
                   <th scope="col" className="is-numero" style={{ width: 160 }}>
-                    Área planejada (ha)
+                    Hectares (ha)
                   </th>
                   <th scope="col" className="b1-tipo-tabela__acoes" aria-label="Tirar" />
                 </tr>
@@ -189,6 +222,7 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
                   return (
                     <tr key={l.area_id} data-testid={`areas-abertura-linha-${l.area_id}`}>
                       <td className="is-nome">{rotuloDaArea(a) || l.area_id}</td>
+                      <td>{rotuloDoTipo(a)}</td>
                       <td>{a?.setor_nome || "—"}</td>
                       <td className="is-numero">{ha(a?.tamanho_hectares)}</td>
                       <td className="is-numero">{campoPlanejada(l)}</td>
@@ -202,6 +236,7 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
                   <td>
                     Total · {linhas.length} {linhas.length === 1 ? "área" : "áreas"}
                   </td>
+                  <td />
                   <td />
                   <td className="is-numero">{tamanhoTotal}</td>
                   <td className="is-numero">{planejadaTotal}</td>
