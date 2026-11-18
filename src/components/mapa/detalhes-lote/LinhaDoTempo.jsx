@@ -1,6 +1,6 @@
 import React from "react";
 import { ArrowRightLeft, Baby, CircleX, Combine, History, Package, Scale, Tags, Truck } from "lucide-react";
-import { Chip } from "./blocos";
+import { Chip, TextoDeslizante } from "./blocos";
 import "@/styles/mk-dp-historico.css";
 
 /*
@@ -37,7 +37,7 @@ const ICONES = {
  * e passe `Icone` (lucide) quando o desenho não é um dos do histórico do pasto.
  * (O pé de ações do cartão saiu na D-PROD-222: o histórico completo do bebedouro,
  * o único que o usava, passou para os cartões do manejo.)
- * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }> }> }>, rotulo?: string }} props
+ * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }> }> }>, rotulo?: string, textoAutomatico?: boolean }} props
  */
 /** Rótulos de texto livre: ocupam a largura do cartão mesmo quando o texto é curto. */
 const ROTULOS_DE_TEXTO = /^(descrição|observaç(ão|ões)|detalhe|motivo)$/i;
@@ -50,7 +50,7 @@ const ROTULOS_DE_TEXTO = /^(descrição|observaç(ão|ões)|detalhe|motivo)$/i;
  */
 const textoLongo = (rotulo, valor) => ROTULOS_DE_TEXTO.test(String(rotulo ?? "").trim()) || (typeof valor === "string" && valor.length > 28);
 
-export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
+export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto", textoAutomatico = false }) {
   const lista = Array.isArray(dias) ? dias : [];
   return (
     <ol className="mk-dp-tl" aria-label={rotulo}>
@@ -69,7 +69,7 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
                 <li key={c.chave} className={c.cancelado ? "mk-dp-tl__card is-cancelado" : "mk-dp-tl__card"}>
                   <div className="mk-dp-tl__cab">
                     <Icone className="mk-dp-tl__ic" size={22} aria-hidden="true" />
-                    <strong className="mk-dp-tl__titulo">{c.titulo}</strong>
+                    <strong className="mk-dp-tl__titulo">{textoAutomatico ? <TextoDeslizante>{c.titulo}</TextoDeslizante> : c.titulo}</strong>
                     {c.cancelado ? (
                       <Chip tom="neutro" className="mk-dp-tl__chip">
                         Cancelado
@@ -79,8 +79,8 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto" }) {
                   <dl className="mk-dp-tl__linhas">
                     {c.linhas.map((l, i) => (
                       <div key={`${l.rotulo}-${i}`} className={textoLongo(l.rotulo, l.valor) ? "mk-dp-tl__row mk-dp-tl__row--larga" : "mk-dp-tl__row"}>
-                        <dt>{l.rotulo}</dt>
-                        <dd>{l.valor}</dd>
+                        <dt>{textoAutomatico ? <TextoDeslizante>{l.rotulo}</TextoDeslizante> : l.rotulo}</dt>
+                        <dd>{textoAutomatico ? <TextoDeslizante>{l.valor}</TextoDeslizante> : l.valor}</dd>
                       </div>
                     ))}
                   </dl>

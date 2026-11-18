@@ -28,9 +28,9 @@ export function VistaLote() {
 
   return (
     <>
-      <NavLote titulo={lote.nome} posicao={indice + 1} total={lotes.length} onAnterior={() => passar(-1)} onProximo={() => passar(1)} />
+      {lotes.length > 1 ? <NavLote titulo={lote.nome} posicao={indice + 1} total={lotes.length} onAnterior={() => passar(-1)} onProximo={() => passar(1)} /> : null}
       <div key={lote.id} className={`mk-dp-lotes__blocos${direcao ? ` mk-dp-anim--${direcao}` : ""}`}>
-        <BlocosLote lote={lote} mostrarNome={false} />
+        <BlocosLote lote={lote} mostrarNome={lotes.length === 1} />
       </div>
     </>
   );

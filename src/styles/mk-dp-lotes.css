@@ -247,16 +247,3 @@
 .mk-dp .mk-dp-lote-organizado > * {
   min-width: 0;
 }
-
-
-@media (min-width: 1024px) {
-  .mk-dp .mk-dp-lote-organizado {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
-
-  .mk-dp .mk-dp-lote-organizado > .mk-dp-cartao,
-  .mk-dp .mk-dp-lote-organizado > .mk-dp-aviso {
-    grid-column: 1 / -1;
-  }
-}

@@ -8,49 +8,45 @@ import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
 
 /**
- * Vista Resumo da aba Lotes (v12): 4 números do pasto e a lista dos lotes por
- * nome, cada um com a caixa de seleção (a seleção da casca: Mover lotes, Pesar e
- * Manejos levam só os marcados) e o toque que abre a tela do lote. O cabeçalho
- * marca/desmarca todos e diz quantos estão marcados.
+ * Vista Resumo da aba Lotes (v12): 5 números do pasto e a lista dos lotes por
+ * nome e toque para abrir o lote. Os manejos continuam acessíveis para a área ou para o lote aberto.
  */
 export function VistaResumo() {
-  const { modelo, dados, empurrar, selecao, alternarSelecao, definirSelecao } = usePasto();
+  const { modelo, dados, empurrar } = usePasto();
   const m = /** @type {ModeloDetalhes} */ (modelo);
   const lotes = React.useMemo(() => ordenarLotes(m.lotes, { chave: "nome", dir: 1 }), [m.lotes]);
-  const ids = lotes.map((l) => l.id);
-  const marcados = ids.filter((id) => selecao.has(id)).length;
-  const marcacao = marcados === 0 ? "vazia" : marcados === ids.length ? "marcada" : "meio";
   const pasto = m.area?.nome || dados.areaNome;
-  const titulo = `${pasto} (${m.resumo.cab})${marcados ? ` · ${marcados} ${marcados === 1 ? "selecionado" : "selecionados"}` : ""}`;
+  const titulo = `${pasto} (${m.resumo.cab})`;
 
   return (
     <>
       <Kpis
-        colunas={4}
+        textoAutomatico
+        colunas={5}
+        className="mk-dp-resumo-indicadores"
+        distribuicao="var(--mk-dp-resumo-colunas)"
         itens={[
-          { chave: "peso", rotulo: "Peso médio (kg)", valor: m.resumo.pesoMedio },
           { chave: "cab", rotulo: "Cabeças", valor: m.resumo.cab },
+          { chave: "peso", rotulo: "Peso médio (kg)", valor: m.resumo.pesoMedio },
+          { chave: "projetado", rotulo: "Peso médio projetado (kg)", valor: m.resumo.pesoMedioProjetado },
           { chave: "uaha", rotulo: "UA/ha", valor: m.resumo.uaHa },
           { chave: "kgpvha", rotulo: "kg PV/ha", valor: m.resumo.kgPvHa },
         ]}
       />
       <ListaItens
         titulo={titulo}
-        marcacao={marcacao}
-        onMarcarTodos={() => definirSelecao(marcacao === "marcada" ? [] : ids)}
-        rotuloTodos={marcacao === "marcada" ? "Desmarcar todos os lotes" : "Selecionar todos os lotes"}
+        className="mk-dp-resumo-lotes"
         rotulo="Lotes do pasto"
       >
         {lotes.map((l) => (
           <Item
+            textoAutomatico
             key={l.id}
-            marcado={selecao.has(l.id)}
-            onMarcar={() => alternarSelecao(l.id)}
             imagem={<IconeCategoria figura={l.subicone} tamanho={30} />}
             cor={l.ident.identificadorCor}
             titulo={l.nome}
-            meta={l.textos.meta}
-            sub={l.textos.pesoKg}
+            title={`${l.nome}: ${l.textos.meta.replace(" cb ·", " cab ·")} · ${l.textos.pesoKg}`}
+            meta={`${l.nome === l.categoria ? l.textos.meta.replace(" cb ·", " cab ·").replace(` · ${l.categoria}`, "") : l.textos.meta.replace(" cb ·", " cab ·")} · ${l.textos.pesoKg}`}
             chip={<ChipSituacao situacao={l.situacao} />}
             chevron
             onClick={() => empurrar({ tipo: "lote", loteId: l.id })}
