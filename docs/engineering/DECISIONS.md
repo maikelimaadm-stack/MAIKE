@@ -8278,5 +8278,11 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Detalhes da área e do lote: blocos em pares a partir de 768 px; campos em duas colunas no tablet e três no desktop amplo. Celular mantém o visual em linhas. Áreas total/pastejada e projeções mensais preservam os pares/trios.
 - Sem mudança de dados, cálculos, permissões, tabelas ou formulários de lançamento.
 
-<!-- Próxima decisão: D-PROD-238 -->
+### D-PROD-238 — Cartões largos e campos em colunas (2026-11-18)
+
+- Esclarecimento explícito do dono: desktop e tablet devem ter cartões empilhados na largura do popup; somente os campos internos ficam lado a lado.
+- Área e lote deixam de dividir os cartões em pares. Mantidas duas colunas de campos no tablet e três no desktop amplo; área total/pastejada juntas e projeções mensais em trio.
+- Preservados o popup dimensionado pela viewport (D-PROD-237), as linhas do celular, dados, cálculos e permissões.
+
+<!-- Próxima decisão: D-PROD-239 -->
 

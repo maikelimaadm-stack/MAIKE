@@ -17,6 +17,7 @@ rollout pausado **D-PROD-41**)
 | Refinamento D-PROD-235 (nasceu D-PROD-230) | Botão Visualização integrado ao fim da barra escura do mapa; painel e permissões preservados, ações laterais abaixo da barra. |
 | Refinamento D-PROD-236 (nasceu D-PROD-232) | Detalhes de área e lote com cartões em linhas, rótulos à esquerda e valores à direita; blocos empilhados no celular/tablet e em pares no desktop, preservando os dados. |
 | Refinamento D-PROD-237 | Popup dos detalhes dimensionado pela viewport; campos em duas colunas no tablet e três no desktop amplo, mantendo as linhas no celular. |
+| Refinamento D-PROD-238 | Cartões largos empilhados em desktop/tablet, com apenas os campos internos em colunas; popup estável e celular preservados. |
 | Refinamento D-PROD-229 | Detalhes de lote com identidade sem repetição, Lotação, Pesagem, Projeção de peso e Identificação separadas; pares no computador e uma coluna no celular. Tabela e regras preservadas. |
 | Refinamento D-PROD-228 | Histórico de cocho e depósito somente pelo botão; nova ação Fechamentos no cocho, com todos os períodos fechados e permissão de histórico. Resumo sem registros antigos; detalhes de lote preservados. |
 | Refinamento D-PROD-227 | Cocho e depósito com seções nomeadas, métricas do último registro agrupadas e projeções/limites sem repetição no resumo; pares explícitos no popup e uma coluna no celular. Regras e permissões preservadas. |

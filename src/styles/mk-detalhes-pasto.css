@@ -1841,19 +1841,15 @@
 }
 .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel { grid-template-columns: minmax(0, 1fr); }
 .mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel__val { justify-content: flex-start; text-align: left; }
-@media (min-width: 1024px) {
-  .mk-dp .mk-dp-area-organizada { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-  .mk-dp .mk-dp-area-organizada > :is(.mk-dp-aviso, .mk-dp-vazio),
-  .mk-dp .mk-dp-area-organizada__categorias { grid-column: 1 / -1; }
-}
 
 /* D-PROD-237 — tablet/desktop usam a largura da tela para distribuir campos.
    O celular mantém as linhas da referência; o popup tem medidas da viewport,
    independentemente da aba ou da quantidade de dados. */
 @media (min-width: 768px) {
+  /* D-PROD-238: cartões largos empilhados; somente os campos formam colunas. */
   .mk-dp .mk-dp-area-organizada,
   .mk-dp .mk-dp-lote-organizado {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     align-items: start;
   }
