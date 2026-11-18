@@ -1,5 +1,5 @@
 /**
- * D-PROD-195 — tradução do P2002 SEM o alvo, como em PRODUÇÃO. PostgreSQL real.
+ * D-PROD-252 — tradução do P2002 SEM o alvo, como em PRODUÇÃO. PostgreSQL real.
  *
  * Em produção o runtime (`maike_vercel`) não é dono das tabelas e elas têm RLS
  * (sem FORCE, política só para ele): o PostgreSQL omite o DETAIL da violação de
@@ -169,7 +169,7 @@ const erroDeNegocio = (code) => () => new AppError(code, `teste: ${code}`);
 
 // ═══ Pré-condição ═══════════════════════════════════════════════════════════
 
-describe('D-PROD-195 — pré-condição: como em produção, o P2002 não diz a unique', () => {
+describe('D-PROD-252 — pré-condição: como em produção, o P2002 não diz a unique', () => {
   test('U0: como DONO o P2002 traz o alvo; sob o papel NÃO dono (RLS + política permissiva) vem com `target` nulo e só o `modelName`; nem o SQL bruto (P2010) diz a constraint', async () => {
     const { cliente } = await criarTenant();
     const duplicar = (/** @type {any} */ tx) => tx.cliente.create({ data: { codigo: cliente.codigo, nome: 'Outro com o mesmo código' } });
@@ -192,7 +192,7 @@ describe('D-PROD-195 — pré-condição: como em produção, o P2002 não diz a
 
 // ═══ O mapa genérico do emTransacao ═════════════════════════════════════════
 
-describe('D-PROD-195 — o mapa genérico do emTransacao', () => {
+describe('D-PROD-252 — o mapa genérico do emTransacao', () => {
   /**
    * Mapa com a unique `codigo` do Cliente cuja conferência conta as chamadas e
    * anota o papel e o que vê. @param {string} codigoOcupado @param {string} codigoNovo
@@ -275,7 +275,7 @@ describe('D-PROD-195 — o mapa genérico do emTransacao', () => {
 
 // ═══ Abastecimento (molde do IT4g) ══════════════════════════════════════════
 
-describe('D-PROD-195 — abastecimento: a chave sem recibo, como em produção', () => {
+describe('D-PROD-252 — abastecimento: a chave sem recibo, como em produção', () => {
   const REENVIO = 'abastecimento_bem.reenvio_conflitante';
   /** Fotografia do tenant SEM a auditoria (o reenvio conflitante é auditado à parte, best-effort). @param {{ c: string }} s */
   const semAuditoria = async (s) => JSON.stringify({ ...JSON.parse(await fotoAbastecimento(s.c)), auditLog: null });
@@ -343,7 +343,7 @@ describe('D-PROD-195 — abastecimento: a chave sem recibo, como em produção',
 
 // ═══ Empresa ════════════════════════════════════════════════════════════════
 
-describe('D-PROD-195 — empresa: o nome em corrida, como em produção', () => {
+describe('D-PROD-252 — empresa: o nome em corrida, como em produção', () => {
   test('E1: duas empresas com o mesmo nome em corrida (a 2ª passa a pré-conferência antes do commit da 1ª e espera a numeração dela): sob o papel → 201 + 409 EMPRESA_NAME_CONFLICT, nunca CONCURRENCY_CONFLICT; uma empresa só, numeração sem buraco', async () => {
     const t = await criarTenant();
     const { corpo: sessao } = await autenticarNoApp(app, t.credenciais);
@@ -364,7 +364,7 @@ describe('D-PROD-195 — empresa: o nome em corrida, como em produção', () => 
 
 // ═══ MAIKE Admin ════════════════════════════════════════════════════════════
 
-describe('D-PROD-195 — MAIKE Admin: código e login em corrida, como em produção', () => {
+describe('D-PROD-252 — MAIKE Admin: código e login em corrida, como em produção', () => {
   const novo = (codigo, login) => ({ nome: `Fazenda ${codigo}`, codigo, administrador: { nome: 'Gestora', login } });
 
   test('M1: sob o papel, a corrida pelo MESMO código (criar e editar) dá 409 ADMIN_CLIENTE_CODIGO_DUPLICADO (antes, sem o alvo, "login duplicado") e pelo MESMO login dá 409 ADMIN_LOGIN_DUPLICADO; sem órfão', async () => {
@@ -419,7 +419,7 @@ describe('D-PROD-195 — MAIKE Admin: código e login em corrida, como em produ�
 
 // ═══ Inventário fechado ═════════════════════════════════════════════════════
 
-describe('D-PROD-195 — inventário fechado dos tradutores de P2002', () => {
+describe('D-PROD-252 — inventário fechado dos tradutores de P2002', () => {
   const RAIZ = new URL('../src/', import.meta.url).pathname;
   /** @param {string} d @returns {string[]} */
   const arquivos = (d) => readdirSync(d).flatMap((n) => {

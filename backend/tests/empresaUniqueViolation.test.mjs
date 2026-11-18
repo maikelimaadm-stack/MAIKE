@@ -1,5 +1,5 @@
 /**
- * Mapeamento P2002 → AppError estável (PR108), com e sem o alvo (D-PROD-195).
+ * Mapeamento P2002 → AppError estável (PR108), com e sem o alvo (D-PROD-252).
  *
  * Com o alvo (o runtime é dono das tabelas) o campo decide, como sempre, e as
  * conferências nem rodam. Sem o alvo (produção: papel não dono + RLS) a chave
@@ -58,7 +58,7 @@ test('P2002 sem meta reconhecível → CONCURRENCY_CONFLICT (com o alvo, mesmo c
   assert.equal(nome.chamadas, 0);
 });
 
-test('D-PROD-195: P2002 SEM alvo → conferência do nome, depois do número; nada ocupado → CONCURRENCY_CONFLICT', async () => {
+test('D-PROD-252: P2002 SEM alvo → conferência do nome, depois do número; nada ocupado → CONCURRENCY_CONFLICT', async () => {
   const semAlvo = { code: 'P2002', meta: { modelName: 'Empresa', target: null } };
   await assert.rejects(lancarSeP2002Empresa(semAlvo), codigo('CONCURRENCY_CONFLICT'), 'sem conferência: o 409 genérico de antes');
 

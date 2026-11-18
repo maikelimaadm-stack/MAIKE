@@ -1,6 +1,6 @@
 /**
  * O banco como em PRODUÇÃO para os testes de backend (D-PROD-193 IT4g,
- * D-PROD-195). Não é arquivo de teste (sem `.test.`).
+ * D-PROD-252). Não é arquivo de teste (sem `.test.`).
  *
  * Em produção o runtime roda como `maike_vercel`: NÃO é dono das tabelas (o
  * dono é `postgres`), não tem BYPASSRLS, e as tabelas têm RLS ligado (sem

@@ -9,11 +9,11 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-14) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-195)
+## Missão ativa (2026-11-14) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-252)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-195** (a D-PROD-194 é da PR #273, mergeada na `main` `a65ea46`; a #229 é a D-PROD-154) |
+| Decisão | **D-PROD-252** (a D-PROD-194 é da PR #273, mergeada na `main` `a65ea46`; a #229 é a D-PROD-154) |
 | Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento; conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |

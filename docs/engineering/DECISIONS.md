@@ -7139,11 +7139,11 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Nota de aplicação (2026-11-14).** A migration `20261114100000_cadcurvaganho_mensal` foi aplicada em produção às 13:29:18 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**, com GO escrito do proprietário (desvio da D-PROD-74 só para esta migration). Com o GitHub Actions pausado pelo proprietário, a análise foi local (ver o relatório). Conferência: 49/0 migrations, 12 colunas mensais, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. Registro no §7 do runbook.
 
-## D-PROD-195 — P2002 sem alvo em produção: nenhuma tradução de unique depende só do `meta.target` (MAIKE-P2002-SEM-ALVO)
+## D-PROD-252 — P2002 sem alvo em produção: nenhuma tradução de unique depende só do `meta.target` (MAIKE-P2002-SEM-ALVO)
 
 **Data:** 2026-11-14 · **Origem:** achado fora do escopo da Fatia D do apontamento ([`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9, D-PROD-193), pedido do proprietário · **Branch:** `claude/relaxed-cori-51av1f`
 
-> **Numeração:** a D-PROD-194 é da PR #273 (curva de ganho mensal, mergeada na `main` `a65ea46` enquanto esta corria), que marcou a D-PROD-195 como a próxima; a PR #229 é a D-PROD-154. Nenhuma outra PR aberta cita número depois da D-PROD-194. Esta decisão é a **D-PROD-195**.
+> **Numeração:** nasceu como D-PROD-195 (a `main` `a65ea46` indicava `Próxima decisão: D-PROD-195`). Antes do merge, a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo (PR #278) e chegou a `Próxima decisão: D-PROD-252` (`3a329d90`); a única outra PR aberta, a #330, não cria decisão. Esta decisão é a **D-PROD-252**. A D-PROD-204 já previa que a PR #275 precisaria de número próprio.
 
 **Contexto.**
 - Em produção o runtime roda como `maike_vercel`: não é dono das tabelas (o dono é `postgres`), não tem BYPASSRLS, e as 85 tabelas de `public` têm RLS ligado (sem FORCE) com política só para ele ([`P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md`](./P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md)). Nesse arranjo o PostgreSQL omite o DETAIL da violação de unique, e o Prisma 6.19.3 devolve o P2002 com `meta.target` nulo ("Unique constraint failed on the (not available)").
@@ -7182,4 +7182,4 @@ Não dependem do alvo (traduzem pelo comando que falhou, e assim continuam): `us
 
 **Relatório:** [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-196 -->
+<!-- Próxima decisão: D-PROD-253 -->

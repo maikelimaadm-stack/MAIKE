@@ -11,7 +11,7 @@
  *  - prévia: mesma função de plano da confirmação, sem trava, sem escrita e
  *    sem recibo (RepeatableRead só de leitura);
  *  - confirmação: idempotente por `operation_id` (recibo v2 + pré-conferência
- *    da chave + unique, D-PROD-195), travas
+ *    da chave + unique, D-PROD-252), travas
  *    na ordem empresa → bem → local → produto → lotes → movimento → sequências,
  *    estado RELIDO sob as travas (TOCTOU) e o MESMO plano. O único escritor de
  *    `TanqueBemProduto` é o PATCH do bem, que também trava o Bem `FOR UPDATE`;
@@ -331,7 +331,7 @@ const conflitoDeChave = (operationId) => () =>
   new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: operationId } });
 
 /**
- * D-PROD-195: a unique `(cliente_id, operation_id)` do abastecimento, conferível
+ * D-PROD-252: a unique `(cliente_id, operation_id)` do abastecimento, conferível
  * sem o alvo do P2002 (o mesmo que a D-PROD-193 faz no item do apontamento).
  * @param {string} cli @param {string} operationId
  * @returns {import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio}
@@ -361,7 +361,7 @@ export const confirmar = async (contexto, corpo) => {
           tipoOperacao: TIPO_CONFIRMAR,
           fingerprint,
           executar: async () => {
-            // D-PROD-195: a chave de um abastecimento JÁ gravado é conflito mesmo sem o recibo dele (apagado,
+            // D-PROD-252: a chave de um abastecimento JÁ gravado é conflito mesmo sem o recibo dele (apagado,
             // expurgado ou de outro tipo), conferida ANTES de tudo, como o recibo: mesma resposta e mesma auditoria
             // do reenvio conflitante. Em produção o P2002 da unique chega sem alvo (papel não dono + RLS) e, sem
             // esta conferência, virava CONCURRENCY_CONFLICT, que o cliente repete com a mesma chave para sempre.

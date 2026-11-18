@@ -160,7 +160,7 @@ export const criar = async (contexto, entrada) => {
     dados.fuso_horario = fuso;
   }
   const prisma = getPrismaClient();
-  /** Número reservado nesta tentativa: conferido depois do rollback num P2002 sem alvo (D-PROD-195). */
+  /** Número reservado nesta tentativa: conferido depois do rollback num P2002 sem alvo (D-PROD-252). */
   let numeroReservado = null;
 
   try {
@@ -190,7 +190,7 @@ export const criar = async (contexto, entrada) => {
     return comoPublico(criado);
   } catch (erro) {
     if (erro instanceof AppError) throw erro;
-    // D-PROD-195: sem o alvo do P2002 (produção), o nome e o número são conferidos depois do rollback.
+    // D-PROD-252: sem o alvo do P2002 (produção), o nome e o número são conferidos depois do rollback.
     await lancarSeP2002Empresa(erro, {
       nome: (tx) => existeNome(tx, auth.clienteId, String(dados.nome ?? '')),
       numero:
@@ -231,7 +231,7 @@ export const atualizar = async (contexto, id, entrada) => {
     return comoPublico(atualizado);
   } catch (erro) {
     if (erro instanceof AppError) throw erro;
-    // D-PROD-195: sem o alvo do P2002 (produção), o nome novo é conferido depois do rollback.
+    // D-PROD-252: sem o alvo do P2002 (produção), o nome novo é conferido depois do rollback.
     await lancarSeP2002Empresa(erro, { nome: dados.nome ? (tx) => existeNome(tx, auth.clienteId, String(dados.nome), id) : null });
     throw erro;
   }

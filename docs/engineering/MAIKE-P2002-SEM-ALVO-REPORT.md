@@ -1,6 +1,6 @@
 # MAIKE-P2002-SEM-ALVO — Relatório
 
-**`claude/relaxed-cori-51av1f`** · PR #275 (rascunho) · Decisão: [D-PROD-195](./DECISIONS.md) · Origem: o achado fora do escopo da Fatia D do apontamento ([`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9)
+**`claude/relaxed-cori-51av1f`** · PR #275 (rascunho) · Decisão: [D-PROD-252](./DECISIONS.md) · Origem: o achado fora do escopo da Fatia D do apontamento ([`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9)
 
 ## 1. Entrega
 
@@ -18,7 +18,7 @@ Depois desta missão, **nenhuma tradução de P2002 depende só do alvo**: cada 
 | Empresa (`empresas/empresaUniqueViolation.js`, `empresaService.js`) | sem o alvo, confere o nome e o número reservado depois do rollback |
 | MAIKE Admin (`adminMaike/adminClientesGestaoService.js`) | sem o alvo, o `meta.modelName` diz a unique (`Cliente` → código, `Usuario` → login) |
 | Testes | `backend/tests/p2002SemAlvo.test.mjs` (10 casos, sob o papel não dono), `papelNaoDono.mjs` (o helper do IT4g extraído), `empresaUniqueViolation.test.mjs` com o caminho sem alvo |
-| Documentos | D-PROD-195, este relatório, `CURRENT-STATE`, `GATE-REGISTRY` (o que só o banco prova) e a nota de resolvido no §9 do relatório da Fatia D |
+| Documentos | D-PROD-252, este relatório, `CURRENT-STATE`, `GATE-REGISTRY` (o que só o banco prova) e a nota de resolvido no §9 do relatório da Fatia D |
 
 Sem migration, sem rota, sem contrato HTTP novo, sem mudança no frontend. Os códigos de erro são os de antes: o que muda é que, em produção, chega o código certo.
 
@@ -188,7 +188,7 @@ Nenhuma. A tradução continua na camada de serviço (API → service → reposi
 | R3 | A conferência roda depois do rollback: se a linha que ocupou a chave sumir nesse intervalo, não há conferência | o resultado é o caminho de antes (409 genérico), e o reenvio cai na pré-conferência. As chaves conferidas (`operation_id`, estorno da liquidação) não são apagadas; nome e número da empresa raramente mudam no mesmo instante |
 | R4 | Custo da conferência | só no caminho de falha (P2002 sem alvo), uma leitura por unique do mapa, numa transação curta (2 s/5 s). O caminho feliz não muda; a pré-conferência do abastecimento é uma leitura pelo índice da unique |
 | R5 | Uma entrada nova no mapa sem conferência | o tipo reprova (`typecheck:backend`); `soPeloAlvo` novo reprova o S1 até ser inventariado |
-| R6 | A PR #273 foi mergeada na `main` (`a65ea46`) enquanto esta corria | integrada por merge, sem rebase: o único conflito foi o fim do `DECISIONS.md` (as duas decisões entraram, D-PROD-194 antes da D-PROD-195). A #273 não toca em nenhum tradutor de P2002 |
+| R6 | A PR #273 foi mergeada na `main` (`a65ea46`) enquanto esta corria | integrada por merge, sem rebase: o único conflito foi o fim do `DECISIONS.md` (as duas decisões entraram, D-PROD-194 antes da D-PROD-252). A #273 não toca em nenhum tradutor de P2002 |
 | R7 | O GitHub Actions está pausado na conta do proprietário: a CI `quality` da PR morre em ~2 s, sem executar passos e sem log (o mesmo na `main` `a65ea46` e na #273) | a verificação de registro é o `verify:all` local acima; dito uma vez na PR. Quando o Actions voltar, a CI da PR roda a mesma cadeia |
 
 ## 9. Fora do escopo
@@ -199,5 +199,5 @@ Nenhuma. A tradução continua na camada de serviço (API → service → reposi
 
 ## 10. Decisões que precisam de aprovação humana
 
-- **D-PROD-195** inteira, em especial: o mapa do `emTransacao` passar a exigir a conferência (`UniqueDeNegocio`); a conferência depois do rollback como mecanismo genérico; o uso do `meta.modelName` no admin; e a lista fechada de `soPeloAlvo` (documento do financeiro e ordem do item do apontamento).
+- **D-PROD-252** inteira, em especial: o mapa do `emTransacao` passar a exigir a conferência (`UniqueDeNegocio`); a conferência depois do rollback como mecanismo genérico; o uso do `meta.modelName` no admin; e a lista fechada de `soPeloAlvo` (documento do financeiro e ordem do item do apontamento).
 - Nenhum texto constitucional muda.

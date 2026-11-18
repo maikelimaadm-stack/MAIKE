@@ -1,7 +1,7 @@
 /**
  * Traduz violações Prisma P2002 do model Empresa em AppError estáveis.
  *
- * D-PROD-195: em produção o runtime não é dono das tabelas e elas têm RLS; o
+ * D-PROD-252: em produção o runtime não é dono das tabelas e elas têm RLS; o
  * P2002 chega sem alvo e o nome em corrida virava 409 `CONCURRENCY_CONFLICT`
  * (o cliente repetia). Sem o alvo, a chave é CONFERIDA depois do rollback:
  * nome ocupado → `EMPRESA_NAME_CONFLICT`; número reservado ocupado →

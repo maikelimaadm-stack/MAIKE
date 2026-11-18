@@ -104,7 +104,7 @@ const loginDe = (v) => {
 /**
  * Unique do banco: `Cliente.codigo` ou o índice parcial global de login ativo.
  *
- * D-PROD-195: em produção o runtime não é dono das tabelas e elas têm RLS; o
+ * D-PROD-252: em produção o runtime não é dono das tabelas e elas têm RLS; o
  * P2002 chega sem alvo, e o código duplicado em corrida virava "login já
  * usado". Sem o alvo, o model que falhou (`meta.modelName`, que o Prisma 6.19
  * ainda entrega) diz a unique: nestas escritas o `Cliente` só tem a do código
