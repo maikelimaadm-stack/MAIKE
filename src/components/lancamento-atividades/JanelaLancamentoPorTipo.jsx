@@ -255,6 +255,7 @@ let rotuloDoConfirmar = "Salvar e fechar";
  *   areaInicial?: string|null,
  *   areaFixa?: boolean,
  *   modoCampo?: boolean,
+ *   tituloCampo?: string,
  *   onGravou?: (texto: string) => void,
  * }} props `areaInicial` / `areaFixa` (D-PROD-249, várias áreas por atividade): a área da atividade em que a janela abre
  *   e se ela fica FIXA (aberta pelo ⚡ da área, no card "Áreas da atividade") ou com o seletor das áreas EM ANDAMENTO
@@ -275,6 +276,7 @@ export default function JanelaLancamentoPorTipo({
   onAtividadeAtualizada = undefined,
   abaInicial = "lista",
   modoCampo = false,
+  tituloCampo = undefined,
   onGravou = undefined,
   areaInicial = null,
   areaFixa = false,
@@ -786,7 +788,7 @@ export default function JanelaLancamentoPorTipo({
       <span className="b1-tipo-titulo__icone" aria-hidden>
         <doTipo.Icone size={16} strokeWidth={1.75} />
       </span>
-      {modoCampo ? ROTULO_CAMPO[tipo] || doTipo.rotulo : doTipo.rotulo}
+      {modoCampo ? tituloCampo || ROTULO_CAMPO[tipo] || doTipo.rotulo : doTipo.rotulo}
     </span>
   );
 

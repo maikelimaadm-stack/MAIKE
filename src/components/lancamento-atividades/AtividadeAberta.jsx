@@ -89,7 +89,8 @@ const CELULAS_DO_RESUMO = Object.freeze([
  *   cabecalho: React.ReactNode,
  *   avisos?: React.ReactNode,
  *   onAtividadeAtualizada: (atividade: any) => void,
- *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null, modoCampo?: boolean) => void,
+ *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null, modoCampo?: boolean, tituloCampo?: string) => void,
+ *   onGravouAbastecimento?: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
  *   onFechar: () => void,
  *   onConcluir?: (() => void) | null,
  *   recado?: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null,
@@ -98,7 +99,7 @@ const CELULAS_DO_RESUMO = Object.freeze([
  *   (fatia 2) sobre esta atividade. `modoCampo` true: o registro do dia a dia, com confirmação na área.
  *   `onConcluir`: o Concluir da cabeça do celular (null = sem o botão).
  */
-export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null, recado = null, onLimparRecado = () => {} }) {
+export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null, recado = null, onLimparRecado = () => {}, onGravouAbastecimento = () => {} }) {
   const celular = useCelular();
   const id = atividade?.id ? String(atividade.id) : null;
   const [aba, setAba] = useState(/** @type {'lancamentos'|'resumo'} */ ("lancamentos"));
@@ -449,6 +450,7 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
         podeGerir={podeGerirAreas}
         flags={flags}
         onLancar={onLancar}
+        onGravouAbastecimento={onGravouAbastecimento}
         onAtividadeAtualizada={onAtividadeAtualizada}
         onAbrirAjustes={(areaId) => {
           setAreaDosDias(areaId);

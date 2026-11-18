@@ -33,6 +33,10 @@ export const GRUPO_PASTO = 'pasto';
 export const GRUPO_LAVOURA = 'lavoura';
 export const GRUPO_OUTRA = 'outra';
 
+/** Opções do "O que você quer registrar?" que não são uma linha do servidor. */
+export const REGISTRO_IMPLEMENTO = 'implemento';
+export const REGISTRO_ABASTECIMENTO = 'abastecimento';
+
 /**
  * Pasto, lavoura ou outra, pelo uso da área (`tipo_cultura`) e, se houver, pelo tipo da cultura.
  * Sem uso informado, conta como pasto: é o uso padrão da área neste produto.
@@ -115,25 +119,37 @@ export const textoDoQuePodeRegistrar = (tipo) => {
 
 /**
  * Opções do "O que você quer registrar?", na ordem do campo.
- * Máquina sempre. Produto, mão de obra e serviço só se o tipo permitir.
- * Abastecimento é o combustível da máquina (o mesmo formulário de hoje, no dia).
+ * Máquina sempre. Implemento, produto, mão de obra e serviço só se o tipo permitir.
+ * Implemento abre o mesmo formulário da máquina (o implemento é escolhido junto com ela).
+ * Abastecimento é o combustível da máquina e só aparece para quem pode abastecer.
  * @param {{ permiteProduto?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean, permiteImplemento?: boolean }} flags
  * @param {{ abastecimento?: boolean }} [extra]
  */
 export const opcoesDeRegistro = (flags, extra = {}) => {
   /** @type {Array<{ id: string, rotulo: string, detalhe: string }>} */
   const lista = [
-    {
-      id: LINHA_MAQUINA,
-      rotulo: 'Máquina',
-      detalhe: flags?.permiteImplemento ? 'Trator, implemento e horas de uso' : 'Trator, pulverizador, horas de uso',
-    },
+    { id: LINHA_MAQUINA, rotulo: 'Máquina', detalhe: 'Trator, pulverizador e as horas de uso' },
   ];
+  if (flags?.permiteImplemento) lista.push({ id: REGISTRO_IMPLEMENTO, rotulo: 'Implemento', detalhe: 'O que a máquina puxou: grade, plantadeira, carreta' });
   if (flags?.permiteProduto) lista.push({ id: LINHA_PRODUTO, rotulo: 'Produto', detalhe: 'Veneno, adubo, semente, ração…' });
   if (flags?.permiteMaoObra) lista.push({ id: LINHA_MAO_OBRA, rotulo: 'Mão de obra', detalhe: 'Pessoas que trabalharam no dia' });
   if (flags?.permiteServico) lista.push({ id: LINHA_SERVICO, rotulo: 'Serviço', detalhe: 'Trabalho de terceiro, diária, frete' });
-  if (extra?.abastecimento) lista.push({ id: 'abastecimento', rotulo: 'Abastecimento', detalhe: 'Diesel ou outro combustível da máquina' });
+  if (extra?.abastecimento) lista.push({ id: REGISTRO_ABASTECIMENTO, rotulo: 'Abastecimento', detalhe: 'Diesel ou outro combustível da máquina' });
   return lista;
+};
+
+/**
+ * Em qual registro do dia o abastecimento entra: o de hoje na área; sem ele, o mais recente da área.
+ * Sem nenhum, `null` (a pessoa precisa registrar uma máquina antes).
+ * Sem `areaId`, vale a atividade toda (atividade de uma área só).
+ * @param {any[]} apontamentos @param {string|null} areaId @param {string} [hoje]
+ */
+export const registroDoDiaParaAbastecer = (apontamentos, areaId, hoje = '') => {
+  const daArea = (Array.isArray(apontamentos) ? apontamentos : [])
+    .filter((ap) => ap && ap.status === STATUS_CONFIRMADO && (!areaId || String(ap.atividade_area_id ?? '') === String(areaId)))
+    .slice()
+    .sort((a, b) => String(b.data_operacional ?? '').localeCompare(String(a.data_operacional ?? '')) || (Number(b.sequencia) || 0) - (Number(a.sequencia) || 0));
+  return daArea.find((ap) => hoje && texto(ap.data_operacional).slice(0, 10) === hoje) ?? daArea[0] ?? null;
 };
 
 /**
@@ -142,10 +158,9 @@ export const opcoesDeRegistro = (flags, extra = {}) => {
  */
 export const fraseDoRegistro = ({ texto = '', area = '', atividade = '' }) => {
   const limpo = texto.replace(/\s*O lançamento de .+ foi criado com ele\.?\s*$/i, '').trim();
-  const miolo = limpo || 'Registrado';
-  const onde = area ? ` no ${area}` : '';
-  const qual = atividade ? `, no ${atividade}` : '';
-  return `${miolo} Entrou${onde}${qual}.`.replace(/\s{2,}/g, ' ').trim();
+  const miolo = limpo ? (/[.!]$/.test(limpo) ? limpo : `${limpo}.`) : 'Registro salvo.';
+  const onde = area ? `Foi anotado em ${area}${atividade ? `, na atividade ${atividade}` : ''}.` : atividade ? `Foi anotado na atividade ${atividade}.` : '';
+  return [miolo, onde].filter(Boolean).join(' ');
 };
 
 /**
@@ -161,6 +176,7 @@ export const movimentosDaArea = (apontamentos, areaId, custoPorTipo = null) => {
   const grupos = {
     [LINHA_PRODUTO]: [],
     [LINHA_MAQUINA]: [],
+    [REGISTRO_IMPLEMENTO]: [],
     [LINHA_MAO_OBRA]: [],
     [LINHA_SERVICO]: [],
   };
@@ -186,13 +202,24 @@ export const movimentosDaArea = (apontamentos, areaId, custoPorTipo = null) => {
     for (const l of linhas.maquinas) {
       if (statusDaLinha(l) === STATUS_CANCELADO) continue;
       const impl = rotuloDoImplementoDaLinha(l);
+      const maquina = rotuloDaMaquinaDaLinha(l) || 'Máquina';
       grupos[LINHA_MAQUINA].push({
         id: String(l.id),
         data,
-        titulo: rotuloDaMaquinaDaLinha(l) || 'Máquina',
-        detalhe: [data, impl].filter(Boolean).join(' · '),
+        titulo: maquina,
+        detalhe: [data, impl ? `com ${impl}` : ''].filter(Boolean).join(' · '),
         custo: formatarMoedaAtividade(l.custo_total) || '',
       });
+      // O implemento é da linha da máquina: aparece no grupo dele, sem custo próprio (o custo está em Máquinas).
+      if (impl) {
+        grupos[REGISTRO_IMPLEMENTO].push({
+          id: `${l.id}-implemento`,
+          data,
+          titulo: impl,
+          detalhe: [data, `puxado por ${maquina}`].filter(Boolean).join(' · '),
+          custo: '',
+        });
+      }
     }
     for (const l of linhas.mao_obra) {
       if (statusDaLinha(l) === STATUS_CANCELADO) continue;
@@ -218,6 +245,7 @@ export const movimentosDaArea = (apontamentos, areaId, custoPorTipo = null) => {
   const rotulo = /** @type {Record<string, string>} */ ({
     [LINHA_PRODUTO]: 'Produtos',
     [LINHA_MAQUINA]: 'Máquinas',
+    [REGISTRO_IMPLEMENTO]: 'Implementos',
     [LINHA_MAO_OBRA]: 'Mão de obra',
     [LINHA_SERVICO]: 'Serviços',
   });
@@ -226,13 +254,16 @@ export const movimentosDaArea = (apontamentos, areaId, custoPorTipo = null) => {
     [LINHA_MAQUINA]: 'maquinas',
     [LINHA_MAO_OBRA]: 'mao_obra',
     [LINHA_SERVICO]: 'servicos',
+    [REGISTRO_IMPLEMENTO]: '',
   });
   return Object.keys(grupos)
     .map((id) => ({
       id,
       rotulo: rotulo[id],
       itens: grupos[id],
-      total: formatarMoedaAtividade(custoPorTipo?.[campo[id]]) || '',
+      // Implemento não tem custo próprio: o total é quantos usos, e o custo já está em Máquinas.
+      total: id === REGISTRO_IMPLEMENTO ? (grupos[id].length ? `${grupos[id].length} ${grupos[id].length === 1 ? 'uso' : 'usos'}` : '') : formatarMoedaAtividade(custoPorTipo?.[campo[id]]) || '',
+      nota: id === REGISTRO_IMPLEMENTO ? 'O custo do implemento já está em Máquinas.' : '',
     }))
     .filter((g) => g.itens.length > 0 || g.total);
 };

@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { Check, ChevronLeft, Play } from "lucide-react";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import DialogoAreaDaAtividade from "@/components/lancamento-atividades/DialogoAreaDaAtividade";
+import JanelaAbastecimentoDaArea from "@/components/lancamento-atividades/JanelaAbastecimentoDaArea";
+import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { useAcoesTelaAbastecimento } from "@/hooks/usePatrimonioSessao";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import {
   CHAVE_DO_SELO_AREA,
@@ -12,11 +15,14 @@ import {
   temAreas,
   totaisDaArea,
 } from "@/lib/atividadeAreasRegras";
-import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
+import { LINHA_MAQUINA, formatarMoedaAtividade, formatarQuantidadeLinha } from "@/lib/atividadeLinhasRegras";
 import {
+  REGISTRO_ABASTECIMENTO,
+  REGISTRO_IMPLEMENTO,
   fraseDoRegistro,
   movimentosDaArea,
   opcoesDeRegistro,
+  registroDoDiaParaAbastecer,
   rotuloDaAreaNoCampo,
   textoProgressoAreas,
 } from "@/lib/atividadeFluxoCampo";
@@ -37,7 +43,8 @@ const BOTAO_CLARO = `${BOTAO_SECUNDARIO} min-h-12 w-full justify-center text-[15
  *   podeLancar: boolean,
  *   podeGerir: boolean,
  *   flags: { permiteProduto?: boolean, permiteImplemento?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean },
- *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null, modoCampo: boolean) => void,
+ *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null, modoCampo: boolean, tituloCampo?: string) => void,
+ *   onGravouAbastecimento?: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   onAbrirAjustes: (areaId: string|null) => void,
  *   recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null,
@@ -54,6 +61,7 @@ export default function FluxoPorArea({
   podeGerir,
   flags,
   onLancar,
+  onGravouAbastecimento = () => {},
   onAtividadeAtualizada,
   onAbrirAjustes,
   recado,
@@ -63,7 +71,12 @@ export default function FluxoPorArea({
   const comAreas = temAreas(atividade);
   const [tela, setTela] = useState(/** @type {{ nome: 'cartoes' } | { nome: 'area', id: string|null } | { nome: 'escolher', id: string|null }} */ (telaInicial ?? { nome: "cartoes" }));
   const [dialogo, setDialogo] = useState(/** @type {any|null} */ (null));
-  const [avisoCombustivel, setAvisoCombustivel] = useState(false);
+  const [avisoCombustivel, setAvisoCombustivel] = useState("");
+  const [abastecendo, setAbastecendo] = useState(/** @type {{ apontamento: any, areaId: string|null } | null} */ (null));
+  const empresaId = useEmpresaRealSelecionadaId();
+  const { hoje } = useFusoDaFazenda(empresaId);
+  const acoesAbastecimento = useAcoesTelaAbastecimento();
+  const podeAbastecer = acoesAbastecimento.ver === true && acoesAbastecimento.criar === true;
 
   const areas = areasDaAtividade(atividade);
   const nomeDa = (/** @type {string|null} */ id) => {
@@ -111,7 +124,7 @@ export default function FluxoPorArea({
   }
 
   if (tela.nome === "escolher") {
-    const opcoes = opcoesDeRegistro(flags, { abastecimento: true });
+    const opcoes = opcoesDeRegistro(flags, { abastecimento: podeAbastecer });
     const nome = nomeDa(tela.id);
     return (
       <section className="min-w-0" data-testid="escolher-registro">
@@ -122,8 +135,8 @@ export default function FluxoPorArea({
         <h2 className="text-lg font-semibold">O que você quer registrar?</h2>
         <p className="mb-3 text-[13px] text-[var(--mg-text-2,#475569)]">Uma coisa de cada vez. Depois você pode registrar outra. Tudo entra só nesta área.</p>
         {avisoCombustivel ? (
-          <p className="mb-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="aviso-abastecimento">
-            O combustível entra no dia da máquina, nesta área. Abra os ajustes do dia para registrar o abastecimento.
+          <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-900" role="alert" data-testid="aviso-abastecimento">
+            {avisoCombustivel}
           </p>
         ) : null}
         <ul className="flex flex-col gap-2">
@@ -133,9 +146,18 @@ export default function FluxoPorArea({
                 type="button"
                 className="b1-aba-cartao w-full min-h-[64px] px-3 py-3 text-left"
                 onClick={() => {
-                  if (o.id === "abastecimento") {
-                    setAvisoCombustivel(true);
-                    onAbrirAjustes(tela.id);
+                  if (o.id === REGISTRO_ABASTECIMENTO) {
+                    const registro = registroDoDiaParaAbastecer(apontamentos, tela.id, hoje || "");
+                    if (!registro) {
+                      setAvisoCombustivel("Para registrar o abastecimento, registre antes uma máquina neste lugar.");
+                      return;
+                    }
+                    setAvisoCombustivel("");
+                    setAbastecendo({ apontamento: registro, areaId: tela.id });
+                    return;
+                  }
+                  if (o.id === REGISTRO_IMPLEMENTO) {
+                    onLancar(LINHA_MAQUINA, "dados", tela.id, true, "Registrar implemento");
                     return;
                   }
                   onLancar(o.id, "dados", tela.id, true);
@@ -148,6 +170,15 @@ export default function FluxoPorArea({
             </li>
           ))}
         </ul>
+        {abastecendo ? (
+          <JanelaAbastecimentoDaArea
+            atividade={atividade}
+            apontamento={abastecendo.apontamento}
+            nomeArea={nome}
+            onFechar={() => setAbastecendo(null)}
+            onGravou={(texto) => onGravouAbastecimento({ texto, areaId: abastecendo.areaId, nomeArea: nome, nomeAtividade: String(atividade?.nome ?? "") })}
+          />
+        ) : null}
       </section>
     );
   }
@@ -190,6 +221,7 @@ export default function FluxoPorArea({
                     {g.total || "—"}
                   </span>
                 </div>
+                {g.nota ? <p className="pt-1 text-[12px] text-[var(--mg-text-2,#475569)]">{g.nota}</p> : null}
                 <ul>
                   {g.itens.map((item) => (
                     <li key={item.id} className="flex items-baseline justify-between gap-3 py-1.5 text-[13px]" data-testid={`movimento-${item.id}`}>
@@ -209,7 +241,9 @@ export default function FluxoPorArea({
                   <span className="text-[14px] font-semibold">Abastecimento</span>
                   <span className="text-[14px] font-semibold tabular-nums">{custoCombustivel || "—"}</span>
                 </div>
-                <p className="py-1.5 text-[13px] text-[var(--mg-text-2,#475569)]">Combustível desta área.</p>
+                <p className="py-1.5 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="grupo-abastecimento-quantidade">
+                  {[formatarQuantidadeLinha(combustivel?.quantidade_l, "L"), formatarQuantidadeLinha(combustivel?.quantidade_kg, "KG")].filter(Boolean).join(" · ") || "Combustível desta área."}
+                </p>
               </li>
             ) : null}
           </ul>

@@ -261,7 +261,7 @@ export default function LancamentoAtividades() {
   const [erroDataConclusao, setErroDataConclusao] = useState(/** @type {string|null} */ (null));
   const [duplicando, setDuplicando] = useState(false);
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
-  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, modoCampo?: boolean, chave: number } | null} */ (null));
+  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, modoCampo?: boolean, tituloCampo?: string, chave: number } | null} */ (null));
   const recadoPendente = useRef(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
   const [recado, setRecado] = useState(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
   const celular = useCelular();
@@ -596,8 +596,8 @@ export default function LancamentoAtividades() {
    * atividade"), a janela abre FIXA naquela área; sem área, com o seletor das áreas em andamento.
    * @param {any} atividade @param {string} tipo @param {'lista'|'dados'} [aba] @param {string|null} [areaId]
    */
-  const lancarDoMenu = (atividade, tipo, aba = "lista", areaId = null, modoCampo = false) =>
-    setLancando({ atividade, tipo, aba, areaId: areaId ? String(areaId) : null, modoCampo: modoCampo === true, chave: Date.now() });
+  const lancarDoMenu = (atividade, tipo, aba = "lista", areaId = null, modoCampo = false, tituloCampo = "") =>
+    setLancando({ atividade, tipo, aba, areaId: areaId ? String(areaId) : null, modoCampo: modoCampo === true, tituloCampo, chave: Date.now() });
 
   /**
    * Escrita feita na janela por tipo (D-PROD-233): a lista (área executada) e o totalizador se relêem; o cabeçalho
@@ -873,7 +873,8 @@ export default function LancamentoAtividades() {
             cabecalho={cabecalhoDaAtividade(registroAberto)}
             avisos={avisosDaAtividade(registroAberto)}
             onAtividadeAtualizada={aoAtualizarAtividade}
-            onLancar={(tipo, aba, areaId, modoCampo) => lancarDoMenu(registroAberto, tipo, aba, areaId ?? null, modoCampo === true)}
+            onLancar={(tipo, aba, areaId, modoCampo, tituloCampo) => lancarDoMenu(registroAberto, tipo, aba, areaId ?? null, modoCampo === true, tituloCampo ?? "")}
+            onGravouAbastecimento={setRecado}
             onFechar={() => controller.onViewModeChange("table")}
             onConcluir={podeConcluirAberta ? () => abrirDialogo("concluir", registroAberto) : null}
             recado={recado}
@@ -1033,6 +1034,7 @@ export default function LancamentoAtividades() {
                 : undefined
             }
             modoCampo={lancando.modoCampo === true}
+            tituloCampo={lancando.tituloCampo || undefined}
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
             abaInicial={lancando.aba}
             areaInicial={lancando.areaId ?? null}
