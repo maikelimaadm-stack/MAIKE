@@ -151,6 +151,12 @@ describe("AR-ABERTURA — o campo Áreas da abertura", () => {
     const onChange = vi.fn();
     render(<SeletorAreasDaAtividade areasDoMapa={MAPA} linhas={[]} onChange={onChange} obrigatorio />);
     expect(screen.getByTestId("areas-abertura")).toHaveTextContent(/Áreas\s*\*/);
+    // Fechado: só o campo; a lista e a busca não aparecem até abrir.
+    expect(screen.getByTestId("areas-abertura-campo")).toHaveTextContent("Selecione as áreas…");
+    expect(screen.queryByTestId("areas-abertura-busca")).toBeNull();
+    expect(screen.queryByTestId("areas-abertura-opcao-m1")).toBeNull();
+    fireEvent.click(screen.getByTestId("areas-abertura-campo"));
+    expect(screen.getByTestId("areas-abertura-opcao-m1")).toBeTruthy();
     expect(screen.queryByTestId("areas-abertura-opcao-m3")).toBeNull();
     fireEvent.change(screen.getByTestId("areas-abertura-busca"), { target: { value: "sede" } });
     expect(screen.queryByTestId("areas-abertura-opcao-m1")).toBeNull();
@@ -163,13 +169,37 @@ describe("AR-ABERTURA — o campo Áreas da abertura", () => {
     const linhas = [{ area_id: "m1", area_planejada: "12,5" }, { area_id: "m2", area_planejada: "30" }];
     render(<SeletorAreasDaAtividade areasDoMapa={MAPA} linhas={linhas} onChange={onChange} />);
     const tabela = screen.getByTestId("areas-abertura-escolhidas");
-    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "Setor", "Tamanho (ha)", "Área planejada (ha)", ""]);
-    expect(screen.getByTestId("areas-abertura-linha-m1")).toHaveTextContent("01 — PASTO 01RETIRO12,5 ha");
+    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "Tipo", "Setor", "Tamanho (ha)", "Hectares (ha)", ""]);
+    expect(screen.getByTestId("areas-abertura-linha-m1")).toHaveTextContent("01 — PASTO 01PastoRETIRO12,5 ha");
     expect(screen.getByTestId("areas-abertura-total")).toHaveTextContent("Total · 2 áreas52,5 ha42,5 ha");
     fireEvent.change(screen.getByTestId("areas-abertura-planejada-m2"), { target: { value: "35" } });
     expect(onChange).toHaveBeenLastCalledWith([{ area_id: "m1", area_planejada: "12,5" }, { area_id: "m2", area_planejada: "35" }]);
     fireEvent.click(screen.getByTestId("areas-abertura-tirar-m1"));
     expect(onChange).toHaveBeenLastCalledWith([{ area_id: "m2", area_planejada: "30" }]);
+  });
+
+  it("AR-ABERTURA-3 — controlado: marcar põe na tabela com o tamanho como padrão; tirar desmarca na lista; marcar de novo restaura o padrão", () => {
+    const Controlado = () => {
+      const [linhas, setLinhas] = React.useState(/** @type {any[]} */ ([]));
+      return <SeletorAreasDaAtividade areasDoMapa={MAPA} linhas={linhas} onChange={setLinhas} />;
+    };
+    render(<Controlado />);
+    expect(screen.queryByTestId("areas-abertura-escolhidas")).toBeNull();
+    fireEvent.click(screen.getByTestId("areas-abertura-campo"));
+    fireEvent.click(screen.getByTestId("areas-abertura-opcao-m1"));
+    fireEvent.click(screen.getByTestId("areas-abertura-opcao-m2"));
+    // Fechar mantém a escolha; o campo resume.
+    fireEvent.keyDown(screen.getByTestId("areas-abertura-busca"), { key: "Escape" });
+    expect(screen.queryByTestId("areas-abertura-busca")).toBeNull();
+    expect(screen.getByTestId("areas-abertura-campo")).toHaveTextContent("2 áreas selecionadas");
+    expect((screen.getByTestId("areas-abertura-planejada-m1")).value).toBe("12,5");
+    fireEvent.change(screen.getByTestId("areas-abertura-planejada-m1"), { target: { value: "8" } });
+    fireEvent.click(screen.getByTestId("areas-abertura-tirar-m1"));
+    expect(screen.queryByTestId("areas-abertura-linha-m1")).toBeNull();
+    fireEvent.click(screen.getByTestId("areas-abertura-campo"));
+    expect((screen.getByTestId("areas-abertura-opcao-m1")).checked).toBe(false);
+    fireEvent.click(screen.getByTestId("areas-abertura-opcao-m1"));
+    expect((screen.getByTestId("areas-abertura-planejada-m1")).value).toBe("12,5");
   });
 });
 

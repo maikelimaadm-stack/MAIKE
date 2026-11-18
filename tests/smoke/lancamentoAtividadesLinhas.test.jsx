@@ -1981,6 +1981,40 @@ describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia
     expect(abast.abastecimentos[0]).toMatchObject({ atividade: { id: "a1" }, apontamento: { id: "ap1" }, centro_custo: { nome: "Pastagem" } });
   });
 
+  it("LL-ABAST-AREA-1 — Abastecimento pela área (D-PROD-251): o mesmo formulário, ligado ao registro do dia da área; confirma com frase na área, sem passar por Ajustar um dia", async () => {
+    sessao.permissao = comAbastecimento({ novo: true });
+    await montar();
+    await abrir("a1", "ap1");
+    fireEvent.click(await screen.findByTestId("registrar-area-unica"));
+    fireEvent.click(await screen.findByTestId("escolher-abastecimento"));
+    const janela = await screen.findByTestId("janela-abastecimento-area");
+    const form = within(janela).getByTestId("abastecimento-form");
+    expect(within(form).getByTestId("abastecimento-vinculo-lancamento")).toHaveTextContent("12/11/2026");
+    await escolherNoSeletor(form, "abastecimento-bem", /Trator TP-02/);
+    await waitFor(() => expect(within(form).getByTestId("abastecimento-local-auto")).toHaveTextContent("Sai do estoque: Tanque diesel sede"));
+    fireEvent.change(within(form).getByTestId("abastecimento-quantidade"), { target: { value: "60" } });
+    fireEvent.change(within(form).getByTestId("abastecimento-leitura"), { target: { value: "1.600" } });
+    await act(async () => {
+      fireEvent.click(within(form).getByTestId("abastecimento-previa"));
+    });
+    const previa = await screen.findByTestId("dialogo-previa-abastecimento");
+    await act(async () => {
+      fireEvent.click(within(previa).getByTestId("abastecimento-confirmar"));
+    });
+    const frase = await screen.findByTestId("registro-confirmado-frase");
+    expect(frase.textContent).toMatch(/^Abastecimento de .+ registrado\. Foi anotado em /);
+    expect(backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos").at(-1)?.body).toMatchObject({ apontamento_id: "ap1", operation_id: expect.any(String) });
+  });
+
+  it("LL-ABAST-AREA-2 — sem a permissão de novo abastecimento, a opção não aparece", async () => {
+    sessao.permissao = comAbastecimento({ novo: false });
+    await montar();
+    await abrir("a1", "ap1");
+    fireEvent.click(await screen.findByTestId("registrar-area-unica"));
+    await screen.findByTestId("escolher-maquinas");
+    expect(screen.queryByTestId("escolher-abastecimento")).toBeNull();
+  });
+
   it("LL-ABAST-4 — posto externo pelo lançamento: sem local, com o valor da nota; o corpo leva origem, custo_total e apontamento_id", async () => {
     sessao.permissao = comAbastecimento({ novo: true });
     await montar();
@@ -2083,9 +2117,15 @@ describe("LL-TOTAIS — totalizador com o combustível (Fatia 5)", () => {
 // D-PROD-233 — janelas por tipo de lançamento (fatia 2 do redesenho pelo protótipo do proprietário)
 /** Abre o ⚡ da linha da lista e escolhe o item. @param {string} id @param {string} item */
 const pelaRaio = async (id, item) => {
-  fireEvent.click(screen.getByTestId(`atividade-acoes-${id}`));
-  const menu = await screen.findByTestId(`atividade-acoes-${id}-menu`);
-  fireEvent.click(within(menu).getByRole("menuitem", { name: item }));
+  if (!screen.queryByTestId("atividade-aberta")) {
+    fireEvent.doubleClick(screen.getByTestId(`atividade-numero-${id}`));
+    await screen.findByTestId("atividade-aberta");
+  }
+  const mais = screen.getByTestId("atividade-mais-detalhes-toggle");
+  if (mais.getAttribute("aria-expanded") !== "true") fireEvent.click(mais);
+  const tipo = item.includes("máquina") ? "maquinas" : item.includes("insumo") ? "produtos" : item.includes("Mão") ? "mao-obra" : "servicos";
+  fireEvent.click(screen.getByTestId(`tipo-${tipo}-acoes`));
+  fireEvent.click(within(await screen.findByTestId(`tipo-${tipo}-acoes-menu`)).getByRole("menuitem", { name: "Ver lançamentos" }));
   const janela = await screen.findByTestId("janela-tipo");
   await waitFor(() => expect(within(janela).queryByTestId("janela-tipo-carregando")).toBeNull());
   return janela;
@@ -2370,7 +2410,11 @@ describe("LL-JANELA-TIPO — janelas por tipo de lançamento (D-PROD-233)", () =
     fireEvent.click(screen.getByTestId("atividade-acoes-a1"));
     const menu = await screen.findByTestId("atividade-acoes-a1-menu");
     expect(menu.closest(".mk-sheet")).toBeTruthy();
-    fireEvent.click(within(menu).getByRole("menuitem", { name: "Trabalho de máquinas" }));
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Abrir atividade" }));
+    await screen.findByTestId("atividade-aberta");
+    fireEvent.click(screen.getByTestId("atividade-mais-detalhes-toggle"));
+    fireEvent.click(screen.getByTestId("tipo-maquinas-acoes"));
+    fireEvent.click(within(await screen.findByTestId("tipo-maquinas-acoes-menu")).getByRole("menuitem", { name: "Ver lançamentos" }));
     const janela = await screen.findByTestId("janela-tipo");
     expect(janela).toHaveAttribute("data-celular");
     expect(janela).toHaveClass("b1-janela__camada--tela-cheia");
@@ -2385,6 +2429,8 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
   const abrirAberta = async (id) => {
     fireEvent.doubleClick(screen.getByTestId(`atividade-numero-${id}`));
     await screen.findByTestId("atividade-aberta");
+    const mais = screen.getByTestId("atividade-mais-detalhes-toggle");
+    if (mais.getAttribute("aria-expanded") !== "true") fireEvent.click(mais);
     await waitFor(() => expect(screen.getByTestId("resumo-custo-custo")).not.toHaveTextContent("…"));
   };
   const linhaDoTipo = (/** @type {string} */ tipo) => screen.getByTestId(`tipo-${tipo}`);
@@ -2567,7 +2613,7 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     atividades.set("a1", { ...atividades.get("a1"), custo_total: "525.0000" });
     atividades.set("a2", { ...atividades.get("a2"), custo_total: null });
     const { ATIVIDADES_COLUNAS, valorDoCampoAtividade, compararAtividadesParaOrdenar } = await import("@/pages/LancamentoAtividades");
-    expect(ATIVIDADES_COLUNAS.find((c) => c.id === "valor_total")).toMatchObject({ label: "Valor total", default: true, align: "right" });
+    expect(ATIVIDADES_COLUNAS.find((c) => c.id === "valor_total")).toMatchObject({ label: "Custo", default: true, align: "right" });
     expect(valorDoCampoAtividade({ custo_total: "1234.5000" }, "valor_total")).toMatch(/^R\$\s1\.234,50$/);
     expect(valorDoCampoAtividade({ custo_total: null }, "valor_total")).toBe("");
     expect(compararAtividadesParaOrdenar({ custo_total: "9.0000" }, { custo_total: "10.0000" }, "valor_total")).toBeLessThan(0);
@@ -2600,7 +2646,7 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     fireEvent.click(within(await screen.findByTestId("atividade-acoes-a1-menu")).getByRole("menuitem", { name: "Abrir atividade" }));
     const cabeca = await screen.findByTestId("atividade-cabeca-celular");
     expect(cabeca).toHaveTextContent("Cigarrinha Pasto 01");
-    expect(within(cabeca).getByTestId("atividade-cabeca-status")).toHaveTextContent("Aberta");
+    expect(within(cabeca).getByTestId("atividade-cabeca-status")).toHaveTextContent("Em andamento");
     expect(cabeca).toHaveTextContent("Nº 3 · 10 / 40 ha");
     // O Concluir sai da barra e fica na cabeça (no canto de cima).
     expect(screen.queryByTestId("atividade-concluir")).toBeNull();

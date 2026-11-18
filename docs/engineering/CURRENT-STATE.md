@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-ATIVIDADE-AREAS: várias áreas por atividade, cada lançamento datado de uma área (D-PROD-249)
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-251**, pedido do proprietário: a lógica dos rascunhos (tipo uma vez, abrir em passos, registrar na área) no visual do sistema |
+| Branch / PR | `cursor/atividades-por-area-0b6c`, a partir da `main` `637a3002` (PR #327, D-PROD-249) |
+| Escopo | Assistente de abertura (tipo → áreas → conferir); atividade aberta pelos cartões de área; registro um de cada vez com confirmação na área; lista em palavras simples; Tipos de atividade separado, com "O que pode registrar". O ⚡ da lista não lança. "Mais detalhes" guarda o ajuste por tipo e por dia |
+| Backend | Nenhuma mudança. Nenhuma migration nova |
+| Migration anterior | `20261118100000_atividade_areas` (D-PROD-249) **foi aplicada em produção em 2026-11-18 às 19:05:13 UTC** (caminho B, depois de a #327 já estar na `main`; `SCHEMA_APPLIED_PROD: SIM`). Esta missão não cria migration |
+| Release | Merge normal de frontend. A prévia da Vercel está liberada só para esta branch (`ignoreCommand`) |
+| Relatório | [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADE-AREAS: várias áreas por atividade, cada lançamento datado de uma área (D-PROD-249)
 
 | Campo | Valor |
 |---|---|
@@ -17,7 +29,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `feat/atividade-varias-areas`, a partir da `main` `e260a305` (PR #325, D-PROD-237) · PR a abrir |
 | Escopo | Tabela `AtividadeArea` (ciclo PLANEJADA → EM_ANDAMENTO → CONCLUIDA, com as datas) e `AtividadeApontamento.atividade_area_id` com FK composta; rotas da área (adicionar, planejada, iniciar, concluir, reabrir, remover); lançamento só em área em andamento; `por_area` nos totais; "Abrir atividade" com Áreas; card "Áreas da atividade"; janela do tipo presa na área; coluna Área "2 de 5 em andamento" |
 | Migration | `20261118100000_atividade_areas`, **CONTRACT** (CONVERSÃO, sem `DROP`; backfill da área nº 1 das atividades com área), SHA `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06`. Produção 67 → 68; tabelas 96 → 97 |
-| Release | **Não aplicada. `SCHEMA_APPLIED_PROD: NÃO`.** Só com o GO explícito do proprietário, migration antes do merge, pelo [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) (§9 pendente) |
+| Release | **Aplicada em produção em 2026-11-18 às 19:05:13 UTC** pelo caminho B (Supabase `execute_sql`, envelope do runbook), com GO do proprietário. A PR #327 já estava mergeada, o que fechou o caminho A (`CONTRACT_INESPERADO`, como na D-PROD-183). SHA aprovado `417e065e`. Preflight `PRONTO PARA APLICAR` (67/0; 96 tabelas); postcheck `APLICADA E CONFERIDA` (68/0; 97 tabelas; `AtividadeArea` 4 linhas `EM_ANDAMENTO`; 4/4 lançamentos ligados; FK validada; 0 lints). `SCHEMA_APPLIED_PROD: SIM`. Registro no [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) (§9) |
 | Documentos | [contrato](./MAIKE-ATIVIDADE-AREAS-CONTRATO.md) · [relatório](./MAIKE-ATIVIDADE-AREAS-REPORT.md) · [runbook](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md) |
 
 ## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-LISTA: Lançamento de Atividades, fatia 4 (última) do redesenho — a lista: filtros em pílulas e cards do celular (D-PROD-237)

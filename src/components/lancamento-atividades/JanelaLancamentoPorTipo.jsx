@@ -241,6 +241,7 @@ function CascaDaAbaDados({ testId, enviando, incerto, podeEnviar, formId, onFech
  *   abaInicial?: 'lista'|'dados',
  *   areaInicial?: string|null,
  *   areaFixa?: boolean,
+ *   onGravou?: (texto: string) => void,
  * }} props `areaInicial` / `areaFixa` (D-PROD-249, várias áreas por atividade): a área da atividade em que a janela abre
  *   e se ela fica FIXA (aberta pelo ⚡ da área, no card "Áreas da atividade") ou com o seletor das áreas EM ANDAMENTO
  *   (aberta pelo ⚡ da lista ou da tabela dos tipos). Na atividade com áreas, a lista mostra os lançamentos do tipo
@@ -259,6 +260,7 @@ export default function JanelaLancamentoPorTipo({
   onFechar,
   onAtividadeAtualizada = undefined,
   abaInicial = "lista",
+  onGravou = undefined,
   areaInicial = null,
   areaFixa = false,
 }) {
@@ -380,7 +382,9 @@ export default function JanelaLancamentoPorTipo({
     if (r.atividade && String(r.atividade.id) === atividadeId) setAtividadeLocal(r.atividade);
     if (r.apontamento?.id != null) setEscolhidoId(String(r.apontamento.id));
     const diaGravado = formatarDiaAtividade(r.apontamento?.data_operacional);
-    notifySuccess("Sucesso", criouDia ? `${texto} O lançamento de ${diaGravado || "hoje"} foi criado com ele.` : texto);
+    const aviso = criouDia ? `${texto} O lançamento de ${diaGravado || "hoje"} foi criado com ele.` : texto;
+    onGravou?.(texto);
+    notifySuccess("Sucesso", aviso);
     const alertas = Array.isArray(r.alertas) ? r.alertas : [];
     if (alertas.length) notifyWarning("Atenção", `${diaGravado ? `${diaGravado}: ` : ""}${mensagemDoAlertaAtividade(alertas[0])}`);
   };
@@ -560,7 +564,7 @@ export default function JanelaLancamentoPorTipo({
         </div>
         {doDia.length > 1 ? (
           <CampoSelect
-            label="Lançamento do dia"
+            label={"Lançamento do dia"}
             value={apontamento ? String(apontamento.id) : ""}
             onChange={(v) => setEscolhidoId(v || null)}
             options={doDia.map((a) => ({ value: String(a.id), label: rotuloDoLancamentoNoDia(a) }))}
@@ -570,7 +574,7 @@ export default function JanelaLancamentoPorTipo({
         {apontamento ? (
           <div className="b1-tipo-cab__area col-span-12 sm:col-span-3">
             <div className="min-w-0 flex-1">
-              <ValorCalculado label="Área do dia (ha)" valor={areaDoDia || "—"} span={12} testId="janela-tipo-area-dia" />
+              <ValorCalculado label={"Área do dia (ha)"} valor={areaDoDia || "—"} span={12} testId="janela-tipo-area-dia" />
             </div>
             {podeEditar ? (
               <button type="button" className="tb-btn tb-btn-icon" aria-label="Alterar o lançamento do dia" title="Alterar o lançamento do dia" onClick={() => setEditandoDia(apontamento)} data-testid="janela-tipo-alterar-dia">
@@ -580,7 +584,7 @@ export default function JanelaLancamentoPorTipo({
           </div>
         ) : podeLancar ? (
           <CampoNumero
-            label="Área do dia (ha)"
+            label={"Área do dia (ha)"}
             value={areaNova}
             onChange={(v) => {
               setAreaNova(v);

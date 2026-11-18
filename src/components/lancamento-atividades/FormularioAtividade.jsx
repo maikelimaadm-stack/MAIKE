@@ -36,6 +36,7 @@ import {
   normalizarPaginaDeOpcoes,
   validarFormularioAtividade,
 } from "@/lib/atividadeApontamentoRegras";
+import { textoDoQuePodeRegistrar } from "@/lib/atividadeFluxoCampo";
 import { listarAreasAtivas } from "@/services/mapaService";
 import { listarTarefasDaEmpresa } from "@/services/tarefasMapaService";
 import { listarTiposAtividade } from "@/services/tipoAtividadeCadastroService";
@@ -366,6 +367,11 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
         />
       )}
       <CampoTexto label="Grupo de atividade" value={nomeDoGrupo} onChange={() => {}} readOnly span={6} />
+      {tipo ? (
+        <p className="col-span-12 -mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="atividade-tipo-registra">
+          Este tipo permite registrar: {textoDoQuePodeRegistrar(tipo).toLowerCase()}.
+        </p>
+      ) : null}
 
       <SecaoForm titulo="Onde e com o quê" />
       {!existente ? (
@@ -438,7 +444,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
         error={erros.safra_ciclo}
       />
 
-      <SecaoForm titulo="Herdado do tipo" />
+      <SecaoForm titulo="Centros e unidade" />
       <CampoTexto
         label="Centro de custo"
         value={travado(heranca.centro_custo.rotulo, tipoId ? "Sem centro de custo" : "")}

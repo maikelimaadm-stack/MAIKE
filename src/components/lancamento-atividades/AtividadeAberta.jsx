@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, CircleCheck, List, Plus, X, Zap } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleCheck, List, Plus, X } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { NavegacaoDoRegistro, useNavegacaoDoRegistro } from "@/components/cadastro/base1/registroNavBase1";
 import { useCelular } from "@/components/common/MobileSheet";
@@ -10,6 +10,7 @@ import { LANCAMENTOS_POR_TIPO } from "@/components/lancamento-atividades/JanelaL
 import ListaApontamentos from "@/components/lancamento-atividades/ListaApontamentos";
 import TotalizadorAtividade from "@/components/lancamento-atividades/TotalizadorAtividade";
 import CardAreasDaAtividade from "@/components/lancamento-atividades/CardAreasDaAtividade";
+import FluxoPorArea from "@/components/lancamento-atividades/FluxoPorArea";
 import { areaDaAtividadePorId, rotuloDaAreaDaAtividade, temAreas, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { chaveApontamentos, itensDaLista, RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import {
@@ -29,8 +30,8 @@ import {
   formatarAreaExecutadaPlanejada,
   formatarDiaAtividade,
   rotuloDaArea,
-  rotuloDoStatusAtividade,
 } from "@/lib/lancamentoAtividadesRegras";
+import { situacaoDaAtividade } from "@/lib/atividadeFluxoCampo";
 import { listarApontamentos, listarTiposAtividade, obterTotaisAtividade } from "@/services/lancamentoAtividadesService";
 
 /** As abas da atividade aberta (protótipo do proprietário). */
@@ -89,16 +90,21 @@ const CELULAS_DO_RESUMO = Object.freeze([
  *   avisos?: React.ReactNode,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null) => void,
+ *   onGravouAbastecimento?: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
  *   onFechar: () => void,
  *   onConcluir?: (() => void) | null,
+ *   recado?: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null,
+ *   onLimparRecado?: () => void,
  * }} props `acoes`: as dos lançamentos (já com o status, a permissão e o fuso); `onLancar`: abre a janela do tipo
- *   (fatia 2) sobre esta atividade; `onConcluir`: o Concluir da cabeça do celular (null = sem o botão).
+ *   (fatia 2) sobre esta atividade. Com a área, o aviso de gravação aparece na própria área.
+ *   `onConcluir`: o Concluir da cabeça do celular (null = sem o botão).
  */
-export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null }) {
+export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null, recado = null, onLimparRecado = () => {}, onGravouAbastecimento = () => {} }) {
   const celular = useCelular();
   const id = atividade?.id ? String(atividade.id) : null;
   const [aba, setAba] = useState(/** @type {'lancamentos'|'resumo'} */ ("lancamentos"));
   const [diasAbertos, setDiasAbertos] = useState(false);
+  const [maisDetalhes, setMaisDetalhes] = useState(false);
   // D-PROD-249: "Ver lançamentos da área" abre os dias lançados só daquela área.
   const [areaDosDias, setAreaDosDias] = useState(/** @type {string|null} */ (null));
   const diasRef = useRef(/** @type {HTMLElement | null} */ (null));
@@ -180,7 +186,7 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
       <div className="b1-aberta-cab__texto">
         <p className="b1-aberta-cab__nome">{String(atividade?.nome ?? "")}</p>
         <p className="b1-aberta-cab__linha">
-          <Selo status={CHAVE_DO_SELO_ATIVIDADE[String(atividade?.status ?? "")] ?? String(atividade?.status ?? "")} rotulo={rotuloDoStatusAtividade(atividade?.status)} testId="atividade-cabeca-status" />
+          <Selo status={CHAVE_DO_SELO_ATIVIDADE[String(atividade?.status ?? "")] ?? String(atividade?.status ?? "")} rotulo={situacaoDaAtividade(atividade)} testId="atividade-cabeca-status" />
           <span>
             {[atividade?.numero != null ? `Nº ${atividade.numero}` : "", formatarAreaExecutadaPlanejada(atividade) ? `${formatarAreaExecutadaPlanejada(atividade)} ha` : ""]
               .filter(Boolean)
@@ -355,12 +361,9 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
       </div>
       <p className={`${NOTA} mb-2`}>
         {podeLancar ? (
-          <>
-            Use o <Zap size={12} className="inline align-[-1px] text-amber-500" aria-label="⚡" /> (ou clique no lançamento) para lançar o trabalho de máquinas, a aplicação
-            de insumos, a mão de obra e os custos extras desta atividade. Itens e valores somam todos os dias.
-          </>
+          <>Ajuste por tipo fica aqui, fora do caminho do campo. No dia a dia, registre pela área. Itens e valores somam todos os dias.</>
         ) : (
-          "Itens e valores somam todos os dias lançados. Clique no lançamento para ver os itens de cada dia."
+          "Itens e valores somam todos os dias. Clique no tipo para ver os itens."
         )}
       </p>
       {apontamentosQuery.isError ? (
@@ -437,6 +440,40 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
   return (
     <div ref={raizRef} className="cadastro-b1 b1-aberta min-w-0" data-testid="atividade-aberta" data-celular={celular ? "" : undefined}>
       {cabecaCelular}
+      {avisos}
+      <FluxoPorArea
+        atividade={atividade}
+        totais={totais}
+        lendoTotais={lendoTotais}
+        apontamentos={itens}
+        podeLancar={podeLancar}
+        podeGerir={podeGerirAreas}
+        flags={flags}
+        onLancar={onLancar}
+        onGravouAbastecimento={onGravouAbastecimento}
+        onAtividadeAtualizada={onAtividadeAtualizada}
+        onAbrirAjustes={(areaId) => {
+          setAreaDosDias(areaId);
+          setDiasAbertos(true);
+          setMaisDetalhes(true);
+          setAba("lancamentos");
+        }}
+        recado={recado}
+        onLimparRecado={onLimparRecado}
+      />
+      <div className="mt-4">
+        <button
+          type="button"
+          className="b1-aberta-dias__toggle min-h-11"
+          aria-expanded={maisDetalhes}
+          aria-controls="atividade-mais-detalhes-corpo"
+          onClick={() => setMaisDetalhes((v) => !v)}
+          data-testid="atividade-mais-detalhes-toggle"
+        >
+          {maisDetalhes ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}
+          <span className="text-[13px] font-semibold">Mais detalhes</span>
+        </button>
+        <div id="atividade-mais-detalhes-corpo" hidden={!maisDetalhes}>
       <div className="b1-panel-tabs-rail b1-aberta-abas">
         <div role="tablist" aria-label="Atividade aberta" className="b1-panel-tabs-strip b1-aberta-abas__lista">
           {ABAS.map((a) => (
@@ -465,7 +502,6 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
         </div>
         <NavegacaoDoRegistro info={navInfo} />
       </div>
-      {avisos}
       <div role="tabpanel" id="atividade-painel-lancamentos" aria-labelledby="atividade-aba-lancamentos" hidden={aba !== "lancamentos"} className="b1-aberta-painel" data-testid="atividade-painel-lancamentos">
         {cardAreas}
         {cardResumo}
@@ -477,6 +513,8 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
           <TotalizadorAtividade atividade={atividade} empresaId={empresaId} habilitado={habilitado} fixo={false} />
         </section>
         <section className="b1-aba-cartao b1-aberta-cartao">{cabecalho}</section>
+      </div>
+        </div>
       </div>
     </div>
   );

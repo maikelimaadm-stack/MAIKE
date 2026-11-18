@@ -548,11 +548,12 @@ describe("TA-PAGE — tela de tipos de atividade", () => {
     const { TIPOS_ATIVIDADE_STORAGE_KEY, TIPOS_ATIVIDADE_COLUNAS, getTipoAtividadeFieldValue } = await import(
       "@/components/tipos-atividade/TabelaTiposAtividade"
     );
-    expect(TIPOS_ATIVIDADE_STORAGE_KEY).toBe("colunas_largura_tipos_atividade_v2");
+    expect(TIPOS_ATIVIDADE_STORAGE_KEY).toBe("colunas_largura_tipos_atividade_v3");
     expect(TIPOS_ATIVIDADE_COLUNAS.filter((c) => c.default).map((c) => c.id)).toEqual([
       "grupo_atividade_nome",
       "nome_tipo",
       "categoria",
+      "pode_registrar",
       "descricao",
       "ativo",
       "updated_date",

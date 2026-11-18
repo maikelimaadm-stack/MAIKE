@@ -259,8 +259,7 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
         ) : null}
       </div>
       <p className={`${NOTA} mb-2`}>
-        Cada lançamento (máquinas, insumos, mão de obra e custos extras) é de uma área, no dia em que foi feito. Inicie a área quando começar o trabalho
-        nela; conclua quando terminar.
+        Cada registro (máquina, produto, mão de obra, serviço e abastecimento) entra numa área. Comece a área quando o trabalho começar nela; conclua quando terminar.
       </p>
       {total === 0 ? (
         <p className={NOTA} data-testid="atividade-areas-vazio">

@@ -1,7 +1,9 @@
 # MAIKE — Várias áreas por atividade: runbook de release CONTRACT (D-PROD-249)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.** Só com o GO explícito e escrito do
-> proprietário **para esta migration** (§2). Registro no §9.
+> **Estado: EXECUTADO. `SCHEMA_APPLIED_PROD: SIM`.** Aplicada em produção em **2026-11-18 às
+> 19:05:13 UTC**, pelo **caminho B** (Supabase `execute_sql` com o envelope do §5), com GO do
+> proprietário. A PR #327 já estava mergeada, o que fechou o caminho A (`CONTRACT_INESPERADO`,
+> como na D-PROD-183). Registro no §9.
 >
 > Cada passo para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>`
 > são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
@@ -77,8 +79,8 @@ longa segurando uma delas, aborta **sem aplicar nada**. Fora de pico.
 
 | GO | O quê | Situação |
 |---|---|---|
-| GO-1 | preflight **só leitura** em produção (§4) | pendente |
-| GO-2 | aplicar a CONTRACT D-PROD-249 (§5) e mergear em seguida | pendente |
+| GO-1 | preflight **só leitura** em produção (§4) | **dado** (2026-11-18, chat; texto literal no §9) |
+| GO-2 | aplicar a CONTRACT D-PROD-249 (§5) e mergear em seguida | **dado** (2026-11-18, chat; a PR #327 já estava mergeada, então o caminho foi o B, com o desvio da D-PROD-74 aceito) |
 
 ## 3. Ordem
 
@@ -405,11 +407,13 @@ sem passar.
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | **pendentes** (o proprietário dá por escrito, para **esta** migration) |
-| Caminho | — |
-| `<SHA_APROVADO>` | — (o `migration.sql` com SHA-256 `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06`) |
+| Merge | A PR #327 (D-PROD-249) foi mergeada **antes** da aplicação. Com isso o caminho A deixou de valer: recusou com `CONTRACT_INESPERADO` (mesma situação da D-PROD-183). Sobrou o caminho B |
+| GO-1 e GO-2 | Palavras literais do proprietário, dadas no chat em 2026-11-18 às 15:04 (America/Cuiaba): **"GO: autorizo aplicar a migration 20261118100000_atividade_areas (D-PROD-249) em produção pelo execute_sql do Supabase, seguindo o envelope do runbook, e aceito o desvio da D-PROD-74"** |
+| Caminho | **B**: Supabase `execute_sql` com o envelope do §5 |
+| `<SHA_APROVADO>` | `417e065e` (a `main` depois da PR #328; a #327 já está nela). O `migration.sql` tem SHA-256 `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06` |
 | Ensaio local (§4.2) | verde: `backend/tests/atividadeAreasMigration.test.mjs` com a partida de 67 (a D-PROD-223 por último) → 68; preflight `PRONTO PARA APLICAR` → envelope → postcheck `APLICADA E CONFERIDA` com o SID local |
-| Preflight (§4) | — |
-| Aplicação | — · `SCHEMA_APPLIED_PROD: NÃO` |
-| Postcheck (§6) | — |
-| Merge e deploy | depois da aplicação e da revisão da PR |
+| Preflight (§4) | **`PRONTO PARA APLICAR`**: 67 concluídas / 0 em aberto; atividades 5 / 4 / 0 / 0; lançamentos 5 / 4; 96 tabelas em `public` |
+| Aplicação | **2026-11-18 às 19:05:13 UTC** · **`SCHEMA_APPLIED_PROD: SIM`** |
+| Postcheck (§6) | **`APLICADA E CONFERIDA`**: 68 concluídas / 0 em aberto; 97 tabelas; `AtividadeArea` com 4 linhas, todas `EM_ANDAMENTO`; 4 de 4 lançamentos ligados a uma área; FK composta de 4 colunas validada; índice presente; 0 alertas (lints) |
+| Saúde | health ok na `417e065e` |
+| Merge e deploy | O código da #327 já estava na `main` quando a migration foi aplicada (ordem real: merge, depois aplicação pelo caminho B). A entrega seguinte (lançamento pela área, D-PROD-251) **ainda não foi mergeada** e não traz migration nova |

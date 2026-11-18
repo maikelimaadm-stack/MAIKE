@@ -185,6 +185,11 @@ export default function TiposAtividade() {
       columnsForCardsToolbar={TIPOS_ATIVIDADE_COLUNAS}
       controller={screenController}
       listErrorMessage={listErrorMessage}
+      listBanner={
+        <p className="mb-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="tipos-intro">
+          Cadastro separado do dia a dia. Aqui se define o tipo uma vez. No campo, a equipe abre a atividade, escolhe o tipo e registra o que foi feito em cada área.
+        </p>
+      }
       deleteDialog={{
         title: "Confirmar exclusão",
         descriptionOne: "Deseja realmente excluir este tipo de atividade?",

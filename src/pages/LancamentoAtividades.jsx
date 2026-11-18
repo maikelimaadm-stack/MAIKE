@@ -18,8 +18,9 @@ import { useCelular } from "@/components/common/MobileSheet";
 import AtividadeAberta from "@/components/lancamento-atividades/AtividadeAberta";
 import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
-import JanelaLancamentoPorTipo, { LANCAMENTOS_POR_TIPO, lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
+import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { areasDaAtividade, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
+import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -97,11 +98,11 @@ export const ATIVIDADES_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 200 },
   { id: "tipo", label: "Tipo de atividade", default: true, sortable: true, width: 170 },
   { id: "area", label: "Área", default: true, sortable: true, width: 140 },
-  { id: "status", label: "Status", default: true, sortable: true, width: 110 },
+  { id: "status", label: "Situação", default: true, sortable: true, width: 130 },
   { id: "area_execucao", label: "Área executada / planejada", default: true, sortable: true, align: "right", width: 160 },
   { id: "data_inicio", label: "Início", default: true, sortable: true, width: 101 },
   // D-PROD-234: o custo total da atividade (o mesmo dos totais), que a lista do servidor traz por página.
-  { id: "valor_total", label: "Valor total", default: true, sortable: true, align: "right", width: 130 },
+  { id: "valor_total", label: "Custo", default: true, sortable: true, align: "right", width: 130 },
   { id: "grupo", label: "Grupo", default: false, sortable: true, width: 150 },
   { id: "setor", label: "Setor", default: false, sortable: true, width: 140 },
   { id: "bem", label: "Máquina", default: false, sortable: true, width: 160 },
@@ -129,9 +130,15 @@ export const seloDoCardAtividade = (item) => {
   return { texto: sigla, cor: corDoTipoAtividade(item?.tipo_atividade_id || item?.tipo_atividade_nome) };
 };
 
-/** Subtítulo do card: "Nº 7 · Aberta". @param {any} item */
-export const subtituloDoCardAtividade = (item) =>
-  [item?.numero != null ? `Nº ${item.numero}` : "", rotuloDoStatusAtividade(item?.status)].filter(Boolean).join(" · ");
+/** Subtítulo do card: várias áreas mostram o progresso; uma área, "Nº 7 · Em andamento". @param {any} item */
+export const subtituloDoCardAtividade = (item) => {
+  const varias = Array.isArray(item?.areas) && item.areas.length > 1;
+  if (varias) {
+    const desde = formatarDiaAtividade(item?.data_inicio);
+    return [textoProgressoAreas(item), desde ? `desde ${desde}` : ""].filter(Boolean).join(" · ");
+  }
+  return [item?.numero != null ? `Nº ${item.numero}` : "", situacaoDaAtividade(item)].filter(Boolean).join(" · ");
+};
 
 /** @param {any} item @param {string} id */
 export const valorDoCampoAtividade = (item, id) => {
@@ -140,7 +147,7 @@ export const valorDoCampoAtividade = (item, id) => {
   if (id === "tipo") return String(item?.tipo_atividade_nome ?? "");
   if (id === "grupo") return String(item?.grupo_atividade_nome ?? "");
   // D-PROD-249: a atividade de várias áreas mostra "2 de 5 em andamento"; a de uma área, o nome dela.
-  if (id === "area") return textoDaColunaArea(item);
+  if (id === "area") return textoProgressoAreas(item) || textoDaColunaArea(item);
   if (id === "setor") return rotuloDoSetor(item);
   if (id === "bem") return rotuloDoBem(item?.bem);
   if (id === "safra") return String(item?.safra_ciclo ?? "");
@@ -163,7 +170,7 @@ const PALAVRAS_DA_ORDEM = Object.freeze(
     data_conclusao: { asc: "Conclusão (mais antiga primeiro)", desc: "Conclusão (mais recente primeiro)" },
     area_execucao: { asc: "Área executada (menor primeiro)", desc: "Área executada (maior primeiro)" },
     producao: { asc: "Produção (menor primeiro)", desc: "Produção (maior primeiro)" },
-    valor_total: { asc: "Valor total (menor primeiro)", desc: "Valor total (maior primeiro)" },
+    valor_total: { asc: "Custo (menor primeiro)", desc: "Custo (maior primeiro)" },
   }),
 );
 /** As mesmas ordens da grade; só o texto muda nas colunas de número, dia e valor (a mais nova / maior primeiro). */
@@ -254,6 +261,8 @@ export default function LancamentoAtividades() {
   const [duplicando, setDuplicando] = useState(false);
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
+  const recadoPendente = useRef(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
+  const [recado, setRecado] = useState(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
@@ -328,6 +337,8 @@ export default function LancamentoAtividades() {
     closeForm();
     setDialogo(null);
     setLancando(null);
+    recadoPendente.current = null;
+    setRecado(null);
     setAreaFiltro("");
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
@@ -606,16 +617,6 @@ export default function LancamentoAtividades() {
   const gruposDoMenu = (a) => {
     const ac = acoesDaAtividade(a, acoes);
     const gravar = podeGravar && Number.isInteger(a?.versao);
-    const flags = flagsDoTipoDaAtividade(a, /** @type {any[]} */ (tipos));
-    const lancar =
-      podeGravar && ac.lancarApontamento
-        ? LANCAMENTOS_POR_TIPO.filter((l) => !l.flag || flags[l.flag]).map((l) => ({
-            key: `lancar-${l.tipo}`,
-            label: l.rotulo,
-            icon: <l.Icone size={16} strokeWidth={1.75} />,
-            onSelect: () => lancarDoMenu(a, l.tipo),
-          }))
-        : [];
     const abrirItem = [{ key: "abrir", label: "Abrir atividade", icon: <List size={16} strokeWidth={1.75} />, onSelect: () => controller.handleEdit(a) }];
     const gerir = gravar
       ? [
@@ -628,7 +629,7 @@ export default function LancamentoAtividades() {
           ac.cancelar ? { key: "cancelar", label: "Cancelar atividade", icon: <Ban size={16} strokeWidth={1.75} />, danger: true, onSelect: () => abrirDialogo("cancelar", a) } : null,
         ].filter((x) => x !== null)
       : [];
-    return [lancar, abrirItem, /** @type {any[]} */ (gerir)];
+    return [abrirItem, /** @type {any[]} */ (gerir)];
   };
 
   /** O ⚡ da linha (grade e cards). @param {any} a */
@@ -681,6 +682,11 @@ export default function LancamentoAtividades() {
 
   const banner = (
     <>
+      {empresaId && acoes.ver ? (
+        <p className="mb-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="atividades-intro">
+          Trabalhos da fazenda — pastos e lavouras. O tipo do trabalho se cadastra em Tipos de atividade, separado daqui.
+        </p>
+      ) : null}
       {aviso}
       {semFuso && acoes.ver ? (
         <AvisoGestao testId="atividades-sem-fuso">
@@ -865,8 +871,11 @@ export default function LancamentoAtividades() {
             avisos={avisosDaAtividade(registroAberto)}
             onAtividadeAtualizada={aoAtualizarAtividade}
             onLancar={(tipo, aba, areaId) => lancarDoMenu(registroAberto, tipo, aba, areaId ?? null)}
+            onGravouAbastecimento={setRecado}
             onFechar={() => controller.onViewModeChange("table")}
             onConcluir={podeConcluirAberta ? () => abrirDialogo("concluir", registroAberto) : null}
+            recado={recado}
+            onLimparRecado={() => setRecado(null)}
           />
         </CadastroFormShell>
       );
@@ -879,7 +888,7 @@ export default function LancamentoAtividades() {
     if (colId === "numero") return <span className="font-mono" data-testid={`atividade-numero-${item.id}`}>{item.numero ?? "–"}</span>;
     if (colId === "status") {
       return (
-        <Selo status={CHAVE_DO_SELO_ATIVIDADE[String(item.status ?? "")] ?? String(item.status ?? "")} rotulo={rotuloDoStatusAtividade(item.status)} testId={`atividade-status-${item.id}`} />
+        <Selo status={CHAVE_DO_SELO_ATIVIDADE[String(item.status ?? "")] ?? String(item.status ?? "")} rotulo={situacaoDaAtividade(item)} testId={`atividade-status-${item.id}`} />
       );
     }
     return valorDoCampoAtividade(item, colId) || "–";
@@ -917,7 +926,7 @@ export default function LancamentoAtividades() {
           permissaoExplicita
           workspaceTitle="Lançamento de Atividades"
           searchPlaceholder="Buscar nº, nome, tipo ou área…"
-          createLabel="Abrir atividade"
+          createLabel="Nova atividade"
           columnsForCardsToolbar={ATIVIDADES_COLUNAS}
           controller={controller}
           listErrorMessage={listErrorMessage}
@@ -1001,7 +1010,26 @@ export default function LancamentoAtividades() {
             acoes={acoes}
             flags={flagsDoLancando}
             escopo={escopo}
-            onFechar={() => setLancando(null)}
+            onFechar={() => {
+              setLancando(null);
+              if (recadoPendente.current) {
+                setRecado(recadoPendente.current);
+                recadoPendente.current = null;
+              }
+            }}
+            onGravou={
+              lancando.areaId
+                ? (texto) => {
+                    const daArea = areasDaAtividade(lancando.atividade).find((a) => String(a.id) === String(lancando.areaId ?? ""));
+                    recadoPendente.current = {
+                      texto,
+                      areaId: lancando.areaId ?? null,
+                      nomeArea: daArea ? rotuloDaAreaDaAtividade(daArea) : rotuloDaArea(lancando.atividade?.area) || "",
+                      nomeAtividade: String(lancando.atividade?.nome ?? ""),
+                    };
+                  }
+                : undefined
+            }
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
             abaInicial={lancando.aba}
             areaInicial={lancando.areaId ?? null}

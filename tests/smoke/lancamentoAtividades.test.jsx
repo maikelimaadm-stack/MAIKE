@@ -543,9 +543,13 @@ const escolherNoSeletor = async (/** @type {HTMLElement} */ raiz, /** @type {str
 };
 /** Seleciona a linha (um clique; o duplo abre). @param {string} id */
 const selecionar = (id) => fireEvent.click(/** @type {HTMLElement} */ (screen.getByTestId(`atividade-numero-${id}`).closest('[data-testid="b1-row"]')));
-/** Abre a atividade (duplo clique na linha) e espera o cabeçalho e os lançamentos. @param {string} id */
+/** Abre a atividade (duplo clique na linha), abre "Mais detalhes" e espera o cabeçalho e os lançamentos. @param {string} id */
 const abrir = async (id) => {
   fireEvent.doubleClick(screen.getByTestId(`atividade-numero-${id}`));
+  await screen.findByTestId("atividade-aberta");
+  const mais = screen.getByTestId("atividade-mais-detalhes-toggle");
+  if (mais.getAttribute("aria-expanded") !== "true") fireEvent.click(mais);
+  fireEvent.click(screen.getByTestId("atividade-aba-resumo"));
   const cabecalho = await screen.findByTestId("atividade-cabecalho");
   await waitFor(() => expect(screen.queryByTestId("apontamentos-carregando")).toBeNull());
   return cabecalho;
@@ -578,17 +582,17 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
       "Nome",
       "Tipo de atividade",
       "Área",
-      "Status",
+      "Situação",
       "Área executada / planejada",
       "Início",
-      // D-PROD-234: o custo total da atividade, que a lista do servidor traz.
-      "Valor total",
+      // D-PROD-251: o custo total, com o nome do campo.
+      "Custo",
     ]);
     // Só a empresa e a página vão na query (nenhum filtro ligado).
     expect(listagens()[0].query.empresa_id).toBe("emp-1");
     expect(Object.keys(listagens()[0].query).sort()).toEqual(["empresa_id", "limit"]);
     const linha = (/** @type {string} */ id) => /** @type {HTMLElement} */ (screen.getByTestId(`atividade-numero-${id}`).closest("tr"));
-    expect(screen.getByTestId("atividade-status-a1")).toHaveTextContent("Aberta");
+    expect(screen.getByTestId("atividade-status-a1")).toHaveTextContent("Em andamento");
     expect(screen.getByTestId("atividade-status-a2")).toHaveTextContent("Concluída");
     expect(screen.getByTestId("atividade-status-a3")).toHaveTextContent("Cancelada");
     expect(within(linha("a1")).getByText("Cigarrinha Pasto 01")).toBeTruthy();
@@ -645,7 +649,7 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     expect(await screen.findByTestId("atividades-sem-empresa")).toHaveTextContent("Selecione uma fazenda");
     await assentar();
     expect(listagens()).toEqual([]);
-    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
     cleanup();
 
     window.localStorage.setItem("empresa_selecionada_id", "emp-1");
@@ -654,13 +658,13 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     expect(await screen.findByTestId("atividades-sem-permissao")).toBeTruthy();
     await assentar();
     expect(listagens()).toEqual([]);
-    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
   });
 
   it("LA-LISTA-4 — só ver: nenhuma ação de gravar (sem Abrir atividade, Editar, concluir, reabrir, cancelar nem duplicar)", async () => {
     sessao.permissao = permissaoCom({});
     await montarComLista();
-    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
     selecionar("a1");
     expect(botaoEditarDaBarra()).toBeNull();
     expect(await acoesDoMenu()).toEqual([]);
@@ -669,7 +673,7 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
   it("LA-LISTA-5 — ações padrão sem as extras: aberta = concluir, cancelar e duplicar; concluída e cancelada = só duplicar (reabrir pede a extra)", async () => {
     sessao.permissao = permissaoCom(ACOES_PADRAO);
     await montarComLista();
-    expect(screen.getByRole("button", { name: "Abrir atividade" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Nova atividade" })).toBeTruthy();
     selecionar("a1");
     await waitFor(() => expect(botaoEditarDaBarra()).toBeTruthy());
     expect(await acoesDoMenu()).toEqual(["Concluir atividade", "Cancelar atividade", "Duplicar atividade"]);
@@ -695,7 +699,7 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     sessao.fuso = null;
     await montarComLista();
     expect(await screen.findByTestId("atividades-sem-fuso")).toHaveTextContent("Configure o fuso horário da fazenda");
-    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
     selecionar("a1");
     expect(botaoEditarDaBarra()).toBeNull();
     expect(await acoesDoMenu()).toEqual([]);
@@ -949,7 +953,7 @@ describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)",
 describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", () => {
   it("LA-CABECALHO-1 — abrir: herdados travados, exigido pelo tipo marcado e avisado antes de enviar; corpo com empresa_id, decimal em texto e sem centros, unidade nem setor", async () => {
     await montarComLista();
-    fireEvent.click(screen.getByRole("button", { name: "Abrir atividade" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nova atividade" }));
     const form = await screen.findByTestId("b1-form-atividade");
     await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
     // Só os tipos ativos.
@@ -969,8 +973,10 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     expect(campo("Centro de resultado").value).toBe("Sem centro de resultado");
     expect(campo("Unidade de produção").value).toBe("SC — Saco");
     expect(screen.getByTestId("atividade-heranca")).toHaveTextContent("O centro de resultado padrão do tipo é de outra fazenda");
-    // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não. D-PROD-249: a área é a lista "Áreas".
+    // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não. D-PROD-238: a área é a lista "Áreas".
     expect(within(form).getByTestId("areas-abertura")).toHaveTextContent(/Áreas\s*\*/);
+    // O que o tipo deixa registrar aparece como nota sob o seletor (texto simples, sem cartões de toque).
+    expect(within(form).getByTestId("atividade-tipo-registra")).toHaveTextContent(/^Este tipo permite registrar: máquinas/);
     expect(marcadoObrigatorio(form, "Máquina")).toBe(true);
     expect(marcadoObrigatorio(form, "Safra")).toBe(false);
 
@@ -980,8 +986,9 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     expect(within(form).getByText("O tipo APLICAÇÃO exige a máquina.")).toBeTruthy();
     expect(escritas()).toEqual([]);
 
-    // D-PROD-249: marcar a área a põe na lista abaixo (Área · Setor · Tamanho · Área planejada · ✕).
-    fireEvent.click(within(form).getByTestId("areas-abertura-opcao-ar1"));
+    // D-PROD-238: marcar a área a põe na lista abaixo (Área · Setor · Tamanho · Área planejada · ✕).
+    fireEvent.click(within(form).getByTestId("areas-abertura-campo"));
+    fireEvent.click(screen.getByTestId("areas-abertura-opcao-ar1"));
     expect(within(form).getByTestId("areas-abertura-linha-ar1")).toHaveTextContent("SETOR NORTE");
     await escolherNoSeletor(form, "atividade-maquina", /TP-02 — Trator/);
     expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/bens")?.query).toMatchObject({ empresa_id: "emp-1" });
@@ -1646,7 +1653,6 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(within(linha).getByRole("checkbox", { name: "Selecionar linha" })).toBeTruthy();
 
     expect(await itensDoRaio("a1")).toEqual([
-      "Trabalho de máquinas",
       "Abrir atividade",
       "Alterar atividade",
       "Concluir atividade",
@@ -1659,7 +1665,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(menu).toHaveTextContent("Nº 3 · Cigarrinha Pasto 01");
     expect(menu).toHaveTextContent("APLICAÇÃO · 01 — Pasto 01");
     // Os três grupos (lançar · abrir · alterar…) com divisória; o cancelar em vermelho.
-    expect(within(menu).getAllByRole("group")).toHaveLength(3);
+    expect(within(menu).getAllByRole("group")).toHaveLength(2);
     expect(within(menu).getByRole("menuitem", { name: "Cancelar atividade" })).toHaveClass("is-danger");
     // Esc fecha e o foco volta ao ⚡.
     await fecharRaio("a1");
@@ -1674,19 +1680,27 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(escritas()).toEqual([]);
   });
 
-  it("LA-RAIO-2 — os lançamentos seguem o tipo: insumos (permite_produto), mão de obra e custos extras (serviço); máquina sempre", async () => {
+  it("LA-RAIO-2 — o que registrar segue o tipo: produto, mão de obra e serviço; máquina sempre", async () => {
     tiposSrv.listarTiposAtividade.mockResolvedValue([TIPO_T1_COM_TUDO, ...TIPOS.slice(1)]);
     await montarComLista();
     await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
     await assentar();
-    expect((await itensDoRaio("a1")).slice(0, 4)).toEqual(["Trabalho de máquinas", "Aplicação de insumos", "Mão de obra", "Custos extras"]);
-    await fecharRaio("a1");
-    // Só mão de obra no tipo (a flag que a atividade trouxer vale sobre a da lista de tipos).
-    atividades.set("a1", { ...atividades.get("a1"), permite_produto: false, permite_servico: false, permite_mao_obra: true });
+    fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
+    await screen.findByTestId("fluxo-por-area");
+    fireEvent.click(screen.getByTestId("registrar-area-unica"));
+    for (const id of ["maquinas", "implemento", "produtos", "mao-obra", "servicos"]) expect(screen.getByTestId(`escolher-${id}`)).toBeTruthy();
     cleanup();
+    // A flag gravada na atividade vale sobre a da lista de tipos.
+    atividades.set("a1", { ...atividades.get("a1"), permite_produto: false, permite_servico: false, permite_mao_obra: true });
     await montarComLista();
     await assentar();
-    expect((await itensDoRaio("a1")).slice(0, 3)).toEqual(["Trabalho de máquinas", "Mão de obra", "Abrir atividade"]);
+    fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
+    await screen.findByTestId("fluxo-por-area");
+    fireEvent.click(screen.getByTestId("registrar-area-unica"));
+    expect(screen.getByTestId("escolher-maquinas")).toBeTruthy();
+    expect(screen.getByTestId("escolher-mao-obra")).toBeTruthy();
+    expect(screen.queryByTestId("escolher-produtos")).toBeNull();
+    expect(screen.queryByTestId("escolher-servicos")).toBeNull();
   });
 
   it("LA-RAIO-3 — por permissão: só ver = só Abrir; sem a extra de lançar, nada de lançar; sem o fuso, só Abrir", async () => {
@@ -1719,20 +1733,21 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(/** @type {HTMLInputElement} */ (within(form).getByLabelText(/^Nome da atividade/)).value).toBe("Cigarrinha Pasto 01");
   });
 
-  it("LA-RAIO-5 — \"Trabalho de máquinas\" abre a janela do tipo (D-PROD-233) sobre a atividade da linha, no dia de hoje, sem gravar nada; Fechar fecha", async () => {
+  it("LA-RAIO-5 — ver registros de máquina abre a janela do tipo no dia de hoje, sem gravar nada; Fechar fecha", async () => {
     await montarComLista();
-    await itensDoRaio("a1");
-    fireEvent.click(screen.getByRole("menuitem", { name: "Trabalho de máquinas" }));
+    fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
+    await screen.findByTestId("atividade-aberta");
+    fireEvent.click(screen.getByTestId("atividade-mais-detalhes-toggle"));
+    fireEvent.click(screen.getByTestId("tipo-maquinas-acoes"));
+    fireEvent.click(within(await screen.findByTestId("tipo-maquinas-acoes-menu")).getByRole("menuitem", { name: "Ver lançamentos" }));
     const janela = await screen.findByTestId("janela-tipo");
     expect(within(janela).getByRole("heading", { name: "Trabalho de máquinas" })).toBeTruthy();
     expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("Atividade Nº 3 · APLICAÇÃO · Área: 01 — Pasto 01 · Lançamento de 14/11/2026");
     expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
-    // Hoje não tem lançamento: a lista vazia e a regra do dia (o primeiro item cria o lançamento).
     await waitFor(() => expect(within(janela).getByTestId("janela-tipo-dia-novo")).toHaveTextContent("o primeiro item salvo cria o lançamento do dia"));
     expect(within(janela).getByTestId("janela-tipo-vazio")).toHaveTextContent("Nenhum registro neste lançamento. Clique em Inserir.");
     expect(within(janela).getByTestId("janela-tipo-aba-lista")).toHaveTextContent("Trabalhos de máquinas (0)");
-    // Ainda na lista: nada aberto atrás da janela, nada gravado.
-    expect(screen.queryByTestId("atividade-cabecalho")).toBeNull();
+    expect(screen.getByTestId("fluxo-por-area")).toBeTruthy();
     fireEvent.click(within(janela).getByTestId("janela-tipo-fechar"));
     await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
     expect(escritas()).toEqual([]);
@@ -1846,7 +1861,7 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     const campos = within(await screen.findByRole("listbox", { name: "Filtros rápidos" }))
       .getAllByRole("option")
       .map((o) => (o.textContent ?? "").trim());
-    expect(campos).toEqual(expect.arrayContaining(["Nome", "Máquina", "Conclusão", "Valor total"]));
+    expect(campos).toEqual(expect.arrayContaining(["Nome", "Máquina", "Conclusão", "Custo"]));
     for (const coberto of ["Status", "Tipo de atividade", "Área", "Início"]) expect(campos).not.toContain(coberto);
     // Um campo de "+ Filtro" entra na faixa depois do Início.
     fireEvent.click(screen.getByRole("option", { name: "Máquina" }));
@@ -1983,8 +1998,8 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     const c1 = cardDe("a1");
     expect(within(c1).getByTestId("b1-card-avatar")).toHaveTextContent("APL");
     expect(c1.querySelector(".mg-b1-card__title")).toHaveTextContent("Cigarrinha Pasto 01");
-    expect(within(c1).getByTestId("b1-card-sub")).toHaveTextContent(/^Nº 3 · Aberta$/);
-    expect([...c1.querySelectorAll(".mg-b1-card__label")].map((el) => el.textContent)).toEqual(["Nº", "Tipo de atividade", "Área", "Início", "Valor total"]);
+    expect(within(c1).getByTestId("b1-card-sub")).toHaveTextContent(/^Nº 3 · Em andamento$/);
+    expect([...c1.querySelectorAll(".mg-b1-card__label")].map((el) => el.textContent)).toEqual(["Nº", "Tipo de atividade", "Área", "Início", "Custo"]);
     expect([...c1.querySelectorAll(".mg-b1-card__value")].map((el) => (el.textContent ?? "").replace(/\s/g, " "))).toEqual([
       "3",
       "APLICAÇÃO",
@@ -2047,13 +2062,13 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     await montarComLista();
     expect(screen.queryByTestId("b1-card")).toBeNull();
     const cabecalhos = [...document.querySelectorAll("thead th")].map((th) => (th.textContent ?? "").trim()).filter(Boolean);
-    expect(cabecalhos).toEqual(expect.arrayContaining(["Nº", "Nome", "Tipo de atividade", "Área", "Status", "Início", "Valor total"]));
+    expect(cabecalhos).toEqual(expect.arrayContaining(["Nº", "Nome", "Tipo de atividade", "Área", "Situação", "Início", "Custo"]));
     fireEvent.click(screen.getByRole("button", { name: "Ordenar" }));
     const ordens = within(await screen.findByRole("listbox", { name: "Ordenar" }))
       .getAllByRole("option")
       .map((o) => (o.textContent ?? "").trim());
     expect(ordens.slice(0, 4)).toEqual(["Nº (mais recentes primeiro)", "Nº (mais antigas primeiro)", "Nome (A → Z)", "Nome (Z → A)"]);
-    expect(ordens).toContain("Valor total (maior primeiro)");
+    expect(ordens).toContain("Custo (maior primeiro)");
   });
 
   it("LA-FILTROS-10 — regras puras: sigla e cor do tipo, subtítulo do card, período em palavras", async () => {
@@ -2070,7 +2085,7 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     expect(seloDoCardAtividade({ tipo_atividade_id: "t9", tipo_atividade_nome: "PULVERIZAÇÃO", nome: "Cigarrinha" })).toEqual({ texto: "PUL", cor: corDoTipoAtividade("t9") });
     // Sem tipo, as iniciais do nome.
     expect(seloDoCardAtividade({ nome: "Cerca" }).texto).toBe("CER");
-    expect(subtituloDoCardAtividade({ numero: "7", status: "ABERTA" })).toBe("Nº 7 · Aberta");
+    expect(subtituloDoCardAtividade({ numero: "7", status: "ABERTA" })).toBe("Nº 7 · Em andamento");
     expect(subtituloDoCardAtividade({ status: "CANCELADA" })).toBe("Cancelada");
     expect(ATIVIDADES_CAMPOS_CARD).toEqual(["numero", "tipo", "area", "data_inicio", "valor_total"]);
     // Ano corrente (2026, o relógio do teste) em dd/mm; outros anos com o ano.
