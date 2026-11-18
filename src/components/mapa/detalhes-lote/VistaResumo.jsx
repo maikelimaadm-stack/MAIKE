@@ -23,10 +23,10 @@ export function VistaResumo() {
       <Kpis
         colunas={4}
         itens={[
-          { chave: "peso", rotulo: "Peso médio (kg)", valor: m.resumo.pesoMedio },
           { chave: "cab", rotulo: "Cabeças", valor: m.resumo.cab },
+          { chave: "peso", rotulo: "Peso médio (kg)", valor: m.resumo.pesoMedio },
+          { chave: "projetado", rotulo: "Peso médio projetado (kg)", valor: m.resumo.pesoMedioProjetado },
           { chave: "uaha", rotulo: "UA/ha", valor: m.resumo.uaHa },
-          { chave: "kgpvha", rotulo: "kg PV/ha", valor: m.resumo.kgPvHa },
         ]}
       />
       <ListaItens
@@ -40,8 +40,8 @@ export function VistaResumo() {
             imagem={<IconeCategoria figura={l.subicone} tamanho={30} />}
             cor={l.ident.identificadorCor}
             titulo={l.nome}
-            title={`${l.nome}: ${l.textos.meta} · ${l.textos.pesoKg}`}
-            meta={`${l.nome === l.categoria ? l.textos.meta.replace(` · ${l.categoria}`, "") : l.textos.meta} · ${l.textos.pesoKg}`}
+            title={`${l.nome}: ${l.textos.meta.replace(" cb ·", " cab ·")} · ${l.textos.pesoKg}`}
+            meta={`${l.nome === l.categoria ? l.textos.meta.replace(" cb ·", " cab ·").replace(` · ${l.categoria}`, "") : l.textos.meta.replace(" cb ·", " cab ·")} · ${l.textos.pesoKg}`}
             chip={<ChipSituacao situacao={l.situacao} />}
             chevron
             onClick={() => empurrar({ tipo: "lote", loteId: l.id })}

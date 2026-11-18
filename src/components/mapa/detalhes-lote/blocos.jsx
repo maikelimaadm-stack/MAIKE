@@ -379,8 +379,8 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
         <Icone className="mk-dp-linha__ic" size={22} aria-hidden="true" />
       ) : null}
       <span className="mk-dp-linha__txt">
-        <span className="mk-dp-linha__rot">{rotulo}</span>
-        {sub ? <span className="mk-dp-linha__sub">{sub}</span> : null}
+        <span className="mk-dp-linha__rot"><TextoDeslizante>{rotulo}</TextoDeslizante></span>
+        {sub ? <span className="mk-dp-linha__sub"><TextoDeslizante>{sub}</TextoDeslizante></span> : null}
       </span>
       <span className="mk-dp-linha__fim">
         {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
@@ -654,9 +654,9 @@ export function Item({
       <span className="mk-dp-item__txt">
         <span className="mk-dp-item__tit">
           {cor ? <span className="mk-dp-quad" style={{ background: cor }} aria-hidden="true" /> : null}
-          <span className="mk-dp-item__nome">{titulo}</span>
+          <span className="mk-dp-item__nome"><TextoDeslizante>{titulo}</TextoDeslizante></span>
         </span>
-        {meta ? <span className="mk-dp-item__meta">{meta}</span> : null}
+        {meta ? <span className="mk-dp-item__meta"><TextoDeslizante>{meta}</TextoDeslizante></span> : null}
         {sub ? <span className="mk-dp-item__sub">{sub}</span> : null}
       </span>
       {chip || null}

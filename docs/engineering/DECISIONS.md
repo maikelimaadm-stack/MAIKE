@@ -8326,5 +8326,13 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Textos longos do histórico usam a mesma passagem automática dos detalhes. Preservados os registros completos, agrupamento por dia, cancelamentos, filtros, paginação e estados offline/erro.
 - Contagem e carregar mais compactos e alinhados; estilos limitados à aba de histórico. Apenas prévia, sem merge.
 
-<!-- Próxima decisão: D-PROD-245 -->
+### D-PROD-245 — Leitura mobile e peso médio projetado no resumo (2026-11-18)
+
+- Pedido: letras e espaçamentos um pouco maiores no celular, divisórias ausentes, títulos do histórico sem borda em desktop/tablet, melhorar lotes e acrescentar peso médio projetado após Cabeças e Peso médio. Retirar a dica Ideal da lotação.
+- Resumo com Cabeças, Peso médio, Peso médio projetado e UA/ha. A projeção média usa a média ponderada pelas cabeças com projeção disponível, idêntica ao total projetado da tabela; sem projeções mostra “—”, sem substituir pelo peso atual. kg PV/ha continua em Lotação.
+- Mobile: fontes e espaços maiores; divisória Status/Dias e datas da projeção restauradas. Textos da lista e das categorias passam automaticamente quando longos, e a quantidade da categoria deixa de ser cortada na borda.
+- Desktop/tablet: cabeçalhos dos eventos do histórico sem borda inferior; bordas entre dados preservadas. A dica “Ideal (...)” da UA/ha sai somente da apresentação dos detalhes, mantendo número, cor e regras.
+- Apenas prévia, sem merge nem alteração da produção.
+
+<!-- Próxima decisão: D-PROD-246 -->
 

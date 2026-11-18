@@ -36,7 +36,7 @@ export function AbaDetalhes() {
       </Cartao>
       <SecaoDetalhe titulo="Lotação" className="mk-dp-area-organizada__lotacao">
         <Cartao className="mk-dp-area-lotacao">
-          <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && campo.dica === "Superlotação (> 2,4 UA/ha)")) ? { ...campo, dica: undefined } : campo)} />
+          <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && (campo.dica === "Superlotação (> 2,4 UA/ha)" || campo.dica?.startsWith("Ideal (")))) ? { ...campo, dica: undefined } : campo)} />
         </Cartao>
       </SecaoDetalhe>
       {area.alertas.map((a) => (

@@ -39,6 +39,15 @@ afterEach(() => cleanup());
 // ── Aba Detalhes ────────────────────────────────────────────────────────────
 
 describe("aba Detalhes", () => {
+  it("remove a dica Ideal da lotação mantendo o valor e a bolinha", () => {
+    const modelo = modeloV12({ area: { ...AREA_V12, tamanho_hectares: 180, area_pastejada: 180 } });
+    render(<CascaDeTeste modelo={modelo} abaInicial="detalhes" />);
+    expect(screen.queryByText("Ideal (1,2 - 1,8 UA/ha)")).toBeNull();
+    const ua = [...document.querySelectorAll('.mk-dp-area-lotacao .mk-dp-cel')].find(c => c.querySelector('dt').textContent === 'UA/ha');
+    expect(ua.querySelector('dd').textContent).toBe('1,28');
+    expect(ua.querySelector('.mk-dp-bolinha')).toBeTruthy();
+  });
+
   it("cartão da área, aviso de capacidade, Lotação e Categorias com os números do v12", () => {
     render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
     const painel = screen.getByRole("tabpanel");
@@ -143,13 +152,13 @@ describe("aba Lotes › Resumo", () => {
   it("4 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
     render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     const kpis = [...document.querySelectorAll(".mk-dp-kpi")].map((k) => [k.querySelector("dt").textContent, k.querySelector(".mk-dp-kpi__val").textContent]);
-    expect(kpis).toEqual([["Peso médio (kg)", "329,7"], ["Cabeças", "314"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
+    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Peso médio projetado (kg)", "342,6"], ["UA/ha", "2,24"]]);
     expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314)");
 
     const itens = [...document.querySelectorAll(".mk-dp-item")];
     expect(itens.map((i) => i.querySelector(".mk-dp-item__nome").textContent)).toEqual(["L-2026-008", "L-2026-014", "L-2026-019", "L-2026-022", "L-2026-025", "L-2026-027"]);
     const primeiro = itens[0];
-    expect(primeiro.querySelector(".mk-dp-item__meta").textContent).toBe("38 cb · 38,0 UA · VACA · 449,5 kg");
+    expect(primeiro.querySelector(".mk-dp-item__meta").textContent).toBe("38 cab · 38,0 UA · VACA · 449,5 kg");
     expect(primeiro.querySelector(".mk-dp-item__sub")).toBeNull();
     expect(primeiro.querySelector(".mk-dp-quad").style.background).toBe("rgb(239, 68, 68)");
     expect(primeiro.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");

@@ -306,3 +306,16 @@
   }
   .mk-dp .mk-dp-hist .mk-dp-tl__row > dd { text-align: right; }
 }
+
+@media (min-width: 768px) {
+  .mk-dp .mk-dp-hist .mk-dp-tl__cab { border-bottom: 0; }
+}
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-hist .mk-dp-tl__dia { font-size: 12px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__cab { min-height: 34px; padding: 7px 10px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__titulo { font-size: 13.5px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row { padding: 8px 0; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row > dt { font-size: 13px; }
+  .mk-dp .mk-dp-hist .mk-dp-tl__row > dd { font-size: 13.5px; }
+  .mk-dp .mk-dp-hist .mk-dp-hist__contagem { font-size: 12px; }
+}
