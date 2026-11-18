@@ -9,11 +9,11 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-250)
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-250**, pedido do proprietário: a lógica dos rascunhos (tipo uma vez, abrir em passos, registrar na área) no visual do sistema |
+| Decisão | **D-PROD-251**, pedido do proprietário: a lógica dos rascunhos (tipo uma vez, abrir em passos, registrar na área) no visual do sistema |
 | Branch / PR | `cursor/atividades-por-area-0b6c`, a partir da `main` `637a3002` (PR #327, D-PROD-249) |
 | Escopo | Assistente de abertura (tipo → áreas → conferir); atividade aberta pelos cartões de área; registro um de cada vez com confirmação na área; lista em palavras simples; Tipos de atividade separado, com "O que pode registrar". O ⚡ da lista não lança. "Mais detalhes" guarda o ajuste por tipo e por dia |
 | Backend | Nenhuma mudança. Nenhuma migration nova |

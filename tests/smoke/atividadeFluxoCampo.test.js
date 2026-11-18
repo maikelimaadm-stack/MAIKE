@@ -4,7 +4,7 @@ import { fraseDoRegistro, movimentosDaArea, opcoesDeRegistro, registroDoDiaParaA
 const maquina = (id, extra = {}) => ({ id, status: "CONFIRMADO", bem_id: "b1", bem: { codigo: "TP-02", nome: "Trator" }, custo_total: "100", ...extra });
 const ap = (id, area, dia, linhas = {}, extra = {}) => ({ id, status: "CONFIRMADO", atividade_area_id: area, data_operacional: dia, sequencia: 1, ...linhas, ...extra });
 
-describe("D-PROD-250 — fluxo de campo", () => {
+describe("D-PROD-251 — fluxo de campo", () => {
   it("FC-1 — implemento é opção própria, só se o tipo permite; abastecimento, só quando liberado", () => {
     const ids = (f, e) => opcoesDeRegistro(f, e).map((o) => o.id);
     expect(ids({}, {})).toEqual(["maquinas"]);

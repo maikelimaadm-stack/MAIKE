@@ -1981,7 +1981,7 @@ describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia
     expect(abast.abastecimentos[0]).toMatchObject({ atividade: { id: "a1" }, apontamento: { id: "ap1" }, centro_custo: { nome: "Pastagem" } });
   });
 
-  it("LL-ABAST-AREA-1 — Abastecimento pela área (D-PROD-250): o mesmo formulário, ligado ao registro do dia da área; confirma com frase na área, sem passar por Ajustar um dia", async () => {
+  it("LL-ABAST-AREA-1 — Abastecimento pela área (D-PROD-251): o mesmo formulário, ligado ao registro do dia da área; confirma com frase na área, sem passar por Ajustar um dia", async () => {
     sessao.permissao = comAbastecimento({ novo: true });
     await montar();
     await abrir("a1", "ap1");

@@ -18,9 +18,10 @@ import {
   pendenciasOfflineDaMovimentacao,
   eventoMudancaFilaOffline,
 } from "@/services/loteManejoService";
-import { refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
+import { updateMapaCachedData } from "@/services/mapaCacheService";
 import { tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
+import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
@@ -149,26 +150,10 @@ const limparCaches = async (queryClient, movimento) => {
   await removerMovimentacaoExcluidaDoCacheOffline(movimento.id).catch(() => {});
   for (const chave of ["movimentacoes", "movimentacoesHistorico"]) {
     await updateMapaCachedData(chave, movimento.empresa_id, semEste).catch(() => {});
-    await refreshMapaCacheEntry(chave, movimento.empresa_id, { force: true }).catch(() => {});
   }
-  await refreshMapaCacheEntry("lotes", movimento.empresa_id, { force: true }).catch(() => {});
-  await Promise.all(
-    [
-      "historico-movimentacoes",
-      "historico-registros-lote",
-      "historico-abate-curral",
-      "mapa-cache",
-      "mapa-lotes",
-      "lotes",
-      "posicoes-rebanho",
-      "elegibilidade-exclusao-movimentacao",
-    ].map((chave) => queryClient.invalidateQueries({ queryKey: [chave] }))
-  );
-  try {
-    window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: ["lotes", "movimentacoes", "movimentacoesHistorico"] } }));
-  } catch {
-    /* best-effort */
-  }
+  // Relê do servidor com force tudo o que vem do rebanho e só então invalida
+  // as consultas de todas as telas (D-PROD-250).
+  await aposEscritaNoRebanho(queryClient, movimento.empresa_id);
 };
 
 /**

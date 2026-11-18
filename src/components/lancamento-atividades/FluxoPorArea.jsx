@@ -35,7 +35,7 @@ const BOTAO_CLARO = BOTAO_SECUNDARIO;
 
 /**
  * A atividade pelo lugar do custo: um cartão por área, o registro saindo dali,
- * e a confirmação dizendo em qual área entrou (D-PROD-250).
+ * e a confirmação dizendo em qual área entrou (D-PROD-251).
  *
  * @param {{
  *   atividade: any,

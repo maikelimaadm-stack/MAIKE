@@ -585,7 +585,7 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
       "Situação",
       "Área executada / planejada",
       "Início",
-      // D-PROD-250: o custo total, com o nome do campo.
+      // D-PROD-251: o custo total, com o nome do campo.
       "Custo",
     ]);
     // Só a empresa e a página vão na query (nenhum filtro ligado).

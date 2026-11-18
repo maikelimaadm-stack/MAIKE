@@ -9,3 +9,4 @@ const dados = (k, emp) => ((POR_EMPRESA[emp] || PADRAO)[k] || []);
 const atraso = () => new Promise((r) => setTimeout(r, Number(window.__E2E_ATRASO__ || 0)));
 export const getMapaCachedData = async () => [];
 export const refreshMapaCacheEntry = async (k, emp) => { await atraso(); return dados(k, emp); };
+export const refreshMapaCacheEntryDetalhado = async (k, emp) => ({ dados: await refreshMapaCacheEntry(k, emp), origem: "rede", erro: null });

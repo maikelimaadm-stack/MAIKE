@@ -418,7 +418,7 @@ export default function MapaGeral() {
     },
     enabled: Boolean(options.enabled ?? !!empresaSelecionadaId),
     staleTime: options.staleTime ?? ST,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: options.refetchOnWindowFocus ?? false,
     placeholderData: []
   });
 
@@ -427,7 +427,7 @@ export default function MapaGeral() {
   const { data: bebedouros = [] } = useBebedouros(empresaSelecionadaId);
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
   const { data: linhas = [], refetch: refetchLinhas } = useQuery(createMapaQuery('linhas'));
-  const { data: lotesBase = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
+  const { data: lotesBase = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 15 * 1000, refetchOnWindowFocus: true }));
   const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
   // D-PROD-191: o ícone do lote vem do código, pela faixa de idade da Categoria de
   // Manejo de cada posição; a lista fica no cache do mapa e o ícone sai offline.
@@ -1243,7 +1243,9 @@ export default function MapaGeral() {
 
   useEffect(() => {
     const h = async (event) => {
-      await executarRefreshMapa(false, true, event?.detail?.cacheKeys || null);
+      // `jaBuscado` (aposEscritaNoRebanho, D-PROD-250): o servidor já foi relido com
+      // force e o IndexedDB está novo; aqui só reaplica, sem repetir os GETs.
+      await executarRefreshMapa(false, !event?.detail?.jaBuscado, event?.detail?.cacheKeys || null);
     };
     window.addEventListener('atualizar-mapa', h);
     return () => window.removeEventListener('atualizar-mapa', h);

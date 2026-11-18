@@ -1,7 +1,7 @@
-# MAIKE — Lançamento de Atividades pela área (relatório, D-PROD-250)
+# MAIKE — Lançamento de Atividades pela área (relatório, D-PROD-251)
 
 > **fatia:** reorganizar o lançamento para quem está no campo · **branch:** `cursor/atividades-por-area-0b6c` · **PR:** a abrir
-> Decisão **D-PROD-250** · a partir da `main` `637a3002` (PR #327, D-PROD-249)
+> Decisão **D-PROD-251** · a partir da `main` `637a3002` (PR #327, D-PROD-249)
 
 O proprietário aprovou a lógica dos rascunhos e pediu o visual do MAIKE. O tipo se cadastra uma vez, longe do dia a dia. Abrir a atividade é o formulário padrão do app, numa tela só (ver §7). No campo, cada área tem o que já foi feito e o custo dela. O total da atividade é a soma.
 

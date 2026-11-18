@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { formularioDoApontamento } from "@/lib/abastecimentoRegras";
 
 /**
- * Abastecimento feito de dentro da área (D-PROD-250): o MESMO formulário, a mesma revisão e a mesma confirmação da tela
+ * Abastecimento feito de dentro da área (D-PROD-251): o MESMO formulário, a mesma revisão e a mesma confirmação da tela
  * Abastecimentos, já ligado ao registro do dia daquela área. Nada de gravação nova: usa `useFluxoAbastecimento`.
  * Quem abre escolhe o registro do dia (`apontamento`); o servidor deriva a atividade e a área dele.
  *
