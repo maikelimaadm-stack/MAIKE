@@ -569,7 +569,11 @@ export default function MapaGeral() {
     setFiltroPesoMin(f.peso_min ?? null);
     setFiltroPesoMax(f.peso_max ?? null);
     if (f.colorir_por && (podeColorir || f.colorir_por === 'padrao')) setModoColoracao(f.colorir_por);
-    if (f.categorias?.length || f.sistemas?.length || f.peso_min !== undefined || f.peso_max !== undefined) setShowLotes(true);
+    if (f.categorias?.length || f.sistemas?.length || f.peso_min !== undefined || f.peso_max !== undefined) {
+      setShowLotes(true);
+      // Foco Pontos/Tarefas esconde os lotes (D-PROD-218): o filtro de lote volta ao foco Lotes.
+      setFoco('lotes');
+    }
     if (f.colorir_por || f.setores?.length || f.tipos_cultura?.length || f.tipos_pastagem?.length) setShowAreas(true);
     const faltando = [...setor.faltando, ...categoria.faltando, ...sistema.faltando, ...pastagem.faltando];
     if (faltando.length) toast.warning(`Não encontrei no mapa: ${faltando.join(', ')}`);

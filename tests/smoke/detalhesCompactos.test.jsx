@@ -336,7 +336,7 @@ describe("DC-5 — popup: pares lado a lado (D-PROD-226)", () => {
     ).toMatch(/grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   });
 
-  it("aba Detalhes do pasto (D-PROD-232 do dono): o corpo é o painel `…-painel-detalhes`, com a grade `.mk-dp-area-organizada` de seções Lotação e Categorias, cada título logo antes do seu cartão; sem lotes, só Lotação", () => {
+  it("aba Detalhes do pasto (D-PROD-236 do dono): o corpo é o painel `…-painel-detalhes`, com a grade `.mk-dp-area-organizada` de seções Lotação e Categorias, cada título logo antes do seu cartão; sem lotes, só Lotação", () => {
     const secoesDoCorpo = (corpo) => [...corpo.querySelectorAll(":scope > .mk-dp-area-organizada > .mk-dp-secao")];
     const { unmount } = render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
     const corpo = screen.getByRole("tabpanel");

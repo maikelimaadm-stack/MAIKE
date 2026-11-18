@@ -8165,7 +8165,7 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - A aba Detalhes não repete a pastagem na grade quando ela já está no subtítulo. Se faltar informação, o campo continua visível.
 - Cálculos, catálogo da tabela, ordenação, preferências de colunas, múltiplos lotes, manejo e permissões preservados.
 
-### D-PROD-231 — Leitura dos detalhes de lotes e áreas (2026-11-17)
+## D-PROD-231 — Leitura dos detalhes de lotes e áreas (2026-11-17)
 
 - Pedido do dono: retirar explicações de fórmulas nos detalhes e organizar as projeções mensais.
 - Detalhes do lote sem as dicas de peso projetado, arrobas e UA. Fim de mês em colunas de data e peso com unidade, até três meses.
@@ -8260,8 +8260,9 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Botão de camadas no fim da barra, branco sobre o fundo escuro, sem a bolinha branca separada. Mesmo painel e estado aberto/fechado; entra na navegação por setas, Home e End.
 - No celular, a barra usa a largura disponível. Atualizar, Localizar e Mover continuam na coluna da direita, abaixo da barra, sem sobreposição.
 - Visualização continua disponível quando há apenas Lotes e sem permissão de filtros, como antes; os segmentos e Filtros mantêm suas permissões.
+- Com a `main` mesclada (D-PROD-230): um filtro de lote pedido pelo assistente com o mapa no foco Pontos ou Tarefas volta o foco para Lotes, porque esses focos escondem os lotes e o filtro apareceria aplicado sem nenhum lote no mapa.
 
-### D-PROD-236 — Estilo dos detalhes inspirado na referência do dono (2026-11-17)
+## D-PROD-236 — Estilo dos detalhes inspirado na referência do dono (2026-11-17)
 
 > **Numeração:** nasceu D-PROD-232 nesta branch. A `main` deu a D-PROD-232 à fatia 1 do Lançamento de Atividades; esta decisão é a **D-PROD-236**. A D-PROD-231 fica com o número de origem, que a `main` deixou reservado para esta branch.
 

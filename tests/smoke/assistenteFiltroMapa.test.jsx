@@ -5,11 +5,12 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, act } from '@testing-library/react';
+import { render, cleanup, act, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 
 import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral } from '@/lib/mapaGeralFiltrosStorage';
+import { EVENTO_FILTRO_ASSISTENTE } from '@/domain/assistente/filtroTela';
 
 const sessao = vi.hoisted(() => ({ usuario: null, permissoesMapa: {} }));
 const avisos = vi.hoisted(() => ({ sucesso: [], alerta: [] }));
@@ -99,5 +100,20 @@ describe('Mapa Geral — filtro do Assistente', () => {
     expect(lerFiltrosMapaGeral(ESCOPO)?.filtroCategoria).toBe('BOI');
     expect(lerFiltrosMapaGeral(ESCOPO)?.filtroPesoMin ?? null).toBe(null);
     expect(avisos.sucesso).toEqual([]);
+  });
+
+  it('filtro de lote com o mapa no foco Pontos volta ao foco Lotes (o foco Pontos esconde os lotes)', async () => {
+    sessao.usuario = { ...OPERADOR, administrador_fazenda: true };
+    await abrirMapaCom({});
+    avisos.sucesso.length = 0;
+    const pressionado = (nome) => screen.getByRole('button', { name: nome, hidden: true }).getAttribute('aria-pressed');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Pontos', hidden: true })); });
+    expect(pressionado('Pontos')).toBe('true');
+    window.history.replaceState(null, '', `/mapageral?af=${encodeURIComponent(JSON.stringify({ peso_min: 300 }))}`);
+    await act(async () => { window.dispatchEvent(new Event(EVENTO_FILTRO_ASSISTENTE)); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(avisos.sucesso).toEqual(['Filtro do assistente aplicado no mapa']);
+    expect(pressionado('Lotes')).toBe('true');
+    expect(pressionado('Pontos')).toBe('false');
   });
 });
