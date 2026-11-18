@@ -68,13 +68,16 @@ import { PrismaClient } from '@prisma/client';
 import { closePrismaClient, getPrismaClient } from '../src/database/prismaClient.js';
 import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
 import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
+import { ateD223, espelhoDoDiaD223, schemaDoDiaD223 } from './diaDaD223.mjs';
 import {
   MIGRATIONS_APROVADAS, MIGRATIONS_CONTRACT_APROVADAS, classificarMigrations, conferirHistoricoRemoto, contractsPendentes,
 } from '../../scripts/deploy/premergeMigrateLib.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+// D-PROD-238: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
+const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME = '20261116000000_mao_obra_parceiro';
@@ -86,7 +89,7 @@ const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
 const NOME_ANTERIOR = '20261115900000_atividade_mao_obra_servico';
 const CHECKSUM_ANTERIOR = '79f139a0ea5b55253db522f00af78dd4e252529ee259da59ada7b4932dad0725';
 /** Pastas do repositório: a partida é o que vem ANTES desta; o GREEN, até esta (no dia da D-PROD-208). */
-const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+const PASTAS_HOJE = ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 /** D-PROD-209: a CONTRACT do tipo Terceirizado, de nome posterior (ver o cabeçalho); fica fora do dia desta. */
 const NOME_TIPO = '20261116100000_funcionario_tipo_terceirizado';
 /** D-PROD-210: a CONTRACT da base do consumo, ainda posterior (ver o cabeçalho); muda o schema.prisma. */
@@ -168,6 +171,7 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 /** O runner oficial (`npm run deploy:migrate`). `runtime` é a conexão do runtime quando a conferência de alvo é exigida. */
 const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: espelhoDoDiaD223(),
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);

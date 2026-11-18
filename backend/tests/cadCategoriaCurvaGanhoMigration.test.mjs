@@ -98,12 +98,15 @@ import { PrismaClient } from '@prisma/client';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
+import { ateD223, espelhoDoDiaD223, schemaDoDiaD223 } from './diaDaD223.mjs';
 import { encerrar } from './helpers.mjs';
 import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+// D-PROD-238: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
+const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME_CONTRACT = '20261114200000_cadcategoria_curva_ganho';
@@ -113,7 +116,7 @@ const CONTRACTS_ANTERIORES = Object.freeze([
 ]);
 const BANCO = 'maike_ccc_curva_teste';
 /** Pastas do repositório: a partida são todas menos esta CONTRACT e FORA_DA_PARTIDA; o total, depois do GREEN. */
-const PASTAS = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
+const PASTAS = Object.freeze(ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()));
 const TOTAL_MIGRATIONS = PASTAS.length;
 /**
  * D-PROD-198: a EXPAND do peso objetivo (ALTER TABLE "CADCATEGORIA" ADD COLUMN "peso_objetivo_kg") não existia no dia
@@ -269,6 +272,7 @@ const aplicarFormulacoesForaDeOrdem = async (url) => {
 /** O runner oficial (`npm run deploy:migrate`). `runtime` é a conexão do runtime (DATABASE_URL) quando a conferência de alvo é exigida. */
 const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:migrate'], {
+    cwd: espelhoDoDiaD223(),
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 /**

@@ -64,13 +64,16 @@ import { PrismaClient } from '@prisma/client';
 import { closePrismaClient, getPrismaClient } from '../src/database/prismaClient.js';
 import { motivoAlvoProtegido } from '../../scripts/auth/alvoProtegido.mjs';
 import { criarEspelhoDoRunner } from './espelhoDoRunner.mjs';
+import { ateD223, schemaDoDiaD223 } from './diaDaD223.mjs';
 import {
   DO_RLS_APROVADOS, MIGRATIONS_APROVADAS, MIGRATIONS_CONTRACT_APROVADAS, classificarMigrations, conferirHistoricoRemoto, contractsPendentes,
 } from '../../scripts/deploy/premergeMigrateLib.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+// D-PROD-238: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
+const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME = '20261115900000_atividade_mao_obra_servico';
@@ -81,7 +84,7 @@ const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
 const NOME_ANTERIOR = '20261115200000_formulacao_faixa_tolerancia';
 const CHECKSUM_ANTERIOR = 'bb8be379c241341e1ba45a7d7da8258aef77d5f4e089db302c8d655608d58e4c';
 /** Pastas do repositório: a partida é o que vem ANTES desta; o GREEN, até esta (no dia da D-PROD-207). */
-const PASTAS_HOJE = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+const PASTAS_HOJE = ateD223(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 /** D-PROD-208: a CONTRACT do ajuste, de nome posterior (ver o cabeçalho); fica fora do dia desta. */
 const NOME_PARCEIRO = '20261116000000_mao_obra_parceiro';
 /** D-PROD-209: a CONTRACT do tipo Terceirizado, ainda posterior (ver o cabeçalho). */
