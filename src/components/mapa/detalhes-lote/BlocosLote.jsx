@@ -45,6 +45,7 @@ export function PartesDoCartao({ campos }) {
         if (sozinha) {
           return (
             <Linha
+              textoAutomatico
               key={sozinha.chave ?? `l${i}`}
               rotulo={sozinha.rotulo}
               sub={sozinha.dica}
@@ -60,6 +61,7 @@ export function PartesDoCartao({ campos }) {
           <Grade key={itens[0]?.chave ?? `g${i}`}>
             {itens.map((c) => (
               <Celula
+                textoAutomatico
                 key={c.chave ?? c.rotulo}
                 rotulo={c.rotulo}
                 valor={c.texto}
@@ -85,14 +87,14 @@ export function PartesDoCartao({ campos }) {
  * @param {{ lote: LoteVm, mostrarNome?: boolean, categoriaNoCabecalho?: boolean }} props
  */
 export function BlocosLote({ lote, mostrarNome = true, categoriaNoCabecalho = false }) {
-  const sub = [categoriaNoCabecalho ? null : lote.categoria, lote.sexo].filter((t) => t && t !== VAZIO).join(" · ");
+  const sub = [categoriaNoCabecalho || (mostrarNome && lote.categoria === lote.nome) ? null : lote.categoria, lote.sexo].filter((t) => t && t !== VAZIO).join(" · ");
   // Só reorganiza a apresentação: o catálogo da Lista e suas preferências
   // continuam completos. Categoria e sexo já estão na identidade/cabeçalho.
   const lotacao = camposDoLote(lote, "Lotação").map((c) => c.chave === "ua" ? { ...c, dica: undefined } : c);
   const pesagem = camposDoLote(lote, "Pesagem").map((c) => ["projetado", "projArroba"].includes(c.chave || "") ? { ...c, dica: undefined } : c);
   const chavesProjecao = new Set(["projetado", "projArroba", "gmdMes", "baseProj", "objetivo", "atinge", "pesPrev", "projMeses"]);
   const secoes = [
-    { titulo: "Lotação", campos: lotacao.filter((c) => c.chave !== "peso").map((c) => ({ ...c, rotulo: c.chave === "partCab" ? "% das cabeças do pasto" : c.chave === "partUA" ? "% da UA do pasto" : c.rotulo })) },
+    { titulo: "Lotação", campos: lotacao.filter((c) => c.chave !== "peso" && c.chave !== "ocupacao").map((c) => ({ ...c, rotulo: c.chave === "partCab" ? "% das cabeças do pasto" : c.chave === "partUA" ? "% da UA do pasto" : c.rotulo })) },
     { titulo: "Pesagem", campos: [...lotacao.filter((c) => c.chave === "peso"), ...pesagem.filter((c) => !chavesProjecao.has(c.chave || ""))] },
     { titulo: "Projeção de peso", campos: pesagem.filter((c) => chavesProjecao.has(c.chave || "") && c.chave !== "projMeses") },
     { titulo: "Identificação", campos: camposDoLote(lote, "Identificação").filter((c) => (c.chave !== "categoria" || lote.categoria === VAZIO) && (c.chave !== "sexo" || lote.sexo === VAZIO)) },
@@ -120,7 +122,7 @@ export function BlocosLote({ lote, mostrarNome = true, categoriaNoCabecalho = fa
                 {lote.projecao?.projecao_mensal?.length ? (
                   <Grade>
                     {lote.projecao.projecao_mensal.slice(0, 3).map((mes) => (
-                      <Celula key={mes.dia} rotulo={fmtDataCurta(mes.dia)} valor={`${fmtNum(mes.peso_kg, 0)} kg`} />
+                      <Celula textoAutomatico key={mes.dia} rotulo={fmtDataCurta(mes.dia)} valor={`${fmtNum(mes.peso_kg, 0)} kg`} />
                     ))}
                   </Grade>
                 ) : <Linha rotulo="Peso projetado (kg)" valor={VAZIO} />}

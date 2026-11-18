@@ -149,7 +149,7 @@ const DIA_MS = 86400000;
 /**
  * @typedef {{
  *   area: AreaVm, lotes: LoteVm[],
- *   resumo: { pesoMedio: string, cab: string, uaHa: string, kgPvHa: string },
+ *   resumo: { pesoMedio: string, pesoMedioProjetado: string, cab: string, uaHa: string, kgPvHa: string },
  *   totais: Record<string, string>,
  *   ctx: { ha: number|null, totalCab: number, uaTotal: number, pesoVivoTotal: number, hoje: Date }
  * }} ModeloDetalhes
@@ -915,6 +915,7 @@ export function montarModeloDetalhes({ area, lotes = [], lotesDaArea = [], movim
     lotes: lotesVm,
     resumo: {
       pesoMedio: fmtNum(ag.pesoMedio, 1),
+      pesoMedioProjetado: fmtNum(mediaPorCab(lotesVm, (l) => num(l.projecao?.peso_kg)), 1),
       cab: fmtInt(ag.cab),
       uaHa: fmtNum(uaHa),
       kgPvHa: ag.temPeso && ha !== null ? fmtInt(ag.pesoVivo / ha) : VAZIO,

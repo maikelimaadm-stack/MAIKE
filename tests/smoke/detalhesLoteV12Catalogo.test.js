@@ -59,7 +59,7 @@ describe("números do exemplo do v12 (Pasto 07, 6 lotes, 314 cab)", () => {
   const modelo = modeloV12();
 
   it("resumo e totais da área", () => {
-    expect(modelo.resumo).toEqual({ pesoMedio: "329,7", cab: "314", uaHa: "2,24", kgPvHa: "1.008" });
+    expect(modelo.resumo).toEqual({ pesoMedio: "329,7", pesoMedioProjetado: "342,6", cab: "314", uaHa: "2,24", kgPvHa: "1.008" });
     expect(modelo.totais).toMatchObject({ cab: "314", peso: "329,7", partCab: "100%", ua: "230,09", partUA: "100%", uaha: "2,24", kgpvha: "1.008", dias: "26", pesoTotal: "103.540", ocupacao: "6.457", projetado: "342,6" });
   });
 
@@ -210,4 +210,17 @@ describe("os mesmos campos do lote e da área (D-PROD-124), no v12", () => {
       expect(f, rel).not.toMatch(/Raça/);
     }
   });
+});
+
+it("peso médio projetado pondera cabeças e usa somente projeções disponíveis, sem substituir por peso atual", () => {
+  const lotes = [
+    { id: 'a', quantidade_cabecas: 80, peso_medio_kg: 300, projecao_peso: { disponivel: true, peso_kg: 400 } },
+    { id: 'b', quantidade_cabecas: 20, peso_medio_kg: 500, projecao_peso: { disponivel: true, peso_kg: 600 } },
+  ];
+  const modelo = montarModeloDetalhes({ area: AREA_V12, lotes, hoje: HOJE_V12 });
+  expect(modelo.resumo.pesoMedioProjetado).toBe('440,0');
+  expect(modelo.resumo.pesoMedio).toBe('340,0');
+  expect(modelo.resumo.pesoMedioProjetado).toBe(modelo.totais.projetado);
+  const sem = lotes.map(l => ({ ...l, projecao_peso: { disponivel: false, peso_kg: 999 } }));
+  expect(montarModeloDetalhes({ area: AREA_V12, lotes: sem }).resumo.pesoMedioProjetado).toBe('—');
 });

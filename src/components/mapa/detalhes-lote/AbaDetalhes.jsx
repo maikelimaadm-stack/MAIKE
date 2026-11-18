@@ -29,14 +29,14 @@ export function AbaDetalhes() {
     <div className="mk-dp-area-organizada">
       <Cartao icone={Sprout} titulo={area.nome || dados.areaNome} sub={area.sub || undefined} className="mk-dp-area-resumo">
         <Grade className="mk-dp-area-superficies">
-          <Celula rotulo="Área (ha)" valor={area.campos.hectares.texto} />
-          <Celula rotulo="Área pastejada (ha)" valor={area.campos.haPastejada.texto} />
+          <Celula textoAutomatico rotulo="Área (ha)" valor={area.campos.hectares.texto} />
+          <Celula textoAutomatico rotulo="Área pastejada (ha)" valor={area.campos.haPastejada.texto} />
         </Grade>
         <PartesDoCartao campos={campos} />
       </Cartao>
       <SecaoDetalhe titulo="Lotação" className="mk-dp-area-organizada__lotacao">
         <Cartao className="mk-dp-area-lotacao">
-          <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && campo.dica === "Superlotação (> 2,4 UA/ha)")) ? { ...campo, dica: undefined } : campo)} />
+          <PartesDoCartao campos={area.lotacao.map((campo) => (["uaTotal", "capacidade"].includes(campo.chave || "") || (campo.chave === "uaHa" && (campo.dica === "Superlotação (> 2,4 UA/ha)" || campo.dica?.startsWith("Ideal (")))) ? { ...campo, dica: undefined } : campo)} />
         </Cartao>
       </SecaoDetalhe>
       {area.alertas.map((a) => (
@@ -49,6 +49,7 @@ export function AbaDetalhes() {
           <Cartao>
             {area.categorias.map((c) => (
               <Linha
+                textoAutomatico
                 key={c.nome}
                 imagem={<IconeCategoria figura={c.subicone} tamanho={26} />}
                 rotulo={c.nome}

@@ -8297,6 +8297,86 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 
 **Relatório:** [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md).
 
+### D-PROD-238 — Campos distribuídos e popup estável (2026-11-18)
+
+- Pedido do dono: campos lado a lado em desktop/tablet e popup dimensionado pela tela, sem variar conforme a quantidade de campos.
+- Popup dos detalhes com até 1440 px e margens de 24 px; altura da viewport menos 48 px. Cabeçalho, abas e rodapé ficam no mesmo lugar entre as vistas; rolagem apenas no corpo.
+- Detalhes da área e do lote: blocos em pares a partir de 768 px; campos em duas colunas no tablet e três no desktop amplo. Celular mantém o visual em linhas. Áreas total/pastejada e projeções mensais preservam os pares/trios.
+- Sem mudança de dados, cálculos, permissões, tabelas ou formulários de lançamento.
+
+### D-PROD-239 — Cartões largos e campos em colunas (2026-11-18)
+
+- Esclarecimento explícito do dono: desktop e tablet devem ter cartões empilhados na largura do popup; somente os campos internos ficam lado a lado.
+- Área e lote deixam de dividir os cartões em pares. Mantidas duas colunas de campos no tablet e três no desktop amplo; área total/pastejada juntas e projeções mensais em trio.
+- Preservados o popup dimensionado pela viewport (D-PROD-238), as linhas do celular, dados, cálculos e permissões.
+
+### D-PROD-240 — Prévia dos detalhes sem merge (2026-11-18)
+
+- Autorização do dono: visualizar as alterações dos detalhes sem fazer merge.
+- A regra `ignoreCommand` também permite a branch exata `codex/previa-detalhes-mapa`; demais branches continuam ignoradas e main segue publicando como antes.
+- Alteração restrita à branch da prévia, sem promover deployment, alterar produção ou mesclar código. Inclui os cartões largos empilhados com campos internos em colunas (D-PROD-239).
+
+### D-PROD-241 — Quatro campos por linha e controles compactos (2026-11-18)
+
+- Pedido: quatro informações por linha em desktop/tablet, texto sem quebra com leitura horizontal, alturas menores em todas as telas e abas/segmentos compactos como a referência.
+- Grades dos detalhes da área e do lote com quatro colunas a partir de 768 px; resumo da área une suas duas grades visualmente. Projeção mensal continua com até três datas existentes.
+- Textos de campos não quebram: rolagem horizontal individual e rótulo/valor completos no título nativo da célula. Dados preservados.
+- Cartões/linhas com espaçamento menor em todas as telas; abas e Resumo/Lote/Lista ocupam a largura de seus rótulos. Popup continua estável. Apenas prévia, sem merge.
+
+### D-PROD-242 — Detalhes suaves e resumo sem seleção (2026-11-18)
+
+- Pedido: fontes menores e leves, valores à frente dos rótulos, menos altura e retirada das caixas de seleção no Resumo dos lotes.
+- Resumo sem caixas; meta e peso juntos, sem repetir a categoria quando já é o nome. Clique continua abrindo o lote, com manejos para o lote/área preservados.
+- Vista Lote com apenas um lote não mostra navegação “1 de 1”; identidade com nome, subícone e situação preservada. Com vários lotes a navegação permanece compacta.
+- Quatro campos por linha em desktop/tablet com rótulo e valor alinhados na horizontal. Celular também usa texto menor e menos espaçamento. Textos completos com rolagem horizontal individual.
+- Apenas branch de prévia; sem merge ou publicação em produção.
+
+### D-PROD-243 — Valores abaixo dos rótulos e passagem automática (2026-11-18)
+
+- Pedido: retornar os valores para baixo das labels, texto longo passando automaticamente, retirar divisórias vazias e compactar histórico/configuração.
+- Quatro campos por linha em desktop/tablet preservados; cada campo mostra rótulo acima do valor. Retiradas as bordas superiores individuais dos campos.
+- Passagem automática somente no texto que excede a largura; mede novamente ao redimensionar, pausa ao passar o mouse, permite leitura manual ao focar e respeita movimento reduzido. Texto original e título nativo preservados, sem cópias para leitores de tela.
+- Controles de histórico e configurar tabela menores; preferências e regras de seleção de colunas permanecem iguais. Apenas branch de prévia, sem merge.
+
+### D-PROD-244 — Leitura no celular, abas sem rolagem e divisórias (2026-11-18)
+
+- Correção pedida pelo dono: no celular o valor fica à frente do rótulo; desktop/tablet continuam com o valor abaixo e quatro informações por linha.
+- Abas no celular dividem a largura disponível, sem rolagem horizontal ou vertical. Mantida a indicação da aba ativa e a navegação por teclado.
+- Divisórias restauradas entre fileiras de dados; primeira fileira sem borda superior sobrando no cartão. Respeitados os pares de áreas e trio de projeções mensais.
+- Mantidos texto automático, popup estável e alterações somente na prévia.
+
+### D-PROD-245 — Histórico dos detalhes no padrão compacto (2026-11-18)
+
+- Pedido: ajustar o histórico, seguindo os detalhes aprovados nas iterações anteriores.
+- Linha do tempo com datas discretas, cabeçalhos e ícones menores. Quatro campos por linha em desktop/tablet, rótulo acima do valor; no celular uma linha por informação, rótulo à esquerda e valor à direita.
+- Textos longos do histórico usam a mesma passagem automática dos detalhes. Preservados os registros completos, agrupamento por dia, cancelamentos, filtros, paginação e estados offline/erro.
+- Contagem e carregar mais compactos e alinhados; estilos limitados à aba de histórico. Apenas prévia, sem merge.
+
+### D-PROD-246 — Leitura mobile e peso médio projetado no resumo (2026-11-18)
+
+- Pedido: letras e espaçamentos um pouco maiores no celular, divisórias ausentes, títulos do histórico sem borda em desktop/tablet, melhorar lotes e acrescentar peso médio projetado após Cabeças e Peso médio. Retirar a dica Ideal da lotação.
+- Resumo com Cabeças, Peso médio, Peso médio projetado e UA/ha. A projeção média usa a média ponderada pelas cabeças com projeção disponível, idêntica ao total projetado da tabela; sem projeções mostra “—”, sem substituir pelo peso atual. kg PV/ha continua em Lotação.
+- Mobile: fontes e espaços maiores; divisória Status/Dias e datas da projeção restauradas. Textos da lista e das categorias passam automaticamente quando longos, e a quantidade da categoria deixa de ser cortada na borda.
+- Desktop/tablet: cabeçalhos dos eventos do histórico sem borda inferior; bordas entre dados preservadas. A dica “Ideal (...)” da UA/ha sai somente da apresentação dos detalhes, mantendo número, cor e regras.
+- Apenas prévia, sem merge nem alteração da produção.
+
+### D-PROD-247 — Resumo completo e projeções lado a lado (2026-11-18)
+
+- Pedido: restaurar kg PV/ha no resumo em todas as telas, retirar Ocupação dos detalhes e manter três projeções por linha, usando duas em celular estreito.
+- Cinco indicadores no resumo: Cabeças, Peso médio, Peso médio projetado, UA/ha e kg PV/ha. Larguras proporcionais, com menos espaço em Cabeças e UA/ha; nenhum indicador oculto no celular.
+- Ocupação (UA × dias) sai dos cartões de detalhes; cálculo e catálogo da tabela preservados.
+- Projeções mensais: três colunas; duas abaixo de 420 px. No celular a data fica acima do peso para legibilidade, sem omitir o terceiro mês.
+- Apenas prévia, sem merge nem alteração da produção.
+
+### D-PROD-248 — Integração dos detalhes aprovados na prévia (2026-11-18)
+
+- O dono aprovou os ajustes e autorizou criar a PR e fazer o merge em 18/11.
+- Integração com a main atual preservando as entregas de atividades e assistente. As decisões desta branch que nasceram D-PROD-237 a 246 foram renumeradas para D-PROD-238 a 247, pois a main já usava D-PROD-237.
+- Resultado: popup estável; detalhes compactos, valores abaixo dos rótulos em desktop/tablet e à frente no celular; cinco indicadores no resumo, incluindo peso médio projetado e kg PV/ha; projeções mensais lado a lado; textos longos automáticos e histórico consistente.
+- Sem mudanças em banco, permissões, transporte ou cálculos já usados na tabela. A média projetada do resumo usa o mesmo total ponderado da tabela. A exceção de preview continua restrita à branch codex/previa-detalhes-mapa.
+- A validação completa identificou dependências de outros detalhes nos componentes compartilhados. A passagem automática foi tornada explícita nos lotes e em seu histórico, mantendo a estrutura original de campos de cochos, depósitos e bebedouros; o piso de leitura de 11 px foi preservado.
+- Merge condicionado à validação da PR; nenhuma regra de proteção ou baseline é afrouxada.
+
 ## D-PROD-249 — Várias áreas por atividade: uma atividade, várias áreas, cada lançamento datado de uma área
 
 > **Numeração:** nasceu D-PROD-238 nesta branch (a `main` `e260a305` indicava `Próxima decisão: D-PROD-238`). Antes do commit dos documentos, a `main` (`d311089a`, PR #326, detalhes do mapa) deu da D-PROD-238 à D-PROD-248 e chegou a `Próxima decisão: D-PROD-249`; esta decisão é a **D-PROD-249**. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então o checksum não muda.

@@ -100,6 +100,37 @@ const classesCaixa = (estado, extra) =>
  */
 const textoDe = (no) => (typeof no === "string" || typeof no === "number" ? String(no) : "");
 
+/** Texto completo em uma linha; passa automaticamente somente quando não cabe.
+ * @param {{ children: React.ReactNode, permitirFoco?: boolean }} props
+ */
+export function TextoDeslizante({ children, permitirFoco = true }) {
+  const caixa = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
+  const texto = React.useRef(/** @type {HTMLSpanElement | null} */ (null));
+  const [excede, setExcede] = React.useState(false);
+  React.useLayoutEffect(() => {
+    const medir = () => {
+      const fora = caixa.current;
+      const dentro = texto.current;
+      if (!fora || !dentro) return;
+      const distancia = Math.max(0, dentro.scrollWidth - fora.clientWidth);
+      dentro.style.setProperty("--mk-dp-deslocamento", `${-distancia}px`);
+      dentro.style.animationDuration = `${Math.max(6, distancia / 30 + 3)}s`;
+      setExcede(distancia > 1);
+    };
+    medir();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(medir);
+    if (caixa.current) observer?.observe(caixa.current);
+    if (texto.current) observer?.observe(texto.current);
+    window.addEventListener("resize", medir);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", medir); };
+  }, [children]);
+  return (
+    <span ref={caixa} className={cls("mk-dp-texto-auto", excede && "is-longo")} title={textoDe(children) || undefined} tabIndex={excede && permitirFoco ? 0 : undefined}>
+      <span ref={texto} className="mk-dp-texto-auto__conteudo">{children}</span>
+    </span>
+  );
+}
+
 /**
  * Imagem de subícone: URL (fundo `contain`, como o v12) ou um nó pronto
  * (ex.: `<IconeCategoria figura tamanho />` de pecas.jsx).
@@ -311,16 +342,16 @@ export function Grade({ children, className, ...resto }) {
 
 /**
  * Célula da grade: rótulo, valor (cor e bolinha opcionais), sub e barra 0–100.
- * @param {{ rotulo: React.ReactNode, valor: React.ReactNode, cor?: string | null, bolinha?: string | null, sub?: React.ReactNode, barra?: number | null, corBarra?: string | null, title?: string, className?: string } & Record<string, any>} props
+ * @param {{ rotulo: React.ReactNode, valor: React.ReactNode, cor?: string | null, bolinha?: string | null, sub?: React.ReactNode, barra?: number | null, corBarra?: string | null, title?: string, className?: string, textoAutomatico?: boolean } & Record<string, any>} props
  */
-export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, title, className, ...resto }) {
+export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, title, className, textoAutomatico = false, ...resto }) {
   const pct = barra == null || !Number.isFinite(Number(barra)) ? null : Math.max(0, Math.min(100, Number(barra)));
   return (
     <div className={cls("mk-dp-cel", className)} title={title} {...resto}>
-      <dt className="mk-dp-cel__rot">{rotulo}</dt>
-      <dd className="mk-dp-cel__val" style={cor ? { color: cor } : undefined}>
+      <dt className="mk-dp-cel__rot" title={textoDe(rotulo) || undefined}>{textoAutomatico ? <TextoDeslizante>{rotulo}</TextoDeslizante> : rotulo}</dt>
+      <dd className="mk-dp-cel__val" title={textoDe(valor) || undefined} style={cor ? { color: cor } : undefined}>
         {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
-        {valor}
+        {textoAutomatico ? <TextoDeslizante>{valor}</TextoDeslizante> : valor}
       </dd>
       {sub ? <dd className="mk-dp-cel__sub">{sub}</dd> : null}
       {pct != null ? (
@@ -336,9 +367,9 @@ export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, titl
  * Linha (dentro de um `Cartao`): ícone 20 px teal ou imagem 26 px (D-PROD-224), rótulo e
  * sub; no fim bolinha, valor à direita e chevron. `quebra`: o valor ocupa o
  * espaço que sobra e quebra em mais linhas. Com `onClick` vira botão.
- * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, rotulo: React.ReactNode, sub?: React.ReactNode, bolinha?: string | null, valor?: React.ReactNode, cor?: string | null, chevron?: boolean, quebra?: boolean, onClick?: () => void, title?: string, className?: string } & Record<string, any>} props
+ * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, rotulo: React.ReactNode, sub?: React.ReactNode, bolinha?: string | null, valor?: React.ReactNode, cor?: string | null, chevron?: boolean, quebra?: boolean, onClick?: () => void, title?: string, className?: string, textoAutomatico?: boolean } & Record<string, any>} props
  */
-export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, chevron = false, quebra = false, onClick, title, className, ...resto }) {
+export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, chevron = false, quebra = false, onClick, title, className, textoAutomatico = false, ...resto }) {
   const temValor = valor != null && valor !== "" && valor !== false;
   const conteudo = (
     <>
@@ -348,8 +379,8 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
         <Icone className="mk-dp-linha__ic" size={22} aria-hidden="true" />
       ) : null}
       <span className="mk-dp-linha__txt">
-        <span className="mk-dp-linha__rot">{rotulo}</span>
-        {sub ? <span className="mk-dp-linha__sub">{sub}</span> : null}
+        <span className="mk-dp-linha__rot">{textoAutomatico ? <TextoDeslizante permitirFoco={!onClick}>{rotulo}</TextoDeslizante> : rotulo}</span>
+        {sub ? <span className="mk-dp-linha__sub">{textoAutomatico ? <TextoDeslizante permitirFoco={!onClick}>{sub}</TextoDeslizante> : sub}</span> : null}
       </span>
       <span className="mk-dp-linha__fim">
         {bolinha ? <span className="mk-dp-bolinha" style={{ background: bolinha }} aria-hidden="true" /> : null}
@@ -540,18 +571,18 @@ export function Segmentado({ opcoes, valor, onMudar, rotulo, className }) {
 
 /**
  * Números em N colunas (padrão: um por coluna) com divisórias verticais.
- * @param {{ itens: Kpi[], colunas?: number, className?: string }} props
+ * @param {{ itens: Kpi[], colunas?: number, distribuicao?: string, textoAutomatico?: boolean, className?: string }} props
  */
-export function Kpis({ itens, colunas, className }) {
+export function Kpis({ itens, colunas, distribuicao, textoAutomatico = false, className }) {
   const lista = Array.isArray(itens) ? itens : [];
   const n = Math.max(1, Number(colunas) || lista.length || 1);
   return (
-    <dl className={cls("mk-dp-kpis", className)} style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+    <dl className={cls("mk-dp-kpis", className)} style={{ gridTemplateColumns: distribuicao || `repeat(${n}, minmax(0, 1fr))` }}>
       {lista.map((k, i) => (
         <div key={k.chave ?? i} className="mk-dp-kpi">
-          <dt className="mk-dp-kpi__rot">{k.rotulo}</dt>
+          <dt className="mk-dp-kpi__rot">{textoAutomatico ? <TextoDeslizante>{k.rotulo}</TextoDeslizante> : k.rotulo}</dt>
           <dd className="mk-dp-kpi__val" style={k.cor ? { color: k.cor } : undefined}>
-            {k.valor}
+            {textoAutomatico ? <TextoDeslizante>{k.valor}</TextoDeslizante> : k.valor}
           </dd>
           {k.nota ? (
             <dd className="mk-dp-kpi__nota" style={{ color: k.corNota || "#64748b" }}>
@@ -593,7 +624,7 @@ export function ListaItens({ titulo, marcacao, onMarcarTodos, rotuloTodos = "Sel
  * Item da `ListaItens`: caixa, imagem 30 px ou ícone 24 px (D-PROD-224), quadradinho de cor,
  * título (até 2 linhas), meta, sub, chip, bolinha e chevron. Com `onClick` o
  * item inteiro abre (o corpo vira botão para o teclado); a caixa não abre.
- * @param {{ titulo: React.ReactNode, meta?: React.ReactNode, sub?: React.ReactNode, imagem?: React.ReactNode, icone?: IconeLucide, cor?: string | null, chip?: React.ReactNode, bolinha?: string | null, chevron?: boolean, marcado?: boolean | EstadoCaixa | null, onMarcar?: () => void, rotuloMarcar?: string, onClick?: () => void, title?: string, className?: string }} props
+ * @param {{ titulo: React.ReactNode, meta?: React.ReactNode, sub?: React.ReactNode, imagem?: React.ReactNode, icone?: IconeLucide, cor?: string | null, chip?: React.ReactNode, bolinha?: string | null, chevron?: boolean, marcado?: boolean | EstadoCaixa | null, onMarcar?: () => void, rotuloMarcar?: string, onClick?: () => void, title?: string, className?: string, textoAutomatico?: boolean }} props
  */
 export function Item({
   titulo,
@@ -608,6 +639,7 @@ export function Item({
   marcado,
   onMarcar,
   rotuloMarcar,
+  textoAutomatico = false,
   onClick,
   title,
   className,
@@ -623,9 +655,9 @@ export function Item({
       <span className="mk-dp-item__txt">
         <span className="mk-dp-item__tit">
           {cor ? <span className="mk-dp-quad" style={{ background: cor }} aria-hidden="true" /> : null}
-          <span className="mk-dp-item__nome">{titulo}</span>
+          <span className="mk-dp-item__nome">{textoAutomatico ? <TextoDeslizante permitirFoco={!toque}>{titulo}</TextoDeslizante> : titulo}</span>
         </span>
-        {meta ? <span className="mk-dp-item__meta">{meta}</span> : null}
+        {meta ? <span className="mk-dp-item__meta">{textoAutomatico ? <TextoDeslizante permitirFoco={!toque}>{meta}</TextoDeslizante> : meta}</span> : null}
         {sub ? <span className="mk-dp-item__sub">{sub}</span> : null}
       </span>
       {chip || null}
@@ -762,7 +794,7 @@ export function GrupoMarcar({ titulo, itens, onAlternar, onAlternarTodos, classN
           onClick={() => onAlternar(it.chave)}
         >
           <CaixaDesenho estado={it.marcado ? "marcada" : "vazia"} />
-          <span>{it.rotulo}</span>
+          <span className="mk-dp-grupo__texto"><TextoDeslizante permitirFoco={false}>{it.rotulo}</TextoDeslizante></span>
         </button>
       ))}
     </div>
@@ -774,7 +806,7 @@ export function GrupoMarcar({ titulo, itens, onAlternar, onAlternarTodos, classN
 /** @type {React.ForwardRefRenderFunction<HTMLButtonElement, BotaoFiltroProps>} */
 const BotaoFiltroRender = ({ children, className, type = "button", ...props }, ref) => (
   <button ref={ref} type={type} className={cls("mk-dp-filtro", className)} {...props}>
-    <span>{children}</span>
+    <span><TextoDeslizante permitirFoco={false}>{children}</TextoDeslizante></span>
     <ChevronDown size={16} aria-hidden="true" />
   </button>
 );

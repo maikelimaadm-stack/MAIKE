@@ -39,6 +39,15 @@ afterEach(() => cleanup());
 // ── Aba Detalhes ────────────────────────────────────────────────────────────
 
 describe("aba Detalhes", () => {
+  it("remove a dica Ideal da lotação mantendo o valor e a bolinha", () => {
+    const modelo = modeloV12({ area: { ...AREA_V12, tamanho_hectares: 180, area_pastejada: 180 } });
+    render(<CascaDeTeste modelo={modelo} abaInicial="detalhes" />);
+    expect(screen.queryByText("Ideal (1,2 - 1,8 UA/ha)")).toBeNull();
+    const ua = [...document.querySelectorAll('.mk-dp-area-lotacao .mk-dp-cel')].find(c => c.querySelector('dt').textContent === 'UA/ha');
+    expect(ua.querySelector('dd').textContent).toBe('1,28');
+    expect(ua.querySelector('.mk-dp-bolinha')).toBeTruthy();
+  });
+
   it("cartão da área, aviso de capacidade, Lotação e Categorias com os números do v12", () => {
     render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
     const painel = screen.getByRole("tabpanel");
@@ -140,17 +149,17 @@ describe("aba Lotes: vistas", () => {
 });
 
 describe("aba Lotes › Resumo", () => {
-  it("4 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
+  it("5 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
     render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     const kpis = [...document.querySelectorAll(".mk-dp-kpi")].map((k) => [k.querySelector("dt").textContent, k.querySelector(".mk-dp-kpi__val").textContent]);
-    expect(kpis).toEqual([["Peso médio (kg)", "329,7"], ["Cabeças", "314"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
+    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Peso médio projetado (kg)", "342,6"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
     expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314)");
 
     const itens = [...document.querySelectorAll(".mk-dp-item")];
     expect(itens.map((i) => i.querySelector(".mk-dp-item__nome").textContent)).toEqual(["L-2026-008", "L-2026-014", "L-2026-019", "L-2026-022", "L-2026-025", "L-2026-027"]);
     const primeiro = itens[0];
-    expect(primeiro.querySelector(".mk-dp-item__meta").textContent).toBe("38 cb · 38,0 UA · VACA");
-    expect(primeiro.querySelector(".mk-dp-item__sub").textContent).toBe("449,5 kg");
+    expect(primeiro.querySelector(".mk-dp-item__meta").textContent).toBe("38 cab · 38,0 UA · VACA · 449,5 kg");
+    expect(primeiro.querySelector(".mk-dp-item__sub")).toBeNull();
     expect(primeiro.querySelector(".mk-dp-quad").style.background).toBe("rgb(239, 68, 68)");
     expect(primeiro.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");
     expect(itens[1].querySelector(".mk-dp-chip--ok").textContent).toBe("Em dia");
@@ -158,34 +167,17 @@ describe("aba Lotes › Resumo", () => {
     expect(primeiro.querySelector(".mk-dp-chev")).toBeTruthy();
   });
 
-  it("caixas: marcar um mostra '· 1 selecionado' e o cabeçalho em meio; o cabeçalho marca todos e desmarca todos", async () => {
-    const aoSelecionar = vi.fn();
-    render(<CascaDeTeste modelo={modeloV12()} modo="celular" aoSelecionar={aoSelecionar} />);
-    const todos = () => screen.getByRole("checkbox", { name: /todos os lotes/ });
-    expect(todos().getAttribute("aria-checked")).toBe("false");
-
-    await clicar(screen.getByRole("checkbox", { name: "Selecionar L-2026-008" }));
-    expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314) · 1 selecionado");
-    expect(todos().getAttribute("aria-checked")).toBe("mixed");
-    expect(aoSelecionar).toHaveBeenLastCalledWith(["p-d"]);
-
-    await clicar(screen.getByRole("checkbox", { name: "Selecionar L-2026-014" }));
-    expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314) · 2 selecionados");
-
-    // A faixa do cabeçalho com alguns marcados → marca todos.
-    await clicar(document.querySelector(".mk-dp-itens__cab"));
-    expect(todos().getAttribute("aria-checked")).toBe("true");
-    expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314) · 6 selecionados");
-    // De novo → desmarca todos.
-    await clicar(todos());
-    expect(todos().getAttribute("aria-checked")).toBe("false");
-    expect(aoSelecionar).toHaveBeenLastCalledWith([]);
+  it("Resumo sem caixas de seleção, mantendo o acesso aos manejos", () => {
+    render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.getByRole("button", { name: "Mover lotes" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pesar" })).toBeTruthy();
   });
 
   it("tocar no lote abre a tela do lote (empilha), e a caixa não abre", async () => {
     const aoEmpurrar = vi.fn();
     render(<CascaDeTeste modelo={modeloV12()} modo="celular" aoEmpurrar={aoEmpurrar} />);
-    await clicar(screen.getByRole("checkbox", { name: "Selecionar L-2026-019" }));
+    expect(screen.queryByRole("checkbox")).toBeNull();
     expect(aoEmpurrar).not.toHaveBeenCalled();
     await clicar(screen.getByText("L-2026-019"));
     expect(aoEmpurrar).toHaveBeenCalledWith({ tipo: "lote", loteId: "p-b" });
@@ -195,6 +187,15 @@ describe("aba Lotes › Resumo", () => {
 });
 
 describe("aba Lotes › Lote", () => {
+  it("um único lote usa só o cabeçalho de identidade, sem faixa 1 de 1 ou setas desativadas", async () => {
+    const modelo = modeloV12({ qtd: 1 });
+    render(<CascaDeTeste modelo={modelo} />);
+    await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
+    expect(document.querySelector(".mk-dp-nav")).toBeNull();
+    expect(document.querySelector(".mk-dp-lote-organizado .mk-dp-cartao__titulo").textContent).toBe(modelo.lotes[0].nome);
+    expect(screen.getByRole("heading", { name: "Lotação" })).toBeTruthy();
+  });
+
   it("navega pelos lotes por nome: ‹ desligado no primeiro, › no último", async () => {
     render(<CascaDeTeste modelo={modeloV12()} />);
     await clicar(screen.getByRole("button", { name: "Lote", exact: true }));
@@ -224,9 +225,10 @@ describe("aba Lotes › Lote", () => {
     const [, lotacao, pesagem, projecao, ident] = painel.querySelectorAll(".mk-dp-cartao");
     expect(grade(lotacao)).toEqual({
       "Cab.": "38", "% das cabeças do pasto": "12%", UA: "37,96", "% da UA do pasto": "16%",
-      "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081", "Ocupação (UA × dias)": "2.126",
+      "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081",
     });
     expect(lotacao.querySelectorAll(".mk-dp-cel__barra")).toHaveLength(2);
+    expect(within(lotacao).queryByText("Ocupação (UA × dias)")).toBeNull();
     expect(lotacao.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
 
     expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026", Origem: "MEDIDO" });
