@@ -1969,8 +1969,8 @@
 .mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__img img { width: 100%; height: 100%; }
 .mk-dp .mk-dp-titulo__h { font-size: 12.5px; font-weight: 500; }
 .mk-dp .mk-dp-chip { height: 20px; font-size: 10.5px; padding: 0 7px; }
-.mk-dp .mk-dp-kpi { padding-top: 8px; padding-bottom: 8px; }
-.mk-dp .mk-dp-kpi__val { font-size: 14px; font-weight: 500; }
+.mk-dp .mk-dp-kpi { padding-top: 6px; padding-bottom: 6px; }
+.mk-dp .mk-dp-kpi__val { font-size: 12.5px; font-weight: 400; }
 .mk-dp .mk-dp-kpi__rot { font-size: 11.5px; }
 .mk-dp .mk-dp-nav { padding: 4px 8px; border-radius: 6px; }
 .mk-dp .mk-dp-nav .mk-dp-redondo { width: 28px; height: 28px; }
