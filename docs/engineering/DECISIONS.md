@@ -7843,4 +7843,28 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md`](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-235 -->
+## D-PROD-235 — Lançamento de Atividades, fatia 4 (última) do redesenho pelo protótipo do proprietário: a lista (filtros em pílulas e cards do celular)
+
+**Data:** 2026-11-18 · **Origem:** plano em 4 fatias da **D-PROD-232** (fatia 4) e o pedido do proprietário: "renovar também os filtros lá em cima, aqueles 4 filtros que estão soltos: tipo de atividade, área, início, até"; protótipo HTML (lista no computador e no celular) · **Branch:** `feat/atividades-lista-filtros-celular`.
+
+**O redesenho em 4 fatias, agora completo:** (1) **D-PROD-232** — menu ⚡ por linha e Concluir com resumo; (2) **D-PROD-233** — janelas por tipo de lançamento (máquinas, insumos, mão de obra, custos extras) com a regra do dia; (3) **D-PROD-234** — a atividade aberta (Resumo de custo, tabela dos tipos, Dias lançados, aba Resumo da atividade, coluna Valor total na lista); (4) **esta** — a lista: filtros e cards do celular.
+
+**Decisão.**
+1. **Sai a caixa solta de filtros** que ficava acima da grade (Tipo de atividade, Área, Início de, Início até). Todos os filtros da consulta vivem na **faixa de pílulas do motor Base1**, na ordem do protótipo: **⇅ Ordenar · Status · Tipo de atividade · Área · Início · + Filtro**. Acaba o "Tipo de atividade" duplicado (a caixa e a pílula automática da coluna).
+2. **Os filtros continuam no SERVIDOR**, com os mesmos parâmetros de sempre (`status`, `tipo_atividade_id`, `area_id`, `data_de`, `data_ate`) e a lista keyset relida do começo a cada mudança (a chave da consulta leva os filtros). O ✕ de cada pílula tira só aquele; **"Limpar filtros"** volta todos ao padrão numa leitura só. Nenhuma rota, corpo ou regra do servidor mudou.
+3. **Motor (opt-in, as outras telas não mudam):**
+   - `FiltroDaTela` ganha o tipo **`periodo`** (`FiltroDePeriodo`: `de`, `ate`, `onChange({ de, ate })`, `testId`): **uma pílula só** com "De" e "Até" lado a lado; **rascunho até o ✓** (uma leitura só para as duas datas; ✕ descarta); o período aplicado no rótulo ("**Início 03/11 – 17/11**", "desde 03/11", "até 17/11"; o ano aparece fora do ano corrente); **período invertido** mostra o aviso de sempre ("A data final do período é anterior à inicial.") e o ✓ não aplica. No celular, a mesma janela na folha "Filtros" (campos um embaixo do outro, ✓ no topo).
+   - `ocultarPadrao` no filtro de escolha: no padrão a pílula mostra só o rótulo ("Status ⌄"), como no protótipo.
+   - Lista de escolha com **mais de 8 opções** ganha o "Pesquisar…" (áreas de uma fazenda grande); com até 8, igual a antes.
+   - A coluna que um filtro da tela cobre (`coluna`) não ganha pílula própria **nem a salva antes no navegador**, e sai do "+ Filtro" (o motor já dizia "para não haver duas"; agora vale também para a faixa salva).
+   - `Base1Cards` / `CadastroBase1Grade`: `avatar` / `cardsAvatar` (texto e cor do selo) e `subtitle` / `cardsSubtitle` (a linha abaixo do título). Sem eles, o card é o de sempre (iniciais do título e o código).
+4. **Faixa da tela:** começa só com os filtros da consulta (`quickFilterIds` vazio: sem pílulas automáticas das colunas); os demais campos (Nome, Máquina, Conclusão, Valor total…) continuam no **"+ Filtro"**. A ordenação em palavras da tela: **"Nº (mais recentes primeiro)"** (padrão), "Nº (mais antigas primeiro)", e "mais recente / mais antigo", "maior / menor" nos dias e valores.
+5. **Cards do celular** (no componente de card do sistema): **selo com a sigla do tipo** (3 primeiras letras do nome do tipo, maiúsculas: "ADU") na **cor do tipo** — o cadastro de tipos não tem cor, então uma **paleta fixa de 8 tons** (contraste ≥ 4,5:1 com o texto branco) escolhida pelo id do tipo (o mesmo tipo, sempre a mesma cor); título = **nome**; subtítulo **"Nº 7 · Aberta"**; o ⚡ no topo (fatia 1); campos em duas colunas **Nº, Tipo de atividade, Área, Início e Valor total**. É o **padrão**: os campos continuam personalizáveis (Mais opções → campos dos cards; quem já salvou os seus mantém).
+
+**Divergência do protótipo, registrada:** no protótipo o selo do card repete as letras do **nome** da atividade (ex.: "CIG" para "CIGARRINHA PIQUETE 02", do tipo Pulverização). Aqui o selo é a **sigla do tipo**, com cor por tipo, como pedido na missão: o nome já é o título, e a sigla do tipo deixa a lista legível por tipo. Trocar para o nome é uma linha (`seloDoCardAtividade`).
+
+**Fora do escopo:** busca por texto no servidor (a busca continua nas linhas carregadas), filtro por mais de um tipo ou área de uma vez, cor no cadastro de tipos. Sem backend, sem banco, sem migration.
+
+**Relatório:** [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-236 -->

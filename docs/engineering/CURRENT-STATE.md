@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-ABERTA-RESUMO: Lançamento de Atividades, fatia 3 do redesenho — a atividade aberta (D-PROD-234)
+## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-LISTA: Lançamento de Atividades, fatia 4 (última) do redesenho — a lista: filtros em pílulas e cards do celular (D-PROD-235)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-235**, fatia 4 (última) do plano da D-PROD-232: os filtros da lista na faixa de pílulas e os cards do celular no desenho do protótipo |
+| Branch / PR | `feat/atividades-lista-filtros-celular`, a partir da `main` `83d08e5c` (PR #324) · PR a abrir |
+| Escopo | Sai a caixa solta (Tipo, Área, Início de / até); a faixa fica Ordenar · Status · Tipo de atividade · Área · Início (uma pílula com De / Até e o período no rótulo) · + Filtro, todos na query do servidor de sempre. Motor (opt-in): filtro de período da tela, `ocultarPadrao`, pesquisa acima de 8 opções, coluna coberta fora da faixa salva e do "+ Filtro", selo e subtítulo do card. Celular: cards com a sigla do tipo na cor do tipo, "Nº · Status", ⚡ e Nº / Tipo / Área / Início / Valor total |
+| Backend | Nenhuma mudança |
+| Release | Merge e deploy normais (só frontend); nenhuma migration, nenhum dado muda |
+| Relatório | [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-ABERTA-RESUMO: Lançamento de Atividades, fatia 3 do redesenho — a atividade aberta (D-PROD-234)
 
 | Campo | Valor |
 |---|---|
