@@ -74,11 +74,11 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     expect(historico).toHaveBeenCalledTimes(1);
   });
 
-  it("v12: 3 colunas em todos os modos, quadro #65d1ec de 112 px, desabilitado a 45%", () => {
+  it("v12: 3 colunas em todos os modos, quadro no padrão dos cartões (#fff) de 112 px, desabilitado a 45%", () => {
     const css = readFileSync("src/styles/acoes-lote-modulos.css", "utf8");
     expect(css).toMatch(/\.mk-al__quadros:not\(#mk-padrao\) \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[^}]*gap: 10px;/);
     expect(css).not.toMatch(/@media/);
-    expect(css).toMatch(/\.mk-al__quadro:not\(#mk-padrao\) \{[^}]*min-height: 112px;[^}]*border-radius: 12px;[^}]*background: #65d1ec !important;/);
+    expect(css).toMatch(/\.mk-al__quadro:not\(#mk-padrao\) \{[^}]*min-height: 112px;[^}]*border-radius: 6px;[^}]*background: #fff !important;/);
     expect(css).toMatch(/\.mk-al__quadro:not\(#mk-padrao\):disabled \{[^}]*opacity: 0\.45;/);
   });
 

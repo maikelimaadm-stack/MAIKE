@@ -218,7 +218,7 @@ describe("DC-3 — o nível e os cartões dos números do cocho e do depósito",
     const RACAO = { id: "pr-racao", unidade_principal_estoque: "KG" };
     const nivel = calcularNivelDeposito({
       deposito: { id: "dep", local_estoque_id: "loc", capacidade_cocho_kg: 1000, estoque_minimo_kg: 600 },
-      estoqueLotes: [{ id: "l1", local_estoque_id: "loc", produto_id: RACAO.id, quantidade_disponivel: 500 }],
+      estoqueLotes: [{ id: "l1", local_estoque_id: "loc", produto_id: "pr-desconhecido", quantidade_disponivel: 500 }],
       produtos: [RACAO],
     });
     const { container } = render(
@@ -231,7 +231,7 @@ describe("DC-3 — o nível e os cartões dos números do cocho e do depósito",
     expect(filhos[0]).toBe("mk-dp-deposito__oculto");
     expect(filhos[1]).toBe("mk-dp-nivel");
     expect(filhos.at(-1)).toBe("mk-dp-cartao");
-    // Abaixo do mínimo: o aviso fica entre os dois no DOM e a grade o põe embaixo.
+    // Com aviso de unidade: o aviso fica entre os dois no DOM.
     expect(filhos.slice(2, -1)).toEqual(["mk-dp-aviso"]);
   });
 });

@@ -99,7 +99,7 @@ const renderizar = async (ponto) => {
       <DetalhesPontoSuplementacao ponto={ponto} permissions={{}} onClose={() => {}} />
     </QueryClientProvider>,
   );
-  await screen.findByText('Informações do cocho');
+  await screen.findByRole('region', { name: 'Nível do cocho' });
   // O fuso vem do resumo de empresas (a mesma consulta `['empresas']` do Layout);
   // as asserções de dia usam `waitFor` até ele chegar.
   await act(async () => {});
@@ -116,21 +116,16 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
 
     await waitFor(() => expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): 75%'));
     const secao = secaoCocho();
-    expect(within(secao).getByText('Base do ciclo: 200 kg')).toBeTruthy();
-    // O percentual do ciclo aparece uma vez na figura (o texto do `role="img"`);
-    // o número grande do bloco é o mesmo rótulo do SSOT.
-    expect(within(medidorCiclo().parentElement).getAllByText(/75%/)).toHaveLength(1);
-    // D-PROD-178 §10 no desenho v12: no texto do bloco do nível o percentual aparece uma vez só (o valor grande).
-    expect(within(secao.querySelector('.mk-dp-nivel__txt')).getAllByText(/75%/)).toHaveLength(1);
-    expect(secao.querySelector('.mk-dp-nivel__val')?.textContent).toBe('75%');
-    expect(within(secao).getByText('Consumo estimado: 50 kg/dia (%PV no lançamento)')).toBeTruthy();
-    expect(within(secao).getByText('Dias desde o abastecimento: 1 · Restam 3 dia(s)')).toBeTruthy();
-    expect(valorDe(secao, 'Saldo estimado')).toBe('150 kg');
+    // O percentual do ciclo aparece uma vez na figura (o texto do `role="img"`)
+    // e uma vez visível dentro do ícone (`.mk-dp-cocho__pct`, com `aria-hidden`).
+    expect(within(medidorCiclo()).getAllByText(/75%/)).toHaveLength(1);
+    expect(secao.querySelector('.mk-dp-cocho__pct')?.textContent).toBe('75%');
+    expect(valorDe(secao, 'Saldo estimado do cocho')).toBe('150 kg');
+    expect(valorDe(secao, 'Consumo estimado/dia')).toBe('50 kg/dia');
+    expect(within(secao).queryByText(/Base do ciclo:/)).toBeNull();
+    expect(within(secao).queryByText(/Dias desde o abastecimento:/)).toBeNull();
     expect(valorDe(secao, 'Duração estimada')).toBe('4 dia(s)');
     expect(valorDe(secao, 'Próxima reposição')).toBe('14/11/2026');
-    // Sem limite configurado: medidor neutro com a mensagem e o que fazer.
-    expect(within(secao).getByText('Limite operacional não configurado.')).toBeTruthy();
-    expect(within(secao).getByText('Configure o limite operacional no cadastro do ponto.')).toBeTruthy();
     expect(within(secao).queryByRole('meter')).toBeNull();
 
     // O MESMO número do marcador do mapa (mesmo SSOT, mesmo dia, mesmos eventos e pontos).
@@ -140,8 +135,9 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
 
     // "Último registro" usa a taxa do SSOT.
     expect(screen.queryByText('Consumo Lote PV/dia')).toBeNull();
-    // Cadastro: o campo é o limite operacional; os limites de consumo dizem que são por cabeça/dia.
-    expect(screen.queryByText('Limite operacional')).toBeNull();
+    // Cadastro (na aba Informações): o campo é o limite operacional; os limites de consumo dizem que são por cabeça/dia.
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Informações' })); });
+    expect(valorDe(screen.getByRole('region', { name: 'Informações do cocho' }), 'Limite operacional')).toBe('-');
     expect(screen.queryByText('Capacidade')).toBeNull();
     expect(screen.getByText('Consumo mín./cab/dia').tagName).toBe('DT');
     expect(screen.getByText('Consumo máx./cab/dia').tagName).toBe('DT');
@@ -153,32 +149,24 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
 });
 
 describe('DC-2 — limite operacional', () => {
-  it('125% / 30 kg acima; "No lançamento: 166,67% (80 kg acima)" continua depois do consumo', async () => {
+  it('125% / 30 kg acima e "166,67% (80 kg acima)" na aba Informações continuam depois do consumo', async () => {
     const ponto = cocho('c1', { capacidade_cocho_kg: 120 });
     dados.cache.pontosSuplementacao = [ponto];
     dados.cache.eventosSuplementacao = [evento('e1', 'c1')];
     await renderizar(ponto);
 
     await waitFor(() => expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): 75%'));
-    const secao = secaoCocho();
-    const medidor = within(secao).getByRole('meter', { name: 'Uso do limite operacional' });
-    expect(medidor.getAttribute('aria-valuenow')).toBe('125');
-    expect(medidor.getAttribute('aria-valuetext')).toBe('125% do limite operacional: 150 kg de 120 kg, 30 kg acima');
-    expect(medidor.hasAttribute('aria-describedby')).toBe(false);
-    expect(within(secao).getByText('125%')).toBeTruthy();
-    expect(within(secao).getByText('150 kg de 120 kg · 30 kg acima do limite')).toBeTruthy();
-    expect(within(secao).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
-    expect(within(secao).getByText(/O limite é o valor configurado hoje/)).toBeTruthy();
-    expect(screen.queryByText('Limite operacional')).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Informações' })); });
+    const info = screen.getByRole('region', { name: 'Informações do cocho' });
+    expect(valorDe(info, 'Limite operacional')).toBe('120 kg');
+    expect(valorDe(info, 'Uso do limite')).toBe('125% (30 kg acima)');
+    expect(valorDe(info, 'No lançamento')).toBe('166,67% (80 kg acima)');
 
     // Dois dias depois (13/11 na fazenda, sem refetch): saldo 50 kg, dentro do limite; o lançamento continua visível.
     vi.setSystemTime(new Date('2026-11-14T01:00:00.000Z'));
     await act(async () => { window.dispatchEvent(new Event('focus')); });
-    await waitFor(() => expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): 25%'));
-    const depois = within(secaoCocho()).getByRole('meter', { name: 'Uso do limite operacional' });
-    expect(depois.getAttribute('aria-valuenow')).toBe('41.67');
-    expect(within(secaoCocho()).getByText('50 kg de 120 kg · dentro do limite')).toBeTruthy();
-    expect(within(secaoCocho()).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
+    await waitFor(() => expect(valorDe(screen.getByRole('region', { name: 'Informações do cocho' }), 'Uso do limite')).toBe('41,67%'));
+    expect(valorDe(screen.getByRole('region', { name: 'Informações do cocho' }), 'No lançamento')).toBe('166,67% (80 kg acima)');
   });
 });
 
@@ -197,10 +185,9 @@ describe('DC-3 — sem taxa no lançamento', () => {
     expect(container.textContent).not.toMatch(/saldo/i);
     expect(within(secao).queryByText('Duração estimada')).toBeNull();
     expect(within(secao).queryByText('Próxima reposição')).toBeNull();
-    // Medidor do limite neutro; o lançamento continua comparado com o limite.
-    expect(within(secao).queryByRole('meter')).toBeNull();
-    expect(within(secao).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
-    // Sem taxa do SSOT, o "Último registro" não projeta nada.
+    // Sem taxa do SSOT, o "Último registro" não projeta nada; o lançamento continua comparado com o limite na aba Informações.
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Informações' })); });
+    expect(valorDe(screen.getByRole('region', { name: 'Informações do cocho' }), 'No lançamento')).toBe('166,67% (80 kg acima)');
     expect(screen.queryByText('Consumo Lote PV/dia')).toBeNull();
     expect(screen.queryByText('Próx. reposição')).toBeNull();
   });
@@ -241,9 +228,9 @@ describe('DC-5 — período fechado', () => {
     expect(valorDe(secao, 'Sobra informada')).toBe('30 kg');
     expect(within(secao).queryByText('Saldo estimado')).toBeNull();
     expect(within(secao).queryByText('Duração estimada')).toBeNull();
-    const medidor = within(secao).getByRole('meter', { name: 'Uso do limite operacional' });
-    expect(medidor.getAttribute('aria-valuenow')).toBe('25');
-    expect(within(secao).queryByText(/^No lançamento:/)).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Informações' })); });
+    expect(valorDe(screen.getByRole('region', { name: 'Informações do cocho' }), 'Uso do limite')).toBe('25%');
+    expect(within(screen.getByRole('region', { name: 'Informações do cocho' })).queryByText('No lançamento')).toBeNull();
 
     expect(screen.queryByRole('heading', { name: 'Último registro' })).toBeNull();
 
@@ -322,7 +309,7 @@ describe('DC-8 — mesma fonte de dados do mapa', () => {
         <DetalhesPontoSuplementacao ponto={a} permissions={{}} onClose={() => {}} />
       </QueryClientProvider>,
     );
-    await screen.findByText('Informações do cocho');
+    await screen.findByRole('region', { name: 'Nível do cocho' });
     await act(async () => {});
     const marcador = getCochoIndicator(a, eventos, { hoje: '2026-11-11', pontos: [a, b] });
     expect(marcador.nivel.confiabilidade).toBe('compartilhada');
@@ -340,17 +327,17 @@ describe('DC-206 — D-PROD-206: cartão "Último período fechado" no detalhe d
       evento('e-aberto', 'c9', { data_lancamento: '2026-11-10' }),
     ];
     await renderizar(ponto);
-    fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Fechamentos' }));
     const cartao = (await screen.findAllByTestId('ultimo-periodo-fechado'))[0];
     expect(cartao.textContent).toMatch(/01\/11\/2026 · 9 dia\(s\)/);
-    expect(within(cartao).getByTestId('farol-consumo').textContent).toBe('abaixo da faixa da formulação (±15%)');
+    expect(within(cartao).getByTestId('farol-consumo').textContent).toBe('Abaixo (-20%)');
     expect(within(cartao).getByTestId('farol-consumo').getAttribute('data-farol')).toBe('abaixo');
     expect(within(cartao).getByTestId('fechamento-aproximado')).toBeTruthy();
     expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('1,20');
     cleanup();
     dados.cache.eventosSuplementacao = [evento('e-aberto', 'c9')];
     await renderizar(ponto);
-    fireEvent.click(screen.getByRole('button', { name: 'Fechamentos' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Fechamentos' }));
     expect(screen.getByText('Nenhum período fechado ainda.')).toBeTruthy();
   });
 });

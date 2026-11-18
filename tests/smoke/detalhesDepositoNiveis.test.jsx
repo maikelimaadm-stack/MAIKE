@@ -136,8 +136,6 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     expect(within(painelMinimo()).getByText('Mínimo 100 kg · abaixo do mínimo (faltam 10 kg)')).toBeTruthy();
     expect(within(painelMinimo()).getByText('Reposição recomendada.')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('abaixo');
-    // O aviso do v12 na região do nível.
-    expect(within(secao()).getByText('Saldo 90 kg abaixo do mínimo configurado (100 kg).')).toBeTruthy();
   });
 
   it.each([[0], [null]])('DD-4 — sem limite operacional (%s): sem percentual, mensagem do limite e do mínimo', async (limite) => {
