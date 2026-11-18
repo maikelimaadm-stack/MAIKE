@@ -1,7 +1,7 @@
 import React, { useId } from "react";
 import { urlIconeDeposito } from "@/assets/icones/deposito-sal";
 import MedidorLimiteOperacional from "./MedidorLimiteOperacional";
-import { Aviso, Cartao, Celula, Grade, Nivel } from "./detalhes-lote/blocos";
+import { Aviso, Cartao, Celula, Grade } from "./detalhes-lote/blocos";
 import { formatDecimal } from "../suplementacao/formatters";
 import { MENSAGENS_NIVEL, descreverUsoDoLimite, formatarKgNivel } from "@/domain/suplementacao/nivelSuplementacao";
 import { COR_FAROL } from "@/domain/suplementacao/leituraCocho";
@@ -42,18 +42,17 @@ const COR_NEUTRA = "#6b7280";
  * `saldoSacos` (soma dos sacos do "Saldo por produto") entra como célula
  * quando vem; o resto é todo do nível.
  *
- * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelDeposito, saldoSacos?: number | null }} props
+ * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelDeposito, saldoSacos?: number | null, necessidadeSacos?: number | null }} props
  */
-export default function DepositoNivel({ nivel, saldoSacos = null }) {
+export default function DepositoNivel({ nivel, saldoSacos = null, necessidadeSacos = null }) {
   const idTitulo = useId();
   const limite = nivel.limiteOperacionalKg;
   const uso = limite != null && nivel.ocupacaoPercentual != null
     ? descreverUsoDoLimite({ percentual: nivel.ocupacaoPercentual, saldoKg: nivel.saldoKg, limiteKg: limite, excessoKg: nivel.excessoKg })
     : null;
   const acimaDoLimite = Boolean(uso && nivel.excessoKg != null && nivel.excessoKg > 0);
-
-  const linhas = uso && limite != null
-    ? [`Limite operacional: ${formatarKgNivel(limite)}`]
+  const linhasSemLimite = uso && limite != null
+    ? []
     : [nivel.mensagemLimite || MENSAGENS_NIVEL.limiteNaoConfiguradoDeposito, MENSAGENS_NIVEL.orientacaoLimite];
 
   return (
@@ -62,26 +61,47 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
       <h3 id={idTitulo} className="mk-dp-deposito__oculto">
         {ROTULO_NIVEL}
       </h3>
-      <Nivel
-        data-testid="nivel-do-deposito"
-        // Decorativo: o número e o medidor da grade trazem o nível ao leitor de tela.
-        // O subícone do depósito, o desenho dos detalhes (sem o pino do mapa), como o do cocho (D-PROD-225).
-        figura={<img data-deposito-icone="" src={urlIconeDeposito(nivel.fracaoParaSvg)} alt="" aria-hidden="true" />}
-        rotulo={<span aria-hidden="true">{ROTULO_NIVEL}</span>}
-        valor={
-          uso ? (
-            <span aria-hidden="true" className={acimaDoLimite ? "mk-dp-deposito__excesso" : undefined}>{nivel.rotuloCurto}</span>
-          ) : (
-            // Ícone vazio sem limite não é "depósito vazio": o rótulo neutro diz o porquê (como o cocho).
-            <span data-deposito-rotulo-neutro="" className="mk-dp-deposito__neutro">
+      <div data-testid="nivel-do-deposito" className="mk-dp-nivel mk-dp-deposito__painel-nivel">
+        <span className="mk-dp-nivel__fig mk-dp-deposito__fig">
+          <img data-deposito-icone="" src={urlIconeDeposito(nivel.fracaoParaSvg)} alt="" aria-hidden="true" />
+          {uso ? (
+            <strong
+              aria-hidden="true"
+              className={acimaDoLimite ? "mk-dp-deposito__pct mk-dp-deposito__excesso" : "mk-dp-deposito__pct"}
+            >
               {nivel.rotuloCurto}
-            </span>
-          )
-        }
-        linhas={linhas}
-      />
+            </strong>
+          ) : (
+            <strong data-deposito-rotulo-neutro="" className="mk-dp-deposito__pct mk-dp-deposito__neutro">
+              {nivel.rotuloCurto}
+            </strong>
+          )}
+        </span>
+        <div className="mk-dp-nivel__txt mk-dp-deposito__resumo">
+          <div className="mk-dp-deposito__metricas">
+            <div className="mk-dp-deposito__metrica">
+              <span className="mk-dp-deposito__metrica-rot">Saldo atual kg</span>
+              <strong className="mk-dp-deposito__metrica-val">{formatarKgNivel(nivel.saldoKg)}</strong>
+              {saldoSacos != null ? (
+                <small className="mk-dp-deposito__metrica-sub">{`${formatDecimal(saldoSacos)} sacos`}</small>
+              ) : null}
+            </div>
+            <div className="mk-dp-deposito__metrica">
+              <span className="mk-dp-deposito__metrica-rot">Necessidade reposição kg</span>
+              <strong className="mk-dp-deposito__metrica-val">{formatarKgNivel(nivel.necessidadeReposicaoKg)}</strong>
+              {necessidadeSacos != null ? (
+                <small className="mk-dp-deposito__metrica-sub">{`${formatDecimal(necessidadeSacos)} sacos`}</small>
+              ) : null}
+            </div>
+          </div>
+          {linhasSemLimite.map((linha, i) => (
+            <small key={i} className="mk-dp-nivel__linha">
+              {linha}
+            </small>
+          ))}
+        </div>
+      </div>
 
-      {nivel.abaixoMinimo && nivel.estoqueMinimoKg != null ? <Aviso>{fraseDoMinimo(nivel)}</Aviso> : null}
       {nivel.mensagemUnidade ? <Aviso>{nivel.mensagemUnidade}</Aviso> : null}
       {nivel.lotesEmLitrosIgnorados > 0 ? <Aviso tom="neutro">{AVISO_PRODUTOS_EM_LITROS}</Aviso> : null}
 
@@ -97,24 +117,10 @@ export default function DepositoNivel({ nivel, saldoSacos = null }) {
             orientacao={null}
           />
           <CelulaEstoqueMinimo nivel={nivel} />
-          <Celula rotulo="Saldo atual kg" valor={formatarKgNivel(nivel.saldoKg)} />
-          {saldoSacos != null ? <Celula rotulo="Saldo em sacos" valor={`${formatDecimal(saldoSacos)} sacos`} /> : null}
-          <Celula rotulo="Necessidade reposição kg" valor={formatarKgNivel(nivel.necessidadeReposicaoKg)} />
         </Grade>
       </Cartao>
     </section>
   );
-}
-
-/**
- * Aviso do v12 quando o saldo chega ao mínimo: "Saldo 400 kg abaixo do mínimo
- * configurado (500 kg)." — no mínimo exato, "no mínimo configurado".
- * @param {import("@/domain/suplementacao/nivelSuplementacao").NivelDeposito} nivel
- */
-function fraseDoMinimo(nivel) {
-  const minimo = formatarKgNivel(/** @type {number} */ (nivel.estoqueMinimoKg));
-  const onde = nivel.margemMinimoKg === 0 ? "no mínimo" : "abaixo do mínimo";
-  return `Saldo ${formatarKgNivel(nivel.saldoKg)} ${onde} configurado (${minimo}).`;
 }
 
 /**

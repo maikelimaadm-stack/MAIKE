@@ -1,5 +1,6 @@
 import React from "react";
-import { ArrowRightLeft, Baby, CircleX, Combine, History, Package, Scale, Tags, Truck } from "lucide-react";
+import { ArrowRightLeft, Baby, CircleX, Combine, History, Scale, Tags, Truck } from "lucide-react";
+import IconeLancarSuplementacao from "../IconeLancarSuplementacao";
 import { Chip, TextoDeslizante } from "./blocos";
 import "@/styles/mk-dp-historico.css";
 
@@ -27,7 +28,7 @@ const ICONES = {
   saida: Truck,
   mudanca: Tags,
   juncao: Combine,
-  suplementacao: Package,
+  suplementacao: IconeLancarSuplementacao,
   registro: History,
 };
 

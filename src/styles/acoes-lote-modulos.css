@@ -48,11 +48,11 @@
   min-height: 112px;
   margin: 0;
   padding: 12px 6px;
-  border: 0 !important;
-  border-radius: 12px;
-  background: #65d1ec !important;
-  color: #fff !important;
-  box-shadow: none !important;
+  border: 1px solid #eef0f2 !important;
+  border-radius: 6px;
+  background: #fff !important;
+  color: #1f2328 !important;
+  box-shadow: 0 2px 3px rgb(20 20 19 / 7%) !important;
   font: inherit;
   text-align: center;
   cursor: pointer;
@@ -60,9 +60,9 @@
   -webkit-tap-highlight-color: transparent;
 }
 .mk-al.mk-acoes-modulos .mk-al__quadro:not(#mk-padrao):is(:hover, :active, :focus-visible) {
-  background: #65d1ec !important;
-  color: #fff !important;
-  box-shadow: none !important;
+  background: #f8fafc !important;
+  color: #1f2328 !important;
+  box-shadow: 0 2px 3px rgb(20 20 19 / 7%) !important;
   transform: none;
 }
 .mk-al.mk-acoes-modulos .mk-al__quadro:not(#mk-padrao):focus-visible {
@@ -73,7 +73,7 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
-/* Ícone: caixa 44 × 44 com o desenho em 36 px (Mover: 68 × 44), sempre branco */
+/* Ícone: caixa 44 × 44 com o desenho em 36 px (Mover: 68 × 44), azul */
 .mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__icone:not(#mk-padrao) {
   display: flex;
   flex: 0 0 44px;
@@ -92,7 +92,7 @@
   max-width: 36px;
   margin: 0;
   object-fit: contain;
-  color: #fff !important;
+  color: #3db5c9 !important;
   filter: none;
 }
 .mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__img g:not(#mk-padrao) {
@@ -113,7 +113,7 @@
 .mk-al.mk-acoes-modulos .mk-al__quadro .mk-al__nome:not(#mk-padrao) {
   min-width: 0;
   max-width: 100%;
-  color: #fff !important;
+  color: #1f2328 !important;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.3;
