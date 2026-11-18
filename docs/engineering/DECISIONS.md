@@ -8377,5 +8377,3 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Merge condicionado à validação da PR; nenhuma regra de proteção ou baseline é afrouxada.
 
 <!-- Próxima decisão: D-PROD-249 -->
-
-
