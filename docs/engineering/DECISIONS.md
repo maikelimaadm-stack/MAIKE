@@ -8401,4 +8401,25 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 
 **Contrato:** [`MAIKE-ATIVIDADE-AREAS-CONTRATO.md`](./MAIKE-ATIVIDADE-AREAS-CONTRATO.md) · **Relatório:** [`MAIKE-ATIVIDADE-AREAS-REPORT.md`](./MAIKE-ATIVIDADE-AREAS-REPORT.md) · **Runbook:** [`MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md).
 
-<!-- Próxima decisão: D-PROD-250 -->
+## D-PROD-250 — Saldo do rebanho na tela logo depois de cada manejo
+
+**Data:** 2026-11-18 · **Origem:** relato do proprietário · **Sem migration.**
+
+**O problema:** o proprietário transferiu cabeças de KM - 06 para KM - 17 e KM - P. 01, pesou, mudou categoria e juntou lotes. O banco gravou tudo na hora (P. 01 com 22 cab = lote 75 × 20 + 2 do lote 73), mas o Detalhes do pasto mostrou números antigos e só "apareceu" minutos depois.
+
+**Causas (frontend):**
+1. Os manejos avisavam só `lotes`/`movimentacoes`. A **ocupação e o saldo da área** (`areas`, derivados do rebanho no servidor) e as consultas próprias do Detalhes (`mapa-lotes` 60 s, `mapa-areas` 5 min) não eram invalidadas: ao reabrir, voltava a cópia da memória.
+2. A leitura **forçada** do cache do mapa se juntava a uma leitura comum em andamento, que podia ter saído **antes** da gravação; devolvia o dado velho e ainda marcava `lastRefreshAt`, travando a cópia velha por 60 s.
+3. Gravação feita em **outra aba** do mesmo navegador não chegava às outras.
+
+**Decisão.**
+1. **Um só caminho depois de qualquer gravação no rebanho:** `aposEscritaNoRebanho(queryClient, empresaId)` (`src/components/mapa/invalidarCachesMapa.js`). Relê do servidor, com `force`, `lotes`, `areas`, `movimentacoes`, `movimentacoesHistorico` e `descansoPastos` (gravando o IndexedDB) e **só então** invalida todas as consultas que mostram dado do rebanho (Mapa Geral, Detalhes, históricos, Cadastro de Lotes, suplementação). Chave que falha fica marcada e o Mapa Geral força de novo na próxima leitura. Usado por mover, morte, abate, nascimento, pesagem, mudança de categoria, junção, editar posição, renomear, exclusão de movimento e entrada/correção/exclusão no Cadastro de Lotes.
+2. **Leitura forçada não reaproveita leitura comum:** só se junta a outra forçada; havendo uma comum no ar, espera ela e busca de novo. Leitura comum que chega durante a forçada espera a forçada.
+3. **Outras abas:** aviso por `BroadcastChannel` (`maike-rebanho`), escutado na raiz do app; a aba que recebe atualiza e não reenvia.
+4. **Prazos curtos:** posições e áreas no Detalhes e posições no Mapa Geral com `staleTime` de 15 s e releitura ao voltar à aba. Sem polling.
+
+**Fora do escopo:** o Cadastro de Lotes continua mostrando o retrato da **entrada** (D-PROD-85); o saldo de hoje é do Mapa Geral.
+
+**Relatório:** [`MAIKE-ATUALIZACAO-APOS-MANEJO-REPORT.md`](./MAIKE-ATUALIZACAO-APOS-MANEJO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-251 -->

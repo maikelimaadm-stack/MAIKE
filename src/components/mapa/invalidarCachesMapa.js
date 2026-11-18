@@ -86,3 +86,119 @@ export function mapaPrecisaBuscarNoServidor(cacheKey) {
   geracaoAtendida.set(cacheKey, marcada);
   return true;
 }
+
+/**
+ * Chaves do cache do Mapa (`mapaCacheService`) que mostram dado derivado do
+ * rebanho (posições, saldo e ocupação da área, pesos, movimentações, descanso).
+ */
+export const CHAVES_DO_MAPA_DO_REBANHO = Object.freeze(["lotes", "areas", "movimentacoes", "movimentacoesHistorico", "descansoPastos"]);
+
+/**
+ * Primeiros elementos de queryKey (React Query) que leem dado do rebanho em
+ * qualquer tela: Mapa Geral, Detalhes do Lote, histórico do pasto e do lote,
+ * Cadastro de Lotes e suplementação.
+ */
+export const CONSULTAS_DO_REBANHO = Object.freeze([
+  "mapa-cache",
+  "mapa-lotes",
+  "mapa-areas",
+  "detalhes-lote-movimentacoes",
+  "lotes",
+  "lotes-cadastro",
+  "posicoes-rebanho",
+  "historico-movimentacoes",
+  "historico-registros-lote",
+  "historico-abate-curral",
+  "historico-lotes-excluidos",
+  "elegibilidade-exclusao-movimentacao",
+  "lote-correcao-entrada",
+  "renomeacoes-lote",
+  "rebanho-area-suplementacao",
+  "suplementacao-lote",
+  "areas",
+]);
+
+const CANAL_ENTRE_ABAS = "maike-rebanho";
+let canal = null;
+const abrirCanal = () => {
+  if (canal || typeof BroadcastChannel === "undefined") return canal;
+  try {
+    canal = new BroadcastChannel(CANAL_ENTRE_ABAS);
+  } catch {
+    canal = null;
+  }
+  return canal;
+};
+
+/**
+ * Depois de QUALQUER gravação no rebanho (movimentação, pesagem, mudança de
+ * categoria, junção, morte, abate, nascimento, entrada, correção, exclusão de
+ * movimento, edição de posição): relê do servidor, com `force`, as chaves do
+ * mapa derivadas do rebanho (o que também grava o IndexedDB), e só então marca
+ * como velhas todas as consultas que mostram esse dado. Assim nenhuma tela
+ * relê a cópia antiga do IndexedDB nem espera o intervalo de 60 s / staleTime
+ * de 5 min (D-PROD-250).
+ *
+ * Se a leitura do servidor falhar, a chave fica marcada (geração) e a próxima
+ * leitura dela no Mapa Geral volta a forçar. Avisa as outras abas abertas do
+ * mesmo navegador (BroadcastChannel) e dispara `atualizar-mapa` para os
+ * históricos e para o Mapa Geral redesenhar.
+ *
+ * @param {import('@tanstack/react-query').QueryClient} queryClient
+ * @param {string|null|undefined} empresaId
+ * @param {{ propagar?: boolean }} [opcoes] `propagar: false` quando o aviso veio de outra aba
+ */
+export async function aposEscritaNoRebanho(queryClient, empresaId, { propagar = true } = {}) {
+  if (!queryClient) return;
+  const { refreshMapaCacheEntry } = await import("@/services/mapaCacheService");
+  if (empresaId) {
+    const resultados = await Promise.all(
+      CHAVES_DO_MAPA_DO_REBANHO.map((chave) =>
+        refreshMapaCacheEntry(chave, empresaId, { force: true }).then(
+          () => true,
+          () => false
+        )
+      )
+    );
+    const falharam = CHAVES_DO_MAPA_DO_REBANHO.filter((_, i) => !resultados[i]);
+    if (falharam.length) {
+      geracaoInvalidacao += 1;
+      for (const chave of falharam) geracaoMarcada.set(chave, geracaoInvalidacao);
+    }
+  }
+  const prefixos = new Set(CONSULTAS_DO_REBANHO);
+  await queryClient.invalidateQueries({
+    predicate: (query) => Array.isArray(query.queryKey) && prefixos.has(query.queryKey[0]),
+  });
+  try {
+    window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: [...CHAVES_DO_MAPA_DO_REBANHO], jaBuscado: true } }));
+  } catch {
+    /* sem window (teste/SSR) */
+  }
+  if (propagar && empresaId) {
+    try {
+      abrirCanal()?.postMessage({ tipo: "rebanho-alterado", empresaId });
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
+/**
+ * Escuta as gravações no rebanho feitas em OUTRA aba do mesmo navegador e
+ * atualiza esta. Chamar uma vez na raiz do app. Devolve a função que desliga.
+ *
+ * @param {import('@tanstack/react-query').QueryClient} queryClient
+ * @returns {() => void}
+ */
+export function escutarRebanhoEntreAbas(queryClient) {
+  const c = abrirCanal();
+  if (!c) return () => {};
+  const aoReceber = (evento) => {
+    const dados = evento?.data;
+    if (dados?.tipo !== "rebanho-alterado") return;
+    void aposEscritaNoRebanho(queryClient, dados.empresaId, { propagar: false });
+  };
+  c.addEventListener("message", aoReceber);
+  return () => c.removeEventListener("message", aoReceber);
+}

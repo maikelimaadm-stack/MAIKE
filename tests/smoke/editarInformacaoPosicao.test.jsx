@@ -119,9 +119,15 @@ describe("Editar Informação da posição (controle por posições)", () => {
       doServidor = doServidor.map((x) => (x.id === id ? { ...x, nome: corpo.nome, identificador_sigla: corpo.identificador_sigla } : x));
       return { alterados: ["nome", "identificador_sigla"], posicao: doServidor.find((x) => x.id === id) };
     });
-    // IndexedDB local ainda com o valor antigo (refresh não forçado < 60 s devolve isto).
-    cache.getMapaCachedData.mockImplementation(async () => [posicao("p1"), posicao("p2")]);
-    cache.refreshMapaCacheEntry.mockImplementation(async () => [posicao("p1"), posicao("p2")]);
+    // IndexedDB local ainda com o valor antigo: o refresh NÃO forçado (< 60 s) devolve
+    // isto; o forçado (D-PROD-250, depois da gravação) vai ao servidor, grava o
+    // IndexedDB e devolve o gravado.
+    let local = [posicao("p1"), posicao("p2")];
+    cache.getMapaCachedData.mockImplementation(async () => local);
+    cache.refreshMapaCacheEntry.mockImplementation(async (chave, _emp, opcoes) => {
+      if (chave === "lotes" && opcoes?.force) local = doServidor;
+      return chave === "lotes" ? local : [];
+    });
     const eventos = [];
     const ouvir = (e) => eventos.push(e.detail);
     window.addEventListener("atualizar-mapa", ouvir);

@@ -61,6 +61,13 @@ export const GLOBAL_EMPRESA_KEY = '__GLOBAL__';
 const TENANT_PREFIXO = 'cli:';
 
 const refreshPromises = new Map();
+/**
+ * Leitura FORÇADA em andamento, por dono. Separada da comum: a forçada vem
+ * depois de uma gravação (manejo, cadastro) e não pode reaproveitar uma leitura
+ * comum que saiu ANTES da gravação, senão devolve o dado velho e ainda marca
+ * `lastRefreshAt`, travando a cópia velha por 60 s.
+ */
+const refreshForcados = new Map();
 const lastRefreshAt = new Map();
 const rateLimitedUntil = new Map();
 
@@ -226,8 +233,12 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
   const agora = Date.now();
   const force = options.force === true;
 
-  // Deduplicação: quem chega no meio de um refresh espera o mesmo resultado.
-  if (refreshPromises.has(requestKey)) return refreshPromises.get(requestKey);
+  // Deduplicação: leitura comum espera a que estiver em andamento (comum ou
+  // forçada). A forçada só se junta a outra forçada; se houver uma comum no
+  // meio, espera ela terminar e busca de novo (a comum pode ter saído antes da
+  // gravação que motivou a forçada).
+  if (force && refreshForcados.has(requestKey)) return refreshForcados.get(requestKey);
+  if (!force && refreshPromises.has(requestKey)) return refreshPromises.get(requestKey);
 
   const emCooldown = agora < (rateLimitedUntil.get(requestKey) || 0);
   const recente = agora - (lastRefreshAt.get(requestKey) || 0) < MIN_REFRESH_INTERVAL_MS;
@@ -235,7 +246,9 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
     return (await getEntityCacheItems(storageKey, dono)) || [];
   }
 
+  const anterior = force ? refreshPromises.get(requestKey) : null;
   const promise = (async () => {
+    if (anterior) await anterior.catch(() => {});
     try {
       const items = await CAPACIDADES[cacheKey](empresaId);
       await setEntityCacheItems(storageKey, dono, items);
@@ -257,10 +270,12 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
   })();
 
   refreshPromises.set(requestKey, promise);
+  if (force) refreshForcados.set(requestKey, promise);
   try {
     return await promise;
   } finally {
-    refreshPromises.delete(requestKey);
+    if (refreshPromises.get(requestKey) === promise) refreshPromises.delete(requestKey);
+    if (refreshForcados.get(requestKey) === promise) refreshForcados.delete(requestKey);
   }
 };
 
@@ -290,6 +305,7 @@ export const warmMapaCache = async (empresaId) => {
 
 const zerarPolitica = () => {
   refreshPromises.clear();
+  refreshForcados.clear();
   lastRefreshAt.clear();
   rateLimitedUntil.clear();
 };

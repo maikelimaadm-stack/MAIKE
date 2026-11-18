@@ -8,6 +8,7 @@ import {
 import { areaPorId } from "@/domain/lotes/movimentacaoLote";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { aposEscritaNoRebanho } from "./invalidarCachesMapa";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { aplicarFechamentoSeAindaAberto } from "@/services/suplementacaoService";
 import { toast } from "sonner";
@@ -185,7 +186,9 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
       return cached || [];
     },
     enabled: !!empresaSelecionadaId,
-    staleTime: 5 * 60 * 1000
+    // Ocupação e saldo da área vêm do rebanho (D-PROD-250): curto, e relê ao voltar à aba.
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: true
   });
 
   const areaAtual = areas.find((a) => a.id === lotesDoPasto[0]?.area_atual_id) || { nome: lotesDoPasto[0]?.area_atual_nome || 'Desconhecida' };
@@ -207,7 +210,8 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
       return cached || [];
     },
     enabled: !!empresaSelecionadaId,
-    staleTime: 60 * 1000,
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: true,
     select: (data) => data.filter(l => l.area_atual_id === lotesDoPasto[0]?.area_atual_id)
   });
 
@@ -454,10 +458,7 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
       }
       setAreaDestinoPreSelecionada(null);
       setShowMovimentacao(false);
-      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
-      queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
+      void aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
 
       onClose();
     },
@@ -520,7 +521,7 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
       );
       fechar(false);
       onClose();
-      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
+      void aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
     } catch (erro) {
       toast.error(mensagemDaTransferenciaLedger(erro));
     } finally {
@@ -545,7 +546,7 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
       toast.success(resposta?.replay ? `${rotulo}: o servidor já tinha este registro (nada duplicado)` : `${rotulo} registrado`);
       fechar(false);
       onClose();
-      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
+      void aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
     } catch (erro) {
       toast.error(mensagemDaTransferenciaLedger(erro));
     }
@@ -581,7 +582,7 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
       setShowJuntarLotes(false);
       setLotePrincipalJuncao(null);
       onClose();
-      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
+      void aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
     } catch (erro) {
       toast.error(mensagemDaTransferenciaLedger(erro));
     } finally {
@@ -868,16 +869,14 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
               empresaSelecionadaId={empresaSelecionadaId}
               onSalvo={(atualizada) => {
                 // A posição aparece já com os valores gravados nas duas consultas que
-                // o mapa usa (Detalhes e MapaGeral). Sem invalidar essas duas aqui: o
-                // refetch não forçado (< 60 s) devolveria o IndexedDB antigo por cima.
-                // Quem relê do servidor é o 'atualizar-mapa' (refresh forçado, que
-                // também grava o IndexedDB).
+                // o mapa usa (Detalhes e MapaGeral); aposEscritaNoRebanho relê do
+                // servidor com force (gravando o IndexedDB) e só DEPOIS invalida as
+                // consultas, então nenhuma releitura traz a cópia antiga (D-PROD-250).
                 const aplicar = (dados) =>
                   Array.isArray(dados) ? dados.map((x) => (x?.id === atualizada?.id ? { ...x, ...atualizada } : x)) : dados;
                 queryClient.setQueriesData({ queryKey: ['mapa-lotes', empresaSelecionadaId] }, aplicar);
                 queryClient.setQueriesData({ queryKey: ['mapa-cache', 'lotes', empresaSelecionadaId] }, aplicar);
-                queryClient.invalidateQueries({ queryKey: ['lotes'] });
-                window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes'] } }));
+                void aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
                 setShowRenomear(false);
                 onClose();
               }}
@@ -892,7 +891,7 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
               onClose={() => {
                 setShowRenomear(false);
                 onClose();
-                window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+                void aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
               }}
               onCancel={() => setShowRenomear(false)} /> :
 

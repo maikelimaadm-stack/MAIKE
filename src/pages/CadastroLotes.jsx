@@ -8,7 +8,6 @@ import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
-import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
   listarLotes,
   criarLote,
@@ -23,6 +22,7 @@ import { ESTADOS_CORRECAO, mensagemDoMotivoCorrecao, somenteCamposAlterados } fr
 import { TIPOS_EXCLUSAO, TEXTO_CONFIRMACAO_LOGICA, mensagemDoMotivoExclusao } from "@/domain/lotes/exclusaoLote";
 import { persistirAnexosPendentes } from "@/services/anexoService";
 import { confirmar } from "@/lib/maikeConfirmar";
+import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
 import { ehEntradaNoRebanho, motivoDeHistoricoDoLote } from "@/domain/lotes/saldoLote";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import {
@@ -167,10 +167,10 @@ export default function CadastroLotes() {
     setNewRecordAttachmentsOpen(false);
   }, [empresaSelecionadaId, controller]);
 
+  // Entrada, correção e exclusão de lote mexem no rebanho: relê do servidor e
+  // invalida todas as telas que mostram saldo, posição e área (D-PROD-250).
   const invalidateLotesComMapa = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["lotes-cadastro", empresaSelecionadaId] });
-    await refreshMapaCacheEntry("lotes", empresaSelecionadaId, { force: true });
-    window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+    await aposEscritaNoRebanho(queryClient, empresaSelecionadaId);
   }, [queryClient, empresaSelecionadaId]);
 
   const createMutation = useMutation({

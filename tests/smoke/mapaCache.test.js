@@ -245,3 +245,38 @@ describe('cache do mapa — leitura e escrita', () => {
     expect(historico[1]).toEqual(cancelado);
   });
 });
+
+describe('cache do mapa — leitura forçada depois de gravação (D-PROD-250)', () => {
+  it('C-F1 — comum no ar (saiu antes da gravação) + forçada → a forçada busca de novo e grava o novo', async () => {
+    const respostas = [];
+    listAreas.mockImplementation(() => new Promise((resolve) => respostas.push(resolve)));
+    const comum = refreshMapaCacheEntry('areas', EMPRESA);
+    await Promise.resolve();
+    // a gravação no rebanho acontece com a leitura comum ainda no ar
+    const forcada = refreshMapaCacheEntry('areas', EMPRESA, { force: true });
+    const outraForcada = refreshMapaCacheEntry('areas', EMPRESA, { force: true });
+    await vi.waitFor(() => expect(respostas).toHaveLength(1));
+    respostas[0]([areaDa('velha')]); // retrato de ANTES da gravação
+    await expect(comum).resolves.toEqual([areaDa('velha')]);
+    await vi.waitFor(() => expect(respostas).toHaveLength(2)); // a forçada foi ao servidor de novo
+    respostas[1]([areaDa('velha'), areaDa('nova')]);
+    await expect(forcada).resolves.toHaveLength(2);
+    await expect(outraForcada).resolves.toHaveLength(2); // forçadas simultâneas: um GET só
+    expect(listAreas).toHaveBeenCalledTimes(2);
+    // a leitura comum seguinte (< 60 s) devolve o novo, que a forçada gravou
+    await expect(refreshMapaCacheEntry('areas', EMPRESA)).resolves.toHaveLength(2);
+    expect(listAreas).toHaveBeenCalledTimes(2);
+  });
+
+  it('C-F2 — leitura comum que chega durante a forçada espera a forçada (não volta com o velho)', async () => {
+    const respostas = [];
+    listAreas.mockImplementation(() => new Promise((resolve) => respostas.push(resolve)));
+    const forcada = refreshMapaCacheEntry('areas', EMPRESA, { force: true });
+    const comum = refreshMapaCacheEntry('areas', EMPRESA);
+    await vi.waitFor(() => expect(respostas).toHaveLength(1));
+    respostas[0]([areaDa('nova')]);
+    await expect(forcada).resolves.toEqual([areaDa('nova')]);
+    await expect(comum).resolves.toEqual([areaDa('nova')]);
+    expect(listAreas).toHaveBeenCalledTimes(1);
+  });
+});
