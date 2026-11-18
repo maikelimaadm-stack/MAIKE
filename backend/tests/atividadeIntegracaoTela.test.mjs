@@ -576,6 +576,8 @@ test('linhas: "Repetir" com as linhas numa transação, reenvio sem resposta com
     data_operacional: HOJE,
     turno: 'MANHA',
     area_executada_dia: '4',
+    // D-PROD-238: a atividade tem uma área (a do cabeçalho); o "Repetir" herda a área da base.
+    atividade_area_id: base.atividade_area_id,
     produtos: [{ produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '40' }],
     maquinas: [{ bem_id: s.trator.id, sem_medidor: false, leitura_inicial: '1526', leitura_final: '1531.5' }],
   });
@@ -1126,6 +1128,8 @@ test('mão de obra e serviço: "Repetir" com mao_obra[] e servicos[] (rede cai d
     data_operacional: HOJE,
     turno: 'MANHA',
     area_executada_dia: '3',
+    // D-PROD-238: o "Repetir" herda a área da base.
+    atividade_area_id: base.atividade_area_id,
     mao_obra: [
       { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '6' },
       { parceiro_id: s.tiao.id, tipo_medida: 'TAREFA', quantidade: '2', custo_unitario: '40' },
