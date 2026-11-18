@@ -8297,5 +8297,13 @@ Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.j
 - Textos de campos não quebram: rolagem horizontal individual e rótulo/valor completos no título nativo da célula. Dados preservados.
 - Cartões/linhas com espaçamento menor em todas as telas; abas e Resumo/Lote/Lista ocupam a largura de seus rótulos. Popup continua estável. Apenas prévia, sem merge.
 
-<!-- Próxima decisão: D-PROD-241 -->
+### D-PROD-241 — Detalhes suaves e resumo sem seleção (2026-11-18)
+
+- Pedido: fontes menores e leves, valores à frente dos rótulos, menos altura e retirada das caixas de seleção no Resumo dos lotes.
+- Resumo sem caixas; meta e peso juntos, sem repetir a categoria quando já é o nome. Clique continua abrindo o lote, com manejos para o lote/área preservados.
+- Vista Lote com apenas um lote não mostra navegação “1 de 1”; identidade com nome, subícone e situação preservada. Com vários lotes a navegação permanece compacta.
+- Quatro campos por linha em desktop/tablet com rótulo e valor alinhados na horizontal. Celular também usa texto menor e menos espaçamento. Textos completos com rolagem horizontal individual.
+- Apenas branch de prévia; sem merge ou publicação em produção.
+
+<!-- Próxima decisão: D-PROD-242 -->
 

@@ -9,19 +9,14 @@ import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 
 /**
  * Vista Resumo da aba Lotes (v12): 4 números do pasto e a lista dos lotes por
- * nome, cada um com a caixa de seleção (a seleção da casca: Mover lotes, Pesar e
- * Manejos levam só os marcados) e o toque que abre a tela do lote. O cabeçalho
- * marca/desmarca todos e diz quantos estão marcados.
+ * nome e toque para abrir o lote. Os manejos continuam acessíveis para a área ou para o lote aberto.
  */
 export function VistaResumo() {
-  const { modelo, dados, empurrar, selecao, alternarSelecao, definirSelecao } = usePasto();
+  const { modelo, dados, empurrar } = usePasto();
   const m = /** @type {ModeloDetalhes} */ (modelo);
   const lotes = React.useMemo(() => ordenarLotes(m.lotes, { chave: "nome", dir: 1 }), [m.lotes]);
-  const ids = lotes.map((l) => l.id);
-  const marcados = ids.filter((id) => selecao.has(id)).length;
-  const marcacao = marcados === 0 ? "vazia" : marcados === ids.length ? "marcada" : "meio";
   const pasto = m.area?.nome || dados.areaNome;
-  const titulo = `${pasto} (${m.resumo.cab})${marcados ? ` · ${marcados} ${marcados === 1 ? "selecionado" : "selecionados"}` : ""}`;
+  const titulo = `${pasto} (${m.resumo.cab})`;
 
   return (
     <>
@@ -36,21 +31,17 @@ export function VistaResumo() {
       />
       <ListaItens
         titulo={titulo}
-        marcacao={marcacao}
-        onMarcarTodos={() => definirSelecao(marcacao === "marcada" ? [] : ids)}
-        rotuloTodos={marcacao === "marcada" ? "Desmarcar todos os lotes" : "Selecionar todos os lotes"}
+        className="mk-dp-resumo-lotes"
         rotulo="Lotes do pasto"
       >
         {lotes.map((l) => (
           <Item
             key={l.id}
-            marcado={selecao.has(l.id)}
-            onMarcar={() => alternarSelecao(l.id)}
             imagem={<IconeCategoria figura={l.subicone} tamanho={30} />}
             cor={l.ident.identificadorCor}
             titulo={l.nome}
-            meta={l.textos.meta}
-            sub={l.textos.pesoKg}
+            title={`${l.nome}: ${l.textos.meta} · ${l.textos.pesoKg}`}
+            meta={`${l.nome === l.categoria ? l.textos.meta.replace(` · ${l.categoria}`, "") : l.textos.meta} · ${l.textos.pesoKg}`}
             chip={<ChipSituacao situacao={l.situacao} />}
             chevron
             onClick={() => empurrar({ tipo: "lote", loteId: l.id })}

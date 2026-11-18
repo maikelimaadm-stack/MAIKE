@@ -85,7 +85,7 @@ export function PartesDoCartao({ campos }) {
  * @param {{ lote: LoteVm, mostrarNome?: boolean, categoriaNoCabecalho?: boolean }} props
  */
 export function BlocosLote({ lote, mostrarNome = true, categoriaNoCabecalho = false }) {
-  const sub = [categoriaNoCabecalho ? null : lote.categoria, lote.sexo].filter((t) => t && t !== VAZIO).join(" · ");
+  const sub = [categoriaNoCabecalho || (mostrarNome && lote.categoria === lote.nome) ? null : lote.categoria, lote.sexo].filter((t) => t && t !== VAZIO).join(" · ");
   // Só reorganiza a apresentação: o catálogo da Lista e suas preferências
   // continuam completos. Categoria e sexo já estão na identidade/cabeçalho.
   const lotacao = camposDoLote(lote, "Lotação").map((c) => c.chave === "ua" ? { ...c, dica: undefined } : c);

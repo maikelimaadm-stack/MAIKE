@@ -1944,3 +1944,53 @@
   }
   .mk-dp .mk-dp-area-resumo > .mk-dp-grade { display: contents; }
 }
+
+/* D-PROD-241 — leitura suave: rótulo e valor na mesma linha, inclusive nas quatro colunas. */
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel,
+.mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel,
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 6px 0;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__rot { font-size: 12px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cel__val,
+.mk-dp .mk-dp-area-organizada .mk-dp-area-superficies .mk-dp-cel__val,
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal .mk-dp-cel__val {
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 400;
+}
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__cab { padding: 8px 12px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__titulo { font-size: 13px; font-weight: 500; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__sub { font-size: 11.5px; margin-top: 1px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__img { width: 28px; height: 28px; }
+.mk-dp :is(.mk-dp-area-organizada, .mk-dp-lote-organizado) .mk-dp-cartao__img img { width: 100%; height: 100%; }
+.mk-dp .mk-dp-titulo__h { font-size: 12.5px; font-weight: 500; }
+.mk-dp .mk-dp-chip { height: 20px; font-size: 10.5px; padding: 0 7px; }
+.mk-dp .mk-dp-kpi { padding-top: 8px; padding-bottom: 8px; }
+.mk-dp .mk-dp-kpi__val { font-size: 14px; font-weight: 500; }
+.mk-dp .mk-dp-kpi__rot { font-size: 11.5px; }
+.mk-dp .mk-dp-nav { padding: 4px 8px; border-radius: 6px; }
+.mk-dp .mk-dp-nav .mk-dp-redondo { width: 28px; height: 28px; }
+.mk-dp .mk-dp-nav__meio { flex-direction: row; gap: 8px; }
+.mk-dp .mk-dp-nav__titulo { font-size: 12.5px; font-weight: 500; }
+.mk-dp .mk-dp-nav__sub { font-size: 11px; white-space: nowrap; }
+.mk-dp .mk-dp-resumo-lotes { border-radius: 6px; }
+.mk-dp .mk-dp-resumo-lotes .mk-dp-itens__cab { min-height: 30px; font-size: 12px; font-weight: 500; padding: 0 12px; }
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item { min-height: 44px; padding: 6px 12px; }
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item__tit { font-size: 12.5px; font-weight: 500; }
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item__meta { font-size: 11.5px; overflow-x: auto; text-overflow: clip; }
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item__nome { display: block; white-space: nowrap; overflow-x: auto; text-overflow: clip; }
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item__img { width: 26px; height: 26px; }
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item__img img { width: 100%; height: 100%; }
+.mk-dp .mk-dp-rodape--pilulas { padding: 6px 10px; }
+.mk-dp .mk-dp-pilula { height: 32px; max-width: 160px; font-size: 12px; }
+
+.mk-dp .mk-dp-kpi__rot { white-space: nowrap; overflow-x: auto; }
+.mk-dp .mk-dp-lote-organizado .mk-dp-projecao-mensal h4 {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
