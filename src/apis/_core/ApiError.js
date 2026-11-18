@@ -132,7 +132,7 @@ export const API_ERROR_CODES = Object.freeze({
   // tipo, data, motivo). `details.field`/`details.reason` dizem qual e por quê.
   ATIVIDADE_NOT_FOUND: 'ATIVIDADE_NOT_FOUND',
   ATIVIDADE_APONTAMENTO_NOT_FOUND: 'ATIVIDADE_APONTAMENTO_NOT_FOUND',
-  // D-PROD-238 — várias áreas por atividade: a área não é desta atividade (relê) e a área com lançamento não sai.
+  // D-PROD-249 — várias áreas por atividade: a área não é desta atividade (relê) e a área com lançamento não sai.
   ATIVIDADE_AREA_NOT_FOUND: 'ATIVIDADE_AREA_NOT_FOUND',
   ATIVIDADE_AREA_COM_LANCAMENTOS: 'ATIVIDADE_AREA_COM_LANCAMENTOS',
   ATIVIDADE_REFERENCIA_INVALIDA: 'ATIVIDADE_REFERENCIA_INVALIDA',

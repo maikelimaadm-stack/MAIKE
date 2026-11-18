@@ -219,7 +219,7 @@ const CAMPOS_DO_DIA = Object.freeze({
   area_executada_dia: (v) => decimalDoCorpo(v, 'area_executada_dia'),
   quantidade_produzida_dia: (v) => decimalDoCorpo(v, 'quantidade_produzida_dia'),
   observacao: (v) => textoDoCorpo(v, 'observacao') ?? null,
-  // D-PROD-238: a área da atividade em que o lançamento é feito (conferida sob a trava: desta atividade e EM_ANDAMENTO).
+  // D-PROD-249: a área da atividade em que o lançamento é feito (conferida sob a trava: desta atividade e EM_ANDAMENTO).
   atividade_area_id: (v) => idOuNulo(v, 'atividade_area_id'),
 });
 
@@ -366,7 +366,7 @@ export const comoApontamentoPublico = (r) => ({
   area_executada_dia: t4(r.area_executada_dia),
   quantidade_produzida_dia: t4(r.quantidade_produzida_dia),
   observacao: r.observacao ?? null,
-  // D-PROD-238: a área da atividade em que o lançamento foi feito (nula na atividade sem área).
+  // D-PROD-249: a área da atividade em que o lançamento foi feito (nula na atividade sem área).
   atividade_area_id: r.atividade_area_id ?? null,
   atividade_area: r.atividadeArea ? { id: r.atividadeArea.id, area: r.atividadeArea.area ? { id: r.atividadeArea.area.id, numero_area: r.atividadeArea.area.numero_area, nome: r.atividadeArea.area.nome } : null } : null,
   origem: r.origem,
@@ -778,7 +778,7 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
       exigirStatusDaAtividade(atividade, 'lancar_apontamento');
       exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
       await exigirOperador(tx, cli, estado.operador_usuario_id);
-      // D-PROD-238: a área do lançamento (desta atividade e EM_ANDAMENTO; com uma área só, ela mesma).
+      // D-PROD-249: a área do lançamento (desta atividade e EM_ANDAMENTO; com uma área só, ela mesma).
       const atividadeAreaId = await exigirAreaDoLancamento(tx, { clienteId: cli, empresaId, atividadeId, atividadeAreaId: estado.atividade_area_id });
       return gravarNovo(tx, contexto, {
         clienteId: cli, empresaId, atividade, estado: { ...estado, atividade_area_id: atividadeAreaId }, origem, acao: ACOES_AUDITORIA_APONTAMENTO.lancar, linhas,
@@ -800,7 +800,7 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
 export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, corpo) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   const diaInformado = diaDoCorpo(corpo.data_operacional, 'data_operacional');
-  // D-PROD-238: a área do lançamento novo (padrão: a da base).
+  // D-PROD-249: a área do lançamento novo (padrão: a da base).
   const areaInformada = corpo.atividade_area_id === undefined ? undefined : idOuNulo(corpo.atividade_area_id, 'atividade_area_id');
   const linhas = linhasDoCorpo(corpo);
 
@@ -823,7 +823,7 @@ export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, 
       const estado = { ...estadoGravado(base), data_operacional: diaInformado ?? tempo.hoje };
       exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
       await exigirOperador(tx, cli, estado.operador_usuario_id); // vínculo novo: o operador tem de estar ativo
-      // D-PROD-238: a área do lançamento novo tem de estar EM_ANDAMENTO (a da base, ou a do corpo).
+      // D-PROD-249: a área do lançamento novo tem de estar EM_ANDAMENTO (a da base, ou a do corpo).
       estado.atividade_area_id = await exigirAreaDoLancamento(tx, {
         clienteId: cli, empresaId, atividadeId, atividadeAreaId: areaInformada === undefined ? estado.atividade_area_id : areaInformada,
       });
@@ -900,7 +900,7 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
       }
       await exigirOperador(tx, cli, estado.operador_usuario_id, gravado.operador_usuario_id);
       const dados = paraGravacao(campos);
-      // D-PROD-238: trocar a área do lançamento: a nova é desta atividade e está EM_ANDAMENTO (manter a gravada não confere).
+      // D-PROD-249: trocar a área do lançamento: a nova é desta atividade e está EM_ANDAMENTO (manter a gravada não confere).
       if (temCampo(campos, 'atividade_area_id') && campos.atividade_area_id !== gravado.atividade_area_id) {
         dados.atividade_area_id = await exigirAreaDoLancamento(tx, { clienteId: cli, empresaId, atividadeId, atividadeAreaId: campos.atividade_area_id });
       } else {

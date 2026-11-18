@@ -209,7 +209,7 @@ export const duplicateAtividade = async (id, corpo) => {
   return runProviderCall(() => atividadeNativa.duplicar(id, corpo), { ...contexto, details: { id } });
 };
 
-// ─── Áreas da atividade (D-PROD-238) ─────────────────────────────────────
+// ─── Áreas da atividade (D-PROD-249) ─────────────────────────────────────
 
 /**
  * Mais uma área na atividade ABERTA (entra PLANEJADA). Devolve `{ area, atividade }`.
@@ -236,7 +236,7 @@ export const updateAtividadeArea = async (atividadeId, areaId, corpo) => {
   return runProviderCall(() => atividadeNativa.editarArea(atividadeId, areaId, corpo), { ...contexto, details: { id: atividadeId } });
 };
 
-/** As ações da área (D-PROD-238). */
+/** As ações da área (D-PROD-249). */
 export const ACOES_AREA_ATIVIDADE = Object.freeze(['iniciar', 'concluir', 'reabrir', 'remover']);
 
 /**

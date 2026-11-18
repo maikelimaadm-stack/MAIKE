@@ -103,7 +103,7 @@ const textoDoCancelamento = (ap, fuso) => {
  *   titulo?: string,
  *   areaFiltro?: string|null,
  * }} props `titulo`: o da seção (D-PROD-234: "Lançamentos por dia", dentro de "Dias lançados" da atividade aberta).
- *   `areaFiltro` (D-PROD-238): só os lançamentos daquela área da atividade (o "Ver lançamentos da área"); o lançamento
+ *   `areaFiltro` (D-PROD-249): só os lançamentos daquela área da atividade (o "Ver lançamentos da área"); o lançamento
  *   novo já vem nela.
  */
 export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualizada, titulo = "Lançamentos", areaFiltro = null }) {

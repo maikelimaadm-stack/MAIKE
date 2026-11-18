@@ -106,7 +106,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AreaPastagem', 'altura_entrada_cm'],
   ['AreaPastagem', 'altura_saida_cm'],
   ['AreaPastagem', 'dias_descanso'],
-  // D-PROD-238: o Lançamento de Atividades lê e grava as áreas da atividade e a área do lançamento; sem a migration
+  // D-PROD-249: o Lançamento de Atividades lê e grava as áreas da atividade e a área do lançamento; sem a migration
   // `20261118100000_atividade_areas`, `/atividades` responde 500.
   ['AtividadeArea', 'status'],
   ['AtividadeApontamento', 'atividade_area_id'],

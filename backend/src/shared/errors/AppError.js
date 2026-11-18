@@ -238,12 +238,12 @@ export const atividadeNotFound = (message, options) =>
 export const atividadeApontamentoNotFound = (message, options) =>
   new AppError('ATIVIDADE_APONTAMENTO_NOT_FOUND', message || 'apontamento não encontrado nesta atividade', options);
 
-/** D-PROD-238 — área de outra atividade, empresa ou tenant = inexistente (o mesmo corpo: sem oráculo). */
+/** D-PROD-249 — área de outra atividade, empresa ou tenant = inexistente (o mesmo corpo: sem oráculo). */
 export const atividadeAreaNotFound = (message, options) =>
   new AppError('ATIVIDADE_AREA_NOT_FOUND', message || 'área não encontrada nesta atividade', options);
 
 /**
- * D-PROD-238 — a área da atividade tem lançamento e não pode sair (nada com custo é apagado):
+ * D-PROD-249 — a área da atividade tem lançamento e não pode sair (nada com custo é apagado):
  * `details.confirmados` e `details.cancelados` (lançamentos da área). Conclua a área em vez de removê-la.
  * @param {{ confirmados: number, cancelados: number }} contagem
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
@@ -275,13 +275,13 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
     inexistente: 'a área não foi encontrada',
     outra_empresa: 'a área é de outra fazenda',
     inativo: 'a área está inativa',
-    // D-PROD-238 — várias áreas por atividade.
+    // D-PROD-249 — várias áreas por atividade.
     duplicada: 'a mesma área foi escolhida duas vezes',
     ja_na_atividade: 'a área já está nesta atividade',
     varias_areas: 'a atividade tem várias áreas: mude as áreas pelo card "Áreas da atividade"',
     com_lancamentos: 'a área atual tem lançamento: ela não pode ser trocada nem retirada (conclua a área e adicione outra)',
   }),
-  // D-PROD-238 — a área do lançamento (uma das áreas da atividade).
+  // D-PROD-249 — a área do lançamento (uma das áreas da atividade).
   atividade_area_id: Object.freeze({
     inexistente: 'a área não é desta atividade',
     obrigatorio: 'a atividade tem áreas: escolha a área do lançamento',
@@ -314,7 +314,7 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
  * D-PROD-200 — referência recusada na atividade ou no apontamento (um só
  * código; `details.field`/`details.reason` dizem qual). Id de outro tenant é
  * `inexistente`, como o que não existe (sem oráculo).
- * D-PROD-238: `atividade_area_id` (a área do lançamento) e `areas[n].area_id` (as áreas da abertura, com a frase do
+ * D-PROD-249: `atividade_area_id` (a área do lançamento) e `areas[n].area_id` (as áreas da abertura, com a frase do
  * `area_id`), com os reasons novos `duplicada`, `ja_na_atividade`, `varias_areas`, `com_lancamentos`, `obrigatorio` e
  * `sem_areas`.
  * @param {string} field
@@ -395,7 +395,7 @@ const MENSAGENS_DATA_ATIVIDADE = Object.freeze({
   futura: (rotulo, extra) =>
     `${rotulo}${extra.data ? ` (${extra.data})` : ''} é posterior a hoje na fazenda${extra.hoje ? ` (${extra.hoje})` : ''}`,
   antes_do_inicio: (rotulo) => `${rotulo} é anterior à data de início da atividade`,
-  // D-PROD-238: a data de conclusão da área (ou da atividade, que conclui as áreas em andamento) antes do início da área.
+  // D-PROD-249: a data de conclusão da área (ou da atividade, que conclui as áreas em andamento) antes do início da área.
   antes_do_inicio_da_area: (rotulo, extra) =>
     `${rotulo}${extra.data ? ` (${extra.data})` : ''} é anterior ao início da área${extra.area ? ` ${extra.area}` : ''}${extra.data_inicio_area ? ` (${extra.data_inicio_area})` : ''}`,
   periodo_invertido: (rotulo) => `${rotulo} é anterior à data de início: o período está invertido`,
@@ -426,7 +426,7 @@ const ROTULO_DO_STATUS_ATIVIDADE = Object.freeze({
   CANCELADA: 'cancelada',
   CONFIRMADO: 'confirmado',
   CANCELADO: 'cancelado',
-  // D-PROD-238: o ciclo da área da atividade.
+  // D-PROD-249: o ciclo da área da atividade.
   PLANEJADA: 'planejada (não iniciada)',
   EM_ANDAMENTO: 'em andamento',
 });
@@ -437,7 +437,7 @@ const ROTULO_DA_ENTIDADE_ATIVIDADE = Object.freeze({
   apontamento: 'o apontamento',
   linha_produto: 'a linha de produto',
   linha_maquina: 'a linha de máquina',
-  // D-PROD-238 — a área de uma atividade de várias áreas.
+  // D-PROD-249 — a área de uma atividade de várias áreas.
   area: 'a área da atividade',
 });
 
@@ -457,7 +457,7 @@ const REGRA_DE_STATUS_DA_ACAO = Object.freeze({
   // D-PROD-211 (Fatia 5): o abastecimento ligado ao lançamento do dia.
   lancar_abastecimento: 'só apontamento confirmado de atividade aberta recebe abastecimento',
   cancelar_abastecimento: 'só abastecimento de atividade aberta é cancelado (a concluída precisa ser reaberta antes)',
-  // D-PROD-238 — as áreas da atividade.
+  // D-PROD-249 — as áreas da atividade.
   adicionar_area: 'só atividade aberta recebe área nova',
   editar_area: 'só área de atividade aberta é alterada',
   iniciar_area: 'só área planejada (não iniciada), de atividade aberta, é iniciada',

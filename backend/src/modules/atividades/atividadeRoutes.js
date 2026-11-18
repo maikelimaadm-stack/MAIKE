@@ -95,7 +95,7 @@ const LISTAR = {
 };
 const DETALHE = { params: PARAMS, querystring: SO_EMPRESA };
 /**
- * D-PROD-238: várias áreas na abertura (cada uma com a sua área planejada; ausente = o tamanho da área). Com `areas`, o
+ * D-PROD-249: várias áreas na abertura (cada uma com a sua área planejada; ausente = o tamanho da área). Com `areas`, o
  * corpo não traz `area_id` nem `area_planejada` (o serviço recusa: 400 `areas_e_area_id`).
  */
 const AREAS_DA_ABERTURA = Object.freeze({

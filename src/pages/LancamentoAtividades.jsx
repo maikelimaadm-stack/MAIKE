@@ -139,7 +139,7 @@ export const valorDoCampoAtividade = (item, id) => {
   if (id === "nome") return String(item?.nome ?? "");
   if (id === "tipo") return String(item?.tipo_atividade_nome ?? "");
   if (id === "grupo") return String(item?.grupo_atividade_nome ?? "");
-  // D-PROD-238: a atividade de várias áreas mostra "2 de 5 em andamento"; a de uma área, o nome dela.
+  // D-PROD-249: a atividade de várias áreas mostra "2 de 5 em andamento"; a de uma área, o nome dela.
   if (id === "area") return textoDaColunaArea(item);
   if (id === "setor") return rotuloDoSetor(item);
   if (id === "bem") return rotuloDoBem(item?.bem);
@@ -580,7 +580,7 @@ export default function LancamentoAtividades() {
 
   /**
    * A janela do tipo (D-PROD-233) sobre a atividade: pelo ⚡ da lista (na lista do dia) ou pela tabela dos tipos da
-   * atividade aberta (D-PROD-234: "Inserir" e "+ Lançar" abrem nos Dados). D-PROD-238: pelo ⚡ de uma área (card "Áreas da
+   * atividade aberta (D-PROD-234: "Inserir" e "+ Lançar" abrem nos Dados). D-PROD-249: pelo ⚡ de uma área (card "Áreas da
    * atividade"), a janela abre FIXA naquela área; sem área, com o seletor das áreas em andamento.
    * @param {any} atividade @param {string} tipo @param {'lista'|'dados'} [aba] @param {string|null} [areaId]
    */

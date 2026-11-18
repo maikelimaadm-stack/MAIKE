@@ -73,7 +73,7 @@ const COLUNAS_OK = [
   { table_name: 'AreaPastagem', column_name: 'altura_entrada_cm' },
   { table_name: 'AreaPastagem', column_name: 'altura_saida_cm' },
   { table_name: 'AreaPastagem', column_name: 'dias_descanso' },
-  // D-PROD-238: as áreas da atividade e a área do lançamento.
+  // D-PROD-249: as áreas da atividade e a área do lançamento.
   { table_name: 'AtividadeArea', column_name: 'status' },
   { table_name: 'AtividadeApontamento', column_name: 'atividade_area_id' },
 ];

@@ -163,7 +163,7 @@ export const NOME_ABASTECIMENTO_FK_APONTAMENTO = '20261117100000_abastecimento_f
 export const NOME_MEDICAO_FORRAGEM = '20261117200000_medicao_forragem';
 export const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; // D-PROD-223: EXPAND, coluna em CADCULTURAS, depois da D-PROD-219.
 /**
- * D-PROD-238 — a CONTRACT das áreas da atividade (tabela nova AtividadeArea, a coluna e a FK do lançamento para a área e
+ * D-PROD-249 — a CONTRACT das áreas da atividade (tabela nova AtividadeArea, a coluna e a FK do lançamento para a área e
  * o backfill) exige a Atividade e o apontamento: vem por último, depois da D-PROD-223, fora da partida como as outras.
  */
 export const NOME_ATIVIDADE_AREAS = '20261118100000_atividade_areas';
@@ -176,7 +176,7 @@ const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFO
 /** A tabela da Leitura de cocho (D-PROD-205) e a do Cadastro de Culturas (D-PROD-215). */
 const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
-// D-PROD-238: AtividadeArea (as áreas da atividade) nasce com a última delas e fica no fim.
+// D-PROD-249: AtividadeArea (as áreas da atividade) nasce com a última delas e fica no fim.
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);
 // D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
 export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA]);

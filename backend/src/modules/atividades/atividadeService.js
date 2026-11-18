@@ -434,7 +434,7 @@ export const listar = async (contexto, query = {}) => {
   for (const campo of ['status', 'tipo_atividade_id']) {
     if (typeof query[campo] === 'string' && query[campo]) where[campo] = query[campo];
   }
-  // D-PROD-238: a atividade de VÁRIAS áreas aparece no filtro de qualquer uma delas (a 1ª também está em `areas`).
+  // D-PROD-249: a atividade de VÁRIAS áreas aparece no filtro de qualquer uma delas (a 1ª também está em `areas`).
   if (typeof query.area_id === 'string' && query.area_id) where.areas = { some: { area_id: query.area_id } };
   if (de || ate) where.data_inicio = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
   const q = termoDeBusca(query.q);
@@ -508,7 +508,7 @@ export const obterTotais = async (contexto, id, query = {}) => {
     const maoObra = await totaisDaMaoObraDaAtividade(tx, cli, empresaId, id);
     const servicos = await totaisDosServicosDaAtividade(tx, cli, empresaId, id);
     const { combustivel, consumo_por_bem: consumoPorBem } = await combustivelDaAtividade(tx, cli, empresaId, id);
-    // D-PROD-238: os números de cada área (as mesmas parcelas; o total da atividade continua a soma de tudo).
+    // D-PROD-249: os números de cada área (as mesmas parcelas; o total da atividade continua a soma de tudo).
     const porArea = await totaisPorArea(tx, cli, empresaId, id);
     const parcelas = [
       ...produtos.map((p) => p.custo_total),
@@ -563,7 +563,7 @@ const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoAtividad
   const dataInicio = estado.data_inicio ?? tempo.hoje;
   exigirDiaNaoFuturo(tempo, dataInicio, 'data_inicio');
   exigirPeriodo(dataInicio, estado.data_prevista_fim ?? null);
-  // D-PROD-238: as ÁREAS da abertura. `areas[]` (o cliente novo): cada uma conferida (fazenda, ativa), planejada padrão
+  // D-PROD-249: as ÁREAS da abertura. `areas[]` (o cliente novo): cada uma conferida (fazenda, ativa), planejada padrão
   // = o tamanho, todas PLANEJADAS ("a iniciar"). `area_id` único (o cliente antigo): UMA área, com a planejada do corpo,
   // já EM_ANDAMENTO desde o início da atividade (como sempre foi: a atividade de uma área lança logo).
   const novas = [];
@@ -638,7 +638,7 @@ export const criar = async (contexto, corpo) => {
   const cli = auth.clienteId;
   const estado = camposDoCorpo(corpo, CAMPOS_DA_ATIVIDADE);
   if (!estado.nome) throw invalido('nome é obrigatório', { field: 'nome', reason: 'obrigatorio' });
-  // D-PROD-238: `areas[]` (várias áreas) OU o `area_id` único de antes, nunca os dois (nem a planejada do cabeçalho).
+  // D-PROD-249: `areas[]` (várias áreas) OU o `area_id` único de antes, nunca os dois (nem a planejada do cabeçalho).
   const areas = areasDoCorpo(corpo.areas);
   if (areas && (corpo.area_id !== undefined || corpo.area_planejada !== undefined)) {
     throw invalido('envie as áreas em areas[] (cada uma com a sua área planejada) ou a área única em area_id, nunca os dois', { field: 'areas', reason: 'areas_e_area_id' });
@@ -676,7 +676,7 @@ export const duplicar = async (contexto, id, corpo) => {
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
       // A origem só é LIDA (nada nela muda): sem trava.
       const origem = await relerNa(tx, cli, empresaId, id);
-      // D-PROD-238: as áreas da origem vêm todas, PLANEJADAS (a atividade nova ainda não começou), com a planejada de cada uma.
+      // D-PROD-249: as áreas da origem vêm todas, PLANEJADAS (a atividade nova ainda não começou), com a planejada de cada uma.
       const areasDaOrigem = (origem.areas ?? []).map((/** @type {any} */ a) => ({ area_id: a.area_id, area_planejada: t4(a.area_planejada) }));
       const estado = {
         ...(areasDaOrigem.length ? { areas: areasDaOrigem } : {}),
@@ -748,7 +748,7 @@ export const atualizar = async (contexto, id, corpo) => {
       const trocou = (campo) => temCampo(campos, campo) && campos[campo] !== gravado[campo];
       /** @type {Record<string, any>} */
       const dados = paraGravacao(campos);
-      // D-PROD-238: o `area_id` e a `area_planejada` do cabeçalho seguem as áreas. Com VÁRIAS áreas, eles mudam pelo card
+      // D-PROD-249: o `area_id` e a `area_planejada` do cabeçalho seguem as áreas. Com VÁRIAS áreas, eles mudam pelo card
       // das áreas (422 `varias_areas`); com UMA, o PATCH troca a área dela (sem lançamento) ou a planejada dela; sem área,
       // a área do PATCH vira a área nº 1, já em andamento (o cliente antigo).
       const areasGravadas = trocou('area_id') || trocou('area_planejada') ? /** @type {any[]} */ (await listarAreasDaAtividade(tx, cli, empresaId, id)) : [];
@@ -838,7 +838,7 @@ export const concluir = async (contexto, id, corpo) => {
         const { quantidade_produzida: producao } = await somarApontamentosConfirmados(tx, cli, empresaId, id);
         if (producao === null || !dec(producao).gt(0)) throw atividadeExigidaPeloTipo('quantidade_produzida', { details: { quantidade_produzida: producao } });
       }
-      // D-PROD-238: as áreas EM ANDAMENTO concluem junto, com a mesma data; as PLANEJADAS ficam "não iniciadas".
+      // D-PROD-249: as áreas EM ANDAMENTO concluem junto, com a mesma data; as PLANEJADAS ficam "não iniciadas".
       const areasConcluidas = await concluirAreasEmAndamento(tx, { clienteId: cli, empresaId, atividadeId: id, dia });
       await gravarComVersao(tx, {
         clienteId: cli,
@@ -890,7 +890,7 @@ export const reabrir = async (contexto, id, corpo) => {
     async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const anterior = await travarELer(tx, cli, empresaId, id, 'reabrir', versao);
-      // D-PROD-238: reabrir desfaz o concluir: as áreas concluídas na data de conclusão da atividade (as que concluíram
+      // D-PROD-249: reabrir desfaz o concluir: as áreas concluídas na data de conclusão da atividade (as que concluíram
       // junto com ela) voltam a EM_ANDAMENTO; as concluídas antes, em outro dia, ficam concluídas.
       const areasReabertas = await reabrirAreasConcluidasJunto(tx, { clienteId: cli, empresaId, atividadeId: id, dia: diaDe(anterior.data_conclusao) });
       await gravarComVersao(tx, {

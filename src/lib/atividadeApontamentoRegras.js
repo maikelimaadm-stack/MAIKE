@@ -388,7 +388,7 @@ export const formularioDoApontamento = (ap) => ({
   area_executada_dia: decimalParaEdicao(ap?.area_executada_dia),
   quantidade_produzida_dia: decimalParaEdicao(ap?.quantidade_produzida_dia),
   observacao: typeof ap?.observacao === 'string' ? ap.observacao : '',
-  // D-PROD-238: a área da atividade do lançamento.
+  // D-PROD-249: a área da atividade do lançamento.
   atividade_area_id: texto(ap?.atividade_area_id),
 });
 
@@ -441,7 +441,7 @@ export const corpoDoApontamento = (form) => ({
   area_executada_dia: lerDecimal(form.area_executada_dia, '').valor,
   quantidade_produzida_dia: lerDecimal(form.quantidade_produzida_dia, '').valor,
   observacao: texto(form.observacao) || null,
-  // D-PROD-238: a área da atividade (nula na atividade sem área; com uma área só, o servidor usa ela).
+  // D-PROD-249: a área da atividade (nula na atividade sem área; com uma área só, o servidor usa ela).
   atividade_area_id: texto(form.atividade_area_id) || null,
 });
 

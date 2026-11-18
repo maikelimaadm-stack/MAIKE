@@ -113,7 +113,7 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *   escopo?: string,
  *   areaPadrao?: string|null,
  * }} props `onMudou`: a atividade ou o lançamento mudou no servidor (versão, status, sumiu) ou o envio ficou sem resposta — quem abriu relê.
- *   `areaPadrao` (D-PROD-238): a área da atividade em que o lançamento NOVO começa (a lista filtrada por área).
+ *   `areaPadrao` (D-PROD-249): a área da atividade em que o lançamento NOVO começa (a lista filtrada por área).
  */
 export default function FormularioApontamento({
   atividade,
@@ -147,7 +147,7 @@ export default function FormularioApontamento({
       ? formularioDoApontamento(apontamento)
       : repetindo
         ? formularioDaBase(base, hoje)
-        : // D-PROD-238: o lançamento novo vai para a única área em andamento, se houver só uma.
+        : // D-PROD-249: o lançamento novo vai para a única área em andamento, se houver só uma.
           {
             ...formularioApontamentoVazio(hoje),
             atividade_area_id: areaPadrao && areasEmAndamento(atividade).some((a) => String(a.id) === String(areaPadrao))
@@ -221,7 +221,7 @@ export default function FormularioApontamento({
   }, [hoje]);
 
   const bloqueado = somenteLeitura || enviando;
-  // D-PROD-238: a atividade com áreas pergunta a área do lançamento — só as EM ANDAMENTO (e a gravada, na edição).
+  // D-PROD-249: a atividade com áreas pergunta a área do lançamento — só as EM ANDAMENTO (e a gravada, na edição).
   const temCampoArea = temAreas(atividade);
   const opcoesDaArea = (() => {
     const lista = areasEmAndamento(atividade).map((a) => ({ value: String(a.id), label: rotuloDaAreaDaAtividade(a) }));
@@ -294,7 +294,7 @@ export default function FormularioApontamento({
   const enviar = async () => {
     if (emCurso.current || !podeGravar) return;
     const v = validarFormularioApontamento(form, { hoje });
-    // D-PROD-238: com várias áreas, a área do lançamento é obrigatória (o servidor confere que está em andamento).
+    // D-PROD-249: com várias áreas, a área do lançamento é obrigatória (o servidor confere que está em andamento).
     if (temCampoArea && !form.atividade_area_id) v.atividade_area_id = "Escolha a área do lançamento.";
     setErros(v);
     if (Object.keys(v).length) {

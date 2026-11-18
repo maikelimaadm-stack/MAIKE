@@ -71,7 +71,7 @@ import {
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
-// D-PROD-238: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
+// D-PROD-249: este teste é "no dia da D-PROD-223" (antes da CONTRACT das áreas da atividade): o schema e o runner do
 // repositório vêm do espelho até ela (`diaDaD223.mjs`), e as pastas param nela.
 const SCHEMA = schemaDoDiaD223();
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');

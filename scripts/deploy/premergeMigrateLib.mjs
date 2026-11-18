@@ -181,7 +181,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-223: EXPAND — dias de descanso da cultura (CADCULTURAS.dias_descanso) e os parâmetros próprios
   // do pasto (AreaPastagem.altura_entrada_cm, altura_saida_cm e dias_descanso); 4 colunas anuláveis, sem CHECK.
   '20261117300000_descanso_e_alturas_por_area': 'c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e',
-  // D-PROD-238: CONTRACT (formato CONVERSÃO, sem DROP) — várias áreas por atividade: tabela nova AtividadeArea, a coluna
+  // D-PROD-249: CONTRACT (formato CONVERSÃO, sem DROP) — várias áreas por atividade: tabela nova AtividadeArea, a coluna
   // anulável AtividadeApontamento.atividade_area_id, o backfill (cada atividade com área ganha a área nº 1 e os
   // lançamentos dela passam a ser dessa área) e a FK composta (cliente_id, empresa_id, atividade_id, atividade_area_id).
   '20261118100000_atividade_areas': '098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06',
@@ -230,7 +230,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'cd8830aa244ba849ca957e7d480606bcd38e093e95e028b3e31973611784ea7b',
   // D-PROD-219: RLS/REVOKE da MEDICAOFORRAGEM (mesmo corpo, lista nova).
   'b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718',
-  // D-PROD-238: RLS/REVOKE da AtividadeArea (mesmo corpo, lista nova).
+  // D-PROD-249: RLS/REVOKE da AtividadeArea (mesmo corpo, lista nova).
   '7121f5a6d09747d8c3479411ef0be47cc92eb9a11cf59865429134b18fdd6984',
 ]);
 
@@ -244,7 +244,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
  * (formato de sempre: colunas, NOT NULL, backfill, CHECKs e FKs pinados em tabela antiga; no resto, só índices),
  * D-PROD-216 (formato de sempre: a coluna, o UNIQUE e a FK aditivos da Área ligada à Cultura; no resto, só o índice) e
  * D-PROD-217 (formato de sempre: o UNIQUE e a FK recriada do reforço, pinados em tabelas antigas, sem DROP TABLE e sem
- * resto) e D-PROD-238 (formato CONVERSÃO sem DROP: a coluna nova em tabela antiga, a tabela nova no resto e, na cauda,
+ * resto) e D-PROD-249 (formato CONVERSÃO sem DROP: a coluna nova em tabela antiga, a tabela nova no resto e, na cauda,
  * o backfill e a FK composta para a tabela nova, que só existe depois do resto). São quatorze.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
@@ -571,7 +571,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "AbastecimentoBem" ADD CONSTRAINT "AbastecimentoBem_apontamento_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "atividade_id", "apontamento_id") REFERENCES "AtividadeApontamento"("cliente_id", "empresa_id", "atividade_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ]),
   }),
-  // D-PROD-238: várias áreas por atividade. Formato CONVERSÃO (como a D-PROD-200), SEM DROP: depois da guarda (hash
+  // D-PROD-249: várias áreas por atividade. Formato CONVERSÃO (como a D-PROD-200), SEM DROP: depois da guarda (hash
   // pinado; confere que as 3 tabelas existem, que a tabela e a coluna novas não existem e que o alvo (cliente_id,
   // empresa_id, id) de "Atividade" existe; trava "AreaPastagem" em SHARE ROW EXCLUSIVE e "Atividade" e
   // "AtividadeApontamento" em ACCESS EXCLUSIVE, na ordem do app, e aborta se houver atividade CONCLUIDA com área sem
@@ -586,7 +586,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // porque assim ela valida o que o backfill gravou (a allowlist EXPAND só aceita a FK de 2 colunas para tabela nova).
   // A guarda só cita as 3 tabelas antigas, a criada no resto e o status 'CONCLUIDA'.
   '20261118100000_atividade_areas': Object.freeze({
-    decisao: 'D-PROD-238',
+    decisao: 'D-PROD-249',
     guarda_sha256: '0afbc9bb3eab69cdbe52452425b0829c74c68398d44fc81781e70b8c4800ab7e',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['AreaPastagem', 'Atividade', 'AtividadeApontamento', 'CONCLUIDA']),
@@ -748,14 +748,14 @@ const nomesRenomeados = (alterAntigas) =>
 
 /**
  * D-PROD-200 — o que cada instrução pinada da conversão escreve, a partir do texto pinado (`INSERT INTO "T" …` →
- * "INSERT INTO T", `UPDATE "T" …` → "UPDATE T"; D-PROD-238: `ALTER TABLE "T" ADD CONSTRAINT "C" …` → "ADD CONSTRAINT
+ * "INSERT INTO T", `UPDATE "T" …` → "UPDATE T"; D-PROD-249: `ALTER TABLE "T" ADD CONSTRAINT "C" …` → "ADD CONSTRAINT
  * T.C"). Instrução de outra forma sai com o começo do próprio texto.
  */
 const conversoesDe = (conversao) =>
   conversao.map((c) => {
     const x = c.match(new RegExp(`^(INSERT INTO|UPDATE|DELETE FROM) (${ID})`));
     if (x) return `${x[1]} ${q(x[2])}`;
-    // D-PROD-238: a FK composta para a tabela nova, no fim da cauda ("ADD CONSTRAINT T.C").
+    // D-PROD-249: a FK composta para a tabela nova, no fim da cauda ("ADD CONSTRAINT T.C").
     const fk = c.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `));
     return fk ? `ADD CONSTRAINT ${q(fk[1])}.${q(fk[2])}` : c.slice(0, 40);
   });

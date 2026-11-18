@@ -1,5 +1,5 @@
 /**
- * D-PROD-238 — repositório das ÁREAS da atividade (`AtividadeArea`): uma
+ * D-PROD-249 — repositório das ÁREAS da atividade (`AtividadeArea`): uma
  * atividade ("Combate à cigarrinha") feita em vários pastos, cada lançamento
  * (o apontamento) de UMA área. Contrato
  * `docs/engineering/MAIKE-ATIVIDADE-AREAS-CONTRATO.md`.

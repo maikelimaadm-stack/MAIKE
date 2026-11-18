@@ -702,7 +702,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
       // no "schema antigo" essas FKs não existem: saem antes das duas tabelas.
       await tx.$executeRawUnsafe('ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_apontamento_fkey", DROP CONSTRAINT "AbastecimentoBem_atividade_fkey"');
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamento"');
-      // D-PROD-238: as áreas da atividade (migration POSTERIOR) referenciam a atividade e não as 7; saem antes dela.
+      // D-PROD-249: as áreas da atividade (migration POSTERIOR) referenciam a atividade e não as 7; saem antes dela.
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeArea"');
       await tx.$executeRawUnsafe('DROP TABLE "Atividade"');
       // As 7 saem juntas, sem CASCADE (nada mais de fora as referencia; nada some escondido).

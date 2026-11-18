@@ -119,7 +119,7 @@ export const STATUS_EXIGIDO_DA_ATIVIDADE = Object.freeze({
   cancelar_apontamento: STATUS_ATIVIDADE.ABERTA,
   // D-PROD-211 (Fatia 5): cancelar um abastecimento ligado à atividade (a concluída tem os totais fechados: reabra antes).
   cancelar_abastecimento: STATUS_ATIVIDADE.ABERTA,
-  // D-PROD-238: as áreas da atividade só mudam com ela ABERTA.
+  // D-PROD-249: as áreas da atividade só mudam com ela ABERTA.
   adicionar_area: STATUS_ATIVIDADE.ABERTA,
   iniciar_area: STATUS_ATIVIDADE.ABERTA,
   editar_area: STATUS_ATIVIDADE.ABERTA,
@@ -351,7 +351,7 @@ const CAMPOS_DE_REFERENCIA = Object.freeze([
   'unidade_producao_id',
   'lancamento_tarefa_id',
   'operador_usuario_id',
-  // D-PROD-238: a área do lançamento (FK composta para AtividadeArea).
+  // D-PROD-249: a área do lançamento (FK composta para AtividadeArea).
   'atividade_area_id',
 ]);
 
@@ -415,14 +415,14 @@ export const AREA_RESUMO = Object.freeze({ select: { id: true, numero_area: true
 export const UNIDADE_RESUMO = Object.freeze({ select: { id: true, sigla: true, descricao: true } });
 export const TAREFA_RESUMO = Object.freeze({ select: { id: true, titulo: true, status: true } });
 
-/** D-PROD-238 — resumo da área de uma atividade de várias áreas (com o tamanho, para a área planejada padrão). */
+/** D-PROD-249 — resumo da área de uma atividade de várias áreas (com o tamanho, para a área planejada padrão). */
 export const AREA_DA_ATIVIDADE_RESUMO = Object.freeze({ select: { id: true, numero_area: true, nome: true, tamanho_hectares: true } });
 
-/** D-PROD-238 — as áreas da atividade, na ordem em que entraram. */
+/** D-PROD-249 — as áreas da atividade, na ordem em que entraram. */
 export const INCLUIR_AREAS_DA_ATIVIDADE = Object.freeze({ orderBy: [{ ordem: 'asc' }, { id: 'asc' }], include: { area: AREA_DA_ATIVIDADE_RESUMO } });
 
 /**
- * D-PROD-238 — forma pública de UMA área da atividade.
+ * D-PROD-249 — forma pública de UMA área da atividade.
  * @param {any} r  registro de `AtividadeArea` com `area`
  */
 export const comoAreaDaAtividadePublica = (r) => ({
@@ -444,7 +444,7 @@ export const comoAreaDaAtividadePublica = (r) => ({
 
 /** `include` da atividade: o resumo ao lado de cada id da forma pública. */
 export const INCLUIR_ATIVIDADE = Object.freeze({
-  // D-PROD-238: as áreas (várias áreas por atividade).
+  // D-PROD-249: as áreas (várias áreas por atividade).
   areas: INCLUIR_AREAS_DA_ATIVIDADE,
   area: AREA_RESUMO,
   bem: BEM_RESUMO,
@@ -508,7 +508,7 @@ export const comoAtividadePublica = (r) => ({
   criado_por: usuarioPublico(r.criadoPor),
   createdAt: iso(r.createdAt),
   updatedAt: iso(r.updatedAt),
-  // D-PROD-238: as áreas da atividade (a 1ª é a `area_id` acima) e quantas são.
+  // D-PROD-249: as áreas da atividade (a 1ª é a `area_id` acima) e quantas são.
   areas: (r.areas ?? []).map(comoAreaDaAtividadePublica),
   areas_count: (r.areas ?? []).length,
 });

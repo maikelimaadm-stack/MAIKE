@@ -196,7 +196,7 @@ export const duplicarAtividade = async (id, dados = {}) =>
     ...soOsInformados(comoObjeto(dados), ['nome', 'data_inicio', 'data_prevista_fim']),
   });
 
-// ─── Áreas da atividade (D-PROD-238) ─────────────────────────────────────
+// ─── Áreas da atividade (D-PROD-249) ─────────────────────────────────────
 
 /**
  * Mais uma área na atividade (entra PLANEJADA; a área planejada vazia = o tamanho da área, no servidor). Devolve

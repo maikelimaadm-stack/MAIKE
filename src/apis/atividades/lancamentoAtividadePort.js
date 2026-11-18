@@ -63,15 +63,15 @@ export const CAMPOS_DA_ATIVIDADE = Object.freeze([
   'observacao',
 ]);
 
-/** POST /atividades (§10): a empresa e o tipo, mais os dados. D-PROD-238: ou `areas[]` (várias áreas) no lugar de `area_id`. */
+/** POST /atividades (§10): a empresa e o tipo, mais os dados. D-PROD-249: ou `areas[]` (várias áreas) no lugar de `area_id`. */
 export const CAMPOS_DE_ABERTURA = Object.freeze(['empresa_id', 'tipo_atividade_id', ...CAMPOS_DA_ATIVIDADE, 'areas']);
-/** D-PROD-238 — cada item de `areas[]` da abertura (a área planejada ausente = o tamanho da área, no servidor). */
+/** D-PROD-249 — cada item de `areas[]` da abertura (a área planejada ausente = o tamanho da área, no servidor). */
 export const CAMPOS_DA_AREA_NA_ABERTURA = Object.freeze(['area_id', 'area_planejada']);
-/** D-PROD-238 — POST /atividades/:id/areas (mais uma área, PLANEJADA). */
+/** D-PROD-249 — POST /atividades/:id/areas (mais uma área, PLANEJADA). */
 export const CAMPOS_DE_ADICAO_AREA = Object.freeze(['empresa_id', 'area_id', 'area_planejada']);
-/** D-PROD-238 — PATCH /atividades/:id/areas/:areaId (a área planejada; `null` limpa). */
+/** D-PROD-249 — PATCH /atividades/:id/areas/:areaId (a área planejada; `null` limpa). */
 export const CAMPOS_DE_EDICAO_AREA = Object.freeze(['empresa_id', 'versao', 'area_planejada']);
-/** D-PROD-238 — as ações da área e o corpo de cada uma (a data é opcional: padrão hoje na fazenda). */
+/** D-PROD-249 — as ações da área e o corpo de cada uma (a data é opcional: padrão hoje na fazenda). */
 export const ACOES_DA_AREA = Object.freeze(
   /** @type {Record<string, readonly string[]>} */ ({
     iniciar: Object.freeze(['empresa_id', 'versao', 'data_inicio']),
@@ -102,7 +102,7 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
   'quantidade_produzida_dia',
   'observacao',
   'origem',
-  // D-PROD-238: a área da atividade em que o lançamento é feito (obrigatória com várias áreas).
+  // D-PROD-249: a área da atividade em que o lançamento é feito (obrigatória com várias áreas).
   'atividade_area_id',
 ]);
 
@@ -340,7 +340,7 @@ export const operacoesNativas = Object.freeze({
   /** @param {Record<string, unknown>} dados */
   create: (dados) => {
     const corpo = corpoSemVazios(dados, CAMPOS_DE_ABERTURA);
-    // D-PROD-238: cada área só com as chaves dela (sem as vazias: a planejada ausente vira o tamanho no servidor).
+    // D-PROD-249: cada área só com as chaves dela (sem as vazias: a planejada ausente vira o tamanho no servidor).
     const areas = linhasDeEnvio(dados?.areas, CAMPOS_DA_AREA_NA_ABERTURA);
     if (areas) corpo.areas = areas;
     else delete corpo.areas;
@@ -432,7 +432,7 @@ export const operacoesNativas = Object.freeze({
       ctx('duplicateAtividadeApontamento', { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
     ),
 
-  // ── Áreas da atividade (D-PROD-238) ──
+  // ── Áreas da atividade (D-PROD-249) ──
   /** @param {string} atividadeId @param {Record<string, unknown>} dados */
   adicionarArea: (atividadeId, dados) =>
     nativeRequest(`${daAtividade(atividadeId)}/areas`, { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_ADICAO_AREA), autenticado: true }, ctx('addAtividadeArea', { atividadeId })),

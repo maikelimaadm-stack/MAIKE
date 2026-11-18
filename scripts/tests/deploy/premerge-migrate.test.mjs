@@ -331,12 +331,12 @@ const CONTRACT_FA = {
   ...VAZIOS_199,
 };
 /**
- * D-PROD-238 — a décima quarta migration CONTRACT aprovada: as áreas da atividade. Formato CONVERSÃO, sem DROP: a guarda,
+ * D-PROD-249 — a décima quarta migration CONTRACT aprovada: as áreas da atividade. Formato CONVERSÃO, sem DROP: a guarda,
  * a coluna nova em AtividadeApontamento (`alter_antigas`), a tabela nova AtividadeArea no resto (allowlist EXPAND) e, na
  * cauda pinada, o backfill (INSERT … SELECT e UPDATE) e a FK de 4 colunas do lançamento para a área.
  */
 const CONTRACT_ARA = {
-  migration: '20261118100000_atividade_areas', decisao: 'D-PROD-238', tabelas_removidas: [], constraints_alargadas: [],
+  migration: '20261118100000_atividade_areas', decisao: 'D-PROD-249', tabelas_removidas: [], constraints_alargadas: [],
   colunas_removidas: [], constraints_removidas: [], indices_removidos: [], tabelas_renomeadas: [], nomes_renomeados: [],
   colunas_adicionadas: ['AtividadeApontamento.atividade_area_id'], constraints_adicionadas: [],
   conversoes: ['INSERT INTO AtividadeArea', 'UPDATE AtividadeApontamento', 'ADD CONSTRAINT AtividadeApontamento.AtividadeApontamento_atividade_area_fkey'],
@@ -360,7 +360,7 @@ const NOVAS_MF = ['MEDICAOFORRAGEM'];
 const DO_MF = 'b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718';
 /** D-PROD-223 — dias de descanso da cultura e parâmetros próprios do pasto: EXPAND puro, 4 colunas anuláveis (CADCULTURAS.dias_descanso e AreaPastagem.altura_entrada_cm/altura_saida_cm/dias_descanso; sem CHECK, sem DML); a 67ª, depois da Medição de Forragem (D-PROD-219). */
 const NOME_DD = '20261117300000_descanso_e_alturas_por_area';
-/** D-PROD-238 — as áreas da atividade: CONTRACT no formato CONVERSÃO, sem DROP (a tabela nova AtividadeArea, a coluna e a FK de 4 colunas do lançamento para a área e o backfill); a 68ª, depois dos dias de descanso (D-PROD-223). */
+/** D-PROD-249 — as áreas da atividade: CONTRACT no formato CONVERSÃO, sem DROP (a tabela nova AtividadeArea, a coluna e a FK de 4 colunas do lançamento para a área e o backfill); a 68ª, depois dos dias de descanso (D-PROD-223). */
 const NOME_ARA = '20261118100000_atividade_areas';
 const codigos = (c) => [...new Set(c.violacoes.map((v) => v.codigo))].sort();
 /** Troca um trecho que tem de aparecer EXATAMENTE uma vez (senão o teste não prova o que diz). */
@@ -369,7 +369,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; Formulações (D-PROD-203) só com as 3 tabelas novas; Leitura de cocho (D-PROD-205) só com a tabela nova; faixa de tolerância na CADFORMULACAO (D-PROD-206) só com a coluna anulável; mão de obra e serviço (D-PROD-207) só com as 4 tabelas novas; funcionário como papel do parceiro (D-PROD-208) pelo modo CONTRACT fechado com o DROP no fim; tipo do funcionário com TERCEIRIZADO (D-PROD-209) pelo modo CONTRACT fechado; base do consumo na Formulação (D-PROD-210) pelo modo CONTRACT fechado; abastecimento ligado à atividade (D-PROD-211) pelo modo CONTRACT fechado; Cadastro de Culturas (D-PROD-215) só com a tabela nova; reforço da FK do apontamento do abastecimento (D-PROD-217) pelo modo CONTRACT fechado; Medição de Forragem (D-PROD-219) só com a tabela nova; parâmetros do pasto (D-PROD-223) só com as 3 colunas anuláveis em AreaPastagem; áreas da atividade (D-PROD-238) pelo modo CONTRACT fechado no formato conversão, sem DROP', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187), CADCURVAGANHO mensal (D-PROD-194) e curva de ganho obrigatória na CADCATEGORIA (D-PROD-195) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas; padrões e flags do TipoAtividade (D-PROD-197) pelo modo CONTRACT fechado; peso objetivo na CADCATEGORIA (D-PROD-198) só com a coluna anulável; Atividade cabeçalho (D-PROD-200) pelo modo CONTRACT fechado no formato conversão; linhas de produto e de máquina (D-PROD-202) só com as 3 tabelas novas e as 2 colunas anuláveis; Formulações (D-PROD-203) só com as 3 tabelas novas; Leitura de cocho (D-PROD-205) só com a tabela nova; faixa de tolerância na CADFORMULACAO (D-PROD-206) só com a coluna anulável; mão de obra e serviço (D-PROD-207) só com as 4 tabelas novas; funcionário como papel do parceiro (D-PROD-208) pelo modo CONTRACT fechado com o DROP no fim; tipo do funcionário com TERCEIRIZADO (D-PROD-209) pelo modo CONTRACT fechado; base do consumo na Formulação (D-PROD-210) pelo modo CONTRACT fechado; abastecimento ligado à atividade (D-PROD-211) pelo modo CONTRACT fechado; Cadastro de Culturas (D-PROD-215) só com a tabela nova; reforço da FK do apontamento do abastecimento (D-PROD-217) pelo modo CONTRACT fechado; Medição de Forragem (D-PROD-219) só com a tabela nova; parâmetros do pasto (D-PROD-223) só com as 3 colunas anuláveis em AreaPastagem; áreas da atividade (D-PROD-249) pelo modo CONTRACT fechado no formato conversão, sem DROP', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -396,7 +396,7 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   // só com o CHECK de Fornecedor recriado (TERCEIRIZADO no lugar de TAREFEIRO). D-PROD-210: a décima, com a base do
   // consumo nas Formulações. D-PROD-211: a décima primeira, com as colunas, o backfill, os CHECKs e as FKs de
   // AbastecimentoBem. D-PROD-216: a décima segunda, aditiva (a Área ligada à Cultura). D-PROD-217: a décima terceira, por
-  // último, com o UNIQUE e a FK do apontamento recriada. D-PROD-238: a décima quarta, as áreas da atividade (a tabela nova
+  // último, com o UNIQUE e a FK do apontamento recriada. D-PROD-249: a décima quarta, as áreas da atividade (a tabela nova
   // no resto, a coluna nova no descritor e o backfill e a FK na cauda).
   assert.deepEqual(c.contract, [CONTRACT_C, CONTRACT_T, CONTRACT_D, CONTRACT_K, CONTRACT_G, CONTRACT_P, CONTRACT_V, CONTRACT_PP, CONTRACT_TT, CONTRACT_BC, CONTRACT_AB, CONTRACT_AC, CONTRACT_FA, CONTRACT_ARA]);
   // Todas as pastas de migration desde o manifesto da PR #174 estão nele; as 27 anteriores ficam fora por construção.
@@ -419,12 +419,12 @@ test('B1f (D-PROD-162): a migration CONTRACT classificada SOZINHA, como na relea
   assert.equal(MIGRATIONS_APROVADAS[NOME_C], sha256(SQL_C));
 });
 
-test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-200/D-PROD-208/D-PROD-209/D-PROD-210/D-PROD-211/D-PROD-216/D-PROD-217/D-PROD-238): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as quatorze entradas, na ordem; só a D-PROD-200 e a D-PROD-238 têm `conversao` e só a D-PROD-208 tem `drop_no_fim`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
+test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-200/D-PROD-208/D-PROD-209/D-PROD-210/D-PROD-211/D-PROD-216/D-PROD-217/D-PROD-249): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as quatorze entradas, na ordem; só a D-PROD-200 e a D-PROD-249 têm `conversao` e só a D-PROD-208 tem `drop_no_fim`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
   assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V, NOME_PP, NOME_TT, NOME_BC, NOME_AB, NOME_AC, NOME_FA, NOME_ARA]);
-  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200', 'D-PROD-208', 'D-PROD-209', 'D-PROD-210', 'D-PROD-211', 'D-PROD-216', 'D-PROD-217', 'D-PROD-238']);
+  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200', 'D-PROD-208', 'D-PROD-209', 'D-PROD-210', 'D-PROD-211', 'D-PROD-216', 'D-PROD-217', 'D-PROD-249']);
   // O formato CONVERSÃO é escolha da entrada: as seis anteriores, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211,
   // a D-PROD-216 e a D-PROD-217 não têm o campo.
-  // D-PROD-238: a segunda no formato CONVERSÃO (sem DROP: a cauda é o backfill e a FK para a tabela nova).
+  // D-PROD-249: a segunda no formato CONVERSÃO (sem DROP: a cauda é o backfill e a FK para a tabela nova).
   assert.deepEqual(Object.entries(MIGRATIONS_CONTRACT_APROVADAS).filter(([, k]) => k.conversao !== undefined).map(([n]) => n), [NOME_V, NOME_ARA]);
   // D-PROD-208: a cauda sem conversão (só os DROP no fim) também é escolha da entrada.
   assert.deepEqual(Object.entries(MIGRATIONS_CONTRACT_APROVADAS).filter(([, k]) => k.drop_no_fim !== undefined).map(([n]) => n), [NOME_PP]);
@@ -4194,7 +4194,7 @@ test('B31a (D-PROD-215): o Cadastro de Culturas classificado SOZINHO, como na re
   assert.equal(MIGRATIONS_APROVADAS[NOME_CU], '37a71c46f138f457022fbab8316d645eb4f39a6e2a3ddfe4c8a3394e19665715');
   assert.equal(Object.prototype.hasOwnProperty.call(MIGRATIONS_CONTRACT_APROVADAS, NOME_CU), false, 'EXPAND: sem entrada CONTRACT');
   assert.ok(DO_RLS_APROVADOS.includes(DO_CU), 'o RLS da nova é corpo pinado');
-  assert.equal(NOMES.at(-6), NOME_CU, 'a sexta a contar do fim do manifesto (depois dela vieram a Área ligada à Cultura, D-PROD-216, o reforço, D-PROD-217, a Medição de Forragem, D-PROD-219, os dias de descanso, D-PROD-223, e as áreas da atividade, D-PROD-238)');
+  assert.equal(NOMES.at(-6), NOME_CU, 'a sexta a contar do fim do manifesto (depois dela vieram a Área ligada à Cultura, D-PROD-216, o reforço, D-PROD-217, a Medição de Forragem, D-PROD-219, os dias de descanso, D-PROD-223, e as áreas da atividade, D-PROD-249)');
 });
 
 test('B31b (D-PROD-215): o mesmo arquivo com DDL em tabela antiga (coluna da cultura em AreaPastagem, CHECK em Empresa, UNIQUE em Cliente), a lista de referência como DML de semente ou o RLS citando tabela antiga é recusado (a allowlist EXPAND não afrouxou)', () => {
@@ -4273,7 +4273,7 @@ test('B32a (D-PROD-216): a Área ligada à Cultura classificada SOZINHA, como na
   assert.deepEqual([...k.alter_antigas], [...ALTER_AC]);
   assert.equal(k.conversao, undefined);
   assert.equal(k.drop_no_fim, undefined);
-  assert.equal(NOMES.at(-5), NOME_AC, 'a quinta a contar do fim do manifesto (D-PROD-217: o reforço, D-PROD-219: a Medição de Forragem, D-PROD-223: os dias de descanso, e D-PROD-238: as áreas da atividade, depois dela)');
+  assert.equal(NOMES.at(-5), NOME_AC, 'a quinta a contar do fim do manifesto (D-PROD-217: o reforço, D-PROD-219: a Medição de Forragem, D-PROD-223: os dias de descanso, e D-PROD-249: as áreas da atividade, depois dela)');
 });
 
 test('B32b (D-PROD-216): o mesmo arquivo com a coluna NOT NULL, a FK por SET NULL/CASCADE ou só pelo tenant, o UNIQUE trocado, DML (backfill) ou DROP é recusado; guarda alterada ou ausente também; o contrato é do NOME', () => {
@@ -4845,7 +4845,7 @@ test('B34a (D-PROD-219): a Medição de Forragem classificada SOZINHA, como na r
   assert.equal(MIGRATIONS_APROVADAS[NOME_MF], '66f5fb51b3d2c92419bd8d2320f33b7c632b03edf29a0b598686622e92e7b62f');
   assert.equal(Object.prototype.hasOwnProperty.call(MIGRATIONS_CONTRACT_APROVADAS, NOME_MF), false, 'EXPAND: sem entrada CONTRACT');
   assert.ok(DO_RLS_APROVADOS.includes(DO_MF), 'o RLS da nova é corpo pinado');
-  assert.equal(NOMES.at(-3), NOME_MF, 'a antepenúltima do manifesto (D-PROD-223: os dias de descanso e D-PROD-238: as áreas da atividade vieram depois)');
+  assert.equal(NOMES.at(-3), NOME_MF, 'a antepenúltima do manifesto (D-PROD-223: os dias de descanso e D-PROD-249: as áreas da atividade vieram depois)');
   assert.equal(NOMES.at(-4), NOME_FA, 'depois do reforço (D-PROD-217)');
 });
 
@@ -4915,7 +4915,7 @@ test('B35a (D-PROD-223): os dias de descanso e os parâmetros do pasto classific
   assert.equal(MIGRATIONS_APROVADAS[NOME_DD], sha256(readFileSync(`backend/prisma/migrations/${NOME_DD}/migration.sql`, 'utf8')));
   assert.equal(MIGRATIONS_APROVADAS[NOME_DD], 'c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e');
   assert.equal(Object.prototype.hasOwnProperty.call(MIGRATIONS_CONTRACT_APROVADAS, NOME_DD), false, 'EXPAND: sem entrada CONTRACT');
-  assert.equal(NOMES.at(-2), NOME_DD, 'a penúltima do manifesto (D-PROD-238: as áreas da atividade vieram depois)');
+  assert.equal(NOMES.at(-2), NOME_DD, 'a penúltima do manifesto (D-PROD-249: as áreas da atividade vieram depois)');
   assert.equal(NOMES.at(-3), NOME_MF, 'depois da Medição de Forragem (D-PROD-219)');
 });
 
@@ -4942,7 +4942,7 @@ test('B35k (D-PROD-223/D-PROD-219): ordem de produção no dia da D-PROD-223 —
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 68);
-  // No dia da D-PROD-223 os dias de descanso eram a migration de nome mais recente; as áreas da atividade (D-PROD-238,
+  // No dia da D-PROD-223 os dias de descanso eram a migration de nome mais recente; as áreas da atividade (D-PROD-249,
   // ver B36k) vieram depois.
   const locais = todas.filter((l) => l.nome <= NOME_DD);
   assert.equal(locais.length, 67);
@@ -4971,7 +4971,7 @@ test('B35k (D-PROD-223/D-PROD-219): ordem de produção no dia da D-PROD-223 —
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B36a (D-PROD-238): as áreas da atividade classificadas SOZINHAS, como na release: ok, modo CONTRACT (CONVERSÃO, sem DROP), a tabela nova AtividadeArea, a coluna nova no descritor, o backfill e a FK na cauda; checksum, guarda, RLS e texto pinados; a última do manifesto', () => {
+test('B36a (D-PROD-249): as áreas da atividade classificadas SOZINHAS, como na release: ok, modo CONTRACT (CONVERSÃO, sem DROP), a tabela nova AtividadeArea, a coluna nova no descritor, o backfill e a FK na cauda; checksum, guarda, RLS e texto pinados; a última do manifesto', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_ARA}/migration.sql`, 'utf8');
   const c = classificarMigrations([ler(NOME_ARA)]);
   assert.deepEqual(c.violacoes, []);
@@ -4994,7 +4994,7 @@ test('B36a (D-PROD-238): as áreas da atividade classificadas SOZINHAS, como na 
   assert.equal(NOMES.at(-2), NOME_DD, 'depois dos dias de descanso (D-PROD-223)');
 });
 
-test('B36b (D-PROD-238): o mesmo arquivo sem a FK na cauda, com a FK no resto, com o backfill trocado, com DML a mais, com DROP ou com a guarda mexida é recusado; byte diferente do pinado diverge', () => {
+test('B36b (D-PROD-249): o mesmo arquivo sem a FK na cauda, com a FK no resto, com o backfill trocado, com DML a mais, com DROP ou com a guarda mexida é recusado; byte diferente do pinado diverge', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_ARA}/migration.sql`, 'utf8');
   const c = (s) => classificarMigrations([{ nome: NOME_ARA, sql: s }], { manifesto: { [NOME_ARA]: sha256(s) } });
   const fk = sql.slice(sql.indexOf('ALTER TABLE "AtividadeApontamento" ADD CONSTRAINT'));
@@ -5011,7 +5011,7 @@ test('B36b (D-PROD-238): o mesmo arquivo sem a FK na cauda, com a FK no resto, c
   assert.deepEqual(classificarMigrations([{ nome: NOME_ARA, sql: `${sql} ` }]).violacoes.map((v) => v.codigo), ['MIGRATION_CHECKSUM_DIVERGENTE']);
 });
 
-test('B36k (D-PROD-238/D-PROD-223): ordem de produção hoje — alvo com as 67 da main concluídas (por último os dias de descanso, D-PROD-223): o histórico confere, a única pendente são as áreas da atividade e a barreira do CONTRACT a exige; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 68 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
+test('B36k (D-PROD-249/D-PROD-223): ordem de produção hoje — alvo com as 67 da main concluídas (por último os dias de descanso, D-PROD-223): o histórico confere, a única pendente são as áreas da atividade e a barreira do CONTRACT a exige; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 68 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
   const P1_03 = '20261113300000_estoque_p1_03_indices';
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
@@ -5029,7 +5029,7 @@ test('B36k (D-PROD-238/D-PROD-223): ordem de produção hoje — alvo com as 67 
   const h = conferirHistoricoRemoto({ locais, linhas });
   assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_ARA], falhas: [] });
   assert.deepEqual(conferirHistoricoRemoto({ locais: [...locais].reverse(), linhas: [...linhas].reverse() }), h);
-  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_ARA, decisao: 'D-PROD-238' }]);
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_ARA, decisao: 'D-PROD-249' }]);
   const linhaARA = (checksum, extra = {}) => ({ migration_name: NOME_ARA, checksum, finished_at: new Date(t0 + 99_000), rolled_back_at: null, ...extra });
   for (const errado of [MIGRATIONS_APROVADAS[NOME_DD], MIGRATIONS_APROVADAS[NOME_FA], 'manual']) {
     assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaARA(errado)] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS', errado);

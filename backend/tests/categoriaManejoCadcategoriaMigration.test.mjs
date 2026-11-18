@@ -129,8 +129,8 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS]);
     // D-PROD-219: a EXPAND da Medição de Forragem (MEDICAOFORRAGEM; depende da Área e da CADCULTURAS), também: agora 10.
     // D-PROD-223: a EXPAND da coluna CADCULTURAS.dias_descanso, também: agora 11.
-    // D-PROD-238: a CONTRACT das áreas da atividade (tabela nova AtividadeArea), também: agora 12.
-    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 12, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-210, a D-PROD-215, a D-PROD-216, a D-PROD-219, a D-PROD-223 e a D-PROD-238');
+    // D-PROD-249: a CONTRACT das áreas da atividade (tabela nova AtividadeArea), também: agora 12.
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 12, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-210, a D-PROD-215, a D-PROD-216, a D-PROD-219, a D-PROD-223 e a D-PROD-249');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 90, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-207, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem; − a Funcionario (D-PROD-208, na partida, por último)');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261115900000_atividade_mao_obra_servico'), 'a EXPAND da D-PROD-207 sobe na partida, depois da D-PROD-202');

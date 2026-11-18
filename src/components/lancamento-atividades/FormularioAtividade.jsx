@@ -101,7 +101,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
   const somenteLeitura = !empresaId || naoAberta;
 
   const [form, setForm] = useState(() => (existente ? formularioDaAtividade(atividade) : formularioAtividadeVazio(hoje)));
-  // D-PROD-238: as ÁREAS da abertura (várias áreas por atividade), cada uma com a área planejada (padrão = o tamanho).
+  // D-PROD-249: as ÁREAS da abertura (várias áreas por atividade), cada uma com a área planejada (padrão = o tamanho).
   const [areasEscolhidas, setAreasEscolhidas] = useState(/** @type {import("@/lib/atividadeAreasRegras").LinhaDaAbertura[]} */ ([]));
   // Na edição, a atividade com áreas muda as áreas pelo card "Áreas da atividade" (o formulário só as mostra).
   const comAreas = existente && temAreas(atividade);
@@ -245,7 +245,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
       notifyInfo("Aguarde", "Lendo o fuso horário da fazenda para conferir as datas. Tente de novo em instantes.");
       return;
     }
-    // D-PROD-238: na abertura, a exigência de área do tipo vale para a lista de áreas (ao menos uma); com áreas, a edição não mexe nelas.
+    // D-PROD-249: na abertura, a exigência de área do tipo vale para a lista de áreas (ao menos uma); com áreas, a edição não mexe nelas.
     const v = {
       ...validarFormularioAtividade(form, { hoje, novo: !existente, exigencias: { ...exigencias, area: exigencias.area && existente && !comAreas }, nomeDoTipo }),
       ...(existente ? {} : errosDasAreasDaAbertura(areasEscolhidas, { exigeArea: exigencias.area, nomeDoTipo })),
@@ -256,7 +256,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
       return;
     }
     const corpo = corpoDaAtividade(form, { novo: !existente });
-    // D-PROD-238: a abertura manda `areas[]` (e nunca `area_id` nem a planejada do cabeçalho); a edição da atividade com
+    // D-PROD-249: a abertura manda `areas[]` (e nunca `area_id` nem a planejada do cabeçalho); a edição da atividade com
     // áreas não manda nenhum dos dois (as áreas mudam pelo card).
     if (!existente || comAreas) {
       delete corpo.area_id;

@@ -108,7 +108,7 @@ const CAMPOS_DO_DIA = Object.freeze({
   area_executada_dia: DECIMAL_NULO,
   quantidade_produzida_dia: DECIMAL_NULO,
   observacao: OBSERVACAO,
-  // D-PROD-238: a área da atividade do lançamento (obrigatória com várias áreas; conferida no serviço).
+  // D-PROD-249: a área da atividade do lançamento (obrigatória com várias áreas; conferida no serviço).
   atividade_area_id: ID_NULO,
 });
 

@@ -30,7 +30,7 @@ const MODOS = {
 };
 
 /**
- * D-PROD-238 — o diálogo das ações de UMA área da atividade (no diálogo de ação do sistema): iniciar (a data de início,
+ * D-PROD-249 — o diálogo das ações de UMA área da atividade (no diálogo de ação do sistema): iniciar (a data de início,
  * padrão hoje na fazenda, nunca futura nem antes do início da atividade), concluir (a data de conclusão, nunca antes
  * do início da área), reabrir, remover (só a não iniciada e sem lançamento), a área planejada e adicionar uma área
  * nova à atividade. A recusa do servidor fica dentro do diálogo. Quando `area` não vem e há `escolher` (as áreas a

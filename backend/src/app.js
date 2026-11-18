@@ -247,7 +247,7 @@ export const construirApp = async (opcoes = {}) => {
   // D-PROD-207 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.
   await app.register(registrarAtividadeApontamentoMaoObraRoutes);
   await app.register(registrarAtividadeApontamentoServicoRoutes);
-  // D-PROD-238 — as ÁREAS da atividade (várias áreas; iniciar, concluir, reabrir, remover a não iniciada).
+  // D-PROD-249 — as ÁREAS da atividade (várias áreas; iniciar, concluir, reabrir, remover a não iniciada).
   await app.register(registrarAtividadeAreaRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);

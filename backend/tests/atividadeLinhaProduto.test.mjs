@@ -389,7 +389,7 @@ describe('totalizador', () => {
       // D-PROD-234: as parcelas do custo por tipo (só produto aqui) e os litros por ha (sem combustível, nulo).
       custo_por_tipo: { maquinas: null, produtos: '168.0000', mao_obra: null, servicos: null, combustivel: null },
       litros_combustivel_por_ha: null,
-      // D-PROD-238: a atividade sem área não tem números por área.
+      // D-PROD-249: a atividade sem área não tem números por área.
       por_area: [],
     });
     // sem linha: custo nulo; outra fazenda → 404

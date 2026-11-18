@@ -241,7 +241,7 @@ function CascaDaAbaDados({ testId, enviando, incerto, podeEnviar, formId, onFech
  *   abaInicial?: 'lista'|'dados',
  *   areaInicial?: string|null,
  *   areaFixa?: boolean,
- * }} props `areaInicial` / `areaFixa` (D-PROD-238, várias áreas por atividade): a área da atividade em que a janela abre
+ * }} props `areaInicial` / `areaFixa` (D-PROD-249, várias áreas por atividade): a área da atividade em que a janela abre
  *   e se ela fica FIXA (aberta pelo ⚡ da área, no card "Áreas da atividade") ou com o seletor das áreas EM ANDAMENTO
  *   (aberta pelo ⚡ da lista ou da tabela dos tipos). Na atividade com áreas, a lista mostra os lançamentos do tipo
  *   naquela área em TODOS os dias (com a coluna Data) e o item salvo entra no dia escolhido daquela área (sem
@@ -262,7 +262,7 @@ export default function JanelaLancamentoPorTipo({
   areaInicial = null,
   areaFixa = false,
 }) {
-  // D-PROD-238: a atividade daqui acompanha o que a janela muda nas áreas (iniciar uma área para lançar).
+  // D-PROD-249: a atividade daqui acompanha o que a janela muda nas áreas (iniciar uma área para lançar).
   const [atividade, setAtividadeLocal] = useState(atividadeRecebida);
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
@@ -277,7 +277,7 @@ export default function JanelaLancamentoPorTipo({
   const aberta = atividade?.status === STATUS_ABERTA;
   const gravavel = Boolean(empresaId) && Boolean(fuso) && aberta;
   const tipoPermitido = !doTipo.flag || flags?.[doTipo.flag] === true;
-  // ─── D-PROD-238: a área do lançamento ────────────────────────────────
+  // ─── D-PROD-249: a área do lançamento ────────────────────────────────
   const comAreas = temAreas(atividade);
   const emAndamento = areasEmAndamento(atividade);
   const [areaId, setAreaId] = useState(() => (areaInicial ? String(areaInicial) : emAndamento.length === 1 ? String(emAndamento[0].id) : ""));
@@ -306,7 +306,7 @@ export default function JanelaLancamentoPorTipo({
     staleTime: 15 * 1000,
   });
   const todosOsItens = useMemo(() => itensDaLista(consulta.data), [consulta.data]);
-  // D-PROD-238: na atividade com áreas, só os lançamentos da área escolhida.
+  // D-PROD-249: na atividade com áreas, só os lançamentos da área escolhida.
   const itens = useMemo(
     () => (comAreas ? todosOsItens.filter((a) => String(a?.atividade_area_id ?? "") === areaId) : todosOsItens),
     [todosOsItens, comAreas, areaId],
@@ -425,7 +425,7 @@ export default function JanelaLancamentoPorTipo({
     setChaveDados((k) => k + 1);
   };
 
-  // ─── Lista do tipo: na atividade com ÁREAS (D-PROD-238), TODOS os dias da área, com a coluna Data; na sem área, o dia
+  // ─── Lista do tipo: na atividade com ÁREAS (D-PROD-249), TODOS os dias da área, com a coluna Data; na sem área, o dia
   // escolhido (como na D-PROD-233) ─────
   const apontamentosDaLista = useMemo(
     () =>
@@ -480,7 +480,7 @@ export default function JanelaLancamentoPorTipo({
   else if (aberta && !fuso && empresaId) avisoStatus = "Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de lançar: o servidor recusa sem ele.";
   else if (aberta && !tipoPermitido) avisoStatus = `O tipo desta atividade não permite mais ${doTipo.rotulo.toLowerCase()}: o que já foi lançado fica para consulta.`;
 
-  // D-PROD-238: a área da janela — fixa (aberta pela área) ou o seletor das EM ANDAMENTO; sem nenhuma, como iniciar uma.
+  // D-PROD-249: a área da janela — fixa (aberta pela área) ou o seletor das EM ANDAMENTO; sem nenhuma, como iniciar uma.
   const planejadas = areasDaAtividade(atividade).filter((a) => a.status === STATUS_AREA.PLANEJADA);
   const podeIniciarArea = aberta && acoes?.editar === true;
   const seletorDaArea = !comAreas ? null : areaFixa && areaEscolhida ? (

@@ -150,7 +150,7 @@ export const limparBanco = async () => {
   await prisma.atividadeApontamentoMaoObra.deleteMany({});
   await prisma.atividadeApontamentoServico.deleteMany({});
   await prisma.atividadeApontamento.deleteMany({});
-  // D-PROD-238: as áreas da atividade (referenciadas pelo apontamento; referenciam atividade, área, setor e usuário).
+  // D-PROD-249: as áreas da atividade (referenciadas pelo apontamento; referenciam atividade, área, setor e usuário).
   await prisma.atividadeArea.deleteMany({});
   await prisma.atividade.deleteMany({});
   // D-PROD-207: o cadastro de Serviço referencia Empresa, UnidadeMedida e CentroCusto (RESTRICT).

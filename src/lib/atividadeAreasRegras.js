@@ -1,5 +1,5 @@
 /**
- * D-PROD-238 — VÁRIAS ÁREAS POR ATIVIDADE (regras puras da tela; quem decide é o servidor).
+ * D-PROD-249 — VÁRIAS ÁREAS POR ATIVIDADE (regras puras da tela; quem decide é o servidor).
  *
  * "Eu tenho uma atividade que é combate contra cigarrinha, e nessa atividade são vários pastos que vou fazendo ao
  * decorrer do tempo [...] cada custo e lançamento é feito para aquela área." Uma atividade, várias áreas; cada
@@ -52,7 +52,7 @@ export const areasDaAtividade = (atividade) =>
     .slice()
     .sort((a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
 
-/** A atividade tem áreas (várias áreas, D-PROD-238)? @param {any} atividade */
+/** A atividade tem áreas (várias áreas, D-PROD-249)? @param {any} atividade */
 export const temAreas = (atividade) => areasDaAtividade(atividade).length > 0;
 
 /** Só as áreas EM ANDAMENTO (as que recebem lançamento). @param {any} atividade */

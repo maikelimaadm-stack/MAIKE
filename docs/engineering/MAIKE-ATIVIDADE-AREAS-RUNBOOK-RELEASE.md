@@ -1,4 +1,4 @@
-# MAIKE — Várias áreas por atividade: runbook de release CONTRACT (D-PROD-238)
+# MAIKE — Várias áreas por atividade: runbook de release CONTRACT (D-PROD-249)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.** Só com o GO explícito e escrito do
 > proprietário **para esta migration** (§2). Registro no §9.
@@ -6,7 +6,7 @@
 > Cada passo para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>`
 > são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-238](./DECISIONS.md) · Contrato:
+Decisão: [D-PROD-249](./DECISIONS.md) · Contrato:
 [`MAIKE-ATIVIDADE-AREAS-CONTRATO.md`](./MAIKE-ATIVIDADE-AREAS-CONTRATO.md) · Relatório:
 [`MAIKE-ATIVIDADE-AREAS-REPORT.md`](./MAIKE-ATIVIDADE-AREAS-REPORT.md) · Precedentes executados:
 [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md)
@@ -26,7 +26,7 @@ Decisão: [D-PROD-238](./DECISIONS.md) · Contrato:
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06` |
 | Guarda (`guarda_sha256`) | `0afbc9bb3eab69cdbe52452425b0829c74c68398d44fc81781e70b8c4800ab7e` |
 | RLS (`DO_RLS_APROVADOS`) | `7121f5a6d09747d8c3479411ef0be47cc92eb9a11cf59865429134b18fdd6984` |
-| Classificador | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas ["AtividadeArea"]`, `contract[0]`: `decisao D-PROD-238`, `colunas_adicionadas ["AtividadeApontamento.atividade_area_id"]`, `conversoes ["INSERT INTO AtividadeArea", "UPDATE AtividadeApontamento", "ADD CONSTRAINT AtividadeApontamento.AtividadeApontamento_atividade_area_fkey"]`, o resto vazio |
+| Classificador | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas ["AtividadeArea"]`, `contract[0]`: `decisao D-PROD-249`, `colunas_adicionadas ["AtividadeApontamento.atividade_area_id"]`, `conversoes ["INSERT INTO AtividadeArea", "UPDATE AtividadeApontamento", "ADD CONSTRAINT AtividadeApontamento.AtividadeApontamento_atividade_area_fkey"]`, o resto vazio |
 | `_prisma_migrations` | antes **67** concluídas, 0 em aberto (a última, a D-PROD-223, `20261117300000_descanso_e_alturas_por_area`, checksum `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e`); depois **68** |
 | Tabelas em `public` | **96** antes, **97** depois |
 | Produção (fatos lidos, só leitura, antes desta PR) | 5 atividades (1 sem área) → **4** áreas criadas; 5 lançamentos |
@@ -62,9 +62,9 @@ longa segurando uma delas, aborta **sem aplicar nada**. Fora de pico.
   sessão na 5432), `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360` e a
   conexão do runtime no MESMO banco:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-238)
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-238  # ALVO VERIFICADO — 1 pendente(s) do manifesto
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-238
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                         # ANÁLISE LOCAL OK (CONTRACT D-PROD-249)
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-249  # ALVO VERIFICADO — 1 pendente(s) do manifesto
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-249
   ```
 - **B — conector Supabase, uma única `execute_sql` (§5):** desvio da D-PROD-74, só
   com o GO escrito do proprietário **para esta migration**, registrado no §9.
@@ -78,7 +78,7 @@ longa segurando uma delas, aborta **sem aplicar nada**. Fora de pico.
 | GO | O quê | Situação |
 |---|---|---|
 | GO-1 | preflight **só leitura** em produção (§4) | pendente |
-| GO-2 | aplicar a CONTRACT D-PROD-238 (§5) e mergear em seguida | pendente |
+| GO-2 | aplicar a CONTRACT D-PROD-249 (§5) e mergear em seguida | pendente |
 
 ## 3. Ordem
 
@@ -93,7 +93,7 @@ nela; abrir uma atividade nova com 2 áreas, iniciar uma e lançar nela.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-238 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-249 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -194,7 +194,7 @@ próprios). Roda **este** preflight, **este** envelope e **este** postcheck (ent
 marcadores `sql:…`), trocando só o `system_identifier`: partida com as 67 anteriores (a
 última, a D-PROD-223) e atividades de 2 clientes (ABERTA com área e lançamentos, CONCLUIDA
 com área, CANCELADA com área, ABERTA sem área com lançamento, ABERTA com área sem
-`data_inicio`); classificador e barreira do runner (sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-238`
+`data_inicio`); classificador e barreira do runner (sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-249`
 exato recusa antes do DDL); RED (tabela ou coluna já presentes, atividade concluída com área
 sem data de conclusão: a guarda recusa e nada muda); concorrência (a transação do app que
 trava a atividade e grava o lançamento não fecha deadlock: a migration espera); GREEN pelo
@@ -208,7 +208,7 @@ presente recusam antes do DDL; o envelope aplica 67 → 68; repetir recusa).
 
 ### Caminho A
 
-Os comandos do §1 com `--contract D-PROD-238`.
+Os comandos do §1 com `--contract D-PROD-249`.
 
 ### Caminho B (conector, uma `execute_sql`, só com o GO escrito para ESTA migration)
 
@@ -272,7 +272,7 @@ proprietário.
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-238 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
+-- MAIKE · D-PROD-249 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -396,7 +396,7 @@ começam por `cliente_id`).
 ## 8. `RELEASE_BLOCKED`
 
 Sem o GO-2; validação local não verde; `system_identifier` diferente; histórico diferente
-de 67/0, a D-PROD-223 com outro checksum ou a D-PROD-238 já registrada; a tabela ou a coluna
+de 67/0, a D-PROD-223 com outro checksum ou a D-PROD-249 já registrada; a tabela ou a coluna
 já presentes; atividade concluída com área sem data de conclusão; qualquer `PARAR` no
 preflight; outra migration nova na mesma release; SHA-256 diferente do pinado; ensaio local
 sem passar.

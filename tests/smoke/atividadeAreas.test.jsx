@@ -1,5 +1,5 @@
 /**
- * D-PROD-238 — VÁRIAS ÁREAS POR ATIVIDADE (a tela). "Eu tenho uma atividade que é combate contra cigarrinha, e nessa
+ * D-PROD-249 — VÁRIAS ÁREAS POR ATIVIDADE (a tela). "Eu tenho uma atividade que é combate contra cigarrinha, e nessa
  * atividade são vários pastos que vou fazendo ao decorrer do tempo [...] cada custo e lançamento é feito para aquela
  * área." E o ciclo de cada área: "não vão aparecer as 5 áreas para mim como em andamento; eu vou escolher INICIAR a área."
  *

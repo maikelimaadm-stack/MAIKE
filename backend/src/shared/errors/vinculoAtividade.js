@@ -65,7 +65,7 @@ export const FKS_DA_ATIVIDADE = Object.freeze({
   AtividadeApontamentoMaoObra_parceiro_fkey: Object.freeze({ tabela: 'AtividadeApontamentoMaoObra', campo: 'parceiro_id' }),
   AtividadeApontamentoServico_servico_fkey: Object.freeze({ tabela: 'AtividadeApontamentoServico', campo: 'servico_id' }),
   AtividadeApontamentoServico_parceiro_fkey: Object.freeze({ tabela: 'AtividadeApontamentoServico', campo: 'fornecedor_parceiro_id' }),
-  // D-PROD-238 (`20261118100000_atividade_areas`): as áreas da atividade seguram a área, o setor (snapshot), o autor, a
+  // D-PROD-249 (`20261118100000_atividade_areas`): as áreas da atividade seguram a área, o setor (snapshot), o autor, a
   // fazenda e o tenant; o lançamento segura a área da atividade.
   AtividadeArea_cliente_id_fkey: Object.freeze({ tabela: 'AtividadeArea', campo: 'cliente_id' }),
   AtividadeArea_cliente_id_empresa_id_fkey: Object.freeze({ tabela: 'AtividadeArea', campo: 'empresa_id' }),

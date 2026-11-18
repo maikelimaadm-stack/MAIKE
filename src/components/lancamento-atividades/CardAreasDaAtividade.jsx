@@ -36,7 +36,7 @@ function Barra({ barra, texto, testId }) {
 }
 
 /**
- * D-PROD-238 — o card "Áreas da atividade" da atividade aberta: "abri uma atividade com 5 áreas — não vão aparecer as 5
+ * D-PROD-249 — o card "Áreas da atividade" da atividade aberta: "abri uma atividade com 5 áreas — não vão aparecer as 5
  * áreas para mim como em andamento; eu vou escolher INICIAR a área" (o proprietário).
  *
  * Três grupos, nesta ordem: **Em andamento** (planejada, feita, % com a barra, custo, custo/ha, iniciada em, último

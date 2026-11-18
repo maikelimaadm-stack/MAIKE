@@ -116,7 +116,7 @@ export const lerTipoAtividade = (tx, clienteId, id) =>
  * Área do TENANT: fazenda, situação e o setor dela (o setor da atividade é
  * herdado daqui, nunca digitado). A tabela antiga só tem unique (cliente_id, id).
  * @param {any} tx @param {string} clienteId @param {string} id
- * D-PROD-238: e o tamanho (a área planejada padrão de cada área da atividade).
+ * D-PROD-249: e o tamanho (a área planejada padrão de cada área da atividade).
  * @returns {Promise<{ empresa_id: string, ativo: boolean, setor_id: string, setor_nome: string, tamanho_hectares: unknown } | null>}
  */
 export const lerArea = (tx, clienteId, id) =>

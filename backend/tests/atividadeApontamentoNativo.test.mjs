@@ -48,7 +48,7 @@ const CAMPOS_APONTAMENTO = [
   'id', 'empresa_id', 'atividade_id', 'data_operacional', 'turno', 'sequencia',
   'operador_usuario_id', 'operador',
   'area_executada_dia', 'quantidade_produzida_dia', 'observacao',
-  // D-PROD-238: a área da atividade do lançamento.
+  // D-PROD-249: a área da atividade do lançamento.
   'atividade_area_id', 'atividade_area',
   'origem', 'status', 'versao',
   'cancelado_em', 'cancelado_por', 'motivo_cancelamento',

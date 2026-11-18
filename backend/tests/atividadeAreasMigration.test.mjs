@@ -1,5 +1,5 @@
 /**
- * D-PROD-238 — a migration CONTRACT `20261118100000_atividade_areas` (várias áreas por atividade: a tabela nova
+ * D-PROD-249 — a migration CONTRACT `20261118100000_atividade_areas` (várias áreas por atividade: a tabela nova
  * AtividadeArea, a coluna AtividadeApontamento.atividade_area_id, o backfill e a FK composta que prova que a área do
  * lançamento é DA MESMA atividade) de ponta a ponta, contra PostgreSQL real, em bancos PRÓPRIOS criados e apagados por
  * este teste (o banco da suíte não é tocado; os nomes começam pelo nome do banco da suíte).
@@ -12,7 +12,7 @@
  *
  * RED (num banco NOVO, recusado pela guarda `guarda: …` e NADA muda): atividade concluída com área sem data de
  * conclusão; a tabela nova ou a coluna nova já presentes. E o runner com a conferência de alvo exigida e SEM
- * MIGRATION_CONTRACT_AUTORIZADO=D-PROD-238 exato recusa antes de qualquer DDL.
+ * MIGRATION_CONTRACT_AUTORIZADO=D-PROD-249 exato recusa antes de qualquer DDL.
  *
  * Concorrência: a transação do app na ordem do lançamento (trava a atividade FOR UPDATE, depois grava o apontamento)
  * não fecha deadlock com a migration: a guarda espera a trava da atividade sem segurar o apontamento e aplica depois do
@@ -51,7 +51,7 @@ const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const NOME = '20261118100000_atividade_areas';
-const DECISAO = 'D-PROD-238';
+const DECISAO = 'D-PROD-249';
 const ARQUIVO = join(MIGRATIONS, NOME, 'migration.sql');
 const SQL_MIGRATION = readFileSync(ARQUIVO, 'utf8');
 const CHECKSUM = createHash('sha256').update(SQL_MIGRATION).digest('hex');
@@ -86,7 +86,7 @@ const AP6 = `${C2}-ap6`;
 /** Recusa (lança) qualquer URL que não seja desta máquina. Nunca devolve nem imprime a URL. */
 const exigirUrlLocal = (url) => {
   const motivo = motivoAlvoProtegido({}, url);
-  if (!url || motivo) throw new Error(`teste D-PROD-238: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
+  if (!url || motivo) throw new Error(`teste D-PROD-249: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
   return url;
 };
 const comBanco = (url, banco) => Object.assign(new URL(url), { pathname: `/${banco}` }).toString();
@@ -143,7 +143,7 @@ const aplicarAnteriores = async (url) => {
     if (existsSync(join(MIGRATIONS, 'migration_lock.toml'))) cpSync(join(MIGRATIONS, 'migration_lock.toml'), join(dir, 'migrations', 'migration_lock.toml'));
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
-    if (r.status !== 0) throw new Error(`teste D-PROD-238: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
+    if (r.status !== 0) throw new Error(`teste D-PROD-249: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -273,7 +273,7 @@ after(async () => {
   await closePrismaClient();
 });
 
-describe('D-PROD-238 — migration CONTRACT das áreas da atividade (PostgreSQL real)', () => {
+describe('D-PROD-249 — migration CONTRACT das áreas da atividade (PostgreSQL real)', () => {
   test('AR-01 partida: as 67 migrations de nome anterior a esta (a D-PROD-223 por último), 96 tabelas, sem a tabela nem a coluna; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     assert.equal(ANTERIORES.length, 67, 'a partida de produção: 67 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
@@ -305,7 +305,7 @@ describe('D-PROD-238 — migration CONTRACT das áreas da atividade (PostgreSQL 
     assert.deepEqual(await retrato(db), partida, 'o preflight e o postcheck só leem');
   });
 
-  test('AR-02 o portão: o classificador diz CONTRACT D-PROD-238 (CONVERSÃO, sem DROP) sem violação, o arquivo e a guarda são os pinados; o histórico real da partida confere com só esta pendente', async () => {
+  test('AR-02 o portão: o classificador diz CONTRACT D-PROD-249 (CONVERSÃO, sem DROP) sem violação, o arquivo e a guarda são os pinados; o histórico real da partida confere com só esta pendente', async () => {
     const c = classificarMigrations([{ nome: NOME, sql: SQL_MIGRATION }]);
     assert.deepEqual(c.violacoes, []);
     assert.deepEqual([c.ok, c.expand, c.modo], [true, false, 'CONTRACT']);
@@ -391,8 +391,8 @@ describe('D-PROD-238 — migration CONTRACT das áreas da atividade (PostgreSQL 
     });
   });
 
-  test('AR-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-238, antes de qualquer DDL', async () => {
-    for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-217' }, { MIGRATION_CONTRACT_AUTORIZADO: 'd-prod-238' }, { MIGRATION_CONTRACT_AUTORIZADO: ' D-PROD-238 ' }]) {
+  test('AR-03 runner com a conferência de alvo exigida e SEM a decisão exata → DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED citando só a D-PROD-249, antes de qualquer DDL', async () => {
+    for (const extra of [{}, { MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-217' }, { MIGRATION_CONTRACT_AUTORIZADO: 'd-prod-249' }, { MIGRATION_CONTRACT_AUTORIZADO: ' D-PROD-249 ' }]) {
       const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, ...extra } });
       assert.equal(r.status, 1, r.saida);
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
@@ -404,7 +404,7 @@ describe('D-PROD-238 — migration CONTRACT das áreas da atividade (PostgreSQL 
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('AR-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-238): 68/0, 97 tabelas, o backfill exato, os lançamentos ligados à área nº 1, nenhuma atividade muda; migrate diff vazio', async () => {
+  test('AR-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-249): 68/0, 97 tabelas, o backfill exato, os lançamentos ligados à área nº 1, nenhuma atividade muda; migrate diff vazio', async () => {
     const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
     assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME} (${DECISAO})`), r.saida);
@@ -490,7 +490,7 @@ describe('D-PROD-238 — migration CONTRACT das áreas da atividade (PostgreSQL 
   });
 });
 
-describe('D-PROD-238 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
+describe('D-PROD-249 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
   let dbB;
   let partidaB;
   before(async () => {

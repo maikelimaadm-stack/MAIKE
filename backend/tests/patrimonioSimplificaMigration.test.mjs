@@ -112,7 +112,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
   test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216 e a D-PROD-217, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 19, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223 e a D-PROD-238');
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 19, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223 e a D-PROD-249');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
@@ -184,7 +184,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.match(recusada.saida, /alvo conferido nas duas conexões/);
     assert.match(recusada.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
     // D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-216 e D-PROD-217: as CONTRACT posteriores também pendem e também são citadas.
-    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209), 20261116200000_formulacao_base_consumo (D-PROD-210), 20261116300000_abastecimento_atividade (D-PROD-211), 20261117000000_area_cultura (D-PROD-216), 20261117100000_abastecimento_fk_apontamento_atividade (D-PROD-217), 20261118100000_atividade_areas (D-PROD-238).`), recusada.saida);
+    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209), 20261116200000_formulacao_base_consumo (D-PROD-210), 20261116300000_abastecimento_atividade (D-PROD-211), 20261117000000_area_cultura (D-PROD-216), 20261117100000_abastecimento_fk_apontamento_atividade (D-PROD-217), 20261118100000_atividade_areas (D-PROD-249).`), recusada.saida);
     assert.match(recusada.saida, /Nenhuma migration foi executada/);
     assert.deepEqual(await retrato(db), partida, 'nada mudou');
     assert.equal((await historico(db)).concluidas, MIGRATIONS_PARTIDA);
@@ -197,7 +197,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 97, 'D-PROD-238: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
+    assert.equal(await contarTabelas(db), 97, 'D-PROD-249: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
     // D-PROD-190/191/198/201: subiram DEPOIS da CONTRACT (o runner aplica em ordem de nome); no fim ficam as 2 da atividade, as 3 das linhas, as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e as 4 da mão de obra e do serviço (D-PROD-207), vazias, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
@@ -208,7 +208,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
       ['Atividade', true, false], ['AtividadeApontamento', true, false],
       ['AtividadeApontamentoMaoObra', true, false], ['AtividadeApontamentoMaquina', true, false], ['AtividadeApontamentoProduto', true, false],
       ['AtividadeApontamentoProdutoConsumoLote', true, false], ['AtividadeApontamentoServico', true, false],
-      // D-PROD-238: as áreas da atividade, também vazias, com RLS e sem FORCE.
+      // D-PROD-249: as áreas da atividade, também vazias, com RLS e sem FORCE.
       ['AtividadeArea', true, false],
       ['CADCULTURAS', true, false], ['CADFORMULACAO', true, false], ['CADFORMULACAOINGREDIENTE', true, false], ['CADFORMULACAOREGRA', true, false],
       ['LEITURACOCHO', true, false], ['MEDICAOFORRAGEM', true, false], ['Servico', true, false],

@@ -99,7 +99,7 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
   const id = atividade?.id ? String(atividade.id) : null;
   const [aba, setAba] = useState(/** @type {'lancamentos'|'resumo'} */ ("lancamentos"));
   const [diasAbertos, setDiasAbertos] = useState(false);
-  // D-PROD-238: "Ver lançamentos da área" abre os dias lançados só daquela área.
+  // D-PROD-249: "Ver lançamentos da área" abre os dias lançados só daquela área.
   const [areaDosDias, setAreaDosDias] = useState(/** @type {string|null} */ (null));
   const diasRef = useRef(/** @type {HTMLElement | null} */ (null));
   const comAreas = temAreas(atividade);
@@ -156,7 +156,7 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
   // O total da tabela é o custo total do servidor (a soma das parcelas); sem ele, a soma das parcelas mostradas.
   const totalValor = typeof totais?.custo_total === "string" ? totais.custo_total : valoresDosTipos.length ? somar(valoresDosTipos, 4) : null;
 
-  // D-PROD-238: com várias áreas, o nome do card é "N áreas" (cada área tem a linha dela no card das áreas).
+  // D-PROD-249: com várias áreas, o nome do card é "N áreas" (cada área tem a linha dela no card das áreas).
   const nomeArea = comAreas ? textoDaColunaArea(atividade) : rotuloDaArea(atividade?.area);
   const executada = formatarDecimalLinha(totais?.area_executada ?? atividade?.area_executada);
   const subtituloDosLancamentos = [
@@ -375,7 +375,7 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
     </section>
   );
 
-  // ─── D-PROD-238: o card "Áreas da atividade" (o principal, com várias áreas) ───
+  // ─── D-PROD-249: o card "Áreas da atividade" (o principal, com várias áreas) ───
   const podeGerirAreas = aberta && acoes?.editar === true && habilitado;
   const cardAreas = comAreas ? (
     <CardAreasDaAtividade

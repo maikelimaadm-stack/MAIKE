@@ -16,7 +16,7 @@ const ha = (v) => {
 };
 
 /**
- * D-PROD-238 — o campo "Áreas" da abertura da atividade: as áreas ativas da fazenda para MARCAR (busca + caixas) e,
+ * D-PROD-249 — o campo "Áreas" da abertura da atividade: as áreas ativas da fazenda para MARCAR (busca + caixas) e,
  * conforme a pessoa marca, a lista das escolhidas abaixo — Área · Setor · Tamanho (ha) · Área planejada (ha, editável,
  * padrão = o tamanho) · ✕ — e a linha de total. Todas entram "a iniciar": o lançamento começa quando a pessoa inicia
  * a área. No celular, a lista vira cartões.
