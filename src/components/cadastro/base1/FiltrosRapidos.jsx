@@ -19,14 +19,14 @@ import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
  * Filtro que a TELA controla (consulta ao servidor: situação, tipo de bem, direção…), desenhado como pílula de escolha
  * única na faixa — no lugar dos seletores que ficavam na barra ao lado do "+ Novo" (D-PROD-172). No celular entra na
  * folha "Filtros". `nome` é o nome acessível ("Filtrar por situação"); `coluna`, a coluna da grade que ele já cobre
- * (a pílula automática dela não aparece, nem em "+ Filtro", para não haver duas — D-PROD-235).
- * `ocultarPadrao` (opt-in, D-PROD-235): no valor padrão a pílula mostra só o rótulo ("Status ⌄"), sem o texto do padrão.
+ * (a pílula automática dela não aparece, nem em "+ Filtro", para não haver duas — D-PROD-237).
+ * `ocultarPadrao` (opt-in, D-PROD-237): no valor padrão a pílula mostra só o rótulo ("Status ⌄"), sem o texto do padrão.
  * Com mais de 8 opções, a janela ganha o campo "Pesquisar…".
  * @typedef {{ id: string, tipo?: 'escolha', rotulo: string, nome: string, opcoes: Array<{ value: string, label: string }>,
  *   valor: string, padrao: string, onChange: (valor: string) => void, coluna?: string, ocultarPadrao?: boolean }} FiltroDeEscolha
  */
 /**
- * Filtro de PERÍODO que a tela controla (D-PROD-235): uma pílula só com "De" e "Até" (dias `aaaa-mm-dd`); a pílula
+ * Filtro de PERÍODO que a tela controla (D-PROD-237): uma pílula só com "De" e "Até" (dias `aaaa-mm-dd`); a pílula
  * mostra o período escolhido ("Início 03/11 – 17/11"). A janela é rascunho até o ✓; período invertido avisa e não
  * aplica. `testId` prefixa os campos (`-de`, `-ate`) e o aviso (`-invertido`).
  * @typedef {{ id: string, tipo: 'periodo', rotulo: string, nome: string, de: string, ate: string,
@@ -513,7 +513,7 @@ export function JanelaDoFiltro({ rotulo, tipo, comCondicao, corNomes, ehCor, val
 }
 
 /**
- * Janela do filtro de PERÍODO da tela (D-PROD-235): "De" e "Até" lado a lado; rascunho até o ✓. Período invertido
+ * Janela do filtro de PERÍODO da tela (D-PROD-237): "De" e "Até" lado a lado; rascunho até o ✓. Período invertido
  * mostra o aviso e o ✓ não aplica. No rodapé: ✕ (cancela), "Limpar datas" e ✓ — na folha do celular, o ✓ fica no
  * topo da folha (`controleRef`).
  * @param {{ filtro: FiltroDePeriodo, onAplicar: (periodo: { de: string, ate: string }) => void, onCancelar: () => void,
@@ -753,7 +753,7 @@ export default function FiltrosRapidos({
     [defaultIds, columns, rows, getFieldValue],
   );
   const cobertas = useMemo(() => new Set(daTela.map((f) => f.coluna).filter(Boolean)), [daTela]);
-  // A coluna coberta por um filtro da tela não ganha pílula própria, nem salva de antes (D-PROD-235: sem duas pílulas
+  // A coluna coberta por um filtro da tela não ganha pílula própria, nem salva de antes (D-PROD-237: sem duas pílulas
   // "Tipo de atividade").
   const fixos = useMemo(
     () => (salvos ?? automaticos).filter((id) => porId.has(id) && !cobertas.has(id)),
@@ -921,7 +921,7 @@ export default function FiltrosRapidos({
   };
 
   /**
-   * Pílula de um filtro da tela: escolha única, como "Ordenar" (ou o período "De / Até", D-PROD-235); o ✕ volta ao
+   * Pílula de um filtro da tela: escolha única, como "Ordenar" (ou o período "De / Até", D-PROD-237); o ✕ volta ao
    * padrão. @param {FiltroDaTela} f
    */
   const chipDaTela = (f) => {
@@ -1083,7 +1083,7 @@ export default function FiltrosRapidos({
       const f = daTela.find((x) => x.id === folha.tela);
       titulo = f?.rotulo ?? "";
       if (f?.tipo === "periodo") {
-        // Período (D-PROD-235): o ✓ do topo aplica (período invertido não aplica: o aviso fica na folha).
+        // Período (D-PROD-237): o ✓ do topo aplica (período invertido não aplica: o aviso fica na folha).
         acao = botaoOk(() => controleDaFolha.current?.aplicar());
         corpo = (
           <JanelaDoPeriodo

@@ -2,13 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { listarTodosLocais, listarTodosProdutos, listarTodosLotesNota } from "@/services/estoqueMapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import B1Select from "@/components/cadastro/base1/B1Select";
+import LancField from "@/components/cadastro/base1/LancField";
+import { LancLoteForm, LancLoteGrade, LancLoteAviso, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico";
 import { toast } from "sonner";
 import {
@@ -26,6 +24,24 @@ import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 
+/**
+ * Entrada e Saída do depósito (transferência entre locais de estoque), no desenho do
+ * lançamento de manejo (D-PROD-222): `LancLoteForm` com os campos em `LancField`
+ * (rótulo dentro da caixa), a grade de duas colunas, o resumo Origem · Destino ·
+ * Saldo num `LancLoteAviso` neutro e a ação no `LancLoteRodape` — dentro do
+ * `LancLoteDialogo` ela vira o ✕/✓ do cabeçalho; fora dele, o rodapé Cancelar/ação.
+ * Os campos, as validações e as mensagens, as conversões (kg/sacas), o envio, o
+ * refresh do cache do mapa e as invalidações são os de antes: só a apresentação mudou.
+ *
+ * @param {{
+ *   deposito: any,
+ *   initialDirection?: string,
+ *   onSuccess?: () => void,
+ *   onCancel?: () => void,
+ * }} props
+ *   `initialDirection`: "entrada" (o depósito recebe de outro local) ou "saida"
+ *   (o depósito manda para outro local).
+ */
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
@@ -165,77 +181,71 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     }
   };
 
+  // Origem · Destino · Saldo: os mesmos números e textos de antes, numa linha só (quebra entre os itens).
+  /** @type {Array<[string, string]>} */
+  const resumo = [
+    ["Origem", localOrigemNome || "-"],
+    ["Destino", localDestinoNome || "-"],
+    ["Saldo (kg)", formatQuantidadeTecnica(saldoDisponivel, 3)],
+  ];
+  if (suportaSacos) resumo.push(["Saldo (sacas)", saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })]);
+
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="py-2 px-3 border-b bg-[#FAFCFE]">
-        <CardTitle className="text-sm font-semibold text-slate-900">{direction === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-2">
-        <form onSubmit={handleSubmit} className="space-y-1">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">Data da movimentação <span className="text-red-500">*</span></label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={dataMovimentacao} max={hojeFazenda} onChange={(e) => { dataEditada.current = true; setDataMovimentacao(e.target.value); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
-            </div>
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-                <AutocompleteGenerico
-                  items={outrosLocais}
-                  value={localRelacionadoId}
-                  onChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}
-                  placeholder="BUSCAR LOCAL..."
-                  displayField="nome"
-                  searchFields={["nome", "numero_local"]}
-                  className="w-full"
-                  inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-7 text-xs"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto de Suplementação <span className="text-red-500">*</span></label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={produtoId} onValueChange={(v) => { setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
-                <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.nome_produto} ({p.unidade_medida || "KG"})</SelectItem>)}</SelectContent>
-              </Select></div>
-            </div>
-          </div>
+    <LancLoteForm onSubmit={handleSubmit} data-testid="form-transferencia-deposito">
+      <LancLoteGrade>
+        <LancField label="Data da movimentação" required>
+          <Input type="date" value={dataMovimentacao} max={hojeFazenda} onChange={(e) => { dataEditada.current = true; setDataMovimentacao(e.target.value); }} className={LL_CTL} />
+        </LancField>
+        <LancField label={direction === "entrada" ? "Local de Origem" : "Local de Destino"} required>
+          <AutocompleteGenerico
+            items={outrosLocais}
+            value={localRelacionadoId}
+            onChange={(v) => { setLocalRelacionadoId(v); setProdutoId(""); setQuantidade(""); }}
+            placeholder="BUSCAR LOCAL..."
+            displayField="nome"
+            searchFields={["nome", "numero_local"]}
+            className="w-full"
+            inputClassName={LL_CTL}
+          />
+        </LancField>
+        {/* Campos de escolha do manejo (B1Select): o painel das listas no desktop e a folha no celular. */}
+        <LancField label="Produto de Suplementação" required className="mk-ll__cheio">
+          {/* O B1Select chama o onChange também com o item já escolhido (o Select de antes não chamava):
+              só um produto DIFERENTE volta a unidade para KG e limpa a quantidade. */}
+          <B1Select value={produtoId} onChange={(e) => { const v = e.target.value; if (v === produtoId) return; setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId} className={LL_CTL}>
+            {produtosDisponiveis.map((p) => <option key={p.id} value={p.id}>{p.nome_produto} ({p.unidade_medida || "KG"})</option>)}
+          </B1Select>
+        </LancField>
+        <LancField label="Unidade">
+          <B1Select value={unidadeInput} onChange={(e) => setUnidadeInput(e.target.value)} disabled={!suportaSacos} className={LL_CTL}>
+            <option value="KG">KG</option>
+            {suportaSacos && <option value="SACO">Sacas ({pesoPorSaco} kg/saco)</option>}
+          </B1Select>
+        </LancField>
+        <LancField label={`Quantidade (${unidadeInput === "SACO" ? "sacas" : "kg"})`} required>
+          <Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.01" className={LL_CTL} placeholder="0,00" />
+        </LancField>
+      </LancLoteGrade>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">Unidade</label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={unidadeInput} onValueChange={setUnidadeInput} disabled={!suportaSacos}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="KG" className="text-xs">KG</SelectItem>
-                  {suportaSacos && <SelectItem value="SACO" className="text-xs">Sacas ({pesoPorSaco} kg/saco)</SelectItem>}
-                </SelectContent>
-              </Select></div>
-            </div>
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade ({unidadeInput === "SACO" ? "sacas" : "kg"}) <span className="text-red-500">*</span></label>
-              <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.01" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></div>
-            </div>
-          </div>
+      <LancLoteAviso tom="neutro" data-testid="transferencia-resumo">
+        {resumo.map(([rotulo, valor], i) => (
+          <React.Fragment key={rotulo}>
+            {i > 0 ? <span aria-hidden="true"> · </span> : null}
+            <span className="inline-block">{rotulo}: <b className="font-semibold">{valor}</b></span>
+          </React.Fragment>
+        ))}
+      </LancLoteAviso>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{localOrigemNome || "-"}</span></div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{localDestinoNome || "-"}</span></div>
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo (kg): <span className="font-semibold text-slate-900">{formatQuantidadeTecnica(saldoDisponivel, 3)}</span></div>
-            {suportaSacos && <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo (sacas): <span className="font-semibold text-slate-900">{saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
-          </div>
+      <LancField label="Observações">
+        <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className={LL_CTL} />
+      </LancField>
 
-          <div>
-            <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
-            <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
-          </div>
-
-          <div className="flex justify-end gap-1 pt-1 border-t">
-          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel}>Cancelar</Button>
-          <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+      <LancLoteRodape
+        onCancelar={onCancel}
+        textoAcao={direction === "entrada" ? "Registrar Entrada" : "Registrar Saída"}
+        textoEnviando="Salvando..."
+        enviando={saving}
+      />
+    </LancLoteForm>
   );
 }

@@ -42,9 +42,9 @@ const gridCls = {
  * @param {string} [props.emptyText]
  * @param {(row: object) => import('react').ReactNode} [props.renderAcoesDaLinha] opt-in (D-PROD-232): o botão ⚡ das ações
  *   do card, no topo, ao lado da caixa de marcar
- * @param {(row: object) => ({ texto: string, cor?: string } | null)} [props.avatar] opt-in (D-PROD-235): o selo do card
+ * @param {(row: object) => ({ texto: string, cor?: string } | null)} [props.avatar] opt-in (D-PROD-237): o selo do card
  *   (texto e cor) — padrão: as 3 primeiras letras do título, na cor de destaque
- * @param {(row: object) => import('react').ReactNode} [props.subtitle] opt-in (D-PROD-235): a linha abaixo do título —
+ * @param {(row: object) => import('react').ReactNode} [props.subtitle] opt-in (D-PROD-237): a linha abaixo do título —
  *   padrão: "<rótulo do código> <código>"
  */
 export function Base1Cards({

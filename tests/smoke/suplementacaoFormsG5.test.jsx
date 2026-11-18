@@ -55,17 +55,14 @@ vi.mock('@/components/financeiro/AutocompleteGenerico', () => ({
     </select>
   ),
 }));
-vi.mock('@/components/ui/select', () => ({
-  Select: ({ value, onValueChange, disabled, children }) => (
-    <select aria-label="produto-ou-unidade" value={value} disabled={disabled} onChange={(e) => onValueChange(e.target.value)}>
+// D-PROD-222: Produto e Unidade da transferência são o B1Select do manejo (mesma API do <select>).
+vi.mock('@/components/cadastro/base1/B1Select', () => ({
+  default: ({ value, onChange, disabled, children }) => (
+    <select aria-label="produto-ou-unidade" value={value} disabled={disabled} onChange={onChange}>
       <option value="">-</option>
       {children}
     </select>
   ),
-  SelectTrigger: () => null,
-  SelectValue: () => null,
-  SelectContent: ({ children }) => <>{children}</>,
-  SelectItem: ({ value, children }) => <option value={value}>{children}</option>,
 }));
 
 const assentar = () => act(async () => { await new Promise((r) => setTimeout(r, 30)); });

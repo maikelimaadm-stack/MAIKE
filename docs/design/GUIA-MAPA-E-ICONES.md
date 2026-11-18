@@ -19,9 +19,10 @@ Este documento é um índice dos arquivos reais do sistema. As tabelas indicam *
 | Nomes dos pastos e hectares: tamanho | `src/lib/maplibre/mapaGeralRender.js` → `fontesRotuloPorZoom` |
 | Nomes dos pastos: aparência e posição | `useMapRenderer.jsx` → `syncLabels` e atualização dos rótulos |
 | Cores e linhas das áreas/cercas | `src/lib/maplibre/estiloAreas.js` e funções `paint*` em `mapaGeralRender.js` |
-| Posição dos botões e resumo do mapa | `src/styles/mapa-geral.css` → `.mk-mapa-topo`, `.mk-mapa-dir`, `.mk-mapa-resumo` |
+| Posição da barra do topo, dos botões e do resumo do mapa | `src/styles/mapa-geral.css` → `.mk-mapa-barra` (barra ⚙ · Lotes · Pastos · Tarefas), `.mk-mapa-dir`, `.mk-mapa-resumo` |
 | Estilo final dos botões e painéis | `src/styles/mk-mapa-superficie.css` (sobrescreve parte dos estilos anteriores) |
 | Ordem e ícones dos botões | `src/components/mapa/MapaControlesMobile.jsx` |
+| O que cada foco (Lotes, Pastos, Tarefas) mostra no mapa | `src/lib/mapaFoco.js` → `camadasDoFoco` (D-PROD-218) |
 | Opções e ordem dos filtros | `src/components/mapa/MapaFiltrosAvancados.jsx` |
 | Lado em que abre o painel | `src/components/mapa/MapaFiltrosPainel.jsx` → `side` e chamadas desse componente |
 | Imagens pré-cadastradas e origem de cada ícone | Seção 2 abaixo |
@@ -39,7 +40,7 @@ Há três fontes. Não existe um único arquivo com todas as imagens.
 | Depósito com nível | `src/assets/icones/deposito-sal.js` |
 | Manejos: pesar, nascimento, saída, morte, juntar/mover lotes, mudar categoria e históricos | `src/components/mapa/IconesManejoEnviados.jsx` (SVGs em componentes React) |
 | Entrada dos ícones de manejo | `src/components/mapa/IconesManejo.jsx` (reexporta os componentes acima) |
-| Ícones de botões: filtros, localização, atualizar etc. | Imports de `lucide-react` em `MapaControlesMobile.jsx` e nos componentes que desenham os botões |
+| Ícones de botões: ⚙ (filtros), localização, atualizar etc. | Imports de `lucide-react` em `MapaControlesMobile.jsx` e nos componentes que desenham os botões |
 
 Nos SVGs de manejo, `path d` muda a forma; `strokeWidth` muda a grossura; `style.color`, `color` e `currentColor` definem a cor. Vários usam `#5ACBE9`. O tamanho visual também pode ser limitado pela classe `.mk-al__img` em `src/styles/lancamento-lote.css`, pelas regras de `src/styles/mk-mapa-superficie.css` e pelo botão que contém o ícone.
 
@@ -133,8 +134,9 @@ Uma cor salva na área pode prevalecer sobre a cor padrão. Mudar a paleta não 
 ## 6. Posição das configurações, filtros e painéis
 
 - `src/pages/MapaGeral.jsx`: montagem da tela, dados, quais painéis estão abertos e ligação entre filtros, controles e renderização.
-- `src/components/mapa/MapaControlesMobile.jsx`: botões Tarefas/Filtros à esquerda; Visualização e ações à direita; imports de ícones e ordem dos botões.
-- `src/styles/mapa-geral.css`: posição dos grupos, resumo, margens, dimensões, espaçamento e regras responsivas. Procure `.mk-mapa-topo`, `.mk-mapa-dir`, `.mk-mapa-resumo` e `@media`.
+- `src/components/mapa/MapaControlesMobile.jsx`: barra do topo ⚙ · Lotes · Pastos · Tarefas (D-PROD-218: o ⚙ abre o painel de Filtros; os segmentos trocam o foco do mapa e Tarefas abre a Gestão de Tarefas); Visualização e ações à direita; imports de ícones e ordem dos botões.
+- `src/lib/mapaFoco.js`: focos permitidos por permissão e o que cada foco mostra (lotes, cochos/depósitos, tarefas, lotação no rótulo).
+- `src/styles/mapa-geral.css`: posição dos grupos, resumo, margens, dimensões, espaçamento e regras responsivas. Procure `.mk-mapa-barra`, `.mk-mapa-dir`, `.mk-mapa-resumo` e `@media`.
 - `src/styles/mk-mapa-superficie.css`: aparência final de botões, painéis e detalhes. Regras de maior especificidade e `!important` podem sobrescrever o CSS anterior.
 - `src/components/mapa/MapaFiltrosAvancados.jsx`: grupos/opções e função `camadasDoMapa`, inclusive o que exibir.
 - `src/components/mapa/MapaFiltrosPainel.jsx`: estrutura do painel; prop `side` (`left`/`right`). Confira as chamadas que passam essa prop.

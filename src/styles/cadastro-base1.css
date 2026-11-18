@@ -2723,7 +2723,7 @@
   padding: 0 10px;
 }
 
-/* ─── Filtro de período da faixa (D-PROD-235): "De" e "Até" lado a lado na janela da pílula; rascunho até o ✓.
+/* ─── Filtro de período da faixa (D-PROD-237): "De" e "Até" lado a lado na janela da pílula; rascunho até o ✓.
    A janela é desenhada por portal no body (fora de .cadastro-b1), por isso o escopo é body.b1-tela. ─── */
 body.b1-tela .b1-fr-periodo {
   display: grid;

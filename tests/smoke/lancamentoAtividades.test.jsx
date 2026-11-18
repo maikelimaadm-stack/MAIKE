@@ -599,7 +599,7 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     expect(within(linha("a1")).getByText("01/11/2026")).toBeTruthy();
   });
 
-  it("LA-LISTA-2 — filtros de status, tipo, área e período (pílulas da faixa, D-PROD-235) vão na query; período invertido avisa e não lê", async () => {
+  it("LA-LISTA-2 — filtros de status, tipo, área e período (pílulas da faixa, D-PROD-237) vão na query; período invertido avisa e não lê", async () => {
     await montarComLista();
     await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por status" }), "Concluída");
     await waitFor(() => expect(listagens().at(-1).query.status).toBe("CONCLUIDA"));
@@ -1829,7 +1829,7 @@ const pilulasDaFaixa = () => [...document.querySelectorAll('[data-testid="b1-fil
 /** A pílula de um filtro da tela. @param {string} id */
 const pilulaDaTela = (id) => /** @type {HTMLElement} */ (document.querySelector(`[data-filtro-tela="${id}"]`));
 
-describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards do celular (D-PROD-235)", () => {
+describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards do celular (D-PROD-237)", () => {
   it("LA-FILTROS-1 — sem a caixa solta: a faixa é Ordenar · Status · Tipo de atividade · Área · Início · + Filtro, sem \"Tipo de atividade\" duplicado", async () => {
     await montarComLista();
     expect(screen.queryByTestId("atividades-filtros")).toBeNull();

@@ -1,0 +1,262 @@
+/*
+ * Detalhes do Lote v12 (D-PROD-218) — o que é só da aba Lotes: a tabela da
+ * vista Lista e os invólucros das vistas. O visual comum (raiz `.mk-dp`, abas,
+ * cartões, grade, itens, caixas, rodapés) está em mk-detalhes-pasto.css.
+ * Valores da especificação v12 (D.2 "Lista": medição do v12 nos 3 modos).
+ *
+ * ── Mapa de uso ─────────────────────────────────────────────────────────
+ * div.mk-dp-lotes__vista (troca de vista: + .mk-dp-anim--troca) > Segmentado / blocos da vista
+ * div.mk-dp-lotes__blocos (‹ › do lote: + .mk-dp-anim--aba-dir|--aba-esq) > blocos do lote
+ * div.mk-dp-tabela > div.mk-dp-tabela__rolo > div.mk-dp-tabela__in[role=table][style=grid-template-columns]
+ *   > div.mk-dp-tabela__linha[role=row] (display: contents)
+ *     > div.mk-dp-tabela__g(.mk-dp-fixo | .mk-dp-sep)            linha dos grupos (LOTE · ALERTAS · …)
+ *     > div.mk-dp-tabela__th(.is-on)(.mk-dp-fixo | .mk-dp-sep) > button.mk-dp-tabela__ordenar > span + span.mk-dp-tabela__seta
+ *     > div.mk-dp-tabela__nome.mk-dp-fixo > button.mk-dp-tabela__abrir > span.mk-dp-tabela__bolinha + span.mk-dp-tabela__nome-txt > strong + small
+ *     > div.mk-dp-tabela__td(.com-bolinha | .is-quebra | .mk-dp-sep) > [bolinha--p] span [span.mk-dp-tabela__mini > span]
+ *     > div.mk-dp-tabela__tot(.mk-dp-fixo | .mk-dp-sep)
+ */
+
+/* ── Invólucros das vistas (mantêm o espaço de 8 px entre os blocos) ──── */
+.mk-dp .mk-dp-lotes__vista,
+.mk-dp .mk-dp-lotes__blocos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mk-dp :is(.mk-dp-lotes__vista, .mk-dp-lotes__blocos) > * {
+  flex: 0 0 auto;
+}
+
+/* ── Tabela (vista Lista) ─────────────────────────────────────────────── */
+.mk-dp .mk-dp-tabela {
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(20, 20, 19, 0.1);
+}
+
+.mk-dp .mk-dp-tabela__rolo {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mk-dp .mk-dp-tabela__in {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  color: #1f2328;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.mk-dp .mk-dp-tabela__linha {
+  display: contents;
+}
+
+/* Lote, Nome, nomes e "Total da área" ficam presos à esquerda ao rolar */
+.mk-dp .mk-dp-fixo {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+/* Primeira coluna de cada seção (cabeçalho, células e total) */
+.mk-dp .mk-dp-sep {
+  border-left: 1px solid #e7e9ec;
+}
+
+/* Linha dos grupos: LOTE · ALERTAS · LOTAÇÃO · PESAGEM · IDENTIFICAÇÃO */
+.mk-dp .mk-dp-tabela__g {
+  padding: 8px 10px 2px;
+  background: #f6f7f8;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-tabela__g.mk-dp-fixo {
+  border-right: 1px solid #e7e9ec;
+}
+
+/* Cabeçalho ordenável (o rótulo quebra nas colunas de largura fixa) */
+.mk-dp .mk-dp-tabela__th {
+  display: flex;
+  border-bottom: 1px solid #e7e9ec;
+  background: #f6f7f8;
+}
+
+.mk-dp .mk-dp-tabela__th.mk-dp-fixo {
+  border-right: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-tabela__ordenar {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 100%;
+  padding: 2px 10px 8px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.mk-dp .mk-dp-tabela__th.is-on .mk-dp-tabela__ordenar {
+  color: #1f2328;
+  font-weight: 700;
+}
+
+.mk-dp .mk-dp-tabela__seta {
+  flex: 0 0 auto;
+  color: #0e8fa6;
+  font-size: 9px;
+}
+
+/* Célula do nome: bolinha da situação, nome e "CATEGORIA · SEXO"; abre o lote */
+.mk-dp .mk-dp-tabela__nome {
+  display: flex;
+  min-width: 0;
+  border-right: 1px solid #e7e9ec;
+  border-bottom: 1px solid #e7e9ec;
+  background: #fff;
+}
+
+.mk-dp .mk-dp-tabela__abrir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.mk-dp .mk-dp-tabela__nome-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-tabela__nome-txt strong {
+  color: #1f2328;
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.mk-dp .mk-dp-tabela__nome-txt small {
+  overflow: hidden;
+  color: #6b7280;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-tabela__bolinha {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.mk-dp .mk-dp-tabela__bolinha--p {
+  width: 8px;
+  height: 8px;
+}
+
+/* Células: valor em cima e a mini barra embaixo; com bolinha, em linha */
+.mk-dp .mk-dp-tabela__td {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 9px 10px;
+  border-bottom: 1px solid #e7e9ec;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-tabela__td.com-bolinha {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.mk-dp .mk-dp-tabela__td.is-quebra {
+  white-space: normal;
+}
+
+.mk-dp .mk-dp-tabela__mini {
+  display: block;
+  width: 44px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #eef0f2;
+}
+
+.mk-dp .mk-dp-tabela__mini > span {
+  display: block;
+  height: 100%;
+  background: #3db5c9;
+}
+
+/* Total da área */
+.mk-dp .mk-dp-tabela__tot {
+  padding: 10px;
+  background: #f1f3f5;
+  color: #1f2328;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-tabela__tot.mk-dp-fixo {
+  border-right: 1px solid #e7e9ec;
+}
+
+/* Toque: o cabeçalho ordenável com 40 px (D-PROD-226) */
+@media (max-width: 767px), (pointer: coarse) {
+  .mk-dp .mk-dp-tabela__ordenar {
+    min-height: 40px;
+  }
+}
+
+/* Foco por dentro da célula (a tabela corta o que passa da borda) */
+.mk-dp .mk-dp-tabela :is(.mk-dp-tabela__ordenar, .mk-dp-tabela__abrir):focus-visible {
+  outline-offset: -2px;
+}
+
+/* Uma identidade por lote e campos agrupados por assunto. Não afeta a Lista. */
+.mk-dp .mk-dp-lote-organizado {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-lote-organizado > * {
+  min-width: 0;
+}
+
+
+@media (min-width: 1024px) {
+  .mk-dp .mk-dp-lote-organizado {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .mk-dp .mk-dp-lote-organizado > .mk-dp-cartao,
+  .mk-dp .mk-dp-lote-organizado > .mk-dp-aviso {
+    grid-column: 1 / -1;
+  }
+}

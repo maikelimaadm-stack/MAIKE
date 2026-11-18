@@ -101,7 +101,7 @@ export const rotuloDaArea = (a) => {
 };
 
 /**
- * Sigla do tipo de atividade no selo do card da lista (D-PROD-235): as 3 primeiras letras ou dígitos do nome, em
+ * Sigla do tipo de atividade no selo do card da lista (D-PROD-237): as 3 primeiras letras ou dígitos do nome, em
  * maiúsculas ("ADUBAÇÃO DE COBERTURA" → "ADU"); sem nome, "".
  * @param {unknown} nome
  */

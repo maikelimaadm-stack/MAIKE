@@ -1,8 +1,8 @@
 # MAIKE-ATIVIDADES-LISTA — Relatório
 
-> **fatia:** 4 (lista: filtros e celular) · **branch:** `feat/atividades-lista-filtros-celular` · **PR:** a abrir
+> **fatia:** 4 (lista: filtros e celular) · **branch:** `feat/atividades-lista-filtros-celular` · **PR:** #325
 
-Decisão: [D-PROD-235](./DECISIONS.md) · a partir da `main` `83d08e5c` (PR #324). Fatias anteriores:
+Decisão: [D-PROD-237](./DECISIONS.md) · a partir da `main` `83d08e5c` (PR #324). Fatias anteriores:
 [D-PROD-232](./MAIKE-ATIVIDADES-MENU-RAIO-REPORT.md) (menu ⚡ e Concluir),
 [D-PROD-233](./MAIKE-ATIVIDADES-JANELAS-TIPO-REPORT.md) (janelas por tipo) e
 [D-PROD-234](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md) (atividade aberta).

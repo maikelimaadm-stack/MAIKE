@@ -7,12 +7,32 @@ import { formatarDia, somarDias } from "@/lib/diaCivil";
 import { baseDoCicloDoEvento } from "@/domain/suplementacao/nivelSuplementacao";
 import { resumoDoFechamento } from "@/domain/suplementacao/fechamentoConsumo";
 import { ResumoFechamentoConsumo } from "./FarolConsumo";
+import { LinhaHistorico } from "@/components/lotes/CartaoHistorico";
 
 /** Dias com até 1 casa ("4", "6,7"). @param {number} dias */
 const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
 /**
- * Métricas de um lançamento de suplementação.
+ * @typedef {{ chave: string, rotulo: string, valor: string, desvio?: { real: number, esperado: number } | null }} CelulaMetrica
+ *   `desvio` (só na célula "Desvio"): os consumos por cabeça para o ícone da faixa.
+ * @typedef {{ chave: "fornecimento" | "lote" | "esperado" | "real" | "projecao", titulo: string, celulas: CelulaMetrica[] }} SecaoMetrica
+ * @typedef {{
+ *   evento: any,
+ *   consumoEsperadoDiaKg?: number|null,
+ *   sacos?: number|null,
+ *   produto?: any,
+ *   showProjecao?: boolean,
+ *   duracaoEstimada?: number|null,
+ *   proximaReposicao?: string|null,
+ * }} PropsMetricaEvento
+ */
+
+/**
+ * Rótulos e valores (já formatados) do cartão de métricas de um lançamento,
+ * por seção. Função pura: o cartão abaixo (Histórico) e o "Último registro" do
+ * detalhe do cocho no desenho v12 (D-PROD-220) desenham a MESMA conta, cada um
+ * no seu desenho. O fechamento do consumo (D-PROD-206) não entra: quem desenha
+ * usa `resumoDoFechamento(evento)`.
  *
  * Taxa (D-PROD-178): `consumoEsperadoDiaKg` passado (inclusive `null`) é a taxa
  * do SSOT do nível (`nivelSuplementacao.taxaConsumoKgDia`) e vale como está —
@@ -27,17 +47,10 @@ const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDig
  * real × dias + sobra final) ÷ taxa, sem arredondar; próxima reposição =
  * lançamento + ⌈base ÷ taxa⌉ dia(s).
  *
- * @param {{
- *   evento: any,
- *   consumoEsperadoDiaKg?: number|null,
- *   sacos?: number|null,
- *   produto?: any,
- *   showProjecao?: boolean,
- *   duracaoEstimada?: number|null,
- *   proximaReposicao?: string|null,
- * }} props
+ * @param {PropsMetricaEvento} props
+ * @returns {{ periodoFechado: boolean, secoes: SecaoMetrica[] } | null} null sem evento
  */
-export default function CardMetricaEvento({
+export function metricasDoEvento({
   evento,
   consumoEsperadoDiaKg,
   sacos,
@@ -103,103 +116,103 @@ export default function CardMetricaEvento({
     return fim ? formatarDia(fim) : null;
   })();
 
+  /** @param {number} v */
   const fmtNum3 = (v) =>
   v > 0 ?
   v.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" :
   "-";
 
+  /** @param {number|null} v */
   const fmtSacos = (v) =>
   v != null && v > 0 ?
   v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
   "-";
 
-  return (
-    <div className="space-y-1.5">
-      {/* FORNECIMENTO */}
-      <div>
-        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fornecimento</div>
-        <div className="grid grid-cols-3 gap-1 text-[10px]">
-          <MetricCell label="Quantidade kg" value={formatKg(fornecido)} />
-          <MetricCell label="Quantidade sacos" value={fmtSacos(sacosCalc)} />
-          <MetricCell label="Sobra" value={formatKg(sobra)} />
-        </div>
-      </div>
-
-      {/* DADOS DO LOTE */}
-      <div>
-        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
-        <div className="grid grid-cols-2 gap-1 text-[10px]">
-          <MetricCell label="Qtd. Cabeças" value={formatDecimal(cabecas, 0, true)} />
-          <MetricCell label="Peso médio" value={pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : "-"} />
-        </div>
-      </div>
-
-      {/* CONSUMO ESPERADO */}
-      <div>
-        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Esperado</div>
-        <div className="grid grid-cols-2 gap-1 text-[10px]">
-          {/* D-PROD-210: na base g/cab/dia o esperado não é por %PV. */}
-          <MetricCell label={evento.base_consumo === "G_CAB_DIA" ? "Esperado lote/dia (g/cab)" : "Consumo Lote PV/dia"} value={consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : "-"} />
-          <MetricCell label="Esperado/cab/dia" value={fmtNum3(consumoEsperadoCabDia)} />
-        </div>
-      </div>
-
-      {/* CONSUMO REAL - só quando período está fechado */}
-      {periodoFechado &&
-      <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Real</div>
-          <div className="grid grid-cols-2 gap-1 text-[10px]">
-            <MetricCell label="Realizado cab/dia" value={consumoCabDiaReal > 0 ? fmtNum3(consumoCabDiaReal) : "-"} />
-            <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-              <div className="text-slate-500">Desvio</div>
-              <div className="font-semibold text-slate-900 flex items-center gap-1">
-                {desvioKg != null ?
-              <>
-                    <DesvioConsumoTag real={consumoCabDiaReal} esperado={consumoEsperadoCabDia} />
-                    {desvioKg > 0 ? "+" : ""}{desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
-                  </> :
-              "-"}
-              </div>
-            </div>
-          </div>
-        </div>
-      }
-
-      {/* FECHAMENTO DO CONSUMO (D-PROD-206) - farol real × esperado, %PV e custo; só período fechado */}
-      {periodoFechado && resumoDoFechamento(evento) &&
-      <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fechamento do consumo</div>
-          <ResumoFechamentoConsumo resumo={resumoDoFechamento(evento)} />
-        </div>
-      }
-
-      {/* PROJEÇÃO */}
-      {showProjecao &&
-      <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Projeção</div>
-          <div className="grid grid-cols-3 gap-1 text-[10px]">
-            <MetricCell label="Fechamento" value={periodoFechado ? `${evento.dias_periodo} dia(s)` : "Em aberto"} />
-            <MetricCell label="Duração estimada" value={duracaoCalc > 0 ? `${formatarDias(duracaoCalc)} dia(s)` : "-"} />
-            {periodoFechado ?
-          <MetricCell
-            label="Diferença dia(s)"
-            value={diferencaDias != null ? `${diferencaDias > 0 ? "+" : ""}${formatarDias(diferencaDias)} dia(s)` : "-"} /> :
-
-
-          <MetricCell label="Próx. reposição" value={proxReposicaoCalc || "-"} />
-          }
-          </div>
-        </div>
-      }
-    </div>);
-
+  /** @type {SecaoMetrica[]} */
+  const secoes = [
+    { chave: "fornecimento", titulo: "Fornecimento", celulas: [
+      { chave: "kg", rotulo: "Quantidade kg", valor: formatKg(fornecido) },
+      { chave: "sacos", rotulo: "Quantidade sacos", valor: fmtSacos(sacosCalc) },
+      { chave: "sobra", rotulo: "Sobra", valor: formatKg(sobra) },
+    ] },
+    { chave: "lote", titulo: "Dados do Lote", celulas: [
+      { chave: "cabecas", rotulo: "Qtd. Cabeças", valor: formatDecimal(cabecas, 0, true) },
+      { chave: "peso", rotulo: "Peso médio", valor: pesoMedio > 0 ? `${formatDecimal(pesoMedio, 0)} kg` : "-" },
+    ] },
+    { chave: "esperado", titulo: "Consumo Esperado", celulas: [
+      // D-PROD-210: na base g/cab/dia o esperado não é por %PV.
+      { chave: "lote", rotulo: evento.base_consumo === "G_CAB_DIA" ? "Esperado lote/dia (g/cab)" : "Consumo Lote PV/dia", valor: consumoEsperadoPV > 0 ? formatKg(consumoEsperadoPV) : "-" },
+      { chave: "cab", rotulo: "Esperado/cab/dia", valor: fmtNum3(consumoEsperadoCabDia) },
+    ] },
+  ];
+  // CONSUMO REAL - só quando período está fechado
+  if (periodoFechado) {
+    secoes.push({ chave: "real", titulo: "Consumo Real", celulas: [
+      { chave: "realizado", rotulo: "Realizado cab/dia", valor: consumoCabDiaReal > 0 ? fmtNum3(consumoCabDiaReal) : "-" },
+      {
+        chave: "desvio",
+        rotulo: "Desvio",
+        valor: desvioKg != null ? `${desvioKg > 0 ? "+" : ""}${desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg` : "-",
+        desvio: desvioKg != null ? { real: consumoCabDiaReal, esperado: consumoEsperadoCabDia } : null,
+      },
+    ] });
+  }
+  if (showProjecao) {
+    secoes.push({ chave: "projecao", titulo: "Projeção", celulas: [
+      { chave: "fechamento", rotulo: "Fechamento", valor: periodoFechado ? `${evento.dias_periodo} dia(s)` : "Em aberto" },
+      { chave: "duracao", rotulo: "Duração estimada", valor: duracaoCalc > 0 ? `${formatarDias(duracaoCalc)} dia(s)` : "-" },
+      periodoFechado ?
+      { chave: "diferenca", rotulo: "Diferença dia(s)", valor: diferencaDias != null ? `${diferencaDias > 0 ? "+" : ""}${formatarDias(diferencaDias)} dia(s)` : "-" } :
+      { chave: "reposicao", rotulo: "Próx. reposição", valor: proxReposicaoCalc || "-" },
+    ] });
+  }
+  return { periodoFechado, secoes };
 }
 
-function MetricCell({ label, value }) {
-  return (
-    <div className="rounded border border-slate-200 bg-white px-1 py-1">
-      <div className="text-slate-500">{label}</div>
-      <div className="font-semibold text-slate-900">{value}</div>
-    </div>);
+/**
+ * Métricas de um lançamento de suplementação no cartão do Histórico do cocho.
+ * Os números vêm de `metricasDoEvento` (regras da taxa e da projeção descritas
+ * lá). D-PROD-222: no desenho do histórico do manejo (`CartaoHistorico`), cada
+ * métrica é uma linha "Rótulo: valor", agrupada pelo título da seção; o
+ * fechamento do consumo (D-PROD-206) entra depois do consumo real.
+ *
+ * @param {PropsMetricaEvento} props
+ */
+export default function CardMetricaEvento(props) {
+  const metricas = metricasDoEvento(props);
+  if (!metricas) return null;
+  const fechamento = metricas.periodoFechado ? resumoDoFechamento(props.evento) : null;
 
+  return (
+    <div className="space-y-1" data-testid="metricas-evento">
+      {metricas.secoes.map((secao) => (
+        <React.Fragment key={secao.chave}>
+          <div className="space-y-0.5" data-secao={secao.chave}>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{secao.titulo}</div>
+            {secao.celulas.map((celula) => (
+              <LinhaHistorico key={celula.chave} rotulo={celula.rotulo} data-metrica={celula.chave}>
+                {celula.desvio ? (
+                  <span className="inline-flex items-center gap-1 align-middle">
+                    <DesvioConsumoTag real={celula.desvio.real} esperado={celula.desvio.esperado} />
+                    {celula.valor}
+                  </span>
+                ) : (
+                  celula.valor
+                )}
+              </LinhaHistorico>
+            ))}
+          </div>
+
+          {/* FECHAMENTO DO CONSUMO (D-PROD-206) - farol real × esperado, %PV e custo; só período fechado, depois do consumo real */}
+          {secao.chave === "real" && fechamento ? (
+            <div className="space-y-0.5">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Fechamento do consumo</div>
+              {/* Em linhas "Rótulo: valor", como o resto do cartão (sem caixa dentro de caixa, D-PROD-222). */}
+              <ResumoFechamentoConsumo resumo={fechamento} desenho="linhas" />
+            </div>
+          ) : null}
+        </React.Fragment>
+      ))}
+    </div>
+  );
 }

@@ -11,6 +11,7 @@
  * G3-INT-4  filtro Tipo de pastagem esconde lotes, cochos e tarefas da área oculta.
  * G3-INT-5  filtro de setor mantém o depósito do setor.
  * G3-INT-6  clique no bebedouro abre o ligado por ponto_referencia_id.
+ * G3-INT-7  clique no contorno abre o DetalhesArea com as áreas do mapa (D-PROD-220).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -25,7 +26,7 @@ const EMPRESA = 'emp-1';
 const sessao = vi.hoisted(() => ({ usuario: null }));
 /** servidor: dado atual; indexedDb: cópia do último refresh; chamadas: [chave, force]. */
 const dados = vi.hoisted(() => ({ servidor: {}, indexedDb: {}, chamadas: [], bebedouros: [], portao: null }));
-const desenho = vi.hoisted(() => ({ ultimo: {}, bebedouroAberto: null }));
+const desenho = vi.hoisted(() => ({ ultimo: {}, bebedouroAberto: null, areaAberta: null }));
 
 vi.mock('@/lib/AuthContext', () => ({
   AuthProvider: ({ children }) => children,
@@ -72,6 +73,12 @@ vi.mock('@/services/bebedouroDataService', async (importOriginal) => ({
 vi.mock('@/components/bebedouros/DetalhesBebedouro', () => ({
   default: ({ bebedouro }) => {
     desenho.bebedouroAberto = bebedouro;
+    return null;
+  },
+}));
+vi.mock('@/components/mapa/DetalhesArea', () => ({
+  default: (props) => {
+    desenho.areaAberta = props;
     return null;
   },
 }));
@@ -178,6 +185,7 @@ beforeEach(() => {
   dados.portao = null;
   desenho.ultimo = {};
   desenho.bebedouroAberto = null;
+  desenho.areaAberta = null;
 });
 afterEach(() => cleanup());
 
@@ -282,5 +290,14 @@ describe('G3-INT-6 — clique no bebedouro', () => {
     await waitFor(() => expect(typeof desenho.ultimo.pontos?.[3]).toBe('function'));
     await act(async () => { await desenho.ultimo.pontos[3](P2); });
     await waitFor(() => expect(desenho.bebedouroAberto?.id).toBe('bA'));
+  });
+});
+
+describe('G3-INT-7 — clique no contorno da área (D-PROD-220)', () => {
+  it('abre o DetalhesArea com as áreas do mapa (nome da outra área no histórico)', async () => {
+    await montar();
+    await act(async () => { desenho.ultimo.areas[2](A1, null); });
+    await waitFor(() => expect(desenho.areaAberta?.area?.id).toBe('a1'));
+    expect(ids(desenho.areaAberta.areas)).toEqual(['a1', 'a2']);
   });
 });

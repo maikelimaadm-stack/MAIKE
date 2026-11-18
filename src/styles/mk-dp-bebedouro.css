@@ -1,0 +1,21 @@
+/*
+ * Detalhe do bebedouro no desenho do Detalhes do Lote v12 (D-PROD-220, tela
+ * `telaBebedouro`; componente src/components/bebedouros/DetalhesBebedouro.jsx).
+ * O comum (raiz, corpo, cartão, grade, linha, chip, aviso, vazio, linha do
+ * tempo, rodapé de pílulas) está em mk-detalhes-pasto.css e mk-dp-historico.css;
+ * aqui só o que é do bebedouro. Tudo sob a raiz `.mk-dp`.
+ *
+ * Marcação:
+ *   div.mk-dp.mk-dp-bebedouro > div.mk-dp__corpo > …blocos…
+ *     Último registro sem lançamento: div.mk-dp-linha.mk-dp-bebedouro__fraco
+ *   + div.mk-dp__rodape > div.mk-dp-bebedouro__rodape[data-permissao-explicita] > div.mk-dp-rodape--pilulas
+ *
+ * Lançar e Histórico (D-PROD-222) abrem num LancLoteDialogo por cima, no
+ * desenho dos manejos do lote (lancamento-lote.css): nada deles mora aqui.
+ */
+
+/* "Nenhum lançamento ainda.": a linha fraca do v12 (`v11-row--fraco`), 11,5 px cinza (D-PROD-224) */
+.mk-dp .mk-dp-bebedouro__fraco .mk-dp-linha__rot {
+  color: #6b7280;
+  font-size: 11.5px;
+}

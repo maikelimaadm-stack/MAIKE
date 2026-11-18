@@ -1,0 +1,228 @@
+/*
+ * Detalhe do COCHO no desenho do Detalhes do Lote v12 (D-PROD-220; telaCocho do
+ * v12). Só o que é desta tela: o comum (raiz, corpo, título, cartão, grade,
+ * linha, nível, ação, aviso, vazio, rodapé) está em mk-detalhes-pasto.css.
+ * Tudo sob a raiz `.mk-dp`.
+ *
+ * Marcação (DetalhesPontoSuplementacao.jsx):
+ *   section.mk-dp-cocho__regiao[aria-labelledby] > h3.mk-dp-cocho__oculto | .mk-dp-titulo + blocos
+ *   div.mk-dp-nivel.mk-dp-cocho__nivel(.mk-dp-cocho__nivel--neutro)
+ *     > span.mk-dp-nivel__fig.mk-dp-cocho__fig > div[role=img] (CochoNivel, o subícone) > svg + span (só leitor de tela)
+ *     + div.mk-dp-nivel__txt > span.mk-dp-nivel__rot + strong.mk-dp-nivel__val + small.mk-dp-nivel__linha(.mk-dp-cocho__obs)…
+ *   .mk-dp-cartao.mk-dp-cocho__cartao-nivel > dl.mk-dp-grade > .mk-dp-medidor + .mk-dp-cel… ; + .mk-dp-linha
+ *   .mk-dp-linha.mk-dp-cocho__linha--fraca | .mk-dp-cocho__linha--atencao
+ *   ul.mk-dp-cocho__leituras > li > .mk-dp-linha.mk-dp-cocho__linha--fraca(.mk-dp-cocho__linha--com-obs)
+ *       (> span.mk-dp-linha__val > span.mk-dp-cocho__escore(> .mk-dp-bolinha) + button.mk-dp-acao)
+ *     + p.mk-dp-cocho__obs-leitura
+ *   span.mk-dp-cocho__atencao (texto âmbar dentro de uma célula ou linha)
+ *   div.mk-dp-vazio.mk-dp-cocho__carregando[role=status]
+ */
+
+/* ── Regiões (nível, leitura): coluna com o mesmo espaço do corpo (8 px) ── */
+.mk-dp .mk-dp-cocho__regiao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-cocho__regiao > * {
+  flex: 0 0 auto;
+}
+
+/* Só para o leitor de tela: o título da região do nível (o v12 não mostra
+   título acima do nível) e o percentual interno do CochoNivel (o número aparece
+   uma vez, grande, no valor do bloco; o `role="img"` continua com o nome). */
+.mk-dp .mk-dp-cocho__oculto,
+.mk-dp .mk-dp-cocho__fig > [role="img"] > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Nível: o subícone do cocho (CochoNivel, sem a bolinha do mapa; D-PROD-225) na caixa de 64 px ── */
+.mk-dp .mk-dp-cocho__fig {
+  position: relative;
+}
+
+.mk-dp .mk-dp-cocho__fig > [role="img"] {
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+/* O desenho ocupa a largura da caixa, na proporção dele (os 156 px do
+   CochoNivel são para os lugares com mais espaço). */
+.mk-dp .mk-dp-cocho__fig > [role="img"] > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  flex: 0 0 auto;
+}
+
+/* Cartão do limite como o "Nível do cocho" antigo (D-PROD-226), em todos os modos: o medidor
+   de ponta a ponta (com ou sem saldo, duração e reposição) e Saldo | Duração | Próxima
+   reposição numa fileira de três. */
+.mk-dp .mk-dp-cocho__cartao-nivel .mk-dp-grade {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mk-dp .mk-dp-cocho__cartao-nivel .mk-dp-grade > .mk-dp-medidor {
+  grid-column: 1 / -1;
+}
+
+/* Os três números com o valor na mesma linha, mesmo quando um rótulo quebra em duas (ex.:
+   "Próxima reposição" no popup do tablet): cada célula usa os trilhos da grade (subgrid) para
+   rótulo, valor e sub. Sem subgrid, a célula fica como antes. */
+.mk-dp .mk-dp-cocho__cartao-nivel .mk-dp-grade > .mk-dp-cel:not(.mk-dp-medidor) {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 1px;
+}
+
+/* Sem estimativa: o estado (ex.: "Período fechado") no lugar do número, menor e cinza. */
+.mk-dp .mk-dp-cocho__nivel--neutro .mk-dp-nivel__val {
+  color: #4b5563;
+  font-size: 16px;
+}
+
+/* Observação do desconto diário: depois das linhas, mais clara. */
+.mk-dp .mk-dp-cocho__obs {
+  color: #6b7280;
+}
+
+/* ── Linhas ───────────────────────────────────────────────────────────── */
+/* "Fraca" do v12 (`v11-row--fraco`): rótulo cinza, rótulo e valor em 11,5 px (D-PROD-224) —
+   leituras anteriores e os "Nenhum … ainda.". */
+.mk-dp .mk-dp-cocho__linha--fraca .mk-dp-linha__rot {
+  color: #6b7280;
+  font-size: 11.5px;
+}
+
+.mk-dp .mk-dp-cocho__linha--fraca .mk-dp-linha__val {
+  font-size: 11.5px;
+}
+
+/* Aviso dentro do cartão (ex.: "Aproximado — sobra não informada"). */
+.mk-dp .mk-dp-cocho__linha--atencao .mk-dp-linha__rot {
+  color: #b45309;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-cocho__atencao {
+  color: #b45309;
+}
+
+/* ── Últimas leituras: uma linha por leitura, com o "Excluir" no fim ───── */
+.mk-dp .mk-dp-cocho__leituras > li {
+  border-top: 1px solid #e7e9ec;
+}
+
+/* A data é curta: o fim da linha (bolinha, escore e "Excluir") pode passar dos 62% da Linha. */
+.mk-dp .mk-dp-cocho__leituras .mk-dp-linha__fim {
+  max-width: 74%;
+}
+
+/* Sem espaço (celular), só o "Excluir" desce, alinhado à direita. */
+.mk-dp .mk-dp-cocho__leituras .mk-dp-linha__val {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 10px;
+}
+
+.mk-dp .mk-dp-cocho__escore {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-cocho__leituras .mk-dp-acao {
+  margin-right: -4px;
+}
+
+/* Observação da leitura: embaixo da linha, na largura toda (texto livre). */
+.mk-dp .mk-dp-cocho__linha--com-obs {
+  min-height: 0;
+  padding-bottom: 2px;
+}
+
+.mk-dp .mk-dp-cocho__obs-leitura {
+  padding: 0 12px 8px;
+  color: #6b7280;
+  font-size: 11.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ── Carregando: o ícone do vazio gira (sem movimento reduzido) ────────── */
+@keyframes mk-dp-cocho-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk-dp .mk-dp-cocho__carregando .mk-dp-vazio__ic {
+    animation: mk-dp-cocho-girar 1s linear infinite;
+  }
+}
+
+/* ── Popup (a partir de 768 px, D-PROD-224): o nível do ciclo e o cartão do
+   limite LADO A LADO, como o "Nível do cocho" do estilo antigo (dois painéis
+   e as células embaixo do limite). Só a região do nível; a da leitura segue em
+   coluna. O título oculto é absoluto e não ocupa célula da grade. ── */
+@media (min-width: 768px) {
+  .mk-dp .mk-dp-cocho__regiao:has(> .mk-dp-cocho__nivel) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+/* Listas históricas só são montadas nos diálogos das ações do rodapé. */
+.mk-dp-cocho__historico {
+  display: block;
+  overflow: auto;
+  padding: 12px;
+}
+
+.mk-dp-cocho__historico .mk-dp-grade {
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+}
+
+.mk-dp-cocho__fechamentos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (max-width: 767px) {
+  .mk-dp-cocho .mk-dp__rodape .mk-dp-pilula {
+    flex-direction: column;
+    height: auto;
+    min-height: 52px;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 11.5px;
+  }
+
+  .mk-dp-cocho .mk-dp__rodape .mk-dp-pilula > span {
+    overflow: visible;
+    text-overflow: clip;
+  }
+}

@@ -113,7 +113,7 @@ export const ATIVIDADES_COLUNAS = [
 ];
 
 /**
- * Cards (celular): o nome é o título, "Nº 7 · Aberta" o subtítulo e o selo é a sigla do tipo (D-PROD-235); os campos
+ * Cards (celular): o nome é o título, "Nº 7 · Aberta" o subtítulo e o selo é a sigla do tipo (D-PROD-237); os campos
  * em duas colunas. É o padrão: os campos continuam personalizáveis (Mais opções → campos dos cards).
  */
 export const ATIVIDADES_CAMPOS_CARD = ["numero", "tipo", "area", "data_inicio", "valor_total"];
@@ -152,7 +152,7 @@ export const valorDoCampoAtividade = (item, id) => {
   return "";
 };
 
-/** Ordens da pílula "Ordenar" em palavras da tela (D-PROD-235: "Nº (mais recentes primeiro)", como no protótipo). */
+/** Ordens da pílula "Ordenar" em palavras da tela (D-PROD-237: "Nº (mais recentes primeiro)", como no protótipo). */
 const PALAVRAS_DA_ORDEM = Object.freeze(
   /** @type {Record<string, { asc: string, desc: string }>} */ ({
     numero: { asc: "Nº (mais antigas primeiro)", desc: "Nº (mais recentes primeiro)" },
@@ -210,7 +210,7 @@ const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${ativida
  * aberto, "Cigarrinha Pasto 01") e os APONTAMENTOS dela, por dia e turno.
  *
  * Lista keyset das atividades (filtros de status, tipo, área e período sobre o
- * início — D-PROD-235: todos como pílulas na faixa do motor; no celular, cards com o selo do tipo) com Nº, nome, tipo, área, status, área executada / planejada e
+ * início — D-PROD-237: todos como pílulas na faixa do motor; no celular, cards com o selo do tipo) com Nº, nome, tipo, área, status, área executada / planejada e
  * início (e, D-PROD-234, o valor total que a lista do servidor traz). "Abrir atividade" cria (FormularioAtividade). Na linha selecionada
  * (ou na atividade aberta), o menu Mais opções traz o que a permissão e o
  * status deixam: concluir (com a data), reabrir e cancelar (com motivo) e
@@ -689,7 +689,7 @@ export default function LancamentoAtividades() {
   );
 
   /**
-   * Os filtros da consulta, todos na faixa de pílulas do motor (D-PROD-235: sai a caixa solta de tipo, área e período
+   * Os filtros da consulta, todos na faixa de pílulas do motor (D-PROD-237: sai a caixa solta de tipo, área e período
    * que ficava acima da grade), na ordem do protótipo: Status, Tipo de atividade, Área e Início (uma pílula com "De" e
    * "Até"). Cada um continua indo para a query do SERVIDOR (status, tipo_atividade_id, area_id, data_de, data_ate) e
    * relendo a lista keyset do começo; "Limpar filtros" volta todos ao padrão. A coluna que cada um cobre não ganha
@@ -954,7 +954,7 @@ export default function LancamentoAtividades() {
               cardsCodeColId="status"
               cardsAvatar={seloDoCardAtividade}
               cardsSubtitle={subtituloDoCardAtividade}
-              // D-PROD-235: a faixa começa só com os filtros da consulta (Status, Tipo, Área, Início); os demais campos
+              // D-PROD-237: a faixa começa só com os filtros da consulta (Status, Tipo, Área, Início); os demais campos
               // continuam em "+ Filtro".
               quickFilterIds={SEM_FILTROS_AUTOMATICOS}
               quickSortOptions={ORDENS_DA_LISTA_ATIVIDADES}

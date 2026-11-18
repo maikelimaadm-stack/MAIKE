@@ -7699,6 +7699,29 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md`](./MAIKE-ABASTECIMENTO-FK-APONTAMENTO-REPORT.md).
 
+## D-PROD-218 — Mapa Geral: barra do topo v12 (⚙ · Lotes · Pastos · Tarefas) e Detalhes do Lote v12
+
+**Data:** 2026-11-17 · **Numeração:** a PR #303 (reforço do apontamento do abastecimento) foi mergeada antes como D-PROD-217; esta passou a **D-PROD-218** · **Origem:** pedido do proprietário: implementar o design "Detalhes do Lote v12" (canvas aprovado) com os componentes do sistema — os botões do mapa, os campos de cima (Tarefas, Lote…) e o Detalhes do Lote, "tudo igual". No meio do trabalho ele fixou: **"os filtros deixe do jeito que está atualmente"**, e escolheu a barra do v12 com os filtros de hoje · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308.
+
+**Decisão — mapa.**
+1. **Barra do topo** (`MapaControlesMobile`, `.mk-mapa-barra`): a barra escura do v12 substitui os botões de canto Tarefas/Filtros. O ⚙ (nome acessível "Filtros") abre o painel de Filtros de sempre, **sem mudança**; os segmentos **Lotes · Pastos · Tarefas** trocam o foco do mapa; Tarefas também abre a Gestão de Tarefas que já existe. Coluna da direita (Visualização, Atualizar, Localizar, Mover), legenda, resumo e todos os filtros/listas ficam como estavam.
+2. **Foco** (`src/lib/mapaFoco.js`, estado da página, não salvo; abre sempre em Lotes): **Lotes** = como antes; **Pastos** = sem marcadores de lote e sem tarefas, rótulo da área com "x,x UA (y,yy/ha)" (ou "Descanso Nd" na área vazia em descanso), mesmo com a cor "Situação do Pasto"; **Tarefas** = sem marcadores de lote e sem cochos/depósitos. Só os argumentos dos `renderer.sync*` mudam (renderer intacto). Pastos exige `visualizar_areas`; Tarefas, a permissão das tarefas do mapa; perdeu a permissão do foco atual → volta para Lotes. A consulta de movimentações fica ligada também no foco Pastos (chave estável).
+3. **Celular:** a barra vai da esquerda até antes da coluna da direita (não cobre Visualização). O aviso do satélite desce para baixo da barra (só no Mapa Geral).
+
+**Decisão — Detalhes do Lote** (raiz CSS nova `.mk-dp`; a casca v8 `.mk-dl8` fica para o Resumo do Rebanho, D-PROD-213).
+4. **Casca:** popup a partir de **768 px** (computador e tablet; prop nova `popupDesde="tablet"` do `LancLoteDialogo`, aditiva), tela cheia no celular. Título = área, subtítulo = setor. Pilha de telas na mesma janela (tela do lote, "Manejos e históricos", "Configurar tabela") com **‹ Voltar** (contexto novo `setCabecalho` do `LancLoteDialogo`). Esc volta um nível; na raiz do popup não fecha (D-PROD-125 mantida); clique no véu não fecha.
+5. **Abas:** Detalhes · Lotes (badge, fora do celular) · Histórico (com `visualizar_historico_movimentacoes_lote`) · Suplementação ("Supl." no celular; com `visualizar_cochos_suplementacao`). Aberto pelo marcador, abre em **Lotes**. O clique no contorno da área continua abrindo o "Histórico da Área" (sem mudança).
+6. **Lotes:** Resumo (KPIs + lista com caixa de marcar), Lote (‹ ›, todos os alertas, Lotação/Pesagem/Identificação abertas) e Lista (colunas por usuário — `colunasLote` no escopo D-PROD-135, padrão Alertas + Lotação + Pesagem — e "Configurar tabela"). Vista inicial como o v12: **Lista** no computador/tablet e **Resumo** no celular, lembrada por área na sessão — substitui o "sempre Resumo" do v8. O "Filtrar"/"Mostrar informações" do v8 saem.
+7. **Rodapé:** **Mover lotes · Pesar · Manejos** (desabilitados sem lote; pílula some sem a permissão). Alvo dos manejos: lote da tela do lote → senão os marcados → senão todos (inclusive Juntar, avaliado sobre o alvo). Na aba Suplementação com cocho: **Lançar · Leitura · Histórico** (os mesmos formulários do detalhe do cocho).
+8. **Manejos e históricos** vira tela da pilha (3 colunas em todos os modos, D-PROD-119 atualizada). Formulários e os históricos completos (Excluir, Carregar mais, D-PROD-110/117) continuam abrindo como diálogos por cima. Depois de salvar um manejo o Detalhes fecha, como antes (o diálogo recebe um retrato das posições).
+9. **Histórico (aba):** linha do tempo do v12 com dados reais da área (mesma consulta paginada e o mesmo fallback offline do histórico de hoje; eventos de suplementação da área). "Registrado por" e o peso da transferência não existem como dado → não aparecem. Cancelados com chip "Cancelado".
+10. **Suplementação (aba):** cochos da área (pontos decorados do mapa), KPIs/Fornecimento/Consumo do primeiro cocho por nome (com 2+ cochos, o título leva o nome dele), tolerância real do fechamento (padrão 15%).
+11. **Visual:** tipografia, cores e medidas do v12 (valores 14 px, rótulos 12,5, títulos 15, texto `#1f2937`) **só** no Detalhes v12 — supera, para este painel, a D-PROD-175 e a cor `#374151` da D-PROD-120/124. Unidade depois do número, como no v12 ("449,5 kg"). O deslize lateral do v8 sai; o gesto da borda (D-PROD-120) continua.
+
+**Fora do escopo:** formulários de manejo, detalhe do cocho/depósito/bebedouro/tarefa, painel de tarefas, cabeçalho/menu do sistema, painel Opções do mapa e listas de filtro e de escolha do v12 (o dono manteve as listas no padrão do sistema). **Correção junto:** a Gestão de Tarefas (aberta pelo segmento Tarefas) abria vazia na primeira vez por causa do `initialData: []` com `staleTime` em `TarefasMapaPanel.jsx`; agora busca ao abrir.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-LOTE-V12-REPORT.md). **Design versionado:** `docs/design/detalhes-do-lote/detalhes-do-lote-v12.dc.html`.
+
 ## D-PROD-219 — Medição de Forragem do pasto (tabela `MEDICAOFORRAGEM`): régua, no olho e amostra de matéria seca
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-217`, mas a D-PROD-217 é a do reforço da FK do apontamento do abastecimento (PR #303, mergeada e aplicada antes desta) e também está numa branch aberta (`claude/design-filters-implementation-agzxk8`), e a D-PROD-218 é a próxima de uma delas. Para não duplicar, esta decisão é a **D-PROD-219**. O número não está no `migration.sql`, então o checksum não muda. A #303 usa o prefixo `20261117100000` e foi aplicada antes: esta pasta, `20261117200000_medicao_forragem`, é a 66ª e tem a dela como anterior.
@@ -7722,6 +7745,90 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Ajuste depois da release (2026-11-17, pedido do proprietário pelo print do celular).** O campo único "Leituras (cm)" com os valores separados por espaço não funciona no iPhone: o teclado decimal não tem espaço. Passa a ser **uma leitura por vez**: o campo + o botão **"+"** (também Enter e sair do campo) põem a leitura numa lista; cada item tem **×** para tirar; a leitura digitada e ainda não confirmada também conta na média e vai no envio. Texto com espaço (colar, computador) continua aceito. Só a tela muda: corpo da API, banco e regras iguais.
 
+## D-PROD-220 — Mapa Geral: detalhes do cocho, do depósito, do bebedouro, da tarefa e da área no desenho do Detalhes do Lote v12
+
+**Data:** 2026-11-17 · **Numeração:** nasceu D-PROD-219 nesta branch; a `main` deu a D-PROD-219 à Medição de Forragem (PR #309, mergeada antes), e esta passou a **D-PROD-220** · **Origem:** pedido do proprietário, depois da D-PROD-218: "agora todos os detalhes de cocho, depósitos etc., os detalhes que abrem no meu mapa, você vai deixar igual de lotes — o estilo visual, o modelo de dados, as informações" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão.**
+1. **Casca de uma tela** (`CascaDetalhe`, raiz `.mk-dp` filha do `.mk-ll` do `LancLoteDialogo`): os detalhes que abrem pelo mapa usam o desenho do Detalhes do Lote v12 (D-PROD-218):
+   - popup a partir de 768 px (`popupDesde="tablet"`) e tela cheia no celular;
+   - título e subtítulo no cabeçalho do diálogo, e ‹ Voltar nas telas empilhadas (o Esc volta). Num **formulário** empilhado o Esc é ignorado (`escVolta={false}`), para um Esc sem querer não apagar o que foi digitado, como no popup (D-PROD-125);
+   - cartões, títulos de seção, grade de células, linhas rótulo/valor, linha do tempo e rodapé de pílulas.
+
+   Peças novas: `Nivel` e `Acao` em `blocos.jsx`, que agora repassam `id`, `data-*` e `aria-*`; `MedidorLimiteOperacional estilo="v12"` (célula da grade, mesma semântica de `meter`); ícone próprio e pé de ação (`acoes`) no cartão da `LinhaDoTempo`.
+2. **Cocho** (`DetalhesPontoSuplementacao`). Título = cocho, subtítulo = áreas · setor. Rodapé **Lançar · Leitura · Histórico**, com as mesmas permissões e os mesmos formulários.
+   - **Nível do cocho:** região acessível com o percentual uma vez, grande, e as linhas do SSOT (D-PROD-178). Embaixo, o cartão com uso do limite, saldo ou sobra, duração e próxima reposição. Esse cartão aparece também no estado neutro, porque o limite tem estado próprio.
+   - **Leitura do cocho** (D-PROD-205): farol, avisos e as 5 últimas leituras, inclusive a mais recente, com Excluir.
+   - **Último período fechado** (D-PROD-206/212): as 4 células do v12 e, no mesmo desenho, o resto do resumo do fechamento.
+   - **Total fornecido por produto.**
+   - **Último registro** (o v12 não tem): os mesmos números do cartão do Histórico, numa função pura (`metricasDoEvento`).
+   - **Informações do cocho.**
+3. **Depósito** (`DetalhesDepositoSuplementacao`). Rodapé **Entrada · Saída · Histórico**; a transferência (D-PROD-161) não muda.
+   - **Nível do depósito:** o SSOT no bloco do nível, mais a ocupação do limite, o estoque mínimo, o saldo em kg e em sacos e a necessidade de reposição.
+   - **Saldo por produto:** os produtos em litros ficam à parte (D-PROD-162).
+   - **Pastos atendidos:** os cochos vinculados, com o ícone do marcador e o farol da leitura. Tocar num cocho abre o detalhe dele como tela empilhada, com ‹ Voltar. Isso exige `visualizar_detalhes_cochos`, a mesma permissão que o mapa pede.
+   - **Informações do depósito:** "Cochos vinculados" mostra os nomes, não a contagem.
+   - **Histórico do depósito:** com `visualizar_historico_cocho`, as 5 últimas movimentações, com a regra do histórico completo (função pura `movimentacoesDoHistoricoDeposito`). Substitui o "Último Registro". O primeiro cartão passa a ser o último lançado, e reversões ou o lado errado de uma transferência não aparecem mais. Sem essa permissão, o bloco continua "Último registro", com uma movimentação só, mas pela mesma regra: a última lançada, sem reversões nem o lado errado de uma transferência, e não mais a de data mais recente.
+   - **Formato:** kg no formato do SSOT ("1.400 kg").
+   - **Carregando ou com erro:** o histórico diz isso, em vez de "Nenhum registro ainda.".
+   - **Fica de fora:** "Frequência padrão" do v12, porque o cadastro não tem esse campo.
+4. **Bebedouro** (`DetalhesBebedouro`). Rodapé **Lançar · Histórico**.
+   - **Cartão do bebedouro:** subícone configurado (ou gota) e status.
+   - **Resumo operacional:** o custo acumulado vem para cá.
+   - **Último registro:** "Registrado por" sai do `responsavel`.
+   - **Informações.**
+   - **Histórico:** os 5 últimos, com "Ver tudo".
+   - **Telas empilhadas com ‹ Voltar:**
+     - o lançamento, com o formulário de hoje; ali o Esc é ignorado;
+     - o histórico completo na linha do tempo v12: os mesmos cartões do resumo, mais a hora, na ordem do servidor, com "Lançamentos (N)" e o Excluir no pé do cartão. A regra continua (D-PROD-137): só liga o último lançado no sistema (o primeiro da lista, mesmo que seja um retroativo), só com `podeExcluir`, a mesma confirmação, a mensagem do 409 e as mesmas invalidações. O Excluir desligado explica a regra no `title`: "Só o primeiro da lista (o último lançado no sistema) pode ser excluído.".
+   - **Carregando ou com erro:** o detalhe diz isso, em vez de "Nenhum lançamento ainda." e custo R$ 0,00.
+   - **Página Bebedouros:** a casca fica sem o cabeçalho próprio.
+5. **Tarefa** (`DetalhesTarefaMapa`). Título = tarefa, subtítulo "Detalhes da tarefa" (substitui o "Tarefa: …" da D-PROD-118).
+   - **Cartão:** o status nas cores do v12.
+   - **Informações da tarefa:** prioridade com bolinha e prazo vencido em vermelho pelo dia da fazenda (`hoje`).
+   - **Descrição e Fotos.**
+   - **Últimos eventos:** os 5 últimos na linha do tempo, com "Ver histórico".
+   - **Rodapé Editar · Registrar evento · Concluir:** Concluir abre o mesmo "Registrar evento" já em "Concluída" e não conclui direto. Os dois ficam desligados quando o tipo não é permitido (D-PROD-118).
+   - **Correções junto:**
+     - os "Últimos eventos" abriam vazios na primeira vez (`initialData: []` com `staleTime`, como a Gestão de Tarefas da D-PROD-218);
+     - as datas de dia apareciam um dia antes no fuso do Brasil;
+     - sai a consulta de ícones de prioridade, que não era desenhada.
+6. **Área** (clique no contorno, D-PROD-94a). O "Histórico da Área" passa a ser a mesma linha do tempo da aba Histórico do pasto: filtro Mostrar, Carregar mais, aviso offline e só leitura, com os textos "nesta área" e a lista "Registros da área". O cabeçalho é "Histórico da Área" com "área · setor".
+   - **Histórico completo:** com a permissão de histórico, o rodapé tem a pílula "Histórico completo". Ela abre por cima o Histórico de Movimentação da área de hoje (`HistoricoMovimentacoes`, sem lotes), como o "Manejos e históricos" do pasto (D-PROD-218). Ali continuam o "Excluir movimentação" do administrador (D-PROD-110) e os dados de auditoria que a linha do tempo resumida não traz: registrado em, observações, cancelado em … por …, vínculo pelo nome, lote excluído, matrizes e nutrição.
+   - **Nome da outra área:** quando um registro antigo gravou o nome vazio, a linha do tempo usa as áreas do mapa, como o histórico completo. Vale também para a aba Histórico do pasto: o `PainelPasto` repassa as `areas` do `DetalhesLote` à aba.
+   - **Fechar o histórico completo:** o conteúdo fica até o fim da animação de saída. Fechado, o Radix não monta nem consulta nada.
+   - Com a chave `medir_forragem` (D-PROD-219), o painel Forragem vem em cima, no desenho v12, com os mesmos nomes e testids. O desenho antigo do painel saiu, porque o detalhe da área era o único uso.
+   - No curral, as abas são **Abate · Histórico da Área**. O abate continua o histórico de hoje, sem a rolagem própria de 500 px.
+   - Sai o `src/components/ui/tabs.jsx`, que ficou sem uso.
+7. **Campo de lançamento (`LancField`):** um Select do Radix que já monta com valor (ex.: a Qualidade do bebedouro, que remonta ao trocar o Tipo) ficava com o rótulo por cima do valor, porque o texto do item só chega depois de montar. Agora "tem valor" vem da falta de `data-placeholder`. Sai o render a mais que o bebedouro usava para contornar isso.
+   - **Alcance fora do mapa:** dos formulários com `LancField`, só dois têm Select do Radix: o lançamento do bebedouro e **Permissões › editar usuário**. Neste, o campo "Usuário" (travado na edição) passa a mostrar o rótulo em cima e o nome do usuário desde o primeiro desenho; antes o nome ficava invisível. Os outros usam `B1Select` ou `SelectDoMotor` e não mudam.
+8. **Regras que não mudam:**
+   - consultas, caches e invalidações (`atualizar-mapa`) e permissões;
+   - formulários e históricos completos, com as mesmas ações;
+   - listas de escolha no padrão do sistema e filtros do mapa.
+
+**Revisão independente:** cada tela teve um revisor de código, dados, permissões, testes e desenho, e cada achado passou por um verificador que tentou refutá-lo. De 28 achados, 16 foram confirmados e corrigidos com teste. Dos 12 refutados, quatro viraram melhorias mesmo assim: o `LancField`, o carregando e o erro dos históricos do bebedouro e do depósito, e a rolagem do abate.
+
+**2ª revisão, da última leva de correções da 1ª:** 17 achados: 15 confirmados e 2 refutados. Os confirmados se resumem a 12 problemas, porque alguns apareceram para mais de um revisor. Todos foram corrigidos:
+- as `areas` não chegavam à aba Histórico do pasto;
+- o `title` do Excluir do bebedouro dava a razão errada com um retroativo;
+- o histórico completo da área esvaziava antes da animação de saída;
+- faltavam testes para a permissão da pílula, o depósito sem local, o hook real do bebedouro e o fio das `areas` no mapa;
+- o efeito do `LancField` fora do mapa não estava registrado (item 7 acima);
+- havia comentários e trechos do relatório desatualizados.
+
+**3ª revisão, das correções da 2ª:** 5 achados, 5 confirmados, nenhum refutado. O código estava certo; os problemas estavam em testes e textos. Todos foram corrigidos:
+- o teste do histórico completo fechado passou a conferir o que só ele monta e lê;
+- entrou um teste da animação de saída;
+- o texto do cartão único do depósito sem a permissão foi corrigido, com um teste da regra;
+- dois textos do relatório foram corrigidos.
+
+Ver o relatório, §7.
+
+**Fora do escopo:** Gestão de Tarefas, Insights e Resumo do Rebanho, que são painéis e não detalhes.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md).
+
 ## D-PROD-221 — Farol de forragem no Mapa Geral (modo de coloração "Forragem")
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-220`, mas a branch `claude/design-filters-implementation-agzxk8` (outra sessão, aberta) já usa a D-PROD-220. Para não duplicar, esta decisão é a **D-PROD-221**.
@@ -7740,6 +7847,91 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 **Release.** Sem migration: merge e deploy normais.
 
 **Relatório:** [`MAIKE-FAROL-FORRAGEM-REPORT.md`](./MAIKE-FAROL-FORRAGEM-REPORT.md).
+
+## D-PROD-222 — Mapa Geral: lançamentos e históricos dos detalhes no desenho do lançamento de manejo
+
+**Data:** 2026-11-17 · **Numeração:** nasceu D-PROD-221 nesta branch; a `main` deu a D-PROD-221 ao Farol de forragem (PR #311, mergeada antes) e esta passou a **D-PROD-222** · **Origem:** pedido do proprietário, depois da D-PROD-220: "os campos de lançamentos [e] históricos [no] estilo do lançamento de manejo têm que ser a mesma coisa" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão.** O que se lança ou se consulta a partir dos detalhes do mapa abre como os lançamentos e o Histórico de Movimentação do lote (D-PROD-115/117/125). Só o desenho muda. Ficam como antes: dados, consultas, validações, mensagens, permissões (D-PROD-137), a política de estorno (D-PROD-94a), invalidações e o envio.
+
+1. **Cartão comum dos históricos** (`src/components/lotes/CartaoHistorico.jsx`). Usa as mesmas classes do cartão do `HistoricoMovimentacoes`:
+   - selos: a data primeiro, depois o tipo e a situação;
+   - título em negrito e linhas "Rótulo: valor";
+   - rodapé de ações com o botão do "Excluir movimentação" (`AcaoHistorico`).
+
+   Junto vêm três peças:
+   - `MolduraHistorico`: sem cartão em volta e sem rolagem própria (quem rola é o diálogo);
+   - `EstadoHistorico`: carregando, erro e vazio, com os textos do manejo;
+   - `useTituloDoHistorico`: dentro do `LancLoteDialogo`, o título com a contagem vai para o cabeçalho, como em "Histórico da Área Pasto 07 (8)".
+
+   Um teste compara, parte a parte, as classes do cartão comum com as do Histórico de Movimentação.
+2. **Históricos no cartão comum:**
+   - **Cocho:** título "Histórico do Cocho (N)", com o cocho no subtítulo.
+     - Selos: data, Fechado ou Em aberto, desvio.
+     - Produto em negrito.
+     - Linhas: Áreas, Cabeças, Peso médio, Unidade, as métricas por seção (`CardMetricaEvento`, agora em linhas "Rótulo: valor") e Observações.
+     - A política de estorno continua: com `CANCELAMENTO_COCHO_HABILITADO` desligado, o aviso aparece e não há "Excluir".
+   - **Depósito:** título "Histórico do Depósito (N)".
+     - Selos: data e tipo. Produto em negrito.
+     - Linhas: Quantidade, Unidade, Origem, Destino, Saldo antes e depois, Valor total, Custo médio, Observações.
+     - Os mesmos avisos de antes.
+   - **Bebedouro:** título "Histórico do Bebedouro (N)". Agora abre num `LancLoteDialogo` por cima do detalhe; antes era uma tela empilhada.
+     - Ordem do servidor.
+     - Selos: data, tipo e status fora do normal (Pendente em âmbar, Emergencial em vermelho). O bebedouro em negrito.
+     - Linhas: Hora (quando gravada), Descrição, Registrado por, Custo, Produto, Quantidade, Qualidade da água e Escore da água.
+     - "Excluir" no rodapé, com as regras da D-PROD-137: só no índice 0 e só com `podeExcluir`; `data-permissao-explicita`; a mesma confirmação, a mensagem do 409 e as duas invalidações.
+   - **Tarefa:** título "Histórico da Tarefa (N)".
+     - Selos: data e status. A tarefa em negrito.
+     - Linhas: Evento, Responsável, Descrição, Hora.
+     - "Excluir" do manejo, ligado só no mais recente.
+   - **Abate do curral:**
+     - Selos: data, Abate, Ativo ou Cancelado. O lote em negrito.
+     - Linhas: Quantidade, Data, Peso médio, Destino, Detalhes.
+     - "Excluir movimentação" do manejo.
+3. **Lançamentos no `LancLoteDialogo` dos manejos.** O título é a ação e o subtítulo é o nome (cocho, depósito ou bebedouro).
+   - No desktop abre como popup, com ✕ e ✓ no cabeçalho. No celular abre em tela cheia: ✕ à esquerda, título no meio, ✓ à direita.
+   - Cada campo fica num `LancField`: rótulo dentro da caixa e * nos obrigatórios.
+   - As escolhas usam o `B1Select`: o painel das listas no desktop e a folha no celular.
+   - Os avisos ficam em `LancLoteAviso`, e o ✓ do cabeçalho envia.
+
+   Em cada tela:
+   - **Cocho › Lançar** (`FormularioLancamentoSuplementacao`, no detalhe do cocho e no rodapé do cocho no pasto):
+     - um aviso com áreas, depósito, lotes e peso;
+     - Formulação no `B1Select`; kg ou sacos em `LancLoteSegmento`; consumo por lote em `LancLoteItens`;
+     - o progresso do salvamento fica no topo do formulário, e não mais num diálogo por cima. Enquanto salva, os campos ficam travados e o ✕ desligado;
+     - o ✓ do cabeçalho é um botão comum: **Enter num campo não grava**, como antes. O lançamento do cocho baixa o estoque e fecha o período anterior, e não tem estorno pela tela (D-PROD-94a);
+     - o "Fechamento do consumo" da prévia usa as células sem borda dos números do aviso (sem caixa dentro de caixa);
+     - a confirmação da **sobra do ciclo anterior** também é um `LancLoteDialogo`: o cocho no subtítulo, avisos e as duas escolhas como as opções do manejo. O foco abre na primeira escolha, e o ✕ sai do lançamento, como o "Cancelar" de antes. O diálogo antigo cortava o texto à direita. A data do fechamento é o dia gravado;
+     - depois da sobra herdada, o foco volta ao lançamento.
+   - **Cocho › Leitura:** o cocho no subtítulo, como nos outros. O formulário já era do manejo (D-PROD-205).
+   - **Depósito › Entrada e Saída** (`FormularioTransferenciaDeposito`): títulos "Entrada no Depósito" e "Saída do Depósito". Produto e Unidade no `B1Select`; escolher de novo o mesmo produto não mexe na unidade nem na quantidade, como antes. O resumo de origem, destino e saldo vai num aviso neutro. O Local de Origem/Destino continua no campo de escolha com pesquisa (`AutocompleteGenerico`), a lista padrão do sistema para locais, por instrução do proprietário ("a lista é pra deixar padrão no sistema").
+   - **Bebedouro › Lançar:** título "Lançamento no Bebedouro", por cima do detalhe (antes era tela empilhada).
+     - Data, Hora, Tipo e Status em grade.
+     - Tipo, Status e Qualidade da água no `B1Select`.
+     - Os campos aparecem conforme o Tipo, como antes.
+     - Na página Bebedouros funciona igual.
+4. **Teclado e foco nas peças comuns** (valem também para os manejos do lote):
+   - Esc com uma lista aberta (`LancLoteDialogo`): no celular, com a folha de uma lista aberta dentro do diálogo, o primeiro Esc fecha só a folha e o segundo fecha o diálogo (D-PROD-161). Antes só o depósito tinha essa guarda;
+   - `B1Select` no desktop e no tablet com até 8 opções (sem pesquisa): com a lista aberta, ↑/↓ andam e Enter escolhe, com o foco no campo (como o `AutocompleteGenerico`). Antes a lista não se escolhia pelo teclado;
+   - `LancLoteDialogo` só leitura (históricos e detalhes): ao abrir, o foco vai para o próprio diálogo, sem acender o ✕ (D-PROD-117), e não fica no que o abriu, escondido por baixo; `focoInicial="corpo"` foca o primeiro controle do conteúdo;
+   - ao fechar, o foco volta a quem o tinha quando o diálogo abriu (a pílula), se ainda estiver na tela. Sem gatilho, o Radix o deixava no `<body>`.
+5. **O que muda por ser o padrão do manejo** (D-PROD-115/125):
+   - no desktop o popup não fecha por Esc nem por clique fora, só pelo ✕;
+   - Enter num campo: no depósito e no bebedouro envia, como já enviava (eram `<form>` com botão de enviar); no cocho não envia, como antes (item 3);
+   - no celular abre em tela cheia;
+   - no bebedouro, o Esc da tela cheia fecha o Lançar. Antes era ignorado, porque o formulário era empilhado. Era o único formulário empilhado: o recurso `escVolta` da D-PROD-220 ficou sem uso e saiu do `LancLoteDialogo` e da `CascaDetalhe`.
+6. **Estados dos históricos como os do Histórico de Movimentação:** com a consulta falhando e nada guardado, cocho, depósito, abate, tarefa e bebedouro mostram "Não foi possível carregar o histórico.", o motivo e o "Tentar novamente" (antes diziam "Nenhum … encontrado"); a tarefa mostra o carregando (antes, "Nenhum histórico encontrado."). No abate, o rodapé do "Excluir movimentação" só aparece no abate que tem exclusão (o antigo ficava com uma faixa vazia), e a nota do cancelado traz a data e a hora.
+7. **Com a `main` mesclada** (D-PROD-221): o farol do pasto no painel Forragem entra no desenho v12 da D-PROD-220 como a primeira linha do cartão. Os textos são os mesmos, e a cor vai na bolinha.
+
+**Fica de fora:**
+- o cadastro do ponto (`FormularioPonto`), a importação de áreas e a seleção de áreas no mapa, que não são lançamentos nem históricos;
+- o "Histórico de Suplementação" do lote, que já é do manejo.
+
+**Achado à parte (não corrigido aqui, R7):** na Entrada e na Saída do depósito, o campo Quantidade é `type="number"` e o valor chega com ponto decimal. A conta usa o `parseNumber` pt-BR, que lê o ponto como separador de milhar: 10,5 kg é gravado como 105 kg. Já era assim antes desta missão. A correção é de uma linha (ler o valor como número, como fazem os manejos do lote) e fica para uma missão própria.
+
+**Revisão independente:** quatro revisores (regras, igualdade com o manejo, interação e testes), e cada achado passou por um verificador que tentou refutá-lo. Os confirmados foram corrigidos com teste e conferidos por mutação: o Enter que gravava o cocho, o mesmo produto escolhido de novo no depósito (que zerava a unidade e a quantidade), as caixas do fechamento do consumo, a sobra herdada cortada e sem foco, o rodapé vazio do abate, os estados de erro, o teclado do `B1Select` e o foco dos diálogos. A lente dos testes reforçou a comparação do cartão com o do manejo (o cancelado, os selos vermelho e âmbar e o "Excluir"), cobriu o selo de data do bebedouro e o cabeçalho da tela Bebedouros, e tirou o que a missão deixou sem uso: o `escVolta`, as ações da linha do tempo, a barra do registro da tela Bebedouros, props do cartão e classes CSS. Uma revisão da limpeza achou o foco da sobra com o cache quente: a confirmação abria junto com o lançamento e, decidida a sobra, o foco voltava à pílula escondida por baixo. Agora o `LancLoteDialogo` leva o foco ao diálogo de cima quando quem o tinha ficou escondido, com teste (LM-9b). Detalhe no relatório, §7.
+
+**Relatório:** [`MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md`](./MAIKE-MAPA-LANCAMENTOS-HISTORICOS-MANEJO-REPORT.md).
 
 ## D-PROD-223 — Farol de forragem estimado pelos dias de descanso, e parâmetros próprios do pasto
 
@@ -7763,6 +7955,222 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 **Release.** Migration **EXPAND** `20261117300000_descanso_e_alturas_por_area` (4 colunas anuláveis; SHA-256 `c391e4b0c28dbefdafa8d0819d948efde952bf8ee5adc20ff58aa930239b477e`), produção 66 → 67, tabelas 96 (nenhuma nova), **antes do merge** e com GO do proprietário; depois, o passo de dados das 11 culturas, com GO próprio. Runbook: [`MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md`](./MAIKE-DESCANSO-ESTIMADO-RUNBOOK-RELEASE.md). **Aplicada em produção** em 2026-11-17 às 13:48:31 UTC (caminho B), com o passo de dados às 13:48:50 UTC.
 
 **Relatório:** [`MAIKE-DESCANSO-ESTIMADO-REPORT.md`](./MAIKE-DESCANSO-ESTIMADO-REPORT.md).
+
+## D-PROD-224 — Mapa Geral: detalhes do mapa mais compactos e organizados (a densidade do estilo antigo no desenho v12)
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário: "gostei do novo estilo mas está muito grande as informações e espalhadas sendo que pode organizar melhor". Ele mandou prints do estilo antigo como referência: o "Nível do cocho" em dois painéis lado a lado, e as "Informações da Área" e o cartão do lote em grade de 4 colunas · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Decisão:** o desenho v12 fica (cartões, cores, pílulas, ícones, abas e rodapé), com a densidade do estilo antigo. Vale para todos os detalhes do mapa: lote/pasto, cocho, depósito, bebedouro, tarefa e área.
+1. **Escala:**
+   - texto base de 13 px; títulos de bloco e de cartão de 14 px;
+   - rótulos, subtítulos e notas de 11,5 px; nenhum texto abaixo de 11 px;
+   - valor da célula de 13 px em negrito (600), como no estilo antigo;
+   - percentual do nível de 20 px e número do KPI de 15 px.
+2. **Espaço:**
+   - 8 px entre os blocos do corpo;
+   - células com 7 px em cima e embaixo; linhas, itens e cabeçalhos de cartão mais baixos;
+   - o título do bloco fica a 4 px do seu cartão e a 12 px do bloco de cima;
+   - ícones dos cartões, linhas e itens um pouco menores: a figura do nível do cocho e do depósito passa de 76 para 64 px, e o ícone das listas (Pastos atendidos, Cochos do pasto) de 34 para 30 px. Os ícones do animal acompanham: 36 px no cartão do lote, 26 px nas categorias e 30 px no Resumo.
+3. **Mais colunas:** a grade de células usa colunas de 128 px. São 6 no popup do computador (880 px, a partir de cerca de 864 px de tela), 5 no popup do tablet (768 a 863 px) e 2 no celular. Os cartões dos números do cocho e do depósito têm grade própria (D-PROD-226).
+4. **Lado a lado no popup** (a partir de 768 px), como o "Nível do cocho" antigo:
+   - cocho: o nível ao lado do cartão do limite, em 2 × 2 (depois, a D-PROD-226 pôs a barra do limite de ponta a ponta e os três números numa fileira);
+   - depósito: o nível ao lado do cartão dos números, com os avisos embaixo, de ponta a ponta.
+5. **Linha do tempo** (históricos do pasto, da área, do depósito, do bebedouro e da tarefa): as linhas de cada cartão viram uma grade, com o rótulo em cima e o valor embaixo, em vez de uma informação por linha. Texto livre (descrição, observações, detalhe, motivo) ou longo ocupa a largura do cartão.
+6. **Alvos de toque:** linhas clicáveis, itens, abas e grupos continuam com 40 px ou mais.
+
+**Resultado** (altura do conteúdo no harness, antes → depois):
+- computador: cocho 1.371 → 1.025 px (−25%); depósito 1.411 → 986 px (−30%); bebedouro 982 → 813 px (−17%); área 3.112 → 1.854 px (−40%); histórico do pasto 2.818 → 1.616 px (−43%);
+- celular: cocho 2.059 → 1.636 px (−21%); depósito 1.642 → 1.280 px (−22%); área 3.165 → 2.443 px (−23%).
+
+**Não muda:** dados, regras, textos, ordem dos blocos, permissões e acessibilidade (nomes e papéis). Também não mudam o histórico completo no cartão do manejo (D-PROD-222), os lançamentos e o mapa.
+
+**Como foi feito:**
+- Quase tudo é CSS. As exceções são uma classe para o texto longo da linha do tempo (`mk-dp-tl__row--larga`) e o tamanho dos ícones do animal.
+- Uma proposta independente de densidade, medida no harness, confirmou os valores e trouxe dois ajustes: o tamanho dos ícones do animal (sem ele, o ícone vazaria da caixa menor) e a proximidade do título.
+- A medição comparou colunas de 150 px e de 128 px. Com 128 px, todas as telas ficaram iguais ou mais baixas.
+
+**Testes:**
+- `detalhesCompactos`:
+  - DC-1: piso de 11 px em todo o CSS dos detalhes;
+  - DC-2: densidade e alvos de toque;
+  - DC-3: o lado a lado do popup e a estrutura que a grade posiciona;
+  - DC-4: a linha do tempo em grade e o texto longo.
+- Cinco mutações foram pegas.
+- `detalhesLoteV12Lotes` e `subiconeLote` passaram a conferir os tamanhos novos dos ícones do animal (26, 30 e 36 px).
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §9.
+
+## D-PROD-225 — Mapa Geral: cocho e depósito nos detalhes com o subícone do sistema
+
+> **Numeração:** nasceu como D-PROD-223 (commit `d694c65`). A `main` deu a D-PROD-223 ao farol estimado pelos dias de descanso (PR #312), mergeada antes desta. Para não duplicar, esta decisão é a **D-PROD-225**; a D-PROD-224 já era a da densidade, nesta mesma branch.
+
+**Data:** 2026-11-17 · **Origem:** pedido do proprietário ao ver a prévia: "no cocho e depósito, [o que está] mostrando nos detalhes tem que ser apenas o sub ícone, com as configurações que já estavam no meu sistema" · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Contexto:** para ficar igual ao v12, a D-PROD-218 e a D-PROD-220 desenharam o cocho e o depósito nos detalhes como o **marcador do mapa**: a bolinha branca com a ponteira no cocho, o pino com o silo no depósito, nas cores do mapa. O sistema já tinha o desenho dos detalhes, o **subícone**: sem a bolinha, com cor, espessura e preenchimento próprios (`COCHO_APARENCIA.subicone` em `src/assets/icones/cocho-descoberto.js`; o depósito usa a mesma paleta, com o contorno de `deposito-sal.js`). O guia desse arquivo já dizia: "marcador = desenho dentro da bolinha do mapa; subicone = desenho sem bolinha, usado nos detalhes".
+
+**Decisão:** nos detalhes, o cocho e o depósito aparecem só com o subícone, nas configurações do sistema. O marcador fica só no mapa.
+1. **Nível do cocho** (no detalhe do cocho, também quando ele abre empilhado no depósito): `CochoNivel` sem o modo marcador. Esse modo, criado na D-PROD-220, ficou sem uso e saiu: o `CochoNivel` voltou a ser o da `main`.
+2. **Nível do depósito:** `urlIconeDeposito(fração)`, sem o pino.
+3. **Listas de cochos:** os Pastos atendidos do depósito e os Cochos do pasto da aba Suplementação do Detalhes do Lote usam o subícone do cocho, com o nível do ciclo.
+4. **Tamanho:** na caixa do bloco do nível, o subícone ocupa a largura, na proporção dele: 76 × 56 px quando esta decisão foi feita. Nas listas, a caixa é a mesma do marcador. Depois, a D-PROD-224 reduziu a caixa do nível para 64 px (o subícone fica com 64 × 47 px) e a das listas de 34 para 30 px.
+
+**Não muda:**
+- o nível: é a mesma fração do SSOT (D-PROD-178);
+- os números, o farol, os textos e a acessibilidade;
+- os marcadores do mapa;
+- as cores do subícone. São as configuradas no sistema; para mudá-las, `COCHO_APARENCIA.subicone`, como diz o guia do arquivo.
+
+**Observação:** o subícone é cinza-claro (`#e2e6e9`). Nas listas, um cocho sem lançamento mostra só o contorno, que fica discreto no fundo branco. É a configuração do sistema. Escurecer a cor é uma linha no `COCHO_APARENCIA.subicone`, se o proprietário quiser.
+
+**Testes:**
+- CV-3: o cocho tem um só desenho, com o `viewBox` do cocho e a cor, a espessura e o preenchimento do subícone;
+- `depositoNivel`: o SVG do detalhe é o subícone a 50%, sem o pino, e o mapa continua com o marcador;
+- DV-5 (Pastos atendidos) e AS-1 (aba Suplementação): o ícone sem o modo marcador.
+
+Quatro mutações, uma por lugar, voltaram o marcador ou as cores do marcador, e todas foram pegas.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §8.
+
+## D-PROD-226 — Mapa Geral: detalhes do mapa organizados como o estilo antigo (pares lado a lado no popup), com toque e contraste
+
+**Data:** 2026-11-17 · **Origem:** a segunda metade do pedido da D-PROD-224: as informações "espalhadas, sendo que pode organizar melhor", com os prints do estilo antigo como referência · **Branch:** `claude/design-filters-implementation-agzxk8` · **PR:** #308 (rascunho, a pedido do proprietário).
+
+**Contexto:** a D-PROD-224 diminuiu a escala. Faltava organizar:
+- no popup, blocos curtos ocupavam a largura toda (cerca de 850 px), com espaço vazio ao lado;
+- o cartão do limite do cocho e o dos números do depósito não seguiam os painéis antigos;
+- o texto livre (Observações) ficava na outra ponta do cartão, longe do rótulo;
+- a linha do tempo em grade não tinha divisória entre as fileiras.
+
+**Como foi escolhido:** três propostas independentes (densidade, organização e fiel ao antigo), cada uma medida no harness. Um juiz comparou as três e montou a especificação a partir da mais fiel ao antigo, com o que valia das outras duas. O que ficou de fora:
+- subir de novo letras e alturas: desfaria a D-PROD-224;
+- três colunas na grade comum do celular: rótulos e valores quebrariam em duas ou três linhas. A exceção são os dois cartões de números conhecidos (itens 2 e 3): os rótulos são curtos, e os valores ficam na mesma linha mesmo quando um rótulo quebra;
+- figura do nível maior: o cocho ficaria mais alto;
+- juntar blocos mexendo no DOM e posicionar pelo número do filho.
+
+**Decisão:**
+1. **Pares lado a lado a partir de 768 px de tela** (no popup do mapa e também na tela Bebedouros, que mostra o mesmo detalhe na página):
+   - Pasto › Detalhes: Lotação | Categorias;
+   - Pasto › Suplementação: Fornecimento | Consumo esperado / real;
+   - bebedouro: Resumo operacional | Último registro;
+   - depósito: Saldo por produto | Pastos atendidos.
+
+   O resto continua de ponta a ponta. A posição vem do 1º e do 2º título do corpo, não do número do filho, então um aviso opcional antes não desloca o par. Os dois títulos ficam no fim da fileira, cada um a 4 px do seu cartão, mesmo quando o vizinho quebra em duas linhas. A ordem de leitura e de foco continua a do DOM. Sem o 2º bloco (pasto sem lotes, Suplementação sem cocho) ou carregando, o corpo fica em coluna. No celular, nada muda: uma coluna.
+2. **Cocho, como o "Nível do cocho" antigo**, em todos os modos: no cartão do limite, a barra "Uso do limite operacional" de ponta a ponta e Saldo estimado | Duração estimada | Próxima reposição numa fileira, com os valores na mesma linha mesmo quando um rótulo quebra (subgrid).
+3. **Depósito, como o `DepositoNivel` antigo**, em todos os modos: Ocupação do limite | Estoque mínimo meio a meio; embaixo, Saldo atual | Saldo em sacos | Necessidade de reposição numa fileira (sem sacos, meio a meio), também com os valores na mesma linha ("Necessidade reposição kg" quebra em duas).
+4. **Texto livre** (Observações, Cochos vinculados, Projeção, Parâmetros de manejo), em todas as larguras: o rótulo numa coluna (168 px no popup, um terço no celular, no máximo a metade) e o valor logo depois, alinhado à esquerda e quebrando nas palavras. O rótulo não encolhe abaixo da coluna, então não fica por cima de um valor longo nem é partido no meio. Listas e tabelas continuam com o valor à direita.
+5. **Linha do tempo:**
+   - linha fina entre as fileiras de cada cartão;
+   - cabeçalho do cartão de 36 px (não é alvo de toque);
+   - 6 px entre os dias e entre os cartões;
+   - o valor que quebra fica em duas linhas equilibradas (`text-wrap: balance`): "L-2026-020" / "· L-2026-021", sem partir o código do lote no hífen. Nas células, o valor que quebra não deixa uma palavra sozinha na última linha (`text-wrap: pretty`: "27/10/2026 ·" / "13 dia(s)"). Ali o `balance` piorava outras quebras ("900 / kg acima do mínimo", "Pasto 01, Pasto / 02").
+6. **Toque:** no celular e na tela de toque, os alvos ficam com 40 px ou mais.
+   - Crescem para 40 px:
+     - as pílulas do rodapé (de 36);
+     - o Resumo/Lote/Lista (de 38);
+     - o cabeçalho ordenável da Lista (altura mínima).
+   - Ganham uma área de toque invisível de 40 px, sem mudar o desenho:
+     - o link do título;
+     - o "Excluir";
+     - o ✕ do popup.
+   - A caixa de marcar passa a ter área invisível de 40 px também com mouse (era 38).
+   - Com mouse, o desenho fica como antes.
+   - No celular a partir de 360 px, a pílula não encolhe abaixo do próprio texto: "Registrar evento" sem reticências; as outras cedem o espaço.
+7. **Contraste:** o teal do link, da ação e do número da aba passa de `#0e8fa6` para `#0a7a8f`. O texto é de 11,5 px em negrito e precisa de 4,5:1: o contraste vai de 3,62:1 para 4,75:1 no fundo do corpo.
+8. **Lista de lotes pelo teclado:** o cabeçalho focado com Tab aparece inteiro na rolagem lateral, com a coluna presa (Nome) contando como borda. O navegador só rolava quando o cabeçalho estava todo escondido.
+
+**Resultado** (altura do conteúdo no harness, D-PROD-224 → D-PROD-226):
+- computador:
+  - depósito: 986 → 840 px;
+  - bebedouro: 813 → 730 px;
+  - área: 1.854 → 1.686 px;
+  - histórico do pasto: 1.616 → 1.450 px;
+  - Pasto › Detalhes: 567 → 406 px (cabe sem rolar);
+  - Suplementação: 383 → 332 px;
+  - cocho: igual (1.025 → 1.026 px), porque o ganho é de organização;
+- celular:
+  - depósito: 1.280 → 1.229 px (com o texto livre ao lado do rótulo, a observação quebra em duas linhas);
+  - bebedouro: 983 → 953 px;
+  - tarefa: 804 → 774 px;
+  - área: 2.443 → 2.275 px;
+  - histórico: 2.170 → 2.004 px.
+
+**Não muda:**
+- dados, regras e textos;
+- a ordem do DOM e a acessibilidade (nomes e papéis);
+- a escala da D-PROD-224 (nenhuma fonte muda);
+- as permissões e o mapa.
+
+Quase tudo é CSS. A exceção é a rolagem da Lista pelo teclado (`VistaLista.jsx`).
+
+**Testes:** o `detalhesCompactos` lê o CSS regra a regra: chaves balanceadas, lista de seletores e o bloco `@media` certo. Assim, uma regra fora do lugar ou sem a declaração não passa.
+- `detalhesCompactos`:
+  - DC-2: toque (inclusive o ✕ e o cabeçalho ordenável), contraste, as pílulas sem reticências, o texto livre em todas as larguras, o `pretty` nas células e o `balance` na linha do tempo;
+  - DC-3: a região do nível do cocho e a do depósito só no popup; o cocho em três e o depósito em seis trilhos, com subgrid;
+  - DC-4: a divisória inteira (`content`, posição e ponta a ponta), os espaços e o cabeçalho de 36 px;
+  - DC-5: os quatro corpos na mesma regra da grade e só no bloco do popup, as colunas 1 e 2 pelo título, os títulos no fim da fileira e o 2 × 2; também a aba Detalhes com Lotação e Categorias, cada uma antes do seu cartão, e, sem lotes, um título só.
+- `detalhesLoteV12Casca`: o corpo das abas Detalhes e Suplementação é o painel com o id `…-painel-detalhes` / `…-painel-supl`.
+- AS-1 (Suplementação), DV-2 (depósito), CV-3 (cocho) e o teste do bebedouro: as classes e os filhos diretos que as regras posicionam.
+- `detalhesLoteV12Lotes`: o Tab num cabeçalho em parte visível rola a tabela.
+
+**Revisão independente:** quatro lentes (CSS e cascata, o visual no app, testes e documentação, e a mesclagem da `main`). Cada achado passou por um cético que tentou refutá-lo.
+- **Números:** 22 achados, 17 confirmados e 5 refutados. A lente da mesclagem não achou defeito: o painel de Forragem manteve tudo o que a PR #312 trouxe.
+- **Confirmados, todos corrigidos:**
+  - os testes do DC-3 ao DC-5 passavam com os pares e o lado a lado quebrados: a regex não lia a regra certa e o trecho do popup ia até o fim do arquivo. Agora leem regra a regra;
+  - a divisória da linha do tempo podia sumir com o teste verde;
+  - nenhum teste prendia as classes do cocho e a raiz do bebedouro, nem o cabeçalho ordenável;
+  - os valores desalinhados nas fileiras de três do cocho e do depósito: subgrid;
+  - o título do par longe do seu cartão quando o vizinho quebrava: no fim da fileira;
+  - nos documentos: as 5 colunas do popup do tablet, os tamanhos do subícone depois da D-PROD-224, as alturas e os percentuais da D-PROD-224, o "só no popup" (vale também na tela Bebedouros) e o item do toque. Também os comentários com os valores antigos no CSS e no `blocos.jsx`.
+- **Refutados:**
+  - quatro foram refutados só por serem anteriores à D-PROD-224/226, mas vêm da D-PROD-218/220, desta mesma PR. Por isso também foram corrigidos:
+    - o rótulo do texto livre por cima de um valor longo no celular (e "Obser/vaçõe/s" partido na tarefa);
+    - o ✕ do popup com 36 px na tela de toque;
+    - o Tab na Lista com o cabeçalho cortado;
+    - "Registrar evento" com reticências no celular;
+  - o quinto era o `balance` na célula, refutado como troca e não como regressão. A medição decidiu: `pretty` nas células e `balance` na linha do tempo.
+- **Mutações:** 18 mutações (14 no CSS e 4 na marcação e no comportamento) foram pegas pelos testes certos. Detalhe no relatório, §10.1.
+
+**Relatório:** [`MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md`](./MAIKE-MAPA-DETALHES-PONTOS-V12-REPORT.md), §10.
+
+## D-PROD-227 — Cocho e depósito: seções explícitas e dados sem repetição (2026-11-17)
+
+**Pedido do proprietário:** continuar a PR #308, procurar informações duplicadas e organizar melhor a visualização dos detalhes de cocho e depósito.
+
+- Cada seção mantém título e conteúdo juntos (`SecaoDetalhe`); pares de leitura/total fornecido no cocho e saldo/pastos no depósito no popup, uma coluna no celular.
+- Ciclo aberto: duração e próxima reposição ficam no nível, sem repetir a projeção no último registro. O Histórico completo conserva todas as métricas. Períodos fechados mantêm sua comparação e projeção histórica.
+- No nível do cocho, a base do ciclo identifica o abastecimento; saldo atual e consumo aparecem em seus próprios campos, sem duplicar a taxa no subtexto.
+- Último registro agrupa Fornecimento, Dados do Lote e Consumo, preservando os rótulos e os valores da projeção existente.
+- Limite operacional (cocho e depósito), estoque mínimo e necessidade de reposição (depósito) ficam no resumo operacional; o cadastro não repete esses números. Os cochos vinculados aparecem na lista de pastos atendidos, sem nova lista textual no cadastro.
+- No depósito, o percentual aparece uma vez no bloco do nível; o medidor mantém percentual e descrição completos para tecnologia assistiva, sem repetir o número visível.
+- Sem mudança em cálculos, consultas, permissões, lançamentos, histórico completo ou persistência.
+
+## D-PROD-228 — Histórico sob demanda e ação Fechamentos no cocho (2026-11-17)
+
+**Pedido do proprietário:** os históricos do depósito e do cocho devem aparecer somente pelo botão Histórico; no cocho, adicionar Fechamentos para mostrar os períodos fechados.
+
+- Detalhe do depósito sem linha do tempo ou último registro. O histórico existente só monta ao abrir Histórico, com a mesma permissão de visualização.
+- Detalhe do cocho mantém nível, leitura atual/avisos e cadastro. Total fornecido e leituras anteriores ficam no Histórico; não há último registro ou período fechado no resumo.
+- Fechamentos abre lista própria, somente dos eventos do ponto com período fechado, do mais recente ao mais antigo. Preserva valores, farol, custos e estados vazios do cartão existente. Segue a mesma permissão do Histórico.
+- Rodapé do cocho com Lançar, Leitura, Fechamentos e Histórico; no celular os ícones ficam acima do nome para acomodar as quatro ações.
+- Nenhuma mudança de cálculo, persistência ou manejo. Detalhes do lote não foram alterados nesta revisão.
+
+## D-PROD-229 — Organização dos detalhes de lote e duplicações (2026-11-17)
+
+**Pedido do proprietário:** organizar os detalhes de lotes e revisar informações duplicadas, continuando a PR #308.
+
+- Nas vistas Lote e tela empilhada, o nome aparece na navegação/cabeçalho, sem outra cópia no cartão. Categoria e sexo ficam na identidade/cabeçalho, sem se repetir em Identificação quando conhecidos. Na tela empilhada, categoria e pasto não se repetem no cartão. Campos sem informação continuam explícitos.
+- Peso médio atual fica em Pesagem; projeção, curva, objetivo e previsão mensal ganham o bloco Projeção de peso. Não se elimina um valor só por coincidir numericamente com outro: representam dados diferentes.
+- Lotação mantém as métricas do lote e esclarece a participação nas cabeças e na UA do pasto. Cat. de manejo permanece em Identificação, pois é distinta da categoria do animal.
+- No computador, as quatro seções ficam em pares; no celular e tablet, uma coluna, com título junto do cartão.
+- A aba Detalhes não repete a pastagem na grade quando ela já está no subtítulo. Se faltar informação, o campo continua visível.
+- Cálculos, catálogo da tabela, ordenação, preferências de colunas, múltiplos lotes, manejo e permissões preservados.
+
+## D-PROD-231 — Leitura dos detalhes de lotes e áreas (2026-11-17)
+
+- Pedido do dono: retirar explicações de fórmulas nos detalhes e organizar as projeções mensais.
+- Detalhes do lote sem as dicas de peso projetado, arrobas e UA. Fim de mês em colunas de data e peso com unidade, até três meses.
+- Área mostra hectares ao lado do nome, sem repetir hectares e setor na grade; UA total e capacidade sem fórmulas auxiliares.
+- Catálogo da tabela, cálculos, consultas e permissões preservados.
 
 ## D-PROD-230 — Assistente só de leitura (IA) em todas as telas
 
@@ -7843,7 +8251,29 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md`](./MAIKE-ATIVIDADES-ABERTA-RESUMO-REPORT.md).
 
-## D-PROD-235 — Lançamento de Atividades, fatia 4 (última) do redesenho pelo protótipo do proprietário: a lista (filtros em pílulas e cards do celular)
+## D-PROD-235 — Visualização dentro da barra escura do mapa (2026-11-17)
+
+> **Numeração:** nasceu D-PROD-230 nesta branch. A `main` deu a D-PROD-230 ao assistente só de leitura (PR #315) e chegou a `Próxima decisão: D-PROD-235`; esta decisão é a **D-PROD-235**.
+
+**Pedido do proprietário:** incluir o botão Visualização do mapa na mesma linha escura de Filtros, Lotes, Pastos e Tarefas.
+
+- Botão de camadas no fim da barra, branco sobre o fundo escuro, sem a bolinha branca separada. Mesmo painel e estado aberto/fechado; entra na navegação por setas, Home e End.
+- No celular, a barra usa a largura disponível. Atualizar, Localizar e Mover continuam na coluna da direita, abaixo da barra, sem sobreposição.
+- Visualização continua disponível quando há apenas Lotes e sem permissão de filtros, como antes; os segmentos e Filtros mantêm suas permissões.
+- Com a `main` mesclada (D-PROD-230): um filtro de lote pedido pelo assistente com o mapa no foco Pontos ou Tarefas volta o foco para Lotes, porque esses focos escondem os lotes e o filtro apareceria aplicado sem nenhum lote no mapa.
+
+## D-PROD-236 — Estilo dos detalhes inspirado na referência do dono (2026-11-17)
+
+> **Numeração:** nasceu D-PROD-232 nesta branch. A `main` deu a D-PROD-232 à fatia 1 do Lançamento de Atividades; esta decisão é a **D-PROD-236**. A D-PROD-231 fica com o número de origem, que a `main` deixou reservado para esta branch.
+
+- Pedido: seguir o estilo visual enviado, preservando as informações do sistema em celular e desktop.
+- Detalhes da área e do lote: cartões de cantos discretos, divisórias locais e cada informação em linha, rótulo à esquerda e valor à direita; sem alterar os cálculos ou consultas.
+- Área: resumo e lotação em duas colunas a partir de 1024 px, avisos e categorias em largura total. No celular e tablet os cartões empilham. Área total e pastejada continuam juntas; projeções mensais em três colunas.
+- Estilos limitados a esses detalhes, sem alterar tabelas, históricos ou permissões.
+
+## D-PROD-237 — Lançamento de Atividades, fatia 4 (última) do redesenho pelo protótipo do proprietário: a lista (filtros em pílulas e cards do celular)
+
+> **Numeração:** nasceu D-PROD-235; a `main` deu a 235 e a 236 aos refinamentos do Mapa Geral v12 (PR #308).
 
 **Data:** 2026-11-18 · **Origem:** plano em 4 fatias da **D-PROD-232** (fatia 4) e o pedido do proprietário: "renovar também os filtros lá em cima, aqueles 4 filtros que estão soltos: tipo de atividade, área, início, até"; protótipo HTML (lista no computador e no celular) · **Branch:** `feat/atividades-lista-filtros-celular`.
 
@@ -7867,4 +8297,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ATIVIDADES-LISTA-REPORT.md`](./MAIKE-ATIVIDADES-LISTA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-236 -->
+<!-- Próxima decisão: D-PROD-238 -->

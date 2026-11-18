@@ -16,6 +16,13 @@
  *        saldo por produto mostra o L numa linha separada (D-PROD-162 P-11);
  *  DD-6. lote de produto que não está no cadastro: aviso de unidade não
  *        confirmada (o lote continua somado, como antes).
+ *
+ * D-PROD-220 (desenho do Detalhes do Lote v12): os mesmos valores, no formato
+ * novo — o percentual aparece no bloco do nível e na célula do medidor; kg no
+ * formato do SSOT ("600 kg", sem casas zeradas); "Limite operacional:" e
+ * "Estoque mínimo:" viraram células (`dt` → `dd`) do cartão "Informações do
+ * depósito", com "—" quando falta; e os sacos do produto em litros ("—") são o
+ * sub da linha dele.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -36,8 +43,12 @@ vi.mock('@/services/mapaService', () => ({
   listarIconesPorTipoEntidade: vi.fn(async () => []),
 }));
 vi.mock('@/services/loteManejoService', () => ({ listarTodosLotes: vi.fn(async () => []) }));
+// Farol e nível dos cochos vinculados (cache do mapa) e o fuso da fazenda: sem cochos aqui.
+vi.mock('@/services/mapaCacheService', () => ({ getMapaCachedData: vi.fn(async () => []), refreshMapaCacheEntry: vi.fn(async () => []) }));
+vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => []) }));
 vi.mock('@/components/mapa/FormularioTransferenciaDeposito', () => ({ default: () => null }));
-vi.mock('@/components/suplementacao/HistoricoDepositoSuplementacao', () => ({ default: () => null }));
+// A linha do tempo usa a regra (pura) do histórico; só o componente do histórico completo sai.
+vi.mock('@/components/suplementacao/HistoricoDepositoSuplementacao', async (importOriginal) => ({ ...(await importOriginal()), default: () => null }));
 
 const { default: DetalhesDepositoSuplementacao } = await import('@/components/mapa/DetalhesDepositoSuplementacao');
 
@@ -70,6 +81,11 @@ const icone = () => {
 };
 const nivelIcone = () => icone().querySelector('[data-deposito-nivel]')?.getAttribute('data-deposito-nivel') ?? null;
 const valorDe = (rotulo) => screen.getByText(rotulo).nextElementSibling?.textContent;
+/** O percentual bruto: número do bloco do nível e da célula do medidor, os dois na região. */
+const percentualNaSecao = (texto) => {
+  expect(within(within(secao()).getByTestId('nivel-do-deposito')).getByText(texto)).toBeTruthy();
+  expect(within(secao()).getAllByText(texto)).toHaveLength(1);
+};
 
 beforeEach(() => {
   dados.lotesNota = [];
@@ -83,16 +99,17 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     dados.lotesNota = [lote('l1', RACAO, 600)];
     await renderizar(deposito());
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('200'));
-    expect(within(secao()).getByText('200%')).toBeTruthy();
+    percentualNaSecao('200%');
     expect(within(secao()).getByText('600 kg de 300 kg · 300 kg acima do limite')).toBeTruthy();
     expect(medidor().getAttribute('aria-valuetext')).toBe('200% do limite operacional: 600 kg de 300 kg, 300 kg acima');
     expect(medidor().getAttribute('data-variante')).toBe('excesso');
     expect(nivelIcone()).toBe('100');
     expect(secao().querySelector('[data-medidor-preenchimento]').style.width).toBe('100%');
-    expect(valorDe('Saldo atual kg')).toBe('600,00 kg');
-    expect(valorDe('Necessidade reposição kg')).toBe('0,00 kg');
-    expect(valorDe('Limite operacional:')).toBe('300,00 kg');
+    expect(valorDe('Saldo atual kg')).toBe('600 kg');
+    expect(valorDe('Necessidade reposição kg')).toBe('0 kg');
+    expect(screen.queryByText('Limite operacional')).toBeNull();
     expect(screen.queryByText('Capacidade:')).toBeNull();
+    expect(screen.queryByText('Capacidade')).toBeNull();
     expect(screen.queryByText(/do mínimo/)).toBeNull();
     expect(within(painelMinimo()).getByText('Estoque mínimo não configurado.')).toBeTruthy();
   });
@@ -101,37 +118,39 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     dados.lotesNota = [lote('l1', RACAO, 150)];
     await renderizar(deposito({ estoque_minimo_kg: 100 }));
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('50'));
-    expect(within(secao()).getByText('50%')).toBeTruthy();
+    percentualNaSecao('50%');
     expect(within(secao()).getByText('150 kg de 300 kg · dentro do limite')).toBeTruthy();
     expect(nivelIcone()).toBe('50');
     expect(within(painelMinimo()).getByText('Mínimo 100 kg · 50 kg acima do mínimo')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('acima');
-    expect(valorDe('Necessidade reposição kg')).toBe('150,00 kg');
-    expect(valorDe('Estoque mínimo:')).toBe('100,00 kg');
+    expect(valorDe('Necessidade reposição kg')).toBe('150 kg');
+    expect(screen.getAllByRole('group', { name: 'Estoque mínimo' })).toHaveLength(1);
   });
 
   it('DD-3 — limite 300, saldo 90, mínimo 100: 30% e abaixo do mínimo (faltam 10 kg)', async () => {
     dados.lotesNota = [lote('l1', RACAO, 90)];
     await renderizar(deposito({ estoque_minimo_kg: 100 }));
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('30'));
-    expect(within(secao()).getByText('30%')).toBeTruthy();
+    percentualNaSecao('30%');
     expect(nivelIcone()).toBe('30');
     expect(within(painelMinimo()).getByText('Mínimo 100 kg · abaixo do mínimo (faltam 10 kg)')).toBeTruthy();
     expect(within(painelMinimo()).getByText('Reposição recomendada.')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('abaixo');
+    // O aviso do v12 na região do nível.
+    expect(within(secao()).getByText('Saldo 90 kg abaixo do mínimo configurado (100 kg).')).toBeTruthy();
   });
 
   it.each([[0], [null]])('DD-4 — sem limite operacional (%s): sem percentual, mensagem do limite e do mínimo', async (limite) => {
     dados.lotesNota = [lote('l1', RACAO, 150)];
     await renderizar(deposito({ capacidade_cocho_kg: limite, estoque_minimo_kg: null }));
-    await waitFor(() => expect(valorDe('Saldo atual kg')).toBe('150,00 kg'));
+    await waitFor(() => expect(valorDe('Saldo atual kg')).toBe('150 kg'));
     expect(within(secao()).queryByRole('meter')).toBeNull();
     expect(within(secao()).getByText('Limite operacional não configurado; não há percentual.')).toBeTruthy();
     expect(secao().textContent).not.toMatch(/\d%/);
     expect(nivelIcone()).toBeNull();
     expect(within(painelMinimo()).getByText('Estoque mínimo não configurado.')).toBeTruthy();
-    expect(valorDe('Necessidade reposição kg')).toBe('0,00 kg');
-    expect(valorDe('Limite operacional:')).toBe('-');
+    expect(valorDe('Necessidade reposição kg')).toBe('0 kg');
+    expect(screen.queryByText('Limite operacional')).toBeNull();
   });
 
   it('DD-5 — produto em L fica fora do saldo em kg e do percentual; aparece separado no saldo por produto', async () => {
@@ -139,7 +158,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     await renderizar(deposito());
     await waitFor(() => expect(screen.getByTestId('saldo-litros-pr-diesel')).toBeTruthy());
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('50'));
-    expect(valorDe('Saldo atual kg')).toBe('150,00 kg');
+    expect(valorDe('Saldo atual kg')).toBe('150 kg');
     expect(secao().textContent).not.toContain('5.000');
     expect(within(secao()).getByText('Produtos em litros ficam fora do saldo em kg e do percentual.')).toBeTruthy();
     expect(within(secao()).queryByText(/Unidade de alguns produtos não confirmada/)).toBeNull();
@@ -148,7 +167,10 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     expect(within(litros).getByText('DIESEL S10')).toBeTruthy();
     expect(within(litros).getByTestId('saldo-litros-pr-diesel').textContent).toBe('5.000,00 L');
     expect(within(litros).queryByText('RAÇÃO')).toBeNull();
-    expect(screen.getByTestId('saldo-litros-pr-diesel').previousElementSibling?.textContent).toBe('—');
+    // Sacos do produto em litros: "—" (o sub da linha), nunca uma conta em sacos.
+    const linhaDiesel = screen.getByTestId('saldo-litros-pr-diesel').closest('[data-unidade-confirmada]');
+    expect(within(linhaDiesel).getByText('—')).toBeTruthy();
+    expect(linhaDiesel.textContent).not.toMatch(/sacos/);
   });
 
   it('DD-6 — lote de produto fora do cadastro: aviso de unidade não confirmada (o lote continua somado)', async () => {
@@ -156,7 +178,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     dados.lotesNota = [lote('l1', RACAO, 100), lote('l2', SEM_CADASTRO, 50)];
     await renderizar(deposito());
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('50'));
-    expect(valorDe('Saldo atual kg')).toBe('150,00 kg');
+    expect(valorDe('Saldo atual kg')).toBe('150 kg');
     expect(within(secao()).getByText('Unidade de alguns produtos não confirmada; o saldo em kg pode incluir itens de outra unidade.')).toBeTruthy();
     expect(screen.getByText('SAL ANTIGO').closest('[data-unidade-confirmada]')?.getAttribute('data-unidade-confirmada')).toBe('false');
     expect(screen.getByText('unidade não confirmada')).toBeTruthy();
