@@ -213,17 +213,35 @@ const mereceCooldown = (erro) =>
  * @param {{force?: boolean}} [options]
  * @returns {Promise<Array<object>>}
  */
-export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) => {
-  if (!temCapacidade(cacheKey)) return [];
+export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =>
+  (await refreshMapaCacheEntryDetalhado(cacheKey, empresaId, options)).dados;
+
+/** @typedef {{ dados: Array<object>, origem: 'rede'|'cache', erro: string|null }} ResultadoLeituraMapa */
+
+/**
+ * Igual a `refreshMapaCacheEntry`, mas diz DE ONDE veio o dado (D-PROD-250):
+ * `origem: 'rede'` só quando o servidor respondeu e a resposta foi gravada;
+ * `'cache'` quando voltou a cópia do aparelho (intervalo de 60 s, cooldown,
+ * falha de rede ou troca de sessão no meio da leitura), com `erro` (código
+ * estável) quando houve falha. Quem precisa SABER se releu do servidor (depois
+ * de um manejo) usa esta.
+ *
+ * @param {string} cacheKey
+ * @param {string|null} empresaId
+ * @param {{force?: boolean}} [options]
+ * @returns {Promise<ResultadoLeituraMapa>}
+ */
+export const refreshMapaCacheEntryDetalhado = async (cacheKey, empresaId, options = {}) => {
+  if (!temCapacidade(cacheKey)) return { dados: [], origem: 'cache', erro: 'SEM_CAPACIDADE' };
 
   const dono = donoDoCache(cacheKey, empresaId);
   // Dado do tenant sem tenant conhecido: só rede, sem cache e sem política em
   // memória — as duas são por dono, e aqui não há dono.
   if (!dono) {
     try {
-      return await CAPACIDADES[cacheKey](empresaId);
-    } catch {
-      return [];
+      return { dados: await CAPACIDADES[cacheKey](empresaId), origem: 'rede', erro: null };
+    } catch (erro) {
+      return { dados: [], origem: 'cache', erro: isApiError(erro) ? erro.code : API_ERROR_CODES.OPERATION_FAILED };
     }
   }
   // Política (dedupe, intervalo, cooldown) também por dono: `icones:__GLOBAL__`
@@ -243,29 +261,37 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
   const emCooldown = agora < (rateLimitedUntil.get(requestKey) || 0);
   const recente = agora - (lastRefreshAt.get(requestKey) || 0) < MIN_REFRESH_INTERVAL_MS;
   if (!force && (emCooldown || recente)) {
-    return (await getEntityCacheItems(storageKey, dono)) || [];
+    return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: null };
   }
 
   const anterior = force ? refreshPromises.get(requestKey) : null;
+  /** @type {Promise<ResultadoLeituraMapa>} */
   const promise = (async () => {
     if (anterior) await anterior.catch(() => {});
+    // A sessão (tenant) de quando a leitura saiu: se mudou até a resposta
+    // chegar, a resposta é de OUTRA sessão e não vai para o cache (D-PROD-250).
+    const tenantNaSaida = getOfflineTenant();
     try {
       const items = await CAPACIDADES[cacheKey](empresaId);
+      if (getOfflineTenant() !== tenantNaSaida) {
+        return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: 'TENANT_TROCOU' };
+      }
       await setEntityCacheItems(storageKey, dono, items);
       lastRefreshAt.set(requestKey, Date.now());
       rateLimitedUntil.delete(requestKey);
-      return items;
+      return { dados: items, origem: 'rede', erro: null };
     } catch (erro) {
       if (mereceCooldown(erro)) {
         rateLimitedUntil.set(requestKey, Date.now() + RATE_LIMIT_COOLDOWN_MS);
       }
+      const code = isApiError(erro) ? erro.code : API_ERROR_CODES.OPERATION_FAILED;
       // Só código, operação e chave. Nunca token, URL, payload ou texto do SDK.
       console.warn('[mapa-cache] usando cache offline', {
-        code: isApiError(erro) ? erro.code : API_ERROR_CODES.OPERATION_FAILED,
+        code,
         cacheKey,
         empresa: isChaveDoTenant(cacheKey) ? 'tenant' : dono,
       });
-      return (await getEntityCacheItems(storageKey, dono)) || [];
+      return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: code };
     }
   })();
 

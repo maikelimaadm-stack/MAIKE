@@ -140,9 +140,10 @@ const abrirCanal = () => {
  * de 5 min (D-PROD-250).
  *
  * Se a leitura do servidor falhar, a chave fica marcada (geração) e a próxima
- * leitura dela no Mapa Geral volta a forçar. Avisa as outras abas abertas do
- * mesmo navegador (BroadcastChannel) e dispara `atualizar-mapa` para os
- * históricos e para o Mapa Geral redesenhar.
+ * leitura dela no Mapa Geral volta a forçar (e o `atualizar-mapa` sai sem
+ * `jaBuscado`). Avisa as outras abas da MESMA sessão (BroadcastChannel, com o
+ * `clienteId`) e dispara `atualizar-mapa` para os históricos e para o Mapa Geral
+ * redesenhar.
  *
  * @param {import('@tanstack/react-query').QueryClient} queryClient
  * @param {string|null|undefined} empresaId
@@ -150,17 +151,23 @@ const abrirCanal = () => {
  */
 export async function aposEscritaNoRebanho(queryClient, empresaId, { propagar = true } = {}) {
   if (!queryClient) return;
-  const { refreshMapaCacheEntry } = await import("@/services/mapaCacheService");
+  const servico = await import("@/services/mapaCacheService");
+  let falharam = [];
   if (empresaId) {
+    // Só conta como relido o que veio do SERVIDOR: em falha de rede o serviço
+    // devolve a cópia do aparelho (origem 'cache'), e essa chave fica marcada
+    // para a próxima leitura forçar de novo.
     const resultados = await Promise.all(
       CHAVES_DO_MAPA_DO_REBANHO.map((chave) =>
-        refreshMapaCacheEntry(chave, empresaId, { force: true }).then(
-          () => true,
+        Promise.resolve()
+          .then(() => servico.refreshMapaCacheEntryDetalhado(chave, empresaId, { force: true }))
+          .then(
+          (r) => r?.origem === "rede",
           () => false
         )
       )
     );
-    const falharam = CHAVES_DO_MAPA_DO_REBANHO.filter((_, i) => !resultados[i]);
+    falharam = CHAVES_DO_MAPA_DO_REBANHO.filter((_, i) => !resultados[i]);
     if (falharam.length) {
       geracaoInvalidacao += 1;
       for (const chave of falharam) geracaoMarcada.set(chave, geracaoInvalidacao);
@@ -171,15 +178,24 @@ export async function aposEscritaNoRebanho(queryClient, empresaId, { propagar = 
     predicate: (query) => Array.isArray(query.queryKey) && prefixos.has(query.queryKey[0]),
   });
   try {
-    window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: [...CHAVES_DO_MAPA_DO_REBANHO], jaBuscado: true } }));
+    // `jaBuscado` só quando TODAS as chaves vieram do servidor; senão o Mapa Geral
+    // força de novo (D-PROD-250).
+    window.dispatchEvent(
+      new CustomEvent("atualizar-mapa", { detail: { cacheKeys: [...CHAVES_DO_MAPA_DO_REBANHO], jaBuscado: Boolean(empresaId) && falharam.length === 0 } })
+    );
   } catch {
     /* sem window (teste/SSR) */
   }
   if (propagar && empresaId) {
-    try {
-      abrirCanal()?.postMessage({ tipo: "rebanho-alterado", empresaId });
-    } catch {
-      /* best-effort */
+    const { getOfflineTenant } = await import("@/lib/offline/offlineTenant");
+    const clienteId = getOfflineTenant();
+    // Sem sessão conhecida não avisa ninguém: o aviso é só para as abas da MESMA sessão.
+    if (clienteId) {
+      try {
+        abrirCanal()?.postMessage({ tipo: "rebanho-alterado", clienteId, empresaId });
+      } catch {
+        /* best-effort */
+      }
     }
   }
 }
@@ -194,10 +210,19 @@ export async function aposEscritaNoRebanho(queryClient, empresaId, { propagar = 
 export function escutarRebanhoEntreAbas(queryClient) {
   const c = abrirCanal();
   if (!c) return () => {};
-  const aoReceber = (evento) => {
+  const aoReceber = async (evento) => {
     const dados = evento?.data;
-    if (dados?.tipo !== "rebanho-alterado") return;
-    void aposEscritaNoRebanho(queryClient, dados.empresaId, { propagar: false });
+    if (dados?.tipo !== "rebanho-alterado" || !dados.clienteId || !dados.empresaId) return;
+    // O canal é da ORIGEM (todas as abas do domínio): só atende aviso da mesma
+    // sessão (tenant) e com sessão aberta, senão esta aba leria a empresa de
+    // outro tenant com o próprio token e gravaria a resposta (vazia) por cima
+    // do cache dela (D-PROD-250).
+    const [{ getOfflineTenant }, { hasNativeToken }] = await Promise.all([
+      import("@/lib/offline/offlineTenant"),
+      import("@/lib/auth/nativeTokenStorage"),
+    ]);
+    if (!hasNativeToken() || getOfflineTenant() !== dados.clienteId) return;
+    await aposEscritaNoRebanho(queryClient, dados.empresaId, { propagar: false });
   };
   c.addEventListener("message", aoReceber);
   return () => c.removeEventListener("message", aoReceber);

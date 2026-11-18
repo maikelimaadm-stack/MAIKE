@@ -16,14 +16,18 @@ const formulario = vi.hoisted(() => (nome) => async () => {
 });
 const servidor = vi.hoisted(() => ({ areas: [], lotes: [], movimentacoes: [] }));
 const local = vi.hoisted(() => ({ areas: [], lotes: [], movimentacoes: [] }));
-const cache = vi.hoisted(() => ({
-  getMapaCachedData: vi.fn(async (chave) => local[chave] ?? []),
-  // comum (< 60 s) devolve o IndexedDB; forçada vai ao "servidor" e grava o IndexedDB
-  refreshMapaCacheEntry: vi.fn(async (chave, _e, opcoes) => {
-    if (opcoes?.force && chave in servidor) local[chave] = servidor[chave];
-    return local[chave] ?? [];
-  }),
-}));
+const cache = vi.hoisted(() => {
+  const c = {
+    getMapaCachedData: vi.fn(async (chave) => local[chave] ?? []),
+    // comum (< 60 s) devolve o IndexedDB; forçada vai ao "servidor" e grava o IndexedDB
+    refreshMapaCacheEntry: vi.fn(async (chave, _e, opcoes) => {
+      if (opcoes?.force && chave in servidor) local[chave] = servidor[chave];
+      return local[chave] ?? [];
+    }),
+  };
+  c.refreshMapaCacheEntryDetalhado = vi.fn(async (k, e, o) => ({ dados: await c.refreshMapaCacheEntry(k, e, o), origem: "rede", erro: null }));
+  return c;
+});
 
 vi.mock("@/services/mapaCacheService", () => cache);
 vi.mock("@/services/loteManejoService", () => ({ listarProdutosDaEmpresa: vi.fn(async () => []), criarEventoSuplementacao: vi.fn(), registrarSuplementacaoEmLote: vi.fn() }));

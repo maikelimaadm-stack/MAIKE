@@ -19,20 +19,33 @@ import { QueryClient } from "@tanstack/react-query";
 
 describe("aposEscritaNoRebanho: relê do servidor e só então invalida tudo o que vem do rebanho", () => {
   beforeEach(() => vi.resetModules());
-  afterEach(() => vi.doUnmock("@/services/mapaCacheService"));
+  afterEach(() => {
+    vi.doUnmock("@/services/mapaCacheService");
+    vi.doUnmock("@/lib/offline/offlineTenant");
+    vi.doUnmock("@/lib/auth/nativeTokenStorage");
+  });
 
-  const carregar = async (refresh) => {
-    vi.doMock("@/services/mapaCacheService", () => ({ refreshMapaCacheEntry: refresh }));
-    return import("@/components/mapa/invalidarCachesMapa");
+  /** Mesma forma do serviço real: em falha de rede RESOLVE com a cópia do aparelho (origem 'cache'). */
+  const servico = (falhar = new Set()) =>
+    vi.fn(async (chave) => (falhar.has(chave) ? { dados: [{ velho: true }], origem: "cache", erro: "API_PROVIDER_UNAVAILABLE" } : { dados: [], origem: "rede", erro: null }));
+
+  const carregar = async (refresh, { tenant = "cli-A", token = true } = {}) => {
+    vi.doMock("@/services/mapaCacheService", () => ({ refreshMapaCacheEntryDetalhado: refresh, refreshMapaCacheEntry: async () => [] }));
+    const sessao = { tenant, token };
+    vi.doMock("@/lib/offline/offlineTenant", () => ({ getOfflineTenant: () => sessao.tenant }));
+    vi.doMock("@/lib/auth/nativeTokenStorage", () => ({ hasNativeToken: () => sessao.token }));
+    const mod = await import("@/components/mapa/invalidarCachesMapa");
+    return { ...mod, sessao };
   };
 
   it("força lotes, areas, movimentações e descanso ANTES de invalidar; invalida Mapa, Detalhes, histórico e Cadastro de Lotes", async () => {
     const ordem = [];
+    const base = servico();
     const refresh = vi.fn(async (chave, empresa, opcoes) => {
       ordem.push(`refresh:${chave}:${empresa}:${opcoes?.force === true}`);
-      return [];
+      return base(chave);
     });
-    const { aposEscritaNoRebanho, CHAVES_DO_MAPA_DO_REBANHO } = await carregar(refresh);
+    const { aposEscritaNoRebanho, CHAVES_DO_MAPA_DO_REBANHO, mapaPrecisaBuscarNoServidor } = await carregar(refresh);
     const client = new QueryClient();
     const chaves = [
       ["mapa-cache", "lotes", "emp-1", "default"],
@@ -65,20 +78,24 @@ describe("aposEscritaNoRebanho: relê do servidor e só então invalida tudo o q
     for (const k of chaves) expect(client.getQueryState(k)?.isInvalidated, k.join("/")).toBe(true);
     expect(client.getQueryState(["produtos", "emp-1"])?.isInvalidated).toBe(false);
     expect(eventos).toEqual([{ cacheKeys: [...CHAVES_DO_MAPA_DO_REBANHO], jaBuscado: true }]);
+    for (const chave of CHAVES_DO_MAPA_DO_REBANHO) expect(mapaPrecisaBuscarNoServidor(chave)).toBe(false);
   });
 
-  it("leitura do servidor que falha deixa a chave marcada: o Mapa Geral força de novo na próxima leitura", async () => {
-    const refresh = vi.fn(async (chave) => {
-      if (chave === "areas") throw new Error("rede");
-      return [];
-    });
-    const { aposEscritaNoRebanho, mapaPrecisaBuscarNoServidor } = await carregar(refresh);
+  it("falha de rede (o serviço RESOLVE com a cópia do aparelho): a chave fica marcada para forçar de novo e o aviso sai sem jaBuscado", async () => {
+    const { aposEscritaNoRebanho, mapaPrecisaBuscarNoServidor } = await carregar(servico(new Set(["areas"])));
+    const eventos = [];
+    const ouvir = (e) => eventos.push(e.detail);
+    window.addEventListener("atualizar-mapa", ouvir);
     await aposEscritaNoRebanho(new QueryClient(), "emp-1");
+    window.removeEventListener("atualizar-mapa", ouvir);
     expect(mapaPrecisaBuscarNoServidor("areas")).toBe(true);
+    expect(mapaPrecisaBuscarNoServidor("areas")).toBe(false); // consome a marca uma vez
     expect(mapaPrecisaBuscarNoServidor("lotes")).toBe(false);
+    expect(eventos[0].jaBuscado).toBe(false);
   });
 
-  it("outra aba: avisa pelo BroadcastChannel e a aba que recebe atualiza sem reenviar", async () => {
+  /** Canal falso compartilhado entre "abas". */
+  const instalarCanal = () => {
     const canais = [];
     class Canal {
       constructor(nome) {
@@ -98,26 +115,64 @@ describe("aposEscritaNoRebanho: relê do servidor e só então invalida tudo o q
       }
     }
     vi.stubGlobal("BroadcastChannel", Canal);
+    return canais;
+  };
+  const entregar = async (canal, mensagem) => {
+    await Promise.all(canal.ouvintes.map((fn) => fn({ data: mensagem })));
+    await new Promise((r) => setTimeout(r, 0));
+  };
+
+  it("outra aba da MESMA sessão: avisa com o clienteId e a aba que recebe atualiza sem reenviar", async () => {
+    const canais = instalarCanal();
     try {
-      const refresh = vi.fn(async () => []);
-      const { aposEscritaNoRebanho, escutarRebanhoEntreAbas } = await carregar(refresh);
+      const refresh = servico();
+      const { aposEscritaNoRebanho, escutarRebanhoEntreAbas } = await carregar(refresh, { tenant: "cli-A" });
       await aposEscritaNoRebanho(new QueryClient(), "emp-1");
       expect(canais[0].nome).toBe("maike-rebanho");
-      expect(canais[0].enviadas).toEqual([{ tipo: "rebanho-alterado", empresaId: "emp-1" }]);
+      expect(canais[0].enviadas).toEqual([{ tipo: "rebanho-alterado", clienteId: "cli-A", empresaId: "emp-1" }]);
 
       const outraAba = new QueryClient();
       outraAba.setQueryData(["mapa-lotes", "emp-1"], []);
       const desligar = escutarRebanhoEntreAbas(outraAba);
       refresh.mockClear();
       canais[0].enviadas = [];
-      canais[0].ouvintes.forEach((fn) => fn({ data: { tipo: "rebanho-alterado", empresaId: "emp-1" } }));
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0));
+      await entregar(canais[0], { tipo: "rebanho-alterado", clienteId: "cli-A", empresaId: "emp-1" });
       expect(refresh).toHaveBeenCalledWith("lotes", "emp-1", { force: true });
       expect(outraAba.getQueryState(["mapa-lotes", "emp-1"])?.isInvalidated).toBe(true);
       expect(canais[0].enviadas).toEqual([]); // não volta a avisar (sem eco entre abas)
       desligar();
       expect(canais[0].ouvintes).toHaveLength(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("aviso de OUTRO tenant, sem clienteId ou com a aba deslogada é ignorado: nada é lido nem gravado no cache", async () => {
+    const canais = instalarCanal();
+    try {
+      const refresh = servico();
+      const { escutarRebanhoEntreAbas, sessao } = await carregar(refresh, { tenant: "cli-B" });
+      const aba = new QueryClient();
+      aba.setQueryData(["mapa-lotes", "emp-1"], [{ meu: true }]);
+      escutarRebanhoEntreAbas(aba);
+      await entregar(canais[0], { tipo: "rebanho-alterado", clienteId: "cli-A", empresaId: "emp-A" });
+      await entregar(canais[0], { tipo: "rebanho-alterado", empresaId: "emp-A" });
+      sessao.token = false;
+      sessao.tenant = "cli-A";
+      await entregar(canais[0], { tipo: "rebanho-alterado", clienteId: "cli-A", empresaId: "emp-A" });
+      expect(refresh).not.toHaveBeenCalled();
+      expect(aba.getQueryState(["mapa-lotes", "emp-1"])?.isInvalidated).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("sem sessão conhecida não avisa outras abas", async () => {
+    const canais = instalarCanal();
+    try {
+      const { aposEscritaNoRebanho } = await carregar(servico(), { tenant: null });
+      await aposEscritaNoRebanho(new QueryClient(), "emp-1");
+      expect(canais.flatMap((c) => c.enviadas)).toEqual([]);
     } finally {
       vi.unstubAllGlobals();
     }

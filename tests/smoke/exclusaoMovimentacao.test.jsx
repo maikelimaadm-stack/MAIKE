@@ -23,7 +23,11 @@ const servico = vi.hoisted(() => ({
 }));
 const sessao = vi.hoisted(() => ({ usuario: { id: "u-1", cliente_id: "c-1", administrador_fazenda: true } }));
 
-const cache = vi.hoisted(() => ({ refreshMapaCacheEntry: vi.fn(async () => []), updateMapaCachedData: vi.fn(async () => []) }));
+const cache = vi.hoisted(() => {
+  const c = { refreshMapaCacheEntry: vi.fn(async () => []), updateMapaCachedData: vi.fn(async () => []) };
+  c.refreshMapaCacheEntryDetalhado = vi.fn(async (k, e, o) => ({ dados: await c.refreshMapaCacheEntry(k, e, o), origem: "rede", erro: null }));
+  return c;
+});
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => cache);
 vi.mock("@/services/sessionService", () => ({

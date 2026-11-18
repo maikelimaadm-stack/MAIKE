@@ -26,7 +26,11 @@ const formulario = vi.hoisted(() => (nome) => async () => {
   const { createElement } = await import("react");
   return { default: () => createElement("div", { "data-testid": `form-${nome}` }) };
 });
-const cache = vi.hoisted(() => ({ getMapaCachedData: vi.fn(async () => []), refreshMapaCacheEntry: vi.fn(async () => []) }));
+const cache = vi.hoisted(() => {
+  const c = { getMapaCachedData: vi.fn(async () => []), refreshMapaCacheEntry: vi.fn(async () => []) };
+  c.refreshMapaCacheEntryDetalhado = vi.fn(async (k, e, o) => ({ dados: await c.refreshMapaCacheEntry(k, e, o), origem: "rede", erro: null }));
+  return c;
+});
 
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => cache);

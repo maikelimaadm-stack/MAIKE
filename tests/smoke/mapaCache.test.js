@@ -55,6 +55,7 @@ vi.mock('@/apis/rebanho', () => ({
 const {
   getMapaCachedData,
   refreshMapaCacheEntry,
+  refreshMapaCacheEntryDetalhado,
   updateMapaCachedData,
   warmMapaCache,
   temCapacidade,
@@ -278,5 +279,39 @@ describe('cache do mapa — leitura forçada depois de gravação (D-PROD-250)',
     await expect(forcada).resolves.toEqual([areaDa('nova')]);
     await expect(comum).resolves.toEqual([areaDa('nova')]);
     expect(listAreas).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('cache do mapa — origem do dado e troca de sessão (D-PROD-250)', () => {
+
+  it('C-F3 — servidor respondeu: origem rede; falha de rede: devolve a cópia com origem cache e o código do erro', async () => {
+    armazenamento.set(chave('mapa_areas', EMPRESA), [areaDa('copia')]);
+    await expect(refreshMapaCacheEntryDetalhado('areas', EMPRESA, { force: true })).resolves.toEqual({ dados: [areaDa('a1')], origem: 'rede', erro: null });
+    listAreas.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {}));
+    const falha = await refreshMapaCacheEntryDetalhado('areas', EMPRESA, { force: true });
+    expect(falha.origem).toBe('cache');
+    expect(falha.erro).toBe(API_ERROR_CODES.PROVIDER_UNAVAILABLE);
+    expect(falha.dados).toEqual([areaDa('a1')]);
+    // a leitura comum continua devolvendo só os dados
+    await expect(refreshMapaCacheEntry('areas', EMPRESA)).resolves.toEqual([areaDa('a1')]);
+  });
+
+  it('C-F4 — sessão trocou durante a leitura: a resposta NÃO é gravada no cache da empresa', async () => {
+    setOfflineTenant('cli-A');
+    try {
+      armazenamento.set(chave('mapa_areas', EMPRESA), [areaDa('de-A')]);
+      let responder;
+      listAreas.mockImplementation(() => new Promise((r) => { responder = r; }));
+      const leitura = refreshMapaCacheEntryDetalhado('areas', EMPRESA, { force: true });
+      await vi.waitFor(() => expect(responder).toBeTypeOf('function'));
+      setOfflineTenant('cli-B'); // outra sessão entrou no mesmo navegador
+      responder([]);
+      const r = await leitura;
+      expect(r.origem).toBe('cache');
+      expect(r.erro).toBe('TENANT_TROCOU');
+      expect(armazenamento.get(chave('mapa_areas', EMPRESA))).toEqual([areaDa('de-A')]);
+    } finally {
+      clearOfflineTenant();
+    }
   });
 });
