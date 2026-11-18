@@ -2486,6 +2486,118 @@
 .cadastro-b1 .b1-aberta-painel[hidden] {
   display: none;
 }
+/* Emenda 2 da D-PROD-252: as tabelas da atividade aberta são a grade da lista (Base1Grid, `mg-grid`), sem cartão. A casca
+   preenche a altura e a tabela rola dentro dela; o rodapé do Base1 ("N registros", tamanho da página) fica no fim da casca,
+   como em toda lista. A aba de detalhe (Resumo da atividade) rola inteira. */
+.cadastro-b1 .mg-form-scroll.b1-form--tabela {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cadastro-b1 .mg-form-scroll.b1-form--tabela > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.cadastro-b1 .b1-aberta {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.cadastro-b1 .b1-aberta-painel:not([hidden]) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.cadastro-b1 .b1-aberta-painel--detalhe:not([hidden]) {
+  overflow: auto;
+}
+.cadastro-b1 .b1-tabela-tela {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  gap: 8px;
+}
+.cadastro-b1 .b1-tabela-tela__cab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+}
+.cadastro-b1 .b1-tabela-tela__voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mg-text-1, #262624);
+}
+.cadastro-b1 .b1-tabela-tela__titulo {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--mg-text-1, #262624);
+}
+.cadastro-b1 .b1-tabela-tela__sub {
+  font-size: 12px;
+  color: var(--mg-text-2, #73726c);
+}
+.cadastro-b1 .b1-tabela-tela__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cadastro-b1 .b1-tabela {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+.cadastro-b1 .b1-tabela > .mg-grid-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+/* A tabela e o rodapé do Base1 formam um cartão só, como na lista: o fundo branco vai até o rodapé da casca. */
+.cadastro-b1 .b1-tabela > .mg-grid-wrap {
+  background: #fff;
+  border-radius: 12px 12px 0 0;
+}
+.cadastro-b1 .mg-form-scroll.b1-form--tabela + .mg-summary {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.cadastro-b1 .b1-tabela--solta > .mg-grid-wrap {
+  border-radius: 12px;
+}
+/* A linha de total (`<tfoot class="mg-grid-foot">`) tem a mesma célula do corpo da grade. */
+.cadastro-b1 .b1-tabela .mg-grid tfoot td {
+  height: 28px;
+  padding: 0 9px;
+  white-space: nowrap;
+  background: var(--mg-row-alt, #fff);
+  color: var(--mg-text-1);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.cadastro-b1 .b1-tabela--solta {
+  flex: 0 0 auto;
+}
+.cadastro-b1 .b1-tabela--solta > .mg-grid-wrap {
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+.cadastro-b1 .b1-resumo-atividade {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
 .cadastro-b1 .b1-aberta-avisos:empty {
   display: none;
 }

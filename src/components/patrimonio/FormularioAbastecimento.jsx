@@ -116,7 +116,9 @@ function ErroDoCampo({ texto }) {
  *   situacaoPrevia: 'nenhuma'|'valida'|'invalidada',
  *   onPrevia: () => void,
  *   onReabrirPrevia: () => void,
- * }} props
+ *   botoesNoRodape?: boolean,
+ * }} props `botoesNoRodape` (D-PROD-252): quem abre o formulário numa janela põe "Revisar abastecimento" no rodapé dela
+ *   (`type="submit" form={FORMULARIO_ABASTECIMENTO_ID}`) e o formulário não repete os botões.
  */
 export default function FormularioAbastecimento({
   empresaId,
@@ -130,6 +132,7 @@ export default function FormularioAbastecimento({
   onPrevia,
   onReabrirPrevia,
   vinculo = null,
+  botoesNoRodape = false,
 }) {
   const bemId = form.bem?.id ? String(form.bem.id) : null;
   const produtoId = form.produto?.id ? String(form.produto.id) : null;
@@ -524,16 +527,18 @@ export default function FormularioAbastecimento({
               Os dados mudaram desde a revisão: revise de novo antes de confirmar.
             </p>
           ) : null}
-          <div className="col-span-12 flex flex-wrap gap-2 pt-1">
-            <button type="submit" className={BOTAO_PRIMARIO} disabled={previando} data-testid="abastecimento-previa">
-              <Eye size={16} aria-hidden /> {previando ? "Calculando…" : "Revisar abastecimento"}
-            </button>
-            {situacaoPrevia === "valida" ? (
-              <button type="button" className={BOTAO_SECUNDARIO} onClick={onReabrirPrevia} data-testid="abastecimento-reabrir-previa">
-                Voltar à revisão
+          {botoesNoRodape ? null : (
+            <div className="col-span-12 flex flex-wrap gap-2 pt-1">
+              <button type="submit" className={BOTAO_PRIMARIO} disabled={previando} data-testid="abastecimento-previa">
+                <Eye size={16} aria-hidden /> {previando ? "Calculando…" : "Revisar abastecimento"}
               </button>
-            ) : null}
-          </div>
+              {situacaoPrevia === "valida" ? (
+                <button type="button" className={BOTAO_SECUNDARIO} onClick={onReabrirPrevia} data-testid="abastecimento-reabrir-previa">
+                  Voltar à revisão
+                </button>
+              ) : null}
+            </div>
+          )}
         </form>
       </div>
     </CadastroFormShell>

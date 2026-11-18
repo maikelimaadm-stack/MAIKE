@@ -1,20 +1,21 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CircleCheck, MapPin, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { CircleCheck, MapPin, Play, Plus, RotateCcw, Ruler, Trash2 } from "lucide-react";
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { CampoDia, CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
-import { CampoSelect } from "@/components/gestao/GestaoFormParts";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import { CampoSelect, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { ehDiaValido } from "@/lib/diaCivil";
 import { notifySuccess } from "@/lib/maikeNotify";
 import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, formatarDiaAtividade, rotuloDaArea } from "@/lib/lancamentoAtividadesRegras";
-import { STATUS_AREA, areasDaAtividade, lerPlanejada, planejadaParaEdicao, rotuloDaAreaDaAtividade } from "@/lib/atividadeAreasRegras";
-import { acaoAreaAtividade, adicionarAreaAtividade, editarAreaAtividade, listarAreasDaFazenda } from "@/services/lancamentoAtividadesService";
+import { areasDaAtividade, lerPlanejada, planejadaParaEdicao, rotuloDaAreaDaAtividade } from "@/lib/atividadeAreasRegras";
+import { planoDaFeita } from "@/lib/lancamentosDaAreaRegras";
+import { acaoAreaAtividade, adicionarAreaAtividade, editarApontamento, editarAreaAtividade, listarAreasDaFazenda } from "@/services/lancamentoAtividadesService";
 
 /** Formatação das mensagens do diálogo de ação. */
 const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL", casas: 2 });
-const NOTA = "min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
 
 /**
  * O que cada modo do diálogo diz e faz.
@@ -26,6 +27,7 @@ const MODOS = {
   reabrir: { titulo: "Reabrir área", botao: "Reabrir área", Icone: RotateCcw },
   remover: { titulo: "Remover área", botao: "Remover área", Icone: Trash2, perigo: true },
   planejada: { titulo: "Área planejada", botao: "Salvar", Icone: MapPin },
+  feita: { titulo: "Hectares feitos", botao: "Salvar", Icone: Ruler },
   adicionar: { titulo: "Adicionar área", botao: "Adicionar área", Icone: Plus },
 };
 
@@ -37,15 +39,17 @@ const MODOS = {
  * iniciar), o diálogo pergunta qual (o "Iniciar uma área" da janela de lançamento sem área em andamento).
  *
  * @param {{
- *   modo: 'iniciar'|'concluir'|'reabrir'|'remover'|'planejada'|'adicionar',
+ *   modo: 'iniciar'|'concluir'|'reabrir'|'remover'|'planejada'|'feita'|'adicionar',
  *   atividade: any,
  *   area?: any,
+ *   apontamentos?: any[],
+ *   feitaAtual?: string|null,
  *   escolher?: any[],
  *   onFechar: () => void,
  *   onFeito: (resposta: { area?: any, atividade: any, removida?: string }) => void,
  * }} props `onFeito`: a resposta do servidor (`{ area, atividade }`; remover: `{ removida, atividade }`).
  */
-export default function DialogoAreaDaAtividade({ modo, atividade, area = null, escolher = [], onFechar, onFeito }) {
+export default function DialogoAreaDaAtividade({ modo, atividade, area = null, escolher = [], apontamentos = [], feitaAtual = null, onFechar, onFeito }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const { hoje } = useFusoDaFazenda(empresaId);
   const conf = MODOS[modo] ?? MODOS.iniciar;
@@ -53,6 +57,7 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
   const alvo = area ?? escolher.find((a) => String(a.id) === escolhidaId) ?? null;
   const [data, setData] = useState(hoje || "");
   const [planejada, setPlanejada] = useState(modo === "planejada" ? planejadaParaEdicao(area?.area_planejada) : "");
+  const [feita, setFeita] = useState(modo === "feita" ? planejadaParaEdicao(feitaAtual) : "");
   const [areaNovaId, setAreaNovaId] = useState("");
   const [erro, setErro] = useState(/** @type {Record<string, string>} */ ({}));
 
@@ -92,6 +97,10 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
       const lida = lerPlanejada(planejada);
       if (lida.erro) e.planejada = lida.erro;
     }
+    if (modo === "feita") {
+      const lida = lerPlanejada(feita);
+      if (lida.erro) e.feita = lida.erro.replace("área planejada", "área feita");
+    }
     if (modo === "adicionar" && !areaNovaId) e.area = "Escolha a área.";
     setErro(e);
     return Object.keys(e).length === 0;
@@ -102,7 +111,16 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
     const id = String(atividade?.id ?? "");
     /** @type {any} */
     let r;
-    if (modo === "adicionar") r = await adicionarAreaAtividade(id, { area_id: areaNovaId, ...(planejada.trim() ? { area_planejada: lerPlanejada(planejada).valor } : {}) });
+    if (modo === "feita") {
+      // Sem endpoint novo: o servidor soma `area_executada_dia` dos lançamentos confirmados da área; o valor digitado vai no mais novo.
+      const { passos, semLancamento } = planoDaFeita({ apontamentos, areaId: String(alvo?.id ?? ""), valor: lerPlanejada(feita).valor ?? null });
+      if (semLancamento) {
+        setErro({ feita: "A área ainda não tem lançamento: registre algo nela antes de informar os hectares feitos." });
+        return;
+      }
+      for (const p of passos) r = await editarApontamento(id, String(p.apontamento.id), { area_executada_dia: p.area_executada_dia, versao: p.apontamento.versao });
+      r = { atividade: r?.atividade ?? null };
+    } else if (modo === "adicionar") r = await adicionarAreaAtividade(id, { area_id: areaNovaId, ...(planejada.trim() ? { area_planejada: lerPlanejada(planejada).valor } : {}) });
     else if (modo === "planejada") r = await editarAreaAtividade(id, alvo, lerPlanejada(planejada).valor);
     else r = await acaoAreaAtividade(id, alvo, /** @type {any} */ (modo), { data: modo === "iniciar" || modo === "concluir" ? data : null });
     const nome = modo === "adicionar" ? rotuloDaArea(areaNova) || "A área" : nomeDaArea || "A área";
@@ -112,30 +130,24 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
       reabrir: `${nome} voltou a ficar em andamento.`,
       remover: `${nome} saiu da atividade.`,
       planejada: `Área planejada de ${nome} atualizada.`,
+      feita: `Hectares feitos de ${nome} atualizados.`,
       adicionar: `${nome} entrou na atividade, a iniciar.`,
     });
     notifySuccess("Sucesso", frases[modo] ?? "Feito.");
     onFeito(r);
   };
 
-  const descricao =
-    modo === "adicionar"
-      ? [atividade?.numero != null ? `Nº ${atividade.numero}` : "", String(atividade?.nome ?? "")].filter(Boolean).join(" · ")
-      : nomeDaArea || "Escolha a área";
-  const textos = /** @type {Record<string, string>} */ ({
-    iniciar: "A partir da data de início, a área recebe os lançamentos (máquinas, insumos, mão de obra e custos extras).",
-    concluir: "Concluída, a área não recebe lançamento novo; o que já foi lançado fica. Dá para reabrir depois.",
-    reabrir: "A área volta a ficar em andamento e recebe lançamentos de novo. A data de início fica a mesma.",
-    remover: "A área sai da atividade. Só sai a área não iniciada e sem nenhum lançamento: nada com custo é apagado.",
-    planejada: "A área planejada desta área. A da atividade é a soma das áreas.",
-    adicionar: "A área entra na atividade a iniciar. Comece os lançamentos nela pelo Iniciar área.",
-  });
+  // Emenda 3: nada de texto de ajuda nem de repetir a atividade e a área (já estão no cabeçalho da tela). Só a remoção,
+  // que é a ação que apaga alguma coisa, diz em uma linha quando pode.
+  const descricao = modo === "remover" ? "Só sai a área não iniciada e sem lançamento." : "";
+  const tituloDaSecao = modo === "iniciar" || modo === "concluir" ? "Data" : modo === "adicionar" ? "Área" : "Hectares";
 
   return (
     <DialogoAcao
       aberto
       titulo={conf.titulo}
       descricao={descricao}
+      janelaBase1
       icone={<conf.Icone size={20} strokeWidth={2} />}
       iconeBotao={<conf.Icone size={16} aria-hidden />}
       rotuloBotao={conf.botao}
@@ -144,9 +156,9 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
       perigo={conf.perigo === true}
       contexto={CONTEXTO_MENSAGENS}
       conteudo={
-        <div className="cadastro-b1 flex min-w-0 flex-col gap-3">
-          <p className={NOTA}>{textos[modo]}</p>
-          <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2">
+        modo === "remover" ? null : (
+          <div className="b1 mg-b1-form-grid" data-densidade={DENSIDADE_BASE1}>
+            <SecaoForm titulo={tituloDaSecao} />
             {!area && (modo === "iniciar" || modo === "concluir") ? (
               <CampoSelect
                 label="Área"
@@ -157,8 +169,23 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
                 }}
                 options={escolher.map((a) => ({ value: String(a.id), label: rotuloDaAreaDaAtividade(a) }))}
                 required
-                span={12}
+                span={6}
                 error={erro.area || undefined}
+              />
+            ) : null}
+            {modo === "feita" ? (
+              <CampoNumero
+                label="Feita (ha)"
+                value={feita}
+                onChange={(v) => {
+                  setFeita(v);
+                  setErro((e) => ({ ...e, feita: "" }));
+                }}
+                locale={LOCALE_ATIVIDADE}
+                limites={LIMITES_DECIMAL_ATIVIDADE}
+                span={6}
+                error={erro.feita || null}
+                testId="dialogo-area-feita-ha"
               />
             ) : null}
             {modo === "adicionar" ? (
@@ -174,7 +201,7 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
                 options={opcoesNovas}
                 placeholder={areasQuery.isLoading ? "Carregando as áreas…" : opcoesNovas.length ? "Escolha a área" : "Todas as áreas da fazenda já estão na atividade"}
                 required
-                span={12}
+                span={6}
                 error={erro.area || undefined}
               />
             ) : null}
@@ -189,7 +216,7 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
                 min={(modo === "iniciar" ? inicioDaAtividade : inicioDaArea) || undefined}
                 max={hoje || undefined}
                 required
-                span={12}
+                span={6}
                 error={erro.data || null}
                 testId={`dialogo-area-${modo}-data`}
               />
@@ -204,14 +231,13 @@ export default function DialogoAreaDaAtividade({ modo, atividade, area = null, e
                 }}
                 locale={LOCALE_ATIVIDADE}
                 limites={LIMITES_DECIMAL_ATIVIDADE}
-                span={12}
+                span={6}
                 error={erro.planejada || null}
                 testId={`dialogo-area-${modo}-planejada`}
               />
             ) : null}
           </div>
-          {modo === "iniciar" && alvo?.status && alvo.status !== STATUS_AREA.PLANEJADA ? <p className={NOTA}>Esta área já foi iniciada.</p> : null}
-        </div>
+        )
       }
       onFechar={onFechar}
       onEnviar={enviar}

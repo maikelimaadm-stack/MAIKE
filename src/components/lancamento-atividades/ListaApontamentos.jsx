@@ -467,8 +467,9 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
         <DialogoAcao
           key={`cancelar-${cancelando.id}-${cancelando.versao}`}
           aberto
+          janelaBase1
           titulo={`Cancelar lançamento de ${formatarDiaAtividade(cancelando.data_operacional)}${passadaCancelando ? ` (${passadaCancelando})` : ""}`}
-          descricao={`O lançamento continua no histórico como cancelado; nada é apagado. Ele deixa de contar na área executada e na produção da atividade e não aceita mais edição. Informe o motivo (pelo menos ${MOTIVO_MINIMO} caracteres).`}
+          descricao={`O lançamento fica no histórico como cancelado e deixa de contar na atividade. Motivo com pelo menos ${MOTIVO_MINIMO} caracteres.`}
           rotuloBotao="Cancelar lançamento"
           testId="dialogo-cancelar-apontamento"
           contexto={CONTEXTO_MENSAGENS}

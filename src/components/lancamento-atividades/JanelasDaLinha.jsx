@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
-import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
-import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
+import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
+import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
@@ -67,6 +67,7 @@ import {
   formatarDose,
   formatarUso,
   formularioDaLinhaMaquina,
+  chaveTotais,
   formularioDaLinhaProduto,
   formularioMaquinaVazio,
   formularioProdutoVazio,
@@ -76,8 +77,8 @@ import {
   passaDoTeto,
   produtoEscolhido,
   rotuloDoMedidor,
-  rotuloDoProdutoDaLinha,
   textoDaLeituraVigente,
+  rotuloDoProdutoDaLinha,
   unidadeDoProduto,
   usaSemMedidor,
   usoDaLinha,
@@ -106,11 +107,33 @@ import {
   listarOpcoesServicos,
   obterApontamento,
   obterMedidorDoBem,
+  obterTotaisAtividade,
 } from "@/services/lancamentoAtividadesService";
+import { hectaresParaDose } from "@/lib/lancamentosDaAreaRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 /** Texto auxiliar (o tom das notas dos formulários do motor). */
 const NOTA = "col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
+
+/**
+ * O formulário da janela (D-PROD-252, emenda 3): quem o envolve numa janela diz que ele é em seções Base1 (valor não
+ * nulo) e pode pôr um campo na frente, no mesmo grupo "Lançamento" (o Dia da janela por tipo). O "Repetir" não
+ * provê o contexto: lá os campos continuam sem seção.
+ * @type {React.Context<{ topo: React.ReactNode } | null>}
+ */
+export const SecoesDoFormularioContext = createContext(/** @type {{ topo: React.ReactNode } | null} */ (null));
+
+/** O título do grupo (só na janela) e o campo da frente. @param {{ titulo: string, comTopo?: boolean }} props */
+function Grupo({ titulo, comTopo = false }) {
+  const ctx = useContext(SecoesDoFormularioContext);
+  if (!ctx) return null;
+  return (
+    <>
+      <SecaoForm titulo={titulo} />
+      {comTopo ? ctx.topo : null}
+    </>
+  );
+}
 
 /** @param {{ texto: string|undefined, testId?: string }} props */
 function ErroDoCampo({ texto, testId = undefined }) {
@@ -288,6 +311,10 @@ export function useSaldoDoProduto(empresaId, form, setForm, original = null) {
  */
 export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, atividadeId, areaDoDia, bloqueado, prefixo, comObservacao = true }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const secoes = useContext(SecoesDoFormularioContext);
+  const comTopo = Boolean(secoes?.topo);
+  // Na janela (com seções) o formulário é enxuto; no "Repetir" (sem seções) ficam as notas e os campos de leitura de antes.
+  const compacto = secoes !== null;
   const { consulta, locais, escolhido, unidade } = saldo;
   const quantidade = (() => {
     const t = String(form.quantidade ?? "").trim();
@@ -337,7 +364,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
             span={12}
             error={erros.local_estoque_id}
           />
-          {escolhido ? (
+          {escolhido && !compacto ? (
             <p className={NOTA} data-testid={`${prefixo}-disponivel`}>
               Disponível neste local: {formatarDecimalLinha(escolhido.disponivel) || "0"}
               {rotuloUnidade ? ` ${rotuloUnidade}` : ""}
@@ -350,6 +377,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
 
   return (
     <>
+      <Grupo titulo="Lançamento" comTopo />
       <SeletorPaginadoGestao
         rotulo="Produto"
         testId={`${prefixo}-produto`}
@@ -362,10 +390,11 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         readOnly={bloqueado}
         obrigatorio
         erro={erros.produto}
-        span={12}
+        span={comTopo ? 6 : 12}
         maiusculas={false}
       />
       {blocoLocal}
+      <Grupo titulo="Quantidade" />
       <CampoNumero
         label={rotuloUnidade ? `Quantidade (${rotuloUnidade})` : "Quantidade"}
         value={form.quantidade}
@@ -379,8 +408,8 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         testId={`${prefixo}-quantidade`}
       />
       <ValorCalculado
-        label="Dose/ha (quantidade ÷ área do dia)"
-        valor={dose ? formatarDose(dose, unidade) : areaDoDia ? "—" : "Sem área do dia"}
+        label="Dose por hectare"
+        valor={dose ? formatarDose(dose, unidade) : areaDoDia ? "—" : "Sem área"}
         span={6}
         testId={`${prefixo}-dose`}
       />
@@ -450,6 +479,10 @@ export function useMedidorDaLinha(empresaId, form, setForm, dia, leituraJaInform
  */
 export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permiteImplemento, pedeJustificativa, bloqueado, prefixo, comObservacao = true }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const secoes = useContext(SecoesDoFormularioContext);
+  const comTopo = Boolean(secoes?.topo);
+  // Na janela (com seções) o formulário é enxuto; no "Repetir" (sem seções) ficam as notas e os campos de leitura de antes.
+  const compacto = secoes !== null;
   const { consulta, medidor } = medidorDaLinha;
   const unidade = medidor?.unidade ?? "";
   const semMedidor = medidor ? usaSemMedidor(form, medidor) : false;
@@ -477,13 +510,19 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
     } else {
       blocoMedidor = (
         <>
-          <ValorCalculado label="Medidor (do cadastro do bem)" valor={rotuloDoMedidor(medidor.tipo)} span={6} testId={`${prefixo}-medidor`} />
-          <ValorCalculado label="Uso" valor={uso ? formatarUso(uso, medidor.tipo, unidade) : "—"} span={6} testId={`${prefixo}-uso`} />
+          {compacto ? null : (
+            <>
+              <ValorCalculado label="Medidor (do cadastro do bem)" valor={rotuloDoMedidor(medidor.tipo)} span={6} testId={`${prefixo}-medidor`} />
+              <ValorCalculado label="Uso" valor={uso ? formatarUso(uso, medidor.tipo, unidade) : "—"} span={6} testId={`${prefixo}-uso`} />
+            </>
+          )}
           {medidor.contador ? (
             <>
-              <p className={NOTA} data-testid={`${prefixo}-leitura-vigente`}>
-                {textoDaLeituraVigente(medidor)}
-              </p>
+              {compacto ? null : (
+                <p className={NOTA} data-testid={`${prefixo}-leitura-vigente`}>
+                  {textoDaLeituraVigente(medidor)}
+                </p>
+              )}
               <EscolhaSegmentada
                 rotulo="Como informar o uso"
                 testId={`${prefixo}-modo-medidor`}
@@ -496,7 +535,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
                 ]}
               />
             </>
-          ) : (
+          ) : compacto ? null : (
             <p className={NOTA} data-testid={`${prefixo}-sem-medidor-no-bem`}>
               Este bem não tem medidor que conte: informe o uso direto.
             </p>
@@ -540,6 +579,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
                 error={erros.leitura_final}
                 testId={`${prefixo}-leitura-final`}
               />
+              {compacto ? <ValorCalculado label="Uso" valor={uso ? formatarUso(uso, medidor.tipo, unidade) : "—"} span={6} testId={`${prefixo}-uso`} /> : null}
             </>
           )}
           {pedeJustificativa ? (
@@ -570,6 +610,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
 
   return (
     <>
+      <Grupo titulo="Lançamento" comTopo />
       <SeletorPaginadoGestao
         rotulo="Máquina"
         testId={`${prefixo}-bem`}
@@ -590,7 +631,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
         readOnly={bloqueado}
         obrigatorio
         erro={erros.bem}
-        span={permiteImplemento ? 6 : 12}
+        span={comTopo || permiteImplemento ? 6 : 12}
         maiusculas={false}
       />
       {permiteImplemento ? (
@@ -605,12 +646,13 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
           readOnly={bloqueado}
           permitirLimpar
           erro={erros.implemento}
-          span={6}
+          span={comTopo ? 12 : 6}
           maiusculas={false}
         />
       ) : (
         <ErroDoCampo texto={erros.implemento} />
       )}
+      {form.bem?.id ? <Grupo titulo="Uso" /> : null}
       {blocoMedidor}
       {comObservacao ? (
         <CampoTextoLongo label="Observação" value={form.observacao} onChange={(v) => mudar({ observacao: v }, ["observacao"])} readOnly={bloqueado} maxLength={MAX_OBSERVACAO_LINHA} />
@@ -645,6 +687,10 @@ const rotuloDoCusto = (medida) => (medida === "DIARIA" ? "Custo da diária" : me
  */
 export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const secoes = useContext(SecoesDoFormularioContext);
+  const comTopo = Boolean(secoes?.topo);
+  // Na janela (com seções) o formulário é enxuto; no "Repetir" (sem seções) ficam as notas e os campos de leitura de antes.
+  const compacto = secoes !== null;
   const medida = form.tipo_medida;
   const unidade = unidadeDaMedida(medida);
   const { unitario, total } = custoDaLinhaMaoObra(form);
@@ -655,6 +701,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
   const deOnde = mantido ? "gravado na linha" : "do cadastro";
   return (
     <>
+      <Grupo titulo="Lançamento" comTopo />
       <SeletorPaginadoGestao
         rotulo="Funcionário ou terceiro"
         testId={`${prefixo}-parceiro`}
@@ -667,7 +714,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         readOnly={bloqueado}
         obrigatorio
         erro={erros.parceiro}
-        span={12}
+        span={comTopo ? 6 : 12}
         maiusculas={false}
       />
       <EscolhaSegmentada
@@ -679,6 +726,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         opcoes={MEDIDAS_MAO_OBRA.map((m) => ({ value: m, label: ROTULO_MEDIDA[m] }))}
       />
       <ErroDoCampo texto={erros.tipo_medida} />
+      <Grupo titulo="Quantidade e custo" />
       <CampoNumero
         label={unidade ? `Quantidade (${unidade})` : "Quantidade"}
         value={form.quantidade}
@@ -713,12 +761,12 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         />
       )}
       {!digitado ? <ErroDoCampo texto={erros.custo_unitario} /> : null}
-      <ValorCalculado label="Total (quantidade × custo)" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
-      {terceiro ? (
+      {terceiro && !compacto ? (
         <p className={NOTA} data-testid={`${prefixo}-terceiro`}>
           Terceiro (prestador de serviço): o custo unitário é sempre digitado.
         </p>
       ) : null}
+      <ValorCalculado label="Total" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
       {!digitado && form.parceiro && !unitario ? (
         <p className={NOTA} data-testid={`${prefixo}-sem-custo`}>
           {mantido
@@ -756,10 +804,13 @@ const detalheDoServico = (o) => {
  */
 export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const secoes = useContext(SecoesDoFormularioContext);
+  const comTopo = Boolean(secoes?.topo);
   const unidade = form.servico?.unidade ?? "";
   const total = valorDaLinhaServico(form);
   return (
     <>
+      <Grupo titulo="Lançamento" comTopo />
       <SeletorPaginadoGestao
         rotulo="Serviço"
         testId={`${prefixo}-servico`}
@@ -772,11 +823,11 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
         readOnly={bloqueado}
         obrigatorio
         erro={erros.servico}
-        span={12}
+        span={comTopo ? 6 : 12}
         maiusculas={false}
       />
       <SeletorPaginadoGestao
-        rotulo="Parceiro (prestador do serviço, opcional)"
+        rotulo="Parceiro (opcional)"
         testId={`${prefixo}-parceiro`}
         chave={[RAIZ_CONSULTAS_ATIVIDADES, "parceiros-servico", empresaId]}
         buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesParceirosServico({ q, cursor, limit }))}
@@ -789,6 +840,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
         span={12}
         maiusculas={false}
       />
+      <Grupo titulo="Valores" />
       <CampoNumero
         label={unidade ? `Quantidade (${unidade})` : "Quantidade"}
         value={form.quantidade}
@@ -813,9 +865,9 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
         error={erros.valor_unitario}
         testId={`${prefixo}-valor-unitario`}
       />
-      <ValorCalculado label="Total (quantidade × valor)" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
+      <ValorCalculado label="Total" valor={formatarCustoLinha(total) || "—"} span={6} testId={`${prefixo}-total`} />
       <CampoTexto
-        label="Documento (nota, recibo)"
+        label="Documento (nota ou recibo)"
         value={form.documento_referencia}
         onChange={(v) => mudar({ documento_referencia: v }, ["documento_referencia"])}
         readOnly={bloqueado}
@@ -845,7 +897,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
 /**
  * O que a casca da janela recebe: o padrão é a janela própria (`Janela`, abaixo); a janela por tipo (D-PROD-233) troca
  * por uma casca embutida na aba "Dados", com Voltar / Salvar / Salvar e fechar.
- * @typedef {{ titulo: string, descricao: string, testId: string, enviando: boolean, rotuloEnvio: string, incerto: boolean,
+ * @typedef {{ titulo: string, testId: string, enviando: boolean, rotuloEnvio: string, incerto: boolean,
  *   podeEnviar: boolean, formId: string, onFechar: () => void, onEnviar: () => void, children: React.ReactNode }} PropsDaCasca
  */
 
@@ -859,27 +911,20 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
  *   onCancelar: () => void,
  *   onMudou?: (() => void) | null,
  *   novoDia?: NovoDia | null,
+ *   atividadeAreaId?: string|null,
  *   Casca?: React.ComponentType<PropsDaCasca>,
- * }} PropsDaJanela `novoDia` (só ao adicionar): `apontamento` é o dia ainda não gravado (`{ id: null, data_operacional,
+ * }} PropsDaJanela `atividadeAreaId` (a área do lançamento; padrão, a do apontamento): a dose/ha do produto usa a Feita dessa área, ou a planejada; `novoDia` (só ao adicionar): `apontamento` é o dia ainda não gravado (`{ id: null, data_operacional,
  *   area_executada_dia }`) e a linha vai no lançamento novo. `Casca`: onde o formulário aparece (padrão: a janela própria).
  */
-
-/** "Lançamento de 12/11/2026 — Atividade nº 3 — Cigarrinha Pasto 01". @param {any} atividade @param {any} apontamento */
-const descricaoDaJanela = (atividade, apontamento) =>
-  [
-    apontamento?.data_operacional ? `Lançamento de ${formatarDiaAtividade(apontamento.data_operacional)}` : "Lançamento",
-    atividade?.numero != null ? `Atividade nº ${atividade.numero}` : "",
-    typeof atividade?.nome === "string" ? atividade.nome : "",
-  ]
-    .filter(Boolean)
-    .join(" — ");
 
 /**
  * A janela em curso, com o corpo, o rodapé e as folhas do celular dentro dela.
  * @param {PropsDaCasca} props
  */
-function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, podeEnviar, formId, onFechar, onEnviar, children }) {
+function Janela({ titulo, testId, enviando, rotuloEnvio, incerto, podeEnviar, formId, onFechar, onEnviar, children }) {
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
+  // D-PROD-252: no celular a janela de uma linha ocupa a tela (como a do lançamento novo), sem caixa flutuante.
+  const celular = useCelular();
   return (
     <B1Janela
       aberto
@@ -887,10 +932,10 @@ function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, pod
       podeFechar={!enviando}
       aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
       titulo={titulo}
-      descricao={descricao}
       testId={testId}
+      className={celular ? "b1-janela--tela-cheia" : ""}
       // Os botões daqui seguem as ações da tela (lançar/editar apontamento): a heurística de texto do Layout não vale.
-      contentProps={{ "data-permissao-explicita": "" }}
+      contentProps={{ "data-permissao-explicita": "", "data-celular": celular ? "" : undefined, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
       fora={<div ref={setAlvoFolha} className="contents" />}
       rodape={
         <>
@@ -917,7 +962,7 @@ function Janela({ titulo, descricao, testId, enviando, rotuloEnvio, incerto, pod
           noValidate
           data-testid={`${testId}-form`}
         >
-          {children}
+          <SecoesDoFormularioContext.Provider value={{ topo: null }}>{children}</SecoesDoFormularioContext.Provider>
         </form>
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
@@ -988,10 +1033,19 @@ const lerEfeitoDoEnvio = async ({ tipo, atividadeId, apontamento, novoDia, gravo
  * persistente.
  * @param {PropsDaJanela} props
  */
-export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, Casca = Janela }) {
+export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, atividadeAreaId = null, Casca = Janela }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const editando = Boolean(linha?.id);
   const atividadeId = String(atividade?.id ?? "");
+  // A dose/ha divide pelos hectares da área: a Feita (a soma do servidor) ou, sem ela, a planejada. A leitura é a dos totais da tela.
+  const totaisQuery = useQuery({
+    queryKey: chaveTotais(empresaId, atividadeId),
+    queryFn: () => obterTotaisAtividade(atividadeId),
+    enabled: Boolean(empresaId && atividadeId),
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const hectaresDaDose = hectaresParaDose({ atividade, totais: totaisQuery.data ?? null, areaId: atividadeAreaId ?? apontamento?.atividade_area_id ?? null });
   const [form, setForm] = useState(() => (editando ? formularioDaLinhaProduto(linha) : formularioProdutoVazio()));
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const saldo = useSaldoDoProduto(empresaId, form, setForm, editando ? linha : null);
@@ -1079,7 +1133,6 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
   return (
     <Casca
       titulo={editando ? `Editar produto ${rotuloDoProdutoDaLinha(linha)}`.trim() : "Adicionar produto"}
-      descricao={`${descricaoDaJanela(atividade, apontamento)}.${editando ? " Salvar estorna exatamente a baixa anterior e baixa a nova quantidade." : ""}`}
       testId="janela-linha-produto"
       formId="formulario-linha-produto"
       enviando={enviando}
@@ -1096,11 +1149,10 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
         aviso={aviso}
         saldo={saldo}
         atividadeId={atividadeId}
-        areaDoDia={typeof apontamento?.area_executada_dia === "string" ? apontamento.area_executada_dia : null}
+        areaDoDia={hectaresDaDose}
         bloqueado={enviando}
         prefixo="linha-produto"
       />
-      <p className={NOTA}>Sai do estoque exatamente a quantidade digitada, na unidade do produto. O custo vem dos lotes (FIFO) e aparece depois de lançar.</p>
       <div className="col-span-12 min-w-0">
         <AvisoEnvioDaLinha estado={estado} produto onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>
@@ -1206,7 +1258,6 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
   return (
     <Casca
       titulo={editando ? `Editar máquina ${nome}`.trim() : "Adicionar máquina"}
-      descricao={`${descricaoDaJanela(atividade, apontamento)}.${editando ? " Salvar cancela esta linha e lança outra com os dados novos." : ""}`}
       testId="janela-linha-maquina"
       formId="formulario-linha-maquina"
       enviando={enviando}
@@ -1232,10 +1283,6 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
         bloqueado={enviando}
         prefixo="linha-maquina"
       />
-      <p className={NOTA}>
-        A leitura fica na linha (o cadastro do bem não muda) e passa a valer como a leitura atual do bem, também para o abastecimento. O custo de uso vem do
-        cadastro do bem.
-      </p>
       <div className="col-span-12 min-w-0">
         <AvisoEnvioDaLinha estado={estado} produto={false} onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>
@@ -1260,7 +1307,6 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
  *   rotulos: { titulo: string, tituloEdicao: string, envio: string, sucesso: string, sucessoEdicao: string, lancado: string, objeto: string, falha: string, falhaEdicao: string },
  *   testId: string,
  *   campos: (p: { form: F, mudar: (mudanca: Record<string, any>, campos: string[]) => void, erros: Record<string, string>, bloqueado: boolean }) => React.ReactNode,
- *   nota: string,
  * }} props
  */
 function JanelaLinhaSemMedidor({
@@ -1284,7 +1330,6 @@ function JanelaLinhaSemMedidor({
   rotulos,
   testId,
   campos,
-  nota,
 }) {
   const editando = Boolean(linha?.id);
   const atividadeId = String(atividade?.id ?? "");
@@ -1375,7 +1420,6 @@ function JanelaLinhaSemMedidor({
   return (
     <Casca
       titulo={editando ? rotulos.tituloEdicao.replace("{nome}", nome).trim() : rotulos.titulo}
-      descricao={`${descricaoDaJanela(atividade, apontamento)}.${editando ? " Salvar cancela esta linha e lança outra com os dados novos." : ""}`}
       testId={testId}
       formId={`formulario-${testId.replace(/^janela-/, "")}`}
       enviando={enviando}
@@ -1386,7 +1430,6 @@ function JanelaLinhaSemMedidor({
       onEnviar={() => void salvar()}
     >
       {campos({ form, mudar, erros, bloqueado: enviando })}
-      <p className={NOTA}>{nota}</p>
       <div className="col-span-12 min-w-0">
         <AvisoEnvioDaLinha estado={estado} produto={false} lancado={rotulos.lancado} onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>
@@ -1426,7 +1469,6 @@ export function JanelaLinhaMaoObra({ linha = null, ...props }) {
         falhaEdicao: "Não foi possível alterar a mão de obra. Nada foi alterado.",
       }}
       campos={(p) => <CamposDaLinhaMaoObra {...p} prefixo="linha-mao-obra" />}
-      nota="Funcionário: hora e diária usam o custo do cadastro dele na data do lançamento (editar sem trocar o funcionário nem a medida mantém o custo gravado); tarefa usa o custo digitado. Terceiro: o custo é sempre digitado. Não é folha de pagamento: nada vai para o financeiro."
     />
   );
 }
@@ -1462,7 +1504,6 @@ export function JanelaLinhaServico({ linha = null, ...props }) {
         falhaEdicao: "Não foi possível alterar o serviço. Nada foi alterado.",
       }}
       campos={(p) => <CamposDaLinhaServico {...p} prefixo="linha-servico" />}
-      nota="O serviço entra no custo da atividade. Nada vai para o financeiro: título ou pagamento ao parceiro são lançados à parte."
     />
   );
 }
@@ -1557,8 +1598,9 @@ export function DialogoCancelarLinha({ atividade, cancelando, escopo, onCancelad
   return (
     <DialogoAcao
       aberto
+      janelaBase1
       titulo={`Cancelar ${nome} do lançamento de ${formatarDiaAtividade(cancelando.apontamento?.data_operacional)}`}
-      descricao={`${EFEITO_DO_CANCELAMENTO[cancelando.tipo] ?? ""} A linha continua no histórico como cancelada e deixa de contar nos totais da atividade. Informe o motivo (pelo menos ${MOTIVO_MINIMO} caracteres).`}
+      descricao={`${EFEITO_DO_CANCELAMENTO[cancelando.tipo] ?? ""} A linha fica no histórico como cancelada. Motivo com pelo menos ${MOTIVO_MINIMO} caracteres.`}
       rotuloBotao="Cancelar linha"
       testId="dialogo-cancelar-linha"
       contexto={CONTEXTO_MENSAGENS}

@@ -129,35 +129,10 @@ function Linha({ rotulo, valor, testId = undefined }) {
 }
 
 /**
- * Revisão (prévia SEM escrita do servidor) + confirmação do abastecimento
- * (D-PROD-162). Resumo humano: máquina, Produto, quantidade na unidade do
- * Produto, medidor, tanque cheio, data, local e a baixa do estoque (EXATAMENTE
- * a quantidade digitada, "120,0000 L" ou "80,0000 kg"; D-PROD-169: Produto em
- * SACO baixa em kg, a unidade do estoque dele). Os dados técnicos
- * (tanque, custo estimado por L/kg, saldo e lotes FIFO) ficam em "Detalhes do
- * estoque", recolhido. Sem tipo de combustível e sem fator. Com bloqueio não
- * há "Confirmar". `onConsultar` devolve o texto do resultado da consulta (ou
- * null quando achou e o diálogo fecha).
- * D-PROD-211: no posto externo (`origem` do formulário revisado, ou a do
- * plano) não há local nem baixa do estoque: a revisão mostra a origem e o valor
- * da nota (`custoExterno`, o digitado). Com contador, mostra a leitura
- * anterior, o avanço do medidor e se o intervalo é confiável, como o servidor
- * calculou (sem gravar).
- * @param {{
- *   aberto: boolean,
- *   previa: { plano: any, bloqueios: any[] } | null,
- *   origem?: string|null,
- *   custoExterno?: string|null,
- *   podeConfirmar: boolean,
- *   onFechar: () => void,
- *   onConfirmar: (arg: unknown, opcoes: { retentativa: boolean }) => Promise<unknown>,
- *   onConsultar: () => Promise<string|null>,
- * }} props
+ * Os números da revisão, os mesmos na janela de revisão e na revisão dentro de outra janela (D-PROD-252).
+ * @param {{ plano: any, bloqueios: any[] } | null} previa @param {string|null} origem @param {string|null} custoExterno
  */
-export function DialogoPreviaAbastecimento({ aberto, previa, origem = null, custoExterno = null, podeConfirmar, onFechar, onConfirmar, onConsultar }) {
-  const { estado, disparar, setEstado } = useEnvioAbastecimento(onConfirmar, "Não foi possível confirmar o abastecimento. Nada foi gravado.");
-  const [detalhesAbertos, setDetalhesAbertos] = useState(false);
-  const enviando = estado.fase === "enviando";
+function derivarPrevia(previa, origem, custoExterno) {
   const plano = previa?.plano ?? null;
   const bloqueios = Array.isArray(previa?.bloqueios) ? previa.bloqueios : [];
   const fifo = plano?.fifo ?? null;
@@ -181,37 +156,26 @@ export function DialogoPreviaAbastecimento({ aberto, previa, origem = null, cust
   } else if (baixa) {
     resumo = `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${quantidade}. Baixa de ${formatarQuantidade(baixa, unidadeEstoque)} do estoque em ${plano.local_estoque?.nome ?? "local"}.`;
   }
+  return { plano, bloqueios, fifo, fatias, medidor, unidade, unidadeEstoque, porUnidade, dicaDaUnidade, externo, baixa, quantidade, valorDaNota, snapshot, resumo };
+}
 
-  const consultar = async () => {
-    const texto = await onConsultar();
-    if (texto) setEstado((e) => ({ ...e, consulta: texto }));
-  };
+/** O resumo humano da revisão (a descrição da janela). @param {any} previa @param {string|null} [origem] @param {string|null} [custoExterno] */
+export const resumoDaPrevia = (previa, origem = null, custoExterno = null) => derivarPrevia(previa, origem, custoExterno).resumo;
 
+/**
+ * O corpo da revisão (dicas, dados, detalhes do estoque, bloqueios e o aviso do envio), sem a janela em volta: serve ao
+ * diálogo `DialogoPreviaAbastecimento` e à revisão dentro da janela do abastecimento da área (D-PROD-252). Quem chama
+ * é dono do envio (`useEnvioAbastecimento`): passa o `estado`, o `onConsultar` (já ligado ao estado) e `onRepetir` (o disparo).
+ * @param {{ previa: { plano: any, bloqueios: any[] } | null, origem?: string|null, custoExterno?: string|null, estado: EstadoEnvio,
+ *   podeConfirmar: boolean, onRepetir: () => void, onConsultar: () => void }} props
+ */
+export function CorpoDaPreviaAbastecimento({ previa, origem = null, custoExterno = null, estado, podeConfirmar, onRepetir, onConsultar }) {
+  const [detalhesAbertos, setDetalhesAbertos] = useState(false);
+  const { plano, bloqueios, fifo, fatias, medidor, unidade, unidadeEstoque, porUnidade, dicaDaUnidade, externo, baixa, quantidade, valorDaNota, snapshot } = derivarPrevia(previa, origem, custoExterno);
+  const consultar = onConsultar;
+  const disparar = (/** @type {any} */ _a) => onRepetir();
   return (
-    <B1Janela
-      aberto={aberto}
-      onFechar={onFechar}
-      podeFechar={!enviando}
-      titulo="Revisar abastecimento"
-      descricao={resumo}
-      descricaoProps={{ "data-testid": "previa-resumo" }}
-      className="b1-janela--estreita"
-      testId="dialogo-previa-abastecimento"
-      contentProps={{ "data-permissao-explicita": "" }}
-      rodape={
-        <>
-          <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} disabled={enviando}>
-            Voltar
-          </button>
-          {podeConfirmar && !bloqueios.length && plano ? (
-            <button type="button" className={BOTAO_PRIMARIO} disabled={enviando} data-testid="abastecimento-confirmar" onClick={() => disparar(null)}>
-              {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
-              {enviando ? "Confirmando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Confirmar abastecimento"}
-            </button>
-          ) : null}
-        </>
-      }
-    >
+    <>
       {dicaDaUnidade ? (
         <p role="note" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-2 text-[12px] text-amber-900" data-testid="previa-dica-kg">
           {dicaDaUnidade}
@@ -345,6 +309,71 @@ export function DialogoPreviaAbastecimento({ aberto, previa, origem = null, cust
         onConsultar={consultar}
         onRepetir={podeConfirmar && !bloqueios.length ? () => disparar(null) : null}
       />
+    </>
+  );
+}
+
+/**
+ * Revisão (prévia SEM escrita do servidor) + confirmação do abastecimento
+ * (D-PROD-162). Resumo humano: máquina, Produto, quantidade na unidade do
+ * Produto, medidor, tanque cheio, data, local e a baixa do estoque (EXATAMENTE
+ * a quantidade digitada, "120,0000 L" ou "80,0000 kg"; D-PROD-169: Produto em
+ * SACO baixa em kg, a unidade do estoque dele). Os dados técnicos
+ * (tanque, custo estimado por L/kg, saldo e lotes FIFO) ficam em "Detalhes do
+ * estoque", recolhido. Sem tipo de combustível e sem fator. Com bloqueio não
+ * há "Confirmar". `onConsultar` devolve o texto do resultado da consulta (ou
+ * null quando achou e o diálogo fecha).
+ * D-PROD-211: no posto externo (`origem` do formulário revisado, ou a do
+ * plano) não há local nem baixa do estoque: a revisão mostra a origem e o valor
+ * da nota (`custoExterno`, o digitado). Com contador, mostra a leitura
+ * anterior, o avanço do medidor e se o intervalo é confiável, como o servidor
+ * calculou (sem gravar).
+ * @param {{
+ *   aberto: boolean,
+ *   previa: { plano: any, bloqueios: any[] } | null,
+ *   origem?: string|null,
+ *   custoExterno?: string|null,
+ *   podeConfirmar: boolean,
+ *   onFechar: () => void,
+ *   onConfirmar: (arg: unknown, opcoes: { retentativa: boolean }) => Promise<unknown>,
+ *   onConsultar: () => Promise<string|null>,
+ * }} props
+ */
+export function DialogoPreviaAbastecimento({ aberto, previa, origem = null, custoExterno = null, podeConfirmar, onFechar, onConfirmar, onConsultar }) {
+  const { estado, disparar, setEstado } = useEnvioAbastecimento(onConfirmar, "Não foi possível confirmar o abastecimento. Nada foi gravado.");
+  const enviando = estado.fase === "enviando";
+  const { plano, bloqueios, resumo } = derivarPrevia(previa, origem, custoExterno);
+
+  const consultar = async () => {
+    const texto = await onConsultar();
+    if (texto) setEstado((e) => ({ ...e, consulta: texto }));
+  };
+
+  return (
+    <B1Janela
+      aberto={aberto}
+      onFechar={onFechar}
+      podeFechar={!enviando}
+      titulo="Revisar abastecimento"
+      descricao={resumo}
+      descricaoProps={{ "data-testid": "previa-resumo" }}
+      testId="dialogo-previa-abastecimento"
+      contentProps={{ "data-permissao-explicita": "" }}
+      rodape={
+        <>
+          <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} disabled={enviando}>
+            Voltar
+          </button>
+          {podeConfirmar && !bloqueios.length && plano ? (
+            <button type="button" className={BOTAO_PRIMARIO} disabled={enviando} data-testid="abastecimento-confirmar" onClick={() => disparar(null)}>
+              {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
+              {enviando ? "Confirmando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Confirmar abastecimento"}
+            </button>
+          ) : null}
+        </>
+      }
+    >
+      <CorpoDaPreviaAbastecimento previa={previa} origem={origem} custoExterno={custoExterno} estado={estado} podeConfirmar={podeConfirmar} onRepetir={() => disparar(null)} onConsultar={consultar} />
     </B1Janela>
   );
 }
@@ -407,7 +436,6 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
           </>
         )
       }
-      className="b1-janela--estreita"
       testId="dialogo-cancelamento-abastecimento"
       contentProps={{ "data-permissao-explicita": "" }}
       rodape={

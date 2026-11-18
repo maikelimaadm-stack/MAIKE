@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fraseDoRegistro, movimentosDaArea, opcoesDeRegistro, registroDoDiaParaAbastecer } from "@/lib/atividadeFluxoCampo";
+import { movimentosDaArea, opcoesDeRegistro, registroDoDiaParaAbastecer } from "@/lib/atividadeFluxoCampo";
 
 const maquina = (id, extra = {}) => ({ id, status: "CONFIRMADO", bem_id: "b1", bem: { codigo: "TP-02", nome: "Trator" }, custo_total: "100", ...extra });
 const ap = (id, area, dia, linhas = {}, extra = {}) => ({ id, status: "CONFIRMADO", atividade_area_id: area, data_operacional: dia, sequencia: 1, ...linhas, ...extra });
@@ -29,10 +29,5 @@ describe("D-PROD-251 — fluxo de campo", () => {
     expect(registroDoDiaParaAbastecer(lista, "ar3", "2026-11-18")).toBeNull();
     expect(registroDoDiaParaAbastecer(lista, "ar1", "2026-11-18")?.id).toBe("b");
     expect(registroDoDiaParaAbastecer([...lista, ap("e", "ar1", "2026-11-18")], "ar1", "2026-11-18")?.id).toBe("e");
-  });
-
-  it("FC-4 — a frase da confirmação é curta e diz onde foi anotado", () => {
-    expect(fraseDoRegistro({ texto: "Máquina Trator salva", area: "Pasto 01", atividade: "Adubação" })).toBe("Máquina Trator salva. Foi anotado em Pasto 01, na atividade Adubação.");
-    expect(fraseDoRegistro({ texto: "", area: "", atividade: "Adubação" })).toBe("Registro salvo. Foi anotado na atividade Adubação.");
   });
 });

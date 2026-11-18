@@ -14,7 +14,7 @@
  *        não muda sozinha (o padrão da fazenda é aplicado uma vez).
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -54,6 +54,14 @@ const montar = async () => {
   await assentar();
   await screen.findByText('Data do abastecimento');
 };
+
+// Os testes assumem o navegador em UTC (relógio local = UTC); fixa o fuso do processo para não depender da máquina.
+const TZ_ORIGINAL = process.env.TZ;
+beforeAll(() => { process.env.TZ = 'UTC'; });
+afterAll(() => {
+  if (TZ_ORIGINAL === undefined) delete process.env.TZ;
+  else process.env.TZ = TZ_ORIGINAL;
+});
 
 beforeEach(() => {
   cleanup();

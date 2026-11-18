@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
+## Missão ativa (2026-11-18) — MAIKE-LANCAMENTOS-ORGANIZAR: uma tabela de áreas, uma tabela de lançamentos por área e um nível de janela (D-PROD-252)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-252**, pedido do proprietário sobre a auditoria e as maquetes aprovadas (desktop, celular e Resumo das áreas) |
+| Branch / PR | `cursor/lancamentos-organizar`, a partir da `main` `3a329d90` (PR #329, D-PROD-251) · PR a abrir |
+| Escopo | Atividade: linha de resumo + UMA tabela de áreas. Área: botões "+" e UMA tabela de lançamentos (abastecimento e implemento dentro dela). Lançamento novo direto numa janela de um nível (Cancelar / Salvar / Salvar e novo). Abastecimento com a revisão na mesma janela e sem os campos travados. Resumo das áreas (Área · ha · Máquinas · Insumos · Mão de obra · Serviços · Abastecimento · Total · R$/ha, sem nota). Celular: janela em tela cheia (padrão `b1-janela--tela-cheia`), nunca caixa flutuante. **Emenda 1 (revisão do proprietário, commit `36c11c8a`):** a tela não fala mais em "dias" (sem Dias lançados, Ajustar um dia nem Área do dia); a **Feita (ha)** se informa na linha da área e grava no lançamento mais novo dela; a área aberta mostra uma tabela e um total (sem abas por cima); sem subtítulo da lista; sem o aviso "Reaberta em…" **Emenda 2 (revisão do proprietário, commit `b83a518d`):** todas as tabelas (áreas, lançamentos da área, Resumo das áreas e itens do Resumo da atividade) são a grade Base1 da lista (`TabelaBase1` → `CadastroBase1Grade`), sem cartão, com o rodapé do Base1 no fim da casca e o total no `<tfoot>`; sem a linha "Aberta · desde …" e sem o aviso "Foi anotado em …" (só o toast); Resumo da atividade como um detalhe de cadastro (campos + tabela Tipo · Item · Quantidade · Custo). Referência oficial: a lista do Lançamento de Atividades. **Emenda 3 (revisão do proprietário, commit `c0d98ca6`):** todas as janelas desta tela têm UM tamanho no computador — a `B1Janela` padrão do Base1, 680px, altura `min(86vh, 720px)`, título e ✕ em cima e botões embaixo (saíram `b1-janela--tipo` 960px, `b1-janela--estreita` 560px e o diálogo de ~512px; o `DialogoAcao` ganhou `janelaBase1`); no celular, tela cheia. Dentro delas os dados ficam organizados no formulário dos cadastros: uma grade só em grupos (`SecaoForm`, duas colunas), o Dia como primeiro campo do grupo Lançamento, sem subtítulo, sem contexto repetido e sem textos de ajuda; o Concluir atividade mostra o Resumo como campos de leitura. |
+| Backend | Nenhuma mudança. Nenhuma migration nova |
+| Release | Merge normal de frontend. A prévia da Vercel segue a regra da D-PROD-251 (`ignoreCommand`) |
+| Relatório | [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) (seção 9) |
+
+## Missão anterior (2026-11-18) — MAIKE-ATIVIDADES-POR-AREA: o lançamento pela área, em passos, com o tipo separado (D-PROD-251)
 
 | Campo | Valor |
 |---|---|

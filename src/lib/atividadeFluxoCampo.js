@@ -153,17 +153,6 @@ export const registroDoDiaParaAbastecer = (apontamentos, areaId, hoje = '') => {
 };
 
 /**
- * Frase da confirmação. O miolo é o texto que o servidor já devolveu; o lugar é a área e a atividade.
- * @param {{ texto?: string, area?: string, atividade?: string }} p
- */
-export const fraseDoRegistro = ({ texto = '', area = '', atividade = '' }) => {
-  const limpo = texto.replace(/\s*O lançamento de .+ foi criado com ele\.?\s*$/i, '').trim();
-  const miolo = limpo ? (/[.!]$/.test(limpo) ? limpo : `${limpo}.`) : 'Registro salvo.';
-  const onde = area ? `Foi anotado em ${area}${atividade ? `, na atividade ${atividade}` : ''}.` : atividade ? `Foi anotado na atividade ${atividade}.` : '';
-  return [miolo, onde].filter(Boolean).join(' ');
-};
-
-/**
  * Movimentos CONFIRMADOS de uma área, agrupados por tipo, com o texto de cada linha.
  * Sem `areaId`, todas as linhas da atividade (atividade de uma área só, no cabeçalho).
  * Custo de cada grupo: a soma que o servidor mandou em `custoPorTipo`, quando houver.
