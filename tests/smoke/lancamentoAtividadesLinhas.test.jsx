@@ -827,7 +827,9 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     // Troca para o favorito (L, um local só: escolhido sozinho, com o disponível).
     await escolherNoSeletor(janela, "linha-produto-produto", /Glifosato/);
     expect(within(janela).getByText("Quantidade (L)")).toBeTruthy();
-    expect(await within(janela).findByTestId("linha-produto-disponivel")).toHaveTextContent("Disponível neste local: 30 L");
+    // Emenda 3: o disponível está no próprio rótulo do local (sem a linha "Disponível neste local" repetida).
+    await waitFor(() => expect(within(janela).getByRole("combobox", { name: "Local do estoque" })).toHaveTextContent("disponível 30"));
+    expect(within(janela).queryByTestId("linha-produto-disponivel")).toBeNull();
     fireEvent.change(within(janela).getByTestId("linha-produto-quantidade"), { target: { value: "25" } });
     // Dose/ha = 25 / 10 (a Feita da atividade; sem ela, a planejada), só leitura.
     expect(within(janela).getByTestId("linha-produto-dose")).toHaveTextContent("2,5 L/ha");
@@ -854,7 +856,7 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     fireEvent.click(screen.getByTestId("apontamento-ap1-adicionar-produto"));
     const janela = await screen.findByTestId("janela-linha-produto");
     await escolherNoSeletor(janela, "linha-produto-produto", /Glifosato/);
-    await within(janela).findByTestId("linha-produto-disponivel");
+    await within(janela).findByRole("combobox", { name: "Local do estoque" });
     fireEvent.change(within(janela).getByTestId("linha-produto-quantidade"), { target: { value: "50" } });
     expect(within(janela).getByTestId("linha-produto-saldo-insuficiente")).toHaveTextContent("Saldo insuficiente neste local: disponível 30 L, pedido 50 L.");
     proxima = erroServidor(422, "ESTOQUE_SALDO_INSUFICIENTE", { details: { disponivel: "30.0000", solicitado: "50.0000" } });
@@ -871,7 +873,7 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     fireEvent.click(screen.getByTestId("apontamento-ap1-adicionar-produto"));
     const janela = await screen.findByTestId("janela-linha-produto");
     await escolherNoSeletor(janela, "linha-produto-produto", /Glifosato/);
-    await within(janela).findByTestId("linha-produto-disponivel");
+    await within(janela).findByRole("combobox", { name: "Local do estoque" });
     fireEvent.change(within(janela).getByTestId("linha-produto-quantidade"), { target: { value: "5" } });
     perderResposta = true;
     fireEvent.click(within(janela).getByTestId("janela-linha-produto-salvar"));
@@ -896,7 +898,7 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     fireEvent.click(screen.getByTestId("linha-produto-pl1-editar"));
     const janela = await screen.findByTestId("janela-linha-produto");
     expect(within(janela).getByTestId("linha-produto-quantidade")).toHaveValue("25");
-    await within(janela).findByTestId("linha-produto-disponivel");
+    await within(janela).findByRole("combobox", { name: "Local do estoque" });
     fireEvent.change(within(janela).getByTestId("linha-produto-quantidade"), { target: { value: "20" } });
     // Na edição, o que a própria linha baixou volta antes: 30 + 25 disponível, 20 não avisa.
     expect(within(janela).queryByTestId("linha-produto-saldo-insuficiente")).toBeNull();
@@ -949,9 +951,12 @@ describe("LL-MAQUINA — janela da linha de máquina", () => {
     expect(within(janela).getByTestId("linha-maquina-bem").getAttribute("aria-label")).toMatch(/TP-02 — Trator/);
     // O tipo permite implemento: o campo aparece.
     expect(within(janela).getByTestId("linha-maquina-implemento")).toBeTruthy();
-    expect(await within(janela).findByTestId("linha-maquina-medidor")).toHaveTextContent("Horímetro (h)");
+    // O tipo do medidor aparece na unidade dos campos (sem o campo "Medidor" nem a nota da leitura vigente).
+    expect(await within(janela).findByTestId("linha-maquina-leitura-inicial")).toBeTruthy();
+    expect(within(janela).getByText(/Leitura inicial \(h\)/)).toBeTruthy();
+    expect(within(janela).queryByTestId("linha-maquina-medidor")).toBeNull();
     expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/medidor")?.query).toEqual({ empresa_id: "emp-1", bem_id: "b1", data: "2026-11-12" });
-    expect(within(janela).getByTestId("linha-maquina-leitura-vigente")).toHaveTextContent("Última leitura: 1.550 h em 12/11/2026 (lançamento de atividade).");
+    expect(within(janela).queryByTestId("linha-maquina-leitura-vigente")).toBeNull();
     await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-inicial")).toHaveValue("1.550"));
     // Final obrigatória: nada sai sem ela.
     fireEvent.click(within(janela).getByTestId("janela-linha-maquina-salvar"));
@@ -1039,12 +1044,13 @@ describe("LL-MAQUINA — janela da linha de máquina", () => {
     await abrir("a1", "ap1");
     fireEvent.click(screen.getByTestId("apontamento-ap1-adicionar-maquina"));
     let janela = await screen.findByTestId("janela-linha-maquina");
-    await within(janela).findByTestId("linha-maquina-medidor");
+    await within(janela).findByTestId("linha-maquina-modo-medidor");
     fireEvent.click(within(janela).getByRole("radio", { name: /Sem medidor/ }));
     expect(within(janela).queryByTestId("linha-maquina-leitura-final")).toBeNull();
     expect(within(janela).getByText("Uso (h)")).toBeTruthy();
     fireEvent.change(within(janela).getByTestId("linha-maquina-quantidade-uso"), { target: { value: "6" } });
-    expect(within(janela).getByTestId("linha-maquina-uso")).toHaveTextContent("6 h");
+    // Em "sem medidor" o uso é o próprio campo digitado (não há o campo calculado repetido).
+    expect(within(janela).queryByTestId("linha-maquina-uso")).toBeNull();
     fireEvent.click(within(janela).getByTestId("janela-linha-maquina-salvar"));
     await waitFor(() => expect(escritas()).toHaveLength(1));
     expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), bem_id: "b1", sem_medidor: true, quantidade_uso: "6" });
@@ -1055,8 +1061,8 @@ describe("LL-MAQUINA — janela da linha de máquina", () => {
     fireEvent.click(screen.getByTestId("apontamento-ap1-adicionar-maquina"));
     janela = await screen.findByTestId("janela-linha-maquina");
     await escolherNoSeletor(janela, "linha-maquina-bem", /Caminhão/);
-    expect(await within(janela).findByTestId("linha-maquina-sem-medidor-no-bem")).toBeTruthy();
-    expect(within(janela).getByTestId("linha-maquina-medidor")).toHaveTextContent("Sem medidor");
+    expect(await within(janela).findByTestId("linha-maquina-quantidade-uso")).toBeTruthy();
+    expect(within(janela).queryByTestId("linha-maquina-sem-medidor-no-bem")).toBeNull();
     expect(within(janela).queryByRole("radio", { name: /Sem medidor/ })).toBeNull();
     fireEvent.change(within(janela).getByTestId("linha-maquina-quantidade-uso"), { target: { value: "120" } });
     fireEvent.click(within(janela).getByTestId("janela-linha-maquina-salvar"));
@@ -1487,7 +1493,7 @@ describe("LL-MAO-OBRA-TERCEIRO — funcionário ou terceiro (D-PROD-208)", () =>
     await escolherNoSeletor(janela, "linha-mao-obra-parceiro", /Empreiteira Rocha/);
     expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/mao-obra")?.query).toMatchObject({ empresa_id: "emp-1" });
     expect(within(janela).getByRole("radio", { name: "Hora" })).toHaveAttribute("aria-checked", "true");
-    expect(within(janela).getByTestId("linha-mao-obra-terceiro")).toHaveTextContent("o custo unitário é sempre digitado");
+    expect(within(janela).queryByTestId("linha-mao-obra-terceiro")).toBeNull();
     // Mesmo na hora o custo é campo digitável (nada vem de cadastro) e é obrigatório.
     expect(within(janela).getByTestId("linha-mao-obra-custo-unitario").tagName).toBe("INPUT");
     expect(within(janela).queryByTestId("linha-mao-obra-sem-custo")).toBeNull();
@@ -2205,7 +2211,12 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     await montar();
     const janela = await abrirJanela("a1", "maquinas");
     expect(janela.querySelector(".mdl-t")).toHaveTextContent("Trabalho de máquinas");
-    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("01 — Pasto 01 · Cigarrinha Pasto 01");
+    // Emenda 3: sem subtítulo (a área e a atividade estão no cabeçalho da tela) e o Dia na mesma grade, no grupo "Lançamento".
+    expect(within(janela).queryByTestId("janela-tipo-subtitulo")).toBeNull();
+    expect(janela.querySelector(".b1-janela__nota")).toBeNull();
+    expect(janela).not.toHaveClass("b1-janela--tipo");
+    expect(janela.querySelector("form .b1-grupo__titulo")).toHaveTextContent("Lançamento");
+    expect(janela.querySelector("form")).toContainElement(within(janela).getByTestId("janela-tipo-data"));
     expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
     // Um nível só: nada das abas, das setas do dia, da Área do dia, do lançamento do dia nem de outro diálogo.
     for (const t of ["janela-tipo-aba-lista", "janela-tipo-aba-dados", "janela-tipo-dia-anterior", "janela-tipo-dia-seguinte", "janela-tipo-area-nova", "janela-tipo-area-dia", "janela-tipo-inserir", "janela-tipo-dia-novo"]) {

@@ -7,7 +7,6 @@ import {
   BOTAO_PRIMARIO,
   BOTAO_SECUNDARIO,
   CorpoDaPreviaAbastecimento,
-  resumoDaPrevia,
   useEnvioAbastecimento,
 } from "@/components/patrimonio/DialogosAbastecimento";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
@@ -21,8 +20,8 @@ import { formularioDoApontamento } from "@/lib/abastecimentoRegras";
  * mesma confirmação da tela Abastecimentos, já ligado ao registro do dia daquela área. Nada de gravação nova: usa
  * `useFluxoAbastecimento`. Quem abre escolhe o registro do dia (`apontamento`); o servidor deriva a atividade e a área dele.
  *
- * Um nível só (D-PROD-252): o título é "Abastecimento" e o subtítulo "Área · Atividade" (sem os campos travados
- * Atividade / Lançamento). Os botões ficam no rodapé: no formulário, Cancelar e Revisar abastecimento; na revisão
+ * Um nível só (D-PROD-252): o título é "Abastecimento", sem subtítulo nem os campos travados Atividade / Lançamento
+ * (emenda 3: a área e a atividade já estão no cabeçalho da tela). A janela é a padrão do Base1, 680px, como todas as outras. Os botões ficam no rodapé: no formulário, Cancelar e Revisar abastecimento; na revisão
  * ("Confira antes de confirmar", o mesmo corpo do diálogo da tela Abastecimentos, mas DENTRO desta janela), Cancelar e
  * Confirmar abastecimento. No celular a janela ocupa a tela, como a dos outros lançamentos.
  *
@@ -82,7 +81,6 @@ export default function JanelaAbastecimentoDaArea({ atividade, apontamento, nome
       podeFechar={!fluxo.previando && !enviando}
       aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
       titulo="Abastecimento"
-      descricao={[nomeArea, String(atividade?.nome ?? "")].filter(Boolean).join(" · ")}
       testId="janela-abastecimento-area"
       className={celular ? "b1-janela--tela-cheia" : ""}
       // Os botões daqui seguem as ações da tela Abastecimentos: a heurística de texto do Layout não vale.
@@ -137,9 +135,6 @@ export default function JanelaAbastecimentoDaArea({ atividade, apontamento, nome
             <h3 className="mb-1 text-[14px] font-semibold" id="abastecimento-confira-t">
               Confira antes de confirmar
             </h3>
-            <p className="mb-2 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previa-resumo">
-              {resumoDaPrevia(previa, fluxo.origemDaPrevia, fluxo.custoExternoDaPrevia)}
-            </p>
             <CorpoDaPreviaAbastecimento
               previa={previa}
               origem={fluxo.origemDaPrevia}

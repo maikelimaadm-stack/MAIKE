@@ -999,8 +999,9 @@ export default function LancamentoAtividades() {
           <DialogoAcao
             key={`reabrir-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
             aberto
+            janelaBase1
             titulo={`Reabrir a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
-            descricao="A atividade volta a ficar aberta: aceita edição do cabeçalho e apontamentos de novo, e a conclusão é desfeita. A reabertura fica registrada com o motivo. Informe o motivo (pelo menos 3 caracteres)."
+            descricao="A atividade volta a ficar aberta e a conclusão é desfeita. Motivo com pelo menos 3 caracteres."
             rotuloBotao="Reabrir atividade"
             testId="dialogo-reabrir-atividade"
             perigo={false}
@@ -1015,8 +1016,9 @@ export default function LancamentoAtividades() {
           <DialogoAcao
             key={`cancelar-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
             aberto
+            janelaBase1
             titulo={`Cancelar a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
-            descricao="A atividade e os apontamentos confirmados dela são cancelados juntos, com o mesmo motivo. Tudo continua no histórico como cancelado; nada é apagado e nada mais pode ser alterado. Informe o motivo (pelo menos 3 caracteres)."
+            descricao="A atividade e os lançamentos confirmados dela são cancelados juntos e ficam no histórico. Motivo com pelo menos 3 caracteres."
             rotuloBotao="Cancelar atividade"
             testId="dialogo-cancelar-atividade"
             contexto={CONTEXTO_MENSAGENS}

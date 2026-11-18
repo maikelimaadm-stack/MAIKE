@@ -8503,4 +8503,39 @@ O proprietário revisou a Emenda 1 e disse que o Lançamento de Atividades **nã
 
 **Relatório:** [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) (seção 9).
 
+### Emenda 3 à D-PROD-252 (2026-11-18, revisão do proprietário sobre o commit `c0d98ca6`; só frontend, sem servidor, API, permissão, regra nem migration)
+
+Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as aberturas deles estão muito estranhas. Tem hora que fica pequeno, tem hora que fica grande. Tinha que ser um tamanho visual padrão. E mais organizado, os dados mais organizados, tem muitos dados separados, estranho, muita informação." Nenhuma decisão nova: é uma emenda à D-PROD-252 (a próxima continua sendo a D-PROD-253).
+
+**Referência Base1 (oficial desta emenda):** a janela padrão do motor, `B1Janela` (`src/components/cadastro/base1/B1Janela.jsx`, CSS em `src/styles/base1-design-ajustes.css`): **680px** de largura, altura máxima `min(86vh, 720px)`, corpo que rola (`b1-janela__corpo`), título e ✕ em cima (`mdl-h`) e os botões embaixo (`b1-janela__rodape`: Cancelar / Salvar / Salvar e novo quando a ação existe). Para o conteúdo: o formulário dos cadastros (`SecaoForm` = título de grupo do Base1, `mg-b1-form-grid` de duas colunas no computador e uma no celular, `CampoDia`, `CampoSelect`, `CampoNumero`, `SeletorPaginadoGestao`, `ValorCalculado`).
+
+**Inventário das janelas do Lançamento de Atividades (largura antes → depois):**
+
+| Janela | Antes | Depois |
+|---|---|---|
+| Lançamento por tipo: máquina (com implemento quando o tipo permite), insumo, mão de obra, serviço (`JanelaLancamentoPorTipo`, `b1-janela--tipo`) | 960px, altura até `min(90vh, 860px)` | 680px / `min(86vh, 720px)` |
+| Abastecimento da área e a revisão dentro dela (`JanelaAbastecimentoDaArea`) | 680px | 680px (sem subtítulo) |
+| Editar uma linha: máquina, produto, mão de obra, serviço (`JanelasDaLinha`) | 680px | 680px (seções, sem descrição) |
+| Hectares feitos, Adicionar área, Iniciar / Concluir / Reabrir / Remover área, Área planejada (`DialogoAreaDaAtividade`, `DialogoAcao`) | ~512px (`max-w-lg`) | 680px |
+| Concluir atividade (`DialogoConcluirAtividade`) | ~512px | 680px |
+| Cancelar linha (`DialogoCancelarLinha`) | ~512px | 680px |
+| Cancelar lançamento (`ListaApontamentos`) e Reabrir / Cancelar atividade (`LancamentoAtividades`) | ~512px | 680px |
+| Revisão e Cancelamento do abastecimento (`DialogoPreviaAbastecimento`, `DialogoCancelarAbastecimento`, `b1-janela--estreita`; também na tela Abastecimentos) | 560px | 680px |
+
+**Um tamanho só (computador):** todas as janelas acima são `B1Janela`, com o mesmo cabeçalho, o mesmo corpo que rola e o mesmo rodapé. As variantes `b1-janela--tipo` (960px) e `b1-janela--estreita` (560px) **saíram** do CSS e do código; não foi criada nenhuma largura nova (nem 800, nem 900). O `DialogoAcao` (financeiro e atividade) ganhou a opção `janelaBase1`, que o renderiza como `B1Janela` (títulos, motivo, botões `tb-btn`, Voltar / ação no rodapé); sem a opção continua sendo o diálogo de sempre, e as telas fora do Lançamento de Atividades não usam a opção. No celular continua `b1-janela--tela-cheia` / `b1-janela__camada--tela-cheia` (tela inteira, nunca caixa flutuante), agora também nas janelas de confirmação. Um nível só: o abastecimento revisa dentro da mesma janela.
+
+**Dados organizados (menos informação):**
+
+1. **Subtítulo e contexto repetido saíram.** A janela do lançamento por tipo, a do abastecimento e as de editar linha não repetem "Área · Atividade" nem "Lançamento de 12/11/2026 — Atividade nº 3 — …": o título da janela e a área do cabeçalho da tela bastam. Também saíram o nome da atividade do "Concluir atividade" e a descrição da área nos diálogos da área.
+2. **Uma grade só, em grupos.** O Dia deixou de ser uma grade à parte e é o primeiro campo do grupo **Lançamento**, ao lado do item (máquina, produto, funcionário ou serviço). Os demais campos ficam em grupos do Base1 (`SecaoForm`): máquina = Lançamento · Uso; insumo = Lançamento · Quantidade; mão de obra = Lançamento · Quantidade e custo; serviço = Lançamento · Valores. Campos de 6 colunas (duas por linha) e os escolhedores em 6 ou 12.
+3. **Sem textos de ajuda.** Saíram os parágrafos fixos das quatro janelas ("Sai do estoque exatamente a quantidade digitada…", "Funcionário: hora e diária usam o custo do cadastro…", "O serviço entra no custo da atividade…", "A leitura fica na linha…"), "Disponível neste local" (o disponível já está no rótulo do local), a nota "Terceiro: o custo unitário é sempre digitado", a nota da leitura vigente e a de "bem sem medidor" e o campo "Medidor (do cadastro do bem)" (o tipo já está na unidade dos campos). Em "sem medidor" não há mais o "Uso" calculado repetindo o campo digitado. Os valores calculados (Dose por hectare, Uso, Total) são campos de leitura na mesma grade. Nada que o usuário precise para lançar foi retirado: dia, item, local, quantidade, leituras / uso, medida, custo, valor, documento, parceiro e observação continuam. Os avisos de verdade (sem saldo, salto do medidor, fora do período, atividade fechada) ficam.
+4. **Diálogos da área e de confirmação.** Hectares feitos, Área planejada, Adicionar área, Iniciar e Concluir área são um grupo (Data, Hectares ou Área) com campos de 6 colunas; Adicionar área traz Área e Área planejada na mesma linha. Os textos explicativos longos foram trocados por uma frase (o Remover diz só quando pode). **Concluir atividade** mostra o Resumo como campos de leitura em duas colunas (Período, Área feita, Custo total, Custo por hectare, Combustível), depois a Conclusão (a data) e, só quando há, as áreas que ainda não estão concluídas; saíram a barra de progresso, a linha "Faltam … planejados" (a Área feita já mostra feita / planejada) e a nota "Concluída, a atividade fica só para consulta". As descrições de Cancelar linha, Cancelar lançamento e Reabrir / Cancelar atividade foram encurtadas para uma frase.
+5. **O "Repetir último lançamento"** (grade dentro de outro formulário, sem seções) mantém os campos e as notas de antes: os grupos e o corte das notas valem só dentro da janela (`SecoesDoFormularioContext`).
+
+**Fora de escopo e sem mudança:** servidor, API, permissões, regras, migrations, as tabelas aprovadas na Emenda 2, o fluxo (tipo → áreas → área → lançar), os campos do formulário de abastecimento da tela Abastecimentos e a validação de qualquer campo.
+
+**Capturas do app real** (`impl4-*.png`, 1440×900 e 390×844) e a folha de contato `impl4-contact-desktop.png` mostram todas as janelas com a mesma largura e o mesmo cabeçalho e rodapé.
+
+**Relatório:** [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) (seção 9).
+
 <!-- Próxima decisão: D-PROD-253 -->

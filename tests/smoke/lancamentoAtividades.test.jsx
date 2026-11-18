@@ -1748,7 +1748,12 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     fireEvent.click(await screen.findByTestId("escolher-maquinas"));
     const janela = await screen.findByTestId("janela-tipo");
     expect(janela.querySelector(".mdl-t")).toHaveTextContent("Trabalho de máquinas");
-    expect(within(janela).getByTestId("janela-tipo-subtitulo")).toHaveTextContent("01 — Pasto 01 · Cigarrinha Pasto 01");
+    // Emenda 3: sem subtítulo (a área e a atividade estão no cabeçalho da tela) e o Dia na mesma grade, no grupo "Lançamento".
+    expect(within(janela).queryByTestId("janela-tipo-subtitulo")).toBeNull();
+    expect(janela.querySelector(".b1-janela__nota")).toBeNull();
+    expect(janela).not.toHaveClass("b1-janela--tipo");
+    expect(janela.querySelector("form .b1-grupo__titulo")).toHaveTextContent("Lançamento");
+    expect(janela.querySelector("form")).toContainElement(within(janela).getByTestId("janela-tipo-data"));
     expect(within(janela).getByTestId("janela-tipo-data")).toHaveValue(HOJE);
     expect(within(janela).queryByRole("tablist")).toBeNull();
     expect(screen.getByTestId("detalhe-area")).toBeTruthy();
@@ -1757,7 +1762,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(escritas()).toEqual([]);
   });
 
-  it("LA-RAIO-6 — Concluir pelo ⚡: o diálogo novo com o resumo (período, área feita e barra, custos, combustível) e o aviso da área que falta", async () => {
+  it("LA-RAIO-6 — Concluir pelo ⚡: o diálogo novo, na janela padrão do Base1, com o resumo (período, área feita, custos, combustível)", async () => {
     atividades.set("a1", { ...atividades.get("a1"), totais: { apontamentos_confirmados: 2, apontamentos_cancelados: 1, dias_com_apontamento: 1 } });
     totaisPorAtividade.set("a1", {
       area_executada: "12.5000",
@@ -1778,15 +1783,16 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     fireEvent.click(screen.getByRole("menuitem", { name: "Concluir atividade" }));
     const dialogo = await screen.findByTestId("dialogo-concluir-atividade");
     expect(within(dialogo).getByRole("heading", { name: "Concluir atividade" })).toBeTruthy();
-    expect(dialogo).toHaveTextContent("Nº 3 · CIGARRINHA PASTO 01");
+    // A janela padrão do Base1 (680px), a mesma dos lançamentos: nada da caixa pequena do shadcn.
+    expect(dialogo.querySelector(".mdlc.b1-janela")).not.toBeNull();
+    expect(dialogo.querySelector(".b1-janela__rodape")).not.toBeNull();
+    expect(dialogo).not.toHaveTextContent("CIGARRINHA PASTO 01");
     await waitFor(() => expect(within(dialogo).getByTestId("concluir-resumo-periodo")).toHaveTextContent("01/11 → hoje · 1 dia lançado"));
     await waitFor(() => expect(within(dialogo).getByTestId("concluir-resumo-area")).toHaveTextContent("12,5 / 40 ha (31%)"));
-    expect(within(dialogo).getByTestId("concluir-resumo-barra")).toHaveAttribute("aria-valuenow", "31");
     expect(within(dialogo).getByTestId("concluir-resumo-custo")).toHaveTextContent("R$ 4.262,47");
     expect(within(dialogo).getByTestId("concluir-resumo-custo-ha")).toHaveTextContent("R$ 341,00");
     expect(within(dialogo).getByTestId("concluir-resumo-combustivel")).toHaveTextContent("43 L");
-    expect(within(dialogo).getByTestId("concluir-falta-area")).toHaveTextContent("Faltam 27,5 ha dos 40 planejados. Pode concluir assim mesmo: a área fica como foi lançada.");
-    expect(within(dialogo).getByTestId("concluir-nota")).toHaveTextContent("Concluída, a atividade fica só para consulta. Dá para reabrir depois.");
+    expect(within(dialogo).queryByTestId("concluir-nota")).toBeNull();
     // A data (padrão hoje) e o período acompanham a escolha.
     const data = within(dialogo).getByTestId("dialogo-concluir-atividade-data");
     expect(data).toHaveValue(HOJE);

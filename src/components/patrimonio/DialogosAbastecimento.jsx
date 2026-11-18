@@ -357,7 +357,6 @@ export function DialogoPreviaAbastecimento({ aberto, previa, origem = null, cust
       titulo="Revisar abastecimento"
       descricao={resumo}
       descricaoProps={{ "data-testid": "previa-resumo" }}
-      className="b1-janela--estreita"
       testId="dialogo-previa-abastecimento"
       contentProps={{ "data-permissao-explicita": "" }}
       rodape={
@@ -437,7 +436,6 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
           </>
         )
       }
-      className="b1-janela--estreita"
       testId="dialogo-cancelamento-abastecimento"
       contentProps={{ "data-permissao-explicita": "" }}
       rodape={

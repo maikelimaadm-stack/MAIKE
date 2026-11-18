@@ -8,7 +8,7 @@ import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileShee
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { CampoDia } from "@/components/financeiroGestao/CamposLancamento";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
-import { JanelaLinhaMaoObra, JanelaLinhaMaquina, JanelaLinhaProduto, JanelaLinhaServico } from "@/components/lancamento-atividades/JanelasDaLinha";
+import { JanelaLinhaMaoObra, JanelaLinhaMaquina, JanelaLinhaProduto, JanelaLinhaServico, SecoesDoFormularioContext } from "@/components/lancamento-atividades/JanelasDaLinha";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import {
@@ -19,7 +19,6 @@ import {
   formatarDiaAtividade,
   mensagemDeErroAtividade,
   mensagemDoAlertaAtividade,
-  rotuloDaArea,
 } from "@/lib/lancamentoAtividadesRegras";
 import {
   CAMPO_DO_FORMULARIO_APONTAMENTO,
@@ -35,7 +34,7 @@ import {
 } from "@/lib/atividadeApontamentoRegras";
 import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, chaveTotais } from "@/lib/atividadeLinhasRegras";
 import { listarApontamentos } from "@/services/lancamentoAtividadesService";
-import { STATUS_AREA, areaDaAtividadePorId, rotuloDaAreaDaAtividade, temAreas } from "@/lib/atividadeAreasRegras";
+import { STATUS_AREA, areaDaAtividadePorId, temAreas } from "@/lib/atividadeAreasRegras";
 
 /**
  * Os quatro lançamentos por tipo (D-PROD-232 / D-PROD-233, protótipo do proprietário), cada um com a linha que ele
@@ -57,9 +56,9 @@ export const lancamentoDoTipo = (tipo) => LANCAMENTOS_POR_TIPO.find((l) => l.tip
 /** Texto auxiliar (o tom das notas dos formulários do motor). */
 const NOTA = "min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
 
-/** O rodapé da janela (alvo dos botões do formulário) e o "fechar depois de salvar". */
+/** O rodapé da janela (alvo dos botões do formulário), o "fechar depois de salvar" e o Dia, que entra na grade do formulário. */
 const ContextoDados = createContext(
-  /** @type {{ alvoRodape: HTMLElement | null, marcarFechar: (fechar: boolean) => void, onCancelar: () => void }} */ ({ alvoRodape: null, marcarFechar: () => {}, onCancelar: () => {} }),
+  /** @type {{ alvoRodape: HTMLElement | null, marcarFechar: (fechar: boolean) => void, onCancelar: () => void, topo: React.ReactNode }} */ ({ alvoRodape: null, marcarFechar: () => {}, onCancelar: () => {}, topo: null }),
 );
 
 /**
@@ -69,7 +68,7 @@ const ContextoDados = createContext(
  * @param {import("@/components/lancamento-atividades/JanelasDaLinha").PropsDaCasca} props
  */
 function CascaDoFormulario({ testId, enviando, incerto, podeEnviar, formId, onEnviar, children }) {
-  const { alvoRodape, marcarFechar, onCancelar } = useContext(ContextoDados);
+  const { alvoRodape, marcarFechar, onCancelar, topo } = useContext(ContextoDados);
   /** @param {boolean} fechar */
   const enviar = (fechar) => {
     marcarFechar(fechar);
@@ -103,7 +102,7 @@ function CascaDoFormulario({ testId, enviando, incerto, podeEnviar, formId, onEn
         noValidate
         data-testid={`${testId}-form`}
       >
-        {children}
+        <SecoesDoFormularioContext.Provider value={{ topo }}>{children}</SecoesDoFormularioContext.Provider>
       </form>
       {alvoRodape ? createPortal(botoes, alvoRodape) : null}
     </>
@@ -113,8 +112,10 @@ function CascaDoFormulario({ testId, enviando, incerto, podeEnviar, formId, onEn
 /**
  * Janela de UM lançamento novo (D-PROD-252, reorganiza a D-PROD-233): o botão "+ Máquina / Produto / Mão de obra /
  * Serviço" da tela da área abre direto o formulário, num nível só de janela — sem abas, sem o dia com setas, sem o campo
- * Área travado e sem "Área do dia". O cabeçalho é o título do tipo e "Área · Atividade"; os campos são o Dia (hoje, no
- * fuso da fazenda, por padrão; nunca depois de hoje) e os do tipo, os MESMOS das janelas de linha (`JanelasDaLinha`).
+ * Área travado e sem "Área do dia". Emenda 3: é a janela padrão do Base1 (680px, a mesma de todas as janelas desta tela),
+ * com o título do tipo (sem subtítulo: a área e a atividade já estão no cabeçalho da tela) e o formulário em grupos Base1
+ * (Lançamento, e depois Quantidade / Uso / Valores) numa grade só: o Dia (hoje, no fuso da fazenda, por padrão; nunca
+ * depois de hoje) é o primeiro campo do grupo Lançamento, e os demais são os MESMOS das janelas de linha (`JanelasDaLinha`).
  *
  * A regra do dia (D-PROD-233) segue: ninguém "cria o dia". Sem lançamento CONFIRMADO da área na data, o primeiro item salvo
  * cria o lançamento do dia no MESMO envio (`criarApontamento` com a linha dentro — uma transação, `operation_id`
@@ -182,16 +183,33 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   const itens = useMemo(() => (comAreas ? todosOsItens.filter((a) => String(a?.atividade_area_id ?? "") === areaId) : todosOsItens), [todosOsItens, comAreas, areaId]);
   const apontamento = useMemo(() => confirmadosDoDia(itens, dia)[0] ?? null, [itens, dia]);
 
-  const contextoDados = useMemo(
-    () => ({
-      alvoRodape,
-      marcarFechar: (/** @type {boolean} */ fechar) => {
-        fecharDepois.current = fechar;
-      },
-      onCancelar: onFechar,
-    }),
-    [alvoRodape, onFechar],
+  // O Dia entra na MESMA grade do formulário (grupo "Lançamento", ao lado do item), e não numa grade à parte.
+  const campoDia = (
+    <CampoDia
+      label="Dia"
+      value={dia}
+      onChange={(v) => {
+        if (!v || (hoje && v > hoje)) return;
+        diaMexido.current = true;
+        setDia(v);
+        setErrosDia({});
+      }}
+      max={hoje || undefined}
+      span={6}
+      error={errosDia.data_operacional}
+      testId="janela-tipo-data"
+    />
   );
+
+  // O contexto é refeito a cada render: o Dia (campo) acompanha a data e os erros.
+  const contextoDados = {
+    alvoRodape,
+    marcarFechar: (/** @type {boolean} */ fechar) => {
+      fecharDepois.current = fechar;
+    },
+    onCancelar: onFechar,
+    topo: campoDia,
+  };
 
   // ─── Escritas ────────────────────────────────────────────────────────
   /** O lançamento devolvido entra na lista já (a `versao` nova vale para o próximo item); a releitura confirma. @param {any} ap */
@@ -267,8 +285,6 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   };
 
   // ─── Cabeçalho ───────────────────────────────────────────────────────
-  const nomeDaAreaDaJanela = comAreas ? (areaEscolhida ? rotuloDaAreaDaAtividade(areaEscolhida) : "") : rotuloDaArea(atividade?.area);
-  const subtitulo = [nomeDaAreaDaJanela, String(atividade?.nome ?? "")].filter(Boolean).join(" · ");
   const fora = Boolean(dia) && podeLancar && foraDoPeriodo(dia, atividade);
   const periodo = textoDoPeriodo(atividade?.data_inicio, atividade?.data_prevista_fim);
 
@@ -320,10 +336,8 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
       // Uma folha do celular aberta dentro da janela (seletor) fecha primeiro.
       aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
       titulo={titulo}
-      descricao={subtitulo}
-      descricaoProps={{ "data-testid": "janela-tipo-subtitulo" }}
       testId="janela-tipo"
-      className={`b1-janela--tipo${celular ? " b1-janela--tela-cheia" : ""}`}
+      className={celular ? "b1-janela--tela-cheia" : ""}
       // Os botões daqui seguem as ações da tela (lançar apontamento): a heurística de texto do Layout não vale.
       contentProps={{ "data-permissao-explicita": "", "data-tipo": tipo, "data-celular": celular ? "" : undefined, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
       fora={<div ref={setAlvoFolha} className="contents" />}
@@ -339,24 +353,6 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
     >
       <MobileSheetPortalCtx.Provider value={alvoFolha}>
         {avisoStatus ? <AvisoGestao testId="janela-tipo-aviso">{avisoStatus}</AvisoGestao> : null}
-        {podeLancar ? (
-          <div className="b1 mg-b1-form-grid" data-densidade={DENSIDADE_BASE1} data-testid="janela-tipo-dia">
-            <CampoDia
-              label="Dia"
-              value={dia}
-              onChange={(v) => {
-                if (!v || (hoje && v > hoje)) return;
-                diaMexido.current = true;
-                setDia(v);
-                setErrosDia({});
-              }}
-              max={hoje || undefined}
-              span={4}
-              error={errosDia.data_operacional}
-              testId="janela-tipo-data"
-            />
-          </div>
-        ) : null}
         {fora ? (
           <AvisoGestao testId="janela-tipo-fora-do-periodo">
             Esta data fica fora do período da atividade{periodo ? ` (${periodo})` : ""}. O lançamento é aceito, com aviso.
