@@ -31,6 +31,51 @@ import { BEM_RESUMO, INCLUIR_ATIVIDADE } from './atividadeComum.js';
 export const listarAtividades = ({ where, busca, query, mapItem }) =>
   listarKeyset(getPrismaClient().atividade, { where, busca, query, include: INCLUIR_ATIVIDADE, mapItem });
 
+/**
+ * D-PROD-234 — custo total de VÁRIAS atividades da empresa numa consulta só
+ * (a coluna "Valor total" da lista, sem N+1): Σ das linhas CONFIRMADO de
+ * apontamentos CONFIRMADO (produto e máquina pelo `custo_total`, mão de obra
+ * pelo `custo_total`, serviço pelo `valor_total`) + Σ dos abastecimentos
+ * CONFIRMADO ligados à atividade — as MESMAS parcelas do `custo_total` de
+ * `GET /atividades/:id/totais`. A linha sem custo (máquina ou mão de obra sem
+ * custo no cadastro) não soma; a atividade sem nenhuma parcela com custo não
+ * aparece (o service a devolve com `null`). Decimal como texto.
+ * @param {any} db @param {string} clienteId @param {string} empresaId @param {string[]} atividadeIds
+ * @returns {Promise<Array<{ atividade_id: string, custo_total: string|null }>>}
+ */
+export const custosTotaisDasAtividades = (db, clienteId, empresaId, atividadeIds) =>
+  db.$queryRaw`SELECT x.atividade_id, SUM(x.custo)::text AS custo_total FROM (
+      SELECT a.atividade_id, p.custo_total AS custo
+        FROM "AtividadeApontamentoProduto" p
+        JOIN "AtividadeApontamento" a ON a.cliente_id = p.cliente_id AND a.empresa_id = p.empresa_id AND a.id = p.apontamento_id
+        WHERE p.cliente_id = ${clienteId} AND p.empresa_id = ${empresaId} AND a.atividade_id = ANY(${atividadeIds}::text[])
+          AND p.status = 'CONFIRMADO' AND a.status = 'CONFIRMADO'
+      UNION ALL
+      SELECT a.atividade_id, m.custo_total AS custo
+        FROM "AtividadeApontamentoMaquina" m
+        JOIN "AtividadeApontamento" a ON a.cliente_id = m.cliente_id AND a.empresa_id = m.empresa_id AND a.id = m.apontamento_id
+        WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${empresaId} AND a.atividade_id = ANY(${atividadeIds}::text[])
+          AND m.status = 'CONFIRMADO' AND a.status = 'CONFIRMADO'
+      UNION ALL
+      SELECT a.atividade_id, l.custo_total AS custo
+        FROM "AtividadeApontamentoMaoObra" l
+        JOIN "AtividadeApontamento" a ON a.cliente_id = l.cliente_id AND a.empresa_id = l.empresa_id AND a.id = l.apontamento_id
+        WHERE l.cliente_id = ${clienteId} AND l.empresa_id = ${empresaId} AND a.atividade_id = ANY(${atividadeIds}::text[])
+          AND l.status = 'CONFIRMADO' AND a.status = 'CONFIRMADO'
+      UNION ALL
+      SELECT a.atividade_id, l.valor_total AS custo
+        FROM "AtividadeApontamentoServico" l
+        JOIN "AtividadeApontamento" a ON a.cliente_id = l.cliente_id AND a.empresa_id = l.empresa_id AND a.id = l.apontamento_id
+        WHERE l.cliente_id = ${clienteId} AND l.empresa_id = ${empresaId} AND a.atividade_id = ANY(${atividadeIds}::text[])
+          AND l.status = 'CONFIRMADO' AND a.status = 'CONFIRMADO'
+      UNION ALL
+      SELECT ab.atividade_id, ab.custo_total AS custo
+        FROM "AbastecimentoBem" ab
+        WHERE ab.cliente_id = ${clienteId} AND ab.empresa_id = ${empresaId} AND ab.atividade_id = ANY(${atividadeIds}::text[])
+          AND ab.status = 'CONFIRMADO'
+    ) x
+    GROUP BY x.atividade_id`;
+
 /** @param {any} tx @param {Record<string, unknown>} dados @returns {Promise<{ id: string }>} */
 export const inserirAtividade = (tx, dados) => tx.atividade.create({ data: dados, select: { id: true } });
 

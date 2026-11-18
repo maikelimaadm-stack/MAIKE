@@ -580,6 +580,8 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
       "Status",
       "Área executada / planejada",
       "Início",
+      // D-PROD-234: o custo total da atividade, que a lista do servidor traz.
+      "Valor total",
     ]);
     // Só a empresa e a página vão na query (nenhum filtro ligado).
     expect(listagens()[0].query.empresa_id).toBe("emp-1");
