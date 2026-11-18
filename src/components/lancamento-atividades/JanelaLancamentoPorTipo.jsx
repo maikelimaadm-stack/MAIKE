@@ -98,16 +98,6 @@ export const LANCAMENTOS_POR_TIPO = Object.freeze([
 /** @param {string} tipo */
 export const lancamentoDoTipo = (tipo) => LANCAMENTOS_POR_TIPO.find((l) => l.tipo === tipo) ?? null;
 
-/** Título da janela quando quem registra está no campo (D-PROD-250). */
-const ROTULO_CAMPO = Object.freeze(
-  /** @type {Record<string, string>} */ ({
-    maquinas: "Registrar máquina",
-    produtos: "Registrar produto",
-    "mao-obra": "Registrar mão de obra",
-    servicos: "Registrar serviço",
-  }),
-);
-
 /** Texto auxiliar (o tom das notas dos formulários do motor). */
 const NOTA = "min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
 
@@ -195,7 +185,7 @@ function CascaDaAbaDados({ testId, enviando, incerto, podeEnviar, formId, onFech
       </button>
       <button type="button" className={BOTAO_PRIMARIO} onClick={() => enviar(true)} disabled={enviando || !podeEnviar} data-testid="janela-tipo-salvar-fechar">
         <CheckCheck className="h-4 w-4" aria-hidden />
-        {rotuloDoConfirmar}
+        Salvar e fechar
       </button>
     </>
   );
@@ -218,9 +208,6 @@ function CascaDaAbaDados({ testId, enviando, incerto, podeEnviar, formId, onFech
     </>
   );
 }
-
-/** Texto do botão que grava e fecha. O modo de campo troca para "Confirmar registro". */
-let rotuloDoConfirmar = "Salvar e fechar";
 
 /**
  * Janela de UM tipo de lançamento (D-PROD-233, fatia 2 do redesenho pelo protótipo do proprietário), aberta pelo ⚡ da
@@ -254,8 +241,6 @@ let rotuloDoConfirmar = "Salvar e fechar";
  *   abaInicial?: 'lista'|'dados',
  *   areaInicial?: string|null,
  *   areaFixa?: boolean,
- *   modoCampo?: boolean,
- *   tituloCampo?: string,
  *   onGravou?: (texto: string) => void,
  * }} props `areaInicial` / `areaFixa` (D-PROD-249, várias áreas por atividade): a área da atividade em que a janela abre
  *   e se ela fica FIXA (aberta pelo ⚡ da área, no card "Áreas da atividade") ou com o seletor das áreas EM ANDAMENTO
@@ -275,8 +260,6 @@ export default function JanelaLancamentoPorTipo({
   onFechar,
   onAtividadeAtualizada = undefined,
   abaInicial = "lista",
-  modoCampo = false,
-  tituloCampo = undefined,
   onGravou = undefined,
   areaInicial = null,
   areaFixa = false,
@@ -287,7 +270,6 @@ export default function JanelaLancamentoPorTipo({
   const empresaId = useEmpresaRealSelecionadaId();
   const { fuso, hoje } = useFusoDaFazenda(empresaId);
   const celular = useCelular();
-  rotuloDoConfirmar = modoCampo ? "Confirmar registro" : "Salvar e fechar";
   const doTipo = lancamentoDoTipo(tipo) ?? LANCAMENTOS_POR_TIPO[0];
   const atividadeId = atividade?.id ? String(atividade.id) : null;
   const chave = chaveApontamentos(empresaId, atividadeId);
@@ -402,7 +384,7 @@ export default function JanelaLancamentoPorTipo({
     const diaGravado = formatarDiaAtividade(r.apontamento?.data_operacional);
     const aviso = criouDia ? `${texto} O lançamento de ${diaGravado || "hoje"} foi criado com ele.` : texto;
     onGravou?.(texto);
-    notifySuccess("Sucesso", modoCampo ? texto : aviso);
+    notifySuccess("Sucesso", aviso);
     const alertas = Array.isArray(r.alertas) ? r.alertas : [];
     if (alertas.length) notifyWarning("Atenção", `${diaGravado ? `${diaGravado}: ` : ""}${mensagemDoAlertaAtividade(alertas[0])}`);
   };
@@ -484,16 +466,13 @@ export default function JanelaLancamentoPorTipo({
   // ─── Cabeçalho ───────────────────────────────────────────────────────
   const areaDoDia = apontamento ? formatarDecimalLinha(apontamento.area_executada_dia) : "";
   const nomeDaAreaDaJanela = comAreas ? (areaEscolhida ? rotuloDaAreaDaAtividade(areaEscolhida) : "") : rotuloDaArea(atividade?.area);
-  const subtitulo = (modoCampo
-    ? [nomeDaAreaDaJanela, String(atividade?.nome ?? ""), dia ? formatarDiaAtividade(dia) : ""]
-    : [
-        atividade?.numero != null ? `Atividade Nº ${atividade.numero}` : "Atividade",
-        String(atividade?.tipo_atividade_nome ?? ""),
-        nomeDaAreaDaJanela ? `Área: ${nomeDaAreaDaJanela}` : "",
-        dia ? `Lançamento de ${formatarDiaAtividade(dia)}` : "",
-        areaDoDia ? `${areaDoDia} ha` : "",
-      ]
-  )
+  const subtitulo = [
+    atividade?.numero != null ? `Atividade Nº ${atividade.numero}` : "Atividade",
+    String(atividade?.tipo_atividade_nome ?? ""),
+    nomeDaAreaDaJanela ? `Área: ${nomeDaAreaDaJanela}` : "",
+    dia ? `Lançamento de ${formatarDiaAtividade(dia)}` : "",
+    areaDoDia ? `${areaDoDia} ha` : "",
+  ]
     .filter(Boolean)
     .join(" · ");
   const fora = Boolean(dia) && podeLancar && foraDoPeriodo(dia, atividade);
@@ -559,7 +538,7 @@ export default function JanelaLancamentoPorTipo({
           </button>
           <div className="min-w-0 flex-1">
             <CampoDia
-              label={modoCampo ? "Dia" : "Dia do lançamento"}
+              label="Dia do lançamento"
               value={dia}
               onChange={(v) => {
                 if (v && hoje && v > hoje) return;
@@ -585,7 +564,7 @@ export default function JanelaLancamentoPorTipo({
         </div>
         {doDia.length > 1 ? (
           <CampoSelect
-            label={modoCampo ? "Registro deste dia" : "Lançamento do dia"}
+            label={"Lançamento do dia"}
             value={apontamento ? String(apontamento.id) : ""}
             onChange={(v) => setEscolhidoId(v || null)}
             options={doDia.map((a) => ({ value: String(a.id), label: rotuloDoLancamentoNoDia(a) }))}
@@ -595,7 +574,7 @@ export default function JanelaLancamentoPorTipo({
         {apontamento ? (
           <div className="b1-tipo-cab__area col-span-12 sm:col-span-3">
             <div className="min-w-0 flex-1">
-              <ValorCalculado label={modoCampo ? "Área feita hoje" : "Área do dia (ha)"} valor={areaDoDia || "—"} span={12} testId="janela-tipo-area-dia" />
+              <ValorCalculado label={"Área do dia (ha)"} valor={areaDoDia || "—"} span={12} testId="janela-tipo-area-dia" />
             </div>
             {podeEditar ? (
               <button type="button" className="tb-btn tb-btn-icon" aria-label="Alterar o lançamento do dia" title="Alterar o lançamento do dia" onClick={() => setEditandoDia(apontamento)} data-testid="janela-tipo-alterar-dia">
@@ -605,7 +584,7 @@ export default function JanelaLancamentoPorTipo({
           </div>
         ) : podeLancar ? (
           <CampoNumero
-            label={modoCampo ? "Área feita hoje (opcional)" : "Área do dia (ha)"}
+            label={"Área do dia (ha)"}
             value={areaNova}
             onChange={(v) => {
               setAreaNova(v);
@@ -622,9 +601,7 @@ export default function JanelaLancamentoPorTipo({
       {consulta.isSuccess && !apontamento ? (
         <p className={NOTA} data-testid="janela-tipo-dia-novo">
           {podeLancar
-            ? modoCampo
-              ? `Nada neste dia ainda. O primeiro registro cria o dia${areaNova.trim() ? " com a área feita hoje" : ""}.`
-              : `Nenhum lançamento em ${formatarDiaAtividade(dia) || "este dia"}: o primeiro item salvo cria o lançamento do dia${areaNova.trim() ? ", com esta área" : " (a área do dia é opcional)"}.`
+            ? `Nenhum lançamento em ${formatarDiaAtividade(dia) || "este dia"}: o primeiro item salvo cria o lançamento do dia${areaNova.trim() ? ", com esta área" : " (a área do dia é opcional)"}.`
             : `Nenhum lançamento em ${formatarDiaAtividade(dia) || "este dia"}.`}
         </p>
       ) : null}
@@ -788,7 +765,7 @@ export default function JanelaLancamentoPorTipo({
       <span className="b1-tipo-titulo__icone" aria-hidden>
         <doTipo.Icone size={16} strokeWidth={1.75} />
       </span>
-      {modoCampo ? tituloCampo || ROTULO_CAMPO[tipo] || doTipo.rotulo : doTipo.rotulo}
+      {doTipo.rotulo}
     </span>
   );
 

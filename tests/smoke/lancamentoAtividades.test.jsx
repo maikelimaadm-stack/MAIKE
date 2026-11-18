@@ -951,53 +951,65 @@ describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)",
 
 // ═════════════════════════════════════════════════════════════════════════
 describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", () => {
-  it("LA-CABECALHO-1 — abrir em passos: tipo, áreas, confirmação; corpo com empresa_id e sem centros, unidade nem setor", async () => {
+  it("LA-CABECALHO-1 — abrir: herdados travados, exigido pelo tipo marcado e avisado antes de enviar; corpo com empresa_id, decimal em texto e sem centros, unidade nem setor", async () => {
     await montarComLista();
     fireEvent.click(screen.getByRole("button", { name: "Nova atividade" }));
-    const assistente = await screen.findByTestId("assistente-nova-atividade");
-    await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
-    // Tipo inativo não entra na lista.
-    expect(within(assistente).queryByTestId("assistente-tipo-t3")).toBeNull();
-    fireEvent.click(within(assistente).getByTestId("assistente-tipo-t1"));
-    fireEvent.click(within(assistente).getByTestId("assistente-continuar"));
-    // O tipo exige área: sem marcar, não avança.
-    fireEvent.click(within(assistente).getByTestId("assistente-continuar"));
-    expect(await within(assistente).findByTestId("assistente-areas-erro-texto")).toHaveTextContent("O tipo APLICAÇÃO exige ao menos uma área.");
-    expect(escritas()).toEqual([]);
-    fireEvent.click(within(assistente).getByTestId("assistente-area-ar1"));
-    expect(within(assistente).getByTestId("assistente-area-ar1")).toHaveTextContent("SETOR NORTE");
-    fireEvent.click(within(assistente).getByTestId("assistente-continuar"));
     const form = await screen.findByTestId("b1-form-atividade");
-    fireEvent.click(within(assistente).getByTestId("assistente-mais"));
+    await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
+    // Só os tipos ativos.
+    fireEvent.click(within(form).getByRole("combobox", { name: "Tipo de atividade" }));
+    await screen.findAllByRole("option");
+    expect(screen.queryByRole("option", { name: /GRADAGEM/i })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /^APLICAÇÃO$/i }));
+    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+
+    // Herdados do tipo e da área: travados (só leitura), nunca digitados.
     const campo = (/** @type {string} */ rotulo) => /** @type {HTMLInputElement} */ (within(form).getByLabelText(rotulo));
-    for (const rotulo of ["Centro de custo", "Centro de resultado", "Unidade de produção"]) {
+    for (const rotulo of ["Grupo de atividade", "Centro de custo", "Centro de resultado", "Unidade de produção"]) {
       expect(campo(rotulo), rotulo).toHaveAttribute("readonly");
     }
+    expect(campo("Grupo de atividade").value).toBe("PASTAGEM");
     expect(campo("Centro de custo").value).toBe("1 — Pecuária de corte");
     expect(campo("Centro de resultado").value).toBe("Sem centro de resultado");
     expect(campo("Unidade de produção").value).toBe("SC — Saco");
     expect(screen.getByTestId("atividade-heranca")).toHaveTextContent("O centro de resultado padrão do tipo é de outra fazenda");
+    // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não. D-PROD-238: a área é a lista "Áreas".
+    expect(within(form).getByTestId("areas-abertura")).toHaveTextContent(/Áreas\s*\*/);
+    // O que o tipo deixa registrar aparece como nota sob o seletor (texto simples, sem cartões de toque).
+    expect(within(form).getByTestId("atividade-tipo-registra")).toHaveTextContent(/^Este tipo permite registrar: máquinas/);
     expect(marcadoObrigatorio(form, "Máquina")).toBe(true);
-    fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: "Cigarrinha Pasto 09" } });
-    fireEvent.click(within(assistente).getByTestId("assistente-abrir"));
-    expect(await within(form).findByText("O tipo APLICAÇÃO exige a máquina.")).toBeTruthy();
+    expect(marcadoObrigatorio(form, "Safra")).toBe(false);
+
+    fireEvent.change(within(form).getByLabelText(/^Nome da atividade/), { target: { value: "Cigarrinha Pasto 09" } });
+    fireEvent.submit(form);
+    expect(await within(form).findByText("O tipo APLICAÇÃO exige ao menos uma área.")).toBeTruthy();
+    expect(within(form).getByText("O tipo APLICAÇÃO exige a máquina.")).toBeTruthy();
     expect(escritas()).toEqual([]);
+
+    // D-PROD-238: marcar a área a põe na lista abaixo (Área · Setor · Tamanho · Área planejada · ✕).
+    fireEvent.click(within(form).getByTestId("areas-abertura-opcao-ar1"));
+    expect(within(form).getByTestId("areas-abertura-linha-ar1")).toHaveTextContent("SETOR NORTE");
     await escolherNoSeletor(form, "atividade-maquina", /TP-02 — Trator/);
     expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/bens")?.query).toMatchObject({ empresa_id: "emp-1" });
-    fireEvent.click(within(assistente).getByTestId("assistente-abrir"));
+    fireEvent.change(within(form).getByTestId("areas-abertura-planejada-ar1"), { target: { value: "12,5" } });
+    fireEvent.submit(form);
     await waitFor(() => expect(escritas()).toHaveLength(1));
     const { method, path, body } = ultimaEscrita();
     expect({ method, path }).toEqual({ method: "POST", path: "/atividades" });
+    // O opcional não informado fica AUSENTE (o servidor aplica o padrão); nada herdado vai no corpo.
     expect(body).toEqual({
       empresa_id: "emp-1",
       tipo_atividade_id: "t1",
       nome: "Cigarrinha Pasto 09",
       bem_id: "b1",
       data_inicio: HOJE,
-      areas: [{ area_id: "ar1" }],
+      areas: [{ area_id: "ar1", area_planejada: "12.5" }],
     });
+    expect(typeof body.areas[0].area_planejada).toBe("string");
+    // A atividade aberta aparece só leitura, com o que o servidor herdou.
     const cabecalho = await screen.findByTestId("atividade-cabecalho");
     expect(within(cabecalho).getByTestId("atividade-numero")).toHaveTextContent("9");
+    expect(/** @type {HTMLInputElement} */ (within(cabecalho).getByLabelText("Setor (da área)")).value).toBe("SETOR NORTE");
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade nº 9 aberta.");
   });
 

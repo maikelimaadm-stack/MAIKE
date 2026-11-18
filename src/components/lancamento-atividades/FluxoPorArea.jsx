@@ -45,7 +45,7 @@ const BOTAO_CLARO = BOTAO_SECUNDARIO;
  *   podeLancar: boolean,
  *   podeGerir: boolean,
  *   flags: { permiteProduto?: boolean, permiteImplemento?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean },
- *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null, modoCampo: boolean, tituloCampo?: string) => void,
+ *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null) => void,
  *   onGravouAbastecimento?: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   onAbrirAjustes: (areaId: string|null) => void,
@@ -99,10 +99,10 @@ export default function FluxoPorArea({
       return;
     }
     if (id === REGISTRO_IMPLEMENTO) {
-      onLancar(LINHA_MAQUINA, "dados", areaId, true, "Registrar implemento");
+      onLancar(LINHA_MAQUINA, "dados", areaId);
       return;
     }
-    onLancar(id, "dados", areaId, true);
+    onLancar(id, "dados", areaId);
   };
 
   // A confirmação é um aviso no alto da área (como os avisos das outras telas), não uma tela à parte.

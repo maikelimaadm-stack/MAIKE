@@ -89,14 +89,14 @@ const CELULAS_DO_RESUMO = Object.freeze([
  *   cabecalho: React.ReactNode,
  *   avisos?: React.ReactNode,
  *   onAtividadeAtualizada: (atividade: any) => void,
- *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null, modoCampo?: boolean, tituloCampo?: string) => void,
+ *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null) => void,
  *   onGravouAbastecimento?: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
  *   onFechar: () => void,
  *   onConcluir?: (() => void) | null,
  *   recado?: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null,
  *   onLimparRecado?: () => void,
  * }} props `acoes`: as dos lançamentos (já com o status, a permissão e o fuso); `onLancar`: abre a janela do tipo
- *   (fatia 2) sobre esta atividade. `modoCampo` true: o registro do dia a dia, com confirmação na área.
+ *   (fatia 2) sobre esta atividade. Com a área, o aviso de gravação aparece na própria área.
  *   `onConcluir`: o Concluir da cabeça do celular (null = sem o botão).
  */
 export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null, recado = null, onLimparRecado = () => {}, onGravouAbastecimento = () => {} }) {
