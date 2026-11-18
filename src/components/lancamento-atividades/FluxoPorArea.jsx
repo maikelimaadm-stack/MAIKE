@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import CardAreasDaAtividade from "@/components/lancamento-atividades/CardAreasDaAtividade";
@@ -29,6 +29,7 @@ import { linhaResumoDaAtividade } from "@/lib/lancamentosDaAreaRegras";
  *   escopo: string,
  *   podeLancar: boolean,
  *   podeGerir: boolean,
+ *   podeInformarFeita?: boolean,
  *   flags: { permiteProduto?: boolean, permiteImplemento?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean },
  *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null) => void,
  *   onGravouAbastecimento?: (recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string }) => void,
@@ -36,7 +37,8 @@ import { linhaResumoDaAtividade } from "@/lib/lancamentosDaAreaRegras";
  *   recado: { texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null,
  *   onLimparRecado: () => void,
  *   telaInicial?: { nome: 'atividade' } | { nome: 'area', id: string|null } | null,
- * }} props
+ *   onAreaAberta?: (aberta: boolean) => void,
+ * }} props `onAreaAberta`: avisa quando uma área (com a tabela de áreas por trás) está aberta; a casca esconde as abas.
  */
 export default function FluxoPorArea({
   atividade,
@@ -48,6 +50,7 @@ export default function FluxoPorArea({
   escopo,
   podeLancar,
   podeGerir,
+  podeInformarFeita = false,
   flags,
   onLancar,
   onGravouAbastecimento = () => {},
@@ -55,6 +58,7 @@ export default function FluxoPorArea({
   recado,
   onLimparRecado,
   telaInicial = null,
+  onAreaAberta = () => {},
 }) {
   const comAreas = temAreas(atividade);
   const [tela, setTela] = useState(/** @type {{ nome: 'atividade' } | { nome: 'area', id: string|null }} */ (telaInicial ?? { nome: "atividade" }));
@@ -62,6 +66,11 @@ export default function FluxoPorArea({
 
   // A confirmação do abastecimento leva para a área onde ele entrou (como no D-PROD-251).
   const telaAtual = !comAreas ? { nome: "area", id: null } : recado && tela.nome === "atividade" && recado.areaId ? { nome: "area", id: recado.areaId } : tela;
+  const areaAberta = comAreas && telaAtual.nome === "area";
+  useEffect(() => {
+    onAreaAberta(areaAberta);
+    return () => onAreaAberta(false);
+  }, [areaAberta, onAreaAberta]);
   const fecharRecado = () => {
     if (recado && tela.nome === "atividade" && recado.areaId) setTela({ nome: "area", id: recado.areaId });
     onLimparRecado();
@@ -129,6 +138,8 @@ export default function FluxoPorArea({
         totais={totais}
         lendoTotais={lendoTotais}
         podeGerir={podeGerir}
+        apontamentos={apontamentos}
+        podeInformarFeita={podeInformarFeita}
         onAbrirArea={(id) => setTela({ nome: "area", id })}
         onAtividadeAtualizada={onAtividadeAtualizada}
       />

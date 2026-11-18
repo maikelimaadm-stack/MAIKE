@@ -216,16 +216,16 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
 
   /**
    * Escrita concluída: lista, totais e avisos.
-   * @param {{ apontamento: any, atividade: any, alertas: any[] }} r @param {string} textoDoServidor @param {boolean} criouDia
+   * @param {{ apontamento: any, atividade: any, alertas: any[] }} r @param {string} textoDoServidor
    */
-  const aplicarEscrita = (r, textoDoServidor, criouDia) => {
+  const aplicarEscrita = (r, textoDoServidor) => {
     mesclarNaLista(r.apontamento);
     queryClient.invalidateQueries({ queryKey: chave });
     queryClient.invalidateQueries({ queryKey: chaveTotais(empresaId, atividadeId) });
     onAtividadeAtualizada?.(r.atividade && String(r.atividade.id) === atividadeId ? r.atividade : null);
     if (r.atividade && String(r.atividade.id) === atividadeId) setAtividadeLocal(r.atividade);
     const diaGravado = formatarDiaAtividade(r.apontamento?.data_operacional);
-    const aviso = criouDia ? `${textoDoServidor} O lançamento de ${diaGravado || "hoje"} foi criado com ele.` : textoDoServidor;
+    const aviso = textoDoServidor;
     onGravou?.(textoDoServidor);
     notifySuccess("Sucesso", aviso);
     const alertas = Array.isArray(r.alertas) ? r.alertas : [];
@@ -260,7 +260,7 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
 
   /** A linha foi gravada: Salvar fecha a janela; Salvar e novo deixa o formulário vazio. */
   const aoSalvarItem = (/** @type {any} */ r, /** @type {string} */ textoDoServidor) => {
-    aplicarEscrita(r, textoDoServidor, !apontamento);
+    aplicarEscrita(r, textoDoServidor);
     if (fecharDepois.current) {
       onFechar();
       return;
@@ -300,7 +300,7 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   const chaveDoFormulario = `${chaveForm}:${dia}:${apontamento?.id ?? "novo"}`;
   let formulario = null;
   if (podeLancar && dia && consulta.isSuccess) {
-    if (tipo === LINHA_PRODUTO) formulario = <JanelaLinhaProduto key={chaveDoFormulario} {...propsDoFormulario} />;
+    if (tipo === LINHA_PRODUTO) formulario = <JanelaLinhaProduto key={chaveDoFormulario} {...propsDoFormulario} atividadeAreaId={comAreas ? areaId : null} />;
     else if (tipo === LINHA_MAO_OBRA) formulario = <JanelaLinhaMaoObra key={chaveDoFormulario} {...propsDoFormulario} />;
     else if (tipo === LINHA_SERVICO) formulario = <JanelaLinhaServico key={chaveDoFormulario} {...propsDoFormulario} />;
     else formulario = <JanelaLinhaMaquina key={chaveDoFormulario} {...propsDoFormulario} permiteImplemento={flags?.permiteImplemento === true} />;

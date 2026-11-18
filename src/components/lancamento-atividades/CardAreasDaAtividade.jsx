@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CircleCheck, FolderOpen, MapPin, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { CircleCheck, FolderOpen, MapPin, Play, Plus, RotateCcw, Ruler, Trash2 } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { useCelular } from "@/components/common/MobileSheet";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
@@ -48,12 +48,15 @@ function Barra({ barra, texto, testId }) {
  *   totais: any,
  *   lendoTotais: boolean,
  *   podeGerir: boolean,
+ *   apontamentos?: any[],
+ *   podeInformarFeita?: boolean,
  *   onAbrirArea: (atividadeAreaId: string) => void,
  *   onAtividadeAtualizada: (atividade: any) => void,
  * }} props `podeGerir`: a atividade ABERTA e a permissão de editá-la (iniciar, concluir, reabrir, adicionar, remover e a
- *   planejada).
+ *   planejada). `podeInformarFeita`: a atividade aberta com a permissão de editar lançamento — a Feita (ha) da área em
+ *   andamento ou concluída se informa pelo número da coluna ou pelo ⚡ ("Hectares feitos"); grava no lançamento da área.
  */
-export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, podeGerir, onAbrirArea, onAtividadeAtualizada }) {
+export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, podeGerir, apontamentos = [], podeInformarFeita = false, onAbrirArea, onAtividadeAtualizada }) {
   const celular = useCelular();
   const [dialogo, setDialogo] = useState(/** @type {{ modo: any, area: any } | null} */ (null));
   const areas = areasDaAtividade(atividade);
@@ -71,6 +74,7 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
     const l = linhaDaAreaParaExibir(area, numeros);
     const emAndamento = area.status === STATUS_AREA.EM_ANDAMENTO;
     const abrir = area.status !== STATUS_AREA.PLANEJADA ? [{ key: "abrir", label: "Abrir área", icon: <FolderOpen size={16} strokeWidth={1.75} />, onSelect: () => onAbrirArea(id) }] : [];
+    const feita = podeInformarFeita && area.status !== STATUS_AREA.PLANEJADA ? [{ key: "feita", label: "Hectares feitos", icon: <Ruler size={16} strokeWidth={1.75} />, onSelect: () => setDialogo({ modo: "feita", area }) }] : [];
     /** @type {any[]} */
     const gerir = podeGerir
       ? [
@@ -86,7 +90,7 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
         rotulo={`Ações da área ${l.nome}`}
         titulo={l.nome}
         subtitulo={[rotuloDoStatusArea(area.status), emAndamento || area.status === STATUS_AREA.CONCLUIDA ? textoFeitaDePlanejada(l) : l.planejada, l.custo !== "—" ? l.custo : ""].filter(Boolean).join(" · ")}
-        grupos={[abrir, gerir]}
+        grupos={[abrir, feita, gerir]}
         testId={`area-acoes-${id}`}
       />
     );
@@ -112,7 +116,16 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
     if (coluna === "situacao") return <Selo status={CHAVE_DO_SELO_AREA[area.status] ?? area.status} rotulo={rotuloDoStatusArea(area.status)} testId={`area-${id}-situacao`} />;
     if (coluna === "planejada") return l.planejada;
     if (planejada) return "—";
-    if (coluna === "feita") return numeroOuLendo(area, "feita");
+    if (coluna === "feita") {
+      const valor = numeroOuLendo(area, "feita");
+      return podeInformarFeita ? (
+        <button type="button" className="b1-tipo-tabela__abrir" onClick={() => setDialogo({ modo: "feita", area })} title="Informar os hectares feitos" data-testid={`area-${id}-feita-editar`}>
+          {valor}
+        </button>
+      ) : (
+        valor
+      );
+    }
     if (coluna === "percentual") return <Barra barra={l.barra} texto={numeroOuLendo(area, "percentual")} testId={`area-${id}-percentual`} />;
     if (coluna === "custo") return numeroOuLendo(area, "custo");
     return area.status === STATUS_AREA.EM_ANDAMENTO ? numeroOuLendo(area, "ultimo") : l.conclusao;
@@ -211,6 +224,8 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
           modo={dialogo.modo}
           atividade={atividade}
           area={dialogo.area}
+          apontamentos={apontamentos}
+          feitaAtual={dialogo.modo === "feita" ? totaisDaArea(totais, dialogo.area?.id)?.area_executada ?? null : null}
           onFechar={() => setDialogo(null)}
           onFeito={(r) => {
             setDialogo(null);

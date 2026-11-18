@@ -67,6 +67,7 @@ import {
   formatarDose,
   formatarUso,
   formularioDaLinhaMaquina,
+  chaveTotais,
   formularioDaLinhaProduto,
   formularioMaquinaVazio,
   formularioProdutoVazio,
@@ -106,7 +107,9 @@ import {
   listarOpcoesServicos,
   obterApontamento,
   obterMedidorDoBem,
+  obterTotaisAtividade,
 } from "@/services/lancamentoAtividadesService";
+import { hectaresParaDose } from "@/lib/lancamentosDaAreaRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 /** Texto auxiliar (o tom das notas dos formulários do motor). */
@@ -379,8 +382,8 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         testId={`${prefixo}-quantidade`}
       />
       <ValorCalculado
-        label="Dose/ha (quantidade ÷ área do dia)"
-        valor={dose ? formatarDose(dose, unidade) : areaDoDia ? "—" : "Sem área do dia"}
+        label="Dose/ha (quantidade ÷ área)"
+        valor={dose ? formatarDose(dose, unidade) : areaDoDia ? "—" : "Sem área"}
         span={6}
         testId={`${prefixo}-dose`}
       />
@@ -859,8 +862,9 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
  *   onCancelar: () => void,
  *   onMudou?: (() => void) | null,
  *   novoDia?: NovoDia | null,
+ *   atividadeAreaId?: string|null,
  *   Casca?: React.ComponentType<PropsDaCasca>,
- * }} PropsDaJanela `novoDia` (só ao adicionar): `apontamento` é o dia ainda não gravado (`{ id: null, data_operacional,
+ * }} PropsDaJanela `atividadeAreaId` (a área do lançamento; padrão, a do apontamento): a dose/ha do produto usa a Feita dessa área, ou a planejada; `novoDia` (só ao adicionar): `apontamento` é o dia ainda não gravado (`{ id: null, data_operacional,
  *   area_executada_dia }`) e a linha vai no lançamento novo. `Casca`: onde o formulário aparece (padrão: a janela própria).
  */
 
@@ -991,10 +995,19 @@ const lerEfeitoDoEnvio = async ({ tipo, atividadeId, apontamento, novoDia, gravo
  * persistente.
  * @param {PropsDaJanela} props
  */
-export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, Casca = Janela }) {
+export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, atividadeAreaId = null, Casca = Janela }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const editando = Boolean(linha?.id);
   const atividadeId = String(atividade?.id ?? "");
+  // A dose/ha divide pelos hectares da área: a Feita (a soma do servidor) ou, sem ela, a planejada. A leitura é a dos totais da tela.
+  const totaisQuery = useQuery({
+    queryKey: chaveTotais(empresaId, atividadeId),
+    queryFn: () => obterTotaisAtividade(atividadeId),
+    enabled: Boolean(empresaId && atividadeId),
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const hectaresDaDose = hectaresParaDose({ atividade, totais: totaisQuery.data ?? null, areaId: atividadeAreaId ?? apontamento?.atividade_area_id ?? null });
   const [form, setForm] = useState(() => (editando ? formularioDaLinhaProduto(linha) : formularioProdutoVazio()));
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const saldo = useSaldoDoProduto(empresaId, form, setForm, editando ? linha : null);
@@ -1099,7 +1112,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
         aviso={aviso}
         saldo={saldo}
         atividadeId={atividadeId}
-        areaDoDia={typeof apontamento?.area_executada_dia === "string" ? apontamento.area_executada_dia : null}
+        areaDoDia={hectaresDaDose}
         bloqueado={enviando}
         prefixo="linha-produto"
       />

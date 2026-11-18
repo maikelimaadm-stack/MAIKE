@@ -16,10 +16,10 @@ import { BOTAO_PRIMARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAcoesTelaAbastecimento } from "@/hooks/usePatrimonioSessao";
 import { QUERY_RAIZ_ABASTECIMENTOS } from "@/hooks/useFluxoAbastecimento";
-import { STATUS_AREA, linhaDaAreaParaExibir, rotuloDaAreaDaAtividade, totaisDaArea } from "@/lib/atividadeAreasRegras";
+import { STATUS_AREA, rotuloDaAreaDaAtividade, totaisDaArea } from "@/lib/atividadeAreasRegras";
 import { chaveApontamentos } from "@/lib/atividadeApontamentoRegras";
 import { REGISTRO_ABASTECIMENTO, REGISTRO_IMPLEMENTO, opcoesDeRegistro, registroDoDiaParaAbastecer } from "@/lib/atividadeFluxoCampo";
-import { LINHA_ABASTECIMENTO, linhasDaArea, somaDasLinhas, textoCustoComPorHa, textoFeitaDePlanejada } from "@/lib/lancamentosDaAreaRegras";
+import { LINHA_ABASTECIMENTO, linhasDaArea, somaDasLinhas } from "@/lib/lancamentosDaAreaRegras";
 import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, chaveTotais, formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { rotuloDaArea } from "@/lib/lancamentoAtividadesRegras";
 import { notifySuccess } from "@/lib/maikeNotify";
@@ -38,14 +38,15 @@ const JANELA_DO_TIPO = Object.freeze({
 });
 
 /**
- * A tela de uma área da atividade (D-PROD-252): o cabeçalho (a área, a atividade e "X de Y ha · R$ … (R$ … por ha)"), a fileira
- * de botões "+" e UMA tabela com tudo o que foi lançado ali — Ações · Tipo · Dia · Item · Quantidade · Valor (no celular:
+ * A tela de uma área da atividade (D-PROD-252, emenda): o "‹ Áreas", o nome da área e o da atividade, a fileira de botões "+" e
+ * UMA tabela com tudo o que foi lançado ali — Ações · Tipo · Dia · Item · Quantidade · Valor (no celular:
  * Ações · Tipo · Valor · Quantidade · Item · Dia, que rola na horizontal) — com o total no rodapé. O implemento é texto da
  * linha da máquina ("com GR-01"); o abastecimento é uma linha como as outras (dia, máquina, litros, valor). O ⚡ da linha
  * edita e cancela (as janelas de linha de sempre); o abastecimento se cancela na tela Abastecimentos.
  *
  * Os botões abrem a janela do lançamento (`onLancar`, um nível só) ou a do abastecimento (a mesma janela, com a revisão
- * dentro). Os números do cabeçalho e o total vêm do servidor (`por_area` dos totais); sem eles, a soma das linhas.
+ * dentro). O total (um só, no rodapé) vem do servidor (`por_area` dos totais); sem ele, a soma das linhas. Os hectares e o
+ * R$/ha ficam na tabela de áreas e no Resumo das áreas, não aqui.
  *
  * @param {{
  *   atividade: any,
@@ -109,14 +110,8 @@ export default function LancamentosDaArea({
   const nome = area ? rotuloDaAreaDaAtividade(area) : rotuloDaArea(atividade?.area) || "Atividade";
   const numeros = areaId ? totaisDaArea(totais, areaId) : null;
   // Atividade antiga, sem áreas: o feito e o planejado são os da atividade.
-  const l = area
-    ? linhaDaAreaParaExibir(area, numeros)
-    : linhaDaAreaParaExibir({ area_planejada: totais?.area_planejada ?? atividade?.area_planejada }, { area_executada: totais?.area_executada ?? atividade?.area_executada });
-  const feita = textoFeitaDePlanejada(l);
   const custoTotal = numeros?.custo_total ?? totais?.custo_total ?? null;
-  const custoPorHa = numeros?.custo_por_ha ?? totais?.custo_por_ha ?? null;
-  const cabecalho = [feita && feita !== "—" ? feita : "", textoCustoComPorHa(custoTotal, custoPorHa)].filter(Boolean).join(" · ");
-  // O total do rodapé: o do servidor (o mesmo do cabeçalho); sem ele, a soma das linhas mostradas.
+  // O total do rodapé (o único da tela): o do servidor; sem ele, a soma das linhas mostradas.
   const totalTexto = formatarMoedaAtividade(custoTotal) || formatarMoedaAtividade(somaDasLinhas(linhas)) || (lendoTotais ? "…" : "—");
 
   const podeRegistrar = podeLancar && (!area || area.status === STATUS_AREA.EM_ANDAMENTO);
@@ -251,9 +246,6 @@ export default function LancamentosDaArea({
       <p className="text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="detalhe-area-atividade">
         {String(atividade?.nome ?? "")}
       </p>
-      <p className="mb-3 text-[13px] font-medium" data-testid="detalhe-area-resumo">
-        {cabecalho || (lendoTotais ? "…" : "—")}
-      </p>
       {botoes.length ? (
         <div className="mb-3 flex flex-wrap gap-2" data-testid="escolher-registro">
           {botoes.map((o) => (
@@ -293,6 +285,7 @@ export default function LancamentosDaArea({
           key={editando.chave}
           atividade={atividade}
           apontamento={editando.apontamento}
+          atividadeAreaId={areaId}
           linha={editando.linha}
           escopo={escopo}
           permiteImplemento={flags?.permiteImplemento === true}

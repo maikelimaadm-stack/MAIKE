@@ -31,6 +31,7 @@ const servico = vi.hoisted(() => ({
   acaoAreaAtividade: vi.fn(),
   adicionarAreaAtividade: vi.fn(),
   editarAreaAtividade: vi.fn(),
+  editarApontamento: vi.fn(),
   listarAreasDaFazenda: vi.fn(async () => []),
 }));
 vi.mock("@/services/lancamentoAtividadesService", () => servico);
@@ -265,6 +266,43 @@ describe("AR-CARD — a tabela Áreas da atividade (uma só, D-PROD-252)", () =>
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "P2 — PASTO 02 foi iniciada: já recebe lançamentos.");
   });
 
+  it("AR-CARD-FEITA — a Feita (ha) se informa na própria linha da área (a coluna Feita e o ⚡ \"Hectares feitos\"): o valor vai inteiro no lançamento mais novo da área e os outros ficam sem valor (a soma do servidor = o digitado); sem lançamento não grava; sem permissão não edita", async () => {
+    const lancamento = (id, dia, ha, extra = {}) => ({ id, status: "CONFIRMADO", data_operacional: dia, sequencia: 1, atividade_area_id: "p1", area_executada_dia: ha, versao: 3, ...extra });
+    const apontamentos = [lancamento("d1", "2026-11-12", "2.0000"), lancamento("d2", "2026-11-15", "2.0000", { versao: 5 }), lancamento("d3", "2026-11-16", null, { atividade_area_id: "p3" })];
+    servico.editarApontamento.mockResolvedValue({ apontamento: {}, atividade: ATIVIDADE });
+    const { onAtividadeAtualizada } = montar({ apontamentos, podeInformarFeita: true });
+    fireEvent.click(screen.getByTestId("area-p1-feita-editar"));
+    const dialogo = await screen.findByTestId("dialogo-area-feita");
+    expect(within(dialogo).getByTestId("dialogo-area-feita-ha")).toHaveValue("4");
+    fireEvent.change(within(dialogo).getByTestId("dialogo-area-feita-ha"), { target: { value: "x" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-area-feita-enviar"));
+    expect(await within(dialogo).findByText("A área feita está em formato inválido: use 1.234,5.")).toBeTruthy();
+    expect(servico.editarApontamento).not.toHaveBeenCalled();
+    fireEvent.change(within(dialogo).getByTestId("dialogo-area-feita-ha"), { target: { value: "9,5" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-area-feita-enviar"));
+    await waitFor(() => expect(servico.editarApontamento).toHaveBeenCalledTimes(2));
+    expect(servico.editarApontamento).toHaveBeenNthCalledWith(1, "a1", "d2", { area_executada_dia: "9.5", versao: 5 });
+    expect(servico.editarApontamento).toHaveBeenNthCalledWith(2, "a1", "d1", { area_executada_dia: null, versao: 3 });
+    await waitFor(() => expect(onAtividadeAtualizada).toHaveBeenCalled());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Hectares feitos de P1 — PASTO 01 atualizados.");
+    cleanup();
+    // Área sem lançamento (p3 não tem na lista de p1): o aviso no campo, nada gravado.
+    servico.editarApontamento.mockClear();
+    montar({ apontamentos: [lancamento("d3", "2026-11-16", null, { atividade_area_id: "p4" })], podeInformarFeita: true });
+    fireEvent.click(screen.getByTestId("area-p1-feita-editar"));
+    const semLancamento = await screen.findByTestId("dialogo-area-feita");
+    fireEvent.change(within(semLancamento).getByTestId("dialogo-area-feita-ha"), { target: { value: "3" } });
+    fireEvent.click(within(semLancamento).getByTestId("dialogo-area-feita-enviar"));
+    expect(await within(semLancamento).findByText(/ainda não tem lançamento/)).toBeTruthy();
+    expect(servico.editarApontamento).not.toHaveBeenCalled();
+    cleanup();
+    // Sem a permissão: a Feita é só texto e o ⚡ não oferece "Hectares feitos".
+    montar({ apontamentos });
+    expect(screen.queryByTestId("area-p1-feita-editar")).toBeNull();
+    fireEvent.click(within(screen.getByTestId("area-p1")).getByRole("button", { name: /Ações da área/ }));
+    expect(screen.queryByRole("menuitem", { name: "Hectares feitos" })).toBeNull();
+  });
+
   it("AR-CARD-3 — o ⚡ da área em andamento: Abrir área e Concluir área (com a permissão); sem editar, só Abrir área, sem Adicionar; os tipos de lançamento NÃO estão mais no ⚡ (são os botões + da área)", async () => {
     const { onAbrirArea } = montar();
     fireEvent.click(within(screen.getByTestId("area-p1")).getByRole("button", { name: /Ações da área/ }));
@@ -344,12 +382,17 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     expect(screen.queryByTestId("detalhe-area")).toBeNull();
   });
 
-  it("FL-2 — o nome da área abre a área: nome, atividade, \"X de Y ha · R$ … (R$ … por ha)\", os botões + (só o que o tipo permite) e UMA tabela dos lançamentos com o total; os botões chamam onLancar com a área; \"‹ Áreas\" volta", async () => {
-    const { onLancar } = await montar();
+  it("FL-2 — o nome da área abre a área: nome, atividade (sem repetir hectares e custo), os botões + (só o que o tipo permite) e UMA tabela dos lançamentos com o total; os botões chamam onLancar com a área; \"‹ Áreas\" volta", async () => {
+    const onAreaAberta = vi.fn();
+    const { onLancar } = await montar({ onAreaAberta });
+    expect(onAreaAberta).toHaveBeenLastCalledWith(false);
     fireEvent.click(screen.getByTestId("area-p1-abrir"));
+    // A casca esconde as abas e o "1 registro" enquanto uma área está aberta.
+    expect(onAreaAberta).toHaveBeenLastCalledWith(true);
     expect(screen.getByTestId("detalhe-area-nome")).toHaveTextContent("P1 — PASTO 01");
     expect(screen.getByTestId("detalhe-area-atividade")).toHaveTextContent("COMBATE À CIGARRINHA");
-    expect(sp(screen.getByTestId("detalhe-area-resumo"))).toBe("4 de 10 ha · R$ 150,00 (R$ 37,50 por ha)");
+    // Um total só (o do rodapé): o cabeçalho não repete hectares nem custo.
+    expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
     expect(within(screen.getByTestId("escolher-registro")).getAllByRole("button").map((b) => b.textContent.trim())).toEqual(["Máquina", "Implemento", "Produto"]);
     expect(screen.getAllByRole("table")).toHaveLength(1);
     const tabela = screen.getByTestId("area-lancamentos-tabela");
@@ -365,6 +408,7 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     expect(screen.queryByTestId("escolher-abastecimento")).toBeNull();
     fireEvent.click(screen.getByTestId("detalhe-area-voltar"));
     expect(screen.getByTestId("fluxo-por-area")).toBeTruthy();
+    expect(onAreaAberta).toHaveBeenLastCalledWith(false);
   });
 
   it("FL-3 — a área concluída ou sem permissão de lançar não mostra os botões +; a atividade sem áreas abre direto na tela da área", async () => {
@@ -376,7 +420,7 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     await montar({ atividade: { id: "a9", nome: "ANTIGA", status: "ABERTA", area: { id: "m1", numero_area: "01", nome: "PASTO 01" }, areas: [], area_planejada: "40.0000", area_executada: "10.0000" }, totais: null, apontamentos: [] });
     expect(screen.getByTestId("detalhe-area")).toBeTruthy();
     expect(screen.queryByTestId("detalhe-area-voltar")).toBeNull();
-    expect(screen.getByTestId("detalhe-area-resumo")).toHaveTextContent("10 de 40 ha");
+    expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
   });
 });
 
@@ -406,20 +450,19 @@ describe("RA — Resumo das áreas (D-PROD-252)", () => {
   const montar = async () => {
     servico.listarAreasDaFazenda.mockResolvedValue(MAPA);
     const { default: ResumoDasAreas } = await import("@/components/lancamento-atividades/ResumoDasAreas");
-    comConsulta(<ResumoDasAreas atividade={ATIVIDADE} totais={TOTAIS_RA} lendoTotais={false} empresaId="emp-1" habilitado />);
+    comConsulta(<ResumoDasAreas atividade={ATIVIDADE} totais={TOTAIS_RA} lendoTotais={false} />);
   };
 
-  it("RA-1 — uma linha por área: Tipo (Pasto/Talhão pelo cadastro do mapa), feita / planejada, o custo por tipo, o Total e o R$/ha; a de sem lançamento mostra \"—\"; a linha de total; SEM coluna de Implementos", async () => {
+  it("RA-1 — UMA tabela: Área, ha, Máquinas, Insumos, Mão de obra, Serviços, Abastecimento, Total e R$/ha, uma linha por área e a de total; zero vira \"—\"; SEM Tipo, Implementos nem nota", async () => {
     await montar();
     const tabela = screen.getByTestId("resumo-areas-tabela");
-    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "Tipo", "Feita / planejada", "Máquinas", "Insumos", "Mão de obra", "Serviços", "Abastecimento", "Total", "R$/ha"]);
-    expect(within(tabela).queryByText("Implementos")).toBeNull();
-    await waitFor(() => expect(screen.getByTestId("resumo-area-p3-tipo")).toHaveTextContent("Talhão"));
-    expect(screen.getByTestId("resumo-area-p1-tipo")).toHaveTextContent("Pasto");
-    // Sem uso informado, o mapa conta como pasto (a regra de `grupoDaArea`).
-    expect(screen.getByTestId("resumo-area-p4-tipo")).toHaveTextContent("Pasto");
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "ha", "Máquinas", "Insumos", "Mão de obra", "Serviços", "Abastecimento", "Total", "R$/ha"]);
+    for (const t of ["Implementos", "Tipo", "Feita / planejada"]) expect(within(tabela).queryByText(t)).toBeNull();
+    expect(screen.queryByTestId("resumo-areas-nota")).toBeNull();
+    expect(screen.queryByText(/custo do implemento/i)).toBeNull();
     expect(screen.getByTestId("resumo-area-p1-nome")).toHaveTextContent("P1 — PASTO 01");
-    expect(screen.getByTestId("resumo-area-p1-feitaDePlanejada")).toHaveTextContent("20 de 10 ha");
+    expect(screen.getByTestId("resumo-area-p1-ha")).toHaveTextContent("20 de 10 ha");
     expect(screen.getByTestId("resumo-area-p1-maquinas")).toHaveTextContent("700,00");
     expect(screen.getByTestId("resumo-area-p1-insumos")).toHaveTextContent("2.400,00");
     expect(screen.getByTestId("resumo-area-p1-maoObra")).toHaveTextContent("280,00");
@@ -428,14 +471,14 @@ describe("RA — Resumo das áreas (D-PROD-252)", () => {
     expect(screen.getByTestId("resumo-area-p1-total")).toHaveTextContent("3.610,00");
     expect(screen.getByTestId("resumo-area-p1-porHa")).toHaveTextContent("180,50");
     expect(screen.getByTestId("resumo-area-p3-servicos")).toHaveTextContent(/^—$/);
-    // Área sem nenhum lançamento: tudo "—".
+    // Área sem nenhum lançamento: tudo "—" (e o ha, só o planejado).
     for (const c of ["maquinas", "insumos", "maoObra", "servicos", "abastecimento", "total", "porHa"]) expect(screen.getByTestId(`resumo-area-p2-${c}`)).toHaveTextContent(/^—$/);
+    expect(screen.getByTestId("resumo-area-p2-ha")).toHaveTextContent(/^10 ha$/);
     // Total da atividade, do próprio servidor.
-    expect(screen.getByTestId("resumo-areas-total-feitaDePlanejada")).toHaveTextContent("28 de 70 ha");
+    expect(screen.getByTestId("resumo-areas-total-ha")).toHaveTextContent("28 de 70 ha");
     expect(screen.getByTestId("resumo-areas-total-maquinas")).toHaveTextContent("950,00");
     expect(screen.getByTestId("resumo-areas-total-total")).toHaveTextContent("4.710,00");
     expect(screen.getByTestId("resumo-areas-total-porHa")).toHaveTextContent("168,21");
-    expect(screen.getByTestId("resumo-areas-nota")).toHaveTextContent("O custo do implemento já está em Máquinas. R$/ha = total ÷ hectares feitos.");
   });
 
   it("RA-2 — no celular continua tabela (rola na horizontal), com o Total e o R$/ha antes das colunas de custo", async () => {
@@ -443,13 +486,31 @@ describe("RA — Resumo das áreas (D-PROD-252)", () => {
     await montar();
     const tabela = screen.getByTestId("resumo-areas-tabela");
     expect(tabela.closest(".b1-tipo-tabela__rolagem")).toBeTruthy();
-    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "Total", "R$/ha", "Feita / planejada", "Máquinas", "Insumos", "Mão de obra", "Serviços", "Abastecimento", "Tipo"]);
+    expect(within(tabela).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Área", "Total", "R$/ha", "ha", "Máquinas", "Insumos", "Mão de obra", "Serviços", "Abastecimento"]);
     expect(document.querySelector(".b1-tipo-card")).toBeNull();
     vi.unstubAllGlobals();
   });
 });
 
 describe("LAR — regras da organização (D-PROD-252)", () => {
+  it("LAR-FEITA — a dose usa a Feita da área (ou a planejada); o plano da Feita põe o valor no lançamento mais novo e zera os outros, só mudando quem muda", async () => {
+    const R = await import("@/lib/lancamentosDaAreaRegras");
+    // Com Feita: a do servidor; sem ela: a planejada da área; sem áreas: a da atividade.
+    expect(R.hectaresParaDose({ atividade: ATIVIDADE, totais: TOTAIS, areaId: "p1" })).toBe("4.0000");
+    expect(R.hectaresParaDose({ atividade: ATIVIDADE, totais: TOTAIS, areaId: "p3" })).toBe("20.0000");
+    expect(R.hectaresParaDose({ atividade: ATIVIDADE, totais: null, areaId: "p1" })).toBe("10.0000");
+    expect(R.hectaresParaDose({ atividade: { id: "a9", areas: [], area_planejada: "40.0000", area_executada: "10.0000" }, totais: null })).toBe("10.0000");
+    expect(R.hectaresParaDose({ atividade: { id: "a9", areas: [], area_planejada: "40.0000", area_executada: null }, totais: null })).toBe("40.0000");
+    expect(R.hectaresParaDose({ atividade: { id: "a9", areas: [] }, totais: null })).toBeNull();
+    const ap = (id, dia, ha, extra = {}) => ({ id, status: "CONFIRMADO", data_operacional: dia, sequencia: 1, atividade_area_id: "p1", area_executada_dia: ha, versao: 1, ...extra });
+    const lista = [ap("a", "2026-11-10", "3.0000"), ap("b", "2026-11-12", null), ap("c", "2026-11-12", "1.0000", { sequencia: 2 }), ap("x", "2026-11-13", "9.0000", { status: "CANCELADO" }), ap("y", "2026-11-14", "5.0000", { atividade_area_id: "p3" })];
+    // O mais novo (12/11 passada 2 = "c") fica com o valor; "a" é zerado; "b" já está sem valor e não entra.
+    expect(R.planoDaFeita({ apontamentos: lista, areaId: "p1", valor: "7.5000" }).passos.map((p) => [p.apontamento.id, p.area_executada_dia])).toEqual([["c", "7.5000"], ["a", null]]);
+    // O mesmo valor que já está: nada a gravar.
+    expect(R.planoDaFeita({ apontamentos: [ap("c", "2026-11-12", "7.5")], areaId: "p1", valor: "7.5000" })).toEqual({ semLancamento: false, passos: [] });
+    expect(R.planoDaFeita({ apontamentos: lista, areaId: "p9", valor: "1" })).toEqual({ semLancamento: true, passos: [] });
+  });
+
   it("LAR-1 — a linha de resumo da atividade e o custo com o R$/ha só dizem o que o servidor deu", async () => {
     const R = await import("@/lib/lancamentosDaAreaRegras");
     // (a moeda do sistema usa o espaço sem quebra depois do R$)

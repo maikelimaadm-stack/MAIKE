@@ -682,11 +682,6 @@ export default function LancamentoAtividades() {
 
   const banner = (
     <>
-      {empresaId && acoes.ver ? (
-        <p className="mb-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="atividades-intro">
-          Trabalhos da fazenda — pastos e lavouras. O tipo do trabalho se cadastra em Tipos de atividade, separado daqui.
-        </p>
-      ) : null}
       {aviso}
       {semFuso && acoes.ver ? (
         <AvisoGestao testId="atividades-sem-fuso">
@@ -740,7 +735,7 @@ export default function LancamentoAtividades() {
   };
 
   /**
-   * Os avisos do status (cancelada, concluída, reaberta), acima das abas da atividade aberta (D-PROD-234: valem para as
+   * Os avisos do status (cancelada e concluída; a reabertura fica no histórico, sem aviso), acima das abas da atividade aberta (D-PROD-234: valem para as
    * duas abas).
    * @param {any} a
    */
@@ -762,15 +757,6 @@ export default function LancamentoAtividades() {
             Atividade concluída
             {a.data_conclusao ? ` em ${formatarDiaAtividade(a.data_conclusao)}` : ""}
             {rotuloDoUsuario(a.concluida_por) ? ` por ${rotuloDoUsuario(a.concluida_por)}` : ""}. Ela fica só leitura; para mudar algo, reabra-a.
-          </AvisoGestao>
-        </div>
-      ) : null}
-      {a?.status === STATUS_ABERTA && a?.reaberta_em ? (
-        <div>
-          <AvisoGestao tone="blue" testId="atividade-reaberta">
-            Reaberta em {formatarInstante(a.reaberta_em, LOCALE_ATIVIDADE, fuso)}
-            {rotuloDoUsuario(a.reaberta_por) ? ` por ${rotuloDoUsuario(a.reaberta_por)}` : ""}.
-            {a.motivo_reabertura ? ` Motivo: ${a.motivo_reabertura}` : ""}
           </AvisoGestao>
         </div>
       ) : null}

@@ -5,8 +5,7 @@
  * servidor ainda não chegou.
  */
 
-import { grupoDaArea, GRUPO_LAVOURA, GRUPO_PASTO } from './atividadeFluxoCampo.js';
-import { areasDaAtividade, linhaDaAreaParaExibir, rotuloDaAreaDaAtividade, totaisDaArea } from './atividadeAreasRegras.js';
+import { areaDaAtividadePorId, areasDaAtividade, linhaDaAreaParaExibir, rotuloDaAreaDaAtividade, totaisDaArea } from './atividadeAreasRegras.js';
 import {
   LINHA_MAO_OBRA,
   LINHA_MAQUINA,
@@ -209,13 +208,6 @@ export const textoCustoComPorHa = (custoTotal, custoPorHa) => {
   return porHa ? `${total} (${porHa} por ha)` : total;
 };
 
-/** O tipo da área do mapa, em palavras: Pasto, Talhão ou Outra. @param {any} areaDoMapa */
-export const tipoDaAreaDoMapa = (areaDoMapa) => {
-  if (!areaDoMapa) return '—';
-  const g = grupoDaArea(areaDoMapa);
-  return g === GRUPO_LAVOURA ? 'Talhão' : g === GRUPO_PASTO ? 'Pasto' : 'Outra';
-};
-
 /**
  * A linha de texto do alto da atividade: "Aberta · desde 03/11/2026 · 28 de 70 ha · custo total R$ 4.710,00 (R$ 168,21 por ha)".
  * @param {{ situacao: string, desde: string, feitaDePlanejada: string, custoTotal: unknown, custoPorHa: unknown }} p
@@ -231,15 +223,17 @@ export const linhaResumoDaAtividade = ({ situacao, desde, feitaDePlanejada, cust
     .join(' · ');
 
 /**
- * O Resumo das áreas: uma linha por área da atividade (a ordem do servidor) com o tipo (pelo mapa), feito / planejado, o custo
- * por tipo (máquinas, insumos, mão de obra, serviços, abastecimento), o total e o R$/ha, e a linha de total da atividade.
- * Tudo do `por_area` e dos totais do servidor, juntado pela área da atividade; área sem lançamento mostra "—". O custo do
- * implemento já está em Máquinas: não há coluna de implemento.
- * @param {{ atividade: any, totais: any, areasDoMapa: any[] }} p
+ * O Resumo das áreas (emenda da D-PROD-252): uma linha por área da atividade (a ordem do servidor) com os hectares ("20 de 40"),
+ * o custo por tipo (máquinas, insumos, mão de obra, serviços, abastecimento), o total e o R$/ha, e a linha de total da
+ * atividade. Tudo do `por_area` e dos totais do servidor, juntado pela área da atividade; zero ou sem valor mostra "—". O custo
+ * do implemento já está em Máquinas: não há coluna de implemento.
+ * @param {{ atividade: any, totais: any }} p
  */
-export const resumoDasAreas = ({ atividade, totais, areasDoMapa }) => {
-  const porId = new Map((Array.isArray(areasDoMapa) ? areasDoMapa : []).map((a) => [String(a?.id), a]));
-  const moeda = (/** @type {unknown} */ v) => formatarMoedaAtividade(v) || '—';
+export const resumoDasAreas = ({ atividade, totais }) => {
+  const moeda = (/** @type {unknown} */ v) => {
+    const t = formatarMoedaAtividade(v);
+    return !t || Number(v) === 0 ? '—' : t;
+  };
   const custos = (/** @type {any} */ cpt) => ({
     maquinas: moeda(cpt?.maquinas),
     insumos: moeda(cpt?.produtos),
@@ -253,20 +247,57 @@ export const resumoDasAreas = ({ atividade, totais, areasDoMapa }) => {
     return {
       id: String(area.id),
       nome: rotuloDaAreaDaAtividade(area),
-      tipo: tipoDaAreaDoMapa(porId.get(String(area.area?.id ?? area.area_id ?? ''))),
-      feitaDePlanejada: textoFeitaDePlanejada(l),
+      ha: textoFeitaDePlanejada(l),
       ...custos(n?.custo_por_tipo),
-      total: l.custo,
-      porHa: l.custoPorHa,
+      total: moeda(n?.custo_total),
+      porHa: moeda(n?.custo_por_ha),
     };
   });
   const executada = linhaDaAreaParaExibir({ area: null, area_planejada: totais?.area_planejada ?? atividade?.area_planejada }, { area_executada: totais?.area_executada ?? atividade?.area_executada });
   const total = {
     nome: 'Total',
-    feitaDePlanejada: textoFeitaDePlanejada(executada),
+    ha: textoFeitaDePlanejada(executada),
     ...custos(totais?.custo_por_tipo),
     total: moeda(totais?.custo_total),
     porHa: moeda(totais?.custo_por_ha),
   };
   return { linhas, total };
+};
+
+/**
+ * Os hectares sobre os quais a dose/ha é calculada (emenda da D-PROD-252): a Feita da área quando já há (a soma do servidor);
+ * sem ela, a planejada da área; atividade antiga, sem áreas, a da atividade. Canônico de 4 casas, ou null.
+ * @param {{ atividade: any, totais: any, areaId?: string|null }} p
+ */
+export const hectaresParaDose = ({ atividade, totais, areaId = null }) => {
+  const positivo = (/** @type {unknown} */ v) => (typeof v === 'string' && /^\d+(?:\.\d+)?$/.test(v) && Number(v) > 0 ? v : null);
+  const area = areaId ? areaDaAtividadePorId(atividade, areaId) : null;
+  if (area) return positivo(totaisDaArea(totais, area.id)?.area_executada) ?? positivo(area.area_planejada);
+  return positivo(totais?.area_executada ?? atividade?.area_executada) ?? positivo(totais?.area_planejada ?? atividade?.area_planejada);
+};
+
+/**
+ * Os lançamentos (apontamentos confirmados) de UMA área, do mais novo para o mais antigo (dia, sequência).
+ * @param {any[]} apontamentos @param {string|null} areaId
+ */
+const apontamentosConfirmadosDaArea = (apontamentos, areaId) =>
+  (Array.isArray(apontamentos) ? apontamentos : [])
+    .filter((a) => a && a.status === STATUS_CONFIRMADO && String(a.atividade_area_id ?? '') === String(areaId ?? ''))
+    .sort((a, b) => String(b.data_operacional).localeCompare(String(a.data_operacional)) || (Number(b.sequencia) || 0) - (Number(a.sequencia) || 0));
+
+/**
+ * O que gravar para a área ficar com `Feita = valor` hectares (D-PROD-252, emenda): o servidor soma `area_executada_dia` dos
+ * lançamentos confirmados da área, então o valor digitado vai inteiro no lançamento mais novo e os outros ficam sem valor.
+ * Só entra no plano quem muda. Sem lançamento confirmado na área, não há onde gravar: lista vazia e `semLancamento`.
+ * @param {{ apontamentos: any[], areaId: string|null, valor: string|null }} p `valor`: canônico (ou null para limpar)
+ * @returns {{ semLancamento: boolean, passos: { apontamento: any, area_executada_dia: string|null }[] }}
+ */
+export const planoDaFeita = ({ apontamentos, areaId, valor }) => {
+  const lista = apontamentosConfirmadosDaArea(apontamentos, areaId);
+  if (!lista.length) return { semLancamento: true, passos: [] };
+  const mesmo = (/** @type {unknown} */ a, /** @type {unknown} */ b) => (a == null || a === '' ? null : Number(a)) === (b == null || b === '' ? null : Number(b));
+  const passos = lista
+    .map((ap, i) => ({ apontamento: ap, area_executada_dia: i === 0 ? valor : null }))
+    .filter((p) => !mesmo(p.apontamento.area_executada_dia, p.area_executada_dia));
+  return { semLancamento: false, passos };
 };

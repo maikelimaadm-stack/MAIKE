@@ -52,6 +52,11 @@ const sessao = vi.hoisted(() => ({
   /** Fuso da emp-1 (o "hoje" da fazenda); um teste o tira. */
   fuso: /** @type {string|null} */ ("America/Cuiaba"),
 }));
+vi.mock("@/components/lancamento-atividades/AtividadeAberta", async (importOriginal) => {
+  const real = await importOriginal();
+  const { comDiasLegados } = await import("./helpers/diasLegadoNoTeste.jsx");
+  return { ...real, default: comDiasLegados(real.default) };
+});
 vi.mock("@/lib/AuthContext", () => ({ useAuth: () => ({ clienteId: sessao.clienteId, user: { id: "u1" } }) }));
 vi.mock("@/services/sessionService", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -600,6 +605,10 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     expect(within(linha("a1")).getByText("12,5 / 40")).toBeTruthy();
     expect(within(linha("a2")).getByText("8 / —")).toBeTruthy();
     expect(within(linha("a1")).getByText("01/11/2026")).toBeTruthy();
+    // Sem subtítulo explicativo sobre a lista (emenda da D-PROD-252).
+    expect(screen.queryByTestId("atividades-intro")).toBeNull();
+    expect(screen.queryByText(/Trabalhos da fazenda/)).toBeNull();
+    expect(screen.queryByText(/separado daqui/)).toBeNull();
   });
 
   it("LA-LISTA-2 — filtros de status, tipo, área e período (pílulas da faixa, D-PROD-237) vão na query; período invertido avisa e não lê", async () => {
@@ -901,8 +910,11 @@ describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)",
     await waitFor(() => expect(escritas()).toHaveLength(1));
     expect(ultimaEscrita()).toMatchObject({ method: "POST", path: "/atividades/a2/reabrir", body: { empresa_id: "emp-1", versao: 7, motivo: "faltou um talhão" } });
     expect(Object.keys(ultimaEscrita().body).sort()).toEqual(["empresa_id", "motivo", "versao"]);
-    expect(await screen.findByTestId("atividade-reaberta")).toHaveTextContent("Motivo: faltou um talhão");
+    // A reabertura fica no histórico: a tela NÃO mostra o aviso "Reaberta em … Motivo: …" (emenda da D-PROD-252).
     await waitFor(() => expect(botaoEditarDaBarra()).toBeTruthy());
+    expect(screen.queryByTestId("atividade-reaberta")).toBeNull();
+    expect(screen.queryByText(/Reaberta em/)).toBeNull();
+    expect(screen.queryByText(/faltou um talhão/)).toBeNull();
     await waitFor(() => expect(screen.getByTestId("apontamento-novo")).toBeTruthy());
   });
 

@@ -56,6 +56,11 @@ const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
 
 const sessao = vi.hoisted(() => ({ permissao: /** @type {any} */ (null), clienteId: "cli-1" }));
+vi.mock("@/components/lancamento-atividades/AtividadeAberta", async (importOriginal) => {
+  const real = await importOriginal();
+  const { comDiasLegados } = await import("./helpers/diasLegadoNoTeste.jsx");
+  return { ...real, default: comDiasLegados(real.default) };
+});
 vi.mock("@/lib/AuthContext", () => ({ useAuth: () => ({ clienteId: sessao.clienteId, user: { id: "u1" } }) }));
 vi.mock("@/services/sessionService", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -824,7 +829,7 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     expect(within(janela).getByText("Quantidade (L)")).toBeTruthy();
     expect(await within(janela).findByTestId("linha-produto-disponivel")).toHaveTextContent("Disponível neste local: 30 L");
     fireEvent.change(within(janela).getByTestId("linha-produto-quantidade"), { target: { value: "25" } });
-    // Dose/ha = 25 / 10 (área do dia), só leitura.
+    // Dose/ha = 25 / 10 (a Feita da atividade; sem ela, a planejada), só leitura.
     expect(within(janela).getByTestId("linha-produto-dose")).toHaveTextContent("2,5 L/ha");
     fireEvent.click(within(janela).getByTestId("janela-linha-produto-salvar"));
     await waitFor(() => expect(escritas()).toHaveLength(1));
@@ -2190,7 +2195,7 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
       },
     });
     expect(ultimaEscrita().body).not.toHaveProperty("area_executada_dia");
-    await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Máquina TP-02 — Trator lançada (8 h). O lançamento de 14/11/2026 foi criado com ele."));
+    await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Máquina TP-02 — Trator lançada (8 h)."));
     // Salvar e novo: a janela continua, com o formulário vazio para o próximo item.
     await waitFor(() => expect(within(janela).getByTestId("linha-maquina-leitura-final")).toHaveValue(""));
     // A linha já aparece na tabela da área, atrás da janela (o lançamento novo é o apn1; a linha dele, ml-n2).
@@ -2281,7 +2286,8 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     expect(screen.queryByTestId("fluxo-resumo")).toBeNull();
     // O total do rodapé é o do servidor (o mesmo do cabeçalho da área).
     await waitFor(() => expect(within(tabela).getByTestId("area-lancamentos-total-valor")).toHaveTextContent("R$ 735,00"));
-    expect(screen.getByTestId("detalhe-area-resumo")).toHaveTextContent("10 de 40 ha · R$ 735,00 (R$ 73,50 por ha)");
+    // Um total só: o do rodapé; o cabeçalho da área não repete hectares nem custo.
+    expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
     expect(screen.getByTestId("detalhe-area-atividade")).toHaveTextContent("Cigarrinha Pasto 01");
     // Os botões "+" do tipo, numa fileira só, e nada de "O que você quer registrar?".
     const botoes = within(screen.getByTestId("escolher-registro")).getAllByRole("button").map((b) => b.textContent.trim());
@@ -2448,12 +2454,13 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     fireEvent.doubleClick(screen.getByTestId(`atividade-numero-${id}`));
     await screen.findByTestId("atividade-aberta");
     await screen.findByTestId("detalhe-area");
-    await waitFor(() => expect(screen.getByTestId("detalhe-area-resumo")).not.toHaveTextContent("…"));
+    await waitFor(() => expect(screen.getByTestId("area-lancamentos-total-valor")).not.toHaveTextContent("…"));
   };
 
   it("LL-ABERTA-1 — três abas (Lançamentos, Resumo das áreas, Resumo da atividade); sem \"Mais detalhes\", sem o card Resumo de custo nem a tabela por tipo", async () => {
     await montar();
     await abrirAberta("a1");
+    // A atividade sem áreas abre direto na tela da área e não tem para onde voltar: as abas ficam (só somem com uma área aberta numa atividade com áreas, no atividadeAreas.test).
     expect([...screen.getAllByRole("tab")].map((t) => t.textContent.trim())).toEqual(["Lançamentos", "Resumo das áreas", "Resumo da atividade"]);
     expect(screen.getByTestId("atividade-aba-lancamentos")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByTestId("atividade-painel-lancamentos")).not.toHaveAttribute("hidden");
@@ -2462,9 +2469,9 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     for (const t of ["atividade-mais-detalhes-toggle", "atividade-resumo-custo", "atividade-tipos", "atividade-lancamentos-tipos", "tipo-maquinas-acoes", "ajustar-dia"]) {
       expect(screen.queryByTestId(t)).toBeNull();
     }
-    // O cabeçalho da área: a área, a atividade e "X de Y ha · R$ … (R$ … por ha)".
+    // O cabeçalho da área: só a área e a atividade (sem repetir hectares e custo, que ficam na tabela).
     expect(screen.getByTestId("detalhe-area-nome")).toHaveTextContent("01 — Pasto 01");
-    expect(screen.getByTestId("detalhe-area-resumo")).toHaveTextContent("10 de 40 ha · R$ 525,00 (R$ 52,50 por ha)");
+    expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
     // Uma tabela só, com o total do servidor.
     expect(screen.getAllByRole("table")).toHaveLength(1);
     expect(screen.getByTestId("area-lancamentos-total-valor")).toHaveTextContent("R$ 525,00");
@@ -2494,7 +2501,6 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     expect(within(linha).getByTestId("lancamento-abastecimento-ab-1-item")).toHaveTextContent("TP-02");
     expect(within(linha).getByTestId("lancamento-abastecimento-ab-1-quantidade")).toHaveTextContent("40 L");
     expect(within(linha).getByTestId("lancamento-abastecimento-ab-1-valor")).toHaveTextContent("R$ 200,00");
-    expect(screen.getByTestId("detalhe-area-resumo")).toHaveTextContent("R$ 725,00 (R$ 72,50 por ha)");
     expect(screen.getByTestId("area-lancamentos-total-valor")).toHaveTextContent("R$ 725,00");
     // O abastecimento não tem ⚡ aqui (cancela-se na tela Abastecimentos).
     expect(screen.queryByTestId("linha-acoes-abastecimento-ab-1")).toBeNull();
@@ -2534,28 +2540,20 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     expect(screen.getByTestId("atividade-concluida")).toBeTruthy();
   });
 
-  it("LL-ABERTA-6 — o ajuste de um dia saiu do dia a dia: fica recolhido no Resumo da atividade (\"Dias lançados\"), com Novo, Repetir, Editar, Cancelar e as linhas", async () => {
+  it("LL-ABERTA-6 — a atividade não mostra \"dias\" (emenda da D-PROD-252): sem \"Dias lançados\", \"Ajustar um dia\" nem \"Área do dia\" em nenhuma das três abas; cada linha lançada tem a data dela", async () => {
     await montar();
     await abrirAberta("a1");
-    expect(screen.getByTestId("atividade-painel-lancamentos")).not.toContainElement(screen.getByTestId("atividade-dias"));
-    fireEvent.click(screen.getByTestId("atividade-aba-resumo"));
-    const toggle = screen.getByTestId("atividade-dias-toggle");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(document.getElementById("atividade-dias-corpo")).toHaveAttribute("hidden");
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(document.getElementById("atividade-dias-corpo")).not.toHaveAttribute("hidden");
-    const dias = screen.getByTestId("atividade-dias");
-    expect(within(dias).getByText("Lançamentos por dia")).toBeTruthy();
-    expect(within(dias).getByTestId("apontamento-novo")).toBeTruthy();
-    expect(within(dias).getByTestId("apontamento-ap1-repetir")).toBeTruthy();
-    expect(within(dias).getByTestId("apontamento-ap1-linhas")).toBeTruthy();
-    fireEvent.click(within(dias).getByTestId("apontamento-ap1-editar"));
-    expect(await screen.findByTestId("janela-apontamento")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("apontamento-voltar"));
-    await waitFor(() => expect(screen.queryByTestId("janela-apontamento")).toBeNull());
-    fireEvent.click(within(dias).getByTestId("apontamento-ap1-cancelar"));
-    expect(await screen.findByTestId("dialogo-cancelar-apontamento")).toBeTruthy();
+    const aberta = within(screen.getByTestId("atividade-aberta"));
+    for (const aba of ["atividade-aba-lancamentos", "atividade-aba-areas", "atividade-aba-resumo"]) {
+      fireEvent.click(screen.getByTestId(aba));
+      expect(screen.queryByTestId("atividade-dias")).toBeNull();
+      expect(screen.queryByTestId("atividade-dias-toggle")).toBeNull();
+      expect(aberta.queryByText(/Dias lançados/i)).toBeNull();
+      expect(aberta.queryByText(/Ajustar um dia/i)).toBeNull();
+      expect(aberta.queryByText(/Área do dia/i)).toBeNull();
+    }
+    fireEvent.click(screen.getByTestId("atividade-aba-lancamentos"));
+    expect(within(screen.getByTestId("area-lancamentos-tabela")).getByTestId("lancamento-ml1-dia")).toHaveTextContent("12/11/2026");
   });
 
   it("LL-ABERTA-7 — Resumo da atividade: totais com o detalhe por item e os dados da atividade, só leitura", async () => {
