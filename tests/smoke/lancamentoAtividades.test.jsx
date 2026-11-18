@@ -1675,7 +1675,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
     await screen.findByTestId("fluxo-por-area");
     fireEvent.click(screen.getByTestId("registrar-area-unica"));
-    for (const id of ["maquinas", "produtos", "mao-obra", "servicos"]) expect(screen.getByTestId(`escolher-${id}`)).toBeTruthy();
+    for (const id of ["maquinas", "implemento", "produtos", "mao-obra", "servicos"]) expect(screen.getByTestId(`escolher-${id}`)).toBeTruthy();
     cleanup();
     // A flag gravada na atividade vale sobre a da lista de tipos.
     atividades.set("a1", { ...atividades.get("a1"), permite_produto: false, permite_servico: false, permite_mao_obra: true });

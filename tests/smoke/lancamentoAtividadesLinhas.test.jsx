@@ -1981,6 +1981,40 @@ describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia
     expect(abast.abastecimentos[0]).toMatchObject({ atividade: { id: "a1" }, apontamento: { id: "ap1" }, centro_custo: { nome: "Pastagem" } });
   });
 
+  it("LL-ABAST-AREA-1 — Abastecimento pela área (D-PROD-250): o mesmo formulário, ligado ao registro do dia da área; confirma com frase na área, sem passar por Ajustar um dia", async () => {
+    sessao.permissao = comAbastecimento({ novo: true });
+    await montar();
+    await abrir("a1", "ap1");
+    fireEvent.click(await screen.findByTestId("registrar-area-unica"));
+    fireEvent.click(await screen.findByTestId("escolher-abastecimento"));
+    const janela = await screen.findByTestId("janela-abastecimento-area");
+    const form = within(janela).getByTestId("abastecimento-form");
+    expect(within(form).getByTestId("abastecimento-vinculo-lancamento")).toHaveTextContent("12/11/2026");
+    await escolherNoSeletor(form, "abastecimento-bem", /Trator TP-02/);
+    await waitFor(() => expect(within(form).getByTestId("abastecimento-local-auto")).toHaveTextContent("Sai do estoque: Tanque diesel sede"));
+    fireEvent.change(within(form).getByTestId("abastecimento-quantidade"), { target: { value: "60" } });
+    fireEvent.change(within(form).getByTestId("abastecimento-leitura"), { target: { value: "1.600" } });
+    await act(async () => {
+      fireEvent.click(within(form).getByTestId("abastecimento-previa"));
+    });
+    const previa = await screen.findByTestId("dialogo-previa-abastecimento");
+    await act(async () => {
+      fireEvent.click(within(previa).getByTestId("abastecimento-confirmar"));
+    });
+    const frase = await screen.findByTestId("registro-confirmado-frase");
+    expect(frase.textContent).toMatch(/^Abastecimento de .+ registrado\. Foi anotado em /);
+    expect(backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos").at(-1)?.body).toMatchObject({ apontamento_id: "ap1", operation_id: expect.any(String) });
+  });
+
+  it("LL-ABAST-AREA-2 — sem a permissão de novo abastecimento, a opção não aparece", async () => {
+    sessao.permissao = comAbastecimento({ novo: false });
+    await montar();
+    await abrir("a1", "ap1");
+    fireEvent.click(await screen.findByTestId("registrar-area-unica"));
+    await screen.findByTestId("escolher-maquinas");
+    expect(screen.queryByTestId("escolher-abastecimento")).toBeNull();
+  });
+
   it("LL-ABAST-4 — posto externo pelo lançamento: sem local, com o valor da nota; o corpo leva origem, custo_total e apontamento_id", async () => {
     sessao.permissao = comAbastecimento({ novo: true });
     await montar();
