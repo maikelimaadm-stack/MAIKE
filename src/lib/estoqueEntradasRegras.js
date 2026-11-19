@@ -322,7 +322,7 @@ export const mensagemErroEntrada = (erro, padrao) => {
       return 'A entrada mudou desde que foi aberta. Feche e abra de novo. Nada foi alterado.';
     case 'ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE':
       if (reason === 'documento_de_compra' || reason === 'documento_de_venda') {
-        return `Este documento já está em um lançamento ${reason === 'documento_de_venda' ? 'de venda' : 'de compra'}: a mercadoria entra por ele, não por entrada manual. ${NADA}`;
+        return `Este documento já está em um lançamento ${reason === 'documento_de_venda' ? 'de venda' : 'de compra'} com produtos: a mercadoria entra por ele, não por entrada manual. ${NADA}`;
       }
       return `Já existe uma entrada confirmada com este documento. ${NADA}`;
     case 'ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA':

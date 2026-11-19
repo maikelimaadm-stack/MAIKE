@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-19 (missão ativa D-PROD-259; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-19 (missão ativa D-PROD-261; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS: a entrada não lançava mais de um produto (correção da D-PROD-259)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-R-DEDUPE: a mesma compra não entra duas vezes no estoque (D-PROD-261)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-261**, escolha do proprietário: bloquear só o que mexe no estoque. A Central recusa lançamento **com produtos** com o documento de uma entrada manual confirmada; a entrada recusa documento de lançamento confirmado **com produtos**; o lançamento só de pagamento passa |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d447a781` · PR draft |
+| Migration | nenhuma |
+| Constituição | emenda da D-PROD-261 **aprovada pelo proprietário em 2026-11-19**; parágrafo em `00` §1 e nota em `07` |
+| Abertos | documento diferente ou omitido numa das portas continua sem como comparar; nenhum perfil recebe `entrada` por padrão |
+| Relatório | [`MAIKE-ESTOQUE-R-DEDUPE-REPORT.md`](./MAIKE-ESTOQUE-R-DEDUPE-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS: a entrada não lançava mais de um produto (correção da D-PROD-259)
 
 | Campo | Valor |
 |---|---|

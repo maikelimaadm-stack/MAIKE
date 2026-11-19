@@ -929,6 +929,9 @@ describe('LANC-6 — botões seguem a ação exata da permissão', () => {
     );
     expect(mensagemErroGestao(e('FINANCEIRO_DATA_FUTURA', { details: { data: '2026-11-09', hoje: '2026-11-08', fuso: 'America/Sao_Paulo' } }), 'x')).toMatch(/09\/11\/2026 é futura.*08\/11\/2026/);
     expect(mensagemErroGestao(e('IDEMPOTENCY_CONFLICT'), 'x')).not.toMatch(/áreas/);
+    // D-PROD-261 (R-DEDUPE): documento de entrada manual numa compra com produtos.
+    expect(mensagemErroGestao(e('OPERACAO_DOCUMENTO_DUPLICADO', { reason: 'documento_de_entrada_manual', details: { entrada_numero: '12' } }), 'x')).toMatch(/entrada manual de estoque nº 12.*sem produtos/);
+    expect(mensagemErroGestao(e('OPERACAO_DOCUMENTO_DUPLICADO', { reason: 'documento_duplicado' }), 'x')).toMatch(/mesmo|parceiro/);
     expect(mensagemErroGestao(e('IDEMPOTENCY_EFEITO_EXCLUIDO'), 'x')).toMatch(/já foi descartado.*Salve de novo/);
     expect(mensagemErroGestao(e('CONCURRENCY_CONFLICT'), 'x', { comandoIdempotente: true })).toMatch(/não será duplicado/);
     // Fora de comando idempotente (cadastros da P1/P2) não promete reenvio sem duplicar.
