@@ -153,7 +153,8 @@ describe('D-PROD-257 — criar com cada motivo (o motor grava camada, movimento 
     const base = corpoDe(x);
     assert.equal((await chamar('POST', '/estoque/entradas', x.token, { ...base, motivo: 'DOACAO' })).statusCode, 400);
     assert.equal((await chamar('POST', '/estoque/entradas', x.token, { ...base, justificativa: 'qualquer coisa aqui de 20+' })).statusCode, 400);
-    const { motivo_id: _m, ...semMotivo } = base;
+    const semMotivo = { ...base };
+    delete semMotivo.motivo_id;
     assert.equal((await chamar('POST', '/estoque/entradas', x.token, semMotivo)).statusCode, 400);
   });
 
