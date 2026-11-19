@@ -36,11 +36,15 @@ beforeAll(() => {
 });
 afterEach(() => cleanup());
 
+globalThis.__LOG = [];
+document.addEventListener("focusin", (e) => globalThis.__LOG.push("focusin " + (e.target.getAttribute?.("aria-label") || e.target.className || e.target.tagName) + " " + performance.now().toFixed(0)));
 const escolher = async (rotulo, opcao) => {
+  globalThis.__LOG.push("escolher " + rotulo + " " + performance.now().toFixed(0));
   const campo = screen.getByText(rotulo, { selector: "label" }).parentElement;
   await act(async () => {
     fireEvent.click(within(/** @type {HTMLElement} */ (campo)).getByRole("combobox"));
   });
+  if (!document.querySelector('[role="listbox"]')) console.log("DEBUGX", globalThis.__LOG.join("\n"), rotulo, document.activeElement?.outerHTML?.slice(0,200), within(campo).getByRole("combobox").getAttribute("aria-expanded"));
   await act(async () => {
     fireEvent.click(within(/** @type {HTMLElement} */ (document.querySelector('[role="listbox"]'))).getByRole("option", { name: opcao }));
   });
