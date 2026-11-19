@@ -1,0 +1,59 @@
+/* Espaço próprio para campos e orientações, inclusive nos painéis do desenho. */
+.mk-mapa-form {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+}
+
+.mk-mapa-form .mk-mapa-form__grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px 16px;
+  align-items: start;
+}
+
+.mk-mapa-form > fieldset > :not([hidden]) ~ :not([hidden]) {
+  margin-block-start: 12px;
+}
+
+.mk-mapa-form .mk-mapa-form__grid > *,
+.mk-mapa-form .mg-field,
+.mk-mapa-form .mg-field__control {
+  min-width: 0;
+}
+
+/* O espaçamento entre irmãos do campo de lançamento não deve deslocar colunas. */
+.mk-mapa-form .mk-mapa-form__grid > .mk-lanc {
+  margin-block: 0 !important;
+}
+
+.mk-mapa-form .mk-mapa-form__grid > .lg\:col-span-2 {
+  grid-column: 1 / -1;
+}
+
+.mk-mapa-form .mk-mapa-form__secao {
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.mk-mapa-form p {
+  overflow-wrap: anywhere;
+}
+
+.mk-mapa-form .mg-field__control :is(input, textarea, [role="combobox"]) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@container (min-width: 640px) {
+  .mk-mapa-form .mk-mapa-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mk-mapa-form .mk-mapa-form__grid--nome {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .mk-mapa-form .mk-mapa-form__grid--nome > .lg\:col-span-2 {
+    grid-column: auto;
+  }
+}

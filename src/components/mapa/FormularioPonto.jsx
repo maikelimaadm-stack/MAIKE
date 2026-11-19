@@ -1,3 +1,4 @@
+import "@/styles/mapa-cadastro-formularios.css";
 /* global google */
 import React, { useEffect, useId, useMemo, useState } from "react";
 import {
@@ -169,6 +170,7 @@ export default function FormularioPonto({
   const [selecionouSetorManualmente, setSelecionouSetorManualmente] = useState(false);
   const [selecionouAreasManualmente, setSelecionouAreasManualmente] = useState(false);
   const idAjudaLimiteCocho = useId();
+  const idAjudaReposicao = useId();
   const idAjudaLimiteDeposito = useId();
   const idAjudaEstoqueMinimo = useId();
   const idAvisoEstoqueMinimo = useId();
@@ -747,9 +749,9 @@ export default function FormularioPonto({
         </div>
         )}
         <div className={registro ? "" : "p-1"}>
-          <form id={formId} onSubmit={handleSubmit} className="space-y-0.5" data-testid="b1-form-ponto" data-densidade={registro ? DENSIDADE_BASE1 : undefined}>
+          <form id={formId} onSubmit={handleSubmit} className="mk-mapa-form mk-mapa-form--ponto space-y-3" data-testid="b1-form-ponto" data-densidade={registro ? DENSIDADE_BASE1 : undefined}>
           <fieldset disabled={readOnly} className="contents">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+        <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
           <FL label="Nome do ponto" required><Input value={formData.nome} onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" required /></FL>
           <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
         </div>
@@ -762,11 +764,11 @@ export default function FormularioPonto({
         <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
 
         {ehCocho &&
-            <div className="space-y-1 border-t pt-1">
+            <div className="mk-mapa-form__secao space-y-3 border-t pt-3">
             <div className="text-xs font-semibold text-slate-700">Dados do Cocho</div>
             {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
               <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => {
                   setSelecionouSetorManualmente(true);
@@ -825,7 +827,7 @@ export default function FormularioPonto({
               <FL label="Produto padrão">
                 <ProdutoSuplementacaoSelect value={formData.produto_padrao} onChange={(value) => setFormData((prev) => ({ ...prev, produto_padrao: value }))} />
               </FL>
-              <div className="space-y-0.5">
+              <div className="space-y-1.5">
                 <FL label="Limite operacional do cocho (kg)" required>
                   <InputComAjuda type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} aria-describedby={idAjudaLimiteCocho} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </FL>
@@ -843,10 +845,12 @@ export default function FormularioPonto({
                   </SelectContent>
                 </Select>
               </FL>
-              <FL label="Dias de alerta para reposição">
-                <Input type="number" min="0" step="1" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData((prev) => ({ ...prev, dias_alerta_reposicao: e.target.value }))} placeholder="3" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-                <p className="mt-1 text-[10px] leading-snug text-slate-500">Avisa quando o saldo estimado durar este número de dias ou menos. Não muda o percentual de saldo.</p>
-              </FL>
+              <div className="space-y-1.5">
+                <FL label="Dias de alerta para reposição">
+                  <InputComAjuda type="number" min="0" step="1" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData((prev) => ({ ...prev, dias_alerta_reposicao: e.target.value }))} placeholder="3" aria-describedby={idAjudaReposicao} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                </FL>
+                <p id={idAjudaReposicao} className="px-1 text-[11px] leading-snug text-slate-500">Avisa quando o saldo estimado durar este número de dias ou menos. Não muda o percentual de saldo.</p>
+              </div>
               <FL label="Alerta sem lançamento (dias)">
                 <Input type="number" value={formData.alerta_sem_lancamento_dias} onChange={(e) => setFormData((prev) => ({ ...prev, alerta_sem_lancamento_dias: e.target.value }))} placeholder="10" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
@@ -857,10 +861,10 @@ export default function FormularioPonto({
             }
 
         {ehBebedouro &&
-            <div className="space-y-1 border-t pt-1">
+            <div className="mk-mapa-form__secao space-y-3 border-t pt-3">
             <div className="text-xs font-semibold text-slate-700">Dados do Bebedouro</div>
             {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
               <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => {
                   setSelecionouSetorManualmente(true);
@@ -926,10 +930,10 @@ export default function FormularioPonto({
             }
 
         {ehDeposito &&
-            <div className="space-y-1 border-t pt-1">
+            <div className="mk-mapa-form__secao space-y-3 border-t pt-3">
             <div className="text-xs font-semibold text-slate-700">Depósito de Suplementação</div>
             <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+            <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
               <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value }))}>
                   <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
@@ -939,13 +943,13 @@ export default function FormularioPonto({
                   </SelectContent>
                 </Select>
               </FL>
-              <div className="space-y-0.5">
+              <div className="space-y-1.5">
                 <FL label="Limite operacional do depósito (kg)" required>
                   <InputComAjuda type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} aria-describedby={idAjudaLimiteDeposito} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </FL>
                 <p id={idAjudaLimiteDeposito} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_LIMITE_OPERACIONAL}</p>
               </div>
-              <div className="space-y-0.5">
+              <div className="space-y-1.5">
                 <FL label="Estoque mínimo (kg)" required>
                   <InputComAjuda type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} aria-describedby={minimoAcimaDoLimite ? `${idAjudaEstoqueMinimo} ${idAvisoEstoqueMinimo}` : idAjudaEstoqueMinimo} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </FL>
