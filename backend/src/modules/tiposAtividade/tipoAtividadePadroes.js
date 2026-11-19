@@ -32,7 +32,7 @@ export const CATEGORIAS_TIPO_ATIVIDADE = Object.freeze([
 /**
  * D-PROD-257 — os 7 TIPOS FIXOS dos serviços de pasto. O "tipo fixo" é a `categoria` do tipo de atividade (que agora é
  * obrigatória). Sem mudar a tabela nem o CHECK `TipoAtividade_categoria_check` (D-PROD-72 item 3): o tipo fixo usa 7 dos 9
- * valores já aceitos pelo banco. `TRATO_CULTURAL` passa a significar Fertilização; `PASTAGEM`, Roçada e tratos;
+ * valores já aceitos pelo banco. `TRATO_CULTURAL` passa a significar Fertilização (`FERTILIZACAO` não existe no CHECK); `PASTAGEM`, Roçada e tratos;
  * `BENFEITORIA`, Manutenção; `PLANTIO`, Formação de pastagem (plantio). `COLHEITA` e `MANEJO_ANIMAL` ficam FORA (não são
  * mais aceitos em escrita; o que já está gravado continua legível e o script de dados os leva a Outros).
  */
@@ -47,6 +47,7 @@ export const TIPOS_FIXOS_ATIVIDADE = Object.freeze([
 ]);
 
 /** Só os valores dos 7 tipos fixos (a lista que a escrita aceita). */
+/** @type {ReadonlyArray<string>} */
 export const CATEGORIAS_TIPO_FIXO = Object.freeze(TIPOS_FIXOS_ATIVIDADE.map((t) => t.categoria));
 
 /**
@@ -78,20 +79,21 @@ const semAcentoMinusculo = (nome) =>
 /**
  * D-PROD-257 — de que tipo fixo é uma operação que já existe: a categoria gravada (9 valores, ou nenhuma) → um dos 7.
  * Puro; é a regra do script de dados e do que a tela mostra para registro antigo.
- *  - os 7 valores aceitos ficam como estão, com UMA exceção abaixo;
- *  - TRATO_CULTURAL: era "trato" em geral (aplicação, roçada…) e agora é Fertilização. Só continua Fertilização se o NOME
- *    for de adubação/fertilização/calcário/esterco; senão vira Aplicação (decisão de produto, a lista vai para conferência);
- *  - COLHEITA e MANEJO_ANIMAL (fora do escopo de pasto) e sem categoria → Outros.
+ *  - Fertilização é nova (antes era "parte de Aplicação"): operação de APLICACAO ou TRATO_CULTURAL cujo NOME é de
+ *    adubação/fertilização (adub, fertiliz, esterco, ureia) vai para Fertilização;
+ *  - TRATO_CULTURAL (antigo "trato" em geral) que não é adubação vira Aplicação;
+ *  - os demais valores aceitos (PREPARO_SOLO, PLANTIO, APLICACAO, PASTAGEM, BENFEITORIA, OUTROS) ficam como estão;
+ *  - COLHEITA e MANEJO_ANIMAL (fora do escopo de pasto), sem categoria e valor desconhecido → Outros.
  * @param {string|null|undefined} categoria @param {string|null|undefined} nome
  * @returns {{ categoria: string, motivo: string }}
  */
 export const tipoFixoDaOperacaoExistente = (categoria, nome) => {
   const atual = typeof categoria === 'string' ? categoria : null;
-  if (atual === 'TRATO_CULTURAL') {
-    return /aduba|fertiliz|calcari|esterco|gesso/.test(semAcentoMinusculo(nome))
-      ? { categoria: 'TRATO_CULTURAL', motivo: 'trato cultural de adubação: Fertilização' }
-      : { categoria: 'APLICACAO', motivo: 'trato cultural sem nome de adubação: Aplicação' };
+  const ehAdubacao = /aduba|fertiliz|esterco|ureia/.test(semAcentoMinusculo(nome));
+  if ((atual === 'APLICACAO' || atual === 'TRATO_CULTURAL') && ehAdubacao) {
+    return { categoria: 'TRATO_CULTURAL', motivo: `${atual} com nome de adubação: Fertilização` };
   }
+  if (atual === 'TRATO_CULTURAL') return { categoria: 'APLICACAO', motivo: 'trato cultural sem nome de adubação: Aplicação' };
   if (atual && CATEGORIAS_TIPO_FIXO.includes(atual)) return { categoria: atual, motivo: 'já é um tipo fixo' };
   if (atual === 'COLHEITA' || atual === 'MANEJO_ANIMAL') return { categoria: 'OUTROS', motivo: `${atual} fora do escopo de pasto: Outros` };
   return { categoria: 'OUTROS', motivo: 'sem categoria: Outros' };

@@ -50,7 +50,7 @@ export default function TiposAtividade() {
     getExportFieldValue: (/** @type {any} */ item, /** @type {string} */ colId) =>
       getTipoAtividadeFieldValue(item, colId),
     getRecordTitle: (/** @type {any} */ item) =>
-      item?.id ? item.nome_tipo || "Tipo de atividade" : "Novo tipo de atividade",
+      item?.id ? item.nome_tipo || "Operação" : "Nova operação",
     getRecordCode: () => undefined,
     getSearchHaystack: (/** @type {any} */ t) =>
       [t.nome_tipo, rotuloDaCategoriaTipoAtividade(t.categoria)].filter(Boolean).join(" "),

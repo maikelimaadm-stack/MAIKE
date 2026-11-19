@@ -120,9 +120,12 @@ const NOTA = "col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,
  * O formulário da janela (D-PROD-252, emenda 3): quem o envolve numa janela diz que ele é em seções Base1 (valor não
  * nulo) e pode pôr um campo na frente, no mesmo grupo "Lançamento" (o Dia da janela por tipo). O "Repetir" não
  * provê o contexto: lá os campos continuam sem seção.
- * @type {React.Context<{ topo: React.ReactNode } | null>}
+ * D-PROD-257: `opcional` marca o formulário "Registrar serviço", em que as quatro seções são sempre oferecidas e todas são
+ * opcionais — o campo-chave da seção (Máquina, Produto, Funcionário, Serviço) deixa de levar o asterisco e os campos que
+ * dependem dele só o levam depois que ele é escolhido.
+ * @type {React.Context<{ topo: React.ReactNode, opcional?: boolean } | null>}
  */
-export const SecoesDoFormularioContext = createContext(/** @type {{ topo: React.ReactNode } | null} */ (null));
+export const SecoesDoFormularioContext = createContext(/** @type {{ topo: React.ReactNode, opcional?: boolean } | null} */ (null));
 
 /** O título do grupo (só na janela) e o campo da frente. @param {{ titulo: string, comTopo?: boolean }} props */
 function Grupo({ titulo, comTopo = false }) {
@@ -390,7 +393,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         rotuloDaOpcao={(o) => String(o?.nome ?? "")}
         detalheDaOpcao={detalheDoProduto}
         readOnly={bloqueado}
-        obrigatorio
+        obrigatorio={!secoes?.opcional}
         erro={erros.produto}
         span={comTopo ? 6 : 12}
         maiusculas={false}
@@ -404,7 +407,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         locale={LOCALE_ATIVIDADE}
         limites={LIMITES_LINHA}
         readOnly={bloqueado}
-        required
+        required={!secoes?.opcional || Boolean(form.produto?.id)}
         span={6}
         error={erros.quantidade}
         testId={`${prefixo}-quantidade`}
@@ -632,7 +635,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
         }
         rotuloDaOpcao={rotuloDoBem}
         readOnly={bloqueado}
-        obrigatorio
+        obrigatorio={!secoes?.opcional}
         erro={erros.bem}
         span={comTopo || permiteImplemento ? 6 : 12}
         maiusculas={false}
@@ -716,7 +719,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         rotuloDaOpcao={(o) => String(o?.nome ?? "")}
         detalheDaOpcao={detalheDaMaoObra}
         readOnly={bloqueado}
-        obrigatorio
+        obrigatorio={!secoes?.opcional}
         erro={erros.parceiro}
         span={comTopo ? 6 : 12}
         maiusculas={false}
@@ -738,7 +741,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
         locale={LOCALE_ATIVIDADE}
         limites={LIMITES_LINHA}
         readOnly={bloqueado}
-        required
+        required={!secoes?.opcional || Boolean(form.parceiro?.id)}
         span={6}
         error={erros.quantidade}
         testId={`${prefixo}-quantidade`}
@@ -751,7 +754,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
           locale={LOCALE_ATIVIDADE}
           limites={LIMITES_LINHA}
           readOnly={bloqueado}
-          required
+          required={!secoes?.opcional || Boolean(form.parceiro?.id)}
           span={6}
           error={erros.custo_unitario}
           testId={`${prefixo}-custo-unitario`}
@@ -826,7 +829,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
         rotuloDaOpcao={(o) => String(o?.nome ?? "")}
         detalheDaOpcao={detalheDoServico}
         readOnly={bloqueado}
-        obrigatorio
+        obrigatorio={!secoes?.opcional}
         erro={erros.servico}
         span={comTopo ? 6 : 12}
         maiusculas={false}
@@ -853,7 +856,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
         locale={LOCALE_ATIVIDADE}
         limites={LIMITES_LINHA}
         readOnly={bloqueado}
-        required
+        required={!secoes?.opcional || Boolean(form.servico?.id)}
         span={6}
         error={erros.quantidade}
         testId={`${prefixo}-quantidade`}
@@ -865,7 +868,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
         locale={LOCALE_ATIVIDADE}
         limites={LIMITES_LINHA}
         readOnly={bloqueado}
-        required
+        required={!secoes?.opcional || Boolean(form.servico?.id)}
         span={6}
         error={erros.valor_unitario}
         testId={`${prefixo}-valor-unitario`}

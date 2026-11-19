@@ -32,10 +32,13 @@ describe('D-PROD-257 — os 7 tipos fixos (puro)', () => {
     for (const f of ['exige_safra', 'exige_maquina', 'exige_producao']) assert.equal(FLAGS_PADRAO_OPERACAO[f], false, f);
   });
 
-  test('mapeamento: os 6 valores aceitos ficam; TRATO_CULTURAL por nome; fora de escopo e vazio → OUTROS', () => {
+  test('mapeamento: valores aceitos ficam; adubação → Fertilização por nome; TRATO_CULTURAL → Aplicação; fora de escopo e vazio → OUTROS', () => {
     for (const c of CATEGORIAS_TIPO_FIXO.filter((c) => c !== 'TRATO_CULTURAL')) assert.equal(tipoFixoDaOperacaoExistente(c, 'qualquer').categoria, c);
+    assert.equal(tipoFixoDaOperacaoExistente('TRATO_CULTURAL', 'qualquer').categoria, 'APLICACAO');
     assert.equal(tipoFixoDaOperacaoExistente('TRATO_CULTURAL', 'Adubação de cobertura').categoria, 'TRATO_CULTURAL');
-    assert.equal(tipoFixoDaOperacaoExistente('TRATO_CULTURAL', 'Calcário').categoria, 'TRATO_CULTURAL');
+    assert.equal(tipoFixoDaOperacaoExistente('APLICACAO', 'Adubação de cobertura').categoria, 'TRATO_CULTURAL', 'adubação que estava em Aplicação vira Fertilização');
+    assert.equal(tipoFixoDaOperacaoExistente('PASTAGEM', 'Adubação').categoria, 'PASTAGEM', 'só Aplicação e Trato cultural migram por nome');
+    assert.equal(tipoFixoDaOperacaoExistente('TRATO_CULTURAL', 'Calcário').categoria, 'APLICACAO');
     assert.equal(tipoFixoDaOperacaoExistente('TRATO_CULTURAL', 'Combate à cigarrinha').categoria, 'APLICACAO');
     assert.equal(tipoFixoDaOperacaoExistente('COLHEITA', 'Silagem').categoria, 'OUTROS');
     assert.equal(tipoFixoDaOperacaoExistente('MANEJO_ANIMAL', 'Vacinação').categoria, 'OUTROS');

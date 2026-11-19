@@ -298,7 +298,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       noValidate
       data-testid="registro-de-campo-form"
     >
-      <SecoesDoFormularioContext.Provider value={{ topo: null }}>
+      <SecoesDoFormularioContext.Provider value={{ topo: null, opcional: true }}>
         <SecaoForm titulo="Registro" />
         {areaPreso ? (
           <CampoTexto label="Área" value={rotuloArea(areaPreso)} onChange={() => {}} readOnly span={12} />

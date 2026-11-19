@@ -6,9 +6,9 @@
  * migrations) e a lista abaixo precisa ser conferida pelo proprietário antes. Nenhuma coluna é criada, alterada ou apagada.
  *
  * O que faz, para cada TipoAtividade (de todos os clientes, ou de um só com `--cliente`):
- *  1. `categoria` → um dos 7 tipos fixos (`tipoFixoDaOperacaoExistente`): os 7 valores já aceitos ficam; TRATO_CULTURAL
- *     só continua Fertilização se o nome for de adubação, senão vira Aplicação; COLHEITA, MANEJO_ANIMAL e sem categoria
- *     viram Outros;
+ *  1. `categoria` → um dos 7 tipos fixos (`tipoFixoDaOperacaoExistente`): operação de Aplicação ou Trato cultural com nome
+ *     de adubação vai para Fertilização; Trato cultural sem nome de adubação vira Aplicação; os demais valores aceitos ficam;
+ *     COLHEITA, MANEJO_ANIMAL e sem categoria viram Outros;
  *  2. as 8 chaves → o padrão da operação (`FLAGS_PADRAO_OPERACAO`): exige_area e as quatro permissões LIGADAS; as três
  *     chaves que EXIGEM dado (safra, máquina, produção) DESLIGADAS — ligadas, obrigariam o campo em todo registro.
  *

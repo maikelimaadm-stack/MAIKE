@@ -632,7 +632,7 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
       assert.equal((await detalheOk(s.token, t.id)).categoria, c);
     }
 
-    const { categoria: _fora, ...semCategoria } = base(s, 'Sem categoria');
+    const semCategoria = Object.fromEntries(Object.entries(base(s, 'Sem categoria')).filter(([k]) => k !== 'categoria'));
     await recusaValidacao(s.clienteId, () => criarTipoCru(s.token, semCategoria), 'POST sem categoria');
     for (const v of [null, ...CATEGORIAS_FORA, 'INVALIDA', 'aplicacao', 'APLICAÇÃO', 'PREPARO SOLO', ' PLANTIO', '', 1, true]) {
       await recusaValidacao(s.clienteId, () => criarTipo(s.token, base(s, 'Novo', { categoria: v })), `POST categoria=${JSON.stringify(v)}`);

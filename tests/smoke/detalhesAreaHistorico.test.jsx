@@ -335,6 +335,19 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
     expect(janela.textContent).toContain("Operador");
   });
 
+  it("as quatro seções são opcionais: nenhum campo-chave (Máquina, Produto, Funcionário, Serviço) leva asterisco de obrigatório", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    const janela = await abrirManejos();
+    const rotulos = [...janela.querySelectorAll(".mg-field__label")].map((el) => el.textContent.trim());
+    for (const chave of ["Máquina", "Produto", "Funcionário ou terceiro", "Serviço"]) {
+      const achado = rotulos.filter((r) => r.replace(/\s*\*\s*$/, "") === chave);
+      expect(achado.length, chave).toBeGreaterThan(0);
+      expect(achado.some((r) => r.endsWith("*")), `${chave} não deve ser obrigatório`).toBe(false);
+    }
+    // Tipo e Operação, sim, são obrigatórios.
+    expect(rotulos.some((r) => /^Tipo\s*\*$/.test(r))).toBe(true);
+  });
+
   it("a operação é filtrada pelo tipo escolhido: ativas, sem Abastecimento nem inativas; tipo sem operação avisa", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
     const janela = await abrirManejos();
