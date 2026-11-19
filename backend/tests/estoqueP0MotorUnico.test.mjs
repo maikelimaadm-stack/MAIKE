@@ -1,7 +1,7 @@
 /**
  * D-PROD-161 — Estoque P0 (fatia F1): MOTOR FÍSICO ÚNICO. A suplementação e a
  * transferência entre locais deixam o FIFO próprio em Number (`fifoEstoque.js`)
- * e passam pelas primitivas do motor (`aplicarSaidaFifo`,
+ * e passam pelas primitivas do motor (`aplicarSaida`,
  * `aplicarTransferenciaEstoque`): Decimal ponta a ponta, CAS no lote, decremento
  * conferido do cache, local validado e travado, número no fim.
  * PostgreSQL real, HTTP autenticado, prova pelas linhas gravadas.
@@ -510,7 +510,7 @@ describe('M — guardas, tenancy, recibo antigo, empate, rollback e data', () =>
     const entrada = await tentar((tx) => motor.aplicarEntradaEstoque(tx, ctx, {
       empresaId: e.id, produto: produtoOutraEmpresa, local, quantidadeKg: '1.0000', custoUnitarioKg: '1.0000', valorTotal: '1.0000', dia: '2027-06-10', origem: { operacaoId: 'x' }, numeroMovimento: motor.numeroMovimentoProvisorio(),
     }));
-    const saida = await tentar((tx) => motor.aplicarSaidaFifo(tx, ctx, {
+    const saida = await tentar((tx) => motor.aplicarSaida(tx, ctx, {
       empresaId: e.id, produto: produtoOutraEmpresa, local, quantidadeKg: '1.0000', dia: '2027-06-10', origem: { operacaoId: 'x' }, numeroMovimento: motor.numeroMovimentoProvisorio(),
     }));
     const transf = await tentar((tx) => motor.aplicarTransferenciaEstoque(tx, ctx, {

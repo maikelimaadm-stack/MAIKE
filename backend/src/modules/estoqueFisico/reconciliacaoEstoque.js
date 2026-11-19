@@ -647,7 +647,7 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra, comItens) => {
              bool_or(fx.destino IS NULL OR d.id IS NULL OR mv.movimento_filho_id IS NULL
                OR d.movimentacao_entrada_id IS DISTINCT FROM mv.movimento_filho_id OR d.produto_id <> mv.produto_id OR d.empresa_id <> mv.empresa_id
                OR d.local_estoque_id IS DISTINCT FROM mv.local_estoque_destino
-               OR d.quantidade_entrada IS DISTINCT FROM fx.quantidade OR d.custo_unitario IS DISTINCT FROM fx.custo) AS diverge,
+               OR d.quantidade_entrada IS DISTINCT FROM fx.quantidade) AS diverge,
              COUNT(*) AS n, COUNT(DISTINCT fx.destino) AS n_destinos
       FROM mv
       CROSS JOIN LATERAL (

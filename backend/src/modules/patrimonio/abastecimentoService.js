@@ -68,7 +68,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { STATUS_APONTAMENTO, exigirStatusDaAtividade, travarAtividade } from '../atividades/atividadeComum.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
 import {
-  ORIGEM_ABASTECIMENTO, aplicarSaidaFifo, estornarSaida, lotesFifo, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
+  ORIGEM_ABASTECIMENTO, aplicarSaida, estornarSaida, lotesFifo, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { exigirEmpresaDoTenant, invalido, iso } from '../gestao/gestaoComum.js';
 import { agoraDoServidor, diaNoFuso, hojeDaEmpresa, normalizarFusoIana } from '../rebanhoLedger/rebanhoLedgerTempo.js';
@@ -506,7 +506,7 @@ export const confirmar = async (contexto, corpo) => {
               await registrarEvento(contexto, { acao: 'abastecimento_bem.confirmar', entidade: ENTIDADE, entidadeId: id, dadosNovos: paraAuditoria(linha, []) }, tx); // R13
               return { httpStatus: 201, body: await carregarDetalhe(tx, cli, empresaId, id) };
             }
-            const saida = await aplicarSaidaFifo(tx, contexto, {
+            const saida = await aplicarSaida(tx, contexto, {
               empresaId,
               produto: estado.produto,
               local: { id: estado.local.id, nome: estado.local.nome },

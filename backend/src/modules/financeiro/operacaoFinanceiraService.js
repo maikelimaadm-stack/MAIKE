@@ -54,7 +54,7 @@ import { exigirEmpresaDoTenant, invalido, textoDeBusca, textoDoCorpo, travarEsco
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
 import {
-  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaidaFifo, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
+  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaida, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
@@ -594,7 +594,7 @@ const INCLUDE_DETALHE = Object.freeze({
   canceladoPor: USUARIO,
   itens: {
     orderBy: { ordem: 'asc' },
-    include: { consumos: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, loteEntrada: { select: { custo_unitario: true } }, rateios: { orderBy: { ordem: 'asc' } } },
+    include: { consumos: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, rateios: { orderBy: { ordem: 'asc' } } },
   },
   rateios: { orderBy: { ordem: 'asc' } },
   titulos: {
@@ -668,15 +668,14 @@ const consolidadoDoDetalhe = (op, c) => {
 };
 
 /**
- * Custo por kg e resíduo da linha no DETALHE (só compra de mercadoria): com
- * lote gravado (confirmado/cancelado) o custo é o do LOTE; no rascunho, o do
- * líquido gravado. Resíduo = líquido − kg × custo (8 casas, exato).
+ * Custo por kg e resíduo da linha no DETALHE (só compra de mercadoria): o custo é o de aquisição (líquido gravado ÷ kg; D-PROD-256: o `custo_unitario` do lote é o valor vigente no poço, não o de aquisição). Resíduo = líquido − kg × custo (8 casas, exato).
  */
 const custoDoItem = (op, i) => {
   if (op.direcao !== 'PAGAR' || i.tipo_item !== 'MERCADORIA' || i.quantidade_estoque == null) return { custo_kg: null, residuo_custo: null };
   const kg = dec(i.quantidade_estoque);
   const liquido = dec(i.valor_liquido);
-  const custo = i.loteEntrada ? dec(i.loteEntrada.custo_unitario) : arredondar(liquido.dividedBy(kg), CASAS_CUSTO);
+  // D-PROD-256: o custo da camada passa a ser o valor vigente no poço (reavaliado a cada saída); o de aquisição é o líquido ÷ kg gravado no item.
+  const custo = arredondar(liquido.dividedBy(kg), CASAS_CUSTO);
   return { custo_kg: texto(custo, CASAS_CUSTO), residuo_custo: texto(liquido.minus(kg.times(custo)), CASAS_RESIDUO) };
 };
 
@@ -1379,7 +1378,7 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
       movimentos.push(ent.movimento.id);
       lotes.push(ent.lote.id);
     } else {
-      const sai = await aplicarSaidaFifo(tx, contexto, { ...comum, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'venda_financeiro' } });
+      const sai = await aplicarSaida(tx, contexto, { ...comum, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'venda_financeiro' } });
       dadosItem.movimentacao_estoque_id = sai.movimento.id;
       movimentos.push(sai.movimento.id);
       await tx.operacaoFinanceiraConsumoLote.createMany({
