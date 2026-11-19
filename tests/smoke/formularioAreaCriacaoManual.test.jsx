@@ -36,17 +36,21 @@ beforeAll(() => {
 });
 afterEach(() => cleanup());
 
-globalThis.__LOG = [];
-document.addEventListener("focusin", (e) => globalThis.__LOG.push("focusin " + (e.target.getAttribute?.("aria-label") || e.target.className || e.target.tagName) + " " + performance.now().toFixed(0)));
 const escolher = async (rotulo, opcao) => {
-  globalThis.__LOG.push("escolher " + rotulo + " " + performance.now().toFixed(0));
-  const campo = screen.getByText(rotulo, { selector: "label" }).parentElement;
+  const campo = /** @type {HTMLElement} */ (screen.getByText(rotulo, { selector: "label" }).parentElement);
   await act(async () => {
-    fireEvent.click(within(/** @type {HTMLElement} */ (campo)).getByRole("combobox"));
+    fireEvent.click(within(campo).getByRole("combobox"));
   });
-  if (!document.querySelector('[role="listbox"]')) console.log("DEBUGX", globalThis.__LOG.join("\n"), rotulo, document.activeElement?.outerHTML?.slice(0,200), within(campo).getByRole("combobox").getAttribute("aria-expanded"));
+  const lista = await screen.findByRole("listbox");
   await act(async () => {
-    fireEvent.click(within(/** @type {HTMLElement} */ (document.querySelector('[role="listbox"]'))).getByRole("option", { name: opcao }));
+    fireEvent.click(within(lista).getByRole("option", { name: opcao }));
+  });
+  // Desde a #339 o B1Select abre com a pesquisa no próprio campo (foco assíncrono). Ao fechar, o painel devolve
+  // o foco ao campo num timer; só abrir a próxima lista depois disso — senão esse foco tardio "sai" da lista
+  // recém-aberta e a fecha (corrida só do teste: no navegador o clique do usuário vem muito depois).
+  await waitFor(() => {
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(campo.contains(document.activeElement)).toBe(true);
   });
 };
 
