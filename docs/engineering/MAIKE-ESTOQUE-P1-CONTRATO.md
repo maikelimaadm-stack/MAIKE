@@ -817,6 +817,7 @@ O critério de recusa e identificação definitivo é decidido na P1-07, com tes
 10. **AuditLog do documento só com entidade `EntradaEstoque`.** Nunca `EstoqueLoteNota` nem `Produto`: a reconciliação lê essas duas entidades como evidência e rebaixaria divergência real para "legado" (`reconciliacaoEstoque.js:360-397`). O AuditLog leva a allowlist (ids, número, status, versão, revisão, `motivo_informado: true`). O texto do motivo e o antes e depois vão para o evento estruturado (precedente: `operacaoFinanceiraService.js:565-580`).
 
 ### 6.3 Consultas
+- **P1-04 FEITA (2026-11-19, D-PROD-255; sem migration).** Entregues `GET /estoque/saldo` (E1: produto × depósito, das camadas; custo = média ponderada informativa), `GET /estoque/movimentos` (kardex, keyset `(data_movimentacao DESC, id DESC)`, cursor assinado com rótulo próprio `maike-estoque-consulta-cursor:v1`), `GET /estoque/movimentos/:id` e as opções dos filtros, todos pela guarda da tela `sup-estoque` (`visualizar`). Ajustes ao texto abaixo: limite padrão **100** e máximo **500** (o do motor Base1; o desenho previa 50/200) e os GETs de movimento entraram com **tela** (Saldo e Movimentos, na `Estoque` do menu Suporte do Mapa), em vez de "sem UI nova". As abas Entradas e Inventário seguem não existindo (P1-05a/b, P1-06 e o ajuste de inventário têm decisão própria). A permissão de entrada e ajuste é ação **extra** da mesma linha (`entrada`, `ajuste`), reservada e **não criada**.
 - **GETs novos** (P1-04):
   - paginados por keyset `(data_movimentacao DESC, id DESC)`;
   - `empresa_id` obrigatória;
@@ -872,7 +873,7 @@ A lição está no incidente da P1-01 do Patrimônio (CURRENT-STATE). Sem backfi
 | 2 | **Ratificação humana** | O proprietário decide primeiro a R-IMPL e depois aprova o texto da emenda e o incorpora pelo fluxo constitucional (§4 da constituição; A10 impede o agente) | não | 1 |
 | 3 | P1-02 endurecimento do motor | §6.2, M3, M4, M5, M6 | não | 2 (a P1-02 inteira; ver R-SPLIT) |
 | 4 | P1-03 índices | LC-2, R2-2, keyset | só índices | 1 |
-| 5 | P1-04 GETs paginados e protegidos | §6.3, sem UI nova | não | 4 |
+| 5 | P1-04 GETs paginados e protegidos | §6.3. **FEITO (2026-11-19, D-PROD-255):** `GET /estoque/movimentos` (+ detalhe e opções) e o Saldo (E1), com a tela `Estoque` (Saldo e Movimentos, só consulta), que o contrato originalmente deixava sem UI | não | 4 |
 | 6 | P1-05a `EntradaEstoque` backend: documento, confirmar, excluir | Documento + linhas versionadas + eventos (modelo abaixo); A1–A7; exclusão de rascunho e de confirmada (A8.3, A8.6); janela FIFO na confirmação (A8.4); elegibilidade (A8.7); C4; reconciliação **no mesmo slice** (§6.2, itens 9 e 10); dedupe nos dois sentidos | sim (3 tabelas + RLS pinada; **todo o DDL da entrada aqui**, inclusive as colunas de revisão) | 2, 3 |
 | 7 | P1-05b edição de entrada confirmada | Revisão versionada atômica (A8.2), classes M/F/I, alcance por documento, janela FIFO pela ordem `(chave, id)`, regras da implantação (A3), testes de concorrência e de falha no meio | não (usa o DDL da P1-05a) | 6 |
 | 8 | P1-06 tela Base1 de Entradas | Página, menu, escopo e permissões só aqui; Editar e Excluir com motivos; histórico de revisões; filtro Excluídas; **sem botão Cancelar** | não | 6 **e** 7. A tela nunca é liberada só com exclusão, nem com "Cancelar" como única correção |

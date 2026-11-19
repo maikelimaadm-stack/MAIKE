@@ -16,6 +16,7 @@ import Categorias from './pages/Categorias';
 import Marcas from './pages/Marcas';
 import UnidadesMedida from './pages/UnidadesMedida';
 import LocaisEstoque from './pages/LocaisEstoque';
+import Estoque from './pages/Estoque';
 import TiposTarefa from './pages/TiposTarefa';
 import TiposAtividade from './pages/TiposAtividade';
 import Estacoes from './pages/Estacoes';
@@ -50,6 +51,7 @@ export const PAGES = {
     "Marcas": Marcas,
     "UnidadesMedida": UnidadesMedida,
     "LocaisEstoque": LocaisEstoque,
+    "Estoque": Estoque,
     "TiposTarefa": TiposTarefa,
     "TiposAtividade": TiposAtividade,
     "Estacoes": Estacoes,

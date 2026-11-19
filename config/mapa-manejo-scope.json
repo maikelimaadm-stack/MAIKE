@@ -32,7 +32,8 @@
     "NaturezasFinanceiras",
     "LancamentosFinanceiros",
     "BensPatrimoniais",
-    "Abastecimentos"
+    "Abastecimentos",
+    "Estoque"
   ],
   "allowedManualRoutes": [],
   "allowedBase44Entities": [

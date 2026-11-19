@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-E1-E2: tela Estoque com Saldo e Movimentos, só consulta (D-PROD-255)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-255**, pedido do proprietário: um item "Estoque" com abas; implementadas só **Saldo** e **Movimentos** (Entradas e Inventário não aparecem) |
+| Branch / PR | `cursor/estoque-saldo-movimentos`, a partir da `main` `9d791735` · sem push nem PR ainda |
+| Escopo | Página `Estoque` (Suporte do Mapa → Estoque, `/estoque`), na cadeia Base1; Saldo produto × depósito (das camadas), Movimentos (kardex) com filtros, janela de detalhe somente leitura; clicar no Saldo leva aos Movimentos do produto e depósito |
+| Backend | `GET /estoque/saldo`, `/estoque/movimentos` (P1-04, keyset + cursor assinado), `/estoque/movimentos/:id`, `/estoque/opcoes/produtos` e `/locais`; guarda da tela nova `sup-estoque` (`visualizar`). **Nenhuma migration**, motor intocado, guardas existentes mantidas |
+| Fica para depois | Entradas (saldo inicial, doação, outra causa), Inventário (saldo inicial + contagem periódica com ajuste e motivo), saída manual com motivos fixos, **custo médio** (hoje FIFO por camada), permissão extra `entrada`/`ajuste` |
+| Relatório | [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)
 
 | Campo | Valor |
 |---|---|

@@ -327,6 +327,11 @@ D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabel
 | PATCH | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:123` | a — GUARDAS.cultura.editar (D-PROD-215) |
 | DELETE | `/culturas/:id` | `backend/src/modules/culturas/culturaRoutes.js:133` | a — GUARDAS.cultura.excluir (D-PROD-215) |
 | GET | `/estoque-fisico/reconciliacao` | `backend/src/modules/estoqueFisico/estoqueFisicoRoutes.js:39` | c — GUARDAS.estoqueFisico.reconciliar (só administrador real; somente leitura, `RepeatableRead` + `READ ONLY`, sem tela; querystring fechada; `cursor` assinado por HMAC e amarrado ao tenant e ao escopo, qualquer desvio → 400 `cursor_invalido` antes do banco; D-PROD-161) |
+| GET | `/estoque/saldo` | `backend/src/modules/estoqueConsulta/estoqueConsultaRoutes.js` | a — GUARDAS.estoque.ver (visualizar da tela `sup-estoque`; somente leitura; empresa obrigatória e validada no tenant; keyset (produto, depósito) com cursor assinado; querystring fechada; D-PROD-255) |
+| GET | `/estoque/movimentos` | `backend/src/modules/estoqueConsulta/estoqueConsultaRoutes.js` | a — GUARDAS.estoque.ver (visualizar da tela `sup-estoque`; somente leitura; empresa obrigatória; keyset `(data_movimentacao DESC, id DESC)` com cursor assinado; filtros fechados; D-PROD-255) |
+| GET | `/estoque/movimentos/:id` | `backend/src/modules/estoqueConsulta/estoqueConsultaRoutes.js` | a — GUARDAS.estoque.ver (visualizar da tela `sup-estoque`; somente leitura; empresa obrigatória; movimento de outro tenant ou empresa → 404; D-PROD-255) |
+| GET | `/estoque/opcoes/produtos` | `backend/src/modules/estoqueConsulta/estoqueConsultaRoutes.js` | a — GUARDAS.estoque.ver (visualizar da tela `sup-estoque`; somente leitura; empresa obrigatória; por nome, keyset; D-PROD-255) |
+| GET | `/estoque/opcoes/locais` | `backend/src/modules/estoqueConsulta/estoqueConsultaRoutes.js` | a — GUARDAS.estoque.ver (visualizar da tela `sup-estoque`; somente leitura; depósitos do tenant; por nome, keyset; D-PROD-255) |
 | GET | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:40` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | GET | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:46` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | POST | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:52` | c — GUARDAS.estoqueLoteNota.criar (só administrador real). (D-PROD-161) Depois da allowlist de colunas → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA`: nada é gravado |
@@ -550,3 +555,5 @@ D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabel
 | GET | `/usuarios/page` | `backend/src/modules/usuarios/usuarioRoutes.js:80` | c — apenasAdminTenant() (D-PROD-137) |
 | POST | `/usuarios` | `backend/src/modules/usuarios/usuarioRoutes.js:89` | c — usuarioService: exigirAdminTenant |
 | PATCH | `/usuarios/:id` | `backend/src/modules/usuarios/usuarioRoutes.js:95` | c — usuarioService: própria conta (senha/nome) ou exigirAdminTenant |
+
+D-PROD-255: +5 rotas, todas classe (a), somente leitura: `GET /estoque/saldo`, `/estoque/movimentos`, `/estoque/movimentos/:id`, `/estoque/opcoes/produtos` e `/estoque/opcoes/locais`, pela tela nova `sup-estoque` (`visualizar`). Os GETs antigos de movimento e de camada (classe d) seguem como estão (o Mapa depende deles). A permissão de entrada e ajuste é ação extra futura da mesma tela, ainda não criada.

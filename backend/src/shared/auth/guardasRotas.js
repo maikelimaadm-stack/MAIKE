@@ -216,6 +216,8 @@ export const GUARDAS = Object.freeze({
   },
   // D-PROD-161 (Estoque P0): reconciliação somente leitura do estoque físico; sem tela no produto atual.
   estoqueFisico: { reconciliar: SO_ADMIN },
+  // D-PROD-255 (Estoque E1/E2, P1-04): consultas de saldo e de movimentos pela tela `sup-estoque` (visualizar).
+  estoque: { ver: porTela(T.ESTOQUE, 'visualizar') },
   // ── Bebedouros ──
   bebedouro: cadastro(T.BEBEDOUROS, { criar: MAPA_CAD_CRIAR, editar: MAPA_CAD_EDITAR }),
   // Espelhado no navegador por `src/lib/bebedouroPermissions.js` (os botões
