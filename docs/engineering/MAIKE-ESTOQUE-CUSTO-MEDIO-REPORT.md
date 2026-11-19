@@ -30,7 +30,8 @@ Daqui para a frente. Movimentos, fatias e consumos já gravados não mudam; o sa
 
 - Novo: `backend/tests/estoqueCustoMedio.test.mjs` (C1–C9, 18 testes).
 - Atualizados para o médio: `estoqueP0MotorUnico`, `gestaoP3Estoque` (+ renomeações em `estoqueP1M5Concorrencia`, `estoqueP1MCenario`).
-- `npm run verify:all`: ver o fim desta página.
+- Também atualizados: `atividadeLinhaProduto`, `atividadeAbastecimento`, `atividadeIntegracaoTela`, `gestaoP3CustoLiquido`, `gestaoP3Lancamentos`, `gestaoP3UnidadeLitros` (o hash dourado mudou só em `modo_saida_fifo` das 2 saídas, conferido campo a campo contra a `main`), `patrimonioP1Abastecimentos*` (+ vetor `abastecimentoVetores.json`), `estoqueP0ReconciliacaoR2` (RV1: o custo da camada de destino deixou de ser divergência) e um smoke de tela.
+- Local (2026-11-19): front-end `vitest` 298 arquivos / 3721 testes verdes; gates types, tenancy, indices, governance-paths, product-scope, import-integrity, no-secrets e base44 verdes; backend: os 72 arquivos de estoque/financeiro/abastecimento/patrimônio/atividade e 9 outros que tocam camadas, **rodados um a um com o banco recriado**, verdes, exceto `estoqueP0CorrecoesR2` C01 (falha local conhecida, passa na CI). Observação: rodar vários arquivos no mesmo banco local sujo faz falhas de limpeza em cascata (FK) sem relação com a mudança.
 
 ## Pontos abertos para a PR 2 (D-PROD-257)
 
