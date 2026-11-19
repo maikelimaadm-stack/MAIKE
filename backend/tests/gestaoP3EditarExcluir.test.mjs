@@ -474,6 +474,28 @@ describe('E5 — bloqueios: 409 com motivo e nada mudou', () => {
     }, { codigo: 'lote_alterado' });
   });
 
+  test('alterar só o custo_unitario por SQL, sem movimento posterior, continua lote_alterado', async () => {
+    await bloqueioDaCompra(async (_s, _e, _c, L) => {
+      await prisma().estoqueLoteNota.update({ where: { id: L }, data: { custo_unitario: '9.9999' } });
+    }, { codigo: 'lote_alterado' });
+  });
+
+  test('D-PROD-256: reavaliação do poço numa camada irmã (10 kg a 2 + 10 kg a 4, venda de 5) não bloqueia a exclusão da segunda compra', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const c1 = await A.criarConfirmar(s.token, compraSimples(s, e, e.sal, '10', '2.00'));
+    const c2 = await A.criarConfirmar(s.token, compraSimples(s, e, e.sal, '10', '4.00'));
+    await A.criarConfirmar(s.token, vendaSimples(s, e, e.sal, '5'));
+    const L2 = c2.itens[0].estoque_lote_nota_id;
+    const l2 = await lote(L2);
+    assert.equal(l2.quantidade_disponivel.toFixed(4), '10.0000', 'a segunda compra não foi consumida');
+    assert.notEqual(l2.updatedAt.getTime(), l2.createdAt.getTime(), 'o motor reavaliou a camada irmã');
+    const el = await eleg(s, c2.id, e.id);
+    assert.equal(el.excluir.permitido, true, JSON.stringify(el.excluir.motivos));
+    assert.equal((await eleg(s, c1.id, e.id)).excluir.permitido, false, 'a primeira compra foi consumida');
+    await excluir(s, c2, e.id);
+  });
+
   // D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o POST genérico não grava mais
   // movimento (409). O movimento LEGADO que cita o lote em `lotes_consumidos`
   // (escrito antes da P0) vira fixture de banco: a regra de `provaDaCompra`

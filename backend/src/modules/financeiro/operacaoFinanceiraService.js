@@ -1877,7 +1877,9 @@ const provaDaCompra = async (tx, cli, empresaId, itens) => {
   /**
    * O AuditLog do lote só mostra escritores benignos — renomeação do local
    * (PATCH) ou procedência levada pela retificação NO_LUGAR — e explica o
-   * `updatedAt` atual. Quantidade, custo, situação, local e datas nunca são benignos.
+   * `updatedAt` atual. Quantidade, situação, local e datas nunca são benignos.
+   * Custo no AuditLog também não: a reavaliação do poço (D-PROD-256) é reconhecida
+   * à parte, pelo médio vigente + movimento posterior no mesmo produto × local.
    */
   const soBenigno = (l) => {
     const lista = auditorias.filter((a) => a.entidade_id === l.id);
@@ -1895,6 +1897,47 @@ const provaDaCompra = async (tx, cli, empresaId, itens) => {
   const originais = new Map((originalIds.length
     ? await tx.movimentacaoEstoque.findMany({ where: { cliente_id: cli, id: { in: originalIds } }, select: { id: true, status: true, movimento_filho_id: true } })
     : []).map((m) => [m.id, m]));
+  // D-PROD-256: o motor reavalia o custo das camadas irmãs do poço (sem consumir
+  // a quantidade). Isso muda `custo_unitario` e `updatedAt`, mas não é edição.
+  // Só aceitamos quando o custo vigente é o médio do poço e houve movimento
+  // posterior no mesmo produto × local, além da própria entrada. SQL isolado ou
+  // custo diferente do médio continua `lote_alterado`.
+  const reavaliacaoDoMotor = new Set();
+  if (tocados.length) {
+    const chavePoco = (l) => `${l.produto_id}\t${l.local_estoque_id}`;
+    const pares = [...new Map(tocados.map((l) => [chavePoco(l), { produto_id: l.produto_id, local_estoque_id: l.local_estoque_id }])).values()];
+    const produtosPoco = unicos(pares.map((p) => p.produto_id));
+    const locaisPoco = unicos(pares.map((p) => p.local_estoque_id));
+    const camadasPoco = await tx.estoqueLoteNota.findMany({
+      where: { cliente_id: cli, empresa_id: empresaId, status: 'Disponivel', produto_id: { in: produtosPoco }, local_estoque_id: { in: locaisPoco } },
+      select: { produto_id: true, local_estoque_id: true, quantidade_disponivel: true, custo_unitario: true },
+    });
+    const medioDoPoco = new Map();
+    for (const p of pares) {
+      const cs = camadasPoco.filter((c) => c.produto_id === p.produto_id && c.local_estoque_id === p.local_estoque_id);
+      const q = somar(cs.map((c) => c.quantidade_disponivel));
+      const v = somar(cs.map((c) => dec(c.quantidade_disponivel).times(dec(c.custo_unitario))));
+      medioDoPoco.set(`${p.produto_id}\t${p.local_estoque_id}`, q.gt(0) ? arredondar(v.dividedBy(q), CASAS_CUSTO) : null);
+    }
+    const desdePoco = new Date(Math.min(...tocados.map((l) => l.createdAt.getTime())));
+    const movimentosPoco = await tx.movimentacaoEstoque.findMany({
+      where: {
+        cliente_id: cli, empresa_id: empresaId, produto_id: { in: produtosPoco }, createdAt: { gte: desdePoco },
+        OR: [{ local_estoque_origem: { in: locaisPoco } }, { local_estoque_destino: { in: locaisPoco } }],
+      },
+      select: { id: true, produto_id: true, local_estoque_origem: true, local_estoque_destino: true, createdAt: true },
+    });
+    const entradas = new Set(originalIds);
+    for (const l of tocados) {
+      const medio = medioDoPoco.get(chavePoco(l));
+      if (medio == null || !dec(l.custo_unitario).eq(medio)) continue;
+      const posterior = movimentosPoco.some((mv) => mv.produto_id === l.produto_id
+        && (mv.local_estoque_origem === l.local_estoque_id || mv.local_estoque_destino === l.local_estoque_id)
+        && mv.createdAt.getTime() >= l.createdAt.getTime()
+        && !entradas.has(mv.id));
+      if (posterior) reavaliacaoDoMotor.add(l.id);
+    }
+  }
   for (const item of itens) {
     const base = { item_ordem: item.ordem };
     const linha = `linha ${item.ordem}${item.produto_nome ? ` (${item.produto_nome})` : ''}`;
@@ -1938,7 +1981,7 @@ const provaDaCompra = async (tx, cli, empresaId, itens) => {
       motivos.push(motivoDe('lote_alterado', `o movimento de entrada da ${linha} foi alterado ou estornado`, { ...doLote, entidade: 'MovimentacaoEstoque', ...(original ? { id: original.id } : {}) }));
       continue;
     }
-    if (l.updatedAt.getTime() !== l.createdAt.getTime() && !soBenigno(l)) {
+    if (l.updatedAt.getTime() !== l.createdAt.getTime() && !soBenigno(l) && !reavaliacaoDoMotor.has(l.id)) {
       motivos.push(motivoDe('lote_alterado', `o lote da ${linha} foi alterado depois da entrada`, doLote));
     }
   }

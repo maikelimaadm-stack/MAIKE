@@ -16,7 +16,7 @@ O motor único (`backend/src/modules/estoqueFisico/estoqueFisicoMotor.js`) deixo
 | `modo_saida_fifo = 'FIFO'` | `'CUSTO_MEDIO'` nas saídas novas (as antigas seguem `'FIFO'`) |
 | `custo_medio_antes/depois` = preço de custo do cadastro / custo da saída | médio do poço antes / depois |
 
-Outros pontos tocados: a prévia do lançamento financeiro simula as saídas seguintes do mesmo poço com a reavaliação (`operacaoFinanceiraPlano.js`); o detalhe da compra mostra o custo de aquisição (líquido ÷ kg) em vez do `custo_unitario` da camada, que agora é valor vigente (`operacaoFinanceiraService.js`); a linhagem da transferência na reconciliação (Q4) não compara mais o custo da camada de destino; textos da tela (Custo médio na consulta do abastecimento, Saldo, explicação do rateio).
+Outros pontos tocados: a prévia do lançamento financeiro simula as saídas seguintes do mesmo poço com a reavaliação (`operacaoFinanceiraPlano.js`); o detalhe da compra mostra o custo de aquisição (líquido ÷ kg) em vez do `custo_unitario` da camada, que agora é valor vigente (`operacaoFinanceiraService.js`); a linhagem da transferência na reconciliação (Q4) não compara mais o custo da camada de destino; textos da tela (Custo médio na consulta do abastecimento, Saldo, explicação do rateio). A elegibilidade de exclusão/retificação da compra (`provaDaCompra`) reconhece a reavaliação do motor: camada irmã com quantidade intacta, custo igual ao médio do poço e movimento posterior no mesmo produto × local deixa de ser `lote_alterado`; alteração SQL isolada do custo continua bloqueada.
 
 ## Cutover
 
