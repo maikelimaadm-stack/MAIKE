@@ -33,11 +33,11 @@
     ],
     "quantidade": "80.0000",
     "fatias": [
-      { "ordem": 1, "lote": "A", "quantidade": "50.0000", "custo_unitario": "5.2000", "valor": "260.0000" },
-      { "ordem": 2, "lote": "B", "quantidade": "30.0000", "custo_unitario": "5.5000", "valor": "165.0000" }
+      { "ordem": 1, "lote": "A", "quantidade": "50.0000", "custo_unitario": "5.4000", "valor": "270.0000" },
+      { "ordem": 2, "lote": "B", "quantidade": "30.0000", "custo_unitario": "5.4000", "valor": "162.0000" }
     ],
-    "custo_total": "425.0000",
-    "custo_unitario": "5.3125"
+    "custo_total": "432.0000",
+    "custo_unitario": "5.4000"
   },
   "consumo": [
     {

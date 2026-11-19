@@ -603,7 +603,7 @@ describe('RK — cursor autenticado (HMAC) e amarrado ao tenant e ao escopo; qua
 });
 
 describe('RV — linhagem da transferência, AuditLog benigno e filtro de local nunca mascaram divergência física', () => {
-  test('RV1: transferência pelo comando sem achado; lote_destino_id adulterado (inexistente, apontando a outro lote, ou camada de destino com custo ou quantidade diferentes) → DIVERGENCIA_REAL linhagem_transferencia_diverge', async () => {
+  test('RV1: transferência pelo comando sem achado; lote_destino_id adulterado (inexistente, apontando a outro lote, ou camada de destino com quantidade diferente) → DIVERGENCIA_REAL linhagem_transferencia_diverge', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.sal, '100', '2.00')]));
@@ -627,8 +627,10 @@ describe('RV — linhagem da transferência, AuditLog benigno e filtro de local 
     await comFatia({ lote_destino_id: undefined });
     await linhagem('fatia sem lote_destino_id');
     await comFatia({});
+    // D-PROD-256: o custo da camada é o valor vigente no poço (reavaliado pelo motor), então já não é comparado com o da fatia;
+    // a quantidade da camada de destino continua sendo.
     await prisma().estoqueLoteNota.update({ where: { cliente_id_id: { cliente_id: s.c, id: destino } }, data: { custo_unitario: '9.9999' } });
-    await linhagem('camada de destino com custo diferente da fatia');
+    assert.deepEqual((await relatorio(s, { empresa_id: e.id })).achados, [], 'custo reavaliado da camada de destino não é divergência');
     await prisma().estoqueLoteNota.update({ where: { cliente_id_id: { cliente_id: s.c, id: destino } }, data: { custo_unitario: fatias[0].custo_unitario } });
     assert.deepEqual((await relatorio(s, { empresa_id: e.id })).achados, [], 'restaurada: coerente de novo');
   });

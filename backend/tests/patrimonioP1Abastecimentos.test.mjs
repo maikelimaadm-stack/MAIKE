@@ -4,7 +4,7 @@
  *
  *  - AB1/AB10: aceite TP-02 com o diesel em LITROS — prévia (zero escrita) →
  *    confirmar 201 (movimento `abastecimento_patrimonio` em `L`, FIFO em 2
- *    lotes de custo distinto, 425,0000 / 5,3125; a baixa é EXATAMENTE a
+ *    lotes de custo distinto, 432,0000 / 5,4000 (médio de 50×5,20 + 100×5,50 ÷ 150); a baixa é EXATAMENTE a
  *    quantidade digitada) → replay 200 → cancelar (estorno EXATO por lote) →
  *    409 duplicado → replay do cancelamento 200;
  *  - AB2 flex (um tanque aceita gasolina e etanol; Produto não aceito → 422);
@@ -83,13 +83,13 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.deepEqual(plano.tanque, { id: s.trator.tanques[0].id, identificador: 'Tanque principal', capacidade_litros: '180.0000', ativo: true });
     assert.equal(plano.custo_e_estimativa, true);
     assert.equal(plano.fifo.suficiente, true);
-    assert.equal(plano.fifo.custo_total_estimado, '425.0000');
-    assert.equal(plano.fifo.custo_unitario_estimado, '5.3125');
+    assert.equal(plano.fifo.custo_total_estimado, '432.0000');
+    assert.equal(plano.fifo.custo_unitario_estimado, '5.4000');
     assert.deepEqual(
       plano.fifo.fatias.map((f) => [f.ordem, f.lote_id, f.data_lote, f.quantidade, f.custo_unitario, f.valor]),
       [
-        [1, s.lotes.dieselA.id, '2027-06-01', '50.0000', '5.2000', '260.0000'],
-        [2, s.lotes.dieselB.id, '2027-06-03', '30.0000', '5.5000', '165.0000'],
+        [1, s.lotes.dieselA.id, '2027-06-01', '50.0000', '5.4000', '270.0000'],
+        [2, s.lotes.dieselB.id, '2027-06-03', '30.0000', '5.4000', '162.0000'],
       ]
     );
     assert.deepEqual(plano.estoque, { saldo_local: '150.0000', estoque_atual: '150.0000', unidade: 'L' });
@@ -111,14 +111,14 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.equal(d.versao, 1);
     assert.match(d.numero, /^\d+$/);
     assert.equal(d.data_operacional, '2027-06-10');
-    assert.deepEqual([d.quantidade, d.unidade, d.custo_total, d.custo_unitario], ['80.0000', 'L', '425.0000', '5.3125']);
+    assert.deepEqual([d.quantidade, d.unidade, d.custo_total, d.custo_unitario], ['80.0000', 'L', '432.0000', '5.4000']);
     assert.equal(d.tanque_cheio, true);
     assert.deepEqual(d.medidor, { tipo: 'HORIMETRO', unidade: 'h', leitura: '1550.5000', origem: 'ABASTECIMENTO' });
     assert.deepEqual(d.produto, { id: s.diesel.id, nome: 'Diesel S10 (L)', unidade_principal_estoque: 'L' });
     assert.equal(d.movimentacao.tipo_movimentacao, 'Saída');
     assert.equal(d.movimentacao.tipo_detalhado, 'abastecimento_patrimonio');
     assert.equal(d.movimentacao.status, 'Ativa');
-    assert.deepEqual([d.movimentacao.quantidade, d.movimentacao.unidade, d.movimentacao.valor_total, d.movimentacao.valor_unitario], ['80.0000', 'L', '425.0000', '5.3125']);
+    assert.deepEqual([d.movimentacao.quantidade, d.movimentacao.unidade, d.movimentacao.valor_total, d.movimentacao.valor_unitario], ['80.0000', 'L', '432.0000', '5.4000']);
     assert.match(d.movimentacao.numero, /^\d+$/);
     assert.equal(d.estorno, null);
     assert.equal(d.cancelamento, null);
@@ -126,8 +126,8 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.deepEqual(
       d.fatias.map((f) => [f.ordem, f.lote_id, f.quantidade, f.custo_unitario, f.valor]),
       [
-        [1, s.lotes.dieselA.id, '50.0000', '5.2000', '260.0000'],
-        [2, s.lotes.dieselB.id, '30.0000', '5.5000', '165.0000'],
+        [1, s.lotes.dieselA.id, '50.0000', '5.4000', '270.0000'],
+        [2, s.lotes.dieselB.id, '30.0000', '5.4000', '162.0000'],
       ]
     );
     // o vetor `fifo` compartilhado tela × servidor
@@ -150,8 +150,8 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.equal(mov.unidade_medida, 'L', 'o rótulo do movimento vem do Produto (D-PROD-162 §4.8)');
     assert.equal(mov.local_estoque_origem, s.local.id);
     assert.deepEqual(mov.lotes_consumidos, [
-      { lote_id: s.lotes.dieselA.id, quantidade: '50.0000', custo_unitario: '5.2000' },
-      { lote_id: s.lotes.dieselB.id, quantidade: '30.0000', custo_unitario: '5.5000' },
+      { lote_id: s.lotes.dieselA.id, quantidade: '50.0000', custo_unitario: '5.4000' },
+      { lote_id: s.lotes.dieselB.id, quantidade: '30.0000', custo_unitario: '5.4000' },
     ]);
     assert.equal(mov.vinculado ?? false, false, 'C8: M2 não preenche vínculo do movimento');
     assert.deepEqual(await saldoLote(s.lotes.dieselA.id), ['0.0000', 'Esgotado']);
@@ -160,14 +160,14 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     const linhaDb = await prisma().abastecimentoBem.findUnique({ where: { id: d.id } });
     assert.equal(linhaDb.operation_id, corpo.operation_id);
     assert.equal(linhaDb.medidor_origem, 'ABASTECIMENTO');
-    assert.deepEqual([linhaDb.quantidade.toFixed(4), linhaDb.unidade, linhaDb.custo_unitario.toFixed(4)], ['80.0000', 'L', '5.3125']);
+    assert.deepEqual([linhaDb.quantidade.toFixed(4), linhaDb.unidade, linhaDb.custo_unitario.toFixed(4)], ['80.0000', 'L', '5.4000']);
     assert.equal(await prisma().operacaoFinanceira.count({ where: { cliente_id: s.c } }), 0, 'nenhum lançamento financeiro');
     const recibo = await prisma().operacaoIdempotente.findMany({ where: { cliente_id: s.c, operation_key: corpo.operation_id } });
     assert.deepEqual(recibo.map((r) => [r.tipo_operacao, r.status]), [['confirmar_abastecimento_bem_v2', 'committed']], 'recibo v2 (D-PROD-162)');
     const audit = await prisma().auditLog.findMany({ where: { cliente_id: s.c, acao: 'abastecimento_bem.confirmar' } });
     assert.equal(audit.length, 1);
     assert.equal(audit[0].entidade_id, d.id);
-    assert.deepEqual([audit[0].dados_novos.quantidade, audit[0].dados_novos.unidade, audit[0].dados_novos.custo_unitario], ['80.0000', 'L', '5.3125']);
+    assert.deepEqual([audit[0].dados_novos.quantidade, audit[0].dados_novos.unidade, audit[0].dados_novos.custo_unitario], ['80.0000', 'L', '5.4000']);
     semCamposRemovidos(audit[0].dados_novos, 'auditoria');
     assert.equal(audit[0].dados_novos.fatias.length, 2);
     assert.equal(JSON.stringify(await bemCru(s.trator.id)), JSON.stringify(bemAntes), 'o abastecimento nunca grava o bem (versão e medidor intactos)');
@@ -217,7 +217,7 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.deepEqual(k.cancelamento.cancelado_por, { id: s.contaCancelar.id, login: s.contaCancelar.login });
     assert.equal(k.estorno.tipo_movimentacao, 'Entrada');
     assert.equal(k.estorno.tipo_detalhado, 'estorno_abastecimento');
-    assert.deepEqual([k.estorno.quantidade, k.estorno.unidade, k.estorno.valor_total], ['80.0000', 'L', '425.0000']);
+    assert.deepEqual([k.estorno.quantidade, k.estorno.unidade, k.estorno.valor_total], ['80.0000', 'L', '432.0000']);
     assert.equal(k.estorno.data_movimentacao, '2027-06-15T12:00:00.000Z', 'dia do estorno = hoje da fazenda');
     assert.equal(k.movimentacao.status, 'Estornada');
     assert.equal(k.leitura_operacional_antes.origem, 'ABASTECIMENTO');
