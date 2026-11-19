@@ -170,7 +170,8 @@ function ItensDaSecao({ colecao, itens, areaDoDia, celular, editandoChave, podeA
           const [nome, ...resto] = celulasDoItem(colecao, item, areaDoDia);
           const erro = errosDasLinhas[item.chave];
           const detalhe = resto
-            .map((valor, j) => (valor && valor !== "—" ? `${cfg.colunas[j + 1]}: ${valor}` : ""))
+            // O par "rótulo: valor" não se parte no fim da linha do cartão (valores curtos, como "0,2 L/ha", ficam inteiros).
+            .map((valor, j) => (valor && valor !== "—" ? `${cfg.colunas[j + 1]}:\u00a0${String(valor).length <= 16 ? String(valor).replace(/ /g, "\u00a0") : valor}` : ""))
             .filter(Boolean)
             .join(" · ");
           return (
@@ -358,7 +359,7 @@ export function EditorDaLinhaDoRegistro({ colecao, editor, numero, mudar, setFor
     <div
       role="group"
       aria-label={editando ? `${cfg.editar} ${numero}` : cfg.novo}
-      className="col-span-12 min-w-0 mg-b1-form-grid b1-form-embutido grid grid-cols-12 gap-x-3 gap-y-2 rounded-[10px] border border-[var(--mg-divider,#E8E7E2)] bg-white p-3"
+      className="col-span-12 min-w-0 mg-b1-form-grid b1-form-embutido b1-registro-editor grid grid-cols-12 gap-x-3 gap-y-2 rounded-[10px] border border-[var(--mg-divider,#E8E7E2)] bg-white p-3"
       data-testid={`registro-${cfg.id}-editor`}
     >
       {campos}

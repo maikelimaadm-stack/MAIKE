@@ -438,7 +438,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
               options={TIPOS_FIXOS_ATIVIDADE.map((t) => ({ value: t.value, label: t.label }))}
               placeholder="Escolha o tipo"
               required
-              span={6}
+              span={3}
               error={erros.tipoFixo}
             />
             <CampoSelect
@@ -475,7 +475,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           }}
           max={hoje || undefined}
           required
-          span={6}
+          span={3}
           error={erros.data_operacional}
           testId="registro-de-campo-data"
         />

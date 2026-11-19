@@ -115,6 +115,18 @@ O "Registrar serviço" (Lançamento de Atividades e Manejos/Detalhes da área no
 TODAS AS ETAPAS PASSARAM
 ```
 
+## 5.1 Conferência visual (navegador de verdade) e correções de leiaute
+
+Os testes de fumaça rodam sem leiaute (jsdom). Na conferência com o Chromium, a janela real com a API falsa, 1440×900 e 390×844, apareceu um defeito que eles não pegam:
+
+- **O formulário encolhia em vez de a janela rolar.** O corpo do `B1Janela` (`.b1-janela__corpo`) é uma coluna flex que rola, e a grade `mg-b1-form-grid` tem `min-height: 0`. Quando o conteúdo passava da altura da janela, as tabelas viravam um fio e o editor "+ Incluir …" vazava por cima das seções de baixo.
+  - Correção em `base1-design-ajustes.css`: `.b1-janela__corpo > .mg-b1-form-grid { flex-shrink: 0 }`.
+  - Vale para toda janela do motor; nenhuma dependia de encolher a grade. O "Gerenciar tipos" usa outra estrutura (`.dcol`) e não é afetado.
+- **Nomes cortados na grade de 4 colunas (PR #339).** Só nesta janela: Área ocupa a linha toda; Tipo, Operação (2 colunas) e Data ficam numa linha; Observação ocupa a linha toda; os campos dos editores ficam em pares.
+- **Cartão do celular:** o par "rótulo: valor" curto (ex.: "Dose/ha: 0,2 L/ha") não se parte mais no fim da linha.
+
+As capturas conferidas: formulário preenchido (2 insumos, 1 máquina, 1 pessoa) e editor de insumo aberto no computador; cartões e editor de máquina no celular. Nenhuma rolagem lateral, nenhum aviso de erro, "Salvar" habilitado.
+
 ## 6. Pendências e pontos para o proprietário
 
 - O botão continua "Salvar e novo", como nas outras janelas. Se a maquete pede "Salvar e nova", é só trocar o texto.
