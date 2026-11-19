@@ -50,10 +50,14 @@ export default function B1Select(props) {
   const [aberto, setAberto] = React.useState(false);
   const [busca, setBusca] = React.useState("");
   const botao = React.useRef(/** @type {HTMLButtonElement | null} */ (null));
+  const buscaRef = React.useRef(/** @type {HTMLInputElement | null} */ (null));
   // Desktop/tablet: com a lista aberta e sem pesquisa, o foco fica no botão do campo; ↑ ↓ Enter vão para o
   // painel por aqui (como o AutocompleteGenerico), senão a lista não se escolhe pelo teclado (D-PROD-222).
   const controlePainel = React.useRef(/** @type {null | { tecla: (e: React.KeyboardEvent) => void }} */ (null));
-  const ancora = React.useCallback(() => botao.current?.closest(".mg-field") ?? botao.current, []);
+  const ancora = React.useCallback(() => botao.current?.closest(".mg-field, .mk-sel-campo") ?? botao.current, []);
+  const focarBusca = React.useCallback(() => {
+    requestAnimationFrame(() => buscaRef.current?.focus());
+  }, []);
 
   const opcoes = opcoesDe(children);
   const atual = opcoes.find((o) => o.value === String(value ?? ""));
@@ -102,51 +106,113 @@ export default function B1Select(props) {
       botaoDoCampo
     );
 
-  // Desktop/tablet (D-PROD-106): o mesmo painel das outras listas, logo abaixo do campo.
+  // Desktop/tablet (D-PROD-106): o mesmo painel das outras listas, logo abaixo do campo,
+  // com pesquisa direta dentro do próprio campo quando aberto.
   if (!celular) {
+    const abrirComBusca = (inicial = "") => {
+      setBusca(inicial);
+      setAberto(true);
+      focarBusca();
+    };
     return (
       <PainelSelecao
         open={aberto}
-        onOpenChange={setAberto}
+        onOpenChange={(v) => {
+          setAberto(v);
+          if (!v) setBusca("");
+        }}
         ancora={ancora}
         itens={reais.map((o) => ({ value: o.value, label: o.label, texto: o.label, disabled: o.disabled }))}
         valor={String(value ?? "")}
         onEscolher={escolher}
         pesquisavel={pesquisavel}
+        buscaExterna={busca}
+        onBuscaChange={setBusca}
+        semCaixaBusca
         rotulo={props["aria-label"] || "opções"}
         className={maiusculas ? "b1-maiusculas" : undefined}
         controleRef={controlePainel}
       >
-        {comLimpar(
-        <button
-          ref={botao}
-          id={id}
-          type="button"
-          role="combobox"
-          aria-expanded={aberto}
-          aria-haspopup="listbox"
-          aria-label={props["aria-label"]}
-          disabled={disabled}
-          className={`${className ?? ""} b1-select-btn`}
-          value={String(value ?? "")}
-          {...dataAttrs}
-          {...(vazio ? { "data-placeholder": "" } : {})}
-          onClick={() => setAberto((v) => !v)}
-          onKeyDown={(e) => {
-            if (aberto && controlePainel.current && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter")) {
-              controlePainel.current.tecla(e);
-              return;
-            }
-            if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setAberto(true);
-            }
-          }}
-        >
-          <span className="b1-select-btn__v">{vazio ? "" : atual.label}</span>
-          <ChevronDown aria-hidden className="b1-select-btn__c" />
-        </button>,
-        )}
+        <div className="relative mk-sel-campo w-full">
+          <button
+            ref={botao}
+            id={id}
+            type="button"
+            role="combobox"
+            aria-expanded={aberto}
+            aria-haspopup="listbox"
+            aria-label={props["aria-label"]}
+            disabled={disabled}
+            className={`${className ?? ""} b1-select-btn`}
+            value={String(value ?? "")}
+            {...dataAttrs}
+            {...(vazio && !aberto ? { "data-placeholder": "" } : {})}
+            onClick={() => {
+              if (aberto) {
+                setAberto(false);
+                setBusca("");
+              } else {
+                abrirComBusca("");
+              }
+            }}
+            onKeyDown={(e) => {
+              if (aberto && controlePainel.current && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter")) {
+                controlePainel.current.tecla(e);
+                return;
+              }
+              if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setBusca("");
+                setAberto(true);
+                return;
+              }
+              if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                abrirComBusca(e.key);
+              }
+            }}
+          >
+            <span className="b1-select-btn__v">{aberto ? "" : vazio ? "" : atual.label}</span>
+            <ChevronDown aria-hidden className="b1-select-btn__c" />
+          </button>
+          {aberto && !disabled ? (
+            <input
+              ref={buscaRef}
+              type="text"
+              className="b1-select-busca-inline"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder={!vazio ? String(atual.label) : ""}
+              aria-label={`Pesquisar ${rotulo}`}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
+                  controlePainel.current?.tecla(e);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setAberto(false);
+                  setBusca("");
+                  botao.current?.focus();
+                }
+              }}
+            />
+          ) : null}
+          {aberto && busca && !disabled ? (
+            <button
+              type="button"
+              aria-label="Limpar pesquisa"
+              title="Limpar pesquisa"
+              onClick={(e) => {
+                e.stopPropagation();
+                setBusca("");
+                buscaRef.current?.focus();
+              }}
+              className="absolute right-8 top-1/2 -translate-y-1/2 z-[2] text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" aria-hidden />
+            </button>
+          ) : limpar}
+        </div>
       </PainelSelecao>
     );
   }

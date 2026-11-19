@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow, MgCheck } from "@/components/cadastro/base1/Base1Ui";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import B1Select from "@/components/cadastro/base1/B1Select";
-import { AvisoGestao, CampoSelect, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { LIMITES, ehPositivo, lerNumeroLocal, paraTextoDeEdicao } from "@/lib/dinheiroDecimal";
@@ -358,190 +359,213 @@ export default function FormularioTipoAtividade({
     initialData?.grupo_atividade_nome ||
     "";
 
+  const [abaAtiva, setAbaAtiva] = useState("identificacao");
+  const abasTipo = useMemo(
+    () => [
+      { id: "identificacao", label: "Identificação" },
+      { id: "apropriacao", label: "Apropriação" },
+      { id: "como_funciona", label: "Como funciona" },
+    ],
+    [],
+  );
+
   const formBody = (
     <form
       id={FORMULARIO_TIPO_ATIVIDADE_ID}
       onSubmit={handleSubmit}
-      className="b1 mg-b1-form-grid w-full min-h-0"
+      className="b1 w-full min-h-0 flex flex-col gap-3"
       noValidate
       data-testid="b1-form-tipo-atividade"
       data-densidade={DENSIDADE_BASE1}
     >
-      <SecaoForm titulo="Identificação" />
-      <div className="contents" data-testid="tipo-atividade-secao-identificacao">
-        <B1Field
-          label="Grupo de atividade"
-          required
-          span={6}
-          hasValue={Boolean(formData.grupo_atividade_id)}
-          locked={readOnly}
-          disabled={readOnly || isSubmitting}
-          error={erros.grupo_atividade_id}
-        >
-          {readOnly ? (
-            <input type="text" readOnly value={grupoLabel.toUpperCase()} className={B1_FIELD_CTL_CLS} />
-          ) : (
-            <B1Select
-              value={formData.grupo_atividade_id || SELECT_EMPTY}
-              onChange={(/** @type {React.ChangeEvent<HTMLSelectElement>} */ e) =>
-                handleChange("grupo_atividade_id", e.target.value === SELECT_EMPTY ? "" : e.target.value)
-              }
-              className={B1_FIELD_CTL_CLS}
-            >
-              <option value={SELECT_EMPTY}>SELECIONE</option>
-              {gruposAtivos.map((grupo) => (
-                <option key={grupo.id} value={grupo.id}>
-                  {String(grupo.nome_grupo || "").toUpperCase()}
-                  {grupo.ativo === false ? " (INATIVO)" : ""}
-                </option>
-              ))}
-            </B1Select>
-          )}
-        </B1Field>
+      <Base1PanelTabs
+        tabs={abasTipo}
+        value={abaAtiva}
+        onChange={setAbaAtiva}
+        animate={!readOnly}
+        animationKey={initialData?.id ?? "novo"}
+        renderPanel={(panelId) => {
+          if (panelId === "apropriacao") {
+            return (
+              <div className="mg-b1-form-grid w-full min-h-0" data-testid="tipo-atividade-secao-apropriacao">
+                {editavel && !empresaId ? (
+                  <div className="col-span-12">
+                    <AvisoGestao testId="tipo-atividade-sem-fazenda">
+                      Selecione uma fazenda para escolher o centro de custo e o centro de resultado padrão: os centros são da
+                      fazenda.
+                    </AvisoGestao>
+                  </div>
+                ) : null}
+                {editavel && empresaId && erroDosCentros ? (
+                  <div className="col-span-12">
+                    <AvisoGestao testId="tipo-atividade-centros-erro">
+                      {getApiErrorMessage(erroDosCentros, "Não foi possível carregar os centros desta fazenda.")}
+                    </AvisoGestao>
+                  </div>
+                ) : null}
+                <CampoSelect
+                  label="Centro de custo padrão"
+                  value={formData.centro_custo_padrao_id}
+                  onChange={(v) => handleChange("centro_custo_padrao_id", v)}
+                  options={opcoesCentroCusto}
+                  placeholder="Sem centro de custo padrão"
+                  readOnly={centrosSoLeitura}
+                  span={6}
+                />
+                <CampoSelect
+                  label="Centro de resultado padrão"
+                  value={formData.centro_resultado_padrao_id}
+                  onChange={(v) => handleChange("centro_resultado_padrao_id", v)}
+                  options={opcoesCentroResultado}
+                  placeholder="Sem centro de resultado padrão"
+                  readOnly={centrosSoLeitura}
+                  span={6}
+                />
+              </div>
+            );
+          }
 
-        <B1Field
-          label="Nome do tipo de atividade"
-          required
-          span={6}
-          hasValue={Boolean(formData.nome_tipo?.trim())}
-          locked={readOnly}
-          disabled={readOnly || isSubmitting}
-          error={erros.nome_tipo}
-        >
-          <input
-            type="text"
-            value={formData.nome_tipo}
-            onChange={(e) => handleChange("nome_tipo", e.target.value)}
-            placeholder="NOME DO TIPO DE ATIVIDADE"
-            className={`${B1_FIELD_CTL_CLS} uppercase`}
-            readOnly={readOnly}
-          />
-        </B1Field>
+          if (panelId === "como_funciona") {
+            return (
+              <div className="mg-b1-form-grid w-full min-h-0" data-testid="tipo-atividade-secao-como-funciona">
+                {editavel && unidadesQuery.error ? (
+                  <div className="col-span-12">
+                    <AvisoGestao testId="tipo-atividade-unidades-erro">
+                      {getApiErrorMessage(unidadesQuery.error, "Não foi possível carregar as unidades de medida.")}
+                    </AvisoGestao>
+                  </div>
+                ) : null}
+                <CampoSelect
+                  label="Unidade de produção"
+                  value={formData.unidade_producao_id}
+                  onChange={(v) => handleChange("unidade_producao_id", v)}
+                  options={opcoesUnidade}
+                  placeholder="Sem unidade de produção"
+                  readOnly={bloqueado}
+                  span={6}
+                />
+                <CampoNumero
+                  label="Coeficiente padrão"
+                  value={formData.coeficiente_padrao}
+                  onChange={(v) => handleChange("coeficiente_padrao", v)}
+                  locale={LOCALE_COEFICIENTE}
+                  limites={LIMITES_COEFICIENTE}
+                  readOnly={bloqueado}
+                  span={6}
+                  error={erros.coeficiente_padrao}
+                  testId="tipo-atividade-coeficiente"
+                />
+                {FLAGS_DO_FORMULARIO.map(({ campo, rotulo }) => (
+                  <B1Field key={campo} label={rotulo} variant="switch" span={6} disabled={readOnly || isSubmitting}>
+                    <MgCheck
+                      checked={formData[campo]}
+                      onChange={(/** @type {boolean} */ v) => handleChange(campo, v)}
+                      disabled={readOnly || isSubmitting}
+                      data-testid={`tipo-atividade-flag-${campo}`}
+                    />
+                  </B1Field>
+                ))}
+              </div>
+            );
+          }
 
-        <CampoSelect
-          label="Categoria"
-          value={formData.categoria}
-          onChange={(v) => handleChange("categoria", v)}
-          options={[...CATEGORIAS_TIPO_ATIVIDADE]}
-          placeholder="Sem categoria"
-          readOnly={bloqueado}
-          span={6}
-        />
+          return (
+            <div className="mg-b1-form-grid w-full min-h-0" data-testid="tipo-atividade-secao-identificacao">
+              <B1Field
+                label="Grupo de atividade"
+                required
+                span={6}
+                hasValue={Boolean(formData.grupo_atividade_id)}
+                locked={readOnly}
+                disabled={readOnly || isSubmitting}
+                error={erros.grupo_atividade_id}
+              >
+                {readOnly ? (
+                  <input type="text" readOnly value={grupoLabel.toUpperCase()} className={B1_FIELD_CTL_CLS} />
+                ) : (
+                  <B1Select
+                    value={formData.grupo_atividade_id || SELECT_EMPTY}
+                    onChange={(/** @type {React.ChangeEvent<HTMLSelectElement>} */ e) =>
+                      handleChange("grupo_atividade_id", e.target.value === SELECT_EMPTY ? "" : e.target.value)
+                    }
+                    className={B1_FIELD_CTL_CLS}
+                  >
+                    <option value={SELECT_EMPTY}>SELECIONE</option>
+                    {gruposAtivos.map((grupo) => (
+                      <option key={grupo.id} value={grupo.id}>
+                        {String(grupo.nome_grupo || "").toUpperCase()}
+                        {grupo.ativo === false ? " (INATIVO)" : ""}
+                      </option>
+                    ))}
+                  </B1Select>
+                )}
+              </B1Field>
 
-        <B1Field
-          label="Descrição"
-          span={12}
-          hasValue={Boolean(formData.descricao?.trim())}
-          locked={readOnly}
-          disabled={readOnly || isSubmitting}
-        >
-          <textarea
-            value={formData.descricao}
-            onChange={(e) => handleChange("descricao", e.target.value)}
-            placeholder="DESCRIÇÃO DO TIPO DE ATIVIDADE"
-            className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
-            rows={2}
-            readOnly={readOnly}
-          />
-        </B1Field>
+              <B1Field
+                label="Nome do tipo de atividade"
+                required
+                span={6}
+                hasValue={Boolean(formData.nome_tipo?.trim())}
+                locked={readOnly}
+                disabled={readOnly || isSubmitting}
+                error={erros.nome_tipo}
+              >
+                <input
+                  type="text"
+                  value={formData.nome_tipo}
+                  onChange={(e) => handleChange("nome_tipo", e.target.value)}
+                  placeholder="NOME DO TIPO DE ATIVIDADE"
+                  className={`${B1_FIELD_CTL_CLS} uppercase`}
+                  readOnly={readOnly}
+                />
+              </B1Field>
 
-        <B1ChaveRow
-          label="Ativo"
-          span={6}
-          checked={formData.ativo}
-          onChange={readOnly ? undefined : (/** @type {boolean} */ v) => handleChange("ativo", v)}
-          disabled={readOnly || isSubmitting}
-          ariaLabel="Tipo de atividade ativo"
-        />
-      </div>
+              <CampoSelect
+                label="Categoria"
+                value={formData.categoria}
+                onChange={(v) => handleChange("categoria", v)}
+                options={[...CATEGORIAS_TIPO_ATIVIDADE]}
+                placeholder="Sem categoria"
+                readOnly={bloqueado}
+                span={6}
+              />
 
-      <SecaoForm titulo="Apropriação" />
-      <div className="contents" data-testid="tipo-atividade-secao-apropriacao">
-        {editavel && !empresaId ? (
-          <div className="col-span-12">
-            <AvisoGestao testId="tipo-atividade-sem-fazenda">
-              Selecione uma fazenda para escolher o centro de custo e o centro de resultado padrão: os centros são da
-              fazenda.
-            </AvisoGestao>
-          </div>
-        ) : null}
-        {editavel && empresaId && erroDosCentros ? (
-          <div className="col-span-12">
-            <AvisoGestao testId="tipo-atividade-centros-erro">
-              {getApiErrorMessage(erroDosCentros, "Não foi possível carregar os centros desta fazenda.")}
-            </AvisoGestao>
-          </div>
-        ) : null}
-        <CampoSelect
-          label="Centro de custo padrão"
-          value={formData.centro_custo_padrao_id}
-          onChange={(v) => handleChange("centro_custo_padrao_id", v)}
-          options={opcoesCentroCusto}
-          placeholder="Sem centro de custo padrão"
-          readOnly={centrosSoLeitura}
-          span={6}
-        />
-        <CampoSelect
-          label="Centro de resultado padrão"
-          value={formData.centro_resultado_padrao_id}
-          onChange={(v) => handleChange("centro_resultado_padrao_id", v)}
-          options={opcoesCentroResultado}
-          placeholder="Sem centro de resultado padrão"
-          readOnly={centrosSoLeitura}
-          span={6}
-        />
-      </div>
+              <B1Field
+                label="Descrição"
+                span={12}
+                hasValue={Boolean(formData.descricao?.trim())}
+                locked={readOnly}
+                disabled={readOnly || isSubmitting}
+              >
+                <textarea
+                  value={formData.descricao}
+                  onChange={(e) => handleChange("descricao", e.target.value)}
+                  placeholder="DESCRIÇÃO DO TIPO DE ATIVIDADE"
+                  className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
+                  rows={2}
+                  readOnly={readOnly}
+                />
+              </B1Field>
 
-      <SecaoForm titulo="Como funciona" />
-      <div className="contents" data-testid="tipo-atividade-secao-como-funciona">
-        {editavel && unidadesQuery.error ? (
-          <div className="col-span-12">
-            <AvisoGestao testId="tipo-atividade-unidades-erro">
-              {getApiErrorMessage(unidadesQuery.error, "Não foi possível carregar as unidades de medida.")}
-            </AvisoGestao>
-          </div>
-        ) : null}
-        <CampoSelect
-          label="Unidade de produção"
-          value={formData.unidade_producao_id}
-          onChange={(v) => handleChange("unidade_producao_id", v)}
-          options={opcoesUnidade}
-          placeholder="Sem unidade de produção"
-          readOnly={bloqueado}
-          span={6}
-        />
-        <CampoNumero
-          label="Coeficiente padrão"
-          value={formData.coeficiente_padrao}
-          onChange={(v) => handleChange("coeficiente_padrao", v)}
-          locale={LOCALE_COEFICIENTE}
-          limites={LIMITES_COEFICIENTE}
-          readOnly={bloqueado}
-          span={6}
-          error={erros.coeficiente_padrao}
-          testId="tipo-atividade-coeficiente"
-        />
-        {/* Caixas de marcar: a caixa Sim/Não do campo Base1 (`variant="switch"`) com o check da grade (`MgCheck`). */}
-        {FLAGS_DO_FORMULARIO.map(({ campo, rotulo }) => (
-          <B1Field key={campo} label={rotulo} variant="switch" span={6} disabled={readOnly || isSubmitting}>
-            <MgCheck
-              checked={formData[campo]}
-              onChange={(/** @type {boolean} */ v) => handleChange(campo, v)}
-              disabled={readOnly || isSubmitting}
-              data-testid={`tipo-atividade-flag-${campo}`}
-            />
-          </B1Field>
-        ))}
-      </div>
+              <B1ChaveRow
+                label="Ativo"
+                span={6}
+                checked={formData.ativo}
+                onChange={readOnly ? undefined : (/** @type {boolean} */ v) => handleChange("ativo", v)}
+                disabled={readOnly || isSubmitting}
+                ariaLabel="Tipo de atividade ativo"
+              />
+            </div>
+          );
+        }}
+      />
 
       {!toolbarActions ? (
-        <div className="col-span-12">
-          <CadastroFormActions
-            onCancel={onCancel}
-            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
-            isSubmitting={isSubmitting}
-          />
-        </div>
+        <CadastroFormActions
+          onCancel={onCancel}
+          submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
+          isSubmitting={isSubmitting}
+        />
       ) : null}
     </form>
   );

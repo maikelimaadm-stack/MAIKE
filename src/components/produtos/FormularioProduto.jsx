@@ -6,8 +6,9 @@ import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { formatarMoedaInput, parseMoedaInput } from "@/components/financeiro/moedaUtils";
 import { parseDecimalPtBR } from "@/domain/numeroPtBR";
-import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1, B1TituloGrupo } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
@@ -234,16 +235,116 @@ export default function FormularioProduto({
   };
 
   const acCls = `${B1_FIELD_CTL_CLS} w-full min-w-0`;
+  const [abaAtiva, setAbaAtiva] = useState("principal");
+  const abasProduto = useMemo(
+    () => [
+      { id: "principal", label: "Principal" },
+      { id: "estoque", label: "Unidade de Estoque" },
+    ],
+    [],
+  );
 
   const formBody = (
     <form
       id={FORMULARIO_PRODUTO_ID}
       onSubmit={handleSubmit}
-      className="b1 mg-b1-form-grid w-full min-h-0"
+      className="b1 w-full min-h-0 flex flex-col gap-3"
       noValidate
       data-testid="b1-form-produto"
       data-densidade={DENSIDADE_BASE1}
     >
+      <Base1PanelTabs
+        tabs={abasProduto}
+        value={abaAtiva}
+        onChange={setAbaAtiva}
+        animate={!readOnly}
+        animationKey={initialData?.id ?? "novo"}
+        renderPanel={(panelId) => {
+          if (panelId === "estoque") {
+            return (
+              <div className="mg-b1-form-grid w-full min-h-0">
+                <B1Field
+                  label="Unidade principal de estoque"
+                  span={6}
+                  hasValue={Boolean(formData.unidade_principal_estoque)}
+                  locked={readOnly}
+                  disabled={locked}
+                >
+                  {readOnly ? (
+                    <input
+                      type="text"
+                      readOnly
+                      value={rotuloUnidadeEstoque(formData.unidade_principal_estoque)}
+                      className={B1_FIELD_CTL_CLS}
+                    />
+                  ) : (
+                    <B1Select
+                      value={formData.unidade_principal_estoque || "KG"}
+                      onChange={(e) => handleChange("unidade_principal_estoque", e.target.value)}
+                      className={B1_FIELD_CTL_CLS}
+                    >
+                      <option value="KG">{ROTULO_UNIDADE_ESTOQUE.KG}</option>
+                      <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option>
+                      <option value="L">{ROTULO_UNIDADE_ESTOQUE.L}</option>
+                    </B1Select>
+                  )}
+                </B1Field>
+
+                {avisoLitros ? (
+                  <p className="col-span-12 text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1" role="status" data-testid="aviso-unidade-litros">
+                    A unidade de medida do cadastro não é de litros; confira.
+                  </p>
+                ) : null}
+
+                {formData.unidade_principal_estoque === "SACO" ? (
+                  <B1Field
+                    label="Peso por saco (kg)"
+                    required
+                    span={6}
+                    hasValue={pesoSacoNum > 0}
+                    locked={readOnly}
+                    disabled={locked}
+                    error={invalidFields.includes("peso_por_saco_kg") ? "Obrigatório" : undefined}
+                  >
+                    <input
+                      ref={pesoSacoRef}
+                      type="text"
+                      inputMode="decimal"
+                      value={formatarMoedaInput(pesoSacoNum)}
+                      onChange={(e) => handleChange("peso_por_saco_kg", e.target.value)}
+                      placeholder="0,00"
+                      className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
+                      readOnly={readOnly}
+                      aria-invalid={invalidFields.includes("peso_por_saco_kg")}
+                    />
+                  </B1Field>
+                ) : null}
+
+                <B1Field label="Observações" span={12} hasValue={Boolean(formData.observacoes?.trim())} locked={readOnly} disabled={locked}>
+                  <textarea
+                    value={formData.observacoes}
+                    onChange={(e) => handleChange("observacoes", e.target.value)}
+                    placeholder="OBSERVAÇÕES GERAIS..."
+                    className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
+                    rows={2}
+                    readOnly={readOnly}
+                  />
+                </B1Field>
+
+                <B1ChaveRow
+                  label="Ativo"
+                  span={6}
+                  checked={formData.ativo}
+                  onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
+                  disabled={readOnly || isSubmitting}
+                  ariaLabel="Produto ativo"
+                />
+              </div>
+            );
+          }
+
+          return (
+            <div className="mg-b1-form-grid w-full min-h-0">
       <B1Field
         label="Nome do Produto"
         required
@@ -546,94 +647,17 @@ export default function FormularioProduto({
           </p>
         </>
       ) : null}
-
-      <B1TituloGrupo titulo="Unidade de Estoque" />
-
-      <B1Field
-        label="Unidade principal de estoque"
-        span={6}
-        hasValue={Boolean(formData.unidade_principal_estoque)}
-        locked={readOnly}
-        disabled={locked}
-      >
-        {readOnly ? (
-          <input
-            type="text"
-            readOnly
-            value={rotuloUnidadeEstoque(formData.unidade_principal_estoque)}
-            className={B1_FIELD_CTL_CLS}
-          />
-        ) : (
-          <B1Select
-            value={formData.unidade_principal_estoque || "KG"}
-            onChange={(e) => handleChange("unidade_principal_estoque", e.target.value)}
-            className={B1_FIELD_CTL_CLS}
-          >
-            <option value="KG">{ROTULO_UNIDADE_ESTOQUE.KG}</option>
-            <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option>
-            <option value="L">{ROTULO_UNIDADE_ESTOQUE.L}</option>
-          </B1Select>
-        )}
-      </B1Field>
-
-      {avisoLitros ? (
-        <p className="col-span-12 text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1" role="status" data-testid="aviso-unidade-litros">
-          A unidade de medida do cadastro não é de litros; confira.
-        </p>
-      ) : null}
-
-      {formData.unidade_principal_estoque === "SACO" ? (
-        <B1Field
-          label="Peso por saco (kg)"
-          required
-          span={6}
-          hasValue={pesoSacoNum > 0}
-          locked={readOnly}
-          disabled={locked}
-          error={invalidFields.includes("peso_por_saco_kg") ? "Obrigatório" : undefined}
-        >
-          <input
-            ref={pesoSacoRef}
-            type="text"
-            inputMode="decimal"
-            value={formatarMoedaInput(pesoSacoNum)}
-            onChange={(e) => handleChange("peso_por_saco_kg", e.target.value)}
-            placeholder="0,00"
-            className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-            readOnly={readOnly}
-            aria-invalid={invalidFields.includes("peso_por_saco_kg")}
-          />
-        </B1Field>
-      ) : null}
-
-      <B1Field label="Observações" span={12} hasValue={Boolean(formData.observacoes?.trim())} locked={readOnly} disabled={locked}>
-        <textarea
-          value={formData.observacoes}
-          onChange={(e) => handleChange("observacoes", e.target.value)}
-          placeholder="OBSERVAÇÕES GERAIS..."
-          className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
-          rows={2}
-          readOnly={readOnly}
-        />
-      </B1Field>
-
-      <B1ChaveRow
-        label="Ativo"
-        span={6}
-        checked={formData.ativo}
-        onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
-        disabled={readOnly || isSubmitting}
-        ariaLabel="Produto ativo"
+            </div>
+          );
+        }}
       />
 
       {!toolbarActions ? (
-        <div className="col-span-12">
-          <CadastroFormActions
-            onCancel={onCancel}
-            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
-            isSubmitting={isSubmitting}
-          />
-        </div>
+        <CadastroFormActions
+          onCancel={onCancel}
+          submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
+          isSubmitting={isSubmitting}
+        />
       ) : null}
     </form>
   );

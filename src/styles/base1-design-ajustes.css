@@ -461,3 +461,403 @@ body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):n
 .cadastro-b1 .mg-field--locked .b1-select-btn__c:not(#mk-a) {
   display: none;
 }
+
+/* ── Campos Base1 no padrão Caixa Preenchida (fundo suave arredondado + rótulo interno + foco verde + pesquisa inline) ── */
+.cadastro-b1 .mg-field:not(.mg-field--switch):not(#mk-padrao) {
+  background: #f1f3f5 !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch):not(.mg-field--disabled):not(.mg-field--locked):hover:not(#mk-padrao) {
+  background: #eaedf0 !important;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch) .mg-field__label:not(#mk-padrao) {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  color: #6b7280;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch).mg-has-value .mg-field__label:not(#mk-padrao),
+.cadastro-b1 .mg-field:not(.mg-field--switch):is(:focus-within, .is-open) .mg-field__label:not(#mk-padrao),
+.cadastro-b1 .mg-field--multiline .mg-field__label:not(#mk-padrao),
+.cadastro-b1 .mg-field:not(.mg-field--switch):has(input[type="date"], input[type="datetime-local"], input[type="time"], .b1-select-btn[data-placeholder]) .mg-field__label:not(#mk-padrao) {
+  padding-top: 5px !important;
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+  color: #6b7280;
+}
+
+/* Botão Sim/Não (.mg-field--switch): limpo na célula (sem caixa cinza), botão logo à frente do nome */
+.cadastro-b1 .mg-field--switch:not(#mk-padrao) {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.cadastro-b1 .mg-field--switch .mg-field__label:not(#mk-padrao) {
+  padding: 0 4px !important;
+  max-width: none !important;
+  color: #4b5563;
+}
+
+.cadastro-b1 .mg-field--switch:focus-within:not(.mg-field--disabled) .mg-field__label:not(#mk-padrao) {
+  color: #00a859 !important;
+}
+
+.cadastro-b1 .mg-field--switch .mg-field__control:not(#mk-padrao) {
+  justify-content: flex-start !important;
+  padding: 0 8px 0 2px !important;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch) .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input, .b1-select-btn):not(#mk-padrao) {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch):is(:focus-within, .is-open):not(.mg-field--disabled):not(#mk-padrao) {
+  background: #ffffff !important;
+  border: 1.5px solid #00a859 !important;
+  box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.12) !important;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch):is(:focus-within, .is-open):not(.mg-field--disabled) .mg-field__label:not(#mk-padrao) {
+  color: #00a859 !important;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch).is-invalid:not(#mk-padrao) {
+  background: #fef2f2 !important;
+  border: 1.5px solid #dc2626 !important;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch).is-invalid .mg-field__label:not(#mk-padrao) {
+  color: #dc2626 !important;
+}
+
+.cadastro-b1 :is(.mg-field--multiline, .mg-field:has(textarea)):not(#mk-padrao) {
+  min-height: var(--mg-field-h, 46px) !important;
+}
+
+.cadastro-b1 :is(.mg-field--multiline, .mg-field:has(textarea)) .mg-field__control:not(#mk-padrao) {
+  height: auto !important;
+  min-height: var(--mg-field-h, 46px) !important;
+}
+
+.cadastro-b1 .mg-field .mg-field__control textarea:not(#mk-padrao) {
+  height: 46px;
+  min-height: 46px !important;
+  padding: 19px 12px 5px !important;
+  resize: vertical !important;
+  overflow: auto !important;
+  line-height: 1.35;
+}
+
+.cadastro-b1 .mg-field:not(.mg-field--switch):is(.mg-field--disabled, .mg-field--locked):not(#mk-padrao) {
+  background: #f5f6f8 !important;
+  border: 1.5px solid transparent !important;
+  color: #9ca3af;
+}
+
+/* Densidades rotulo-acima / rotulo-a-frente: a caixa preenchida vive no .mg-field__control */
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch):not(#mk-padrao) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch) .mg-field__label:not(#mk-padrao) {
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch) .mg-field__control:not(#mk-padrao) {
+  background: #f1f3f5 !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch):is(:focus-within, .is-open):not(.mg-field--disabled) .mg-field__control:not(#mk-padrao) {
+  background: #ffffff !important;
+  border: 1.5px solid #00a859 !important;
+  box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.12) !important;
+}
+
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch):is(:focus-within, .is-open):not(.mg-field--disabled) .mg-field__label:not(#mk-padrao) {
+  color: #00a859 !important;
+}
+
+/* Pesquisa inline dentro do próprio B1Select */
+.cadastro-b1 .mk-sel-campo {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+}
+
+.cadastro-b1 .b1-select-busca-inline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100% !important;
+  padding: 19px 30px 5px 12px !important;
+  background: transparent !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: #141413;
+  font: inherit;
+  z-index: 1;
+}
+
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .b1-select-busca-inline {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.cadastro-b1 .b1-select-busca-inline::placeholder {
+  color: #8f8f8f;
+}
+
+/* Lista suspensa branca limpa logo abaixo da caixa */
+body.b1-tela .mk-sel-pop.b1-lista-pop:not(#mk-padrao) {
+  margin-top: 4px;
+  padding: 4px 0 !important;
+  gap: 0 !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+body.b1-tela .b1-lista-pop .mk-sel-lista.b1-lista:not(#mk-padrao) {
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Grade compacta: sempre 4 campos por linha a partir de 768px; seções, textos, áreas e botões ocupam a linha toda */
+@media (min-width: 768px) {
+  .cadastro-b1 .mg-b1-form-grid:not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 form.b1.grid:not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 .b1-sec__grid:not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) .grid.grid-cols-12:not(#mk-padrao):not(#mk-b) {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px 14px !important;
+    max-width: none;
+  }
+
+  .cadastro-b1 .mg-b1-form-grid > :not(.mg-field):not([data-field]):not(:has(> .mg-field)):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 form.b1.grid > :not(.mg-field):not([data-field]):not(:has(> .mg-field)):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 .b1-sec__grid > :not(.mg-field):not([data-field]):not(:has(> .mg-field)):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) .grid.grid-cols-12 > :not(.mg-field):not([data-field]):not(:has(> .mg-field)):not(#mk-padrao):not(#mk-b) {
+    grid-column: 1 / -1 !important;
+  }
+
+  .cadastro-b1 .mg-b1-form-grid > :is(.mg-field, [data-field], :has(> .mg-field)):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 form.b1.grid > :is(.mg-field, [data-field], :has(> .mg-field)):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 .b1-sec__grid > :is(.mg-field, [data-field], :has(> .mg-field)):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) .grid.grid-cols-12 > :is(.mg-field, [data-field], :has(> .mg-field)):not(#mk-padrao):not(#mk-b) {
+    grid-column: auto !important;
+    min-width: 0;
+  }
+
+  .cadastro-b1 .mg-b1-form-grid > :is(:has([data-testid="icone-oficial-lote"]), .b1-form-embutido):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 form.b1.grid > :is(:has([data-testid="icone-oficial-lote"]), .b1-form-embutido):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 .b1-sec__grid > :is(:has([data-testid="icone-oficial-lote"]), .b1-form-embutido):not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) .grid.grid-cols-12 > :is(:has([data-testid="icone-oficial-lote"]), .b1-form-embutido):not(#mk-padrao):not(#mk-b) {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* DynamicFormRenderer (ex.: Cadastro de Lotes): unifica os .b1-grupo da mesma guia num grid contínuo de 4 colunas */
+  .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) fieldset:has(> .b1-grupo):not(#mk-padrao):not(#mk-b) {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px 14px !important;
+  }
+
+  .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) fieldset > .b1-grupo:not(#mk-padrao):not(#mk-b),
+  .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) fieldset > .b1-grupo > .mg-b1-form-grid:not(#mk-padrao):not(#mk-b) {
+    display: contents !important;
+  }
+}
+
+/* ── Abas laterais com "Buscar guia" + cartão principal à direita (desktop) ── */
+.cadastro-b1 .b1-panel-tabs-root--sidebar:not(#mk-padrao) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  gap: 16px !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.cadastro-b1 .b1-panel-sidebar {
+  flex: 0 0 236px;
+  width: 236px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cadastro-b1 .b1-panel-tabs-root--sidebar.is-sidebar-collapsed .b1-panel-sidebar {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 10px;
+}
+
+.cadastro-b1 .b1-panel-sidebar__topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cadastro-b1 .b1-panel-sidebar__busca {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f1f3f5;
+  color: #6b7280;
+}
+
+.cadastro-b1 .b1-panel-sidebar__busca:focus-within {
+  background: #ffffff;
+  box-shadow: 0 0 0 1.5px #00a859;
+}
+
+.cadastro-b1 .b1-panel-sidebar__busca-ico {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: #6b7280;
+}
+
+.cadastro-b1 .b1-panel-sidebar__busca input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #141413;
+}
+
+.cadastro-b1 .b1-panel-sidebar__busca input::placeholder {
+  color: #6b7280;
+}
+
+.cadastro-b1 .b1-panel-sidebar__toggle {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f3f5;
+  color: #374151;
+  cursor: pointer;
+}
+
+.cadastro-b1 .b1-panel-sidebar__toggle:hover {
+  background: #e5e7eb;
+}
+
+.cadastro-b1 .b1-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cadastro-b1 .b1-panel-list__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #374151;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.cadastro-b1 .b1-panel-list__tab:hover:not(.is-active):not(:disabled) {
+  background: #f3f4f6;
+}
+
+.cadastro-b1 .b1-panel-list__tab.is-active {
+  background: #e6f4ee;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.cadastro-b1 .b1-panel-list__vazio {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #9ca3af;
+}
+
+/* Quando o formulário usa Base1PanelTabs (1 ou mais guias), o cartão é o próprio .b1-aba-cartao — nunca um card dentro de outro */
+.cadastro-b1 .mg-form-scroll.b1-form--abas-fora form[data-densidade]:not(#mk-padrao):not(#mk-b) {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.cadastro-b1 .b1-panel-main {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cadastro-b1 .b1-panel-main .b1-aba-cartao {
+  flex: 1 1 auto;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px 22px 22px;
+  box-shadow: var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, 0.08));
+}
+
+.cadastro-b1 .b1-panel-main .b1-aba-cartao__cab {
+  margin: 0 0 16px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.cadastro-b1 .b1-panel-main .b1-aba-cartao__titulo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #141413;
+}

@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import SeletorPaiNatureza from "@/components/gestao/SeletorPaiNatureza";
 import { ROTULO_TIPO_NATUREZA, caminhoDoPai, ehTipoNatureza } from "@/services/naturezaFinanceiraService";
 
@@ -38,6 +39,9 @@ export default function FormularioNatureza({ empresaId, onSubmit, initialData = 
     ativo: initialData?.ativo !== false,
   }));
   const [erros, setErros] = useState(/** @type {{ tipo?: boolean, nome?: boolean }} */ ({}));
+  const [abaAtiva, setAbaAtiva] = useState("identificacao");
+
+  const abas = useMemo(() => [{ id: "identificacao", label: "Identificação" }], []);
 
   const set = (campo, valor) => setForm((prev) => ({ ...prev, [campo]: valor }));
 
@@ -64,66 +68,73 @@ export default function FormularioNatureza({ empresaId, onSubmit, initialData = 
   return (
     <CadastroFormShell embedded title={editando ? "Editar natureza financeira" : "Nova natureza financeira"}>
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_NATUREZA_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
-          <SecaoForm titulo="Identificação" />
-          {editando ? (
-            <CampoTexto label="Tipo" span={6} value={ROTULO_TIPO_NATUREZA[form.tipo] || ""} onChange={() => {}} readOnly />
-          ) : (
-            <CampoSelect
-              label="Tipo"
-              required
-              span={6}
-              value={form.tipo}
-              onChange={trocarTipo}
-              options={OPCOES_TIPO}
-              readOnly={readOnly}
-              placeholder="— Escolha Receita ou Despesa —"
-              error={erros.tipo ? "Obrigatório: escolha Receita ou Despesa" : undefined}
-            />
-          )}
-          <CampoTexto
-            label="Nome"
-            required
-            span={6}
-            value={form.nome}
-            onChange={(v) => {
-              set("nome", v);
-              setErros((x) => ({ ...x, nome: false }));
-            }}
-            readOnly={readOnly}
-            maxLength={120}
-            error={erros.nome ? "Obrigatório" : undefined}
-            placeholder="NOME"
+        <form id={FORMULARIO_NATUREZA_ID} onSubmit={enviar} className="b1 w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
+          <Base1PanelTabs
+            tabs={abas}
+            value={abaAtiva}
+            onChange={setAbaAtiva}
+            animate={!readOnly}
+            animationKey={initialData?.id ?? "nova"}
+            renderPanel={() => (
+              <div className="mg-b1-form-grid w-full min-h-0">
+                {editando ? (
+                  <CampoTexto label="Tipo" span={6} value={ROTULO_TIPO_NATUREZA[form.tipo] || ""} onChange={() => {}} readOnly />
+                ) : (
+                  <CampoSelect
+                    label="Tipo"
+                    required
+                    span={6}
+                    value={form.tipo}
+                    onChange={trocarTipo}
+                    options={OPCOES_TIPO}
+                    readOnly={readOnly}
+                    placeholder="— Escolha Receita ou Despesa —"
+                    error={erros.tipo ? "Obrigatório: escolha Receita ou Despesa" : undefined}
+                  />
+                )}
+                <CampoTexto
+                  label="Nome"
+                  required
+                  span={6}
+                  value={form.nome}
+                  onChange={(v) => {
+                    set("nome", v);
+                    setErros((x) => ({ ...x, nome: false }));
+                  }}
+                  readOnly={readOnly}
+                  maxLength={120}
+                  error={erros.nome ? "Obrigatório" : undefined}
+                  placeholder="NOME"
+                />
+                <SeletorPaiNatureza
+                  empresaId={empresaId}
+                  tipo={ehTipoNatureza(form.tipo) ? form.tipo : null}
+                  excluirId={editando ? String(initialData.id) : null}
+                  value={form.pai}
+                  onChange={(pai) => set("pai", pai)}
+                  readOnly={readOnly}
+                  span={12}
+                />
+                <CampoTexto label="Descrição" span={12} value={form.descricao} onChange={(v) => set("descricao", v)} readOnly={readOnly} maxLength={500} />
+                {editando ? (
+                  <B1ChaveRow
+                    label="Ativo"
+                    span={6}
+                    checked={form.ativo}
+                    onChange={readOnly ? undefined : (v) => set("ativo", v)}
+                    disabled={readOnly}
+                    ariaLabel="Natureza financeira ativa"
+                  />
+                ) : null}
+                <div className="col-span-12">
+                  <AvisoGestao tone="blue" testId="natureza-nota-etapas">
+                    Natureza financeira é um catálogo gerencial (não é plano de contas e não gera lançamento). A associação com Parceiros,
+                    Centros e operações será feita nas próximas etapas.
+                  </AvisoGestao>
+                </div>
+              </div>
+            )}
           />
-          <SeletorPaiNatureza
-            empresaId={empresaId}
-            tipo={ehTipoNatureza(form.tipo) ? form.tipo : null}
-            excluirId={editando ? String(initialData.id) : null}
-            value={form.pai}
-            onChange={(pai) => set("pai", pai)}
-            readOnly={readOnly}
-            span={12}
-          />
-          <CampoTexto label="Descrição" span={12} value={form.descricao} onChange={(v) => set("descricao", v)} readOnly={readOnly} maxLength={500} />
-          {editando ? (
-            <>
-              <SecaoForm titulo="Situação" />
-              <B1ChaveRow
-                label="Ativo"
-                span={6}
-                checked={form.ativo}
-                onChange={readOnly ? undefined : (v) => set("ativo", v)}
-                disabled={readOnly}
-                ariaLabel="Natureza financeira ativa"
-              />
-            </>
-          ) : null}
-          <div className="col-span-12">
-            <AvisoGestao tone="blue" testId="natureza-nota-etapas">
-              Natureza financeira é um catálogo gerencial (não é plano de contas e não gera lançamento). A associação com Parceiros,
-              Centros e operações será feita nas próximas etapas.
-            </AvisoGestao>
-          </div>
         </form>
       </div>
     </CadastroFormShell>

@@ -1060,6 +1060,7 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     await abrir("a1");
     fireEvent.click(/** @type {HTMLElement} */ (botaoEditarDaBarra()));
     const form = await screen.findByTestId("b1-form-atividade");
+    fireEvent.click(within(form).getByRole("tab", { name: "Onde e com o quê" }));
     await escolherNoCombo(form, "Área", /02 — Pasto 02/i);
     proxima = erroServidor(422, "ATIVIDADE_REFERENCIA_INVALIDA", { field: "area_id", reason: "inativo" });
     fireEvent.submit(form);
@@ -1073,6 +1074,7 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     await abrir("a1");
     fireEvent.click(/** @type {HTMLElement} */ (botaoEditarDaBarra()));
     const form = await screen.findByTestId("b1-form-atividade");
+    fireEvent.click(within(form).getByRole("tab", { name: "Onde e com o quê" }));
     await escolherNoCombo(form, "Área", /02 — Pasto 02/i);
     proxima = erroServidor(422, "ATIVIDADE_REFERENCIA_INVALIDA", { field: "bem_id", reason: "natureza" });
     fireEvent.submit(form);

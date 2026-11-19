@@ -38,7 +38,7 @@ export function useNavegacaoDoRegistro(ativo) {
  * Há o que navegar? (registro salvo, mais de um na lista)
  * @param {InfoDaNavegacao | null | undefined} info
  */
-export const temNavegacao = (info) => Boolean(info && info.onGo && info.total > 1 && info.index >= 0);
+export const temNavegacao = (info) => Boolean(info && !info.navDisabled && info.onGo && info.total > 1 && info.index >= 0);
 
 /**
  * ‹‹ ‹ 3/12 › ›› — mesmos botões do cabeçalho antigo.
