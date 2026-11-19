@@ -315,8 +315,8 @@ describe('P6 — recusas fail-closed do estorno em lote, antes de qualquer escri
   });
 });
 
-describe('P7 — a origem nova não tem escritor público até a P1-05a', () => {
-  test('nenhum arquivo de backend/src fora do motor cita entrada_estoque / ORIGEM_ENTRADA_ESTOQUE (sem rota, sem reconciliação)', () => {
+describe('P7 — a origem nova só é citada no motor (D-PROD-257: o escritor é o módulo estoqueEntradas, pelas funções do motor)', () => {
+  test('nenhum arquivo de backend/src fora do motor cita entrada_estoque / ORIGEM_ENTRADA_ESTOQUE (nem a rota, nem o serviço, nem a reconciliação)', () => {
     const raiz = new URL('../src/', import.meta.url).pathname;
     /** @param {string} d @returns {string[]} */
     const arquivos = (d) => readdirSync(d).flatMap((n) => {
@@ -327,6 +327,6 @@ describe('P7 — a origem nova não tem escritor público até a P1-05a', () => 
       .filter((p) => !p.endsWith('estoqueFisico/estoqueFisicoMotor.js'))
       .filter((p) => /ORIGEM_ENTRADA_ESTOQUE|['"`]entrada_estoque['"`]/.test(readFileSync(p, 'utf8')))
       .map((p) => p.slice(raiz.length));
-    assert.deepEqual(citam, [], 'a origem entrada_estoque só ganha escritor na P1-05a');
+    assert.deepEqual(citam, [], 'a origem entrada_estoque só é citada no motor; o módulo estoqueEntradas usa aplicarEntradaDocumentada/estornarEntradaDocumentada');
   });
 });

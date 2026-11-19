@@ -18,6 +18,8 @@ export const ACTION_LABELS = {
   lancar_apontamento: "lançar apontamento",
   editar_apontamento: "editar apontamento",
   cancelar_apontamento: "cancelar apontamento",
+  // D-PROD-257 — Estoque → Entradas.
+  entrada: "lançar e excluir entradas de estoque",
 };
 
 /**
@@ -46,6 +48,9 @@ export const EXTRA_ACTION_KEYS_BY_PAGE = Object.freeze({
   "pat-bens-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
   "pat-abastecimentos": Object.freeze(["cancelar"]),
   "op-atividades": Object.freeze(["reabrir", "lancar_apontamento", "editar_apontamento", "cancelar_apontamento"]),
+  // D-PROD-257 — Estoque → Entradas: criar/editar observação/excluir entrada manual e saldo de implantação.
+  // Espelho de `ACOES_ESTOQUE_EXTRAS`; `ajuste` (inventário) segue reservada e não existe.
+  "sup-estoque": Object.freeze(["entrada"]),
 });
 
 /** @param {string} pageId @returns {readonly string[]} */

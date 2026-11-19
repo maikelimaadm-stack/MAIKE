@@ -186,7 +186,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // lançamentos dela passam a ser dessa área) e a FK composta (cliente_id, empresa_id, atividade_id, atividade_area_id).
   '20261118100000_atividade_areas': '098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06',
   // D-PROD-257: EXPAND — Entradas do Estoque (EntradaEstoque, EntradaEstoqueItem e EntradaEstoqueEvento), só tabelas novas.
-  '20261119100000_estoque_entradas': '6004e5e99523ea64fd908240b4bd7f3fb0a0158e8e5110478662eef79e771b57',
+  '20261119100000_estoque_entradas': '1bcac655c22be083610f46ca00959aa85b731511bf44b213554761cac0e522d0',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

@@ -3773,6 +3773,7 @@ model EntradaEstoqueEvento {
   snapshot_anterior Json?
   snapshot_novo     Json?
   createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   entrada EntradaEstoque @relation(fields: [cliente_id, empresa_id, entrada_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "EntradaEstoqueEvento_entrada_fkey")

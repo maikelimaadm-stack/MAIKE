@@ -1488,3 +1488,41 @@ export const atualizarProcedencia = async (tx, ctx, a) => {
   const depois = new Map((await tx.estoqueLoteNota.findMany({ where: { cliente_id: cli, id: { in: mudam.map((l) => l.id) } }, select })).map((l) => [l.id, l]));
   return mudam.map((l) => ({ antes: l, depois: depois.get(l.id) }));
 };
+
+// ─── entrada documentada (D-PROD-257) ──────────────────────────────────────
+/**
+ * D-PROD-257 — as duas pontas da ENTRADA DE ESTOQUE documentada (Estoque → Entradas). O módulo
+ * `estoqueEntradas` chama ESTAS funções e nunca cita a origem: o rótulo `entrada_estoque` (P7 da
+ * D-PROD-177) continua só neste arquivo. Elas só fixam a origem e o efeito e delegam às primitivas
+ * de sempre — nenhum cálculo de custo à parte, nenhuma escrita direta fora do motor.
+ *
+ * `aplicarEntradaDocumentada`: como `aplicarEntradaEstoque`, com `motivoSlug` (a-z0-9_) no lugar de
+ * `origem.sistema`/`origem.tipoDetalhado` (vira `entrada_<motivoSlug>`) e `origem.motivo` obrigatório.
+ * `estornarEntradaDocumentada`: como `estornarEmLote` com efeito ENTRADA, `motivoEstorno` obrigatório
+ * e o tipo `estorno_entrada_exclusao` (a edição versionada com substituição é a P1-05b).
+ * @param {any} tx @param {{auth: any, requestId?: string}} ctx
+ * @param {{ motivoSlug: string, origem: { operacaoId: string, motivo: string } } & Record<string, any>} a
+ */
+export const aplicarEntradaDocumentada = (tx, ctx, a) => {
+  const { motivoSlug, origem, ...resto } = a;
+  return aplicarEntradaEstoque(tx, ctx, {
+    ...resto,
+    origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_ENTRADA_ESTOQUE, tipoDetalhado: `entrada_${motivoSlug}`, motivo: origem.motivo },
+  });
+};
+
+/**
+ * @param {any} tx @param {{auth: any}} ctx
+ * @param {{ origem: { operacaoId: string, motivoEstorno: string } } & Record<string, any>} a
+ */
+export const estornarEntradaDocumentada = (tx, ctx, a) => {
+  const { origem, ...resto } = a;
+  return estornarEmLote(tx, ctx, {
+    ...resto,
+    efeito: EFEITO_ENTRADA,
+    origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_ENTRADA_ESTOQUE, tipoDetalhadoEstorno: ESTORNO_ENTRADA_EXCLUSAO, motivoEstorno: origem.motivoEstorno },
+  });
+};
+
+/** Origens do motor que têm documento próprio (a reconciliação as inclui em `ORIGENS_PROTOCOLO`). */
+export const ORIGENS_DOCUMENTADAS = Object.freeze([ORIGEM_ENTRADA_ESTOQUE]);

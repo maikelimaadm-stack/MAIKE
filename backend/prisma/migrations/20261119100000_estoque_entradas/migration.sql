@@ -87,6 +87,7 @@ CREATE TABLE "EntradaEstoqueEvento" (
     "snapshot_anterior" JSONB,
     "snapshot_novo" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "EntradaEstoqueEvento_pkey" PRIMARY KEY ("id")
 );
