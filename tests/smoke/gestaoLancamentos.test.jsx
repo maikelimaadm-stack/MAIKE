@@ -86,7 +86,17 @@ const clicar = async (el) => {
   });
 };
 const digitar = (testId, valor, escopo = screen) => fireEvent.change(escopo.getByTestId(testId), { target: { value: valor } });
-const radio = (nome, escopo = screen) => clicar(escopo.getByRole('radio', { name: nome }));
+/**
+ * PR #339: o formulário tem guias laterais. Acha o elemento (mesmo na guia fechada), abre a guia
+ * dele como o usuário faria e devolve o elemento já acessível (consulta sem `hidden`).
+ */
+const naGuia = (role, name, escopo = screen) => {
+  const el = escopo.getByRole(role, { name, hidden: true });
+  const painel = el.closest('[role="tabpanel"]');
+  if (painel && painel.hidden) fireEvent.click(screen.getByRole('tab', { name: document.getElementById(painel.getAttribute('aria-labelledby')).textContent.trim() }));
+  return escopo.getByRole(role, { name });
+};
+const radio = (nome, escopo = screen) => clicar(naGuia('radio', nome, escopo));
 const escolher = async (testId, rotulo) => {
   await clicar(screen.getByTestId(testId));
   const painel = await screen.findByTestId(`${testId}-painel`);
@@ -308,7 +318,7 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
     const item = within(screen.getByTestId('item-0'));
     await escolher('seletor-produto-0', /SAL MINERAL 80/);
     await escolher('seletor-local-0', /DEPÓSITO SEDE/);
-    await escolherOpcao(item.getByRole('combobox', { name: 'Unidade do item 1' }), 'SACO');
+    await escolherOpcao(naGuia('combobox', 'Unidade do item 1', item), 'SACO');
     digitar('item-0-quantidade', '4');
     digitar('item-0-valor-unitario', '250');
     expect(screen.getByTestId('item-0-subtotal')).toHaveTextContent(/R\$\s1\.000,00/);
@@ -319,7 +329,7 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
     await radio('Parcelado');
     const gerador = within(screen.getByTestId('gerador-parcelas'));
     fireEvent.change(gerador.getByLabelText(/Nº de parcelas/), { target: { value: '3' } });
-    await clicar(gerador.getByRole('button', { name: 'Gerar parcelas' }));
+    await clicar(naGuia('button', 'Gerar parcelas', gerador));
     expect(screen.getByTestId('parcela-2-valor')).toHaveValue('333,34');
     expect(screen.getByTestId('parcela-0-valor')).toHaveValue('333,33');
     expect(screen.getByTestId('parcelas-diferenca')).toHaveAttribute('data-estado', 'fechado');
@@ -349,7 +359,7 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
     await escolher('seletor-produto-0', /MILHO MOÍDO/);
     const saldos = await screen.findByTestId('saldos-item-0');
     await waitFor(() => expect(saldos).toHaveTextContent(/GALPÃO RETIRO: 1\.200 kg/));
-    await clicar(within(saldos).getByRole('button', { name: /GALPÃO RETIRO/ }));
+    await clicar(naGuia('button', /GALPÃO RETIRO/, within(saldos)));
     digitar('item-0-quantidade', '1.300');
     digitar('item-0-valor-unitario', '1,5');
     expect(screen.getByTestId('item-0-kg')).toHaveTextContent(/acima do saldo deste local/);
@@ -466,7 +476,7 @@ describe('LANC-3 — rateio ao centavo e percentual', () => {
     await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
     digitar('valor-bruto', '1.000,00');
     await escolher('seletor-natureza-0', /NUTRIÇÃO/);
-    await clicar(screen.getByRole('button', { name: /Linha de rateio/ }));
+    await clicar(naGuia('button', /Linha de rateio/));
     await escolher('seletor-natureza-1', /SANIDADE/);
     digitar('rateio-0-valor', '600,00');
     digitar('rateio-1-valor', '399,99');

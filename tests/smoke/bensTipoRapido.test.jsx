@@ -178,7 +178,7 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
     const form = await novoBem();
     await escolherOpcao(tipoDeBem(form), 'Máquina');
     expect(within(form).queryByTestId('bem-escolha-tipo-de-bem')).toBeNull();
-    expect(abas()).toEqual(['Identificação', 'Operação', 'Aquisição e depreciação']);
+    expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Operação', 'Aquisição e depreciação']);
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
     const painel = await screen.findByTestId('bem-seletor-tipo-painel');
     expect(await within(painel).findByRole('option', { name: /^Trator de pneus/ })).toBeTruthy();
@@ -191,7 +191,7 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
 
     await escolherOpcao(tipoDeBem(form), 'Benfeitoria');
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveAttribute('data-placeholder'); // vazio: D-PROD-172
-    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
+    expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
     expect(await screen.findByRole('option', { name: /^Curral/ })).toBeTruthy();
     expect(opcoesDeTipos().at(-1).query).toMatchObject({ natureza: 'BENFEITORIA' });

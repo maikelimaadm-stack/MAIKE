@@ -183,7 +183,8 @@ describe("MOTORBASE1-BATCH-01", () => {
         />,
       ),
     );
-    expect(screen.getByTestId("b1-form-produto")).toHaveClass("mg-b1-form-grid");
+    // PR #339: o formulário tem guias laterais; a grade B1 fica no painel de cada guia.
+    expect(screen.getByTestId("b1-form-produto").querySelector('[role="tabpanel"] .mg-b1-form-grid')).not.toBeNull();
     expect(screen.queryByText(/Configuração de Suplementação/i)).toBeNull();
     cleanup();
 
