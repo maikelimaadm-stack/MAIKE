@@ -7,7 +7,7 @@
  * PostgreSQL real, HTTP autenticado, prova pelas linhas gravadas.
  *
  *  EX1. exemplo da missão: compra 100 sacos → suplementação 20 → transferência 30
- *       → venda FIFO no destino → cancelar a compra falha por dependência;
+ *       → venda a custo médio no destino → cancelar a compra falha por dependência;
  *  S.   suplementação: 2 camadas de custo diferente, rateio Decimal exato,
  *       recusas antes de qualquer escrita, limite, observações longas;
  *  T.   transferência: parcial em várias camadas, origem −, destino +, total
@@ -107,7 +107,7 @@ const conferirInvariantes = async (s, diferencas, rotulo) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('EX1 — exemplo da missão (compra 100 sacos → suplementação 20 → transferência 30 → venda FIFO no destino → cancelar a compra)', () => {
+describe('EX1 — exemplo da missão (compra 100 sacos → suplementação 20 → transferência 30 → venda a custo médio no destino → cancelar a compra)', () => {
   test('números exatos em cada passo; a camada transferida mantém custo, data e procedência; a venda no destino respeita a data verdadeira; o cancelamento da compra falha por dependência sem desfazer nada', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
@@ -131,7 +131,7 @@ describe('EX1 — exemplo da missão (compra 100 sacos → suplementação 20 �
     const mSup = await movimento(sup.movimentacao.id);
     assert.deepEqual(
       [mSup.tipo_movimentacao, mSup.tipo_detalhado, mSup.origem_sistema, q4(mSup.quantidade), q4(mSup.valor_total), q4(mSup.valor_unitario), mSup.unidade_medida, mSup.modo_saida_fifo],
-      ['Saída', 'suplementacao', 'suplementacao', '600.0000', '1600.0200', '2.6667', 'KG', 'FIFO'],
+      ['Saída', 'suplementacao', 'suplementacao', '600.0000', '1600.0200', '2.6667', 'KG', 'CUSTO_MEDIO'],
     );
     assert.deepEqual(fatiasDoMovimento(mSup), [[L1.id, '600.0000', '2.6667']]);
     assert.match(mSup.numero_movimentacao, /^\d+$/);
@@ -180,13 +180,15 @@ describe('EX1 — exemplo da missão (compra 100 sacos → suplementação 20 �
     const fatias = await p.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: s.c, item_id: itemVenda.id } });
     assert.deepEqual(
       Object.fromEntries(fatias.map((f) => [f.estoque_lote_nota_id, [q4(f.quantidade), q4(f.custo_unitario)]])),
-      { [leg.id]: ['100.0000', '5.0000'], [T1.id]: ['200.0000', '2.6667'] },
-      'FIFO pela data verdadeira: o legado (2027-01-01) antes da camada transferida (data da compra)',
+      // D-PROD-256: poço do destino = 100×5,0000 + 900×2,6667 = 2900,03 em 1000 kg → médio 2,9000 em TODAS as fatias
+      { [leg.id]: ['100.0000', '2.9000'], [T1.id]: ['200.0000', '2.9000'] },
+      'lotes baixados pela data verdadeira (o legado, 2027-01-01, antes da camada transferida), mas valorizados pelo médio do poço',
     );
     const mVenda = await movimento(itemVenda.movimentacao_estoque_id);
-    assert.deepEqual([q4(mVenda.valor_total), q4(mVenda.valor_unitario)], ['1033.3400', '3.4445']);
+    assert.deepEqual([q4(mVenda.valor_total), q4(mVenda.valor_unitario)], ['870.0000', '2.9000']);
     assert.deepEqual(mVenda.lotes_consumidos.map((f) => f.lote_id), [leg.id, T1.id]);
     assert.deepEqual([q4((await lote(T1.id)).quantidade_disponivel), (await lote(leg.id)).status], ['700.0000', 'Esgotado']);
+    assert.equal(q4((await lote(T1.id)).custo_unitario), '2.9000', 'o restante foi reavaliado: (2900,03 − 870) ÷ 700');
     assert.equal(await estoqueAtual(e.racao), '2200.0000');
 
     // 5. cancelar a compra: 409 por dependência, nada muda
@@ -217,7 +219,7 @@ describe('EX1 — exemplo da missão (compra 100 sacos → suplementação 20 �
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('S — suplementação no motor (Decimal, CAS, cache conferido)', () => {
-  test('S1: duas camadas de custo diferente, pedido 12,34567 → kg 12,3457 (HALF_UP uma vez); valor 27,8189, unitário 2,2533; fatias gravadas; A esgotado, B 47,6543; cache 47,6543; rateio legado na resposta', async () => {
+  test('S1: duas camadas de custo diferente, pedido 12,34567 → kg 12,3457 (HALF_UP uma vez); médio (20 + 166,665) ÷ 60 = 3,1111, valor 38,4087; fatias gravadas; A esgotado, B 47,6543; cache 47,6543; rateio legado na resposta', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const la = await loteLegado(s, e, e.sal, s.local, { kg: '10', custo: '2.0000', dia: '2027-05-01' });
@@ -229,17 +231,18 @@ describe('S — suplementação no motor (Decimal, CAS, cache conferido)', () =>
     const m = await movimento(corpo.movimentacao.id);
     assert.deepEqual(
       [q4(m.quantidade), q4(m.valor_total), q4(m.valor_unitario), q4(m.custo_medio_depois), q4(m.saldo_antes), q4(m.saldo_depois), m.unidade_medida, m.modo_saida_fifo],
-      ['12.3457', '27.8189', '2.2533', '2.2533', '60.0000', '47.6543', 'KG', 'FIFO'],
+      ['12.3457', '38.4087', '3.1111', '3.1111', '60.0000', '47.6543', 'KG', 'CUSTO_MEDIO'],
     );
-    assert.deepEqual(fatiasDoMovimento(m), [[la.id, '10.0000', '2.0000'], [lb.id, '2.3457', '3.3333']]);
+    assert.deepEqual(fatiasDoMovimento(m), [[la.id, '10.0000', '3.1111'], [lb.id, '2.3457', '3.1111']]);
     assert.equal(m.observacoes, '[RATEIO_FIFO] S/N: 10.000 kg | S/N: 2.346 kg');
     assert.deepEqual([(await lote(la.id)).status, q4((await lote(la.id)).quantidade_disponivel)], ['Esgotado', '0.0000']);
     assert.deepEqual([(await lote(lb.id)).status, q4((await lote(lb.id)).quantidade_disponivel)], ['Disponivel', '47.6543']);
+    assert.equal(q4((await lote(lb.id)).custo_unitario), '3.1111', 'o restante foi reavaliado ao médio de (186,665 − 38,4087) ÷ 47,6543');
     assert.equal(await estoqueAtual(e.sal), '47.6543');
     // contrato externo: rateio com os mesmos campos e números (number)
     assert.deepEqual(corpo.rateio.map((x) => [x.lote_id, x.quantidade_consumida, x.custo_unitario, x.valor_total, x.numero_documento, x.serie_documento]), [
-      [la.id, 10, 2, 20, 'S/N', ''],
-      [lb.id, 2.3457, 3.3333, 7.81892181, 'S/N', ''],
+      [la.id, 10, 3.1111, 31.111, 'S/N', ''],
+      [lb.id, 2.3457, 3.1111, 7.29770727, 'S/N', ''],
     ]);
     assert.equal(dia(new Date(corpo.rateio[0].data_documento)), '2027-05-01');
     assert.deepEqual([corpo.committed, corpo.replay, corpo.operation_id.length > 0], [true, false, true]);
@@ -365,7 +368,7 @@ describe('S — suplementação no motor (Decimal, CAS, cache conferido)', () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('T — transferência no motor (camadas preservadas, total conservado)', () => {
-  test('T1: 35 kg em 3 camadas → saída 103,3325 (unitário 2,9524); destino [10 a 2,0000 de 05-01; 25 a 3,3333 de 05-02]; origem A esgotado, B 25, C 20; Σ global e cache 80; Σ entrada no destino = entrada.quantidade; linhagem em JSON', async () => {
+  test('T1: 35 kg em 3 camadas → saída 91,3885 (médio 2,6111); destino [10 de 05-01; 25 de 05-02, ambas a 2,6111]; origem A esgotado, B 25, C 20; Σ global e cache 80; Σ entrada no destino = entrada.quantidade; linhagem em JSON', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -378,12 +381,12 @@ describe('T — transferência no motor (camadas preservadas, total conservado)'
     const corpo = r.json();
     const saida = await movimento(corpo.movimentacao_saida.id);
     const entrada = await movimento(corpo.movimentacao_entrada.id);
-    assert.deepEqual([q4(saida.valor_total), q4(saida.valor_unitario), q4(saida.saldo_antes), q4(saida.saldo_depois), saida.modo_saida_fifo, saida.unidade_medida], ['103.3325', '2.9524', '80.0000', '45.0000', 'FIFO', 'KG']);
+    assert.deepEqual([q4(saida.valor_total), q4(saida.valor_unitario), q4(saida.saldo_antes), q4(saida.saldo_depois), saida.modo_saida_fifo, saida.unidade_medida], ['91.3885', '2.6111', '80.0000', '45.0000', 'CUSTO_MEDIO', 'KG']);
     assert.deepEqual([q4(entrada.quantidade), q4(entrada.saldo_antes), q4(entrada.saldo_depois), entrada.lotes_consumidos, entrada.local_destino], ['35.0000', '0.0000', '35.0000', null, s.local2.nome]);
     const destino = await p.estoqueLoteNota.findMany({ where: { cliente_id: s.c, local_estoque_id: s.local2.id }, orderBy: { data_documento: 'asc' } });
     assert.deepEqual(destino.map((l) => [q4(l.quantidade_entrada), q4(l.quantidade_disponivel), q4(l.custo_unitario), dia(l.data_documento), l.movimentacao_entrada_id, l.local_estoque_nome]), [
-      ['10.0000', '10.0000', '2.0000', '2027-05-01', entrada.id, s.local2.nome],
-      ['25.0000', '25.0000', '3.3333', '2027-05-02', entrada.id, s.local2.nome],
+      ['10.0000', '10.0000', '2.6111', '2027-05-01', entrada.id, s.local2.nome],
+      ['25.0000', '25.0000', '2.6111', '2027-05-02', entrada.id, s.local2.nome],
     ]);
     assert.deepEqual(
       [[(await lote(la.id)).status, q4((await lote(la.id)).quantidade_disponivel)], q4((await lote(lb.id)).quantidade_disponivel), q4((await lote(lc.id)).quantidade_disponivel)],
@@ -394,12 +397,13 @@ describe('T — transferência no motor (camadas preservadas, total conservado)'
     assert.equal(destino.reduce((t, l) => t.plus(D(l.quantidade_entrada)), D(0)).toFixed(4), q4(entrada.quantidade), 'I4: Σ entrada dos lotes de destino = entrada.quantidade');
     const porOrigem = Object.fromEntries(destino.map((l) => [dia(l.data_documento), l.id]));
     assert.deepEqual(saida.lotes_consumidos.map((f) => [f.lote_id, f.quantidade, f.custo_unitario, f.lote_destino_id]), [
-      [la.id, '10.0000', '2.0000', porOrigem['2027-05-01']],
-      [lb.id, '25.0000', '3.3333', porOrigem['2027-05-02']],
+      [la.id, '10.0000', '2.6111', porOrigem['2027-05-01']],
+      [lb.id, '25.0000', '2.6111', porOrigem['2027-05-02']],
     ]);
+    assert.deepEqual([q4((await lote(lb.id)).custo_unitario), q4((await lote(lc.id)).custo_unitario)], ['2.6111', '2.6111'], 'origem reavaliada: (208,887 − 91,3885) ÷ 45');
     assert.deepEqual(corpo.rateio.map((x) => [x.lote_id, x.quantidade_consumida, x.custo_unitario, x.lote_destino_id]), [
-      [la.id, 10, 2, porOrigem['2027-05-01']],
-      [lb.id, 25, 3.3333, porOrigem['2027-05-02']],
+      [la.id, 10, 2.6111, porOrigem['2027-05-01']],
+      [lb.id, 25, 2.6111, porOrigem['2027-05-02']],
     ]);
     assert.equal(corpo.movimentacao_saida.movimento_filho_id, entrada.id);
     await conferirInvariantes(s, {}, 'T1');
@@ -464,8 +468,10 @@ describe('T — transferência no motor (camadas preservadas, total conservado)'
     assert.equal(saida.data_movimentacao.toISOString(), '2027-06-12T12:00:00.000Z');
     // camadas de destino, pelo custo (único por camada de origem)
     const destino = await p.estoqueLoteNota.findMany({ where: { cliente_id: s.c, movimentacao_entrada_id: r.json().movimentacao_entrada.id } });
-    const porCusto = (c) => destino.find((l) => q4(l.custo_unitario) === c);
-    const [dn, dc, ds] = [porCusto('2.0000'), porCusto('3.0000'), porCusto('4.0000')];
+    // D-PROD-256: o custo das camadas de destino é o médio (todas iguais); cada uma se acha pela data de origem
+    const porDia = (d) => destino.find((l) => dia(l.data_documento) === d);
+    const [dn, dc, ds] = [porDia('2027-05-01'), porDia('2027-05-02'), porDia('2027-05-03')];
+    assert.deepEqual(destino.map((l) => q4(l.custo_unitario)), ['3.0000', '3.0000', '3.0000'], 'médio (5×2 + 5×3 + 5×4) ÷ 15 = 3,0000');
     assert.deepEqual([dn.numero_documento, dn.serie_documento, dn.fornecedor_id, dn.fornecedor_nome, dia(dn.data_documento)], [null, null, null, null, '2027-05-01']);
     assert.deepEqual([dc.numero_documento, dc.serie_documento, dc.fornecedor_id, dc.fornecedor_nome, dia(dc.data_documento)], ['NF-123', '2', e.forn.id, e.forn.nome, '2027-05-02']);
     // D-PROD-161 (R2, achado A-02 — mudança DELIBERADA da SPEC §3.2 passo 9): o fallback era o dia da
@@ -673,7 +679,7 @@ describe('M — guardas, tenancy, recibo antigo, empate, rollback e data', () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('AB-X — abastecimento (litros) sobre a camada transferida', () => {
-  test('transferir 50 L do local 2 (camada de 06-02) para o tanque: o abastecimento consome FIFO A (06-01) e depois a camada transferida (06-02), antes de B (06-03); quantidade e custo na unidade do Produto (L, sem fator — D-PROD-162); o cancelamento devolve cada fatia à SUA camada', async () => {
+  test('transferir 50 L do local 2 (camada de 06-02) para o tanque: o abastecimento baixa os lotes A (06-01) e depois a camada transferida (06-02), antes de B (06-03); quantidade e custo na unidade do Produto (L, sem fator — D-PROD-162); o cancelamento devolve cada fatia à SUA camada', async () => {
     const s = await montarAbastecimento(app);
     const p = prisma();
     const l2 = await s.lote(s.e1, s.diesel, s.local2, { quantidade: '60.0000', custo: '5.0000', dia: '2027-06-02' });
@@ -682,13 +688,13 @@ describe('AB-X — abastecimento (litros) sobre a camada transferida', () => {
     });
     assert.equal(rt.statusCode, 201, rt.body);
     const T = await prisma().estoqueLoteNota.findFirst({ where: { cliente_id: s.c, movimentacao_entrada_id: rt.json().movimentacao_entrada.id } });
-    assert.deepEqual([T.local_estoque_id, dia(T.data_documento), q4(T.quantidade_disponivel), q4(T.custo_unitario)], [s.local.id, '2027-06-02', '50.0000', '5.0000']);
+    assert.deepEqual([T.local_estoque_id, dia(T.data_documento), q4(T.quantidade_disponivel), q4(T.custo_unitario)], [s.local.id, '2027-06-02', '50.0000', '5.3000']); // D-PROD-256: destino reavaliado ao médio (50×5,2 + 100×5,5 + 50×5,0) ÷ 200
     assert.equal(q4((await lote(l2.id)).quantidade_disponivel), '10.0000');
     const d = await AB.confirmarOk(s.operador.token, corpoAbastecimento(s)); // 80 L do Produto em L (D-PROD-162: sem fator)
     const fatias = (await p.abastecimentoBemConsumoLote.findMany({ where: { abastecimento_id: d.id }, orderBy: { ordem: 'asc' } })).map((f) => [f.estoque_lote_nota_id, q4(f.quantidade), q4(f.custo_unitario)]);
-    assert.deepEqual(fatias, [[s.lotes.dieselA.id, '50.0000', '5.2000'], [T.id, '30.0000', '5.0000']]);
+    assert.deepEqual(fatias, [[s.lotes.dieselA.id, '50.0000', '5.3000'], [T.id, '30.0000', '5.3000']]);
     const linha = await p.abastecimentoBem.findUnique({ where: { id: d.id } });
-    assert.deepEqual([q4(linha.quantidade), linha.unidade, q4(linha.custo_total), q4(linha.custo_unitario)], ['80.0000', 'L', '410.0000', '5.1250']);
+    assert.deepEqual([q4(linha.quantidade), linha.unidade, q4(linha.custo_total), q4(linha.custo_unitario)], ['80.0000', 'L', '424.0000', '5.3000']);
     const c = await AB.cancelar(s.contaCancelar.token, d.id, { empresa_id: s.e1.id, versao: 1, motivo: 'lançado no bem errado', operation_id: opIdAb() });
     assert.equal(c.statusCode, 200, c.body);
     assert.deepEqual(
