@@ -8664,4 +8664,32 @@ Não dependem do alvo (traduzem pelo comando que falhou, e assim continuam): `us
 
 **Relatório:** [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-256 -->
+## D-PROD-258 — Atividades, fase 1: 7 tipos fixos de pasto, operação com 3 campos e um formulário único ("Registrar serviço") também pelo Manejos do mapa
+
+**Data:** 2026-11-19 · **Origem:** pedido do proprietário (Maike), que aprovou a análise `atividades-analise.md` já com o escopo reduzido a **serviços de pasto** (sem nutrição, suplementação, cocho nem depósito) · **Branch:** `feat/atividades-tipos-fixos` · **Migration:** nenhuma (a atualização de dados é um script em dry-run, à parte).
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-256` e outros branches reservam até a 257 (o do Capacitor usa até a 253); esta é a **D-PROD-258** (a 256 e a 257 são de outra sessão, `cursor/estoque-custo-medio`) e o marcador passa a D-PROD-259.
+
+**Decisão — os 7 tipos fixos.**
+1. O "tipo fixo" é a **`categoria`** do tipo de atividade (que passa a se chamar **operação** na tela), agora **obrigatória**. Lista: **Preparo do solo · Formação de pastagem (plantio) · Fertilização · Aplicação · Roçada e tratos · Manutenção · Outros**. **Colheita** e **Manejo animal** ficam de fora.
+2. **Sem mudar tabela nem o CHECK `TipoAtividade_categoria_check`** (ampliar a lista é CONTRACT e exige GO próprio, D-PROD-72 item 3): os 7 usam valores que o banco já aceita — `PREPARO_SOLO`, `PLANTIO`, **`TRATO_CULTURAL` = Fertilização**, `APLICACAO`, **`PASTAGEM` = Roçada e tratos**, **`BENFEITORIA` = Manutenção**, `OUTROS`. O rótulo mudou, o valor gravado não. `FERTILIZACAO` como valor próprio fica para uma decisão futura, se o proprietário quiser.
+3. **Servidor:** `POST /tipos-atividade` exige `categoria` (um dos 7); `PATCH` aceita só os 7 e nunca `null`; `COLHEITA`/`MANEJO_ANIMAL` deixam de ser aceitos em escrita (400). Registro antigo com categoria vazia ou fora dos 7 continua **legível** e editável sem tocar na categoria (por exemplo, inativar). A coluna segue **nullable** no banco (sem mudança de tabela).
+
+**Decisão — operação com 3 campos e padrões automáticos.**
+4. O cadastro (Tipos de Atividade; o menu e as permissões mantêm o nome) mostra só **Tipo (fixo) + Nome da operação + Ativo**. Grupo, descrição, centros, unidade, coeficiente e as 8 chaves saem da tela; o envio leva só `categoria`, `nome_tipo` e `ativo` (a edição não mexe no resto).
+5. **Padrão automático no servidor, na criação:** `grupo_atividade_id` ausente → grupo **`GERAL`** do cliente (criado na primeira vez, com auditoria; o nome é `UNIQUE` por cliente); chaves ausentes → `exige_area` e as quatro `permite_*` (**implemento, produto, serviço, mão de obra**) **ligadas**; `exige_safra`, `exige_maquina` e `exige_producao` **desligadas**. As três "exige" ficam desligadas **de propósito**: ligadas, obrigariam safra, máquina e produção em todo registro e quebrariam "todas as seções opcionais". Quem manda grupo ou chave explicitamente continua sendo obedecido (a Nova atividade e os testes antigos não mudam).
+
+**Decisão — o formulário único.**
+6. **"Registrar serviço"** (`JanelaRegistroDeCampo`): **1º o tipo fixo, 2º a operação** (só as **ativas** do tipo escolhido, sem Abastecimento — a regra da emenda 1 da D-PROD-254 continua). As **quatro seções — Máquinas, Insumos, Mão de obra, Serviço de terceiro — ficam sempre à mostra**, todas opcionais (uma linha por seção nesta fase, como hoje); o campo-chave de cada seção deixa de levar o asterisco e os campos que dependem dele só o levam depois que ele é escolhido (`SecoesDoFormularioContext.opcional`). O servidor continua recusando o que a operação não aceitar (operação antiga com `permite_*` desligado, enquanto o script não rodar). Operação antiga fora dos 7 aparece em **Outros** na tela.
+7. **Manejos do mapa** (Detalhes da área) **abre direto o mesmo formulário**, com a **área já preenchida** (presa); a tela empilhada de tipos saiu. O envio é o mesmo `POST /atividades/registrar`.
+8. **Escondido** (nada apagado): Grupo e as 8 chaves saem da Nova atividade, do cabeçalho da atividade, da lista (coluna Grupo) e do cadastro. A **Nova atividade** existente continua funcionando; o caminho principal passa a ser o Registrar serviço.
+
+**Decisão — dados existentes (script PREPARADO, não executado).**
+9. `scripts/ops/tipos-fixos-atividade-dados.mjs` (`npm run ops:tipos-fixos-atividade`): **dry-run por padrão** (lista, tipo a tipo, o que mudaria); gravar exige `--aplicar`, `TIPOS_FIXOS_CONFIRM=sim` e `--backup <arquivo>` (valor anterior de cada linha); transação única; idempotente; `--cliente` limita o alcance. **Não é migration** de propósito (uma migration roda sozinha no deploy). Mapeamento: operação de Aplicação ou Trato cultural com nome de adubação → **Fertilização**; Trato cultural sem nome de adubação → **Aplicação**; Preparo do solo, Plantio, Aplicação, Pastagem, Benfeitoria e Outros ficam; **Colheita, Manejo animal e sem categoria → Outros**; as chaves vão ao padrão do item 5. Não toca em grupo, centros, unidade, coeficiente, nome, ativo, atividades nem lançamentos.
+10. **Risco:** (a) a lista precisa ser **conferida pelo proprietário antes** (o nome decide Fertilização × Aplicação; o resto cai em Outros); (b) desligar `exige_maquina/safra/producao` em operação que as exigia muda a regra de quem registrar por ela (efeito desejado, mas é mudança de regra); (c) operação em **Outros** por falta de categoria vai a um tipo genérico até alguém reclassificar na tela.
+
+**Fora de escopo (fases seguintes):** várias linhas por seção (fase 2), várias áreas por registro (fase 3), planejar antes de fazer, operação sem área, remover a tela "Nova atividade", apagar colunas (precisa de GO), colheita com produção, nutrição/suplementação/cocho.
+
+**Relatório:** [`MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md`](./MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-259 -->

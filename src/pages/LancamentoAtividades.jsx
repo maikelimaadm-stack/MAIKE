@@ -104,7 +104,6 @@ export const ATIVIDADES_COLUNAS = [
   { id: "data_inicio", label: "Início", default: true, sortable: true, width: 101 },
   // D-PROD-234: o custo total da atividade (o mesmo dos totais), que a lista do servidor traz por página.
   { id: "valor_total", label: "Custo", default: true, sortable: true, align: "right", width: 130 },
-  { id: "grupo", label: "Grupo", default: false, sortable: true, width: 150 },
   { id: "setor", label: "Setor", default: false, sortable: true, width: 140 },
   { id: "bem", label: "Máquina", default: false, sortable: true, width: 160 },
   { id: "safra", label: "Safra", default: false, sortable: true, width: 100 },
@@ -146,7 +145,6 @@ export const valorDoCampoAtividade = (item, id) => {
   if (id === "numero") return item?.numero != null ? String(item.numero) : "";
   if (id === "nome") return String(item?.nome ?? "");
   if (id === "tipo") return String(item?.tipo_atividade_nome ?? "");
-  if (id === "grupo") return String(item?.grupo_atividade_nome ?? "");
   // D-PROD-249: a atividade de várias áreas mostra "2 de 5 em andamento"; a de uma área, o nome dela.
   if (id === "area") return textoProgressoAreas(item) || textoDaColunaArea(item);
   if (id === "setor") return rotuloDoSetor(item);
@@ -781,7 +779,6 @@ export default function LancamentoAtividades() {
         <ValorCalculado label="Status" valor={rotuloDoStatusAtividade(a?.status) || "—"} span={3} testId="atividade-status" />
         <ValorCalculado label="Nº" valor={a?.numero != null ? String(a.numero) : "—"} span={3} testId="atividade-numero" />
         <CampoTexto label="Tipo de atividade" value={String(a?.tipo_atividade_nome ?? "")} onChange={semEdicao} readOnly span={6} />
-        <CampoTexto label="Grupo de atividade" value={String(a?.grupo_atividade_nome ?? "")} onChange={semEdicao} readOnly span={6} />
 
         <SecaoForm titulo="Onde e com o quê" />
         <CampoTexto
