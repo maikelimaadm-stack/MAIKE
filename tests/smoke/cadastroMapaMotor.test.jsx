@@ -8,12 +8,12 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, within, act } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, within, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/components/mapa/MapaDesenho", () => ({ default: ({ tipoDesenho, itemEditando }) => <div data-testid="editor-geometria">{tipoDesenho}:{itemEditando.id}</div> }));
+vi.mock("@/components/mapa/MapaDesenho", () => ({ default: ({ tipoDesenho, itemEditando, onCancelar }) => <div data-testid="editor-geometria">{tipoDesenho}:{itemEditando.id}<button onClick={onCancelar}>Sair do mapa</button></div> }));
 
 const AREAS = [
   { id: "a1", empresa_id: "emp-1", nome: "PIQUETE 01", sigla: "P1", numero_area: "1", setor_id: "s1", setor_nome: "NORTE", tipo_cultura: "Pastagem", tipo_pastagem: "Marandu", tamanho_hectares: 12.5, capacidade_maxima: 40, quantidade_atual: 10, status_ocupacao: "Ocupado", aproveitamento_classificacao: "Média", coordenadas: { coords: [[-15.6, -56.1], [-15.6, -56.09], [-15.61, -56.09]], cor: "#61aad9" } },
@@ -64,7 +64,34 @@ describe("Cadastro de Áreas, Pontos e Linhas no motor", () => {
     fireEvent.keyDown(await screen.findByRole("button", { name: "Editar" }), { key: "ArrowDown" });
     fireEvent.click(await screen.findByRole("menuitem", { name: acao }));
     expect(await screen.findByTestId("editor-geometria")).toHaveTextContent(resultado);
+    expect(document.body.style.pointerEvents).not.toBe("none");
+    fireEvent.click(screen.getByRole("button", { name: "Sair do mapa" }));
+    expect(await screen.findByRole("button", { name: "Novo" })).toBeEnabled();
+    expect(document.body.style.pointerEvents).not.toBe("none");
   });
+  it.each([
+    ["Áreas", "PIQUETE 01"],
+    ["Pontos", "COCHO TESTE"],
+    ["Linhas", "CERCA TESTE"],
+  ])("não bloqueia a tela ao abrir, cancelar e reabrir a edição em %s", async (aba, nome) => {
+    await montar();
+    fireEvent.click(screen.getByRole("tab", { name: aba }));
+    fireEvent.doubleClick(await screen.findByText(nome));
+    for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+      fireEvent.keyDown(await screen.findByRole("button", { name: "Editar" }), { key: "ArrowDown" });
+      await screen.findByRole("menuitem", { name: "Editar detalhes" });
+      // O menu de ações não é uma janela modal: não pode bloquear a página.
+      expect(document.body.style.pointerEvents).not.toBe("none");
+      fireEvent.click(screen.getByRole("menuitem", { name: "Editar detalhes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Cancelar" }));
+      await waitFor(() => expect(document.body.style.pointerEvents).not.toBe("none"));
+      expect(screen.queryByRole("menu")).toBeNull();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Tabela" }));
+    fireEvent.click(await screen.findByRole("tab", { name: aba === "Áreas" ? "Pontos" : "Áreas" }));
+    expect(await screen.findByText(aba === "Áreas" ? "COCHO TESTE" : "PIQUETE 01")).toBeVisible();
+  });
+
   it("abas, '+ Novo' e a grade do motor com as áreas", async () => {
     await montar();
     expect(screen.getByRole("tab", { name: "Áreas", selected: true })).toBeInTheDocument();

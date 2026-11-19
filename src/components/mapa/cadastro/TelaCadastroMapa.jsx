@@ -175,7 +175,8 @@ export default function TelaCadastroMapa({
       showDuplicate={false}
       showEdit={false}
       extraToolbar={alvoEdicao && !controller.isEditing ? (
-        <Menu.Root>
+        <Menu.Root modal={false}>
+          {/* O menu pode desmontar ao abrir o editor; não deve bloquear a página. */}
           <Menu.Trigger asChild>
             <PillBtn type="button" tone="gray" disabled={salvando} aria-label="Editar" title="Editar">
               <Pencil className="h-4 w-4" aria-hidden="true" />
