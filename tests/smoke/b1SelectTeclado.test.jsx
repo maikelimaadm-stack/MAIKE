@@ -61,4 +61,20 @@ describe("B1Select pelo teclado, sem pesquisa (D-PROD-222)", () => {
     await tecla(campo, "Enter");
     expect(campo).toHaveTextContent("Pendente");
   });
+
+  it("aberta por Enter (foco no campo), uma letra leva o foco para a pesquisa e as próximas completam a busca", async () => {
+    render(<Campo />);
+    const campo = screen.getByRole("combobox", { name: "Status" });
+    campo.focus();
+    await tecla(campo, "Enter");
+    expect(document.activeElement).toBe(campo);
+    await tecla(campo, "e");
+    const busca = /** @type {HTMLInputElement} */ (document.activeElement);
+    expect(busca).not.toBe(campo);
+    expect(busca.tagName).toBe("INPUT");
+    expect(busca.value).toBe("e");
+    await act(async () => { fireEvent.change(busca, { target: { value: "em" } }); });
+    expect(screen.getByRole("listbox")).toHaveTextContent("Emergencial");
+    expect(screen.getByRole("listbox")).not.toHaveTextContent("Pendente");
+  });
 });
