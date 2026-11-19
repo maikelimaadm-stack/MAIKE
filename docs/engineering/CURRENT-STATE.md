@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-19 (missão ativa D-PROD-259; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,14 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-ENTRADAS: aba Entradas do Estoque (D-PROD-257, PR 2 de 2)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-NOVO-MOVIMENTO: "Novo movimento" em Movimentos, motivos de entrada por cadastro (D-PROD-259)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-259**, pedido do proprietário: escolher o tipo de movimento (Entrada ou Transferência) dentro de Movimentos; a aba Entradas sai |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `c2991afd` · PR draft |
+| Escopo | Janela "Novo movimento" (Entrada com cabeçalho e várias linhas de produto; Transferência pelo comando existente); cadastro `MotivoEntradaEstoque` (Compra, Doação, Saldo de implantação + os do usuário, sem cor); fornecedor, centros de custo e de resultado, lote e validade na entrada |
+| Migration | `20261119200000_estoque_entradas_motivos`, **CONTRACT** (só com as Entradas vazias). Aplicação **antes do merge** pelo runbook (caminho B), **só com o GO escrito do proprietário**; nada aplicado em produção |
+| Constituição | emenda **proposta** na D-PROD-259 (motivos por cadastro, Compra como motivo, sem justificativa obrigatória); conflita com o texto da D-PROD-177 em `00`/`07` e **só vale com a aprovação do proprietário** |
+| Abertos | consulta recíproca na Central (R-DEDUPE), edição física por revisão, saída manual, ajuste de inventário, cor por tipo |
+| Relatório | [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md) · runbook [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-ENTRADAS: aba Entradas do Estoque (D-PROD-257, PR 2 de 2)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-257**: aba **Entradas** (entrada manual documentada e saldo de implantação) na tela Estoque; o inventário inicial é o motivo `SALDO_IMPLANTACAO`, não uma aba |
-| Branch / PR | `cursor/estoque-entradas`, **empilhada** em `cursor/estoque-custo-medio` (PR #337, D-PROD-256, ainda não mesclada) · sem push nem PR ainda; o PR deve ter base `cursor/estoque-custo-medio` |
+| Branch / PR | `cursor/estoque-entradas` · mergeada na `main` (PRs #335, #337, #340) |
 | Escopo | `backend/src/modules/estoqueEntradas/` (rotas, serviço, regras), dois invólucros no motor (`aplicarEntradaDocumentada`, `estornarEntradaDocumentada`), reconciliação (origem e FK do estorno), permissão extra `entrada` da tela `sup-estoque`, aba/lista/formulário/detalhe no front |
-| Migration | `20261119100000_estoque_entradas`, **EXPAND** (3 tabelas novas). Sobe pelo caminho normal de deploy **só depois do merge manual, e depois da #337**; nada foi aplicado em produção |
+| Migration | `20261119100000_estoque_entradas`, **EXPAND** (3 tabelas novas). **Aplicada em produção** em 2026-11-19 17:54:41 UTC pelo caminho B, com o GO do proprietário (69 concluídas; ver [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md) §1) |
 | Constituição | a emenda do custo médio (D-PROD-256) **continua pendente de ratificação** no merge da #337; esta PR não a aprova |
 | Abertos | consulta recíproca da P3 (compra → entrada; bloqueio de liberação do contrato), edição física por revisão (P1-05b), janela FIFO/R-DATA, inventário periódico e `ajuste` |
 | Relatório | [`MAIKE-ESTOQUE-ENTRADAS-REPORT.md`](./MAIKE-ESTOQUE-ENTRADAS-REPORT.md) |
