@@ -9,7 +9,7 @@ import { formatarDia, hojeNoFuso } from "@/lib/diaCivil";
 import { formatarNumero } from "@/lib/dinheiroDecimal";
 import { lerErroGestao } from "@/lib/gestaoErros";
 import { mensagemErroPatrimonio } from "@/lib/patrimonioErros";
-import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
@@ -503,7 +503,6 @@ export default function FormularioBem({
 
   const operacao = () => (
     <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2">
-      <SecaoForm titulo="Medidor" />
       <MedidorBem
         medidor={form.medidor}
         onChange={alterarMedidor}
@@ -537,9 +536,7 @@ export default function FormularioBem({
         />
       ) : null}
       {cap?.tanques ? (
-        <>
-          <SecaoForm titulo="Tanques" />
-          <TanquesBem
+        <TanquesBem
             tanques={form.tanques}
             onChange={alterarTanques}
             readOnly={readOnly}
@@ -550,7 +547,6 @@ export default function FormularioBem({
             recusa={produtoRecusado}
             onRetirarRecusado={onRetirarRecusado}
           />
-        </>
       ) : null}
     </div>
   );

@@ -827,8 +827,18 @@ body.b1-tela .b1-lista-pop .mk-sel-lista.b1-lista:not(#mk-padrao) {
 }
 
 /* Quando o formulário usa Base1PanelTabs (1 ou mais guias), o cartão é o próprio .b1-aba-cartao — nunca um card dentro de outro */
+.cadastro-b1 .mg-form-scroll:has(.b1-aba-cartao):not(#mk-padrao):not(#mk-b) {
+  padding: 2px 2px 24px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.cadastro-b1 .mg-form-scroll:has(.b1-aba-cartao) form[data-densidade]:not(#mk-padrao):not(#mk-b),
 .cadastro-b1 .mg-form-scroll.b1-form--abas-fora form[data-densidade]:not(#mk-padrao):not(#mk-b) {
   padding: 0 !important;
+  border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
 }
