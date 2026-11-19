@@ -2826,6 +2826,18 @@
   font-size: 13px;
   font-weight: 600;
 }
+/* D-PROD-261 — itens do "Registrar serviço" (tabela e cartão do celular): o aberto no editor e o recusado pelo servidor. */
+.cadastro-b1 .b1-tipo-tabela tr.is-editando td,
+.cadastro-b1 .b1-tipo-card.is-editando {
+  background: var(--mg-surface-2, #f5f5f2);
+}
+.cadastro-b1 .b1-tipo-tabela tr.is-recusada td,
+.cadastro-b1 .b1-tipo-card.is-recusada {
+  background: #fef2f2;
+}
+.cadastro-b1 .b1-tipo-card.is-recusada {
+  border-color: #fecaca;
+}
 /* Os botões com texto dos dias (Repetir, Editar, Cancelar, Adicionar …) usam `tb-btn-sm`, que no motor é o botão
    só de ícone (24 px): o texto vazava por cima dos vizinhos. Nos dias da atividade aberta, a largura acompanha o texto. */
 .cadastro-b1 #atividade-dias-corpo .tb-btn.tb-btn-sm {

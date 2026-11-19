@@ -2203,8 +2203,8 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
     expect(within(janela).getByRole("button", { name: "Cancelar" })).toBeTruthy();
     // A área, o tipo e a operação NÃO vêm presos: a pessoa escolhe o tipo fixo e depois a operação desse tipo (só as ativas).
-    // As quatro seções já estão à mostra.
-    for (const secao of ["Máquinas", "Insumos", "Mão de obra", "Serviço de terceiro"]) expect(janela.textContent).toContain(secao);
+    // As quatro seções já estão à mostra (D-PROD-261: os nomes da maquete "Nova realização").
+    for (const secao of ["Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)"]) expect(janela.textContent).toContain(secao);
     await escolherNoCombo(janela, "Área", /^Pasto 01$/i);
     await escolherNoCombo(janela, "Tipo", /^Roçada e tratos$/i);
     fireEvent.click(within(janela).getByRole("combobox", { name: "Operação" }));

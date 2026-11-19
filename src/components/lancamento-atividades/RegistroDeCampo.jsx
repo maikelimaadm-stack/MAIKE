@@ -9,17 +9,8 @@ import { CampoDia, CampoNumero } from "@/components/financeiroGestao/CamposLanca
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
-import {
-  AvisoEnvioDaLinha,
-  CamposDaLinhaMaoObra,
-  CamposDaLinhaMaquina,
-  CamposDaLinhaProduto,
-  CamposDaLinhaServico,
-  SecoesDoFormularioContext,
-  useEnvioDaLinha,
-  useMedidorDaLinha,
-  useSaldoDoProduto,
-} from "@/components/lancamento-atividades/JanelasDaLinha";
+import { AvisoEnvioDaLinha, SecoesDoFormularioContext, useEnvioDaLinha } from "@/components/lancamento-atividades/JanelasDaLinha";
+import { EditorDaLinhaDoRegistro, SecaoDeLinhasDoRegistro } from "@/components/lancamento-atividades/LinhasDoRegistro";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
@@ -30,23 +21,27 @@ import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, MAX_OBSERVACAO_ATIVIDADE, 
 import { RAIZ_CONSULTAS_ATIVIDADES, corpoDoApontamento, formularioApontamentoVazio, normalizarPaginaDeOpcoes, validarFormularioApontamento } from "@/lib/atividadeApontamentoRegras";
 import {
   campoDaLinhaRecusada,
-  corpoDaLinhaMaoObra,
-  corpoDaLinhaMaquina,
-  corpoDaLinhaProduto,
-  corpoDaLinhaServico,
-  formularioMaoObraVazio,
+  chaveLocaisDoProduto,
+  ehSaltoDoMedidor,
   formularioMaquinaVazio,
-  formularioProdutoVazio,
-  formularioServicoVazio,
-  mensagemDeErroLinha,
-  passaDoTeto,
-  usoDaLinha,
   validarLinhaMaoObra,
   validarLinhaMaquina,
   validarLinhaProduto,
   validarLinhaServico,
 } from "@/lib/atividadeLinhasRegras";
-import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCampoRegras";
+import {
+  COLECOES_DO_REGISTRO,
+  QUERY_ATIVIDADES_DA_AREA,
+  comItem,
+  erroDaChaveDaLinha,
+  formularioVazioDaSecao,
+  itemDaRecusa,
+  itensVaziosDoRegistro,
+  linhasDoCorpoDoRegistro,
+  mensagemDaRecusaDoRegistro,
+  rotuloDoMesCurto,
+  temChaveDaLinha,
+} from "@/lib/registroDeCampoRegras";
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { definirFazendaDaTela, listarOpcoesOperadores, obterResumoDaArea, registrarCampo } from "@/services/lancamentoAtividadesService";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
@@ -57,11 +52,17 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  * (680px no desktop; `b1-janela--tela-cheia` no celular), em grupos (`SecaoForm` + `mg-b1-form-grid`).
  *
  * D-PROD-258 — dois passos: primeiro o TIPO FIXO (os 7 serviços de pasto), depois a OPERAÇÃO (o "tipo de atividade" do
- * cadastro, filtrado pelo tipo escolhido). As QUATRO seções — Máquinas, Insumos, Mão de obra e Serviço de terceiro — ficam
- * sempre à mostra e todas são opcionais (uma linha por seção nesta fase); o servidor segue sendo quem recusa o que a operação
- * não aceitar. Os campos são os MESMOS dos formulários de linha (`JanelasDaLinha`: máquina com implemento e medidor, produto
- * com saldo e dose/ha, mão de obra, serviço): nenhuma regra de negócio é copiada. Hectares feitos, operador e observação
- * são do dia.
+ * cadastro, filtrado pelo tipo escolhido). O servidor segue sendo quem recusa o que a operação não aceitar.
+ *
+ * D-PROD-261 (fase 2, maquete "Nova realização") — as QUATRO seções (Insumos, Máquinas, Equipe e Serviço de terceiro) são
+ * TABELAS, todas opcionais, com até 20 itens cada (o máximo do servidor). "+ Incluir …" abre um editor DENTRO da seção (um
+ * por seção, sem segunda janela) com os MESMOS campos das janelas da linha (`JanelasDaLinha`: máquina com implemento e
+ * medidor, produto com saldo e dose/ha, mão de obra, serviço); "Incluir" valida com a regra da linha e o item vira linha da
+ * tabela; clicar na linha a abre de novo ("Atualizar"). A máquina guarda o medidor e a decisão da justificativa do
+ * "Incluir"; o insumo recalcula a dose/ha pelos hectares de agora. Salvar com um editor preenchido inclui o item antes; o
+ * editor vazio não conta. A recusa do servidor (`linha_indice`/`indice` = a posição no array enviado) fica na linha da
+ * tabela e abre o editor nela, com o campo apontado. Nenhuma regra de negócio é copiada. Hectares feitos e operador são do
+ * dia; a observação fica em "Informações complementares".
  *
  * Um envio só (`POST /atividades/registrar`, via `registrarCampo`): o servidor acha a atividade ABERTA do tipo que já tem a
  * área no mês — ou abre uma — e grava o registro do dia com as linhas numa transação. O cliente nunca encadeia chamadas.
@@ -101,11 +102,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     exigeMaquina: tipo?.exige_maquina === true,
     exigeSafra: tipo?.exige_safra === true,
     permiteImplemento: true,
-    permiteProduto: true,
-    permiteMaoObra: true,
-    permiteServico: true,
   };
-  const comMaquina = true;
 
   // ─── O dia: hoje na fazenda por padrão, nunca depois ──────────────────
   const [dia, setDia] = useState(hoje || "");
@@ -114,37 +111,116 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     if (!diaMexido.current && hoje) setDia(hoje);
   }, [hoje]);
 
-  // ─── Formulários das linhas e do dia ──────────────────────────────────
-  const [formMaquina, setFormMaquina] = useState(() => formularioMaquinaVazio());
-  const [formProduto, setFormProduto] = useState(() => formularioProdutoVazio());
-  const [formMaoObra, setFormMaoObra] = useState(() => formularioMaoObraVazio());
-  const [formServico, setFormServico] = useState(() => formularioServicoVazio());
+  // ─── O dia e as linhas (D-PROD-261: itens das tabelas e um editor por seção) ─
   const [hectares, setHectares] = useState("");
   const [operador, setOperador] = useState(/** @type {{ id: string, rotulo: string } | null} */ (null));
   const [observacao, setObservacao] = useState("");
   const [safra, setSafra] = useState("");
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
-  const [saltoPedido, setSaltoPedido] = useState(false);
+  const [itens, setItens] = useState(itensVaziosDoRegistro);
+  const [editores, setEditores] = useState(editoresFechados);
+  /** A recusa do servidor em cada item (chave → mensagem), mostrada embaixo da linha da tabela. */
+  const [errosDasLinhas, setErrosDasLinhas] = useState(/** @type {Record<string, string>} */ ({}));
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
   const fecharDepois = useRef(true);
   const [chaveForm, setChaveForm] = useState(0);
+  /** O que cada editor aberto leu (medidor, saldo), pelo `id` da abertura: um editor velho nunca vale para o novo. */
+  const lidoNosEditores = useRef(/** @type {Partial<Record<ColecaoDoRegistro, LidoNoEditor>>} */ ({}));
+  const ultimaAbertura = useRef(0);
+  const ultimoItem = useRef(0);
+  const areaDoDia = hectaresDaDose(hectares, area);
 
-  const medidorDaLinha = useMedidorDaLinha(empresaId, formMaquina, setFormMaquina, dia || null, false);
-  const { medidor } = medidorDaLinha;
-  const saldo = useSaldoDoProduto(empresaId, formProduto, setFormProduto, null);
-  const uso = medidor ? usoDaLinha(formMaquina, medidor) : null;
-  const pedeJustificativa = saltoPedido || passaDoTeto(uso, medidor?.teto ?? null);
-
-  /** @param {(f: (a: any) => any) => void} set */
-  const mudarLinha = (set) => (/** @type {Record<string, any>} */ mudanca, /** @type {string[]} */ campos) => {
-    set((f) => ({ ...f, ...mudanca }));
-    limparErros(campos);
-    if (campos.includes("bem")) setSaltoPedido(false);
+  /** @param {string[]} campos */
+  const limparErros = (campos) => setErros((e) => semCampos(e, campos));
+  /** A pessoa mexeu no conteúdo do registro: o próximo envio é o conteúdo NOVO e o aviso de recusa sai. */
+  const mexeu = () => {
     esquecerUltimo();
     setEstado((e) => (e.fase === "erro" ? { fase: "pronto" } : e));
   };
-  /** @param {string[]} campos */
-  const limparErros = (campos) => setErros((e) => (campos.some((c) => e[c]) ? Object.fromEntries(Object.entries(e).filter(([k]) => !campos.includes(k))) : e));
+
+  /** Abre o editor da seção: vazio (item novo) ou com um item da tabela, já com os erros apontados. @param {ColecaoDoRegistro} colecao @param {ItemDoRegistro|null} [item] @param {Record<string, string>} [errosDoCampo] */
+  const abrirEditor = (colecao, item = null, errosDoCampo = {}) => {
+    ultimaAbertura.current += 1;
+    const id = ultimaAbertura.current;
+    setEditores((e) => ({ ...e, [colecao]: { id, chave: item?.chave ?? null, form: item ? item.form : formularioVazioDaSecao(colecao), erros: errosDoCampo, saltoPedido: item?.saltoPedido === true } }));
+  };
+  /** @param {ColecaoDoRegistro} colecao */
+  const fecharEditor = (colecao) => setEditores((e) => ({ ...e, [colecao]: null }));
+  /** Um campo do editor mudou (o mesmo `mudar` das janelas da linha). @param {ColecaoDoRegistro} colecao */
+  const mudarNoEditor = (colecao) => (/** @type {Record<string, any>} */ mudanca, /** @type {string[]} */ campos) => {
+    setEditores((e) => {
+      const ed = e[colecao];
+      if (!ed) return e;
+      // Trocar a máquina esquece a justificativa que o servidor pediu para a anterior.
+      return { ...e, [colecao]: { ...ed, form: { ...ed.form, ...mudanca }, erros: semCampos(ed.erros, campos), saltoPedido: campos.includes("bem") ? false : ed.saltoPedido } };
+    });
+    mexeu();
+  };
+  /** O que os ganchos do medidor e do saldo escrevem no formulário do editor (só o da mesma abertura). @param {ColecaoDoRegistro} colecao @param {number} id */
+  const setFormDoEditor = (colecao, id) => (/** @type {(f: any) => any} */ f) =>
+    setEditores((e) => {
+      const ed = e[colecao];
+      return ed && ed.id === id ? { ...e, [colecao]: { ...ed, form: f(ed.form) } } : e;
+    });
+
+  /**
+   * Confere o editor da seção: com o campo-chave escolhido, valida com a regra da linha e com o que o editor leu (o medidor
+   * da máquina, o saldo do insumo) e devolve o item; sem ele, nada (o editor vazio não conta).
+   * @param {ColecaoDoRegistro} colecao @param {EditorDaSecao} ed
+   * @returns {{ item: ItemDoRegistro|null, erros: Record<string, string>|null }}
+   */
+  const avaliarEditor = (colecao, ed) => {
+    if (!temChaveDaLinha(colecao, ed.form)) return { item: null, erros: null };
+    const lido = lidoNosEditores.current[colecao]?.id === ed.id ? lidoNosEditores.current[colecao] : null;
+    const novaChave = () => {
+      ultimoItem.current += 1;
+      return `${colecao}-${ultimoItem.current}`;
+    };
+    /** @param {Record<string, string>} e @param {() => ItemDoRegistro} item */
+    const resultado = (e, item) => (Object.keys(e).length ? { item: null, erros: e } : { item: item(), erros: null });
+    if (colecao === "maquinas") {
+      const medidor = lido?.medidor ?? null;
+      if (!medidor) return { item: null, erros: { bem: "Aguarde a leitura do medidor da máquina." } };
+      const pede = lido?.pedeJustificativa === true;
+      const e = validarLinhaMaquina(ed.form, { medidor, permiteImplemento: flags.permiteImplemento, pedeJustificativa: pede });
+      return resultado(e, () => ({ chave: ed.chave ?? novaChave(), form: ed.form, medidor, comJustificativa: pede, saltoPedido: ed.saltoPedido }));
+    }
+    if (colecao === "produtos") {
+      const { erros: e } = validarLinhaProduto(ed.form, { disponivel: lido?.disponivel ?? null });
+      return resultado(e, () => ({ chave: ed.chave ?? novaChave(), form: ed.form, localNome: lido?.localNome ?? null }));
+    }
+    const e = colecao === "mao_obra" ? validarLinhaMaoObra(ed.form) : validarLinhaServico(ed.form);
+    return resultado(e, () => ({ chave: ed.chave ?? novaChave(), form: ed.form }));
+  };
+
+  /** "Incluir" / "Atualizar" do editor: o item entra na tabela (ou é trocado no lugar) e o editor fecha. @param {ColecaoDoRegistro} colecao */
+  const incluirDoEditor = (colecao) => {
+    const ed = editores[colecao];
+    if (!ed) return;
+    const r = avaliarEditor(colecao, ed);
+    if (!r.item) {
+      // Sem o campo-chave, "Incluir" aponta só ele ("Escolha a máquina.", …).
+      const errosDoEditor = r.erros ?? erroDaChaveDaLinha(colecao, ed.form);
+      setEditores((e) => {
+        const atual = e[colecao];
+        return atual && atual.id === ed.id ? { ...e, [colecao]: { ...atual, erros: errosDoEditor } } : e;
+      });
+      return;
+    }
+    const item = r.item;
+    setItens((x) => ({ ...x, [colecao]: comItem(x[colecao], item) }));
+    setErrosDasLinhas((x) => semCampos(x, [item.chave]));
+    fecharEditor(colecao);
+    mexeu();
+  };
+
+  /** ✕ da linha: o item sai da tabela (e o editor fecha, se era ele). @param {ColecaoDoRegistro} colecao @param {ItemDoRegistro} item */
+  const removerItem = (colecao, item) => {
+    setItens((x) => ({ ...x, [colecao]: x[colecao].filter((i) => i.chave !== item.chave) }));
+    setErrosDasLinhas((x) => semCampos(x, [item.chave]));
+    setEditores((e) => (e[colecao]?.chave === item.chave ? { ...e, [colecao]: null } : e));
+    mexeu();
+  };
 
   // ─── Onde o registro entra (só leitura: quem decide é o servidor) ─────
   const resumo = useQuery({
@@ -165,19 +241,24 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   }, [tipo, area, dia, resumo.isSuccess, resumo.data]);
 
   // ─── Envio ───────────────────────────────────────────────────────────
+  /** O envio que saiu por último: o corpo e os itens na ordem de cada array (a recusa aponta a posição neles). */
+  const enviado = useRef(/** @type {EnvioDoRegistro | null} */ (null));
   const { estado, setEstado, disparar, esquecerUltimo } = useEnvioDaLinha(
-    (/** @type {Record<string, any>} */ corpo, /** @type {{ retentativa: boolean }} */ o) => registrarCampo(corpo, { escopo, retentativa: o.retentativa }),
-    (e) => mensagemDeErroLinha(e, "Não foi possível registrar. Nada foi gravado.", { medidorUnidade: medidor?.unidade ?? null }),
+    (/** @type {EnvioDoRegistro} */ envio, /** @type {{ retentativa: boolean }} */ o) => {
+      // A retentativa reenvia o MESMO envio (corpo e itens) do envio sem resposta.
+      enviado.current = envio;
+      return registrarCampo(envio.corpo, { escopo, retentativa: o.retentativa });
+    },
+    (e) => mensagemDaRecusaDoRegistro(e, itemDaRecusa(e, enviado.current?.linhas)),
   );
   const enviando = estado.fase === "enviando";
 
-  const temMaquina = comMaquina && Boolean(formMaquina.bem?.id);
-  const temProduto = flags.permiteProduto && Boolean(formProduto.produto?.id);
-  const temMaoObra = flags.permiteMaoObra && Boolean(formMaoObra.parceiro?.id);
-  const temServico = flags.permiteServico && Boolean(formServico.servico?.id);
-
-  /** Valida tudo e devolve o corpo do envio (ou null, com os erros nos campos). */
-  const montarCorpo = () => {
+  /**
+   * Valida o dia e os editores abertos e devolve o envio (ou null, com os erros nos campos). O editor com o campo-chave
+   * escolhido entra sozinho na tabela (ou mostra os erros e nada sai); o vazio não conta.
+   * @returns {EnvioDoRegistro | null}
+   */
+  const montarEnvio = () => {
     /** @type {Record<string, string>} */
     const e = {};
     if (!tipoFixo) e.tipoFixo = "Escolha o tipo.";
@@ -187,43 +268,57 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     const vDia = validarFormularioApontamento(doDia, { hoje });
     Object.assign(e, vDia);
     if (flags.exigeSafra && !safra.trim()) e.safra = "Informe a safra / ciclo (o tipo exige).";
-    if (flags.exigeMaquina && !temMaquina) e.bem = "Escolha a máquina.";
-    if (temMaquina) {
-      if (!medidor) e.bem = "Aguarde a leitura do medidor da máquina.";
-      else Object.assign(e, validarLinhaMaquina(formMaquina, { medidor, permiteImplemento: flags.permiteImplemento, pedeJustificativa }));
+    let falhou = Object.keys(e).length > 0;
+    let finais = itens;
+    const novosEditores = { ...editores };
+    for (const colecao of COLECOES_DO_REGISTRO) {
+      const ed = editores[colecao];
+      if (!ed) continue;
+      const r = avaliarEditor(colecao, ed);
+      if (r.item) {
+        finais = { ...finais, [colecao]: comItem(finais[colecao], r.item) };
+        novosEditores[colecao] = null;
+      } else if (r.erros) {
+        novosEditores[colecao] = { ...ed, erros: r.erros };
+        falhou = true;
+      }
     }
-    if (temProduto) {
-      const v = validarLinhaProduto(formProduto, { disponivel: saldo.disponivel });
-      Object.assign(e, v.erros);
+    // Operação antiga que exige máquina: pelo menos uma máquina na tabela (o editor da máquina abre apontando o campo).
+    if (flags.exigeMaquina && !finais.maquinas.length) {
+      const ed = novosEditores.maquinas;
+      if (!ed) {
+        ultimaAbertura.current += 1;
+        novosEditores.maquinas = { id: ultimaAbertura.current, chave: null, form: formularioMaquinaVazio(), erros: erroDaChaveDaLinha("maquinas", formularioMaquinaVazio()), saltoPedido: false };
+      } else if (!Object.keys(ed.erros).length) novosEditores.maquinas = { ...ed, erros: erroDaChaveDaLinha("maquinas", ed.form) };
+      falhou = true;
     }
-    if (temMaoObra) Object.assign(e, validarLinhaMaoObra(formMaoObra));
-    if (temServico) Object.assign(e, validarLinhaServico(formServico));
     setErros(e);
-    if (Object.keys(e).length) return null;
+    if (finais !== itens) setItens(finais);
+    setEditores(novosEditores);
+    if (falhou) return null;
     const apontamento = Object.fromEntries(
       Object.entries(corpoDoApontamento(doDia)).filter(([k, v]) => k !== "atividade_area_id" && k !== "turno" && v !== null && v !== ""),
     );
     return {
-      ...apontamento,
-      area_id: String(area.id),
-      tipo_atividade_id: String(tipo.id),
-      ...(flags.exigeSafra ? { safra_ciclo: safra.trim() } : {}),
-      ...(temMaquina && medidor ? { maquinas: [corpoDaLinhaMaquina(formMaquina, medidor, { comJustificativa: pedeJustificativa })] } : {}),
-      ...(temProduto ? { produtos: [corpoDaLinhaProduto(formProduto)] } : {}),
-      ...(temMaoObra ? { mao_obra: [corpoDaLinhaMaoObra(formMaoObra)] } : {}),
-      ...(temServico ? { servicos: [corpoDaLinhaServico(formServico)] } : {}),
+      corpo: {
+        ...apontamento,
+        area_id: String(area.id),
+        tipo_atividade_id: String(tipo.id),
+        ...(flags.exigeSafra ? { safra_ciclo: safra.trim() } : {}),
+        ...linhasDoCorpoDoRegistro(finais),
+      },
+      linhas: finais,
     };
   };
 
   const limparFormulario = () => {
-    setFormMaquina(formularioMaquinaVazio());
-    setFormProduto(formularioProdutoVazio());
-    setFormMaoObra(formularioMaoObraVazio());
-    setFormServico(formularioServicoVazio());
+    setItens(itensVaziosDoRegistro());
+    setEditores(editoresFechados());
+    setErrosDasLinhas({});
+    lidoNosEditores.current = {};
     setHectares("");
     setOperador(null);
     setObservacao("");
-    setSaltoPedido(false);
     setErros({});
     setChaveForm((k) => k + 1);
   };
@@ -231,12 +326,13 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const salvar = async (/** @type {boolean} */ fechar) => {
     if (enviando) return;
     fecharDepois.current = fechar;
-    const corpo = montarCorpo();
-    if (!corpo) {
+    const envio = montarEnvio();
+    if (!envio) {
       notifyWarning("Atenção", "Revise os campos destacados.");
       return;
     }
-    const r = await disparar(corpo);
+    setErrosDasLinhas({});
+    const r = await disparar(envio);
     if (!r) return;
     if (r.ok) {
       const resposta = r.resposta;
@@ -251,10 +347,20 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       return;
     }
     const erro = r.erro;
-    const campo = campoDaLinhaRecusada(erro);
-    const mensagem = mensagemDeErroLinha(erro, "Não foi possível registrar. Nada foi gravado.", { medidorUnidade: medidor?.unidade ?? null });
-    if (campo) setErros((e) => ({ ...e, [campo]: mensagem }));
-    if (codigoDoServidor(erro) === "ESTOQUE_SALDO_INSUFICIENTE") saldo.consulta.refetch();
+    // A recusa que aponta um item (a posição no array enviado) vai para a linha dele, e o editor abre nela com o campo.
+    const alvo = itemDaRecusa(erro, enviado.current?.linhas);
+    const mensagem = mensagemDaRecusaDoRegistro(erro, alvo);
+    if (alvo) {
+      const campo = campoDaLinhaRecusada(erro);
+      const item = ehSaltoDoMedidor(erro) ? { ...alvo.item, saltoPedido: true } : alvo.item;
+      if (item !== alvo.item) setItens((x) => ({ ...x, [alvo.colecao]: comItem(x[alvo.colecao], item) }));
+      setErrosDasLinhas((x) => ({ ...x, [item.chave]: mensagem }));
+      abrirEditor(alvo.colecao, item, campo ? { [campo]: mensagem } : {});
+    }
+    if (codigoDoServidor(erro) === "ESTOQUE_SALDO_INSUFICIENTE") {
+      const produtoId = alvo?.colecao === "produtos" ? alvo.item.form?.produto?.id ?? null : null;
+      void queryClient.invalidateQueries({ queryKey: produtoId ? chaveLocaisDoProduto(empresaId, produtoId) : [RAIZ_CONSULTAS_ATIVIDADES, "locais"] });
+    }
     if (!ehResultadoIncerto(erro) && /** @type {any} */ (erro)?.code !== CODIGO_ENVIO_PENDENTE) notifyWarning("Atenção", mensagem);
   };
 
@@ -382,69 +488,82 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           </p>
         ) : null}
 
-        <CamposDaLinhaMaquina
-            form={formMaquina}
-            mudar={mudarLinha(setFormMaquina)}
-            erros={erros}
-            medidorDaLinha={medidorDaLinha}
-            permiteImplemento={flags.permiteImplemento}
-            pedeJustificativa={pedeJustificativa}
-            bloqueado={enviando}
-            prefixo="registro-maquina"
-            comObservacao={false}
-            tituloGrupo="Máquinas"
-          />
-        <CamposDaLinhaProduto
-            form={formProduto}
-            mudar={mudarLinha(setFormProduto)}
-            erros={erros}
-            aviso={validarLinhaProduto(formProduto, { disponivel: saldo.disponivel }).aviso}
-            saldo={saldo}
-            atividadeId=""
-            areaDoDia={hectaresDaDose(hectares, area)}
-            bloqueado={enviando}
-            prefixo="registro-produto"
-            comObservacao={false}
-            tituloGrupo="Insumos"
-          />
-        <CamposDaLinhaMaoObra form={formMaoObra} mudar={mudarLinha(setFormMaoObra)} erros={erros} bloqueado={enviando} prefixo="registro-mao-obra" comObservacao={false} tituloGrupo="Mão de obra" />
-        <CamposDaLinhaServico form={formServico} mudar={mudarLinha(setFormServico)} erros={erros} bloqueado={enviando} prefixo="registro-servico" comObservacao={false} tituloGrupo="Serviço de terceiro" />
+        {COLECOES_DO_REGISTRO.map((colecao) => {
+          const editor = editores[colecao];
+          const lista = itens[colecao];
+          return (
+            <SecaoDeLinhasDoRegistro
+              key={colecao}
+              colecao={colecao}
+              itens={lista}
+              editor={editor}
+              editorPreenchido={Boolean(editor && temChaveDaLinha(colecao, editor.form))}
+              areaDoDia={areaDoDia}
+              celular={celular}
+              bloqueado={enviando}
+              errosDasLinhas={errosDasLinhas}
+              onNovo={() => abrirEditor(colecao)}
+              onAbrir={(item) => abrirEditor(colecao, item)}
+              onRemover={(item) => removerItem(colecao, item)}
+              editorAberto={
+                editor ? (
+                  <EditorDaLinhaDoRegistro
+                    key={editor.id}
+                    colecao={colecao}
+                    editor={editor}
+                    numero={editor.chave ? lista.findIndex((i) => i.chave === editor.chave) + 1 : 0}
+                    mudar={mudarNoEditor(colecao)}
+                    setForm={setFormDoEditor(colecao, editor.id)}
+                    onLido={(lido) => {
+                      lidoNosEditores.current[colecao] = lido;
+                    }}
+                    areaDoDia={areaDoDia}
+                    dia={dia || null}
+                    permiteImplemento={flags.permiteImplemento}
+                    bloqueado={enviando}
+                    onIncluir={() => incluirDoEditor(colecao)}
+                    onCancelar={() => fecharEditor(colecao)}
+                  />
+                ) : null
+              }
+            />
+          );
+        })}
 
-          <>
-            <SecaoForm titulo="Resultado" />
-            <CampoNumero
-              label="Hectares feitos"
-              value={hectares}
-              onChange={(v) => {
-                setHectares(v);
-                esquecerUltimo();
-                limparErros(["area_executada_dia"]);
-              }}
-              locale={LOCALE_ATIVIDADE}
-              limites={LIMITES_DECIMAL_ATIVIDADE}
-              readOnly={enviando}
-              span={6}
-              error={erros.area_executada_dia}
-              testId="registro-de-campo-hectares"
-            />
-            <SeletorPaginadoGestao
-              rotulo="Operador"
-              testId="registro-de-campo-operador"
-              chave={[RAIZ_CONSULTAS_ATIVIDADES, "operadores", empresaId]}
-              buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesOperadores({ q, cursor, limit }))}
-              value={operador}
-              onChange={(o) => {
-                setOperador(o ? { id: String(o.id), rotulo: rotuloDoUsuario(o) || String(o.id) } : null);
-                esquecerUltimo();
-              }}
-              rotuloDaOpcao={rotuloDoUsuario}
-              readOnly={enviando}
-              permitirLimpar
-              span={6}
-              maiusculas={false}
-            />
-            <CampoTextoLongo label="Observação" value={observacao} onChange={(v) => { setObservacao(v); esquecerUltimo(); }} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
-          </>
+        <SecaoForm titulo="Resultado" />
+        <CampoNumero
+          label="Hectares feitos"
+          value={hectares}
+          onChange={(v) => {
+            setHectares(v);
+            esquecerUltimo();
+            limparErros(["area_executada_dia"]);
+          }}
+          locale={LOCALE_ATIVIDADE}
+          limites={LIMITES_DECIMAL_ATIVIDADE}
+          readOnly={enviando}
+          span={6}
+          error={erros.area_executada_dia}
+          testId="registro-de-campo-hectares"
+        />
+        <SeletorPaginadoGestao
+          rotulo="Operador"
+          testId="registro-de-campo-operador"
+          chave={[RAIZ_CONSULTAS_ATIVIDADES, "operadores", empresaId]}
+          buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesOperadores({ q, cursor, limit }))}
+          value={operador}
+          onChange={(o) => {
+            setOperador(o ? { id: String(o.id), rotulo: rotuloDoUsuario(o) || String(o.id) } : null);
+            esquecerUltimo();
+          }}
+          rotuloDaOpcao={rotuloDoUsuario}
+          readOnly={enviando}
+          permitirLimpar
+          span={6}
+          maiusculas={false}
+        />
+        <SecaoForm titulo="Informações complementares" />
+        <CampoTextoLongo label="Observação" value={observacao} onChange={(v) => { setObservacao(v); esquecerUltimo(); }} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
         <div className="col-span-12 min-w-0">
           <AvisoEnvioDaLinha estado={estado} produto={false} lancado="o registro PODE ter sido gravado" onRepetir={() => void salvar(true)} onConsultar={consultar} />
         </div>
@@ -486,6 +605,26 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );
+}
+
+/**
+ * @typedef {import("@/lib/registroDeCampoRegras").ColecaoDoRegistro} ColecaoDoRegistro
+ * @typedef {import("@/lib/registroDeCampoRegras").ItemDoRegistro} ItemDoRegistro
+ * @typedef {import("@/lib/registroDeCampoRegras").ItensDoRegistro} ItensDoRegistro
+ * @typedef {import("@/components/lancamento-atividades/LinhasDoRegistro").EditorDaSecao} EditorDaSecao
+ * @typedef {import("@/components/lancamento-atividades/LinhasDoRegistro").LidoNoEditor} LidoNoEditor
+ * @typedef {{ corpo: Record<string, any>, linhas: ItensDoRegistro }} EnvioDoRegistro
+ *   O que sai num envio: o corpo de `POST /atividades/registrar` e os itens de cada seção na ordem do array enviado.
+ */
+
+/** Nenhum editor aberto. @returns {Record<ColecaoDoRegistro, EditorDaSecao | null>} */
+function editoresFechados() {
+  return { produtos: null, maquinas: null, mao_obra: null, servicos: null };
+}
+
+/** O objeto sem as chaves dadas (o mesmo, se nenhuma estava lá). @param {Record<string, string>} objeto @param {string[]} chaves */
+function semCampos(objeto, chaves) {
+  return chaves.some((c) => objeto[c]) ? Object.fromEntries(Object.entries(objeto).filter(([k]) => !chaves.includes(k))) : objeto;
 }
 
 /** Hectares da dose/ha: os feitos digitados (se válidos) ou o tamanho da área. @param {string} feitos @param {any} area */

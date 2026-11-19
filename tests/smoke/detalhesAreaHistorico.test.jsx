@@ -319,18 +319,17 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
     expect(within(janela).getByRole("button", { name: "Salvar" })).toBeTruthy();
   });
 
-  it("as QUATRO seções (Máquinas, Insumos, Mão de obra, Serviço de terceiro) aparecem sempre, antes e depois de escolher tipo e operação", async () => {
+  it("as QUATRO seções (Insumos, Máquinas, Equipe, Serviço de terceiro) aparecem sempre, nessa ordem, antes e depois de escolher tipo e operação (D-PROD-261)", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
     const janela = await abrirManejos();
     const secoes = () => [...janela.querySelectorAll(".mg-b1-secao, [data-secao], h3, h4, legend")].map((n) => n.textContent.trim());
-    for (const titulo of ["Máquinas", "Insumos", "Mão de obra", "Serviço de terceiro"]) {
-      expect(secoes()).toContain(titulo);
-    }
+    const QUATRO = ["Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)"];
+    expect(secoes().filter((t) => QUATRO.includes(t))).toEqual(QUATRO);
     await escolher(janela, /^Tipo/, "Roçada e tratos");
     await escolher(janela, /Operação/, "Roçada");
-    for (const titulo of ["Máquinas", "Insumos", "Mão de obra", "Serviço de terceiro"]) {
-      expect(secoes()).toContain(titulo);
-    }
+    expect(secoes().filter((t) => QUATRO.includes(t))).toEqual(QUATRO);
+    // A observação fica na última seção.
+    expect(secoes().at(-1)).toBe("Informações complementares");
     expect(janela.textContent).toContain("Hectares feitos");
     expect(janela.textContent).toContain("Operador");
   });
@@ -338,6 +337,10 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
   it("as quatro seções são opcionais: nenhum campo-chave (Máquina, Produto, Funcionário, Serviço) leva asterisco de obrigatório", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
     const janela = await abrirManejos();
+    // D-PROD-261: os campos da linha só aparecem no editor da seção, aberto pelo "+ Incluir …".
+    for (const testId of ["registro-incluir-insumo", "registro-incluir-maquina", "registro-incluir-pessoa", "registro-incluir-servico"]) {
+      fireEvent.click(within(janela).getByTestId(testId));
+    }
     const rotulos = [...janela.querySelectorAll(".mg-field__label")].map((el) => el.textContent.trim());
     for (const chave of ["Máquina", "Produto", "Funcionário ou terceiro", "Serviço"]) {
       const achado = rotulos.filter((r) => r.replace(/\s*\*\s*$/, "") === chave);
