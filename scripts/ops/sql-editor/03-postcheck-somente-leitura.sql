@@ -63,6 +63,8 @@ tenant(nome) AS (
     -- D-PROD-257: as entradas manuais de estoque (evento e item antes do cabeçalho; os três antes do lote, do
     -- movimento, do produto e do local que o item referencia, FKs RESTRICT).
     'EntradaEstoqueEvento','EntradaEstoqueItem','EntradaEstoque',
+    -- D-PROD-259: o cadastro de motivos de entrada (a entrada o referencia, RESTRICT): sai depois dela.
+    'MotivoEntradaEstoque',
     'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
