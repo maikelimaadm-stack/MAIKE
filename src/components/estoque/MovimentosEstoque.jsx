@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import AbasEstoque from "@/components/estoque/AbasEstoque";
@@ -91,6 +92,17 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
     onRequestDeleteMutation: NO_OP,
   });
 
+  /** O ⚡ da linha (grade e cards). @param {any} linha */
+  const renderAcoesDaLinha = (linha) => (
+    <B1MenuAcoesDaLinha
+      rotulo={`Ações do movimento nº ${linha.numero}`}
+      titulo={`Nº ${linha.numero} · ${linha.produto_nome ?? ""}`}
+      subtitulo={rotuloDoMovimento(linha)}
+      grupos={[[{ key: "detalhes", label: "Ver detalhes", onSelect: () => setAberto(linha) }]]}
+      testId={`movimento-acoes-${linha.id}`}
+    />
+  );
+
   const filtrosDaTela = useMemo(
     () => [
       {
@@ -147,6 +159,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
             rows={controller.visibleRows}
             emptyText={empresaId ? "Nenhum movimento encontrado com estes filtros." : "Selecione uma fazenda"}
             onOpen={setAberto}
+            renderAcoesDaLinha={renderAcoesDaLinha}
             isLoading={controller.isLoading}
             showConfigColunas={controller.showConfigColunas}
             setShowConfigColunas={controller.setShowConfigColunas}

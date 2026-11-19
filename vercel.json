@@ -423,14 +423,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/estoque/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/Estoque/",
-      "destination": "/index.html"
-    },
-    {
       "source": "/mapageral",
       "destination": "/index.html"
     },
@@ -487,14 +479,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/estoque",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/Estoque",
-      "destination": "/index.html"
-    },
-    {
       "source": "/empresa/",
       "destination": "/index.html"
     },
@@ -527,6 +511,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/estoque/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estoque/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/empresa",
       "destination": "/index.html"
     },
@@ -540,6 +532,14 @@
     },
     {
       "source": "/Marcas/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/estoque",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estoque",
       "destination": "/index.html"
     },
     {

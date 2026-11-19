@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import AbasEstoque from "@/components/estoque/AbasEstoque";
@@ -80,6 +81,17 @@ export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos 
       deposito: { id: String(linha.local_estoque_id), nome: String(linha.local_estoque_nome ?? "") },
     });
 
+  /** O ⚡ da linha (grade e cards). @param {any} linha */
+  const renderAcoesDaLinha = (linha) => (
+    <B1MenuAcoesDaLinha
+      rotulo={`Ações do saldo de ${linha.produto_nome} em ${linha.local_estoque_nome}`}
+      titulo={String(linha.produto_nome ?? "")}
+      subtitulo={String(linha.local_estoque_nome ?? "")}
+      grupos={[[{ key: "movimentos", label: "Ver movimentos", onSelect: () => abrir(linha) }]]}
+      testId={`saldo-acoes-${linha.id}`}
+    />
+  );
+
   const filtrosDaTela = useMemo(
     () => [
       { id: "deposito", rotulo: "Depósito", nome: "Filtrar por depósito", opcoes: opcoesDeDeposito(depositos), valor: depositoId, padrao: "", onChange: setDepositoId },
@@ -113,6 +125,7 @@ export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos 
             rows={controller.visibleRows}
             emptyText={empresaId ? "Nenhum saldo encontrado com estes filtros." : "Selecione uma fazenda"}
             onOpen={abrir}
+            renderAcoesDaLinha={renderAcoesDaLinha}
             isLoading={controller.isLoading}
             showConfigColunas={controller.showConfigColunas}
             setShowConfigColunas={controller.setShowConfigColunas}

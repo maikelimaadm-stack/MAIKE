@@ -74,6 +74,7 @@ export default function TabelaSaldoEstoque(props) {
       emptyText={props.emptyText}
       isLoading={props.isLoading}
       onOpen={props.onOpen}
+      renderAcoesDaLinha={props.renderAcoesDaLinha}
       showConfigColunas={props.showConfigColunas}
       setShowConfigColunas={props.setShowConfigColunas}
       searchQuery=""
