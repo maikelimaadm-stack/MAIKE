@@ -2,7 +2,7 @@
 
 > Decisão: [D-PROD-259](./DECISIONS.md). Relatório: [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md).
 
-**Nada deste runbook foi executado em produção para a `20261119200000`.** Cada passo remoto exige o GO escrito do proprietário no chat, e a aplicação depende de ele aprovar a emenda constitucional proposta na D-PROD-259. O merge **não** substitui GO nenhum.
+**Executado em produção em 2026-11-19** (preflight, envelope e postcheck), com o GO escrito do proprietário e a emenda da D-PROD-259 aprovada. Registro no relatório §3.
 
 ## 0. O que muda no banco
 
@@ -54,9 +54,9 @@ O envelope é gerado a partir do repositório (o gerador é o mesmo da D-PROD-25
 
 | GO | O quê | Estado |
 |---|---|---|
-| Emenda | Aprovação explícita da emenda constitucional proposta na D-PROD-259 | **não concedida** |
-| GO-1 | Preflight **só leitura** (§3) | **não concedido** |
-| GO-2 | Aplicar o envelope (§1) e rodar o postcheck (§4) | **não concedido** |
+| Emenda | Aprovação explícita da emenda constitucional proposta na D-PROD-259 | **concedida** em 2026-11-19 ("Aprovo as duas") |
+| GO-1 | Preflight **só leitura** (§3) | **concedido**; executado: tudo conforme |
+| GO-2 | Aplicar o envelope (§1) e rodar o postcheck (§4) | **concedido**; aplicado às 19:33:14 UTC; postcheck conforme |
 
 ## 3. Preflight (somente leitura)
 
@@ -85,7 +85,7 @@ Qualquer valor diferente do comentário: **PARAR**. Se alguém já lançou uma e
 | `EntradaEstoque` | 5 CHECKs, 6 FKs, 10 índices válidos; colunas `motivo_id`, `fornecedor_id`, `centro_custo_id`, `centro_resultado_id` |
 | `EntradaEstoqueItem` | 4 CHECKs, 7 FKs, 10 índices válidos; colunas `lote_fabricante`, `data_validade` |
 | `get_advisors` (security) | nenhum alerta novo |
-| site | `/api/health` ok; `GET /api/estoque/motivos-entrada` sem login → 401 |
+| site | `/api/native/health` ok; `GET /api/native/estoque/motivos-entrada` sem login → 401 |
 
 ## 5. Se der errado
 

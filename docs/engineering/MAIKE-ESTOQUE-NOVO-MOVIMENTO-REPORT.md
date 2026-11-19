@@ -48,7 +48,21 @@ Pedido do proprietário: escolher o **tipo de movimento** num lugar só, em vez 
 
 O que ela faz está na D-PROD-259 e no runbook §0. Ela só aplica com as 3 tabelas das Entradas **vazias**, que é o estado de produção hoje.
 
-**No merge:** código e esta migration, aplicada **antes do merge** pelo runbook. Isso exige o GO escrito do proprietário **e** a aprovação da emenda constitucional. **Nada desta migration foi aplicado em produção.**
+**Aplicada em produção** em 2026-11-19, com o GO escrito do proprietário e a emenda aprovada ("Aprovo as duas"), pelo caminho B do runbook:
+
+| Item | Valor |
+|---|---|
+| Preflight (só leitura) | sid confere; 69 concluídas, 0 ruins; a 20261119100000 concluída; a nova não registrada; `MotivoEntradaEstoque` ausente; Entradas, itens e eventos = 0 |
+| Envelope | SHA-256 `9b3de9a8874a06d6177fd198000e48a85ff871fdd17f46ac4918c892debb40be` (idêntico ao ensaiado, exceto o `system_identifier`) |
+| Registrada | 2026-11-19 19:33:14 UTC, checksum `ebb37b68…1c25`, 1 passo |
+| Histórico | 70 concluídas, nenhuma com falha |
+| Tabelas | 101 em `public` |
+| `MotivoEntradaEstoque` | RLS ligado sem FORCE; política `maike_backend_all` só para `maike_vercel`; 0 GRANT para `anon`/`authenticated`; 2 CHECKs, 1 FK, 4 índices válidos; 0 linhas |
+| `EntradaEstoque` / `EntradaEstoqueItem` | 5 CHECKs, 6 FKs, 10 índices / 4 CHECKs, 7 FKs, 10 índices, todos válidos; 0 linhas |
+| Supabase advisors (security) | nenhum alerta |
+| Site | `/api/native/health` ok, banco up, release `c2991afd`; `/api/native/estoque/entradas` sem login → 401 |
+
+**Até o merge:** o código da `main` ainda grava os motivos antigos; a entrada por doação ou "outra causa" falha no CHECK novo (o saldo de implantação passa). Só o administrador tem `entrada`. O merge resolve.
 
 Ensaio local do envelope (PostgreSQL 17, base de 69):
 - aplica;
@@ -69,7 +83,7 @@ Ensaio local do envelope (PostgreSQL 17, base de 69):
 
 ## 5. Pontos abertos (não escondidos)
 
-1. **Conflito constitucional.** O cadastro de motivos com "Compra" e o fim da justificativa obrigatória contrariam o texto ratificado da D-PROD-177 em `00-CONSTITUICAO.md` e `07-DO-NOT-DO.md`. A emenda está **proposta** na D-PROD-259; o agente não edita esses arquivos. Ela vale só com a aprovação explícita do proprietário.
+1. **Emenda constitucional aprovada.** O cadastro de motivos com "Compra" e o fim da justificativa obrigatória contrariavam o texto da D-PROD-177. O proprietário aprovou a emenda em 2026-11-19; ela está em `00-CONSTITUICAO.md` §1 e em `07-DO-NOT-DO.md`, como parágrafo e nota próprios da D-PROD-259.
 2. **Compra em dobro.** Uma compra pode entrar no estoque pela Central e pela entrada manual. A consulta recíproca na Central (R-DEDUPE) continua pendente. Por isso nenhum perfil recebe `entrada` por padrão.
 3. Fora de escopo: saída manual, ajuste de inventário, cor por tipo, edição física por revisão, estorno de transferência.
 

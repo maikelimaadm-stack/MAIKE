@@ -16,8 +16,8 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-259**, pedido do proprietário: escolher o tipo de movimento (Entrada ou Transferência) dentro de Movimentos; a aba Entradas sai |
 | Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `c2991afd` · PR draft |
 | Escopo | Janela "Novo movimento" (Entrada com cabeçalho e várias linhas de produto; Transferência pelo comando existente); cadastro `MotivoEntradaEstoque` (Compra, Doação, Saldo de implantação + os do usuário, sem cor); fornecedor, centros de custo e de resultado, lote e validade na entrada |
-| Migration | `20261119200000_estoque_entradas_motivos`, **CONTRACT** (só com as Entradas vazias). Aplicação **antes do merge** pelo runbook (caminho B), **só com o GO escrito do proprietário**; nada aplicado em produção |
-| Constituição | emenda **proposta** na D-PROD-259 (motivos por cadastro, Compra como motivo, sem justificativa obrigatória); conflita com o texto da D-PROD-177 em `00`/`07` e **só vale com a aprovação do proprietário** |
+| Migration | `20261119200000_estoque_entradas_motivos`, **CONTRACT**. **Aplicada em produção** em 2026-11-19 19:33:14 UTC pelo caminho B, com o GO do proprietário (70 concluídas, 101 tabelas). Até o merge, a entrada por doação/"outra causa" do código da `main` falha no CHECK novo |
+| Constituição | emenda da D-PROD-259 (motivos por cadastro, Compra como motivo, sem justificativa obrigatória) **aprovada pelo proprietário em 2026-11-19**; parágrafo em `00` §1 e nota em `07` |
 | Abertos | consulta recíproca na Central (R-DEDUPE), edição física por revisão, saída manual, ajuste de inventário, cor por tipo |
 | Relatório | [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md) · runbook [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md) |
 
