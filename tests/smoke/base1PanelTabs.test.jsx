@@ -52,19 +52,27 @@ describe("Base1PanelTabs", () => {
     expect(screen.getByTestId("panel-compra")).toBeVisible();
   });
 
-  it("navega por teclado (ArrowRight)", () => {
+  it("navega por teclado (ArrowDown/ArrowUp — guias verticais, PR #339)", () => {
     render(<Harness />);
     const geral = screen.getByRole("tab", { name: "Geral" });
     geral.focus();
-    fireEvent.keyDown(geral, { key: "ArrowRight" });
-    expect(screen.getByRole("tab", { name: "Motivo" }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(geral, { key: "ArrowDown" });
+    const motivo = screen.getByRole("tab", { name: "Motivo" });
+    expect(motivo.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByTestId("panel-compra")).toBeVisible();
+    fireEvent.keyDown(motivo, { key: "ArrowUp" });
+    expect(screen.getByRole("tab", { name: "Geral" }).getAttribute("aria-selected")).toBe("true");
   });
 
-  it("só abas, sem lista lateral — mesmo com preferência antiga salva (D-PROD-164)", () => {
-    localStorage.setItem("test_b1_panel_style", "sidebar");
+  it("guias laterais com busca, sem botão de troca de estilo — mesmo com preferência antiga salva (PR #339)", () => {
+    localStorage.setItem("test_b1_panel_style", "horizontal");
     render(<Harness />);
     expect(screen.queryByRole("button", { name: /lista lateral|abas horizontais/i })).toBeNull();
-    expect(screen.getByRole("tablist").getAttribute("aria-orientation")).toBe("horizontal");
+    expect(screen.getByRole("tablist").getAttribute("aria-orientation")).toBe("vertical");
+    // "Buscar guia" filtra as guias pelo rótulo (sem acento); o painel ativo continua.
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar guia" }), { target: { value: "observacoes" } });
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Observações"]);
+    expect(screen.getByTestId("panel-geral")).toBeVisible();
   });
 
   it("tolera storage inválido", () => {
