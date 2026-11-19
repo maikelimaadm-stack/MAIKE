@@ -34,6 +34,9 @@ import {
   listAtividadeApontamentos,
   getAtividadeApontamento,
   createAtividadeApontamento,
+  registerAtividadeDeCampo,
+  getAtividadesDaAreaResumo,
+  listAtividadesDaAreaRegistros,
   updateAtividadeApontamento,
   cancelAtividadeApontamento,
   duplicateAtividadeApontamento,
@@ -292,6 +295,50 @@ export const criarApontamento = async (atividadeId, dados, opcoes = null) => {
     retentativa: o.retentativa === true,
     confirmarDescarte: o.confirmarDescarte ?? perguntarDescarte,
     confirmarNovoEnvio: o.confirmarNovoEnvio ?? perguntarNovoEnvio,
+  });
+};
+
+/** O alvo da pendência do registro de campo (área + tipo): "Repetir o mesmo envio" reaproveita a MESMA chave. @param {string} areaId @param {string} tipoId */
+export const alvoDoRegistroDeCampo = (areaId, tipoId) => `registro:${areaId}:${tipoId}`;
+
+/**
+ * D-PROD-254 — registra o trabalho de campo de UMA área e de UM tipo num envio só (`POST /atividades/registrar`). O servidor
+ * acha a atividade aberta do tipo que já tem a área no mês — ou abre uma — e grava o registro do dia com as linhas, numa
+ * transação; a chave (`operation_id`) é persistente até a resposta definitiva, como nas linhas.
+ * Devolve `{ apontamento, atividade, alertas, registro }`.
+ * @param {Record<string, any>} dados `area_id`, `tipo_atividade_id`, `data_operacional` e os dados do dia e as linhas
+ * @param {OpcoesDeEnvio|null} [opcoes]
+ */
+export const registrarCampo = async (dados, opcoes = null) => {
+  const d = comoObjeto(dados);
+  const empresaId = fazenda('registrarCampo', RESOURCE_APONTAMENTO);
+  const corpo = { ...d, empresa_id: empresaId };
+  const o = comoObjeto(opcoes);
+  return enviarComPendencia({
+    escopo: escopoDaPendencia(o.escopo),
+    acao: ACAO_LANCAR_LINHA,
+    empresaId,
+    alvo: alvoDoRegistroDeCampo(String(d.area_id ?? ''), String(d.tipo_atividade_id ?? '')),
+    conteudo: corpo,
+    enviar: (operationId) => registerAtividadeDeCampo({ ...corpo, operation_id: operationId }),
+    storage: storageDaPendencia(o.storage),
+    retentativa: o.retentativa === true,
+    confirmarDescarte: o.confirmarDescarte ?? perguntarDescarte,
+    confirmarNovoEnvio: o.confirmarNovoEnvio ?? perguntarNovoEnvio,
+  });
+};
+
+/** D-PROD-254 — atividades da área e custos do mês (números do servidor). @param {string} areaId */
+export const obterResumoDaArea = async (areaId) => getAtividadesDaAreaResumo(String(areaId ?? ''), fazenda('obterResumoDaArea'));
+
+/** D-PROD-254 — os registros de campo da área (do mais novo ao mais antigo). @param {string} areaId @param {{ limit?: number, cursor?: string|null, tipo_atividade_id?: string|null }} [filtros] */
+export const listarRegistrosDaArea = async (areaId, filtros = {}) => {
+  const f = comoObjeto(filtros);
+  return listAtividadesDaAreaRegistros(String(areaId ?? ''), {
+    empresa_id: fazenda('listarRegistrosDaArea'),
+    limit: Number.isInteger(f.limit) && f.limit > 0 ? f.limit : undefined,
+    cursor: textoOuIndefinido(f.cursor),
+    tipo_atividade_id: textoOuIndefinido(f.tipo_atividade_id),
   });
 };
 

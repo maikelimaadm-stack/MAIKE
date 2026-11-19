@@ -41,6 +41,7 @@ import { registrarAtividadeApontamentoProdutoRoutes } from './modules/atividades
 import { registrarAtividadeApontamentoMaquinaRoutes } from './modules/atividades/atividadeApontamentoMaquinaRoutes.js';
 import { registrarAtividadeApontamentoMaoObraRoutes } from './modules/atividades/atividadeApontamentoMaoObraRoutes.js';
 import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades/atividadeApontamentoServicoRoutes.js';
+import { registrarAtividadeRegistroRoutes } from './modules/atividades/atividadeRegistroRoutes.js';
 import { registrarAtividadeAreaRoutes } from './modules/atividades/atividadeAreaRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
@@ -240,6 +241,8 @@ export const construirApp = async (opcoes = {}) => {
   // turno, filhos dela. Substitui o apontamento de linha única (D-PROD-190/193).
   await app.register(registrarAtividadeRoutes);
   await app.register(registrarAtividadeApontamentoRoutes);
+  // D-PROD-254 — registro de campo (entra na atividade do tipo/área/mês ou cria) e leituras por área.
+  await app.register(registrarAtividadeRegistroRoutes);
   // D-PROD-202 — as LINHAS que geram custo do apontamento: produto (baixa de
   // estoque pelo motor FIFO) e máquina (uso pelo medidor, custo por hora/km).
   await app.register(registrarAtividadeApontamentoProdutoRoutes);

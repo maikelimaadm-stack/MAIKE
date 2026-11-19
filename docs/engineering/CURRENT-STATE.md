@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-LANCAMENTOS-ORGANIZAR: uma tabela de áreas, uma tabela de lançamentos por área e um nível de janela (D-PROD-252)
+## Missão ativa (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-254** (a 253 é da PR #275), pedido do proprietário: maquetes `area-*` aprovadas + separar planejar de registrar nas Atividades |
+| Branch / PR | `cursor/detalhes-area`, a partir da `main` `633f75f0` (PR #331) · sem push nem PR ainda |
+| Escopo | `DetalhesArea` com abas Detalhes · Histórico (registros de campo), rodapé Manejos + Histórico completo, Manejos com os tipos do cadastro, registro de campo compartilhado (`JanelaRegistroDeCampo`); botão "Registrar serviço" ao lado de "Nova atividade" |
+| Backend | `POST /atividades/registrar` (transacional: acha ou abre a atividade do mês, grava o registro), `GET /atividades-por-area/:areaId/resumo` e `/registros`. Nenhuma migration |
+| Relatório | [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) (seção 10) |
+
+## Missão anterior (2026-11-18) — MAIKE-LANCAMENTOS-ORGANIZAR: uma tabela de áreas, uma tabela de lançamentos por área e um nível de janela (D-PROD-252)
 
 | Campo | Valor |
 |---|---|

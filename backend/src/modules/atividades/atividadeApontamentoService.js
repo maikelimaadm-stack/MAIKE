@@ -199,7 +199,7 @@ const turnoDoCorpo = (v) => {
 };
 
 /** @param {unknown} v @returns {string} */
-const origemDoCorpo = (v) => {
+export const origemDoCorpo = (v) => {
   if (v === undefined) return ORIGEM_PADRAO;
   if (typeof v !== 'string' || !ORIGENS.includes(v)) {
     throw invalido(`origem deve ser ${ORIGENS.join(' ou ')}`, { field: 'origem', reason: 'formato' });
@@ -232,7 +232,7 @@ export const CAMPOS_DE_DADO_DO_APONTAMENTO = Object.freeze(Object.keys(CAMPOS_DO
  */
 
 /** @type {Readonly<EstadoDoDia>} */
-const VAZIO = Object.freeze({
+export const VAZIO = Object.freeze({
   data_operacional: null,
   turno: null,
   operador_usuario_id: null,
@@ -248,7 +248,7 @@ const VAZIO = Object.freeze({
  * @param {Record<string, any>} corpo
  * @returns {Partial<EstadoDoDia>}
  */
-const camposDoCorpo = (corpo) => {
+export const camposDoCorpo = (corpo) => {
   /** @type {Record<string, any>} */
   const saida = {};
   for (const [campo, normalizar] of Object.entries(CAMPOS_DO_DIA)) {
@@ -274,7 +274,7 @@ const estadoGravado = (r) => ({
 });
 
 /** A data do lançamento é obrigatória no estado final. @param {Partial<EstadoDoDia>} estado */
-const exigirData = (estado) => {
+export const exigirData = (estado) => {
   if (!estado.data_operacional) throw invalido('data_operacional é obrigatória', { field: 'data_operacional', reason: 'obrigatorio' });
 };
 
@@ -598,7 +598,7 @@ export const obterApontamento = async (contexto, atividadeId, apontamentoId, que
  */
 
 /** JSON com as chaves em ordem (o fingerprint não depende da ordem das chaves do cliente). @param {unknown} v @returns {unknown} */
-const canonico = (v) => {
+export const canonico = (v) => {
   if (Array.isArray(v)) return v.map(canonico);
   if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonico(/** @type {any} */ (v)[k])]));
   return v;
@@ -609,7 +609,7 @@ const canonico = (v) => {
  * vêm (o fingerprint de um lançamento sem elas segue o mesmo da Fatia 3).
  * @param {LinhasDoLancamento} linhas
  */
-const linhasNovasDoFingerprint = (linhas) => ({
+export const linhasNovasDoFingerprint = (linhas) => ({
   ...(linhas.maoObra.length ? { mao_obra: canonico(linhas.maoObra) } : {}),
   ...(linhas.servicos.length ? { servicos: canonico(linhas.servicos) } : {}),
 });
@@ -622,7 +622,7 @@ const linhasNovasDoFingerprint = (linhas) => ({
  * @param {Record<string, any>} corpo
  * @returns {LinhasDoLancamento}
  */
-const linhasDoCorpo = (corpo) => {
+export const linhasDoCorpo = (corpo) => {
   const produtosBrutos = Array.isArray(corpo.produtos) ? corpo.produtos : [];
   const maquinas = Array.isArray(corpo.maquinas) ? corpo.maquinas : [];
   // D-PROD-207: `mao_obra[]` e `servicos[]` como vieram (os serviços das linhas normalizam).
@@ -647,7 +647,7 @@ const linhasDoCorpo = (corpo) => {
  * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>> }} a
  * @returns {Promise<Record<string, unknown>>}
  */
-const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerprint, executar }) => {
+export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerprint, executar }) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   if (!operationId) return emTransacao(TRANSACAO_CURTA, executar, UNICOS, MENSAGEM_CONFLITO_SEM_CHAVE);
   const chave = operationId;
@@ -750,6 +750,27 @@ const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividade, estad
 };
 
 /**
+ * O lançamento do dia NA transação de quem chama (Empresa já FOR SHARE em `tempoDaFazenda`): trava a atividade, confere
+ * status, dia, operador e a área e grava apontamento + linhas (`gravarNovo`). É o caminho ÚNICO do `POST …/apontamentos`
+ * e do `POST /atividades/registrar` (D-PROD-254): nenhuma regra duplicada. `estado.atividade_area_id` ausente segue a
+ * regra de `exigirAreaDoLancamento`.
+ * @param {any} tx
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{ clienteId: string, empresaId: string, tempo: { hoje: string, fuso: string }, atividadeId: string, estado: EstadoDoDia, origem: string, linhas: LinhasDoLancamento }} p
+ */
+export const lancarNaTransacao = async (tx, contexto, { clienteId, empresaId, tempo, atividadeId, estado, origem, linhas }) => {
+  const atividade = await travarELerAtividade(tx, clienteId, empresaId, atividadeId); // Atividade FOR UPDATE
+  exigirStatusDaAtividade(atividade, 'lancar_apontamento');
+  exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
+  await exigirOperador(tx, clienteId, estado.operador_usuario_id);
+  // D-PROD-249: a área do lançamento (desta atividade e EM_ANDAMENTO; com uma área só, ela mesma).
+  const atividadeAreaId = await exigirAreaDoLancamento(tx, { clienteId, empresaId, atividadeId, atividadeAreaId: estado.atividade_area_id });
+  return gravarNovo(tx, contexto, {
+    clienteId, empresaId, atividade, estado: { ...estado, atividade_area_id: atividadeAreaId }, origem, acao: ACOES_AUDITORIA_APONTAMENTO.lancar, linhas,
+  });
+};
+
+/**
  * `POST /atividades/:id/apontamentos`: lança o apontamento do dia (201), com
  * `produtos[]` e `maquinas[]` opcionais (D-PROD-202: tudo numa transação, com
  * `operation_id`; reenvio igual → 200 com `replay: true`).
@@ -774,15 +795,7 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
     executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
-      const atividade = await travarELerAtividade(tx, cli, empresaId, atividadeId); // Atividade FOR UPDATE
-      exigirStatusDaAtividade(atividade, 'lancar_apontamento');
-      exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
-      await exigirOperador(tx, cli, estado.operador_usuario_id);
-      // D-PROD-249: a área do lançamento (desta atividade e EM_ANDAMENTO; com uma área só, ela mesma).
-      const atividadeAreaId = await exigirAreaDoLancamento(tx, { clienteId: cli, empresaId, atividadeId, atividadeAreaId: estado.atividade_area_id });
-      return gravarNovo(tx, contexto, {
-        clienteId: cli, empresaId, atividade, estado: { ...estado, atividade_area_id: atividadeAreaId }, origem, acao: ACOES_AUDITORIA_APONTAMENTO.lancar, linhas,
-      });
+      return lancarNaTransacao(tx, contexto, { clienteId: cli, empresaId, tempo, atividadeId, estado, origem, linhas });
     },
   });
 };

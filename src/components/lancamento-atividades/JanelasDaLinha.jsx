@@ -307,9 +307,10 @@ export function useSaldoDoProduto(empresaId, form, setForm, original = null) {
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, atividadeId, areaDoDia, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, atividadeId, areaDoDia, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -377,7 +378,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
 
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Produto"
         testId={`${prefixo}-produto`}
@@ -475,9 +476,10 @@ export function useMedidorDaLinha(empresaId, form, setForm, dia, leituraJaInform
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permiteImplemento, pedeJustificativa, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permiteImplemento, pedeJustificativa, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -610,7 +612,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
 
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Máquina"
         testId={`${prefixo}-bem`}
@@ -683,9 +685,10 @@ const rotuloDoCusto = (medida) => (medida === "DIARIA" ? "Custo da diária" : me
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -701,7 +704,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
   const deOnde = mantido ? "gravado na linha" : "do cadastro";
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Funcionário ou terceiro"
         testId={`${prefixo}-parceiro`}
@@ -800,9 +803,10 @@ const detalheDoServico = (o) => {
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -810,7 +814,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
   const total = valorDaLinhaServico(form);
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Serviço"
         testId={`${prefixo}-servico`}

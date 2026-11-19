@@ -75,6 +75,7 @@ import { cn } from "@/lib/utils";
  * @param {string} [props.filterRailHint]
  * @param {import('react').ReactNode} [props.filterChips]
  * @param {import('react').ReactNode} [props.extraToolbar]
+ * @param {string} [props.createText] D-PROD-254: com texto, o botão de criar mostra "+ texto" (a tela que tem ações vizinhas diferentes, como Registrar).
  * @param {Array<{ key: string, label: string, icon?: import('react').ReactNode, disabled?: boolean, hidden?: boolean, whileEditing?: boolean, onSelect: () => void }>} [props.additionalMoreActions]
  *   `whileEditing`: o item continua no menu Mais opções durante a edição (ex.: Anexos dos Lotes).
  * @param {string} [props.exportCsvLabel]
@@ -135,6 +136,7 @@ export default function CadastroListaChrome({
   filterRailHint = null,
   filterChips = null,
   extraToolbar = null,
+  createText = undefined,
   additionalMoreActions = null,
   exportCsvLabel = "Exportar (CSV)",
   onExportCsv,
@@ -515,9 +517,10 @@ export default function CadastroListaChrome({
                 tabIndex={showListPrimaryToolbar ? undefined : -1}
                 aria-label={createLabel}
                 title={createLabel}
-                className="mg-act-ic mg-act-novo"
+                className={createText ? "mg-act-novo mg-act-novo--texto" : "mg-act-ic mg-act-novo"}
               >
                 <Plus className="h-4 w-4" aria-hidden />
+                {createText ? <span>{createText}</span> : null}
               </PillBtn>
             ) : null}
             {extraToolbar}

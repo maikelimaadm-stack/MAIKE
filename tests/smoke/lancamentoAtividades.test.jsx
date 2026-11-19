@@ -347,6 +347,12 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     const itens = partes[1] === "bens" ? BENS : partes[1] === "operadores" ? OPERADORES : [];
     return { status: 200, body: { itens, has_more: false, next_cursor: null } };
   }
+  // D-PROD-254: o resumo da área (o destino do registro) e o registro de campo (um POST só).
+  if (partes[0] === "atividades-por-area" && method === "GET") return { status: 200, body: { area_id: partes[1], mes: "2026-11", atividades: [], custos: null } };
+  if (partes[0] === "atividades" && partes[1] === "registrar" && method === "POST") {
+    proximoId += 1;
+    return { status: 201, body: { apontamento: { id: `apr${proximoId}`, data_operacional: body.data_operacional }, atividade: { id: `ar${proximoId}` }, alertas: [], registro: { atividade_criada: true, atividade_id: `ar${proximoId}` }, replay: false } };
+  }
   if (partes[0] !== "atividades") return undefined;
   if (partes.length === 1 && method === "GET") {
     const f = (/** @type {string} */ k) => query.get(k);
@@ -2171,5 +2177,69 @@ describe("LA-RAIO-GRADE — a grade e os cards das outras telas não mudam (o �
     expect(cheia.falta).toBeNull();
     expect(cheia.periodo).toBe("03/11 → hoje · 3 dias lançados");
     expect(resumoParaConcluir({ atividade: {}, totais: null, hoje: HOJE })).toMatchObject({ periodo: null, area: null, barra: null, falta: null });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de campo (D-PROD-254)", () => {
+  it("LA-REGISTRAR-1 — a barra tem duas ações distintas e rotuladas: 'Nova atividade' (planejar) e 'Registrar serviço' (registrar)", async () => {
+    await montarComLista();
+    const nova = screen.getByRole("button", { name: "Nova atividade" });
+    const registrar = screen.getByRole("button", { name: "Registrar serviço" });
+    expect(nova).toHaveTextContent("Nova atividade");
+    expect(registrar).toHaveTextContent("Registrar serviço");
+    expect(nova).not.toBe(registrar);
+    // Nenhum menu novo: o Registrar é uma ação da própria tela de Lançamento de Atividades.
+    // "Nova atividade" abre o formulário de PLANEJAR (tipo, áreas), não o registro de campo.
+    fireEvent.click(nova);
+    expect(await screen.findByTestId("b1-form-atividade")).toBeTruthy();
+    expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull();
+  });
+
+  it("LA-REGISTRAR-2 — sem a ação de lançar apontamento, o Registrar não aparece (o planejar segue)", async () => {
+    sessao.permissao = permissaoCom(ACOES_PADRAO);
+    await montarComLista();
+    expect(screen.getByRole("button", { name: "Nova atividade" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Registrar serviço" })).toBeNull();
+  });
+
+  it("LA-REGISTRAR-3 — Registrar abre o formulário compartilhado (uma janela Base1): escolhe a área e o tipo, grava com UM POST em /atividades/registrar e fecha", async () => {
+    await montarComLista();
+    fireEvent.click(screen.getByRole("button", { name: "Registrar serviço" }));
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
+    expect(within(janela).getByRole("button", { name: "Cancelar" })).toBeTruthy();
+    // A área e o tipo NÃO vêm presos: a pessoa escolhe (só os tipos ativos).
+    await escolherNoCombo(janela, "Área", /^Pasto 01$/i);
+    fireEvent.click(within(janela).getByRole("combobox", { name: "Tipo de atividade" }));
+    await screen.findAllByRole("option");
+    expect(screen.queryByRole("option", { name: /GRADAGEM/i })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /^ROÇADA$/i }));
+    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+    expect(await within(janela).findByTestId("registro-de-campo-destino")).toHaveTextContent("Nova atividade será criada: ROÇADA · Pasto 01 · nov/26");
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "5" } });
+    const antes = escritas().length;
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(escritas().length).toBe(antes + 1));
+    const w = ultimaEscrita();
+    expect(w.method).toBe("POST");
+    expect(w.path).toBe("/atividades/registrar");
+    expect(w.body).toMatchObject({ empresa_id: "emp-1", area_id: "ar1", tipo_atividade_id: "t2", data_operacional: HOJE, area_executada_dia: "5" });
+    expect(typeof w.body.operation_id).toBe("string");
+    expect(w.body.cliente_id).toBeUndefined();
+    await waitFor(() => expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "ROÇADA registrada em Pasto 01.");
+  });
+
+  it("LA-REGISTRAR-4 — sem escolher a área e o tipo, não grava e aponta os campos", async () => {
+    await montarComLista();
+    fireEvent.click(screen.getByRole("button", { name: "Registrar serviço" }));
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    expect(within(janela).getByRole("button", { name: "Salvar" })).toBeDisabled();
+    const antes = escritas().length;
+    fireEvent.submit(within(janela).getByTestId("registro-de-campo-form"));
+    expect(await within(janela).findByText("Escolha a área.")).toBeTruthy();
+    expect(within(janela).getByText("Escolha o tipo de atividade.")).toBeTruthy();
+    expect(escritas().length).toBe(antes);
   });
 });

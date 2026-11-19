@@ -22,6 +22,13 @@ const dados = vi.hoisted(() => ({ cache: {}, culturas: [] }));
 const servico = vi.hoisted(() => ({ registrar: vi.fn(), excluir: vi.fn() }));
 const avisos = vi.hoisted(() => ({ warning: vi.fn(), success: vi.fn(), error: vi.fn(), confirmar: vi.fn() }));
 
+// D-PROD-254: o painel da área lê a sessão da tela de atividades (aqui sem acesso a ela: só o cartão e a Forragem).
+vi.mock('@/hooks/useLancamentoAtividadesSessao', () => ({
+  useAcoesTelaAtividades: () => ({ ver: false, lancarApontamento: false, carregando: false, login: 'operador' }),
+  useEmpresaRealSelecionadaId: () => 'emp-1',
+  useFusoDaFazenda: () => ({ fuso: 'America/Cuiaba', fusoOk: true, semFuso: false, hoje: '2027-06-15' }),
+}));
+vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ clienteId: 'c-1', user: { id: 'u-1' } }) }));
 vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () => 'emp-1' }));
 vi.mock('@/services/mapaCacheService', () => ({
   getMapaCachedData: vi.fn(async (chave) => dados.cache[chave] || []),
@@ -217,7 +224,9 @@ describe('D-PROD-219 — botão no pasto (detalhe da área)', () => {
     expect(dados.cache.medicoesForragem.map((m) => m.id)).toEqual(['m2', 'm3']);
     cleanup();
     const { container } = renderizar(<DetalhesArea area={PASTO} permissions={{ visualizar_historico_movimentacoes_lote: false }} />);
-    expect(container.textContent).toBe('');
+    // D-PROD-254: o painel abre para quem vê a área (só o cartão); sem a chave, nada de Forragem.
+    expect(container.textContent).toContain('PASTO 12');
+    expect(container.textContent).not.toContain('Medição de Forragem');
   });
 
   it('D-PROD-221 no desenho v12 (D-PROD-220): o farol do pasto é a 1ª linha do cartão — cor, rótulo, há quantos dias e vencida', async () => {

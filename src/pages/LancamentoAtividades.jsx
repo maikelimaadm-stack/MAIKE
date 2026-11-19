@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CircleCheck, Copy, List, Pencil, RotateCcw } from "lucide-react";
+import { Ban, CircleCheck, ClipboardCheck, Copy, List, Pencil, RotateCcw } from "lucide-react";
 import { FiltrosDaTelaContext, opcoesDeOrdenacao } from "@/components/cadastro/base1/FiltrosRapidos";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
@@ -18,6 +18,7 @@ import { useCelular } from "@/components/common/MobileSheet";
 import AtividadeAberta from "@/components/lancamento-atividades/AtividadeAberta";
 import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
+import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { areasDaAtividade, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
@@ -260,6 +261,8 @@ export default function LancamentoAtividades() {
   const [erroDataConclusao, setErroDataConclusao] = useState(/** @type {string|null} */ (null));
   const [duplicando, setDuplicando] = useState(false);
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
+  /** D-PROD-254: "Registrar serviço" — registrar trabalho de campo escolhendo área e tipo (o planejar é a "Nova atividade"). */
+  const [registrando, setRegistrando] = useState(false);
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
@@ -335,6 +338,7 @@ export default function LancamentoAtividades() {
     closeForm();
     setDialogo(null);
     setLancando(null);
+    setRegistrando(false);
     setAreaFiltro("");
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
@@ -893,6 +897,25 @@ export default function LancamentoAtividades() {
       </PillBtn>
     ) : null;
 
+  // D-PROD-254: registrar trabalho de campo (área + tipo, num formulário só) é diferente de planejar a atividade ("Nova atividade").
+  const botaoRegistrar =
+    podeGravar && acoes.lancarApontamento ? (
+      <PillBtn
+        type="button"
+        tone="outline"
+        onClick={() => setRegistrando(true)}
+        aria-label="Registrar serviço"
+        title="Registrar trabalho de campo numa área"
+        className="mg-act-registrar"
+        data-testid="atividade-registrar"
+      >
+        <ClipboardCheck className="h-4 w-4" aria-hidden />
+        <span>Registrar serviço</span>
+      </PillBtn>
+    ) : null;
+  const tiposDoRegistro = /** @type {any[]} */ (tipos).filter((t) => t?.ativo !== false);
+  const areasDoRegistro = /** @type {any[]} */ (areas).filter((a) => a?.tipo_cultura !== "Infraestrutura");
+
   const flagsDoLancando = lancando ? flagsDoTipoDaAtividade(lancando.atividade, /** @type {any[]} */ (tipos)) : null;
   const tipoDoLancando = lancando ? lancamentoDoTipo(lancando.tipo) : null;
 
@@ -906,6 +929,7 @@ export default function LancamentoAtividades() {
           workspaceTitle="Lançamento de Atividades"
           searchPlaceholder="Buscar nº, nome, tipo ou área…"
           createLabel="Nova atividade"
+          createText="Nova atividade"
           columnsForCardsToolbar={ATIVIDADES_COLUNAS}
           controller={controller}
           listErrorMessage={listErrorMessage}
@@ -916,7 +940,14 @@ export default function LancamentoAtividades() {
           showDuplicate={false}
           showDelete={false}
           additionalMoreActions={acoesVisiveisDoMenu.length ? acoesVisiveisDoMenu : null}
-          extraToolbar={botaoConcluir}
+          extraToolbar={
+            botaoRegistrar || botaoConcluir ? (
+              <>
+                {botaoRegistrar}
+                {botaoConcluir}
+              </>
+            ) : null
+          }
           deleteDialog={{
             title: "Cancelar atividade",
             confirmText: "Cancelar",
@@ -978,6 +1009,14 @@ export default function LancamentoAtividades() {
             onFechar={() => setDialogo(null)}
             onEnviar={enviarDialogo}
             onConsultar={consultarDialogo}
+          />
+        ) : null}
+
+        {registrando ? (
+          <JanelaRegistroDeCampo
+            tipos={tiposDoRegistro}
+            areas={areasDoRegistro}
+            onFechar={() => setRegistrando(false)}
           />
         ) : null}
 

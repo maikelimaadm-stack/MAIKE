@@ -71,7 +71,7 @@ const VERSAO = { type: 'integer', minimum: 1 };
 const DIA = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' };
 const DECIMAL_NULO = { type: ['string', 'null'], pattern: PADRAO_DECIMAL.source };
 const TURNO_NULO = { type: ['string', 'null'], enum: [...TURNOS, null] };
-const ORIGEM = { type: 'string', enum: [...ORIGENS] };
+export const ORIGEM = { type: 'string', enum: [...ORIGENS] };
 const OBSERVACAO = { type: ['string', 'null'], maxLength: 2000 };
 /**
  * Motivo sem tamanho no schema, como no cabeçalho: ausente, vazio, curto
@@ -91,7 +91,7 @@ const PARAMS_APONTAMENTO = {
 const SO_EMPRESA = { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } };
 
 /** D-PROD-202 — as linhas do lançamento e da repetição, com a chave única de tudo. */
-const LINHAS_DO_LANCAMENTO = Object.freeze({
+export const LINHAS_DO_LANCAMENTO = Object.freeze({
   operation_id: { type: 'string', minLength: 8, maxLength: OPERATION_ID_DO_LANCAMENTO_MAXIMO, pattern: PADRAO_OPERATION_ID.source },
   produtos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ESQUEMA_ITEM_PRODUTO },
   maquinas: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAQUINA },
@@ -101,7 +101,7 @@ const LINHAS_DO_LANCAMENTO = Object.freeze({
 });
 
 /** Campos de DADO do dia (o formulário do §6), os mesmos no lançamento e na edição. */
-const CAMPOS_DO_DIA = Object.freeze({
+export const CAMPOS_DO_DIA = Object.freeze({
   data_operacional: DIA,
   turno: TURNO_NULO,
   operador_usuario_id: ID_NULO,
