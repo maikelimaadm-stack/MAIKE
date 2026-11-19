@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, ChevronLeft, Pencil, Plus } from "lucide-react";
+import { Ban, ChevronLeft, Fuel, Pencil, Plus } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { useCelular } from "@/components/common/MobileSheet";
 import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
@@ -14,14 +14,14 @@ import {
   JanelaLinhaServico,
 } from "@/components/lancamento-atividades/JanelasDaLinha";
 import { BOTAO_PRIMARIO } from "@/components/patrimonio/DialogosAbastecimento";
-import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAcoesTelaAbastecimento } from "@/hooks/usePatrimonioSessao";
 import { QUERY_RAIZ_ABASTECIMENTOS } from "@/hooks/useFluxoAbastecimento";
 import { STATUS_AREA, rotuloDaAreaDaAtividade, totaisDaArea } from "@/lib/atividadeAreasRegras";
 import { chaveApontamentos } from "@/lib/atividadeApontamentoRegras";
-import { REGISTRO_ABASTECIMENTO, REGISTRO_IMPLEMENTO, opcoesDeRegistro, registroDoDiaParaAbastecer } from "@/lib/atividadeFluxoCampo";
+import { REGISTRO_IMPLEMENTO, bemParaAbastecer, opcoesDeRegistro } from "@/lib/atividadeFluxoCampo";
 import { LINHA_ABASTECIMENTO, linhasDaArea, somaDasLinhas } from "@/lib/lancamentosDaAreaRegras";
-import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, chaveTotais, formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
+import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, chaveTotais, formatarMoedaAtividade, rotuloDaMaquinaDaLinha } from "@/lib/atividadeLinhasRegras";
 import { rotuloDaArea } from "@/lib/lancamentoAtividadesRegras";
 import { notifySuccess } from "@/lib/maikeNotify";
 import { listarAbastecimentosPagina } from "@/services/abastecimentoService";
@@ -46,8 +46,9 @@ const JANELA_DO_TIPO = Object.freeze({
  * valor). O ⚡ da linha edita e cancela (as janelas de linha de sempre); o abastecimento se cancela na tela Abastecimentos.
  * Gravou o abastecimento: o aviso é o toast do app.
  *
- * Os botões abrem a janela do lançamento (`onLancar`, um nível só) ou a do abastecimento (a mesma janela, com a revisão
- * dentro). O total (um só, no rodapé) vem do servidor (`por_area` dos totais); sem ele, a soma das linhas. Os hectares e o
+ * Os botões "+" abrem a janela do lançamento (`onLancar`, um nível só). O abastecimento NÃO tem botão aqui (D-PROD-254,
+ * emenda 1): é da máquina — o ⚡ da linha da máquina tem "Abastecer" (a janela do abastecimento, com a máquina escolhida
+ * e a revisão dentro) e a janela da máquina tem "Salvar e abastecer". O total (um só, no rodapé) vem do servidor (`por_area` dos totais); sem ele, a soma das linhas. Os hectares e o
  * R$/ha ficam na tabela de áreas e no Resumo das áreas, não aqui.
  *
  * @param {{
@@ -85,14 +86,12 @@ export default function LancamentosDaArea({
   const celular = useCelular();
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
-  const { hoje } = useFusoDaFazenda(empresaId);
   const acoesAbastecimento = useAcoesTelaAbastecimento();
   const podeVerAbastecimento = acoesAbastecimento.ver === true;
   const podeAbastecer = podeVerAbastecimento && acoesAbastecimento.criar === true;
   const atividadeId = atividade?.id ? String(atividade.id) : null;
   const areaId = area?.id != null ? String(area.id) : null;
-  const [avisoCombustivel, setAvisoCombustivel] = useState("");
-  const [abastecendo, setAbastecendo] = useState(/** @type {{ apontamento: any } | null} */ (null));
+  const [abastecendo, setAbastecendo] = useState(/** @type {{ apontamento: any, bem: ReturnType<typeof bemParaAbastecer> } | null} */ (null));
   const [editando, setEditando] = useState(/** @type {{ linha: any, apontamento: any, tipo: string, chave: number } | null} */ (null));
   const [cancelando, setCancelando] = useState(/** @type {{ tipo: any, linha: any, apontamento: any } | null} */ (null));
 
@@ -117,19 +116,7 @@ export default function LancamentosDaArea({
   const podeCancelar = podeRegistrar && acoes?.cancelarApontamento === true;
 
   /** @param {string} id */
-  const abrirRegistro = (id) => {
-    if (id === REGISTRO_ABASTECIMENTO) {
-      const registro = registroDoDiaParaAbastecer(apontamentos, areaId, hoje || "");
-      if (!registro) {
-        setAvisoCombustivel("Para registrar o abastecimento, registre antes uma máquina neste lugar.");
-        return;
-      }
-      setAvisoCombustivel("");
-      setAbastecendo({ apontamento: registro });
-      return;
-    }
-    onLancar(id === REGISTRO_IMPLEMENTO ? LINHA_MAQUINA : id, "dados", areaId);
-  };
+  const abrirRegistro = (id) => onLancar(id === REGISTRO_IMPLEMENTO ? LINHA_MAQUINA : id, "dados", areaId);
 
   const releer = () => {
     queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
@@ -146,7 +133,9 @@ export default function LancamentosDaArea({
 
   /** O ⚡ de uma linha (só as de lançamento; o abastecimento não tem). @param {import("@/lib/lancamentosDaAreaRegras").LinhaDaArea} r */
   const menuDaLinha = (r) => {
-    if (r.tipo === LINHA_ABASTECIMENTO || (!podeEditar && !podeCancelar)) return null;
+    // O abastecimento se cancela na tela Abastecimentos; o "Abastecer" é só da linha da máquina.
+    const abastecer = r.tipo === LINHA_MAQUINA && podeRegistrar && podeAbastecer;
+    if (r.tipo === LINHA_ABASTECIMENTO || (!podeEditar && !podeCancelar && !abastecer)) return null;
     const rotulo = `${r.rotuloDoTipo} ${r.item}`;
     return (
       <B1MenuAcoesDaLinha
@@ -154,6 +143,20 @@ export default function LancamentosDaArea({
         titulo={r.item}
         subtitulo={[r.rotuloDoTipo, r.diaTexto].join(" · ")}
         grupos={[
+          abastecer
+            ? [
+                {
+                  key: "abastecer",
+                  label: "Abastecer",
+                  icon: <Fuel size={16} strokeWidth={1.75} />,
+                  onSelect: () =>
+                    setAbastecendo({
+                      apontamento: r.apontamento,
+                      bem: bemParaAbastecer({ id: r.linha?.bem_id, rotulo: rotuloDaMaquinaDaLinha(r.linha), medidorTipo: r.linha?.medidor_tipo }),
+                    }),
+                },
+              ]
+            : [],
           podeEditar ? [{ key: "editar", label: "Editar", icon: <Pencil size={16} strokeWidth={1.75} />, onSelect: () => setEditando({ linha: r.linha, apontamento: r.apontamento, tipo: r.tipo, chave: Date.now() }) }] : [],
           podeCancelar ? [{ key: "cancelar", label: "Cancelar", icon: <Ban size={16} strokeWidth={1.75} />, danger: true, onSelect: () => setCancelando({ tipo: r.tipo, linha: r.linha, apontamento: r.apontamento }) }] : [],
         ]}
@@ -181,7 +184,7 @@ export default function LancamentosDaArea({
     return undefined;
   };
 
-  const botoes = podeRegistrar ? opcoesDeRegistro(flags, { abastecimento: podeAbastecer }) : [];
+  const botoes = podeRegistrar ? opcoesDeRegistro(flags) : [];
 
   /** @type {any} */
   const JanelaDeEdicao = editando ? JANELA_DO_TIPO[/** @type {keyof typeof JANELA_DO_TIPO} */ (editando.tipo)] : null;
@@ -193,7 +196,7 @@ export default function LancamentosDaArea({
       linhas={linhas}
       valorDoCampo={(r, id) => TEXTO[id](r)}
       renderCelula={(r, id) => <span data-testid={`lancamento-${r.id}-${id}`}>{TEXTO[id](r)}</span>}
-      renderAcoes={podeEditar || podeCancelar ? menuDaLinha : undefined}
+      renderAcoes={podeEditar || podeCancelar || (podeRegistrar && podeAbastecer) ? menuDaLinha : undefined}
       comparar={comparar}
       carregando={lendoLinhas && linhas.length === 0}
       vazio="Nada registrado aqui ainda."
@@ -234,7 +237,6 @@ export default function LancamentosDaArea({
           ))}
         </div>
       ) : null}
-      {avisoCombustivel ? <AvisoGestao testId="aviso-abastecimento">{avisoCombustivel}</AvisoGestao> : null}
       {area && area.status === STATUS_AREA.PLANEJADA ? (
         <AvisoGestao tone="blue" testId="detalhe-area-a-iniciar">
           Esta área ainda não começou. Inicie a área pelo ⚡ da tabela de áreas para lançar nela.
@@ -245,6 +247,7 @@ export default function LancamentosDaArea({
         <JanelaAbastecimentoDaArea
           atividade={atividade}
           apontamento={abastecendo.apontamento}
+          bem={abastecendo.bem}
           nomeArea={nome}
           onFechar={() => setAbastecendo(null)}
           onGravou={(texto) => {

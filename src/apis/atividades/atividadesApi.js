@@ -297,6 +297,49 @@ export const createAtividadeApontamento = async (atividadeId, corpo) => {
 };
 
 /**
+ * D-PROD-254 — registrar trabalho de campo de UMA área e de UM tipo (`POST /atividades/registrar`): o servidor acha a
+ * atividade aberta do mês (ou abre uma) e grava o registro do dia com as linhas, numa transação só.
+ * Devolve `{ apontamento, atividade, alertas, registro }`.
+ * @param {Record<string, unknown>} corpo
+ */
+export const registerAtividadeDeCampo = async (corpo) => {
+  const contexto = ctxApontamento('registerAtividadeDeCampo');
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(isId(corpo.area_id), 'area_id', contexto);
+  assertArgument(isId(corpo.tipo_atividade_id), 'tipo_atividade_id', contexto);
+  assertArgument(ehDia(corpo.data_operacional), 'data_operacional', contexto);
+  const bruto = await runProviderCall(() => atividadeNativa.registrar(corpo), contexto);
+  const o = isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
+  return { ...respostaDeApontamento(o), registro: isObjeto(o.registro) ? o.registro : null, replay: o.replay === true };
+};
+
+/**
+ * D-PROD-254 — as atividades da área e os custos do mês (`GET /atividades-por-area/:areaId/resumo`).
+ * @param {string} areaId @param {string} empresaId
+ */
+export const getAtividadesDaAreaResumo = async (areaId, empresaId) => {
+  const contexto = ctxAtividade('getAtividadesDaAreaResumo');
+  assertArgument(isId(areaId), 'area_id', contexto);
+  assertArgument(isId(empresaId), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => atividadeNativa.resumoDaArea(areaId, empresaId), { ...contexto, details: { areaId } });
+  const o = isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
+  return { ...o, mes: typeof o.mes === 'string' ? o.mes : null, atividades: Array.isArray(o.atividades) ? o.atividades.filter(isObjeto) : [], custos: isObjeto(o.custos) ? o.custos : null };
+};
+
+/**
+ * D-PROD-254 — os registros de campo da área, do mais novo ao mais antigo (`GET /atividades-por-area/:areaId/registros`).
+ * @param {string} areaId @param {Record<string, unknown>} filtros
+ */
+export const listAtividadesDaAreaRegistros = async (areaId, filtros) => {
+  const contexto = ctxAtividade('listAtividadesDaAreaRegistros');
+  assertArgument(isId(areaId), 'area_id', contexto);
+  assertArgument(isId(filtros?.empresa_id), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => atividadeNativa.registrosDaArea(areaId, filtros), { ...contexto, details: { areaId } });
+  const o = isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
+  return { items: Array.isArray(o.items) ? o.items.filter(isObjeto) : [], next_cursor: typeof o.next_cursor === 'string' && o.next_cursor ? o.next_cursor : null };
+};
+
+/**
  * Editar o apontamento CONFIRMADO, com a `versao` lida (CAS).
  * @param {string} atividadeId @param {string} apontamentoId @param {Record<string, unknown>} corpo
  */

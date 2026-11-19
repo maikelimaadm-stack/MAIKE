@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { movimentosDaArea, opcoesDeRegistro, registroDoDiaParaAbastecer } from "@/lib/atividadeFluxoCampo";
+import { bemParaAbastecer, ehTipoAbastecimento, movimentosDaArea, opcoesDeRegistro, tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 
 const maquina = (id, extra = {}) => ({ id, status: "CONFIRMADO", bem_id: "b1", bem: { codigo: "TP-02", nome: "Trator" }, custo_total: "100", ...extra });
 const ap = (id, area, dia, linhas = {}, extra = {}) => ({ id, status: "CONFIRMADO", atividade_area_id: area, data_operacional: dia, sequencia: 1, ...linhas, ...extra });
 
 describe("D-PROD-251 — fluxo de campo", () => {
-  it("FC-1 — implemento é opção própria, só se o tipo permite; abastecimento, só quando liberado", () => {
-    const ids = (f, e) => opcoesDeRegistro(f, e).map((o) => o.id);
-    expect(ids({}, {})).toEqual(["maquinas"]);
-    expect(ids({ permiteImplemento: true, permiteProduto: true }, { abastecimento: true })).toEqual(["maquinas", "implemento", "produtos", "abastecimento"]);
+  it("FC-1 — implemento é opção própria, só se o tipo permite; abastecimento NUNCA é opção (é da máquina, emenda 1 da D-PROD-254)", () => {
+    const ids = (f) => opcoesDeRegistro(f).map((o) => o.id);
+    expect(ids({})).toEqual(["maquinas"]);
+    expect(ids({ permiteImplemento: true, permiteProduto: true })).toEqual(["maquinas", "implemento", "produtos"]);
   });
 
   it("FC-2 — implemento tem grupo próprio, sem custo próprio: conta os usos e manda o custo para Máquinas", () => {
@@ -24,10 +24,12 @@ describe("D-PROD-251 — fluxo de campo", () => {
     expect(grupos[0].itens[0].detalhe).toMatch(/com /);
   });
 
-  it("FC-3 — sem registro na área, não há onde ligar o abastecimento; com vários, vale o de hoje, senão o mais recente", () => {
-    const lista = [ap("a", "ar1", "2026-11-10"), ap("b", "ar1", "2026-11-12"), ap("c", "ar2", "2026-11-18"), ap("d", "ar1", "2026-11-18", {}, { status: "CANCELADO" })];
-    expect(registroDoDiaParaAbastecer(lista, "ar3", "2026-11-18")).toBeNull();
-    expect(registroDoDiaParaAbastecer(lista, "ar1", "2026-11-18")?.id).toBe("b");
-    expect(registroDoDiaParaAbastecer([...lista, ap("e", "ar1", "2026-11-18")], "ar1", "2026-11-18")?.id).toBe("e");
+  it("FC-3 — o tipo Abastecimento (pelo nome, sem acento nem caixa) fica fora dos tipos registráveis na área; o bem do abastecimento leva o tipo do medidor", () => {
+    const tipos = [{ nome_tipo: "Abastecimento" }, { nome_tipo: "ABASTECIMENTO DE MÁQUINAS" }, { nome_tipo: "Combustível" }, { nome_tipo: "Gradeação" }, { nome_tipo: "Roçada" }];
+    expect(ehTipoAbastecimento(tipos[1])).toBe(true);
+    expect(tiposRegistraveisNaArea(tipos).map((t) => t.nome_tipo)).toEqual(["Gradeação", "Roçada"]);
+    expect(tiposRegistraveisNaArea(null)).toEqual([]);
+    expect(bemParaAbastecer({ id: 7, rotulo: "TP-02 — Trator", medidorTipo: "HORIMETRO" })).toEqual({ id: "7", nome: "TP-02 — Trator", medidor: { tipo: "HORIMETRO" } });
+    expect(bemParaAbastecer({ id: null })).toBeNull();
   });
 });

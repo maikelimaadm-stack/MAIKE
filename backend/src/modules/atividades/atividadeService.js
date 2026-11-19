@@ -557,7 +557,7 @@ export const obterTotais = async (contexto, id, query = {}) => {
  * @param {{ clienteId: string, empresaId: string, tempo: { agora: Date, hoje: string, fuso: string },
  *   tipoAtividadeId: string, estado: Record<string, any>, acao: string, auditoriaExtra?: Record<string, unknown> }} abertura
  */
-const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoAtividadeId, estado: estadoDoCorpo, acao, auditoriaExtra = {} }) => {
+export const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoAtividadeId, estado: estadoDoCorpo, acao, auditoriaExtra = {} }) => {
   let estado = estadoDoCorpo;
   const tipo = await exigirTipoParaAbertura(tx, clienteId, tipoAtividadeId);
   const dataInicio = estado.data_inicio ?? tempo.hoje;

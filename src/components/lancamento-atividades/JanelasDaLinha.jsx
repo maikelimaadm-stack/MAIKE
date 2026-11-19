@@ -109,6 +109,7 @@ import {
   obterMedidorDoBem,
   obterTotaisAtividade,
 } from "@/services/lancamentoAtividadesService";
+import { bemParaAbastecer } from "@/lib/atividadeFluxoCampo";
 import { hectaresParaDose } from "@/lib/lancamentosDaAreaRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
@@ -307,9 +308,10 @@ export function useSaldoDoProduto(empresaId, form, setForm, original = null) {
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, atividadeId, areaDoDia, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, atividadeId, areaDoDia, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -377,7 +379,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
 
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Produto"
         testId={`${prefixo}-produto`}
@@ -475,9 +477,10 @@ export function useMedidorDaLinha(empresaId, form, setForm, dia, leituraJaInform
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permiteImplemento, pedeJustificativa, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permiteImplemento, pedeJustificativa, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -610,7 +613,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
 
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Máquina"
         testId={`${prefixo}-bem`}
@@ -683,9 +686,10 @@ const rotuloDoCusto = (medida) => (medida === "DIARIA" ? "Custo da diária" : me
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -701,7 +705,7 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
   const deOnde = mantido ? "gravado na linha" : "do cadastro";
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Funcionário ou terceiro"
         testId={`${prefixo}-parceiro`}
@@ -800,9 +804,10 @@ const detalheDoServico = (o) => {
  *   bloqueado: boolean,
  *   prefixo: string,
  *   comObservacao?: boolean,
+ *   tituloGrupo?: string|null,
  * }} props
  */
-export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, comObservacao = true }) {
+export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -810,7 +815,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
   const total = valorDaLinhaServico(form);
   return (
     <>
-      <Grupo titulo="Lançamento" comTopo />
+      {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}
       <SeletorPaginadoGestao
         rotulo="Serviço"
         testId={`${prefixo}-servico`}
@@ -907,7 +912,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
  *   apontamento: any,
  *   linha?: any,
  *   escopo: string,
- *   onSalvo: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string) => void,
+ *   onSalvo: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string, extra?: { bem: ReturnType<typeof bemParaAbastecer> }) => void,
  *   onCancelar: () => void,
  *   onMudou?: (() => void) | null,
  *   novoDia?: NovoDia | null,
@@ -1220,7 +1225,7 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
     const r = await disparar(arg);
     if (!r) return;
     if (r.ok) {
-      onSalvo(normalizarRespostaDeEscrita(r.resposta), editando ? `Máquina ${nome} alterada.` : `Máquina ${nome} lançada${uso ? ` (${formatarUso(uso, medidor.tipo, medidor.unidade)})` : ""}.`);
+      onSalvo(normalizarRespostaDeEscrita(r.resposta), editando ? `Máquina ${nome} alterada.` : `Máquina ${nome} lançada${uso ? ` (${formatarUso(uso, medidor.tipo, medidor.unidade)})` : ""}.`, { bem: bemParaAbastecer({ id: form.bem?.id, rotulo: form.bem?.rotulo, medidorTipo: medidor.tipo }) });
       return;
     }
     if (ehSaltoDoMedidor(r.erro)) setSaltoPedido(true);

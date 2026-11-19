@@ -2022,11 +2022,14 @@ describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia
     expect(abast.abastecimentos[0]).toMatchObject({ atividade: { id: "a1" }, apontamento: { id: "ap1" }, centro_custo: { nome: "Pastagem" } });
   });
 
-  it("LL-ABAST-AREA-1 — Abastecimento pela área (D-PROD-252): um nível só, sem Atividade/Lançamento travados; a revisão fica DENTRO da mesma janela, com Cancelar e Confirmar abastecimento", async () => {
+  it("LL-ABAST-AREA-1 — Abastecer pela MÁQUINA (emenda 1 da D-PROD-254: o ⚡ da linha da máquina): um nível só, a máquina já escolhida, sem Atividade/Lançamento travados; a revisão fica DENTRO da mesma janela, com Cancelar e Confirmar abastecimento", async () => {
     sessao.permissao = comAbastecimento({ novo: true });
     await montar();
-    await abrir("a1", "ap1");
-    fireEvent.click(await screen.findByTestId("escolher-abastecimento"));
+    await naArea("a1");
+    // Abastecimento NÃO é botão "+" da área: é uma ação da linha da máquina.
+    expect(screen.queryByTestId("escolher-abastecimento")).toBeNull();
+    fireEvent.click(screen.getByTestId("linha-acoes-ml1"));
+    fireEvent.click(within(await screen.findByTestId("linha-acoes-ml1-menu")).getByRole("menuitem", { name: "Abastecer" }));
     const janela = await screen.findByTestId("janela-abastecimento-area");
     expect(janela.querySelector(".mdl-t")).toHaveTextContent(/^Abastecimento$/);
     const form = within(janela).getByTestId("abastecimento-form");
@@ -2036,7 +2039,8 @@ describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia
     // O formulário não repete os botões: eles estão no rodapé da janela (Cancelar e Revisar).
     expect(within(form).queryByTestId("abastecimento-previa")).toBeNull();
     expect(within(janela).getByTestId("janela-abastecimento-cancelar")).toBeTruthy();
-    await escolherNoSeletor(form, "abastecimento-bem", /Trator TP-02/);
+    // A máquina da linha já vem escolhida (e o horímetro, porque o medidor dela é horímetro).
+    expect(within(form).getByTestId("abastecimento-bem")).toHaveTextContent("TP-02");
     await waitFor(() => expect(within(form).getByTestId("abastecimento-local-auto")).toHaveTextContent("Sai do estoque: Tanque diesel sede"));
     fireEvent.change(within(form).getByTestId("abastecimento-quantidade"), { target: { value: "60" } });
     fireEvent.change(within(form).getByTestId("abastecimento-leitura"), { target: { value: "1.600" } });
@@ -2067,12 +2071,49 @@ describe("LL-ABASTECIMENTO — bloco Abastecimentos dentro do lançamento (Fatia
     expect(backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos").at(-1)?.body).toMatchObject({ apontamento_id: "ap1", operation_id: expect.any(String) });
   });
 
-  it("LL-ABAST-AREA-2 — sem a permissão de novo abastecimento, a opção não aparece", async () => {
+  it("LL-ABAST-AREA-2 — sem a permissão de novo abastecimento, o \"Abastecer\" não aparece no ⚡ da máquina nem \"Salvar e abastecer\" na janela", async () => {
     sessao.permissao = comAbastecimento({ novo: false });
     await montar();
-    await abrir("a1", "ap1");
-    await screen.findByTestId("escolher-maquinas");
-    expect(screen.queryByTestId("escolher-abastecimento")).toBeNull();
+    await naArea("a1");
+    fireEvent.click(screen.getByTestId("linha-acoes-ml1"));
+    expect(within(await screen.findByTestId("linha-acoes-ml1-menu")).getAllByRole("menuitem").map((i) => i.textContent.trim())).toEqual(["Editar", "Cancelar"]);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    const janela = await abrirJanela("a1", "maquinas");
+    expect(within(janela).queryByTestId("janela-tipo-salvar-abastecer")).toBeNull();
+  });
+
+  it("LL-ABAST-AREA-3 — \"Salvar e abastecer\" na janela da máquina: grava as horas e a MESMA janela vira o abastecimento dessa máquina, ligado ao lançamento do dia", async () => {
+    sessao.permissao = comAbastecimento({ novo: true });
+    // O lançamento do dia que a máquina cria (apn1) existe no servidor de abastecimentos.
+    abast.apontamentos.apn1 = { data_operacional: HOJE, turno: null, sequencia: 1, atividade: { id: "a1", numero: "3", nome: "Cigarrinha Pasto 01" }, centro_custo: { id: "cc-pasto", nome: "Pastagem" } };
+    await montar();
+    const janela = await abrirJanela("a1", "maquinas");
+    const rodape = within(janela).getByTestId("janela-tipo-rodape-dados");
+    expect([...rodape.querySelectorAll("button")].map((b) => b.textContent.trim())).toEqual(["Cancelar", "Salvar", "Salvar e novo", "Salvar e abastecer"]);
+    await preencherMaquina(janela, "1558");
+    fireEvent.click(within(janela).getByTestId("janela-tipo-salvar-abastecer"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toMatchObject({ method: "POST", path: "/atividades/a1/apontamentos" });
+    // Um nível só: a janela da máquina deu lugar à do abastecimento (nada de janela sobre janela).
+    const abastecimento = await screen.findByTestId("janela-abastecimento-area");
+    expect(screen.queryByTestId("janela-tipo")).toBeNull();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    const form = within(abastecimento).getByTestId("abastecimento-form");
+    expect(within(form).getByTestId("abastecimento-bem")).toHaveTextContent("TP-02");
+    await waitFor(() => expect(within(form).getByTestId("abastecimento-local-auto")).toHaveTextContent("Sai do estoque: Tanque diesel sede"));
+    fireEvent.change(within(form).getByTestId("abastecimento-quantidade"), { target: { value: "60" } });
+    fireEvent.change(within(form).getByTestId("abastecimento-leitura"), { target: { value: "1.600" } });
+    await act(async () => {
+      fireEvent.click(within(abastecimento).getByTestId("abastecimento-previa"));
+    });
+    await within(abastecimento).findByTestId("abastecimento-revisao");
+    await act(async () => {
+      fireEvent.click(within(abastecimento).getByTestId("abastecimento-confirmar"));
+    });
+    await waitFor(() => expect(screen.queryByTestId("janela-abastecimento-area")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", expect.stringMatching(/^Abastecimento de .+ registrado\.$/));
+    // O abastecimento vai preso ao lançamento do dia que a máquina acabou de criar.
+    expect(backend.chamadas.filter((c) => c.method === "POST" && c.path === "/patrimonio-abastecimentos").at(-1)?.body).toMatchObject({ apontamento_id: "apn1", bem_id: "b1", operation_id: expect.any(String) });
   });
 
   it("LL-ABAST-4 — posto externo pelo lançamento: sem local, com o valor da nota; o corpo leva origem, custo_total e apontamento_id", async () => {

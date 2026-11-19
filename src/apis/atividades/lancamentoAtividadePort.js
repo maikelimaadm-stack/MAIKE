@@ -26,6 +26,7 @@ const RESOURCE = 'Atividade';
 const RESOURCE_APONTAMENTO = 'AtividadeApontamento';
 const CAMINHO = '/atividades';
 const CAMINHO_OPCOES = '/atividades-opcoes';
+const CAMINHO_POR_AREA = '/atividades-por-area';
 
 /**
  * Seletores próprios da tela (guardados por "ver" da tela). D-PROD-202 (Fatia 3): produtos (os já usados na
@@ -88,6 +89,28 @@ export const CAMPOS_DE_CONCLUSAO = Object.freeze(['empresa_id', 'versao', 'data_
 export const CAMPOS_DE_REABERTURA = Object.freeze(['empresa_id', 'versao', 'motivo']);
 /** POST /atividades/:id/cancelar (cancela também os apontamentos confirmados). */
 export const CAMPOS_DE_CANCELAMENTO = Object.freeze(['empresa_id', 'versao', 'motivo']);
+/**
+ * D-PROD-254 — POST /atividades/registrar: registrar o trabalho de campo de UMA área e de UM tipo num envio só (o servidor
+ * acha ou abre a atividade do mês e grava o registro do dia com as linhas, numa transação).
+ */
+export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
+  'empresa_id',
+  'area_id',
+  'tipo_atividade_id',
+  'data_operacional',
+  'operation_id',
+  'safra_ciclo',
+  'turno',
+  'operador_usuario_id',
+  'area_executada_dia',
+  'quantidade_produzida_dia',
+  'observacao',
+  'origem',
+  'produtos',
+  'maquinas',
+  'mao_obra',
+  'servicos',
+]);
 /** POST /atividades/:id/duplicar: abertura nova a partir desta (corpo opcional). */
 export const CAMPOS_DE_DUPLICACAO = Object.freeze(['empresa_id', 'nome', 'data_inicio', 'data_prevista_fim']);
 
@@ -431,6 +454,29 @@ export const operacoesNativas = Object.freeze({
       { method: 'POST', body: corpoDaCriacaoDoApontamento(dados, CAMPOS_DE_DUPLICACAO_APONTAMENTO), autenticado: true },
       ctx('duplicateAtividadeApontamento', { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
     ),
+
+  // ── Registro de campo e leituras da área (D-PROD-254) ──
+  /** @param {Record<string, unknown>} dados */
+  registrar: (dados) =>
+    nativeRequest(
+      `${CAMINHO}/registrar`,
+      { method: 'POST', body: corpoDaCriacaoDoApontamento(dados, CAMPOS_DO_REGISTRO_DE_CAMPO), autenticado: true },
+      ctx('registrarAtividadeDeCampo', {}, RESOURCE_APONTAMENTO),
+    ),
+
+  /** Atividades da área e custos do mês. @param {string} areaId @param {string} empresaId */
+  resumoDaArea: (areaId, empresaId) =>
+    nativeRequest(comEmpresa(`${CAMINHO_POR_AREA}/${encodeURIComponent(areaId)}/resumo`, empresaId), { autenticado: true }, ctx('getAtividadesDaAreaResumo', { areaId })),
+
+  /** Registros de campo da área (keyset). @param {string} areaId @param {Record<string, unknown>} filtros */
+  registrosDaArea: (areaId, filtros) => {
+    const f = /** @type {Record<string, any>} */ (filtros ?? {});
+    const params = new URLSearchParams();
+    for (const k of ['empresa_id', 'limit', 'cursor', 'tipo_atividade_id']) {
+      if (f[k] !== undefined && f[k] !== null && String(f[k]) !== '') params.set(k, String(f[k]));
+    }
+    return nativeRequest(`${CAMINHO_POR_AREA}/${encodeURIComponent(areaId)}/registros?${params.toString()}`, { autenticado: true }, ctx('listAtividadesDaAreaRegistros', { areaId }));
+  },
 
   // ── Áreas da atividade (D-PROD-249) ──
   /** @param {string} atividadeId @param {Record<string, unknown>} dados */

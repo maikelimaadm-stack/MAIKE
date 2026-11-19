@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCheck, FlaskConical, Loader2, ReceiptText, Tractor, User } from "lucide-react";
+import { Check, CheckCheck, FlaskConical, Fuel, Loader2, ReceiptText, Tractor, User } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
@@ -9,7 +9,10 @@ import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { CampoDia } from "@/components/financeiroGestao/CamposLancamento";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { JanelaLinhaMaoObra, JanelaLinhaMaquina, JanelaLinhaProduto, JanelaLinhaServico, SecoesDoFormularioContext } from "@/components/lancamento-atividades/JanelasDaLinha";
+import JanelaAbastecimentoDaArea from "@/components/lancamento-atividades/JanelaAbastecimentoDaArea";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { useAcoesTelaAbastecimento } from "@/hooks/usePatrimonioSessao";
+import { QUERY_RAIZ_ABASTECIMENTOS } from "@/hooks/useFluxoAbastecimento";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import {
   STATUS_ABERTA,
@@ -56,9 +59,11 @@ export const lancamentoDoTipo = (tipo) => LANCAMENTOS_POR_TIPO.find((l) => l.tip
 /** Texto auxiliar (o tom das notas dos formulários do motor). */
 const NOTA = "min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
 
+/** O que a janela faz depois de gravar o item: fechar, deixar o formulário vazio ou abrir o abastecimento da máquina. @typedef {'fechar'|'novo'|'abastecer'} DepoisDeSalvar */
+
 /** O rodapé da janela (alvo dos botões do formulário), o "fechar depois de salvar" e o Dia, que entra na grade do formulário. */
 const ContextoDados = createContext(
-  /** @type {{ alvoRodape: HTMLElement | null, marcarFechar: (fechar: boolean) => void, onCancelar: () => void, topo: React.ReactNode }} */ ({ alvoRodape: null, marcarFechar: () => {}, onCancelar: () => {}, topo: null }),
+  /** @type {{ alvoRodape: HTMLElement | null, marcarFechar: (depois: DepoisDeSalvar) => void, onCancelar: () => void, topo: React.ReactNode, podeAbastecer: boolean }} */ ({ alvoRodape: null, marcarFechar: () => {}, onCancelar: () => {}, topo: null, podeAbastecer: false }),
 );
 
 /**
@@ -68,10 +73,10 @@ const ContextoDados = createContext(
  * @param {import("@/components/lancamento-atividades/JanelasDaLinha").PropsDaCasca} props
  */
 function CascaDoFormulario({ testId, enviando, incerto, podeEnviar, formId, onEnviar, children }) {
-  const { alvoRodape, marcarFechar, onCancelar, topo } = useContext(ContextoDados);
-  /** @param {boolean} fechar */
-  const enviar = (fechar) => {
-    marcarFechar(fechar);
+  const { alvoRodape, marcarFechar, onCancelar, topo, podeAbastecer } = useContext(ContextoDados);
+  /** @param {DepoisDeSalvar} depois */
+  const enviar = (depois) => {
+    marcarFechar(depois);
     onEnviar();
   };
   const botoes = (
@@ -79,14 +84,20 @@ function CascaDoFormulario({ testId, enviando, incerto, podeEnviar, formId, onEn
       <button type="button" className={BOTAO_SECUNDARIO} onClick={onCancelar} disabled={enviando} data-testid="janela-tipo-cancelar">
         Cancelar
       </button>
-      <button type="button" className={BOTAO_PRIMARIO} onClick={() => enviar(true)} disabled={enviando || !podeEnviar} data-testid="janela-tipo-salvar">
+      <button type="button" className={BOTAO_PRIMARIO} onClick={() => enviar("fechar")} disabled={enviando || !podeEnviar} data-testid="janela-tipo-salvar">
         {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
         {enviando ? "Salvando…" : incerto ? "Repetir o mesmo envio" : "Salvar"}
       </button>
-      <button type="button" className={BOTAO_PRIMARIO} onClick={() => enviar(false)} disabled={enviando || !podeEnviar} data-testid="janela-tipo-salvar-novo">
+      <button type="button" className={BOTAO_PRIMARIO} onClick={() => enviar("novo")} disabled={enviando || !podeEnviar} data-testid="janela-tipo-salvar-novo">
         <CheckCheck className="h-4 w-4" aria-hidden />
         Salvar e novo
       </button>
+      {podeAbastecer ? (
+        <button type="button" className={BOTAO_PRIMARIO} onClick={() => enviar("abastecer")} disabled={enviando || !podeEnviar} data-testid="janela-tipo-salvar-abastecer">
+          <Fuel className="h-4 w-4" aria-hidden />
+          Salvar e abastecer
+        </button>
+      ) : null}
     </>
   );
   return (
@@ -95,7 +106,7 @@ function CascaDoFormulario({ testId, enviando, incerto, podeEnviar, formId, onEn
         id={formId}
         onSubmit={(e) => {
           e.preventDefault();
-          enviar(true);
+          enviar("fechar");
         }}
         className="b1 mg-b1-form-grid b1-form-embutido"
         data-densidade={DENSIDADE_BASE1}
@@ -170,7 +181,11 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   const [chaveForm, setChaveForm] = useState(0);
   const [alvoRodape, setAlvoRodape] = useState(/** @type {HTMLElement | null} */ (null));
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
-  const fecharDepois = useRef(true);
+  const depoisDeSalvar = useRef(/** @type {DepoisDeSalvar} */ ("fechar"));
+  const acoesAbastecimento = useAcoesTelaAbastecimento();
+  // Abastecer é da máquina (D-PROD-254, emenda 1): só na janela do Trabalho de máquinas, com a tela Abastecimentos liberada.
+  const podeAbastecer = tipo === LINHA_MAQUINA && acoesAbastecimento.ver === true && acoesAbastecimento.criar === true;
+  const [abastecendo, setAbastecendo] = useState(/** @type {{ apontamento: any, bem: any } | null} */ (null));
 
   const consulta = useQuery({
     queryKey: chave,
@@ -204,9 +219,10 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   // O contexto é refeito a cada render: o Dia (campo) acompanha a data e os erros.
   const contextoDados = {
     alvoRodape,
-    marcarFechar: (/** @type {boolean} */ fechar) => {
-      fecharDepois.current = fechar;
+    marcarFechar: (/** @type {DepoisDeSalvar} */ depois) => {
+      depoisDeSalvar.current = depois;
     },
+    podeAbastecer,
     onCancelar: onFechar,
     topo: campoDia,
   };
@@ -275,9 +291,15 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   const destino = apontamento ?? { id: null, data_operacional: dia, area_executada_dia: null, versao: null, status: null };
 
   /** A linha foi gravada: Salvar fecha a janela; Salvar e novo deixa o formulário vazio. */
-  const aoSalvarItem = (/** @type {any} */ r, /** @type {string} */ textoDoServidor) => {
+  const aoSalvarItem = (/** @type {any} */ r, /** @type {string} */ textoDoServidor, /** @type {{ bem?: any } | undefined} */ extra = undefined) => {
     aplicarEscrita(r, textoDoServidor);
-    if (fecharDepois.current) {
+    // Máquina e combustível juntos: as horas já estão gravadas; a MESMA janela passa para o abastecimento dessa máquina,
+    // ligado ao lançamento do dia que acabou de nascer (ou que recebeu a linha).
+    if (depoisDeSalvar.current === "abastecer" && r?.apontamento?.id != null && extra?.bem) {
+      setAbastecendo({ apontamento: r.apontamento, bem: extra.bem });
+      return;
+    }
+    if (depoisDeSalvar.current !== "novo") {
       onFechar();
       return;
     }
@@ -328,6 +350,25 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
       {doTipo.rotulo}
     </span>
   );
+
+  // Um nível só: o abastecimento ocupa o lugar desta janela (nada de janela sobre janela).
+  if (abastecendo) {
+    return (
+      <JanelaAbastecimentoDaArea
+        atividade={atividade}
+        apontamento={abastecendo.apontamento}
+        bem={abastecendo.bem}
+        onFechar={onFechar}
+        onGravou={(texto) => {
+          queryClient.invalidateQueries({ queryKey: chave });
+          queryClient.invalidateQueries({ queryKey: chaveTotais(empresaId, atividadeId) });
+          queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ_ABASTECIMENTOS] });
+          onAtividadeAtualizada?.(null);
+          notifySuccess("Sucesso", texto);
+        }}
+      />
+    );
+  }
 
   return (
     <B1Janela
