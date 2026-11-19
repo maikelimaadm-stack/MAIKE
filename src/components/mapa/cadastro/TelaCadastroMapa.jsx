@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
+import { MapPinned } from "lucide-react";
+import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import { useQueryClient } from "@tanstack/react-query";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
@@ -153,6 +155,8 @@ export default function TelaCadastroMapa({
   }, [controller, bumpFormEpoch]);
 
   const screenController = { ...controller, saving: salvando, openNew: onNovo, cancelForm: cancelarEdicao };
+  const acoesDisponiveis = acoes({ selecionados, registro });
+  const editarMapa = registro ? acoesDisponiveis.find((acao) => acao.key === "editar-no-mapa" && !acao.hidden) : null;
 
   return (
     <CadastroBase1Screen
@@ -166,7 +170,27 @@ export default function TelaCadastroMapa({
       recordCode={registro && codigoDoItem ? codigoDoItem(registro) : undefined}
       listBanner={controller.showForm ? null : abas}
       showDuplicate={false}
-      additionalMoreActions={acoes({ selecionados, registro })}
+      extraToolbar={editarMapa ? (
+        <PillBtn
+          type="button"
+          onClick={editarMapa.onSelect}
+          disabled={salvando || controller.isEditing || editarMapa.disabled}
+          title={controller.isEditing ? "Salve ou cancele a edição dos detalhes antes de editar no mapa." : editarMapa.label}
+          aria-label={editarMapa.label}
+        >
+          <MapPinned className="h-4 w-4" aria-hidden="true" />
+          <span>{editarMapa.label}</span>
+        </PillBtn>
+      ) : null}
+      additionalMoreActions={acoesDisponiveis.flatMap((acao) => acao.key !== "editar-no-mapa" ? [acao] : (
+        controller.isEditing && editarMapa ? [{
+          ...acao,
+          label: `${acao.label} — salve ou cancele os detalhes primeiro`,
+          icon: <MapPinned className="h-4 w-4" aria-hidden="true" />,
+          whileEditing: true,
+          disabled: true,
+        }] : []
+      ))}
       deleteDialog={dialogoExcluir}
       recordForm={
         registro
