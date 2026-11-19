@@ -56,14 +56,14 @@ export const CATEGORIAS_TIPO_FIXO = Object.freeze(TIPOS_FIXOS_ATIVIDADE.map((t) 
  * (safra, máquina, produção) ficam desligadas: ligá-las obrigaria o campo em todo registro e quebraria "tudo opcional".
  */
 export const FLAGS_PADRAO_OPERACAO = Object.freeze({
-  exige_area: true,
-  exige_safra: false,
-  exige_maquina: false,
-  permite_implemento: true,
-  permite_produto: true,
-  permite_servico: true,
-  permite_mao_obra: true,
-  exige_producao: false,
+  'exige_area': true,
+  'exige_safra': false,
+  'exige_maquina': false,
+  'permite_implemento': true,
+  'permite_produto': true,
+  'permite_servico': true,
+  'permite_mao_obra': true,
+  'exige_producao': false,
 });
 
 /** Nome do grupo criado sozinho quando a operação é cadastrada sem grupo (o grupo saiu da tela). */
