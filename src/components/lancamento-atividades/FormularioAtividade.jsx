@@ -364,7 +364,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
           error={erros.tipo_atividade_id}
         />
       )}
-      {/* D-PROD-257: Grupo e "o que o tipo permite" (as 8 chaves) saíram da tela; o servidor continua gravando o grupo. */}
+      {/* D-PROD-258: Grupo e "o que o tipo permite" (as 8 chaves) saíram da tela; o servidor continua gravando o grupo. */}
 
       <SecaoForm titulo="Onde e com o quê" />
       {!existente ? (

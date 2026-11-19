@@ -9,7 +9,7 @@ import { TIPOS_FIXOS_ATIVIDADE, rotuloDoTipoFixo } from "@/lib/tiposFixosAtivida
 
 export const FORMULARIO_TIPO_ATIVIDADE_ID = "formulario-tipo-atividade-base1";
 
-/** Os 7 tipos fixos (D-PROD-257), com o rótulo da tela. */
+/** Os 7 tipos fixos (D-PROD-258), com o rótulo da tela. */
 export const CATEGORIAS_TIPO_ATIVIDADE = TIPOS_FIXOS_ATIVIDADE;
 
 /**
@@ -29,7 +29,7 @@ export const rotuloDaCategoriaTipoAtividade = (valor) => (typeof valor === "stri
  */
 
 /**
- * Formulário da OPERAÇÃO (o "tipo de atividade" de antes; D-PROD-257): só três campos — Tipo fixo (um dos 7, obrigatório),
+ * Formulário da OPERAÇÃO (o "tipo de atividade" de antes; D-PROD-258): só três campos — Tipo fixo (um dos 7, obrigatório),
  * Nome e Ativo. Grupo, centros, unidade, coeficiente e as 8 chaves saíram da tela: o servidor dá o padrão automático na
  * criação e, na edição, não mexe no que não vier no corpo (o corpo leva só estes três).
  *

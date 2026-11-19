@@ -8616,11 +8616,11 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 **Relatório:** [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md).
 
-## D-PROD-257 — Atividades, fase 1: 7 tipos fixos de pasto, operação com 3 campos e um formulário único ("Registrar serviço") também pelo Manejos do mapa
+## D-PROD-258 — Atividades, fase 1: 7 tipos fixos de pasto, operação com 3 campos e um formulário único ("Registrar serviço") também pelo Manejos do mapa
 
 **Data:** 2026-11-19 · **Origem:** pedido do proprietário (Maike), que aprovou a análise `atividades-analise.md` já com o escopo reduzido a **serviços de pasto** (sem nutrição, suplementação, cocho nem depósito) · **Branch:** `feat/atividades-tipos-fixos` · **Migration:** nenhuma (a atualização de dados é um script em dry-run, à parte).
 
-> **Numeração:** a `main` indica `Próxima decisão: D-PROD-256` e há decisões reservadas em outros branches até a 256 (e o branch do Capacitor usa até a 253); esta é a **D-PROD-257** e o marcador passa a D-PROD-258.
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-256` e outros branches reservam até a 257 (o do Capacitor usa até a 253); esta é a **D-PROD-258** (a 256 e a 257 são de outra sessão, `cursor/estoque-custo-medio`) e o marcador passa a D-PROD-259.
 
 **Decisão — os 7 tipos fixos.**
 1. O "tipo fixo" é a **`categoria`** do tipo de atividade (que passa a se chamar **operação** na tela), agora **obrigatória**. Lista: **Preparo do solo · Formação de pastagem (plantio) · Fertilização · Aplicação · Roçada e tratos · Manutenção · Outros**. **Colheita** e **Manejo animal** ficam de fora.
@@ -8644,4 +8644,4 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 **Relatório:** [`MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md`](./MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-258 -->
+<!-- Próxima decisão: D-PROD-259 -->

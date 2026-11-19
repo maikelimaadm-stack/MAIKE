@@ -56,7 +56,7 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  * e no "Registrar" do Lançamento de Atividades (a pessoa escolhe a área e o tipo). Uma janela Base1 de um nível só
  * (680px no desktop; `b1-janela--tela-cheia` no celular), em grupos (`SecaoForm` + `mg-b1-form-grid`).
  *
- * D-PROD-257 — dois passos: primeiro o TIPO FIXO (os 7 serviços de pasto), depois a OPERAÇÃO (o "tipo de atividade" do
+ * D-PROD-258 — dois passos: primeiro o TIPO FIXO (os 7 serviços de pasto), depois a OPERAÇÃO (o "tipo de atividade" do
  * cadastro, filtrado pelo tipo escolhido). As QUATRO seções — Máquinas, Insumos, Mão de obra e Serviço de terceiro — ficam
  * sempre à mostra e todas são opcionais (uma linha por seção nesta fase); o servidor segue sendo quem recusa o que a operação
  * não aceitar. Os campos são os MESMOS dos formulários de linha (`JanelasDaLinha`: máquina com implemento e medidor, produto
@@ -96,7 +96,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const operacoes = useMemo(() => operacoesDoTipoFixo(tipos, tipoFixo), [tipos, tipoFixo]);
   const tipo = tipoPreso ?? operacoes.find((t) => String(t.id) === tipoEscolhido) ?? null;
   const area = areaPreso ?? areas.find((a) => String(a.id) === areaEscolhida) ?? null;
-  // D-PROD-257: as quatro seções são sempre oferecidas. Só as chaves que EXIGEM dado (operação antiga) ainda valem.
+  // D-PROD-258: as quatro seções são sempre oferecidas. Só as chaves que EXIGEM dado (operação antiga) ainda valem.
   const flags = {
     exigeMaquina: tipo?.exige_maquina === true,
     exigeSafra: tipo?.exige_safra === true,

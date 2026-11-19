@@ -755,7 +755,7 @@ describe("LA-ABERTA — atividade aberta: cabeçalho travado e lançamentos por 
     const valor = (/** @type {string} */ rotulo) => /** @type {HTMLInputElement} */ (within(cabecalho).getByLabelText(rotulo)).value;
     expect(valor("Nome")).toBe("Cigarrinha Pasto 01");
     expect(valor("Tipo de atividade")).toBe("APLICAÇÃO");
-    // D-PROD-257: o Grupo saiu das telas de atividade.
+    // D-PROD-258: o Grupo saiu das telas de atividade.
     expect(within(cabecalho).queryByLabelText("Grupo de atividade")).toBeNull();
     expect(valor("Área")).toBe("01 — Pasto 01");
     expect(valor("Setor (da área)")).toBe("SETOR NORTE");
@@ -992,7 +992,7 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
     expect(screen.getByTestId("atividade-heranca")).toHaveTextContent("O centro de resultado padrão do tipo é de outra fazenda");
     // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não. D-PROD-238: a área é a lista "Áreas".
     expect(within(form).getByTestId("areas-abertura")).toHaveTextContent(/Áreas\s*\*/);
-    // D-PROD-257: as 8 chaves (e a nota "Este tipo permite registrar") saíram da tela.
+    // D-PROD-258: as 8 chaves (e a nota "Este tipo permite registrar") saíram da tela.
     expect(within(form).queryByTestId("atividade-tipo-registra")).toBeNull();
     expect(marcadoObrigatorio(form, "Máquina")).toBe(true);
     expect(marcadoObrigatorio(form, "Safra")).toBe(false);
@@ -1588,7 +1588,7 @@ describe("LA-MENU — rota, menu, ícone, manifesto e paridade com o servidor", 
 
 // ═════════════════════════════════════════════════════════════════════════
 describe("LA-TIPOS — a tela de Tipos de Atividade continua funcionando (rotuloDoCentro movido)", () => {
-  it("LA-TIPOS-1 — rotuloDoCentro segue na lib; o formulário da operação (D-PROD-257) não mostra mais centros, grupo nem chaves", async () => {
+  it("LA-TIPOS-1 — rotuloDoCentro segue na lib; o formulário da operação (D-PROD-258) não mostra mais centros, grupo nem chaves", async () => {
     const { rotuloDoCentro } = await import("@/lib/lancamentoAtividadesRegras");
     expect(rotuloDoCentro({ numero: "12", nome: " Pecuária de corte " })).toBe("12 — Pecuária de corte");
     expect(rotuloDoCentro({ nome: "Sem número" })).toBe("Sem número");

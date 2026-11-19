@@ -30,7 +30,7 @@ export const CATEGORIAS_TIPO_ATIVIDADE = Object.freeze([
 ]);
 
 /**
- * D-PROD-257 — os 7 TIPOS FIXOS dos serviços de pasto. O "tipo fixo" é a `categoria` do tipo de atividade (que agora é
+ * D-PROD-258 — os 7 TIPOS FIXOS dos serviços de pasto. O "tipo fixo" é a `categoria` do tipo de atividade (que agora é
  * obrigatória). Sem mudar a tabela nem o CHECK `TipoAtividade_categoria_check` (D-PROD-72 item 3): o tipo fixo usa 7 dos 9
  * valores já aceitos pelo banco. `TRATO_CULTURAL` passa a significar Fertilização (`FERTILIZACAO` não existe no CHECK); `PASTAGEM`, Roçada e tratos;
  * `BENFEITORIA`, Manutenção; `PLANTIO`, Formação de pastagem (plantio). `COLHEITA` e `MANEJO_ANIMAL` ficam FORA (não são
@@ -51,7 +51,7 @@ export const TIPOS_FIXOS_ATIVIDADE = Object.freeze([
 export const CATEGORIAS_TIPO_FIXO = Object.freeze(TIPOS_FIXOS_ATIVIDADE.map((t) => t.categoria));
 
 /**
- * D-PROD-257 — padrão automático das chaves de uma operação nova (a tela não as mostra mais): a área é exigida e as quatro
+ * D-PROD-258 — padrão automático das chaves de uma operação nova (a tela não as mostra mais): a área é exigida e as quatro
  * seções (máquina com implemento, produto, mão de obra, serviço) são permitidas. As três chaves que EXIGEM dado
  * (safra, máquina, produção) ficam desligadas: ligá-las obrigaria o campo em todo registro e quebraria "tudo opcional".
  */
@@ -77,7 +77,7 @@ const semAcentoMinusculo = (nome) =>
     .toLowerCase();
 
 /**
- * D-PROD-257 — de que tipo fixo é uma operação que já existe: a categoria gravada (9 valores, ou nenhuma) → um dos 7.
+ * D-PROD-258 — de que tipo fixo é uma operação que já existe: a categoria gravada (9 valores, ou nenhuma) → um dos 7.
  * Puro; é a regra do script de dados e do que a tela mostra para registro antigo.
  *  - Fertilização é nova (antes era "parte de Aplicação"): operação de APLICACAO ou TRATO_CULTURAL cujo NOME é de
  *    adubação/fertilização (adub, fertiliz, esterco, ureia) vai para Fertilização;

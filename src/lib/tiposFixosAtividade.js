@@ -1,5 +1,5 @@
 /**
- * D-PROD-257 — os 7 TIPOS FIXOS dos serviços de pasto. O tipo fixo é a `categoria` do cadastro de operações (o "tipo de
+ * D-PROD-258 — os 7 TIPOS FIXOS dos serviços de pasto. O tipo fixo é a `categoria` do cadastro de operações (o "tipo de
  * atividade" de antes), agora obrigatória. Espelha `TIPOS_FIXOS_ATIVIDADE` do servidor (mesma ordem e mesmos valores):
  * os valores gravados são os do CHECK que o banco já tinha (sem mudar tabela), com o rótulo novo.
  *

@@ -12,7 +12,7 @@
  * (`shared/errors/vinculoAtividade.js`) e traduzida aqui em 409
  * `TIPO_ATIVIDADE_DELETE_BLOCKED`.
  *
- * D-PROD-257 — "tipos fixos": a `categoria` é OBRIGATÓRIA e só aceita os 7 tipos fixos de pasto
+ * D-PROD-258 — "tipos fixos": a `categoria` é OBRIGATÓRIA e só aceita os 7 tipos fixos de pasto
  * (`TIPOS_FIXOS_ATIVIDADE`); o grupo e as 8 chaves saíram da tela e ganham padrão automático aqui (grupo `GERAL` do
  * cliente; chaves em `FLAGS_PADRAO_OPERACAO`, que ligam as 4 seções). Quem manda grupo ou chave continua sendo obedecido.
  *
@@ -92,7 +92,7 @@ const normalizarNomeTipo = (valor) => {
 // ─── D-PROD-197: normalização dos padrões e das flags ───────────────────────
 
 /**
- * D-PROD-257 — o tipo fixo (`categoria`): um dos 7 valores, nunca null (o schema da rota já recusa; esta é a segunda
+ * D-PROD-258 — o tipo fixo (`categoria`): um dos 7 valores, nunca null (o schema da rota já recusa; esta é a segunda
  * barreira, para quem chamar o serviço direto). Ausente = não mexe (PATCH que muda só o nome ou o ativo).
  * @param {unknown} v
  */
@@ -212,7 +212,7 @@ const resolverGrupo = async (tx, clienteId, grupoId) => {
 };
 
 /**
- * D-PROD-257 — o grupo saiu da tela da operação. Sem `grupo_atividade_id`, usa o grupo padrão do cliente
+ * D-PROD-258 — o grupo saiu da tela da operação. Sem `grupo_atividade_id`, usa o grupo padrão do cliente
  * (`GERAL`), criado na primeira vez (auditado). Se já existir um grupo com esse nome, é o mesmo grupo.
  * @param {any} tx @param {{requestId: string, auth: any}} contexto @param {string} clienteId
  */
@@ -327,7 +327,7 @@ export const criar = async (contexto, entrada) => {
   const campos = camposDe(entrada);
 
   const criado = await prisma.$transaction(async (tx) => {
-    // D-PROD-257 — categoria (tipo fixo) obrigatória; grupo e as 8 chaves ganham o padrão automático.
+    // D-PROD-258 — categoria (tipo fixo) obrigatória; grupo e as 8 chaves ganham o padrão automático.
     if (!tem(campos, 'categoria')) categoriaDoCorpo(null);
     const grupo = campos.grupo_atividade_id
       ? await resolverGrupo(tx, auth.clienteId, String(campos.grupo_atividade_id))

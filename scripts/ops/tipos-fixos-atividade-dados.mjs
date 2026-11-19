@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-257 — atualização de DADOS dos tipos de atividade existentes para os "tipos fixos" (Fase 1).
+ * D-PROD-258 — atualização de DADOS dos tipos de atividade existentes para os "tipos fixos" (Fase 1).
  *
  * PREPARADO PARA REVISÃO. Não é migration do Prisma de propósito: uma migration roda sozinha no deploy (barreira de
  * migrations) e a lista abaixo precisa ser conferida pelo proprietário antes. Nenhuma coluna é criada, alterada ou apagada.

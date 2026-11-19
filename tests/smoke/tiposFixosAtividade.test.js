@@ -1,12 +1,12 @@
 /**
- * D-PROD-257 — os 7 tipos fixos no cliente: a lista, o rótulo, o filtro de operações por tipo e a paridade com o servidor.
+ * D-PROD-258 — os 7 tipos fixos no cliente: a lista, o rótulo, o filtro de operações por tipo e a paridade com o servidor.
  */
 import { describe, it, expect } from "vitest";
 
 import { TIPOS_FIXOS_ATIVIDADE, operacoesDoTipoFixo, rotuloDoTipoFixo, tipoFixoDaOperacao } from "@/lib/tiposFixosAtividade";
 import { TIPOS_FIXOS_ATIVIDADE as DO_SERVIDOR } from "../../backend/src/modules/tiposAtividade/tipoAtividadePadroes.js";
 
-describe("tipos fixos de atividade (D-PROD-257)", () => {
+describe("tipos fixos de atividade (D-PROD-258)", () => {
   it("o cliente e o servidor falam dos mesmos 7 tipos, com os mesmos valores, rótulos e ordem", () => {
     expect(TIPOS_FIXOS_ATIVIDADE.map((t) => ({ categoria: t.value, rotulo: t.label }))).toEqual(DO_SERVIDOR.map((t) => ({ ...t })));
     expect(TIPOS_FIXOS_ATIVIDADE).toHaveLength(7);

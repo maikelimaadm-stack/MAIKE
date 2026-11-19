@@ -28,7 +28,7 @@ import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1Full
 const QUERY_KEY = ["tipos-atividade"];
 
 /**
- * Cadastro de operações — o "tipo de atividade" de antes (D-PROD-182; D-PROD-257).
+ * Cadastro de operações — o "tipo de atividade" de antes (D-PROD-182; D-PROD-258).
  *
  * Só três campos: tipo fixo (um dos 7), nome e ativo. O servidor completa o resto.
  */

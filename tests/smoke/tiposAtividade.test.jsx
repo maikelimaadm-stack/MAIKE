@@ -206,7 +206,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe("TA-FORM — formulário da operação (D-PROD-257): tipo fixo + nome + ativo", () => {
+describe("TA-FORM — formulário da operação (D-PROD-258): tipo fixo + nome + ativo", () => {
   it("TA-FORM-1 — só três campos: Tipo, Nome da operação e Ativo; Grupo, centros, unidade, coeficiente e as 8 chaves saíram", async () => {
     const { form } = await montar();
     expect(rotulos(form)).toEqual(["Tipo", "Nome da operação", "Ativo"]);
@@ -279,7 +279,7 @@ describe("TA-FORM — formulário da operação (D-PROD-257): tipo fixo + nome +
   });
 });
 
-describe("TA-PAGE — tela de operações (D-PROD-257)", () => {
+describe("TA-PAGE — tela de operações (D-PROD-258)", () => {
   const montarTela = async () => {
     const { default: TiposAtividade } = await import("@/pages/TiposAtividade");
     render(

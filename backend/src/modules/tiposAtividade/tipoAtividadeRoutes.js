@@ -34,7 +34,7 @@ const CAMPOS = Object.freeze({
   ativo: { type: 'boolean' },
   descricao: { type: ['string', 'null'], maxLength: 2000 },
   // D-PROD-197 — padrões (null = sem padrão) e flags.
-  // D-PROD-257 — o tipo fixo: obrigatório no POST, nunca null, só os 7 valores.
+  // D-PROD-258 — o tipo fixo: obrigatório no POST, nunca null, só os 7 valores.
   categoria: { type: 'string', enum: [...CATEGORIAS_TIPO_FIXO] },
   centro_custo_padrao_id: ID_NULO,
   centro_resultado_padrao_id: ID_NULO,

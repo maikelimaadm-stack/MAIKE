@@ -59,7 +59,7 @@ const FLAGS = Object.freeze([
   'exige_area', 'exige_safra', 'exige_maquina', 'permite_implemento', 'permite_produto', 'permite_servico', 'permite_mao_obra', 'exige_producao',
 ]);
 /** As 9 categorias do CHECK `TipoAtividade_categoria_check`. */
-/** D-PROD-257 — os 7 tipos fixos que a escrita aceita (COLHEITA e MANEJO_ANIMAL saíram de escrita). */
+/** D-PROD-258 — os 7 tipos fixos que a escrita aceita (COLHEITA e MANEJO_ANIMAL saíram de escrita). */
 const CATEGORIAS = Object.freeze(['PREPARO_SOLO', 'PLANTIO', 'TRATO_CULTURAL', 'APLICACAO', 'PASTAGEM', 'BENFEITORIA', 'OUTROS']);
 const CATEGORIAS_FORA = Object.freeze(['COLHEITA', 'MANEJO_ANIMAL']);
 /** Nomes aposentados (D-PROD-181/183): continuam recusados em /tipos-atividade. */
@@ -79,7 +79,7 @@ const CAMPOS_D195 = Object.freeze([
 const CAMPOS_PUBLICOS = Object.freeze([...CAMPOS_D182, ...CAMPOS_D195].sort());
 /** Os campos novos de um tipo sem nada informado: flags false, padrões null. */
 const SEM_PADROES = Object.freeze({
-  categoria: 'OUTROS', // D-PROD-257: obrigatória; o helper `base` manda OUTROS
+  categoria: 'OUTROS', // D-PROD-258: obrigatória; o helper `base` manda OUTROS
   ...{},
   centro_custo_padrao_id: null, centro_custo_padrao: null,
   centro_resultado_padrao_id: null, centro_resultado_padrao: null,
@@ -113,7 +113,7 @@ const criarGrupo = async (token, nome) => {
   return r.json();
 };
 
-// D-PROD-257: a categoria (tipo fixo) é obrigatória no POST; o helper a preenche, quem testa a falta usa `criarTipoCru`.
+// D-PROD-258: a categoria (tipo fixo) é obrigatória no POST; o helper a preenche, quem testa a falta usa `criarTipoCru`.
 const criarTipoCru = (token, payload) => req('POST', '/tipos-atividade', token, payload);
 const criarTipo = (token, payload) => criarTipoCru(token, { categoria: 'OUTROS', ...payload });
 const patchTipo = (token, id, payload) => req('PATCH', `/tipos-atividade/${id}`, token, payload);
@@ -216,7 +216,7 @@ const montar = async () => {
   };
 };
 /** Corpo mínimo de criação no grupo do cenário. */
-// D-PROD-257: categoria obrigatória (OUTROS) e as 8 chaves desligadas explicitamente — estes testes de D-PROD-197 provam cada
+// D-PROD-258: categoria obrigatória (OUTROS) e as 8 chaves desligadas explicitamente — estes testes de D-PROD-197 provam cada
 // chave isolada; o padrão automático (chaves ligadas) tem o seu próprio teste, que não usa `base`.
 const FLAGS_DESLIGADAS = Object.freeze(Object.fromEntries(FLAGS.map((f) => [f, false])));
 const base = (s, nome = 'Pulverização', extra = {}) => ({ nome_tipo: nome, grupo_atividade_id: s.grupo.id, categoria: 'OUTROS', ...FLAGS_DESLIGADAS, ...extra });
@@ -619,7 +619,7 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
     assert.deepEqual(flagsDe(await linhaDoTipo(t.id)), { ...flagsDe(SEM_PADROES), exige_area: true }, 'flags intactas');
   });
 
-  test('categoria (tipo fixo, D-PROD-257): os 7 gravam no POST e no PATCH; null, ausente, COLHEITA e MANEJO_ANIMAL → 400; fora da lista → 400', async () => {
+  test('categoria (tipo fixo, D-PROD-258): os 7 gravam no POST e no PATCH; null, ausente, COLHEITA e MANEJO_ANIMAL → 400; fora da lista → 400', async () => {
     const s = await montar();
     for (const [i, c] of CATEGORIAS.entries()) {
       const t = await criarTipoOk(s.token, base(s, `Tipo ${i}`, { categoria: c }));
@@ -641,7 +641,7 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
     assert.equal((await linhaDoTipo(t.id)).categoria, CATEGORIAS.at(-1), 'a categoria gravada ficou intacta');
   });
 
-  test('D-PROD-257: tipo antigo sem categoria (ou com COLHEITA) continua legível e editável sem tocar na categoria (só ativo/nome)', async () => {
+  test('D-PROD-258: tipo antigo sem categoria (ou com COLHEITA) continua legível e editável sem tocar na categoria (só ativo/nome)', async () => {
     const s = await montar();
     const antigo = await prisma().tipoAtividade.create({ data: { cliente_id: s.clienteId, grupo_atividade_id: s.grupo.id, grupo_atividade_nome: s.grupo.nome_grupo, nome_tipo: 'ANTIGO', categoria: 'COLHEITA' } });
     assert.equal((await detalheOk(s.token, antigo.id)).categoria, 'COLHEITA', 'leitura devolve como gravado');
@@ -651,7 +651,7 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
     await recusaValidacao(s.clienteId, () => patchTipo(s.token, antigo.id, { categoria: null }), 'PATCH null');
   });
 
-  test('D-PROD-257: operação cadastrada só com tipo fixo + nome → grupo GERAL automático (reaproveitado), chaves em padrão (área e 4 seções ligadas), sem centros/unidade/coeficiente', async () => {
+  test('D-PROD-258: operação cadastrada só com tipo fixo + nome → grupo GERAL automático (reaproveitado), chaves em padrão (área e 4 seções ligadas), sem centros/unidade/coeficiente', async () => {
     const s = await montar();
     const a = await criarTipoCru(s.token, { nome_tipo: 'Gradagem leve', categoria: 'PREPARO_SOLO' });
     assert.equal(a.statusCode, 201, a.body);

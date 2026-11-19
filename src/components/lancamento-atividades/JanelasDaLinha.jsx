@@ -120,7 +120,7 @@ const NOTA = "col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,
  * O formulário da janela (D-PROD-252, emenda 3): quem o envolve numa janela diz que ele é em seções Base1 (valor não
  * nulo) e pode pôr um campo na frente, no mesmo grupo "Lançamento" (o Dia da janela por tipo). O "Repetir" não
  * provê o contexto: lá os campos continuam sem seção.
- * D-PROD-257: `opcional` marca o formulário "Registrar serviço", em que as quatro seções são sempre oferecidas e todas são
+ * D-PROD-258: `opcional` marca o formulário "Registrar serviço", em que as quatro seções são sempre oferecidas e todas são
  * opcionais — o campo-chave da seção (Máquina, Produto, Funcionário, Serviço) deixa de levar o asterisco e os campos que
  * dependem dele só o levam depois que ele é escolhido.
  * @type {React.Context<{ topo: React.ReactNode, opcional?: boolean } | null>}
