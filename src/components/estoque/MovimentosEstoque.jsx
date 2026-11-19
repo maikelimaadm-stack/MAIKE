@@ -104,7 +104,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
   );
 
   const filtrosDaTela = useMemo(
-    () => /** @type {any[]} */ ([
+    () => /** @type {import("@/components/cadastro/base1/FiltrosRapidos").FiltroDaTela[]} */ ([
       {
         id: "produto",
         rotulo: "Produto",
