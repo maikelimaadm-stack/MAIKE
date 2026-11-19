@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import B1Select from "@/components/cadastro/base1/B1Select";
+import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { atualizarArea, renumerarAreas } from "@/services/mapaService";
 import { mensagemErroRenumeracao } from "@/domain/areas/mensagemErroRenumeracao";
 import { CORES_DISPONIVEIS } from "@/domain/areas/regrasCadastroArea";
@@ -29,6 +30,8 @@ export default function AcoesEmLoteAreas({ acao, areas, setores, onFechar, onApl
   const [cor, setCor] = useState(CORES_DISPONIVEIS[4].cor);
   const [inicio, setInicio] = useState("1");
   const [aplicando, setAplicando] = useState(false);
+  // Alvo das folhas do celular: a lista do setor abre DENTRO da janela modal, senão a janela engole o toque.
+  const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
 
   const aplicar = async () => {
     if (!areas.length) {
@@ -99,9 +102,11 @@ export default function AcoesEmLoteAreas({ acao, areas, setores, onFechar, onApl
       aberto={Boolean(acao)}
       onFechar={onFechar}
       podeFechar={!aplicando}
+      aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
       titulo={acao ? TITULOS[acao] : ""}
       descricao={`${areas.length} ${areas.length === 1 ? "área selecionada" : "áreas selecionadas"}.`}
       testId="areas-acao-em-lote"
+      fora={<div ref={setAlvoFolha} className="contents" />}
       rodape={
         <>
           <button type="button" className="tb-btn" onClick={onFechar} disabled={aplicando}>
@@ -115,62 +120,64 @@ export default function AcoesEmLoteAreas({ acao, areas, setores, onFechar, onApl
         </>
       }
     >
-      <form
-        data-densidade={DENSIDADE_BASE1}
-        className="b1 mg-b1-form-grid b1-form-embutido"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!desabilitado) void aplicar();
-        }}
-      >
-        {acao === "setor" ? (
-          <B1Field label="Setor" required span={12} hasValue={Boolean(setorId)}>
-            <B1Select
-              aria-label="Setor"
-              value={setorId}
-              onChange={(e) => setSetorId(e.target.value)}
-              className={B1_FIELD_CTL_CLS}
-              pesquisa="sempre"
-              semOpcaoVazia
-              maiusculas
-            >
-              {setores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nome}
-                </option>
+      <MobileSheetPortalCtx.Provider value={alvoFolha}>
+        <form
+          data-densidade={DENSIDADE_BASE1}
+          className="b1 mg-b1-form-grid b1-form-embutido"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!desabilitado) void aplicar();
+          }}
+        >
+          {acao === "setor" ? (
+            <B1Field label="Setor" required span={12} hasValue={Boolean(setorId)}>
+              <B1Select
+                aria-label="Setor"
+                value={setorId}
+                onChange={(e) => setSetorId(e.target.value)}
+                className={B1_FIELD_CTL_CLS}
+                pesquisa="sempre"
+                semOpcaoVazia
+                maiusculas
+              >
+                {setores.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nome}
+                  </option>
+                ))}
+              </B1Select>
+            </B1Field>
+          ) : null}
+          {acao === "cor" ? (
+            <div className="col-span-12 grid grid-cols-5 gap-2" role="radiogroup" aria-label="Cor no mapa">
+              {CORES_DISPONIVEIS.map((c) => (
+                <button
+                  key={c.cor}
+                  type="button"
+                  role="radio"
+                  aria-checked={cor === c.cor}
+                  aria-label={c.nome}
+                  title={c.nome}
+                  onClick={() => setCor(c.cor)}
+                  className={`h-9 rounded-lg border border-slate-300 ${cor === c.cor ? "ring-2 ring-emerald-600 ring-offset-1" : ""}`}
+                  style={{ backgroundColor: c.cor }}
+                />
               ))}
-            </B1Select>
-          </B1Field>
-        ) : null}
-        {acao === "cor" ? (
-          <div className="col-span-12 grid grid-cols-5 gap-2" role="radiogroup" aria-label="Cor no mapa">
-            {CORES_DISPONIVEIS.map((c) => (
-              <button
-                key={c.cor}
-                type="button"
-                role="radio"
-                aria-checked={cor === c.cor}
-                aria-label={c.nome}
-                title={c.nome}
-                onClick={() => setCor(c.cor)}
-                className={`h-9 rounded-lg border border-slate-300 ${cor === c.cor ? "ring-2 ring-emerald-600 ring-offset-1" : ""}`}
-                style={{ backgroundColor: c.cor }}
+            </div>
+          ) : null}
+          {acao === "renumerar" ? (
+            <B1Field label="Número inicial" required span={12} hasValue={Boolean(inicio)}>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={inicio}
+                onChange={(e) => setInicio(e.target.value.replace(/[^0-9]/g, ""))}
+                className={B1_FIELD_CTL_CLS}
               />
-            ))}
-          </div>
-        ) : null}
-        {acao === "renumerar" ? (
-          <B1Field label="Número inicial" required span={12} hasValue={Boolean(inicio)}>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={inicio}
-              onChange={(e) => setInicio(e.target.value.replace(/[^0-9]/g, ""))}
-              className={B1_FIELD_CTL_CLS}
-            />
-          </B1Field>
-        ) : null}
-      </form>
+            </B1Field>
+          ) : null}
+        </form>
+      </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );
 }
