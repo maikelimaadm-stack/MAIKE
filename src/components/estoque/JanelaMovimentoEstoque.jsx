@@ -11,7 +11,6 @@ import {
   depositoDoMovimento,
   formatarCustoUnitario,
   formatarDia,
-  formatarInstante,
   formatarQtd,
   formatarReais,
   quantidadeComSinal,
@@ -87,7 +86,7 @@ export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar 
             <Linha rotulo="Produto" valor={m.produto_nome} />
             <Linha rotulo="Quantidade" valor={quantidadeComSinal(m)} testId="movimento-quantidade" />
             <Linha rotulo="Depósito" valor={depositoDoMovimento(m)} />
-            <Linha rotulo="Origem" valor={ROTULO_ORIGEM[m.origem_sistema] ?? m.origem_sistema} />
+            <Linha rotulo="Origem" valor={ROTULO_ORIGEM[m.origem_sistema] !== rotuloDoMovimento(m) ? (ROTULO_ORIGEM[m.origem_sistema] ?? m.origem_sistema) : null} />
             <Linha rotulo="Situação" valor={m.status === "Estornada" ? "Estornada" : m.estorno ? "Estorno" : "Ativa"} />
           </Grupo>
 
@@ -155,9 +154,6 @@ export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar 
                 </Grupo>
               ) : null}
 
-              <Grupo titulo="Registro">
-                <Linha rotulo="Gravado em" valor={formatarInstante(d.criado_em)} />
-              </Grupo>
             </>
           ) : consulta.isLoading ? (
             <p role="status" className="mt-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="movimento-carregando">

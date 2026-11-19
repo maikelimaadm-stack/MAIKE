@@ -94,7 +94,7 @@ export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos 
 
   const filtrosDaTela = useMemo(
     () => [
-      { id: "deposito", rotulo: "Depósito", nome: "Filtrar por depósito", opcoes: opcoesDeDeposito(depositos), valor: depositoId, padrao: "", onChange: setDepositoId },
+      { id: "deposito", rotulo: "Depósito", nome: "Filtrar por depósito", opcoes: opcoesDeDeposito(depositos), valor: depositoId, padrao: "", onChange: setDepositoId, coluna: "deposito" },
       { id: "saldo", rotulo: "Saldo", nome: "Filtrar por saldo", opcoes: OPCOES_SALDO, valor: saldoFiltro, padrao: "COM", onChange: setSaldoFiltro },
     ],
     [depositos, depositoId, saldoFiltro],

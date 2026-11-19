@@ -30,6 +30,9 @@ export const MOVIMENTOS_ESTOQUE_COLUNAS = [
   { id: "origem", label: "Origem", default: false, sortable: true, width: 150 },
 ];
 
+/** Além dos filtros da tela, só a Situação (ativa, estorno, estornada) fica na faixa. */
+const FILTROS_AUTOMATICOS = ["situacao"];
+
 export const MOVIMENTOS_ESTOQUE_CAMPOS_CARD = ["produto", "quantidade", "data", "tipo", "situacao"];
 
 /** @param {any} m */
@@ -114,6 +117,7 @@ export default function TabelaMovimentosEstoque(props) {
       viewMode={props.viewMode}
       cardFields={props.cardFields}
       cardsPerRow={props.cardsPerRow}
+      quickFilterIds={FILTROS_AUTOMATICOS}
       cardsTitleColId="produto"
       cardsCodeColId="tipo"
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}

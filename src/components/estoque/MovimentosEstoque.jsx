@@ -112,11 +112,12 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
         opcoes: opcoesDeProduto(produtos, produto),
         valor: produto?.id ?? "",
         padrao: "",
+        coluna: "produto",
         onChange: (/** @type {string} */ id) => setProduto(id ? { id, nome: (produtos.find((p) => p.id === id) ?? produto)?.nome ?? "" } : null),
       },
-      { id: "deposito", rotulo: "Depósito", nome: "Filtrar por depósito", opcoes: opcoesDeDeposito(depositosComAtual), valor: depositoId, padrao: "", onChange: setDepositoId },
-      { id: "origem", rotulo: "Origem", nome: "Filtrar por origem", opcoes: OPCOES_ORIGEM, valor: origem, padrao: "", onChange: setOrigem },
-      { id: "tipo", rotulo: "Tipo", nome: "Filtrar por tipo", opcoes: OPCOES_TIPO, valor: tipo, padrao: "", onChange: setTipo },
+      { id: "deposito", rotulo: "Depósito", nome: "Filtrar por depósito", opcoes: opcoesDeDeposito(depositosComAtual), valor: depositoId, padrao: "", onChange: setDepositoId, coluna: "deposito" },
+      { id: "origem", rotulo: "Origem", nome: "Filtrar por origem", opcoes: OPCOES_ORIGEM, valor: origem, padrao: "", onChange: setOrigem, coluna: "origem" },
+      { id: "tipo", rotulo: "Tipo", nome: "Filtrar por tipo", opcoes: OPCOES_TIPO, valor: tipo, padrao: "", onChange: setTipo, coluna: "tipo" },
       {
         id: "periodo",
         tipo: /** @type {const} */ ("periodo"),
@@ -124,6 +125,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
         nome: "Filtrar por data",
         de,
         ate,
+        coluna: "data",
         testId: "estoque-filtro-data",
         onChange: (/** @type {{ de: string, ate: string }} */ p) => {
           setDe(p.de);

@@ -22,6 +22,9 @@ export const SALDO_ESTOQUE_COLUNAS = [
   { id: "camadas", label: "Camadas", default: false, sortable: true, align: "right", width: 100 },
 ];
 
+/** Os filtros da faixa são os da tela (depósito, saldo); nada automático por coluna. */
+const SEM_FILTROS_AUTOMATICOS = /** @type {string[]} */ ([]);
+
 export const SALDO_ESTOQUE_CAMPOS_CARD = ["produto", "deposito", "quantidade", "valor"];
 
 /** @param {any} item @param {string} id */
@@ -85,6 +88,7 @@ export default function TabelaSaldoEstoque(props) {
       viewMode={props.viewMode}
       cardFields={props.cardFields}
       cardsPerRow={props.cardsPerRow}
+      quickFilterIds={SEM_FILTROS_AUTOMATICOS}
       cardsTitleColId="produto"
       cardsCodeColId="deposito"
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
