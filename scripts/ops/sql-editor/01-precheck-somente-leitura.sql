@@ -54,6 +54,10 @@ tenant(nome, ord) AS (
     -- D-PROD-162: o Patrimônio simplificado (sem perfis, medições, combustíveis e fator) — filhas antes das mães
     -- (fatias FIFO → abastecimento → Produto aceito pelo tanque → tanque → bem → tipo → família).
     'TanqueBemProduto','TanqueBem','BemPatrimonial','TipoPatrimonial','FamiliaPatrimonial',
+    -- D-PROD-257/259: as entradas manuais de estoque (evento e item antes do cabeçalho) saem ANTES dos centros de
+    -- custo e de resultado, do fornecedor, do lote, do movimento, do produto e do local que elas referenciam (FKs
+    -- RESTRICT); o cadastro de motivos (a entrada o referencia) logo depois delas.
+    'EntradaEstoqueEvento','EntradaEstoqueItem','EntradaEstoque','MotivoEntradaEstoque',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
@@ -70,11 +74,6 @@ tenant(nome, ord) AS (
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
     -- D-PROD-189/D-PROD-195: CADCURVAGANHO (curvas de ganho) depois de CADCATEGORIA, que a referencia, e antes de Empresa.
-    -- D-PROD-257: as entradas manuais de estoque (evento e item antes do cabeçalho; os três antes do lote, do
-    -- movimento, do produto e do local que o item referencia, FKs RESTRICT).
-    'EntradaEstoqueEvento','EntradaEstoqueItem','EntradaEstoque',
-    -- D-PROD-259: o cadastro de motivos de entrada (a entrada o referencia, RESTRICT): sai depois dela.
-    'MotivoEntradaEstoque',
     'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
