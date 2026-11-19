@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { CampoSelect } from "@/components/gestao/GestaoFormParts";
@@ -92,64 +93,75 @@ export default function FormularioTipoAtividade({
     });
   };
 
+  const [abaAtiva, setAbaAtiva] = useState("identificacao");
+  const abasTipo = useMemo(() => [{ id: "identificacao", label: "Identificação" }], []);
   const formBody = (
     <form
       id={FORMULARIO_TIPO_ATIVIDADE_ID}
       onSubmit={handleSubmit}
-      className="b1 mg-b1-form-grid w-full min-h-0"
+      className="b1 w-full min-h-0 flex flex-col gap-3"
       noValidate
       data-testid="b1-form-tipo-atividade"
       data-densidade={DENSIDADE_BASE1}
     >
-      <CampoSelect
-        label="Tipo"
-        value={formData.categoria}
-        onChange={(v) => handleChange("categoria", v)}
-        options={[...TIPOS_FIXOS_ATIVIDADE]}
-        placeholder="Escolha o tipo"
-        required
-        readOnly={bloqueado}
-        span={6}
-        error={erros.categoria}
-      />
+      <Base1PanelTabs
+        tabs={abasTipo}
+        value={abaAtiva}
+        onChange={setAbaAtiva}
+        animate={!readOnly}
+        animationKey={initialData?.id ?? "novo"}
+        renderPanel={() => (
+          <div className="mg-b1-form-grid w-full min-h-0" data-testid="tipo-atividade-secao-identificacao">
+            <CampoSelect
+              label="Tipo"
+              value={formData.categoria}
+              onChange={(v) => handleChange("categoria", v)}
+              options={[...TIPOS_FIXOS_ATIVIDADE]}
+              placeholder="Escolha o tipo"
+              required
+              readOnly={bloqueado}
+              span={6}
+              error={erros.categoria}
+            />
 
-      <B1Field
-        label="Nome da operação"
-        required
-        span={6}
-        hasValue={Boolean(formData.nome_tipo?.trim())}
-        locked={readOnly}
-        disabled={readOnly || isSubmitting}
-        error={erros.nome_tipo}
-      >
-        <input
-          type="text"
-          value={formData.nome_tipo}
-          onChange={(e) => handleChange("nome_tipo", e.target.value)}
-          placeholder="EX.: GRADEAÇÃO, CALAGEM, ROÇADA"
-          className={`${B1_FIELD_CTL_CLS} uppercase`}
-          readOnly={readOnly}
-          maxLength={255}
-        />
-      </B1Field>
+            <B1Field
+              label="Nome da operação"
+              required
+              span={6}
+              hasValue={Boolean(formData.nome_tipo?.trim())}
+              locked={readOnly}
+              disabled={readOnly || isSubmitting}
+              error={erros.nome_tipo}
+            >
+              <input
+                type="text"
+                value={formData.nome_tipo}
+                onChange={(e) => handleChange("nome_tipo", e.target.value)}
+                placeholder="EX.: GRADEAÇÃO, CALAGEM, ROÇADA"
+                className={`${B1_FIELD_CTL_CLS} uppercase`}
+                readOnly={readOnly}
+                maxLength={255}
+              />
+            </B1Field>
 
-      <B1ChaveRow
-        label="Ativo"
-        span={6}
-        checked={formData.ativo}
-        onChange={readOnly ? undefined : (/** @type {boolean} */ v) => handleChange("ativo", v)}
-        disabled={readOnly || isSubmitting}
-        ariaLabel="Operação ativa"
+            <B1ChaveRow
+              label="Ativo"
+              span={6}
+              checked={formData.ativo}
+              onChange={readOnly ? undefined : (/** @type {boolean} */ v) => handleChange("ativo", v)}
+              disabled={readOnly || isSubmitting}
+              ariaLabel="Operação ativa"
+            />
+          </div>
+        )}
       />
 
       {!toolbarActions ? (
-        <div className="col-span-12">
-          <CadastroFormActions
-            onCancel={onCancel}
-            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
-            isSubmitting={isSubmitting}
-          />
-        </div>
+        <CadastroFormActions
+          onCancel={onCancel}
+          submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
+          isSubmitting={isSubmitting}
+        />
       ) : null}
     </form>
   );

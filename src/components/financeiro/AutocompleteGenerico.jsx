@@ -40,7 +40,7 @@ export default function AutocompleteGenerico({
   createNewLabel = "Cadastrar novo"
 }) {
   const [open, setOpen] = useState(false);
-  const [buscaInicial, setBuscaInicial] = useState("");
+  const [busca, setBusca] = useState("");
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const celular = useCelular();
@@ -200,8 +200,9 @@ export default function AutocompleteGenerico({
   const bloqueado = disabled || readOnly;
   const abrirDesktop = (semente = "") => {
     if (bloqueado) return;
-    setBuscaInicial(semente);
+    setBusca(semente);
     setOpen(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
   const textoBusca = (item) => searchFields.map((f) => item?.[f]).filter((v) => v != null && v !== "").join(" ");
   const itensPainel = ordenados.map((item) => ({
@@ -214,7 +215,10 @@ export default function AutocompleteGenerico({
   return (
     <PainelSelecao
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setBusca("");
+      }}
       ancora={ancora}
       controleRef={controlePainel}
       itens={itensPainel}
@@ -223,7 +227,9 @@ export default function AutocompleteGenerico({
         const item = items.find((i) => i.id === id);
         if (item) handleSelect(item);
       }}
-      buscaInicial={buscaInicial}
+      buscaExterna={busca}
+      onBuscaChange={setBusca}
+      semCaixaBusca
       rotulo={rotuloDoCampo()}
       onCriarNovo={onCreateNew && !bloqueado ? criarNovo : undefined}
       rotuloNovo={createNewLabel}
@@ -235,9 +241,13 @@ export default function AutocompleteGenerico({
         <input
           ref={inputRef}
           readOnly={bloqueado}
-          onChange={() => {}}
-          value={itemSelecionado ? itemSelecionado[displayField] || "" : ""}
-          placeholder={placeholder}
+          onChange={(e) => {
+            if (bloqueado) return;
+            setBusca(e.target.value);
+            if (!open) setOpen(true);
+          }}
+          value={open ? busca : itemSelecionado ? itemSelecionado[displayField] || "" : ""}
+          placeholder={open && itemSelecionado ? itemSelecionado[displayField] || "" : placeholder}
           disabled={disabled}
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -247,25 +257,33 @@ export default function AutocompleteGenerico({
               controlePainel.current.tecla(e);
               return;
             }
-            if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+            if (e.key === "Enter" || e.key === "ArrowDown") {
               e.preventDefault();
               abrirDesktop("");
-            } else if ((e.key === "Backspace" || e.key === "Delete") && value) {
+            } else if ((e.key === "Backspace" || e.key === "Delete") && !open && value) {
               e.preventDefault();
               onChange("");
-            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            } else if (!open && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
               e.preventDefault();
               abrirDesktop(e.key);
             }
           }}
-          className={`flex w-full bg-transparent pr-8 h-8 text-xs rounded-none outline-none ${uppercaseDisplay ? 'uppercase' : ''} ${inputClassName}`}
-          style={uppercaseDisplay ? { textTransform: 'uppercase' } : undefined} />
-        {itemSelecionado && !bloqueado ?
+          className={`flex w-full bg-transparent pr-8 h-8 text-xs rounded-none outline-none ${uppercaseDisplay && !open ? 'uppercase' : ''} ${inputClassName}`}
+          style={uppercaseDisplay && !open ? { textTransform: 'uppercase' } : undefined} />
+        {(open ? busca : itemSelecionado) && !bloqueado ?
         <button
           type="button"
           aria-label="Limpar"
           title="Limpar"
-          onClick={(e) => {e.stopPropagation();onChange("");}}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (open && busca) {
+              setBusca("");
+              inputRef.current?.focus();
+            } else {
+              onChange("");
+            }
+          }}
           className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
             <X className="w-3.5 h-3.5" />
           </button> :

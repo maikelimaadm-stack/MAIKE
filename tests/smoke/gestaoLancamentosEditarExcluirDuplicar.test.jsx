@@ -243,10 +243,12 @@ describe('DUP — Duplicar abre um formulário NOVO a partir do detalhe completo
 
     // Conteúdo copiado; identidade e estado não.
     expect(screen.getByRole('radio', { name: 'Parcelado' })).toBeChecked();
+    await clicar(screen.getByRole('tab', { name: '4. Rateio' }));
     expect(screen.getByRole('radio', { name: 'Por item' })).toBeChecked();
     expect(naturezaDaLinha(0, 0)).toMatch(/NUTRIÇÃO/);
     expect(naturezaDaLinha(0, 1)).toMatch(/SANIDADE/);
     expect(naturezaDaLinha(1, 0)).toMatch(/ENERGIA/);
+    await clicar(screen.getByRole('tab', { name: '2. Dados gerais' }));
     expect(screen.getByTestId('declaracao-efeito-fisico')).not.toBeChecked();
     expect(screen.getByPlaceholderText('NOTA, RECIBO…')).toHaveValue('');
     expect(screen.getByLabelText(/Histórico \(descrição\)/)).toHaveValue('COMPRA DE SAL');
@@ -465,9 +467,12 @@ describe('EDT — Editar confirmado: elegibilidade antes, mesmo formulário, mot
     expect(ordem.indexOf(`GET /operacoes-financeiras/${doc.id}/elegibilidade`)).toBeGreaterThan(-1);
     expect(escritas()).toEqual([]);
     // O MESMO formulário completo, com o rateio por item e as parcelas.
+    await clicar(screen.getByRole('tab', { name: '4. Rateio' }));
     expect(screen.getByRole('radio', { name: 'Por item' })).toBeChecked();
     expect(naturezaDaLinha(0, 1)).toMatch(/SANIDADE/);
+    await clicar(screen.getByRole('tab', { name: '2. Dados gerais' }));
     expect(screen.getByPlaceholderText('NOTA, RECIBO…')).toHaveValue('NF-77');
+    await clicar(screen.getByRole('tab', { name: '6. Prévia e confirmação' }));
     expect(screen.queryByTestId('botao-confirmar-lancamento')).toBeNull();
     expect(screen.queryByTestId('botao-descartar-rascunho')).toBeNull();
 
@@ -475,7 +480,9 @@ describe('EDT — Editar confirmado: elegibilidade antes, mesmo formulário, mot
     await clicar(screen.getByTestId('botao-salvar-correcao'));
     expect(screen.queryByTestId('dialogo-retificacao')).toBeNull();
     await waitFor(() => expect(toasts().join(' | ')).toMatch(/Nenhum campo do lançamento foi alterado/));
+    await clicar(screen.getByRole('tab', { name: '2. Dados gerais' }));
     fireEvent.change(screen.getByLabelText(/Histórico \(descrição\)/), { target: { value: 'COMPRA DE SAL MINERAL' } });
+    await clicar(screen.getByRole('tab', { name: '6. Prévia e confirmação' }));
     expect(screen.getByTestId('previsao-correcao')).toHaveTextContent(/não muda o estoque/);
     await clicar(screen.getByTestId('botao-salvar-correcao'));
     const dialogo = await screen.findByTestId('dialogo-retificacao');
@@ -1026,9 +1033,12 @@ describe('REV — revisão: peso por saco gravado, motivos por direção, CAS da
     await clicar(barra('Editar'));
     await screen.findByTestId('faixa-correcao');
     // O seletor traz o peso ATUAL (25 kg); a linha já recebida continua com o peso gravado (30 kg), como no servidor.
+    await clicar(screen.getByRole('tab', { name: '3. Itens' }));
     await escolher('seletor-produto-0', /SAL MINERAL 80/);
     await escolherOpcao(screen.getByRole('combobox', { name: 'Unidade do item 1' }), 'SACO');
+    await clicar(screen.getByRole('tab', { name: '2. Dados gerais' }));
     fireEvent.change(screen.getByLabelText(/Histórico \(descrição\)/), { target: { value: 'COMPRA DE SAL MINERAL' } });
+    await clicar(screen.getByRole('tab', { name: '6. Prévia e confirmação' }));
     expect(screen.getByTestId('previsao-correcao')).toHaveTextContent(/não muda o estoque/);
     await clicar(screen.getByTestId('botao-salvar-correcao'));
     const dialogo = await screen.findByTestId('dialogo-retificacao');

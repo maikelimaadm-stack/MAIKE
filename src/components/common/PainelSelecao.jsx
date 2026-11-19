@@ -26,6 +26,9 @@ const LIMITE = 200;
  *   onEscolher: (value: string) => void,
  *   pesquisavel?: boolean,
  *   buscaInicial?: string,
+ *   buscaExterna?: string,
+ *   onBuscaChange?: (v: string) => void,
+ *   semCaixaBusca?: boolean,
  *   rotulo?: string,
  *   onCriarNovo?: (busca: string) => void,
  *   rotuloNovo?: string,
@@ -44,6 +47,9 @@ export default function PainelSelecao({
   onEscolher,
   pesquisavel = true,
   buscaInicial = "",
+  buscaExterna = undefined,
+  onBuscaChange = undefined,
+  semCaixaBusca = false,
   rotulo = "Opções",
   onCriarNovo = undefined,
   rotuloNovo = "Cadastrar novo",
@@ -60,7 +66,9 @@ export default function PainelSelecao({
         : null,
     [ancora],
   );
-  const [busca, setBusca] = React.useState(buscaInicial);
+  const [buscaInterna, setBuscaInterna] = React.useState(buscaInicial);
+  const busca = buscaExterna !== undefined ? buscaExterna : buscaInterna;
+  const setBusca = onBuscaChange || setBuscaInterna;
   const [hi, setHi] = React.useState(0);
   const listaRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
   // Fechou porque o usuário foi para outro lugar (clique ou foco fora): o foco fica onde ele foi.
@@ -69,8 +77,8 @@ export default function PainelSelecao({
   React.useEffect(() => {
     if (!open) return;
     saiuParaFora.current = false;
-    setBusca(buscaInicial);
-  }, [open, buscaInicial]);
+    if (buscaExterna === undefined) setBuscaInterna(buscaInicial);
+  }, [open, buscaInicial, buscaExterna]);
 
   const termo = busca.trim().toLowerCase();
   const filtrados = termo ? itens.filter((i) => i.texto.toLowerCase().includes(termo)) : itens;
@@ -130,7 +138,7 @@ export default function PainelSelecao({
           className={cn("mk-sel-pop b1-lista-pop", className)}
           onKeyDown={onKeyDown}
           onOpenAutoFocus={(e) => {
-            if (!pesquisavel) e.preventDefault();
+            if (!pesquisavel || semCaixaBusca) e.preventDefault();
           }}
           onInteractOutside={(e) => {
             // Clique no próprio campo: quem decide é o campo (fecha), não o "clique fora"
@@ -156,7 +164,7 @@ export default function PainelSelecao({
             }
           }}
         >
-          {pesquisavel ? (
+          {pesquisavel && !semCaixaBusca ? (
             <div className="b1-pq">
               <input
                 autoFocus
@@ -218,7 +226,7 @@ export default function PainelSelecao({
               Mostrando {LIMITE} de {filtrados.length.toLocaleString("pt-BR")} · refine a pesquisa
             </div>
           ) : null}
-          {onCriarNovo && !pesquisavel ? (
+          {onCriarNovo && (!pesquisavel || semCaixaBusca) ? (
             <button
               type="button"
               className="mk-sel-novo"
