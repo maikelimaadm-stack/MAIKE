@@ -27,6 +27,7 @@ import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBas
  *   deleteDialog: { title: string, descriptionOne: string, descriptionMany: (n: number) => string, confirmText?: string },
  *   recordCode?: string,
  *   extraToolbar?: React.ReactNode,
+ *   createText?: string,
  *   additionalMoreActions?: Array<{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, hidden?: boolean, whileEditing?: boolean, onSelect: () => void }>,
  *   exportCsvLabel?: string,
  *   onExportCsv?: () => void,
@@ -53,6 +54,7 @@ export default function CadastroBase1Screen({
   deleteDialog,
   recordCode,
   extraToolbar = null,
+  createText = undefined,
   additionalMoreActions = null,
   exportCsvLabel,
   onExportCsv,
@@ -141,6 +143,7 @@ export default function CadastroBase1Screen({
           onExportCsv={onExportCsv ?? c.exportCsv}
           onPrint={onPrint ?? (() => window.print())}
           extraToolbar={extraToolbar}
+          createText={createText}
           additionalMoreActions={additionalMoreActions}
           exportCsvLabel={exportCsvLabel}
           cardsModeAvailable

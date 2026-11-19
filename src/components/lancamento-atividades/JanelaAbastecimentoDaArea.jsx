@@ -20,6 +20,9 @@ import { formularioDoApontamento } from "@/lib/abastecimentoRegras";
  * mesma confirmação da tela Abastecimentos, já ligado ao registro do dia daquela área. Nada de gravação nova: usa
  * `useFluxoAbastecimento`. Quem abre escolhe o registro do dia (`apontamento`); o servidor deriva a atividade e a área dele.
  *
+ * D-PROD-254, emenda 1: o abastecimento nasce da MÁQUINA ("Salvar e abastecer" da janela da máquina e o "Abastecer" do ⚡ da
+ * linha da máquina): `bem` já vem escolhido (com o tipo do medidor, que decide o horímetro) e o dia é o do lançamento.
+ *
  * Um nível só (D-PROD-252): o título é "Abastecimento", sem subtítulo nem os campos travados Atividade / Lançamento
  * (emenda 3: a área e a atividade já estão no cabeçalho da tela). A janela é a padrão do Base1, 680px, como todas as outras. Os botões ficam no rodapé: no formulário, Cancelar e Revisar abastecimento; na revisão
  * ("Confira antes de confirmar", o mesmo corpo do diálogo da tela Abastecimentos, mas DENTRO desta janela), Cancelar e
@@ -28,12 +31,13 @@ import { formularioDoApontamento } from "@/lib/abastecimentoRegras";
  * @param {{
  *   atividade: any,
  *   apontamento: any,
- *   nomeArea: string,
+ *   bem?: { id: string, nome: string, medidor: { tipo: string } } | null,
+ *   nomeArea?: string,
  *   onFechar: () => void,
  *   onGravou: (texto: string) => void,
  * }} props
  */
-export default function JanelaAbastecimentoDaArea({ atividade, apontamento, nomeArea, onFechar, onGravou }) {
+export default function JanelaAbastecimentoDaArea({ atividade, apontamento, bem = null, nomeArea = "", onFechar, onGravou }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const { hoje } = useFusoDaFazenda(empresaId);
   const acoes = useAcoesTelaAbastecimento();
@@ -55,10 +59,10 @@ export default function JanelaAbastecimentoDaArea({ atividade, apontamento, nome
       onFechar();
     },
   });
-  // O formulário nasce já ligado ao registro do dia da área (a data é a dele; dá para mudar).
+  // O formulário nasce já ligado ao registro do dia (a data é a dele; dá para mudar) e com a máquina escolhida.
   const { iniciar } = fluxo;
   useEffect(() => {
-    iniciar(formularioDoApontamento(dia, apontamento));
+    iniciar({ ...formularioDoApontamento(dia, apontamento), ...(bem ? { bem } : {}) });
     // Só ao abrir: depois, o que a pessoa digita não pode ser apagado.
   }, []);
 

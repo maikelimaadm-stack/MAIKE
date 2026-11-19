@@ -292,7 +292,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_REFERENCIA_INVALIDA: {
     http: 422,
-    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo | natureza — a máquina, bem_id, só MAQUINA, VEICULO ou EQUIPAMENTO; D-PROD-249: areas[n].area_id e area_id duplicada | ja_na_atividade | varias_areas | com_lancamentos, area_planejada varias_areas, atividade_area_id obrigatorio | inexistente | sem_areas); nada foi gravado',
+    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo | natureza — a máquina, bem_id, só MAQUINA, VEICULO ou EQUIPAMENTO; D-PROD-249: areas[n].area_id e area_id duplicada | ja_na_atividade | varias_areas | com_lancamentos, area_planejada varias_areas, atividade_area_id obrigatorio | inexistente | sem_areas; tipo_atividade_id em POST /atividades/registrar: abastecimento — o tipo Abastecimento é da máquina, não do registro de campo); nada foi gravado',
   },
   ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,

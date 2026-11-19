@@ -132,3 +132,18 @@ O proprietário mostrou a tela "Que trabalho é este?" (cartões grandes, "Toque
 | Servidor / banco | Sem mudança; nenhuma migration |
 | Testes | `LL-JANELA-TIPO-1..9` (novo fluxo), `LL-ABERTA-1..8, 10`, `LL-ABAST-AREA-1..2`, `LA-RAIO-2, 5`, `AR-CARD-1..4` e `AR-CARD-FEITA`, `RA-1..2`, `FL-1..3`, `LAR-1..2` e `LAR-FEITA`; `LL-ABERTA-6` (sem dias), `LA-LISTA-1` (sem subtítulo), `LA-ACOES-2` (sem aviso de reabertura). Os testes antigos da lista por dia seguem por `tests/smoke/helpers/diasLegadoNoTeste.jsx`. Capturas do app real: `impl-desktop-*` e `impl-mobile-*` |
 
+
+## 10. Quinta rodada: Detalhes da área e "Registrar serviço" (D-PROD-254)
+
+| Item | Resultado |
+|---|---|
+| Pedido | Maquetes `area-*` aprovadas ("pode implementar"); a tela de Atividades misturava planejar e registrar |
+| Mapa | `DetalhesArea` na casca do lote: Detalhes (cartão, atividades em andamento, custos do mês) · Histórico (registros de campo); rodapé Manejos + Histórico completo; Manejos lista os tipos ativos do cadastro; escolher abre o registro com a área presa |
+| Atividades | "+ Nova atividade" (planejar) e "Registrar serviço" (registrar), o mesmo `JanelaRegistroDeCampo`, o mesmo `POST /atividades/registrar` |
+| Servidor | `POST /atividades/registrar` (acha a atividade aberta do tipo com a área no mês, a de `updatedAt` mais recente; senão abre `<Tipo> · <Área> · <mmm/aa>`), `GET /atividades-por-area/:areaId/resumo` e `/registros`; sem migration |
+| Preservado | Curral/Abate, Medição de Forragem, Histórico completo com exclusão do administrador |
+| Testes | `tests/smoke/detalhesAreaHistorico.test.jsx` (reescrito), `LA-REGISTRAR-1..4` em `lancamentoAtividades.test.jsx`, `backend/tests/atividadeRegistro.test.mjs` |
+| Capturas | `/workspace/maike-cc-shots/impl-area-{desktop,mobile}-{detalhes,historico,manejos,registro-gradeacao,atividades,atividades-registrar}.png` |
+| Emenda 1 (feedback do proprietário) | "O abastecimento deve ser feito na opção de máquina, … que daí já lanço hora etc." Abastecimento saiu dos Manejos da área e do "Registrar serviço" (critério: nome do tipo, sem id fixo) e o servidor o recusa com 422. Agora: Atividades › área › **+ Máquina › Salvar e abastecer** (grava as horas e a mesma janela vira o abastecimento da máquina) ou **⚡ da linha da máquina › Abastecer**. Reaproveita `JanelaAbastecimentoDaArea` / `useFluxoAbastecimento` (tanque, litros, horímetro e revisão dentro da janela). O botão "+ Abastecimento" da área foi removido; a tela Abastecimentos e o bloco do detalhe do lançamento ficam |
+| Testes da emenda | `atividadeRegistro.test.mjs` (422 do tipo Abastecimento), `atividadeFluxoCampo.test.js` (FC-1/FC-3), `detalhesAreaHistorico.test.jsx` (Manejos e formulário genérico sem Abastecimento), `lancamentoAtividadesLinhas.test.jsx` (LL-ABAST-AREA-1..3) |
+| Capturas da emenda | `/workspace/maike-cc-shots/impl-area-{desktop,mobile}-manejos.png`, `impl-maquina-abastecimento-{desktop,mobile}.png` |

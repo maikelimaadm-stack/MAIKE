@@ -269,6 +269,7 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
     inexistente: 'o tipo de atividade não foi encontrado',
     inativo: 'o tipo de atividade está inativo: escolha um tipo ativo',
     grupo_inativo: 'o grupo do tipo de atividade está inativo: reative o grupo ou escolha outro tipo',
+    abastecimento: 'Abastecimento não é registro de campo da área: abasteça pela máquina (Lançamento de Atividades › Trabalho de máquinas)',
   }),
   grupo_atividade_id: Object.freeze({ inexistente: 'o grupo do tipo de atividade não foi encontrado' }),
   area_id: Object.freeze({
@@ -318,7 +319,7 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
  * `area_id`), com os reasons novos `duplicada`, `ja_na_atividade`, `varias_areas`, `com_lancamentos`, `obrigatorio` e
  * `sem_areas`.
  * @param {string} field
- * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'|'duplicada'|'ja_na_atividade'|'varias_areas'|'com_lancamentos'|'obrigatorio'|'sem_areas'} reason
+ * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'|'duplicada'|'ja_na_atividade'|'varias_areas'|'com_lancamentos'|'obrigatorio'|'sem_areas'|'abastecimento'} reason
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeReferenciaInvalida = (field, reason, options) =>

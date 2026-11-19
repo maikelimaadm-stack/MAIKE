@@ -1,15 +1,13 @@
 /**
- * Histórico da Área acessível pelo contorno no Mapa Geral
- * (MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1.1, D-PROD-94a), no desenho do
- * Detalhes do Lote v12 (D-PROD-220): a mesma linha do tempo da aba Histórico do
- * pasto, só leitura; curral com as abas Abate · Histórico da Área; a pílula
- * "Histórico completo" abre por cima o Histórico de Movimentação da área de
- * hoje, com o "Excluir movimentação" do administrador (D-PROD-110). Testes de
- * componente (mock de serviço).
+ * Detalhes da área acessíveis pelo contorno no Mapa Geral (D-PROD-94a, D-PROD-220, D-PROD-254), no desenho do Detalhes do
+ * Lote: abas Detalhes · Histórico (os REGISTROS de campo da área), o cartão da área, as atividades em andamento e os custos
+ * do mês (números do servidor), o rodapé com "Manejos" (os Tipos de atividade da fazenda → o registro com a área presa) e
+ * "Histórico completo" (o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador, D-PROD-110).
+ * Curral mantém a aba Abate. Testes de componente (mock de serviço).
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { acaoDoCliqueNaArea, ehCurral, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
@@ -30,6 +28,28 @@ const sessao = vi.hoisted(() => ({ admin: false }));
 // vi.fn: o teste do "Histórico completo fechado" confere as fontes que só ele lê.
 const refreshMapaCacheEntry = vi.hoisted(() => vi.fn(async (chave) => (chave === "areas" ? [{ id: "area-A", nome: "PASTO A", empresa_id: "emp-1" }] : [])));
 vi.mock("@/services/loteManejoService", () => servico);
+// D-PROD-254: a sessão da tela de atividades (ações liberadas, fazenda, fuso) e o service das atividades.
+const atividades = vi.hoisted(() => ({
+  acoes: { ver: true, criar: true, editar: true, cancelar: true, reabrir: true, lancarApontamento: true, editarApontamento: true, cancelarApontamento: true },
+  resumo: vi.fn(),
+  registros: vi.fn(),
+  tipos: vi.fn(),
+  registrar: vi.fn(),
+}));
+vi.mock("@/hooks/useLancamentoAtividadesSessao", () => ({
+  useAcoesTelaAtividades: () => ({ ...atividades.acoes, carregando: false, login: "operador" }),
+  useEmpresaRealSelecionadaId: () => "emp-1",
+  useFusoDaFazenda: () => ({ fuso: "America/Cuiaba", fusoOk: true, semFuso: false, hoje: "2026-11-18" }),
+}));
+vi.mock("@/lib/AuthContext", () => ({ useAuth: () => ({ clienteId: "c-1", user: { id: "u-1" } }) }));
+vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  obterResumoDaArea: atividades.resumo,
+  listarRegistrosDaArea: atividades.registros,
+  listarTiposAtividade: atividades.tipos,
+  registrarCampo: atividades.registrar,
+  listarOpcoesOperadores: vi.fn(async () => ({ items: [], next_cursor: null })),
+}));
 vi.mock("@/services/mapaCacheService", () => ({
   getMapaCachedData: async () => [],
   getMapaCacheSnapshot: async () => ({ items: [], atualizadoEm: null }),
@@ -98,6 +118,41 @@ const morteDoLedger = {
   efeito_servidor: { comando: "rebanho_ledger", evento_id: "ev-1", operation_id: "manejo-x" },
 };
 
+const RESUMO = {
+  area_id: "area-A",
+  mes: "2026-11",
+  atividades: [
+    { atividade_id: "at-1", numero: "10", nome: "Gradeação · nov/26", tipo_atividade_id: "t-grad", tipo_atividade_nome: "Gradeação", status: "ABERTA", area_status: "EM_ANDAMENTO", area_planejada: "22.0000", area_executada: "12.0000", data_inicio: "2026-11-02", data_prevista_fim: "2026-11-30" },
+    { atividade_id: "at-2", numero: "11", nome: "Aplicação / Pulverização · nov/26", tipo_atividade_id: "t-apl", tipo_atividade_nome: "Aplicação / Pulverização", status: "ABERTA", area_status: "CONCLUIDA", area_planejada: "22.0000", area_executada: "22.0000", data_inicio: "2026-11-03", data_prevista_fim: null },
+    { atividade_id: "at-3", numero: "12", nome: "Roçada · dez/26", tipo_atividade_id: "t-roc", tipo_atividade_nome: "Roçada", status: "ABERTA", area_status: "PLANEJADA", area_planejada: "22.0000", area_executada: "0.0000", data_inicio: "2026-12-01", data_prevista_fim: "2026-12-10" },
+  ],
+  custos: { custo_total: "3480.00", custo_por_ha: "158.18", area_ha: "22.0000", insumos: "1920.00", maquinas: "1000.00", mao_obra: "560.00", servicos: "0.00" },
+};
+const REGISTROS = {
+  items: [
+    { id: "ap-2", data_operacional: "2026-11-17", atividade_id: "at-1", atividade_nome: "Gradeação · nov/26", tipo_atividade_id: "t-grad", tipo_atividade_nome: "Gradeação", area_executada_dia: "7.0000", operador_nome: "José Silva", observacao: null, maquinas: [{ bem_nome: "Trator TP-02", implemento_nome: "Grade GR-01", quantidade_uso: "6.5000", unidade: "H" }], produtos: [], mao_obra: [], servicos: [] },
+    { id: "ap-1", data_operacional: "2026-11-12", atividade_id: "at-2", atividade_nome: "Aplicação / Pulverização · nov/26", tipo_atividade_id: "t-apl", tipo_atividade_nome: "Aplicação / Pulverização", area_executada_dia: "22.0000", operador_nome: "Pedro Rocha", observacao: null, maquinas: [{ bem_nome: "Pulverizador PL-01", implemento_nome: null, quantidade_uso: "3.0000", unidade: "H" }], produtos: [{ produto_nome: "Glifosato", quantidade: "44.0000", unidade: "L", dose_ha: "2.0000" }], mao_obra: [], servicos: [] },
+  ],
+  next_cursor: null,
+};
+const TIPOS = [
+  { id: "t-aba", nome_tipo: "Abastecimento", categoria: "OUTROS", ativo: true },
+  { id: "t-grad", nome_tipo: "Gradeação", categoria: "PREPARO_SOLO", ativo: true, exige_maquina: true, permite_implemento: true },
+  { id: "t-apl", nome_tipo: "Aplicação / Pulverização", categoria: "APLICACAO", ativo: true, permite_produto: true },
+  { id: "t-roc", nome_tipo: "Roçada", categoria: "PASTAGEM", ativo: true },
+  { id: "t-velho", nome_tipo: "Tipo Desativado", categoria: "OUTROS", ativo: false },
+];
+
+const PASTO = { id: "area-A", nome: "P1 — PASTO 01", tipo_cultura: "Pastagem", tipo_pastagem: "BRACHIARIA", tamanho_hectares: 22 };
+
+beforeEach(() => {
+  atividades.acoes = { ver: true, criar: true, editar: true, cancelar: true, reabrir: true, lancarApontamento: true, editarApontamento: true, cancelarApontamento: true };
+  atividades.resumo.mockImplementation(async () => RESUMO);
+  atividades.registros.mockImplementation(async () => REGISTROS);
+  atividades.tipos.mockImplementation(async () => TIPOS);
+  atividades.registrar.mockImplementation(async () => ({ apontamento: { id: "ap-9" }, atividade: { id: "at-9" }, alertas: [], registro: { atividade_criada: true } }));
+});
+
 describe("política do clique na área", () => {
   it("T08: selecionando local de tarefa, o clique escolhe o local e nunca abre detalhes", () => {
     for (const area of [PASTO_A, CURRAL]) {
@@ -109,81 +164,251 @@ describe("política do clique na área", () => {
     expect(acaoDoCliqueNaArea({ area: PASTO_A, selecionandoLocalTarefa: false, toqueLongoAcabouDeDisparar: true, permissoes: PERMITE })).toBe("ignorar");
   });
 
-  it("T04/T05: pasto, reserva, curral abrem detalhes com permissão", () => {
+  it("T04/T05: pasto, reserva, curral abrem detalhes", () => {
     for (const area of [PASTO_A, RESERVA, CURRAL]) {
       expect(acaoDoCliqueNaArea({ area, selecionandoLocalTarefa: false, toqueLongoAcabouDeDisparar: false, permissoes: PERMITE })).toBe("abrir-detalhes");
     }
   });
 
-  it("T10: sem a permissão de histórico, área comum não abre nada; curral mantém o abate de antes", () => {
-    expect(acaoDoCliqueNaArea({ area: PASTO_A, selecionandoLocalTarefa: false, toqueLongoAcabouDeDisparar: false, permissoes: NEGA })).toBe("ignorar");
-    expect(acaoDoCliqueNaArea({ area: CURRAL, selecionandoLocalTarefa: false, toqueLongoAcabouDeDisparar: false, permissoes: NEGA })).toBe("abrir-detalhes");
+  it("D-PROD-254: quem vê áreas abre os detalhes mesmo sem histórico de movimentação nem forragem; sem visualizar_areas, nada", () => {
+    const clique = (permissoes, area = PASTO_A) => acaoDoCliqueNaArea({ area, selecionandoLocalTarefa: false, toqueLongoAcabouDeDisparar: false, permissoes });
+    expect(clique(NEGA)).toBe("abrir-detalhes");
+    expect(clique({ visualizar_areas: true, visualizar_historico_movimentacoes_lote: false, medir_forragem: false })).toBe("abrir-detalhes");
+    expect(clique({ visualizar_areas: false })).toBe("ignorar");
+    expect(clique(undefined)).toBe("abrir-detalhes");
+    expect(clique(NEGA, CURRAL)).toBe("abrir-detalhes");
     expect(podeVerHistoricoDaArea(undefined)).toBe(true);
     expect(ehCurral(CURRAL)).toBe(true);
     expect(ehCurral(PASTO_A)).toBe(false);
   });
 });
 
-describe("DetalhesArea", () => {
-  it("T04: pasto vazio com saída antiga mostra a saída — consulta pela área, sem lotes atuais", async () => {
-    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([saidaAntiga]));
-    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} setorNome="Retiro" />);
-    // v12: casca .mk-dp (fora do diálogo, cabeçalho próprio "Histórico da Área" · "área · setor") e a linha do tempo da área.
-    expect(screen.getByRole("heading", { name: "Histórico da Área" })).toBeTruthy();
-    expect(screen.getByText("PASTO A · Retiro")).toBeTruthy();
+describe("DetalhesArea — Detalhes e Histórico", () => {
+  it("o painel é o do lote: título e setor, abas Detalhes · Histórico, cartão da área, atividades e custos do servidor, rodapé Manejos", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} setorNome="RETIRO" ocupada />);
+    expect(screen.getByRole("heading", { name: "P1 — PASTO 01" })).toBeTruthy();
+    expect(screen.getByText("RETIRO")).toBeTruthy();
     expect(document.querySelector(".mk-dp .mk-dp__corpo--cards")).toBeTruthy();
-    // A lista se anuncia como da área (não "Registros do pasto").
-    const linha = await screen.findByRole("list", { name: "Registros da área" });
-    expect(linha.textContent).toContain("Movimentação · saída");
-    expect(linha.textContent).toContain("NELORE 1");
-    expect(linha.textContent).toContain("PASTO B");
-    expect(screen.getByText("Registros de todas as movimentações, pesagens e manejos que passaram por esta área.")).toBeTruthy();
-    const chamada = servico.listarHistoricoMovimentacoesPagina.mock.calls[0][0];
-    expect(chamada).toMatchObject({ empresaId: "emp-1", areaId: "area-A" });
-    expect(chamada.loteIds).toBeUndefined();
-    expect(screen.queryByRole("button", { name: "Lotes atuais" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Histórico"]);
+    expect(screen.getByRole("tab", { name: "Detalhes" }).getAttribute("aria-selected")).toBe("true");
+    // O cartão da área.
+    const corpo = document.querySelector(".mk-dp-area-organizada");
+    expect(corpo.textContent).toMatch(/Área \(ha\).*22,00/);
+    expect(corpo.textContent).toContain("PASTO");
+    expect(corpo.textContent).toContain("BRACHIARIA");
+    expect(corpo.textContent).toContain("OCUPADO");
+    // As atividades (nome, feito/previsto, situação) e os custos (os números do servidor, só formatados).
+    expect(await screen.findByText("Atividades em andamento")).toBeTruthy();
+    expect(screen.getByText("Gradeação · nov/26")).toBeTruthy();
+    expect(screen.getByText("Feito 12 de 22 ha · até 30/11/2026")).toBeTruthy();
+    expect(screen.getByText("Em andamento")).toBeTruthy();
+    expect(screen.getByText("Concluída")).toBeTruthy();
+    expect(screen.getByText("Feito 0 de 22 ha · previsto 10/12/2026")).toBeTruthy();
+    expect(screen.getByText("Planejada")).toBeTruthy();
+    expect(screen.getByText("Custos da área · nov/26")).toBeTruthy();
+    const custos = { textContent: screen.getByText("Custos da área · nov/26").closest("section").textContent.replace(/\u00a0/g, " ") };
+    expect(custos.textContent).toContain("R$ 3.480,00");
+    expect(custos.textContent).toContain("R$ 158,18");
+    expect(custos.textContent).toContain("R$ 1.920,00");
+    expect(custos.textContent).toContain("R$ 1.560,00");
+    // Rodapé: Manejos + o Histórico completo (movimentação) que já existia.
+    const rodape = screen.getByRole("group", { name: "Ações da área" });
+    expect([...rodape.querySelectorAll(".mk-dp-pilula")].map((b) => b.textContent)).toEqual(["Manejos", "Histórico completo"]);
+    expect(atividades.resumo).toHaveBeenCalledWith("area-A");
   });
 
-  it("T06: área sem movimento mostra vazio verdadeiro, não erro", async () => {
-    renderizar(<DetalhesArea area={RESERVA} permissions={PERMITE} />);
-    expect(await screen.findByText("Nenhum registro deste tipo nesta área.")).toBeTruthy();
+  it("aba Histórico: os registros de campo da área na linha do tempo, com o filtro Todos; não é o histórico de movimentação", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} setorNome="RETIRO" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+    const linha = await screen.findByRole("list", { name: "Registros de campo da área" });
+    expect(linha.textContent).toContain("17 NOV. 2026");
+    expect(linha.textContent).toContain("12 NOV. 2026");
+    expect(linha.textContent).toMatch(/Gradeação.*Máquina.*Trator TP-02.*Implemento.*Grade GR-01.*Horas.*6,5 h.*Feito.*7 ha.*Operador.*José Silva/);
+    expect(linha.textContent).toMatch(/Aplicação \/ Pulverização.*Produto.*Glifosato · 44 L/);
+    expect(screen.getByRole("button", { name: "Mostrar: Todos" })).toBeTruthy();
+    expect(screen.getByText("Registros de todos os manejos de campo feitos nesta área.")).toBeTruthy();
+    expect(atividades.registros).toHaveBeenCalledWith("area-A", expect.objectContaining({ tipo_atividade_id: null }));
+    // Nada da movimentação de animais aqui.
+    expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
+  });
+
+  it("aba Histórico vazia: vazio verdadeiro, não erro; erro do servidor: Tentar novamente", async () => {
+    atividades.registros.mockImplementation(async () => ({ items: [], next_cursor: null }));
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+    expect(await screen.findByText("Nenhum registro de campo nesta área.")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("erro do servidor sem cache: erro + Tentar novamente", async () => {
-    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => {
+    cleanup();
+    atividades.registros.mockImplementation(async () => {
       throw Object.assign(new Error("x"), { code: "PROVIDER_UNAVAILABLE" });
     });
-    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
     expect(await screen.findByText("Não foi possível carregar o histórico.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeTruthy();
   });
 
-  it("T07: curral abre no abate e tem a aba Histórico da Área, sem misturar os dois", async () => {
-    renderizar(<DetalhesArea area={CURRAL} permissions={PERMITE} />);
-    expect(screen.getByTestId("abate-curral").textContent).toContain("area-C");
-    expect(screen.getByRole("tab", { name: "Abate" }).getAttribute("aria-selected")).toBe("true");
-    expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
-    const aba = screen.getByRole("tab", { name: "Histórico da Área" });
-    fireEvent.click(aba);
-    expect(aba.getAttribute("aria-selected")).toBe("true");
-    expect(screen.queryByTestId("abate-curral")).toBeNull();
-    expect(await screen.findByText("Nenhum registro deste tipo nesta área.")).toBeTruthy();
-    expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledWith(expect.objectContaining({ areaId: "area-C" }));
+  it("sem a permissão de ver atividades: só o cartão da área (sem aba Histórico, atividades, custos nem Manejos); o histórico completo segue", async () => {
+    atividades.acoes = { ...atividades.acoes, ver: false, lancarApontamento: false };
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.getByRole("heading", { name: "P1 — PASTO 01" })).toBeTruthy();
+    expect(document.querySelector(".mk-dp-area-organizada").textContent).toContain("BRACHIARIA");
+    expect(screen.queryByText("Atividades em andamento")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Manejos" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
+    expect(atividades.resumo).not.toHaveBeenCalled();
+    expect(atividades.tipos).not.toHaveBeenCalled();
   });
 
-  it("A1/A2: o rodapé tem 'Histórico completo' — o Histórico de Movimentação da área por cima, com o 'Excluir movimentação' do administrador", async () => {
+  it("ver sem lançar: abas e histórico, sem a pílula Manejos", async () => {
+    atividades.acoes = { ...atividades.acoes, lancarApontamento: false };
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Histórico"]);
+    expect(screen.queryByRole("button", { name: "Manejos" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
+  });
+
+  it("sem permissão de histórico de movimentação e sem forragem: abre mesmo assim; sem a pílula Histórico completo", () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={NEGA} />);
+    expect(screen.getByRole("heading", { name: "P1 — PASTO 01" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Histórico completo" })).toBeNull();
+    expect(screen.queryByTestId("painel-forragem")).toBeNull();
+  });
+
+  it("forragem (D-PROD-219) continua no Detalhes: o painel Forragem com a chave medir_forragem", () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={MAPA_GERAL_ACESSO_TOTAL} />);
+    expect(screen.getByTestId("painel-forragem")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
+  });
+});
+
+describe("DetalhesArea — Manejos e o registro", () => {
+  const abrirManejos = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Manejos" }));
+  };
+
+  it("Manejos: tela empilhada (‹ Voltar, título, área) com os Tipos de atividade ATIVOS do cadastro, não uma lista fixa", async () => {
+    atividades.tipos.mockImplementation(async () => [...TIPOS, { id: "t-novo", nome_tipo: "Calagem do Retiro", categoria: "PASTAGEM", ativo: true }]);
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} setorNome="RETIRO" />);
+    await abrirManejos();
+    expect(document.querySelector(".mk-dp-cab__titulo").textContent).toBe("Manejos");
+    expect(screen.getByText("P1 — PASTO 01")).toBeTruthy();
+    const quadros = [...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent);
+    await waitFor(() => expect([...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent)).toContain("Calagem do Retiro"));
+    expect(quadros.length).toBeGreaterThan(0);
+    const todos = [...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent);
+    // Abastecimento é da máquina (emenda 1 da D-PROD-254): existe no cadastro, mas não é manejo da área.
+    expect(todos).toEqual(["Aplicação / Pulverização", "Calagem do Retiro", "Gradeação", "Roçada"]);
+    expect(todos).not.toContain("Abastecimento");
+    expect(todos).not.toContain("Tipo Desativado");
+    // Cada quadro tem o ícone (svg) em cima do nome.
+    expect(document.querySelectorAll(".mk-al__quadro .mk-al__icone svg").length).toBe(4);
+    // Voltar traz o painel de volta.
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    expect(screen.getByRole("tab", { name: "Detalhes" })).toBeTruthy();
+  });
+
+  it("escolher o tipo abre o registro da ÁREA presa: uma janela Base1, campos do tipo (Gradeação: máquina e implemento, sem insumo), Cancelar e Salvar", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    await abrirManejos();
+    fireEvent.click(await screen.findByRole("button", { name: "Gradeação" }));
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    expect(within(janela).getByText("Gradeação")).toBeTruthy();
+    // Área presa (só leitura), com os hectares.
+    const area = within(janela).getByDisplayValue(/P1 — PASTO 01/i);
+    expect(area.hasAttribute("readonly") || area.hasAttribute("disabled")).toBe(true);
+    // Data em DD/MM/AAAA no campo nativo = 2026-11-18 (hoje na fazenda).
+    expect(within(janela).getByTestId("registro-de-campo-data").value).toBe("2026-11-18");
+    // Campos pelo TIPO: máquina e implemento; nenhum insumo.
+    expect(within(janela).getAllByText("Máquina").length).toBeGreaterThan(0);
+    expect(janela.textContent).toContain("Implemento");
+    expect(janela.textContent).not.toContain("Produtos");
+    expect(janela.textContent).toContain("Hectares feitos");
+    expect(janela.textContent).toContain("Operador");
+    // Um nível só de janela (sem popup sobre popup) e sem a janela flutuante: é a padrão do Base1.
+    expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
+    expect(within(janela).getByRole("button", { name: "Cancelar" })).toBeTruthy();
+    expect(within(janela).getByRole("button", { name: "Salvar" })).toBeTruthy();
+    // O destino do registro: nenhuma atividade aberta de Gradeação no mês → nova.
+    expect((await within(janela).findByTestId("registro-de-campo-destino")).textContent).toBe("Entra em Gradeação · nov/26");
+  });
+
+  it("o formulário genérico (\"Registrar serviço\": a pessoa escolhe área e tipo) não oferece Abastecimento — é da máquina", async () => {
+    const { default: JanelaRegistroDeCampo } = await import("@/components/lancamento-atividades/RegistroDeCampo");
+    renderizar(<JanelaRegistroDeCampo tipos={TIPOS} areas={[PASTO]} onFechar={() => {}} />);
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    fireEvent.click(within(janela).getByRole("combobox", { name: /Tipo de atividade/i }));
+    const opcoes = (await screen.findAllByRole("option")).map((o) => o.textContent.trim());
+    expect(opcoes).toContain("Gradeação");
+    expect(opcoes).not.toContain("Abastecimento");
+  });
+
+  it("Aplicação: com produtos; Roçada (sem flags): só o dia, hectares, operador e observação", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    await abrirManejos();
+    fireEvent.click(await screen.findByRole("button", { name: "Aplicação / Pulverização" }));
+    let janela = await screen.findByTestId("janela-registro-de-campo");
+    expect(janela.textContent).toContain("Produtos");
+    expect(janela.textContent).not.toContain("Implemento");
+    fireEvent.click(within(janela).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull());
+    fireEvent.click(await screen.findByRole("button", { name: "Roçada" }));
+    janela = await screen.findByTestId("janela-registro-de-campo");
+    expect(janela.textContent).not.toContain("Máquina");
+    expect(janela.textContent).not.toContain("Produtos");
+    expect(janela.textContent).toContain("Hectares feitos");
+  });
+
+  it("Salvar manda UM registro com a área e o tipo (o servidor acha ou abre a atividade) e volta ao painel", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    await abrirManejos();
+    fireEvent.click(await screen.findByRole("button", { name: "Roçada" }));
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "7" } });
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(atividades.registrar).toHaveBeenCalledTimes(1));
+    const [corpo] = atividades.registrar.mock.calls[0];
+    expect(corpo).toMatchObject({ area_id: "area-A", tipo_atividade_id: "t-roc", data_operacional: "2026-11-18", area_executada_dia: "7" });
+    expect(corpo.maquinas).toBeUndefined();
+    expect(corpo.produtos).toBeUndefined();
+    await waitFor(() => expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull());
+    expect(screen.getByRole("tab", { name: "Detalhes" })).toBeTruthy();
+  });
+
+  it("tipo que exige máquina: sem escolher a máquina, não grava e aponta o campo", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    await abrirManejos();
+    fireEvent.click(await screen.findByRole("button", { name: "Gradeação" }));
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    expect(await within(janela).findByText("Escolha a máquina.")).toBeTruthy();
+    expect(atividades.registrar).not.toHaveBeenCalled();
+  });
+});
+
+describe("DetalhesArea — curral e histórico completo", () => {
+  it("T07: curral tem Detalhes · Histórico · Abate, e o Abate segue sendo o histórico de abate de hoje", async () => {
+    renderizar(<DetalhesArea area={CURRAL} permissions={PERMITE} />);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Histórico", "Abate"]);
+    fireEvent.click(screen.getByRole("tab", { name: "Abate" }));
+    expect(screen.getByTestId("abate-curral").textContent).toContain("area-C");
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(screen.getByRole("tab", { name: "Abate" }).id);
+    expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
+  });
+
+  it("curral sem permissões de atividades: o cartão da área e o abate", () => {
+    atividades.acoes = { ...atividades.acoes, ver: false, lancarApontamento: false };
+    renderizar(<DetalhesArea area={CURRAL} permissions={NEGA} />);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Abate"]);
+    expect(screen.queryByRole("button", { name: "Histórico completo" })).toBeNull();
+  });
+
+  it("A1/A2: 'Histórico completo' abre por cima o Histórico de Movimentação da área, com o 'Excluir movimentação' do administrador", async () => {
     sessao.admin = true;
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([morteDoLedger]));
     renderizar(<DetalhesArea area={RESERVA} permissions={PERMITE} setorNome="Retiro" />);
-    const linha = await screen.findByRole("list", { name: "Registros da área" });
-    // A linha do tempo resumida continua só leitura.
-    expect(within(linha).queryByRole("button")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull();
-    const rodape = screen.getByRole("group", { name: "Ações da área" });
-    expect([...rodape.querySelectorAll(".mk-dp-pilula")].map((b) => b.textContent)).toEqual(["Histórico completo"]);
-    fireEvent.click(within(rodape).getByRole("button", { name: "Histórico completo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Histórico completo" }));
     const dialogo = await screen.findByRole("dialog");
     expect(dialogo.querySelector(".mk-ll-dlg__titulo")?.textContent).toMatch(/^Histórico da Área/);
     expect(await within(dialogo).findByRole("button", { name: "Excluir movimentação" })).toBeTruthy();
@@ -194,51 +419,23 @@ describe("DetalhesArea", () => {
   it("A1: quem não é administrador vê o histórico completo, sem o 'Excluir movimentação'", async () => {
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([morteDoLedger]));
     renderizar(<DetalhesArea area={RESERVA} permissions={PERMITE} />);
-    await screen.findByRole("list", { name: "Registros da área" });
     fireEvent.click(screen.getByRole("button", { name: "Histórico completo" }));
     const dialogo = await screen.findByRole("dialog");
     expect(await within(dialogo).findByText("NELORE 1")).toBeTruthy();
     expect(within(dialogo).queryByRole("button", { name: "Excluir movimentação" })).toBeNull();
   });
 
-  it("A6: acesso total (Forragem + histórico): cabeçalho área · setor, a Forragem antes do 'Histórico da área', a linha da área e o 'Histórico completo'", async () => {
-    sessao.admin = true;
-    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([saidaAntiga]));
-    renderizar(<DetalhesArea area={PASTO_A} permissions={MAPA_GERAL_ACESSO_TOTAL} setorNome="Retiro" />);
-    expect(screen.getByRole("heading", { level: 2, name: "PASTO A" })).toBeTruthy();
-    expect(screen.getByText("Retiro")).toBeTruthy();
-    const forragem = screen.getByTestId("painel-forragem");
-    const titulo = screen.getByRole("heading", { name: "Histórico da área" });
-    expect(forragem.compareDocumentPosition(titulo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const linha = await screen.findByRole("list", { name: "Registros da área" });
-    expect(linha.textContent).toContain("NELORE 1");
-    expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
-  });
-
-  it("só a Forragem (sem a permissão de histórico): sem a pílula 'Histórico completo', sem o rodapé e sem a linha da área", async () => {
-    renderizar(<DetalhesArea area={PASTO_A} permissions={{ visualizar_historico_movimentacoes_lote: false, medir_forragem: true }} />);
-    expect(screen.getByTestId("painel-forragem")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Histórico completo" })).toBeNull();
-    expect(screen.queryByRole("group", { name: "Ações da área" })).toBeNull();
-    expect(screen.queryByRole("list", { name: "Registros da área" })).toBeNull();
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
-  });
-
-  it("Histórico completo fechado: nada monta nem consulta (só a linha do tempo); aberto, o histórico aparece por cima", async () => {
+  it("Histórico completo fechado: nada monta nem consulta; aberto, o histórico aparece por cima", async () => {
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([saidaAntiga]));
     renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
-    expect((await screen.findByRole("list", { name: "Registros da área" })).textContent).toContain("NELORE 1");
     expect(screen.queryByRole("dialog")).toBeNull();
-    // A linha do tempo e o histórico completo usam a mesma chave do React Query: contar as
-    // chamadas da página não vê o segundo. A prova é o texto dele e uma fonte que só ele lê.
+    expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
     expect(document.body.textContent).not.toContain("Entradas, saídas e manejos registrados nesta área");
     expect(refreshMapaCacheEntry.mock.calls.map(([chave]) => chave)).not.toContain("suplementacaoLote");
     fireEvent.click(screen.getByRole("button", { name: "Histórico completo" }));
     const dialogo = await screen.findByRole("dialog");
     expect(await within(dialogo).findByText("NELORE 1")).toBeTruthy();
     expect(dialogo.textContent).toContain("Entradas, saídas e manejos registrados nesta área");
-    // A conferência de cima não é vazia: aberto, o histórico completo lê essa fonte.
     expect(refreshMapaCacheEntry.mock.calls.map(([chave]) => chave)).toContain("suplementacaoLote");
   });
 
@@ -255,14 +452,12 @@ describe("DetalhesArea", () => {
       });
     });
     renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
-    await screen.findByRole("list", { name: "Registros da área" });
     fireEvent.click(screen.getByRole("button", { name: "Histórico completo" }));
     const dialogo = await screen.findByRole("dialog");
     await within(dialogo).findByText("NELORE 1");
     const titulo = dialogo.querySelector(".mk-ll-dlg__titulo");
     expect(titulo?.textContent).toBe("Histórico da Área PASTO A (1)");
     fireEvent.click(within(dialogo).getByRole("button", { name: "Fechar" }));
-    // Saindo: o diálogo continua com o histórico e o título com a contagem (sem a barra vazia).
     expect(dialogo.getAttribute("data-state")).toBe("closed");
     expect(within(dialogo).getByText("NELORE 1")).toBeTruthy();
     expect(titulo?.textContent).toBe("Histórico da Área PASTO A (1)");
@@ -271,39 +466,5 @@ describe("DetalhesArea", () => {
     fireEvent(dialogo, fim);
     expect(dialogo.isConnected).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("A3: registro antigo com o nome da outra área vazio mostra o nome do cadastro de áreas do mapa", async () => {
-    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([{ ...saidaAntiga, area_destino_nome: "" }]));
-    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} areas={[{ id: "area-B", nome: "PASTO B" }]} />);
-    const linha = await screen.findByRole("list", { name: "Registros da área" });
-    expect(linha.textContent).toContain("PASTO B");
-    expect(linha.textContent).not.toContain("Área …");
-    cleanup();
-    // Sem as áreas do mapa, o socorro é o id (o mesmo do histórico completo).
-    renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
-    expect((await screen.findByRole("list", { name: "Registros da área" })).textContent).toContain("Área …area-B");
-  });
-
-  it("curral com histórico: 'Histórico completo' nas duas abas; o painel aponta para a aba ativa", async () => {
-    renderizar(<DetalhesArea area={CURRAL} permissions={PERMITE} setorNome="Sede" />);
-    expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
-    const painel = screen.getByRole("tabpanel");
-    expect(painel.getAttribute("aria-labelledby")).toBe(screen.getByRole("tab", { name: "Abate" }).id);
-    fireEvent.click(screen.getByRole("tab", { name: "Histórico da Área" }));
-    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(screen.getByRole("tab", { name: "Histórico da Área" }).id);
-    expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
-    await screen.findByText("Nenhum registro deste tipo nesta área.");
-  });
-
-  it("T10: sem permissão — área comum não renderiza; curral só o abate", () => {
-    const { container } = renderizar(<DetalhesArea area={PASTO_A} permissions={NEGA} />);
-    expect(container.textContent).toBe("");
-    cleanup();
-    renderizar(<DetalhesArea area={CURRAL} permissions={NEGA} />);
-    expect(screen.getByTestId("abate-curral")).toBeTruthy();
-    expect(screen.queryByRole("tab")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Histórico completo" })).toBeNull();
-    expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
   });
 });

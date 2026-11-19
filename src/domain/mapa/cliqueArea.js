@@ -5,18 +5,20 @@
  * Precedência:
  *  1. selecionando local de tarefa → o clique escolhe o local (nunca abre detalhes);
  *  2. clique que encerra um toque longo (que já abriu o lançamento de tarefa) → ignora;
- *  3. curral → abre detalhes (histórico de abate, como antes; o histórico da
- *     área entra só com a permissão de histórico);
- *  4. qualquer outra área (com ou sem lote) → abre detalhes SE o usuário pode
- *     ver histórico de movimentações (`visualizar_historico_movimentacoes_lote`,
- *     a mesma permissão que já abre o histórico pelo lote) OU lançar medição de
- *     forragem (`medir_forragem`, D-PROD-219, fora da infraestrutura); sem elas, nada.
+ *  3. curral → abre detalhes (aba Abate, como antes);
+ *  4. qualquer outra área (com ou sem lote) → abre detalhes SE o usuário pode ver
+ *     áreas (`visualizar_areas`, D-PROD-254: o painel "Detalhes da área" mostra o
+ *     cartão da área; o que mais aparece nele — histórico de movimentação,
+ *     forragem, atividades, Manejos — segue cada permissão própria, dentro do painel).
  */
 
 /** @param {any} area */
 export const ehCurral = (area) =>
   area?.tipo_cultura === 'Infraestrutura' &&
   String(area?.tipo_infraestrutura || area?.tipo_pastagem || '').trim().toLowerCase() === 'curral';
+
+/** D-PROD-254 — quem enxerga áreas no mapa abre os detalhes dela. @param {Record<string, any>|null|undefined} permissoes */
+export const podeVerAreas = (permissoes) => permissoes?.visualizar_areas !== false;
 
 /** @param {Record<string, any>|null|undefined} permissoes */
 export const podeVerHistoricoDaArea = (permissoes) => permissoes?.visualizar_historico_movimentacoes_lote !== false;
@@ -38,5 +40,5 @@ export const acaoDoCliqueNaArea = ({ area, selecionandoLocalTarefa, toqueLongoAc
   if (selecionandoLocalTarefa) return 'selecionar-local';
   if (!area || toqueLongoAcabouDeDisparar) return 'ignorar';
   if (ehCurral(area)) return 'abrir-detalhes';
-  return podeVerHistoricoDaArea(permissoes) || podeMedirForragemNaArea(permissoes, area) ? 'abrir-detalhes' : 'ignorar';
+  return podeVerAreas(permissoes) ? 'abrir-detalhes' : 'ignorar';
 };

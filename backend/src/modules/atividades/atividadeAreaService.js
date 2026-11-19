@@ -472,6 +472,22 @@ export const iniciarArea = async (contexto, atividadeId, areaId, corpo) => {
 };
 
 /**
+ * Inicia a área PLANEJADA na transação de quem chama, SOB a trava da atividade (D-PROD-254, o registro de campo que
+ * entra numa atividade com a área ainda "a iniciar"): mesmo efeito de `iniciarArea` (EM_ANDAMENTO com `data_inicio`),
+ * com o dia = o maior entre o dia do registro e o início da atividade (a regra "não antes do início da atividade" fica
+ * valendo; o dia nunca é futuro porque o registro já foi conferido). `area` é a linha lida sob a trava.
+ * @param {any} tx @param {any} contexto
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, area: any, dia: string, inicioDaAtividade: string|null }} p
+ */
+export const iniciarAreaNaTransacao = async (tx, contexto, { clienteId, empresaId, atividadeId, area, dia, inicioDaAtividade }) => {
+  exigirStatusDaArea(area, STATUS_AREA.PLANEJADA, 'iniciar_area');
+  const inicio = inicioDaAtividade && dia < inicioDaAtividade ? inicioDaAtividade : dia;
+  return gravarAreaEResponder(tx, contexto, {
+    clienteId, empresaId, atividadeId, area, versao: area.versao, acao: 'iniciar_area', dados: { status: STATUS_AREA.EM_ANDAMENTO, data_inicio: comoData(inicio) },
+  });
+};
+
+/**
  * `POST …/areas/:areaId/concluir`: EM_ANDAMENTO → CONCLUIDA com `data_conclusao` (padrão hoje; nunca futura nem antes
  * do início da área). Concluída, a área não recebe lançamento novo.
  * @param {any} contexto @param {string} atividadeId @param {string} areaId @param {Record<string, any>} corpo

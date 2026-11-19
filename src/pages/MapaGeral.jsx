@@ -498,6 +498,12 @@ export default function MapaGeral() {
     );
   }, [lotesBase, empresaSelecionadaId, areaIdsValidos]);
 
+  // D-PROD-254: a situação da área nos detalhes (Ocupado / Vazio), pelas posições de lote que o mapa já carregou.
+  const ocupadaAreaSelecionada = useMemo(() => {
+    if (!selectedArea?.id || !Array.isArray(lotes)) return null;
+    return lotes.some((l) => l?.area_atual_id === selectedArea.id);
+  }, [selectedArea, lotes]);
+
   // Movimentações para calcular situação do pasto: cor "Situação do Pasto" e os
   // dias de descanso no rótulo do foco Pastos (D-PROD-218). Chave estável
   // on/off: trocar a cor ou o foco não abre outra entrada de cache.
@@ -1415,9 +1421,9 @@ export default function MapaGeral() {
           <PainelResumoRebanho posicoes={lotes} areas={areas} categoriasManejo={categoriasManejo} hoje={hoje} />
       </LancLoteDialogo>
 
-      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo={mapaGeralPermissions.medir_forragem === true && selectedArea?.tipo_cultura !== "Infraestrutura" ? "Pasto" : "Histórico da Área"} lotes={mapaGeralPermissions.medir_forragem === true && selectedArea?.nome ? [{ nome: selectedArea.nome }] : undefined} largo somenteLeitura popupDesde="tablet">
+      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo={selectedArea?.nome || "Detalhes da Área"} lotes={setorDaAreaSelecionada ? [{ nome: setorDaAreaSelecionada }] : undefined} largo somenteLeitura popupDesde="tablet">
 
-          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} setorNome={setorDaAreaSelecionada} eventosSuplementacao={eventosSupl} areas={areas} />}
+          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} setorNome={setorDaAreaSelecionada} eventosSuplementacao={eventosSupl} areas={areas} ocupada={ocupadaAreaSelecionada} />}
         </LancLoteDialogo>
 
       <LancLoteDialogo open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro} titulo="Bebedouro" largo somenteLeitura popupDesde="tablet">
