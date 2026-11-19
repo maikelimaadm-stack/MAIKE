@@ -43,6 +43,8 @@ export const DEFAULT_MENU = [
       { id: "sup-marcas", title: "Marcas", url: "Marcas" },
       { id: "sup-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
       { id: "sup-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
+      // D-PROD-255 — Estoque (Saldo e Movimentos, só consulta), logo abaixo dos Locais de Estoque.
+      { id: "sup-estoque", title: "Estoque", url: "Estoque" },
       { id: "sup-tipos-tarefa", title: "Tipos de Tarefa", url: "TiposTarefa" },
       { id: "sup-tipos-atividade", title: "Tipos de Atividade", url: "TiposAtividade" },
       // D-PROD-200 — a EXECUÇÃO de um Tipo de Atividade (atividade aberta + apontamentos por dia), logo abaixo do cadastro dos tipos.

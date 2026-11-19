@@ -423,6 +423,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/estoque/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estoque/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapageral",
       "destination": "/index.html"
     },
@@ -476,6 +484,14 @@
     },
     {
       "source": "/Culturas",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/estoque",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estoque",
       "destination": "/index.html"
     },
     {
