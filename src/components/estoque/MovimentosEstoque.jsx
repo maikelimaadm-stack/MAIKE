@@ -1,11 +1,14 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import AbasEstoque from "@/components/estoque/AbasEstoque";
+import JanelaEntradaEstoque from "@/components/estoque/JanelaEntradaEstoque";
 import JanelaMovimentoEstoque from "@/components/estoque/JanelaMovimentoEstoque";
+import JanelaNovoMovimentoEstoque from "@/components/estoque/JanelaNovoMovimentoEstoque";
+import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { opcoesDeDeposito } from "@/components/estoque/SaldoEstoque";
 import TabelaMovimentosEstoque, {
   MOVIMENTOS_ESTOQUE_CAMPOS_CARD,
@@ -15,6 +18,8 @@ import TabelaMovimentosEstoque, {
   valorDoCampoMovimento,
 } from "@/components/estoque/TabelaMovimentosEstoque";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
+import { hojeNoFuso } from "@/lib/diaCivil";
+import { listEmpresas } from "@/services/empresaService";
 import { OPCOES_ORIGEM, OPCOES_TIPO, ehDia, rotuloDoMovimento } from "@/lib/estoqueConsultaRegras";
 import { listarDepositosDoFiltro, listarMovimentosEstoque, listarProdutosDoFiltro } from "@/services/estoqueConsultaService";
 
@@ -30,10 +35,24 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * Aba Movimentos (D-PROD-255, P1-04): o kardex da fazenda, paginado por keyset no servidor. Filtros na faixa (produto,
  * depósito, origem, tipo, data) e busca no servidor. Uma linha abre o detalhe numa janela só, somente leitura.
  * `inicial` traz o produto e o depósito escolhidos na aba Saldo.
- * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos'|'entradas', onAba: (a: 'saldo'|'movimentos'|'entradas') => void,
+ * D-PROD-259: "Novo movimento" (só com a ação `entrada` da tela; o servidor bloqueia de fato) abre UMA janela em que se
+ * escolhe o tipo — Entrada ou Transferência — e tudo aparece junto nesta lista. O detalhe de um movimento de entrada
+ * leva ao detalhe da entrada (editar a observação, excluir), na mesma tela.
+ * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
  */
-export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = null }) {
+export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = false, inicial = null }) {
+  const queryClient = useQueryClient();
+  const [lancando, setLancando] = useState(false);
+  const [entradaAberta, setEntradaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
+  // Fuso da FAZENDA (o "hoje" do lançamento): o mesmo resumo de empresas do Layout.
+  const empresasQuery = useQuery({ queryKey: ["empresas"], queryFn: () => listEmpresas(), enabled: Boolean(empresaId) && podeLancar, staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
+  const fuso = useMemo(() => {
+    const empresa = (Array.isArray(empresasQuery.data) ? empresasQuery.data : []).find((e) => String(e?.id) === String(empresaId));
+    return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
+  }, [empresasQuery.data, empresaId]);
+  const hoje = hojeNoFuso(fuso);
+  const semFuso = podeLancar && Boolean(empresaId) && empresasQuery.isSuccess && !fuso;
   const [produto, setProduto] = useState(/** @type {{ id: string, nome: string }|null} */ (inicial?.produto ?? null));
   const [depositoId, setDepositoId] = useState(inicial?.deposito?.id ?? "");
   const [origem, setOrigem] = useState("");
@@ -141,16 +160,31 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
     [controller.listaQueryError],
   );
 
+  const aoLancar = async (/** @type {{ tipo: string, entrada?: any }} */ r) => {
+    setLancando(false);
+    await queryClient.invalidateQueries({ queryKey: ["estoque"] });
+    if (r?.entrada?.id) setEntradaAberta({ id: String(r.entrada.id), numero: String(r.entrada.numero ?? "") });
+  };
+
   return (
+    // Os botões seguem a regra EXATA do servidor (a ação `entrada`): a heurística de texto do Layout não se aplica.
+    <div data-permissao-explicita="" className="contents">
     <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
+        permissaoExplicita
         workspaceTitle="Estoque"
         searchPlaceholder="Buscar movimentos…"
+        createLabel="Novo movimento"
         columnsForCardsToolbar={MOVIMENTOS_ESTOQUE_COLUNAS}
-        controller={{ ...controller, saving: false }}
+        controller={{ ...controller, saving: false, openNew: () => setLancando(true) }}
         listErrorMessage={listErrorMessage}
-        listBanner={<AbasEstoque aba={aba} onChange={onAba} />}
-        showCreate={false}
+        listBanner={
+          <>
+            <AbasEstoque aba={aba} onChange={onAba} />
+            {semFuso ? <AvisoGestao testId="movimento-sem-fuso">Configure o fuso horário da fazenda (Empresa) para lançar movimentos.</AvisoGestao> : null}
+          </>
+        }
+        showCreate={Boolean(empresaId) && podeLancar && Boolean(fuso)}
         showEdit={false}
         showDuplicate={false}
         showDelete={false}
@@ -176,7 +210,20 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
           />
         }
       />
-      <JanelaMovimentoEstoque movimento={aberto} empresaId={empresaId} onFechar={() => setAberto(null)} />
+      <JanelaMovimentoEstoque
+        movimento={aberto}
+        empresaId={empresaId}
+        onFechar={() => setAberto(null)}
+        onAbrirEntrada={(/** @type {{ id: string, numero: string }} */ doc) => {
+          setAberto(null);
+          setEntradaAberta({ id: String(doc.id), numero: String(doc.numero ?? "") });
+        }}
+      />
     </FiltrosDaTelaContext.Provider>
+    {lancando && empresaId && podeLancar ? (
+      <JanelaNovoMovimentoEstoque aberto empresaId={empresaId} hoje={hoje} onFechar={() => setLancando(false)} onLancado={aoLancar} />
+    ) : null}
+    <JanelaEntradaEstoque entrada={entradaAberta} empresaId={empresaId} podeLancar={podeLancar} onFechar={() => setEntradaAberta(null)} />
+    </div>
   );
 }
