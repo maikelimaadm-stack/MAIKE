@@ -123,6 +123,7 @@ export const limparBanco = async () => {
   await prisma.entradaEstoqueEvento.deleteMany({});
   await prisma.entradaEstoqueItem.deleteMany({});
   await prisma.entradaEstoque.deleteMany({});
+  await prisma.motivoEntradaEstoque.deleteMany({}); // D-PROD-259
   await prisma.operacaoFinanceiraEvento.deleteMany({});
   await prisma.liquidacaoFinanceiraEstorno.deleteMany({});
   await prisma.liquidacaoFinanceira.deleteMany({});
