@@ -369,6 +369,9 @@ const mensagemLancamento = (code, field, reason, details, c) => {
     case 'OPERACAO_VERSAO_CONFLITO':
       return 'O lançamento foi alterado em outro lugar (outra pessoa ou outra aba). Recarregue o lançamento e refaça a alteração. Nada foi gravado.';
     case 'OPERACAO_DOCUMENTO_DUPLICADO':
+      if (reason === 'documento_de_entrada_manual') {
+        return `Este documento já está na entrada manual de estoque${details?.entrada_numero ? ` nº ${details.entrada_numero}` : ''}: a mercadoria já entrou por ela. Lance só o pagamento (sem produtos) ou exclua a entrada antes. Nada foi gravado.`;
+      }
       return 'Já existe um lançamento confirmado com este número de documento para este parceiro e direção. Confira antes de confirmar de novo. Nada foi gravado.';
     case 'OPERACAO_RATEIO_INVALIDO':
       return mensagemDoRateio(reason, details, c, linha);

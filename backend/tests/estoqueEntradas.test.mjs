@@ -503,7 +503,7 @@ describe('D-PROD-257 — documento e API do documento', () => {
     assert.equal((await criar(x, { motivo: 'DOACAO', documento_numero: 'NF 123' }, { produto_id: x.sal.id, custo_unitario: '1' })).statusCode, 201);
   });
 
-  test('documento já usado em lançamento financeiro CONFIRMADO → 409 documento_de_compra', async () => {
+  test('D-PROD-261: documento num lançamento CONFIRMADO SEM produtos (só o pagamento) não bloqueia a entrada (com produtos: estoqueDocumentoDedupe.test.mjs)', async () => {
     const x = await cenario();
     const forn = await prisma().fornecedor.create({ data: { cliente_id: x.c, empresa_id: x.e.id, numero_cadastro: '9001', tipo_pessoa: 'Jurídica', nome: 'Agro Insumos', tipos: ['fornecedor'] } });
     await prisma().operacaoFinanceira.create({
@@ -513,8 +513,7 @@ describe('D-PROD-257 — documento e API do documento', () => {
       },
     });
     const r = await criar(x, { motivo: 'DOACAO', documento_numero: 'nf-9' }, { custo_unitario: '1' });
-    assert.equal(r.statusCode, 409, r.body);
-    assert.equal(razao(r), 'documento_de_compra');
+    assert.equal(r.statusCode, 201, r.body);
   });
 
   test('lista: filtros por motivo, status, produto, período e busca; keyset; detalhe com linhas e histórico', async () => {
