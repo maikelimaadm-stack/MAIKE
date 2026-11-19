@@ -78,3 +78,35 @@ export const listOpcoesProdutosEntrada = async (filtros = {}) => {
 /** @param {Record<string, unknown>} [filtros] */
 export const listOpcoesLocaisEntrada = async (filtros = {}) =>
   normalizarOpcoes(await runProviderCall(() => operacoesNativas.opcoesLocais(filtros), ctx('listOpcoesLocaisEntrada')));
+
+/** D-PROD-259 — fornecedores (papel de fornecedor/prestador) da fazenda. @param {Record<string, unknown>} filtros */
+export const listOpcoesFornecedoresEntrada = async (filtros = {}) => {
+  const contexto = ctx('listOpcoesFornecedoresEntrada');
+  assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
+  return normalizarOpcoes(await runProviderCall(() => operacoesNativas.opcoesFornecedores(filtros), contexto));
+};
+
+/** D-PROD-259 — centros de custo ou de resultado ativos da fazenda. @param {'custo'|'resultado'} lado @param {Record<string, unknown>} filtros */
+export const listOpcoesCentrosEntrada = async (lado, filtros = {}) => {
+  const contexto = ctx('listOpcoesCentrosEntrada');
+  assertArgument(lado === 'custo' || lado === 'resultado', 'lado', contexto);
+  assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
+  return normalizarOpcoes(await runProviderCall(() => operacoesNativas.opcoesCentros(lado, filtros), contexto));
+};
+
+/** D-PROD-259 — motivos de entrada do cliente. @param {{ ativos?: boolean }} [filtros] */
+export const listMotivosEntrada = async (filtros = {}) => {
+  const bruto = await runProviderCall(() => operacoesNativas.listarMotivos(filtros.ativos ? { ativos: 'true' } : {}), ctx('listMotivosEntrada'));
+  const o = isObjeto(bruto) ? bruto : {};
+  return Array.isArray(o.items) ? o.items.filter(isObjeto) : [];
+};
+
+/** @param {{ nome: string }} corpo */
+export const createMotivoEntrada = async (corpo) => runProviderCall(() => operacoesNativas.criarMotivo(corpo), ctx('createMotivoEntrada'));
+
+/** @param {string} id @param {{ nome?: string, ativo?: boolean }} corpo */
+export const updateMotivoEntrada = async (id, corpo) => {
+  const contexto = ctx('updateMotivoEntrada');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => operacoesNativas.editarMotivo(id, corpo), contexto);
+};

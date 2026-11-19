@@ -286,6 +286,16 @@ const documentoDeOrigem = async (tx, cli, m) => {
     const a = linha?.apontamento?.atividade;
     return a ? { tipo: 'ATIVIDADE', id: a.id, numero: a.numero, rotulo: `Atividade nº ${a.numero} — ${a.nome}`, pagina: 'LancamentoAtividades' } : null;
   }
+  // D-PROD-259: a entrada manual (e o estorno dela), achada pela FK do item; a tela abre o detalhe dela na mesma tela
+  // (sem página própria: a aba Entradas saiu). A origem não é citada aqui (P7: só o motor a conhece).
+  const entrada = await tx.entradaEstoqueItem.findFirst({
+    where: { cliente_id: cli, ...porMovimento },
+    select: { entrada: { select: { id: true, numero: true, motivoCadastro: { select: { nome: true } } } } },
+  });
+  if (entrada?.entrada) {
+    const e = entrada.entrada;
+    return { tipo: 'ENTRADA_ESTOQUE', id: e.id, numero: e.numero, rotulo: `Entrada nº ${e.numero}${e.motivoCadastro?.nome ? ` — ${e.motivoCadastro.nome}` : ''}`, pagina: null };
+  }
   return null;
 };
 

@@ -1,15 +1,14 @@
 import React from "react";
 
-/** Abas da tela Estoque: só as que existem (Saldo, Movimentos e Entradas; o inventário periódico não existe). */
+/** Abas da tela Estoque: Saldo e Movimentos (D-PROD-259: o lançamento fica em Movimentos, "Novo movimento"). */
 export const ABAS_ESTOQUE = Object.freeze([
   { id: "saldo", rotulo: "Saldo" },
   { id: "movimentos", rotulo: "Movimentos" },
-  { id: "entradas", rotulo: "Entradas" },
 ]);
 
 /**
  * Abas no desenho Base1 (as mesmas da atividade aberta: `b1-panel-tabs-strip`/`b1-panel-tab`).
- * @param {{ aba: 'saldo'|'movimentos'|'entradas', onChange: (aba: 'saldo'|'movimentos'|'entradas') => void }} props
+ * @param {{ aba: 'saldo'|'movimentos', onChange: (aba: 'saldo'|'movimentos') => void }} props
  */
 export default function AbasEstoque({ aba, onChange }) {
   return (
@@ -25,12 +24,12 @@ export default function AbasEstoque({ aba, onChange }) {
             tabIndex={aba === a.id ? 0 : -1}
             className={`b1-panel-tab${aba === a.id ? " is-active" : ""}`}
             data-testid={`estoque-aba-${a.id}`}
-            onClick={() => onChange(/** @type {'saldo'|'movimentos'|'entradas'} */ (a.id))}
+            onClick={() => onChange(/** @type {'saldo'|'movimentos'} */ (a.id))}
             onKeyDown={(e) => {
               if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
               e.preventDefault();
               const outra = ABAS_ESTOQUE[(i + (e.key === "ArrowRight" ? 1 : ABAS_ESTOQUE.length - 1)) % ABAS_ESTOQUE.length].id;
-              onChange(/** @type {'saldo'|'movimentos'|'entradas'} */ (outra));
+              onChange(/** @type {'saldo'|'movimentos'} */ (outra));
               document.getElementById(`estoque-aba-${outra}`)?.focus();
             }}
           >

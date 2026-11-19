@@ -52,12 +52,20 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 const escolher = async (rotulo, opcao) => {
-  const campo = screen.getByText(rotulo, { selector: "label" }).parentElement;
+  const campo = /** @type {HTMLElement} */ (screen.getByText(rotulo, { selector: "label" }).parentElement);
   await act(async () => {
-    fireEvent.click(within(/** @type {HTMLElement} */ (campo)).getByRole("combobox"));
+    fireEvent.click(within(campo).getByRole("combobox"));
   });
+  const lista = await screen.findByRole("listbox");
   await act(async () => {
-    fireEvent.click(within(/** @type {HTMLElement} */ (document.querySelector('[role="listbox"]'))).getByRole("option", { name: opcao }));
+    fireEvent.click(within(lista).getByRole("option", { name: opcao }));
+  });
+  // Desde a #339 o B1Select abre com a pesquisa no próprio campo (foco assíncrono). Ao fechar, o painel devolve
+  // o foco ao campo num timer; só abrir a próxima lista depois disso — senão esse foco tardio "sai" da lista
+  // recém-aberta e a fecha (corrida só do teste: no navegador o clique do usuário vem muito depois).
+  await waitFor(() => {
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(campo.contains(document.activeElement)).toBe(true);
   });
 };
 
@@ -118,10 +126,11 @@ describe("D-PROD-216 — FormularioArea com o cadastro de Culturas", () => {
     await act(async () => {
       fireEvent.click(within(/** @type {HTMLElement} */ (screen.getByText("Cultura", { selector: "label" }).parentElement)).getByRole("combobox"));
     });
-    const opcoes = within(/** @type {HTMLElement} */ (document.querySelector('[role="listbox"]'))).getAllByRole("option").map((o) => o.textContent);
+    const listaCultura = await screen.findByRole("listbox");
+    const opcoes = within(listaCultura).getAllByRole("option").map((o) => o.textContent);
     expect(opcoes.filter(Boolean)).toEqual(["001 · BRACHIARIA BRIZANTHA CV. MARANDU", "007 · PANICUM CV. MOMBAÇA"]);
     await act(async () => {
-      fireEvent.click(within(/** @type {HTMLElement} */ (document.querySelector('[role="listbox"]'))).getByRole("option", { name: "001 · BRACHIARIA BRIZANTHA CV. MARANDU" }));
+      fireEvent.click(within(listaCultura).getByRole("option", { name: "001 · BRACHIARIA BRIZANTHA CV. MARANDU" }));
     });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Salvar" }));

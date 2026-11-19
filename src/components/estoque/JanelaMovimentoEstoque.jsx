@@ -49,10 +49,11 @@ const textoDoParente = (p) => (p ? `Nº ${p.numero} — ${rotuloDoMovimento({ ti
 
 /**
  * Detalhe de UM movimento do estoque (D-PROD-255), SOMENTE LEITURA, numa só janela: 680px no desktop e
- * `b1-janela--tela-cheia` no celular. Sem segundo diálogo: o documento de origem é um link de navegação.
- * @param {{ movimento: any|null, empresaId: string|null, onFechar: () => void }} props `movimento` é a linha da lista
+ * `b1-janela--tela-cheia` no celular. Sem segundo diálogo: o documento de origem é um link de navegação; a ENTRADA do
+ * estoque (D-PROD-259, sem página própria) fecha esta janela e abre a da entrada (`onAbrirEntrada`).
+ * @param {{ movimento: any|null, empresaId: string|null, onFechar: () => void, onAbrirEntrada?: (doc: { id: string, numero: string }) => void }} props
  */
-export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar }) {
+export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar, onAbrirEntrada = undefined }) {
   const celular = useCelular();
   const id = movimento?.id ? String(movimento.id) : null;
   const consulta = useQuery({
@@ -115,10 +116,16 @@ export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar 
                     rotulo="Documento"
                     testId="movimento-documento"
                     valor={
-                      d.documento ? (
+                      d.documento?.tipo === "ENTRADA_ESTOQUE" && onAbrirEntrada ? (
+                        <button type="button" className="underline" onClick={() => onAbrirEntrada(d.documento)} data-testid="movimento-abrir-entrada">
+                          {d.documento.rotulo}
+                        </button>
+                      ) : d.documento?.pagina ? (
                         <Link className="underline" to={createPageUrl(d.documento.pagina)}>
                           {d.documento.rotulo}
                         </Link>
+                      ) : d.documento ? (
+                        d.documento.rotulo
                       ) : null
                     }
                   />

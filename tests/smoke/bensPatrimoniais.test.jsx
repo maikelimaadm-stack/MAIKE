@@ -335,8 +335,8 @@ describe('Bens — criação (corpo exato)', () => {
     fireEvent.change(within(form).getByLabelText(/^Código de frota/), { target: { value: 'ut-04' } });
     await escolherTipoDeBem(form, 'Veículo');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Caminhonete/);
-    fireEvent.change(within(form).getByLabelText(/^Placa/), { target: { value: 'abc-1d23' } });
     aba('Características');
+    fireEvent.change(within(form).getByLabelText(/^Placa/), { target: { value: 'abc-1d23' } });
     await escolherOpcao(within(form).getByRole('combobox', { name: 'UF da placa' }), 'MS');
     // jsdom: o popover do próximo B1Select só abre depois que as opções do anterior sumirem.
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
@@ -370,6 +370,7 @@ describe('Bens — criação (corpo exato)', () => {
     await escolherTipoDeBem(form, 'Benfeitoria');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Curral/);
     expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
+    aba('Características');
     fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Madeira' } });
     fireEvent.change(within(form).getByLabelText(/^Ano de conclusão/), { target: { value: '2019' } });
     salvar();
@@ -445,8 +446,10 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     const form = await novo();
     expect(within(form).getByTestId('bem-escolha-tipo-de-bem')).toBeTruthy();
     expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
+    aba('Características');
     for (const campo of [/^Placa/, /^Chassi/, /^Número de série/, /^Material/, /^Compatibilidade/]) expect(within(form).queryByLabelText(campo)).toBeNull();
     expect(within(form).queryByTestId('bem-potencia')).toBeNull();
+    aba('Identificação');
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
     expect(screen.queryByTestId('bem-seletor-tipo-painel')).toBeNull();
     expect(backend.chamadas.some((c) => c.path === '/bens-patrimoniais-opcoes/tipos')).toBe(false);
@@ -467,6 +470,7 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     await escolherTipoDeBem(form, tipoDeBem);
     expect(within(form).queryByTestId('bem-escolha-tipo-de-bem')).toBeNull();
     expect(abas()).toEqual(abasEsperadas);
+    aba('Características');
     for (const campo of presentes) expect(within(form).getByLabelText(campo), String(campo)).toBeTruthy();
     for (const campo of ausentes) expect(within(form).queryByLabelText(campo), String(campo)).toBeNull();
     const potencia = Boolean(within(form).queryByTestId('bem-potencia'));
@@ -792,8 +796,8 @@ describe('Bens — referências da fazenda, aquisição e propriedade (corpo exa
     await abrirTrator();
     editar();
     let form = screen.getByTestId('b1-form');
-    expect(within(form).getByTestId('bem-seletor-proprietario')).toHaveTextContent('Vizinho da Divisa');
     aba('Propriedade e responsáveis');
+    expect(within(form).getByTestId('bem-seletor-proprietario')).toHaveTextContent('Vizinho da Divisa');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Propriedade' }), 'Próprio');
     expect(within(form).queryByTestId('bem-seletor-proprietario')).toBeNull();
     salvar();
@@ -942,6 +946,7 @@ describe('Bens — regras finas do formulário', () => {
     expect(backend.chamadas.filter((c) => c.path === '/bens-patrimoniais-opcoes/tipos').at(-1).query).toMatchObject({ natureza: 'BENFEITORIA' });
     fireEvent.keyDown(screen.getByTestId('bem-seletor-tipo-painel'), { key: 'Escape' });
     expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
+    aba('Características');
     fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Alvenaria' } });
     salvar();
     await screen.findByText('Bem patrimonial atualizado');

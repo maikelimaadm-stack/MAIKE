@@ -41,4 +41,15 @@ export const operacoesNativas = Object.freeze({
   opcoesProdutos: (filtros) => nativeRequest(comQuery(`${BASE}/opcoes/produtos`, filtros), { autenticado: true }, ctx('listOpcoesProdutosEntrada')),
   /** @param {Record<string, unknown>} filtros */
   opcoesLocais: (filtros) => nativeRequest(comQuery(`${BASE}/opcoes/locais`, filtros), { autenticado: true }, ctx('listOpcoesLocaisEntrada')),
+  // D-PROD-259: fornecedor e centros do cabeçalho; cadastro de motivos de entrada.
+  /** @param {Record<string, unknown>} filtros */
+  opcoesFornecedores: (filtros) => nativeRequest(comQuery(`${BASE}/opcoes/fornecedores`, filtros), { autenticado: true }, ctx('listOpcoesFornecedoresEntrada')),
+  /** @param {'custo'|'resultado'} lado @param {Record<string, unknown>} filtros */
+  opcoesCentros: (lado, filtros) => nativeRequest(comQuery(`${BASE}/opcoes/centros-${lado}`, filtros), { autenticado: true }, ctx('listOpcoesCentrosEntrada', { lado })),
+  /** @param {Record<string, unknown>} filtros */
+  listarMotivos: (filtros) => nativeRequest(comQuery('/estoque/motivos-entrada', filtros), { autenticado: true }, ctx('listMotivosEntrada')),
+  /** @param {Record<string, unknown>} corpo */
+  criarMotivo: (corpo) => nativeRequest('/estoque/motivos-entrada', { method: 'POST', body: corpo, autenticado: true }, ctx('createMotivoEntrada')),
+  /** @param {string} id @param {Record<string, unknown>} corpo */
+  editarMotivo: (id, corpo) => nativeRequest(`/estoque/motivos-entrada/${encodeURIComponent(id)}`, { method: 'PATCH', body: corpo, autenticado: true }, ctx('updateMotivoEntrada', { id })),
 });

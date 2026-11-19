@@ -1,6 +1,8 @@
 /**
  * D-PROD-257 (Estoque → Entradas) — entrada manual documentada e saldo de implantação.
- * PostgreSQL real, HTTP autenticado: os três motivos, custo zero só com a declaração e o motivo,
+ * D-PROD-259: o motivo vem do cadastro (`motivo_id`; padrões Compra, Doação e Saldo de implantação);
+ * fornecedor, centros, lote e validade; sem justificativa obrigatória.
+ * PostgreSQL real, HTTP autenticado: as naturezas do motivo, custo zero só com a declaração,
  * implantação única, motivo imutável, permissão `entrada` (403), isolamento por tenant, exclusão com
  * estorno pelo motor e prova fail-closed, documento duplicado e a API do documento.
  */
@@ -46,20 +48,29 @@ const cenario = async () => {
   const diesel = await produto(c, e.id, 'Diesel', 'L');
   const galpao = await local(c, 'Galpão');
   const { corpo } = await autenticarNoApp(app, adm.credenciais);
-  return { c, e, ureia, sal, diesel, galpao, token: corpo.token, adm };
+  const motivos = (await chamar('GET', '/estoque/motivos-entrada', corpo.token)).json().items;
+  const porNome = (n) => motivos.find((m) => m.nome === n).id;
+  const mot = { implantacao: porNome('Saldo de implantação'), compra: porNome('Compra'), doacao: porNome('Doação') };
+  return { c, e, ureia, sal, diesel, galpao, token: corpo.token, adm, mot };
 };
+
+/** Atalho dos testes: `motivo` (natureza ou nome padrão) vira o `motivo_id` do cadastro. */
+const MOTIVO_DO_ATALHO = { SALDO_IMPLANTACAO: 'implantacao', DOACAO: 'doacao', COMPRA: 'compra' };
 
 /** `reason` sobe para o topo da resposta quando vem com `field`; senão fica em `details`. */
 const razao = (r) => r.json().reason ?? r.json().details?.reason;
 const hoje = () => new Date().toISOString().slice(0, 10);
-const corpoDe = (x, extra = {}, item = {}) => ({
-  empresa_id: x.e.id,
-  operation_id: `op-${randomUUID()}`,
-  motivo: 'SALDO_IMPLANTACAO',
-  data_entrada: hoje(),
-  itens: [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '100', custo_unitario: '3.5', ...item }],
-  ...extra,
-});
+const corpoDe = (x, extra = {}, item = {}) => {
+  const { motivo = 'SALDO_IMPLANTACAO', ...resto } = extra;
+  return {
+    empresa_id: x.e.id,
+    operation_id: `op-${randomUUID()}`,
+    motivo_id: x.mot[MOTIVO_DO_ATALHO[motivo]],
+    data_entrada: hoje(),
+    itens: [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '100', custo_unitario: '3.5', ...item }],
+    ...resto,
+  };
+};
 const criar = (x, extra, item, token = x.token) => chamar('POST', '/estoque/entradas', token, corpoDe(x, extra, item));
 
 const contaCom = async (x, permissoes_telas) => {
@@ -78,14 +89,15 @@ const estoqueAtual = async (p) => Number((await prisma().produto.findUnique({ wh
 describe('D-PROD-257 — criar com cada motivo (o motor grava camada, movimento e cache)', () => {
   test('SALDO_IMPLANTACAO: 201, camada com o custo, movimento entrada_saldo_implantacao numerado, cache += kg, evento e AuditLog', async () => {
     const x = await cenario();
-    const r = await criar(x, { documento_numero: ' nf-77 ', observacao: 'contagem inicial' });
+    const r = await criar(x, { observacao: 'contagem inicial' });
     assert.equal(r.statusCode, 201, r.body);
     const b = r.json();
     assert.equal(b.status, 'CONFIRMADA');
     assert.equal(b.motivo, 'SALDO_IMPLANTACAO');
     assert.equal(b.versao, 1);
     assert.equal(b.revisao, 1);
-    assert.equal(b.documento_numero, 'nf-77');
+    assert.equal(b.motivo_nome, 'Saldo de implantação');
+    assert.equal(b.documento_numero, null);
     assert.equal(b.replay, false);
     assert.equal(b.itens.length, 1);
     const [i] = b.itens;
@@ -93,7 +105,6 @@ describe('D-PROD-257 — criar com cada motivo (o motor grava camada, movimento 
     const lote = await prisma().estoqueLoteNota.findUnique({ where: { id: i.estoque_lote_nota_id } });
     assert.equal(Number(lote.quantidade_disponivel), 100);
     assert.equal(Number(lote.custo_unitario), 3.5);
-    assert.equal(lote.numero_documento, 'nf-77');
     const mov = await prisma().movimentacaoEstoque.findUnique({ where: { id: i.movimentacao_estoque_id } });
     assert.deepEqual([mov.tipo_movimentacao, mov.tipo_detalhado, mov.origem_sistema, mov.status], ['Entrada', 'entrada_saldo_implantacao', 'entrada_estoque', 'Ativa']);
     assert.ok(!mov.numero_movimentacao.startsWith('p-'), 'número definitivo');
@@ -105,39 +116,46 @@ describe('D-PROD-257 — criar com cada motivo (o motor grava camada, movimento 
     assert.equal(audit[0].acao, 'entrada_estoque.confirmar');
   });
 
-  test('DOACAO com custo zero declarado e DOACAO com valor de referência; OUTRA_COM_JUSTIFICATIVA com justificativa de 20+ caracteres', async () => {
+  test('Doação com custo zero declarado e com valor; Compra em litros: natureza ENTRADA, tipo entrada_manual e o nome do motivo no movimento', async () => {
     const x = await cenario();
     const d1 = await criar(x, { motivo: 'DOACAO' }, { custo_unitario: '0', custo_zero: true });
     assert.equal(d1.statusCode, 201, d1.body);
     assert.equal(d1.json().itens[0].custo_zero, true);
+    assert.deepEqual([d1.json().motivo, d1.json().motivo_nome], ['ENTRADA', 'Doação']);
     const d2 = await criar(x, { motivo: 'DOACAO' }, { produto_id: x.sal.id, custo_unitario: '2', quantidade: '10' });
     assert.equal(d2.statusCode, 201, d2.body);
-    const o = await criar(x, { motivo: 'OUTRA_COM_JUSTIFICATIVA', justificativa: 'Material devolvido pelo vizinho sem nota' }, { produto_id: x.diesel.id, unidade: 'L', quantidade: '50', custo_unitario: '5.8' });
+    const o = await criar(x, { motivo: 'COMPRA' }, { produto_id: x.diesel.id, unidade: 'L', quantidade: '50', custo_unitario: '5.8' });
     assert.equal(o.statusCode, 201, o.body);
     const mov = await prisma().movimentacaoEstoque.findUnique({ where: { id: o.json().itens[0].movimentacao_estoque_id } });
-    assert.equal(mov.tipo_detalhado, 'entrada_outra_com_justificativa');
+    assert.equal(mov.tipo_detalhado, 'entrada_manual');
     assert.equal(mov.unidade_medida, 'L');
+    assert.match(mov.motivo_movimentacao, /Compra/);
     const mov1 = await prisma().movimentacaoEstoque.findUnique({ where: { id: d1.json().itens[0].movimentacao_estoque_id } });
-    assert.equal(mov1.tipo_detalhado, 'entrada_doacao');
+    assert.equal(mov1.tipo_detalhado, 'entrada_manual');
     assert.equal(await estoqueAtual(x.diesel), 50);
   });
 
-  test('OUTRA sem justificativa (ou com menos de 20 caracteres) → 422 e nada gravado', async () => {
+  test('motivo inexistente, de outro tenant ou inativo → 422 e nada gravado', async () => {
     const x = await cenario();
-    for (const justificativa of [undefined, 'curta']) {
-      const r = await criar(x, { motivo: 'OUTRA_COM_JUSTIFICATIVA', justificativa });
-      assert.equal(r.statusCode, 422, r.body);
-      assert.equal(r.json().code, 'ENTRADA_ESTOQUE_INVALIDA');
-    }
-    assert.equal(await prisma().entradaEstoque.count(), 0);
-    assert.equal(await estoqueAtual(x.ureia), 0);
+    const y = await cenario();
+    const alheio = await chamar('POST', '/estoque/entradas', x.token, { ...corpoDe(x, { motivo: 'COMPRA' }, { produto_id: x.sal.id, custo_unitario: '1' }), motivo_id: y.mot.compra });
+    assert.equal(alheio.statusCode, 422, alheio.body);
+    assert.equal(razao(alheio), 'motivo_inexistente');
+    assert.equal((await chamar('PATCH', `/estoque/motivos-entrada/${x.mot.compra}`, x.token, { ativo: false })).statusCode, 200);
+    const inativo = await criar(x, { motivo: 'COMPRA' }, { produto_id: x.sal.id, custo_unitario: '1' });
+    assert.equal(inativo.statusCode, 422, inativo.body);
+    assert.equal(razao(inativo), 'motivo_inativo');
+    assert.equal(await estoqueAtual(x.sal), 0);
   });
 
-  test('motivo fora dos três fechados (COMPRA, AJUSTE_INVENTARIO, DEVOLUCAO) → 400', async () => {
+  test('o corpo antigo (motivo fechado, justificativa) e a falta de motivo_id → 400', async () => {
     const x = await cenario();
-    for (const motivo of ['COMPRA', 'AJUSTE_INVENTARIO', 'DEVOLUCAO']) {
-      assert.equal((await criar(x, { motivo })).statusCode, 400);
-    }
+    const base = corpoDe(x);
+    assert.equal((await chamar('POST', '/estoque/entradas', x.token, { ...base, motivo: 'DOACAO' })).statusCode, 400);
+    assert.equal((await chamar('POST', '/estoque/entradas', x.token, { ...base, justificativa: 'qualquer coisa aqui de 20+' })).statusCode, 400);
+    const semMotivo = { ...base };
+    delete semMotivo.motivo_id;
+    assert.equal((await chamar('POST', '/estoque/entradas', x.token, semMotivo)).statusCode, 400);
   });
 
   test('SACO: quantidade × peso do saco em kg e custo por kg = custo do saco ÷ peso; produto sem peso é recusado; L só para produto em L', async () => {
@@ -189,13 +207,9 @@ describe('D-PROD-257 — custo zero só com a declaração e o motivo; custo neg
     assert.equal(razao(b), 'custo_zero_com_custo');
   });
 
-  test('implantação com custo zero: recusada sem justificativa; aceita com justificativa (custo histórico desconhecido)', async () => {
+  test('implantação com custo zero declarado: aceita (D-PROD-259: o motivo já diz por quê; sem justificativa)', async () => {
     const x = await cenario();
-    const sem = await criar(x, {}, { custo_unitario: '0', custo_zero: true });
-    assert.equal(sem.statusCode, 422, sem.body);
-    assert.equal(razao(sem), 'custo_zero_sem_justificativa');
-    assert.equal(await prisma().entradaEstoque.count(), 0);
-    const com = await criar(x, { justificativa: 'custo histórico desconhecido' }, { custo_unitario: '0', custo_zero: true });
+    const com = await criar(x, {}, { custo_unitario: '0', custo_zero: true });
     assert.equal(com.statusCode, 201, com.body);
     assert.equal(com.json().itens[0].custo_zero, true);
     assert.equal(com.json().itens[0].custo_kg, '0.0000');
@@ -260,15 +274,15 @@ describe('D-PROD-257 — implantação ativa única e sem histórico', () => {
   });
 });
 
-describe('D-PROD-257 — motivo imutável, edição só de observação e justificativa', () => {
+describe('D-PROD-257 — motivo imutável, edição só da observação', () => {
   test('PATCH com outro motivo → 422 ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL; com o mesmo motivo e nova observação → 200, versão e revisão sobem, evento EDICAO/METADADOS', async () => {
     const x = await cenario();
     const a = (await criar(x)).json();
     const base = { empresa_id: x.e.id, versao: a.versao, motivo_edicao: 'corrigir observação' };
-    const troca = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, motivo: 'DOACAO' });
+    const troca = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, motivo_id: x.mot.doacao });
     assert.equal(troca.statusCode, 422, troca.body);
     assert.equal(troca.json().code, 'ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL');
-    const ok = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, motivo: 'SALDO_IMPLANTACAO', observacao: 'conferido no galpão' });
+    const ok = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, motivo_id: x.mot.implantacao, observacao: 'conferido no galpão' });
     assert.equal(ok.statusCode, 200, ok.body);
     const b = ok.json();
     assert.deepEqual([b.motivo, b.versao, b.revisao, b.observacao], ['SALDO_IMPLANTACAO', 2, 2, 'conferido no galpão']);
@@ -289,11 +303,14 @@ describe('D-PROD-257 — motivo imutável, edição só de observação e justif
     assert.equal(d.json().versao, 1);
   });
 
-  test('OUTRA continua exigindo justificativa de 20+ caracteres na edição', async () => {
+  test('fornecedor ou centro na edição → 409 EDICAO_FISICA; justificativa (campo que não existe mais) → 400', async () => {
     const x = await cenario();
-    const a = (await criar(x, { motivo: 'OUTRA_COM_JUSTIFICATIVA', justificativa: 'Material devolvido pelo vizinho sem nota' }, { custo_unitario: '1' })).json();
-    const r = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'encurtar', justificativa: 'curta' });
-    assert.equal(r.statusCode, 422, r.body);
+    const a = (await criar(x, { motivo: 'DOACAO' }, { custo_unitario: '1' })).json();
+    const r = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'trocar centro', centro_custo_id: 'qualquer' });
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA');
+    const j = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'abc', justificativa: 'x' });
+    assert.equal(j.statusCode, 400, j.body);
   });
 });
 
@@ -474,12 +491,14 @@ describe('D-PROD-257 — documento e API do documento', () => {
 
   test('lista: filtros por motivo, status, produto, período e busca; keyset; detalhe com linhas e histórico', async () => {
     const x = await cenario();
-    const a = (await criar(x, { documento_numero: 'DOC-A' })).json();
+    const a = (await criar(x, { motivo: 'COMPRA', documento_numero: 'DOC-A' })).json();
     const b = (await criar(x, { motivo: 'DOACAO' }, { produto_id: x.sal.id, custo_unitario: '1' })).json();
     await chamar('POST', `/estoque/entradas/${b.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
     const lista = async (q) => (await chamar('GET', `/estoque/entradas${qs({ empresa_id: x.e.id, ...q })}`, x.token)).json();
     assert.equal((await lista({})).total, 2);
-    assert.deepEqual((await lista({ motivo: 'DOACAO' })).items.map((i) => i.id), [b.id]);
+    assert.deepEqual((await lista({ motivo: 'ENTRADA' })).items.map((i) => i.id).sort(), [a.id, b.id].sort());
+    assert.equal((await lista({ motivo: 'SALDO_IMPLANTACAO' })).items.length, 0);
+    assert.deepEqual((await lista({ motivo_id: x.mot.doacao })).items.map((i) => i.id), [b.id]);
     assert.deepEqual((await lista({ status: 'CONFIRMADA' })).items.map((i) => i.id), [a.id]);
     assert.deepEqual((await lista({ produto_id: x.ureia.id })).items.map((i) => i.id), [a.id]);
     assert.deepEqual((await lista({ q: 'doc-a' })).items.map((i) => i.id), [a.id]);
@@ -512,5 +531,167 @@ describe('D-PROD-257 — documento e API do documento', () => {
     assert.equal(p.itens.find((i) => i.nome === 'Diesel').unidade_estoque, 'L');
     const l = (await chamar('GET', `/estoque/entradas/opcoes/locais`, x.token)).json();
     assert.deepEqual(l.itens.map((i) => i.nome), ['Galpão']);
+  });
+});
+
+// ─── D-PROD-259 ─────────────────────────────────────────────────────────────
+
+const fornecedorDe = (x, nome, tipos = ['fornecedor'], extra = {}) =>
+  prisma().fornecedor.create({ data: { cliente_id: x.c, empresa_id: x.e.id, numero_cadastro: `F-${++seq}`, tipo_pessoa: 'Jurídica', nome, tipos, ...extra } });
+const centro = (x, delegado, nome, extra = {}) =>
+  prisma()[delegado].create({ data: { cliente_id: x.c, empresa_id: x.e.id, numero: `C-${++seq}`, nome, ...extra } });
+
+describe('D-PROD-259 — cadastro de motivos de entrada', () => {
+  test('a 1ª leitura cria os 3 padrões uma vez só; a 2ª não duplica; Saldo de implantação é o padrão fixo', async () => {
+    const x = await cenario();
+    const r = await chamar('GET', '/estoque/motivos-entrada', x.token);
+    assert.equal(r.statusCode, 200, r.body);
+    const itens = r.json().items;
+    assert.deepEqual(itens.map((m) => [m.nome, m.natureza, m.ativo, m.padrao]).sort(), [
+      ['Compra', 'ENTRADA', true, false], ['Doação', 'ENTRADA', true, false], ['Saldo de implantação', 'SALDO_IMPLANTACAO', true, true],
+    ]);
+    assert.equal(await prisma().motivoEntradaEstoque.count({ where: { cliente_id: x.c } }), 3);
+    await Promise.all([chamar('GET', '/estoque/motivos-entrada', x.token), chamar('GET', '/estoque/motivos-entrada', x.token)]);
+    assert.equal(await prisma().motivoEntradaEstoque.count({ where: { cliente_id: x.c } }), 3);
+  });
+
+  test('criar (natureza ENTRADA), nome duplicado sem diferença de maiúsculas e espaços → 409, renomear e desativar; só ativos no filtro', async () => {
+    const x = await cenario();
+    const c = await chamar('POST', '/estoque/motivos-entrada', x.token, { nome: '  Devolução   de cliente ' });
+    assert.equal(c.statusCode, 201, c.body);
+    assert.deepEqual([c.json().nome, c.json().natureza], ['Devolução de cliente', 'ENTRADA']);
+    const dup = await chamar('POST', '/estoque/motivos-entrada', x.token, { nome: 'devolução DE cliente' });
+    assert.equal(dup.statusCode, 409, dup.body);
+    assert.equal(dup.json().code, 'MOTIVO_ENTRADA_DUPLICADO');
+    const ren = await chamar('PATCH', `/estoque/motivos-entrada/${c.json().id}`, x.token, { nome: 'Devolução' });
+    assert.equal(ren.statusCode, 200, ren.body);
+    assert.equal((await chamar('PATCH', `/estoque/motivos-entrada/${c.json().id}`, x.token, { nome: 'compra' })).statusCode, 409);
+    assert.equal((await chamar('PATCH', `/estoque/motivos-entrada/${c.json().id}`, x.token, { ativo: false })).statusCode, 200);
+    const ativos = (await chamar('GET', `/estoque/motivos-entrada${qs({ ativos: 'true' })}`, x.token)).json().items.map((m) => m.nome);
+    assert.ok(!ativos.includes('Devolução'));
+    assert.equal((await chamar('POST', '/estoque/motivos-entrada', x.token, { nome: 'x' })).statusCode, 400, 'nome curto');
+  });
+
+  test('o padrão Saldo de implantação não se renomeia nem se desativa (422); motivo de outro tenant → 404', async () => {
+    const x = await cenario();
+    const y = await cenario();
+    const fixo = await chamar('PATCH', `/estoque/motivos-entrada/${x.mot.implantacao}`, x.token, { ativo: false });
+    assert.equal(fixo.statusCode, 422, fixo.body);
+    assert.equal(fixo.json().code, 'MOTIVO_ENTRADA_PADRAO_FIXO');
+    assert.equal((await chamar('PATCH', `/estoque/motivos-entrada/${y.mot.compra}`, x.token, { nome: 'Outra' })).statusCode, 404);
+  });
+
+  test('permissão: visualizar lista; criar e editar exigem `entrada`', async () => {
+    const x = await cenario();
+    const soVer = await contaCom(x, [linha()]);
+    assert.equal((await chamar('GET', '/estoque/motivos-entrada', soVer)).statusCode, 200);
+    assert.equal((await chamar('POST', '/estoque/motivos-entrada', soVer, { nome: 'Achado' })).statusCode, 403);
+    assert.equal((await chamar('PATCH', `/estoque/motivos-entrada/${x.mot.compra}`, soVer, { ativo: false })).statusCode, 403);
+    const comEntrada = await contaCom(x, [linha({ entrada: true })]);
+    assert.equal((await chamar('POST', '/estoque/motivos-entrada', comEntrada, { nome: 'Achado' })).statusCode, 201);
+  });
+
+  test('motivo usado numa entrada não sai do banco (FK RESTRICT)', async () => {
+    const x = await cenario();
+    assert.equal((await criar(x, { motivo: 'COMPRA' }, { custo_unitario: '1' })).statusCode, 201);
+    await assert.rejects(prisma().motivoEntradaEstoque.delete({ where: { id: x.mot.compra } }));
+  });
+});
+
+describe('D-PROD-259 — fornecedor, centros, lote e validade', () => {
+  test('Compra com fornecedor, documento, centros, lote e validade: tudo gravado e devolvido com os nomes', async () => {
+    const x = await cenario();
+    const f = await fornecedorDe(x, 'Agro Sul');
+    const cc = await centro(x, 'centroCusto', 'Confinamento');
+    const cr = await centro(x, 'centroResultado', 'Pecuária de corte');
+    const r = await criar(x, { motivo: 'COMPRA', fornecedor_id: f.id, documento_numero: 'NF 55', centro_custo_id: cc.id, centro_resultado_id: cr.id, observacao: 'compra avulsa' },
+      { custo_unitario: '2.5', lote_fabricante: ' L-2026-09 ', data_validade: '2027-03-31' });
+    assert.equal(r.statusCode, 201, r.body);
+    const b = r.json();
+    assert.deepEqual([b.fornecedor_nome, b.documento_numero, b.centro_custo_nome, b.centro_resultado_nome, b.motivo_nome], ['Agro Sul', 'NF 55', 'Confinamento', 'Pecuária de corte', 'Compra']);
+    assert.deepEqual([b.itens[0].lote_fabricante, b.itens[0].data_validade], ['L-2026-09', '2027-03-31']);
+    const lista = (await chamar('GET', `/estoque/entradas${qs({ empresa_id: x.e.id })}`, x.token)).json();
+    assert.equal(lista.items[0].fornecedor_nome, 'Agro Sul');
+  });
+
+  test('fornecedor inativo, sem papel de fornecedor ou de outra fazenda → 422; legado sem papel e prestador passam', async () => {
+    const x = await cenario();
+    const inativo = await fornecedorDe(x, 'Parado', ['fornecedor'], { ativo: false });
+    const soCliente = await fornecedorDe(x, 'Comprador', ['cliente']);
+    const outra = await prisma().empresa.create({ data: { cliente_id: x.c, numero_empresa: 2, apelido: 'E2', fuso_horario: 'America/Sao_Paulo', nome: `Outra ${x.c}` } });
+    const deOutra = await prisma().fornecedor.create({ data: { cliente_id: x.c, empresa_id: outra.id, numero_cadastro: `F-${++seq}`, tipo_pessoa: 'Jurídica', nome: 'Longe', tipos: ['fornecedor'] } });
+    for (const [f, reason] of [[inativo, 'fornecedor_inativo'], [soCliente, 'fornecedor_sem_papel'], [deOutra, 'fornecedor_inexistente']]) {
+      const r = await criar(x, { motivo: 'COMPRA', fornecedor_id: f.id }, { custo_unitario: '1' });
+      assert.equal(r.statusCode, 422, r.body);
+      assert.equal(razao(r), reason);
+    }
+    const legado = await fornecedorDe(x, 'Antigo', []);
+    const prestador = await fornecedorDe(x, 'Frete', ['prestador_servico']);
+    assert.equal((await criar(x, { motivo: 'COMPRA', fornecedor_id: legado.id }, { custo_unitario: '1' })).statusCode, 201);
+    assert.equal((await criar(x, { motivo: 'COMPRA', fornecedor_id: prestador.id }, { produto_id: x.sal.id, custo_unitario: '1' })).statusCode, 201);
+  });
+
+  test('centro inativo ou de outra fazenda → 422', async () => {
+    const x = await cenario();
+    const cc = await centro(x, 'centroCusto', 'Parado', { ativo: false });
+    const r = await criar(x, { motivo: 'COMPRA', centro_custo_id: cc.id }, { custo_unitario: '1' });
+    assert.equal(r.statusCode, 422, r.body);
+    assert.equal(razao(r), 'centro_custo_inativo');
+    const r2 = await criar(x, { motivo: 'COMPRA', centro_resultado_id: 'nao-existe' }, { custo_unitario: '1' });
+    assert.equal(r2.statusCode, 422, r2.body);
+    assert.equal(razao(r2), 'centro_resultado_inexistente');
+  });
+
+  test('saldo de implantação com fornecedor ou documento → 422 (e o banco também recusa fornecedor na implantação)', async () => {
+    const x = await cenario();
+    const f = await fornecedorDe(x, 'Agro Sul');
+    const a = await criar(x, { fornecedor_id: f.id });
+    assert.equal(a.statusCode, 422, a.body);
+    assert.equal(razao(a), 'implantacao_sem_fornecedor');
+    const b = await criar(x, { documento_numero: 'NF 1' });
+    assert.equal(b.statusCode, 422, b.body);
+    assert.equal(razao(b), 'implantacao_sem_documento');
+    const ok = (await criar(x)).json();
+    await assert.rejects(prisma().$executeRaw`UPDATE "EntradaEstoque" SET fornecedor_id = ${f.id} WHERE id = ${ok.id}`, /EntradaEstoque_fornecedor_check/);
+  });
+
+  test('opções do formulário: fornecedores (papel de fornecedor/prestador) e centros ativos da fazenda, só com `entrada`', async () => {
+    const x = await cenario();
+    await fornecedorDe(x, 'Agro Sul');
+    await fornecedorDe(x, 'Comprador', ['cliente']);
+    await centro(x, 'centroCusto', 'Confinamento');
+    await centro(x, 'centroCusto', 'Parado', { ativo: false });
+    await centro(x, 'centroResultado', 'Pecuária');
+    const f = (await chamar('GET', `/estoque/entradas/opcoes/fornecedores${qs({ empresa_id: x.e.id })}`, x.token)).json();
+    assert.deepEqual(f.itens.map((i) => i.nome), ['Agro Sul']);
+    const cc = (await chamar('GET', `/estoque/entradas/opcoes/centros-custo${qs({ empresa_id: x.e.id })}`, x.token)).json();
+    assert.deepEqual(cc.itens.map((i) => i.nome), ['Confinamento']);
+    const cr = (await chamar('GET', `/estoque/entradas/opcoes/centros-resultado${qs({ empresa_id: x.e.id })}`, x.token)).json();
+    assert.deepEqual(cr.itens.map((i) => i.nome), ['Pecuária']);
+    const soVer = await contaCom(x, [linha()]);
+    assert.equal((await chamar('GET', `/estoque/entradas/opcoes/fornecedores${qs({ empresa_id: x.e.id })}`, soVer)).statusCode, 403);
+  });
+
+  test('lote com mais de 64 caracteres e validade em formato errado → 400', async () => {
+    const x = await cenario();
+    const r = await criar(x, { motivo: 'COMPRA' }, { custo_unitario: '1', lote_fabricante: 'L'.repeat(65) });
+    assert.equal(r.statusCode, 400, r.body);
+    assert.equal((await criar(x, { motivo: 'COMPRA' }, { custo_unitario: '1', data_validade: '31/03/2027' })).statusCode, 400);
+  });
+});
+
+describe('D-PROD-259 — transferência pelo "Novo movimento" da tela Estoque', () => {
+  test('sem a ação `entrada` de sup-estoque (nem a do mapa) → 403; com `entrada` → 201 e o saldo muda de depósito', async () => {
+    const x = await cenario();
+    assert.equal((await criar(x)).statusCode, 201);
+    const destino = await local(x.c, 'Cocho 1');
+    const corpo = () => ({ operation_id: `tr-${randomUUID()}`, empresa_id: x.e.id, produto_id: x.ureia.id, local_origem_id: x.galpao.id, local_destino_id: destino.id, quantidade: 30 });
+    const soVer = await contaCom(x, [linha()]);
+    assert.equal((await chamar('POST', '/movimentacoes-estoque/comandos/transferencia-locais', soVer, corpo())).statusCode, 403);
+    const comEntrada = await contaCom(x, [linha({ entrada: true })]);
+    const r = await chamar('POST', '/movimentacoes-estoque/comandos/transferencia-locais', comEntrada, corpo());
+    assert.equal(r.statusCode, 201, r.body);
+    const saldo = (await chamar('GET', `/estoque/saldo${qs({ empresa_id: x.e.id })}`, x.token)).json().items;
+    assert.deepEqual(saldo.map((s) => [s.local_estoque_nome, s.quantidade]).sort(), [['Cocho 1', '30.0000'], ['Galpão', '70.0000']]);
   });
 });

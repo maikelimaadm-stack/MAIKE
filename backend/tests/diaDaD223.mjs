@@ -63,7 +63,8 @@ export const schemaSemEntradasDoEstoque = (schema) => {
   const linhas = schema.split('\n');
   const sai = new Array(linhas.length).fill(false);
   for (let i = 0; i < linhas.length; i += 1) {
-    if (/^model EntradaEstoque\w* \{/.test(linhas[i])) {
+    // D-PROD-259: o cadastro de motivos de entrada também é das Entradas (não existe no dia da D-PROD-249).
+    if (/^model (Motivo)?EntradaEstoque\w* \{/.test(linhas[i])) {
       let j = i;
       while (j < linhas.length && linhas[j].trim() !== '}') sai[j++] = true;
       sai[j] = true;

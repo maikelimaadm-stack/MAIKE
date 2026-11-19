@@ -80,10 +80,10 @@ const chamadasDe = (caminho) => backend.chamadas.filter((c) => c.method === 'GET
 const esperar = (ms = 40) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
 
 describe('D-PROD-255 — abas e Saldo', () => {
-  it('as abas Saldo, Movimentos e Entradas (sem Inventário) e o Saldo lista produto × depósito com unidade, custo e valor', async () => {
+  it('as abas Saldo e Movimentos (D-PROD-259: sem Entradas nem Inventário) e o Saldo lista produto × depósito com unidade, custo e valor', async () => {
     await montar();
     const abas = await screen.findByTestId('estoque-abas');
-    expect(within(abas).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Saldo', 'Movimentos', 'Entradas']);
+    expect(within(abas).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Saldo', 'Movimentos']);
     expect(screen.queryByRole('tab', { name: /Inventário/ })).toBeNull();
     expect(within(abas).getByTestId('estoque-aba-saldo').getAttribute('aria-selected')).toBe('true');
 

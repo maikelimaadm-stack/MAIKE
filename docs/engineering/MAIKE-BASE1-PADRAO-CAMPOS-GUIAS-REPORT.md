@@ -11,9 +11,13 @@ Visual único dos formulários do motor Base1: campos preenchidos com pesquisa d
 A PR foi feita em outra ferramenta e parou com conflito com a PR #338 (D-PROD-258) e 64 testes de fumaça vermelhos em 12 arquivos.
 
 - **Conflito:** atividade no layout em guias sem Grupo e sem "este tipo permite registrar"; operação com os 3 campos da D-PROD-258.
-- **Correções de tela:** teclado nas guias verticais; guia com erro abre ao salvar; Lote (ícone da categoria, aviso e motivo da correção de entrada, sem motivo automático); Bens (aviso "Escolha o tipo de bem"); Serviços ("Ativo" só em registro gravado); foco da pesquisa do `B1Select`.
+- **Correções de tela:** teclado nas guias verticais; guia com erro abre ao salvar; Lote (ícone da categoria, aviso e motivo da correção de entrada, sem motivo automático); Bens (aviso "Escolha o tipo de bem"); foco da pesquisa do `B1Select`.
 - **Testes atualizados** (sem afrouxar corpo de requisição nem regra): abrem a guia certa antes de usar o campo; orientação vertical das guias; nova pesquisa dentro do campo.
 - **Testes novos:** ↓/↑ nas guias, filtro "Buscar guia", recolher/expandir.
+
+## Junção com a PR #341
+
+A PR #341 (outra sessão) consertou em paralelo o Lote, os Bens e boa parte dos testes. Na junção ficou a versão da `main` desses testes; desta PR entram o teclado e a guia com erro no `Base1PanelTabs` (com seus testes) e o foco do `B1Select`. A chave Ativo do Serviço novo segue a `main` (aparece ligada e travada).
 
 ## Validação local
 

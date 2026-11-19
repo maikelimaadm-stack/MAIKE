@@ -187,6 +187,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261118100000_atividade_areas': '098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06',
   // D-PROD-257: EXPAND — Entradas do Estoque (EntradaEstoque, EntradaEstoqueItem e EntradaEstoqueEvento), só tabelas novas.
   '20261119100000_estoque_entradas': '1bcac655c22be083610f46ca00959aa85b731511bf44b213554761cac0e522d0',
+  // D-PROD-259: CONTRACT aprovado pelo proprietário — o motivo da Entrada vem de um cadastro (MotivoEntradaEstoque) e a
+  // Entrada ganha fornecedor, centros e, por produto, lote do fabricante e validade. Só com as 3 tabelas das Entradas vazias.
+  '20261119200000_estoque_entradas_motivos': 'ebb37b6886e71847c61eaab28e1c90a7c29069f6e3924055dfb65e7adf101c25',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -236,6 +239,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '7121f5a6d09747d8c3479411ef0be47cc92eb9a11cf59865429134b18fdd6984',
   // D-PROD-257: RLS/REVOKE das 3 tabelas das Entradas do Estoque (mesmo corpo, lista nova).
   '23ec8ff0a47da59896a7d918c156d0b654d251fdecb1e0ea15eb3451ef7d66df',
+  // D-PROD-259: RLS/REVOKE do cadastro de motivos de entrada (mesmo corpo, lista nova).
+  '82d403a361510ea74e0216379f21912e5a4b68493eac13786fbbb9334f8c0f70',
 ]);
 
 /**
@@ -249,7 +254,9 @@ export const DO_RLS_APROVADOS = Object.freeze([
  * D-PROD-216 (formato de sempre: a coluna, o UNIQUE e a FK aditivos da Área ligada à Cultura; no resto, só o índice) e
  * D-PROD-217 (formato de sempre: o UNIQUE e a FK recriada do reforço, pinados em tabelas antigas, sem DROP TABLE e sem
  * resto) e D-PROD-249 (formato CONVERSÃO sem DROP: a coluna nova em tabela antiga, a tabela nova no resto e, na cauda,
- * o backfill e a FK composta para a tabela nova, que só existe depois do resto). São quatorze.
+ * o backfill e a FK composta para a tabela nova, que só existe depois do resto) e D-PROD-259 (formato de sempre: CHECKs
+ * trocados, colunas e FKs para tabelas antigas pinados nas Entradas VAZIAS; no resto, a tabela nova dos motivos, a coluna
+ * e a FK para ela e os índices). São quinze.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -619,6 +626,35 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
         '"empresa_id", "atividade_id", "atividade_area_id") REFERENCES "AtividadeArea"("cliente_id", "empresa_id", "atividade_id",',
         '"id") ON DELETE RESTRICT ON UPDATE CASCADE',
       ].join(' '),
+    ]),
+  }),
+  // D-PROD-259: a Entrada do Estoque com motivo de cadastro, fornecedor, centros, lote e validade. Depois da guarda (hash
+  // pinado; confere que as 3 tabelas das Entradas e os 3 alvos existem, que a tabela, as colunas e as constraints novas não
+  // existem, que os 2 CHECKs antigos existem e os UNIQUEs alvo também; trava as 3 tabelas em ACCESS EXCLUSIVE e aborta se
+  // alguma tiver linha), EXATAMENTE as 12 instruções abaixo, nesta ordem (texto pinado): os 2 DROP CONSTRAINT, o CHECK do
+  // motivo recriado com as 2 naturezas (o descritor o declara em `constraints_alargadas`), as 5 colunas anuláveis sem DEFAULT
+  // (a data de validade é DATE, que a allowlist EXPAND não aceita em tabela antiga), as 3 FKs compostas para tabelas antigas,
+  // RESTRICT, e o CHECK "implantação sem fornecedor". O resto, pela allowlist EXPAND: a tabela nova "MotivoEntradaEstoque"
+  // (índices, CHECKs, FK do cliente e o RLS de corpo aprovado), a coluna "motivo_id" e a FK dela para a tabela nova, e os 4
+  // índices não-únicos. A guarda só cita as 6 tabelas e a criada no resto.
+  '20261119200000_estoque_entradas_motivos': Object.freeze({
+    decisao: 'D-PROD-259',
+    guarda_sha256: 'a6db1e3e10a7cef99976c687b88c46ad7555528a3bbcce9a41fed61ac841a0b1',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['EntradaEstoque', 'EntradaEstoqueItem', 'EntradaEstoqueEvento', 'Fornecedor', 'CentroCusto', 'CentroResultado']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "EntradaEstoque" DROP CONSTRAINT "EntradaEstoque_justificativa_check"',
+      'ALTER TABLE "EntradaEstoque" DROP CONSTRAINT "EntradaEstoque_motivo_check"',
+      'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_motivo_check" CHECK ("motivo" IN (\'SALDO_IMPLANTACAO\', \'ENTRADA\'))',
+      'ALTER TABLE "EntradaEstoque" ADD COLUMN "fornecedor_id" VARCHAR(64)',
+      'ALTER TABLE "EntradaEstoque" ADD COLUMN "centro_custo_id" VARCHAR(64)',
+      'ALTER TABLE "EntradaEstoque" ADD COLUMN "centro_resultado_id" VARCHAR(64)',
+      'ALTER TABLE "EntradaEstoqueItem" ADD COLUMN "lote_fabricante" VARCHAR(64)',
+      'ALTER TABLE "EntradaEstoqueItem" ADD COLUMN "data_validade" DATE',
+      'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_fornecedor_fkey" FOREIGN KEY ("cliente_id", "fornecedor_id") REFERENCES "Fornecedor"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_centro_custo_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_custo_id") REFERENCES "CentroCusto"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_centro_resultado_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_resultado_id") REFERENCES "CentroResultado"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_fornecedor_check" CHECK ("motivo" <> \'SALDO_IMPLANTACAO\' OR "fornecedor_id" IS NULL)',
     ]),
   }),
 });

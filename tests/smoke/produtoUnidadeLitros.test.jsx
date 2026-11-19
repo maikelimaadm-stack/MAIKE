@@ -54,16 +54,14 @@ describe('PL-1 — formulário do Produto', () => {
     const { default: FormularioProduto } = await import('@/components/produtos/FormularioProduto');
     return comConsulta(<FormularioProduto onSubmit={vi.fn()} onCancel={vi.fn()} isEditing {...props} />);
   };
-  // PR #339: a unidade de estoque fica na guia lateral "Unidade de Estoque".
-  const seletorUnidadePrincipal = () => {
-    const guia = screen.getByRole('tab', { name: 'Unidade de Estoque' });
-    if (guia.getAttribute('aria-selected') !== 'true') fireEvent.click(guia);
-    return screen.getAllByRole('combobox').find((b) => /QUILOGRAMAS|SACOS|LITROS/.test(b.textContent));
-  };
+  const seletorUnidadePrincipal = () => screen.getAllByRole('combobox').find((b) => /QUILOGRAMAS|SACOS|LITROS/.test(b.textContent));
+  // Desde a #339 a unidade principal de estoque vive na guia "Unidade de Estoque" (só a guia ativa é visível).
+  const abrirGuiaEstoque = () => fireEvent.click(screen.getByRole('tab', { name: 'Unidade de Estoque' }));
 
   it('oferece KG, SACOS e LITROS (L); escolher L com unidade de medida KG mostra o aviso, que não bloqueia', async () => {
     const onSubmit = vi.fn();
     await renderizar({ initialData: PRODUTO, onSubmit });
+    abrirGuiaEstoque();
     const seletor = seletorUnidadePrincipal();
     expect(seletor.textContent).toContain('QUILOGRAMAS (KG)');
     expect(screen.queryByTestId('aviso-unidade-litros')).toBeNull();
@@ -82,6 +80,7 @@ describe('PL-1 — formulário do Produto', () => {
   it('com unidade de medida de litros (LT, L, LITROS) não há aviso; em leitura mostra "LITROS (L)"', async () => {
     for (const unidade of ['LT', 'L', 'LITROS']) {
       const r = await renderizar({ initialData: { ...PRODUTO, unidade_medida: unidade, unidade_principal_estoque: 'L' } });
+      abrirGuiaEstoque();
       expect(seletorUnidadePrincipal().textContent).toContain('LITROS (L)');
       expect(screen.queryByTestId('aviso-unidade-litros')).toBeNull();
       r.unmount();

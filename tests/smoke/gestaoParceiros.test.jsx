@@ -108,14 +108,19 @@ afterEach(() => {
 });
 
 
-/** D-PROD-168: os papéis são marcados na lista do campo "Papéis do parceiro" (a caixa de marcar fica à direita). */
-/** PR #339: o formulário tem guias laterais; os campos ficam na guia de cada seção. */
-function abrirGuia(form, nome) {
-  fireEvent.click(within(form).getByRole('tab', { name: nome }));
+/**
+ * PR #339: as seções do formulário viraram guias laterais (Base1PanelTabs); só a guia ativa
+ * fica visível. Abre a guia pelo papel `tab` e confere que ela ficou selecionada.
+ */
+async function abrirGuia(form, nome) {
+  const guia = within(form).getByRole('tab', { name: nome });
+  await act(async () => fireEvent.click(guia));
+  expect(guia).toHaveAttribute('aria-selected', 'true');
 }
 
+/** D-PROD-168: os papéis são marcados na lista do campo "Papéis do parceiro" (a caixa de marcar fica à direita), na guia Papéis. */
 async function marcarPapel(form, nome) {
-  abrirGuia(form, 'Papéis');
+  if (within(form).getByRole('tab', { name: 'Papéis' }).getAttribute('aria-selected') !== 'true') await abrirGuia(form, 'Papéis');
   const campo = within(form).getByRole('combobox', { name: /Papéis do parceiro/ });
   if (campo.getAttribute('aria-expanded') !== 'true') fireEvent.click(campo);
   fireEvent.click(await screen.findByRole('checkbox', { name: nome }));
@@ -273,7 +278,7 @@ describe('Parceiros — formulário', () => {
     await abrirRegistro('FAZENDA VELHA');
     expect(screen.getByTestId('parceiro-papeis-legados')).toHaveTextContent('Papéis antigos preservados: Vendedor de gado');
     // Nenhum papel marcado: o campo de lista "Papéis do parceiro" fica vazio (D-PROD-168).
-    abrirGuia(screen.getByTestId('b1-form'), 'Papéis');
+    await abrirGuia(screen.getByTestId('b1-form'), 'Papéis');
     expect(screen.getByRole('combobox', { name: /Papéis do parceiro/ })).toHaveValue('');
   });
 
@@ -309,7 +314,7 @@ describe('Parceiros — formulário', () => {
     await montar();
     await abrirRegistro('AGRO SOL');
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
-    abrirGuia(screen.getByTestId('b1-form'), 'Situação');
+    await abrirGuia(screen.getByTestId('b1-form'), 'Situação');
     fireEvent.click(within(screen.getByTestId('b1-form')).getByRole('switch'));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
@@ -342,7 +347,9 @@ describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
     // Sem o papel, nada do funcionário na tela.
     expect(within(form).queryByLabelText(/Tipo do funcionário/)).toBeNull();
     expect(within(form).queryByTestId('parceiro-funcionario-custo-hora')).toBeNull();
+    expect(within(form).queryByRole('tab', { name: 'Funcionário' })).toBeNull();
     await marcarPapel(form, 'Funcionário');
+    await abrirGuia(form, 'Funcionário');
     expect(within(form).getByLabelText(/Tipo do funcionário/)).toBeTruthy();
     expect(within(form).getByLabelText(/^Cargo/)).toBeTruthy();
     expect(within(form).getByTestId('parceiro-funcionario-custo-hora')).toBeTruthy();
@@ -373,6 +380,7 @@ describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
     const form = await screen.findByTestId('b1-form');
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Empreiteira Rocha' } });
     await marcarPapel(form, 'Funcionário');
+    await abrirGuia(form, 'Funcionário');
     await escolherOpcao(within(form).getByLabelText(/Tipo do funcionário/), /Terceirizado/i);
     fireEvent.change(within(form).getByTestId('parceiro-funcionario-custo-hora'), { target: { value: '12,34567' } });
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
@@ -381,6 +389,7 @@ describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
     // Tirar o papel: os campos somem e não vão (nem o tipo já escolhido).
     await marcarPapel(form, 'Funcionário');
     await marcarPapel(form, 'Prestador de serviço');
+    expect(within(form).queryByRole('tab', { name: 'Funcionário' })).toBeNull();
     expect(within(form).queryByLabelText(/Tipo do funcionário/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Parceiro criado');
@@ -395,11 +404,13 @@ describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
     await montar();
     await abrirRegistro('JOSÉ SILVA');
     let form = screen.getByTestId('b1-form');
+    await abrirGuia(form, 'Funcionário');
     expect(within(form).getByLabelText(/^Cargo/)).toHaveValue('TRATORISTA');
     expect(within(form).getByTestId('parceiro-funcionario-custo-hora')).toHaveValue('20');
     expect(within(form).getByTestId('parceiro-funcionario-custo-diaria')).toHaveValue('160');
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     form = screen.getByTestId('b1-form');
+    if (within(form).getByRole('tab', { name: 'Funcionário' }).getAttribute('aria-selected') !== 'true') await abrirGuia(form, 'Funcionário');
     fireEvent.change(within(form).getByLabelText(/^Cargo/), { target: { value: 'operador' } });
     fireEvent.change(within(form).getByTestId('parceiro-funcionario-custo-diaria'), { target: { value: '170' } });
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
@@ -414,6 +425,7 @@ describe('Parceiros — papel Funcionário (D-PROD-208)', () => {
     form = screen.getByTestId('b1-form');
     await marcarPapel(form, 'Outros');
     await marcarPapel(form, 'Funcionário');
+    expect(within(form).queryByRole('tab', { name: 'Funcionário' })).toBeNull();
     expect(within(form).queryByTestId('parceiro-funcionario-custo-hora')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Parceiro atualizado');

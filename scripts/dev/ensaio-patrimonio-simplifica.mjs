@@ -169,7 +169,9 @@ export const NOME_DIAS_DESCANSO = '20261117300000_descanso_e_alturas_por_area'; 
 export const NOME_ATIVIDADE_AREAS = '20261118100000_atividade_areas';
 /** D-PROD-257: a EXPAND das Entradas do Estoque (3 tabelas novas), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_ESTOQUE_ENTRADAS = '20261119100000_estoque_entradas';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS]);
+/** D-PROD-259: a CONTRACT dos motivos de entrada (exige as Entradas vazias; +1 tabela, MotivoEntradaEstoque), depois dela; sobe no GREEN. */
+export const NOME_ESTOQUE_ENTRADAS_MOTIVOS = '20261119200000_estoque_entradas_motivos';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
@@ -179,9 +181,9 @@ const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFO
 const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
 // D-PROD-249: AtividadeArea (as áreas da atividade) nasce com a última delas e fica no fim.
-export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem']);
+export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque']);
 // D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
-export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem']);
+export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque']);
 /**
  * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
  * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —

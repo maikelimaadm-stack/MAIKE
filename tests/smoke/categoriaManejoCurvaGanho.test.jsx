@@ -109,9 +109,13 @@ describe("(a) campo Curva de ganho no formulário", () => {
     expect(opcoesCurvaGanho(CURVAS, null).map((o) => o.label)).toEqual(["CURVA PADRÃO", "SECA PROTEINADO"]);
     wrap(<Form onSubmit={vi.fn()} onCancel={() => {}} curvasGanho={CURVAS} />);
     expect(await opcoesDoSelect(/^Curva de ganho/)).toEqual(["CURVA PADRÃO", "SECA PROTEINADO"]);
-    // `pesquisa="sempre"`: há pesquisa mesmo com duas opções — desde o PR #339 ela fica
-    // dentro do próprio campo aberto (não mais numa caixa "Pesquisar…" no painel).
-    expect(screen.getByRole("textbox", { name: /^Pesquisar Curva de ganho/ })).toBeTruthy();
+    // Com pesquisa mesmo com duas opções: desde a #339 a pesquisa é digitada no próprio campo aberto
+    // (não mais numa caixa "Pesquisar…" dentro do painel) e filtra as opções.
+    const pesquisa = screen.getByRole("textbox", { name: /^Pesquisar Curva de ganho/ });
+    await act(async () => {
+      fireEvent.change(pesquisa, { target: { value: "seca" } });
+    });
+    await waitFor(() => expect(screen.getAllByRole("option").map((o) => o.textContent.trim())).toEqual(["SECA PROTEINADO"]));
   });
 
   it("CMC-2 — a curva gravada que foi inativada continua escolhível, com \"(INATIVA)\"; salvar sem trocar a mantém", async () => {
