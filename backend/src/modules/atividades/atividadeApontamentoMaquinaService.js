@@ -161,7 +161,7 @@ const conflitoDeChave = () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id
 
 /**
  * A unique `(apontamento, ordem)` é a rede da trava da atividade (a ordem nasce sob o FOR UPDATE dela). Só pelo
- * alvo: sem ele, o caminho genérico responde o mesmo 409 transitório (D-PROD-252).
+ * alvo: sem ele, o caminho genérico responde o mesmo 409 transitório (D-PROD-253).
  */
 const ORDEM_DA_LINHA = soPeloAlvo(
   () => concurrencyConflict(MENSAGEM_CONFLITO_SEM_CHAVE),
@@ -172,7 +172,7 @@ const ORDEM_DA_LINHA = soPeloAlvo(
  * A unique `(cliente_id, operation_id)` da linha é a rede do banco: a mesma
  * chave já usada por OUTRA operação de linha → 409 de idempotência; a unique
  * `(apontamento, ordem)` fora da trava → 409 de concorrência (nunca 500).
- * D-PROD-252: em produção o P2002 chega sem o alvo (papel não dono + RLS); a
+ * D-PROD-253: em produção o P2002 chega sem o alvo (papel não dono + RLS); a
  * chave é conferida no início da escrita que grava linha (lançar, editar) e,
  * sem o alvo, de novo depois do rollback.
  * @param {string} clienteId @param {string} operationId
@@ -695,7 +695,7 @@ const escreverLinha = async (contexto, { atividadeId, apontamentoId, corpo, tipo
         tipoOperacao,
         fingerprint: fingerprintDePayload({ atividade_id: atividadeId, apontamento_id: apontamentoId, empresa_id: corpo.empresa_id, versao, ...fingerprint }),
         executar: async () => {
-          // D-PROD-252: a chave de uma linha JÁ gravada é conflito mesmo sem o recibo (apagado, expurgado ou de
+          // D-PROD-253: a chave de uma linha JÁ gravada é conflito mesmo sem o recibo (apagado, expurgado ou de
           // outro tipo), conferida ANTES de tudo nas escritas que gravam linha com ela (lançar, editar).
           if (acao !== 'cancelar_linha' && (await buscarLinhaPorOperacao(tx, cli, corpo.operation_id))) throw conflitoDeChave();
           const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);

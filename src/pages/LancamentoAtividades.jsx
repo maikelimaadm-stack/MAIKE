@@ -261,8 +261,6 @@ export default function LancamentoAtividades() {
   const [duplicando, setDuplicando] = useState(false);
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
-  const recadoPendente = useRef(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
-  const [recado, setRecado] = useState(/** @type {{ texto: string, areaId: string|null, nomeArea: string, nomeAtividade: string } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
@@ -337,8 +335,6 @@ export default function LancamentoAtividades() {
     closeForm();
     setDialogo(null);
     setLancando(null);
-    recadoPendente.current = null;
-    setRecado(null);
     setAreaFiltro("");
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
@@ -682,11 +678,6 @@ export default function LancamentoAtividades() {
 
   const banner = (
     <>
-      {empresaId && acoes.ver ? (
-        <p className="mb-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="atividades-intro">
-          Trabalhos da fazenda — pastos e lavouras. O tipo do trabalho se cadastra em Tipos de atividade, separado daqui.
-        </p>
-      ) : null}
       {aviso}
       {semFuso && acoes.ver ? (
         <AvisoGestao testId="atividades-sem-fuso">
@@ -740,7 +731,7 @@ export default function LancamentoAtividades() {
   };
 
   /**
-   * Os avisos do status (cancelada, concluída, reaberta), acima das abas da atividade aberta (D-PROD-234: valem para as
+   * Os avisos do status (cancelada e concluída; a reabertura fica no histórico, sem aviso), acima das abas da atividade aberta (D-PROD-234: valem para as
    * duas abas).
    * @param {any} a
    */
@@ -762,15 +753,6 @@ export default function LancamentoAtividades() {
             Atividade concluída
             {a.data_conclusao ? ` em ${formatarDiaAtividade(a.data_conclusao)}` : ""}
             {rotuloDoUsuario(a.concluida_por) ? ` por ${rotuloDoUsuario(a.concluida_por)}` : ""}. Ela fica só leitura; para mudar algo, reabra-a.
-          </AvisoGestao>
-        </div>
-      ) : null}
-      {a?.status === STATUS_ABERTA && a?.reaberta_em ? (
-        <div>
-          <AvisoGestao tone="blue" testId="atividade-reaberta">
-            Reaberta em {formatarInstante(a.reaberta_em, LOCALE_ATIVIDADE, fuso)}
-            {rotuloDoUsuario(a.reaberta_por) ? ` por ${rotuloDoUsuario(a.reaberta_por)}` : ""}.
-            {a.motivo_reabertura ? ` Motivo: ${a.motivo_reabertura}` : ""}
           </AvisoGestao>
         </div>
       ) : null}
@@ -871,11 +853,8 @@ export default function LancamentoAtividades() {
             avisos={avisosDaAtividade(registroAberto)}
             onAtividadeAtualizada={aoAtualizarAtividade}
             onLancar={(tipo, aba, areaId) => lancarDoMenu(registroAberto, tipo, aba, areaId ?? null)}
-            onGravouAbastecimento={setRecado}
             onFechar={() => controller.onViewModeChange("table")}
             onConcluir={podeConcluirAberta ? () => abrirDialogo("concluir", registroAberto) : null}
-            recado={recado}
-            onLimparRecado={() => setRecado(null)}
           />
         </CadastroFormShell>
       );
@@ -1010,30 +989,9 @@ export default function LancamentoAtividades() {
             acoes={acoes}
             flags={flagsDoLancando}
             escopo={escopo}
-            onFechar={() => {
-              setLancando(null);
-              if (recadoPendente.current) {
-                setRecado(recadoPendente.current);
-                recadoPendente.current = null;
-              }
-            }}
-            onGravou={
-              lancando.areaId
-                ? (texto) => {
-                    const daArea = areasDaAtividade(lancando.atividade).find((a) => String(a.id) === String(lancando.areaId ?? ""));
-                    recadoPendente.current = {
-                      texto,
-                      areaId: lancando.areaId ?? null,
-                      nomeArea: daArea ? rotuloDaAreaDaAtividade(daArea) : rotuloDaArea(lancando.atividade?.area) || "",
-                      nomeAtividade: String(lancando.atividade?.nome ?? ""),
-                    };
-                  }
-                : undefined
-            }
+            onFechar={() => setLancando(null)}
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
-            abaInicial={lancando.aba}
             areaInicial={lancando.areaId ?? null}
-            areaFixa={Boolean(lancando.areaId)}
           />
         ) : null}
 
@@ -1041,8 +999,9 @@ export default function LancamentoAtividades() {
           <DialogoAcao
             key={`reabrir-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
             aberto
+            janelaBase1
             titulo={`Reabrir a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
-            descricao="A atividade volta a ficar aberta: aceita edição do cabeçalho e apontamentos de novo, e a conclusão é desfeita. A reabertura fica registrada com o motivo. Informe o motivo (pelo menos 3 caracteres)."
+            descricao="A atividade volta a ficar aberta e a conclusão é desfeita. Motivo com pelo menos 3 caracteres."
             rotuloBotao="Reabrir atividade"
             testId="dialogo-reabrir-atividade"
             perigo={false}
@@ -1057,8 +1016,9 @@ export default function LancamentoAtividades() {
           <DialogoAcao
             key={`cancelar-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
             aberto
+            janelaBase1
             titulo={`Cancelar a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
-            descricao="A atividade e os apontamentos confirmados dela são cancelados juntos, com o mesmo motivo. Tudo continua no histórico como cancelado; nada é apagado e nada mais pode ser alterado. Informe o motivo (pelo menos 3 caracteres)."
+            descricao="A atividade e os lançamentos confirmados dela são cancelados juntos e ficam no histórico. Motivo com pelo menos 3 caracteres."
             rotuloBotao="Cancelar atividade"
             testId="dialogo-cancelar-atividade"
             contexto={CONTEXTO_MENSAGENS}

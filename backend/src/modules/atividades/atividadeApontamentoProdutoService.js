@@ -621,7 +621,7 @@ const conflitoDeChave = (/** @type {string} */ operationId) => () =>
 
 /**
  * A unique (cliente_id, apontamento_id, ordem) é a rede da trava da atividade (a ordem nasce sob o FOR UPDATE
- * dela). Só pelo alvo: sem ele, o caminho genérico responde o mesmo 409 transitório (D-PROD-252).
+ * dela). Só pelo alvo: sem ele, o caminho genérico responde o mesmo 409 transitório (D-PROD-253).
  */
 const ORDEM_DA_LINHA = soPeloAlvo(
   () => concurrencyConflict('outra linha entrou neste apontamento ao mesmo tempo; nada foi gravado, tente de novo com a mesma operation_id'),
@@ -631,7 +631,7 @@ const ORDEM_DA_LINHA = soPeloAlvo(
 /**
  * Redes de unique das escritas de linha. A `operation_id` é conferida no início de cada escrita (a linha JÁ
  * gravada é conflito mesmo sem o recibo) e, sem o alvo do P2002 (produção: papel não dono + RLS), de novo depois do
- * rollback (D-PROD-252).
+ * rollback (D-PROD-253).
  * @param {string} clienteId @param {string} operationId
  * @returns {Record<string, import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio>}
  */
@@ -724,7 +724,7 @@ export const lancarLinhaProduto = async (contexto, atividadeId, apontamentoId, c
     fingerprint,
     executar: async (tx) => {
       // A chave de uma linha JÁ gravada é conflito mesmo sem o recibo (apagado ou expurgado), conferida ANTES de
-      // tudo: em produção o P2002 chega sem o alvo (RLS), e a unique fica como última rede (D-PROD-252).
+      // tudo: em produção o P2002 chega sem o alvo (RLS), e a unique fica como última rede (D-PROD-253).
       if (await buscarLinhaPorOperacao(tx, cli, operationId)) throw conflitoDeChave(operationId)();
       const { empresaId, atividade, apontamento } = await abrirEscritaDeLinha(tx, cli, {
         empresaDoCorpo: corpo.empresa_id, atividadeId, apontamentoId, versao: corpo.versao, acao: 'lancar_linha',

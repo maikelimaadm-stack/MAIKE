@@ -198,7 +198,7 @@ Também nesta frente (D5): trocar a ordem das 2 tabelas novas no `c_tenant` do 0
 - `empresas/empresaUniqueViolation.js:17`;
 - `adminMaike/adminClientesGestaoService.js:108`.
 
-A correção pede decisão e PR próprias. **Resolvido pela D-PROD-252** ([`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md)), que também inventariou os mapas do financeiro e os do Lançamento de Atividades (o módulo `atividades`, que substituiu esta fatia na D-PROD-200).
+A correção pede decisão e PR próprias. **Resolvido pela D-PROD-253** ([`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md)), que também inventariou os mapas do financeiro e os do Lançamento de Atividades (o módulo `atividades`, que substituiu esta fatia na D-PROD-200).
 
 - abastecimento ligado ao apontamento (Fatia E): `AbastecimentoBem*` não foi tocado;
 - flags `exige_area`/`pode_ter_*`: não voltaram em lugar nenhum;

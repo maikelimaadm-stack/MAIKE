@@ -157,7 +157,7 @@ describe('DEP-3 — detalhe do depósito', () => {
     await waitFor(() => expect(screen.getByTestId('saldo-litros-pr-diesel')).toBeTruthy());
     expect(valorDe('Saldo atual kg')).toBe('250 kg');
     expect(valorDe('Necessidade reposição kg')).toBe('750 kg');
-    expect(valorDe('Saldo em sacos')).toBe('10,00 sacos');
+    expect(document.querySelector('.mk-dp-linha__sub')?.textContent).toBe('10,00 sacos');
     expect(screen.getByTestId('saldo-litros-pr-diesel').textContent).toBe('5.000,00 L');
     // Sacos do produto em litros: "—" (o sub da linha dele).
     const linhaDiesel = screen.getByTestId('saldo-litros-pr-diesel').closest('[data-unidade-confirmada]');
@@ -174,7 +174,7 @@ describe('DEP-3 — detalhe do depósito', () => {
     dados.movimentacoes = [mov('m1', RACAO, '2026-11-01', 'KG')];
     const { container } = await renderizar();
     await waitFor(() => expect(valorDe('Saldo atual kg')).toBe('250 kg'));
-    expect(valorDe('Saldo em sacos')).toBe('10,00 sacos');
+    expect(document.querySelector('.mk-dp-linha__sub')?.textContent).toBe('10,00 sacos');
     expect(screen.queryByTestId(/^saldo-litros-/)).toBeNull();
     expect(container.textContent).not.toMatch(/\d L\b/);
     // Linha do produto: sacos (sub) e o saldo em kg (valor), lado a lado no texto.

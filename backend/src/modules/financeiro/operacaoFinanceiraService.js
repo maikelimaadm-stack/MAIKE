@@ -106,7 +106,7 @@ const documentoDuplicado = (extra = {}) =>
   });
 const jaEstornada = (liquidacaoId) => new AppError('LIQUIDACAO_JA_ESTORNADA', 'esta liquidação já foi estornada; nada foi gravado', { details: { liquidacao_id: liquidacaoId } });
 /**
- * D-PROD-252: a unique `(cliente_id, empresa_id, direcao, parceiro_id,
+ * D-PROD-253: a unique `(cliente_id, empresa_id, direcao, parceiro_id,
  * documento_chave_ativa)` só pelo alvo. A chave nasce dentro da transação
  * (do rascunho travado ou do documento normalizado) e a MESMA transação a
  * confere sob a trava `chaveDocumento` antes de gravar (confirmar e
@@ -116,7 +116,7 @@ const DOCUMENTO_DUPLICADO_PELO_ALVO = soPeloAlvo(
   () => documentoDuplicado(),
   'pré-conferência do documento sob a trava financeiro:documento (chaveDocumento), em confirmar e retificar'
 );
-/** O estorno da liquidação (unique `(cliente_id, liquidacao_id)`): pré-conferência e conferência sem o alvo (D-PROD-252). */
+/** O estorno da liquidação (unique `(cliente_id, liquidacao_id)`): pré-conferência e conferência sem o alvo (D-PROD-253). */
 const estornoDaLiquidacao = (tx, cli, liquidacaoId) =>
   tx.liquidacaoFinanceiraEstorno.findUnique({ where: { cliente_id_liquidacao_id: { cliente_id: cli, liquidacao_id: liquidacaoId } }, select: { id: true } });
 const dataFutura = ({ hoje, fuso }, dia, field) =>

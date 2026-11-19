@@ -57,7 +57,7 @@ export const atualizarComVersao = async (delegado, { clienteId, id, versao, data
  * Corrida perdida no unique do banco (P2002) → erro de negócio estável, pelo
  * campo EXATO do alvo (`codigo` não casa com `codigo_frota`). Outro erro segue.
  *
- * D-PROD-252: sem o alvo (produção: papel não dono + RLS) nada casa aqui, e o
+ * D-PROD-253: sem o alvo (produção: papel não dono + RLS) nada casa aqui, e o
  * P2002 segue o caminho genérico (409 CONCURRENCY_CONFLICT). Os dois usos não
  * dependem disso: o código de frota (`bemPatrimonialService`) e o código/nome
  * do tipo (`tipoPatrimonialService`) são conferidos SOB TRAVA na mesma

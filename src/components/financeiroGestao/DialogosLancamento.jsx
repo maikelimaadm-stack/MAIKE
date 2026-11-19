@@ -1,6 +1,8 @@
 import React, { useRef, useState } from "react";
 import { AlertTriangle, Ban, Loader2 } from "lucide-react";
 import * as UiDialog from "@/components/ui/dialog";
+import B1Janela from "@/components/cadastro/base1/B1Janela";
+import { useCelular } from "@/components/common/MobileSheet";
 import { EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
 import RateioItensLancamento, { nomesDasClassificacoes } from "@/components/financeiroGestao/RateioItensLancamento";
 
@@ -470,8 +472,11 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   confirmacaoExplicita?: string | null,
  *   icone?: React.ReactNode,
  *   iconeBotao?: React.ReactNode,
+ *   janelaBase1?: boolean,
  * }} props `icone` (opcional): o selo ao lado do título (o "Concluir atividade" da D-PROD-232); `iconeBotao`: o ícone
- *   do botão de envio. Sem eles, o diálogo fica como sempre foi.
+ *   do botão de envio. Sem eles, o diálogo fica como sempre foi. `janelaBase1` (D-PROD-252, emenda 3): o diálogo vira a
+ *   janela padrão do Base1 (`B1Janela`: 680px, corpo que rola, título e ✕ em cima, botões embaixo; tela cheia no
+ *   celular), do mesmo tamanho das janelas de lançamento, em vez da caixa pequena do shadcn.
  */
 export function DialogoAcao({
   aberto,
@@ -489,12 +494,86 @@ export function DialogoAcao({
   confirmacaoExplicita = null,
   icone = null,
   iconeBotao = null,
+  janelaBase1 = false,
 }) {
+  const celular = useCelular();
   const [motivo, setMotivo] = useState("");
   const [ciente, setCiente] = useState(false);
   const { estado, disparar } = useEnvioUnico(onEnviar, contexto);
   const enviando = estado.fase === "enviando";
   const semMotivo = (comMotivo && !motivo.trim()) || (Boolean(confirmacaoExplicita) && !ciente);
+  if (janelaBase1) {
+    return (
+      <B1Janela
+        aberto={aberto}
+        onFechar={onFechar}
+        podeFechar={!enviando}
+        titulo={
+          icone ? (
+            <span className="b1-tipo-titulo">
+              <span className="b1-tipo-titulo__icone" aria-hidden>
+                {icone}
+              </span>
+              {titulo}
+            </span>
+          ) : (
+            titulo
+          )
+        }
+        descricao={descricao || null}
+        testId={testId}
+        className={celular ? "b1-janela--tela-cheia" : ""}
+        contentProps={{ "data-permissao-explicita": "", "data-celular": celular ? "" : undefined, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
+        rodape={
+          <>
+            <button type="button" className="tb-btn" onClick={onFechar} disabled={enviando} data-testid={`${testId}-voltar`}>
+              Voltar
+            </button>
+            <button
+              type="button"
+              className={perigo ? "tb-btn tb-btn-red" : "tb-btn tb-btn-green"}
+              disabled={enviando || semMotivo}
+              data-testid={`${testId}-enviar`}
+              onClick={() => disparar(motivo.trim())}
+            >
+              {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : iconeBotao}
+              {enviando ? "Enviando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : rotuloBotao}
+            </button>
+          </>
+        }
+      >
+        {conteudo ? <div className="min-w-0 text-[13px]">{conteudo}</div> : null}
+        {comMotivo ? (
+          <label className="b1-janela__rotulo">
+            Motivo (obrigatório)
+            <textarea
+              className="b1-janela__ctl"
+              value={motivo}
+              maxLength={500}
+              onChange={(e) => setMotivo(e.target.value)}
+              aria-label="Motivo"
+              data-testid={`${testId}-motivo`}
+            />
+          </label>
+        ) : null}
+        {confirmacaoExplicita ? (
+          <label className="flex min-w-0 items-start gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              className="mt-0.5 shrink-0 accent-red-600"
+              style={{ width: 20, height: 20 }}
+              checked={ciente}
+              disabled={enviando}
+              onChange={(e) => setCiente(e.target.checked)}
+              data-testid={`${testId}-ciente`}
+            />
+            <span className="min-w-0 break-words">{confirmacaoExplicita}</span>
+          </label>
+        ) : null}
+        <AvisoDoEnvio estado={estado} onConsultar={onConsultar} />
+      </B1Janela>
+    );
+  }
   return (
     <Dialog open={aberto} onOpenChange={(o) => (!o && !enviando ? onFechar() : undefined)}>
       <DialogContent data-permissao-explicita="" data-testid={testId} className="max-w-lg">

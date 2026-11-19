@@ -259,7 +259,7 @@ const travarFazenda = (tx, clienteId, empresaId) => travarEscopo(tx, `culturas:$
  * Corrida perdida contra um unique (código ou nome) → 409 estável, nunca 500,
  * pelo alvo do P2002 (o código, se o alvo o cita; senão, o nome).
  *
- * D-PROD-252: sem o alvo (produção: papel não dono + RLS) nada casa aqui e o
+ * D-PROD-253: sem o alvo (produção: papel não dono + RLS) nada casa aqui e o
  * P2002 segue o caminho genérico (409 CONCURRENCY_CONFLICT), nunca "nome" por
  * palpite (antes, todo P2002 sem alvo virava `CULTURA_NAME_CONFLICT`, mesmo o
  * do código). Não depende disso: todo escritor (criar, atualizar, lista de

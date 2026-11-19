@@ -184,7 +184,7 @@ describe('D-PROD-205 — detalhe do cocho', () => {
         <DetalhesPontoSuplementacao ponto={PONTO} permissions={permissions} onClose={() => {}} />
       </QueryClientProvider>,
     );
-    await screen.findByText('Informações do cocho');
+    await screen.findByRole('region', { name: 'Leitura do cocho' });
     await act(async () => {});
   };
   const secao = () => screen.getByRole('region', { name: 'Leitura do cocho' });
@@ -208,12 +208,13 @@ describe('D-PROD-205 — detalhe do cocho', () => {
     await waitFor(() => expect(within(secao()).getByTestId('farol-cocho')).toHaveAttribute('data-cor', 'vermelho'));
     expect(within(secao()).getByText('Cocho vazio')).toBeTruthy();
     expect(within(secao()).getByText(/JOÃO/)).toBeTruthy();
-    expect(within(secao()).getAllByTestId('aviso-leitura-cocho').map((a) => a.textContent)).toEqual([
-      'Acesso ruim ao cocho (leitura de 12/11/2026)', 'Estrutura quebrada (leitura de 12/11/2026)',
-    ]);
-    const resumoPrincipal = secao();
-    expect(within(resumoPrincipal).queryByRole('list')).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Histórico' })); });
+    // Detalhe compacto: acesso e estrutura da última leitura aparecem na linha do farol (sem faixas repetidas).
+    const linhaFarol = within(secao()).getByTestId('farol-cocho').closest('.mk-dp-linha');
+    expect(linhaFarol.querySelector('.mk-dp-linha__sub')?.textContent).toBe('Escore vazio · acesso ruim · estrutura quebrada');
+    expect(linhaFarol.querySelector('.mk-dp-linha__val')?.textContent).toBe('12/11/2026 · JOÃO');
+    expect(within(secao()).queryAllByTestId('aviso-leitura-cocho')).toHaveLength(0);
+    expect(within(secao()).queryByRole('list')).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Histórico' })); });
     const itens = within(screen.getByRole('list', { name: 'Últimas leituras' })).getAllByRole('listitem');
     expect(itens).toHaveLength(2);
     // A mais recente primeiro: data, escore · acesso · estrutura e a observação.
@@ -235,7 +236,9 @@ describe('D-PROD-205 — detalhe do cocho', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }));
     });
     expect(servico.excluir).toHaveBeenCalledWith('l-2');
-    await waitFor(() => expect(within(resumoPrincipal).getByTestId('farol-cocho')).toHaveAttribute('data-cor', 'azul'));
+    // O farol fica na aba Detalhes: volta a ela e confere a nova última leitura (11/11, CHEIO).
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Detalhes' })); });
+    await waitFor(() => expect(within(secao()).getByTestId('farol-cocho')).toHaveAttribute('data-cor', 'azul'));
   });
 
   it('sem lancar_suplementacao não há "Excluir" nas leituras', async () => {

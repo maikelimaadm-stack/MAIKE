@@ -417,7 +417,7 @@ export const adicionarArea = async (contexto, atividadeId, corpo) => {
       await registrarEvento(contexto, { acao: 'atividade.area.adicionar', entidade: ENTIDADE_AREA_DA_ATIVIDADE, entidadeId: id, dadosNovos: paraAuditoria(area) }, tx);
       return { area: comoAreaDaAtividadePublica(area), atividade: await carregarAtividadeDetalhe(tx, cli, empresaId, atividadeId) };
     },
-    // A unique (cliente_id, empresa_id, atividade_id, area_id) é a rede da pré-conferência acima. D-PROD-252: sem o
+    // A unique (cliente_id, empresa_id, atividade_id, area_id) é a rede da pré-conferência acima. D-PROD-253: sem o
     // alvo do P2002 (produção: papel não dono + RLS), a mesma área é conferida depois do rollback.
     {
       area_id: {

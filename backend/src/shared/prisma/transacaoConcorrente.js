@@ -17,11 +17,11 @@
  *    `CONCURRENCY_CONFLICT`: a transação inteira voltou, nada foi gravado;
  *  - P2002 de uma unique de `unicos` → o erro de negócio dado (a unique do
  *    banco é a rede da corrida). Com o alvo do P2002, pelo trecho do alvo,
- *    como sempre; SEM o alvo (produção, D-PROD-252), pela conferência da
+ *    como sempre; SEM o alvo (produção, D-PROD-253), pela conferência da
  *    chave depois do rollback (`UniqueDeNegocio`);
  *  - `AppError` e qualquer outro erro seguem intactos.
  *
- * D-PROD-252 — por que o alvo não basta. Em produção o runtime (`maike_vercel`)
+ * D-PROD-253 — por que o alvo não basta. Em produção o runtime (`maike_vercel`)
  * não é dono das tabelas e elas têm RLS: o PostgreSQL omite o DETAIL da
  * violação de unique, e o Prisma 6.19 devolve o P2002 com o alvo (`target`) nulo
  * ("Unique constraint failed on the (not available)"). O nome da constraint
@@ -90,10 +90,10 @@ export const ehConflitoTransitorio = (erro) => {
   return /deadlock detected|could not serialize access|due to lock timeout|code: "(40P01|40001|55P03)"/.test(String(e?.message ?? ''));
 };
 
-// ─── unique de negócio sem o alvo do P2002 (D-PROD-252) ─────────────────────
+// ─── unique de negócio sem o alvo do P2002 (D-PROD-253) ─────────────────────
 
 /**
- * Unique de NEGÓCIO de um mapa `unicos` do `emTransacao` (D-PROD-252).
+ * Unique de NEGÓCIO de um mapa `unicos` do `emTransacao` (D-PROD-253).
  *
  *  - `erro`: o erro de negócio da unique;
  *  - `conferir(tx)`: a chave que ESTA transação tentou ocupar já está ocupada?
@@ -143,7 +143,7 @@ export const chaveOcupada = async (conferir) => {
 };
 
 /**
- * Entrada reconhecida SÓ pelo alvo (o comportamento de antes da D-PROD-252),
+ * Entrada reconhecida SÓ pelo alvo (o comportamento de antes da D-PROD-253),
  * para unique cuja chave nasce dentro da transação e que a MESMA transação já
  * confere sob trava antes de escrever: sem o alvo, o P2002 segue o caminho
  * genérico (409 `CONCURRENCY_CONFLICT`) e o reenvio cai na pré-conferência,
@@ -188,7 +188,7 @@ export const traduzirUniqueDeNegocio = async (erro, unicos) => {
  * @template T
  * @param {{ maxWait?: number, timeout?: number, lockTimeoutMs?: number }} opcoes
  * @param {(tx: any) => Promise<T>} fn
- * @param {Record<string, UniqueDeNegocio>} [unicos] trecho do alvo do P2002 → unique de negócio (D-PROD-252)
+ * @param {Record<string, UniqueDeNegocio>} [unicos] trecho do alvo do P2002 → unique de negócio (D-PROD-253)
  * @param {string} [mensagem] mensagem do 409 CONCURRENCY_CONFLICT
  * @returns {Promise<T>}
  */

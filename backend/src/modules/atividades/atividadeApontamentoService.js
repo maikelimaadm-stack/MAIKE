@@ -184,7 +184,7 @@ export const TIPOS_OPERACAO_APONTAMENTO = Object.freeze({
  * A unique (atividade, dia, turno, sequência) é a rede do banco: um escritor
  * fora da trava da atividade que levasse a mesma sequência vira 409, nunca 500
  * (o trecho casa tanto a lista de colunas do P2002 quanto o nome do índice).
- * D-PROD-252: só pelo alvo; a sequência nasce sob a trava da atividade e, sem
+ * D-PROD-253: só pelo alvo; a sequência nasce sob a trava da atividade e, sem
  * o alvo, o caminho genérico responde o mesmo 409 transitório.
  */
 const UNICOS = Object.freeze({
@@ -200,7 +200,7 @@ const UNICOS = Object.freeze({
  * EXATAS)? A linha de máquina do lançamento deriva a chave do id do apontamento
  * (`criarLinhasMaquina`), novo a cada lançamento, e não colide. A
  * pré-conferência do lançamento com chave e a conferência sem o alvo do P2002
- * (D-PROD-252).
+ * (D-PROD-253).
  * @param {any} tx @param {string} clienteId @param {string} chave
  * @returns {Promise<boolean>}
  */
@@ -690,7 +690,7 @@ const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerpr
             return { httpStatus: 201, body: await executar(tx) };
           },
         }),
-      // D-PROD-252: sem o alvo do P2002 (produção: papel não dono + RLS), a mesma conferência depois do rollback.
+      // D-PROD-253: sem o alvo do P2002 (produção: papel não dono + RLS), a mesma conferência depois do rollback.
       { ...UNICOS, operation_id: { erro: conflito, conferir: (tx) => chaveDoLancamentoOcupada(tx, cli, chave) } }
     );
     return { ...r.body, replay: r.replay };

@@ -1,7 +1,9 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, CircleCheck, Info } from "lucide-react";
-import { CampoDia } from "@/components/financeiroGestao/CamposLancamento";
+import { Check, CircleCheck } from "lucide-react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import { SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { CampoDia, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { chaveTotais, resumoParaConcluir } from "@/lib/atividadeLinhasRegras";
@@ -13,14 +15,12 @@ import { obterAtividade, obterTotaisAtividade } from "@/services/lancamentoAtivi
 /** Formatação das mensagens do diálogo de ação. */
 const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL", casas: 2 });
 
-/** Linha do resumo: rótulo à esquerda, valor à direita (em negrito). */
-const LINHA = "flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5";
-
 /**
- * "Concluir atividade" (D-PROD-232, protótipo do proprietário), no diálogo de ação do sistema: o selo e o título com o
- * nome da atividade; o resumo (período e dias lançados, área feita / planejada com a barra, custo total, custo por
- * hectare e combustível); a data de conclusão (a regra de sempre, `erroDaDataDeConclusao`, conferida por quem envia);
- * o aviso quando a área feita é menor que a planejada; a nota de que a concluída fica só para consulta.
+ * "Concluir atividade" (D-PROD-232; emenda 3 da D-PROD-252: na janela padrão do Base1, 680px): o título com o selo; o
+ * Resumo (período, área feita, custo total, custo por hectare e combustível, campos de leitura na grade de duas
+ * colunas); a Conclusão (a data, a regra de sempre, `erroDaDataDeConclusao`, conferida por quem envia) e, só quando há,
+ * as áreas que ainda não estão concluídas. Sem nome da atividade, barra, aviso de área que falta (a "Área feita" já mostra
+ * feita / planejada) nem notas.
  *
  * Os números vêm do servidor e de nada mais: `GET /atividades/:id/totais` (o mesmo do totalizador) e, para os dias
  * lançados, o detalhe da atividade (`totais.dias_com_apontamento`; lido só quando a atividade não o traz). Sem o valor,
@@ -69,14 +69,14 @@ export default function DialogoConcluirAtividade({ atividade, empresaId, hoje, d
   /** @param {string|null} v @param {boolean} lendo */
   const valor = (v, lendo) => v ?? (lendo ? "…" : "—");
 
-  const nome = String(atividade?.nome ?? "").trim();
-  const numero = atividade?.numero != null ? `Nº ${atividade.numero}` : "";
+  const pendentes = areasDaAtividade(atividade).filter((a) => a.status !== STATUS_AREA.CONCLUIDA);
 
   return (
     <DialogoAcao
       aberto
+      janelaBase1
       titulo="Concluir atividade"
-      descricao={[numero, nome.toLocaleUpperCase("pt-BR")].filter(Boolean).join(" · ")}
+      descricao=""
       icone={<CircleCheck size={20} strokeWidth={2} />}
       iconeBotao={<Check size={16} aria-hidden />}
       rotuloBotao="Concluir atividade"
@@ -85,112 +85,42 @@ export default function DialogoConcluirAtividade({ atividade, empresaId, hoje, d
       perigo={false}
       contexto={CONTEXTO_MENSAGENS}
       conteudo={
-        <div className="flex min-w-0 flex-col gap-3">
-          <dl
-            className="min-w-0 divide-y divide-[var(--mg-divider,#E8E7E2)] overflow-hidden rounded-[10px] border border-[var(--mg-divider,#E8E7E2)] bg-white"
-            data-testid="concluir-resumo"
-          >
-            <div className={LINHA}>
-              <dt className="text-[var(--mg-text-2,#475569)]">Período</dt>
-              <dd className="text-right font-semibold" data-testid="concluir-resumo-periodo">
-                {valor(resumo.periodo, lendoDias)}
-              </dd>
-            </div>
-            <div className="px-3.5 py-2.5">
-              <div className="flex min-w-0 items-center justify-between gap-3">
-                <dt className="text-[var(--mg-text-2,#475569)]">Área feita</dt>
-                <dd className="text-right font-semibold" data-testid="concluir-resumo-area">
-                  {valor(resumo.area, lendoTotais)}
-                </dd>
-              </div>
-              {resumo.barra !== null ? (
-                <div
-                  className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#ECEBE6]"
-                  role="progressbar"
-                  aria-label="Área feita"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={resumo.barra}
-                  data-testid="concluir-resumo-barra"
-                >
-                  <div className="h-full rounded-full bg-emerald-600" style={{ width: `${resumo.barra}%` }} />
-                </div>
-              ) : null}
-            </div>
-            <div className={LINHA}>
-              <dt className="text-[var(--mg-text-2,#475569)]">Custo total</dt>
-              <dd className="text-right font-semibold tabular-nums" data-testid="concluir-resumo-custo">
-                {valor(resumo.custo, lendoTotais)}
-              </dd>
-            </div>
-            <div className={LINHA}>
-              <dt className="text-[var(--mg-text-2,#475569)]">Custo por hectare</dt>
-              <dd className="text-right font-semibold tabular-nums" data-testid="concluir-resumo-custo-ha">
-                {valor(resumo.custoPorHa, lendoTotais)}
-              </dd>
-            </div>
-            <div className={LINHA}>
-              <dt className="text-[var(--mg-text-2,#475569)]">Combustível</dt>
-              <dd className="text-right font-semibold tabular-nums" data-testid="concluir-resumo-combustivel">
-                {valor(resumo.combustivel, lendoTotais)}
-              </dd>
-            </div>
-          </dl>
+        <div className="b1 mg-b1-form-grid" data-densidade={DENSIDADE_BASE1}>
+          <SecaoForm titulo="Resumo" />
+          <ValorCalculado label="Período" valor={valor(resumo.periodo, lendoDias)} span={6} testId="concluir-resumo-periodo" />
+          <ValorCalculado label="Área feita" valor={valor(resumo.area, lendoTotais)} span={6} testId="concluir-resumo-area" />
+          <ValorCalculado label="Custo total" valor={valor(resumo.custo, lendoTotais)} span={6} testId="concluir-resumo-custo" />
+          <ValorCalculado label="Custo por hectare" valor={valor(resumo.custoPorHa, lendoTotais)} span={6} testId="concluir-resumo-custo-ha" />
+          <ValorCalculado label="Combustível" valor={valor(resumo.combustivel, lendoTotais)} span={6} testId="concluir-resumo-combustivel" />
           {totaisQuery.isError ? (
-            <p className="text-[12px] text-amber-800" data-testid="concluir-resumo-erro">
+            <p className="col-span-12 text-[12px] text-amber-800" data-testid="concluir-resumo-erro">
               Não foi possível ler os custos agora; a conclusão não depende deles.
             </p>
           ) : null}
-          <div className="cadastro-b1">
-            <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2">
-              <CampoDia
-                label="Data de conclusão"
-                value={dataConclusao}
-                onChange={onDataConclusao}
-                min={ehDiaValido(atividade?.data_inicio) ? String(atividade.data_inicio) : undefined}
-                max={hoje || undefined}
-                required
-                span={12}
-                error={erroData}
-                testId="dialogo-concluir-atividade-data"
-              />
-            </div>
-          </div>
-          {areasDaAtividade(atividade).some((a) => a.status !== STATUS_AREA.CONCLUIDA) ? (
-            <div className="min-w-0 rounded-[10px] border border-[var(--mg-divider,#E8E7E2)] bg-white px-3.5 py-2.5 text-[12.5px]" data-testid="concluir-areas">
-              <p className="font-semibold">Áreas que ainda não estão concluídas</p>
-              <ul className="mt-1 space-y-0.5">
-                {areasDaAtividade(atividade)
-                  .filter((a) => a.status !== STATUS_AREA.CONCLUIDA)
-                  .map((a) => (
-                    <li key={String(a.id)} className="flex min-w-0 justify-between gap-3" data-testid={`concluir-area-${a.id}`}>
-                      <span className="min-w-0 truncate">{rotuloDaAreaDaAtividade(a)}</span>
-                      <span className="shrink-0 text-[var(--mg-text-2,#475569)]">
-                        {a.status === STATUS_AREA.EM_ANDAMENTO
-                          ? `conclui junto${dataConclusao ? ` em ${formatarDiaAtividade(dataConclusao)}` : ""}`
-                          : "fica não iniciada"}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
+          <SecaoForm titulo="Conclusão" />
+          <CampoDia
+            label="Data de conclusão"
+            value={dataConclusao}
+            onChange={onDataConclusao}
+            min={ehDiaValido(atividade?.data_inicio) ? String(atividade.data_inicio) : undefined}
+            max={hoje || undefined}
+            required
+            span={6}
+            error={erroData}
+            testId="dialogo-concluir-atividade-data"
+          />
+          {pendentes.length ? (
+            <div className="col-span-12 min-w-0" data-testid="concluir-areas">
+              {pendentes.map((a) => (
+                <p key={String(a.id)} className="b1-janela__linha" data-testid={`concluir-area-${a.id}`}>
+                  <span className="min-w-0 truncate">{rotuloDaAreaDaAtividade(a)}</span>
+                  <span className="shrink-0 text-[#73726C]">
+                    {a.status === STATUS_AREA.EM_ANDAMENTO ? `conclui junto${dataConclusao ? ` em ${formatarDiaAtividade(dataConclusao)}` : ""}` : "fica não iniciada"}
+                  </span>
+                </p>
+              ))}
             </div>
           ) : null}
-          {resumo.falta ? (
-            <p
-              role="status"
-              className="flex min-w-0 items-start gap-2 rounded-[10px] border border-cyan-100 bg-cyan-50 px-3 py-2.5 text-[12.5px] text-cyan-800"
-              data-testid="concluir-falta-area"
-            >
-              <Info size={15} className="mt-[1px] shrink-0" aria-hidden />
-              <span className="min-w-0 break-words">
-                Faltam {resumo.falta.faltam} {resumo.falta.unidade} dos {resumo.falta.planejada} planejados. Pode concluir assim mesmo: a área fica como
-                foi lançada.
-              </span>
-            </p>
-          ) : null}
-          <p className="text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="concluir-nota">
-            Concluída, a atividade fica só para consulta. Dá para reabrir depois.
-          </p>
         </div>
       }
       onFechar={onFechar}
