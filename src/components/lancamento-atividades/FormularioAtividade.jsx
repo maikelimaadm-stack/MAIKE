@@ -36,7 +36,6 @@ import {
   normalizarPaginaDeOpcoes,
   validarFormularioAtividade,
 } from "@/lib/atividadeApontamentoRegras";
-import { textoDoQuePodeRegistrar } from "@/lib/atividadeFluxoCampo";
 import { listarAreasAtivas } from "@/services/mapaService";
 import { listarTarefasDaEmpresa } from "@/services/tarefasMapaService";
 import { listarTiposAtividade } from "@/services/tipoAtividadeCadastroService";
@@ -158,7 +157,6 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
   const tipo = tipos.find((t) => String(t?.id) === tipoId) ?? null;
   const exigencias = exigenciasDoTipo(tipo);
   const nomeDoTipo = existente ? String(atividade?.tipo_atividade_nome ?? "") : String(tipo?.nome_tipo ?? "");
-  const nomeDoGrupo = existente ? String(atividade?.grupo_atividade_nome ?? "") : String(tipo?.grupo_atividade_nome ?? "");
   const heranca = existente ? herancaGravada(atividade) : herancaDoTipo(tipo, empresaId);
   // Por que um padrão do tipo NÃO vem (inativo, de outra fazenda): a pessoa vê antes de abrir.
   const notasDaHeranca = /** @type {string[]} */ (
@@ -366,12 +364,7 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
           error={erros.tipo_atividade_id}
         />
       )}
-      <CampoTexto label="Grupo de atividade" value={nomeDoGrupo} onChange={() => {}} readOnly span={6} />
-      {tipo ? (
-        <p className="col-span-12 -mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="atividade-tipo-registra">
-          Este tipo permite registrar: {textoDoQuePodeRegistrar(tipo).toLowerCase()}.
-        </p>
-      ) : null}
+      {/* D-PROD-258: Grupo e "o que o tipo permite" (as 8 chaves) saíram da tela; o servidor continua gravando o grupo. */}
 
       <SecaoForm titulo="Onde e com o quê" />
       {!existente ? (
