@@ -192,6 +192,32 @@ describe('D-PROD-259 — abas e botão', () => {
 });
 
 describe('D-PROD-259 — Entrada', () => {
+  it('cada produto é um cartão de linha inteira com grade própria (a grade compacta de 4 colunas da Base1 não pode achatar a linha)', async () => {
+    const janela = await abrirNovoMovimento();
+    fireEvent.click(within(janela).getByTestId('entrada-adicionar-produto'));
+    for (const i of [0, 1]) {
+      const linha = within(janela).getByTestId(`entrada-linha-${i}`);
+      expect(linha.className).toContain('b1-form-embutido');
+      expect(linha.className).not.toContain('mg-b1-form-grid');
+      // Os campos ficam numa grade DENTRO do cartão (não são filhos diretos da grade do formulário).
+      const grade = /** @type {HTMLElement} */ (linha.firstElementChild);
+      expect(grade.className).toContain('grid-cols-12');
+      expect(grade.contains(within(linha).getByTestId(`entrada-linha-${i}-produto`))).toBe(true);
+    }
+  });
+
+  it('no celular a folha de uma lista nasce DENTRO da janela (senão a janela modal cobre a folha e as opções não recebem o toque)', async () => {
+    celular(true);
+    const janela = await abrirNovoMovimento();
+    await act(async () => fireEvent.click(within(janela).getByTestId('entrada-linha-0-produto')));
+    const folha = await waitFor(() => {
+      const f = document.querySelector('.mk-sheet-root');
+      expect(f).not.toBeNull();
+      return /** @type {HTMLElement} */ (f);
+    });
+    expect(janela.contains(folha)).toBe(true);
+  });
+
   it('enviar vazio mostra o que falta e NÃO chama o servidor', async () => {
     const janela = await abrirNovoMovimento();
     await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));

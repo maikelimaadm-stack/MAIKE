@@ -87,6 +87,34 @@ const linha = (extras = {}) => ({ modulo_id: 'suporte-mapa', tela_id: 'sup-estoq
 const estoqueAtual = async (p) => Number((await prisma().produto.findUnique({ where: { id: p.id } })).estoque_atual);
 
 describe('D-PROD-257 — criar com cada motivo (o motor grava camada, movimento e cache)', () => {
+  test('VÁRIOS PRODUTOS (pedido do proprietário): Compra com 2 produtos e Saldo de implantação com 2 produtos gravam 2 itens, 2 movimentos e o estoque de cada um', async () => {
+    const x = await cenario();
+    const outroLocal = await local(x.c, 'Depósito 2');
+    const compra = await chamar('POST', '/estoque/entradas', x.token, {
+      ...corpoDe(x, { motivo: 'COMPRA', documento_numero: 'NF 10' }),
+      itens: [
+        { produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '100', custo_unitario: '3.5' },
+        { produto_id: x.sal.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '50', custo_unitario: '2' },
+        { produto_id: x.ureia.id, local_estoque_id: outroLocal.id, unidade: 'KG', quantidade: '10', custo_unitario: '3.5' },
+      ],
+    });
+    assert.equal(compra.statusCode, 201, compra.body);
+    assert.equal(compra.json().itens.length, 3);
+    assert.equal(await estoqueAtual(x.ureia), 110);
+    assert.equal(await estoqueAtual(x.sal), 50);
+    const y = await cenario();
+    const impl = await chamar('POST', '/estoque/entradas', y.token, {
+      ...corpoDe(y),
+      itens: [
+        { produto_id: y.ureia.id, local_estoque_id: y.galpao.id, unidade: 'KG', quantidade: '100', custo_unitario: '3.5' },
+        { produto_id: y.sal.id, local_estoque_id: y.galpao.id, unidade: 'SACO', quantidade: '2', custo_unitario: '50' },
+        { produto_id: y.diesel.id, local_estoque_id: y.galpao.id, unidade: 'L', quantidade: '30', custo_unitario: '6' },
+      ],
+    });
+    assert.equal(impl.statusCode, 201, impl.body);
+    assert.equal(impl.json().itens.length, 3);
+  });
+
   test('SALDO_IMPLANTACAO: 201, camada com o custo, movimento entrada_saldo_implantacao numerado, cache += kg, evento e AuditLog', async () => {
     const x = await cenario();
     const r = await criar(x, { observacao: 'contagem inicial' });
