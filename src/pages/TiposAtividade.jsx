@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   notifyError,
   notifyExclusoesEmpilhadas,
@@ -10,6 +10,7 @@ import { API_ERROR_CODES, getApiErrorMessage } from "@/apis/_core/ApiError";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import FormularioTipoAtividade, {
   FORMULARIO_TIPO_ATIVIDADE_ID,
+  rotuloDaCategoriaTipoAtividade,
 } from "@/components/tipos-atividade/FormularioTipoAtividade";
 import TabelaTiposAtividade, {
   TIPOS_ATIVIDADE_COLUNAS,
@@ -17,34 +18,24 @@ import TabelaTiposAtividade, {
   getTipoAtividadeFieldValue,
 } from "@/components/tipos-atividade/TabelaTiposAtividade";
 import {
-  listarGruposSimples,
   listarTiposAtividade,
   criarTipoAtividade,
   atualizarTipoAtividade,
   excluirTiposAtividade,
 } from "@/services/tipoAtividadeCadastroService";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
-import { useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 
 const QUERY_KEY = ["tipos-atividade"];
 
 /**
- * Cadastro de tipos de atividade (D-PROD-182; padrões e flags, D-PROD-197).
+ * Cadastro de operações — o "tipo de atividade" de antes (D-PROD-182; D-PROD-257).
  *
- * O tipo é do cliente; os centros padrão são da fazenda: o formulário oferece
- * os da fazenda SELECIONADA (a mesma empresa real do Lançamento de Atividades).
+ * Só três campos: tipo fixo (um dos 7), nome e ativo. O servidor completa o resto.
  */
 export default function TiposAtividade() {
   const queryClient = useQueryClient();
-  const empresaId = useEmpresaRealSelecionadaId();
   const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
   const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
-
-  const { data: grupos = [] } = useQuery({
-    queryKey: ["grupos-atividades"],
-    queryFn: () => listarGruposSimples(),
-    initialData: [],
-  });
 
   const fetchAll = useCallback(() => listarTiposAtividade(), []);
 
@@ -57,16 +48,16 @@ export default function TiposAtividade() {
     exportFileName: "tipos-atividade.csv",
     exportColumns: TIPOS_ATIVIDADE_COLUNAS,
     getExportFieldValue: (/** @type {any} */ item, /** @type {string} */ colId) =>
-      getTipoAtividadeFieldValue(item, colId, grupos),
+      getTipoAtividadeFieldValue(item, colId),
     getRecordTitle: (/** @type {any} */ item) =>
       item?.id ? item.nome_tipo || "Tipo de atividade" : "Novo tipo de atividade",
     getRecordCode: () => undefined,
     getSearchHaystack: (/** @type {any} */ t) =>
-      [t.nome_tipo, t.grupo_atividade_nome, t.descricao].filter(Boolean).join(" "),
+      [t.nome_tipo, rotuloDaCategoriaTipoAtividade(t.categoria)].filter(Boolean).join(" "),
     mapSearchSuggestion: (/** @type {any} */ t) => ({
       id: String(t.id),
       label: t.nome_tipo || "Tipo de atividade",
-      secondary: t.grupo_atividade_nome || undefined,
+      secondary: rotuloDaCategoriaTipoAtividade(t.categoria) || undefined,
     }),
     matchRowId: (/** @type {any} */ t, /** @type {string} */ id) => String(t.id) === String(id),
     getRowId: (/** @type {any} */ t) => String(t.id),
@@ -187,7 +178,7 @@ export default function TiposAtividade() {
       listErrorMessage={listErrorMessage}
       listBanner={
         <p className="mb-2 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="tipos-intro">
-          Cadastro separado do dia a dia. Aqui se define o tipo uma vez. No campo, a equipe abre a atividade, escolhe o tipo e registra o que foi feito em cada área.
+          Cada operação (gradeação, calagem, roçada…) pertence a um dos 7 tipos fixos. No campo, a equipe escolhe o tipo, depois a operação, e registra o serviço feito na área.
         </p>
       }
       deleteDialog={{
@@ -206,8 +197,6 @@ export default function TiposAtividade() {
           readOnly={!controller.isEditing}
           isSubmitting={saving}
           initialData={controller.editingItem}
-          grupos={grupos}
-          empresaId={empresaId}
           isEditing={!!controller.editingItem?.id}
           onSubmit={controller.handleSubmit}
           onCancel={controller.cancelForm}
@@ -216,7 +205,6 @@ export default function TiposAtividade() {
       listSlot={
         <TabelaTiposAtividade
           tipos={controller.visibleRows}
-          grupos={grupos}
           onEdit={controller.handleEdit}
           onDelete={controller.handleRequestDelete}
           isLoading={controller.isLoading}

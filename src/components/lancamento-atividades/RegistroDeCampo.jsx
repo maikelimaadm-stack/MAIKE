@@ -24,6 +24,7 @@ import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda }
 import { useAuth } from "@/lib/AuthContext";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
+import { TIPOS_FIXOS_ATIVIDADE, operacoesDoTipoFixo, tipoFixoDaOperacao } from "@/lib/tiposFixosAtividade";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, MAX_OBSERVACAO_ATIVIDADE, STATUS_ABERTA, mensagemDoAlertaAtividade, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
 import { RAIZ_CONSULTAS_ATIVIDADES, corpoDoApontamento, formularioApontamentoVazio, normalizarPaginaDeOpcoes, validarFormularioApontamento } from "@/lib/atividadeApontamentoRegras";
@@ -55,22 +56,25 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  * e no "Registrar" do Lançamento de Atividades (a pessoa escolhe a área e o tipo). Uma janela Base1 de um nível só
  * (680px no desktop; `b1-janela--tela-cheia` no celular), em grupos (`SecaoForm` + `mg-b1-form-grid`).
  *
- * Os campos vêm das flags do TIPO de atividade e são os MESMOS dos formulários de linha (`JanelasDaLinha`: máquina com
- * implemento e medidor, produto com saldo e dose/ha, mão de obra, serviço): nenhuma regra de negócio é copiada. Máquina
- * aparece quando o tipo exige máquina ou permite implemento; produto, mão de obra e serviço, pelas flags `permite_*`.
- * Hectares feitos, operador e observação são do dia.
+ * D-PROD-257 — dois passos: primeiro o TIPO FIXO (os 7 serviços de pasto), depois a OPERAÇÃO (o "tipo de atividade" do
+ * cadastro, filtrado pelo tipo escolhido). As QUATRO seções — Máquinas, Insumos, Mão de obra e Serviço de terceiro — ficam
+ * sempre à mostra e todas são opcionais (uma linha por seção nesta fase); o servidor segue sendo quem recusa o que a operação
+ * não aceitar. Os campos são os MESMOS dos formulários de linha (`JanelasDaLinha`: máquina com implemento e medidor, produto
+ * com saldo e dose/ha, mão de obra, serviço): nenhuma regra de negócio é copiada. Hectares feitos, operador e observação
+ * são do dia.
  *
  * Um envio só (`POST /atividades/registrar`, via `registrarCampo`): o servidor acha a atividade ABERTA do tipo que já tem a
  * área no mês — ou abre uma — e grava o registro do dia com as linhas numa transação. O cliente nunca encadeia chamadas.
  *
  * @param {{
  *   tipo?: any | null,
- *   tipos?: any[],
+ *   tipos?: any[],   // as operações (tipos de atividade) ativas
  *   area?: any | null,
  *   areas?: any[],
  *   onFechar: () => void,
  *   onGravou?: (resposta: any) => void,
- * }} props `tipo` / `area` presos (detalhes da área); sem eles, a pessoa escolhe entre `tipos` / `areas`.
+ * }} props `area` presa (detalhes da área, Manejos); `tipo` (operação) preso só se alguém precisar; sem eles, a pessoa escolhe
+ *   entre os 7 tipos fixos, as operações de `tipos` e as `areas`.
  */
 export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: todosOsTipos = [], area: areaPreso = null, areas = [], onFechar, onGravou = undefined }) {
   const queryClient = useQueryClient();
@@ -86,19 +90,22 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
 
   // ─── Tipo e área (presos ou escolhidos) ──────────────────────────────
+  const [tipoFixo, setTipoFixo] = useState(() => (tipoPreso ? tipoFixoDaOperacao(tipoPreso) : ""));
   const [tipoEscolhido, setTipoEscolhido] = useState("");
   const [areaEscolhida, setAreaEscolhida] = useState("");
-  const tipo = tipoPreso ?? tipos.find((t) => String(t.id) === tipoEscolhido) ?? null;
+  const operacoes = useMemo(() => operacoesDoTipoFixo(tipos, tipoFixo), [tipos, tipoFixo]);
+  const tipo = tipoPreso ?? operacoes.find((t) => String(t.id) === tipoEscolhido) ?? null;
   const area = areaPreso ?? areas.find((a) => String(a.id) === areaEscolhida) ?? null;
+  // D-PROD-257: as quatro seções são sempre oferecidas. Só as chaves que EXIGEM dado (operação antiga) ainda valem.
   const flags = {
     exigeMaquina: tipo?.exige_maquina === true,
     exigeSafra: tipo?.exige_safra === true,
-    permiteImplemento: tipo?.permite_implemento === true,
-    permiteProduto: tipo?.permite_produto === true,
-    permiteMaoObra: tipo?.permite_mao_obra === true,
-    permiteServico: tipo?.permite_servico === true,
+    permiteImplemento: true,
+    permiteProduto: true,
+    permiteMaoObra: true,
+    permiteServico: true,
   };
-  const comMaquina = flags.exigeMaquina || flags.permiteImplemento;
+  const comMaquina = true;
 
   // ─── O dia: hoje na fazenda por padrão, nunca depois ──────────────────
   const [dia, setDia] = useState(hoje || "");
@@ -173,7 +180,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const montarCorpo = () => {
     /** @type {Record<string, string>} */
     const e = {};
-    if (!tipo?.id) e.tipo = "Escolha o tipo de atividade.";
+    if (!tipoFixo) e.tipoFixo = "Escolha o tipo.";
+    if (!tipo?.id) e.tipo = "Escolha a operação.";
     if (!area?.id) e.area = "Escolha a área.";
     const doDia = { ...formularioApontamentoVazio(dia), operador, area_executada_dia: hectares, observacao };
     const vDia = validarFormularioApontamento(doDia, { hoje });
@@ -311,20 +319,43 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           />
         )}
         {tipoPreso ? null : (
-          <CampoSelect
-            label="Tipo de atividade"
-            value={tipoEscolhido}
-            onChange={(v) => {
-              setTipoEscolhido(v);
-              esquecerUltimo();
-              limparErros(["tipo"]);
-            }}
-            options={tipos.map((t) => ({ value: String(t.id), label: t.nome_tipo }))}
-            placeholder="Escolha o tipo"
-            required
-            span={12}
-            error={erros.tipo}
-          />
+          <>
+            <CampoSelect
+              label="Tipo"
+              value={tipoFixo}
+              onChange={(v) => {
+                setTipoFixo(v);
+                setTipoEscolhido("");
+                esquecerUltimo();
+                limparErros(["tipoFixo", "tipo"]);
+              }}
+              options={TIPOS_FIXOS_ATIVIDADE.map((t) => ({ value: t.value, label: t.label }))}
+              placeholder="Escolha o tipo"
+              required
+              span={6}
+              error={erros.tipoFixo}
+            />
+            <CampoSelect
+              label="Operação"
+              value={tipoEscolhido}
+              onChange={(v) => {
+                setTipoEscolhido(v);
+                esquecerUltimo();
+                limparErros(["tipo"]);
+              }}
+              options={operacoes.map((t) => ({ value: String(t.id), label: t.nome_tipo }))}
+              placeholder={!tipoFixo ? "Escolha o tipo primeiro" : operacoes.length ? "Escolha a operação" : "Nenhuma operação neste tipo"}
+              readOnly={!tipoFixo || enviando}
+              required
+              span={6}
+              error={erros.tipo}
+            />
+            {tipoFixo && !operacoes.length ? (
+              <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-sem-operacao">
+                Nenhuma operação ativa neste tipo. Cadastre em Tipos de Atividade.
+              </p>
+            ) : null}
+          </>
         )}
         <CampoDia
           label="Data"
@@ -351,8 +382,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           </p>
         ) : null}
 
-        {tipo && comMaquina ? (
-          <CamposDaLinhaMaquina
+        <CamposDaLinhaMaquina
             form={formMaquina}
             mudar={mudarLinha(setFormMaquina)}
             erros={erros}
@@ -362,11 +392,9 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
             bloqueado={enviando}
             prefixo="registro-maquina"
             comObservacao={false}
-            tituloGrupo="Máquina"
+            tituloGrupo="Máquinas"
           />
-        ) : null}
-        {tipo && flags.permiteProduto ? (
-          <CamposDaLinhaProduto
+        <CamposDaLinhaProduto
             form={formProduto}
             mudar={mudarLinha(setFormProduto)}
             erros={erros}
@@ -377,17 +405,11 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
             bloqueado={enviando}
             prefixo="registro-produto"
             comObservacao={false}
-            tituloGrupo="Produtos"
+            tituloGrupo="Insumos"
           />
-        ) : null}
-        {tipo && flags.permiteMaoObra ? (
-          <CamposDaLinhaMaoObra form={formMaoObra} mudar={mudarLinha(setFormMaoObra)} erros={erros} bloqueado={enviando} prefixo="registro-mao-obra" comObservacao={false} tituloGrupo="Mão de obra" />
-        ) : null}
-        {tipo && flags.permiteServico ? (
-          <CamposDaLinhaServico form={formServico} mudar={mudarLinha(setFormServico)} erros={erros} bloqueado={enviando} prefixo="registro-servico" comObservacao={false} tituloGrupo="Serviço" />
-        ) : null}
+        <CamposDaLinhaMaoObra form={formMaoObra} mudar={mudarLinha(setFormMaoObra)} erros={erros} bloqueado={enviando} prefixo="registro-mao-obra" comObservacao={false} tituloGrupo="Mão de obra" />
+        <CamposDaLinhaServico form={formServico} mudar={mudarLinha(setFormServico)} erros={erros} bloqueado={enviando} prefixo="registro-servico" comObservacao={false} tituloGrupo="Serviço de terceiro" />
 
-        {tipo ? (
           <>
             <SecaoForm titulo="Resultado" />
             <CampoNumero
@@ -423,7 +445,6 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
             />
             <CampoTextoLongo label="Observação" value={observacao} onChange={(v) => { setObservacao(v); esquecerUltimo(); }} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
           </>
-        ) : null}
         <div className="col-span-12 min-w-0">
           <AvisoEnvioDaLinha estado={estado} produto={false} lancado="o registro PODE ter sido gravado" onRepetir={() => void salvar(true)} onConsultar={consultar} />
         </div>

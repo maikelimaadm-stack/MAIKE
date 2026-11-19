@@ -1,7 +1,7 @@
 /**
  * Detalhes da área acessíveis pelo contorno no Mapa Geral (D-PROD-94a, D-PROD-220, D-PROD-254), no desenho do Detalhes do
  * Lote: abas Detalhes · Histórico (os REGISTROS de campo da área), o cartão da área, as atividades em andamento e os custos
- * do mês (números do servidor), o rodapé com "Manejos" (os Tipos de atividade da fazenda → o registro com a área presa) e
+ * do mês (números do servidor), o rodapé com "Manejos" (abre o formulário "Registrar serviço" com a área presa, D-PROD-257) e
  * "Histórico completo" (o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador, D-PROD-110).
  * Curral mantém a aba Abate. Testes de componente (mock de serviço).
  */
@@ -283,88 +283,104 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
   });
 });
 
-describe("DetalhesArea — Manejos e o registro", () => {
+describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço\" (D-PROD-257)", () => {
   const abrirManejos = async () => {
     fireEvent.click(await screen.findByRole("button", { name: "Manejos" }));
+    return screen.findByTestId("janela-registro-de-campo");
+  };
+  /** Escolhe uma opção num campo de lista da janela. */
+  const escolher = async (janela, campo, opcao) => {
+    fireEvent.click(within(janela).getByRole("combobox", { name: campo }));
+    fireEvent.click(await screen.findByRole("option", { name: opcao }));
+    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+  };
+  const opcoesDe = async (janela, campo) => {
+    fireEvent.click(within(janela).getByRole("combobox", { name: campo }));
+    const nomes = (await screen.findAllByRole("option")).map((o) => o.textContent.trim());
+    fireEvent.click(within(janela).getByRole("combobox", { name: campo }));
+    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+    return nomes;
   };
 
-  it("Manejos: tela empilhada (‹ Voltar, título, área) com os Tipos de atividade ATIVOS do cadastro, não uma lista fixa", async () => {
-    atividades.tipos.mockImplementation(async () => [...TIPOS, { id: "t-novo", nome_tipo: "Calagem do Retiro", categoria: "PASTAGEM", ativo: true }]);
+  it("Manejos abre direto o formulário (sem a tela empilhada de tipos), com a ÁREA presa e o tipo e a operação para escolher", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} setorNome="RETIRO" />);
-    await abrirManejos();
-    expect(document.querySelector(".mk-dp-cab__titulo").textContent).toBe("Manejos");
-    expect(screen.getByText("P1 — PASTO 01")).toBeTruthy();
-    const quadros = [...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent);
-    await waitFor(() => expect([...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent)).toContain("Calagem do Retiro"));
-    expect(quadros.length).toBeGreaterThan(0);
-    const todos = [...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent);
-    // Abastecimento é da máquina (emenda 1 da D-PROD-254): existe no cadastro, mas não é manejo da área.
-    expect(todos).toEqual(["Aplicação / Pulverização", "Calagem do Retiro", "Gradeação", "Roçada"]);
-    expect(todos).not.toContain("Abastecimento");
-    expect(todos).not.toContain("Tipo Desativado");
-    // Cada quadro tem o ícone (svg) em cima do nome.
-    expect(document.querySelectorAll(".mk-al__quadro .mk-al__icone svg").length).toBe(4);
-    // Voltar traz o painel de volta.
-    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
-    expect(screen.getByRole("tab", { name: "Detalhes" })).toBeTruthy();
-  });
-
-  it("escolher o tipo abre o registro da ÁREA presa: uma janela Base1, campos do tipo (Gradeação: máquina e implemento, sem insumo), Cancelar e Salvar", async () => {
-    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
-    await abrirManejos();
-    fireEvent.click(await screen.findByRole("button", { name: "Gradeação" }));
-    const janela = await screen.findByTestId("janela-registro-de-campo");
-    expect(within(janela).getByText("Gradeação")).toBeTruthy();
+    const janela = await abrirManejos();
+    expect(document.querySelector(".mk-dp-cab__titulo")?.textContent).not.toBe("Manejos");
+    expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
+    expect(within(janela).getByText("Registrar serviço")).toBeTruthy();
     // Área presa (só leitura), com os hectares.
     const area = within(janela).getByDisplayValue(/P1 — PASTO 01/i);
     expect(area.hasAttribute("readonly") || area.hasAttribute("disabled")).toBe(true);
-    // Data em DD/MM/AAAA no campo nativo = 2026-11-18 (hoje na fazenda).
+    // Data = hoje na fazenda.
     expect(within(janela).getByTestId("registro-de-campo-data").value).toBe("2026-11-18");
-    // Campos pelo TIPO: máquina e implemento; nenhum insumo.
-    expect(within(janela).getAllByText("Máquina").length).toBeGreaterThan(0);
-    expect(janela.textContent).toContain("Implemento");
-    expect(janela.textContent).not.toContain("Produtos");
-    expect(janela.textContent).toContain("Hectares feitos");
-    expect(janela.textContent).toContain("Operador");
-    // Um nível só de janela (sem popup sobre popup) e sem a janela flutuante: é a padrão do Base1.
-    expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
+    expect(within(janela).getByRole("combobox", { name: /^Tipo/ })).toBeTruthy();
+    expect(within(janela).getByRole("combobox", { name: /Operação/ })).toBeTruthy();
     expect(within(janela).getByRole("button", { name: "Cancelar" })).toBeTruthy();
     expect(within(janela).getByRole("button", { name: "Salvar" })).toBeTruthy();
-    // O destino do registro: nenhuma atividade aberta de Gradeação no mês → nova.
+  });
+
+  it("as QUATRO seções (Máquinas, Insumos, Mão de obra, Serviço de terceiro) aparecem sempre, antes e depois de escolher tipo e operação", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    const janela = await abrirManejos();
+    const secoes = () => [...janela.querySelectorAll(".mg-b1-secao, [data-secao], h3, h4, legend")].map((n) => n.textContent.trim());
+    for (const titulo of ["Máquinas", "Insumos", "Mão de obra", "Serviço de terceiro"]) {
+      expect(secoes()).toContain(titulo);
+    }
+    await escolher(janela, /^Tipo/, "Roçada e tratos");
+    await escolher(janela, /Operação/, "Roçada");
+    for (const titulo of ["Máquinas", "Insumos", "Mão de obra", "Serviço de terceiro"]) {
+      expect(secoes()).toContain(titulo);
+    }
+    expect(janela.textContent).toContain("Hectares feitos");
+    expect(janela.textContent).toContain("Operador");
+  });
+
+  it("a operação é filtrada pelo tipo escolhido: ativas, sem Abastecimento nem inativas; tipo sem operação avisa", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    const janela = await abrirManejos();
+    expect(await opcoesDe(janela, /^Tipo/)).toEqual([
+      "Preparo do solo",
+      "Formação de pastagem (plantio)",
+      "Fertilização",
+      "Aplicação",
+      "Roçada e tratos",
+      "Manutenção",
+      "Outros",
+    ]);
+    await escolher(janela, /^Tipo/, "Preparo do solo");
+    expect(await opcoesDe(janela, /Operação/)).toEqual(["Gradeação"]);
+    await escolher(janela, /^Tipo/, "Aplicação");
+    expect(await opcoesDe(janela, /Operação/)).toEqual(["Aplicação / Pulverização"]);
+    // Abastecimento (categoria OUTROS no cadastro) nunca é oferecido; o desativado também não.
+    await escolher(janela, /^Tipo/, "Outros");
+    expect(within(janela).getByTestId("registro-de-campo-sem-operacao").textContent).toContain("Nenhuma operação ativa neste tipo");
+    await escolher(janela, /^Tipo/, "Aplicação");
+    expect(within(janela).queryByTestId("registro-de-campo-sem-operacao")).toBeNull();
+  });
+
+  it("trocar o tipo limpa a operação escolhida", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    const janela = await abrirManejos();
+    await escolher(janela, /^Tipo/, "Preparo do solo");
+    await escolher(janela, /Operação/, "Gradeação");
+    expect(within(janela).getByRole("combobox", { name: /Operação/ }).textContent).toContain("Gradeação");
+    await escolher(janela, /^Tipo/, "Aplicação");
+    expect(within(janela).getByRole("combobox", { name: /Operação/ }).textContent).not.toContain("Gradeação");
+  });
+
+  it("escolhida a operação, o destino do registro aparece (Gradeação já aberta no mês: entra nela)", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    const janela = await abrirManejos();
+    await escolher(janela, /^Tipo/, "Preparo do solo");
+    await escolher(janela, /Operação/, "Gradeação");
     expect((await within(janela).findByTestId("registro-de-campo-destino")).textContent).toBe("Entra em Gradeação · nov/26");
   });
 
-  it("o formulário genérico (\"Registrar serviço\": a pessoa escolhe área e tipo) não oferece Abastecimento — é da máquina", async () => {
-    const { default: JanelaRegistroDeCampo } = await import("@/components/lancamento-atividades/RegistroDeCampo");
-    renderizar(<JanelaRegistroDeCampo tipos={TIPOS} areas={[PASTO]} onFechar={() => {}} />);
-    const janela = await screen.findByTestId("janela-registro-de-campo");
-    fireEvent.click(within(janela).getByRole("combobox", { name: /Tipo de atividade/i }));
-    const opcoes = (await screen.findAllByRole("option")).map((o) => o.textContent.trim());
-    expect(opcoes).toContain("Gradeação");
-    expect(opcoes).not.toContain("Abastecimento");
-  });
-
-  it("Aplicação: com produtos; Roçada (sem flags): só o dia, hectares, operador e observação", async () => {
+  it("Salvar manda UM registro com a área e a operação (o servidor acha ou abre a atividade) e fecha a janela", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
-    await abrirManejos();
-    fireEvent.click(await screen.findByRole("button", { name: "Aplicação / Pulverização" }));
-    let janela = await screen.findByTestId("janela-registro-de-campo");
-    expect(janela.textContent).toContain("Produtos");
-    expect(janela.textContent).not.toContain("Implemento");
-    fireEvent.click(within(janela).getByRole("button", { name: "Cancelar" }));
-    await waitFor(() => expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull());
-    fireEvent.click(await screen.findByRole("button", { name: "Roçada" }));
-    janela = await screen.findByTestId("janela-registro-de-campo");
-    expect(janela.textContent).not.toContain("Máquina");
-    expect(janela.textContent).not.toContain("Produtos");
-    expect(janela.textContent).toContain("Hectares feitos");
-  });
-
-  it("Salvar manda UM registro com a área e o tipo (o servidor acha ou abre a atividade) e volta ao painel", async () => {
-    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
-    await abrirManejos();
-    fireEvent.click(await screen.findByRole("button", { name: "Roçada" }));
-    const janela = await screen.findByTestId("janela-registro-de-campo");
+    const janela = await abrirManejos();
+    await escolher(janela, /^Tipo/, "Roçada e tratos");
+    await escolher(janela, /Operação/, "Roçada");
     fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "7" } });
     fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(atividades.registrar).toHaveBeenCalledTimes(1));
@@ -372,18 +388,52 @@ describe("DetalhesArea — Manejos e o registro", () => {
     expect(corpo).toMatchObject({ area_id: "area-A", tipo_atividade_id: "t-roc", data_operacional: "2026-11-18", area_executada_dia: "7" });
     expect(corpo.maquinas).toBeUndefined();
     expect(corpo.produtos).toBeUndefined();
+    expect(corpo.mao_obra).toBeUndefined();
+    expect(corpo.servicos).toBeUndefined();
     await waitFor(() => expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull());
     expect(screen.getByRole("tab", { name: "Detalhes" })).toBeTruthy();
   });
 
-  it("tipo que exige máquina: sem escolher a máquina, não grava e aponta o campo", async () => {
+  it("sem tipo e sem operação, não grava e aponta os dois campos", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
-    await abrirManejos();
-    fireEvent.click(await screen.findByRole("button", { name: "Gradeação" }));
-    const janela = await screen.findByTestId("janela-registro-de-campo");
+    const janela = await abrirManejos();
+    // Salvar só habilita com tipo e operação; o Enter no formulário aponta o que falta.
+    expect(within(janela).getByRole("button", { name: "Salvar" })).toBeDisabled();
+    fireEvent.submit(within(janela).getByTestId("registro-de-campo-form"));
+    expect(await within(janela).findByText("Escolha o tipo.")).toBeTruthy();
+    expect(within(janela).getByText("Escolha a operação.")).toBeTruthy();
+    expect(atividades.registrar).not.toHaveBeenCalled();
+  });
+
+  it("operação que exige máquina (cadastro antigo): sem escolher a máquina, não grava e aponta o campo", async () => {
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    const janela = await abrirManejos();
+    await escolher(janela, /^Tipo/, "Preparo do solo");
+    await escolher(janela, /Operação/, "Gradeação");
     fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
     expect(await within(janela).findByText("Escolha a máquina.")).toBeTruthy();
     expect(atividades.registrar).not.toHaveBeenCalled();
+  });
+
+  it("sem a permissão de lançar atividade, o botão Manejos não existe", async () => {
+    atividades.acoes = { ...atividades.acoes, lancarApontamento: false };
+    renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
+    expect(screen.queryByRole("button", { name: "Manejos" })).toBeNull();
+  });
+});
+
+describe("Registrar serviço (a pessoa escolhe a área) — mesmo formulário", () => {
+  it("o formulário genérico escolhe área, tipo e operação e não oferece Abastecimento — é da máquina", async () => {
+    const { default: JanelaRegistroDeCampo } = await import("@/components/lancamento-atividades/RegistroDeCampo");
+    renderizar(<JanelaRegistroDeCampo tipos={TIPOS} areas={[PASTO]} onFechar={() => {}} />);
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    for (const campo of [/^Área/, /^Tipo/, /Operação/]) expect(within(janela).getByRole("combobox", { name: campo })).toBeTruthy();
+    fireEvent.click(within(janela).getByRole("combobox", { name: /^Tipo/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Outros" }));
+    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+    fireEvent.click(within(janela).getByRole("combobox", { name: /Operação/ }));
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(janela.textContent).not.toContain("Abastecimento");
   });
 });
 

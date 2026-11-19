@@ -206,311 +206,80 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe("TA-FORM — formulário de tipo de atividade", () => {
-  it("TA-FORM-1 — três seções, nesta ordem (Identificação, Apropriação, Como funciona), com os campos de cada uma", async () => {
+describe("TA-FORM — formulário da operação (D-PROD-257): tipo fixo + nome + ativo", () => {
+  it("TA-FORM-1 — só três campos: Tipo, Nome da operação e Ativo; Grupo, centros, unidade, coeficiente e as 8 chaves saíram", async () => {
     const { form } = await montar();
-    const titulos = ["Identificação", "Apropriação", "Como funciona"];
-    expect([...form.querySelectorAll(".b1-grupo__titulo")].map((h) => h.textContent.trim())).toEqual(titulos);
-    const secoes = ["identificacao", "apropriacao", "como-funciona"].map((s) =>
-      within(form).getByTestId(`tipo-atividade-secao-${s}`),
-    );
-    // Na ordem do DOM, cada seção logo depois do seu título.
-    secoes.reduce((anterior, secao) => {
-      expect(anterior.compareDocumentPosition(secao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      return secao;
-    });
-    expect(secoes.map((s) => s.previousElementSibling.textContent.trim())).toEqual(titulos);
-    expect(rotulos(secoes[0])).toEqual(ROTULOS_IDENTIFICACAO);
-    expect(rotulos(secoes[1])).toEqual(ROTULOS_APROPRIACAO);
-    expect(rotulos(secoes[2])).toEqual(ROTULOS_COMO_FUNCIONA);
-    expect(rotulos(form)).toEqual(ROTULOS_DO_FORMULARIO);
-    expect(form.textContent).not.toMatch(/Pode ter/i);
-    expect(screen.getByText("Novo Tipo de Atividade")).toBeTruthy();
+    expect(rotulos(form)).toEqual(["Tipo", "Nome da operação", "Ativo"]);
+    for (const nome of ["Grupo de atividade", "Categoria", "Descrição", "Centro de custo padrão", "Unidade de produção", "Coeficiente padrão", ...ROTULOS_FLAGS]) {
+      expect(within(form).queryByText(nome)).toBeNull();
+    }
+    // Sem as listas de apoio: o formulário não pede centros nem unidades.
+    expect(servico.listarCentrosDaFazenda).not.toHaveBeenCalled();
+    expect(servico.listarUnidadesDeMedida).not.toHaveBeenCalled();
   });
 
-  it("TA-FORM-2 — o seletor oferece só os grupos ativos", async () => {
+  it("TA-FORM-2 — Tipo oferece os 7 tipos fixos, nesta ordem, sem Colheita nem Manejo animal", async () => {
     const { form } = await montar();
-    const opcoes = (await abrirGrupo(form)).map((o) => o.textContent.trim());
-    // "SELECIONE" é o marcador de vazio, como no tipo de tarefa.
-    expect(opcoes).toEqual(["SELECIONE", "PASTAGEM", "AGUADAS"]);
-    expect(screen.queryByRole("option", { name: /CERCAS/ })).toBeNull();
+    expect(await opcoesDe(form, "Tipo")).toEqual([
+      "Preparo do solo",
+      "Formação de pastagem (plantio)",
+      "Fertilização",
+      "Aplicação",
+      "Roçada e tratos",
+      "Manutenção",
+      "Outros",
+    ]);
   });
 
-  it("TA-FORM-2b — editar tipo de grupo já inativado mantém esse grupo selecionável (INATIVO), sem oferecer outros inativos", async () => {
-    const grupos = [...GRUPOS, { id: "g4", nome_grupo: "Antigo", ativo: false }];
-    const { form } = await montar({
-      grupos,
-      isEditing: true,
-      initialData: { id: "t1", grupo_atividade_id: "g2", grupo_atividade_nome: "CERCAS", nome_tipo: "REPARO", ativo: true },
-    });
-    const opcoes = (await abrirGrupo(form)).map((o) => o.textContent.trim());
-    expect(opcoes).toEqual(["SELECIONE", "PASTAGEM", "CERCAS (INATIVO)", "AGUADAS"]);
-  });
-
-  it("TA-FORM-3 — grupo e nome são obrigatórios", async () => {
+  it("TA-FORM-3 — tipo e nome são obrigatórios: sem eles não envia", async () => {
     const { form, onSubmit } = await montar();
     enviar();
     await waitFor(() => expect(within(form).getAllByText("Obrigatório")).toHaveLength(2));
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(notify.notifyWarning).toHaveBeenCalledTimes(1);
+    await escolher(form, "Tipo", "Aplicação");
+    enviar();
+    await waitFor(() => expect(within(form).getAllByText("Obrigatório")).toHaveLength(1));
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("TA-FORM-4 — o envio do novo leva os campos do contrato: nome e descrição em maiúsculas, padrões nulos e as 8 flags false", async () => {
+  it("TA-FORM-4 — o envio leva só categoria, nome em maiúsculas e ativo (sem grupo nem chaves: o servidor dá o padrão)", async () => {
     const { form, onSubmit } = await montar();
-    await abrirGrupo(form);
-    fireEvent.click(screen.getByRole("option", { name: "PASTAGEM" }));
-    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
-    fireEvent.change(within(form).getByLabelText(/Nome do tipo de atividade/), {
-      target: { value: "roçada manual" },
-    });
-    fireEvent.change(within(form).getByLabelText(/Descrição/), { target: { value: "beira de cerca" } });
+    await escolher(form, "Tipo", "Preparo do solo");
+    fireEvent.change(within(form).getByLabelText(/Nome da operação/), { target: { value: "  gradeação leve " } });
     enviar();
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    const payload = onSubmit.mock.calls[0][0];
-    expect(payload).toEqual({
-      grupo_atividade_id: "g1",
-      nome_tipo: "ROÇADA MANUAL",
-      descricao: "BEIRA DE CERCA",
-      ativo: true,
-      categoria: null,
-      centro_custo_padrao_id: null,
-      centro_resultado_padrao_id: null,
-      unidade_producao_id: null,
-      coeficiente_padrao: null,
-      ...SEM_FLAGS,
-    });
-    expect(Object.keys(payload).filter((k) => k.startsWith("pode_ter_"))).toEqual([]);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toEqual({ categoria: "PREPARO_SOLO", nome_tipo: "GRADEAÇÃO LEVE", ativo: true });
   });
 
-  it("TA-FORM-5 — editar carrega os padrões e as flags gravados e os envia de volta; dados extras do registro não vão", async () => {
-    const { form, onSubmit } = await montar({
-      isEditing: true,
-      initialData: { ...SALVO, pode_ter_produto: true, created_date: "2027-01-01T00:00:00.000Z" },
-    });
-    expect(valorDe(form, "Categoria")).toBe("Aplicação");
-    expect(valorDe(form, "Centro de custo padrão")).toBe("1 — Pecuária de corte");
-    expect(valorDe(form, "Centro de resultado padrão")).toBe("7 — Recria 2026");
-    expect(valorDe(form, "Unidade de produção")).toBe("HA - Hectare");
-    expect(within(form).getByTestId("tipo-atividade-coeficiente")).toHaveValue("1,5");
-    for (const f of FLAGS) expect(flag(f).checked, f).toBe(SALVO[f]);
+  it("TA-FORM-5 — editar carrega tipo, nome e ativo gravados; dados extras do registro (grupo, chaves, centros) não vão de volta", async () => {
+    const { form, onSubmit } = await montar({ initialData: { ...SALVO, categoria: "TRATO_CULTURAL" }, isEditing: true });
+    expect(valorDe(form, "Tipo")).toBe("Fertilização");
+    expect(within(form).getByLabelText(/Nome da operação/).value).toBe("APLICAÇÃO DE HERBICIDA");
+    fireEvent.click(within(form).getByRole("switch", { name: "Operação ativa" }));
     enviar();
-    expect(onSubmit).toHaveBeenCalledWith({
-      grupo_atividade_id: "g1",
-      nome_tipo: "APLICAÇÃO DE HERBICIDA",
-      descricao: "",
-      ativo: true,
-      categoria: "APLICACAO",
-      centro_custo_padrao_id: "cc1",
-      centro_resultado_padrao_id: "cr1",
-      unidade_producao_id: "u-ha",
-      coeficiente_padrao: "1.5",
-      exige_area: true,
-      exige_safra: false,
-      exige_maquina: true,
-      permite_implemento: true,
-      permite_produto: true,
-      permite_servico: false,
-      permite_mao_obra: false,
-      exige_producao: false,
-    });
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toEqual({ categoria: "TRATO_CULTURAL", nome_tipo: "APLICAÇÃO DE HERBICIDA", ativo: false });
   });
 
-  it("TA-FORM-6 — em leitura, grupo já inativado aparece pelo nome em cache", async () => {
-    const { form } = await montar({
-      readOnly: true,
-      grupos: [],
-      initialData: { id: "ta1", nome_tipo: "X", grupo_atividade_id: "g2", grupo_atividade_nome: "Cercas" },
-    });
-    expect(within(form).getByDisplayValue("CERCAS")).toBeTruthy();
-  });
-
-  it("TA-FORM-7 — Categoria oferece as 9 com o rótulo legível, envia o código e pode ser limpa (null)", async () => {
-    const { form, onSubmit } = await montar({ isEditing: true, initialData: { ...SALVO, categoria: null } });
-    expect(await opcoesDe(form, "Categoria")).toEqual([
-      "Preparo de solo",
-      "Plantio",
-      "Trato cultural",
-      "Aplicação",
-      "Colheita",
-      "Pastagem",
-      "Benfeitoria",
-      "Manejo animal",
-      "Outros",
-    ]);
-    await escolher(form, "Categoria", "Trato cultural");
-    enviar();
-    expect(onSubmit.mock.calls.at(-1)[0].categoria).toBe("TRATO_CULTURAL");
-    await limpar(form, "Categoria");
-    enviar();
-    expect(onSubmit.mock.calls.at(-1)[0].categoria).toBeNull();
-  });
-
-  it("TA-FORM-8 — as 8 flags são caixas de marcar, na ordem do contrato, nascem desmarcadas e vão como booleanos", async () => {
-    const { form, onSubmit } = await montar();
-    const secao = within(form).getByTestId("tipo-atividade-secao-como-funciona");
-    const ids = [...secao.querySelectorAll('[data-testid^="tipo-atividade-flag-"]')].map((el) => el.getAttribute("data-testid"));
-    expect(ids).toEqual(FLAGS.map((f) => `tipo-atividade-flag-${f}`));
-    // Cada caixa tem o rótulo fixo como nome acessível (o rótulo do campo aponta para ela).
-    FLAGS.forEach((f, i) => {
-      expect(flag(f)).toHaveAttribute("type", "checkbox");
-      expect(within(secao).getByRole("checkbox", { name: ROTULOS_FLAGS[i] })).toBe(flag(f));
-    });
-    for (const f of FLAGS) expect(flag(f)).not.toBeChecked();
-    await preencherObrigatorios(form);
-    fireEvent.click(flag("exige_maquina"));
-    // Clicar no rótulo também marca.
-    fireEvent.click(within(secao).getByText("Permite produto"));
-    expect(flag("exige_maquina")).toBeChecked();
-    expect(flag("permite_produto")).toBeChecked();
-    enviar();
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    const payload = onSubmit.mock.calls[0][0];
-    for (const f of FLAGS) expect(typeof payload[f]).toBe("boolean");
-    expect(Object.fromEntries(FLAGS.map((f) => [f, payload[f]]))).toEqual({
-      ...SEM_FLAGS,
-      exige_maquina: true,
-      permite_produto: true,
-    });
-  });
-
-  it("TA-FORM-9 — Coeficiente padrão: '1,5' vai como '1.5'; inválido ou zero bloqueia o envio com a mensagem do campo", async () => {
-    const { form, onSubmit } = await montar({ isEditing: true, initialData: { ...SALVO, coeficiente_padrao: null } });
-    const campo = within(form).getByTestId("tipo-atividade-coeficiente");
-    const recusas = [
-      ["abc", "Coeficiente inválido: use o formato 1,5."],
-      ["-1", "Coeficiente inválido: use o formato 1,5."],
-      ["0", "Informe um coeficiente maior que zero."],
-      ["0,0000", "Informe um coeficiente maior que zero."],
-      ["1,23456", "Use no máximo 4 casas decimais."],
-      ["12345678901", "Coeficiente acima do limite permitido."],
-    ];
-    for (const [digitado, mensagem] of recusas) {
-      fireEvent.change(campo, { target: { value: digitado } });
+  it("TA-FORM-6 — operação antiga sem tipo fixo (sem categoria ou COLHEITA) abre pedindo o tipo, e não envia sem ele", async () => {
+    for (const categoria of [null, "COLHEITA", "MANEJO_ANIMAL"]) {
+      const { form, onSubmit } = await montar({ initialData: { ...SALVO, categoria }, isEditing: true });
+      expect(combobox(form, "Tipo").hasAttribute("data-placeholder")).toBe(true);
       enviar();
-      expect(await within(form).findByText(mensagem)).toBeTruthy();
+      await waitFor(() => expect(within(form).getAllByText("Obrigatório")).toHaveLength(1));
       expect(onSubmit).not.toHaveBeenCalled();
+      cleanup();
     }
-    expect(notify.notifyWarning).toHaveBeenLastCalledWith("Atenção", "Revise os campos destacados.");
-    // Corrigir o campo tira o erro; o formato local vira a string canônica da API.
-    fireEvent.change(campo, { target: { value: "1,5" } });
-    expect(within(form).queryByText("Coeficiente acima do limite permitido.")).toBeNull();
-    enviar();
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit.mock.calls[0][0].coeficiente_padrao).toBe("1.5");
-    fireEvent.change(campo, { target: { value: "1.234,5" } });
-    enviar();
-    expect(onSubmit.mock.calls.at(-1)[0].coeficiente_padrao).toBe("1234.5");
-    fireEvent.change(campo, { target: { value: "" } });
-    enviar();
-    expect(onSubmit.mock.calls.at(-1)[0].coeficiente_padrao).toBeNull();
   });
 
-  it("TA-FORM-10 — os centros padrão são os ATIVOS da fazenda selecionada (pedidos com o empresa_id); o escolhido vai pelo id", async () => {
-    const { form, onSubmit } = await montar({ isEditing: true, initialData: { ...SALVO, centro_custo_padrao_id: null, centro_custo_padrao: null, centro_resultado_padrao_id: null, centro_resultado_padrao: null } });
-    expect(servico.listarCentrosDaFazenda).toHaveBeenCalledWith("centros-custo", "emp-1");
-    expect(servico.listarCentrosDaFazenda).toHaveBeenCalledWith("centros-resultado", "emp-1");
-    expect(screen.queryByTestId("tipo-atividade-sem-fazenda")).toBeNull();
-    expect(await opcoesDe(form, "Centro de custo padrão")).toEqual(["1 — Pecuária de corte", "2 — Lavoura"]);
-    expect(await opcoesDe(form, "Centro de resultado padrão")).toEqual(["7 — Recria 2026"]);
-    await escolher(form, "Centro de custo padrão", "2 — Lavoura");
-    await escolher(form, "Centro de resultado padrão", "7 — Recria 2026");
-    enviar();
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ centro_custo_padrao_id: "cc2", centro_resultado_padrao_id: "cr1" });
-  });
-
-  it("TA-FORM-11 — sem fazenda selecionada: o aviso, os centros só leitura (o gravado continua visível) e nenhuma lista de centros pedida", async () => {
-    const { form, onSubmit } = await montar({ isEditing: true, initialData: SALVO, empresaId: null });
-    expect(within(form).getByTestId("tipo-atividade-sem-fazenda")).toHaveTextContent(/Selecione uma fazenda/);
-    for (const campo of ROTULOS_APROPRIACAO) {
-      expect(combobox(form, campo)).toBeDisabled();
-      expect(within(combobox(form, campo).closest(".mg-field")).queryByRole("button", { name: "Limpar" })).toBeNull();
-    }
-    expect(valorDe(form, "Centro de custo padrão")).toBe("1 — Pecuária de corte");
-    expect(servico.listarCentrosDaFazenda).not.toHaveBeenCalled();
-    // O resto do formulário segue editável.
-    expect(combobox(form, "Categoria")).not.toBeDisabled();
-    expect(combobox(form, "Unidade de produção")).not.toBeDisabled();
-    enviar();
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ centro_custo_padrao_id: "cc1", centro_resultado_padrao_id: "cr1" });
-  });
-
-  it("TA-FORM-12 — padrão gravado de outra fazenda ou inativo aparece marcado, continua na lista e pode ser limpo (vai null)", async () => {
-    const { form, onSubmit } = await montar({
-      isEditing: true,
-      initialData: {
-        ...SALVO,
-        centro_custo_padrao_id: "cc9",
-        centro_custo_padrao: { id: "cc9", numero: "9", nome: "Cria", empresa_id: "emp-2", ativo: true },
-        centro_resultado_padrao_id: "cr4",
-        centro_resultado_padrao: { id: "cr4", numero: "4", nome: "Engorda 2025", empresa_id: "emp-1", ativo: false },
-      },
-    });
-    expect(valorDe(form, "Centro de custo padrão")).toBe("9 — Cria (OUTRA FAZENDA)");
-    expect(valorDe(form, "Centro de resultado padrão")).toBe("4 — Engorda 2025 (INATIVO)");
-    expect(await opcoesDe(form, "Centro de custo padrão")).toEqual([
-      "9 — Cria (OUTRA FAZENDA)",
-      "1 — Pecuária de corte",
-      "2 — Lavoura",
-    ]);
-    await limpar(form, "Centro de custo padrão");
-    await limpar(form, "Centro de resultado padrão");
-    enviar();
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ centro_custo_padrao_id: null, centro_resultado_padrao_id: null });
-  });
-
-  it("TA-FORM-13 — Unidade de produção: as unidades ativas e a gravada (marcada INATIVA); a escolhida vai pelo id", async () => {
-    const { form, onSubmit } = await montar({
-      isEditing: true,
-      initialData: {
-        ...SALVO,
-        unidade_producao_id: "u-alq",
-        unidade_producao: { id: "u-alq", sigla: "ALQ", descricao: "Alqueire", ativo: false },
-      },
-    });
-    expect(servico.listarUnidadesDeMedida).toHaveBeenCalled();
-    expect(valorDe(form, "Unidade de produção")).toBe("ALQ - Alqueire (INATIVA)");
-    expect(await opcoesDe(form, "Unidade de produção")).toEqual(["ALQ - Alqueire (INATIVA)", "HA - Hectare", "H - Hora"]);
-    await escolher(form, "Unidade de produção", "H - Hora");
-    enviar();
-    expect(onSubmit.mock.calls[0][0].unidade_producao_id).toBe("u-h");
-  });
-
-  it("TA-FORM-14 — em leitura, mostra os padrões (marcados) e as flags gravados sem pedir as listas", async () => {
-    const { form } = await montar({
-      readOnly: true,
-      initialData: {
-        ...SALVO,
-        centro_resultado_padrao_id: "cr4",
-        centro_resultado_padrao: { id: "cr4", numero: "4", nome: "Engorda", empresa_id: "emp-2", ativo: false },
-      },
-    });
-    expect(valorDe(form, "Categoria")).toBe("Aplicação");
-    expect(valorDe(form, "Centro de custo padrão")).toBe("1 — Pecuária de corte");
-    expect(valorDe(form, "Centro de resultado padrão")).toBe("4 — Engorda (INATIVO, OUTRA FAZENDA)");
-    expect(valorDe(form, "Unidade de produção")).toBe("HA - Hectare");
-    expect(within(form).getByTestId("tipo-atividade-coeficiente")).toHaveValue("1,5");
-    expect(flag("exige_maquina")).toBeChecked();
-    expect(flag("exige_safra")).not.toBeChecked();
-    for (const f of FLAGS) expect(flag(f)).toBeDisabled();
-    expect(servico.listarCentrosDaFazenda).not.toHaveBeenCalled();
-    expect(servico.listarUnidadesDeMedida).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("tipo-atividade-sem-fazenda")).toBeNull();
-  });
-
-  it("TA-FORM-15 — trocar a fazenda com o formulário aberto pede os centros da nova e devolve a escolha ao gravado", async () => {
-    const { form, onSubmit, remontar } = await montar({ isEditing: true, initialData: SALVO });
-    await escolher(form, "Centro de custo padrão", "2 — Lavoura");
-    await remontar({ empresaId: "emp-2" });
-    expect(servico.listarCentrosDaFazenda).toHaveBeenCalledWith("centros-custo", "emp-2");
-    // O gravado (da emp-1) continua visível, agora marcado como de outra fazenda.
-    expect(valorDe(form, "Centro de custo padrão")).toBe("1 — Pecuária de corte (OUTRA FAZENDA)");
-    expect(await opcoesDe(form, "Centro de custo padrão")).toEqual(["1 — Pecuária de corte (OUTRA FAZENDA)", "8 — Cria"]);
-    enviar();
-    expect(onSubmit.mock.calls.at(-1)[0].centro_custo_padrao_id).toBe("cc1");
+  it("TA-FORM-7 — em leitura, mostra o tipo e o nome sem permitir mudar", async () => {
+    const { form } = await montar({ initialData: SALVO, isEditing: true, readOnly: true });
+    expect(valorDe(form, "Tipo")).toBe("Aplicação");
+    expect(within(form).getByLabelText(/Nome da operação/).readOnly).toBe(true);
   });
 });
 
-describe("TA-PAGE — tela de tipos de atividade", () => {
+describe("TA-PAGE — tela de operações (D-PROD-257)", () => {
   const montarTela = async () => {
     const { default: TiposAtividade } = await import("@/pages/TiposAtividade");
     render(
@@ -528,115 +297,67 @@ describe("TA-PAGE — tela de tipos de atividade", () => {
     return form;
   };
 
-  it("TA-PAGE-1 — lista os tipos e abre o formulário de três seções no Novo, com os centros da fazenda selecionada", async () => {
-    servico.listarGruposSimples.mockResolvedValue(GRUPOS);
+  it("TA-PAGE-1 — lista as operações e abre o formulário de três campos no Novo; sem tipo e nome não grava", async () => {
     servico.listarTiposAtividade.mockResolvedValue([
-      { id: "ta1", nome_tipo: "ROÇADA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true },
+      { id: "ta1", nome_tipo: "ROÇADA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: "PASTAGEM" },
     ]);
     await montarTela();
     await waitFor(() => expect(screen.getByText("ROÇADA")).toBeTruthy());
     const form = await abrirNovo();
-    expect(rotulos(form)).toEqual(ROTULOS_DO_FORMULARIO);
-    expect(servico.listarCentrosDaFazenda).toHaveBeenCalledWith("centros-custo", "emp-1");
-    expect(servico.listarCentrosDaFazenda).toHaveBeenCalledWith("centros-resultado", "emp-1");
+    expect(rotulos(form)).toEqual(["Tipo", "Nome da operação", "Ativo"]);
+    expect(servico.listarCentrosDaFazenda).not.toHaveBeenCalled();
+    expect(servico.listarGruposSimples).not.toHaveBeenCalled();
     fireEvent.submit(document.getElementById(FORMULARIO_TIPO_ATIVIDADE_ID));
     await waitFor(() => expect(within(form).getAllByText("Obrigatório")).toHaveLength(2));
     expect(servico.criarTipoAtividade).not.toHaveBeenCalled();
   });
 
-  it("TA-GRADE-1 — a chave das preferências mudou (_v2) e Categoria entra visível por padrão, depois do tipo", async () => {
+  it("TA-GRADE-1 — a chave das preferências mudou (_v4); colunas Tipo, Operação, Ativo; categoria antiga lê como Outros", async () => {
     const { TIPOS_ATIVIDADE_STORAGE_KEY, TIPOS_ATIVIDADE_COLUNAS, getTipoAtividadeFieldValue } = await import(
       "@/components/tipos-atividade/TabelaTiposAtividade"
     );
-    expect(TIPOS_ATIVIDADE_STORAGE_KEY).toBe("colunas_largura_tipos_atividade_v3");
-    expect(TIPOS_ATIVIDADE_COLUNAS.filter((c) => c.default).map((c) => c.id)).toEqual([
-      "grupo_atividade_nome",
-      "nome_tipo",
-      "categoria",
-      "pode_registrar",
-      "descricao",
-      "ativo",
-      "updated_date",
-    ]);
-    expect(TIPOS_ATIVIDADE_COLUNAS.find((c) => c.id === "categoria")?.label).toBe("Categoria");
-    expect(getTipoAtividadeFieldValue({ categoria: "MANEJO_ANIMAL" }, "categoria")).toBe("Manejo animal");
-    expect(getTipoAtividadeFieldValue({ categoria: null }, "categoria")).toBe("");
+    expect(TIPOS_ATIVIDADE_STORAGE_KEY).toBe("colunas_largura_tipos_atividade_v4");
+    expect(TIPOS_ATIVIDADE_COLUNAS.filter((c) => c.default).map((c) => c.id)).toEqual(["categoria", "nome_tipo", "ativo", "updated_date"]);
+    expect(TIPOS_ATIVIDADE_COLUNAS.find((c) => c.id === "categoria")?.label).toBe("Tipo");
+    expect(TIPOS_ATIVIDADE_COLUNAS.find((c) => c.id === "nome_tipo")?.label).toBe("Operação");
+    expect(getTipoAtividadeFieldValue({ categoria: "PASTAGEM" }, "categoria")).toBe("Roçada e tratos");
+    expect(getTipoAtividadeFieldValue({ categoria: "TRATO_CULTURAL" }, "categoria")).toBe("Fertilização");
+    expect(getTipoAtividadeFieldValue({ categoria: "MANEJO_ANIMAL" }, "categoria")).toBe("Outros");
+    expect(getTipoAtividadeFieldValue({ categoria: null }, "categoria")).toBe("Outros");
   });
 
-  it("TA-PAGE-2 — a tabela mostra a coluna Categoria com o rótulo legível, mesmo com preferência de colunas salva na chave antiga", async () => {
-    // Formato real gravado pela grade (persistCadastroBase1ColumnPrefs) na tela da D-PROD-182, sem Categoria.
-    localStorage.setItem(
-      "colunas_largura_tipos_atividade_prefs",
-      JSON.stringify({
-        version: 1,
-        columns: {
-          widths: { grupo_atividade_nome: 220, nome_tipo: 240, descricao: 260, ativo: 100 },
-          order: ["grupo_atividade_nome", "nome_tipo", "descricao", "ativo", "created_date", "updated_date"],
-          visible: ["grupo_atividade_nome", "nome_tipo", "descricao", "ativo"],
-          frozen: 0,
-          autoFit: [],
-        },
-      }),
-    );
-    servico.listarGruposSimples.mockResolvedValue(GRUPOS);
+  it("TA-PAGE-2 — a tabela mostra o Tipo com o rótulo legível e não mostra Grupo nem 'O que pode registrar'", async () => {
     servico.listarTiposAtividade.mockResolvedValue([
-      { id: "ta1", nome_tipo: "PULVERIZAÇÃO", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: "APLICACAO" },
-      { id: "ta2", nome_tipo: "CAPINA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: "TRATO_CULTURAL" },
-      { id: "ta3", nome_tipo: "VISTORIA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: null },
+      { id: "ta1", nome_tipo: "PULVERIZAÇÃO", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: "APLICACAO", permite_produto: true },
+      { id: "ta2", nome_tipo: "ADUBAÇÃO", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: "TRATO_CULTURAL" },
+      { id: "ta3", nome_tipo: "CERCA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: null },
     ]);
     await montarTela();
     await waitFor(() => expect(screen.getByText("PULVERIZAÇÃO")).toBeTruthy());
-    expect(screen.getByRole("columnheader", { name: /Categoria/ })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: /^Tipo/ })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: /Operação/ })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: /Grupo/ })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: /O que pode registrar/ })).toBeNull();
     expect(screen.getByText("Aplicação")).toBeTruthy();
-    expect(screen.getByText("Trato cultural")).toBeTruthy();
+    expect(screen.getByText("Fertilização")).toBeTruthy();
+    expect(screen.getByText("Outros")).toBeTruthy();
     expect(screen.queryByText("APLICACAO")).toBeNull();
+    expect(screen.queryByText("PASTAGEM")).toBeNull();
   });
 
-  it("TA-PAGE-3 — salvar o Novo leva padrões e flags ao service; a recusa de padrão mostra o texto do motivo", async () => {
-    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
-    servico.listarGruposSimples.mockResolvedValue(GRUPOS);
+  it("TA-PAGE-3 — salvar o Novo leva só categoria, nome e ativo ao service", async () => {
     servico.listarTiposAtividade.mockResolvedValue([]);
-    // Como o cliente nativo entrega o 422: o código preservado, campo e motivo em `details`.
-    servico.criarTipoAtividade.mockRejectedValue(
-      new ApiError(API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO, {
-        details: { field: "centro_custo_padrao_id", reason: "inativo", requestId: "req-9" },
-      }),
-    );
+    servico.criarTipoAtividade.mockResolvedValue({ ...SALVO, id: "novo", nome_tipo: "PLANTIO DIRETO", categoria: "PLANTIO" });
     await montarTela();
     const form = await abrirNovo();
-    await preencherObrigatorios(form);
-    await escolher(form, "Categoria", "Plantio");
-    await escolher(form, "Centro de custo padrão", "1 — Pecuária de corte");
-    await escolher(form, "Unidade de produção", "HA - Hectare");
-    fireEvent.change(within(form).getByTestId("tipo-atividade-coeficiente"), { target: { value: "2,25" } });
-    fireEvent.click(flag("exige_area"));
-    fireEvent.click(flag("exige_producao"));
+    await escolher(form, "Tipo", "Formação de pastagem (plantio)");
+    fireEvent.change(within(form).getByLabelText(/Nome da operação/), { target: { value: "plantio direto" } });
     fireEvent.submit(document.getElementById(FORMULARIO_TIPO_ATIVIDADE_ID));
     await waitFor(() => expect(servico.criarTipoAtividade).toHaveBeenCalledTimes(1));
-    expect(servico.criarTipoAtividade.mock.calls[0][0]).toEqual({
-      grupo_atividade_id: "g1",
-      nome_tipo: "PLANTIO DIRETO",
-      descricao: "",
-      ativo: true,
-      categoria: "PLANTIO",
-      centro_custo_padrao_id: "cc1",
-      centro_resultado_padrao_id: null,
-      unidade_producao_id: "u-ha",
-      coeficiente_padrao: "2.25",
-      ...SEM_FLAGS,
-      exige_area: true,
-      exige_producao: true,
-    });
-    await waitFor(() =>
-      expect(notify.notifyWarning).toHaveBeenCalledWith(
-        "Atenção",
-        "O centro de custo padrão está inativo. Escolha um centro ativo ou deixe o campo vazio. Nada foi gravado.",
-      ),
-    );
+    expect(servico.criarTipoAtividade.mock.calls[0][0]).toEqual({ categoria: "PLANTIO", nome_tipo: "PLANTIO DIRETO", ativo: true });
   });
 
-  it("TA-PAGE-4 — cancelar a edição descarta o rascunho: a leitura volta ao gravado e o próximo Salvar não leva o que foi desfeito (revisão F1-1)", async () => {
-    servico.listarGruposSimples.mockResolvedValue(GRUPOS);
+  it("TA-PAGE-4 — cancelar a edição descarta o rascunho: o próximo Salvar leva o gravado, não o que foi desfeito", async () => {
     servico.listarTiposAtividade.mockResolvedValue([{ ...SALVO }]);
     servico.atualizarTipoAtividade.mockImplementation(async ({ id, dados }) => ({ ...SALVO, ...dados, id }));
     await montarTela();
@@ -644,42 +365,32 @@ describe("TA-PAGE — tela de tipos de atividade", () => {
     fireEvent.doubleClick(screen.getByText("APLICAÇÃO DE HERBICIDA").closest('[data-testid="b1-row"]'));
     await screen.findByTestId("b1-form-tipo-atividade");
     await assentar();
-    expect(flag("exige_maquina").checked).toBe(true);
+    const campo = () => within(screen.getByTestId("b1-form-tipo-atividade"));
 
-    // Edita (limpa o centro de custo padrão e desmarca "Exige máquina") e CANCELA.
+    // Edita o nome e CANCELA.
     fireEvent.click(await screen.findByRole("button", { name: /^Editar$/ }));
     await assentar();
-    const campoCentro = () => within(screen.getByTestId("b1-form-tipo-atividade")).getByRole("combobox", { name: "Centro de custo padrão" });
-    fireEvent.click(within(campoCentro().closest(".mg-field")).getByRole("button", { name: "Limpar" }));
-    await waitFor(() => expect(campoCentro().hasAttribute("data-placeholder")).toBe(true));
-    fireEvent.click(flag("exige_maquina"));
-    expect(flag("exige_maquina").checked).toBe(false);
+    fireEvent.change(campo().getByLabelText(/Nome da operação/), { target: { value: "rascunho" } });
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     await assentar();
+    expect(campo().getByLabelText(/Nome da operação/).value).toBe("APLICAÇÃO DE HERBICIDA");
 
-    // A leitura volta ao gravado.
-    expect(campoCentro().hasAttribute("data-placeholder")).toBe(false);
-    expect(flag("exige_maquina").checked).toBe(true);
-
-    // Editar de novo e mudar só a descrição: o PATCH leva o gravado, não o rascunho descartado.
+    // Editar de novo e trocar só o tipo: o PATCH leva o nome gravado.
     fireEvent.click(screen.getByRole("button", { name: /^Editar$/ }));
     await assentar();
-    fireEvent.change(within(screen.getByTestId("b1-form-tipo-atividade")).getByLabelText(/Descrição/), { target: { value: "só a descrição" } });
+    await escolher(screen.getByTestId("b1-form-tipo-atividade"), "Tipo", "Fertilização");
     fireEvent.submit(document.getElementById(FORMULARIO_TIPO_ATIVIDADE_ID));
     await waitFor(() => expect(servico.atualizarTipoAtividade).toHaveBeenCalledTimes(1));
     const { dados } = servico.atualizarTipoAtividade.mock.calls[0][0];
-    expect(dados.centro_custo_padrao_id).toBe("cc1");
-    expect(dados.exige_maquina).toBe(true);
+    expect(dados).toEqual({ categoria: "TRATO_CULTURAL", nome_tipo: "APLICAÇÃO DE HERBICIDA", ativo: true });
   });
 });
 
 describe("TA-PORTA — porta, API e service do tipo (D-PROD-197)", () => {
   it("TA-PORTA-1 — o corpo leva só as chaves do contrato: flags só booleanas, coeficiente só texto (vazio = null)", async () => {
     const { operacoesNativas, CAMPOS_DE_CRIACAO, FLAGS_TIPO_ATIVIDADE } = await import("@/apis/atividades/tipoAtividadePort.js");
-    const { FLAGS_DO_FORMULARIO } = await import("@/components/tipos-atividade/FormularioTipoAtividade");
     // A tela e a porta falam das mesmas 8 flags, na mesma ordem.
     expect(FLAGS_TIPO_ATIVIDADE).toEqual(FLAGS);
-    expect(FLAGS_DO_FORMULARIO.map((f) => f.campo)).toEqual(FLAGS);
     expect(CAMPOS_DE_CRIACAO.filter((c) => c.startsWith("pode_ter_"))).toEqual([]);
     http.nativeRequest.mockResolvedValue({});
     await operacoesNativas.create({

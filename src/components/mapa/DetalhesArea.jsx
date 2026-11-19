@@ -6,16 +6,13 @@ import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import { LancLoteDialogo } from "../lotes/LancamentoLoteUi";
 import { ehCurral, podeMedirForragemNaArea, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
-import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
-import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
 import { definirFazendaDaTela, listarTiposAtividade } from "@/services/lancamentoAtividadesService";
 import JanelaRegistroDeCampo from "../lancamento-atividades/RegistroDeCampo";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
-import AcoesDoLote from "./AcoesDoLote";
 import AbaDetalhesDaArea from "./detalhes-area/AbaDetalhesDaArea";
 import AbaRegistrosDaArea from "./detalhes-area/AbaRegistrosDaArea";
-import { Abas, RodapePilulas, Vazio, idsDaAba } from "./detalhes-lote/blocos";
+import { Abas, RodapePilulas, idsDaAba } from "./detalhes-lote/blocos";
 
 /**
  * Detalhes da área no Mapa Geral (D-PROD-94a, D-PROD-220, D-PROD-254), no desenho do Detalhes do Lote: cabeçalho com o
@@ -25,8 +22,9 @@ import { Abas, RodapePilulas, Vazio, idsDaAba } from "./detalhes-lote/blocos";
  *   `medir_forragem` (D-PROD-219, fora da infraestrutura), o painel de Forragem — a "Medição de Forragem" continua aqui.
  * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos".
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
- * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre a tela empilhada com os Tipos de atividade da fazenda;
- *   escolher um abre o registro da área (área presa). "Histórico completo" (com a permissão de histórico de
+ * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO o formulário "Registrar serviço" — o mesmo do
+ *   Lançamento de Atividades (D-PROD-257), com a área já preenchida: a pessoa escolhe o tipo, depois a operação.
+ *   "Histórico completo" (com a permissão de histórico de
  *   movimentação) continua sendo o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador
  *   (D-PROD-110), num diálogo por cima.
  *
@@ -44,10 +42,9 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   const podeRegistrar = acoes.lancarApontamento === true;
 
   const [aba, setAba] = React.useState("detalhes");
-  const [tela, setTela] = React.useState(/** @type {"principal" | "manejos"} */ ("principal"));
   const [anim, setAnim] = React.useState(/** @type {"aba-dir" | "aba-esq" | "empurrar" | "voltar" | null} */ (null));
   const [completoAberto, setCompletoAberto] = React.useState(false);
-  const [registrando, setRegistrando] = React.useState(/** @type {any | null} */ (null));
+  const [registrando, setRegistrando] = React.useState(false);
 
   // Os tipos reais da fazenda (o cadastro), para os quadros de Manejos e para o filtro do Histórico.
   const tiposQuery = useQuery({
@@ -77,14 +74,7 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
     setAba(nova);
   };
 
-  const abrirManejos = () => {
-    setAnim("empurrar");
-    setTela("manejos");
-  };
-  const voltar = () => {
-    setAnim("voltar");
-    setTela("principal");
-  };
+  const abrirManejos = () => setRegistrando(true);
 
   /** @type {import("./detalhes-lote/blocos").Pilula[]} */
   const pilulas = [];
@@ -109,34 +99,8 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   ) : null;
 
   const janela = registrando ? (
-    <JanelaRegistroDeCampo
-      tipo={registrando}
-      area={area}
-      onFechar={() => setRegistrando(null)}
-      onGravou={() => {
-        setTela("principal");
-        setAnim("voltar");
-      }}
-    />
+    <JanelaRegistroDeCampo tipos={tipos} area={area} onFechar={() => setRegistrando(false)} />
   ) : null;
-
-  if (tela === "manejos" && podeRegistrar) {
-    // Abastecimento é da máquina (D-PROD-254, emenda 1): fora dos Manejos da área.
-    const itens = tiposRegistraveisNaArea(tipos).map((t) => ({ nome: String(t.nome_tipo), Icone: iconeDoTipoAtividade(t), onClick: () => setRegistrando(t) }));
-    return (
-      <>
-        <CascaDetalhe titulo="Manejos" sub={area.nome} onVoltar={voltar} corpo="lista" chaveTela="manejos" anim={anim}>
-          {itens.length ? (
-            <AcoesDoLote grupos={[{ titulo: "Manejos", itens }]} />
-          ) : (
-            <Vazio icone={LayoutGrid}>{tiposQuery.isLoading ? "Carregando os tipos de atividade..." : "Nenhum tipo de atividade cadastrado."}</Vazio>
-          )}
-        </CascaDetalhe>
-        {janela}
-        {completo}
-      </>
-    );
-  }
 
   const idBase = `area-${area.id}`;
   const ids = idsDaAba(idBase, abaAtual);
