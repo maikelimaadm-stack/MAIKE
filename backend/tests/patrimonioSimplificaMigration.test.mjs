@@ -197,7 +197,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 97, 'D-PROD-249: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
+    assert.equal(await contarTabelas(db), 100, 'D-PROD-257: + as 3 das Entradas do Estoque; D-PROD-249: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
     // D-PROD-190/191/198/201: subiram DEPOIS da CONTRACT (o runner aplica em ordem de nome); no fim ficam as 2 da atividade, as 3 das linhas, as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e as 4 da mão de obra e do serviço (D-PROD-207), vazias, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
@@ -211,6 +211,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
       // D-PROD-249: as áreas da atividade, também vazias, com RLS e sem FORCE.
       ['AtividadeArea', true, false],
       ['CADCULTURAS', true, false], ['CADFORMULACAO', true, false], ['CADFORMULACAOINGREDIENTE', true, false], ['CADFORMULACAOREGRA', true, false],
+      // D-PROD-257: as 3 tabelas das Entradas do Estoque, vazias, com RLS e sem FORCE.
+      ['EntradaEstoque', true, false], ['EntradaEstoqueEvento', true, false], ['EntradaEstoqueItem', true, false],
       ['LEITURACOCHO', true, false], ['MEDICAOFORRAGEM', true, false], ['Servico', true, false],
     ]);
     for (const t of TABELAS_FINAIS_DEPOIS_DO_CONTRACT) assert.equal((await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${t}"`))[0].n, 0, `${t} nasce vazia`);
