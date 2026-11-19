@@ -109,7 +109,13 @@ afterEach(() => {
 
 
 /** D-PROD-168: os papéis são marcados na lista do campo "Papéis do parceiro" (a caixa de marcar fica à direita). */
+/** PR #339: o formulário tem guias laterais; os campos ficam na guia de cada seção. */
+function abrirGuia(form, nome) {
+  fireEvent.click(within(form).getByRole('tab', { name: nome }));
+}
+
 async function marcarPapel(form, nome) {
+  abrirGuia(form, 'Papéis');
   const campo = within(form).getByRole('combobox', { name: /Papéis do parceiro/ });
   if (campo.getAttribute('aria-expanded') !== 'true') fireEvent.click(campo);
   fireEvent.click(await screen.findByRole('checkbox', { name: nome }));
@@ -267,6 +273,7 @@ describe('Parceiros — formulário', () => {
     await abrirRegistro('FAZENDA VELHA');
     expect(screen.getByTestId('parceiro-papeis-legados')).toHaveTextContent('Papéis antigos preservados: Vendedor de gado');
     // Nenhum papel marcado: o campo de lista "Papéis do parceiro" fica vazio (D-PROD-168).
+    abrirGuia(screen.getByTestId('b1-form'), 'Papéis');
     expect(screen.getByRole('combobox', { name: /Papéis do parceiro/ })).toHaveValue('');
   });
 
@@ -302,6 +309,7 @@ describe('Parceiros — formulário', () => {
     await montar();
     await abrirRegistro('AGRO SOL');
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    abrirGuia(screen.getByTestId('b1-form'), 'Situação');
     fireEvent.click(within(screen.getByTestId('b1-form')).getByRole('switch'));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(confirmSpy).toHaveBeenCalled());

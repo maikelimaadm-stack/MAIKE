@@ -336,6 +336,7 @@ describe('Bens — criação (corpo exato)', () => {
     await escolherTipoDeBem(form, 'Veículo');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Caminhonete/);
     fireEvent.change(within(form).getByLabelText(/^Placa/), { target: { value: 'abc-1d23' } });
+    aba('Características');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'UF da placa' }), 'MS');
     // jsdom: o popover do próximo B1Select só abre depois que as opções do anterior sumirem.
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
@@ -368,7 +369,7 @@ describe('Bens — criação (corpo exato)', () => {
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Curral de manejo' } });
     await escolherTipoDeBem(form, 'Benfeitoria');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Curral/);
-    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
+    expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
     fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Madeira' } });
     fireEvent.change(within(form).getByLabelText(/^Ano de conclusão/), { target: { value: '2019' } });
     salvar();
@@ -443,7 +444,7 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     await montar();
     const form = await novo();
     expect(within(form).getByTestId('bem-escolha-tipo-de-bem')).toBeTruthy();
-    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
+    expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
     for (const campo of [/^Placa/, /^Chassi/, /^Número de série/, /^Material/, /^Compatibilidade/]) expect(within(form).queryByLabelText(campo)).toBeNull();
     expect(within(form).queryByTestId('bem-potencia')).toBeNull();
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
@@ -453,12 +454,12 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
 
   /** [Tipo de bem, abas, campos presentes, campos ausentes, tanques?, medidor obrigatório?] */
   const MATRIZ = [
-    ['Benfeitoria', ['Identificação', 'Aquisição e depreciação'], [/^Material/, /^Ano de conclusão/], [/^Placa/, /^Chassi/, /^Número de série/, /^Compatibilidade/], null, null],
-    ['Máquina', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Chassi/, /^Número de série/], [/^Placa/, /^Renavam/, /^Material/, /^Compatibilidade/], true, true],
-    ['Veículo', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Placa/, /^Renavam/, /^Chassi/, /^Número de série/], [/^Material/, /^Compatibilidade/], true, true],
-    ['Implemento', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/, /^Compatibilidade/], [/^Placa/, /^Chassi/, /^Material/], false, false],
-    ['Equipamento', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], true, true],
-    ['Outro', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], false, false],
+    ['Benfeitoria', ['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação'], [/^Material/, /^Ano de conclusão/], [/^Placa/, /^Chassi/, /^Número de série/, /^Compatibilidade/], null, null],
+    ['Máquina', ['Identificação', 'Propriedade e responsáveis', 'Características', 'Operação', 'Aquisição e depreciação'], [/^Chassi/, /^Número de série/], [/^Placa/, /^Renavam/, /^Material/, /^Compatibilidade/], true, true],
+    ['Veículo', ['Identificação', 'Propriedade e responsáveis', 'Características', 'Operação', 'Aquisição e depreciação'], [/^Placa/, /^Renavam/, /^Chassi/, /^Número de série/], [/^Material/, /^Compatibilidade/], true, true],
+    ['Implemento', ['Identificação', 'Propriedade e responsáveis', 'Características', 'Operação', 'Aquisição e depreciação'], [/^Número de série/, /^Compatibilidade/], [/^Placa/, /^Chassi/, /^Material/], false, false],
+    ['Equipamento', ['Identificação', 'Propriedade e responsáveis', 'Características', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], true, true],
+    ['Outro', ['Identificação', 'Propriedade e responsáveis', 'Características', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], false, false],
   ];
   it.each(MATRIZ)('Tipo de bem %s: abas, campos e operação conforme a natureza', async (tipoDeBem, abasEsperadas, presentes, ausentes, comTanques, _medidorObrigatorio) => {
     await montar();
@@ -490,7 +491,7 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('Trator de pneus');
     await escolherTipoDeBem(form, 'Benfeitoria');
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveAttribute('data-placeholder'); // vazio: D-PROD-172
-    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
+    expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
     salvar();
     expect(await within(form).findByText('Escolha o tipo')).toBeTruthy();
     expect(mutacoes()).toEqual([]);
@@ -792,6 +793,7 @@ describe('Bens — referências da fazenda, aquisição e propriedade (corpo exa
     editar();
     let form = screen.getByTestId('b1-form');
     expect(within(form).getByTestId('bem-seletor-proprietario')).toHaveTextContent('Vizinho da Divisa');
+    aba('Propriedade e responsáveis');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Propriedade' }), 'Próprio');
     expect(within(form).queryByTestId('bem-seletor-proprietario')).toBeNull();
     salvar();
@@ -804,6 +806,7 @@ describe('Bens — referências da fazenda, aquisição e propriedade (corpo exa
     await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeTruthy());
     editar();
     form = screen.getByTestId('b1-form');
+    aba('Propriedade e responsáveis');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Propriedade' }), 'De terceiro');
     await escolherNoSeletor(form, 'bem-seletor-proprietario', 'Vizinho da Divisa');
     salvar();
@@ -938,7 +941,7 @@ describe('Bens — regras finas do formulário', () => {
     expect(screen.queryByRole('option', { name: /^Trator de pneus/ })).toBeNull();
     expect(backend.chamadas.filter((c) => c.path === '/bens-patrimoniais-opcoes/tipos').at(-1).query).toMatchObject({ natureza: 'BENFEITORIA' });
     fireEvent.keyDown(screen.getByTestId('bem-seletor-tipo-painel'), { key: 'Escape' });
-    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
+    expect(abas()).toEqual(['Identificação', 'Propriedade e responsáveis', 'Características', 'Aquisição e depreciação']);
     fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Alvenaria' } });
     salvar();
     await screen.findByText('Bem patrimonial atualizado');

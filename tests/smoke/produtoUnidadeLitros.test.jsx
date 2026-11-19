@@ -54,7 +54,12 @@ describe('PL-1 — formulário do Produto', () => {
     const { default: FormularioProduto } = await import('@/components/produtos/FormularioProduto');
     return comConsulta(<FormularioProduto onSubmit={vi.fn()} onCancel={vi.fn()} isEditing {...props} />);
   };
-  const seletorUnidadePrincipal = () => screen.getAllByRole('combobox').find((b) => /QUILOGRAMAS|SACOS|LITROS/.test(b.textContent));
+  // PR #339: a unidade de estoque fica na guia lateral "Unidade de Estoque".
+  const seletorUnidadePrincipal = () => {
+    const guia = screen.getByRole('tab', { name: 'Unidade de Estoque' });
+    if (guia.getAttribute('aria-selected') !== 'true') fireEvent.click(guia);
+    return screen.getAllByRole('combobox').find((b) => /QUILOGRAMAS|SACOS|LITROS/.test(b.textContent));
+  };
 
   it('oferece KG, SACOS e LITROS (L); escolher L com unidade de medida KG mostra o aviso, que não bloqueia', async () => {
     const onSubmit = vi.fn();
