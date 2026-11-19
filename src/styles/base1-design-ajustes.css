@@ -876,3 +876,113 @@ body.b1-tela .b1-lista-pop .mk-sel-lista.b1-lista:not(#mk-padrao) {
   font-weight: 700;
   color: #141413;
 }
+
+/* ── Tabela e Checkboxes Base1 no padrão limpo (quadrado arredondado + foco/seleção verde suave + grade branca) ── */
+:is(.cadastro-b1, body.b1-tela) :is(.mg-check, .mg-grid .mg-check, button[role="checkbox"][data-state]):not(#mk-padrao):not(#mk-b) {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  border-radius: 5px !important;
+  border: 1.5px solid #4b5563 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  transition: border-color 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+:is(.cadastro-b1, body.b1-tela) :is(.mg-check, .mg-grid .mg-check, button[role="checkbox"][data-state]):hover:not(#mk-padrao):not(#mk-b) {
+  border-color: #00a859 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) :is(.mg-check, .mg-grid .mg-check, button[role="checkbox"][data-state]):focus-within:not(#mk-padrao):not(#mk-b),
+:is(.cadastro-b1, body.b1-tela) button[role="checkbox"][data-state]:focus-visible:not(#mk-padrao):not(#mk-b) {
+  border-color: #00a859 !important;
+  box-shadow: 0 0 0 2px rgba(0, 168, 89, 0.22) !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) :is(.mg-check.is-checked, .mg-grid .mg-check.is-checked, button[role="checkbox"][data-state="checked"]):not(#mk-padrao):not(#mk-b) {
+  border-color: #00a859 !important;
+  background: #e6f4ee !important;
+  color: #00a859 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) :is(.mg-check.is-indeterminate, .mg-grid .mg-check.is-indeterminate, button[role="checkbox"][data-state="indeterminate"]):not(#mk-padrao):not(#mk-b) {
+  border-color: #00a859 !important;
+  background: #ffffff !important;
+  color: #00a859 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) :is(.mg-check.is-checked, .mg-check.is-indeterminate, button[role="checkbox"][data-state="checked"], button[role="checkbox"][data-state="indeterminate"]):not(#mk-padrao):not(#mk-b) svg,
+:is(.cadastro-b1, body.b1-tela) .mg-grid .mg-check__icon:not(#mk-padrao):not(#mk-b) {
+  width: 12px !important;
+  height: 12px !important;
+  color: #00a859 !important;
+  stroke: #00a859 !important;
+  stroke-width: 2.4;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-check__dash:not(#mk-padrao):not(#mk-b),
+:is(.cadastro-b1, body.b1-tela) .mg-grid .mg-check__dash:not(#mk-padrao):not(#mk-b) {
+  width: 9px !important;
+  height: 2px !important;
+  border-radius: 1px;
+  background: #00a859 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid-wrap:not(#mk-padrao):not(#mk-b) {
+  background: #ffffff !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid thead th:not(#mk-padrao):not(#mk-b) {
+  height: 38px !important;
+  background: #ffffff !important;
+  color: #1f2937 !important;
+  font-size: 12.5px;
+  font-weight: 600 !important;
+  border-right: 1px solid #eef0f2 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid thead th:last-child:not(#mk-padrao):not(#mk-b),
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody td:last-child:not(#mk-padrao):not(#mk-b) {
+  border-right: 0 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody td:not(#mk-padrao):not(#mk-b) {
+  height: 35px !important;
+  background: #ffffff !important;
+  color: #374151;
+  font-size: 12.5px;
+  border-right: 1px solid #eef0f2 !important;
+  border-bottom: 1px solid #eef0f2 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody td.td-select:has(.mg-check:focus-within):not(#mk-padrao):not(#mk-b) {
+  box-shadow: inset 0 0 0 1.5px #00a859 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody tr:not(.selected):hover td:not(#mk-padrao):not(#mk-b) {
+  background: #f8fafc !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody tr.selected td:not(#mk-padrao):not(#mk-b),
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody tr.selected:hover td:not(#mk-padrao):not(#mk-b) {
+  background: #e8ecf0 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody tr.selected td:first-child:not(#mk-padrao):not(#mk-b) {
+  box-shadow: none !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid thead th.th-select.sticky:not(#mk-padrao):not(#mk-b) {
+  background: #ffffff !important;
+  border-right: 1px solid #eef0f2 !important;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid tbody td.td-select.sticky:not(#mk-padrao):not(#mk-b) {
+  background: inherit;
+}
+
+:is(.cadastro-b1, body.b1-tela) .mg-grid thead th .th-menu:not(#mk-padrao):not(#mk-b) {
+  color: #374151 !important;
+}
