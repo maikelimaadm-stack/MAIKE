@@ -193,9 +193,7 @@ export default function FormularioServico({ onSubmit, initialData = null, readOn
                   error={erros.valor_referencia}
                   testId="servico-valor-referencia"
                 />
-                {initialData?.id ? (
-                  <B1ChaveRow label="Ativo" span={6} checked={initialData.ativo !== false} disabled ariaLabel="Serviço ativo" />
-                ) : null}
+                <B1ChaveRow label="Ativo" span={6} checked={initialData?.id ? initialData.ativo !== false : true} disabled ariaLabel="Serviço ativo" />
               </div>
             )}
           />

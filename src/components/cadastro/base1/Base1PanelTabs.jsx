@@ -254,6 +254,11 @@ export default function Base1PanelTabs({
       >
         <div className="b1-aba-cartao__cab">
           <h3 className="b1-aba-cartao__titulo">{tab.label}</h3>
+          {active && temNavegacao(navInfo) ? (
+            <div className="b1-panel-tabs-rail">
+              <NavegacaoDoRegistro info={navInfo} />
+            </div>
+          ) : null}
         </div>
         {renderPanel(tab.id)}
       </div>
@@ -340,11 +345,6 @@ export default function Base1PanelTabs({
         ) : null}
       </aside>
       <div className="b1-panel-main">
-        {temNavegacao(navInfo) ? (
-          <div className="b1-panel-tabs-rail">
-            <NavegacaoDoRegistro info={navInfo} />
-          </div>
-        ) : null}
         {panelsBody}
       </div>
     </div>

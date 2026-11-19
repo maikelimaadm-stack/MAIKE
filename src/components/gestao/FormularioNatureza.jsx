@@ -116,16 +116,14 @@ export default function FormularioNatureza({ empresaId, onSubmit, initialData = 
                   span={12}
                 />
                 <CampoTexto label="Descrição" span={12} value={form.descricao} onChange={(v) => set("descricao", v)} readOnly={readOnly} maxLength={500} />
-                {editando ? (
-                  <B1ChaveRow
-                    label="Ativo"
-                    span={6}
-                    checked={form.ativo}
-                    onChange={readOnly ? undefined : (v) => set("ativo", v)}
-                    disabled={readOnly}
-                    ariaLabel="Natureza financeira ativa"
-                  />
-                ) : null}
+                <B1ChaveRow
+                  label="Ativo"
+                  span={6}
+                  checked={form.ativo}
+                  onChange={readOnly || !editando ? undefined : (v) => set("ativo", v)}
+                  disabled={readOnly || !editando}
+                  ariaLabel="Natureza financeira ativa"
+                />
                 <div className="col-span-12">
                   <AvisoGestao tone="blue" testId="natureza-nota-etapas">
                     Natureza financeira é um catálogo gerencial (não é plano de contas e não gera lançamento). A associação com Parceiros,

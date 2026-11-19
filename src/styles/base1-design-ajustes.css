@@ -860,6 +860,11 @@ body.b1-tela .b1-lista-pop .mk-sel-lista.b1-lista:not(#mk-padrao) {
 }
 
 .cadastro-b1 .b1-panel-main .b1-aba-cartao__cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
   margin: 0 0 16px;
   padding: 0 0 12px;
   border-bottom: 1px solid #e5e7eb;

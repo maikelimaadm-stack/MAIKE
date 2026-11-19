@@ -96,9 +96,7 @@ export default function FormularioCentro({ formId, rotulo, onSubmit, initialData
                   placeholder="— Nenhum (raiz) —"
                 />
                 <CampoTexto label="Descrição" span={12} value={form.descricao} onChange={(v) => set("descricao", v)} readOnly={readOnly} maxLength={500} />
-                {initialData?.id ? (
-                  <B1ChaveRow label="Ativo" span={6} checked={form.ativo} onChange={readOnly ? undefined : (v) => set("ativo", v)} disabled={readOnly} ariaLabel={`${rotulo} ativo`} />
-                ) : null}
+                <B1ChaveRow label="Ativo" span={6} checked={form.ativo} onChange={readOnly || !initialData?.id ? undefined : (v) => set("ativo", v)} disabled={readOnly || !initialData?.id} ariaLabel={`${rotulo} ativo`} />
               </div>
             )}
           />
