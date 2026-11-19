@@ -185,6 +185,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // anulável AtividadeApontamento.atividade_area_id, o backfill (cada atividade com área ganha a área nº 1 e os
   // lançamentos dela passam a ser dessa área) e a FK composta (cliente_id, empresa_id, atividade_id, atividade_area_id).
   '20261118100000_atividade_areas': '098f0d06d45922886f64cb4e2f4bd00644dac26b833e8020feeed2632d31ec06',
+  // D-PROD-257: EXPAND — Entradas do Estoque (EntradaEstoque, EntradaEstoqueItem e EntradaEstoqueEvento), só tabelas novas.
+  '20261119100000_estoque_entradas': '6004e5e99523ea64fd908240b4bd7f3fb0a0158e8e5110478662eef79e771b57',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -232,6 +234,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'b2d54fa5991b7a8200801a2cb5613fed353c1f1756d740268c27d3feadf92718',
   // D-PROD-249: RLS/REVOKE da AtividadeArea (mesmo corpo, lista nova).
   '7121f5a6d09747d8c3479411ef0be47cc92eb9a11cf59865429134b18fdd6984',
+  // D-PROD-257: RLS/REVOKE das 3 tabelas das Entradas do Estoque (mesmo corpo, lista nova).
+  '23ec8ff0a47da59896a7d918c156d0b654d251fdecb1e0ea15eb3451ef7d66df',
 ]);
 
 /**
