@@ -9,12 +9,25 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-19) — MAIKE-ATIVIDADES-FASE1: tipos fixos + formulário único, só serviços de pasto (D-PROD-258)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-CUSTO-MEDIO: custo médio ponderado no motor único (D-PROD-256, PR 1 de 2)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-256**, pedido do proprietário: custo médio e aba Entradas, em PRs empilhadas, custo médio primeiro; Entradas é a **D-PROD-257** (PR 2) |
+| Branch / PR | `cursor/estoque-custo-medio`, a partir da `main` `75464e88` (PR #335) · sem push nem PR ainda |
+| Escopo | `estoqueFisicoMotor.js`: `consumirCustoMedio` e `aplicarSaida` (no lugar de `consumirFifo`/`aplicarSaidaFifo`), reavaliação do poço produto × depósito, estorno exato, transferência com valor conservado; chamadores renomeados (abastecimento, atividade, cocho, venda, transferência) |
+| Cutover | daqui para a frente; histórico, fatias e consumos **não** são reescritos; saída FIFO antiga estornada devolve o valor FIFO gravado |
+| Migration | **nenhuma** (só código, sem DDL). Nada roda no banco no merge |
+| Constituição | emenda **proposta** em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md`; **só vale com a aprovação do proprietário no merge manual** |
+| Fica para a PR 2 | aba Entradas, `EntradaEstoque*`, motivos (D-PROD-177), permissão `entrada`/`ajuste`, migration, reconciliação |
+| Relatório | [`MAIKE-ESTOQUE-CUSTO-MEDIO-REPORT.md`](./MAIKE-ESTOQUE-CUSTO-MEDIO-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ATIVIDADES-FASE1: tipos fixos + formulário único, só serviços de pasto (D-PROD-258)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-258**, pedido do proprietário: aprovou a fase 1 da análise de Atividades, com escopo só de pastos |
-| Branch / PR | `feat/atividades-tipos-fixos`, a partir da `main` `75464e88` · **commits só locais**, sem push nem PR |
+| Branch / PR | `feat/atividades-tipos-fixos` · PR **#338**, mergeada na `main` `bab0f38a` |
 | Escopo | 7 tipos fixos obrigatórios na categoria; cadastro de operação com tipo + nome + ativo; "Registrar serviço" em dois passos (tipo, depois operação) com as quatro seções sempre visíveis; Manejos do mapa abre o mesmo formulário com a área preenchida; Grupo e as 8 chaves fora das telas de atividade |
 | Backend | `categoria` obrigatória (7 valores) em `POST/PATCH /tipos-atividade`; grupo `GERAL` e chaves em padrão na criação. **Nenhuma migration** |
 | Dados | `scripts/ops/tipos-fixos-atividade-dados.mjs`: dry-run por padrão, **não executado** em dados reais; precisa da conferência do proprietário |
@@ -28,7 +41,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `cursor/estoque-saldo-movimentos`, a partir da `main` `9d791735` · sem push nem PR ainda |
 | Escopo | Página `Estoque` (Suporte do Mapa → Estoque, `/estoque`), na cadeia Base1; Saldo produto × depósito (das camadas), Movimentos (kardex) com filtros, janela de detalhe somente leitura; clicar no Saldo leva aos Movimentos do produto e depósito |
 | Backend | `GET /estoque/saldo`, `/estoque/movimentos` (P1-04, keyset + cursor assinado), `/estoque/movimentos/:id`, `/estoque/opcoes/produtos` e `/locais`; guarda da tela nova `sup-estoque` (`visualizar`). **Nenhuma migration**, motor intocado, guardas existentes mantidas |
-| Fica para depois | Entradas (saldo inicial, doação, outra causa), Inventário (saldo inicial + contagem periódica com ajuste e motivo), saída manual com motivos fixos, **custo médio** (hoje FIFO por camada), permissão extra `entrada`/`ajuste` |
+| Fica para depois | Entradas (saldo inicial, doação, outra causa), Inventário (saldo inicial + contagem periódica com ajuste e motivo), saída manual com motivos fixos, **custo médio** (feito na D-PROD-256; antes FIFO por camada), permissão extra `entrada`/`ajuste` |
 | Relatório | [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md) |
 
 ## Missão anterior (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)

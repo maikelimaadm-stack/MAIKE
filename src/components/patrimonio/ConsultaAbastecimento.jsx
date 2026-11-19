@@ -104,7 +104,7 @@ export function ConsumoDoAbastecimento({ consumo }) {
  * Consulta de um abastecimento (fato confirmado ou cancelado; nada se edita):
  * máquina, PRODUTO (o da época: trocar os Produtos aceitos do tanque no
  * cadastro de Bens não reescreve o histórico), quantidade baixada na unidade
- * gravada no abastecimento (L ou kg), leitura do medidor, tanque, custo FIFO
+ * gravada no abastecimento (L ou kg), leitura do medidor, tanque, custo médio
  * FINAL (por L ou por kg), lotes, movimento e estorno; situação, cancelamento e
  * consumo. D-PROD-162: sem tipo de combustível e sem fator. D-PROD-211: origem
  * (estoque da fazenda ou posto externo, que não tem local nem movimento), a
@@ -161,7 +161,7 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
           {d.tanque?.identificador ?? "—"}
           {d.tanque?.capacidade_litros ? ` (${formatarLitros(d.tanque.capacidade_litros)} L)` : ""}
         </Campo>
-        <Campo rotulo={externo ? "Valor da nota" : "Custo FIFO"} testId="consulta-custo">
+        <Campo rotulo={externo ? "Valor da nota" : "Custo médio"} testId="consulta-custo">
           {formatarCusto(d.custo_total)}
           {d.custo_unitario ? ` (${formatarCusto(d.custo_unitario)}${porUnidade ? `/${porUnidade}` : ""})` : ""}
         </Campo>

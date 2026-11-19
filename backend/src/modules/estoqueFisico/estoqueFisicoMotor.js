@@ -3,7 +3,7 @@
  *
  * Funções que RECEBEM `tx` (nunca abrem transação) e trabalham em Decimal ponta
  * a ponta. São a única porta de efeito físico do lançamento financeiro
- * confirmado/cancelado: entrada (compra), saída FIFO (venda) e os estornos.
+ * confirmado/cancelado: entrada (compra), saída a custo médio ponderado (venda, D-PROD-256) e os estornos.
  *
  * Regras (§3, §8.2, §8.4 do contrato):
  *  - quantidade na unidade de estoque do Produto (KG para KG/SACO; L para L,
@@ -24,9 +24,9 @@
  *  - nada aqui altera `preco_custo`.
  *
  * D-PROD-161 (Estoque P0) — MOTOR FÍSICO ÚNICO: a suplementação e a
- * transferência entre locais também passam por aqui (`aplicarSaidaFifo` com
+ * transferência entre locais também passam por aqui (`aplicarSaida` com
  * `ORIGEM_SUPLEMENTACAO` e `aplicarTransferenciaEstoque`); não existe mais
- * FIFO próprio em Number. Toda primitiva valida TUDO antes da primeira escrita,
+ * FIFO próprio em Number (D-PROD-256: o valor de toda saída é o CUSTO MÉDIO do poço produto × local; a ordem FIFO das camadas é só contabilidade de lote). Toda primitiva valida TUDO antes da primeira escrita,
  * e toda recusa desfaz a transação inteira de quem chama.
  *
  * ORDEM CANÔNICA DE TRAVAS (todos os escritores de estoque):
@@ -69,6 +69,8 @@ export const ORIGEM_ENTRADA_ESTOQUE = 'entrada_estoque';
  * (proveniência falsa).
  */
 export const ORIGEM_APONTAMENTO = 'apontamento_atividade';
+/** D-PROD-256: marca `modo_saida_fifo` (nome legado da coluna) das saídas valorizadas a custo médio; as antigas ficam 'FIFO'. */
+export const MODO_CUSTO_MEDIO = 'CUSTO_MEDIO';
 const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO]);
 /** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 da P0 mantêm os valores gravados antes da P0. */
 const EXCLUSAO_SOMENTE_EM = Object.freeze({
@@ -518,15 +520,25 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
 };
 
 /**
- * Simulação FIFO pura (prévia e confirmação usam a mesma regra): consome os
- * lotes na ordem FIFO até `kg`. Não grava nada.
+ * D-PROD-256 — simulação PURA de saída a CUSTO MÉDIO PONDERADO (prévia e
+ * confirmação usam a mesma regra). O poço é o produto × local: quantidade
+ * Q = Σ disponível, valor V = Σ(disponível × custo da camada). O custo médio é
+ * V ÷ Q arredondado UMA vez em `CASAS_CUSTO`; a saída vale `kg × médio` e TODA
+ * fatia leva esse médio. As camadas continuam sendo baixadas na ordem de
+ * `ordenarFifo` só como contabilidade de lote (rastreio, `lote_id` do estorno
+ * de saídas antigas): o valor da saída NÃO depende da camada consumida.
+ * `custoMedioDepois` = (V − valor da saída) ÷ (Q − kg): é o custo que o
+ * disponível restante precisa ter para o médio não "pular" (quem grava
+ * reavalia as camadas restantes — `reavaliarCamadas`). Não grava nada.
  * @param {Array<{ id: string, quantidade_disponivel: any, custo_unitario: any, data_documento?: Date|null, createdAt: Date }>} lotes
  * @param {any} kg
  */
-export const consumirFifo = (lotes, kg) => {
+export const consumirCustoMedio = (lotes, kg) => {
   const pedido = dec(kg);
   const elegiveis = ordenarFifo(lotes.filter((l) => dec(l.quantidade_disponivel).gt(0)));
   const disponivel = somar(elegiveis.map((l) => l.quantidade_disponivel));
+  const valorPoco = somar(elegiveis.map((l) => dec(l.quantidade_disponivel).times(dec(l.custo_unitario))));
+  const custoMedioAntes = disponivel.gt(0) ? arredondar(valorPoco.dividedBy(disponivel), CASAS_CUSTO) : ZERO;
   /** @type {Array<{ lote_id: string, quantidade: any, custo_unitario: any, anterior: any }>} */
   const fatias = [];
   let restante = pedido;
@@ -534,13 +546,55 @@ export const consumirFifo = (lotes, kg) => {
     if (!restante.gt(0)) break;
     const disp = dec(l.quantidade_disponivel);
     const fatia = disp.lt(restante) ? disp : restante;
-    fatias.push({ lote_id: l.id, quantidade: fatia, custo_unitario: dec(l.custo_unitario), anterior: disp });
+    fatias.push({ lote_id: l.id, quantidade: fatia, custo_unitario: custoMedioAntes, anterior: disp });
     restante = restante.minus(fatia);
   }
   const suficiente = !restante.gt(0);
-  const valorTotal = arredondar(somar(fatias.map((f) => f.quantidade.times(f.custo_unitario))), CASAS_CUSTO);
-  const valorUnitario = pedido.gt(0) ? arredondar(valorTotal.dividedBy(pedido), CASAS_CUSTO) : ZERO;
-  return { suficiente, disponivel, fatias, valorTotal, valorUnitario };
+  const valorTotal = arredondar(somar(fatias.map((f) => f.quantidade.times(custoMedioAntes))), CASAS_CUSTO);
+  const valorUnitario = pedido.gt(0) ? custoMedioAntes : ZERO;
+  const quantidadeRestante = suficiente ? disponivel.minus(pedido) : disponivel;
+  const valorRestante = suficiente && valorPoco.gt(valorTotal) ? valorPoco.minus(valorTotal) : ZERO;
+  const custoMedioDepois = quantidadeRestante.gt(0) ? arredondar(valorRestante.dividedBy(quantidadeRestante), CASAS_CUSTO) : custoMedioAntes;
+  const consumido = new Map(fatias.map((f) => [f.lote_id, f.quantidade]));
+  const camadasRestantes = elegiveis.filter((l) => dec(l.quantidade_disponivel).gt(consumido.get(l.id) ?? ZERO)).map((l) => l.id);
+  return { suficiente, disponivel, fatias, valorTotal, valorUnitario, custoMedioAntes, custoMedioDepois, valorPoco, camadasRestantes };
+};
+
+/**
+ * D-PROD-256 — reavalia o custo das camadas de um poço (produto × local) para o
+ * médio vigente. Só toca em camada cujo custo muda (`updatedAt` honesto). O
+ * `custo_unitario` da camada deixa de ser "custo de aquisição": é o valor
+ * vigente do disponível dela no poço; o custo gravado no MOVIMENTO e nas fatias
+ * continua o de quando ele aconteceu. Quem chama já travou o produto.
+ * @param {any} tx @param {string} clienteId @param {string[]} ids @param {any} custo
+ */
+const reavaliarCamadas = async (tx, clienteId, ids, custo) => {
+  if (!ids.length) return;
+  const valor = paraBanco(custo, CASAS_CUSTO);
+  await tx.estoqueLoteNota.updateMany({
+    where: { cliente_id: clienteId, id: { in: ids }, custo_unitario: { not: valor } },
+    data: { custo_unitario: valor },
+  });
+};
+
+/** Valor e quantidade do poço (camadas Disponivel) de um produto num local, lidos sob a trava do produto. */
+const lerPoco = async (tx, clienteId, empresaId, produtoId, localId) => {
+  const camadas = await lotesFifo(tx, clienteId, empresaId, produtoId, localId);
+  const quantidade = somar(camadas.map((l) => l.quantidade_disponivel));
+  const valor = somar(camadas.map((l) => dec(l.quantidade_disponivel).times(dec(l.custo_unitario))));
+  return { camadas, quantidade, valor };
+};
+
+/**
+ * D-PROD-256 — poço (já alterado: camadas gravadas) volta ao médio
+ * (`valor` ÷ `quantidade`), reavaliando TODA camada Disponivel do local.
+ */
+const reavaliarPoco = async (tx, clienteId, empresaId, produtoId, localId, valor, quantidade) => {
+  if (!quantidade.gt(0)) return ZERO;
+  const medio = arredondar(valor.gt(0) ? valor.dividedBy(quantidade) : ZERO, CASAS_CUSTO);
+  const camadas = await lotesFifo(tx, clienteId, empresaId, produtoId, localId);
+  await reavaliarCamadas(tx, clienteId, camadas.map((l) => l.id), medio);
+  return medio;
 };
 
 /**
@@ -571,9 +625,10 @@ export const estoqueAtualInsuficiente = (details) =>
   });
 
 /**
- * SAÍDA FIFO (venda confirmada): baixa os lotes Disponivel do produto + local +
- * empresa, cria UM movimento 'Saída' a CUSTO FIFO (nunca o preço de venda) e
- * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
+ * SAÍDA a CUSTO MÉDIO PONDERADO (D-PROD-256; venda confirmada): baixa os lotes
+ * Disponivel do produto + local + empresa, cria UM movimento 'Saída' valorizado
+ * pelo médio do poço (nunca o preço de venda), reavalia o disponível restante
+ * para o médio de depois e `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
  * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`;
  * D-PROD-202, `AtividadeApontamentoProdutoConsumoLote` — a linha de produto do apontamento da atividade — com
  * `origem.sistema = ORIGEM_APONTAMENTO`).
@@ -587,21 +642,21 @@ export const estoqueAtualInsuficiente = (details) =>
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, dia?: string, instante?: Date,
  *   documento?: {numero?: string|null, data?: string|null}, parceiro?: {id?: string|null, nome?: string|null},
  *   origem: {operacaoId: string|null, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown>,
- *   procedencia?: boolean, complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any }) => Record<string, unknown> }} a
+ *   procedencia?: boolean, complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any, custoMedioAntes: any, custoMedioDepois: any }) => Record<string, unknown> }} a
  */
-export const aplicarSaidaFifo = async (tx, ctx, a) => {
+export const aplicarSaida = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
   exigirProdutoDaEmpresa(a);
   const instante = a.instante ?? (a.dia ? instanteDoDia(a.dia) : null);
-  if (!(instante instanceof Date) || Number.isNaN(instante.getTime())) throw new Error('aplicarSaidaFifo: dia ou instante obrigatório');
+  if (!(instante instanceof Date) || Number.isNaN(instante.getTime())) throw new Error('aplicarSaida: dia ou instante obrigatório');
   const kg = dec(a.quantidadeKg);
   const extra = { produto_id: a.produto.id, local_estoque_id: a.local.id, ...(a.contextoErro ?? {}) };
   // D-PROD-159 (M5): kg <= 0 faria `decrement` negativo (= aumento) e > limite estouraria a coluna.
   if (!kg.gt(0)) throw quantidadeZero(extra);
   if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.local.id, { procedencia: Boolean(a.procedencia) });
-  const fifo = consumirFifo(lotes, kg);
+  const fifo = consumirCustoMedio(lotes, kg);
   if (!fifo.suficiente) {
     throw saldoLoteInsuficiente({ ...extra, disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) });
   }
@@ -613,7 +668,7 @@ export const aplicarSaidaFifo = async (tx, ctx, a) => {
   const porId = new Map(lotes.map((l) => [l.id, l]));
   const fatias = fifo.fatias.map((f) => (a.procedencia ? { ...f, lote: porId.get(f.lote_id) } : f));
   const publicas = fatias.map((f) => fatiaPublica(f, Boolean(a.procedencia)));
-  const colunasExtras = complementoDe(a.complemento, { fatias: publicas, valorTotal: fifo.valorTotal, valorUnitario: fifo.valorUnitario });
+  const colunasExtras = complementoDe(a.complemento, { fatias: publicas, valorTotal: fifo.valorTotal, valorUnitario: fifo.valorUnitario, custoMedioAntes: fifo.custoMedioAntes, custoMedioDepois: fifo.custoMedioDepois });
   const saldoAntes = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.local.id);
   const numero = await numeroDoMovimento(tx, cli, a.numeroMovimento);
   const movimento = await tx.movimentacaoEstoque.create({
@@ -631,13 +686,14 @@ export const aplicarSaidaFifo = async (tx, ctx, a) => {
       local_origem: a.local.nome ?? null,
       cliente_nome: a.parceiro?.nome ?? null,
       motivo_movimentacao: a.origem.motivo ?? 'Saída por lançamento financeiro confirmado',
-      modo_saida_fifo: 'FIFO',
+      modo_saida_fifo: MODO_CUSTO_MEDIO,
       lotes_consumidos: fifo.fatias.map(fatiaGravada),
       saldo_antes: paraBanco(saldoAntes, CASAS_QUANTIDADE),
       saldo_depois: paraBanco(saldoAntes.minus(kg), CASAS_QUANTIDADE),
     },
   });
   await consumirCamadas(tx, cli, fifo.fatias);
+  await reavaliarCamadas(tx, cli, fifo.camadasRestantes, fifo.custoMedioDepois);
   await decrementarEstoqueAtual(tx, cli, a.produto.id, kg, (valor) =>
     estoqueAtualInsuficiente({ ...extra, estoque_atual: valor.plus(kg).toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) })
   );
@@ -664,7 +720,7 @@ export const aplicarSaidaFifo = async (tx, ctx, a) => {
  * @param {any} tx @param {{auth: any}} ctx
  * @param {{ empresaId: string, produto: any, origem: {id: string, nome: string}, destino: {id: string, nome: string},
  *   quantidadeKg: any, instante: Date, numeros: { saida: string, entrada: string },
- *   complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any }) => { observacoes?: string, custo_medio_antes?: string, custo_medio_depois?: string },
+ *   complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any, custoMedioAntes: any, custoMedioDepois: any }) => { observacoes?: string, custo_medio_antes?: string, custo_medio_depois?: string },
  *   contextoErro?: Record<string, unknown> }} a
  * @returns {Promise<{ saida: any, entrada: any, valor_total: any, valor_unitario: any,
  *   fatias: Array<{ lote_id: string, lote_destino_id: string, quantidade: any, custo_unitario: any, lote: any }> }>}
@@ -685,13 +741,14 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
   if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   // 4–5: plano FIFO na origem e limites, ainda sem escrever
   const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.origem.id, { procedencia: true });
-  const fifo = consumirFifo(lotes, kg);
+  const fifo = consumirCustoMedio(lotes, kg);
   if (!fifo.suficiente) {
     throw saldoLoteInsuficiente({ ...extra, disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) });
   }
   if (fifo.valorTotal.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, valor_total: fifo.valorTotal.toFixed(CASAS_CUSTO) });
   const saldoOrigem = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.origem.id);
-  const saldoDestino = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.destino.id);
+  const pocoDestino = await lerPoco(tx, cli, a.empresaId, a.produto.id, a.destino.id);
+  const saldoDestino = pocoDestino.quantidade;
   if (saldoDestino.plus(kg).gt(LIMITE_ESTOQUE)) {
     throw excedeLimiteEstoque({ ...extra, local_estoque_id: a.destino.id, saldo_destino: saldoDestino.toFixed(CASAS_QUANTIDADE), quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   }
@@ -699,6 +756,7 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
   const fatias = fifo.fatias.map((f) => ({ ...f, lote: porId.get(f.lote_id) }));
   const colunasExtras = complementoDe(a.complemento, {
     fatias: fatias.map((f) => fatiaPublica(f, true)), valorTotal: fifo.valorTotal, valorUnitario: fifo.valorUnitario,
+    custoMedioAntes: fifo.custoMedioAntes, custoMedioDepois: fifo.custoMedioDepois,
   });
   const comum = {
     ...camposComuns(auth, { ...a, origem: { sistema: ORIGEM_DEPOSITO, operacaoId: null } }),
@@ -721,7 +779,7 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
       numero_movimentacao: String(a.numeros.saida),
       tipo_movimentacao: 'Saída',
       tipo_detalhado: 'transferencia_enviada',
-      modo_saida_fifo: 'FIFO',
+      modo_saida_fifo: MODO_CUSTO_MEDIO,
       lotes_consumidos: fatias.map(fatiaGravada),
       is_registro_principal: true,
       numero_movimentacao_seq: 1,
@@ -730,6 +788,7 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
     },
   });
   await consumirCamadas(tx, cli, fatias);
+  await reavaliarCamadas(tx, cli, fifo.camadasRestantes, fifo.custoMedioDepois);
   // 8–9: entrada + camadas de destino (custo, data e procedência da origem)
   const entrada = await tx.movimentacaoEstoque.create({
     data: {
@@ -767,6 +826,8 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
     });
     destinos.push(camada.id);
   }
+  // D-PROD-256: o destino entra pelo valor da saída (médio da origem) e o médio dele se recalcula.
+  await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.destino.id, pocoDestino.valor.plus(fifo.valorTotal), saldoDestino.plus(kg));
   // 10: pai → filho e linhagem (JSON, sem FK)
   const saidaFinal = await tx.movimentacaoEstoque.update({
     where: { cliente_id_id: { cliente_id: cli, id: saida.id } },
@@ -987,7 +1048,8 @@ export const estornarSaida = async (tx, ctx, a) => {
   if (estoqueAtual.plus(kg).gt(LIMITE_ESTOQUE)) {
     throw excedeLimiteEstoque({ colecao: 'itens', indice: a.item.ordem - 1, item_ordem: a.item.ordem, produto_id: a.produto.id });
   }
-  const saldoAntes = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.local.id);
+  const poco = await lerPoco(tx, cli, a.empresaId, a.produto.id, a.local.id);
+  const saldoAntes = poco.quantidade;
   for (const id of [...devolverPorLote.keys()].sort()) {
     const lote = lotes.get(id);
     const disp = dec(lote.quantidade_disponivel);
@@ -997,6 +1059,9 @@ export const estornarSaida = async (tx, ctx, a) => {
     });
     if (r.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
+  // D-PROD-256: estorno EXATO — volta a quantidade e o VALOR gravado no movimento original (FIFO nas saídas
+  // antigas, médio nas novas); o poço inteiro é reavaliado para o médio resultante (nunca um médio novo no lugar).
+  await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.local.id, poco.valor.plus(dec(original.valor_total)), poco.quantidade.plus(kg));
   const numero = await numeroDoMovimento(tx, cli, a.numeroMovimento);
   const estorno = await tx.movimentacaoEstoque.create({
     data: {
@@ -1127,13 +1192,13 @@ export const estornarEmLote = async (tx, ctx, a) => {
   // 1. leituras
   const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, id: { in: produtoIds } } })).map((p) => [p.id, p]));
   const locais = new Map((await tx.localEstoque.findMany({ where: { cliente_id: cli, id: { in: localIds } }, select: { id: true, nome: true } })).map((l) => [l.id, l]));
-  /** @type {Map<string, {id: string, empresa_id: string, produto_id: string, local_estoque_id: string|null, status: string, entrada: any, disp: any}>} */
+  /** @type {Map<string, {id: string, empresa_id: string, produto_id: string, local_estoque_id: string|null, status: string, entrada: any, disp: any, custo: any}>} */
   const lotes = new Map();
   if (loteIds.length) {
-    const lidos = /** @type {any[]} */ (await tx.$queryRaw`SELECT id, empresa_id, produto_id, local_estoque_id, status, quantidade_entrada, quantidade_disponivel
+    const lidos = /** @type {any[]} */ (await tx.$queryRaw`SELECT id, empresa_id, produto_id, local_estoque_id, status, quantidade_entrada, quantidade_disponivel, custo_unitario
       FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND id = ANY(${loteIds}::text[]) ORDER BY id FOR UPDATE`);
     for (const l of lidos) {
-      lotes.set(l.id, { id: l.id, empresa_id: l.empresa_id, produto_id: l.produto_id, local_estoque_id: l.local_estoque_id, status: l.status, entrada: dec(l.quantidade_entrada), disp: dec(l.quantidade_disponivel) });
+      lotes.set(l.id, { id: l.id, empresa_id: l.empresa_id, produto_id: l.produto_id, local_estoque_id: l.local_estoque_id, status: l.status, entrada: dec(l.quantidade_entrada), disp: dec(l.quantidade_disponivel), custo: dec(l.custo_unitario) });
     }
   }
   const inicial = new Map([...lotes.values()].map((l) => [l.id, { status: l.status, disp: l.disp }]));
@@ -1144,13 +1209,17 @@ export const estornarEmLote = async (tx, ctx, a) => {
       : [],
   );
   const saldos = new Map();
-  for (const g of await tx.estoqueLoteNota.groupBy({
-    by: ['produto_id', 'local_estoque_id'],
-    where: { cliente_id: cli, empresa_id: a.empresaId, produto_id: { in: produtoIds }, local_estoque_id: { in: localIds }, status: 'Disponivel' },
-    _sum: { quantidade_disponivel: true },
-  })) {
-    saldos.set(chaveSaldo(g.produto_id, g.local_estoque_id), g._sum.quantidade_disponivel == null ? ZERO : dec(g._sum.quantidade_disponivel));
+  /** D-PROD-256: valor do poço (Σ disponível × custo da camada) por produto + local, corrido junto com `saldos`. */
+  const valores = new Map();
+  for (const g of /** @type {any[]} */ (await tx.$queryRaw`SELECT produto_id, local_estoque_id, SUM(quantidade_disponivel) AS qtd, SUM(quantidade_disponivel * custo_unitario) AS valor
+      FROM "EstoqueLoteNota"
+      WHERE cliente_id = ${cli} AND empresa_id = ${a.empresaId} AND produto_id = ANY(${produtoIds}::text[]) AND local_estoque_id = ANY(${localIds}::text[]) AND status = 'Disponivel'
+      GROUP BY produto_id, local_estoque_id`)) {
+    saldos.set(chaveSaldo(g.produto_id, g.local_estoque_id), g.qtd == null ? ZERO : dec(g.qtd));
+    valores.set(chaveSaldo(g.produto_id, g.local_estoque_id), g.valor == null ? ZERO : dec(g.valor));
   }
+  /** Poços cuja devolução (efeito SAIDA) exige reavaliar as camadas para o médio resultante. */
+  const reavaliar = new Set();
   const estoque = new Map([...produtos.values()].map((p) => [p.id, dec(p.estoque_atual)]));
 
   // 2. simulação na ordem dos itens
@@ -1212,6 +1281,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
         });
       }
       saldoAntes = saldoDe(produto.id, local.id);
+      valores.set(chaveSaldo(produto.id, local.id), (valores.get(chaveSaldo(produto.id, local.id)) ?? ZERO).minus(l.disp.times(l.custo)));
       mudarLote(l, 'Estornado', ZERO);
       estoque.set(produto.id, atual.minus(kg));
     } else {
@@ -1248,6 +1318,9 @@ export const estornarEmLote = async (tx, ctx, a) => {
         mudarLote(l, 'Disponivel', novo);
       }
       estoque.set(produto.id, atual.plus(kg));
+      // D-PROD-256: devolve o VALOR gravado no original (estorno exato); o poço é reavaliado no fim.
+      valores.set(chaveSaldo(produto.id, local.id), (valores.get(chaveSaldo(produto.id, local.id)) ?? ZERO).plus(dec(original.valor_total)));
+      reavaliar.add(chaveSaldo(produto.id, local.id));
     }
     movimentos.push({
       ...camposComuns(auth, { empresaId: a.empresaId, produto, documento: a.documento, origem: a.origem }),
@@ -1278,6 +1351,16 @@ export const estornarEmLote = async (tx, ctx, a) => {
         ${mudados.map((l) => l.status)}::text[], ${mudados.map((l) => paraBanco(l.disp, CASAS_QUANTIDADE))}::text[]) AS v(id, status_antes, disp_antes, status, disp)
       WHERE l.cliente_id = ${cli} AND l.id = v.id AND l.status = v.status_antes AND l.quantidade_disponivel = v.disp_antes::numeric`;
     if (n !== mudados.length) throw conflitoDeEstoque({ lotes: mudados.length, atualizados: n });
+  }
+  // D-PROD-256: reavalia as camadas dos poços que receberam devolução (já com o disponível devolvido gravado).
+  const pocosReav = [...reavaliar].filter((k) => (saldos.get(k) ?? ZERO).gt(0));
+  if (pocosReav.length) {
+    const medios = pocosReav.map((k) => arredondar((valores.get(k) ?? ZERO).gt(0) ? valores.get(k).dividedBy(saldos.get(k)) : ZERO, CASAS_CUSTO));
+    await tx.$executeRaw`UPDATE "EstoqueLoteNota" AS l
+      SET custo_unitario = v.medio::numeric, "updatedAt" = (now() AT TIME ZONE 'UTC')
+      FROM unnest(${pocosReav.map((k) => k.split('\u0000')[0])}::text[], ${pocosReav.map((k) => k.split('\u0000')[1])}::text[], ${medios.map((m) => paraBanco(m, CASAS_CUSTO))}::text[]) AS v(produto_id, local_id, medio)
+      WHERE l.cliente_id = ${cli} AND l.empresa_id = ${a.empresaId} AND l.produto_id = v.produto_id AND l.local_estoque_id = v.local_id
+        AND l.status = 'Disponivel' AND l.quantidade_disponivel > 0 AND l.custo_unitario <> v.medio::numeric`;
   }
   const criados = await tx.movimentacaoEstoque.createManyAndReturn({ data: movimentos, select: { id: true, movimento_pai_id: true } });
   const estornoDe = new Map(criados.map((m) => [m.movimento_pai_id, m.id]));

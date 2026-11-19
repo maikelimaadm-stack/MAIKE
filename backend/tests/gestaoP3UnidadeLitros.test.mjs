@@ -41,7 +41,9 @@ const VETORES = JSON.parse(readFileSync(new URL('../../tests/smoke/fixtures/rate
  * arquivo: qualquer mudança no caminho KG/SACO/UN muda o hash.
  */
 const HASH_PURO_ANTES = 'ab57fc5d2d901ccd0002d018ac6bb1cdd629d75bf8d51ea12ad381b41c754389';
-const HASH_API_ANTES = 'ab3582ca80231a2f6c36aed3808308bbe99ffc016e4ad53eb210b81183ebe177';
+// D-PROD-256: único campo que mudou nesta resposta e nas linhas: `modo_saida_fifo` das 2 saídas da venda, 'FIFO' → 'CUSTO_MEDIO'
+// (os valores são iguais porque cada poço tem uma só camada). Diferença conferida campo a campo contra a `main` 75464e88.
+const HASH_API_ANTES = 'a9080c5bd76c2ad32e90c7cbb65dd5ae890207e6587511dac0924f8a13b06bbb';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;

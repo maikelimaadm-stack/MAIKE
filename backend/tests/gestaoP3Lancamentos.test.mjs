@@ -243,7 +243,7 @@ describe('aceite — fluxos da Central Única de Lançamentos', () => {
     assert.doesNotMatch(JSON.stringify(log.dados_novos), /duplicidade/);
   });
 
-  test('4. RECEBER com produtos: 5 kg por FIFO em 2 lotes (custo FIFO, nunca o preço de venda); sem saldo → 422 sem nenhum efeito', async () => {
+  test('4. RECEBER com produtos: 5 kg baixados de 2 lotes a custo médio (nunca o preço de venda); sem saldo → 422 sem nenhum efeito', async () => {
     const s = await cenario();
     await comprarEConfirmar(s, { quantidade: '3', valorUnitario: '10', total: '30.00', dia: '2027-06-01' });
     await comprarEConfirmar(s, { quantidade: '4', valorUnitario: '12', total: '48.00', dia: '2027-06-05' });
@@ -256,13 +256,13 @@ describe('aceite — fluxos da Central Única de Lançamentos', () => {
     assert.deepEqual(prev.plano.efeitos_estoque.saidas[0].fatias.map((f) => [f.lote_id, f.quantidade]), [[lotes[0].id, '3.0000'], [lotes[1].id, '2.0000']]);
     const conf = await ok(confirmar(s, venda));
     assert.deepEqual(conf.itens[0].consumos.map((k) => [k.estoque_lote_nota_id, k.quantidade, k.custo_unitario]).sort(), [
-      [lotes[0].id, '3.0000', '10.0000'], [lotes[1].id, '2.0000', '12.0000'],
+      [lotes[0].id, '3.0000', '11.1429'], [lotes[1].id, '2.0000', '11.1429'], // médio (30 + 48) ÷ 7
     ].sort());
     assert.equal(conf.itens[0].estoque_lote_nota_id, null, 'a saída não cria lote');
     const mov = await prisma().movimentacaoEstoque.findUnique({ where: { id: conf.itens[0].movimentacao_estoque_id } });
     assert.deepEqual(
       [mov.tipo_movimentacao, mov.tipo_detalhado, mov.quantidade.toFixed(4), mov.valor_total.toFixed(4), mov.valor_unitario.toFixed(4), mov.cliente_nome, mov.local_estoque_origem],
-      ['Saída', 'venda_financeiro', '5.0000', '54.0000', '10.8000', 'FRIGORIFICO', s.local.id]
+      ['Saída', 'venda_financeiro', '5.0000', '55.7145', '11.1429', 'FRIGORIFICO', s.local.id]
     );
     const [a, b] = await Promise.all(lotes.map((l) => prisma().estoqueLoteNota.findUnique({ where: { id: l.id } })));
     assert.deepEqual([a.status, a.quantidade_disponivel.toFixed(4), b.status, b.quantidade_disponivel.toFixed(4)], ['Esgotado', '0.0000', 'Disponivel', '2.0000']);

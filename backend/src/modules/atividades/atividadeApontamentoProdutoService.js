@@ -13,7 +13,7 @@
  *    ativo, em tanque ativo de bem ativo — combustível vai pelo abastecimento);
  *    o local existe e está ativo (422 `ATIVIDADE_LINHA_INVALIDA`);
  *  - BAIXA pelo MESMO motor FIFO do abastecimento: `travarProdutosEstoque` →
- *    `aplicarSaidaFifo` (origem `apontamento_atividade`, `dia` = a
+ *    `aplicarSaida` (origem `apontamento_atividade`, `dia` = a
  *    `data_operacional` do apontamento, documento = o número da atividade);
  *    as fatias vão para `…ConsumoLote`; `numerarMovimentos` no fim da
  *    transação. Saldo insuficiente → 422 `ESTOQUE_SALDO_INSUFICIENTE` com a
@@ -62,7 +62,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import {
   EFEITO_SAIDA,
   ORIGEM_APONTAMENTO,
-  aplicarSaidaFifo,
+  aplicarSaida,
   estornarEmLote,
   numerarMovimentos,
   numeroMovimentoProvisorio,
@@ -269,7 +269,7 @@ const explicarSaldo = (erro, unidade) => {
 /**
  * Baixa de UMA linha pelo motor: local (FOR KEY SHARE) → trava dos produtos →
  * Produto lido SOB a trava (empresa, ativo, unidade, combustível) →
- * `aplicarSaidaFifo`. Devolve as colunas da linha e as fatias. O número do
+ * `aplicarSaida`. Devolve as colunas da linha e as fatias. O número do
  * movimento é PROVISÓRIO: quem chama numera no fim.
  * @param {any} tx @param {{auth: any}} contexto
  * @param {{ clienteId: string, empresaId: string, atividade: { id: string, numero: string },
@@ -298,7 +298,7 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
   const dia = /** @type {string} */ (diaDe(apontamento.data_operacional));
   let saida;
   try {
-    saida = await aplicarSaidaFifo(tx, contexto, {
+    saida = await aplicarSaida(tx, contexto, {
       empresaId,
       produto,
       local: { id: local.id, nome: local.nome },

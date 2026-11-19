@@ -9,7 +9,7 @@ export const SALDO_ESTOQUE_STORAGE_KEY = "colunas_estoque_saldo_v1";
 
 /**
  * Produto × depósito, derivado das camadas disponíveis (D-PROD-255). Quantidade na unidade do
- * produto; Custo = custo médio ponderado das camadas que restam (informativo; o motor é FIFO);
+ * produto; Custo = custo médio ponderado das camadas que restam (método oficial do estoque desde a D-PROD-256);
  * Valor = Σ(quantidade da camada × custo da camada).
  */
 export const SALDO_ESTOQUE_COLUNAS = [

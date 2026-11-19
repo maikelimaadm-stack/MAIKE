@@ -196,3 +196,11 @@ Violação exige **rollback**, não flexibilização da regra.
 > proibido usar `Usuario` como funcionário, apagar linha (só cancelar) e criar `OperacaoFinanceira`, título ou rateio a
 > partir das linhas. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("aplica e aprova")**, no merge da PR #298
 > (`00-CONSTITUICAO.md` §4).
+
+> **Nota proposta (D-PROD-256):** com o custo médio ponderado, onde as notas acima proíbem mexer na "fila FIFO" ou
+> reescrever custo, a proibição passa a valer para o **poço produto × depósito e para o `custo_unitario` gravado em
+> movimento, fatia ou consumo**: continua proibido reescrever movimento, fatia ou consumo, criar um segundo cálculo de
+> custo fora do motor único (`estoqueFisicoMotor.js`) e valorizar saída por qualquer outro método. A reavaliação do
+> `custo_unitario` das camadas **disponíveis**, feita só pelo motor, na mesma transação do movimento que altera o poço, é
+> o mecanismo do método e não é reescrita de histórico. Texto proposto pelo agente; vale só com a aprovação explícita
+> do proprietário no merge manual (`00-CONSTITUICAO.md` §4).
