@@ -27,7 +27,7 @@ por cima e engole o toque: as opções não podem ser escolhidas. O Escape, com 
 | Janela | Situação |
 |---|---|
 | `JanelaAbastecimentoDaArea`, `JanelaLancamentoPorTipo`, `LinhasDoApontamento`, `FormularioApontamento`, `JanelasDaLinha`, `RegistroDeCampo`, `GerenciarTiposDialog` | já tinham o alvo das folhas |
-| `JanelaNovoMovimentoEstoque` | **tem o defeito na `main`**; o conserto está no commit `ac53709` da branch `claude/new-session-26kpxu` (PR do "Novo movimento"), ainda não mergeada. Não mexido aqui para não conflitar |
+| `JanelaNovoMovimentoEstoque` | corrigida à parte (commit `ac53709`, PR #343, já na `main`); não mexida aqui |
 | `JanelaEntradaEstoque`, `JanelaMovimentoEstoque`, `DialogosAbastecimento` (2 janelas), `PainelConsumoBem` | sem lista (só leitura, texto e botões): nada a fazer |
 
 Fora do escopo: o `DialogoAcao` sem `janelaBase1` (caixa do shadcn) não foi revisado.

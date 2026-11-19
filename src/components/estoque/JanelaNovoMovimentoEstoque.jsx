@@ -6,7 +6,7 @@ import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
-import { useCelular } from "@/components/common/MobileSheet";
+import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
 import { formatarReais } from "@/lib/estoqueConsultaRegras";
 import { lerNumeroLocal, somar } from "@/lib/dinheiroDecimal";
 import {
@@ -87,7 +87,11 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
   const unidades = unidadesDoProduto(linha.produto);
   const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : "kg";
   return (
-    <div className="col-span-12 mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2 rounded border border-[var(--mg-border,#e2e8f0)] p-2" data-testid={`entrada-linha-${indice}`}>
+    // A linha é um cartão de linha inteira (`b1-form-embutido`) com a grade PRÓPRIA dentro: a grade compacta de 4 colunas
+    // da Base1 (D-PROD-164/#339) vale para `.mg-b1-form-grid` e, aplicada aqui dentro, achatava o cartão e empilhava os
+    // campos de uma linha sobre os da outra (não dava para escolher o produto da 2ª linha).
+    <div className="col-span-12 b1-form-embutido rounded border border-[var(--mg-border,#e2e8f0)] p-2" data-testid={`entrada-linha-${indice}`}>
+      <div className="grid grid-cols-12 gap-x-3 gap-y-2">
       <div className="col-span-12 flex items-center justify-between text-[12px] font-semibold text-[var(--mg-text-2,#475569)]">
         <span>Produto {indice + 1}</span>
         {podeRemover ? (
@@ -176,6 +180,7 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
       </label>
       <CampoTexto label="Lote" value={linha.lote} onChange={(v) => onMudar({ ...linha, lote: v })} maxLength={64} span={6} error={e("lote")} keepCase />
       <CampoDia label="Data de validade" value={linha.validade} onChange={(v) => onMudar({ ...linha, validade: v })} error={e("validade")} span={6} testId={`entrada-linha-${indice}-validade`} />
+      </div>
     </div>
   );
 }
@@ -285,6 +290,7 @@ function MotivosDeEntrada({ onVoltar }) {
  */
 export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, onFechar, onLancado }) {
   const celular = useCelular();
+  const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
   const [tipo, setTipo] = useState(TIPO_ENTRADA);
   const [modoMotivos, setModoMotivos] = useState(false);
   const [entrada, setEntrada] = useState(() => formularioVazioEntrada(hoje));
@@ -372,8 +378,13 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, on
       testId="janela-novo-movimento-estoque"
       className={celular ? "b1-janela--tela-cheia" : ""}
       contentProps={{ className: celular ? "b1-janela__camada--tela-cheia" : "" }}
+      // No celular as listas (produto, local, motivo…) abrem numa folha: ela nasce DENTRO da janela, senão a janela
+      // modal fica por cima dela e não deixa tocar nas opções. Com a folha aberta, "fechar" fecha só a folha.
+      aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
+      fora={<div ref={setAlvoFolha} className="contents" />}
       rodape={rodape}
     >
+      <MobileSheetPortalCtx.Provider value={alvoFolha}>
       {modoMotivos ? (
         <MotivosDeEntrada onVoltar={() => setModoMotivos(false)} />
       ) : (
@@ -544,6 +555,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, on
           ) : null}
         </form>
       )}
+      </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );
 }

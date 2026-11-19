@@ -11,7 +11,16 @@ rollout pausado **D-PROD-41**)
 
 **Conserto (2026-11-19):** no celular as listas do "Definir setor" (ações em lote das áreas) e do `DialogoAcao` em janela Base1 (`DialogoAreaDaAtividade`) abrem a folha DENTRO da `B1Janela` (`MobileSheetPortalCtx`) — ver [`MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md`](./MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md).
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-NOVO-MOVIMENTO: "Novo movimento" em Movimentos, motivos de entrada por cadastro (D-PROD-259)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS: a entrada não lançava mais de um produto (correção da D-PROD-259)
+
+| Campo | Valor |
+|---|---|
+| Problema | A linha de produto do "Novo movimento" ficava achatada pela grade de 4 colunas da #339 (desktop e celular), e no celular a folha das listas ficava por baixo da janela |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `095b057d` · PR draft |
+| Migration | nenhuma |
+| Relatório | [`MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS-REPORT.md`](./MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-NOVO-MOVIMENTO: "Novo movimento" em Movimentos, motivos de entrada por cadastro (D-PROD-259)
 
 | Campo | Valor |
 |---|---|
