@@ -203,7 +203,8 @@ export const GUARDAS = Object.freeze({
   },
   movimentacaoEstoque: {
     saidaSuplementacao: porQualquer({ mapa: 'lancar_suplementacao' }),
-    transferenciaLocais: porQualquer({ mapa: 'movimentar_depositos' }),
+    // D-PROD-259: também pelo "Novo movimento" da tela Estoque (ação extra `entrada` de `sup-estoque`).
+    transferenciaLocais: porQualquer({ mapa: 'movimentar_depositos' }, [T.ESTOQUE, 'entrada']),
     criar: SO_ADMIN, // sem chamador na interface
     // R3: o Mapa Cadastro só renomeia o local nas movimentações (FormularioPonto).
     editar: porQualquer(...MAPA_CAD_EDITAR.map((o) => ({ de: o, campos: ['local_origem', 'local_destino'] }))),

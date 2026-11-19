@@ -123,6 +123,7 @@ model Cliente {
   entradasEstoque              EntradaEstoque[]
   entradasEstoqueItens         EntradaEstoqueItem[]
   entradasEstoqueEventos       EntradaEstoqueEvento[]
+  motivosEntradaEstoque        MotivoEntradaEstoque[] // D-PROD-259
   operacoesFinanceirasConsumos OperacaoFinanceiraConsumoLote[]
   operacoesFinanceirasRateios  OperacaoFinanceiraRateio[]
   operacoesFinanceirasItensRateios OperacaoFinanceiraItemRateio[]
@@ -1470,6 +1471,7 @@ model Fornecedor {
   // D-PROD-208 — funcionário ou terceiro da linha de mão de obra.
   atividadeMaoObras    AtividadeApontamentoMaoObra[]
 
+  entradasEstoque      EntradaEstoque[] // D-PROD-259
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_cadastro])
   @@index([cliente_id, empresa_id])
@@ -2380,6 +2382,7 @@ model CentroCusto {
   servicosPadrao        Servico[]
 
   abastecimentos AbastecimentoBem[] // D-PROD-211
+  entradasEstoque EntradaEstoque[] // D-PROD-259
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2416,6 +2419,7 @@ model CentroResultado {
   // D-PROD-197 — centro de resultado padrão dos tipos de atividade.
   tiposAtividadePadrao  TipoAtividade[]
 
+  entradasEstoque EntradaEstoque[] // D-PROD-259
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
@@ -3681,7 +3685,14 @@ model EntradaEstoque {
   status                    String    @db.VarChar(16)
   versao                    Int       @default(1)
   revisao                   Int       @default(1)
+  /// D-PROD-259: natureza do motivo — SALDO_IMPLANTACAO | ENTRADA. O nome vem do cadastro (`motivo_id`).
   motivo                    String    @db.VarChar(32)
+  /// D-PROD-259: o motivo escolhido no cadastro de motivos de entrada (o serviço exige; anulável só no banco).
+  motivo_id                 String?   @db.VarChar(64)
+  /// D-PROD-259: fornecedor (parceiro); nunca no saldo de implantação (CHECK).
+  fornecedor_id             String?   @db.VarChar(64)
+  centro_custo_id           String?   @db.VarChar(64)
+  centro_resultado_id       String?   @db.VarChar(64)
   data_entrada              DateTime  @db.Date
   documento_numero          String?   @db.VarChar(64)
   observacao                String?   @db.VarChar(500)
@@ -3700,12 +3711,41 @@ model EntradaEstoque {
   empresa Empresa                 @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
   itens   EntradaEstoqueItem[]
   eventos EntradaEstoqueEvento[]
+  motivoCadastro  MotivoEntradaEstoque? @relation(fields: [cliente_id, motivo_id], references: [cliente_id, id], onDelete: Restrict, map: "EntradaEstoque_motivo_id_fkey")
+  fornecedor      Fornecedor?           @relation(fields: [cliente_id, fornecedor_id], references: [cliente_id, id], onDelete: Restrict, map: "EntradaEstoque_fornecedor_fkey")
+  centroCusto     CentroCusto?          @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "EntradaEstoque_centro_custo_fkey")
+  centroResultado CentroResultado?      @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "EntradaEstoque_centro_resultado_fkey")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
   @@index([cliente_id, empresa_id, status, data_entrada])
   @@index([cliente_id, empresa_id, motivo])
+  @@index([cliente_id, motivo_id])
+  @@index([cliente_id, fornecedor_id])
+  @@index([cliente_id, empresa_id, centro_custo_id])
+  @@index([cliente_id, empresa_id, centro_resultado_id])
+}
+
+/// D-PROD-259 — cadastro de motivos de entrada do estoque, por cliente. `natureza` SALDO_IMPLANTACAO (o motivo
+/// padrão "Saldo de implantação", com as regras da implantação) ou ENTRADA (Compra, Doação e os que o usuário criar).
+/// `chave` é o nome normalizado (maiúsculas, espaços únicos): um nome por cliente. Motivo usado não sai; é desativado.
+model MotivoEntradaEstoque {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  nome       String   @db.VarChar(80)
+  chave      String   @db.VarChar(80)
+  natureza   String   @db.VarChar(24)
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente  Cliente          @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  entradas EntradaEstoque[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, chave])
+  @@index([cliente_id, ativo])
 }
 
 /// Linha versionada por intervalo de revisão (`revisao_fim` nula = vigente). Índice único
@@ -3729,6 +3769,9 @@ model EntradaEstoqueItem {
   custo_kg                Decimal  @db.Decimal(14, 4)
   valor_total             Decimal  @db.Decimal(18, 4)
   custo_zero              Boolean  @default(false)
+  /// D-PROD-259: lote do fabricante e data de validade, informativos (não mudam saldo nem custo).
+  lote_fabricante         String?   @db.VarChar(64)
+  data_validade           DateTime? @db.Date
   estoque_lote_nota_id    String?  @db.VarChar(64)
   movimentacao_estoque_id String?  @db.VarChar(64)
   movimentacao_estorno_id String?  @db.VarChar(64)

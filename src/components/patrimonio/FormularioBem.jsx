@@ -380,6 +380,13 @@ export default function FormularioBem({
         onCriarNovo={podeCriarCatalogo && natureza ? pedirNovoTipo : undefined}
         rotuloCriarNovo="Novo tipo"
       />
+      {!natureza && !readOnly ? (
+        <div className="col-span-12">
+          <AvisoGestao tone="blue" testId="bem-escolha-tipo-de-bem">
+            Escolha o tipo de bem (benfeitoria, máquina, veículo…): ele define as abas e os campos do bem e não muda depois de gravado. Depois escolha o tipo (ou crie um em “+ Novo tipo”).
+          </AvisoGestao>
+        </div>
+      ) : null}
     </div>
   );
 

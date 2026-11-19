@@ -87,6 +87,11 @@ const clicar = async (el) => {
 };
 const digitar = (testId, valor, escopo = screen) => fireEvent.change(escopo.getByTestId(testId), { target: { value: valor } });
 const radio = (nome, escopo = screen) => clicar(escopo.getByRole('radio', { name: nome }));
+/**
+ * Desde a PR #339 as seções do formulário são guias laterais (Base1PanelTabs): só a guia
+ * ativa fica visível. Quem usa a tela troca de guia antes de mexer nos Itens, no Rateio etc.
+ */
+const aba = (nome) => clicar(screen.getByRole('tab', { name: nome }));
 const escolher = async (testId, rotulo) => {
   await clicar(screen.getByTestId(testId));
   const painel = await screen.findByTestId(`${testId}-painel`);
@@ -305,6 +310,7 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
     await novo();
     await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
     await radio('Com produtos');
+    await aba(/Itens/);
     const item = within(screen.getByTestId('item-0'));
     await escolher('seletor-produto-0', /SAL MINERAL 80/);
     await escolher('seletor-local-0', /DEPÓSITO SEDE/);
@@ -316,7 +322,9 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
     fireEvent.change(screen.getByTestId('data-operacional'), { target: { value: '2026-11-07' } });
     await clicar(screen.getByTestId('declaracao-efeito-fisico'));
     await escolher('seletor-natureza-0', /INSUMOS \/ NUTRIÇÃO/);
+    await aba(/Tipo/);
     await radio('Parcelado');
+    await aba(/Vencimentos/);
     const gerador = within(screen.getByTestId('gerador-parcelas'));
     fireEvent.change(gerador.getByLabelText(/Nº de parcelas/), { target: { value: '3' } });
     await clicar(gerador.getByRole('button', { name: 'Gerar parcelas' }));
@@ -346,6 +354,7 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
     await radio('A receber');
     await escolher('seletor-parceiro', /FRIGORÍFICO CENTRAL/);
     await radio('Com produtos');
+    await aba(/Itens/);
     await escolher('seletor-produto-0', /MILHO MOÍDO/);
     const saldos = await screen.findByTestId('saldos-item-0');
     await waitFor(() => expect(saldos).toHaveTextContent(/GALPÃO RETIRO: 1\.200 kg/));
@@ -466,6 +475,7 @@ describe('LANC-3 — rateio ao centavo e percentual', () => {
     await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
     digitar('valor-bruto', '1.000,00');
     await escolher('seletor-natureza-0', /NUTRIÇÃO/);
+    await aba(/Rateio/);
     await clicar(screen.getByRole('button', { name: /Linha de rateio/ }));
     await escolher('seletor-natureza-1', /SANIDADE/);
     digitar('rateio-0-valor', '600,00');

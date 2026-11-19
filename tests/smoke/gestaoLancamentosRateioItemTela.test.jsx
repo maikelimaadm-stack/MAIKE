@@ -121,6 +121,11 @@ const clicar = async (el) => {
 };
 const digitar = (testId, valor, escopo = screen) => fireEvent.change(escopo.getByTestId(testId), { target: { value: valor } });
 const radio = (nome, escopo = screen) => clicar(escopo.getByRole('radio', { name: nome }));
+/**
+ * Desde a PR #339 as seções do formulário são guias laterais (Base1PanelTabs): só a guia
+ * ativa fica visível. Quem usa a tela troca de guia antes de mexer no Rateio ou nos Itens.
+ */
+const aba = (nome) => clicar(screen.getByRole('tab', { name: nome }));
 const escolher = async (testId, rotulo) => {
   await clicar(screen.getByTestId(testId));
   const painel = await screen.findByTestId(`${testId}-painel`);
@@ -185,6 +190,7 @@ describe('RIT-1 — seletor de escopo', () => {
     expect(screen.queryByTestId('escolha-escopo-rateio')).toBeNull();
     await editar();
     await radio('Com produtos');
+    await aba(/Rateio/);
     const escopo = screen.getByTestId('escolha-escopo-rateio');
     expect(within(escopo).getByRole('radio', { name: 'Geral' })).toHaveAttribute('aria-checked', 'true');
   });
@@ -201,6 +207,7 @@ describe('RIT-1 — seletor de escopo', () => {
     };
     await montar();
     await abrir(antigo.id);
+    await aba(/Rateio/);
     const escopo = await screen.findByTestId('escolha-escopo-rateio');
     expect(within(escopo).getByRole('radio', { name: 'Geral' })).toHaveAttribute('aria-checked', 'true');
     expect(within(escopo).getByRole('radio', { name: 'Por item' })).toHaveAttribute('aria-checked', 'false');
@@ -216,6 +223,7 @@ describe('RIT-2 — troca de escopo nos dois sentidos, com os diálogos', () => 
     await montar();
     await abrir(doc.id);
     await editar();
+    await aba(/Rateio/);
     await radio('Por item');
     const dialogo = await screen.findByTestId('dialogo-escopo-por-item');
     expect(dialogo).toHaveTextContent(/rateio geral continua guardado/i);
@@ -284,6 +292,7 @@ describe('RIT-2 — troca de escopo nos dois sentidos, com os diálogos', () => 
     await abrir(doc.id);
     await editar();
     digitar('rateio-1-valor', '200,00'); // geral: 700 + 200 ≠ 1.000
+    await aba(/Rateio/);
     await radio('Por item');
     const dialogo = await screen.findByTestId('dialogo-escopo-por-item');
     expect(within(dialogo).getByTestId('escopo-por-item-proporcional')).toBeDisabled();
@@ -302,6 +311,7 @@ describe('RIT-3 — aplicar a todos, diferença por item e total, corpo POR_ITEM
     await montar();
     await abrir(doc.id);
     await editar();
+    await aba(/Rateio/);
     await radio('Por item');
     await clicar(within(await screen.findByTestId('dialogo-escopo-por-item')).getByTestId('escopo-por-item-branco'));
     await clicar(screen.getByTestId('abrir-aplicar-todos'));
@@ -346,7 +356,10 @@ describe('RIT-3 — aplicar a todos, diferença por item e total, corpo POR_ITEM
       [{ natureza_id: 'nd2', centro_custo_id: 'cc2', valor: '600.00' }],
       [{ natureza_id: 'nd2', centro_custo_id: 'cc2', valor: '300.00' }, { natureza_id: 'nd1', valor: '100.00' }],
     ]);
-    // Gravado: volta em leitura, ainda POR_ITEM.
+    // Gravado: volta em leitura (o formulário remonta com a versão nova, na 1ª guia), ainda POR_ITEM.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Tipo/ })).toHaveAttribute('aria-selected', 'true'));
+    await aba(/Rateio/);
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Por item' })).toHaveAttribute('aria-checked', 'true'));
     expect(estado.documentos[0].rateio_escopo).toBe('POR_ITEM');
   });
@@ -378,6 +391,7 @@ describe('RIT-4 — reordenar e remover item levam as linhas junto', () => {
     await editar();
     expect(screen.getByTestId('rateio-item-0-cabecalho')).toHaveTextContent(/MILHO MOÍDO/);
     expect(screen.getByTestId('rateio-item-1-cabecalho')).toHaveTextContent(/FRETE/);
+    await aba(/Itens/);
     await clicar(screen.getByRole('button', { name: 'Mover item 2 para cima' }));
     expect(screen.getByTestId('rateio-item-0-cabecalho')).toHaveTextContent(/Item 1 · FRETE/);
     expect(naturezaDaLinha(0, 0)).toMatch(/SANIDADE/);
@@ -394,6 +408,7 @@ describe('RIT-4 — reordenar e remover item levam as linhas junto', () => {
     ]);
 
     await editar();
+    await aba(/Itens/);
     await clicar(screen.getByRole('button', { name: 'Remover item 2' }));
     expect(screen.queryByTestId('rateio-item-1')).toBeNull();
     expect(screen.getByTestId('rateio-item-0-cabecalho')).toHaveTextContent(/FRETE/);
@@ -605,6 +620,7 @@ describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em sil
     await montar();
     await abrir(doc.id);
     await editar();
+    await aba(/Rateio/);
     await radio('Por item');
     const dialogo = await screen.findByTestId('dialogo-escopo-por-item');
     // Sozinho, cada item dava 50,00 / 0,00: SANIDADE (0,01) sumia do documento sem aviso.
@@ -621,6 +637,7 @@ describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em sil
     await montar();
     await abrir(doc.id);
     await editar();
+    await aba(/Rateio/);
     await radio('Por item');
     const dialogo = await screen.findByTestId('dialogo-escopo-por-item');
     expect(dialogo).toHaveTextContent(/rateio geral continua guardado enquanto o rascunho não for salvo/i);
@@ -630,6 +647,7 @@ describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em sil
     await salvar();
     await waitFor(() => expect(chamadas('PUT', `/operacoes-financeiras/${doc.id}`)).toHaveLength(1));
     await editar();
+    await aba(/Rateio/);
     await radio('Geral');
     expect(perguntar).toHaveBeenCalledTimes(1);
     expect(perguntar.mock.calls[0][0]).toMatch(/classificações por item serão descartadas/);
@@ -667,6 +685,7 @@ describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em sil
     await abrir(doc.id);
     await editar();
     await salvar(); // enviado: item 2 = FRETE, linha 2 = ENERGIA
+    await aba(/Itens/);
     await clicar(screen.getByRole('button', { name: 'Mover item 2 para cima' }));
     expect(screen.getByTestId('rateio-item-0-cabecalho')).toHaveTextContent(/FRETE/);
     await act(async () => {
@@ -684,6 +703,7 @@ describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em sil
     await montar();
     await abrir(doc.id);
     await editar();
+    await aba(/Rateio/);
     await radio('Por item');
     await clicar(within(await screen.findByTestId('dialogo-escopo-por-item')).getByTestId('escopo-por-item-branco'));
     await waitFor(() => expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull());
@@ -700,10 +720,13 @@ describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em sil
     await montar();
     await abrir(doc.id);
     await editar();
+    await aba(/Itens/);
     await clicar(screen.getByRole('button', { name: 'Remover item 2' }));
     await clicar(screen.getByRole('button', { name: 'Remover item 1' }));
+    await aba(/Tipo/);
     await radio('Sem produtos');
     await radio('Com produtos');
+    await aba(/Rateio/);
     const escopo = screen.getByTestId('escolha-escopo-rateio');
     expect(within(escopo).getByRole('radio', { name: 'Geral' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull();
@@ -731,6 +754,7 @@ describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em sil
     await montar();
     await abrir(doc.id);
     await editar();
+    await aba(/Rateio/);
     await radio('Por item');
     await clicar(within(await screen.findByTestId('dialogo-escopo-por-item')).getByTestId('escopo-por-item-proporcional'));
     await waitFor(() => expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull());
