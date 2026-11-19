@@ -602,7 +602,7 @@ export default function FormularioLote({
         panels={activeLayoutConfig.panels}
         fields={dynamicFields}
         layout={activeLayoutConfig.layout}
-        hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+        hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
         lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
         requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
         visibilityRules={activeLayoutConfig.visibilityRules || {}}
@@ -627,7 +627,7 @@ export default function FormularioLote({
           panels={activeLayoutConfig.panels}
           fields={dynamicFields}
           layout={activeLayoutConfig.layout}
-          hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+          hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
           lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
           requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
           aggregationConfig={activeLayoutConfig.aggregationConfig || {}}
@@ -759,7 +759,7 @@ export default function FormularioLote({
                     panels={tabs}
                     fields={dynamicFields}
                     layout={activeLayoutConfig.layout}
-                    hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                    hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
                     lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
                     requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
                     visibilityRules={activeLayoutConfig.visibilityRules || {}}
@@ -790,7 +790,7 @@ export default function FormularioLote({
                       panels={tabs}
                       fields={dynamicFields}
                       layout={activeLayoutConfig.layout}
-                      hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                      hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
                       lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
                       requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
                       visibilityRules={activeLayoutConfig.visibilityRules || {}}

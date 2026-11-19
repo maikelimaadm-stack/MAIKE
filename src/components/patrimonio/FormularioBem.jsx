@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { B1CartaoCampos, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { useQueryClient } from "@tanstack/react-query";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroRapidoSheet from "@/components/common/CadastroRapidoSheet";
@@ -9,7 +9,7 @@ import { formatarDia, hojeNoFuso } from "@/lib/diaCivil";
 import { formatarNumero } from "@/lib/dinheiroDecimal";
 import { lerErroGestao } from "@/lib/gestaoErros";
 import { mensagemErroPatrimonio } from "@/lib/patrimonioErros";
-import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
@@ -305,7 +305,11 @@ export default function FormularioBem({
   };
 
   /** @type {Array<{ id: string, label: string }>} */
-  const abas = [{ id: ABAS_BEM.IDENTIFICACAO, label: "Identificação" }];
+  const abas = [
+    { id: ABAS_BEM.IDENTIFICACAO, label: "Identificação" },
+    { id: ABAS_BEM.PROPRIEDADE, label: "Propriedade e responsáveis" },
+    { id: ABAS_BEM.CARACTERISTICAS, label: "Características" },
+  ];
   if (cap && cap.medidor !== "PROIBIDO") abas.push({ id: ABAS_BEM.OPERACAO, label: "Operação" });
   abas.push({ id: ABAS_BEM.AQUISICAO, label: "Aquisição e depreciação" });
 
@@ -327,7 +331,67 @@ export default function FormularioBem({
 
   const identificacao = () => (
     <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2" data-testid="bem-identificacao">
-      <SecaoForm titulo="Propriedade e responsáveis" />
+      {readOnly && editando ? (
+        <CampoTexto
+          label="Nº patrimonial"
+          span={2}
+          value={String(detalhe.numero ?? "")}
+          onChange={() => {}}
+          readOnly
+          placeholder="GERADO AO SALVAR"
+        />
+      ) : null}
+      <CampoTexto label="Nome" required span={6} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={120} error={erros.nome} placeholder="EX.: TRATOR TP-02" />
+      <CampoTexto
+        label="Código de frota"
+        span={editando ? 2 : 4}
+        value={form.codigo_frota}
+        onChange={(v) => set("codigo_frota", v)}
+        readOnly={readOnly}
+        maxLength={16}
+        error={erros.codigo_frota}
+        placeholder="EX.: TP-02"
+      />
+      {editando ? <CampoTexto label="Situação" span={2} value={detalhe.ativo === false ? "Inativo" : "Ativo"} onChange={() => {}} readOnly /> : null}
+      <CampoSelect
+        label="Tipo de bem"
+        value={form.natureza}
+        onChange={escolherNatureza}
+        options={OPCOES_TIPO_DE_BEM}
+        placeholder="— Escolha o tipo de bem —"
+        readOnly={readOnly || editando}
+        required
+        error={erros.natureza || undefined}
+        span={4}
+      />
+      <SeletorPaginadoGestao
+        rotulo="Tipo"
+        testId="bem-seletor-tipo"
+        chave={["patrimonio", "tipos", natureza]}
+        buscar={({ q, cursor, limit }) => listarOpcoesBem("tipos", null, { q, cursor, limit, natureza })}
+        value={form.tipo}
+        onChange={escolherTipo}
+        readOnly={readOnly}
+        bloqueadoMotivo={natureza ? null : "Escolha o tipo de bem primeiro"}
+        obrigatorio
+        textoVazio="— Escolha o tipo —"
+        erro={erros.tipo || undefined}
+        span={8}
+        onCriarNovo={podeCriarCatalogo && natureza ? pedirNovoTipo : undefined}
+        rotuloCriarNovo="Novo tipo"
+      />
+      {!natureza && !readOnly ? (
+        <div className="col-span-12">
+          <AvisoGestao tone="blue" testId="bem-escolha-tipo-de-bem">
+            Escolha o tipo de bem (benfeitoria, máquina, veículo…): ele define as abas e os campos do bem e não muda depois de gravado. Depois escolha o tipo (ou crie um em “+ Novo tipo”).
+          </AvisoGestao>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const propriedade = () => (
+    <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2" data-testid="bem-propriedade">
       <CampoSelect
         label="Propriedade"
         value={form.propriedade}
@@ -342,8 +406,11 @@ export default function FormularioBem({
         : null}
       {seletorDaEmpresa({ rotulo: "Responsável", testId: "bem-seletor-responsavel", recurso: "responsaveis", campo: "responsavel", span: form.propriedade !== "PROPRIO" ? 6 : 4 })}
       {seletorDaEmpresa({ rotulo: "Centro de custo", testId: "bem-seletor-centro-custo", recurso: "centros-custo", campo: "centro_custo", span: form.propriedade !== "PROPRIO" ? 6 : 4 })}
+    </div>
+  );
 
-      <SecaoForm titulo="Características" />
+  const caracteristicas = () => (
+    <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2" data-testid="bem-caracteristicas">
       <CampoTexto label="Marca" span={4} value={form.marca} onChange={(v) => set("marca", v)} readOnly={readOnly} maxLength={80} />
       <CampoTexto label="Modelo" span={4} value={form.modelo} onChange={(v) => set("modelo", v)} readOnly={readOnly} maxLength={80} />
       <CampoTexto
@@ -443,7 +510,6 @@ export default function FormularioBem({
 
   const operacao = () => (
     <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2">
-      <SecaoForm titulo="Medidor" />
       <MedidorBem
         medidor={form.medidor}
         onChange={alterarMedidor}
@@ -477,9 +543,7 @@ export default function FormularioBem({
         />
       ) : null}
       {cap?.tanques ? (
-        <>
-          <SecaoForm titulo="Tanques" />
-          <TanquesBem
+        <TanquesBem
             tanques={form.tanques}
             onChange={alterarTanques}
             readOnly={readOnly}
@@ -490,12 +554,13 @@ export default function FormularioBem({
             recusa={produtoRecusado}
             onRetirarRecusado={onRetirarRecusado}
           />
-        </>
       ) : null}
     </div>
   );
 
   const renderAba = (/** @type {string} */ id) => {
+    if (id === ABAS_BEM.PROPRIEDADE) return propriedade();
+    if (id === ABAS_BEM.CARACTERISTICAS) return caracteristicas();
     if (id === ABAS_BEM.OPERACAO) return operacao();
     if (id === ABAS_BEM.AQUISICAO) {
       return (
@@ -517,74 +582,15 @@ export default function FormularioBem({
   return (
     <CadastroFormShell embedded title={editando ? "Editar bem patrimonial" : "Novo bem patrimonial"}>
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_BEM_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
-          {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-165). */}
-          <B1CartaoCampos>
-            <CampoTexto
-              label="Nº patrimonial"
-              span={2}
-              value={editando ? String(detalhe.numero ?? "") : ""}
-              onChange={() => {}}
-              readOnly
-              placeholder="GERADO AO SALVAR"
-            />
-            <CampoTexto label="Nome" required span={6} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={120} error={erros.nome} placeholder="EX.: TRATOR TP-02" />
-            <CampoTexto
-              label="Código de frota"
-              span={editando ? 2 : 4}
-              value={form.codigo_frota}
-              onChange={(v) => set("codigo_frota", v)}
-              readOnly={readOnly}
-              maxLength={16}
-              error={erros.codigo_frota}
-              placeholder="EX.: TP-02"
-            />
-            {editando ? <CampoTexto label="Situação" span={2} value={detalhe.ativo === false ? "Inativo" : "Ativo"} onChange={() => {}} readOnly /> : null}
-            <CampoSelect
-              label="Tipo de bem"
-              value={form.natureza}
-              onChange={escolherNatureza}
-              options={OPCOES_TIPO_DE_BEM}
-              placeholder="— Escolha o tipo de bem —"
-              readOnly={readOnly || editando}
-              required
-              error={erros.natureza || undefined}
-              span={4}
-            />
-            <SeletorPaginadoGestao
-              rotulo="Tipo"
-              testId="bem-seletor-tipo"
-              chave={["patrimonio", "tipos", natureza]}
-              buscar={({ q, cursor, limit }) => listarOpcoesBem("tipos", null, { q, cursor, limit, natureza })}
-              value={form.tipo}
-              onChange={escolherTipo}
-              readOnly={readOnly}
-              bloqueadoMotivo={natureza ? null : "Escolha o tipo de bem primeiro"}
-              obrigatorio
-              textoVazio="— Escolha o tipo —"
-              erro={erros.tipo || undefined}
-              span={8}
-              onCriarNovo={podeCriarCatalogo && natureza ? pedirNovoTipo : undefined}
-              rotuloCriarNovo="Novo tipo"
-            />
-            {!natureza && !readOnly ? (
-              <div className="col-span-12">
-                <AvisoGestao tone="blue" testId="bem-escolha-tipo-de-bem">
-                  Escolha o tipo de bem (benfeitoria, máquina, veículo…): ele define as abas e os campos do bem e não muda depois de gravado. Depois escolha o tipo (ou crie um em “+ Novo tipo”).
-                </AvisoGestao>
-              </div>
-            ) : null}
-          </B1CartaoCampos>
-          <div className="col-span-12">
-            <Base1PanelTabs
-              tabs={abas}
-              value={aba}
-              onChange={setAba}
-              preferenceKey="bem_patrimonial_form_panels_v1"
-              animationKey={detalhe?.id ?? "novo"}
-              renderPanel={renderAba}
-            />
-          </div>
+        <form id={FORMULARIO_BEM_ID} onSubmit={enviar} className="b1 w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
+          <Base1PanelTabs
+            tabs={abas}
+            value={aba}
+            onChange={setAba}
+            preferenceKey="bem_patrimonial_form_panels_v1"
+            animationKey={detalhe?.id ?? "novo"}
+            renderPanel={renderAba}
+          />
         </form>
       </div>
       <CadastroRapidoTipoBem pedido={cadastroRapido} onFechar={() => setCadastroRapido(null)} onEscolher={escolherDoCadastroRapido} />

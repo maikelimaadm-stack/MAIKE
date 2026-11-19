@@ -81,9 +81,13 @@ describe("SER-FORM — formulário de serviço", () => {
   };
   const enviar = () => fireEvent.submit(document.getElementById(FORMULARIO_SERVICO_ID));
 
-  it("SER-FORM-1 — quatro campos, nesta ordem; a unidade oferece só as ATIVAS do cadastro de unidades", async () => {
+  it("SER-FORM-1 — quatro campos, nesta ordem, e a situação só em leitura; a unidade oferece só as ATIVAS do cadastro de unidades", async () => {
     const { form } = montar();
-    expect(rotulos(form)).toEqual(["Nome", "Unidade de medida", "Centro de custo padrão", "Valor de referência (R$)"]);
+    // Desde a #339 a chave "Ativo" aparece também no Novo, ligada e desabilitada: a situação não é editável no formulário.
+    expect(rotulos(form)).toEqual(["Nome", "Unidade de medida", "Centro de custo padrão", "Valor de referência (R$)", "Ativo"]);
+    const ativo = within(form).getByRole("switch", { name: "Serviço ativo" });
+    expect(ativo).toBeDisabled();
+    expect(ativo).toHaveAttribute("aria-checked", "true");
     expect(form.textContent).not.toMatch(/Fornecedor/i);
     await waitFor(() => expect(servicos.listarUnidadesDoServico).toHaveBeenCalled());
     fireEvent.click(within(form).getByRole("combobox", { name: /Unidade de medida/ }));

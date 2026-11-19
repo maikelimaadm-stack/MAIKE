@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-19 (missão ativa D-PROD-259; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-253** (nasceu D-PROD-195 e passou a D-PROD-252; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e a D-PROD-252 ao Lançamento de Atividades organizado, PR #331, e chegou a `Próxima decisão: D-PROD-253`; a PR #332 deixou a 253 reservada e usou a D-PROD-254) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) e com a `main` `0e38b012` (PR #340, D-PROD-257). PR **#275** (rascunho), exclusiva desta correção |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) com a `main` `0e38b012` (PR #340, D-PROD-257) e com a `main` `095b057d` (PRs #336, #339 e #341, inclusive a D-PROD-259). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; o `criar` das Entradas de Estoque (D-PROD-257) com o mapa convertido; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
@@ -23,14 +23,26 @@ rollout pausado **D-PROD-41**)
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-ENTRADAS: aba Entradas do Estoque (D-PROD-257, PR 2 de 2)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-NOVO-MOVIMENTO: "Novo movimento" em Movimentos, motivos de entrada por cadastro (D-PROD-259)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-259**, pedido do proprietário: escolher o tipo de movimento (Entrada ou Transferência) dentro de Movimentos; a aba Entradas sai |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `c2991afd` · PR draft |
+| Escopo | Janela "Novo movimento" (Entrada com cabeçalho e várias linhas de produto; Transferência pelo comando existente); cadastro `MotivoEntradaEstoque` (Compra, Doação, Saldo de implantação + os do usuário, sem cor); fornecedor, centros de custo e de resultado, lote e validade na entrada |
+| Migration | `20261119200000_estoque_entradas_motivos`, **CONTRACT**. **Aplicada em produção** em 2026-11-19 19:33:14 UTC pelo caminho B, com o GO do proprietário (70 concluídas, 101 tabelas). Até o merge, a entrada por doação/"outra causa" do código da `main` falha no CHECK novo |
+| Constituição | emenda da D-PROD-259 (motivos por cadastro, Compra como motivo, sem justificativa obrigatória) **aprovada pelo proprietário em 2026-11-19**; parágrafo em `00` §1 e nota em `07` |
+| Abertos | consulta recíproca na Central (R-DEDUPE), edição física por revisão, saída manual, ajuste de inventário, cor por tipo |
+| Relatório | [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md) · runbook [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-ENTRADAS: aba Entradas do Estoque (D-PROD-257, PR 2 de 2)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-257**: aba **Entradas** (entrada manual documentada e saldo de implantação) na tela Estoque; o inventário inicial é o motivo `SALDO_IMPLANTACAO`, não uma aba |
-| Branch / PR | `cursor/estoque-entradas`, **empilhada** em `cursor/estoque-custo-medio` (PR #337, D-PROD-256, ainda não mesclada) · sem push nem PR ainda; o PR deve ter base `cursor/estoque-custo-medio` |
+| Branch / PR | `cursor/estoque-entradas` · mergeada na `main` (PRs #335, #337, #340) |
 | Escopo | `backend/src/modules/estoqueEntradas/` (rotas, serviço, regras), dois invólucros no motor (`aplicarEntradaDocumentada`, `estornarEntradaDocumentada`), reconciliação (origem e FK do estorno), permissão extra `entrada` da tela `sup-estoque`, aba/lista/formulário/detalhe no front |
-| Migration | `20261119100000_estoque_entradas`, **EXPAND** (3 tabelas novas). Sobe pelo caminho normal de deploy **só depois do merge manual, e depois da #337**; nada foi aplicado em produção |
+| Migration | `20261119100000_estoque_entradas`, **EXPAND** (3 tabelas novas). **Aplicada em produção** em 2026-11-19 17:54:41 UTC pelo caminho B, com o GO do proprietário (69 concluídas; ver [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-REPORT.md) §1) |
 | Constituição | a emenda do custo médio (D-PROD-256) **continua pendente de ratificação** no merge da #337; esta PR não a aprova |
 | Abertos | consulta recíproca da P3 (compra → entrada; bloqueio de liberação do contrato), edição física por revisão (P1-05b), janela FIFO/R-DATA, inventário periódico e `ajuste` |
 | Relatório | [`MAIKE-ESTOQUE-ENTRADAS-REPORT.md`](./MAIKE-ESTOQUE-ENTRADAS-REPORT.md) |

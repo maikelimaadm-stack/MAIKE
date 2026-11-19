@@ -2,4 +2,5 @@
 
 export {
   listEntradasEstoque, getEntradaEstoque, createEntradaEstoque, updateEntradaEstoque, deleteEntradaEstoque, listOpcoesProdutosEntrada, listOpcoesLocaisEntrada,
+  listOpcoesFornecedoresEntrada, listOpcoesCentrosEntrada, listMotivosEntrada, createMotivoEntrada, updateMotivoEntrada,
 } from './estoqueEntradasApi.js';

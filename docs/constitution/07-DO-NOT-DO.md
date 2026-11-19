@@ -143,6 +143,12 @@ Violação exige **rollback**, não flexibilização da regra.
 >   especial `MovimentacoesEstoque`, `LancamentoProdutosEstoque`, `RelatoriosEstoque`,
 >   `Relatorios`, `Dashboard` e `Home`.
 
+> **Nota (D-PROD-259, emenda aprovada pelo proprietário em 2026-11-19):** na nota D-PROD-177, no lugar de
+> "usar a entrada manual como compra, inventário/ajuste, …", vale: usar a entrada manual como inventário/ajuste,
+> devolução, transferência entre empresas ou entrada por nota fiscal, ou criar, alterar ou cancelar título, conta
+> a pagar ou receita a partir dela. "Doação ou outra causa" passa a ler-se "um motivo de entrada do cadastro".
+> Continua proibido mudar o motivo de uma entrada e conceder a ação `entrada` a perfis existentes por padrão.
+
 > **Nota (D-PROD-193):** os itens do Apontamento de Atividade são a segunda exceção, depois do abastecimento, à
 > lista "fora" da D-PROD-157, só no trecho baixa de estoque, nos limites da decisão. Continua proibido: baixar o
 > item fora do motor de estoque ou por `Produto.estoque_atual -= …`; gravar o movimento com a origem do

@@ -187,15 +187,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   PATRIMONIO_DATA_INVALIDA: { http: 422, meaning: 'data inexistente ou fora de ordem (disponibilidade antes da aquisição, início da depreciação antes da disponibilidade); nada foi gravado' },
   // D-PROD-257 — Estoque → Entradas (entrada manual documentada e saldo de implantação), pelo motor de estoque.
   ENTRADA_ESTOQUE_NOT_FOUND: { http: 404, meaning: 'id não identifica entrada de estoque desta fazenda neste tenant' },
-  ENTRADA_ESTOQUE_INVALIDA: { http: 422, meaning: 'entrada recusada (details.field/reason: produto, depósito, unidade, justificativa ou documento); nada foi gravado' },
-  ENTRADA_ESTOQUE_CUSTO_ZERO: { http: 422, meaning: 'custo zero só com a declaração explícita (custo_zero) e, na implantação, com justificativa; nada foi gravado' },
+  ENTRADA_ESTOQUE_INVALIDA: { http: 422, meaning: 'entrada recusada (details.field/reason: motivo, produto, depósito, unidade, fornecedor, centro ou documento); nada foi gravado' },
+  ENTRADA_ESTOQUE_CUSTO_ZERO: { http: 422, meaning: 'custo zero só com a declaração explícita (custo_zero); nada foi gravado' },
   ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL: { http: 422, meaning: 'o motivo da entrada nunca muda; exclua e lance outra entrada; nada foi alterado' },
   ENTRADA_ESTOQUE_IMPLANTACAO_COM_HISTORICO: { http: 409, meaning: 'o produto já tem histórico físico ou implantação ativa (details.reason); a implantação só vale para produto sem histórico; nada foi gravado' },
   ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS: { http: 409, meaning: 'o estoque desta entrada já foi consumido, movimentado ou não se prova intocado (details.reason); exclusão recusada; nada foi alterado' },
   ENTRADA_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação da entrada não permite esta ação (details.status); nada foi alterado' },
   ENTRADA_ESTOQUE_VERSAO_CONFLITO: { http: 409, meaning: 'a entrada mudou desde a leitura (versão diferente); recarregue; nada foi alterado' },
   ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE: { http: 409, meaning: 'já existe entrada ou lançamento financeiro confirmado com este documento nesta fazenda (details.reason); nada foi gravado' },
-  ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'só a observação e a justificativa se editam; para mudar produto, quantidade, custo, data ou depósito exclua e lance outra entrada; nada foi alterado' },
+  ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'só a observação se edita; para mudar produto, quantidade, custo, data, fornecedor, documento, centros ou depósito exclua e lance outra entrada; nada foi alterado' },
+  // D-PROD-259 — cadastro de motivos de entrada do estoque.
+  MOTIVO_ENTRADA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de entrada deste tenant' },
+  MOTIVO_ENTRADA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de entrada com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
+  MOTIVO_ENTRADA_PADRAO_FIXO: { http: 422, meaning: 'o motivo padrão "Saldo de implantação" não se renomeia nem se desativa; nada foi alterado' },
   // D-PROD-159 / D-PROD-162 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
   // do Produto (L ou KG; D-PROD-169: SACO abastece em KG), pelo motor de estoque; sem conversão nem fator.
   ABASTECIMENTO_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica abastecimento desta fazenda neste tenant' },

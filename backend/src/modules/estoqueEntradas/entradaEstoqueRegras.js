@@ -1,6 +1,8 @@
 /**
- * D-PROD-257 (Estoque → Entradas) — regras PURAS da entrada manual documentada: motivos fechados,
- * normalização do corpo, custo zero e fingerprint. Sem banco. A origem do motor da entrada
+ * D-PROD-257 (Estoque → Entradas) — regras PURAS da entrada manual documentada: naturezas do motivo,
+ * normalização do corpo, custo zero e fingerprint. Sem banco.
+ * D-PROD-259: o motivo vem do CADASTRO (`motivo_id`); a natureza dele (SALDO_IMPLANTACAO | ENTRADA) é
+ * gravada em `motivo` e decide as regras. A entrada ganha fornecedor, centros e, por item, lote e validade. A origem do motor da entrada
  * NUNCA aparece aqui: quem a conhece é o motor (P7 da D-PROD-177), por `aplicarEntradaDocumentada`.
  */
 import { AppError } from '../../shared/errors/AppError.js';
@@ -15,22 +17,19 @@ export const TIPO_EXCLUIR = 'estoque_entrada_excluir';
 export const STATUS_CONFIRMADA = 'CONFIRMADA';
 export const STATUS_EXCLUIDA = 'EXCLUIDA';
 
+/** D-PROD-259: as 2 NATUREZAS do motivo (CHECK do banco). O nome do motivo é do cadastro. */
 export const MOTIVO_IMPLANTACAO = 'SALDO_IMPLANTACAO';
-export const MOTIVO_DOACAO = 'DOACAO';
-export const MOTIVO_OUTRA = 'OUTRA_COM_JUSTIFICATIVA';
-/** D-PROD-177: três motivos FECHADOS (não há COMPRA, AJUSTE_INVENTARIO nem DEVOLUCAO). */
-export const MOTIVOS = Object.freeze([MOTIVO_IMPLANTACAO, MOTIVO_DOACAO, MOTIVO_OUTRA]);
+export const MOTIVO_ENTRADA = 'ENTRADA';
+export const NATUREZAS = Object.freeze([MOTIVO_IMPLANTACAO, MOTIVO_ENTRADA]);
 
-/** Sufixo do `tipo_detalhado` do movimento e texto do movimento, por motivo. */
-export const ROTULOS_DO_MOTIVO = Object.freeze({
+/** Sufixo do `tipo_detalhado` do movimento, por natureza; o texto do movimento leva o nome do motivo. */
+export const ROTULOS_DA_NATUREZA = Object.freeze({
   [MOTIVO_IMPLANTACAO]: { slug: 'saldo_implantacao', texto: 'Entrada de saldo de implantação do estoque' },
-  [MOTIVO_DOACAO]: { slug: 'doacao', texto: 'Entrada por doação recebida' },
-  [MOTIVO_OUTRA]: { slug: 'outra_com_justificativa', texto: 'Entrada manual com justificativa' },
+  [MOTIVO_ENTRADA]: { slug: 'manual', texto: 'Entrada manual' },
 });
 
-export const JUSTIFICATIVA_MINIMA_OUTRA = 20;
-export const JUSTIFICATIVA_MINIMA_CUSTO_ZERO = 10;
 export const MOTIVO_ACAO_MINIMO = 3;
+const TAMANHO_LOTE = 64;
 export const MAX_ITENS = 50;
 
 export const PADRAO_DECIMAL = /^\d{1,10}(\.\d{1,4})?$/;
@@ -63,9 +62,9 @@ export const recusarCoercaoEntrada = (corpo) => {
 export const chaveDoDocumento = (t) => (typeof t === 'string' && t.trim() ? t.trim().toUpperCase() : null);
 
 /**
- * Custo zero (regra da D-PROD-257): só com a declaração explícita `custo_zero = true` e, na implantação e
- * em "outra", com a justificativa (a doação é, ela mesma, o motivo). Custo > 0 com `custo_zero` é incoerente.
- * @param {{ motivo: string, justificativa: string|null, custo_unitario: string, custo_zero: boolean }} p
+ * Custo zero: só com a declaração explícita `custo_zero = true` (D-PROD-259: o motivo do cadastro já diz
+ * por quê; não há mais justificativa obrigatória). Custo > 0 com `custo_zero` é incoerente.
+ * @param {{ custo_unitario: string, custo_zero: boolean }} p
  */
 export const conferirCustoZero = (p) => {
   const zero = dec(p.custo_unitario).eq(0);
@@ -74,13 +73,8 @@ export const conferirCustoZero = (p) => {
     return;
   }
   if (!p.custo_zero) {
-    throw new AppError('ENTRADA_ESTOQUE_CUSTO_ZERO', 'custo zero exige a declaração explícita e o motivo; informe o custo ou marque "custo zero"; nada foi gravado', {
+    throw new AppError('ENTRADA_ESTOQUE_CUSTO_ZERO', 'custo zero exige a declaração explícita; informe o custo ou marque "sem custo"; nada foi gravado', {
       details: { field: 'custo_unitario', reason: 'custo_zero_nao_declarado' },
-    });
-  }
-  if (p.motivo !== MOTIVO_DOACAO && tamanho(p.justificativa ?? '') < JUSTIFICATIVA_MINIMA_CUSTO_ZERO) {
-    throw new AppError('ENTRADA_ESTOQUE_CUSTO_ZERO', `custo zero exige a justificativa (ao menos ${JUSTIFICATIVA_MINIMA_CUSTO_ZERO} caracteres); nada foi gravado`, {
-      details: { field: 'justificativa', reason: 'custo_zero_sem_justificativa' },
     });
   }
 };
@@ -92,24 +86,21 @@ const decimalDoCorpo = (valor, campo, indice) => {
   return dec(valor).toFixed(CASAS_QUANTIDADE);
 };
 
+const idOpcional = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+
 /** Corpo da criação → entrada normalizada (texto higienizado, decimais canônicos). @param {unknown} corpo */
 export const normalizarCriacao = (corpo) => {
   const c = /** @type {Record<string, any>} */ (corpo ?? {});
   if (typeof c.operation_id !== 'string' || !PADRAO_OPERATION_ID.test(c.operation_id)) {
     throw invalido('operation_id inválido', { field: 'operation_id', reason: 'formato' });
   }
-  if (!MOTIVOS.includes(c.motivo)) throw invalido('motivo inválido (SALDO_IMPLANTACAO, DOACAO ou OUTRA_COM_JUSTIFICATIVA)', { field: 'motivo', reason: 'motivo_fechado' });
+  const motivoId = idOpcional(c.motivo_id);
+  if (!motivoId) throw invalido('escolha o motivo da entrada', { field: 'motivo_id', reason: 'obrigatorio' });
   const dataEntrada = diaDoCorpo(c.data_entrada, 'data_entrada');
   if (!dataEntrada) throw invalido('data_entrada é obrigatória', { field: 'data_entrada' });
   const documento = textoDoCorpo(c.documento_numero, 'documento_numero') ?? null;
   const observacao = textoDoCorpo(c.observacao, 'observacao') ?? null;
-  const justificativa = textoDoCorpo(c.justificativa, 'justificativa') ?? null;
   if (documento && tamanho(documento) > 64) throw invalido('documento_numero passa de 64 caracteres', { field: 'documento_numero', reason: 'tamanho' });
-  if (c.motivo === MOTIVO_OUTRA && tamanho(justificativa ?? '') < JUSTIFICATIVA_MINIMA_OUTRA) {
-    throw new AppError('ENTRADA_ESTOQUE_INVALIDA', `a justificativa é obrigatória em "outra" (ao menos ${JUSTIFICATIVA_MINIMA_OUTRA} caracteres); nada foi gravado`, {
-      details: { field: 'justificativa', reason: 'justificativa_obrigatoria' },
-    });
-  }
   const bruto = Array.isArray(c.itens) ? c.itens : [];
   if (!bruto.length || bruto.length > MAX_ITENS) throw invalido(`informe de 1 a ${MAX_ITENS} itens`, { field: 'itens', reason: 'quantidade_de_itens' });
   const itens = bruto.map((i, indice) => {
@@ -119,8 +110,14 @@ export const normalizarCriacao = (corpo) => {
     if (!dec(quantidade).gt(0)) throw new AppError('ENTRADA_ESTOQUE_INVALIDA', 'a quantidade deve ser maior que zero; nada foi gravado', { details: { field: 'quantidade', reason: 'quantidade_zero', indice } });
     const custo = decimalDoCorpo(it.custo_unitario, 'custo_unitario', indice);
     const custo_zero = it.custo_zero === true;
-    conferirCustoZero({ motivo: c.motivo, justificativa, custo_unitario: custo, custo_zero });
-    return { produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, unidade: it.unidade, quantidade, custo_unitario: custo, custo_zero };
+    conferirCustoZero({ custo_unitario: custo, custo_zero });
+    const lote = textoDoCorpo(it.lote_fabricante, 'lote_fabricante') ?? null;
+    if (lote && tamanho(lote) > TAMANHO_LOTE) throw invalido(`o lote passa de ${TAMANHO_LOTE} caracteres`, { field: 'lote_fabricante', reason: 'tamanho', indice });
+    const validade = diaDoCorpo(it.data_validade, 'data_validade') ?? null;
+    return {
+      produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, unidade: it.unidade, quantidade, custo_unitario: custo, custo_zero,
+      lote_fabricante: lote, data_validade: validade,
+    };
   });
   const pares = new Set();
   itens.forEach((it, indice) => {
@@ -128,7 +125,10 @@ export const normalizarCriacao = (corpo) => {
     if (pares.has(chave)) throw new AppError('ENTRADA_ESTOQUE_INVALIDA', 'o mesmo produto no mesmo depósito aparece duas vezes; some as quantidades; nada foi gravado', { details: { field: 'itens', reason: 'par_duplicado', indice } });
     pares.add(chave);
   });
-  return { empresa_id: c.empresa_id, operation_id: c.operation_id, motivo: c.motivo, data_entrada: dataEntrada, documento_numero: documento, observacao, justificativa, itens };
+  return {
+    empresa_id: c.empresa_id, operation_id: c.operation_id, motivo_id: motivoId, data_entrada: dataEntrada, documento_numero: documento, observacao,
+    fornecedor_id: idOpcional(c.fornecedor_id), centro_custo_id: idOpcional(c.centro_custo_id), centro_resultado_id: idOpcional(c.centro_resultado_id), itens,
+  };
 };
 
 /** Corpo da exclusão. @param {string} id @param {unknown} corpo */
@@ -141,7 +141,7 @@ export const normalizarExclusao = (id, corpo) => {
   return { id, empresa_id: c.empresa_id, versao: c.versao, operation_id: c.operation_id, motivo };
 };
 
-/** Corpo da edição (só observação e justificativa). @param {string} id @param {unknown} corpo */
+/** Corpo da edição (só a observação). @param {string} id @param {unknown} corpo */
 export const normalizarEdicao = (id, corpo) => {
   const c = /** @type {Record<string, any>} */ (corpo ?? {});
   const motivoEdicao = textoDoCorpo(c.motivo_edicao, 'motivo_edicao');
@@ -152,23 +152,24 @@ export const normalizarEdicao = (id, corpo) => {
     empresa_id: c.empresa_id,
     versao: c.versao,
     motivo_edicao: motivoEdicao,
-    motivo: c.motivo,
-    campos_fisicos: ['data_entrada', 'documento_numero', 'itens'].filter((k) => c[k] !== undefined),
+    motivo_id: c.motivo_id,
+    campos_fisicos: ['data_entrada', 'documento_numero', 'fornecedor_id', 'centro_custo_id', 'centro_resultado_id', 'itens'].filter((k) => c[k] !== undefined),
     observacao: textoDoCorpo(c.observacao, 'observacao'),
-    justificativa: textoDoCorpo(c.justificativa, 'justificativa'),
   };
 };
 
-/** Fingerprint canônico (ordem FIXA de chaves; v1). @param {ReturnType<typeof normalizarCriacao>} e */
+/** Fingerprint canônico (ordem FIXA de chaves; v2 da D-PROD-259). @param {ReturnType<typeof normalizarCriacao>} e */
 export const fingerprintDaCriacao = (e) => ({
-  v: 1,
+  v: 2,
   empresa_id: e.empresa_id,
-  motivo: e.motivo,
+  motivo_id: e.motivo_id,
   data_entrada: e.data_entrada,
+  fornecedor_id: e.fornecedor_id,
   documento_numero: e.documento_numero,
+  centro_custo_id: e.centro_custo_id,
+  centro_resultado_id: e.centro_resultado_id,
   observacao: e.observacao,
-  justificativa: e.justificativa,
-  itens: e.itens.map((i) => [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade, i.custo_unitario, i.custo_zero]),
+  itens: e.itens.map((i) => [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade, i.custo_unitario, i.custo_zero, i.lote_fabricante, i.data_validade]),
 });
 /** @param {ReturnType<typeof normalizarExclusao>} e */
 export const fingerprintDaExclusao = (e) => ({ v: 1, id: e.id, empresa_id: e.empresa_id, versao: e.versao, motivo: e.motivo });

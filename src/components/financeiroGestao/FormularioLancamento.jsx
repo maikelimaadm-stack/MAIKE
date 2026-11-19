@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { CheckCircle2, Save, Trash2 } from "lucide-react";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
-import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import { SecaoItens, SecaoParcelas, SecaoRateio, SecaoRateioPorItem } from "@/components/financeiroGestao/SecoesLancamento";
@@ -375,57 +376,24 @@ export default function FormularioLancamento({
   const metodos = perfil.metodos_permitidos ?? [];
 
   const titulo = corrigindo ? "Corrigir lançamento confirmado" : duplicarDe ? "Novo lançamento (cópia)" : editando ? "Editar lançamento" : "Novo lançamento";
+  const [abaAtiva, setAbaAtiva] = useState("tipo");
 
-  return (
-    <CadastroFormShell embedded title={titulo}>
-      <div className="mg-b1-record-form">
-        <form id={FORMULARIO_LANCAMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
-          {duplicarDe ? (
-            <div className="col-span-12 min-w-0">
-              <AvisoGestao tone="blue" testId="faixa-copia">
-                <p className="break-words font-semibold">Cópia do lançamento nº {duplicarDe.numero ?? "—"} — novo rascunho</p>
-                <p className="mt-1 break-words">
-                  Nada foi gravado: a cópia só vira um rascunho NOVO (número, títulos e estoque próprios) ao salvar. O nº do documento começa vazio e a
-                  declaração da mercadoria precisa ser marcada de novo. Parceiro, produtos, locais, naturezas e centros vêm do lançamento de origem: se algum
-                  estiver inativo ou não pertencer mais a esta empresa, o servidor recusa ao salvar e o campo é apontado.
-                </p>
-              </AvisoGestao>
-            </div>
-          ) : null}
-          {corrigindo ? (
-            <div className="col-span-12 min-w-0">
-              <AvisoGestao testId="faixa-correcao">
-                <p className="break-words font-semibold">Correção de lançamento confirmado{initialData?.numero != null ? ` — nº ${initialData.numero}` : ""}</p>
-                <p className="mt-1 break-words">
-                  Ao salvar, informe o motivo. As parcelas (títulos sem baixa) são recriadas com os valores e vencimentos novos; a versão anterior fica
-                  guardada no histórico. Se a correção mudar o estoque, a entrada/saída anterior é estornada e uma nova é registrada, com o MESMO número
-                  de lançamento.
-                </p>
-                {retificacao && !retificacao.efeitoFisicoPermitido ? (
-                  <p className="mt-1 break-words font-medium" data-testid="faixa-correcao-sem-estoque">
-                    Neste lançamento o estoque não pode mudar: produtos, quantidades, locais, unidades, data de recebimento/entrega
-                    {initialData?.direcao === "PAGAR" ? " e custos (preço, desconto e acréscimo da mercadoria)" : ""} precisam ficar como estão.
-                    {motivosFisicos ? ` Motivo: ${motivosFisicos}` : ""}
-                  </p>
-                ) : null}
-                {fisicoBloqueado && fisico ? (
-                  <p role="alert" className="mt-1 break-words font-semibold text-red-800" data-testid="correcao-bloqueio-fisico">
-                    Esta correção mexeria no estoque ({descreverMudancasFisicas(fisico.diferencas)}). Volte esses campos ao valor original para salvar.
-                  </p>
-                ) : null}
-              </AvisoGestao>
-            </div>
-          ) : null}
-          {!fusoConfigurado ? (
-            <div className="col-span-12">
-              <AvisoGestao testId="lancamento-sem-fuso">
-                A empresa não tem fuso horário configurado. Você pode salvar o rascunho, mas confirmar com mercadoria e registrar pagamentos exige o fuso
-                (Administração › Empresa).
-              </AvisoGestao>
-            </div>
-          ) : null}
+  const abasLancamento = useMemo(
+    () => [
+      { id: "tipo", label: "1. Tipo" },
+      { id: "dados", label: "2. Dados gerais" },
+      { id: "valores", label: comProdutos ? "3. Itens" : "3. Valores" },
+      { id: "rateio", label: "4. Rateio" },
+      { id: "vencimentos", label: "5. Vencimentos" },
+      { id: "confirmacao", label: "6. Prévia e confirmação" },
+    ],
+    [comProdutos],
+  );
 
-          <SecaoForm titulo="1. Tipo" />
+  const renderPainel = (panelId) => {
+    if (panelId === "tipo") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           <EscolhaSegmentada
             rotulo="Direção"
             testId="escolha-direcao"
@@ -462,8 +430,13 @@ export default function FormularioLancamento({
               { value: "PARCELADO", label: "Parcelado" },
             ]}
           />
+        </div>
+      );
+    }
 
-          <SecaoForm titulo="2. Dados gerais" />
+    if (panelId === "dados") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           <SeletorPaginadoGestao
             rotulo={pagar ? "Parceiro (fornecedor ou prestador)" : "Parceiro (cliente)"}
             obrigatorio
@@ -530,15 +503,14 @@ export default function FormularioLancamento({
               </div>
             </>
           ) : null}
+        </div>
+      );
+    }
 
-          {comProdutos ? (
-            <>
-              <SecaoForm titulo="3. Itens" />
-              <SecaoItens form={form} resumo={resumo} ctx={ctx} setForm={setForm} />
-            </>
-          ) : (
-            <SecaoForm titulo="3. Valores" />
-          )}
+    if (panelId === "valores") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
+          {comProdutos ? <SecaoItens form={form} resumo={resumo} ctx={ctx} setForm={setForm} /> : null}
           {!comProdutos ? (
             <CampoNumero
               label="Valor"
@@ -588,8 +560,13 @@ export default function FormularioLancamento({
               (a prévia mostra o rateio por item).
             </p>
           ) : null}
+        </div>
+      );
+    }
 
-          <SecaoForm titulo="4. Rateio" />
+    if (panelId === "rateio") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           {comProdutos ? (
             <EscolhaSegmentada
               rotulo="Rateio"
@@ -608,74 +585,139 @@ export default function FormularioLancamento({
           ) : (
             <SecaoRateio form={form} resumo={resumo} ctx={ctx} setForm={setForm} />
           )}
+        </div>
+      );
+    }
 
-          <SecaoForm titulo="5. Vencimentos" />
+    if (panelId === "vencimentos") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           <SecaoParcelas form={form} resumo={resumo} ctx={ctx} setForm={setForm} />
+        </div>
+      );
+    }
 
-          <SecaoForm titulo="6. Prévia e confirmação" />
-          <div className="col-span-12 min-w-0 rounded-lg border border-[var(--mg-divider,#cbd5e1)] bg-white p-3 text-[13px]" data-testid="resumo-confirmacao">
-            <p>
-              {resumo.parcelas.length} {resumo.parcelas.length === 1 ? "parcela" : "parcelas"} · {resumo.itensEstoque}{" "}
-              {resumo.itensEstoque === 1 ? "item no estoque" : "itens no estoque"} · total {resumo.total ? formatarMoeda(resumo.total, c) : "—"}
-            </p>
-            {corrigindo ? (
-              <>
-                <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previsao-correcao">
-                  {fisico?.muda
-                    ? `Esta correção muda o estoque (${descreverMudancasFisicas(fisico.diferencas)}): a entrada/saída anterior será estornada e uma nova será registrada.`
-                    : "Esta correção não muda o estoque: lotes e movimentos continuam os mesmos."}{" "}
-                  Quem decide é o servidor, na gravação.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="submit"
-                    disabled={ocupado || readOnly}
-                    data-testid="botao-salvar-correcao"
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    <Save size={16} aria-hidden /> Salvar alterações
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">
-                O rascunho não gera título nem mexe no estoque. Ao confirmar, a prévia mostra exatamente o que será criado. Pagamento e recebimento são
-                registros gerenciais: não há conciliação bancária.
+    return (
+      <div className="mg-b1-form-grid w-full min-h-0">
+        <div className="col-span-12 min-w-0 rounded-lg border border-[var(--mg-divider,#cbd5e1)] bg-white p-3 text-[13px]" data-testid="resumo-confirmacao">
+          <p>
+            {resumo.parcelas.length} {resumo.parcelas.length === 1 ? "parcela" : "parcelas"} · {resumo.itensEstoque}{" "}
+            {resumo.itensEstoque === 1 ? "item no estoque" : "itens no estoque"} · total {resumo.total ? formatarMoeda(resumo.total, c) : "—"}
+          </p>
+          {corrigindo ? (
+            <>
+              <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previsao-correcao">
+                {fisico?.muda
+                  ? `Esta correção muda o estoque (${descreverMudancasFisicas(fisico.diferencas)}): a entrada/saída anterior será estornada e uma nova será registrada.`
+                  : "Esta correção não muda o estoque: lotes e movimentos continuam os mesmos."}{" "}
+                Quem decide é o servidor, na gravação.
               </p>
-            )}
-            {!corrigindo && (onConfirmar || onDescartar) ? (
               <div className="mt-2 flex flex-wrap gap-2">
-                {onConfirmar ? (
-                  <button
-                    type="button"
-                    onClick={pedirConfirmacao}
-                    disabled={ocupado || confirmarBloqueado}
-                    data-testid="botao-confirmar-lancamento"
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    <CheckCircle2 size={16} aria-hidden /> Confirmar lançamento
-                  </button>
-                ) : null}
-                {onDescartar ? (
-                  <button
-                    type="button"
-                    onClick={onDescartar}
-                    disabled={ocupado}
-                    data-testid="botao-descartar-rascunho"
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-red-300 bg-white px-4 text-[13px] font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                  >
-                    <Trash2 size={16} aria-hidden /> Descartar rascunho
-                  </button>
-                ) : null}
+                <button
+                  type="submit"
+                  disabled={ocupado || readOnly}
+                  data-testid="botao-salvar-correcao"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  <Save size={16} aria-hidden /> Salvar alterações
+                </button>
               </div>
-            ) : null}
-            {!corrigindo && onConfirmar && confirmarBloqueado ? (
-              <p role="status" className="mt-2 min-w-0 break-words text-[12px] text-amber-900" data-testid="confirmar-bloqueado-rateio-item">
-                Confirmar fica bloqueado até o rateio por item fechar
-                {primeiroProblema ? ` — ${rotuloDoErro(primeiroProblema.chave)}: ${primeiroProblema.mensagem}.` : ": preencha os itens e as linhas de rateio."}
+            </>
+          ) : (
+            <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">
+              O rascunho não gera título nem mexe no estoque. Ao confirmar, a prévia mostra exatamente o que será criado. Pagamento e recebimento são
+              registros gerenciais: não há conciliação bancária.
+            </p>
+          )}
+          {!corrigindo && (onConfirmar || onDescartar) ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {onConfirmar ? (
+                <button
+                  type="button"
+                  onClick={pedirConfirmacao}
+                  disabled={ocupado || confirmarBloqueado}
+                  data-testid="botao-confirmar-lancamento"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  <CheckCircle2 size={16} aria-hidden /> Confirmar lançamento
+                </button>
+              ) : null}
+              {onDescartar ? (
+                <button
+                  type="button"
+                  onClick={onDescartar}
+                  disabled={ocupado}
+                  data-testid="botao-descartar-rascunho"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-red-300 bg-white px-4 text-[13px] font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                >
+                  <Trash2 size={16} aria-hidden /> Descartar rascunho
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {!corrigindo && onConfirmar && confirmarBloqueado ? (
+            <p role="status" className="mt-2 min-w-0 break-words text-[12px] text-amber-900" data-testid="confirmar-bloqueado-rateio-item">
+              Confirmar fica bloqueado até o rateio por item fechar
+              {primeiroProblema ? ` — ${rotuloDoErro(primeiroProblema.chave)}: ${primeiroProblema.mensagem}.` : ": preencha os itens e as linhas de rateio."}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <CadastroFormShell embedded title={titulo}>
+      <div className="mg-b1-record-form">
+        <form id={FORMULARIO_LANCAMENTO_ID} onSubmit={enviar} className="b1 w-full min-h-0 flex flex-col gap-3" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
+          {duplicarDe ? (
+            <AvisoGestao tone="blue" testId="faixa-copia">
+              <p className="break-words font-semibold">Cópia do lançamento nº {duplicarDe.numero ?? "—"} — novo rascunho</p>
+              <p className="mt-1 break-words">
+                Nada foi gravado: a cópia só vira um rascunho NOVO (número, títulos e estoque próprios) ao salvar. O nº do documento começa vazio e a
+                declaração da mercadoria precisa ser marcada de novo. Parceiro, produtos, locais, naturezas e centros vêm do lançamento de origem: se algum
+                estiver inativo ou não pertencer mais a esta empresa, o servidor recusa ao salvar e o campo é apontado.
               </p>
-            ) : null}
-          </div>
+            </AvisoGestao>
+          ) : null}
+          {corrigindo ? (
+            <AvisoGestao testId="faixa-correcao">
+              <p className="break-words font-semibold">Correção de lançamento confirmado{initialData?.numero != null ? ` — nº ${initialData.numero}` : ""}</p>
+              <p className="mt-1 break-words">
+                Ao salvar, informe o motivo. As parcelas (títulos sem baixa) são recriadas com os valores e vencimentos novos; a versão anterior fica
+                guardada no histórico. Se a correção mudar o estoque, a entrada/saída anterior é estornada e uma nova é registrada, com o MESMO número
+                de lançamento.
+              </p>
+              {retificacao && !retificacao.efeitoFisicoPermitido ? (
+                <p className="mt-1 break-words font-medium" data-testid="faixa-correcao-sem-estoque">
+                  Neste lançamento o estoque não pode mudar: produtos, quantidades, locais, unidades, data de recebimento/entrega
+                  {initialData?.direcao === "PAGAR" ? " e custos (preço, desconto e acréscimo da mercadoria)" : ""} precisam ficar como estão.
+                  {motivosFisicos ? ` Motivo: ${motivosFisicos}` : ""}
+                </p>
+              ) : null}
+              {fisicoBloqueado && fisico ? (
+                <p role="alert" className="mt-1 break-words font-semibold text-red-800" data-testid="correcao-bloqueio-fisico">
+                  Esta correção mexeria no estoque ({descreverMudancasFisicas(fisico.diferencas)}). Volte esses campos ao valor original para salvar.
+                </p>
+              ) : null}
+            </AvisoGestao>
+          ) : null}
+          {!fusoConfigurado ? (
+            <AvisoGestao testId="lancamento-sem-fuso">
+              A empresa não tem fuso horário configurado. Você pode salvar o rascunho, mas confirmar com mercadoria e registrar pagamentos exige o fuso
+              (Administração › Empresa).
+            </AvisoGestao>
+          ) : null}
+
+          <Base1PanelTabs
+            tabs={abasLancamento}
+            value={abaAtiva}
+            onChange={setAbaAtiva}
+            animate={!readOnly}
+            animationKey={initialData?.id ?? "novo"}
+            className="py-1"
+            renderPanel={renderPainel}
+          />
         </form>
       </div>
       {dialogoEscopo && proporcional ? (

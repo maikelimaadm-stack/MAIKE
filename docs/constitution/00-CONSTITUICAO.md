@@ -114,6 +114,16 @@ esta expansão supera apenas o trecho "não há tela avulsa de entrada" da expan
 D-PROD-155; o resto da D-PROD-155 continua valendo. Texto proposto pelo agente; vale só
 com a aprovação explícita do proprietário (§4), registrada como ratificação na D-PROD-177.
 
+**Emenda aprovada pelo proprietário (D-PROD-259):** **Estoque — motivos de entrada por cadastro.** Na
+expansão D-PROD-177 acima, no lugar de "só por um destes motivos fechados: saldo de implantação, doação e outra
+causa com justificativa e permissão própria", vale: só pela permissão própria e por um motivo do **cadastro de
+motivos de entrada** do cliente: o motivo fixo **saldo de implantação**, com as regras acima, ou um motivo de
+**entrada** (Compra, Doação e os que o usuário criar). A justificativa deixa de ser exigida; custo zero só com
+"sem custo" declarado. A entrada manual com motivo Compra registra só o estoque; o pagamento, quando houver,
+continua pela Central. Em "Continua **fora**", no lugar de "entrada por compra fora da Central", vale: título,
+conta a pagar ou receita fora da Central. O motivo de uma entrada continua imutável. Texto redigido pelo agente e
+**aprovado pelo proprietário em 2026-11-19** (chat, "Aprovo as duas"), na PR #341 (§4).
+
 **Expansão autorizada pelo proprietário (D-PROD-193):** **Apontamento de Atividade — itens** (página
 `ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
 **PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de

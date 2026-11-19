@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from "react";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 
 /**
  * Formulário de Centro de Custo / Centro de Resultado (D-PROD-146): nome,
@@ -28,6 +29,7 @@ export default function FormularioCentro({ formId, rotulo, onSubmit, initialData
     ativo: initialData?.ativo !== false,
   }));
   const [erroNome, setErroNome] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState("identificacao");
 
   const opcoes = useMemo(() => {
     const lista = (opcoesPai ?? []).map((o) => ({ value: o.id, label: o.caminho || o.nome }));
@@ -56,41 +58,48 @@ export default function FormularioCentro({ formId, rotulo, onSubmit, initialData
     });
   };
 
+  const abas = useMemo(() => [{ id: "identificacao", label: "Identificação" }], []);
+
   return (
     <CadastroFormShell embedded title={initialData?.id ? `Editar ${rotulo}` : `Novo ${rotulo}`}>
       <div className="mg-b1-record-form">
-        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
-          <SecaoForm titulo="Identificação" />
-          <CampoTexto
-            label="Nome"
-            required
-            span={6}
-            value={form.nome}
-            onChange={(v) => {
-              set("nome", v);
-              setErroNome(false);
-            }}
-            readOnly={readOnly}
-            maxLength={120}
-            error={erroNome ? "Obrigatório" : undefined}
-            placeholder="NOME"
+        <form id={formId} onSubmit={enviar} className="b1 w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
+          <Base1PanelTabs
+            tabs={abas}
+            value={abaAtiva}
+            onChange={setAbaAtiva}
+            animate={!readOnly}
+            animationKey={initialData?.id ?? "novo"}
+            renderPanel={() => (
+              <div className="mg-b1-form-grid w-full min-h-0">
+                <CampoTexto
+                  label="Nome"
+                  required
+                  span={6}
+                  value={form.nome}
+                  onChange={(v) => {
+                    set("nome", v);
+                    setErroNome(false);
+                  }}
+                  readOnly={readOnly}
+                  maxLength={120}
+                  error={erroNome ? "Obrigatório" : undefined}
+                  placeholder="NOME"
+                />
+                <CampoSelect
+                  label={carregandoPais ? "Centro pai (carregando…)" : "Centro pai"}
+                  span={6}
+                  value={form.pai_id}
+                  onChange={(v) => set("pai_id", v)}
+                  options={opcoes}
+                  readOnly={readOnly}
+                  placeholder="— Nenhum (raiz) —"
+                />
+                <CampoTexto label="Descrição" span={12} value={form.descricao} onChange={(v) => set("descricao", v)} readOnly={readOnly} maxLength={500} />
+                <B1ChaveRow label="Ativo" span={6} checked={form.ativo} onChange={readOnly || !initialData?.id ? undefined : (v) => set("ativo", v)} disabled={readOnly || !initialData?.id} ariaLabel={`${rotulo} ativo`} />
+              </div>
+            )}
           />
-          <CampoSelect
-            label={carregandoPais ? "Centro pai (carregando…)" : "Centro pai"}
-            span={6}
-            value={form.pai_id}
-            onChange={(v) => set("pai_id", v)}
-            options={opcoes}
-            readOnly={readOnly}
-            placeholder="— Nenhum (raiz) —"
-          />
-          <CampoTexto label="Descrição" span={12} value={form.descricao} onChange={(v) => set("descricao", v)} readOnly={readOnly} maxLength={500} />
-          {initialData?.id ? (
-            <>
-              <SecaoForm titulo="Situação" />
-              <B1ChaveRow label="Ativo" span={6} checked={form.ativo} onChange={readOnly ? undefined : (v) => set("ativo", v)} disabled={readOnly} ariaLabel={`${rotulo} ativo`} />
-            </>
-          ) : null}
         </form>
       </div>
     </CadastroFormShell>

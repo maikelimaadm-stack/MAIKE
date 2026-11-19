@@ -7,7 +7,7 @@ import { SecaoForm, AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { useCelular } from "@/components/common/MobileSheet";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { formatarCustoUnitario, formatarDia, formatarInstante, formatarQtd, formatarReais } from "@/lib/estoqueConsultaRegras";
-import { JUSTIFICATIVA_MINIMA_OUTRA, MOTIVO_ACAO_MINIMO, MOTIVO_OUTRA, ROTULO_MOTIVO, ROTULO_STATUS_ENTRADA, chaveDeOperacao, mensagemErroEntrada } from "@/lib/estoqueEntradasRegras";
+import { MOTIVO_ACAO_MINIMO, ROTULO_STATUS_ENTRADA, chaveDeOperacao, formatarValidade, mensagemErroEntrada, rotuloDoMotivo, valorTotalDaEntrada } from "@/lib/estoqueEntradasRegras";
 import { detalharEntradaEstoque, editarEntradaEstoque, excluirEntradaEstoque } from "@/services/estoqueEntradasService";
 
 /** Chave do detalhe (prefixo `estoque`: o que invalida o estoque invalida o detalhe). */
@@ -48,10 +48,11 @@ function AreaTexto({ label, value, onChange, required = false, testId = undefine
 const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
 
 /**
- * Detalhe de UMA entrada (D-PROD-257) numa janela só (680px; tela cheia no celular): documento, linhas, histórico.
- * Com a ação `entrada`, duas ações dentro da MESMA janela (sem popup sobre popup): "Editar observação" (só a
- * observação e a justificativa; o motivo nunca muda e o resto exige excluir e lançar de novo) e "Excluir entrada"
- * (exclusão lógica com estorno integral; o servidor recusa se o estoque já foi usado).
+ * Detalhe de UMA entrada (D-PROD-257, D-PROD-259) numa janela só (680px; tela cheia no celular): cabeçalho (motivo,
+ * fornecedor, documento, centros), produtos (com lote e validade), histórico. Abre pelo detalhe do movimento, em
+ * Movimentos (a aba Entradas saiu). Com a ação `entrada`, duas ações dentro da MESMA janela (sem popup sobre popup):
+ * "Editar observação" (só a observação; o motivo nunca muda e o resto exige excluir e lançar de novo) e "Excluir
+ * entrada" (exclusão lógica com estorno integral; o servidor recusa se o estoque já foi usado).
  * @param {{ entrada: any|null, empresaId: string|null, podeLancar: boolean, onFechar: () => void }} props `entrada` é a linha da lista
  */
 export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, onFechar }) {
@@ -61,7 +62,6 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
   const [modo, setModo] = useState(/** @type {'ver'|'editar'|'excluir'} */ ("ver"));
   const [motivo, setMotivo] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [justificativa, setJustificativa] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(/** @type {string|null} */ (null));
   const operacao = useRef(/** @type {{ conteudo: string, id: string } | null} */ (null));
@@ -84,7 +84,6 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
   const e = d ?? entrada;
   const itens = Array.isArray(e?.itens) && e.itens.length ? e.itens : Array.isArray(e?.itens_historico) ? e.itens_historico : [];
   const confirmada = d?.status === "CONFIRMADA";
-  const ehOutra = d?.motivo === MOTIVO_OUTRA;
 
   const atualizar = async () => {
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });
@@ -92,7 +91,6 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
 
   const abrirEdicao = () => {
     setObservacao(d?.observacao ?? "");
-    setJustificativa(d?.justificativa ?? "");
     setMotivo("");
     setErro(null);
     setModo("editar");
@@ -101,14 +99,12 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
   const salvarEdicao = async () => {
     if (enviando || !d) return;
     if (tamanho(motivo) < MOTIVO_ACAO_MINIMO) return setErro(`Informe o motivo da edição (ao menos ${MOTIVO_ACAO_MINIMO} caracteres).`);
-    if (ehOutra && tamanho(justificativa) < JUSTIFICATIVA_MINIMA_OUTRA) return setErro(`A justificativa de "Outra" precisa de ao menos ${JUSTIFICATIVA_MINIMA_OUTRA} caracteres.`);
     setEnviando(true);
     setErro(null);
     try {
       await editarEntradaEstoque(empresaId, { id: d.id, versao: d.versao }, {
         motivoEdicao: motivo.trim(),
         observacao: tamanho(observacao) ? observacao.trim() : null,
-        ...(ehOutra ? { justificativa: justificativa.trim() } : {}),
       });
       await atualizar();
       setModo("ver");
@@ -182,20 +178,25 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
         <div className="min-w-0" data-testid="entrada-detalhe">
           <Grupo titulo="Entrada">
             <Linha rotulo="Data" valor={formatarDia(e.data_entrada)} testId="entrada-detalhe-data" />
-            <Linha rotulo="Motivo" valor={ROTULO_MOTIVO[e.motivo] ?? e.motivo} testId="entrada-detalhe-motivo" />
+            <Linha rotulo="Motivo" valor={rotuloDoMotivo(e)} testId="entrada-detalhe-motivo" />
             <Linha rotulo="Situação" valor={ROTULO_STATUS_ENTRADA[/** @type {'CONFIRMADA'|'EXCLUIDA'} */ (e.status)] ?? e.status} testId="entrada-detalhe-situacao" />
+            <Linha rotulo="Fornecedor" valor={e.fornecedor_nome} testId="entrada-detalhe-fornecedor" />
             <Linha rotulo="Documento" valor={e.documento_numero} />
+            <Linha rotulo="Centro de resultado" valor={e.centro_resultado_nome} testId="entrada-detalhe-centro-resultado" />
+            <Linha rotulo="Centro de custo" valor={e.centro_custo_nome} testId="entrada-detalhe-centro-custo" />
+            <Linha rotulo="Valor total" valor={valorTotalDaEntrada(e)} testId="entrada-detalhe-valor-total" />
             <Linha rotulo="Observação" valor={e.observacao} testId="entrada-detalhe-observacao" />
-            <Linha rotulo="Justificativa" valor={e.justificativa} testId="entrada-detalhe-justificativa" />
           </Grupo>
 
-          <Grupo titulo={itens.length > 1 ? "Itens" : "Item"}>
+          <Grupo titulo={itens.length > 1 ? "Produtos" : "Produto"}>
             {itens.map((/** @type {any} */ i) => (
               <React.Fragment key={i.id}>
                 <Linha rotulo={i.produto_nome ?? "Produto"} valor={`${formatarQtd(i.quantidade_estoque, i.unidade_estoque)} em ${i.local_estoque_nome ?? "—"}`} testId="entrada-detalhe-item" />
                 {i.unidade === "SACO" ? <Linha rotulo="Informado em" valor={`${formatarQtd(i.quantidade, "KG").replace(/ kg$/, "")} sacos de ${formatarQtd(i.fator_kg, "KG")}`} /> : null}
                 <Linha rotulo="Custo" valor={i.custo_zero ? "Custo zero" : `${formatarCustoUnitario(i.custo_kg)} por ${i.unidade_estoque === "L" ? "litro" : "kg"}`} testId="entrada-detalhe-custo" />
                 <Linha rotulo="Valor" valor={i.custo_zero ? "" : formatarReais(i.valor_total)} />
+                <Linha rotulo="Lote" valor={i.lote_fabricante} testId="entrada-detalhe-lote" />
+                <Linha rotulo="Validade" valor={formatarValidade(i.data_validade)} testId="entrada-detalhe-validade" />
               </React.Fragment>
             ))}
           </Grupo>
@@ -219,9 +220,8 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
             <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2 mt-3" data-testid="entrada-form-edicao">
               <SecaoForm titulo="Editar observação" />
               <AreaTexto label="Observação" value={observacao} onChange={setObservacao} testId="entrada-edicao-observacao" />
-              {ehOutra ? <AreaTexto label={`Justificativa (ao menos ${JUSTIFICATIVA_MINIMA_OUTRA} caracteres)`} value={justificativa} onChange={setJustificativa} required testId="entrada-edicao-justificativa" /> : null}
               <AreaTexto label="Motivo da edição" value={motivo} onChange={setMotivo} required testId="entrada-edicao-motivo" />
-              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">O motivo da entrada, a data, o produto, a quantidade e o custo não mudam: para corrigir, exclua a entrada e lance outra.</p>
+              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">O motivo, a data, o fornecedor, o documento, os centros e os produtos não mudam: para corrigir, exclua a entrada e lance outra.</p>
             </div>
           ) : null}
 

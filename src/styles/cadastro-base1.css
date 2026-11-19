@@ -1281,9 +1281,10 @@
 }
 
 .cadastro-b1 .mg-field--multiline .mg-field__control textarea {
-  height: auto !important;
-  min-height: 64px;
-  padding: 20px 10px 8px !important;
+  height: 46px;
+  min-height: 46px;
+  padding: 19px 12px 5px !important;
+  resize: vertical;
 }
 
 .cadastro-b1 .mg-field.mg-has-value:not(.mg-field--disabled):not(.mg-field--locked) {

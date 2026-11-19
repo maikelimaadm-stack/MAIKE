@@ -183,7 +183,13 @@ describe("MOTORBASE1-BATCH-01", () => {
         />,
       ),
     );
-    expect(screen.getByTestId("b1-form-produto")).toHaveClass("mg-b1-form-grid");
+    // Desde a #339 o formulário tem guias (Base1PanelTabs): a grade B1Field vive dentro do painel da guia ativa.
+    expect(screen.getByRole("tab", { name: "Principal" })).toHaveAttribute("aria-selected", "true");
+    const painel = screen.getByRole("tabpanel", { name: "Principal" });
+    expect(screen.getByTestId("b1-form-produto")).toContainElement(painel);
+    const grade = painel.querySelector(":scope > .mg-b1-form-grid");
+    expect(grade).toBeTruthy();
+    expect(grade.querySelector(".mg-field")).toBeTruthy();
     expect(screen.queryByText(/Configuração de Suplementação/i)).toBeNull();
     cleanup();
 

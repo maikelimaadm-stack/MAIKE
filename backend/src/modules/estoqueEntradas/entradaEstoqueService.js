@@ -6,7 +6,11 @@
  *    `estornarEntradaDocumentada`): este módulo não calcula custo à parte nem escreve em camada,
  *    movimento ou cache. Custo negativo é recusado pelo motor (M4); custo zero só com a declaração
  *    e o motivo (`conferirCustoZero`).
- *  - Motivos fechados: SALDO_IMPLANTACAO, DOACAO, OUTRA_COM_JUSTIFICATIVA. O motivo é IMUTÁVEL.
+ *  - D-PROD-259: o motivo vem do CADASTRO de motivos (`motivo_id`, ativo); a natureza dele
+ *    (SALDO_IMPLANTACAO | ENTRADA) é gravada em `motivo` e decide as regras. O motivo é IMUTÁVEL.
+ *    Fornecedor (parceiro ativo da fazenda com papel de fornecedor/prestador, ou legado sem papel),
+ *    centro de custo e centro de resultado (ativos, da fazenda) no cabeçalho; lote do fabricante e
+ *    validade por item. A implantação não tem fornecedor nem documento.
  *  - Implantação: uma ativa por produto e empresa, e só para produto SEM histórico físico (as únicas
  *    exceções são os fatos das linhas JÁ ESTORNADAS de entrada manual, por FK).
  *  - Criar = confirmar numa só chamada, idempotente por `operation_id` (recibo + unique).
@@ -33,14 +37,16 @@ import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/dec
 import {
   aplicarEntradaDocumentada, estornarEntradaDocumentada, exigirLocaisEstoque, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, diaDoCorpo, listarKeyset, paginacaoOpcoes, paginarPorNome, termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import {
-  ENTIDADE, MOTIVO_IMPLANTACAO, MOTIVO_OUTRA, JUSTIFICATIVA_MINIMA_OUTRA, ROTULOS_DO_MOTIVO, STATUS_CONFIRMADA, STATUS_EXCLUIDA, TIPO_CRIAR, TIPO_EXCLUIR,
+  ENTIDADE, MOTIVO_IMPLANTACAO, ROTULOS_DA_NATUREZA, STATUS_CONFIRMADA, STATUS_EXCLUIDA, TIPO_CRIAR, TIPO_EXCLUIR,
   chaveDoDocumento, efeitoDoItem, fingerprintDaCriacao, fingerprintDaExclusao, normalizarCriacao, normalizarEdicao, normalizarExclusao,
 } from './entradaEstoqueRegras.js';
+import { exigirMotivoAtivo } from './motivoEntradaEstoqueService.js';
 
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
 /** Teto da prova (contrato A8.3): acima dele a prova é INDETERMINADA e a exclusão é recusada (nunca varredura ilimitada). */
@@ -58,6 +64,13 @@ const INCLUIR_ITENS = {
   where: { revisao_fim: null },
   orderBy: [{ ordem: 'asc' }],
   include: { produto: { select: { nome_produto: true, codigo_interno: true, unidade_principal_estoque: true } }, localEstoque: { select: { nome: true } } },
+};
+/** D-PROD-259: os nomes do motivo, do fornecedor e dos centros, lidos junto do cabeçalho. */
+const INCLUIR_CABECALHO = {
+  motivoCadastro: { select: { nome: true } },
+  fornecedor: { select: { nome: true } },
+  centroCusto: { select: { nome: true } },
+  centroResultado: { select: { nome: true } },
 };
 const d4 = (v) => dec(v).toFixed(CASAS_QUANTIDADE);
 const c4 = (v) => dec(v).toFixed(CASAS_CUSTO);
@@ -83,6 +96,8 @@ const comoItem = (i) => ({
   estoque_lote_nota_id: i.estoque_lote_nota_id,
   movimentacao_estoque_id: i.movimentacao_estoque_id,
   movimentacao_estorno_id: i.movimentacao_estorno_id,
+  lote_fabricante: i.lote_fabricante ?? null,
+  data_validade: i.data_validade ? diaDe(i.data_validade) : null,
   revisao_inicio: i.revisao_inicio,
   revisao_fim: i.revisao_fim,
 });
@@ -95,10 +110,17 @@ const comoResumo = (e) => ({
   versao: e.versao,
   revisao: e.revisao,
   motivo: e.motivo,
+  motivo_id: e.motivo_id ?? null,
+  motivo_nome: e.motivoCadastro?.nome ?? null,
   data_entrada: diaDe(e.data_entrada),
+  fornecedor_id: e.fornecedor_id ?? null,
+  fornecedor_nome: e.fornecedor?.nome ?? null,
   documento_numero: e.documento_numero,
+  centro_custo_id: e.centro_custo_id ?? null,
+  centro_custo_nome: e.centroCusto?.nome ?? null,
+  centro_resultado_id: e.centro_resultado_id ?? null,
+  centro_resultado_nome: e.centroResultado?.nome ?? null,
   observacao: e.observacao,
-  justificativa: e.justificativa,
   excluida_em: iso(e.excluida_em),
   criada_em: iso(e.createdAt),
   itens: (e.itens ?? []).map(comoItem),
@@ -109,6 +131,7 @@ export const carregarDetalhe = async (db, cli, empresaId, id) => {
   const e = await db.entradaEstoque.findFirst({
     where: { cliente_id: cli, empresa_id: empresaId, id },
     include: {
+      ...INCLUIR_CABECALHO,
       itens: { orderBy: [{ ordem: 'asc' }, { revisao_inicio: 'asc' }], include: INCLUIR_ITENS.include },
       eventos: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
     },
@@ -139,12 +162,12 @@ export const listar = async (contexto, query = {}) => {
   if (de && ate && de > ate) throw invalido('o período está invertido: data_de é posterior a data_ate', { field: 'data_ate', reason: 'periodo_invertido' });
   /** @type {Record<string, any>} */
   const where = { cliente_id: cli, empresa_id: empresaId };
-  for (const campo of ['status', 'motivo']) if (typeof query[campo] === 'string' && query[campo]) where[campo] = query[campo];
+  for (const campo of ['status', 'motivo', 'motivo_id']) if (typeof query[campo] === 'string' && query[campo]) where[campo] = query[campo];
   if (typeof query.produto_id === 'string' && query.produto_id) where.itens = { some: { produto_id: query.produto_id, revisao_fim: null } };
   if (de || ate) where.data_entrada = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
   const q = termoDeBusca(query.q);
   const busca = q ? [{ numero: { contains: q } }, { documento_numero: { contains: q, mode: 'insensitive' } }, { itens: { some: { produto: { nome_produto: { contains: q, mode: 'insensitive' } } } } }] : [];
-  return listarKeyset(prisma.entradaEstoque, { where, busca, query, include: { itens: INCLUIR_ITENS }, mapItem: comoResumo });
+  return listarKeyset(prisma.entradaEstoque, { where, busca, query, include: { ...INCLUIR_CABECALHO, itens: INCLUIR_ITENS }, mapItem: comoResumo });
 };
 
 /** @param {any} contexto @param {string} id @param {Record<string, any>} [query] */
@@ -249,11 +272,40 @@ const exigirDocumentoLivre = async (tx, cli, empresaId, documento) => {
   }
 };
 
+/**
+ * D-PROD-259 — fornecedor e centros do cabeçalho, lidos na transação: da fazenda, ativos; o fornecedor
+ * com papel de fornecedor/prestador (ou legado, sem papel), como no lançamento de compra. A implantação
+ * não tem fornecedor nem documento.
+ * @param {any} tx @param {string} cli @param {string} empresaId @param {ReturnType<typeof normalizarCriacao>} entrada @param {string} natureza
+ */
+const exigirVinculosDoCabecalho = async (tx, cli, empresaId, entrada, natureza) => {
+  if (natureza === MOTIVO_IMPLANTACAO) {
+    if (entrada.fornecedor_id) throw invalida('fornecedor_id', 'implantacao_sem_fornecedor', 'o saldo de implantação não tem fornecedor');
+    if (entrada.documento_numero) throw invalida('documento_numero', 'implantacao_sem_documento', 'o saldo de implantação não tem documento');
+  }
+  if (entrada.fornecedor_id) {
+    const f = await tx.fornecedor.findFirst({ where: { cliente_id: cli, id: entrada.fornecedor_id }, select: { empresa_id: true, ativo: true, tipos: true } });
+    if (!f || f.empresa_id !== empresaId) throw invalida('fornecedor_id', 'fornecedor_inexistente', 'fornecedor não encontrado nesta fazenda');
+    if (!f.ativo) throw invalida('fornecedor_id', 'fornecedor_inativo', 'o fornecedor está inativo');
+    const { papeis } = lerPapeis(f.tipos);
+    const temPapel = !Array.isArray(f.tipos) || f.tipos.length === 0 || papeis.includes('fornecedor') || papeis.includes('prestador_servico');
+    if (!temPapel) throw invalida('fornecedor_id', 'fornecedor_sem_papel', 'o parceiro não tem o papel de fornecedor');
+  }
+  for (const [campo, delegado, rotulo] of /** @type {const} */ ([['centro_custo_id', 'centroCusto', 'centro de custo'], ['centro_resultado_id', 'centroResultado', 'centro de resultado']])) {
+    const id = entrada[campo];
+    if (!id) continue;
+    const c = await tx[delegado].findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id }, select: { ativo: true } });
+    if (!c) throw invalida(campo, `${delegado === 'centroCusto' ? 'centro_custo' : 'centro_resultado'}_inexistente`, `${rotulo} não encontrado nesta fazenda`);
+    if (!c.ativo) throw invalida(campo, `${delegado === 'centroCusto' ? 'centro_custo' : 'centro_resultado'}_inativo`, `o ${rotulo} está inativo`);
+  }
+};
+
 // ─── criar (confirmar) ──────────────────────────────────────────────────────
 
 const paraAuditoria = (e, itens) => ({
-  id: e.id, numero: e.numero, status: e.status, versao: e.versao, revisao: e.revisao, motivo: e.motivo,
-  motivo_informado: Boolean(e.justificativa), documento_informado: Boolean(e.documento_numero),
+  id: e.id, numero: e.numero, status: e.status, versao: e.versao, revisao: e.revisao, motivo: e.motivo, motivo_id: e.motivo_id ?? null,
+  documento_informado: Boolean(e.documento_numero), fornecedor_id: e.fornecedor_id ?? null,
+  centro_custo_id: e.centro_custo_id ?? null, centro_resultado_id: e.centro_resultado_id ?? null,
   itens: itens.map((i) => ({ id: i.id, produto_id: i.produto_id, local_estoque_id: i.local_estoque_id, estoque_lote_nota_id: i.estoque_lote_nota_id, movimentacao_estoque_id: i.movimentacao_estoque_id })),
 });
 
@@ -275,6 +327,9 @@ export const criar = async (contexto, corpo) => {
           const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
           const tempo = await hojeDaEmpresa(tx, cli, empresaId);
           if (entrada.data_entrada > tempo.hoje) throw invalida('data_entrada', 'data_futura', `a data da entrada é posterior a hoje (${tempo.hoje}) na fazenda`, { hoje: tempo.hoje, fuso: tempo.fuso });
+          const motivo = await exigirMotivoAtivo(tx, cli, entrada.motivo_id);
+          const natureza = motivo.natureza;
+          await exigirVinculosDoCabecalho(tx, cli, empresaId, entrada, natureza);
           const locais = await exigirLocaisEstoque(tx, cli, entrada.itens.map((i) => ({ id: i.local_estoque_id, field: 'local_destino_id', exigirAtivo: true })));
           const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, entrada.itens.map((i) => i.produto_id));
           const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
@@ -283,7 +338,7 @@ export const criar = async (contexto, corpo) => {
             if (!p) throw invalida('produto_id', 'produto_inexistente', 'produto não encontrado nesta fazenda');
             if (!p.ativo) throw invalida('produto_id', 'produto_inativo', 'o produto está inativo');
           }
-          if (entrada.motivo === MOTIVO_IMPLANTACAO) await exigirImplantacaoElegivel(tx, cli, produtoIds);
+          if (natureza === MOTIVO_IMPLANTACAO) await exigirImplantacaoElegivel(tx, cli, produtoIds);
           await exigirDocumentoLivre(tx, cli, empresaId, entrada.documento_numero);
           const efeitos = entrada.itens.map((item) => efeitoDoItem(item, /** @type {any} */ (produtos.get(item.produto_id))));
 
@@ -292,12 +347,14 @@ export const criar = async (contexto, corpo) => {
           const agora = new Date();
           const cabecalho = await tx.entradaEstoque.create({
             data: {
-              id, cliente_id: cli, empresa_id: empresaId, numero, status: STATUS_CONFIRMADA, versao: 1, revisao: 1, motivo: entrada.motivo,
-              data_entrada: comoData(entrada.data_entrada), documento_numero: entrada.documento_numero, observacao: entrada.observacao,
-              justificativa: entrada.justificativa, confirmada_em: agora, confirmada_por_usuario_id: auth.usuarioId ?? null,
+              id, cliente_id: cli, empresa_id: empresaId, numero, status: STATUS_CONFIRMADA, versao: 1, revisao: 1, motivo: natureza, motivo_id: motivo.id,
+              data_entrada: comoData(entrada.data_entrada), fornecedor_id: entrada.fornecedor_id, documento_numero: entrada.documento_numero,
+              centro_custo_id: entrada.centro_custo_id, centro_resultado_id: entrada.centro_resultado_id, observacao: entrada.observacao,
+              confirmada_em: agora, confirmada_por_usuario_id: auth.usuarioId ?? null,
             },
           });
-          const rotulo = ROTULOS_DO_MOTIVO[/** @type {keyof typeof ROTULOS_DO_MOTIVO} */ (entrada.motivo)];
+          const base = ROTULOS_DA_NATUREZA[/** @type {keyof typeof ROTULOS_DA_NATUREZA} */ (natureza)];
+          const rotulo = { slug: base.slug, texto: natureza === MOTIVO_IMPLANTACAO ? base.texto : `${base.texto}: ${motivo.nome}`.slice(0, 200) };
           const movimentosIds = [];
           const linhas = [];
           for (const [indice, item] of entrada.itens.entries()) {
@@ -325,6 +382,7 @@ export const criar = async (contexto, corpo) => {
                 unidade: item.unidade, quantidade: item.quantidade, fator_kg: paraBanco(ef.fator, CASAS_QUANTIDADE),
                 quantidade_estoque: paraBanco(ef.quantidadeEstoque, CASAS_QUANTIDADE), custo_unitario: item.custo_unitario,
                 custo_kg: paraBanco(ef.custoKg, CASAS_CUSTO), valor_total: paraBanco(ef.valorTotal, CASAS_CUSTO), custo_zero: item.custo_zero,
+                lote_fabricante: item.lote_fabricante, data_validade: item.data_validade ? comoData(item.data_validade) : null,
                 estoque_lote_nota_id: r.lote.id, movimentacao_estoque_id: r.movimento.id, revisao_inicio: 1,
               },
             }));
@@ -334,7 +392,7 @@ export const criar = async (contexto, corpo) => {
             data: {
               cliente_id: cli, empresa_id: empresaId, entrada_id: id, tipo: 'CONFIRMACAO', revisao_anterior: 0, revisao_nova: 1, versao_anterior: 0, versao_nova: 1,
               motivo: `Entrada ${rotulo.texto.toLowerCase()}`, usuario_id: auth.usuarioId ?? null,
-              snapshot_novo: { cabecalho: paraAuditoria(cabecalho, linhas), justificativa: entrada.justificativa, observacao: entrada.observacao },
+              snapshot_novo: { cabecalho: paraAuditoria(cabecalho, linhas), motivo_nome: motivo.nome, observacao: entrada.observacao },
             },
           });
           await registrarEvento(contexto, { acao: 'entrada_estoque.confirmar', entidade: ENTIDADE, entidadeId: id, dadosNovos: paraAuditoria(cabecalho, linhas) }, tx);
@@ -356,7 +414,7 @@ export const criar = async (contexto, corpo) => {
   return { status: r.replay ? 200 : 201, body: { ...r.body, replay: r.replay } };
 };
 
-// ─── editar (só observação e justificativa) ─────────────────────────────────
+// ─── editar (só a observação) ───────────────────────────────────────────────
 
 /** @param {any} contexto @param {string} id @param {Record<string, any>} corpo */
 export const editar = async (contexto, id, corpo) => {
@@ -367,22 +425,18 @@ export const editar = async (contexto, id, corpo) => {
     const empresaId = await exigirEmpresaDoTenant(tx, cli, e.empresa_id);
     const [atual] = /** @type {any[]} */ (await tx.$queryRaw`SELECT * FROM "EntradaEstoque" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${id} FOR UPDATE`);
     if (!atual) throw naoEncontrada();
-    if (e.motivo !== undefined && e.motivo !== atual.motivo) throw new AppError('ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL', 'o motivo da entrada nunca muda; exclua a entrada e lance outra; nada foi alterado', { details: { motivo_atual: atual.motivo } });
-    if (e.campos_fisicos.length) throw new AppError('ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA', 'só a observação e a justificativa se editam; para mudar data, documento, produto, quantidade, custo ou depósito, exclua a entrada e lance outra; nada foi alterado', { details: { campos: e.campos_fisicos } });
+    if (e.motivo_id !== undefined && e.motivo_id !== atual.motivo_id) throw new AppError('ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL', 'o motivo da entrada nunca muda; exclua a entrada e lance outra; nada foi alterado', { details: { motivo_atual: atual.motivo } });
+    if (e.campos_fisicos.length) throw new AppError('ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA', 'só a observação se edita; para mudar data, fornecedor, documento, centros, produto, quantidade, custo ou depósito, exclua a entrada e lance outra; nada foi alterado', { details: { campos: e.campos_fisicos } });
     if (atual.status !== STATUS_CONFIRMADA) throw statusInvalido(atual.status);
     if (!Number.isInteger(e.versao) || e.versao !== atual.versao) throw versaoConflito();
     const observacao = e.observacao === undefined ? atual.observacao : e.observacao;
-    const justificativa = e.justificativa === undefined ? atual.justificativa : e.justificativa;
-    if (atual.motivo === MOTIVO_OUTRA && [...(justificativa ?? '')].length < JUSTIFICATIVA_MINIMA_OUTRA) {
-      throw invalida('justificativa', 'justificativa_obrigatoria', `a justificativa é obrigatória em "outra" (ao menos ${JUSTIFICATIVA_MINIMA_OUTRA} caracteres)`);
-    }
-    if (observacao === atual.observacao && justificativa === atual.justificativa) throw invalida('observacao', 'nada_a_alterar', 'nada mudou na observação nem na justificativa');
-    await tx.entradaEstoque.update({ where: { cliente_id_id: { cliente_id: cli, id } }, data: { observacao, justificativa, versao: atual.versao + 1, revisao: atual.revisao + 1 } });
+    if (observacao === atual.observacao) throw invalida('observacao', 'nada_a_alterar', 'nada mudou na observação');
+    await tx.entradaEstoque.update({ where: { cliente_id_id: { cliente_id: cli, id } }, data: { observacao, versao: atual.versao + 1, revisao: atual.revisao + 1 } });
     await tx.entradaEstoqueEvento.create({
       data: {
         cliente_id: cli, empresa_id: empresaId, entrada_id: id, tipo: 'EDICAO', modo: 'METADADOS', revisao_anterior: atual.revisao, revisao_nova: atual.revisao + 1,
         versao_anterior: atual.versao, versao_nova: atual.versao + 1, motivo: e.motivo_edicao, usuario_id: auth.usuarioId ?? null,
-        snapshot_anterior: { observacao: atual.observacao, justificativa: atual.justificativa }, snapshot_novo: { observacao, justificativa },
+        snapshot_anterior: { observacao: atual.observacao }, snapshot_novo: { observacao },
       },
     });
     await registrarEvento(contexto, {

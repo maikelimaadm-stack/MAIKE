@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
-import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoDia, CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
@@ -93,7 +94,24 @@ const travado = (valor, vazio) => (valor ? valor : vazio);
  *   variant?: "card" | "embedded",
  * }} props `variant` "embedded": sem o cartão e o título (quando a tela já os tem).
  */
+const ABAS_ATIVIDADE = [
+  { id: "atividade", label: "Atividade" },
+  { id: "onde", label: "Onde e com o quê" },
+  { id: "centros", label: "Centros e unidade" },
+  { id: "periodo", label: "Período" },
+  { id: "origem", label: "Origem e observação" },
+];
+
+const abaDoErro = (chaves) => {
+  if (chaves.some((k) => k === "nome" || k === "tipo_atividade_id")) return "atividade";
+  if (chaves.some((k) => k === "areas" || k.startsWith("area:") || k === "area_id" || k === "bem" || k === "safra_ciclo")) return "onde";
+  if (chaves.some((k) => k === "data_inicio" || k === "data_prevista_fim" || k === "area_planejada")) return "periodo";
+  if (chaves.some((k) => k === "lancamento_tarefa_id" || k === "observacao")) return "origem";
+  return null;
+};
+
 export default function FormularioAtividade({ atividade = null, onSalvo, onCancelar, variant = "card" }) {
+  const [abaAtiva, setAbaAtiva] = useState("atividade");
   const existente = Boolean(atividade?.id);
   const empresaId = useEmpresaRealSelecionadaId();
   const { hoje, fuso, semFuso } = useFusoDaFazenda(empresaId);
@@ -250,7 +268,10 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
       ...(existente ? {} : errosDasAreasDaAbertura(areasEscolhidas, { exigeArea: exigencias.area, nomeDoTipo })),
     };
     setErros(v);
-    if (Object.keys(v).length) {
+    const chavesErro = Object.keys(v);
+    if (chavesErro.length) {
+      const destino = abaDoErro(chavesErro);
+      if (destino) setAbaAtiva(destino);
       notifyWarning("Atenção", "Revise os campos destacados.");
       return;
     }
@@ -302,247 +323,272 @@ export default function FormularioAtividade({ atividade = null, onSalvo, onCance
   else if (semFuso) aviso = "Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de gravar: o servidor recusa sem ele.";
 
   const erroDasListas = tiposQuery.error ?? areasQuery.error ?? tarefasQuery.error ?? null;
+
+  const renderPainel = (panelId) => {
+    if (panelId === "atividade") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
+          <CampoTexto
+            label="Nome da atividade"
+            value={form.nome}
+            onChange={(v) => mudar({ nome: v }, ["nome"])}
+            readOnly={bloqueado}
+            required
+            span={12}
+            maxLength={MAX_NOME_ATIVIDADE}
+            placeholder="Ex.: Cigarrinha Pasto 01"
+            keepCase
+            error={erros.nome}
+          />
+          {existente ? (
+            <CampoTexto label="Tipo de atividade" value={nomeDoTipo} onChange={() => {}} readOnly span={6} />
+          ) : (
+            <CampoSelect
+              label="Tipo de atividade"
+              value={form.tipo_atividade_id}
+              // As exigências mudam com o tipo: os avisos de área, safra e máquina do tipo anterior saem.
+              onChange={(v) => mudar({ tipo_atividade_id: v }, ["tipo_atividade_id", "area_id", "safra_ciclo", "bem"])}
+              options={opcoesTipo}
+              readOnly={bloqueado}
+              required
+              span={6}
+              error={erros.tipo_atividade_id}
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (panelId === "onde") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
+          {!existente ? (
+            <SeletorAreasDaAtividade
+              areasDoMapa={areas}
+              linhas={areasEscolhidas}
+              onChange={(l) => {
+                setAreasEscolhidas(l);
+                setErros((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== "areas" && !k.startsWith("area:"))));
+                setErroGeral(null);
+              }}
+              erros={erros}
+              obrigatorio={exigencias.area}
+              readOnly={bloqueado}
+              carregando={areasQuery.isLoading}
+            />
+          ) : comAreas ? (
+            <div className="col-span-12 min-w-0" data-testid="atividade-areas-somente-leitura">
+              <CampoTexto
+                label={`Áreas (${areasDaAtividade(atividade).length})`}
+                value={`${textoDaColunaArea(atividade)} — ${areasDaAtividade(atividade).map(rotuloDaAreaDaAtividade).join(", ")}`}
+                onChange={() => {}}
+                readOnly
+                span={12}
+              />
+              <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">As áreas, a área planejada de cada uma e o início e a conclusão mudam no card &quot;Áreas da atividade&quot;.</p>
+            </div>
+          ) : (
+            <>
+              <CampoSelect
+                label="Área"
+                value={form.area_id}
+                onChange={(v) => mudar({ area_id: v }, ["area_id"])}
+                options={opcoesArea}
+                placeholder={exigencias.area ? undefined : "Sem área"}
+                readOnly={bloqueado}
+                required={exigencias.area}
+                span={6}
+                error={erros.area_id}
+              />
+              <CampoTexto label="Setor (da área)" value={travado(setor, form.area_id ? "Área sem setor" : "")} onChange={() => {}} readOnly span={6} />
+            </>
+          )}
+          <SeletorPaginadoGestao
+            rotulo="Máquina"
+            testId="atividade-maquina"
+            chave={[RAIZ_CONSULTAS_ATIVIDADES, "bens", empresaId]}
+            buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesBens({ q, cursor, limit }))}
+            value={form.bem}
+            onChange={(o) => mudar({ bem: o ? { id: String(o.id), rotulo: rotuloDoBem(o) || String(o.id) } : null }, ["bem"])}
+            rotuloDaOpcao={rotuloDoBem}
+            detalheDaOpcao={detalheDoBem}
+            readOnly={bloqueado}
+            obrigatorio={exigencias.maquina}
+            permitirLimpar
+            erro={erros.bem}
+            span={6}
+            maiusculas={false}
+          />
+          <CampoTexto
+            label="Safra"
+            value={form.safra_ciclo}
+            onChange={(v) => mudar({ safra_ciclo: v }, ["safra_ciclo"])}
+            readOnly={bloqueado}
+            required={exigencias.safra}
+            span={6}
+            maxLength={MAX_SAFRA_ATIVIDADE}
+            placeholder="Ex.: 2026/27"
+            keepCase
+            error={erros.safra_ciclo}
+          />
+        </div>
+      );
+    }
+
+    if (panelId === "centros") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
+          <CampoTexto
+            label="Centro de custo"
+            value={travado(heranca.centro_custo.rotulo, tipoId ? "Sem centro de custo" : "")}
+            onChange={() => {}}
+            readOnly
+            span={6}
+          />
+          <CampoTexto
+            label="Centro de resultado"
+            value={travado(heranca.centro_resultado.rotulo, tipoId ? "Sem centro de resultado" : "")}
+            onChange={() => {}}
+            readOnly
+            span={6}
+          />
+          <CampoTexto
+            label="Unidade de produção"
+            value={travado(heranca.unidade_producao.rotulo, tipoId ? "Sem unidade de produção" : "")}
+            onChange={() => {}}
+            readOnly
+            span={6}
+          />
+          {notasDaHeranca.length || (!existente && !tipoId) ? (
+            <div className="col-span-12">
+              <AvisoGestao tone="blue" testId="atividade-heranca">
+                {!existente && !tipoId ? <span className="block">Escolha o tipo: os centros e a unidade de produção vêm dele; o setor vem da área.</span> : null}
+                {notasDaHeranca.map((n) => (
+                  <span key={n} className="block">
+                    {n}
+                  </span>
+                ))}
+              </AvisoGestao>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (panelId === "periodo") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
+          <CampoDia
+            label="Data de início"
+            value={form.data_inicio}
+            onChange={(v) => {
+              inicioEditado.current = true;
+              mudar({ data_inicio: v }, ["data_inicio", "data_prevista_fim"]);
+            }}
+            max={hoje || undefined}
+            readOnly={bloqueado}
+            required
+            span={4}
+            error={erros.data_inicio}
+            testId="atividade-data-inicio"
+          />
+          <CampoDia
+            label="Data prevista de fim"
+            value={form.data_prevista_fim}
+            onChange={(v) => mudar({ data_prevista_fim: v }, ["data_prevista_fim"])}
+            min={form.data_inicio || undefined}
+            readOnly={bloqueado}
+            span={4}
+            error={erros.data_prevista_fim}
+            testId="atividade-data-prevista-fim"
+          />
+          {existente && !comAreas ? (
+            <CampoNumero
+              label="Área planejada (ha)"
+              value={form.area_planejada}
+              onChange={(v) => mudar({ area_planejada: v }, ["area_planejada"])}
+              locale={LOCALE_ATIVIDADE}
+              limites={LIMITES_DECIMAL_ATIVIDADE}
+              readOnly={bloqueado}
+              span={4}
+              error={erros.area_planejada}
+              testId="atividade-area-planejada"
+            />
+          ) : null}
+        </div>
+      );
+    }
+
+    return (
+      <div className="mg-b1-form-grid w-full min-h-0">
+        <CampoSelect
+          label="Tarefa de origem"
+          value={form.lancamento_tarefa_id}
+          onChange={(v) => mudar({ lancamento_tarefa_id: v }, ["lancamento_tarefa_id"])}
+          options={opcoesTarefa}
+          placeholder="Sem tarefa de origem"
+          readOnly={bloqueado}
+          span={12}
+          error={erros.lancamento_tarefa_id}
+        />
+        <CampoTextoLongo
+          label="Observação"
+          value={form.observacao}
+          onChange={(v) => mudar({ observacao: v }, ["observacao"])}
+          readOnly={bloqueado}
+          maxLength={MAX_OBSERVACAO_ATIVIDADE}
+        />
+      </div>
+    );
+  };
+
   const formBody = (
     <form
       id={FORMULARIO_ATIVIDADE_ID}
       onSubmit={handleSubmit}
-      className="b1 mg-b1-form-grid w-full min-h-0"
+      className="b1 w-full min-h-0 flex flex-col gap-3"
       noValidate
       data-testid="b1-form-atividade"
       data-densidade={DENSIDADE_BASE1}
       data-somente-leitura={somenteLeitura ? "" : undefined}
     >
       {aviso ? (
-        <div className="col-span-12">
-          <AvisoGestao testId="atividade-aviso">{aviso}</AvisoGestao>
-        </div>
+        <AvisoGestao testId="atividade-aviso">{aviso}</AvisoGestao>
       ) : null}
       {erroDasListas ? (
-        <div className="col-span-12">
-          <AvisoGestao testId="atividade-listas-erro">
-            {mensagemDeErroAtividade(erroDasListas, "Não foi possível carregar as listas do formulário. Verifique a conexão e tente de novo.")}{" "}
-            <button
-              type="button"
-              className="underline"
-              onClick={() => {
-                if (tiposQuery.isError) tiposQuery.refetch();
-                if (areasQuery.isError) areasQuery.refetch();
-                if (tarefasQuery.isError) tarefasQuery.refetch();
-              }}
-            >
-              Tentar novamente
-            </button>
-          </AvisoGestao>
-        </div>
+        <AvisoGestao testId="atividade-listas-erro">
+          {mensagemDeErroAtividade(erroDasListas, "Não foi possível carregar as listas do formulário. Verifique a conexão e tente de novo.")}{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              if (tiposQuery.isError) tiposQuery.refetch();
+              if (areasQuery.isError) areasQuery.refetch();
+              if (tarefasQuery.isError) tarefasQuery.refetch();
+            }}
+          >
+            Tentar novamente
+          </button>
+        </AvisoGestao>
       ) : null}
 
-      <SecaoForm titulo="Atividade" />
-      <CampoTexto
-        label="Nome da atividade"
-        value={form.nome}
-        onChange={(v) => mudar({ nome: v }, ["nome"])}
-        readOnly={bloqueado}
-        required
-        span={12}
-        maxLength={MAX_NOME_ATIVIDADE}
-        placeholder="Ex.: Cigarrinha Pasto 01"
-        keepCase
-        error={erros.nome}
-      />
-      {existente ? (
-        <CampoTexto label="Tipo de atividade" value={nomeDoTipo} onChange={() => {}} readOnly span={6} />
-      ) : (
-        <CampoSelect
-          label="Tipo de atividade"
-          value={form.tipo_atividade_id}
-          // As exigências mudam com o tipo: os avisos de área, safra e máquina do tipo anterior saem.
-          onChange={(v) => mudar({ tipo_atividade_id: v }, ["tipo_atividade_id", "area_id", "safra_ciclo", "bem"])}
-          options={opcoesTipo}
-          readOnly={bloqueado}
-          required
-          span={6}
-          error={erros.tipo_atividade_id}
-        />
-      )}
-      {/* D-PROD-258: Grupo e "o que o tipo permite" (as 8 chaves) saíram da tela; o servidor continua gravando o grupo. */}
-
-      <SecaoForm titulo="Onde e com o quê" />
-      {!existente ? (
-        <SeletorAreasDaAtividade
-          areasDoMapa={areas}
-          linhas={areasEscolhidas}
-          onChange={(l) => {
-            setAreasEscolhidas(l);
-            setErros((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== "areas" && !k.startsWith("area:"))));
-            setErroGeral(null);
-          }}
-          erros={erros}
-          obrigatorio={exigencias.area}
-          readOnly={bloqueado}
-          carregando={areasQuery.isLoading}
-        />
-      ) : comAreas ? (
-        <div className="col-span-12 min-w-0" data-testid="atividade-areas-somente-leitura">
-          <CampoTexto
-            label={`Áreas (${areasDaAtividade(atividade).length})`}
-            value={`${textoDaColunaArea(atividade)} — ${areasDaAtividade(atividade).map(rotuloDaAreaDaAtividade).join(", ")}`}
-            onChange={() => {}}
-            readOnly
-            span={12}
-          />
-          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">As áreas, a área planejada de cada uma e o início e a conclusão mudam no card &quot;Áreas da atividade&quot;.</p>
-        </div>
-      ) : (
-        <>
-          <CampoSelect
-            label="Área"
-            value={form.area_id}
-            onChange={(v) => mudar({ area_id: v }, ["area_id"])}
-            options={opcoesArea}
-            placeholder={exigencias.area ? undefined : "Sem área"}
-            readOnly={bloqueado}
-            required={exigencias.area}
-            span={6}
-            error={erros.area_id}
-          />
-          <CampoTexto label="Setor (da área)" value={travado(setor, form.area_id ? "Área sem setor" : "")} onChange={() => {}} readOnly span={6} />
-        </>
-      )}
-      <SeletorPaginadoGestao
-        rotulo="Máquina"
-        testId="atividade-maquina"
-        chave={[RAIZ_CONSULTAS_ATIVIDADES, "bens", empresaId]}
-        buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesBens({ q, cursor, limit }))}
-        value={form.bem}
-        onChange={(o) => mudar({ bem: o ? { id: String(o.id), rotulo: rotuloDoBem(o) || String(o.id) } : null }, ["bem"])}
-        rotuloDaOpcao={rotuloDoBem}
-        detalheDaOpcao={detalheDoBem}
-        readOnly={bloqueado}
-        obrigatorio={exigencias.maquina}
-        permitirLimpar
-        erro={erros.bem}
-        span={6}
-        maiusculas={false}
-      />
-      <CampoTexto
-        label="Safra"
-        value={form.safra_ciclo}
-        onChange={(v) => mudar({ safra_ciclo: v }, ["safra_ciclo"])}
-        readOnly={bloqueado}
-        required={exigencias.safra}
-        span={6}
-        maxLength={MAX_SAFRA_ATIVIDADE}
-        placeholder="Ex.: 2026/27"
-        keepCase
-        error={erros.safra_ciclo}
+      <Base1PanelTabs
+        tabs={ABAS_ATIVIDADE}
+        value={abaAtiva}
+        onChange={setAbaAtiva}
+        animate={!somenteLeitura}
+        animationKey={atividade?.id ?? "nova"}
+        className="py-1"
+        renderPanel={renderPainel}
       />
 
-      <SecaoForm titulo="Centros e unidade" />
-      <CampoTexto
-        label="Centro de custo"
-        value={travado(heranca.centro_custo.rotulo, tipoId ? "Sem centro de custo" : "")}
-        onChange={() => {}}
-        readOnly
-        span={6}
-      />
-      <CampoTexto
-        label="Centro de resultado"
-        value={travado(heranca.centro_resultado.rotulo, tipoId ? "Sem centro de resultado" : "")}
-        onChange={() => {}}
-        readOnly
-        span={6}
-      />
-      <CampoTexto
-        label="Unidade de produção"
-        value={travado(heranca.unidade_producao.rotulo, tipoId ? "Sem unidade de produção" : "")}
-        onChange={() => {}}
-        readOnly
-        span={6}
-      />
-      {notasDaHeranca.length || (!existente && !tipoId) ? (
-        <div className="col-span-12">
-          <AvisoGestao tone="blue" testId="atividade-heranca">
-            {!existente && !tipoId ? <span className="block">Escolha o tipo: os centros e a unidade de produção vêm dele; o setor vem da área.</span> : null}
-            {notasDaHeranca.map((n) => (
-              <span key={n} className="block">
-                {n}
-              </span>
-            ))}
-          </AvisoGestao>
-        </div>
-      ) : null}
+      {erroGeral ? <AvisoGestao testId="atividade-erro">{erroGeral}</AvisoGestao> : null}
 
-      <SecaoForm titulo="Período" />
-      <CampoDia
-        label="Data de início"
-        value={form.data_inicio}
-        onChange={(v) => {
-          inicioEditado.current = true;
-          mudar({ data_inicio: v }, ["data_inicio", "data_prevista_fim"]);
-        }}
-        max={hoje || undefined}
-        readOnly={bloqueado}
-        required
-        span={4}
-        error={erros.data_inicio}
-        testId="atividade-data-inicio"
+      <CadastroFormActions
+        onCancel={onCancelar}
+        submitLabel={enviando ? "Salvando…" : existente ? "Salvar" : "Abrir atividade"}
+        isSubmitting={enviando || somenteLeitura}
       />
-      <CampoDia
-        label="Data prevista de fim"
-        value={form.data_prevista_fim}
-        onChange={(v) => mudar({ data_prevista_fim: v }, ["data_prevista_fim"])}
-        min={form.data_inicio || undefined}
-        readOnly={bloqueado}
-        span={4}
-        error={erros.data_prevista_fim}
-        testId="atividade-data-prevista-fim"
-      />
-      {existente && !comAreas ? (
-        <CampoNumero
-          label="Área planejada (ha)"
-          value={form.area_planejada}
-          onChange={(v) => mudar({ area_planejada: v }, ["area_planejada"])}
-          locale={LOCALE_ATIVIDADE}
-          limites={LIMITES_DECIMAL_ATIVIDADE}
-          readOnly={bloqueado}
-          span={4}
-          error={erros.area_planejada}
-          testId="atividade-area-planejada"
-        />
-      ) : null}
-
-      <SecaoForm titulo="Origem e observação" />
-      <CampoSelect
-        label="Tarefa de origem"
-        value={form.lancamento_tarefa_id}
-        onChange={(v) => mudar({ lancamento_tarefa_id: v }, ["lancamento_tarefa_id"])}
-        options={opcoesTarefa}
-        placeholder="Sem tarefa de origem"
-        readOnly={bloqueado}
-        span={12}
-        error={erros.lancamento_tarefa_id}
-      />
-      <CampoTextoLongo
-        label="Observação"
-        value={form.observacao}
-        onChange={(v) => mudar({ observacao: v }, ["observacao"])}
-        readOnly={bloqueado}
-        maxLength={MAX_OBSERVACAO_ATIVIDADE}
-      />
-
-      {erroGeral ? (
-        <div className="col-span-12">
-          <AvisoGestao testId="atividade-erro">{erroGeral}</AvisoGestao>
-        </div>
-      ) : null}
-
-      <div className="col-span-12">
-        <CadastroFormActions
-          onCancel={onCancelar}
-          submitLabel={enviando ? "Salvando…" : existente ? "Salvar" : "Abrir atividade"}
-          isSubmitting={enviando || somenteLeitura}
-        />
-      </div>
     </form>
   );
 
