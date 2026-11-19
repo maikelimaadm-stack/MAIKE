@@ -1,4 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
+import * as Menu from "@radix-ui/react-dropdown-menu";
+import { ChevronDown, Pencil, MapPinned } from "lucide-react";
+import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import { useQueryClient } from "@tanstack/react-query";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
@@ -153,6 +156,10 @@ export default function TelaCadastroMapa({
   }, [controller, bumpFormEpoch]);
 
   const screenController = { ...controller, saving: salvando, openNew: onNovo, cancelForm: cancelarEdicao };
+  const acoesDisponiveis = acoes({ selecionados, registro });
+  const alvoEdicao = registro || (selecionados.length === 1 ? selecionados[0] : null);
+  const editarMapa = alvoEdicao ? acoes({ selecionados, registro: alvoEdicao }).find((acao) => acao.key === "editar-no-mapa" && !acao.hidden) : null;
+  const rotuloGeometria = editarMapa?.label.includes("posição") ? "Editar posição" : editarMapa?.label.includes("traçado") ? "Editar traçado" : "Editar área";
 
   return (
     <CadastroBase1Screen
@@ -166,7 +173,38 @@ export default function TelaCadastroMapa({
       recordCode={registro && codigoDoItem ? codigoDoItem(registro) : undefined}
       listBanner={controller.showForm ? null : abas}
       showDuplicate={false}
-      additionalMoreActions={acoes({ selecionados, registro })}
+      showEdit={false}
+      extraToolbar={alvoEdicao && !controller.isEditing ? (
+        <Menu.Root>
+          <Menu.Trigger asChild>
+            <PillBtn type="button" tone="gray" disabled={salvando} aria-label="Editar" title="Editar">
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              <span>Editar</span><ChevronDown className="h-3 w-3" aria-hidden="true" />
+            </PillBtn>
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Content align="start" sideOffset={6} className="z-[100] min-w-48 rounded-lg border bg-white p-1 text-sm shadow-lg">
+              <Menu.Item className="flex cursor-pointer items-center gap-2 rounded px-3 py-2 outline-none focus:bg-slate-100" onSelect={() => controller.handleEditSelected()}>
+                <Pencil className="h-4 w-4" aria-hidden="true" />Editar detalhes
+              </Menu.Item>
+              {editarMapa ? (
+                <Menu.Item disabled={salvando || editarMapa.disabled} className="flex cursor-pointer items-center gap-2 rounded px-3 py-2 outline-none focus:bg-slate-100 data-[disabled]:opacity-50" onSelect={editarMapa.onSelect}>
+                  <MapPinned className="h-4 w-4" aria-hidden="true" />{rotuloGeometria}
+                </Menu.Item>
+              ) : null}
+            </Menu.Content>
+          </Menu.Portal>
+        </Menu.Root>
+      ) : null}
+      additionalMoreActions={acoesDisponiveis.flatMap((acao) => acao.key !== "editar-no-mapa" ? [acao] : (
+        controller.isEditing && editarMapa ? [{
+          ...acao,
+          label: `${acao.label} — salve ou cancele os detalhes primeiro`,
+          icon: <MapPinned className="h-4 w-4" aria-hidden="true" />,
+          whileEditing: true,
+          disabled: true,
+        }] : []
+      ))}
       deleteDialog={dialogoExcluir}
       recordForm={
         registro

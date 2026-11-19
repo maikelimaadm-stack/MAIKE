@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"codex/previa-detalhes-mapa\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"cursor/atividades-por-area-0b6c\" ]",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"codex/previa-detalhes-mapa\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"cursor/atividades-por-area-0b6c\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"cursor/estoque-saldo-movimentos\" ]",
   "buildCommand": "npm run prisma:generate && npm run build",
   "installCommand": "npm ci",
   "framework": "vite",
@@ -511,6 +511,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/estoque/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estoque/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/empresa",
       "destination": "/index.html"
     },
@@ -524,6 +532,14 @@
     },
     {
       "source": "/Marcas/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/estoque",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estoque",
       "destination": "/index.html"
     },
     {

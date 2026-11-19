@@ -290,7 +290,8 @@ describe("Registro do Cadastro de Áreas (TelaCadastroMapa)", () => {
   };
   const editar = async () => {
     const botao = screen.getAllByRole("button").find((b) => /^Editar$/i.test(b.getAttribute("aria-label") || b.textContent.trim()));
-    await act(async () => fireEvent.click(/** @type {HTMLElement} */ (botao)));
+    await act(async () => fireEvent.keyDown(/** @type {HTMLElement} */ (botao), { key: "ArrowDown" }));
+    await act(async () => fireEvent.click(await screen.findByRole("menuitem", { name: "Editar detalhes" })));
   };
   const campoNome = () =>
     within(/** @type {HTMLElement} */ (within(screen.getByTestId("b1-form-area")).getByText("Nome", { selector: "label" }).closest(".mg-field"))).getByRole("textbox");

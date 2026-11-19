@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-253** (nasceu D-PROD-195 e passou a D-PROD-252; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e a D-PROD-252 ao Lançamento de Atividades organizado, PR #331, e chegou a `Próxima decisão: D-PROD-253`; a PR #332 deixou a 253 reservada e usou a D-PROD-254) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) e com a `main` `9d791735` (PR #332, D-PROD-254). PR **#275** (rascunho), exclusiva desta correção |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) e com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
@@ -23,7 +23,18 @@ rollout pausado **D-PROD-41**)
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-E1-E2: tela Estoque com Saldo e Movimentos, só consulta (D-PROD-255)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-255**, pedido do proprietário: um item "Estoque" com abas; implementadas só **Saldo** e **Movimentos** (Entradas e Inventário não aparecem) |
+| Branch / PR | `cursor/estoque-saldo-movimentos`, a partir da `main` `9d791735` · sem push nem PR ainda |
+| Escopo | Página `Estoque` (Suporte do Mapa → Estoque, `/estoque`), na cadeia Base1; Saldo produto × depósito (das camadas), Movimentos (kardex) com filtros, janela de detalhe somente leitura; clicar no Saldo leva aos Movimentos do produto e depósito |
+| Backend | `GET /estoque/saldo`, `/estoque/movimentos` (P1-04, keyset + cursor assinado), `/estoque/movimentos/:id`, `/estoque/opcoes/produtos` e `/locais`; guarda da tela nova `sup-estoque` (`visualizar`). **Nenhuma migration**, motor intocado, guardas existentes mantidas |
+| Fica para depois | Entradas (saldo inicial, doação, outra causa), Inventário (saldo inicial + contagem periódica com ajuste e motivo), saída manual com motivos fixos, **custo médio** (hoje FIFO por camada), permissão extra `entrada`/`ajuste` |
+| Relatório | [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)
 
 | Campo | Valor |
 |---|---|

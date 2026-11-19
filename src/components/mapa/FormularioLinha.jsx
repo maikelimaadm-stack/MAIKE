@@ -1,3 +1,4 @@
+import "@/styles/mapa-cadastro-formularios.css";
 import React, { useEffect, useState } from "react";
 import { listarTodasLinhas, criarLinha, atualizarLinha } from "@/services/mapaService";
 import { useMutation } from "@tanstack/react-query";
@@ -119,13 +120,13 @@ export default function FormularioLinha({
         </div>
         )}
         <div className={registro ? "" : "p-1"}>
-          <form id={formId} onSubmit={handleSubmit} className="space-y-0.5" data-testid="b1-form-linha" data-densidade={registro ? DENSIDADE_BASE1 : undefined}>
+          <form id={formId} onSubmit={handleSubmit} className="mk-mapa-form mk-mapa-form--linha space-y-3" data-testid="b1-form-linha" data-densidade={registro ? DENSIDADE_BASE1 : undefined}>
           <fieldset disabled={readOnly} className="contents">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+      <div className="mk-mapa-form__grid mk-mapa-form__grid--nome grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2"><FL label="Nome da Linha" required error={invalidFields.includes('nome')}><Input value={formData.nome} onChange={(e) => handleChange('nome', e.target.value)} placeholder="NOME DA LINHA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: 'uppercase' }} /></FL></div>
         <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => handleChange('sigla', e.target.value)} placeholder="SIGLA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+      <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
         <FL label="Tipo" required><Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}><SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_LINHA.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent></Select></FL>
       </div>
       <div className="border border-slate-200 bg-[#FAFCFE]/50 rounded-lg p-3 space-y-1"><span className="font-semibold text-xs text-slate-700">Cor da Linha</span><div className="grid grid-cols-5 gap-2">{CORES_DISPONIVEIS.map((cor) => <button key={cor} type="button" onClick={() => handleChange('cor', cor)} className={`w-full h-7 rounded border ${formData.cor === cor ? 'ring-2 ring-slate-900' : ''}`} style={{ backgroundColor: cor }} />)}</div></div>

@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/components/mapa/MapaDesenho", () => ({ default: ({ tipoDesenho, itemEditando }) => <div data-testid="editor-geometria">{tipoDesenho}:{itemEditando.id}</div> }));
 
 const AREAS = [
   { id: "a1", empresa_id: "emp-1", nome: "PIQUETE 01", sigla: "P1", numero_area: "1", setor_id: "s1", setor_nome: "NORTE", tipo_cultura: "Pastagem", tipo_pastagem: "Marandu", tamanho_hectares: 12.5, capacidade_maxima: 40, quantidade_atual: 10, status_ocupacao: "Ocupado", aproveitamento_classificacao: "Média", coordenadas: { coords: [[-15.6, -56.1], [-15.6, -56.09], [-15.61, -56.09]], cor: "#61aad9" } },
@@ -22,8 +23,8 @@ const AREAS = [
 vi.mock("@/services/mapaService", () => ({
   listarSetoresAtivos: async () => [{ id: "s1", nome: "NORTE", empresa_id: "emp-1", ativo: true }],
   listarAreasAtivas: async () => AREAS,
-  listarPontosAtivos: async () => [],
-  listarLinhasAtivas: async () => [],
+  listarPontosAtivos: async () => [{ id: "p1", nome: "COCHO TESTE", tipo: "Cocho", empresa_id: "emp-1", latitude: -15.6, longitude: -56.1 }],
+  listarLinhasAtivas: async () => [{ id: "l1", nome: "CERCA TESTE", empresa_id: "emp-1", coordenadas: [] }],
   listarPontosSuplementacaoDaEmpresa: async () => [],
   listarBebedourosAtivos: async () => [],
   excluirArea: vi.fn(),
@@ -52,6 +53,18 @@ const montar = async () => {
 };
 
 describe("Cadastro de Áreas, Pontos e Linhas no motor", () => {
+  it.each([
+    ["Áreas", "PIQUETE 01", "Editar área", "area:a1"],
+    ["Pontos", "COCHO TESTE", "Editar posição", "ponto:p1"],
+    ["Linhas", "CERCA TESTE", "Editar traçado", "linha:l1"],
+  ])("abre a geometria do registro em %s pelo botão direto", async (aba, nome, acao, resultado) => {
+    await montar();
+    fireEvent.click(screen.getByRole("tab", { name: aba }));
+    fireEvent.doubleClick(await screen.findByText(nome));
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Editar" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: acao }));
+    expect(await screen.findByTestId("editor-geometria")).toHaveTextContent(resultado);
+  });
   it("abas, '+ Novo' e a grade do motor com as áreas", async () => {
     await montar();
     expect(screen.getByRole("tab", { name: "Áreas", selected: true })).toBeInTheDocument();
@@ -83,9 +96,23 @@ describe("Cadastro de Áreas, Pontos e Linhas no motor", () => {
     const nome = within(form).getByText("Nome", { selector: "label" }).closest(".mg-field");
     expect(nome).toHaveClass("mg-field--locked");
     expect(within(/** @type {HTMLElement} */ (nome)).getByRole("textbox")).toHaveValue("PIQUETE 01");
+    expect(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
-    expect(screen.getByText("Editar no mapa")).toBeInTheDocument();
+    expect(screen.queryByText("Editar no mapa")).toBeNull();
     expect(screen.queryByText("Importar áreas")).toBeNull();
+  });
+
+  it("mantém a edição no mapa visível e protege os detalhes em edição", async () => {
+    await montar();
+    fireEvent.doubleClick(screen.getByText("PIQUETE 01"));
+    await screen.findByTestId("b1-form-area");
+    fireEvent.keyDown(screen.getByRole("button", { name: "Editar" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Editar detalhes" }));
+    const mapa = screen.getByRole("button", { name: "Editar no mapa — salve ou cancele os detalhes primeiro" });
+    expect(mapa).toBeDisabled();
+    expect(mapa).toHaveAttribute("title", "Editar no mapa — salve ou cancele os detalhes primeiro");
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
   });
 });
 

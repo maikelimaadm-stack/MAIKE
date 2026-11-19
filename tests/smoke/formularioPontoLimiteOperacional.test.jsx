@@ -110,6 +110,11 @@ describe('FormularioPonto — limite operacional (D-PROD-178)', () => {
     expect(ajudaDe(limite)).toBe(AJUDA_LIMITE);
     expect(screen.getByText(AJUDA_LIMITE)).toBeTruthy();
     expect(screen.queryByText(/Capacidade do cocho/)).toBeNull();
+    const reposicao = campo('Dias de alerta para reposição');
+    const ajudaReposicao = document.getElementById(reposicao.getAttribute('aria-describedby'));
+    expect(ajudaReposicao).toHaveTextContent('Avisa quando o saldo estimado durar');
+    expect(ajudaReposicao.closest('.mg-field__control')).toBeNull();
+    expect(screen.getByTestId('b1-form-ponto').querySelector('.mg-field__control p')).toBeNull();
 
     await enviar();
     expect(svc.toastError).toHaveBeenCalledWith('Informe o limite operacional do cocho em kg.');

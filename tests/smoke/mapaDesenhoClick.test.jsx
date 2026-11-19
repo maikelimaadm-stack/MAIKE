@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, cleanup, fireEvent, act } from "@testing-library/react";
+import { render, cleanup, fireEvent, act, screen } from "@testing-library/react";
 
 const sources = new Map();
 const layers = new Set();
@@ -96,6 +96,34 @@ vi.mock("@/components/mapa/FormularioLinha", () => ({ default: () => null }));
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 describe("R5-01 MapaDesenho clique cria vértices", () => {
+  it("arrasta o ponto existente continuamente sem saltar para o local onde segurou", async () => {
+    const { default: MapaDesenho } = await import("@/components/mapa/MapaDesenho.jsx");
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={qc}><MapaDesenho tipoDesenho="ponto" itemEditando={{ id: "p1", coordenadas: { lat: 0, lng: 0 } }} onSalvar={() => {}} onCancelar={() => {}} /></QueryClientProvider>);
+    await act(async () => { handlers.get("load")?.(); await Promise.resolve(); });
+    mapInstance.project.mockImplementation(([lng, lat]) => ({ x: lng * 100, y: lat * 100 }));
+    const evento = (x, y) => ({ point: { x, y }, lngLat: { lng: x / 100, lat: y / 100 }, originalEvent: { type: "mousedown" }, preventDefault: vi.fn() });
+    await act(async () => handlers.get("mousedown")(evento(2, 2)));
+    const enabledBefore = mapInstance.dragPan.enable.mock.calls.length;
+    await act(async () => handlers.get("mousemove")(evento(10, 10)));
+    expect(mapInstance.dragPan.enable.mock.calls.length).toBe(enabledBefore);
+    const posicao = () => sources.get("m1-desenho").setData.mock.calls.at(-1)[0].features[0].geometry.coordinates;
+    expect(posicao()).toEqual([0.08, 0.08]);
+    await act(async () => handlers.get("mousemove")(evento(20, 20)));
+    expect(posicao()).toEqual([0.18, 0.18]);
+    await act(async () => handlers.get("mouseup")(evento(20, 20)));
+    expect(posicao()).toEqual([0.18, 0.18]);
+    expect(mapInstance.dragPan.enable.mock.calls.length).toBeGreaterThan(enabledBefore);
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    expect(posicao()).toEqual([0, 0]);
+    fireEvent.click(screen.getByRole("button", { name: "Refazer" }));
+    expect(posicao()).toEqual([0.18, 0.18]);
+    await act(async () => handlers.get("mousedown")(evento(18, 18)));
+    await act(async () => handlers.get("mousemove")(evento(30, 30)));
+    expect(posicao()).toEqual([0.3, 0.3]);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(posicao()).toEqual([0.18, 0.18]);
+  });
   beforeEach(() => {
     sources.clear();
     layers.clear();

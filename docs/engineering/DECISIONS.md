@@ -8627,4 +8627,41 @@ Não dependem do alvo (traduzem pelo comando que falhou, e assim continuam): `us
 
 **Relatório:** [`MAIKE-ATIVIDADES-POR-AREA-REPORT.md`](./MAIKE-ATIVIDADES-POR-AREA-REPORT.md) (seção 10).
 
-<!-- Próxima decisão: D-PROD-255 -->
+## D-PROD-255 — Estoque: tela de consulta com Saldo e Movimentos (E1 + E2, P1-04), somente leitura, sem migration
+
+**Data:** 2026-11-19 · **Origem:** pedido do proprietário (Maike): uma tela de Estoque; a análise do estado do estoque (`estoque-analise.md`) mostrou que o motor e o kardex já existem e faltavam as consultas e a tela · **Branch:** `cursor/estoque-saldo-movimentos` · **Migration:** nenhuma.
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-255`. A D-PROD-253 é da PR #275 (rascunho) e a D-PROD-254 é a dos Detalhes da área. O marcador passa a D-PROD-256.
+
+**Contexto (decisões do proprietário, 2026-11-19).**
+- O **inventário** será as duas coisas: **saldo inicial** e **contagem periódica** com ajuste e motivo. **Fica para depois** (não entra nesta decisão).
+- O **custo** vai virar **custo médio**. **Fica para depois**, e não é desta PR: o motor continua **FIFO por camada** (D-PROD-161). O custo que a tela mostra no Saldo é **informativo**.
+- **Um item de menu "Estoque"**, com abas **Saldo · Movimentos · Entradas · Inventário**. **Só Saldo e Movimentos existem agora**; Entradas e Inventário **não aparecem**, nem como aba desabilitada.
+- **Saídas manuais** virão depois, com **motivos fixos**.
+- **Regras que valem desde já e para o que vier:** movimento é imutável (corrige-se por **estorno**, nunca por edição), **saldo nunca negativo**, e a permissão de **dar entrada e ajustar** é **separada** da de **consultar**.
+
+**Decisão — servidor (somente leitura; o motor não foi tocado).**
+1. **Saldo por produto × depósito** (`GET /estoque/saldo`): soma das **camadas disponíveis** (`EstoqueLoteNota`, status `Disponivel`), a única fonte de saldo do motor; o cache `Produto.estoque_atual` não é lido. Quantidade **na unidade do estoque do produto** (`L` para produto em L; `KG` para o resto, SACO incluso, que guarda kg). **Custo** = `Σ(disponível × custo da camada) ÷ Σ(disponível)`, o custo médio ponderado **só das camadas que restam**; **Valor** = `Σ(disponível × custo da camada)`. Decimais como texto (4 casas). Filtros: produto, depósito, busca (produto, código, depósito) e "só com saldo" (padrão ligado; desligado mostra também o par esgotado, com saldo 0). Camada `Estornado` não conta. Ordem `(nome do produto, nome do depósito, ids)` com keyset.
+2. **Movimentos (kardex)** (`GET /estoque/movimentos`, P1-04 do contrato §6.3): keyset `(data_movimentacao DESC, id DESC)` sobre o índice `MovimentacaoEstoque_keyset_empresa_idx` (D-PROD-185), `empresa_id` obrigatória, limite padrão 100 e máximo 500 (o do motor Base1; o contrato dizia 50/200, ajustado ao padrão das outras listas). Filtros: produto, **depósito (origem ou destino)**, `origem_sistema`, `tipo_movimentacao`, período (`data_de`/`data_ate`, dia inclusivo) e busca (nº, produto, nota, motivo). `total` ignora o cursor.
+3. **Detalhe** (`GET /estoque/movimentos/:id`): saldo antes e depois (do depósito), custo (informativo), camadas consumidas (com a nota e o fornecedor da camada, quando ainda existe), documento de origem com o nome da página para o link (lançamento, abastecimento ou atividade), vínculos (área, lote, máquina, centro de custo, safra) e o **par original ↔ estorno** (`pai` e `filho`, pelas colunas que o motor já grava; na transferência o `filho` é a perna par).
+4. **Opções dos filtros:** `GET /estoque/opcoes/produtos` e `/estoque/opcoes/locais` (por nome, keyset).
+5. **Cursor ASSINADO** (HMAC-SHA256, chave derivada do `AUTH_SECRET`, rótulo próprio `maike-estoque-consulta-cursor:v1`), amarrado ao tipo da consulta, ao tenant do `auth_context`, à empresa, aos filtros e ao limite: qualquer desvio é o mesmo 400 `REQUEST_VALIDATION_FAILED {field:'cursor', reason:'cursor_invalido'}`. Mesmo desenho do cursor da reconciliação.
+6. **Isolamento:** o tenant vem só do `auth_context` (R11); `empresa_id` é conferida contra o tenant (404 `EMPRESA_NOT_FOUND`); a querystring é **fechada** (`cliente_id` ou chave desconhecida é 400). Os GETs antigos (`/movimentacoes-estoque`, `/estoque-lotes-nota`) ficam como estão: o Mapa depende deles; **nenhuma guarda existente foi afrouxada**.
+
+**Decisão — permissão.**
+7. **Tela nova `sup-estoque`** (`TELAS.ESTOQUE`, módulo `suporte-mapa`, logo abaixo de Locais de Estoque), ação `visualizar`: `GUARDAS.estoque.ver` guarda as cinco rotas. Sem concessão automática a perfis antigos (linha ausente = negado; administrador real e `is_admin` têm tudo). O item de menu só aparece com a permissão (o Layout já esconde pelo `visualizar`).
+8. **Reservada, não criada:** a permissão de **entrada e ajuste** é a ação **extra** `entrada` e `ajuste` da **mesma linha** `sup-estoque` (padrão das ações extras, D-PROD-155/159/200), **separada de `visualizar`**. Não entra em `EXTRA_ACTION_KEYS_BY_PAGE` agora: sem o que gravar, seria um interruptor sem efeito na tela Permissões. Quem implementar as Entradas cria as chaves, o espelho no navegador e o teste de paridade no mesmo slice.
+
+**Decisão — tela.**
+9. **Uma página `Estoque`** (menu **Suporte do Mapa → Estoque**; `/estoque`) com as abas **Saldo** e **Movimentos**, cada uma na cadeia Base1 de sempre (`CadastroBase1Screen` → `CadastroListaChrome` → `CadastroBase1Grade`), cabeçalhos, cores e **rodapé de contagem e página embaixo**. Filtros na faixa de pílulas (`FiltrosDaTelaContext`): Saldo (depósito, com saldo) e Movimentos (produto, depósito, origem, tipo, data), busca no servidor. Sem cartão com tabela, sem banner, sem assistente.
+10. **Do Saldo para os Movimentos:** abrir a linha (duplo clique, Enter, segundo toque no celular, ou **⚡ › Ver movimentos**) leva à aba Movimentos já filtrada por **produto e depósito**. O clique simples só seleciona, como em toda lista Base1.
+11. **Um movimento abre numa `B1Janela`** (680px; `b1-janela--tela-cheia` no celular), somente leitura, **um nível só**; o documento de origem é link de navegação, não segundo diálogo.
+12. **Somente consulta:** nenhum botão de Novo, Editar, Duplicar ou Excluir.
+
+**Ainda NÃO existe (futuro, cada um com decisão própria):** Entradas (saldo inicial, doação, outra causa; P1-05a/b e P1-06, com migration), Inventário (contagem periódica e ajuste), saída manual com motivos fixos, custo médio, estorno de transferência e de suplementação (hoje suspensos), reconciliação com tela, lote do fabricante.
+
+**Fora de escopo:** migration, mudança no motor, entrada manual, importação de NF-e, mobile offline.
+
+**Relatório:** [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-256 -->
