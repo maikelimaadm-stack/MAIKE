@@ -60,6 +60,9 @@ tenant(nome) AS (
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
     -- D-PROD-189/D-PROD-195: CADCURVAGANHO (curvas de ganho) depois de CADCATEGORIA, que a referencia, e antes de Empresa.
+    -- D-PROD-257: as entradas manuais de estoque (evento e item antes do cabeçalho; os três antes do lote, do
+    -- movimento, do produto e do local que o item referencia, FKs RESTRICT).
+    'EntradaEstoqueEvento','EntradaEstoqueItem','EntradaEstoque',
     'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
