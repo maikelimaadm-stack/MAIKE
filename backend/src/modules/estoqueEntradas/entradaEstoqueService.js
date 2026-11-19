@@ -275,7 +275,7 @@ export const criar = async (contexto, corpo) => {
           const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
           const tempo = await hojeDaEmpresa(tx, cli, empresaId);
           if (entrada.data_entrada > tempo.hoje) throw invalida('data_entrada', 'data_futura', `a data da entrada é posterior a hoje (${tempo.hoje}) na fazenda`, { hoje: tempo.hoje, fuso: tempo.fuso });
-          const locais = await exigirLocaisEstoque(tx, cli, entrada.itens.map((i) => ({ id: i.local_estoque_id, field: 'local_estoque_id', exigirAtivo: true })));
+          const locais = await exigirLocaisEstoque(tx, cli, entrada.itens.map((i) => ({ id: i.local_estoque_id, field: 'local_destino_id', exigirAtivo: true })));
           const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, entrada.itens.map((i) => i.produto_id));
           const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
           for (const item of entrada.itens) {
@@ -439,7 +439,7 @@ export const excluir = async (contexto, id, corpo) => {
           if (!Number.isInteger(e.versao) || e.versao !== atual.versao) throw versaoConflito();
           const itens = await tx.entradaEstoqueItem.findMany({ where: { cliente_id: cli, entrada_id: id, revisao_fim: null }, orderBy: [{ ordem: 'asc' }], include: { localEstoque: { select: { nome: true } } } });
           if (!itens.length) throw statusInvalido('sem_linhas_vigentes');
-          await exigirLocaisEstoque(tx, cli, itens.map((i) => ({ id: i.local_estoque_id, field: 'local_estoque_id', exigirAtivo: false })));
+          await exigirLocaisEstoque(tx, cli, itens.map((i) => ({ id: i.local_estoque_id, field: 'local_destino_id', exigirAtivo: false })));
           await travarProdutosEstoque(tx, cli, empresaId, itens.map((i) => i.produto_id));
           await provaDeCamadaIntocada(tx, cli, itens);
           let estornos;

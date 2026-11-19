@@ -28,7 +28,7 @@ const NO_OP = () => {};
 /**
  * Aba Saldo (D-PROD-255): produto × depósito, derivado das camadas disponíveis. Lista Base1 keyset, filtros na faixa
  * (depósito; com saldo) e busca no servidor. Clicar numa linha abre os Movimentos daquele produto e depósito.
- * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void,
+ * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos'|'entradas', onAba: (a: 'saldo'|'movimentos'|'entradas') => void,
  *   onAbrirMovimentos: (alvo: { produto: { id: string, nome: string }, deposito: { id: string, nome: string } }) => void }} props
  */
 export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos }) {

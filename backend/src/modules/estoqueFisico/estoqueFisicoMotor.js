@@ -1505,10 +1505,10 @@ export const atualizarProcedencia = async (tx, ctx, a) => {
  */
 export const aplicarEntradaDocumentada = (tx, ctx, a) => {
   const { motivoSlug, origem, ...resto } = a;
-  return aplicarEntradaEstoque(tx, ctx, {
+  return aplicarEntradaEstoque(tx, ctx, /** @type {any} */ ({
     ...resto,
     origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_ENTRADA_ESTOQUE, tipoDetalhado: `entrada_${motivoSlug}`, motivo: origem.motivo },
-  });
+  }));
 };
 
 /**
@@ -1517,11 +1517,11 @@ export const aplicarEntradaDocumentada = (tx, ctx, a) => {
  */
 export const estornarEntradaDocumentada = (tx, ctx, a) => {
   const { origem, ...resto } = a;
-  return estornarEmLote(tx, ctx, {
+  return estornarEmLote(tx, ctx, /** @type {any} */ ({
     ...resto,
     efeito: EFEITO_ENTRADA,
     origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_ENTRADA_ESTOQUE, tipoDetalhadoEstorno: ESTORNO_ENTRADA_EXCLUSAO, motivoEstorno: origem.motivoEstorno },
-  });
+  }));
 };
 
 /** Origens do motor que têm documento próprio (a reconciliação as inclui em `ORIGENS_PROTOCOLO`). */

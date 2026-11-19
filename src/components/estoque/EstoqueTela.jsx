@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
+import EntradasEstoque from "@/components/estoque/EntradasEstoque";
 import MovimentosEstoque from "@/components/estoque/MovimentosEstoque";
 import SaldoEstoque from "@/components/estoque/SaldoEstoque";
 import { useAcoesTelaEstoque, useEmpresaRealSelecionadaId } from "@/hooks/useEstoqueSessao";
 
 /**
- * Estoque (D-PROD-255) — Saldo e Movimentos, SOMENTE CONSULTA, da fazenda selecionada.
- *
- * Uma tela, duas abas Base1: Saldo (produto × depósito, das camadas disponíveis) e Movimentos (kardex). Clicar numa
- * linha do Saldo abre os Movimentos daquele produto e depósito. Entrada, ajuste de inventário e saída manual são
- * decisões futuras (D-PROD-255) e não têm aba nem botão. Sem permissão `visualizar` da tela `sup-estoque` nada é lido.
+ * Estoque da fazenda selecionada. Uma tela, três abas Base1: Saldo (produto × depósito, das camadas disponíveis) e
+ * Movimentos (kardex), SOMENTE CONSULTA (D-PROD-255), e Entradas (D-PROD-257): entrada manual documentada e saldo de
+ * implantação, com os três motivos fechados. Clicar numa linha do Saldo abre os Movimentos daquele produto e depósito.
+ * Lançar e excluir entrada exige a ação `entrada` da tela (o servidor bloqueia de fato); ajuste de inventário e saída
+ * manual seguem sem aba nem botão. Sem permissão `visualizar` da tela `sup-estoque` nada é lido.
  * Trocar de fazenda remonta a tela (`key` da fazenda) e descarta filtros e a linha aberta.
  */
 export default function EstoqueTela() {
@@ -20,15 +21,15 @@ export default function EstoqueTela() {
   if (!acoes.ver) {
     return <AvisoGestao testId="estoque-sem-permissao">Você não tem permissão para consultar o estoque.</AvisoGestao>;
   }
-  return <EstoqueDaFazenda key={empresaId ?? "sem-empresa"} empresaId={empresaId} />;
+  return <EstoqueDaFazenda key={empresaId ?? "sem-empresa"} empresaId={empresaId} podeLancar={acoes.entrada} />;
 }
 
 /**
  * Estado da consulta de uma fazenda. A `key` no pai garante que trocar de fazenda começa do zero.
- * @param {{ empresaId: string|null }} props
+ * @param {{ empresaId: string|null, podeLancar: boolean }} props
  */
-function EstoqueDaFazenda({ empresaId }) {
-  const [aba, setAba] = useState(/** @type {'saldo'|'movimentos'} */ ("saldo"));
+function EstoqueDaFazenda({ empresaId, podeLancar }) {
+  const [aba, setAba] = useState(/** @type {'saldo'|'movimentos'|'entradas'} */ ("saldo"));
   const [alvo, setAlvo] = useState(/** @type {{ produto: { id: string, nome: string }, deposito: { id: string, nome: string } } | null} */ (null));
   // Cada vez que o Saldo abre os Movimentos, a aba nasce de novo com o filtro daquela linha.
   const [rodada, setRodada] = useState(0);
@@ -39,12 +40,15 @@ function EstoqueDaFazenda({ empresaId }) {
     setRodada((n) => n + 1);
     setAba("movimentos");
   };
-  /** @param {'saldo'|'movimentos'} proxima */
+  /** @param {'saldo'|'movimentos'|'entradas'} proxima */
   const trocarAba = (proxima) => {
     if (proxima === "movimentos") setAlvo(null);
     setAba(proxima);
   };
 
+  if (aba === "entradas") {
+    return <EntradasEstoque key={`entradas-${empresaId}`} empresaId={empresaId} aba={aba} onAba={trocarAba} podeLancar={podeLancar} />;
+  }
   return aba === "saldo" ? (
     <SaldoEstoque key={`saldo-${empresaId}`} empresaId={empresaId} aba={aba} onAba={trocarAba} onAbrirMovimentos={abrirMovimentos} />
   ) : (
