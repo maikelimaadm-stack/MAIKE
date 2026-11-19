@@ -81,6 +81,18 @@ export default function Base1PanelTabs({
   const empilhado = useEmpilhado();
   const raizRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
   const [pendentes, setPendentes] = React.useState(/** @type {Record<string, boolean>} */ ({}));
+  // Envio recusado pela validação: a guia com o 1º campo inválido abre (guias laterais, PR #339) —
+  // senão o campo a corrigir fica escondido atrás da guia atual. Armado no `submit` do formulário.
+  const aposEnvio = React.useRef(false);
+
+  const celular = useCelular();
+  // ‹ › do registro: na linha das abas (desktop) ou numa linha acima das seções (tablet); no celular fica no rodapé.
+  const navInfo = useNavegacaoDoRegistro(!celular && tabs.length > 1);
+  const tabRefs = React.useRef({});
+
+  const validIds = React.useMemo(() => tabs.filter((t) => !t.disabled).map((t) => t.id), [tabs]);
+  const current =
+    validIds.includes(value) ? value : validIds[0] ?? tabs[0]?.id ?? "";
 
   // Ponto vermelho na aba que tem campo inválido — lido do DOM, vale para qualquer formulário.
   React.useLayoutEffect(() => {
@@ -97,15 +109,14 @@ export default function Base1PanelTabs({
       const b = Object.keys(proximo).sort().join("|");
       return a === b ? atual : proximo;
     });
+    if (aposEnvio.current && Object.keys(proximo).length) {
+      aposEnvio.current = false;
+      if (!proximo[current] && !empilhado) {
+        const alvo = tabs.find((t) => proximo[t.id] && !t.disabled);
+        if (alvo) onChange(alvo.id);
+      }
+    }
   });
-  const celular = useCelular();
-  // ‹ › do registro: na linha das abas (desktop) ou numa linha acima das seções (tablet); no celular fica no rodapé.
-  const navInfo = useNavegacaoDoRegistro(!celular && tabs.length > 1);
-  const tabRefs = React.useRef({});
-
-  const validIds = React.useMemo(() => tabs.filter((t) => !t.disabled).map((t) => t.id), [tabs]);
-  const current =
-    validIds.includes(value) ? value : validIds[0] ?? tabs[0]?.id ?? "";
 
   // O painel só esmaece quando a aba muda dentro do mesmo registro — nunca ao abrir um registro,
   // criar ou trocar de registro (como no design, D-PROD-165: `abaAnim` só no clique da aba).
@@ -115,6 +126,16 @@ export default function Base1PanelTabs({
     setAnterior({ aba: current, chave: animationKey });
     setAnimarAba(anterior.chave === animationKey);
   }
+
+  React.useEffect(() => {
+    const form = raizRef.current?.closest("form");
+    if (!form) return undefined;
+    const armar = () => {
+      aposEnvio.current = true;
+    };
+    form.addEventListener("submit", armar, true);
+    return () => form.removeEventListener("submit", armar, true);
+  }, [empilhado, tabs.length]);
 
   React.useEffect(() => {
     if (!current) return;
@@ -156,48 +177,39 @@ export default function Base1PanelTabs({
     tabRefs.current[id]?.focus?.();
   };
 
+  // Navegação por teclado entre as guias VISÍVEIS (a busca pode esconder algumas).
+  const guiasNavegaveis = () => tabsVisiveis.filter((t) => !t.disabled);
+
+  const ativarEFocar = (target) => {
+    if (!target) return;
+    onChange(target.id);
+    focusTab(target.id);
+  };
+
   const moveFocus = (tabId, delta) => {
-    const enabled = tabs.filter((t) => !t.disabled);
+    const enabled = guiasNavegaveis();
     if (!enabled.length) return;
     const idx = enabled.findIndex((t) => t.id === tabId);
     const base = idx >= 0 ? idx : 0;
     const next = (base + delta + enabled.length) % enabled.length;
-    const target = enabled[next];
-    if (target) {
-      onChange(target.id);
-      focusTab(target.id);
-    }
+    ativarEFocar(enabled[next]);
   };
 
+  // Guias verticais: ↓/↑ seguem a orientação; →/← continuam funcionando (mesmo sentido).
   const onTabKeyDown = (e, tabId) => {
-    const horizontal = !sidebar;
-    if (e.key === "ArrowLeft" && horizontal) {
-      e.preventDefault();
-      moveFocus(tabId, -1);
-    } else if (e.key === "ArrowRight" && horizontal) {
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") {
       e.preventDefault();
       moveFocus(tabId, 1);
-    } else if (e.key === "ArrowUp" && sidebar) {
+    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
       e.preventDefault();
       moveFocus(tabId, -1);
-    } else if (e.key === "ArrowDown" && sidebar) {
-      e.preventDefault();
-      moveFocus(tabId, 1);
     } else if (e.key === "Home") {
       e.preventDefault();
-      const first = tabs.find((t) => !t.disabled);
-      if (first) {
-        onChange(first.id);
-        focusTab(first.id);
-      }
+      ativarEFocar(guiasNavegaveis()[0]);
     } else if (e.key === "End") {
       e.preventDefault();
-      const enabled = tabs.filter((t) => !t.disabled);
-      const last = enabled[enabled.length - 1];
-      if (last) {
-        onChange(last.id);
-        focusTab(last.id);
-      }
+      const enabled = guiasNavegaveis();
+      ativarEFocar(enabled[enabled.length - 1]);
     }
   };
 

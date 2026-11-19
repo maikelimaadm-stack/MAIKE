@@ -55,9 +55,16 @@ export default function B1Select(props) {
   // painel por aqui (como o AutocompleteGenerico), senão a lista não se escolhe pelo teclado (D-PROD-222).
   const controlePainel = React.useRef(/** @type {null | { tecla: (e: React.KeyboardEvent) => void }} */ (null));
   const ancora = React.useCallback(() => botao.current?.closest(".mg-field, .mk-sel-campo") ?? botao.current, []);
-  const focarBusca = React.useCallback(() => {
-    requestAnimationFrame(() => buscaRef.current?.focus());
-  }, []);
+  // Aberta pelo clique ou por uma letra, a pesquisa dentro do campo recebe o foco no mesmo ciclo (não
+  // num quadro depois): com o foco já nela, o painel que acabou de fechar não o puxa de volta para o
+  // campo anterior — o que fechava esta lista recém-aberta (`focoFicaOndeEsta`). Aberta por Enter/↓,
+  // o foco fica no botão do campo (D-PROD-222).
+  const focarBuscaAoAbrir = React.useRef(false);
+  React.useEffect(() => {
+    if (!aberto) return;
+    if (focarBuscaAoAbrir.current && !celular && !disabled) buscaRef.current?.focus();
+    focarBuscaAoAbrir.current = false;
+  }, [aberto, celular, disabled]);
 
   const opcoes = opcoesDe(children);
   const atual = opcoes.find((o) => o.value === String(value ?? ""));
@@ -111,8 +118,8 @@ export default function B1Select(props) {
   if (!celular) {
     const abrirComBusca = (inicial = "") => {
       setBusca(inicial);
+      focarBuscaAoAbrir.current = true;
       setAberto(true);
-      focarBusca();
     };
     return (
       <PainelSelecao
