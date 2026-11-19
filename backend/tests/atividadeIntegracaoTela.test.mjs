@@ -380,7 +380,7 @@ test('recusas do servidor chegam à tela com o código, o campo e a frase certos
 
 /**
  * Cenário das linhas: o da Fatia 2 e, na fazenda 1, um tipo que PERMITE produto e implemento, o herbicida em L com
- * dois lotes FIFO (A: 06-01, 50 L a 5,20; B: 06-03, 100 L a 5,50) num local ativo e a atividade aberta com o trator
+ * dois lotes (custo médio 5,40) (A: 06-01, 50 L a 5,20; B: 06-03, 100 L a 5,50) num local ativo e a atividade aberta com o trator
  * (horímetro 1520,5 no cadastro).
  */
 const montarLinhas = async () => {
@@ -453,7 +453,7 @@ test('linhas: seletores, lançar/editar/cancelar produto e máquina, totais e me
   const linhaP1 = ap.produtos[0];
   assert.deepEqual(
     [ap.versao, linhaP1.status, linhaP1.quantidade, linhaP1.unidade, linhaP1.dose_ha, linhaP1.custo_unitario, linhaP1.custo_total],
-    [2, 'CONFIRMADO', '30.0000', 'L', '15.0000', '5.2000', '156.0000']
+    [2, 'CONFIRMADO', '30.0000', 'L', '15.0000', '5.4000', '162.0000']
   );
   assert.deepEqual(await s.saldo(), ['20.0000', '100.0000', '120.0000']);
   // O produto usado vira favorito no seletor.
@@ -470,8 +470,8 @@ test('linhas: seletores, lançar/editar/cancelar produto e máquina, totais e me
   assert.deepEqual(restoP2, { quantidade: '60', empresa_id: s.e1.id, versao: 2 });
   ap = rp2.apontamento;
   assert.deepEqual(ap.produtos.map((l) => [l.status, l.quantidade, l.custo_total, l.cancelamento_origem]), [
-    ['CANCELADO', '30.0000', '156.0000', 'EDICAO'],
-    ['CONFIRMADO', '60.0000', '315.0000', null], // 50 × 5,20 + 10 × 5,50
+    ['CANCELADO', '30.0000', '162.0000', 'EDICAO'],
+    ['CONFIRMADO', '60.0000', '324.0000', null], // 60 × 5,40 (médio)
   ]);
   assert.deepEqual(await s.saldo(), ['0.0000', '90.0000', '90.0000']);
 
@@ -514,9 +514,9 @@ test('linhas: seletores, lançar/editar/cancelar produto e máquina, totais e me
   assert.equal(enviados.at(-1).caminho, `/api/native/atividades/${a.id}/totais?empresa_id=${s.e1.id}`);
   assert.deepEqual(
     [totais.area_executada, totais.produtos.map((x) => [x.produto_id, x.unidade, x.quantidade, x.custo_total]), totais.maquinas.map((x) => [x.bem_id, x.quantidade_uso, x.custo_total])],
-    ['2.0000', [[s.herbicida.id, 'L', '60.0000', '315.0000']], [[s.trator.id, '9.5000', null]]]
+    ['2.0000', [[s.herbicida.id, 'L', '60.0000', '324.0000']], [[s.trator.id, '9.5000', null]]]
   );
-  assert.deepEqual([totais.custo_total, totais.custo_por_ha], ['315.0000', '157.5000']);
+  assert.deepEqual([totais.custo_total, totais.custo_por_ha], ['324.0000', '162.0000']);
 
   // ── cancelar as linhas (motivo aparado), cada uma com a versão relida: o estoque volta exato.
   const linhaP2 = ap.produtos[1];
@@ -588,7 +588,7 @@ test('linhas: "Repetir" com as linhas numa transação, reenvio sem resposta com
   assert.deepEqual(await s.saldo(), ['0.0000', '90.0000', '90.0000'], 'nenhuma baixa a mais');
   const novo = r1.apontamento;
   assert.deepEqual([novo.data_operacional, novo.turno, novo.status], [HOJE, 'MANHA', 'CONFIRMADO']);
-  assert.deepEqual(novo.produtos.map((l) => [l.status, l.quantidade, l.custo_total, l.dose_ha]), [['CONFIRMADO', '40.0000', '211.0000', '10.0000']]); // 30 × 5,20 + 10 × 5,50
+  assert.deepEqual(novo.produtos.map((l) => [l.status, l.quantidade, l.custo_total, l.dose_ha]), [['CONFIRMADO', '40.0000', '216.0000', '10.0000']]); // 40 × 5,40 (médio)
   assert.deepEqual(novo.maquinas.map((l) => [l.status, l.leitura_inicial, l.leitura_final, l.quantidade_uso]), [['CONFIRMADO', '1526.0000', '1531.5000', '5.5000']]);
   assert.equal((await prisma().atividadeApontamento.count({ where: { cliente_id: s.c, atividade_id: a.id } })), 2, 'um apontamento só do "Repetir"');
 
@@ -1026,7 +1026,7 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
     ap = (await S.adicionarLinha(tipo, a.id, ap, corpo, OPCOES_LINHA)).apontamento;
     return ap;
   };
-  await lancar('produtos', { produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '10' }); // 10 × 5,20 = 52
+  await lancar('produtos', { produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '10' }); // 10 × 5,40 = 54
   await lancar('maquinas', { bem_id: s.trator.id, sem_medidor: false, leitura_inicial: '1520.5', leitura_final: '1522.5' }); // 2 h × 100 = 200
   await lancar('mao-obra', { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '8' }); // 204
   await lancar('mao-obra', { parceiro_id: s.joao.id, tipo_medida: 'DIARIA', quantidade: '1' }); // 180
@@ -1052,16 +1052,16 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
     [s.pedro.id, 'Pedro Diarista', 'FUNCIONARIO', 'HORA', '4.0000', null],
   ]);
   assert.deepEqual(t.servicos.map((x) => [x.servico_id, x.nome, x.unidade, x.quantidade, x.custo_total]), [[s.gradagem.id, 'Gradagem terceirizada', 'HA', '4.0000', '600.0000']]);
-  assert.deepEqual([t.produtos.map((x) => x.custo_total), t.maquinas.map((x) => x.custo_total)], [['52.0000'], ['200.0000']]);
-  // 52 + 200 + 204 + 180 + 600 = 1236 em 4 ha.
-  assert.deepEqual([t.area_executada, t.custo_total, t.custo_por_ha], ['4.0000', '1236.0000', '309.0000']);
+  assert.deepEqual([t.produtos.map((x) => x.custo_total), t.maquinas.map((x) => x.custo_total)], [['54.0000'], ['200.0000']]);
+  // 54 + 200 + 204 + 180 + 600 = 1238 em 4 ha.
+  assert.deepEqual([t.area_executada, t.custo_total, t.custo_por_ha], ['4.0000', '1238.0000', '309.5000']);
   // D-PROD-234: as parcelas do custo por tipo (a atividade aberta e a tabela dos lançamentos); sem combustível, nulos.
-  assert.deepEqual(t.custo_por_tipo, { maquinas: '200.0000', produtos: '52.0000', mao_obra: '384.0000', servicos: '600.0000', combustivel: null });
+  assert.deepEqual(t.custo_por_tipo, { maquinas: '200.0000', produtos: '54.0000', mao_obra: '384.0000', servicos: '600.0000', combustivel: null });
   assert.equal(t.litros_combustivel_por_ha, null);
   // D-PROD-234: a lista traz o custo total de cada atividade, o MESMO dos totais (uma consulta agrupada pela página).
   const pagina = await S.listarAtividades();
   const naLista = pagina.items.find((x) => x.id === a.id);
-  assert.equal(naLista.custo_total, '1236.0000');
+  assert.equal(naLista.custo_total, '1238.0000');
   assert.ok(pagina.items.filter((x) => x.id !== a.id).every((x) => x.custo_total === null), 'sem nenhum custo, nulo');
 
   // ── o totalizador da tela (os quatro blocos, o custo e o custo/ha).
@@ -1074,9 +1074,9 @@ test('totais com as quatro linhas: produto, máquina, mão de obra e serviço so
   assert.equal(new Set(tela.maoObra.map((x) => x.chave)).size, 3, 'a chave separa o mesmo funcionário por medida');
   assert.deepEqual(tela.servicos.map((x) => [x.nome, x.quantidade, x.custo]), [['Gradagem terceirizada', '4 HA', LR.formatarCustoLinha('600.0000')]]);
   assert.deepEqual([tela.produtos.length, tela.maquinas.length], [1, 1]);
-  assert.equal(tela.custo, LR.formatarCustoLinha('1236.0000'));
-  assert.match(tela.custo, /1\.236,00/);
-  assert.match(tela.custoPorHa, /309,00\/ha$/i);
+  assert.equal(tela.custo, LR.formatarCustoLinha('1238.0000'));
+  assert.match(tela.custo, /1\.238,00/);
+  assert.match(tela.custoPorHa, /309,50\/ha$/i);
 });
 
 test('mão de obra e serviço: "Repetir" com mao_obra[] e servicos[] (rede cai depois de gravar: a MESMA chave, sem duplicar), o duplicar do servidor com as linhas, a trava da data e a cascata do cancelamento', async () => {

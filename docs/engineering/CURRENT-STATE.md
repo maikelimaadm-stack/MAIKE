@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-253** (nasceu D-PROD-195 e passou a D-PROD-252; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e a D-PROD-252 ao Lançamento de Atividades organizado, PR #331, e chegou a `Próxima decisão: D-PROD-253`; a PR #332 deixou a 253 reservada e usou a D-PROD-254) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) e com a `main` `bab0f38a` (PR #338, D-PROD-258). PR **#275** (rascunho), exclusiva desta correção |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) e com a `main` `187491be` (PR #337, D-PROD-256). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
@@ -23,12 +23,25 @@ rollout pausado **D-PROD-41**)
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-19) — MAIKE-ATIVIDADES-FASE1: tipos fixos + formulário único, só serviços de pasto (D-PROD-258)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-CUSTO-MEDIO: custo médio ponderado no motor único (D-PROD-256, PR 1 de 2)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-256**, pedido do proprietário: custo médio e aba Entradas, em PRs empilhadas, custo médio primeiro; Entradas é a **D-PROD-257** (PR 2) |
+| Branch / PR | `cursor/estoque-custo-medio`, a partir da `main` `75464e88` (PR #335) · sem push nem PR ainda |
+| Escopo | `estoqueFisicoMotor.js`: `consumirCustoMedio` e `aplicarSaida` (no lugar de `consumirFifo`/`aplicarSaidaFifo`), reavaliação do poço produto × depósito, estorno exato, transferência com valor conservado; chamadores renomeados (abastecimento, atividade, cocho, venda, transferência) |
+| Cutover | daqui para a frente; histórico, fatias e consumos **não** são reescritos; saída FIFO antiga estornada devolve o valor FIFO gravado |
+| Migration | **nenhuma** (só código, sem DDL). Nada roda no banco no merge |
+| Constituição | emenda **proposta** em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md`; **só vale com a aprovação do proprietário no merge manual** |
+| Fica para a PR 2 | aba Entradas, `EntradaEstoque*`, motivos (D-PROD-177), permissão `entrada`/`ajuste`, migration, reconciliação |
+| Relatório | [`MAIKE-ESTOQUE-CUSTO-MEDIO-REPORT.md`](./MAIKE-ESTOQUE-CUSTO-MEDIO-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ATIVIDADES-FASE1: tipos fixos + formulário único, só serviços de pasto (D-PROD-258)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-258**, pedido do proprietário: aprovou a fase 1 da análise de Atividades, com escopo só de pastos |
-| Branch / PR | `feat/atividades-tipos-fixos`, a partir da `main` `75464e88` · **commits só locais**, sem push nem PR |
+| Branch / PR | `feat/atividades-tipos-fixos` · PR **#338**, mergeada na `main` `bab0f38a` |
 | Escopo | 7 tipos fixos obrigatórios na categoria; cadastro de operação com tipo + nome + ativo; "Registrar serviço" em dois passos (tipo, depois operação) com as quatro seções sempre visíveis; Manejos do mapa abre o mesmo formulário com a área preenchida; Grupo e as 8 chaves fora das telas de atividade |
 | Backend | `categoria` obrigatória (7 valores) em `POST/PATCH /tipos-atividade`; grupo `GERAL` e chaves em padrão na criação. **Nenhuma migration** |
 | Dados | `scripts/ops/tipos-fixos-atividade-dados.mjs`: dry-run por padrão, **não executado** em dados reais; precisa da conferência do proprietário |
@@ -42,7 +55,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `cursor/estoque-saldo-movimentos`, a partir da `main` `9d791735` · sem push nem PR ainda |
 | Escopo | Página `Estoque` (Suporte do Mapa → Estoque, `/estoque`), na cadeia Base1; Saldo produto × depósito (das camadas), Movimentos (kardex) com filtros, janela de detalhe somente leitura; clicar no Saldo leva aos Movimentos do produto e depósito |
 | Backend | `GET /estoque/saldo`, `/estoque/movimentos` (P1-04, keyset + cursor assinado), `/estoque/movimentos/:id`, `/estoque/opcoes/produtos` e `/locais`; guarda da tela nova `sup-estoque` (`visualizar`). **Nenhuma migration**, motor intocado, guardas existentes mantidas |
-| Fica para depois | Entradas (saldo inicial, doação, outra causa), Inventário (saldo inicial + contagem periódica com ajuste e motivo), saída manual com motivos fixos, **custo médio** (hoje FIFO por camada), permissão extra `entrada`/`ajuste` |
+| Fica para depois | Entradas (saldo inicial, doação, outra causa), Inventário (saldo inicial + contagem periódica com ajuste e motivo), saída manual com motivos fixos, **custo médio** (feito na D-PROD-256; antes FIFO por camada), permissão extra `entrada`/`ajuste` |
 | Relatório | [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md) |
 
 ## Missão anterior (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)

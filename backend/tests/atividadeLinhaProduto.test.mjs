@@ -137,9 +137,9 @@ describe('baixa e estorno', () => {
     const l = c.linha;
     assert.deepEqual(
       [l.ordem, l.status, l.quantidade, l.unidade, l.dose_ha, l.custo_unitario, l.custo_total, l.produto.nome, l.local_estoque.id, l.empresa_id],
-      [1, 'CONFIRMADO', '30.0000', 'L', '3.0000', '5.2000', '156.0000', 'Herbicida glifosato (L)', s.local.id, s.e1.id]
+      [1, 'CONFIRMADO', '30.0000', 'L', '3.0000', '5.4000', '162.0000', 'Herbicida glifosato (L)', s.local.id, s.e1.id]
     );
-    assert.deepEqual(l.fatias, [{ ordem: 1, lote_id: s.lotesH.herbicidaA, quantidade: '30.0000', custo_unitario: '5.2000' }]);
+    assert.deepEqual(l.fatias, [{ ordem: 1, lote_id: s.lotesH.herbicidaA, quantidade: '30.0000', custo_unitario: '5.4000' }]);
     assert.equal(c.apontamento.versao, 2, 'a escrita da linha incrementa a versão do apontamento uma vez');
     assert.deepEqual(c.apontamento.produtos.map((x) => x.id), [l.id]);
     assert.deepEqual(c.apontamento.maquinas, []);
@@ -147,7 +147,7 @@ describe('baixa e estorno', () => {
     const mov = await movimento(l.movimentacao_estoque_id);
     assert.deepEqual(
       [mov.tipo_movimentacao, mov.origem_sistema, mov.tipo_detalhado, mov.data_movimentacao.toISOString().slice(0, 10), mov.quantidade.toFixed(4), mov.valor_total.toFixed(4), mov.numero_documento, mov.lancamento_origem_id],
-      ['Saída', 'apontamento_atividade', 'apontamento_atividade', '2027-06-10', '30.0000', '156.0000', a.numero, a.id]
+      ['Saída', 'apontamento_atividade', 'apontamento_atividade', '2027-06-10', '30.0000', '162.0000', a.numero, a.id]
     );
     assert.ok(!mov.numero_movimentacao.startsWith('p-'), 'numerado no fim da transação');
     assert.deepEqual(await lote(s.lotesH.herbicidaA), ['20.0000', 'Disponivel']);
@@ -167,7 +167,7 @@ describe('baixa e estorno', () => {
     assert.equal(await estoque(s.herbicida.id), '150.0000');
     assert.equal((await movimento(l.movimentacao_estoque_id)).status, 'Estornada');
     const est = await movimento(cc.linha.movimentacao_estorno_id);
-    assert.deepEqual([est.tipo_movimentacao, est.tipo_detalhado, est.movimento_pai_id, est.valor_total.toFixed(4), est.data_movimentacao.toISOString().slice(0, 10)], ['Entrada', 'estorno_apontamento_atividade', l.movimentacao_estoque_id, '156.0000', '2027-06-15']);
+    assert.deepEqual([est.tipo_movimentacao, est.tipo_detalhado, est.movimento_pai_id, est.valor_total.toFixed(4), est.data_movimentacao.toISOString().slice(0, 10)], ['Entrada', 'estorno_apontamento_atividade', l.movimentacao_estoque_id, '162.0000', '2027-06-15']);
     // reenvio igual do cancelamento: replay, nada muda
     const antes = await foto(s.c);
     const re = await H.req('POST', `/atividades/${a.id}/apontamentos/${ap.id}/produtos/${l.id}/cancelar`, s.token, { empresa_id: a.empresa_id, versao: ap2.versao, operation_id: cancelOp, motivo: 'lançado errado' });
@@ -194,7 +194,7 @@ describe('baixa e estorno', () => {
     assert.deepEqual(erro(numero).slice(0, 2), [400, 'REQUEST_VALIDATION_FAILED'], 'decimal só como texto');
   });
 
-  test('FIFO igual ao do abastecimento: os mesmos lotes dão as mesmas fatias e o mesmo custo (80 L = 50 a 5,20 + 30 a 5,50)', async () => {
+  test('custo médio igual ao do abastecimento: os mesmos lotes dão as mesmas fatias e o mesmo custo (80 L: 50 + 30 kg baixados, tudo a 5,40)', async () => {
     const s = await montar();
     const abast = await AB.confirmarOk(s.operador.token, corpoAbastecimento(s, { quantidade: '80' }));
     const fatiasAbast = await prisma().abastecimentoBemConsumoLote.findMany({ where: { cliente_id: s.c }, orderBy: { ordem: 'asc' } });
@@ -211,7 +211,7 @@ describe('baixa e estorno', () => {
     );
     assert.deepEqual(l.fatias.map((f) => [doLote.get(f.lote_id), f.quantidade]), [['A', '50.0000'], ['B', '30.0000']]);
     assert.deepEqual([movLinha.valor_unitario.toFixed(4), movLinha.valor_total.toFixed(4)], [movAbast.valor_unitario.toFixed(4), movAbast.valor_total.toFixed(4)]);
-    assert.deepEqual([l.custo_unitario, l.custo_total], ['5.3125', '425.0000']);
+    assert.deepEqual([l.custo_unitario, l.custo_total], ['5.4000', '432.0000']);
   });
 });
 
@@ -229,7 +229,7 @@ describe('editar e cancelar em cascata', () => {
     assert.notEqual(c.linha.id, c1.linha.id);
     const velha = c.apontamento.produtos.find((x) => x.id === c1.linha.id);
     assert.deepEqual([velha.status, velha.cancelamento_origem, typeof velha.movimentacao_estorno_id], ['CANCELADO', 'EDICAO', 'string']);
-    assert.deepEqual([c.linha.ordem, c.linha.status, c.linha.quantidade, c.linha.dose_ha, c.linha.custo_total], [2, 'CONFIRMADO', '60.0000', '3.0000', '315.0000']);
+    assert.deepEqual([c.linha.ordem, c.linha.status, c.linha.quantidade, c.linha.dose_ha, c.linha.custo_total], [2, 'CONFIRMADO', '60.0000', '3.0000', '324.0000']);
     assert.deepEqual(c.linha.fatias.map((f) => [f.lote_id, f.quantidade]), [[s.lotesH.herbicidaA, '50.0000'], [s.lotesH.herbicidaB, '10.0000']]);
     assert.deepEqual(await lote(s.lotesH.herbicidaA), ['0.0000', 'Esgotado']);
     assert.deepEqual(await lote(s.lotesH.herbicidaB), ['90.0000', 'Disponivel']);
@@ -359,8 +359,8 @@ describe('totalizador', () => {
     const p1 = await s.lancarOk(a, { area_executada_dia: '10' });
     const p2 = await s.lancarOk(a, { area_executada_dia: '5' });
     assert.deepEqual([p1.data_operacional, p1.sequencia, p2.data_operacional, p2.sequencia], ['2027-06-10', 1, '2027-06-10', 2], 'duas passadas no mesmo dia');
-    await s.lancarLinhaOk(a, p1, { quantidade: '20' }); // 20 × 5,20 = 104
-    const c2 = await s.lancarLinhaOk(a, p2, { quantidade: '10' }); // 10 × 5,20 = 52
+    await s.lancarLinhaOk(a, p1, { quantidade: '20' }); // 20 × 5,40 (médio de 50×5,20 + 100×5,50 ÷ 150) = 108
+    const c2 = await s.lancarLinhaOk(a, p2, { quantidade: '10' }); // 10 × 5,40 = 54
     const c3 = await s.lancarLinhaOk(a, c2.apontamento, { produto_id: s.adubo.id, quantidade: '4' }); // 4 × 3 = 12
     // uma linha cancelada e um apontamento cancelado não contam
     const c4 = await s.lancarLinhaOk(a, c3.apontamento, { quantidade: '1' });
@@ -375,7 +375,7 @@ describe('totalizador', () => {
       unidade_area: 'ha',
       produtos: [
         { produto_id: s.adubo.id, nome: 'Adubo NPK (saco)', unidade: 'KG', quantidade: '4.0000', custo_total: '12.0000' },
-        { produto_id: s.herbicida.id, nome: 'Herbicida glifosato (L)', unidade: 'L', quantidade: '30.0000', custo_total: '156.0000' },
+        { produto_id: s.herbicida.id, nome: 'Herbicida glifosato (L)', unidade: 'L', quantidade: '30.0000', custo_total: '162.0000' },
       ],
       maquinas: [],
       mao_obra: [],
@@ -383,11 +383,11 @@ describe('totalizador', () => {
       // D-PROD-211 (Fatia 5): sem abastecimento ligado, o combustível fica vazio.
       combustivel: { quantidade_l: null, quantidade_kg: null, custo_total: null },
       consumo_por_bem: [],
-      custo_total: '168.0000',
-      custo_por_ha: '11.2000',
+      custo_total: '174.0000',
+      custo_por_ha: '11.6000',
       custo_combustivel_por_ha: null,
       // D-PROD-234: as parcelas do custo por tipo (só produto aqui) e os litros por ha (sem combustível, nulo).
-      custo_por_tipo: { maquinas: null, produtos: '168.0000', mao_obra: null, servicos: null, combustivel: null },
+      custo_por_tipo: { maquinas: null, produtos: '174.0000', mao_obra: null, servicos: null, combustivel: null },
       litros_combustivel_por_ha: null,
       // D-PROD-249: a atividade sem área não tem números por área.
       por_area: [],
@@ -489,7 +489,7 @@ describe('lançamento com as duas linhas', () => {
     assert.deepEqual([ap.produtos.length, ap.maquinas.length, ap.maquinas[0].quantidade_uso, ap.maquinas[0].status], [1, 1, '8.0000', 'CONFIRMADO']);
     const t = await H.ok(H.req('GET', `/atividades/${a.id}/totais?empresa_id=${a.empresa_id}`, s.token));
     assert.deepEqual(t.maquinas.map((m) => [m.bem_id, m.quantidade_uso]), [[s.trator.id, '8.0000']]);
-    assert.equal(t.produtos[0].custo_total, '104.0000');
+    assert.equal(t.produtos[0].custo_total, '108.0000');
     const c = await H.ok(H.req('POST', `${s.baseAp(a)}/${ap.id}/cancelar`, s.token, { empresa_id: a.empresa_id, versao: ap.versao, motivo: 'chuva' }));
     assert.deepEqual([c.apontamento.produtos[0].cancelamento_origem, c.apontamento.maquinas[0].cancelamento_origem], ['APONTAMENTO', 'APONTAMENTO']);
     assert.equal(await estoque(s.herbicida.id), '150.0000');

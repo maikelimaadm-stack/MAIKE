@@ -244,7 +244,7 @@ describe('L2 — cadeia: compra com desconto → venda FIFO → cancelamentos', 
     assert.deepEqual([canc.status, canc.itens[0].custo_kg, canc.itens[0].residuo_custo, canc.itens[0].valor_liquido], ['CANCELADO', '2.5000', '0.00000000', '7500.00']);
   });
 
-  test('venda com desconto e acréscimo: rateio informativo nas linhas; custo FIFO inalterado (fatia × custo do lote)', async () => {
+  test('venda com desconto e acréscimo: rateio informativo nas linhas; custo médio do estoque, nunca o preço líquido', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -253,14 +253,14 @@ describe('L2 — cadeia: compra com desconto → venda FIFO → cancelamentos', 
     await definirEstoqueAtual(e.sal, '15');
     const venda = await A.criarConfirmar(s.token, docCom(e, s.local, [{ produto: e.sal, quantidade: '8', valor_unitario: '10' }], { direcao: 'RECEBER', valor_desconto: '10.00', valor_acrescimo: '1.00', total: '71.00' }));
     const mov = await p.movimentacaoEstoque.findUnique({ where: { id: venda.itens[0].movimentacao_estoque_id } });
-    assert.deepEqual([q4(mov.valor_total), q4(mov.valor_unitario)], ['19.0000', '2.3750'], '5 × 2 + 3 × 3 = 19 (FIFO), não o preço líquido');
+    assert.deepEqual([q4(mov.valor_total), q4(mov.valor_unitario)], ['21.3336', '2.6667'], 'médio (5 × 2 + 10 × 3) ÷ 15 = 2,6667; 8 × 2,6667 = 21,3336, não o preço líquido');
     assert.deepEqual(linhas(venda.itens), [{ ordem: 1, valor_total: '80.00', valor_desconto_rateado: '10.00', valor_acrescimo_rateado: '1.00', valor_liquido: '71.00', quantidade_estoque: '8.0000', custo_kg: null, residuo_custo: null }]);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('L3 — custo do detalhe, replanejamento e representabilidade', () => {
-  test('detalhe confirmado lê o custo do LOTE gravado; confirmação replaneja o kg (peso do saco mudou) e regrava as colunas', async () => {
+  test('detalhe confirmado mostra o custo de aquisição (líquido ÷ kg), não o custo vigente da camada (D-PROD-256); confirmação replaneja o kg (peso do saco mudou) e regrava as colunas', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -271,10 +271,10 @@ describe('L3 — custo do detalhe, replanejamento e representabilidade', () => {
     assert.deepEqual([conf.itens[0].quantidade_estoque, conf.itens[0].custo_kg, conf.itens[0].residuo_custo, conf.itens[0].valor_liquido], ['4000.0000', '1.8750', '0.00000000', '7500.00']);
     const lote = await p.estoqueLoteNota.findUnique({ where: { id: conf.itens[0].estoque_lote_nota_id } });
     assert.deepEqual([q4(lote.custo_unitario), q4(lote.quantidade_entrada)], ['1.8750', '4000.0000']);
-    // prova de que o detalhe usa o lote (não recalcula): custo do lote alterado direto no banco
+    // o custo da camada é o valor vigente no poço (reavaliado pelo motor): alterá-lo não muda o custo de aquisição do detalhe
     await p.estoqueLoteNota.update({ where: { id: lote.id }, data: { custo_unitario: '1.8000' } });
     const det = await A.detalhe(s.token, d.id, e.id);
-    assert.deepEqual([det.itens[0].custo_kg, det.itens[0].residuo_custo], ['1.8000', '300.00000000']);
+    assert.deepEqual([det.itens[0].custo_kg, det.itens[0].residuo_custo], ['1.8750', '0.00000000']);
   });
 
   test('resíduo fora do limite depois do rascunho (peso do saco mudou): prévia bloqueia com os detalhes; confirmação 422 sem efeito', async () => {

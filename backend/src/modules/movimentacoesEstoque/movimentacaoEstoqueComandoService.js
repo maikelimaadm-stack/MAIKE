@@ -4,7 +4,7 @@
  * D-PROD-161 (Estoque P0, motor físico único): a suplementação e a
  * transferência entre locais não têm mais FIFO próprio em Number. Elas só
  * validam a entrada e chamam o motor (`estoqueFisicoMotor.js`):
- *  - suplementação → `aplicarSaidaFifo` com `ORIGEM_SUPLEMENTACAO` (CAS no lote,
+ *  - suplementação → `aplicarSaida` com `ORIGEM_SUPLEMENTACAO` (CAS no lote,
  *    decremento conferido do cache, `lotes_consumidos`);
  *  - transferência → `aplicarTransferenciaEstoque` (camadas de destino com o
  *    custo, a data e a procedência da origem; cache intocado).
@@ -28,7 +28,7 @@ import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, dec, paraBanco } from '../financeir
 import {
   ENTIDADE_MOVIMENTO,
   ORIGEM_SUPLEMENTACAO,
-  aplicarSaidaFifo,
+  aplicarSaida,
   aplicarTransferenciaEstoque,
   exigirLocaisEstoque,
   kgDeEntrada,
@@ -115,9 +115,6 @@ const dataMovimentacaoDeEntrada = (valor) => {
   }
   return instante;
 };
-
-/** `custo_medio_antes` informativo (preço de custo do cadastro; nunca entra em lote, fatia ou valor). */
-const custoMedioAntes = (produto) => paraBanco(dec(produto.preco_custo ?? 0), CASAS_CUSTO);
 
 /** VarChar(2000) de `MovimentacaoEstoque.observacoes` (schema.prisma). */
 const LIMITE_OBSERVACOES = 2000;
@@ -213,7 +210,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
         await travarProdutosEstoque(tx, cli, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, cli, produtoId, empresaId);
         const local = /** @type {{ id: string, nome: string }} */ (locais.get(localOrigemId));
-        const saida = await aplicarSaidaFifo(tx, contexto, {
+        const saida = await aplicarSaida(tx, contexto, {
           empresaId,
           produto,
           local: { id: local.id, nome: local.nome },
@@ -231,8 +228,8 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
             deposito_id: entrada.deposito_id ?? null,
             ponto_suplementacao_id: entrada.ponto_suplementacao_id ?? null,
             observacoes: comporObservacoes(entrada.observacoes, plano.fatias),
-            custo_medio_antes: custoMedioAntes(produto),
-            custo_medio_depois: paraBanco(plano.valorUnitario, CASAS_CUSTO),
+            custo_medio_antes: paraBanco(plano.custoMedioAntes, CASAS_CUSTO),
+            custo_medio_depois: paraBanco(plano.custoMedioDepois, CASAS_CUSTO),
           }),
         });
         // Sequência de movimentos só no FIM (W24): não prende a numeração do tenant durante os efeitos.
@@ -336,8 +333,8 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
           contextoErro: { field: 'quantidade' },
           complemento: (plano) => ({
             observacoes: comporObservacoes(entrada.observacoes, plano.fatias),
-            custo_medio_antes: custoMedioAntes(produto),
-            custo_medio_depois: paraBanco(plano.valorUnitario, CASAS_CUSTO),
+            custo_medio_antes: paraBanco(plano.custoMedioAntes, CASAS_CUSTO),
+            custo_medio_depois: paraBanco(plano.custoMedioDepois, CASAS_CUSTO),
           }),
         });
         // Saída = n, entrada = n + 1, reservados no FIM (W24).
