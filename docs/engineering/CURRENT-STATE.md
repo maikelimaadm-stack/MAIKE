@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-CUSTO-MEDIO: custo médio ponderado no motor único (D-PROD-256, PR 1 de 2)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-ENTRADAS: aba Entradas do Estoque (D-PROD-257, PR 2 de 2)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-257**: aba **Entradas** (entrada manual documentada e saldo de implantação) na tela Estoque; o inventário inicial é o motivo `SALDO_IMPLANTACAO`, não uma aba |
+| Branch / PR | `cursor/estoque-entradas`, **empilhada** em `cursor/estoque-custo-medio` (PR #337, D-PROD-256, ainda não mesclada) · sem push nem PR ainda; o PR deve ter base `cursor/estoque-custo-medio` |
+| Escopo | `backend/src/modules/estoqueEntradas/` (rotas, serviço, regras), dois invólucros no motor (`aplicarEntradaDocumentada`, `estornarEntradaDocumentada`), reconciliação (origem e FK do estorno), permissão extra `entrada` da tela `sup-estoque`, aba/lista/formulário/detalhe no front |
+| Migration | `20261119100000_estoque_entradas`, **EXPAND** (3 tabelas novas). Sobe pelo caminho normal de deploy **só depois do merge manual, e depois da #337**; nada foi aplicado em produção |
+| Constituição | a emenda do custo médio (D-PROD-256) **continua pendente de ratificação** no merge da #337; esta PR não a aprova |
+| Abertos | consulta recíproca da P3 (compra → entrada; bloqueio de liberação do contrato), edição física por revisão (P1-05b), janela FIFO/R-DATA, inventário periódico e `ajuste` |
+| Relatório | [`MAIKE-ESTOQUE-ENTRADAS-REPORT.md`](./MAIKE-ESTOQUE-ENTRADAS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-CUSTO-MEDIO: custo médio ponderado no motor único (D-PROD-256, PR 1 de 2)
 
 | Campo | Valor |
 |---|---|
