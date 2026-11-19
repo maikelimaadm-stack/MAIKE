@@ -37,6 +37,7 @@ import {
   origemDoCorpo,
 } from './atividadeApontamentoService.js';
 import { STATUS_AREA, exigirAreaDoMapa, iniciarAreaNaTransacao } from './atividadeAreaService.js';
+import { ehTipoAbastecimento } from '../tiposAtividade/tipoAtividadePadroes.js';
 import { lerTipoAtividade } from './atividadeRepository.js';
 import { NOME_MAXIMO, abrirNa } from './atividadeService.js';
 
@@ -107,6 +108,8 @@ export const registrarCampo = async (contexto, corpo) => {
       const tipo = await lerTipoAtividade(tx, cli, tipoId);
       if (!tipo) throw atividadeReferenciaInvalida('tipo_atividade_id', 'inexistente');
       if (!tipo.ativo) throw atividadeReferenciaInvalida('tipo_atividade_id', 'inativo');
+      // Emenda 1: abastecimento é da máquina (tanque, litros, horímetro), não um registro genérico por área.
+      if (ehTipoAbastecimento(tipo.nome_tipo)) throw atividadeReferenciaInvalida('tipo_atividade_id', 'abastecimento');
 
       // A corrida: quem chega depois espera aqui e então ENXERGA a atividade criada pelo primeiro.
       const chave = `atividade-registro:${cli}:${empresaId}:${tipoId}:${areaId}:${dia.slice(0, 7)}`;

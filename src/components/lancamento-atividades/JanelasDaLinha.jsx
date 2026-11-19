@@ -109,6 +109,7 @@ import {
   obterMedidorDoBem,
   obterTotaisAtividade,
 } from "@/services/lancamentoAtividadesService";
+import { bemParaAbastecer } from "@/lib/atividadeFluxoCampo";
 import { hectaresParaDose } from "@/lib/lancamentosDaAreaRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
@@ -911,7 +912,7 @@ export function CamposDaLinhaServico({ form, mudar, erros, bloqueado, prefixo, c
  *   apontamento: any,
  *   linha?: any,
  *   escopo: string,
- *   onSalvo: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string) => void,
+ *   onSalvo: (resultado: { apontamento: any, atividade: any, alertas: any[] }, texto: string, extra?: { bem: ReturnType<typeof bemParaAbastecer> }) => void,
  *   onCancelar: () => void,
  *   onMudou?: (() => void) | null,
  *   novoDia?: NovoDia | null,
@@ -1224,7 +1225,7 @@ export function JanelaLinhaMaquina({ atividade, apontamento, linha = null, permi
     const r = await disparar(arg);
     if (!r) return;
     if (r.ok) {
-      onSalvo(normalizarRespostaDeEscrita(r.resposta), editando ? `Máquina ${nome} alterada.` : `Máquina ${nome} lançada${uso ? ` (${formatarUso(uso, medidor.tipo, medidor.unidade)})` : ""}.`);
+      onSalvo(normalizarRespostaDeEscrita(r.resposta), editando ? `Máquina ${nome} alterada.` : `Máquina ${nome} lançada${uso ? ` (${formatarUso(uso, medidor.tipo, medidor.unidade)})` : ""}.`, { bem: bemParaAbastecer({ id: form.bem?.id, rotulo: form.bem?.rotulo, medidorTipo: medidor.tipo }) });
       return;
     }
     if (ehSaltoDoMedidor(r.erro)) setSaltoPedido(true);

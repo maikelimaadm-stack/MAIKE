@@ -298,10 +298,12 @@ describe("DetalhesArea — Manejos e o registro", () => {
     await waitFor(() => expect([...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent)).toContain("Calagem do Retiro"));
     expect(quadros.length).toBeGreaterThan(0);
     const todos = [...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map((n) => n.textContent);
-    expect(todos).toEqual(["Abastecimento", "Aplicação / Pulverização", "Calagem do Retiro", "Gradeação", "Roçada"]);
+    // Abastecimento é da máquina (emenda 1 da D-PROD-254): existe no cadastro, mas não é manejo da área.
+    expect(todos).toEqual(["Aplicação / Pulverização", "Calagem do Retiro", "Gradeação", "Roçada"]);
+    expect(todos).not.toContain("Abastecimento");
     expect(todos).not.toContain("Tipo Desativado");
     // Cada quadro tem o ícone (svg) em cima do nome.
-    expect(document.querySelectorAll(".mk-al__quadro .mk-al__icone svg").length).toBe(5);
+    expect(document.querySelectorAll(".mk-al__quadro .mk-al__icone svg").length).toBe(4);
     // Voltar traz o painel de volta.
     fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
     expect(screen.getByRole("tab", { name: "Detalhes" })).toBeTruthy();
@@ -330,6 +332,16 @@ describe("DetalhesArea — Manejos e o registro", () => {
     expect(within(janela).getByRole("button", { name: "Salvar" })).toBeTruthy();
     // O destino do registro: nenhuma atividade aberta de Gradeação no mês → nova.
     expect((await within(janela).findByTestId("registro-de-campo-destino")).textContent).toBe("Entra em Gradeação · nov/26");
+  });
+
+  it("o formulário genérico (\"Registrar serviço\": a pessoa escolhe área e tipo) não oferece Abastecimento — é da máquina", async () => {
+    const { default: JanelaRegistroDeCampo } = await import("@/components/lancamento-atividades/RegistroDeCampo");
+    renderizar(<JanelaRegistroDeCampo tipos={TIPOS} areas={[PASTO]} onFechar={() => {}} />);
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    fireEvent.click(within(janela).getByRole("combobox", { name: /Tipo de atividade/i }));
+    const opcoes = (await screen.findAllByRole("option")).map((o) => o.textContent.trim());
+    expect(opcoes).toContain("Gradeação");
+    expect(opcoes).not.toContain("Abastecimento");
   });
 
   it("Aplicação: com produtos; Roçada (sem flags): só o dia, hectares, operador e observação", async () => {

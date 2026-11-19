@@ -29,6 +29,20 @@ export const CATEGORIAS_TIPO_ATIVIDADE = Object.freeze([
   'OUTROS',
 ]);
 
+/**
+ * D-PROD-254 (emenda 1) — o tipo que representa ABASTECIMENTO: o cadastro de tipos não tem categoria própria, então vale o
+ * nome (o mesmo critério do desenho do tipo na tela: "abastec" ou "combust", sem acento nem caixa). Abastecimento é feito
+ * pela MÁQUINA (tanque, litros, horímetro), nunca como registro de campo de uma área.
+ * @param {unknown} nomeTipo
+ */
+export const ehTipoAbastecimento = (nomeTipo) =>
+  /abastec|combust/.test(
+    String(nomeTipo ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+  );
+
 /** As 8 flags de como a atividade do tipo funciona (`BOOLEAN NOT NULL DEFAULT false`), nesta ordem. */
 export const FLAGS_TIPO_ATIVIDADE = Object.freeze([
   'exige_area',

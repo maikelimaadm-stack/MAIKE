@@ -35,7 +35,6 @@ export const GRUPO_OUTRA = 'outra';
 
 /** Opções do "O que você quer registrar?" que não são uma linha do servidor. */
 export const REGISTRO_IMPLEMENTO = 'implemento';
-export const REGISTRO_ABASTECIMENTO = 'abastecimento';
 
 /**
  * Pasto, lavoura ou outra, pelo uso da área (`tipo_cultura`) e, se houver, pelo tipo da cultura.
@@ -121,11 +120,11 @@ export const textoDoQuePodeRegistrar = (tipo) => {
  * Opções do "O que você quer registrar?", na ordem do campo.
  * Máquina sempre. Implemento, produto, mão de obra e serviço só se o tipo permitir.
  * Implemento abre o mesmo formulário da máquina (o implemento é escolhido junto com ela).
- * Abastecimento é o combustível da máquina e só aparece para quem pode abastecer.
+ * Abastecimento NÃO é opção (D-PROD-254, emenda 1): é feito pela máquina (a linha da máquina: "Salvar e abastecer" e o
+ * "Abastecer" do ⚡ da linha).
  * @param {{ permiteProduto?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean, permiteImplemento?: boolean }} flags
- * @param {{ abastecimento?: boolean }} [extra]
  */
-export const opcoesDeRegistro = (flags, extra = {}) => {
+export const opcoesDeRegistro = (flags) => {
   /** @type {Array<{ id: string, rotulo: string, detalhe: string }>} */
   const lista = [
     { id: LINHA_MAQUINA, rotulo: 'Máquina', detalhe: 'Trator, pulverizador e as horas de uso' },
@@ -134,23 +133,30 @@ export const opcoesDeRegistro = (flags, extra = {}) => {
   if (flags?.permiteProduto) lista.push({ id: LINHA_PRODUTO, rotulo: 'Produto', detalhe: 'Veneno, adubo, semente, ração…' });
   if (flags?.permiteMaoObra) lista.push({ id: LINHA_MAO_OBRA, rotulo: 'Mão de obra', detalhe: 'Pessoas que trabalharam no dia' });
   if (flags?.permiteServico) lista.push({ id: LINHA_SERVICO, rotulo: 'Serviço', detalhe: 'Trabalho de terceiro, diária, frete' });
-  if (extra?.abastecimento) lista.push({ id: REGISTRO_ABASTECIMENTO, rotulo: 'Abastecimento', detalhe: 'Diesel ou outro combustível da máquina' });
   return lista;
 };
 
 /**
- * Em qual registro do dia o abastecimento entra: o de hoje na área; sem ele, o mais recente da área.
- * Sem nenhum, `null` (a pessoa precisa registrar uma máquina antes).
- * Sem `areaId`, vale a atividade toda (atividade de uma área só).
- * @param {any[]} apontamentos @param {string|null} areaId @param {string} [hoje]
+ * O tipo de atividade que representa ABASTECIMENTO (emenda 1 da D-PROD-254). O cadastro de tipos não tem categoria para
+ * isso: vale o nome, pelo mesmo critério do desenho do tipo (`abastec` / `combust`, sem acento nem caixa) e do servidor
+ * (`ehTipoAbastecimento`, que recusa o tipo em `POST /atividades/registrar`). Esses tipos ficam fora dos quadros de Manejos
+ * e da lista do "Registrar serviço": abastecer é da máquina.
+ * @param {any} tipo
  */
-export const registroDoDiaParaAbastecer = (apontamentos, areaId, hoje = '') => {
-  const daArea = (Array.isArray(apontamentos) ? apontamentos : [])
-    .filter((ap) => ap && ap.status === STATUS_CONFIRMADO && (!areaId || String(ap.atividade_area_id ?? '') === String(areaId)))
-    .slice()
-    .sort((a, b) => String(b.data_operacional ?? '').localeCompare(String(a.data_operacional ?? '')) || (Number(b.sequencia) || 0) - (Number(a.sequencia) || 0));
-  return daArea.find((ap) => hoje && texto(ap.data_operacional).slice(0, 10) === hoje) ?? daArea[0] ?? null;
-};
+export const ehTipoAbastecimento = (tipo) => /abastec|combust/.test(texto(tipo?.nome_tipo).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+
+/** Os tipos que se registram como trabalho de campo da área (sem o Abastecimento). @param {any[]} tipos */
+export const tiposRegistraveisNaArea = (tipos) => (Array.isArray(tipos) ? tipos : []).filter((t) => t && !ehTipoAbastecimento(t));
+
+/**
+ * O bem (máquina) da linha, no formato que o formulário de Abastecimento espera (`bem.medidor.tipo` define o horímetro).
+ * @param {{ id?: unknown, rotulo?: unknown, medidorTipo?: unknown }} maquina
+ * @returns {{ id: string, nome: string, medidor: { tipo: string } } | null}
+ */
+export const bemParaAbastecer = (maquina) =>
+  maquina?.id != null && texto(maquina.id)
+    ? { id: texto(maquina.id), nome: texto(maquina.rotulo) || texto(maquina.id), medidor: { tipo: texto(maquina.medidorTipo) || 'SEM_MEDIDOR' } }
+    : null;
 
 /**
  * Movimentos CONFIRMADOS de uma área, agrupados por tipo, com o texto de cada linha.

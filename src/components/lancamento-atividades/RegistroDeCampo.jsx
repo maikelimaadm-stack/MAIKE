@@ -22,6 +22,7 @@ import {
 } from "@/components/lancamento-atividades/JanelasDaLinha";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
+import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, MAX_OBSERVACAO_ATIVIDADE, STATUS_ABERTA, mensagemDoAlertaAtividade, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
@@ -71,8 +72,10 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  *   onGravou?: (resposta: any) => void,
  * }} props `tipo` / `area` presos (detalhes da área); sem eles, a pessoa escolhe entre `tipos` / `areas`.
  */
-export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos = [], area: areaPreso = null, areas = [], onFechar, onGravou = undefined }) {
+export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: todosOsTipos = [], area: areaPreso = null, areas = [], onFechar, onGravou = undefined }) {
   const queryClient = useQueryClient();
+  // Abastecimento é da máquina (emenda 1): nunca é tipo de registro de campo.
+  const tipos = useMemo(() => tiposRegistraveisNaArea(todosOsTipos), [todosOsTipos]);
   const empresaId = useEmpresaRealSelecionadaId();
   // O service injeta a fazenda (a tela de Atividades faz o mesmo; no mapa é aqui).
   definirFazendaDaTela(empresaId);

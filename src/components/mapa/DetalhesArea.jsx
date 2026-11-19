@@ -6,6 +6,7 @@ import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import { LancLoteDialogo } from "../lotes/LancamentoLoteUi";
 import { ehCurral, podeMedirForragemNaArea, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
+import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
 import { definirFazendaDaTela, listarTiposAtividade } from "@/services/lancamentoAtividadesService";
@@ -22,7 +23,7 @@ import { Abas, RodapePilulas, Vazio, idsDaAba } from "./detalhes-lote/blocos";
  *
  * - Detalhes: o cartão da área, as atividades em andamento e os custos do mês (números do servidor) e, com a chave
  *   `medir_forragem` (D-PROD-219, fora da infraestrutura), o painel de Forragem — a "Medição de Forragem" continua aqui.
- * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação, Abastecimento…), com o filtro "Todos".
+ * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos".
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
  * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre a tela empilhada com os Tipos de atividade da fazenda;
  *   escolher um abre o registro da área (área presa). "Histórico completo" (com a permissão de histórico de
@@ -120,7 +121,8 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   ) : null;
 
   if (tela === "manejos" && podeRegistrar) {
-    const itens = tipos.map((t) => ({ nome: String(t.nome_tipo), Icone: iconeDoTipoAtividade(t), onClick: () => setRegistrando(t) }));
+    // Abastecimento é da máquina (D-PROD-254, emenda 1): fora dos Manejos da área.
+    const itens = tiposRegistraveisNaArea(tipos).map((t) => ({ nome: String(t.nome_tipo), Icone: iconeDoTipoAtividade(t), onClick: () => setRegistrando(t) }));
     return (
       <>
         <CascaDetalhe titulo="Manejos" sub={area.nome} onVoltar={voltar} corpo="lista" chaveTela="manejos" anim={anim}>

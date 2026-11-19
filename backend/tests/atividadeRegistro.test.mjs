@@ -212,6 +212,23 @@ describe('registrar', () => {
     assert.equal(await prisma().atividadeApontamento.count({ where: { cliente_id: s.c } }), 0);
   });
 
+  test('emenda 1: o tipo Abastecimento (pelo nome, com ou sem acento/caixa) é recusado com 422 e nada é gravado; o abastecimento é da máquina', async () => {
+    const s = await montar();
+    const grupo = s.grupo;
+    for (const nome of ['Abastecimento', 'ABASTECIMENTO DE MÁQUINAS', 'Combustível']) {
+      const t = await prisma().tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: nome, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo } });
+      const r = await s.registrar({ tipo_atividade_id: t.id });
+      assert.equal(r.statusCode, 422, `${nome} ${r.body}`);
+      const corpo = r.json();
+      assert.equal(corpo.error?.code ?? corpo.code, 'ATIVIDADE_REFERENCIA_INVALIDA', r.body);
+      assert.match(r.body, /abaste[cç]a pela m[aá]quina/i);
+    }
+    assert.equal((await s.atividades()).length, 0);
+    assert.equal(await prisma().atividadeApontamento.count({ where: { cliente_id: s.c } }), 0);
+    // Os outros tipos seguem registrando.
+    await s.ok({});
+  });
+
   test('linha recusada (estoque insuficiente) desfaz tudo: nem a atividade nasce', async () => {
     const s = await montar();
     const r = await s.registrar({ produtos: [{ produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '9999' }] });
