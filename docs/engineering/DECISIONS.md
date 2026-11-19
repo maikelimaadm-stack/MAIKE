@@ -8740,4 +8740,25 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 **Testes.** `backend/tests/estoqueEntradas.test.mjs` (46, Postgres real: motivos do cadastro, padrões, duplicado, padrão fixo, permissão; fornecedor, centros, lote e validade; implantação sem fornecedor/documento; transferência pela ação `entrada`), `backend/tests/estoqueEntradasMotivosMigration.test.mjs` (guarda recusa com entrada gravada e com coluna presente; aplica com RLS e `migrate diff` vazio), `tests/smoke/estoqueNovoMovimento.test.jsx` (10) e `estoqueTela.test.jsx`, e as provas da release (`premerge-migrate` B37a/B37b/B37k, `migrations` B27).
 
-<!-- Próxima decisão: D-PROD-260 -->
+## D-PROD-260 — Motor Base1: campos preenchidos, guias laterais com busca e grade de 4 colunas (PR #339)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-260`, que é esta (a D-PROD-259 é a da PR #341, Estoque, Novo movimento); o marcador passa a D-PROD-261. A PR #341 também consertou parte da `main` vermelha depois da #339 (Lote, Bens e os testes das guias); esta PR soma o que faltava: teclado e guia com erro no `Base1PanelTabs` e o foco do `B1Select`.
+
+- **Contexto:** o proprietário pediu um padrão visual único para os formulários do motor Base1. A PR #339 foi feita em outra ferramenta e foi mergeada com 64 testes de fumaça vermelhos; as correções vieram na PR seguinte (branch `claude/tipo-tarefa-drop-colunas-1aznvv`). Esta decisão registra o que entrou e o que foi corrigido.
+- **Decisão (o que entrou):**
+  - Campos em caixa preenchida arredondada com rótulo interno e foco verde; a pesquisa das listas fica dentro do próprio campo aberto (`B1Select`, `AutocompleteGenerico`, `PainelSelecao`).
+  - `Base1PanelTabs` passa a **guias laterais** (verticais) com campo "Buscar guia" e botão de recolher; **substitui a parte "abas horizontais em pílula" da D-PROD-164**. Continua sem botão de alternar estilo, mesmo com preferência antiga salva.
+  - Grade de 4 campos por linha a partir de 768 px.
+  - Formulários convertidos para guias: Atividades, Financeiro Lançamentos, Parceiros, Operações (tipos de atividade), Produtos, Centros, Naturezas, Serviços, Bens, Empresa e Lote.
+- **Correções feitas para fechar a PR (comportamento que a conversão tinha perdido):**
+  - Teclado nas guias: ↓/↑ (e ainda →/←, Home/End) andam só pelas guias visíveis pela busca.
+  - Salvar com campo inválido numa guia fechada abre essa guia.
+  - Lote: volta a prévia do ícone da categoria (D-PROD-191), o aviso de correção de entrada com o "Motivo da correção", e salvar sem motivo não envia nada (a PR preenchia um motivo sozinha).
+  - Bens: volta o aviso "Escolha o tipo de bem" (agora na guia Identificação).
+  - Serviços: a chave "Ativo" aparece também no Novo, ligada e travada (como a #339 desenhou e a PR #341 aceitou).
+  - `B1Select`: a pesquisa interna ganha foco na hora quando aberta por clique ou letra; por Enter/seta o foco fica no campo (D-PROD-222).
+- **Conflito com a D-PROD-258:** o formulário de atividade fica no layout em guias sem Grupo nem "este tipo permite registrar"; o de operação fica com os 3 campos da D-PROD-258 numa guia só.
+- **Fora desta decisão (para o proprietário avaliar):** o "Código" do lote fica escondido durante a edição e o "Nº patrimonial" do bem só aparece em leitura; com as guias recolhidas é preciso expandir para trocar de guia.
+- **Relatório:** `docs/engineering/MAIKE-BASE1-PADRAO-CAMPOS-GUIAS-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-261 -->
