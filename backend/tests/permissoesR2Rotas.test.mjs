@@ -111,7 +111,7 @@ const ESCRITAS = (c) => {
     ['unidade de medida (DELETE)', 'DELETE', `/unidades-medida/${ID}`],
     ['tipo de tarefa (DELETE)', 'DELETE', `/tipos-tarefa/${ID}`],
     // D-PROD-182 — Tipo de Atividade: escrita guardada pela tela sup-tipos-atividade.
-    ['tipo de atividade (POST)', 'POST', '/tipos-atividade', { nome_tipo: 'HACK', grupo_atividade_id: 'ga-1' }],
+    ['tipo de atividade (POST)', 'POST', '/tipos-atividade', { nome_tipo: 'HACK', categoria: 'OUTROS', grupo_atividade_id: 'ga-1' }],
     ['tipo de atividade (PATCH)', 'PATCH', `/tipos-atividade/${ID}`, { nome_tipo: 'HACK' }],
     ['tipo de atividade (DELETE)', 'DELETE', `/tipos-atividade/${ID}`],
     // D-PROD-188 — Estações da fazenda: escrita guardada pela tela pec-estacoes.
