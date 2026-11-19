@@ -34,9 +34,9 @@ Outras regras:
 - Tela: `src/lib/gestaoErros.js` (mensagem da Central com o nº da entrada) e `src/lib/estoqueEntradasRegras.js` (texto "com produtos").
 - Nenhuma migration, nenhuma mudança de banco.
 
-## 4. Constituição: emenda PROPOSTA (falta a aprovação)
+## 4. Constituição: emenda APROVADA
 
-O texto ratificado (`00-CONSTITUICAO.md` §1, expansão D-PROD-177, e `07-DO-NOT-DO.md`, nota D-PROD-177) diz que a entrada e **qualquer** lançamento da Central com o mesmo parceiro e documento bloqueiam um ao outro. A escolha do proprietário libera o lançamento sem produtos, então o texto precisa de emenda. A proposta está na D-PROD-261. Ela **não foi aplicada** aos arquivos da constituição: aguarda a aprovação explícita do proprietário, e a PR fica em rascunho até lá.
+O texto ratificado (`00-CONSTITUICAO.md` §1, expansão D-PROD-177, e `07-DO-NOT-DO.md`, nota D-PROD-177) dizia que a entrada e **qualquer** lançamento da Central com o mesmo parceiro e documento bloqueiam um ao outro. A escolha do proprietário libera o lançamento sem produtos. A emenda da D-PROD-261 foi **aprovada pelo proprietário em 2026-11-19** ("aprovo") e aplicada como parágrafo próprio em `00` §1 e nota própria em `07`, depois das da D-PROD-259.
 
 ## 5. Testes
 

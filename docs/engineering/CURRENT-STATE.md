@@ -16,7 +16,7 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-261**, escolha do proprietário: bloquear só o que mexe no estoque. A Central recusa lançamento **com produtos** com o documento de uma entrada manual confirmada; a entrada recusa documento de lançamento confirmado **com produtos**; o lançamento só de pagamento passa |
 | Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d447a781` · PR draft |
 | Migration | nenhuma |
-| Constituição | emenda **proposta** na D-PROD-261 (o texto atual fala de qualquer lançamento com o mesmo parceiro e documento); aguarda a aprovação do proprietário |
+| Constituição | emenda da D-PROD-261 **aprovada pelo proprietário em 2026-11-19**; parágrafo em `00` §1 e nota em `07` |
 | Abertos | documento diferente ou omitido numa das portas continua sem como comparar; nenhum perfil recebe `entrada` por padrão |
 | Relatório | [`MAIKE-ESTOQUE-R-DEDUPE-REPORT.md`](./MAIKE-ESTOQUE-R-DEDUPE-REPORT.md) |
 

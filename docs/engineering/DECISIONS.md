@@ -8778,13 +8778,11 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 **Código.** `backend/src/modules/estoqueFisico/documentoDeEstoque.js` (trava e as duas consultas), `entradaEstoqueService.exigirDocumentoLivre` e, em `operacaoFinanceiraService`, a prévia, a confirmação e a retificação (`exigirDocumentoForaDeEntradaManual`). Mensagens na tela: `gestaoErros` (Central) e `estoqueEntradasRegras` (entrada).
 
-**Emenda constitucional — PROPOSTA, aguardando a aprovação do proprietário.** O texto ratificado diz que a entrada e o lançamento da Central com "o mesmo parceiro e documento" bloqueiam um ao outro, **qualquer** lançamento (a pagar ou a receber). Liberar o lançamento sem produtos muda esse texto. Proposta, como parágrafo e nota próprios (precedente da D-PROD-259):
+**Emenda constitucional — APROVADA pelo proprietário em 2026-11-19** (chat: "aprovo"). Aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 (depois da emenda D-PROD-259) e nota própria em `07-DO-NOT-DO.md` (depois da nota D-PROD-259). O texto ratificado diz que a entrada e o lançamento da Central com "o mesmo parceiro e documento" bloqueiam um ao outro, **qualquer** lançamento (a pagar ou a receber). Liberar o lançamento sem produtos muda esse texto. Texto aprovado:
 
 > *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-259:* "**Emenda aprovada pelo proprietário (D-PROD-261):** na expansão D-PROD-177, no lugar de "não pode duplicar um lançamento da Central nem outra entrada: com o mesmo parceiro e documento, um bloqueia o outro, nos dois sentidos": "não pode duplicar outra entrada nem a mercadoria de um lançamento da Central: com o mesmo documento na fazenda, uma entrada bloqueia a outra, e a entrada e um lançamento da Central **com produtos** bloqueiam um ao outro, nos dois sentidos; o lançamento sem produtos (só o pagamento) com o mesmo documento não conflita"."
 >
 > *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-259:* "na nota D-PROD-177, no lugar de "confirmar ou editar uma entrada manual com o mesmo parceiro e documento de um lançamento confirmado da Central (a pagar ou a receber) ou de outra entrada confirmada, e confirmar ou retificar (no lugar ou por substituição) na Central um lançamento, a pagar ou a receber, com o mesmo parceiro e documento de uma entrada confirmada": "confirmar ou editar uma entrada manual com o mesmo documento de outra entrada confirmada ou de um lançamento confirmado da Central com produtos (a pagar ou a receber), e confirmar ou retificar (no lugar ou por substituição) na Central um lançamento com produtos com o mesmo documento de uma entrada confirmada"."
-
-Enquanto a emenda não for aprovada, a PR fica em rascunho e não vai para a `main`.
 
 **Riscos que continuam.** Uma compra ainda entra duas vezes se o documento for **diferente ou omitido** em uma das portas (sem documento não há como comparar). Por isso continua valendo: nenhum perfil recebe a ação `entrada` por padrão.
 
