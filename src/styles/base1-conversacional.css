@@ -1,0 +1,165 @@
+/* Camada visual do ModeloBase1 inspirada em interfaces conversacionais.
+ * Carregada após o design legado; escopo b1-tela inclui seus portais.
+ * Não altera o comportamento, a densidade escolhida ou o layout dos campos.
+ */
+body.b1-tela {
+  --b1-surface: #ffffff;
+  --b1-canvas: #f7f7f8;
+  --b1-hover: #f0f0f1;
+  --b1-line: #e5e5e7;
+  --b1-ink: #242424;
+  --b1-muted: #646468;
+  --b1-primary: #292929;
+  --b1-focus: #0f766e;
+  --mk-sup-fundo: var(--b1-canvas);
+  --mk-sup-cartao: var(--b1-surface);
+  --mk-sup-borda: var(--b1-line);
+  --mk-btn-hover: var(--b1-hover);
+  --mk-btn-sombra: none;
+  --mk-cartao-sombra: 0 1px 2px rgb(0 0 0 / 3%);
+  --mk-list-divider: var(--b1-line);
+  --mk-action-positive-bg: var(--b1-primary);
+  --mk-action-positive-hover: #414141;
+  --mk-action-positive-fg: #fff;
+  --mk-action-fg: var(--b1-ink);
+  --mk-text: var(--b1-ink);
+  --mk-text-strong: var(--b1-ink);
+  --mk-text-muted: var(--b1-muted);
+  --mk-action-height: 34px;
+  --mk-list-row-height: 40px;
+}
+
+body.b1-tela :is(.cadastro-b1, .b1ref, .mk-config-sheet, .mk-base1-sheet, .mk-column-filter-sheet) {
+  --mg-text-1: var(--b1-ink);
+  --mg-text-2: var(--b1-muted);
+  --mg-text-3: #77777c;
+  --mg-icon: var(--b1-muted);
+  --mg-bg-page: var(--b1-canvas);
+  --mg-bg-card: var(--b1-surface);
+  --mg-gray-fill: #f5f5f6;
+  --mg-gray-fill2: #ededee;
+  --mg-divider: var(--b1-line);
+  --mg-table-line: var(--b1-line);
+  --mg-container-border: 1px solid var(--b1-line);
+  --mg-accent: var(--b1-focus);
+  --mg-accent-hover: #115e59;
+  --mg-accent-light: #e8f3f1;
+  --mg-selection-bg: #e8f3f1;
+  --mg-focus-border: var(--b1-focus);
+  --mg-focus-ring: 0 0 0 3px rgb(15 118 110 / 14%);
+  --mg-field-edge-shadow: none;
+  --mg-radius-control: 10px;
+  --mg-radius-card: 14px;
+  --mk-font-list: 13px;
+  --mk-font-field: 14px;
+  --mk-font-search: 13px;
+  --mk-font-title: 16px;
+  --mk-action-font: 13px;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--b1-ink);
+}
+
+/* Superfícies calmas; divisores permanecem nas linhas de dados. */
+body.b1-tela .cadastro-b1 :is(.mg-shell__body, .mg-summary, .b1-card, .b1-reg-cab, .b1-aba-cartao, .b1-secao__cartao):not(#mk-a):not(#mk-b) {
+  background: var(--b1-surface);
+  border: 1px solid var(--b1-line);
+  border-radius: 14px;
+  box-shadow: var(--mk-cartao-sombra);
+}
+body.b1-tela .cadastro-b1 :is(.b1-secao__titulo, .b1-aba-cartao__titulo):not(#mk-a):not(#mk-b) {
+  color: var(--b1-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+body.b1-tela .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao):not(#mk-a):not(#mk-b) { padding: 16px; }
+body.b1-tela .cadastro-b1 .b1-secoes { gap: 16px; }
+
+/* Branco para ações comuns; destaque escuro reservado a criar/salvar. */
+body.b1-tela .cadastro-b1 .tb-btn:not(#mk-a):not(#mk-b) {
+  border-radius: 10px;
+  min-height: var(--mk-action-height);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+body.b1-tela .cadastro-b1 .tb-btn.tb-btn-green:not(#mk-a):not(#mk-b) {
+  background: var(--b1-primary) !important;
+  border-color: var(--b1-primary);
+  color: #fff !important;
+  box-shadow: none !important;
+}
+body.b1-tela .cadastro-b1 .tb-btn.tb-btn-green svg:not(#mk-a):not(#mk-b) { color: inherit !important; }
+@media (hover: hover) {
+  body.b1-tela .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(:disabled):hover:not(#mk-a):not(#mk-b) {
+    background-color: var(--b1-hover) !important;
+  }
+  body.b1-tela .cadastro-b1 .tb-btn.tb-btn-green:hover:not(#mk-a):not(#mk-b) { background: #414141 !important; }
+}
+body.b1-tela .cadastro-b1 :is(.tb-btn, .b1-panel-tab, .view-seg button):focus-visible {
+  outline: 2px solid var(--b1-focus);
+  outline-offset: 3px;
+}
+body.b1-tela .cadastro-b1 .tb-btn:disabled { opacity: .45; }
+
+/* Abas e seletores com realce neutro, sem brilho ou linhas coloridas. */
+body.b1-tela .cadastro-b1 :is(.view-seg, .b1-form--abas-fora .b1-panel-tabs-strip):not(#mk-a):not(#mk-b) {
+  background: #f0f0f1 !important;
+  border-radius: 10px;
+  box-shadow: none !important;
+  padding: 3px;
+  gap: 3px;
+}
+body.b1-tela .cadastro-b1 :is(.view-seg button, .b1-panel-tab):not(#mk-a):not(#mk-b) { border-radius: 8px; }
+body.b1-tela .cadastro-b1 :is(.view-seg button[aria-pressed="true"], .b1-panel-tab.is-active):not(#mk-a):not(#mk-b) {
+  background: #fff !important;
+  color: var(--b1-ink) !important;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+body.b1-tela .cadastro-b1 .b1-panel-tab.is-active::after { content: none; }
+
+/* Campos preservam os estados de erro e de bloqueio do motor. */
+body.b1-tela .cadastro-b1 .mg-field:not(.mg-field--switch):not(#mk-a):not(#mk-b) {
+  border-radius: 10px;
+  box-shadow: none;
+}
+body.b1-tela .cadastro-b1 .mg-field:not(.mg-field--disabled):focus-within:not(#mk-a):not(#mk-b) {
+  box-shadow: var(--mg-focus-ring);
+}
+body.b1-tela .cadastro-b1 .mg-grid tbody td:not(#mk-a):not(#mk-b) { border-bottom-color: var(--b1-line); }
+body.b1-tela .cadastro-b1 .mg-grid thead th:not(#mk-a):not(#mk-b) {
+  color: var(--b1-muted);
+  border-bottom-color: var(--b1-line);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Navegação existente: mesmas rotas e atalhos. */
+body.b1-tela :is(.mk-topnav-header, .mk-topnav) { background: #fff; border-color: var(--b1-line); }
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"] { color: var(--b1-ink); background: var(--b1-hover); }
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"]::after { background: var(--b1-ink); }
+body.b1-tela :is(.mk-rail__item, .mk-tabbar__item)[aria-current="page"] { color: var(--b1-ink); background: var(--b1-hover); }
+body.b1-tela .b1-janela:not(#mk-a):not(#mk-b) {
+  border: 1px solid var(--b1-line);
+  border-radius: 18px;
+  background: var(--b1-surface);
+  box-shadow: 0 20px 70px rgb(0 0 0 / 14%);
+}
+body.b1-tela :is(.mk-sel-pop, .mk-map-multi-popup, .mk-sheet):not(#mk-a):not(#mk-b) { background-color: var(--b1-surface); }
+
+@media (max-width: 1023px) {
+  body.b1-tela { --mk-action-height: 40px; --mk-list-row-height: 44px; }
+  body.b1-tela .cadastro-b1 .tb-btn:not(#mk-a):not(#mk-b) { min-height: 40px; }
+}
+@media (max-width: 639px) {
+  body.b1-tela { --mk-action-height: 44px; }
+  body.b1-tela :is(.cadastro-b1, .b1ref, .mk-config-sheet, .mk-base1-sheet, .mk-column-filter-sheet) {
+    --mk-font-list: 14px;
+    --mk-font-field: 16px;
+    --mk-font-search: 16px;
+    --mk-action-font: 14px;
+  }
+  body.b1-tela .cadastro-b1 .tb-btn:not(#mk-a):not(#mk-b) { min-height: 44px; }
+  body.b1-tela .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao):not(#mk-a):not(#mk-b) { padding: 14px; }
+  body.b1-tela .cadastro-b1 :is(input, textarea, select) { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.b1-tela .cadastro-b1 .tb-btn:not(#mk-a):not(#mk-b) { transition: none; }
+}
