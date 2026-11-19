@@ -3,7 +3,7 @@
  * lista → grade), service, API, porta e nativeHttpClient reais sobre o backend falso `estoqueConsultaFake`.
  * Mocks só da borda: sessão e permissão.
  *
- *  - abas: só Saldo e Movimentos (nenhuma aba de Entradas nem de Inventário);
+ *  - abas: Saldo, Movimentos e Entradas (D-PROD-257); nenhuma aba de Inventário;
  *  - Saldo: produto × depósito, quantidade na unidade do produto, custo e valor em R$; query EXATA;
  *  - clicar numa linha do Saldo abre os Movimentos filtrados por produto e depósito;
  *  - clicar num movimento abre UMA janela só (680px; tela cheia no celular), somente leitura;
@@ -80,11 +80,11 @@ const chamadasDe = (caminho) => backend.chamadas.filter((c) => c.method === 'GET
 const esperar = (ms = 40) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
 
 describe('D-PROD-255 — abas e Saldo', () => {
-  it('só as abas Saldo e Movimentos (sem Entradas nem Inventário) e o Saldo lista produto × depósito com unidade, custo e valor', async () => {
+  it('as abas Saldo, Movimentos e Entradas (sem Inventário) e o Saldo lista produto × depósito com unidade, custo e valor', async () => {
     await montar();
     const abas = await screen.findByTestId('estoque-abas');
-    expect(within(abas).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Saldo', 'Movimentos']);
-    expect(screen.queryByRole('tab', { name: /Entradas|Inventário/ })).toBeNull();
+    expect(within(abas).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Saldo', 'Movimentos', 'Entradas']);
+    expect(screen.queryByRole('tab', { name: /Inventário/ })).toBeNull();
     expect(within(abas).getByTestId('estoque-aba-saldo').getAttribute('aria-selected')).toBe('true');
 
     expect(await screen.findByText('Diesel S10')).toBeTruthy();

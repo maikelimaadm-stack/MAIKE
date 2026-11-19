@@ -134,6 +134,15 @@ export const ACOES_ABASTECIMENTO_EXTRAS = Object.freeze(['cancelar']);
 export const ACOES_ATIVIDADES_EXTRAS = Object.freeze(['reabrir', 'lancar_apontamento', 'editar_apontamento', 'cancelar_apontamento']);
 
 /**
+ * D-PROD-257 — ação EXTRA da tela `sup-estoque` (Estoque → Entradas): `entrada` = criar entrada manual e
+ * saldo de implantação, editar a observação e excluir a entrada (todo efeito de estoque passa pelo motor).
+ * Gravada na própria linha da tela em `permissoes_telas`; ausente/não booleano = negado; nenhum perfil a
+ * recebe por padrão; administrador real e `is_admin` têm tudo. `ajuste` (inventário) continua RESERVADA e
+ * NÃO existe. `visualizar` só vê a lista e o detalhe. Mesma lista no navegador (`EXTRA_ACTION_KEYS_BY_PAGE`).
+ */
+export const ACOES_ESTOQUE_EXTRAS = Object.freeze(['entrada']);
+
+/**
  * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo
  * desconhecido → null (o chamador decide; os guardas abaixo negam).
  * @param {unknown} tipo

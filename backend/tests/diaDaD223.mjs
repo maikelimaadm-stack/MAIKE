@@ -52,13 +52,39 @@ export const schemaSemAreasDaAtividade = (schema) => {
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
 
+/**
+ * D-PROD-257 — o `schema.prisma` de hoje sem as Entradas do Estoque: os 3 models `EntradaEstoque*`, toda linha que cita
+ * `EntradaEstoque` (as relações inversas em Cliente, Empresa, Produto, LocalEstoque, camada e movimento) e as linhas
+ * `///` e `// D-PROD-257` logo acima delas. A migration `20261119100000_estoque_entradas` fica de fora das pastas dos
+ * espelhos (todas anteriores a ela) e tem a prova própria em `estoqueEntradas.test.mjs` e `premerge-migrate.test.mjs`.
+ * @param {string} schema
+ */
+export const schemaSemEntradasDoEstoque = (schema) => {
+  const linhas = schema.split('\n');
+  const sai = new Array(linhas.length).fill(false);
+  for (let i = 0; i < linhas.length; i += 1) {
+    if (/^model EntradaEstoque\w* \{/.test(linhas[i])) {
+      let j = i;
+      while (j < linhas.length && linhas[j].trim() !== '}') sai[j++] = true;
+      sai[j] = true;
+      i = j;
+      continue;
+    }
+    if (/EntradaEstoque|entradasEstoque|itemEntradaEstoque/.test(linhas[i])) sai[i] = true;
+  }
+  for (let i = linhas.length - 1; i > 0; i -= 1) {
+    if (sai[i] && /^\s*(\/\/\/|\/\/ D-PROD-257|\/\/ -{10,})/.test(linhas[i - 1])) sai[i - 1] = true;
+  }
+  return linhas.filter((_, i) => !sai[i]).join('\n');
+};
+
 let espelho = null;
 /** O diretório do espelho do runner até a D-PROD-223, com o schema do dia dela. */
 export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')));
+  writeFileSync(destino, schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -66,3 +92,24 @@ export const espelhoDoDiaD223 = () => {
 
 /** O schema do dia da D-PROD-223 (no espelho, junto das pastas até ela: `migrate status` lê as pastas ao lado). */
 export const schemaDoDiaD223 = () => join(espelhoDoDiaD223(), 'backend', 'prisma', 'schema.prisma');
+
+// ─── o dia da D-PROD-249 (D-PROD-257) ──────────────────────────────────────
+/** A migration das áreas da atividade: o "dia" do teste dela, antes das Entradas do Estoque (D-PROD-257). */
+export const ATE_D249 = NOME_ATIVIDADE_AREAS;
+/** Só as pastas até a D-PROD-249. @param {string[]} nomes */
+export const ateD249 = (nomes) => nomes.filter((n) => n <= ATE_D249);
+
+let espelho249 = null;
+/** O espelho do runner até a D-PROD-249, com o schema do dia dela (o de hoje sem as Entradas do Estoque). */
+export const espelhoDoDiaD249 = () => {
+  if (espelho249) return espelho249;
+  espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
+  const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
+  writeFileSync(destino, schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')));
+  const dir = espelho249;
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  return espelho249;
+};
+
+/** O schema do dia da D-PROD-249 (no espelho, junto das pastas até ela). */
+export const schemaDoDiaD249 = () => join(espelhoDoDiaD249(), 'backend', 'prisma', 'schema.prisma');

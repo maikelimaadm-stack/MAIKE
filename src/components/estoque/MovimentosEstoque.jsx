@@ -30,7 +30,7 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * Aba Movimentos (D-PROD-255, P1-04): o kardex da fazenda, paginado por keyset no servidor. Filtros na faixa (produto,
  * depósito, origem, tipo, data) e busca no servidor. Uma linha abre o detalhe numa janela só, somente leitura.
  * `inicial` traz o produto e o depósito escolhidos na aba Saldo.
- * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void,
+ * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos'|'entradas', onAba: (a: 'saldo'|'movimentos'|'entradas') => void,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
  */
 export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = null }) {

@@ -119,6 +119,10 @@ export const limparBanco = async () => {
   // Produto, LocalEstoque, lote, movimento, Empresa e Usuario (tudo RESTRICT).
   // D-PROD-158: o evento de retificação/exclusão referencia o documento (e o
   // documento novo) e o usuário (RESTRICT): sai antes deles.
+  // D-PROD-257: a entrada de estoque referencia produto, local, camada e movimento (RESTRICT): sai antes deles.
+  await prisma.entradaEstoqueEvento.deleteMany({});
+  await prisma.entradaEstoqueItem.deleteMany({});
+  await prisma.entradaEstoque.deleteMany({});
   await prisma.operacaoFinanceiraEvento.deleteMany({});
   await prisma.liquidacaoFinanceiraEstorno.deleteMany({});
   await prisma.liquidacaoFinanceira.deleteMany({});

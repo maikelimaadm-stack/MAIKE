@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "case \"$VERCEL_GIT_COMMIT_REF\" in main|codex/previa-detalhes-mapa|cursor/atividades-por-area-0b6c|cursor/estoque-saldo-movimentos|cursor/estoque-custo-medio) false;; esac",
+  "ignoreCommand": "case \"$VERCEL_GIT_COMMIT_REF\" in main|codex/previa-detalhes-mapa|cursor/atividades-por-area-0b6c|cursor/estoque-saldo-movimentos|cursor/estoque-custo-medio|cursor/estoque-entradas) false;; esac",
   "buildCommand": "npm run prisma:generate && npm run build",
   "installCommand": "npm ci",
   "framework": "vite",
