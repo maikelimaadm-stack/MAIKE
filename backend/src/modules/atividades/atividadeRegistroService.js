@@ -48,14 +48,19 @@ const MESES = Object.freeze(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'a
 export const mesAbreviado = (dia) => `${MESES[Number(dia.slice(5, 7)) - 1]}/${dia.slice(2, 4)}`;
 
 /**
- * `<Tipo> · <Área> · <mmm/aa>`; passando de `NOME_MAXIMO`, o trecho da ÁREA é truncado (o tipo e o mês ficam).
+ * `<Tipo> · <Área> · <mmm/aa>`, sempre dentro de `NOME_MAXIMO`: passando, a ÁREA é truncada primeiro; se o tipo
+ * sozinho já não couber (o tipo aceita até 255 caracteres e o nome da atividade até `NOME_MAXIMO`), o tipo também é truncado.
  * @param {string} tipo @param {string} area @param {string} dia
  */
 export const nomeDoRegistro = (tipo, area, dia) => {
-  const pre = `${tipo} · `;
-  const pos = ` · ${mesAbreviado(dia)}`;
-  const sobra = NOME_MAXIMO - pre.length - pos.length;
-  return `${pre}${area.length > sobra ? area.slice(0, Math.max(sobra, 1)).trimEnd() : area}${pos}`;
+  const sep = ' · ';
+  const pos = `${sep}${mesAbreviado(dia)}`;
+  const AREA_MINIMA = 1;
+  const tetoTipo = NOME_MAXIMO - pos.length - sep.length - AREA_MINIMA;
+  const t = tipo.length > tetoTipo ? tipo.slice(0, tetoTipo).trimEnd() : tipo;
+  const sobra = NOME_MAXIMO - t.length - sep.length - pos.length;
+  const a = area.length > sobra ? area.slice(0, Math.max(sobra, AREA_MINIMA)).trimEnd() : area;
+  return `${t}${sep}${a}${pos}`.slice(0, NOME_MAXIMO);
 };
 
 /** Primeiro dia do mês do dia e do mês seguinte (strings → `Date` UTC de coluna `@db.Date`). @param {string} dia */

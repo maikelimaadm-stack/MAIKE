@@ -326,3 +326,16 @@ describe('leituras por área', () => {
     assert.equal((await registros(s, '', s.area1, sem.token)).statusCode, 403);
   });
 });
+
+describe('nome gerado do registro', () => {
+  test('tipo longo (até 255) e área longa: o nome nunca passa de NOME_MAXIMO e mantém o mês', async () => {
+    const { nomeDoRegistro } = await import('../src/modules/atividades/atividadeRegistroService.js');
+    const { NOME_MAXIMO } = await import('../src/modules/atividades/atividadeService.js');
+    for (const [t, a] of [['T'.repeat(255), 'A'.repeat(200)], ['T'.repeat(120), 'P1'], ['Gradeação', 'A'.repeat(300)]]) {
+      const nome = nomeDoRegistro(t, a, '2026-11-17');
+      assert.ok(nome.length <= NOME_MAXIMO, `${nome.length} > ${NOME_MAXIMO}`);
+      assert.ok(nome.endsWith(' · nov/26'));
+    }
+    assert.equal(nomeDoRegistro('Gradeação', 'P1 — PASTO 01', '2026-11-17'), 'Gradeação · P1 — PASTO 01 · nov/26');
+  });
+});

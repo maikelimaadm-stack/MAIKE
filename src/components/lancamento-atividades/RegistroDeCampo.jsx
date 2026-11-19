@@ -297,6 +297,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos = 
             value={areaEscolhida}
             onChange={(v) => {
               setAreaEscolhida(v);
+              esquecerUltimo();
               limparErros(["area"]);
             }}
             options={areas.map((a) => ({ value: String(a.id), label: rotuloArea(a) }))}
@@ -312,6 +313,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos = 
             value={tipoEscolhido}
             onChange={(v) => {
               setTipoEscolhido(v);
+              esquecerUltimo();
               limparErros(["tipo"]);
             }}
             options={tipos.map((t) => ({ value: String(t.id), label: t.nome_tipo }))}
@@ -328,6 +330,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos = 
             if (!v || (hoje && v > hoje)) return;
             diaMexido.current = true;
             setDia(v);
+            esquecerUltimo();
             limparErros(["data_operacional"]);
           }}
           max={hoje || undefined}
@@ -337,7 +340,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos = 
           testId="registro-de-campo-data"
         />
         {flags.exigeSafra ? (
-          <CampoTexto label="Safra / ciclo" value={safra} onChange={(v) => { setSafra(v); limparErros(["safra"]); }} required span={6} maxLength={32} keepCase error={erros.safra} />
+          <CampoTexto label="Safra / ciclo" value={safra} onChange={(v) => { setSafra(v); esquecerUltimo(); limparErros(["safra"]); }} required span={6} maxLength={32} keepCase error={erros.safra} />
         ) : null}
         {destino ? (
           <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-destino">
@@ -389,6 +392,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos = 
               value={hectares}
               onChange={(v) => {
                 setHectares(v);
+                esquecerUltimo();
                 limparErros(["area_executada_dia"]);
               }}
               locale={LOCALE_ATIVIDADE}
@@ -404,14 +408,17 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos = 
               chave={[RAIZ_CONSULTAS_ATIVIDADES, "operadores", empresaId]}
               buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesOperadores({ q, cursor, limit }))}
               value={operador}
-              onChange={(o) => setOperador(o ? { id: String(o.id), rotulo: rotuloDoUsuario(o) || String(o.id) } : null)}
+              onChange={(o) => {
+                setOperador(o ? { id: String(o.id), rotulo: rotuloDoUsuario(o) || String(o.id) } : null);
+                esquecerUltimo();
+              }}
               rotuloDaOpcao={rotuloDoUsuario}
               readOnly={enviando}
               permitirLimpar
               span={6}
               maiusculas={false}
             />
-            <CampoTextoLongo label="Observação" value={observacao} onChange={setObservacao} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
+            <CampoTextoLongo label="Observação" value={observacao} onChange={(v) => { setObservacao(v); esquecerUltimo(); }} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
           </>
         ) : null}
         <div className="col-span-12 min-w-0">
