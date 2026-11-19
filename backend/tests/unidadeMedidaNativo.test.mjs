@@ -195,7 +195,7 @@ describe('D-PROD-197 — exclusão de unidade usada como unidade de produção d
   const criarTipoCom = async (token, unidadeId, extra = {}) => {
     const g = await req('POST', '/grupos-atividade', token, { nome_grupo: `Lavoura ${randomUUID().slice(0, 8)}` });
     assert.equal(g.statusCode, 201, g.body);
-    const t = await req('POST', '/tipos-atividade', token, { nome_tipo: 'Plantio', grupo_atividade_id: g.json().id, unidade_producao_id: unidadeId, ...extra });
+    const t = await req('POST', '/tipos-atividade', token, { nome_tipo: 'Plantio', categoria: 'PLANTIO', grupo_atividade_id: g.json().id, unidade_producao_id: unidadeId, ...extra });
     assert.equal(t.statusCode, 201, t.body);
     assert.equal(t.json().unidade_producao_id, unidadeId);
     return t.json();
