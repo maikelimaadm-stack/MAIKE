@@ -90,3 +90,16 @@ Ensaio local do envelope (PostgreSQL 17, base de 69):
 ## 6. Verificação
 
 `npm run verify:all`, rodado num banco PostgreSQL 17 local novo: resultado registrado no corpo da PR.
+
+## 7. A `main` vermelha depois da PR #339 (consertada nesta PR, a pedido do proprietário)
+
+A PR #339 (campos sublinhados, guias laterais com busca, grade de 4 colunas) entrou na `main` com 65 testes de tela falhando em 13 arquivos (Patrimônio, Lançamentos Financeiros, Parceiros, Lote, Produto, Serviço e outros). A `main` foi integrada aqui sem conflito, e os testes foram consertados nesta PR, em commits separados:
+
+- **Testes que esperavam o layout antigo** (campos agora em outra guia, o "Ativo" também no novo, a busca dentro do próprio campo): passam a abrir a guia certa antes de procurar o campo; as conferências (corpo do envio, totais, validações) são as mesmas.
+- **Três coisas que a #339 apagou sem decisão, recolocadas:**
+  - no Lote, a prévia do ícone da categoria (D-PROD-191);
+  - no Lote, o aviso da correção de entrada e o motivo obrigatório (R1);
+  - no Bem, o aviso "Escolha o tipo de bem".
+- **Fica para o proprietário:** o "Nº patrimonial" do Bem agora só aparece ao consultar um bem gravado (antes aparecia também no novo e na edição); pode ter sido intencional e não foi mexido.
+
+Resultado: `test:smoke` local 3733/3733.
