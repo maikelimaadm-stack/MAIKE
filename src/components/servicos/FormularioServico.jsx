@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
-import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { LIMITES, lerNumeroLocal, paraTextoDeEdicao } from "@/lib/dinheiroDecimal";
@@ -141,53 +142,61 @@ export default function FormularioServico({ onSubmit, initialData = null, readOn
     });
   };
 
+  const [abaAtiva, setAbaAtiva] = useState("identificacao");
+  const abas = useMemo(() => [{ id: "identificacao", label: "Identificação" }], []);
+
   return (
     <CadastroFormShell embedded title={initialData?.id ? "Editar serviço" : "Novo serviço"}>
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_SERVICO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form-servico" data-densidade={DENSIDADE_BASE1}>
-          <SecaoForm titulo="Identificação" />
-          {erroDasListas ? (
-            <div className="col-span-12">
-              <AvisoGestao testId="servico-erro-opcoes">{getApiErrorMessage(erroDasListas, "Não foi possível carregar as opções.")}</AvisoGestao>
-            </div>
-          ) : null}
-          <CampoTexto label="Nome" required span={12} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={255} error={erros.nome} placeholder="EX.: APLICAÇÃO AÉREA" />
-          <CampoSelect
-            label="Unidade de medida"
-            required
-            span={4}
-            value={form.unidade_medida_id}
-            onChange={(v) => set("unidade_medida_id", v)}
-            options={opcoesUnidade}
-            readOnly={readOnly}
-            error={erros.unidade_medida_id}
+        <form id={FORMULARIO_SERVICO_ID} onSubmit={enviar} className="b1 w-full min-h-0" noValidate data-testid="b1-form-servico" data-densidade={DENSIDADE_BASE1}>
+          <Base1PanelTabs
+            tabs={abas}
+            value={abaAtiva}
+            onChange={setAbaAtiva}
+            animate={!readOnly}
+            animationKey={initialData?.id ?? "novo"}
+            renderPanel={() => (
+              <div className="mg-b1-form-grid w-full min-h-0">
+                {erroDasListas ? (
+                  <div className="col-span-12">
+                    <AvisoGestao testId="servico-erro-opcoes">{getApiErrorMessage(erroDasListas, "Não foi possível carregar as opções.")}</AvisoGestao>
+                  </div>
+                ) : null}
+                <CampoTexto label="Nome" required span={12} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={255} error={erros.nome} placeholder="EX.: APLICAÇÃO AÉREA" />
+                <CampoSelect
+                  label="Unidade de medida"
+                  required
+                  span={4}
+                  value={form.unidade_medida_id}
+                  onChange={(v) => set("unidade_medida_id", v)}
+                  options={opcoesUnidade}
+                  readOnly={readOnly}
+                  error={erros.unidade_medida_id}
+                />
+                <CampoSelect
+                  label="Centro de custo padrão"
+                  span={4}
+                  value={form.centro_custo_padrao_id}
+                  onChange={(v) => set("centro_custo_padrao_id", v)}
+                  options={opcoesCentro}
+                  placeholder="Sem centro de custo padrão"
+                  readOnly={readOnly || !empresaId}
+                />
+                <CampoNumero
+                  label="Valor de referência (R$)"
+                  value={form.valor_referencia}
+                  onChange={(v) => set("valor_referencia", v)}
+                  locale={LOCALE}
+                  limites={LIMITES_VALOR}
+                  readOnly={readOnly}
+                  span={4}
+                  error={erros.valor_referencia}
+                  testId="servico-valor-referencia"
+                />
+                <B1ChaveRow label="Ativo" span={6} checked={initialData?.id ? initialData.ativo !== false : true} disabled ariaLabel="Serviço ativo" />
+              </div>
+            )}
           />
-          <CampoSelect
-            label="Centro de custo padrão"
-            span={4}
-            value={form.centro_custo_padrao_id}
-            onChange={(v) => set("centro_custo_padrao_id", v)}
-            options={opcoesCentro}
-            placeholder="Sem centro de custo padrão"
-            readOnly={readOnly || !empresaId}
-          />
-          <CampoNumero
-            label="Valor de referência (R$)"
-            value={form.valor_referencia}
-            onChange={(v) => set("valor_referencia", v)}
-            locale={LOCALE}
-            limites={LIMITES_VALOR}
-            readOnly={readOnly}
-            span={4}
-            error={erros.valor_referencia}
-            testId="servico-valor-referencia"
-          />
-          {initialData?.id ? (
-            <>
-              <SecaoForm titulo="Situação" />
-              <B1ChaveRow label="Ativo" span={6} checked={initialData.ativo !== false} disabled ariaLabel="Serviço ativo" />
-            </>
-          ) : null}
         </form>
       </div>
     </CadastroFormShell>

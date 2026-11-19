@@ -6,7 +6,7 @@ import { formatarMoeda, somar } from "@/lib/dinheiroDecimal";
 import { mensagemErroPatrimonio } from "@/lib/patrimonioErros";
 import { ROTULO_RESIDUAL_MODO } from "@/lib/patrimonioDominio";
 import B1ChaveRow from "@/components/cadastro/base1/B1ChaveRow";
-import { AvisoGestao, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import PreviaDepreciacaoBem from "@/components/patrimonio/PreviaDepreciacaoBem";
@@ -100,7 +100,6 @@ export default function AquisicaoDepreciacaoBem({ estado, alterarAquisicao, alte
 
   return (
     <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2" data-testid="bem-aquisicao-depreciacao">
-      <SecaoForm titulo="Aquisição" />
       <CampoDia label="Data de aquisição" value={aq.data_aquisicao} onChange={(v) => alterarAquisicao({ data_aquisicao: v })} readOnly={readOnly} span={4} />
       <CampoDia
         label="Disponível desde"
@@ -163,7 +162,6 @@ export default function AquisicaoDepreciacaoBem({ estado, alterarAquisicao, alte
         placeholder="EX.: NF 1234"
       />
 
-      <SecaoForm titulo="Depreciação (linear)" />
       <B1ChaveRow
         label="Depreciável"
         span={4}

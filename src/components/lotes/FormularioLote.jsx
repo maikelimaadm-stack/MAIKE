@@ -425,12 +425,7 @@ export default function FormularioLote({
       // entrada (operacionais E administrativos) vai junto, numa transação.
       const campos = { ...camposAdministrativosAlterados(initialData, dataToSave, formData), ...camposDaCorrecaoDeEntrada(initialData, formData) };
       if (Object.keys(campos).length) {
-        if (!motivoCorrecao.trim()) {
-          setErrors((prev) => ({ ...prev, motivo_correcao: true }));
-          setNoticeDialog({ open: true, title: "Motivo da correção", description: "Informe o motivo da correção da entrada antes de salvar." });
-          return;
-        }
-        dataToSave.__correcaoEntrada = { campos, motivo: motivoCorrecao.trim() };
+        dataToSave.__correcaoEntrada = { campos, motivo: motivoCorrecao.trim() || "Correção da entrada" };
       }
     }
 
@@ -517,7 +512,7 @@ export default function FormularioLote({
     // R3: texto com teclado numérico — o que foi digitado fica no campo e é
     // validado (inteiro positivo), nunca truncado nem trocado por vazio.
     : { id: "quantidade_cabecas", name: "quantidade_cabecas", span: 4, spanLg: 6, label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true, render: ({ value }) => <input type="text" inputMode="numeric" aria-label="Qtd. Cabeças (entrada)" aria-invalid={Boolean(/** @type {any} */ (errors).quantidade_cabecas)} value={value ?? ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} readOnly={isReadOnly} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
-  { id: "categoria_manejo_id", name: "categoria_manejo_id", dica: useBase1Visual ? <IconeLotePreview categoria={categoriasManejo.find((item) => item.id === formData.categoria_manejo_id) ?? null} /> : undefined, span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "sigla", "sexo", "especie"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "sigla", "sexo", "especie"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()}</div>} /> },
+  { id: "categoria_manejo_id", name: "categoria_manejo_id", span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "sigla", "sexo", "especie"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "sigla", "sexo", "especie"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()}</div>} /> },
   { id: "sexo", name: "sexo", span: 6, spanLg: 3, label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "peso_medio_kg", name: "peso_medio_kg", span: 8, spanLg: 6, label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true , render: ({ value }) => <input type="text" inputMode="decimal" aria-label="Peso Médio (kg)" aria-invalid={Boolean(/** @type {any} */ (errors).peso_medio_kg)} value={value ?? ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} readOnly={isReadOnly || quantidadesSomenteLeitura} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
   { id: "sistema_produtivo", name: "sistema_produtivo", span: 6, spanLg: 3, label: "Sistema Produtivo", type: "multiselect", required: true, errorKey: "sistema_produtivo", render: () => <B1MultiSelecao rotulo="Sistema Produtivo" placeholder="SELECIONE..." opcoes={SISTEMAS} valor={parseSistemasProdutivos(formData.sistema_produtivo)} onChange={(proximos) => handleChange("sistema_produtivo", proximos)} disabled={isReadOnly} /> },
@@ -602,7 +597,7 @@ export default function FormularioLote({
         panels={activeLayoutConfig.panels}
         fields={dynamicFields}
         layout={activeLayoutConfig.layout}
-        hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+        hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
         lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
         requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
         visibilityRules={activeLayoutConfig.visibilityRules || {}}
@@ -627,7 +622,7 @@ export default function FormularioLote({
           panels={activeLayoutConfig.panels}
           fields={dynamicFields}
           layout={activeLayoutConfig.layout}
-          hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+          hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
           lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
           requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
           aggregationConfig={activeLayoutConfig.aggregationConfig || {}}
@@ -693,41 +688,6 @@ export default function FormularioLote({
 
 
         <div className={`flex-1 min-h-0 overflow-y-auto pb-6 pr-2${useBase1Visual ? " b1-form-rolagem" : ""}`}>
-          {isEditing && !isDuplicating && correcaoEntrada ? (
-            <div
-              role="status"
-              data-testid="correcao-entrada-aviso"
-              data-estado={correcaoEntrada.estado}
-              className={`mx-2 mt-1 rounded-md border px-2 py-1.5 text-[11px] ${correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL ? "border-emerald-200 bg-emerald-50 text-emerald-900" : correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO ? "border-slate-200 bg-[#FAFCFE] text-slate-600" : "border-amber-200 bg-amber-50 text-amber-900"}`}
-            >
-              {correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO && "Verificando no servidor se a entrada pode ser corrigida…"}
-              {correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL && (
-                <>
-                  Entrada sem registros depois dela: quantidade da entrada, peso de entrada, data, categoria, sexo, setor e área de entrada podem ser corrigidos.
-                  A correção reescreve o próprio lançamento (não é movimentação) e fica registrada com o motivo.
-                </>
-              )}
-              {correcaoEntrada.estado === ESTADOS_CORRECAO.BLOQUEADO && (
-                <>A entrada não pode ser corrigida: {correcaoEntrada.mensagem}. Quantidade, peso, data, categoria, sexo, setor e área de entrada ficam como lançados.</>
-              )}
-              {correcaoEntrada.estado === ESTADOS_CORRECAO.ERRO && (
-                <>Não foi possível verificar se a entrada pode ser corrigida{correcaoEntrada.mensagem ? ` (${correcaoEntrada.mensagem})` : ""}. Os campos da entrada ficam bloqueados.</>
-              )}
-              {corrigindoEntrada && !isReadOnly && (
-                <label className="mt-1.5 flex flex-col gap-0.5" data-field="motivo_correcao">
-                  <span className="font-semibold">Motivo da correção (obrigatório se mudar algum campo da entrada)</span>
-                  <input
-                    value={motivoCorrecao}
-                    onChange={(e) => { setMotivoCorrecao(e.target.value); setErrors((prev) => ({ ...prev, motivo_correcao: false })); }}
-                    placeholder="EX.: QUANTIDADE DIGITADA ERRADA"
-                    aria-label="Motivo da correção"
-                    maxLength={500}
-                    className={`h-[24px] rounded-md border border-slate-300 bg-white px-2 text-xs ${/** @type {any} */ (errors).motivo_correcao ? "border-red-500 bg-red-50" : ""}`}
-                  />
-                </label>
-              )}
-            </div>
-          ) : null}
           {/* D-PROD-164: no visual Base1 os campos principais ficam dentro do cartão da primeira aba. */}
           {useBase1Visual ? null : (
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
@@ -759,7 +719,7 @@ export default function FormularioLote({
                     panels={tabs}
                     fields={dynamicFields}
                     layout={activeLayoutConfig.layout}
-                    hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                    hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
                     lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
                     requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
                     visibilityRules={activeLayoutConfig.visibilityRules || {}}
@@ -790,7 +750,7 @@ export default function FormularioLote({
                       panels={tabs}
                       fields={dynamicFields}
                       layout={activeLayoutConfig.layout}
-                      hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                      hiddenFieldIds={!isReadOnly ? [...(activeLayoutConfig.hiddenFieldIds || []), "numero_lote"] : activeLayoutConfig.hiddenFieldIds || []}
                       lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
                       requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
                       visibilityRules={activeLayoutConfig.visibilityRules || {}}

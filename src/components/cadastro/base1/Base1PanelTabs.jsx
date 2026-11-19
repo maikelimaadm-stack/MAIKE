@@ -1,4 +1,5 @@
 import React from "react";
+import { ArrowLeftToLine, ArrowRightFromLine, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCelular } from "@/components/common/MobileSheet";
 import { NavegacaoDoRegistro, temNavegacao, useNavegacaoDoRegistro } from "./registroNavBase1";
@@ -130,13 +131,26 @@ export default function Base1PanelTabs({
   // O contêiner de rolagem do formulário recebe o modo do design: abas fora do cartão ou seções empilhadas.
   React.useLayoutEffect(() => {
     const scroll = raizRef.current?.closest(".mg-form-scroll");
-    if (!scroll || tabs.length < 2) return undefined;
+    if (!scroll || tabs.length < 1) return undefined;
     const cls = empilhado ? "b1-form--secoes" : "b1-form--abas-fora";
     scroll.classList.add(cls);
     return () => scroll.classList.remove(cls);
   }, [empilhado, tabs.length]);
 
-  const sidebar = false;
+  const sidebar = true;
+  const [buscaGuia, setBuscaGuia] = React.useState("");
+  const [sidebarRecolhida, setSidebarRecolhida] = React.useState(false);
+
+  const normalizarTexto = (txt) =>
+    String(txt ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  const termoGuia = normalizarTexto(buscaGuia.trim());
+  const tabsVisiveis = React.useMemo(
+    () => (termoGuia ? tabs.filter((t) => normalizarTexto(t.label).includes(termoGuia)) : tabs),
+    [tabs, termoGuia],
+  );
 
   const focusTab = (id) => {
     tabRefs.current[id]?.focus?.();
@@ -187,7 +201,7 @@ export default function Base1PanelTabs({
     }
   };
 
-  const tabButtons = tabs.map((tab) => {
+  const renderBotaoAba = (tab) => {
     const active = current === tab.id;
     const tabId = `b1-panel-tab-${tab.id}`;
     const panelId = `b1-panel-${tab.id}`;
@@ -214,11 +228,13 @@ export default function Base1PanelTabs({
         )}
       >
         {!sidebar && isCustom ? <CustomTabMarker /> : null}
-        {tab.label}
+        <span>{tab.label}</span>
         {pendentes[tab.id] ? <span className="b1-aba-dot" title="Campos pendentes" aria-hidden="true" /> : null}
       </button>
     );
-  });
+  };
+
+  const tabButtons = tabsVisiveis.map(renderBotaoAba);
 
   const shouldAnimate = animate && !reducedMotion;
   const panelsBody = tabs.map((tab) => {
@@ -234,13 +250,16 @@ export default function Base1PanelTabs({
         aria-labelledby={tabId}
         hidden={!active}
         data-b1-painel={tab.id}
-        className={cn(!active && "hidden", !sidebar && "b1-aba-cartao", motionClass)}
+        className={cn(!active && "hidden", "b1-aba-cartao", motionClass)}
       >
-        {!sidebar ? (
-          <div className="b1-aba-cartao__cab">
-            <h3 className="b1-aba-cartao__titulo">{tab.label}</h3>
-          </div>
-        ) : null}
+        <div className="b1-aba-cartao__cab">
+          <h3 className="b1-aba-cartao__titulo">{tab.label}</h3>
+          {active && temNavegacao(navInfo) ? (
+            <div className="b1-panel-tabs-rail">
+              <NavegacaoDoRegistro info={navInfo} />
+            </div>
+          ) : null}
+        </div>
         {renderPanel(tab.id)}
       </div>
     );
@@ -287,14 +306,47 @@ export default function Base1PanelTabs({
   }
 
   return (
-    <div ref={raizRef} className={cn("b1-panel-tabs-root b1-abas-fora", className)}>
-      <div className="b1-panel-tabs-rail">
-        <div className="b1-panel-tabs-strip" role="tablist" aria-orientation="horizontal">
-          {tabButtons}
+    <div
+      ref={raizRef}
+      className={cn(
+        "b1-panel-tabs-root b1-abas-fora b1-panel-tabs-root--sidebar",
+        sidebarRecolhida && "is-sidebar-collapsed",
+        className,
+      )}
+    >
+      <aside className="b1-panel-sidebar" aria-label="Guias do formulário">
+        <div className="b1-panel-sidebar__topo">
+          {!sidebarRecolhida ? (
+            <label className="b1-panel-sidebar__busca">
+              <Search className="b1-panel-sidebar__busca-ico" aria-hidden="true" />
+              <input
+                type="search"
+                value={buscaGuia}
+                onChange={(e) => setBuscaGuia(e.target.value)}
+                placeholder="Buscar guia"
+                aria-label="Buscar guia"
+              />
+            </label>
+          ) : null}
+          <button
+            type="button"
+            className="b1-panel-sidebar__toggle"
+            onClick={() => setSidebarRecolhida((v) => !v)}
+            title={sidebarRecolhida ? "Expandir guias" : "Recolher guias"}
+            aria-label={sidebarRecolhida ? "Expandir guias" : "Recolher guias"}
+          >
+            {sidebarRecolhida ? <ArrowRightFromLine className="w-4 h-4" /> : <ArrowLeftToLine className="w-4 h-4" />}
+          </button>
         </div>
-        <NavegacaoDoRegistro info={navInfo} />
+        {!sidebarRecolhida ? (
+          <div className="b1-panel-list" role="tablist" aria-orientation="vertical">
+            {tabButtons.length ? tabButtons : <span className="b1-panel-list__vazio">Nenhuma guia</span>}
+          </div>
+        ) : null}
+      </aside>
+      <div className="b1-panel-main">
+        {panelsBody}
       </div>
-      {panelsBody}
     </div>
   );
 }

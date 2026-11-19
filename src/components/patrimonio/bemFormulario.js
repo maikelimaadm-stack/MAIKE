@@ -44,6 +44,8 @@ export const CHAVE_OPCOES_PATRIMONIO = Object.freeze(['lancamentos-financeiros-g
 
 export const ABAS_BEM = Object.freeze({
   IDENTIFICACAO: 'identificacao',
+  PROPRIEDADE: 'propriedade',
+  CARACTERISTICAS: 'caracteristicas',
   OPERACAO: 'operacao',
   AQUISICAO: 'aquisicao',
 });
@@ -251,6 +253,26 @@ export const vidaEmMeses = (dp) => {
 export const abaDoCampo = (chave) => {
   if (chave.startsWith('medidor') || chave.startsWith('tanques') || chave === 'custo_uso_unitario') return ABAS_BEM.OPERACAO;
   if (chave.startsWith('aquisicao') || chave.startsWith('depreciacao')) return ABAS_BEM.AQUISICAO;
+  if (chave === 'propriedade' || chave === 'proprietario' || chave === 'responsavel' || chave === 'centro_custo') return ABAS_BEM.PROPRIEDADE;
+  if (
+    chave === 'marca' ||
+    chave === 'modelo' ||
+    chave === 'ano_fabricacao' ||
+    chave === 'ano_modelo' ||
+    chave === 'numero_serie' ||
+    chave === 'chassi' ||
+    chave === 'potencia_cv' ||
+    chave === 'placa' ||
+    chave === 'placa_uf' ||
+    chave === 'renavam' ||
+    chave === 'material' ||
+    chave === 'ano_conclusao' ||
+    chave === 'compatibilidade' ||
+    chave === 'especificacoes' ||
+    chave === 'observacoes'
+  ) {
+    return ABAS_BEM.CARACTERISTICAS;
+  }
   return ABAS_BEM.IDENTIFICACAO;
 };
 

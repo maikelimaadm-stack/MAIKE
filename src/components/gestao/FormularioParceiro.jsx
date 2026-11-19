@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import B1Field, { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import B1MultiSelecao from "@/components/cadastro/base1/B1MultiSelecao";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { LIMITES, lerNumeroLocal, paraTextoDeEdicao } from "@/lib/dinheiroDecimal";
 import { CAMPOS_FUNCIONARIO_PARCEIRO, PAPEIS_PARCEIRO, PAPEL_FUNCIONARIO, TIPOS_FUNCIONARIO } from "@/services/parceiroService";
-import { CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 
 export const FORMULARIO_PARCEIRO_ID = "formulario-parceiro-base1";
@@ -141,29 +142,25 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
     onSubmit(dados);
   };
 
-  return (
-    <CadastroFormShell embedded={variant === "embedded"} title={initialData?.id ? "Editar parceiro" : "Novo parceiro"}>
-      <div className="mg-b1-record-form">
-        <form id={FORMULARIO_PARCEIRO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
-          <SecaoForm titulo="Identificação" />
-          <CampoSelect label="Tipo de pessoa" required span={4} value={form.tipo_pessoa} onChange={(v) => set("tipo_pessoa", v)} options={TIPOS_PESSOA} readOnly={readOnly} />
-          <CampoTexto label="Nome" required span={8} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={255} error={invalidos.includes("nome") ? "Obrigatório" : undefined} placeholder="NOME DO PARCEIRO" />
-          {fisica ? (
-            <>
-              <CampoTexto label="CPF" span={4} value={form.cpf} onChange={(v) => set("cpf", v)} readOnly={readOnly} inputMode="numeric" maxLength={32} />
-              <CampoTexto label="RG" span={4} value={form.rg} onChange={(v) => set("rg", v)} readOnly={readOnly} maxLength={32} />
-              <CampoTexto label="Data de nascimento" span={4} type="date" value={form.data_nascimento} onChange={(v) => set("data_nascimento", v)} readOnly={readOnly} />
-            </>
-          ) : (
-            <>
-              <CampoTexto label="Razão social" span={8} value={form.razao_social} onChange={(v) => set("razao_social", v)} readOnly={readOnly} maxLength={255} />
-              <CampoTexto label="CNPJ" span={4} value={form.cnpj} onChange={(v) => set("cnpj", v)} readOnly={readOnly} inputMode="numeric" maxLength={32} />
-              <CampoTexto label="Inscrição estadual" span={4} value={form.inscricao_estadual} onChange={(v) => set("inscricao_estadual", v)} readOnly={readOnly} maxLength={64} />
-            </>
-          )}
+  const [abaAtiva, setAbaAtiva] = useState("identificacao");
 
-          <SecaoForm titulo="Papéis" />
-          {/* Marcar vários (D-PROD-168): a mesma lista do Sistema Produtivo, com a caixa de marcar à direita. */}
+  const abas = useMemo(() => {
+    const lista = [
+      { id: "identificacao", label: "Identificação" },
+      { id: "papeis", label: "Papéis" },
+    ];
+    if (funcionario) lista.push({ id: "funcionario", label: "Funcionário" });
+    lista.push({ id: "contato", label: "Contato" });
+    lista.push({ id: "endereco", label: "Endereço" });
+    lista.push({ id: "observacoes", label: "Observações" });
+    if (initialData?.id) lista.push({ id: "situacao", label: "Situação" });
+    return lista;
+  }, [funcionario, initialData?.id]);
+
+  const renderPainel = (panelId) => {
+    if (panelId === "papeis") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           <B1Field label="Papéis do parceiro" span={12} hasValue={form.papeis.length > 0} disabled={readOnly} required={!initialData?.id || (Array.isArray(initialData?.papeis) && initialData.papeis.length > 0)}>
             <B1MultiSelecao
               rotulo="Papéis do parceiro"
@@ -185,66 +182,120 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
               </p>
             ) : null}
           </div>
+        </div>
+      );
+    }
 
-          {funcionario ? (
-            <>
-              <SecaoForm titulo="Funcionário" />
-              <CampoSelect
-                label="Tipo do funcionário"
-                required
-                span={4}
-                value={form.funcionario_tipo}
-                onChange={(v) => set("funcionario_tipo", v)}
-                options={[...TIPOS_FUNCIONARIO]}
-                readOnly={readOnly}
-                error={invalidos.includes("funcionario_tipo") ? "Obrigatório" : undefined}
-              />
-              <CampoTexto label="Cargo" span={8} value={form.funcionario_cargo} onChange={(v) => set("funcionario_cargo", v)} readOnly={readOnly} maxLength={120} placeholder="EX.: TRATORISTA" />
-              <CampoNumero
-                label="Custo por hora (R$)"
-                value={form.funcionario_custo_hora}
-                onChange={(v) => set("funcionario_custo_hora", v)}
-                locale={LOCALE}
-                limites={LIMITES_CUSTO}
-                readOnly={readOnly}
-                span={4}
-                error={errosCusto.funcionario_custo_hora}
-                testId="parceiro-funcionario-custo-hora"
-              />
-              <CampoNumero
-                label="Custo por diária (R$)"
-                value={form.funcionario_custo_diaria}
-                onChange={(v) => set("funcionario_custo_diaria", v)}
-                locale={LOCALE}
-                limites={LIMITES_CUSTO}
-                readOnly={readOnly}
-                span={4}
-                error={errosCusto.funcionario_custo_diaria}
-                testId="parceiro-funcionario-custo-diaria"
-              />
-            </>
-          ) : null}
+    if (panelId === "funcionario") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
+          <CampoSelect
+            label="Tipo do funcionário"
+            required
+            span={4}
+            value={form.funcionario_tipo}
+            onChange={(v) => set("funcionario_tipo", v)}
+            options={[...TIPOS_FUNCIONARIO]}
+            readOnly={readOnly}
+            error={invalidos.includes("funcionario_tipo") ? "Obrigatório" : undefined}
+          />
+          <CampoTexto label="Cargo" span={8} value={form.funcionario_cargo} onChange={(v) => set("funcionario_cargo", v)} readOnly={readOnly} maxLength={120} placeholder="EX.: TRATORISTA" />
+          <CampoNumero
+            label="Custo por hora (R$)"
+            value={form.funcionario_custo_hora}
+            onChange={(v) => set("funcionario_custo_hora", v)}
+            locale={LOCALE}
+            limites={LIMITES_CUSTO}
+            readOnly={readOnly}
+            span={4}
+            error={errosCusto.funcionario_custo_hora}
+            testId="parceiro-funcionario-custo-hora"
+          />
+          <CampoNumero
+            label="Custo por diária (R$)"
+            value={form.funcionario_custo_diaria}
+            onChange={(v) => set("funcionario_custo_diaria", v)}
+            locale={LOCALE}
+            limites={LIMITES_CUSTO}
+            readOnly={readOnly}
+            span={4}
+            error={errosCusto.funcionario_custo_diaria}
+            testId="parceiro-funcionario-custo-diaria"
+          />
+        </div>
+      );
+    }
 
-          <SecaoForm titulo="Contato" />
+    if (panelId === "contato") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           <CampoTexto label="Telefone" span={4} value={form.telefone} onChange={(v) => set("telefone", v)} readOnly={readOnly} inputMode="tel" maxLength={64} />
           <CampoTexto label="E-mail" span={4} type="email" keepCase value={form.email} onChange={(v) => set("email", v)} readOnly={readOnly} maxLength={255} />
           <CampoTexto label="Responsável" span={4} value={form.nome_responsavel} onChange={(v) => set("nome_responsavel", v)} readOnly={readOnly} maxLength={255} />
+        </div>
+      );
+    }
 
-          <SecaoForm titulo="Endereço" />
+    if (panelId === "endereco") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           <CampoTexto label="Endereço" span={5} value={form.endereco} onChange={(v) => set("endereco", v)} readOnly={readOnly} maxLength={255} />
           <CampoTexto label="Cidade" span={3} value={form.cidade} onChange={(v) => set("cidade", v)} readOnly={readOnly} maxLength={128} />
           <CampoTexto label="Estado" span={2} value={form.estado} onChange={(v) => set("estado", v)} readOnly={readOnly} maxLength={2} />
           <CampoTexto label="CEP" span={2} value={form.cep} onChange={(v) => set("cep", v)} readOnly={readOnly} inputMode="numeric" maxLength={16} />
+        </div>
+      );
+    }
 
-          <SecaoForm titulo="Observações" />
+    if (panelId === "observacoes") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
           <CampoTexto label="Observações" span={12} value={form.observacoes} onChange={(v) => set("observacoes", v)} readOnly={readOnly} maxLength={2000} />
+        </div>
+      );
+    }
 
-          {initialData?.id ? (
-            <>
-              <SecaoForm titulo="Situação" />
-              <B1ChaveRow label="Ativo" span={6} checked={form.ativo} onChange={readOnly ? undefined : (v) => set("ativo", v)} disabled={readOnly} ariaLabel="Parceiro ativo" />
-            </>
-          ) : null}
+    if (panelId === "situacao") {
+      return (
+        <div className="mg-b1-form-grid w-full min-h-0">
+          <B1ChaveRow label="Ativo" span={6} checked={form.ativo} onChange={readOnly ? undefined : (v) => set("ativo", v)} disabled={readOnly} ariaLabel="Parceiro ativo" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="mg-b1-form-grid w-full min-h-0">
+        <CampoSelect label="Tipo de pessoa" required span={4} value={form.tipo_pessoa} onChange={(v) => set("tipo_pessoa", v)} options={TIPOS_PESSOA} readOnly={readOnly} />
+        <CampoTexto label="Nome" required span={8} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={255} error={invalidos.includes("nome") ? "Obrigatório" : undefined} placeholder="NOME DO PARCEIRO" />
+        {fisica ? (
+          <>
+            <CampoTexto label="CPF" span={4} value={form.cpf} onChange={(v) => set("cpf", v)} readOnly={readOnly} inputMode="numeric" maxLength={32} />
+            <CampoTexto label="RG" span={4} value={form.rg} onChange={(v) => set("rg", v)} readOnly={readOnly} maxLength={32} />
+            <CampoTexto label="Data de nascimento" span={4} type="date" value={form.data_nascimento} onChange={(v) => set("data_nascimento", v)} readOnly={readOnly} />
+          </>
+        ) : (
+          <>
+            <CampoTexto label="Razão social" span={8} value={form.razao_social} onChange={(v) => set("razao_social", v)} readOnly={readOnly} maxLength={255} />
+            <CampoTexto label="CNPJ" span={4} value={form.cnpj} onChange={(v) => set("cnpj", v)} readOnly={readOnly} inputMode="numeric" maxLength={32} />
+            <CampoTexto label="Inscrição estadual" span={4} value={form.inscricao_estadual} onChange={(v) => set("inscricao_estadual", v)} readOnly={readOnly} maxLength={64} />
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <CadastroFormShell embedded={variant === "embedded"} title={initialData?.id ? "Editar parceiro" : "Novo parceiro"}>
+      <div className="mg-b1-record-form">
+        <form id={FORMULARIO_PARCEIRO_ID} onSubmit={enviar} className="b1 w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
+          <Base1PanelTabs
+            tabs={abas}
+            value={abaAtiva}
+            onChange={setAbaAtiva}
+            animate={!readOnly}
+            animationKey={initialData?.id ?? "novo"}
+            renderPanel={renderPainel}
+          />
         </form>
       </div>
     </CadastroFormShell>
