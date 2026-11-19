@@ -118,6 +118,12 @@ export default function B1Select(props) {
   if (!celular) {
     const abrirComBusca = (inicial = "") => {
       setBusca(inicial);
+      // Já aberta (por Enter/↓, com o foco no campo): a letra digitada leva o foco para a pesquisa agora,
+      // senão as próximas letras voltariam ao campo e trocariam a busca em vez de completá-la.
+      if (aberto) {
+        if (!disabled) buscaRef.current?.focus();
+        return;
+      }
       focarBuscaAoAbrir.current = true;
       setAberto(true);
     };
