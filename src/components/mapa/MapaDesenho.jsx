@@ -93,6 +93,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
   const [currentPoints, setCurrentPoints] = useState([]);
   const [currentMarker, setCurrentMarker] = useState(null);
+  // O arraste depende da presença do ponto; depender das coordenadas cancelaria
+  // a transação a cada mousemove/touchmove.
+  const marcadorDisponivel = Boolean(currentMarker);
   const [drawingClosed, setDrawingClosed] = useState(false);
   const [undoLen, setUndoLen] = useState(0);
   const [redoLen, setRedoLen] = useState(0);
@@ -105,7 +108,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   // PRÉVIA (D-PROD-67): com o formulário aberto a geometria fica fechada e visível,
   // mas manipuladores/cursor somem e nenhuma interação do editor fica ativa por trás
   // do Sheet. Os pontos continuam em estado; cancelar devolve a edição como estava.
-  const emPrevia = (showFormularioArea && tipoDesenho === "area") || (showFormularioLinha && tipoDesenho === "linha");
+  const emPrevia = (showFormularioArea && tipoDesenho === "area") || (showFormularioLinha && tipoDesenho === "linha") || (showFormularioPonto && tipoDesenho === "ponto");
   const modoInteracao = emPrevia ? MODOS.NAVEGAR : modo;
   // Cadastro de área ainda aberta: só os pontos médios são alvo (inserir/arrastar
   // o novo vértice); vértices, mover e clique-adiciona seguem como antes (D-PROD-68).
@@ -258,6 +261,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       const pontosSemIcone = [];
 
       pontosSnap.forEach((ponto) => {
+        if (tipo === "ponto" && editingId && String(ponto.id) === String(editingId)) return;
         const v = parseVertex(ponto.coordenadas);
         if (!v) return;
         const url = resolvePontoIconUrl(ponto, iconesSnap);
@@ -518,6 +522,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     if (itemEditando && tipoDesenho === "ponto" && itemEditando.coordenadas) {
       const v = parseVertex(itemEditando.coordenadas);
       if (v) {
+        originalPontosRef.current = [{ ...v }];
         setCurrentMarker(v);
         const t = window.setTimeout(() => {
           const map = mapInstanceRef.current;
@@ -819,7 +824,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !tipoDesenho) return undefined;
     if (!podeEditarVertices(modoInteracao, tipoDesenho) && !meiosNoCadastro) return undefined;
-    if (tipoDesenho === "ponto" && !currentMarkerRef.current) return undefined;
+    if (tipoDesenho === "ponto" && !marcadorDisponivel) return undefined;
     const LIMIAR_ARRASTO_PX = 4;
 
     const canvas = map.getCanvas();
@@ -880,7 +885,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         return;
       }
 
-      let target = lngLat ? { lat: lngLat.lat, lng: lngLat.lng } : null;
+      let target = tipoDesenho === "ponto" && st.lastTarget ? st.lastTarget : lngLat ? { lat: lngLat.lat, lng: lngLat.lng } : null;
       if (target) {
         const snapped = findNearestSnap(map, target, {
           areas: areasRef.current,
@@ -932,7 +937,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       const oe = e.originalEvent;
       if (oe?.touches && oe.touches.length > 1) return; // pinça é do mapa
       // Área de acerto maior que o desenho (mouse 8px, toque 14px) — VIS-04.
-      const a = acertoEditor(map, e.point, {
+      const marker = currentMarkerRef.current;
+      const markerPx = tipoDesenho === "ponto" && marker ? map.project([marker.lng, marker.lat]) : null;
+      const a = tipoDesenho === "ponto" ? (
+        markerPx && Math.hypot(markerPx.x - e.point.x, markerPx.y - e.point.y) <= 22
+          ? { role: "vertex", index: 0, id: "ponto", lat: marker.lat, lng: marker.lng } : null
+      ) : acertoEditor(map, e.point, {
         toque: !!oe?.type?.startsWith("touch"),
         camadas: { vertices: meiosNoCadastro ? null : LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS },
       });
@@ -974,6 +984,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       }
       st.alt = !!e.originalEvent?.altKey;
       let target = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      if (tipoDesenho === "ponto" && st.beforeMarker) {
+        const origin = map.project([st.beforeMarker.lng, st.beforeMarker.lat]);
+        const moved = map.unproject([origin.x + e.point.x - st.downPx.x, origin.y + e.point.y - st.downPx.y]);
+        target = { lat: moved.lat, lng: moved.lng };
+      }
       const snapped = findNearestSnapDetalhado(map, target, {
         areas: areasRef.current,
         linhas: linhasRef.current,
@@ -986,6 +1001,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       setSourceData(map, SOURCE_IDS.GUIA, buildGuiaCollection(null, null, { imaAresta: snapped?.tipo === "aresta" ? snapped.aresta : null }));
 
       if (tipoDesenho === "ponto") {
+        st.lastTarget = target;
         setCurrentMarker(target);
         return;
       }
@@ -1049,7 +1065,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       dragStateRef.current = null;
       void canvas;
     };
-  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi, modoInteracao, currentMarker, meiosNoCadastro]);
+  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi, modoInteracao, marcadorDisponivel, meiosNoCadastro]);
 
   // Mover área inteira — só com a mão (MOVER); arrasto no interior translada tudo.
   useEffect(() => {
@@ -1189,7 +1205,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const trocarBasemap = (id) => basemap.setBasemap(id);
 
   const temAlteracoes = () => {
-    if (tipoDesenho === "ponto") return !!currentMarker && !itemEditando;
+    if (tipoDesenho === "ponto") return desenhoAlterado(itemEditando ? originalPontosRef.current : [], currentMarker ? [currentMarker] : []);
     return desenhoAlterado(itemEditando ? originalPontosRef.current : [], currentPoints);
   };
 
@@ -1476,8 +1492,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                     if (undoStackRef.current.length > 0) {
                       setVerticeSelecionado(null);
                       const prevPts = undoStackRef.current.pop();
-                      redoStackRef.current.push(currentPoints.map((p) => ({ ...p })));
-                      setCurrentPoints(prevPts);
+                      redoStackRef.current.push(tipoDesenho === "ponto" ? (currentMarker ? [{ ...currentMarker }] : []) : currentPoints.map((p) => ({ ...p })));
+                      if (tipoDesenho === "ponto") setCurrentMarker(prevPts?.[0] || null);
+                      else setCurrentPoints(prevPts);
                       syncHistoryUi();
                       toast.success("Desfeito");
                     }
@@ -1495,8 +1512,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                     if (redoStackRef.current.length > 0) {
                       setVerticeSelecionado(null);
                       const nextPts = redoStackRef.current.pop();
-                      undoStackRef.current.push(currentPoints.map((p) => ({ ...p })));
-                      setCurrentPoints(nextPts);
+                      undoStackRef.current.push(tipoDesenho === "ponto" ? (currentMarker ? [{ ...currentMarker }] : []) : currentPoints.map((p) => ({ ...p })));
+                      if (tipoDesenho === "ponto") setCurrentMarker(nextPts?.[0] || null);
+                      else setCurrentPoints(nextPts);
                       syncHistoryUi();
                       toast.success("Refeito");
                     }

@@ -270,7 +270,7 @@ const TIPOS = [
     unidade_producao_id: "u-sc",
     unidade_producao: { id: "u-sc", sigla: "SC", descricao: "Saco", ativo: true },
   },
-  { id: "t2", nome_tipo: "ROÇADA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true },
+  { id: "t2", nome_tipo: "ROÇADA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true, categoria: "PASTAGEM" },
   { id: "t3", nome_tipo: "GRADAGEM", grupo_atividade_id: "g2", grupo_atividade_nome: "LAVOURA", ativo: false },
 ];
 const AREAS = [
@@ -755,7 +755,8 @@ describe("LA-ABERTA — atividade aberta: cabeçalho travado e lançamentos por 
     const valor = (/** @type {string} */ rotulo) => /** @type {HTMLInputElement} */ (within(cabecalho).getByLabelText(rotulo)).value;
     expect(valor("Nome")).toBe("Cigarrinha Pasto 01");
     expect(valor("Tipo de atividade")).toBe("APLICAÇÃO");
-    expect(valor("Grupo de atividade")).toBe("PASTAGEM");
+    // D-PROD-258: o Grupo saiu das telas de atividade.
+    expect(within(cabecalho).queryByLabelText("Grupo de atividade")).toBeNull();
     expect(valor("Área")).toBe("01 — Pasto 01");
     expect(valor("Setor (da área)")).toBe("SETOR NORTE");
     expect(valor("Máquina")).toBe("TP-02 — Trator");
@@ -981,18 +982,18 @@ describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", ()
 
     // Herdados do tipo e da área: travados (só leitura), nunca digitados.
     const campo = (/** @type {string} */ rotulo) => /** @type {HTMLInputElement} */ (within(form).getByLabelText(rotulo));
-    for (const rotulo of ["Grupo de atividade", "Centro de custo", "Centro de resultado", "Unidade de produção"]) {
+    for (const rotulo of ["Centro de custo", "Centro de resultado", "Unidade de produção"]) {
       expect(campo(rotulo), rotulo).toHaveAttribute("readonly");
     }
-    expect(campo("Grupo de atividade").value).toBe("PASTAGEM");
+    expect(within(form).queryByLabelText("Grupo de atividade")).toBeNull();
     expect(campo("Centro de custo").value).toBe("1 — Pecuária de corte");
     expect(campo("Centro de resultado").value).toBe("Sem centro de resultado");
     expect(campo("Unidade de produção").value).toBe("SC — Saco");
     expect(screen.getByTestId("atividade-heranca")).toHaveTextContent("O centro de resultado padrão do tipo é de outra fazenda");
     // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não. D-PROD-238: a área é a lista "Áreas".
     expect(within(form).getByTestId("areas-abertura")).toHaveTextContent(/Áreas\s*\*/);
-    // O que o tipo deixa registrar aparece como nota sob o seletor (texto simples, sem cartões de toque).
-    expect(within(form).getByTestId("atividade-tipo-registra")).toHaveTextContent(/^Este tipo permite registrar: máquinas/);
+    // D-PROD-258: as 8 chaves (e a nota "Este tipo permite registrar") saíram da tela.
+    expect(within(form).queryByTestId("atividade-tipo-registra")).toBeNull();
     expect(marcadoObrigatorio(form, "Máquina")).toBe(true);
     expect(marcadoObrigatorio(form, "Safra")).toBe(false);
 
@@ -1589,34 +1590,24 @@ describe("LA-MENU — rota, menu, ícone, manifesto e paridade com o servidor", 
 
 // ═════════════════════════════════════════════════════════════════════════
 describe("LA-TIPOS — a tela de Tipos de Atividade continua funcionando (rotuloDoCentro movido)", () => {
-  it("LA-TIPOS-1 — o formulário do tipo mostra os centros padrão pelo rotuloDoCentro da lib nova (e marca o de outra fazenda)", async () => {
+  it("LA-TIPOS-1 — rotuloDoCentro segue na lib; o formulário da operação (D-PROD-258) não mostra mais centros, grupo nem chaves", async () => {
     const { rotuloDoCentro } = await import("@/lib/lancamentoAtividadesRegras");
     expect(rotuloDoCentro({ numero: "12", nome: " Pecuária de corte " })).toBe("12 — Pecuária de corte");
     expect(rotuloDoCentro({ nome: "Sem número" })).toBe("Sem número");
     expect(rotuloDoCentro(null)).toBe("");
-    expect(readFileSync("src/components/tipos-atividade/FormularioTipoAtividade.jsx", "utf8")).toMatch(
-      /import \{ rotuloDoCentro \} from "@\/lib\/lancamentoAtividadesRegras";/,
-    );
-    tiposSrv.listarCentrosDaFazenda.mockImplementation(async (recurso) =>
-      recurso === "centros-custo" ? [{ id: "cc1", numero: "1", nome: "Pecuária de corte" }, { id: "cc2", numero: "2", nome: "Lavoura" }] : [],
-    );
     const { default: FormularioTipoAtividade } = await import("@/components/tipos-atividade/FormularioTipoAtividade");
     render(
       <QueryClientProvider client={novoCliente()}>
-        <FormularioTipoAtividade
-          grupos={[{ id: "g1", nome_grupo: "Pastagem", ativo: true }]}
-          empresaId="emp-1"
-          onSubmit={() => {}}
-          toolbarActions
-          isEditing
-          initialData={{ ...TIPOS[0], descricao: null, categoria: null }}
-        />
+        <FormularioTipoAtividade onSubmit={() => {}} toolbarActions isEditing initialData={{ ...TIPOS[0], descricao: null, categoria: "APLICACAO" }} />
       </QueryClientProvider>,
     );
     await assentar();
     const form = screen.getByTestId("b1-form-tipo-atividade");
-    expect(within(form).getByRole("combobox", { name: "Centro de custo padrão" })).toHaveTextContent("1 — Pecuária de corte");
-    expect(within(form).getByRole("combobox", { name: "Centro de resultado padrão" })).toHaveTextContent("9 — Cria (OUTRA FAZENDA)");
+    expect(within(form).getByRole("combobox", { name: "Tipo" })).toHaveTextContent("Aplicação");
+    for (const campo of ["Centro de custo padrão", "Centro de resultado padrão", "Grupo de atividade", "Unidade de produção"]) {
+      expect(within(form).queryByRole("combobox", { name: campo })).toBeNull();
+    }
+    expect(tiposSrv.listarCentrosDaFazenda).not.toHaveBeenCalled();
   });
 
   it("LA-TIPOS-2 — excluir tipo usado por atividade: a tela diz que há atividades vinculadas", async () => {
@@ -2211,9 +2202,12 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     const janela = await screen.findByTestId("janela-registro-de-campo");
     expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
     expect(within(janela).getByRole("button", { name: "Cancelar" })).toBeTruthy();
-    // A área e o tipo NÃO vêm presos: a pessoa escolhe (só os tipos ativos).
+    // A área, o tipo e a operação NÃO vêm presos: a pessoa escolhe o tipo fixo e depois a operação desse tipo (só as ativas).
+    // As quatro seções já estão à mostra.
+    for (const secao of ["Máquinas", "Insumos", "Mão de obra", "Serviço de terceiro"]) expect(janela.textContent).toContain(secao);
     await escolherNoCombo(janela, "Área", /^Pasto 01$/i);
-    fireEvent.click(within(janela).getByRole("combobox", { name: "Tipo de atividade" }));
+    await escolherNoCombo(janela, "Tipo", /^Roçada e tratos$/i);
+    fireEvent.click(within(janela).getByRole("combobox", { name: "Operação" }));
     await screen.findAllByRole("option");
     expect(screen.queryByRole("option", { name: /GRADAGEM/i })).toBeNull();
     fireEvent.click(screen.getByRole("option", { name: /^ROÇADA$/i }));
@@ -2233,7 +2227,7 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "ROÇADA registrada em Pasto 01.");
   });
 
-  it("LA-REGISTRAR-4 — sem escolher a área e o tipo, não grava e aponta os campos", async () => {
+  it("LA-REGISTRAR-4 — sem escolher a área, o tipo e a operação, não grava e aponta os campos", async () => {
     await montarComLista();
     fireEvent.click(screen.getByRole("button", { name: "Registrar serviço" }));
     const janela = await screen.findByTestId("janela-registro-de-campo");
@@ -2241,7 +2235,8 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     const antes = escritas().length;
     fireEvent.submit(within(janela).getByTestId("registro-de-campo-form"));
     expect(await within(janela).findByText("Escolha a área.")).toBeTruthy();
-    expect(within(janela).getByText("Escolha o tipo de atividade.")).toBeTruthy();
+    expect(within(janela).getByText("Escolha o tipo.")).toBeTruthy();
+    expect(within(janela).getByText("Escolha a operação.")).toBeTruthy();
     expect(escritas().length).toBe(antes);
   });
 });

@@ -118,7 +118,7 @@ const baixaFifo = (s, e, produto, kg) => () =>
   prisma().$transaction(async (tx) => {
     await motor.travarProdutosEstoque(tx, s.c, e.id, [produto.id]);
     const lido = await tx.produto.findUnique({ where: { id: produto.id } });
-    const r = await motor.aplicarSaidaFifo(tx, ctxDe(s), {
+    const r = await motor.aplicarSaida(tx, ctxDe(s), {
       empresaId: e.id, produto: lido, local: localDe(s.local), quantidadeKg: kg, dia: '2027-06-11', origem: { operacaoId: 'op-fifo-k' }, numeroMovimento: motor.numeroMovimentoProvisorio(),
     });
     await motor.numerarMovimentos(tx, s.c, [r.movimento.id]);

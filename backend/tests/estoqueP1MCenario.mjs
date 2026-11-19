@@ -83,7 +83,7 @@ export const sairFifo = (s, e, produto, kg, extra = {}) =>
   prisma().$transaction(async (tx) => {
     await motor.travarProdutosEstoque(tx, s.c, e.id, [produto.id]);
     const lido = await tx.produto.findUnique({ where: { id: produto.id } });
-    const r = await motor.aplicarSaidaFifo(tx, ctxDe(s), {
+    const r = await motor.aplicarSaida(tx, ctxDe(s), {
       empresaId: e.id, produto: lido, local: localDe(s.local), quantidadeKg: kg, dia: '2027-06-11',
       parceiro: { id: e.cli.id, nome: e.cli.nome }, origem: { operacaoId: 'op-venda-p102' }, numeroMovimento: motor.numeroMovimentoProvisorio(), ...extra,
     });

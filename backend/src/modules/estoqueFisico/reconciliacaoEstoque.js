@@ -125,7 +125,7 @@ import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_QUANTIDADE, Dec, ZERO, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { agoraDoServidor } from '../rebanhoLedger/rebanhoLedgerTempo.js';
-import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO } from './estoqueFisicoMotor.js';
+import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ORIGENS_DOCUMENTADAS } from './estoqueFisicoMotor.js';
 
 /**
  * Origens de movimento do protocolo (motor físico único, D-PROD-161). Vêm dos
@@ -133,7 +133,7 @@ import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTE
  * §8), para que uma origem nova do motor não fique fora do reconciliador por
  * divergência de literal. Os valores são os mesmos que a F4 declarava aqui.
  */
-export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_APONTAMENTO]);
+export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_APONTAMENTO, ...ORIGENS_DOCUMENTADAS]);
 /** Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. */
 const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
 /**
@@ -533,9 +533,16 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra, comItens) => {
       JOIN lt ON lt.id = fr.lote_id
       GROUP BY 1
     ), compra AS (
-      SELECT i.estoque_lote_nota_id AS lote_id, bool_or(i.movimentacao_estorno_id IS NOT NULL) AS estornada
-      FROM "OperacaoFinanceiraItem" i
-      WHERE i.cliente_id = ${cli} AND i.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))
+      SELECT u.lote_id, bool_or(u.estornada) AS estornada FROM (
+        SELECT i.estoque_lote_nota_id AS lote_id, (i.movimentacao_estorno_id IS NOT NULL) AS estornada
+        FROM "OperacaoFinanceiraItem" i
+        WHERE i.cliente_id = ${cli} AND i.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))
+        UNION ALL
+        -- D-PROD-257: a camada da entrada documentada estornada (exclusão) é explicada pela FK do estorno, como a compra.
+        SELECT e.estoque_lote_nota_id, (e.movimentacao_estorno_id IS NOT NULL)
+        FROM "EntradaEstoqueItem" e
+        WHERE e.cliente_id = ${cli} AND e.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))
+      ) u
       GROUP BY 1
     ), x AS (
       SELECT lt.id, lt.empresa_id, lt.produto_id, lt.local_estoque_id, lt.status, lt.quantidade_entrada AS q_entrada, lt.quantidade_disponivel AS q_disp,
@@ -647,7 +654,7 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra, comItens) => {
              bool_or(fx.destino IS NULL OR d.id IS NULL OR mv.movimento_filho_id IS NULL
                OR d.movimentacao_entrada_id IS DISTINCT FROM mv.movimento_filho_id OR d.produto_id <> mv.produto_id OR d.empresa_id <> mv.empresa_id
                OR d.local_estoque_id IS DISTINCT FROM mv.local_estoque_destino
-               OR d.quantidade_entrada IS DISTINCT FROM fx.quantidade OR d.custo_unitario IS DISTINCT FROM fx.custo) AS diverge,
+               OR d.quantidade_entrada IS DISTINCT FROM fx.quantidade) AS diverge,
              COUNT(*) AS n, COUNT(DISTINCT fx.destino) AS n_destinos
       FROM mv
       CROSS JOIN LATERAL (

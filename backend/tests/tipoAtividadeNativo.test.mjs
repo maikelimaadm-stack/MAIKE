@@ -59,7 +59,9 @@ const FLAGS = Object.freeze([
   'exige_area', 'exige_safra', 'exige_maquina', 'permite_implemento', 'permite_produto', 'permite_servico', 'permite_mao_obra', 'exige_producao',
 ]);
 /** As 9 categorias do CHECK `TipoAtividade_categoria_check`. */
-const CATEGORIAS = Object.freeze(['PREPARO_SOLO', 'PLANTIO', 'TRATO_CULTURAL', 'APLICACAO', 'COLHEITA', 'PASTAGEM', 'BENFEITORIA', 'MANEJO_ANIMAL', 'OUTROS']);
+/** D-PROD-258 — os 7 tipos fixos que a escrita aceita (COLHEITA e MANEJO_ANIMAL saíram de escrita). */
+const CATEGORIAS = Object.freeze(['PREPARO_SOLO', 'PLANTIO', 'TRATO_CULTURAL', 'APLICACAO', 'PASTAGEM', 'BENFEITORIA', 'OUTROS']);
+const CATEGORIAS_FORA = Object.freeze(['COLHEITA', 'MANEJO_ANIMAL']);
 /** Nomes aposentados (D-PROD-181/183): continuam recusados em /tipos-atividade. */
 const CHAVES_APOSENTADAS = Object.freeze(['pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento']);
 const CAMPOS_D182 = Object.freeze([
@@ -77,7 +79,8 @@ const CAMPOS_D195 = Object.freeze([
 const CAMPOS_PUBLICOS = Object.freeze([...CAMPOS_D182, ...CAMPOS_D195].sort());
 /** Os campos novos de um tipo sem nada informado: flags false, padrões null. */
 const SEM_PADROES = Object.freeze({
-  categoria: null,
+  categoria: 'OUTROS', // D-PROD-258: obrigatória; o helper `base` manda OUTROS
+  ...{},
   centro_custo_padrao_id: null, centro_custo_padrao: null,
   centro_resultado_padrao_id: null, centro_resultado_padrao: null,
   unidade_producao_id: null, unidade_producao: null,
@@ -110,7 +113,9 @@ const criarGrupo = async (token, nome) => {
   return r.json();
 };
 
-const criarTipo = (token, payload) => req('POST', '/tipos-atividade', token, payload);
+// D-PROD-258: a categoria (tipo fixo) é obrigatória no POST; o helper a preenche, quem testa a falta usa `criarTipoCru`.
+const criarTipoCru = (token, payload) => req('POST', '/tipos-atividade', token, payload);
+const criarTipo = (token, payload) => criarTipoCru(token, { categoria: 'OUTROS', ...payload });
 const patchTipo = (token, id, payload) => req('PATCH', `/tipos-atividade/${id}`, token, payload);
 const criarTipoOk = async (token, payload) => {
   const r = await criarTipo(token, payload);
@@ -211,7 +216,10 @@ const montar = async () => {
   };
 };
 /** Corpo mínimo de criação no grupo do cenário. */
-const base = (s, nome = 'Pulverização', extra = {}) => ({ nome_tipo: nome, grupo_atividade_id: s.grupo.id, ...extra });
+// D-PROD-258: categoria obrigatória (OUTROS) e as 8 chaves desligadas explicitamente — estes testes de D-PROD-197 provam cada
+// chave isolada; o padrão automático (chaves ligadas) tem o seu próprio teste, que não usa `base`.
+const FLAGS_DESLIGADAS = Object.freeze(Object.fromEntries(FLAGS.map((f) => [f, false])));
+const base = (s, nome = 'Pulverização', extra = {}) => ({ nome_tipo: nome, grupo_atividade_id: s.grupo.id, categoria: 'OUTROS', ...FLAGS_DESLIGADAS, ...extra });
 
 const ACOES_TELA = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
 const TODAS_ACOES = Object.freeze(Object.fromEntries(ACOES_TELA.map((a) => [a, true])));
@@ -488,7 +496,7 @@ describe('D-PROD-182 — TipoAtividade: permissão de tela', () => {
 // ═══ D-PROD-197 — padrões e flags ════════════════════════════════════════════
 
 describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () => {
-  test('POST sem os campos novos: flags false, categoria/padrões/coeficiente null — na resposta, no detalhe, na lista, na linha e na auditoria', async () => {
+  test('POST sem os campos novos (com as chaves desligadas): categoria OUTROS, padrões/coeficiente null — na resposta, no detalhe, na lista, na linha e na auditoria', async () => {
     const s = await montar();
     const t = await criarTipoOk(s.token, base(s, 'Gradagem'));
     assert.deepEqual(Object.keys(t).sort(), CAMPOS_PUBLICOS);
@@ -498,7 +506,8 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
 
     const linha = await linhaDoTipo(t.id);
     for (const f of FLAGS) assert.equal(linha[f], false, `linha: ${f}`);
-    for (const c of ['categoria', 'centro_custo_padrao_id', 'centro_resultado_padrao_id', 'unidade_producao_id', 'coeficiente_padrao']) {
+    assert.equal(linha.categoria, 'OUTROS');
+    for (const c of ['centro_custo_padrao_id', 'centro_resultado_padrao_id', 'unidade_producao_id', 'coeficiente_padrao']) {
       assert.equal(linha[c], null, `linha: ${c}`);
     }
 
@@ -508,10 +517,10 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
     assert.deepEqual(audit[0].dados_novos, t, 'a auditoria grava a forma pública');
   });
 
-  test('POST com os padrões explicitamente null → 201 com tudo null (null é valor aceito)', async () => {
+  test('POST com os padrões (centros, unidade, coeficiente) explicitamente null → 201 com tudo null (null é valor aceito)', async () => {
     const s = await montar();
     const t = await criarTipoOk(s.token, base(s, 'Roçada', {
-      categoria: null, centro_custo_padrao_id: null, centro_resultado_padrao_id: null, unidade_producao_id: null, coeficiente_padrao: null,
+      centro_custo_padrao_id: null, centro_resultado_padrao_id: null, unidade_producao_id: null, coeficiente_padrao: null,
     }));
     assert.deepEqual(camposD195(t), SEM_PADROES);
   });
@@ -610,7 +619,7 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
     assert.deepEqual(flagsDe(await linhaDoTipo(t.id)), { ...flagsDe(SEM_PADROES), exige_area: true }, 'flags intactas');
   });
 
-  test('categoria: as 9 do contrato gravam no POST e no PATCH; null limpa; fora da lista (minúscula, com acento, espaço, vazia, número, booleano) → 400', async () => {
+  test('categoria (tipo fixo, D-PROD-258): os 7 gravam no POST e no PATCH; null, ausente, COLHEITA e MANEJO_ANIMAL → 400; fora da lista → 400', async () => {
     const s = await montar();
     for (const [i, c] of CATEGORIAS.entries()) {
       const t = await criarTipoOk(s.token, base(s, `Tipo ${i}`, { categoria: c }));
@@ -622,13 +631,50 @@ describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () =>
       assert.equal((await patchTipoOk(s.token, t.id, { categoria: c })).categoria, c, `PATCH ${c}`);
       assert.equal((await detalheOk(s.token, t.id)).categoria, c);
     }
-    assert.equal((await patchTipoOk(s.token, t.id, { categoria: null })).categoria, null, 'null limpa');
-    assert.equal((await linhaDoTipo(t.id)).categoria, null);
 
-    for (const v of ['INVALIDA', 'aplicacao', 'APLICAÇÃO', 'PREPARO SOLO', ' PLANTIO', '', 1, true]) {
+    const semCategoria = Object.fromEntries(Object.entries(base(s, 'Sem categoria')).filter(([k]) => k !== 'categoria'));
+    await recusaValidacao(s.clienteId, () => criarTipoCru(s.token, semCategoria), 'POST sem categoria');
+    for (const v of [null, ...CATEGORIAS_FORA, 'INVALIDA', 'aplicacao', 'APLICAÇÃO', 'PREPARO SOLO', ' PLANTIO', '', 1, true]) {
       await recusaValidacao(s.clienteId, () => criarTipo(s.token, base(s, 'Novo', { categoria: v })), `POST categoria=${JSON.stringify(v)}`);
       await recusaValidacao(s.clienteId, () => patchTipo(s.token, t.id, { categoria: v }), `PATCH categoria=${JSON.stringify(v)}`);
     }
+    assert.equal((await linhaDoTipo(t.id)).categoria, CATEGORIAS.at(-1), 'a categoria gravada ficou intacta');
+  });
+
+  test('D-PROD-258: tipo antigo sem categoria (ou com COLHEITA) continua legível e editável sem tocar na categoria (só ativo/nome)', async () => {
+    const s = await montar();
+    const antigo = await prisma().tipoAtividade.create({ data: { cliente_id: s.clienteId, grupo_atividade_id: s.grupo.id, grupo_atividade_nome: s.grupo.nome_grupo, nome_tipo: 'ANTIGO', categoria: 'COLHEITA' } });
+    assert.equal((await detalheOk(s.token, antigo.id)).categoria, 'COLHEITA', 'leitura devolve como gravado');
+    const r = await patchTipoOk(s.token, antigo.id, { ativo: false });
+    assert.equal(r.ativo, false);
+    assert.equal((await linhaDoTipo(antigo.id)).categoria, 'COLHEITA', 'PATCH sem categoria não mexe');
+    await recusaValidacao(s.clienteId, () => patchTipo(s.token, antigo.id, { categoria: null }), 'PATCH null');
+  });
+
+  test('D-PROD-258: operação cadastrada só com tipo fixo + nome → grupo GERAL automático (reaproveitado), chaves em padrão (área e 4 seções ligadas), sem centros/unidade/coeficiente', async () => {
+    const s = await montar();
+    const a = await criarTipoCru(s.token, { nome_tipo: 'Gradagem leve', categoria: 'PREPARO_SOLO' });
+    assert.equal(a.statusCode, 201, a.body);
+    const t = a.json();
+    assert.equal(t.categoria, 'PREPARO_SOLO');
+    assert.equal(t.grupo_atividade_nome, 'GERAL');
+    assert.deepEqual(flagsDe(t), {
+      exige_area: true, exige_safra: false, exige_maquina: false, permite_implemento: true,
+      permite_produto: true, permite_servico: true, permite_mao_obra: true, exige_producao: false,
+    });
+    assert.equal(t.centro_custo_padrao_id, null);
+    assert.equal(t.coeficiente_padrao, null);
+    const b = (await criarTipoCru(s.token, { nome_tipo: 'Calagem', categoria: 'PREPARO_SOLO', ativo: false })).json();
+    assert.equal(b.grupo_atividade_id, t.grupo_atividade_id, 'mesmo grupo padrão');
+    assert.equal(b.ativo, false);
+    assert.equal(await prisma().grupoAtividade.count({ where: { cliente_id: s.clienteId, nome_grupo: 'GERAL' } }), 1);
+    const audGrupo = await prisma().auditLog.count({ where: { cliente_id: s.clienteId, entidade: 'GrupoAtividade', entidade_id: t.grupo_atividade_id, acao: 'create' } });
+    assert.equal(audGrupo, 1, 'a criação do grupo padrão é auditada');
+    // Quem manda grupo e chaves explícitos continua sendo obedecido.
+    const c = (await criarTipoCru(s.token, { nome_tipo: 'Explícito', categoria: 'OUTROS', grupo_atividade_id: s.grupo.id, permite_produto: false })).json();
+    assert.equal(c.grupo_atividade_id, s.grupo.id);
+    assert.equal(c.permite_produto, false);
+    assert.equal(c.permite_mao_obra, true);
   });
 
   test('coeficiente_padrao: string canônica com 4 casas (POST e PATCH); null limpa', async () => {
@@ -806,19 +852,20 @@ describe('D-PROD-197 — TipoAtividade: regras dos padrões (422 TIPO_ATIVIDADE_
     }
   });
 
-  test('null limpa os padrões (centros, unidade, coeficiente e categoria): resposta, detalhe e linha nulos; flags intactas', async () => {
+  test('null limpa os padrões (centros, unidade e coeficiente; a categoria não): resposta, detalhe e linha nulos; flags intactas', async () => {
     const s = await montar();
     const t = await criarTipoOk(s.token, base(s, 'Base', {
-      categoria: 'COLHEITA', centro_custo_padrao_id: s.cc1.id, centro_resultado_padrao_id: s.cr1.id, unidade_producao_id: s.ha.id,
+      categoria: 'APLICACAO', centro_custo_padrao_id: s.cc1.id, centro_resultado_padrao_id: s.cr1.id, unidade_producao_id: s.ha.id,
       coeficiente_padrao: '0.75', exige_producao: true,
     }));
     const limpo = await patchTipoOk(s.token, t.id, {
-      categoria: null, centro_custo_padrao_id: null, centro_resultado_padrao_id: null, unidade_producao_id: null, coeficiente_padrao: null,
+      centro_custo_padrao_id: null, centro_resultado_padrao_id: null, unidade_producao_id: null, coeficiente_padrao: null,
     });
-    assert.deepEqual(camposD195(limpo), { ...SEM_PADROES, exige_producao: true });
+    assert.deepEqual(camposD195(limpo), { ...SEM_PADROES, categoria: 'APLICACAO', exige_producao: true });
     assert.deepEqual(await detalheOk(s.token, t.id), limpo);
     const linha = await linhaDoTipo(t.id);
-    for (const c of ['categoria', 'centro_custo_padrao_id', 'centro_resultado_padrao_id', 'unidade_producao_id', 'coeficiente_padrao']) assert.equal(linha[c], null, c);
+    for (const c of ['centro_custo_padrao_id', 'centro_resultado_padrao_id', 'unidade_producao_id', 'coeficiente_padrao']) assert.equal(linha[c], null, c);
+    assert.equal(linha.categoria, 'APLICACAO', 'a categoria (tipo fixo) não se limpa');
     assert.equal(linha.exige_producao, true);
   });
 
@@ -902,7 +949,7 @@ describe('D-PROD-197 — TipoAtividade: unicidade e isolamento por tenant', () =
   test('unicidade (cliente, grupo, nome) mantida com os campos novos: POST e PATCH → 409 TIPO_ATIVIDADE_NAME_CONFLICT; nada gravado', async () => {
     const s = await montar();
     const completo = {
-      categoria: 'COLHEITA', centro_custo_padrao_id: s.cc1.id, centro_resultado_padrao_id: s.cr1.id, unidade_producao_id: s.ha.id,
+      categoria: 'APLICACAO', centro_custo_padrao_id: s.cc1.id, centro_resultado_padrao_id: s.cr1.id, unidade_producao_id: s.ha.id,
       coeficiente_padrao: '2', exige_maquina: true,
     };
     await criarTipoOk(s.token, base(s, 'Colheita de soja', completo));

@@ -44,7 +44,7 @@
 
 import { AppError } from '../../shared/errors/AppError.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
-import { consumirFifo } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { consumirCustoMedio } from '../estoqueFisico/estoqueFisicoMotor.js';
 import {
   CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_QUANTIDADE, CASAS_RESIDUO, CEM, Dec, LIMITE_DINHEIRO, LIMITE_ESTOQUE, LIMITE_RESIDUO_RELATIVO, UM, ZERO,
   arredondar, casasDecimais, dec, somar, texto, unidadeMinima,
@@ -731,7 +731,7 @@ export const simularEfeitosEstoque = (plano, estado) => {
   for (const s of plano.efeitos_estoque.saidas) {
     const chave = `${s.produto_id}|${s.local_estoque_id}`;
     const ls = lotes.get(chave) ?? [];
-    const fifo = consumirFifo(ls, s.kg);
+    const fifo = consumirCustoMedio(ls, s.kg);
     if (!fifo.suficiente) {
       bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', {
         ...linha(s), disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: s.kg.toFixed(CASAS_QUANTIDADE),
@@ -741,6 +741,8 @@ export const simularEfeitosEstoque = (plano, estado) => {
         const l = ls.find((x) => x.id === f.lote_id);
         if (l) l.quantidade_disponivel = l.quantidade_disponivel.minus(f.quantidade);
       }
+      // D-PROD-256: o motor reavalia o disponível restante para o médio de depois; a simulação da próxima saída do mesmo poço vê o mesmo.
+      for (const l of ls) if (fifo.camadasRestantes.includes(l.id)) l.custo_unitario = fifo.custoMedioDepois;
       if (fifo.valorTotal.gt(LIMITE_ESTOQUE)) bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade', 'valor_excede_limite_estoque', linha(s));
     }
     const atual = estoque.get(s.produto_id) ?? ZERO;

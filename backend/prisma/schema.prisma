@@ -120,6 +120,9 @@ model Cliente {
   perfisFinanceiros            PerfilFinanceiroEmpresa[]
   operacoesFinanceiras         OperacaoFinanceira[]
   operacoesFinanceirasItens    OperacaoFinanceiraItem[]
+  entradasEstoque              EntradaEstoque[]
+  entradasEstoqueItens         EntradaEstoqueItem[]
+  entradasEstoqueEventos       EntradaEstoqueEvento[]
   operacoesFinanceirasConsumos OperacaoFinanceiraConsumoLote[]
   operacoesFinanceirasRateios  OperacaoFinanceiraRateio[]
   operacoesFinanceirasItensRateios OperacaoFinanceiraItemRateio[]
@@ -1175,6 +1178,7 @@ model LocalEstoque {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   // D-PROD-155 — itens de lançamento que movimentam este local.
   itensFinanceiros OperacaoFinanceiraItem[]
+  entradasEstoqueItens EntradaEstoqueItem[]
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
   // D-PROD-202 — linhas de produto que baixaram estoque deste local.
@@ -1221,6 +1225,7 @@ model Produto {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   // D-PROD-155 — itens de lançamento deste produto.
   itensFinanceiros OperacaoFinanceiraItem[]
+  entradasEstoqueItens EntradaEstoqueItem[]
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
@@ -1392,6 +1397,7 @@ model Empresa {
   atividadeApontamentos AtividadeApontamento[]
   // D-PROD-249 — as áreas das atividades da fazenda.
   atividadeAreas        AtividadeArea[]
+  entradasEstoque       EntradaEstoque[]
   // D-PROD-207 — funcionários e serviços da fazenda.
   servicos              Servico[]
   @@unique([cliente_id, id])
@@ -1693,6 +1699,7 @@ model EstoqueLoteNota {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   // D-PROD-155 — lote criado pela entrada de um lançamento e fatias FIFO consumidas.
   itemFinanceiroEntrada OperacaoFinanceiraItem?         @relation("OperacaoFinanceiraItemLoteEntrada")
+  itemEntradaEstoque    EntradaEstoqueItem?         @relation("EntradaEstoqueItemLote")
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
   // D-PROD-159 — fatias FIFO consumidas por abastecimento de bem.
   consumosAbastecimento AbastecimentoBemConsumoLote[]   @relation("AbastecimentoBemConsumoDoLote")
@@ -1772,6 +1779,8 @@ model MovimentacaoEstoque {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   // D-PROD-155 — item de lançamento que gerou / estornou este movimento.
   itemFinanceiro        OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemMovimento")
+  itemEntradaEstoque        EntradaEstoqueItem?     @relation("EntradaEstoqueItemMovimento")
+  itemEntradaEstoqueEstorno EntradaEstoqueItem?     @relation("EntradaEstoqueItemEstorno")
   itemFinanceiroEstorno OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemEstorno")
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
   abastecimentoBem        AbastecimentoBem? @relation("AbastecimentoBemMovimento")
@@ -3653,4 +3662,122 @@ model AtividadeApontamentoServico {
   @@index([cliente_id, empresa_id, apontamento_id])
   @@index([cliente_id, empresa_id, servico_id])
   @@index([cliente_id, fornecedor_parceiro_id])
+}
+
+// ---------------------------------------------------------------------------
+// D-PROD-257 — Estoque: Entradas (entrada manual documentada + saldo de
+// implantação). Contrato: docs/engineering/MAIKE-ESTOQUE-P1-CONTRATO.md (P1-05a).
+// Três tabelas novas (EXPAND); a entrada só mexe em estoque pelo motor único.
+// ---------------------------------------------------------------------------
+
+/// Cabeçalho da entrada. `status`: RASCUNHO | CONFIRMADA | EXCLUIDA (CHECK; esta PR só grava
+/// CONFIRMADA e EXCLUIDA). `motivo` (imutável, classe I): SALDO_IMPLANTACAO | DOACAO |
+/// OUTRA_COM_JUSTIFICATIVA (CHECK). `versao` é o CAS; `revisao` nasce em 1 ao confirmar.
+model EntradaEstoque {
+  id                        String    @id @default(cuid())
+  cliente_id                String    @db.VarChar(64)
+  empresa_id                String    @db.VarChar(64)
+  numero                    String    @db.VarChar(32)
+  status                    String    @db.VarChar(16)
+  versao                    Int       @default(1)
+  revisao                   Int       @default(1)
+  motivo                    String    @db.VarChar(32)
+  data_entrada              DateTime  @db.Date
+  documento_numero          String?   @db.VarChar(64)
+  observacao                String?   @db.VarChar(500)
+  justificativa             String?   @db.VarChar(500)
+  confirmada_em             DateTime?
+  confirmada_por_usuario_id String?   @db.VarChar(64)
+  excluida_em               DateTime?
+  excluida_por_usuario_id   String?   @db.VarChar(64)
+  motivo_exclusao           String?   @db.VarChar(500)
+  /// RASCUNHO | CONFIRMADA (de que estado saiu a exclusão).
+  excluida_de               String?   @db.VarChar(16)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  cliente Cliente                 @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa                 @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  itens   EntradaEstoqueItem[]
+  eventos EntradaEstoqueEvento[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, numero])
+  @@index([cliente_id, empresa_id, status, data_entrada])
+  @@index([cliente_id, empresa_id, motivo])
+}
+
+/// Linha versionada por intervalo de revisão (`revisao_fim` nula = vigente). Índice único
+/// parcial `EntradaEstoqueItem_par_vigente_key` (cliente_id, entrada_id, produto_id,
+/// local_estoque_id) WHERE revisao_fim IS NULL vive só na migration (o Prisma não o modela).
+model EntradaEstoqueItem {
+  id                      String   @id @default(cuid())
+  cliente_id              String   @db.VarChar(64)
+  empresa_id              String   @db.VarChar(64)
+  entrada_id              String   @db.VarChar(64)
+  ordem                   Int
+  produto_id              String   @db.VarChar(64)
+  local_estoque_id        String   @db.VarChar(64)
+  /// KG | SACO | L (na unidade informada); o efeito é `quantidade_estoque`, em kg ou L do Produto.
+  unidade                 String   @db.VarChar(8)
+  quantidade              Decimal  @db.Decimal(14, 4)
+  fator_kg                Decimal  @db.Decimal(14, 4)
+  quantidade_estoque      Decimal  @db.Decimal(14, 4)
+  /// Custo por unidade informada; `custo_kg` por unidade de estoque (o da camada).
+  custo_unitario          Decimal  @db.Decimal(14, 4)
+  custo_kg                Decimal  @db.Decimal(14, 4)
+  valor_total             Decimal  @db.Decimal(18, 4)
+  custo_zero              Boolean  @default(false)
+  estoque_lote_nota_id    String?  @db.VarChar(64)
+  movimentacao_estoque_id String?  @db.VarChar(64)
+  movimentacao_estorno_id String?  @db.VarChar(64)
+  revisao_inicio          Int
+  revisao_fim             Int?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  cliente             Cliente               @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  entrada             EntradaEstoque        @relation(fields: [cliente_id, empresa_id, entrada_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "EntradaEstoqueItem_entrada_fkey")
+  produto             Produto               @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict, map: "EntradaEstoqueItem_produto_fkey")
+  localEstoque        LocalEstoque          @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "EntradaEstoqueItem_local_fkey")
+  lote                EstoqueLoteNota?      @relation("EntradaEstoqueItemLote", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict, map: "EntradaEstoqueItem_lote_fkey")
+  movimentacao        MovimentacaoEstoque?  @relation("EntradaEstoqueItemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "EntradaEstoqueItem_movimento_fkey")
+  movimentacaoEstorno MovimentacaoEstoque?  @relation("EntradaEstoqueItemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "EntradaEstoqueItem_estorno_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, entrada_id, ordem, revisao_inicio], map: "EntradaEstoqueItem_linha_key")
+  @@unique([cliente_id, estoque_lote_nota_id])
+  @@unique([cliente_id, movimentacao_estoque_id])
+  @@unique([cliente_id, movimentacao_estorno_id])
+  @@index([cliente_id, empresa_id, entrada_id])
+  @@index([cliente_id, produto_id])
+  @@index([cliente_id, local_estoque_id])
+}
+
+/// Histórico append-only (convenção do serviço + FKs Restrict; sem rota de UPDATE/DELETE).
+/// `tipo`: CONFIRMACAO | EDICAO | EXCLUSAO. `modo` (só EDICAO): METADADOS | SUBSTITUICAO.
+model EntradaEstoqueEvento {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  empresa_id        String   @db.VarChar(64)
+  entrada_id        String   @db.VarChar(64)
+  tipo              String   @db.VarChar(16)
+  modo              String?  @db.VarChar(16)
+  revisao_anterior  Int
+  revisao_nova      Int
+  versao_anterior   Int
+  versao_nova       Int
+  motivo            String   @db.VarChar(500)
+  usuario_id        String?  @db.VarChar(64)
+  snapshot_anterior Json?
+  snapshot_novo     Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  entrada EntradaEstoque @relation(fields: [cliente_id, empresa_id, entrada_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "EntradaEstoqueEvento_entrada_fkey")
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id, entrada_id, createdAt], map: "EntradaEstoqueEvento_entrada_idx")
 }

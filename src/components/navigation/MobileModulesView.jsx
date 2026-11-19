@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
+  Boxes,
   Briefcase,
   Building2,
   ChevronRight,
@@ -56,6 +57,7 @@ export const ICONE_TELA = {
   Marcas: Tag,
   UnidadesMedida: Ruler,
   LocaisEstoque: Warehouse,
+  Estoque: Boxes, // D-PROD-255
   TiposTarefa: ListChecks,
   TiposAtividade: ListChecks,
   // D-PROD-200 — Lançamento de Atividades (a execução; o ícone do antigo Apontamentos de Atividade, ≠ ListChecks dos tipos).

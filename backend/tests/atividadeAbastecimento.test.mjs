@@ -145,9 +145,9 @@ describe('origem EXTERNO (posto de estrada)', () => {
     assert.deepEqual([sem.plano.origem, sem.plano.local_estoque, sem.plano.fifo, sem.plano.estoque, sem.plano.custo_total, sem.plano.custo_e_estimativa], ['EXTERNO', null, null, null, null, false]);
     const com = await A.ok(A.previa(s.token, semOperacao(corpoExterno(s))));
     assert.deepEqual([com.plano.custo_total, com.plano.custo_unitario], ['480.5000', '6.0063']);
-    // o ESTOQUE segue com a estimativa do FIFO: 50 × 5,20 + 30 × 5,50 = 425
+    // o ESTOQUE segue com a estimativa do médio de 50×5,20 + 100×5,50 ÷ 150 = 5,40; 80 × 5,40 = 432
     const est = await A.ok(A.previa(s.token, semOperacao(corpoAbastecimento(s))));
-    assert.deepEqual([est.plano.origem, est.plano.custo_total, est.plano.custo_e_estimativa], ['ESTOQUE', '425.0000', true]);
+    assert.deepEqual([est.plano.origem, est.plano.custo_total, est.plano.custo_e_estimativa], ['ESTOQUE', '432.0000', true]);
   });
 });
 
@@ -445,7 +445,7 @@ describe('totais da atividade com combustível', () => {
         { bem_id: s.caminhonete.id, sem_medidor: false, leitura_inicial: '35210', leitura_final: '35310' }, // 100 km
       ],
     });
-    // trator: 80 L do estoque (FIFO 425,00); caminhonete: 10 L de gasolina no posto (60,00)
+    // trator: 80 L do estoque (custo médio 432,00); caminhonete: 10 L de gasolina no posto (60,00)
     await A.confirmarOk(s.token, corpoAbastecimento(s, { apontamento_id: ap.id, medidor_leitura: '1531' }));
     await A.confirmarOk(s.token, corpoExterno(s, {
       apontamento_id: ap.id, bem_id: s.caminhonete.id, tanque_id: s.caminhonete.tanques[0].id, produto_id: s.gasolina.id, quantidade: '10', custo_total: '60', medidor_leitura: '35311',
@@ -456,15 +456,15 @@ describe('totais da atividade com combustível', () => {
     const cancelado = await A.confirmarOk(s.token, corpoExterno(s, { apontamento_id: ap.id, quantidade: '1', custo_total: '5', medidor_leitura: '1532', tanque_cheio: false }));
     await A.ok(A.cancelar(s.token, cancelado.id, cancelarCorpo(s)));
     const t = await s.totais();
-    // gerador: 10 L do lote B a 5,50 = 55,00 (o trator já levou os 50 do A e 30 do B)
-    assert.deepEqual(t.combustivel, { quantidade_l: '100.0000', quantidade_kg: null, custo_total: '540.0000' });
-    assert.deepEqual([t.custo_total, t.custo_por_ha, t.custo_combustivel_por_ha], ['540.0000', '54.0000', '54.0000']);
+    // gerador: 10 L a 5,40 = 54,00 (médio do poço; o trator já levou 80 L)
+    assert.deepEqual(t.combustivel, { quantidade_l: '100.0000', quantidade_kg: null, custo_total: '546.0000' });
+    assert.deepEqual([t.custo_total, t.custo_por_ha, t.custo_combustivel_por_ha], ['546.0000', '54.6000', '54.6000']);
     // D-PROD-234: o combustível é parcela própria do custo por tipo; litros / área executada (100 L em 10 ha).
-    assert.deepEqual(t.custo_por_tipo, { maquinas: null, produtos: null, mao_obra: null, servicos: null, combustivel: '540.0000' });
+    assert.deepEqual(t.custo_por_tipo, { maquinas: null, produtos: null, mao_obra: null, servicos: null, combustivel: '546.0000' });
     assert.equal(t.litros_combustivel_por_ha, '10.0000');
     // A lista soma os abastecimentos CONFIRMADO ligados (o cancelado não), como os totais.
     const naLista = async (atv) => (await s.H.ok(s.H.req('GET', `/atividades?empresa_id=${s.e1.id}`, s.token))).items.find((i) => i.id === atv.id).custo_total;
-    assert.equal(await naLista(s.atividade), '540.0000');
+    assert.equal(await naLista(s.atividade), '546.0000');
     const porNome = Object.fromEntries(t.consumo_por_bem.map((c) => [c.bem.nome, c]));
     assert.deepEqual(Object.keys(porNome).sort(), ['Caminhonete UT-04', 'Gerador da sede', 'Trator TP-02']);
     const trator = porNome['Trator TP-02'];
@@ -479,8 +479,8 @@ describe('totais da atividade com combustível', () => {
     const t2 = await s.totais();
     const misto = t2.consumo_por_bem.find((c) => c.bem.id === s.trator.id);
     assert.deepEqual([misto.quantidade, misto.unidade, misto.quantidade_l, misto.quantidade_kg, misto.metrica, misto.valor], [null, null, '80.0000', '10.0000', null, null]);
-    assert.deepEqual([t2.combustivel.quantidade_l, t2.combustivel.quantidade_kg, t2.combustivel.custo_total], ['100.0000', '10.0000', '601.0000']);
-    assert.deepEqual([t2.custo_por_tipo.combustivel, t2.litros_combustivel_por_ha, await naLista(s.atividade)], ['601.0000', '10.0000', '601.0000'], 'o quilo não entra nos litros por ha');
+    assert.deepEqual([t2.combustivel.quantidade_l, t2.combustivel.quantidade_kg, t2.combustivel.custo_total], ['100.0000', '10.0000', '607.0000']);
+    assert.deepEqual([t2.custo_por_tipo.combustivel, t2.litros_combustivel_por_ha, await naLista(s.atividade)], ['607.0000', '10.0000', '607.0000'], 'o quilo não entra nos litros por ha');
     // sem uso (nenhuma linha de máquina do bem na atividade): valor nulo
     const b = await s.abrir();
     const apB = await s.apontar({ data_operacional: '2027-06-12' }, { a: b });

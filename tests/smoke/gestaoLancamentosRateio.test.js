@@ -201,7 +201,7 @@ describe('VET-4 — textos: só serviços sem lote; limite completo na recusa', 
     const { mensagemDoAvisoDoPlano } = await import('../../src/lib/gestaoErros.js');
     const venda = mensagemDoAvisoDoPlano({ codigo: 'desconto_acrescimo_rateados' }, { direcao: 'RECEBER', semEstoque: false });
     expect(venda).toMatch(/receita líquida por item/);
-    expect(venda).toMatch(/custo FIFO dos lotes/);
+    expect(venda).toMatch(/custo médio do estoque/);
     expect(venda).not.toMatch(/custo do lote é o valor líquido/);
   });
   it('formulário (calcularResumo): desconto que zera a linha e acréscimo que leva o líquido acima do teto do estoque apontam o ITEM antes de salvar', async () => {

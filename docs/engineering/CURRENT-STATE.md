@@ -9,7 +9,54 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)
+## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-ENTRADAS: aba Entradas do Estoque (D-PROD-257, PR 2 de 2)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-257**: aba **Entradas** (entrada manual documentada e saldo de implantação) na tela Estoque; o inventário inicial é o motivo `SALDO_IMPLANTACAO`, não uma aba |
+| Branch / PR | `cursor/estoque-entradas`, **empilhada** em `cursor/estoque-custo-medio` (PR #337, D-PROD-256, ainda não mesclada) · sem push nem PR ainda; o PR deve ter base `cursor/estoque-custo-medio` |
+| Escopo | `backend/src/modules/estoqueEntradas/` (rotas, serviço, regras), dois invólucros no motor (`aplicarEntradaDocumentada`, `estornarEntradaDocumentada`), reconciliação (origem e FK do estorno), permissão extra `entrada` da tela `sup-estoque`, aba/lista/formulário/detalhe no front |
+| Migration | `20261119100000_estoque_entradas`, **EXPAND** (3 tabelas novas). Sobe pelo caminho normal de deploy **só depois do merge manual, e depois da #337**; nada foi aplicado em produção |
+| Constituição | a emenda do custo médio (D-PROD-256) **continua pendente de ratificação** no merge da #337; esta PR não a aprova |
+| Abertos | consulta recíproca da P3 (compra → entrada; bloqueio de liberação do contrato), edição física por revisão (P1-05b), janela FIFO/R-DATA, inventário periódico e `ajuste` |
+| Relatório | [`MAIKE-ESTOQUE-ENTRADAS-REPORT.md`](./MAIKE-ESTOQUE-ENTRADAS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-CUSTO-MEDIO: custo médio ponderado no motor único (D-PROD-256, PR 1 de 2)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-256**, pedido do proprietário: custo médio e aba Entradas, em PRs empilhadas, custo médio primeiro; Entradas é a **D-PROD-257** (PR 2) |
+| Branch / PR | `cursor/estoque-custo-medio`, a partir da `main` `75464e88` (PR #335) · sem push nem PR ainda |
+| Escopo | `estoqueFisicoMotor.js`: `consumirCustoMedio` e `aplicarSaida` (no lugar de `consumirFifo`/`aplicarSaidaFifo`), reavaliação do poço produto × depósito, estorno exato, transferência com valor conservado; chamadores renomeados (abastecimento, atividade, cocho, venda, transferência) |
+| Cutover | daqui para a frente; histórico, fatias e consumos **não** são reescritos; saída FIFO antiga estornada devolve o valor FIFO gravado |
+| Migration | **nenhuma** (só código, sem DDL). Nada roda no banco no merge |
+| Constituição | emenda **proposta** em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md`; **só vale com a aprovação do proprietário no merge manual** |
+| Fica para a PR 2 | aba Entradas, `EntradaEstoque*`, motivos (D-PROD-177), permissão `entrada`/`ajuste`, migration, reconciliação |
+| Relatório | [`MAIKE-ESTOQUE-CUSTO-MEDIO-REPORT.md`](./MAIKE-ESTOQUE-CUSTO-MEDIO-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ATIVIDADES-FASE1: tipos fixos + formulário único, só serviços de pasto (D-PROD-258)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-258**, pedido do proprietário: aprovou a fase 1 da análise de Atividades, com escopo só de pastos |
+| Branch / PR | `feat/atividades-tipos-fixos` · PR **#338**, mergeada na `main` `bab0f38a` |
+| Escopo | 7 tipos fixos obrigatórios na categoria; cadastro de operação com tipo + nome + ativo; "Registrar serviço" em dois passos (tipo, depois operação) com as quatro seções sempre visíveis; Manejos do mapa abre o mesmo formulário com a área preenchida; Grupo e as 8 chaves fora das telas de atividade |
+| Backend | `categoria` obrigatória (7 valores) em `POST/PATCH /tipos-atividade`; grupo `GERAL` e chaves em padrão na criação. **Nenhuma migration** |
+| Dados | `scripts/ops/tipos-fixos-atividade-dados.mjs`: dry-run por padrão, **não executado** em dados reais; precisa da conferência do proprietário |
+| Relatório | [`MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md`](./MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-E1-E2: tela Estoque com Saldo e Movimentos, só consulta (D-PROD-255)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-255**, pedido do proprietário: um item "Estoque" com abas; implementadas só **Saldo** e **Movimentos** (Entradas e Inventário não aparecem) |
+| Branch / PR | `cursor/estoque-saldo-movimentos`, a partir da `main` `9d791735` · sem push nem PR ainda |
+| Escopo | Página `Estoque` (Suporte do Mapa → Estoque, `/estoque`), na cadeia Base1; Saldo produto × depósito (das camadas), Movimentos (kardex) com filtros, janela de detalhe somente leitura; clicar no Saldo leva aos Movimentos do produto e depósito |
+| Backend | `GET /estoque/saldo`, `/estoque/movimentos` (P1-04, keyset + cursor assinado), `/estoque/movimentos/:id`, `/estoque/opcoes/produtos` e `/locais`; guarda da tela nova `sup-estoque` (`visualizar`). **Nenhuma migration**, motor intocado, guardas existentes mantidas |
+| Fica para depois | Entradas (saldo inicial, doação, outra causa), Inventário (saldo inicial + contagem periódica com ajuste e motivo), saída manual com motivos fixos, **custo médio** (feito na D-PROD-256; antes FIFO por camada), permissão extra `entrada`/`ajuste` |
+| Relatório | [`MAIKE-ESTOQUE-E1-E2-REPORT.md`](./MAIKE-ESTOQUE-E1-E2-REPORT.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-DETALHES-AREA: Detalhes da área como o do lote e "Registrar serviço" nas Atividades (D-PROD-254)
 
 | Campo | Valor |
 |---|---|

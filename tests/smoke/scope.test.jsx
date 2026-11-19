@@ -74,8 +74,8 @@ describe('escopo do produto', () => {
     // +1 Tipos de Atividade (D-PROD-182); +1 Estações (D-PROD-188); +1 Curvas de Ganho (D-PROD-189);
     // +1 Apontamentos de Atividade (D-PROD-190), trocado por Lançamento de Atividades (D-PROD-200, uma por uma);
     // +1 Formulações (D-PROD-203); +2 Funcionários e Serviços (D-PROD-207); −1 Funcionários (D-PROD-208: papel do parceiro);
-    // +1 Culturas (D-PROD-215).
-    expect(scope.allowedPages).toHaveLength(31);
+    // +1 Culturas (D-PROD-215); +1 Estoque (D-PROD-255).
+    expect(scope.allowedPages).toHaveLength(32);
   });
 
   it('D-PROD-208: a tela Funcionários saiu (o funcionário é papel do parceiro); Serviços continua', () => {

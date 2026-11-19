@@ -168,8 +168,8 @@ describe('E1 — entrada (compra confirmada)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('E2 — saída FIFO (venda confirmada)', () => {
-  test('FIFO em 3 lotes na ordem COALESCE(data_documento, createdAt), id; custo FIFO ≠ preço de venda; fatias gravadas e exibidas', async () => {
+describe('E2 — saída a custo médio (venda confirmada, D-PROD-256)', () => {
+  test('custo médio do poço (3 lotes); lotes baixados na ordem COALESCE(data_documento, createdAt), id; custo ≠ preço de venda; fatias gravadas e exibidas; restante reavaliado ao médio', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -188,16 +188,17 @@ describe('E2 — saída FIFO (venda confirmada)', () => {
     assert.deepEqual(prev.bloqueios, []);
     const saida = prev.plano.efeitos_estoque.saidas[0];
     assert.deepEqual([saida.kg, saida.disponivel, saida.custo_total, saida.fatias.map((f) => [f.lote_id, f.quantidade, f.custo_unitario])], [
-      '45.0000', '85.0000', '95.0000', [[semData.id, '5.0000', '1.0000'], [cedo.id, '30.0000', '2.0000'], [tardio.id, '10.0000', '3.0000']],
+      // poço 85 kg: V = 5×1 + 30×2 + 50×3 = 215 → médio 2,5294; saída 45 × 2,5294 = 113,8230
+      '45.0000', '85.0000', '113.8230', [[semData.id, '5.0000', '2.5294'], [cedo.id, '30.0000', '2.5294'], [tardio.id, '10.0000', '2.5294']],
     ]);
     const conf = await A.confirmar(s.token, d, e.id);
     const porQtd = (lista) => [...lista].sort((a, b) => Number(a.quantidade) - Number(b.quantidade));
     assert.deepEqual(porQtd(conf.itens[0].consumos).map((c) => [c.estoque_lote_nota_id, c.quantidade, c.custo_unitario]), [
-      [semData.id, '5.0000', '1.0000'], [tardio.id, '10.0000', '3.0000'], [cedo.id, '30.0000', '2.0000'],
+      [semData.id, '5.0000', '2.5294'], [tardio.id, '10.0000', '2.5294'], [cedo.id, '30.0000', '2.5294'],
     ]);
     const consumos = await p.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: s.c }, orderBy: { quantidade: 'asc' } });
     assert.deepEqual(consumos.map((c) => [c.item_id, c.estoque_lote_nota_id, q4(c.quantidade), q4(c.custo_unitario), c.empresa_id]), [
-      [conf.itens[0].id, semData.id, '5.0000', '1.0000', e.id], [conf.itens[0].id, tardio.id, '10.0000', '3.0000', e.id], [conf.itens[0].id, cedo.id, '30.0000', '2.0000', e.id],
+      [conf.itens[0].id, semData.id, '5.0000', '2.5294', e.id], [conf.itens[0].id, tardio.id, '10.0000', '2.5294', e.id], [conf.itens[0].id, cedo.id, '30.0000', '2.5294', e.id],
     ]);
     const lotes = await p.estoqueLoteNota.findMany({ where: { id: { in: [semData.id, cedo.id, tardio.id] } } });
     const porId = new Map(lotes.map((l) => [l.id, [q4(l.quantidade_disponivel), l.status]]));
@@ -205,9 +206,11 @@ describe('E2 — saída FIFO (venda confirmada)', () => {
     const mov = await p.movimentacaoEstoque.findUnique({ where: { id: conf.itens[0].movimentacao_estoque_id } });
     assert.deepEqual(
       [mov.tipo_movimentacao, mov.tipo_detalhado, q4(mov.quantidade), q4(mov.valor_total), q4(mov.valor_unitario), mov.local_estoque_origem, q4(mov.saldo_antes), q4(mov.saldo_depois), mov.cliente_nome, mov.modo_saida_fifo],
-      ['Saída', 'venda_financeiro', '45.0000', '95.0000', '2.1111', s.local.id, '85.0000', '40.0000', e.cli.nome, 'FIFO'],
-      'custo FIFO (95), nunca o preço de venda (450)'
+      ['Saída', 'venda_financeiro', '45.0000', '113.8230', '2.5294', s.local.id, '85.0000', '40.0000', e.cli.nome, 'CUSTO_MEDIO'],
+      'custo médio (113,823), nunca o preço de venda (450)'
     );
+    const restante = await p.estoqueLoteNota.findUnique({ where: { id: tardio.id } });
+    assert.equal(q4(restante.custo_unitario), '2.5294', 'o disponível restante foi reavaliado: médio de (215 − 113,823) ÷ 40, o médio não "pula"');
     assert.equal(conf.valor_total, '450.00');
     assert.equal(await estoqueAtual(e.sal), '40.0000');
     assert.equal(conf.itens[0].estoque_lote_nota_id, null, 'venda não cria lote');
@@ -220,21 +223,22 @@ describe('E2 — saída FIFO (venda confirmada)', () => {
     const l1 = await loteLegado(s, e, e.sal, s.local, { kg: '10', custo: '2.0000', dia: '2027-05-01' });
     const l2 = await loteLegado(s, e, e.sal, s.local, { kg: '10', custo: '4.0000', dia: '2027-05-02' });
     await definirEstoqueAtual(e.sal, '20');
+    // D-PROD-256: médio do poço (10×2 + 10×4) ÷ 20 = 3,0000 nas duas linhas; o restante continua a 3,0000
     const d = await rascunhoVenda(s, e, [item(e.sal, '8', '10'), item(e.sal, '8', '10')]);
     const prev = await A.previa(s.token, d.id, e.id);
     assert.deepEqual(prev.plano.efeitos_estoque.saidas.map((x) => x.fatias.map((f) => [f.lote_id, f.quantidade])), [[[l1.id, '8.0000']], [[l1.id, '2.0000'], [l2.id, '6.0000']]]);
     const conf = await A.confirmar(s.token, d, e.id);
     assert.deepEqual(conf.itens.map((i) => i.consumos.map((c) => [c.estoque_lote_nota_id, c.quantidade, c.custo_unitario])), [
-      [[l1.id, '8.0000', '2.0000']], [[l1.id, '2.0000', '2.0000'], [l2.id, '6.0000', '4.0000']],
+      [[l1.id, '8.0000', '3.0000']], [[l1.id, '2.0000', '3.0000'], [l2.id, '6.0000', '3.0000']],
     ]);
     const movs = await Promise.all(conf.itens.map((i) => p.movimentacaoEstoque.findUnique({ where: { id: i.movimentacao_estoque_id } })));
-    assert.deepEqual(movs.map((m) => [q4(m.saldo_antes), q4(m.saldo_depois), q4(m.valor_total)]), [['20.0000', '12.0000', '16.0000'], ['12.0000', '4.0000', '28.0000']]);
-    assert.deepEqual((await p.estoqueLoteNota.findMany({ where: { id: { in: [l1.id, l2.id] } }, orderBy: { custo_unitario: 'asc' } })).map((l) => [q4(l.quantidade_disponivel), l.status]), [['0.0000', 'Esgotado'], ['4.0000', 'Disponivel']]);
+    assert.deepEqual(movs.map((m) => [q4(m.saldo_antes), q4(m.saldo_depois), q4(m.valor_total)]), [['20.0000', '12.0000', '24.0000'], ['12.0000', '4.0000', '24.0000']]);
+    assert.deepEqual((await p.estoqueLoteNota.findMany({ where: { id: { in: [l1.id, l2.id] } }, orderBy: { data_documento: 'asc' } })).map((l) => [q4(l.quantidade_disponivel), l.status]), [['0.0000', 'Esgotado'], ['4.0000', 'Disponivel']]);
     assert.equal(await estoqueAtual(e.sal), '4.0000');
     // cancelar e confirmar de novo (outro rascunho igual): cada linha devolve as SUAS fatias, o mesmo lote recebe duas devoluções
     const cancelada = await A.ok(cancelar(s, conf, e));
     assert.equal(cancelada.status, 'CANCELADO');
-    assert.deepEqual((await p.estoqueLoteNota.findMany({ where: { id: { in: [l1.id, l2.id] } }, orderBy: { custo_unitario: 'asc' } })).map((l) => [q4(l.quantidade_disponivel), l.status]), [['10.0000', 'Disponivel'], ['10.0000', 'Disponivel']]);
+    assert.deepEqual((await p.estoqueLoteNota.findMany({ where: { id: { in: [l1.id, l2.id] } }, orderBy: { data_documento: 'asc' } })).map((l) => [q4(l.quantidade_disponivel), l.status]), [['10.0000', 'Disponivel'], ['10.0000', 'Disponivel']]);
     assert.equal(await estoqueAtual(e.sal), '20.0000');
     const de_novo = await rascunhoVenda(s, e, [item(e.sal, '8', '10'), item(e.sal, '8', '10')]);
     await A.confirmar(s.token, de_novo, e.id);
@@ -513,13 +517,13 @@ describe('E4 — cancelamento com efeito de estoque', () => {
     const venda = await rascunhoVenda(s, e, [item(e.sal, '45', '10')]);
     const conf = await A.confirmar(s.token, venda, e.id);
     const canc = await A.ok(cancelar(s, conf, e));
-    const lotes = await p.estoqueLoteNota.findMany({ where: { id: { in: [l1.id, l2.id] } }, orderBy: { custo_unitario: 'asc' } });
+    const lotes = await p.estoqueLoteNota.findMany({ where: { id: { in: [l1.id, l2.id] } }, orderBy: { data_documento: 'asc' } });
     assert.deepEqual(lotes.map((l) => [q4(l.quantidade_disponivel), l.status]), [['30.0000', 'Disponivel'], ['50.0000', 'Disponivel']]);
     const original = await p.movimentacaoEstoque.findUnique({ where: { id: canc.itens[0].movimentacao_estoque_id } });
     const estorno = await p.movimentacaoEstoque.findUnique({ where: { id: canc.itens[0].movimentacao_estorno_id } });
     assert.deepEqual([original.status, original.movimento_filho_id, estorno.movimento_pai_id], ['Estornada', estorno.id, original.id]);
     assert.deepEqual([estorno.tipo_movimentacao, estorno.tipo_detalhado, q4(estorno.quantidade), q4(estorno.valor_total), estorno.local_estoque_destino, q4(estorno.saldo_antes), q4(estorno.saldo_depois)],
-      ['Entrada', 'estorno_venda', '45.0000', '105.0000', s.local.id, '35.0000', '80.0000']);
+      ['Entrada', 'estorno_venda', '45.0000', '118.1250', s.local.id, '35.0000', '80.0000']);  // médio (30×2 + 50×3) ÷ 80 = 2,625 × 45
     assert.equal(await estoqueAtual(e.sal), '80.0000');
     assert.equal(await p.operacaoFinanceiraConsumoLote.count({ where: { cliente_id: s.c } }), 2, 'fatias são fatos: continuam gravadas');
     assert.deepEqual(canc.itens[0].consumos.map((c) => c.estoque_lote_nota_id).sort(), [l1.id, l2.id].sort());
