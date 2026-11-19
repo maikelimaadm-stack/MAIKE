@@ -1,6 +1,6 @@
-**Fatia:** várias linhas por seção no Registrar serviço · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **PR:** (a abrir)
+**Fatia:** várias linhas por seção no Registrar serviço · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **PR:** #346
 
-**Decisão:** D-PROD-261 (fase 2 da D-PROD-258) · **Data:** 2026-11-19 · **Migration:** nenhuma · **Backend:** sem mudança
+**Decisão:** D-PROD-262 (fase 2 da D-PROD-258) · **Data:** 2026-11-19 · **Migration:** nenhuma · **Backend:** sem mudança
 
 ## 1. O que mudou
 
@@ -41,7 +41,7 @@ O "Registrar serviço" (Lançamento de Atividades e Manejos/Detalhes da área no
 | `src/styles/cadastro-base1.css` | marca do item em edição e do recusado (tabela e cartão) |
 | `tests/smoke/registroDeCampoVariasLinhas.test.jsx` (novo) | os 16 testes da fatia |
 | `tests/smoke/detalhesAreaHistorico.test.jsx`, `tests/smoke/lancamentoAtividades.test.jsx` | nomes e ordem novos das seções; os campos aparecem depois do "+ Incluir" |
-| `docs/engineering/DECISIONS.md`, `CURRENT-STATE.md`, `MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md` | D-PROD-261, missão ativa, fase 2 marcada como feita |
+| `docs/engineering/DECISIONS.md`, `CURRENT-STATE.md`, `MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md` | D-PROD-262, missão ativa, fase 2 marcada como feita |
 
 ## 4. Testes
 

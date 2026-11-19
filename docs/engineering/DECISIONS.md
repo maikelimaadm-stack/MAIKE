@@ -8761,11 +8761,38 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 - **Fora desta decisão (para o proprietário avaliar):** o "Código" do lote fica escondido durante a edição e o "Nº patrimonial" do bem só aparece em leitura; com as guias recolhidas é preciso expandir para trocar de guia.
 - **Relatório:** `docs/engineering/MAIKE-BASE1-PADRAO-CAMPOS-GUIAS-REPORT.md`.
 
-## D-PROD-261 — Registrar serviço: várias linhas por seção (fase 2 da D-PROD-258)
+## D-PROD-261 — Estoque × Central: a mesma compra não entra duas vezes no estoque (R-DEDUPE), bloqueando só o que mexe no estoque
+
+**Data:** 2026-11-19 · **Origem:** pendência R-DEDUPE da D-PROD-257 e da D-PROD-259; escolha do proprietário: **"Bloquear só se mexer no estoque"** · **Branch:** `claude/new-session-26kpxu` · **Migration:** nenhuma · **Relatório:** [`MAIKE-ESTOQUE-R-DEDUPE-REPORT.md`](./MAIKE-ESTOQUE-R-DEDUPE-REPORT.md)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-261`, que é esta; o marcador passa a D-PROD-262.
+
+**O problema.** Uma compra podia entrar no estoque duas vezes: pela Central (lançamento com produtos) e pela entrada manual com motivo Compra. A entrada recusava um documento já usado num lançamento confirmado, mas a Central não consultava as entradas (a recíproca estava pendente desde a D-PROD-257).
+
+**Decisão (escolha do proprietário).**
+- **Central:** confirmar ou retificar (no lugar ou por substituição) um lançamento **com produtos** (mercadoria, a pagar ou a receber) é recusado quando o documento é o de uma **entrada manual confirmada** da mesma fazenda: `409 OPERACAO_DOCUMENTO_DUPLICADO`, `reason: documento_de_entrada_manual`, com o número da entrada. A prévia mostra o mesmo bloqueio. Um lançamento **sem produtos** (só o pagamento) com o mesmo documento **passa**: é o caminho para pagar uma compra cuja mercadoria entrou pela entrada manual.
+- **Entrada manual:** continua recusando o documento de outra entrada confirmada; do lado da Central, passa a recusar **só** o documento de um lançamento confirmado **com produtos** (`documento_de_compra`/`documento_de_venda`). Antes, qualquer lançamento confirmado com o documento bloqueava, inclusive o só de pagamento.
+- **Identidade do documento:** o número sem espaços nas pontas e em maiúsculas, por fazenda (como já fazia a entrada; o parceiro não entra na comparação, então a regra é mais estrita que "mesmo parceiro e documento").
+- **Corrida:** as duas portas tomam a mesma trava consultiva do documento (`estoque:documento:<cliente>:<empresa>:<documento>`) antes de consultar, depois das travas de produto. Entrada e compra com o mesmo documento em paralelo nunca passam as duas (teste com 4 rodadas).
+- Entrada **excluída**, lançamento em **rascunho** ou **cancelado** não bloqueiam.
+
+**Código.** `backend/src/modules/estoqueFisico/documentoDeEstoque.js` (trava e as duas consultas), `entradaEstoqueService.exigirDocumentoLivre` e, em `operacaoFinanceiraService`, a prévia, a confirmação e a retificação (`exigirDocumentoForaDeEntradaManual`). Mensagens na tela: `gestaoErros` (Central) e `estoqueEntradasRegras` (entrada).
+
+**Emenda constitucional — APROVADA pelo proprietário em 2026-11-19** (chat: "aprovo"). Aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 (depois da emenda D-PROD-259) e nota própria em `07-DO-NOT-DO.md` (depois da nota D-PROD-259). O texto ratificado diz que a entrada e o lançamento da Central com "o mesmo parceiro e documento" bloqueiam um ao outro, **qualquer** lançamento (a pagar ou a receber). Liberar o lançamento sem produtos muda esse texto. Texto aprovado:
+
+> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-259:* "**Emenda aprovada pelo proprietário (D-PROD-261):** na expansão D-PROD-177, no lugar de "não pode duplicar um lançamento da Central nem outra entrada: com o mesmo parceiro e documento, um bloqueia o outro, nos dois sentidos": "não pode duplicar outra entrada nem a mercadoria de um lançamento da Central: com o mesmo documento na fazenda, uma entrada bloqueia a outra, e a entrada e um lançamento da Central **com produtos** bloqueiam um ao outro, nos dois sentidos; o lançamento sem produtos (só o pagamento) com o mesmo documento não conflita"."
+>
+> *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-259:* "na nota D-PROD-177, no lugar de "confirmar ou editar uma entrada manual com o mesmo parceiro e documento de um lançamento confirmado da Central (a pagar ou a receber) ou de outra entrada confirmada, e confirmar ou retificar (no lugar ou por substituição) na Central um lançamento, a pagar ou a receber, com o mesmo parceiro e documento de uma entrada confirmada": "confirmar ou editar uma entrada manual com o mesmo documento de outra entrada confirmada ou de um lançamento confirmado da Central com produtos (a pagar ou a receber), e confirmar ou retificar (no lugar ou por substituição) na Central um lançamento com produtos com o mesmo documento de uma entrada confirmada"."
+
+**Riscos que continuam.** Uma compra ainda entra duas vezes se o documento for **diferente ou omitido** em uma das portas (sem documento não há como comparar). Por isso continua valendo: nenhum perfil recebe a ação `entrada` por padrão.
+
+**Testes.** `backend/tests/estoqueDocumentoDedupe.test.mjs` (novo, 8, Postgres real: as duas direções, com e sem produtos, prévia, retificação, excluída/rascunho/cancelado, outra fazenda, corrida); `estoqueEntradas.test.mjs` (o caso "lançamento sem produtos" passa a aceitar); `tests/smoke/gestaoLancamentos.test.jsx` (mensagem nova).
+
+## D-PROD-262 — Registrar serviço: várias linhas por seção (fase 2 da D-PROD-258)
 
 **Data:** 2026-11-19 · **Origem:** pedido do proprietário (fase 2 da D-PROD-258), com a maquete "Nova realização" · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** nenhuma · **Relatório:** [`MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md)
 
-> **Numeração:** a `main` indica `Próxima decisão: D-PROD-261`, que é esta; o marcador passa a D-PROD-262.
+> **Numeração:** nasceu D-PROD-261 nesta branch. Antes do merge, a `main` deu a D-PROD-261 ao R-DEDUPE do Estoque (PR #345) e passou a indicar `Próxima decisão: D-PROD-262`, que é esta; o marcador passa a D-PROD-263.
 
 - **Contexto:** a D-PROD-258 deixou o "Registrar serviço" com uma linha por seção. Um dia de campo costuma ter mais de uma máquina, insumo, pessoa ou serviço. O servidor (`POST /atividades/registrar`) já aceitava `maquinas[]`, `produtos[]`, `mao_obra[]` e `servicos[]`, até 20 itens cada, e já dizia qual linha recusou.
 - **Decisão:**
@@ -8779,4 +8806,4 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
   - Nenhuma mudança no backend.
 - **Fora de escopo:** várias áreas por registro (fase 3), o retrabalho de área e hectares (próxima fatia), bloquear máquina ou produto repetido (o servidor decide; a 2ª linha do mesmo bem começa onde a 1ª terminou), custo do insumo na tela.
 
-<!-- Próxima decisão: D-PROD-262 -->
+<!-- Próxima decisão: D-PROD-263 -->

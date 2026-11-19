@@ -68,4 +68,4 @@ Ver a seção de resultados no resumo da entrega (números de build, lint, teste
 
 ## 5. Fica para as próximas fases
 
-~~Várias linhas por seção (fase 2)~~ — **feito na D-PROD-261** ([relatório](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md)). Ainda abertos: várias áreas por registro (fase 3), planejar antes de fazer, operação sem área (Manutenção), alinhar o filtro de Infraestrutura entre mapa e menu, remover a tela "Nova atividade", apagar colunas (GO do proprietário), colheita com produção.
+~~Várias linhas por seção (fase 2)~~ — **feito na D-PROD-262** ([relatório](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md)). Ainda abertos: várias áreas por registro (fase 3), planejar antes de fazer, operação sem área (Manutenção), alinhar o filtro de Infraestrutura entre mapa e menu, remover a tela "Nova atividade", apagar colunas (GO do proprietário), colheita com produção.

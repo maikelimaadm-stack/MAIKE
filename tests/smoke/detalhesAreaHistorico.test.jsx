@@ -319,7 +319,7 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
     expect(within(janela).getByRole("button", { name: "Salvar" })).toBeTruthy();
   });
 
-  it("as QUATRO seções (Insumos, Máquinas, Equipe, Serviço de terceiro) aparecem sempre, nessa ordem, antes e depois de escolher tipo e operação (D-PROD-261)", async () => {
+  it("as QUATRO seções (Insumos, Máquinas, Equipe, Serviço de terceiro) aparecem sempre, nessa ordem, antes e depois de escolher tipo e operação (D-PROD-262)", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
     const janela = await abrirManejos();
     const secoes = () => [...janela.querySelectorAll(".mg-b1-secao, [data-secao], h3, h4, legend")].map((n) => n.textContent.trim());
@@ -337,7 +337,7 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
   it("as quatro seções são opcionais: nenhum campo-chave (Máquina, Produto, Funcionário, Serviço) leva asterisco de obrigatório", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
     const janela = await abrirManejos();
-    // D-PROD-261: os campos da linha só aparecem no editor da seção, aberto pelo "+ Incluir …".
+    // D-PROD-262: os campos da linha só aparecem no editor da seção, aberto pelo "+ Incluir …".
     for (const testId of ["registro-incluir-insumo", "registro-incluir-maquina", "registro-incluir-pessoa", "registro-incluir-servico"]) {
       fireEvent.click(within(janela).getByTestId(testId));
     }

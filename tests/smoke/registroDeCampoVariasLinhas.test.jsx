@@ -1,5 +1,5 @@
 /**
- * D-PROD-261 — "Registrar serviço" com VÁRIAS linhas por seção (fase 2 da D-PROD-258), no desenho da maquete "Nova
+ * D-PROD-262 — "Registrar serviço" com VÁRIAS linhas por seção (fase 2 da D-PROD-258), no desenho da maquete "Nova
  * realização": Insumos, Máquinas, Equipe e Serviço de terceiro são tabelas; "+ Incluir …" abre um editor dentro da seção
  * (um por seção, sem segunda janela) com os campos das janelas da linha; "Incluir" valida e o item vira linha da tabela.
  *

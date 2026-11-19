@@ -51,6 +51,7 @@ import { registrarEvento, registrarEventosEmLote } from '../auditoria/auditServi
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
 import { exigirEmpresaDoTenant, invalido, textoDeBusca, textoDoCorpo, travarEscopo } from '../gestao/gestaoComum.js';
+import { entradaManualComDocumento, travarDocumentoDeEstoque } from '../estoqueFisico/documentoDeEstoque.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
 import {
@@ -104,6 +105,24 @@ const documentoDuplicado = (extra = {}) =>
   new AppError('OPERACAO_DOCUMENTO_DUPLICADO', 'já existe lançamento confirmado com este documento para o mesmo parceiro; nada foi gravado', {
     details: { field: 'documento_referencia', reason: 'documento_duplicado', ...extra },
   });
+/** D-PROD-261 (R-DEDUPE): a mercadoria deste documento já entrou no estoque por uma entrada manual. */
+const documentoDeEntradaManual = (entrada) =>
+  new AppError('OPERACAO_DOCUMENTO_DUPLICADO', 'este documento já está numa entrada manual confirmada do estoque; a mercadoria já entrou por ela; lance só o pagamento (sem produtos) ou exclua a entrada; nada foi gravado', {
+    details: { field: 'documento_referencia', reason: 'documento_de_entrada_manual', entrada_id: entrada.id, entrada_numero: entrada.numero },
+  });
+/** Lançamento com mercadoria (mexe no estoque)? */
+const mexeNoEstoque = (plano) => plano.efeitos_estoque.entradas.length + plano.efeitos_estoque.saidas.length > 0;
+/**
+ * D-PROD-261 (R-DEDUPE): um lançamento COM produtos não confirma com o documento de uma entrada
+ * manual CONFIRMADA da fazenda (a compra entraria no estoque duas vezes). Sem produtos, passa.
+ * Mesma trava do documento que a entrada manual toma (`documentoDeEstoque.js`).
+ */
+const exigirDocumentoForaDeEntradaManual = async (tx, cli, empresaId, documento, plano) => {
+  if (!documento || !mexeNoEstoque(plano)) return;
+  await travarDocumentoDeEstoque(tx, cli, empresaId, documento);
+  const entrada = await entradaManualComDocumento(tx, cli, empresaId, documento);
+  if (entrada) throw documentoDeEntradaManual(entrada);
+};
 const jaEstornada = (liquidacaoId) => new AppError('LIQUIDACAO_JA_ESTORNADA', 'esta liquidação já foi estornada; nada foi gravado', { details: { liquidacao_id: liquidacaoId } });
 const dataFutura = ({ hoje, fuso }, dia, field) =>
   new AppError('FINANCEIRO_DATA_FUTURA', `a data ${dia} é posterior a hoje (${hoje}) na fazenda; só fato já ocorrido entra; nada foi gravado`, {
@@ -1272,6 +1291,8 @@ export const previa = async (contexto, id, corpo) => {
         select: { id: true, numero: true },
       });
       if (dup) bloqueios.push(comoBloqueio(documentoDuplicado({ operacao_id: dup.id, numero: dup.numero })));
+      const entrada = mexeNoEstoque(plano) ? await entradaManualComDocumento(tx, cli, empresaId, doc.documento_referencia) : null;
+      if (entrada) bloqueios.push(comoBloqueio(documentoDeEntradaManual(entrada)));
     }
     const simulacao = simularEfeitosEstoque(plano, await estadoDeEstoque(tx, cli, empresaId, plano, refs));
     bloqueios.push(...simulacao.bloqueios);
@@ -1450,6 +1471,7 @@ export const confirmar = async (contexto, id, corpo) => {
               select: { id: true, numero: true },
             });
             if (dup) throw documentoDuplicado({ operacao_id: dup.id, numero: dup.numero });
+            await exigirDocumentoForaDeEntradaManual(tx, cli, empresaId, op.documento_referencia, plano);
           }
           // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
           const { movimentos, lotes, comEfeito } = await aplicarEfeitosDoPlano(tx, contexto, {
@@ -2377,6 +2399,7 @@ export const retificar = async (contexto, id, corpo) => {
           const eleg = await avaliarElegibilidade(tx, cli, empresaId, op, { aut: await carregarAutorizacao(contexto, tx), mercadorias });
           if (!eleg.editar.permitido) throw retificacaoBloqueada(eleg.editar.motivos);
           await exigirDocumentoUnico(tx, cli, empresaId, doc, id);
+          await exigirDocumentoForaDeEntradaManual(tx, cli, empresaId, doc.documento_referencia, plano);
           const snapshot = await montarSnapshot(tx, cli, empresaId, op);
           const modo = assinaturaFisica(op.direcao, diaDe(op.data_operacional), itens) === assinaturaFisica(doc.direcao, doc.data_operacional, plano.itens)
             ? 'NO_LUGAR'

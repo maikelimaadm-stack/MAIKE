@@ -35,7 +35,7 @@ export const rotuloDoMesCurto = (diaOuMes) => {
 /** A raiz das consultas dos detalhes da área (resumo, registros e tipos); o registro novo invalida tudo dela. */
 export const QUERY_ATIVIDADES_DA_AREA = 'atividades-da-area';
 
-// ─── Várias linhas por seção (D-PROD-261) ────────────────────────────────
+// ─── Várias linhas por seção (D-PROD-262) ────────────────────────────────
 
 /**
  * As seções de linhas do "Registrar serviço", na ordem da tela (a da maquete "Nova realização"): cada uma é a coleção

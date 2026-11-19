@@ -2826,7 +2826,7 @@
   font-size: 13px;
   font-weight: 600;
 }
-/* D-PROD-261 — itens do "Registrar serviço" (tabela e cartão do celular): o aberto no editor e o recusado pelo servidor. */
+/* D-PROD-262 — itens do "Registrar serviço" (tabela e cartão do celular): o aberto no editor e o recusado pelo servidor. */
 .cadastro-b1 .b1-tipo-tabela tr.is-editando td,
 .cadastro-b1 .b1-tipo-card.is-editando {
   background: var(--mg-surface-2, #f5f5f2);

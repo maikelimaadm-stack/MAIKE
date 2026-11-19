@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-19 (missão ativa D-PROD-261; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-19 (missão ativa D-PROD-262; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,18 +9,38 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-261)
+## Missão ativa (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-261**, fase 2 da D-PROD-258: várias máquinas, insumos, pessoas e serviços num registro só |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR a abrir |
+| Decisão | **D-PROD-262**, fase 2 da D-PROD-258: várias máquinas, insumos, pessoas e serviços num registro só |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR #346 (draft) |
 | Escopo | "Registrar serviço" (`RegistroDeCampo.jsx`) com as quatro seções em tabelas, no desenho da maquete "Nova realização" (Insumos, Máquinas, Equipe, Serviço de terceiro): "+ Incluir …" abre um editor dentro da seção; a recusa do servidor fica na linha certa; Observação em "Informações complementares" |
 | Backend | nenhuma mudança: `POST /atividades/registrar` já aceitava até 20 itens por coleção |
 | Migration | nenhuma |
 | Abertos | várias áreas por registro (fase 3); área e hectares (próxima fatia) |
 | Junto nesta PR | registro da limpeza de dados de produção da D-PROD-258 (fase 1), feita em 2026-11-19 — ver a missão D-PROD-258 abaixo |
 | Relatório | [`MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-R-DEDUPE: a mesma compra não entra duas vezes no estoque (D-PROD-261)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-261**, escolha do proprietário: bloquear só o que mexe no estoque. A Central recusa lançamento **com produtos** com o documento de uma entrada manual confirmada; a entrada recusa documento de lançamento confirmado **com produtos**; o lançamento só de pagamento passa |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d447a781` · PR draft |
+| Migration | nenhuma |
+| Constituição | emenda da D-PROD-261 **aprovada pelo proprietário em 2026-11-19**; parágrafo em `00` §1 e nota em `07` |
+| Abertos | documento diferente ou omitido numa das portas continua sem como comparar; nenhum perfil recebe `entrada` por padrão |
+| Relatório | [`MAIKE-ESTOQUE-R-DEDUPE-REPORT.md`](./MAIKE-ESTOQUE-R-DEDUPE-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS: a entrada não lançava mais de um produto (correção da D-PROD-259)
+
+| Campo | Valor |
+|---|---|
+| Problema | A linha de produto do "Novo movimento" ficava achatada pela grade de 4 colunas da #339 (desktop e celular), e no celular a folha das listas ficava por baixo da janela |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `095b057d` · PR draft |
+| Migration | nenhuma |
+| Relatório | [`MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS-REPORT.md`](./MAIKE-ESTOQUE-ENTRADA-VARIOS-PRODUTOS-REPORT.md) |
 
 ## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-NOVO-MOVIMENTO: "Novo movimento" em Movimentos, motivos de entrada por cadastro (D-PROD-259)
 

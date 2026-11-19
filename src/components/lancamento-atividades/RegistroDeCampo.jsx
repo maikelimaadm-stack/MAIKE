@@ -54,7 +54,7 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  * D-PROD-258 — dois passos: primeiro o TIPO FIXO (os 7 serviços de pasto), depois a OPERAÇÃO (o "tipo de atividade" do
  * cadastro, filtrado pelo tipo escolhido). O servidor segue sendo quem recusa o que a operação não aceitar.
  *
- * D-PROD-261 (fase 2, maquete "Nova realização") — as QUATRO seções (Insumos, Máquinas, Equipe e Serviço de terceiro) são
+ * D-PROD-262 (fase 2, maquete "Nova realização") — as QUATRO seções (Insumos, Máquinas, Equipe e Serviço de terceiro) são
  * TABELAS, todas opcionais, com até 20 itens cada (o máximo do servidor). "+ Incluir …" abre um editor DENTRO da seção (um
  * por seção, sem segunda janela) com os MESMOS campos das janelas da linha (`JanelasDaLinha`: máquina com implemento e
  * medidor, produto com saldo e dose/ha, mão de obra, serviço); "Incluir" valida com a regra da linha e o item vira linha da
@@ -111,7 +111,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     if (!diaMexido.current && hoje) setDia(hoje);
   }, [hoje]);
 
-  // ─── O dia e as linhas (D-PROD-261: itens das tabelas e um editor por seção) ─
+  // ─── O dia e as linhas (D-PROD-262: itens das tabelas e um editor por seção) ─
   const [hectares, setHectares] = useState("");
   const [operador, setOperador] = useState(/** @type {{ id: string, rotulo: string } | null} */ (null));
   const [observacao, setObservacao] = useState("");

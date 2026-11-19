@@ -45,7 +45,7 @@ import {
  */
 
 /**
- * D-PROD-261 — as quatro seções do "Registrar serviço", na ordem e com os nomes da maquete "Nova realização": cada uma é
+ * D-PROD-262 — as quatro seções do "Registrar serviço", na ordem e com os nomes da maquete "Nova realização": cada uma é
  * uma tabela com os itens incluídos e um "+ Incluir …". `id` e `plural` formam os testids (`registro-incluir-insumo`,
  * `registro-insumos-tabela`, `registro-insumo-linha-1`, `registro-remover-insumo-1`, `registro-insumo-editor`).
  */
@@ -377,7 +377,7 @@ export function EditorDaLinhaDoRegistro({ colecao, editor, numero, mudar, setFor
 }
 
 /**
- * Uma seção de linhas do "Registrar serviço" (D-PROD-261): o título, a tabela dos itens incluídos (só com item), o editor
+ * Uma seção de linhas do "Registrar serviço" (D-PROD-262): o título, a tabela dos itens incluídos (só com item), o editor
  * aberto e o "+ Incluir …" (some com o editor aberto e no 20º item, o máximo do servidor por coleção). Com o editor
  * preenchido aberto, os itens não abrem (o que foi digitado nele não se perde); vazio, abrir um item o troca.
  * @param {{ colecao: ColecaoDoRegistro, itens: ItemDoRegistro[], editor: EditorDaSecao|null, editorPreenchido: boolean,
