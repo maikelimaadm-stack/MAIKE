@@ -1033,7 +1033,7 @@ const lerEfeitoDoEnvio = async ({ tipo, atividadeId, apontamento, novoDia, gravo
 };
 
 /**
- * Janela da linha de PRODUTO (adicionar ou editar). A baixa sai do estoque pelo MESMO motor FIFO do abastecimento, no
+ * Janela da linha de PRODUTO (adicionar ou editar). A baixa sai do estoque pelo MESMO motor (custo médio) do abastecimento, no
  * servidor; editar = estorno exato + nova saída. Toda escrita leva a `versao` do apontamento e o `operation_id`
  * persistente.
  * @param {PropsDaJanela} props

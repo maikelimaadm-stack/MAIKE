@@ -166,6 +166,19 @@ digitado). O funcionário continua nunca sendo uma conta de acesso (`Usuario`). 
 deixou fora: folha de pagamento (D-PROD-02), salário, encargos, ponto, pagamento, lançamento financeiro, título e
 rateio. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-15 ("aplica e aprova")**, no merge da PR #298 (§4).
 
+**Emenda proposta (D-PROD-256):** **Estoque — custo médio ponderado.** O método de valorização do estoque passa de
+FIFO por camada para **custo médio ponderado por produto × depósito**. Onde as expansões acima (D-PROD-155, D-PROD-159,
+D-PROD-177, D-PROD-193 e D-PROD-202) dizem "FIFO por lote", "custo FIFO" ou "saída FIFO", leia-se: **a saída (venda,
+abastecimento, linha de produto da atividade, suplementação e transferência) é valorizada pelo custo médio vigente do
+produto no depósito**; a entrada soma quantidade e valor ao poço; o **estorno** devolve a quantidade e o **valor gravado
+no movimento original**, e depois o poço é reavaliado. Vale daqui para a frente: movimento e camada já gravados **não
+são reescritos** (o custo FIFO histórico permanece no registro) e o estorno de uma saída antiga devolve o valor FIFO
+que ela gravou. A camada continua existindo como contabilidade de lote (rastro, estorno, procedência), mas deixa de
+ser a base do custo. Nada mais muda: o saldo nunca fica negativo, o custo nunca é negativo, o movimento é imutável. A
+aba Entradas é a D-PROD-257, em outra PR. Texto proposto pelo agente; **vale só com a aprovação explícita do
+proprietário no merge manual (§4)**, registrada como ratificação na D-PROD-256. Até lá, o texto "FIFO" acima é o que
+está ratificado.
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

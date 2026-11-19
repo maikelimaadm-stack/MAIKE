@@ -524,7 +524,7 @@ export const mensagemDoAvisoDoPlano = (aviso, contexto = {}) => {
   if (codigo === 'desconto_acrescimo_rateados') {
     if (contexto.semEstoque) return 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal (valor líquido por item). Nenhum item deste lançamento movimenta o estoque.';
     return contexto.direcao === 'RECEBER'
-      ? 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal (receita líquida por item). A saída do estoque continua com o custo FIFO dos lotes.'
+      ? 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal (receita líquida por item). A saída do estoque continua valorizada pelo custo médio do estoque.'
       : 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal: o custo do lote é o valor líquido da mercadoria.';
   }
   if (codigo === 'residuo_custo_estoque') {
