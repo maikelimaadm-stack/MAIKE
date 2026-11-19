@@ -8761,4 +8761,22 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 - **Fora desta decisão (para o proprietário avaliar):** o "Código" do lote fica escondido durante a edição e o "Nº patrimonial" do bem só aparece em leitura; com as guias recolhidas é preciso expandir para trocar de guia.
 - **Relatório:** `docs/engineering/MAIKE-BASE1-PADRAO-CAMPOS-GUIAS-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-261 -->
+## D-PROD-261 — Registrar serviço: várias linhas por seção (fase 2 da D-PROD-258)
+
+**Data:** 2026-11-19 · **Origem:** pedido do proprietário (fase 2 da D-PROD-258), com a maquete "Nova realização" · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** nenhuma · **Relatório:** [`MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-261`, que é esta; o marcador passa a D-PROD-262.
+
+- **Contexto:** a D-PROD-258 deixou o "Registrar serviço" com uma linha por seção. Um dia de campo costuma ter mais de uma máquina, insumo, pessoa ou serviço. O servidor (`POST /atividades/registrar`) já aceitava `maquinas[]`, `produtos[]`, `mao_obra[]` e `servicos[]`, até 20 itens cada, e já dizia qual linha recusou.
+- **Decisão:**
+  - As seções seguem a maquete "Nova realização" do proprietário (tabelas + Incluir): **Insumos** (Insumo · Local de estoque · Dose/ha · Total), **Máquinas** (Máquina · Implemento · Uso), **Equipe** (antes "Mão de obra": Pessoa · Medida · Quantidade) e **Serviço de terceiro (se houver)** (Serviço · Prestador · Quantidade · Total). A tabela só aparece com item; o "+ Incluir …" some no 20º item (o máximo do servidor).
+  - "+ Incluir …" abre um editor **dentro da seção**, um por seção, sem segunda janela (D-PROD-252), com os mesmos campos das janelas da linha. "Incluir" valida com a regra da linha e o item vira linha da tabela; clicar na linha a abre de novo ("Atualizar"); ✕ tira.
+  - Salvar com um editor preenchido inclui o item antes (se ele não passar, nada sai); editor vazio não conta. Um envio só, com os itens na ordem das tabelas.
+  - A máquina guarda o medidor e a decisão da justificativa do salto tomados no "Incluir". O insumo recalcula a dose/ha pelos hectares de agora; o "Total" do insumo é a quantidade que sai do estoque (o custo é do servidor).
+  - A recusa do servidor (`linha_indice` + `entidade`; no produto, `colecao` + `indice`: a posição no array enviado) aparece embaixo da linha certa, com marca de erro, e o editor abre nela com o campo apontado.
+  - Operação antiga com `exige_maquina`: basta uma máquina na tabela.
+  - A Observação passa para a última seção, "Informações complementares". Hectares feitos e Operador ficam onde estavam.
+  - Nenhuma mudança no backend.
+- **Fora de escopo:** várias áreas por registro (fase 3), o retrabalho de área e hectares (próxima fatia), bloquear máquina ou produto repetido (o servidor decide; a 2ª linha do mesmo bem começa onde a 1ª terminou), custo do insumo na tela.
+
+<!-- Próxima decisão: D-PROD-262 -->

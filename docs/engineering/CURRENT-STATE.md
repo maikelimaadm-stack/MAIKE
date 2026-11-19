@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-19 (missão ativa D-PROD-259; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-19 (missão ativa D-PROD-261; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-NOVO-MOVIMENTO: "Novo movimento" em Movimentos, motivos de entrada por cadastro (D-PROD-259)
+## Missão ativa (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-261)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-261**, fase 2 da D-PROD-258: várias máquinas, insumos, pessoas e serviços num registro só |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR a abrir |
+| Escopo | "Registrar serviço" (`RegistroDeCampo.jsx`) com as quatro seções em tabelas, no desenho da maquete "Nova realização" (Insumos, Máquinas, Equipe, Serviço de terceiro): "+ Incluir …" abre um editor dentro da seção; a recusa do servidor fica na linha certa; Observação em "Informações complementares" |
+| Backend | nenhuma mudança: `POST /atividades/registrar` já aceitava até 20 itens por coleção |
+| Migration | nenhuma |
+| Abertos | várias áreas por registro (fase 3); área e hectares (próxima fatia) |
+| Relatório | [`MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-NOVO-MOVIMENTO: "Novo movimento" em Movimentos, motivos de entrada por cadastro (D-PROD-259)
 
 | Campo | Valor |
 |---|---|
