@@ -54,14 +54,15 @@ const montar = async () => {
 
 describe("Cadastro de Áreas, Pontos e Linhas no motor", () => {
   it.each([
-    ["Áreas", "PIQUETE 01", "Editar no mapa", "area:a1"],
-    ["Pontos", "COCHO TESTE", "Editar posição no mapa", "ponto:p1"],
-    ["Linhas", "CERCA TESTE", "Editar traçado no mapa", "linha:l1"],
+    ["Áreas", "PIQUETE 01", "Editar área", "area:a1"],
+    ["Pontos", "COCHO TESTE", "Editar posição", "ponto:p1"],
+    ["Linhas", "CERCA TESTE", "Editar traçado", "linha:l1"],
   ])("abre a geometria do registro em %s pelo botão direto", async (aba, nome, acao, resultado) => {
     await montar();
     fireEvent.click(screen.getByRole("tab", { name: aba }));
     fireEvent.doubleClick(await screen.findByText(nome));
-    fireEvent.click(await screen.findByRole("button", { name: acao }));
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Editar" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: acao }));
     expect(await screen.findByTestId("editor-geometria")).toHaveTextContent(resultado);
   });
   it("abas, '+ Novo' e a grade do motor com as áreas", async () => {
@@ -95,9 +96,9 @@ describe("Cadastro de Áreas, Pontos e Linhas no motor", () => {
     const nome = within(form).getByText("Nome", { selector: "label" }).closest(".mg-field");
     expect(nome).toHaveClass("mg-field--locked");
     expect(within(/** @type {HTMLElement} */ (nome)).getByRole("textbox")).toHaveValue("PIQUETE 01");
-    expect(screen.getByRole("button", { name: "Editar no mapa" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
-    expect(screen.getByText("Editar no mapa")).toBeInTheDocument();
+    expect(screen.queryByText("Editar no mapa")).toBeNull();
     expect(screen.queryByText("Importar áreas")).toBeNull();
   });
 
@@ -105,12 +106,13 @@ describe("Cadastro de Áreas, Pontos e Linhas no motor", () => {
     await montar();
     fireEvent.doubleClick(screen.getByText("PIQUETE 01"));
     await screen.findByTestId("b1-form-area");
-    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Editar" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Editar detalhes" }));
     const mapa = screen.getByRole("button", { name: "Editar no mapa — salve ou cancele os detalhes primeiro" });
     expect(mapa).toBeDisabled();
     expect(mapa).toHaveAttribute("title", "Editar no mapa — salve ou cancele os detalhes primeiro");
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-    expect(screen.getByRole("button", { name: "Editar no mapa" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
   });
 });
 
