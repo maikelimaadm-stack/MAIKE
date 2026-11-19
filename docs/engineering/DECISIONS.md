@@ -8710,4 +8710,25 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 **Relatório:** [`MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md`](./MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-259 -->
+## D-PROD-260 — Motor Base1: campos preenchidos, guias laterais com busca e grade de 4 colunas (PR #339)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-259`, que a PR #341 (Estoque, Novo movimento) já usa; esta é a **D-PROD-260** e o marcador passa a D-PROD-261.
+
+- **Contexto:** o proprietário pediu um padrão visual único para os formulários do motor Base1. A PR #339 foi feita em outra ferramenta e parou com 64 testes de fumaça vermelhos; esta decisão registra o que entrou e o que foi corrigido para fechar.
+- **Decisão (o que entrou):**
+  - Campos em caixa preenchida arredondada com rótulo interno e foco verde; a pesquisa das listas fica dentro do próprio campo aberto (`B1Select`, `AutocompleteGenerico`, `PainelSelecao`).
+  - `Base1PanelTabs` passa a **guias laterais** (verticais) com campo "Buscar guia" e botão de recolher; **substitui a parte "abas horizontais em pílula" da D-PROD-164**. Continua sem botão de alternar estilo, mesmo com preferência antiga salva.
+  - Grade de 4 campos por linha a partir de 768 px.
+  - Formulários convertidos para guias: Atividades, Financeiro Lançamentos, Parceiros, Operações (tipos de atividade), Produtos, Centros, Naturezas, Serviços, Bens, Empresa e Lote.
+- **Correções feitas para fechar a PR (comportamento que a conversão tinha perdido):**
+  - Teclado nas guias: ↓/↑ (e ainda →/←, Home/End) andam só pelas guias visíveis pela busca.
+  - Salvar com campo inválido numa guia fechada abre essa guia.
+  - Lote: volta a prévia do ícone da categoria (D-PROD-191), o aviso de correção de entrada com o "Motivo da correção", e salvar sem motivo não envia nada (a PR preenchia um motivo sozinha).
+  - Bens: volta o aviso "Escolha o tipo de bem" (agora na guia Identificação).
+  - Serviços: a chave "Ativo" só aparece em registro gravado, como antes.
+  - `B1Select`: a pesquisa interna ganha foco na hora quando aberta por clique ou letra; por Enter/seta o foco fica no campo (D-PROD-222).
+- **Conflito com a D-PROD-258:** o formulário de atividade fica no layout em guias sem Grupo nem "este tipo permite registrar"; o de operação fica com os 3 campos da D-PROD-258 numa guia só.
+- **Fora desta decisão (para o proprietário avaliar):** o "Código" do lote fica escondido durante a edição e o "Nº patrimonial" do bem só aparece em leitura; com as guias recolhidas é preciso expandir para trocar de guia.
+- **Relatório:** `docs/engineering/MAIKE-BASE1-PADRAO-CAMPOS-GUIAS-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-261 -->
