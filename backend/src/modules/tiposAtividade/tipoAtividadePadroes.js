@@ -30,6 +30,74 @@ export const CATEGORIAS_TIPO_ATIVIDADE = Object.freeze([
 ]);
 
 /**
+ * D-PROD-257 — os 7 TIPOS FIXOS dos serviços de pasto. O "tipo fixo" é a `categoria` do tipo de atividade (que agora é
+ * obrigatória). Sem mudar a tabela nem o CHECK `TipoAtividade_categoria_check` (D-PROD-72 item 3): o tipo fixo usa 7 dos 9
+ * valores já aceitos pelo banco. `TRATO_CULTURAL` passa a significar Fertilização; `PASTAGEM`, Roçada e tratos;
+ * `BENFEITORIA`, Manutenção; `PLANTIO`, Formação de pastagem (plantio). `COLHEITA` e `MANEJO_ANIMAL` ficam FORA (não são
+ * mais aceitos em escrita; o que já está gravado continua legível e o script de dados os leva a Outros).
+ */
+export const TIPOS_FIXOS_ATIVIDADE = Object.freeze([
+  Object.freeze({ categoria: 'PREPARO_SOLO', rotulo: 'Preparo do solo' }),
+  Object.freeze({ categoria: 'PLANTIO', rotulo: 'Formação de pastagem (plantio)' }),
+  Object.freeze({ categoria: 'TRATO_CULTURAL', rotulo: 'Fertilização' }),
+  Object.freeze({ categoria: 'APLICACAO', rotulo: 'Aplicação' }),
+  Object.freeze({ categoria: 'PASTAGEM', rotulo: 'Roçada e tratos' }),
+  Object.freeze({ categoria: 'BENFEITORIA', rotulo: 'Manutenção' }),
+  Object.freeze({ categoria: 'OUTROS', rotulo: 'Outros' }),
+]);
+
+/** Só os valores dos 7 tipos fixos (a lista que a escrita aceita). */
+export const CATEGORIAS_TIPO_FIXO = Object.freeze(TIPOS_FIXOS_ATIVIDADE.map((t) => t.categoria));
+
+/**
+ * D-PROD-257 — padrão automático das chaves de uma operação nova (a tela não as mostra mais): a área é exigida e as quatro
+ * seções (máquina com implemento, produto, mão de obra, serviço) são permitidas. As três chaves que EXIGEM dado
+ * (safra, máquina, produção) ficam desligadas: ligá-las obrigaria o campo em todo registro e quebraria "tudo opcional".
+ */
+export const FLAGS_PADRAO_OPERACAO = Object.freeze({
+  exige_area: true,
+  exige_safra: false,
+  exige_maquina: false,
+  permite_implemento: true,
+  permite_produto: true,
+  permite_servico: true,
+  permite_mao_obra: true,
+  exige_producao: false,
+});
+
+/** Nome do grupo criado sozinho quando a operação é cadastrada sem grupo (o grupo saiu da tela). */
+export const NOME_GRUPO_PADRAO_OPERACAO = 'GERAL';
+
+/** @param {unknown} nome */
+const semAcentoMinusculo = (nome) =>
+  String(nome ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+/**
+ * D-PROD-257 — de que tipo fixo é uma operação que já existe: a categoria gravada (9 valores, ou nenhuma) → um dos 7.
+ * Puro; é a regra do script de dados e do que a tela mostra para registro antigo.
+ *  - os 7 valores aceitos ficam como estão, com UMA exceção abaixo;
+ *  - TRATO_CULTURAL: era "trato" em geral (aplicação, roçada…) e agora é Fertilização. Só continua Fertilização se o NOME
+ *    for de adubação/fertilização/calcário/esterco; senão vira Aplicação (decisão de produto, a lista vai para conferência);
+ *  - COLHEITA e MANEJO_ANIMAL (fora do escopo de pasto) e sem categoria → Outros.
+ * @param {string|null|undefined} categoria @param {string|null|undefined} nome
+ * @returns {{ categoria: string, motivo: string }}
+ */
+export const tipoFixoDaOperacaoExistente = (categoria, nome) => {
+  const atual = typeof categoria === 'string' ? categoria : null;
+  if (atual === 'TRATO_CULTURAL') {
+    return /aduba|fertiliz|calcari|esterco|gesso/.test(semAcentoMinusculo(nome))
+      ? { categoria: 'TRATO_CULTURAL', motivo: 'trato cultural de adubação: Fertilização' }
+      : { categoria: 'APLICACAO', motivo: 'trato cultural sem nome de adubação: Aplicação' };
+  }
+  if (atual && CATEGORIAS_TIPO_FIXO.includes(atual)) return { categoria: atual, motivo: 'já é um tipo fixo' };
+  if (atual === 'COLHEITA' || atual === 'MANEJO_ANIMAL') return { categoria: 'OUTROS', motivo: `${atual} fora do escopo de pasto: Outros` };
+  return { categoria: 'OUTROS', motivo: 'sem categoria: Outros' };
+};
+
+/**
  * D-PROD-254 (emenda 1) — o tipo que representa ABASTECIMENTO: o cadastro de tipos não tem categoria própria, então vale o
  * nome (o mesmo critério do desenho do tipo na tela: "abastec" ou "combust", sem acento nem caixa). Abastecimento é feito
  * pela MÁQUINA (tanque, litros, horímetro), nunca como registro de campo de uma área.

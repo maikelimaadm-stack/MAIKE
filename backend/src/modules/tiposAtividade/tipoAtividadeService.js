@@ -12,6 +12,10 @@
  * (`shared/errors/vinculoAtividade.js`) e traduzida aqui em 409
  * `TIPO_ATIVIDADE_DELETE_BLOCKED`.
  *
+ * D-PROD-257 — "tipos fixos": a `categoria` é OBRIGATÓRIA e só aceita os 7 tipos fixos de pasto
+ * (`TIPOS_FIXOS_ATIVIDADE`); o grupo e as 8 chaves saíram da tela e ganham padrão automático aqui (grupo `GERAL` do
+ * cliente; chaves em `FLAGS_PADRAO_OPERACAO`, que ligam as 4 seções). Quem manda grupo ou chave continua sendo obedecido.
+ *
  * D-PROD-197 — PADRÕES e FLAGS do tipo (contrato
  * `docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md` §3):
  *  - categoria (lista fechada), centro de custo e centro de resultado padrão,
@@ -63,8 +67,10 @@ import {
 } from './tipoAtividadeRepository.js';
 import {
   CASAS_COEFICIENTE,
-  CATEGORIAS_TIPO_ATIVIDADE,
+  CATEGORIAS_TIPO_FIXO,
+  FLAGS_PADRAO_OPERACAO,
   FLAGS_TIPO_ATIVIDADE,
+  NOME_GRUPO_PADRAO_OPERACAO,
   PADRAO_COEFICIENTE,
 } from './tipoAtividadePadroes.js';
 
@@ -85,12 +91,18 @@ const normalizarNomeTipo = (valor) => {
 
 // ─── D-PROD-197: normalização dos padrões e das flags ───────────────────────
 
-/** Categoria da lista fechada ou null (o schema da rota já recusou o resto). @param {unknown} v */
+/**
+ * D-PROD-257 — o tipo fixo (`categoria`): um dos 7 valores, nunca null (o schema da rota já recusa; esta é a segunda
+ * barreira, para quem chamar o serviço direto). Ausente = não mexe (PATCH que muda só o nome ou o ativo).
+ * @param {unknown} v
+ */
 const categoriaDoCorpo = (v) => {
   if (v === undefined) return undefined;
-  if (v === null) return null;
-  if (typeof v !== 'string' || !CATEGORIAS_TIPO_ATIVIDADE.includes(v)) {
-    throw invalido(`categoria deve ser uma de ${CATEGORIAS_TIPO_ATIVIDADE.join(', ')} (ou null)`, { field: 'categoria', reason: 'categoria_invalida' });
+  if (typeof v !== 'string' || !CATEGORIAS_TIPO_FIXO.includes(v)) {
+    throw invalido(`categoria (tipo fixo) é obrigatória e deve ser uma de ${CATEGORIAS_TIPO_FIXO.join(', ')}`, {
+      field: 'categoria',
+      reason: v === null || v === '' ? 'categoria_obrigatoria' : 'categoria_invalida',
+    });
   }
   return v;
 };
@@ -199,6 +211,19 @@ const resolverGrupo = async (tx, clienteId, grupoId) => {
   return grupo;
 };
 
+/**
+ * D-PROD-257 — o grupo saiu da tela da operação. Sem `grupo_atividade_id`, usa o grupo padrão do cliente
+ * (`GERAL`), criado na primeira vez (auditado). Se já existir um grupo com esse nome, é o mesmo grupo.
+ * @param {any} tx @param {{requestId: string, auth: any}} contexto @param {string} clienteId
+ */
+const grupoPadraoDoCliente = async (tx, contexto, clienteId) => {
+  const existente = await tx.grupoAtividade.findFirst({ where: { cliente_id: clienteId, nome_grupo: NOME_GRUPO_PADRAO_OPERACAO } });
+  if (existente) return existente;
+  const criado = await tx.grupoAtividade.create({ data: { cliente_id: clienteId, nome_grupo: NOME_GRUPO_PADRAO_OPERACAO, ativo: true } });
+  await registrarEvento(contexto, { acao: 'create', entidade: 'GrupoAtividade', entidadeId: criado.id, dadosNovos: { id: criado.id, nome_grupo: criado.nome_grupo, ativo: true, origem: 'operacao_sem_grupo' } }, tx);
+  return criado;
+};
+
 // ─── D-PROD-197: regras dos padrões (§3.3) ──────────────────────────────────
 
 /** Os dois centros padrão: coluna do tipo, lado do cadastro e relação incluída pelo repository. */
@@ -302,8 +327,12 @@ export const criar = async (contexto, entrada) => {
   const campos = camposDe(entrada);
 
   const criado = await prisma.$transaction(async (tx) => {
-    const grupoId = String(campos.grupo_atividade_id);
-    const grupo = await resolverGrupo(tx, auth.clienteId, grupoId);
+    // D-PROD-257 — categoria (tipo fixo) obrigatória; grupo e as 8 chaves ganham o padrão automático.
+    if (!tem(campos, 'categoria')) categoriaDoCorpo(null);
+    const grupo = campos.grupo_atividade_id
+      ? await resolverGrupo(tx, auth.clienteId, String(campos.grupo_atividade_id))
+      : await grupoPadraoDoCliente(tx, contexto, auth.clienteId);
+    const grupoId = grupo.id;
     const nome = String(campos.nome_tipo);
 
     if (await existeTipoComNomeNoGrupo(auth.clienteId, grupoId, nome, undefined, tx)) {
@@ -314,6 +343,7 @@ export const criar = async (contexto, entrada) => {
 
     const registro = await comFkDoPadraoTraduzida(() =>
       inserirTipo(tx, {
+        ...FLAGS_PADRAO_OPERACAO,
         ...campos,
         cliente_id: auth.clienteId,
         grupo_atividade_id: grupoId,

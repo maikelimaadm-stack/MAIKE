@@ -22,7 +22,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { invalido } from '../gestao/gestaoComum.js';
 import { listar, obter, criar, atualizar, excluir, opcoesCentrosPadrao } from './tipoAtividadeService.js';
-import { CATEGORIAS_TIPO_ATIVIDADE, FLAGS_TIPO_ATIVIDADE, PADRAO_COEFICIENTE } from './tipoAtividadePadroes.js';
+import { CATEGORIAS_TIPO_FIXO, FLAGS_TIPO_ATIVIDADE, PADRAO_COEFICIENTE } from './tipoAtividadePadroes.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -34,7 +34,8 @@ const CAMPOS = Object.freeze({
   ativo: { type: 'boolean' },
   descricao: { type: ['string', 'null'], maxLength: 2000 },
   // D-PROD-197 — padrões (null = sem padrão) e flags.
-  categoria: { type: ['string', 'null'], enum: [...CATEGORIAS_TIPO_ATIVIDADE, null] },
+  // D-PROD-257 — o tipo fixo: obrigatório no POST, nunca null, só os 7 valores.
+  categoria: { type: 'string', enum: [...CATEGORIAS_TIPO_FIXO] },
   centro_custo_padrao_id: ID_NULO,
   centro_resultado_padrao_id: ID_NULO,
   unidade_producao_id: ID_NULO,
@@ -52,7 +53,7 @@ const PARAMS_ID = {
 const CRIAR_SCHEMA = {
   body: {
     type: 'object',
-    required: ['nome_tipo', 'grupo_atividade_id'],
+    required: ['nome_tipo', 'categoria'],
     additionalProperties: false,
     properties: { ...CAMPOS },
   },
