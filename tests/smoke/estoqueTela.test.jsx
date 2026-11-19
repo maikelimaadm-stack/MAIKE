@@ -145,6 +145,18 @@ describe('D-PROD-255 — do Saldo para os Movimentos', () => {
     await waitFor(() => expect(chamadasDe('/estoque/movimentos').length).toBeGreaterThan(0));
     expect(chamadasDe('/estoque/movimentos')[0].query.produto_id).toBeUndefined();
   });
+
+  it('trocar de fazenda descarta o produto e o depósito abertos no Saldo', async () => {
+    const { persistirEmpresaSelecionada } = await import('@/hooks/useEmpresaSelecionadaId');
+    await montar();
+    fireEvent.doubleClick((await screen.findByText('Ureia')).closest('tr'));
+    await waitFor(() => expect(chamadasDe('/estoque/movimentos')[0].query).toMatchObject({ empresa_id: 'emp-1', produto_id: 'p-ureia', local_estoque_id: 'l-galpao' }));
+    backend.chamadas.length = 0;
+    await act(async () => { persistirEmpresaSelecionada('emp-2', 'cli-1'); });
+    await waitFor(() => expect(chamadasDe('/estoque/saldo').some((c) => c.query.empresa_id === 'emp-2')).toBe(true));
+    expect(screen.getByTestId('estoque-aba-saldo').getAttribute('aria-selected')).toBe('true');
+    expect(chamadasDe('/estoque/movimentos').some((c) => c.query.empresa_id === 'emp-2' && c.query.produto_id)).toBe(false);
+  });
 });
 
 describe('D-PROD-255 — Movimentos e a janela do movimento', () => {

@@ -16,7 +16,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 const ROTULO = 'maike-estoque-consulta-cursor:v1';
 const SAL = 'maike-estoque-consulta';
 const TAMANHO_MAC = 32;
-const TAMANHO_MAXIMO = 1024;
+export const TAMANHO_MAXIMO_CURSOR = 4096;
 
 const cursorInvalido = () =>
   new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido; recomece a consulta sem cursor', {
@@ -54,7 +54,7 @@ export const codificarCursorConsulta = (amarra, posicao) => {
  * @returns {unknown[]} a tupla de posição
  */
 export const decodificarCursorConsulta = (bruto, amarra) => {
-  if (typeof bruto !== 'string' || !new RegExp(`^[A-Za-z0-9_-]{1,${TAMANHO_MAXIMO}}$`).test(bruto)) throw cursorInvalido();
+  if (typeof bruto !== 'string' || !new RegExp(`^[A-Za-z0-9_-]{1,${TAMANHO_MAXIMO_CURSOR}}$`).test(bruto)) throw cursorInvalido();
   const bytes = Buffer.from(bruto, 'base64url');
   if (bytes.toString('base64url') !== bruto || bytes.length <= TAMANHO_MAC) throw cursorInvalido();
   const corpo = bytes.subarray(0, bytes.length - TAMANHO_MAC);

@@ -105,6 +105,17 @@ describe('D-PROD-255 — cursor assinado e unidade', () => {
     recusa(() => decodificarCursorConsulta('!!', amarra));
     recusa(() => decodificarCursorConsulta(12, amarra));
   });
+
+  test('cursor de saldo cabe dois nomes de 255 caracteres acentuados e os ids (acima do antigo teto de 1024)', async () => {
+    const { TAMANHO_MAXIMO_CURSOR } = await import('../src/modules/estoqueConsulta/estoqueConsultaCursor.js');
+    const nome = 'Á'.repeat(255);
+    const id = 'x'.repeat(64);
+    const amarra = ['saldo', 't1', 'e1', null, null, null, true, 100];
+    const c = codificarCursorConsulta(amarra, [nome, nome, id, id]);
+    assert.ok(c.length > 1024, c.length);
+    assert.ok(c.length <= TAMANHO_MAXIMO_CURSOR, c.length);
+    assert.deepEqual(decodificarCursorConsulta(c, amarra), [nome, nome, id, id]);
+  });
 });
 
 describe('D-PROD-255 — Saldo (E1)', () => {
@@ -189,6 +200,24 @@ describe('D-PROD-255 — Saldo (E1)', () => {
       assert.equal(r.statusCode, 400, r.body);
       assert.deepEqual([r.json().field, r.json().reason], ['cursor', 'cursor_invalido']);
     }
+  });
+
+  test('paginar o saldo depois de um produto com nome de 255 caracteres acentuados não recusa o cursor', async () => {
+    const x = await cenario();
+    const nomeLongo = `AAA${'é'.repeat(252)}`;
+    const depositoLongo = `AAA${'á'.repeat(252)}`;
+    const p = await produto(x.c, x.e.id, nomeLongo, 'KG');
+    const l = await local(x.c, depositoLongo);
+    await camada(x.c, x.e.id, p, l, '1', '1.0000');
+    const p1 = await get(`/estoque/saldo${qs({ empresa_id: x.e.id, limit: 1 })}`, x.token);
+    assert.equal(p1.statusCode, 200, p1.body);
+    const b = p1.json();
+    assert.equal(b.items[0].produto_nome, nomeLongo);
+    assert.equal(b.items[0].local_estoque_nome, depositoLongo);
+    assert.ok(b.next_cursor && b.next_cursor.length > 1024, b.next_cursor?.length);
+    const p2 = await get(`/estoque/saldo${qs({ empresa_id: x.e.id, limit: 1, cursor: b.next_cursor })}`, x.token);
+    assert.equal(p2.statusCode, 200, p2.body);
+    assert.ok(p2.json().items.length >= 1);
   });
 
   test('isolamento: empresa de outro tenant → 404; os dados do outro tenant não aparecem', async () => {

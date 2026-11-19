@@ -20,12 +20,13 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from '../patrimonio/patrimonioComum.js';
+import { TAMANHO_MAXIMO_CURSOR } from './estoqueConsultaCursor.js';
 import { movimento, movimentos, opcoesLocais, opcoesProdutos, saldo } from './estoqueConsultaService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const DIA = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' };
 const LIMITE = { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO };
-const CURSOR = { type: 'string', minLength: 1, maxLength: 1024 };
+const CURSOR = { type: 'string', minLength: 1, maxLength: TAMANHO_MAXIMO_CURSOR };
 const BUSCA = { type: 'string', maxLength: 64 };
 
 const SALDO = {

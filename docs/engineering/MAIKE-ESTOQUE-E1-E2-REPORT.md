@@ -31,6 +31,7 @@ Tela nova **`sup-estoque`** (módulo `suporte-mapa`), ação `visualizar` → `G
 - Backend (PostgreSQL real, `backend/tests/estoqueConsulta.test.mjs`): soma e custo ponderado das camadas, unidade, filtros, paginação keyset estável (inclusive empate de data e inserção no meio), cursor adulterado/de outro filtro/de outro tenant, isolamento por tenant e empresa, 401/403 em todas as rotas, querystring fechada, detalhe, par de estorno e a transferência pelo motor real.
 - Navegador (`tests/smoke/estoqueTela.test.jsx`): abas só Saldo e Movimentos, colunas e formatos (R$, kg, DD/MM/AAAA), filtro por clique, ⚡, janela de detalhe (um diálogo, sem gravar), celular em tela cheia, sem permissão nada é lido e o item de menu só com `visualizar`.
 - Registro: `config/mapa-manejo-scope.json`, `vercel.json` (pelo gerador), `pages.config.js`, `menuConfig.js`, ícone do menu do celular, testes de escopo e de rotas SPA.
+- Prévia da Vercel: `ignoreCommand` também deixa passar a branch exata `cursor/estoque-saldo-movimentos` (padrão D-PROD-251). A exceção sai quando a branch não for mais necessária.
 
 ## Fica para depois (decisões do proprietário)
 
