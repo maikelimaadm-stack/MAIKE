@@ -1,6 +1,6 @@
 # Relatório — Padrão Base1: campos preenchidos, guias laterais e grade de 4 colunas (D-PROD-260)
 
-**Fatia:** padrão visual Base1 · **Branch:** `feat/base1-campos-underline-busca` · **PR:** #339
+**Fatia:** padrão visual Base1 · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **PR:** correções da #339 (a #339 foi mergeada antes delas)
 
 ## O que mudou
 

@@ -8714,7 +8714,7 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-259`, que a PR #341 (Estoque, Novo movimento) já usa; esta é a **D-PROD-260** e o marcador passa a D-PROD-261.
 
-- **Contexto:** o proprietário pediu um padrão visual único para os formulários do motor Base1. A PR #339 foi feita em outra ferramenta e parou com 64 testes de fumaça vermelhos; esta decisão registra o que entrou e o que foi corrigido para fechar.
+- **Contexto:** o proprietário pediu um padrão visual único para os formulários do motor Base1. A PR #339 foi feita em outra ferramenta e foi mergeada com 64 testes de fumaça vermelhos; as correções vieram na PR seguinte (branch `claude/tipo-tarefa-drop-colunas-1aznvv`). Esta decisão registra o que entrou e o que foi corrigido.
 - **Decisão (o que entrou):**
   - Campos em caixa preenchida arredondada com rótulo interno e foco verde; a pesquisa das listas fica dentro do próprio campo aberto (`B1Select`, `AutocompleteGenerico`, `PainelSelecao`).
   - `Base1PanelTabs` passa a **guias laterais** (verticais) com campo "Buscar guia" e botão de recolher; **substitui a parte "abas horizontais em pílula" da D-PROD-164**. Continua sem botão de alternar estilo, mesmo com preferência antiga salva.
