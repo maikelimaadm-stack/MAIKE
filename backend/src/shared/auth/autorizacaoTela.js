@@ -88,6 +88,12 @@ export const TELAS = Object.freeze({
   // a tela `op-apontamentos-atividade` (D-PROD-190): as linhas dela gravadas em
   // `permissoes_telas` ficam inertes (nenhuma guarda as pede; precedente D-PROD-162).
   ATIVIDADES: Object.freeze({ modulo: 'suporte-mapa', tela: 'op-atividades' }),
+  // D-PROD-255 — Estoque (Saldo e Movimentos, SOMENTE CONSULTA): mesmo id do item de menu `sup-estoque`,
+  // no grupo `suporte-mapa`, logo abaixo de Locais de Estoque. `visualizar` abre a consulta. A permissão
+  // FUTURA de entrada e de ajuste de inventário é separada: ação EXTRA desta mesma linha (`entrada`, `ajuste`),
+  // ainda NÃO criada (nada a escrever hoje; ficaria um interruptor sem efeito na tela Permissões). Sem
+  // concessão automática a perfis antigos.
+  ESTOQUE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-estoque' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
