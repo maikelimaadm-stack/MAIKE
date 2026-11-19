@@ -36,7 +36,8 @@ export const LIMITE_CONSULTA_MAXIMO = LIMITE_MAXIMO;
 
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
 
-const ORIGENS_VALIDAS = Object.freeze(['operacao_financeira', 'abastecimento_patrimonio', 'suplementacao', 'deposito', 'entrada_estoque', 'apontamento_atividade', 'manual']);
+/** `origem_sistema` do motor: minúsculas e `_` (a lista de origens é do motor; origem sem movimento só devolve vazio). */
+const ORIGEM_VALIDA = /^[a-z_]{1,32}$/;
 
 /** Unidade em que o motor expressa a quantidade do Produto: L para L; KG para o resto (SACO guarda kg). */
 export const unidadeDeEstoque = (unidadePrincipal) => (unidadePrincipal === 'L' ? 'L' : 'KG');
@@ -200,7 +201,7 @@ export const movimentos = async (contexto, query = {}) => {
   const de = query.data_de || null;
   const ate = query.data_ate || null;
   exigirPeriodo(de, ate);
-  if (query.origem_sistema && !ORIGENS_VALIDAS.includes(query.origem_sistema)) {
+  if (query.origem_sistema && !ORIGEM_VALIDA.test(query.origem_sistema)) {
     throw invalido('origem_sistema desconhecida', { field: 'origem_sistema', reason: 'origem_desconhecida' });
   }
   const q = buscaLiteral(query.q);

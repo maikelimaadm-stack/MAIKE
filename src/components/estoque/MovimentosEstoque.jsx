@@ -104,7 +104,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
   );
 
   const filtrosDaTela = useMemo(
-    () => [
+    () => /** @type {any[]} */ ([
       {
         id: "produto",
         rotulo: "Produto",
@@ -132,7 +132,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, inicial = nul
           setAte(p.ate);
         },
       },
-    ],
+    ]),
     [produtos, produto, depositosComAtual, depositoId, origem, tipo, de, ate],
   );
 

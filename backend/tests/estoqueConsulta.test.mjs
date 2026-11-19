@@ -237,7 +237,7 @@ describe('D-PROD-255 — Movimentos (E2, P1-04)', () => {
     const status = async (extra) => (await get(`/estoque/movimentos${qs({ empresa_id: x.e.id, ...extra })}`, x.token)).statusCode;
     assert.equal(await status({ data_de: '2026-11-10', data_ate: '2026-11-01' }), 400);
     assert.equal(await status({ data_de: '2026-02-30' }), 400);
-    assert.equal(await status({ origem_sistema: 'qualquer' }), 400);
+    assert.equal(await status({ origem_sistema: 'Origem Inválida!' }), 400);
     assert.equal(await status({ tipo_movimentacao: 'Outro' }), 400);
   });
 
