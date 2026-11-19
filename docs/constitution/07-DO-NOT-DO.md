@@ -149,6 +149,16 @@ Violação exige **rollback**, não flexibilização da regra.
 > a pagar ou receita a partir dela. "Doação ou outra causa" passa a ler-se "um motivo de entrada do cadastro".
 > Continua proibido mudar o motivo de uma entrada e conceder a ação `entrada` a perfis existentes por padrão.
 
+> **Nota (D-PROD-261, emenda aprovada pelo proprietário em 2026-11-19):** na nota D-PROD-177, no lugar de
+> "confirmar ou editar uma entrada manual com o mesmo parceiro e documento de um lançamento confirmado da Central
+> (a pagar ou a receber) ou de outra entrada confirmada, e confirmar ou retificar (no lugar ou por substituição)
+> na Central um lançamento, a pagar ou a receber, com o mesmo parceiro e documento de uma entrada confirmada",
+> vale: confirmar ou editar uma entrada manual com o mesmo documento de outra entrada confirmada ou de um
+> lançamento confirmado da Central com produtos (a pagar ou a receber), e confirmar ou retificar (no lugar ou
+> por substituição) na Central um lançamento com produtos com o mesmo documento de uma entrada confirmada. O
+> lançamento sem produtos (só o pagamento) não conflita. Continua proibido conceder a ação `entrada` a perfis
+> existentes por padrão.
+
 > **Nota (D-PROD-193):** os itens do Apontamento de Atividade são a segunda exceção, depois do abastecimento, à
 > lista "fora" da D-PROD-157, só no trecho baixa de estoque, nos limites da decisão. Continua proibido: baixar o
 > item fora do motor de estoque ou por `Produto.estoque_atual -= …`; gravar o movimento com a origem do

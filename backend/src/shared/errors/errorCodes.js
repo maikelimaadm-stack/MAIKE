@@ -128,7 +128,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   PERFIL_FINANCEIRO_MOEDA_EM_USO: { http: 409, meaning: 'a moeda do perfil não muda com lançamentos existentes ou custo de estoque legado em BRL (details.reason); nada foi gravado' },
   OPERACAO_STATUS_INVALIDO: { http: 409, meaning: 'a situação do lançamento não permite esta ação (details.status); nada foi gravado' },
   OPERACAO_VERSAO_CONFLITO: { http: 409, meaning: 'o rascunho mudou desde a leitura (versão diferente); recarregue; nada foi gravado' },
-  OPERACAO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe lançamento CONFIRMADO com este documento para o mesmo parceiro e direção nesta empresa; nada foi gravado' },
+  OPERACAO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe lançamento CONFIRMADO com este documento para o mesmo parceiro e direção nesta empresa, ou (reason documento_de_entrada_manual, D-PROD-261) o lançamento com produtos tem o documento de uma entrada manual confirmada; nada foi gravado' },
   OPERACAO_RATEIO_INVALIDO: { http: 422, meaning: 'rateio inválido (soma, linha duplicada ou linha com valor zero; details.reason); nada foi gravado' },
   OPERACAO_PARCELAS_INVALIDAS: { http: 422, meaning: 'parcelas inválidas (soma, quantidade, vencimento ou valor; details.reason); nada foi gravado' },
   OPERACAO_REFERENCIA_INVALIDA: { http: 422, meaning: 'parceiro, natureza, centro, produto, local ou método recusado (details.field/reason); nada foi gravado' },
@@ -194,7 +194,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS: { http: 409, meaning: 'o estoque desta entrada já foi consumido, movimentado ou não se prova intocado (details.reason); exclusão recusada; nada foi alterado' },
   ENTRADA_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação da entrada não permite esta ação (details.status); nada foi alterado' },
   ENTRADA_ESTOQUE_VERSAO_CONFLITO: { http: 409, meaning: 'a entrada mudou desde a leitura (versão diferente); recarregue; nada foi alterado' },
-  ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE: { http: 409, meaning: 'já existe entrada ou lançamento financeiro confirmado com este documento nesta fazenda (details.reason); nada foi gravado' },
+  ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE: { http: 409, meaning: 'já existe entrada confirmada ou lançamento confirmado com produtos com este documento nesta fazenda (details.reason); nada foi gravado' },
   ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'só a observação se edita; para mudar produto, quantidade, custo, data, fornecedor, documento, centros ou depósito exclua e lance outra entrada; nada foi alterado' },
   // D-PROD-259 — cadastro de motivos de entrada do estoque.
   MOTIVO_ENTRADA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de entrada deste tenant' },

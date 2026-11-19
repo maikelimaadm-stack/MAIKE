@@ -124,6 +124,14 @@ continua pela Central. Em "Continua **fora**", no lugar de "entrada por compra f
 conta a pagar ou receita fora da Central. O motivo de uma entrada continua imutável. Texto redigido pelo agente e
 **aprovado pelo proprietário em 2026-11-19** (chat, "Aprovo as duas"), na PR #341 (§4).
 
+**Emenda aprovada pelo proprietário (D-PROD-261):** **Estoque × Central — a mesma compra não entra duas vezes
+no estoque.** Na expansão D-PROD-177 acima, no lugar de "não pode duplicar um lançamento da Central nem outra
+entrada: com o mesmo parceiro e documento, um bloqueia o outro, nos dois sentidos", vale: não pode duplicar outra
+entrada nem a mercadoria de um lançamento da Central: com o mesmo documento na fazenda, uma entrada bloqueia a
+outra, e a entrada e um lançamento da Central **com produtos** bloqueiam um ao outro, nos dois sentidos; o
+lançamento sem produtos (só o pagamento) com o mesmo documento não conflita. Texto redigido pelo agente e
+**aprovado pelo proprietário em 2026-11-19** (chat, "aprovo"), na PR #345 (§4).
+
 **Expansão autorizada pelo proprietário (D-PROD-193):** **Apontamento de Atividade — itens** (página
 `ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
 **PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de
