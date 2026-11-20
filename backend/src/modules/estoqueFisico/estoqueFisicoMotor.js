@@ -221,7 +221,7 @@ const localInvalido = (field, reason) =>
  * segura o DELETE do local até o commit). Chamar ANTES de `travarProdutosEstoque`.
  * Local de outro tenant = inexistente (mesmo corpo de erro: sem oráculo).
  * @param {any} tx @param {string} clienteId
- * @param {Array<{ id: string, field: 'local_origem_id'|'local_destino_id', exigirAtivo: boolean }>} pedidos
+ * @param {Array<{ id: string, field: 'local_origem_id'|'local_destino_id'|'local_estoque_id', exigirAtivo: boolean }>} pedidos
  * @returns {Promise<Map<string, { id: string, nome: string, ativo: boolean }>>}
  * @throws 422 ESTOQUE_LOCAL_INVALIDO { field, reason: 'local_inexistente'|'local_inativo' }
  */

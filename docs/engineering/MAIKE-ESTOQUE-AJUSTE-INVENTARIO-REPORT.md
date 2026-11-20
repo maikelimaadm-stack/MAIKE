@@ -40,7 +40,7 @@ Por linha, o contado (KG, SACO pelo peso do saco, L) é comparado com o saldo do
   - consulta: o detalhe do movimento aponta o ajuste;
   - ação extra `ajuste`.
 - **Correção na saída manual (D-PROD-264):** "nada mexeu depois" não conta mais como posterior um movimento antigo com número fora do padrão. Virou o helper comum `movimentoPosteriorNoDeposito`, e há um teste para isso. Em produção nenhum dos 10 movimentos tem número fora do padrão: o defeito era latente.
-- **Tela:** tipo Ajuste no "Novo movimento" e detalhe do ajuste (ver o corpo da PR).
+- **Tela:** tipo Ajuste no "Novo movimento" (por linha: produto, unidade, depósito, contado, saldo atual e diferença com sinal; custo só na sobra de depósito sem saldo; data fixa "Hoje"); detalhe do ajuste pelo Kardex e logo depois de lançar, com editar observação e excluir (motivo). Sem lista própria de ajustes, como na saída.
 
 ## 4. Constituição: emenda PROPOSTA (falta a aprovação)
 
@@ -70,8 +70,9 @@ A constituição põe "ajuste ou inventário" explicitamente fora. A proposta de
 | `backend/tests/estoqueAjustes.test.mjs` (novo, Postgres real) | 12/12 |
 | `estoqueSaidas` / `estoqueEntradas` / `estoqueConsulta` | 15 / 47 / 23, todos passaram |
 | `estoqueP0Reconciliacao*`, `estoqueP0MotorUnico`, `estoqueP1M2MotorParametros` | todos passaram |
-| provas da release e testes de migration | ver o corpo da PR |
-| smoke da tela | ver o corpo da PR |
+| provas da release (`test:gates`) e testes de migration | 1051/1051 · 54/54 (B39a/B39b/B39k novos) |
+| smoke `estoqueNovoMovimento` (12 novos) · `tests/smoke` inteiro | 38/38 · 3791/3791 |
+| `verify:all` em banco novo (72 migrations) | todas as etapas passaram (a de tipos do backend depois de ajustar o JSDoc de `exigirLocaisEstoque`) |
 
 ## 7. Fora de escopo
 
