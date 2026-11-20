@@ -193,6 +193,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-264: EXPAND — saída manual do Estoque (MotivoSaidaEstoque, SaidaEstoque, SaidaEstoqueItem e
   // SaidaEstoqueEvento), só tabelas novas.
   '20261120100000_estoque_saidas': '3cc70cddeb743261344ea1641f2e81e6294ed31d077fbef812f55444888114e0',
+  // D-PROD-265: EXPAND — ajuste de inventário do Estoque (AjusteEstoque, AjusteEstoqueItem e AjusteEstoqueEvento),
+  // só tabelas novas.
+  '20261120200000_estoque_ajustes': 'ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -246,6 +249,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '82d403a361510ea74e0216379f21912e5a4b68493eac13786fbbb9334f8c0f70',
   // D-PROD-264: RLS/REVOKE das 4 tabelas da saída manual do Estoque (mesmo corpo, lista nova).
   'c0806122464b767913dd451fb066b803fb13451923a10b75462fc96038feffe3',
+  // D-PROD-265: RLS/REVOKE das 3 tabelas do ajuste de inventário (mesmo corpo, lista nova).
+  '4825a207a444b5b3bff8ac669e4e6e4a4db95d5aebd68986125bc8db00094fb8',
 ]);
 
 /**

@@ -209,6 +209,13 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR: { http: 409, meaning: 'o produto teve outro movimento no depósito depois da saída; a exclusão não é possível (details.movimento_numero); nada foi alterado' },
   MOTIVO_SAIDA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de saída deste tenant' },
   MOTIVO_SAIDA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de saída com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
+  // D-PROD-265 — Estoque → Novo movimento → Ajuste (ajuste de inventário: contado × saldo; sobra a custo médio, falta).
+  AJUSTE_ESTOQUE_NOT_FOUND: { http: 404, meaning: 'id não identifica ajuste de estoque desta fazenda neste tenant' },
+  AJUSTE_ESTOQUE_INVALIDO: { http: 422, meaning: 'ajuste recusado (details.field/reason: produto, depósito, unidade, contagem, custo da sobra sem saldo ou centro); nada foi gravado' },
+  AJUSTE_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação do ajuste não permite esta ação (details.status); nada foi alterado' },
+  AJUSTE_ESTOQUE_VERSAO_CONFLITO: { http: 409, meaning: 'o ajuste mudou desde a leitura (versão diferente); recarregue; nada foi alterado' },
+  AJUSTE_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'só a observação se edita; para mudar a contagem ou os centros exclua e faça outro ajuste; nada foi alterado' },
+  AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR: { http: 409, meaning: 'um produto do ajuste teve outro movimento no depósito depois dele; a exclusão não é possível (details.movimento_numero); nada foi alterado' },
   // D-PROD-159 / D-PROD-162 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
   // do Produto (L ou KG; D-PROD-169: SACO abastece em KG), pelo motor de estoque; sem conversão nem fator.
   ABASTECIMENTO_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica abastecimento desta fazenda neste tenant' },
