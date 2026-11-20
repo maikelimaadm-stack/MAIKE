@@ -15,7 +15,7 @@
  *  - o corpo vai com a quantidade como TEXTO, sem valor/custo, e `operation_id`; saldo insuficiente diz a linha;
  *  - no celular a folha nasce dentro da janela; o movimento de saída manual abre o detalhe da saída (excluir; 409).
  *
- * D-PROD-266 — Ajuste de inventário:
+ * D-PROD-267 — Ajuste de inventário:
  *  - o tipo Ajuste só com a ação `ajuste`; digita-se o saldo CONTADO e a tela mostra o saldo atual e a diferença;
  *  - o corpo vai sem data, com `quantidade_contada` como TEXTO e o custo SÓ na sobra de um depósito sem saldo;
  *  - `custo_obrigatorio_sem_saldo` diz a linha; o movimento de ajuste abre o detalhe do ajuste (excluir; 409); celular.
@@ -171,7 +171,7 @@ const criarRoteador = () => {
       const base = await rotearEstoque(req);
       return { ...base, body: { ...base.body, items: [MOV_AJUSTE, MOV_SAIDA, ...base.body.items] } };
     }
-    // D-PROD-266 — ajustes de inventário.
+    // D-PROD-267 — ajustes de inventário.
     if (path === '/estoque/ajustes/saldo' && method === 'GET') {
       const chave = `${query.get('produto_id')}|${query.get('local_estoque_id')}`;
       const s = SALDOS_AJUSTE[chave] ?? { saldo: '0.0000', custo_medio: null };
@@ -746,7 +746,7 @@ describe('D-PROD-264 — do movimento para a saída', () => {
   });
 });
 
-describe('D-PROD-266 — Ajuste: permissões e tipo', () => {
+describe('D-PROD-267 — Ajuste: permissões e tipo', () => {
   it('com `entrada`, `saida` e `ajuste` o tipo oferece Entrada, Saída, Ajuste e Transferência', async () => {
     sessao.permissao = permissaoCom({ entrada: true, saida: true, ajuste: true });
     const janela = await abrirNovoMovimento();
@@ -770,7 +770,7 @@ describe('D-PROD-266 — Ajuste: permissões e tipo', () => {
   });
 });
 
-describe('D-PROD-266 — Ajuste: formulário', () => {
+describe('D-PROD-267 — Ajuste: formulário', () => {
   const abrirAjuste = async () => {
     sessao.permissao = permissaoCom({ ajuste: true });
     const janela = await abrirNovoMovimento();
@@ -888,7 +888,7 @@ describe('D-PROD-266 — Ajuste: formulário', () => {
   });
 });
 
-describe('D-PROD-266 — do movimento para o ajuste', () => {
+describe('D-PROD-267 — do movimento para o ajuste', () => {
   const abrirDetalheDoAjuste = async () => {
     await abrirMovimentos();
     fireEvent.doubleClick((await screen.findByText('107')).closest('tr'));

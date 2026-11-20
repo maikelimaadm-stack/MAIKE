@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-266; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-267; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,27 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-266)
+## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-267)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-266**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
+| Decisão | **D-PROD-267**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
 | Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5`, com a `main` `3c8329b1` integrada · PR #350 (draft) |
 | Migration | `20261120300000_estoque_ajustes` (renomeada de `20261120200000_…` para vir depois da data de término), **EXPAND** (3 tabelas novas). GO do proprietário dado ("Aprovo as duas"); aplicação pelo runbook, registro no §7 |
 | Constituição | emenda **aprovada** pelo proprietário (2026-11-20) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
 | Próxima | edição completa de entrada e saída (PR própria), pedida pelo proprietário |
 | Relatório | [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · runbook [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-EXCLUIR-HISTORICOS-MAPA: excluir e cancelar direto nos históricos do mapa (D-PROD-266)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-266**, pedido do proprietário: as opções de excluir não apareciam nos históricos do mapa; ele escolheu liberar para quem tem permissão e fazer em duas etapas |
+| Branch / PR | `feat/excluir-historicos-mapa`, a partir da `main` `3c8329b1` · PR **#351** |
+| Escopo (etapa 1) | Permissão nova `excluir_movimentacoes_lote` (servidor + tela); Excluir por movimento no histórico do lote/pasto; Cancelar registro de campo no histórico da área; Excluir do evento de tarefa alinhado ao servidor |
+| Migration | Nenhuma. Merge e deploy normais |
+| Etapa 2 | Estorno de lançamento de cocho e de transferência de depósito (servidor novo) |
+| Relatório | [`MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md`](./MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md) |
 
 ## Missão anterior (2026-11-20) — MAIKE-NOVA-REALIZACAO: "Nova realização" com o tipo em cartões e a data de término (D-PROD-265)
 

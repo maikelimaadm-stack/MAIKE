@@ -9,7 +9,7 @@ import { useAcoesTelaEstoque, useEmpresaRealSelecionadaId } from "@/hooks/useEst
  * Movimentos (kardex). D-PROD-259: o lançamento fica DENTRO de Movimentos ("Novo movimento", em que se escolhe o tipo:
  * Entrada, Saída, Ajuste ou Transferência); não há aba separada de Entradas. Clicar numa linha do Saldo abre os Movimentos
  * daquele produto e depósito. Entrada e Transferência exigem a ação `entrada` da tela; a Saída manual (D-PROD-264), a
- * ação `saida`; o Ajuste de inventário (D-PROD-266), a ação `ajuste` (o servidor bloqueia de fato). Sem permissão `visualizar` da tela `sup-estoque` nada é lido.
+ * ação `saida`; o Ajuste de inventário (D-PROD-267), a ação `ajuste` (o servidor bloqueia de fato). Sem permissão `visualizar` da tela `sup-estoque` nada é lido.
  * Trocar de fazenda remonta a tela (`key` da fazenda) e descarta filtros e a linha aberta.
  */
 export default function EstoqueTela() {

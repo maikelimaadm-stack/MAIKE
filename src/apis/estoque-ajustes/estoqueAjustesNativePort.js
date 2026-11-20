@@ -1,5 +1,5 @@
 /**
- * Porta nativa dos Ajustes de inventário do Estoque (D-PROD-266): lista, detalhe, saldo do depósito (para a tela
+ * Porta nativa dos Ajustes de inventário do Estoque (D-PROD-267): lista, detalhe, saldo do depósito (para a tela
  * mostrar o saldo atual e a diferença), criação, edição da observação e exclusão. O tenant vem só do JWT; a fazenda
  * (`empresa_id`) vai na query (leitura) ou no corpo (escrita). A permissão é conferida no servidor (403). Os
  * seletores do formulário são os da entrada (`/estoque/entradas/opcoes/*`).

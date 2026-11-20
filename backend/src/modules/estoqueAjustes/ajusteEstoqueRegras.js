@@ -1,5 +1,5 @@
 /**
- * D-PROD-266 (Estoque → Novo movimento → Ajuste) — regras PURAS do ajuste de inventário: normalização do corpo,
+ * D-PROD-267 (Estoque → Novo movimento → Ajuste) — regras PURAS do ajuste de inventário: normalização do corpo,
  * unidade e fingerprint. Sem banco.
  *
  *  - Por linha: produto, depósito, unidade (KG, SACO ou L, compatível com o estoque do produto) e a quantidade

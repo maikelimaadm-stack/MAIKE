@@ -6,6 +6,7 @@ import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheSe
 import { toast } from "sonner";
 import { formatarDia } from "@/lib/diaCivil";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
+import { usePodeExcluirEventoTarefa } from "@/hooks/usePodeExcluirEventoTarefa";
 import { LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteSegmento, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
@@ -38,6 +39,10 @@ import "@/styles/mk-dp-tarefa.css";
  * direto). Os diálogos (Editar tarefa, Registrar evento, Histórico da tarefa),
  * as mutações, as invalidações e os tipos de evento permitidos (D-PROD-118)
  * são os de antes; os diálogos são irmãos da casca porque vão por portal.
+ * D-PROD-266 (etapa 1): o "Excluir" do evento no "Ver histórico" só aparece
+ * para quem o servidor deixa excluir (administrador real ou `is_admin`,
+ * `usePodeExcluirEventoTarefa`), seja o detalhe aberto pelo mapa ou pela
+ * Gestão de Tarefas.
  */
 
 /** Últimos eventos no corpo; o histórico inteiro fica no "Ver histórico". */
@@ -174,6 +179,7 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
   const queryClient = useQueryClient();
   const [currentTarefa, setCurrentTarefa] = useState(tarefa);
   const diaDoAparelho = useDiaCivil(null);
+  const podeExcluirEvento = usePodeExcluirEventoTarefa();
   const [showEdit, setShowEdit] = useState(false);
   const [showEvento, setShowEvento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
@@ -516,7 +522,9 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico da tarefa" lotes={[{ nome: currentTarefa.titulo }]} largo somenteLeitura>
         <HistoricoTarefaPanel
           tarefaId={currentTarefa.id}
+          empresaId={currentTarefa.empresa_id ?? null}
           tarefaTitulo={currentTarefa.titulo}
+          podeExcluir={podeExcluirEvento}
           historico={historico}
           carregando={loadingHistorico}
           erro={erroHistorico}

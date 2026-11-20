@@ -1,5 +1,5 @@
 /**
- * Service dos Ajustes de inventário do Estoque (D-PROD-266). Sem fazenda real selecionada, nada é lido (página vazia).
+ * Service dos Ajustes de inventário do Estoque (D-PROD-267). Sem fazenda real selecionada, nada é lido (página vazia).
  * Decimais são TEXTO canônico: nada aqui faz aritmética de ponto flutuante. O usuário digita o saldo CONTADO; o
  * servidor recalcula a diferença com o saldo do momento e valoriza (sobra e falta pelo custo médio do depósito; a
  * sobra sem saldo anterior, pelo custo informado). Os seletores são os da entrada (`estoqueEntradasService`).

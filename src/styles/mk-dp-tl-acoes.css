@@ -1,0 +1,99 @@
+/*
+ * Pé de ações do cartão da linha do tempo (D-PROD-266): LinhaDoTempo desenha
+ * `div.mk-dp-tl__acoes` só quando o cartão traz `acoes`. A faixa segue o
+ * cartão do v12 compacto (D-PROD-245): a mesma divisória fina #f0f1f3 das
+ * fileiras, o recuo de 10 px das linhas e o botão no desenho do "Carregar
+ * mais" (.mk-dp-hist__botao compacto: 30 px, raio 4, 12 px).
+ *
+ * Marcação: li.mk-dp-tl__card > … + div.mk-dp-tl__acoes
+ *   Na aba Histórico do pasto: div.mk-dp-tl__acoes > div.mk-dp-hist__excluir
+ *     > div(ExcluirMovimentacao: botões + p do motivo)
+ *     + p.mk-dp-hist__alcance (o movimento inteiro sai; só com o botão)
+ *
+ * Pé vazio = 0 px em QUALQUER navegador (sem `:has()`, que falta em WebView
+ * antigo do campo): o contêiner `.mk-dp-tl__acoes` não tem recuo nem
+ * divisória; quem os recebe é cada FILHO não vazio. Na aba Histórico, quando
+ * o ExcluirMovimentacao não desenha nada (sem permissão, já excluída), a
+ * `.mk-dp-hist__excluir` fica vazia e o pé some inteiro. Por isso `acoes`
+ * deve ser elemento(s), não texto solto.
+ *
+ * O ExcluirMovimentacao é o componente comum (botão e diálogo do sistema);
+ * aqui só se ajusta, sob `.mk-dp`, o botão e o texto que ele põe DENTRO do
+ * cartão, para não destoar da linha do tempo. O diálogo não muda.
+ */
+
+.mk-dp .mk-dp-tl__acoes {
+  display: block;
+  padding: 0;
+  border: 0;
+}
+
+.mk-dp .mk-dp-tl__acoes:empty,
+.mk-dp .mk-dp-tl__acoes > :empty {
+  display: none;
+}
+
+.mk-dp .mk-dp-tl__acoes > :not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-top: 1px solid #f0f1f3;
+}
+
+/* Vários filhos com conteúdo: uma divisória só, no topo do pé. */
+.mk-dp .mk-dp-tl__acoes > :not(:empty) ~ :not(:empty) {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.mk-dp .mk-dp-tl__acoes > .mk-dp-hist__excluir {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.mk-dp .mk-dp-tl__acoes button {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #d6dadf;
+  border-radius: 4px;
+  background: #fff;
+  color: #2b2f33;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.mk-dp .mk-dp-tl__acoes button:disabled {
+  color: #6b7280;
+  opacity: 0.6;
+}
+
+/* Elegível: o botão principal no vermelho de ação destrutiva do sistema. */
+.mk-dp .mk-dp-tl__acoes [data-estado-exclusao="elegivel"] button:first-of-type:not(:disabled) {
+  color: #b91c1c;
+}
+
+@media (hover: hover) {
+  .mk-dp .mk-dp-tl__acoes button:not(:disabled):hover {
+    background: #f6f7f8;
+  }
+}
+
+.mk-dp .mk-dp-hist__excluir > div p,
+.mk-dp .mk-dp-hist__alcance {
+  margin: 0;
+  color: #6b7280;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-hist__excluir > div p,
+  .mk-dp .mk-dp-hist__alcance {
+    font-size: 12px;
+  }
+}

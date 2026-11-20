@@ -76,7 +76,7 @@ export const ORIGEM_APONTAMENTO = 'apontamento_atividade';
  */
 export const ORIGEM_SAIDA_ESTOQUE = 'saida_estoque';
 /**
- * D-PROD-266 — origem do AJUSTE DE INVENTÁRIO documentado (sobra = entrada com camada; falta = saída) e dos
+ * D-PROD-267 — origem do AJUSTE DE INVENTÁRIO documentado (sobra = entrada com camada; falta = saída) e dos
  * estornos dele. 14 chars (VarChar(32)). Só este arquivo cita o rótulo: o módulo `estoqueAjustes` usa os
  * invólucros `aplicarSobraDeAjuste`, `aplicarFaltaDeAjuste`, `estornarSobraDeAjuste` e `estornarFaltaDeAjuste`.
  */
@@ -1575,7 +1575,7 @@ export const estornarSaidaDocumentada = (tx, ctx, a) => {
   }));
 };
 
-// ─── ajuste de inventário documentado (D-PROD-266) ───────────────────────────
+// ─── ajuste de inventário documentado (D-PROD-267) ───────────────────────────
 /** Rótulos fechados do ajuste (o texto do movimento diz "Ajuste de inventário nº N"). */
 const TIPO_SOBRA_AJUSTE = 'ajuste_sobra';
 const TIPO_FALTA_AJUSTE = 'ajuste_falta';
@@ -1583,7 +1583,7 @@ const TIPO_ESTORNO_SOBRA_AJUSTE = 'estorno_ajuste_sobra';
 const TIPO_ESTORNO_FALTA_AJUSTE = 'estorno_ajuste_falta';
 
 /**
- * D-PROD-266 — o poço do produto no depósito, para a contagem: saldo (Σ disponível das camadas Disponivel) e
+ * D-PROD-267 — o poço do produto no depósito, para a contagem: saldo (Σ disponível das camadas Disponivel) e
  * custo médio (valor ÷ quantidade, `CASAS_CUSTO`; null sem saldo). Chamar sob a trava do produto.
  * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} produtoId @param {string} localId
  * @returns {Promise<{ quantidade: any, valor: any, custoMedio: any|null }>}
@@ -1595,7 +1595,7 @@ export const pocoDoDeposito = async (tx, clienteId, empresaId, produtoId, localI
 };
 
 /**
- * D-PROD-266 — as quatro pontas do ajuste de inventário. Só fixam a origem e os rótulos e delegam às primitivas:
+ * D-PROD-267 — as quatro pontas do ajuste de inventário. Só fixam a origem e os rótulos e delegam às primitivas:
  *  - sobra → `aplicarEntradaEstoque` (camada nova com o custo dado: o médio do depósito, ou o informado sem saldo);
  *  - falta → `aplicarSaida` (custo médio, fatias em `lotes_consumidos`);
  *  - estorno da sobra → `estornarEmLote` efeito ENTRADA (camada Estornada, movimento compensatório);

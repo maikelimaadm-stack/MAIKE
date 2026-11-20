@@ -365,11 +365,12 @@ describe('EX-F — idempotência: replay do comando original não ressuscita', (
 // ═══ (g) autorização, tenant, contrato ═════════════════════════════════════
 
 describe('EX-G — comum, outro tenant, sem token, corpo com delta → recusados sem gravar', () => {
-  test('comum 403; tenant B 404 (comando e elegibilidade); sem token 401; delta/saldo/cliente_id no corpo 400; admin revogado 403', async () => {
+  test('comum sem a chave do mapa 403; tenant B 404 (comando e elegibilidade); sem token 401; delta/saldo/cliente_id no corpo 400; admin revogado 403', async () => {
     const c = await cenario();
     const t = (await ok(transferencia(c, c.posA, 3, c.B))).movimentacao;
     const outro = await cenario();
-    await exigirNadaMuda(c, () => excluir(c, t.id, c.tokComum), 403, 'TENANT_ADMIN_REQUIRED');
+    // D-PROD-266: o usuário comum sem `excluir_movimentacoes_lote` é recusado pela guarda da tela.
+    await exigirNadaMuda(c, () => excluir(c, t.id, c.tokComum), 403, 'ACAO_NAO_PERMITIDA');
     await exigirNadaMuda(c, () => excluir(c, t.id, outro.tok), 404, 'MOVIMENTACAOMAPA_NOT_FOUND');
     assert.equal((await req('GET', `/movimentacoes-mapa/${t.id}/elegibilidade-exclusao`, outro.tok)).statusCode, 404);
     await exigirNadaMuda(c, () => req('POST', `/movimentacoes-mapa/${t.id}/exclusao`, null, { operation_id: opId(), motivo: 'x x x' }), 401);
@@ -377,10 +378,14 @@ describe('EX-G — comum, outro tenant, sem token, corpo com delta → recusados
       await exigirNadaMuda(c, () => excluir(c, t.id, c.tok, { operation_id: opId(), motivo: 'ok ok', ...extra }), 400);
     }
     await exigirNadaMuda(c, () => excluir(c, t.id, c.tok, { operation_id: opId() }), 400);
-    const e = await elegibilidade(c, t.id, c.tokComum);
-    assert.deepEqual([e.elegivel, e.pode_excluir], [true, false], JSON.stringify(e));
+    // D-PROD-266: a elegibilidade segue a mesma guarda (não roda o ensaio para quem não pode).
+    const g = await req('GET', `/movimentacoes-mapa/${t.id}/elegibilidade-exclusao`, c.tokComum);
+    assert.equal(g.statusCode, 403, g.body);
+    assert.equal(g.json().code, 'ACAO_NAO_PERMITIDA', g.body);
+    // Admin revogado: sem o papel E sem a concessão `is_admin` (que também libera, D-PROD-266).
     await prisma().usuario.updateMany({ where: { cliente_id: c.cliente.id, papel_tenant: 'administrador' }, data: { papel_tenant: 'usuario' } });
-    await exigirNadaMuda(c, () => excluir(c, t.id), 403, 'TENANT_ADMIN_REQUIRED');
+    await prisma().permissao.updateMany({ where: { cliente_id: c.cliente.id }, data: { is_admin: false } });
+    await exigirNadaMuda(c, () => excluir(c, t.id), 403, 'ACAO_NAO_PERMITIDA');
     // DELETE/PATCH genéricos seguem recusados (não viram atalho da exclusão).
     assert.equal((await req('DELETE', `/movimentacoes-mapa/${t.id}`, outro.tok)).statusCode, 404);
     assert.equal(await prisma().movimentacaoMapa.count({ where: { id: t.id } }), 1);

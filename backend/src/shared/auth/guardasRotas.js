@@ -224,7 +224,7 @@ export const GUARDAS = Object.freeze({
     ver: porTela(T.ESTOQUE, 'visualizar'),
     entrada: porTela(T.ESTOQUE, 'entrada'),
     saida: porTela(T.ESTOQUE, 'saida'),
-    // D-PROD-266: `ajuste` (ajuste de inventário).
+    // D-PROD-267: `ajuste` (ajuste de inventário).
     ajuste: porTela(T.ESTOQUE, 'ajuste'),
     formulario: porQualquer([T.ESTOQUE, 'entrada'], [T.ESTOQUE, 'saida'], [T.ESTOQUE, 'ajuste']),
   },
