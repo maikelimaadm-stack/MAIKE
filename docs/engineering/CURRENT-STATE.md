@@ -15,8 +15,8 @@ rollout pausado **D-PROD-41**)
 |---|---|
 | Decisão | **D-PROD-263**, escolhas do proprietário: motivos por cadastro (Perda, Consumo interno, Doação, Vencimento), custo médio automático, exclusão só sem movimento depois, permissão própria `saida` |
 | Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d8fa5ced`, com a `main` `5261ec13` integrada · PR draft |
-| Migration | `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas). **Não aplicada em produção**: exige o GO do proprietário (runbook) |
-| Constituição | emenda **proposta** na D-PROD-263 (saída manual como escritor documentado); aguarda a aprovação do proprietário |
+| Migration | `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas). **Aplicada em produção** em 2026-11-20 01:15:39 UTC pelo caminho B, com o GO do proprietário (71 concluídas, 105 tabelas) |
+| Constituição | emenda da D-PROD-263 (saída manual como escritor documentado) **aprovada pelo proprietário em 2026-11-20**; parágrafo em `00` §1 e nota em `07` |
 | Relatório | [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md) · runbook [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md) |
 
 ## Missão anterior (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)

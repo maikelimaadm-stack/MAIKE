@@ -132,6 +132,17 @@ outra, e a entrada e um lançamento da Central **com produtos** bloqueiam um ao 
 lançamento sem produtos (só o pagamento) com o mesmo documento não conflita. Texto redigido pelo agente e
 **aprovado pelo proprietário em 2026-11-19** (chat, "aprovo"), na PR #345 (§4).
 
+**Emenda aprovada pelo proprietário (D-PROD-263):** **Estoque — saída manual documentada.** Além das baixas já
+autorizadas, a quantidade de estoque também pode sair por um **documento de Saída de Estoque** confirmado, só pelo
+motor de estoque único, com a permissão própria `saida` e um motivo do **cadastro de motivos de saída** do cliente
+(Perda, Consumo interno, Doação, Vencimento e os que o usuário criar). O valor é sempre o custo médio do produto no
+depósito, nunca digitado. A saída manual não é venda nem ajuste de inventário: não cria título, conta a receber nem
+receita, e não fixa saldo. O usuário edita só a observação e pode excluir a saída; a exclusão estorna pelo motor e
+só é aceita se o produto não teve outro movimento naquele depósito depois dela. Continua **fora**: ajuste ou
+inventário (contagem que fixa o saldo), devolução a fornecedor, transferência entre empresas e qualquer escritor
+genérico de estoque. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-20** (chat, "Aprovo as
+duas"), na PR #347 (§4).
+
 **Expansão autorizada pelo proprietário (D-PROD-193):** **Apontamento de Atividade — itens** (página
 `ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
 **PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de

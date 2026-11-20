@@ -1,6 +1,6 @@
 # MAIKE-ESTOQUE-SAIDA-MANUAL — Relatório: saída manual no "Novo movimento" (D-PROD-263)
 
-**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `d8fa5ced`) · **Migration:** `20261120100000_estoque_saidas` (**EXPAND**, 4 tabelas novas) · **Decisão:** [D-PROD-263](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
+**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `d8fa5ced`) · **Migration:** `20261120100000_estoque_saidas` (**EXPAND**, 4 tabelas novas, **aplicada em produção** em 2026-11-20) · **Decisão:** [D-PROD-263](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 
 ## 1. Pedido e escolhas do proprietário
 
@@ -42,9 +42,9 @@ Próximo passo do Estoque: **saída manual**. Escolhas (2026-11-20):
 - **Excluir** só sem movimento posterior do produto no depósito. Senão, 409 `SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR` com o número do movimento que impede. "Depois" é fail-closed: pelo número sequencial do movimento, dado sob a trava do produto, ou pelo instante de criação.
 - A saída não cria título, conta a receber nem receita.
 
-## 4. Constituição: emenda PROPOSTA (falta a aprovação)
+## 4. Constituição: emenda APROVADA
 
-O texto ratificado só autoriza a baixa de estoque por fluxos listados (venda da Central, suplementação, abastecimento, apontamento, transferência). A saída manual é um escritor novo, então precisa de emenda. A proposta está na D-PROD-263 e **não foi aplicada** aos arquivos da constituição. A PR fica em rascunho até a aprovação.
+O texto ratificado só autorizava a baixa de estoque pelos fluxos listados (venda da Central, suplementação, abastecimento, apontamento, transferência). A saída manual é um escritor novo. A emenda da D-PROD-263 foi **aprovada pelo proprietário em 2026-11-20** ("Aprovo as duas") e está aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, depois das da D-PROD-261.
 
 ## 5. Migration e ensaio
 
@@ -60,7 +60,14 @@ O texto ratificado só autoriza a baixa de estoque por fluxos listados (venda da
   | `migrate status` | up to date |
   | `migrate diff --exit-code` | 0 |
 
-- **Produção: NÃO aplicada.** Exige o GO escrito do proprietário (runbook §1–§4).
+- **Aplicada em produção** em 2026-11-20 01:15:39 UTC, pelo caminho B, com o GO do proprietário ("Aprovo as duas"). Envelope idêntico ao ensaiado.
+
+  | Conferência | Resultado |
+  |---|---|
+  | Preflight | sid confere; 70 concluídas, 0 ruins; a anterior com o checksum certo; as 4 tabelas ausentes; 101 tabelas |
+  | Postcheck | 71 concluídas, 0 ruins; a nova com o checksum pinado e 1 passo; 105 tabelas |
+  | Tabelas novas | RLS ligado sem FORCE; política só para `maike_vercel`; 0 GRANT público; constraints e índices válidos; 0 linhas |
+  | Supabase advisors (security) | nenhum alerta |
 
 ## 6. Testes
 
