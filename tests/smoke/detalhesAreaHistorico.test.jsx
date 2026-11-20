@@ -49,6 +49,11 @@ vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
   listarTiposAtividade: atividades.tipos,
   registrarCampo: atividades.registrar,
   listarOpcoesOperadores: vi.fn(async () => ({ items: [], next_cursor: null })),
+  // D-PROD-263: a janela aberta do mapa lê as áreas da fazenda para marcar mais de uma.
+  listarAreasDaFazenda: vi.fn(async () => [
+    { id: "area-A", nome: "P1 — PASTO 01", tipo_cultura: "Pastagem", tamanho_hectares: 22, ativo: true },
+    { id: "area-B", nome: "P2 — PASTO 02", tipo_cultura: "Pastagem", tamanho_hectares: 10, ativo: true },
+  ]),
 }));
 vi.mock("@/services/mapaCacheService", () => ({
   getMapaCachedData: async () => [],
@@ -308,9 +313,12 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
     expect(document.querySelector(".mk-dp-cab__titulo")?.textContent).not.toBe("Manejos");
     expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
     expect(within(janela).getByText("Registrar serviço")).toBeTruthy();
-    // Área presa (só leitura), com os hectares.
-    const area = within(janela).getByDisplayValue(/P1 — PASTO 01/i);
-    expect(area.hasAttribute("readonly") || area.hasAttribute("disabled")).toBe(true);
+    // D-PROD-263: a área presa vem MARCADA nas Áreas, com 100% do tamanho (22 ha), e não sai; outras podem entrar.
+    expect(within(janela).getByTestId("registro-areas-campo")).toHaveTextContent("P1 — PASTO 01");
+    expect(within(janela).getByTestId("registro-areas-linha-area-A")).toHaveTextContent("P1 — PASTO 01");
+    expect(within(janela).getByTestId("registro-areas-percentual-area-A")).toHaveValue("100");
+    expect(within(janela).getByTestId("registro-areas-hectares-area-A")).toHaveValue("22");
+    expect(within(janela).queryByTestId("registro-areas-tirar-area-A")).toBeNull();
     // Data = hoje na fazenda.
     expect(within(janela).getByTestId("registro-de-campo-data").value).toBe("2026-11-18");
     expect(within(janela).getByRole("combobox", { name: /^Tipo/ })).toBeTruthy();
@@ -330,7 +338,9 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
     expect(secoes().filter((t) => QUATRO.includes(t))).toEqual(QUATRO);
     // A observação fica na última seção.
     expect(secoes().at(-1)).toBe("Informações complementares");
-    expect(janela.textContent).toContain("Hectares feitos");
+    // D-PROD-263: os hectares são de cada área (a tabela das Áreas); "Hectares feitos" saiu do Resultado. O operador fica.
+    expect(janela.textContent).not.toContain("Hectares feitos");
+    expect(within(janela).getByTestId("registro-areas-escolhidas")).toHaveTextContent("Hectares (ha)");
     expect(janela.textContent).toContain("Operador");
   });
 
@@ -397,11 +407,14 @@ describe("DetalhesArea — Manejos abre o MESMO formulário \"Registrar serviço
     const janela = await abrirManejos();
     await escolher(janela, /^Tipo/, "Roçada e tratos");
     await escolher(janela, /Operação/, "Roçada");
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "7" } });
+    fireEvent.change(within(janela).getByTestId("registro-areas-hectares-area-A"), { target: { value: "7" } });
     fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(atividades.registrar).toHaveBeenCalledTimes(1));
     const [corpo] = atividades.registrar.mock.calls[0];
-    expect(corpo).toMatchObject({ area_id: "area-A", tipo_atividade_id: "t-roc", data_operacional: "2026-11-18", area_executada_dia: "7" });
+    // D-PROD-263: a área (e os hectares feitos nela) vão em `areas[]`; nem `area_id` nem `area_executada_dia`.
+    expect(corpo).toMatchObject({ areas: [{ area_id: "area-A", hectares: "7" }], tipo_atividade_id: "t-roc", data_operacional: "2026-11-18" });
+    expect(corpo.area_id).toBeUndefined();
+    expect(corpo.area_executada_dia).toBeUndefined();
     expect(corpo.maquinas).toBeUndefined();
     expect(corpo.produtos).toBeUndefined();
     expect(corpo.mao_obra).toBeUndefined();

@@ -196,18 +196,24 @@ const UNICOS = Object.freeze({
 
 /**
  * Alguma linha de produto, de mão de obra ou de serviço já usa uma das chaves
- * derivadas desta chave de lançamento (`<chave>:p1…`, `:o1…`, `:s1…`, comparadas
- * EXATAS)? A linha de máquina do lançamento deriva a chave do id do apontamento
- * (`criarLinhasMaquina`), novo a cada lançamento, e não colide. A
- * pré-conferência do lançamento com chave e a conferência sem o alvo do P2002
- * (D-PROD-253).
- * @param {any} tx @param {string} clienteId @param {string} chave
+ * derivadas destas chaves de lançamento (`<base>:p1…`, `:o1…`, `:s1…`, comparadas
+ * EXATAS)? `bases` = a chave do corpo ou, no registro de várias áreas
+ * (D-PROD-263), uma por área (`<chave>`, `<chave>:a2`, …). A linha de máquina do
+ * lançamento deriva a chave do id do apontamento (`criarLinhasMaquina`), novo a
+ * cada lançamento, e não colide. A pré-conferência do lançamento com chave e a
+ * conferência sem o alvo do P2002 (D-PROD-253), com as MESMAS bases.
+ * @param {any} tx @param {string} clienteId @param {string[]} bases
  * @returns {Promise<boolean>}
  */
-const chaveDoLancamentoOcupada = async (tx, clienteId, chave) =>
-  (await existeLinhaComChave(tx, clienteId, chavesDerivadasDasLinhas(chave, 'produto'))) ||
-  (await existeLinhaMaoObraComChave(tx, clienteId, chavesDerivadasDasLinhas(chave, 'mao_obra'))) ||
-  (await existeLinhaServicoComChave(tx, clienteId, chavesDerivadasDasLinhas(chave, 'servico')));
+const chaveDoLancamentoOcupada = async (tx, clienteId, bases) => {
+  /** @param {'produto'|'mao_obra'|'servico'} tipo */
+  const derivadas = (tipo) => bases.flatMap((b) => chavesDerivadasDasLinhas(b, tipo));
+  return (
+    (await existeLinhaComChave(tx, clienteId, derivadas('produto'))) ||
+    (await existeLinhaMaoObraComChave(tx, clienteId, derivadas('mao_obra'))) ||
+    (await existeLinhaServicoComChave(tx, clienteId, derivadas('servico')))
+  );
+};
 
 // ─── normalização do corpo ──────────────────────────────────────────────────
 
@@ -665,15 +671,19 @@ export const linhasDoCorpo = (corpo) => {
  * chave de uma linha de produto, mão de obra ou serviço JÁ gravada
  * (`<operation_id>:p<n>`, `:o<n>`, `:s<n>`, comparadas EXATAS) é conflito
  * mesmo sem o recibo.
+ * D-PROD-263: `bases` = as chaves de onde as linhas derivam as suas (padrão: só a do corpo; o registro de várias áreas
+ * passa uma por área — `<chave>`, `<chave>:a2`, …), todas conferidas do mesmo jeito.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
- * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>> }} a
+ * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>>,
+ *   bases?: string[] }} a
  * @returns {Promise<Record<string, unknown>>}
  */
-export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerprint, executar }) => {
+export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerprint, executar, bases = undefined }) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   if (!operationId) return emTransacao(TRANSACAO_CURTA, executar, UNICOS, MENSAGEM_CONFLITO_SEM_CHAVE);
   const chave = operationId;
   const conflito = () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: chave } });
+  const basesDaChave = bases ?? [chave];
   try {
     const r = await emTransacao(
       TRANSACAO_CURTA,
@@ -684,14 +694,14 @@ export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, f
           tipoOperacao,
           fingerprint: fingerprint(),
           executar: async () => {
-            // As chaves derivadas EXATAS (`<chave>:p1…p20`, nunca um prefixo com curinga de LIKE), das linhas de
-            // produto e, desde a D-PROD-207, de mão de obra (`:o`) e de serviço (`:s`).
-            if (await chaveDoLancamentoOcupada(tx, cli, chave)) throw conflito();
+            // As chaves derivadas EXATAS (`<base>:p1…p20`, nunca um prefixo com curinga de LIKE), das linhas de
+            // produto e, desde a D-PROD-207, de mão de obra (`:o`) e de serviço (`:s`), de cada base (D-PROD-263).
+            if (await chaveDoLancamentoOcupada(tx, cli, basesDaChave)) throw conflito();
             return { httpStatus: 201, body: await executar(tx) };
           },
         }),
       // D-PROD-253: sem o alvo do P2002 (produção: papel não dono + RLS), a mesma conferência depois do rollback.
-      { ...UNICOS, operation_id: { erro: conflito, conferir: (tx) => chaveDoLancamentoOcupada(tx, cli, chave) } }
+      { ...UNICOS, operation_id: { erro: conflito, conferir: (tx) => chaveDoLancamentoOcupada(tx, cli, basesDaChave) } }
     );
     return { ...r.body, replay: r.replay };
   } catch (e) {

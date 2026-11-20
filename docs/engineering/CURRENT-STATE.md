@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-19 (missão ativa D-PROD-262; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-263; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -14,16 +14,27 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-253** (nasceu D-PROD-195 e passou a D-PROD-252; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e a D-PROD-252 ao Lançamento de Atividades organizado, PR #331, e chegou a `Próxima decisão: D-PROD-253`; a PR #332 deixou a 253 reservada e usou a D-PROD-254) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) com a `main` `0e38b012` (PR #340, D-PROD-257) com a `main` `095b057d` (PRs #336, #339 e #341, inclusive a D-PROD-259) com a `main` `d447a781` (PRs #342 e #343, inclusive a D-PROD-260) com a `main` `d8fa5ced` (PR #345, D-PROD-261, R-DEDUPE) e com a `main` `5261ec13` (PR #346, D-PROD-262, só frontend). PR **#275** (rascunho), exclusiva desta correção |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) com a `main` `0e38b012` (PR #340, D-PROD-257) com a `main` `095b057d` (PRs #336, #339 e #341, inclusive a D-PROD-259) com a `main` `d447a781` (PRs #342 e #343, inclusive a D-PROD-260) com a `main` `d8fa5ced` (PR #345, D-PROD-261, R-DEDUPE) com a `main` `5261ec13` (PR #346, D-PROD-262, só frontend) e com a `main` `a12e3c5c` (PR #348, D-PROD-263, várias áreas no registro: a conferência sem o alvo passa a cobrir as chaves de todas as áreas). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; o `criar` das Entradas de Estoque (D-PROD-257) com o mapa convertido; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
-| Testes | `backend/tests/p2002SemAlvo.test.mjs` (14, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, L1–L3, C1, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
+| Testes | `backend/tests/p2002SemAlvo.test.mjs` (15, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, L1–L4, C1, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
 | Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão (a do aceite do tanque passou a ler o `meta` por campo, com o mesmo resultado) |
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)
+## Missão ativa (2026-11-20) — MAIKE-REGISTRO-VARIAS-AREAS: várias áreas num "Registrar serviço" (D-PROD-263)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-263**, fase 3 da D-PROD-258: um registro de campo cobre várias áreas, cada uma com os seus hectares (maquete "Nova realização") |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `5261ec13` · PR (a abrir) |
+| Escopo | Tela: campo "Áreas" (busca + caixas) e tabela Área · Tamanho · % · Hectares · ✕ com o Total; "Hectares feitos" sai; dose/ha pelos hectares totais; área presa do mapa marcada. Servidor: `areas: [{ area_id, hectares }]` no `POST /atividades/registrar` → UMA atividade e um apontamento por área, linhas repartidas pelos hectares (medidor em trechos seguidos) |
+| Migration | nenhuma (o modelo da D-PROD-249 já guarda várias áreas por atividade) |
+| Abertos | cancelar o apontamento de uma área não mexe nos das outras; editar os hectares depois não reparte de novo |
+| Relatório | [`MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)
 
 | Campo | Valor |
 |---|---|

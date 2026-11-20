@@ -379,6 +379,42 @@ const gravarAreaEResponder = async (tx, contexto, { clienteId, empresaId, ativid
 };
 
 /**
+ * Mais uma área na atividade, na transação de quem chama e SOB a trava da atividade (ABERTA, conferida por quem chama):
+ * a área do mapa conferida (`exigirAreaDoMapa`; `campo` vai no erro), nunca duas vezes (422 `ja_na_atividade`),
+ * PLANEJADA, no fim da ordem, `area_planejada` padrão = o tamanho; o cabeçalho acompanha e a escrita é auditada. É o
+ * caminho de `POST /atividades/:id/areas` e do registro de campo de várias áreas (D-PROD-263), que depois a inicia.
+ * Devolve a área relida (com o resumo).
+ * @param {any} tx @param {any} contexto
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, areaId: string, planejada?: string|null, campo?: string }} p
+ */
+export const adicionarAreaNaTransacao = async (tx, contexto, { clienteId, empresaId, atividadeId, areaId, planejada = undefined, campo = 'area_id' }) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const mapa = await exigirAreaDoMapa(tx, clienteId, empresaId, areaId, campo);
+  const ja = await tx.atividadeArea.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, area_id: areaId }, select: { id: true } });
+  if (ja) throw atividadeReferenciaInvalida(/** @type {any} */ (campo), 'ja_na_atividade');
+  const ordem = await proximaOrdemDaArea(tx, clienteId, empresaId, atividadeId);
+  const { id } = await comFkTraduzida(() =>
+    inserirAreaDaAtividade(tx, {
+      cliente_id: clienteId,
+      empresa_id: empresaId,
+      atividade_id: atividadeId,
+      area_id: areaId,
+      setor_id: mapa.setor_id,
+      setor_nome: mapa.setor_nome,
+      area_planejada: planejada === undefined ? mapa.tamanho : planejada,
+      status: STATUS_AREA.PLANEJADA,
+      ordem,
+      criado_por_usuario_id: auth.usuarioId ?? null,
+      versao: 1,
+    })
+  );
+  await sincronizarCabecalhoComAreas(tx, clienteId, empresaId, atividadeId);
+  const area = await buscarAreaDaAtividade(tx, clienteId, empresaId, atividadeId, id);
+  await registrarEvento(contexto, { acao: 'atividade.area.adicionar', entidade: ENTIDADE_AREA_DA_ATIVIDADE, entidadeId: id, dadosNovos: paraAuditoria(area) }, tx);
+  return area;
+};
+
+/**
  * `POST /atividades/:id/areas` (201): mais uma área na atividade ABERTA, PLANEJADA, no fim da ordem; `area_planejada`
  * padrão = o tamanho da área. A mesma área duas vezes → 422 `ja_na_atividade` (o UNIQUE é a rede).
  * @param {any} contexto @param {string} atividadeId @param {Record<string, any>} corpo
@@ -393,31 +429,10 @@ export const adicionarArea = async (contexto, atividadeId, corpo) => {
     TRANSACAO_CURTA,
     async (tx) => {
       const { empresaId } = await abrirEscritaDeArea(tx, cli, { empresaDoCorpo: corpo.empresa_id, atividadeId, acao: 'adicionar_area' });
-      const mapa = await exigirAreaDoMapa(tx, cli, empresaId, areaId);
-      const ja = await tx.atividadeArea.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, atividade_id: atividadeId, area_id: areaId }, select: { id: true } });
-      if (ja) throw atividadeReferenciaInvalida('area_id', 'ja_na_atividade');
-      const ordem = await proximaOrdemDaArea(tx, cli, empresaId, atividadeId);
-      const { id } = await comFkTraduzida(() =>
-        inserirAreaDaAtividade(tx, {
-          cliente_id: cli,
-          empresa_id: empresaId,
-          atividade_id: atividadeId,
-          area_id: areaId,
-          setor_id: mapa.setor_id,
-          setor_nome: mapa.setor_nome,
-          area_planejada: planejadaInformada === undefined ? mapa.tamanho : planejadaInformada,
-          status: STATUS_AREA.PLANEJADA,
-          ordem,
-          criado_por_usuario_id: auth.usuarioId ?? null,
-          versao: 1,
-        })
-      );
-      await sincronizarCabecalhoComAreas(tx, cli, empresaId, atividadeId);
-      const area = await buscarAreaDaAtividade(tx, cli, empresaId, atividadeId, id);
-      await registrarEvento(contexto, { acao: 'atividade.area.adicionar', entidade: ENTIDADE_AREA_DA_ATIVIDADE, entidadeId: id, dadosNovos: paraAuditoria(area) }, tx);
+      const area = await adicionarAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId, areaId, planejada: planejadaInformada });
       return { area: comoAreaDaAtividadePublica(area), atividade: await carregarAtividadeDetalhe(tx, cli, empresaId, atividadeId) };
     },
-    // A unique (cliente_id, empresa_id, atividade_id, area_id) é a rede da pré-conferência acima. D-PROD-253: sem o
+    // A unique (cliente_id, empresa_id, atividade_id, area_id) é a rede da pré-conferência de `adicionarAreaNaTransacao`. D-PROD-253: sem o
     // alvo do P2002 (produção: papel não dono + RLS), a mesma área é conferida depois do rollback.
     {
       area_id: {

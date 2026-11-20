@@ -32,6 +32,10 @@
  *    Nos três, a chave é conferida no início da escrita e, sem o alvo, de novo
  *    depois do rollback: tirar só a pré-conferência mantém o teste verde, e
  *    tirar as duas o deixa vermelho com o 409 CONCURRENCY_CONFLICT;
+ *  - L4 o registro de várias áreas (D-PROD-263): corrida em que a chave
+ *    derivada da 2ª área (`<chave>:a2:o1`) é ocupada depois da pré-conferência
+ *    → 409 IDEMPOTENCY_CONFLICT pela conferência de TODAS as bases (conferir só
+ *    a chave do corpo dá o 409 CONCURRENCY_CONFLICT); nada gravado;
  *  - C1 as culturas: na corrida pelo mesmo código, com o alvo, o código (como
  *    antes); sem ele, o 409 genérico, nunca "nome" por palpite (antes, todo
  *    P2002 sem alvo virava `CULTURA_NAME_CONFLICT`), e o reenvio cai na
@@ -543,6 +547,54 @@ describe('D-PROD-253 — Lançamento de Atividades: a chave sem recibo, como em 
       assert.deepEqual([repetida.statusCode, e?.code, e?.field, e?.reason], [422, 'ATIVIDADE_REFERENCIA_INVALIDA', 'area_id', 'ja_na_atividade'], `área: ${repetida.body}`);
       assert.equal(JSON.stringify(await prisma().atividadeArea.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } }), (_k, v) => (typeof v === 'bigint' ? v.toString() : v)), antes, 'área: nada gravado');
     }, { exigirRls: ['AtividadeApontamentoProduto', 'AtividadeArea'] });
+  });
+
+  test('L4: corrida no registro de VÁRIAS áreas (D-PROD-263) — a chave derivada da 2ª área (`<chave>:a2:o1`) é ocupada DEPOIS da pré-conferência: sob o papel, o P2002 sem alvo vira 409 IDEMPOTENCY_CONFLICT pela conferência de TODAS as bases depois do rollback; nada gravado; auditado', async () => {
+    const s = await montarLinhasCusto(app);
+    const p = prisma();
+    /** @param {string} nome */
+    const pasto = (nome) => p.areaPastagem.create({
+      data: {
+        cliente_id: s.c, empresa_id: s.e1.id, setor_id: s.area1.setor_id, setor_nome: s.area1.setor_nome,
+        numero_area: `AR-${randomUUID().slice(0, 6)}`, nome, tamanho_hectares: '10',
+      },
+    });
+    const aroeira = await pasto('PASTO DA AROEIRA');
+    const acude = await pasto('PASTO DO AÇUDE');
+    const linha = { parceiro_id: s.joao.id, tipo_medida: 'HORA', quantidade: '6' };
+    /** Tudo o que o registro grava: as linhas e os recibos, as atividades e as áreas delas. @param {string} c */
+    const fotoRegistro = async (c) => JSON.stringify({
+      linhas: JSON.parse(await fotoAtividade(c)),
+      atividades: await p.atividade.findMany({ where: { cliente_id: c }, orderBy: { id: 'asc' } }),
+      areas: await p.atividadeArea.findMany({ where: { cliente_id: c }, orderBy: { id: 'asc' } }),
+    }, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    await comPapelNaoDono(async () => {
+      // A linha que vai ocupar a chave "por fora": de outro lançamento, já gravado.
+      const ocupante = await s.lancarAp({ operation_id: `oc-${randomUUID()}`, mao_obra: [linha] });
+      assert.equal(ocupante.statusCode, 201, ocupante.body);
+      const [{ id: linhaOcupante }] = await p.atividadeApontamentoMaoObra.findMany({ where: { cliente_id: s.c }, select: { id: true } });
+      const op = `reg-${randomUUID()}`;
+      let antes = '';
+      const [r] = await comPedidosNoPortao(
+        { tabela: 'AtividadeApontamentoMaoObra', condicao: `NEW.cliente_id = '${s.c}' AND NEW.operation_id = '${op}:o1'` },
+        [() => s.H.req('POST', '/atividades/registrar', s.token, {
+          empresa_id: s.e1.id, tipo_atividade_id: s.tipo.id, data_operacional: '2027-06-10', operation_id: op,
+          areas: [{ area_id: aroeira.id, hectares: '2' }, { area_id: acude.id, hectares: '1' }], mao_obra: [linha],
+        })],
+        {
+          enquanto: async () => {
+            // Parado no portão da 1ª área: a pré-conferência (as chaves de TODAS as áreas) já passou. A chave da 2ª área
+            // é ocupada AGORA, por fora, e commita; a conferência só com a chave do corpo não a veria.
+            assert.equal(await p.atividadeApontamentoMaoObra.count({ where: { cliente_id: s.c, operation_id: { startsWith: op } } }), 0);
+            assert.equal((await aux.atividadeApontamentoMaoObra.updateMany({ where: { cliente_id: s.c, id: linhaOcupante }, data: { operation_id: `${op}:a2:o1` } })).count, 1);
+            antes = await fotoRegistro(s.c);
+          },
+        },
+      );
+      assert.deepEqual([r.statusCode, corpoDe(r)?.code, corpoDe(r)?.details?.operation_id], [409, 'IDEMPOTENCY_CONFLICT', op], r.body);
+      assert.equal(await fotoRegistro(s.c), antes, 'nada gravado: nem atividade, nem área, nem apontamento, nem linha, nem recibo');
+      assert.equal(await reenvios(s.c, 'atividade.reenvio_conflitante'), 1, 'o reenvio conflitante é auditado');
+    }, { exigirRls: ['AtividadeApontamento', 'AtividadeApontamentoMaoObra'] });
   });
 });
 

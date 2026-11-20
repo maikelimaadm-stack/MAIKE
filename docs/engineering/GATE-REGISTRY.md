@@ -621,6 +621,7 @@ teste, e a mensagem diz que foi a migration.
 | D-PROD-253 U0 | sob um papel **não dono** das tabelas, com RLS (como o `maike_vercel` em produção), o P2002 vem com `meta.target` nulo e nem o SQL bruto diz a constraint: como dono, o alvo existe e o defeito não aparece |
 | D-PROD-253 U1/A2 | sem o alvo, o mapa do `emTransacao` confere a chave **depois do rollback** e responde o erro de negócio, com nada gravado, inclusive na corrida em que a chave é ocupada depois da pré-conferência |
 | D-PROD-253 L1–L3 | no Lançamento de Atividades, sob o papel não dono, a chave de uma linha gravada (produto, máquina, mão de obra, serviço) ou do lançamento do dia, sem o recibo, dá 409 `IDEMPOTENCY_CONFLICT`, e a mesma área de novo dá 422 `ja_na_atividade`; nada gravado |
+| D-PROD-253 L4 | no registro de várias áreas (D-PROD-263), sob o papel não dono, a chave derivada da 2ª área ocupada depois da pré-conferência dá 409 `IDEMPOTENCY_CONFLICT` pela conferência de todas as bases; nada gravado, auditado |
 | D-PROD-253 C1 | culturas: na corrida pelo mesmo código, sob o papel não dono, o P2002 sem alvo segue o 409 genérico, nunca "nome" por palpite, e o reenvio cai na pré-conferência sob a trava, com o código certo; com o alvo, o código, como antes |
 | D-PROD-253 S1 | inventário fechado: o alvo do P2002 só é lido em `alvoDaUnique` (nem o `meta` inteiro do erro é lido fora dele), e `soPeloAlvo` só nas entradas conferidas sob trava. A entrada do mapa sem conferência não compila no `typecheck:backend` (`UniqueDeNegocio`) |
 

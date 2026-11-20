@@ -287,6 +287,38 @@ const exigirBem = async (tx, clienteId, empresaId, id, { campo, naturezas, grava
   return bem;
 };
 
+/** O tipo do medidor do bem (snapshot da linha); sem tipo, `SEM_MEDIDOR`. @param {{ medidor_tipo?: unknown }} bem */
+const tipoDoMedidor = (bem) => (typeof bem.medidor_tipo === 'string' && bem.medidor_tipo ? bem.medidor_tipo : 'SEM_MEDIDOR');
+
+/**
+ * Os pontos da série do medidor em volta da data (o cadastro do bem conta): `anterior` (a leitura VIGENTE na data, a
+ * inicial sugerida) e `posterior`. Lido SOB a trava do bem (quem chama já travou).
+ * @param {any} tx @param {string} clienteId @param {any} bem @param {string} tipo @param {string} dia
+ * @returns {Promise<{ anterior: any, posterior: any }>}
+ */
+const vizinhosNaData = async (tx, clienteId, bem, tipo, dia) => {
+  const vizinhos = await pontosVizinhos(tx, clienteId, bem.id, tipo, dia);
+  const { anterior, posterior } = avaliarLeitura({ tipo, leitura: null, dia, cadastro: pontoDoCadastro(bem), ...vizinhos });
+  return { anterior: anterior ?? null, posterior: posterior ?? null };
+};
+
+/**
+ * D-PROD-263 — a leitura inicial que uma linha NOVA do bem usaria sem `leitura_inicial` no corpo: a vigente na data (a
+ * mesma regra de `planejarLinha`). O registro de várias áreas precisa dela para cortar o intervalo do medidor em trechos
+ * antes de gravar. Bem inexistente, de outra fazenda ou sem contador, ou sem leitura nenhuma → `null` (a linha segue
+ * inteira e a regra dela responde). Chame SOB a trava do bem (`travarBens`), depois da trava da atividade.
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, bemId: string, dia: string }} p
+ * @returns {Promise<string|null>}
+ */
+export const leituraVigenteDoBem = async (tx, { clienteId, empresaId, bemId, dia }) => {
+  const bem = await lerBemDaLinha(tx, clienteId, bemId);
+  if (!bem || bem.empresa_id !== empresaId) return null;
+  const tipo = tipoDoMedidor(bem);
+  if (!ehContador(tipo)) return null;
+  const { anterior } = await vizinhosNaData(tx, clienteId, bem, tipo, dia);
+  return anterior?.leitura === null || anterior?.leitura === undefined ? null : t4(anterior.leitura);
+};
+
 /**
  * Regra ÚNICA da linha (rota, lançamento com `maquinas[]` e edição): confere o
  * estado final e devolve as colunas a gravar (snapshot do medidor e do custo,
@@ -317,7 +349,7 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, dia, estad
   }
 
   // medidor (snapshot do bem)
-  const tipo = typeof bem.medidor_tipo === 'string' && bem.medidor_tipo ? bem.medidor_tipo : 'SEM_MEDIDOR';
+  const tipo = tipoDoMedidor(bem);
   const contador = ehContador(tipo);
   const unidade = contador ? (bem.medidor_unidade ?? UNIDADE_DO_MEDIDOR[/** @type {'HORIMETRO'} */ (tipo)] ?? null) : null;
   if (!contador && (estado.sem_medidor === false || estado.leitura_inicial !== null || estado.leitura_final !== null)) {
@@ -340,9 +372,8 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, dia, estad
     if (!uso.gt(0)) throw recusa('quantidade_uso', 'nao_positiva', extra);
   } else {
     if (estado.quantidade_uso !== null) throw recusa('quantidade_uso', 'nao_aceita', extra);
-    const vizinhos = await pontosVizinhos(tx, clienteId, bem.id, tipo, dia);
-    const { anterior, posterior } = avaliarLeitura({ tipo, leitura: null, dia, cadastro: pontoDoCadastro(bem), ...vizinhos });
-    vigente = anterior ?? null;
+    const { anterior, posterior } = await vizinhosNaData(tx, clienteId, bem, tipo, dia);
+    vigente = anterior;
     inicial = estado.leitura_inicial ?? anterior?.leitura ?? null;
     if (inicial === null) throw recusa('leitura_inicial', 'obrigatoria', extra);
     if (anterior && dec(inicial).lt(dec(anterior.leitura))) {
