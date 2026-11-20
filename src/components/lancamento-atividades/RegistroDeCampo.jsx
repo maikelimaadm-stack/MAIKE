@@ -1,23 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCheck, Loader2 } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
-import { CampoDia, CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
+import { CampoDia } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { AvisoEnvioDaLinha, SecoesDoFormularioContext, useEnvioDaLinha } from "@/components/lancamento-atividades/JanelasDaLinha";
 import { EditorDaLinhaDoRegistro, SecaoDeLinhasDoRegistro } from "@/components/lancamento-atividades/LinhasDoRegistro";
+import AreasDoRegistro from "@/components/lancamento-atividades/AreasDoRegistro";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { TIPOS_FIXOS_ATIVIDADE, operacoesDoTipoFixo, tipoFixoDaOperacao } from "@/lib/tiposFixosAtividade";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
-import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, MAX_OBSERVACAO_ATIVIDADE, STATUS_ABERTA, mensagemDoAlertaAtividade, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
+import { MAX_OBSERVACAO_ATIVIDADE, mensagemDoAlertaAtividade, rotuloDaArea, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
 import { RAIZ_CONSULTAS_ATIVIDADES, corpoDoApontamento, formularioApontamentoVazio, normalizarPaginaDeOpcoes, validarFormularioApontamento } from "@/lib/atividadeApontamentoRegras";
 import {
   campoDaLinhaRecusada,
@@ -32,18 +33,22 @@ import {
 import {
   COLECOES_DO_REGISTRO,
   QUERY_ATIVIDADES_DA_AREA,
+  areaDaRecusa,
+  areaNovaDoRegistro,
   comItem,
+  corpoDasAreasDoRegistro,
+  destinoDoRegistro,
   erroDaChaveDaLinha,
+  errosDasAreasDoRegistro,
   formularioVazioDaSecao,
   itemDaRecusa,
   itensVaziosDoRegistro,
   linhasDoCorpoDoRegistro,
   mensagemDaRecusaDoRegistro,
-  rotuloDoMesCurto,
   temChaveDaLinha,
+  totaisDasAreasDoRegistro,
 } from "@/lib/registroDeCampoRegras";
-import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
-import { definirFazendaDaTela, listarOpcoesOperadores, obterResumoDaArea, registrarCampo } from "@/services/lancamentoAtividadesService";
+import { definirFazendaDaTela, listarAreasDaFazenda, listarOpcoesOperadores, obterResumoDaArea, registrarCampo } from "@/services/lancamentoAtividadesService";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 /**
@@ -67,6 +72,13 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  * Um envio só (`POST /atividades/registrar`, via `registrarCampo`): o servidor acha a atividade ABERTA do tipo que já tem a
  * área no mês — ou abre uma — e grava o registro do dia com as linhas numa transação. O cliente nunca encadeia chamadas.
  *
+ * D-PROD-263 (fase 3) — VÁRIAS ÁREAS num registro (maquete "Nova realização"): o campo "Áreas" (busca + caixas) e a tabela
+ * Área · Tamanho · % · Hectares · ✕ com o Total (`AreasDoRegistro`). O corpo leva `areas: [{ area_id, hectares }]` (os
+ * hectares de cada área; "Hectares feitos" saiu de "Resultado") e as linhas com os TOTAIS do dia: o servidor reparte cada
+ * linha pelos hectares e grava um apontamento por área, numa atividade só. A dose/ha e o total dos insumos usam os
+ * hectares TOTAIS. A área presa (Detalhes da área) vem marcada e não sai; outras podem entrar. A recusa de uma área
+ * (`details.area_indice`) diz qual, na linha certa (a posição da linha no corpo) ou na própria área.
+ *
  * @param {{
  *   tipo?: any | null,
  *   tipos?: any[],   // as operações (tipos de atividade) ativas
@@ -74,10 +86,11 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  *   areas?: any[],
  *   onFechar: () => void,
  *   onGravou?: (resposta: any) => void,
- * }} props `area` presa (detalhes da área, Manejos); `tipo` (operação) preso só se alguém precisar; sem eles, a pessoa escolhe
- *   entre os 7 tipos fixos, as operações de `tipos` e as `areas`.
+ * }} props `area` presa (detalhes da área, Manejos: vem marcada e não sai); `tipo` (operação) preso só se alguém precisar;
+ *   sem eles, a pessoa escolhe entre os 7 tipos fixos, as operações de `tipos` e as `areas` (sem `areas`, a janela lê as
+ *   áreas ativas da fazenda).
  */
-export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: todosOsTipos = [], area: areaPreso = null, areas = [], onFechar, onGravou = undefined }) {
+export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: todosOsTipos = [], area: areaPreso = null, areas: areasDoPai = [], onFechar, onGravou = undefined }) {
   const queryClient = useQueryClient();
   // Abastecimento é da máquina (emenda 1): nunca é tipo de registro de campo.
   const tipos = useMemo(() => tiposRegistraveisNaArea(todosOsTipos), [todosOsTipos]);
@@ -90,13 +103,27 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const celular = useCelular();
   const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
 
-  // ─── Tipo e área (presos ou escolhidos) ──────────────────────────────
+  // ─── Tipo e áreas (presos ou escolhidos) ─────────────────────────────
   const [tipoFixo, setTipoFixo] = useState(() => (tipoPreso ? tipoFixoDaOperacao(tipoPreso) : ""));
   const [tipoEscolhido, setTipoEscolhido] = useState("");
-  const [areaEscolhida, setAreaEscolhida] = useState("");
   const operacoes = useMemo(() => operacoesDoTipoFixo(tipos, tipoFixo), [tipos, tipoFixo]);
   const tipo = tipoPreso ?? operacoes.find((t) => String(t.id) === tipoEscolhido) ?? null;
-  const area = areaPreso ?? areas.find((a) => String(a.id) === areaEscolhida) ?? null;
+  // D-PROD-263: as áreas da fazenda para marcar (as do pai; sem elas — o mapa —, as ativas lidas aqui), com a presa.
+  const areasLidas = useQuery({
+    queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "areas", empresaId],
+    queryFn: () => listarAreasDaFazenda(),
+    enabled: Boolean(empresaId) && acoes?.ver === true && !areasDoPai.length,
+    staleTime: 30 * 1000,
+  });
+  const areasDoMapa = useMemo(() => {
+    const base = areasDoPai.length ? areasDoPai : (/** @type {any[]} */ (Array.isArray(areasLidas.data) ? areasLidas.data : [])).filter((a) => a?.tipo_cultura !== "Infraestrutura");
+    return areaPreso?.id && !base.some((a) => String(a?.id) === String(areaPreso.id)) ? [areaPreso, ...base] : base;
+  }, [areasDoPai, areasLidas.data, areaPreso]);
+  const [areasDoRegistro, setAreasDoRegistro] = useState(
+    /** @returns {import("@/lib/registroDeCampoRegras").AreaDoRegistro[]} */ () => (areaPreso?.id ? [areaNovaDoRegistro(areaPreso)] : []),
+  );
+  /** A área do mapa pelo id. @param {string} id */
+  const areaDe = (id) => areasDoMapa.find((a) => String(a?.id) === String(id)) ?? null;
   // D-PROD-258: as quatro seções são sempre oferecidas. Só as chaves que EXIGEM dado (operação antiga) ainda valem.
   const flags = {
     exigeMaquina: tipo?.exige_maquina === true,
@@ -112,7 +139,6 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   }, [hoje]);
 
   // ─── O dia e as linhas (D-PROD-262: itens das tabelas e um editor por seção) ─
-  const [hectares, setHectares] = useState("");
   const [operador, setOperador] = useState(/** @type {{ id: string, rotulo: string } | null} */ (null));
   const [observacao, setObservacao] = useState("");
   const [safra, setSafra] = useState("");
@@ -128,7 +154,9 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const lidoNosEditores = useRef(/** @type {Partial<Record<ColecaoDoRegistro, LidoNoEditor>>} */ ({}));
   const ultimaAbertura = useRef(0);
   const ultimoItem = useRef(0);
-  const areaDoDia = hectaresDaDose(hectares, area);
+  // A dose/ha dos insumos: os hectares TOTAIS do registro (sem nenhum válido, o tamanho somado das áreas).
+  const totaisDasAreas = totaisDasAreasDoRegistro(areasDoRegistro, areasDoMapa);
+  const areaDoDia = totaisDasAreas.hectares ?? totaisDasAreas.tamanho;
 
   /** @param {string[]} campos */
   const limparErros = (campos) => setErros((e) => semCampos(e, campos));
@@ -223,22 +251,20 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   };
 
   // ─── Onde o registro entra (só leitura: quem decide é o servidor) ─────
-  const resumo = useQuery({
-    queryKey: [QUERY_ATIVIDADES_DA_AREA, "resumo", empresaId, area?.id ?? null],
-    queryFn: () => obterResumoDaArea(String(area.id)),
-    enabled: Boolean(empresaId && area?.id && acoes?.ver),
-    staleTime: 15 * 1000,
+  const resumos = useQueries({
+    queries: areasDoRegistro.map((l) => ({
+      queryKey: [QUERY_ATIVIDADES_DA_AREA, "resumo", empresaId, l.area_id],
+      queryFn: () => obterResumoDaArea(String(l.area_id)),
+      enabled: Boolean(empresaId && acoes?.ver),
+      staleTime: 15 * 1000,
+    })),
   });
-  const destino = useMemo(() => {
-    if (!tipo?.id || !area?.id || !dia || !resumo.isSuccess) return null;
-    const mes = dia.slice(0, 7);
-    const abertas = (resumo.data?.atividades ?? []).filter(
-      (a) => String(a.tipo_atividade_id) === String(tipo.id) && a.status === STATUS_ABERTA && a.area_status !== STATUS_AREA.CONCLUIDA && String(a.data_inicio ?? "").slice(0, 7) === mes,
-    );
-    if (abertas.length === 1) return `Entra em ${abertas[0].nome}`;
-    if (abertas.length > 1) return `Entra em uma das atividades de ${tipo.nome_tipo} abertas nesta área`;
-    return `Nova atividade será criada: ${tipo.nome_tipo} · ${area.nome} · ${rotuloDoMesCurto(dia)}`;
-  }, [tipo, area, dia, resumo.isSuccess, resumo.data]);
+  const destino = destinoDoRegistro({
+    tipo,
+    areas: areasDoRegistro.map((l) => ({ id: l.area_id, nome: areaDe(l.area_id)?.nome ?? "" })),
+    dia,
+    resumos: resumos.map((r) => (r.isSuccess ? r.data : null)),
+  });
 
   // ─── Envio ───────────────────────────────────────────────────────────
   /** O envio que saiu por último: o corpo e os itens na ordem de cada array (a recusa aponta a posição neles). */
@@ -249,9 +275,21 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       enviado.current = envio;
       return registrarCampo(envio.corpo, { escopo, retentativa: o.retentativa });
     },
-    (e) => mensagemDaRecusaDoRegistro(e, itemDaRecusa(e, enviado.current?.linhas)),
+    (e) => mensagemDoEnvio(e),
   );
   const enviando = estado.fase === "enviando";
+
+  /**
+   * A frase da recusa do servidor; com várias áreas, a recusa de UMA delas diz qual ("Na área …: …").
+   * @param {unknown} erro
+   */
+  const mensagemDoEnvio = (erro) => {
+    const base = mensagemDaRecusaDoRegistro(erro, itemDaRecusa(erro, enviado.current?.linhas));
+    const enviadas = enviado.current?.corpo?.areas;
+    const daArea = areaDaRecusa(erro, enviadas);
+    const nome = daArea ? rotuloDaArea(areaDe(daArea.area_id)) : "";
+    return daArea && nome && Array.isArray(enviadas) && enviadas.length > 1 ? `Na área ${nome}: ${base}` : base;
+  };
 
   /**
    * Valida o dia e os editores abertos e devolve o envio (ou null, com os erros nos campos). O editor com o campo-chave
@@ -263,8 +301,9 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     const e = {};
     if (!tipoFixo) e.tipoFixo = "Escolha o tipo.";
     if (!tipo?.id) e.tipo = "Escolha a operação.";
-    if (!area?.id) e.area = "Escolha a área.";
-    const doDia = { ...formularioApontamentoVazio(dia), operador, area_executada_dia: hectares, observacao };
+    Object.assign(e, errosDasAreasDoRegistro(areasDoRegistro));
+    // Os hectares são de cada área (`areas[]`): o dia não leva `area_executada_dia`.
+    const doDia = { ...formularioApontamentoVazio(dia), operador, area_executada_dia: "", observacao };
     const vDia = validarFormularioApontamento(doDia, { hoje });
     Object.assign(e, vDia);
     if (flags.exigeSafra && !safra.trim()) e.safra = "Informe a safra / ciclo (o tipo exige).";
@@ -297,12 +336,12 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     setEditores(novosEditores);
     if (falhou) return null;
     const apontamento = Object.fromEntries(
-      Object.entries(corpoDoApontamento(doDia)).filter(([k, v]) => k !== "atividade_area_id" && k !== "turno" && v !== null && v !== ""),
+      Object.entries(corpoDoApontamento(doDia)).filter(([k, v]) => k !== "atividade_area_id" && k !== "turno" && k !== "area_executada_dia" && v !== null && v !== ""),
     );
     return {
       corpo: {
         ...apontamento,
-        area_id: String(area.id),
+        areas: corpoDasAreasDoRegistro(areasDoRegistro),
         tipo_atividade_id: String(tipo.id),
         ...(flags.exigeSafra ? { safra_ciclo: safra.trim() } : {}),
         ...linhasDoCorpoDoRegistro(finais),
@@ -316,7 +355,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     setEditores(editoresFechados());
     setErrosDasLinhas({});
     lidoNosEditores.current = {};
-    setHectares("");
+    // As áreas ficam; os hectares voltam a 100% do tamanho.
+    setAreasDoRegistro((ls) => ls.map((l) => (areaDe(l.area_id) ? areaNovaDoRegistro(areaDe(l.area_id)) : l)));
     setOperador(null);
     setObservacao("");
     setErros({});
@@ -338,7 +378,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       const resposta = r.resposta;
       queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
       queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
-      notifySuccess("Sucesso", `${tipo.nome_tipo} registrada em ${area.nome}.`);
+      const enviadas = envio.corpo.areas;
+      notifySuccess("Sucesso", `${tipo.nome_tipo} registrada em ${enviadas.length === 1 ? areaDe(enviadas[0].area_id)?.nome ?? "1 área" : `${enviadas.length} áreas`}.`);
       const alerta = Array.isArray(resposta?.alertas) ? resposta.alertas[0] : null;
       if (alerta) notifyWarning("Atenção", mensagemDoAlertaAtividade(alerta));
       onGravou?.(resposta);
@@ -349,7 +390,10 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     const erro = r.erro;
     // A recusa que aponta um item (a posição no array enviado) vai para a linha dele, e o editor abre nela com o campo.
     const alvo = itemDaRecusa(erro, enviado.current?.linhas);
-    const mensagem = mensagemDaRecusaDoRegistro(erro, alvo);
+    const mensagem = mensagemDoEnvio(erro);
+    // D-PROD-263: a recusa de uma área que não aponta linha nenhuma fica embaixo da área, na tabela das áreas.
+    const daArea = areaDaRecusa(erro, enviado.current?.corpo?.areas);
+    if (daArea && !alvo) setErros((x) => ({ ...x, [`area:${daArea.area_id}`]: mensagem }));
     if (alvo) {
       const campo = campoDaLinhaRecusada(erro);
       const item = ehSaltoDoMedidor(erro) ? { ...alvo.item, saltoPedido: true } : alvo.item;
@@ -389,7 +433,6 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     : empresaId && !fuso
       ? "Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de registrar: o servidor recusa sem ele."
       : null;
-  const rotuloArea = (/** @type {any} */ a) => [a?.nome, a?.tamanho_hectares ? `${Number(a.tamanho_hectares).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} ha` : ""].filter(Boolean).join(" · ");
 
   const form = (
     <form
@@ -406,24 +449,6 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     >
       <SecoesDoFormularioContext.Provider value={{ topo: null, opcional: true }}>
         <SecaoForm titulo="Registro" />
-        {areaPreso ? (
-          <CampoTexto label="Área" value={rotuloArea(areaPreso)} onChange={() => {}} readOnly span={12} />
-        ) : (
-          <CampoSelect
-            label="Área"
-            value={areaEscolhida}
-            onChange={(v) => {
-              setAreaEscolhida(v);
-              esquecerUltimo();
-              limparErros(["area"]);
-            }}
-            options={areas.map((a) => ({ value: String(a.id), label: rotuloArea(a) }))}
-            placeholder="Escolha a área"
-            required
-            span={12}
-            error={erros.area}
-          />
-        )}
         {tipoPreso ? null : (
           <>
             <CampoSelect
@@ -482,6 +507,20 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
         {flags.exigeSafra ? (
           <CampoTexto label="Safra / ciclo" value={safra} onChange={(v) => { setSafra(v); esquecerUltimo(); limparErros(["safra"]); }} required span={6} maxLength={32} keepCase error={erros.safra} />
         ) : null}
+        <AreasDoRegistro
+          areasDoMapa={areasDoMapa}
+          linhas={areasDoRegistro}
+          onChange={(ls) => {
+            setAreasDoRegistro(ls);
+            mexeu();
+            setErros((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== "areas" && !k.startsWith("area:") && !k.startsWith("pct:"))));
+          }}
+          erros={erros}
+          travada={areaPreso?.id ? String(areaPreso.id) : null}
+          celular={celular}
+          readOnly={enviando}
+          carregando={!areasDoPai.length && areasLidas.isLoading}
+        />
         {destino ? (
           <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-destino">
             {destino}
@@ -531,21 +570,6 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
         })}
 
         <SecaoForm titulo="Resultado" />
-        <CampoNumero
-          label="Hectares feitos"
-          value={hectares}
-          onChange={(v) => {
-            setHectares(v);
-            esquecerUltimo();
-            limparErros(["area_executada_dia"]);
-          }}
-          locale={LOCALE_ATIVIDADE}
-          limites={LIMITES_DECIMAL_ATIVIDADE}
-          readOnly={enviando}
-          span={6}
-          error={erros.area_executada_dia}
-          testId="registro-de-campo-hectares"
-        />
         <SeletorPaginadoGestao
           rotulo="Operador"
           testId="registro-de-campo-operador"
@@ -571,7 +595,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     </form>
   );
 
-  const podeEnviar = podeGravar && Boolean(tipo?.id) && Boolean(area?.id) && !enviando;
+  const podeEnviar = podeGravar && Boolean(tipo?.id) && areasDoRegistro.length > 0 && !enviando;
   return (
     <B1Janela
       aberto
@@ -625,12 +649,4 @@ function editoresFechados() {
 /** O objeto sem as chaves dadas (o mesmo, se nenhuma estava lá). @param {Record<string, string>} objeto @param {string[]} chaves */
 function semCampos(objeto, chaves) {
   return chaves.some((c) => objeto[c]) ? Object.fromEntries(Object.entries(objeto).filter(([k]) => !chaves.includes(k))) : objeto;
-}
-
-/** Hectares da dose/ha: os feitos digitados (se válidos) ou o tamanho da área. @param {string} feitos @param {any} area */
-function hectaresDaDose(feitos, area) {
-  const t = String(feitos ?? "").trim().replace(/\./g, "").replace(",", ".");
-  if (t && Number.isFinite(Number(t)) && Number(t) > 0) return Number(t).toFixed(4);
-  const tam = Number(area?.tamanho_hectares);
-  return Number.isFinite(tam) && tam > 0 ? tam.toFixed(4) : null;
 }

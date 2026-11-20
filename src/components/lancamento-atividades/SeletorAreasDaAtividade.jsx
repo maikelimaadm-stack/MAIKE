@@ -42,14 +42,7 @@ const ha = (v) => {
  */
 export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange, erros = {}, obrigatorio = false, readOnly = false, carregando = false }) {
   const celular = useCelular();
-  const [busca, setBusca] = useState("");
-  const [aberto, setAberto] = useState(false);
   const ativas = useMemo(() => areasDoMapa.filter((a) => a && a.id != null && a.ativo !== false), [areasDoMapa]);
-  const filtradas = useMemo(() => {
-    const q = busca.trim().toLocaleLowerCase("pt-BR");
-    if (!q) return ativas;
-    return ativas.filter((a) => `${rotuloDaArea(a)} ${a.setor_nome ?? ""}`.toLocaleLowerCase("pt-BR").includes(q));
-  }, [ativas, busca]);
   const escolhidas = new Set(linhas.map((l) => l.area_id));
   const total = totaisDaAbertura(linhas, ativas);
   const resumo = !linhas.length
@@ -107,64 +100,17 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
         Abra a lista e marque os pastos ou talhões desta atividade. Elas entram <strong>a iniciar</strong>: os lançamentos começam quando você inicia cada área, no card
         &quot;Áreas da atividade&quot;.
       </p>
-      <B1Field label="Áreas" required={obrigatorio} span={12} hasValue={linhas.length > 0} locked={readOnly} disabled={readOnly}>
-        <Popover.Root open={aberto && !readOnly} onOpenChange={(o) => { setAberto(o); setBusca(""); }}>
-          <Popover.Trigger asChild>
-            <button
-              type="button"
-              role="combobox"
-              aria-expanded={aberto}
-              aria-haspopup="dialog"
-              aria-label="Áreas"
-              disabled={readOnly}
-              className={`${B1_FIELD_CTL_CLS} b1-select-btn`}
-              {...(linhas.length ? {} : { "data-placeholder": "" })}
-              data-testid="areas-abertura-campo"
-            >
-              <span className="b1-select-btn__v">{resumo}</span>
-              <ChevronDown aria-hidden className="b1-select-btn__c" />
-            </button>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              align="start"
-              side="bottom"
-              sideOffset={5}
-              collisionPadding={8}
-              aria-label="Áreas da fazenda"
-              className="mk-map-multi-popup"
-              style={{ width: "var(--radix-popover-trigger-width)", minWidth: 240 }}
-              data-testid="areas-abertura-lista"
-            >
-              <input
-                type="search"
-                placeholder="Pesquisar…"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                aria-label="Pesquisar área"
-                data-testid="areas-abertura-busca"
-              />
-              <div className="mk-map-multi-options" role="group" aria-label="Áreas da fazenda" data-testid="areas-abertura-opcoes">
-                {carregando ? <p className={`${NOTA} px-3 py-2`}>Carregando as áreas…</p> : null}
-                {!carregando && !filtradas.length ? <p className={`${NOTA} px-3 py-2`}>{ativas.length ? "Nenhuma área com esse nome." : "Nenhuma área ativa nesta fazenda."}</p> : null}
-                {filtradas.map((a) => {
-                  const id = String(a.id);
-                  const detalhe = [rotuloDoTipo(a), a.setor_nome, ha(a.tamanho_hectares)].filter((x) => x && x !== "—").join(" · ");
-                  return (
-                    <label key={id}>
-                      <span>
-                        {rotuloDaArea(a) || id}
-                        <small className="ml-2 text-[11px] opacity-70">{detalhe}</small>
-                      </span>
-                      <input type="checkbox" checked={escolhidas.has(id)} onChange={() => onChange(alternarAreaNaAbertura(linhas, a))} data-testid={`areas-abertura-opcao-${id}`} />
-                    </label>
-                  );
-                })}
-              </div>
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
-      </B1Field>
+      <CampoDeAreasParaMarcar
+        ativas={ativas}
+        escolhidas={escolhidas}
+        onAlternar={(a) => onChange(alternarAreaNaAbertura(linhas, a))}
+        resumo={resumo}
+        temValor={linhas.length > 0}
+        obrigatorio={obrigatorio}
+        readOnly={readOnly}
+        carregando={carregando}
+        prefixo="areas-abertura"
+      />
       {erros.areas ? (
         <p className="mt-1 text-[12px] text-red-700" role="alert" data-testid="areas-abertura-erro">
           {erros.areas}
@@ -248,5 +194,90 @@ export default function SeletorAreasDaAtividade({ areasDoMapa, linhas, onChange,
         )
       ) : null}
     </div>
+  );
+}
+
+/**
+ * O campo "Áreas" para MARCAR as áreas ativas da fazenda: o botão (o resumo: "Selecione as áreas…", o nome da única ou
+ * "N áreas selecionadas") abre a lista com busca e caixas. É o mesmo da abertura da atividade (D-PROD-249) e do
+ * "Registrar serviço" de várias áreas (D-PROD-263). `travadas`: as áreas que não saem (a caixa fica marcada e
+ * desabilitada). `prefixo` forma os testids (`<prefixo>-campo`, `-lista`, `-busca`, `-opcoes`, `-opcao-<id>`).
+ * @param {{ ativas: any[], escolhidas: Set<string>, onAlternar: (area: any) => void, resumo: string, temValor: boolean,
+ *   prefixo: string, obrigatorio?: boolean, readOnly?: boolean, carregando?: boolean, travadas?: Set<string>, limiteAtingido?: boolean,
+ *   error?: string }} props `limiteAtingido`: as não marcadas ficam desabilitadas.
+ */
+export function CampoDeAreasParaMarcar({ ativas, escolhidas, onAlternar, resumo, temValor, prefixo, obrigatorio = false, readOnly = false, carregando = false, travadas = undefined, limiteAtingido = false, error = undefined }) {
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState(false);
+  const filtradas = useMemo(() => {
+    const q = busca.trim().toLocaleLowerCase("pt-BR");
+    if (!q) return ativas;
+    return ativas.filter((a) => `${rotuloDaArea(a)} ${a.setor_nome ?? ""}`.toLocaleLowerCase("pt-BR").includes(q));
+  }, [ativas, busca]);
+  return (
+    <B1Field label="Áreas" required={obrigatorio} span={12} hasValue={temValor} locked={readOnly} disabled={readOnly} error={error}>
+      <Popover.Root open={aberto && !readOnly} onOpenChange={(o) => { setAberto(o); setBusca(""); }}>
+        <Popover.Trigger asChild>
+          <button
+            type="button"
+            role="combobox"
+            aria-expanded={aberto}
+            aria-haspopup="dialog"
+            aria-label="Áreas"
+            disabled={readOnly}
+            className={`${B1_FIELD_CTL_CLS} b1-select-btn`}
+            {...(temValor ? {} : { "data-placeholder": "" })}
+            data-testid={`${prefixo}-campo`}
+          >
+            <span className="b1-select-btn__v">{resumo}</span>
+            <ChevronDown aria-hidden className="b1-select-btn__c" />
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="start"
+            side="bottom"
+            sideOffset={5}
+            collisionPadding={8}
+            aria-label="Áreas da fazenda"
+            className="mk-map-multi-popup"
+            style={{ width: "var(--radix-popover-trigger-width)", minWidth: 240 }}
+            data-testid={`${prefixo}-lista`}
+          >
+            <input
+              type="search"
+              placeholder="Pesquisar…"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              aria-label="Pesquisar área"
+              data-testid={`${prefixo}-busca`}
+            />
+            <div className="mk-map-multi-options" role="group" aria-label="Áreas da fazenda" data-testid={`${prefixo}-opcoes`}>
+              {carregando ? <p className={`${NOTA} px-3 py-2`}>Carregando as áreas…</p> : null}
+              {!carregando && !filtradas.length ? <p className={`${NOTA} px-3 py-2`}>{ativas.length ? "Nenhuma área com esse nome." : "Nenhuma área ativa nesta fazenda."}</p> : null}
+              {filtradas.map((a) => {
+                const id = String(a.id);
+                const detalhe = [rotuloDoTipo(a), a.setor_nome, ha(a.tamanho_hectares)].filter((x) => x && x !== "—").join(" · ");
+                return (
+                  <label key={id}>
+                    <span>
+                      {rotuloDaArea(a) || id}
+                      <small className="ml-2 text-[11px] opacity-70">{detalhe}</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={escolhidas.has(id)}
+                      disabled={travadas?.has(id) || (limiteAtingido && !escolhidas.has(id))}
+                      onChange={() => onAlternar(a)}
+                      data-testid={`${prefixo}-opcao-${id}`}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    </B1Field>
   );
 }

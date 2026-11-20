@@ -99,9 +99,10 @@ export const SECOES_DO_REGISTRO = Object.freeze(
 );
 
 /**
- * Os textos das colunas de um item (o primeiro é o nome). O insumo calcula a dose/ha pelos hectares de AGORA (mudar os
- * "Hectares feitos" depois muda a dose); o total dele é a quantidade que sai do estoque, na unidade do produto (o custo é
- * do servidor). A máquina mostra o uso pelo medidor guardado no "Incluir".
+ * Os textos das colunas de um item (o primeiro é o nome). O insumo calcula a dose/ha pelos hectares de AGORA — os
+ * TOTAIS das áreas do registro (D-PROD-263; mudar os hectares de uma área depois muda a dose); o total dele é a
+ * quantidade que sai do estoque, na unidade do produto (o custo é do servidor; com várias áreas, o servidor a reparte
+ * pelos hectares). A máquina mostra o uso pelo medidor guardado no "Incluir".
  * @param {ColecaoDoRegistro} colecao @param {ItemDoRegistro} item @param {string|null} areaDoDia
  * @returns {string[]}
  */

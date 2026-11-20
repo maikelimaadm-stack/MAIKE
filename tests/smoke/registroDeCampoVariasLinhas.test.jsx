@@ -236,7 +236,8 @@ describe("RV-ENVIO — várias linhas num envio só", () => {
     await incluirPessoa(janela, /Pedro Lima/, "1");
     await incluirServico(janela, /Frete/, "10", /Transportes Silva/);
     await incluirServico(janela, /Roçada terceirizada/, "22");
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "22" } });
+    // D-PROD-263: a área presa entra com 100% do tamanho (22 ha); digitar os hectares dela é o mesmo número.
+    fireEvent.change(within(janela).getByTestId("registro-areas-hectares-area-A"), { target: { value: "22" } });
 
     // O que cada tabela mostra (os cabeçalhos da maquete).
     const cabecalhos = (/** @type {string} */ plural) => [...within(janela).getByTestId(`registro-${plural}-tabela`).querySelectorAll("thead th")].map((th) => th.textContent.trim());
@@ -267,10 +268,9 @@ describe("RV-ENVIO — várias linhas num envio só", () => {
     await waitFor(() => expect(registros()).toHaveLength(1));
     expect(registros()[0].body).toEqual({
       empresa_id: "emp-1",
-      area_id: "area-A",
+      areas: [{ area_id: "area-A", hectares: "22" }],
       tipo_atividade_id: "t-roc",
       data_operacional: HOJE,
-      area_executada_dia: "22",
       operation_id: expect.any(String),
       maquinas: [
         { bem_id: "b1", implemento_bem_id: "i1", sem_medidor: false, leitura_inicial: "1550", leitura_final: "1556.5" },
@@ -402,13 +402,16 @@ describe("RV-TABELA — editar, remover e recalcular", () => {
     expect(registros()[0].body.servicos).toEqual([{ servico_id: "s2", quantidade: "22", valor_unitario: "80" }]);
   });
 
-  it("RV-TABELA-3 — a dose/ha dos insumos acompanha os Hectares feitos de agora (sem hectares, o tamanho da área)", async () => {
+  it("RV-TABELA-3 — a dose/ha dos insumos acompanha os hectares de agora (os da área; sem hectares, o tamanho da área)", async () => {
     const { janela } = await montar();
     await incluirInsumo(janela, /Glifosato/, "Galpão", "44");
-    // Sem hectares feitos: a dose usa o tamanho da área (22 ha).
+    // D-PROD-263: a área entra com 100% do tamanho (22 ha): a dose usa esses hectares.
     expect(celulas(within(janela).getByTestId("registro-insumo-linha-1"))).toEqual(["Glifosato", "Galpão", "2 L/ha", "44 L"]);
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "11" } });
+    fireEvent.change(within(janela).getByTestId("registro-areas-hectares-area-A"), { target: { value: "11" } });
     expect(celulas(within(janela).getByTestId("registro-insumo-linha-1"))).toEqual(["Glifosato", "Galpão", "4 L/ha", "44 L"]);
+    // Sem hectares válidos, o tamanho da área.
+    fireEvent.change(within(janela).getByTestId("registro-areas-hectares-area-A"), { target: { value: "" } });
+    expect(celulas(within(janela).getByTestId("registro-insumo-linha-1"))).toEqual(["Glifosato", "Galpão", "2 L/ha", "44 L"]);
   });
 
   it("RV-TABELA-4 — o \"+ Incluir\" some no 20º item (o máximo do servidor por coleção) e volta ao tirar um", async () => {
@@ -538,10 +541,10 @@ describe("RV-REGRAS — exige máquina, Salvar e novo, celular e o limite do ser
     await incluirInsumo(janela, /Glifosato/, "Galpão", "44");
     await incluirMaquina(janela, /TP-02/, "1.550", "1556");
     fireEvent.click(within(janela).getByTestId("registro-incluir-servico"));
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "5" } });
+    fireEvent.change(within(janela).getByTestId("registro-areas-hectares-area-A"), { target: { value: "5" } });
     fireEvent.click(within(janela).getByTestId("registro-de-campo-salvar-novo"));
     await waitFor(() => expect(registros()).toHaveLength(1));
-    expect(registros()[0].body).toMatchObject({ produtos: [{ produto_id: "p1" }], maquinas: [{ bem_id: "b1" }] });
+    expect(registros()[0].body).toMatchObject({ areas: [{ area_id: "area-A", hectares: "5" }], produtos: [{ produto_id: "p1" }], maquinas: [{ bem_id: "b1" }] });
     await waitFor(() => expect(within(janela).queryByTestId("registro-insumos-tabela")).toBeNull());
     expect(onFechar).not.toHaveBeenCalled();
     for (const plural of ["insumos", "maquinas", "pessoas", "servicos"]) expect(within(janela).queryByTestId(`registro-${plural}-tabela`)).toBeNull();
@@ -549,7 +552,9 @@ describe("RV-REGRAS — exige máquina, Salvar e novo, celular e o limite do ser
       expect(within(janela).queryByTestId(`registro-${secao}-editor`)).toBeNull();
       expect(within(janela).getByTestId(`registro-incluir-${secao}`)).toBeTruthy();
     }
-    expect(within(janela).getByTestId("registro-de-campo-hectares")).toHaveValue("");
+    // D-PROD-263: a área fica; os hectares voltam a 100% do tamanho.
+    expect(within(janela).getByTestId("registro-areas-hectares-area-A")).toHaveValue("22");
+    expect(within(janela).getByTestId("registro-areas-percentual-area-A")).toHaveValue("100");
   });
 
   it("RV-REGRAS-3 — no celular a seção é uma pilha de cartões (sem tabela), com o mesmo Incluir, editor e ✕", async () => {

@@ -19,6 +19,10 @@ import {
   validarLinhaProduto,
   validarLinhaServico,
 } from './atividadeLinhasRegras.js';
+import { deUnidades, ehPositivo, lerNumeroLocal, multiplicarArredondar, naEscala, paraTextoDeEdicao, paraUnidades, percentualDe, somar } from './dinheiroDecimal.js';
+import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, STATUS_ABERTA } from './lancamentoAtividadesRegras.js';
+import { STATUS_AREA, hectaresCanonicos } from './atividadeAreasRegras.js';
+import { lerErroGestao } from './gestaoErros.js';
 
 const MESES_CURTOS = Object.freeze(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']);
 
@@ -133,3 +137,185 @@ export const mensagemDaRecusaDoRegistro = (erro, alvo) =>
     medidorUnidade: alvo?.colecao === 'maquinas' ? alvo.item.medidor?.unidade ?? null : null,
     unidade: alvo?.colecao === 'produtos' ? unidadeDoProduto(alvo.item.form?.produto) ?? null : null,
   });
+
+// ─── Várias áreas num registro (D-PROD-263) ──────────────────────────────
+
+/** O teto de áreas num registro (o mesmo do servidor). */
+export const AREAS_NO_REGISTRO_MAXIMO = 20;
+
+/**
+ * Uma área do registro, com os textos de edição (pt-BR): o % do tamanho e os hectares feitos nela. Os dois andam juntos
+ * (% = hectares ÷ tamanho × 100); o que vai para o servidor são os hectares.
+ * @typedef {{ area_id: string, percentual: string, hectares: string }} AreaDoRegistro
+ */
+
+const CASAS_HA = LIMITES_DECIMAL_ATIVIDADE.casas;
+const CASAS_PCT = 2;
+const LIMITES_PCT = Object.freeze({ inteiros: 6, casas: CASAS_PCT });
+
+/** O tamanho da área do mapa (canônico, 4 casas) quando é maior que zero; senão null. @param {any} areaDoMapa */
+export const tamanhoDaArea = (areaDoMapa) => {
+  const t = hectaresCanonicos(areaDoMapa?.tamanho_hectares);
+  return t !== null && ehPositivo(t) ? naEscala(t, CASAS_HA) : null;
+};
+
+/** Hectares = tamanho × % ÷ 100, com 4 casas (meio para cima). @param {string} tamanho @param {string} percentual */
+export const hectaresDoPercentual = (tamanho, percentual) =>
+  // tamanho × % com 2 casas (meio para cima) = os hectares × 100 com 4 casas: as mesmas unidades, lidas com 4 casas.
+  deUnidades(paraUnidades(multiplicarArredondar(tamanho, percentual, CASAS_HA - 2), CASAS_HA - 2), CASAS_HA);
+
+/** % = hectares ÷ tamanho × 100, com 2 casas (meio para cima). @param {string} hectares @param {string} tamanho */
+export const percentualDosHectares = (hectares, tamanho) => percentualDe(naEscala(hectares, CASAS_HA), tamanho, CASAS_HA, CASAS_PCT);
+
+/** @param {string} canonico @param {number} casas */
+const paraEdicao = (canonico, casas) => paraTextoDeEdicao(canonico, LOCALE_ATIVIDADE, { casasMax: casas });
+
+/**
+ * A área que entra no registro: 100% do tamanho (sem tamanho, % e hectares vazios: a pessoa digita os hectares).
+ * @param {any} areaDoMapa @returns {AreaDoRegistro}
+ */
+export const areaNovaDoRegistro = (areaDoMapa) => {
+  const t = tamanhoDaArea(areaDoMapa);
+  return { area_id: String(areaDoMapa?.id ?? ''), percentual: t ? '100' : '', hectares: t ? paraEdicao(t, CASAS_HA) : '' };
+};
+
+/**
+ * Marca ou desmarca uma área do mapa no registro (a marcada entra no fim, com 100%); `travadas` nunca saem e o teto não
+ * é passado.
+ * @param {AreaDoRegistro[]} linhas @param {any} areaDoMapa @param {{ travadas?: Set<string> }} [opcoes] @returns {AreaDoRegistro[]}
+ */
+export const alternarAreaNoRegistro = (linhas, areaDoMapa, { travadas } = {}) => {
+  const id = String(areaDoMapa?.id ?? '');
+  if (!id) return linhas;
+  if (linhas.some((l) => l.area_id === id)) return travadas?.has(id) ? linhas : linhas.filter((l) => l.area_id !== id);
+  if (linhas.length >= AREAS_NO_REGISTRO_MAXIMO) return linhas;
+  return [...linhas, areaNovaDoRegistro(areaDoMapa)];
+};
+
+/**
+ * A pessoa digitou o %: os hectares acompanham (tamanho × %). % inválido ou área sem tamanho: só o texto muda.
+ * @param {AreaDoRegistro} linha @param {string} texto @param {any} areaDoMapa @returns {AreaDoRegistro}
+ */
+export const comPercentualDigitado = (linha, texto, areaDoMapa) => {
+  const t = tamanhoDaArea(areaDoMapa);
+  const lido = lerNumeroLocal(texto, LOCALE_ATIVIDADE, LIMITES_PCT);
+  if (!t || !lido.ok) return { ...linha, percentual: texto };
+  return { ...linha, percentual: texto, hectares: paraEdicao(hectaresDoPercentual(t, /** @type {string} */ (lido.valor)), CASAS_HA) };
+};
+
+/**
+ * A pessoa digitou os hectares: o % acompanha (hectares ÷ tamanho). Hectares inválidos: só o texto muda; apagados, o %
+ * também se apaga.
+ * @param {AreaDoRegistro} linha @param {string} texto @param {any} areaDoMapa @returns {AreaDoRegistro}
+ */
+export const comHectaresDigitados = (linha, texto, areaDoMapa) => {
+  const t = tamanhoDaArea(areaDoMapa);
+  if (!String(texto ?? '').trim()) return { ...linha, hectares: texto, percentual: '' };
+  const lido = lerNumeroLocal(texto, LOCALE_ATIVIDADE, LIMITES_DECIMAL_ATIVIDADE);
+  if (!t || !lido.ok) return { ...linha, hectares: texto };
+  return { ...linha, hectares: texto, percentual: paraEdicao(/** @type {string} */ (percentualDosHectares(/** @type {string} */ (lido.valor), t)), CASAS_PCT) };
+};
+
+/**
+ * Os hectares digitados → canônico (o `hectares` de `areas[]`), ou a frase do erro.
+ * @param {unknown} texto @returns {{ valor: string|null, erro: string|null }}
+ */
+export const lerHectaresDaArea = (texto) => {
+  const t = String(texto ?? '').trim();
+  if (!t) return { valor: null, erro: 'Informe os hectares feitos nesta área.' };
+  const lido = lerNumeroLocal(t, LOCALE_ATIVIDADE, LIMITES_DECIMAL_ATIVIDADE);
+  if (!lido.ok) return { valor: null, erro: 'Os hectares estão em formato inválido: use 1.234,5.' };
+  if (!ehPositivo(/** @type {string} */ (lido.valor))) return { valor: null, erro: 'Os hectares têm de ser maiores que zero.' };
+  return { valor: /** @type {string} */ (lido.valor), erro: null };
+};
+
+/**
+ * Os erros das áreas do registro: `areas` (nenhuma escolhida), `area:<id>` (os hectares) e `pct:<id>` (o % digitado
+ * inválido: os hectares não acompanharam).
+ * @param {AreaDoRegistro[]} linhas @returns {Record<string, string>}
+ */
+export const errosDasAreasDoRegistro = (linhas) => {
+  /** @type {Record<string, string>} */
+  const erros = {};
+  if (!linhas.length) erros.areas = 'Escolha a área.';
+  for (const l of linhas) {
+    const h = lerHectaresDaArea(l.hectares);
+    if (h.erro) erros[`area:${l.area_id}`] = h.erro;
+    if (String(l.percentual ?? '').trim() && !lerNumeroLocal(l.percentual, LOCALE_ATIVIDADE, LIMITES_PCT).ok) erros[`pct:${l.area_id}`] = 'O % está em formato inválido: use 60 ou 33,33.';
+  }
+  return erros;
+};
+
+/** O corpo `areas[]` do registro: `[{ area_id, hectares }]`, na ordem da tabela. @param {AreaDoRegistro[]} linhas */
+export const corpoDasAreasDoRegistro = (linhas) => linhas.map((l) => ({ area_id: l.area_id, hectares: /** @type {string} */ (lerHectaresDaArea(l.hectares).valor) }));
+
+/**
+ * Os totais da tabela das áreas: Σ tamanho e Σ hectares válidos (canônicos, 4 casas); sem nenhum, null.
+ * @param {AreaDoRegistro[]} linhas @param {any[]} areasDoMapa
+ */
+export const totaisDasAreasDoRegistro = (linhas, areasDoMapa) => {
+  const tamanhos = linhas.map((l) => tamanhoDaArea(areasDoMapa.find((a) => String(a?.id) === l.area_id))).filter((v) => v !== null);
+  const hectares = linhas.map((l) => lerHectaresDaArea(l.hectares).valor).filter((v) => v !== null);
+  return {
+    tamanho: tamanhos.length ? somar(/** @type {string[]} */ (tamanhos), CASAS_HA) : null,
+    hectares: hectares.length ? somar(/** @type {string[]} */ (hectares), CASAS_HA) : null,
+  };
+};
+
+/**
+ * O nome que o servidor dá à atividade nova (`nomeDoRegistro`): `<Tipo> · <Área> · <mmm/aa>`, ou, com outras áreas,
+ * `<Tipo> · <Área 1> +N · <mmm/aa>`. Só para a prévia (o servidor ainda corta o que passa do teto).
+ * @param {string} tipo @param {string} area @param {string} dia @param {number} [outras]
+ */
+export const nomeDaAtividadeNova = (tipo, area, dia, outras = 0) => `${tipo} · ${area}${outras > 0 ? ` +${outras}` : ''} · ${rotuloDoMesCurto(dia)}`;
+
+/** "PASTO 01" / "PASTO 01 e PASTO 02" / "PASTO 01, PASTO 02 e PASTO 03". @param {string[]} nomes */
+const lista = (nomes) => (nomes.length <= 1 ? nomes.join('') : `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`);
+
+/**
+ * Onde o registro entra (só leitura: quem decide é o servidor, com a mesma regra): as áreas na ordem da tabela, a
+ * primeira com atividade ABERTA do tipo no mês (área não concluída) dá a atividade. Com várias áreas, diz quais entram
+ * nela e avisa da que já está concluída nela (o servidor recusa). Sem nenhuma: a atividade nova, com o nome dela.
+ * `resumos[i]` é o resumo da área i (`GET /atividades-por-area/:id/resumo`); faltando algum, null (ainda lendo).
+ * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, dia: string, resumos: Array<any|null|undefined> }} p
+ * @returns {string|null}
+ */
+export const destinoDoRegistro = ({ tipo, areas, dia, resumos }) => {
+  if (!tipo?.id || !areas.length || !dia || resumos.length !== areas.length || resumos.some((r) => !r)) return null;
+  const mes = dia.slice(0, 7);
+  const abertasDe = (/** @type {any} */ r) =>
+    (Array.isArray(r?.atividades) ? r.atividades : []).filter(
+      (/** @type {any} */ a) => String(a.tipo_atividade_id) === String(tipo.id) && a.status === STATUS_ABERTA && a.area_status !== STATUS_AREA.CONCLUIDA && String(a.data_inicio ?? '').slice(0, 7) === mes,
+    );
+  for (const [i, area] of areas.entries()) {
+    const abertas = abertasDe(resumos[i]);
+    if (!abertas.length) continue;
+    if (abertas.length > 1) return `Entra em uma das atividades de ${tipo.nome_tipo} abertas ${areas.length > 1 ? `em ${area.nome}` : 'nesta área'}`;
+    const alvo = abertas[0];
+    if (areas.length === 1) return `Entra em ${alvo.nome}`;
+    const naAlvo = (/** @type {number} */ j) => (Array.isArray(resumos[j]?.atividades) ? resumos[j].atividades : []).find((/** @type {any} */ a) => String(a.atividade_id) === String(alvo.atividade_id)) ?? null;
+    const entram = areas.filter((_, j) => j !== i && !naAlvo(j)).map((a) => a.nome);
+    const concluidas = areas.filter((_, j) => j !== i && naAlvo(j)?.area_status === STATUS_AREA.CONCLUIDA).map((a) => a.nome);
+    const partes = [`Entra em ${alvo.nome}`];
+    if (entram.length) partes.push(`${lista(entram)} ${entram.length === 1 ? 'entra' : 'entram'} nela`);
+    let texto = partes.join('; ');
+    if (concluidas.length) texto += `. ${lista(concluidas)} já ${concluidas.length === 1 ? 'está concluída' : 'estão concluídas'} nela: reabra ou tire do registro`;
+    return texto;
+  }
+  return `Nova atividade será criada: ${nomeDaAtividadeNova(tipo.nome_tipo, areas[0].nome, dia, areas.length - 1)}`;
+};
+
+/**
+ * A área que a recusa do servidor aponta (`details.area_indice` = a posição em `areas[]` enviada, com o `area_id`), ou
+ * null (a recusa não é de uma área).
+ * @param {unknown} erro @param {Array<{ area_id: string }>|null|undefined} enviadas
+ * @returns {{ indice: number, area_id: string } | null}
+ */
+export const areaDaRecusa = (erro, enviadas) => {
+  const { details } = lerErroGestao(erro);
+  if (!Array.isArray(enviadas) || !Number.isInteger(details.area_indice)) return null;
+  const indice = /** @type {number} */ (details.area_indice);
+  const area = enviadas[indice];
+  if (!area || (details.area_id != null && String(details.area_id) !== String(area.area_id))) return null;
+  return { indice, area_id: String(area.area_id) };
+};
