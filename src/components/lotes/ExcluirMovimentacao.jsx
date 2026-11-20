@@ -10,7 +10,8 @@ import {
   DialogHeader as DialogHeaderUi,
   DialogTitle as DialogTitleUi,
 } from "@/components/ui/dialog";
-import { getCurrentUser, ehAdministrador } from "@/services/sessionService";
+import { getCurrentUser, ehAdministrador, carregarPermissaoEfetiva } from "@/services/sessionService";
+import { podeExcluirMovimentacoesDoLote } from "@/lib/mapaGeralPermissions";
 import {
   excluirMovimentacaoMapa,
   consultarExclusaoMovimentacao,
@@ -42,6 +43,10 @@ import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
  * gerada ao abrir e mantida enquanto o resultado for desconhecido (rede, 5xx,
  * timeout): repetir com a mesma chave nunca estorna duas vezes. Offline: só
  * leitura, botão desabilitado com o motivo; nunca vai para a fila.
+ *
+ * D-PROD-266 — quem vê: administrador real da fazenda, a concessão `is_admin`
+ * ou a chave do Mapa Geral `excluir_movimentacoes_lote` (mesma permissão
+ * efetiva e mesma regra que o mapa usa; o servidor reautoriza no GET e no POST).
  */
 
 /** Mensagens em português para as recusas estáveis do servidor (nada foi alterado). */
@@ -56,7 +61,9 @@ export const MENSAGENS_RECUSA = Object.freeze({
   REBANHO_PESO_DEPENDENCIA_CAUSAL: "Um registro posterior calculou o peso a partir deste. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   CANCELAMENTO_EFEITO_NAO_COMPROVADO: "Não há prova de que esta movimentação gerou o registro do rebanho. Nada foi alterado.",
   CANCELAMENTO_JA_REALIZADO: "Esta movimentação já está cancelada. Nada foi alterado.",
-  TENANT_ADMIN_REQUIRED: "Somente o administrador da fazenda pode excluir movimentações.",
+  // D-PROD-266: a exclusão não é mais só do administrador (permissão do mapa).
+  TENANT_ADMIN_REQUIRED: "Você não tem permissão para excluir movimentações.",
+  ACAO_NAO_PERMITIDA: "Você não tem permissão para excluir movimentações.",
   IDEMPOTENCY_CONFLICT: "Esta exclusão já foi enviada com outro motivo. Feche e abra de novo para recomeçar.",
   IDEMPOTENCY_EFEITO_EXCLUIDO: "Esta operação já foi excluída. Feche e abra de novo.",
 });
@@ -86,6 +93,8 @@ export const mensagemDeRecusa = (codigo, detalhes) => {
 
 /** Código do servidor preservado no `cause` do ApiError (corpo da resposta). */
 const codigoDoServidor = (erro) => (typeof erro?.cause?.code === "string" ? erro.cause.code : null);
+/** D-PROD-266 — o servidor recusou por falta de permissão (não é falha de rede). */
+const ehRecusaDePermissao = (erro) => ["ACAO_NAO_PERMITIDA", "TENANT_ADMIN_REQUIRED"].includes(codigoDoServidor(erro));
 
 /** Recusa definitiva: o servidor respondeu e nada foi gravado. Qualquer outra coisa é resultado desconhecido. */
 const ehRecusaDefinitiva = (codigo) =>
@@ -326,6 +335,19 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   const { data: usuario } = useQuery({ queryKey: ["usuario-atual-exclusao"], queryFn: () => getCurrentUser(), staleTime: 60_000 });
   const admin = ehAdministrador(usuario);
   const escopo = escopoDoUsuario(usuario);
+  // D-PROD-266 — mesma consulta (e chave de cache) da permissão efetiva do Mapa Geral
+  // (`MapaGeral.jsx`): a tela Permissões invalida `["permissao-efetiva"]` ao gravar.
+  // Administrador real não precisa dela (tem tudo).
+  const login = usuario?.login || usuario?.email || null;
+  const { data: permissaoEfetiva = null } = useQuery({
+    queryKey: ["permissao-efetiva", login, admin],
+    queryFn: () => carregarPermissaoEfetiva(usuario),
+    enabled: Boolean(login) && !admin,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  // Admin real OU `is_admin` OU `excluir_movimentacoes_lote` no mapa (gravadora: só `=== true`).
+  const autorizado = podeExcluirMovimentacoesDoLote(usuario, permissaoEfetiva);
 
   const [cardEl, setCardEl] = React.useState(null);
   const visivel = useVisivel(cardEl);
@@ -336,7 +358,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     // O `signal` do React Query cancela a consulta ainda na fila quando o card some (UX-2).
     // PR181-R2: o signal do TRANSPORTE desce até o fetch (prazo e desmontagem abortam o GET de verdade).
     queryFn: ({ signal }) => comLimiteDeConsultas((sinal) => consultarExclusaoMovimentacao(movimento.id, { signal: sinal }), signal),
-    enabled: !excluida && suportado && admin && !!usuario && online && (visivel || aberto),
+    enabled: !excluida && suportado && autorizado && !!usuario && online && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
     // Reabrir o histórico confere de novo (um manejo feito com ele fechado não deixa verde velho).
     refetchOnMount: "always",
@@ -351,7 +373,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
       if (!Array.isArray(lidas)) throw new Error("formato inesperado da fila offline");
       return lidas;
     },
-    enabled: !excluida && suportado && admin && !!usuario && (visivel || aberto),
+    enabled: !excluida && suportado && autorizado && !!usuario && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
     retry: false,
   });
@@ -360,17 +382,24 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   // relê as pendências deste registro. Sem isso, um card bloqueado por pendência
   // ficava bloqueado depois da sincronização até remontar.
   const chavePendencias = pendencias.refetch;
+  // D-PROD-266 — o servidor negou a permissão (403 no GET): relê a permissão efetiva
+  // (mesma chave do Mapa Geral) para o card sumir assim que o cache alcançar o banco.
+  const erroElegibilidade = elegibilidade.error;
   React.useEffect(() => {
-    if (!suportado || !admin) return undefined;
+    if (!ehRecusaDePermissao(erroElegibilidade)) return;
+    queryClient.invalidateQueries({ queryKey: ["permissao-efetiva"] });
+  }, [erroElegibilidade, queryClient]);
+  React.useEffect(() => {
+    if (!suportado || !autorizado) return undefined;
     const nome = eventoMudancaFilaOffline();
     const reler = () => { chavePendencias(); };
     window.addEventListener(nome, reler);
     return () => window.removeEventListener(nome, reler);
-  }, [suportado, admin, chavePendencias]);
+  }, [suportado, autorizado, chavePendencias]);
 
   if (!suportado || excluida) return null;
-  // Só o administrador ativo vê a ação (o servidor reautoriza no POST).
-  if (!admin) return null;
+  // Só quem tem a permissão vê a ação (D-PROD-266; o servidor reautoriza no GET e no POST).
+  if (!autorizado) return null;
 
   const abrir = () => {
     const pendente = lerPendente(escopo, movimento.id);
@@ -421,6 +450,9 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   const pendenciasNaFila = filaComFormato ? pendencias.data : [];
   const filaFalhou = pendencias.isError || (pendencias.isSuccess && !Array.isArray(pendencias.data));
   const filaVaziaConfirmada = filaComFormato && !pendencias.isFetching && pendencias.data.length === 0;
+  // D-PROD-266 — o GET da elegibilidade responde 403 a quem não tem a permissão (revogada
+  // com a tela aberta, cache de permissão ainda velho): é recusa de permissão, não falha.
+  const semPermissaoNoServidor = elegibilidade.isError && ehRecusaDePermissao(elegibilidade.error);
 
   /** @type {{elegivel?: boolean, pode_excluir?: boolean, codigo?: string|null, motivo?: string|null, detalhes?: any, efeitos?: any[]} | undefined} */
   const e = /** @type {any} */ (elegibilidade.data);
@@ -486,6 +518,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     if (!filaVaziaConfirmada) return { rotulo: "Verificando exclusão…", habilitado: false, motivo: null };
     // Resultado anterior desconhecido: reabrir reenvia a MESMA operação (a fila já foi conferida acima).
     if (lerPendente(escopo, movimento.id)) return { rotulo: "Excluir movimentação", habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação.", destrutivo: true };
+    if (semPermissaoNoServidor) return { rotulo: "Exclusão bloqueada", habilitado: false, motivo: MENSAGENS_RECUSA.ACAO_NAO_PERMITIDA };
     if (elegibilidade.isError) return { rotulo: "Não foi possível verificar", habilitado: false, motivo: "A conferência no servidor falhou. Nada foi alterado.", tentarDeNovo: true };
     // Releitura em voo: nunca expor a resposta antiga (potencialmente verde).
     if (!e || !elegibilidade.isSuccess || elegibilidade.isFetching) return { rotulo: "Verificando exclusão…", habilitado: false, motivo: null };
@@ -561,7 +594,10 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
             </div>
           )}
           {online && (elegibilidade.isFetching || pendencias.isFetching) && <div role="status" className="text-sm text-slate-500">Conferindo no servidor...</div>}
-          {elegibilidade.isError && (
+          {semPermissaoNoServidor && (
+            <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">{MENSAGENS_RECUSA.ACAO_NAO_PERMITIDA}</div>
+          )}
+          {elegibilidade.isError && !semPermissaoNoServidor && (
             <div role="alert" className="text-sm text-red-700">Não foi possível conferir agora. Tente novamente.</div>
           )}
           {e && !e.elegivel && !desconhecido && (
