@@ -24,13 +24,21 @@ export const MOTIVO_IMPLANTACAO = 'SALDO_IMPLANTACAO';
 export const MOTIVO_ENTRADA = 'ENTRADA';
 export const ROTULO_NATUREZA = Object.freeze({ [MOTIVO_IMPLANTACAO]: 'Saldo de implantação', [MOTIVO_ENTRADA]: 'Entrada' });
 
-/** Os tipos do "Novo movimento" desta versão. */
+/**
+ * Os tipos do "Novo movimento" desta versão e a ação da tela que cada um exige (D-PROD-264: a Saída tem a ação
+ * própria `saida`; Entrada e Transferência seguem com `entrada`).
+ */
 export const TIPO_ENTRADA = 'entrada';
+export const TIPO_SAIDA = 'saida';
 export const TIPO_TRANSFERENCIA = 'transferencia';
 export const TIPOS_DE_MOVIMENTO = Object.freeze([
-  { value: TIPO_ENTRADA, label: 'Entrada' },
-  { value: TIPO_TRANSFERENCIA, label: 'Transferência' },
+  { value: TIPO_ENTRADA, label: 'Entrada', acao: /** @type {'entrada'|'saida'} */ ('entrada') },
+  { value: TIPO_SAIDA, label: 'Saída', acao: /** @type {'entrada'|'saida'} */ ('saida') },
+  { value: TIPO_TRANSFERENCIA, label: 'Transferência', acao: /** @type {'entrada'|'saida'} */ ('entrada') },
 ]);
+
+/** Tipos que o usuário pode lançar, pelas ações da tela. @param {{ entrada?: boolean, saida?: boolean }} acoes */
+export const tiposPermitidos = (acoes) => TIPOS_DE_MOVIMENTO.filter((t) => Boolean(acoes?.[t.acao]));
 
 export const ROTULO_STATUS_ENTRADA = Object.freeze({ CONFIRMADA: 'Confirmada', EXCLUIDA: 'Excluída' });
 export const MOTIVO_ACAO_MINIMO = 3;

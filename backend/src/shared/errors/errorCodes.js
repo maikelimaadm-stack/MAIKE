@@ -200,6 +200,15 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   MOTIVO_ENTRADA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de entrada deste tenant' },
   MOTIVO_ENTRADA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de entrada com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
   MOTIVO_ENTRADA_PADRAO_FIXO: { http: 422, meaning: 'o motivo padrão "Saldo de implantação" não se renomeia nem se desativa; nada foi alterado' },
+  // D-PROD-264 — Estoque → Novo movimento → Saída (saída manual documentada, custo médio, pelo motor de estoque).
+  SAIDA_ESTOQUE_NOT_FOUND: { http: 404, meaning: 'id não identifica saída de estoque desta fazenda neste tenant' },
+  SAIDA_ESTOQUE_INVALIDA: { http: 422, meaning: 'saída recusada (details.field/reason: motivo, produto, depósito, unidade, quantidade ou centro); nada foi gravado' },
+  SAIDA_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação da saída não permite esta ação (details.status); nada foi alterado' },
+  SAIDA_ESTOQUE_VERSAO_CONFLITO: { http: 409, meaning: 'a saída mudou desde a leitura (versão diferente); recarregue; nada foi alterado' },
+  SAIDA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'só a observação se edita; para mudar motivo, data, centros, produto, quantidade ou depósito exclua e lance outra saída; nada foi alterado' },
+  SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR: { http: 409, meaning: 'o produto teve outro movimento no depósito depois da saída; a exclusão não é possível (details.movimento_numero); nada foi alterado' },
+  MOTIVO_SAIDA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de saída deste tenant' },
+  MOTIVO_SAIDA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de saída com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
   // D-PROD-159 / D-PROD-162 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
   // do Produto (L ou KG; D-PROD-169: SACO abastece em KG), pelo motor de estoque; sem conversão nem fator.
   ABASTECIMENTO_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica abastecimento desta fazenda neste tenant' },
