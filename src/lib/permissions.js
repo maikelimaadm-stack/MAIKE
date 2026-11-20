@@ -50,7 +50,8 @@ export const EXTRA_ACTION_KEYS_BY_PAGE = Object.freeze({
   "op-atividades": Object.freeze(["reabrir", "lancar_apontamento", "editar_apontamento", "cancelar_apontamento"]),
   // D-PROD-257 — Estoque → Entradas: criar/editar observação/excluir entrada manual e saldo de implantação.
   // Espelho de `ACOES_ESTOQUE_EXTRAS`; `ajuste` (inventário) segue reservada e não existe.
-  "sup-estoque": Object.freeze(["entrada"]),
+  // D-PROD-264: `saida` — saída manual (custo médio) e motivos de saída.
+  "sup-estoque": Object.freeze(["entrada", "saida"]),
 });
 
 /** @param {string} pageId @returns {readonly string[]} */

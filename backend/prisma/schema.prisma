@@ -124,6 +124,10 @@ model Cliente {
   entradasEstoqueItens         EntradaEstoqueItem[]
   entradasEstoqueEventos       EntradaEstoqueEvento[]
   motivosEntradaEstoque        MotivoEntradaEstoque[] // D-PROD-259
+  motivosSaidaEstoque          MotivoSaidaEstoque[] // D-PROD-264
+  saidasEstoque                SaidaEstoque[]
+  saidasEstoqueItens           SaidaEstoqueItem[]
+  saidasEstoqueEventos         SaidaEstoqueEvento[]
   operacoesFinanceirasConsumos OperacaoFinanceiraConsumoLote[]
   operacoesFinanceirasRateios  OperacaoFinanceiraRateio[]
   operacoesFinanceirasItensRateios OperacaoFinanceiraItemRateio[]
@@ -1180,6 +1184,7 @@ model LocalEstoque {
   // D-PROD-155 — itens de lançamento que movimentam este local.
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
+  saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-264
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
   // D-PROD-202 — linhas de produto que baixaram estoque deste local.
@@ -1227,6 +1232,7 @@ model Produto {
   // D-PROD-155 — itens de lançamento deste produto.
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
+  saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-264
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
@@ -1399,6 +1405,7 @@ model Empresa {
   // D-PROD-249 — as áreas das atividades da fazenda.
   atividadeAreas        AtividadeArea[]
   entradasEstoque       EntradaEstoque[]
+  saidasEstoque         SaidaEstoque[] // D-PROD-264
   // D-PROD-207 — funcionários e serviços da fazenda.
   servicos              Servico[]
   @@unique([cliente_id, id])
@@ -1783,6 +1790,8 @@ model MovimentacaoEstoque {
   itemFinanceiro        OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemMovimento")
   itemEntradaEstoque        EntradaEstoqueItem?     @relation("EntradaEstoqueItemMovimento")
   itemEntradaEstoqueEstorno EntradaEstoqueItem?     @relation("EntradaEstoqueItemEstorno")
+  itemSaidaEstoque          SaidaEstoqueItem?       @relation("SaidaEstoqueItemMovimento") // D-PROD-264
+  itemSaidaEstoqueEstorno   SaidaEstoqueItem?       @relation("SaidaEstoqueItemEstorno")
   itemFinanceiroEstorno OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemEstorno")
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
   abastecimentoBem        AbastecimentoBem? @relation("AbastecimentoBemMovimento")
@@ -2383,6 +2392,7 @@ model CentroCusto {
 
   abastecimentos AbastecimentoBem[] // D-PROD-211
   entradasEstoque EntradaEstoque[] // D-PROD-259
+  saidasEstoque   SaidaEstoque[]   // D-PROD-264
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2420,6 +2430,7 @@ model CentroResultado {
   tiposAtividadePadrao  TipoAtividade[]
 
   entradasEstoque EntradaEstoque[] // D-PROD-259
+  saidasEstoque   SaidaEstoque[]   // D-PROD-264
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
@@ -3823,4 +3834,124 @@ model EntradaEstoqueEvento {
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id, entrada_id, createdAt], map: "EntradaEstoqueEvento_entrada_idx")
+}
+
+/// D-PROD-264 — cadastro de motivos de SAÍDA manual do estoque, por cliente. Padrões (Perda, Consumo interno,
+/// Doação, Vencimento) nascem pelo backend na primeira leitura; renomear e desativar livres.
+model MotivoSaidaEstoque {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  nome       String   @db.VarChar(80)
+  chave      String   @db.VarChar(80)
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  saidas  SaidaEstoque[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, chave])
+  @@index([cliente_id, ativo])
+}
+
+/// D-PROD-264 — saída manual do estoque (documento): CONFIRMADA ao criar; EXCLUIDA com estorno pelo motor, só se o
+/// produto não teve outro movimento depois naquele depósito. O valor é o custo médio do depósito (nunca digitado).
+model SaidaEstoque {
+  id                        String    @id @default(cuid())
+  cliente_id                String    @db.VarChar(64)
+  empresa_id                String    @db.VarChar(64)
+  numero                    String    @db.VarChar(32)
+  /// CONFIRMADA | EXCLUIDA
+  status                    String    @db.VarChar(16)
+  versao                    Int       @default(1)
+  motivo_id                 String    @db.VarChar(64)
+  data_saida                DateTime  @db.Date
+  centro_custo_id           String?   @db.VarChar(64)
+  centro_resultado_id       String?   @db.VarChar(64)
+  observacao                String?   @db.VarChar(500)
+  confirmada_em             DateTime
+  confirmada_por_usuario_id String?   @db.VarChar(64)
+  excluida_em               DateTime?
+  excluida_por_usuario_id   String?   @db.VarChar(64)
+  motivo_exclusao           String?   @db.VarChar(500)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  cliente         Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa         Empresa              @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  motivo          MotivoSaidaEstoque   @relation(fields: [cliente_id, motivo_id], references: [cliente_id, id], onDelete: Restrict, map: "SaidaEstoque_motivo_id_fkey")
+  centroCusto     CentroCusto?         @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "SaidaEstoque_centro_custo_fkey")
+  centroResultado CentroResultado?     @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "SaidaEstoque_centro_resultado_fkey")
+  itens           SaidaEstoqueItem[]
+  eventos         SaidaEstoqueEvento[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, numero])
+  @@index([cliente_id, empresa_id, status, data_saida])
+  @@index([cliente_id, motivo_id])
+  @@index([cliente_id, empresa_id, centro_custo_id])
+  @@index([cliente_id, empresa_id, centro_resultado_id])
+}
+
+/// D-PROD-264 — uma linha por produto e depósito. `custo_unitario` = custo médio por unidade de estoque (kg ou L)
+/// gravado pelo motor; as fatias ficam no movimento (`lotes_consumidos`).
+model SaidaEstoqueItem {
+  id                      String   @id @default(cuid())
+  cliente_id              String   @db.VarChar(64)
+  empresa_id              String   @db.VarChar(64)
+  saida_id                String   @db.VarChar(64)
+  ordem                   Int
+  produto_id              String   @db.VarChar(64)
+  local_estoque_id        String   @db.VarChar(64)
+  /// KG | SACO | L (como digitado)
+  unidade                 String   @db.VarChar(8)
+  quantidade              Decimal  @db.Decimal(14, 4)
+  fator_kg                Decimal  @db.Decimal(14, 4)
+  quantidade_estoque      Decimal  @db.Decimal(14, 4)
+  custo_unitario          Decimal  @db.Decimal(14, 4)
+  valor_total             Decimal  @db.Decimal(18, 4)
+  movimentacao_estoque_id String   @db.VarChar(64)
+  movimentacao_estorno_id String?  @db.VarChar(64)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  cliente   Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  saida     SaidaEstoque         @relation(fields: [cliente_id, empresa_id, saida_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "SaidaEstoqueItem_saida_fkey")
+  produto   Produto              @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict, map: "SaidaEstoqueItem_produto_fkey")
+  local     LocalEstoque         @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "SaidaEstoqueItem_local_fkey")
+  movimento MovimentacaoEstoque  @relation("SaidaEstoqueItemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "SaidaEstoqueItem_movimento_fkey")
+  estorno   MovimentacaoEstoque? @relation("SaidaEstoqueItemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "SaidaEstoqueItem_estorno_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, saida_id, ordem], map: "SaidaEstoqueItem_linha_key")
+  @@unique([cliente_id, saida_id, produto_id, local_estoque_id], map: "SaidaEstoqueItem_par_key")
+  @@unique([cliente_id, movimentacao_estoque_id])
+  @@unique([cliente_id, movimentacao_estorno_id])
+  @@index([cliente_id, produto_id])
+  @@index([cliente_id, local_estoque_id])
+}
+
+/// D-PROD-264 — histórico da saída (CONFIRMACAO | EDICAO | EXCLUSAO), append-only por convenção do serviço.
+model SaidaEstoqueEvento {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  empresa_id        String   @db.VarChar(64)
+  saida_id          String   @db.VarChar(64)
+  tipo              String   @db.VarChar(16)
+  versao_anterior   Int
+  versao_nova       Int
+  motivo            String   @db.VarChar(500)
+  usuario_id        String?  @db.VarChar(64)
+  snapshot_anterior Json?
+  snapshot_novo     Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente Cliente      @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  saida   SaidaEstoque @relation(fields: [cliente_id, empresa_id, saida_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "SaidaEstoqueEvento_saida_fkey")
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id, saida_id, createdAt], map: "SaidaEstoqueEvento_saida_idx")
 }

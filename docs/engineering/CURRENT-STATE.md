@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-263; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-264; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -14,16 +14,26 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-253** (nasceu D-PROD-195 e passou a D-PROD-252; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e a D-PROD-252 ao Lançamento de Atividades organizado, PR #331, e chegou a `Próxima decisão: D-PROD-253`; a PR #332 deixou a 253 reservada e usou a D-PROD-254) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) com a `main` `0e38b012` (PR #340, D-PROD-257) com a `main` `095b057d` (PRs #336, #339 e #341, inclusive a D-PROD-259) com a `main` `d447a781` (PRs #342 e #343, inclusive a D-PROD-260) com a `main` `d8fa5ced` (PR #345, D-PROD-261, R-DEDUPE) com a `main` `5261ec13` (PR #346, D-PROD-262, só frontend) e com a `main` `a12e3c5c` (PR #348, D-PROD-263, várias áreas no registro: a conferência sem o alvo passa a cobrir as chaves de todas as áreas). PR **#275** (rascunho), exclusiva desta correção |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) com a `main` `0e38b012` (PR #340, D-PROD-257) com a `main` `095b057d` (PRs #336, #339 e #341, inclusive a D-PROD-259) com a `main` `d447a781` (PRs #342 e #343, inclusive a D-PROD-260) com a `main` `d8fa5ced` (PR #345, D-PROD-261, R-DEDUPE) com a `main` `5261ec13` (PR #346, D-PROD-262, só frontend) e com a `main` `a12e3c5c` (PR #348, D-PROD-263, várias áreas no registro: a conferência sem o alvo passa a cobrir as chaves de todas as áreas) e com a `main` `46fe34f5` (PR #347, D-PROD-264, saída manual do estoque: o mapa do `criar` convertido no merge). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
-| Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; o `criar` das Entradas de Estoque (D-PROD-257) com o mapa convertido; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
+| Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; o `criar` das Entradas de Estoque (D-PROD-257) e o das Saídas (D-PROD-264) com o mapa convertido; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
 | Testes | `backend/tests/p2002SemAlvo.test.mjs` (15, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, L1–L4, C1, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
 | Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão (a do aceite do tanque passou a ler o `meta` por campo, com o mesmo resultado) |
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-20) — MAIKE-REGISTRO-VARIAS-AREAS: várias áreas num "Registrar serviço" (D-PROD-263)
+## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-264**, escolhas do proprietário: motivos por cadastro (Perda, Consumo interno, Doação, Vencimento), custo médio automático, exclusão só sem movimento depois, permissão própria `saida` |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d8fa5ced`, com a `main` `a12e3c5c` integrada · PR draft |
+| Migration | `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas). **Aplicada em produção** em 2026-11-20 01:15:39 UTC pelo caminho B, com o GO do proprietário (71 concluídas, 105 tabelas) |
+| Constituição | emenda da D-PROD-264 (saída manual como escritor documentado) **aprovada pelo proprietário em 2026-11-20**; parágrafo em `00` §1 e nota em `07` |
+| Relatório | [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md) · runbook [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-REGISTRO-VARIAS-AREAS: várias áreas num "Registrar serviço" (D-PROD-263)
 
 | Campo | Valor |
 |---|---|
@@ -39,7 +49,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-262**, fase 2 da D-PROD-258: várias máquinas, insumos, pessoas e serviços num registro só |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR #346 (draft) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR #346 (mergeada) |
 | Escopo | "Registrar serviço" (`RegistroDeCampo.jsx`) com as quatro seções em tabelas, no desenho da maquete "Nova realização" (Insumos, Máquinas, Equipe, Serviço de terceiro): "+ Incluir …" abre um editor dentro da seção; a recusa do servidor fica na linha certa; Observação em "Informações complementares" |
 | Backend | nenhuma mudança: `POST /atividades/registrar` já aceitava até 20 itens por coleção |
 | Migration | nenhuma |
