@@ -174,7 +174,7 @@ describe("Histórico da tarefa no desenho do manejo (D-PROD-222)", () => {
   ];
 
   it("título com a contagem no cabeçalho; cartões do manejo; o \"Excluir\" do manejo no rodapé, só o mais recente ligado", async () => {
-    noDialogo("Histórico da tarefa", "Consertar cerca", <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={HISTORICO} />);
+    noDialogo("Histórico da tarefa", "Consertar cerca", <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={HISTORICO} podeExcluir />);
     await waitFor(() => expect(titulo()).toBe("Histórico da Tarefa (2)"));
     expect(subtitulo()).toBe("Consertar cerca");
     const [recente, antigo] = cartoes();

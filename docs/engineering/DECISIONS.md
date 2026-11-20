@@ -8880,4 +8880,20 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
   - **Migration CONTRACT aditiva:** nenhuma linha muda, nenhum DROP, nenhuma tabela nova. É CONTRACT só porque a allowlist EXPAND recusa coluna `DATE` e `CHECK` em tabela antiga (o mesmo caminho da D-PROD-216 e da D-PROD-259). Guarda pinada (a tabela existe; a coluna e o CHECK não; trava `AtividadeApontamento` em ACCESS EXCLUSIVE) e as 2 instruções pinadas. Aplicar exige o GO do proprietário e `--contract D-PROD-265`; deve ser aplicada **antes** do merge (o runtime novo lê a coluna em toda leitura do apontamento).
 - **Fora de escopo:** campos próprios de cada tipo (safra, cultura, praga/alvo, local, área opcional), a lista nova de atividades, Planejar, remover as telas antigas, editar o término.
 
-<!-- Próxima decisão: D-PROD-266 -->
+## D-PROD-266 — Excluir e cancelar direto nos históricos do mapa; permissão "Excluir movimentações do lote"
+
+**Data:** 2026-11-20 · **Origem:** proprietário ("meus históricos no mapa não aparecem opções de excluir", em todos: Lote, Área/Pasto, Suplementação, Cocho/Depósito/Tarefas) e a escolha dele, entre as opções apresentadas, de **"liberar para quem tem permissão"** em vez de só o administrador, e de fazer **em duas etapas** · **Branch:** `feat/excluir-historicos-mapa`.
+
+**Decisão.**
+1. **Permissão nova do Mapa Geral `excluir_movimentacoes_lote`** ("Excluir movimentações do lote", grupo "Lotes de gado"), ação **gravadora** (só `=== true` liga para operador) e **desligada para todos** ao nascer; o proprietário liga em Permissões para quem quiser. Administrador real e `is_admin` continuam com tudo.
+2. **Muda a D-PROD-110 ("só o administrador")**: `POST /movimentacoes-mapa/:id/exclusao` e `GET /movimentacoes-mapa/:id/elegibilidade-exclusao` passam a exigir administrador real **ou** `is_admin` **ou** a chave nova (`porQualquer({ mapa: 'excluir_movimentacoes_lote' })`, 403 `ACAO_NAO_PERMITIDA`). A guarda é **relida dentro da transação** (`exigirExclusaoMovimentacaoLote`), antes da idempotência; o ator continua do `auth_context`. Todas as regras de negócio da exclusão definitiva (D-PROD-110) ficam iguais. A elegibilidade deixa de rodar o ensaio para quem não pode. `gate:rebanho-ssot` passa a exigir a guarda nova.
+3. **Etapa 1 (esta): o que já existe, no lugar onde o proprietário olha.**
+   - **Histórico do lote e do pasto** (aba Histórico v12): deixa de ser só leitura (revê D-PROD-218/222 nesse ponto). Um **Excluir por movimento** (não por cartão: um movimento com vários lotes aparece uma vez), com as mesmas condições do "Histórico de Movimentação" (do servidor, não cancelado, tipo com exclusão) e o aviso quando o registro envolve outros pastos. `LinhaDoTempo` ganha o espaço opcional `acoes` no pé do cartão; cartão sem ação fica igual.
+   - **Histórico da área**: **"Cancelar registro"** nos registros de campo, reusando o cancelamento do apontamento (`POST /atividades/:id/apontamentos/:apontamentoId/cancelar`), com as condições e a permissão da tela de Atividades (`op-atividades` excluir), motivo e só online; conflito de versão fecha o diálogo e relê.
+   - **Tarefas do mapa**: o Excluir do evento só aparece para quem o servidor aceita (administrador real ou `is_admin`, `GUARDAS.tarefa`); a conexão é conferida antes e depois da confirmação; a lista relê depois de excluir.
+   - Leitura de cocho, bebedouro e abate do curral já tinham a ação e ficam como estão.
+4. **Etapa 2 (próxima, precisa de servidor novo):** estorno seguro do **lançamento de cocho** (rateio, baixa de estoque, reabertura do período) e da **transferência entre depósitos**, num comando transacional e idempotente. Até lá esses registros continuam sem excluir (D-PROD-94a/161, `politicaEstorno`).
+
+**Relatório:** [`MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md`](./MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-267 -->

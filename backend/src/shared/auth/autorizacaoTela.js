@@ -172,7 +172,16 @@ export const ACOES_GRAVADORAS_MAPA = Object.freeze([
   'registrar_abate', 'renomear_lotes', 'juntar_lotes', 'lancar_suplementacao', 'movimentar_depositos',
   // D-PROD-219 — Medição de Forragem do pasto.
   'medir_forragem',
+  // D-PROD-266 — excluir (definitivo, D-PROD-110) movimentação do lote. Nasce desligada.
+  'excluir_movimentacoes_lote',
 ]);
+
+/**
+ * D-PROD-266 — chave do Mapa Geral que libera a exclusão definitiva de
+ * movimentação do lote (`POST /movimentacoes-mapa/:id/exclusao` e o ensaio
+ * `GET .../elegibilidade-exclusao`). Gravadora: operador só com `=== true`.
+ */
+export const CHAVE_EXCLUIR_MOVIMENTACOES_LOTE = 'excluir_movimentacoes_lote';
 
 const semAcento = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
@@ -237,6 +246,27 @@ export const mapaPermite = (aut, chave) => {
   const valor = mapa && typeof mapa === 'object' && !Array.isArray(mapa) ? mapa[chave] : undefined;
   if (ACOES_GRAVADORAS_MAPA.includes(chave)) return valor === true;
   return valor !== false;
+};
+
+/**
+ * D-PROD-266 — pode excluir movimentação do lote: administrador real, concessão
+ * `is_admin` ou a chave do mapa `excluir_movimentacoes_lote` (com a tela do Mapa
+ * Geral visível). Avaliação pura sobre `carregarAutorizacao`.
+ */
+export const podeExcluirMovimentacaoLote = (aut) => acessoTotal(aut) || mapaPermite(aut, CHAVE_EXCLUIR_MOVIMENTACOES_LOTE);
+
+/**
+ * D-PROD-266 — a mesma regra DENTRO da transação da exclusão (a revogação
+ * concorrente vale): nega com 403 `ACAO_NAO_PERMITIDA`.
+ * @param {{auth: import('./authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} [tx]
+ */
+export const exigirExclusaoMovimentacaoLote = async (contexto, tx) => {
+  const aut = await carregarAutorizacao(contexto, tx);
+  if (!podeExcluirMovimentacaoLote(aut)) {
+    throw acaoNaoPermitida({ tela: TELAS.MAPA_GERAL.tela, mapa: CHAVE_EXCLUIR_MOVIMENTACOES_LOTE });
+  }
+  return aut;
 };
 
 /** preHandler: só o administrador REAL da fazenda (papel relido do banco). */
