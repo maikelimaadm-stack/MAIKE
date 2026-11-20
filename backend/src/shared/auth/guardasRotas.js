@@ -219,7 +219,7 @@ export const GUARDAS = Object.freeze({
   estoqueFisico: { reconciliar: SO_ADMIN },
   // D-PROD-255 (Estoque E1/E2, P1-04): consultas de saldo e de movimentos pela tela `sup-estoque` (visualizar).
   // D-PROD-257: `entrada` (ação extra da mesma tela) cria, edita a observação e exclui a entrada. `ajuste` segue reservada.
-  // D-PROD-262: `saida` (saída manual e motivos de saída); `formulario` = seletores comuns da entrada e da saída.
+  // D-PROD-263: `saida` (saída manual e motivos de saída); `formulario` = seletores comuns da entrada e da saída.
   estoque: {
     ver: porTela(T.ESTOQUE, 'visualizar'),
     entrada: porTela(T.ESTOQUE, 'entrada'),

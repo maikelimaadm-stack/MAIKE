@@ -1,5 +1,5 @@
 /**
- * D-PROD-262 (Estoque → Novo movimento → Saída) — saída manual documentada.
+ * D-PROD-263 (Estoque → Novo movimento → Saída) — saída manual documentada.
  *
  *  - Toda mudança de estoque passa pelo MOTOR (`aplicarSaidaDocumentada` e `estornarSaidaDocumentada`):
  *    este módulo não calcula custo nem escreve em camada, movimento ou cache. O valor é o custo médio do

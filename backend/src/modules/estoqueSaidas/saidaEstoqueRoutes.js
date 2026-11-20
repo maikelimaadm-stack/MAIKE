@@ -1,5 +1,5 @@
 /**
- * D-PROD-262 (Estoque → Novo movimento → Saída) — rotas da saída manual documentada.
+ * D-PROD-263 (Estoque → Novo movimento → Saída) — rotas da saída manual documentada.
  * Guardadas pela tela `sup-estoque` (`GUARDAS.estoque`): LER a lista, o detalhe e os motivos = `visualizar`;
  * criar, editar a observação, excluir e manter os motivos = ação extra `saida` (nenhum perfil a recebe por
  * padrão; administrador e `is_admin` têm tudo). O tenant vem SÓ do `auth_context`; corpo e query FECHADOS

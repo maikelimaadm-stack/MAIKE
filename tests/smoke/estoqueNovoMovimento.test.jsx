@@ -9,7 +9,7 @@
  *    não leva fornecedor nem documento; reenvio do mesmo conteúdo reaproveita a `operation_id`;
  *  - a Transferência chama o comando de transferência; o detalhe de um movimento de entrada abre a entrada (excluir).
  *
- * D-PROD-262 — Saída manual:
+ * D-PROD-263 — Saída manual:
  *  - o tipo Saída só com a ação `saida` (Entrada e Transferência só com `entrada`); só com `saida`, a janela abre na Saída;
  *  - motivos do cadastro de SAÍDA (só ativos no seletor; "Motivos…" gerencia na mesma janela); várias linhas;
  *  - o corpo vai com a quantidade como TEXTO, sem valor/custo, e `operation_id`; saldo insuficiente diz a linha;
@@ -100,7 +100,7 @@ const criarRoteador = () => {
       estado.motivos.push(m);
       return { status: 201, body: m };
     }
-    // D-PROD-262 — motivos de saída e saídas.
+    // D-PROD-263 — motivos de saída e saídas.
     if (path === '/estoque/motivos-saida' && method === 'GET') {
       const ativos = query.get('ativos') === 'true';
       return { status: 200, body: { items: estado.motivosSaida.filter((m) => !ativos || m.ativo) } };
@@ -437,7 +437,7 @@ describe('D-PROD-259 — do movimento para a entrada', () => {
   });
 });
 
-describe('D-PROD-262 — Saída: permissões e tipo', () => {
+describe('D-PROD-263 — Saída: permissões e tipo', () => {
   it('só com a ação `saida`: "Novo movimento" aparece e a janela abre direto na Saída (sem Entrada nem Transferência)', async () => {
     sessao.permissao = permissaoCom({ saida: true });
     const janela = await abrirNovoMovimento();
@@ -462,7 +462,7 @@ describe('D-PROD-262 — Saída: permissões e tipo', () => {
   });
 });
 
-describe('D-PROD-262 — Saída: formulário', () => {
+describe('D-PROD-263 — Saída: formulário', () => {
   const abrirSaida = async () => {
     sessao.permissao = permissaoCom({ entrada: true, saida: true });
     const janela = await abrirNovoMovimento();
@@ -596,7 +596,7 @@ describe('D-PROD-262 — Saída: formulário', () => {
   });
 });
 
-describe('D-PROD-262 — do movimento para a saída', () => {
+describe('D-PROD-263 — do movimento para a saída', () => {
   const abrirDetalheDaSaida = async () => {
     await abrirMovimentos();
     fireEvent.doubleClick((await screen.findByText('106')).closest('tr'));

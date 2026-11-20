@@ -1,6 +1,6 @@
-# MAIKE-ESTOQUE-SAIDA-MANUAL — Relatório: saída manual no "Novo movimento" (D-PROD-262)
+# MAIKE-ESTOQUE-SAIDA-MANUAL — Relatório: saída manual no "Novo movimento" (D-PROD-263)
 
-**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `d8fa5ced`) · **Migration:** `20261120100000_estoque_saidas` (**EXPAND**, 4 tabelas novas) · **Decisão:** [D-PROD-262](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
+**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `d8fa5ced`) · **Migration:** `20261120100000_estoque_saidas` (**EXPAND**, 4 tabelas novas) · **Decisão:** [D-PROD-263](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 
 ## 1. Pedido e escolhas do proprietário
 
@@ -44,7 +44,7 @@ Próximo passo do Estoque: **saída manual**. Escolhas (2026-11-20):
 
 ## 4. Constituição: emenda PROPOSTA (falta a aprovação)
 
-O texto ratificado só autoriza a baixa de estoque por fluxos listados (venda da Central, suplementação, abastecimento, apontamento, transferência). A saída manual é um escritor novo, então precisa de emenda. A proposta está na D-PROD-262 e **não foi aplicada** aos arquivos da constituição. A PR fica em rascunho até a aprovação.
+O texto ratificado só autoriza a baixa de estoque por fluxos listados (venda da Central, suplementação, abastecimento, apontamento, transferência). A saída manual é um escritor novo, então precisa de emenda. A proposta está na D-PROD-263 e **não foi aplicada** aos arquivos da constituição. A PR fica em rascunho até a aprovação.
 
 ## 5. Migration e ensaio
 

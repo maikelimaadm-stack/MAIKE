@@ -1,5 +1,5 @@
 /**
- * D-PROD-262 (Estoque → Novo movimento → Saída) — cadastro de MOTIVOS de saída manual, por cliente.
+ * D-PROD-263 (Estoque → Novo movimento → Saída) — cadastro de MOTIVOS de saída manual, por cliente.
  *
  *  - Padrões: Perda, Consumo interno, Doação e Vencimento, criados na PRIMEIRA leitura do cliente que
  *    ainda não tem nenhum motivo de saída (idempotente: `skipDuplicates` sobre o UNIQUE da chave).
@@ -18,7 +18,7 @@ export { NOME_MAXIMO } from '../estoqueEntradas/motivoEntradaEstoqueService.js';
 export const ENTIDADE_MOTIVO = 'MotivoSaidaEstoque';
 const TETO_LISTA = 200;
 
-/** Os motivos padrão, na ordem em que aparecem (escolha do proprietário, D-PROD-262). */
+/** Os motivos padrão, na ordem em que aparecem (escolha do proprietário, D-PROD-263). */
 export const MOTIVOS_SAIDA_PADRAO = Object.freeze(['Perda', 'Consumo interno', 'Doação', 'Vencimento']);
 
 const comoMotivo = (m) => ({ id: m.id, nome: m.nome, ativo: m.ativo });

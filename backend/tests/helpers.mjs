@@ -124,7 +124,7 @@ export const limparBanco = async () => {
   await prisma.entradaEstoqueItem.deleteMany({});
   await prisma.entradaEstoque.deleteMany({});
   await prisma.motivoEntradaEstoque.deleteMany({}); // D-PROD-259
-  // D-PROD-262: a saída manual referencia motivo, centros, produto, local e movimentos (RESTRICT).
+  // D-PROD-263: a saída manual referencia motivo, centros, produto, local e movimentos (RESTRICT).
   await prisma.saidaEstoqueEvento.deleteMany({});
   await prisma.saidaEstoqueItem.deleteMany({});
   await prisma.saidaEstoque.deleteMany({});

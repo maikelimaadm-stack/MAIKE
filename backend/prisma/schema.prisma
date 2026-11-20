@@ -124,7 +124,7 @@ model Cliente {
   entradasEstoqueItens         EntradaEstoqueItem[]
   entradasEstoqueEventos       EntradaEstoqueEvento[]
   motivosEntradaEstoque        MotivoEntradaEstoque[] // D-PROD-259
-  motivosSaidaEstoque          MotivoSaidaEstoque[] // D-PROD-262
+  motivosSaidaEstoque          MotivoSaidaEstoque[] // D-PROD-263
   saidasEstoque                SaidaEstoque[]
   saidasEstoqueItens           SaidaEstoqueItem[]
   saidasEstoqueEventos         SaidaEstoqueEvento[]
@@ -1184,7 +1184,7 @@ model LocalEstoque {
   // D-PROD-155 — itens de lançamento que movimentam este local.
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
-  saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-262
+  saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-263
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
   // D-PROD-202 — linhas de produto que baixaram estoque deste local.
@@ -1232,7 +1232,7 @@ model Produto {
   // D-PROD-155 — itens de lançamento deste produto.
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
-  saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-262
+  saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-263
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
@@ -1405,7 +1405,7 @@ model Empresa {
   // D-PROD-249 — as áreas das atividades da fazenda.
   atividadeAreas        AtividadeArea[]
   entradasEstoque       EntradaEstoque[]
-  saidasEstoque         SaidaEstoque[] // D-PROD-262
+  saidasEstoque         SaidaEstoque[] // D-PROD-263
   // D-PROD-207 — funcionários e serviços da fazenda.
   servicos              Servico[]
   @@unique([cliente_id, id])
@@ -1790,7 +1790,7 @@ model MovimentacaoEstoque {
   itemFinanceiro        OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemMovimento")
   itemEntradaEstoque        EntradaEstoqueItem?     @relation("EntradaEstoqueItemMovimento")
   itemEntradaEstoqueEstorno EntradaEstoqueItem?     @relation("EntradaEstoqueItemEstorno")
-  itemSaidaEstoque          SaidaEstoqueItem?       @relation("SaidaEstoqueItemMovimento") // D-PROD-262
+  itemSaidaEstoque          SaidaEstoqueItem?       @relation("SaidaEstoqueItemMovimento") // D-PROD-263
   itemSaidaEstoqueEstorno   SaidaEstoqueItem?       @relation("SaidaEstoqueItemEstorno")
   itemFinanceiroEstorno OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemEstorno")
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
@@ -2392,7 +2392,7 @@ model CentroCusto {
 
   abastecimentos AbastecimentoBem[] // D-PROD-211
   entradasEstoque EntradaEstoque[] // D-PROD-259
-  saidasEstoque   SaidaEstoque[]   // D-PROD-262
+  saidasEstoque   SaidaEstoque[]   // D-PROD-263
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2430,7 +2430,7 @@ model CentroResultado {
   tiposAtividadePadrao  TipoAtividade[]
 
   entradasEstoque EntradaEstoque[] // D-PROD-259
-  saidasEstoque   SaidaEstoque[]   // D-PROD-262
+  saidasEstoque   SaidaEstoque[]   // D-PROD-263
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
@@ -3836,7 +3836,7 @@ model EntradaEstoqueEvento {
   @@index([cliente_id, empresa_id, entrada_id, createdAt], map: "EntradaEstoqueEvento_entrada_idx")
 }
 
-/// D-PROD-262 — cadastro de motivos de SAÍDA manual do estoque, por cliente. Padrões (Perda, Consumo interno,
+/// D-PROD-263 — cadastro de motivos de SAÍDA manual do estoque, por cliente. Padrões (Perda, Consumo interno,
 /// Doação, Vencimento) nascem pelo backend na primeira leitura; renomear e desativar livres.
 model MotivoSaidaEstoque {
   id         String   @id @default(cuid())
@@ -3855,7 +3855,7 @@ model MotivoSaidaEstoque {
   @@index([cliente_id, ativo])
 }
 
-/// D-PROD-262 — saída manual do estoque (documento): CONFIRMADA ao criar; EXCLUIDA com estorno pelo motor, só se o
+/// D-PROD-263 — saída manual do estoque (documento): CONFIRMADA ao criar; EXCLUIDA com estorno pelo motor, só se o
 /// produto não teve outro movimento depois naquele depósito. O valor é o custo médio do depósito (nunca digitado).
 model SaidaEstoque {
   id                        String    @id @default(cuid())
@@ -3895,7 +3895,7 @@ model SaidaEstoque {
   @@index([cliente_id, empresa_id, centro_resultado_id])
 }
 
-/// D-PROD-262 — uma linha por produto e depósito. `custo_unitario` = custo médio por unidade de estoque (kg ou L)
+/// D-PROD-263 — uma linha por produto e depósito. `custo_unitario` = custo médio por unidade de estoque (kg ou L)
 /// gravado pelo motor; as fatias ficam no movimento (`lotes_consumidos`).
 model SaidaEstoqueItem {
   id                      String   @id @default(cuid())
@@ -3933,7 +3933,7 @@ model SaidaEstoqueItem {
   @@index([cliente_id, local_estoque_id])
 }
 
-/// D-PROD-262 — histórico da saída (CONFIRMACAO | EDICAO | EXCLUSAO), append-only por convenção do serviço.
+/// D-PROD-263 — histórico da saída (CONFIRMACAO | EDICAO | EXCLUSAO), append-only por convenção do serviço.
 model SaidaEstoqueEvento {
   id                String   @id @default(cuid())
   cliente_id        String   @db.VarChar(64)

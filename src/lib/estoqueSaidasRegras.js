@@ -1,5 +1,5 @@
 /**
- * Estoque → Novo movimento → Saída (D-PROD-262): regras PURAS do formulário da saída manual e as mensagens. Sem
+ * Estoque → Novo movimento → Saída (D-PROD-263): regras PURAS do formulário da saída manual e as mensagens. Sem
  * rede e sem ponto flutuante: a quantidade é TEXTO (lida com `lerNumeroLocal`, que nunca arredonda).
  *
  * Escolhas do proprietário: o motivo vem do CADASTRO de motivos de saída (padrões Perda, Consumo interno, Doação,

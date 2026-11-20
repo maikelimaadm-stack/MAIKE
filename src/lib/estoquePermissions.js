@@ -7,7 +7,7 @@
  *  - entrada = ação extra `entrada` da mesma linha (D-PROD-257): lançar entrada manual / saldo de
  *    implantação, editar a observação e excluir. SEPARADA de `visualizar` e sem concessão por padrão.
  *
- *  - saida = ação extra `saida` (D-PROD-262): lançar saída manual (custo médio), editar a observação,
+ *  - saida = ação extra `saida` (D-PROD-263): lançar saída manual (custo médio), editar a observação,
  *    excluir (só sem movimento depois) e manter os motivos de saída. Também sem concessão por padrão.
  *
  * `ajuste` (ajustar inventário) segue RESERVADA e não existe. Administrador real e `is_admin` têm tudo.

@@ -1,5 +1,5 @@
 /**
- * D-PROD-262 — Estoque → Novo movimento → Saída: saída manual documentada, valorizada pelo custo médio do
+ * D-PROD-263 — Estoque → Novo movimento → Saída: saída manual documentada, valorizada pelo custo médio do
  * depósito, pelo motor de estoque; cadastro de motivos de saída; exclusão com estorno integral só sem
  * movimento depois; ação extra `saida`. Tudo contra PostgreSQL real e HTTP autenticado.
  */
@@ -91,7 +91,7 @@ const contaCom = async (x, permissoes_telas) => {
 };
 const linha = (extras = {}) => ({ modulo_id: 'suporte-mapa', tela_id: 'sup-estoque', visualizar: true, novo: false, salvar: false, editar: false, excluir: false, importar: false, exportar: false, ...extras });
 
-describe('D-PROD-262 — motivos de saída (cadastro)', () => {
+describe('D-PROD-263 — motivos de saída (cadastro)', () => {
   test('a 1ª leitura cria Perda, Consumo interno, Doação e Vencimento uma vez só; criar, duplicado, renomear e desativar', async () => {
     const x = await cenario();
     assert.deepEqual(Object.keys(x.mot).sort(), ['Consumo interno', 'Doação', 'Perda', 'Vencimento']);
@@ -113,7 +113,7 @@ describe('D-PROD-262 — motivos de saída (cadastro)', () => {
   });
 });
 
-describe('D-PROD-262 — criar: baixa pelo motor a custo médio', () => {
+describe('D-PROD-263 — criar: baixa pelo motor a custo médio', () => {
   test('saída de 30 kg: 201, movimento Saída saida_manual com o nome do motivo, valor = custo médio, estoque e lotes baixam; evento CONFIRMACAO; reconciliação limpa', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '2');
@@ -214,7 +214,7 @@ describe('D-PROD-262 — criar: baixa pelo motor a custo médio', () => {
   });
 });
 
-describe('D-PROD-262 — excluir: estorno integral, só sem movimento depois', () => {
+describe('D-PROD-263 — excluir: estorno integral, só sem movimento depois', () => {
   test('exclusão: EXCLUIDA, movimento de estorno ligado ao original, estoque, lotes e custo médio voltam; evento EXCLUSAO; reconciliação limpa', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '2');
@@ -293,7 +293,7 @@ describe('D-PROD-262 — excluir: estorno integral, só sem movimento depois', (
   });
 });
 
-describe('D-PROD-262 — editar: só a observação', () => {
+describe('D-PROD-263 — editar: só a observação', () => {
   test('observação nova → 200, versão sobe, evento EDICAO; campo físico → 409 EDICAO_FISICA; versão velha → 409', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
@@ -308,7 +308,7 @@ describe('D-PROD-262 — editar: só a observação', () => {
   });
 });
 
-describe('D-PROD-262 — lista e detalhe', () => {
+describe('D-PROD-263 — lista e detalhe', () => {
   test('lista por status e motivo; busca pelo produto; detalhe com nomes', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
@@ -328,7 +328,7 @@ describe('D-PROD-262 — lista e detalhe', () => {
   });
 });
 
-describe('D-PROD-262 — permissão: a ação `saida` da tela sup-estoque', () => {
+describe('D-PROD-263 — permissão: a ação `saida` da tela sup-estoque', () => {
   test('visualizar lê; criar, editar, excluir e motivos exigem `saida`; `entrada` sozinha não lança saída; os seletores do formulário aceitam `saida`', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
@@ -356,7 +356,7 @@ describe('D-PROD-262 — permissão: a ação `saida` da tela sup-estoque', () =
   });
 });
 
-describe('D-PROD-262 — isolamento por tenant', () => {
+describe('D-PROD-263 — isolamento por tenant', () => {
   test('outro tenant não lê, não edita, não exclui nem lança na fazenda alheia (404)', async () => {
     const x = await cenario();
     const y = await cenario();

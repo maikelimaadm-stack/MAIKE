@@ -39,7 +39,7 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * D-PROD-259: "Novo movimento" (só com a ação `entrada` da tela; o servidor bloqueia de fato) abre UMA janela em que se
  * escolhe o tipo — Entrada ou Transferência — e tudo aparece junto nesta lista. O detalhe de um movimento de entrada
  * leva ao detalhe da entrada (editar a observação, excluir), na mesma tela.
- * D-PROD-262: "Novo movimento" aparece com a ação `entrada` OU a ação `saida`; a janela só oferece os tipos que as
+ * D-PROD-263: "Novo movimento" aparece com a ação `entrada` OU a ação `saida`; a janela só oferece os tipos que as
  * ações permitem. O detalhe de um movimento de saída manual leva ao detalhe da saída (editar a observação, excluir).
  * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props

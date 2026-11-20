@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { AvisoGestao, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 
 /**
- * Cadastro de motivos do Estoque (entrada, D-PROD-259; saída, D-PROD-262), DENTRO da janela "Novo movimento" (sem
+ * Cadastro de motivos do Estoque (entrada, D-PROD-259; saída, D-PROD-263), DENTRO da janela "Novo movimento" (sem
  * popup sobre popup): lista, incluir, renomear e ativar/desativar. Um motivo `padrao` (o "Saldo de implantação" da
  * entrada) é fixo: não se renomeia nem se desativa. Os motivos de saída não têm fixo.
  * @param {{

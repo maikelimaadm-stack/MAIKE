@@ -101,6 +101,11 @@ export const JUSTIFICATIVA_MINIMA = 3;
 export const JUSTIFICATIVA_MAXIMA = 500;
 /** Quantidade, leituras e uso: Decimal(14, 4). */
 export const LIMITES_LINHA = LIMITES_DECIMAL_ATIVIDADE;
+/**
+ * Máximo de linhas de CADA coleção (`produtos[]`, `maquinas[]`, `mao_obra[]`, `servicos[]`) num lançamento com linhas:
+ * o `LINHAS_NO_LANCAMENTO_MAXIMO` do servidor (`backend/src/modules/atividades/atividadeComum.js`, o `maxItems` do corpo).
+ */
+export const LINHAS_NO_LANCAMENTO_MAXIMO = 20;
 
 /** @param {unknown} v */
 const texto = (v) => (typeof v === 'string' ? v.trim() : '');

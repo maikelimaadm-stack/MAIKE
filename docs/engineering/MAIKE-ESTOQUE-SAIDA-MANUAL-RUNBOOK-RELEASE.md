@@ -1,11 +1,11 @@
-# MAIKE — Estoque, saída manual: runbook de release expand-only (D-PROD-262)
+# MAIKE — Estoque, saída manual: runbook de release expand-only (D-PROD-263)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
 
-Decisão: [D-PROD-262](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md).
+Decisão: [D-PROD-263](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md).
 Molde e precedente executado: [`MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md`](./MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md)
 (EXPAND, caminho B) e [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md)
 (a anterior, aplicada em 2026-11-19 19:33:14 UTC).

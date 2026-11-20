@@ -8,7 +8,7 @@ import { useAcoesTelaEstoque, useEmpresaRealSelecionadaId } from "@/hooks/useEst
  * Estoque da fazenda selecionada. Uma tela, duas abas Base1: Saldo (produto × depósito, das camadas disponíveis) e
  * Movimentos (kardex). D-PROD-259: o lançamento fica DENTRO de Movimentos ("Novo movimento", em que se escolhe o tipo:
  * Entrada, Saída ou Transferência); não há aba separada de Entradas. Clicar numa linha do Saldo abre os Movimentos
- * daquele produto e depósito. Entrada e Transferência exigem a ação `entrada` da tela; a Saída manual (D-PROD-262), a
+ * daquele produto e depósito. Entrada e Transferência exigem a ação `entrada` da tela; a Saída manual (D-PROD-263), a
  * ação `saida` (o servidor bloqueia de fato). Ajuste de inventário segue sem botão. Sem permissão `visualizar` da tela `sup-estoque` nada é lido.
  * Trocar de fazenda remonta a tela (`key` da fazenda) e descarta filtros e a linha aberta.
  */

@@ -1,5 +1,5 @@
 /**
- * D-PROD-262 (Estoque → Novo movimento → Saída) — regras PURAS da saída manual: normalização do corpo,
+ * D-PROD-263 (Estoque → Novo movimento → Saída) — regras PURAS da saída manual: normalização do corpo,
  * unidade e fingerprint. Sem banco.
  *
  *  - O motivo vem do cadastro de motivos de SAÍDA (`motivo_id`); o nome vai para o texto do movimento.

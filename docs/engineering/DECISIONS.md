@@ -8788,11 +8788,29 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 **Testes.** `backend/tests/estoqueDocumentoDedupe.test.mjs` (novo, 8, Postgres real: as duas direções, com e sem produtos, prévia, retificação, excluída/rascunho/cancelado, outra fazenda, corrida); `estoqueEntradas.test.mjs` (o caso "lançamento sem produtos" passa a aceitar); `tests/smoke/gestaoLancamentos.test.jsx` (mensagem nova).
 
-## D-PROD-262 — Estoque: saída manual documentada ("Novo movimento" → Saída), com motivos por cadastro e custo médio
+## D-PROD-262 — Registrar serviço: várias linhas por seção (fase 2 da D-PROD-258)
+
+**Data:** 2026-11-19 · **Origem:** pedido do proprietário (fase 2 da D-PROD-258), com a maquete "Nova realização" · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** nenhuma · **Relatório:** [`MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md)
+
+> **Numeração:** nasceu D-PROD-261 nesta branch. Antes do merge, a `main` deu a D-PROD-261 ao R-DEDUPE do Estoque (PR #345) e passou a indicar `Próxima decisão: D-PROD-262`, que é esta; o marcador passa a D-PROD-263.
+
+- **Contexto:** a D-PROD-258 deixou o "Registrar serviço" com uma linha por seção. Um dia de campo costuma ter mais de uma máquina, insumo, pessoa ou serviço. O servidor (`POST /atividades/registrar`) já aceitava `maquinas[]`, `produtos[]`, `mao_obra[]` e `servicos[]`, até 20 itens cada, e já dizia qual linha recusou.
+- **Decisão:**
+  - As seções seguem a maquete "Nova realização" do proprietário (tabelas + Incluir): **Insumos** (Insumo · Local de estoque · Dose/ha · Total), **Máquinas** (Máquina · Implemento · Uso), **Equipe** (antes "Mão de obra": Pessoa · Medida · Quantidade) e **Serviço de terceiro (se houver)** (Serviço · Prestador · Quantidade · Total). A tabela só aparece com item; o "+ Incluir …" some no 20º item (o máximo do servidor).
+  - "+ Incluir …" abre um editor **dentro da seção**, um por seção, sem segunda janela (D-PROD-252), com os mesmos campos das janelas da linha. "Incluir" valida com a regra da linha e o item vira linha da tabela; clicar na linha a abre de novo ("Atualizar"); ✕ tira.
+  - Salvar com um editor preenchido inclui o item antes (se ele não passar, nada sai); editor vazio não conta. Um envio só, com os itens na ordem das tabelas.
+  - A máquina guarda o medidor e a decisão da justificativa do salto tomados no "Incluir". O insumo recalcula a dose/ha pelos hectares de agora; o "Total" do insumo é a quantidade que sai do estoque (o custo é do servidor).
+  - A recusa do servidor (`linha_indice` + `entidade`; no produto, `colecao` + `indice`: a posição no array enviado) aparece embaixo da linha certa, com marca de erro, e o editor abre nela com o campo apontado.
+  - Operação antiga com `exige_maquina`: basta uma máquina na tabela.
+  - A Observação passa para a última seção, "Informações complementares". Hectares feitos e Operador ficam onde estavam.
+  - Nenhuma mudança no backend.
+- **Fora de escopo:** várias áreas por registro (fase 3), o retrabalho de área e hectares (próxima fatia), bloquear máquina ou produto repetido (o servidor decide; a 2ª linha do mesmo bem começa onde a 1ª terminou), custo do insumo na tela.
+
+## D-PROD-263 — Estoque: saída manual documentada ("Novo movimento" → Saída), com motivos por cadastro e custo médio
 
 **Data:** 2026-11-20 · **Origem:** pedido do proprietário ("vamos para os próximos passos" → "Saída manual") · **Branch:** `claude/new-session-26kpxu` · **Migration:** `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas) · **Relatório:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 
-> **Numeração:** a `main` indica `Próxima decisão: D-PROD-262`, que é esta; o marcador passa a D-PROD-263.
+> **Numeração:** nasceu D-PROD-262 nesta branch. Antes do merge, a `main` deu a D-PROD-262 ao Registrar serviço com várias linhas (PR #346) e passou a indicar `Próxima decisão: D-PROD-263`, que é esta; o marcador passa a D-PROD-264. O número não está no `migration.sql` (só no manifesto), então o checksum não muda.
 
 **Escolhas do proprietário (2026-11-20).**
 - **Motivos padrão:** Perda, Consumo interno, Doação e Vencimento, num cadastro que o usuário mantém (criar, renomear, desativar).
@@ -8818,7 +8836,7 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Constituição — emenda PROPOSTA, aguardando a aprovação do proprietário.** O texto ratificado só autoriza baixa de estoque pela venda confirmada da Central, pela suplementação, pelo abastecimento, pelo apontamento de atividade e pela transferência. Em "Continua **fora**" ele lista "ajuste ou inventário … edição de saldo e qualquer escritor genérico de estoque". A saída manual é um escritor novo (documentado, pelo motor), então precisa de emenda. Proposta, como parágrafo e nota próprios (precedente da D-PROD-259 e da D-PROD-261):
 
-> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-261:* "**Emenda aprovada pelo proprietário (D-PROD-262):** **Estoque — saída manual documentada.** Além das baixas já autorizadas, a quantidade de estoque também pode sair por um **documento de Saída de Estoque** confirmado, só pelo motor de estoque único, com a permissão própria `saida` e um motivo do **cadastro de motivos de saída** do cliente (Perda, Consumo interno, Doação, Vencimento e os que o usuário criar). O valor é sempre o custo médio do produto no depósito, nunca digitado. A saída manual não é venda nem ajuste de inventário: não cria título, conta a receber nem receita, e não fixa saldo. O usuário edita só a observação e pode excluir a saída; a exclusão estorna pelo motor e só é aceita se o produto não teve outro movimento naquele depósito depois dela. Continua **fora**: ajuste ou inventário (contagem que fixa o saldo), devolução a fornecedor, transferência entre empresas e qualquer escritor genérico de estoque."
+> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-261:* "**Emenda aprovada pelo proprietário (D-PROD-263):** **Estoque — saída manual documentada.** Além das baixas já autorizadas, a quantidade de estoque também pode sair por um **documento de Saída de Estoque** confirmado, só pelo motor de estoque único, com a permissão própria `saida` e um motivo do **cadastro de motivos de saída** do cliente (Perda, Consumo interno, Doação, Vencimento e os que o usuário criar). O valor é sempre o custo médio do produto no depósito, nunca digitado. A saída manual não é venda nem ajuste de inventário: não cria título, conta a receber nem receita, e não fixa saldo. O usuário edita só a observação e pode excluir a saída; a exclusão estorna pelo motor e só é aceita se o produto não teve outro movimento naquele depósito depois dela. Continua **fora**: ajuste ou inventário (contagem que fixa o saldo), devolução a fornecedor, transferência entre empresas e qualquer escritor genérico de estoque."
 >
 > *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-261:* "a saída manual documentada (Estoque → Novo movimento → Saída) é exceção à proibição de mover estoque fora dos comandos autorizados, nos limites da decisão. Continua proibido: baixar estoque fora do motor de estoque; digitar o valor da saída ou valorizá-la por outro custo que não o médio do depósito; usar a saída manual como venda, ajuste/inventário, devolução a fornecedor ou transferência entre empresas, ou criar título, conta a receber ou receita a partir dela; excluir uma saída depois de outro movimento do produto no mesmo depósito; mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada; conceder a ação `saida` a perfis existentes por padrão."
 
@@ -8828,4 +8846,4 @@ Enquanto a emenda não for aprovada, a PR fica em rascunho e não vai para a `ma
 
 **Testes.** `backend/tests/estoqueSaidas.test.mjs` (novo, Postgres real), smoke `tests/smoke/estoqueNovoMovimento.test.jsx`, e as provas da release (`premerge-migrate` B38a/B38k).
 
-<!-- Próxima decisão: D-PROD-263 -->
+<!-- Próxima decisão: D-PROD-264 -->
