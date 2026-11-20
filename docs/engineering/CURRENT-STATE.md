@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-264; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-265; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
+## Missão ativa (2026-11-20) — MAIKE-NOVA-REALIZACAO: "Nova realização" com o tipo em cartões e a data de término (D-PROD-265)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-265**, a maquete "Nova realização de <Tipo>" do proprietário: o botão "Registrar serviço" vira "Nova realização"; a janela abre nos 7 tipos em cartões e segue para "Nova realização de <Tipo>" ("Trocar tipo" ao lado do título); seções Área, Operação, Datas, Insumos, Máquinas, Equipe, Serviço de terceiro, Planejamento (só leitura) e Informações complementares |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `46fe34f5` · PR (a abrir) |
+| Servidor | `POST /atividades/registrar` aceita `data_termino` opcional (só esta rota): antes do início 400, futuro 422, o mesmo em todas as áreas; sem o campo, fingerprint igual ao de antes. Volta no apontamento, na auditoria e no histórico da área |
+| Migration | `20261120200000_apontamento_data_termino`, **CONTRACT aditiva** (coluna DATE anulável + CHECK término ≥ início; a allowlist EXPAND recusa DATE e CHECK em tabela antiga). **NÃO aplicada** — testada só no Postgres local; precisa do GO do proprietário e `--contract D-PROD-265`, antes do merge |
+| Abertos | editar o término; repetir não copia o término; campos próprios de cada tipo, lista nova, Planejar e remover telas antigas ficam para as próximas fatias |
+| Relatório | [`MAIKE-NOVA-REALIZACAO-REPORT.md`](./MAIKE-NOVA-REALIZACAO-REPORT.md) · runbook [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
 
 | Campo | Valor |
 |---|---|

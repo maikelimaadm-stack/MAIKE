@@ -8863,4 +8863,21 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Testes.** `backend/tests/estoqueSaidas.test.mjs` (novo, Postgres real), smoke `tests/smoke/estoqueNovoMovimento.test.jsx`, e as provas da release (`premerge-migrate` B38a/B38k).
 
-<!-- Próxima decisão: D-PROD-265 -->
+## D-PROD-265 — Nova realização: o tipo em cartões, o formulário "Nova realização de <Tipo>" e a data de término
+
+**Data:** 2026-11-20 · **Origem:** pedido do proprietário, com a maquete aprovada "Nova realização de <Tipo>" (estilo Aegro) · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** `20261120200000_apontamento_data_termino` (CONTRACT aditiva, **não aplicada**) · **Relatório:** [`MAIKE-NOVA-REALIZACAO-REPORT.md`](./MAIKE-NOVA-REALIZACAO-REPORT.md) · **Runbook:** [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md)
+
+> **Numeração:** a `main` (`46fe34f5`) indica `Próxima decisão: D-PROD-265`, que é esta; o marcador passa a D-PROD-266. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então renumerar não muda o checksum.
+
+- **Contexto:** a janela "Registrar serviço" (D-PROD-254, D-PROD-258, D-PROD-262, D-PROD-263) abria com Tipo, Operação e Data no topo. A maquete do proprietário começa pela escolha do tipo e depois mostra o formulário do tipo, com Data de início e Data de término.
+- **Decisão:**
+  - **Entrada:** o botão da tela de Atividades passa a **"Nova realização"** (rótulo e `aria-label`). O "Manejos" dos Detalhes da área segue com o nome e abre a mesma janela com a área marcada e presa.
+  - **Passo 1:** a janela "Nova realização" mostra os **7 tipos fixos** em cartões (ícone + nome; botões, 4 colunas no desktop e 2 no celular). Rodapé só com Cancelar.
+  - **Passo 2:** o título vira **"Nova realização de <Tipo>"**, com **"Trocar tipo"** ao lado (volta aos cartões; áreas, datas e linhas ficam, só a operação sai — ela é do tipo). O select de Tipo sai do corpo. Seções, nesta ordem: **Área**, **Operação**, **Datas** (Data de início = `data_operacional`; Data de término, opcional), **Insumos**, **Máquinas**, **Equipe**, **Serviço de terceiro (se houver)**, **Planejamento** (só leitura: a linha "Entra em …" / "Nova atividade será criada …"; sem botão de planejar) e **Informações complementares** (Operador e Observação). "Salvar e novo" mantém o tipo e a operação e limpa o resto, inclusive o término. Com a operação presa (`tipo`), a janela abre direto no formulário, sem "Trocar tipo".
+  - **Data de término (`data_termino`):** coluna nova anulável `AtividadeApontamento.data_termino DATE` com `CHECK (data_termino IS NULL OR data_termino >= data_operacional)`. Só o `POST /atividades/registrar` a recebe (opcional, `AAAA-MM-DD` ou null; o `POST …/apontamentos` continua com o corpo fechado de antes — a mudança menor e segura). Antes do início → 400 `data_termino`/`periodo_invertido`; no futuro da fazenda → 422 `ATIVIDADE_DATA_INVALIDA` `futura` (a regra do dia). Várias áreas: todos os apontamentos com o mesmo término. Volta na forma pública do apontamento, na auditoria e no histórico da área; a tela mostra "10/11 a 12/11" no histórico da área e na lista de lançamentos.
+  - **Idempotência:** sem `data_termino`, o fingerprint do recibo `atividade_registrar_v1` é **byte a byte o de antes** (nenhuma chave nova): o reenvio pendente feito antes do deploy ainda casa. Com ele, ele entra no fingerprint (outro término com a mesma chave → 409).
+  - **Edição:** editar o término depois de gravado fica **fora** desta fatia. Editar a data do lançamento para depois do término gravado → 422 `depois_do_termino` (o CHECK também recusaria). A repetição (duplicar) não copia o término.
+  - **Migration CONTRACT aditiva:** nenhuma linha muda, nenhum DROP, nenhuma tabela nova. É CONTRACT só porque a allowlist EXPAND recusa coluna `DATE` e `CHECK` em tabela antiga (o mesmo caminho da D-PROD-216 e da D-PROD-259). Guarda pinada (a tabela existe; a coluna e o CHECK não; trava `AtividadeApontamento` em ACCESS EXCLUSIVE) e as 2 instruções pinadas. Aplicar exige o GO do proprietário e `--contract D-PROD-265`; deve ser aplicada **antes** do merge (o runtime novo lê a coluna em toda leitura do apontamento).
+- **Fora de escopo:** campos próprios de cada tipo (safra, cultura, praga/alvo, local, área opcional), a lista nova de atividades, Planejar, remover as telas antigas, editar o término.
+
+<!-- Próxima decisão: D-PROD-266 -->
