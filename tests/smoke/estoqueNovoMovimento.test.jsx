@@ -14,6 +14,11 @@
  *  - motivos do cadastro de SAÍDA (só ativos no seletor; "Motivos…" gerencia na mesma janela); várias linhas;
  *  - o corpo vai com a quantidade como TEXTO, sem valor/custo, e `operation_id`; saldo insuficiente diz a linha;
  *  - no celular a folha nasce dentro da janela; o movimento de saída manual abre o detalhe da saída (excluir; 409).
+ *
+ * D-PROD-265 — Ajuste de inventário:
+ *  - o tipo Ajuste só com a ação `ajuste`; digita-se o saldo CONTADO e a tela mostra o saldo atual e a diferença;
+ *  - o corpo vai sem data, com `quantidade_contada` como TEXTO e o custo SÓ na sobra de um depósito sem saldo;
+ *  - `custo_obrigatorio_sem_saldo` diz a linha; o movimento de ajuste abre o detalhe do ajuste (excluir; 409); celular.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -81,9 +86,35 @@ const MOV_SAIDA = {
   movimento_pai_id: null, movimento_filho_id: null,
 };
 
-/** Backend falso: o do Estoque + as rotas das Entradas, das Saídas, dos motivos e da transferência (estado em memória). */
+/** Saldo e custo médio de cada produto × depósito (rota do ajuste). Sal mineral no Tanque não tem saldo (sem custo médio). */
+const SALDOS_AJUSTE = {
+  'p-ureia|l-galpao': { saldo: '100.0000', custo_medio: '3.0000' },
+  'p-sal|l-galpao': { saldo: '50.0000', custo_medio: '2.0000' },
+  'p-sal|l-tanque': { saldo: '0.0000', custo_medio: null },
+  'p-ureia|l-tanque': { saldo: '0.0000', custo_medio: null },
+};
+const AJUSTE = {
+  id: 'aj1', empresa_id: 'emp-1', numero: '5', status: 'CONFIRMADA', versao: 1, data_ajuste: '2026-11-14', centro_custo_id: null, centro_custo_nome: null,
+  centro_resultado_id: 'cr1', centro_resultado_nome: 'Pecuária', observacao: 'contagem de novembro', valor_sobras: '0.0000', valor_faltas: '30.0000',
+  excluida_em: null, criada_em: '2026-11-14T12:00:00.000Z',
+  itens: [{
+    id: 'ai1', ordem: 1, produto_id: 'p-ureia', produto_nome: 'Ureia', produto_codigo: null, local_estoque_id: 'l-galpao', local_estoque_nome: 'Galpão insumos', unidade: 'KG',
+    quantidade_contada: '90.0000', fator_kg: '1.0000', contado_estoque: '90.0000', saldo_anterior: '100.0000', diferenca: '-10.0000', unidade_estoque: 'KG', tipo: 'FALTA',
+    custo_unitario: '3.0000', custo_informado: false, valor_total: '30.0000', movimentacao_estoque_id: 'ma1', movimentacao_estorno_id: null,
+  }],
+  eventos: [{ id: 'av1', tipo: 'CONFIRMACAO', versao_anterior: null, versao_nova: 1, motivo: 'Ajuste de inventário', usuario_id: 'u1', criado_em: '2026-11-14T12:00:00.000Z' }],
+};
+const MOV_AJUSTE = {
+  id: 'ma1', numero: '107', data: '2026-11-14', tipo: 'Saída', tipo_detalhado: 'ajuste_falta', origem_sistema: 'ajuste_estoque', status: 'Ativa', estorno: false,
+  produto_id: 'p-ureia', produto_nome: 'Ureia', produto_codigo: null, quantidade: '10.0000', unidade: 'KG', valor_unitario: '3.0000', valor_total: '30.0000',
+  local_origem_id: 'l-galpao', local_origem: 'Galpão insumos', local_destino_id: null, local_destino: null, saldo_antes: '100.0000', saldo_depois: '90.0000',
+  movimento_pai_id: null, movimento_filho_id: null,
+};
+
+/** Backend falso: o do Estoque + as rotas das Entradas, das Saídas, dos Ajustes, dos motivos e da transferência (estado em memória). */
 const criarRoteador = () => {
   const estado = {
+    ajustes: [AJUSTE], falhaDoAjuste: /** @type {null|{status:number, body:any}} */ (null), falhaDaExclusaoAjuste: /** @type {null|{status:number, body:any}} */ (null),
     entradas: [ENTRADA], motivos: [...MOTIVOS], falhaDoPost: /** @type {null|{status:number, body:any}} */ (null),
     saidas: [SAIDA], motivosSaida: MOTIVOS_SAIDA.map((m) => ({ ...m })), falhaDaSaida: /** @type {null|{status:number, body:any}} */ (null),
     falhaDaExclusaoSaida: /** @type {null|{status:number, body:any}} */ (null),
@@ -138,7 +169,45 @@ const criarRoteador = () => {
     }
     if (path === '/estoque/movimentos' && method === 'GET') {
       const base = await rotearEstoque(req);
-      return { ...base, body: { ...base.body, items: [MOV_SAIDA, ...base.body.items] } };
+      return { ...base, body: { ...base.body, items: [MOV_AJUSTE, MOV_SAIDA, ...base.body.items] } };
+    }
+    // D-PROD-265 — ajustes de inventário.
+    if (path === '/estoque/ajustes/saldo' && method === 'GET') {
+      const chave = `${query.get('produto_id')}|${query.get('local_estoque_id')}`;
+      const s = SALDOS_AJUSTE[chave] ?? { saldo: '0.0000', custo_medio: null };
+      return { status: 200, body: { produto_id: query.get('produto_id'), local_estoque_id: query.get('local_estoque_id'), unidade_estoque: 'KG', ...s } };
+    }
+    if (path === '/estoque/ajustes' && method === 'POST') {
+      if (estado.falhaDoAjuste) return estado.falhaDoAjuste;
+      const criado = { ...AJUSTE, id: 'aj2', numero: '6' };
+      estado.ajustes = [criado, ...estado.ajustes];
+      return { status: 201, body: criado };
+    }
+    const aj = /^\/estoque\/ajustes\/([^/]+)(\/excluir)?$/.exec(path);
+    if (aj && !aj[2] && method === 'GET') return { status: 200, body: estado.ajustes.find((x) => x.id === aj[1]) };
+    if (aj && !aj[2] && method === 'PATCH') {
+      const atual = estado.ajustes.find((x) => x.id === aj[1]);
+      const editado = { ...atual, observacao: body.observacao, versao: atual.versao + 1 };
+      estado.ajustes = estado.ajustes.map((x) => (x.id === atual.id ? editado : x));
+      return { status: 200, body: editado };
+    }
+    if (aj && aj[2] && method === 'POST') {
+      if (estado.falhaDaExclusaoAjuste) return estado.falhaDaExclusaoAjuste;
+      const atual = estado.ajustes.find((x) => x.id === aj[1]);
+      const excluido = { ...atual, status: 'EXCLUIDA', versao: atual.versao + 1, eventos: [...atual.eventos, { id: 'av2', tipo: 'EXCLUSAO', motivo: body.motivo, criado_em: '2026-11-15T12:00:00.000Z' }] };
+      estado.ajustes = estado.ajustes.map((x) => (x.id === atual.id ? excluido : x));
+      return { status: 200, body: excluido };
+    }
+    if (path === '/estoque/movimentos/ma1' && method === 'GET') {
+      return {
+        status: 200,
+        body: {
+          ...MOV_AJUSTE, custo_medio_antes: '3.0000', custo_medio_depois: '3.0000', motivo: 'Ajuste de inventário: falta', observacoes: null, responsavel: 'operador', fornecedor_nome: null,
+          tipo_documento: null, numero_documento: null, data_documento: null, vinculos: { area: null, lote: null, maquina: null, centro_custo: null, safra: null },
+          documento: { tipo: 'AJUSTE_ESTOQUE', id: 'aj1', numero: '5', rotulo: 'Ajuste de inventário nº 5', pagina: null },
+          camadas_consumidas: [], pai: null, filho: null, criado_em: '2026-11-14T12:00:00.000Z',
+        },
+      };
     }
     if (path === '/estoque/movimentos/ms1' && method === 'GET') {
       return {
@@ -674,5 +743,221 @@ describe('D-PROD-264 — do movimento para a saída', () => {
     expect(saidaDoMovimento({ documento: { tipo: 'SAIDA_ESTOQUE', id: 's9', numero: '9', rotulo: 'Saída nº 9 — Perda' } })).toEqual({ id: 's9', numero: '9', rotulo: 'Saída nº 9 — Perda' });
     expect(saidaDoMovimento({ origem_sistema: 'saida_estoque', lancamento_origem_id: 's1', documento: null })).toMatchObject({ id: 's1' });
     expect(saidaDoMovimento({ origem_sistema: 'entrada_estoque', lancamento_origem_id: 'e1' })).toBeNull();
+  });
+});
+
+describe('D-PROD-265 — Ajuste: permissões e tipo', () => {
+  it('com `entrada`, `saida` e `ajuste` o tipo oferece Entrada, Saída, Ajuste e Transferência', async () => {
+    sessao.permissao = permissaoCom({ entrada: true, saida: true, ajuste: true });
+    const janela = await abrirNovoMovimento();
+    expect(within(janela).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Entrada', 'Saída', 'Ajuste', 'Transferência']);
+  });
+
+  it('só com `ajuste`: "Novo movimento" aparece e a janela abre direto no Ajuste, com a data fixa de hoje', async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    const janela = await abrirNovoMovimento();
+    expect(within(janela).queryAllByRole('radio')).toHaveLength(0);
+    expect(within(janela).getByTestId('ajuste-data').textContent).toMatch(/^Hoje \(\d{2}\/\d{2}\/\d{4}\)$/);
+    expect(within(janela).queryByTestId('entrada-data')).toBeNull();
+    expect(within(janela).getByTestId('movimento-lancar').textContent).toContain('Lançar ajuste');
+    expect(backend.chamadas.some((c) => c.path === '/estoque/motivos-entrada' || c.path === '/estoque/motivos-saida')).toBe(false);
+  });
+
+  it('sem `ajuste` o Ajuste não aparece', async () => {
+    sessao.permissao = permissaoCom({ entrada: true, saida: true });
+    const janela = await abrirNovoMovimento();
+    expect(within(janela).getAllByRole('radio').map((r) => r.textContent)).not.toContain('Ajuste');
+  });
+});
+
+describe('D-PROD-265 — Ajuste: formulário', () => {
+  const abrirAjuste = async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    const janela = await abrirNovoMovimento();
+    await within(janela).findByTestId('ajuste-data');
+    return janela;
+  };
+
+  it('cada produto é um cartão de linha inteira com grade própria', async () => {
+    const janela = await abrirAjuste();
+    fireEvent.click(within(janela).getByTestId('ajuste-adicionar-produto'));
+    for (const i of [0, 1]) {
+      const linha = within(janela).getByTestId(`ajuste-linha-${i}`);
+      expect(linha.className).toContain('col-span-12');
+      expect(linha.className).toContain('b1-form-embutido');
+      const grade = /** @type {HTMLElement} */ (linha.firstElementChild);
+      expect(grade.className).toContain('grid-cols-12');
+      expect(grade.contains(within(linha).getByTestId(`ajuste-linha-${i}-produto`))).toBe(true);
+    }
+  });
+
+  it('mostra o saldo atual e a diferença (falta, sobra, sem diferença) ao digitar o contado', async () => {
+    const janela = await abrirAjuste();
+    await escolher(janela, 'ajuste-linha-0-produto', 'Ureia');
+    await escolher(janela, 'ajuste-linha-0-deposito', 'Galpão insumos');
+    await waitFor(() => expect(within(janela).getByTestId('ajuste-linha-0-saldo').textContent).toBe('100 kg'));
+    expect(backend.chamadas.find((c) => c.path === '/estoque/ajustes/saldo').query).toEqual({ empresa_id: 'emp-1', produto_id: 'p-ureia', local_estoque_id: 'l-galpao' });
+    const dif = () => within(janela).getByTestId('ajuste-linha-0-diferenca');
+    digitar(within(janela).getByTestId('ajuste-linha-0-contado'), '90');
+    expect(dif().textContent).toBe('− 10 kg · Falta');
+    expect(dif().getAttribute('data-tipo')).toBe('FALTA');
+    digitar(within(janela).getByTestId('ajuste-linha-0-contado'), '112,5');
+    expect(dif().textContent).toBe('+ 12,5 kg · Sobra');
+    digitar(within(janela).getByTestId('ajuste-linha-0-contado'), '100');
+    expect(dif().textContent).toBe('0 kg · Sem diferença');
+    // Com custo médio, nunca se pede custo.
+    digitar(within(janela).getByTestId('ajuste-linha-0-contado'), '150');
+    expect(within(janela).queryByTestId('ajuste-linha-0-custo')).toBeNull();
+  });
+
+  it('corpo exato: sem data, contado como TEXTO, custo só na sobra de um depósito sem saldo (obrigatório na tela)', async () => {
+    const janela = await abrirAjuste();
+    await escolher(janela, 'ajuste-centro-resultado', 'Pecuária');
+    digitar(within(janela).getByTestId('ajuste-observacao'), 'contagem de novembro');
+    await escolher(janela, 'ajuste-linha-0-produto', 'Ureia');
+    await escolher(janela, 'ajuste-linha-0-deposito', 'Galpão insumos');
+    digitar(within(janela).getByTestId('ajuste-linha-0-contado'), '90');
+    fireEvent.click(within(janela).getByTestId('ajuste-adicionar-produto'));
+    await escolher(janela, 'ajuste-linha-1-produto', 'Sal mineral');
+    await escolher(janela, 'ajuste-linha-1-deposito', 'Tanque diesel sede');
+    await waitFor(() => expect(within(janela).getByTestId('ajuste-linha-1-saldo').textContent).toBe('0 kg'));
+    digitar(within(janela).getByTestId('ajuste-linha-1-contado'), '20');
+    expect(await within(janela).findByTestId('ajuste-linha-1-custo')).toBeTruthy();
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    expect(await within(janela).findByText('Este depósito não tem saldo: informe o custo da sobra.')).toBeTruthy();
+    expect(posts('/estoque/ajustes')).toHaveLength(0);
+    digitar(within(janela).getByTestId('ajuste-linha-1-custo'), '2,5');
+    fireEvent.click(within(janela).getByTestId('ajuste-adicionar-produto'));
+    await escolher(janela, 'ajuste-linha-2-produto', 'Sal mineral');
+    await escolher(janela, 'ajuste-linha-2-deposito', 'Galpão insumos');
+    digitar(within(janela).getByTestId('ajuste-linha-2-contado'), '0');
+    await waitFor(() => expect(within(janela).getByTestId('ajuste-linha-2-diferenca').textContent).toBe('− 50 kg · Falta'));
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(posts('/estoque/ajustes')).toHaveLength(1));
+    const corpo = posts('/estoque/ajustes')[0].body;
+    expect(corpo).toEqual({
+      empresa_id: 'emp-1', operation_id: corpo.operation_id, centro_custo_id: null, centro_resultado_id: 'cr1', observacao: 'contagem de novembro',
+      itens: [
+        { produto_id: 'p-ureia', local_estoque_id: 'l-galpao', unidade: 'KG', quantidade_contada: '90', custo_unitario: null },
+        { produto_id: 'p-sal', local_estoque_id: 'l-tanque', unidade: 'KG', quantidade_contada: '20', custo_unitario: '2.5' },
+        { produto_id: 'p-sal', local_estoque_id: 'l-galpao', unidade: 'KG', quantidade_contada: '0', custo_unitario: null },
+      ],
+    });
+    expect(corpo).not.toHaveProperty('data_ajuste');
+    expect(corpo.operation_id).toMatch(/^aju-/);
+    const detalhe = await screen.findByTestId('janela-ajuste-estoque');
+    expect(screen.queryByTestId('janela-novo-movimento-estoque')).toBeNull();
+    expect(await within(detalhe).findByTestId('ajuste-detalhe-situacao')).toHaveProperty('textContent', 'Confirmado');
+  });
+
+  it('`custo_obrigatorio_sem_saldo` do servidor (o saldo mudou) diz a linha e o produto; reenviar reaproveita a operation_id', async () => {
+    roteador.estado.falhaDoAjuste = {
+      status: 422,
+      body: { code: 'AJUSTE_ESTOQUE_INVALIDO', message: 'texto do servidor', field: 'custo_unitario', reason: 'custo_obrigatorio_sem_saldo', details: { indice: 1 }, request_id: 'r' },
+    };
+    const janela = await abrirAjuste();
+    await escolher(janela, 'ajuste-linha-0-produto', 'Ureia');
+    await escolher(janela, 'ajuste-linha-0-deposito', 'Galpão insumos');
+    digitar(within(janela).getByTestId('ajuste-linha-0-contado'), '100');
+    fireEvent.click(within(janela).getByTestId('ajuste-adicionar-produto'));
+    await escolher(janela, 'ajuste-linha-1-produto', 'Sal mineral');
+    await escolher(janela, 'ajuste-linha-1-deposito', 'Galpão insumos');
+    digitar(within(janela).getByTestId('ajuste-linha-1-contado'), '60');
+    await waitFor(() => expect(within(janela).getByTestId('ajuste-linha-1-diferenca').textContent).toMatch(/Sobra/));
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    const erro = (await within(janela).findByTestId('movimento-erro')).textContent;
+    expect(erro).toContain('Este depósito não tem saldo de Sal mineral; informe o custo da sobra (linha 2)');
+    expect(erro).not.toContain('texto do servidor');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(posts('/estoque/ajustes')).toHaveLength(2));
+    const [a, b] = posts('/estoque/ajustes');
+    expect(a.body.operation_id).toBe(b.body.operation_id);
+  });
+
+  it('no celular a folha da lista de produto do ajuste nasce DENTRO da janela', async () => {
+    celular(true);
+    const janela = await abrirAjuste();
+    expect(janela.querySelector('.b1-janela')?.className).toContain('b1-janela--tela-cheia');
+    await act(async () => fireEvent.click(within(janela).getByTestId('ajuste-linha-0-produto')));
+    const folha = await waitFor(() => {
+      const f = document.querySelector('.mk-sheet-root');
+      expect(f).not.toBeNull();
+      return /** @type {HTMLElement} */ (f);
+    });
+    expect(janela.contains(folha)).toBe(true);
+  });
+});
+
+describe('D-PROD-265 — do movimento para o ajuste', () => {
+  const abrirDetalheDoAjuste = async () => {
+    await abrirMovimentos();
+    fireEvent.doubleClick((await screen.findByText('107')).closest('tr'));
+    const link = await screen.findByTestId('movimento-abrir-ajuste');
+    expect(link.textContent).toBe('Ajuste de inventário nº 5');
+    fireEvent.click(link);
+    const janela = await screen.findByTestId('janela-ajuste-estoque');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    await within(janela).findByTestId('ajuste-detalhe-situacao');
+    return janela;
+  };
+
+  it('o movimento de ajuste abre o ajuste (linhas, totais, histórico) e lá se exclui com motivo, versão e operation_id', async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    const janela = await abrirDetalheDoAjuste();
+    expect(within(janela).getByText('Ajuste de inventário nº 5')).toBeTruthy();
+    expect(within(janela).getByTestId('ajuste-detalhe-item-0-saldo').textContent).toBe('100 kg');
+    expect(within(janela).getByTestId('ajuste-detalhe-item-0-contado').textContent).toBe('90 kg');
+    expect(within(janela).getByTestId('ajuste-detalhe-item-0-diferenca').textContent).toBe('− 10 kg · Falta');
+    expect(within(janela).getByTestId('ajuste-detalhe-item-0-valor').textContent).toMatch(/30,00/);
+    expect(within(janela).getByTestId('ajuste-detalhe-valor-faltas').textContent).toMatch(/30,00/);
+    expect(within(janela).getByTestId('ajuste-detalhe-observacao').textContent).toBe('contagem de novembro');
+    expect(within(janela).getByTestId('ajuste-grupo-historico').textContent).toContain('Lançado');
+    fireEvent.click(within(janela).getByTestId('ajuste-excluir'));
+    digitar(within(janela).getByTestId('ajuste-exclusao-motivo'), 'contagem errada');
+    await act(async () => fireEvent.click(within(janela).getByTestId('ajuste-confirmar-exclusao')));
+    await waitFor(() => expect(posts('/estoque/ajustes/aj1/excluir')).toHaveLength(1));
+    const corpo = posts('/estoque/ajustes/aj1/excluir')[0].body;
+    expect(corpo).toEqual({ empresa_id: 'emp-1', versao: 1, motivo: 'contagem errada', operation_id: corpo.operation_id });
+    expect(corpo.operation_id).toMatch(/^aju-exc-/);
+    expect(await within(janela).findByText('Excluído')).toBeTruthy();
+    expect(within(janela).queryByTestId('ajuste-excluir')).toBeNull();
+  });
+
+  it('a exclusão recusada por movimento posterior (409) diz que não dá e manda fazer uma nova contagem', async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    roteador.estado.falhaDaExclusaoAjuste = {
+      status: 409,
+      body: { code: 'AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR', message: 'texto do servidor', field: 'itens', reason: 'movimento_posterior', request_id: 'r' },
+    };
+    const janela = await abrirDetalheDoAjuste();
+    fireEvent.click(within(janela).getByTestId('ajuste-excluir'));
+    digitar(within(janela).getByTestId('ajuste-exclusao-motivo'), 'contagem errada');
+    await act(async () => fireEvent.click(within(janela).getByTestId('ajuste-confirmar-exclusao')));
+    const erro = (await within(janela).findByTestId('ajuste-acao-erro')).textContent;
+    expect(erro).toContain('outro movimento no depósito depois dele');
+    expect(erro).toContain('nova contagem');
+    expect(erro).not.toContain('texto do servidor');
+    expect(within(janela).getByTestId('ajuste-detalhe-situacao').textContent).toBe('Confirmado');
+  });
+
+  it('"Editar observação" manda só a observação, com a versão e o motivo da edição', async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    const janela = await abrirDetalheDoAjuste();
+    fireEvent.click(within(janela).getByTestId('ajuste-editar'));
+    digitar(within(janela).getByTestId('ajuste-edicao-observacao'), 'recontado');
+    digitar(within(janela).getByTestId('ajuste-edicao-motivo'), 'detalhe');
+    await act(async () => fireEvent.click(within(janela).getByTestId('ajuste-salvar-edicao')));
+    const patch = await waitFor(() => {
+      const c = backend.chamadas.find((x) => x.method === 'PATCH' && x.path === '/estoque/ajustes/aj1');
+      expect(c).toBeTruthy();
+      return c;
+    });
+    expect(patch.body).toEqual({ empresa_id: 'emp-1', versao: 1, motivo_edicao: 'detalhe', observacao: 'recontado' });
+  });
+
+  it('sem a ação `ajuste` o detalhe do ajuste abre só para ver', async () => {
+    const janela = await abrirDetalheDoAjuste();
+    expect(within(janela).queryByTestId('ajuste-excluir')).toBeNull();
+    expect(within(janela).queryByTestId('ajuste-editar')).toBeNull();
   });
 });

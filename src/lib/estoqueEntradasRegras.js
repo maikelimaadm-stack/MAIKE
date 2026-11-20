@@ -26,18 +26,20 @@ export const ROTULO_NATUREZA = Object.freeze({ [MOTIVO_IMPLANTACAO]: 'Saldo de i
 
 /**
  * Os tipos do "Novo movimento" desta versão e a ação da tela que cada um exige (D-PROD-264: a Saída tem a ação
- * própria `saida`; Entrada e Transferência seguem com `entrada`).
+ * própria `saida`; Entrada e Transferência seguem com `entrada`; D-PROD-265: o Ajuste de inventário, a ação `ajuste`).
  */
 export const TIPO_ENTRADA = 'entrada';
 export const TIPO_SAIDA = 'saida';
+export const TIPO_AJUSTE = 'ajuste';
 export const TIPO_TRANSFERENCIA = 'transferencia';
 export const TIPOS_DE_MOVIMENTO = Object.freeze([
-  { value: TIPO_ENTRADA, label: 'Entrada', acao: /** @type {'entrada'|'saida'} */ ('entrada') },
-  { value: TIPO_SAIDA, label: 'Saída', acao: /** @type {'entrada'|'saida'} */ ('saida') },
-  { value: TIPO_TRANSFERENCIA, label: 'Transferência', acao: /** @type {'entrada'|'saida'} */ ('entrada') },
+  { value: TIPO_ENTRADA, label: 'Entrada', acao: /** @type {'entrada'|'saida'|'ajuste'} */ ('entrada') },
+  { value: TIPO_SAIDA, label: 'Saída', acao: /** @type {'entrada'|'saida'|'ajuste'} */ ('saida') },
+  { value: TIPO_AJUSTE, label: 'Ajuste', acao: /** @type {'entrada'|'saida'|'ajuste'} */ ('ajuste') },
+  { value: TIPO_TRANSFERENCIA, label: 'Transferência', acao: /** @type {'entrada'|'saida'|'ajuste'} */ ('entrada') },
 ]);
 
-/** Tipos que o usuário pode lançar, pelas ações da tela. @param {{ entrada?: boolean, saida?: boolean }} acoes */
+/** Tipos que o usuário pode lançar, pelas ações da tela. @param {{ entrada?: boolean, saida?: boolean, ajuste?: boolean }} acoes */
 export const tiposPermitidos = (acoes) => TIPOS_DE_MOVIMENTO.filter((t) => Boolean(acoes?.[t.acao]));
 
 export const ROTULO_STATUS_ENTRADA = Object.freeze({ CONFIRMADA: 'Confirmada', EXCLUIDA: 'Excluída' });

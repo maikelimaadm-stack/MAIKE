@@ -18,6 +18,7 @@ export const ROTULO_ORIGEM = Object.freeze(
     deposito: 'Transferência',
     entrada_estoque: 'Entrada de estoque',
     saida_estoque: 'Saída de estoque',
+    ajuste_estoque: 'Ajuste de inventário',
     manual: 'Manual',
   }),
 );
@@ -51,6 +52,10 @@ const ROTULO_DETALHADO = Object.freeze(
     estorno_entrada_exclusao: 'Estorno da entrada (exclusão)',
     saida_manual: 'Saída manual',
     estorno_saida_manual: 'Estorno da saída (exclusão)',
+    ajuste_sobra: 'Ajuste: sobra',
+    ajuste_falta: 'Ajuste: falta',
+    estorno_ajuste_sobra: 'Estorno do ajuste (sobra)',
+    estorno_ajuste_falta: 'Estorno do ajuste (falta)',
   }),
 );
 

@@ -17,6 +17,7 @@ import {
   rotuloDoMovimento,
 } from "@/lib/estoqueConsultaRegras";
 import { saidaDoMovimento } from "@/lib/estoqueSaidasRegras";
+import { ajusteDoMovimento } from "@/lib/estoqueAjustesRegras";
 import { createPageUrl } from "@/utils";
 
 /** Chave do detalhe (prefixo `estoque`: o que invalida o estoque invalida o detalhe). */
@@ -52,11 +53,12 @@ const textoDoParente = (p) => (p ? `Nº ${p.numero} — ${rotuloDoMovimento({ ti
  * Detalhe de UM movimento do estoque (D-PROD-255), SOMENTE LEITURA, numa só janela: 680px no desktop e
  * `b1-janela--tela-cheia` no celular. Sem segundo diálogo: o documento de origem é um link de navegação; a ENTRADA do
  * estoque (D-PROD-259, sem página própria) fecha esta janela e abre a da entrada (`onAbrirEntrada`); a SAÍDA manual
- * (D-PROD-264, `origem_sistema = saida_estoque`) faz o mesmo com a da saída (`onAbrirSaida`).
+ * (D-PROD-264, `origem_sistema = saida_estoque`) faz o mesmo com a da saída (`onAbrirSaida`), e o AJUSTE de inventário
+ * (D-PROD-265, documento `AJUSTE_ESTOQUE`) com a do ajuste (`onAbrirAjuste`).
  * @param {{ movimento: any|null, empresaId: string|null, onFechar: () => void, onAbrirEntrada?: (doc: { id: string, numero: string }) => void,
- *   onAbrirSaida?: (doc: { id: string, numero: string }) => void }} props
+ *   onAbrirSaida?: (doc: { id: string, numero: string }) => void, onAbrirAjuste?: (doc: { id: string, numero: string }) => void }} props
  */
-export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar, onAbrirEntrada = undefined, onAbrirSaida = undefined }) {
+export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar, onAbrirEntrada = undefined, onAbrirSaida = undefined, onAbrirAjuste = undefined }) {
   const celular = useCelular();
   const id = movimento?.id ? String(movimento.id) : null;
   const consulta = useQuery({
@@ -74,6 +76,7 @@ export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar,
   const unidade = m?.unidade;
   // A saída manual é achada pelo documento do detalhe ou, sem ele, pelo `lancamento_origem_id` do movimento.
   const saida = saidaDoMovimento(d) ?? saidaDoMovimento(movimento);
+  const ajuste = ajusteDoMovimento(d) ?? ajusteDoMovimento(movimento);
 
   return (
     <B1Janela
@@ -115,13 +118,17 @@ export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar,
 
           {d ? (
             <>
-              {d.documento || saida || d.numero_documento || d.fornecedor_nome || d.motivo || d.observacoes || d.responsavel || Object.values(vinculos).some(Boolean) ? (
+              {d.documento || saida || ajuste || d.numero_documento || d.fornecedor_nome || d.motivo || d.observacoes || d.responsavel || Object.values(vinculos).some(Boolean) ? (
                 <Grupo titulo="Origem do movimento">
                   <Linha
                     rotulo="Documento"
                     testId="movimento-documento"
                     valor={
-                      saida && onAbrirSaida ? (
+                      ajuste && onAbrirAjuste ? (
+                        <button type="button" className="underline" onClick={() => onAbrirAjuste(ajuste)} data-testid="movimento-abrir-ajuste">
+                          {ajuste.rotulo || (ajuste.numero ? `Ajuste de inventário nº ${ajuste.numero}` : "Ajuste de inventário")}
+                        </button>
+                      ) : saida && onAbrirSaida ? (
                         <button type="button" className="underline" onClick={() => onAbrirSaida(saida)} data-testid="movimento-abrir-saida">
                           {saida.rotulo || (saida.numero ? `Saída nº ${saida.numero}` : "Saída manual")}
                         </button>
