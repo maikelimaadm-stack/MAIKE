@@ -2205,7 +2205,12 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     // A área, o tipo e a operação NÃO vêm presos: a pessoa escolhe o tipo fixo e depois a operação desse tipo (só as ativas).
     // As quatro seções já estão à mostra (D-PROD-262: os nomes da maquete "Nova realização").
     for (const secao of ["Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)"]) expect(janela.textContent).toContain(secao);
-    await escolherNoCombo(janela, "Área", /^Pasto 01$/i);
+    // D-PROD-263: as Áreas são marcadas na lista (busca + caixas); a área sem tamanho pede os hectares.
+    fireEvent.click(within(janela).getByTestId("registro-areas-campo"));
+    fireEvent.click(await screen.findByTestId("registro-areas-opcao-ar1"));
+    fireEvent.click(within(janela).getByTestId("registro-areas-campo"));
+    await waitFor(() => expect(screen.queryByTestId("registro-areas-lista")).toBeNull());
+    expect(within(janela).getByTestId("registro-areas-linha-ar1")).toHaveTextContent("Pasto 01");
     await escolherNoCombo(janela, "Tipo", /^Roçada e tratos$/i);
     fireEvent.click(within(janela).getByRole("combobox", { name: "Operação" }));
     await screen.findAllByRole("option");
@@ -2213,14 +2218,16 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     fireEvent.click(screen.getByRole("option", { name: /^ROÇADA$/i }));
     await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
     expect(await within(janela).findByTestId("registro-de-campo-destino")).toHaveTextContent("Nova atividade será criada: ROÇADA · Pasto 01 · nov/26");
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares"), { target: { value: "5" } });
+    fireEvent.change(within(janela).getByTestId("registro-areas-hectares-ar1"), { target: { value: "5" } });
     const antes = escritas().length;
     fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(escritas().length).toBe(antes + 1));
     const w = ultimaEscrita();
     expect(w.method).toBe("POST");
     expect(w.path).toBe("/atividades/registrar");
-    expect(w.body).toMatchObject({ empresa_id: "emp-1", area_id: "ar1", tipo_atividade_id: "t2", data_operacional: HOJE, area_executada_dia: "5" });
+    expect(w.body).toMatchObject({ empresa_id: "emp-1", areas: [{ area_id: "ar1", hectares: "5" }], tipo_atividade_id: "t2", data_operacional: HOJE });
+    expect(w.body.area_id).toBeUndefined();
+    expect(w.body.area_executada_dia).toBeUndefined();
     expect(typeof w.body.operation_id).toBe("string");
     expect(w.body.cliente_id).toBeUndefined();
     await waitFor(() => expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull());

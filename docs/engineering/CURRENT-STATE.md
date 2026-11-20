@@ -1,17 +1,28 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-19 (missão ativa D-PROD-262; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-263; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
 `POST-P7-PRODUCAO-REPORT-2026-10-27.md`; UX Base1 — gate §H **5/6** aguardando **H.5**;
 rollout pausado **D-PROD-41**)
 
----
-
 **Conserto (2026-11-19):** no celular as listas do "Definir setor" (ações em lote das áreas) e do `DialogoAcao` em janela Base1 (`DialogoAreaDaAtividade`) abrem a folha DENTRO da `B1Janela` (`MobileSheetPortalCtx`) — ver [`MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md`](./MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md).
 
-## Missão ativa (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)
+---
+
+## Missão ativa (2026-11-20) — MAIKE-REGISTRO-VARIAS-AREAS: várias áreas num "Registrar serviço" (D-PROD-263)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-263**, fase 3 da D-PROD-258: um registro de campo cobre várias áreas, cada uma com os seus hectares (maquete "Nova realização") |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `5261ec13` · PR (a abrir) |
+| Escopo | Tela: campo "Áreas" (busca + caixas) e tabela Área · Tamanho · % · Hectares · ✕ com o Total; "Hectares feitos" sai; dose/ha pelos hectares totais; área presa do mapa marcada. Servidor: `areas: [{ area_id, hectares }]` no `POST /atividades/registrar` → UMA atividade e um apontamento por área, linhas repartidas pelos hectares (medidor em trechos seguidos) |
+| Migration | nenhuma (o modelo da D-PROD-249 já guarda várias áreas por atividade) |
+| Abertos | cancelar o apontamento de uma área não mexe nos das outras; editar os hectares depois não reparte de novo |
+| Relatório | [`MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)
 
 | Campo | Valor |
 |---|---|

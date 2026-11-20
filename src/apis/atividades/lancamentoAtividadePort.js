@@ -91,11 +91,13 @@ export const CAMPOS_DE_REABERTURA = Object.freeze(['empresa_id', 'versao', 'moti
 export const CAMPOS_DE_CANCELAMENTO = Object.freeze(['empresa_id', 'versao', 'motivo']);
 /**
  * D-PROD-254 — POST /atividades/registrar: registrar o trabalho de campo de UMA área e de UM tipo num envio só (o servidor
- * acha ou abre a atividade do mês e grava o registro do dia com as linhas, numa transação).
+ * acha ou abre a atividade do mês e grava o registro do dia com as linhas, numa transação). D-PROD-263: ou `areas[]`
+ * (várias áreas, cada uma com os hectares feitos nela) no lugar de `area_id` (e sem `area_executada_dia`).
  */
 export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'empresa_id',
   'area_id',
+  'areas',
   'tipo_atividade_id',
   'data_operacional',
   'operation_id',
@@ -111,6 +113,8 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'mao_obra',
   'servicos',
 ]);
+/** D-PROD-263 — cada item de `areas[]` do registro de campo: a área e os hectares feitos nela. */
+export const CAMPOS_DA_AREA_NO_REGISTRO = Object.freeze(['area_id', 'hectares']);
 /** POST /atividades/:id/duplicar: abertura nova a partir desta (corpo opcional). */
 export const CAMPOS_DE_DUPLICACAO = Object.freeze(['empresa_id', 'nome', 'data_inicio', 'data_prevista_fim']);
 
@@ -457,12 +461,13 @@ export const operacoesNativas = Object.freeze({
 
   // ── Registro de campo e leituras da área (D-PROD-254) ──
   /** @param {Record<string, unknown>} dados */
-  registrar: (dados) =>
-    nativeRequest(
-      `${CAMINHO}/registrar`,
-      { method: 'POST', body: corpoDaCriacaoDoApontamento(dados, CAMPOS_DO_REGISTRO_DE_CAMPO), autenticado: true },
-      ctx('registrarAtividadeDeCampo', {}, RESOURCE_APONTAMENTO),
-    ),
+  registrar: (dados) => {
+    const corpo = corpoDaCriacaoDoApontamento(dados, CAMPOS_DO_REGISTRO_DE_CAMPO.filter((c) => c !== 'areas'));
+    // D-PROD-263: cada área só com as chaves dela (área e hectares).
+    const areas = linhasDeEnvio(/** @type {any} */ (dados)?.areas, CAMPOS_DA_AREA_NO_REGISTRO);
+    if (areas) corpo.areas = areas;
+    return nativeRequest(`${CAMINHO}/registrar`, { method: 'POST', body: corpo, autenticado: true }, ctx('registrarAtividadeDeCampo', {}, RESOURCE_APONTAMENTO));
+  },
 
   /** Atividades da área e custos do mês. @param {string} areaId @param {string} empresaId */
   resumoDaArea: (areaId, empresaId) =>
