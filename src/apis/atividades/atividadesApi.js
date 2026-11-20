@@ -297,20 +297,42 @@ export const createAtividadeApontamento = async (atividadeId, corpo) => {
 };
 
 /**
+ * D-PROD-263 — `areas[]` do registro: 1..20 itens com a área e os hectares (texto canônico) e sem área repetida.
+ * @param {unknown} v
+ */
+const ehAreasDoRegistro = (v) =>
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.length <= 20 &&
+  v.every((a) => isObjeto(a) && isId(/** @type {any} */ (a).area_id) && typeof (/** @type {any} */ (a).hectares) === 'string') &&
+  new Set(v.map((a) => /** @type {any} */ (a).area_id)).size === v.length;
+
+/**
  * D-PROD-254 — registrar trabalho de campo de UMA área e de UM tipo (`POST /atividades/registrar`): o servidor acha a
  * atividade aberta do mês (ou abre uma) e grava o registro do dia com as linhas, numa transação só.
- * Devolve `{ apontamento, atividade, alertas, registro }`.
+ * D-PROD-263: a área vem em `area_id` OU em `areas[]` (várias áreas: um apontamento por área, as linhas repartidas pelos
+ * hectares no servidor). Devolve `{ apontamento, atividade, alertas, apontamentos, registro }`.
  * @param {Record<string, unknown>} corpo
  */
 export const registerAtividadeDeCampo = async (corpo) => {
   const contexto = ctxApontamento('registerAtividadeDeCampo');
   assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
-  assertArgument(isId(corpo.area_id), 'area_id', contexto);
+  const comAreas = corpo.areas !== undefined;
+  if (comAreas) {
+    assertArgument(ehAreasDoRegistro(corpo.areas) && corpo.area_id === undefined && corpo.area_executada_dia === undefined, 'areas', contexto);
+  } else {
+    assertArgument(isId(corpo.area_id), 'area_id', contexto);
+  }
   assertArgument(isId(corpo.tipo_atividade_id), 'tipo_atividade_id', contexto);
   assertArgument(ehDia(corpo.data_operacional), 'data_operacional', contexto);
   const bruto = await runProviderCall(() => atividadeNativa.registrar(corpo), contexto);
   const o = isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
-  return { ...respostaDeApontamento(o), registro: isObjeto(o.registro) ? o.registro : null, replay: o.replay === true };
+  return {
+    ...respostaDeApontamento(o),
+    apontamentos: Array.isArray(o.apontamentos) ? o.apontamentos.filter(isObjeto) : [],
+    registro: isObjeto(o.registro) ? o.registro : null,
+    replay: o.replay === true,
+  };
 };
 
 /**

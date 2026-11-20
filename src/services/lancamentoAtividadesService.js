@@ -304,9 +304,10 @@ export const alvoDoRegistroDeCampo = (areaId, tipoId) => `registro:${areaId}:${t
 /**
  * D-PROD-254 — registra o trabalho de campo de UMA área e de UM tipo num envio só (`POST /atividades/registrar`). O servidor
  * acha a atividade aberta do tipo que já tem a área no mês — ou abre uma — e grava o registro do dia com as linhas, numa
- * transação; a chave (`operation_id`) é persistente até a resposta definitiva, como nas linhas.
- * Devolve `{ apontamento, atividade, alertas, registro }`.
- * @param {Record<string, any>} dados `area_id`, `tipo_atividade_id`, `data_operacional` e os dados do dia e as linhas
+ * transação; a chave (`operation_id`) é persistente até a resposta definitiva, como nas linhas. D-PROD-263: `areas[]`
+ * (várias áreas, cada uma com os hectares) no lugar de `area_id`.
+ * Devolve `{ apontamento, atividade, alertas, apontamentos, registro }`.
+ * @param {Record<string, any>} dados `area_id` ou `areas`, `tipo_atividade_id`, `data_operacional` e os dados do dia e as linhas
  * @param {OpcoesDeEnvio|null} [opcoes]
  */
 export const registrarCampo = async (dados, opcoes = null) => {
@@ -318,7 +319,8 @@ export const registrarCampo = async (dados, opcoes = null) => {
     escopo: escopoDaPendencia(o.escopo),
     acao: ACAO_LANCAR_LINHA,
     empresaId,
-    alvo: alvoDoRegistroDeCampo(String(d.area_id ?? ''), String(d.tipo_atividade_id ?? '')),
+    // D-PROD-263: com várias áreas, o alvo é o conjunto delas, na ordem enviada.
+    alvo: alvoDoRegistroDeCampo(Array.isArray(d.areas) ? d.areas.map((/** @type {any} */ a) => String(a?.area_id ?? '')).join('+') : String(d.area_id ?? ''), String(d.tipo_atividade_id ?? '')),
     conteudo: corpo,
     enviar: (operationId) => registerAtividadeDeCampo({ ...corpo, operation_id: operationId }),
     storage: storageDaPendencia(o.storage),

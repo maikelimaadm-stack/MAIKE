@@ -279,7 +279,13 @@ const REFERENCIAS = Object.freeze(
       inativo: 'O tipo de atividade está inativo: escolha um tipo ativo',
       grupo_inativo: 'O grupo deste tipo de atividade está inativo: reative o grupo ou escolha outro tipo',
     },
-    area_id: { inexistente: 'A área não foi encontrada', inativo: 'A área está inativa', outra_empresa: 'A área é de outra fazenda' },
+    area_id: {
+      inexistente: 'A área não foi encontrada',
+      inativo: 'A área está inativa',
+      outra_empresa: 'A área é de outra fazenda',
+      duplicada: 'A mesma área foi escolhida duas vezes',
+      ja_na_atividade: 'A área já está nesta atividade',
+    },
     bem_id: {
       inexistente: 'A máquina não foi encontrada',
       inativo: 'A máquina está inativa',
@@ -348,6 +354,11 @@ const fraseDaData = (field, reason, details) => {
 const fraseDoStatus = (details) => {
   const status = typeof details.status === 'string' ? details.status : '';
   const acao = typeof details.acao === 'string' ? details.acao : '';
+  // D-PROD-249/263: o status é de uma ÁREA da atividade (só a área em andamento recebe lançamento).
+  if (details.entidade === 'area') {
+    if (status === 'CONCLUIDA') return 'Esta área já está concluída na atividade: reabra a área (no card "Áreas da atividade") ou tire-a do registro. Nada foi gravado.';
+    if (status === 'PLANEJADA') return 'Esta área ainda não foi iniciada na atividade: inicie a área antes de lançar. Nada foi gravado.';
+  }
   if (status === STATUS_CANCELADO) return 'Este apontamento está cancelado: não aceita edição nem novo cancelamento. Nada foi alterado.';
   if (status === STATUS_CANCELADA) return 'Esta atividade está cancelada: não aceita mais alterações nem apontamentos. Nada foi alterado.';
   if (status === STATUS_CONCLUIDA) {
@@ -376,7 +387,8 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
     case 'ATIVIDADE_APONTAMENTO_NOT_FOUND':
       return 'Este apontamento não foi encontrado nesta atividade. Os apontamentos serão relidos. Nada foi alterado.';
     case 'ATIVIDADE_REFERENCIA_INVALIDA': {
-      const frase = REFERENCIAS[field ?? '']?.[reason ?? ''];
+      // `areas[n].area_id` (várias áreas, D-PROD-249/263) tem as frases de `area_id`.
+      const frase = (REFERENCIAS[field ?? ''] ?? REFERENCIAS[String(field ?? '').replace(/^areas\[\d+\]\./, '')])?.[reason ?? ''];
       return `${frase ?? 'Um dos cadastros escolhidos não pode ser usado (não existe, está inativo ou é de outra fazenda)'}. Nada foi gravado.`;
     }
     case 'ATIVIDADE_EXIGIDA_PELO_TIPO':

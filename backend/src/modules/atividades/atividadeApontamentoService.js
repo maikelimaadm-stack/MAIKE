@@ -643,15 +643,20 @@ export const linhasDoCorpo = (corpo) => {
  * chave de uma linha de produto, mão de obra ou serviço JÁ gravada
  * (`<operation_id>:p<n>`, `:o<n>`, `:s<n>`, comparadas EXATAS) é conflito
  * mesmo sem o recibo.
+ * D-PROD-263: `bases` = as chaves de onde as linhas derivam as suas (padrão: só a do corpo; o registro de várias áreas
+ * passa uma por área — `<chave>`, `<chave>:a2`, …), todas conferidas do mesmo jeito.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
- * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>> }} a
+ * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>>,
+ *   bases?: string[] }} a
  * @returns {Promise<Record<string, unknown>>}
  */
-export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerprint, executar }) => {
+export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerprint, executar, bases = undefined }) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   if (!operationId) return emTransacao(TRANSACAO_CURTA, executar, UNICOS, MENSAGEM_CONFLITO_SEM_CHAVE);
   const chave = operationId;
   const conflito = () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: chave } });
+  /** @param {'produto'|'mao_obra'|'servico'} tipo */
+  const derivadas = (tipo) => (bases ?? [chave]).flatMap((b) => chavesDerivadasDasLinhas(b, tipo));
   try {
     const r = await emTransacao(
       TRANSACAO_CURTA,
@@ -663,10 +668,10 @@ export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, f
           fingerprint: fingerprint(),
           executar: async () => {
             // As chaves derivadas EXATAS (`<chave>:p1…p20`, nunca um prefixo com curinga de LIKE).
-            if (await existeLinhaComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'produto'))) throw conflito();
+            if (await existeLinhaComChave(tx, cli, derivadas('produto'))) throw conflito();
             // D-PROD-207: idem para as chaves derivadas das linhas de mão de obra (`:o`) e de serviço (`:s`).
-            if (await existeLinhaMaoObraComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'mao_obra'))) throw conflito();
-            if (await existeLinhaServicoComChave(tx, cli, chavesDerivadasDasLinhas(chave, 'servico'))) throw conflito();
+            if (await existeLinhaMaoObraComChave(tx, cli, derivadas('mao_obra'))) throw conflito();
+            if (await existeLinhaServicoComChave(tx, cli, derivadas('servico'))) throw conflito();
             return { httpStatus: 201, body: await executar(tx) };
           },
         }),
