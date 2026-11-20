@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-266**, pedido do proprietário: as opções de excluir não apareciam nos históricos do mapa; ele escolheu liberar para quem tem permissão e fazer em duas etapas |
-| Branch / PR | `feat/excluir-historicos-mapa`, a partir da `main` `3c8329b1` · PR (a abrir) |
+| Branch / PR | `feat/excluir-historicos-mapa`, a partir da `main` `3c8329b1` · PR **#351** |
 | Escopo (etapa 1) | Permissão nova `excluir_movimentacoes_lote` (servidor + tela); Excluir por movimento no histórico do lote/pasto; Cancelar registro de campo no histórico da área; Excluir do evento de tarefa alinhado ao servidor |
 | Migration | Nenhuma. Merge e deploy normais |
 | Etapa 2 | Estorno de lançamento de cocho e de transferência de depósito (servidor novo) |

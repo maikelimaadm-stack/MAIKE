@@ -1,6 +1,6 @@
 FATIA: MAIKE-EXCLUIR-HISTORICOS-MAPA (etapa 1)
 BRANCH: feat/excluir-historicos-mapa
-PR: (a preencher na abertura)
+PR: #351
 
 # MAIKE-EXCLUIR-HISTORICOS-MAPA — Relatório (etapa 1)
 
@@ -41,7 +41,7 @@ Cada frente passou por um revisor independente; 14 pontos procederam e foram apl
 | Etapa | Resultado |
 |---|---|
 | Backend (PostgreSQL 16 local): `exclusaoMovimentacaoPermissaoMapa`, `…Puro`, `exclusaoMovimentacaoLedger` | 39/39 |
-| Smoke das frentes (permissão, aba do lote, área, tarefa) e regressão dos históricos | ver §6 |
+| Smoke das frentes (permissão, aba do lote, área, tarefa) e regressão dos históricos | passam (ver §6) |
 | `gate:rebanho-ssot` | passa com a guarda nova |
 
 ## 5. Produção
@@ -51,7 +51,10 @@ Cada frente passou por um revisor independente; 14 pontos procederam e foram apl
 
 ## 6. Resultado da verificação
 
-(preenchido depois do `verify:all`)
+| Onde | Etapa | Resultado |
+|---|---|---|
+| CI `quality` (commit `90bb4e6a`) | `verify:full` estático (gates, tipos, lint, build), smoke 1/2 e 2/2, backend 1/4 a 4/4, `verify:all` | **todos verdes** |
+| Local | backend da exclusão (39 testes, PostgreSQL 16) | 39/39 |
 
 ## 7. Fora do escopo / próximos
 
