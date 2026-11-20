@@ -1,23 +1,23 @@
-# MAIKE — Estoque, ajuste de inventário: runbook de release expand-only (D-PROD-265)
+# MAIKE — Estoque, ajuste de inventário: runbook de release expand-only (D-PROD-266)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
 
-Decisão: [D-PROD-265](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md).
-Molde e precedente executado: [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
+Decisão: [D-PROD-266](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md).
+Anterior em produção: a CONTRACT aditiva da data de término do apontamento (D-PROD-265, PR #349, aplicada em 2026-11-20 18:58:29 UTC); esta pasta foi renomeada de `20261120200000_…` para `20261120300000_estoque_ajustes` para vir estritamente depois dela. Molde e precedente executado: [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 (a anterior, EXPAND, caminho B, aplicada em 2026-11-20 01:15:39 UTC).
 
 ## 0. O que muda no banco
 
 | Item | Valor |
 |---|---|
-| Migration | `20261120200000_estoque_ajustes` |
+| Migration | `20261120300000_estoque_ajustes` |
 | Natureza | **expand-only**: 3 tabelas NOVAS — `AjusteEstoque`, `AjusteEstoqueItem`, `AjusteEstoqueEvento` — com índices e uniques começando por `cliente_id`, FKs compostas pelo tenant (Cliente, Empresa, CentroCusto, CentroResultado, Produto, LocalEstoque, EstoqueLoteNota e MovimentacaoEstoque), todas `RESTRICT`, 6 CHECKs e o bloco RLS/REVOKE delas. Nenhuma tabela existente é alterada; nenhum dado migrado ou semeado |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9` |
 | Bloco RLS (`DO_RLS_APROVADOS`) | `4825a207a444b5b3bff8ac669e4e6e4a4db95d5aebd68986125bc8db00094fb8` (mesmo corpo de sempre, lista nova) |
-| `_prisma_migrations` | esperado **71** concluídas, 0 abertas (a última `20261120100000_estoque_saidas`, D-PROD-264, checksum `3cc70cddeb743261344ea1641f2e81e6294ed31d077fbef812f55444888114e0`); depois **72**. Recontar no §2 |
+| `_prisma_migrations` | esperado **72** concluídas, 0 abertas (a última `20261120200000_apontamento_data_termino`, D-PROD-265, checksum `a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b`); depois **73**. Recontar no §2 |
 | Tabelas em `public` | **105** antes, **108** depois |
 
 **Por que antes do merge (D-PROD-72 item 1):** a Vercel publica a `main` sozinha. Sem as tabelas, o tipo Ajuste do
@@ -40,11 +40,11 @@ vazias). Uma espera além do `lock_timeout` de 5 s aborta tudo sem aplicar nada.
 ```sql
 SELECT
   (SELECT system_identifier FROM pg_control_system())::text                                           AS sid,         -- 7692130048193495360
-  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)  AS concluidas,  -- 71
+  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)  AS concluidas,  -- 72
   (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)   AS ruins,       -- 0
-  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261120100000_estoque_saidas'
-     AND checksum = '3cc70cddeb743261344ea1641f2e81e6294ed31d077fbef812f55444888114e0' AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior_ok, -- 1
-  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261120200000_estoque_ajustes')   AS registrada,  -- 0
+  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261120200000_apontamento_data_termino'
+     AND checksum = 'a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b' AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior_ok, -- 1
+  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261120300000_estoque_ajustes')   AS registrada,  -- 0
   (to_regclass('public."AjusteEstoque"') IS NULL AND to_regclass('public."AjusteEstoqueItem"') IS NULL
     AND to_regclass('public."AjusteEstoqueEvento"') IS NULL)                                          AS ausentes,    -- true
   (SELECT count(*) FROM pg_tables WHERE schemaname = 'public')                                        AS tabelas;     -- 105
@@ -63,20 +63,20 @@ BEGIN
   IF (SELECT system_identifier FROM pg_control_system()) <> 7692130048193495360 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
-  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261120200000_estoque_ajustes') THEN
+  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261120300000_estoque_ajustes') THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
     INTO n_ok, n_ruim FROM _prisma_migrations;
-  IF n_ok <> 71 OR n_ruim <> 0 THEN
+  IF n_ok <> 72 OR n_ruim <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % com falha', n_ok, n_ruim;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM _prisma_migrations
-                  WHERE migration_name = '20261120100000_estoque_saidas'
-                    AND checksum = '3cc70cddeb743261344ea1641f2e81e6294ed31d077fbef812f55444888114e0'
+                  WHERE migration_name = '20261120200000_apontamento_data_termino'
+                    AND checksum = 'a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b'
                     AND finished_at IS NOT NULL AND rolled_back_at IS NULL) THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261120100000_estoque_saidas) não está concluída com o checksum do repositório';
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261120200000_apontamento_data_termino) não está concluída com o checksum do repositório';
   END IF;
   IF to_regclass('public."AjusteEstoque"') IS NOT NULL OR to_regclass('public."AjusteEstoqueItem"') IS NOT NULL
      OR to_regclass('public."AjusteEstoqueEvento"') IS NOT NULL THEN
@@ -89,7 +89,7 @@ END $guarda$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, 'ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9', now(),
-        '20261120200000_estoque_ajustes', NULL, NULL, now(), 1);
+        '20261120300000_estoque_ajustes', NULL, NULL, now(), 1);
 COMMIT;
 ```
 
@@ -102,7 +102,7 @@ do trecho da migration antes de usar. Qualquer falha desfaz tudo.
 
 | Conferência | Esperado |
 |---|---|
-| `_prisma_migrations` concluídas / falhadas | 72 / 0; a `20261120200000_estoque_ajustes` com o checksum do §0 e 1 passo |
+| `_prisma_migrations` concluídas / falhadas | 73 / 0; a `20261120300000_estoque_ajustes` com o checksum do §0 e 1 passo |
 | tabelas em `public` | 108 |
 | as 3 tabelas novas | RLS ligado sem FORCE; política `maike_backend_all` só para `maike_vercel`; sem GRANT para `anon`/`authenticated`; 0 linhas |
 | constraints (CHECKs/FKs) | `AjusteEstoque` 2/4; `AjusteEstoqueItem` 3/7; `AjusteEstoqueEvento` 1/2 |

@@ -173,9 +173,11 @@ export const NOME_ESTOQUE_ENTRADAS = '20261119100000_estoque_entradas';
 export const NOME_ESTOQUE_ENTRADAS_MOTIVOS = '20261119200000_estoque_entradas_motivos';
 /** D-PROD-264: a EXPAND da saída manual do Estoque (4 tabelas novas), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_ESTOQUE_SAIDAS = '20261120100000_estoque_saidas';
-/** D-PROD-265: a EXPAND do ajuste de inventário (3 tabelas novas), ainda posterior; fora da partida, sobe no GREEN. */
-export const NOME_ESTOQUE_AJUSTES = '20261120200000_estoque_ajustes';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_ESTOQUE_AJUSTES]);
+/** D-PROD-265: a CONTRACT aditiva da data de término do apontamento (coluna e CHECK em AtividadeApontamento), ainda posterior; fora da partida, sobe no GREEN. */
+export const NOME_APONTAMENTO_DATA_TERMINO = '20261120200000_apontamento_data_termino';
+/** D-PROD-266: a EXPAND do ajuste de inventário (3 tabelas novas), ainda posterior; fora da partida, sobe no GREEN. */
+export const NOME_ESTOQUE_AJUSTES = '20261120300000_estoque_ajustes';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()

@@ -141,7 +141,7 @@ export const ACOES_ATIVIDADES_EXTRAS = Object.freeze(['reabrir', 'lancar_apontam
  * NÃO existe. `visualizar` só vê a lista e o detalhe. Mesma lista no navegador (`EXTRA_ACTION_KEYS_BY_PAGE`).
  * D-PROD-264 — `saida` = lançar saída manual (custo médio, pelo motor), editar a observação, excluir (estorno
  * só sem movimento depois) e manter os motivos de saída. Também nasce desligada.
- * D-PROD-265 — `ajuste` = ajuste de inventário (contagem: sobra a custo médio, falta), editar a observação e
+ * D-PROD-266 — `ajuste` = ajuste de inventário (contagem: sobra a custo médio, falta), editar a observação e
  * excluir (só sem movimento depois). Também nasce desligada.
  */
 export const ACOES_ESTOQUE_EXTRAS = Object.freeze(['entrada', 'saida', 'ajuste']);

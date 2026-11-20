@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-265; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-266; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,27 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-265)
+## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-266)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-265**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
-| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5` · PR draft |
-| Migration | `20261120200000_estoque_ajustes`, **EXPAND** (3 tabelas novas). **Não aplicada em produção**: exige o GO do proprietário (runbook) |
-| Constituição | emenda **proposta** na D-PROD-265 (inventário/ajuste sai da lista "fora"); aguarda a aprovação do proprietário |
+| Decisão | **D-PROD-266**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5`, com a `main` `3c8329b1` integrada · PR #350 (draft) |
+| Migration | `20261120300000_estoque_ajustes` (renomeada de `20261120200000_…` para vir depois da data de término), **EXPAND** (3 tabelas novas). GO do proprietário dado ("Aprovo as duas"); aplicação pelo runbook, registro no §7 |
+| Constituição | emenda **aprovada** pelo proprietário (2026-11-20) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
 | Próxima | edição completa de entrada e saída (PR própria), pedida pelo proprietário |
 | Relatório | [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · runbook [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-NOVA-REALIZACAO: "Nova realização" com o tipo em cartões e a data de término (D-PROD-265)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-265**, a maquete "Nova realização de <Tipo>" do proprietário: o botão "Registrar serviço" vira "Nova realização"; a janela abre nos 7 tipos em cartões e segue para "Nova realização de <Tipo>" ("Trocar tipo" ao lado do título); seções Área, Operação, Datas, Insumos, Máquinas, Equipe, Serviço de terceiro, Planejamento (só leitura) e Informações complementares |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `46fe34f5` · PR (a abrir) |
+| Servidor | `POST /atividades/registrar` aceita `data_termino` opcional (só esta rota): antes do início 400, futuro 422, o mesmo em todas as áreas; sem o campo, fingerprint igual ao de antes. Volta no apontamento, na auditoria e no histórico da área |
+| Migration | `20261120200000_apontamento_data_termino`, **CONTRACT aditiva** (coluna DATE anulável + CHECK término ≥ início; a allowlist EXPAND recusa DATE e CHECK em tabela antiga). **Aplicada em produção em 2026-11-20 às 18:58:29 UTC** (caminho B, GO do proprietário; postcheck 72 / 0), antes do merge |
+| Abertos | editar o término; repetir não copia o término; campos próprios de cada tipo, lista nova, Planejar e remover telas antigas ficam para as próximas fatias |
+| Relatório | [`MAIKE-NOVA-REALIZACAO-REPORT.md`](./MAIKE-NOVA-REALIZACAO-REPORT.md) · runbook [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md) |
 
 ## Missão anterior (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
 

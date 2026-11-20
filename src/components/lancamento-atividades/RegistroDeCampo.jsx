@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCheck, Loader2 } from "lucide-react";
+import { ArrowLeftRight, Check, CheckCheck, Loader2 } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
@@ -16,7 +16,7 @@ import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda }
 import { useAuth } from "@/lib/AuthContext";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
-import { TIPOS_FIXOS_ATIVIDADE, operacoesDoTipoFixo, tipoFixoDaOperacao } from "@/lib/tiposFixosAtividade";
+import { TIPOS_FIXOS_ATIVIDADE, operacoesDoTipoFixo, rotuloDoTipoFixo, tipoFixoDaOperacao } from "@/lib/tiposFixosAtividade";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { MAX_OBSERVACAO_ATIVIDADE, mensagemDoAlertaAtividade, rotuloDaArea, rotuloDoUsuario } from "@/lib/lancamentoAtividadesRegras";
 import { RAIZ_CONSULTAS_ATIVIDADES, corpoDoApontamento, formularioApontamentoVazio, normalizarPaginaDeOpcoes, validarFormularioApontamento } from "@/lib/atividadeApontamentoRegras";
@@ -39,6 +39,7 @@ import {
   corpoDasAreasDoRegistro,
   destinoDoRegistro,
   erroDaChaveDaLinha,
+  erroDaDataDeTermino,
   errosDasAreasDoRegistro,
   formularioVazioDaSecao,
   itemDaRecusa,
@@ -79,6 +80,14 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  * hectares TOTAIS. A área presa (Detalhes da área) vem marcada e não sai; outras podem entrar. A recusa de uma área
  * (`details.area_indice`) diz qual, na linha certa (a posição da linha no corpo) ou na própria área.
  *
+ * D-PROD-265 (maquete "Nova realização de <Tipo>") — DOIS PASSOS na mesma janela: (1) "Nova realização" mostra os 7 tipos
+ * fixos em CARTÕES (ícone + nome; botões, Enter/clique escolhe); (2) o formulário "Nova realização de <Tipo>", com
+ * "Trocar tipo" ao lado do título (volta aos cartões; áreas, datas e linhas ficam, só a operação sai — ela é do tipo). Sem
+ * o select de Tipo no corpo. Seções, nesta ordem: Área, Operação, Datas (Data de início = `data_operacional`; Data de
+ * término opcional, `data_termino`, só vai no corpo preenchida), Insumos, Máquinas, Equipe, Serviço de terceiro,
+ * Planejamento (só leitura: onde o registro entra) e Informações complementares (Operador e Observação). Com `tipo`
+ * preso, a janela abre direto no formulário, sem "Trocar tipo".
+ *
  * @param {{
  *   tipo?: any | null,
  *   tipos?: any[],   // as operações (tipos de atividade) ativas
@@ -106,6 +115,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   // ─── Tipo e áreas (presos ou escolhidos) ─────────────────────────────
   const [tipoFixo, setTipoFixo] = useState(() => (tipoPreso ? tipoFixoDaOperacao(tipoPreso) : ""));
   const [tipoEscolhido, setTipoEscolhido] = useState("");
+  // D-PROD-265: o passo da janela — os cartões dos tipos ("tipo") ou o formulário do tipo escolhido ("form").
+  const [passo, setPasso] = useState(/** @type {"tipo" | "form"} */ (tipoPreso ? "form" : "tipo"));
   const operacoes = useMemo(() => operacoesDoTipoFixo(tipos, tipoFixo), [tipos, tipoFixo]);
   const tipo = tipoPreso ?? operacoes.find((t) => String(t.id) === tipoEscolhido) ?? null;
   // D-PROD-263: as áreas da fazenda para marcar (as do pai; sem elas — o mapa —, as ativas lidas aqui), com a presa.
@@ -134,6 +145,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   // ─── O dia: hoje na fazenda por padrão, nunca depois ──────────────────
   const [dia, setDia] = useState(hoje || "");
   const diaMexido = useRef(false);
+  // D-PROD-265: o último dia do serviço (opcional; vazio = um dia só).
+  const [termino, setTermino] = useState("");
   useEffect(() => {
     if (!diaMexido.current && hoje) setDia(hoje);
   }, [hoje]);
@@ -306,6 +319,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     const doDia = { ...formularioApontamentoVazio(dia), operador, area_executada_dia: "", observacao };
     const vDia = validarFormularioApontamento(doDia, { hoje });
     Object.assign(e, vDia);
+    const eTermino = erroDaDataDeTermino(dia, termino, hoje);
+    if (eTermino) e.data_termino = eTermino;
     if (flags.exigeSafra && !safra.trim()) e.safra = "Informe a safra / ciclo (o tipo exige).";
     let falhou = Object.keys(e).length > 0;
     let finais = itens;
@@ -343,6 +358,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
         ...apontamento,
         areas: corpoDasAreasDoRegistro(areasDoRegistro),
         tipo_atividade_id: String(tipo.id),
+        // D-PROD-265: só preenchida (sem ela, o corpo — e o recibo — é o de antes).
+        ...(termino ? { data_termino: termino } : {}),
         ...(flags.exigeSafra ? { safra_ciclo: safra.trim() } : {}),
         ...linhasDoCorpoDoRegistro(finais),
       },
@@ -359,6 +376,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     setAreasDoRegistro((ls) => ls.map((l) => (areaDe(l.area_id) ? areaNovaDoRegistro(areaDe(l.area_id)) : l)));
     setOperador(null);
     setObservacao("");
+    setTermino("");
     setErros({});
     setChaveForm((k) => k + 1);
   };
@@ -415,24 +433,76 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     setEstado((e) => ({ ...e, consulta: "Confira o Histórico da área: se o registro não aparecer, repita o mesmo envio — ele não será duplicado." }));
   };
 
+  // ─── Passo 1: o tipo (D-PROD-265) ─────────────────────────────────────
+  /** Escolhe o tipo fixo e vai ao formulário: trocar de tipo limpa só a operação (ela é do tipo). @param {string} valor */
+  const escolherTipoFixo = (valor) => {
+    if (valor !== tipoFixo) {
+      setTipoEscolhido("");
+      setErros((e) => semCampos(e, ["tipoFixo", "tipo"]));
+      mexeu();
+    }
+    setTipoFixo(valor);
+    setPasso("form");
+  };
+  const trocarTipo = () => {
+    if (enviando) return;
+    setPasso("tipo");
+  };
+
   // ─── Corpo ───────────────────────────────────────────────────────────
-  const Icone = iconeDoTipoAtividade(tipo);
-  const titulo = tipo ? (
-    <span className="b1-tipo-titulo">
-      <span className="b1-tipo-titulo__icone" aria-hidden>
-        <Icone size={16} strokeWidth={1.75} />
+  const rotuloDoTipo = tipoFixo ? rotuloDoTipoFixo(tipoFixo) : "";
+  const Icone = iconeDoTipoAtividade({ nome_tipo: rotuloDoTipo, categoria: tipoFixo });
+  const titulo =
+    passo === "form" && tipoFixo ? (
+      <span className="b1-tipo-titulo" data-testid="registro-de-campo-titulo">
+        <span className="b1-tipo-titulo__icone" aria-hidden>
+          <Icone size={16} strokeWidth={1.75} />
+        </span>
+        <span className="min-w-0">Nova realização de {rotuloDoTipo}</span>
       </span>
-      {tipo.nome_tipo}
-    </span>
-  ) : (
-    "Registrar serviço"
-  );
+    ) : (
+      <span data-testid="registro-de-campo-titulo">Nova realização</span>
+    );
+  const acoesDoTitulo =
+    passo === "form" && !tipoPreso ? (
+      <button type="button" className={`${BOTAO_SECUNDARIO} tb-btn-outline b1-realizacao__trocar`} onClick={trocarTipo} disabled={enviando} data-testid="registro-de-campo-trocar-tipo">
+        <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
+        Trocar tipo
+      </button>
+    ) : null;
   const podeGravar = acoes?.lancarApontamento === true && Boolean(empresaId) && Boolean(fuso);
   const avisoStatus = !acoes?.carregando && acoes?.lancarApontamento !== true
     ? "Sem permissão para registrar atividades."
     : empresaId && !fuso
       ? "Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de registrar: o servidor recusa sem ele."
       : null;
+
+  const cartoes = (
+    <div className="b1-realizacao__passo" data-testid="registro-de-campo-tipos">
+      <p className="b1-realizacao__ajuda">Escolha o tipo de serviço.</p>
+      <ul className="b1-realizacao__cartoes" aria-label="Tipos de serviço">
+        {TIPOS_FIXOS_ATIVIDADE.map((t) => {
+          const IconeDoCartao = iconeDoTipoAtividade({ nome_tipo: t.label, categoria: t.value });
+          return (
+            <li key={t.value} className="min-w-0">
+              <button
+                type="button"
+                className="b1-realizacao__cartao"
+                aria-pressed={t.value === tipoFixo}
+                onClick={() => escolherTipoFixo(t.value)}
+                data-testid={`registro-tipo-${t.value}`}
+              >
+                <span className="b1-realizacao__cartao-icone" aria-hidden>
+                  <IconeDoCartao size={22} strokeWidth={1.75} />
+                </span>
+                <span className="b1-realizacao__cartao-nome">{t.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 
   const form = (
     <form
@@ -448,65 +518,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       data-testid="registro-de-campo-form"
     >
       <SecoesDoFormularioContext.Provider value={{ topo: null, opcional: true }}>
-        <SecaoForm titulo="Registro" />
-        {tipoPreso ? null : (
-          <>
-            <CampoSelect
-              label="Tipo"
-              value={tipoFixo}
-              onChange={(v) => {
-                setTipoFixo(v);
-                setTipoEscolhido("");
-                esquecerUltimo();
-                limparErros(["tipoFixo", "tipo"]);
-              }}
-              options={TIPOS_FIXOS_ATIVIDADE.map((t) => ({ value: t.value, label: t.label }))}
-              placeholder="Escolha o tipo"
-              required
-              span={3}
-              error={erros.tipoFixo}
-            />
-            <CampoSelect
-              label="Operação"
-              value={tipoEscolhido}
-              onChange={(v) => {
-                setTipoEscolhido(v);
-                esquecerUltimo();
-                limparErros(["tipo"]);
-              }}
-              options={operacoes.map((t) => ({ value: String(t.id), label: t.nome_tipo }))}
-              placeholder={!tipoFixo ? "Escolha o tipo primeiro" : operacoes.length ? "Escolha a operação" : "Nenhuma operação neste tipo"}
-              readOnly={!tipoFixo || enviando}
-              required
-              span={6}
-              error={erros.tipo}
-            />
-            {tipoFixo && !operacoes.length ? (
-              <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-sem-operacao">
-                Nenhuma operação ativa neste tipo. Cadastre em Tipos de Atividade.
-              </p>
-            ) : null}
-          </>
-        )}
-        <CampoDia
-          label="Data"
-          value={dia}
-          onChange={(v) => {
-            if (!v || (hoje && v > hoje)) return;
-            diaMexido.current = true;
-            setDia(v);
-            esquecerUltimo();
-            limparErros(["data_operacional"]);
-          }}
-          max={hoje || undefined}
-          required
-          span={3}
-          error={erros.data_operacional}
-          testId="registro-de-campo-data"
-        />
-        {flags.exigeSafra ? (
-          <CampoTexto label="Safra / ciclo" value={safra} onChange={(v) => { setSafra(v); esquecerUltimo(); limparErros(["safra"]); }} required span={6} maxLength={32} keepCase error={erros.safra} />
-        ) : null}
+        <SecaoForm titulo="Área" />
         <AreasDoRegistro
           areasDoMapa={areasDoMapa}
           linhas={areasDoRegistro}
@@ -521,11 +533,78 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           readOnly={enviando}
           carregando={!areasDoPai.length && areasLidas.isLoading}
         />
-        {destino ? (
-          <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-destino">
-            {destino}
-          </p>
+
+        <SecaoForm titulo="Operação" />
+        {tipoPreso ? (
+          <CampoTexto label="Operação" value={tipoPreso.nome_tipo ?? ""} onChange={() => {}} readOnly span={6} keepCase />
+        ) : (
+          <>
+            <CampoSelect
+              label="Operação"
+              value={tipoEscolhido}
+              onChange={(v) => {
+                setTipoEscolhido(v);
+                esquecerUltimo();
+                limparErros(["tipo"]);
+              }}
+              options={operacoes.map((t) => ({ value: String(t.id), label: t.nome_tipo }))}
+              placeholder={operacoes.length ? "Escolha a operação" : "Nenhuma operação neste tipo"}
+              readOnly={enviando}
+              required
+              span={6}
+              error={erros.tipo ?? erros.tipoFixo}
+            />
+            {!operacoes.length ? (
+              <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-sem-operacao">
+                Nenhuma operação ativa neste tipo. Cadastre em Tipos de Atividade.
+              </p>
+            ) : null}
+          </>
+        )}
+        {flags.exigeSafra ? (
+          <CampoTexto label="Safra / ciclo" value={safra} onChange={(v) => { setSafra(v); esquecerUltimo(); limparErros(["safra"]); }} required span={6} maxLength={32} keepCase error={erros.safra} />
         ) : null}
+
+        <SecaoForm titulo="Datas" />
+        <CampoDia
+          label="Data de início"
+          value={dia}
+          onChange={(v) => {
+            if (!v || (hoje && v > hoje)) return;
+            diaMexido.current = true;
+            setDia(v);
+            esquecerUltimo();
+            setErros((e) => {
+              const semDia = semCampos(e, ["data_operacional", "data_termino"]);
+              const eTermino = erroDaDataDeTermino(v, termino, hoje);
+              return eTermino ? { ...semDia, data_termino: eTermino } : semDia;
+            });
+          }}
+          max={hoje || undefined}
+          required
+          span={3}
+          error={erros.data_operacional}
+          testId="registro-de-campo-data"
+        />
+        <CampoDia
+          label="Data de término"
+          value={termino}
+          onChange={(v) => {
+            setTermino(v || "");
+            esquecerUltimo();
+            setErros((e) => {
+              const semTermino = semCampos(e, ["data_termino"]);
+              const eTermino = erroDaDataDeTermino(dia, v || "", hoje);
+              return eTermino ? { ...semTermino, data_termino: eTermino } : semTermino;
+            });
+          }}
+          min={dia || undefined}
+          max={hoje || undefined}
+          readOnly={enviando}
+          span={3}
+          error={erros.data_termino}
+          testId="registro-de-campo-data-termino"
+        />
 
         {COLECOES_DO_REGISTRO.map((colecao) => {
           const editor = editores[colecao];
@@ -569,7 +648,12 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           );
         })}
 
-        <SecaoForm titulo="Resultado" />
+        <SecaoForm titulo="Planejamento" />
+        <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={destino ? "registro-de-campo-destino" : "registro-de-campo-destino-vazio"}>
+          {destino ?? "Escolha a área e a operação para ver em qual atividade este registro entra."}
+        </p>
+
+        <SecaoForm titulo="Informações complementares" />
         <SeletorPaginadoGestao
           rotulo="Operador"
           testId="registro-de-campo-operador"
@@ -586,7 +670,6 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           span={6}
           maiusculas={false}
         />
-        <SecaoForm titulo="Informações complementares" />
         <CampoTextoLongo label="Observação" value={observacao} onChange={(v) => { setObservacao(v); esquecerUltimo(); }} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
         <div className="col-span-12 min-w-0">
           <AvisoEnvioDaLinha estado={estado} produto={false} lancado="o registro PODE ter sido gravado" onRepetir={() => void salvar(true)} onConsultar={consultar} />
@@ -596,6 +679,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   );
 
   const podeEnviar = podeGravar && Boolean(tipo?.id) && areasDoRegistro.length > 0 && !enviando;
+  const noFormulario = passo === "form";
   return (
     <B1Janela
       aberto
@@ -603,29 +687,34 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       podeFechar={!enviando}
       aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
       titulo={titulo}
+      acoesDoTitulo={acoesDoTitulo}
       testId="janela-registro-de-campo"
-      className={celular ? "b1-janela--tela-cheia" : ""}
-      contentProps={{ "data-permissao-explicita": "", "data-celular": celular ? "" : undefined, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
+      className={`b1-realizacao${celular ? " b1-janela--tela-cheia" : ""}`}
+      contentProps={{ "data-permissao-explicita": "", "data-celular": celular ? "" : undefined, "data-passo": passo, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
       fora={<div ref={setAlvoFolha} className="contents" />}
       rodape={
         <>
           <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} disabled={enviando} data-testid="registro-de-campo-cancelar">
             Cancelar
           </button>
-          <button type="button" className={BOTAO_PRIMARIO} onClick={() => void salvar(true)} disabled={!podeEnviar} data-testid="registro-de-campo-salvar">
-            {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
-            {enviando ? "Salvando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Salvar"}
-          </button>
-          <button type="button" className={BOTAO_PRIMARIO} onClick={() => void salvar(false)} disabled={!podeEnviar} data-testid="registro-de-campo-salvar-novo">
-            <CheckCheck className="h-4 w-4" aria-hidden />
-            Salvar e novo
-          </button>
+          {noFormulario ? (
+            <>
+              <button type="button" className={BOTAO_PRIMARIO} onClick={() => void salvar(true)} disabled={!podeEnviar} data-testid="registro-de-campo-salvar">
+                {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
+                {enviando ? "Salvando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Salvar"}
+              </button>
+              <button type="button" className={BOTAO_PRIMARIO} onClick={() => void salvar(false)} disabled={!podeEnviar} data-testid="registro-de-campo-salvar-novo">
+                <CheckCheck className="h-4 w-4" aria-hidden />
+                Salvar e novo
+              </button>
+            </>
+          ) : null}
         </>
       }
     >
       <MobileSheetPortalCtx.Provider value={alvoFolha}>
         {avisoStatus ? <AvisoGestao testId="registro-de-campo-aviso">{avisoStatus}</AvisoGestao> : null}
-        {form}
+        {noFormulario ? form : cartoes}
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );

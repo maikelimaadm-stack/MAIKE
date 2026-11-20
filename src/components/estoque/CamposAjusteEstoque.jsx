@@ -20,7 +20,7 @@ const COR_DIFERENCA = /** @type {Record<string, string>} */ ({
 });
 
 /**
- * Uma linha do AJUSTE (D-PROD-265): produto, unidade, depósito, o saldo CONTADO e, ao lado, o saldo atual do depósito
+ * Uma linha do AJUSTE (D-PROD-266): produto, unidade, depósito, o saldo CONTADO e, ao lado, o saldo atual do depósito
  * e a diferença (sobra +, falta −, sem diferença). O custo unitário só aparece (e é obrigatório) na sobra de um
  * depósito sem saldo, que não tem custo médio. Mesmo cartão de linha inteira da entrada e da saída.
  * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, podeRemover: boolean,
@@ -131,7 +131,7 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
 }
 
 /**
- * Os campos do tipo AJUSTE na janela "Novo movimento" (D-PROD-265): data fixa (hoje na fazenda, só informação),
+ * Os campos do tipo AJUSTE na janela "Novo movimento" (D-PROD-266): data fixa (hoje na fazenda, só informação),
  * centros, observação e as linhas de contagem. `saldos[i]` é a consulta do saldo do depósito da linha `i` (feita
  * por quem usa, que também valida e monta o corpo).
  * @param {{ ajuste: any, empresaId: string, hoje: string, erros: Record<string, string>,

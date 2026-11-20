@@ -209,7 +209,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR: { http: 409, meaning: 'o produto teve outro movimento no depósito depois da saída; a exclusão não é possível (details.movimento_numero); nada foi alterado' },
   MOTIVO_SAIDA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de saída deste tenant' },
   MOTIVO_SAIDA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de saída com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
-  // D-PROD-265 — Estoque → Novo movimento → Ajuste (ajuste de inventário: contado × saldo; sobra a custo médio, falta).
+  // D-PROD-266 — Estoque → Novo movimento → Ajuste (ajuste de inventário: contado × saldo; sobra a custo médio, falta).
   AJUSTE_ESTOQUE_NOT_FOUND: { http: 404, meaning: 'id não identifica ajuste de estoque desta fazenda neste tenant' },
   AJUSTE_ESTOQUE_INVALIDO: { http: 422, meaning: 'ajuste recusado (details.field/reason: produto, depósito, unidade, contagem, custo da sobra sem saldo ou centro); nada foi gravado' },
   AJUSTE_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação do ajuste não permite esta ação (details.status); nada foi alterado' },
@@ -331,7 +331,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
-    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | antes_do_inicio_da_area — D-PROD-249 — | periodo_invertido | data_inexistente); nada foi gravado',
+    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | antes_do_inicio_da_area — D-PROD-249 — | periodo_invertido | data_inexistente | depois_do_termino — D-PROD-265 —); nada foi gravado',
   },
   ATIVIDADE_STATUS_INVALIDO: {
     http: 409,

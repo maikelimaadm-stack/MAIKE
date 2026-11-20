@@ -22,8 +22,8 @@ import { Abas, RodapePilulas, idsDaAba } from "./detalhes-lote/blocos";
  *   `medir_forragem` (D-PROD-219, fora da infraestrutura), o painel de Forragem — a "Medição de Forragem" continua aqui.
  * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos".
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
- * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO o formulário "Registrar serviço" — o mesmo do
- *   Lançamento de Atividades (D-PROD-258), com a área já preenchida: a pessoa escolhe o tipo, depois a operação.
+ * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO a "Nova realização" — a mesma do Lançamento de
+ *   Atividades (D-PROD-258, D-PROD-265), com a área já marcada e presa: a pessoa escolhe o tipo (cartões), depois a operação.
  *   "Histórico completo" (com a permissão de histórico de
  *   movimentação) continua sendo o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador
  *   (D-PROD-110), num diálogo por cima.

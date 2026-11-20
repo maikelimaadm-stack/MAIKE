@@ -1,6 +1,6 @@
-# MAIKE-ESTOQUE-AJUSTE-INVENTARIO — Relatório: ajuste de inventário no "Novo movimento" (D-PROD-265)
+# MAIKE-ESTOQUE-AJUSTE-INVENTARIO — Relatório: ajuste de inventário no "Novo movimento" (D-PROD-266)
 
-**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `46fe34f5`) · **Migration:** `20261120200000_estoque_ajustes` (**EXPAND**, 3 tabelas novas) · **Decisão:** [D-PROD-265](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
+**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `46fe34f5`, com a `main` `3c8329b1` integrada) · **PR:** #350 · **Migration:** `20261120300000_estoque_ajustes` (**EXPAND**, 3 tabelas novas) · **Decisão:** [D-PROD-266](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
 
 ## 1. Pedido e escolhas do proprietário
 
@@ -42,21 +42,25 @@ Por linha, o contado (KG, SACO pelo peso do saco, L) é comparado com o saldo do
 - **Correção na saída manual (D-PROD-264):** "nada mexeu depois" não conta mais como posterior um movimento antigo com número fora do padrão. Virou o helper comum `movimentoPosteriorNoDeposito`, e há um teste para isso. Em produção nenhum dos 10 movimentos tem número fora do padrão: o defeito era latente.
 - **Tela:** tipo Ajuste no "Novo movimento" (por linha: produto, unidade, depósito, contado, saldo atual e diferença com sinal; custo só na sobra de depósito sem saldo; data fixa "Hoje"); detalhe do ajuste pelo Kardex e logo depois de lançar, com editar observação e excluir (motivo). Sem lista própria de ajustes, como na saída.
 
-## 4. Constituição: emenda PROPOSTA (falta a aprovação)
+## 4. Constituição: emenda APROVADA
 
-A constituição põe "ajuste ou inventário" explicitamente fora. A proposta de emenda está na D-PROD-265 e **não foi aplicada**. A PR fica em rascunho até a aprovação.
+A constituição punha "ajuste ou inventário" explicitamente fora. O proprietário aprovou a emenda em 2026-11-20 ("Aprovo as duas", junto com o GO da migration); ela foi aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, com o texto da D-PROD-266.
+
+## 4a. Numeração e nome da pasta
+
+Esta missão nasceu D-PROD-265, com a pasta `20261120200000_estoque_ajustes`. Antes do merge, a `main` deu a D-PROD-265 à Nova realização (PR #349), com a CONTRACT `20261120200000_apontamento_data_termino` no mesmo carimbo, já aplicada em produção. O preflight de produção acusou 72 migrations em vez de 71 (**RELEASE_BLOCKED**, nada aplicado). A decisão passou a **D-PROD-266** e a pasta a `20261120300000_estoque_ajustes`, estritamente depois da dela; o conteúdo é o mesmo e o checksum não muda.
 
 ## 5. Migration e ensaio
 
 - **EXPAND puro** (`classificarMigrations`: ok, as 3 tabelas novas, nenhuma coluna em tabela antiga).
 - SHA-256 `ac836ddf…6ccc9` e bloco RLS `4825a207…94fb8` pinados.
 - `migrate diff` vazio.
-- **Ensaio do envelope do caminho B** (PostgreSQL 17 local, base com as 71 migrations de produção):
+- **Ensaio do envelope do caminho B** (PostgreSQL 17 local, base com as 72 migrations de produção, a última a data de término), refeito depois da renomeação:
 
   | Passo | Resultado |
   |---|---|
-  | `system_identifier` de produção | recusou (`alvo divergente`), nada aplicado (71) |
-  | `system_identifier` local | aplicou: 72 concluídas, 108 tabelas, checksum pinado |
+  | `system_identifier` de produção | recusou (`alvo divergente`), nada aplicado (72) |
+  | `system_identifier` local | aplicou: 73 concluídas, 108 tabelas, checksum pinado |
   | 2ª execução | recusou (`migration já registrada`) |
   | `migrate status` | up to date |
   | `migrate diff --exit-code` | 0 |
@@ -70,7 +74,7 @@ A constituição põe "ajuste ou inventário" explicitamente fora. A proposta de
 | `backend/tests/estoqueAjustes.test.mjs` (novo, Postgres real) | 12/12 |
 | `estoqueSaidas` / `estoqueEntradas` / `estoqueConsulta` | 15 / 47 / 23, todos passaram |
 | `estoqueP0Reconciliacao*`, `estoqueP0MotorUnico`, `estoqueP1M2MotorParametros` | todos passaram |
-| provas da release (`test:gates`) e testes de migration | 1051/1051 · 54/54 (B39a/B39b/B39k novos) |
+| provas da release (`test:gates`) e testes de migration | 1051/1051 · 54/54 (B40a/B40b/B40k novos) |
 | smoke `estoqueNovoMovimento` (12 novos) · `tests/smoke` inteiro | 38/38 · 3791/3791 |
 | `verify:all` em banco novo (72 migrations) | todas as etapas passaram (a de tipos do backend depois de ajustar o JSDoc de `exigirLocaisEstoque`) |
 

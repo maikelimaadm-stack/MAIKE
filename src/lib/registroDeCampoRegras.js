@@ -319,3 +319,33 @@ export const areaDaRecusa = (erro, enviadas) => {
   if (!area || (details.area_id != null && String(details.area_id) !== String(area.area_id))) return null;
   return { indice, area_id: String(area.area_id) };
 };
+
+/**
+ * D-PROD-265 — o período do serviço registrado ("10/11 a 12/11"): só com a data de término DEPOIS do início; sem término
+ * (ou igual ao início), vazio — o dia já aparece onde o lançamento é mostrado.
+ * @param {unknown} inicio  `data_operacional` (AAAA-MM-DD) @param {unknown} termino  `data_termino` (AAAA-MM-DD ou nulo)
+ * @returns {string}
+ */
+export const periodoDoServico = (inicio, termino) => {
+  const dia = (/** @type {unknown} */ v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+  const de = dia(inicio);
+  const ate = dia(termino);
+  if (!de || !ate || ate <= de) return '';
+  const curto = (/** @type {string} */ v) => `${v.slice(8, 10)}/${v.slice(5, 7)}`;
+  return `${curto(de)} a ${curto(ate)}`;
+};
+
+/**
+ * D-PROD-265 — a data de término do formulário: vazia vale (um dia só); preenchida, nunca antes do início nem depois de
+ * hoje na fazenda. Devolve a mensagem do campo ou null.
+ * @param {string} inicio @param {string} termino @param {string|null|undefined} hoje
+ * @returns {string|null}
+ */
+export const erroDaDataDeTermino = (inicio, termino, hoje) => {
+  if (!termino) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(termino)) return 'Informe a data de término no formato dd/mm/aaaa.';
+  if (inicio && termino < inicio) return 'A data de término não pode ser antes da data de início.';
+  if (hoje && termino > hoje) return 'A data de término não pode ser depois de hoje na fazenda.';
+  return null;
+};
+

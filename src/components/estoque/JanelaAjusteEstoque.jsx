@@ -50,7 +50,7 @@ const ROTULO_EVENTO = /** @type {Record<string, string>} */ ({ CONFIRMACAO: "Lan
 const porUnidade = (/** @type {string} */ u) => (u === "L" ? "litro" : "kg");
 
 /**
- * Detalhe de UM ajuste de inventário (D-PROD-265) numa janela só (680px; tela cheia no celular): número, data,
+ * Detalhe de UM ajuste de inventário (D-PROD-266) numa janela só (680px; tela cheia no celular): número, data,
  * centros, observação, as linhas (saldo antes, contado, diferença, sobra/falta, custo, valor), os totais de sobras e
  * de faltas e o histórico. Abre pelo detalhe do movimento, em Movimentos, e logo depois de lançar. Com a ação
  * `ajuste`, duas ações DENTRO da mesma janela: "Editar observação" (só ela muda) e "Excluir ajuste" (pede o motivo;

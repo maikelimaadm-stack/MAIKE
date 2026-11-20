@@ -59,8 +59,8 @@ export const schemaSemAreasDaAtividade = (schema) => {
  * espelhos (todas anteriores a ela) e tem a prova própria em `estoqueEntradas.test.mjs` e `premerge-migrate.test.mjs`.
  * D-PROD-264: também sem a saída manual do Estoque (os 4 models `MotivoSaidaEstoque`/`SaidaEstoque*` e as relações
  * inversas), posterior às Entradas: `20261120100000_estoque_saidas` fica igualmente fora das pastas dos espelhos.
- * D-PROD-265: e sem o ajuste de inventário (os 3 models `AjusteEstoque*` e as relações inversas), posterior à saída:
- * `20261120200000_estoque_ajustes` também fica fora das pastas dos espelhos.
+ * D-PROD-266: e sem o ajuste de inventário (os 3 models `AjusteEstoque*` e as relações inversas), posterior à saída:
+ * `20261120300000_estoque_ajustes` também fica fora das pastas dos espelhos.
  * @param {string} schema
  */
 export const schemaSemEntradasDoEstoque = (schema) => {
@@ -69,7 +69,7 @@ export const schemaSemEntradasDoEstoque = (schema) => {
   for (let i = 0; i < linhas.length; i += 1) {
     // D-PROD-259: o cadastro de motivos de entrada também é das Entradas (não existe no dia da D-PROD-249).
     // D-PROD-264: a saída manual do Estoque (MotivoSaidaEstoque e os 3 SaidaEstoque*), posterior a elas, também não.
-    // D-PROD-265: nem o ajuste de inventário (os 3 AjusteEstoque*), posterior à saída.
+    // D-PROD-266: nem o ajuste de inventário (os 3 AjusteEstoque*), posterior à saída.
     if (/^model ((Motivo)?(Entrada|Saida)|Ajuste)Estoque\w* \{/.test(linhas[i])) {
       let j = i;
       while (j < linhas.length && linhas[j].trim() !== '}') sai[j++] = true;
@@ -80,8 +80,21 @@ export const schemaSemEntradasDoEstoque = (schema) => {
     if (/EntradaEstoque|entradasEstoque|itemEntradaEstoque|SaidaEstoque|saidasEstoque|itemSaidaEstoque|AjusteEstoque|ajustesEstoque|itemAjusteEstoque/.test(linhas[i])) sai[i] = true;
   }
   for (let i = linhas.length - 1; i > 0; i -= 1) {
-    if (sai[i] && /^\s*(\/\/\/|\/\/ D-PROD-257|\/\/ D-PROD-264|\/\/ D-PROD-265|\/\/ -{10,})/.test(linhas[i - 1])) sai[i - 1] = true;
+    if (sai[i] && /^\s*(\/\/\/|\/\/ D-PROD-257|\/\/ D-PROD-264|\/\/ D-PROD-266|\/\/ -{10,})/.test(linhas[i - 1])) sai[i - 1] = true;
   }
+  return linhas.filter((_, i) => !sai[i]).join('\n');
+};
+
+/**
+ * D-PROD-265 — o `schema.prisma` de hoje sem a data de término do apontamento (`AtividadeApontamento.data_termino` e as
+ * linhas `///` logo acima dela). A CONTRACT `20261120200000_apontamento_data_termino` é posterior a todos os "dias" destes
+ * espelhos e tem a prova própria em `premerge-migrate.test.mjs` (B39) e no teste do registro de campo.
+ * @param {string} schema
+ */
+export const schemaSemDataTermino = (schema) => {
+  const linhas = schema.split('\n');
+  const sai = linhas.map((l) => /^\s+data_termino\s/.test(l));
+  for (let i = linhas.length - 1; i > 0; i -= 1) if (sai[i] && /^\s*\/\/\//.test(linhas[i - 1])) sai[i - 1] = true;
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
 
@@ -91,7 +104,7 @@ export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))));
+  writeFileSync(destino, schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -112,7 +125,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')));
+  writeFileSync(destino, schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;
