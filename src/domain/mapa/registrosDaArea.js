@@ -6,6 +6,7 @@
 
 import { formatarDecimalLinha } from '@/lib/atividadeLinhasRegras';
 import { iconeDoTipoAtividade } from '@/lib/iconesTipoAtividade';
+import { periodoDoServico } from '@/lib/registroDeCampoRegras';
 import { rotuloDoDia } from '@/components/mapa/detalhes-lote/historicoDoPasto';
 
 /** @param {unknown} v */
@@ -42,6 +43,8 @@ export const linhasDoRegistro = (r) => {
   const produtos = Array.isArray(r.produtos) ? r.produtos : [];
   const maoObra = Array.isArray(r.mao_obra) ? r.mao_obra : [];
   const servicos = Array.isArray(r.servicos) ? r.servicos : [];
+  // D-PROD-265: o serviço de vários dias mostra o período ("10/11 a 12/11").
+  poe('Período', periodoDoServico(r.data_operacional, r.data_termino));
   poe('Máquina', juntar(maquinas.map((m) => texto(m.bem_nome))));
   poe('Implemento', juntar(maquinas.map((m) => texto(m.implemento_nome))));
   poe('Horas', juntar(maquinas.map((m) => comUnidade(m.quantidade_uso, m.unidade))));

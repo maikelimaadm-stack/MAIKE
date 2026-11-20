@@ -92,7 +92,8 @@ export const CAMPOS_DE_CANCELAMENTO = Object.freeze(['empresa_id', 'versao', 'mo
 /**
  * D-PROD-254 — POST /atividades/registrar: registrar o trabalho de campo de UMA área e de UM tipo num envio só (o servidor
  * acha ou abre a atividade do mês e grava o registro do dia com as linhas, numa transação). D-PROD-263: ou `areas[]`
- * (várias áreas, cada uma com os hectares feitos nela) no lugar de `area_id` (e sem `area_executada_dia`).
+ * (várias áreas, cada uma com os hectares feitos nela) no lugar de `area_id` (e sem `area_executada_dia`). D-PROD-265:
+ * `data_termino` (opcional).
  */
 export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'empresa_id',
@@ -100,6 +101,8 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'areas',
   'tipo_atividade_id',
   'data_operacional',
+  // D-PROD-265: o último dia do serviço (Nova realização), opcional; vazio não vai (`corpoSemVazios`).
+  'data_termino',
   'operation_id',
   'safra_ciclo',
   'turno',

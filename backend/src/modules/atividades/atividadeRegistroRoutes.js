@@ -13,6 +13,9 @@
  * D-PROD-263: a área vem em `area_id` (uma, como sempre) OU em `areas: [{ area_id, hectares }]` (1..20, várias áreas
  * num registro só: um apontamento por área, as linhas repartidas pelos hectares). Os dois juntos, nenhum dos dois ou
  * `areas[]` com `area_executada_dia` → 400 (o serviço explica qual). `hectares` chega como TEXTO, como os decimais do dia.
+ *
+ * D-PROD-265: `data_termino` opcional (`AAAA-MM-DD` ou null), só nesta rota (o `POST …/apontamentos` não a recebe): o último
+ * dia do serviço, igual em todas as áreas. Antes de `data_operacional` → 400; no futuro da fazenda → 422, como o dia.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -50,6 +53,8 @@ const REGISTRAR = {
       tipo_atividade_id: ID,
       safra_ciclo: { type: ['string', 'null'], maxLength: 32 },
       ...CAMPOS_DO_REGISTRO,
+      // D-PROD-265: o último dia do serviço (Nova realização), opcional.
+      data_termino: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
       origem: ORIGEM,
       ...LINHAS_DO_LANCAMENTO,
     },

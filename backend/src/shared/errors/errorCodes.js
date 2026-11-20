@@ -324,7 +324,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
-    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | antes_do_inicio_da_area — D-PROD-249 — | periodo_invertido | data_inexistente); nada foi gravado',
+    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | antes_do_inicio_da_area — D-PROD-249 — | periodo_invertido | data_inexistente | depois_do_termino — D-PROD-265 —); nada foi gravado',
   },
   ATIVIDADE_STATUS_INVALIDO: {
     http: 409,

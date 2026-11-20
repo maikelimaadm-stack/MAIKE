@@ -386,6 +386,8 @@ const ROTULO_DA_DATA_ATIVIDADE = Object.freeze({
   data_prevista_fim: 'a data prevista de fim',
   data_conclusao: 'a data de conclusão',
   data_operacional: 'a data do lançamento',
+  // D-PROD-265: a data de término do registro de campo (Nova realização).
+  data_termino: 'a data de término',
 });
 
 /**
@@ -401,13 +403,15 @@ const MENSAGENS_DATA_ATIVIDADE = Object.freeze({
     `${rotulo}${extra.data ? ` (${extra.data})` : ''} é anterior ao início da área${extra.area ? ` ${extra.area}` : ''}${extra.data_inicio_area ? ` (${extra.data_inicio_area})` : ''}`,
   periodo_invertido: (rotulo) => `${rotulo} é anterior à data de início: o período está invertido`,
   data_inexistente: (rotulo) => `${rotulo} não existe no calendário; use AAAA-MM-DD`,
+  // D-PROD-265: a data do lançamento depois do término gravado nele.
+  depois_do_termino: (rotulo, extra) => `${rotulo}${extra.data ? ` (${extra.data})` : ''} é posterior à data de término do serviço${extra.data_termino ? ` (${extra.data_termino})` : ''}`,
 });
 
 /**
  * D-PROD-200 — data recusada (um só código; `details.field`/`details.reason`).
  * `futura` leva `data`, `hoje` e `fuso` em `extra` (o "hoje" é o da fazenda).
  * @param {string} field  ex.: `data_inicio`, `data_conclusao`, `data_operacional`
- * @param {'futura'|'antes_do_inicio'|'antes_do_inicio_da_area'|'periodo_invertido'|'data_inexistente'} reason
+ * @param {'futura'|'antes_do_inicio'|'antes_do_inicio_da_area'|'periodo_invertido'|'data_inexistente'|'depois_do_termino'} reason  D-PROD-265: `depois_do_termino` leva `data` e `data_termino`
  * @param {Record<string, unknown>} [extra]
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */

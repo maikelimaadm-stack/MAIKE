@@ -895,19 +895,20 @@ export default function LancamentoAtividades() {
     ) : null;
 
   // D-PROD-254: registrar trabalho de campo (área + tipo, num formulário só) é diferente de planejar a atividade ("Nova atividade").
+  // D-PROD-265: o botão passa a "Nova realização" (a janela abre nos cartões dos 7 tipos).
   const botaoRegistrar =
     podeGravar && acoes.lancarApontamento ? (
       <PillBtn
         type="button"
         tone="outline"
         onClick={() => setRegistrando(true)}
-        aria-label="Registrar serviço"
-        title="Registrar trabalho de campo numa área"
+        aria-label="Nova realização"
+        title="Registrar um serviço feito no campo (Nova realização)"
         className="mg-act-registrar"
         data-testid="atividade-registrar"
       >
         <ClipboardCheck className="h-4 w-4" aria-hidden />
-        <span>Registrar serviço</span>
+        <span>Nova realização</span>
       </PillBtn>
     ) : null;
   const tiposDoRegistro = /** @type {any[]} */ (tipos).filter((t) => t?.ativo !== false);
