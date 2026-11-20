@@ -371,7 +371,7 @@ describe('D-PROD-257 — permissão: a ação `entrada` da tela sup-estoque', ()
     const m = front.match(/"sup-estoque":\s*Object\.freeze\(\[([^\]]*)\]/);
     assert.ok(m, 'sup-estoque ausente em EXTRA_ACTION_KEYS_BY_PAGE');
     assert.deepEqual(m[1].split(',').map((s) => s.trim().replace(/"/g, '')).filter(Boolean), [...ACOES_ESTOQUE_EXTRAS]);
-    assert.deepEqual([...ACOES_ESTOQUE_EXTRAS], ['entrada', 'saida']); // D-PROD-263: `saida`
+    assert.deepEqual([...ACOES_ESTOQUE_EXTRAS], ['entrada', 'saida']); // D-PROD-264: `saida`
   });
 });
 

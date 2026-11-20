@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-263; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-264; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,15 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-263)
+## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-263**, escolhas do proprietário: motivos por cadastro (Perda, Consumo interno, Doação, Vencimento), custo médio automático, exclusão só sem movimento depois, permissão própria `saida` |
-| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d8fa5ced`, com a `main` `5261ec13` integrada · PR draft |
+| Decisão | **D-PROD-264**, escolhas do proprietário: motivos por cadastro (Perda, Consumo interno, Doação, Vencimento), custo médio automático, exclusão só sem movimento depois, permissão própria `saida` |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d8fa5ced`, com a `main` `a12e3c5c` integrada · PR draft |
 | Migration | `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas). **Aplicada em produção** em 2026-11-20 01:15:39 UTC pelo caminho B, com o GO do proprietário (71 concluídas, 105 tabelas) |
-| Constituição | emenda da D-PROD-263 (saída manual como escritor documentado) **aprovada pelo proprietário em 2026-11-20**; parágrafo em `00` §1 e nota em `07` |
+| Constituição | emenda da D-PROD-264 (saída manual como escritor documentado) **aprovada pelo proprietário em 2026-11-20**; parágrafo em `00` §1 e nota em `07` |
 | Relatório | [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md) · runbook [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-REGISTRO-VARIAS-AREAS: várias áreas num "Registrar serviço" (D-PROD-263)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-263**, fase 3 da D-PROD-258: um registro de campo cobre várias áreas, cada uma com os seus hectares (maquete "Nova realização") |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `5261ec13` · PR (a abrir) |
+| Escopo | Tela: campo "Áreas" (busca + caixas) e tabela Área · Tamanho · % · Hectares · ✕ com o Total; "Hectares feitos" sai; dose/ha pelos hectares totais; área presa do mapa marcada. Servidor: `areas: [{ area_id, hectares }]` no `POST /atividades/registrar` → UMA atividade e um apontamento por área, linhas repartidas pelos hectares (medidor em trechos seguidos) |
+| Migration | nenhuma (o modelo da D-PROD-249 já guarda várias áreas por atividade) |
+| Abertos | cancelar o apontamento de uma área não mexe nos das outras; editar os hectares depois não reparte de novo |
+| Relatório | [`MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md) |
 
 ## Missão anterior (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)
 

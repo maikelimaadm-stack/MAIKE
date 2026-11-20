@@ -286,7 +286,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEstoqueFisicoRoutes); // D-PROD-161: reconciliação somente leitura
   await app.register(registrarEstoqueConsultaRoutes); // D-PROD-255: saldo e movimentos (kardex), somente leitura
   await app.register(registrarEntradaEstoqueRoutes); // D-PROD-257: entradas manuais documentadas e saldo de implantação
-  await app.register(registrarSaidaEstoqueRoutes); // D-PROD-263: saída manual documentada (custo médio)
+  await app.register(registrarSaidaEstoqueRoutes); // D-PROD-264: saída manual documentada (custo médio)
   await app.register(registrarMovimentacaoMapaRoutes);
   await app.register(registrarRebanhoLedgerRoutes);
   await app.register(registrarMovimentacaoPecuariaRoutes);

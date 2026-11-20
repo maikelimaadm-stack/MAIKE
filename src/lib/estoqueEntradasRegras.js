@@ -25,7 +25,7 @@ export const MOTIVO_ENTRADA = 'ENTRADA';
 export const ROTULO_NATUREZA = Object.freeze({ [MOTIVO_IMPLANTACAO]: 'Saldo de implantação', [MOTIVO_ENTRADA]: 'Entrada' });
 
 /**
- * Os tipos do "Novo movimento" desta versão e a ação da tela que cada um exige (D-PROD-263: a Saída tem a ação
+ * Os tipos do "Novo movimento" desta versão e a ação da tela que cada um exige (D-PROD-264: a Saída tem a ação
  * própria `saida`; Entrada e Transferência seguem com `entrada`).
  */
 export const TIPO_ENTRADA = 'entrada';

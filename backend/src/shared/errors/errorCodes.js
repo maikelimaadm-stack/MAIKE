@@ -200,7 +200,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   MOTIVO_ENTRADA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de entrada deste tenant' },
   MOTIVO_ENTRADA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de entrada com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
   MOTIVO_ENTRADA_PADRAO_FIXO: { http: 422, meaning: 'o motivo padrão "Saldo de implantação" não se renomeia nem se desativa; nada foi alterado' },
-  // D-PROD-263 — Estoque → Novo movimento → Saída (saída manual documentada, custo médio, pelo motor de estoque).
+  // D-PROD-264 — Estoque → Novo movimento → Saída (saída manual documentada, custo médio, pelo motor de estoque).
   SAIDA_ESTOQUE_NOT_FOUND: { http: 404, meaning: 'id não identifica saída de estoque desta fazenda neste tenant' },
   SAIDA_ESTOQUE_INVALIDA: { http: 422, meaning: 'saída recusada (details.field/reason: motivo, produto, depósito, unidade, quantidade ou centro); nada foi gravado' },
   SAIDA_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação da saída não permite esta ação (details.status); nada foi alterado' },

@@ -1,5 +1,5 @@
 /**
- * Porta nativa das Saídas do Estoque (D-PROD-263): lista, detalhe, criação (saída manual valorizada pelo custo
+ * Porta nativa das Saídas do Estoque (D-PROD-264): lista, detalhe, criação (saída manual valorizada pelo custo
  * médio, calculado no servidor), edição da observação, exclusão e o cadastro de motivos de saída. O tenant vem só
  * do JWT; a fazenda (`empresa_id`) vai na query (leitura) ou no corpo (escrita). A permissão é conferida no
  * servidor (403). Os seletores do formulário são os da entrada (`/estoque/entradas/opcoes/*`).

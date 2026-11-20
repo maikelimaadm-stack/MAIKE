@@ -132,7 +132,7 @@ outra, e a entrada e um lançamento da Central **com produtos** bloqueiam um ao 
 lançamento sem produtos (só o pagamento) com o mesmo documento não conflita. Texto redigido pelo agente e
 **aprovado pelo proprietário em 2026-11-19** (chat, "aprovo"), na PR #345 (§4).
 
-**Emenda aprovada pelo proprietário (D-PROD-263):** **Estoque — saída manual documentada.** Além das baixas já
+**Emenda aprovada pelo proprietário (D-PROD-264):** **Estoque — saída manual documentada.** Além das baixas já
 autorizadas, a quantidade de estoque também pode sair por um **documento de Saída de Estoque** confirmado, só pelo
 motor de estoque único, com a permissão própria `saida` e um motivo do **cadastro de motivos de saída** do cliente
 (Perda, Consumo interno, Doação, Vencimento e os que o usuário criar). O valor é sempre o custo médio do produto no

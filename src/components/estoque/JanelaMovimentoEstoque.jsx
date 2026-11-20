@@ -52,7 +52,7 @@ const textoDoParente = (p) => (p ? `Nº ${p.numero} — ${rotuloDoMovimento({ ti
  * Detalhe de UM movimento do estoque (D-PROD-255), SOMENTE LEITURA, numa só janela: 680px no desktop e
  * `b1-janela--tela-cheia` no celular. Sem segundo diálogo: o documento de origem é um link de navegação; a ENTRADA do
  * estoque (D-PROD-259, sem página própria) fecha esta janela e abre a da entrada (`onAbrirEntrada`); a SAÍDA manual
- * (D-PROD-263, `origem_sistema = saida_estoque`) faz o mesmo com a da saída (`onAbrirSaida`).
+ * (D-PROD-264, `origem_sistema = saida_estoque`) faz o mesmo com a da saída (`onAbrirSaida`).
  * @param {{ movimento: any|null, empresaId: string|null, onFechar: () => void, onAbrirEntrada?: (doc: { id: string, numero: string }) => void,
  *   onAbrirSaida?: (doc: { id: string, numero: string }) => void }} props
  */

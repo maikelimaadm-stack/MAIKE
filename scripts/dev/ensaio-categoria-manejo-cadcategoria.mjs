@@ -171,7 +171,7 @@ export const NOME_ATIVIDADE_AREAS = '20261118100000_atividade_areas';
 export const NOME_ESTOQUE_ENTRADAS = '20261119100000_estoque_entradas';
 /** D-PROD-259: a CONTRACT dos motivos de entrada (exige as Entradas vazias; +1 tabela, MotivoEntradaEstoque), depois dela; sobe no GREEN. */
 export const NOME_ESTOQUE_ENTRADAS_MOTIVOS = '20261119200000_estoque_entradas_motivos';
-/** D-PROD-263: a EXPAND da saída manual do Estoque (4 tabelas novas), ainda posterior; fora da partida, sobe no GREEN. */
+/** D-PROD-264: a EXPAND da saída manual do Estoque (4 tabelas novas), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_ESTOQUE_SAIDAS = '20261120100000_estoque_saidas';
 export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(

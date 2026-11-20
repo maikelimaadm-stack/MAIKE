@@ -159,7 +159,7 @@ Violação exige **rollback**, não flexibilização da regra.
 > lançamento sem produtos (só o pagamento) não conflita. Continua proibido conceder a ação `entrada` a perfis
 > existentes por padrão.
 
-> **Nota (D-PROD-263, emenda aprovada pelo proprietário em 2026-11-20):** a saída manual documentada (Estoque →
+> **Nota (D-PROD-264, emenda aprovada pelo proprietário em 2026-11-20):** a saída manual documentada (Estoque →
 > Novo movimento → Saída) é exceção à proibição de mover estoque fora dos comandos autorizados, nos limites da
 > decisão. Continua proibido: baixar estoque fora do motor de estoque; digitar o valor da saída ou valorizá-la por
 > outro custo que não o médio do depósito; usar a saída manual como venda, ajuste/inventário, devolução a

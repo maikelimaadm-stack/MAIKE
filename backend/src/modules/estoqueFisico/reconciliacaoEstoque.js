@@ -135,7 +135,7 @@ import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SAIDA
  */
 export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_APONTAMENTO, ...ORIGENS_DOCUMENTADAS]);
 /**
- * Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. D-PROD-263: a saída
+ * Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. D-PROD-264: a saída
  * manual documentada grava sempre as fatias no movimento (nunca cai no ramo do recibo legado).
  */
 const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE]);

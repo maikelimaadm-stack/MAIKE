@@ -11,7 +11,7 @@
  *  PATCH /estoque/entradas/:id                  (entrada) só a observação (CAS de versão)
  *  POST  /estoque/entradas/:id/excluir          (entrada) exclusão lógica com estorno integral
  *  GET   /estoque/entradas/opcoes/{produtos,locais,fornecedores,centros-custo,centros-resultado}  (entrada) seletores
- *        (D-PROD-263: produtos, locais e centros também com `saida`, pelo formulário da saída manual)
+ *        (D-PROD-264: produtos, locais e centros também com `saida`, pelo formulário da saída manual)
  *
  * D-PROD-259 — cadastro de motivos de entrada (por cliente):
  *  GET   /estoque/motivos-entrada               (ver)     lista (os padrões nascem na 1ª leitura)

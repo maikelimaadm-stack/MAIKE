@@ -190,7 +190,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-259: CONTRACT aprovado pelo proprietário — o motivo da Entrada vem de um cadastro (MotivoEntradaEstoque) e a
   // Entrada ganha fornecedor, centros e, por produto, lote do fabricante e validade. Só com as 3 tabelas das Entradas vazias.
   '20261119200000_estoque_entradas_motivos': 'ebb37b6886e71847c61eaab28e1c90a7c29069f6e3924055dfb65e7adf101c25',
-  // D-PROD-263: EXPAND — saída manual do Estoque (MotivoSaidaEstoque, SaidaEstoque, SaidaEstoqueItem e
+  // D-PROD-264: EXPAND — saída manual do Estoque (MotivoSaidaEstoque, SaidaEstoque, SaidaEstoqueItem e
   // SaidaEstoqueEvento), só tabelas novas.
   '20261120100000_estoque_saidas': '3cc70cddeb743261344ea1641f2e81e6294ed31d077fbef812f55444888114e0',
 });
@@ -244,7 +244,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '23ec8ff0a47da59896a7d918c156d0b654d251fdecb1e0ea15eb3451ef7d66df',
   // D-PROD-259: RLS/REVOKE do cadastro de motivos de entrada (mesmo corpo, lista nova).
   '82d403a361510ea74e0216379f21912e5a4b68493eac13786fbbb9334f8c0f70',
-  // D-PROD-263: RLS/REVOKE das 4 tabelas da saída manual do Estoque (mesmo corpo, lista nova).
+  // D-PROD-264: RLS/REVOKE das 4 tabelas da saída manual do Estoque (mesmo corpo, lista nova).
   'c0806122464b767913dd451fb066b803fb13451923a10b75462fc96038feffe3',
 ]);
 

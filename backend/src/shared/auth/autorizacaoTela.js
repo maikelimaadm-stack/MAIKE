@@ -139,7 +139,7 @@ export const ACOES_ATIVIDADES_EXTRAS = Object.freeze(['reabrir', 'lancar_apontam
  * Gravada na própria linha da tela em `permissoes_telas`; ausente/não booleano = negado; nenhum perfil a
  * recebe por padrão; administrador real e `is_admin` têm tudo. `ajuste` (inventário) continua RESERVADA e
  * NÃO existe. `visualizar` só vê a lista e o detalhe. Mesma lista no navegador (`EXTRA_ACTION_KEYS_BY_PAGE`).
- * D-PROD-263 — `saida` = lançar saída manual (custo médio, pelo motor), editar a observação, excluir (estorno
+ * D-PROD-264 — `saida` = lançar saída manual (custo médio, pelo motor), editar a observação, excluir (estorno
  * só sem movimento depois) e manter os motivos de saída. Também nasce desligada.
  */
 export const ACOES_ESTOQUE_EXTRAS = Object.freeze(['entrada', 'saida']);

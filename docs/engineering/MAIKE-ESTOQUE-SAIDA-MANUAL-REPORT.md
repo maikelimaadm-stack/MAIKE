@@ -1,6 +1,6 @@
-# MAIKE-ESTOQUE-SAIDA-MANUAL — Relatório: saída manual no "Novo movimento" (D-PROD-263)
+# MAIKE-ESTOQUE-SAIDA-MANUAL — Relatório: saída manual no "Novo movimento" (D-PROD-264)
 
-**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `d8fa5ced`) · **Migration:** `20261120100000_estoque_saidas` (**EXPAND**, 4 tabelas novas, **aplicada em produção** em 2026-11-20) · **Decisão:** [D-PROD-263](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
+**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `d8fa5ced`) · **Migration:** `20261120100000_estoque_saidas` (**EXPAND**, 4 tabelas novas, **aplicada em produção** em 2026-11-20) · **Decisão:** [D-PROD-264](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 
 ## 1. Pedido e escolhas do proprietário
 
@@ -44,7 +44,7 @@ Próximo passo do Estoque: **saída manual**. Escolhas (2026-11-20):
 
 ## 4. Constituição: emenda APROVADA
 
-O texto ratificado só autorizava a baixa de estoque pelos fluxos listados (venda da Central, suplementação, abastecimento, apontamento, transferência). A saída manual é um escritor novo. A emenda da D-PROD-263 foi **aprovada pelo proprietário em 2026-11-20** ("Aprovo as duas") e está aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, depois das da D-PROD-261.
+O texto ratificado só autorizava a baixa de estoque pelos fluxos listados (venda da Central, suplementação, abastecimento, apontamento, transferência). A saída manual é um escritor novo. A emenda da D-PROD-264 foi **aprovada pelo proprietário em 2026-11-20** ("Aprovo as duas") e está aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, depois das da D-PROD-261.
 
 ## 5. Migration e ensaio
 

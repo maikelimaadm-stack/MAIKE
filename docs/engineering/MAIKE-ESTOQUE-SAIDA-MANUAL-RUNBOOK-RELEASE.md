@@ -1,11 +1,11 @@
-# MAIKE — Estoque, saída manual: runbook de release expand-only (D-PROD-263)
+# MAIKE — Estoque, saída manual: runbook de release expand-only (D-PROD-264)
 
 > **Estado: EXECUTADO em 2026-11-20 01:15:39 UTC.** `SCHEMA_APPLIED_PROD: SIM`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
 
-Decisão: [D-PROD-263](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md).
+Decisão: [D-PROD-264](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md).
 Molde e precedente executado: [`MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md`](./MAIKE-MEDICAO-FORRAGEM-RUNBOOK-RELEASE.md)
 (EXPAND, caminho B) e [`MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-NOVO-MOVIMENTO-RUNBOOK-RELEASE.md)
 (a anterior, aplicada em 2026-11-19 19:33:14 UTC).
@@ -135,7 +135,7 @@ As tabelas são novas e nenhuma tabela antiga as referencia. Reverter seria uma 
 |---|---|
 | Data/hora (UTC) | **2026-11-20 01:15:39** (`finished_at`) |
 | Caminho | **B** (uma transação via `execute_sql`: guarda + `migration.sql` integral + registro em `_prisma_migrations`); envelope SHA-256 `2e08bf4d25e79ac85dd2fd8b4b3b11af11d2616d03a4f4221863da8606668793`, idêntico ao ensaiado |
-| GO | "Aprovo as duas" (emenda da D-PROD-263 e aplicação da migration), no chat, em 2026-11-20 |
+| GO | "Aprovo as duas" (emenda da D-PROD-264 e aplicação da migration), no chat, em 2026-11-20 |
 | Preflight (§2) | alvo `7692130048193495360`; 70 concluídas / 0 com falha; anterior `20261119200000_estoque_entradas_motivos` (`ebb37b68…`); as 4 tabelas ausentes; 101 tabelas |
 | Postcheck (§4) | 71 / 0; `20261120100000_estoque_saidas` com checksum `3cc70cdd…14e0` e 1 passo; 105 tabelas; as 4 novas com RLS ligado sem FORCE e política `maike_backend_all` só para `maike_vercel`; 0 GRANT para `anon`/`authenticated`; CHECKs/FKs/índices: `MotivoSaidaEstoque` 1/1/4, `SaidaEstoque` 2/5/8, `SaidaEstoqueItem` 2/6/8, `SaidaEstoqueEvento` 1/2/3, todos válidos; 0 linhas; `get_advisors` (security) sem alerta |
 | Resultado | **EXECUTADO**. Merge depois do CI verde |

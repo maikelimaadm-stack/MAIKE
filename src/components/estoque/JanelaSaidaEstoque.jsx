@@ -49,7 +49,7 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
 const ROTULO_EVENTO = /** @type {Record<string, string>} */ ({ CONFIRMACAO: "Lançada", EDICAO: "Editada", EXCLUSAO: "Excluída" });
 
 /**
- * Detalhe de UMA saída manual (D-PROD-263) numa janela só (680px; tela cheia no celular): número, data, motivo,
+ * Detalhe de UMA saída manual (D-PROD-264) numa janela só (680px; tela cheia no celular): número, data, motivo,
  * centros, observação, as linhas (quantidade baixada, custo médio e valor) e o histórico. Abre pelo detalhe do
  * movimento, em Movimentos, e logo depois de lançar. Com a ação `saida`, duas ações DENTRO da mesma janela (sem popup
  * sobre popup): "Editar observação" (só ela muda) e "Excluir saída" (pede o motivo; estorno integral pelo mesmo

@@ -1,5 +1,5 @@
 /**
- * Service das Saídas do Estoque (D-PROD-263). Sem fazenda real selecionada, nada é lido (página vazia).
+ * Service das Saídas do Estoque (D-PROD-264). Sem fazenda real selecionada, nada é lido (página vazia).
  * Decimais são TEXTO canônico: nada aqui faz aritmética de ponto flutuante. Não há valor digitado: o servidor
  * valoriza a saída pelo custo médio do depósito. Os seletores do formulário (produto, depósito, centros) são os
  * da entrada (`estoqueEntradasService`), que aceitam a ação `entrada` OU `saida`.

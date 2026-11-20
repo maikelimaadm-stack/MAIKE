@@ -198,7 +198,7 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
 }
 
 /**
- * Uma linha de produto da SAÍDA (D-PROD-263): produto, unidade, depósito e quantidade. Sem valor: o servidor valoriza
+ * Uma linha de produto da SAÍDA (D-PROD-264): produto, unidade, depósito e quantidade. Sem valor: o servidor valoriza
  * pelo custo médio do depósito. Mesmo cartão de linha inteira da entrada (`b1-form-embutido` com grade própria).
  * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, podeRemover: boolean,
  *   onMudar: (l: any) => void, onRemover: () => void }} props
@@ -274,7 +274,7 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
  * de resultado, centro de custo, observação) e vários produtos; o saldo de implantação esconde fornecedor e documento.
  * A Transferência leva o saldo de um depósito para outro (o mesmo comando do Mapa). Enviar grava de uma vez; o
  * servidor confere tudo e é quem bloqueia. Um reenvio sem resposta reaproveita a mesma `operation_id`.
- * D-PROD-263: a Saída (ação própria `saida`) tem cabeçalho (data, motivo do cadastro de SAÍDA, centros, observação)
+ * D-PROD-264: a Saída (ação própria `saida`) tem cabeçalho (data, motivo do cadastro de SAÍDA, centros, observação)
  * e vários produtos (produto, depósito, unidade, quantidade), SEM valor: o servidor valoriza pelo custo médio do
  * depósito. O seletor de tipo só oferece o que as ações permitem (Entrada e Transferência com `entrada`, Saída com
  * `saida`); só com `saida`, a janela abre direto na Saída.

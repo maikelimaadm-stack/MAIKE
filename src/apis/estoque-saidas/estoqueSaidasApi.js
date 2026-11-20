@@ -1,4 +1,4 @@
-/** API das Saídas do Estoque (D-PROD-263). Só online. */
+/** API das Saídas do Estoque (D-PROD-264). Só online. */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { operacoesNativas } from './estoqueSaidasNativePort.js';

@@ -296,7 +296,7 @@ const documentoDeOrigem = async (tx, cli, m) => {
     const e = entrada.entrada;
     return { tipo: 'ENTRADA_ESTOQUE', id: e.id, numero: e.numero, rotulo: `Entrada nº ${e.numero}${e.motivoCadastro?.nome ? ` — ${e.motivoCadastro.nome}` : ''}`, pagina: null };
   }
-  // D-PROD-263: a saída manual (e o estorno dela), achada pela FK do item; a tela abre o detalhe dela na mesma tela.
+  // D-PROD-264: a saída manual (e o estorno dela), achada pela FK do item; a tela abre o detalhe dela na mesma tela.
   const saida = await tx.saidaEstoqueItem.findFirst({
     where: { cliente_id: cli, ...porMovimento },
     select: { saida: { select: { id: true, numero: true, motivo: { select: { nome: true } } } } },
