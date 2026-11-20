@@ -16,7 +16,7 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-265**, a maquete "Nova realização de <Tipo>" do proprietário: o botão "Registrar serviço" vira "Nova realização"; a janela abre nos 7 tipos em cartões e segue para "Nova realização de <Tipo>" ("Trocar tipo" ao lado do título); seções Área, Operação, Datas, Insumos, Máquinas, Equipe, Serviço de terceiro, Planejamento (só leitura) e Informações complementares |
 | Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `46fe34f5` · PR (a abrir) |
 | Servidor | `POST /atividades/registrar` aceita `data_termino` opcional (só esta rota): antes do início 400, futuro 422, o mesmo em todas as áreas; sem o campo, fingerprint igual ao de antes. Volta no apontamento, na auditoria e no histórico da área |
-| Migration | `20261120200000_apontamento_data_termino`, **CONTRACT aditiva** (coluna DATE anulável + CHECK término ≥ início; a allowlist EXPAND recusa DATE e CHECK em tabela antiga). **NÃO aplicada** — testada só no Postgres local; precisa do GO do proprietário e `--contract D-PROD-265`, antes do merge |
+| Migration | `20261120200000_apontamento_data_termino`, **CONTRACT aditiva** (coluna DATE anulável + CHECK término ≥ início; a allowlist EXPAND recusa DATE e CHECK em tabela antiga). **Aplicada em produção em 2026-11-20 às 18:58:29 UTC** (caminho B, GO do proprietário; postcheck 72 / 0), antes do merge |
 | Abertos | editar o término; repetir não copia o término; campos próprios de cada tipo, lista nova, Planejar e remover telas antigas ficam para as próximas fatias |
 | Relatório | [`MAIKE-NOVA-REALIZACAO-REPORT.md`](./MAIKE-NOVA-REALIZACAO-REPORT.md) · runbook [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md) |
 

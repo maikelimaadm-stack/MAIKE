@@ -65,7 +65,7 @@ tela tem a frase própria). A repetição (duplicar) não copia o término.
 
 `B1Janela` ganhou o encaixe opcional `acoesDoTitulo` (logo depois do título), usado pelo "Trocar tipo".
 
-## 2. Migration — preparada e testada SÓ no Postgres local; NÃO aplicada em produção
+## 2. Migration — aplicada em produção em 2026-11-20 às 18:58:29 UTC (caminho B, GO do proprietário; registro no [runbook](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md) §6)
 
 `20261120200000_apontamento_data_termino` (SHA-256 `a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b`):
 

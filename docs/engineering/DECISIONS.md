@@ -8865,7 +8865,7 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 ## D-PROD-265 — Nova realização: o tipo em cartões, o formulário "Nova realização de <Tipo>" e a data de término
 
-**Data:** 2026-11-20 · **Origem:** pedido do proprietário, com a maquete aprovada "Nova realização de <Tipo>" (estilo Aegro) · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** `20261120200000_apontamento_data_termino` (CONTRACT aditiva, **não aplicada**) · **Relatório:** [`MAIKE-NOVA-REALIZACAO-REPORT.md`](./MAIKE-NOVA-REALIZACAO-REPORT.md) · **Runbook:** [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md)
+**Data:** 2026-11-20 · **Origem:** pedido do proprietário, com a maquete aprovada "Nova realização de <Tipo>" (estilo Aegro) · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** `20261120200000_apontamento_data_termino` (CONTRACT aditiva, **aplicada em produção em 2026-11-20 às 18:58:29 UTC**, caminho B, GO do proprietário) · **Relatório:** [`MAIKE-NOVA-REALIZACAO-REPORT.md`](./MAIKE-NOVA-REALIZACAO-REPORT.md) · **Runbook:** [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md)
 
 > **Numeração:** a `main` (`46fe34f5`) indica `Próxima decisão: D-PROD-265`, que é esta; o marcador passa a D-PROD-266. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então renumerar não muda o checksum.
 

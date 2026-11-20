@@ -1,7 +1,7 @@
 # MAIKE — Nova realização: runbook de release da CONTRACT aditiva `data_termino` (D-PROD-265)
 
-> **Estado: PLANO — aguardando o GO do proprietário.** `SCHEMA_APPLIED_PROD: NÃO`. Nada foi aplicado fora do
-> Postgres local de teste.
+> **Estado: APLICADA em produção em 2026-11-20 às 18:58:29 UTC** pelo caminho B, com o GO do proprietário ("Aplica",
+> dado pelo telefone, como exceção que ele mesmo autorizou para esta migration). `SCHEMA_APPLIED_PROD: SIM`. Registro no §6.
 >
 > Cada passo exige o GO do proprietário e para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre
 > `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
@@ -104,3 +104,4 @@ uma de cada vez, cada uma com a própria decisão.
 | Data | Quem | O quê |
 |---|---|---|
 | 2026-11-20 | Claude (sessão D-PROD-265) | plano preparado; migration testada só no Postgres local; **nada aplicado em produção** |
+| 2026-11-20 18:58:29 UTC | Claude, com o GO do proprietário ("Aplica", pelo telefone, exceção autorizada por ele para esta migration; desvio da D-PROD-74 pelo caminho B) | **preflight** PRONTO: `system_identifier` do projeto, 71 / 0, a última `20261120100000_estoque_saidas` com o checksum `3cc70cdd…14e0`, coluna e CHECK ausentes, 105 tabelas, 1 apontamento. **Aplicação:** uma transação via `execute_sql` (guarda externa do caminho B + `migration.sql` integral + registro em `_prisma_migrations`). **Postcheck:** 72 / 0; checksum `a1f8a13c…c84b`; `data_termino` date anulável sem DEFAULT; CHECK `((data_termino IS NULL) OR (data_termino >= data_operacional))`; 0 apontamentos com término; 1 apontamento; 105 tabelas. Advisors não conferidos nesta janela |
