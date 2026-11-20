@@ -8,6 +8,7 @@ import AbasEstoque from "@/components/estoque/AbasEstoque";
 import JanelaEntradaEstoque from "@/components/estoque/JanelaEntradaEstoque";
 import JanelaMovimentoEstoque from "@/components/estoque/JanelaMovimentoEstoque";
 import JanelaNovoMovimentoEstoque from "@/components/estoque/JanelaNovoMovimentoEstoque";
+import JanelaSaidaEstoque from "@/components/estoque/JanelaSaidaEstoque";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { opcoesDeDeposito } from "@/components/estoque/SaldoEstoque";
 import TabelaMovimentosEstoque, {
@@ -38,21 +39,26 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * D-PROD-259: "Novo movimento" (só com a ação `entrada` da tela; o servidor bloqueia de fato) abre UMA janela em que se
  * escolhe o tipo — Entrada ou Transferência — e tudo aparece junto nesta lista. O detalhe de um movimento de entrada
  * leva ao detalhe da entrada (editar a observação, excluir), na mesma tela.
- * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean,
+ * D-PROD-262: "Novo movimento" aparece com a ação `entrada` OU a ação `saida`; a janela só oferece os tipos que as
+ * ações permitem. O detalhe de um movimento de saída manual leva ao detalhe da saída (editar a observação, excluir).
+ * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
+ *   `podeLancar` é a ação `entrada`; `podeSaida`, a ação `saida`.
  */
-export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = false, inicial = null }) {
+export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = false, podeSaida = false, inicial = null }) {
   const queryClient = useQueryClient();
+  const podeAlgum = podeLancar || podeSaida;
   const [lancando, setLancando] = useState(false);
   const [entradaAberta, setEntradaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
+  const [saidaAberta, setSaidaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
   // Fuso da FAZENDA (o "hoje" do lançamento): o mesmo resumo de empresas do Layout.
-  const empresasQuery = useQuery({ queryKey: ["empresas"], queryFn: () => listEmpresas(), enabled: Boolean(empresaId) && podeLancar, staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
+  const empresasQuery = useQuery({ queryKey: ["empresas"], queryFn: () => listEmpresas(), enabled: Boolean(empresaId) && podeAlgum, staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
   const fuso = useMemo(() => {
     const empresa = (Array.isArray(empresasQuery.data) ? empresasQuery.data : []).find((e) => String(e?.id) === String(empresaId));
     return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
   }, [empresasQuery.data, empresaId]);
   const hoje = hojeNoFuso(fuso);
-  const semFuso = podeLancar && Boolean(empresaId) && empresasQuery.isSuccess && !fuso;
+  const semFuso = podeAlgum && Boolean(empresaId) && empresasQuery.isSuccess && !fuso;
   const [produto, setProduto] = useState(/** @type {{ id: string, nome: string }|null} */ (inicial?.produto ?? null));
   const [depositoId, setDepositoId] = useState(inicial?.deposito?.id ?? "");
   const [origem, setOrigem] = useState("");
@@ -160,14 +166,15 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
     [controller.listaQueryError],
   );
 
-  const aoLancar = async (/** @type {{ tipo: string, entrada?: any }} */ r) => {
+  const aoLancar = async (/** @type {{ tipo: string, entrada?: any, saida?: any }} */ r) => {
     setLancando(false);
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });
     if (r?.entrada?.id) setEntradaAberta({ id: String(r.entrada.id), numero: String(r.entrada.numero ?? "") });
+    if (r?.saida?.id) setSaidaAberta({ id: String(r.saida.id), numero: String(r.saida.numero ?? "") });
   };
 
   return (
-    // Os botões seguem a regra EXATA do servidor (a ação `entrada`): a heurística de texto do Layout não se aplica.
+    // Os botões seguem a regra EXATA do servidor (as ações `entrada` e `saida`): a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
     <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
@@ -184,7 +191,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
             {semFuso ? <AvisoGestao testId="movimento-sem-fuso">Configure o fuso horário da fazenda (Empresa) para lançar movimentos.</AvisoGestao> : null}
           </>
         }
-        showCreate={Boolean(empresaId) && podeLancar && Boolean(fuso)}
+        showCreate={Boolean(empresaId) && podeAlgum && Boolean(fuso)}
         showEdit={false}
         showDuplicate={false}
         showDelete={false}
@@ -218,12 +225,17 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
           setAberto(null);
           setEntradaAberta({ id: String(doc.id), numero: String(doc.numero ?? "") });
         }}
+        onAbrirSaida={(/** @type {{ id: string, numero: string }} */ doc) => {
+          setAberto(null);
+          setSaidaAberta({ id: String(doc.id), numero: String(doc.numero ?? "") });
+        }}
       />
     </FiltrosDaTelaContext.Provider>
-    {lancando && empresaId && podeLancar ? (
-      <JanelaNovoMovimentoEstoque aberto empresaId={empresaId} hoje={hoje} onFechar={() => setLancando(false)} onLancado={aoLancar} />
+    {lancando && empresaId && podeAlgum ? (
+      <JanelaNovoMovimentoEstoque aberto empresaId={empresaId} hoje={hoje} podeEntrada={podeLancar} podeSaida={podeSaida} onFechar={() => setLancando(false)} onLancado={aoLancar} />
     ) : null}
     <JanelaEntradaEstoque entrada={entradaAberta} empresaId={empresaId} podeLancar={podeLancar} onFechar={() => setEntradaAberta(null)} />
+    <JanelaSaidaEstoque saida={saidaAberta} empresaId={empresaId} podeSaida={podeSaida} onFechar={() => setSaidaAberta(null)} />
     </div>
   );
 }

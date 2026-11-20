@@ -19,7 +19,8 @@ Próximo passo do Estoque: **saída manual**. Escolhas (2026-11-20):
   - cabeçalho: data, motivo, centros e observação;
   - várias linhas: produto, depósito, unidade e quantidade;
   - "Motivos…" abre o cadastro de motivos de saída na mesma janela;
-  - o detalhe de um movimento de saída manual abre a saída (editar a observação, excluir).
+  - o detalhe de um movimento de saída manual (e do estorno dela) abre a saída (editar a observação, excluir);
+  - com um tipo só permitido (só `saida`), a janela já abre na Saída; o cadastro de motivos virou um componente comum à entrada e à saída.
 - **Backend:** módulo `estoqueSaidas`:
   - cadastro de motivos de saída;
   - saída com idempotência por `operation_id`;
@@ -68,8 +69,12 @@ O texto ratificado só autoriza a baixa de estoque por fluxos listados (venda da
 | `backend/tests/estoqueSaidas.test.mjs` (novo, Postgres real) | 15/15 |
 | `backend/tests/estoqueEntradas.test.mjs` (paridade da ação `saida`) | 47/47 |
 | `estoqueDocumentoDedupe`, `estoqueP0*` (motor, reconciliação), `estoqueP1M2/M4`, `estoqueConsulta`, `estoquePecuarioLedgerContrato`, `g2PontosLigacoes` | verdes |
-| provas da release (`run-gate-tests`, B38a/B38k) e testes de migration | ver o corpo da PR |
-| smoke da tela | ver o corpo da PR |
+| `estoqueConsulta` (o detalhe do movimento aponta a saída: `documento.tipo = SAIDA_ESTOQUE`) | 23/23 |
+| provas da release (`run-gate-tests`, com B38a/B38b/B38k novos) | 1048/0 |
+| testes de migration (`estoqueEntradasMotivosMigration`, `patrimonioSimplificaMigration`, `categoriaManejoCadcategoriaMigration`, `abastecimentoAtividadeMigration`, `sqlEditorBootstrap` e os demais `*Migration`) | verdes |
+| `tests/smoke/estoqueNovoMovimento.test.jsx` (14 testes novos da Saída) + `estoqueTela` | 26 + 13 |
+| `tests/smoke` inteiro | 300 arquivos, 3753 testes, todos verdes |
+| `npm run verify:all` (banco novo) | ver o corpo da PR |
 
 ## 7. Fora de escopo
 

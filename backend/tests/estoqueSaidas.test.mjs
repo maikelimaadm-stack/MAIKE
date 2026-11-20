@@ -234,6 +234,12 @@ describe('D-PROD-262 — excluir: estorno integral, só sem movimento depois', (
     const nova = (await sair(x)).json();
     assert.equal(nova.itens[0].valor_total, '90.0000');
     assert.deepEqual(b.eventos.map((e) => e.tipo), ['CONFIRMACAO', 'EXCLUSAO']);
+    // O detalhe do movimento (Kardex) leva à saída, tanto a baixa quanto o estorno.
+    for (const movId of [s.itens[0].movimentacao_estoque_id, b.itens[0].movimentacao_estorno_id]) {
+      const det = await chamar('GET', `/estoque/movimentos/${movId}${qs({ empresa_id: x.e.id })}`, x.token);
+      assert.equal(det.statusCode, 200, det.body);
+      assert.deepEqual([det.json().documento?.tipo, det.json().documento?.id, det.json().documento?.rotulo], ['SAIDA_ESTOQUE', s.id, `Saída nº ${s.numero} — Perda`]);
+    }
     await reconciliacaoLimpa(x);
   });
 

@@ -9,7 +9,7 @@ import { acoesDaTelaEstoque } from '@/lib/estoquePermissions';
 
 export { useEmpresaRealSelecionadaId } from '@/hooks/useGestaoSessao';
 
-/** @returns {{ ver: boolean, entrada: boolean, carregando: boolean, login: string|null }} */
+/** @returns {{ ver: boolean, entrada: boolean, saida: boolean, carregando: boolean, login: string|null }} */
 export const useAcoesTelaEstoque = () => {
   const { data: usuarioAtual = null, isLoading: carregandoUsuario } = useQuery({
     queryKey: ['gestao-usuario'],
