@@ -178,7 +178,7 @@ export const registrosDaArea = async (contexto, areaId, query = {}) => {
         orderBy: [{ data_operacional: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
         take: limite + 1,
         select: {
-          id: true, data_operacional: true, createdAt: true, area_executada_dia: true, observacao: true,
+          id: true, data_operacional: true, data_termino: true, createdAt: true, area_executada_dia: true, observacao: true,
           operador: { select: { nome: true } },
           atividade: { select: { id: true, nome: true, tipo_atividade_id: true, tipo_atividade_nome: true } },
           maquinas: { where: { status: STATUS_APONTAMENTO.CONFIRMADO }, orderBy: { ordem: 'asc' }, select: { quantidade_uso: true, medidor_unidade: true, bem: { select: { nome: true } }, implemento: { select: { nome: true } } } },
@@ -195,6 +195,8 @@ export const registrosDaArea = async (contexto, areaId, query = {}) => {
       items: pagina.map((r) => ({
         id: r.id,
         data_operacional: diaDe(r.data_operacional),
+        // D-PROD-265: o último dia do serviço (nulo = um dia só).
+        data_termino: r.data_termino ? diaDe(r.data_termino) : null,
         atividade_id: r.atividade.id,
         atividade_nome: r.atividade.nome,
         tipo_atividade_id: r.atividade.tipo_atividade_id,

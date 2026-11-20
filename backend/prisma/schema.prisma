@@ -3360,6 +3360,9 @@ model AtividadeApontamento {
   /// D-PROD-249 — a área da atividade em que este lançamento foi feito (obrigatória no servidor quando a atividade tem
   /// áreas; nula na atividade sem área). A FK composta prova que a área é DESTA atividade.
   atividade_area_id        String?   @db.VarChar(64)
+  /// D-PROD-265 — o último dia do serviço registrado ("Data de término" da Nova realização); nulo = um dia só. A API
+  /// confere término >= data_operacional e não futuro (a allowlist EXPAND recusa CHECK em tabela antiga).
+  data_termino             DateTime? @db.Date
 
   cliente      Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa      Empresa   @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)

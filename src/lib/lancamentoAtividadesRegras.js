@@ -321,6 +321,8 @@ const NOME_DA_DATA = Object.freeze(
     data_prevista_fim: 'data prevista de fim',
     data_conclusao: 'data de conclusão',
     data_operacional: 'data do apontamento',
+    // D-PROD-265: a data de término do registro de campo (Nova realização).
+    data_termino: 'data de término',
     data_de: 'data inicial do período',
     data_ate: 'data final do período',
   }),
@@ -343,6 +345,11 @@ const fraseDaData = (field, reason, details) => {
       : 'A data prevista de fim é anterior à data de início.';
   }
   if (reason === 'data_inexistente') return `A ${nome} não existe no calendário.`;
+  // D-PROD-265: a data do lançamento depois do término gravado nele (Nova realização).
+  if (reason === 'depois_do_termino') {
+    const termino = ehDiaValido(details.data_termino) ? ` (${formatarDiaAtividade(details.data_termino)})` : '';
+    return `A ${nome} não pode ser depois da data de término do serviço${termino}.`;
+  }
   return null;
 };
 

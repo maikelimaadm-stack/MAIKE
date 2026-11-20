@@ -193,6 +193,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-264: EXPAND — saída manual do Estoque (MotivoSaidaEstoque, SaidaEstoque, SaidaEstoqueItem e
   // SaidaEstoqueEvento), só tabelas novas.
   '20261120100000_estoque_saidas': '3cc70cddeb743261344ea1641f2e81e6294ed31d077fbef812f55444888114e0',
+  // D-PROD-265: CONTRACT aditivo — a data de término do registro de campo (AtividadeApontamento.data_termino DATE, anulável,
+  // sem DEFAULT, e o CHECK término >= início). Só é CONTRACT porque a allowlist EXPAND recusa DATE e CHECK em tabela antiga.
+  '20261120200000_apontamento_data_termino': 'a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -660,6 +663,21 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_centro_custo_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_custo_id") REFERENCES "CentroCusto"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
       'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_centro_resultado_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "centro_resultado_id") REFERENCES "CentroResultado"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
       'ALTER TABLE "EntradaEstoque" ADD CONSTRAINT "EntradaEstoque_fornecedor_check" CHECK ("motivo" <> \'SALDO_IMPLANTACAO\' OR "fornecedor_id" IS NULL)',
+    ]),
+  }),  // D-PROD-265: a data de término do registro de campo ("Nova realização": Data de início e Data de término). A mudança é
+  // ADITIVA: nenhuma linha muda de valor, nenhuma coluna existente é tocada, nenhuma tabela é criada ou apagada, nenhum
+  // DROP. Só é CONTRACT porque a allowlist EXPAND recusa coluna DATE e CHECK em tabela antiga (como na D-PROD-216 e na
+  // D-PROD-259). Depois da guarda (hash pinado; confere que "AtividadeApontamento" existe e que a coluna e o CHECK novos
+  // não existem, e trava a tabela em ACCESS EXCLUSIVE), EXATAMENTE as 2 instruções abaixo, nesta ordem (texto pinado): a
+  // coluna anulável sem DEFAULT e o CHECK (término vazio ou >= data_operacional). Sem resto. A guarda só cita a tabela.
+  '20261120200000_apontamento_data_termino': Object.freeze({
+    decisao: 'D-PROD-265',
+    guarda_sha256: '5518e0acb080aab98bd066d026d328d3cec549c763de6ad86ddd3f5d1735a4b4',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['AtividadeApontamento']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AtividadeApontamento" ADD COLUMN "data_termino" DATE',
+      'ALTER TABLE "AtividadeApontamento" ADD CONSTRAINT "AtividadeApontamento_data_termino_check" CHECK ("data_termino" IS NULL OR "data_termino" >= "data_operacional")',
     ]),
   }),
 });

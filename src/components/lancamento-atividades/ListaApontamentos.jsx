@@ -39,6 +39,7 @@ import {
   siglaDaProducao,
 } from "@/lib/atividadeApontamentoRegras";
 import { chaveTotais, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
+import { periodoDoServico } from "@/lib/registroDeCampoRegras";
 import { cancelarApontamento, listarApontamentos, listarTiposAtividade, obterAtividade } from "@/services/lancamentoAtividadesService";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
@@ -308,12 +309,15 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
     const area = formatarComUnidade(ap.area_executada_dia, "ha");
     const producao = formatarComUnidade(ap.quantidade_produzida_dia, sigla);
     const observacao = typeof ap.observacao === "string" ? ap.observacao.trim() : "";
+    // D-PROD-265: o serviço de vários dias (Nova realização) mostra o período.
+    const periodo = periodoDoServico(ap.data_operacional, ap.data_termino);
     const comAcoes = confirmado && (podeLancar || podeEditar || podeCancelar);
     return (
       <li key={id} className={cancelado ? LINHA_CANCELADA : LINHA_CONFIRMADA} data-testid={`apontamento-${id}`} data-status={String(ap.status ?? "")}>
         <span className={cancelado ? "line-through" : "font-medium"} data-testid={`apontamento-${id}-passada`}>
           {turnoEPassada}
         </span>
+        {periodo ? <span data-testid={`apontamento-${id}-periodo`}>· {periodo}</span> : null}
         {operador ? <span data-testid={`apontamento-${id}-operador`}>· {operador}</span> : null}
         {area ? <span data-testid={`apontamento-${id}-area`}>· área {area}</span> : null}
         {producao ? <span data-testid={`apontamento-${id}-producao`}>· produção {producao}</span> : null}

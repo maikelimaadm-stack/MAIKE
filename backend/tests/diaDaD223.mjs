@@ -82,13 +82,26 @@ export const schemaSemEntradasDoEstoque = (schema) => {
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
 
+/**
+ * D-PROD-265 — o `schema.prisma` de hoje sem a data de término do apontamento (`AtividadeApontamento.data_termino` e as
+ * linhas `///` logo acima dela). A CONTRACT `20261120200000_apontamento_data_termino` é posterior a todos os "dias" destes
+ * espelhos e tem a prova própria em `premerge-migrate.test.mjs` (B39) e no teste do registro de campo.
+ * @param {string} schema
+ */
+export const schemaSemDataTermino = (schema) => {
+  const linhas = schema.split('\n');
+  const sai = linhas.map((l) => /^\s+data_termino\s/.test(l));
+  for (let i = linhas.length - 1; i > 0; i -= 1) if (sai[i] && /^\s*\/\/\//.test(linhas[i - 1])) sai[i - 1] = true;
+  return linhas.filter((_, i) => !sai[i]).join('\n');
+};
+
 let espelho = null;
 /** O diretório do espelho do runner até a D-PROD-223, com o schema do dia dela. */
 export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))));
+  writeFileSync(destino, schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -109,7 +122,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')));
+  writeFileSync(destino, schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;
