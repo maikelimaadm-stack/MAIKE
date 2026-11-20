@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-19 (missão ativa D-PROD-261; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-19 (missão ativa D-PROD-262; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -11,7 +11,20 @@ rollout pausado **D-PROD-41**)
 
 **Conserto (2026-11-19):** no celular as listas do "Definir setor" (ações em lote das áreas) e do `DialogoAcao` em janela Base1 (`DialogoAreaDaAtividade`) abrem a folha DENTRO da `B1Janela` (`MobileSheetPortalCtx`) — ver [`MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md`](./MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md).
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-R-DEDUPE: a mesma compra não entra duas vezes no estoque (D-PROD-261)
+## Missão ativa (2026-11-19) — MAIKE-REGISTRO-VARIAS-LINHAS: várias linhas por seção no "Registrar serviço" (D-PROD-262)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-262**, fase 2 da D-PROD-258: várias máquinas, insumos, pessoas e serviços num registro só |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR #346 (draft) |
+| Escopo | "Registrar serviço" (`RegistroDeCampo.jsx`) com as quatro seções em tabelas, no desenho da maquete "Nova realização" (Insumos, Máquinas, Equipe, Serviço de terceiro): "+ Incluir …" abre um editor dentro da seção; a recusa do servidor fica na linha certa; Observação em "Informações complementares" |
+| Backend | nenhuma mudança: `POST /atividades/registrar` já aceitava até 20 itens por coleção |
+| Migration | nenhuma |
+| Abertos | várias áreas por registro (fase 3); área e hectares (próxima fatia) |
+| Junto nesta PR | registro da limpeza de dados de produção da D-PROD-258 (fase 1), feita em 2026-11-19 — ver a missão D-PROD-258 abaixo |
+| Relatório | [`MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-R-DEDUPE: a mesma compra não entra duas vezes no estoque (D-PROD-261)
 
 | Campo | Valor |
 |---|---|
@@ -76,7 +89,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `feat/atividades-tipos-fixos` · PR **#338**, mergeada na `main` `bab0f38a` |
 | Escopo | 7 tipos fixos obrigatórios na categoria; cadastro de operação com tipo + nome + ativo; "Registrar serviço" em dois passos (tipo, depois operação) com as quatro seções sempre visíveis; Manejos do mapa abre o mesmo formulário com a área preenchida; Grupo e as 8 chaves fora das telas de atividade |
 | Backend | `categoria` obrigatória (7 valores) em `POST/PATCH /tipos-atividade`; grupo `GERAL` e chaves em padrão na criação. **Nenhuma migration** |
-| Dados | `scripts/ops/tipos-fixos-atividade-dados.mjs`: dry-run por padrão, **não executado** em dados reais; precisa da conferência do proprietário |
+| Dados | Produção em 2026-11-19 (GO "aplica" do proprietário, que declarou tudo teste): apagadas as 6 atividades de teste (7 áreas, 6 lançamentos, 3 linhas de máquina, nenhum insumo, mão de obra, serviço ou abastecimento) e as operações TES e TESTE; **COMBATE CONTRA CIGARRINHA** ficou em Aplicação com as chaves do padrão. O script `scripts/ops/tipos-fixos-atividade-dados.mjs` não foi usado (sem `DATABASE_URL`): transação única por `execute_sql`, com guardas antes e depois. Registro no [relatório](./MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md) §3.1 |
 | Relatório | [`MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md`](./MAIKE-ATIVIDADES-TIPOS-FIXOS-REPORT.md) |
 
 ## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-E1-E2: tela Estoque com Saldo e Movimentos, só consulta (D-PROD-255)
