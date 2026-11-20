@@ -9,30 +9,44 @@
  *
  * Corpo e query FECHADOS; os campos do dia e as linhas são os MESMOS do `POST /atividades/:id/apontamentos`
  * (`CAMPOS_DO_DIA` sem `atividade_area_id`, que o servidor deriva; `LINHAS_DO_LANCAMENTO`). Tenant só da sessão.
+ *
+ * D-PROD-263: a área vem em `area_id` (uma, como sempre) OU em `areas: [{ area_id, hectares }]` (1..20, várias áreas
+ * num registro só: um apontamento por área, as linhas repartidas pelos hectares). Os dois juntos, nenhum dos dois ou
+ * `areas[]` com `area_executada_dia` → 400 (o serviço explica qual). `hectares` chega como TEXTO, como os decimais do dia.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
-import { DECIMAIS_DO_APONTAMENTO, recusarCoercao, recusarCoercaoNasListas, DECIMAIS_DA_LINHA_PRODUTO } from './atividadeComum.js';
+import { DECIMAIS_DO_APONTAMENTO, PADRAO_DECIMAL, recusarCoercao, recusarCoercaoNasListas, DECIMAIS_DA_LINHA_PRODUTO } from './atividadeComum.js';
 import { recusarCoercaoDasMaquinas } from './atividadeApontamentoMaquinaRoutes.js';
 import { DECIMAIS_DA_LINHA_MAO_OBRA } from './atividadeApontamentoMaoObraService.js';
 import { DECIMAIS_DA_LINHA_SERVICO } from './atividadeApontamentoServicoService.js';
 import { CAMPOS_DO_DIA, LINHAS_DO_LANCAMENTO, ORIGEM } from './atividadeApontamentoRoutes.js';
-import { registrarCampo } from './atividadeRegistroService.js';
+import { AREAS_NO_REGISTRO_MAXIMO, registrarCampo } from './atividadeRegistroService.js';
 import { LIMITE_REGISTROS_MAXIMO, LIMITE_REGISTROS_PADRAO, registrosDaArea, resumoDaArea } from './atividadePorAreaService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 // `atividade_area_id` é derivada pelo servidor (a área do registro): fora do corpo.
 const CAMPOS_DO_REGISTRO = Object.fromEntries(Object.entries(CAMPOS_DO_DIA).filter(([k]) => k !== 'atividade_area_id'));
 
+/** D-PROD-263 — uma área do registro de várias áreas (fechado): a área do mapa e os hectares feitos nela. */
+const AREA_DO_REGISTRO = {
+  type: 'object',
+  required: ['area_id', 'hectares'],
+  additionalProperties: false,
+  properties: { area_id: ID, hectares: { type: 'string', pattern: PADRAO_DECIMAL.source } },
+};
+
 const REGISTRAR = {
   body: {
     type: 'object',
-    required: ['empresa_id', 'area_id', 'tipo_atividade_id', 'data_operacional', 'operation_id'],
+    // `area_id` OU `areas` (D-PROD-263): a escolha entre os dois é conferida no serviço, com a mensagem certa.
+    required: ['empresa_id', 'tipo_atividade_id', 'data_operacional', 'operation_id'],
     additionalProperties: false,
     properties: {
       empresa_id: ID,
       area_id: ID,
+      areas: { type: 'array', minItems: 1, maxItems: AREAS_NO_REGISTRO_MAXIMO, items: AREA_DO_REGISTRO },
       tipo_atividade_id: ID,
       safra_ciclo: { type: ['string', 'null'], maxLength: 32 },
       ...CAMPOS_DO_REGISTRO,
@@ -70,7 +84,7 @@ export const registrarAtividadeRegistroRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
   app.addHook('preValidation', async (request) => {
     recusarCoercao(request.body, DECIMAIS_DO_APONTAMENTO);
-    recusarCoercaoNasListas(request.body, { produtos: DECIMAIS_DA_LINHA_PRODUTO, mao_obra: DECIMAIS_DA_LINHA_MAO_OBRA, servicos: DECIMAIS_DA_LINHA_SERVICO });
+    recusarCoercaoNasListas(request.body, { produtos: DECIMAIS_DA_LINHA_PRODUTO, mao_obra: DECIMAIS_DA_LINHA_MAO_OBRA, servicos: DECIMAIS_DA_LINHA_SERVICO, areas: ['hectares'] });
     recusarCoercaoDasMaquinas(request.body);
   });
 
