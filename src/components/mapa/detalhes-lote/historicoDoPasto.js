@@ -45,7 +45,16 @@ import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
  *   linhas: LinhaHistorico[],
  *   cancelado: boolean,
  *   ordem: ChaveDeOrdem,
+ *   mov?: any,
+ *   acoes?: import("react").ReactNode,
  * }} CartaoHistorico
+ */
+/*
+ * `mov` (D-PROD-266): o registro cru da movimentação que gerou o cartão (só nos
+ * cartões de movimentação; a suplementação não leva). Um movimento vira vários
+ * cartões (um por lote) e todos levam o MESMO `mov`: quem monta ações sobre o
+ * movimento (a aba Histórico, "Excluir movimentação") deduplica por `mov.id`.
+ * `acoes` não nasce aqui: a aba o acrescenta e a LinhaDoTempo o desenha no pé.
  */
 /** @typedef {{ chave: string, rotulo: string, cartoes: CartaoHistorico[] }} DiaHistorico */
 /**
@@ -407,6 +416,7 @@ export function cartoesDaMovimentacao(mov, ctx, { doServidor = false } = {}) {
     chave: `mov-${mov.id ?? "sem-id"}-${i}`,
     cancelado,
     ordem,
+    mov,
   }));
 }
 

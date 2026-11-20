@@ -6,7 +6,9 @@
  *   POST /movimentacoes-mapa/:id/exclusao  {operation_id, motivo}
  *
  * Uma transação PostgreSQL faz tudo ou nada:
- *   1. administrador ativo do tenant (relido do banco);
+ *   1. autorização relida do banco (D-PROD-266): administrador ativo do
+ *      tenant, concessão `is_admin` ou a chave do mapa
+ *      `excluir_movimentacoes_lote` (gravadora: só `=== true`);
  *   2. idempotência por (cliente, operation_id, tipo) + fingerprint — retry com
  *      a mesma chave devolve o mesmo corpo, sem segundo estorno;
  *   3. trava do movimento (`FOR UPDATE`) — mesma ordem do cancelamento
@@ -23,7 +25,7 @@
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { exigirAdminTenant, atorDoTenant, ehAdminTenantAtivo } from '../../shared/auth/exigirAdminTenant.js';
+import { carregarAutorizacao, exigirExclusaoMovimentacaoLote, podeExcluirMovimentacaoLote, CHAVE_EXCLUIR_MOVIMENTACOES_LOTE } from '../../shared/auth/autorizacaoTela.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { ehMovimentoDoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
@@ -72,7 +74,8 @@ export const excluir = async (contexto, id, entrada) => {
 
   const prisma = getPrismaClient();
   const resultado = await prisma.$transaction(async (tx) => {
-    await exigirAdminTenant(contexto, tx);
+    // D-PROD-266 — reconfere DENTRO da transação (revogação concorrente vale), antes da idempotência.
+    await exigirExclusaoMovimentacaoLote(contexto, tx);
     return executarComIdempotencia(tx, {
       clienteId: auth.clienteId,
       operationKey,
@@ -102,11 +105,11 @@ export const elegibilidadeExclusao = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   return prisma.$transaction(async (tx) => {
-    const ator = await atorDoTenant(contexto, tx);
-    const podeExcluir = ehAdminTenantAtivo(ator);
+    const podeExcluir = podeExcluirMovimentacaoLote(await carregarAutorizacao(contexto, tx));
     const mov = await buscarMovimento(tx, auth.clienteId, id, false);
     if (!mov) throw new AppError('MOVIMENTACAOMAPA_NOT_FOUND', 'MovimentacaoMapa não encontrado');
-    const comum = { requer_administrador: true, pode_excluir: podeExcluir, modo: 'exclusao_definitiva', tipo: mov.dados?.tipo ?? null, data_movimentacao: mov.dados?.data_movimentacao ?? null };
+    // D-PROD-266: não exige mais o administrador; `requer_permissao` diz a chave do mapa.
+    const comum = { requer_administrador: false, requer_permissao: CHAVE_EXCLUIR_MOVIMENTACOES_LOTE, pode_excluir: podeExcluir, modo: 'exclusao_definitiva', tipo: mov.dados?.tipo ?? null, data_movimentacao: mov.dados?.data_movimentacao ?? null };
     const recusado = (erro) => ({ ...comum, elegivel: false, codigo: erro.code, motivo: erro.message, detalhes: erro.details ?? null, efeitos: [], posicoes_removidas: [] });
     await tx.$executeRawUnsafe('SAVEPOINT elegibilidade_exclusao');
     try {
