@@ -4,7 +4,8 @@
  * PRÓPRIO criado e apagado por este teste (o banco da suíte não é tocado).
  *
  * Partida: todas as pastas menos esta CONTRACT, pelo Prisma a partir de uma cópia temporária (hoje, a de produção: as
- * Entradas do Estoque, D-PROD-257, por último).
+ * Entradas do Estoque, D-PROD-257, por último). D-PROD-262: a saída manual do Estoque (EXPAND, `20261120100000_estoque_saidas`)
+ * veio depois desta e fica fora da partida (produção a aplica depois dela); sobe no GREEN, junto, pela ordem dos nomes.
  *
  * RED (nada muda; a falha aberta é resolvida com `migrate resolve --rolled-back`): uma entrada já gravada (as 3 tabelas
  * têm de estar VAZIAS) e uma coluna nova já presente. Toda recusa começa com `guarda:`.
@@ -32,6 +33,11 @@ const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 const NOME_CONTRACT = '20261119200000_estoque_entradas_motivos';
 const PASTAS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+/** D-PROD-262: a EXPAND da saída manual do Estoque, posterior a esta CONTRACT (fora da partida, como em produção). */
+const NOME_SAIDAS = '20261120100000_estoque_saidas';
+/** A partida de produção no dia desta CONTRACT: as pastas anteriores a ela (a D-PROD-262 ainda não existia). */
+const PARTIDA = Object.freeze(PASTAS.filter((n) => n < NOME_CONTRACT));
+const existeSaidas = async () => (await db.$queryRawUnsafe(`SELECT to_regclass('public."SaidaEstoque"') IS NOT NULL AS e`))[0].e;
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';
 
@@ -104,7 +110,7 @@ before(async () => {
   }
   await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO} WITH (FORCE)`);
   await p.$executeRawUnsafe(`CREATE DATABASE ${BANCO}`);
-  const r = await aplicarPastas(URL_T, PASTAS.filter((n) => n !== NOME_CONTRACT));
+  const r = await aplicarPastas(URL_T, PARTIDA);
   assert.equal(r.status, 0, r.saida);
   db = new PrismaClient({ datasourceUrl: URL_T });
 });
@@ -118,10 +124,14 @@ after(async () => {
 });
 
 describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL real)', () => {
-  test('EEM-01 partida: todas as pastas menos esta concluídas; a tabela dos motivos e as colunas novas não existem', async () => {
+  test('EEM-01 partida: todas as pastas anteriores a esta concluídas (as 69 de produção no dia dela); a tabela dos motivos, as colunas novas e a saída manual (D-PROD-262, posterior) não existem', async () => {
     const h = await historico();
-    assert.equal(h.concluidas, PASTAS.length - 1);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS], 'D-PROD-262: a única pasta posterior a esta é a saída manual do Estoque');
+    assert.equal(PARTIDA.length, PASTAS.length - 2);
+    assert.equal(PARTIDA.length, 69);
+    assert.equal(h.concluidas, PARTIDA.length);
     assert.equal(h.esta, 0);
+    assert.equal(await existeSaidas(), false);
     assert.equal(await existeMotivos(), false);
     assert.ok(!(await colunas('EntradaEstoque')).includes('motivo_id'));
   });
@@ -136,6 +146,7 @@ describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL
     assert.notEqual(r.status, 0, 'a guarda tinha de recusar');
     assert.match(r.saida, /guarda: as Entradas do Estoque já têm lançamentos/);
     assert.equal(await existeMotivos(), false, 'nada foi criado');
+    assert.equal(await existeSaidas(), false, 'D-PROD-262: a posterior não sobe sem esta');
     assert.ok(!(await colunas('EntradaEstoque')).includes('fornecedor_id'));
     await resolverRevertida(URL_T);
     await db.$executeRawUnsafe(`DELETE FROM "EntradaEstoque" WHERE id = 'eem-x'`);
@@ -157,6 +168,7 @@ describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL
     const h = await historico();
     assert.equal(h.concluidas, PASTAS.length);
     assert.equal(h.esta, 1);
+    assert.equal(await existeSaidas(), true, 'D-PROD-262: a saída manual (EXPAND) sobe depois desta, pela ordem dos nomes');
     for (const c of ['motivo_id', 'fornecedor_id', 'centro_custo_id', 'centro_resultado_id']) assert.ok((await colunas('EntradaEstoque')).includes(c), c);
     for (const c of ['lote_fabricante', 'data_validade']) assert.ok((await colunas('EntradaEstoqueItem')).includes(c), c);
     const [seg] = await db.$queryRawUnsafe(`SELECT relrowsecurity AS rls, relforcerowsecurity AS force FROM pg_class WHERE oid = 'public."MotivoEntradaEstoque"'::regclass`);

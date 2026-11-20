@@ -48,6 +48,10 @@ tenant(nome) AS (
     -- custo e de resultado, do fornecedor, do lote, do movimento, do produto e do local que elas referenciam (FKs
     -- RESTRICT); o cadastro de motivos (a entrada o referencia) logo depois delas.
     'EntradaEstoqueEvento','EntradaEstoqueItem','EntradaEstoque','MotivoEntradaEstoque',
+    -- D-PROD-262: as saídas manuais de estoque (evento e item antes do cabeçalho) saem ANTES dos centros de custo e
+    -- de resultado, do movimento, do produto, do local e da fazenda que elas referenciam (FKs RESTRICT); o cadastro de
+    -- motivos de saída (a saída o referencia) logo depois delas.
+    'SaidaEstoqueEvento','SaidaEstoqueItem','SaidaEstoque','MotivoSaidaEstoque',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',

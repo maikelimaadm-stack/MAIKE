@@ -57,6 +57,8 @@ export const schemaSemAreasDaAtividade = (schema) => {
  * `EntradaEstoque` (as relações inversas em Cliente, Empresa, Produto, LocalEstoque, camada e movimento) e as linhas
  * `///` e `// D-PROD-257` logo acima delas. A migration `20261119100000_estoque_entradas` fica de fora das pastas dos
  * espelhos (todas anteriores a ela) e tem a prova própria em `estoqueEntradas.test.mjs` e `premerge-migrate.test.mjs`.
+ * D-PROD-262: também sem a saída manual do Estoque (os 4 models `MotivoSaidaEstoque`/`SaidaEstoque*` e as relações
+ * inversas), posterior às Entradas: `20261120100000_estoque_saidas` fica igualmente fora das pastas dos espelhos.
  * @param {string} schema
  */
 export const schemaSemEntradasDoEstoque = (schema) => {
@@ -64,17 +66,18 @@ export const schemaSemEntradasDoEstoque = (schema) => {
   const sai = new Array(linhas.length).fill(false);
   for (let i = 0; i < linhas.length; i += 1) {
     // D-PROD-259: o cadastro de motivos de entrada também é das Entradas (não existe no dia da D-PROD-249).
-    if (/^model (Motivo)?EntradaEstoque\w* \{/.test(linhas[i])) {
+    // D-PROD-262: a saída manual do Estoque (MotivoSaidaEstoque e os 3 SaidaEstoque*), posterior a elas, também não.
+    if (/^model (Motivo)?(Entrada|Saida)Estoque\w* \{/.test(linhas[i])) {
       let j = i;
       while (j < linhas.length && linhas[j].trim() !== '}') sai[j++] = true;
       sai[j] = true;
       i = j;
       continue;
     }
-    if (/EntradaEstoque|entradasEstoque|itemEntradaEstoque/.test(linhas[i])) sai[i] = true;
+    if (/EntradaEstoque|entradasEstoque|itemEntradaEstoque|SaidaEstoque|saidasEstoque|itemSaidaEstoque/.test(linhas[i])) sai[i] = true;
   }
   for (let i = linhas.length - 1; i > 0; i -= 1) {
-    if (sai[i] && /^\s*(\/\/\/|\/\/ D-PROD-257|\/\/ -{10,})/.test(linhas[i - 1])) sai[i - 1] = true;
+    if (sai[i] && /^\s*(\/\/\/|\/\/ D-PROD-257|\/\/ D-PROD-262|\/\/ -{10,})/.test(linhas[i - 1])) sai[i - 1] = true;
   }
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
