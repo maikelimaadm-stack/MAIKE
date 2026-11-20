@@ -27,9 +27,11 @@ import { cn } from "@/lib/utils";
  *   testId?: string,
  *   fora?: React.ReactNode,
  *   contentProps?: Record<string, any>,
+ *   acoesDoTitulo?: React.ReactNode,
  * }} props `podeFechar` falso trava o ✕ e ignora o pedido de fechar (ex.: enviando); `aoPedirFechar` devolve falso
  *   para ignorar um pedido (ex.: a folha do celular aberta dentro da janela fecha primeiro); `fora` fica dentro da
- *   camada, fora do cartão (alvo das folhas do celular).
+ *   camada, fora do cartão (alvo das folhas do celular); `acoesDoTitulo` fica logo depois do título, antes do ✕ (ex.: o
+ *   "Trocar tipo" da Nova realização, D-PROD-265).
  */
 export default function B1Janela({
   aberto,
@@ -46,6 +48,7 @@ export default function B1Janela({
   testId = undefined,
   fora = null,
   contentProps = {},
+  acoesDoTitulo = null,
 }) {
   const fechar = () => {
     if (!podeFechar) return;
@@ -75,6 +78,7 @@ export default function B1Janela({
           <div className={cn("mdlc b1-janela", className)}>
             <div className="mdl-h">
               <DialogPrimitive.Title className="mdl-t">{titulo}</DialogPrimitive.Title>
+              {acoesDoTitulo}
               <span style={{ flexGrow: 1 }} />
               <button type="button" className="tb-btn tb-btn-icon tb-btn-sm" aria-label="Fechar" title="Fechar" onClick={fechar} disabled={!podeFechar}>
                 <X className="h-4 w-4" aria-hidden />
