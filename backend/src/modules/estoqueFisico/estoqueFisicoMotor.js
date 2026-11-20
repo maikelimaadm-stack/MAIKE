@@ -69,9 +69,15 @@ export const ORIGEM_ENTRADA_ESTOQUE = 'entrada_estoque';
  * (proveniência falsa).
  */
 export const ORIGEM_APONTAMENTO = 'apontamento_atividade';
+/**
+ * D-PROD-262 — origem da SAÍDA MANUAL documentada (Estoque → Novo movimento → Saída) e do estorno dela
+ * (exclusão). 13 chars (VarChar(32)). Só este arquivo cita o rótulo: o módulo `estoqueSaidas` usa
+ * `aplicarSaidaDocumentada`/`estornarSaidaDocumentada`. As fatias ficam em `lotes_consumidos` (sem tabela de FK).
+ */
+export const ORIGEM_SAIDA_ESTOQUE = 'saida_estoque';
 /** D-PROD-256: marca `modo_saida_fifo` (nome legado da coluna) das saídas valorizadas a custo médio; as antigas ficam 'FIFO'. */
 export const MODO_CUSTO_MEDIO = 'CUSTO_MEDIO';
-const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO]);
+const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE]);
 /** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 da P0 mantêm os valores gravados antes da P0. */
 const EXCLUSAO_SOMENTE_EM = Object.freeze({
   [ORIGEM_SISTEMA]: ORIGEM_SISTEMA,
@@ -80,6 +86,7 @@ const EXCLUSAO_SOMENTE_EM = Object.freeze({
   [ORIGEM_DEPOSITO]: 'deposito',
   [ORIGEM_ENTRADA_ESTOQUE]: ORIGEM_ENTRADA_ESTOQUE,
   [ORIGEM_APONTAMENTO]: ORIGEM_APONTAMENTO,
+  [ORIGEM_SAIDA_ESTOQUE]: ORIGEM_SAIDA_ESTOQUE,
 });
 /** D-PROD-177 (§6.2 item 3): `tipo_detalhado` da entrada documentada = `entrada_<motivo>`; nunca `compra_financeiro`. */
 const TIPO_ENTRADA_ESTOQUE = /^entrada_[a-z0-9_]{1,40}$/;
@@ -1524,5 +1531,42 @@ export const estornarEntradaDocumentada = (tx, ctx, a) => {
   }));
 };
 
+// ─── saída documentada (D-PROD-262) ────────────────────────────────────────
+/** Rótulos fechados da saída manual documentada (o texto do movimento leva o nome do motivo). */
+const TIPO_SAIDA_DOCUMENTADA = 'saida_manual';
+const TIPO_ESTORNO_SAIDA_DOCUMENTADA = 'estorno_saida_manual';
+
+/**
+ * D-PROD-262 — as duas pontas da SAÍDA MANUAL documentada (Estoque → Novo movimento → Saída). O módulo
+ * `estoqueSaidas` chama ESTAS funções e nunca cita a origem. Elas só fixam a origem e os rótulos e delegam
+ * às primitivas de sempre: `aplicarSaida` (custo médio do depósito, fatias em `lotes_consumidos`) e
+ * `estornarSaida` (devolve cada fatia ao seu lote e o valor exato gravado no movimento original).
+ * `origem.motivo` (aplicar) e `origem.motivoEstorno` (estornar) são obrigatórios.
+ * @param {any} tx @param {{auth: any}} ctx
+ * @param {{ origem: { operacaoId: string, motivo: string } } & Record<string, any>} a
+ */
+export const aplicarSaidaDocumentada = (tx, ctx, a) => {
+  const { origem, ...resto } = a;
+  if (!textoInformado(origem?.motivo)) throw new Error('aplicarSaidaDocumentada: origem.motivo é obrigatório');
+  return aplicarSaida(tx, ctx, /** @type {any} */ ({
+    ...resto,
+    origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_SAIDA_ESTOQUE, tipoDetalhado: TIPO_SAIDA_DOCUMENTADA, motivo: origem.motivo },
+  }));
+};
+
+/**
+ * `consumos` vêm das fatias gravadas no próprio movimento original (`lotes_consumidos`).
+ * @param {any} tx @param {{auth: any}} ctx
+ * @param {{ origem: { operacaoId: string, motivoEstorno: string } } & Record<string, any>} a
+ */
+export const estornarSaidaDocumentada = (tx, ctx, a) => {
+  const { origem, ...resto } = a;
+  if (!textoInformado(origem?.motivoEstorno)) throw new Error('estornarSaidaDocumentada: origem.motivoEstorno é obrigatório');
+  return estornarSaida(tx, ctx, /** @type {any} */ ({
+    ...resto,
+    origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_SAIDA_ESTOQUE, tipoDetalhadoEstorno: TIPO_ESTORNO_SAIDA_DOCUMENTADA, motivoEstorno: origem.motivoEstorno },
+  }));
+};
+
 /** Origens do motor que têm documento próprio (a reconciliação as inclui em `ORIGENS_PROTOCOLO`). */
-export const ORIGENS_DOCUMENTADAS = Object.freeze([ORIGEM_ENTRADA_ESTOQUE]);
+export const ORIGENS_DOCUMENTADAS = Object.freeze([ORIGEM_ENTRADA_ESTOQUE, ORIGEM_SAIDA_ESTOQUE]);

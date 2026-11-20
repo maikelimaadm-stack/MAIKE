@@ -125,7 +125,7 @@ import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_QUANTIDADE, Dec, ZERO, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { agoraDoServidor } from '../rebanhoLedger/rebanhoLedgerTempo.js';
-import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ORIGENS_DOCUMENTADAS } from './estoqueFisicoMotor.js';
+import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ORIGENS_DOCUMENTADAS } from './estoqueFisicoMotor.js';
 
 /**
  * Origens de movimento do protocolo (motor físico único, D-PROD-161). Vêm dos
@@ -134,8 +134,11 @@ import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTE
  * divergência de literal. Os valores são os mesmos que a F4 declarava aqui.
  */
 export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_APONTAMENTO, ...ORIGENS_DOCUMENTADAS]);
-/** Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. */
-const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
+/**
+ * Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. D-PROD-262: a saída
+ * manual documentada grava sempre as fatias no movimento (nunca cai no ramo do recibo legado).
+ */
+const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE]);
 /**
  * Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote` e,
  * D-PROD-202, `AtividadeApontamentoProdutoConsumoLote`, a linha de produto do apontamento da atividade).

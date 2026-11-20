@@ -11,6 +11,7 @@
  *  PATCH /estoque/entradas/:id                  (entrada) só a observação (CAS de versão)
  *  POST  /estoque/entradas/:id/excluir          (entrada) exclusão lógica com estorno integral
  *  GET   /estoque/entradas/opcoes/{produtos,locais,fornecedores,centros-custo,centros-resultado}  (entrada) seletores
+ *        (D-PROD-262: produtos, locais e centros também com `saida`, pelo formulário da saída manual)
  *
  * D-PROD-259 — cadastro de motivos de entrada (por cliente):
  *  GET   /estoque/motivos-entrada               (ver)     lista (os padrões nascem na 1ª leitura)
@@ -134,14 +135,14 @@ export const registrarEntradaEstoqueRoutes = async (app) => {
   });
 
   app.get('/estoque/entradas', { ...autenticado, preHandler: [g.ver], schema: LISTAR }, async (request) => listar(ctx(request), consulta(request)));
-  app.get('/estoque/entradas/opcoes/produtos', { ...autenticado, preHandler: [g.entrada], schema: OPCOES(['empresa_id']) }, async (request) => opcoesProdutos(ctx(request), consulta(request)));
-  app.get('/estoque/entradas/opcoes/locais', { ...autenticado, preHandler: [g.entrada], schema: OPCOES([]) }, async (request) => opcoesLocais(ctx(request), consulta(request)));
+  app.get('/estoque/entradas/opcoes/produtos', { ...autenticado, preHandler: [g.formulario], schema: OPCOES(['empresa_id']) }, async (request) => opcoesProdutos(ctx(request), consulta(request)));
+  app.get('/estoque/entradas/opcoes/locais', { ...autenticado, preHandler: [g.formulario], schema: OPCOES([]) }, async (request) => opcoesLocais(ctx(request), consulta(request)));
   // D-PROD-259: fornecedor (parceiro com papel de fornecedor/prestador, como na compra) e centros ativos da fazenda.
   app.get('/estoque/entradas/opcoes/fornecedores', { ...autenticado, preHandler: [g.entrada], schema: OPCOES(['empresa_id']) }, async (request) =>
     opcoesParceiros(ctx(request), { ...consulta(request), direcao: 'PAGAR' }));
-  app.get('/estoque/entradas/opcoes/centros-custo', { ...autenticado, preHandler: [g.entrada], schema: OPCOES(['empresa_id']) }, async (request) =>
+  app.get('/estoque/entradas/opcoes/centros-custo', { ...autenticado, preHandler: [g.formulario], schema: OPCOES(['empresa_id']) }, async (request) =>
     opcoesCentros('custo')(ctx(request), consulta(request)));
-  app.get('/estoque/entradas/opcoes/centros-resultado', { ...autenticado, preHandler: [g.entrada], schema: OPCOES(['empresa_id']) }, async (request) =>
+  app.get('/estoque/entradas/opcoes/centros-resultado', { ...autenticado, preHandler: [g.formulario], schema: OPCOES(['empresa_id']) }, async (request) =>
     opcoesCentros('resultado')(ctx(request), consulta(request)));
   app.get('/estoque/motivos-entrada', { ...autenticado, preHandler: [g.ver], schema: MOTIVOS_LISTAR }, async (request) => listarMotivos(ctx(request), consulta(request)));
   app.post('/estoque/motivos-entrada', { ...autenticado, preHandler: [g.entrada], schema: MOTIVO_CRIAR }, async (request, reply) =>

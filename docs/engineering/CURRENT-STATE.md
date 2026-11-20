@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-19 (missão ativa D-PROD-261; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-262; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-19) — MAIKE-ESTOQUE-R-DEDUPE: a mesma compra não entra duas vezes no estoque (D-PROD-261)
+## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-262)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-262**, escolhas do proprietário: motivos por cadastro (Perda, Consumo interno, Doação, Vencimento), custo médio automático, exclusão só sem movimento depois, permissão própria `saida` |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d8fa5ced` · PR draft |
+| Migration | `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas). **Não aplicada em produção**: exige o GO do proprietário (runbook) |
+| Constituição | emenda **proposta** na D-PROD-262 (saída manual como escritor documentado); aguarda a aprovação do proprietário |
+| Relatório | [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md) · runbook [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-19) — MAIKE-ESTOQUE-R-DEDUPE: a mesma compra não entra duas vezes no estoque (D-PROD-261)
 
 | Campo | Valor |
 |---|---|

@@ -8788,4 +8788,44 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
 
 **Testes.** `backend/tests/estoqueDocumentoDedupe.test.mjs` (novo, 8, Postgres real: as duas direções, com e sem produtos, prévia, retificação, excluída/rascunho/cancelado, outra fazenda, corrida); `estoqueEntradas.test.mjs` (o caso "lançamento sem produtos" passa a aceitar); `tests/smoke/gestaoLancamentos.test.jsx` (mensagem nova).
 
-<!-- Próxima decisão: D-PROD-262 -->
+## D-PROD-262 — Estoque: saída manual documentada ("Novo movimento" → Saída), com motivos por cadastro e custo médio
+
+**Data:** 2026-11-20 · **Origem:** pedido do proprietário ("vamos para os próximos passos" → "Saída manual") · **Branch:** `claude/new-session-26kpxu` · **Migration:** `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas) · **Relatório:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-262`, que é esta; o marcador passa a D-PROD-263.
+
+**Escolhas do proprietário (2026-11-20).**
+- **Motivos padrão:** Perda, Consumo interno, Doação e Vencimento, num cadastro que o usuário mantém (criar, renomear, desativar).
+- **Custo:** automático, pelo **custo médio** do produto no depósito (o mesmo das outras saídas desde a D-PROD-256). Não se digita valor.
+- **Excluir:** sim, **só se o produto não teve outro movimento naquele depósito depois** da saída; senão, recusa (para corrigir, lança-se uma entrada).
+- **Permissão:** ação própria **`saida`** da tela `sup-estoque`, separada de `entrada`; nenhum perfil a recebe por padrão (administrador tem tudo).
+
+**O que muda na tela.** A janela "Novo movimento" (Estoque → Movimentos) ganha o tipo **Saída**:
+- cabeçalho: data, motivo (com "Motivos…" para o cadastro de motivos de saída, na mesma janela), centro de custo, centro de resultado e observação;
+- linhas: produto, depósito, unidade (KG, SACO ou L, conforme o produto) e quantidade; várias por saída;
+- o detalhe de um movimento de saída manual abre a saída: editar a observação e excluir.
+
+Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
+
+**Backend.**
+- `GET/POST/PATCH /estoque/motivos-saida`.
+- `GET/POST /estoque/saidas`, `GET/PATCH /estoque/saidas/:id`, `POST /estoque/saidas/:id/excluir`.
+- Os seletores do formulário da entrada (`/estoque/entradas/opcoes/{produtos,locais,centros-custo,centros-resultado}`) aceitam `entrada` ou `saida`; fornecedores, só `entrada`.
+- Criar = confirmar numa só chamada, idempotente por `operation_id`. Cada linha baixa pelo motor (`aplicarSaidaDocumentada` → `aplicarSaida`): custo médio, fatias em `lotes_consumidos`, `estoque_atual` e camadas.
+- Saldo insuficiente: 422 `ESTOQUE_SALDO_INSUFICIENTE`, nada gravado.
+- Excluir estorna cada linha pelo motor (`estornarSaidaDocumentada` → `estornarSaida`). Devolve cada fatia ao seu lote e o valor exato gravado. Só é aceito sem movimento posterior do produto no depósito: "depois" é fail-closed, pelo número sequencial do movimento (dado sob a trava do produto) ou pelo instante de criação.
+- Origem nova do motor: `saida_estoque` (`tipo_detalhado` `saida_manual` e `estorno_saida_manual`). Entra em `ORIGENS_DOCUMENTADAS` e, na reconciliação, nas origens com fatia em JSON.
+
+**Constituição — emenda PROPOSTA, aguardando a aprovação do proprietário.** O texto ratificado só autoriza baixa de estoque pela venda confirmada da Central, pela suplementação, pelo abastecimento, pelo apontamento de atividade e pela transferência. Em "Continua **fora**" ele lista "ajuste ou inventário … edição de saldo e qualquer escritor genérico de estoque". A saída manual é um escritor novo (documentado, pelo motor), então precisa de emenda. Proposta, como parágrafo e nota próprios (precedente da D-PROD-259 e da D-PROD-261):
+
+> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-261:* "**Emenda aprovada pelo proprietário (D-PROD-262):** **Estoque — saída manual documentada.** Além das baixas já autorizadas, a quantidade de estoque também pode sair por um **documento de Saída de Estoque** confirmado, só pelo motor de estoque único, com a permissão própria `saida` e um motivo do **cadastro de motivos de saída** do cliente (Perda, Consumo interno, Doação, Vencimento e os que o usuário criar). O valor é sempre o custo médio do produto no depósito, nunca digitado. A saída manual não é venda nem ajuste de inventário: não cria título, conta a receber nem receita, e não fixa saldo. O usuário edita só a observação e pode excluir a saída; a exclusão estorna pelo motor e só é aceita se o produto não teve outro movimento naquele depósito depois dela. Continua **fora**: ajuste ou inventário (contagem que fixa o saldo), devolução a fornecedor, transferência entre empresas e qualquer escritor genérico de estoque."
+>
+> *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-261:* "a saída manual documentada (Estoque → Novo movimento → Saída) é exceção à proibição de mover estoque fora dos comandos autorizados, nos limites da decisão. Continua proibido: baixar estoque fora do motor de estoque; digitar o valor da saída ou valorizá-la por outro custo que não o médio do depósito; usar a saída manual como venda, ajuste/inventário, devolução a fornecedor ou transferência entre empresas, ou criar título, conta a receber ou receita a partir dela; excluir uma saída depois de outro movimento do produto no mesmo depósito; mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada; conceder a ação `saida` a perfis existentes por padrão."
+
+Enquanto a emenda não for aprovada, a PR fica em rascunho e não vai para a `main`; a migration só vai para produção com o GO escrito do proprietário (runbook).
+
+**Fora de escopo.** Ajuste de inventário, devolução a fornecedor, edição física da saída (só exclui e lança outra), cor por tipo.
+
+**Testes.** `backend/tests/estoqueSaidas.test.mjs` (novo, Postgres real), smoke `tests/smoke/estoqueNovoMovimento.test.jsx`, e as provas da release (`premerge-migrate` B38a/B38k).
+
+<!-- Próxima decisão: D-PROD-263 -->
