@@ -8806,4 +8806,21 @@ Com as tabelas aprovadas ("perfeito"), o proprietário disse das janelas: "as ab
   - Nenhuma mudança no backend.
 - **Fora de escopo:** várias áreas por registro (fase 3), o retrabalho de área e hectares (próxima fatia), bloquear máquina ou produto repetido (o servidor decide; a 2ª linha do mesmo bem começa onde a 1ª terminou), custo do insumo na tela.
 
-<!-- Próxima decisão: D-PROD-263 -->
+## D-PROD-263 — Registrar serviço: várias áreas num registro só (fase 3 da D-PROD-258)
+
+**Data:** 2026-11-20 · **Origem:** pedido do proprietário (fase 3), com a maquete "Nova realização" · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** nenhuma · **Relatório:** [`MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md`](./MAIKE-REGISTRO-VARIAS-AREAS-REPORT.md)
+
+> **Numeração:** a `main` (`5261ec13`) indica `Próxima decisão: D-PROD-263`, que é esta; o marcador passa a D-PROD-264.
+
+- **Contexto:** o "Registrar serviço" gravava o trabalho de UMA área. No campo, uma aplicação ou roçada passa por vários pastos no mesmo dia, cada um com os seus hectares. O modelo já guarda isso: a atividade tem várias áreas (`AtividadeArea`, D-PROD-249) e cada apontamento é de UMA área.
+- **Decisão:**
+  - **Corpo:** `POST /atividades/registrar` aceita `areas: [{ area_id, hectares }]` (1..20, área sem repetir, hectares texto decimal > 0) no lugar de `area_id`. Um dos dois, nunca os dois (400). Com `areas[]`, o `area_executada_dia` não vem: os hectares de cada área são o `area_executada_dia` do apontamento dela. `areas[]` de um item é exatamente o `area_id` de antes (mesma busca, mesmo nome, mesmo fingerprint do recibo). Corpo fechado, sem coerção, tenant só da sessão.
+  - **Sem migration:** N áreas = UMA atividade + N apontamentos (um por área), numa transação.
+  - **Qual atividade:** a trava consultiva de sempre é tomada para CADA área, em ordem de `area_id`. A busca de sempre (aberta, mesmo tipo e fazenda, `data_inicio` no mês, área PLANEJADA ou EM_ANDAMENTO) tenta as áreas na ordem do corpo; a primeira que casa dá a atividade. As áreas que faltam nela entram (`adicionarAreaNaTransacao`, extraída de "Adicionar área") e as PLANEJADAS são iniciadas no dia (`iniciarAreaNaTransacao`). Área CONCLUIDA nunca casa; se ela já está na atividade achada, o lançamento dela é recusado (409, com a área). Sem nenhuma, cria uma atividade com TODAS as áreas, `<Tipo> · <Área 1> +N · <mmm/aa>` (N = as outras áreas), dentro de `NOME_MAXIMO`.
+  - **Rateio (o servidor reparte; o cliente manda os totais):** a área i leva hᵢ ÷ Σh. Insumo, mão de obra, serviço e uso de máquina sem medidor: 4 casas, a última área leva o resto (soma exata); custo unitário igual, totais pela regra de sempre; cada parte de insumo passa pelo motor de estoque. Máquina com medidor: o intervalo vira trechos SEGUIDOS na ordem das áreas (a última termina na leitura final); várias passadas do mesmo bem são uma série só; sem leitura inicial no corpo, vale a vigente na data. Parte que fica em zero não vira linha: vai para a área de mais hectares. Operador, observação e turno vão em todos os apontamentos.
+  - **Idempotência:** um `operation_id` (recibo `atividade_registrar_v1`); a área i grava as linhas com a chave `<operation_id>` (i = 0) ou `<operation_id>:a<i+1>`, que deriva as das linhas como sempre. Reenvio igual → 200 replay; corpo diferente → 409.
+  - **Resposta:** a forma de sempre (o apontamento da 1ª área, a atividade, os alertas, `registro`) mais `apontamentos[]` (um por área) e `registro.areas[]`. A recusa de uma área leva `details.area_id` e `details.area_indice`, e a linha na posição do CORPO (`linha_indice`/`indice`).
+  - **Tela:** o campo "Áreas" (busca + caixas, "N áreas selecionadas", o mesmo da abertura da atividade) e a tabela Área · Tamanho (ha) · % · Hectares (ha) · ✕ com o Total. % e hectares andam juntos; a área entra com 100% do tamanho. "Hectares feitos" sai do "Resultado"; Operador fica. Dose/ha e Total dos insumos usam os hectares TOTAIS. Aberta dos Detalhes da área, a área vem marcada e não sai; outras entram. O destino conta as várias áreas. A recusa de uma área diz "Na área …:" na linha certa (ou embaixo da área).
+- **Fora de escopo:** cancelar o apontamento de uma área não mexe nos das outras (cada um é um lançamento); editar os hectares depois não reparte de novo as linhas já gravadas; o `valor_total` do serviço não vem no corpo (é calculado), então não há total digitado a repartir.
+
+<!-- Próxima decisão: D-PROD-264 -->
