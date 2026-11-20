@@ -18,9 +18,9 @@
  *    A edição física por revisão versionada é a P1-05b e NÃO existe aqui.
  *  - Excluir: exclusão lógica (`EXCLUIDA`) com estorno integral pelo motor, só com a prova fail-closed
  *    de que a camada nunca foi tocada (`provaDeCamadaIntocada`).
- *  - Documento: a entrada é recusada se outra entrada confirmada ou um lançamento financeiro
- *    CONFIRMADO da fazenda já tem o mesmo documento. A consulta recíproca NO LADO DA P3 (compra →
- *    entrada) não faz parte desta PR (ver o relatório).
+ *  - Documento (D-PROD-261, R-DEDUPE): a entrada é recusada se outra entrada confirmada ou um
+ *    lançamento da Central CONFIRMADO com mercadoria da fazenda já tem o mesmo documento; a Central
+ *    faz a consulta recíproca (`documentoDeEstoque.js`), sob a mesma trava do documento.
  *
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
@@ -37,6 +37,7 @@ import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/dec
 import {
   aplicarEntradaDocumentada, estornarEntradaDocumentada, exigirLocaisEstoque, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { entradaManualComDocumento, lancamentoComEstoqueComDocumento, travarDocumentoDeEstoque } from '../estoqueFisico/documentoDeEstoque.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, diaDoCorpo, listarKeyset, paginacaoOpcoes, paginarPorNome, termoDeBusca } from '../patrimonio/patrimonioComum.js';
@@ -250,23 +251,22 @@ const exigirImplantacaoElegivel = async (tx, cli, produtoIds) => {
 
 /**
  * Documento (identidade = número normalizado na fazenda): outra entrada CONFIRMADA ou lançamento
- * financeiro CONFIRMADO com o mesmo documento recusa a entrada (nunca dupla contagem de estoque).
+ * da Central CONFIRMADO COM mercadoria (D-PROD-261: só o que mexe no estoque) com o mesmo documento
+ * recusa a entrada (nunca dupla contagem de estoque). O mesmo documento num lançamento sem produtos
+ * (só o pagamento) não conflita. A trava do documento é a mesma da Central.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string|null} documento
  */
 const exigirDocumentoLivre = async (tx, cli, empresaId, documento) => {
   const chave = chaveDoDocumento(documento);
   if (!chave) return;
-  const outra = /** @type {any[]} */ (await tx.$queryRaw`SELECT numero FROM "EntradaEstoque" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND status = 'CONFIRMADA'
-    AND upper(btrim(documento_numero)) = ${chave} LIMIT 1`);
-  if (outra.length) {
-    throw new AppError('ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE', 'já existe uma entrada confirmada com este documento nesta fazenda; nada foi gravado', { details: { field: 'documento_numero', reason: 'documento_duplicado', entrada_numero: outra[0].numero } });
+  await travarDocumentoDeEstoque(tx, cli, empresaId, chave);
+  const outra = await entradaManualComDocumento(tx, cli, empresaId, chave);
+  if (outra) {
+    throw new AppError('ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE', 'já existe uma entrada confirmada com este documento nesta fazenda; nada foi gravado', { details: { field: 'documento_numero', reason: 'documento_duplicado', entrada_numero: outra.numero } });
   }
-  const financeiro = await tx.operacaoFinanceira.findFirst({
-    where: { cliente_id: cli, empresa_id: empresaId, status: 'CONFIRMADO', documento_chave_ativa: chave },
-    select: { numero: true, direcao: true },
-  });
+  const financeiro = await lancamentoComEstoqueComDocumento(tx, cli, empresaId, chave);
   if (financeiro) {
-    throw new AppError('ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE', 'este documento já está em um lançamento financeiro confirmado; a mercadoria entra por ele, não por entrada manual; nada foi gravado', {
+    throw new AppError('ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE', 'este documento já está em um lançamento confirmado com produtos; a mercadoria entra por ele, não por entrada manual; nada foi gravado', {
       details: { field: 'documento_numero', reason: financeiro.direcao === 'RECEBER' ? 'documento_de_venda' : 'documento_de_compra', lancamento_numero: financeiro.numero },
     });
   }
