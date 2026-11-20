@@ -31,8 +31,13 @@
  *    de sempre da linha (estoque pelo motor, medidor, custos);
  *  - a recusa de uma área diz qual (`details.area_id`, `details.area_indice`) e a linha na posição do CORPO.
  *
+ * D-PROD-265 — `data_termino` opcional (Nova realização: Data de início = `data_operacional`, Data de término): o último
+ * dia do serviço, o MESMO em todas as áreas. Nunca antes do início (400 `data_termino`/`periodo_invertido`; o CHECK do banco
+ * também recusa) nem no futuro da fazenda (422 `ATIVIDADE_DATA_INVALIDA` `futura`, como o dia). Só esta rota a recebe.
+ *
  * Idempotência: `operation_id` obrigatório (recibo `atividade_registrar_v1`; reenvio igual → 200 `replay: true`;
- * corpo diferente → 409). Com várias áreas, o apontamento da área i (0-based) grava as linhas com a chave
+ * corpo diferente → 409). D-PROD-265: sem `data_termino`, o fingerprint é byte a byte o de antes (nenhuma chave nova), e o
+ * reenvio pendente de antes do deploy ainda casa; com ela, ela entra no fingerprint. Com várias áreas, o apontamento da área i (0-based) grava as linhas com a chave
  * `<operation_id>` (i = 0) ou `<operation_id>:a<i+1>`, que deriva as das linhas como sempre (`:p1`, `:o1`, `:s1`).
  * Permissão = a de lançar apontamento (`atividadeApontamentos.criar`). Tenant só do auth_context.
  */
@@ -42,7 +47,7 @@ import { AppError, atividadeReferenciaInvalida } from '../../shared/errors/AppEr
 import { fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
-import { PADRAO_DECIMAL, STATUS_ATIVIDADE, comoData, decimalDoCorpo, diaDe, exigirDiaNaoFuturo, idOuNulo, temCampo, tempoDaFazenda, travarAtividade } from './atividadeComum.js';
+import { PADRAO_DECIMAL, STATUS_ATIVIDADE, comoData, decimalDoCorpo, diaDe, diaDoCorpo, exigirDiaNaoFuturo, idOuNulo, temCampo, tempoDaFazenda, travarAtividade } from './atividadeComum.js';
 import {
   VAZIO,
   camposDoCorpo,
@@ -319,6 +324,13 @@ export const registrarCampo = async (contexto, corpo) => {
   const campoDaArea = (i) => (comAreas ? `areas[${i}].area_id` : 'area_id');
   exigirData(estado);
   const dia = /** @type {string} */ (estado.data_operacional);
+  // D-PROD-265: o término (opcional) do serviço; nunca antes do início.
+  const termino = diaDoCorpo(corpo.data_termino, 'data_termino') ?? null;
+  if (termino && termino < dia) {
+    throw invalido('data_termino não pode ser anterior a data_operacional', { field: 'data_termino', reason: 'periodo_invertido', data_operacional: dia, data_termino: termino });
+  }
+  /** Só com término a chave entra no fingerprint: sem ele, o fingerprint é o de antes da D-PROD-265, byte a byte. */
+  const comTermino = termino ? { data_termino: termino } : {};
   const origem = origemDoCorpo(corpo.origem);
   const linhas = linhasDoCorpo(corpo);
   if (!linhas.operationId) throw invalido('operation_id é obrigatório', { field: 'operation_id', reason: 'obrigatorio' });
@@ -333,13 +345,14 @@ export const registrarCampo = async (contexto, corpo) => {
     fingerprint: () =>
       fingerprintDePayload(
         varias
-          ? { v: 2, empresa_id: corpo.empresa_id, areas: alvos, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, origem, ...linhasDoFingerprint }
-          : { v: 1, empresa_id: corpo.empresa_id, area_id: alvos[0].area_id, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, origem, ...linhasDoFingerprint }
+          ? { v: 2, empresa_id: corpo.empresa_id, areas: alvos, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, origem, ...linhasDoFingerprint }
+          : { v: 1, empresa_id: corpo.empresa_id, area_id: alvos[0].area_id, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, origem, ...linhasDoFingerprint }
       ),
     executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
       exigirDiaNaoFuturo(tempo, dia, 'data_operacional');
+      if (termino) exigirDiaNaoFuturo(tempo, termino, 'data_termino');
       /** @param {number} i @param {IndicesDaArea} [indices] */
       const area = (i, indices) => ({ ativo: varias, indice: i, areaId: alvos[i].area_id, indices });
       const mapas = [];
@@ -427,7 +440,8 @@ export const registrarCampo = async (contexto, corpo) => {
       for (const [i, a] of alvos.entries()) {
         const plano = planos[i];
         const linhasDaArea = varias ? { ...plano.linhas, operationId: chaveDaArea(chave, i) } : linhas;
-        const estadoDaArea = { ...estado, area_executada_dia: varias ? a.hectares : estado.area_executada_dia, atividade_area_id: situacao[i].atividade_area_id };
+        // D-PROD-265: o mesmo término em todas as áreas (sem ele, nenhuma chave nova: a gravação de sempre).
+        const estadoDaArea = { ...estado, area_executada_dia: varias ? a.hectares : estado.area_executada_dia, atividade_area_id: situacao[i].atividade_area_id, ...comTermino };
         respostas.push(
           await naArea(area(i, plano.indices), () =>
             lancarNaTransacao(tx, contexto, { clienteId: cli, empresaId, tempo, atividadeId, estado: estadoDaArea, origem, linhas: /** @type {any} */ (linhasDaArea) })
