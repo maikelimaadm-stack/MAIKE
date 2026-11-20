@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-264; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-20 (missão ativa D-PROD-265; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
+## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-265)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-265**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5` · PR draft |
+| Migration | `20261120200000_estoque_ajustes`, **EXPAND** (3 tabelas novas). **Não aplicada em produção**: exige o GO do proprietário (runbook) |
+| Constituição | emenda **proposta** na D-PROD-265 (inventário/ajuste sai da lista "fora"); aguarda a aprovação do proprietário |
+| Próxima | edição completa de entrada e saída (PR própria), pedida pelo proprietário |
+| Relatório | [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · runbook [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
 
 | Campo | Valor |
 |---|---|

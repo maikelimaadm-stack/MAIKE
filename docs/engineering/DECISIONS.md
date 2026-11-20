@@ -8863,4 +8863,39 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Testes.** `backend/tests/estoqueSaidas.test.mjs` (novo, Postgres real), smoke `tests/smoke/estoqueNovoMovimento.test.jsx`, e as provas da release (`premerge-migrate` B38a/B38k).
 
-<!-- Próxima decisão: D-PROD-265 -->
+## D-PROD-265 — Estoque: ajuste de inventário ("Novo movimento" → Ajuste), pelo saldo contado
+
+**Data:** 2026-11-20 · **Origem:** pedido do proprietário ("Vamos para o próximo passo" → "Ajuste de inventário") · **Branch:** `claude/new-session-26kpxu` · **Migration:** `20261120200000_estoque_ajustes`, **EXPAND** (3 tabelas novas) · **Relatório:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-265`, que é esta; o marcador passa a D-PROD-266.
+
+**Escolhas do proprietário (2026-11-20).**
+- **Contagem:** digita-se o **saldo contado** por produto e depósito. A tela mostra o saldo atual e a diferença; o servidor recalcula a diferença ao gravar, sob a trava do produto, com o saldo daquele momento.
+- **Custo da sobra:** custo médio do depósito. Sem saldo no depósito (sem custo médio), a linha exige o custo informado. A falta sai sempre pelo custo médio.
+- **Excluir:** sim, só se os produtos não tiveram outro movimento naqueles depósitos depois do ajuste (como na saída manual).
+- **Permissão:** ação própria **`ajuste`** da tela `sup-estoque` (o nome já estava reservado); ninguém recebe por padrão.
+
+**Decidido pelo agente (e dito ao proprietário):** o ajuste é sempre **do dia de hoje** da fazenda, sem data no corpo. A contagem é comparada com o saldo de agora; uma data passada misturaria o que já se moveu depois dela.
+
+**Como funciona.** Por linha: contado (na unidade escolhida: KG, SACO pelo peso do saco, L) × saldo do depósito (Σ das camadas Disponivel).
+- **SOBRA** (contado > saldo): entrada pelo motor (`aplicarSobraDeAjuste` → `aplicarEntradaEstoque`), com camada nova ao custo médio (ou ao custo informado, sem saldo).
+- **FALTA** (contado < saldo): saída pelo motor (`aplicarFaltaDeAjuste` → `aplicarSaida`) a custo médio, com as fatias em `lotes_consumidos`.
+- **SEM DIFERENÇA:** só o registro da contagem, sem movimento.
+
+Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`, `estorno_ajuste_falta`). A exclusão estorna cada linha pelo motor: a camada da sobra fica Estornada, e a falta devolve as fatias e o valor exato. A reconciliação explica a camada da sobra estornada pela FK do estorno e não trata o estorno dela (uma saída sem fatias em JSON) como consumo legado. O detalhe do movimento (Kardex) leva ao ajuste.
+
+**Correção junto (saída manual, D-PROD-264).** A regra "nada mexeu depois" da saída contava como posterior qualquer movimento com número fora do padrão numérico, mesmo antigo. Agora esse tipo só conta pelo instante. A verificação virou um helper comum (`movimentoPosteriorNoDeposito`). Em produção nenhum dos 10 movimentos tem número fora do padrão, então o defeito ainda não afetava ninguém.
+
+**Constituição — emenda PROPOSTA, aguardando a aprovação do proprietário.** O texto ratificado põe "ajuste ou inventário" explicitamente em "Continua **fora**" (expansão D-PROD-177) e na lista do `07-DO-NOT-DO.md` (entrada manual não serve como inventário/ajuste). Proposta, como parágrafo e nota próprios:
+
+> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-264:* "**Emenda aprovada pelo proprietário (D-PROD-265):** **Estoque — ajuste de inventário.** A contagem física pode ajustar o estoque por um **documento de Ajuste de Inventário** confirmado, só pelo motor de estoque único e com a permissão própria `ajuste`. Por produto e depósito informa-se o saldo contado; a diferença para o saldo do depósito, recalculada ao gravar, entra (sobra, ao custo médio do depósito, ou ao custo informado quando o depósito não tem saldo) ou sai (falta, ao custo médio). O ajuste é sempre do dia de hoje da fazenda, não cria título, conta nem receita, e não edita saldo fora do motor. O usuário edita só a observação e pode excluir o ajuste; a exclusão estorna pelo motor e só é aceita se os produtos não tiveram outro movimento naqueles depósitos depois dele. Em "Continua **fora**", deixa de constar "ajuste ou inventário"; continuam fora devolução a fornecedor, transferência entre empresas, edição de saldo e qualquer escritor genérico de estoque."
+>
+> *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-264:* "o ajuste de inventário documentado (Estoque → Novo movimento → Ajuste) é exceção à proibição de inventário/ajuste, nos limites da decisão. Continua proibido: ajustar estoque fora do motor ou escrevendo saldo direto; digitar o valor da sobra quando o depósito tem custo médio, ou da falta; ajustar com data diferente de hoje; usar o ajuste para devolução, transferência entre empresas ou venda, ou criar título, conta ou receita a partir dele; excluir um ajuste depois de outro movimento do produto no mesmo depósito; mudar a contagem de um ajuste lançado; conceder a ação `ajuste` a perfis existentes por padrão. A entrada manual continua não servindo como inventário/ajuste."
+
+Enquanto a emenda não for aprovada, a PR fica em rascunho e não vai para a `main`; a migration só vai para produção com o GO escrito do proprietário (runbook).
+
+**Fora de escopo.** Contagem em várias etapas (rascunho de inventário), contagem cega, ajuste com data retroativa, edição da contagem lançada (exclui e faz outra).
+
+**Testes.** `backend/tests/estoqueAjustes.test.mjs` (novo, 12, Postgres real), o smoke `tests/smoke/estoqueNovoMovimento.test.jsx` e as provas da release (`premerge-migrate` B39a/B39b/B39k).
+
+<!-- Próxima decisão: D-PROD-266 -->

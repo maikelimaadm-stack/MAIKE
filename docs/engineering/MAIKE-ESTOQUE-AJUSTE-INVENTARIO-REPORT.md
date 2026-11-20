@@ -1,0 +1,78 @@
+# MAIKE-ESTOQUE-AJUSTE-INVENTARIO — Relatório: ajuste de inventário no "Novo movimento" (D-PROD-265)
+
+**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `46fe34f5`) · **Migration:** `20261120200000_estoque_ajustes` (**EXPAND**, 3 tabelas novas) · **Decisão:** [D-PROD-265](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
+
+## 1. Pedido e escolhas do proprietário
+
+Próximo passo do Estoque: **ajuste de inventário**. Escolhas (2026-11-20):
+
+| Pergunta | Escolha |
+|---|---|
+| Como se conta | Digita o **saldo contado**; o sistema mostra o saldo atual e lança a diferença |
+| Custo da sobra | Custo médio do depósito; sem saldo, o custo informado na linha |
+| Excluir | Sim, só se nada mexeu depois naqueles produtos e depósitos |
+| Quem lança | Permissão própria `ajuste` |
+
+Decidido pelo agente e dito ao proprietário: o ajuste vale **sempre para hoje** (sem data retroativa), porque a contagem é comparada com o saldo de agora.
+
+Também a pedido do proprietário: a **edição completa de entrada e saída** vem logo depois, numa PR própria.
+
+## 2. Como funciona
+
+Por linha, o contado (KG, SACO pelo peso do saco, L) é comparado com o saldo do depósito, sob a trava do produto, na hora de gravar:
+
+| Caso | O que acontece |
+|---|---|
+| Contado > saldo (**sobra**) | Entra a diferença pelo motor, com camada nova ao custo médio do depósito (ou ao custo informado, sem saldo) |
+| Contado < saldo (**falta**) | Sai a diferença pelo motor, a custo médio |
+| Igual (**sem diferença**) | Só o registro da contagem |
+
+- A tela pede o saldo e o custo médio por `GET /estoque/ajustes/saldo` e mostra a diferença. O servidor recalcula ao gravar; vale a do servidor.
+- Excluir estorna cada linha pelo motor, só sem movimento posterior (409 `AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR`). Editar: só a observação.
+- O Kardex leva ao ajuste (`documento.tipo = AJUSTE_ESTOQUE`).
+
+## 3. O que mudou
+
+- **Backend:**
+  - módulo `estoqueAjustes` (regras, serviço, rotas);
+  - motor: origem `ajuste_estoque` e os invólucros da sobra, da falta e dos estornos, mais `pocoDoDeposito`;
+  - reconciliação: explica a camada da sobra estornada; a regra de "saída legada sem recibo" passa a valer só para as origens antigas (suplementação e depósito);
+  - consulta: o detalhe do movimento aponta o ajuste;
+  - ação extra `ajuste`.
+- **Correção na saída manual (D-PROD-264):** "nada mexeu depois" não conta mais como posterior um movimento antigo com número fora do padrão. Virou o helper comum `movimentoPosteriorNoDeposito`, e há um teste para isso. Em produção nenhum dos 10 movimentos tem número fora do padrão: o defeito era latente.
+- **Tela:** tipo Ajuste no "Novo movimento" e detalhe do ajuste (ver o corpo da PR).
+
+## 4. Constituição: emenda PROPOSTA (falta a aprovação)
+
+A constituição põe "ajuste ou inventário" explicitamente fora. A proposta de emenda está na D-PROD-265 e **não foi aplicada**. A PR fica em rascunho até a aprovação.
+
+## 5. Migration e ensaio
+
+- **EXPAND puro** (`classificarMigrations`: ok, as 3 tabelas novas, nenhuma coluna em tabela antiga).
+- SHA-256 `ac836ddf…6ccc9` e bloco RLS `4825a207…94fb8` pinados.
+- `migrate diff` vazio.
+- **Ensaio do envelope do caminho B** (PostgreSQL 17 local, base com as 71 migrations de produção):
+
+  | Passo | Resultado |
+  |---|---|
+  | `system_identifier` de produção | recusou (`alvo divergente`), nada aplicado (71) |
+  | `system_identifier` local | aplicou: 72 concluídas, 108 tabelas, checksum pinado |
+  | 2ª execução | recusou (`migration já registrada`) |
+  | `migrate status` | up to date |
+  | `migrate diff --exit-code` | 0 |
+
+- **Produção: NÃO aplicada.** Exige o GO escrito do proprietário.
+
+## 6. Testes
+
+| Arquivo | Resultado |
+|---|---|
+| `backend/tests/estoqueAjustes.test.mjs` (novo, Postgres real) | 12/12 |
+| `estoqueSaidas` / `estoqueEntradas` / `estoqueConsulta` | 15 / 47 / 23, todos passaram |
+| `estoqueP0Reconciliacao*`, `estoqueP0MotorUnico`, `estoqueP1M2MotorParametros` | todos passaram |
+| provas da release e testes de migration | ver o corpo da PR |
+| smoke da tela | ver o corpo da PR |
+
+## 7. Fora de escopo
+
+Inventário em etapas (rascunho), contagem cega, ajuste com data retroativa, edição da contagem lançada.
