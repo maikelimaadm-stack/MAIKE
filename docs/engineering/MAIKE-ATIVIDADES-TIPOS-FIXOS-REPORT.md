@@ -26,7 +26,7 @@ Arquivos principais: `backend/src/modules/tiposAtividade/{tipoAtividadePadroes,t
 - **Categoria nullable no banco.** Obrigatória no servidor e na tela, mas a coluna continua aceitando nulo: registro antigo continua legível e editável (inativar etc.) sem tocar na categoria.
 - **Dados fora da migration.** A atualização é um script com **dry-run por padrão**.
 
-## 3. Script de dados (preparado, NÃO executado em dados reais)
+## 3. Script de dados (preparado; em produção a atualização foi feita à mão, ver §3.1)
 
 `npm run ops:tipos-fixos-atividade` (`scripts/ops/tipos-fixos-atividade-dados.mjs`)
 
@@ -40,6 +40,25 @@ Regras: Aplicação/Trato cultural com nome de adubação → Fertilização; Tr
 
 **Riscos:** (a) conferir a lista do dry-run antes (o nome decide Fertilização × Aplicação; operações sem categoria caem em Outros); (b) desligar `exige_*` muda a regra de quem registrava por aquela operação; (c) antes de rodar o script, operação antiga com `permite_*` desligado faz o servidor recusar a linha de insumo/serviço/mão de obra no formulário novo (mensagem "o tipo não permite…"): **rodar o script junto com a publicação**.
 
+### 3.1 Execução em produção (2026-11-19)
+
+O proprietário declarou que as atividades de produção eram **todas teste** ("se você quiser apagar o que já foi lançado pode, é apenas testes") e deu o GO escrito **"aplica"**. O script não foi usado (a sessão não tem `DATABASE_URL`): foi uma transação única pelo `execute_sql` do Supabase, com guardas antes (contagens exatas e o estado de cada operação) e depois.
+
+| O quê | Antes | Depois |
+|---|---|---|
+| `Atividade` | 6 (nº 1 a 6: "TESTE (apontamento nº 1)", "TES (apontamento nº 2)", "teste", "Tetse", "COMBATE CONTRA CIGARRINHA", "teste") | 0 |
+| `AtividadeArea` | 7 | 0 |
+| `AtividadeApontamento` | 6 | 0 |
+| `AtividadeApontamentoMaquina` | 3 (horímetro; uma sem medidor com custo R$ 2.850,00) | 0 |
+| Produto, mão de obra, serviço, abastecimento ligado | 0 | 0 (nada de estoque nem de custo de pessoal foi tocado) |
+| `TipoAtividade` | 3: TES (sem categoria, chaves desligadas), TESTE (sem categoria, exige máquina), COMBATE CONTRA CIGARRINHA (Aplicação, exige máquina, sem produto e sem mão de obra) | 1: **COMBATE CONTRA CIGARRINHA**, Aplicação, exige área, permite implemento, produto, serviço e mão de obra; não exige safra, máquina nem produção |
+
+- **Medidor:** nada é gravado no bem pelas linhas de máquina (`abastecimentoMedidor.js`): a série do horímetro voltou ao ponto do cadastro.
+- **Auditoria:** os eventos antigos ficam (histórico).
+- **Numeração:** o contador de atividades não foi mexido; a próxima é a nº 7.
+- **Cópia do antes:** as linhas apagadas foram lidas (JSON completo) antes da transação, no registro da sessão; os valores essenciais estão na tabela acima.
+- Migrations: 70, sem mudança.
+
 ## 4. Verificação
 
 Ver a seção de resultados no resumo da entrega (números de build, lint, testes). Testes novos/alterados:
@@ -49,4 +68,4 @@ Ver a seção de resultados no resumo da entrega (números de build, lint, teste
 
 ## 5. Fica para as próximas fases
 
-Várias linhas por seção (fase 2), várias áreas por registro (fase 3), planejar antes de fazer, operação sem área (Manutenção), alinhar o filtro de Infraestrutura entre mapa e menu, remover a tela "Nova atividade", apagar colunas (GO do proprietário), colheita com produção.
+~~Várias linhas por seção (fase 2)~~ — **feito na D-PROD-262** ([relatório](./MAIKE-REGISTRO-VARIAS-LINHAS-REPORT.md)). Ainda abertos: várias áreas por registro (fase 3), planejar antes de fazer, operação sem área (Manutenção), alinhar o filtro de Infraestrutura entre mapa e menu, remover a tela "Nova atividade", apagar colunas (GO do proprietário), colheita com produção.
