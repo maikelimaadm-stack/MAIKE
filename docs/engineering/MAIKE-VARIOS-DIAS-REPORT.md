@@ -1,4 +1,4 @@
-MAIKE-VARIOS-DIAS (D-PROD-267) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR (a abrir)
+MAIKE-VARIOS-DIAS (D-PROD-267) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR #352
 
 # MAIKE — Serviço de vários dias e a Situação da lista
 
