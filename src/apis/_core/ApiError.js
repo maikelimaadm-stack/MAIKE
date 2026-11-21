@@ -135,6 +135,8 @@ export const API_ERROR_CODES = Object.freeze({
   // D-PROD-249 — várias áreas por atividade: a área não é desta atividade (relê) e a área com lançamento não sai.
   ATIVIDADE_AREA_NOT_FOUND: 'ATIVIDADE_AREA_NOT_FOUND',
   ATIVIDADE_AREA_COM_LANCAMENTOS: 'ATIVIDADE_AREA_COM_LANCAMENTOS',
+  // D-PROD-267 — a atividade aberta da operação na área está parada há mais de 30 dias: o registro pergunta.
+  ATIVIDADE_SERVICO_PARADO: 'ATIVIDADE_SERVICO_PARADO',
   ATIVIDADE_REFERENCIA_INVALIDA: 'ATIVIDADE_REFERENCIA_INVALIDA',
   ATIVIDADE_EXIGIDA_PELO_TIPO: 'ATIVIDADE_EXIGIDA_PELO_TIPO',
   ATIVIDADE_DATA_INVALIDA: 'ATIVIDADE_DATA_INVALIDA',
@@ -282,6 +284,8 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.ATIVIDADE_AREA_NOT_FOUND]: 'Esta área não está mais nesta atividade. Atualize a atividade e tente de novo.',
   [API_ERROR_CODES.ATIVIDADE_AREA_COM_LANCAMENTOS]:
     'Esta área já tem lançamento e não pode sair da atividade (nada com custo é apagado). Conclua a área. Nada foi apagado.',
+  [API_ERROR_CODES.ATIVIDADE_SERVICO_PARADO]:
+    'Este serviço está parado há mais de 30 dias. Diga se o lançamento é continuação dele ou um serviço novo. Nada foi gravado.',
   [API_ERROR_CODES.ATIVIDADE_REFERENCIA_INVALIDA]:
     'Um dos cadastros escolhidos (tipo, área, máquina, tarefa ou operador) não pode ser usado: não existe, está inativo, é de outra fazenda ou o grupo do tipo está inativo. Nada foi gravado.',
   [API_ERROR_CODES.ATIVIDADE_EXIGIDA_PELO_TIPO]:

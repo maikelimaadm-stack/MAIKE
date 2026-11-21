@@ -405,13 +405,16 @@ const MENSAGENS_DATA_ATIVIDADE = Object.freeze({
   data_inexistente: (rotulo) => `${rotulo} não existe no calendário; use AAAA-MM-DD`,
   // D-PROD-265: a data do lançamento depois do término gravado nele.
   depois_do_termino: (rotulo, extra) => `${rotulo}${extra.data ? ` (${extra.data})` : ''} é posterior à data de término do serviço${extra.data_termino ? ` (${extra.data_termino})` : ''}`,
+  // D-PROD-267: concluir (a área ou a atividade) antes do último dia que já tem lançamento.
+  antes_do_ultimo_dia: (rotulo, extra) =>
+    `${rotulo}${extra.data ? ` (${extra.data})` : ''} é anterior ao último dia lançado${extra.area ? ` na área ${extra.area}` : ''}${extra.ultimo_dia ? ` (${extra.ultimo_dia})` : ''}`,
 });
 
 /**
  * D-PROD-200 — data recusada (um só código; `details.field`/`details.reason`).
  * `futura` leva `data`, `hoje` e `fuso` em `extra` (o "hoje" é o da fazenda).
  * @param {string} field  ex.: `data_inicio`, `data_conclusao`, `data_operacional`
- * @param {'futura'|'antes_do_inicio'|'antes_do_inicio_da_area'|'periodo_invertido'|'data_inexistente'|'depois_do_termino'} reason  D-PROD-265: `depois_do_termino` leva `data` e `data_termino`
+ * @param {'futura'|'antes_do_inicio'|'antes_do_inicio_da_area'|'periodo_invertido'|'data_inexistente'|'depois_do_termino'|'antes_do_ultimo_dia'} reason  D-PROD-265: `depois_do_termino` leva `data` e `data_termino`; D-PROD-267: `antes_do_ultimo_dia` leva `data` e `ultimo_dia`
  * @param {Record<string, unknown>} [extra]
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
@@ -423,6 +426,21 @@ export const atividadeDataInvalida = (field, reason, extra = {}, options = undef
     details: { ...(options?.details ?? {}), ...extra, field, reason },
   });
 };
+
+/**
+ * D-PROD-267 — o registro de campo acharia a atividade ABERTA da operação na área, mas ela está PARADA: o último dia lançado
+ * nela (nas áreas do registro) foi há mais de `limite_dias`. O servidor não junta sozinho; o cliente pergunta e reenvia
+ * com `nova_atividade` (false = continuar; true = concluir a antiga no último dia e abrir outra). Nada foi gravado (nem o
+ * recibo da chave: o reenvio com a decisão usa a mesma `operation_id`).
+ * @param {{ atividade_id: string, atividade_nome: string, ultimo_dia: string, area_id: string, dias_parado: number, limite_dias: number }} d
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeServicoParado = (d, options = undefined) =>
+  new AppError(
+    'ATIVIDADE_SERVICO_PARADO',
+    `${d.atividade_nome} está parada desde ${d.ultimo_dia} (mais de ${d.limite_dias} dias sem lançamento): diga se o registro é continuação dela ou um serviço novo; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), ...d } }
+  );
 
 /** D-PROD-200 — status da atividade e do apontamento, como aparecem nas frases. */
 const ROTULO_DO_STATUS_ATIVIDADE = Object.freeze({
