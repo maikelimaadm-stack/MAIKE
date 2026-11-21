@@ -1540,7 +1540,8 @@ export const atualizarProcedencia = async (tx, ctx, a) => {
  * `aplicarEntradaDocumentada`: como `aplicarEntradaEstoque`, com `motivoSlug` (a-z0-9_) no lugar de
  * `origem.sistema`/`origem.tipoDetalhado` (vira `entrada_<motivoSlug>`) e `origem.motivo` obrigatório.
  * `estornarEntradaDocumentada`: como `estornarEmLote` com efeito ENTRADA, `motivoEstorno` obrigatório
- * e o tipo `estorno_entrada_exclusao` (a edição versionada com substituição é a P1-05b).
+ * e o tipo `estorno_entrada_exclusao`; com `revisao: true` (D-PROD-270, a edição com substituição), o tipo
+ * `estorno_entrada_revisao`.
  * @param {any} tx @param {{auth: any, requestId?: string}} ctx
  * @param {{ motivoSlug: string, origem: { operacaoId: string, motivo: string } } & Record<string, any>} a
  */
@@ -1554,14 +1555,14 @@ export const aplicarEntradaDocumentada = (tx, ctx, a) => {
 
 /**
  * @param {any} tx @param {{auth: any}} ctx
- * @param {{ origem: { operacaoId: string, motivoEstorno: string } } & Record<string, any>} a
+ * @param {{ origem: { operacaoId: string, motivoEstorno: string }, revisao?: boolean } & Record<string, any>} a
  */
 export const estornarEntradaDocumentada = (tx, ctx, a) => {
-  const { origem, ...resto } = a;
+  const { origem, revisao, ...resto } = a;
   return estornarEmLote(tx, ctx, /** @type {any} */ ({
     ...resto,
     efeito: EFEITO_ENTRADA,
-    origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_ENTRADA_ESTOQUE, tipoDetalhadoEstorno: ESTORNO_ENTRADA_EXCLUSAO, motivoEstorno: origem.motivoEstorno },
+    origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_ENTRADA_ESTOQUE, tipoDetalhadoEstorno: revisao === true ? ESTORNO_ENTRADA_REVISAO : ESTORNO_ENTRADA_EXCLUSAO, motivoEstorno: origem.motivoEstorno },
   }));
 };
 
