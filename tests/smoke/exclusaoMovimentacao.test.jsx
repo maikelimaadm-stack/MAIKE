@@ -10,6 +10,7 @@ import { resolve } from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { registrarHostDeAvisos } from "@/lib/maikeConfirmar";
 
 const servico = vi.hoisted(() => ({
   excluirMovimentacaoMapa: vi.fn(),
@@ -132,6 +133,37 @@ describe("ExcluirMovimentacao", () => {
     await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(2));
     const [c1, c2] = servico.excluirMovimentacaoMapa.mock.calls.map((c) => c[1]);
     expect(c2).toEqual(c1);
+  });
+
+  it("resultado desconhecido: fechar pede confirmação só com 'Fechar'/'Voltar' no host do sistema — nada fala em cancelar", async () => {
+    servico.excluirMovimentacaoMapa.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("rede"), { code: "API_PROVIDER_UNAVAILABLE" });
+    });
+    const pedidos = [];
+    let resposta = false;
+    const soltar = registrarHostDeAvisos(async (pedido) => { pedidos.push(pedido); return resposta; });
+    try {
+      await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+      await abrirEConfirmar();
+      await screen.findByText(/pode ou não ter sido concluída/);
+      await clicar(screen.getByRole("button", { name: "Voltar" }));
+      expect(pedidos).toHaveLength(1);
+      const [pedido] = pedidos;
+      expect(pedido.titulo).toBe("Exclusão sem confirmação");
+      expect(pedido.textoConfirmar).toBe("Fechar");
+      expect(pedido.textoCancelar).toBe("Voltar");
+      for (const valor of Object.values(pedido)) {
+        if (typeof valor === "string") expect(valor).not.toMatch(/cancel|estorn/i);
+      }
+      // Recusou fechar: o diálogo continua aberto. Confirmou: fecha.
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      resposta = true;
+      await clicar(screen.getByRole("button", { name: "Voltar" }));
+      expect(pedidos).toHaveLength(2);
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    } finally {
+      soltar();
+    }
   });
 
   it("refresh/remount: a pendência volta com a mesma chave e o mesmo motivo; isolada por tenant+usuário", async () => {
@@ -662,8 +694,45 @@ describe("D-PROD-114 — card da movimentação excluída", () => {
   });
 });
 
+describe("Só exclusão no mapa — textos da ação nunca falam em cancelamento/estorno", () => {
+  it("MENSAGENS_RECUSA: nenhum texto com cancel/estorn; os três reescritos dizem exclusão", async () => {
+    const { MENSAGENS_RECUSA } = await import("@/components/lotes/ExcluirMovimentacao");
+    for (const [codigo, texto] of Object.entries(MENSAGENS_RECUSA)) expect([codigo, texto]).toEqual([codigo, expect.not.stringMatching(/cancel|estorn/i)]);
+    expect(MENSAGENS_RECUSA.EXCLUSAO_MOVIMENTO_CANCELADO).toBe("Esta movimentação é de um registro antigo e não pode ser excluída. Nada foi alterado.");
+    expect(MENSAGENS_RECUSA.EXCLUSAO_REFERENCIA_DOCUMENTAL).toBe("Há registros de outros módulos que citam esta movimentação. Trate-os antes. Nada foi alterado.");
+    expect(MENSAGENS_RECUSA.CANCELAMENTO_JA_REALIZADO).toBe("Esta movimentação já foi excluída. Nada foi alterado.");
+  });
+
+  it("motivo cru do servidor com cancelamento/estorno vira 'Exclusão indisponível. Nada foi alterado.'; o resto passa como veio", async () => {
+    const { motivoCurtoDoBloqueio, motivoDoServidorNoMapa } = await import("@/components/lotes/ExcluirMovimentacao");
+    expect(motivoCurtoDoBloqueio({ elegivel: false, codigo: "CODIGO_NOVO", motivo: "Cancelamento bloqueado pelo estorno anterior" })).toBe("Exclusão indisponível. Nada foi alterado.");
+    expect(motivoCurtoDoBloqueio({ elegivel: false, codigo: null, motivo: "estornado no caixa" })).toBe("Exclusão indisponível. Nada foi alterado.");
+    expect(motivoCurtoDoBloqueio({ elegivel: false, codigo: "CODIGO_NOVO", motivo: "Posição fechada." })).toBe("Posição fechada.");
+    expect(motivoDoServidorNoMapa("")).toBeNull();
+    expect(motivoDoServidorNoMapa(undefined)).toBeNull();
+  });
+
+  it("card e diálogo: o motivo cru do servidor com 'cancelamento' aparece como exclusão indisponível", async () => {
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => ({ elegivel: false, pode_excluir: true, codigo: "CODIGO_NOVO", motivo: "Cancelamento indisponível para este registro" }));
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect(await screen.findByRole("button", { name: "Exclusão bloqueada" })).toBeTruthy();
+    expect(screen.getByText("Exclusão indisponível. Nada foi alterado.")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
+  });
+
+  it("recusa EXCLUSAO_MOVIMENTO_CANCELADO no envio: o aviso fala em exclusão", async () => {
+    servico.excluirMovimentacaoMapa.mockImplementation(async () => {
+      throw Object.assign(new Error("recusado"), { cause: { code: "EXCLUSAO_MOVIMENTO_CANCELADO" } });
+    });
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    await abrirEConfirmar();
+    expect(await screen.findByText("Esta movimentação é de um registro antigo e não pode ser excluída. Nada foi alterado.")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
+  });
+});
+
 describe("Histórico de Abate do Curral", () => {
-  it("cancelado antigo aparece marcado (sem limpeza retroativa); ativo do ledger oferece 'Excluir movimentação'; nenhum 'Cancelar'", async () => {
+  it("cancelado antigo NÃO aparece (no mapa só existe exclusão); ativo do ledger oferece 'Excluir movimentação'; nenhum texto de cancelamento", async () => {
     servico.listarTodasMovimentacoes.mockImplementation(async () => [
       { ...TRANSF, id: "ab-1", tipo: "Abate", area_origem_id: "curral" },
       { ...TRANSF, id: "ab-2", tipo: "Abate", area_origem_id: "curral", situacao: "cancelado", cancelamento: { em: "2026-10-12T15:30:00Z", por_login: "admin", motivo: "duplicado" } },
@@ -671,12 +740,13 @@ describe("Histórico de Abate do Curral", () => {
       { ...LEGADO, id: "ab-3", tipo: "Abate", area_origem_id: "curral", lote: "ANTIGO" },
     ]);
     await renderizar(<HistoricoAbateCurral areaId="curral" />);
-    expect(await screen.findByText("Histórico de Abate (3)")).toBeTruthy();
-    // D-PROD-222: a nota do cancelado é a do Histórico de Movimentação ("Cancelado" em negrito, quando, quem e o motivo).
-    const quando = new Date("2026-10-12T15:30:00Z").toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-    expect(screen.getByText((_, el) => el?.textContent === `Cancelado em ${quando} por admin — Motivo: duplicado`)).toBeTruthy();
+    // O cancelado antigo (R2A) fica no banco e na auditoria, mas não no histórico do mapa nem na contagem.
+    expect(await screen.findByText("Histórico de Abate (2)")).toBeTruthy();
     expect(await screen.findAllByRole("button", { name: "Excluir movimentação" })).toHaveLength(1);
-    // Rodapé (o traço e o "Excluir movimentação") só no abate que tem exclusão; o cancelado e o antigo ficam sem
+    expect(screen.queryByText(/duplicado/)).toBeNull();
+    expect(screen.queryByText("Ativo")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
+    // Rodapé (o traço e o "Excluir movimentação") só no abate que tem exclusão; o antigo fica sem
     // a faixa vazia no pé do cartão, como no Histórico de Movimentação.
     const rodapeDe = (lote) => {
       const cartao = /** @type {HTMLElement} */ (screen.getAllByText(lote).find((el) => el.classList.contains("font-semibold"))?.closest(".rounded-lg"));
@@ -686,6 +756,16 @@ describe("Histórico de Abate do Curral", () => {
     expect(rodapeDe("ANTIGO")).toBeNull();
     expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
     expect(servico.atualizarLote).not.toHaveBeenCalled();
+  });
+
+  it("só cancelados antigos: 'Nenhum abate encontrado', sem contagem e sem texto de cancelamento", async () => {
+    servico.listarTodasMovimentacoes.mockImplementation(async () => [
+      { ...TRANSF, id: "ab-9", tipo: "Abate", area_origem_id: "curral", situacao: "cancelado", cancelamento: { por_login: "admin", motivo: "duplicado" } },
+    ]);
+    await renderizar(<HistoricoAbateCurral areaId="curral" />);
+    expect(await screen.findByText("Nenhum abate encontrado")).toBeTruthy();
+    expect(screen.getByText("Histórico de Abate")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
   });
 });
 

@@ -20,8 +20,8 @@
  *                  + div.mk-dp-hist__mais > button.mk-dp-hist__botao + p.mk-dp-hist__contagem
  *                  + p.mk-dp-nota
  *   ol.mk-dp-tl > li.mk-dp-tl__grupo > h3.mk-dp-tl__dia(> span.mk-dp-tl__ponto)
- *     + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card(.is-cancelado)
- *       > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong.mk-dp-tl__titulo + .mk-dp-chip.mk-dp-tl__chip)
+ *     + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card
+ *       > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong.mk-dp-tl__titulo)
  *       + dl.mk-dp-tl__linhas (grade) > div.mk-dp-tl__row(.mk-dp-tl__row--larga) > dt + dd
  */
 
@@ -118,11 +118,6 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
-}
-
-/* Cancelado: o chip vai para o fim do cabeçalho */
-.mk-dp .mk-dp-tl__chip {
-  margin-left: auto;
 }
 
 .mk-dp .mk-dp-tl__linhas {

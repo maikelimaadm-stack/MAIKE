@@ -172,6 +172,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
  * eventos da fazenda, os pontos de suplementação ativos (cochos que dividem os
  * mesmos animais) e o dia civil no fuso da fazenda (`useDiaCivil`), que vira
  * sozinho à meia-noite. Esta tela não calcula saldo, taxa nem percentual.
+ * Lançamento excluído (situacao "cancelado") fica fora de tudo aqui — nível,
+ * saldo, consumo, histórico, fechamentos e total — mesmo vindo de uma cópia
+ * antiga do aparelho (o servidor já não o lista).
  *
  * Cabeçalho: o nome do cocho e o `subtitulo` (sem ele, as áreas vinculadas).
  * Rodapé: Lançar e Leitura com `lancar_suplementacao`; Histórico com
@@ -230,9 +233,15 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     staleTime: 5 * 60 * 1000
   });
 
+  // Lançamento excluído (situacao "cancelado" no servidor) some dos detalhes do cocho:
+  // não entra no nível, no saldo, no consumo, no histórico, nos fechamentos nem no total.
+  const eventosAtivos = useMemo(
+    () => eventos.filter((evento) => evento?.situacao !== "cancelado"),
+    [eventos],
+  );
   const nivel = useMemo(
-    () => calcularNivelCocho({ ponto, eventos, hoje, pontos: pontosSuplementacao }),
-    [ponto, eventos, hoje, pontosSuplementacao],
+    () => calcularNivelCocho({ ponto, eventos: eventosAtivos, hoje, pontos: pontosSuplementacao }),
+    [ponto, eventosAtivos, hoje, pontosSuplementacao],
   );
   const pesoPorSacoCiclo = useMemo(() => {
     const nome = normalizeText(nivel.evento?.produto || ponto?.produto_padrao || "");
@@ -243,8 +252,8 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const saldoSacos = pesoPorSacoCiclo > 0 && nivel.saldoKg != null ? kgParaSacos(nivel.saldoKg, pesoPorSacoCiclo) : null;
   const consumoSacosDia = pesoPorSacoCiclo > 0 && nivel.taxaConsumoKgDia != null ? kgParaSacos(nivel.taxaConsumoKgDia, pesoPorSacoCiclo) : null;
   const eventosDoPonto = useMemo(
-    () => eventos.filter((evento) => String(evento?.ponto_suplementacao_id) === String(ponto?.id)),
-    [eventos, ponto?.id],
+    () => eventosAtivos.filter((evento) => String(evento?.ponto_suplementacao_id) === String(ponto?.id)),
+    [eventosAtivos, ponto?.id],
   );
   const fechamentos = useMemo(() => eventosDoPonto
     .filter((evento) => Number(evento?.dias_periodo) > 0)
@@ -276,7 +285,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
   }, [eventosDoPonto, produtos]);
 
-  // D-PROD-268: sem a permissão de cancelar, o cartão do cocho fica sem pé.
+  // D-PROD-268: sem a permissão de excluir lançamento, o cartão do cocho fica sem pé.
   const { autorizado: podeCancelarCocho } = usePermissaoCancelarCocho();
   const diasEventosCocho = useMemo(() => {
     const ordenados = eventosDoPonto
@@ -288,7 +297,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
       );
     /** @type {Array<{ chave: string, dia: string | null, rotulo: string, cartoes: Array<{ chave: string, dia: string | null, Icone: import("lucide-react").LucideIcon, titulo: string, linhas: Array<{ rotulo: string, valor: string }>, acoes?: React.ReactNode }> }>} */
     const dias = [];
-    // D-PROD-268: "Cancelar lançamento" só no lançamento mais recente do cocho (dica; o servidor decide).
+    // D-PROD-268: "Excluir lançamento" só no lançamento mais recente do cocho (dica; o servidor decide).
     const ultimoId = podeCancelarCocho ? ordenados[0]?.id ?? null : null;
     ordenados.forEach((ev) => {
       const diaRaw = String(ev?.data_lancamento ?? "").slice(0, 10);

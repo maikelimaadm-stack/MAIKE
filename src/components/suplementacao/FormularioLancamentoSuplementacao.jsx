@@ -51,12 +51,12 @@ import { calcularFechamentoConsumo } from "@/domain/suplementacao/fechamentoCons
 import { ResumoFechamentoConsumo } from "./FarolConsumo";
 
 /** D-PROD-268 — 409 LANCAMENTO_DESATUALIZADO do comando de lançamento. */
-export const MENSAGEM_LANCAMENTO_DESATUALIZADO = "O cocho mudou (um lançamento foi cancelado ou registrado em outra tela). Confira e salve de novo.";
+export const MENSAGEM_LANCAMENTO_DESATUALIZADO = "O cocho mudou (um lançamento foi excluído ou registrado em outra tela). Confira e salve de novo.";
 /**
  * D-PROD-268 — 409 SUPLEMENTACAO_REGISTRO_CANCELADO no reenvio: este lançamento JÁ foi gravado e
  * depois cancelado em outra tela (o estoque já voltou). A operação acabou: a chave é descartada.
  */
-export const MENSAGEM_LANCAMENTO_JA_CANCELADO = "Este lançamento já tinha sido salvo e foi cancelado em outra tela; o estoque já voltou ao depósito. Nada foi gravado agora. Confira o cocho e, se for o caso, lance de novo.";
+export const MENSAGEM_LANCAMENTO_JA_CANCELADO = "Este lançamento já tinha sido salvo e foi excluído em outra tela; o estoque já voltou ao depósito. Nada foi gravado agora. Confira o cocho e, se for o caso, lance de novo.";
 
 /**
  * Lançamento de suplementação no cocho, no desenho do lançamento de manejo do lote (D-PROD-222): quem abre

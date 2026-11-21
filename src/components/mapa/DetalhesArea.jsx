@@ -21,8 +21,8 @@ import { Abas, RodapePilulas, idsDaAba } from "./detalhes-lote/blocos";
  * - Detalhes: o cartão da área, as atividades em andamento e os custos do mês (números do servidor) e, com a chave
  *   `medir_forragem` (D-PROD-219, fora da infraestrutura), o painel de Forragem — a "Medição de Forragem" continua aqui.
  * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos". Com a ação extra
- *   `cancelar_apontamento` da tela de atividades, cada cartão traz o "Cancelar registro" (D-PROD-266): o mesmo
- *   cancelamento do Lançamento de Atividades, só online.
+ *   `cancelar_apontamento` da tela de atividades, cada cartão traz o "Excluir registro" (D-PROD-266): por baixo, o
+ *   mesmo cancelamento do Lançamento de Atividades, só online; no mapa só se vê exclusão e o excluído some.
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
  * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO a "Nova realização" — a mesma do Lançamento de
  *   Atividades (D-PROD-258, D-PROD-265), com a área já marcada e presa: a pessoa escolhe o tipo (cartões), depois a operação.

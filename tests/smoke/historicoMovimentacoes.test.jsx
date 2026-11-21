@@ -180,7 +180,11 @@ describe("HistoricoMovimentacoes — leitura online", () => {
     expect(screen.getAllByText("Saída")).toHaveLength(2);
     expect(screen.getAllByText("Entrada")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
-    expect(screen.getAllByText("Ativo")).toHaveLength(3);
+    // No mapa só existe exclusão: sem selo de situação "Ativo"/"Cancelado" e nenhum texto de cancelamento/estorno
+    // (o registro antigo sem prova diz "exclusão indisponível", traduzido na tela).
+    expect(screen.queryByText("Ativo")).toBeNull();
+    expect(screen.getAllByText("Registro antigo sem comprovação individual de efeito — exclusão indisponível")).toHaveLength(3);
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
     expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull(); // usuário comum
     expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledWith(
       expect.objectContaining({ empresaId: EMP, areaId: "area-A", cursor: null, limit: 100 })
@@ -275,12 +279,12 @@ describe("HistoricoMovimentacoes — troca de empresa e offline", () => {
     expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
   });
 
-  it("R2A-R1 P1-B: online ativo → cancelado → offline o histórico ainda mostra o cancelado com motivo e autor", async () => {
+  it("R2A-R1 P1-B → só exclusão: online ativo → cancelado antigo → offline o cancelado NÃO aparece no histórico do mapa", async () => {
     const ativo = transf("mv-c", { quantidade_animais: 40, created_date: "2026-10-31T11:00:00.000Z" });
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([ativo]));
     const { unmount } = renderizar();
     await screen.findByText("Movimentações: 1 de 1");
-    expect(screen.getByText("Ativo")).toBeTruthy();
+    expect(screen.getByText("Histórico da Área TESTE (1)")).toBeTruthy();
     unmount();
 
     ficarOffline();
@@ -289,27 +293,87 @@ describe("HistoricoMovimentacoes — troca de empresa e offline", () => {
       chave === "movimentacoesHistorico" ? { items: [cancelado], atualizadoEm: "2026-10-31T12:01:00.000Z" } : { items: [], atualizadoEm: null }
     );
     renderizar();
-    expect(await screen.findByText("Movimentações em cache: 1")).toBeTruthy();
+    // O registro continua no cache (dado intacto); só a exibição do mapa o esconde.
+    expect(await screen.findByText("Nenhum lançamento encontrado")).toBeTruthy();
     expect(cache.getMapaCacheSnapshot).toHaveBeenCalledWith("movimentacoesHistorico", EMP);
-    expect(screen.getAllByText("Cancelado").length).toBeGreaterThan(0);
-    expect(screen.getByText(/por admin\.teste — Motivo: lançado em duplicidade/)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toMatch(/Histórico offline parcial: 0 movimentações salvas neste aparelho/);
+    expect(screen.queryByText(/admin\.teste/)).toBeNull();
+    expect(screen.queryByText(/lançado em duplicidade/)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
     expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull();
   });
 
-  it("MAIKE-LOTES-R1: movimento cancelado de lote excluído do cadastro mostra o indicador (sem erro de lote não encontrado)", async () => {
+  it("MAIKE-LOTES-R1 → só exclusão: movimento cancelado de lote excluído do cadastro não aparece (sem indicador e sem consultar o lote)", async () => {
     const cancelado = transf("mv-x", {
       quantidade_animais: 10,
       lote_id: "lote-excluido",
       situacao: "cancelado",
       cancelamento: { em: "2026-11-01T10:00:00.000Z", por_login: "admin.teste", motivo: "engano" },
     });
+    servico.buscarLoteDoHistorico.mockClear();
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([cancelado]));
-    servico.buscarLoteDoHistorico.mockImplementation(async (id) => (id === "lote-excluido" ? { id, excluido_em: "2026-11-01T11:00:00.000Z" } : null));
     renderizar();
-    expect(await screen.findByText(/Lote excluído do Cadastro — registro mantido para auditoria/)).toBeTruthy();
-    expect(screen.getByText(/Motivo: engano/)).toBeTruthy();
+    expect(await screen.findByText("Nenhum lançamento encontrado")).toBeTruthy();
+    expect(screen.queryByText(/Lote excluído do Cadastro/)).toBeNull();
+    expect(screen.queryByText(/Motivo: engano/)).toBeNull();
     expect(screen.queryByText(/não encontrado/i)).toBeNull();
-    expect(servico.buscarLoteDoHistorico).toHaveBeenCalledWith("lote-excluido");
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
+    expect(servico.buscarLoteDoHistorico).not.toHaveBeenCalled();
+  });
+
+  it("cancelado antigo no meio dos ativos: some do histórico e das contagens (título e 'Movimentações: x de y')", async () => {
+    const [a, b, c] = TRES_REAIS;
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () =>
+      pagina([a, { ...b, situacao: "cancelado", cancelamento: { por_login: "admin", motivo: "duplicado" } }, c])
+    );
+    renderizar();
+    expect(await screen.findByText("Movimentações: 2 de 2")).toBeTruthy();
+    expect(screen.getByText("Histórico da Área TESTE (2)")).toBeTruthy();
+    expect(screen.getAllByText("Transferência de Área")).toHaveLength(2);
+    expect(screen.queryByText(/duplicado/)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
+  });
+
+  it("página só com cancelados antigos e mais páginas no servidor: 'Carregar mais' continua e traz os seguintes", async () => {
+    const cancelados = Array.from({ length: 3 }, (_, i) =>
+      transf(`cx-${i}`, { situacao: "cancelado", created_date: new Date(Date.UTC(2026, 9, 31, 0, 0, 30 - i)).toISOString() })
+    );
+    const seguinte = transf("ok-1", { created_date: "2026-10-01T10:00:00.000Z" });
+    servico.listarHistoricoMovimentacoesPagina
+      .mockImplementationOnce(async () => pagina(cancelados, { total: 4, has_more: true, next_cursor: "c1" }))
+      .mockImplementationOnce(async () => pagina([seguinte], { total: 4, has_more: false }));
+    renderizar();
+    expect(await screen.findByText("Movimentações: 0 de 1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
+    expect(await screen.findByText("Movimentações: 1 de 1")).toBeTruthy();
+    expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: "c1" }));
+    expect(screen.getAllByText("Transferência de Área")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
+  });
+
+  it("nutrição no histórico do lote: aponta para a exclusão no histórico do cocho (sem 'cancelamento suspenso')", async () => {
+    cache.refreshMapaCacheEntry.mockImplementation(async (chave) =>
+      chave === "suplementacaoLote"
+        ? [{ id: "s1", empresa_id: EMP, lote_id: "lote-1", lote_nome: "TESTE", data_lancamento: "2026-10-29", created_date: "2026-10-29T10:00:00.000Z", produto: "Sal" }]
+        : []
+    );
+    renderizar({ areaId: undefined });
+    expect(await screen.findByText("Nutrição: para excluir, use o histórico do cocho.")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
+  });
+
+  it("textos sem a ação falam em exclusão (junção antiga, tipo sem exclusão), nunca em cancelamento", async () => {
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () =>
+      pagina([
+        transf("jl", { tipo: "Entrada", motivo: "Junção de Lotes", created_date: "2026-10-31T10:00:00.000Z" }),
+        transf("rn", { tipo: "Entrada", created_date: "2026-10-30T10:00:00.000Z" }),
+      ])
+    );
+    renderizar();
+    expect(await screen.findByText("Movimentações: 2 de 2")).toBeTruthy();
+    expect(screen.getByText("Junção antiga, feita pelo navegador sem comprovação de efeito — não pode ser excluída com segurança")).toBeTruthy();
+    expect(screen.getByText("Exclusão não disponível para este tipo.")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
   });
 
   it("offline sem nada salvo no aparelho: diz isso, em vez de 'Nenhum lançamento encontrado'", async () => {
