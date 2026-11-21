@@ -350,6 +350,11 @@ const fraseDaData = (field, reason, details) => {
     const termino = ehDiaValido(details.data_termino) ? ` (${formatarDiaAtividade(details.data_termino)})` : '';
     return `A ${nome} não pode ser depois da data de término do serviço${termino}.`;
   }
+  // D-PROD-267: concluir (a área ou a atividade) antes do último dia que já tem lançamento.
+  if (reason === 'antes_do_ultimo_dia') {
+    const ultimo = ehDiaValido(details.ultimo_dia) ? ` (${formatarDiaAtividade(details.ultimo_dia)})` : '';
+    return `A ${nome} não pode ser antes do último dia lançado${ultimo}.`;
+  }
   return null;
 };
 
@@ -432,6 +437,11 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
       return 'O uso da máquina passa do teto de salto do medidor: informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.';
     case 'ATIVIDADE_ESTORNO_BLOQUEADO':
       return 'O estorno exato de um produto não é seguro agora: o lote de onde ele saiu já foi consumido, transferido ou mudou. Nada foi alterado.';
+    // D-PROD-267: o registro acharia uma atividade parada há mais de 30 dias (a Nova realização pergunta).
+    case 'ATIVIDADE_SERVICO_PARADO': {
+      const desde = ehDiaValido(details.ultimo_dia) ? ` desde ${formatarDiaAtividade(details.ultimo_dia)}` : '';
+      return `Este serviço está parado${desde}. Diga se é continuação dele ou um serviço novo. Nada foi gravado.`;
+    }
     case 'ATIVIDADE_DATA_COM_LINHAS':
       return 'A data do apontamento não muda com linha de produto, máquina, mão de obra ou serviço confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
     default:

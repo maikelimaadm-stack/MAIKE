@@ -114,7 +114,7 @@ const soOsInformados = (d, campos) => Object.fromEntries(campos.filter((c) => te
  * Uma página (keyset) das atividades da fazenda. Filtros do contrato: `status`,
  * `tipo_atividade_id`, `area_id`, `data_de` e `data_ate` (sobre `data_inicio`).
  * Sem fazenda: página vazia, nada é lido.
- * @param {{ status?: string|null, tipo_atividade_id?: string|null, area_id?: string|null,
+ * @param {{ status?: string|null, situacao?: string|null, tipo_fixo?: string|null, tipo_atividade_id?: string|null, area_id?: string|null,
  *   data_de?: string|null, data_ate?: string|null, limit?: number, cursor?: string|null }} [filtros]
  */
 export const listarAtividades = async (filtros = {}) => {
@@ -124,6 +124,9 @@ export const listarAtividades = async (filtros = {}) => {
   return listAtividadesPage({
     empresa_id: fazendaDaTela,
     status: textoOuIndefinido(f.status),
+    // D-PROD-267: a Situação (Planejada, Em andamento, Concluída, Cancelada) e o tipo fixo da operação.
+    situacao: textoOuIndefinido(f.situacao),
+    tipo_fixo: textoOuIndefinido(f.tipo_fixo),
     tipo_atividade_id: textoOuIndefinido(f.tipo_atividade_id),
     area_id: textoOuIndefinido(f.area_id),
     data_de: textoOuIndefinido(f.data_de),

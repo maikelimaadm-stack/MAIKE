@@ -38,7 +38,9 @@ import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBas
  *   showDuplicate?: boolean,
  *   listBanner?: React.ReactNode,
  *   permissaoExplicita?: boolean,
- * }} props
+ *   onCreate?: () => void,
+ * }} props `onCreate` (opt-in, D-PROD-267): o que o botão de criar faz; padrão, o formulário do registro novo
+ *   (`controller.openNew`).
  */
 export default function CadastroBase1Screen({
   workspaceTitle,
@@ -65,6 +67,7 @@ export default function CadastroBase1Screen({
   showDuplicate = true,
   listBanner = null,
   permissaoExplicita = false,
+  onCreate = undefined,
 }) {
   return (
     <>
@@ -136,7 +139,7 @@ export default function CadastroBase1Screen({
           selectedCount={c.chrome.selectedIds.length}
           {...c.chromeFooter}
           createLabel={createLabel}
-          onNew={showCreate ? c.openNew : undefined}
+          onNew={showCreate ? onCreate ?? c.openNew : undefined}
           onEdit={showEdit ? c.handleEditSelected : undefined}
           onDuplicate={showDuplicate ? c.handleDuplicateSelected : undefined}
           onDelete={showDelete ? c.handleDeleteSelected : undefined}

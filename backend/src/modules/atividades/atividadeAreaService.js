@@ -24,6 +24,13 @@
  * Travas na ordem canônica: Empresa FOR SHARE (o "hoje") → Atividade FOR UPDATE
  * → áreas e lançamentos. Tenant SÓ do auth_context (R11); a empresa vem do corpo
  * e é conferida no tenant.
+ *
+ * D-PROD-267 — concluir (a área ou a atividade) nunca antes do ÚLTIMO DIA lançado (422 `ATIVIDADE_DATA_INVALIDA`
+ * `antes_do_ultimo_dia`; o último dia é o maior entre `data_operacional` e `data_termino` dos lançamentos CONFIRMADO). E
+ * "todas as áreas concluídas ⇒ atividade concluída": quando a última área em aberto conclui (por "Concluir área" ou pelo
+ * registro de campo com `concluir`), a atividade conclui junto, no dia da área que concluiu por último
+ * (`concluirAtividadeSeAreasConcluidas`). Tipo que exige produção sem produção somada > 0: a atividade fica ABERTA (o
+ * "Concluir atividade" explica o porquê).
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -42,6 +49,9 @@ import { arredondar, dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { regrasDoTipo } from '../tiposAtividade/tipoAtividadePadroes.js';
 import {
+  ENTIDADE_ATIVIDADE,
+  STATUS_APONTAMENTO,
+  STATUS_ATIVIDADE,
   atualizarComVersao,
   carregarAtividadeDetalhe,
   comFkTraduzida,
@@ -56,6 +66,7 @@ import {
   exigirVersao,
   idOuNulo,
   iso,
+  somarApontamentosConfirmados,
   t4,
   tempoDaFazenda,
   travarAtividade,
@@ -239,12 +250,136 @@ export const concluirAreasEmAndamento = async (tx, { clienteId, empresaId, ativi
       throw atividadeDataInvalida('data_conclusao', 'antes_do_inicio_da_area', { data: dia, area: a.area?.nome ?? null, data_inicio_area: inicio });
     }
   }
+  // D-PROD-267: nunca antes do último dia lançado na atividade (em qualquer área, ou sem área na atividade antiga).
+  const ultimo = await ultimoDiaDaAtividade(tx, { clienteId, empresaId, atividadeId });
+  if (ultimo && dia < ultimo) throw atividadeDataInvalida('data_conclusao', 'antes_do_ultimo_dia', { data: dia, ultimo_dia: ultimo });
   if (!emAndamento.length) return 0;
   const r = await tx.atividadeArea.updateMany({
     where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, status: STATUS_AREA.EM_ANDAMENTO },
     data: { status: STATUS_AREA.CONCLUIDA, data_conclusao: comoData(dia), versao: { increment: 1 } },
   });
   return r.count;
+};
+
+// ─── o último dia lançado e a conclusão automática (D-PROD-267) ───────────
+
+/** O maior de dois dias `AAAA-MM-DD` (nulos ficam de fora). @param {string|null} a @param {string|null} b */
+const maiorDia = (a, b) => (!a ? b : !b ? a : a > b ? a : b);
+
+/**
+ * O ÚLTIMO DIA lançado de cada área da atividade: o maior entre `data_operacional` e `data_termino` dos lançamentos
+ * CONFIRMADO. `atividadeAreaIds` limita às áreas dadas (ids de `AtividadeArea`). Uma consulta agrupada. Devolve o mapa
+ * id da área da atividade → `AAAA-MM-DD` (a chave `null` junta os lançamentos sem área, da atividade antiga).
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, atividadeId: string, atividadeAreaIds?: string[] }} p
+ * @returns {Promise<Map<string|null, string>>}
+ */
+export const ultimosDiasDasAreas = async (tx, { clienteId, empresaId, atividadeId, atividadeAreaIds = undefined }) => {
+  if (atividadeAreaIds && !atividadeAreaIds.length) return new Map();
+  const linhas = /** @type {any[]} */ (
+    await tx.atividadeApontamento.groupBy({
+      by: ['atividade_area_id'],
+      where: {
+        cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, status: STATUS_APONTAMENTO.CONFIRMADO,
+        ...(atividadeAreaIds ? { atividade_area_id: { in: atividadeAreaIds } } : {}),
+      },
+      _max: { data_operacional: true, data_termino: true },
+    })
+  );
+  /** @type {Map<string|null, string>} */
+  const porArea = new Map();
+  for (const l of linhas) {
+    const ultimo = maiorDia(diaDe(l._max.data_operacional) ?? null, diaDe(l._max.data_termino) ?? null);
+    if (ultimo) porArea.set(l.atividade_area_id ?? null, ultimo);
+  }
+  return porArea;
+};
+
+/**
+ * O último dia lançado na ATIVIDADE (todas as áreas e os lançamentos sem área), ou null sem lançamento confirmado.
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, atividadeId: string }} p
+ */
+export const ultimoDiaDaAtividade = async (tx, p) => {
+  /** @type {string|null} */
+  let ultimo = null;
+  for (const d of (await ultimosDiasDasAreas(tx, p)).values()) ultimo = maiorDia(ultimo, d);
+  return ultimo;
+};
+
+/**
+ * Conclui UMA área EM_ANDAMENTO na transação de quem chama, SOB a trava da atividade (ABERTA, conferida por quem chama):
+ * a data nunca antes do início da área (`antes_do_inicio_da_area`) nem do último dia lançado nela (`antes_do_ultimo_dia`);
+ * "não futura" é de quem chama. É o caminho de `POST …/areas/:areaId/concluir` e do registro de campo com `concluir`
+ * (D-PROD-267). `area` é a linha lida sob a trava (com `versao` e o resumo da área). Devolve `{ area, atividade }`.
+ * @param {any} tx @param {any} contexto
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, area: any, dia: string, versao?: unknown }} p
+ */
+export const concluirAreaNaTransacao = async (tx, contexto, { clienteId, empresaId, atividadeId, area, dia, versao = undefined }) => {
+  exigirStatusDaArea(area, STATUS_AREA.EM_ANDAMENTO, 'concluir_area');
+  const inicio = diaDe(area.data_inicio);
+  if (inicio && dia < inicio) {
+    throw atividadeDataInvalida('data_conclusao', 'antes_do_inicio_da_area', { data: dia, area: area.area?.nome ?? null, data_inicio_area: inicio });
+  }
+  const ultimo = (await ultimosDiasDasAreas(tx, { clienteId, empresaId, atividadeId, atividadeAreaIds: [area.id] })).get(area.id) ?? null;
+  if (ultimo && dia < ultimo) throw atividadeDataInvalida('data_conclusao', 'antes_do_ultimo_dia', { data: dia, area: area.area?.nome ?? null, ultimo_dia: ultimo });
+  return gravarAreaEResponder(tx, contexto, {
+    clienteId, empresaId, atividadeId, area, versao: versao ?? area.versao, acao: 'concluir_area', dados: { status: STATUS_AREA.CONCLUIDA, data_conclusao: comoData(dia) },
+  });
+};
+
+/**
+ * "Todas as áreas concluídas ⇒ atividade concluída" (D-PROD-267), na transação de quem chama e SOB a trava da atividade:
+ * com pelo menos uma área e TODAS CONCLUIDAS, a atividade ABERTA conclui no dia da área que concluiu por último, com quem e
+ * quando (a `versao` sobe, como no "Concluir atividade"), e a conclusão é auditada (`atividade.concluir`,
+ * `conclusao_automatica`). Tipo que exige produção sem produção somada > 0: fica ABERTA (nada muda). Devolve se concluiu.
+ * @param {any} tx @param {any} contexto
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, tempo: { agora: Date } }} p
+ * @returns {Promise<boolean>}
+ */
+export const concluirAtividadeSeAreasConcluidas = async (tx, contexto, { clienteId, empresaId, atividadeId, tempo }) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const areas = /** @type {Array<{ status: string, data_conclusao: Date|null }>} */ (
+    await tx.atividadeArea.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId }, select: { status: true, data_conclusao: true } })
+  );
+  if (!areas.length || areas.some((a) => a.status !== STATUS_AREA.CONCLUIDA)) return false;
+  const atividade = await tx.atividade.findFirst({
+    where: { cliente_id: clienteId, empresa_id: empresaId, id: atividadeId },
+    select: { id: true, status: true, versao: true, tipo_atividade_id: true },
+  });
+  if (!atividade || atividade.status !== STATUS_ATIVIDADE.ABERTA) return false;
+  if (regrasDoTipo(await lerTipoAtividade(tx, clienteId, atividade.tipo_atividade_id)).exige_producao) {
+    const { quantidade_produzida: producao } = await somarApontamentosConfirmados(tx, clienteId, empresaId, atividadeId);
+    if (producao === null || !dec(producao).gt(0)) return false;
+  }
+  /** @type {string|null} */
+  let dia = null;
+  for (const a of areas) dia = maiorDia(dia, diaDe(a.data_conclusao) ?? null);
+  if (!dia) return false;
+  const r = await tx.atividade.updateMany({
+    where: { cliente_id: clienteId, empresa_id: empresaId, id: atividadeId, status: STATUS_ATIVIDADE.ABERTA, versao: atividade.versao },
+    data: {
+      status: STATUS_ATIVIDADE.CONCLUIDA,
+      data_conclusao: comoData(dia),
+      concluida_em: tempo.agora,
+      concluida_por_usuario_id: auth.usuarioId ?? null,
+      versao: { increment: 1 },
+    },
+  });
+  if (r.count !== 1) return false;
+  await registrarEvento(
+    contexto,
+    {
+      acao: 'atividade.concluir',
+      entidade: ENTIDADE_ATIVIDADE,
+      entidadeId: atividadeId,
+      dadosAnteriores: { id: atividadeId, status: STATUS_ATIVIDADE.ABERTA, versao: atividade.versao },
+      dadosNovos: {
+        id: atividadeId, status: STATUS_ATIVIDADE.CONCLUIDA, data_conclusao: dia, versao: atividade.versao + 1,
+        conclusao_automatica: true, motivo: 'todas_as_areas_concluidas', areas_concluidas: areas.length,
+      },
+    },
+    tx
+  );
+  return true;
 };
 
 /**
@@ -512,6 +647,8 @@ export const iniciarAreaNaTransacao = async (tx, contexto, { clienteId, empresaI
 /**
  * `POST …/areas/:areaId/concluir`: EM_ANDAMENTO → CONCLUIDA com `data_conclusao` (padrão hoje; nunca futura nem antes
  * do início da área). Concluída, a área não recebe lançamento novo.
+ * D-PROD-267: nem antes do último dia lançado nela; e, sendo a última área em aberto, a atividade conclui junto
+ * (`atividade_concluida: true` na resposta, com o `atividade` já concluído).
  * @param {any} contexto @param {string} atividadeId @param {string} areaId @param {Record<string, any>} corpo
  */
 export const concluirArea = async (contexto, atividadeId, areaId, corpo) => {
@@ -526,13 +663,9 @@ export const concluirArea = async (contexto, atividadeId, areaId, corpo) => {
       exigirStatusDaArea(area, STATUS_AREA.EM_ANDAMENTO, 'concluir_area');
       const dia = informada ?? /** @type {any} */ (tempo).hoje;
       exigirDiaNaoFuturo(/** @type {any} */ (tempo), dia, 'data_conclusao');
-      const inicio = diaDe(area.data_inicio);
-      if (inicio && dia < inicio) {
-        throw atividadeDataInvalida('data_conclusao', 'antes_do_inicio_da_area', { data: dia, area: area.area?.nome ?? null, data_inicio_area: inicio });
-      }
-      return gravarAreaEResponder(tx, contexto, {
-        clienteId: cli, empresaId, atividadeId, area, versao: corpo.versao, acao: 'concluir_area', dados: { status: STATUS_AREA.CONCLUIDA, data_conclusao: comoData(dia) },
-      });
+      const r = await concluirAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId, area, dia, versao: corpo.versao });
+      const concluida = await concluirAtividadeSeAreasConcluidas(tx, contexto, { clienteId: cli, empresaId, atividadeId, tempo: /** @type {any} */ (tempo) });
+      return concluida ? { ...r, atividade: await carregarAtividadeDetalhe(tx, cli, empresaId, atividadeId), atividade_concluida: true } : { ...r, atividade_concluida: false };
     },
     {},
     MENSAGEM_CONFLITO_SEM_CHAVE
