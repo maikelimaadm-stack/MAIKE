@@ -1,4 +1,4 @@
-/** API dos Ajustes de inventário do Estoque (D-PROD-267). Só online. */
+/** API dos Ajustes de inventário do Estoque (D-PROD-268). Só online. */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { operacoesNativas } from './estoqueAjustesNativePort.js';

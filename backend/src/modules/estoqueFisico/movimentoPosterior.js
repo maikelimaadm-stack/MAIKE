@@ -1,5 +1,5 @@
 /**
- * D-PROD-264 / D-PROD-267 — "nada mexeu depois": o primeiro movimento do produto naquele depósito (entrada,
+ * D-PROD-264 / D-PROD-268 — "nada mexeu depois": o primeiro movimento do produto naquele depósito (entrada,
  * saída, transferência de/para, estorno) posterior a um movimento dado. Usado pela exclusão da saída manual e
  * do ajuste de inventário (escolha do proprietário: só exclui se nada mexeu depois). Chamar sob a trava do
  * produto (`travarProdutosEstoque`).

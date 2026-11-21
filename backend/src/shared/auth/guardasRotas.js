@@ -224,7 +224,7 @@ export const GUARDAS = Object.freeze({
     ver: porTela(T.ESTOQUE, 'visualizar'),
     entrada: porTela(T.ESTOQUE, 'entrada'),
     saida: porTela(T.ESTOQUE, 'saida'),
-    // D-PROD-267: `ajuste` (ajuste de inventário).
+    // D-PROD-268: `ajuste` (ajuste de inventário).
     ajuste: porTela(T.ESTOQUE, 'ajuste'),
     formulario: porQualquer([T.ESTOQUE, 'entrada'], [T.ESTOQUE, 'saida'], [T.ESTOQUE, 'ajuste']),
   },
@@ -362,6 +362,17 @@ export const GUARDAS = Object.freeze({
     criar: porTela(T.ATIVIDADES, 'lancar_apontamento'),
     editar: porTela(T.ATIVIDADES, 'editar_apontamento'),
     cancelar: porTela(T.ATIVIDADES, 'cancelar_apontamento'),
+    // D-PROD-267 — `POST /atividades/registrar`: lançar; com `concluir` ou `nova_atividade` true o registro também
+    // CONCLUI (áreas, e a atividade quando todas concluem), então pede junto a permissão do "Concluir" (editar|salvar).
+    registrar: autorizar((req, aut) => {
+      if (!telaPermite(aut, T.ATIVIDADES, 'lancar_apontamento')) return { tela: T.ATIVIDADES.tela, acao: 'lancar_apontamento' };
+      const corpo = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? /** @type {Record<string, unknown>} */ (req.body) : {};
+      const conclui = corpo.concluir === true || corpo.nova_atividade === true;
+      if (conclui && !telaPermite(aut, T.ATIVIDADES, 'editar') && !telaPermite(aut, T.ATIVIDADES, 'salvar')) {
+        return { tela: T.ATIVIDADES.tela, exige: [`${T.ATIVIDADES.tela}:lancar_apontamento`, `${T.ATIVIDADES.tela}:editar|${T.ATIVIDADES.tela}:salvar`] };
+      }
+      return true;
+    }),
   },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
   // D-PROD-207 — Serviços da fazenda: leitura pela própria tela (dado por

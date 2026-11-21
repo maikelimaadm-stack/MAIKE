@@ -85,6 +85,8 @@ export function colunasBase1(defs) {
  *   card (texto e cor); padrão: as iniciais do título
  * @param {(row: object) => import('react').ReactNode} [props.cardsSubtitle] opt-in (D-PROD-237): a linha abaixo do
  *   título do card; padrão: o código
+ * @param {(row: object) => import('react').ReactNode} [props.cardsBody] opt-in (D-PROD-267): o corpo inteiro do card,
+ *   desenhado pela tela (o card mantém seleção, abrir e ⚡)
  */
 export default function CadastroBase1Grade({
   rows = EMPTY_ROWS,
@@ -128,6 +130,7 @@ export default function CadastroBase1Grade({
   filtrosExternos = undefined,
   cardsAvatar = undefined,
   cardsSubtitle = undefined,
+  cardsBody = undefined,
 }) {
   // Dentro da lista integrada (chrome com portalComprasSkin) a grade herda os
   // cabeçalhos de referência e o "Filtrar por campo" do motor: antes cada tela
@@ -759,6 +762,7 @@ export default function CadastroBase1Grade({
           renderAcoesDaLinha={renderAcoesDaLinha}
           avatar={cardsAvatar}
           subtitle={cardsSubtitle}
+          corpo={cardsBody}
         />
         {referenceHeaders
           ? dataCols.map((c) => renderReferenceFilter(c.id))

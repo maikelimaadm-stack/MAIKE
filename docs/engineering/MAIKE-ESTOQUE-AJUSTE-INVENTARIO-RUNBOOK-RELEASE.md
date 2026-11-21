@@ -1,11 +1,11 @@
-# MAIKE — Estoque, ajuste de inventário: runbook de release expand-only (D-PROD-267)
+# MAIKE — Estoque, ajuste de inventário: runbook de release expand-only (D-PROD-268)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
 
-Decisão: [D-PROD-267](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md).
+Decisão: [D-PROD-268](./DECISIONS.md) · Relatório: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md).
 Anterior em produção: a CONTRACT aditiva da data de término do apontamento (D-PROD-265, PR #349, aplicada em 2026-11-20 18:58:29 UTC); esta pasta foi renomeada de `20261120200000_…` para `20261120300000_estoque_ajustes` para vir estritamente depois dela. Molde e precedente executado: [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 (a anterior, EXPAND, caminho B, aplicada em 2026-11-20 01:15:39 UTC).
 

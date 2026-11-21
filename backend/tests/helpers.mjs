@@ -129,7 +129,7 @@ export const limparBanco = async () => {
   await prisma.saidaEstoqueItem.deleteMany({});
   await prisma.saidaEstoque.deleteMany({});
   await prisma.motivoSaidaEstoque.deleteMany({});
-  // D-PROD-267: o ajuste referencia centros, produto, local, camada e movimentos (RESTRICT).
+  // D-PROD-268: o ajuste referencia centros, produto, local, camada e movimentos (RESTRICT).
   await prisma.ajusteEstoqueEvento.deleteMany({});
   await prisma.ajusteEstoqueItem.deleteMany({});
   await prisma.ajusteEstoque.deleteMany({});

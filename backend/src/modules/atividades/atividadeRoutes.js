@@ -4,7 +4,12 @@
  *
  *  - `GET   /atividades` (ver) — lista keyset (`createdAt desc, id desc`) com
  *    filtros `status`, `tipo_atividade_id`, `area_id`, `data_de`/`data_ate`
- *    (sobre `data_inicio`) e `q` (número e nome)
+ *    (sobre `data_inicio`) e `q` (número e nome); D-PROD-267: `situacao`
+ *    (PLANEJADA | EM_ANDAMENTO | CONCLUIDA | CANCELADA) e `tipo_fixo` (a
+ *    categoria da operação), e cada item com o `andamento` (hectares, %, dias)
+ *  - `POST  /atividades/:id/concluir` também é o "Concluir" da linha da lista
+ *    (D-PROD-267: conclui as áreas em andamento e a atividade numa transação;
+ *    nunca antes do último dia lançado)
  *  - `GET   /atividades/:id` (ver) — detalhe com os resumos e os `totais`
  *  - `GET   /atividades/:id/totais` (ver) — D-PROD-202: o totalizador das linhas
  *    (produtos, máquinas, custo e custo/ha)
@@ -40,7 +45,8 @@ import { NATUREZAS } from '../patrimonio/patrimonioDominio.js';
 import { DECIMAIS_DA_ATIVIDADE, PADRAO_DECIMAL, recusarCoercao, recusarCoercaoNasListas } from './atividadeComum.js';
 import { AREAS_NA_ABERTURA_MAXIMO } from './atividadeAreaService.js';
 import { opcoesBens, opcoesOperadores } from './atividadeOpcoesService.js';
-import { NOME_MAXIMO, STATUS, atualizar, cancelar, concluir, criar, duplicar, listar, obter, obterTotais, reabrir } from './atividadeService.js';
+import { NOME_MAXIMO, SITUACOES_DO_SERVICO, STATUS, atualizar, cancelar, concluir, criar, duplicar, listar, obter, obterTotais, reabrir } from './atividadeService.js';
+import { CATEGORIAS_TIPO_FIXO } from '../tiposAtividade/tipoAtividadePadroes.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const ID_NULO = { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -87,6 +93,9 @@ const LISTAR = {
       area_id: ID,
       data_de: DIA,
       data_ate: DIA,
+      // D-PROD-267: a Situação da lista e o tipo fixo da operação (a categoria).
+      situacao: { type: 'string', enum: [...SITUACOES_DO_SERVICO] },
+      tipo_fixo: { type: 'string', enum: [...CATEGORIAS_TIPO_FIXO] },
       q: { type: 'string', maxLength: NOME_MAXIMO },
       limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO },
       cursor: { type: 'string', minLength: 1, maxLength: 512 },

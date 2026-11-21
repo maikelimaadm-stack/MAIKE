@@ -196,7 +196,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-265: CONTRACT aditivo — a data de término do registro de campo (AtividadeApontamento.data_termino DATE, anulável,
   // sem DEFAULT, e o CHECK término >= início). Só é CONTRACT porque a allowlist EXPAND recusa DATE e CHECK em tabela antiga.
   '20261120200000_apontamento_data_termino': 'a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b',
-  // D-PROD-267: EXPAND — ajuste de inventário do Estoque (AjusteEstoque, AjusteEstoqueItem e AjusteEstoqueEvento),
+  // D-PROD-268: EXPAND — ajuste de inventário do Estoque (AjusteEstoque, AjusteEstoqueItem e AjusteEstoqueEvento),
   // só tabelas novas.
   '20261120300000_estoque_ajustes': 'ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9',
 });
@@ -252,7 +252,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '82d403a361510ea74e0216379f21912e5a4b68493eac13786fbbb9334f8c0f70',
   // D-PROD-264: RLS/REVOKE das 4 tabelas da saída manual do Estoque (mesmo corpo, lista nova).
   'c0806122464b767913dd451fb066b803fb13451923a10b75462fc96038feffe3',
-  // D-PROD-267: RLS/REVOKE das 3 tabelas do ajuste de inventário (mesmo corpo, lista nova).
+  // D-PROD-268: RLS/REVOKE das 3 tabelas do ajuste de inventário (mesmo corpo, lista nova).
   '4825a207a444b5b3bff8ac669e4e6e4a4db95d5aebd68986125bc8db00094fb8',
 ]);
 

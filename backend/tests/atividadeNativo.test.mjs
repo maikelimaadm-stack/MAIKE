@@ -735,7 +735,8 @@ describe('leitura: lista keyset, filtros e detalhe', () => {
     assert.deepEqual(Object.keys(todas).sort(), ['has_more', 'items', 'limit', 'next_cursor', 'total']);
     assert.deepEqual(todas.items.map((i) => i.id), [a4.id, a3.id, a2.id, a1.id], 'createdAt desc; só a fazenda pedida');
     assert.deepEqual([todas.total, todas.has_more, todas.next_cursor], [4, false, null]);
-    assert.deepEqual(Object.keys(todas.items[0]), [...CAMPOS_PUBLICOS, 'custo_total'], 'a lista não traz os totais; traz o custo total (D-PROD-234)');
+    // D-PROD-267: e o `andamento` (situação, hectares, %, dias), lido para a página numa consulta agrupada.
+    assert.deepEqual(Object.keys(todas.items[0]), [...CAMPOS_PUBLICOS, 'custo_total', 'andamento'], 'a lista não traz os totais; traz o custo total (D-PROD-234) e o andamento (D-PROD-267)');
     assert.ok(todas.items.every((i) => i.custo_total === null), 'sem lançamento, sem custo');
     assert.deepEqual((await lista('&status=CONCLUIDA')).items.map((i) => i.id), [a3.id]);
     assert.deepEqual((await lista('&status=CANCELADA')).items.map((i) => i.id), [a4.id]);
