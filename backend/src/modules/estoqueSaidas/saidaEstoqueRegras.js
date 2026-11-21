@@ -15,6 +15,14 @@ import { diaDoCorpo } from '../patrimonio/patrimonioComum.js';
 export const ENTIDADE = 'SaidaEstoque';
 export const TIPO_CRIAR = 'estoque_saida_criar';
 export const TIPO_EXCLUIR = 'estoque_saida_excluir';
+/** D-PROD-270: a edição com substituição (estorno + saída nova) é idempotente por `operation_id`. */
+export const TIPO_EDITAR = 'estoque_saida_editar';
+
+/** D-PROD-270: os 2 modos da edição (a saída guarda o modo no snapshot do evento; não há coluna). */
+export const MODO_METADADOS = 'METADADOS';
+export const MODO_SUBSTITUICAO = 'SUBSTITUICAO';
+/** D-PROD-270: qualquer um destes no corpo do PATCH faz da edição uma SUBSTITUIÇÃO (o corpo é a versão nova completa). */
+export const CAMPOS_FISICOS = Object.freeze(['motivo_id', 'data_saida', 'centro_custo_id', 'centro_resultado_id', 'itens']);
 
 export const STATUS_CONFIRMADA = 'CONFIRMADA';
 export const STATUS_EXCLUIDA = 'EXCLUIDA';
@@ -95,20 +103,21 @@ export const normalizarExclusao = (id, corpo) => {
   return { id, empresa_id: c.empresa_id, versao: c.versao, operation_id: c.operation_id, motivo };
 };
 
-/** Corpo da edição (só a observação). @param {string} id @param {unknown} corpo */
+/**
+ * Corpo da edição (D-PROD-270). Só `observacao` (+ `versao`, `motivo_edicao`) → METADADOS, como antes
+ * (`operation_id`, se vier, não é usado). Qualquer campo físico (`CAMPOS_FISICOS`) → SUBSTITUICAO: o corpo é
+ * a versão nova COMPLETA, normalizada e validada como a criação (`normalizarCriacao`).
+ * @param {string} id @param {unknown} corpo
+ */
 export const normalizarEdicao = (id, corpo) => {
   const c = /** @type {Record<string, any>} */ (corpo ?? {});
   const motivoEdicao = textoDoCorpo(c.motivo_edicao, 'motivo_edicao');
   if (!motivoEdicao) throw invalido('informe o motivo da edição', { field: 'motivo_edicao', reason: 'obrigatorio' });
   if (tamanho(motivoEdicao) < MOTIVO_ACAO_MINIMO) throw invalido(`o motivo da edição deve ter ao menos ${MOTIVO_ACAO_MINIMO} caracteres`, { field: 'motivo_edicao', reason: 'motivo_curto' });
-  return {
-    id,
-    empresa_id: c.empresa_id,
-    versao: c.versao,
-    motivo_edicao: motivoEdicao,
-    campos_fisicos: ['motivo_id', 'data_saida', 'centro_custo_id', 'centro_resultado_id', 'itens'].filter((k) => c[k] !== undefined),
-    observacao: textoDoCorpo(c.observacao, 'observacao'),
-  };
+  if (CAMPOS_FISICOS.some((k) => c[k] !== undefined)) {
+    return { modo: MODO_SUBSTITUICAO, id, empresa_id: c.empresa_id, versao: c.versao, motivo_edicao: motivoEdicao, saida: normalizarCriacao(c) };
+  }
+  return { modo: MODO_METADADOS, id, empresa_id: c.empresa_id, versao: c.versao, motivo_edicao: motivoEdicao, observacao: textoDoCorpo(c.observacao, 'observacao') };
 };
 
 /** Fingerprint canônico (ordem FIXA de chaves). @param {ReturnType<typeof normalizarCriacao>} s */
@@ -122,6 +131,35 @@ export const fingerprintDaCriacao = (s) => ({
   observacao: s.observacao,
   itens: s.itens.map((i) => [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade]),
 });
+/**
+ * D-PROD-270 — fingerprint canônico da edição com substituição (ordem FIXA de chaves).
+ * @param {{ id: string, empresa_id: any, versao: any, motivo_edicao: string, saida: ReturnType<typeof normalizarCriacao> }} e
+ */
+export const fingerprintDaSubstituicao = (e) => ({
+  v: 1,
+  id: e.id,
+  empresa_id: e.empresa_id,
+  versao: e.versao,
+  motivo_edicao: e.motivo_edicao,
+  versao_nova: fingerprintDaCriacao(e.saida),
+});
+
+/**
+ * D-PROD-270 — a versão nova é FISICAMENTE igual à vigente? (cabeçalho físico e linhas, na ordem). Quando é,
+ * a edição não mexe no estoque: só a observação pode ter mudado (vira METADADOS) ou nada mudou.
+ * @param {{ motivo_id: string, data_saida: string, centro_custo_id: string|null, centro_resultado_id: string|null }} atual
+ * @param {Array<{ produto_id: string, local_estoque_id: string, unidade: string, quantidade: any }>} linhas linhas vigentes, por ordem
+ * @param {ReturnType<typeof normalizarCriacao>} nova
+ */
+export const mesmaVersaoFisica = (atual, linhas, nova) => {
+  const cab = ['motivo_id', 'data_saida', 'centro_custo_id', 'centro_resultado_id'];
+  if (cab.some((k) => (atual[k] ?? null) !== (nova[k] ?? null))) return false;
+  if (linhas.length !== nova.itens.length) return false;
+  return nova.itens.every((n, i) => {
+    const a = linhas[i];
+    return a.produto_id === n.produto_id && a.local_estoque_id === n.local_estoque_id && a.unidade === n.unidade && dec(a.quantidade).eq(dec(n.quantidade));
+  });
+};
 /** @param {ReturnType<typeof normalizarExclusao>} s */
 export const fingerprintDaExclusao = (s) => ({ v: 1, id: s.id, empresa_id: s.empresa_id, versao: s.versao, motivo: s.motivo });
 
