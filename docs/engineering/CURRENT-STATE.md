@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-274; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-275; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,15 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-274)
+## Missão ativa (2026-11-21) — MAIKE-ENTREGA3: a reforma de pastagem como agrupador (D-PROD-275)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-275**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, §1.2 A, B e C e o "Reforma (PR C)" do §1.3 de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 3" do plano de campo |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv` (local `entrega3-reforma`), refeita sobre a `main` `6cb0b176` (com a Entrega 2, PR #354, mergeada) · PR (a abrir) |
+| Escopo | "Planejar" pergunta Reforma de pastagem ou Um serviço; a reforma com 4 campos (Áreas com hectares, Tipo, Capim que vai ficar, Início previsto), nome e safra do servidor ("Reforma · PASTO DA AROEIRA · 2026/27"); "Faz parte de" na Nova realização (marcada, tirar, lista com duas; `planejamento_id` no registro, nunca troca a ligação de quem continua, fingerprint igual sem ele); filtro Reforma na lista com a barra (custo total, R$/ha calculado na leitura, por tipo, serviços em ordem de data); "Em reforma desde DD/MM" no Detalhes da área do mapa; Concluir (com "Trocar o capim da área para …?", pelo caminho auditado da área) e Cancelar (nada apagado) |
+| Migration | `20261122100000_reforma_planejamento`, **EXPAND** (tabelas novas `Planejamento` e `PlanejamentoArea`; `Atividade.planejamento_id` anulável com índice e FK pelo tenant), checksum `27f16e1d…3a10`. **Não aplicada.** É a 75ª, depois da `20261121100000_atividade_campos_por_tipo` (Entrega 2, aplicada em produção em 2026-11-23); pré-checagem 74/0 e 109 tabelas, pós-checagem 75/0 e 111 tabelas. Ordem: aplicar esta com o GO do proprietário, depois o merge |
+| Próximas | "Conferir nascimento"; aviso do 1º pastejo; planejar cada serviço da reforma (as linhas "Planejada") |
+| Relatório | [`MAIKE-ENTREGA3-REFORMA-REPORT.md`](./MAIKE-ENTREGA3-REFORMA-REPORT.md) · runbook [`MAIKE-ENTREGA3-REFORMA-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA3-REFORMA-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-274)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-274**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25`, com a `main` `c1cd2be9` integrada · PR **#354** |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25`, com a `main` `c1cd2be9` integrada · PR **#354** (mergeada, `6cb0b176`) |
 | Escopo | Plantio de pastagem com o capim obrigatório (do Cadastro de Culturas; capim diferente abre outra atividade), forma, semente incrustada, cobertura, consórcio e o VC % da semente; safra automática (1º/jul a 30/jun, "2026/27"); Aplicação com o alvo da operação, o nº do receituário e o "pasto liberado em" pela carência do produto; Manutenção e Outros com a área opcional e o local; quantidade feita + unidade na Manutenção; a lista de referência de capins (Marandu 35/20 e 6 capins do Doc 397) sem tocar no que a fazenda já tem; a data no celular |
-| Migration | `20261121100000_atividade_campos_por_tipo`, **EXPAND** (tabela nova `AtividadePlantio` e 5 colunas anuláveis), checksum `9e6487ff…2a58`. **Aplicada em produção em 2026-11-23** (GO "aplica"; caminho B; pós-checagem 74/0, 109 tabelas). Depois: o merge |
-| Próximas | agrupador de Reforma e "Faz parte de: Reforma"; "Conferir nascimento"; aviso do 1º pastejo |
+| Migration | `20261121100000_atividade_campos_por_tipo`, **EXPAND** (tabela nova `AtividadePlantio` e 5 colunas anuláveis), checksum `9e6487ff…2a58`; migration aplicada em produção em 2026-11-23 (GO "aplica"; caminho B; pós-checagem 74/0, 109 tabelas); depois, o merge da PR #354 |
+| Próximas | agrupador de Reforma e "Faz parte de: Reforma" (a Entrega 3, D-PROD-275, missão ativa); "Conferir nascimento"; aviso do 1º pastejo |
 | Relatório | [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · runbook [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md) |
 
 ## Missão (2026-11-22) — MAIKE-ESTOQUE-EXCLUSAO-RECALCULO: exclusão com recálculo; o excluído some das telas (D-PROD-273)
