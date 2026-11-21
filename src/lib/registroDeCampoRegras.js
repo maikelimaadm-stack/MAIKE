@@ -102,7 +102,7 @@ export const comItem = (lista, item) => (lista.some((i) => i.chave === item.chav
  */
 export const linhasDoCorpoDoRegistro = (itens) => ({
   ...(itens.maquinas.length ? { maquinas: itens.maquinas.map((i) => corpoDaLinhaMaquina(i.form, i.medidor, { comJustificativa: i.comJustificativa === true })) } : {}),
-  // D-PROD-270: o VC (%) da semente só vai quando preenchido e válido (sem ele, a linha de sempre).
+  // D-PROD-271: o VC (%) da semente só vai quando preenchido e válido (sem ele, a linha de sempre).
   ...(itens.produtos.length
     ? { produtos: itens.produtos.map((i) => { const vc = lerVc(i.form?.vc).valor; return { ...corpoDaLinhaProduto(i.form), ...(vc ? { vc_percentual: vc } : {}) }; }) }
     : {}),
@@ -286,7 +286,7 @@ const DIAS_PARADO = 30;
 /**
  * D-PROD-267 — a atividade aberta que o registro acharia (a mesma regra do servidor: a ABERTA da operação com a área não
  * concluída, em QUALQUER mês), com o que a prévia mostra. Sem nenhuma (ou com mais de uma na mesma área), null.
- * D-PROD-270: no Plantio de pastagem (`culturaId`), só a do MESMO capim (capim diferente abre outra).
+ * D-PROD-271: no Plantio de pastagem (`culturaId`), só a do MESMO capim (capim diferente abre outra).
  * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, resumos: Array<any|null|undefined>, culturaId?: string|null }} p
  * @returns {{ indice: number, alvo: any, varias: boolean } | null}
  */
@@ -310,7 +310,7 @@ export const atividadeDoRegistro = ({ tipo, areas, resumos, culturaId = null }) 
  * várias áreas, diz quais entram nela e avisa da que já está concluída nela (o servidor recusa). Sem nenhuma: a
  * atividade nova, com o nome dela (o mês do início). `resumos[i]` é o resumo da área i
  * (`GET /atividades-por-area/:id/resumo`); faltando algum, null (ainda lendo).
- * D-PROD-270: `culturaId` (o capim do Plantio de pastagem) entra na regra, como no servidor; `capim` (o nome dele) vai na
+ * D-PROD-271: `culturaId` (o capim do Plantio de pastagem) entra na regra, como no servidor; `capim` (o nome dele) vai na
  * frase ("Entra em SEMEADURA DE CAPIM · PASTO DA AROEIRA · nov/26 · capim PANICUM CV. MOMBAÇA (em andamento, …)"): dois
  * plantios na mesma área têm o mesmo nome e só o capim os distingue.
  * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, dia: string, resumos: Array<any|null|undefined>, culturaId?: string|null,
@@ -357,7 +357,7 @@ const comOCapim = (capim) => {
 };
 
 /**
- * D-PROD-270 — onde o registro SEM área (Manutenção e Outros, com o local) entra: o servidor continua o serviço ABERTO da
+ * D-PROD-271 — onde o registro SEM área (Manutenção e Outros, com o local) entra: o servidor continua o serviço ABERTO da
  * operação no MESMO local (sem área) ou cria um. `abertas` é o que a tela leu com a mesma busca
  * (`GET /atividades?status=ABERTA&tipo_atividade_id=…&local=…`): com uma, "Entra em <nome> (em andamento, 1,2 km)" (parada
  * há mais de 30 dias, avisa que o salvar vai perguntar); sem nenhuma, "Nova atividade será criada: <Tipo> · <LOCAL> ·

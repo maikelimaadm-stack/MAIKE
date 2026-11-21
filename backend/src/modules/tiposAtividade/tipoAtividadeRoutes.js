@@ -41,7 +41,7 @@ const CAMPOS = Object.freeze({
   unidade_producao_id: ID_NULO,
   coeficiente_padrao: { type: ['string', 'null'], pattern: PADRAO_COEFICIENTE.source },
   ...Object.fromEntries(FLAGS_TIPO_ATIVIDADE.map((flag) => [flag, { type: 'boolean' }])),
-  // MAIKE-ENTREGA2 (D-PROD-270): o alvo da Aplicação (texto; null ou vazio limpa). O serviço confere o tamanho em MAIÚSCULAS.
+  // MAIKE-ENTREGA2 (D-PROD-271): o alvo da Aplicação (texto; null ou vazio limpa). O serviço confere o tamanho em MAIÚSCULAS.
   alvo: { type: ['string', 'null'], maxLength: 120 },
 });
 

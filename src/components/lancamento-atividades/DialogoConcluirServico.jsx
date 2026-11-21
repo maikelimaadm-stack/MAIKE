@@ -13,7 +13,7 @@ import { barraDoAndamento, erroDoUltimoDia, feitoNoConcluir, tituloDoConcluir } 
  * último dia?", já com o último dia lançado ("sugerido: último dia lançado") — e "40 de 40 ha (100%)" com a barra. Grava
  * pelo `POST /atividades/:id/concluir` de sempre (as áreas em andamento e a atividade, numa transação; o servidor recusa
  * o dia futuro, antes do início ou antes do último dia lançado). A data é conferida aqui antes da rede, com a mesma regra.
- * D-PROD-270 (ajustes do teste de ponta a ponta): o título diz o capim do Plantio de pastagem; o serviço sem área mostra a
+ * D-PROD-271 (ajustes do teste de ponta a ponta): o título diz o capim do Plantio de pastagem; o serviço sem área mostra a
  * quantidade feita no lugar dos hectares (o local já está no título).
  *
  * @param {{ item: any, hoje: string, onFechar: () => void, onConcluir: (dia: string) => Promise<unknown> }} props
@@ -25,7 +25,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
   const [erro, setErro] = useState(/** @type {string|null} */ (null));
   const [aviso, setAviso] = useState(/** @type {string|null} */ (null));
   const [enviando, setEnviando] = useState(false);
-  // D-PROD-270: sem área, a quantidade feita (o local está no título; nunca "0 ha"); o título leva o capim do plantio.
+  // D-PROD-271: sem área, a quantidade feita (o local está no título; nunca "0 ha"); o título leva o capim do plantio.
   const hectares = feitoNoConcluir(item);
   const barra = barraDoAndamento(item);
 

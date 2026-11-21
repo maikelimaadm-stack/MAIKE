@@ -131,7 +131,7 @@ const celulasDoItem = (colecao, item, areaDoDia) => {
 };
 
 /**
- * D-PROD-270 — a linha de baixo do insumo na tabela: o VC da semente e os pontos de VC/ha (dose × VC), quando há VC.
+ * D-PROD-271 — a linha de baixo do insumo na tabela: o VC da semente e os pontos de VC/ha (dose × VC), quando há VC.
  * @param {ColecaoDoRegistro} colecao @param {ItemDoRegistro} item @param {string|null} areaDoDia
  */
 const detalheDoItem = (colecao, item, areaDoDia) => {
@@ -296,7 +296,7 @@ function ItensDaSecao({ colecao, itens, areaDoDia, celular, editandoChave, podeA
 
 /**
  * Os campos do editor de INSUMO: os da linha de produto (`CamposDaLinhaProduto`), com o saldo do produto escolhido. Conta
- * para o registro o disponível e o nome do local escolhido. D-PROD-270: no Plantio de pastagem (`comVc`), o VC % do saco
+ * para o registro o disponível e o nome do local escolhido. D-PROD-271: no Plantio de pastagem (`comVc`), o VC % do saco
  * de semente (opcional) e, com ele, os pontos de VC/ha.
  * @param {{ editor: EditorDaSecao, mudar: (mudanca: Record<string, any>, campos: string[]) => void, setForm: (f: (atual: any) => any) => void,
  *   onLido: (lido: LidoNoEditor) => void, areaDoDia: string|null, bloqueado: boolean, comVc?: boolean }} props
@@ -385,7 +385,7 @@ function CamposDaMaquina({ editor, mudar, setForm, onLido, dia, permiteImplement
  * @param {{ colecao: ColecaoDoRegistro, editor: EditorDaSecao, numero: number, mudar: (mudanca: Record<string, any>, campos: string[]) => void,
  *   setForm: (f: (atual: any) => any) => void, onLido: (lido: LidoNoEditor) => void, areaDoDia: string|null, dia: string|null,
  *   permiteImplemento: boolean, bloqueado: boolean, onIncluir: () => void, onCancelar: () => void, comVc?: boolean }} props `numero`: a
- *   posição do item na tabela (0 = item novo). D-PROD-270: `comVc` mostra o VC % no editor de insumo (Plantio de pastagem).
+ *   posição do item na tabela (0 = item novo). D-PROD-271: `comVc` mostra o VC % no editor de insumo (Plantio de pastagem).
  */
 export function EditorDaLinhaDoRegistro({ colecao, editor, numero, mudar, setForm, onLido, areaDoDia, dia, permiteImplemento, bloqueado, onIncluir, onCancelar, comVc = false }) {
   const cfg = SECOES_DO_REGISTRO[colecao];

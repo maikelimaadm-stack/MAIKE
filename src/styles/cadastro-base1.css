@@ -2452,7 +2452,7 @@
     min-height: 96px;
   }
   /*
-   * D-PROD-270 — no celular, o valor do campo (16px, o tamanho que evita o zoom do iPhone) não cabia no campo de 38px:
+   * D-PROD-271 — no celular, o valor do campo (16px, o tamanho que evita o zoom do iPhone) não cabia no campo de 38px:
    * a data (e o texto) subia por cima do rótulo flutuante ("Data de início", "Data de término"). Na "Nova realização" o
    * campo cresce para 48px no celular, como na Lançamento em lote (.mk-lanc); o desktop fica como estava.
    */
@@ -3049,7 +3049,7 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
   outline: 2px solid #15803d;
   outline-offset: 2px;
 }
-/* D-PROD-270: "Concluída" desligada para quem não pode editar (a permissão do "Concluir"). */
+/* D-PROD-271: "Concluída" desligada para quem não pode editar (a permissão do "Concluir"). */
 .b1-situacao-depois__opcao:disabled {
   cursor: not-allowed;
   color: #a8a69f;
@@ -3095,7 +3095,7 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
   gap: 8px;
 }
 
-/* D-PROD-270: a célula "Operação" do Plantio de pastagem, com o capim embaixo (dois plantios na mesma área se distinguem). */
+/* D-PROD-271: a célula "Operação" do Plantio de pastagem, com o capim embaixo (dois plantios na mesma área se distinguem). */
 .b1-servico-operacao {
   display: flex;
   flex-direction: column;

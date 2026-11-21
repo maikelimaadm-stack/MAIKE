@@ -196,7 +196,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-265: CONTRACT aditivo — a data de término do registro de campo (AtividadeApontamento.data_termino DATE, anulável,
   // sem DEFAULT, e o CHECK término >= início). Só é CONTRACT porque a allowlist EXPAND recusa DATE e CHECK em tabela antiga.
   '20261120200000_apontamento_data_termino': 'a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b',
-  // MAIKE-ENTREGA2 (D-PROD-270): EXPAND — campos de cada tipo na Nova realização: 5 colunas anuláveis sem DEFAULT em tabelas
+  // MAIKE-ENTREGA2 (D-PROD-271): EXPAND — campos de cada tipo na Nova realização: 5 colunas anuláveis sem DEFAULT em tabelas
   // antigas (Atividade.local, AtividadeApontamento.numero_receituario, AtividadeApontamentoProduto.vc_percentual,
   // Produto.carencia_dias e TipoAtividade.alvo) e a tabela nova AtividadePlantio (capim plantado, 1 para 1 com a atividade).
   '20261121100000_atividade_campos_por_tipo': '9e6487ffddb92a35945c675c1924f363c3396e97dac52e56e8d3c94c20a32a58',
@@ -253,7 +253,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '82d403a361510ea74e0216379f21912e5a4b68493eac13786fbbb9334f8c0f70',
   // D-PROD-264: RLS/REVOKE das 4 tabelas da saída manual do Estoque (mesmo corpo, lista nova).
   'c0806122464b767913dd451fb066b803fb13451923a10b75462fc96038feffe3',
-  // D-PROD-270: RLS/REVOKE da AtividadePlantio (mesmo corpo, lista nova).
+  // D-PROD-271: RLS/REVOKE da AtividadePlantio (mesmo corpo, lista nova).
   'e47bfde02699052ca52f4c6c750e9f28aec247d1fcaf5c2c308a05e006799765',
 ]);
 

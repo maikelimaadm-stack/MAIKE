@@ -1,5 +1,5 @@
 /**
- * D-PROD-270 (MAIKE-ENTREGA2) — os CAMPOS DE CADA TIPO na "Nova realização de <Tipo>":
+ * D-PROD-271 (MAIKE-ENTREGA2) — os CAMPOS DE CADA TIPO na "Nova realização de <Tipo>":
  *  - Plantio de pastagem: o capim (obrigatório, do Cadastro de Culturas; espécie e cultivar embaixo), a Safra só leitura
  *    preenchida pela data, forma, semente incrustada, cobertura e consórcio (opcionais, só vão quando escolhidos), o aviso
  *    "sem semente" e o VC % na linha da semente (pontos de VC/ha);
@@ -61,9 +61,9 @@ const LOCAIS = {
 
 /** @type {{ chamadas: Array<{ method: string, path: string, query: Record<string, string>, body: any }> }} */
 let backend;
-/** D-PROD-270: os serviços abertos sem área que `GET /atividades?local=…` devolve (a prévia sem área). @type {any[]} */
+/** D-PROD-271: os serviços abertos sem área que `GET /atividades?local=…` devolve (a prévia sem área). @type {any[]} */
 let servicosAbertos;
-/** D-PROD-270: o `registro.pasto_liberado_em` da resposta do registro (o servidor calcula). @type {string|null} */
+/** D-PROD-271: o `registro.pasto_liberado_em` da resposta do registro (o servidor calcula). @type {string|null} */
 let liberadoNaResposta;
 
 const rotear = async (/** @type {{ method: string, path: string, query: URLSearchParams, body: any }} */ { method, path, query, body }) => {
@@ -75,7 +75,7 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     return { status: 200, body: { itens: partes[1] === "produtos" ? PRODUTOS : [], has_more: false, next_cursor: null } };
   }
   if (partes[0] === "atividades-por-area" && method === "GET") return { status: 200, body: { area_id: partes[1], mes: "2026-11", atividades: [], custos: null } };
-  // D-PROD-270: a lista filtrada pelo local (o serviço aberto sem área), como o servidor.
+  // D-PROD-271: a lista filtrada pelo local (o serviço aberto sem área), como o servidor.
   if (path === "/atividades" && method === "GET") {
     const items = servicosAbertos.filter(
       (a) => a.local === query.get("local") && a.tipo_atividade_id === query.get("tipo_atividade_id") && (!query.get("status") || a.status === query.get("status")),
@@ -159,7 +159,7 @@ const salvar = async (/** @type {HTMLElement} */ janela) => {
 };
 const valorDe = (/** @type {HTMLElement} */ janela, /** @type {string} */ testId) => within(janela).getByTestId(testId).textContent.trim();
 
-describe("Plantio de pastagem (D-PROD-270)", () => {
+describe("Plantio de pastagem (D-PROD-271)", () => {
   it("o rótulo do tipo é \"Plantio de pastagem\"; o capim é obrigatório (nada sai sem ele) e a lista é dos capins ativos do cadastro", async () => {
     const janela = await montar();
     expect(within(janela).getByRole("list", { name: "Tipos de serviço" }).textContent).toContain("Plantio de pastagem");
@@ -200,7 +200,7 @@ describe("Plantio de pastagem (D-PROD-270)", () => {
     expect(consorcios).not.toContain("PANICUM CV. MOMBAÇA");
     fireEvent.click(screen.getByRole("option", { name: "MILHO" }));
     await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
-    // D-PROD-270 (ajuste do teste de ponta a ponta): a prévia diz o capim.
+    // D-PROD-271 (ajuste do teste de ponta a ponta): a prévia diz o capim.
     await waitFor(() =>
       expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toBe(
         "Nova atividade será criada: SEMEADURA DE CAPIM · PASTO DA AROEIRA · nov/26 · capim PANICUM CV. MOMBAÇA",
@@ -242,7 +242,7 @@ describe("Plantio de pastagem (D-PROD-270)", () => {
   });
 });
 
-describe("Fertilização e Aplicação (D-PROD-270)", () => {
+describe("Fertilização e Aplicação (D-PROD-271)", () => {
   it("Fertilização: a Safra só leitura (preenchida pela data); nada de plantio no corpo", async () => {
     const janela = await montar();
     await escolherTipo(janela, "Fertilização");
@@ -276,7 +276,7 @@ describe("Fertilização e Aplicação (D-PROD-270)", () => {
     const corpo = registros()[0].body;
     expect(corpo.numero_receituario).toBe("0187/2026");
     expect(corpo.pasto_liberado_em).toBeUndefined();
-    // D-PROD-270 (ajuste do teste de ponta a ponta): o aviso de sucesso diz o "Pasto liberado em" da resposta.
+    // D-PROD-271 (ajuste do teste de ponta a ponta): o aviso de sucesso diz o "Pasto liberado em" da resposta.
     await waitFor(() =>
       expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "COMBATE CONTRA CIGARRINHA registrada em PASTO DA AROEIRA. Pasto liberado em 03/12/2026."),
     );
@@ -304,7 +304,7 @@ describe("Fertilização e Aplicação (D-PROD-270)", () => {
   });
 });
 
-describe("Manutenção e Outros sem área (D-PROD-270)", () => {
+describe("Manutenção e Outros sem área (D-PROD-271)", () => {
   it("Manutenção: a área é opcional (Nenhuma área); sem área, o Local é obrigatório; o corpo leva o local, a quantidade feita e a unidade, sem áreas", async () => {
     const janela = await montar();
     await escolherTipo(janela, "Manutenção");
@@ -320,7 +320,7 @@ describe("Manutenção e Outros sem área (D-PROD-270)", () => {
     expect(await within(janela).findByText("Escolha a unidade.")).toBeTruthy();
     await escolher(janela, /^Unidade/, "KM");
     expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toContain("REFORMA DE CERCA · DIVISA NORTE · nov/26");
-    // D-PROD-270: a prévia lê o serviço aberto do local (nenhum aqui) e diz que cria um.
+    // D-PROD-271: a prévia lê o serviço aberto do local (nenhum aqui) e diz que cria um.
     await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toBe("Nova atividade será criada: REFORMA DE CERCA · DIVISA NORTE · nov/26"));
     await salvar(janela);
     await waitFor(() => expect(registros()).toHaveLength(1));
@@ -387,7 +387,7 @@ describe("Manutenção e Outros sem área (D-PROD-270)", () => {
   });
 });
 
-describe("as regras puras e o celular (D-PROD-270)", () => {
+describe("as regras puras e o celular (D-PROD-271)", () => {
   it("safra do dia, pasto liberado, VC, pontos de VC e o corpo do plantio", () => {
     expect(["2026-11-28", "2027-01-15", "2027-06-30", "2027-07-01", ""].map(tipo.safraDoDia)).toEqual(["2026/27", "2026/27", "2026/27", "2027/28", ""]);
     expect(tipo.pastoLiberadoEm("2026-11-12", [21, null, 3])).toEqual({ dia: "2026-12-03", carencia: 21 });
@@ -406,7 +406,7 @@ describe("as regras puras e o celular (D-PROD-270)", () => {
     const base = { tipo: OPERACOES[0], areas: [{ id: "area-aroeira", nome: "PASTO DA AROEIRA" }], dia: "2026-11-28", resumos: [resumo] };
     expect(regras.destinoDoRegistro({ ...base, culturaId: "c-mar" })).toMatch(/^Entra em SEMEADURA/);
     expect(regras.destinoDoRegistro({ ...base, culturaId: "c-mom" })).toMatch(/^Nova atividade será criada/);
-    // D-PROD-270 (ajuste do teste de ponta a ponta): a frase diz o capim (dois plantios na mesma área têm o mesmo nome).
+    // D-PROD-271 (ajuste do teste de ponta a ponta): a frase diz o capim (dois plantios na mesma área têm o mesmo nome).
     expect(regras.destinoDoRegistro({ ...base, culturaId: "c-mar", capim: "BRACHIARIA BRIZANTHA CV. MARANDU" })).toBe(
       "Entra em SEMEADURA · AROEIRA · nov/26 · capim BRACHIARIA BRIZANTHA CV. MARANDU (planejada)",
     );
@@ -444,7 +444,7 @@ describe("as regras puras e o celular (D-PROD-270)", () => {
   });
 });
 
-describe("os cadastros: o alvo da operação e a carência do produto (D-PROD-270)", () => {
+describe("os cadastros: o alvo da operação e a carência do produto (D-PROD-271)", () => {
   it("a operação de Aplicação tem o Alvo (lista curta + Outro), que vai no corpo; as outras não", async () => {
     const { default: FormularioTipoAtividade } = await import("@/components/tipos-atividade/FormularioTipoAtividade");
     const onSubmit = vi.fn();

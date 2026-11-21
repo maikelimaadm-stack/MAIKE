@@ -113,7 +113,7 @@ const soOsInformados = (d, campos) => Object.fromEntries(campos.filter((c) => te
 /**
  * Uma página (keyset) das atividades da fazenda. Filtros do contrato: `status`,
  * `tipo_atividade_id`, `area_id`, `data_de` e `data_ate` (sobre `data_inicio`);
- * D-PROD-270: `local` (o serviço sem área naquele local).
+ * D-PROD-271: `local` (o serviço sem área naquele local).
  * Sem fazenda: página vazia, nada é lido.
  * @param {{ status?: string|null, situacao?: string|null, tipo_fixo?: string|null, tipo_atividade_id?: string|null, area_id?: string|null,
  *   data_de?: string|null, data_ate?: string|null, local?: string|null, limit?: number, cursor?: string|null }} [filtros]
@@ -132,7 +132,7 @@ export const listarAtividades = async (filtros = {}) => {
     area_id: textoOuIndefinido(f.area_id),
     data_de: textoOuIndefinido(f.data_de),
     data_ate: textoOuIndefinido(f.data_ate),
-    // D-PROD-270: o serviço sem área no local (a prévia "Entra em …" da Nova realização sem área).
+    // D-PROD-271: o serviço sem área no local (a prévia "Entra em …" da Nova realização sem área).
     local: textoOuIndefinido(f.local),
     limit,
     cursor: textoOuIndefinido(f.cursor),
@@ -326,7 +326,7 @@ export const registrarCampo = async (dados, opcoes = null) => {
     acao: ACAO_LANCAR_LINHA,
     empresaId,
     // D-PROD-263: com várias áreas, o alvo é o conjunto delas, na ordem enviada.
-    // D-PROD-270: sem área (Manutenção e Outros), o alvo é o local.
+    // D-PROD-271: sem área (Manutenção e Outros), o alvo é o local.
     alvo: alvoDoRegistroDeCampo(
       Array.isArray(d.areas) ? d.areas.map((/** @type {any} */ a) => String(a?.area_id ?? '')).join('+') : d.area_id === undefined && typeof d.local === 'string' ? `local:${d.local}` : String(d.area_id ?? ''),
       String(d.tipo_atividade_id ?? ''),

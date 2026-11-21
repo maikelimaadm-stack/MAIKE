@@ -8945,11 +8945,24 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Relatório:** [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md).
 
-## D-PROD-270 — Campos próprios de cada tipo na "Nova realização": Plantio de pastagem com capim, safra automática, Aplicação com alvo, receituário e carência, Manutenção e Outros sem área
+## D-PROD-270 — Exclusão nos históricos do mapa sem pedir motivo
+
+**Data:** 2026-11-21 · **Origem:** proprietário, depois da D-PROD-269: "eu não preciso de motivos para exclusão ok nos históricos de todos" · **Branch:** `feat/excluir-sem-motivo-mapa`.
+
+> **Numeração:** a `main` (`fe9bd3ed`) indica `Próxima decisão: D-PROD-270`, que é esta; o marcador passa a D-PROD-271.
+
+**Decisão.**
+1. Os diálogos de exclusão dos históricos do mapa — lançamento de cocho, transferência de depósito, registro da área e movimentação do lote/abate do curral — **não têm mais campo de motivo**. O botão "Excluir" habilita sem digitar nada (com as mesmas condições de antes: online, elegível no servidor; na movimentação, a confirmação "a exclusão é definitiva" continua).
+2. O servidor continua exigindo motivo (3–500) e o guardando na auditoria: a tela envia o texto fixo **"Excluído pelo histórico do mapa"** (`MOTIVO_EXCLUSAO_MAPA`, `src/domain/mapa/motivoExclusaoMapa.js`). Texto fixo mantém o mesmo fingerprint num reenvio com a mesma chave; uma pendência antiga, gravada com motivo digitado, reenvia o motivo dela.
+3. Nada muda no servidor, nas rotas, nos códigos nem nas outras telas (Financeiro e Lançamento de Atividades continuam pedindo motivo).
+
+**Relatório:** [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md).
+
+## D-PROD-271 — Campos próprios de cada tipo na "Nova realização": Plantio de pastagem com capim, safra automática, Aplicação com alvo, receituário e carência, Manutenção e Outros sem área
 
 **Data:** 2026-11-21 · **Origem:** proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G, e o "Para o programador" de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md); pesquisa em [`MAIKE-PESQUISA-OPERACOES-CAMPO.md`](./MAIKE-PESQUISA-OPERACOES-CAMPO.md)), a "Entrega 2" do plano de campo · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** `20261121100000_atividade_campos_por_tipo` (EXPAND) · **Relatório:** [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · **Runbook:** [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md)
 
-> **Numeração:** nasceu D-PROD-268 nesta branch (os commits `0a865ed5` e `5f895609` citam esse número) e virou D-PROD-269 quando a PR #353 levou a 268. Antes do merge, a `main` (`fe9bd3ed`) deu a D-PROD-269 ao "no mapa só existe Excluir" (PR #356) e passou a indicar `Próxima decisão: D-PROD-270`, que é esta; o marcador passa a D-PROD-271. O número não está no `migration.sql`, então renumerar não muda o checksum.
+> **Numeração:** nasceu D-PROD-268 nesta branch e foi renumerada três vezes porque outras PRs chegaram antes à `main`: a #353 levou a 268, a #356 a 269 e a #357 a 270 (os commits antigos citam os números de cada momento). A `main` (`f8abde68`) indica `Próxima decisão: D-PROD-271`, que é esta; o marcador passa a D-PROD-272. O número não está no `migration.sql`, então renumerar não muda o checksum.
 
 - **Contexto:** a "Nova realização de <Tipo>" (D-PROD-265) era o mesmo formulário para os 7 tipos. O plantio não dizia o capim, a safra era digitada à mão, a Aplicação não dizia o alvo nem quando o pasto volta a ser usado, e Manutenção e Outros exigiam um pasto mesmo quando o serviço é numa cerca ou na sede.
 - **Decisão (banco, EXPAND, aplicar antes do merge):** tabela nova **`AtividadePlantio`** (1 para 1 com a atividade: `cultura_id` obrigatório e `consorcio_cultura_id` opcional, ambos do Cadastro de Culturas da MESMA fazenda por FK composta `cliente_id` + `empresa_id` + id, RESTRICT; `forma_plantio` com CHECK `A_LANCO | EM_LINHA | AEREA | MUDA`; `semente_incrustada`; `cobertura`; CHECK consórcio ≠ capim; uniques e índices começando por `cliente_id`; RLS de sempre) e cinco colunas anuláveis sem DEFAULT em tabelas antigas: `Atividade.local` VARCHAR(120), `AtividadeApontamento.numero_receituario` VARCHAR(40), `AtividadeApontamentoProduto.vc_percentual` DECIMAL(5,2), `Produto.carencia_dias` INTEGER e `TipoAtividade.alvo` VARCHAR(60). Sem CHECK nas colunas antigas (a allowlist EXPAND recusa): a API confere forma e faixa. Nenhuma linha muda; nada é semeado.
@@ -8965,4 +8978,4 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 - **Fora de escopo (próxima entrega):** o agrupador de Reforma e o "Faz parte de: Reforma"; o "Conferir nascimento" (estande); o aviso do 1º pastejo; conferir as outras alturas da lista contra o Doc 397.
 - **Ajustes do teste de ponta a ponta (sem migration, mesmo fingerprint):** o capim aparece na lista, no card, na prévia e no Concluir (lido da `AtividadePlantio`; o nome gravado não muda); o serviço sem área nunca mostra "0 ha" (local + quantidade feita; `andamento.hectares_feitos` nulo sem hectares); o Resumo sem área mostra o Local; o "Pasto liberado em" vai no aviso de sucesso e no detalhe (`pasto_liberado_em`/`carencia_dias` calculados na leitura, nunca gravados); a prévia sem área resolve pelo `GET /atividades?local=…`; "Concluída" fica desligada para quem não pode editar (o 403 do servidor continua). Ver o §8 do [relatório](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-271 -->
+<!-- Próxima decisão: D-PROD-272 -->

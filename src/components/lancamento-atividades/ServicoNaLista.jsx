@@ -24,7 +24,7 @@ import {
  * ninguém concluir, "100%, falta concluir" em negrito e só "Concluir". `BlocoDoServico`: o mesmo serviço no celular, em
  * bloco compacto (Nº à esquerda; tipo e custo; operação · área; data · situação; o andamento, a barra e os botões).
  * Os botões não selecionam nem abrem a linha (o clique para ali).
- * D-PROD-270 (ajustes do teste de ponta a ponta): o Plantio de pastagem mostra o capim ("operação · área · capim …") e o
+ * D-PROD-271 (ajustes do teste de ponta a ponta): o Plantio de pastagem mostra o capim ("operação · área · capim …") e o
  * serviço sem área mostra o local e a quantidade feita, nunca "0 ha". `OperacaoDoServico`: a célula "Operação" do
  * computador, com o capim embaixo.
  */
@@ -119,7 +119,7 @@ export function SituacaoDoServico({ item, podeLancar, podeConcluir, onLancarDia,
 export function BlocoDoServico({ item, tipos, podeLancar, podeConcluir, comAcoes, onLancarDia, onConcluir }) {
   const situacao = situacaoDoServico(item);
   const custo = formatarMoedaAtividade(item?.custo_total);
-  // D-PROD-270: o capim do plantio fecha a linha ("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA").
+  // D-PROD-271: o capim do plantio fecha a linha ("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA").
   const operacaoArea = [String(item?.tipo_atividade_nome ?? ""), textoDaAreaDoServico(item), textoDoCapim(capimDoServico(item))].filter(Boolean).join(" · ");
   const concluidaHa = situacao === "CONCLUIDA" ? hectaresDaConcluida(item) : "";
   const dataSituacao = [textoDaDataDoServico(item), rotuloDaSituacaoDoServico(item), concluidaHa].filter(Boolean).join(" · ");

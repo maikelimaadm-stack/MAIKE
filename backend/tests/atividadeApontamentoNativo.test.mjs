@@ -52,7 +52,7 @@ const CAMPOS_APONTAMENTO = [
   'atividade_area_id', 'atividade_area',
   // D-PROD-265: o último dia do serviço (só o registro de campo grava; nulo aqui).
   'data_termino',
-  // D-PROD-270: o nº do receituário da Aplicação (só o registro de campo grava; nulo aqui).
+  // D-PROD-271: o nº do receituário da Aplicação (só o registro de campo grava; nulo aqui).
   'numero_receituario',
   'origem', 'status', 'versao',
   'cancelado_em', 'cancelado_por', 'motivo_cancelamento',

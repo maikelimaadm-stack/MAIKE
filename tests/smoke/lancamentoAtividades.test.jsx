@@ -2346,7 +2346,7 @@ describe("LA-VARIOS-DIAS — a linha do serviço: \"+ Lançar dia\" e \"Concluir
   });
 });
 
-describe("LA-E2E — ajustes do teste de ponta a ponta da Entrega 2 (D-PROD-270)", () => {
+describe("LA-E2E — ajustes do teste de ponta a ponta da Entrega 2 (D-PROD-271)", () => {
   /** A Manutenção sem área, no local (como o servidor devolve: sem área, com o local, a produção e a unidade). */
   const semArea = () => ({
     ...ATV_A1,

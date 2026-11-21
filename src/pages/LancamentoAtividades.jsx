@@ -168,7 +168,7 @@ export const valorDoCampoAtividade = (item, id) => {
   if (id === "nome") return String(item?.nome ?? "");
   // D-PROD-267: o tipo fixo (do servidor) e a operação (o tipo de atividade gravado).
   if (id === "tipo") return rotuloDoTipoDoServico(item);
-  // D-PROD-270: no Plantio de pastagem, o capim ao lado ("SEMEADURA DE CAPIM · capim PANICUM CV. MOMBAÇA").
+  // D-PROD-271: no Plantio de pastagem, o capim ao lado ("SEMEADURA DE CAPIM · capim PANICUM CV. MOMBAÇA").
   if (id === "operacao") return [String(item?.tipo_atividade_nome ?? ""), textoDoCapim(capimDoServico(item))].filter(Boolean).join(" · ");
   // D-PROD-267: a 1ª área e "+N" das outras ("Pasto da Aroeira +1").
   if (id === "area") return textoDaAreaDoServico(item) || textoDaColunaArea(item);
@@ -841,7 +841,7 @@ export default function LancamentoAtividades() {
         <CampoTexto label="Tipo de atividade" value={String(a?.tipo_atividade_nome ?? "")} onChange={semEdicao} readOnly span={6} />
 
         <SecaoForm titulo="Onde e com o quê" />
-        {/* D-PROD-270: o serviço sem área (Manutenção e Outros) mostra o Local onde estaria a Área. */}
+        {/* D-PROD-271: o serviço sem área (Manutenção e Outros) mostra o Local onde estaria a Área. */}
         {servicoSemArea(a) ? (
           <CampoTexto label="Local" value={String(a?.local ?? "")} onChange={semEdicao} readOnly span={6} testId="atividade-local" />
         ) : (
@@ -856,7 +856,7 @@ export default function LancamentoAtividades() {
         <CampoTexto label="Setor (da área)" value={rotuloDoSetor(a)} onChange={semEdicao} readOnly span={6} />
         <CampoTexto label="Máquina" value={rotuloDoBem(a?.bem)} onChange={semEdicao} readOnly span={6} />
         <CampoTexto label="Safra" value={String(a?.safra_ciclo ?? "")} onChange={semEdicao} readOnly span={6} />
-        {/* D-PROD-270: o capim do Plantio de pastagem (da AtividadePlantio). */}
+        {/* D-PROD-271: o capim do Plantio de pastagem (da AtividadePlantio). */}
         {capimDoServico(a) ? (
           <CampoTexto label="Capim plantado" value={capimDoServico(a)} onChange={semEdicao} readOnly span={6} testId="atividade-capim" />
         ) : null}
@@ -872,7 +872,7 @@ export default function LancamentoAtividades() {
         <CampoDia label="Data de conclusão" value={String(a?.data_conclusao ?? "")} onChange={semEdicao} readOnly span={4} testId="atividade-data-conclusao" />
         <ValorCalculado label="Área executada / planejada" valor={formatarAreaExecutadaPlanejada(a) || "—"} span={6} testId="atividade-area-executada-planejada" />
         <ValorCalculado label="Produção" valor={formatarProducaoDaAtividade(a) || "—"} span={6} testId="atividade-producao" />
-        {/* D-PROD-270: Aplicação — "Pasto liberado em" (o último dia lançado + a maior carência dos produtos), calculado
+        {/* D-PROD-271: Aplicação — "Pasto liberado em" (o último dia lançado + a maior carência dos produtos), calculado
             pelo servidor na leitura do detalhe; nunca gravado. */}
         {tipoFixoDoServico(a, /** @type {any[]} */ (tipos)) === "APLICACAO" ? (
           <ValorCalculado
@@ -957,7 +957,7 @@ export default function LancamentoAtividades() {
     if (colId === "numero") return <span className="font-mono" data-testid={`atividade-numero-${item.id}`}>{item.numero ?? "–"}</span>;
     // D-PROD-267: o tipo em negrito (o modelo do dono); sem o tipo do servidor, o da operação na lista de tipos.
     if (colId === "tipo") return <strong className="font-semibold">{rotuloDoTipoDoServico(item, /** @type {any[]} */ (tipos)) || "–"}</strong>;
-    // D-PROD-270: a operação com o capim do plantio embaixo (dois plantios na mesma área se distinguem).
+    // D-PROD-271: a operação com o capim do plantio embaixo (dois plantios na mesma área se distinguem).
     if (colId === "operacao") return <OperacaoDoServico item={item} />;
     if (colId === "status") {
       // D-PROD-267: a situação com o andamento e os botões "+ Lançar dia" e "Concluir".
