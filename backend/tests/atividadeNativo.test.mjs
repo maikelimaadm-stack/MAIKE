@@ -59,7 +59,7 @@ const CAMPOS_PUBLICOS = [
   'reaberta_em', 'reaberta_por', 'motivo_reabertura', 'criado_por', 'createdAt', 'updatedAt',
   // D-PROD-249: as áreas da atividade (várias áreas) e quantas são.
   'areas', 'areas_count',
-  // D-PROD-269: o local do serviço sem área (Manutenção e Outros) e os dados do Plantio de pastagem (nulos aqui).
+  // D-PROD-270: o local do serviço sem área (Manutenção e Outros) e os dados do Plantio de pastagem (nulos aqui).
   'local', 'plantio',
 ];
 const TOTAIS_VAZIOS = Object.freeze({ apontamentos_confirmados: 0, apontamentos_cancelados: 0, dias_com_apontamento: 0 });

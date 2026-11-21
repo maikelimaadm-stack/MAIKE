@@ -323,7 +323,7 @@ export const registrarCampo = async (dados, opcoes = null) => {
     acao: ACAO_LANCAR_LINHA,
     empresaId,
     // D-PROD-263: com várias áreas, o alvo é o conjunto delas, na ordem enviada.
-    // D-PROD-269: sem área (Manutenção e Outros), o alvo é o local.
+    // D-PROD-270: sem área (Manutenção e Outros), o alvo é o local.
     alvo: alvoDoRegistroDeCampo(
       Array.isArray(d.areas) ? d.areas.map((/** @type {any} */ a) => String(a?.area_id ?? '')).join('+') : d.area_id === undefined && typeof d.local === 'string' ? `local:${d.local}` : String(d.area_id ?? ''),
       String(d.tipo_atividade_id ?? ''),

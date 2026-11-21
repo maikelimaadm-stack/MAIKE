@@ -7,7 +7,7 @@
  * Prova: consulta só com a aba ativa; linha do tempo por dia com cartões por
  * tipo; "Mostrar" com a lista do sistema (painel no desktop/tablet, folha de
  * baixo no celular, dentro do diálogo — Esc fecha só a folha); filtro global
- * na sessão; "Carregar mais"; aviso offline; vazio; erro; cancelado.
+ * na sessão; "Carregar mais"; aviso offline; vazio; erro; registro excluído some.
  * Dados sintéticos.
  */
 import React from "react";
@@ -24,8 +24,21 @@ const cache = vi.hoisted(() => ({
   getMapaCacheSnapshot: vi.fn(),
   refreshMapaCacheEntry: vi.fn(async () => []),
 }));
+// Sessão: sem usuário por padrão (nenhuma ação de exclusão aparece); o teste do botão do
+// cocho entra como administrador real, e a elegibilidade do servidor vem do dublê abaixo.
+const sessao = vi.hoisted(() => ({ usuario: null }));
+const cancelamentoCocho = vi.hoisted(() => ({
+  consultarElegibilidadeCancelamentoCocho: vi.fn(async () => ({ elegivel: true, pode_cancelar_permissao: true, codigo: null, reason: null, efeitos: {} })),
+  cancelarLancamentoCocho: vi.fn(),
+}));
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => cache);
+vi.mock("@/services/sessionService", () => ({
+  getCurrentUser: async () => sessao.usuario,
+  ehAdministrador: (u) => u?.administrador_fazenda === true,
+  carregarPermissaoEfetiva: async () => null,
+}));
+vi.mock("@/services/suplementacaoCancelamentoService", () => cancelamentoCocho);
 
 const { PastoCtx } = await import("@/components/mapa/detalhes-lote/pastoContexto");
 const { Abas, idsDaAba } = await import("@/components/mapa/detalhes-lote/blocos");
@@ -254,6 +267,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  sessao.usuario = null;
   window.matchMedia = matchMediaOriginal;
   Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
 });
@@ -289,15 +303,52 @@ describe("aba Histórico do pasto — dados", () => {
     expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
   });
 
-  it("cancelado aparece com o chip 'Cancelado' (e o motivo gravado)", async () => {
-    const cancelada = { ...ENTRADA, situacao: "cancelado", cancelamento: { motivo: "Lançado no pasto errado" } };
-    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([cancelada]));
+  it("registro excluído (situacao 'cancelado' no servidor) some: nada de cartão, chip 'Cancelado' ou motivo", async () => {
+    const excluida = { ...ENTRADA, situacao: "cancelado", cancelamento: { motivo: "Lançado no pasto errado" } };
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([excluida, PESAGEM]));
     montar(<CascaDeTeste eventos={[]} />);
-    const titulo = await screen.findByText("Movimentação · entrada");
-    const cartao = titulo.closest("li");
-    expect(cartao.classList.contains("is-cancelado")).toBe(true);
-    expect(within(cartao).getByText("Cancelado").className).toContain("mk-dp-chip");
-    expect(within(cartao).getByText("Lançado no pasto errado")).toBeTruthy();
+    expect((await screen.findAllByText("Pesagem")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Movimentação · entrada")).toBeNull();
+    expect(screen.queryByText("Cancelado")).toBeNull();
+    expect(screen.queryByText("Lançado no pasto errado")).toBeNull();
+    expect(screen.queryByText(/Motivo do cancelamento/)).toBeNull();
+    expect(document.querySelectorAll(".mk-dp-tl__card.is-cancelado").length).toBe(0);
+  });
+
+  it("lançamento de cocho excluído (situacao 'cancelado') some da aba; o botão do cartão de suplementação diz 'Excluir lançamento'", async () => {
+    // Administrador real: a ação aparece. O excluído é o mais recente do mesmo cocho numa cópia
+    // antiga; ele não aparece nem leva o botão — o botão fica no lançamento ativo.
+    sessao.usuario = { id: "u-1", cliente_id: "c-1", login: "dono", administrador_fazenda: true };
+    const excluido = { ...SUPL, id: "ev-excluido", ponto_nome: "Cocho EXCLUIDO", data_lancamento: "2026-11-10", created_date: "2026-11-10T14:00:00.000Z", situacao: "cancelado" };
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([]));
+    montar(<CascaDeTeste eventos={[SUPL, excluido]} />);
+    expect(await screen.findByText("Cocho 07")).toBeTruthy();
+    const cartao = screen.getByText("Cocho 07").closest("li");
+    const botao = await within(cartao).findByRole("button", { name: "Excluir lançamento" });
+    expect(botao).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Excluir lançamento" })).toHaveLength(1);
+    expect(cancelamentoCocho.consultarElegibilidadeCancelamentoCocho).toHaveBeenCalled();
+    expect(cancelamentoCocho.consultarElegibilidadeCancelamentoCocho.mock.calls.every(([a]) => a.evento.id === SUPL.id)).toBe(true);
+    expect(screen.queryByText("Cocho EXCLUIDO")).toBeNull();
+    expect(screen.queryByText(/Cancelado|Estornado|estorno/i)).toBeNull();
+    expect(screen.queryByText(/Cancelar/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Cancelar/i })).toBeNull();
+  });
+
+  it("página lida só com registros excluídos e mais páginas no servidor: não diz que o pasto não tem registro", async () => {
+    const excluida = { ...ENTRADA, situacao: "cancelado", cancelamento: { motivo: "Lançado no pasto errado" } };
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async ({ cursor }) =>
+      cursor === "c1" ? pagina([SAIDA], { total: 2 }) : pagina([excluida], { has_more: true, next_cursor: "c1", total: 2 })
+    );
+    montar(<CascaDeTeste eventos={[]} />);
+    expect(await screen.findByText("Nenhum registro nesta parte do histórico. Carregue mais para ver os mais antigos.")).toBeTruthy();
+    expect(screen.queryByText("Nenhum registro deste tipo neste pasto.")).toBeNull();
+    expect(screen.queryByText("Movimentação · entrada")).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
+    });
+    await screen.findByText("Movimentação · saída");
+    expect(screen.queryByText(/Nenhum registro/)).toBeNull();
   });
 
   it("'Carregar mais' pede a próxima página pelo cursor; evento mais antigo espera a página dele", async () => {

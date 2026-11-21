@@ -49,8 +49,10 @@ const opcoesDeMetodo = (metodos) => metodos.map((m) => ({ value: m, label: ROTUL
  * @param {(arg: any, opcoes: { retentativa: boolean }) => Promise<unknown>} enviar
  * @param {{ locale: string, moeda: string, casas: number }} c
  * @param {(r: unknown) => void} [aoConcluir]
+ * @param {((erro: unknown) => string) | null} [mensagemDoErro] a frase da recusa definitiva no lugar de
+ *   `mensagemErroGestao` (o vocabulário da tela que abriu o diálogo). Sem ela, a frase de sempre.
  */
-function useEnvioUnico(enviar, c, aoConcluir) {
+function useEnvioUnico(enviar, c, aoConcluir, mensagemDoErro = null) {
   const [estado, setEstado] = useState(/** @type {EstadoEnvio} */ ({ fase: "pronto" }));
   const emCurso = useRef(false);
   // O último clique deixou a pendência guardada (sem resposta, resposta não
@@ -80,7 +82,10 @@ function useEnvioUnico(enviar, c, aoConcluir) {
             : code === "OPERACAO_EXCLUSAO_BLOQUEADA"
               ? "A exclusão foi recusada pelo servidor:"
               : "O servidor recusou:";
-        setEstado({ fase: "erro", mensagem: mensagemErroGestao(erro, "Não foi possível concluir. Nada foi gravado.", { ...c, comandoIdempotente: true }), motivos, tituloMotivos });
+        const mensagem = mensagemDoErro
+          ? mensagemDoErro(erro)
+          : mensagemErroGestao(erro, "Não foi possível concluir. Nada foi gravado.", { ...c, comandoIdempotente: true });
+        setEstado({ fase: "erro", mensagem, motivos, tituloMotivos });
       }
     } finally {
       emCurso.current = false;
@@ -473,10 +478,16 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   icone?: React.ReactNode,
  *   iconeBotao?: React.ReactNode,
  *   janelaBase1?: boolean,
+ *   mensagemDoErro?: ((erro: unknown) => string) | null,
+ *   rotuloEnviando?: string,
+ *   rotuloMotivo?: string,
  * }} props `icone` (opcional): o selo ao lado do título (o "Concluir atividade" da D-PROD-232); `iconeBotao`: o ícone
  *   do botão de envio. Sem eles, o diálogo fica como sempre foi. `janelaBase1` (D-PROD-252, emenda 3): o diálogo vira a
  *   janela padrão do Base1 (`B1Janela`: 680px, corpo que rola, título e ✕ em cima, botões embaixo; tela cheia no
- *   celular), do mesmo tamanho das janelas de lançamento, em vez da caixa pequena do shadcn.
+ *   celular), do mesmo tamanho das janelas de lançamento, em vez da caixa pequena do shadcn. Vocabulário da tela que
+ *   abre o diálogo (todos opcionais; sem eles, o diálogo fica como sempre foi): `mensagemDoErro` dá a frase da recusa
+ *   definitiva no lugar de `mensagemErroGestao`; `rotuloEnviando` é o texto do botão durante o envio ("Enviando…");
+ *   `rotuloMotivo` é o rótulo do campo de motivo ("Motivo", exibido como "<rótulo> (obrigatório)").
  */
 export function DialogoAcao({
   aberto,
@@ -495,11 +506,14 @@ export function DialogoAcao({
   icone = null,
   iconeBotao = null,
   janelaBase1 = false,
+  mensagemDoErro = null,
+  rotuloEnviando = "Enviando…",
+  rotuloMotivo = "Motivo",
 }) {
   const celular = useCelular();
   const [motivo, setMotivo] = useState("");
   const [ciente, setCiente] = useState(false);
-  const { estado, disparar } = useEnvioUnico(onEnviar, contexto);
+  const { estado, disparar } = useEnvioUnico(onEnviar, contexto, undefined, mensagemDoErro);
   const enviando = estado.fase === "enviando";
   const semMotivo = (comMotivo && !motivo.trim()) || (Boolean(confirmacaoExplicita) && !ciente);
   if (janelaBase1) {
@@ -537,7 +551,7 @@ export function DialogoAcao({
               onClick={() => disparar(motivo.trim())}
             >
               {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : iconeBotao}
-              {enviando ? "Enviando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : rotuloBotao}
+              {enviando ? rotuloEnviando : estado.fase === "incerto" ? "Repetir o mesmo envio" : rotuloBotao}
             </button>
           </>
         }
@@ -545,13 +559,13 @@ export function DialogoAcao({
         {conteudo ? <div className="min-w-0 text-[13px]">{conteudo}</div> : null}
         {comMotivo ? (
           <label className="b1-janela__rotulo">
-            Motivo (obrigatório)
+            {rotuloMotivo} (obrigatório)
             <textarea
               className="b1-janela__ctl"
               value={motivo}
               maxLength={500}
               onChange={(e) => setMotivo(e.target.value)}
-              aria-label="Motivo"
+              aria-label={rotuloMotivo}
               data-testid={`${testId}-motivo`}
             />
           </label>
@@ -596,13 +610,13 @@ export function DialogoAcao({
         {conteudo ? <div className="min-w-0 text-[13px]">{conteudo}</div> : null}
         {comMotivo ? (
           <label className="min-w-0 text-[12px]">
-            Motivo (obrigatório)
+            {rotuloMotivo} (obrigatório)
             <textarea
               className={`${CTL} h-20 py-2`}
               value={motivo}
               maxLength={500}
               onChange={(e) => setMotivo(e.target.value)}
-              aria-label="Motivo"
+              aria-label={rotuloMotivo}
               data-testid={`${testId}-motivo`}
             />
           </label>
@@ -634,7 +648,7 @@ export function DialogoAcao({
             onClick={() => disparar(motivo.trim())}
           >
             {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : iconeBotao}
-            {enviando ? "Enviando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : rotuloBotao}
+            {enviando ? rotuloEnviando : estado.fase === "incerto" ? "Repetir o mesmo envio" : rotuloBotao}
           </button>
         </DialogFooter>
       </DialogContent>

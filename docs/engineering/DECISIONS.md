@@ -8931,11 +8931,25 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Relatório:** [`MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md`](./MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md).
 
-## D-PROD-269 — Campos próprios de cada tipo na "Nova realização": Plantio de pastagem com capim, safra automática, Aplicação com alvo, receituário e carência, Manutenção e Outros sem área
+## D-PROD-269 — No mapa só existe "Excluir": sem "cancelar"/"cancelado" nos históricos e o registro excluído some
+
+**Data:** 2026-11-21 · **Origem:** proprietário, depois da D-PROD-268: "Olha eu não tenho cancelamentos eu tenho exclusão ok" · **Branch:** `feat/excluir-historicos-mapa-textos`.
+
+> **Numeração:** a `main` (`80aa1db3`) indica `Próxima decisão: D-PROD-269`, que é esta; o marcador passa a D-PROD-270.
+
+**Decisão.** Em tudo que abre a partir do Mapa Geral (históricos do cocho, do depósito, da área/pasto, aba Histórico do lote, Histórico de Movimentação do lote e da área, abate do curral):
+1. **Ação = "Excluir".** "Cancelar lançamento" → **"Excluir lançamento"**, "Cancelar transferência" → **"Excluir transferência"**, "Cancelar registro" → **"Excluir registro"**; diálogos, "Excluindo...", "Motivo da exclusão", avisos e recusas falam em excluir/excluído. O botão que só fecha o diálogo diz "Voltar". Mensagens do servidor que citem cancelar/estorno passam por filtro e viram texto neutro de exclusão.
+2. **O registro excluído some do histórico do mapa**, sem selo "Cancelado". Vale também para os movimentos de estorno que o servidor gera (`estorno_suplementacao`, `estorno_transferencia_*`) e para os registros antigos com `situacao = 'cancelado'` do mecanismo R2A (D-PROD-99), que nenhuma tela usa mais: no mapa eles não aparecem; no banco e na auditoria continuam. O lançamento de cocho excluído também não entra no nível, nos alertas nem nos indicadores do mapa (`semExcluidos`, uma vez em `MapaGeral`).
+3. **A permissão** `cancelar_lancamentos_estoque` passa a se chamar, na tela de Permissões, **"Excluir lançamento de cocho e transferência de depósito"**. A chave não muda; quem tem, continua com ela.
+4. **Nada muda no servidor**: rotas, códigos, regras e o estorno seguro da D-PROD-268 são os mesmos. Fora do mapa (Financeiro, Lançamento de Atividades, Estoque/kardex) a tela fica igual; o diálogo compartilhado `DialogoAcao` ganha só props opcionais (`mensagemDoErro`, `rotuloEnviando`, `rotuloMotivo`) com o padrão de antes.
+
+**Relatório:** [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md).
+
+## D-PROD-270 — Campos próprios de cada tipo na "Nova realização": Plantio de pastagem com capim, safra automática, Aplicação com alvo, receituário e carência, Manutenção e Outros sem área
 
 **Data:** 2026-11-21 · **Origem:** proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G, e o "Para o programador" de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md); pesquisa em [`MAIKE-PESQUISA-OPERACOES-CAMPO.md`](./MAIKE-PESQUISA-OPERACOES-CAMPO.md)), a "Entrega 2" do plano de campo · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** `20261121100000_atividade_campos_por_tipo` (EXPAND) · **Relatório:** [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · **Runbook:** [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md)
 
-> **Numeração:** nasceu D-PROD-268 nesta branch (os commits `0a865ed5` e `5f895609` citam esse número). Antes do merge, a `main` (`80aa1db3`) deu a D-PROD-268 ao cancelamento de cocho e transferência (PR #353) e passou a indicar `Próxima decisão: D-PROD-269`, que é esta; o marcador passa a D-PROD-270. O número não está no `migration.sql`, então renumerar não muda o checksum.
+> **Numeração:** nasceu D-PROD-268 nesta branch (os commits `0a865ed5` e `5f895609` citam esse número) e virou D-PROD-269 quando a PR #353 levou a 268. Antes do merge, a `main` (`fe9bd3ed`) deu a D-PROD-269 ao "no mapa só existe Excluir" (PR #356) e passou a indicar `Próxima decisão: D-PROD-270`, que é esta; o marcador passa a D-PROD-271. O número não está no `migration.sql`, então renumerar não muda o checksum.
 
 - **Contexto:** a "Nova realização de <Tipo>" (D-PROD-265) era o mesmo formulário para os 7 tipos. O plantio não dizia o capim, a safra era digitada à mão, a Aplicação não dizia o alvo nem quando o pasto volta a ser usado, e Manutenção e Outros exigiam um pasto mesmo quando o serviço é numa cerca ou na sede.
 - **Decisão (banco, EXPAND, aplicar antes do merge):** tabela nova **`AtividadePlantio`** (1 para 1 com a atividade: `cultura_id` obrigatório e `consorcio_cultura_id` opcional, ambos do Cadastro de Culturas da MESMA fazenda por FK composta `cliente_id` + `empresa_id` + id, RESTRICT; `forma_plantio` com CHECK `A_LANCO | EM_LINHA | AEREA | MUDA`; `semente_incrustada`; `cobertura`; CHECK consórcio ≠ capim; uniques e índices começando por `cliente_id`; RLS de sempre) e cinco colunas anuláveis sem DEFAULT em tabelas antigas: `Atividade.local` VARCHAR(120), `AtividadeApontamento.numero_receituario` VARCHAR(40), `AtividadeApontamentoProduto.vc_percentual` DECIMAL(5,2), `Produto.carencia_dias` INTEGER e `TipoAtividade.alvo` VARCHAR(60). Sem CHECK nas colunas antigas (a allowlist EXPAND recusa): a API confere forma e faixa. Nenhuma linha muda; nada é semeado.
@@ -8950,4 +8964,4 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 - **Lista de referência de capins** (`LISTA_REFERENCIA`, D-PROD-215/223): o Marandu passa de 25/15 para **35/20** e entram Ipyporã (35/20), Integra (35/25), Tamani (50/25), Quênia (65/35), Tupi (20/10) e o Estilosantes Campo Grande (sem altura), com a entrada e a saída da Tabela 2 do Doc 397 (Embrapa Cerrados, 2022). Só a **referência** muda: o comando "Incluir lista de referência" continua sem alterar a cultura que a fazenda já tem pelo nome; nenhuma linha de fazenda é reescrita. O runbook traz a consulta só de leitura que conta quantas linhas de produção ficariam diferentes.
 - **Fora de escopo (próxima entrega):** o agrupador de Reforma e o "Faz parte de: Reforma"; o "Conferir nascimento" (estande); o aviso do 1º pastejo; conferir as outras alturas da lista contra o Doc 397.
 
-<!-- Próxima decisão: D-PROD-270 -->
+<!-- Próxima decisão: D-PROD-271 -->

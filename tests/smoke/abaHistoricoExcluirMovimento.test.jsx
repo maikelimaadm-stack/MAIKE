@@ -4,7 +4,7 @@
  *
  * Aqui o `ExcluirMovimentacao` é um dublê que registra as props: prova QUAIS
  * cartões levam a ação (um por movimento, só no primeiro cartão; só dados do
- * servidor; nunca cancelado, legado ou suplementação), o aviso do alcance, a
+ * servidor; nunca legado ou suplementação; o registro excluído some), o aviso do alcance, a
  * releitura do histórico ao excluir e o slot `acoes` da LinhaDoTempo (cartão
  * sem `acoes` idêntico ao de antes). O componente real (elegibilidade, limite
  * de consultas, diálogo) está em abaHistoricoExcluirMovimentoReal.test.jsx.
@@ -201,17 +201,20 @@ describe("historicoDoPasto: o cartão de movimentação leva o movimento cru", (
 });
 
 describe("aba Histórico: Excluir movimentação no pé do cartão", () => {
-  it("uma ação por movimento, no primeiro cartão dele; cancelado, legado e suplementação ficam sem pé", async () => {
+  it("uma ação por movimento, no primeiro cartão dele; o excluído some; legado e suplementação ficam sem pé", async () => {
     montar();
-    await waitFor(() => expect(document.querySelectorAll(".mk-dp-tl__card").length).toBe(6));
+    await waitFor(() => expect(document.querySelectorAll(".mk-dp-tl__card").length).toBe(5));
     expect(cartoes()).toEqual([
       { titulo: "Suplementação", lote: "Cocho 07", acao: null, pe: false, alcance: null },
       { titulo: "Movimentação · entrada", lote: "L-2026-027", acao: "mv-entrada", pe: true, alcance: textoDoAlcance(1, 1) },
       { titulo: "Pesagem", lote: "L-2026-008", acao: "mv-pesagem", pe: true, alcance: textoDoAlcance(2, 0) },
       { titulo: "Pesagem", lote: "L-2026-014", acao: null, pe: false, alcance: null },
-      { titulo: "Morte", lote: "L-2026-031", acao: null, pe: false, alcance: null },
       { titulo: "Movimentação · entrada", lote: "LOTE VELHO", acao: null, pe: false, alcance: null },
     ]);
+    // O registro excluído (situacao "cancelado" no servidor) não vira cartão nem chip "Cancelado".
+    expect(screen.queryByText("Morte")).toBeNull();
+    expect(screen.queryByText("Cancelado")).toBeNull();
+    expect(screen.queryByText("Lançado no pasto errado")).toBeNull();
     // A ação recebe o movimento cru inteiro (o mesmo objeto do servidor) — nunca um cartão.
     const recebidos = new Map(dubl.props.map((p) => [p.movimento.id, p.movimento]));
     expect([...recebidos.keys()].sort()).toEqual(["mv-entrada", "mv-pesagem"]);
@@ -246,7 +249,7 @@ describe("aba Histórico: Excluir movimentação no pé do cartão", () => {
   it("sem o botão (o componente não desenha: sem permissão), o aviso do alcance também não aparece", async () => {
     dubl.visivel = false;
     montar();
-    await waitFor(() => expect(document.querySelectorAll(".mk-dp-tl__card").length).toBe(6));
+    await waitFor(() => expect(document.querySelectorAll(".mk-dp-tl__card").length).toBe(5));
     expect(document.querySelectorAll(".mk-dp-hist__alcance").length).toBe(0);
     // O pé fica com a caixa vazia (o CSS a oculta: `.mk-dp-hist__excluir:empty`).
     for (const caixa of document.querySelectorAll(".mk-dp-hist__excluir")) {
@@ -303,6 +306,7 @@ describe("aba Histórico: Excluir movimentação no pé do cartão", () => {
     });
     await waitFor(() => expect(servico.listarHistoricoMovimentacoesPagina.mock.calls.length).toBeGreaterThan(antes));
     await waitFor(() => expect(cartoes().some((c) => c.titulo === "Pesagem")).toBe(false));
+    expect(cartoes().some((c) => c.titulo === "Morte")).toBe(false);
   });
 });
 

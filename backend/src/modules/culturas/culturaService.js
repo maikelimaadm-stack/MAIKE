@@ -56,7 +56,7 @@ const OBS_REFERENCIA = 'Valor de referência (manejo rotacionado). Ajuste para a
 /**
  * Lista de referência (manejo rotacionado; Embrapa), ajustável pela fazenda.
  * Alturas em cm: [entrada, saída]. D-PROD-223: `descanso` = dias de descanso de referência.
- * D-PROD-269 (MAIKE-ENTREGA2): o Marandu passa a 35/20 e entram os capins da Tabela 2 do Documentos 397 da Embrapa
+ * D-PROD-270 (MAIKE-ENTREGA2): o Marandu passa a 35/20 e entram os capins da Tabela 2 do Documentos 397 da Embrapa
  * Cerrados (2022) que faltavam (Ipyporã, Integra, Tamani, Quênia e Tupi, com a entrada e a saída de lá) e o Estilosantes
  * Campo Grande (leguminosa; o Doc 397 não traz altura). Sem dias de descanso nos novos (a fonte não traz). Só a
  * REFERÊNCIA muda: o comando continua sem recriar nem alterar a cultura que a fazenda já tem pelo nome.
@@ -73,7 +73,7 @@ export const LISTA_REFERENCIA = Object.freeze([
   { codigo: '009', nome: 'PANICUM CV. ZURI', especie: 'Megathyrsus maximus', cultivar: 'Zuri', entrada: 75, saida: 35, descanso: 35 },
   { codigo: '010', nome: 'PANICUM CV. MASSAI', especie: 'Megathyrsus maximus', cultivar: 'Massai', entrada: 55, saida: 25, descanso: 28 },
   { codigo: '011', nome: 'TIFTON 85', especie: 'Cynodon spp.', cultivar: 'Tifton 85', entrada: 25, saida: 10, descanso: 25 },
-  // D-PROD-269 — os que faltavam da Tabela 2 do Doc 397 (Embrapa Cerrados, 2022).
+  // D-PROD-270 — os que faltavam da Tabela 2 do Doc 397 (Embrapa Cerrados, 2022).
   { codigo: '012', nome: 'BRACHIARIA HÍBRIDA BRS RB331 IPYPORÃ', especie: 'Urochloa brizantha x U. ruziziensis', cultivar: 'BRS RB331 Ipyporã', entrada: 35, saida: 20, descanso: null },
   { codigo: '013', nome: 'BRACHIARIA RUZIZIENSIS BRS INTEGRA', especie: 'Urochloa ruziziensis', cultivar: 'BRS Integra', entrada: 35, saida: 25, descanso: null },
   { codigo: '014', nome: 'PANICUM BRS TAMANI', especie: 'Megathyrsus maximus', cultivar: 'BRS Tamani', entrada: 50, saida: 25, descanso: null },

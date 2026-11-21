@@ -50,6 +50,19 @@ vi.mock('@/services/mapaCacheService', () => ({
   updateMapaCachedData: vi.fn(),
 }));
 vi.mock('@/services/estoqueMapaService', () => ({ listarTodosProdutos: vi.fn(async () => dados.produtos) }));
+// Sessão: sem usuário por padrão (sem "Excluir lançamento"); o CV-7b entra como administrador
+// real e a elegibilidade da exclusão vem deste dublê.
+const sessao = vi.hoisted(() => ({ usuario: null }));
+const cancelamentoCocho = vi.hoisted(() => ({
+  consultarElegibilidadeCancelamentoCocho: vi.fn(async () => ({ elegivel: true, pode_cancelar_permissao: true, codigo: null, reason: null, efeitos: {} })),
+  cancelarLancamentoCocho: vi.fn(),
+}));
+vi.mock('@/services/sessionService', () => ({
+  getCurrentUser: async () => sessao.usuario,
+  ehAdministrador: (u) => u?.administrador_fazenda === true,
+  carregarPermissaoEfetiva: async () => null,
+}));
+vi.mock('@/services/suplementacaoCancelamentoService', () => cancelamentoCocho);
 vi.mock('@/services/empresaService', () => ({ listEmpresas: vi.fn(async () => dados.empresas) }));
 // Os formulários e o histórico completo são os de hoje; aqui só se confere que abrem.
 // O título do Lançar é do LancLoteDialogo (D-PROD-222): o formulário de mentira não traz título próprio.
@@ -122,6 +135,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  sessao.usuario = null;
   window.matchMedia = matchMediaOriginal;
   vi.useRealTimers();
 });
@@ -434,6 +448,44 @@ describe('CV-7 — cadastro na aba Informações e total fornecido na aba Histó
     expect(screen.getByRole('list', { name: 'Lançamentos do cocho' })).toBeTruthy();
     const total = screen.getByRole('region', { name: 'Total fornecido por produto' });
     expect(total.textContent).toContain('16,00 sacos · 400 kg');
+  });
+});
+
+describe('CV-7b — lançamento excluído some do cocho', () => {
+  it('evento com situacao "cancelado" (excluído) não vira cartão, não soma no total, não vira fechamento e não muda o nível; o botão do mais recente diz "Excluir lançamento"', async () => {
+    sessao.usuario = { id: 'u-1', cliente_id: 'c-1', login: 'dono', administrador_fazenda: true };
+    // Referência: o nível só com os lançamentos ativos.
+    await noDialogo(cocho());
+    await carregado();
+    const nivelSemExcluidos = screen.getByRole('region', { name: 'Nível do cocho' }).textContent;
+    cleanup();
+
+    dados.cache.eventosSuplementacao = [
+      fechado(),
+      evento('e-aberto'),
+      evento('e-excluido', { data_lancamento: '2026-11-11', created_date: '2026-11-11T12:00:00.000Z', quantidade_total_kg: 999, situacao: 'cancelado' }),
+      fechado({ id: 'f-excluido', data_lancamento: '2026-10-15', situacao: 'cancelado' }),
+    ];
+    await noDialogo(cocho());
+    await carregado();
+    // O excluído (o mais recente na cópia) não entra no nível, no saldo nem no consumo.
+    const nivel = screen.getByRole('region', { name: 'Nível do cocho' });
+    expect(nivel.textContent).toBe(nivelSemExcluidos);
+    expect(nivel.textContent).not.toContain('999');
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Fechamentos' })); });
+    expect(within(screen.getByRole('list', { name: 'Fechamentos do cocho' })).getAllByRole('listitem')).toHaveLength(1);
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Histórico' })); });
+    const lista = screen.getByRole('list', { name: 'Lançamentos do cocho' });
+    expect(lista.textContent).not.toContain('999');
+    expect(lista.textContent).not.toMatch(/Cancelad|Estornad|estorno/i);
+    expect(screen.getByRole('region', { name: 'Total fornecido por produto' }).textContent).toContain('16,00 sacos · 400 kg');
+    // O botão fica no lançamento ativo mais recente (e-aberto), nunca no excluído.
+    const botao = await within(lista).findByRole('button', { name: 'Excluir lançamento' });
+    expect(within(lista).getAllByRole('button', { name: 'Excluir lançamento' })).toHaveLength(1);
+    expect(botao.closest('li')?.textContent).toContain('Abastecimento');
+    expect(cancelamentoCocho.consultarElegibilidadeCancelamentoCocho.mock.calls.every(([a]) => a.evento.id === 'e-aberto')).toBe(true);
+    expect(lista.textContent).not.toMatch(/Cancelar/);
+    expect(screen.queryByRole('button', { name: /Cancelar/i })).toBeNull();
   });
 });
 

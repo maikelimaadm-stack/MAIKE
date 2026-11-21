@@ -73,7 +73,7 @@ describe('D-PROD-216 — Área ligada à Cultura', () => {
     assert.equal(r.statusCode, 201, r.body);
     const a = r.json();
     assert.equal(a.cultura_id, marandu.id);
-    assert.deepEqual(a.cultura, { id: marandu.id, codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', tipo: 'PASTAGEM', altura_entrada_cm: 35, altura_saida_cm: 20, dias_descanso: 30 }, 'D-PROD-223: com as alturas e os dias de descanso da lista de referência (D-PROD-269: Marandu 35/20, Doc 397)');
+    assert.deepEqual(a.cultura, { id: marandu.id, codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', tipo: 'PASTAGEM', altura_entrada_cm: 35, altura_saida_cm: 20, dias_descanso: 30 }, 'D-PROD-223: com as alturas e os dias de descanso da lista de referência (D-PROD-270: Marandu 35/20, Doc 397)');
     assert.equal(a.tipo_pastagem, 'BRACHIARIA BRIZANTHA CV. MARANDU');
     const lista = await req('GET', '/areas-pastagem', cen.token);
     assert.equal(lista.statusCode, 200);

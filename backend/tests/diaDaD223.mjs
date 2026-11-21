@@ -96,7 +96,7 @@ export const schemaSemDataTermino = (schema) => {
 };
 
 /**
- * D-PROD-269 — o `schema.prisma` de hoje sem os campos de cada tipo da Nova realização: o model `AtividadePlantio` (e a
+ * D-PROD-270 — o `schema.prisma` de hoje sem os campos de cada tipo da Nova realização: o model `AtividadePlantio` (e a
  * documentação dele), toda linha que cita `AtividadePlantio` (as relações em Cliente, Empresa, Atividade e Cultura), as 5
  * colunas novas (`Atividade.local`, `AtividadeApontamento.numero_receituario`, `AtividadeApontamentoProduto.vc_percentual`,
  * `Produto.carencia_dias` e `TipoAtividade.alvo`) e as linhas `///` e `// MAIKE-ENTREGA2` logo acima delas. A EXPAND

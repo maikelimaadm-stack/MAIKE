@@ -76,7 +76,7 @@ const COLUNAS_OK = [
   // D-PROD-249: as áreas da atividade e a área do lançamento.
   { table_name: 'AtividadeArea', column_name: 'status' },
   { table_name: 'AtividadeApontamento', column_name: 'atividade_area_id' },
-  // D-PROD-269: o plantio (tabela nova) e as 5 colunas dos campos por tipo.
+  // D-PROD-270: o plantio (tabela nova) e as 5 colunas dos campos por tipo.
   { table_name: 'AtividadePlantio', column_name: 'cultura_id' },
   { table_name: 'Atividade', column_name: 'local' },
   { table_name: 'AtividadeApontamento', column_name: 'numero_receituario' },

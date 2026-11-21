@@ -18,7 +18,7 @@ export function SecaoForm({ titulo, children = null }) {
  * Campo de texto Base1.
  * @param {{ label: string, value: string, onChange: (v: string) => void, readOnly?: boolean, required?: boolean,
  *   error?: string, span?: number, type?: string, placeholder?: string, maxLength?: number, inputMode?: string, keepCase?: boolean,
- *   dica?: React.ReactNode, testId?: string }} props `dica` (D-PROD-269): a linha de ajuda embaixo do campo (sem erro).
+ *   dica?: React.ReactNode, testId?: string }} props `dica` (D-PROD-270): a linha de ajuda embaixo do campo (sem erro).
  */
 export function CampoTexto({
   label,
@@ -60,7 +60,7 @@ export function CampoTexto({
  * que o campo aceita ficar vazio, e quem limpa é o ✕ do campo.
  * @param {{ label: string, value: string, onChange: (v: string) => void, options: Array<{ value: string, label: string }>,
  *   readOnly?: boolean, required?: boolean, error?: string, span?: number, placeholder?: string, dica?: React.ReactNode }} props
- *   `dica` (D-PROD-269): a linha de ajuda embaixo do campo (sem erro).
+ *   `dica` (D-PROD-270): a linha de ajuda embaixo do campo (sem erro).
  */
 export function CampoSelect({ label, value, onChange, options, readOnly = false, required = false, error = undefined, span = 6, placeholder = undefined, dica = undefined }) {
   return (

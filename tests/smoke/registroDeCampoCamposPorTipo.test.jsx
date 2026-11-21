@@ -1,5 +1,5 @@
 /**
- * D-PROD-269 (MAIKE-ENTREGA2) — os CAMPOS DE CADA TIPO na "Nova realização de <Tipo>":
+ * D-PROD-270 (MAIKE-ENTREGA2) — os CAMPOS DE CADA TIPO na "Nova realização de <Tipo>":
  *  - Plantio de pastagem: o capim (obrigatório, do Cadastro de Culturas; espécie e cultivar embaixo), a Safra só leitura
  *    preenchida pela data, forma, semente incrustada, cobertura e consórcio (opcionais, só vão quando escolhidos), o aviso
  *    "sem semente" e o VC % na linha da semente (pontos de VC/ha);
@@ -140,7 +140,7 @@ const salvar = async (/** @type {HTMLElement} */ janela) => {
 };
 const valorDe = (/** @type {HTMLElement} */ janela, /** @type {string} */ testId) => within(janela).getByTestId(testId).textContent.trim();
 
-describe("Plantio de pastagem (D-PROD-269)", () => {
+describe("Plantio de pastagem (D-PROD-270)", () => {
   it("o rótulo do tipo é \"Plantio de pastagem\"; o capim é obrigatório (nada sai sem ele) e a lista é dos capins ativos do cadastro", async () => {
     const janela = await montar();
     expect(within(janela).getByRole("list", { name: "Tipos de serviço" }).textContent).toContain("Plantio de pastagem");
@@ -217,7 +217,7 @@ describe("Plantio de pastagem (D-PROD-269)", () => {
   });
 });
 
-describe("Fertilização e Aplicação (D-PROD-269)", () => {
+describe("Fertilização e Aplicação (D-PROD-270)", () => {
   it("Fertilização: a Safra só leitura (preenchida pela data); nada de plantio no corpo", async () => {
     const janela = await montar();
     await escolherTipo(janela, "Fertilização");
@@ -265,7 +265,7 @@ describe("Fertilização e Aplicação (D-PROD-269)", () => {
   });
 });
 
-describe("Manutenção e Outros sem área (D-PROD-269)", () => {
+describe("Manutenção e Outros sem área (D-PROD-270)", () => {
   it("Manutenção: a área é opcional (Nenhuma área); sem área, o Local é obrigatório; o corpo leva o local, a quantidade feita e a unidade, sem áreas", async () => {
     const janela = await montar();
     await escolherTipo(janela, "Manutenção");
@@ -326,7 +326,7 @@ describe("Manutenção e Outros sem área (D-PROD-269)", () => {
   });
 });
 
-describe("as regras puras e o celular (D-PROD-269)", () => {
+describe("as regras puras e o celular (D-PROD-270)", () => {
   it("safra do dia, pasto liberado, VC, pontos de VC e o corpo do plantio", () => {
     expect(["2026-11-28", "2027-01-15", "2027-06-30", "2027-07-01", ""].map(tipo.safraDoDia)).toEqual(["2026/27", "2026/27", "2026/27", "2027/28", ""]);
     expect(tipo.pastoLiberadoEm("2026-11-12", [21, null, 3])).toEqual({ dia: "2026-12-03", carencia: 21 });
@@ -358,7 +358,7 @@ describe("as regras puras e o celular (D-PROD-269)", () => {
   });
 });
 
-describe("os cadastros: o alvo da operação e a carência do produto (D-PROD-269)", () => {
+describe("os cadastros: o alvo da operação e a carência do produto (D-PROD-270)", () => {
   it("a operação de Aplicação tem o Alvo (lista curta + Outro), que vai no corpo; as outras não", async () => {
     const { default: FormularioTipoAtividade } = await import("@/components/tipos-atividade/FormularioTipoAtividade");
     const onSubmit = vi.fn();
