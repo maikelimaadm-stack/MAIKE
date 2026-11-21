@@ -9,6 +9,7 @@ import JanelaEntradaEstoque from "@/components/estoque/JanelaEntradaEstoque";
 import JanelaMovimentoEstoque from "@/components/estoque/JanelaMovimentoEstoque";
 import JanelaNovoMovimentoEstoque from "@/components/estoque/JanelaNovoMovimentoEstoque";
 import JanelaSaidaEstoque from "@/components/estoque/JanelaSaidaEstoque";
+import JanelaAjusteEstoque from "@/components/estoque/JanelaAjusteEstoque";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { opcoesDeDeposito } from "@/components/estoque/SaldoEstoque";
 import TabelaMovimentosEstoque, {
@@ -41,16 +42,18 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * leva ao detalhe da entrada (editar a observação, excluir), na mesma tela.
  * D-PROD-264: "Novo movimento" aparece com a ação `entrada` OU a ação `saida`; a janela só oferece os tipos que as
  * ações permitem. O detalhe de um movimento de saída manual leva ao detalhe da saída (editar a observação, excluir).
- * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean,
+ * D-PROD-271: o mesmo para o Ajuste de inventário (ação `ajuste`) e o detalhe do ajuste.
+ * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean, podeAjuste?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
- *   `podeLancar` é a ação `entrada`; `podeSaida`, a ação `saida`.
+ *   `podeLancar` é a ação `entrada`; `podeSaida`, a ação `saida`; `podeAjuste`, a ação `ajuste`.
  */
-export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = false, podeSaida = false, inicial = null }) {
+export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = false, podeSaida = false, podeAjuste = false, inicial = null }) {
   const queryClient = useQueryClient();
-  const podeAlgum = podeLancar || podeSaida;
+  const podeAlgum = podeLancar || podeSaida || podeAjuste;
   const [lancando, setLancando] = useState(false);
   const [entradaAberta, setEntradaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
   const [saidaAberta, setSaidaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
+  const [ajusteAberto, setAjusteAberto] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
   // Fuso da FAZENDA (o "hoje" do lançamento): o mesmo resumo de empresas do Layout.
   const empresasQuery = useQuery({ queryKey: ["empresas"], queryFn: () => listEmpresas(), enabled: Boolean(empresaId) && podeAlgum, staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
   const fuso = useMemo(() => {
@@ -166,15 +169,16 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
     [controller.listaQueryError],
   );
 
-  const aoLancar = async (/** @type {{ tipo: string, entrada?: any, saida?: any }} */ r) => {
+  const aoLancar = async (/** @type {{ tipo: string, entrada?: any, saida?: any, ajuste?: any }} */ r) => {
     setLancando(false);
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });
     if (r?.entrada?.id) setEntradaAberta({ id: String(r.entrada.id), numero: String(r.entrada.numero ?? "") });
     if (r?.saida?.id) setSaidaAberta({ id: String(r.saida.id), numero: String(r.saida.numero ?? "") });
+    if (r?.ajuste?.id) setAjusteAberto({ id: String(r.ajuste.id), numero: String(r.ajuste.numero ?? "") });
   };
 
   return (
-    // Os botões seguem a regra EXATA do servidor (as ações `entrada` e `saida`): a heurística de texto do Layout não se aplica.
+    // Os botões seguem a regra EXATA do servidor (as ações `entrada`, `saida` e `ajuste`): a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
     <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
@@ -229,13 +233,18 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
           setAberto(null);
           setSaidaAberta({ id: String(doc.id), numero: String(doc.numero ?? "") });
         }}
+        onAbrirAjuste={(/** @type {{ id: string, numero: string }} */ doc) => {
+          setAberto(null);
+          setAjusteAberto({ id: String(doc.id), numero: String(doc.numero ?? "") });
+        }}
       />
     </FiltrosDaTelaContext.Provider>
     {lancando && empresaId && podeAlgum ? (
-      <JanelaNovoMovimentoEstoque aberto empresaId={empresaId} hoje={hoje} podeEntrada={podeLancar} podeSaida={podeSaida} onFechar={() => setLancando(false)} onLancado={aoLancar} />
+      <JanelaNovoMovimentoEstoque aberto empresaId={empresaId} hoje={hoje} podeEntrada={podeLancar} podeSaida={podeSaida} podeAjuste={podeAjuste} onFechar={() => setLancando(false)} onLancado={aoLancar} />
     ) : null}
     <JanelaEntradaEstoque entrada={entradaAberta} empresaId={empresaId} podeLancar={podeLancar} onFechar={() => setEntradaAberta(null)} />
     <JanelaSaidaEstoque saida={saidaAberta} empresaId={empresaId} podeSaida={podeSaida} onFechar={() => setSaidaAberta(null)} />
+    <JanelaAjusteEstoque ajuste={ajusteAberto} empresaId={empresaId} podeAjuste={podeAjuste} onFechar={() => setAjusteAberto(null)} />
     </div>
   );
 }

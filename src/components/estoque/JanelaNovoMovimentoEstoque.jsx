@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import B1Field from "@/components/cadastro/base1/B1Field";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import CadastroMotivosEstoque from "@/components/estoque/CadastroMotivosEstoque";
+import CamposAjusteEstoque from "@/components/estoque/CamposAjusteEstoque";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
@@ -17,6 +18,7 @@ import {
   MAX_ITENS_ENTRADA,
   MOTIVO_IMPLANTACAO,
   TIPO_ENTRADA,
+  TIPO_AJUSTE,
   TIPO_SAIDA,
   chaveDeOperacao,
   comProduto,
@@ -53,6 +55,8 @@ import {
   validarFormularioSaida,
 } from "@/lib/estoqueSaidasRegras";
 import { criarMotivoSaida, criarSaidaEstoque, editarMotivoSaida, listarMotivosSaida } from "@/services/estoqueSaidasService";
+import { formularioVazioAjuste, mensagemErroAjuste, montarCorpoAjuste, validarFormularioAjuste } from "@/lib/estoqueAjustesRegras";
+import { criarAjusteEstoque, saldoParaAjuste } from "@/services/estoqueAjustesService";
 
 export const FORMULARIO_NOVO_MOVIMENTO_ID = "formulario-novo-movimento-estoque";
 const CHAVE_MOTIVOS = ["estoque", "motivos-entrada"];
@@ -278,17 +282,21 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
  * e vários produtos (produto, depósito, unidade, quantidade), SEM valor: o servidor valoriza pelo custo médio do
  * depósito. O seletor de tipo só oferece o que as ações permitem (Entrada e Transferência com `entrada`, Saída com
  * `saida`); só com `saida`, a janela abre direto na Saída.
- * @param {{ aberto: boolean, empresaId: string, hoje: string, podeEntrada?: boolean, podeSaida?: boolean, onFechar: () => void,
- *   onLancado: (r: { tipo: string, entrada?: any, saida?: any }) => void }} props
+ * D-PROD-271: o Ajuste de inventário (ação própria `ajuste`): o usuário digita o saldo CONTADO de cada produto no
+ * depósito e vê o saldo atual e a diferença (sobra/falta); sem data (é hoje na fazenda) e sem valor, exceto o custo da
+ * sobra num depósito sem saldo. Com um tipo só, a janela já abre nele.
+ * @param {{ aberto: boolean, empresaId: string, hoje: string, podeEntrada?: boolean, podeSaida?: boolean, podeAjuste?: boolean, onFechar: () => void,
+ *   onLancado: (r: { tipo: string, entrada?: any, saida?: any, ajuste?: any }) => void }} props
  */
-export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, podeEntrada = true, podeSaida = false, onFechar, onLancado }) {
+export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, podeEntrada = true, podeSaida = false, podeAjuste = false, onFechar, onLancado }) {
   const celular = useCelular();
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
-  const tipos = tiposPermitidos({ entrada: podeEntrada, saida: podeSaida });
+  const tipos = tiposPermitidos({ entrada: podeEntrada, saida: podeSaida, ajuste: podeAjuste });
   const [tipo, setTipo] = useState(() => tipos[0]?.value ?? TIPO_ENTRADA);
   const [modoMotivos, setModoMotivos] = useState(/** @type {null | 'entrada' | 'saida'} */ (null));
   const [entrada, setEntrada] = useState(() => formularioVazioEntrada(hoje));
   const [saida, setSaida] = useState(() => formularioVazioSaida(hoje));
+  const [ajuste, setAjuste] = useState(() => formularioVazioAjuste());
   const [transf, setTransf] = useState(() => formularioVazioTransferencia(hoje));
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const [enviando, setEnviando] = useState(false);
@@ -299,6 +307,17 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
   const motivos = motivosQuery.data ?? [];
   const motivosSaidaQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS_SAIDA, "ativos"], queryFn: () => listarMotivosSaida({ ativos: true }), staleTime: 30 * 1000, enabled: aberto && podeSaida });
   const motivosSaida = motivosSaidaQuery.data ?? [];
+  // Saldo atual (e custo médio) de cada linha do ajuste que já tem produto e depósito.
+  const saldosQueries = useQueries({
+    queries: ajuste.itens.map((/** @type {any} */ l) => ({
+      queryKey: ["estoque", "ajuste-saldo", empresaId, l.produto?.id ?? null, l.deposito?.id ?? null],
+      queryFn: () => saldoParaAjuste(empresaId, l.produto.id, l.deposito.id),
+      enabled: aberto && podeAjuste && tipo === TIPO_AJUSTE && Boolean(l.produto?.id && l.deposito?.id),
+      staleTime: 15 * 1000,
+      refetchOnWindowFocus: false,
+    })),
+  });
+  const saldosAjuste = saldosQueries.map((q) => q.data ?? null);
   const implantacao = ehImplantacao(entrada);
 
   /** @param {Record<string, any>} mudanca */
@@ -316,6 +335,11 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
   /** @param {Record<string, any>} mudanca */
   const mudarSaida = (mudanca) => {
     setSaida((f) => ({ ...f, ...mudanca }));
+    setErroEnvio(null);
+  };
+  /** @param {Record<string, any>} mudanca */
+  const mudarAjuste = (mudanca) => {
+    setAjuste((f) => ({ ...f, ...mudanca }));
     setErroEnvio(null);
   };
   /** @param {number} i @param {any} linha */
@@ -339,6 +363,10 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
       const { erros: achados, ok } = validarFormularioSaida(saida, hoje);
       setErros(achados);
       if (!ok) return;
+    } else if (tipo === TIPO_AJUSTE) {
+      const { erros: achados, ok } = validarFormularioAjuste(ajuste, saldosAjuste);
+      setErros(achados);
+      if (!ok) return;
     } else {
       const { erros: achados, ok } = validarTransferencia(transf, hoje);
       setErros(achados);
@@ -355,14 +383,21 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
         const id = idDaOperacao("sai", montarCorpoSaida(empresaId, saida, ""));
         const criada = await criarSaidaEstoque(montarCorpoSaida(empresaId, saida, id));
         onLancado({ tipo, saida: criada });
+      } else if (tipo === TIPO_AJUSTE) {
+        const id = idDaOperacao("aju", montarCorpoAjuste(empresaId, ajuste, "", saldosAjuste));
+        const criado = await criarAjusteEstoque(montarCorpoAjuste(empresaId, ajuste, id, saldosAjuste));
+        onLancado({ tipo, ajuste: criado });
       } else {
         const id = idDaOperacao("trf", dadosDaTransferencia(transf, ""));
         await transferirEntreDepositos(empresaId, dadosDaTransferencia(transf, id));
         onLancado({ tipo });
       }
     } catch (erro) {
-      const padrao = `Não foi possível lançar a ${tipo === TIPO_ENTRADA ? "entrada" : tipo === TIPO_SAIDA ? "saída" : "transferência"}. Verifique a conexão e tente de novo.`;
-      setErroEnvio(tipo === TIPO_SAIDA ? mensagemErroSaida(erro, padrao, saida.itens) : mensagemErroEntrada(erro, padrao));
+      const oQue = { [TIPO_ENTRADA]: "a entrada", [TIPO_SAIDA]: "a saída", [TIPO_AJUSTE]: "o ajuste" }[tipo] ?? "a transferência";
+      const padrao = `Não foi possível lançar ${oQue}. Verifique a conexão e tente de novo.`;
+      setErroEnvio(
+        tipo === TIPO_SAIDA ? mensagemErroSaida(erro, padrao, saida.itens) : tipo === TIPO_AJUSTE ? mensagemErroAjuste(erro, padrao, ajuste.itens) : mensagemErroEntrada(erro, padrao),
+      );
     } finally {
       setEnviando(false);
     }
@@ -377,7 +412,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
       </button>
       <button type="submit" form={FORMULARIO_NOVO_MOVIMENTO_ID} className="tb-btn tb-btn-green" disabled={enviando} data-testid="movimento-lancar">
         {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
-        {enviando ? "Lançando…" : tipo === TIPO_ENTRADA ? "Lançar entrada" : tipo === TIPO_SAIDA ? "Lançar saída" : "Lançar transferência"}
+        {enviando ? "Lançando…" : tipo === TIPO_ENTRADA ? "Lançar entrada" : tipo === TIPO_SAIDA ? "Lançar saída" : tipo === TIPO_AJUSTE ? "Lançar ajuste" : "Lançar transferência"}
       </button>
     </>
   );
@@ -606,6 +641,16 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
                 Não se digita valor: a saída é valorizada pelo custo médio do produto no depósito. O servidor confere se há saldo suficiente.
               </p>
             </>
+          ) : tipo === TIPO_AJUSTE ? (
+            <CamposAjusteEstoque
+              ajuste={ajuste}
+              empresaId={empresaId}
+              hoje={hoje}
+              erros={erros}
+              saldos={saldosQueries}
+              observacao={<Observacao label="Observação" value={ajuste.observacao} onChange={(v) => mudarAjuste({ observacao: v })} testId="ajuste-observacao" />}
+              onMudar={mudarAjuste}
+            />
           ) : (
             <>
               <SecaoForm titulo="Transferência" />

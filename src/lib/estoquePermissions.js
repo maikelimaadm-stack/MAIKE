@@ -20,10 +20,11 @@ export const TELA_ESTOQUE = 'sup-estoque';
 
 /**
  * @param {unknown} permissao permissão EFETIVA
- * @returns {{ ver: boolean, entrada: boolean, saida: boolean }}
+ * @returns {{ ver: boolean, entrada: boolean, saida: boolean, ajuste: boolean }}
  */
 export const acoesDaTelaEstoque = (permissao) => ({
   ver: canPerformAction(permissao, TELA_ESTOQUE, MODULO_ESTOQUE, 'visualizar'),
   entrada: canPerformAction(permissao, TELA_ESTOQUE, MODULO_ESTOQUE, 'entrada'),
   saida: canPerformAction(permissao, TELA_ESTOQUE, MODULO_ESTOQUE, 'saida'),
+  ajuste: canPerformAction(permissao, TELA_ESTOQUE, MODULO_ESTOQUE, 'ajuste'),
 });

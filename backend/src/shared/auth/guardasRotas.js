@@ -228,7 +228,9 @@ export const GUARDAS = Object.freeze({
     ver: porTela(T.ESTOQUE, 'visualizar'),
     entrada: porTela(T.ESTOQUE, 'entrada'),
     saida: porTela(T.ESTOQUE, 'saida'),
-    formulario: porQualquer([T.ESTOQUE, 'entrada'], [T.ESTOQUE, 'saida']),
+    // D-PROD-271: `ajuste` (ajuste de inventário).
+    ajuste: porTela(T.ESTOQUE, 'ajuste'),
+    formulario: porQualquer([T.ESTOQUE, 'entrada'], [T.ESTOQUE, 'saida'], [T.ESTOQUE, 'ajuste']),
   },
   // ── Bebedouros ──
   bebedouro: cadastro(T.BEBEDOUROS, { criar: MAPA_CAD_CRIAR, editar: MAPA_CAD_EDITAR }),

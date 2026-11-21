@@ -295,10 +295,8 @@ export const editar = async (contexto, id, corpo) => {
 
 /**
  * Escolha do proprietário: a saída só se exclui se o produto NÃO teve outro movimento naquele depósito
- * depois dela (entrada, saída, transferência de/para, estorno). Lida sob a trava do produto. "Depois" é
- * fail-closed por dois critérios, qualquer um recusa: o número sequencial do movimento (atribuído sob a
- * mesma trava do produto, logo na ordem real) maior que o da saída, ou o instante de criação igual ou
- * posterior. As outras linhas da mesma saída são de outro par produto × depósito (UNIQUE), nunca casam.
+ * depois dela (`buscarMovimentoPosteriorA`). As outras linhas da mesma saída são de outro par produto ×
+ * depósito (UNIQUE), nunca casam.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {any[]} itens
  */
 const exigirNadaDepois = async (tx, cli, empresaId, itens) => {

@@ -59,6 +59,8 @@ export const schemaSemAreasDaAtividade = (schema) => {
  * espelhos (todas anteriores a ela) e tem a prova própria em `estoqueEntradas.test.mjs` e `premerge-migrate.test.mjs`.
  * D-PROD-264: também sem a saída manual do Estoque (os 4 models `MotivoSaidaEstoque`/`SaidaEstoque*` e as relações
  * inversas), posterior às Entradas: `20261120100000_estoque_saidas` fica igualmente fora das pastas dos espelhos.
+ * D-PROD-271: e sem o ajuste de inventário (os 3 models `AjusteEstoque*` e as relações inversas), posterior à saída:
+ * `20261120300000_estoque_ajustes` também fica fora das pastas dos espelhos.
  * @param {string} schema
  */
 export const schemaSemEntradasDoEstoque = (schema) => {
@@ -67,17 +69,18 @@ export const schemaSemEntradasDoEstoque = (schema) => {
   for (let i = 0; i < linhas.length; i += 1) {
     // D-PROD-259: o cadastro de motivos de entrada também é das Entradas (não existe no dia da D-PROD-249).
     // D-PROD-264: a saída manual do Estoque (MotivoSaidaEstoque e os 3 SaidaEstoque*), posterior a elas, também não.
-    if (/^model (Motivo)?(Entrada|Saida)Estoque\w* \{/.test(linhas[i])) {
+    // D-PROD-271: nem o ajuste de inventário (os 3 AjusteEstoque*), posterior à saída.
+    if (/^model ((Motivo)?(Entrada|Saida)|Ajuste)Estoque\w* \{/.test(linhas[i])) {
       let j = i;
       while (j < linhas.length && linhas[j].trim() !== '}') sai[j++] = true;
       sai[j] = true;
       i = j;
       continue;
     }
-    if (/EntradaEstoque|entradasEstoque|itemEntradaEstoque|SaidaEstoque|saidasEstoque|itemSaidaEstoque/.test(linhas[i])) sai[i] = true;
+    if (/EntradaEstoque|entradasEstoque|itemEntradaEstoque|SaidaEstoque|saidasEstoque|itemSaidaEstoque|AjusteEstoque|ajustesEstoque|itemAjusteEstoque/.test(linhas[i])) sai[i] = true;
   }
   for (let i = linhas.length - 1; i > 0; i -= 1) {
-    if (sai[i] && /^\s*(\/\/\/|\/\/ D-PROD-257|\/\/ D-PROD-264|\/\/ -{10,})/.test(linhas[i - 1])) sai[i - 1] = true;
+    if (sai[i] && /^\s*(\/\/\/|\/\/ D-PROD-257|\/\/ D-PROD-264|\/\/ D-PROD-271|\/\/ -{10,})/.test(linhas[i - 1])) sai[i - 1] = true;
   }
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
