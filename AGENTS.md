@@ -179,6 +179,15 @@ Para adicionar uma página ou entidade:
 - **CORS compara por igualdade.** `startsWith` deixaria
   `https://maike.app.evil.com` passar por `https://maike.app`. Nada de `*`,
   prefixo, substring ou eco da origin recebida.
+- **Em produção o P2002 não diz a unique (D-PROD-253).** O runtime
+  (`maike_vercel`) não é dono das tabelas e elas têm RLS: o PostgreSQL omite o
+  DETAIL e o Prisma devolve `meta.target` nulo (o nome da constraint também não
+  chega). Os testes rodam como DONO e veem o alvo, então o defeito não aparece
+  neles. Não traduza P2002 pelo alvo: o mapa `unicos` do `emTransacao` exige
+  `{ erro, conferir }` (o `typecheck:backend` reprova a fábrica solta), o alvo
+  só se lê em `alvoDaUnique` (nem o `meta` inteiro do erro, que o leva junto:
+  fora dele, só por campo), e a prova é sob `comPapelNaoDono`
+  (`backend/tests/papelNaoDono.mjs`).
 - **Backend sem banco não testa.** `npm run test:backend` **falha** sem
   `DATABASE_URL`, em vez de pular. Suíte que se auto-desliga reporta verde sem
   ter verificado nada.

@@ -160,6 +160,8 @@ export const criar = async (contexto, entrada) => {
     dados.fuso_horario = fuso;
   }
   const prisma = getPrismaClient();
+  /** Número reservado nesta tentativa: conferido depois do rollback num P2002 sem alvo (D-PROD-253). */
+  let numeroReservado = null;
 
   try {
     const criado = await prisma.$transaction(async (tx) => {
@@ -168,6 +170,7 @@ export const criar = async (contexto, entrada) => {
       }
 
       const numero = await reservarNumeroEmpresa(tx, auth.clienteId);
+      numeroReservado = numero;
       const registro = await inserirRegistro(tx, {
         ...dados,
         cliente_id: auth.clienteId,
@@ -187,7 +190,14 @@ export const criar = async (contexto, entrada) => {
     return comoPublico(criado);
   } catch (erro) {
     if (erro instanceof AppError) throw erro;
-    lancarSeP2002Empresa(erro);
+    // D-PROD-253: sem o alvo do P2002 (produção), o nome e o número são conferidos depois do rollback.
+    await lancarSeP2002Empresa(erro, {
+      nome: (tx) => existeNome(tx, auth.clienteId, String(dados.nome ?? '')),
+      numero:
+        numeroReservado === null
+          ? null
+          : (tx) => tx.empresa.findFirst({ where: { cliente_id: auth.clienteId, numero_empresa: numeroReservado }, select: { id: true } }),
+    });
     throw erro;
   }
 };
@@ -221,7 +231,8 @@ export const atualizar = async (contexto, id, entrada) => {
     return comoPublico(atualizado);
   } catch (erro) {
     if (erro instanceof AppError) throw erro;
-    lancarSeP2002Empresa(erro);
+    // D-PROD-253: sem o alvo do P2002 (produção), o nome novo é conferido depois do rollback.
+    await lancarSeP2002Empresa(erro, { nome: dados.nome ? (tx) => existeNome(tx, auth.clienteId, String(dados.nome), id) : null });
     throw erro;
   }
 };

@@ -567,7 +567,14 @@ export const adicionarArea = async (contexto, atividadeId, corpo) => {
       const area = await adicionarAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId, areaId, planejada: planejadaInformada });
       return { area: comoAreaDaAtividadePublica(area), atividade: await carregarAtividadeDetalhe(tx, cli, empresaId, atividadeId) };
     },
-    { area_id: () => atividadeReferenciaInvalida('area_id', 'ja_na_atividade') },
+    // A unique (cliente_id, empresa_id, atividade_id, area_id) é a rede da pré-conferência de `adicionarAreaNaTransacao`. D-PROD-253: sem o
+    // alvo do P2002 (produção: papel não dono + RLS), a mesma área é conferida depois do rollback.
+    {
+      area_id: {
+        erro: () => atividadeReferenciaInvalida('area_id', 'ja_na_atividade'),
+        conferir: (tx) => tx.atividadeArea.findFirst({ where: { cliente_id: cli, atividade_id: atividadeId, area_id: areaId }, select: { id: true } }),
+      },
+    },
     MENSAGEM_CONFLITO_SEM_CHAVE
   );
 };

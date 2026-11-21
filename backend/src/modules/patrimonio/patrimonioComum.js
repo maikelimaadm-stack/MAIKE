@@ -5,6 +5,7 @@
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
+import { alvoDaUnique } from '../../shared/prisma/transacaoConcorrente.js';
 import { ID_DE_CURSOR, clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
 import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
 import { ehViolacaoDeUnique, invalido, textoDeBusca, travarEscopo } from '../gestao/gestaoComum.js';
@@ -55,6 +56,13 @@ export const atualizarComVersao = async (delegado, { clienteId, id, versao, data
 /**
  * Corrida perdida no unique do banco (P2002) → erro de negócio estável, pelo
  * campo EXATO do alvo (`codigo` não casa com `codigo_frota`). Outro erro segue.
+ *
+ * D-PROD-253: sem o alvo (produção: papel não dono + RLS) nada casa aqui, e o
+ * P2002 segue o caminho genérico (409 CONCURRENCY_CONFLICT). Os dois usos não
+ * dependem disso: o código de frota (`bemPatrimonialService`) e o código/nome
+ * do tipo (`tipoPatrimonialService`) são conferidos SOB TRAVA na mesma
+ * transação antes de gravar (`travarEscopo('patrimonio:frota:…')` e
+ * `travarCatalogo`), por todos os escritores; o unique é só a rede.
  * @template T
  * @param {() => Promise<T>} fn
  * @param {Record<string, () => AppError>} porCampo  campo do unique → fábrica do erro
@@ -65,7 +73,7 @@ export const comUnicosEstaveis = async (fn, porCampo) => {
     return await fn();
   } catch (erro) {
     if (ehViolacaoDeUnique(erro)) {
-      const alvo = /** @type {any} */ (erro)?.meta?.target;
+      const alvo = alvoDaUnique(erro);
       const campos = Array.isArray(alvo) ? alvo.map(String) : [];
       const texto = typeof alvo === 'string' ? alvo : '';
       for (const [campo, fabrica] of Object.entries(porCampo)) {

@@ -58,6 +58,7 @@ import {
   buscarLinha,
   cancelarLinhas,
   contarConfirmadasDoApontamento,
+  existeLinhaComChave,
   inserirLinha,
   lerParceiroDaLinha,
   listarLinhasDosApontamentos,
@@ -489,6 +490,7 @@ const escrever = (/** @type {any} */ contexto, /** @type {any} */ pedido) =>
     entidade: ENTIDADE_LINHA_MAO_OBRA,
     acaoConflito: ACOES_LINHA_MAO_OBRA.reenvio_conflitante,
     chave: 'mao_obra',
+    existeChave: existeLinhaComChave,
     publica: comoLinhaMaoObraPublica,
   });
 
