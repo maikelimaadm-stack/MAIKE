@@ -63,7 +63,15 @@ import {
   situacaoDepoisDeSalvar,
   textoDoDiaDoRegistro,
 } from "@/lib/servicoVariosDias";
-import { definirFazendaDaTela, listarApontamentos, listarAreasDaFazenda, listarOpcoesOperadores, obterResumoDaArea, registrarCampo } from "@/services/lancamentoAtividadesService";
+import {
+  definirFazendaDaTela,
+  listarApontamentos,
+  listarAreasDaFazenda,
+  listarAtividades,
+  listarOpcoesOperadores,
+  obterResumoDaArea,
+  registrarCampo,
+} from "@/services/lancamentoAtividadesService";
 import { listarCulturas } from "@/services/culturaCadastroService";
 import {
   FORMAS_PLANTIO,
@@ -140,6 +148,10 @@ const NOTA_DO_CAMPO = "mt-1 min-w-0 break-words px-1 text-[12px] text-[var(--mg-
  *    início, mais a maior carência dos produtos; só calculado);
  *  - Manutenção e Outros: a área é opcional ("Nenhuma área") e, sem ela, "Local" é obrigatório; a Manutenção tem a
  *    "Quantidade feita" (a produção do dia) e a "Unidade" (a da operação, ou KM, M ou UNIDADES).
+ * Ajustes do teste de ponta a ponta: a prévia do Plantio diz o capim; a prévia sem área lê o serviço aberto do local
+ * (`GET /atividades?local=…`, a busca do servidor) e diz "Entra em …" ou "Nova atividade será criada: …"; o aviso de
+ * sucesso da Aplicação diz o "Pasto liberado em" da resposta; "Concluída" fica desligada para quem não pode editar (a
+ * permissão do "Concluir"; o servidor também recusa, 403).
  *
  * @param {{
  *   tipo?: any | null,
@@ -243,7 +255,10 @@ export default function JanelaRegistroDeCampo({
   const [termino, setTermino] = useState("");
   // D-PROD-267: "Como fica depois de salvar?" — null = o padrão pelo término, até a pessoa escolher.
   const [escolhaDaSituacao, setEscolhaDaSituacao] = useState(/** @type {'EM_ANDAMENTO'|'CONCLUIDA'|null} */ (null));
-  const situacaoDepois = situacaoDepoisDeSalvar(termino, escolhaDaSituacao);
+  // D-PROD-270 (ajuste do teste de ponta a ponta): "Concluída" pede a permissão do "Concluir" (editar ou salvar, a mesma
+  // guarda do servidor). Sem ela, fica sempre Em andamento (o término preenchido não marca Concluída).
+  const podeConcluir = acoes?.editar === true;
+  const situacaoDepois = podeConcluir ? situacaoDepoisDeSalvar(termino, escolhaDaSituacao) : "EM_ANDAMENTO";
   // D-PROD-267: a recusa "serviço parado" (a pergunta) e a fila das máquinas e da equipe do último dia (um editor por vez).
   const [parado, setParado] = useState(/** @type {{ ultimo_dia: string|null, atividade_nome: string|null } | null} */ (null));
   const filas = useRef(/** @type {{ maquinas: any[], mao_obra: any[] }} */ ({ maquinas: [], mao_obra: [] }));
@@ -405,14 +420,35 @@ export default function JanelaRegistroDeCampo({
     })),
   });
   const semAreaAgora = campos.areaOpcional && !areasDoRegistro.length;
+  // D-PROD-270: sem área, o serviço ABERTO da operação no MESMO local (a busca do servidor, pela lista com `local`). O
+  // local digitado espera a pessoa parar de digitar (uma leitura por pausa, não por tecla).
+  const localDigitado = localDoTexto(local);
+  const [localDaBusca, setLocalDaBusca] = useState(localDigitado);
+  useEffect(() => {
+    if (localDigitado === localDaBusca) return undefined;
+    const t = setTimeout(() => setLocalDaBusca(localDigitado), 350);
+    return () => clearTimeout(t);
+  }, [localDigitado, localDaBusca]);
+  const servicosNoLocal = useQuery({
+    queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "abertas-no-local", empresaId, tipo?.id ? String(tipo.id) : null, localDaBusca],
+    queryFn: () => listarAtividades({ status: "ABERTA", tipo_atividade_id: String(tipo?.id), local: localDaBusca, limit: 5 }),
+    enabled: Boolean(semAreaAgora && empresaId && acoes?.ver && tipo?.id && localDaBusca),
+    staleTime: 15 * 1000,
+  });
+  const abertasNoLocal =
+    localDaBusca === localDigitado && servicosNoLocal.isSuccess && Array.isArray(/** @type {any} */ (servicosNoLocal.data)?.items)
+      ? /** @type {any[]} */ (/** @type {any} */ (servicosNoLocal.data).items)
+      : null;
   const destino = semAreaAgora
-    ? destinoSemArea({ tipo, local, dia })
+    ? destinoSemArea({ tipo, local, dia, abertas: abertasNoLocal })
     : destinoDoRegistro({
         tipo,
         areas: areasDoRegistro.map((l) => ({ id: l.area_id, nome: areaDe(l.area_id)?.nome ?? "" })),
         dia,
         resumos: resumos.map((r) => (r.isSuccess ? r.data : null)),
         culturaId: campos.plantio ? culturaId || null : null,
+        // D-PROD-270: o capim na frase (dois plantios na mesma área têm o mesmo nome).
+        capim: campos.plantio && capim ? String(capim.nome ?? "") : null,
       });
 
   // ─── Envio ───────────────────────────────────────────────────────────
@@ -560,7 +596,9 @@ export default function JanelaRegistroDeCampo({
         : enviadas.length === 1
           ? areaDe(enviadas[0].area_id)?.nome ?? "1 área"
           : `${enviadas.length} áreas`;
-      notifySuccess("Sucesso", `${tipo.nome_tipo} registrada em ${onde}.`);
+      // D-PROD-270: na Aplicação, o "Pasto liberado em" da resposta (o servidor calcula; sem carência, nada).
+      const liberadoEm = typeof resposta?.registro?.pasto_liberado_em === "string" ? diaPorExtenso(resposta.registro.pasto_liberado_em) : "";
+      notifySuccess("Sucesso", `${tipo.nome_tipo} registrada em ${onde}.${campos.aplicacao && liberadoEm ? ` Pasto liberado em ${liberadoEm}.` : ""}`);
       const alerta = Array.isArray(resposta?.alertas) ? resposta.alertas[0] : null;
       if (alerta) notifyWarning("Atenção", mensagemDoAlertaAtividade(alerta));
       onGravou?.(resposta);
@@ -1111,7 +1149,9 @@ export default function JanelaRegistroDeCampo({
               role="radio"
               aria-checked={situacaoDepois === valor}
               className="b1-situacao-depois__opcao"
-              disabled={enviando}
+              // D-PROD-270: sem a permissão do "Concluir", "Concluída" não é oferecida (o servidor também recusa, 403).
+              disabled={enviando || (valor === "CONCLUIDA" && !podeConcluir)}
+              title={valor === "CONCLUIDA" && !podeConcluir ? "Só quem pode editar conclui." : undefined}
               onClick={() => {
                 setEscolhaDaSituacao(valor);
                 mexeu();
@@ -1123,6 +1163,11 @@ export default function JanelaRegistroDeCampo({
             </button>
           ))}
         </div>
+        {!podeConcluir && !acoes?.carregando ? (
+          <p className="col-span-12 -mt-1 min-w-0 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-situacao-sem-permissao">
+            Só quem pode editar conclui.
+          </p>
+        ) : null}
         {resumo.frase || resumo.vai ? (
           <p className="col-span-12 min-w-0 break-words text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-resumo">
             {resumo.frase ? `${resumo.frase} ` : ""}

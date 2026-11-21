@@ -14,6 +14,7 @@ import { STATUS_AREA, areasDaAtividade } from './atividadeAreasRegras.js';
 import { TIPOS_FIXOS_ATIVIDADE, operacoesDoTipoFixo, rotuloDoTipoFixo, tipoFixoDaOperacao } from './tiposFixosAtividade.js';
 import { formularioMaoObraDaBase, formularioMaquinaDaBase } from './atividadeLinhasRegras.js';
 import { ehDiaValido } from './diaCivil.js';
+import { rotuloDaUnidadeFeita } from './camposPorTipo.js';
 
 /** As situações da lista, na ordem do filtro. */
 export const SITUACOES_DO_SERVICO = Object.freeze(['PLANEJADA', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA']);
@@ -83,6 +84,36 @@ export const textoDaAreaDoServico = (item) => {
   return areas.length > 1 ? `${primeira} +${areas.length - 1}` : primeira;
 };
 
+// ─── D-PROD-270 (ajustes do teste de ponta a ponta): o capim e o serviço sem área ─────
+
+/** O capim do Plantio de pastagem (o nome do Cadastro de Culturas, lido da `AtividadePlantio`); fora dele, "". @param {any} item */
+export const capimDoServico = (item) => texto(item?.plantio?.cultura?.nome);
+
+/** "capim PANICUM CV. MOMBAÇA" (como o capim aparece ao lado da operação e da área); sem capim, "". @param {unknown} nome */
+export const textoDoCapim = (nome) => {
+  const n = texto(nome);
+  return n ? `capim ${n}` : '';
+};
+
+/**
+ * O serviço SEM área (Manutenção e Outros com o local): o local e nenhuma área (na atividade nem no cabeçalho). Nele não
+ * há hectares; valem o local e a quantidade feita.
+ * @param {any} item
+ */
+export const servicoSemArea = (item) => Boolean(texto(item?.local)) && !areasDaAtividade(item).length && !texto(item?.area_id) && !texto(item?.area?.id);
+
+/**
+ * A quantidade feita do serviço com a unidade ("2,5 km", "30 m", "4 unidades"): a produção somada da atividade
+ * (`quantidade_produzida`) e a unidade dela; sem produção (ou zero), "".
+ * @param {any} item
+ */
+export const quantidadeFeitaDoServico = (item) => {
+  const q = item?.quantidade_produzida;
+  if (!ehCanonico(q) || comparar(/** @type {string} */ (q), '0') <= 0) return '';
+  const sigla = texto(item?.unidade_producao_sigla) || texto(item?.unidade_producao?.sigla);
+  return [formatarDecimalAtividade(q), sigla ? rotuloDaUnidadeFeita(sigla) : ''].filter(Boolean).join(' ');
+};
+
 /**
  * A coluna "Data": em aberto, "28/11 –" (o início); concluída, "01/11 a 10/11" (o início e a conclusão; no mesmo dia,
  * só "12/11"); planejada e cancelada, o início.
@@ -138,22 +169,30 @@ export const textoDosHectares = (feitos, area, percentual) => {
 };
 
 /**
- * A linha do andamento: "12 de 40 ha (30%) · último dia 02/12" (só Em andamento com dia lançado).
+ * A linha do andamento: "12 de 40 ha (30%) · último dia 02/12" (só Em andamento com dia lançado). D-PROD-270: o serviço
+ * sem área nunca mostra hectares — o local e a quantidade feita ("DIVISA NORTE · 2,5 km · último dia 20/11"; sem
+ * quantidade, "DIVISA NORTE · último dia 20/11").
  * @param {any} item
  */
 export const textoDoAndamento = (item) => {
   if (situacaoDoServico(item) !== 'EM_ANDAMENTO') return '';
   const a = item?.andamento ?? {};
-  const hectares = textoDosHectares(a.hectares_feitos, a.hectares_area, a.percentual);
   const ultimo = diaCurto(a.ultimo_dia);
-  return [hectares, ultimo ? `último dia ${ultimo}` : ''].filter(Boolean).join(' · ');
+  const comDia = ultimo ? `último dia ${ultimo}` : '';
+  if (servicoSemArea(item)) {
+    if (!comDia && !Number(a.lancamentos ?? 0)) return '';
+    return [texto(item?.local), quantidadeFeitaDoServico(item), comDia].filter(Boolean).join(' · ');
+  }
+  const hectares = textoDosHectares(a.hectares_feitos, a.hectares_area, a.percentual);
+  return [hectares, comDia].filter(Boolean).join(' · ');
 };
 
 /** A barra (0 a 100) do andamento; sem %, null. @param {any} item */
 export const barraDoAndamento = (item) => percentualInteiro(item?.andamento?.percentual);
 
-/** "30 de 30 ha" da concluída (o card do celular). @param {any} item */
+/** "30 de 30 ha" da concluída (o card do celular). D-PROD-270: sem área, a quantidade feita ("2,5 km") ou nada. @param {any} item */
 export const hectaresDaConcluida = (item) => {
+  if (servicoSemArea(item)) return quantidadeFeitaDoServico(item);
   const a = item?.andamento ?? {};
   const f = ha(a.hectares_feitos);
   const t = ha(a.hectares_area);
@@ -217,8 +256,24 @@ export const erroDoUltimoDia = (dia, { hoje = null, dataInicio = null, ultimoDia
   return null;
 };
 
-/** "Concluir <operação> · <área>". @param {any} item */
-export const tituloDoConcluir = (item) => [texto(item?.tipo_atividade_nome), textoDaAreaDoServico(item)].filter(Boolean).join(' · ');
+/**
+ * "Concluir <operação> · <área>". D-PROD-270: no Plantio de pastagem, com o capim ("… · PASTO DA AROEIRA · capim PANICUM
+ * CV. MOMBAÇA"): dois plantios na mesma área se distinguem.
+ * @param {any} item
+ */
+export const tituloDoConcluir = (item) =>
+  [texto(item?.tipo_atividade_nome), textoDaAreaDoServico(item), textoDoCapim(capimDoServico(item))].filter(Boolean).join(' · ');
+
+/**
+ * O que o "Concluir" mostra do feito: "40 de 40 ha (100%)"; sem área, a quantidade feita ("2,5 km"; o local já está no
+ * título) ou nada — nunca "0 ha".
+ * @param {any} item
+ */
+export const feitoNoConcluir = (item) => {
+  if (servicoSemArea(item)) return quantidadeFeitaDoServico(item);
+  const a = item?.andamento ?? {};
+  return textoDosHectares(a.hectares_feitos, a.hectares_area, a.percentual);
+};
 
 // ─── O "+ Lançar dia" (a Nova realização preenchida) ────────────────────
 

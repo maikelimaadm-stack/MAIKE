@@ -61,6 +61,10 @@ const LOCAIS = {
 
 /** @type {{ chamadas: Array<{ method: string, path: string, query: Record<string, string>, body: any }> }} */
 let backend;
+/** D-PROD-270: os serviços abertos sem área que `GET /atividades?local=…` devolve (a prévia sem área). @type {any[]} */
+let servicosAbertos;
+/** D-PROD-270: o `registro.pasto_liberado_em` da resposta do registro (o servidor calcula). @type {string|null} */
+let liberadoNaResposta;
 
 const rotear = async (/** @type {{ method: string, path: string, query: URLSearchParams, body: any }} */ { method, path, query, body }) => {
   const partes = path.split("/").filter(Boolean);
@@ -71,8 +75,21 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     return { status: 200, body: { itens: partes[1] === "produtos" ? PRODUTOS : [], has_more: false, next_cursor: null } };
   }
   if (partes[0] === "atividades-por-area" && method === "GET") return { status: 200, body: { area_id: partes[1], mes: "2026-11", atividades: [], custos: null } };
+  // D-PROD-270: a lista filtrada pelo local (o serviço aberto sem área), como o servidor.
+  if (path === "/atividades" && method === "GET") {
+    const items = servicosAbertos.filter(
+      (a) => a.local === query.get("local") && a.tipo_atividade_id === query.get("tipo_atividade_id") && (!query.get("status") || a.status === query.get("status")),
+    );
+    return { status: 200, body: { items, next_cursor: null, has_more: false, total: items.length, limit: Number(query.get("limit") ?? 100) } };
+  }
   if (path === "/atividades/registrar" && method === "POST") {
-    return { status: 201, body: { apontamento: { id: "ap-1" }, apontamentos: [{ id: "ap-1" }], atividade: { id: "at-9" }, alertas: [], registro: { atividade_criada: true, atividade_id: "at-9" }, replay: false } };
+    return {
+      status: 201,
+      body: {
+        apontamento: { id: "ap-1" }, apontamentos: [{ id: "ap-1" }], atividade: { id: "at-9" }, alertas: [],
+        registro: { atividade_criada: true, atividade_id: "at-9", pasto_liberado_em: liberadoNaResposta, carencia_dias: liberadoNaResposta ? 21 : null }, replay: false,
+      },
+    };
   }
   return undefined;
 };
@@ -86,6 +103,8 @@ beforeEach(async () => {
   const { setNativeToken } = await import("@/lib/auth/nativeTokenStorage");
   setNativeToken("jwt.teste");
   confirmacao.confirmar.mockResolvedValue(true);
+  servicosAbertos = [];
+  liberadoNaResposta = null;
   backend = instalarBackendFake(rotear);
 });
 
@@ -181,6 +200,12 @@ describe("Plantio de pastagem (D-PROD-270)", () => {
     expect(consorcios).not.toContain("PANICUM CV. MOMBAÇA");
     fireEvent.click(screen.getByRole("option", { name: "MILHO" }));
     await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+    // D-PROD-270 (ajuste do teste de ponta a ponta): a prévia diz o capim.
+    await waitFor(() =>
+      expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toBe(
+        "Nova atividade será criada: SEMEADURA DE CAPIM · PASTO DA AROEIRA · nov/26 · capim PANICUM CV. MOMBAÇA",
+      ),
+    );
     await incluirInsumo(janela, /Semente Mombaça/, "400", "50");
     // 400 kg em 40 ha = 10 kg/ha; × VC 50 = 500 pontos de VC/ha.
     expect(within(janela).getByTestId("registro-insumo-linha-1-vc").textContent).toBe("VC 50% · 500 pontos de VC/ha");
@@ -245,11 +270,25 @@ describe("Fertilização e Aplicação (D-PROD-270)", () => {
     await incluirInsumo(janela, /Inseticida Tiametoxam/, "10");
     expect(valorDe(janela, "registro-de-campo-pasto-liberado")).toBe("03/12/2026");
     expect(valorDe(janela, "registro-de-campo-pasto-liberado-nota")).toBe("término + carência do produto (21 dias)");
+    liberadoNaResposta = "2026-12-03";
     await salvar(janela);
     await waitFor(() => expect(registros()).toHaveLength(1));
     const corpo = registros()[0].body;
     expect(corpo.numero_receituario).toBe("0187/2026");
     expect(corpo.pasto_liberado_em).toBeUndefined();
+    // D-PROD-270 (ajuste do teste de ponta a ponta): o aviso de sucesso diz o "Pasto liberado em" da resposta.
+    await waitFor(() =>
+      expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "COMBATE CONTRA CIGARRINHA registrada em PASTO DA AROEIRA. Pasto liberado em 03/12/2026."),
+    );
+  });
+
+  it("Aplicação sem carência na resposta: o aviso de sucesso é o de sempre (nada inventado)", async () => {
+    const janela = await montar();
+    await escolherTipo(janela, "Aplicação");
+    await marcarArea(janela, "area-aroeira");
+    await escolher(janela, /Operação/, "HERBICIDA");
+    await salvar(janela);
+    await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "HERBICIDA registrada em PASTO DA AROEIRA."));
   });
 
   it("Aplicação sem alvo na operação diz onde cadastrar; sem receituário, o campo não vai", async () => {
@@ -281,6 +320,8 @@ describe("Manutenção e Outros sem área (D-PROD-270)", () => {
     expect(await within(janela).findByText("Escolha a unidade.")).toBeTruthy();
     await escolher(janela, /^Unidade/, "KM");
     expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toContain("REFORMA DE CERCA · DIVISA NORTE · nov/26");
+    // D-PROD-270: a prévia lê o serviço aberto do local (nenhum aqui) e diz que cria um.
+    await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toBe("Nova atividade será criada: REFORMA DE CERCA · DIVISA NORTE · nov/26"));
     await salvar(janela);
     await waitFor(() => expect(registros()).toHaveLength(1));
     const corpo = registros()[0].body;
@@ -318,6 +359,26 @@ describe("Manutenção e Outros sem área (D-PROD-270)", () => {
     await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "TRANSPORTE DE MOURÕES registrada em SEDE."));
   });
 
+  it("a prévia sem área acha o serviço ABERTO da operação no mesmo local (a busca do servidor): \"Entra em …\" com a quantidade feita", async () => {
+    servicosAbertos = [
+      {
+        id: "at-21", nome: "REFORMA DE CERCA · DIVISA NORTE · nov/26", status: "ABERTA", tipo_atividade_id: "t-cerca", local: "DIVISA NORTE", areas: [],
+        quantidade_produzida: "1.2000", unidade_producao_sigla: "KM", andamento: { situacao: "EM_ANDAMENTO", lancamentos: 1, ultimo_dia: "2026-11-26" },
+      },
+    ];
+    const janela = await montar();
+    await escolherTipo(janela, "Manutenção");
+    await escolher(janela, /Operação/, "REFORMA DE CERCA");
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-local"), { target: { value: "divisa  norte" } });
+    await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toBe("Entra em REFORMA DE CERCA · DIVISA NORTE · nov/26 (em andamento, 1,2 km)"));
+    // A consulta é a do servidor: a operação, ABERTA, o local como ele grava.
+    const consulta = backend.chamadas.filter((c) => c.method === "GET" && c.path === "/atividades").at(-1);
+    expect(consulta?.query).toMatchObject({ empresa_id: "emp-1", status: "ABERTA", tipo_atividade_id: "t-cerca", local: "DIVISA NORTE" });
+    // Outro local: nenhum aberto → cria.
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-local"), { target: { value: "curral" } });
+    await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-destino").textContent).toBe("Nova atividade será criada: REFORMA DE CERCA · CURRAL · nov/26"));
+  });
+
   it("os outros tipos continuam com a área obrigatória (Roçada sem área não sai)", async () => {
     const janela = await montar();
     await escolherTipo(janela, "Roçada e tratos");
@@ -345,6 +406,31 @@ describe("as regras puras e o celular (D-PROD-270)", () => {
     const base = { tipo: OPERACOES[0], areas: [{ id: "area-aroeira", nome: "PASTO DA AROEIRA" }], dia: "2026-11-28", resumos: [resumo] };
     expect(regras.destinoDoRegistro({ ...base, culturaId: "c-mar" })).toMatch(/^Entra em SEMEADURA/);
     expect(regras.destinoDoRegistro({ ...base, culturaId: "c-mom" })).toMatch(/^Nova atividade será criada/);
+    // D-PROD-270 (ajuste do teste de ponta a ponta): a frase diz o capim (dois plantios na mesma área têm o mesmo nome).
+    expect(regras.destinoDoRegistro({ ...base, culturaId: "c-mar", capim: "BRACHIARIA BRIZANTHA CV. MARANDU" })).toBe(
+      "Entra em SEMEADURA · AROEIRA · nov/26 · capim BRACHIARIA BRIZANTHA CV. MARANDU (planejada)",
+    );
+    expect(regras.destinoDoRegistro({ ...base, culturaId: "c-mom", capim: "PANICUM CV. MOMBAÇA" })).toBe(
+      "Nova atividade será criada: SEMEADURA DE CAPIM · PASTO DA AROEIRA · nov/26 · capim PANICUM CV. MOMBAÇA",
+    );
+  });
+
+  it("a prévia sem área (regra pura): sem a leitura, as duas possibilidades; com ela, \"Entra em …\" ou \"Nova atividade será criada\"; parada há mais de 30 dias, avisa", () => {
+    const tipoCerca = OPERACOES[4];
+    const base = { tipo: tipoCerca, local: " divisa  norte ", dia: "2026-11-28" };
+    const aberta = { id: "at-21", nome: "REFORMA DE CERCA · DIVISA NORTE · nov/26", status: "ABERTA", tipo_atividade_id: "t-cerca", local: "DIVISA NORTE", areas: [], quantidade_produzida: null, andamento: { lancamentos: 1, ultimo_dia: "2026-11-20" } };
+    expect(regras.destinoSemArea({ ...base, abertas: null })).toBe(
+      "Se já houver REFORMA DE CERCA aberta em DIVISA NORTE, entra nela; senão, nova atividade será criada: REFORMA DE CERCA · DIVISA NORTE · nov/26",
+    );
+    expect(regras.destinoSemArea({ ...base, abertas: [] })).toBe("Nova atividade será criada: REFORMA DE CERCA · DIVISA NORTE · nov/26");
+    expect(regras.destinoSemArea({ ...base, abertas: [aberta] })).toBe("Entra em REFORMA DE CERCA · DIVISA NORTE · nov/26 (em andamento)");
+    expect(regras.destinoSemArea({ ...base, abertas: [{ ...aberta, andamento: { lancamentos: 0, ultimo_dia: null } }] })).toBe("Entra em REFORMA DE CERCA · DIVISA NORTE · nov/26 (planejada)");
+    // Outro local ou outra operação na lista não contam (a tela confere a mesma regra do servidor).
+    expect(regras.destinoSemArea({ ...base, abertas: [{ ...aberta, local: "CURRAL" }, { ...aberta, tipo_atividade_id: "t-transp" }] })).toBe("Nova atividade será criada: REFORMA DE CERCA · DIVISA NORTE · nov/26");
+    expect(regras.destinoSemArea({ ...base, dia: "2027-01-10", abertas: [aberta] })).toBe(
+      "Entra em REFORMA DE CERCA · DIVISA NORTE · nov/26 (em andamento). Parada desde 20/11: ao salvar, vamos perguntar se é continuação",
+    );
+    expect(regras.destinoSemArea({ ...base, abertas: [aberta, { ...aberta, id: "at-22" }] })).toBe("Entra em uma das atividades de REFORMA DE CERCA abertas em DIVISA NORTE");
   });
 
   it("no celular, o campo da Nova realização cresce para 48px (a data não sobe por cima do rótulo); no desktop, nada muda", () => {

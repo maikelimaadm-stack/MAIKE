@@ -554,12 +554,59 @@ export const comoAtividadePublica = (r) => ({
  */
 
 /**
+ * @typedef {{ pasto_liberado_em: string|null, carencia_dias: number|null }} PastoLiberado
+ */
+
+/**
+ * D-PROD-270 — "Pasto liberado em": o fim do serviço (`AAAA-MM-DD`) mais a MAIOR carência (dias) entre os produtos. Sem
+ * nenhuma carência cadastrada (ou sem fim), nulo: o sistema não inventa prazo.
+ * @param {string|null|undefined} fim @param {Array<number|null|undefined>} carencias
+ * @returns {PastoLiberado}
+ */
+export const pastoLiberadoEm = (fim, carencias) => {
+  const validas = carencias.filter((c) => Number.isInteger(c) && /** @type {number} */ (c) >= 0).map(Number);
+  if (!validas.length || typeof fim !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) return { pasto_liberado_em: null, carencia_dias: null };
+  const maior = Math.max(...validas);
+  const d = new Date(`${fim}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + maior);
+  return { pasto_liberado_em: d.toISOString().slice(0, 10), carencia_dias: maior };
+};
+
+/**
+ * D-PROD-270 (ajuste do teste de ponta a ponta) — o "Pasto liberado em" da ATIVIDADE, calculado na LEITURA (nunca
+ * gravado): o último fim lançado (o maior `data_termino ?? data_operacional` dos apontamentos CONFIRMADO) mais a MAIOR
+ * carência atual (cadastro do produto) dos produtos das linhas CONFIRMADO desses apontamentos. Uma instrução.
+ * @param {any} db @param {string} clienteId @param {string} empresaId @param {string} atividadeId
+ * @returns {Promise<PastoLiberado>}
+ */
+export const lerPastoLiberadoDaAtividade = async (db, clienteId, empresaId, atividadeId) => {
+  const [r] = /** @type {Array<{ fim: Date|null, carencia: number|null }>} */ (
+    await db.$queryRaw`SELECT
+        (SELECT MAX(COALESCE(a.data_termino, a.data_operacional)) FROM "AtividadeApontamento" a
+          WHERE a.cliente_id = ${clienteId} AND a.empresa_id = ${empresaId} AND a.atividade_id = ${atividadeId} AND a.status = 'CONFIRMADO') AS fim,
+        (SELECT MAX(pr.carencia_dias) FROM "AtividadeApontamentoProduto" p
+          JOIN "AtividadeApontamento" a ON a.cliente_id = p.cliente_id AND a.empresa_id = p.empresa_id AND a.id = p.apontamento_id
+          JOIN "Produto" pr ON pr.cliente_id = p.cliente_id AND pr.id = p.produto_id
+          WHERE p.cliente_id = ${clienteId} AND p.empresa_id = ${empresaId} AND a.atividade_id = ${atividadeId}
+            AND p.status = 'CONFIRMADO' AND a.status = 'CONFIRMADO')::int AS carencia`
+  );
+  return pastoLiberadoEm(diaDe(r?.fim) ?? null, [r?.carencia ?? null]);
+};
+
+/**
  * DETALHE da atividade: a forma pública + `totais`. É o corpo do
  * `GET /atividades/:id`, de toda escrita do cabeçalho e o `atividade` das
  * escritas do apontamento.
- * @param {any} r  registro lido com `INCLUIR_ATIVIDADE` @param {TotaisDaAtividade} totais
+ * D-PROD-270 (ajuste do teste de ponta a ponta): e o "pasto liberado em" (`pasto_liberado_em`, `carencia_dias`),
+ * calculado na leitura (`lerPastoLiberadoDaAtividade`); sem ele (quem não leu), nulos.
+ * @param {any} r  registro lido com `INCLUIR_ATIVIDADE` @param {TotaisDaAtividade} totais @param {PastoLiberado} [liberado]
  */
-export const comoAtividadeDetalhe = (r, totais) => ({ ...comoAtividadePublica(r), totais });
+export const comoAtividadeDetalhe = (r, totais, liberado = { pasto_liberado_em: null, carencia_dias: null }) => ({
+  ...comoAtividadePublica(r),
+  totais,
+  pasto_liberado_em: liberado.pasto_liberado_em,
+  carencia_dias: liberado.carencia_dias,
+});
 
 // ─── leituras e trava (adaptador de dados, sem regra) ───────────────────────
 
@@ -621,7 +668,7 @@ export const lerTotaisDaAtividade = async (db, clienteId, empresaId, atividadeId
 export const carregarAtividadeDetalhe = async (db, clienteId, empresaId, id) => {
   const r = await buscarAtividade(db, clienteId, empresaId, id);
   if (!r) throw atividadeNotFound();
-  return comoAtividadeDetalhe(r, await lerTotaisDaAtividade(db, clienteId, empresaId, id));
+  return comoAtividadeDetalhe(r, await lerTotaisDaAtividade(db, clienteId, empresaId, id), await lerPastoLiberadoDaAtividade(db, clienteId, empresaId, id));
 };
 
 /**

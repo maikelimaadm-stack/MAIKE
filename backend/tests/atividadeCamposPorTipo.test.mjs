@@ -486,6 +486,101 @@ describe('lista de referência de capins (Doc 397)', () => {
   });
 });
 
+describe('ajustes do teste de ponta a ponta (D-PROD-270)', () => {
+  const semArea = (s, corpo = {}) => {
+    const c = s.corpoBase({ tipo_atividade_id: s.manutencao.id, ...corpo });
+    delete c.area_id;
+    return c;
+  };
+  const registrarSemArea = (s, corpo) => s.H.ok(s.H.req('POST', '/atividades/registrar', s.token, semArea(s, corpo)), 201);
+
+  test('dois plantios abertos na mesma área: a lista e o detalhe trazem o capim de cada um; o nome gravado continua o de sempre', async () => {
+    const s = await montar();
+    const mom = await s.ok({ area_executada_dia: '10', data_operacional: '2027-06-01', plantio: { cultura_id: s.mombaca.id } });
+    const mar = await s.ok({ area_executada_dia: '5', data_operacional: '2027-06-02', plantio: { cultura_id: s.marandu.id } });
+    assert.notEqual(mom.registro.atividade_id, mar.registro.atividade_id);
+    const lista = await s.H.ok(s.H.req('GET', `/atividades?empresa_id=${s.e1.id}`, s.token));
+    const daLista = (id) => lista.items.find((x) => x.id === id);
+    assert.deepEqual(
+      [daLista(mom.registro.atividade_id).plantio.cultura.nome, daLista(mar.registro.atividade_id).plantio.cultura.nome],
+      [s.mombaca.nome, s.marandu.nome]
+    );
+    // O nome da atividade não ganhou o capim (as duas têm o mesmo nome; quem as separa é o capim lido da AtividadePlantio).
+    assert.equal(daLista(mom.registro.atividade_id).nome, daLista(mar.registro.atividade_id).nome);
+    const det = await s.H.ok(s.H.req('GET', `/atividades/${mar.registro.atividade_id}?empresa_id=${s.e1.id}`, s.token));
+    assert.equal(det.plantio.cultura.nome, s.marandu.nome);
+  });
+
+  test('o serviço SEM área na lista: hectares nulos (nunca "0 ha"), com o local, a quantidade feita somada e a unidade; com área, os hectares de sempre', async () => {
+    const s = await montar();
+    const um = await registrarSemArea(s, { local: 'DIVISA NORTE', quantidade_produzida_dia: '1.2', unidade_producao_sigla: 'KM', data_operacional: '2027-06-01' });
+    await registrarSemArea(s, { local: 'DIVISA NORTE', quantidade_produzida_dia: '1.3', unidade_producao_sigla: 'KM', data_operacional: '2027-06-02' });
+    const semQuantidade = await registrarSemArea(s, { tipo_atividade_id: s.outros.id, local: 'SEDE', data_operacional: '2027-06-03' });
+    const comArea = await s.ok({ tipo_atividade_id: s.manutencao.id, area_executada_dia: '2', data_operacional: '2027-06-04' });
+    const lista = await s.H.ok(s.H.req('GET', `/atividades?empresa_id=${s.e1.id}`, s.token));
+    const item = lista.items.find((x) => x.id === um.registro.atividade_id);
+    const a = item.andamento;
+    assert.deepEqual(
+      [item.local, item.quantidade_produzida, item.unidade_producao_sigla, a.situacao, a.hectares_feitos, a.hectares_area, a.percentual, a.lancamentos, a.ultimo_dia, a.areas],
+      ['DIVISA NORTE', '2.5000', 'KM', 'EM_ANDAMENTO', null, null, null, 2, '2027-06-02', []]
+    );
+    const sede = lista.items.find((x) => x.id === semQuantidade.registro.atividade_id);
+    assert.deepEqual([sede.local, sede.quantidade_produzida, sede.andamento.hectares_feitos, sede.andamento.lancamentos], ['SEDE', null, null, 1]);
+    assert.equal(lista.items.find((x) => x.id === comArea.registro.atividade_id).andamento.hectares_feitos, '2.0000');
+  });
+
+  test('o filtro `local` da lista acha o serviço ABERTO sem área daquele local (a mesma busca do registro): normalizado, exato, sem área', async () => {
+    const s = await montar();
+    const um = await registrarSemArea(s, { local: 'DIVISA NORTE', data_operacional: '2027-06-01' });
+    await registrarSemArea(s, { local: 'DIVISA NORTE SUL', data_operacional: '2027-06-01' });
+    await registrarSemArea(s, { tipo_atividade_id: s.outros.id, local: 'DIVISA NORTE', data_operacional: '2027-06-01' });
+    await s.ok({ tipo_atividade_id: s.manutencao.id, area_executada_dia: '2', data_operacional: '2027-06-01' });
+    const listar = (q) => s.H.ok(s.H.req('GET', `/atividades?empresa_id=${s.e1.id}&${q}`, s.token));
+    const ids = async (q) => (await listar(q)).items.map((x) => x.id);
+    const local = encodeURIComponent('  divisa   norte ');
+    assert.deepEqual(await ids(`status=ABERTA&tipo_atividade_id=${s.manutencao.id}&local=${local}`), [um.registro.atividade_id]);
+    assert.deepEqual(await ids(`status=ABERTA&tipo_atividade_id=${s.manutencao.id}&local=PORTEIRA`), []);
+    assert.deepEqual(await ids(`tipo_atividade_id=${s.manutencao.id}&local=${local}&area_id=${s.area1.id}`), [], 'com área e local juntos, nenhuma');
+    // Concluída, não é mais a aberta do local.
+    await s.H.ok(s.H.req('POST', `/atividades/${um.registro.atividade_id}/concluir`, s.token, { empresa_id: s.e1.id, versao: (await s.atividade(um.registro.atividade_id)).versao, data_conclusao: '2027-06-01' }));
+    assert.deepEqual(await ids(`status=ABERTA&tipo_atividade_id=${s.manutencao.id}&local=${local}`), []);
+    for (const ruim of ['', encodeURIComponent('<b>x</b>'), 'x'.repeat(121)]) {
+      assert.equal((await s.H.req('GET', `/atividades?empresa_id=${s.e1.id}&local=${ruim}`, s.token)).statusCode, 400, ruim);
+    }
+  });
+
+  test('o detalhe da atividade traz o "pasto liberado em" calculado na LEITURA: o último fim lançado + a maior carência atual; nada gravado', async () => {
+    const s = await montar();
+    await prisma().produto.update({ where: { id: s.herbicida.id }, data: { carencia_dias: 21 } });
+    const r1 = await s.ok({
+      tipo_atividade_id: s.aplicacao.id, area_executada_dia: '10', data_operacional: '2027-06-01', data_termino: '2027-06-03',
+      produtos: [{ produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '5' }],
+    });
+    // A resposta da escrita (o detalhe) já traz o mesmo do registro.
+    assert.deepEqual([r1.atividade.pasto_liberado_em, r1.atividade.carencia_dias], ['2027-06-24', 21]);
+    // Outro dia, depois, na mesma atividade: o último fim lançado (05/06) + 21.
+    const r2 = await s.ok({ tipo_atividade_id: s.aplicacao.id, area_executada_dia: '5', data_operacional: '2027-06-05' });
+    assert.equal(r2.registro.atividade_id, r1.registro.atividade_id);
+    const detalhe = () => s.H.ok(s.H.req('GET', `/atividades/${r1.registro.atividade_id}?empresa_id=${s.e1.id}`, s.token));
+    let d = await detalhe();
+    assert.deepEqual([d.pasto_liberado_em, d.carencia_dias], ['2027-06-26', 21]);
+    // A carência do cadastro muda: a leitura acompanha (nada foi gravado na atividade).
+    await prisma().produto.update({ where: { id: s.herbicida.id }, data: { carencia_dias: 30 } });
+    d = await detalhe();
+    assert.deepEqual([d.pasto_liberado_em, d.carencia_dias], ['2027-07-05', 30]);
+    // Sem carência cadastrada: nulo (não se inventa prazo).
+    await prisma().produto.update({ where: { id: s.herbicida.id }, data: { carencia_dias: null } });
+    d = await detalhe();
+    assert.deepEqual([d.pasto_liberado_em, d.carencia_dias], [null, null]);
+    // Atividade sem produto: nulo.
+    const rocada = await s.ok({ tipo_atividade_id: s.rocada.id, area_executada_dia: '1' });
+    assert.deepEqual([rocada.atividade.pasto_liberado_em, rocada.atividade.carencia_dias], [null, null]);
+    // A lista não traz (só o detalhe).
+    const lista = await s.H.ok(s.H.req('GET', `/atividades?empresa_id=${s.e1.id}`, s.token));
+    assert.equal(Object.prototype.hasOwnProperty.call(lista.items[0], 'pasto_liberado_em'), false);
+  });
+});
+
 describe('tenant', () => {
   test('o tenant vem da sessão: cliente_id no corpo → 400; outro tenant não enxerga o capim nem a atividade (inexistente)', async () => {
     const s = await montar();

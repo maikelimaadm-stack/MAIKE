@@ -3049,6 +3049,12 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
   outline: 2px solid #15803d;
   outline-offset: 2px;
 }
+/* D-PROD-270: "Concluída" desligada para quem não pode editar (a permissão do "Concluir"). */
+.b1-situacao-depois__opcao:disabled {
+  cursor: not-allowed;
+  color: #a8a69f;
+  background: #f7f6f3;
+}
 .b1-situacao-depois__radio {
   flex: none;
   width: 18px;
@@ -3087,6 +3093,20 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* D-PROD-270: a célula "Operação" do Plantio de pastagem, com o capim embaixo (dois plantios na mesma área se distinguem). */
+.b1-servico-operacao {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  white-space: normal;
+}
+.b1-servico-operacao__capim {
+  font-size: 12px;
+  color: #73726c;
+  overflow-wrap: anywhere;
 }
 
 /* A célula "Situação" da lista (computador) e o bloco do celular. */

@@ -94,6 +94,7 @@ import {
   diaDoCorpo,
   exigirDiaNaoFuturo,
   idOuNulo,
+  pastoLiberadoEm,
   temCampo,
   tempoDaFazenda,
   travarAtividade,
@@ -234,18 +235,10 @@ export const safraDoDia = (dia) => {
 
 /**
  * "Pasto liberado em": o fim do serviço (término ou dia) mais a MAIOR carência (dias) entre os produtos aplicados. Sem
- * nenhuma carência cadastrada, null (o sistema não inventa prazo).
- * @param {string} fim  `AAAA-MM-DD` @param {Array<number|null|undefined>} carencias
- * @returns {{ pasto_liberado_em: string|null, carencia_dias: number|null }}
+ * nenhuma carência cadastrada, null (o sistema não inventa prazo). A regra mora em `atividadeComum.js` (o detalhe da
+ * atividade calcula o mesmo na leitura); daqui ela segue exportada como antes.
  */
-export const pastoLiberadoEm = (fim, carencias) => {
-  const validas = carencias.filter((c) => Number.isInteger(c) && /** @type {number} */ (c) >= 0).map(Number);
-  if (!validas.length) return { pasto_liberado_em: null, carencia_dias: null };
-  const maior = Math.max(...validas);
-  const d = new Date(`${fim}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + maior);
-  return { pasto_liberado_em: d.toISOString().slice(0, 10), carencia_dias: maior };
-};
+export { pastoLiberadoEm };
 
 /**
  * O LOCAL do serviço sem área (Manutenção e Outros): texto aparado, espaços juntados, em MAIÚSCULAS, até 120 caracteres

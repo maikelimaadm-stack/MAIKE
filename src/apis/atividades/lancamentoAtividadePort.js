@@ -262,7 +262,8 @@ export const corpoDaCriacaoDoApontamento = (dados, permitidos = CAMPOS_DE_CRIACA
 // ─── Leitura ─────────────────────────────────────────────────────────────
 
 /** Filtros da lista (query FECHADA no servidor: nada além disso vai). Datas sobre `data_inicio`. D-PROD-267: `situacao` e `tipo_fixo`. */
-const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'situacao', 'tipo_fixo', 'tipo_atividade_id', 'area_id', 'data_de', 'data_ate', 'limit', 'cursor']);
+// D-PROD-270: `local` (o serviço sem área no local; a prévia da Nova realização sem área).
+const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'situacao', 'tipo_fixo', 'tipo_atividade_id', 'area_id', 'data_de', 'data_ate', 'local', 'limit', 'cursor']);
 const FILTROS_OPCOES = Object.freeze(['empresa_id', 'q', 'limit', 'cursor']);
 /** Query de cada seletor da Fatia 3 (fechada no servidor). */
 const FILTROS_POR_RECURSO = Object.freeze(
