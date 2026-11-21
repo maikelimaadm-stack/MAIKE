@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { AlertTriangle, Ban, Loader2 } from "lucide-react";
 import * as UiDialog from "@/components/ui/dialog";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
-import { useCelular } from "@/components/common/MobileSheet";
+import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
 import { EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
 import RateioItensLancamento, { nomesDasClassificacoes } from "@/components/financeiroGestao/RateioItensLancamento";
 
@@ -513,6 +513,8 @@ export function DialogoAcao({
   const celular = useCelular();
   const [motivo, setMotivo] = useState("");
   const [ciente, setCiente] = useState(false);
+  // Alvo das folhas do celular na janela Base1: uma lista do `conteudo` abre DENTRO da janela modal, senão ela engole o toque.
+  const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
   const { estado, disparar } = useEnvioUnico(onEnviar, contexto, undefined, mensagemDoErro);
   const enviando = estado.fase === "enviando";
   const semMotivo = (comMotivo && !motivo.trim()) || (Boolean(confirmacaoExplicita) && !ciente);
@@ -522,6 +524,8 @@ export function DialogoAcao({
         aberto={aberto}
         onFechar={onFechar}
         podeFechar={!enviando}
+        aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
+        fora={<div ref={setAlvoFolha} className="contents" />}
         titulo={
           icone ? (
             <span className="b1-tipo-titulo">
@@ -556,35 +560,37 @@ export function DialogoAcao({
           </>
         }
       >
-        {conteudo ? <div className="min-w-0 text-[13px]">{conteudo}</div> : null}
-        {comMotivo ? (
-          <label className="b1-janela__rotulo">
-            {rotuloMotivo} (obrigatório)
-            <textarea
-              className="b1-janela__ctl"
-              value={motivo}
-              maxLength={500}
-              onChange={(e) => setMotivo(e.target.value)}
-              aria-label={rotuloMotivo}
-              data-testid={`${testId}-motivo`}
-            />
-          </label>
-        ) : null}
-        {confirmacaoExplicita ? (
-          <label className="flex min-w-0 items-start gap-2 text-[13px]">
-            <input
-              type="checkbox"
-              className="mt-0.5 shrink-0 accent-red-600"
-              style={{ width: 20, height: 20 }}
-              checked={ciente}
-              disabled={enviando}
-              onChange={(e) => setCiente(e.target.checked)}
-              data-testid={`${testId}-ciente`}
-            />
-            <span className="min-w-0 break-words">{confirmacaoExplicita}</span>
-          </label>
-        ) : null}
-        <AvisoDoEnvio estado={estado} onConsultar={onConsultar} />
+        <MobileSheetPortalCtx.Provider value={alvoFolha}>
+          {conteudo ? <div className="min-w-0 text-[13px]">{conteudo}</div> : null}
+          {comMotivo ? (
+            <label className="b1-janela__rotulo">
+              {rotuloMotivo} (obrigatório)
+              <textarea
+                className="b1-janela__ctl"
+                value={motivo}
+                maxLength={500}
+                onChange={(e) => setMotivo(e.target.value)}
+                aria-label={rotuloMotivo}
+                data-testid={`${testId}-motivo`}
+              />
+            </label>
+          ) : null}
+          {confirmacaoExplicita ? (
+            <label className="flex min-w-0 items-start gap-2 text-[13px]">
+              <input
+                type="checkbox"
+                className="mt-0.5 shrink-0 accent-red-600"
+                style={{ width: 20, height: 20 }}
+                checked={ciente}
+                disabled={enviando}
+                onChange={(e) => setCiente(e.target.checked)}
+                data-testid={`${testId}-ciente`}
+              />
+              <span className="min-w-0 break-words">{confirmacaoExplicita}</span>
+            </label>
+          ) : null}
+          <AvisoDoEnvio estado={estado} onConsultar={onConsultar} />
+        </MobileSheetPortalCtx.Provider>
       </B1Janela>
     );
   }

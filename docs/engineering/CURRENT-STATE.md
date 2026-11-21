@@ -7,6 +7,8 @@ tabelas de app alinhadas ao Prisma — ver
 `POST-P7-PRODUCAO-REPORT-2026-10-27.md`; UX Base1 — gate §H **5/6** aguardando **H.5**;
 rollout pausado **D-PROD-41**)
 
+**Conserto (2026-11-19):** no celular as listas do "Definir setor" (ações em lote das áreas) e do `DialogoAcao` em janela Base1 (`DialogoAreaDaAtividade`) abrem a folha DENTRO da `B1Janela` (`MobileSheetPortalCtx`) — ver [`MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md`](./MAIKE-B1JANELA-FOLHA-CELULAR-REPORT.md).
+
 ---
 
 ## Missão ativa (2026-11-21) — MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA: no mapa só existe "Excluir" (D-PROD-269)
