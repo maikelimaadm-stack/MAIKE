@@ -76,6 +76,32 @@ export const custosTotaisDasAtividades = (db, clienteId, empresaId, atividadeIds
     ) x
     GROUP BY x.atividade_id`;
 
+/**
+ * D-PROD-267 — o ANDAMENTO de várias atividades da empresa numa consulta só (a lista "uma linha por serviço", sem N+1):
+ * por atividade e área da atividade, Σ `area_executada_dia`, o primeiro dia, o último dia (o maior entre
+ * `data_operacional` e `data_termino`) e quantos lançamentos, só dos apontamentos CONFIRMADO. A atividade sem lançamento
+ * confirmado não aparece. Decimal como texto; dias como `Date` de coluna `@db.Date`.
+ * @param {any} db @param {string} clienteId @param {string} empresaId @param {string[]} atividadeIds
+ * @returns {Promise<Array<{ atividade_id: string, atividade_area_id: string|null, hectares: string|null, primeiro: Date, ultimo: Date, lancamentos: number }>>}
+ */
+export const andamentoDasAtividades = (db, clienteId, empresaId, atividadeIds) =>
+  db.$queryRaw`SELECT a.atividade_id, a.atividade_area_id,
+      SUM(a.area_executada_dia)::text AS hectares,
+      MIN(a.data_operacional) AS primeiro,
+      MAX(GREATEST(a.data_operacional, COALESCE(a.data_termino, a.data_operacional))) AS ultimo,
+      COUNT(*)::int AS lancamentos
+    FROM "AtividadeApontamento" a
+    WHERE a.cliente_id = ${clienteId} AND a.empresa_id = ${empresaId} AND a.atividade_id = ANY(${atividadeIds}::text[]) AND a.status = 'CONFIRMADO'
+    GROUP BY a.atividade_id, a.atividade_area_id`;
+
+/**
+ * D-PROD-267 — a categoria (o tipo fixo) ATUAL das operações de uma página da lista, numa consulta só.
+ * @param {any} db @param {string} clienteId @param {string[]} tipoIds
+ * @returns {Promise<Array<{ id: string, categoria: string|null }>>}
+ */
+export const categoriasDosTipos = (db, clienteId, tipoIds) =>
+  db.tipoAtividade.findMany({ where: { cliente_id: clienteId, id: { in: tipoIds } }, select: { id: true, categoria: true } });
+
 /** @param {any} tx @param {Record<string, unknown>} dados @returns {Promise<{ id: string }>} */
 export const inserirAtividade = (tx, dados) => tx.atividade.create({ data: dados, select: { id: true } });
 

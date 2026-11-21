@@ -81,9 +81,10 @@ import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoC
 import { termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { agoraDoServidor } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero } from '../sequencias/entidadeCodigoService.js';
-import { padroesParaAtividade, regrasDoTipo } from '../tiposAtividade/tipoAtividadePadroes.js';
+import { CATEGORIAS_TIPO_FIXO, padroesParaAtividade, regrasDoTipo } from '../tiposAtividade/tipoAtividadePadroes.js';
 import {
   ENTIDADE_ATIVIDADE,
+  STATUS_APONTAMENTO,
   STATUS_ATIVIDADE,
   TRANSACAO_LEITURA,
   atualizarComVersao,
@@ -128,6 +129,8 @@ import {
 } from './atividadeAreaService.js';
 import { contarLancamentosDaArea, inserirAreaDaAtividade, listarAreasDaAtividade } from './atividadeAreaRepository.js';
 import {
+  andamentoDasAtividades,
+  categoriasDosTipos,
   inserirAtividade,
   lerBem,
   lerEmpresaDaAtividade,
@@ -138,6 +141,70 @@ import {
 } from './atividadeRepository.js';
 
 /** @typedef {import('../../shared/auth/authContext.js').AuthContext} AuthContext */
+
+/**
+ * D-PROD-267 — a SITUAÇÃO do serviço na lista (Parte 3 da proposta): CONCLUIDA → Concluída; ABERTA com pelo menos um dia
+ * lançado (apontamento CONFIRMADO) → Em andamento; ABERTA sem nenhum → Planejada; CANCELADA → Cancelada.
+ */
+export const SITUACOES_DO_SERVICO = Object.freeze(['PLANEJADA', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA']);
+const ROTULO_DA_SITUACAO = Object.freeze(
+  /** @type {Record<string, string>} */ ({ PLANEJADA: 'Planejada', EM_ANDAMENTO: 'Em andamento', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' })
+);
+
+/** O tipo fixo de uma categoria: um dos 7 (o que não for, Outros). @param {unknown} categoria */
+const tipoFixoDa = (categoria) => (typeof categoria === 'string' && CATEGORIAS_TIPO_FIXO.includes(categoria) ? categoria : 'OUTROS');
+
+/**
+ * D-PROD-267 — o `andamento` de cada item da página (só leitura, nenhuma coluna nova): situação, hectares feitos (Σ do
+ * dia dos lançamentos confirmados), hectares da área (Σ das planejadas de cada área; sem planejada, o tamanho da área;
+ * sem áreas, a planejada do cabeçalho), o % (2 casas; nulo sem área > 0), primeiro e último dia lançados, quantos
+ * lançamentos e o mesmo por área da atividade; o tipo fixo é a categoria ATUAL da operação.
+ * @param {any} item a forma pública @param {any[]} linhas `andamentoDasAtividades` da atividade @param {string|null|undefined} categoria
+ */
+const andamentoDoItem = (item, linhas, categoria) => {
+  const somar = (/** @type {Array<string|null|undefined>} */ vs) => vs.reduce((t, v) => (v === null || v === undefined ? t : t.plus(dec(String(v)))), dec(0));
+  const lancamentos = linhas.reduce((t, l) => t + Number(l.lancamentos ?? 0), 0);
+  const feitos = lancamentos > 0 ? somar(linhas.map((l) => l.hectares)) : null;
+  const areas = /** @type {any[]} */ (Array.isArray(item.areas) ? item.areas : []);
+  const tamanhos = areas.length ? areas.map((a) => a.area_planejada ?? a.area?.tamanho_hectares ?? null) : [item.area_planejada];
+  const area = tamanhos.some((v) => v !== null && v !== undefined) ? somar(tamanhos) : null;
+  /** @type {string|null} */
+  let primeiro = null;
+  /** @type {string|null} */
+  let ultimo = null;
+  for (const l of linhas) {
+    const p = diaDe(l.primeiro) ?? null;
+    const u = diaDe(l.ultimo) ?? null;
+    if (p && (!primeiro || p < primeiro)) primeiro = p;
+    if (u && (!ultimo || u > ultimo)) ultimo = u;
+  }
+  const situacao =
+    item.status === STATUS_ATIVIDADE.CONCLUIDA ? 'CONCLUIDA'
+      : item.status === STATUS_ATIVIDADE.CANCELADA ? 'CANCELADA'
+        : lancamentos > 0 ? 'EM_ANDAMENTO' : 'PLANEJADA';
+  return {
+    tipo_fixo: tipoFixoDa(categoria),
+    situacao,
+    situacao_rotulo: ROTULO_DA_SITUACAO[situacao],
+    hectares_feitos: feitos === null ? null : t4(feitos),
+    hectares_area: area === null ? null : t4(area),
+    percentual: feitos !== null && area !== null && area.gt(0) ? arredondar(feitos.dividedBy(area).times(100), 2).toFixed(2) : null,
+    primeiro_dia: primeiro,
+    ultimo_dia: ultimo,
+    lancamentos,
+    areas: areas.map((a) => {
+      const daArea = linhas.filter((l) => l.atividade_area_id === a.id);
+      const n = daArea.reduce((t, l) => t + Number(l.lancamentos ?? 0), 0);
+      /** @type {string|null} */
+      let u = null;
+      for (const l of daArea) {
+        const d = diaDe(l.ultimo) ?? null;
+        if (d && (!u || d > u)) u = d;
+      }
+      return { atividade_area_id: a.id, area_id: a.area_id, status: a.status, hectares_feitos: n > 0 ? t4(somar(daArea.map((l) => l.hectares))) : null, ultimo_dia: u };
+    }),
+  };
+};
 /** @typedef {{ requestId: string, auth: AuthContext }} Contexto */
 
 /** Status da atividade, na ordem do CHECK (filtro da lista). */
@@ -420,6 +487,10 @@ const gravarComVersao = async (tx, { clienteId, empresaId, id, versao, statusEsp
  * a D-PROD-234, com o `custo_total` da atividade (o mesmo do `custo_total` de
  * `GET /atividades/:id/totais`; nulo sem nenhum custo), lido para a PÁGINA
  * inteira numa consulta agrupada só (`custosTotaisDasAtividades`, sem N+1).
+ * D-PROD-267 — filtros `situacao` (PLANEJADA | EM_ANDAMENTO | CONCLUIDA | CANCELADA, a regra de `andamentoDoItem`) e
+ * `tipo_fixo` (a categoria atual da operação; OUTROS = fora dos 6), e cada item com o `andamento` (hectares feitos e da
+ * área, %, primeiro e último dia, lançamentos, por área), lido para a página numa consulta agrupada (mais a das
+ * categorias): três consultas por página, nunca uma por linha.
  * @param {{ auth: AuthContext }} contexto @param {Record<string, any>} [query]
  */
 export const listar = async (contexto, query = {}) => {
@@ -437,14 +508,40 @@ export const listar = async (contexto, query = {}) => {
   // D-PROD-249: a atividade de VÁRIAS áreas aparece no filtro de qualquer uma delas (a 1ª também está em `areas`).
   if (typeof query.area_id === 'string' && query.area_id) where.areas = { some: { area_id: query.area_id } };
   if (de || ate) where.data_inicio = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
+  // D-PROD-267: a Situação da lista (Planejada e Em andamento são ABERTA sem e com dia lançado) e o tipo fixo da operação.
+  if (typeof query.situacao === 'string' && SITUACOES_DO_SERVICO.includes(query.situacao)) {
+    const aberta = query.situacao === 'PLANEJADA' || query.situacao === 'EM_ANDAMENTO';
+    const status = aberta ? STATUS_ATIVIDADE.ABERTA : query.situacao;
+    // Com `status` também na query e diferente, nenhuma atividade casa.
+    where.status = where.status && where.status !== status ? { in: [] } : status;
+    if (aberta) where.apontamentos = { [query.situacao === 'PLANEJADA' ? 'none' : 'some']: { status: STATUS_APONTAMENTO.CONFIRMADO } };
+  }
+  if (typeof query.tipo_fixo === 'string' && query.tipo_fixo) {
+    where.tipoAtividade =
+      query.tipo_fixo === 'OUTROS'
+        ? { OR: [{ categoria: null }, { categoria: { notIn: CATEGORIAS_TIPO_FIXO.filter((c) => c !== 'OUTROS') } }] }
+        : { categoria: query.tipo_fixo };
+  }
   const q = termoDeBusca(query.q);
   const busca = q ? [{ numero: { contains: q } }, { nome: { contains: q, mode: 'insensitive' } }] : [];
   const pagina = await listarAtividades({ where, busca, query, mapItem: comoAtividadePublica });
   const itens = /** @type {any[]} */ (pagina.items);
   if (!itens.length) return pagina;
-  const custos = await custosTotaisDasAtividades(getPrismaClient(), cli, empresaId, itens.map((i) => String(i.id)));
+  const db = getPrismaClient();
+  const ids = itens.map((i) => String(i.id));
+  const custos = await custosTotaisDasAtividades(db, cli, empresaId, ids);
   const custoDe = new Map(custos.map((c) => [c.atividade_id, c.custo_total === null || c.custo_total === undefined ? null : t4(c.custo_total)]));
-  return { ...pagina, items: itens.map((i) => ({ ...i, custo_total: custoDe.get(i.id) ?? null })) };
+  // D-PROD-267: o andamento da página inteira (uma consulta agrupada) e a categoria atual das operações (outra).
+  const andamento = /** @type {any[]} */ (await andamentoDasAtividades(db, cli, empresaId, ids));
+  const categorias = new Map((await categoriasDosTipos(db, cli, [...new Set(itens.map((i) => String(i.tipo_atividade_id)))])).map((t) => [t.id, t.categoria]));
+  return {
+    ...pagina,
+    items: itens.map((i) => ({
+      ...i,
+      custo_total: custoDe.get(i.id) ?? null,
+      andamento: andamentoDoItem(i, andamento.filter((l) => l.atividade_id === i.id), categorias.get(i.tipo_atividade_id)),
+    })),
+  };
 };
 
 /**

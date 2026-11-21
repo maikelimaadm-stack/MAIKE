@@ -2,8 +2,9 @@
  * D-PROD-254 — REGISTRO DE CAMPO (`POST /atividades/registrar`) e leituras por área
  * (`GET /atividades-por-area/:areaId/resumo|registros`), contra PostgreSQL real e HTTP autenticado.
  *
- * Cobre: entrar na atividade aberta do tipo/área/mês, criar quando não há (nome `<Tipo> · <Área> · <mmm/aa>`, área
- * EM_ANDAMENTO), o casamento (outro mês, tipo, área; concluída, cancelada, área CONCLUIDA não casam), duas abertas → a
+ * Cobre: entrar na atividade aberta do tipo/área (D-PROD-267: em qualquer mês), criar quando não há (nome
+ * `<Tipo> · <Área> · <mmm/aa>`, área EM_ANDAMENTO), o casamento (outro tipo, área; concluída, cancelada, área CONCLUIDA
+ * não casam; outro mês CASA desde a D-PROD-267), duas abertas → a
  * mais recente, área PLANEJADA iniciada, linhas (máquina com a atividade exigindo máquina, produto, mão de obra, serviço),
  * a corrida (1 atividade só), idempotência, validação, permissão e tenant, e as leituras (resumo, custos, registros e
  * paginação).
@@ -97,14 +98,14 @@ describe('registrar', () => {
     assert.equal(r.alertas.length, 1);
   });
 
-  test('não casam: outro mês, outro tipo, outra área, atividade concluída ou cancelada, área CONCLUIDA — cada um cria atividade nova', async () => {
+  test('não casam: outro tipo, outra área, atividade concluída ou cancelada, área CONCLUIDA — cada um cria atividade nova; outro mês CASA (D-PROD-267)', async () => {
     const s = await montar();
     const outraArea = await s.novaArea('PASTO 02');
     const base = await s.abrir({ areas: [{ area_id: s.area1.id }], data_inicio: '2027-06-01' });
-    // outro mês
+    // outro mês: D-PROD-267 tirou a regra do mês — o registro de maio continua na aberta da operação na área (antes criava
+    // "… · mai/27").
     const maio = await s.ok({ data_operacional: '2027-05-20' });
-    assert.equal(maio.registro.atividade_criada, true);
-    assert.match(maio.registro.atividade_nome, /mai\/27$/);
+    assert.deepEqual([maio.registro.atividade_criada, maio.registro.atividade_id], [false, base.id]);
     // outro tipo
     const outroTipo = await s.ok({ tipo_atividade_id: s.tipoSem.id });
     assert.equal(outroTipo.registro.atividade_criada, true);
@@ -263,9 +264,10 @@ describe('leituras por área', () => {
       servicos: [{ servico_id: s.gradagem.id, quantidade: '2', valor_unitario: '150' }],
       produtos: [{ produto_id: s.herbicida.id, local_estoque_id: s.local.id, quantidade: '5' }],
     });
-    await s.ok({ tipo_atividade_id: s.tipoSem.id, area_executada_dia: '1' });
+    // D-PROD-267: sem a regra do mês, o registro de maio entraria na VISTORIA aberta de junho; a cancelada nasce antes.
     const canc = await s.ok({ data_operacional: '2027-05-05', tipo_atividade_id: s.tipoSem.id });
     await s.cancelarAt(canc.registro.atividade_id);
+    await s.ok({ tipo_atividade_id: s.tipoSem.id, area_executada_dia: '1' });
     const j = (await resumo(s)).json();
     assert.deepEqual([j.area_id, j.mes], [s.area1.id, '2027-06']);
     assert.equal(j.atividades.length, 2);
