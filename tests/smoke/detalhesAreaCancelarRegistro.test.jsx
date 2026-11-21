@@ -2,7 +2,8 @@
  * D-PROD-266 (etapa 1) — "Excluir registro" no Histórico da área (DetalhesArea → aba Histórico → AbaRegistrosDaArea):
  * por baixo, o MESMO cancelamento do apontamento do Lançamento de Atividades, no pé do cartão da LinhaDoTempo (`acoes`),
  * com as mesmas condições (ação extra `cancelar_apontamento`, fuso, atividade ABERTA, apontamento CONFIRMADO com
- * `versao`), diálogo de motivo (DialogoAcao), só online, e releitura do histórico e do mapa. No mapa a pessoa só vê
+ * `versao`), diálogo de exclusão (DialogoAcao, sem campo de motivo desde a D-PROD-270: vai o texto fixo
+ * `MOTIVO_EXCLUSAO_MAPA`), só online, e releitura do histórico e do mapa. No mapa a pessoa só vê
  * EXCLUSÃO (pedido do proprietário): textos de excluir e o registro excluído some do histórico. Testes de tela.
  */
 import React from "react";
@@ -55,6 +56,7 @@ vi.mock("@/components/mapa/HistoricoAbateCurral", () => ({ default: () => <div /
 const { default: DetalhesArea } = await import("@/components/mapa/DetalhesArea");
 const { mensagemDeErroDaExclusao, mensagemDoErroNoDialogo, textoSemCancelamento } = await import("@/components/mapa/detalhes-area/CancelarRegistroDaArea");
 const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError");
+const { MOTIVO_EXCLUSAO_MAPA } = await import("@/domain/mapa/motivoExclusaoMapa");
 
 const TODAS = { ver: true, criar: true, editar: true, cancelar: true, reabrir: true, lancarApontamento: true, editarApontamento: true, cancelarApontamento: true };
 const PASTO = { id: "area-A", nome: "P1 — PASTO 01", tipo_cultura: "Pastagem", tamanho_hectares: 22 };
@@ -100,6 +102,14 @@ const semVocabularioDeCancelamento = (el) => {
   for (const n of el.querySelectorAll("[aria-label]")) expect(n.getAttribute("aria-label") ?? "").not.toMatch(/cancel|estorn/i);
 };
 
+/** D-PROD-270: o diálogo não tem campo nem texto de motivo. @param {HTMLElement} dialogo */
+const semCampoDeMotivo = (dialogo) => {
+  expect(within(dialogo).queryByTestId("dialogo-cancelar-registro-area-motivo")).toBeNull();
+  expect(within(dialogo).queryByLabelText(/Motivo/i)).toBeNull();
+  expect(within(dialogo).queryByRole("textbox")).toBeNull();
+  expect(dialogo.textContent ?? "").not.toMatch(/motivo/i);
+};
+
 beforeEach(() => {
   Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
   atividades.acoes = { ...TODAS };
@@ -141,7 +151,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     expect(atividades.obterAtividade).toHaveBeenCalledTimes(2);
   });
 
-  it("exclui pelo serviço existente, com a versao relida e o motivo; depois: o registro SOME do histórico, histórico e mapa relidos", async () => {
+  it("exclui pelo serviço existente, com a versao relida e o motivo fixo (sem campo); depois: o registro SOME do histórico, histórico e mapa relidos", async () => {
     const mapa = vi.fn();
     window.addEventListener("atualizar-mapa", mapa);
     try {
@@ -151,19 +161,15 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
       expect(atividades.obterApontamento).toHaveBeenCalledWith("at-1", "ap-2");
       expect(within(dialogo).getByText(/Exclui só o registro desta área/)).toBeTruthy();
       expect(within(dialogo).getByText("Excluir registro: Gradeação de 17/11/2026")).toBeTruthy();
-      expect(within(dialogo).getByText(/Motivo da exclusão com pelo menos/)).toBeTruthy();
+      semCampoDeMotivo(dialogo);
       const enviar = within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar");
       expect(enviar).toHaveTextContent("Excluir registro");
       // O botão que só fecha o diálogo é "Voltar" (não "Cancelar", que confundiria com a ação).
       expect(within(dialogo).getByTestId("dialogo-cancelar-registro-area-voltar")).toHaveTextContent("Voltar");
       expect(within(dialogo).queryByRole("button", { name: /^Cancelar/ })).toBeNull();
       semVocabularioDeCancelamento(dialogo);
-      expect(enviar).toBeDisabled(); // motivo obrigatório
-      // O campo do motivo fala em exclusão (rótulo visível e nome acessível).
-      const motivo = within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo");
-      expect(motivo).toHaveAccessibleName("Motivo da exclusão");
-      expect(motivo.closest("label")?.textContent).toMatch(/^Motivo da exclusão \(obrigatório\)/);
-      fireEvent.change(motivo, { target: { value: "Lançado na área errada" } });
+      // Sem campo de motivo: online e liberado, o botão já habilita sem digitar nada.
+      expect(enviar).not.toBeDisabled();
       const chamadasAntes = atividades.registros.mock.calls.length;
       // O envio fica pendente até o teste soltar: durante ele, o botão diz "Excluindo..." (nunca "Enviando…").
       /** @type {(v?: unknown) => void} */
@@ -183,7 +189,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
         soltar();
       });
 
-      await waitFor(() => expect(atividades.cancelarApontamento).toHaveBeenCalledWith("at-1", "ap-2", { versao: 3, motivo: "Lançado na área errada" }));
+      await waitFor(() => expect(atividades.cancelarApontamento).toHaveBeenCalledWith("at-1", "ap-2", { versao: 3, motivo: MOTIVO_EXCLUSAO_MAPA }));
       await waitFor(() => expect(screen.queryByTestId("dialogo-cancelar-registro-area")).toBeNull());
       // O excluído some na hora: sem cartão, sem chip "Cancelado"; o outro registro continua.
       expect(buscarCartao("Gradeação")).toBeNull();
@@ -271,7 +277,8 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     await abrirHistorico();
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const dialogo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Teste offline" } });
+    semCampoDeMotivo(dialogo);
+    expect(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar")).not.toBeDisabled();
     Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar"));
     await waitFor(() => expect(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar")).not.toBeDisabled());
@@ -301,7 +308,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     await abrirHistorico();
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const dialogo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Motivo válido" } });
+    semCampoDeMotivo(dialogo);
     const registrosAntes = atividades.registros.mock.calls.length;
     const atividadeAntes = atividades.obterAtividade.mock.calls.length;
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar"));
@@ -319,9 +326,9 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     atividades.obterApontamento.mockImplementation(async (_a, id) => ({ id, status: "CONFIRMADO", versao: 7 }));
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const novo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(novo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Motivo válido" } });
+    semCampoDeMotivo(novo);
     fireEvent.click(within(novo).getByTestId("dialogo-cancelar-registro-area-enviar"));
-    await waitFor(() => expect(atividades.cancelarApontamento).toHaveBeenLastCalledWith("at-1", "ap-2", { versao: 7, motivo: "Motivo válido" }));
+    await waitFor(() => expect(atividades.cancelarApontamento).toHaveBeenLastCalledWith("at-1", "ap-2", { versao: 7, motivo: MOTIVO_EXCLUSAO_MAPA }));
     expect(tentativas).toBe(2);
     await waitFor(() => expect(buscarCartao("Gradeação")).toBeNull());
   });
@@ -333,7 +340,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     await abrirHistorico();
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const dialogo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Motivo válido" } });
+    semCampoDeMotivo(dialogo);
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar"));
     // Já excluído: sai do histórico na hora (sem esperar a releitura), com um aviso só, sem mandar abrir a exclusão de novo.
     await waitFor(() => expect(avisos.info).toHaveBeenCalledWith("Já excluído", "Este registro já foi excluído. Nada foi alterado."));
@@ -356,7 +363,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     await abrirHistorico();
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const dialogo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Motivo válido" } });
+    semCampoDeMotivo(dialogo);
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar"));
     await waitFor(() => expect(avisos.warning).toHaveBeenCalledWith("Não foi possível excluir", "Este registro não pode ser excluído no status atual. Nada foi alterado."));
     expect(buscarCartao("Gradeação")).toBeTruthy();
@@ -373,7 +380,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     await abrirHistorico();
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const dialogo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Motivo válido" } });
+    semCampoDeMotivo(dialogo);
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar"));
     await waitFor(() => expect(avisos.warning).toHaveBeenCalled());
     const texto = String(avisos.warning.mock.calls.at(-1)?.[1] ?? "");
@@ -398,7 +405,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     await abrirHistorico();
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const dialogo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Motivo válido" } });
+    semCampoDeMotivo(dialogo);
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar"));
     const erroEnvio = await within(dialogo).findByTestId("erro-envio");
     expect(erroEnvio).toHaveTextContent("Não foi possível excluir o registro. Nada foi alterado.");
@@ -414,7 +421,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
     await abrirHistorico();
     fireEvent.click(await within(cartao("Gradeação")).findByRole("button", { name: /^Excluir registro/ }));
     const dialogo = await screen.findByTestId("dialogo-cancelar-registro-area");
-    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-registro-area-motivo"), { target: { value: "Motivo válido" } });
+    semCampoDeMotivo(dialogo);
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-registro-area-enviar"));
     expect(await within(dialogo).findByTestId("erro-envio")).toBeTruthy();
     expect(screen.getByTestId("dialogo-cancelar-registro-area")).toBeTruthy();

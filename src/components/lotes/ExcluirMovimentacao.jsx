@@ -1,8 +1,8 @@
+import { MOTIVO_EXCLUSAO_MAPA } from "@/domain/mapa/motivoExclusaoMapa";
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button as ButtonUi } from "@/components/ui/button";
-import { Textarea as TextareaUi } from "@/components/ui/textarea";
 import {
   Dialog as DialogUi,
   DialogContent as DialogContentUi,
@@ -26,7 +26,6 @@ import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
-/** @type {React.ComponentType<any>} */ const Textarea = TextareaUi;
 /** @type {React.ComponentType<any>} */ const Dialog = DialogUi;
 /** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
 /** @type {React.ComponentType<any>} */ const DialogDescription = DialogDescriptionUi;
@@ -324,7 +323,7 @@ export const motivoCurtoDoBloqueio = (e) => {
 export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   const queryClient = useQueryClient();
   const [aberto, setAberto] = React.useState(false);
-  const [motivo, setMotivo] = React.useState("");
+  const [motivo, setMotivo] = React.useState(MOTIVO_EXCLUSAO_MAPA);
   const [confirmado, setConfirmado] = React.useState(false);
   const [enviando, setEnviando] = React.useState(false);
   const [desconhecido, setDesconhecido] = React.useState(false);
@@ -424,7 +423,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
       setDesconhecido(true);
     } else {
       chaveRef.current = novaChave();
-      setMotivo("");
+      setMotivo(MOTIVO_EXCLUSAO_MAPA);
       setConfirmado(false);
       setDesconhecido(false);
     }
@@ -510,6 +509,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
         setRecusa(mensagemDeRecusa(codigo, /** @type {any} */ (erro)?.details ?? /** @type {any} */ (erro)?.cause?.details));
         setDesconhecido(false);
         chaveRef.current = novaChave();
+        setMotivo(MOTIVO_EXCLUSAO_MAPA); // D-PROD-270: operação nova = motivo fixo
         // O estado mudou entre o GET e o POST (409): o card e o diálogo reconsultam.
         elegibilidade.refetch();
       } else {
@@ -628,17 +628,6 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
                   <div key={efeito.posicao_id}>{descreverEfeito(efeito)}</div>
                 ))}
               </div>
-              <label className="block text-xs font-medium text-slate-700" htmlFor={`motivo-exclusao-${movimento.id}`}>
-                Motivo da exclusão
-              </label>
-              <Textarea
-                id={`motivo-exclusao-${movimento.id}`}
-                value={motivo}
-                disabled={enviando || desconhecido}
-                onChange={(ev) => setMotivo(ev.target.value)}
-                maxLength={500}
-                className="text-sm"
-              />
               <label className="flex items-start gap-2 text-xs text-slate-700">
                 <input
                   type="checkbox"

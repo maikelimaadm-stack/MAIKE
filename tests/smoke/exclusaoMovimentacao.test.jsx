@@ -2,6 +2,9 @@
  * D-PROD-110 — UI da exclusão definitiva segura de movimentação (substitui o
  * "Cancelar" nos históricos), curral e renomeação. Dados sintéticos; serviço
  * mockado (a prova de banco está em backend/tests/exclusaoMovimentacaoLedger.test.mjs).
+ * D-PROD-270: o diálogo não tem campo de motivo (vai o texto fixo `MOTIVO_EXCLUSAO_MAPA`);
+ * a caixa "Entendo que a exclusão é definitiva" continua obrigatória; a pendência antiga
+ * reenvia o motivo GUARDADO.
  */
 import React from "react";
 import { readFileSync } from "node:fs";
@@ -40,6 +43,7 @@ vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () 
 const { default: ExcluirMovimentacao } = await import("@/components/lotes/ExcluirMovimentacao");
 const { default: HistoricoAbateCurral } = await import("@/components/mapa/HistoricoAbateCurral");
 const { default: RenomearLoteForm } = await import("@/components/lotes/RenomearLoteForm");
+const { MOTIVO_EXCLUSAO_MAPA } = await import("@/domain/mapa/motivoExclusaoMapa");
 
 // Movimento do ledger: a prova é o evento + a operação idempotente (servidor confere).
 const EFEITO_SERVIDOR = { comando: "rebanho_ledger", evento_id: "ev-1", operation_id: "manejo-x" };
@@ -85,29 +89,40 @@ afterEach(async () => {
   cleanup();
 });
 
-const abrirEConfirmar = async (motivo = "lançado por engano") => {
+/** D-PROD-270: o diálogo não tem campo nem texto de motivo. */
+const semCampoDeMotivo = () => {
+  const dialogo = screen.getByRole("dialog");
+  expect(screen.queryByLabelText(/Motivo/i)).toBeNull();
+  expect(dialogo.querySelector("textarea, input:not([type='checkbox'])")).toBeNull();
+  expect(dialogo.textContent).not.toMatch(/motivo/i);
+};
+/** Abre, confere que não há campo de motivo, marca a confirmação explícita (sem digitar nada) e envia. */
+const abrirEConfirmar = async () => {
   await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
   expect(await screen.findByText(/PASTO A: \+3 cab \(fica 10\)/)).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Motivo da exclusão"), { target: { value: motivo } });
+  semCampoDeMotivo();
   const caixa = screen.queryByRole("checkbox");
   if (caixa && !caixa.checked) fireEvent.click(caixa);
   await clicar(screen.getByRole("button", { name: /Excluir definitivamente|Tentar de novo/ }));
 };
 
 describe("ExcluirMovimentacao", () => {
-  it("admin: confere elegibilidade, mostra efeito/posição removida, exige confirmação explícita e envia só operation_id + motivo", async () => {
+  it("admin: confere elegibilidade, mostra efeito/posição removida, exige confirmação explícita (sem motivo) e envia só operation_id + motivo fixo", async () => {
     await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
     await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
     expect(await screen.findByText(/PASTO B: -3 cab \(fica 0\) · peso volta a desconhecido · posição criada por este registro deixa de existir/)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Motivo da exclusão"), { target: { value: "lançado errado" } });
+    semCampoDeMotivo();
+    // Sem a caixa marcada, nada envia; marcada (sem digitar nada), habilita.
     expect(screen.getByRole("button", { name: "Excluir definitivamente" }).hasAttribute("disabled")).toBe(true);
     fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("button", { name: "Excluir definitivamente" }).hasAttribute("disabled")).toBe(false);
     await clicar(screen.getByRole("button", { name: "Excluir definitivamente" }));
     await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(1));
     const [id, corpo] = servico.excluirMovimentacaoMapa.mock.calls[0];
     expect(id).toBe("mv-1");
     expect(Object.keys(corpo).sort()).toEqual(["motivo", "operation_id"]);
     expect(corpo.operation_id).toMatch(/^excluir-/);
+    expect(corpo.motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
   });
 
   it("sucesso: some das cópias offline (tenant), das listas do mapa da EMPRESA e força refresh — sem ressurreição", async () => {
@@ -169,15 +184,17 @@ describe("ExcluirMovimentacao", () => {
   it("refresh/remount: a pendência volta com a mesma chave e o mesmo motivo; isolada por tenant+usuário", async () => {
     servico.excluirMovimentacaoMapa.mockImplementationOnce(async () => { throw Object.assign(new Error("rede"), { code: "API_PROVIDER_UNAVAILABLE" }); });
     const { unmount } = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
-    await abrirEConfirmar("erro de digitação");
+    await abrirEConfirmar();
     await screen.findByText(/pode ou não ter sido concluída/);
     const c1 = servico.excluirMovimentacaoMapa.mock.calls[0][1];
-    expect(window.localStorage.getItem("maike_exclusao_movimentacao_pendente:c-1:u-1:mv-1")).toBeTruthy();
+    expect(c1.motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
+    // A pendência nova grava o motivo fixo (mesmo fingerprint no reenvio).
+    expect(JSON.parse(window.localStorage.getItem("maike_exclusao_movimentacao_pendente:c-1:u-1:mv-1"))).toEqual(expect.objectContaining({ operation_id: c1.operation_id, motivo: MOTIVO_EXCLUSAO_MAPA }));
     unmount();
 
     const r = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
     await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
-    expect(screen.getByLabelText("Motivo da exclusão").value).toBe("erro de digitação");
+    semCampoDeMotivo();
     await clicar(screen.getByRole("button", { name: "Tentar de novo" }));
     await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(2));
     expect(servico.excluirMovimentacaoMapa.mock.calls[1][1]).toEqual(c1);
@@ -187,8 +204,12 @@ describe("ExcluirMovimentacao", () => {
     window.localStorage.setItem("maike_exclusao_movimentacao_pendente:c-1:u-1:mv-1", JSON.stringify({ operation_id: "excluir-A", motivo: "do A" }));
     sessao.usuario = { id: "u-2", cliente_id: "c-1", administrador_fazenda: true };
     await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
-    await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
-    expect((await screen.findByLabelText("Motivo da exclusão")).value).toBe("");
+    // Outro usuário: a pendência do u-1 não vale — operação nova, com o motivo fixo (nunca "do A").
+    await abrirEConfirmar();
+    await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(3));
+    const c3 = servico.excluirMovimentacaoMapa.mock.calls[2][1];
+    expect(c3.operation_id).not.toBe("excluir-A");
+    expect(c3.motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
   });
 
   it("recusa definitiva: mensagem com o bloqueador, nada mudou, chave nova na próxima tentativa", async () => {
@@ -454,7 +475,7 @@ describe("PR180-R2 — fail-closed: fila offline e elegibilidade precisam de res
     expect(botaoExcluir()).toBeNull();
     const confirmar = screen.queryByRole("button", { name: "Excluir definitivamente" });
     if (confirmar) {
-      fireEvent.change(screen.getByLabelText("Motivo da exclusão"), { target: { value: "lançado errado" } });
+      semCampoDeMotivo();
       fireEvent.click(screen.getByRole("checkbox"));
       expect(confirmar.hasAttribute("disabled")).toBe(true);
       fireEvent.click(confirmar);
@@ -474,16 +495,20 @@ describe("PR180-R2 — fail-closed: fila offline e elegibilidade precisam de res
     expect(botaoExcluir()).toBeNull();
     r.unmount();
 
-    // Fila sincronizada (vazia): o retry legítimo volta, com a mesma operação e motivo.
+    // Fila sincronizada (vazia): o retry legítimo volta, com a mesma operação e o motivo GUARDADO (não o fixo).
     servico.pendenciasOfflineDaMovimentacao.mockImplementation(async () => []);
     servico.consultarExclusaoMovimentacao.mockImplementation(async () => { throw Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code: "MOVIMENTACAOMAPA_NOT_FOUND" } }); });
     servico.excluirMovimentacaoMapa.mockImplementation(async () => ({ excluida: true, movimentacao_id: "mv-1", replay: true }));
     r = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
     await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
-    expect(screen.getByLabelText("Motivo da exclusão").value).toBe("motivo original");
+    semCampoDeMotivo();
+    // A caixa "Entendo que a exclusão é definitiva" continua obrigatória no reenvio.
+    const caixa = screen.queryByRole("checkbox");
+    if (caixa && !caixa.checked) fireEvent.click(caixa);
     await clicar(screen.getByRole("button", { name: "Tentar de novo" }));
     await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(1));
     expect(servico.excluirMovimentacaoMapa.mock.calls[0][1]).toEqual({ operation_id: "excluir-original", motivo: "motivo original" });
+    expect(servico.excluirMovimentacaoMapa.mock.calls[0][1].motivo).not.toBe(MOTIVO_EXCLUSAO_MAPA);
   });
 });
 
@@ -681,7 +706,7 @@ describe("D-PROD-114 — card da movimentação excluída", () => {
     render(<QueryClientProvider client={client}><ExcluirMovimentacao movimento={TRANSF} /></QueryClientProvider>);
     await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
     await screen.findByText(/PASTO A: \+3 cab \(fica 10\)/);
-    fireEvent.change(screen.getByLabelText("Motivo da exclusão"), { target: { value: "lançado errado" } });
+    semCampoDeMotivo();
     fireEvent.click(screen.getByRole("checkbox"));
     await clicar(screen.getByRole("button", { name: "Excluir definitivamente" }));
     await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(1));
