@@ -171,3 +171,51 @@ em `cadastro-base1.css`); o desktop não muda.
 - O alvo nasce vazio nas operações de Aplicação que já existem: o proprietário preenche no cadastro da operação.
 - **Próxima entrega:** agrupador de Reforma e "Faz parte de: Reforma"; "Conferir nascimento" (estande); o aviso do
   1º pastejo (item F da proposta).
+
+## 8. Ajustes do teste de ponta a ponta
+
+Um teste de ponta a ponta de verdade (servidor real em 127.0.0.1:3411, PostgreSQL local `maike_e2e2`, Vite real, Playwright
+em 1440 px e 390 px) achou seis lacunas de uso. **Sem migration** (nenhuma pasta nova; o checksum `9e6487ff…` não muda) e
+**sem campo novo no corpo** do registro: o fingerprint da idempotência é o mesmo.
+
+| # | Lacuna | O que mudou | Onde |
+|---|---|---|---|
+| 1 | Dois plantios abertos na mesma área (capim diferente) ficavam iguais na lista | O capim vem da `AtividadePlantio` (já na lista e no detalhe, `plantio.cultura.nome`); o nome gravado da atividade **não** mudou. Lista do computador: a célula Operação traz "capim PANICUM CV. MOMBAÇA" embaixo; card do celular: "SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim …"; prévia: "Entra em … · capim … (em andamento, …)" e "Nova atividade será criada: … · capim …"; diálogo Concluir: "Concluir SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim …"; o Resumo da atividade ganha "Capim plantado" | `servicoVariosDias.js` (`capimDoServico`, `textoDoCapim`, `tituloDoConcluir`), `ServicoNaLista.jsx` (`OperacaoDoServico`), `LancamentoAtividades.jsx`, `registroDeCampoRegras.js` (`destinoDoRegistro` com `capim`), `RegistroDeCampo.jsx`, `cadastro-base1.css` |
+| 2 | Serviço sem área mostrava "0 ha" (lista e card "Concluída · 0 ha") | Servidor: o `andamento` só soma hectares quando há algum (`hectares_feitos` nulo sem hectares; antes, a soma de nulos virava "0.0000"). Tela: o serviço sem área mostra o local e a quantidade feita com a unidade ("DIVISA NORTE · 2,5 km · último dia 20/11"; sem quantidade, "DIVISA NORTE · último dia 20/11"); concluído, "Concluída · 2,5 km" ou nada; o Concluir mostra a quantidade no lugar dos hectares | `atividadeService.js` (`andamentoDoItem`), `servicoVariosDias.js` (`servicoSemArea`, `quantidadeFeitaDoServico`, `textoDoAndamento`, `hectaresDaConcluida`, `feitoNoConcluir`), `DialogoConcluirServico.jsx` |
+| 3 | O Resumo da atividade sem área nunca dizia o Local | "Local: DIVISA NORTE" no lugar da Área | `LancamentoAtividades.jsx` (`cabecalhoDaAtividade`) |
+| 4 | "Pasto liberado em" sumia depois de salvar | O aviso de sucesso da Aplicação diz "… registrada em PASTO DO CÓRREGO. Pasto liberado em 11/12/2026." (o `registro.pasto_liberado_em` da resposta; sem carência, o aviso de sempre). O **detalhe** da atividade (`GET /atividades/:id` e toda escrita que devolve o detalhe) traz `pasto_liberado_em` e `carencia_dias`, **calculados na leitura**: o último fim lançado (o maior `data_termino ?? data_operacional` dos apontamentos confirmados) + a maior carência atual dos produtos das linhas confirmadas; nada é gravado. O Resumo da Aplicação mostra "Pasto liberado em" ("—" sem carência) | `atividadeComum.js` (`pastoLiberadoEm` mudou para cá, `lerPastoLiberadoDaAtividade`, `comoAtividadeDetalhe`), `atividadeService.js`, `atividadeRegistroService.js` (reexporta), `RegistroDeCampo.jsx`, `LancamentoAtividades.jsx` |
+| 5 | A prévia sem área nunca resolvia ("Se já houver … entra nela; senão …") | `GET /atividades` aceita `local` (normalizado como o registro grava; só serviço sem área) — a mesma busca do servidor (`buscarAtividadeAbertaNoLocal`). A Nova realização lê `status=ABERTA&tipo_atividade_id=…&local=…` (depois de uma pausa na digitação) e diz "Entra em REFORMA DE CERCA · DIVISA NORTE · nov/26 (em andamento, 1,2 km)" (parada há mais de 30 dias, avisa) ou "Nova atividade será criada: …". Sem a leitura (lendo, sem permissão de ver ou falhou), a frase das duas possibilidades de antes | `atividadeRoutes.js`, `atividadeService.js` (`listar`, `localDoFiltro`), `lancamentoAtividadePort.js`, `lancamentoAtividadesService.js`, `registroDeCampoRegras.js` (`destinoSemArea`), `RegistroDeCampo.jsx` |
+| 6 | "Concluída" era oferecida a quem não pode concluir | Sem editar/salvar (a guarda do "Concluir"), "Concluída" fica desligada com a nota "Só quem pode editar conclui.", o término preenchido não a marca e o corpo vai sem `concluir`. O servidor continua recusando com 403 | `RegistroDeCampo.jsx`, `cadastro-base1.css` |
+
+**Contrato:** o detalhe da atividade ganhou duas chaves no fim (`pasto_liberado_em`, `carencia_dias`); a lista não as traz.
+`GET /atividades` aceita `local` (1–120; marcação → 400). Pinado de propósito: `atividadeNativo` (as chaves do detalhe) e o
+LA-PORTA-3 do smoke (a query da lista com `local`).
+
+**Testes:**
+
+- Backend `atividadeCamposPorTipo.test.mjs` (+4, agora 28): o capim de dois plantios na lista e no detalhe com o nome
+  igual; o serviço sem área na lista (hectares nulos, local, quantidade somada, unidade) e com área como sempre; o filtro
+  `local` (normalizado, exato, sem área, concluída sai, 400 para vazio/marcação/longo); o pasto liberado na leitura (último
+  fim + maior carência, muda com o cadastro, nulo sem carência, a escrita também traz). Rodados todos os
+  `backend/tests/atividade*.test.mjs` (19 arquivos, 337 testes, 0 falhas).
+- Smoke: `servicoVariosDias` (+6), `registroDeCampoCamposPorTipo` (+3 e checagens novas: a prévia com o capim, a prévia sem
+  área resolvida pela lista, o aviso com o pasto liberado), `lancamentoAtividades` (+4: a lista sem "0 ha" e com o capim, o
+  Local e o pasto liberado no Resumo). O mock da sessão do `servicoVariosDias` passou a dizer `editar` (quem conclui).
+- `node scripts/gates/verify-all.mjs --pular=test:backend`: **TODAS AS ETAPAS PASSARAM** (38 etapas; `test:smoke` 317
+  arquivos, 3990 testes; `gate:types` sem regressão; lint 0 erros).
+- Ponta a ponta (scratchpad `e2e-entrega2/`, `node run.mjs 1440,390 all`): **24 de 24 cenários passaram** (387 checagens,
+  48 delas novas "AJUSTE n"); 0 erro de página, 0 resposta ≥ 400 inesperada; os 6 `console.error` são os conhecidos (o aviso
+  `value` nulo do `codigo_barras` e o `ERR_CONNECTION_RESET` provocado de propósito no cenário da resposta perdida). Telas
+  novas em `e2e-entrega2/shots/` (`*-lista-dois-plantios`, `*-aplicacao-detalhe-pasto-liberado`,
+  `*-manutencao-2o-dia-entra-em`, `*-lista-manutencao-sem-area`, `*-manutencao-detalhe-local`, `*-concluir-plantio-capim`,
+  `*-lanc-concluida-desligada`).
+
+**Conhecidos, fora deste ajuste (não mexidos):**
+
+- continuar um plantio pela Nova realização (não pelo "+ Lançar dia") preenche 100% da área, como antes;
+- no computador, o rótulo "Áreas *" encosta no campo nos tipos de área obrigatória;
+- no celular, o erro de validação não rola até o campo;
+- o aviso (toast) cobre o Salvar no celular;
+- o aviso `value` nulo do `codigo_barras` no Cadastro de Produtos;
+- "É um serviço novo" (a pergunta do serviço parado) também conclui a atividade antiga e continua oferecido a quem não pode
+  editar: o servidor recusa com 403, como antes (só "Concluída" foi desligada).
