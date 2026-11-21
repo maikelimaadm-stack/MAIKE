@@ -59,7 +59,7 @@ export const CAMPOS_DE_CRIACAO = Object.freeze([
   'descricao',
   ...CAMPOS_PADRAO_TIPO_ATIVIDADE,
   ...FLAGS_TIPO_ATIVIDADE,
-  // D-PROD-268: o alvo da Aplicação (vem do cadastro da operação; o funcionário não escolhe).
+  // D-PROD-269: o alvo da Aplicação (vem do cadastro da operação; o funcionário não escolhe).
   'alvo',
 ]);
 
@@ -121,7 +121,7 @@ export const tipoAtividadeDeResposta = (registro) => {
     unidade_producao: objetoOuNulo(r.unidade_producao),
     coeficiente_padrao: textoOuNulo(r.coeficiente_padrao),
     ...Object.fromEntries(FLAGS_TIPO_ATIVIDADE.map((flag) => [flag, r[flag] === true])),
-    // D-PROD-268: o `alvo` da Aplicação passa como veio (ausente no cache antigo = sem alvo).
+    // D-PROD-269: o `alvo` da Aplicação passa como veio (ausente no cache antigo = sem alvo).
   };
 };
 

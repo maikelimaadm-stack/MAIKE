@@ -31,12 +31,12 @@ export const rotuloDaCategoriaTipoAtividade = (valor) => (typeof valor === "stri
  * @typedef {{ categoria: string, nome_tipo: string, ativo: boolean, alvo?: string | null }} TipoAtividadeEnvio
  */
 
-/** D-PROD-268 — o "Outro (escrever)" da lista de alvos. */
+/** D-PROD-269 — o "Outro (escrever)" da lista de alvos. */
 const ALVO_OUTRO = "__OUTRO__";
 
 /**
  * Formulário da OPERAÇÃO (o "tipo de atividade" de antes; D-PROD-258): só três campos — Tipo fixo (um dos 7, obrigatório),
- * Nome e Ativo. D-PROD-268: na Aplicação, o ALVO (lista curta + "Outro", que se escreve): vem preenchido na "Nova
+ * Nome e Ativo. D-PROD-269: na Aplicação, o ALVO (lista curta + "Outro", que se escreve): vem preenchido na "Nova
  * realização de Aplicação", e o funcionário não escolhe; só vai no corpo da Aplicação (vazio limpa). Grupo, centros, unidade, coeficiente e as 8 chaves saíram da tela: o servidor dá o padrão automático na
  * criação e, na edição, não mexe no que não vier no corpo (o corpo leva só estes três).
  *
@@ -70,7 +70,7 @@ export default function FormularioTipoAtividade({
     categoria: TIPOS_FIXOS_ATIVIDADE.some((t) => t.value === initialData?.categoria) ? String(initialData?.categoria) : "",
     nome_tipo: initialData?.nome_tipo || "",
     ativo: initialData?.ativo ?? true,
-    // D-PROD-268: o alvo da Aplicação; fora da lista curta, "Outro" com o texto.
+    // D-PROD-269: o alvo da Aplicação; fora da lista curta, "Outro" com o texto.
     alvoEscolha: !initialData?.alvo ? "" : ALVOS_DA_APLICACAO.includes(String(initialData.alvo)) ? String(initialData.alvo) : ALVO_OUTRO,
     alvoOutro: initialData?.alvo && !ALVOS_DA_APLICACAO.includes(String(initialData.alvo)) ? String(initialData.alvo) : "",
   }));

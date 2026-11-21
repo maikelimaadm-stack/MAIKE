@@ -79,7 +79,7 @@ const valoresIniciaisMascarados = (dados) => {
 };
 
 /**
- * D-PROD-268 — a carência digitada: vazio vale (sem carência); senão inteiro de 0 a 365. Devolve a frase do erro ou "".
+ * D-PROD-269 — a carência digitada: vazio vale (sem carência); senão inteiro de 0 a 365. Devolve a frase do erro ou "".
  * @param {unknown} texto
  */
 const erroDaCarencia = (texto) => {
@@ -124,7 +124,7 @@ export default function FormularioProduto({
       consumo_maximo_pv: "",
       unidade_principal_estoque: "KG",
       peso_por_saco_kg: "",
-      // D-PROD-268: a carência da bula, em dias (texto do campo; vazio = sem carência).
+      // D-PROD-269: a carência da bula, em dias (texto do campo; vazio = sem carência).
       carencia_dias: "",
       observacoes: "",
       ativo: true,
@@ -240,7 +240,7 @@ export default function FormularioProduto({
     if (formData.unidade_principal_estoque === "SACO" && !pesoSacoNum) {
       missingFields.push("peso_por_saco_kg");
     }
-    // D-PROD-268: a carência, quando informada, é um número inteiro de dias de 0 a 365.
+    // D-PROD-269: a carência, quando informada, é um número inteiro de dias de 0 a 365.
     if (erroDaCarencia(formData.carencia_dias)) missingFields.push("carencia_dias");
 
     if (missingFields.length > 0) {
@@ -343,7 +343,7 @@ export default function FormularioProduto({
                   </B1Field>
                 ) : null}
 
-                {/* D-PROD-268: a carência da bula (dias sem gado no pasto depois da aplicação), para o "Pasto liberado em". */}
+                {/* D-PROD-269: a carência da bula (dias sem gado no pasto depois da aplicação), para o "Pasto liberado em". */}
                 <B1Field
                   label="Carência (dias)"
                   span={6}

@@ -83,7 +83,7 @@ import {
 } from "@/lib/camposPorTipo";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
-/** D-PROD-268 — a linha de ajuda embaixo do campo ("preenchida pela data", "opcional", "vem do cadastro da operação"). */
+/** D-PROD-269 — a linha de ajuda embaixo do campo ("preenchida pela data", "opcional", "vem do cadastro da operação"). */
 const NOTA_DO_CAMPO = "mt-1 min-w-0 break-words px-1 text-[12px] text-[var(--mg-text-2,#475569)]";
 
 /**
@@ -131,7 +131,7 @@ const NOTA_DO_CAMPO = "mt-1 min-w-0 break-words px-1 text-[12px] text-[var(--mg-
  * `ATIVIDADE_SERVICO_PARADO` vira a pergunta "Este serviço está parado desde dd/mm. É continuação?" e o reenvio leva
  * `nova_atividade` (false = continuar; true = serviço novo).
  *
- * D-PROD-268 (MAIKE-ENTREGA2) — os campos de cada tipo (`camposPorTipo.js`; quem decide é o servidor):
+ * D-PROD-269 (MAIKE-ENTREGA2) — os campos de cada tipo (`camposPorTipo.js`; quem decide é o servidor):
  *  - Plantio de pastagem: "Capim plantado" (obrigatório, do Cadastro de Culturas, com a espécie e a cultivar embaixo),
  *    "Safra" (só leitura, preenchida pela data), forma de plantio, semente incrustada, plantio de cobertura e "Junto com
  *    (consórcio)", todos opcionais; o VC % na linha da semente (pontos de VC/ha) e o aviso "sem semente";
@@ -207,12 +207,12 @@ export default function JanelaRegistroDeCampo({
   /** A área do mapa pelo id. @param {string} id */
   const areaDe = (id) => areasDoMapa.find((a) => String(a?.id) === String(id)) ?? null;
   // D-PROD-258: as quatro seções são sempre oferecidas. Só as chaves que EXIGEM dado (operação antiga) ainda valem.
-  // D-PROD-268: a safra não é mais digitada (o servidor tira o ano agrícola do dia quando ela não vem).
+  // D-PROD-269: a safra não é mais digitada (o servidor tira o ano agrícola do dia quando ela não vem).
   const flags = {
     exigeMaquina: tipo?.exige_maquina === true,
     permiteImplemento: true,
   };
-  // D-PROD-268: os campos de cada tipo (Plantio, Fertilização, Aplicação, Manutenção e Outros).
+  // D-PROD-269: os campos de cada tipo (Plantio, Fertilização, Aplicação, Manutenção e Outros).
   const campos = camposDoTipo(tipoFixo, tipo);
   const [doServico0] = useState(() => camposDoServico(continuar));
   const [culturaId, setCulturaId] = useState(doServico0.culturaId);
@@ -337,7 +337,7 @@ export default function JanelaRegistroDeCampo({
     }
     if (colecao === "produtos") {
       const { erros: e } = validarLinhaProduto(ed.form, { disponivel: lido?.disponivel ?? null });
-      // D-PROD-268: o VC (%) da semente, quando digitado, tem de ser válido (só no Plantio de pastagem).
+      // D-PROD-269: o VC (%) da semente, quando digitado, tem de ser válido (só no Plantio de pastagem).
       const vc = campos.plantio ? lerVc(ed.form?.vc) : { erro: null };
       if (vc.erro) e.vc = vc.erro;
       return resultado(e, () => ({ chave: ed.chave ?? novaChave(), form: ed.form, localNome: lido?.localNome ?? null }));
@@ -450,14 +450,14 @@ export default function JanelaRegistroDeCampo({
     const e = {};
     if (!tipoFixo) e.tipoFixo = "Escolha o tipo.";
     if (!tipo?.id) e.tipo = "Escolha a operação.";
-    // D-PROD-268: Manutenção e Outros sem área → o local é obrigatório; com área, a regra de sempre.
+    // D-PROD-269: Manutenção e Outros sem área → o local é obrigatório; com área, a regra de sempre.
     const semArea = campos.areaOpcional && !areasDoRegistro.length;
     if (semArea) {
       if (!localDoTexto(local)) e.local = "Sem área, informe o local do serviço.";
     } else Object.assign(e, errosDasAreasDoRegistro(areasDoRegistro));
     if (campos.plantio && !culturaId) e.capim = "Escolha o capim plantado.";
     if (campos.quantidadeFeita && quantidadeFeita.trim() && !unidadeDaOperacao && !unidadeFeita) e.unidade = "Escolha a unidade.";
-    // Os hectares são de cada área (`areas[]`): o dia não leva `area_executada_dia`. D-PROD-268: a quantidade feita
+    // Os hectares são de cada área (`areas[]`): o dia não leva `area_executada_dia`. D-PROD-269: a quantidade feita
     // (Manutenção) é a produção do dia.
     const doDia = { ...formularioApontamentoVazio(dia), operador, area_executada_dia: "", observacao, quantidade_produzida_dia: campos.quantidadeFeita ? quantidadeFeita : "" };
     const vDia = validarFormularioApontamento(doDia, { hoje });
@@ -500,7 +500,7 @@ export default function JanelaRegistroDeCampo({
     return {
       corpo: {
         ...apontamento,
-        // D-PROD-268: sem área (Manutenção e Outros), o local no lugar das áreas.
+        // D-PROD-269: sem área (Manutenção e Outros), o local no lugar das áreas.
         ...(semArea ? { local: localDoTexto(local) } : { areas: corpoDasAreasDoRegistro(areasDoRegistro) }),
         ...(campos.plantio ? { plantio: corpoDoPlantio({ culturaId, forma, incrustada, cobertura, consorcioId }) } : {}),
         ...(campos.aplicacao && receituario.trim() ? { numero_receituario: receituario.trim() } : {}),
@@ -527,7 +527,7 @@ export default function JanelaRegistroDeCampo({
     setOperador(null);
     setObservacao("");
     setTermino("");
-    // D-PROD-268: o capim, os dados do plantio e o local ficam (o próximo registro costuma ser igual); o resto sai.
+    // D-PROD-269: o capim, os dados do plantio e o local ficam (o próximo registro costuma ser igual); o resto sai.
     setReceituario("");
     setQuantidadeFeita("");
     setEscolhaDaSituacao(null);
@@ -553,7 +553,7 @@ export default function JanelaRegistroDeCampo({
       const resposta = r.resposta;
       queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
       queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
-      // D-PROD-268: Manutenção e Outros sem área não mandam `areas`; o aviso diz o local.
+      // D-PROD-269: Manutenção e Outros sem área não mandam `areas`; o aviso diz o local.
       const enviadas = Array.isArray(envio.corpo.areas) ? envio.corpo.areas : [];
       const onde = enviadas.length === 0
         ? envio.corpo.local || "local informado"
@@ -674,7 +674,7 @@ export default function JanelaRegistroDeCampo({
     </div>
   );
 
-  // ─── D-PROD-268: a safra mostrada, os produtos do registro e o "Pasto liberado em" ─
+  // ─── D-PROD-269: a safra mostrada, os produtos do registro e o "Pasto liberado em" ─
   const safraMostrada = (continuar && doServico0.safra) || safraDoDia(dia) || "—";
   const produtosDoRegistro = [...itens.produtos.map((i) => i.form), ...(editores.produtos?.form?.produto ? [editores.produtos.form] : [])].filter((f) => f?.produto?.id);
   const liberado = pastoLiberadoEm(termino || dia, produtosDoRegistro.map((f) => f.produto?.carencia_dias));
@@ -717,10 +717,10 @@ export default function JanelaRegistroDeCampo({
   const equipeDoResumo = [...itens.mao_obra.map((i) => i.form), ...(editores.mao_obra?.form?.parceiro ? [editores.mao_obra.form] : [])]
     .map((f) => [String(f?.parceiro?.rotulo ?? ""), medida(f)].filter(Boolean).join(" "))
     .filter(Boolean);
-  // D-PROD-268: a quantidade feita (Manutenção) entra no resumo ("1,2 km").
+  // D-PROD-269: a quantidade feita (Manutenção) entra no resumo ("1,2 km").
   const feitaNoResumo = campos.quantidadeFeita && quantidadeFeita.trim() ? `${quantidadeFeita.trim()} ${rotuloDaUnidadeFeita(unidadeDaOperacao || unidadeFeita)}`.trim() : "";
   const resumo = resumoAntesDeSalvar({
-    // D-PROD-268: no Plantio, "Plantio de <capim>".
+    // D-PROD-269: no Plantio, "Plantio de <capim>".
     operacao: campos.plantio && capim ? `Plantio de ${String(capim.nome ?? "")}` : String(tipo?.nome_tipo ?? ""),
     areas: semAreaAgora ? [localDoTexto(local)].filter(Boolean) : areasDoRegistro.map((l) => String(areaDe(l.area_id)?.nome ?? "")).filter(Boolean),
     quando: textoDoDiaDoRegistro(dia, termino, hoje),
@@ -762,7 +762,7 @@ export default function JanelaRegistroDeCampo({
           carregando={!areasDoPai.length && areasLidas.isLoading}
           opcional={campos.areaOpcional}
         />
-        {/* D-PROD-268: Manutenção e Outros sem área — o Local (obrigatório sem área). */}
+        {/* D-PROD-269: Manutenção e Outros sem área — o Local (obrigatório sem área). */}
         {campos.areaOpcional && !areasDoRegistro.length ? (
           <CampoTexto
             label="Local"
@@ -810,7 +810,7 @@ export default function JanelaRegistroDeCampo({
             ) : null}
           </>
         )}
-        {/* D-PROD-268: os campos de cada tipo. */}
+        {/* D-PROD-269: os campos de cada tipo. */}
         {campos.plantio ? (
           <CampoSelect
             label="Capim plantado"
@@ -999,7 +999,7 @@ export default function JanelaRegistroDeCampo({
           error={erros.data_termino}
           testId="registro-de-campo-data-termino"
         />
-        {/* D-PROD-268: Aplicação — "Pasto liberado em" = término (ou o dia) + a maior carência dos produtos (calculado). */}
+        {/* D-PROD-269: Aplicação — "Pasto liberado em" = término (ou o dia) + a maior carência dos produtos (calculado). */}
         {campos.aplicacao ? (
           <ValorCalculado
             label="Pasto liberado em"
@@ -1028,7 +1028,7 @@ export default function JanelaRegistroDeCampo({
                 inicial = final do último dia
               </p>
             ) : null;
-          // D-PROD-268: no Plantio sem semente lançada, o aviso (o kg/ha da semente sai da linha do insumo).
+          // D-PROD-269: no Plantio sem semente lançada, o aviso (o kg/ha da semente sai da linha do insumo).
           const avisoSemSemente =
             campos.plantio && colecao === "produtos" && !lista.length && !editor ? (
               <p key="sem-semente" className="col-span-12 min-w-0 text-[12px] text-amber-800" data-testid="registro-de-campo-sem-semente">

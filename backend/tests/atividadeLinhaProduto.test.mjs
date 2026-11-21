@@ -47,7 +47,7 @@ beforeEach(async () => {
 const CAMPOS_LINHA = [
   'id', 'empresa_id', 'apontamento_id', 'ordem', 'status', 'produto_id', 'produto', 'local_estoque_id', 'local_estoque',
   'quantidade', 'unidade', 'dose_ha',
-  // D-PROD-268: o VC (%) da semente (só a linha do lançamento que o trouxe; nulo aqui).
+  // D-PROD-269: o VC (%) da semente (só a linha do lançamento que o trouxe; nulo aqui).
   'vc_percentual',
   'custo_unitario', 'custo_total', 'movimentacao_estoque_id', 'movimentacao_estorno_id',
   'fatias', 'observacao', 'criado_por', 'cancelado_em', 'cancelado_por', 'motivo_cancelamento', 'cancelamento_origem', 'createdAt', 'updatedAt',

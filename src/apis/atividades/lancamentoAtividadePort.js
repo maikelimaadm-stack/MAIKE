@@ -106,7 +106,7 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   // D-PROD-267: "Como fica depois de salvar? Concluída" e a resposta ao "serviço parado" (booleanos, só quando vêm).
   'concluir',
   'nova_atividade',
-  // D-PROD-268: os campos de cada tipo — o plantio (capim e opcionais), o nº do receituário (Aplicação), o local do serviço
+  // D-PROD-269: os campos de cada tipo — o plantio (capim e opcionais), o nº do receituário (Aplicação), o local do serviço
   // sem área e a unidade da quantidade feita (Manutenção e Outros). Só quando vêm.
   'plantio',
   'numero_receituario',
@@ -153,7 +153,7 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  */
 export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao']);
 /**
- * D-PROD-268 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
+ * D-PROD-269 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
  * a de sempre e o VC (%) da semente, só quando preenchido. As rotas de UMA linha continuam com `CAMPOS_DA_LINHA_PRODUTO`.
  */
 export const CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO = Object.freeze([...CAMPOS_DA_LINHA_PRODUTO, 'vc_percentual']);

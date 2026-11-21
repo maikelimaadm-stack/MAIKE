@@ -442,10 +442,10 @@ export const comoAreaDaAtividadePublica = (r) => ({
   updatedAt: iso(r.updatedAt),
 });
 
-/** MAIKE-ENTREGA2 (D-PROD-268) — resumo da cultura (capim plantado e consórcio) do plantio. */
+/** MAIKE-ENTREGA2 (D-PROD-269) — resumo da cultura (capim plantado e consórcio) do plantio. */
 export const CULTURA_RESUMO = Object.freeze({ select: { id: true, codigo: true, nome: true, especie: true, cultivar: true, tipo: true } });
 
-/** MAIKE-ENTREGA2 (D-PROD-268) — os dados do plantio de pastagem, com o resumo das culturas. */
+/** MAIKE-ENTREGA2 (D-PROD-269) — os dados do plantio de pastagem, com o resumo das culturas. */
 export const PLANTIO_RESUMO = Object.freeze({
   select: {
     cultura_id: true, forma_plantio: true, semente_incrustada: true, cobertura: true, consorcio_cultura_id: true,
@@ -457,7 +457,7 @@ export const PLANTIO_RESUMO = Object.freeze({
 const culturaPublica = (c) => (c ? { id: c.id, codigo: c.codigo, nome: c.nome, especie: c.especie ?? null, cultivar: c.cultivar ?? null, tipo: c.tipo } : null);
 
 /**
- * MAIKE-ENTREGA2 (D-PROD-268) — forma pública dos dados do plantio (nulo fora do Plantio de pastagem).
+ * MAIKE-ENTREGA2 (D-PROD-269) — forma pública dos dados do plantio (nulo fora do Plantio de pastagem).
  * @param {any} p  registro de `AtividadePlantio` com `cultura` e `consorcio`
  */
 export const plantioPublico = (p) =>
@@ -487,7 +487,7 @@ export const INCLUIR_ATIVIDADE = Object.freeze({
   concluidaPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
   reabertaPor: USUARIO_RESUMO,
-  // MAIKE-ENTREGA2 (D-PROD-268): o capim plantado e os dados do plantio.
+  // MAIKE-ENTREGA2 (D-PROD-269): o capim plantado e os dados do plantio.
   plantio: PLANTIO_RESUMO,
 });
 
@@ -544,7 +544,7 @@ export const comoAtividadePublica = (r) => ({
   // D-PROD-249: as áreas da atividade (a 1ª é a `area_id` acima) e quantas são.
   areas: (r.areas ?? []).map(comoAreaDaAtividadePublica),
   areas_count: (r.areas ?? []).length,
-  // MAIKE-ENTREGA2 (D-PROD-268): onde foi o serviço sem área (Manutenção e Outros) e o plantio (capim e dados).
+  // MAIKE-ENTREGA2 (D-PROD-269): onde foi o serviço sem área (Manutenção e Outros) e o plantio (capim e dados).
   local: r.local ?? null,
   plantio: plantioPublico(r.plantio),
 });
@@ -815,7 +815,7 @@ export const comoLinhaProdutoPublica = (r) => ({
   quantidade: t4(r.quantidade),
   unidade: r.unidade,
   dose_ha: t4(r.dose_ha),
-  // MAIKE-ENTREGA2 (D-PROD-268): o VC (%) do saco de semente, 2 casas (nulo sem VC).
+  // MAIKE-ENTREGA2 (D-PROD-269): o VC (%) do saco de semente, 2 casas (nulo sem VC).
   vc_percentual: r.vc_percentual === null || r.vc_percentual === undefined ? null : dec(r.vc_percentual).toFixed(2),
   custo_unitario: t4(r.custo_unitario),
   custo_total: t4(r.custo_total),

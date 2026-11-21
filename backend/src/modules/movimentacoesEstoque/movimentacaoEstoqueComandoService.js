@@ -256,6 +256,11 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
         return { httpStatus: 201, body };
       },
     });
+    // D-PROD-268: o recibo da baixa continua `committed` depois do cancelamento do
+    // lançamento do cocho (a reconciliação e o bloqueio da exclusão da compra o leem).
+    // Reenviar a chave original dessa baixa não pode responder "baixada" com o retrato
+    // antigo: se a saída foi estornada pelo cancelamento, recusa sem gravar nada.
+    if (idem.replay) await recusarReplayDeSaidaEstornada(tx, cli, idem.body);
     return idem;
   });
 
@@ -263,6 +268,33 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
     return { ...resultado.body, replay: true };
   }
   return resultado.body;
+};
+
+/**
+ * D-PROD-268 — replay de uma saída de suplementação cujo lançamento de cocho foi
+ * cancelado: 409 `SUPLEMENTACAO_REGISTRO_CANCELADO` (nada gravado).
+ * @param {any} tx
+ * @param {string} cli
+ * @param {any} body  resposta guardada no recibo
+ */
+const recusarReplayDeSaidaEstornada = async (tx, cli, body) => {
+  const id = body?.movimentacao?.id;
+  if (typeof id !== 'string' || !id) return;
+  const m = await tx.movimentacaoEstoque.findUnique({
+    where: { cliente_id_id: { cliente_id: cli, id } },
+    select: { id: true, status: true, movimento_filho_id: true },
+  });
+  if (!m || m.status !== 'Estornada' || !m.movimento_filho_id) return;
+  const filho = await tx.movimentacaoEstoque.findUnique({
+    where: { cliente_id_id: { cliente_id: cli, id: m.movimento_filho_id } },
+    select: { tipo_detalhado: true },
+  });
+  if (filho?.tipo_detalhado !== 'estorno_suplementacao') return;
+  throw new AppError(
+    'SUPLEMENTACAO_REGISTRO_CANCELADO',
+    'esta baixa foi estornada pelo cancelamento do lançamento do cocho; nada foi gravado agora',
+    { details: { field: 'operation_id', reason: 'saida_estornada', movimentacao_id: m.id } }
+  );
 };
 
 /**

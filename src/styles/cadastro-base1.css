@@ -2452,7 +2452,7 @@
     min-height: 96px;
   }
   /*
-   * D-PROD-268 — no celular, o valor do campo (16px, o tamanho que evita o zoom do iPhone) não cabia no campo de 38px:
+   * D-PROD-269 — no celular, o valor do campo (16px, o tamanho que evita o zoom do iPhone) não cabia no campo de 38px:
    * a data (e o texto) subia por cima do rótulo flutuante ("Data de início", "Data de término"). Na "Nova realização" o
    * campo cresce para 48px no celular, como na Lançamento em lote (.mk-lanc); o desktop fica como estava.
    */

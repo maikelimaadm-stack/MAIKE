@@ -432,7 +432,7 @@ const paraAuditoria = (r) => ({
   tem_observacao: Boolean(r.observacao),
   tem_motivo_cancelamento: Boolean(r.motivo_cancelamento),
   tem_motivo_reabertura: Boolean(r.motivo_reabertura),
-  // MAIKE-ENTREGA2 (D-PROD-268): o local (texto livre) fica fora; só se há.
+  // MAIKE-ENTREGA2 (D-PROD-269): o local (texto livre) fica fora; só se há.
   tem_local: Boolean(r.local),
 });
 
@@ -656,7 +656,7 @@ export const obterTotais = async (contexto, id, query = {}) => {
  * @param {{ clienteId: string, empresaId: string, tempo: { agora: Date, hoje: string, fuso: string },
  *   tipoAtividadeId: string, estado: Record<string, any>, acao: string, auditoriaExtra?: Record<string, unknown>,
  *   dispensarArea?: boolean, unidadeSemCadastro?: string|null }} abertura
- *   MAIKE-ENTREGA2 (D-PROD-268): `dispensarArea` (o registro de campo sem área de Manutenção e Outros) ignora `exige_area`;
+ *   MAIKE-ENTREGA2 (D-PROD-269): `dispensarArea` (o registro de campo sem área de Manutenção e Outros) ignora `exige_area`;
  *   `unidadeSemCadastro` é a unidade da quantidade feita quando a operação não tem unidade de produção; `estado.local` é o
  *   local do serviço sem área.
  */
@@ -686,7 +686,7 @@ export const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoA
   }
   if (estado.bem_id) await exigirBem(tx, clienteId, empresaId, estado.bem_id);
   if (estado.lancamento_tarefa_id) await exigirTarefa(tx, clienteId, empresaId, estado.lancamento_tarefa_id);
-  // MAIKE-ENTREGA2 (D-PROD-268): o registro de campo de Manutenção e Outros SEM área (com o local) dispensa a área, mesmo
+  // MAIKE-ENTREGA2 (D-PROD-269): o registro de campo de Manutenção e Outros SEM área (com o local) dispensa a área, mesmo
   // com `exige_area` (a chave saiu da tela na D-PROD-258 e nasce ligada em toda operação nova).
   exigirFlagsDoTipo(dispensarArea ? { ...regrasDoTipo(tipo), exige_area: false } : regrasDoTipo(tipo), estado);
   const snapshots = snapshotsDoTipo(tipo, empresaId);
@@ -706,7 +706,7 @@ export const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoA
       }),
       ...setor,
       ...snapshots,
-      // MAIKE-ENTREGA2 (D-PROD-268): a unidade da quantidade feita quando a operação não tem unidade de produção (só o
+      // MAIKE-ENTREGA2 (D-PROD-269): a unidade da quantidade feita quando a operação não tem unidade de produção (só o
       // registro de campo a passa) e o local do serviço sem área.
       ...(unidadeSemCadastro && !snapshots.unidade_producao_sigla ? { unidade_producao_sigla: unidadeSemCadastro } : {}),
       ...(estado.local ? { local: estado.local } : {}),

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-268; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-269; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-268)
+## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-269)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-268**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25` · PR (a abrir) |
+| Decisão | **D-PROD-269**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25` · PR **#354** |
 | Escopo | Plantio de pastagem com o capim obrigatório (do Cadastro de Culturas; capim diferente abre outra atividade), forma, semente incrustada, cobertura, consórcio e o VC % da semente; safra automática (1º/jul a 30/jun, "2026/27"); Aplicação com o alvo da operação, o nº do receituário e o "pasto liberado em" pela carência do produto; Manutenção e Outros com a área opcional e o local; quantidade feita + unidade na Manutenção; a lista de referência de capins (Marandu 35/20 e 6 capins do Doc 397) sem tocar no que a fazenda já tem; a data no celular |
 | Migration | `20261121100000_atividade_campos_por_tipo`, **EXPAND** (tabela nova `AtividadePlantio` e 5 colunas anuláveis), checksum `9e6487ff…2a58`. **Não aplicada.** Ordem: aplicar com o GO do proprietário, depois o merge |
 | Próximas | agrupador de Reforma e "Faz parte de: Reforma"; "Conferir nascimento"; aviso do 1º pastejo |
 | Relatório | [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · runbook [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md) |
+
+## Missão (2026-11-21) — MAIKE-ESTORNO-COCHO-DEPOSITO: cancelar lançamento de cocho e transferência entre depósitos (D-PROD-268)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-268**, etapa 2 da D-PROD-266; escolhas do proprietário: permissão nova desligada, recusar com movimento depois, cancelado some dos históricos, recusar com origem inativa |
+| Branch / PR | `feat/estorno-cocho-deposito`, a partir da `main` `2e048854`, com a `main` `695ddb25` integrada · PR **#353** (mergeada) |
+| Escopo | Permissão `cancelar_lancamentos_estoque`; primitivas de estorno no motor; `POST /suplementacao-eventos/:id/cancelamento` e `POST /movimentacoes-estoque/:id/cancelar-transferencia`, com ensaio GET; botões nos históricos do cocho e do depósito |
+| Migration | Nenhuma. Merge e deploy normais |
+| Relatório | [`MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md`](./MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md) |
 
 ## Missão (2026-11-21) — MAIKE-VARIOS-DIAS: serviço de vários dias e a Situação da lista (D-PROD-267)
 

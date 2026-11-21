@@ -76,7 +76,7 @@ const CAMPOS_D195 = Object.freeze([
   'coeficiente_padrao',
   ...FLAGS,
 ]);
-/** D-PROD-268: o alvo da Aplicação (nulo sem alvo). */
+/** D-PROD-269: o alvo da Aplicação (nulo sem alvo). */
 const CAMPOS_D268 = Object.freeze(['alvo']);
 const CAMPOS_PUBLICOS = Object.freeze([...CAMPOS_D182, ...CAMPOS_D195, ...CAMPOS_D268].sort());
 /** Os campos novos de um tipo sem nada informado: flags false, padrões null. */

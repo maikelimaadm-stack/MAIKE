@@ -13,6 +13,24 @@ export const ENTIDADE_OFFLINE = 'SuplementacaoEvento';
 
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
+/**
+ * Ordem `campo` / `-campo` (estável; nulos por último no decrescente) — a mesma da porta offline.
+ * @param {any[]} items @param {unknown} order
+ */
+const ordenarPor = (items, order) => {
+  if (!order || typeof order !== 'string') return items;
+  const desc = order.startsWith('-');
+  const campo = desc ? order.slice(1) : order;
+  return [...items].sort((a, b) => {
+    const va = a?.[campo];
+    const vb = b?.[campo];
+    if (va === vb) return 0;
+    if (va === undefined || va === null) return desc ? 1 : -1;
+    if (vb === undefined || vb === null) return desc ? -1 : 1;
+    return va > vb ? (desc ? -1 : 1) : (desc ? 1 : -1);
+  });
+};
+
 const operacoesNativas = Object.freeze({
   list: (ordenacao, limite) => {
     void ordenacao;
@@ -20,13 +38,16 @@ const operacoesNativas = Object.freeze({
     return nativeRequest(`${CAMINHO}${qs}`, { autenticado: true }, ctx('listSuplementacaoEvento'));
   },
 
+  // D-PROD-268: o limite vale DEPOIS do filtro e da ordem (como na porta offline). Antes, o
+  // `limit` ia ao GET do tenant inteiro e o filtro do cocho rodava só sobre os N mais novos da
+  // conta: o "último lançamento do cocho" podia sair vazio (e o `evento_anterior_id` errado).
   filter: async (criterio, ordenacao, limite) => {
-    void ordenacao;
-    const lista = await operacoesNativas.list(undefined, limite);
-    const arr = Array.isArray(lista) ? lista : [];
-    return arr.filter((item) =>
+    const lista = await operacoesNativas.list(undefined, undefined);
+    const arr = (Array.isArray(lista) ? lista : []).filter((item) =>
       Object.entries(criterio || {}).every(([campo, valor]) => item?.[campo] === valor)
     );
+    const ordenados = ordenarPor(arr, ordenacao);
+    return typeof limite === 'number' && limite > 0 ? ordenados.slice(0, limite) : ordenados;
   },
 
   create: (dados) =>
@@ -48,7 +69,7 @@ const operacoesNativas = Object.freeze({
 
 });
 
-export const suplementacaoEventoPort = offlineStorageDisponivel()
+const portaBase = offlineStorageDisponivel()
   ? createOfflineEntityAdapter({
       entityName: ENTIDADE_OFFLINE,
       operations: operacoesNativas,
@@ -56,3 +77,20 @@ export const suplementacaoEventoPort = offlineStorageDisponivel()
       tenantScoped: true,
     })
   : operacoesNativas;
+
+/**
+ * D-PROD-268 — documento CANCELADO (`situacao: 'cancelado'`) não aparece em leitura nenhuma: o
+ * servidor já o omite no GET; aqui é o reforço para a cópia offline antiga do aparelho.
+ * @param {unknown} lista
+ */
+const semCancelados = (lista) => (Array.isArray(lista) ? lista.filter((item) => item?.situacao !== 'cancelado') : lista);
+
+export const suplementacaoEventoPort = Object.freeze({
+  ...portaBase,
+  list: async (/** @type {any[]} */ ...args) => semCancelados(await /** @type {any} */ (portaBase).list(...args)),
+  // O limite vale depois de tirar os cancelados (senão um cancelado da cópia antiga ocupava a vaga).
+  filter: async (/** @type {any} */ criterio, /** @type {any} */ ordenacao, /** @type {any} */ limite) => {
+    const lista = semCancelados(await /** @type {any} */ (portaBase).filter(criterio, ordenacao));
+    return Array.isArray(lista) && typeof limite === 'number' && limite > 0 ? lista.slice(0, limite) : lista;
+  },
+});

@@ -195,6 +195,8 @@ export const GUARDAS = Object.freeze({
     lancamento: porQualquer({ mapa: 'lancar_suplementacao' }),
     editar: porQualquer({ mapa: 'lancar_suplementacao' }),
     excluir: SO_ADMIN,
+    // D-PROD-268 — cancelamento (estorno exato) do lançamento de cocho; relido na transação.
+    cancelar: porQualquer({ mapa: 'cancelar_lancamentos_estoque' }),
   },
   pontoSuplementacao: {
     criar: porQualquer(...MAPA_CAD_CRIAR),
@@ -208,7 +210,9 @@ export const GUARDAS = Object.freeze({
     criar: SO_ADMIN, // sem chamador na interface
     // R3: o Mapa Cadastro só renomeia o local nas movimentações (FormularioPonto).
     editar: porQualquer(...MAPA_CAD_EDITAR.map((o) => ({ de: o, campos: ['local_origem', 'local_destino'] }))),
-    excluir: SO_ADMIN, // estorno suspenso
+    excluir: SO_ADMIN, // DELETE continua recusado; o estorno é o cancelamento abaixo
+    // D-PROD-268 — cancelar transferência entre depósitos (estorno exato); relido na transação.
+    cancelarTransferencia: porQualquer({ mapa: 'cancelar_lancamentos_estoque' }),
   },
   estoqueLoteNota: {
     criar: SO_ADMIN,

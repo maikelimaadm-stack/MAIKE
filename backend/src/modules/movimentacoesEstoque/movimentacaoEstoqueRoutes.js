@@ -8,6 +8,7 @@ import {
   comandoSaidaSuplementacao,
   comandoTransferenciaEntreLocais,
 } from './movimentacaoEstoqueComandoService.js';
+import { cancelarTransferencia, elegibilidadeCancelamentoTransferencia } from './transferenciaEstornoService.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
@@ -91,6 +92,36 @@ const COMANDO_TRANSFERENCIA_SCHEMA = {
   },
 };
 
+const EMPRESA_ID = { type: 'string', minLength: 1, maxLength: 64 };
+
+/**
+ * D-PROD-268 — cancelar transferência entre depósitos. Só alvo no path (qualquer perna do par);
+ * do corpo, só empresa, motivo e chave: quantidade, custo, local, data e tenant nunca vêm do cliente.
+ */
+const CANCELAR_TRANSFERENCIA_SCHEMA = {
+  ...ID_SCHEMA,
+  body: {
+    type: 'object',
+    required: ['empresa_id', 'motivo', 'operation_id'],
+    additionalProperties: false,
+    properties: {
+      empresa_id: EMPRESA_ID,
+      motivo: { type: 'string', minLength: 3, maxLength: 500, pattern: '\\S' },
+      operation_id: OPERATION_ID,
+    },
+  },
+};
+
+const ELEGIBILIDADE_CANCELAR_TRANSFERENCIA_SCHEMA = {
+  ...ID_SCHEMA,
+  querystring: {
+    type: 'object',
+    required: ['empresa_id'],
+    additionalProperties: false,
+    properties: { empresa_id: EMPRESA_ID },
+  },
+};
+
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarMovimentacaoEstoqueRoutes = async (app) => {
   app.get('/movimentacoes-estoque', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
@@ -122,6 +153,29 @@ export const registrarMovimentacaoEstoqueRoutes = async (app) => {
         /** @type {Record<string, unknown>} */ (request.body)
       );
       return reply.status(corpo.replay ? 200 : 201).send(corpo);
+    }
+  );
+
+  // D-PROD-268 — estorno exato da transferência entre depósitos (o segmento estático não colide com /:id).
+  app.post(
+    '/movimentacoes-estoque/:id/cancelar-transferencia',
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.cancelarTransferencia], schema: CANCELAR_TRANSFERENCIA_SCHEMA },
+    async (request, reply) => {
+      exigirAuthContext(request.contexto.auth);
+      const { id } = /** @type {{id: string}} */ (request.params);
+      const r = await cancelarTransferencia(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
+      return reply.status(r.status).send(r.body);
+    }
+  );
+
+  app.get(
+    '/movimentacoes-estoque/:id/elegibilidade-cancelamento-transferencia',
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.cancelarTransferencia], schema: ELEGIBILIDADE_CANCELAR_TRANSFERENCIA_SCHEMA },
+    async (request) => {
+      exigirAuthContext(request.contexto.auth);
+      const { id } = /** @type {{id: string}} */ (request.params);
+      const { empresa_id: empresaId } = /** @type {{empresa_id: string}} */ (request.query);
+      return elegibilidadeCancelamentoTransferencia(request.contexto, id, empresaId);
     }
   );
 

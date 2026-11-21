@@ -65,7 +65,7 @@ export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
 });
 
 /**
- * MAIKE-ENTREGA2 (D-PROD-268) — o item de `produtos[]` do LANÇAMENTO (`POST …/apontamentos`, `…/duplicar` e
+ * MAIKE-ENTREGA2 (D-PROD-269) — o item de `produtos[]` do LANÇAMENTO (`POST …/apontamentos`, `…/duplicar` e
  * `POST /atividades/registrar`): o de sempre e o VC (%) opcional da semente, em texto (o serviço confere a faixa). As rotas
  * de UMA linha (lançar e editar a linha) continuam com o corpo de antes.
  */
