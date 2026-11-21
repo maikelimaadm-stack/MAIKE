@@ -32,6 +32,9 @@ export const DEFAULT_MAPA_GERAL_PERMISSIONS = {
   // D-PROD-266 — excluir movimentação do lote (gravadora). Nasce DESLIGADA para
   // todo operador: só `=== true` gravado liga (`normalizeMapaGeralPermissions`).
   excluir_movimentacoes_lote: false,
+  // D-PROD-268 — cancelar lançamento de cocho e transferência entre depósitos
+  // (devolve estoque; gravadora). Nasce DESLIGADA para todo operador.
+  cancelar_lancamentos_estoque: false,
 };
 
 export const MAPA_GERAL_PERMISSION_GROUPS = [
@@ -76,6 +79,8 @@ export const MAPA_GERAL_PERMISSION_GROUPS = [
       { key: 'lancar_suplementacao', label: 'Lançar suplementação' },
       { key: 'movimentar_depositos', label: 'Fazer entrada / saída em depósito' },
       { key: 'visualizar_historico_cocho', label: 'Ver histórico de cocho / depósito' },
+      // D-PROD-268
+      { key: 'cancelar_lancamentos_estoque', label: 'Cancelar lançamento de cocho e transferência de depósito' },
     ],
   },
   {
@@ -98,6 +103,8 @@ export const MAPA_GERAL_ACOES_GRAVADORAS = Object.freeze([
   'medir_forragem',
   // D-PROD-266
   'excluir_movimentacoes_lote',
+  // D-PROD-268
+  'cancelar_lancamentos_estoque',
 ]);
 
 /** Administrador real da fazenda ou concessão `is_admin`: tudo ligado. */
@@ -146,4 +153,23 @@ export const podeExcluirMovimentacoesDoLote = (usuario, permissao) => {
   if (!permissao) return false;
   const mapa = normalizeMapaGeralPermissions(permissao.mapa_geral_permissoes, canAccessPage(permissao, 'pec-mapa-geral', 'mapa'));
   return mapa[CHAVE_EXCLUIR_MOVIMENTACOES_LOTE] === true;
+};
+
+/** D-PROD-268 — chave do mapa que libera cancelar lançamento de cocho e transferência de depósito. */
+export const CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE = 'cancelar_lancamentos_estoque';
+
+/**
+ * D-PROD-268 — quem vê "Cancelar lançamento" (cocho) e "Cancelar transferência"
+ * (depósito): administrador real, `is_admin` ou a chave gravadora
+ * `cancelar_lancamentos_estoque` com a tela do Mapa Geral visível. Mesma regra do
+ * servidor (`podeCancelarLancamentosEstoque`). Só interface: o servidor reautoriza.
+ * @param {any} usuario  `getCurrentUser()`
+ * @param {any} permissao  `carregarPermissaoEfetiva(usuario)` (ou null)
+ * @returns {boolean}
+ */
+export const podeCancelarLancamentosEstoque = (usuario, permissao) => {
+  if (usuario?.administrador_fazenda === true || permissao?.is_admin === true) return true;
+  if (!permissao) return false;
+  const mapa = normalizeMapaGeralPermissions(permissao.mapa_geral_permissoes, canAccessPage(permissao, 'pec-mapa-geral', 'mapa'));
+  return mapa[CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE] === true;
 };

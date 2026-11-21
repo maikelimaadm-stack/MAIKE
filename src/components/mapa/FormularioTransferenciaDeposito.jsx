@@ -25,6 +25,73 @@ import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 
 /**
+ * D-PROD-268 — `operation_id` PERSISTIDA por envio. Antes cada clique gerava chave nova:
+ * se a resposta se perdia (rede, timeout) depois do commit, o reenvio virava SEGUNDA
+ * transferência. Agora a chave nasce no primeiro envio de um conteúdo (assinatura dos campos
+ * escolhidos) e fica gravada até uma resposta DEFINITIVA do servidor; reenviar o MESMO
+ * conteúdo reusa a MESMA chave. Conteúdo diferente = operação nova. Por tenant + usuário +
+ * depósito + sentido.
+ *
+ * Travas contra o reuso errado da chave (revisão da D-PROD-268):
+ *  - a pendência VENCE em `JANELA_REENVIO_MS` (15 min, muito acima do pior caso do servidor):
+ *    uma transferência legítima igual, lançada mais tarde, nasce com chave nova;
+ *  - `replay: true` NUNCA é mostrado como "registrada": avisa que o envio anterior já tinha sido
+ *    gravado e nada novo foi gravado; o formulário fica aberto e a pendência é limpa (um novo
+ *    envio, consciente, é outra operação);
+ *  - `IDEMPOTENCY_CONFLICT` (a chave já foi usada com outro corpo — o rateio FIFO calculado no
+ *    navegador muda quando o 1º envio esgotou um lote) prova que o envio anterior chegou ao
+ *    servidor: a chave FICA (o reenvio repete o 409, nunca grava a segunda) e a tela manda
+ *    conferir o histórico;
+ *  - com pendência do mesmo conteúdo e saldo local que já não cobre a quantidade, o aviso é o
+ *    mesmo "pode já ter sido registrada" (e não "saldo insuficiente").
+ */
+export const JANELA_REENVIO_MS = 15 * 60 * 1000;
+export const TEXTO_TRANSFERENCIA_TALVEZ_REGISTRADA =
+  "Esta transferência pode já ter sido registrada no envio anterior. Confira o histórico do depósito antes de enviar de novo.";
+export const TEXTO_TRANSFERENCIA_JA_REGISTRADA =
+  "Esta transferência já tinha sido registrada no envio anterior; nada novo foi gravado. Para lançar outra igual, envie de novo.";
+const chaveDoEnvioPendente = (escopo, depositoId, direcao) => `maike_transferencia_deposito_envio:${escopo}:${depositoId}:${direcao}`;
+const novaChaveDeEnvio = () =>
+  `transf-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+/** @typedef {{ assinatura: string, operation_id: string, em: number }} EnvioPendente */
+/** Pendência gravada e ainda dentro da janela; vencida (ou sem `em`) é descartada. @returns {EnvioPendente | null} */
+const lerEnvioPendente = (chave) => {
+  try {
+    const dados = JSON.parse(window.localStorage.getItem(chave) || "null");
+    if (!dados || typeof dados.assinatura !== "string" || typeof dados.operation_id !== "string") return null;
+    if (!Number.isFinite(dados.em) || Date.now() - dados.em > JANELA_REENVIO_MS || dados.em > Date.now() + 60 * 1000) {
+      window.localStorage.removeItem(chave);
+      return null;
+    }
+    return dados;
+  } catch {
+    return null;
+  }
+};
+const gravarEnvioPendente = (chave, dados) => {
+  try {
+    window.localStorage.setItem(chave, JSON.stringify(dados));
+  } catch {
+    /* sem storage: vale a chave em memória (ref) */
+  }
+};
+const limparEnvioPendente = (chave) => {
+  try {
+    window.localStorage.removeItem(chave);
+  } catch {
+    /* idem */
+  }
+};
+/** Resultado desconhecido (a chave FICA): sem código do servidor (rede/timeout) ou conflito transitório. */
+const CODIGOS_QUE_GUARDAM_A_CHAVE = new Set(["CONCURRENCY_CONFLICT", "IDEMPOTENCY_IN_PROGRESS", "INTERNAL_ERROR", "IDEMPOTENCY_CONFLICT"]);
+const codigoDoErro = (erro) => (typeof erro?.cause?.code === "string" ? erro.cause.code : null);
+/** Resposta DEFINITIVA do servidor (nada a reenviar com esta chave); o resto guarda a chave. */
+const respostaDefinitiva = (erro) => {
+  const codigo = codigoDoErro(erro);
+  return Boolean(codigo) && !CODIGOS_QUE_GUARDAM_A_CHAVE.has(codigo);
+};
+
+/**
  * Entrada e Saída do depósito (transferência entre locais de estoque), no desenho do
  * lançamento de manejo (D-PROD-222): `LancLoteForm` com os campos em `LancField`
  * (rótulo dentro da caixa), a grade de duas colunas, o resumo Origem · Destino ·
@@ -77,6 +144,8 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const [observacoes, setObservacoes] = useState("");
   const [unidadeInput, setUnidadeInput] = useState("KG");
   const [saving, setSaving] = useState(false);
+  const envioRef = useRef(/** @type {EnvioPendente | null} */ (null));
+  const [aviso, setAviso] = useState(/** @type {string | null} */ (null));
 
   const { data: user } = useQuery({ queryKey: ["user-transferencia-deposito"], queryFn: () => getCurrentUser() });
   const { data: locais = [] } = useQuery({ queryKey: ["locais-estoque-deposito"], queryFn: () => listarTodosLocais() });
@@ -155,16 +224,27 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     const inputNum = parseNumber(quantidade);
     const quantidadeFinal = unidadeInput === "SACO" ? sacosParaKg(inputNum, pesoPorSaco) : inputNum;
     if (quantidadeFinal <= 0) return toast.error("Informe uma quantidade válida.");
-    if (quantidadeFinal > saldoDisponivel) return toast.error("Quantidade maior que o saldo disponível.");
 
-    setSaving(true);
-    try {
-      await registrarTransferenciaEntreLocais({
-        empresaId: empresaSelecionadaId, produto: produtoSelecionado,
-        quantidade: quantidadeFinal, localOrigemId, localOrigemNome, localDestinoId, localDestinoNome,
-        observacoes: observacoes || `${direction === 'entrada' ? 'Entrada' : 'Saída'} pelo depósito ${deposito.nome_ponto}`, lotesNota,
-        dataMovimentacao,
-      });
+    // Mesma chave para o MESMO conteúdo até a resposta definitiva (D-PROD-268), dentro da janela.
+    const chaveStorage = chaveDoEnvioPendente(`${user?.cliente_id ?? "-"}:${user?.id ?? user?.usuario_id ?? "-"}`, deposito.id, direction);
+    const assinatura = JSON.stringify([empresaSelecionadaId, produtoSelecionado.id, localOrigemId, localDestinoId, quantidadeFinal, dataMovimentacao, observacoes]);
+    const daMemoria = envioRef.current?.assinatura === assinatura && Date.now() - envioRef.current.em <= JANELA_REENVIO_MS ? envioRef.current : null;
+    const gravado = lerEnvioPendente(chaveStorage);
+    const anterior = daMemoria ?? (gravado?.assinatura === assinatura ? gravado : null);
+
+    if (quantidadeFinal > saldoDisponivel) {
+      // Com pendência do mesmo conteúdo, o saldo que falta é provavelmente o do envio anterior que gravou.
+      if (!anterior) return toast.error("Quantidade maior que o saldo disponível.");
+      setAviso(TEXTO_TRANSFERENCIA_TALVEZ_REGISTRADA);
+      return toast.warning(TEXTO_TRANSFERENCIA_TALVEZ_REGISTRADA);
+    }
+
+    const envio = anterior ?? { assinatura, operation_id: novaChaveDeEnvio(), em: Date.now() };
+    envioRef.current = envio;
+    gravarEnvioPendente(chaveStorage, envio);
+    setAviso(null);
+
+    const recarregar = async () => {
       // O histórico do depósito e o mapa leem primeiro o IndexedDB, e o refresh comum respeita o intervalo
       // de 60 s: sem `force` a transferência recém-gravada não aparecia ao reabrir o histórico.
       await Promise.all([
@@ -172,10 +252,41 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         refreshMapaCacheEntry("estoqueLotes", empresaSelecionadaId, { force: true }),
       ]).catch(() => {});
       invalidarCachesDoMapa(queryClient, ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "movimentacoes", "produtos", "historico-deposito", "movimentacoes-deposito-detalhe"]);
+    };
+
+    setSaving(true);
+    try {
+      const resposta = await registrarTransferenciaEntreLocais({
+        empresaId: empresaSelecionadaId, produto: produtoSelecionado,
+        quantidade: quantidadeFinal, localOrigemId, localOrigemNome, localDestinoId, localDestinoNome,
+        observacoes: observacoes || `${direction === 'entrada' ? 'Entrada' : 'Saída'} pelo depósito ${deposito.nome_ponto}`, lotesNota,
+        dataMovimentacao,
+        operationId: envio.operation_id,
+      });
+      envioRef.current = null;
+      limparEnvioPendente(chaveStorage);
+      await recarregar();
+      if (resposta?.replay === true) {
+        // O servidor devolveu o envio ANTERIOR desta chave: nada novo foi gravado. Não é "registrada".
+        setAviso(TEXTO_TRANSFERENCIA_JA_REGISTRADA);
+        toast.warning(TEXTO_TRANSFERENCIA_JA_REGISTRADA);
+        return;
+      }
       toast.success("Transferência registrada.");
       onSuccess?.();
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Erro ao registrar a transferência."));
+      if (respostaDefinitiva(error)) {
+        envioRef.current = null;
+        limparEnvioPendente(chaveStorage);
+      }
+      if (codigoDoErro(error) === "IDEMPOTENCY_CONFLICT") {
+        // A chave já está no servidor: o envio anterior chegou. Mostra o que foi gravado; a chave fica.
+        await recarregar();
+        setAviso(TEXTO_TRANSFERENCIA_TALVEZ_REGISTRADA);
+        toast.warning(TEXTO_TRANSFERENCIA_TALVEZ_REGISTRADA);
+      } else {
+        toast.error(getApiErrorMessage(error, "Erro ao registrar a transferência."));
+      }
     } finally {
       setSaving(false);
     }
@@ -235,6 +346,12 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
           </React.Fragment>
         ))}
       </LancLoteAviso>
+
+      {aviso ? (
+        <LancLoteAviso tom="ambar" role="status" data-testid="transferencia-aviso-envio-anterior">
+          {aviso}
+        </LancLoteAviso>
+      ) : null}
 
       <LancField label="Observações">
         <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className={LL_CTL} />
