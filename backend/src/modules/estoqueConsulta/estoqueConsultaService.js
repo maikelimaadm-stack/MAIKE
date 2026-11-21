@@ -25,6 +25,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
+import { ORIGEM_SAIDA_ESTOQUE } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { exigirEmpresaDoTenant, invalido, textoDeBusca } from '../gestao/gestaoComum.js';
 import { ehDiaValido, paginacaoOpcoes, paginarPorNome } from '../patrimonio/patrimonioComum.js';
 import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
@@ -301,10 +302,13 @@ const documentoDeOrigem = async (tx, cli, m) => {
     where: { cliente_id: cli, ...porMovimento },
     select: { saida: { select: { id: true, numero: true, motivo: { select: { nome: true } } } } },
   });
-  if (saida?.saida) {
-    const s = saida.saida;
-    return { tipo: 'SAIDA_ESTOQUE', id: s.id, numero: s.numero, rotulo: `Saída nº ${s.numero}${s.motivo?.nome ? ` — ${s.motivo.nome}` : ''}`, pagina: null };
-  }
+  // D-PROD-270: a linha substituída pela edição da saída é apagada (o evento guarda o snapshot); o movimento
+  // antigo e o estorno dele ainda levam o id da saída em `lancamento_origem_id` (gravado pelo motor).
+  const s = saida?.saida
+    ?? (m.origem_sistema === ORIGEM_SAIDA_ESTOQUE && m.lancamento_origem_id
+      ? await tx.saidaEstoque.findFirst({ where: { cliente_id: cli, id: m.lancamento_origem_id }, select: { id: true, numero: true, motivo: { select: { nome: true } } } })
+      : null);
+  if (s) return { tipo: 'SAIDA_ESTOQUE', id: s.id, numero: s.numero, rotulo: `Saída nº ${s.numero}${s.motivo?.nome ? ` — ${s.motivo.nome}` : ''}`, pagina: null };
   return null;
 };
 

@@ -14,6 +14,12 @@
  *  - motivos do cadastro de SAÍDA (só ativos no seletor; "Motivos…" gerencia na mesma janela); várias linhas;
  *  - o corpo vai com a quantidade como TEXTO, sem valor/custo, e `operation_id`; saldo insuficiente diz a linha;
  *  - no celular a folha nasce dentro da janela; o movimento de saída manual abre o detalhe da saída (excluir; 409).
+ *
+ * D-PROD-270 — edição completa da Entrada e da Saída manual:
+ *  - "Editar" no detalhe (só com a ação e a situação CONFIRMADA) abre a janela "Novo movimento" em modo edição, com o
+ *    tipo fixo, o título "Editar entrada/saída nº N" e os campos preenchidos com a versão vigente;
+ *  - o PATCH de substituição leva o corpo da criação + versão, motivo da edição e operation_id (`ent-ed-`/`sai-ed-`),
+ *    reaproveitada no reenvio; o 409 de "mexeu depois" vira mensagem clara; "Editar observação" segue igual.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -87,6 +93,8 @@ const criarRoteador = () => {
     entradas: [ENTRADA], motivos: [...MOTIVOS], falhaDoPost: /** @type {null|{status:number, body:any}} */ (null),
     saidas: [SAIDA], motivosSaida: MOTIVOS_SAIDA.map((m) => ({ ...m })), falhaDaSaida: /** @type {null|{status:number, body:any}} */ (null),
     falhaDaExclusaoSaida: /** @type {null|{status:number, body:any}} */ (null),
+    falhaDaEdicaoEntrada: /** @type {null|{status:number, body:any}} */ (null),
+    falhaDaEdicaoSaida: /** @type {null|{status:number, body:any}} */ (null),
   };
   const opcoes = (itens) => ({ status: 200, body: { itens, has_more: false, next_cursor: null } });
   const rotear = async (req) => {
@@ -124,8 +132,16 @@ const criarRoteador = () => {
     const sd = /^\/estoque\/saidas\/([^/]+)(\/excluir)?$/.exec(path);
     if (sd && !sd[2] && method === 'GET') return { status: 200, body: estado.saidas.find((x) => x.id === sd[1]) };
     if (sd && !sd[2] && method === 'PATCH') {
+      if (estado.falhaDaEdicaoSaida) return estado.falhaDaEdicaoSaida;
       const atual = estado.saidas.find((x) => x.id === sd[1]);
-      const editada = { ...atual, observacao: body.observacao, versao: atual.versao + 1 };
+      // D-PROD-270: com `itens` é a substituição (as linhas novas; o evento leva o modo).
+      const editada = body.itens
+        ? {
+          ...atual, versao: atual.versao + 1, motivo_id: body.motivo_id, data_saida: body.data_saida, observacao: body.observacao,
+          itens: body.itens.map((i, k) => ({ ...atual.itens[0], id: `si-n${k + 1}`, ordem: k + 1, quantidade: `${i.quantidade}.0000`, quantidade_estoque: `${i.quantidade}.0000` })),
+          eventos: [...atual.eventos, { id: 'sv-ed', tipo: 'EDICAO', modo: 'SUBSTITUICAO', motivo: body.motivo_edicao, criado_em: '2026-11-13T12:00:00.000Z' }],
+        }
+        : { ...atual, observacao: body.observacao, versao: atual.versao + 1 };
       estado.saidas = estado.saidas.map((x) => (x.id === atual.id ? editada : x));
       return { status: 200, body: editada };
     }
@@ -161,6 +177,21 @@ const criarRoteador = () => {
     }
     const m = /^\/estoque\/entradas\/([^/]+)(\/excluir)?$/.exec(path);
     if (m && method === 'GET') return { status: 200, body: estado.entradas.find((e) => e.id === m[1]) };
+    // D-PROD-270: PATCH da entrada — METADADOS (só observação) ou SUBSTITUICAO (com `itens`).
+    if (m && !m[2] && method === 'PATCH') {
+      if (estado.falhaDaEdicaoEntrada) return estado.falhaDaEdicaoEntrada;
+      const e = estado.entradas.find((x) => x.id === m[1]);
+      const editada = body.itens
+        ? {
+          ...e, versao: e.versao + 1, revisao: e.revisao + 1, motivo_id: body.motivo_id, data_entrada: body.data_entrada, documento_numero: body.documento_numero, observacao: body.observacao,
+          itens: body.itens.map((i, k) => ({ ...ITEM, id: `i-n${k + 1}`, ordem: k + 1, quantidade: `${i.quantidade}.0000`, quantidade_estoque: `${i.quantidade}.0000`, revisao_inicio: e.revisao + 1 })),
+          itens_historico: e.itens.map((i) => ({ ...i, revisao_fim: e.revisao })),
+          eventos: [...e.eventos, { id: 'v-ed', tipo: 'EDICAO', modo: 'SUBSTITUICAO', motivo: body.motivo_edicao, criado_em: '2026-11-13T12:00:00.000Z' }],
+        }
+        : { ...e, versao: e.versao + 1, revisao: e.revisao + 1, observacao: body.observacao, eventos: [...e.eventos, { id: 'v-obs', tipo: 'EDICAO', modo: 'METADADOS', motivo: body.motivo_edicao, criado_em: '2026-11-13T12:00:00.000Z' }] };
+      estado.entradas = estado.entradas.map((x) => (x.id === e.id ? editada : x));
+      return { status: 200, body: { ...editada, replay: false } };
+    }
     if (path === '/estoque/entradas' && method === 'POST') {
       if (estado.falhaDoPost) return estado.falhaDoPost;
       const criada = { ...ENTRADA, id: 'e2', numero: '8', motivo_id: body.motivo_id };
@@ -674,5 +705,191 @@ describe('D-PROD-264 — do movimento para a saída', () => {
     expect(saidaDoMovimento({ documento: { tipo: 'SAIDA_ESTOQUE', id: 's9', numero: '9', rotulo: 'Saída nº 9 — Perda' } })).toEqual({ id: 's9', numero: '9', rotulo: 'Saída nº 9 — Perda' });
     expect(saidaDoMovimento({ origem_sistema: 'saida_estoque', lancamento_origem_id: 's1', documento: null })).toMatchObject({ id: 's1' });
     expect(saidaDoMovimento({ origem_sistema: 'entrada_estoque', lancamento_origem_id: 'e1' })).toBeNull();
+  });
+});
+
+describe('D-PROD-270 — edição completa da entrada', () => {
+  const patches = (caminho) => backend.chamadas.filter((c) => c.method === 'PATCH' && c.path === caminho);
+  const abrirDetalheDaEntrada = async () => {
+    await abrirMovimentos();
+    fireEvent.doubleClick((await screen.findByText('101')).closest('tr'));
+    fireEvent.click(await screen.findByTestId('movimento-abrir-entrada'));
+    const janela = await screen.findByTestId('janela-entrada-estoque');
+    await within(janela).findByTestId('entrada-detalhe-fornecedor');
+    return janela;
+  };
+  const abrirEdicao = async () => {
+    const detalhe = await abrirDetalheDaEntrada();
+    fireEvent.click(within(detalhe).getByTestId('entrada-editar-completo'));
+    return screen.findByTestId('janela-novo-movimento-estoque');
+  };
+
+  it('"Editar" abre a janela do movimento em modo edição: tipo fixo, título com o número e todos os campos com a versão vigente', async () => {
+    const janela = await abrirEdicao();
+    expect(within(janela).getByText('Editar entrada nº 7')).toBeTruthy();
+    expect(screen.queryByTestId('janela-entrada-estoque')).toBeNull();
+    expect(within(janela).queryAllByRole('radio')).toHaveLength(0);
+    expect(within(janela).getByTestId('entrada-data').value).toBe('2026-11-10');
+    expect(within(janela).getByLabelText(/^Documento/).value).toBe('NF 77');
+    expect(within(janela).getByTestId('entrada-observacao').value).toBe('compra avulsa');
+    expect(within(janela).getByTestId('entrada-fornecedor').textContent).toContain('Agro Sul');
+    expect(within(janela).getByTestId('entrada-centro-resultado').textContent).toContain('Pecuária');
+    expect(within(janela).getByTestId('entrada-linha-0-produto').textContent).toContain('Ureia');
+    expect(within(janela).getByTestId('entrada-linha-0-deposito').textContent).toContain('Galpão insumos');
+    expect(within(janela).getByTestId('entrada-linha-0-quantidade').value).toBe('1500');
+    expect(within(janela).getByTestId('entrada-linha-0-custo').value).toBe('3,4');
+    expect(within(janela).getByTestId('entrada-linha-0-total').value).toBe('5100');
+    expect(within(janela).getByLabelText('Lote', { selector: 'input' }).value).toBe('L-77');
+    expect(within(janela).getByTestId('entrada-linha-0-validade').value).toBe('2027-03-31');
+    expect(within(janela).getByTestId('movimento-motivo-edicao').value).toBe('');
+    expect(within(janela).getByTestId('movimento-lancar').textContent).toBe('Salvar edição');
+  });
+
+  it('sem o motivo da edição não envia; com ele, o PATCH leva o corpo da criação + versão, motivo e operation_id ent-ed-; o detalhe volta com a versão nova', async () => {
+    const janela = await abrirEdicao();
+    digitar(within(janela).getByTestId('entrada-linha-0-quantidade'), '1200');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    expect(await within(janela).findByText(/Informe o motivo da edição/)).toBeTruthy();
+    expect(patches('/estoque/entradas/e1')).toHaveLength(0);
+    digitar(within(janela).getByTestId('movimento-motivo-edicao'), 'contagem errada');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(patches('/estoque/entradas/e1')).toHaveLength(1));
+    const corpo = patches('/estoque/entradas/e1')[0].body;
+    expect(corpo).toEqual({
+      empresa_id: 'emp-1', operation_id: corpo.operation_id, versao: 1, motivo_edicao: 'contagem errada',
+      motivo_id: 'mot-compra', data_entrada: '2026-11-10', fornecedor_id: 'f1', documento_numero: 'NF 77', centro_custo_id: null, centro_resultado_id: 'cr1', observacao: 'compra avulsa',
+      itens: [{ produto_id: 'p-ureia', local_estoque_id: 'l-galpao', unidade: 'KG', quantidade: '1200', custo_unitario: '3.4', lote_fabricante: 'L-77', data_validade: '2027-03-31' }],
+    });
+    expect(corpo.operation_id).toMatch(/^ent-ed-/);
+    const detalhe = await screen.findByTestId('janela-entrada-estoque');
+    expect(screen.queryByTestId('janela-novo-movimento-estoque')).toBeNull();
+    expect((await within(detalhe).findByTestId('entrada-detalhe-item')).textContent).toMatch(/1\.200 kg em Galpão insumos/);
+    expect(within(detalhe).getByTestId('entrada-grupo-hist-rico').textContent).toContain('Editado (lançamentos refeitos)');
+    const versoes = within(detalhe).getByTestId('entrada-versoes-anteriores');
+    expect(versoes.tagName).toBe('DETAILS');
+    expect(versoes.hasAttribute('open')).toBe(false);
+    expect(versoes.textContent).toContain('Versões anteriores (1)');
+    expect(within(versoes).getByTestId('entrada-versao-1').textContent).toMatch(/1\.500 kg em Galpão insumos/);
+  });
+
+  it('409 de "mexeu depois" diz o produto e o depósito, sem o texto do servidor; o reenvio reaproveita a operation_id', async () => {
+    roteador.estado.falhaDaEdicaoEntrada = {
+      status: 409,
+      body: { code: 'ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS', message: 'texto do servidor', field: 'itens', reason: 'camada_consumida', details: { item_ordem: 1, lote_id: 'c1' }, request_id: 'r' },
+    };
+    const janela = await abrirEdicao();
+    digitar(within(janela).getByTestId('entrada-linha-0-quantidade'), '900');
+    digitar(within(janela).getByTestId('movimento-motivo-edicao'), 'contagem errada');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    const erro = (await within(janela).findByTestId('movimento-erro')).textContent;
+    expect(erro).toContain('Não dá para editar: o estoque de Ureia no depósito Galpão insumos já foi usado depois desta entrada');
+    expect(erro).toContain('Nada foi alterado.');
+    expect(erro).not.toContain('texto do servidor');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(patches('/estoque/entradas/e1')).toHaveLength(2));
+    const [a, b] = patches('/estoque/entradas/e1');
+    expect(a.body.operation_id).toMatch(/^ent-ed-/);
+    expect(a.body.operation_id).toBe(b.body.operation_id);
+  });
+
+  it('cancelar a edição volta ao detalhe sem gravar', async () => {
+    const janela = await abrirEdicao();
+    fireEvent.click(within(janela).getByTestId('movimento-cancelar'));
+    expect(await screen.findByTestId('janela-entrada-estoque')).toBeTruthy();
+    expect(patches('/estoque/entradas/e1')).toHaveLength(0);
+  });
+
+  it('"Editar observação" segue mandando só a observação (METADADOS)', async () => {
+    const detalhe = await abrirDetalheDaEntrada();
+    fireEvent.click(within(detalhe).getByTestId('entrada-editar'));
+    digitar(within(detalhe).getByTestId('entrada-edicao-observacao'), 'compra avulsa de outubro');
+    digitar(within(detalhe).getByTestId('entrada-edicao-motivo'), 'detalhe');
+    await act(async () => fireEvent.click(within(detalhe).getByTestId('entrada-salvar-edicao')));
+    await waitFor(() => expect(patches('/estoque/entradas/e1')).toHaveLength(1));
+    expect(patches('/estoque/entradas/e1')[0].body).toEqual({ empresa_id: 'emp-1', versao: 1, motivo_edicao: 'detalhe', observacao: 'compra avulsa de outubro' });
+    expect(await within(detalhe).findByText('compra avulsa de outubro')).toBeTruthy();
+    expect(within(detalhe).getByTestId('entrada-grupo-hist-rico').textContent).toContain('Editada');
+    expect(within(detalhe).getByTestId('entrada-grupo-hist-rico').textContent).not.toContain('lançamentos refeitos');
+  });
+
+  it('sem a ação `entrada` o detalhe não tem "Editar"', async () => {
+    sessao.permissao = permissaoCom({});
+    const detalhe = await abrirDetalheDaEntrada();
+    expect(within(detalhe).queryByTestId('entrada-editar-completo')).toBeNull();
+    expect(within(detalhe).queryByTestId('entrada-editar')).toBeNull();
+  });
+});
+
+describe('D-PROD-270 — edição completa da saída', () => {
+  const patches = () => backend.chamadas.filter((c) => c.method === 'PATCH' && c.path === '/estoque/saidas/s1');
+  const abrirEdicao = async () => {
+    await abrirMovimentos();
+    fireEvent.doubleClick((await screen.findByText('106')).closest('tr'));
+    fireEvent.click(await screen.findByTestId('movimento-abrir-saida'));
+    const detalhe = await screen.findByTestId('janela-saida-estoque');
+    await within(detalhe).findByTestId('saida-detalhe-motivo');
+    fireEvent.click(within(detalhe).getByTestId('saida-editar-completo'));
+    return screen.findByTestId('janela-novo-movimento-estoque');
+  };
+
+  it('"Editar" abre a Saída preenchida, com tipo fixo; o PATCH leva o corpo da criação + versão, motivo e operation_id sai-ed-; o detalhe volta com a versão nova', async () => {
+    sessao.permissao = permissaoCom({ entrada: true, saida: true });
+    const janela = await abrirEdicao();
+    expect(within(janela).getByText('Editar saída nº 3')).toBeTruthy();
+    expect(within(janela).queryAllByRole('radio')).toHaveLength(0);
+    expect(within(janela).queryByTestId('entrada-data')).toBeNull();
+    expect(within(janela).getByTestId('saida-data').value).toBe('2026-11-12');
+    expect(within(janela).getByTestId('saida-observacao').value).toBe('sacos rasgados');
+    expect(within(janela).getByTestId('saida-centro-resultado').textContent).toContain('Pecuária');
+    expect(within(janela).getByTestId('saida-linha-0-produto').textContent).toContain('Ureia');
+    expect(within(janela).getByTestId('saida-linha-0-deposito').textContent).toContain('Galpão insumos');
+    expect(within(janela).getByTestId('saida-linha-0-quantidade').value).toBe('50');
+    digitar(within(janela).getByTestId('saida-linha-0-quantidade'), '40');
+    digitar(within(janela).getByTestId('movimento-motivo-edicao'), 'pesagem refeita');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    const corpo = patches()[0].body;
+    expect(corpo).toEqual({
+      empresa_id: 'emp-1', operation_id: corpo.operation_id, versao: 1, motivo_edicao: 'pesagem refeita',
+      motivo_id: 'ms-perda', data_saida: '2026-11-12', centro_custo_id: null, centro_resultado_id: 'cr1', observacao: 'sacos rasgados',
+      itens: [{ produto_id: 'p-ureia', local_estoque_id: 'l-galpao', unidade: 'KG', quantidade: '40' }],
+    });
+    expect(corpo.operation_id).toMatch(/^sai-ed-/);
+    const detalhe = await screen.findByTestId('janela-saida-estoque');
+    expect((await within(detalhe).findByTestId('saida-detalhe-item')).textContent).toMatch(/40 kg de Galpão insumos/);
+    expect(within(detalhe).getByTestId('saida-grupo-hist-rico').textContent).toContain('Editado (lançamentos refeitos)');
+  });
+
+  it('409 de movimento posterior diz o produto, o depósito e o número do movimento; o reenvio reaproveita a operation_id', async () => {
+    sessao.permissao = permissaoCom({ saida: true });
+    roteador.estado.falhaDaEdicaoSaida = {
+      status: 409,
+      body: {
+        code: 'SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR', message: 'texto do servidor', field: 'itens', reason: 'movimento_posterior',
+        details: { item_ordem: 1, produto_id: 'p-ureia', local_estoque_id: 'l-galpao', movimento_numero: '120' }, request_id: 'r',
+      },
+    };
+    const janela = await abrirEdicao();
+    digitar(within(janela).getByTestId('saida-linha-0-quantidade'), '45');
+    digitar(within(janela).getByTestId('movimento-motivo-edicao'), 'pesagem refeita');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    const erro = (await within(janela).findByTestId('movimento-erro')).textContent;
+    expect(erro).toContain('Não dá para editar: o produto Ureia teve outro movimento no depósito Galpão insumos depois desta saída (movimento nº 120).');
+    expect(erro).toContain('Nada foi alterado.');
+    expect(erro).not.toContain('texto do servidor');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(patches()).toHaveLength(2));
+    const [a, b] = patches();
+    expect(a.body.operation_id).toMatch(/^sai-ed-/);
+    expect(a.body.operation_id).toBe(b.body.operation_id);
+  });
+
+  it('sem a ação `saida` o detalhe da saída não tem "Editar"', async () => {
+    await abrirMovimentos();
+    fireEvent.doubleClick((await screen.findByText('106')).closest('tr'));
+    fireEvent.click(await screen.findByTestId('movimento-abrir-saida'));
+    const detalhe = await screen.findByTestId('janela-saida-estoque');
+    await within(detalhe).findByTestId('saida-detalhe-motivo');
+    expect(within(detalhe).queryByTestId('saida-editar-completo')).toBeNull();
   });
 });

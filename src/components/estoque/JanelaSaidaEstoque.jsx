@@ -6,7 +6,7 @@ import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { SecaoForm, AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { useCelular } from "@/components/common/MobileSheet";
 import { formatarCustoUnitario, formatarDia, formatarInstante, formatarQtd, formatarReais } from "@/lib/estoqueConsultaRegras";
-import { MOTIVO_ACAO_MINIMO, chaveDeOperacao } from "@/lib/estoqueEntradasRegras";
+import { MOTIVO_ACAO_MINIMO, chaveDeOperacao, rotuloDoEventoEstoque } from "@/lib/estoqueEntradasRegras";
 import { ROTULO_STATUS_SAIDA, mensagemErroSaida, quantidadeDaLinhaSaida } from "@/lib/estoqueSaidasRegras";
 import { detalharSaidaEstoque, editarSaidaEstoque, excluirSaidaEstoque } from "@/services/estoqueSaidasService";
 
@@ -46,7 +46,6 @@ function AreaTexto({ label, value, onChange, required = false, testId = undefine
 }
 
 const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
-const ROTULO_EVENTO = /** @type {Record<string, string>} */ ({ CONFIRMACAO: "Lançada", EDICAO: "Editada", EXCLUSAO: "Excluída" });
 
 /**
  * Detalhe de UMA saída manual (D-PROD-264) numa janela só (680px; tela cheia no celular): número, data, motivo,
@@ -54,9 +53,12 @@ const ROTULO_EVENTO = /** @type {Record<string, string>} */ ({ CONFIRMACAO: "Lan
  * movimento, em Movimentos, e logo depois de lançar. Com a ação `saida`, duas ações DENTRO da mesma janela (sem popup
  * sobre popup): "Editar observação" (só ela muda) e "Excluir saída" (pede o motivo; estorno integral pelo mesmo
  * valor; o servidor recusa se o produto já teve outro movimento naquele depósito depois).
- * @param {{ saida: { id: string, numero?: string } | null, empresaId: string|null, podeSaida: boolean, onFechar: () => void }} props
+ * D-PROD-270: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
+ * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. O histórico diz "Editado (lançamentos
+ * refeitos)" na edição com substituição.
+ * @param {{ saida: { id: string, numero?: string } | null, empresaId: string|null, podeSaida: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void }} props
  */
-export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFechar }) {
+export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFechar, onEditar = undefined }) {
   const celular = useCelular();
   const queryClient = useQueryClient();
   const id = saida?.id ? String(saida.id) : null;
@@ -159,6 +161,9 @@ export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFech
     rodape = (
       <>
         <button type="button" className="tb-btn" onClick={abrirEdicao} data-testid="saida-editar">Editar observação</button>
+        {onEditar ? (
+          <button type="button" className="tb-btn" onClick={() => onEditar(d)} data-testid="saida-editar-completo">Editar</button>
+        ) : null}
         <button type="button" className="tb-btn tb-btn-red" onClick={() => { setMotivo(""); setErro(null); setModo("excluir"); }} data-testid="saida-excluir">Excluir saída</button>
       </>
     );
@@ -204,7 +209,7 @@ export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFech
               {d.eventos?.length ? (
                 <Grupo titulo="Histórico">
                   {d.eventos.map((/** @type {any} */ v) => (
-                    <Linha key={v.id} rotulo={`${ROTULO_EVENTO[v.tipo] ?? v.tipo} · ${formatarInstante(v.criado_em)}`} valor={v.motivo} />
+                    <Linha key={v.id} rotulo={`${rotuloDoEventoEstoque(v)} · ${formatarInstante(v.criado_em)}`} valor={v.motivo} />
                   ))}
                 </Grupo>
               ) : null}
@@ -227,7 +232,7 @@ export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFech
               <SecaoForm titulo="Editar observação" />
               <AreaTexto label="Observação" value={observacao} onChange={setObservacao} testId="saida-edicao-observacao" />
               <AreaTexto label="Motivo da edição" value={motivo} onChange={setMotivo} required testId="saida-edicao-motivo" />
-              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">O motivo, a data, os centros e os produtos não mudam: para corrigir, exclua a saída e lance outra.</p>
+              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">Aqui só muda a observação. Para mudar o motivo, a data, os centros ou os produtos, use “Editar”.</p>
             </div>
           ) : null}
 

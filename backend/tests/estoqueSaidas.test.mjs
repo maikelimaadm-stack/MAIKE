@@ -293,16 +293,19 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
   });
 });
 
-describe('D-PROD-264 — editar: só a observação', () => {
-  test('observação nova → 200, versão sobe, evento EDICAO; campo físico → 409 EDICAO_FISICA; versão velha → 409', async () => {
+describe('D-PROD-264 → D-PROD-270 — editar: METADADOS (só a observação)', () => {
+  test('observação nova → 200, versão sobe, evento EDICAO/METADADOS; campo físico sem a versão completa → 400; versão velha → 409', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     const s = (await sair(x)).json();
     const r = await chamar('PATCH', `/estoque/saidas/${s.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'corrigir texto', observacao: 'rasgou o saco' });
     assert.equal(r.statusCode, 200, r.body);
-    assert.deepEqual([r.json().versao, r.json().observacao, r.json().eventos.map((e) => e.tipo)], [2, 'rasgou o saco', ['CONFIRMACAO', 'EDICAO']]);
+    assert.deepEqual([r.json().versao, r.json().observacao, r.json().eventos.map((e) => [e.tipo, e.modo])], [2, 'rasgou o saco', [['CONFIRMACAO', null], ['EDICAO', 'METADADOS']]]);
     const fis = await chamar('PATCH', `/estoque/saidas/${s.id}`, x.token, { empresa_id: x.e.id, versao: 2, motivo_edicao: 'abc', itens: [] });
-    assert.equal(fis.json().code, 'SAIDA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA');
+    assert.equal(fis.statusCode, 400, fis.body);
+    const incompleto = await chamar('PATCH', `/estoque/saidas/${s.id}`, x.token, { empresa_id: x.e.id, versao: 2, motivo_edicao: 'abc', motivo_id: x.mot.Doação });
+    assert.deepEqual([incompleto.statusCode, razao(incompleto)], [400, 'formato'], incompleto.body);
+    assert.equal(await estoqueAtual(x.ureia), 70, 'nada mudou no estoque');
     const velha = await chamar('PATCH', `/estoque/saidas/${s.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'abc', observacao: 'x' });
     assert.equal(velha.json().code, 'SAIDA_ESTOQUE_VERSAO_CONFLITO');
   });

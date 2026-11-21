@@ -58,6 +58,12 @@ export const editarSaidaEstoque = async (empresaId, saida, dados) =>
     observacao: dados.observacao,
   });
 
+/**
+ * D-PROD-270 — edição completa (SUBSTITUIÇÃO): o corpo já montado por `montarCorpoEdicaoSaida` (a versão nova
+ * completa + `empresa_id`, `versao`, `motivo_edicao` e `operation_id`). @param {string} id @param {Record<string, unknown>} corpo
+ */
+export const substituirSaidaEstoque = async (id, corpo) => updateSaidaEstoque(id, corpo);
+
 /** @param {string|null} empresaId @param {{ id: string, versao: number }} saida @param {{ motivo: string, operationId: string }} dados */
 export const excluirSaidaEstoque = async (empresaId, saida, dados) =>
   deleteSaidaEstoque(saida.id, {
