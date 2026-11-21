@@ -4,15 +4,22 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { opcoesTakeDeFiltros } from '../../shared/http/listQueryLimit.js';
 
+/**
+ * D-PROD-267 — a listagem (GET) omite os documentos CANCELADOS (`dados.situacao = 'cancelado'`):
+ * último evento do cocho, sobra herdada, nível, alertas, rateio e históricos ignoram o
+ * cancelado num só ponto. O documento continua no banco (sem exclusão física) e na auditoria.
+ * SQL próprio porque o filtro JSON do Prisma com NOT descartaria também quem não tem a chave.
+ */
 export const listarRegistros = async (clienteId, filtros = {}) => {
   const prisma = getPrismaClient();
-  const where = { cliente_id: clienteId };
-  if (filtros.empresa_id) where.empresa_id = filtros.empresa_id;
-  return prisma.suplementacaoLote.findMany({
-    where,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    ...opcoesTakeDeFiltros(filtros),
-  });
+  const empresa = typeof filtros.empresa_id === 'string' && filtros.empresa_id ? filtros.empresa_id : null;
+  const take = opcoesTakeDeFiltros(filtros).take ?? null;
+  return /** @type {Promise<Array<Record<string, any>>>} */ (prisma.$queryRaw`SELECT id, cliente_id, empresa_id, dados, "createdAt", "updatedAt" FROM "SuplementacaoLote"
+    WHERE cliente_id = ${clienteId}
+      AND (${empresa}::text IS NULL OR empresa_id = ${empresa})
+      AND COALESCE(dados->>'situacao', '') <> 'cancelado'
+    ORDER BY "createdAt" DESC, id DESC
+    LIMIT ${take}`);
 };
 
 export const buscarRegistro = async (clienteId, id, tx) => {

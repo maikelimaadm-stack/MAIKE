@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
 import FiltroHistorico from "@/components/mapa/detalhes-lote/FiltroHistorico";
+import CancelarLancamentoCocho, { usePermissaoCancelarCocho } from "@/components/suplementacao/CancelarLancamentoCocho";
 import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
 import { Abas, Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, SecaoDetalhe, TituloBloco, Vazio, idsDaAba } from "@/components/mapa/detalhes-lote/blocos";
 import { VAZIO, fmtNumero, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoPasto";
@@ -275,6 +276,8 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
   }, [eventosDoPonto, produtos]);
 
+  // D-PROD-267: sem a permissão de cancelar, o cartão do cocho fica sem pé.
+  const { autorizado: podeCancelarCocho } = usePermissaoCancelarCocho();
   const diasEventosCocho = useMemo(() => {
     const ordenados = eventosDoPonto
       .slice()
@@ -283,8 +286,10 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           String(b?.data_lancamento ?? "").localeCompare(String(a?.data_lancamento ?? "")) ||
           String(b?.created_date ?? "").localeCompare(String(a?.created_date ?? "")),
       );
-    /** @type {Array<{ chave: string, dia: string | null, rotulo: string, cartoes: Array<{ chave: string, dia: string | null, Icone: import("lucide-react").LucideIcon, titulo: string, linhas: Array<{ rotulo: string, valor: string }> }> }>} */
+    /** @type {Array<{ chave: string, dia: string | null, rotulo: string, cartoes: Array<{ chave: string, dia: string | null, Icone: import("lucide-react").LucideIcon, titulo: string, linhas: Array<{ rotulo: string, valor: string }>, acoes?: React.ReactNode }> }>} */
     const dias = [];
+    // D-PROD-267: "Cancelar lançamento" só no lançamento mais recente do cocho (dica; o servidor decide).
+    const ultimoId = podeCancelarCocho ? ordenados[0]?.id ?? null : null;
     ordenados.forEach((ev) => {
       const diaRaw = String(ev?.data_lancamento ?? "").slice(0, 10);
       const dia = /^\d{4}-\d{2}-\d{2}$/.test(diaRaw) ? diaRaw : null;
@@ -310,6 +315,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
         Icone: IconeLancarSuplementacao,
         titulo: fechado ? "Fechamento de período" : "Suplementação",
         linhas,
+        ...(ev?.id && ev.id === ultimoId ? { acoes: <CancelarLancamentoCocho evento={ev} /> } : {}),
       };
       let grupo = dias[dias.length - 1];
       if (!grupo || grupo.dia !== dia) {
@@ -319,7 +325,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
       grupo.cartoes.push(cartao);
     });
     return dias;
-  }, [eventosDoPonto, produtos]);
+  }, [eventosDoPonto, produtos, podeCancelarCocho]);
 
   // Duração e reposição atuais vêm da mesma projeção do SSOT usada pelo Histórico.
   const projecaoCartao = projecaoDoCartaoDoNivel(nivel);

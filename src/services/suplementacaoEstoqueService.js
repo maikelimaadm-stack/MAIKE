@@ -18,6 +18,8 @@ import {
 import {
   comandoSaidaSuplementacao,
   comandoTransferenciaEntreLocais,
+  cancelarTransferenciaEntreLocais as cancelarTransferenciaApi,
+  elegibilidadeCancelamentoTransferencia as elegibilidadeCancelamentoTransferenciaApi,
 } from '@/apis/movimentacoes-estoque';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import {
@@ -163,6 +165,42 @@ export const registrarTransferenciaEntreLocais = async ({
     operation_id: resposta.operation_id,
     replay: resposta.replay === true,
   };
+};
+
+/**
+ * D-PROD-267 — cancelamento (estorno exato no servidor) da transferência entre
+ * depósitos, pelo id de qualquer perna. Só online (offline recusa sem I/O e nada vai
+ * para a fila). A `operationId` é OBRIGATÓRIA e vem do diálogo, que a persiste e a
+ * reenvia enquanto o resultado for desconhecido: este serviço nunca gera chave.
+ * @param {{ movimentacaoId: string, empresaId: string, motivo: string, operationId: string }} params
+ */
+export const cancelarTransferenciaEntreDepositos = async ({ movimentacaoId, empresaId, motivo, operationId }) => {
+  exigirConexaoParaComando();
+  if (!movimentacaoId || !empresaId) recusar('cancelarTransferenciaEntreDepositos', 'alvo_ausente');
+  if (typeof operationId !== 'string' || operationId.trim().length < 8) recusar('cancelarTransferenciaEntreDepositos', 'operation_id_obrigatorio');
+  const texto = typeof motivo === 'string' ? motivo.trim() : '';
+  if (texto.length < 3) recusar('cancelarTransferenciaEntreDepositos', 'motivo_obrigatorio');
+  const resposta = await cancelarTransferenciaApi(movimentacaoId, { empresa_id: empresaId, motivo: texto, operation_id: operationId.trim() });
+  return {
+    committed: resposta?.committed === true,
+    replay: resposta?.replay === true,
+    operation_id: resposta?.operation_id,
+    movimentacaoSaida: resposta?.movimentacao_saida ?? null,
+    movimentacaoEntrada: resposta?.movimentacao_entrada ?? null,
+    estornoDestino: resposta?.estorno_destino ?? null,
+    estornoOrigem: resposta?.estorno_origem ?? null,
+    devolvido: Array.isArray(resposta?.devolvido) ? resposta.devolvido : [],
+  };
+};
+
+/**
+ * D-PROD-267 — elegibilidade do cancelamento da transferência (ensaio do servidor,
+ * só informativo; o POST revalida tudo). Só online.
+ * @param {{ movimentacaoId: string, empresaId: string, signal?: AbortSignal }} params
+ */
+export const consultarCancelamentoTransferencia = async ({ movimentacaoId, empresaId, signal }) => {
+  exigirConexaoParaComando();
+  return elegibilidadeCancelamentoTransferenciaApi(movimentacaoId, empresaId, { signal });
 };
 
 /** Reexportado para quem só precisa do cálculo, sem tocar no service. */

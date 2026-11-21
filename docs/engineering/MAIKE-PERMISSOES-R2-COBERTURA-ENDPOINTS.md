@@ -404,6 +404,8 @@ D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabel
 | GET | `/movimentacoes-estoque` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:96` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | POST | `/movimentacoes-estoque/comandos/saida-suplementacao` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:102` | a — GUARDAS.movimentacaoEstoque.saidaSuplementacao |
 | POST | `/movimentacoes-estoque/comandos/transferencia-locais` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:115` | a — GUARDAS.movimentacaoEstoque.transferenciaLocais |
+| POST | `/movimentacoes-estoque/:id/cancelar-transferencia` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:161` | a — GUARDAS.movimentacaoEstoque.cancelarTransferencia (mapa `cancelar_lancamentos_estoque`, relida na transação; D-PROD-267) |
+| GET | `/movimentacoes-estoque/:id/elegibilidade-cancelamento-transferencia` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:172` | a — GUARDAS.movimentacaoEstoque.cancelarTransferencia (D-PROD-267) |
 | POST | `/movimentacoes-estoque` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:128` | c — GUARDAS.movimentacaoEstoque.criar (só administrador real). (D-PROD-161) Depois do schema e da allowlist de colunas → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA`: sem transação, número ou auditoria |
 | PATCH | `/movimentacoes-estoque/:id` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:134` | a — GUARDAS.movimentacaoEstoque.editar |
 | DELETE | `/movimentacoes-estoque/:id` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:140` | c — GUARDAS.movimentacaoEstoque.excluir (só administrador real) |
@@ -535,6 +537,8 @@ D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabel
 | GET | `/suplementacao-eventos` | `backend/src/modules/suplementacaoEventos/suplementacaoEventoRoutes.js:35` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | POST | `/suplementacao-eventos` | `backend/src/modules/suplementacaoEventos/suplementacaoEventoRoutes.js:41` | a — GUARDAS.suplementacaoEvento.criar |
 | POST | `/suplementacao-eventos/comandos/lancamento-com-lotes` | `backend/src/modules/suplementacaoEventos/suplementacaoEventoRoutes.js:47` | a — GUARDAS.suplementacaoEvento.lancamento |
+| GET | `/suplementacao-eventos/:id/elegibilidade-cancelamento` | `backend/src/modules/suplementacaoEventos/suplementacaoEventoRoutes.js:104` | a — GUARDAS.suplementacaoEvento.cancelar (mapa `cancelar_lancamentos_estoque`; D-PROD-267) |
+| POST | `/suplementacao-eventos/:id/cancelamento` | `backend/src/modules/suplementacaoEventos/suplementacaoEventoRoutes.js:115` | a — GUARDAS.suplementacaoEvento.cancelar (relida na transação; D-PROD-267) |
 | PATCH | `/suplementacao-eventos/:id` | `backend/src/modules/suplementacaoEventos/suplementacaoEventoRoutes.js:74` | a — GUARDAS.suplementacaoEvento.editar |
 | DELETE | `/suplementacao-eventos/:id` | `backend/src/modules/suplementacaoEventos/suplementacaoEventoRoutes.js:80` | c — GUARDAS.suplementacaoEvento.excluir (só administrador real) |
 | GET | `/suplementacao-lotes` | `backend/src/modules/suplementacaoLotes/suplementacaoLoteRoutes.js:44` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
@@ -555,5 +559,7 @@ D-PROD-215: +6 rotas, todas classe (a): `/culturas` (Cadastro de Culturas, tabel
 | GET | `/usuarios/page` | `backend/src/modules/usuarios/usuarioRoutes.js:80` | c — apenasAdminTenant() (D-PROD-137) |
 | POST | `/usuarios` | `backend/src/modules/usuarios/usuarioRoutes.js:89` | c — usuarioService: exigirAdminTenant |
 | PATCH | `/usuarios/:id` | `backend/src/modules/usuarios/usuarioRoutes.js:95` | c — usuarioService: própria conta (senha/nome) ou exigirAdminTenant |
+
+D-PROD-267: +4 rotas, todas classe (a), pela chave gravadora do mapa `cancelar_lancamentos_estoque` (desligada ao nascer; administrador real e `is_admin` passam): `POST /suplementacao-eventos/:id/cancelamento` e o ensaio `GET /suplementacao-eventos/:id/elegibilidade-cancelamento`; `POST /movimentacoes-estoque/:id/cancelar-transferencia` e o ensaio `GET /movimentacoes-estoque/:id/elegibilidade-cancelamento-transferencia`. Nos dois POST a chave é relida dentro da transação, antes do recibo. Cobertas em `permissoesR2Rotas.test.mjs`.
 
 D-PROD-255: +5 rotas, todas classe (a), somente leitura: `GET /estoque/saldo`, `/estoque/movimentos`, `/estoque/movimentos/:id`, `/estoque/opcoes/produtos` e `/estoque/opcoes/locais`, pela tela nova `sup-estoque` (`visualizar`). Os GETs antigos de movimento e de camada (classe d) seguem como estão (o Mapa depende deles). A permissão de entrada e ajuste é ação extra futura da mesma tela, ainda não criada.

@@ -13,4 +13,6 @@ export const updateMovimentacaoEstoque = (id, dados) => movimentacaoEstoquePort.
 export {
   comandoSaidaSuplementacao,
   comandoTransferenciaEntreLocais,
+  cancelarTransferenciaEntreLocais,
+  elegibilidadeCancelamentoTransferencia,
 } from './movimentacaoEstoqueComandosApi.js';

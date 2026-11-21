@@ -6,6 +6,7 @@ import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import PainelSelecao from "@/components/common/PainelSelecao";
 import { LIMITE_CACHE_MOVIMENTACOES } from "@/components/lotes/usePaginasDoHistorico";
 import ExcluirMovimentacao from "@/components/lotes/ExcluirMovimentacao";
+import CancelarLancamentoCocho, { usePermissaoCancelarCocho } from "@/components/suplementacao/CancelarLancamentoCocho";
 import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 import { tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import { usePasto } from "./pastoContexto";
@@ -31,8 +32,13 @@ import "@/styles/mk-dp-tl-acoes.css";
  * aparelho), movimento não cancelado e de tipo com exclusão. Um movimento vira
  * vários cartões (um por lote) e a exclusão apaga o registro INTEIRO: a ação
  * fica só no primeiro cartão do movimento, com o aviso do alcance. Quem vê a
- * ação decide o próprio `ExcluirMovimentacao`. A suplementação fica sem ação
- * (estorno seguro do cocho é a etapa 2). Ao excluir, histórico e mapa relêem.
+ * ação decide o próprio `ExcluirMovimentacao`. Ao excluir, histórico e mapa relêem.
+ *
+ * Cancelar lançamento (D-PROD-267, etapa 2): o cartão de suplementação MAIS RECENTE de cada
+ * cocho ganha "Cancelar lançamento" no pé (`CancelarLancamentoCocho`: comando do servidor, só
+ * com a permissão `cancelar_lancamentos_estoque`, motivo obrigatório, só online, elegibilidade
+ * antes de habilitar). Só o mais recente é dica: quem decide é o servidor. Cancelado, o cartão
+ * some (o lançamento sai dos históricos do cocho, do pasto e do lote).
  *
  * A lista do "Mostrar" é a que o sistema já usa (como o B1Select): o painel
  * preso ao botão no desktop/tablet e a folha de baixo no celular — dentro do
@@ -151,6 +157,32 @@ function AcaoExcluir({ movimento, alcance, aoExcluir }) {
   );
 }
 
+/**
+ * D-PROD-267 — "Cancelar lançamento" no pé do cartão de suplementação mais recente de cada cocho
+ * (os cartões chegam do mais novo para o mais antigo). Os outros ficam como estão.
+ * @param {import("./historicoDoPasto").DiaHistorico[]} dias
+ * @param {{ aoCancelar?: () => void, doServidor?: boolean, autorizado?: boolean }} [opcoes]
+ * @returns {import("./historicoDoPasto").DiaHistorico[]}
+ */
+export function comAcaoDeCancelarCocho(dias, { aoCancelar, doServidor = true, autorizado = true } = {}) {
+  // Cópia do aparelho (offline): só leitura, como o "Excluir movimentação". Sem a permissão: sem pé.
+  if (!doServidor || !autorizado) return dias;
+  const vistos = new Set();
+  return dias.map((dia) => ({
+    ...dia,
+    cartoes: dia.cartoes.map((c) => {
+      const ev = c.evento;
+      // Lançamento sem cocho (legado) nunca é cancelável (o servidor recusa `sem_recibo`): sem pé
+      // e sem ensaio no servidor para cada cartão antigo.
+      if (!ev?.id || !ev.ponto_suplementacao_id || c.acoes) return c;
+      const cocho = ev.ponto_suplementacao_id;
+      if (vistos.has(cocho)) return c;
+      vistos.add(cocho);
+      return { ...c, acoes: <CancelarLancamentoCocho key={ev.id} evento={ev} onCancelado={aoCancelar} /> };
+    }),
+  }));
+}
+
 /** @param {string | null} iso */
 const formatarDataHora = (iso) => {
   const d = new Date(iso || "");
@@ -204,9 +236,10 @@ export default function AbaHistorico() {
   const aoExcluir = React.useCallback(() => {
     invalidarCachesDoMapa(queryClient, ["historico-movimentacoes", "elegibilidade-exclusao-movimentacao"]);
   }, [queryClient]);
+  const { autorizado: podeCancelarCocho } = usePermissaoCancelarCocho();
   const dias = React.useMemo(
-    () => comAcaoDeExcluir(h.dias, { doServidor: h.origem === "servidor", areaId: dados?.areaId ?? null, aoExcluir }),
-    [h.dias, h.origem, dados?.areaId, aoExcluir],
+    () => comAcaoDeCancelarCocho(comAcaoDeExcluir(h.dias, { doServidor: h.origem === "servidor", areaId: dados?.areaId ?? null, aoExcluir }), { aoCancelar: aoExcluir, doServidor: h.origem === "servidor", autorizado: podeCancelarCocho }),
+    [h.dias, h.origem, dados?.areaId, aoExcluir, podeCancelarCocho],
   );
 
   /** @param {string} valor */
