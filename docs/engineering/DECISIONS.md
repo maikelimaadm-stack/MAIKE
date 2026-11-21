@@ -8995,4 +8995,17 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Relatório:** [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-270 -->
+## D-PROD-270 — Exclusão nos históricos do mapa sem pedir motivo
+
+**Data:** 2026-11-21 · **Origem:** proprietário, depois da D-PROD-269: "eu não preciso de motivos para exclusão ok nos históricos de todos" · **Branch:** `feat/excluir-sem-motivo-mapa`.
+
+> **Numeração:** a `main` (`fe9bd3ed`) indica `Próxima decisão: D-PROD-270`, que é esta; o marcador passa a D-PROD-271.
+
+**Decisão.**
+1. Os diálogos de exclusão dos históricos do mapa — lançamento de cocho, transferência de depósito, registro da área e movimentação do lote/abate do curral — **não têm mais campo de motivo**. O botão "Excluir" habilita sem digitar nada (com as mesmas condições de antes: online, elegível no servidor; na movimentação, a confirmação "a exclusão é definitiva" continua).
+2. O servidor continua exigindo motivo (3–500) e o guardando na auditoria: a tela envia o texto fixo **"Excluído pelo histórico do mapa"** (`MOTIVO_EXCLUSAO_MAPA`, `src/domain/mapa/motivoExclusaoMapa.js`). Texto fixo mantém o mesmo fingerprint num reenvio com a mesma chave; uma pendência antiga, gravada com motivo digitado, reenvia o motivo dela.
+3. Nada muda no servidor, nas rotas, nos códigos nem nas outras telas (Financeiro e Lançamento de Atividades continuam pedindo motivo).
+
+**Relatório:** [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-271 -->

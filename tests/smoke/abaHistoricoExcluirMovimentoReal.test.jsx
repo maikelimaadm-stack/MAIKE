@@ -7,7 +7,8 @@
  * desabilitada, mas a ação está na própria aba); a elegibilidade é consultada
  * uma vez por MOVIMENTO (nunca por cartão) e no máximo 2 em voo; a exclusão
  * mostra os efeitos do servidor (todas as posições do movimento), envia o
- * comando do servidor e a aba relê o histórico sem o movimento.
+ * comando do servidor e a aba relê o histórico sem o movimento. D-PROD-270: sem
+ * campo de motivo (vai `MOTIVO_EXCLUSAO_MAPA`); a caixa de confirmação continua.
  * Rede, sessão e cache trocados por dublês. Dados sintéticos.
  */
 import React from "react";
@@ -47,6 +48,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 
 const { default: PainelPasto } = await import("@/components/mapa/detalhes-lote/PainelPasto");
 const { montarModeloDetalhes } = await import("@/components/mapa/detalhes-lote/catalogo");
+const { MOTIVO_EXCLUSAO_MAPA } = await import("@/domain/mapa/motivoExclusaoMapa");
 
 const EMP = "emp-1";
 const AREA = { id: "a-p07", empresa_id: EMP, nome: "Pasto 07", tamanho_hectares: 109.3, ativo: true };
@@ -265,8 +267,12 @@ describe("excluir a pesagem pela aba", () => {
     const dialogo = await screen.findByRole("dialog", { name: "Excluir movimentação" });
     await waitFor(() => expect(within(dialogo).getByText(/L-2026-008 · Pasto 07: peso volta a 440 kg/)).toBeTruthy());
     expect(within(dialogo).getByText(/L-2026-014 · Pasto 07: peso volta a 370 kg/)).toBeTruthy();
-    fireEvent.change(within(dialogo).getByLabelText("Motivo da exclusão"), { target: { value: "Pesagem lançada no dia errado" } });
+    // Sem campo de motivo; só a caixa "Entendo que a exclusão é definitiva" falta para habilitar.
+    expect(within(dialogo).queryByLabelText(/Motivo/i)).toBeNull();
+    expect(dialogo.querySelector("textarea")).toBeNull();
+    expect(within(dialogo).getByRole("button", { name: "Excluir definitivamente" }).hasAttribute("disabled")).toBe(true);
     fireEvent.click(within(dialogo).getByRole("checkbox"));
+    expect(within(dialogo).getByRole("button", { name: "Excluir definitivamente" }).hasAttribute("disabled")).toBe(false);
     servico.excluirMovimentacaoMapa.mockResolvedValue({ ok: true });
     const chamadasAntes = servico.listarHistoricoMovimentacoesPagina.mock.calls.length;
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([SAIDA, ENTRADA]));
@@ -276,7 +282,7 @@ describe("excluir a pesagem pela aba", () => {
     await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(1));
     const [id, corpo] = servico.excluirMovimentacaoMapa.mock.calls[0];
     expect(id).toBe("mv-pesagem");
-    expect(corpo.motivo).toBe("Pesagem lançada no dia errado");
+    expect(corpo.motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
     expect(typeof corpo.operation_id).toBe("string");
     await waitFor(() => expect(servico.listarHistoricoMovimentacoesPagina.mock.calls.length).toBeGreaterThan(chamadasAntes));
     await waitFor(() => expect(document.querySelectorAll(".mk-dp-tl__card").length).toBe(2));
