@@ -8945,11 +8945,24 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Relatório:** [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md).
 
-## D-PROD-271 — Estoque: ajuste de inventário ("Novo movimento" → Ajuste), pelo saldo contado
+## D-PROD-270 — Exclusão nos históricos do mapa sem pedir motivo
+
+**Data:** 2026-11-21 · **Origem:** proprietário, depois da D-PROD-269: "eu não preciso de motivos para exclusão ok nos históricos de todos" · **Branch:** `feat/excluir-sem-motivo-mapa`.
+
+> **Numeração:** a `main` (`fe9bd3ed`) indica `Próxima decisão: D-PROD-270`, que é esta; o marcador passa a D-PROD-271.
+
+**Decisão.**
+1. Os diálogos de exclusão dos históricos do mapa — lançamento de cocho, transferência de depósito, registro da área e movimentação do lote/abate do curral — **não têm mais campo de motivo**. O botão "Excluir" habilita sem digitar nada (com as mesmas condições de antes: online, elegível no servidor; na movimentação, a confirmação "a exclusão é definitiva" continua).
+2. O servidor continua exigindo motivo (3–500) e o guardando na auditoria: a tela envia o texto fixo **"Excluído pelo histórico do mapa"** (`MOTIVO_EXCLUSAO_MAPA`, `src/domain/mapa/motivoExclusaoMapa.js`). Texto fixo mantém o mesmo fingerprint num reenvio com a mesma chave; uma pendência antiga, gravada com motivo digitado, reenvia o motivo dela.
+3. Nada muda no servidor, nas rotas, nos códigos nem nas outras telas (Financeiro e Lançamento de Atividades continuam pedindo motivo).
+
+**Relatório:** [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md).
+
+## D-PROD-272 — Estoque: ajuste de inventário ("Novo movimento" → Ajuste), pelo saldo contado
 
 **Data:** 2026-11-20 · **Origem:** pedido do proprietário ("Vamos para o próximo passo" → "Ajuste de inventário") · **Branch:** `claude/new-session-26kpxu` · **Migration:** `20261120300000_estoque_ajustes`, **EXPAND** (3 tabelas novas) · **Relatório:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
 
-> **Numeração:** nasceu D-PROD-265 nesta branch, com a migration `20261120200000_estoque_ajustes`. Antes do merge, a `main` deu a D-PROD-265 à Nova realização (PR #349), com a CONTRACT `20261120200000_apontamento_data_termino` no mesmo carimbo, já aplicada em produção; esta decisão passou a D-PROD-266 e a pasta a `20261120300000_estoque_ajustes` (estritamente depois da dela; conteúdo idêntico, checksum igual). Depois, a `main` deu a D-PROD-266 à exclusão direta nos históricos do mapa (PR #351, sem migration) e a D-PROD-267 ao serviço de vários dias das atividades (PR #352, sem migration), e a D-PROD-268 ao estorno do cocho e da transferência (PR #353, sem migration); esta decisão passou a D-PROD-269; depois a `main` deu a D-PROD-269 ao "só Excluir" no mapa (PR #356), e a D-PROD-270 ficou com a edição completa da entrada e da saída (PR #355). Esta decisão é a **D-PROD-271** e o marcador passa a D-PROD-272. A aprovação da emenda e o GO da migration ("Aprovo as duas", 2026-11-20) foram dados com o número D-PROD-265; é a mesma decisão.
+> **Numeração:** nasceu D-PROD-265 nesta branch, com a migration `20261120200000_estoque_ajustes`. A `main` deu a D-PROD-265 à Nova realização (PR #349), com a CONTRACT `20261120200000_apontamento_data_termino` no mesmo carimbo, já aplicada em produção; a pasta passou a `20261120300000_estoque_ajustes` (estritamente depois da dela; conteúdo idêntico, checksum igual). Antes do merge, a `main` usou também a D-PROD-266 (exclusão nos históricos do mapa, #351), a D-PROD-267 (serviço de vários dias, #352), a D-PROD-268 (estorno do cocho e da transferência, #353), a D-PROD-269 ("só Excluir" no mapa, #356) e a D-PROD-270 (exclusão sem motivo no mapa, #357), todas sem migration; a D-PROD-271 ficou com a edição da entrada e da saída (#355). Esta decisão é a **D-PROD-272**; o marcador passa a D-PROD-273. A aprovação da emenda e o GO da migration ("Aprovo as duas", 2026-11-20) foram dados com o número D-PROD-265; é a mesma decisão.
 
 **Escolhas do proprietário (2026-11-20).**
 - **Contagem:** digita-se o **saldo contado** por produto e depósito. A tela mostra o saldo atual e a diferença; o servidor recalcula a diferença ao gravar, sob a trava do produto, com o saldo daquele momento.
@@ -8970,7 +8983,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Constituição — emenda APROVADA pelo proprietário em 2026-11-20** (chat: "Aprovo as duas", para a emenda e para a migration). Aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 (depois da emenda D-PROD-264) e nota própria em `07-DO-NOT-DO.md` (depois da nota D-PROD-264). O texto ratificado punha "ajuste ou inventário" explicitamente em "Continua **fora**" (expansão D-PROD-177) e na lista do `07-DO-NOT-DO.md` (entrada manual não serve como inventário/ajuste). Texto aprovado:
 
-> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-264:* "**Emenda aprovada pelo proprietário (D-PROD-271):** **Estoque — ajuste de inventário.** A contagem física pode ajustar o estoque por um **documento de Ajuste de Inventário** confirmado, só pelo motor de estoque único e com a permissão própria `ajuste`. Por produto e depósito informa-se o saldo contado; a diferença para o saldo do depósito, recalculada ao gravar, entra (sobra, ao custo médio do depósito, ou ao custo informado quando o depósito não tem saldo) ou sai (falta, ao custo médio). O ajuste é sempre do dia de hoje da fazenda, não cria título, conta nem receita, e não edita saldo fora do motor. O usuário edita só a observação e pode excluir o ajuste; a exclusão estorna pelo motor e só é aceita se os produtos não tiveram outro movimento naqueles depósitos depois dele. Em "Continua **fora**", deixa de constar "ajuste ou inventário"; continuam fora devolução a fornecedor, transferência entre empresas, edição de saldo e qualquer escritor genérico de estoque."
+> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-264:* "**Emenda aprovada pelo proprietário (D-PROD-272):** **Estoque — ajuste de inventário.** A contagem física pode ajustar o estoque por um **documento de Ajuste de Inventário** confirmado, só pelo motor de estoque único e com a permissão própria `ajuste`. Por produto e depósito informa-se o saldo contado; a diferença para o saldo do depósito, recalculada ao gravar, entra (sobra, ao custo médio do depósito, ou ao custo informado quando o depósito não tem saldo) ou sai (falta, ao custo médio). O ajuste é sempre do dia de hoje da fazenda, não cria título, conta nem receita, e não edita saldo fora do motor. O usuário edita só a observação e pode excluir o ajuste; a exclusão estorna pelo motor e só é aceita se os produtos não tiveram outro movimento naqueles depósitos depois dele. Em "Continua **fora**", deixa de constar "ajuste ou inventário"; continuam fora devolução a fornecedor, transferência entre empresas, edição de saldo e qualquer escritor genérico de estoque."
 >
 > *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-264:* "o ajuste de inventário documentado (Estoque → Novo movimento → Ajuste) é exceção à proibição de inventário/ajuste, nos limites da decisão. Continua proibido: ajustar estoque fora do motor ou escrevendo saldo direto; digitar o valor da sobra quando o depósito tem custo médio, ou da falta; ajustar com data diferente de hoje; usar o ajuste para devolução, transferência entre empresas ou venda, ou criar título, conta ou receita a partir dele; excluir um ajuste depois de outro movimento do produto no mesmo depósito; mudar a contagem de um ajuste lançado; conceder a ação `ajuste` a perfis existentes por padrão. A entrada manual continua não servindo como inventário/ajuste."
 
@@ -8980,4 +8993,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Testes.** `backend/tests/estoqueAjustes.test.mjs` (novo, 11, Postgres real), o smoke `tests/smoke/estoqueNovoMovimento.test.jsx` e as provas da release (`premerge-migrate` B40a/B40b/B40k).
 
-<!-- Próxima decisão: D-PROD-272 -->
+<!-- Próxima decisão: D-PROD-273 -->

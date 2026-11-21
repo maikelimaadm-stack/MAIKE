@@ -42,7 +42,7 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * leva ao detalhe da entrada (editar a observação, excluir), na mesma tela.
  * D-PROD-264: "Novo movimento" aparece com a ação `entrada` OU a ação `saida`; a janela só oferece os tipos que as
  * ações permitem. O detalhe de um movimento de saída manual leva ao detalhe da saída (editar a observação, excluir).
- * D-PROD-271: o mesmo para o Ajuste de inventário (ação `ajuste`) e o detalhe do ajuste.
+ * D-PROD-272: o mesmo para o Ajuste de inventário (ação `ajuste`) e o detalhe do ajuste.
  * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean, podeAjuste?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
  *   `podeLancar` é a ação `entrada`; `podeSaida`, a ação `saida`; `podeAjuste`, a ação `ajuste`.

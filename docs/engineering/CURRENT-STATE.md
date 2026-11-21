@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-271; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-272; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,23 +9,33 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-271)
+## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-272)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-271**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
-| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5`, com a `main` `fe9bd3ed` integrada · PR #350 (draft) |
+| Decisão | **D-PROD-272**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5`, com a `main` `f8abde68` integrada · PR #350 (draft) |
 | Migration | `20261120300000_estoque_ajustes` (renomeada de `20261120200000_…` para vir depois da data de término), **EXPAND** (3 tabelas novas). GO do proprietário dado ("Aprovo as duas"); aplicação pelo runbook, registro no §7 |
 | Constituição | emenda **aprovada** pelo proprietário (2026-11-20) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
 | Próxima | edição completa de entrada e saída (PR própria), pedida pelo proprietário |
 | Relatório | [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · runbook [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-21) — MAIKE-EXCLUIR-SEM-MOTIVO-MAPA: exclusão nos históricos do mapa sem pedir motivo (D-PROD-270)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-270**, pedido do proprietário: "não preciso de motivos para exclusão nos históricos de todos" |
+| Branch / PR | `feat/excluir-sem-motivo-mapa`, a partir da `main` `fe9bd3ed` · PR (a abrir) |
+| Escopo | Só tela: sem campo de motivo nos 4 diálogos de exclusão do mapa; a tela envia "Excluído pelo histórico do mapa". Servidor sem mudança |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md) |
 
 ## Missão anterior (2026-11-21) — MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA: no mapa só existe "Excluir" (D-PROD-269)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-269**, pedido do proprietário: "eu não tenho cancelamentos eu tenho exclusão" |
-| Branch / PR | `feat/excluir-historicos-mapa-textos`, a partir da `main` `80aa1db3` · PR (a abrir) |
+| Branch / PR | `feat/excluir-historicos-mapa-textos`, a partir da `main` `80aa1db3` · PR **#356** (mergeada, `fe9bd3ed`) |
 | Escopo | Só tela do mapa: ações "Excluir ...", registro excluído/cancelado some dos históricos, permissão renomeada na tela (chave igual). Servidor sem mudança |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md) |

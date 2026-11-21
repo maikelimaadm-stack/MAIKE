@@ -1,5 +1,5 @@
 /**
- * D-PROD-271 (Estoque → Novo movimento → Ajuste) — rotas do ajuste de inventário documentado.
+ * D-PROD-272 (Estoque → Novo movimento → Ajuste) — rotas do ajuste de inventário documentado.
  * Guardadas pela tela `sup-estoque` (`GUARDAS.estoque`): LER a lista e o detalhe = `visualizar`; o saldo do
  * depósito, criar, editar a observação e excluir = ação extra `ajuste` (nenhum perfil a recebe por padrão;
  * administrador e `is_admin` têm tudo). O tenant vem SÓ do `auth_context`; corpo e query FECHADOS; decimais

@@ -134,8 +134,8 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     // D-PROD-259: a CONTRACT dos motivos de entrada (MotivoEntradaEstoque), também: agora 14.
     // D-PROD-264: a EXPAND da saída manual do Estoque (4 tabelas novas), também: agora 15.
     // D-PROD-265: a CONTRACT aditiva da data de término do apontamento (coluna e CHECK), também: agora 16.
-    // D-PROD-271: a EXPAND do ajuste de inventário (3 tabelas novas), também: agora 17.
-    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 17, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-210, a D-PROD-215, a D-PROD-216, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265 e a D-PROD-271');
+    // D-PROD-272: a EXPAND do ajuste de inventário (3 tabelas novas), também: agora 17.
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 17, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-210, a D-PROD-215, a D-PROD-216, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265 e a D-PROD-272');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 90, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-207, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem; − a Funcionario (D-PROD-208, na partida, por último)');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261115900000_atividade_mao_obra_servico'), 'a EXPAND da D-PROD-207 sobe na partida, depois da D-PROD-202');

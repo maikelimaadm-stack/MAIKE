@@ -1,5 +1,5 @@
 /**
- * Estoque → Novo movimento → Ajuste de inventário (D-PROD-271): regras PURAS do formulário e as mensagens. Sem rede e
+ * Estoque → Novo movimento → Ajuste de inventário (D-PROD-272): regras PURAS do formulário e as mensagens. Sem rede e
  * sem ponto flutuante: quantidades e custos são TEXTO (lidos com `lerNumeroLocal`; contas em BigInt).
  *
  * Escolhas do proprietário: o usuário digita o saldo CONTADO por produto e depósito; a tela mostra o saldo atual e a

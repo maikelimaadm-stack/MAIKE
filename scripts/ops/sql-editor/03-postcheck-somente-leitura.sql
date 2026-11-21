@@ -52,7 +52,7 @@ tenant(nome) AS (
     -- de resultado, do movimento, do produto, do local e da fazenda que elas referenciam (FKs RESTRICT); o cadastro de
     -- motivos de saída (a saída o referencia) logo depois delas.
     'SaidaEstoqueEvento','SaidaEstoqueItem','SaidaEstoque','MotivoSaidaEstoque',
-    -- D-PROD-271: os ajustes de inventário (evento e item antes do cabeçalho) saem ANTES dos centros de custo e de
+    -- D-PROD-272: os ajustes de inventário (evento e item antes do cabeçalho) saem ANTES dos centros de custo e de
     -- resultado, do lote, do movimento, do produto, do local e da fazenda que eles referenciam (FKs RESTRICT).
     'AjusteEstoqueEvento','AjusteEstoqueItem','AjusteEstoque',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',

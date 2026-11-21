@@ -1,6 +1,6 @@
-# MAIKE-ESTOQUE-AJUSTE-INVENTARIO — Relatório: ajuste de inventário no "Novo movimento" (D-PROD-271)
+# MAIKE-ESTOQUE-AJUSTE-INVENTARIO — Relatório: ajuste de inventário no "Novo movimento" (D-PROD-272)
 
-**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `46fe34f5`, com a `main` `3c8329b1` integrada) · **PR:** #350 · **Migration:** `20261120300000_estoque_ajustes` (**EXPAND**, 3 tabelas novas) · **Decisão:** [D-PROD-271](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
+**Data:** 2026-11-20 · **Branch:** `claude/new-session-26kpxu` (a partir da `main` `46fe34f5`, com a `main` `3c8329b1` integrada) · **PR:** #350 · **Migration:** `20261120300000_estoque_ajustes` (**EXPAND**, 3 tabelas novas) · **Decisão:** [D-PROD-272](./DECISIONS.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
 
 ## 1. Pedido e escolhas do proprietário
 
@@ -44,11 +44,11 @@ Por linha, o contado (KG, SACO pelo peso do saco, L) é comparado com o saldo do
 
 ## 4. Constituição: emenda APROVADA
 
-A constituição punha "ajuste ou inventário" explicitamente fora. O proprietário aprovou a emenda em 2026-11-20 ("Aprovo as duas", junto com o GO da migration); ela foi aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, com o texto da D-PROD-271.
+A constituição punha "ajuste ou inventário" explicitamente fora. O proprietário aprovou a emenda em 2026-11-20 ("Aprovo as duas", junto com o GO da migration); ela foi aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, com o texto da D-PROD-272.
 
 ## 4a. Numeração e nome da pasta
 
-Esta missão nasceu D-PROD-265, com a pasta `20261120200000_estoque_ajustes`. Antes do merge, a `main` deu a D-PROD-265 à Nova realização (PR #349), com a CONTRACT `20261120200000_apontamento_data_termino` no mesmo carimbo, já aplicada em produção. O preflight de produção acusou 72 migrations em vez de 71 (**RELEASE_BLOCKED**, nada aplicado). A decisão passou a D-PROD-266 e a pasta a `20261120300000_estoque_ajustes`, estritamente depois da dela; o conteúdo é o mesmo e o checksum não muda. Depois a `main` deu a D-PROD-266 à exclusão direta nos históricos do mapa (PR #351, sem migration), e esta decisão passou a D-PROD-267; depois a `main` deu a D-PROD-267 ao serviço de vários dias (PR #352, sem migration), e esta decisão passou a D-PROD-268; depois a `main` deu a D-PROD-268 ao estorno do cocho e da transferência (PR #353, sem migration), e esta decisão passou a D-PROD-269; depois a `main` deu a D-PROD-269 ao "só Excluir" no mapa (PR #356) e a D-PROD-270 ficou com a edição da entrada e da saída (PR #355), e esta decisão é a **D-PROD-271**.
+Esta missão nasceu D-PROD-265, com a pasta `20261120200000_estoque_ajustes`. A `main` deu a D-PROD-265 à Nova realização (PR #349), com a CONTRACT `20261120200000_apontamento_data_termino` no mesmo carimbo, já aplicada em produção; o preflight de produção acusou 72 migrations em vez de 71 (**RELEASE_BLOCKED**, nada aplicado). A pasta passou a `20261120300000_estoque_ajustes`, estritamente depois da dela; o conteúdo é o mesmo e o checksum não muda. A `main` usou depois da D-PROD-266 à D-PROD-270 (todas sem migration) e a D-PROD-271 ficou com a edição da entrada e da saída (PR #355); esta decisão é a **D-PROD-272**.
 
 ## 5. Migration e ensaio
 
