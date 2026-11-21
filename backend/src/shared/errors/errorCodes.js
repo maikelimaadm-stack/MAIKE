@@ -221,6 +221,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL: { http: 422, meaning: 'o estoque do Produto não está em L, KG nem SACO (details.unidade); nada foi gravado' },
   ABASTECIMENTO_EXCEDE_CAPACIDADE: { http: 422, meaning: 'a quantidade em litros passa da capacidade nominal do tanque (details.capacidade_litros); só conferida para Produto em L; nada foi gravado' },
   ABASTECIMENTO_DATA_FUTURA: { http: 422, meaning: 'data do abastecimento posterior a hoje no fuso da fazenda (details.hoje/fuso); nada foi gravado' },
+  // D-PROD-267 — cancelamento do lançamento de cocho e da transferência entre depósitos.
+  SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'o lançamento de cocho não pode ser cancelado com segurança agora (details.reason); nada foi alterado' },
+  SUPLEMENTACAO_REGISTRO_CANCELADO: { http: 409, meaning: 'o documento de suplementação foi cancelado e não aceita alteração; nada foi alterado' },
+  LANCAMENTO_DESATUALIZADO: { http: 409, meaning: 'o cocho recebeu outro lançamento ou cancelamento enquanto a tela estava aberta (details.evento_anterior_id); recarregue; nada foi gravado' },
+  CAMPO_RESERVADO_CANCELAMENTO: { http: 400, meaning: 'campo reservado ao cancelamento/fechamento do servidor (details.campos); nada foi gravado' },
+  TRANSFERENCIA_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'a transferência entre depósitos não pode ser cancelada com segurança agora (details.reason); nada foi alterado' },
   ABASTECIMENTO_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'o estorno exato não é seguro agora (details.reason: produto_mudou_de_fazenda | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | unidade_mudou | vinculo_divergente | camada_divergente); nada foi alterado' },
   MEDIDOR_LEITURA_ACIMA_POSTERIOR: { http: 422, meaning: 'a leitura informada é maior que uma leitura de data posterior do mesmo medidor (details.leitura_posterior/data_posterior/origem_posterior); nada foi gravado' },
   EMPRESA_NAME_CONFLICT: {
