@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-267; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-268; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,12 +9,23 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-21) — MAIKE-VARIOS-DIAS: serviço de vários dias e a Situação da lista (D-PROD-267)
+## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-268)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-268**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25` · PR (a abrir) |
+| Escopo | Plantio de pastagem com o capim obrigatório (do Cadastro de Culturas; capim diferente abre outra atividade), forma, semente incrustada, cobertura, consórcio e o VC % da semente; safra automática (1º/jul a 30/jun, "2026/27"); Aplicação com o alvo da operação, o nº do receituário e o "pasto liberado em" pela carência do produto; Manutenção e Outros com a área opcional e o local; quantidade feita + unidade na Manutenção; a lista de referência de capins (Marandu 35/20 e 6 capins do Doc 397) sem tocar no que a fazenda já tem; a data no celular |
+| Migration | `20261121100000_atividade_campos_por_tipo`, **EXPAND** (tabela nova `AtividadePlantio` e 5 colunas anuláveis), checksum `9e6487ff…2a58`. **Não aplicada.** Ordem: aplicar com o GO do proprietário, depois o merge |
+| Próximas | agrupador de Reforma e "Faz parte de: Reforma"; "Conferir nascimento"; aviso do 1º pastejo |
+| Relatório | [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · runbook [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md) |
+
+## Missão (2026-11-21) — MAIKE-VARIOS-DIAS: serviço de vários dias e a Situação da lista (D-PROD-267)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-267**, a proposta aprovada pelo proprietário em 2026-11-21 (Partes 2 e 3 de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)) e as maquetes V1, V2 e V3 |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `2e048854` · PR #352 |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `2e048854` · PR #352 (mergeada) |
 | Servidor | `POST /atividades/registrar` sem a regra do mês (trava por área), 409 `ATIVIDADE_SERVICO_PARADO` depois de 30 dias sem lançamento (`nova_atividade` decide), `concluir` opcional; todas as áreas concluídas ⇒ atividade concluída; concluir nunca antes do último dia lançado; `GET /atividades` com o `andamento` e os filtros `situacao` e `tipo_fixo` |
 | Tela | Lista uma linha por serviço (Nº · Tipo · Operação · Área · Data · Situação · Custo; "+ Nova realização" e "Planejar"; "+ Lançar dia" e "Concluir" na linha; "100%, falta concluir"), "+ Lançar dia" preenchido, "Como fica depois de salvar?", a pergunta do parado e o diálogo "Concluir" |
 | Migration | Nenhuma. Merge e deploy normais |
