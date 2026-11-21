@@ -20,10 +20,12 @@ import { Abas, RodapePilulas, idsDaAba } from "./detalhes-lote/blocos";
  *
  * - Detalhes: o cartão da área, as atividades em andamento e os custos do mês (números do servidor) e, com a chave
  *   `medir_forragem` (D-PROD-219, fora da infraestrutura), o painel de Forragem — a "Medição de Forragem" continua aqui.
- * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos".
+ * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos". Com a ação extra
+ *   `cancelar_apontamento` da tela de atividades, cada cartão traz o "Excluir registro" (D-PROD-266): por baixo, o
+ *   mesmo cancelamento do Lançamento de Atividades, só online; no mapa só se vê exclusão e o excluído some.
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
- * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO o formulário "Registrar serviço" — o mesmo do
- *   Lançamento de Atividades (D-PROD-258), com a área já preenchida: a pessoa escolhe o tipo, depois a operação.
+ * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO a "Nova realização" — a mesma do Lançamento de
+ *   Atividades (D-PROD-258, D-PROD-265), com a área já marcada e presa: a pessoa escolhe o tipo (cartões), depois a operação.
  *   "Histórico completo" (com a permissão de histórico de
  *   movimentação) continua sendo o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador
  *   (D-PROD-110), num diálogo por cima.
@@ -40,6 +42,7 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   definirFazendaDaTela(empresaId);
   const verAtividades = acoes.ver === true;
   const podeRegistrar = acoes.lancarApontamento === true;
+  const podeCancelarRegistro = acoes.cancelarApontamento === true;
 
   const [aba, setAba] = React.useState("detalhes");
   const [anim, setAnim] = React.useState(/** @type {"aba-dir" | "aba-esq" | "empurrar" | "voltar" | null} */ (null));
@@ -105,7 +108,7 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   const idBase = `area-${area.id}`;
   const ids = idsDaAba(idBase, abaAtual);
   let corpo;
-  if (abaAtual === "historico") corpo = <AbaRegistrosDaArea area={area} tipos={tipos} />;
+  if (abaAtual === "historico") corpo = <AbaRegistrosDaArea area={area} tipos={tipos} podeCancelar={podeCancelarRegistro} />;
   else if (abaAtual === "abate") corpo = <HistoricoAbateCurral areaId={area.id} />;
   else corpo = <AbaDetalhesDaArea area={area} setorNome={setorNome} ocupada={ocupada} verAtividades={verAtividades} forragem={forragem} />;
 

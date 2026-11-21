@@ -1,24 +1,44 @@
 import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, History } from "lucide-react";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import PainelSelecao from "@/components/common/PainelSelecao";
 import { LIMITE_CACHE_MOVIMENTACOES } from "@/components/lotes/usePaginasDoHistorico";
+import ExcluirMovimentacao from "@/components/lotes/ExcluirMovimentacao";
+import CancelarLancamentoCocho, { usePermissaoCancelarCocho } from "@/components/suplementacao/CancelarLancamentoCocho";
+import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
+import { tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import { usePasto } from "./pastoContexto";
 import { Aviso, BotaoFiltro, Nota, Vazio } from "./blocos";
 import LinhaDoTempo from "./LinhaDoTempo";
 import { FILTROS_DO_HISTORICO, FILTRO_PADRAO, filtroValido, rotuloDoFiltro } from "./historicoDoPasto";
 import { useHistoricoDoPasto } from "./useHistoricoDoPasto";
 import "@/styles/mk-dp-historico.css";
+import "@/styles/mk-dp-tl-acoes.css";
 
 /*
  * Aba Histórico do pasto (Detalhes do Lote v12, D-PROD-218 — número definitivo
  * no PR): filtro "Mostrar" + linha do tempo da área (movimentações do servidor,
  * em ordem H2 por ocorrência — D-PROD-123 —, e lançamentos de suplementação da
- * área), com "Carregar mais" e o aviso offline do histórico de hoje. Só
- * leitura: excluir uma movimentação continua no "Histórico de Movimentação"
- * (Manejos e históricos, D-PROD-110). Tudo vem de `usePasto()`; a casca só
- * monta esta aba quando ela está ativa, e só então a consulta existe.
+ * área), com "Carregar mais" e o aviso offline do histórico de hoje. Tudo
+ * vem de `usePasto()`; a casca só monta esta aba quando ela está ativa, e só
+ * então a consulta existe.
+ *
+ * Excluir (D-PROD-266, etapa 1): o MESMO "Excluir movimentação" do Histórico de
+ * Movimentação (D-PROD-110, `ExcluirMovimentacao`: elegibilidade conferida no
+ * servidor, motivo, confirmação, só online, nunca na fila offline) no pé do
+ * cartão, com as mesmas condições dele: dados do servidor (nunca a cópia do
+ * aparelho) e de tipo com exclusão (o registro excluído já some da linha do tempo). Um movimento vira
+ * vários cartões (um por lote) e a exclusão apaga o registro INTEIRO: a ação
+ * fica só no primeiro cartão do movimento, com o aviso do alcance. Quem vê a
+ * ação decide o próprio `ExcluirMovimentacao`. Ao excluir, histórico e mapa relêem.
+ *
+ * Excluir lançamento (D-PROD-268, etapa 2): o cartão de suplementação MAIS RECENTE de cada
+ * cocho ganha "Excluir lançamento" no pé (`CancelarLancamentoCocho`: comando do servidor, só
+ * com a permissão `cancelar_lancamentos_estoque`, motivo obrigatório, só online, elegibilidade
+ * antes de habilitar). Só o mais recente é dica: quem decide é o servidor. Excluído, o cartão
+ * some (o lançamento sai dos históricos do cocho, do pasto e do lote).
  *
  * A lista do "Mostrar" é a que o sistema já usa (como o B1Select): o painel
  * preso ao botão no desktop/tablet e a folha de baixo no celular — dentro do
@@ -34,6 +54,137 @@ const VAZIO_DO_FILTRO = "Nenhum registro deste tipo neste pasto.";
 const NOTA_DA_AREA = "Registros de todas as movimentações, pesagens e manejos que passaram por esta área.";
 const VAZIO_DA_AREA = "Nenhum registro deste tipo nesta área.";
 const SEM_COPIA_NO_APARELHO = "Este aparelho ainda não tem movimentações salvas para consulta sem conexão.";
+// Página lida sem nada para mostrar (por exemplo, só registros excluídos), mas o servidor
+// tem mais páginas: não afirma que o pasto/área não tem histórico.
+const VAZIO_COM_MAIS_PAGINAS = "Nenhum registro nesta parte do histórico. Carregue mais para ver os mais antigos.";
+
+/**
+ * Quantos OUTROS pastos o movimento toca além deste (origem/destino do registro
+ * e das linhas). Sem ids gravados, 0: o aviso não afirma o que não sabe.
+ * @param {any} mov @param {string | null | undefined} areaId
+ */
+export function outrosPastosDoMovimento(mov, areaId) {
+  const ids = new Set();
+  const somar = (/** @type {any} */ v) => {
+    if (typeof v === "string" && v && v !== areaId) ids.add(v);
+  };
+  somar(mov?.area_origem_id);
+  somar(mov?.area_destino_id);
+  for (const l of Array.isArray(mov?.linhas) ? mov.linhas : []) {
+    somar(l?.area_origem_id);
+    somar(l?.area_destino_id);
+  }
+  return ids.size;
+}
+
+/**
+ * Aviso do alcance, ao lado do botão: a exclusão apaga o registro inteiro. Só
+ * cita outro pasto quando o registro de fato envolve outro pasto.
+ * @param {number} cartoes quantos cartões deste movimento a aba mostra
+ * @param {number} [outrosPastos] quantos outros pastos o registro toca
+ */
+export const textoDoAlcance = (cartoes, outrosPastos = 0) => {
+  const base =
+    cartoes > 1
+      ? `Exclui o registro inteiro: os ${cartoes} cartões deste registro saem juntos, com todos os lotes dele.`
+      : "Exclui o registro inteiro, com todos os lotes dele, não só este cartão.";
+  if (outrosPastos <= 0) return base;
+  return `${base} ${outrosPastos === 1 ? "Desfaz também o que ele mudou no outro pasto do registro." : "Desfaz também o que ele mudou nos outros pastos do registro."}`;
+};
+
+/**
+ * Põe "Excluir movimentação" no pé do PRIMEIRO cartão de cada movimento que
+ * pode ser excluído (mesmas condições do Histórico de Movimentação: servidor,
+ * não cancelado, `tipoTemExclusao`). Os outros cartões ficam como estão.
+ * @param {import("./historicoDoPasto").DiaHistorico[]} dias
+ * @param {{ doServidor: boolean, areaId?: string | null, aoExcluir?: () => void }} opcoes
+ * @returns {import("./historicoDoPasto").DiaHistorico[]}
+ */
+export function comAcaoDeExcluir(dias, { doServidor, areaId = null, aoExcluir }) {
+  if (!doServidor) return dias;
+  /** @type {Map<string, number>} */
+  const porMovimento = new Map();
+  for (const dia of dias) {
+    for (const c of dia.cartoes) {
+      const id = c.mov?.id;
+      if (id) porMovimento.set(id, (porMovimento.get(id) ?? 0) + 1);
+    }
+  }
+  const vistos = new Set();
+  return dias.map((dia) => ({
+    ...dia,
+    cartoes: dia.cartoes.map((c) => {
+      const mov = c.mov;
+      if (!mov?.id || vistos.has(mov.id)) return c;
+      vistos.add(mov.id);
+      if (c.cancelado || !tipoTemExclusao(mov)) return c;
+      const alcance = textoDoAlcance(porMovimento.get(mov.id) ?? 1, outrosPastosDoMovimento(mov, areaId));
+      return { ...c, acoes: <AcaoExcluir key={mov.id} movimento={mov} alcance={alcance} aoExcluir={aoExcluir} /> };
+    }),
+  }));
+}
+
+/**
+ * O botão do `ExcluirMovimentacao` e, só quando ele aparece, o aviso do
+ * alcance. Quem vê o botão (permissão, já excluído) é decisão do componente,
+ * que então não desenha nada: o aviso some junto e a caixa fica vazia (0 px:
+ * o CSS não dá recuo nem divisória a caixa vazia). O observador acompanha o
+ * componente aparecer/sumir. Leitor de tela: com o botão, a caixa vira um
+ * grupo nomeado pelo aviso — ao focar o botão ouve-se que o registro inteiro
+ * sai (o diálogo é do `ExcluirMovimentacao`, sem mudar a API dele).
+ * @param {{ movimento: any, alcance: string, aoExcluir?: () => void }} props
+ */
+function AcaoExcluir({ movimento, alcance, aoExcluir }) {
+  const caixa = React.useRef(/** @type {HTMLDivElement | null} */ (null));
+  const idAlcance = React.useId();
+  const [comBotao, setComBotao] = React.useState(false);
+  React.useLayoutEffect(() => {
+    const el = caixa.current;
+    if (!el) return undefined;
+    const conferir = () => setComBotao(Array.from(el.children).some((filho) => !filho.classList.contains("mk-dp-hist__alcance")));
+    conferir();
+    if (typeof MutationObserver === "undefined") return undefined;
+    const observador = new MutationObserver(conferir);
+    observador.observe(el, { childList: true });
+    return () => observador.disconnect();
+  }, []);
+  return (
+    <div ref={caixa} className="mk-dp-hist__excluir" {...(comBotao ? { role: "group", "aria-labelledby": idAlcance } : {})}>
+      <ExcluirMovimentacao movimento={movimento} onExcluido={aoExcluir} />
+      {comBotao ? (
+        <p id={idAlcance} className="mk-dp-hist__alcance">
+          {alcance}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * D-PROD-268 — "Excluir lançamento" no pé do cartão de suplementação mais recente de cada cocho
+ * (os cartões chegam do mais novo para o mais antigo). Os outros ficam como estão.
+ * @param {import("./historicoDoPasto").DiaHistorico[]} dias
+ * @param {{ aoCancelar?: () => void, doServidor?: boolean, autorizado?: boolean }} [opcoes]
+ * @returns {import("./historicoDoPasto").DiaHistorico[]}
+ */
+export function comAcaoDeCancelarCocho(dias, { aoCancelar, doServidor = true, autorizado = true } = {}) {
+  // Cópia do aparelho (offline): só leitura, como o "Excluir movimentação". Sem a permissão: sem pé.
+  if (!doServidor || !autorizado) return dias;
+  const vistos = new Set();
+  return dias.map((dia) => ({
+    ...dia,
+    cartoes: dia.cartoes.map((c) => {
+      const ev = c.evento;
+      // Lançamento sem cocho (legado) nunca é cancelável (o servidor recusa `sem_recibo`): sem pé
+      // e sem ensaio no servidor para cada cartão antigo.
+      if (!ev?.id || !ev.ponto_suplementacao_id || c.acoes) return c;
+      const cocho = ev.ponto_suplementacao_id;
+      if (vistos.has(cocho)) return c;
+      vistos.add(cocho);
+      return { ...c, acoes: <CancelarLancamentoCocho key={ev.id} evento={ev} onCancelado={aoCancelar} /> };
+    }),
+  }));
+}
 
 /** @param {string | null} iso */
 const formatarDataHora = (iso) => {
@@ -65,6 +216,7 @@ function AvisoOffline({ aviso }) {
 
 export default function AbaHistorico() {
   const { dados } = usePasto();
+  const queryClient = useQueryClient();
   const daArea = dados?.tipoLocal === "area";
   const celular = useCelular();
   const [filtro, setFiltro] = React.useState(() => filtroValido(filtroDaSessao));
@@ -81,6 +233,17 @@ export default function AbaHistorico() {
     eventos: dados?.suplementacao?.eventos ?? null,
     filtro,
   });
+
+  // O ExcluirMovimentacao já relê o rebanho (mapa e consultas); aqui garante a
+  // releitura do histórico desta aba e da elegibilidade dos outros cartões.
+  const aoExcluir = React.useCallback(() => {
+    invalidarCachesDoMapa(queryClient, ["historico-movimentacoes", "elegibilidade-exclusao-movimentacao"]);
+  }, [queryClient]);
+  const { autorizado: podeCancelarCocho } = usePermissaoCancelarCocho();
+  const dias = React.useMemo(
+    () => comAcaoDeCancelarCocho(comAcaoDeExcluir(h.dias, { doServidor: h.origem === "servidor", areaId: dados?.areaId ?? null, aoExcluir }), { aoCancelar: aoExcluir, doServidor: h.origem === "servidor", autorizado: podeCancelarCocho }),
+    [h.dias, h.origem, dados?.areaId, aoExcluir, podeCancelarCocho],
+  );
 
   /** @param {string} valor */
   const escolher = (valor) => {
@@ -149,10 +312,15 @@ export default function AbaHistorico() {
         </button>
       </div>
     );
-  } else if (h.dias.length) {
-    conteudo = <LinhaDoTempo textoAutomatico dias={h.dias} rotulo={daArea ? "Registros da área" : undefined} />;
+  } else if (dias.length) {
+    conteudo = <LinhaDoTempo textoAutomatico dias={dias} rotulo={daArea ? "Registros da área" : undefined} />;
   } else {
-    conteudo = <Vazio icone={History}>{semCopiaNoAparelho ? SEM_COPIA_NO_APARELHO : daArea ? VAZIO_DA_AREA : VAZIO_DO_FILTRO}</Vazio>;
+    const haMaisParaLer = h.haMaisPaginas && filtro !== "sup";
+    conteudo = (
+      <Vazio icone={History}>
+        {semCopiaNoAparelho ? SEM_COPIA_NO_APARELHO : haMaisParaLer ? VAZIO_COM_MAIS_PAGINAS : daArea ? VAZIO_DA_AREA : VAZIO_DO_FILTRO}
+      </Vazio>
+    );
   }
 
   // "Carregar mais" só pede movimentações: com "Suplementação" (tudo do aparelho) não aparece.

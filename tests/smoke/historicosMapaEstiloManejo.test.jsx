@@ -91,7 +91,8 @@ describe("Histórico do cocho no desenho do manejo (D-PROD-222)", () => {
     // Um título só (o do cabeçalho): nada de "Histórico do Cocho (2)" dentro do corpo.
     expect(screen.getAllByText("Histórico do Cocho (2)")).toHaveLength(1);
     expect(document.querySelector(".mk-ll .rounded-xl, .mk-ll [class*='CardHeader']")).toBeNull();
-    expect(screen.getByRole("note").textContent).toBe(MENSAGEM_ESTORNO_SUSPENSO);
+    // D-PROD-268: o cocho tem cancelamento no servidor; o aviso de suspenso saiu.
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByRole("button", { name: /Excluir/ })).toBeNull();
   });
 
@@ -174,7 +175,7 @@ describe("Histórico da tarefa no desenho do manejo (D-PROD-222)", () => {
   ];
 
   it("título com a contagem no cabeçalho; cartões do manejo; o \"Excluir\" do manejo no rodapé, só o mais recente ligado", async () => {
-    noDialogo("Histórico da tarefa", "Consertar cerca", <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={HISTORICO} />);
+    noDialogo("Histórico da tarefa", "Consertar cerca", <HistoricoTarefaPanel tarefaId="t1" tarefaTitulo="Consertar cerca" historico={HISTORICO} podeExcluir />);
     await waitFor(() => expect(titulo()).toBe("Histórico da Tarefa (2)"));
     expect(subtitulo()).toBe("Consertar cerca");
     const [recente, antigo] = cartoes();

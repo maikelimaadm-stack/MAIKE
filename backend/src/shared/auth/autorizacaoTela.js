@@ -139,8 +139,10 @@ export const ACOES_ATIVIDADES_EXTRAS = Object.freeze(['reabrir', 'lancar_apontam
  * Gravada na própria linha da tela em `permissoes_telas`; ausente/não booleano = negado; nenhum perfil a
  * recebe por padrão; administrador real e `is_admin` têm tudo. `ajuste` (inventário) continua RESERVADA e
  * NÃO existe. `visualizar` só vê a lista e o detalhe. Mesma lista no navegador (`EXTRA_ACTION_KEYS_BY_PAGE`).
+ * D-PROD-264 — `saida` = lançar saída manual (custo médio, pelo motor), editar a observação, excluir (estorno
+ * só sem movimento depois) e manter os motivos de saída. Também nasce desligada.
  */
-export const ACOES_ESTOQUE_EXTRAS = Object.freeze(['entrada']);
+export const ACOES_ESTOQUE_EXTRAS = Object.freeze(['entrada', 'saida']);
 
 /**
  * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo
@@ -170,7 +172,18 @@ export const ACOES_GRAVADORAS_MAPA = Object.freeze([
   'registrar_abate', 'renomear_lotes', 'juntar_lotes', 'lancar_suplementacao', 'movimentar_depositos',
   // D-PROD-219 — Medição de Forragem do pasto.
   'medir_forragem',
+  // D-PROD-266 — excluir (definitivo, D-PROD-110) movimentação do lote. Nasce desligada.
+  'excluir_movimentacoes_lote',
+  // D-PROD-268 — cancelar lançamento de cocho e transferência entre depósitos. Nasce desligada.
+  'cancelar_lancamentos_estoque',
 ]);
+
+/**
+ * D-PROD-266 — chave do Mapa Geral que libera a exclusão definitiva de
+ * movimentação do lote (`POST /movimentacoes-mapa/:id/exclusao` e o ensaio
+ * `GET .../elegibilidade-exclusao`). Gravadora: operador só com `=== true`.
+ */
+export const CHAVE_EXCLUIR_MOVIMENTACOES_LOTE = 'excluir_movimentacoes_lote';
 
 const semAcento = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
@@ -235,6 +248,50 @@ export const mapaPermite = (aut, chave) => {
   const valor = mapa && typeof mapa === 'object' && !Array.isArray(mapa) ? mapa[chave] : undefined;
   if (ACOES_GRAVADORAS_MAPA.includes(chave)) return valor === true;
   return valor !== false;
+};
+
+/**
+ * D-PROD-266 — pode excluir movimentação do lote: administrador real, concessão
+ * `is_admin` ou a chave do mapa `excluir_movimentacoes_lote` (com a tela do Mapa
+ * Geral visível). Avaliação pura sobre `carregarAutorizacao`.
+ */
+export const podeExcluirMovimentacaoLote = (aut) => acessoTotal(aut) || mapaPermite(aut, CHAVE_EXCLUIR_MOVIMENTACOES_LOTE);
+
+/**
+ * D-PROD-266 — a mesma regra DENTRO da transação da exclusão (a revogação
+ * concorrente vale): nega com 403 `ACAO_NAO_PERMITIDA`.
+ * @param {{auth: import('./authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} [tx]
+ */
+export const exigirExclusaoMovimentacaoLote = async (contexto, tx) => {
+  const aut = await carregarAutorizacao(contexto, tx);
+  if (!podeExcluirMovimentacaoLote(aut)) {
+    throw acaoNaoPermitida({ tela: TELAS.MAPA_GERAL.tela, mapa: CHAVE_EXCLUIR_MOVIMENTACOES_LOTE });
+  }
+  return aut;
+};
+
+/** D-PROD-268 — chave do mapa que libera cancelar lançamento de cocho e transferência de depósito. */
+export const CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE = 'cancelar_lancamentos_estoque';
+
+/**
+ * D-PROD-268 — pode cancelar lançamento de cocho / transferência entre depósitos:
+ * administrador real, `is_admin` ou a chave `cancelar_lancamentos_estoque`.
+ */
+export const podeCancelarLancamentosEstoque = (aut) => acessoTotal(aut) || mapaPermite(aut, CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE);
+
+/**
+ * D-PROD-268 — a mesma regra DENTRO da transação do cancelamento (revogação
+ * concorrente vale): nega com 403 `ACAO_NAO_PERMITIDA`.
+ * @param {{auth: import('./authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} [tx]
+ */
+export const exigirCancelamentoLancamentosEstoque = async (contexto, tx) => {
+  const aut = await carregarAutorizacao(contexto, tx);
+  if (!podeCancelarLancamentosEstoque(aut)) {
+    throw acaoNaoPermitida({ tela: TELAS.MAPA_GERAL.tela, mapa: CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE });
+  }
+  return aut;
 };
 
 /** preHandler: só o administrador REAL da fazenda (papel relido do banco). */

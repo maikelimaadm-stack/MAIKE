@@ -16,13 +16,28 @@
  * `REGISTRO_OPERACIONAL_IMUTAVEL` quando o lote está vinculado), e
  * `suplementacaoHistoricoService` falha fechada sem I/O. O estorno de verdade
  * (no motor físico, transacional) continua para a P1.
+ *
+ * D-PROD-268 — o cancelamento do lançamento do COCHO passa a existir no servidor
+ * (POST /suplementacao-eventos/:id/cancelamento: estorno exato pelo motor, rateio
+ * cancelado e período anterior reaberto, numa transação idempotente). A flag do
+ * cocho liga SÓ esse caminho novo (`CancelarLancamentoCocho`, só online, para
+ * quem tem a permissão `cancelar_lancamentos_estoque`); a reversão antiga pelo
+ * navegador continua morta.
+ *
+ * D-PROD-268 — a TRANSFERÊNCIA entre depósitos também ganha estorno no servidor
+ * (POST /movimentacoes-estoque/:id/cancelar-transferencia, `CancelarTransferenciaDeposito`).
+ * A flag do depósito continua `false`: ela guarda só a porta antiga do navegador.
  */
 
-export const MENSAGEM_ESTORNO_SUSPENSO =
-  'Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro.';
+/**
+ * Aviso que o usuário VÊ quando o caminho antigo está suspenso. No Mapa Geral só
+ * há EXCLUSÃO (o proprietário: "não tenho cancelamentos, tenho exclusão"): o
+ * texto fala em exclusão; o nome da constante e as flags não mudam.
+ */
+export const MENSAGEM_ESTORNO_SUSPENSO = 'Exclusão temporariamente indisponível.';
 
-/** Cancelamento de lançamento do cocho (evento de suplementação). */
-export const CANCELAMENTO_COCHO_HABILITADO = false;
+/** Cancelamento de lançamento do cocho (evento de suplementação) — D-PROD-268: só o comando do servidor. */
+export const CANCELAMENTO_COCHO_HABILITADO = true;
 
 /** Cancelamento de transferência entre depósitos. */
 export const CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO = false;

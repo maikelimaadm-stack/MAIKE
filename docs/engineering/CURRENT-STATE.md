@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-263; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-269; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -11,12 +11,76 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-REGISTRO-VARIAS-AREAS: várias áreas num "Registrar serviço" (D-PROD-263)
+## Missão ativa (2026-11-21) — MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA: no mapa só existe "Excluir" (D-PROD-269)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-269**, pedido do proprietário: "eu não tenho cancelamentos eu tenho exclusão" |
+| Branch / PR | `feat/excluir-historicos-mapa-textos`, a partir da `main` `80aa1db3` · PR (a abrir) |
+| Escopo | Só tela do mapa: ações "Excluir ...", registro excluído/cancelado some dos históricos, permissão renomeada na tela (chave igual). Servidor sem mudança |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md) |
+
+## Missão (2026-11-21) — MAIKE-ESTORNO-COCHO-DEPOSITO: cancelar lançamento de cocho e transferência entre depósitos (D-PROD-268)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-268**, etapa 2 da D-PROD-266; escolhas do proprietário: permissão nova desligada, recusar com movimento depois, cancelado some dos históricos, recusar com origem inativa |
+| Branch / PR | `feat/estorno-cocho-deposito`, a partir da `main` `2e048854`, com a `main` `695ddb25` integrada · PR **#353** (mergeada, `80aa1db3`) |
+| Escopo | Permissão `cancelar_lancamentos_estoque`; primitivas de estorno no motor; `POST /suplementacao-eventos/:id/cancelamento` e `POST /movimentacoes-estoque/:id/cancelar-transferencia`, com ensaio GET; botões nos históricos do cocho e do depósito |
+| Migration | Nenhuma. Merge e deploy normais |
+| Relatório | [`MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md`](./MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md) |
+
+## Missão (2026-11-21) — MAIKE-VARIOS-DIAS: serviço de vários dias e a Situação da lista (D-PROD-267)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-267**, a proposta aprovada pelo proprietário em 2026-11-21 (Partes 2 e 3 de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)) e as maquetes V1, V2 e V3 |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `2e048854` · PR #352 |
+| Servidor | `POST /atividades/registrar` sem a regra do mês (trava por área), 409 `ATIVIDADE_SERVICO_PARADO` depois de 30 dias sem lançamento (`nova_atividade` decide), `concluir` opcional; todas as áreas concluídas ⇒ atividade concluída; concluir nunca antes do último dia lançado; `GET /atividades` com o `andamento` e os filtros `situacao` e `tipo_fixo` |
+| Tela | Lista uma linha por serviço (Nº · Tipo · Operação · Área · Data · Situação · Custo; "+ Nova realização" e "Planejar"; "+ Lançar dia" e "Concluir" na linha; "100%, falta concluir"), "+ Lançar dia" preenchido, "Como fica depois de salvar?", a pergunta do parado e o diálogo "Concluir" |
+| Migration | Nenhuma. Merge e deploy normais |
+| Próximas fatias | B (plantio com capim, com migration) e C (agrupador de reforma, com migration), Parte 1 da proposta |
+| Relatório | [`MAIKE-VARIOS-DIAS-REPORT.md`](./MAIKE-VARIOS-DIAS-REPORT.md) · pesquisa: [`MAIKE-PESQUISA-OPERACOES-CAMPO.md`](./MAIKE-PESQUISA-OPERACOES-CAMPO.md) |
+
+## Missão (2026-11-20) — MAIKE-EXCLUIR-HISTORICOS-MAPA: excluir e cancelar direto nos históricos do mapa (D-PROD-266)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-266**, pedido do proprietário: as opções de excluir não apareciam nos históricos do mapa; ele escolheu liberar para quem tem permissão e fazer em duas etapas |
+| Branch / PR | `feat/excluir-historicos-mapa`, a partir da `main` `3c8329b1` · PR **#351** |
+| Escopo (etapa 1) | Permissão nova `excluir_movimentacoes_lote` (servidor + tela); Excluir por movimento no histórico do lote/pasto; Cancelar registro de campo no histórico da área; Excluir do evento de tarefa alinhado ao servidor |
+| Migration | Nenhuma. Merge e deploy normais |
+| Etapa 2 | Estorno de lançamento de cocho e de transferência de depósito (servidor novo) |
+| Relatório | [`MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md`](./MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md) |
+
+## Missão (2026-11-20) — MAIKE-NOVA-REALIZACAO: "Nova realização" com o tipo em cartões e a data de término (D-PROD-265)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-265**, a maquete "Nova realização de <Tipo>" do proprietário: o botão "Registrar serviço" vira "Nova realização"; a janela abre nos 7 tipos em cartões e segue para "Nova realização de <Tipo>" ("Trocar tipo" ao lado do título); seções Área, Operação, Datas, Insumos, Máquinas, Equipe, Serviço de terceiro, Planejamento (só leitura) e Informações complementares |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `46fe34f5` · PR #349 (mergeada) |
+| Servidor | `POST /atividades/registrar` aceita `data_termino` opcional (só esta rota): antes do início 400, futuro 422, o mesmo em todas as áreas; sem o campo, fingerprint igual ao de antes. Volta no apontamento, na auditoria e no histórico da área |
+| Migration | `20261120200000_apontamento_data_termino`, **CONTRACT aditiva** (coluna DATE anulável + CHECK término ≥ início; a allowlist EXPAND recusa DATE e CHECK em tabela antiga). **Aplicada em produção em 2026-11-20 às 18:58:29 UTC** (caminho B, GO do proprietário; postcheck 72 / 0), antes do merge |
+| Abertos | editar o término; repetir não copia o término; campos próprios de cada tipo, lista nova, Planejar e remover telas antigas ficam para as próximas fatias |
+| Relatório | [`MAIKE-NOVA-REALIZACAO-REPORT.md`](./MAIKE-NOVA-REALIZACAO-REPORT.md) · runbook [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-ESTOQUE-SAIDA-MANUAL: saída manual no "Novo movimento" (D-PROD-264)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-264**, escolhas do proprietário: motivos por cadastro (Perda, Consumo interno, Doação, Vencimento), custo médio automático, exclusão só sem movimento depois, permissão própria `saida` |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `d8fa5ced`, com a `main` `a12e3c5c` integrada · PR draft |
+| Migration | `20261120100000_estoque_saidas`, **EXPAND** (4 tabelas novas). **Aplicada em produção** em 2026-11-20 01:15:39 UTC pelo caminho B, com o GO do proprietário (71 concluídas, 105 tabelas) |
+| Constituição | emenda da D-PROD-264 (saída manual como escritor documentado) **aprovada pelo proprietário em 2026-11-20**; parágrafo em `00` §1 e nota em `07` |
+| Relatório | [`MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-REPORT.md) · runbook [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-REGISTRO-VARIAS-AREAS: várias áreas num "Registrar serviço" (D-PROD-263)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-263**, fase 3 da D-PROD-258: um registro de campo cobre várias áreas, cada uma com os seus hectares (maquete "Nova realização") |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `5261ec13` · PR (a abrir) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `5261ec13` · PR #348 (mergeada) |
 | Escopo | Tela: campo "Áreas" (busca + caixas) e tabela Área · Tamanho · % · Hectares · ✕ com o Total; "Hectares feitos" sai; dose/ha pelos hectares totais; área presa do mapa marcada. Servidor: `areas: [{ area_id, hectares }]` no `POST /atividades/registrar` → UMA atividade e um apontamento por área, linhas repartidas pelos hectares (medidor em trechos seguidos) |
 | Migration | nenhuma (o modelo da D-PROD-249 já guarda várias áreas por atividade) |
 | Abertos | cancelar o apontamento de uma área não mexe nos das outras; editar os hectares depois não reparte de novo |
@@ -27,7 +91,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-262**, fase 2 da D-PROD-258: várias máquinas, insumos, pessoas e serviços num registro só |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR #346 (draft) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `c0cde2dd` · PR #346 (mergeada) |
 | Escopo | "Registrar serviço" (`RegistroDeCampo.jsx`) com as quatro seções em tabelas, no desenho da maquete "Nova realização" (Insumos, Máquinas, Equipe, Serviço de terceiro): "+ Incluir …" abre um editor dentro da seção; a recusa do servidor fica na linha certa; Observação em "Informações complementares" |
 | Backend | nenhuma mudança: `POST /atividades/registrar` já aceitava até 20 itens por coleção |
 | Migration | nenhuma |

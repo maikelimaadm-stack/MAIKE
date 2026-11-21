@@ -164,6 +164,11 @@ const ATV_A1 = Object.freeze({
   criado_por: usuario("u1", "Gerente"),
   createdAt: "2026-11-01T12:00:00.000Z",
   updatedAt: "2026-11-12T15:00:00.000Z",
+  // D-PROD-267: o andamento que a lista do servidor traz (situação, hectares, %, dias).
+  andamento: {
+    tipo_fixo: "APLICACAO", situacao: "EM_ANDAMENTO", situacao_rotulo: "Em andamento", hectares_feitos: "12.5000", hectares_area: "40.0000", percentual: "31.25",
+    primeiro_dia: "2026-11-01", ultimo_dia: "2026-11-12", lancamentos: 2, areas: [],
+  },
 });
 const ATV_A2 = Object.freeze({
   ...ATV_A1,
@@ -186,6 +191,10 @@ const ATV_A2 = Object.freeze({
   area_executada: "8.0000",
   quantidade_produzida: null,
   createdAt: "2026-10-30T12:00:00.000Z",
+  andamento: {
+    tipo_fixo: "PASTAGEM", situacao: "CONCLUIDA", situacao_rotulo: "Concluída", hectares_feitos: "8.0000", hectares_area: null, percentual: null,
+    primeiro_dia: "2026-11-03", ultimo_dia: "2026-11-12", lancamentos: 1, areas: [],
+  },
 });
 const ATV_A3 = Object.freeze({
   ...ATV_A1,
@@ -207,6 +216,10 @@ const ATV_A3 = Object.freeze({
   cancelado_por: usuario("u1", "Gerente"),
   motivo_cancelamento: "aberta em duplicidade",
   createdAt: "2026-10-20T12:00:00.000Z",
+  andamento: {
+    tipo_fixo: "APLICACAO", situacao: "CANCELADA", situacao_rotulo: "Cancelada", hectares_feitos: null, hectares_area: null, percentual: null,
+    primeiro_dia: null, ultimo_dia: null, lancamentos: 0, areas: [],
+  },
 });
 
 /** Apontamento como o servidor devolve (§10). */
@@ -359,6 +372,9 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     const itens = [...atividades.values()]
       .filter((a) => a.empresa_id === f("empresa_id"))
       .filter((a) => !f("status") || a.status === f("status"))
+      // D-PROD-267: a Situação e o tipo fixo, como o servidor.
+      .filter((a) => !f("situacao") || a.andamento?.situacao === f("situacao"))
+      .filter((a) => !f("tipo_fixo") || a.andamento?.tipo_fixo === f("tipo_fixo"))
       .filter((a) => !f("tipo_atividade_id") || a.tipo_atividade_id === f("tipo_atividade_id"))
       .filter((a) => !f("area_id") || a.area_id === f("area_id"))
       .filter((a) => !f("data_de") || a.data_inicio >= /** @type {string} */ (f("data_de")))
@@ -583,58 +599,70 @@ const botaoEditarDaBarra = () => screen.queryByTitle("Editar");
 
 // ═════════════════════════════════════════════════════════════════════════
 describe("LA-LISTA — lista, filtros e ações por permissão e status", () => {
-  it("LA-LISTA-1 — lista da fazenda: Nº, nome, tipo, área, status (selo) e área executada / planejada; empresa_id na query", async () => {
+  it("LA-LISTA-1 — lista da fazenda (D-PROD-267, o modelo do dono): Nº, Tipo, Operação, Área, Data, Situação e Custo; empresa_id na query", async () => {
     await montarComLista();
     const { ATIVIDADES_COLUNAS } = await import("@/pages/LancamentoAtividades");
     expect(ATIVIDADES_COLUNAS.filter((c) => c.default).map((c) => c.label)).toEqual([
       "Nº",
-      "Nome",
-      "Tipo de atividade",
+      "Tipo",
+      "Operação",
       "Área",
+      "Data",
       "Situação",
-      "Área executada / planejada",
-      "Início",
       // D-PROD-251: o custo total, com o nome do campo.
       "Custo",
     ]);
+    // O que saiu do padrão continua como coluna opcional (Mais opções → colunas).
+    expect(ATIVIDADES_COLUNAS.filter((c) => !c.default).map((c) => c.label)).toEqual(expect.arrayContaining(["Nome", "Área executada / planejada", "Início"]));
     // Só a empresa e a página vão na query (nenhum filtro ligado).
     expect(listagens()[0].query.empresa_id).toBe("emp-1");
     expect(Object.keys(listagens()[0].query).sort()).toEqual(["empresa_id", "limit"]);
     const linha = (/** @type {string} */ id) => /** @type {HTMLElement} */ (screen.getByTestId(`atividade-numero-${id}`).closest("tr"));
-    expect(screen.getByTestId("atividade-status-a1")).toHaveTextContent("Em andamento");
-    expect(screen.getByTestId("atividade-status-a2")).toHaveTextContent("Concluída");
-    expect(screen.getByTestId("atividade-status-a3")).toHaveTextContent("Cancelada");
-    expect(within(linha("a1")).getByText("Cigarrinha Pasto 01")).toBeTruthy();
+    expect(screen.getByTestId("atividade-status-a1")).toHaveTextContent(/^Em andamento/);
+    expect(screen.getByTestId("atividade-status-a2")).toHaveTextContent(/^Concluída$/);
+    expect(screen.getByTestId("atividade-status-a3")).toHaveTextContent(/^Cancelada$/);
+    // Tipo (o tipo fixo, em negrito), Operação (o tipo de atividade gravado), Área e Data ("01/11 –" em aberto).
+    expect(within(linha("a1")).getByText("Aplicação").tagName).toBe("STRONG");
     expect(within(linha("a1")).getByText("APLICAÇÃO")).toBeTruthy();
-    expect(within(linha("a1")).getByText("01 — Pasto 01")).toBeTruthy();
-    // Executada / planejada (decimais do servidor em texto, formatados em pt-BR; "—" no lado sem valor).
-    expect(within(linha("a1")).getByText("12,5 / 40")).toBeTruthy();
-    expect(within(linha("a2")).getByText("8 / —")).toBeTruthy();
-    expect(within(linha("a1")).getByText("01/11/2026")).toBeTruthy();
+    expect(within(linha("a1")).getByText("Pasto 01")).toBeTruthy();
+    expect(within(linha("a1")).getByText("01/11 –")).toBeTruthy();
+    expect(within(linha("a2")).getByText("Roçada e tratos")).toBeTruthy();
+    expect(within(linha("a2")).getByText("03/11 a 12/11")).toBeTruthy();
+    expect(within(linha("a3")).getByText("20/10")).toBeTruthy();
+    // Em andamento: os hectares do servidor ("12,5 de 40 ha (31%) · último dia 12/11"), a barra e os dois botões.
+    expect(screen.getByTestId("servico-andamento-a1")).toHaveTextContent("12,5 de 40 ha (31%) · último dia 12/11");
+    expect(within(linha("a1")).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "31");
+    expect(within(linha("a1")).getByRole("button", { name: "Lançar dia" })).toBeTruthy();
+    expect(within(linha("a1")).getByRole("button", { name: "Concluir" })).toBeTruthy();
+    for (const id of ["a2", "a3"]) {
+      expect(within(linha(id)).queryByRole("button", { name: "Lançar dia" })).toBeNull();
+      expect(within(linha(id)).queryByRole("button", { name: "Concluir" })).toBeNull();
+    }
     // Sem subtítulo explicativo sobre a lista (emenda da D-PROD-252).
     expect(screen.queryByTestId("atividades-intro")).toBeNull();
     expect(screen.queryByText(/Trabalhos da fazenda/)).toBeNull();
     expect(screen.queryByText(/separado daqui/)).toBeNull();
   });
 
-  it("LA-LISTA-2 — filtros de status, tipo, área e período (pílulas da faixa, D-PROD-237) vão na query; período invertido avisa e não lê", async () => {
+  it("LA-LISTA-2 — filtros de situação, tipo (ou operação), área e período (pílulas da faixa) vão na query; período invertido avisa e não lê", async () => {
     await montarComLista();
-    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por status" }), "Concluída");
-    await waitFor(() => expect(listagens().at(-1).query.status).toBe("CONCLUIDA"));
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por situação" }), "Concluída");
+    await waitFor(() => expect(listagens().at(-1).query.situacao).toBe("CONCLUIDA"));
+    expect(listagens().at(-1).query.status).toBeUndefined();
     await waitFor(() => expect(screen.queryByTestId("atividade-numero-a1")).toBeNull());
     expect(screen.getByTestId("atividade-numero-a2")).toBeTruthy();
-    // Volta para todos e filtra pelo tipo e pela área (os cadastros da fazenda), pelas pílulas.
-    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por status" }), "Todos os status");
+    // Volta para todas e filtra pela operação (dentro do tipo) e pela área (os cadastros da fazenda), pelas pílulas.
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por situação" }), "Todas as situações");
     expect(screen.queryByTestId("atividades-filtros")).toBeNull();
-    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por tipo de atividade" }), /^ROÇADA$/i);
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por tipo" }), /^Roçada e tratos › ROÇADA$/i);
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", tipo_atividade_id: "t2", limit: expect.any(String) }));
     await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por área" }), /02 — Pasto 02/i);
     await waitFor(() => expect(listagens().at(-1).query).toMatchObject({ tipo_atividade_id: "t2", area_id: "ar2" }));
     expect(await screen.findByTestId("atividade-numero-a2")).toBeTruthy();
-    // O filtro de tipo oferece também o inativo (marcado), para achar as atividades antigas dele.
-    fireEvent.click(screen.getByRole("combobox", { name: "Filtrar por tipo de atividade" }));
+    // O filtro de tipo oferece também a operação inativa (marcada), para achar as atividades antigas dela.
+    fireEvent.click(screen.getByRole("combobox", { name: "Filtrar por tipo" }));
     expect(await screen.findByRole("option", { name: /GRADAGEM \(INATIVO\)/i })).toBeTruthy();
-    fireEvent.click(screen.getByRole("combobox", { name: "Filtrar por tipo de atividade" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Filtrar por tipo" }));
     await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
 
     // Período invertido: avisa, o ✓ não aplica e nada é lido com ele.
@@ -662,7 +690,9 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     expect(await screen.findByTestId("atividades-sem-empresa")).toHaveTextContent("Selecione uma fazenda");
     await assentar();
     expect(listagens()).toEqual([]);
-    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
+    // D-PROD-267: "Planejar" (o planejar de antes, "Nova atividade") e "Nova realização".
+    expect(screen.queryByRole("button", { name: "Planejar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova realização" })).toBeNull();
     cleanup();
 
     window.localStorage.setItem("empresa_selecionada_id", "emp-1");
@@ -671,13 +701,17 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     expect(await screen.findByTestId("atividades-sem-permissao")).toBeTruthy();
     await assentar();
     expect(listagens()).toEqual([]);
-    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Planejar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova realização" })).toBeNull();
   });
 
   it("LA-LISTA-4 — só ver: nenhuma ação de gravar (sem Abrir atividade, Editar, concluir, reabrir, cancelar nem duplicar)", async () => {
     sessao.permissao = permissaoCom({});
     await montarComLista();
-    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Planejar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova realização" })).toBeNull();
+    // Sem gravar, a linha em andamento não oferece "+ Lançar dia" nem "Concluir".
+    expect(within(/** @type {HTMLElement} */ (screen.getByTestId("atividade-status-a1"))).queryAllByRole("button")).toEqual([]);
     selecionar("a1");
     expect(botaoEditarDaBarra()).toBeNull();
     expect(await acoesDoMenu()).toEqual([]);
@@ -686,7 +720,9 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
   it("LA-LISTA-5 — ações padrão sem as extras: aberta = concluir, cancelar e duplicar; concluída e cancelada = só duplicar (reabrir pede a extra)", async () => {
     sessao.permissao = permissaoCom(ACOES_PADRAO);
     await montarComLista();
-    expect(screen.getByRole("button", { name: "Nova atividade" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Planejar" })).toBeTruthy();
+    // Sem a extra de lançar: "Concluir" na linha em andamento, sem "+ Lançar dia".
+    expect(within(/** @type {HTMLElement} */ (screen.getByTestId("atividade-status-a1"))).getAllByRole("button").map((b) => b.textContent)).toEqual(["Concluir"]);
     selecionar("a1");
     await waitFor(() => expect(botaoEditarDaBarra()).toBeTruthy());
     expect(await acoesDoMenu()).toEqual(["Concluir atividade", "Cancelar atividade", "Duplicar atividade"]);
@@ -712,7 +748,9 @@ describe("LA-LISTA — lista, filtros e ações por permissão e status", () => 
     sessao.fuso = null;
     await montarComLista();
     expect(await screen.findByTestId("atividades-sem-fuso")).toHaveTextContent("Configure o fuso horário da fazenda");
-    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Planejar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nova realização" })).toBeNull();
+    expect(within(/** @type {HTMLElement} */ (screen.getByTestId("atividade-status-a1"))).queryAllByRole("button")).toEqual([]);
     selecionar("a1");
     expect(botaoEditarDaBarra()).toBeNull();
     expect(await acoesDoMenu()).toEqual([]);
@@ -970,7 +1008,8 @@ describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)",
 describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", () => {
   it("LA-CABECALHO-1 — abrir: herdados travados, exigido pelo tipo marcado e avisado antes de enviar; corpo com empresa_id, decimal em texto e sem centros, unidade nem setor", async () => {
     await montarComLista();
-    fireEvent.click(screen.getByRole("button", { name: "Nova atividade" }));
+    // D-PROD-267: o planejar da barra se chama "Planejar".
+    fireEvent.click(screen.getByRole("button", { name: "Planejar" }));
     const form = await screen.findByTestId("b1-form-atividade");
     await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
     // Só os tipos ativos.
@@ -1243,7 +1282,7 @@ describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVA
       http: Number(m[2]),
     }));
 
-  it("LA-ERRO-1 — paridade: os 16 ATIVIDADE_* do servidor (9 da Fatia 2 + 5 das linhas, D-PROD-202, + 2 das áreas, D-PROD-249) estão no catálogo do cliente e no transporte, com mensagem própria", () => {
+  it("LA-ERRO-1 — paridade: os 17 ATIVIDADE_* do servidor (9 da Fatia 2 + 5 das linhas, D-PROD-202, + 2 das áreas, D-PROD-249, + o serviço parado, D-PROD-267) estão no catálogo do cliente e no transporte, com mensagem própria", () => {
     const servidor = codigosDoServidor();
     expect(servidor.map((c) => c.code).sort()).toEqual(
       [
@@ -1265,6 +1304,8 @@ describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVA
         // D-PROD-249 — várias áreas por atividade.
         "ATIVIDADE_AREA_NOT_FOUND",
         "ATIVIDADE_AREA_COM_LANCAMENTOS",
+        // D-PROD-267 — serviço de vários dias: a atividade parada há mais de 30 dias.
+        "ATIVIDADE_SERVICO_PARADO",
       ].sort(),
     );
     const cliente = Object.keys(API_ERROR_CODES).filter((c) => c.startsWith("ATIVIDADE_"));
@@ -1858,40 +1899,45 @@ const pilulasDaFaixa = () => [...document.querySelectorAll('[data-testid="b1-fil
 const pilulaDaTela = (id) => /** @type {HTMLElement} */ (document.querySelector(`[data-filtro-tela="${id}"]`));
 
 describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards do celular (D-PROD-237)", () => {
-  it("LA-FILTROS-1 — sem a caixa solta: a faixa é Ordenar · Status · Tipo de atividade · Área · Início · + Filtro, sem \"Tipo de atividade\" duplicado", async () => {
+  it("LA-FILTROS-1 — sem a caixa solta: a faixa é Ordenar · Tipo · Situação · Área · Início · + Filtro (D-PROD-267, o modelo do dono), sem \"Tipo\" duplicado", async () => {
     await montarComLista();
     expect(screen.queryByTestId("atividades-filtros")).toBeNull();
     expect(screen.queryByTestId("atividades-filtro-de")).toBeNull();
     expect(screen.queryByTestId("atividades-filtro-ate")).toBeNull();
-    expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Status", "Tipo de atividade", "Área", "Início"]);
+    expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Tipo", "Situação", "Área", "Início"]);
     expect(screen.getByRole("button", { name: "Adicionar ou tirar filtros" })).toBeTruthy();
     // "+ Filtro": os campos da grade, menos os que as pílulas da consulta já cobrem.
     fireEvent.click(screen.getByRole("button", { name: "Adicionar ou tirar filtros" }));
     const campos = within(await screen.findByRole("listbox", { name: "Filtros rápidos" }))
       .getAllByRole("option")
       .map((o) => (o.textContent ?? "").trim());
-    expect(campos).toEqual(expect.arrayContaining(["Nome", "Máquina", "Conclusão", "Custo"]));
-    for (const coberto of ["Status", "Tipo de atividade", "Área", "Início"]) expect(campos).not.toContain(coberto);
+    expect(campos).toEqual(expect.arrayContaining(["Nome", "Máquina", "Conclusão", "Custo", "Operação"]));
+    for (const coberto of ["Situação", "Tipo", "Área", "Início"]) expect(campos).not.toContain(coberto);
     // Um campo de "+ Filtro" entra na faixa depois do Início.
     fireEvent.click(screen.getByRole("option", { name: "Máquina" }));
-    await waitFor(() => expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Status", "Tipo de atividade", "Área", "Início", "Máquina"]));
+    await waitFor(() => expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Tipo", "Situação", "Área", "Início", "Máquina"]));
   });
 
-  it("LA-FILTROS-2 — uma pílula de \"Tipo de atividade\" salva antes (localStorage) não volta a aparecer ao lado da pílula da consulta", async () => {
-    window.localStorage.setItem("colunas_lancamento_atividades_v1_filtrosRapidos", JSON.stringify(["tipo", "area", "bem"]));
+  it("LA-FILTROS-2 — uma pílula de \"Tipo\" salva antes (localStorage) não volta a aparecer ao lado da pílula da consulta", async () => {
+    window.localStorage.setItem("colunas_lancamento_atividades_v2_filtrosRapidos", JSON.stringify(["tipo", "status", "area", "bem"]));
     await montarComLista();
-    expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Status", "Tipo de atividade", "Área", "Início", "Máquina"]);
+    expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Tipo", "Situação", "Área", "Início", "Máquina"]);
   });
 
   it("LA-FILTROS-3 — cada pílula manda o seu parâmetro ao servidor e mostra o valor; o ✕ da pílula tira só aquele", async () => {
     await montarComLista();
     const base = listagens().length;
-    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por status" }), "Aberta");
+    // "Abertas" (planejadas e em andamento) é o status ABERTA de antes.
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por situação" }), "Abertas (planejadas e em andamento)");
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", status: "ABERTA", limit: expect.any(String) }));
-    expect(pilulaDaTela("status")).toHaveTextContent("StatusAberta");
-    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por tipo de atividade" }), /^APLICAÇÃO$/);
+    expect(pilulaDaTela("situacao")).toHaveTextContent("SituaçãoAbertas (planejadas e em andamento)");
+    // O tipo fixo vai como `tipo_fixo`; a operação dentro dele, como `tipo_atividade_id`.
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por tipo" }), /^Roçada e tratos$/);
+    await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", status: "ABERTA", tipo_fixo: "PASTAGEM", limit: expect.any(String) }));
+    expect(pilulaDaTela("tipo")).toHaveTextContent("TipoRoçada e tratos");
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por tipo" }), /^Outros › APLICAÇÃO$/);
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", status: "ABERTA", tipo_atividade_id: "t1", limit: expect.any(String) }));
-    expect(pilulaDaTela("tipo")).toHaveTextContent("Tipo de atividadeAPLICAÇÃO");
+    expect(pilulaDaTela("tipo")).toHaveTextContent("TipoOutros › APLICAÇÃO");
     await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por área" }), /01 — Pasto 01/);
     await waitFor(() =>
       expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", status: "ABERTA", tipo_atividade_id: "t1", area_id: "ar1", limit: expect.any(String) }),
@@ -1905,9 +1951,13 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     expect(pilulaDaTela("inicio")).toHaveTextContent("Iníciodesde 25/10");
     expect(listagens().length).toBeGreaterThan(base);
     // ✕ do tipo: volta a "Todos os tipos" e só ele sai da query.
-    fireEvent.click(screen.getByRole("button", { name: "Tirar filtro de Tipo de atividade" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tirar filtro de Tipo" }));
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", status: "ABERTA", area_id: "ar1", data_de: "2026-10-25", limit: expect.any(String) }));
-    expect(pilulaDaTela("tipo")).toHaveTextContent(/^Tipo de atividade$/);
+    expect(pilulaDaTela("tipo")).toHaveTextContent(/^Tipo$/);
+    // A situação "Em andamento" vai como `situacao` (sem o status).
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por situação" }), "Em andamento");
+    await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", situacao: "EM_ANDAMENTO", area_id: "ar1", data_de: "2026-10-25", limit: expect.any(String) }));
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por situação" }), "Abertas (planejadas e em andamento)");
     // ✕ do Início: sem datas.
     fireEvent.click(screen.getByRole("button", { name: "Tirar filtro de Início" }));
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", status: "ABERTA", area_id: "ar1", limit: expect.any(String) }));
@@ -1954,22 +2004,22 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
   it("LA-FILTROS-5 — \"Limpar filtros\" volta status, tipo, área e período ao padrão numa leitura sem filtros", async () => {
     await montarComLista();
     expect(screen.queryByRole("button", { name: "Limpar filtros" })).toBeNull();
-    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por status" }), "Concluída");
-    await waitFor(() => expect(listagens().at(-1).query.status).toBe("CONCLUIDA"));
-    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por tipo de atividade" }), /^ROÇADA$/);
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por situação" }), "Concluída");
+    await waitFor(() => expect(listagens().at(-1).query.situacao).toBe("CONCLUIDA"));
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por tipo" }), /^Roçada e tratos › ROÇADA$/);
     await waitFor(() => expect(listagens().at(-1).query.tipo_atividade_id).toBe("t2"));
     await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por área" }), /02 — Pasto 02/);
     fireEvent.click(screen.getByRole("combobox", { name: "Filtrar por início" }));
     fireEvent.change(await screen.findByTestId("atividades-filtro-inicio-ate"), { target: { value: "2026-11-30" } });
     fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
     await waitFor(() =>
-      expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", status: "CONCLUIDA", tipo_atividade_id: "t2", area_id: "ar2", data_ate: "2026-11-30", limit: expect.any(String) }),
+      expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", situacao: "CONCLUIDA", tipo_atividade_id: "t2", area_id: "ar2", data_ate: "2026-11-30", limit: expect.any(String) }),
     );
     expect(pilulaDaTela("inicio")).toHaveTextContent("Inícioaté 30/11");
     fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", limit: expect.any(String) }));
     expect(await screen.findByTestId("atividade-numero-a1")).toBeTruthy();
-    expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Status", "Tipo de atividade", "Área", "Início"]);
+    expect(pilulasDaFaixa()).toEqual(["Nº (mais recentes primeiro)", "Tipo", "Situação", "Área", "Início"]);
     expect(screen.queryByRole("button", { name: "Limpar filtros" })).toBeNull();
   });
 
@@ -1992,41 +2042,43 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     expect(opcoes).toEqual(["19 — Piquete 10", "20 — Piquete 11", "21 — Piquete 12"]);
     fireEvent.click(screen.getByRole("option", { name: "20 — Piquete 11" }));
     await waitFor(() => expect(listagens().at(-1).query).toMatchObject({ area_id: "arx10" }));
-    // A pílula de status (4 opções) continua sem pesquisa.
-    fireEvent.click(screen.getByRole("combobox", { name: "Filtrar por status" }));
-    await screen.findByRole("listbox", { name: "Status" });
-    expect(screen.queryByRole("textbox", { name: "Pesquisar status" })).toBeNull();
+    // A pílula de situação (6 opções) continua sem pesquisa.
+    fireEvent.click(screen.getByRole("combobox", { name: "Filtrar por situação" }));
+    await screen.findByRole("listbox", { name: "Situação" });
+    expect(screen.queryByRole("textbox", { name: "Pesquisar situação" })).toBeNull();
   });
 
-  it("LA-FILTROS-7 — celular: cards com o selo do tipo (sigla e cor), nome, \"Nº · Status\", ⚡ no topo e os campos Nº, Tipo, Área, Início e Valor total", async () => {
+  it("LA-FILTROS-7 — celular (D-PROD-267, o modelo V1): cada card é o bloco do serviço — Nº, tipo e custo, operação · área, data · situação, o andamento com os botões — com o ⚡ no topo", async () => {
     comoCelular();
     atividades.set("a1", { ...atividades.get("a1"), custo_total: "4262.4700" });
     await montar();
     await waitFor(() => expect(screen.getAllByTestId("b1-card").length).toBe(3));
     const cardDe = (/** @type {string} */ id) => /** @type {HTMLElement} */ (botaoRaio(id).closest('[data-testid="b1-card"]'));
     const c1 = cardDe("a1");
-    expect(within(c1).getByTestId("b1-card-avatar")).toHaveTextContent("APL");
-    expect(c1.querySelector(".mg-b1-card__title")).toHaveTextContent("Cigarrinha Pasto 01");
-    expect(within(c1).getByTestId("b1-card-sub")).toHaveTextContent(/^Nº 3 · Em andamento$/);
-    expect([...c1.querySelectorAll(".mg-b1-card__label")].map((el) => el.textContent)).toEqual(["Nº", "Tipo de atividade", "Área", "Início", "Custo"]);
-    expect([...c1.querySelectorAll(".mg-b1-card__value")].map((el) => (el.textContent ?? "").replace(/\s/g, " "))).toEqual([
-      "3",
-      "APLICAÇÃO",
-      "01 — Pasto 01",
-      "01/11/2026",
-      "R$ 4.262,47",
-    ]);
+    const b1 = within(c1).getByTestId("servico-bloco-a1");
+    // O bloco no lugar do selo, título e campos do motor.
+    expect(within(c1).queryByTestId("b1-card-avatar")).toBeNull();
+    expect(c1.querySelector(".mg-b1-card__fields")).toBeNull();
+    expect(b1.querySelector(".b1-servico-bloco__num")).toHaveTextContent(/^3$/);
+    expect(b1.querySelector(".b1-servico-bloco__tipo")).toHaveTextContent(/^Aplicação$/);
+    expect(b1.querySelector(".b1-servico-bloco__custo")?.textContent?.replace(/\s/g, " ")).toBe("R$ 4.262,47");
+    expect([...b1.querySelectorAll(".b1-servico-bloco__linha")].map((el) => el.textContent)).toEqual(["APLICAÇÃO · Pasto 01", "01/11 – · Em andamento"]);
+    expect(within(b1).getByTestId("servico-andamento-a1")).toHaveTextContent("12,5 de 40 ha (31%) · último dia 12/11");
+    expect(within(b1).getAllByRole("button").map((b) => b.textContent)).toEqual(["Lançar dia", "Concluir"]);
     // O ⚡ fica no topo do card (sem a caixa de marcar no celular, o CSS a esconde).
     expect(botaoRaio("a1").closest(".b1-card__select")).toBeTruthy();
-    const c2 = cardDe("a2");
-    expect(within(c2).getByTestId("b1-card-avatar")).toHaveTextContent("ROÇ");
-    expect(within(c2).getByTestId("b1-card-sub")).toHaveTextContent(/^Nº 2 · Concluída$/);
-    expect(within(c2).getAllByText("–").length).toBeGreaterThan(0); // sem custo: "–"
-    // A cor é a do tipo: o mesmo tipo, a mesma cor; outro tipo, outra.
-    const cor = (/** @type {HTMLElement} */ c) => /** @type {HTMLElement} */ (within(c).getByTestId("b1-card-avatar")).style.backgroundColor;
-    expect(cor(c1)).not.toBe("");
-    expect(cor(cardDe("a3"))).toBe(cor(c1));
-    expect(cor(c2)).not.toBe(cor(c1));
+    // Concluída: "03/11 a 12/11 · Concluída · 8 ha", sem custo e sem botões.
+    const b2 = within(cardDe("a2")).getByTestId("servico-bloco-a2");
+    expect(b2.querySelector(".b1-servico-bloco__tipo")).toHaveTextContent(/^Roçada e tratos$/);
+    expect(b2.querySelector(".b1-servico-bloco__custo")).toBeNull();
+    expect([...b2.querySelectorAll(".b1-servico-bloco__linha")].map((el) => el.textContent)).toEqual(["ROÇADA · Pasto 02", "03/11 a 12/11 · Concluída · 8 ha"]);
+    expect(within(b2).queryAllByRole("button")).toEqual([]);
+    const b3 = within(cardDe("a3")).getByTestId("servico-bloco-a3");
+    expect([...b3.querySelectorAll(".b1-servico-bloco__linha")].map((el) => el.textContent)).toEqual(["APLICAÇÃO", "20/10 · Cancelada"]);
+    // Tocar num botão do bloco não seleciona o card.
+    fireEvent.click(within(b1).getByRole("button", { name: "Concluir" }));
+    expect(c1).toHaveAttribute("aria-selected", "false");
+    expect(await screen.findByTestId("dialogo-concluir-servico")).toBeTruthy();
   });
 
   it("LA-FILTROS-8 — celular: o funil abre \"Filtros\" com as mesmas pílulas (Ordenar, Status, Tipo, Área, Início); tipo e período vão ao servidor", async () => {
@@ -2037,10 +2089,10 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     fireEvent.click(screen.getByTestId("b1-field-filter"));
     const menu = await screen.findByRole("list", { name: "Filtros" });
     const itens = () => within(menu).getAllByRole("button").map((b) => (b.querySelector(".b1-fr-op__txt")?.textContent ?? "").trim());
-    expect(itens()).toEqual(["Ordenar", "Status", "Tipo de atividade", "Área", "Início"]);
-    // Tipo: a lista de escolha única, direto na query.
-    fireEvent.click(within(menu).getByRole("button", { name: /Tipo de atividade/ }));
-    fireEvent.click(await screen.findByRole("option", { name: /^ROÇADA$/ }));
+    expect(itens()).toEqual(["Ordenar", "Tipo", "Situação", "Área", "Início"]);
+    // Tipo: a lista de escolha única (o tipo fixo ou a operação dentro dele), direto na query.
+    fireEvent.click(within(menu).getByRole("button", { name: /^Tipo/ }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Roçada e tratos › ROÇADA$/ }));
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", tipo_atividade_id: "t2", limit: expect.any(String) }));
     // Início: a folha com De e Até; invertido não aplica; o ✓ do topo aplica.
     fireEvent.click(screen.getByTestId("b1-field-filter"));
@@ -2062,22 +2114,22 @@ describe("LA-FILTROS — a faixa de pílulas no lugar da caixa solta e os cards 
     fireEvent.click(screen.getByTestId("b1-field-filter"));
     const menu2 = await screen.findByRole("list", { name: "Filtros" });
     expect(within(menu2).getByRole("button", { name: /Início/ })).toHaveTextContent("01/11 – 05/11");
-    expect(within(menu2).getByRole("button", { name: /Tipo de atividade/ })).toHaveTextContent("ROÇADA");
+    expect(within(menu2).getByRole("button", { name: /^Tipo/ })).toHaveTextContent("Roçada e tratos › ROÇADA");
     fireEvent.click(within(/** @type {HTMLElement} */ (menu2.closest(".mk-sheet"))).getByRole("button", { name: "Limpar filtros" }));
     await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", limit: expect.any(String) }));
   });
 
-  it("LA-FILTROS-9 — computador: a grade não muda (colunas, sem cards) e a ordem padrão é \"Nº (mais recentes primeiro)\"", async () => {
+  it("LA-FILTROS-9 — computador: a grade (colunas do modelo do dono, sem cards) e a ordem padrão é \"Nº (mais recentes primeiro)\"", async () => {
     await montarComLista();
     expect(screen.queryByTestId("b1-card")).toBeNull();
     const cabecalhos = [...document.querySelectorAll("thead th")].map((th) => (th.textContent ?? "").trim()).filter(Boolean);
-    expect(cabecalhos).toEqual(expect.arrayContaining(["Nº", "Nome", "Tipo de atividade", "Área", "Situação", "Início", "Custo"]));
+    expect(cabecalhos.filter((c) => c !== "Ações")).toEqual(["Nº", "Tipo", "Operação", "Área", "Data", "Situação", "Custo"]);
     fireEvent.click(screen.getByRole("button", { name: "Ordenar" }));
     const ordens = within(await screen.findByRole("listbox", { name: "Ordenar" }))
       .getAllByRole("option")
       .map((o) => (o.textContent ?? "").trim());
-    expect(ordens.slice(0, 4)).toEqual(["Nº (mais recentes primeiro)", "Nº (mais antigas primeiro)", "Nome (A → Z)", "Nome (Z → A)"]);
-    expect(ordens).toContain("Custo (maior primeiro)");
+    expect(ordens.slice(0, 4)).toEqual(["Nº (mais recentes primeiro)", "Nº (mais antigas primeiro)", "Tipo (A → Z)", "Tipo (Z → A)"]);
+    expect(ordens).toEqual(expect.arrayContaining(["Custo (maior primeiro)", "Data (mais recente primeiro)"]));
   });
 
   it("LA-FILTROS-10 — regras puras: sigla e cor do tipo, subtítulo do card, período em palavras", async () => {
@@ -2174,36 +2226,43 @@ describe("LA-RAIO-GRADE — a grade e os cards das outras telas não mudam (o �
 });
 
 // ═════════════════════════════════════════════════════════════════════════
-describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de campo (D-PROD-254)", () => {
-  it("LA-REGISTRAR-1 — a barra tem duas ações distintas e rotuladas: 'Nova atividade' (planejar) e 'Registrar serviço' (registrar)", async () => {
+describe("LA-REGISTRAR — planejar × registrar trabalho de campo (D-PROD-254; D-PROD-267: \"+ Nova realização\" e \"Planejar\")", () => {
+  it("LA-REGISTRAR-1 — a barra tem duas ações distintas e rotuladas: '+ Nova realização' (o botão principal, registrar) e 'Planejar' (a 'Nova atividade' de antes)", async () => {
     await montarComLista();
-    const nova = screen.getByRole("button", { name: "Nova atividade" });
-    const registrar = screen.getByRole("button", { name: "Registrar serviço" });
-    expect(nova).toHaveTextContent("Nova atividade");
-    expect(registrar).toHaveTextContent("Registrar serviço");
-    expect(nova).not.toBe(registrar);
-    // Nenhum menu novo: o Registrar é uma ação da própria tela de Lançamento de Atividades.
-    // "Nova atividade" abre o formulário de PLANEJAR (tipo, áreas), não o registro de campo.
-    fireEvent.click(nova);
+    const planejar = screen.getByRole("button", { name: "Planejar" });
+    const registrar = screen.getByRole("button", { name: "Nova realização" });
+    expect(planejar).toHaveTextContent("Planejar");
+    expect(registrar).toHaveTextContent("Nova realização");
+    // "+ Nova realização" é o botão de criar da barra (o principal); o rótulo antigo de planejar saiu.
+    expect(registrar).toHaveClass("mg-act-novo");
+    expect(planejar).not.toHaveClass("mg-act-novo");
+    expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Registrar serviço" })).toBeNull();
+    expect(planejar).not.toBe(registrar);
+    // "Planejar" abre o formulário de PLANEJAR (tipo, áreas), não o registro de campo.
+    fireEvent.click(planejar);
     expect(await screen.findByTestId("b1-form-atividade")).toBeTruthy();
     expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull();
   });
 
-  it("LA-REGISTRAR-2 — sem a ação de lançar apontamento, o Registrar não aparece (o planejar segue)", async () => {
+  it("LA-REGISTRAR-2 — sem a ação de lançar apontamento, a Nova realização não aparece (o planejar segue)", async () => {
     sessao.permissao = permissaoCom(ACOES_PADRAO);
     await montarComLista();
-    expect(screen.getByRole("button", { name: "Nova atividade" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Registrar serviço" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Planejar" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Nova realização" })).toBeNull();
   });
 
   it("LA-REGISTRAR-3 — Registrar abre o formulário compartilhado (uma janela Base1): escolhe a área e o tipo, grava com UM POST em /atividades/registrar e fecha", async () => {
     await montarComLista();
-    fireEvent.click(screen.getByRole("button", { name: "Registrar serviço" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nova realização" }));
     const janela = await screen.findByTestId("janela-registro-de-campo");
     expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
     expect(within(janela).getByRole("button", { name: "Cancelar" })).toBeTruthy();
-    // A área, o tipo e a operação NÃO vêm presos: a pessoa escolhe o tipo fixo e depois a operação desse tipo (só as ativas).
-    // As quatro seções já estão à mostra (D-PROD-262: os nomes da maquete "Nova realização").
+    // A área, o tipo e a operação NÃO vêm presos: a pessoa escolhe o tipo fixo (D-PROD-265: o cartão) e depois a operação
+    // desse tipo (só as ativas). Escolhido o tipo, as quatro seções já estão à mostra (D-PROD-262).
+    fireEvent.click(within(janela).getByRole("button", { name: "Roçada e tratos" }));
+    await within(janela).findByTestId("registro-de-campo-form");
+    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent("Nova realização de Roçada e tratos");
     for (const secao of ["Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)"]) expect(janela.textContent).toContain(secao);
     // D-PROD-263: as Áreas são marcadas na lista (busca + caixas); a área sem tamanho pede os hectares.
     fireEvent.click(within(janela).getByTestId("registro-areas-campo"));
@@ -2211,7 +2270,6 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     fireEvent.click(within(janela).getByTestId("registro-areas-campo"));
     await waitFor(() => expect(screen.queryByTestId("registro-areas-lista")).toBeNull());
     expect(within(janela).getByTestId("registro-areas-linha-ar1")).toHaveTextContent("Pasto 01");
-    await escolherNoCombo(janela, "Tipo", /^Roçada e tratos$/i);
     fireEvent.click(within(janela).getByRole("combobox", { name: "Operação" }));
     await screen.findAllByRole("option");
     expect(screen.queryByRole("option", { name: /GRADAGEM/i })).toBeNull();
@@ -2234,16 +2292,56 @@ describe("LA-REGISTRAR — planejar (Nova atividade) × registrar trabalho de ca
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "ROÇADA registrada em Pasto 01.");
   });
 
-  it("LA-REGISTRAR-4 — sem escolher a área, o tipo e a operação, não grava e aponta os campos", async () => {
+  it("LA-REGISTRAR-4 — sem o tipo não há formulário; com o tipo, sem a área e a operação, não grava e aponta os campos", async () => {
     await montarComLista();
-    fireEvent.click(screen.getByRole("button", { name: "Registrar serviço" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nova realização" }));
     const janela = await screen.findByTestId("janela-registro-de-campo");
+    // D-PROD-265: sem tipo, só os cartões (nada para salvar).
+    expect(within(janela).queryByTestId("registro-de-campo-form")).toBeNull();
+    expect(within(janela).queryByRole("button", { name: "Salvar" })).toBeNull();
+    fireEvent.click(within(janela).getByRole("button", { name: "Aplicação" }));
+    await within(janela).findByTestId("registro-de-campo-form");
     expect(within(janela).getByRole("button", { name: "Salvar" })).toBeDisabled();
     const antes = escritas().length;
     fireEvent.submit(within(janela).getByTestId("registro-de-campo-form"));
     expect(await within(janela).findByText("Escolha a área.")).toBeTruthy();
-    expect(within(janela).getByText("Escolha o tipo.")).toBeTruthy();
     expect(within(janela).getByText("Escolha a operação.")).toBeTruthy();
     expect(escritas().length).toBe(antes);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-VARIOS-DIAS — a linha do serviço: \"+ Lançar dia\" e \"Concluir\" (D-PROD-267)", () => {
+  it("LA-VARIOS-DIAS-1 — \"+ Lançar dia\" abre a Nova realização do serviço já no formulário: a operação, a área e hoje (sem Trocar tipo)", async () => {
+    await montarComLista();
+    fireEvent.click(within(/** @type {HTMLElement} */ (screen.getByTestId("atividade-status-a1"))).getByRole("button", { name: "Lançar dia" }));
+    const janela = await screen.findByTestId("janela-registro-de-campo");
+    await within(janela).findByTestId("registro-de-campo-form");
+    expect(within(janela).queryByRole("button", { name: "Trocar tipo" })).toBeNull();
+    expect(within(janela).getByRole("combobox", { name: /Operação/ })).toHaveTextContent("APLICAÇÃO");
+    expect(within(janela).getByTestId("registro-areas-linha-ar1")).toBeTruthy();
+    expect(within(janela).getByTestId("registro-areas-hectares-ar1")).toHaveValue("");
+    expect(within(janela).getByTestId("registro-de-campo-data")).toHaveValue(HOJE);
+    // O último dia do serviço é lido para a máquina e a equipe (os apontamentos da atividade).
+    await waitFor(() => expect(backend.chamadas.some((c) => c.method === "GET" && c.path === "/atividades/a1/apontamentos")).toBe(true));
+    // Nada foi gravado só por abrir.
+    expect(escritas()).toEqual([]);
+  });
+
+  it("LA-VARIOS-DIAS-2 — aos 100% \"100%, falta concluir\" em negrito e só \"Concluir\"; o diálogo sugere o último dia e manda {empresa_id, versao, data_conclusao}", async () => {
+    atividades.set("a1", { ...atividades.get("a1"), andamento: { ...ATV_A1.andamento, hectares_feitos: "40.0000", percentual: "100.00" } });
+    await montarComLista();
+    const celula = /** @type {HTMLElement} */ (screen.getByTestId("atividade-status-a1"));
+    expect(within(celula).getByText("100%, falta concluir").tagName).toBe("STRONG");
+    expect(within(celula).getAllByRole("button").map((b) => b.textContent)).toEqual(["Concluir"]);
+    fireEvent.click(within(celula).getByRole("button", { name: "Concluir" }));
+    const dialogo = await screen.findByTestId("dialogo-concluir-servico");
+    expect(within(dialogo).getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Concluir APLICAÇÃO · Pasto 01");
+    expect(within(dialogo).getByTestId("dialogo-concluir-servico-dia")).toHaveValue("2026-11-12");
+    expect(within(dialogo).getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent("40 de 40 ha (100%)");
+    fireEvent.click(within(dialogo).getByTestId("dialogo-concluir-servico-enviar"));
+    await waitFor(() => expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/concluir", query: {}, body: { empresa_id: "emp-1", versao: 4, data_conclusao: "2026-11-12" } }));
+    await waitFor(() => expect(screen.queryByTestId("dialogo-concluir-servico")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Serviço nº 3 concluído.");
   });
 });

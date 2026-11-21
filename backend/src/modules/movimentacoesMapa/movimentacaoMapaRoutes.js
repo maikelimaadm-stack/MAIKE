@@ -12,7 +12,15 @@ import { MAX_ORIGENS_JUNCAO } from './juncaoConstantes.js';
 import { executarBaixaRebanho } from './manejoBaixaComandoService.js';
 import { CAUSAS_MORTE, DESTINOS_ABATE, MAX_LINHAS_BAIXA, MAX_LOTES_SELECIONADOS, TIPOS_BAIXA } from './baixaConstantes.js';
 import { executarManejoRebanho, MAX_LINHAS, MODOS_PESAGEM, PESO_MAXIMO_KG, SEXOS, TIPOS_DO_COMANDO_REBANHO } from './manejoRebanhoComandoService.js';
-import { porMapa, chaveMapaDoTipo, chaveMapaDoGenerico, autorizar, mapaPermite, TELAS } from '../../shared/auth/autorizacaoTela.js';
+import { porMapa, porQualquer, chaveMapaDoTipo, chaveMapaDoGenerico, autorizar, mapaPermite, TELAS, CHAVE_EXCLUIR_MOVIMENTACOES_LOTE } from '../../shared/auth/autorizacaoTela.js';
+
+/**
+ * D-PROD-266 — excluir movimentação do lote (e o ensaio da elegibilidade, que é
+ * uma transação real desfeita): administrador real OU `is_admin` OU a chave do
+ * mapa `excluir_movimentacoes_lote`. Negação 403 `ACAO_NAO_PERMITIDA` antes de
+ * qualquer leitura do movimento. O serviço reconfere dentro da transação.
+ */
+const porExclusaoMovimentacaoLote = () => porQualquer({ mapa: CHAVE_EXCLUIR_MOVIMENTACOES_LOTE });
 
 /** Ação do Mapa Geral exigida pelo `tipo` do corpo (já validado pelo schema). */
 const chaveDoCorpo = (request) => chaveMapaDoTipo(request.body?.tipo);
@@ -267,13 +275,14 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
   });
 
   // D-PROD-110 — exclusão definitiva segura (contrato oficial; o DELETE genérico segue recusado).
-  app.get('/movimentacoes-mapa/:id/elegibilidade-exclusao', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request) => {
+  // D-PROD-266 — quem pode: admin real, `is_admin` ou a chave do mapa (as duas rotas).
+  app.get('/movimentacoes-mapa/:id/elegibilidade-exclusao', { onRequest: [app.autenticar], preHandler: [porExclusaoMovimentacaoLote()], schema: ID_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return elegibilidadeExclusao(request.contexto, id);
   });
 
-  app.post('/movimentacoes-mapa/:id/exclusao', { onRequest: [app.autenticar], schema: CANCELAMENTO_SCHEMA }, async (request, reply) => {
+  app.post('/movimentacoes-mapa/:id/exclusao', { onRequest: [app.autenticar], preHandler: [porExclusaoMovimentacaoLote()], schema: CANCELAMENTO_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     const { status, body } = await excluirDefinitivo(request.contexto, id, /** @type {{operation_id: string, motivo: string}} */ (request.body));

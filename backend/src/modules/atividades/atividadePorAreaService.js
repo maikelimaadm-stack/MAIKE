@@ -4,7 +4,8 @@
  *  - `GET /atividades-por-area/:areaId/resumo?empresa_id` — as atividades da área (ABERTAS ou iniciadas no mês corrente
  *    da fazenda, nunca as CANCELADAS; ABERTAS primeiro, depois `data_inicio` desc; no máximo 20) e os custos da área no
  *    mês corrente (Σ das linhas CONFIRMADAS dos apontamentos CONFIRMADOS cuja área da atividade é esta, pelo
- *    `data_operacional`). Todo número vem do banco; nada é calculado no cliente.
+ *    `data_operacional`). Todo número vem do banco; nada é calculado no cliente. D-PROD-267: cada atividade traz também o
+ *    `ultimo_dia` lançado nesta área (a prévia do "+ Lançar dia" e do "serviço parado").
  *  - `GET /atividades-por-area/:areaId/registros?empresa_id&limit&cursor&tipo_atividade_id` — os apontamentos CONFIRMADOS
  *    da área, mais recentes primeiro (dia, `createdAt`, `id` desc; cursor keyset), cada um com as linhas CONFIRMADAS.
  *    Uma consulta com `include` (sem N+1).
@@ -73,10 +74,19 @@ export const resumoDaArea = async (contexto, areaId, query = {}) => {
             by: ['atividade_area_id'],
             where: { cliente_id: cli, empresa_id: empresaId, status: STATUS_APONTAMENTO.CONFIRMADO, atividade_area_id: { in: idsDasAreas } },
             _sum: { area_executada_dia: true },
+            _max: { data_operacional: true, data_termino: true },
           })
         )
       : [];
     const feita = new Map(somas.map((s) => [s.atividade_area_id, s._sum.area_executada_dia]));
+    // D-PROD-267: o último dia lançado na área em cada atividade (o maior entre o dia e o término).
+    const ultimoDia = new Map(
+      somas.map((s) => {
+        const d = diaDe(s._max?.data_operacional) ?? null;
+        const t = diaDe(s._max?.data_termino) ?? null;
+        return [s.atividade_area_id, t && (!d || t > d) ? t : d];
+      })
+    );
 
     const deDia = comoData(`${hoje.slice(0, 7)}-01`);
     const linhas = /** @type {Array<{ tipo: string, total: any }>} */ (
@@ -115,6 +125,8 @@ export const resumoDaArea = async (contexto, areaId, query = {}) => {
           area_status: aa?.status ?? null,
           area_planejada: t4(aa?.area_planejada ?? null),
           area_executada: aa ? t4(feita.get(aa.id) ?? 0) : null,
+          // D-PROD-267: o último dia lançado nesta área desta atividade (null sem lançamento): a prévia do "parado".
+          ultimo_dia: aa ? ultimoDia.get(aa.id) ?? null : null,
           data_inicio: diaDe(a.data_inicio),
           data_prevista_fim: diaDe(a.data_prevista_fim),
         };
@@ -178,7 +190,7 @@ export const registrosDaArea = async (contexto, areaId, query = {}) => {
         orderBy: [{ data_operacional: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
         take: limite + 1,
         select: {
-          id: true, data_operacional: true, createdAt: true, area_executada_dia: true, observacao: true,
+          id: true, data_operacional: true, data_termino: true, createdAt: true, area_executada_dia: true, observacao: true,
           operador: { select: { nome: true } },
           atividade: { select: { id: true, nome: true, tipo_atividade_id: true, tipo_atividade_nome: true } },
           maquinas: { where: { status: STATUS_APONTAMENTO.CONFIRMADO }, orderBy: { ordem: 'asc' }, select: { quantidade_uso: true, medidor_unidade: true, bem: { select: { nome: true } }, implemento: { select: { nome: true } } } },
@@ -195,6 +207,8 @@ export const registrosDaArea = async (contexto, areaId, query = {}) => {
       items: pagina.map((r) => ({
         id: r.id,
         data_operacional: diaDe(r.data_operacional),
+        // D-PROD-265: o último dia do serviço (nulo = um dia só).
+        data_termino: r.data_termino ? diaDe(r.data_termino) : null,
         atividade_id: r.atividade.id,
         atividade_nome: r.atividade.nome,
         tipo_atividade_id: r.atividade.tipo_atividade_id,

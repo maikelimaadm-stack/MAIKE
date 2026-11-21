@@ -64,7 +64,7 @@ import {
   ARQUIVO_CONTRACT, CENARIOS_RED, COLUNAS, COLUNAS_ANTES, COLUNAS_DEPOIS, CONSTRAINTS_ANTES, CONSTRAINTS_DEPOIS, DECISAO,
   IMPRESSAO_ERRADA, IMPRESSAO_VAZIA, INDICES_ANTES, INDICES_DEPOIS, NOME_CONTRACT, REGEX_ROTINAS, SQL_IMPRESSAO, TABELA_ANTIGA,
   TABELA_NOVA, TRECHOS_DA_GUARDA, NOMES_POSTERIORES_JA_APLICADAS, NOMES_POSTERIORES_NA_PARTIDA, NOME_CURVA_MENSAL, CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS, TABELAS_PUBLIC,
-  NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, TABELAS_CRIADAS_NO_GREEN, NOMES_DEPOIS_DO_CONTRACT, curvaPadraoDe,
+  NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, TABELAS_CRIADAS_NO_GREEN, NOMES_DEPOIS_DO_CONTRACT, curvaPadraoDe,
   aplicarMigrationsDaMain, aplicarPeloRunner, colunasDaTabela, comBanco, comImpressao, contagens, divergenciasGreen, exigirUrlLocal,
   historico, impressao, intrusos, migrateDeploy, migrateDiff, ordemDeAplicacao, resolverRevertida, retrato, rodarCenarioRed, semear, sistema, tabelaAtual,
 } from '../../scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs';
@@ -126,13 +126,15 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     // D-PROD-210: a CONTRACT da base do consumo (altera as 3 tabelas das Formulações), também: agora 7.
     // D-PROD-215: a EXPAND do Cadastro de Culturas (CADCULTURAS), de nome ainda posterior, também: agora 8.
     // D-PROD-216: a CONTRACT aditiva da Área ligada à Cultura (depende da CADCULTURAS), também: agora 9.
-    assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS]);
+    assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO]);
     // D-PROD-219: a EXPAND da Medição de Forragem (MEDICAOFORRAGEM; depende da Área e da CADCULTURAS), também: agora 10.
     // D-PROD-223: a EXPAND da coluna CADCULTURAS.dias_descanso, também: agora 11.
     // D-PROD-249: a CONTRACT das áreas da atividade (tabela nova AtividadeArea), também: agora 12.
     // D-PROD-257: a EXPAND das Entradas do Estoque (3 tabelas novas), também: agora 13.
     // D-PROD-259: a CONTRACT dos motivos de entrada (MotivoEntradaEstoque), também: agora 14.
-    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 14, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-210, a D-PROD-215, a D-PROD-216, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257 e a D-PROD-259');
+    // D-PROD-264: a EXPAND da saída manual do Estoque (4 tabelas novas), também: agora 15.
+    // D-PROD-265: a CONTRACT aditiva da data de término do apontamento (coluna e CHECK), também: agora 16.
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 16, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-210, a D-PROD-215, a D-PROD-216, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264 e a D-PROD-265');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 90, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-207, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem; − a Funcionario (D-PROD-208, na partida, por último)');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261115900000_atividade_mao_obra_servico'), 'a EXPAND da D-PROD-207 sobe na partida, depois da D-PROD-202');

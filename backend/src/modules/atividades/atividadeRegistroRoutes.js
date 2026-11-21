@@ -1,8 +1,10 @@
 /**
  * D-PROD-254 — rotas do REGISTRO DE CAMPO e das leituras por área (tela `op-atividades`):
  *
- *  - `POST /atividades/registrar` (lançar apontamento: `GUARDAS.atividadeApontamentos.criar`) — entra na atividade aberta
- *    do tipo/área/mês ou cria uma, e grava o apontamento + linhas, numa transação (ver `atividadeRegistroService.js`).
+ *  - `POST /atividades/registrar` (lançar apontamento: `GUARDAS.atividadeApontamentos.registrar` — a de lançar e, com
+ *    `concluir`/`nova_atividade` true, também a de editar a atividade, D-PROD-267) — entra na atividade aberta da
+ *    operação na área (D-PROD-267: em qualquer mês) ou cria uma, e grava o apontamento + linhas, numa transação (ver
+ *    `atividadeRegistroService.js`).
  *    201; reenvio igual da mesma `operation_id` → 200 com `replay: true`.
  *  - `GET  /atividades-por-area/:areaId/resumo` (ver) — atividades da área e custos do mês.
  *  - `GET  /atividades-por-area/:areaId/registros` (ver) — histórico de registros de campo da área (keyset).
@@ -13,9 +15,17 @@
  * D-PROD-263: a área vem em `area_id` (uma, como sempre) OU em `areas: [{ area_id, hectares }]` (1..20, várias áreas
  * num registro só: um apontamento por área, as linhas repartidas pelos hectares). Os dois juntos, nenhum dos dois ou
  * `areas[]` com `area_executada_dia` → 400 (o serviço explica qual). `hectares` chega como TEXTO, como os decimais do dia.
+ *
+ * D-PROD-265: `data_termino` opcional (`AAAA-MM-DD` ou null), só nesta rota (o `POST …/apontamentos` não a recebe): o último
+ * dia do serviço, igual em todas as áreas. Antes de `data_operacional` → 400; no futuro da fazenda → 422, como o dia.
+ *
+ * D-PROD-267: `concluir` e `nova_atividade`, booleanos opcionais (texto, número ou null → 400 `formato`, sem coerção). Com
+ * `concluir: true` ou `nova_atividade: true` o registro também CONCLUI (as áreas do registro, ou as da atividade parada):
+ * a guarda pede, além de lançar, a permissão de editar a atividade (a mesma do "Concluir" — `GUARDAS.atividades.editar`).
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { invalido } from '../gestao/gestaoComum.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { DECIMAIS_DO_APONTAMENTO, PADRAO_DECIMAL, recusarCoercao, recusarCoercaoNasListas, DECIMAIS_DA_LINHA_PRODUTO } from './atividadeComum.js';
 import { recusarCoercaoDasMaquinas } from './atividadeApontamentoMaquinaRoutes.js';
@@ -50,6 +60,11 @@ const REGISTRAR = {
       tipo_atividade_id: ID,
       safra_ciclo: { type: ['string', 'null'], maxLength: 32 },
       ...CAMPOS_DO_REGISTRO,
+      // D-PROD-265: o último dia do serviço (Nova realização), opcional.
+      data_termino: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+      // D-PROD-267: "Como fica depois de salvar?" (Concluída) e a resposta ao "serviço parado".
+      concluir: { type: 'boolean' },
+      nova_atividade: { type: 'boolean' },
       origem: ORIGEM,
       ...LINHAS_DO_LANCAMENTO,
     },
@@ -72,6 +87,20 @@ const REGISTROS = {
   },
 };
 
+/** D-PROD-267 — os booleanos do registro chegam como booleano, nunca "true"/1 (a coerção do AJV não decide por ninguém). */
+const BOOLEANOS_DO_REGISTRO = Object.freeze(['concluir', 'nova_atividade']);
+
+/** @param {unknown} corpo */
+const recusarCoercaoDosBooleanos = (corpo) => {
+  if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) return;
+  const c = /** @type {Record<string, unknown>} */ (corpo);
+  for (const chave of BOOLEANOS_DO_REGISTRO) {
+    if (Object.prototype.hasOwnProperty.call(c, chave) && c[chave] !== undefined && typeof c[chave] !== 'boolean') {
+      throw invalido(`${chave} deve ser true ou false`, { field: chave, reason: 'formato' });
+    }
+  }
+};
+
 /** @param {import('fastify').FastifyRequest} request */
 const ctx = (request) => {
   exigirAuthContext(request.contexto.auth);
@@ -86,9 +115,10 @@ export const registrarAtividadeRegistroRoutes = async (app) => {
     recusarCoercao(request.body, DECIMAIS_DO_APONTAMENTO);
     recusarCoercaoNasListas(request.body, { produtos: DECIMAIS_DA_LINHA_PRODUTO, mao_obra: DECIMAIS_DA_LINHA_MAO_OBRA, servicos: DECIMAIS_DA_LINHA_SERVICO, areas: ['hectares'] });
     recusarCoercaoDasMaquinas(request.body);
+    recusarCoercaoDosBooleanos(request.body);
   });
 
-  app.post('/atividades/registrar', { ...autenticado, preHandler: [g.criar], schema: REGISTRAR }, async (request, reply) => {
+  app.post('/atividades/registrar', { ...autenticado, preHandler: [g.registrar], schema: REGISTRAR }, async (request, reply) => {
     const r = await registrarCampo(ctx(request), /** @type {Record<string, any>} */ (request.body));
     return reply.status(r.replay === true ? 200 : 201).send(r);
   });

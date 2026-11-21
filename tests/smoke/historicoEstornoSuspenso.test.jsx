@@ -70,32 +70,31 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("política fail-closed", () => {
-  it("as duas flags estão desligadas e a mensagem é a combinada", () => {
-    expect(CANCELAMENTO_COCHO_HABILITADO).toBe(false);
+  it("a flag do cocho liga só o caminho novo do servidor (D-PROD-268); a do depósito segue desligada", () => {
+    expect(CANCELAMENTO_COCHO_HABILITADO).toBe(true);
     expect(CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO).toBe(false);
-    expect(MENSAGEM_ESTORNO_SUSPENSO).toBe("Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro.");
+    expect(MENSAGEM_ESTORNO_SUSPENSO).toBe("Exclusão temporariamente indisponível.");
+    expect(MENSAGEM_ESTORNO_SUSPENSO).not.toMatch(/cancel|estorn/i);
   });
 });
 
 describe("T01 — histórico do cocho", () => {
-  it("lista os lançamentos, mostra o aviso, não tem 'Excluir' e não chama a reversão", async () => {
+  it("lista os lançamentos, sem o aviso de suspenso, não tem 'Excluir' e não chama a reversão", async () => {
     const { container } = renderizar(<HistoricoSuplementacaoPonto pontoId="cocho-1" pontoNome="COCHO 1" ponto={{ id: "cocho-1" }} />);
     expect(await screen.findByText("Histórico do Cocho (2)")).toBeTruthy();
     expect(screen.getAllByText("SAL MINERAL")).toHaveLength(2);
-    expect(screen.getByRole("note").textContent).toBe(MENSAGEM_ESTORNO_SUSPENSO);
+    // D-PROD-268: o usuário do teste não tem `cancelar_lancamentos_estoque` → sem botão.
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByRole("button", { name: /Excluir/i })).toBeNull();
     expect(screen.queryByText(/Somente o último lançamento pode ser excluído/)).toBeNull();
     clicarEmTodosOsBotoes(container);
     expect(reversao.excluirEventoSuplementacaoComReversao).toHaveBeenCalledTimes(0);
   });
 
-  it("guarda do handler: o arquivo recusa antes de qualquer chamada (inspeção do fonte)", () => {
+  it("a reversão antiga pelo navegador saiu do histórico do cocho (inspeção do fonte)", () => {
     const fonte = readFileSync(resolve(process.cwd(), "src/components/suplementacao/HistoricoSuplementacaoPonto.jsx"), "utf8");
-    const corpo = fonte.slice(fonte.indexOf("const handleDelete"));
-    const guarda = corpo.indexOf("if (!CANCELAMENTO_COCHO_HABILITADO) return");
-    expect(guarda).toBeGreaterThan(-1);
-    expect(guarda).toBeLessThan(corpo.indexOf("excluirEventoSuplementacaoComReversao("));
-    expect(guarda).toBeLessThan(corpo.indexOf("confirmarExclusao("));
+    expect(fonte).not.toMatch(/excluirEventoSuplementacaoComReversao\(|confirmarExclusao\(/);
+    expect(fonte).toMatch(/CancelarLancamentoCocho/);
   });
 });
 
@@ -126,6 +125,7 @@ describe("T03 — fluxos normais não são afetados", () => {
   it("só os dois históricos conhecem a política; lançamento e transferência não", () => {
     const usos = execSync("grep -rl \"politicaEstorno\" src", { cwd: process.cwd() }).toString().trim().split("\n").sort();
     expect(usos).toEqual([
+      "src/components/suplementacao/CancelarLancamentoCocho.jsx",
       "src/components/suplementacao/HistoricoDepositoSuplementacao.jsx",
       "src/components/suplementacao/HistoricoSuplementacaoPonto.jsx",
     ]);
@@ -138,7 +138,6 @@ describe("T03 — fluxos normais não são afetados", () => {
     ).toString().trim().split("\n").sort();
     expect(usos).toEqual([
       "src/components/suplementacao/HistoricoDepositoSuplementacao.jsx",
-      "src/components/suplementacao/HistoricoSuplementacaoPonto.jsx",
       "src/services/suplementacaoHistoricoService.js",
     ]);
   });

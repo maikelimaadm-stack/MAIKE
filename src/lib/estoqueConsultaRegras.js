@@ -17,6 +17,7 @@ export const ROTULO_ORIGEM = Object.freeze(
     suplementacao: 'Suplementação',
     deposito: 'Transferência',
     entrada_estoque: 'Entrada de estoque',
+    saida_estoque: 'Saída de estoque',
     manual: 'Manual',
   }),
 );
@@ -46,8 +47,14 @@ const ROTULO_DETALHADO = Object.freeze(
     suplementacao: 'Suplementação',
     transferencia_enviada: 'Transferência (saída)',
     transferencia_recebida: 'Transferência (entrada)',
+    // D-PROD-268
+    estorno_suplementacao: 'Estorno do lançamento do cocho',
+    estorno_transferencia_enviada: 'Estorno da transferência (volta à origem)',
+    estorno_transferencia_recebida: 'Estorno da transferência (saída do destino)',
     estorno_entrada_revisao: 'Estorno da entrada (revisão)',
     estorno_entrada_exclusao: 'Estorno da entrada (exclusão)',
+    saida_manual: 'Saída manual',
+    estorno_saida_manual: 'Estorno da saída (exclusão)',
   }),
 );
 

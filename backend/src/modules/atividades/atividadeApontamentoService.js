@@ -78,6 +78,7 @@ import {
   AppError,
   atividadeApontamentoNotFound,
   atividadeDataComLinhas,
+  atividadeDataInvalida,
   atividadeNotFound,
   atividadeReferenciaInvalida,
   concurrencyConflict,
@@ -283,6 +284,8 @@ const paraGravacao = (campos) => {
   /** @type {Record<string, any>} */
   const dados = { ...campos };
   if (temCampo(dados, 'data_operacional')) dados.data_operacional = comoData(dados.data_operacional);
+  // D-PROD-265: o término só chega pelo `POST /atividades/registrar` (fora de `CAMPOS_DO_DIA`); nulo fica nulo.
+  if (temCampo(dados, 'data_termino') && dados.data_termino) dados.data_termino = comoData(dados.data_termino);
   return dados;
 };
 
@@ -369,6 +372,8 @@ export const comoApontamentoPublico = (r) => ({
   // D-PROD-249: a área da atividade em que o lançamento foi feito (nula na atividade sem área).
   atividade_area_id: r.atividade_area_id ?? null,
   atividade_area: r.atividadeArea ? { id: r.atividadeArea.id, area: r.atividadeArea.area ? { id: r.atividadeArea.area.id, numero_area: r.atividadeArea.area.numero_area, nome: r.atividadeArea.area.nome } : null } : null,
+  // D-PROD-265: o último dia do serviço (Nova realização); nulo = um dia só.
+  data_termino: r.data_termino ? diaDe(r.data_termino) : null,
   origem: r.origem,
   status: r.status,
   versao: r.versao,
@@ -403,6 +408,8 @@ const paraAuditoria = (r) => ({
   area_executada_dia: t4(r.area_executada_dia),
   quantidade_produzida_dia: t4(r.quantidade_produzida_dia),
   atividade_area_id: r.atividade_area_id ?? null,
+  // D-PROD-265: o término do serviço (Nova realização).
+  data_termino: r.data_termino ? diaDe(r.data_termino) : null,
   origem: r.origem,
   status: r.status,
   versao: r.versao,
@@ -907,6 +914,11 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
       const estado = { ...gravado, ...campos };
       exigirData(estado);
       if (temCampo(campos, 'data_operacional')) exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
+      // D-PROD-265: o término gravado (Nova realização) nunca fica antes do início; o CHECK do banco também recusa.
+      const termino = anterior.data_termino ? diaDe(anterior.data_termino) : null;
+      if (termino && /** @type {string} */ (estado.data_operacional) > termino) {
+        throw atividadeDataInvalida('data_operacional', 'depois_do_termino', { data: estado.data_operacional, data_termino: termino });
+      }
       if (estado.data_operacional !== gravado.data_operacional) {
         // A saída de estoque e a leitura do medidor das linhas estão nesta data: cancelar e lançar de novo.
         const produtos = await contarLinhasProdutoConfirmadas(tx, cli, empresaId, apontamentoId);

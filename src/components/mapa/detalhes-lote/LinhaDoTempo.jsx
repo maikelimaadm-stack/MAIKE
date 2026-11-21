@@ -1,8 +1,9 @@
 import React from "react";
 import { ArrowRightLeft, Baby, CircleX, Combine, History, Scale, Tags, Truck } from "lucide-react";
 import IconeLancarSuplementacao from "../IconeLancarSuplementacao";
-import { Chip, TextoDeslizante } from "./blocos";
+import { TextoDeslizante } from "./blocos";
 import "@/styles/mk-dp-historico.css";
+import "@/styles/mk-dp-tl-acoes.css";
 
 /*
  * Linha do tempo do Detalhes do Lote v12 (aba Histórico, D-PROD-218): trilho
@@ -12,8 +13,13 @@ import "@/styles/mk-dp-historico.css";
  * src/styles/mk-dp-historico.css, sob a raiz `.mk-dp`.
  *
  * Marcação: ol.mk-dp-tl > li.mk-dp-tl__grupo > h3.mk-dp-tl__dia(> span.mk-dp-tl__ponto)
- *           + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card(.is-cancelado)
- *             > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong + .mk-dp-chip) + dl.mk-dp-tl__linhas (grade) > div.mk-dp-tl__row(.mk-dp-tl__row--larga: texto longo) > dt + dd
+ *           + ul.mk-dp-tl__cartoes > li.mk-dp-tl__card
+ *             > div.mk-dp-tl__cab(> svg.mk-dp-tl__ic + strong) + dl.mk-dp-tl__linhas (grade) > div.mk-dp-tl__row(.mk-dp-tl__row--larga: texto longo) > dt + dd
+ *             + div.mk-dp-tl__acoes (só com `acoes`, D-PROD-266)
+ *
+ * Sem chip "Cancelado": no Mapa Geral só há EXCLUSÃO, e o registro excluído não chega à linha
+ * do tempo (quem monta os cartões já o tira). O campo `cancelado` dos cartões é só dado
+ * (ex.: a aba Histórico não põe "Excluir" nele); este componente não o desenha.
  */
 
 /** @typedef {import("./historicoDoPasto").DiaHistorico} DiaHistorico */
@@ -33,12 +39,14 @@ const ICONES = {
 };
 
 /**
- * `dias`: `[{ chave, rotulo: "09 NOV. 2026", cartoes: [{ chave, icone | Icone, titulo, cancelado?, linhas: [{ rotulo, valor }] }] }]`.
+ * `dias`: `[{ chave, rotulo: "09 NOV. 2026", cartoes: [{ chave, icone | Icone, titulo, linhas: [{ rotulo, valor }] }] }]`.
  * Fora do pasto, monte os dias com `rotuloDoDia("2026-11-09")` de historicoDoPasto.js
  * e passe `Icone` (lucide) quando o desenho não é um dos do histórico do pasto.
- * (O pé de ações do cartão saiu na D-PROD-222: o histórico completo do bebedouro,
- * o único que o usava, passou para os cartões do manejo.)
- * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }> }> }>, rotulo?: string, textoAutomatico?: boolean }} props
+ * `acoes` (opcional, D-PROD-266): o que vai no pé do cartão (ex.: "Excluir
+ * movimentação" na aba Histórico do pasto), numa faixa abaixo das linhas com a
+ * mesma divisória fina delas. Cartão sem `acoes` fica como antes (sem pé). O pé
+ * que a D-PROD-222 tirou era o do histórico do bebedouro; este é o slot genérico.
+ * @param {{ dias: Array<DiaHistorico | { chave: string, rotulo: string, cartoes: Array<{ chave: string, icone?: IconeHistorico, Icone?: import("lucide-react").LucideIcon, titulo: string, cancelado?: boolean, linhas: Array<{ rotulo: string, valor: React.ReactNode }>, acoes?: React.ReactNode }> }>, rotulo?: string, textoAutomatico?: boolean }} props
  */
 /** Rótulos de texto livre: ocupam a largura do cartão mesmo quando o texto é curto. */
 const ROTULOS_DE_TEXTO = /^(descrição|observaç(ão|ões)|detalhe|motivo)$/i;
@@ -67,15 +75,10 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto", text
               // tempo do depósito, do bebedouro e da tarefa (D-PROD-220) têm desenhos próprios.
               const Icone = c.Icone ?? ICONES[c.icone] ?? History;
               return (
-                <li key={c.chave} className={c.cancelado ? "mk-dp-tl__card is-cancelado" : "mk-dp-tl__card"}>
+                <li key={c.chave} className="mk-dp-tl__card">
                   <div className="mk-dp-tl__cab">
                     <Icone className="mk-dp-tl__ic" size={22} aria-hidden="true" />
                     <strong className="mk-dp-tl__titulo">{textoAutomatico ? <TextoDeslizante>{c.titulo}</TextoDeslizante> : c.titulo}</strong>
-                    {c.cancelado ? (
-                      <Chip tom="neutro" className="mk-dp-tl__chip">
-                        Cancelado
-                      </Chip>
-                    ) : null}
                   </div>
                   <dl className="mk-dp-tl__linhas">
                     {c.linhas.map((l, i) => (
@@ -85,6 +88,7 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto", text
                       </div>
                     ))}
                   </dl>
+                  {c.acoes != null && c.acoes !== false ? <div className="mk-dp-tl__acoes">{c.acoes}</div> : null}
                 </li>
               );
             })}

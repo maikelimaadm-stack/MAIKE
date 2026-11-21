@@ -128,7 +128,9 @@ else {
   if (reverte < 0 || apaga < 0 || apaga < reverte) falha('P110-EXCLUSAO-UNICA', `${EXCLUSAO_MOTOR} não reverte pelo motor certificado antes de apagar`);
   if (/onDelete:\s*Cascade|CASCADE/i.test(motor)) falha('P110-EXCLUSAO-UNICA', `${EXCLUSAO_MOTOR} usa cascata`);
   const servico = semComentarios(ler(EXCLUSAO_SERVICO));
-  for (const [re, nome] of [[/await exigirAdminTenant\(contexto, tx\)/, 'exigirAdminTenant'], [/executarComIdempotencia\(tx,/, 'executarComIdempotencia'], [/FOR UPDATE/, 'trava do movimento'], [/excluirMovimentoDoLedger\(tx, contexto, mov,/, 'motor único']]) {
+  // D-PROD-266: a exclusão é do administrador real, de quem tem `is_admin` ou da
+  // chave do mapa `excluir_movimentacoes_lote` — sempre relida dentro da transação.
+  for (const [re, nome] of [[/await exigirExclusaoMovimentacaoLote\(contexto, tx\)/, 'guarda D-PROD-266 (exigirExclusaoMovimentacaoLote)'], [/executarComIdempotencia\(tx,/, 'executarComIdempotencia'], [/FOR UPDATE/, 'trava do movimento'], [/excluirMovimentoDoLedger\(tx, contexto, mov,/, 'motor único']]) {
     if (!re.test(servico)) falha('P110-EXCLUSAO-UNICA', `${EXCLUSAO_SERVICO} perdeu ${nome}`);
   }
 }

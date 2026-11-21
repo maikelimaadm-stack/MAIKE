@@ -91,6 +91,10 @@ const ESCRITAS = (c) => {
     ['suplementação: evento (DELETE)', 'DELETE', `/suplementacao-eventos/${ID}`],
     ['estoque: saída de suplementação', 'POST', '/movimentacoes-estoque/comandos/saida-suplementacao', { operation_id: opId(), empresa_id: E, produto_id: 'p', local_origem_id: 'l', quantidade: 5 }],
     ['estoque: transferência entre depósitos', 'POST', '/movimentacoes-estoque/comandos/transferencia-locais', { operation_id: opId(), empresa_id: E, produto_id: 'p', local_origem_id: 'l', local_destino_id: 'm', quantidade: 5 }],
+    // D-PROD-268 — cancelar lançamento de cocho e transferência entre depósitos: chave do mapa
+    // cancelar_lancamentos_estoque (desligada ao nascer). Os ensaios (GET) têm a mesma guarda.
+    ['estoque: cancelar lançamento do cocho', 'POST', `/suplementacao-eventos/${ID}/cancelamento`, { empresa_id: E, operation_id: opId(), motivo: 'motivo ok' }],
+    ['estoque: cancelar transferência entre depósitos', 'POST', `/movimentacoes-estoque/${ID}/cancelar-transferencia`, { empresa_id: E, operation_id: opId(), motivo: 'motivo ok' }],
     ['estoque: movimentação (DELETE)', 'DELETE', `/movimentacoes-estoque/${ID}`],
     ['estoque: lote de nota (DELETE)', 'DELETE', `/estoque-lotes-nota/${ID}`],
     ['cocho/depósito (POST)', 'POST', '/pontos-suplementacao', { empresa_id: E, nome: 'COCHO HACK' }],
@@ -211,6 +215,20 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.notEqual((await req('POST', urlS, c.tokOp, corpoS)).statusCode, 403);
     const [, , urlT, corpoT] = ESCRITAS(c).find(([n]) => n === 'estoque: transferência entre depósitos');
     assert.equal((await req('POST', urlT, c.tokOp, corpoT)).statusCode, 403);
+  });
+
+  test('D-PROD-268 — cancelar lançamento de cocho e transferência: lançar/movimentar não liberam; só a chave cancelar_lancamentos_estoque libera (POST e o ensaio GET)', async () => {
+    const c = await cenario();
+    const E = c.empresa.id;
+    const cancelamentos = ESCRITAS(c).filter(([n]) => n.startsWith('estoque: cancelar'));
+    assert.equal(cancelamentos.length, 2);
+    const ensaios = [`/suplementacao-eventos/${ID}/elegibilidade-cancelamento?empresa_id=${E}`, `/movimentacoes-estoque/${ID}/elegibilidade-cancelamento-transferencia?empresa_id=${E}`];
+    await c.permitir({ ...SO_VER_MAPA, mapa_geral_permissoes: { lancar_suplementacao: true, movimentar_depositos: true } });
+    for (const [nome, metodo, url, corpo] of cancelamentos) assert.equal((await req(metodo, url, c.tokOp, corpo)).statusCode, 403, nome);
+    for (const url of ensaios) assert.equal((await req('GET', url, c.tokOp)).statusCode, 403, url);
+    await c.permitir({ ...SO_VER_MAPA, mapa_geral_permissoes: { cancelar_lancamentos_estoque: true } });
+    for (const [nome, metodo, url, corpo] of cancelamentos) assert.notEqual((await req(metodo, url, c.tokOp, corpo)).statusCode, 403, nome);
+    for (const url of ensaios) assert.notEqual((await req('GET', url, c.tokOp)).statusCode, 403, url);
   });
 
   test('setor rápido pelo Cadastro de Lotes ("novo" em pec-lotes) cria; sem nenhuma tela, não', async () => {

@@ -272,35 +272,67 @@ export const nomeDaAtividadeNova = (tipo, area, dia, outras = 0) => `${tipo} · 
 /** "PASTO 01" / "PASTO 01 e PASTO 02" / "PASTO 01, PASTO 02 e PASTO 03". @param {string[]} nomes */
 const lista = (nomes) => (nomes.length <= 1 ? nomes.join('') : `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`);
 
+/** "dd/mm" de um dia `AAAA-MM-DD`. @param {string} dia */
+const diaCurtoDoRegistro = (dia) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
+
+/** D-PROD-267 — a trava "serviço parado" do servidor (`DIAS_PARADO_MAXIMO`). */
+const DIAS_PARADO = 30;
+
+/**
+ * D-PROD-267 — a atividade aberta que o registro acharia (a mesma regra do servidor: a ABERTA da operação com a área não
+ * concluída, em QUALQUER mês), com o que a prévia mostra. Sem nenhuma (ou com mais de uma na mesma área), null.
+ * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, resumos: Array<any|null|undefined> }} p
+ * @returns {{ indice: number, alvo: any, varias: boolean } | null}
+ */
+export const atividadeDoRegistro = ({ tipo, areas, resumos }) => {
+  if (!tipo?.id) return null;
+  for (const [i] of areas.entries()) {
+    const abertas = (Array.isArray(resumos[i]?.atividades) ? resumos[i].atividades : []).filter(
+      (/** @type {any} */ a) => String(a.tipo_atividade_id) === String(tipo.id) && a.status === STATUS_ABERTA && a.area_status !== STATUS_AREA.CONCLUIDA,
+    );
+    if (abertas.length) return { indice: i, alvo: abertas[0], varias: abertas.length > 1 };
+  }
+  return null;
+};
+
 /**
  * Onde o registro entra (só leitura: quem decide é o servidor, com a mesma regra): as áreas na ordem da tabela, a
- * primeira com atividade ABERTA do tipo no mês (área não concluída) dá a atividade. Com várias áreas, diz quais entram
- * nela e avisa da que já está concluída nela (o servidor recusa). Sem nenhuma: a atividade nova, com o nome dela.
- * `resumos[i]` é o resumo da área i (`GET /atividades-por-area/:id/resumo`); faltando algum, null (ainda lendo).
+ * primeira com atividade ABERTA da operação (área não concluída) dá a atividade — D-PROD-267: em QUALQUER mês, e com o
+ * andamento ("Entra em … (em andamento, 8 de 40 ha)"); parada há mais de 30 dias, avisa que o salvar vai perguntar. Com
+ * várias áreas, diz quais entram nela e avisa da que já está concluída nela (o servidor recusa). Sem nenhuma: a
+ * atividade nova, com o nome dela (o mês do início). `resumos[i]` é o resumo da área i
+ * (`GET /atividades-por-area/:id/resumo`); faltando algum, null (ainda lendo).
  * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, dia: string, resumos: Array<any|null|undefined> }} p
  * @returns {string|null}
  */
 export const destinoDoRegistro = ({ tipo, areas, dia, resumos }) => {
   if (!tipo?.id || !areas.length || !dia || resumos.length !== areas.length || resumos.some((r) => !r)) return null;
-  const mes = dia.slice(0, 7);
-  const abertasDe = (/** @type {any} */ r) =>
-    (Array.isArray(r?.atividades) ? r.atividades : []).filter(
-      (/** @type {any} */ a) => String(a.tipo_atividade_id) === String(tipo.id) && a.status === STATUS_ABERTA && a.area_status !== STATUS_AREA.CONCLUIDA && String(a.data_inicio ?? '').slice(0, 7) === mes,
-    );
-  for (const [i, area] of areas.entries()) {
-    const abertas = abertasDe(resumos[i]);
-    if (!abertas.length) continue;
-    if (abertas.length > 1) return `Entra em uma das atividades de ${tipo.nome_tipo} abertas ${areas.length > 1 ? `em ${area.nome}` : 'nesta área'}`;
-    const alvo = abertas[0];
-    if (areas.length === 1) return `Entra em ${alvo.nome}`;
+  const achada = atividadeDoRegistro({ tipo, areas, resumos });
+  if (achada) {
+    const area = areas[achada.indice];
+    if (achada.varias) return `Entra em uma das atividades de ${tipo.nome_tipo} abertas ${areas.length > 1 ? `em ${area.nome}` : 'nesta área'}`;
+    const alvo = achada.alvo;
+    const ultimo = typeof alvo.ultimo_dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(alvo.ultimo_dia) ? alvo.ultimo_dia : null;
+    const parado = ultimo && Math.round((Date.parse(`${dia}T00:00:00Z`) - Date.parse(`${ultimo}T00:00:00Z`)) / 86400000) > DIAS_PARADO;
+    const avisoParado = parado ? `. Parada desde ${diaCurtoDoRegistro(/** @type {string} */ (ultimo))}: ao salvar, vamos perguntar se é continuação` : '';
+    if (areas.length === 1) {
+      const feita = alvo.area_executada != null ? hectaresCanonicos(alvo.area_executada) : null;
+      const planejada = alvo.area_planejada != null ? hectaresCanonicos(alvo.area_planejada) : null;
+      const fmt = (/** @type {string} */ v) => paraTextoDeEdicao(v, LOCALE_ATIVIDADE, { casasMax: CASAS_HA });
+      const comDia = feita !== null && ehPositivo(feita);
+      const andamento = comDia
+        ? `em andamento, ${fmt(feita)}${planejada !== null ? ` de ${fmt(planejada)}` : ''} ha`
+        : `planejada${planejada !== null ? `, ${fmt(planejada)} ha` : ''}`;
+      return `Entra em ${alvo.nome} (${andamento})${avisoParado}`;
+    }
     const naAlvo = (/** @type {number} */ j) => (Array.isArray(resumos[j]?.atividades) ? resumos[j].atividades : []).find((/** @type {any} */ a) => String(a.atividade_id) === String(alvo.atividade_id)) ?? null;
-    const entram = areas.filter((_, j) => j !== i && !naAlvo(j)).map((a) => a.nome);
-    const concluidas = areas.filter((_, j) => j !== i && naAlvo(j)?.area_status === STATUS_AREA.CONCLUIDA).map((a) => a.nome);
+    const entram = areas.filter((_, j) => j !== achada.indice && !naAlvo(j)).map((a) => a.nome);
+    const concluidas = areas.filter((_, j) => j !== achada.indice && naAlvo(j)?.area_status === STATUS_AREA.CONCLUIDA).map((a) => a.nome);
     const partes = [`Entra em ${alvo.nome}`];
     if (entram.length) partes.push(`${lista(entram)} ${entram.length === 1 ? 'entra' : 'entram'} nela`);
     let texto = partes.join('; ');
     if (concluidas.length) texto += `. ${lista(concluidas)} já ${concluidas.length === 1 ? 'está concluída' : 'estão concluídas'} nela: reabra ou tire do registro`;
-    return texto;
+    return `${texto}${avisoParado}`;
   }
   return `Nova atividade será criada: ${nomeDaAtividadeNova(tipo.nome_tipo, areas[0].nome, dia, areas.length - 1)}`;
 };
@@ -319,3 +351,33 @@ export const areaDaRecusa = (erro, enviadas) => {
   if (!area || (details.area_id != null && String(details.area_id) !== String(area.area_id))) return null;
   return { indice, area_id: String(area.area_id) };
 };
+
+/**
+ * D-PROD-265 — o período do serviço registrado ("10/11 a 12/11"): só com a data de término DEPOIS do início; sem término
+ * (ou igual ao início), vazio — o dia já aparece onde o lançamento é mostrado.
+ * @param {unknown} inicio  `data_operacional` (AAAA-MM-DD) @param {unknown} termino  `data_termino` (AAAA-MM-DD ou nulo)
+ * @returns {string}
+ */
+export const periodoDoServico = (inicio, termino) => {
+  const dia = (/** @type {unknown} */ v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+  const de = dia(inicio);
+  const ate = dia(termino);
+  if (!de || !ate || ate <= de) return '';
+  const curto = (/** @type {string} */ v) => `${v.slice(8, 10)}/${v.slice(5, 7)}`;
+  return `${curto(de)} a ${curto(ate)}`;
+};
+
+/**
+ * D-PROD-265 — a data de término do formulário: vazia vale (um dia só); preenchida, nunca antes do início nem depois de
+ * hoje na fazenda. Devolve a mensagem do campo ou null.
+ * @param {string} inicio @param {string} termino @param {string|null|undefined} hoje
+ * @returns {string|null}
+ */
+export const erroDaDataDeTermino = (inicio, termino, hoje) => {
+  if (!termino) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(termino)) return 'Informe a data de término no formato dd/mm/aaaa.';
+  if (inicio && termino < inicio) return 'A data de término não pode ser antes da data de início.';
+  if (hoje && termino > hoje) return 'A data de término não pode ser depois de hoje na fazenda.';
+  return null;
+};
+

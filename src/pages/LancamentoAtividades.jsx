@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CircleCheck, ClipboardCheck, Copy, List, Pencil, RotateCcw } from "lucide-react";
+import { Ban, CalendarPlus, CircleCheck, Copy, List, Pencil, RotateCcw } from "lucide-react";
 import { FiltrosDaTelaContext, opcoesDeOrdenacao } from "@/components/cadastro/base1/FiltrosRapidos";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
@@ -17,11 +17,23 @@ import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { useCelular } from "@/components/common/MobileSheet";
 import AtividadeAberta from "@/components/lancamento-atividades/AtividadeAberta";
 import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
+import DialogoConcluirServico from "@/components/lancamento-atividades/DialogoConcluirServico";
+import { BlocoDoServico, SituacaoDoServico } from "@/components/lancamento-atividades/ServicoNaLista";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { areasDaAtividade, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
+import {
+  OPCOES_DA_SITUACAO,
+  filtroDoTipo,
+  opcoesDoFiltroTipo,
+  rotuloDaSituacaoDoServico,
+  rotuloDoTipoDoServico,
+  situacaoDoServico,
+  textoDaAreaDoServico,
+  textoDaDataDoServico,
+} from "@/lib/servicoVariosDias";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -76,34 +88,39 @@ const QUERY_RAIZ = "lancamento-atividades";
 /** Formatação das mensagens do diálogo de ação (não há dinheiro nesta tela). */
 const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL", casas: 2 });
 
-const STATUS_TODOS = "TODOS";
 /** Faixa sem pílulas automáticas das colunas (referência estável). */
 const SEM_FILTROS_AUTOMATICOS = /** @type {string[]} */ ([]);
-const OPCOES_STATUS = [
-  { value: STATUS_TODOS, label: "Todos os status" },
-  ...STATUS_ATIVIDADE.map((s) => ({ value: s, label: ROTULO_STATUS_ATIVIDADE[s] ?? s })),
-];
+/**
+ * D-PROD-267 — a pílula "Situação" (no lugar da "Status"): as 4 situações da lista (o servidor separa Planejada de Em
+ * andamento) e, para não perder o filtro de antes, "Abertas" (= status ABERTA: as planejadas e as em andamento).
+ */
+const SITUACAO_ABERTAS = "ABERTAS";
+const OPCOES_SITUACAO = [...OPCOES_DA_SITUACAO, { value: SITUACAO_ABERTAS, label: "Abertas (planejadas e em andamento)" }];
 
 // ─── Lista (colunas da grade Base1) ─────────────────────────────────────
 
-export const ATIVIDADES_STORAGE_KEY = "colunas_lancamento_atividades_v1";
+// D-PROD-267: as colunas padrão mudaram (o modelo do dono): a chave nova faz valer o padrão novo para todos.
+export const ATIVIDADES_STORAGE_KEY = "colunas_lancamento_atividades_v2";
 
 /**
- * Padrão: Nº | Nome | Tipo | Área | Status | Área executada / planejada | Início | Valor total.
- * Os demais dados do cabeçalho ficam como colunas opcionais (desligadas). Tipo,
- * grupo, setor, centros e unidade mostram o que ficou GRAVADO na atividade
- * (snapshot): renomear o cadastro depois não reescreve o histórico.
+ * D-PROD-267 (o modelo do dono, "uma linha por serviço"): Nº | Tipo | Operação | Área | Data | Situação | Custo. O Tipo é
+ * o tipo fixo da operação (Roçada e tratos…), a Operação é o tipo de atividade GRAVADO na atividade (snapshot), a Área
+ * mostra a 1ª e "+N", a Data "28/11 –" (em aberto) ou "01/11 a 10/11" (concluída) e a Situação, em andamento, o
+ * andamento com "+ Lançar dia" e "Concluir". Nome, área executada / planejada, início e os demais dados do cabeçalho
+ * ficam como colunas opcionais (desligadas; Mais opções → colunas).
  */
 export const ATIVIDADES_COLUNAS = [
-  { id: "numero", label: "Nº", default: true, sortable: true, width: 70 },
-  { id: "nome", label: "Nome", default: true, sortable: true, width: 200 },
-  { id: "tipo", label: "Tipo de atividade", default: true, sortable: true, width: 170 },
-  { id: "area", label: "Área", default: true, sortable: true, width: 140 },
-  { id: "status", label: "Situação", default: true, sortable: true, width: 130 },
-  { id: "area_execucao", label: "Área executada / planejada", default: true, sortable: true, align: "right", width: 160 },
-  { id: "data_inicio", label: "Início", default: true, sortable: true, width: 101 },
+  { id: "numero", label: "Nº", default: true, sortable: true, width: 64 },
+  { id: "tipo", label: "Tipo", default: true, sortable: true, width: 160 },
+  { id: "operacao", label: "Operação", default: true, sortable: true, width: 190 },
+  { id: "area", label: "Área", default: true, sortable: true, width: 190 },
+  { id: "data", label: "Data", default: true, sortable: true, width: 120 },
+  { id: "status", label: "Situação", default: true, sortable: true, width: 280 },
   // D-PROD-234: o custo total da atividade (o mesmo dos totais), que a lista do servidor traz por página.
   { id: "valor_total", label: "Custo", default: true, sortable: true, align: "right", width: 130 },
+  { id: "nome", label: "Nome", default: false, sortable: true, width: 200 },
+  { id: "area_execucao", label: "Área executada / planejada", default: false, sortable: true, align: "right", width: 160 },
+  { id: "data_inicio", label: "Início", default: false, sortable: true, width: 101 },
   { id: "setor", label: "Setor", default: false, sortable: true, width: 140 },
   { id: "bem", label: "Máquina", default: false, sortable: true, width: 160 },
   { id: "safra", label: "Safra", default: false, sortable: true, width: 100 },
@@ -144,13 +161,16 @@ export const subtituloDoCardAtividade = (item) => {
 export const valorDoCampoAtividade = (item, id) => {
   if (id === "numero") return item?.numero != null ? String(item.numero) : "";
   if (id === "nome") return String(item?.nome ?? "");
-  if (id === "tipo") return String(item?.tipo_atividade_nome ?? "");
-  // D-PROD-249: a atividade de várias áreas mostra "2 de 5 em andamento"; a de uma área, o nome dela.
-  if (id === "area") return textoProgressoAreas(item) || textoDaColunaArea(item);
+  // D-PROD-267: o tipo fixo (do servidor) e a operação (o tipo de atividade gravado).
+  if (id === "tipo") return rotuloDoTipoDoServico(item);
+  if (id === "operacao") return String(item?.tipo_atividade_nome ?? "");
+  // D-PROD-267: a 1ª área e "+N" das outras ("Pasto da Aroeira +1").
+  if (id === "area") return textoDaAreaDoServico(item) || textoDaColunaArea(item);
+  if (id === "data") return textoDaDataDoServico(item);
   if (id === "setor") return rotuloDoSetor(item);
   if (id === "bem") return rotuloDoBem(item?.bem);
   if (id === "safra") return String(item?.safra_ciclo ?? "");
-  if (id === "status") return rotuloDoStatusAtividade(item?.status);
+  if (id === "status") return rotuloDaSituacaoDoServico(item) || rotuloDoStatusAtividade(item?.status);
   if (id === "area_execucao") return formatarAreaExecutadaPlanejada(item);
   if (id === "producao") return formatarProducaoDaAtividade(item);
   if (id === "data_inicio" || id === "data_prevista_fim" || id === "data_conclusao") return formatarDiaAtividade(item?.[id]);
@@ -165,6 +185,7 @@ const PALAVRAS_DA_ORDEM = Object.freeze(
   /** @type {Record<string, { asc: string, desc: string }>} */ ({
     numero: { asc: "Nº (mais antigas primeiro)", desc: "Nº (mais recentes primeiro)" },
     data_inicio: { asc: "Início (mais antigo primeiro)", desc: "Início (mais recente primeiro)" },
+    data: { asc: "Data (mais antiga primeiro)", desc: "Data (mais recente primeiro)" },
     data_prevista_fim: { asc: "Fim previsto (mais antigo primeiro)", desc: "Fim previsto (mais recente primeiro)" },
     data_conclusao: { asc: "Conclusão (mais antiga primeiro)", desc: "Conclusão (mais recente primeiro)" },
     area_execucao: { asc: "Área executada (menor primeiro)", desc: "Área executada (maior primeiro)" },
@@ -195,9 +216,11 @@ const COLUNAS_DE_DIA = Object.freeze(["data_inicio", "data_prevista_fim", "data_
  * @returns {number|null}
  */
 export const compararAtividadesParaOrdenar = (a, b, colId) => {
-  if (COLUNAS_DE_DIA.includes(colId)) {
-    const va = ehDiaValido(a?.[colId]) ? String(a[colId]) : null;
-    const vb = ehDiaValido(b?.[colId]) ? String(b[colId]) : null;
+  if (COLUNAS_DE_DIA.includes(colId) || colId === "data") {
+    // D-PROD-267: a coluna "Data" ordena pelo início do serviço.
+    const campo = colId === "data" ? "data_inicio" : colId;
+    const va = ehDiaValido(a?.[campo]) ? String(a[campo]) : null;
+    const vb = ehDiaValido(b?.[campo]) ? String(b[campo]) : null;
     if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
     return va === vb ? 0 : va < vb ? -1 : 1;
   }
@@ -246,7 +269,8 @@ export default function LancamentoAtividades() {
   const acoes = useAcoesTelaAtividades();
   const { fuso, fusoOk, semFuso, hoje } = useFusoDaFazenda(empresaId);
 
-  const [statusFiltro, setStatusFiltro] = useState(STATUS_TODOS);
+  // D-PROD-267: Situação (no lugar do Status) e Tipo (o tipo fixo ou, dentro dele, a operação).
+  const [situacaoFiltro, setSituacaoFiltro] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("");
   const [areaFiltro, setAreaFiltro] = useState("");
   const [dataDe, setDataDe] = useState("");
@@ -261,6 +285,9 @@ export default function LancamentoAtividades() {
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
   /** D-PROD-254: "Registrar serviço" — registrar trabalho de campo escolhendo área e tipo (o planejar é a "Nova atividade"). */
   const [registrando, setRegistrando] = useState(false);
+  /** D-PROD-267: "+ Lançar dia" (a Nova realização preenchida com o serviço) e o "Concluir" da linha. */
+  const [lancandoDia, setLancandoDia] = useState(/** @type {any|null} */ (null));
+  const [concluindoServico, setConcluindoServico] = useState(/** @type {any|null} */ (null));
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
@@ -287,21 +314,22 @@ export default function LancamentoAtividades() {
       listarAtividades({
         limit,
         cursor,
-        status: statusFiltro !== STATUS_TODOS ? statusFiltro : null,
-        tipo_atividade_id: tipoFiltro || null,
+        status: situacaoFiltro === SITUACAO_ABERTAS ? STATUS_ABERTA : null,
+        situacao: situacaoFiltro && situacaoFiltro !== SITUACAO_ABERTAS ? situacaoFiltro : null,
+        ...filtroDoTipo(tipoFiltro),
         area_id: areaFiltro || null,
         data_de: dataDe || null,
         data_ate: dataAte || null,
       }),
     // A fazenda vem do service (`definirFazendaDaTela`) e está na chave da lista: trocar de fazenda relê a página.
-    [statusFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
+    [situacaoFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
   );
 
   const controller = useCadastroBase1Controller({
     storageKey: ATIVIDADES_STORAGE_KEY,
     columnIds: ATIVIDADES_CAMPOS_CARD,
     listEnabled,
-    queryKey: [QUERY_RAIZ, "page", empresaId, statusFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
+    queryKey: [QUERY_RAIZ, "page", empresaId, situacaoFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
     fetchPage,
     duplicateLabelField: "nome",
     searchPlaceholder: "Buscar nº, nome, tipo ou área…",
@@ -311,7 +339,7 @@ export default function LancamentoAtividades() {
     getRecordTitle: (/** @type {any} */ item) => (item?.id ? `Atividade ${textoDoNumero(item)}${item.nome ? ` — ${item.nome}` : ""}` : "Abrir atividade"),
     getRecordCode: (/** @type {any} */ item) => (item?.id && item?.numero != null ? String(item.numero) : undefined),
     getSearchHaystack: (/** @type {any} */ a) =>
-      [a.numero, a.nome, a.tipo_atividade_nome, rotuloDaArea(a.area), ...areasDaAtividade(a).map(rotuloDaAreaDaAtividade)].filter((v) => v != null && v !== "").join(" "),
+      [a.numero, a.nome, a.tipo_atividade_nome, rotuloDoTipoDoServico(a), rotuloDaArea(a.area), ...areasDaAtividade(a).map(rotuloDaAreaDaAtividade)].filter((v) => v != null && v !== "").join(" "),
     mapSearchSuggestion: (/** @type {any} */ a) => ({
       id: String(a.id),
       label: `Nº ${a.numero ?? ""} — ${a.nome ?? ""}`,
@@ -337,6 +365,8 @@ export default function LancamentoAtividades() {
     setDialogo(null);
     setLancando(null);
     setRegistrando(false);
+    setLancandoDia(null);
+    setConcluindoServico(null);
     setAreaFiltro("");
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
@@ -566,6 +596,38 @@ export default function LancamentoAtividades() {
     }
   };
 
+  // ─── D-PROD-267: "+ Lançar dia" e "Concluir" da linha ─────────────────
+  /** Os botões da linha seguem a mesma regra do servidor (permissão, status, fuso e versão). @param {any} a */
+  const podeLancarDia = (a) => podeGravar && acoesDaAtividade(a, acoes).lancarApontamento && a?.status === STATUS_ABERTA;
+  /** @param {any} a */
+  const podeConcluirServico = (a) => podeGravar && acoesDaAtividade(a, acoes).concluir && Number.isInteger(a?.versao);
+
+  /**
+   * "Concluir" da linha: `POST /atividades/:id/concluir` com o último dia (as áreas em andamento e a atividade, numa
+   * transação). A recusa fica no diálogo (ele mostra a frase); a lista e o detalhe se releem.
+   * @param {string} dia
+   */
+  const concluirServico = async (dia) => {
+    const alvoDaLinha = concluindoServico;
+    const emp = empresaId;
+    if (!alvoDaLinha || !emp) return;
+    try {
+      const r = /** @type {any} */ (await concluirAtividade(String(alvoDaLinha.id), { versao: alvoDaLinha.versao, data_conclusao: dia }));
+      invalidarLista();
+      invalidarTotais();
+      if (r?.id) queryClient.setQueryData(chaveDetalhe(emp, String(r.id)), r);
+      if (daEmpresaAtual(emp)) {
+        setConcluindoServico(null);
+        notifySuccess("Sucesso", `Serviço ${textoDoNumero(r ?? alvoDaLinha)} concluído.`);
+      } else {
+        notifyInfo("Gravação concluída", "O serviço foi concluído na fazenda anterior.");
+      }
+    } catch (erro) {
+      reagirAoErro(erro, "Não foi possível concluir. Nada foi alterado.", emp);
+      throw erro;
+    }
+  };
+
   // Na atividade aberta, "Concluir" é o botão à vista na barra (D-PROD-232): o Mais opções não repete.
   const concluirNaBarra = controller.showForm;
   /** @type {Array<{ key: string, label: string, disabled?: boolean, hidden?: boolean, onSelect: () => void }>} */
@@ -661,16 +723,8 @@ export default function LancamentoAtividades() {
     aviso = <AvisoGestao testId="atividades-sem-permissao">Você não tem permissão para ver as atividades desta fazenda.</AvisoGestao>;
   }
 
-  const opcoesTipoFiltro = useMemo(
-    () => [
-      { value: "", label: "Todos os tipos" },
-      ...(/** @type {any[]} */ (tipos)).map((t) => ({
-        value: String(t.id),
-        label: `${String(t.nome_tipo ?? "")}${t.ativo === false ? " (INATIVO)" : ""}`,
-      })),
-    ],
-    [tipos],
-  );
+  // D-PROD-267: os 7 tipos fixos e, dentro de cada um, as operações (o filtro pela operação continua aqui).
+  const opcoesTipoFiltro = useMemo(() => opcoesDoFiltroTipo(/** @type {any[]} */ (tipos)), [tipos]);
   const opcoesAreaFiltro = useMemo(
     () => [{ value: "", label: "Todas as áreas" }, ...(/** @type {any[]} */ (areas)).map((a) => ({ value: String(a.id), label: rotuloDaArea(a) || String(a.id) }))],
     [areas],
@@ -693,17 +747,17 @@ export default function LancamentoAtividades() {
 
   /**
    * Os filtros da consulta, todos na faixa de pílulas do motor (D-PROD-237: sai a caixa solta de tipo, área e período
-   * que ficava acima da grade), na ordem do protótipo: Status, Tipo de atividade, Área e Início (uma pílula com "De" e
-   * "Até"). Cada um continua indo para a query do SERVIDOR (status, tipo_atividade_id, area_id, data_de, data_ate) e
-   * relendo a lista keyset do começo; "Limpar filtros" volta todos ao padrão. A coluna que cada um cobre não ganha
-   * pílula própria (nem em "+ Filtro").
+   * que ficava acima da grade). D-PROD-267 (o modelo do dono): Tipo (o tipo fixo, ou a operação dentro dele), Situação,
+   * Área e Início (uma pílula com "De" e "Até"). Cada um continua indo para a query do SERVIDOR (tipo_fixo ou
+   * tipo_atividade_id, situacao — ou status ABERTA em "Abertas" —, area_id, data_de, data_ate) e relendo a lista keyset do
+   * começo; "Limpar filtros" volta todos ao padrão. A coluna que cada um cobre não ganha pílula própria (nem em "+ Filtro").
    * @type {import("@/components/cadastro/base1/FiltrosRapidos").FiltroDaTela[]}
    */
   const filtrosDaTela =
     empresaId && acoes.ver
       ? [
-          { id: "status", rotulo: "Status", nome: "Filtrar por status", opcoes: OPCOES_STATUS, valor: statusFiltro, padrao: STATUS_TODOS, onChange: setStatusFiltro, coluna: "status", ocultarPadrao: true },
-          { id: "tipo", rotulo: "Tipo de atividade", nome: "Filtrar por tipo de atividade", opcoes: opcoesTipoFiltro, valor: tipoFiltro, padrao: "", onChange: setTipoFiltro, coluna: "tipo", ocultarPadrao: true },
+          { id: "tipo", rotulo: "Tipo", nome: "Filtrar por tipo", opcoes: opcoesTipoFiltro, valor: tipoFiltro, padrao: "", onChange: setTipoFiltro, coluna: "tipo", ocultarPadrao: true },
+          { id: "situacao", rotulo: "Situação", nome: "Filtrar por situação", opcoes: OPCOES_SITUACAO, valor: situacaoFiltro, padrao: "", onChange: setSituacaoFiltro, coluna: "status", ocultarPadrao: true },
           { id: "area", rotulo: "Área", nome: "Filtrar por área", opcoes: opcoesAreaFiltro, valor: areaFiltro, padrao: "", onChange: setAreaFiltro, coluna: "area", ocultarPadrao: true },
           {
             id: "inicio",
@@ -864,15 +918,36 @@ export default function LancamentoAtividades() {
 
   /** @type {any} */
   const Grade = CadastroBase1Grade;
-  const renderCell = useCallback((/** @type {any} */ item, /** @type {string} */ colId) => {
+  const renderCell = (/** @type {any} */ item, /** @type {string} */ colId) => {
     if (colId === "numero") return <span className="font-mono" data-testid={`atividade-numero-${item.id}`}>{item.numero ?? "–"}</span>;
+    // D-PROD-267: o tipo em negrito (o modelo do dono); sem o tipo do servidor, o da operação na lista de tipos.
+    if (colId === "tipo") return <strong className="font-semibold">{rotuloDoTipoDoServico(item, /** @type {any[]} */ (tipos)) || "–"}</strong>;
     if (colId === "status") {
+      // D-PROD-267: a situação com o andamento e os botões "+ Lançar dia" e "Concluir".
       return (
-        <Selo status={CHAVE_DO_SELO_ATIVIDADE[String(item.status ?? "")] ?? String(item.status ?? "")} rotulo={situacaoDaAtividade(item)} testId={`atividade-status-${item.id}`} />
+        <SituacaoDoServico
+          item={item}
+          podeLancar={podeLancarDia(item)}
+          podeConcluir={podeConcluirServico(item) && situacaoDoServico(item) === "EM_ANDAMENTO"}
+          onLancarDia={setLancandoDia}
+          onConcluir={setConcluindoServico}
+        />
       );
     }
     return valorDoCampoAtividade(item, colId) || "–";
-  }, []);
+  };
+  /** D-PROD-267 — o bloco do serviço no celular (o corpo do card). @param {any} item */
+  const blocoDoCard = (item) => (
+    <BlocoDoServico
+      item={item}
+      tipos={/** @type {any[]} */ (tipos)}
+      comAcoes={Boolean(empresaId && acoes.ver)}
+      podeLancar={podeLancarDia(item)}
+      podeConcluir={podeConcluirServico(item) && situacaoDoServico(item) === "EM_ANDAMENTO"}
+      onLancarDia={setLancandoDia}
+      onConcluir={setConcluindoServico}
+    />
+  );
 
   const dialogoAtividade = dialogo?.atividade ?? null;
 
@@ -894,20 +969,23 @@ export default function LancamentoAtividades() {
       </PillBtn>
     ) : null;
 
-  // D-PROD-254: registrar trabalho de campo (área + tipo, num formulário só) é diferente de planejar a atividade ("Nova atividade").
-  const botaoRegistrar =
-    podeGravar && acoes.lancarApontamento ? (
+  // D-PROD-254: registrar trabalho de campo (área + tipo, num formulário só) é diferente de planejar a atividade.
+  // D-PROD-265: "Nova realização" (a janela abre nos cartões dos 7 tipos). D-PROD-267 (o modelo do dono): "+ Nova
+  // realização" é o botão principal (o de criar da barra) e "Planejar" abre o formulário de planejar (a "Nova atividade").
+  const podeRegistrar = podeGravar && acoes.lancarApontamento;
+  const botaoPlanejar =
+    podeGravar && acoes.criar && !controller.showForm ? (
       <PillBtn
         type="button"
         tone="outline"
-        onClick={() => setRegistrando(true)}
-        aria-label="Registrar serviço"
-        title="Registrar trabalho de campo numa área"
-        className="mg-act-registrar"
-        data-testid="atividade-registrar"
+        onClick={() => controller.openNew()}
+        aria-label="Planejar"
+        title="Planejar um serviço (a atividade, antes de lançar os dias)"
+        className="mg-act-planejar"
+        data-testid="atividade-planejar"
       >
-        <ClipboardCheck className="h-4 w-4" aria-hidden />
-        <span>Registrar serviço</span>
+        <CalendarPlus className="h-4 w-4" aria-hidden />
+        <span>Planejar</span>
       </PillBtn>
     ) : null;
   const tiposDoRegistro = /** @type {any[]} */ (tipos).filter((t) => t?.ativo !== false);
@@ -925,22 +1003,23 @@ export default function LancamentoAtividades() {
           permissaoExplicita
           workspaceTitle="Lançamento de Atividades"
           searchPlaceholder="Buscar nº, nome, tipo ou área…"
-          createLabel="Nova atividade"
-          createText="Nova atividade"
+          createLabel="Nova realização"
+          createText="Nova realização"
           columnsForCardsToolbar={ATIVIDADES_COLUNAS}
           controller={controller}
           listErrorMessage={listErrorMessage}
           recordCode={registroAberto?.numero != null ? String(registroAberto.numero) : undefined}
           listBanner={banner}
-          showCreate={podeGravar && acoes.criar}
+          showCreate={podeRegistrar}
+          onCreate={() => setRegistrando(true)}
           showEdit={podeGravar && Boolean(alvo) && acoesDoAlvo.editar && versaoValida}
           showDuplicate={false}
           showDelete={false}
           additionalMoreActions={acoesVisiveisDoMenu.length ? acoesVisiveisDoMenu : null}
           extraToolbar={
-            botaoRegistrar || botaoConcluir ? (
+            botaoPlanejar || botaoConcluir ? (
               <>
-                {botaoRegistrar}
+                {botaoPlanejar}
                 {botaoConcluir}
               </>
             ) : null
@@ -980,6 +1059,8 @@ export default function LancamentoAtividades() {
               cardsCodeColId="status"
               cardsAvatar={seloDoCardAtividade}
               cardsSubtitle={subtituloDoCardAtividade}
+              // D-PROD-267: no celular, o bloco do serviço (o modelo V1) no lugar do selo, título e campos.
+              cardsBody={blocoDoCard}
               // D-PROD-237: a faixa começa só com os filtros da consulta (Status, Tipo, Área, Início); os demais campos
               // continuam em "+ Filtro".
               quickFilterIds={SEM_FILTROS_AUTOMATICOS}
@@ -1014,6 +1095,27 @@ export default function LancamentoAtividades() {
             tipos={tiposDoRegistro}
             areas={areasDoRegistro}
             onFechar={() => setRegistrando(false)}
+          />
+        ) : null}
+
+        {lancandoDia ? (
+          <JanelaRegistroDeCampo
+            key={`lancar-dia-${lancandoDia.id}`}
+            tipos={tiposDoRegistro}
+            areas={areasDoRegistro}
+            continuar={lancandoDia}
+            onGravou={() => invalidarLista()}
+            onFechar={() => setLancandoDia(null)}
+          />
+        ) : null}
+
+        {concluindoServico ? (
+          <DialogoConcluirServico
+            key={`concluir-servico-${concluindoServico.id}-${concluindoServico.versao}`}
+            item={concluindoServico}
+            hoje={hoje}
+            onFechar={() => setConcluindoServico(null)}
+            onConcluir={concluirServico}
           />
         ) : null}
 

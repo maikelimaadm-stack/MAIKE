@@ -30,7 +30,15 @@ function getLabelTipoDetalhado(tipo) {
  * Movimentações do histórico do depósito, da mais nova para a mais antiga.
  *
  * Entram as da empresa que tocam o local de estoque do depósito, menos as
- * reversões; cada lado de uma transferência (e a baixa da suplementação) só
+ * reversões e os registros EXCLUÍDOS: no mapa o usuário só tem exclusão
+ * ("eu não tenho cancelamentos, eu tenho exclusão"), então o movimento
+ * 'Estornada' (a transferência excluída — as duas pernas —, a baixa de um
+ * lançamento do cocho excluído) e os movimentos de estorno que o servidor gera
+ * por baixo (`estorno_*`: `estorno_transferencia_enviada/recebida`,
+ * `estorno_suplementacao`...) não aparecem. Cada par some inteiro (o original e
+ * o seu estorno), e os outros cartões continuam com o saldo gravado pelo
+ * servidor (nada é recalculado). O kardex da tela de Estoque não usa esta regra.
+ * Cada lado de uma transferência (e a baixa da suplementação) só
  * aparece no depósito certo — a saída na origem, a entrada no destino —,
  * porque o par da transferência grava origem e destino nas DUAS linhas.
  * Ordem: o registro criado por último primeiro (`created_date`); empate, a
@@ -49,6 +57,9 @@ export function movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId, loc
       if (item.empresa_id !== empresaId) return false;
       if (item.origem_sistema === "reversao") return false;
       if (item.tipo_detalhado === "ajuste_positivo" && String(item.observacoes || "").includes("Reversão do lançamento do cocho")) return false;
+      // Registro excluído (D-PROD-268 por baixo): some do histórico do mapa, com o estorno que o servidor gerou.
+      if (item.status === "Estornada") return false;
+      if (String(item.tipo_detalhado || "").startsWith("estorno_")) return false;
 
       const isOrigin = item.local_estoque_origem === localEstoqueId;
       const isDestination = item.local_estoque_destino === localEstoqueId;
@@ -120,7 +131,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     if (!CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO) return toast.info(MENSAGEM_ESTORNO_SUSPENSO);
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
     if (!["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado)) {
-      return toast.error("Lançamento de nutrição não é cancelado pelo histórico do depósito.");
+      return toast.error("Lançamento de nutrição não é excluído pelo histórico do depósito.");
     }
     if (!(await confirmarExclusao("Excluir este lançamento e reverter a transferência?"))) return;
 
@@ -197,7 +208,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
             <LinhaHistorico rotulo="Custo médio">{moeda(movimentacao.custo_medio_depois)}</LinhaHistorico>
             {movimentacao.observacoes ? <LinhaHistorico rotulo="Observações">{formatObsKgPtBR(movimentacao.observacoes)}</LinhaHistorico> : null}
             {CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
-            {ehNutricao && <div className="text-[10px] text-slate-400">Lançamento de nutrição: consulta apenas; o cancelamento está temporariamente suspenso.</div>}
+            {ehNutricao && <div className="text-[10px] text-slate-400">Lançamento de nutrição: consulta apenas; a exclusão é feita no cocho.</div>}
           </CartaoHistorico>
         );
       })}

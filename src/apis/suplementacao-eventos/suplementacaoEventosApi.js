@@ -6,4 +6,4 @@ export const createSuplementacaoEventoNativo = (...args) => suplementacaoEventoP
 export const updateSuplementacaoEventoNativo = (...args) => suplementacaoEventoPort.update(...args);
 export const deleteSuplementacaoEventoNativo = (...args) => suplementacaoEventoPort.delete(...args);
 
-export { comandoLancamentoComLotes } from './suplementacaoEventoComandosApi.js';
+export { comandoLancamentoComLotes, cancelarLancamentoCochoNativo, elegibilidadeCancelamentoCochoNativo } from './suplementacaoEventoComandosApi.js';
