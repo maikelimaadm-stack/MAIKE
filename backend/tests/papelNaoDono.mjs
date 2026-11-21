@@ -17,8 +17,12 @@ import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 
-/** Nome das políticas do teste (saem com o papel, no `DROP OWNED BY`). */
-const POLITICA_DO_TESTE = 'teste_backend_all';
+/**
+ * Prefixo das políticas do teste. Cada chamada usa um nome próprio (o sufixo do
+ * papel): uma limpeza que falhe não faz a chamada seguinte cair no
+ * `CREATE POLICY` com "already exists".
+ */
+const PREFIXO_DA_POLITICA = 'teste_backend_all';
 
 /**
  * Roda `fn` com TODA transação interativa do app (`getPrismaClient().$transaction`)
@@ -26,10 +30,10 @@ const POLITICA_DO_TESTE = 'teste_backend_all';
  * RLS que as migrations ligam em todas elas e uma política permissiva
  * `FOR ALL … USING (true) WITH CHECK (true)` (a `maike_backend_all` do
  * `maike_vercel`). O primeiro comando de cada transação vira `SET LOCAL ROLE`
- * (vale só até o fim dela). Papel com nome único, criado e apagado aqui
- * (`DROP OWNED BY` leva as políticas e os grants deste banco). Consultas fora
- * de `$transaction` e outros PrismaClient (portões, observação de travas)
- * seguem como o dono.
+ * (vale só até o fim dela). Papel e políticas com nome único, criados e
+ * apagados aqui: as políticas saem uma a uma e o `DROP OWNED BY`, depois, leva
+ * só os grants deste banco. Consultas fora de `$transaction` e outros
+ * PrismaClient (portões, observação de travas) seguem como o dono.
  * @template T
  * @param {(papel: string) => Promise<T>} fn
  * @param {{ exigirRls?: string[] }} [opcoes] tabelas que TÊM de estar com RLS ligado (sem FORCE)
@@ -37,7 +41,9 @@ const POLITICA_DO_TESTE = 'teste_backend_all';
  */
 export const comPapelNaoDono = async (fn, { exigirRls = [] } = {}) => {
   const p = /** @type {any} */ (getPrismaClient());
-  const papel = `maike_teste_rls_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
+  const sufixo = randomUUID().replaceAll('-', '').slice(0, 12);
+  const papel = `maike_teste_rls_${sufixo}`;
+  const politica = `${PREFIXO_DA_POLITICA}_${sufixo}`;
   const original = p.$transaction;
   await p.$executeRawUnsafe(`CREATE ROLE ${papel} NOLOGIN NOSUPERUSER NOBYPASSRLS`);
   try {
@@ -49,7 +55,7 @@ export const comPapelNaoDono = async (fn, { exigirRls = [] } = {}) => {
     for (const tabela of exigirRls) {
       assert.ok(comRls.some((t) => t.tabela === tabela), `a tabela ${tabela} tem RLS ligado (sem FORCE), como em produção`);
     }
-    for (const { tabela } of comRls) await p.$executeRawUnsafe(`CREATE POLICY ${POLITICA_DO_TESTE} ON public."${tabela}" FOR ALL TO ${papel} USING (true) WITH CHECK (true)`);
+    for (const { tabela } of comRls) await p.$executeRawUnsafe(`CREATE POLICY ${politica} ON public."${tabela}" FOR ALL TO ${papel} USING (true) WITH CHECK (true)`);
     p.$transaction = (/** @type {any} */ arg, /** @type {any} */ opcoes) =>
       typeof arg === 'function'
         ? original.call(p, async (/** @type {any} */ tx) => {
@@ -60,6 +66,15 @@ export const comPapelNaoDono = async (fn, { exigirRls = [] } = {}) => {
     return await fn(papel);
   } finally {
     p.$transaction = original;
+    // As políticas saem uma a uma, cada uma na sua transação, e só depois vem o `DROP OWNED BY`. Sozinho, ele
+    // tira numa transação só os grants (atualiza a linha de cada tabela no pg_class) e as políticas (ACCESS
+    // EXCLUSIVE em cada tabela). Um VACUUM (o autovacuum) que termine uma dessas tabelas no meio espera essa
+    // transação para gravar as estatísticas na linha da tabela no pg_class, segurando a trava que o DROP OWNED
+    // pede em seguida: deadlock (40P01), visto na CI. Sem as políticas, o DROP OWNED só tira os grants, sem
+    // pedir trava de tabela, e o ciclo não fecha.
+    const politicas = /** @type {Array<{ tabela: string }>} */ (await p.$queryRaw`SELECT tablename::text AS tabela FROM pg_policies
+      WHERE schemaname = 'public' AND policyname = ${politica} ORDER BY 1`);
+    for (const { tabela } of politicas) await p.$executeRawUnsafe(`DROP POLICY IF EXISTS ${politica} ON public."${tabela}"`);
     await p.$executeRawUnsafe(`DROP OWNED BY ${papel}`);
     await p.$executeRawUnsafe(`DROP ROLE ${papel}`);
   }
