@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-268; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-270; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-21) — MAIKE-ESTORNO-COCHO-DEPOSITO: cancelar lançamento de cocho e transferência entre depósitos (D-PROD-268)
+
+## Missão ativa (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-270)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-270**, escolha do proprietário: editar tudo (data, motivo, fornecedor/documento, centros, produtos, quantidades, custo, depósitos) se nada mexeu depois, desfazendo pelo motor e lançando de novo, com histórico |
+| Branch / PR | `claude/edicao-entrada-saida`, a partir da `main` `80aa1db3` |
+| Migration | Nenhuma |
+| Constituição | emenda **proposta** na D-PROD-270; aguarda a aprovação do proprietário |
+| Relatório | [`MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md`](./MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md) |
+
+## Missão anterior (2026-11-21) — MAIKE-ESTORNO-COCHO-DEPOSITO: cancelar lançamento de cocho e transferência entre depósitos (D-PROD-268)
 
 | Campo | Valor |
 |---|---|

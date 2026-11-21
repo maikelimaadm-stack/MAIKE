@@ -8931,4 +8931,31 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Relatório:** [`MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md`](./MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-269 -->
+## D-PROD-270 — Estoque: edição completa da Entrada e da Saída manual, se nada mexeu depois
+
+**Data:** 2026-11-21 · **Origem:** pedido do proprietário ("Olha também posso editar ok em entrada e saída" → "Depois do ajuste, PR própria" / "Tudo, se nada mexeu depois") · **Branch:** `claude/edicao-entrada-saida` · **Migration:** nenhuma · **Relatório:** [`MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md`](./MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md)
+
+> **Numeração:** a `main` (`80aa1db3`) indica `Próxima decisão: D-PROD-269`, mas a D-PROD-269 está reservada para o ajuste de inventário (PR #350, aberta). Esta é a **D-PROD-270**; o marcador passa a D-PROD-271.
+
+**Escolha do proprietário.** Editar **tudo** na entrada e na saída manual — data, motivo, fornecedor/documento, centros, produtos, quantidades, custo e depósitos — desfazendo a versão anterior pelo motor e lançando a nova, com histórico, **só se nada mexeu depois**.
+
+**Como funciona.** `PATCH /estoque/entradas/:id` (ação `entrada`) e `PATCH /estoque/saidas/:id` (ação `saida`):
+- **Só a observação** (METADADOS): como antes, sem tocar no estoque.
+- **Substituição** (qualquer campo físico; o corpo é a versão nova completa, o mesmo da criação, mais `versao`, `motivo_edicao` e `operation_id`, com idempotência): numa transação, sob a trava dos produtos de antes e de depois, a versão nova é validada como na criação; a prova de "nada mexeu depois" é a mesma da exclusão (entrada: camadas intocadas; saída: `buscarMovimentoPosteriorA`); as linhas vigentes são estornadas pelo motor (data de hoje da fazenda) e as novas lançadas na data nova; número e id do documento não mudam; evento `EDICAO` modo `SUBSTITUICAO` com o antes e o depois.
+- **Entrada:** as linhas antigas ficam como revisão anterior (`revisao_fim`), estorno `estorno_entrada_revisao`; o detalhe mostra as vigentes e `itens_historico`.
+- **Saída (sem migration):** a saída não tem colunas de revisão; as linhas antigas vão inteiras (com os ids do movimento e do estorno) para o evento `EDICAO` e são substituídas no documento. Movimentos e camadas nunca são reescritos nem apagados: a reconciliação explica a saída pelos movimentos e `lotes_consumidos`, e a Consulta acha o documento pela origem do movimento. O estorno das linhas substituídas da própria saída não conta como "depois" da linha nova (empate de milissegundo na mesma transação); qualquer outro movimento conta.
+- **Recusas:** 409 `ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS` / `SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR` quando algo mexeu depois (nada alterado); versão, status, validação e saldo como na criação. Inativos (motivo, produto, depósito, fornecedor) bloqueiam a edição, como bloqueiam a criação.
+
+**Constituição — emenda PROPOSTA, aguardando a aprovação do proprietário.** A constituição já permite editar a entrada confirmada sem camada tocada, mas diz que "o motivo dela nunca muda"; a nota D-PROD-264 proíbe "mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada" e o §1 diz que o usuário "edita só a observação". Proposta, como parágrafo e nota próprios:
+
+> *Em `00-CONSTITUICAO.md` §1, depois da última emenda do Estoque:* "**Emenda aprovada pelo proprietário (D-PROD-270):** **Estoque — edição completa da entrada e da saída manual.** A entrada manual confirmada e a saída manual confirmada podem ser editadas por inteiro — data, motivo, parceiro e documento (entrada), centros, produtos, quantidades, custo (entrada) e depósitos — só quando nada mexeu depois: na entrada, nenhuma camada de nenhum item foi consumida, transferida ou citada; na saída, o produto não teve outro movimento naquele depósito depois dela. A edição desfaz a versão anterior pelo motor de estoque único (estorno) e lança a nova, no mesmo documento, com motivo da edição, autor, versão e o antes e o depois registrados. A saída continua valorizada pelo custo médio do depósito. Movimentos e camadas nunca são reescritos nem apagados."
+>
+> *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-264:* "a edição completa da entrada e da saída manual (D-PROD-270) substitui, nos limites da decisão, a regra de que o motivo da entrada nunca muda e a proibição de mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada. Continua proibido: editar quando algo mexeu depois; editar sem motivo da edição, autor, versão ou registro do antes e do depois; reescrever ou apagar movimento ou camada de estoque em vez de estornar pelo motor; digitar o valor da saída; editar documento excluído; conceder as ações `entrada` ou `saida` a perfis existentes por padrão."
+
+Enquanto a emenda não for aprovada, a PR fica em rascunho e não vai para a `main`.
+
+**Fora de escopo.** Editar a entrada ou a saída quando algo mexeu depois (recálculo do que veio depois), editar o ajuste de inventário, restaurar documento excluído.
+
+**Testes.** `backend/tests/estoqueEntradasEdicao.test.mjs` (novo) e `backend/tests/estoqueSaidasEdicao.test.mjs` (novo), Postgres real, vermelhos contra a `main` e verdes com a mudança; suítes do Estoque e da reconciliação; smoke da tela.
+
+<!-- Próxima decisão: D-PROD-271 -->
