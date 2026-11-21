@@ -52,12 +52,24 @@ export const CAMPOS_FECHAMENTO_BOOLEANOS = Object.freeze(['sobra_informada', 'pe
 export const CAMPO_CAMADAS_SOBRA = 'sobra_final_camadas';
 export const MAX_CAMADAS_SOBRA = 50;
 
+/**
+ * D-PROD-268 — QUEM fechou o período: o lançamento seguinte do cocho (`'lancamento'`, com
+ * `fechado_por_evento_id` = o evento novo) ou a movimentação do gado (`'movimentacao_gado'`, sem
+ * evento). É a prova estrutural que o cancelamento do lançamento usa para reabrir o período
+ * anterior; o PATCH endurecido confere os dois na transição aberto → fechado.
+ */
+export const CAMPO_FECHADO_POR_TIPO = 'fechado_por_tipo';
+export const CAMPO_FECHADO_POR_EVENTO = 'fechado_por_evento_id';
+export const CAMPOS_FECHAMENTO_ORIGEM = Object.freeze([CAMPO_FECHADO_POR_TIPO, CAMPO_FECHADO_POR_EVENTO]);
+export const TIPOS_FECHADO_POR = Object.freeze(['lancamento', 'movimentacao_gado']);
+
 export const CAMPOS_PATCH_PERMITIDOS = Object.freeze([
   ...CAMPOS_METRICA_PERIODO,
   ...CAMPOS_FECHAMENTO_NUMERICOS,
   ...Object.keys(CAMPOS_FECHAMENTO_ENUM),
   ...CAMPOS_FECHAMENTO_BOOLEANOS,
   CAMPO_CAMADAS_SOBRA,
+  ...CAMPOS_FECHAMENTO_ORIGEM,
 ]);
 
 const NUMERICOS = new Set([...CAMPOS_METRICA_PERIODO, ...CAMPOS_FECHAMENTO_NUMERICOS]);
@@ -89,6 +101,14 @@ export const exigirTiposDoFechamento = (entrada, entidade) => {
     const enumerado = /** @type {Record<string, readonly string[]>} */ (CAMPOS_FECHAMENTO_ENUM)[campo];
     if (enumerado) {
       if (typeof valor !== 'string' || !enumerado.includes(valor)) throw invalido(entidade, campo, 'enum', 'valor fora da lista');
+      continue;
+    }
+    if (campo === CAMPO_FECHADO_POR_TIPO) {
+      if (typeof valor !== 'string' || !TIPOS_FECHADO_POR.includes(valor)) throw invalido(entidade, campo, 'enum', 'valor fora da lista');
+      continue;
+    }
+    if (campo === CAMPO_FECHADO_POR_EVENTO) {
+      if (typeof valor !== 'string' || !valor.trim() || valor.length > 64) throw invalido(entidade, campo, 'type', 'id do evento que fechou o período');
       continue;
     }
     if (campo === CAMPO_CAMADAS_SOBRA) {

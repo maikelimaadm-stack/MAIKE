@@ -174,6 +174,8 @@ export const ACOES_GRAVADORAS_MAPA = Object.freeze([
   'medir_forragem',
   // D-PROD-266 — excluir (definitivo, D-PROD-110) movimentação do lote. Nasce desligada.
   'excluir_movimentacoes_lote',
+  // D-PROD-268 — cancelar lançamento de cocho e transferência entre depósitos. Nasce desligada.
+  'cancelar_lancamentos_estoque',
 ]);
 
 /**
@@ -265,6 +267,29 @@ export const exigirExclusaoMovimentacaoLote = async (contexto, tx) => {
   const aut = await carregarAutorizacao(contexto, tx);
   if (!podeExcluirMovimentacaoLote(aut)) {
     throw acaoNaoPermitida({ tela: TELAS.MAPA_GERAL.tela, mapa: CHAVE_EXCLUIR_MOVIMENTACOES_LOTE });
+  }
+  return aut;
+};
+
+/** D-PROD-268 — chave do mapa que libera cancelar lançamento de cocho e transferência de depósito. */
+export const CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE = 'cancelar_lancamentos_estoque';
+
+/**
+ * D-PROD-268 — pode cancelar lançamento de cocho / transferência entre depósitos:
+ * administrador real, `is_admin` ou a chave `cancelar_lancamentos_estoque`.
+ */
+export const podeCancelarLancamentosEstoque = (aut) => acessoTotal(aut) || mapaPermite(aut, CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE);
+
+/**
+ * D-PROD-268 — a mesma regra DENTRO da transação do cancelamento (revogação
+ * concorrente vale): nega com 403 `ACAO_NAO_PERMITIDA`.
+ * @param {{auth: import('./authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} [tx]
+ */
+export const exigirCancelamentoLancamentosEstoque = async (contexto, tx) => {
+  const aut = await carregarAutorizacao(contexto, tx);
+  if (!podeCancelarLancamentosEstoque(aut)) {
+    throw acaoNaoPermitida({ tela: TELAS.MAPA_GERAL.tela, mapa: CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE });
   }
   return aut;
 };

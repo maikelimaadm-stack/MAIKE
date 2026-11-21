@@ -2,12 +2,19 @@
  * Serviço de SuplementacaoLote (P5.5).
  */
 import { exigirLotesDosDocumentos } from '../../shared/lotes/loteVivo.js';
-import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { documentoComoPublico, montarDocumento } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { exigirNumerosOuNulo, exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
+import { TRANSACAO_CURTA, emTransacao, MENSAGEM_CONFLITO_SEM_CHAVE } from '../../shared/prisma/transacaoConcorrente.js';
+import {
+  documentoCancelado,
+  lerParaAtualizar,
+  rejeitarReservadosDaSuplementacao,
+  textoOuNulo,
+  travarCocho,
+} from '../suplementacaoEventos/suplementacaoCocho.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -24,11 +31,37 @@ export const listar = async (contexto, filtros = {}) => {
   return registros.map(documentoComoPublico);
 };
 
+const registroCancelado = (entidade, id) =>
+  new AppError('SUPLEMENTACAO_REGISTRO_CANCELADO', 'este lançamento de suplementação foi cancelado e não aceita alteração', { details: { entidade, id } });
+
+/**
+ * D-PROD-268 — o evento-pai do rateio: com cocho, toma a trava dele e relê o evento sob
+ * `FOR UPDATE`; evento cancelado → 409 `SUPLEMENTACAO_REGISTRO_CANCELADO`. Sem evento (legado)
+ * ou evento de outro tenant: null (nada a travar).
+ * @param {any} tx @param {string} cli @param {unknown} eventoId
+ */
+const travarEventoPai = async (tx, cli, eventoId) => {
+  const id = textoOuNulo(eventoId);
+  if (!id) return null;
+  const previa = await tx.suplementacaoEvento.findUnique({ where: { cliente_id_id: { cliente_id: cli, id } } });
+  if (!previa) return null;
+  const ponto = textoOuNulo(previa.dados?.ponto_suplementacao_id);
+  if (ponto) await travarCocho(tx, cli, previa.empresa_id, ponto);
+  const evento = await lerParaAtualizar(tx, 'SuplementacaoEvento', cli, id);
+  if (evento && documentoCancelado(evento.dados)) throw registroCancelado('SuplementacaoEvento', id);
+  return evento;
+};
+
+/**
+ * POST genérico do rateio (legado). D-PROD-268: campos reservados → 400; evento-pai cancelado → 409;
+ * com a trava do cocho do evento-pai.
+ */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const criado = await prisma.$transaction(async (tx) => {
+  rejeitarReservadosDaSuplementacao(entrada);
+  const criado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const dados = montarDocumento(auth.clienteId, entrada);
+    await travarEventoPai(tx, auth.clienteId, dados.dados.suplementacao_evento_id);
     // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
     await exigirLotesDosDocumentos(tx, auth.clienteId, [dados.dados]);
     const registro = await inserirRegistro(tx, dados);
@@ -38,7 +71,7 @@ export const criar = async (contexto, entrada) => {
       tx
     );
     return registro;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
   return documentoComoPublico(criado);
 };
 
@@ -47,9 +80,12 @@ export const criarEmLote = async (contexto, registros) => {
   if (!Array.isArray(registros) || registros.length === 0) {
     throw new AppError('VALIDATION_FAILED', 'lista vazia');
   }
-  const prisma = getPrismaClient();
-  const criados = await prisma.$transaction(async (tx) => {
+  for (const entrada of registros) rejeitarReservadosDaSuplementacao(entrada);
+  const criados = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const saida = [];
+    // Trava cada evento-pai uma vez, em ordem de id (sem deadlock entre dois bulks).
+    const pais = [...new Set(registros.map((r) => textoOuNulo(r?.suplementacao_evento_id)).filter(Boolean))].sort();
+    for (const pai of pais) await travarEventoPai(tx, auth.clienteId, pai);
     for (const entrada of registros) {
       const dados = montarDocumento(auth.clienteId, entrada);
       // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
@@ -58,7 +94,7 @@ export const criarEmLote = async (contexto, registros) => {
       saida.push(registro);
     }
     return saida;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
   return criados.map(documentoComoPublico);
 };
 
@@ -77,17 +113,40 @@ export const CAMPOS_PATCH_PERMITIDOS = Object.freeze([
   'dias_ativos_periodo',
 ]);
 
+/** @param {unknown} v */
+const nulo = (v) => v === null || v === undefined;
+
+/**
+ * PATCH do fechamento/reabertura do lote do período. D-PROD-268: transação curta, trava do cocho
+ * do evento-pai e a linha `FOR UPDATE`; lote ou evento-pai cancelado → 409
+ * `SUPLEMENTACAO_REGISTRO_CANCELADO`; na transição de fechamento (`dias_periodo` nulo →
+ * preenchido) o evento-pai DE COCHO tem de estar ATIVO e JÁ fechado (o front grava o evento antes
+ * dos lotes) — senão 409 `LANCAMENTO_DESATUALIZADO`. Lote de evento sem cocho (legado) fecha como antes.
+ */
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const atualizado = await prisma.$transaction(async (tx) => {
-    const existente = await buscarRegistro(auth.clienteId, id, tx);
+  const cli = auth.clienteId;
+  const atualizado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
+    const previa = await buscarRegistro(cli, id, tx);
+    if (!previa) throw erroNaoEncontrado();
+    const paiId = textoOuNulo(previa.dados?.suplementacao_evento_id);
+    const pai = await travarEventoPai(tx, cli, paiId);
+    const existente = await lerParaAtualizar(tx, 'SuplementacaoLote', cli, id);
     if (!existente) throw erroNaoEncontrado();
+    if (textoOuNulo(existente.dados?.suplementacao_evento_id) !== paiId) throw new AppError('CONCURRENCY_CONFLICT', MENSAGEM_CONFLITO_SEM_CHAVE);
+    if (documentoCancelado(existente.dados)) throw registroCancelado(ENTIDADE, id);
     exigirSomenteCamposPermitidos(entrada, CAMPOS_PATCH_PERMITIDOS, { entidade: ENTIDADE, empresaAtual: existente.empresa_id });
     exigirNumerosOuNulo(entrada, ENTIDADE);
-    const patch = montarDocumento(auth.clienteId, { ...documentoComoPublico(existente), ...entrada }, { atualizacao: true, id, dadosAnteriores: existente.dados });
-    await exigirLotesDosDocumentos(tx, auth.clienteId, [patch.dados]);
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, patch);
+    const fechando = Object.prototype.hasOwnProperty.call(entrada, 'dias_periodo') && !nulo(entrada.dias_periodo) && nulo(existente.dados?.dias_periodo);
+    // Lote sem evento-pai de cocho (legado) fecha como antes: não há cadeia de períodos a proteger.
+    if (fechando && pai && textoOuNulo(pai.dados?.ponto_suplementacao_id) && nulo(pai.dados?.dias_periodo)) {
+      throw new AppError('LANCAMENTO_DESATUALIZADO', 'o lote só fecha depois do evento do período; recarregue; nada foi gravado', {
+        details: { field: 'dias_periodo', reason: 'evento_aberto', suplementacao_evento_id: paiId },
+      });
+    }
+    const patch = montarDocumento(cli, { ...documentoComoPublico(existente), ...entrada }, { atualizacao: true, id, dadosAnteriores: existente.dados });
+    await exigirLotesDosDocumentos(tx, cli, [patch.dados]);
+    const registro = await atualizarRegistroPorId(tx, cli, id, patch);
     await registrarEvento(
       contexto,
       {
@@ -100,7 +159,7 @@ export const atualizar = async (contexto, id, entrada) => {
       tx
     );
     return registro;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
   return documentoComoPublico(atualizado);
 };
 

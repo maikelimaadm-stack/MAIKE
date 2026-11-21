@@ -91,7 +91,8 @@ describe("Histórico do cocho no desenho do manejo (D-PROD-222)", () => {
     // Um título só (o do cabeçalho): nada de "Histórico do Cocho (2)" dentro do corpo.
     expect(screen.getAllByText("Histórico do Cocho (2)")).toHaveLength(1);
     expect(document.querySelector(".mk-ll .rounded-xl, .mk-ll [class*='CardHeader']")).toBeNull();
-    expect(screen.getByRole("note").textContent).toBe(MENSAGEM_ESTORNO_SUSPENSO);
+    // D-PROD-268: o cocho tem cancelamento no servidor; o aviso de suspenso saiu.
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByRole("button", { name: /Excluir/ })).toBeNull();
   });
 
