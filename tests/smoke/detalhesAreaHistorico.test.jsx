@@ -349,8 +349,8 @@ describe("DetalhesArea — Manejos abre a MESMA \"Nova realização\" (D-PROD-25
     expect(secoes().filter((t) => QUATRO.includes(t))).toEqual(QUATRO);
     await escolher(janela, /Operação/, "Roçada");
     expect(secoes().filter((t) => QUATRO.includes(t))).toEqual(QUATRO);
-    // A observação fica na última seção.
-    expect(secoes().at(-1)).toBe("Informações complementares");
+    // A observação fica em "Informações complementares"; D-PROD-267: "Como fica depois de salvar?" fecha o formulário.
+    expect(secoes().slice(-2)).toEqual(["Informações complementares", "Como fica depois de salvar?"]);
     // D-PROD-263: os hectares são de cada área (a tabela das Áreas); "Hectares feitos" saiu do Resultado. O operador fica.
     expect(janela.textContent).not.toContain("Hectares feitos");
     expect(within(janela).getByTestId("registro-areas-escolhidas")).toHaveTextContent("Hectares (ha)");
@@ -409,12 +409,12 @@ describe("DetalhesArea — Manejos abre a MESMA \"Nova realização\" (D-PROD-25
     expect(within(janela).getByRole("combobox", { name: /Operação/ }).textContent).not.toContain("Gradeação");
   });
 
-  it("escolhida a operação, o destino do registro aparece (Gradeação já aberta no mês: entra nela)", async () => {
+  it("escolhida a operação, o destino do registro aparece (Gradeação já aberta: entra nela, com o andamento — D-PROD-267)", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
     const janela = await abrirManejos();
     await escolherTipo(janela, "Preparo do solo");
     await escolher(janela, /Operação/, "Gradeação");
-    expect((await within(janela).findByTestId("registro-de-campo-destino")).textContent).toBe("Entra em Gradeação · nov/26");
+    expect((await within(janela).findByTestId("registro-de-campo-destino")).textContent).toBe("Entra em Gradeação · nov/26 (em andamento, 12 de 22 ha)");
   });
 
   it("Salvar manda UM registro com a área e a operação (o servidor acha ou abre a atividade) e fecha a janela", async () => {

@@ -93,7 +93,7 @@ export const CAMPOS_DE_CANCELAMENTO = Object.freeze(['empresa_id', 'versao', 'mo
  * D-PROD-254 — POST /atividades/registrar: registrar o trabalho de campo de UMA área e de UM tipo num envio só (o servidor
  * acha ou abre a atividade do mês e grava o registro do dia com as linhas, numa transação). D-PROD-263: ou `areas[]`
  * (várias áreas, cada uma com os hectares feitos nela) no lugar de `area_id` (e sem `area_executada_dia`). D-PROD-265:
- * `data_termino` (opcional).
+ * `data_termino` (opcional). D-PROD-267: `concluir` e `nova_atividade` (opcionais); a atividade aberta vale em qualquer mês.
  */
 export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'empresa_id',
@@ -103,6 +103,9 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'data_operacional',
   // D-PROD-265: o último dia do serviço (Nova realização), opcional; vazio não vai (`corpoSemVazios`).
   'data_termino',
+  // D-PROD-267: "Como fica depois de salvar? Concluída" e a resposta ao "serviço parado" (booleanos, só quando vêm).
+  'concluir',
+  'nova_atividade',
   'operation_id',
   'safra_ciclo',
   'turno',
@@ -247,8 +250,8 @@ export const corpoDaCriacaoDoApontamento = (dados, permitidos = CAMPOS_DE_CRIACA
 
 // ─── Leitura ─────────────────────────────────────────────────────────────
 
-/** Filtros da lista (query FECHADA no servidor: nada além disso vai). Datas sobre `data_inicio`. */
-const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'tipo_atividade_id', 'area_id', 'data_de', 'data_ate', 'limit', 'cursor']);
+/** Filtros da lista (query FECHADA no servidor: nada além disso vai). Datas sobre `data_inicio`. D-PROD-267: `situacao` e `tipo_fixo`. */
+const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'situacao', 'tipo_fixo', 'tipo_atividade_id', 'area_id', 'data_de', 'data_ate', 'limit', 'cursor']);
 const FILTROS_OPCOES = Object.freeze(['empresa_id', 'q', 'limit', 'cursor']);
 /** Query de cada seletor da Fatia 3 (fechada no servidor). */
 const FILTROS_POR_RECURSO = Object.freeze(
