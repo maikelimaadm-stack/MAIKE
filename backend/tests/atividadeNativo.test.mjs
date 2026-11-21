@@ -59,8 +59,12 @@ const CAMPOS_PUBLICOS = [
   'reaberta_em', 'reaberta_por', 'motivo_reabertura', 'criado_por', 'createdAt', 'updatedAt',
   // D-PROD-249: as áreas da atividade (várias áreas) e quantas são.
   'areas', 'areas_count',
+  // D-PROD-270: o local do serviço sem área (Manutenção e Outros) e os dados do Plantio de pastagem (nulos aqui).
+  'local', 'plantio',
 ];
 const TOTAIS_VAZIOS = Object.freeze({ apontamentos_confirmados: 0, apontamentos_cancelados: 0, dias_com_apontamento: 0 });
+// O DETALHE é a forma pública + `totais` e, D-PROD-270 (ajuste do teste de ponta a ponta), o "pasto liberado em"
+// calculado na leitura (`pasto_liberado_em`, `carencia_dias`; nulos sem produto com carência).
 
 const MODULO = 'suporte-mapa';
 const TELA = 'op-atividades';
@@ -138,7 +142,7 @@ describe('abrir: herança do tipo e setor da área', () => {
   test('201: forma do §10, número do contador, snapshots do tipo, setor herdado da área, hoje da fazenda, auditoria sem texto livre', async () => {
     const s = await montar();
     const a = await abrirOk(s, { area_id: s.area1.id, bem_id: s.trator.id, safra_ciclo: '2026/2027', area_planejada: '12.5', lancamento_tarefa_id: s.tarefa1.id, observacao: 'texto do operador' });
-    assert.deepEqual(Object.keys(a), [...CAMPOS_PUBLICOS, 'totais']);
+    assert.deepEqual(Object.keys(a), [...CAMPOS_PUBLICOS, 'totais', 'pasto_liberado_em', 'carencia_dias']);
     assert.deepEqual([a.numero, a.status, a.versao, a.empresa_id, a.data_inicio, a.data_prevista_fim, a.data_conclusao], ['1', 'ABERTA', 1, s.e1.id, HOJE, null, null]);
     // Snapshots do tipo e do grupo.
     assert.deepEqual([a.tipo_atividade_id, a.tipo_atividade_nome, a.grupo_atividade_id, a.grupo_atividade_nome], [s.tipo.id, 'CIGARRINHA', s.grupo.id, s.grupo.nome_grupo]);
@@ -347,7 +351,7 @@ describe('editar (PATCH, CAS por versão)', () => {
     const a = await abrirOk(s, { area_id: s.area1.id });
     const e = await H.ok(patch(s, a, { versao: 1, area_id: areaB.id, nome: 'Renomeada' }));
     assert.deepEqual([e.versao, e.area_id, e.setor_id, e.setor_nome, e.nome], [2, areaB.id, setor2.id, 'Setor Novo', 'Renomeada']);
-    assert.deepEqual(Object.keys(e), [...CAMPOS_PUBLICOS, 'totais'], 'toda escrita devolve o detalhe');
+    assert.deepEqual(Object.keys(e), [...CAMPOS_PUBLICOS, 'totais', 'pasto_liberado_em', 'carencia_dias'], 'toda escrita devolve o detalhe');
     assert.deepEqual([e.centro_custo_id, e.centro_resultado_id, e.unidade_producao_id, e.unidade_producao_sigla], [a.centro_custo_id, a.centro_resultado_id, a.unidade_producao_id, 'HA']);
     // Limpar a área limpa o setor.
     const sem = await H.ok(patch(s, e, { versao: 2, area_id: null }));
@@ -673,7 +677,7 @@ describe('duplicar atividade', () => {
     await p.areaPastagem.update({ where: { id: s.area1.id }, data: { setor_id: setor2.id, setor_nome: setor2.nome } });
     const d = await H.ok(acao(s, a, 'duplicar'), 201);
     assert.notEqual(d.id, a.id);
-    assert.deepEqual(Object.keys(d), [...CAMPOS_PUBLICOS, 'totais']);
+    assert.deepEqual(Object.keys(d), [...CAMPOS_PUBLICOS, 'totais', 'pasto_liberado_em', 'carencia_dias']);
     assert.deepEqual([d.numero, d.status, d.versao, d.nome, d.data_inicio, d.data_prevista_fim, d.data_conclusao], ['2', 'ABERTA', 1, a.nome, HOJE, null, null]);
     assert.deepEqual([d.tipo_atividade_id, d.area_id, d.bem_id, d.safra_ciclo, d.area_planejada, d.lancamento_tarefa_id, d.observacao], [s.tipo.id, a.area_id, a.bem_id, '26/27', '7.0000', a.lancamento_tarefa_id, 'obs']);
     assert.deepEqual([d.centro_custo_id, d.centro_resultado_id, d.unidade_producao_id, d.unidade_producao_sigla, d.tipo_atividade_nome], [centroNovo.id, s.cr1.id, null, null, 'CIGARRINHA NOVA']);
@@ -772,7 +776,7 @@ describe('leitura: lista keyset, filtros e detalhe', () => {
     const l3 = await lancar({ data_operacional: '2027-06-07', area_executada_dia: '4' });
     await H.ok(H.req('POST', `/atividades/${a.id}/apontamentos/${l3.apontamento.id}/cancelar`, s.token, { empresa_id: s.e1.id, versao: 1, motivo: 'motivo válido' }));
     const d = await detalhe(s, a);
-    assert.deepEqual(Object.keys(d), [...CAMPOS_PUBLICOS, 'totais']);
+    assert.deepEqual(Object.keys(d), [...CAMPOS_PUBLICOS, 'totais', 'pasto_liberado_em', 'carencia_dias']);
     assert.deepEqual([d.area_executada, d.quantidade_produzida], ['3.5000', '3.0000']);
     assert.deepEqual(d.totais, { apontamentos_confirmados: 2, apontamentos_cancelados: 1, dias_com_apontamento: 1 });
     assert.deepEqual(erro(await H.req('GET', `/atividades/nao-existe?empresa_id=${s.e1.id}`, s.token)), [404, 'ATIVIDADE_NOT_FOUND', null, null]);

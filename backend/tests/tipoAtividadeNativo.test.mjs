@@ -76,7 +76,9 @@ const CAMPOS_D195 = Object.freeze([
   'coeficiente_padrao',
   ...FLAGS,
 ]);
-const CAMPOS_PUBLICOS = Object.freeze([...CAMPOS_D182, ...CAMPOS_D195].sort());
+/** D-PROD-270: o alvo da Aplicação (nulo sem alvo). */
+const CAMPOS_D268 = Object.freeze(['alvo']);
+const CAMPOS_PUBLICOS = Object.freeze([...CAMPOS_D182, ...CAMPOS_D195, ...CAMPOS_D268].sort());
 /** Os campos novos de um tipo sem nada informado: flags false, padrões null. */
 const SEM_PADROES = Object.freeze({
   categoria: 'OUTROS', // D-PROD-258: obrigatória; o helper `base` manda OUTROS

@@ -101,13 +101,15 @@ describe('D-PROD-215 — Culturas: funções puras', () => {
     for (const ruim of ['0', '-3', '25,55', 'abc', 1001]) assert.throws(() => alturaDoCorpo(ruim, 'altura_entrada_cm'), (e) => e.code === 'REQUEST_VALIDATION_FAILED', String(ruim));
   });
 
-  test('LISTA_REFERENCIA: 11 pastagens numeradas 001–011, nomes únicos, saída < entrada', () => {
-    assert.equal(LISTA_REFERENCIA.length, 11);
-    assert.deepEqual(LISTA_REFERENCIA.map((c) => c.codigo), ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011']);
-    assert.equal(new Set(LISTA_REFERENCIA.map((c) => c.nome)).size, 11);
+  // D-PROD-270: + os 6 do Doc 397 que faltavam (012–017); o Estilosantes Campo Grande (leguminosa) sem altura.
+  test('LISTA_REFERENCIA: 17 pastagens numeradas 001–017, nomes únicos, saída < entrada (com as duas alturas)', () => {
+    assert.equal(LISTA_REFERENCIA.length, 17);
+    assert.deepEqual(LISTA_REFERENCIA.map((c) => c.codigo), ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '014', '015', '016', '017']);
+    assert.equal(new Set(LISTA_REFERENCIA.map((c) => c.nome)).size, 17);
     for (const c of LISTA_REFERENCIA) {
       assert.equal(c.tipo, 'PASTAGEM');
-      assert.ok(c.saida < c.entrada, c.nome);
+      if (c.entrada !== null && c.saida !== null) assert.ok(c.saida < c.entrada, c.nome);
+      else assert.equal(c.nome, 'ESTILOSANTES CAMPO GRANDE', 'só a leguminosa fica sem altura (o Doc 397 não traz)');
     }
   });
 });
@@ -273,16 +275,17 @@ describe('D-PROD-215 — Culturas: edição, exclusão e isolamento', () => {
 });
 
 describe('D-PROD-215 — Culturas: lista de referência', () => {
-  test('inclui as 11 numeradas 001–011 com alturas; repetir não duplica (idempotente)', async () => {
+  test('inclui as 17 numeradas 001–017 com alturas; repetir não duplica (idempotente)', async () => {
     const { token, e1, e2 } = await cenario();
     const r = await listaReferencia(token, e1.id);
     assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().criadas, 11);
+    assert.equal(r.json().criadas, 17);
     assert.equal(r.json().ja_existiam, 0);
     const marandu = r.json().culturas.find((c) => c.codigo === '001');
     assert.equal(marandu.nome, 'BRACHIARIA BRIZANTHA CV. MARANDU');
-    assert.equal(marandu.altura_entrada_cm, 25);
-    assert.equal(marandu.altura_saida_cm, 15);
+    // D-PROD-270: Doc 397 (Embrapa Cerrados, Tabela 2): entrada 35, saída 20 (era 25/15).
+    assert.equal(marandu.altura_entrada_cm, 35);
+    assert.equal(marandu.altura_saida_cm, 20);
     assert.equal(marandu.dias_descanso, 30, 'D-PROD-223: dias de descanso de referência');
     assert.equal(marandu.observacoes, 'Valor de referência (manejo rotacionado). Ajuste para a fazenda.');
     const mombaca = r.json().culturas.find((c) => c.codigo === '007');
@@ -291,8 +294,8 @@ describe('D-PROD-215 — Culturas: lista de referência', () => {
     assert.equal(r.json().culturas.find((c) => c.codigo === '011').dias_descanso, 25);
     const de_novo = await listaReferencia(token, e1.id);
     assert.equal(de_novo.json().criadas, 0);
-    assert.equal(de_novo.json().ja_existiam, 11);
-    assert.equal(await prisma().cultura.count({ where: { empresa_id: e1.id } }), 11);
+    assert.equal(de_novo.json().ja_existiam, 17);
+    assert.equal(await prisma().cultura.count({ where: { empresa_id: e1.id } }), 17);
     assert.equal(await prisma().cultura.count({ where: { empresa_id: e2.id } }), 0, 'outra fazenda intocada');
   });
 
@@ -302,7 +305,7 @@ describe('D-PROD-215 — Culturas: lista de referência', () => {
     assert.equal((await criar(token, base(e1.id, { nome: 'meu capim', codigo: '002' }))).statusCode, 201);
     const r = await listaReferencia(token, e1.id);
     assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().criadas, 10);
+    assert.equal(r.json().criadas, 16);
     assert.equal(r.json().ja_existiam, 1);
     const xaraes = r.json().culturas.find((c) => c.nome === 'BRACHIARIA BRIZANTHA CV. XARAÉS');
     assert.equal(xaraes.codigo, '051', 'o 002 era de outra; o próximo depois do maior (050)');

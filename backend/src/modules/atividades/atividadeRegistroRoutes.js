@@ -22,6 +22,11 @@
  * D-PROD-267: `concluir` e `nova_atividade`, booleanos opcionais (texto, número ou null → 400 `formato`, sem coerção). Com
  * `concluir: true` ou `nova_atividade: true` o registro também CONCLUI (as áreas do registro, ou as da atividade parada):
  * a guarda pede, além de lançar, a permissão de editar a atividade (a mesma do "Concluir" — `GUARDAS.atividades.editar`).
+ *
+ * D-PROD-270 (MAIKE-ENTREGA2): os campos de cada tipo, todos opcionais no schema (a regra de cada um é do tipo, no serviço):
+ * `plantio` (objeto fechado: `cultura_id`, `forma_plantio`, `semente_incrustada`, `cobertura`, `consorcio_cultura_id`),
+ * `numero_receituario`, `local` (Manutenção e Outros sem área) e `unidade_producao_sigla` (KM | M | UN). Os booleanos do
+ * plantio chegam como booleano ou null, sem coerção. A linha de insumo aceita `vc_percentual` (texto).
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -32,7 +37,7 @@ import { recusarCoercaoDasMaquinas } from './atividadeApontamentoMaquinaRoutes.j
 import { DECIMAIS_DA_LINHA_MAO_OBRA } from './atividadeApontamentoMaoObraService.js';
 import { DECIMAIS_DA_LINHA_SERVICO } from './atividadeApontamentoServicoService.js';
 import { CAMPOS_DO_DIA, LINHAS_DO_LANCAMENTO, ORIGEM } from './atividadeApontamentoRoutes.js';
-import { AREAS_NO_REGISTRO_MAXIMO, registrarCampo } from './atividadeRegistroService.js';
+import { AREAS_NO_REGISTRO_MAXIMO, FORMAS_PLANTIO, UNIDADES_FEITAS, registrarCampo } from './atividadeRegistroService.js';
 import { LIMITE_REGISTROS_MAXIMO, LIMITE_REGISTROS_PADRAO, registrosDaArea, resumoDaArea } from './atividadePorAreaService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -45,6 +50,22 @@ const AREA_DO_REGISTRO = {
   required: ['area_id', 'hectares'],
   additionalProperties: false,
   properties: { area_id: ID, hectares: { type: 'string', pattern: PADRAO_DECIMAL.source } },
+};
+
+const ID_NULO = { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
+
+/** D-PROD-270 — os dados do Plantio de pastagem (fechado): o capim (obrigatório no objeto) e o que é opcional. */
+const PLANTIO_DO_REGISTRO = {
+  type: 'object',
+  required: ['cultura_id'],
+  additionalProperties: false,
+  properties: {
+    cultura_id: ID,
+    forma_plantio: { type: ['string', 'null'], enum: [...FORMAS_PLANTIO, null] },
+    semente_incrustada: { type: ['boolean', 'null'] },
+    cobertura: { type: ['boolean', 'null'] },
+    consorcio_cultura_id: ID_NULO,
+  },
 };
 
 const REGISTRAR = {
@@ -65,6 +86,11 @@ const REGISTRAR = {
       // D-PROD-267: "Como fica depois de salvar?" (Concluída) e a resposta ao "serviço parado".
       concluir: { type: 'boolean' },
       nova_atividade: { type: 'boolean' },
+      // D-PROD-270: os campos de cada tipo (Plantio, Aplicação, Manutenção e Outros).
+      plantio: { ...PLANTIO_DO_REGISTRO, type: ['object', 'null'] },
+      numero_receituario: { type: ['string', 'null'], maxLength: 80 },
+      local: { type: ['string', 'null'], maxLength: 240 },
+      unidade_producao_sigla: { type: ['string', 'null'], enum: [...UNIDADES_FEITAS, null] },
       origem: ORIGEM,
       ...LINHAS_DO_LANCAMENTO,
     },
@@ -90,6 +116,9 @@ const REGISTROS = {
 /** D-PROD-267 — os booleanos do registro chegam como booleano, nunca "true"/1 (a coerção do AJV não decide por ninguém). */
 const BOOLEANOS_DO_REGISTRO = Object.freeze(['concluir', 'nova_atividade']);
 
+/** D-PROD-270 — os booleanos do plantio (true, false ou null; nunca "true"/1). */
+const BOOLEANOS_DO_PLANTIO = Object.freeze(['semente_incrustada', 'cobertura']);
+
 /** @param {unknown} corpo */
 const recusarCoercaoDosBooleanos = (corpo) => {
   if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) return;
@@ -97,6 +126,13 @@ const recusarCoercaoDosBooleanos = (corpo) => {
   for (const chave of BOOLEANOS_DO_REGISTRO) {
     if (Object.prototype.hasOwnProperty.call(c, chave) && c[chave] !== undefined && typeof c[chave] !== 'boolean') {
       throw invalido(`${chave} deve ser true ou false`, { field: chave, reason: 'formato' });
+    }
+  }
+  const p = c.plantio;
+  if (p && typeof p === 'object' && !Array.isArray(p)) {
+    for (const chave of BOOLEANOS_DO_PLANTIO) {
+      const v = /** @type {Record<string, unknown>} */ (p)[chave];
+      if (v !== undefined && v !== null && typeof v !== 'boolean') throw invalido(`plantio.${chave} deve ser true, false ou nulo`, { field: `plantio.${chave}`, reason: 'formato' });
     }
   }
 };

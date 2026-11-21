@@ -115,11 +115,12 @@ export function CampoDia({ label, value, onChange, readOnly = false, required = 
 
 /**
  * Valor calculado (somente leitura) dentro da grade do formulário.
- * @param {{ label: string, valor: string, span?: number, testId?: string, destaque?: boolean }} props
+ * @param {{ label: string, valor: string, span?: number, testId?: string, destaque?: boolean, dica?: React.ReactNode }} props
+ *   `dica` (D-PROD-270): a linha de ajuda embaixo do campo.
  */
-export function ValorCalculado({ label, valor, span = 4, testId = undefined, destaque = false }) {
+export function ValorCalculado({ label, valor, span = 4, testId = undefined, destaque = false, dica = undefined }) {
   return (
-    <B1Field label={label} span={span} hasValue locked>
+    <B1Field label={label} span={span} hasValue locked dica={dica}>
       <output data-testid={testId} className={`${CTL_NUMERO} mg-input min-w-0 ${destaque ? "font-semibold" : ""}`} aria-label={label}>
         <span className="block min-w-0 truncate">{valor}</span>
       </output>

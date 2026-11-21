@@ -381,7 +381,7 @@ describe("DetalhesArea — Manejos abre a MESMA \"Nova realização\" (D-PROD-25
     // D-PROD-265: os 7 tipos fixos são os cartões do passo 1, nesta ordem.
     expect([...within(janela).getByTestId("registro-de-campo-tipos").querySelectorAll("button")].map((b) => b.textContent.trim())).toEqual([
       "Preparo do solo",
-      "Formação de pastagem (plantio)",
+      "Plantio de pastagem",
       "Fertilização",
       "Aplicação",
       "Roçada e tratos",

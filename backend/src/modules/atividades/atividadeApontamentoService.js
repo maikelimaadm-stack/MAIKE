@@ -374,6 +374,8 @@ export const comoApontamentoPublico = (r) => ({
   atividade_area: r.atividadeArea ? { id: r.atividadeArea.id, area: r.atividadeArea.area ? { id: r.atividadeArea.area.id, numero_area: r.atividadeArea.area.numero_area, nome: r.atividadeArea.area.nome } : null } : null,
   // D-PROD-265: o último dia do serviço (Nova realização); nulo = um dia só.
   data_termino: r.data_termino ? diaDe(r.data_termino) : null,
+  // MAIKE-ENTREGA2 (D-PROD-270): o nº do receituário agronômico (Aplicação); nulo sem ele.
+  numero_receituario: r.numero_receituario ?? null,
   origem: r.origem,
   status: r.status,
   versao: r.versao,
@@ -410,6 +412,8 @@ const paraAuditoria = (r) => ({
   atividade_area_id: r.atividade_area_id ?? null,
   // D-PROD-265: o término do serviço (Nova realização).
   data_termino: r.data_termino ? diaDe(r.data_termino) : null,
+  // MAIKE-ENTREGA2 (D-PROD-270): só se há receituário (texto livre fica fora da auditoria).
+  tem_receituario: Boolean(r.numero_receituario),
   origem: r.origem,
   status: r.status,
   versao: r.versao,

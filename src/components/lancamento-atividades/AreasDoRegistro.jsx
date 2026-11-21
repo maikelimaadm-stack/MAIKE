@@ -37,16 +37,18 @@ const ha = (v) => (v ? `${formatarDecimalLinha(v)} ha` : "—");
  *   celular?: boolean,
  *   readOnly?: boolean,
  *   carregando?: boolean,
+ *   opcional?: boolean,
  * }} props `erros`: `areas` (nenhuma), `area:<id>` (os hectares ou a recusa do servidor naquela área) e `pct:<id>`.
+ *   D-PROD-270: `opcional` (Manutenção e Outros) tira o asterisco e mostra "Nenhuma área" sem área escolhida.
  */
-export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros = {}, travada = null, celular = false, readOnly = false, carregando = false }) {
+export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros = {}, travada = null, celular = false, readOnly = false, carregando = false, opcional = false }) {
   const ativas = useMemo(() => areasDoMapa.filter((a) => a && a.id != null && a.ativo !== false), [areasDoMapa]);
   const travadas = useMemo(() => new Set(travada ? [String(travada)] : []), [travada]);
   const escolhidas = new Set(linhas.map((l) => l.area_id));
   const areaDe = (/** @type {string} */ id) => ativas.find((a) => String(a.id) === id) ?? areasDoMapa.find((a) => String(a?.id) === id) ?? null;
   const total = totaisDasAreasDoRegistro(linhas, areasDoMapa);
   const resumo = !linhas.length
-    ? "Selecione as áreas…"
+    ? opcional ? "Nenhuma área" : "Selecione as áreas…"
     : linhas.length === 1
       ? rotuloDaArea(areaDe(linhas[0].area_id)) || "1 área"
       : `${linhas.length} áreas selecionadas`;
@@ -126,8 +128,9 @@ export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros =
         escolhidas={escolhidas}
         onAlternar={(a) => onChange(alternarAreaNoRegistro(linhas, a, { travadas }))}
         resumo={resumo}
-        temValor={linhas.length > 0}
-        obrigatorio
+        // D-PROD-270: opcional sem área, o rótulo sobe e "Nenhuma área" fica no lugar do valor (não por baixo do rótulo).
+        temValor={linhas.length > 0 || opcional}
+        obrigatorio={!opcional}
         readOnly={readOnly}
         carregando={carregando}
         travadas={travadas}

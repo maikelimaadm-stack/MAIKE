@@ -10,7 +10,8 @@
 /** @type {ReadonlyArray<{ value: string, label: string }>} */
 export const TIPOS_FIXOS_ATIVIDADE = Object.freeze([
   { value: "PREPARO_SOLO", label: "Preparo do solo" },
-  { value: "PLANTIO", label: "Formação de pastagem (plantio)" },
+  // D-PROD-270: "Plantio de pastagem" (era "Formação de pastagem (plantio)"; o valor gravado continua PLANTIO).
+  { value: "PLANTIO", label: "Plantio de pastagem" },
   { value: "TRATO_CULTURAL", label: "Fertilização" },
   { value: "APLICACAO", label: "Aplicação" },
   { value: "PASTAGEM", label: "Roçada e tratos" },

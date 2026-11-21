@@ -135,6 +135,9 @@ export const lerTipoAtividade = (tx, clienteId, id) =>
       centroResultadoPadrao: { select: { id: true, empresa_id: true, ativo: true } },
       unidadeProducao: { select: { id: true, sigla: true, ativo: true } },
       ...Object.fromEntries(FLAGS_TIPO_ATIVIDADE.map((flag) => [flag, true])),
+      // MAIKE-ENTREGA2 (D-PROD-270): o tipo fixo (os campos de cada tipo no registro de campo) e o alvo da Aplicação.
+      categoria: true,
+      alvo: true,
     },
   });
 

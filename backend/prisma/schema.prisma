@@ -151,6 +151,8 @@ model Cliente {
   atividadeApontamentos        AtividadeApontamento[]
   // D-PROD-249 — as áreas de cada atividade (várias áreas por atividade).
   atividadeAreas               AtividadeArea[]
+  // MAIKE-ENTREGA2 — os dados do plantio de pastagem (1 para 1 com a atividade de plantio).
+  atividadesPlantio            AtividadePlantio[]
   // D-PROD-202 — linhas de produto (com fatias FIFO) e de máquina do apontamento.
   atividadeApontamentoProdutos      AtividadeApontamentoProduto[]
   atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
@@ -614,6 +616,9 @@ model TipoAtividade {
   permite_servico            Boolean  @default(false)
   permite_mao_obra           Boolean  @default(false)
   exige_producao             Boolean  @default(false)
+  /// MAIKE-ENTREGA2 — o ALVO da Aplicação ("CIGARRINHA", "MATO (FOLHA LARGA)"…): vem do cadastro da operação, o
+  /// funcionário não escolhe. Uma coluna anulável, sem CHECK (a API confere o tamanho).
+  alvo                       String?  @db.VarChar(60)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -703,6 +708,9 @@ model Cultura {
   areas   AreaPastagem[]
   // D-PROD-219 — medições de forragem feitas com esta cultura na área (retrato do dia).
   medicoesForragem MedicaoForragem[]
+  // MAIKE-ENTREGA2 — plantios com este capim e plantios em que ela foi o consórcio (FK RESTRICT).
+  plantios          AtividadePlantio[] @relation("AtividadePlantioCultura")
+  plantiosConsorcio AtividadePlantio[] @relation("AtividadePlantioConsorcio")
 
   @@unique([cliente_id, id])
   // D-PROD-216 — alvo da FK composta da Área (mesma fazenda por construção).
@@ -1223,6 +1231,9 @@ model Produto {
   consumo_maximo_pv         Decimal? @db.Decimal(14, 6)
   unidade_principal_estoque String   @default("KG") @db.VarChar(16)
   peso_por_saco_kg          Decimal? @db.Decimal(14, 4)
+  /// MAIKE-ENTREGA2 — carência do produto (dias): quanto o pasto fica sem gado depois da aplicação (da bula). Nulo =
+  /// sem carência cadastrada. A API confere 0..365 (a allowlist EXPAND recusa CHECK em tabela antiga).
+  carencia_dias             Int?
   observacoes               String?  @db.VarChar(2000)
   ativo                     Boolean  @default(true)
   createdAt                 DateTime @default(now())
@@ -1404,6 +1415,8 @@ model Empresa {
   atividadeApontamentos AtividadeApontamento[]
   // D-PROD-249 — as áreas das atividades da fazenda.
   atividadeAreas        AtividadeArea[]
+  // MAIKE-ENTREGA2 — os dados do plantio de pastagem.
+  atividadesPlantio     AtividadePlantio[]
   entradasEstoque       EntradaEstoque[]
   saidasEstoque         SaidaEstoque[] // D-PROD-264
   // D-PROD-207 — funcionários e serviços da fazenda.
@@ -3297,6 +3310,9 @@ model Atividade {
   versao                   Int       @default(1)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
+  /// MAIKE-ENTREGA2 — onde foi o serviço sem área (Manutenção e Outros: "DIVISA NORTE", "SEDE"), em MAIÚSCULAS; nulo na
+  /// atividade com área. Uma coluna anulável, sem CHECK (a API confere o tamanho).
+  local                    String?   @db.VarChar(120)
 
   cliente          Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa          Empresa                @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
@@ -3316,6 +3332,8 @@ model Atividade {
   apontamentos     AtividadeApontamento[]
   // D-PROD-249 — as áreas da atividade (várias áreas; `area_id` acima fica com a 1ª, por compatibilidade).
   areas            AtividadeArea[]
+  // MAIKE-ENTREGA2 — o capim plantado e os dados do plantio (só nas atividades de Plantio de pastagem).
+  plantio          AtividadePlantio?
 
   abastecimentos   AbastecimentoBem[]     // D-PROD-211
   @@unique([cliente_id, id])
@@ -3363,6 +3381,9 @@ model AtividadeApontamento {
   /// D-PROD-265 — o último dia do serviço registrado ("Data de término" da Nova realização); nulo = um dia só. A API
   /// confere término >= data_operacional e não futuro (a allowlist EXPAND recusa CHECK em tabela antiga).
   data_termino             DateTime? @db.Date
+  /// MAIKE-ENTREGA2 — o nº do receituário agronômico da Aplicação (Lei 14.785/2023), opcional, preenchido pelo
+  /// escritório. Uma coluna anulável, sem CHECK (a API confere o tamanho).
+  numero_receituario       String?   @db.VarChar(40)
 
   cliente      Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa      Empresa   @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
@@ -3430,6 +3451,41 @@ model AtividadeArea {
   @@index([cliente_id, area_id])
   @@index([cliente_id, setor_id])
 }
+/// MAIKE-ENTREGA2 — os dados do PLANTIO DE PASTAGEM (tipo fixo PLANTIO), 1 para 1 com a atividade: o capim plantado
+/// (obrigatório, do Cadastro de Culturas da MESMA fazenda) e o que é opcional (forma de plantio, semente incrustada,
+/// plantio de cobertura e a cultura do consórcio). Escrito pelo `POST /atividades/registrar` ao CRIAR a atividade de
+/// plantio; capim diferente abre outra atividade.
+model AtividadePlantio {
+  id                   String   @id @default(cuid())
+  cliente_id           String   @db.VarChar(64)
+  empresa_id           String   @db.VarChar(64)
+  atividade_id         String   @db.VarChar(64)
+  /// O capim plantado (Cadastro de Culturas da mesma fazenda: FK composta).
+  cultura_id           String   @db.VarChar(64)
+  /// A_LANCO | EM_LINHA | AEREA | MUDA | nulo (CHECK).
+  forma_plantio        String?  @db.VarChar(16)
+  semente_incrustada   Boolean?
+  /// Plantio de cobertura (sobressemeadura no pasto que já existe).
+  cobertura            Boolean?
+  /// "Junto com" (consórcio ILP): outra cultura do cadastro, nunca o próprio capim (CHECK).
+  consorcio_cultura_id String?  @db.VarChar(64)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  cliente   Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa   Empresa   @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  atividade Atividade @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadePlantio_atividade_fkey")
+  cultura   Cultura   @relation("AtividadePlantioCultura", fields: [cliente_id, empresa_id, cultura_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadePlantio_cultura_fkey")
+  consorcio Cultura?  @relation("AtividadePlantioConsorcio", fields: [cliente_id, empresa_id, consorcio_cultura_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadePlantio_consorcio_fkey")
+
+  @@unique([cliente_id, id])
+  /// Uma linha por atividade (1 para 1).
+  @@unique([cliente_id, empresa_id, atividade_id], map: "AtividadePlantio_atividade_key")
+  /// A busca da atividade aberta pelo capim (capim diferente abre outra).
+  @@index([cliente_id, empresa_id, cultura_id], map: "AtividadePlantio_cultura_idx")
+  @@index([cliente_id, empresa_id, consorcio_cultura_id], map: "AtividadePlantio_consorcio_idx")
+}
+
 
 /// D-PROD-202 (Fatia 3) — LINHA DE PRODUTO do apontamento: baixa FÍSICA pelo motor único de estoque (FIFO por lote,
 /// custo FIFO, estorno exato), como o abastecimento. Imutável: editar = estornar a linha (cancelamento_origem EDICAO) e
@@ -3450,6 +3506,9 @@ model AtividadeApontamentoProduto {
   /// L | KG (CHECK): snapshot da unidade efetiva do produto.
   unidade                  String    @db.VarChar(8)
   dose_ha                  Decimal?  @db.Decimal(14, 4)
+  /// MAIKE-ENTREGA2 — o VC (valor cultural, %) do rótulo do saco de semente, opcional. A API confere (0 < VC <= 100,
+  /// até 2 casas): a allowlist EXPAND recusa CHECK em tabela antiga, como na D-PROD-265.
+  vc_percentual            Decimal?  @db.Decimal(5, 2)
   custo_unitario           Decimal   @db.Decimal(14, 4)
   custo_total              Decimal   @db.Decimal(14, 4)
   operation_id             String    @db.VarChar(128)

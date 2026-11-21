@@ -704,6 +704,8 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamento"');
       // D-PROD-249: as áreas da atividade (migration POSTERIOR) referenciam a atividade e não as 7; saem antes dela.
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeArea"');
+      // D-PROD-270: o plantio da atividade (migration POSTERIOR) referencia a atividade e não as 7; sai antes dela.
+      await tx.$executeRawUnsafe('DROP TABLE "AtividadePlantio"');
       await tx.$executeRawUnsafe('DROP TABLE "Atividade"');
       // As 7 saem juntas, sem CASCADE (nada mais de fora as referencia; nada some escondido).
       await tx.$executeRawUnsafe(`DROP TABLE ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
