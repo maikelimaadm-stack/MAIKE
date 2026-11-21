@@ -2451,6 +2451,14 @@
   .b1-realizacao__cartao {
     min-height: 96px;
   }
+  /*
+   * D-PROD-268 — no celular, o valor do campo (16px, o tamanho que evita o zoom do iPhone) não cabia no campo de 38px:
+   * a data (e o texto) subia por cima do rótulo flutuante ("Data de início", "Data de término"). Na "Nova realização" o
+   * campo cresce para 48px no celular, como na Lançamento em lote (.mk-lanc); o desktop fica como estava.
+   */
+  .b1-realizacao .b1-form-embutido {
+    --mg-field-h: 48px;
+  }
 }
 
 .cadastro-b1 .b1-tipo-cab {

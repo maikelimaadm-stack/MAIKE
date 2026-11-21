@@ -320,6 +320,9 @@ export const registerAtividadeDeCampo = async (corpo) => {
   const comAreas = corpo.areas !== undefined;
   if (comAreas) {
     assertArgument(ehAreasDoRegistro(corpo.areas) && corpo.area_id === undefined && corpo.area_executada_dia === undefined, 'areas', contexto);
+  } else if (corpo.area_id === undefined && corpo.local !== undefined) {
+    // D-PROD-268: Manutenção e Outros SEM área — o local (texto) no lugar da área (o servidor confere o tipo).
+    assertArgument(typeof corpo.local === 'string' && corpo.local.trim() !== '', 'local', contexto);
   } else {
     assertArgument(isId(corpo.area_id), 'area_id', contexto);
   }

@@ -78,6 +78,17 @@ const valoresIniciaisMascarados = (dados) => {
   return saida;
 };
 
+/**
+ * D-PROD-268 — a carência digitada: vazio vale (sem carência); senão inteiro de 0 a 365. Devolve a frase do erro ou "".
+ * @param {unknown} texto
+ */
+const erroDaCarencia = (texto) => {
+  const t = String(texto ?? "").trim();
+  if (!t) return "";
+  if (!/^\d+$/.test(t)) return "Informe os dias em número inteiro.";
+  return Number(t) > 365 ? "No máximo 365 dias." : "";
+};
+
 export default function FormularioProduto({
   onSubmit,
   onCancel,
@@ -113,10 +124,20 @@ export default function FormularioProduto({
       consumo_maximo_pv: "",
       unidade_principal_estoque: "KG",
       peso_por_saco_kg: "",
+      // D-PROD-268: a carência da bula, em dias (texto do campo; vazio = sem carência).
+      carencia_dias: "",
       observacoes: "",
       ativo: true,
     };
-    if (initialData) return { ...defaults, ...initialData, ...valoresIniciaisMascarados(initialData), ativo: initialData.ativo !== false };
+    if (initialData) {
+      return {
+        ...defaults,
+        ...initialData,
+        ...valoresIniciaisMascarados(initialData),
+        carencia_dias: Number.isInteger(initialData.carencia_dias) ? String(initialData.carencia_dias) : "",
+        ativo: initialData.ativo !== false,
+      };
+    }
     return defaults;
   });
 
@@ -219,6 +240,8 @@ export default function FormularioProduto({
     if (formData.unidade_principal_estoque === "SACO" && !pesoSacoNum) {
       missingFields.push("peso_por_saco_kg");
     }
+    // D-PROD-268: a carência, quando informada, é um número inteiro de dias de 0 a 365.
+    if (erroDaCarencia(formData.carencia_dias)) missingFields.push("carencia_dias");
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
@@ -319,6 +342,29 @@ export default function FormularioProduto({
                     />
                   </B1Field>
                 ) : null}
+
+                {/* D-PROD-268: a carência da bula (dias sem gado no pasto depois da aplicação), para o "Pasto liberado em". */}
+                <B1Field
+                  label="Carência (dias)"
+                  span={6}
+                  hasValue={Boolean(String(formData.carencia_dias ?? "").trim())}
+                  locked={readOnly}
+                  disabled={locked}
+                  error={invalidFields.includes("carencia_dias") ? erroDaCarencia(formData.carencia_dias) || undefined : undefined}
+                  dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">da bula: dias sem gado no pasto depois de aplicar</p>}
+                >
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.carencia_dias ?? ""}
+                    onChange={(e) => handleChange("carencia_dias", e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                    placeholder="Ex.: 21"
+                    className={`${B1_FIELD_CTL_CLS} text-right tabular-nums`}
+                    readOnly={readOnly}
+                    data-testid="produto-carencia-dias"
+                    aria-invalid={invalidFields.includes("carencia_dias")}
+                  />
+                </B1Field>
 
                 <B1Field label="Observações" span={12} hasValue={Boolean(formData.observacoes?.trim())} locked={readOnly} disabled={locked}>
                   <textarea

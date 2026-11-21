@@ -106,6 +106,12 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   // D-PROD-267: "Como fica depois de salvar? Concluída" e a resposta ao "serviço parado" (booleanos, só quando vêm).
   'concluir',
   'nova_atividade',
+  // D-PROD-268: os campos de cada tipo — o plantio (capim e opcionais), o nº do receituário (Aplicação), o local do serviço
+  // sem área e a unidade da quantidade feita (Manutenção e Outros). Só quando vêm.
+  'plantio',
+  'numero_receituario',
+  'local',
+  'unidade_producao_sigla',
   'operation_id',
   'safra_ciclo',
   'turno',
@@ -146,6 +152,11 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  * (FIFO) e a dose/ha são do servidor e nunca vão.
  */
 export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao']);
+/**
+ * D-PROD-268 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
+ * a de sempre e o VC (%) da semente, só quando preenchido. As rotas de UMA linha continuam com `CAMPOS_DA_LINHA_PRODUTO`.
+ */
+export const CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO = Object.freeze([...CAMPOS_DA_LINHA_PRODUTO, 'vc_percentual']);
 /**
  * Linha de MÁQUINA: o bem, o implemento (se o tipo permitir), as leituras inicial e final — ou `sem_medidor` com o
  * uso direto (`quantidade_uso`) — e a justificativa do salto. Tipo e unidade do medidor e custo são do bem (snapshot no
@@ -194,7 +205,7 @@ export const CAMPOS_DE_CANCELAMENTO_LINHA = Object.freeze([...ENVELOPE_DA_LINHA,
 /** Coleções de linhas embutidas no corpo do lançamento (e do duplicar) → a allowlist de cada item. */
 const COLECOES_DE_LINHAS = Object.freeze(
   /** @type {Record<string, readonly string[]>} */ ({
-    produtos: CAMPOS_DA_LINHA_PRODUTO,
+    produtos: CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO,
     maquinas: CAMPOS_DA_LINHA_MAQUINA,
     mao_obra: CAMPOS_DA_LINHA_MAO_OBRA,
     servicos: CAMPOS_DA_LINHA_SERVICO,

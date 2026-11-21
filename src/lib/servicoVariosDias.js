@@ -73,11 +73,12 @@ const nomeDaArea = (a) => texto(a?.nome) || texto(a?.numero_area);
 
 /**
  * A coluna "Área": a primeira área e "+N" das outras ("Pasto da Aroeira +1"); sem áreas, a do cabeçalho; sem nenhuma, "".
+ * D-PROD-268: o serviço sem área (Manutenção e Outros) mostra o local ("DIVISA NORTE").
  * @param {any} item
  */
 export const textoDaAreaDoServico = (item) => {
   const areas = areasDaAtividade(item);
-  if (!areas.length) return nomeDaArea(item?.area);
+  if (!areas.length) return nomeDaArea(item?.area) || texto(item?.local);
   const primeira = nomeDaArea(areas[0]?.area);
   return areas.length > 1 ? `${primeira} +${areas.length - 1}` : primeira;
 };

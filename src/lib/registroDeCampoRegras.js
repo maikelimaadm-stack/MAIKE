@@ -23,6 +23,7 @@ import { deUnidades, ehPositivo, lerNumeroLocal, multiplicarArredondar, naEscala
 import { LIMITES_DECIMAL_ATIVIDADE, LOCALE_ATIVIDADE, STATUS_ABERTA } from './lancamentoAtividadesRegras.js';
 import { STATUS_AREA, hectaresCanonicos } from './atividadeAreasRegras.js';
 import { lerErroGestao } from './gestaoErros.js';
+import { lerVc } from './camposPorTipo.js';
 
 const MESES_CURTOS = Object.freeze(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']);
 
@@ -100,7 +101,10 @@ export const comItem = (lista, item) => (lista.some((i) => i.chave === item.chav
  */
 export const linhasDoCorpoDoRegistro = (itens) => ({
   ...(itens.maquinas.length ? { maquinas: itens.maquinas.map((i) => corpoDaLinhaMaquina(i.form, i.medidor, { comJustificativa: i.comJustificativa === true })) } : {}),
-  ...(itens.produtos.length ? { produtos: itens.produtos.map((i) => corpoDaLinhaProduto(i.form)) } : {}),
+  // D-PROD-268: o VC (%) da semente só vai quando preenchido e válido (sem ele, a linha de sempre).
+  ...(itens.produtos.length
+    ? { produtos: itens.produtos.map((i) => { const vc = lerVc(i.form?.vc).valor; return { ...corpoDaLinhaProduto(i.form), ...(vc ? { vc_percentual: vc } : {}) }; }) }
+    : {}),
   ...(itens.mao_obra.length ? { mao_obra: itens.mao_obra.map((i) => corpoDaLinhaMaoObra(i.form)) } : {}),
   ...(itens.servicos.length ? { servicos: itens.servicos.map((i) => corpoDaLinhaServico(i.form)) } : {}),
 });
@@ -281,14 +285,17 @@ const DIAS_PARADO = 30;
 /**
  * D-PROD-267 — a atividade aberta que o registro acharia (a mesma regra do servidor: a ABERTA da operação com a área não
  * concluída, em QUALQUER mês), com o que a prévia mostra. Sem nenhuma (ou com mais de uma na mesma área), null.
- * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, resumos: Array<any|null|undefined> }} p
+ * D-PROD-268: no Plantio de pastagem (`culturaId`), só a do MESMO capim (capim diferente abre outra).
+ * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, resumos: Array<any|null|undefined>, culturaId?: string|null }} p
  * @returns {{ indice: number, alvo: any, varias: boolean } | null}
  */
-export const atividadeDoRegistro = ({ tipo, areas, resumos }) => {
+export const atividadeDoRegistro = ({ tipo, areas, resumos, culturaId = null }) => {
   if (!tipo?.id) return null;
   for (const [i] of areas.entries()) {
     const abertas = (Array.isArray(resumos[i]?.atividades) ? resumos[i].atividades : []).filter(
-      (/** @type {any} */ a) => String(a.tipo_atividade_id) === String(tipo.id) && a.status === STATUS_ABERTA && a.area_status !== STATUS_AREA.CONCLUIDA,
+      (/** @type {any} */ a) =>
+        String(a.tipo_atividade_id) === String(tipo.id) && a.status === STATUS_ABERTA && a.area_status !== STATUS_AREA.CONCLUIDA
+        && (!culturaId || String(a.plantio_cultura_id ?? '') === String(culturaId)),
     );
     if (abertas.length) return { indice: i, alvo: abertas[0], varias: abertas.length > 1 };
   }
@@ -302,12 +309,13 @@ export const atividadeDoRegistro = ({ tipo, areas, resumos }) => {
  * várias áreas, diz quais entram nela e avisa da que já está concluída nela (o servidor recusa). Sem nenhuma: a
  * atividade nova, com o nome dela (o mês do início). `resumos[i]` é o resumo da área i
  * (`GET /atividades-por-area/:id/resumo`); faltando algum, null (ainda lendo).
- * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, dia: string, resumos: Array<any|null|undefined> }} p
+ * D-PROD-268: `culturaId` (o capim do Plantio de pastagem) entra na regra, como no servidor.
+ * @param {{ tipo: any, areas: Array<{ id: string, nome: string }>, dia: string, resumos: Array<any|null|undefined>, culturaId?: string|null }} p
  * @returns {string|null}
  */
-export const destinoDoRegistro = ({ tipo, areas, dia, resumos }) => {
+export const destinoDoRegistro = ({ tipo, areas, dia, resumos, culturaId = null }) => {
   if (!tipo?.id || !areas.length || !dia || resumos.length !== areas.length || resumos.some((r) => !r)) return null;
-  const achada = atividadeDoRegistro({ tipo, areas, resumos });
+  const achada = atividadeDoRegistro({ tipo, areas, resumos, culturaId });
   if (achada) {
     const area = areas[achada.indice];
     if (achada.varias) return `Entra em uma das atividades de ${tipo.nome_tipo} abertas ${areas.length > 1 ? `em ${area.nome}` : 'nesta área'}`;
@@ -335,6 +343,17 @@ export const destinoDoRegistro = ({ tipo, areas, dia, resumos }) => {
     return `${texto}${avisoParado}`;
   }
   return `Nova atividade será criada: ${nomeDaAtividadeNova(tipo.nome_tipo, areas[0].nome, dia, areas.length - 1)}`;
+};
+
+/**
+ * D-PROD-268 — onde o registro SEM área (Manutenção e Outros, com o local) entra: o servidor continua o serviço aberto da
+ * operação no MESMO local (sem área) ou cria um. A tela não lê os serviços por local; diz as duas possibilidades.
+ * @param {{ tipo: any, local: string, dia: string }} p @returns {string|null}
+ */
+export const destinoSemArea = ({ tipo, local, dia }) => {
+  const l = String(local ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+  if (!tipo?.id || !l || !dia) return null;
+  return `Se já houver ${tipo.nome_tipo} aberta em ${l}, entra nela; senão, nova atividade será criada: ${tipo.nome_tipo} · ${l} · ${rotuloDoMesCurto(dia)}`;
 };
 
 /**

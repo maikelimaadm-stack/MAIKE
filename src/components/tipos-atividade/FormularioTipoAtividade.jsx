@@ -4,7 +4,8 @@ import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
-import { CampoSelect } from "@/components/gestao/GestaoFormParts";
+import { CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
+import { ALVOS_DA_APLICACAO } from "@/lib/camposPorTipo";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { TIPOS_FIXOS_ATIVIDADE, rotuloDoTipoFixo } from "@/lib/tiposFixosAtividade";
 
@@ -25,13 +26,18 @@ export const rotuloDaCategoriaTipoAtividade = (valor) => (typeof valor === "stri
  *   nome_tipo?: string,
  *   ativo?: boolean,
  *   categoria?: string | null,
+ *   alvo?: string | null,
  * }} TipoAtividadeInicial
- * @typedef {{ categoria: string, nome_tipo: string, ativo: boolean }} TipoAtividadeEnvio
+ * @typedef {{ categoria: string, nome_tipo: string, ativo: boolean, alvo?: string | null }} TipoAtividadeEnvio
  */
+
+/** D-PROD-268 — o "Outro (escrever)" da lista de alvos. */
+const ALVO_OUTRO = "__OUTRO__";
 
 /**
  * Formulário da OPERAÇÃO (o "tipo de atividade" de antes; D-PROD-258): só três campos — Tipo fixo (um dos 7, obrigatório),
- * Nome e Ativo. Grupo, centros, unidade, coeficiente e as 8 chaves saíram da tela: o servidor dá o padrão automático na
+ * Nome e Ativo. D-PROD-268: na Aplicação, o ALVO (lista curta + "Outro", que se escreve): vem preenchido na "Nova
+ * realização de Aplicação", e o funcionário não escolhe; só vai no corpo da Aplicação (vazio limpa). Grupo, centros, unidade, coeficiente e as 8 chaves saíram da tela: o servidor dá o padrão automático na
  * criação e, na edição, não mexe no que não vier no corpo (o corpo leva só estes três).
  *
  * @param {{
@@ -64,6 +70,9 @@ export default function FormularioTipoAtividade({
     categoria: TIPOS_FIXOS_ATIVIDADE.some((t) => t.value === initialData?.categoria) ? String(initialData?.categoria) : "",
     nome_tipo: initialData?.nome_tipo || "",
     ativo: initialData?.ativo ?? true,
+    // D-PROD-268: o alvo da Aplicação; fora da lista curta, "Outro" com o texto.
+    alvoEscolha: !initialData?.alvo ? "" : ALVOS_DA_APLICACAO.includes(String(initialData.alvo)) ? String(initialData.alvo) : ALVO_OUTRO,
+    alvoOutro: initialData?.alvo && !ALVOS_DA_APLICACAO.includes(String(initialData.alvo)) ? String(initialData.alvo) : "",
   }));
 
   /** @param {keyof typeof formData} field @param {string | boolean} value */
@@ -86,10 +95,12 @@ export default function FormularioTipoAtividade({
       notifyWarning("Atenção", "Preencha os campos obrigatórios: Tipo e Nome da operação.");
       return;
     }
+    const alvo = formData.alvoEscolha === ALVO_OUTRO ? formData.alvoOutro.trim().replace(/\s+/g, " ").toUpperCase() : formData.alvoEscolha;
     onSubmit({
       categoria: formData.categoria,
       nome_tipo: String(formData.nome_tipo || "").trim().toUpperCase(),
       ativo: formData.ativo !== false,
+      ...(formData.categoria === "APLICACAO" ? { alvo: alvo || null } : {}),
     });
   };
 
@@ -143,6 +154,33 @@ export default function FormularioTipoAtividade({
                 maxLength={255}
               />
             </B1Field>
+
+            {formData.categoria === "APLICACAO" ? (
+              <>
+                <CampoSelect
+                  label="Alvo"
+                  value={formData.alvoEscolha}
+                  onChange={(v) => handleChange("alvoEscolha", v)}
+                  options={[...ALVOS_DA_APLICACAO.map((a) => ({ value: a, label: a })), { value: ALVO_OUTRO, label: "OUTRO (ESCREVER)" }]}
+                  placeholder="Sem alvo"
+                  readOnly={bloqueado}
+                  span={6}
+                  dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">vem preenchido na Nova realização de Aplicação</p>}
+                />
+                {formData.alvoEscolha === ALVO_OUTRO ? (
+                  <CampoTexto
+                    label="Qual alvo"
+                    value={formData.alvoOutro}
+                    onChange={(v) => handleChange("alvoOutro", v.toUpperCase())}
+                    readOnly={bloqueado}
+                    span={6}
+                    maxLength={60}
+                    placeholder="EX.: CARRAPATO"
+                    testId="tipo-atividade-alvo-outro"
+                  />
+                ) : null}
+              </>
+            ) : null}
 
             <B1ChaveRow
               label="Ativo"

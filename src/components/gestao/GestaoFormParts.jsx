@@ -17,7 +17,8 @@ export function SecaoForm({ titulo, children = null }) {
 /**
  * Campo de texto Base1.
  * @param {{ label: string, value: string, onChange: (v: string) => void, readOnly?: boolean, required?: boolean,
- *   error?: string, span?: number, type?: string, placeholder?: string, maxLength?: number, inputMode?: string, keepCase?: boolean }} props
+ *   error?: string, span?: number, type?: string, placeholder?: string, maxLength?: number, inputMode?: string, keepCase?: boolean,
+ *   dica?: React.ReactNode, testId?: string }} props `dica` (D-PROD-268): a linha de ajuda embaixo do campo (sem erro).
  */
 export function CampoTexto({
   label,
@@ -32,10 +33,13 @@ export function CampoTexto({
   maxLength = undefined,
   inputMode = undefined,
   keepCase = false,
+  dica = undefined,
+  testId = undefined,
 }) {
   return (
-    <B1Field label={label} required={required} span={span} hasValue={Boolean(String(value ?? "").trim())} locked={readOnly} disabled={readOnly} error={error}>
+    <B1Field label={label} required={required} span={span} hasValue={Boolean(String(value ?? "").trim())} locked={readOnly} disabled={readOnly} error={error} dica={dica}>
       <input
+        data-testid={testId}
         type={type}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
@@ -55,11 +59,12 @@ export function CampoTexto({
  * (D-PROD-172): "Pesquisar…" em toda lista, opções em MAIÚSCULAS e sem a opção vazia — o `placeholder` só diz
  * que o campo aceita ficar vazio, e quem limpa é o ✕ do campo.
  * @param {{ label: string, value: string, onChange: (v: string) => void, options: Array<{ value: string, label: string }>,
- *   readOnly?: boolean, required?: boolean, error?: string, span?: number, placeholder?: string }} props
+ *   readOnly?: boolean, required?: boolean, error?: string, span?: number, placeholder?: string, dica?: React.ReactNode }} props
+ *   `dica` (D-PROD-268): a linha de ajuda embaixo do campo (sem erro).
  */
-export function CampoSelect({ label, value, onChange, options, readOnly = false, required = false, error = undefined, span = 6, placeholder = undefined }) {
+export function CampoSelect({ label, value, onChange, options, readOnly = false, required = false, error = undefined, span = 6, placeholder = undefined, dica = undefined }) {
   return (
-    <B1Field label={label} required={required} span={span} hasValue={Boolean(value)} locked={readOnly} disabled={readOnly} error={error}>
+    <B1Field label={label} required={required} span={span} hasValue={Boolean(value)} locked={readOnly} disabled={readOnly} error={error} dica={dica}>
       <B1Select
         aria-label={label}
         value={value ?? ""}

@@ -106,7 +106,7 @@ describe("regras puras do serviço de vários dias", () => {
     const rotulos = opcoes.map((o) => o.label);
     const iRocada = rotulos.indexOf("Roçada e tratos");
     expect(rotulos.slice(iRocada, iRocada + 3)).toEqual(["Roçada e tratos", "Roçada e tratos › ROÇADA MANUAL (INATIVO)", "Roçada e tratos › ROÇADA MECÂNICA"]);
-    expect(rotulos.filter((r) => !r.includes("›")).slice(1)).toEqual(["Preparo do solo", "Formação de pastagem (plantio)", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"]);
+    expect(rotulos.filter((r) => !r.includes("›")).slice(1)).toEqual(["Preparo do solo", "Plantio de pastagem", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"]);
     expect(regras.filtroDoTipo("tipo:PASTAGEM")).toEqual({ tipo_fixo: "PASTAGEM", tipo_atividade_id: null });
     expect(regras.filtroDoTipo("op:t-roc")).toEqual({ tipo_fixo: null, tipo_atividade_id: "t-roc" });
     expect(regras.filtroDoTipo("")).toEqual({ tipo_fixo: null, tipo_atividade_id: null });
