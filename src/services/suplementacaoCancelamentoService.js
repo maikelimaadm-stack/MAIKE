@@ -1,5 +1,5 @@
 /**
- * Cancelamento do lançamento de cocho — D-PROD-268.
+ * Cancelamento do lançamento de cocho — D-PROD-268 (na tela: "Excluir lançamento").
  *
  * O cancelamento é UM comando do servidor (estorno exato da baixa do depósito pelo motor,
  * rateio cancelado, período anterior reaberto quando provado), numa transação idempotente por
@@ -17,7 +17,7 @@ const exigirConexao = (operation) => {
     throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, {
       operation,
       resource: 'SuplementacaoCancelamento',
-      details: { motivo: 'offline_comando_composto', mensagem: 'O cancelamento do lançamento só é feito com conexão.' },
+      details: { motivo: 'offline_comando_composto', mensagem: 'A exclusão do lançamento só é feita com conexão.' },
     });
   }
 };

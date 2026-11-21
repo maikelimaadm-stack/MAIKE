@@ -57,7 +57,7 @@ import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
  * movimento (a aba Histórico, "Excluir movimentação") deduplica por `mov.id`.
  * `acoes` não nasce aqui: a aba o acrescenta e a LinhaDoTempo o desenha no pé.
  * `evento` (D-PROD-268): o lançamento de suplementação cru do cartão de suplementação, para a
- * aba pôr "Cancelar lançamento" no pé (o servidor decide se pode).
+ * aba pôr "Excluir lançamento" no pé (o servidor decide se pode).
  */
 /** @typedef {{ chave: string, rotulo: string, cartoes: CartaoHistorico[] }} DiaHistorico */
 /**
@@ -157,9 +157,13 @@ const nomeDaArea = (mov, ctx, lado, doItem) => {
   return texto(nomeDaAreaDoMovimento(gravado, id, areas)) ?? VAZIO;
 };
 
-/** Linha extra dos cancelados: o motivo, quando o cancelamento o guardou. @param {any} mov */
+/**
+ * Linha extra do movimento excluído (situacao "cancelado" no servidor): o motivo, quando a exclusão o
+ * guardou. Na tela só há EXCLUSÃO — o rótulo fala em exclusão. `montarHistoricoDoPasto` já tira o
+ * excluído da linha do tempo; isto vale só para quem monta o cartão direto. @param {any} mov
+ */
 const motivoDoCancelamento = (mov) =>
-  ehMovimentoCancelado(mov) ? opcionais([["Motivo do cancelamento", texto(mov?.cancelamento?.motivo)]]) : [];
+  ehMovimentoCancelado(mov) ? opcionais([["Motivo da exclusão", texto(mov?.cancelamento?.motivo)]]) : [];
 
 /**
  * @typedef {{ titulo: string, grupo: GrupoHistorico, icone: IconeHistorico, linhas: LinhaHistorico[] }} CartaoBase
@@ -429,7 +433,7 @@ export function cartoesDaMovimentacao(mov, ctx, { doServidor = false } = {}) {
  */
 export function eventoDoPasto(evento, areaId, empresaId = null) {
   if (!evento || !areaId) return false;
-  // D-PROD-268: lançamento cancelado some do histórico do pasto (fica na auditoria e no depósito).
+  // D-PROD-268: lançamento excluído (situacao "cancelado" no servidor) some do histórico do pasto.
   if (evento.situacao === "cancelado") return false;
   if (empresaId && evento.empresa_id && evento.empresa_id !== empresaId) return false;
   return evento.area_id === areaId || (Array.isArray(evento.area_ids) && evento.area_ids.includes(areaId));
@@ -519,7 +523,10 @@ export function montarHistoricoDoPasto({
   /** @type {ContextoPasto} */
   const ctx = { areaId, areaNome, areas };
   const movs = (Array.isArray(movimentacoes) ? movimentacoes : []).filter((m) => m && typeof m === "object");
-  const deMovimentos = f === "sup" ? [] : movs.flatMap((m) => cartoesDaMovimentacao(m, ctx, { doServidor }));
+  // Na tela só há EXCLUSÃO: o registro excluído (situacao "cancelado" no servidor) some da linha
+  // do tempo — nada de cartão com chip "Cancelado". A fronteira da página continua com todos os
+  // registros que o servidor mandou (a ordem da página é dele).
+  const deMovimentos = f === "sup" ? [] : movs.filter((m) => !ehMovimentoCancelado(m)).flatMap((m) => cartoesDaMovimentacao(m, ctx, { doServidor }));
   const deEventos =
     f === "todos" || f === "sup"
       ? (Array.isArray(eventos) ? eventos : []).filter((e) => eventoDoPasto(e, areaId, empresaId)).map(cartaoDaSuplementacao)

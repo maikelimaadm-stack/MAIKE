@@ -53,14 +53,15 @@ import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
 export const MENSAGENS_RECUSA = Object.freeze({
   EXCLUSAO_JA_REALIZADA: "Esta movimentação já foi excluída.",
   EXCLUSAO_MOVIMENTO_LEGADO: "Registro anterior ao controle por posições: fica no histórico e não pode ser excluído. Registre a correção como um manejo novo. Nada foi alterado.",
-  EXCLUSAO_MOVIMENTO_CANCELADO: "Esta movimentação foi cancelada pelo mecanismo anterior e fica no histórico. Nada foi alterado.",
-  EXCLUSAO_REFERENCIA_DOCUMENTAL: "Há registros de outros módulos (mesmo cancelados) que citam esta movimentação. Trate-os antes. Nada foi alterado.",
+  // No mapa só existe exclusão (pedido do proprietário): nenhum texto fala em cancelamento.
+  EXCLUSAO_MOVIMENTO_CANCELADO: "Esta movimentação é de um registro antigo e não pode ser excluída. Nada foi alterado.",
+  EXCLUSAO_REFERENCIA_DOCUMENTAL: "Há registros de outros módulos que citam esta movimentação. Trate-os antes. Nada foi alterado.",
   REBANHO_CANCELAMENTO_VINCULO_POSTERIOR: "Há lançamentos de outros módulos (tarefa, suplementação, sanidade...) ligados a esta movimentação. Trate-os antes. Nada foi alterado.",
   CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: "Um registro posterior usa estas cabeças. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_DEPENDENCIA_FATO_SEM_SALDO: "Uma pesagem ou nascimento posterior depende deste registro. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_PESO_DEPENDENCIA_CAUSAL: "Um registro posterior calculou o peso a partir deste. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   CANCELAMENTO_EFEITO_NAO_COMPROVADO: "Não há prova de que esta movimentação gerou o registro do rebanho. Nada foi alterado.",
-  CANCELAMENTO_JA_REALIZADO: "Esta movimentação já está cancelada. Nada foi alterado.",
+  CANCELAMENTO_JA_REALIZADO: "Esta movimentação já foi excluída. Nada foi alterado.",
   // D-PROD-266: a exclusão não é mais só do administrador (permissão do mapa).
   TENANT_ADMIN_REQUIRED: "Você não tem permissão para excluir movimentações.",
   ACAO_NAO_PERMITIDA: "Você não tem permissão para excluir movimentações.",
@@ -89,6 +90,18 @@ export const mensagemDeRecusa = (codigo, detalhes) => {
     return `${MENSAGENS_RECUSA[codigo]} (${lista}${d.bloqueadores.length > 3 ? "..." : ""})`;
   }
   return MENSAGENS_RECUSA[codigo] || "Não foi possível excluir. Nada foi alterado.";
+};
+
+/** Texto genérico quando o motivo cru do servidor fala em cancelamento/estorno. */
+export const MOTIVO_EXCLUSAO_INDISPONIVEL = "Exclusão indisponível. Nada foi alterado.";
+/**
+ * Motivo cru do servidor (`e.motivo`) como o mapa mostra: só exclusão, nunca
+ * cancelamento/estorno (o vocabulário do servidor não muda).
+ * @param {unknown} motivo
+ */
+export const motivoDoServidorNoMapa = (motivo) => {
+  if (typeof motivo !== "string" || !motivo.trim()) return null;
+  return /cancel|estorn/i.test(motivo) ? MOTIVO_EXCLUSAO_INDISPONIVEL : motivo;
 };
 
 /** Código do servidor preservado no `cause` do ApiError (corpo da resposta). */
@@ -295,7 +308,7 @@ export const motivoCurtoDoBloqueio = (e) => {
   const dependente = ["CANCELAMENTO_SALDO_HISTORICO_NEGATIVO", "REBANHO_DEPENDENCIA_FATO_SEM_SALDO", "REBANHO_PESO_DEPENDENCIA_CAUSAL"].includes(e.codigo);
   const base = dependente
     ? "Existe pesagem/manejo posterior dependente; exclua o lançamento dependente primeiro."
-    : (e.codigo && e.codigo in MENSAGENS_RECUSA ? mensagemDeRecusa(e.codigo, d) : e.motivo) || "Exclusão indisponível.";
+    : (e.codigo && e.codigo in MENSAGENS_RECUSA ? mensagemDeRecusa(e.codigo, d) : motivoDoServidorNoMapa(e.motivo)) || "Exclusão indisponível.";
   if (!dependente) return base;
   const extra = [
     d?.tipo ? String(d.tipo).toLowerCase() : null,
@@ -429,6 +442,8 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
         titulo: "Exclusão sem confirmação",
         descricao: "O servidor ainda não confirmou esta exclusão. A operação fica guardada e será reenviada com a mesma chave quando você abrir de novo. Fechar mesmo assim?",
         textoConfirmar: "Fechar",
+        // Sem isto o host mostra "Cancelar": no mapa só se fala em exclusão.
+        textoCancelar: "Voltar",
       }).then((ok) => {
         if (!ok) return;
         queryClient.invalidateQueries({ queryKey: ["historico-movimentacoes"] });
@@ -602,7 +617,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
           )}
           {e && !e.elegivel && !desconhecido && (
             <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-              {(e.codigo && e.codigo in MENSAGENS_RECUSA ? mensagemDeRecusa(e.codigo, e.detalhes) : null) || e.motivo || "Exclusão indisponível."}
+              {(e.codigo && e.codigo in MENSAGENS_RECUSA ? mensagemDeRecusa(e.codigo, e.detalhes) : null) || motivoDoServidorNoMapa(e.motivo) || "Exclusão indisponível."}
             </div>
           )}
           {(e?.elegivel || desconhecido) && (
