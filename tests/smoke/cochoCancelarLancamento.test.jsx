@@ -5,7 +5,8 @@
  * C1. quem vê: só admin real, `is_admin` ou a chave `cancelar_lancamentos_estoque` (sem a chave,
  *     nem botão nem consulta);
  * C2. a elegibilidade (ensaio no servidor) vem ANTES de habilitar; recusa mostra a frase do
- *     `reason`; efeitos do ensaio no diálogo; motivo obrigatório;
+ *     `reason`; efeitos do ensaio no diálogo; sem campo de motivo (D-PROD-270: a tela envia o
+ *     texto fixo `MOTIVO_EXCLUSAO_MAPA`; a pendência antiga reenvia o motivo guardado);
  * C3. a `operation_id` nasce ao abrir e é REUSADA no "tentar de novo" (resultado desconhecido),
  *     guardada no aparelho; recusa definitiva troca a chave;
  * C4. só online: offline não consulta nem envia;
@@ -13,7 +14,7 @@
  * C6. histórico do pasto: o cartão de suplementação mais recente de cada cocho ganha a ação; o
  *     lançamento sem cocho (legado) nunca ganha (nem consulta o servidor);
  * C7. 403 da guarda no ensaio: frase de permissão (sem "Verificar de novo") e a permissão efetiva relida.
- * C8. só exclusão na tela: botão, diálogo, motivo, toast e recusas falam "excluir" (nada de
+ * C8. só exclusão na tela: botão, diálogo, efeitos, toast e recusas falam "excluir" (nada de
  *     "cancelar", "cancelado", "cancelamento" ou "estorno"); o "Voltar" só fecha.
  * Serviço mockado; a prova de banco está em backend/tests/suplementacaoCancelamentoCocho.test.mjs.
  */
@@ -49,6 +50,7 @@ const { default: HistoricoSuplementacaoPonto } = await import("@/components/supl
 const { comAcaoDeCancelarCocho } = await import("@/components/mapa/detalhes-lote/AbaHistorico");
 const { cartaoDaSuplementacao, eventoDoPasto, agruparPorDia } = await import("@/components/mapa/detalhes-lote/historicoDoPasto");
 const { CANCELAMENTO_COCHO_HABILITADO, CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO } = await import("@/domain/estornos/politicaEstorno");
+const { MOTIVO_EXCLUSAO_MAPA } = await import("@/domain/mapa/motivoExclusaoMapa");
 const { toast } = await import("sonner");
 /** Linguagem que não pode aparecer na tela destas ações (o usuário só tem exclusão). */
 const LINGUAGEM_DE_CANCELAMENTO = /cancel|estorn/i;
@@ -76,6 +78,12 @@ const renderizar = async (ui) => {
   return { ...utils, client };
 };
 const botaoCancelar = () => screen.getByRole("button", { name: /Excluir lançamento/i });
+/** D-PROD-270: o diálogo não tem campo nem ajuda de motivo. */
+const semCampoDeMotivo = (dialogo) => {
+  expect(within(dialogo).queryByLabelText(/Motivo/i)).toBeNull();
+  expect(within(dialogo).queryByRole("textbox")).toBeNull();
+  expect(dialogo.textContent).not.toMatch(/motivo/i);
+};
 
 beforeEach(() => {
   localStorage.clear();
@@ -132,7 +140,7 @@ describe("C1 — quem vê", () => {
   });
 });
 
-describe("C2 — elegibilidade antes de habilitar, efeitos e motivo", () => {
+describe("C2 — elegibilidade antes de habilitar, efeitos e motivo fixo", () => {
   it("recusa do ensaio: botão desabilitado com a frase do reason", async () => {
     servico.consultarElegibilidadeCancelamentoCocho.mockImplementation(async () => ({ elegivel: false, codigo: "SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO", reason: "movimento_posterior_no_deposito", efeitos: {} }));
     await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
@@ -150,7 +158,7 @@ describe("C2 — elegibilidade antes de habilitar, efeitos e motivo", () => {
     expect(mensagemDoCancelamento("XYZ", null)).toMatch(/Nada foi alterado/);
   });
 
-  it("elegível: o diálogo mostra os efeitos do servidor e só envia com motivo (≥ 3)", async () => {
+  it("elegível: o diálogo mostra os efeitos do servidor, não pede motivo e envia o motivo fixo", async () => {
     await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
     fireEvent.click(botaoCancelar());
     await assentar();
@@ -160,17 +168,15 @@ describe("C2 — elegibilidade antes de habilitar, efeitos e motivo", () => {
     expect(within(itens).getAllByRole("listitem").map((li) => li.textContent)).toEqual(efeitos);
     expect(efeitos[0]).toMatch(/Devolve 20 kg de Sal mineral ao Galpão/);
     expect(efeitos[1]).toMatch(/Reabre o período de 30\/10\/2026 com sobra inicial de 10 kg/);
+    semCampoDeMotivo(dialogo);
+    // Elegível e online: habilita sem digitar nada.
     const enviar = within(dialogo).getByRole("button", { name: "Excluir lançamento" });
-    expect(enviar.hasAttribute("disabled")).toBe(true);
-    fireEvent.change(within(dialogo).getByRole("textbox"), { target: { value: "ab" } });
-    expect(enviar.hasAttribute("disabled")).toBe(true);
-    fireEvent.change(within(dialogo).getByRole("textbox"), { target: { value: "lançado em dobro" } });
     expect(enviar.hasAttribute("disabled")).toBe(false);
     fireEvent.click(enviar);
     await assentar();
     expect(servico.cancelarLancamentoCocho).toHaveBeenCalledTimes(1);
     const [arg] = servico.cancelarLancamentoCocho.mock.calls[0];
-    expect(arg.motivo).toBe("lançado em dobro");
+    expect(arg.motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
     expect(arg.evento.id).toBe("ev-2");
     expect(arg.operationId).toMatch(/^cancelar-cocho-/);
     // Recarga do mapa e dos caches de suplementação/estoque.
@@ -187,36 +193,40 @@ describe("C3 — operation_id persistida", () => {
     fireEvent.click(botaoCancelar());
     await assentar();
     const dialogo = screen.getByRole("dialog");
-    fireEvent.change(within(dialogo).getByRole("textbox"), { target: { value: "lançado em dobro" } });
+    semCampoDeMotivo(dialogo);
     fireEvent.click(within(dialogo).getByRole("button", { name: "Excluir lançamento" }));
     await assentar();
     const chave1 = servico.cancelarLancamentoCocho.mock.calls[0][0].operationId;
+    expect(servico.cancelarLancamentoCocho.mock.calls[0][0].motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
+    // A pendência nova grava o motivo fixo (mesmo fingerprint no reenvio).
     const guardada = JSON.parse(localStorage.getItem(`maike_cancelamento_cocho_pendente:c-1:u-2:ev-2`));
-    expect(guardada).toMatchObject({ operation_id: chave1, motivo: "lançado em dobro" });
+    expect(guardada).toMatchObject({ operation_id: chave1, motivo: MOTIVO_EXCLUSAO_MAPA });
     expect(within(dialogo).getByText(/Sem confirmação do servidor/)).toBeTruthy();
 
     servico.cancelarLancamentoCocho.mockImplementationOnce(async () => { throw erroDoServidor("SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO", "lancamento_posterior"); });
     fireEvent.click(within(dialogo).getByRole("button", { name: "Tentar de novo" }));
     await assentar();
-    expect(servico.cancelarLancamentoCocho.mock.calls[1][0].operationId).toBe(chave1);
+    expect(servico.cancelarLancamentoCocho.mock.calls[1][0]).toMatchObject({ operationId: chave1, motivo: MOTIVO_EXCLUSAO_MAPA });
     expect(within(dialogo).getByText(MENSAGENS_REASON.lancamento_posterior)).toBeTruthy();
     expect(localStorage.getItem(`maike_cancelamento_cocho_pendente:c-1:u-2:ev-2`)).toBeNull();
 
-    fireEvent.change(within(dialogo).getByRole("textbox"), { target: { value: "lançado em dobro" } });
     fireEvent.click(within(dialogo).getByRole("button", { name: "Excluir lançamento" }));
     await assentar();
     expect(servico.cancelarLancamentoCocho.mock.calls[2][0].operationId).not.toBe(chave1);
+    expect(servico.cancelarLancamentoCocho.mock.calls[2][0].motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
   });
 
-  it("reabrir com pendência guardada reusa a chave e o motivo", async () => {
+  it("reabrir com pendência guardada reusa a chave e o motivo GUARDADO (não o fixo)", async () => {
     localStorage.setItem(`maike_cancelamento_cocho_pendente:c-1:u-2:ev-2`, JSON.stringify({ operation_id: "cancelar-cocho-antiga", motivo: "motivo antigo" }));
     await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
     fireEvent.click(botaoCancelar());
     await assentar();
     const dialogo = screen.getByRole("dialog");
+    expect(within(dialogo).queryByRole("textbox")).toBeNull();
     fireEvent.click(within(dialogo).getByRole("button", { name: "Tentar de novo" }));
     await assentar();
     expect(servico.cancelarLancamentoCocho.mock.calls[0][0]).toMatchObject({ operationId: "cancelar-cocho-antiga", motivo: "motivo antigo" });
+    expect(servico.cancelarLancamentoCocho.mock.calls[0][0].motivo).not.toBe(MOTIVO_EXCLUSAO_MAPA);
   });
 });
 
@@ -293,7 +303,7 @@ describe("C7 — 403 da guarda no ensaio da elegibilidade", () => {
 });
 
 describe("C8 — na tela só há exclusão", () => {
-  it("botão, diálogo, motivo, efeitos, confirmação e toast falam em excluir; 'Voltar' só fecha", async () => {
+  it("botão, diálogo, efeitos, confirmação e toast falam em excluir (sem campo de motivo); 'Voltar' só fecha", async () => {
     await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
     expect(botaoCancelar().textContent).toBe("Excluir lançamento");
     fireEvent.click(botaoCancelar());
@@ -302,10 +312,9 @@ describe("C8 — na tela só há exclusão", () => {
     expect(within(dialogo).getByRole("heading", { name: "Excluir lançamento do cocho" })).toBeTruthy();
     expect(dialogo.textContent).not.toMatch(LINGUAGEM_DE_CANCELAMENTO);
     expect(dialogo.textContent).toMatch(/o estoque volta ao depósito/);
-    expect(within(dialogo).getByLabelText("Motivo da exclusão")).toBeTruthy();
+    semCampoDeMotivo(dialogo);
     for (const b of within(dialogo).getAllByRole("button")) expect(b.textContent).not.toMatch(LINGUAGEM_DE_CANCELAMENTO);
     expect(within(dialogo).getByRole("button", { name: "Voltar" })).toBeTruthy();
-    fireEvent.change(within(dialogo).getByLabelText("Motivo da exclusão"), { target: { value: "lançado em dobro" } });
     fireEvent.click(within(dialogo).getByRole("button", { name: "Excluir lançamento" }));
     await assentar();
     expect(toast.success).toHaveBeenLastCalledWith("Lançamento excluído.");

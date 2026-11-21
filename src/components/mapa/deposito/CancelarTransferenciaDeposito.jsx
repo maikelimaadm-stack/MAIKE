@@ -1,8 +1,8 @@
+import { MOTIVO_EXCLUSAO_MAPA } from "@/domain/mapa/motivoExclusaoMapa";
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button as ButtonUi } from "@/components/ui/button";
-import { Textarea as TextareaUi } from "@/components/ui/textarea";
 import {
   Dialog as DialogUi,
   DialogContent as DialogContentUi,
@@ -16,7 +16,6 @@ import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
-/** @type {React.ComponentType<any>} */ const Textarea = TextareaUi;
 /** @type {React.ComponentType<any>} */ const Dialog = DialogUi;
 /** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
 /** @type {React.ComponentType<any>} */ const DialogDescription = DialogDescriptionUi;
@@ -221,7 +220,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
   const queryClient = useQueryClient();
   const online = useEstaOnline();
   const [aberto, setAberto] = React.useState(false);
-  const [motivo, setMotivo] = React.useState("");
+  const [motivo, setMotivo] = React.useState(MOTIVO_EXCLUSAO_MAPA);
   const [enviando, setEnviando] = React.useState(false);
   const [desconhecido, setDesconhecido] = React.useState(false);
   const [recusa, setRecusa] = React.useState(/** @type {string|null} */ (null));
@@ -258,7 +257,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
       setDesconhecido(true);
     } else {
       chaveRef.current = novaChave();
-      setMotivo("");
+      setMotivo(MOTIVO_EXCLUSAO_MAPA);
       setDesconhecido(false);
     }
     setRecusa(null);
@@ -336,6 +335,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
         setDesconhecido(false);
         setRecusa(mensagemDaRecusaTransferencia(codigo, detalhes));
         chaveRef.current = novaChave();
+        setMotivo(MOTIVO_EXCLUSAO_MAPA); // D-PROD-270: operação nova = motivo fixo
         elegibilidade.refetch();
       } else {
         // Rede, timeout, 5xx, conflito transitório: resultado desconhecido → a MESMA chave no reenvio.
@@ -354,9 +354,6 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
       ? { habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." }
       : { habilitado: true, motivo: null };
   const idMotivo = `motivo-cancelar-transferencia-${id}`;
-  const idCampo = `campo-motivo-cancelar-transferencia-${id}`;
-  const idAjuda = `ajuda-motivo-cancelar-transferencia-${id}`;
-  const motivoCurto = motivo.trim().length > 0 && !motivoPronto;
   const efeitos = e?.efeitos ?? null;
   const origemNome = efeitos?.origem?.nome || movimento?.local_origem || "origem";
   const destinoNome = efeitos?.destino?.nome || movimento?.local_destino || "destino";
@@ -455,24 +452,6 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
                 <div>{`${destinoNome}: −${fmtKg(quantidade)} ${unidade} (sai do depósito de destino)`}</div>
                 {valor ? <div>{`Valor devolvido à origem: ${valor}`}</div> : null}
               </div>
-              <label className="block text-xs font-medium text-slate-700" htmlFor={idCampo}>
-                Motivo da exclusão
-              </label>
-              <Textarea
-                id={idCampo}
-                aria-describedby={idAjuda}
-                aria-invalid={motivoCurto ? true : undefined}
-                value={motivo}
-                disabled={enviando || desconhecido}
-                onChange={(ev) => setMotivo(ev.target.value)}
-                maxLength={MOTIVO_MAXIMO_TRANSFERENCIA}
-                className="text-sm"
-              />
-              <p id={idAjuda} className={`text-[11px] leading-snug ${motivoCurto ? "text-red-700" : "text-slate-600"}`}>
-                {desconhecido
-                  ? "O motivo enviado antes é mantido no reenvio."
-                  : `Obrigatório: de ${MOTIVO_MINIMO_TRANSFERENCIA} a ${MOTIVO_MAXIMO_TRANSFERENCIA} caracteres.`}
-              </p>
               {desconhecido ? (
                 <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
                   Sem confirmação do servidor. A exclusão pode ou não ter sido concluída. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.

@@ -1,8 +1,8 @@
+import { MOTIVO_EXCLUSAO_MAPA } from "@/domain/mapa/motivoExclusaoMapa";
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button as ButtonUi } from "@/components/ui/button";
-import { Textarea as TextareaUi } from "@/components/ui/textarea";
 import {
   Dialog as DialogUi,
   DialogContent as DialogContentUi,
@@ -20,7 +20,6 @@ import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
-/** @type {React.ComponentType<any>} */ const Textarea = TextareaUi;
 /** @type {React.ComponentType<any>} */ const Dialog = DialogUi;
 /** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
 /** @type {React.ComponentType<any>} */ const DialogDescription = DialogDescriptionUi;
@@ -210,7 +209,7 @@ export function usePermissaoCancelarCocho() {
 export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = "Excluir lançamento" }) {
   const queryClient = useQueryClient();
   const [aberto, setAberto] = React.useState(false);
-  const [motivo, setMotivo] = React.useState("");
+  const [motivo, setMotivo] = React.useState(MOTIVO_EXCLUSAO_MAPA);
   const [enviando, setEnviando] = React.useState(false);
   const [desconhecido, setDesconhecido] = React.useState(false);
   const [recusa, setRecusa] = React.useState(/** @type {string|null} */ (null));
@@ -277,7 +276,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
       setDesconhecido(true);
     } else {
       chaveRef.current = novaChave();
-      setMotivo("");
+      setMotivo(MOTIVO_EXCLUSAO_MAPA);
       setDesconhecido(false);
     }
     setRecusa(null);
@@ -333,6 +332,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
         setDesconhecido(false);
         setRecusa(mensagemDoCancelamento(codigo, reason));
         chaveRef.current = novaChave();
+        setMotivo(MOTIVO_EXCLUSAO_MAPA); // D-PROD-270: operação nova = motivo fixo
         if (ehRecusaDePermissao(erro)) queryClient.invalidateQueries({ queryKey: ["permissao-efetiva"] });
         else elegibilidade.refetch();
         if (codigo === "SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO") invalidarCachesDoMapa(queryClient, ["suplementacao-ponto", "mapa-eventos-supl"]);
@@ -399,21 +399,6 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
             </div>
           ) : null}
           <div className="space-y-2">
-            <div className="text-xs text-slate-700">
-              <label className="font-medium" htmlFor={`${idMotivo}-campo`}>
-                Motivo da exclusão
-              </label>
-              <span className="text-slate-500"> (obrigatório)</span>
-            </div>
-            <Textarea
-              id={`${idMotivo}-campo`}
-              value={motivo}
-              maxLength={500}
-              aria-required="true"
-              disabled={enviando || desconhecido}
-              onChange={(ev) => setMotivo(ev.target.value)}
-              placeholder="Ex.: lançado em dobro"
-            />
             {desconhecido ? (
               <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
                 Sem confirmação do servidor. A exclusão pode ou não ter sido concluída. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.

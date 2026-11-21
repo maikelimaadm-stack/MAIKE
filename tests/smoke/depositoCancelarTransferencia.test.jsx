@@ -10,15 +10,16 @@
  *        ('Estornada') NÃO aparece (nada de chip "Cancelado"), nem os movimentos `estorno_*`.
  *  CT-2. offline: botão desligado com "Requer conexão", sem nenhuma chamada.
  *  CT-3. ensaio recusado: a mensagem por `reason` (movimento posterior no depósito, estoque usado).
- *  CT-4. sucesso: motivo + operation_id, refresh com force de `movimentacaoEstoque` e `estoqueLotes`,
+ *  CT-4. sucesso: motivo fixo (`MOTIVO_EXCLUSAO_MAPA`, D-PROD-270: sem campo de motivo) + operation_id, refresh com force de `movimentacaoEstoque` e `estoqueLotes`,
  *        invalidação das consultas do depósito e `onCancelado`; `replay` conta como sucesso.
- *  CT-5. erro de rede: resultado desconhecido, reenvio e reabertura com a MESMA operation_id e o MESMO motivo.
+ *  CT-5. erro de rede: resultado desconhecido, reenvio e reabertura com a MESMA operation_id e o MESMO motivo;
+ *        a pendência antiga (motivo digitado antes da D-PROD-270) reenvia o motivo GUARDADO.
  *  CT-6. recusa definitiva no POST: mensagem, pendência limpa e chave nova na próxima tentativa.
  *  CT-7. a porta antiga continua fechada: o componente novo não usa a política de estorno do navegador.
  *  CT-8. formulário de Entrada/Saída: a MESMA operation_id no reenvio depois de falha de rede; nova depois do sucesso.
  *  CT-9. revisão do diálogo: ensaio "já excluída"/404 recarrega ao fechar (e o 404 tem mensagem própria); falha de
  *        rede no ensaio oferece "Conferir de novo"; 403 num reenvio desconhecido não é conclusivo (pendência fica);
- *        o motivo tem ajuda ligada por aria-describedby e aria-invalid; depois do sucesso o foco vai ao histórico.
+ *        sem campo nem ajuda de motivo (o botão habilita sem digitar); depois do sucesso o foco vai ao histórico.
  *  CT-11. depois de excluir, a releitura do servidor tira o cartão do histórico; nenhum texto visível de
  *        cancelamento/estorno no cartão nem no diálogo.
  *  CT-10. revisão do formulário: pendência de outra abertura vale só na janela (vencida → chave nova); `replay` não é
@@ -77,6 +78,7 @@ const { movimentacoesDoHistoricoDeposito } = await import('@/components/suplemen
 const { default: FormularioTransferenciaDeposito, JANELA_REENVIO_MS, TEXTO_TRANSFERENCIA_JA_REGISTRADA, TEXTO_TRANSFERENCIA_TALVEZ_REGISTRADA } = await import('@/components/mapa/FormularioTransferenciaDeposito');
 const { TEXTO_PERMISSAO_REVOGADA_REENVIO } = await import('@/components/mapa/deposito/CancelarTransferenciaDeposito');
 const { toast } = await import('sonner');
+const { MOTIVO_EXCLUSAO_MAPA } = await import('@/domain/mapa/motivoExclusaoMapa');
 
 const EMP = 'emp-1';
 const LOCAL = 'loc-sede';
@@ -135,7 +137,18 @@ const abrirDialogo = async () => {
   await tocar(screen.getByRole('button', { name: 'Excluir transferência' }));
   return screen.findByRole('dialog');
 };
-const escreverMotivo = (dialogo, texto) => fireEvent.change(within(dialogo).getByLabelText('Motivo da exclusão'), { target: { value: texto } });
+/** D-PROD-270: o diálogo não tem campo, ajuda nem validação de motivo. */
+const semCampoDeMotivo = (dialogo) => {
+  expect(within(dialogo).queryByLabelText(/Motivo/i)).toBeNull();
+  expect(within(dialogo).queryByRole('textbox')).toBeNull();
+  expect(dialogo.querySelector('[aria-invalid]')).toBeNull();
+  expect(dialogo.textContent).not.toMatch(/motivo/i);
+};
+/** Espera o ensaio elegível (efeitos na tela) e confere que não há campo de motivo. */
+const esperarPronto = async (dialogo) => {
+  await within(dialogo).findByText('Efeito ao excluir');
+  semCampoDeMotivo(dialogo);
+};
 const botaoConfirmar = (dialogo) => within(dialogo).getAllByRole('button').find((b) => /^(Excluir transferência|Tentar de novo|Excluindo\.\.\.)$/.test(b.textContent));
 /** Texto visível de cancelamento/estorno (o dismiss "Voltar" não conta). */
 const TEXTO_DE_CANCELAMENTO = /cancelar|cancelad|cancelament|estorn/i;
@@ -234,7 +247,9 @@ describe('CT-3 — ensaio recusado pelo servidor', () => {
     const dialogo = await abrirDialogo();
     const alerta = await within(dialogo).findByTestId('recusa-elegibilidade-transferencia');
     expect(alerta.textContent).toBe('Esta transferência não pode ser excluída porque o produto já teve outro movimento no depósito de destino (nº 57) depois dela. Para corrigir, lance uma transferência de volta. Nada foi alterado.');
-    expect(within(dialogo).queryByLabelText('Motivo da exclusão')).toBeNull();
+    expect(within(dialogo).queryByText('Efeito ao excluir')).toBeNull();
+    expect(botaoConfirmar(dialogo)).toBeUndefined();
+    semCampoDeMotivo(dialogo);
     expect(h.consultar).toHaveBeenCalledWith(expect.objectContaining({ movimentacaoId: 'mv-s', empresaId: EMP }));
     expect(h.cancelar).not.toHaveBeenCalled();
   });
@@ -265,23 +280,23 @@ describe('CT-3 — ensaio recusado pelo servidor', () => {
 });
 
 describe('CT-4 — sucesso', () => {
-  it('envia motivo + operation_id, relê o cache com force, invalida as consultas e chama onCancelado; o botão some', async () => {
+  it('envia o motivo fixo + operation_id, relê o cache com force, invalida as consultas e chama onCancelado; o botão some', async () => {
     h.cancelar.mockResolvedValue({ committed: true, replay: false });
     const { onCancelado, invalidar } = montarAcao();
     const dialogo = await abrirDialogo();
-    await within(dialogo).findByLabelText('Motivo da exclusão');
+    await esperarPronto(dialogo);
     expect(within(dialogo).getByRole('heading', { name: 'Excluir transferência' })).toBeTruthy();
     expect(within(dialogo).getByText('Efeito ao excluir')).toBeTruthy();
     expect(within(dialogo).getByText('Galpão Sede: +100 kg (volta ao depósito de origem)')).toBeTruthy();
     // Só exclusão: nada de "cancelar"/"estorno" no diálogo; o dismiss é "Voltar".
     expect(dialogo.textContent).not.toMatch(TEXTO_DE_CANCELAMENTO);
     expect(within(dialogo).getByRole('button', { name: 'Voltar' })).toBeTruthy();
-    expect(botaoConfirmar(dialogo).disabled).toBe(true);
-    escreverMotivo(dialogo, '  lançada no depósito errado  ');
+    // Elegível e online: habilita sem digitar nada.
+    expect(botaoConfirmar(dialogo).disabled).toBe(false);
     await tocar(botaoConfirmar(dialogo));
     expect(h.cancelar).toHaveBeenCalledTimes(1);
     const args = h.cancelar.mock.calls[0][0];
-    expect(args).toEqual({ movimentacaoId: 'mv-s', empresaId: EMP, motivo: 'lançada no depósito errado', operationId: expect.stringMatching(/^cancelar-transf-/) });
+    expect(args).toEqual({ movimentacaoId: 'mv-s', empresaId: EMP, motivo: MOTIVO_EXCLUSAO_MAPA, operationId: expect.stringMatching(/^cancelar-transf-/) });
     await waitFor(() => expect(onCancelado).toHaveBeenCalledTimes(1));
     expect(h.refresh).toHaveBeenCalledWith('movimentacaoEstoque', EMP, { force: true });
     expect(h.refresh).toHaveBeenCalledWith('estoqueLotes', EMP, { force: true });
@@ -300,9 +315,9 @@ describe('CT-4 — sucesso', () => {
     h.cancelar.mockResolvedValue({ committed: true, replay: true });
     const { onCancelado } = montarAcao();
     const dialogo = await abrirDialogo();
-    await within(dialogo).findByLabelText('Motivo da exclusão');
-    escreverMotivo(dialogo, 'duplicada');
+    await esperarPronto(dialogo);
     await tocar(botaoConfirmar(dialogo));
+    expect(h.cancelar.mock.calls[0][0].motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
     await waitFor(() => expect(onCancelado).toHaveBeenCalledTimes(1));
   });
 });
@@ -312,11 +327,13 @@ describe('CT-5 — resultado desconhecido', () => {
     h.cancelar.mockRejectedValueOnce(erroDeRede()).mockRejectedValueOnce(erroDeRede()).mockResolvedValueOnce({ committed: true, replay: true });
     const { onCancelado } = montarAcao();
     let dialogo = await abrirDialogo();
-    await within(dialogo).findByLabelText('Motivo da exclusão');
-    escreverMotivo(dialogo, 'lançada em dobro');
+    await esperarPronto(dialogo);
     await tocar(botaoConfirmar(dialogo));
     expect(await within(dialogo).findByText(/Sem confirmação do servidor/)).toBeTruthy();
     const chave = h.cancelar.mock.calls[0][0].operationId;
+    expect(h.cancelar.mock.calls[0][0].motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
+    // A pendência nova grava o motivo fixo (mesmo fingerprint no reenvio).
+    expect(JSON.parse(localStorage.getItem(`maike_cancelar_transferencia_pendente:cli-1:u-op:${ENVIADA.id}`))).toEqual(expect.objectContaining({ operation_id: chave, motivo: MOTIVO_EXCLUSAO_MAPA }));
     await tocar(botaoConfirmar(dialogo));
     expect(h.cancelar.mock.calls[1][0]).toEqual(h.cancelar.mock.calls[0][0]);
     // fecha e reabre: a pendência gravada volta com a mesma chave e o mesmo motivo
@@ -324,9 +341,23 @@ describe('CT-5 — resultado desconhecido', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByText(/Exclusão anterior sem confirmação/)).toBeTruthy();
     dialogo = await abrirDialogo();
-    expect(within(dialogo).getByLabelText('Motivo da exclusão').value).toBe('lançada em dobro');
+    await esperarPronto(dialogo);
     await tocar(botaoConfirmar(dialogo));
-    expect(h.cancelar.mock.calls[2][0]).toEqual({ movimentacaoId: 'mv-s', empresaId: EMP, motivo: 'lançada em dobro', operationId: chave });
+    expect(h.cancelar.mock.calls[2][0]).toEqual({ movimentacaoId: 'mv-s', empresaId: EMP, motivo: MOTIVO_EXCLUSAO_MAPA, operationId: chave });
+    await waitFor(() => expect(onCancelado).toHaveBeenCalledTimes(1));
+  });
+
+  it('pendência antiga (motivo digitado antes da D-PROD-270): reabrir reenvia a MESMA chave e o motivo GUARDADO, não o fixo', async () => {
+    localStorage.setItem(`maike_cancelar_transferencia_pendente:cli-1:u-op:${ENVIADA.id}`, JSON.stringify({ operation_id: 'cancelar-transf-antiga', motivo: 'lançada em dobro' }));
+    h.cancelar.mockResolvedValueOnce({ committed: true, replay: true });
+    const { onCancelado } = montarAcao();
+    expect(screen.getByText(/Exclusão anterior sem confirmação/)).toBeTruthy();
+    const dialogo = await abrirDialogo();
+    await esperarPronto(dialogo);
+    expect(botaoConfirmar(dialogo).textContent).toBe('Tentar de novo');
+    await tocar(botaoConfirmar(dialogo));
+    expect(h.cancelar).toHaveBeenCalledTimes(1);
+    expect(h.cancelar.mock.calls[0][0]).toEqual({ movimentacaoId: 'mv-s', empresaId: EMP, motivo: 'lançada em dobro', operationId: 'cancelar-transf-antiga' });
     await waitFor(() => expect(onCancelado).toHaveBeenCalledTimes(1));
   });
 });
@@ -336,8 +367,7 @@ describe('CT-6 — recusa definitiva no POST', () => {
     h.cancelar.mockRejectedValueOnce(erroDoServidor('TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', { reason: 'camada_consumida' })).mockResolvedValueOnce({ committed: true });
     montarAcao();
     const dialogo = await abrirDialogo();
-    await within(dialogo).findByLabelText('Motivo da exclusão');
-    escreverMotivo(dialogo, 'motivo qualquer');
+    await esperarPronto(dialogo);
     await tocar(botaoConfirmar(dialogo));
     expect(await within(dialogo).findByText('Esta transferência não pode ser excluída porque o estoque recebido já foi usado. Nada foi alterado.')).toBeTruthy();
     expect(localStorage.length).toBe(0);
@@ -345,14 +375,14 @@ describe('CT-6 — recusa definitiva no POST', () => {
     await tocar(botaoConfirmar(dialogo));
     expect(h.cancelar).toHaveBeenCalledTimes(2);
     expect(h.cancelar.mock.calls[1][0].operationId).not.toBe(h.cancelar.mock.calls[0][0].operationId);
+    expect(h.cancelar.mock.calls[1][0].motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
   });
 
   it('já excluída (original_ja_estornado): trata como concluída e recarrega', async () => {
     h.cancelar.mockRejectedValueOnce(erroDoServidor('TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', { reason: 'original_ja_estornado' }));
     const { onCancelado } = montarAcao();
     const dialogo = await abrirDialogo();
-    await within(dialogo).findByLabelText('Motivo da exclusão');
-    escreverMotivo(dialogo, 'motivo qualquer');
+    await esperarPronto(dialogo);
     await tocar(botaoConfirmar(dialogo));
     await waitFor(() => expect(onCancelado).toHaveBeenCalledTimes(1));
     expect(h.refresh).toHaveBeenCalledWith('movimentacaoEstoque', EMP, { force: true });
@@ -455,7 +485,8 @@ describe('CT-9 — revisão do diálogo de exclusão', () => {
     const dialogo = await abrirDialogo();
     await within(dialogo).findByText('Não foi possível conferir agora.');
     await tocar(within(dialogo).getByRole('button', { name: 'Conferir de novo' }));
-    await within(dialogo).findByLabelText('Motivo da exclusão');
+    await esperarPronto(dialogo);
+    expect(botaoConfirmar(dialogo).disabled).toBe(false);
     expect(h.consultar).toHaveBeenCalledTimes(2);
     await fecharComEsc();
     expect(onCancelado).not.toHaveBeenCalled();
@@ -465,8 +496,7 @@ describe('CT-9 — revisão do diálogo de exclusão', () => {
     h.cancelar.mockRejectedValueOnce(erroDeRede()).mockRejectedValueOnce(erroDoServidor('ACAO_NAO_PERMITIDA'));
     const { onCancelado } = montarAcao();
     const dialogo = await abrirDialogo();
-    await within(dialogo).findByLabelText('Motivo da exclusão');
-    escreverMotivo(dialogo, 'lançada em dobro');
+    await esperarPronto(dialogo);
     await tocar(botaoConfirmar(dialogo));
     await within(dialogo).findByText(/Sem confirmação do servidor/);
     const chave = h.cancelar.mock.calls[0][0].operationId;
@@ -474,14 +504,15 @@ describe('CT-9 — revisão do diálogo de exclusão', () => {
     expect(await within(dialogo).findByText(TEXTO_PERMISSAO_REVOGADA_REENVIO)).toBeTruthy();
     expect(within(dialogo).queryByText('Você não tem permissão para excluir transferências entre depósitos.')).toBeNull();
     const guardado = JSON.parse(localStorage.getItem(`maike_cancelar_transferencia_pendente:cli-1:u-op:${ENVIADA.id}`));
-    expect(guardado).toEqual(expect.objectContaining({ operation_id: chave, motivo: 'lançada em dobro' }));
+    expect(guardado).toEqual(expect.objectContaining({ operation_id: chave, motivo: MOTIVO_EXCLUSAO_MAPA }));
+    expect(h.cancelar.mock.calls[1][0]).toEqual(h.cancelar.mock.calls[0][0]);
     expect(h.cancelar.mock.calls[1][0].operationId).toBe(chave);
     await tocar(within(dialogo).getByRole('button', { name: 'Voltar' }));
     await waitFor(() => expect(onCancelado).toHaveBeenCalledTimes(1));
     expect(h.refresh).toHaveBeenCalledWith('movimentacaoEstoque', EMP, { force: true });
   });
 
-  it('acessibilidade: ajuda do motivo por aria-describedby, aria-invalid com < 3; foco no histórico depois do sucesso', async () => {
+  it('acessibilidade: sem campo, ajuda nem aria-invalid de motivo (o botão habilita sem digitar); foco no histórico depois do sucesso', async () => {
     h.cancelar.mockResolvedValue({ committed: true, replay: false });
     const qc = cliente();
     render(
@@ -496,15 +527,12 @@ describe('CT-9 — revisão do diálogo de exclusão', () => {
       </QueryClientProvider>,
     );
     const dialogo = await abrirDialogo();
-    const campo = await within(dialogo).findByLabelText('Motivo da exclusão');
-    const ajuda = document.getElementById(campo.getAttribute('aria-describedby'));
-    expect(ajuda?.textContent).toBe('Obrigatório: de 3 a 500 caracteres.');
-    escreverMotivo(dialogo, 'ok');
-    expect(campo.getAttribute('aria-invalid')).toBe('true');
-    expect(botaoConfirmar(dialogo).disabled).toBe(true);
-    escreverMotivo(dialogo, 'lançada errado');
-    expect(campo.getAttribute('aria-invalid')).toBeNull();
+    await esperarPronto(dialogo);
+    expect(within(dialogo).queryByText(/Obrigatório/)).toBeNull();
+    expect(document.querySelector('[id^="ajuda-motivo-cancelar-transferencia-"], [id^="campo-motivo-cancelar-transferencia-"]')).toBeNull();
+    expect(botaoConfirmar(dialogo).disabled).toBe(false);
     await tocar(botaoConfirmar(dialogo));
+    expect(h.cancelar.mock.calls[0][0].motivo).toBe(MOTIVO_EXCLUSAO_MAPA);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     // O cartão some na releitura (a transferência excluída sai do histórico): o foco vai ao histórico.
     const historico = screen.getByTestId('historico');
@@ -522,8 +550,8 @@ describe('CT-11 — depois de excluir, o cartão some do histórico do depósito
     expect(doEnviada.closest('.mk-dp-tl__card')?.textContent).toMatch(/Barracão/);
     await tocar(doEnviada);
     const dialogo = await screen.findByRole('dialog');
-    await within(dialogo).findByLabelText('Motivo da exclusão');
-    escreverMotivo(dialogo, 'lançada no depósito errado');
+    await esperarPronto(dialogo);
+    expect(botaoConfirmar(dialogo).disabled).toBe(false);
     // O que o servidor devolve depois do estorno: as pernas 'Estornada' e os dois movimentos de estorno.
     h.movimentacoes = [
       { ...ENVIADA, status: 'Estornada', movimento_filho_id: 'mv-eo2' },

@@ -1,8 +1,8 @@
+import { MOTIVO_EXCLUSAO_MAPA } from "@/domain/mapa/motivoExclusaoMapa";
 import React from "react";
 import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { lerErroGestao } from "@/lib/gestaoErros";
 import {
-  MOTIVO_MINIMO,
   LOCALE_ATIVIDADE,
   STATUS_ABERTA,
   STATUS_CANCELADA,
@@ -158,7 +158,7 @@ export const mensagemDoErroNoDialogo = (erro) =>
 export const textoSemCancelamento = (texto, fallback) => (VOCABULARIO_DE_CANCELAMENTO.test(texto) ? fallback : texto);
 
 /**
- * O diálogo de motivo (o `DialogoAcao` da tela de atividades, na janela do Base1), no vocabulário da exclusão: a recusa
+ * O diálogo de exclusão, sem campo de motivo desde a D-PROD-270 (o `DialogoAcao` da tela de atividades, na janela do Base1), no vocabulário da exclusão: a recusa
  * dentro do diálogo (`mensagemDoErro`), o botão durante o envio ("Excluindo...") e o rótulo do motivo.
  * @param {{ registro: Record<string, any>, online: boolean, onFechar: () => void, onEnviar: (motivo: string) => Promise<unknown>, onConsultar: () => void }} props
  */
@@ -168,7 +168,7 @@ export function DialogoCancelarRegistro({ registro, online, onFechar, onEnviar, 
       aberto
       janelaBase1
       titulo={`Excluir registro: ${descreverRegistro(registro)}`}
-      descricao={`O registro excluído sai deste histórico. Motivo da exclusão com pelo menos ${MOTIVO_MINIMO} caracteres.`}
+      descricao="O registro excluído sai deste histórico."
       conteudo={
         <div className="flex min-w-0 flex-col gap-1.5">
           <p className="m-0 break-words">
@@ -184,12 +184,13 @@ export function DialogoCancelarRegistro({ registro, online, onFechar, onEnviar, 
       }
       rotuloBotao="Excluir registro"
       rotuloEnviando="Excluindo..."
-      rotuloMotivo="Motivo da exclusão"
+      comMotivo={false}
       mensagemDoErro={mensagemDoErroNoDialogo}
       testId="dialogo-cancelar-registro-area"
       contexto={CONTEXTO_MENSAGENS}
       onFechar={onFechar}
-      onEnviar={onEnviar}
+      // D-PROD-270: sem campo de motivo; o servidor recebe o texto fixo da exclusão pelo mapa.
+      onEnviar={() => onEnviar(MOTIVO_EXCLUSAO_MAPA)}
       onConsultar={onConsultar}
     />
   );
