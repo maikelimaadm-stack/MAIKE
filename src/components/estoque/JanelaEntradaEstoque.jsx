@@ -7,7 +7,17 @@ import { SecaoForm, AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { useCelular } from "@/components/common/MobileSheet";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { formatarCustoUnitario, formatarDia, formatarInstante, formatarQtd, formatarReais } from "@/lib/estoqueConsultaRegras";
-import { MOTIVO_ACAO_MINIMO, ROTULO_STATUS_ENTRADA, chaveDeOperacao, formatarValidade, mensagemErroEntrada, rotuloDoMotivo, valorTotalDaEntrada } from "@/lib/estoqueEntradasRegras";
+import {
+  MOTIVO_ACAO_MINIMO,
+  ROTULO_STATUS_ENTRADA,
+  chaveDeOperacao,
+  formatarValidade,
+  mensagemErroEntrada,
+  rotuloDoEventoEstoque,
+  rotuloDoMotivo,
+  valorTotalDaEntrada,
+  versoesDaEntrada,
+} from "@/lib/estoqueEntradasRegras";
 import { detalharEntradaEstoque, editarEntradaEstoque, excluirEntradaEstoque } from "@/services/estoqueEntradasService";
 
 /** Chave do detalhe (prefixo `estoque`: o que invalida o estoque invalida o detalhe). */
@@ -51,11 +61,14 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
  * Detalhe de UMA entrada (D-PROD-257, D-PROD-259) numa janela só (680px; tela cheia no celular): cabeçalho (motivo,
  * fornecedor, documento, centros), produtos (com lote e validade), histórico. Abre pelo detalhe do movimento, em
  * Movimentos (a aba Entradas saiu). Com a ação `entrada`, duas ações dentro da MESMA janela (sem popup sobre popup):
- * "Editar observação" (só a observação; o motivo nunca muda e o resto exige excluir e lançar de novo) e "Excluir
- * entrada" (exclusão lógica com estorno integral; o servidor recusa se o estoque já foi usado).
- * @param {{ entrada: any|null, empresaId: string|null, podeLancar: boolean, onFechar: () => void }} props `entrada` é a linha da lista
+ * "Editar observação" (só a observação) e "Excluir entrada" (exclusão lógica com estorno integral; o servidor recusa
+ * se o estoque já foi usado).
+ * D-PROD-270: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
+ * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. As versões substituídas por edições ficam em
+ * "Versões anteriores" (recolhida) e o histórico diz "Editado (lançamentos refeitos)".
+ * @param {{ entrada: any|null, empresaId: string|null, podeLancar: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void }} props `entrada` é a linha da lista
  */
-export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, onFechar }) {
+export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, onFechar, onEditar = undefined }) {
   const celular = useCelular();
   const queryClient = useQueryClient();
   const id = entrada?.id ? String(entrada.id) : null;
@@ -82,7 +95,7 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
   });
   const d = /** @type {any} */ (consulta.data ?? null);
   const e = d ?? entrada;
-  const itens = Array.isArray(e?.itens) && e.itens.length ? e.itens : Array.isArray(e?.itens_historico) ? e.itens_historico : [];
+  const { itens, anteriores } = versoesDaEntrada(e);
   const confirmada = d?.status === "CONFIRMADA";
 
   const atualizar = async () => {
@@ -158,6 +171,9 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
     rodape = (
       <>
         <button type="button" className="tb-btn" onClick={abrirEdicao} data-testid="entrada-editar">Editar observação</button>
+        {onEditar ? (
+          <button type="button" className="tb-btn" onClick={() => onEditar(d)} data-testid="entrada-editar-completo">Editar</button>
+        ) : null}
         <button type="button" className="tb-btn tb-btn-red" onClick={() => { setMotivo(""); setErro(null); setModo("excluir"); }} data-testid="entrada-excluir">Excluir entrada</button>
       </>
     );
@@ -201,6 +217,26 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
             ))}
           </Grupo>
 
+          {anteriores.length ? (
+            <details className="mt-2 min-w-0" data-testid="entrada-versoes-anteriores">
+              <summary className="cursor-pointer text-[13px] font-semibold text-[var(--mg-text-2,#475569)]">Versões anteriores ({anteriores.length})</summary>
+              {anteriores.map((v) => (
+                <div key={v.revisao} className="min-w-0" data-testid={`entrada-versao-${v.revisao}`}>
+                  <p className="mt-2 text-[12px] font-semibold text-[var(--mg-text-2,#475569)]">Versão {v.revisao}</p>
+                  <dl className="min-w-0">
+                    {v.itens.map((/** @type {any} */ i) => (
+                      <Linha
+                        key={i.id}
+                        rotulo={i.produto_nome ?? "Produto"}
+                        valor={`${formatarQtd(i.quantidade_estoque, i.unidade_estoque)} em ${i.local_estoque_nome ?? "—"} · ${i.custo_zero ? "custo zero" : formatarReais(i.valor_total)}`}
+                      />
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </details>
+          ) : null}
+
           {consulta.isError ? (
             <p role="alert" className="mt-2 text-[13px] text-red-800" data-testid="entrada-detalhe-erro">
               {getApiErrorMessage(consulta.error, "Não foi possível abrir o detalhe da entrada.")}{" "}
@@ -211,7 +247,7 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
           {d && d.eventos?.length ? (
             <Grupo titulo="Histórico">
               {d.eventos.map((/** @type {any} */ v) => (
-                <Linha key={v.id} rotulo={`${{ CONFIRMACAO: "Lançada", EDICAO: "Editada", EXCLUSAO: "Excluída" }[/** @type {'CONFIRMACAO'} */ (v.tipo)] ?? v.tipo} · ${formatarInstante(v.criado_em)}`} valor={v.motivo} />
+                <Linha key={v.id} rotulo={`${rotuloDoEventoEstoque(v)} · ${formatarInstante(v.criado_em)}`} valor={v.motivo} />
               ))}
             </Grupo>
           ) : null}
@@ -221,7 +257,7 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
               <SecaoForm titulo="Editar observação" />
               <AreaTexto label="Observação" value={observacao} onChange={setObservacao} testId="entrada-edicao-observacao" />
               <AreaTexto label="Motivo da edição" value={motivo} onChange={setMotivo} required testId="entrada-edicao-motivo" />
-              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">O motivo, a data, o fornecedor, o documento, os centros e os produtos não mudam: para corrigir, exclua a entrada e lance outra.</p>
+              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">Aqui só muda a observação. Para mudar o motivo, a data, o fornecedor, o documento, os centros ou os produtos, use “Editar”.</p>
             </div>
           ) : null}
 
