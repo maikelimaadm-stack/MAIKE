@@ -282,7 +282,7 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
  * e vários produtos (produto, depósito, unidade, quantidade), SEM valor: o servidor valoriza pelo custo médio do
  * depósito. O seletor de tipo só oferece o que as ações permitem (Entrada e Transferência com `entrada`, Saída com
  * `saida`); só com `saida`, a janela abre direto na Saída.
- * D-PROD-269: o Ajuste de inventário (ação própria `ajuste`): o usuário digita o saldo CONTADO de cada produto no
+ * D-PROD-271: o Ajuste de inventário (ação própria `ajuste`): o usuário digita o saldo CONTADO de cada produto no
  * depósito e vê o saldo atual e a diferença (sobra/falta); sem data (é hoje na fazenda) e sem valor, exceto o custo da
  * sobra num depósito sem saldo. Com um tipo só, a janela já abre nele.
  * @param {{ aberto: boolean, empresaId: string, hoje: string, podeEntrada?: boolean, podeSaida?: boolean, podeAjuste?: boolean, onFechar: () => void,

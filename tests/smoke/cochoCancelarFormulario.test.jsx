@@ -131,6 +131,9 @@ describe("D-PROD-268 — lançamento e cancelamento", () => {
     expect(fechar).not.toHaveBeenCalled();
     expect(toast.error.mock.calls.at(-1)[0]).toMatch(MENSAGEM_LANCAMENTO_DESATUALIZADO);
     expect(toast.error.mock.calls.at(-1)[0]).toMatch(/o estoque não será baixado outra vez/);
+    // Na tela só há exclusão: "um lançamento foi excluído", nunca "cancelado".
+    expect(MENSAGEM_LANCAMENTO_DESATUALIZADO).toMatch(/um lançamento foi excluído/);
+    expect(MENSAGEM_LANCAMENTO_DESATUALIZADO).not.toMatch(/cancel|estorn/i);
     const op = saida.mock.calls[0][0].operationId;
     await salvar();
     expect(saida).toHaveBeenCalledTimes(1);
@@ -138,7 +141,7 @@ describe("D-PROD-268 — lançamento e cancelamento", () => {
     expect(lancar.mock.calls[1][0].operationId).toBe(op);
   });
 
-  it("CF-3 — SUPLEMENTACAO_REGISTRO_CANCELADO: frase do lançamento cancelado; nada de sucesso; a chave é descartada", async () => {
+  it("CF-3 — SUPLEMENTACAO_REGISTRO_CANCELADO: frase do lançamento já excluído; nada de sucesso; a chave é descartada", async () => {
     estado.ultimoEvento = { id: "ev-1", data_lancamento: "2020-01-10", quantidade_total_kg: 100, sobra_kg: 0, dias_periodo: null };
     lancar.mockImplementationOnce(async () => { throw Object.assign(new Error("409"), { cause: { code: "SUPLEMENTACAO_REGISTRO_CANCELADO", details: { evento_id: "ev-n" } } }); });
     const { MENSAGEM_LANCAMENTO_JA_CANCELADO } = await import("@/components/suplementacao/FormularioLancamentoSuplementacao");
@@ -149,6 +152,8 @@ describe("D-PROD-268 — lançamento e cancelamento", () => {
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.warning).not.toHaveBeenCalled();
     expect(toast.error.mock.calls.at(-1)[0]).toBe(MENSAGEM_LANCAMENTO_JA_CANCELADO);
+    expect(MENSAGEM_LANCAMENTO_JA_CANCELADO).toMatch(/foi excluído em outra tela; o estoque já voltou ao depósito/);
+    expect(MENSAGEM_LANCAMENTO_JA_CANCELADO).not.toMatch(/cancel|estorn/i);
     const op = saida.mock.calls[0][0].operationId;
     await salvar();
     expect(saida).toHaveBeenCalledTimes(2);

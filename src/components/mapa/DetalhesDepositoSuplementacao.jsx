@@ -109,7 +109,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const idTituloSaldo = useId();
   const idGrupoLitros = useId();
   const idTituloInfo = useId();
-  // D-PROD-268: "Cancelar transferência" só para quem passa em `podeCancelarLancamentosEstoque`.
+  // D-PROD-268: "Excluir transferência" só para quem passa em `podeCancelarLancamentosEstoque`.
   const { pode: podeCancelarTransferencia, escopo: escopoDoUsuario } = usePodeCancelarLancamentosEstoque();
   const handleSavedRef = useRef(/** @type {() => void} */ (() => {}));
 
@@ -551,7 +551,6 @@ function LinhaSaldoProduto({ item }) {
  *   Icone: import("lucide-react").LucideIcon,
  *   titulo: string,
  *   linhas: Array<{ rotulo: string, valor: string }>,
- *   cancelado?: boolean,
  *   acoes?: React.ReactNode,
  * }} CartaoDoDeposito
  */
@@ -601,9 +600,11 @@ function destinoDaSaida(mov, cochosPorId) {
  * saco do produto) e as observações, quando há.
  * @param {any} mov
  *
- * D-PROD-268: movimento 'Estornada' leva o chip "Cancelado"; a perna ATIVA de uma
- * transferência entre depósitos (a Saída na origem, a Entrada no destino) leva a ação
- * "Cancelar transferência" no pé do cartão, só com `acaoDeCancelar` (a permissão).
+ * D-PROD-268: a perna ATIVA de uma transferência entre depósitos (a Saída na origem, a
+ * Entrada no destino) leva a ação "Excluir transferência" no pé do cartão, só com
+ * `acaoDeCancelar` (a permissão). No mapa só há exclusão: o registro excluído ('Estornada')
+ * e os movimentos de estorno do servidor nem chegam aqui (`movimentacoesDoHistoricoDeposito`),
+ * então nenhum cartão leva chip "Cancelado".
  * @param {{ localEstoqueId: string | null | undefined, produtosPorId: Map<any, any>, cochosPorId: Map<any, any>, acaoDeCancelar?: ((mov: any) => React.ReactNode) | null }} ctx
  * @returns {CartaoDoDeposito}
  */
@@ -625,7 +626,6 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
     Icone: entrada ? Truck : LogOut,
     titulo: entrada ? "Entrada no depósito" : "Saída do depósito",
     linhas,
-    cancelado: mov?.status === "Estornada",
     ...(acaoDeCancelar && transferenciaCancelavelAqui(mov, localEstoqueId) ? { acoes: acaoDeCancelar(mov) } : {}),
   };
 }
@@ -633,7 +633,7 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
 /**
  * D-PROD-268 — a perna da transferência que ESTE depósito mostra (Saída `transferencia_enviada`
  * na origem, Entrada `transferencia_recebida` no destino), ainda 'Ativa' e nascida pelo comando
- * do depósito. Quem decide se o cancelamento é possível é o servidor (ensaio e comando); a
+ * do depósito. Quem decide se a exclusão é possível é o servidor (ensaio e comando); a
  * ordem do cache nunca decide "o último".
  * @param {any} mov
  * @param {string | null | undefined} localEstoqueId

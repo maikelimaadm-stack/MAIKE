@@ -9,10 +9,15 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { buscarLoteDoHistorico } from "@/services/loteManejoService";
 import { Button } from "@/components/ui/button";
 import { normalizeText, getJuncaoLotesSnapshot } from "../utils/pecuariaUtils";
-import { ehMovimentoCancelado, motivoSemCancelamento, tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
+import {
+  MENSAGEM_JUNCAO_LEGADA,
+  MENSAGEM_LEGADO_SEM_PROVA,
+  ehMovimentoCancelado,
+  motivoSemCancelamento,
+  tipoTemExclusao,
+} from "@/domain/lotes/situacaoMovimento";
 import ExcluirMovimentacao from "./ExcluirMovimentacao";
 import { useLancLoteDialogo } from "./LancamentoLoteUi";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
@@ -103,6 +108,25 @@ const formatHistoricoObservacoes = (item) => {
  * servidor segue recusando DELETE/PATCH genéricos de movimentação.
  */
 
+/*
+ * No mapa só existe EXCLUSÃO (pedido do proprietário): o texto de quando a ação
+ * não aparece vem do domínio (`motivoSemCancelamento`, que outros fluxos e
+ * testes usam com as palavras de lá) e é dito aqui em termos de exclusão.
+ */
+const TEXTO_SEM_EXCLUSAO = new Map([
+  [MENSAGEM_LEGADO_SEM_PROVA, 'Registro antigo sem comprovação individual de efeito — exclusão indisponível'],
+  [MENSAGEM_JUNCAO_LEGADA, 'Junção antiga, feita pelo navegador sem comprovação de efeito — não pode ser excluída com segurança'],
+  ['Cancelamento não disponível para este tipo.', 'Exclusão não disponível para este tipo.'],
+]);
+/** Motivo (em termos de exclusão) de um movimento ativo sem a ação; nunca fala em cancelamento. */
+export const motivoSemExclusao = (mov) => {
+  const texto = motivoSemCancelamento(mov);
+  if (!texto) return null;
+  const traduzido = TEXTO_SEM_EXCLUSAO.get(texto);
+  if (traduzido) return traduzido;
+  return /cancel|estorn/i.test(texto) ? 'Exclusão não disponível para este registro.' : texto;
+};
+
 const formatDateTime = (iso) => {
   const d = new Date(iso || '');
   if (Number.isNaN(d.getTime())) return null;
@@ -135,8 +159,6 @@ const movimentoComoItem = (mov, areasRaw, doServidor) => {
   area_origem_nome: nomeDaAreaDoMovimento(mov.area_origem_nome, mov.area_origem_id, areasRaw),
   area_destino_nome: nomeDaAreaDoMovimento(mov.area_destino_nome, mov.area_destino_id, areasRaw),
   area_destino_id: mov.area_destino_id,
-  cancelado: ehMovimentoCancelado(mov),
-  cancelamento: mov.cancelamento || null,
   // R2B-P1 (D-PROD-101): movimento agregado mostra cada linha (quantidade, categorias, pesos).
   linhas_descritas: descreverLinhasDoMovimento(mov),
   participantes: idsDeLotesDoMovimento(mov),
@@ -211,30 +233,15 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     return () => window.removeEventListener('atualizar-mapa', aoAtualizarMapa);
   }, [queryClient]);
 
-  // Lote excluído do Cadastro (MAIKE-LOTES-R1): o movimento cancelado continua
-  // aqui; o servidor resolve a identidade do lote (inclusive excluído) por id.
-  const idsDeLotesCancelados = React.useMemo(
-    () => [...new Set(movimentacoesCarregadas.filter(ehMovimentoCancelado).flatMap(idsDeLotesDoMovimento))].sort(),
+  // No mapa só existe exclusão: o movimento antigo com `situacao: 'cancelado'`
+  // (R2A, D-PROD-99) não aparece. O dado segue no banco e na auditoria, e a
+  // lógica do histórico (entradas na área, fronteira da paginação) continua
+  // usando todos os movimentos carregados; só a exibição e as contagens mudam.
+  const movimentacoesVisiveis = React.useMemo(
+    () => movimentacoesCarregadas.filter((mov) => !ehMovimentoCancelado(mov)),
     [movimentacoesCarregadas]
   );
-  const lotesExcluidosQuery = useQuery({
-    queryKey: ['historico-lotes-excluidos', empresaSelecionadaId, idsDeLotesCancelados.join(',')],
-    queryFn: async () => {
-      const excluidos = new Set();
-      for (const id of idsDeLotesCancelados) {
-        try {
-          const lote = /** @type {any} */ (await buscarLoteDoHistorico(id));
-          if (lote?.excluido_em) excluidos.add(id);
-        } catch {
-          /* sem resposta: não marca nada (nunca mostra "não encontrado") */
-        }
-      }
-      return excluidos;
-    },
-    enabled: idsDeLotesCancelados.length > 0 && estaOnline(),
-    staleTime: 60_000,
-  });
-  const lotesExcluidos = lotesExcluidosQuery.data ?? new Set();
+  const ocultasCarregadas = movimentacoesCarregadas.length - movimentacoesVisiveis.length;
 
   const registros = registrosQuery.data;
   const haMaisPaginas = !!movimentacoesQuery.hasNextPage;
@@ -243,7 +250,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const areaNome = areaId ? areasRaw.find((a) => a.id === areaId)?.nome || lotesEmFoco[0]?.area_atual_nome || '' : '';
 
   const historico = React.useMemo(() => {
-    const movimentacoes = movimentacoesCarregadas.map((mov) => movimentoComoItem(mov, areasRaw, doServidorH2));
+    const movimentacoes = movimentacoesVisiveis.map((mov) => movimentoComoItem(mov, areasRaw, doServidorH2));
     if (!registros) return { itens: ordenarItensDoHistorico(movimentacoes), adiados: 0, outrasFontes: 0 };
 
     const entradas = escopoEfetivo === ESCOPO_AREA ? entradasNaArea(movimentacoesCarregadas, contexto) : undefined;
@@ -358,16 +365,21 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     // Outras fontes vêm do cache do aparelho (sem endpoint agregado): entram na
     // mesma ordem, mas só até o último movimento carregado enquanto houver páginas.
     const outras = [...suplementacoes, ...medicamentos, ...sanidades, ...manejosTecnicos];
-    const ordenadasMovs = ordenarItensDoHistorico(movimentacoes);
+    // A fronteira é a do último movimento CARREGADO (visível ou não): é ela que diz até onde a página chegou.
+    const ordenadasMovs = ordenarItensDoHistorico(
+      movimentacoesCarregadas.map((mov) => ({ ordem: chaveDoMovimento(mov, { doServidor: doServidorH2 }) }))
+    );
     const fronteira = haMaisPaginas && ordenadasMovs.length ? ordenadasMovs[ordenadasMovs.length - 1].ordem : null;
     const { visiveis, adiados } = recortarPelaFronteira(outras, fronteira);
     return { itens: ordenarItensDoHistorico([...movimentacoes, ...visiveis]), adiados, outrasFontes: outras.length };
-  }, [movimentacoesCarregadas, registros, areasRaw, contexto, escopoEfetivo, areaId, haMaisPaginas, doServidorH2]);
+  }, [movimentacoesCarregadas, movimentacoesVisiveis, registros, areasRaw, contexto, escopoEfetivo, areaId, haMaisPaginas, doServidorH2]);
 
   /** @type {any[]} */
   const historicoVisivel = historico.itens;
 
-  const totalServidor = origem === 'servidor' ? primeiraPagina?.total ?? null : null;
+  // O total do servidor inclui os movimentos que o mapa não mostra: desconta os já carregados.
+  const totalServidor =
+    origem === 'servidor' && typeof primeiraPagina?.total === 'number' ? Math.max(primeiraPagina.total - ocultasCarregadas, movimentacoesVisiveis.length) : null;
   const carregando = consultaHabilitada && (movimentacoesQuery.isPending || (registrosQuery.isPending && !!empresaSelecionadaId));
   const titulo =
     escopoEfetivo === ESCOPO_AREA
@@ -439,7 +451,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       {primeiraPagina?.falha
         ? `Não foi possível consultar o servidor (${primeiraPagina.falha}). `
         : 'Sem conexão. '}
-      <strong>Histórico offline parcial</strong>: {movimentacoesCarregadas.length} movimentaç{movimentacoesCarregadas.length === 1 ? 'ão salva' : 'ões salvas'} neste aparelho
+      <strong>Histórico offline parcial</strong>: {movimentacoesVisiveis.length} movimentaç{movimentacoesVisiveis.length === 1 ? 'ão salva' : 'ões salvas'} neste aparelho
       {formatDateTime(primeiraPagina?.atualizadoEm) ? `, atualizado em ${formatDateTime(primeiraPagina.atualizadoEm)}` : ', sem data de atualização'}
       ; cópia parcial ordenada pelas datas disponíveis no aparelho (data da ocorrência gravada e hora de cadastro), que pode
       diferir da ordem do servidor; podem estar desatualizadas
@@ -458,6 +470,36 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         ? ` ${historico.adiados} registro${historico.adiados === 1 ? '' : 's'} mais antigo${historico.adiados === 1 ? '' : 's'} aparece${historico.adiados === 1 ? '' : 'm'} ao carregar mais movimentações.`
         : ''}
     </div>
+  );
+
+  // Contagem e "Carregar mais": contam só o que aparece no mapa.
+  const rodapeDaLista = (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 text-[11px] text-slate-500">
+        <span>
+          {origem === 'servidor' && totalServidor !== null
+            ? `Movimentações: ${movimentacoesVisiveis.length} de ${totalServidor}`
+            : `Movimentações em cache: ${movimentacoesVisiveis.length}`}
+        </span>
+        {movimentacoesQuery.hasNextPage && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            disabled={movimentacoesQuery.isFetchingNextPage}
+            onClick={() => movimentacoesQuery.fetchNextPage()}
+          >
+            {movimentacoesQuery.isFetchingNextPage ? 'Carregando...' : 'Carregar mais'}
+          </Button>
+        )}
+      </div>
+      {movimentacoesQuery.isFetchNextPageError && (
+        <div role="alert" className="px-1 pt-1 text-[11px] text-red-700">
+          Não foi possível carregar a próxima página. {getApiErrorMessage(movimentacoesQuery.error, '')}
+        </div>
+      )}
+    </>
   );
 
   if (carregando) {
@@ -500,6 +542,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               ? 'Este aparelho ainda não tem movimentações salvas para consulta sem conexão.'
               : 'Nenhum lançamento encontrado'}
           </div>
+          {/* Página só com registros que o mapa não mostra: o "Carregar mais" continua aqui. */}
+          {movimentacoesQuery.hasNextPage && rodapeDaLista}
         </Corpo>
       </Moldura>
     );
@@ -519,7 +563,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               const tipoFluxo = item.source === 'movimentacao' ? fluxoNaArea(item.raw, escopoEfetivo === ESCOPO_AREA ? areaId : null) : item.sourceLabel;
 
               return (
-                <div key={item.uniqueId} className={`border rounded-lg p-2.5 space-y-1 ${item.cancelado ? 'border-slate-200 bg-[#FAFCFE]' : 'border-slate-200 hover:bg-gray-50'}`}>
+                <div key={item.uniqueId} className="border rounded-lg p-2.5 space-y-1 border-slate-200 hover:bg-gray-50">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-1">
@@ -532,11 +576,6 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                           {tipoFluxo}
                         </Badge>
-                        {item.source === 'movimentacao' && (
-                          <Badge variant="outline" className={`text-[10px] ${item.cancelado ? 'text-red-800 border-red-300 bg-red-50' : 'text-emerald-800 border-emerald-300 bg-emerald-50'}`}>
-                            {item.cancelado ? 'Cancelado' : 'Ativo'}
-                          </Badge>
-                        )}
                         {item.legado && (
                           <Badge variant="outline" className="text-[10px] text-amber-800 border-amber-300 bg-amber-50" title="Registro antigo sem identificador de lote: vínculo feito pelo nome.">
                             Vínculo pelo nome
@@ -566,28 +605,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {formatHistoricoObservacoes(item)}</div>}
                         {item.source === 'suplementacao' && (
-                          <div className="text-[10px] text-slate-400">Nutrição: consulta apenas; o cancelamento está temporariamente suspenso.</div>
+                          <div className="text-[10px] text-slate-400">Nutrição: para excluir, use o histórico do cocho.</div>
                         )}
-
-                        {item.cancelado && (
-                          <div className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-800">
-                            <strong>Cancelado</strong>
-                            {item.cancelamento?.em ? ` em ${formatDateTime(item.cancelamento.em) || '-'}` : ''}
-                            {item.cancelamento?.por_login ? ` por ${item.cancelamento.por_login}` : ''}
-                            {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ''}
-                          </div>
-                        )}
-                        {item.cancelado && item.participantes?.some((id) => lotesExcluidos.has(id)) && (
-                          <div className="text-[10px] text-slate-500">Lote excluído do Cadastro — registro mantido para auditoria.</div>
-                        )}
-                        {item.source === 'movimentacao' && !item.cancelado && motivoSemCancelamento(item.raw) && (
-                          <div className="text-[10px] text-slate-400">{motivoSemCancelamento(item.raw)}</div>
+                        {item.source === 'movimentacao' && motivoSemExclusao(item.raw) && (
+                          <div className="text-[10px] text-slate-400">{motivoSemExclusao(item.raw)}</div>
                         )}
                       </div>
                     </div>
                   </div>
                   {/* Ação no rodapé do card: estado (verificando/bloqueada/elegível) e motivo visíveis antes do clique. */}
-                  {item.source === 'movimentacao' && origem === 'servidor' && !item.cancelado && tipoTemExclusao(item.raw) && (
+                  {item.source === 'movimentacao' && origem === 'servidor' && tipoTemExclusao(item.raw) && (
                     <div className="border-t border-slate-100 pt-1.5">
                       <ExcluirMovimentacao movimento={item.raw} />
                     </div>
@@ -596,30 +623,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               );
             })}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 text-[11px] text-slate-500">
-            <span>
-              {origem === 'servidor' && totalServidor !== null
-                ? `Movimentações: ${movimentacoesCarregadas.length} de ${totalServidor}`
-                : `Movimentações em cache: ${movimentacoesCarregadas.length}`}
-            </span>
-            {movimentacoesQuery.hasNextPage && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs"
-                disabled={movimentacoesQuery.isFetchingNextPage}
-                onClick={() => movimentacoesQuery.fetchNextPage()}
-              >
-                {movimentacoesQuery.isFetchingNextPage ? 'Carregando...' : 'Carregar mais'}
-              </Button>
-            )}
-          </div>
-          {movimentacoesQuery.isFetchNextPageError && (
-            <div role="alert" className="px-1 pt-1 text-[11px] text-red-700">
-              Não foi possível carregar a próxima página. {getApiErrorMessage(movimentacoesQuery.error, '')}
-            </div>
-          )}
+          {rodapeDaLista}
         </Corpo>
       </Moldura>
     </>

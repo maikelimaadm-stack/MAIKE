@@ -1,5 +1,6 @@
 /**
- * D-PROD-268 — "Cancelar lançamento" do cocho na tela.
+ * D-PROD-268 — "Excluir lançamento" do cocho na tela (por baixo, o mesmo comando seguro de
+ * cancelamento com estorno do servidor; na tela o usuário só vê EXCLUSÃO).
  *
  * C1. quem vê: só admin real, `is_admin` ou a chave `cancelar_lancamentos_estoque` (sem a chave,
  *     nem botão nem consulta);
@@ -12,6 +13,8 @@
  * C6. histórico do pasto: o cartão de suplementação mais recente de cada cocho ganha a ação; o
  *     lançamento sem cocho (legado) nunca ganha (nem consulta o servidor);
  * C7. 403 da guarda no ensaio: frase de permissão (sem "Verificar de novo") e a permissão efetiva relida.
+ * C8. só exclusão na tela: botão, diálogo, motivo, toast e recusas falam "excluir" (nada de
+ *     "cancelar", "cancelado", "cancelamento" ou "estorno"); o "Voltar" só fecha.
  * Serviço mockado; a prova de banco está em backend/tests/suplementacaoCancelamentoCocho.test.mjs.
  */
 import React from "react";
@@ -46,6 +49,9 @@ const { default: HistoricoSuplementacaoPonto } = await import("@/components/supl
 const { comAcaoDeCancelarCocho } = await import("@/components/mapa/detalhes-lote/AbaHistorico");
 const { cartaoDaSuplementacao, eventoDoPasto, agruparPorDia } = await import("@/components/mapa/detalhes-lote/historicoDoPasto");
 const { CANCELAMENTO_COCHO_HABILITADO, CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO } = await import("@/domain/estornos/politicaEstorno");
+const { toast } = await import("sonner");
+/** Linguagem que não pode aparecer na tela destas ações (o usuário só tem exclusão). */
+const LINGUAGEM_DE_CANCELAMENTO = /cancel|estorn/i;
 
 const EMP = "emp-1";
 const EVENTO = { id: "ev-2", empresa_id: EMP, ponto_suplementacao_id: "cocho-1", ponto_nome: "COCHO 1", produto: "SAL MINERAL", data_lancamento: "2026-10-31", created_date: "2026-10-31T10:00:00.000Z", area_id: "area-A" };
@@ -69,7 +75,7 @@ const renderizar = async (ui) => {
   await assentar();
   return { ...utils, client };
 };
-const botaoCancelar = () => screen.getByRole("button", { name: /Cancelar lançamento/i });
+const botaoCancelar = () => screen.getByRole("button", { name: /Excluir lançamento/i });
 
 beforeEach(() => {
   localStorage.clear();
@@ -102,7 +108,7 @@ describe("C1 — quem vê", () => {
   it("operador sem a chave: nada aparece e o servidor não é consultado", async () => {
     sessao.permissao = permissao({ lancar_suplementacao: true });
     await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
-    expect(screen.queryByRole("button", { name: /Cancelar lançamento/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Excluir lançamento/i })).toBeNull();
     expect(servico.consultarElegibilidadeCancelamentoCocho).not.toHaveBeenCalled();
   });
 
@@ -122,7 +128,7 @@ describe("C1 — quem vê", () => {
 
   it("evento já cancelado (cópia antiga) não mostra a ação", async () => {
     await renderizar(<CancelarLancamentoCocho evento={{ ...EVENTO, situacao: "cancelado" }} />);
-    expect(screen.queryByRole("button", { name: /Cancelar lançamento/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Excluir lançamento/i })).toBeNull();
   });
 });
 
@@ -140,7 +146,7 @@ describe("C2 — elegibilidade antes de habilitar, efeitos e motivo", () => {
       "fatias_inconsistentes", "vinculo_divergente", "camada_divergente", "estoque_excede_limite"]) {
       expect(mensagemDoCancelamento("SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO", r)).toBe(MENSAGENS_REASON[r]);
     }
-    expect(mensagemDoCancelamento("CANCELAMENTO_JA_REALIZADO", null)).toMatch(/já foi cancelado/);
+    expect(mensagemDoCancelamento("CANCELAMENTO_JA_REALIZADO", null)).toBe("Este lançamento já foi excluído.");
     expect(mensagemDoCancelamento("XYZ", null)).toMatch(/Nada foi alterado/);
   });
 
@@ -150,11 +156,11 @@ describe("C2 — elegibilidade antes de habilitar, efeitos e motivo", () => {
     await assentar();
     const dialogo = screen.getByRole("dialog");
     const efeitos = descreverEfeitos(ELEGIVEL.efeitos);
-    const itens = within(dialogo).getByRole("list", { name: "O que o cancelamento faz" });
+    const itens = within(dialogo).getByRole("list", { name: "O que a exclusão faz" });
     expect(within(itens).getAllByRole("listitem").map((li) => li.textContent)).toEqual(efeitos);
     expect(efeitos[0]).toMatch(/Devolve 20 kg de Sal mineral ao Galpão/);
     expect(efeitos[1]).toMatch(/Reabre o período de 30\/10\/2026 com sobra inicial de 10 kg/);
-    const enviar = within(dialogo).getByRole("button", { name: "Cancelar lançamento" });
+    const enviar = within(dialogo).getByRole("button", { name: "Excluir lançamento" });
     expect(enviar.hasAttribute("disabled")).toBe(true);
     fireEvent.change(within(dialogo).getByRole("textbox"), { target: { value: "ab" } });
     expect(enviar.hasAttribute("disabled")).toBe(true);
@@ -170,7 +176,7 @@ describe("C2 — elegibilidade antes de habilitar, efeitos e motivo", () => {
     // Recarga do mapa e dos caches de suplementação/estoque.
     expect(cache.refresh.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(["eventosSuplementacao", "suplementacaoLote", "movimentacaoEstoque", "estoqueLotes"]));
     expect(invalidar).toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: /Cancelar lançamento/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Excluir lançamento/i })).toBeNull();
   });
 });
 
@@ -182,7 +188,7 @@ describe("C3 — operation_id persistida", () => {
     await assentar();
     const dialogo = screen.getByRole("dialog");
     fireEvent.change(within(dialogo).getByRole("textbox"), { target: { value: "lançado em dobro" } });
-    fireEvent.click(within(dialogo).getByRole("button", { name: "Cancelar lançamento" }));
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Excluir lançamento" }));
     await assentar();
     const chave1 = servico.cancelarLancamentoCocho.mock.calls[0][0].operationId;
     const guardada = JSON.parse(localStorage.getItem(`maike_cancelamento_cocho_pendente:c-1:u-2:ev-2`));
@@ -197,7 +203,7 @@ describe("C3 — operation_id persistida", () => {
     expect(localStorage.getItem(`maike_cancelamento_cocho_pendente:c-1:u-2:ev-2`)).toBeNull();
 
     fireEvent.change(within(dialogo).getByRole("textbox"), { target: { value: "lançado em dobro" } });
-    fireEvent.click(within(dialogo).getByRole("button", { name: "Cancelar lançamento" }));
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Excluir lançamento" }));
     await assentar();
     expect(servico.cancelarLancamentoCocho.mock.calls[2][0].operationId).not.toBe(chave1);
   });
@@ -219,16 +225,18 @@ describe("C4 — só online", () => {
     Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
     await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
     expect(botaoCancelar().hasAttribute("disabled")).toBe(true);
-    expect(screen.getByText(/só é feito online/)).toBeTruthy();
+    expect(screen.getByText("Sem conexão: a exclusão só é feita online.")).toBeTruthy();
     expect(servico.consultarElegibilidadeCancelamentoCocho).not.toHaveBeenCalled();
     expect(servico.cancelarLancamentoCocho).not.toHaveBeenCalled();
   });
 });
 
 describe("C5 — histórico do cocho", () => {
-  it("a ação só no lançamento mais recente; sem o aviso de cancelamento suspenso", async () => {
+  it("a ação só no lançamento mais recente; sem o aviso de cancelamento suspenso; o excluído some", async () => {
     cache.dados = {
       eventosSuplementacao: [
+        // Cópia antiga do aparelho com um lançamento já excluído (situacao "cancelado"): não aparece.
+        { ...EVENTO, id: "ev-3", data_lancamento: "2026-11-01", created_date: "2026-11-01T10:00:00.000Z", produto: "PROTEINADO EXCLUIDO", situacao: "cancelado" },
         EVENTO,
         { id: "ev-1", empresa_id: EMP, ponto_suplementacao_id: "cocho-1", produto: "SAL MINERAL", data_lancamento: "2026-10-30", created_date: "2026-10-30T10:00:00.000Z", area_id: "area-A", dias_periodo: 1 },
       ],
@@ -236,7 +244,9 @@ describe("C5 — histórico do cocho", () => {
     };
     await renderizar(<HistoricoSuplementacaoPonto pontoId="cocho-1" pontoNome="COCHO 1" ponto={{ id: "cocho-1" }} />);
     expect(await screen.findByText("Histórico do Cocho (2)")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: /Cancelar lançamento/i })).toHaveLength(1);
+    expect(screen.queryByText("PROTEINADO EXCLUIDO")).toBeNull();
+    expect(screen.queryByText(/Cancelado|Estornado/)).toBeNull();
+    expect(screen.getAllByRole("button", { name: /Excluir lançamento/i })).toHaveLength(1);
     expect(screen.queryByRole("note")).toBeNull();
     expect(servico.consultarElegibilidadeCancelamentoCocho).toHaveBeenCalledTimes(1);
     expect(servico.consultarElegibilidadeCancelamentoCocho.mock.calls[0][0].evento.id).toBe("ev-2");
@@ -279,5 +289,47 @@ describe("C7 — 403 da guarda no ensaio da elegibilidade", () => {
     servico.consultarElegibilidadeCancelamentoCocho.mockImplementation(async () => { throw new Error("Failed to fetch"); });
     await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
     expect(screen.getByRole("button", { name: /Verificar de novo/i })).toBeTruthy();
+  });
+});
+
+describe("C8 — na tela só há exclusão", () => {
+  it("botão, diálogo, motivo, efeitos, confirmação e toast falam em excluir; 'Voltar' só fecha", async () => {
+    await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
+    expect(botaoCancelar().textContent).toBe("Excluir lançamento");
+    fireEvent.click(botaoCancelar());
+    await assentar();
+    const dialogo = screen.getByRole("dialog");
+    expect(within(dialogo).getByRole("heading", { name: "Excluir lançamento do cocho" })).toBeTruthy();
+    expect(dialogo.textContent).not.toMatch(LINGUAGEM_DE_CANCELAMENTO);
+    expect(dialogo.textContent).toMatch(/o estoque volta ao depósito/);
+    expect(within(dialogo).getByLabelText("Motivo da exclusão")).toBeTruthy();
+    for (const b of within(dialogo).getAllByRole("button")) expect(b.textContent).not.toMatch(LINGUAGEM_DE_CANCELAMENTO);
+    expect(within(dialogo).getByRole("button", { name: "Voltar" })).toBeTruthy();
+    fireEvent.change(within(dialogo).getByLabelText("Motivo da exclusão"), { target: { value: "lançado em dobro" } });
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Excluir lançamento" }));
+    await assentar();
+    expect(toast.success).toHaveBeenLastCalledWith("Lançamento excluído.");
+  });
+
+  it("recusas, efeitos e avisos sem 'cancelar' nem 'estorno'", () => {
+    for (const frase of [...Object.values(MENSAGENS_REASON), ...Object.values(MENSAGENS_CODIGO)]) expect(frase).not.toMatch(LINGUAGEM_DE_CANCELAMENTO);
+    expect(mensagemDoCancelamento("SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO", "desconhecida")).toBe("O lançamento não pode ser excluído com segurança agora. Nada foi alterado.");
+    expect(mensagemDoCancelamento("XYZ", null)).toBe("Não foi possível excluir. Nada foi alterado.");
+    expect(MENSAGENS_REASON.sem_recibo).toMatch(/não pode ser excluído/);
+    expect(MENSAGENS_REASON.lancamento_posterior).toMatch(/Exclua primeiro o mais recente/);
+    expect(MENSAGENS_CODIGO.ACAO_NAO_PERMITIDA).toBe("Você não tem permissão para excluir lançamentos.");
+    for (const linha of descreverEfeitos(ELEGIVEL.efeitos)) expect(linha).not.toMatch(LINGUAGEM_DE_CANCELAMENTO);
+    expect(descreverEfeitos(ELEGIVEL.efeitos).at(-1)).toBe("Tira o lançamento do rateio de 2 lotes.");
+  });
+
+  it("recusa do ensaio e pendência sem confirmação também falam em exclusão", async () => {
+    localStorage.setItem(`maike_cancelamento_cocho_pendente:c-1:u-2:ev-2`, JSON.stringify({ operation_id: "cancelar-cocho-antiga", motivo: "motivo antigo" }));
+    await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
+    expect(screen.getByText("Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação.")).toBeTruthy();
+    fireEvent.click(botaoCancelar());
+    await assentar();
+    const dialogo = screen.getByRole("dialog");
+    expect(within(dialogo).getByText(/A exclusão pode ou não ter sido concluída/)).toBeTruthy();
+    expect(dialogo.textContent).not.toMatch(LINGUAGEM_DE_CANCELAMENTO);
   });
 });

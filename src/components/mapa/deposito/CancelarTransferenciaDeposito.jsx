@@ -24,9 +24,15 @@ import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 /** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /*
- * "Cancelar transferência" no Histórico do depósito (D-PROD-268): o estorno EXATO da transferência
+ * "Excluir transferência" no Histórico do depósito do mapa (D-PROD-268): o estorno EXATO da transferência
  * entre depósitos, feito pelo servidor numa transação (POST /movimentacoes-estoque/:id/cancelar-transferencia).
  * O navegador não desfaz nada: só pede, com o motivo e uma `operation_id`.
+ *
+ * Para o usuário, no mapa, isto é EXCLUSÃO (pedido do proprietário: "eu não tenho cancelamentos, eu tenho
+ * exclusão"): todo texto visível fala em excluir/excluída; por baixo é o mesmo estorno seguro do servidor, com a
+ * mesma rota, os mesmos códigos e a mesma chave de permissão (`cancelar_lancamentos_estoque`). A transferência
+ * excluída (as duas pernas 'Estornada') e os movimentos `estorno_transferencia_*` saem do histórico do depósito
+ * do mapa (`movimentacoesDoHistoricoDeposito`): depois da releitura, o cartão some.
  *
  *  - Só online: sem conexão o botão fica desligado com o motivo; nada vai para a fila offline.
  *  - Ao abrir, o servidor ensaia o cancelamento (GET de elegibilidade) e diz o que acontece — ou por que não pode
@@ -35,9 +41,9 @@ import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
  *    5xx, conflito transitório) mantém a MESMA chave e o MESMO motivo, inclusive ao fechar e reabrir: o servidor
  *    nunca cancela duas vezes. Só uma resposta definitiva limpa a pendência. `replay` conta como sucesso.
  *  - Depois do sucesso: relê do servidor (force) as movimentações e os lotes do mapa e invalida as consultas dos dois
- *    depósitos; quem chama recebe `onCancelado` (o histórico e o nível do mapa se atualizam). O foco volta ao
- *    cartão da transferência (o botão que abriu o diálogo deixa de existir).
- *  - Ensaio que já diz "cancelada", "não ativa" ou "não encontrada": ao fechar, o mesmo recarregamento (o cartão
+ *    depósitos; quem chama recebe `onCancelado` (o histórico e o nível do mapa se atualizam). O foco vai ao
+ *    histórico do depósito (`.mk-dp-hist`; sem ele, à lista), porque o cartão da transferência some.
+ *  - Ensaio que já diz "excluída", "não ativa" ou "não encontrada": ao fechar, o mesmo recarregamento (o cartão
  *    deixa de oferecer a ação). Falha de rede no ensaio: "Conferir de novo".
  *  - 403 num REENVIO de resultado desconhecido não é conclusivo (a permissão pode ter sido revogada depois do
  *    commit, e a guarda da rota nega antes do recibo): a pendência fica e a tela manda conferir o histórico.
@@ -46,7 +52,7 @@ import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
  *   div.mk-dp-hist__excluir[data-estado-cancelamento] > div > button + p (motivo de estar desligado)
  */
 
-export const TEXTO_SEM_CONEXAO_TRANSFERENCIA = "Requer conexão: o cancelamento só é feito online e não entra na fila offline.";
+export const TEXTO_SEM_CONEXAO_TRANSFERENCIA = "Requer conexão: a exclusão só é feita online e não entra na fila offline.";
 export const MOTIVO_MINIMO_TRANSFERENCIA = 3;
 export const MOTIVO_MAXIMO_TRANSFERENCIA = 500;
 
@@ -135,10 +141,10 @@ const RECUSAS_DEFINITIVAS = new Set([
 const ENSAIO_OBSOLETO = new Set(["original_ja_estornado", "original_nao_ativo"]);
 const CODIGOS_NAO_ENCONTRADO = new Set(["MOVIMENTACAO_ESTOQUE_NOT_FOUND", "EMPRESA_NOT_FOUND", "PRODUTO_NOT_FOUND"]);
 export const TEXTO_PERMISSAO_REVOGADA_REENVIO =
-  "Você não tem mais permissão para cancelar transferências. O cancelamento enviado antes pode ter sido concluído: confira o histórico do depósito.";
+  "Você não tem mais permissão para excluir transferências. A exclusão enviada antes pode ter sido concluída: confira o histórico do depósito.";
 
-const MENSAGEM_PADRAO = "Não foi possível cancelar a transferência. Nada foi alterado.";
-const MENSAGEM_LOTES = "Os lotes desta transferência mudaram fora do controle do estoque; não é possível cancelar com segurança. Nada foi alterado.";
+const MENSAGEM_PADRAO = "Não foi possível excluir a transferência. Nada foi alterado.";
+const MENSAGEM_LOTES = "Esta transferência não pode ser excluída com segurança porque os lotes dela mudaram fora do controle do estoque. Nada foi alterado.";
 
 /** Mensagem em português por código/`reason` da recusa do servidor. */
 export const mensagemDaRecusaTransferencia = (codigo, detalhes) => {
@@ -148,18 +154,18 @@ export const mensagemDaRecusaTransferencia = (codigo, detalhes) => {
       case "movimento_posterior": {
         const lado = d.lado === "origem" ? "de origem" : "de destino";
         const numero = d.movimento_numero ? ` (nº ${d.movimento_numero})` : "";
-        return `O produto já teve outro movimento no depósito ${lado}${numero} depois desta transferência. Para corrigir, lance uma transferência de volta. Nada foi alterado.`;
+        return `Esta transferência não pode ser excluída porque o produto já teve outro movimento no depósito ${lado}${numero} depois dela. Para corrigir, lance uma transferência de volta. Nada foi alterado.`;
       }
       case "camada_consumida":
       case "saldo_local_divergente":
-        return "O estoque recebido já foi usado; não é possível cancelar. Nada foi alterado.";
+        return "Esta transferência não pode ser excluída porque o estoque recebido já foi usado. Nada foi alterado.";
       case "fatias_ausentes":
       case "par_incoerente":
-        return "Transferência antiga, sem rastreio de lotes; não pode ser cancelada. Nada foi alterado.";
+        return "Esta transferência não pode ser excluída porque é antiga, sem rastreio de lotes. Nada foi alterado.";
       case "original_ja_estornado":
-        return "Esta transferência já foi cancelada.";
+        return "Esta transferência já foi excluída.";
       case "original_nao_ativo":
-        return "Esta transferência não está ativa; não pode ser cancelada. Nada foi alterado.";
+        return "Esta transferência não pode ser excluída porque não está ativa. Nada foi alterado.";
       case "nao_e_transferencia":
         return "Este registro não é uma transferência entre depósitos. Nada foi alterado.";
       case "linhagem_divergente":
@@ -173,14 +179,14 @@ export const mensagemDaRecusaTransferencia = (codigo, detalhes) => {
   }
   if (codigo === "ESTOQUE_LOCAL_INVALIDO") {
     return d.reason === "local_inativo"
-      ? "O depósito de origem está inativo e não pode receber o estoque de volta. Reative-o, cancele e desative de novo. Nada foi alterado."
-      : "Um dos depósitos desta transferência não existe mais. Nada foi alterado.";
+      ? "Esta transferência não pode ser excluída porque o depósito de origem está inativo e não pode receber o estoque de volta. Reative-o, exclua e desative de novo. Nada foi alterado."
+      : "Esta transferência não pode ser excluída porque um dos depósitos dela não existe mais. Nada foi alterado.";
   }
-  if (codigo === "OPERACAO_VALORES_INVALIDOS") return "A devolução passaria do limite de estoque do depósito de origem. Nada foi alterado.";
-  if (codigo === "ACAO_NAO_PERMITIDA") return "Você não tem permissão para cancelar transferências entre depósitos.";
+  if (codigo === "OPERACAO_VALORES_INVALIDOS") return "Esta transferência não pode ser excluída porque a devolução passaria do limite de estoque do depósito de origem. Nada foi alterado.";
+  if (codigo === "ACAO_NAO_PERMITIDA") return "Você não tem permissão para excluir transferências entre depósitos.";
   if (codigo === "MOVIMENTACAO_ESTOQUE_NOT_FOUND" || codigo === "EMPRESA_NOT_FOUND" || codigo === "PRODUTO_NOT_FOUND") return "Transferência não encontrada nesta fazenda. Nada foi alterado.";
-  if (codigo === "IDEMPOTENCY_CONFLICT") return "Este cancelamento já foi enviado com outro motivo. Feche e abra de novo para recomeçar.";
-  if (codigo === "REQUEST_VALIDATION_FAILED") return `Informe o motivo do cancelamento (${MOTIVO_MINIMO_TRANSFERENCIA} a ${MOTIVO_MAXIMO_TRANSFERENCIA} caracteres).`;
+  if (codigo === "IDEMPOTENCY_CONFLICT") return "Esta exclusão já foi enviada com outro motivo. Feche e abra de novo para recomeçar.";
+  if (codigo === "REQUEST_VALIDATION_FAILED") return `Informe o motivo da exclusão (${MOTIVO_MINIMO_TRANSFERENCIA} a ${MOTIVO_MAXIMO_TRANSFERENCIA} caracteres).`;
   return MENSAGEM_PADRAO;
 };
 
@@ -222,7 +228,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
   const [cancelada, setCancelada] = React.useState(false);
   const chaveRef = React.useRef(/** @type {string|null} */ (null));
   const raizRef = React.useRef(/** @type {HTMLDivElement|null} */ (null));
-  /** Para onde o foco vai quando o diálogo fecha depois do sucesso (o cartão, que continua na lista). */
+  /** Para onde o foco vai quando o diálogo fecha depois do sucesso (o histórico: o cartão excluído some). */
   const focoAposFecharRef = React.useRef(/** @type {HTMLElement|null} */ (null));
   const recarregarAoFecharRef = React.useRef(false);
   const id = movimento?.id;
@@ -236,7 +242,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
     retry: false,
   });
 
-  // Ensaio que torna a ação obsoleta (já cancelada / não ativa / não encontrada): relê ao fechar.
+  // Ensaio que torna a ação obsoleta (já excluída / não ativa / não encontrada): relê ao fechar.
   const ensaioReason = elegibilidade.data?.elegivel === false ? elegibilidade.data?.detalhes?.reason : null;
   const ensaioErroCodigo = elegibilidade.isError ? codigoDoServidor(elegibilidade.error) : null;
 
@@ -269,14 +275,19 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
     }
   };
 
-  /** O cartão (li) da LinhaDoTempo fica na lista depois do recarregamento: foco estável para teclado e leitor de tela. */
+  /**
+   * O cartão (li) da LinhaDoTempo SOME depois do recarregamento (a transferência excluída sai do histórico):
+   * o foco vai ao histórico do depósito (`.mk-dp-hist`, que continua na tela mesmo sem nenhum cartão); sem ele,
+   * à lista de cartões. Foco estável para teclado e leitor de tela.
+   */
   const alvoDoFoco = () => {
-    const cartao = raizRef.current?.closest("li");
-    if (cartao instanceof HTMLElement) {
-      if (!cartao.hasAttribute("tabindex")) cartao.setAttribute("tabindex", "-1");
-      return cartao;
+    const raiz = raizRef.current;
+    const alvo = raiz?.closest(".mk-dp-hist") ?? raiz?.closest("ol, ul") ?? null;
+    if (alvo instanceof HTMLElement) {
+      if (!alvo.hasAttribute("tabindex")) alvo.setAttribute("tabindex", "-1");
+      return alvo;
     }
-    return raizRef.current;
+    return raiz;
   };
 
   const concluir = async (mensagem) => {
@@ -308,13 +319,13 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
     gravarPendente(escopo, id, { operation_id: chave, motivo: texto });
     try {
       const r = await cancelarTransferenciaEntreDepositos({ movimentacaoId: id, empresaId, motivo: texto, operationId: chave });
-      await concluir(r.replay ? "Transferência cancelada (confirmado pelo servidor)." : "Transferência cancelada.");
+      await concluir(r.replay ? "Transferência excluída (confirmado pelo servidor)." : "Transferência excluída.");
     } catch (erro) {
       const codigo = codigoDoServidor(erro);
       const detalhes = detalhesDoServidor(erro);
       if (codigo === "TRANSFERENCIA_CANCELAMENTO_BLOQUEADO" && detalhes.reason === "original_ja_estornado") {
-        // Já cancelada (por esta ou outra tela): o cartão passa a "Cancelado".
-        await concluir("Esta transferência já estava cancelada.");
+        // Já excluída (por esta ou outra tela): relê e o cartão sai do histórico.
+        await concluir("Esta transferência já estava excluída.");
       } else if (codigo === "ACAO_NAO_PERMITIDA" && desconhecido) {
         // Reenvio de resultado desconhecido negado: o envio anterior pode ter sido concluído antes da revogação.
         // Não conclusivo: a pendência (mesma chave, mesmo motivo) fica; ao fechar, relê o histórico (mostra o que houve).
@@ -340,7 +351,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
     : !online
     ? { habilitado: false, motivo: TEXTO_SEM_CONEXAO_TRANSFERENCIA }
     : pendente
-      ? { habilitado: true, motivo: "Cancelamento anterior sem confirmação do servidor: abra para reenviar a mesma operação." }
+      ? { habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." }
       : { habilitado: true, motivo: null };
   const idMotivo = `motivo-cancelar-transferencia-${id}`;
   const idCampo = `campo-motivo-cancelar-transferencia-${id}`;
@@ -363,7 +374,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
     >
       {cancelada ? (
         <p role="status" className="max-w-full text-[11px] leading-snug text-slate-600">
-          Transferência cancelada.
+          Transferência excluída.
         </p>
       ) : (
       <div>
@@ -380,7 +391,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
             if (estado.habilitado) abrir();
           }}
         >
-          Cancelar transferência
+          Excluir transferência
         </Button>
         {estado.motivo ? (
           <p id={idMotivo} className="max-w-full text-[11px] leading-snug text-slate-600">
@@ -393,7 +404,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
         <DialogContent
           className="max-w-md"
           onCloseAutoFocus={(ev) => {
-            // Depois do sucesso o botão que abriu o diálogo some: o foco vai ao cartão, não ao <body>.
+            // Depois do sucesso o botão e o cartão somem: o foco vai ao histórico, não ao <body>.
             const alvo = focoAposFecharRef.current;
             if (!alvo || !alvo.isConnected) return;
             ev.preventDefault();
@@ -402,11 +413,11 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
           }}
         >
           <DialogHeader>
-            <DialogTitle>Cancelar transferência</DialogTitle>
+            <DialogTitle>Excluir transferência</DialogTitle>
             <DialogDescription>
               {movimento?.produto_nome || "Produto"} · {fmtKg(quantidade)} {unidade} · {origemNome} → {destinoNome}
-              {movimento?.numero_movimentacao ? ` · nº ${movimento.numero_movimentacao}` : ""}. O servidor desfaz as duas pernas pelo valor gravado:
-              o produto volta ao depósito de origem e sai do de destino. Nada é apagado: a transferência fica como cancelada no histórico.
+              {movimento?.numero_movimentacao ? ` · nº ${movimento.numero_movimentacao}` : ""}. Ao excluir, o produto volta ao depósito de origem e
+              sai do de destino, pelo valor gravado, e a transferência sai do histórico do depósito.
             </DialogDescription>
           </DialogHeader>
 
@@ -439,13 +450,13 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
           {(elegivelAgora || desconhecido) ? (
             <div className="space-y-2">
               <div className="rounded-md border border-slate-200 bg-[#FAFCFE] px-2 py-1.5 text-xs text-slate-700">
-                <div className="font-semibold">Efeito ao cancelar</div>
+                <div className="font-semibold">Efeito ao excluir</div>
                 <div>{`${origemNome}: +${fmtKg(quantidade)} ${unidade} (volta ao depósito de origem)`}</div>
                 <div>{`${destinoNome}: −${fmtKg(quantidade)} ${unidade} (sai do depósito de destino)`}</div>
-                {valor ? <div>{`Valor estornado: ${valor}`}</div> : null}
+                {valor ? <div>{`Valor devolvido à origem: ${valor}`}</div> : null}
               </div>
               <label className="block text-xs font-medium text-slate-700" htmlFor={idCampo}>
-                Motivo do cancelamento
+                Motivo da exclusão
               </label>
               <Textarea
                 id={idCampo}
@@ -464,7 +475,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
               </p>
               {desconhecido ? (
                 <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-                  Sem confirmação do servidor. O cancelamento pode ou não ter sido concluído. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.
+                  Sem confirmação do servidor. A exclusão pode ou não ter sido concluída. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.
                 </div>
               ) : null}
               {recusa ? (
@@ -477,7 +488,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
                   Voltar
                 </Button>
                 <Button type="button" variant="destructive" size="sm" disabled={!podeEnviar} onClick={confirmar}>
-                  {enviando ? "Cancelando..." : desconhecido ? "Tentar de novo" : "Cancelar transferência"}
+                  {enviando ? "Excluindo..." : desconhecido ? "Tentar de novo" : "Excluir transferência"}
                 </Button>
               </div>
             </div>

@@ -36,6 +36,7 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import { useBebedouros } from "@/hooks/useBebedouros";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
 import { descreverFarol, farolDoCocho } from "@/domain/suplementacao/leituraCocho";
+import { semExcluidos } from "@/domain/suplementacao/nivelSuplementacao";
 import { corForragemDaArea, farolForragemComEstimativaPorArea } from "@/domain/pastagem/farolForragem";
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
@@ -444,7 +445,10 @@ export default function MapaGeral() {
     });
   }, [iconesConfig]);
 
-  const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery(createMapaQuery('eventosSuplementacao'));
+  const { data: eventosSuplBrutos = [], refetch: refetchEventosSupl } = useQuery(createMapaQuery('eventosSuplementacao'));
+  // D-PROD-269: lançamento de cocho excluído (situacao 'cancelado', de cópia antiga do aparelho) não
+  // entra em nada do mapa — alertas, marcadores, detalhes e insights contam igual. Mesma identidade sem excluído.
+  const eventosSupl = useMemo(() => semExcluidos(eventosSuplBrutos), [eventosSuplBrutos]);
   // D-PROD-205: leituras de cocho — o farol do cocho (vermelho/verde/azul/cinza).
   const { data: leiturasCocho = [], refetch: refetchLeiturasCocho } = useQuery(createMapaQuery('leiturasCocho'));
   const { data: estoqueLotes = [], refetch: refetchEstoqueLotes } = useQuery(createMapaQuery('estoqueLotes'));

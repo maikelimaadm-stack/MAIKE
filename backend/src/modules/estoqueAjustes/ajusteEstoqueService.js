@@ -1,5 +1,5 @@
 /**
- * D-PROD-269 (Estoque → Novo movimento → Ajuste) — ajuste de inventário documentado.
+ * D-PROD-271 (Estoque → Novo movimento → Ajuste) — ajuste de inventário documentado.
  *
  *  - Por linha o usuário informa o CONTADO; o servidor lê, sob a trava do produto, o saldo do depósito (Σ das
  *    camadas Disponivel) e grava a diferença: SOBRA entra pelo motor a custo médio do depósito (sem saldo, pelo

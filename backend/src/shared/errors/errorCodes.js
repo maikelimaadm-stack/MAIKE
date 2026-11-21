@@ -209,7 +209,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR: { http: 409, meaning: 'o produto teve outro movimento no depósito depois da saída; a exclusão não é possível (details.movimento_numero); nada foi alterado' },
   MOTIVO_SAIDA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de saída deste tenant' },
   MOTIVO_SAIDA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de saída com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
-  // D-PROD-269 — Estoque → Novo movimento → Ajuste (ajuste de inventário: contado × saldo; sobra a custo médio, falta).
+  // D-PROD-271 — Estoque → Novo movimento → Ajuste (ajuste de inventário: contado × saldo; sobra a custo médio, falta).
   AJUSTE_ESTOQUE_NOT_FOUND: { http: 404, meaning: 'id não identifica ajuste de estoque desta fazenda neste tenant' },
   AJUSTE_ESTOQUE_INVALIDO: { http: 422, meaning: 'ajuste recusado (details.field/reason: produto, depósito, unidade, contagem, custo da sobra sem saldo ou centro); nada foi gravado' },
   AJUSTE_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação do ajuste não permite esta ação (details.status); nada foi alterado' },
