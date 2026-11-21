@@ -276,7 +276,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
   }, [eventosDoPonto, produtos]);
 
-  // D-PROD-267: sem a permissão de cancelar, o cartão do cocho fica sem pé.
+  // D-PROD-268: sem a permissão de cancelar, o cartão do cocho fica sem pé.
   const { autorizado: podeCancelarCocho } = usePermissaoCancelarCocho();
   const diasEventosCocho = useMemo(() => {
     const ordenados = eventosDoPonto
@@ -288,7 +288,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
       );
     /** @type {Array<{ chave: string, dia: string | null, rotulo: string, cartoes: Array<{ chave: string, dia: string | null, Icone: import("lucide-react").LucideIcon, titulo: string, linhas: Array<{ rotulo: string, valor: string }>, acoes?: React.ReactNode }> }>} */
     const dias = [];
-    // D-PROD-267: "Cancelar lançamento" só no lançamento mais recente do cocho (dica; o servidor decide).
+    // D-PROD-268: "Cancelar lançamento" só no lançamento mais recente do cocho (dica; o servidor decide).
     const ultimoId = podeCancelarCocho ? ordenados[0]?.id ?? null : null;
     ordenados.forEach((ev) => {
       const diaRaw = String(ev?.data_lancamento ?? "").slice(0, 10);

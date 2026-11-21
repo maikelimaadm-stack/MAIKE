@@ -30,7 +30,7 @@ const LISTAR_SCHEMA = {
   querystring: querystringListagemEmpresa(),
 };
 
-/** D-PROD-267 — corpo fechado do cancelamento: tenant e ator só do auth_context. */
+/** D-PROD-268 — corpo fechado do cancelamento: tenant e ator só do auth_context. */
 const CANCELAMENTO_SCHEMA = {
   ...ID_SCHEMA,
   body: {
@@ -83,7 +83,7 @@ export const registrarSuplementacaoEventoRoutes = async (app) => {
             operation_id: { type: 'string', minLength: 8, maxLength: 128, pattern: '\\S' },
             evento: { type: 'object', minProperties: 1 },
             lotes: { type: 'array', items: { type: 'object' } },
-            // D-PROD-267 — o último lançamento ATIVO que a tela viu (null: nenhum). Opcional.
+            // D-PROD-268 — o último lançamento ATIVO que a tela viu (null: nenhum). Opcional.
             evento_anterior_id: { anyOf: [{ type: 'string', minLength: 1, maxLength: 64 }, { type: 'null' }] },
           },
         },
@@ -99,7 +99,7 @@ export const registrarSuplementacaoEventoRoutes = async (app) => {
     }
   );
 
-  // D-PROD-267 — cancelamento (estorno exato) do lançamento de cocho e o ensaio da elegibilidade.
+  // D-PROD-268 — cancelamento (estorno exato) do lançamento de cocho e o ensaio da elegibilidade.
   app.get(
     '/suplementacao-eventos/:id/elegibilidade-cancelamento',
     { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoEvento.cancelar], schema: ELEGIBILIDADE_SCHEMA },

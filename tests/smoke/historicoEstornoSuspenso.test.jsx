@@ -70,7 +70,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("política fail-closed", () => {
-  it("a flag do cocho liga só o caminho novo do servidor (D-PROD-267); a do depósito segue desligada", () => {
+  it("a flag do cocho liga só o caminho novo do servidor (D-PROD-268); a do depósito segue desligada", () => {
     expect(CANCELAMENTO_COCHO_HABILITADO).toBe(true);
     expect(CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO).toBe(false);
     expect(MENSAGEM_ESTORNO_SUSPENSO).toBe("Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro.");
@@ -82,7 +82,7 @@ describe("T01 — histórico do cocho", () => {
     const { container } = renderizar(<HistoricoSuplementacaoPonto pontoId="cocho-1" pontoNome="COCHO 1" ponto={{ id: "cocho-1" }} />);
     expect(await screen.findByText("Histórico do Cocho (2)")).toBeTruthy();
     expect(screen.getAllByText("SAL MINERAL")).toHaveLength(2);
-    // D-PROD-267: o usuário do teste não tem `cancelar_lancamentos_estoque` → sem botão.
+    // D-PROD-268: o usuário do teste não tem `cancelar_lancamentos_estoque` → sem botão.
     expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByRole("button", { name: /Excluir/i })).toBeNull();
     expect(screen.queryByText(/Somente o último lançamento pode ser excluído/)).toBeNull();

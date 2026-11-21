@@ -5,7 +5,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { opcoesTakeDeFiltros } from '../../shared/http/listQueryLimit.js';
 
 /**
- * D-PROD-267 — a listagem (GET) omite os documentos CANCELADOS (`dados.situacao = 'cancelado'`):
+ * D-PROD-268 — a listagem (GET) omite os documentos CANCELADOS (`dados.situacao = 'cancelado'`):
  * último evento do cocho, sobra herdada, nível, alertas, rateio e históricos ignoram o
  * cancelado num só ponto. O documento continua no banco (sem exclusão física) e na auditoria.
  * SQL próprio porque o filtro JSON do Prisma com NOT descartaria também quem não tem a chave.

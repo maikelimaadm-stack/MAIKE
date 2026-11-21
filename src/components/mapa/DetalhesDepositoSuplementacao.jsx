@@ -109,7 +109,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const idTituloSaldo = useId();
   const idGrupoLitros = useId();
   const idTituloInfo = useId();
-  // D-PROD-267: "Cancelar transferência" só para quem passa em `podeCancelarLancamentosEstoque`.
+  // D-PROD-268: "Cancelar transferência" só para quem passa em `podeCancelarLancamentosEstoque`.
   const { pode: podeCancelarTransferencia, escopo: escopoDoUsuario } = usePodeCancelarLancamentosEstoque();
   const handleSavedRef = useRef(/** @type {() => void} */ (() => {}));
 
@@ -601,7 +601,7 @@ function destinoDaSaida(mov, cochosPorId) {
  * saco do produto) e as observações, quando há.
  * @param {any} mov
  *
- * D-PROD-267: movimento 'Estornada' leva o chip "Cancelado"; a perna ATIVA de uma
+ * D-PROD-268: movimento 'Estornada' leva o chip "Cancelado"; a perna ATIVA de uma
  * transferência entre depósitos (a Saída na origem, a Entrada no destino) leva a ação
  * "Cancelar transferência" no pé do cartão, só com `acaoDeCancelar` (a permissão).
  * @param {{ localEstoqueId: string | null | undefined, produtosPorId: Map<any, any>, cochosPorId: Map<any, any>, acaoDeCancelar?: ((mov: any) => React.ReactNode) | null }} ctx
@@ -631,7 +631,7 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
 }
 
 /**
- * D-PROD-267 — a perna da transferência que ESTE depósito mostra (Saída `transferencia_enviada`
+ * D-PROD-268 — a perna da transferência que ESTE depósito mostra (Saída `transferencia_enviada`
  * na origem, Entrada `transferencia_recebida` no destino), ainda 'Ativa' e nascida pelo comando
  * do depósito. Quem decide se o cancelamento é possível é o servidor (ensaio e comando); a
  * ordem do cache nunca decide "o último".

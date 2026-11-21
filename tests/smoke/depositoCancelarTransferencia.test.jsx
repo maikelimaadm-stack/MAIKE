@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-267 — frente DEPÓSITO: "Cancelar transferência" no Histórico do depósito.
+ * D-PROD-268 — frente DEPÓSITO: "Cancelar transferência" no Histórico do depósito.
  *
  *  CT-1. a perna 'Ativa' da transferência (enviada na origem, recebida no destino) mostra a ação SÓ
  *        para quem passa em `podeCancelarLancamentosEstoque`; o cartão 'Estornada' mostra "Cancelado"

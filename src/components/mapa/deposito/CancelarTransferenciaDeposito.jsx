@@ -24,7 +24,7 @@ import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 /** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /*
- * "Cancelar transferência" no Histórico do depósito (D-PROD-267): o estorno EXATO da transferência
+ * "Cancelar transferência" no Histórico do depósito (D-PROD-268): o estorno EXATO da transferência
  * entre depósitos, feito pelo servidor numa transação (POST /movimentacoes-estoque/:id/cancelar-transferencia).
  * O navegador não desfaz nada: só pede, com o motivo e uma `operation_id`.
  *

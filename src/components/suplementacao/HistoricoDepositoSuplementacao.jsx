@@ -30,7 +30,7 @@ function getLabelTipoDetalhado(tipo) {
  * Movimentações do histórico do depósito, da mais nova para a mais antiga.
  *
  * Entram as da empresa que tocam o local de estoque do depósito, menos as
- * reversões e os movimentos do estorno da transferência (D-PROD-267); cada lado de uma transferência (e a baixa da suplementação) só
+ * reversões e os movimentos do estorno da transferência (D-PROD-268); cada lado de uma transferência (e a baixa da suplementação) só
  * aparece no depósito certo — a saída na origem, a entrada no destino —,
  * porque o par da transferência grava origem e destino nas DUAS linhas.
  * Ordem: o registro criado por último primeiro (`created_date`); empate, a
@@ -49,7 +49,7 @@ export function movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId, loc
       if (item.empresa_id !== empresaId) return false;
       if (item.origem_sistema === "reversao") return false;
       if (item.tipo_detalhado === "ajuste_positivo" && String(item.observacoes || "").includes("Reversão do lançamento do cocho")) return false;
-      // D-PROD-267: os dois movimentos do estorno da transferência não aparecem como entrada/saída
+      // D-PROD-268: os dois movimentos do estorno da transferência não aparecem como entrada/saída
       // comuns; a transferência original aparece uma vez, marcada como cancelada.
       if (String(item.tipo_detalhado || "").startsWith("estorno_transferencia_")) return false;
 

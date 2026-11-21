@@ -34,7 +34,7 @@ export const listar = async (contexto, filtros = {}) => {
 };
 
 /**
- * POST genérico (legado: o evento automático da chegada do gado, `DetalhesLote.jsx`). D-PROD-267:
+ * POST genérico (legado: o evento automático da chegada do gado, `DetalhesLote.jsx`). D-PROD-268:
  * recusa os campos reservados (400 `CAMPO_RESERVADO_CANCELAMENTO`) e, com cocho, toma a trava dele
  * antes de inserir (serializa com o cancelamento, o fechamento e o lançamento).
  */
@@ -95,7 +95,7 @@ const fechamentoInvalido = (reason, extra = {}) =>
   });
 
 /**
- * D-PROD-267 — o fechamento (transição `dias_periodo` nulo → preenchido) diz QUEM fechou:
+ * D-PROD-268 — o fechamento (transição `dias_periodo` nulo → preenchido) diz QUEM fechou:
  *  - `'lancamento'`: `fechado_por_evento_id` é um evento ATIVO do mesmo cocho e empresa, o evento
  *    fechado é o predecessor ATIVO imediato dele e `sobra_kg` do patch é a sobra dele;
  *  - `'movimentacao_gado'`: sem evento; o evento fechado é o ÚLTIMO ativo do cocho.
@@ -141,7 +141,7 @@ const exigirFechamentoCoerente = async (tx, cli, existente, entrada) => {
 };
 
 /**
- * PATCH do fechamento/reabertura do período. D-PROD-267: numa transação curta, com a trava do
+ * PATCH do fechamento/reabertura do período. D-PROD-268: numa transação curta, com a trava do
  * cocho e a linha `FOR UPDATE`; documento cancelado → 409 `SUPLEMENTACAO_REGISTRO_CANCELADO`;
  * a transição de fechamento passa por `exigirFechamentoCoerente`.
  */

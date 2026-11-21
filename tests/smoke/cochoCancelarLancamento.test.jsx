@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — "Cancelar lançamento" do cocho na tela.
+ * D-PROD-268 — "Cancelar lançamento" do cocho na tela.
  *
  * C1. quem vê: só admin real, `is_admin` ou a chave `cancelar_lancamentos_estoque` (sem a chave,
  *     nem botão nem consulta);
@@ -91,7 +91,7 @@ afterEach(async () => {
   cleanup();
 });
 
-describe("D-PROD-267 — política", () => {
+describe("D-PROD-268 — política", () => {
   it("o cocho fica habilitado; a transferência de depósito não é desta frente", () => {
     expect(CANCELAMENTO_COCHO_HABILITADO).toBe(true);
     expect(typeof CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO).toBe("boolean");

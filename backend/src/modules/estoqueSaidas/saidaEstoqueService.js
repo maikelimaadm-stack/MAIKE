@@ -303,7 +303,7 @@ export const editar = async (contexto, id, corpo) => {
  */
 const exigirNadaDepois = async (tx, cli, empresaId, itens) => {
   for (const item of itens) {
-    // D-PROD-267: a consulta mora no helper compartilhado do motor (mesmo SQL, mesmo critério, sem pares neutros).
+    // D-PROD-268: a consulta mora no helper compartilhado do motor (mesmo SQL, mesmo critério, sem pares neutros).
     const depois = await buscarMovimentoPosteriorA(tx, cli, {
       empresaId, movimentoId: item.movimentacao_estoque_id, produtoId: item.produto_id, localId: item.local_estoque_id,
     });

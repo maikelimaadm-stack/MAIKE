@@ -29,7 +29,7 @@
  * FIFO próprio em Number (D-PROD-256: o valor de toda saída é o CUSTO MÉDIO do poço produto × local; a ordem FIFO das camadas é só contabilidade de lote). Toda primitiva valida TUDO antes da primeira escrita,
  * e toda recusa desfaz a transação inteira de quem chama.
  *
- * D-PROD-267 — cancelamentos do Mapa Geral: `estornarSaidaSuplementacao` (baixa do cocho) e
+ * D-PROD-268 — cancelamentos do Mapa Geral: `estornarSaidaSuplementacao` (baixa do cocho) e
  * `estornarTransferenciaEstoque` (par S/R entre locais), ambos estorno EXATO pelo valor gravado e só
  * quando o movimento é o último do produto no(s) depósito(s) (`movimentoPosterior.js`).
  *
@@ -988,7 +988,7 @@ export const estornarEntrada = async (tx, ctx, a) => {
 };
 
 /**
- * D-PROD-267 — cinto opcional de `estornarSaida`: o original lido sob `FOR UPDATE` tem de ser exatamente o
+ * D-PROD-268 — cinto opcional de `estornarSaida`: o original lido sob `FOR UPDATE` tem de ser exatamente o
  * movimento que quem chama provou (tipo, origem, rótulo, local de origem, quantidade = a do item e, se
  * informadas, as mesmas fatias que quem chama leu antes da trava). Sem `originalEsperado`, nada muda.
  * @param {any} original
@@ -1034,7 +1034,7 @@ const exigirOriginalComoEsperado = (original, esperado, base, kg) => {
  *   origem: {operacaoId: string, sistema?: string, tipoDetalhadoEstorno?: string, motivoEstorno?: string},
  *   numeroMovimento?: string|number,
  *   originalEsperado?: { tipoMovimentacao?: string, origemSistema?: string, tipoDetalhado?: string, localOrigemId?: string, lotesConsumidos?: unknown } }} a
- *   `originalEsperado` (D-PROD-267, opcional): cinto `exigirOriginalComoEsperado` sobre o original travado.
+ *   `originalEsperado` (D-PROD-268, opcional): cinto `exigirOriginalComoEsperado` sobre o original travado.
  */
 export const estornarSaida = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
@@ -1602,13 +1602,13 @@ export const estornarSaidaDocumentada = (tx, ctx, a) => {
   }));
 };
 
-// ─── estorno da suplementação do cocho (D-PROD-267) ─────────────────────────
+// ─── estorno da suplementação do cocho (D-PROD-268) ─────────────────────────
 /** Rótulos fechados da baixa de suplementação e do estorno dela. */
 const TIPO_SAIDA_SUPLEMENTACAO = 'suplementacao';
 export const TIPO_ESTORNO_SUPLEMENTACAO = 'estorno_suplementacao';
 
 /**
- * D-PROD-267 — recusa do cancelamento do lançamento de cocho (o código da missão; `reason` diz qual).
+ * D-PROD-268 — recusa do cancelamento do lançamento de cocho (o código da missão; `reason` diz qual).
  * @param {string} reason @param {Record<string, unknown>} [extra]
  */
 const cochoBloqueado = (reason, extra = {}) =>
@@ -1663,7 +1663,7 @@ const fatiasLegiveis = (fatias, { comDestino = false } = {}) => {
 };
 
 /**
- * D-PROD-267 — ESTORNO EXATO da SAÍDA DE SUPLEMENTAÇÃO do cocho (cancelamento do lançamento). É
+ * D-PROD-268 — ESTORNO EXATO da SAÍDA DE SUPLEMENTAÇÃO do cocho (cancelamento do lançamento). É
  * `estornarSaida` com a origem e os rótulos fixos (`ORIGEM_SUPLEMENTACAO`, Entrada `estorno_suplementacao`,
  * `motivoEstorno` obrigatório) e com os cintos do desenho, todos ANTES da primeira escrita:
  *  - (re)trava o produto (`travarProdutosEstoque` é reentrante na mesma transação);
@@ -1746,12 +1746,12 @@ export const estornarSaidaSuplementacao = async (tx, ctx, a) => {
   };
 };
 
-// ─── estorno da transferência entre locais (D-PROD-267) ────────────────────
+// ─── estorno da transferência entre locais (D-PROD-268) ────────────────────
 export const TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA = 'estorno_transferencia_recebida';
 export const TIPO_ESTORNO_TRANSFERENCIA_ENVIADA = 'estorno_transferencia_enviada';
 
 /**
- * D-PROD-267 — recusa do cancelamento da transferência (o código da missão; `reason` diz qual).
+ * D-PROD-268 — recusa do cancelamento da transferência (o código da missão; `reason` diz qual).
  * @param {string} reason @param {Record<string, unknown>} [extra] @param {string} [mensagem]
  */
 const transferenciaBloqueada = (reason, extra = {}, mensagem = undefined) =>
@@ -1797,7 +1797,7 @@ const exigirParAtivo = (s, r) => {
 const lerMovimento = async (tx, cli, id) => (id ? tx.movimentacaoEstoque.findUnique({ where: { cliente_id_id: { cliente_id: cli, id } } }) : null);
 
 /**
- * D-PROD-267 — DESCOBERTA do par da transferência (sem trava), pelo id de QUALQUER perna: a Saída
+ * D-PROD-268 — DESCOBERTA do par da transferência (sem trava), pelo id de QUALQUER perna: a Saída
  * `transferencia_enviada` (S) ou a Entrada `transferencia_recebida` (R). Recusas, nesta ordem:
  *  - inexistente, de outro tenant ou de outra empresa → 404 `MOVIMENTACAO_ESTOQUE_NOT_FOUND` (mesmo corpo);
  *  - outro tipo (inclusive os estornos) → `nao_e_transferencia`;
@@ -1850,7 +1850,7 @@ const camadaComConsumoFk = async (tx, cli, ids) => {
 const medioDoPoco = (poco) => (poco.quantidade.gt(0) ? arredondar(poco.valor.dividedBy(poco.quantidade), CASAS_CUSTO) : ZERO);
 
 /**
- * D-PROD-267 — ESTORNO EXATO da TRANSFERÊNCIA entre locais (par S → R). Desfaz as duas pernas com o
+ * D-PROD-268 — ESTORNO EXATO da TRANSFERÊNCIA entre locais (par S → R). Desfaz as duas pernas com o
  * valor GRAVADO (D-PROD-256), sem recalcular nada do passado e sem tocar em `Produto.estoque_atual`
  * (o total da empresa não muda: I1 continua fechado). Pelo id de qualquer perna.
  *
@@ -1859,7 +1859,7 @@ const medioDoPoco = (poco) => (poco.quantidade.gt(0) ? arredondar(poco.valor.div
  * Validação COMPLETA antes da primeira escrita (cintos do desenho):
  *  - descoberta (`descobrirParDeTransferencia`) refeita sob a trava do produto e conferida com a de antes;
  *  - local de ORIGEM inativo → 422 `ESTOQUE_LOCAL_INVALIDO` { field: 'local_origem_id', reason: 'local_inativo' }
- *    (local inativo não recebe estoque; decisão 4 da D-PROD-267); o destino só perde estoque (pode estar inativo);
+ *    (local inativo não recebe estoque; decisão 4 da D-PROD-268); o destino só perde estoque (pode estar inativo);
  *  - regra do ÚLTIMO nos DOIS depósitos, sem pares neutros (`buscarMovimentoPosterior`, ignorando S e R,
  *    desde `S.createdAt` / número de R) → `movimento_posterior` { lado: 'origem'|'destino', local_estoque_id, movimento_numero };
  *  - S e R relidos sob trava: mesmo par, mesmas fatias, ainda 'Ativa' (`original_ja_estornado`/`original_nao_ativo`);

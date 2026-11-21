@@ -95,7 +95,7 @@ const COMANDO_TRANSFERENCIA_SCHEMA = {
 const EMPRESA_ID = { type: 'string', minLength: 1, maxLength: 64 };
 
 /**
- * D-PROD-267 — cancelar transferência entre depósitos. Só alvo no path (qualquer perna do par);
+ * D-PROD-268 — cancelar transferência entre depósitos. Só alvo no path (qualquer perna do par);
  * do corpo, só empresa, motivo e chave: quantidade, custo, local, data e tenant nunca vêm do cliente.
  */
 const CANCELAR_TRANSFERENCIA_SCHEMA = {
@@ -156,7 +156,7 @@ export const registrarMovimentacaoEstoqueRoutes = async (app) => {
     }
   );
 
-  // D-PROD-267 — estorno exato da transferência entre depósitos (o segmento estático não colide com /:id).
+  // D-PROD-268 — estorno exato da transferência entre depósitos (o segmento estático não colide com /:id).
   app.post(
     '/movimentacoes-estoque/:id/cancelar-transferencia',
     { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.cancelarTransferencia], schema: CANCELAR_TRANSFERENCIA_SCHEMA },

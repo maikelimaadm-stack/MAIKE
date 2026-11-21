@@ -168,7 +168,7 @@ export const registrarTransferenciaEntreLocais = async ({
 };
 
 /**
- * D-PROD-267 — cancelamento (estorno exato no servidor) da transferência entre
+ * D-PROD-268 — cancelamento (estorno exato no servidor) da transferência entre
  * depósitos, pelo id de qualquer perna. Só online (offline recusa sem I/O e nada vai
  * para a fila). A `operationId` é OBRIGATÓRIA e vem do diálogo, que a persiste e a
  * reenvia enquanto o resultado for desconhecido: este serviço nunca gera chave.
@@ -194,7 +194,7 @@ export const cancelarTransferenciaEntreDepositos = async ({ movimentacaoId, empr
 };
 
 /**
- * D-PROD-267 — elegibilidade do cancelamento da transferência (ensaio do servidor,
+ * D-PROD-268 — elegibilidade do cancelamento da transferência (ensaio do servidor,
  * só informativo; o POST revalida tudo). Só online.
  * @param {{ movimentacaoId: string, empresaId: string, signal?: AbortSignal }} params
  */

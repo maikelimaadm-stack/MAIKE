@@ -38,7 +38,7 @@ const operacoesNativas = Object.freeze({
     return nativeRequest(`${CAMINHO}${qs}`, { autenticado: true }, ctx('listSuplementacaoEvento'));
   },
 
-  // D-PROD-267: o limite vale DEPOIS do filtro e da ordem (como na porta offline). Antes, o
+  // D-PROD-268: o limite vale DEPOIS do filtro e da ordem (como na porta offline). Antes, o
   // `limit` ia ao GET do tenant inteiro e o filtro do cocho rodava só sobre os N mais novos da
   // conta: o "último lançamento do cocho" podia sair vazio (e o `evento_anterior_id` errado).
   filter: async (criterio, ordenacao, limite) => {
@@ -79,7 +79,7 @@ const portaBase = offlineStorageDisponivel()
   : operacoesNativas;
 
 /**
- * D-PROD-267 — documento CANCELADO (`situacao: 'cancelado'`) não aparece em leitura nenhuma: o
+ * D-PROD-268 — documento CANCELADO (`situacao: 'cancelado'`) não aparece em leitura nenhuma: o
  * servidor já o omite no GET; aqui é o reforço para a cópia offline antiga do aparelho.
  * @param {unknown} lista
  */

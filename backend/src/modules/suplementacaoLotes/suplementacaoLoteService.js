@@ -35,7 +35,7 @@ const registroCancelado = (entidade, id) =>
   new AppError('SUPLEMENTACAO_REGISTRO_CANCELADO', 'este lançamento de suplementação foi cancelado e não aceita alteração', { details: { entidade, id } });
 
 /**
- * D-PROD-267 — o evento-pai do rateio: com cocho, toma a trava dele e relê o evento sob
+ * D-PROD-268 — o evento-pai do rateio: com cocho, toma a trava dele e relê o evento sob
  * `FOR UPDATE`; evento cancelado → 409 `SUPLEMENTACAO_REGISTRO_CANCELADO`. Sem evento (legado)
  * ou evento de outro tenant: null (nada a travar).
  * @param {any} tx @param {string} cli @param {unknown} eventoId
@@ -53,7 +53,7 @@ const travarEventoPai = async (tx, cli, eventoId) => {
 };
 
 /**
- * POST genérico do rateio (legado). D-PROD-267: campos reservados → 400; evento-pai cancelado → 409;
+ * POST genérico do rateio (legado). D-PROD-268: campos reservados → 400; evento-pai cancelado → 409;
  * com a trava do cocho do evento-pai.
  */
 export const criar = async (contexto, entrada) => {
@@ -117,7 +117,7 @@ export const CAMPOS_PATCH_PERMITIDOS = Object.freeze([
 const nulo = (v) => v === null || v === undefined;
 
 /**
- * PATCH do fechamento/reabertura do lote do período. D-PROD-267: transação curta, trava do cocho
+ * PATCH do fechamento/reabertura do lote do período. D-PROD-268: transação curta, trava do cocho
  * do evento-pai e a linha `FOR UPDATE`; lote ou evento-pai cancelado → 409
  * `SUPLEMENTACAO_REGISTRO_CANCELADO`; na transição de fechamento (`dias_periodo` nulo →
  * preenchido) o evento-pai DE COCHO tem de estar ATIVO e JÁ fechado (o front grava o evento antes

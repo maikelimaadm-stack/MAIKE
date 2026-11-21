@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — o cancelamento do lançamento de cocho visto pelos OUTROS módulos que leem o rateio
+ * D-PROD-268 — o cancelamento do lançamento de cocho visto pelos OUTROS módulos que leem o rateio
  * e os recibos dele. PostgreSQL real + HTTP autenticado.
  *
  *  V1. ledger do rebanho: a transferência cuja posição nova é citada só pelo rateio de N fica

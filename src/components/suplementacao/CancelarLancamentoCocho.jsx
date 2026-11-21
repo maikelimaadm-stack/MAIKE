@@ -28,7 +28,7 @@ import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
 /** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /**
- * Cancelar lançamento do cocho — D-PROD-267.
+ * Cancelar lançamento do cocho — D-PROD-268.
  *
  * Um comando do servidor faz tudo numa transação: devolve ao depósito a baixa EXATA do
  * lançamento (pelo motor do estoque), cancela o evento e o rateio dele (somem dos históricos do
@@ -175,7 +175,7 @@ const recarregar = async (queryClient, evento) => {
 };
 
 /**
- * D-PROD-267 — o usuário atual pode cancelar lançamento de cocho? (admin real, `is_admin` ou a chave
+ * D-PROD-268 — o usuário atual pode cancelar lançamento de cocho? (admin real, `is_admin` ou a chave
  * `cancelar_lancamentos_estoque`; a MESMA permissão efetiva e chave de cache do Mapa Geral). Só
  * interface: o servidor reautoriza no GET e no POST. Falha ao ler = não (a ação não aparece).
  * @returns {{ usuario: any, autorizado: boolean }}

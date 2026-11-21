@@ -256,7 +256,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
         return { httpStatus: 201, body };
       },
     });
-    // D-PROD-267: o recibo da baixa continua `committed` depois do cancelamento do
+    // D-PROD-268: o recibo da baixa continua `committed` depois do cancelamento do
     // lançamento do cocho (a reconciliação e o bloqueio da exclusão da compra o leem).
     // Reenviar a chave original dessa baixa não pode responder "baixada" com o retrato
     // antigo: se a saída foi estornada pelo cancelamento, recusa sem gravar nada.
@@ -271,7 +271,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
 };
 
 /**
- * D-PROD-267 — replay de uma saída de suplementação cujo lançamento de cocho foi
+ * D-PROD-268 — replay de uma saída de suplementação cujo lançamento de cocho foi
  * cancelado: 409 `SUPLEMENTACAO_REGISTRO_CANCELADO` (nada gravado).
  * @param {any} tx
  * @param {string} cli

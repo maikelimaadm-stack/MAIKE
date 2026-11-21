@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — transporte do cancelamento do cocho e os campos novos dos escritores.
+ * D-PROD-268 — transporte do cancelamento do cocho e os campos novos dos escritores.
  *  CS-1. o serviço do cancelamento só fala com os comandos do servidor; offline recusa SEM I/O;
  *  CS-2. `registrarLancamento` envia `evento_anterior_id` (null incluído) e não envia sem ele;
  *  CS-3. o fechamento pelo lançamento leva `fechado_por_tipo: 'lancamento'` + `fechado_por_evento_id`;

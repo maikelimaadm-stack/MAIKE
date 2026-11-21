@@ -26,14 +26,14 @@ export const comandoTransferenciaEntreLocais = (body) =>
   );
 
 /**
- * D-PROD-267 — tempo do cancelamento da transferência: o servidor espera até 30 s pelas
+ * D-PROD-268 — tempo do cancelamento da transferência: o servidor espera até 30 s pelas
  * travas (TRANSACAO_LONGA) e o diálogo reenvia a MESMA `operation_id`; cortar aos 20 s
  * padrão só criaria "resultado desconhecido" sem motivo.
  */
 const TIMEOUT_CANCELAR_TRANSFERENCIA_MS = 60000;
 
 /**
- * D-PROD-267 — cancela (estorno exato) a transferência entre depósitos pelo id de
+ * D-PROD-268 — cancela (estorno exato) a transferência entre depósitos pelo id de
  * qualquer perna (Saída `transferencia_enviada` ou Entrada `transferencia_recebida`).
  * Só online: o comando não existe na fila offline.
  * @param {string} movimentacaoId
@@ -48,7 +48,7 @@ export const cancelarTransferenciaEntreLocais = (movimentacaoId, body) =>
   );
 
 /**
- * D-PROD-267 — elegibilidade (ensaio do servidor, sem gravar) do cancelamento da transferência.
+ * D-PROD-268 — elegibilidade (ensaio do servidor, sem gravar) do cancelamento da transferência.
  * @param {string} movimentacaoId
  * @param {string} empresaId
  * @param {{ signal?: AbortSignal }} [opcoes]

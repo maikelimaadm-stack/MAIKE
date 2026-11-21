@@ -46,6 +46,8 @@ const gridCls = {
  *   (texto e cor) — padrão: as 3 primeiras letras do título, na cor de destaque
  * @param {(row: object) => import('react').ReactNode} [props.subtitle] opt-in (D-PROD-237): a linha abaixo do título —
  *   padrão: "<rótulo do código> <código>"
+ * @param {(row: object) => import('react').ReactNode} [props.corpo] opt-in (D-PROD-267): o corpo do card desenhado pela
+ *   tela (no lugar do selo, título, subtítulo e campos); o card continua com a seleção, o abrir e o ⚡ do motor
  */
 export function Base1Cards({
   rows,
@@ -67,6 +69,7 @@ export function Base1Cards({
   renderAcoesDaLinha = undefined,
   avatar = undefined,
   subtitle = undefined,
+  corpo = undefined,
 }) {
   const comAcoes = typeof renderAcoesDaLinha === "function";
   const byKey = new Map(columns.map((c) => [c.id, c]));
@@ -190,6 +193,12 @@ export function Base1Cards({
                 }}
               />
             </div>
+            {typeof corpo === "function" ? (
+              <div className="b1-card__corpo min-w-0" data-testid="b1-card-corpo">
+                {corpo(r)}
+              </div>
+            ) : (
+            <>
             <div className={cn("flex items-center gap-2", comAcoes ? "pr-12 sm:pr-24" : "pr-7")}>
               <span
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mg-accent)] text-[11px] font-bold text-white"
@@ -224,6 +233,8 @@ export function Base1Cards({
                 </div>
               ))}
             </dl>
+            </>
+            )}
           </div>
         );
       })}

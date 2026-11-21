@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — primitivas do MOTOR para os dois cancelamentos: estorno exato da saída de suplementação do
+ * D-PROD-268 — primitivas do MOTOR para os dois cancelamentos: estorno exato da saída de suplementação do
  * cocho (`estornarSaidaSuplementacao`), estorno exato da transferência entre locais
  * (`estornarTransferenciaEstoque`) e o helper compartilhado da regra do último (`buscarMovimentoPosterior`).
  * Contra PostgreSQL real: a montagem usa as rotas HTTP de sempre (entrada documentada, baixa do cocho,
@@ -149,7 +149,7 @@ const cancelarTransferencia = (x, movimentoId, extra = {}) =>
 
 // ─── cocho ────────────────────────────────────────────────────────────────────
 
-describe('D-PROD-267 motor — estornarSaidaSuplementacao (cocho)', () => {
+describe('D-PROD-268 motor — estornarSaidaSuplementacao (cocho)', () => {
   test('caminho feliz: fatias voltam às camadas, poço com o valor exato, Entrada estorno_suplementacao ligada, M Estornada, estoque_atual de volta; reconciliação limpa', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
@@ -289,7 +289,7 @@ describe('D-PROD-267 motor — estornarSaidaSuplementacao (cocho)', () => {
 
 // ─── transferência ───────────────────────────────────────────────────────────
 
-describe('D-PROD-267 motor — estornarTransferenciaEstoque', () => {
+describe('D-PROD-268 motor — estornarTransferenciaEstoque', () => {
   test('caminho feliz pela Saída: origem volta (lote Esgotado → Disponivel), destino zerado, par Estornada com E_d/E_o, estoque_atual intocado, números definitivos; reconciliação limpa', async () => {
     const x = await cenario();
     await entrar(x, '50', '2');
@@ -454,7 +454,7 @@ describe('D-PROD-267 motor — estornarTransferenciaEstoque', () => {
 
 // ─── helper compartilhado ────────────────────────────────────────────────────
 
-describe('D-PROD-267 motor — buscarMovimentoPosterior', () => {
+describe('D-PROD-268 motor — buscarMovimentoPosterior', () => {
   test('sem pares neutros é a regra da D-PROD-264 (qualquer movimento depois, inclusive o par de estorno); com pares neutros, o par Saída Estornada + estorno_* no mesmo depósito é descontado, a transferência não', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');

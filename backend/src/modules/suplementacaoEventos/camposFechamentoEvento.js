@@ -53,7 +53,7 @@ export const CAMPO_CAMADAS_SOBRA = 'sobra_final_camadas';
 export const MAX_CAMADAS_SOBRA = 50;
 
 /**
- * D-PROD-267 — QUEM fechou o período: o lançamento seguinte do cocho (`'lancamento'`, com
+ * D-PROD-268 — QUEM fechou o período: o lançamento seguinte do cocho (`'lancamento'`, com
  * `fechado_por_evento_id` = o evento novo) ou a movimentação do gado (`'movimentacao_gado'`, sem
  * evento). É a prova estrutural que o cancelamento do lançamento usa para reabrir o período
  * anterior; o PATCH endurecido confere os dois na transição aberto → fechado.

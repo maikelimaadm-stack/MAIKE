@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { podeCancelarLancamentosEstoque } from "@/lib/mapaGeralPermissions";
 
 /**
- * D-PROD-267 — quem vê "Cancelar transferência" no histórico do depósito:
+ * D-PROD-268 — quem vê "Cancelar transferência" no histórico do depósito:
  * administrador real, concessão `is_admin` ou a chave gravadora do Mapa Geral
  * `cancelar_lancamentos_estoque` (`=== true`), pela regra única
  * `podeCancelarLancamentosEstoque(usuario, permissao)`. Mesma permissão efetiva

@@ -1,7 +1,7 @@
 /**
  * Comando transacional: evento de suplementação + lotes rateados (ESTAB-P0-01).
  *
- * D-PROD-267 — endurecido para o cancelamento do lançamento: transação curta com a trava do
+ * D-PROD-268 — endurecido para o cancelamento do lançamento: transação curta com a trava do
  * cocho ANTES de inserir (serializa com o cancelamento e o PATCH de fechamento); campos
  * reservados no evento ou nos lotes → 400 `CAMPO_RESERVADO_CANCELAMENTO`; `evento_anterior_id`
  * (opcional, para não quebrar abas antigas) tem de ser o último lançamento ATIVO do cocho (ou

@@ -1,5 +1,5 @@
 /**
- * D-PROD-264 → D-PROD-267 — "nada depois no poço": a regra do ÚLTIMO, compartilhada.
+ * D-PROD-264 → D-PROD-268 — "nada depois no poço": a regra do ÚLTIMO, compartilhada.
  *
  * Extraída sem mudança de `exigirNadaDepois` (saidaEstoqueService.js, D-PROD-264). Um movimento só pode ser
  * desfeito pelo estorno exato se o produto NÃO teve outro movimento, no(s) depósito(s) dele, depois dele: o
@@ -16,7 +16,7 @@
  * Toda consulta começa por `cliente_id` (R11: o tenant vem do auth_context de quem chama) e usa o índice
  * `(cliente_id, produto_id)`.
  *
- * PAR NEUTRO (D-PROD-267, cocho, opcional): uma Saída 'Estornada' no MESMO depósito cujo filho é uma Entrada
+ * PAR NEUTRO (D-PROD-268, cocho, opcional): uma Saída 'Estornada' no MESMO depósito cujo filho é uma Entrada
  * `estorno_*` ativa, com pai = ela, no mesmo depósito, com a mesma quantidade e o mesmo valor total, as DUAS
  * pernas depois da referência. O motor devolve o valor gravado, então o par não muda nem a quantidade nem o
  * valor do poço. A transferência nunca é par neutro (o filho dela é a Entrada no OUTRO depósito), nem a

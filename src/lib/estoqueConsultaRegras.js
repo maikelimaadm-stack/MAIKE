@@ -47,7 +47,7 @@ const ROTULO_DETALHADO = Object.freeze(
     suplementacao: 'Suplementação',
     transferencia_enviada: 'Transferência (saída)',
     transferencia_recebida: 'Transferência (entrada)',
-    // D-PROD-267
+    // D-PROD-268
     estorno_suplementacao: 'Estorno do lançamento do cocho',
     estorno_transferencia_enviada: 'Estorno da transferência (volta à origem)',
     estorno_transferencia_recebida: 'Estorno da transferência (saída do destino)',

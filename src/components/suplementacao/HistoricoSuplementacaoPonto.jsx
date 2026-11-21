@@ -31,7 +31,7 @@ const diaDoLancamento = (valor) => {
  * "Rótulo: valor" e as métricas por seção). Regras, consultas e a política de
  * estorno (D-PROD-94a) não mudam.
  *
- * D-PROD-267: "Cancelar lançamento" no pé do cartão (`CancelarLancamentoCocho`: comando do
+ * D-PROD-268: "Cancelar lançamento" no pé do cartão (`CancelarLancamentoCocho`: comando do
  * servidor, só para quem tem a permissão, motivo obrigatório, elegibilidade antes de habilitar,
  * só online). A regra local (só o mais recente, sem movimentação de gado depois) é só DICA para
  * esconder a ação; quem decide é o servidor. A reversão antiga pelo navegador saiu daqui.

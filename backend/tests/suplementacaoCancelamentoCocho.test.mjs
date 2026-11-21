@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — cancelamento do lançamento de cocho (POST /suplementacao-eventos/:id/cancelamento e o
+ * D-PROD-268 — cancelamento do lançamento de cocho (POST /suplementacao-eventos/:id/cancelamento e o
  * ensaio GET .../elegibilidade-cancelamento) e os escritores endurecidos (PATCH de fechamento do
  * evento e do lote, POST genérico, bulk, comando de lançamento com `evento_anterior_id`, GET sem
  * cancelados). PostgreSQL real + HTTP autenticado, montagem pelas rotas de sempre (entrada no
@@ -95,7 +95,7 @@ const lancar = async (x, { kg, sobra = 0, data, anterior = null, fechar = true, 
   return { evento: resposta.evento, mov: movimentacao, chave, corpo };
 };
 
-/** O fechamento do período anterior que o formulário grava (D-PROD-212 + D-PROD-267). */
+/** O fechamento do período anterior que o formulário grava (D-PROD-212 + D-PROD-268). */
 const fecharAnterior = async (x, anterior, novo, { sobra, dias = 5, custo = 2.5, tipo = 'lancamento', semOrigem = false }) => {
   const patch = {
     sobra_kg: sobra, dias_periodo: dias, consumo_diario_grupo_kg: 4, custo_unitario_kg: custo, custo_total_periodo: 50,
@@ -177,7 +177,7 @@ const tresLancamentos = async (x, { area = 'area-1' } = {}) => {
   return { n2, n1, n, antesDeN };
 };
 
-describe('D-PROD-267 — cancelar lançamento de cocho: caminho feliz', () => {
+describe('D-PROD-268 — cancelar lançamento de cocho: caminho feliz', () => {
   test('estorno exato, N e rateio cancelados, N-1 reaberto ao retrato de antes de N, auditoria, GET sem cancelados, reconciliação limpa', async () => {
     const x = await cenario();
     const { n2, n1, n, antesDeN } = await tresLancamentos(x);
@@ -282,7 +282,7 @@ describe('D-PROD-267 — cancelar lançamento de cocho: caminho feliz', () => {
   });
 });
 
-describe('D-PROD-267 — período anterior', () => {
+describe('D-PROD-268 — período anterior', () => {
   test('sem anterior; anterior aberto (fechamento falhou); anterior fechado ANTES pela movimentação do gado', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
@@ -346,7 +346,7 @@ describe('D-PROD-267 — período anterior', () => {
   });
 });
 
-describe('D-PROD-267 — recusas (nada muda)', () => {
+describe('D-PROD-268 — recusas (nada muda)', () => {
   const exigirRecusa = async (x, id, reason, code = 'SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO', status = 409) => {
     const antes = await retrato(x);
     assert.deepEqual(recusa(await cancelar(x, id)), [status, code, reason]);
@@ -461,7 +461,7 @@ describe('D-PROD-267 — recusas (nada muda)', () => {
   });
 });
 
-describe('D-PROD-267 — elegibilidade, permissão e tenancy', () => {
+describe('D-PROD-268 — elegibilidade, permissão e tenancy', () => {
   test('elegibilidade: efeitos do ensaio e NADA gravado', async () => {
     const x = await cenario();
     const { n } = await tresLancamentos(x);
@@ -511,7 +511,7 @@ describe('D-PROD-267 — elegibilidade, permissão e tenancy', () => {
   });
 });
 
-describe('D-PROD-267 — escritores endurecidos', () => {
+describe('D-PROD-268 — escritores endurecidos', () => {
   test('PATCH de fechamento confere quem fechou; cancelado não aceita PATCH; lote só fecha com o evento fechado', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
@@ -567,7 +567,7 @@ describe('D-PROD-267 — escritores endurecidos', () => {
   });
 });
 
-describe('D-PROD-267 — concorrência', () => {
+describe('D-PROD-268 — concorrência', () => {
   test('dois cancelamentos com chaves diferentes: um passa, o outro CANCELAMENTO_JA_REALIZADO; um estorno só', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
@@ -632,7 +632,7 @@ const pastoReal = async (x, nome = 'PASTO A') => {
 };
 const comando = (x, corpo) => chamar('POST', '/suplementacao-eventos/comandos/lancamento-com-lotes', x.token, corpo);
 
-describe('D-PROD-267 — revisão: replay do lançamento depois do cancelamento', () => {
+describe('D-PROD-268 — revisão: replay do lançamento depois do cancelamento', () => {
   test('o reenvio com a chave original do lançamento cancelado é 409 SUPLEMENTACAO_REGISTRO_CANCELADO e não grava nada; o replay de um ativo continua 201', async () => {
     const x = await cenario();
     const { n1, n } = await tresLancamentos(x);
@@ -649,7 +649,7 @@ describe('D-PROD-267 — revisão: replay do lançamento depois do cancelamento'
   });
 });
 
-describe('D-PROD-267 — revisão: gado × cancelamento (trava das áreas)', () => {
+describe('D-PROD-268 — revisão: gado × cancelamento (trava das áreas)', () => {
   test('quem grava a movimentação com a trava do pasto primeiro: o cancelamento espera, vê o gado e recusa gado_movimentado', async () => {
     const x = await cenario();
     const pasto = await pastoReal(x);
@@ -698,7 +698,7 @@ describe('D-PROD-267 — revisão: gado × cancelamento (trava das áreas)', () 
   });
 });
 
-describe('D-PROD-267 — revisão: concorrência real com duas conexões', () => {
+describe('D-PROD-268 — revisão: concorrência real com duas conexões', () => {
   const corpoNovo = (x, anteriorId, chave = op('lanc')) => ({
     operation_id: chave,
     evento: { empresa_id: x.e.id, ponto_suplementacao_id: x.ponto, ponto_nome: 'Cocho 1', area_id: 'area-1', area_ids: ['area-1'], data_lancamento: '2027-06-12', quantidade_total_kg: 0, sobra_kg: 2, dias_periodo: null },

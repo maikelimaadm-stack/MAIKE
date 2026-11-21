@@ -1,11 +1,11 @@
 /**
- * Regras compartilhadas do cocho (D-PROD-267): campos reservados ao servidor, a trava do
+ * Regras compartilhadas do cocho (D-PROD-268): campos reservados ao servidor, a trava do
  * cocho e a ordem dos lançamentos ATIVOS. Usadas pelo cancelamento do lançamento e pelos
  * escritores endurecidos (PATCH de fechamento do evento e do lote, POST genérico, comando
  * de lançamento), que tomam a MESMA trava antes de ler ou gravar.
  *
  * Um documento de suplementação com `dados.situacao = 'cancelado'` nunca é apagado
- * (D-PROD-267: nada de exclusão física); ele sai das leituras (GET) e não aceita alteração.
+ * (D-PROD-268: nada de exclusão física); ele sai das leituras (GET) e não aceita alteração.
  */
 import { AppError } from '../../shared/errors/AppError.js';
 import { travarEscopo } from '../gestao/gestaoComum.js';

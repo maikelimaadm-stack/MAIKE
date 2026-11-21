@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — CANCELAMENTO (estorno exato) da TRANSFERÊNCIA entre depósitos.
+ * D-PROD-268 — CANCELAMENTO (estorno exato) da TRANSFERÊNCIA entre depósitos.
  *
  * Contrato (só online; a tela não enfileira):
  *   GET  /movimentacoes-estoque/:id/elegibilidade-cancelamento-transferencia?empresa_id=…  (ensaio, sem gravar)

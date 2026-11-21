@@ -1,5 +1,5 @@
 /**
- * Cancelamento do lançamento de cocho — D-PROD-267.
+ * Cancelamento do lançamento de cocho — D-PROD-268.
  *
  * O cancelamento é UM comando do servidor (estorno exato da baixa do depósito pelo motor,
  * rateio cancelado, período anterior reaberto quando provado), numa transação idempotente por

@@ -42,7 +42,8 @@ const AREAS = [AROEIRA, ACUDE];
 const PRODUTOS = [{ id: "p1", nome: "Tiametoxam", unidade: "L", unidade_principal_estoque: "L" }];
 const LOCAIS = { p1: [{ local_estoque_id: "l1", local_nome: "Depósito", disponivel: "60.0000", unidade: "L" }] };
 const TIPOS_NA_ORDEM = ["Preparo do solo", "Formação de pastagem (plantio)", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"];
-const SECOES_NA_ORDEM = ["Área", "Operação", "Datas", "Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)", "Planejamento", "Informações complementares"];
+// D-PROD-267: "Como fica depois de salvar?" fecha o formulário, logo antes do rodapé.
+const SECOES_NA_ORDEM = ["Área", "Operação", "Datas", "Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)", "Planejamento", "Informações complementares", "Como fica depois de salvar?"];
 
 /** @type {{ chamadas: Array<{ method: string, path: string, query: Record<string, string>, body: any }> }} */
 let backend;
@@ -280,8 +281,11 @@ describe("Nova realização — período e entrada (D-PROD-265)", () => {
 
   it("o botão da tela de Atividades se chama \"Nova realização\" (rótulo e aria-label) e o mapa segue com \"Manejos\"", () => {
     const pagina = readFileSync("src/pages/LancamentoAtividades.jsx", "utf8");
-    expect(pagina).toContain('aria-label="Nova realização"');
-    expect(pagina).toContain("<span>Nova realização</span>");
+    // D-PROD-267: é o botão de criar da barra ("+ Nova realização", o principal), ao lado de "Planejar".
+    expect(pagina).toContain('createLabel="Nova realização"');
+    expect(pagina).toContain('createText="Nova realização"');
+    expect(pagina).toContain("onCreate={() => setRegistrando(true)}");
+    expect(pagina).toContain('aria-label="Planejar"');
     expect(pagina).not.toContain('aria-label="Registrar serviço"');
     const mapa = readFileSync("src/components/mapa/DetalhesArea.jsx", "utf8");
     expect(mapa).toContain('rotulo: "Manejos"');

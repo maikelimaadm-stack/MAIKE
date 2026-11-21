@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — o formulário de lançamento do cocho e o cancelamento:
+ * D-PROD-268 — o formulário de lançamento do cocho e o cancelamento:
  *  CF-1. o comando leva `evento_anterior_id` (o último lançamento que a tela viu; null sem nenhum)
  *        e o fechamento do período anterior leva a prova de QUEM fechou (`fechadoPorEventoId`);
  *  CF-2. 409 LANCAMENTO_DESATUALIZADO: mensagem em português, nada a mais é gravado, e salvar de
@@ -101,7 +101,7 @@ beforeEach(() => {
 });
 afterEach(() => cleanup());
 
-describe("D-PROD-267 — lançamento e cancelamento", () => {
+describe("D-PROD-268 — lançamento e cancelamento", () => {
   it("CF-1 — sem anterior: evento_anterior_id null; com anterior aberto: o id dele e o fechamento com fechadoPorEventoId", async () => {
     await montar();
     await act(async () => { fireEvent.change(campoKg(), { target: { value: "200" } }); });

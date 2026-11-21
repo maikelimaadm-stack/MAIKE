@@ -35,19 +35,50 @@
  * dia do serviço, o MESMO em todas as áreas. Nunca antes do início (400 `data_termino`/`periodo_invertido`; o CHECK do banco
  * também recusa) nem no futuro da fazenda (422 `ATIVIDADE_DATA_INVALIDA` `futura`, como o dia). Só esta rota a recebe.
  *
+ * D-PROD-267 — SERVIÇO DE VÁRIOS DIAS ("abre uma vez e vai somando os dias"):
+ *  - SEM a regra do mês: o passo 3 acha a atividade ABERTA da operação (`tipo_atividade_id`) que contém a área PLANEJADA
+ *    ou EM_ANDAMENTO, em qualquer mês (a roçada de 28/11 a 07/12 é UMA atividade). O nome da atividade nova continua com o
+ *    mês do início. A trava do passo 2 perde o mês: uma por (cliente, empresa, operação, área), em ordem de `area_id`;
+ *  - "PARADO": se o último dia lançado nela, nas áreas do registro (o maior `data_operacional`/`data_termino` CONFIRMADO),
+ *    é de mais de `DIAS_PARADO_MAXIMO` (30) dias antes do dia do registro, o servidor não junta sozinho: sem decisão no
+ *    corpo → 409 `ATIVIDADE_SERVICO_PARADO` (`details`: atividade_id, atividade_nome, ultimo_dia, area_id, dias_parado,
+ *    limite_dias), nada gravado, NEM o recibo (o reenvio com a decisão usa a mesma `operation_id`). `nova_atividade: false`
+ *    = continuar nela; `true` = é um serviço novo: as áreas do registro em andamento nela são concluídas, cada uma no
+ *    último dia lançado nela (e a atividade, se todas as áreas ficam concluídas), e uma atividade NOVA é criada. A decisão
+ *    só vale quando a atividade achada está parada (sem estar parada, o registro continua nela);
+ *  - `concluir: true` ("Como fica depois de salvar? Concluída"): depois de gravar o(s) dia(s), as áreas DESTE registro
+ *    concluem na atividade em `data_termino ?? data_operacional` (a regra de "Concluir área": nunca antes do início nem
+ *    do último dia lançado nela) e, com todas as áreas concluídas, a atividade também (`concluirAtividadeSeAreasConcluidas`).
+ *    Sem ele (ou `false`), nada conclui: nem aos 100%.
+ *  Os dois campos exigem também a permissão de editar a atividade (a de concluir), além da de lançar (guarda da rota).
+ *
  * Idempotência: `operation_id` obrigatório (recibo `atividade_registrar_v1`; reenvio igual → 200 `replay: true`;
  * corpo diferente → 409). D-PROD-265: sem `data_termino`, o fingerprint é byte a byte o de antes (nenhuma chave nova), e o
  * reenvio pendente de antes do deploy ainda casa; com ela, ela entra no fingerprint. Com várias áreas, o apontamento da área i (0-based) grava as linhas com a chave
  * `<operation_id>` (i = 0) ou `<operation_id>:a<i+1>`, que deriva as das linhas como sempre (`:p1`, `:o1`, `:s1`).
  * Permissão = a de lançar apontamento (`atividadeApontamentos.criar`). Tenant só do auth_context.
+ * D-PROD-267: `concluir` e `nova_atividade` entram no fingerprint só quando vêm (sem eles, byte a byte o de antes).
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { AppError, atividadeReferenciaInvalida } from '../../shared/errors/AppError.js';
+import { AppError, atividadeReferenciaInvalida, atividadeServicoParado } from '../../shared/errors/AppError.js';
 import { fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
-import { PADRAO_DECIMAL, STATUS_ATIVIDADE, comoData, decimalDoCorpo, diaDe, diaDoCorpo, exigirDiaNaoFuturo, idOuNulo, temCampo, tempoDaFazenda, travarAtividade } from './atividadeComum.js';
+import {
+  PADRAO_DECIMAL,
+  STATUS_ATIVIDADE,
+  carregarAtividadeDetalhe,
+  comoData,
+  decimalDoCorpo,
+  diaDe,
+  diaDoCorpo,
+  exigirDiaNaoFuturo,
+  idOuNulo,
+  temCampo,
+  tempoDaFazenda,
+  travarAtividade,
+} from './atividadeComum.js';
 import {
   VAZIO,
   camposDoCorpo,
@@ -59,7 +90,16 @@ import {
   linhasNovasDoFingerprint,
   origemDoCorpo,
 } from './atividadeApontamentoService.js';
-import { STATUS_AREA, adicionarAreaNaTransacao, exigirAreaDoMapa, iniciarAreaNaTransacao } from './atividadeAreaService.js';
+import {
+  STATUS_AREA,
+  adicionarAreaNaTransacao,
+  concluirAreaNaTransacao,
+  concluirAtividadeSeAreasConcluidas,
+  exigirAreaDoMapa,
+  iniciarAreaNaTransacao,
+  ultimosDiasDasAreas,
+} from './atividadeAreaService.js';
+import { buscarAreaDaAtividade } from './atividadeAreaRepository.js';
 import { camposDaLinha as camposDaLinhaMaquina, leituraVigenteDoBem } from './atividadeApontamentoMaquinaService.js';
 import { travarBens } from './atividadeApontamentoMaquinaRepository.js';
 import { partesPorHectares, trechosDoMedidor } from './atividadeRegistroRateio.js';
@@ -71,6 +111,15 @@ export const TIPO_OPERACAO_REGISTRAR = 'atividade_registrar_v1';
 
 /** D-PROD-263 — teto de áreas num registro (o schema da rota confere o mesmo). */
 export const AREAS_NO_REGISTRO_MAXIMO = 20;
+
+/**
+ * D-PROD-267 — a trava "serviço parado": último dia lançado na atividade achada (nas áreas do registro) mais de N dias
+ * antes do dia do registro → o servidor pergunta (409 `ATIVIDADE_SERVICO_PARADO`) em vez de juntar sozinho.
+ */
+export const DIAS_PARADO_MAXIMO = 30;
+
+/** Dias corridos de `de` até `ate` (`AAAA-MM-DD`; negativo se `ate` vem antes). @param {string} de @param {string} ate */
+export const diasEntre = (de, ate) => Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86400000);
 
 const MESES = Object.freeze(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']);
 
@@ -94,7 +143,11 @@ export const nomeDoRegistro = (tipo, area, dia, outras = 0) => {
   return `${t}${sep}${a}${pos}`.slice(0, NOME_MAXIMO);
 };
 
-/** Primeiro dia do mês do dia e do mês seguinte (strings → `Date` UTC de coluna `@db.Date`). @param {string} dia */
+/**
+ * Primeiro dia do mês do dia e do mês seguinte (strings → `Date` UTC de coluna `@db.Date`). D-PROD-267: o registro não
+ * usa mais o mês; fica para os custos do mês do resumo da área (`atividadePorAreaService.js`).
+ * @param {string} dia
+ */
 export const limitesDoMes = (dia) => {
   const ano = Number(dia.slice(0, 4));
   const mes = Number(dia.slice(5, 7));
@@ -277,21 +330,42 @@ const naArea = async ({ ativo, indice, areaId, indices }, fn) => {
 // ─── a busca ────────────────────────────────────────────────────────────────
 
 /**
- * A atividade ABERTA do tipo, da fazenda, com `data_inicio` no mês, que contém a área PLANEJADA ou EM_ANDAMENTO; havendo
- * mais de uma, a de `updatedAt` mais recente (desempate: `id` maior).
- * @param {any} tx @param {{ clienteId: string, empresaId: string, tipoId: string, areaId: string, dia: string }} p
+ * A atividade ABERTA do tipo (a operação), da fazenda, que contém a área PLANEJADA ou EM_ANDAMENTO, em qualquer mês
+ * (D-PROD-267: sem a regra do mês); havendo mais de uma, a de `updatedAt` mais recente (desempate: `id` maior).
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, tipoId: string, areaId: string }} p
  */
-const buscarAtividadeAberta = (tx, { clienteId, empresaId, tipoId, areaId, dia }) => {
-  const { de, ate } = limitesDoMes(dia);
-  return tx.atividade.findFirst({
+const buscarAtividadeAberta = (tx, { clienteId, empresaId, tipoId, areaId }) =>
+  tx.atividade.findFirst({
     where: {
       cliente_id: clienteId, empresa_id: empresaId, tipo_atividade_id: tipoId, status: STATUS_ATIVIDADE.ABERTA,
-      data_inicio: { gte: de, lt: ate },
       areas: { some: { area_id: areaId, status: { in: [STATUS_AREA.PLANEJADA, STATUS_AREA.EM_ANDAMENTO] } } },
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     select: { id: true, nome: true, data_inicio: true },
   });
+
+/**
+ * D-PROD-267 — a atividade achada está PARADA para este registro? O último dia lançado nela nas áreas do registro que ela
+ * já tem (o mais recente entre elas) mais de `DIAS_PARADO_MAXIMO` dias antes do dia. Sem nenhum dia lançado nessas áreas
+ * (atividade planejada, área recém-incluída): não está. Chame SOB a trava da atividade.
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, atividadeId: string, areaIds: string[], dia: string }} p
+ */
+const situacaoDoParado = async (tx, { clienteId, empresaId, atividadeId, areaIds, dia }) => {
+  const linhas = /** @type {Array<{ id: string, area_id: string, status: string }>} */ (
+    await tx.atividadeArea.findMany({
+      where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, area_id: { in: areaIds } },
+      select: { id: true, area_id: true, status: true },
+    })
+  );
+  const ultimos = await ultimosDiasDasAreas(tx, { clienteId, empresaId, atividadeId, atividadeAreaIds: linhas.map((l) => l.id) });
+  /** @type {{ ultimo: string, area_id: string } | null} */
+  let maisRecente = null;
+  for (const l of linhas) {
+    const u = ultimos.get(l.id);
+    if (u && (!maisRecente || u > maisRecente.ultimo)) maisRecente = { ultimo: u, area_id: l.area_id };
+  }
+  const dias = maisRecente ? diasEntre(maisRecente.ultimo, dia) : 0;
+  return { parado: maisRecente !== null && dias > DIAS_PARADO_MAXIMO, maisRecente, dias, linhas, ultimos };
 };
 
 // ─── o registro ─────────────────────────────────────────────────────────────
@@ -331,6 +405,15 @@ export const registrarCampo = async (contexto, corpo) => {
   }
   /** Só com término a chave entra no fingerprint: sem ele, o fingerprint é o de antes da D-PROD-265, byte a byte. */
   const comTermino = termino ? { data_termino: termino } : {};
+  // D-PROD-267: as decisões do "Como fica depois de salvar?" e do "parado" (booleanos opcionais; a rota confere o tipo).
+  const concluir = corpo.concluir === true;
+  /** @type {boolean|undefined} */
+  const novaAtividade = typeof corpo.nova_atividade === 'boolean' ? corpo.nova_atividade : undefined;
+  /** Só as que vieram entram no fingerprint: sem elas, o de antes, byte a byte. */
+  const comDecisoes = {
+    ...(typeof corpo.concluir === 'boolean' ? { concluir: corpo.concluir } : {}),
+    ...(novaAtividade !== undefined ? { nova_atividade: novaAtividade } : {}),
+  };
   const origem = origemDoCorpo(corpo.origem);
   const linhas = linhasDoCorpo(corpo);
   if (!linhas.operationId) throw invalido('operation_id é obrigatório', { field: 'operation_id', reason: 'obrigatorio' });
@@ -345,8 +428,8 @@ export const registrarCampo = async (contexto, corpo) => {
     fingerprint: () =>
       fingerprintDePayload(
         varias
-          ? { v: 2, empresa_id: corpo.empresa_id, areas: alvos, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, origem, ...linhasDoFingerprint }
-          : { v: 1, empresa_id: corpo.empresa_id, area_id: alvos[0].area_id, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, origem, ...linhasDoFingerprint }
+          ? { v: 2, empresa_id: corpo.empresa_id, areas: alvos, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, ...comDecisoes, origem, ...linhasDoFingerprint }
+          : { v: 1, empresa_id: corpo.empresa_id, area_id: alvos[0].area_id, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, ...comDecisoes, origem, ...linhasDoFingerprint }
       ),
     executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
@@ -369,16 +452,49 @@ export const registrarCampo = async (contexto, corpo) => {
       if (ehTipoAbastecimento(tipo.nome_tipo)) throw atividadeReferenciaInvalida('tipo_atividade_id', 'abastecimento');
 
       // A corrida: quem chega depois espera aqui e então ENXERGA a atividade criada pelo primeiro. Uma trava por área,
-      // em ordem de id: dois registros com áreas em comum se enfileiram, sem deadlock.
+      // em ordem de id: dois registros com áreas em comum se enfileiram, sem deadlock. D-PROD-267: sem o mês na chave
+      // (a atividade aberta vale em qualquer mês).
       for (const areaId of alvos.map((a) => a.area_id).sort()) {
-        const trava = `atividade-registro:${cli}:${empresaId}:${tipoId}:${areaId}:${dia.slice(0, 7)}`;
+        const trava = `atividade-registro:${cli}:${empresaId}:${tipoId}:${areaId}`;
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${trava}, 0))`;
       }
 
       let achada = null;
       for (const a of alvos) {
-        achada = await buscarAtividadeAberta(tx, { clienteId: cli, empresaId, tipoId, areaId: a.area_id, dia });
+        achada = await buscarAtividadeAberta(tx, { clienteId: cli, empresaId, tipoId, areaId: a.area_id });
         if (achada) break;
+      }
+
+      // D-PROD-267: a atividade achada PARADA (último dia há mais de 30 dias) não recebe o registro sem uma decisão.
+      /** @type {null | { atividade_id: string, atividade_nome: string, ultimo_dia: string, areas_concluidas: number, atividade_concluida: boolean }} */
+      let anterior = null;
+      if (achada) {
+        if (!(await travarAtividade(tx, cli, empresaId, achada.id))) throw atividadeReferenciaInvalida('tipo_atividade_id', 'inexistente');
+        const p = await situacaoDoParado(tx, { clienteId: cli, empresaId, atividadeId: achada.id, areaIds: alvos.map((a) => a.area_id), dia });
+        if (p.parado && p.maisRecente) {
+          if (novaAtividade === undefined) {
+            throw atividadeServicoParado({
+              atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: p.maisRecente.ultimo, area_id: p.maisRecente.area_id, dias_parado: p.dias, limite_dias: DIAS_PARADO_MAXIMO,
+            });
+          }
+          if (novaAtividade === true) {
+            // "É um serviço novo": as áreas do registro em andamento na antiga concluem no último dia lançado em cada uma.
+            let concluidas = 0;
+            for (const l of p.linhas) {
+              const ultimo = p.ultimos.get(l.id);
+              if (l.status !== STATUS_AREA.EM_ANDAMENTO || !ultimo) continue;
+              const linha = await buscarAreaDaAtividade(tx, cli, empresaId, achada.id, l.id);
+              // O lançamento antes do início da área (o dia anterior ao início da atividade) não a conclui antes de começar.
+              const inicioDaArea = diaDe(linha?.data_inicio) ?? null;
+              const fim = inicioDaArea && inicioDaArea > ultimo ? inicioDaArea : ultimo;
+              await concluirAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId: achada.id, area: linha, dia: fim });
+              concluidas += 1;
+            }
+            const fechou = await concluirAtividadeSeAreasConcluidas(tx, contexto, { clienteId: cli, empresaId, atividadeId: achada.id, tempo });
+            anterior = { atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: p.maisRecente.ultimo, areas_concluidas: concluidas, atividade_concluida: fechou };
+            achada = null;
+          }
+        }
       }
 
       let atividadeId;
@@ -389,7 +505,6 @@ export const registrarCampo = async (contexto, corpo) => {
       if (achada) {
         atividadeId = achada.id;
         atividadeNome = achada.nome;
-        if (!(await travarAtividade(tx, cli, empresaId, atividadeId))) throw atividadeReferenciaInvalida('tipo_atividade_id', 'inexistente');
         const inicioDaAtividade = diaDe(achada.data_inicio);
         for (const [i, a] of alvos.entries()) {
           await naArea(area(i), async () => {
@@ -448,14 +563,32 @@ export const registrarCampo = async (contexto, corpo) => {
           )
         );
       }
+      // D-PROD-267: "Concluída" — as áreas deste registro concluem no término (ou no dia) e, com todas concluídas, a atividade.
+      let areasConcluidas = 0;
+      let atividadeConcluida = false;
+      if (concluir) {
+        const fim = termino ?? dia;
+        for (const [i] of alvos.entries()) {
+          await naArea(area(i), async () => {
+            const linha = await buscarAreaDaAtividade(tx, cli, empresaId, /** @type {string} */ (atividadeId), /** @type {string} */ (situacao[i].atividade_area_id));
+            await concluirAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId: /** @type {string} */ (atividadeId), area: linha, dia: fim });
+          });
+          areasConcluidas += 1;
+        }
+        atividadeConcluida = await concluirAtividadeSeAreasConcluidas(tx, contexto, { clienteId: cli, empresaId, atividadeId: /** @type {string} */ (atividadeId), tempo });
+      }
       const [primeira] = respostas;
       const ultima = respostas[respostas.length - 1];
       return {
         // A forma de sempre (o apontamento da 1ª área, a atividade depois de tudo) e, D-PROD-263, um apontamento por área.
         ...primeira,
-        atividade: ultima.atividade,
+        atividade: concluir ? await carregarAtividadeDetalhe(tx, cli, empresaId, /** @type {string} */ (atividadeId)) : ultima.atividade,
         apontamentos: respostas.map((r) => r.apontamento),
         registro: {
+          // D-PROD-267: o que o "Concluída" fez e, no "é um serviço novo", o que aconteceu com a atividade parada.
+          areas_concluidas: areasConcluidas,
+          atividade_concluida: atividadeConcluida,
+          atividade_anterior: anterior,
           atividade_criada: criada,
           atividade_id: atividadeId,
           atividade_nome: atividadeNome,

@@ -91,7 +91,7 @@ const ESCRITAS = (c) => {
     ['suplementação: evento (DELETE)', 'DELETE', `/suplementacao-eventos/${ID}`],
     ['estoque: saída de suplementação', 'POST', '/movimentacoes-estoque/comandos/saida-suplementacao', { operation_id: opId(), empresa_id: E, produto_id: 'p', local_origem_id: 'l', quantidade: 5 }],
     ['estoque: transferência entre depósitos', 'POST', '/movimentacoes-estoque/comandos/transferencia-locais', { operation_id: opId(), empresa_id: E, produto_id: 'p', local_origem_id: 'l', local_destino_id: 'm', quantidade: 5 }],
-    // D-PROD-267 — cancelar lançamento de cocho e transferência entre depósitos: chave do mapa
+    // D-PROD-268 — cancelar lançamento de cocho e transferência entre depósitos: chave do mapa
     // cancelar_lancamentos_estoque (desligada ao nascer). Os ensaios (GET) têm a mesma guarda.
     ['estoque: cancelar lançamento do cocho', 'POST', `/suplementacao-eventos/${ID}/cancelamento`, { empresa_id: E, operation_id: opId(), motivo: 'motivo ok' }],
     ['estoque: cancelar transferência entre depósitos', 'POST', `/movimentacoes-estoque/${ID}/cancelar-transferencia`, { empresa_id: E, operation_id: opId(), motivo: 'motivo ok' }],
@@ -217,7 +217,7 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.equal((await req('POST', urlT, c.tokOp, corpoT)).statusCode, 403);
   });
 
-  test('D-PROD-267 — cancelar lançamento de cocho e transferência: lançar/movimentar não liberam; só a chave cancelar_lancamentos_estoque libera (POST e o ensaio GET)', async () => {
+  test('D-PROD-268 — cancelar lançamento de cocho e transferência: lançar/movimentar não liberam; só a chave cancelar_lancamentos_estoque libera (POST e o ensaio GET)', async () => {
     const c = await cenario();
     const E = c.empresa.id;
     const cancelamentos = ESCRITAS(c).filter(([n]) => n.startsWith('estoque: cancelar'));

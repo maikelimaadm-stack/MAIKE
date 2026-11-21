@@ -221,7 +221,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL: { http: 422, meaning: 'o estoque do Produto não está em L, KG nem SACO (details.unidade); nada foi gravado' },
   ABASTECIMENTO_EXCEDE_CAPACIDADE: { http: 422, meaning: 'a quantidade em litros passa da capacidade nominal do tanque (details.capacidade_litros); só conferida para Produto em L; nada foi gravado' },
   ABASTECIMENTO_DATA_FUTURA: { http: 422, meaning: 'data do abastecimento posterior a hoje no fuso da fazenda (details.hoje/fuso); nada foi gravado' },
-  // D-PROD-267 — cancelamento do lançamento de cocho e da transferência entre depósitos.
+  // D-PROD-268 — cancelamento do lançamento de cocho e da transferência entre depósitos.
   SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'o lançamento de cocho não pode ser cancelado com segurança agora (details.reason); nada foi alterado' },
   SUPLEMENTACAO_REGISTRO_CANCELADO: { http: 409, meaning: 'o documento de suplementação foi cancelado e não aceita alteração; nada foi alterado' },
   LANCAMENTO_DESATUALIZADO: { http: 409, meaning: 'o cocho recebeu outro lançamento ou cancelamento enquanto a tela estava aberta (details.evento_anterior_id); recarregue; nada foi gravado' },
@@ -319,6 +319,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'a área da atividade tem lançamento (confirmado ou cancelado) e não sai da atividade: nada com custo é apagado (details.confirmados/cancelados); conclua a área; nada foi apagado',
   },
+  // D-PROD-267 — o registro de campo acharia a atividade aberta da operação na área, mas o último dia lançado nela foi há
+  // mais de 30 dias: o servidor não junta sozinho. Reenvie com `nova_atividade` false (continuar) ou true (serviço novo).
+  ATIVIDADE_SERVICO_PARADO: {
+    http: 409,
+    meaning: 'a atividade aberta da operação nesta área está parada há mais de 30 dias (details.atividade_id, atividade_nome, ultimo_dia, area_id, dias_parado, limite_dias): diga se o registro é continuação (nova_atividade: false) ou um serviço novo (nova_atividade: true); nada foi gravado',
+  },
   ATIVIDADE_REFERENCIA_INVALIDA: {
     http: 422,
     meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo | natureza — a máquina, bem_id, só MAQUINA, VEICULO ou EQUIPAMENTO; D-PROD-249: areas[n].area_id e area_id duplicada | ja_na_atividade | varias_areas | com_lancamentos, area_planejada varias_areas, atividade_area_id obrigatorio | inexistente | sem_areas; tipo_atividade_id em POST /atividades/registrar: abastecimento — o tipo Abastecimento é da máquina, não do registro de campo); nada foi gravado',
@@ -329,7 +335,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
-    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | antes_do_inicio_da_area — D-PROD-249 — | periodo_invertido | data_inexistente | depois_do_termino — D-PROD-265 —); nada foi gravado',
+    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | antes_do_inicio_da_area — D-PROD-249 — | periodo_invertido | data_inexistente | depois_do_termino — D-PROD-265 — | antes_do_ultimo_dia — D-PROD-267: a conclusão antes do último dia lançado, com details.ultimo_dia —); nada foi gravado',
   },
   ATIVIDADE_STATUS_INVALIDO: {
     http: 409,

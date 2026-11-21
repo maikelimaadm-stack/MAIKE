@@ -1,5 +1,5 @@
 /**
- * Cancelamento do lançamento de cocho — D-PROD-267.
+ * Cancelamento do lançamento de cocho — D-PROD-268.
  *
  * Contrato (só online; a tela nunca enfileira):
  *   GET  /suplementacao-eventos/:id/elegibilidade-cancelamento?empresa_id=  (informativa, ensaio desfeito)

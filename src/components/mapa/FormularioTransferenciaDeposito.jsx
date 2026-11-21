@@ -25,14 +25,14 @@ import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 
 /**
- * D-PROD-267 — `operation_id` PERSISTIDA por envio. Antes cada clique gerava chave nova:
+ * D-PROD-268 — `operation_id` PERSISTIDA por envio. Antes cada clique gerava chave nova:
  * se a resposta se perdia (rede, timeout) depois do commit, o reenvio virava SEGUNDA
  * transferência. Agora a chave nasce no primeiro envio de um conteúdo (assinatura dos campos
  * escolhidos) e fica gravada até uma resposta DEFINITIVA do servidor; reenviar o MESMO
  * conteúdo reusa a MESMA chave. Conteúdo diferente = operação nova. Por tenant + usuário +
  * depósito + sentido.
  *
- * Travas contra o reuso errado da chave (revisão da D-PROD-267):
+ * Travas contra o reuso errado da chave (revisão da D-PROD-268):
  *  - a pendência VENCE em `JANELA_REENVIO_MS` (15 min, muito acima do pior caso do servidor):
  *    uma transferência legítima igual, lançada mais tarde, nasce com chave nova;
  *  - `replay: true` NUNCA é mostrado como "registrada": avisa que o envio anterior já tinha sido
@@ -225,7 +225,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     const quantidadeFinal = unidadeInput === "SACO" ? sacosParaKg(inputNum, pesoPorSaco) : inputNum;
     if (quantidadeFinal <= 0) return toast.error("Informe uma quantidade válida.");
 
-    // Mesma chave para o MESMO conteúdo até a resposta definitiva (D-PROD-267), dentro da janela.
+    // Mesma chave para o MESMO conteúdo até a resposta definitiva (D-PROD-268), dentro da janela.
     const chaveStorage = chaveDoEnvioPendente(`${user?.cliente_id ?? "-"}:${user?.id ?? user?.usuario_id ?? "-"}`, deposito.id, direction);
     const assinatura = JSON.stringify([empresaSelecionadaId, produtoSelecionado.id, localOrigemId, localDestinoId, quantidadeFinal, dataMovimentacao, observacoes]);
     const daMemoria = envioRef.current?.assinatura === assinatura && Date.now() - envioRef.current.em <= JANELA_REENVIO_MS ? envioRef.current : null;

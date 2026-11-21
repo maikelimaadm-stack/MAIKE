@@ -1,5 +1,5 @@
 /**
- * D-PROD-267 — frente DEPÓSITO: cancelamento (estorno exato) da transferência entre depósitos pelas rotas
+ * D-PROD-268 — frente DEPÓSITO: cancelamento (estorno exato) da transferência entre depósitos pelas rotas
  *   POST /movimentacoes-estoque/:id/cancelar-transferencia
  *   GET  /movimentacoes-estoque/:id/elegibilidade-cancelamento-transferencia?empresa_id=…
  * Contra PostgreSQL real e HTTP autenticado. Montagem pelas rotas de sempre (entrada documentada,
@@ -124,7 +124,7 @@ const erro = (r, status, code, reason) => {
   return j;
 };
 
-describe('D-PROD-267 depósito — POST cancelar-transferencia', () => {
+describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
   test('caminho feliz pela Saída: ensaio elegível, estorno exato, números n/n+1, 3 AuditLog, recibo; replay, conflito e nova chave', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');

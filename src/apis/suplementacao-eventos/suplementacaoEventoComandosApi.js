@@ -17,7 +17,7 @@ export const comandoLancamentoComLotes = (body) =>
   }, ctx('comandoLancamentoSuplementacaoComLotes'));
 
 /**
- * D-PROD-267 — cancela o lançamento de cocho no servidor (estorno exato da baixa, rateio
+ * D-PROD-268 — cancela o lançamento de cocho no servidor (estorno exato da baixa, rateio
  * cancelado, período anterior reaberto quando provado). Só online, nunca pela fila offline;
  * idempotente por `operation_id`.
  * @param {string} id
@@ -32,7 +32,7 @@ export const cancelarLancamentoCochoNativo = (id, body) =>
   }, ctx('cancelarLancamentoCocho'));
 
 /**
- * D-PROD-267 — elegibilidade do cancelamento (ensaio no servidor, nada gravado).
+ * D-PROD-268 — elegibilidade do cancelamento (ensaio no servidor, nada gravado).
  * @param {string} id
  * @param {string} empresaId
  * @param {{ signal?: AbortSignal }} [opcoes]

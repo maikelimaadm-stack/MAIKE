@@ -33,6 +33,7 @@ import {
 import {
   COLECOES_DO_REGISTRO,
   QUERY_ATIVIDADES_DA_AREA,
+  atividadeDoRegistro,
   areaDaRecusa,
   areaNovaDoRegistro,
   comItem,
@@ -46,10 +47,21 @@ import {
   itensVaziosDoRegistro,
   linhasDoCorpoDoRegistro,
   mensagemDaRecusaDoRegistro,
+  tamanhoDaArea,
   temChaveDaLinha,
   totaisDasAreasDoRegistro,
 } from "@/lib/registroDeCampoRegras";
-import { definirFazendaDaTela, listarAreasDaFazenda, listarOpcoesOperadores, obterResumoDaArea, registrarCampo } from "@/services/lancamentoAtividadesService";
+import { somar } from "@/lib/dinheiroDecimal";
+import {
+  CODIGO_SERVICO_PARADO,
+  diaCurto,
+  hectaresDepoisDoRegistro,
+  preenchimentoDoLancarDia,
+  resumoAntesDeSalvar,
+  situacaoDepoisDeSalvar,
+  textoDoDiaDoRegistro,
+} from "@/lib/servicoVariosDias";
+import { definirFazendaDaTela, listarApontamentos, listarAreasDaFazenda, listarOpcoesOperadores, obterResumoDaArea, registrarCampo } from "@/services/lancamentoAtividadesService";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 /**
@@ -88,18 +100,36 @@ import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehResultadoIncerto } from "@/s
  * Planejamento (só leitura: onde o registro entra) e Informações complementares (Operador e Observação). Com `tipo`
  * preso, a janela abre direto no formulário, sem "Trocar tipo".
  *
+ * D-PROD-267 (serviço de vários dias) — `continuar` (a linha do serviço na lista, com o `andamento`): o "+ Lançar dia". A
+ * janela abre direto no formulário do tipo do serviço, com a operação dele, as áreas em aberto (os hectares de hoje
+ * vazios), as máquinas com o implemento e a equipe do ÚLTIMO dia lançado (um editor por vez, na ordem: a inicial do
+ * medidor é a leitura de agora, "inicial = final do último dia"; a quantidade da equipe vazia); a data de início é hoje.
+ * Insumos não vêm. "Como fica depois de salvar?" (antes do rodapé): [Em andamento] [Concluída], com o padrão pelo término
+ * (vazio = Em andamento) até a pessoa escolher, e o resumo numa frase; Concluída manda `concluir: true`. A recusa
+ * `ATIVIDADE_SERVICO_PARADO` vira a pergunta "Este serviço está parado desde dd/mm. É continuação?" e o reenvio leva
+ * `nova_atividade` (false = continuar; true = serviço novo).
+ *
  * @param {{
  *   tipo?: any | null,
  *   tipos?: any[],   // as operações (tipos de atividade) ativas
  *   area?: any | null,
  *   areas?: any[],
+ *   continuar?: any | null,
  *   onFechar: () => void,
  *   onGravou?: (resposta: any) => void,
  * }} props `area` presa (detalhes da área, Manejos: vem marcada e não sai); `tipo` (operação) preso só se alguém precisar;
  *   sem eles, a pessoa escolhe entre os 7 tipos fixos, as operações de `tipos` e as `areas` (sem `areas`, a janela lê as
  *   áreas ativas da fazenda).
  */
-export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: todosOsTipos = [], area: areaPreso = null, areas: areasDoPai = [], onFechar, onGravou = undefined }) {
+export default function JanelaRegistroDeCampo({
+  tipo: tipoPreso = null,
+  tipos: todosOsTipos = [],
+  area: areaPreso = null,
+  areas: areasDoPai = [],
+  continuar = null,
+  onFechar,
+  onGravou = undefined,
+}) {
   const queryClient = useQueryClient();
   // Abastecimento é da máquina (emenda 1): nunca é tipo de registro de campo.
   const tipos = useMemo(() => tiposRegistraveisNaArea(todosOsTipos), [todosOsTipos]);
@@ -113,10 +143,14 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
 
   // ─── Tipo e áreas (presos ou escolhidos) ─────────────────────────────
-  const [tipoFixo, setTipoFixo] = useState(() => (tipoPreso ? tipoFixoDaOperacao(tipoPreso) : ""));
-  const [tipoEscolhido, setTipoEscolhido] = useState("");
+  // D-PROD-267: no "+ Lançar dia", a operação do serviço (e o tipo dela) já vem escolhida.
+  const operacaoDoServico = continuar ? todosOsTipos.find((t) => String(t?.id) === String(continuar.tipo_atividade_id ?? "")) ?? null : null;
+  const [tipoFixo, setTipoFixo] = useState(() =>
+    tipoPreso ? tipoFixoDaOperacao(tipoPreso) : operacaoDoServico ? tipoFixoDaOperacao(operacaoDoServico) : String(continuar?.andamento?.tipo_fixo ?? ""),
+  );
+  const [tipoEscolhido, setTipoEscolhido] = useState(() => (continuar?.tipo_atividade_id ? String(continuar.tipo_atividade_id) : ""));
   // D-PROD-265: o passo da janela — os cartões dos tipos ("tipo") ou o formulário do tipo escolhido ("form").
-  const [passo, setPasso] = useState(/** @type {"tipo" | "form"} */ (tipoPreso ? "form" : "tipo"));
+  const [passo, setPasso] = useState(/** @type {"tipo" | "form"} */ (tipoPreso || (continuar && tipoFixo) ? "form" : "tipo"));
   const operacoes = useMemo(() => operacoesDoTipoFixo(tipos, tipoFixo), [tipos, tipoFixo]);
   const tipo = tipoPreso ?? operacoes.find((t) => String(t.id) === tipoEscolhido) ?? null;
   // D-PROD-263: as áreas da fazenda para marcar (as do pai; sem elas — o mapa —, as ativas lidas aqui), com a presa.
@@ -131,7 +165,12 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     return areaPreso?.id && !base.some((a) => String(a?.id) === String(areaPreso.id)) ? [areaPreso, ...base] : base;
   }, [areasDoPai, areasLidas.data, areaPreso]);
   const [areasDoRegistro, setAreasDoRegistro] = useState(
-    /** @returns {import("@/lib/registroDeCampoRegras").AreaDoRegistro[]} */ () => (areaPreso?.id ? [areaNovaDoRegistro(areaPreso)] : []),
+    /** @returns {import("@/lib/registroDeCampoRegras").AreaDoRegistro[]} */ () => {
+      if (areaPreso?.id) return [areaNovaDoRegistro(areaPreso)];
+      // D-PROD-267: as áreas em aberto do serviço, com os hectares de hoje vazios (a pessoa digita).
+      if (continuar) return preenchimentoDoLancarDia({ atividade: continuar }).areaIds.map((id) => ({ area_id: id, percentual: "", hectares: "" }));
+      return [];
+    },
   );
   /** A área do mapa pelo id. @param {string} id */
   const areaDe = (id) => areasDoMapa.find((a) => String(a?.id) === String(id)) ?? null;
@@ -147,6 +186,12 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const diaMexido = useRef(false);
   // D-PROD-265: o último dia do serviço (opcional; vazio = um dia só).
   const [termino, setTermino] = useState("");
+  // D-PROD-267: "Como fica depois de salvar?" — null = o padrão pelo término, até a pessoa escolher.
+  const [escolhaDaSituacao, setEscolhaDaSituacao] = useState(/** @type {'EM_ANDAMENTO'|'CONCLUIDA'|null} */ (null));
+  const situacaoDepois = situacaoDepoisDeSalvar(termino, escolhaDaSituacao);
+  // D-PROD-267: a recusa "serviço parado" (a pergunta) e a fila das máquinas e da equipe do último dia (um editor por vez).
+  const [parado, setParado] = useState(/** @type {{ ultimo_dia: string|null, atividade_nome: string|null } | null} */ (null));
+  const filas = useRef(/** @type {{ maquinas: any[], mao_obra: any[] }} */ ({ maquinas: [], mao_obra: [] }));
   useEffect(() => {
     if (!diaMexido.current && hoje) setDia(hoje);
   }, [hoje]);
@@ -177,6 +222,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
   const mexeu = () => {
     esquecerUltimo();
     setEstado((e) => (e.fase === "erro" ? { fase: "pronto" } : e));
+    setParado(null);
   };
 
   /** Abre o editor da seção: vazio (item novo) ou com um item da tabela, já com os erros apontados. @param {ColecaoDoRegistro} colecao @param {ItemDoRegistro|null} [item] @param {Record<string, string>} [errosDoCampo] */
@@ -185,8 +231,17 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     const id = ultimaAbertura.current;
     setEditores((e) => ({ ...e, [colecao]: { id, chave: item?.chave ?? null, form: item ? item.form : formularioVazioDaSecao(colecao), erros: errosDoCampo, saltoPedido: item?.saltoPedido === true } }));
   };
-  /** @param {ColecaoDoRegistro} colecao */
-  const fecharEditor = (colecao) => setEditores((e) => ({ ...e, [colecao]: null }));
+  /**
+   * Fecha o editor da seção; no "+ Lançar dia", o próximo item do último dia (máquina ou pessoa) abre em seguida.
+   * @param {ColecaoDoRegistro} colecao
+   */
+  const fecharEditor = (colecao) => {
+    const fila = colecao === "maquinas" || colecao === "mao_obra" ? filas.current[colecao] : [];
+    const proximo = fila.length ? fila[0] : null;
+    if (proximo) filas.current = { ...filas.current, [colecao]: fila.slice(1) };
+    setEditores((e) => ({ ...e, [colecao]: null }));
+    if (proximo) abrirEditor(colecao, /** @type {any} */ ({ chave: null, form: proximo }));
+  };
   /** Um campo do editor mudou (o mesmo `mudar` das janelas da linha). @param {ColecaoDoRegistro} colecao */
   const mudarNoEditor = (colecao) => (/** @type {Record<string, any>} */ mudanca, /** @type {string[]} */ campos) => {
     setEditores((e) => {
@@ -263,6 +318,26 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     mexeu();
   };
 
+  // ─── D-PROD-267: o último dia do serviço ("+ Lançar dia") ─────────────
+  const doServico = useQuery({
+    queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "lancar-dia", empresaId, continuar?.id ?? null],
+    queryFn: () => listarApontamentos(String(continuar?.id)),
+    enabled: Boolean(continuar?.id && empresaId && acoes?.ver),
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const preenchido = useRef(false);
+  useEffect(() => {
+    if (!continuar || preenchido.current || !doServico.data) return;
+    preenchido.current = true;
+    const p = preenchimentoDoLancarDia({ atividade: continuar, apontamentos: /** @type {any} */ (doServico.data)?.items ?? [] });
+    const [maquina, ...outrasMaquinas] = p.maquinas;
+    const [pessoa, ...outrasPessoas] = p.equipe;
+    filas.current = { maquinas: outrasMaquinas, mao_obra: outrasPessoas };
+    if (maquina) abrirEditor("maquinas", /** @type {any} */ ({ chave: null, form: maquina }));
+    if (pessoa) abrirEditor("mao_obra", /** @type {any} */ ({ chave: null, form: pessoa }));
+  }, [continuar, doServico.data]);
+
   // ─── Onde o registro entra (só leitura: quem decide é o servidor) ─────
   const resumos = useQueries({
     queries: areasDoRegistro.map((l) => ({
@@ -309,7 +384,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
    * escolhido entra sozinho na tabela (ou mostra os erros e nada sai); o vazio não conta.
    * @returns {EnvioDoRegistro | null}
    */
-  const montarEnvio = () => {
+  const montarEnvio = (/** @type {{ novaAtividade?: boolean }} */ decisao = {}) => {
     /** @type {Record<string, string>} */
     const e = {};
     if (!tipoFixo) e.tipoFixo = "Escolha o tipo.";
@@ -360,6 +435,9 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
         tipo_atividade_id: String(tipo.id),
         // D-PROD-265: só preenchida (sem ela, o corpo — e o recibo — é o de antes).
         ...(termino ? { data_termino: termino } : {}),
+        // D-PROD-267: "Concluída" conclui as áreas do registro (e a atividade, com todas concluídas); a resposta ao "parado".
+        ...(situacaoDepois === "CONCLUIDA" ? { concluir: true } : {}),
+        ...(typeof decisao.novaAtividade === "boolean" ? { nova_atividade: decisao.novaAtividade } : {}),
         ...(flags.exigeSafra ? { safra_ciclo: safra.trim() } : {}),
         ...linhasDoCorpoDoRegistro(finais),
       },
@@ -372,19 +450,23 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
     setEditores(editoresFechados());
     setErrosDasLinhas({});
     lidoNosEditores.current = {};
-    // As áreas ficam; os hectares voltam a 100% do tamanho.
-    setAreasDoRegistro((ls) => ls.map((l) => (areaDe(l.area_id) ? areaNovaDoRegistro(areaDe(l.area_id)) : l)));
+    // As áreas ficam; os hectares voltam a 100% do tamanho (D-PROD-267: no "+ Lançar dia", vazios — os de hoje).
+    setAreasDoRegistro((ls) => ls.map((l) => (continuar ? { area_id: l.area_id, percentual: "", hectares: "" } : areaDe(l.area_id) ? areaNovaDoRegistro(areaDe(l.area_id)) : l)));
     setOperador(null);
     setObservacao("");
     setTermino("");
+    setEscolhaDaSituacao(null);
+    setParado(null);
+    filas.current = { maquinas: [], mao_obra: [] };
     setErros({});
     setChaveForm((k) => k + 1);
   };
 
-  const salvar = async (/** @type {boolean} */ fechar) => {
+  const salvar = async (/** @type {boolean} */ fechar, /** @type {{ novaAtividade?: boolean }} */ decisao = {}) => {
     if (enviando) return;
     fecharDepois.current = fechar;
-    const envio = montarEnvio();
+    setParado(null);
+    const envio = montarEnvio(decisao);
     if (!envio) {
       notifyWarning("Atenção", "Revise os campos destacados.");
       return;
@@ -406,6 +488,13 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       return;
     }
     const erro = r.erro;
+    // D-PROD-267: o serviço está parado há mais de 30 dias — a pergunta aparece no lugar do aviso de recusa.
+    if (codigoDoServidor(erro) === CODIGO_SERVICO_PARADO) {
+      const d = /** @type {any} */ (erro)?.details ?? {};
+      setParado({ ultimo_dia: typeof d.ultimo_dia === "string" ? d.ultimo_dia : null, atividade_nome: typeof d.atividade_nome === "string" ? d.atividade_nome : null });
+      setEstado({ fase: "pronto" });
+      return;
+    }
     // A recusa que aponta um item (a posição no array enviado) vai para a linha dele, e o editor abre nela com o campo.
     const alvo = itemDaRecusa(erro, enviado.current?.linhas);
     const mensagem = mensagemDoEnvio(erro);
@@ -464,7 +553,7 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       <span data-testid="registro-de-campo-titulo">Nova realização</span>
     );
   const acoesDoTitulo =
-    passo === "form" && !tipoPreso ? (
+    passo === "form" && !tipoPreso && !continuar ? (
       <button type="button" className={`${BOTAO_SECUNDARIO} tb-btn-outline b1-realizacao__trocar`} onClick={trocarTipo} disabled={enviando} data-testid="registro-de-campo-trocar-tipo">
         <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
         Trocar tipo
@@ -503,6 +592,55 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
       </ul>
     </div>
   );
+
+  // ─── D-PROD-267: o resumo antes de salvar ("Roçada … no Pasto …, hoje, 4 ha, … Vai ficar EM ANDAMENTO (12 de 40 ha).") ─
+  const achada = atividadeDoRegistro({
+    tipo,
+    areas: areasDoRegistro.map((l) => ({ id: l.area_id, nome: areaDe(l.area_id)?.nome ?? "" })),
+    resumos: resumos.map((r) => (r.isSuccess ? r.data : null)),
+  });
+  /** O que o serviço já tem (feitos e área total) antes deste registro. */
+  const jaTem = (() => {
+    if (continuar && (!achada || String(achada.alvo?.atividade_id) === String(continuar.id))) {
+      return { feitos: continuar.andamento?.hectares_feitos ?? null, area: continuar.andamento?.hectares_area ?? null };
+    }
+    /** @type {string[]} */
+    const feitos = [];
+    /** @type {string[]} */
+    const areasTotal = [];
+    areasDoRegistro.forEach((l, i) => {
+      const naAlvo = achada
+        ? (Array.isArray(resumos[i]?.data?.atividades) ? resumos[i].data.atividades : []).find((/** @type {any} */ a) => String(a.atividade_id) === String(achada.alvo?.atividade_id))
+        : null;
+      if (naAlvo?.area_executada) feitos.push(String(naAlvo.area_executada));
+      const total = naAlvo?.area_planejada ?? tamanhoDaArea(areaDe(l.area_id));
+      if (total) areasTotal.push(String(total));
+    });
+    return { feitos: feitos.length ? somar(feitos, 4) : null, area: areasTotal.length ? somar(areasTotal, 4) : null };
+  })();
+  const depois = hectaresDepoisDoRegistro({ jaFeitos: jaTem.feitos, areaTotal: jaTem.area, hoje: totaisDasAreas.hectares });
+  const medida = (/** @type {any} */ f) => {
+    const q = String(f?.quantidade ?? "").trim();
+    if (!q) return "";
+    if (f?.tipo_medida === "DIARIA") return `${q} ${q === "1" ? "diária" : "diárias"}`;
+    if (f?.tipo_medida === "TAREFA") return `${q} ${q === "1" ? "tarefa" : "tarefas"}`;
+    return `${q} h`;
+  };
+  const maquinasDoResumo = [...itens.maquinas.map((i) => i.form), ...(editores.maquinas?.form?.bem ? [editores.maquinas.form] : [])].map((f) => String(f?.bem?.rotulo ?? "")).filter(Boolean);
+  const equipeDoResumo = [...itens.mao_obra.map((i) => i.form), ...(editores.mao_obra?.form?.parceiro ? [editores.mao_obra.form] : [])]
+    .map((f) => [String(f?.parceiro?.rotulo ?? ""), medida(f)].filter(Boolean).join(" "))
+    .filter(Boolean);
+  const resumo = resumoAntesDeSalvar({
+    operacao: String(tipo?.nome_tipo ?? ""),
+    areas: areasDoRegistro.map((l) => String(areaDe(l.area_id)?.nome ?? "")).filter(Boolean),
+    quando: textoDoDiaDoRegistro(dia, termino, hoje),
+    hectares: totaisDasAreas.hectares,
+    maquinas: maquinasDoResumo,
+    equipe: equipeDoResumo,
+    situacao: situacaoDepois,
+    feitosDepois: depois.feitos,
+    areaTotal: depois.area,
+  });
 
   const form = (
     <form
@@ -609,9 +747,16 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
         {COLECOES_DO_REGISTRO.map((colecao) => {
           const editor = editores[colecao];
           const lista = itens[colecao];
+          // D-PROD-267: no "+ Lançar dia", a leitura inicial da máquina é a final do último dia (a vigente do medidor).
+          const notaDaMaquina =
+            continuar && colecao === "maquinas" && (lista.length > 0 || editor) ? (
+              <p key="nota-maquina" className="col-span-12 min-w-0 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-nota-inicial">
+                inicial = final do último dia
+              </p>
+            ) : null;
           return (
+            <React.Fragment key={colecao}>
             <SecaoDeLinhasDoRegistro
-              key={colecao}
               colecao={colecao}
               itens={lista}
               editor={editor}
@@ -645,6 +790,8 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
                 ) : null
               }
             />
+            {notaDaMaquina}
+            </React.Fragment>
           );
         })}
 
@@ -671,6 +818,50 @@ export default function JanelaRegistroDeCampo({ tipo: tipoPreso = null, tipos: t
           maiusculas={false}
         />
         <CampoTextoLongo label="Observação" value={observacao} onChange={(v) => { setObservacao(v); esquecerUltimo(); }} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
+
+        <SecaoForm titulo="Como fica depois de salvar?" />
+        <div className="col-span-12 min-w-0 b1-situacao-depois" role="radiogroup" aria-label="Como fica depois de salvar?" data-testid="registro-de-campo-situacao">
+          {/** @type {const} */ ([["EM_ANDAMENTO", "Em andamento"], ["CONCLUIDA", "Concluída"]]).map(([valor, rotulo]) => (
+            <button
+              key={valor}
+              type="button"
+              role="radio"
+              aria-checked={situacaoDepois === valor}
+              className="b1-situacao-depois__opcao"
+              disabled={enviando}
+              onClick={() => {
+                setEscolhaDaSituacao(valor);
+                mexeu();
+              }}
+              data-testid={`registro-de-campo-situacao-${valor === "CONCLUIDA" ? "concluida" : "andamento"}`}
+            >
+              <span className="b1-situacao-depois__radio" aria-hidden />
+              {rotulo}
+            </button>
+          ))}
+        </div>
+        {resumo.frase || resumo.vai ? (
+          <p className="col-span-12 min-w-0 break-words text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-resumo">
+            {resumo.frase ? `${resumo.frase} ` : ""}
+            <strong className="text-[var(--mg-text-1,#1f2937)]">{resumo.vai}</strong>
+          </p>
+        ) : null}
+        {parado ? (
+          <div className="col-span-12 min-w-0 b1-parado" role="alertdialog" aria-label="Serviço parado" data-testid="registro-de-campo-parado" ref={(el) => el?.scrollIntoView?.({ block: "nearest" })}>
+            <p className="b1-parado__pergunta">
+              Este serviço está parado{parado.ultimo_dia ? ` desde ${diaCurto(parado.ultimo_dia)}` : ""}. É continuação?
+            </p>
+            {parado.atividade_nome ? <p className="b1-parado__nome">{parado.atividade_nome}</p> : null}
+            <div className="b1-parado__botoes">
+              <button type="button" className={BOTAO_SECUNDARIO} disabled={enviando} onClick={() => void salvar(fecharDepois.current, { novaAtividade: false })} data-testid="registro-de-campo-parado-continuar">
+                Continuar este serviço
+              </button>
+              <button type="button" className={BOTAO_SECUNDARIO} disabled={enviando} onClick={() => void salvar(fecharDepois.current, { novaAtividade: true })} data-testid="registro-de-campo-parado-novo">
+                É um serviço novo
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="col-span-12 min-w-0">
           <AvisoEnvioDaLinha estado={estado} produto={false} lancado="o registro PODE ter sido gravado" onRepetir={() => void salvar(true)} onConsultar={consultar} />
         </div>

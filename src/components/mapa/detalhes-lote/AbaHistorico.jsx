@@ -34,7 +34,7 @@ import "@/styles/mk-dp-tl-acoes.css";
  * fica só no primeiro cartão do movimento, com o aviso do alcance. Quem vê a
  * ação decide o próprio `ExcluirMovimentacao`. Ao excluir, histórico e mapa relêem.
  *
- * Cancelar lançamento (D-PROD-267, etapa 2): o cartão de suplementação MAIS RECENTE de cada
+ * Cancelar lançamento (D-PROD-268, etapa 2): o cartão de suplementação MAIS RECENTE de cada
  * cocho ganha "Cancelar lançamento" no pé (`CancelarLancamentoCocho`: comando do servidor, só
  * com a permissão `cancelar_lancamentos_estoque`, motivo obrigatório, só online, elegibilidade
  * antes de habilitar). Só o mais recente é dica: quem decide é o servidor. Cancelado, o cartão
@@ -158,7 +158,7 @@ function AcaoExcluir({ movimento, alcance, aoExcluir }) {
 }
 
 /**
- * D-PROD-267 — "Cancelar lançamento" no pé do cartão de suplementação mais recente de cada cocho
+ * D-PROD-268 — "Cancelar lançamento" no pé do cartão de suplementação mais recente de cada cocho
  * (os cartões chegam do mais novo para o mais antigo). Os outros ficam como estão.
  * @param {import("./historicoDoPasto").DiaHistorico[]} dias
  * @param {{ aoCancelar?: () => void, doServidor?: boolean, autorizado?: boolean }} [opcoes]
