@@ -29,6 +29,10 @@
  * FIFO próprio em Number (D-PROD-256: o valor de toda saída é o CUSTO MÉDIO do poço produto × local; a ordem FIFO das camadas é só contabilidade de lote). Toda primitiva valida TUDO antes da primeira escrita,
  * e toda recusa desfaz a transação inteira de quem chama.
  *
+ * D-PROD-268 — cancelamentos do Mapa Geral: `estornarSaidaSuplementacao` (baixa do cocho) e
+ * `estornarTransferenciaEstoque` (par S/R entre locais), ambos estorno EXATO pelo valor gravado e só
+ * quando o movimento é o último do produto no(s) depósito(s) (`movimentoPosterior.js`).
+ *
  * ORDEM CANÔNICA DE TRAVAS (todos os escritores de estoque):
  *   recibo (L0) → documento (cabeçalho, Bem ou linha, se houver) → advisory de
  *   escopo (vínculo) → `LocalEstoque` FOR KEY SHARE em ordem de id
@@ -44,6 +48,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { travarEscopo } from '../gestao/gestaoComum.js';
 import { reservarNumero, reservarNumeros, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, LIMITE_ESTOQUE, ZERO, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
+import { buscarMovimentoPosterior } from './movimentoPosterior.js';
 
 export const ENTIDADE_MOVIMENTO = 'MovimentacaoEstoque';
 export const ORIGEM_SISTEMA = 'operacao_financeira';
@@ -76,7 +81,7 @@ export const ORIGEM_APONTAMENTO = 'apontamento_atividade';
  */
 export const ORIGEM_SAIDA_ESTOQUE = 'saida_estoque';
 /**
- * D-PROD-268 — origem do AJUSTE DE INVENTÁRIO documentado (sobra = entrada com camada; falta = saída) e dos
+ * D-PROD-269 — origem do AJUSTE DE INVENTÁRIO documentado (sobra = entrada com camada; falta = saída) e dos
  * estornos dele. 14 chars (VarChar(32)). Só este arquivo cita o rótulo: o módulo `estoqueAjustes` usa os
  * invólucros `aplicarSobraDeAjuste`, `aplicarFaltaDeAjuste`, `estornarSobraDeAjuste` e `estornarFaltaDeAjuste`.
  */
@@ -990,6 +995,31 @@ export const estornarEntrada = async (tx, ctx, a) => {
 };
 
 /**
+ * D-PROD-268 — cinto opcional de `estornarSaida`: o original lido sob `FOR UPDATE` tem de ser exatamente o
+ * movimento que quem chama provou (tipo, origem, rótulo, local de origem, quantidade = a do item e, se
+ * informadas, as mesmas fatias que quem chama leu antes da trava). Sem `originalEsperado`, nada muda.
+ * @param {any} original
+ * @param {{ tipoMovimentacao?: string, origemSistema?: string, tipoDetalhado?: string, localOrigemId?: string, lotesConsumidos?: unknown }} esperado
+ * @param {{ item_ordem?: number }} base
+ * @param {any} kg
+ * @throws 409 ESTOQUE_JA_CONSUMIDO { reason: 'vinculo_divergente' } | 409 CONCURRENCY_CONFLICT { reason: 'original_alterado' }
+ */
+const exigirOriginalComoEsperado = (original, esperado, base, kg) => {
+  const diverge =
+    (esperado.tipoMovimentacao !== undefined && original.tipo_movimentacao !== esperado.tipoMovimentacao)
+    || (esperado.origemSistema !== undefined && original.origem_sistema !== esperado.origemSistema)
+    || (esperado.tipoDetalhado !== undefined && original.tipo_detalhado !== esperado.tipoDetalhado)
+    || (esperado.localOrigemId !== undefined && (original.local_estoque_origem !== esperado.localOrigemId || original.local_estoque_destino))
+    || !dec(original.quantidade).eq(dec(kg));
+  if (diverge) {
+    throw jaConsumido('o movimento de estoque deste item não é o movimento esperado; estorno recusado (nada foi alterado)', { ...base, reason: 'vinculo_divergente' });
+  }
+  if (esperado.lotesConsumidos !== undefined && JSON.stringify(original.lotes_consumidos ?? null) !== JSON.stringify(esperado.lotesConsumidos ?? null)) {
+    throw conflitoDoOriginal({ movimento_id: original.id });
+  }
+};
+
+/**
  * Estorno de SAÍDA (cancelamento de abastecimento; venda nos testes): devolve
  * cada fatia ao SEU lote (recusa lote que não esteja 'Disponivel'/'Esgotado' —
  * ex.: 'Estornado' — e devolução acima da entrada), cria 'Entrada'
@@ -1009,7 +1039,9 @@ export const estornarEntrada = async (tx, ctx, a) => {
  * @param {{ empresaId: string, item: any, consumos: Array<{estoque_lote_nota_id: string, quantidade: any}>, produto: any,
  *   local: {id: string, nome: string}, dia: string, documento?: any, parceiro?: any,
  *   origem: {operacaoId: string, sistema?: string, tipoDetalhadoEstorno?: string, motivoEstorno?: string},
- *   numeroMovimento?: string|number }} a
+ *   numeroMovimento?: string|number,
+ *   originalEsperado?: { tipoMovimentacao?: string, origemSistema?: string, tipoDetalhado?: string, localOrigemId?: string, lotesConsumidos?: unknown } }} a
+ *   `originalEsperado` (D-PROD-268, opcional): cinto `exigirOriginalComoEsperado` sobre o original travado.
  */
 export const estornarSaida = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
@@ -1026,11 +1058,13 @@ export const estornarSaida = async (tx, ctx, a) => {
         FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND id = ANY(${loteIds}::text[]) ORDER BY id FOR UPDATE`
     : []).map((l) => [l.id, l]));
   const [original] = /** @type {any[]} */ (a.item.movimentacao_estoque_id
-    ? await tx.$queryRaw`SELECT id, status, movimento_filho_id, empresa_id, produto_id, valor_unitario, valor_total
+    ? await tx.$queryRaw`SELECT id, status, movimento_filho_id, empresa_id, produto_id, valor_unitario, valor_total,
+          tipo_movimentacao, origem_sistema, tipo_detalhado, local_estoque_origem, local_estoque_destino, quantidade, lotes_consumidos
         FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${a.item.movimentacao_estoque_id} FOR UPDATE`
     : []);
   if (!original) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
   exigirOriginalEstornavel(original, { item_ordem: a.item.ordem }, { empresaId: a.empresaId, produtoId: a.produto.id });
+  if (a.originalEsperado) exigirOriginalComoEsperado(original, a.originalEsperado, { item_ordem: a.item.ordem }, kg);
   // Validação de TODAS as fatias antes da primeira escrita (soma por lote).
   const linha = { empresaId: a.empresaId, produtoId: a.produto.id, localId: a.local.id };
   /** @type {Map<string, any>} */
@@ -1575,7 +1609,7 @@ export const estornarSaidaDocumentada = (tx, ctx, a) => {
   }));
 };
 
-// ─── ajuste de inventário documentado (D-PROD-268) ───────────────────────────
+// ─── ajuste de inventário documentado (D-PROD-269) ───────────────────────────
 /** Rótulos fechados do ajuste (o texto do movimento diz "Ajuste de inventário nº N"). */
 const TIPO_SOBRA_AJUSTE = 'ajuste_sobra';
 const TIPO_FALTA_AJUSTE = 'ajuste_falta';
@@ -1583,7 +1617,7 @@ const TIPO_ESTORNO_SOBRA_AJUSTE = 'estorno_ajuste_sobra';
 const TIPO_ESTORNO_FALTA_AJUSTE = 'estorno_ajuste_falta';
 
 /**
- * D-PROD-268 — o poço do produto no depósito, para a contagem: saldo (Σ disponível das camadas Disponivel) e
+ * D-PROD-269 — o poço do produto no depósito, para a contagem: saldo (Σ disponível das camadas Disponivel) e
  * custo médio (valor ÷ quantidade, `CASAS_CUSTO`; null sem saldo). Chamar sob a trava do produto.
  * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} produtoId @param {string} localId
  * @returns {Promise<{ quantidade: any, valor: any, custoMedio: any|null }>}
@@ -1595,7 +1629,7 @@ export const pocoDoDeposito = async (tx, clienteId, empresaId, produtoId, localI
 };
 
 /**
- * D-PROD-268 — as quatro pontas do ajuste de inventário. Só fixam a origem e os rótulos e delegam às primitivas:
+ * D-PROD-269 — as quatro pontas do ajuste de inventário. Só fixam a origem e os rótulos e delegam às primitivas:
  *  - sobra → `aplicarEntradaEstoque` (camada nova com o custo dado: o médio do depósito, ou o informado sem saldo);
  *  - falta → `aplicarSaida` (custo médio, fatias em `lotes_consumidos`);
  *  - estorno da sobra → `estornarEmLote` efeito ENTRADA (camada Estornada, movimento compensatório);
@@ -1630,6 +1664,484 @@ export const estornarFaltaDeAjuste = (tx, ctx, a) => {
   return estornarSaida(tx, ctx, /** @type {any} */ ({
     ...resto, origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_AJUSTE_ESTOQUE, tipoDetalhadoEstorno: TIPO_ESTORNO_FALTA_AJUSTE, motivoEstorno: origem.motivoEstorno },
   }));
+};
+
+// ─── estorno da suplementação do cocho (D-PROD-268) ─────────────────────────
+/** Rótulos fechados da baixa de suplementação e do estorno dela. */
+const TIPO_SAIDA_SUPLEMENTACAO = 'suplementacao';
+export const TIPO_ESTORNO_SUPLEMENTACAO = 'estorno_suplementacao';
+
+/**
+ * D-PROD-268 — recusa do cancelamento do lançamento de cocho (o código da missão; `reason` diz qual).
+ * @param {string} reason @param {Record<string, unknown>} [extra]
+ */
+const cochoBloqueado = (reason, extra = {}) =>
+  new AppError('SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO', `o lançamento de cocho não pode ser cancelado com segurança (${reason}); nada foi alterado`, {
+    details: { field: 'movimentacao_estoque_id', reason, ...extra },
+  });
+
+/** Razões do estorno de saída que o cancelamento do cocho repassa com o mesmo nome. */
+const RAZOES_ESTORNO_REPASSADAS = Object.freeze(['lote_indisponivel_para_devolucao', 'devolucao_excede_entrada', 'fatias_inconsistentes', 'vinculo_divergente', 'camada_divergente']);
+
+/** Erros do `estornarSaida` → recusa do cocho (o mapeamento de `traduzirErroDoEstorno` do abastecimento). */
+const traduzirEstornoDoCocho = (erro, movimentoId) => {
+  const e = /** @type {any} */ (erro);
+  if (!(e instanceof AppError)) return erro;
+  const extra = { movimentacao_id: movimentoId, ...(e.details?.lote_id ? { lote_id: e.details.lote_id } : {}) };
+  if (e.code === 'ESTOQUE_JA_CONSUMIDO') {
+    if (e.details?.reason === 'original_ja_estornado' || e.details?.reason === 'original_nao_ativo') return cochoBloqueado('movimento_estornado', extra);
+    return cochoBloqueado(RAZOES_ESTORNO_REPASSADAS.find((r) => r === e.details?.reason) ?? 'fatias_inconsistentes', extra);
+  }
+  if (e.code === 'MOVIMENTACAO_ESTOQUE_NOT_FOUND') return cochoBloqueado('saida_nao_comprovada', extra);
+  if (e.code === 'OPERACAO_VALORES_INVALIDOS') return cochoBloqueado('estoque_excede_limite', extra);
+  return erro;
+};
+
+/** `kg` (Decimal do banco) = `valor` (number|string|Decimal) arredondado a 4 casas; ilegível → falso. */
+const mesmaQuantidade = (kg, valor) => {
+  try {
+    const q = new Dec(String(valor));
+    return !q.isNaN() && dec(kg).eq(q.toDecimalPlaces(CASAS_QUANTIDADE, Dec.ROUND_HALF_UP));
+  } catch {
+    return false;
+  }
+};
+
+/** Fatias gravadas legíveis (lista não vazia; cada uma com lote e quantidade > 0). */
+const fatiasLegiveis = (fatias, { comDestino = false } = {}) => {
+  if (!Array.isArray(fatias) || !fatias.length) return null;
+  const saida = [];
+  for (const f of fatias) {
+    if (!f || typeof f !== 'object' || typeof f.lote_id !== 'string' || !f.lote_id) return null;
+    if (comDestino && (typeof f.lote_destino_id !== 'string' || !f.lote_destino_id)) return null;
+    let q;
+    try {
+      q = new Dec(String(f.quantidade));
+    } catch {
+      return null;
+    }
+    if (q.isNaN() || !q.gt(0)) return null;
+    saida.push({ lote_id: f.lote_id, lote_destino_id: comDestino ? f.lote_destino_id : null, quantidade: q });
+  }
+  return saida;
+};
+
+/**
+ * D-PROD-268 — ESTORNO EXATO da SAÍDA DE SUPLEMENTAÇÃO do cocho (cancelamento do lançamento). É
+ * `estornarSaida` com a origem e os rótulos fixos (`ORIGEM_SUPLEMENTACAO`, Entrada `estorno_suplementacao`,
+ * `motivoEstorno` obrigatório) e com os cintos do desenho, todos ANTES da primeira escrita:
+ *  - (re)trava o produto (`travarProdutosEstoque` é reentrante na mesma transação);
+ *  - o movimento `movimentoId` é a baixa do cocho: 'Saída' de origem `suplementacao`, `tipo_detalhado`
+ *    `suplementacao`, da empresa e do produto, só com origem no `local` (e, com `vinculo`, do mesmo ponto
+ *    e com a mesma quantidade); senão `saida_nao_comprovada`. Já estornado ou não ativo: `movimento_estornado`;
+ *  - fatias em `lotes_consumidos` (lista não vazia, legível); senão `saida_sem_fatias` (nunca reconstrói);
+ *  - regra do ÚLTIMO no depósito (D-PROD-264), descontando os pares neutros: senão
+ *    `movimento_posterior_no_deposito` (`movimento_numero`);
+ *  - o estorno: cada fatia volta à SUA camada por CAS ('Disponivel'), o poço é reavaliado com o valor
+ *    EXATO do original (`poço.valor + M.valor_total`), nasce a Entrada `estorno_suplementacao` com
+ *    `movimento_pai_id = M` e `lancamento_origem_id = origem.operacaoId`, M vira 'Estornada' com
+ *    `movimento_filho_id` (CAS) e `Produto.estoque_atual += kg`.
+ * Toda recusa de negócio é 409 `SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO` { field: 'movimentacao_estoque_id',
+ * reason, movimentacao_id, lote_id?, movimento_numero? } (os erros de `estornarSaida` já traduzidos);
+ * corrida perdida continua 409 `CONCURRENCY_CONFLICT`. Quem chama: locais FOR KEY SHARE antes
+ * (`exigirLocaisEstoque`, `exigirAtivo: false`), número provisório e `numerarMovimentos` no FIM, AuditLog.
+ * @param {any} tx
+ * @param {{auth: any}} ctx
+ * @param {{ empresaId: string, movimentoId: string, produto: any, local: { id: string, nome?: string|null }, dia: string,
+ *   origem: { operacaoId: string, motivoEstorno: string }, numeroMovimento?: string|number,
+ *   vinculo?: { pontoSuplementacaoId?: string|null, quantidadeKg?: any } }} a
+ * @returns {Promise<{ movimento: any, original: { id: string, numero_movimentacao: string }, quantidade: any, valor_total: any,
+ *   fatias: Array<{ lote_id: string, quantidade: any }> }>}
+ */
+export const estornarSaidaSuplementacao = async (tx, ctx, a) => {
+  const auth = exigirAuthContext(ctx?.auth);
+  const cli = auth.clienteId;
+  if (!textoInformado(a.origem?.motivoEstorno)) throw new Error('estornarSaidaSuplementacao: origem.motivoEstorno é obrigatório');
+  if (typeof a.dia !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(a.dia)) throw new Error('estornarSaidaSuplementacao: dia AAAA-MM-DD obrigatório');
+  exigirProdutoDaEmpresa(a);
+  if (!a.local?.id) throw new Error('estornarSaidaSuplementacao: local obrigatório');
+  await travarProdutosEstoque(tx, cli, a.empresaId, [a.produto.id]);
+  const [m] = /** @type {any[]} */ (a.movimentoId
+    ? await tx.$queryRaw`SELECT id, empresa_id, produto_id, tipo_movimentacao, origem_sistema, tipo_detalhado, status, movimento_filho_id,
+          local_estoque_origem, local_estoque_destino, ponto_suplementacao_id, quantidade, valor_total, lotes_consumidos, numero_movimentacao, "createdAt"
+        FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${a.movimentoId}`
+    : []);
+  const extra = { movimentacao_id: a.movimentoId ?? null };
+  if (!m) throw cochoBloqueado('saida_nao_comprovada', extra);
+  const kg = dec(m.quantidade);
+  const naoComprovada =
+    m.empresa_id !== a.empresaId || m.produto_id !== a.produto.id || m.tipo_movimentacao !== 'Saída' || m.origem_sistema !== ORIGEM_SUPLEMENTACAO
+    || m.tipo_detalhado !== TIPO_SAIDA_SUPLEMENTACAO || m.local_estoque_origem !== a.local.id || m.local_estoque_destino
+    || (a.vinculo?.pontoSuplementacaoId !== undefined && (m.ponto_suplementacao_id ?? null) !== (a.vinculo.pontoSuplementacaoId ?? null))
+    || (a.vinculo?.quantidadeKg !== undefined && !mesmaQuantidade(kg, a.vinculo.quantidadeKg));
+  if (naoComprovada) throw cochoBloqueado('saida_nao_comprovada', extra);
+  if (m.status !== 'Ativa' || m.movimento_filho_id) throw cochoBloqueado('movimento_estornado', extra);
+  const fatias = fatiasLegiveis(m.lotes_consumidos);
+  if (!fatias) throw cochoBloqueado('saida_sem_fatias', extra);
+  const depois = await buscarMovimentoPosterior(tx, cli, {
+    empresaId: a.empresaId, produtoId: a.produto.id, locais: [a.local.id], ignorarIds: [m.id],
+    desde: { createdAt: m.createdAt, numero: m.numero_movimentacao }, ignorarParesNeutros: true,
+  });
+  if (depois) throw cochoBloqueado('movimento_posterior_no_deposito', { ...extra, movimento_numero: depois.numero_movimentacao });
+  let r;
+  try {
+    r = await estornarSaida(tx, ctx, {
+      empresaId: a.empresaId,
+      item: { ordem: 1, quantidade_estoque: kg.toFixed(CASAS_QUANTIDADE), movimentacao_estoque_id: m.id },
+      consumos: fatias.map((f) => ({ estoque_lote_nota_id: f.lote_id, quantidade: f.quantidade })),
+      produto: a.produto,
+      local: { id: a.local.id, nome: a.local.nome ?? null },
+      dia: a.dia,
+      origem: { operacaoId: a.origem.operacaoId, sistema: ORIGEM_SUPLEMENTACAO, tipoDetalhadoEstorno: TIPO_ESTORNO_SUPLEMENTACAO, motivoEstorno: a.origem.motivoEstorno },
+      numeroMovimento: a.numeroMovimento ?? numeroMovimentoProvisorio(),
+      originalEsperado: {
+        tipoMovimentacao: 'Saída', origemSistema: ORIGEM_SUPLEMENTACAO, tipoDetalhado: TIPO_SAIDA_SUPLEMENTACAO, localOrigemId: a.local.id, lotesConsumidos: m.lotes_consumidos,
+      },
+    });
+  } catch (erro) {
+    throw traduzirEstornoDoCocho(erro, m.id);
+  }
+  return {
+    movimento: r.movimento,
+    original: { id: m.id, numero_movimentacao: m.numero_movimentacao },
+    quantidade: kg,
+    valor_total: m.valor_total === null ? ZERO : dec(m.valor_total),
+    fatias: fatias.map((f) => ({ lote_id: f.lote_id, quantidade: f.quantidade })),
+  };
+};
+
+// ─── estorno da transferência entre locais (D-PROD-268) ────────────────────
+export const TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA = 'estorno_transferencia_recebida';
+export const TIPO_ESTORNO_TRANSFERENCIA_ENVIADA = 'estorno_transferencia_enviada';
+
+/**
+ * D-PROD-268 — recusa do cancelamento da transferência (o código da missão; `reason` diz qual).
+ * @param {string} reason @param {Record<string, unknown>} [extra] @param {string} [mensagem]
+ */
+const transferenciaBloqueada = (reason, extra = {}, mensagem = undefined) =>
+  new AppError('TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', mensagem ?? `a transferência não pode ser cancelada com segurança (${reason}); nada foi alterado`, {
+    details: { field: 'movimentacao_id', reason, ...extra },
+  });
+
+const mesmoDecimal = (x, y) => x !== null && x !== undefined && y !== null && y !== undefined && dec(x).eq(dec(y));
+
+/** Par S (Saída `transferencia_enviada`) ↔ R (Entrada `transferencia_recebida`) coerente; senão `par_incoerente`. */
+const exigirParCoerente = (s, r) => {
+  const ok = s && r
+    && s.tipo_movimentacao === 'Saída' && s.tipo_detalhado === 'transferencia_enviada'
+    && r.tipo_movimentacao === 'Entrada' && r.tipo_detalhado === 'transferencia_recebida'
+    && s.movimento_filho_id === r.id && r.movimento_pai_id === s.id
+    && s.origem_sistema === ORIGEM_DEPOSITO && r.origem_sistema === ORIGEM_DEPOSITO
+    && s.empresa_id === r.empresa_id && s.produto_id === r.produto_id
+    && typeof s.local_estoque_origem === 'string' && s.local_estoque_origem && typeof s.local_estoque_destino === 'string' && s.local_estoque_destino
+    && s.local_estoque_origem !== s.local_estoque_destino
+    && s.local_estoque_origem === r.local_estoque_origem && s.local_estoque_destino === r.local_estoque_destino
+    && mesmoDecimal(s.quantidade, r.quantidade) && mesmoDecimal(s.valor_total, r.valor_total);
+  if (!ok) throw transferenciaBloqueada('par_incoerente', { movimentacao_saida_id: s?.id ?? null, movimentacao_entrada_id: r?.id ?? null });
+};
+
+/** Fatias da S com linhagem (`lote_destino_id` distintos) somando a quantidade; senão `fatias_ausentes`. */
+const fatiasDaTransferencia = (s) => {
+  const fatias = fatiasLegiveis(s.lotes_consumidos, { comDestino: true });
+  const ok = fatias
+    && new Set(fatias.map((f) => f.lote_destino_id)).size === fatias.length
+    && somar(fatias.map((f) => f.quantidade)).eq(dec(s.quantidade));
+  if (!ok) throw transferenciaBloqueada('fatias_ausentes', { movimentacao_saida_id: s.id }, 'transferência antiga, sem rastreio de lotes; não pode ser cancelada; nada foi alterado');
+  return /** @type {Array<{ lote_id: string, lote_destino_id: string, quantidade: any }>} */ (fatias);
+};
+
+/** S e R ainda 'Ativa' e só ligadas entre si; senão `original_ja_estornado` / `original_nao_ativo`. */
+const exigirParAtivo = (s, r) => {
+  if (s.status === 'Estornada' || r.status === 'Estornada' || r.movimento_filho_id) {
+    throw transferenciaBloqueada('original_ja_estornado', { movimentacao_saida_id: s.id }, 'a transferência já foi cancelada; nada foi alterado');
+  }
+  if (s.status !== 'Ativa' || r.status !== 'Ativa') throw transferenciaBloqueada('original_nao_ativo', { movimentacao_saida_id: s.id });
+};
+
+const lerMovimento = async (tx, cli, id) => (id ? tx.movimentacaoEstoque.findUnique({ where: { cliente_id_id: { cliente_id: cli, id } } }) : null);
+
+/**
+ * D-PROD-268 — DESCOBERTA do par da transferência (sem trava), pelo id de QUALQUER perna: a Saída
+ * `transferencia_enviada` (S) ou a Entrada `transferencia_recebida` (R). Recusas, nesta ordem:
+ *  - inexistente, de outro tenant ou de outra empresa → 404 `MOVIMENTACAO_ESTOQUE_NOT_FOUND` (mesmo corpo);
+ *  - outro tipo (inclusive os estornos) → `nao_e_transferencia`;
+ *  - pai/filho cruzados, origem `deposito`, empresa, produto, locais, quantidade e valor iguais → `par_incoerente`;
+ *  - fatias com linhagem (`lotes_consumidos[].lote_destino_id` distintos, Σ = quantidade) → `fatias_ausentes`;
+ *  - estado: `original_ja_estornado` / `original_nao_ativo`.
+ * Todas como 409 `TRANSFERENCIA_CANCELAMENTO_BLOQUEADO` { field: 'movimentacao_id', reason }. Só leitura;
+ * `estornarTransferenciaEstoque` refaz tudo sob trava. Serve também para a elegibilidade e para saber o que travar.
+ * @param {any} tx @param {string} clienteId do auth_context
+ * @param {{ empresaId: string, movimentoId: string }} a
+ * @returns {Promise<{ saida: any, entrada: any, produtoId: string, origemId: string, destinoId: string,
+ *   fatias: Array<{ lote_id: string, lote_destino_id: string, quantidade: any }> }>}
+ */
+export const descobrirParDeTransferencia = async (tx, clienteId, a) => {
+  const m = await lerMovimento(tx, clienteId, a.movimentoId);
+  if (!m || m.empresa_id !== a.empresaId) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque não encontrado');
+  let s;
+  let r;
+  if (m.tipo_movimentacao === 'Saída' && m.tipo_detalhado === 'transferencia_enviada') {
+    s = m;
+    r = await lerMovimento(tx, clienteId, m.movimento_filho_id);
+  } else if (m.tipo_movimentacao === 'Entrada' && m.tipo_detalhado === 'transferencia_recebida') {
+    r = m;
+    s = await lerMovimento(tx, clienteId, m.movimento_pai_id);
+  } else {
+    throw transferenciaBloqueada('nao_e_transferencia', {}, 'o movimento não é uma transferência entre depósitos; nada foi alterado');
+  }
+  exigirParCoerente(s, r);
+  const fatias = fatiasDaTransferencia(s);
+  exigirParAtivo(s, r);
+  return { saida: s, entrada: r, produtoId: s.produto_id, origemId: s.local_estoque_origem, destinoId: s.local_estoque_destino, fatias };
+};
+
+/** Lote que já tem consumo por FK (financeiro, abastecimento, apontamento) — a tabela do apontamento pode faltar. */
+const camadaComConsumoFk = async (tx, cli, ids) => {
+  if (!ids.length) return null;
+  const [base] = /** @type {any[]} */ (await tx.$queryRaw`SELECT lote_id FROM (
+      SELECT estoque_lote_nota_id AS lote_id FROM "OperacaoFinanceiraConsumoLote" WHERE cliente_id = ${cli} AND estoque_lote_nota_id = ANY(${ids}::text[])
+      UNION ALL
+      SELECT estoque_lote_nota_id FROM "AbastecimentoBemConsumoLote" WHERE cliente_id = ${cli} AND estoque_lote_nota_id = ANY(${ids}::text[])
+    ) u ORDER BY lote_id LIMIT 1`);
+  if (base) return base.lote_id;
+  const [cat] = /** @type {any[]} */ (await tx.$queryRaw`SELECT to_regclass('public."AtividadeApontamentoProdutoConsumoLote"') IS NOT NULL AS existe`);
+  if (!cat?.existe) return null;
+  const [apo] = /** @type {any[]} */ (await tx.$queryRaw`SELECT estoque_lote_nota_id AS lote_id FROM "AtividadeApontamentoProdutoConsumoLote"
+    WHERE cliente_id = ${cli} AND estoque_lote_nota_id = ANY(${ids}::text[]) ORDER BY 1 LIMIT 1`);
+  return apo ? apo.lote_id : null;
+};
+
+const medioDoPoco = (poco) => (poco.quantidade.gt(0) ? arredondar(poco.valor.dividedBy(poco.quantidade), CASAS_CUSTO) : ZERO);
+
+/**
+ * D-PROD-268 — ESTORNO EXATO da TRANSFERÊNCIA entre locais (par S → R). Desfaz as duas pernas com o
+ * valor GRAVADO (D-PROD-256), sem recalcular nada do passado e sem tocar em `Produto.estoque_atual`
+ * (o total da empresa não muda: I1 continua fechado). Pelo id de qualquer perna.
+ *
+ * Travas (ordem canônica): `LocalEstoque` FOR KEY SHARE (`exigirLocaisEstoque`) → produto
+ * (`travarProdutosEstoque`, reentrante) → camadas FOR UPDATE (ordem de id) → S e R FOR UPDATE.
+ * Validação COMPLETA antes da primeira escrita (cintos do desenho):
+ *  - descoberta (`descobrirParDeTransferencia`) refeita sob a trava do produto e conferida com a de antes;
+ *  - local de ORIGEM inativo → 422 `ESTOQUE_LOCAL_INVALIDO` { field: 'local_origem_id', reason: 'local_inativo' }
+ *    (local inativo não recebe estoque; decisão 4 da D-PROD-268); o destino só perde estoque (pode estar inativo);
+ *  - regra do ÚLTIMO nos DOIS depósitos, sem pares neutros (`buscarMovimentoPosterior`, ignorando S e R,
+ *    desde `S.createdAt` / número de R) → `movimento_posterior` { lado: 'origem'|'destino', local_estoque_id, movimento_numero };
+ *  - S e R relidos sob trava: mesmo par, mesmas fatias, ainda 'Ativa' (`original_ja_estornado`/`original_nao_ativo`);
+ *  - LINHAGEM: as camadas com `movimentacao_entrada_id = R` são exatamente os `lote_destino_id`, cada uma
+ *    com `quantidade_entrada` = a da fatia → senão `linhagem_divergente`;
+ *  - camadas do DESTINO intocadas: da empresa, do produto e do local de destino (`camada_divergente`),
+ *    'Disponivel' com disponível = entrada e sem consumo por FK (`camada_consumida`);
+ *  - camadas da ORIGEM aceitam a devolução: existentes, da empresa, do produto e do local de origem
+ *    (`camada_divergente`), 'Disponivel'/'Esgotado' (`lote_indisponivel_para_devolucao`), disponível + Σ ≤
+ *    entrada (`devolucao_excede_entrada`);
+ *  - PROVA DE SALDO: poço do destino = `R.saldo_depois` e poço da origem = `S.saldo_depois` → senão `saldo_local_divergente`;
+ *  - limite: saldo da origem + kg ≤ LIMITE_ESTOQUE → senão 422 `OPERACAO_VALORES_INVALIDOS`.
+ * Escritas: destino — cada camada recebida por CAS {Disponivel, disp = entrada} → {0, 'Estornado'} e o poço
+ * reavaliado com `max(0, valor − S.valor_total)`; origem — cada lote por CAS {status e disp lidos} →
+ * {disp + devolvido, 'Disponivel'} e o poço reavaliado com `valor + S.valor_total`; nascem E_d (Saída
+ * `estorno_transferencia_recebida`, só origem = destino, fatias = camadas recebidas, pai = R) e E_o
+ * (Entrada `estorno_transferencia_enviada`, só destino = origem, pai = S), com os valores de S, números
+ * PROVISÓRIOS; CAS de R {Ativa, pai S, sem filho} → {Estornada, filho E_d} e de S {Ativa, filho R} →
+ * {Estornada} (o filho continua R). Corrida perdida → 409 `CONCURRENCY_CONFLICT`.
+ * Recusas de negócio: 409 `TRANSFERENCIA_CANCELAMENTO_BLOQUEADO` { field: 'movimentacao_id', reason, ... }.
+ * Quem chama: recibo (L0) antes; `numerarMovimentos(tx, cli, [estornoDestino.id, estornoOrigem.id])` e AuditLog no FIM.
+ * @param {any} tx
+ * @param {{auth: any}} ctx
+ * @param {{ empresaId: string, movimentoId: string, dia: string, motivo: string, operacaoId?: string|null,
+ *   numeros?: { destino?: string, origem?: string } }} a
+ * @returns {Promise<{ saida: any, entrada: any, estornoDestino: any, estornoOrigem: any, produto: any,
+ *   origem: { id: string, nome: string }, destino: { id: string, nome: string }, quantidade: any, valor_total: any,
+ *   devolvido: Array<{ lote_origem_id: string, lote_destino_id: string, quantidade: string }> }>}
+ */
+export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
+  const auth = exigirAuthContext(ctx?.auth);
+  const cli = auth.clienteId;
+  if (!textoInformado(a.motivo)) throw new Error('estornarTransferenciaEstoque: motivo é obrigatório');
+  if (typeof a.dia !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(a.dia)) throw new Error('estornarTransferenciaEstoque: dia AAAA-MM-DD obrigatório');
+  // 1. descoberta sem trava (o que travar) → locais → produto
+  const antes = await descobrirParDeTransferencia(tx, cli, { empresaId: a.empresaId, movimentoId: a.movimentoId });
+  const locais = await exigirLocaisEstoque(tx, cli, [
+    { id: antes.origemId, field: 'local_origem_id', exigirAtivo: false },
+    { id: antes.destinoId, field: 'local_destino_id', exigirAtivo: false },
+  ]);
+  const origem = /** @type {{ id: string, nome: string, ativo: boolean }} */ (locais.get(antes.origemId));
+  const destino = /** @type {{ id: string, nome: string, ativo: boolean }} */ (locais.get(antes.destinoId));
+  if (!origem.ativo) {
+    throw new AppError('ESTOQUE_LOCAL_INVALIDO', 'o depósito de origem da transferência está inativo e não pode receber o estoque de volta; reative-o para cancelar; nada foi alterado', {
+      details: { field: 'local_origem_id', reason: 'local_inativo' },
+    });
+  }
+  await travarProdutosEstoque(tx, cli, a.empresaId, [antes.produtoId]);
+  const produto = await tx.produto.findFirst({ where: { cliente_id: cli, empresa_id: a.empresaId, id: antes.produtoId } });
+  if (!produto) throw new AppError('PRODUTO_NOT_FOUND', 'produto não encontrado nesta empresa');
+  // 2. descoberta de novo, já serializada com todo escritor de estoque do produto
+  const par = await descobrirParDeTransferencia(tx, cli, { empresaId: a.empresaId, movimentoId: a.movimentoId });
+  if (par.saida.id !== antes.saida.id || par.entrada.id !== antes.entrada.id || par.produtoId !== antes.produtoId
+    || par.origemId !== antes.origemId || par.destinoId !== antes.destinoId) {
+    throw conflitoDoOriginal({ movimento_id: antes.saida.id });
+  }
+  const s0 = par.saida;
+  const r0 = par.entrada;
+  // 3. regra do último nos dois depósitos (sem pares neutros)
+  const depois = await buscarMovimentoPosterior(tx, cli, {
+    empresaId: a.empresaId, produtoId: produto.id, locais: [destino.id, origem.id], ignorarIds: [s0.id, r0.id],
+    desde: { createdAt: s0.createdAt, numero: r0.numero_movimentacao },
+  });
+  if (depois) {
+    const lado = depois.local_estoque_origem === destino.id || depois.local_estoque_destino === destino.id ? 'destino' : 'origem';
+    throw transferenciaBloqueada('movimento_posterior', {
+      lado, local_estoque_id: lado === 'destino' ? destino.id : origem.id, movimento_numero: depois.numero_movimentacao,
+    }, `o produto já teve outro movimento no depósito de ${lado} (nº ${depois.numero_movimentacao}) depois desta transferência; para corrigir, lance uma transferência de volta; nada foi alterado`);
+  }
+  // 4. travas: camadas (ordem de id) → S e R
+  const recebidas = /** @type {any[]} */ (await tx.$queryRaw`SELECT id FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND movimentacao_entrada_id = ${r0.id}`).map((l) => l.id);
+  const loteIds = unicosDe([...par.fatias.map((f) => f.lote_id), ...par.fatias.map((f) => f.lote_destino_id), ...recebidas]).sort();
+  const lotes = new Map(/** @type {any[]} */ (await tx.$queryRaw`SELECT id, empresa_id, produto_id, local_estoque_id, status, quantidade_entrada, quantidade_disponivel, movimentacao_entrada_id
+      FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND id = ANY(${loteIds}::text[]) ORDER BY id FOR UPDATE`).map((l) => [l.id, l]));
+  const originais = new Map(/** @type {any[]} */ (await tx.$queryRaw`SELECT * FROM "MovimentacaoEstoque"
+      WHERE cliente_id = ${cli} AND id = ANY(${[s0.id, r0.id].sort()}::text[]) ORDER BY id FOR UPDATE`).map((m) => [m.id, m]));
+  const s = originais.get(s0.id);
+  const r = originais.get(r0.id);
+  if (!s || !r) throw conflitoDoOriginal({ movimento_id: s0.id });
+  exigirParCoerente(s, r);
+  if (s.empresa_id !== a.empresaId || s.produto_id !== produto.id || s.local_estoque_origem !== origem.id || s.local_estoque_destino !== destino.id) {
+    throw conflitoDoOriginal({ movimento_id: s.id });
+  }
+  if (JSON.stringify(s.lotes_consumidos ?? null) !== JSON.stringify(s0.lotes_consumidos ?? null)) throw conflitoDoOriginal({ movimento_id: s.id });
+  const fatias = fatiasDaTransferencia(s);
+  exigirParAtivo(s, r);
+  const kg = dec(s.quantidade);
+  const valorTotal = dec(s.valor_total);
+  // 5. validações (nada escrito até aqui)
+  const recebidasTravadas = [...lotes.values()].filter((l) => l.movimentacao_entrada_id === r.id).map((l) => l.id).sort();
+  const destinosDasFatias = fatias.map((f) => f.lote_destino_id).sort();
+  if (recebidasTravadas.length !== destinosDasFatias.length || recebidasTravadas.some((id, k) => id !== destinosDasFatias[k])) {
+    throw transferenciaBloqueada('linhagem_divergente', { movimentacao_saida_id: s.id });
+  }
+  for (const f of fatias) {
+    const camada = lotes.get(f.lote_destino_id);
+    const base = { lote_id: f.lote_destino_id };
+    if (!camada || !dec(camada.quantidade_entrada).eq(f.quantidade)) throw transferenciaBloqueada('linhagem_divergente', base);
+    if (camada.empresa_id !== a.empresaId || camada.produto_id !== produto.id || camada.local_estoque_id !== destino.id) throw transferenciaBloqueada('camada_divergente', base);
+    if (camada.status !== 'Disponivel' || !dec(camada.quantidade_disponivel).eq(dec(camada.quantidade_entrada))) {
+      throw transferenciaBloqueada('camada_consumida', base, 'o estoque recebido nesta transferência já foi usado; não é possível cancelar; nada foi alterado');
+    }
+  }
+  const consumida = await camadaComConsumoFk(tx, cli, destinosDasFatias);
+  if (consumida) throw transferenciaBloqueada('camada_consumida', { lote_id: consumida }, 'o estoque recebido nesta transferência já foi usado; não é possível cancelar; nada foi alterado');
+  /** @type {Map<string, any>} */
+  const devolverPorLote = new Map();
+  for (const f of fatias) {
+    const lote = lotes.get(f.lote_id);
+    const base = { lote_id: f.lote_id };
+    if (!lote) throw transferenciaBloqueada('lote_indisponivel_para_devolucao', base);
+    if (lote.empresa_id !== a.empresaId || lote.produto_id !== produto.id || lote.local_estoque_id !== origem.id) throw transferenciaBloqueada('camada_divergente', base);
+    if (!['Disponivel', 'Esgotado'].includes(lote.status)) throw transferenciaBloqueada('lote_indisponivel_para_devolucao', { ...base, status: lote.status });
+    const total = (devolverPorLote.get(lote.id) ?? ZERO).plus(f.quantidade);
+    if (dec(lote.quantidade_disponivel).plus(total).gt(dec(lote.quantidade_entrada))) throw transferenciaBloqueada('devolucao_excede_entrada', base);
+    devolverPorLote.set(lote.id, total);
+  }
+  const pocoD = await lerPoco(tx, cli, a.empresaId, produto.id, destino.id);
+  const pocoO = await lerPoco(tx, cli, a.empresaId, produto.id, origem.id);
+  if (!mesmoDecimal(pocoD.quantidade, r.saldo_depois) || !mesmoDecimal(pocoO.quantidade, s.saldo_depois)) {
+    throw transferenciaBloqueada('saldo_local_divergente', {}, 'o saldo do depósito mudou fora do protocolo depois desta transferência; não é possível cancelar; nada foi alterado');
+  }
+  if (pocoO.quantidade.plus(kg).gt(LIMITE_ESTOQUE)) {
+    throw excedeLimiteEstoque({ field: 'movimentacao_id', produto_id: produto.id, local_estoque_id: origem.id, saldo_origem: pocoO.quantidade.toFixed(CASAS_QUANTIDADE) });
+  }
+  // 6. escritas no destino
+  for (const id of destinosDasFatias) {
+    const entrada = paraBanco(dec(lotes.get(id).quantidade_entrada), CASAS_QUANTIDADE);
+    const z = await tx.estoqueLoteNota.updateMany({
+      where: { cliente_id: cli, id, status: 'Disponivel', quantidade_disponivel: entrada },
+      data: { quantidade_disponivel: paraBanco(ZERO, CASAS_QUANTIDADE), status: 'Estornado' },
+    });
+    if (z.count !== 1) throw conflitoDeEstoque({ lote_id: id });
+  }
+  const valorD = pocoD.valor.minus(valorTotal);
+  const medioDepoisD = await reavaliarPoco(tx, cli, a.empresaId, produto.id, destino.id, valorD.gt(0) ? valorD : ZERO, pocoD.quantidade.minus(kg));
+  // 7. escritas na origem
+  for (const id of [...devolverPorLote.keys()].sort()) {
+    const lote = lotes.get(id);
+    const disp = dec(lote.quantidade_disponivel);
+    const u = await tx.estoqueLoteNota.updateMany({
+      where: { cliente_id: cli, id, status: lote.status, quantidade_disponivel: paraBanco(disp, CASAS_QUANTIDADE) },
+      data: { quantidade_disponivel: paraBanco(disp.plus(devolverPorLote.get(id)), CASAS_QUANTIDADE), status: 'Disponivel' },
+    });
+    if (u.count !== 1) throw conflitoDeEstoque({ lote_id: id });
+  }
+  const medioDepoisO = await reavaliarPoco(tx, cli, a.empresaId, produto.id, origem.id, pocoO.valor.plus(valorTotal), pocoO.quantidade.plus(kg));
+  // 8. os dois movimentos de estorno (números provisórios: quem chama numera no fim)
+  const motivo = `Cancelamento da transferência ${s.numero_movimentacao}: ${a.motivo.trim()}`.slice(0, 255);
+  const comum = {
+    ...camposComuns(auth, { empresaId: a.empresaId, produto, origem: { sistema: ORIGEM_DEPOSITO, operacaoId: a.operacaoId ?? null } }),
+    data_movimentacao: instanteDoDia(a.dia),
+    quantidade: paraBanco(kg, CASAS_QUANTIDADE),
+    valor_unitario: s.valor_unitario,
+    valor_total: s.valor_total,
+    motivo_movimentacao: motivo,
+    total_movimentacoes_grupo: 2,
+  };
+  const estornoDestino = await tx.movimentacaoEstoque.create({
+    data: {
+      ...comum,
+      numero_movimentacao: String(a.numeros?.destino ?? numeroMovimentoProvisorio()),
+      tipo_movimentacao: 'Saída',
+      tipo_detalhado: TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA,
+      local_estoque_origem: destino.id,
+      local_origem: destino.nome ?? null,
+      modo_saida_fifo: MODO_CUSTO_MEDIO,
+      lotes_consumidos: fatias.map((f) => ({ lote_id: f.lote_destino_id, quantidade: f.quantidade.toFixed(CASAS_QUANTIDADE), custo_unitario: dec(s.valor_unitario ?? 0).toFixed(CASAS_CUSTO) })),
+      movimento_pai_id: r.id,
+      is_registro_principal: true,
+      numero_movimentacao_seq: 1,
+      saldo_antes: paraBanco(pocoD.quantidade, CASAS_QUANTIDADE),
+      saldo_depois: paraBanco(pocoD.quantidade.minus(kg), CASAS_QUANTIDADE),
+      custo_medio_antes: paraBanco(medioDoPoco(pocoD), CASAS_CUSTO),
+      custo_medio_depois: paraBanco(medioDepoisD, CASAS_CUSTO),
+    },
+  });
+  const estornoOrigem = await tx.movimentacaoEstoque.create({
+    data: {
+      ...comum,
+      numero_movimentacao: String(a.numeros?.origem ?? numeroMovimentoProvisorio()),
+      tipo_movimentacao: 'Entrada',
+      tipo_detalhado: TIPO_ESTORNO_TRANSFERENCIA_ENVIADA,
+      local_estoque_destino: origem.id,
+      local_destino: origem.nome ?? null,
+      movimento_pai_id: s.id,
+      is_registro_principal: false,
+      numero_movimentacao_seq: 2,
+      saldo_antes: paraBanco(pocoO.quantidade, CASAS_QUANTIDADE),
+      saldo_depois: paraBanco(pocoO.quantidade.plus(kg), CASAS_QUANTIDADE),
+      custo_medio_antes: paraBanco(medioDoPoco(pocoO), CASAS_CUSTO),
+      custo_medio_depois: paraBanco(medioDepoisO, CASAS_CUSTO),
+    },
+  });
+  // 9. CAS dos originais (S mantém o filho R; R ganha o filho E_d)
+  const mr = await tx.movimentacaoEstoque.updateMany({
+    where: { cliente_id: cli, id: r.id, status: 'Ativa', movimento_pai_id: s.id, movimento_filho_id: null },
+    data: { status: 'Estornada', movimento_filho_id: estornoDestino.id },
+  });
+  if (mr.count !== 1) throw conflitoDoOriginal({ movimento_id: r.id });
+  const ms = await tx.movimentacaoEstoque.updateMany({
+    where: { cliente_id: cli, id: s.id, status: 'Ativa', movimento_filho_id: r.id },
+    data: { status: 'Estornada' },
+  });
+  if (ms.count !== 1) throw conflitoDoOriginal({ movimento_id: s.id });
+  const finais = new Map((await tx.movimentacaoEstoque.findMany({ where: { cliente_id: cli, id: { in: [s.id, r.id] } } })).map((m) => [m.id, m]));
+  return {
+    saida: finais.get(s.id),
+    entrada: finais.get(r.id),
+    estornoDestino,
+    estornoOrigem,
+    produto,
+    origem: { id: origem.id, nome: origem.nome },
+    destino: { id: destino.id, nome: destino.nome },
+    quantidade: kg,
+    valor_total: valorTotal,
+    devolvido: fatias.map((f) => ({ lote_origem_id: f.lote_id, lote_destino_id: f.lote_destino_id, quantidade: f.quantidade.toFixed(CASAS_QUANTIDADE) })),
+  };
 };
 
 /** Origens do motor que têm documento próprio (a reconciliação as inclui em `ORIGENS_PROTOCOLO`). */

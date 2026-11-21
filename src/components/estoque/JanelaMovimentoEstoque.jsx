@@ -54,7 +54,7 @@ const textoDoParente = (p) => (p ? `Nº ${p.numero} — ${rotuloDoMovimento({ ti
  * `b1-janela--tela-cheia` no celular. Sem segundo diálogo: o documento de origem é um link de navegação; a ENTRADA do
  * estoque (D-PROD-259, sem página própria) fecha esta janela e abre a da entrada (`onAbrirEntrada`); a SAÍDA manual
  * (D-PROD-264, `origem_sistema = saida_estoque`) faz o mesmo com a da saída (`onAbrirSaida`), e o AJUSTE de inventário
- * (D-PROD-268, documento `AJUSTE_ESTOQUE`) com a do ajuste (`onAbrirAjuste`).
+ * (D-PROD-269, documento `AJUSTE_ESTOQUE`) com a do ajuste (`onAbrirAjuste`).
  * @param {{ movimento: any|null, empresaId: string|null, onFechar: () => void, onAbrirEntrada?: (doc: { id: string, numero: string }) => void,
  *   onAbrirSaida?: (doc: { id: string, numero: string }) => void, onAbrirAjuste?: (doc: { id: string, numero: string }) => void }} props
  */

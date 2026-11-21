@@ -28,7 +28,7 @@ import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/dec
 import {
   aplicarSaidaDocumentada, estornarSaidaDocumentada, exigirLocaisEstoque, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { movimentoPosteriorNoDeposito } from '../estoqueFisico/movimentoPosterior.js';
+import { buscarMovimentoPosteriorA } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, diaDoCorpo, listarKeyset, termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
@@ -295,14 +295,17 @@ export const editar = async (contexto, id, corpo) => {
 
 /**
  * Escolha do proprietário: a saída só se exclui se o produto NÃO teve outro movimento naquele depósito
- * depois dela (`movimentoPosteriorNoDeposito`). As outras linhas da mesma saída são de outro par produto ×
+ * depois dela (`buscarMovimentoPosteriorA`). As outras linhas da mesma saída são de outro par produto ×
  * depósito (UNIQUE), nunca casam.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {any[]} itens
  */
 const exigirNadaDepois = async (tx, cli, empresaId, itens) => {
   for (const item of itens) {
-    const numero = await movimentoPosteriorNoDeposito(tx, cli, empresaId, { movimentoId: item.movimentacao_estoque_id, produtoId: item.produto_id, localId: item.local_estoque_id });
-    if (numero) throw movimentoPosterior({ item_ordem: item.ordem, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, movimento_numero: numero });
+    // D-PROD-268: a consulta mora no helper compartilhado do motor (mesmo SQL, mesmo critério, sem pares neutros).
+    const depois = await buscarMovimentoPosteriorA(tx, cli, {
+      empresaId, movimentoId: item.movimentacao_estoque_id, produtoId: item.produto_id, localId: item.local_estoque_id,
+    });
+    if (depois) throw movimentoPosterior({ item_ordem: item.ordem, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, movimento_numero: depois.numero_movimentacao });
   }
 };
 

@@ -119,16 +119,33 @@ export const listarEventosDaEmpresa = async (empresaId) => {
 
 /**
  * Cria evento + lotes rateados em comando transacional único (ESTAB-P0-01).
- * @param {{ evento: Record<string, unknown>, lotes?: Array<Record<string, unknown>>, operationId?: string }} params
+ *
+ * D-PROD-268: `eventoAnteriorId` é o último lançamento ATIVO do cocho que a tela viu (null:
+ * nenhum). O servidor recusa com 409 `LANCAMENTO_DESATUALIZADO` quando o cocho mudou (um
+ * lançamento foi cancelado ou registrado em outra tela); `undefined` não envia (abas antigas).
+ * @param {{ evento: Record<string, unknown>, lotes?: Array<Record<string, unknown>>, operationId?: string, eventoAnteriorId?: string|null }} params
  */
-export const registrarLancamento = async ({ evento, lotes, operationId }) => {
+export const registrarLancamento = async ({ evento, lotes, operationId, eventoAnteriorId }) => {
   exigirConexaoParaComando();
   const resposta = await comandoLancamentoComLotes({
     operation_id: operationId || novaOperationId(),
     evento,
     lotes: Array.isArray(lotes) ? lotes : [],
+    ...(eventoAnteriorId !== undefined ? { evento_anterior_id: eventoAnteriorId ?? null } : {}),
   });
   return resposta.evento;
+};
+
+/**
+ * D-PROD-268 — campos de QUEM fechou o período, conferidos pelo servidor no PATCH de fechamento:
+ * o lançamento seguinte do cocho (`{ tipo: 'lancamento', eventoId }`) ou a movimentação do gado
+ * (`{ tipo: 'movimentacao_gado' }`). Sem `fechadoPor`, nada é acrescentado.
+ * @param {{ tipo: 'lancamento' | 'movimentacao_gado', eventoId?: string } | null | undefined} fechadoPor
+ */
+const camposFechadoPor = (fechadoPor) => {
+  if (!fechadoPor) return {};
+  if (fechadoPor.tipo === 'lancamento') return { fechado_por_tipo: 'lancamento', fechado_por_evento_id: String(fechadoPor.eventoId ?? '') };
+  return { fechado_por_tipo: 'movimentacao_gado' };
 };
 
 // ── Fechamento e reabertura de período ────────────────────────────────────
@@ -265,8 +282,9 @@ export const calcularAlocacoesDoPeriodo = async ({ evento, diasPeriodo, consumoT
  * @param {number} [p.sobraInicial]
  * @param {boolean|null} [p.sobraInformada] D-PROD-206: a sobra final foi medida? null = não se sabe
  * @param {boolean} [p.compartilhado] D-PROD-206: ciclo de cocho compartilhado; sem ele, confere pelo cache do mapa
+ * @param {{ tipo: 'lancamento' | 'movimentacao_gado', eventoId?: string } | null} [p.fechadoPor] D-PROD-268: quem fecha o período
  */
-export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada = null, compartilhado }) => {
+export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada = null, compartilhado, fechadoPor = null }) => {
   const lotesSupl = await listLotesSuplementacao();
   const lotesDoEvento = lotesSupl.filter((lote) => lote.suplementacao_evento_id === evento.id);
   // D-PROD-206: faixa da formulação, custo da saída de estoque e cocho compartilhado — o que o fechamento do
@@ -309,7 +327,7 @@ export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFina
 
   return {
     eventoId: evento.id,
-    patchEvento: fechamento.patchEvento,
+    patchEvento: { ...fechamento.patchEvento, ...camposFechadoPor(fechadoPor) },
     patchesDeLote: fechamento.patchesDeLote,
     consumoTotal: fechamento.consumoTotal,
     consumoDiarioGrupo: fechamento.consumoDiarioGrupo,
@@ -340,7 +358,12 @@ export const aplicarFechamentoSeAindaAberto = async (preparado) => {
   const atual = (await listEventos()).find((evento) => evento.id === preparado.eventoId) || null;
   if (!atual) return { aplicado: false, motivo: 'nao_encontrado' };
   if (atual.dias_periodo !== null && atual.dias_periodo !== undefined) return { aplicado: false, motivo: 'ja_fechado' };
-  await aplicarFechamentoPeriodo(preparado);
+  // D-PROD-268: este caminho é o fechamento pela MOVIMENTAÇÃO DO GADO (`DetalhesLote`): o servidor
+  // só aceita fechar o último lançamento ativo do cocho com `fechado_por_tipo: 'movimentacao_gado'`.
+  const patchEvento = preparado.patchEvento?.fechado_por_tipo
+    ? preparado.patchEvento
+    : { ...preparado.patchEvento, ...camposFechadoPor({ tipo: 'movimentacao_gado' }) };
+  await aplicarFechamentoPeriodo({ ...preparado, patchEvento });
   return { aplicado: true };
 };
 
@@ -358,10 +381,12 @@ export const aplicarFechamentoSeAindaAberto = async (preparado) => {
  * @param {number} [p.sobraInicial]
  * @param {boolean|null} [p.sobraInformada] D-PROD-206: a sobra final foi medida? null = não se sabe
  * @param {boolean} [p.compartilhado] D-PROD-206: ciclo de cocho compartilhado; sem ele, confere pelo cache do mapa
+ * @param {string} [p.fechadoPorEventoId] D-PROD-268: o lançamento novo que fecha este período (prova do cancelamento)
  * @param {(mensagem: string) => void} [p.onProgress]
  */
-export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada = null, compartilhado, onProgress }) => {
-  const preparado = await prepararFechamentoPeriodo({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada, compartilhado });
+export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada = null, compartilhado, fechadoPorEventoId, onProgress }) => {
+  const fechadoPor = fechadoPorEventoId ? { tipo: /** @type {const} */ ('lancamento'), eventoId: fechadoPorEventoId } : null;
+  const preparado = await prepararFechamentoPeriodo({ evento, diasPeriodo, sobraFinal, sobraInicial, sobraInformada, compartilhado, fechadoPor });
   await aplicarFechamentoPeriodo(preparado, { onProgress });
   return {
     consumoTotal: preparado.consumoTotal,

@@ -26,7 +26,7 @@ export const ROTULO_NATUREZA = Object.freeze({ [MOTIVO_IMPLANTACAO]: 'Saldo de i
 
 /**
  * Os tipos do "Novo movimento" desta versão e a ação da tela que cada um exige (D-PROD-264: a Saída tem a ação
- * própria `saida`; Entrada e Transferência seguem com `entrada`; D-PROD-268: o Ajuste de inventário, a ação `ajuste`).
+ * própria `saida`; Entrada e Transferência seguem com `entrada`; D-PROD-269: o Ajuste de inventário, a ação `ajuste`).
  */
 export const TIPO_ENTRADA = 'entrada';
 export const TIPO_SAIDA = 'saida';

@@ -140,7 +140,7 @@ export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIM
  */
 const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
 /**
- * D-PROD-268: só as origens ANTIGAS têm saída sem fatia em JSON (explicada pelo recibo). As documentadas (saída
+ * D-PROD-269: só as origens ANTIGAS têm saída sem fatia em JSON (explicada pelo recibo). As documentadas (saída
  * manual, ajuste) gravam sempre as fatias; a única saída delas sem JSON é o estorno da sobra do ajuste (camada
  * inteira, explicada pela FK do estorno), que não é "consumo legado".
  */
@@ -552,7 +552,7 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra, comItens) => {
         FROM "EntradaEstoqueItem" e
         WHERE e.cliente_id = ${cli} AND e.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))
         UNION ALL
-        -- D-PROD-268: a camada da sobra de um ajuste de inventário excluído é explicada pela FK do estorno, como a entrada.
+        -- D-PROD-269: a camada da sobra de um ajuste de inventário excluído é explicada pela FK do estorno, como a entrada.
         SELECT a.estoque_lote_nota_id, (a.movimentacao_estorno_id IS NOT NULL)
         FROM "AjusteEstoqueItem" a
         WHERE a.cliente_id = ${cli} AND a.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))

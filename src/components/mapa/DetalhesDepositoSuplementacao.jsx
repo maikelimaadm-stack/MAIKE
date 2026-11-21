@@ -1,5 +1,5 @@
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import React, { useId, useMemo, useState } from "react";
+import React, { useId, useMemo, useRef, useState } from "react";
 import { History, Loader2, LogOut, Truck } from "lucide-react";
 import { listarTodosLotesNota, listarTodosProdutos, listarTodasMovimentacoes } from "@/services/estoqueMapaService";
 import { listarPontosSuplementacaoAtivos, listarAreasAtivas } from "@/services/mapaService";
@@ -9,6 +9,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import { movimentacoesDoHistoricoDeposito } from "../suplementacao/HistoricoDepositoSuplementacao";
+import CancelarTransferenciaDeposito from "./deposito/CancelarTransferenciaDeposito";
+import { usePodeCancelarLancamentosEstoque } from "./deposito/usePodeCancelarLancamentosEstoque";
 import DepositoNivel from "./DepositoNivel";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import FiltroHistorico from "./detalhes-lote/FiltroHistorico";
@@ -107,6 +109,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const idTituloSaldo = useId();
   const idGrupoLitros = useId();
   const idTituloInfo = useId();
+  // D-PROD-268: "Cancelar transferência" só para quem passa em `podeCancelarLancamentosEstoque`.
+  const { pode: podeCancelarTransferencia, escopo: escopoDoUsuario } = usePodeCancelarLancamentosEstoque();
+  const handleSavedRef = useRef(/** @type {() => void} */ (() => {}));
 
   const { data: lotesNota = [], isLoading: loadingSaldo } = useQuery({
     queryKey: ["saldo-deposito", deposito.id],
@@ -319,15 +324,27 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
           localEstoqueId: deposito.local_estoque_id,
           produtosPorId,
           cochosPorId,
+          acaoDeCancelar: podeCancelarTransferencia
+            ? (mov) => (
+                <CancelarTransferenciaDeposito
+                  key={`cancelar-${mov.id}`}
+                  movimento={mov}
+                  empresaId={empresaSelecionadaId}
+                  escopo={escopoDoUsuario}
+                  onCancelado={() => handleSavedRef.current()}
+                />
+              )
+            : null,
         }),
       ),
     );
-  }, [movimentacoes, produtos, pontosSuplementacao, empresaSelecionadaId, deposito.local_estoque_id, filtroHistorico]);
+  }, [movimentacoes, produtos, pontosSuplementacao, empresaSelecionadaId, deposito.local_estoque_id, filtroHistorico, podeCancelarTransferencia, escopoDoUsuario]);
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["saldo-deposito", "cochos-vinculados-deposito", "movimentacoes-deposito-detalhe", "mapa-pontos-supl", "mapa-pontos", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
+  handleSavedRef.current = handleSaved;
 
   /** @param {"entrada" | "saida"} direcao */
   const abrirTransferencia = (direcao) => {
@@ -534,6 +551,8 @@ function LinhaSaldoProduto({ item }) {
  *   Icone: import("lucide-react").LucideIcon,
  *   titulo: string,
  *   linhas: Array<{ rotulo: string, valor: string }>,
+ *   cancelado?: boolean,
+ *   acoes?: React.ReactNode,
  * }} CartaoDoDeposito
  */
 
@@ -581,10 +600,14 @@ function destinoDaSaida(mov, cochosPorId) {
  * do depósito"; origem ou destino, produto, quantidade, sacos (pelo peso do
  * saco do produto) e as observações, quando há.
  * @param {any} mov
- * @param {{ localEstoqueId: string | null | undefined, produtosPorId: Map<any, any>, cochosPorId: Map<any, any> }} ctx
+ *
+ * D-PROD-268: movimento 'Estornada' leva o chip "Cancelado"; a perna ATIVA de uma
+ * transferência entre depósitos (a Saída na origem, a Entrada no destino) leva a ação
+ * "Cancelar transferência" no pé do cartão, só com `acaoDeCancelar` (a permissão).
+ * @param {{ localEstoqueId: string | null | undefined, produtosPorId: Map<any, any>, cochosPorId: Map<any, any>, acaoDeCancelar?: ((mov: any) => React.ReactNode) | null }} ctx
  * @returns {CartaoDoDeposito}
  */
-function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId }) {
+function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId, acaoDeCancelar = null }) {
   const entrada = ehEntradaNoDeposito(mov, localEstoqueId);
   const emLitros = mov?.unidade_medida === "L";
   const pesoPorSaco = emLitros ? 0 : Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
@@ -602,7 +625,24 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId 
     Icone: entrada ? Truck : LogOut,
     titulo: entrada ? "Entrada no depósito" : "Saída do depósito",
     linhas,
+    cancelado: mov?.status === "Estornada",
+    ...(acaoDeCancelar && transferenciaCancelavelAqui(mov, localEstoqueId) ? { acoes: acaoDeCancelar(mov) } : {}),
   };
+}
+
+/**
+ * D-PROD-268 — a perna da transferência que ESTE depósito mostra (Saída `transferencia_enviada`
+ * na origem, Entrada `transferencia_recebida` no destino), ainda 'Ativa' e nascida pelo comando
+ * do depósito. Quem decide se o cancelamento é possível é o servidor (ensaio e comando); a
+ * ordem do cache nunca decide "o último".
+ * @param {any} mov
+ * @param {string | null | undefined} localEstoqueId
+ */
+function transferenciaCancelavelAqui(mov, localEstoqueId) {
+  if (!mov || !localEstoqueId || mov.status !== "Ativa" || mov.origem_sistema !== "deposito") return false;
+  if (mov.tipo_detalhado === "transferencia_enviada") return mov.local_estoque_origem === localEstoqueId;
+  if (mov.tipo_detalhado === "transferencia_recebida") return mov.local_estoque_destino === localEstoqueId;
+  return false;
 }
 
 /**

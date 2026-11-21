@@ -50,6 +50,14 @@ import { QUERY_FORMULACOES_LANCAMENTO, rotuloDoTipo } from "@/services/formulaca
 import { calcularFechamentoConsumo } from "@/domain/suplementacao/fechamentoConsumo";
 import { ResumoFechamentoConsumo } from "./FarolConsumo";
 
+/** D-PROD-268 — 409 LANCAMENTO_DESATUALIZADO do comando de lançamento. */
+export const MENSAGEM_LANCAMENTO_DESATUALIZADO = "O cocho mudou (um lançamento foi cancelado ou registrado em outra tela). Confira e salve de novo.";
+/**
+ * D-PROD-268 — 409 SUPLEMENTACAO_REGISTRO_CANCELADO no reenvio: este lançamento JÁ foi gravado e
+ * depois cancelado em outra tela (o estoque já voltou). A operação acabou: a chave é descartada.
+ */
+export const MENSAGEM_LANCAMENTO_JA_CANCELADO = "Este lançamento já tinha sido salvo e foi cancelado em outra tela; o estoque já voltou ao depósito. Nada foi gravado agora. Confira o cocho e, se for o caso, lance de novo.";
+
 /**
  * Lançamento de suplementação no cocho, no desenho do lançamento de manejo do lote (D-PROD-222): quem abre
  * é um `LancLoteDialogo` ("Lançar Suplementação", subtítulo = o cocho); aqui o corpo é o `LancLoteForm`
@@ -628,7 +636,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       });
 
       // O service cria o evento e, com o id dele, grava os lotes em bloco.
-      const novoEvento = await registrarLancamento({ evento: eventoPayload, lotes: lotesPayload, operationId });
+      // D-PROD-268: o último lançamento ATIVO que esta tela viu — o servidor recusa (409
+      // LANCAMENTO_DESATUALIZADO) se o cocho mudou entre a leitura e o salvar.
+      const novoEvento = await registrarLancamento({ evento: eventoPayload, lotes: lotesPayload, operationId, eventoAnteriorId: ultimoEvento?.id ?? null });
 
       try {
         if (ultimoEvento && ultimoEvento.dias_periodo == null) {
@@ -645,6 +655,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               sobraFinal: parseNumber(formData.sobra_kg || 0),
               sobraInformada: sobraFoiInformada,
               compartilhado: cicloCompartilhado,
+              // D-PROD-268: a prova de QUEM fechou o período (o cancelamento deste lançamento o reabre).
+              fechadoPorEventoId: novoEvento.id,
             });
           } else {
             toast.warning("Datas inconsistentes — período anterior não foi fechado.");
@@ -676,7 +688,24 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }, 400);
     } catch (error) {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      const motivo = getApiErrorMessage(error, "Não foi possível registrar a suplementação.");
+      // D-PROD-268: o cocho mudou (lançamento cancelado ou registrado em outra tela). Nada foi
+      // gravado neste passo; a baixa já feita (operacaoRef) é reaproveitada no reenvio.
+      const codigoErro = /** @type {any} */ (error)?.cause?.code;
+      if (codigoErro === "SUPLEMENTACAO_REGISTRO_CANCELADO") {
+        // O replay da chave desta operação achou o lançamento cancelado: nada a concluir, nem a
+        // baixa (já estornada) nem o fechamento do anterior. Uma nova tentativa é outra operação.
+        operacaoRef.current = null;
+        queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["ultimo-evento-ponto", "eventos-recentes-ponto", "eventos-ponto", "lotes-nota-suplementacao", "saldo-deposito", "movimentacoes", "produtos"].includes(query.queryKey[0]) });
+        toast.error(MENSAGEM_LANCAMENTO_JA_CANCELADO);
+        return;
+      }
+      const desatualizado = codigoErro === "LANCAMENTO_DESATUALIZADO";
+      if (desatualizado) {
+        queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["ultimo-evento-ponto", "eventos-recentes-ponto", "eventos-ponto"].includes(query.queryKey[0]) });
+      }
+      const motivo = desatualizado
+        ? MENSAGEM_LANCAMENTO_DESATUALIZADO
+        : getApiErrorMessage(error, "Não foi possível registrar a suplementação.");
       toast.error(
         operacao.saida
           ? `${motivo} A baixa no estoque ${baixaFeitaNestaTentativa ? "foi registrada" : "já estava registrada"}: clique em salvar de novo para concluir — o estoque não será baixado outra vez.`

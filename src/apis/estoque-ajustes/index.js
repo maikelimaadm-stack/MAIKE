@@ -1,4 +1,4 @@
-/** Superfície pública dos Ajustes de inventário do Estoque (D-PROD-268). */
+/** Superfície pública dos Ajustes de inventário do Estoque (D-PROD-269). */
 
 export {
   listAjustesEstoque, getAjusteEstoque, getSaldoAjusteEstoque, createAjusteEstoque, updateAjusteEstoque, deleteAjusteEstoque,

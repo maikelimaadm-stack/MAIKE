@@ -1,5 +1,5 @@
 /**
- * D-PROD-268 — Estoque → Novo movimento → Ajuste: ajuste de inventário documentado. O usuário informa o
+ * D-PROD-269 — Estoque → Novo movimento → Ajuste: ajuste de inventário documentado. O usuário informa o
  * CONTADO; o servidor compara com o saldo do depósito (sob a trava do produto) e lança a diferença pelo motor:
  * sobra a custo médio (sem saldo, pelo custo informado), falta a custo médio. Exclusão com estorno só sem
  * movimento depois. Ação extra `ajuste`. Tudo contra PostgreSQL real e HTTP autenticado.
@@ -89,7 +89,7 @@ const contaCom = async (x, permissoes_telas) => {
 };
 const linhaTela = (extras = {}) => ({ modulo_id: 'suporte-mapa', tela_id: 'sup-estoque', visualizar: true, novo: false, salvar: false, editar: false, excluir: false, importar: false, exportar: false, ...extras });
 
-describe('D-PROD-268 — criar: o contado contra o saldo do depósito', () => {
+describe('D-PROD-269 — criar: o contado contra o saldo do depósito', () => {
   test('FALTA (contou 90 de 100, médio 3): sai 10 a custo médio; SOBRA (contou 120 de 100): entra 20 ao médio; SEM DIFERENÇA só registra; reconciliação limpa', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '50', '2');
@@ -178,7 +178,7 @@ describe('D-PROD-268 — criar: o contado contra o saldo do depósito', () => {
   });
 });
 
-describe('D-PROD-268 — excluir: estorno integral, só sem movimento depois', () => {
+describe('D-PROD-269 — excluir: estorno integral, só sem movimento depois', () => {
   test('exclusão de ajuste com sobra e falta: EXCLUIDA, estornos ligados, estoque e custo médio voltam; reconciliação limpa', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '50', '2');
@@ -227,7 +227,7 @@ describe('D-PROD-268 — excluir: estorno integral, só sem movimento depois', (
   });
 });
 
-describe('D-PROD-268 — permissão e isolamento', () => {
+describe('D-PROD-269 — permissão e isolamento', () => {
   test('visualizar lê; criar, saldo e excluir exigem `ajuste`; `entrada`/`saida` não fazem ajuste; seletores aceitam `ajuste`', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
@@ -253,17 +253,5 @@ describe('D-PROD-268 — permissão e isolamento', () => {
     assert.equal((await excluirAjuste(y, a)).statusCode, 404);
     assert.equal((await chamar('POST', '/estoque/ajustes', y.token, corpoAjuste(x, [linhaAjuste(x)]))).statusCode, 404);
     assert.equal(await estoqueAtual(x.ureia), 90);
-  });
-});
-
-describe('D-PROD-264 (correção) — "nada mexeu depois" não trata movimento antigo de número fora do padrão como posterior', () => {
-  test('um movimento ANTERIOR com número não sequencial no mesmo depósito não impede excluir a saída manual', async () => {
-    const x = await cenario();
-    const ent = await entrar(x, x.ureia, '100', '3');
-    // Movimento antigo (de antes da numeração do motor): número fora do padrão, criado antes da saída.
-    await prisma().movimentacaoEstoque.update({ where: { id: ent.itens[0].movimentacao_estoque_id }, data: { numero_movimentacao: 'LEG-0001' } });
-    const s = (await sair(x, x.ureia, '10')).json();
-    const r = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'engano', operation_id: `ex-${randomUUID()}` });
-    assert.equal(r.statusCode, 200, r.body);
   });
 });

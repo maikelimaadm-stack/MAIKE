@@ -1,16 +1,12 @@
-import React, { useState, useMemo } from "react";
-import CartaoHistorico, { AcaoHistorico, EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
+import React, { useMemo } from "react";
+import CartaoHistorico, { EstadoHistorico, LinhaHistorico, MolduraHistorico, SeloHistorico, useTituloDoHistorico } from "@/components/lotes/CartaoHistorico";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCurrentUser } from "@/services/sessionService";
-import { toast } from "sonner";
-import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { excluirEventoSuplementacaoComReversao } from "@/services/suplementacaoHistoricoService";
-import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { safeDivide } from "../utils/pecuariaUtils";
 import CardMetricaEvento from "./CardMetricaEvento";
 import DesvioConsumoTag from "./DesvioConsumoTag";
 import { CANCELAMENTO_COCHO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
-import { confirmarExclusao } from "@/lib/maikeConfirmar";
+import CancelarLancamentoCocho from "./CancelarLancamentoCocho";
 import { projecaoDoCartaoDoNivel } from "@/domain/suplementacao/nivelSuplementacao";
 
 /** "2026-11-10" ou ISO → "10/11/2026" (dia civil gravado, sem fuso). @param {any} valor */
@@ -35,14 +31,16 @@ const diaDoLancamento = (valor) => {
  * "Rótulo: valor" e as métricas por seção). Regras, consultas e a política de
  * estorno (D-PROD-94a) não mudam.
  *
+ * D-PROD-268: "Cancelar lançamento" no pé do cartão (`CancelarLancamentoCocho`: comando do
+ * servidor, só para quem tem a permissão, motivo obrigatório, elegibilidade antes de habilitar,
+ * só online). A regra local (só o mais recente, sem movimentação de gado depois) é só DICA para
+ * esconder a ação; quem decide é o servidor. A reversão antiga pelo navegador saiu daqui.
+ *
  * @param {{ pontoId: any, pontoNome?: string, ponto?: any, nivel?: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho|null }} props
  */
 export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto, nivel = null }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
-  const [deletingId, setDeletingId] = useState(null);
-
-  const { data: user } = useQuery({ queryKey: ["user-historico-suplementacao"], queryFn: () => getCurrentUser() });
 
   const { data: eventos = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["suplementacao-ponto", pontoId],
@@ -106,35 +104,8 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
     return mapa;
   }, [eventos, movimentacoes]);
 
-  const handleDelete = async (evento, index) => {
-    // Fail-closed (D-PROD-94a): reversão em várias chamadas do navegador, sem
-    // transação. Nenhuma chamada sai daqui enquanto a política estiver desligada.
-    if (!CANCELAMENTO_COCHO_HABILITADO) return toast.info(MENSAGEM_ESTORNO_SUSPENSO);
-    if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
-    if (bloqueiosPorEvento[evento.id]) return toast.error("Este lançamento do cocho não pode ser excluído porque existem registros criados depois dele na mesma área.");
-    if (!(await confirmarExclusao("Excluir este lançamento e reverter o estoque do depósito?"))) return;
-    setDeletingId(evento.id);
-    try {
-      await excluirEventoSuplementacaoComReversao({ evento, ponto, userEmail: user?.email });
-
-      const empresaId = evento.empresa_id;
-      await Promise.all([
-        updateMapaCachedData('eventosSuplementacao', empresaId, (items) => items.filter((item) => item.id !== evento.id)),
-        refreshMapaCacheEntry('eventosSuplementacao', empresaId, { force: true }),
-        refreshMapaCacheEntry('movimentacaoEstoque', empresaId, { force: true }),
-        refreshMapaCacheEntry('estoqueLotes', empresaId, { force: true }),
-      ]);
-
-      queryClient.setQueryData(["suplementacao-ponto", pontoId], (current = []) => current.filter((item) => item.id !== evento.id));
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "lotes-nota-suplementacao", "movimentacoes", "produtos", "saldo-deposito", "movimentacoes-deposito-detalhe", "mapa-eventosSuplementacao"].includes(query.queryKey[0]) || (query.queryKey[0] === "mapa-cache" && query.queryKey[1] === "eventosSuplementacao")) });
-      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
-      toast.success("Lançamento excluído.");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Não foi possível excluir o lançamento."));
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  // Depois do cancelamento: o cartão sai já (o componente relê caches e o mapa).
+  const aoCancelar = (id) => queryClient.setQueryData(["suplementacao-ponto", pontoId], (current = []) => current.filter((item) => item.id !== id));
 
   // Erro sem nada guardado: o estado de erro do Histórico de Movimentação (não "nenhum lançamento").
   const falhou = isError && eventos.length === 0;
@@ -179,10 +150,8 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
             }
             titulo={evento.produto}
             rodape={
-              CANCELAMENTO_COCHO_HABILITADO ? (
-                <AcaoHistorico destrutiva disabled={index !== 0 || deletingId === evento.id || bloqueiosPorEvento[evento.id]} onClick={() => handleDelete(evento, index)}>
-                  Excluir
-                </AcaoHistorico>
+              CANCELAMENTO_COCHO_HABILITADO && index === 0 && !bloqueiosPorEvento[evento.id] ? (
+                <CancelarLancamentoCocho evento={evento} onCancelado={() => aoCancelar(evento.id)} />
               ) : null
             }
           >
@@ -195,8 +164,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
             <CardMetricaEvento evento={evento} showProjecao={true} {...(nivel?.evento?.id != null && evento.id === nivel.evento.id ? projecaoDoCartaoDoNivel(nivel) : {})} />
 
             {evento.observacoes ? <LinhaHistorico rotulo="Observações">{evento.observacoes}</LinhaHistorico> : null}
-            {CANCELAMENTO_COCHO_HABILITADO && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">Existem registros criados depois deste lançamento na mesma área.</div>}
-            {CANCELAMENTO_COCHO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
+            {CANCELAMENTO_COCHO_HABILITADO && index === 0 && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">O gado foi movimentado nas áreas deste cocho depois deste lançamento: ele não pode ser cancelado.</div>}
           </CartaoHistorico>
         );
       })}

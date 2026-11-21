@@ -128,7 +128,7 @@ model Cliente {
   saidasEstoque                SaidaEstoque[]
   saidasEstoqueItens           SaidaEstoqueItem[]
   saidasEstoqueEventos         SaidaEstoqueEvento[]
-  ajustesEstoque               AjusteEstoque[] // D-PROD-268
+  ajustesEstoque               AjusteEstoque[] // D-PROD-269
   ajustesEstoqueItens          AjusteEstoqueItem[]
   ajustesEstoqueEventos        AjusteEstoqueEvento[]
   operacoesFinanceirasConsumos OperacaoFinanceiraConsumoLote[]
@@ -1188,7 +1188,7 @@ model LocalEstoque {
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
   saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-264
-  ajustesEstoqueItens  AjusteEstoqueItem[] // D-PROD-268
+  ajustesEstoqueItens  AjusteEstoqueItem[] // D-PROD-269
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
   // D-PROD-202 — linhas de produto que baixaram estoque deste local.
@@ -1237,7 +1237,7 @@ model Produto {
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
   saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-264
-  ajustesEstoqueItens  AjusteEstoqueItem[] // D-PROD-268
+  ajustesEstoqueItens  AjusteEstoqueItem[] // D-PROD-269
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
@@ -1411,7 +1411,7 @@ model Empresa {
   atividadeAreas        AtividadeArea[]
   entradasEstoque       EntradaEstoque[]
   saidasEstoque         SaidaEstoque[] // D-PROD-264
-  ajustesEstoque        AjusteEstoque[] // D-PROD-268
+  ajustesEstoque        AjusteEstoque[] // D-PROD-269
   // D-PROD-207 — funcionários e serviços da fazenda.
   servicos              Servico[]
   @@unique([cliente_id, id])
@@ -1715,7 +1715,7 @@ model EstoqueLoteNota {
   // D-PROD-155 — lote criado pela entrada de um lançamento e fatias FIFO consumidas.
   itemFinanceiroEntrada OperacaoFinanceiraItem?         @relation("OperacaoFinanceiraItemLoteEntrada")
   itemEntradaEstoque    EntradaEstoqueItem?         @relation("EntradaEstoqueItemLote")
-  itemAjusteEstoque     AjusteEstoqueItem?          @relation("AjusteEstoqueItemLote") // D-PROD-268
+  itemAjusteEstoque     AjusteEstoqueItem?          @relation("AjusteEstoqueItemLote") // D-PROD-269
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
   // D-PROD-159 — fatias FIFO consumidas por abastecimento de bem.
   consumosAbastecimento AbastecimentoBemConsumoLote[]   @relation("AbastecimentoBemConsumoDoLote")
@@ -1799,7 +1799,7 @@ model MovimentacaoEstoque {
   itemEntradaEstoqueEstorno EntradaEstoqueItem?     @relation("EntradaEstoqueItemEstorno")
   itemSaidaEstoque          SaidaEstoqueItem?       @relation("SaidaEstoqueItemMovimento") // D-PROD-264
   itemSaidaEstoqueEstorno   SaidaEstoqueItem?       @relation("SaidaEstoqueItemEstorno")
-  itemAjusteEstoque         AjusteEstoqueItem?      @relation("AjusteEstoqueItemMovimento") // D-PROD-268
+  itemAjusteEstoque         AjusteEstoqueItem?      @relation("AjusteEstoqueItemMovimento") // D-PROD-269
   itemAjusteEstoqueEstorno  AjusteEstoqueItem?      @relation("AjusteEstoqueItemEstorno")
   itemFinanceiroEstorno OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemEstorno")
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
@@ -2402,7 +2402,7 @@ model CentroCusto {
   abastecimentos AbastecimentoBem[] // D-PROD-211
   entradasEstoque EntradaEstoque[] // D-PROD-259
   saidasEstoque   SaidaEstoque[]   // D-PROD-264
-  ajustesEstoque  AjusteEstoque[]  // D-PROD-268
+  ajustesEstoque  AjusteEstoque[]  // D-PROD-269
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2441,7 +2441,7 @@ model CentroResultado {
 
   entradasEstoque EntradaEstoque[] // D-PROD-259
   saidasEstoque   SaidaEstoque[]   // D-PROD-264
-  ajustesEstoque  AjusteEstoque[]  // D-PROD-268
+  ajustesEstoque  AjusteEstoque[]  // D-PROD-269
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
@@ -3970,7 +3970,7 @@ model SaidaEstoqueEvento {
   @@index([cliente_id, empresa_id, saida_id, createdAt], map: "SaidaEstoqueEvento_saida_idx")
 }
 
-/// D-PROD-268 — ajuste de inventário (contagem): CONFIRMADA ao criar; EXCLUIDA com estorno pelo motor, só se os
+/// D-PROD-269 — ajuste de inventário (contagem): CONFIRMADA ao criar; EXCLUIDA com estorno pelo motor, só se os
 /// produtos não tiveram outro movimento naqueles depósitos depois. Sempre no dia de hoje da fazenda.
 model AjusteEstoque {
   id                        String    @id @default(cuid())
@@ -4007,7 +4007,7 @@ model AjusteEstoque {
   @@index([cliente_id, empresa_id, centro_resultado_id])
 }
 
-/// D-PROD-268 — uma linha por produto e depósito: o contado, o saldo de antes e a diferença (contado − saldo).
+/// D-PROD-269 — uma linha por produto e depósito: o contado, o saldo de antes e a diferença (contado − saldo).
 /// SOBRA = entrada pelo motor a custo médio (camada nova); FALTA = saída a custo médio; SEM_DIFERENCA = só registro.
 model AjusteEstoqueItem {
   id                      String   @id @default(cuid())
@@ -4053,7 +4053,7 @@ model AjusteEstoqueItem {
   @@index([cliente_id, local_estoque_id])
 }
 
-/// D-PROD-268 — histórico do ajuste (CONFIRMACAO | EDICAO | EXCLUSAO), append-only por convenção do serviço.
+/// D-PROD-269 — histórico do ajuste (CONFIRMACAO | EDICAO | EXCLUSAO), append-only por convenção do serviço.
 model AjusteEstoqueEvento {
   id                String   @id @default(cuid())
   cliente_id        String   @db.VarChar(64)

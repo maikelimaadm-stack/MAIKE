@@ -1,5 +1,5 @@
 /**
- * D-PROD-268 (Estoque → Novo movimento → Ajuste) — ajuste de inventário documentado.
+ * D-PROD-269 (Estoque → Novo movimento → Ajuste) — ajuste de inventário documentado.
  *
  *  - Por linha o usuário informa o CONTADO; o servidor lê, sob a trava do produto, o saldo do depósito (Σ das
  *    camadas Disponivel) e grava a diferença: SOBRA entra pelo motor a custo médio do depósito (sem saldo, pelo
@@ -26,7 +26,7 @@ import {
   aplicarFaltaDeAjuste, aplicarSobraDeAjuste, estornarFaltaDeAjuste, estornarSobraDeAjuste, exigirLocaisEstoque, numerarMovimentos,
   numeroMovimentoProvisorio, pocoDoDeposito, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { movimentoPosteriorNoDeposito } from '../estoqueFisico/movimentoPosterior.js';
+import { buscarMovimentoPosteriorA } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, diaDoCorpo, listarKeyset, termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
@@ -364,8 +364,8 @@ export const excluir = async (contexto, id, corpo) => {
             await exigirLocaisEstoque(tx, cli, comMovimento.map((i) => ({ id: i.local_estoque_id, field: 'local_estoque_id', exigirAtivo: false })));
             const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, comMovimento.map((i) => i.produto_id));
             for (const item of comMovimento) {
-              const numero = await movimentoPosteriorNoDeposito(tx, cli, empresaId, { movimentoId: /** @type {string} */ (item.movimentacao_estoque_id), produtoId: item.produto_id, localId: item.local_estoque_id });
-              if (numero) throw movimentoPosterior({ item_ordem: item.ordem, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, movimento_numero: numero });
+              const depois = await buscarMovimentoPosteriorA(tx, cli, { empresaId, movimentoId: /** @type {string} */ (item.movimentacao_estoque_id), produtoId: item.produto_id, localId: item.local_estoque_id });
+              if (depois) throw movimentoPosterior({ item_ordem: item.ordem, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, movimento_numero: depois.numero_movimentacao });
             }
             const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
             const motivoEstorno = `Exclusão do ajuste ${atual.numero}: ${e.motivo}`.slice(0, 255);

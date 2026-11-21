@@ -46,6 +46,7 @@ import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
  *   cancelado: boolean,
  *   ordem: ChaveDeOrdem,
  *   mov?: any,
+ *   evento?: any,
  *   acoes?: import("react").ReactNode,
  * }} CartaoHistorico
  */
@@ -55,6 +56,8 @@ import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
  * cartões (um por lote) e todos levam o MESMO `mov`: quem monta ações sobre o
  * movimento (a aba Histórico, "Excluir movimentação") deduplica por `mov.id`.
  * `acoes` não nasce aqui: a aba o acrescenta e a LinhaDoTempo o desenha no pé.
+ * `evento` (D-PROD-268): o lançamento de suplementação cru do cartão de suplementação, para a
+ * aba pôr "Cancelar lançamento" no pé (o servidor decide se pode).
  */
 /** @typedef {{ chave: string, rotulo: string, cartoes: CartaoHistorico[] }} DiaHistorico */
 /**
@@ -426,6 +429,8 @@ export function cartoesDaMovimentacao(mov, ctx, { doServidor = false } = {}) {
  */
 export function eventoDoPasto(evento, areaId, empresaId = null) {
   if (!evento || !areaId) return false;
+  // D-PROD-268: lançamento cancelado some do histórico do pasto (fica na auditoria e no depósito).
+  if (evento.situacao === "cancelado") return false;
   if (empresaId && evento.empresa_id && evento.empresa_id !== empresaId) return false;
   return evento.area_id === areaId || (Array.isArray(evento.area_ids) && evento.area_ids.includes(areaId));
 }
@@ -453,6 +458,7 @@ export function cartaoDaSuplementacao(evento) {
     ],
     cancelado: false,
     ordem: chaveDeRegistro(evento?.data_lancamento, evento?.created_date, id),
+    evento,
   };
 }
 
