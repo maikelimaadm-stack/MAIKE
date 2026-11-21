@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-20 (missão ativa D-PROD-265; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-267; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,19 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-EXCLUIR-HISTORICOS-MAPA: excluir e cancelar direto nos históricos do mapa (D-PROD-266)
+## Missão ativa (2026-11-21) — MAIKE-VARIOS-DIAS: serviço de vários dias e a Situação da lista (D-PROD-267)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-267**, a proposta aprovada pelo proprietário em 2026-11-21 (Partes 2 e 3 de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)) e as maquetes V1, V2 e V3 |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `2e048854` · PR (a abrir) |
+| Servidor | `POST /atividades/registrar` sem a regra do mês (trava por área), 409 `ATIVIDADE_SERVICO_PARADO` depois de 30 dias sem lançamento (`nova_atividade` decide), `concluir` opcional; todas as áreas concluídas ⇒ atividade concluída; concluir nunca antes do último dia lançado; `GET /atividades` com o `andamento` e os filtros `situacao` e `tipo_fixo` |
+| Tela | Lista uma linha por serviço (Nº · Tipo · Operação · Área · Data · Situação · Custo; "+ Nova realização" e "Planejar"; "+ Lançar dia" e "Concluir" na linha; "100%, falta concluir"), "+ Lançar dia" preenchido, "Como fica depois de salvar?", a pergunta do parado e o diálogo "Concluir" |
+| Migration | Nenhuma. Merge e deploy normais |
+| Próximas fatias | B (plantio com capim, com migration) e C (agrupador de reforma, com migration), Parte 1 da proposta |
+| Relatório | [`MAIKE-VARIOS-DIAS-REPORT.md`](./MAIKE-VARIOS-DIAS-REPORT.md) · pesquisa: [`MAIKE-PESQUISA-OPERACOES-CAMPO.md`](./MAIKE-PESQUISA-OPERACOES-CAMPO.md) |
+
+## Missão (2026-11-20) — MAIKE-EXCLUIR-HISTORICOS-MAPA: excluir e cancelar direto nos históricos do mapa (D-PROD-266)
 
 | Campo | Valor |
 |---|---|
