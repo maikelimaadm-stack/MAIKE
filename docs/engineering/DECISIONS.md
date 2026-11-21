@@ -8964,6 +8964,6 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Fora de escopo.** Contagem em várias etapas (rascunho de inventário), contagem cega, ajuste com data retroativa, edição da contagem lançada (exclui e faz outra).
 
-**Testes.** `backend/tests/estoqueAjustes.test.mjs` (novo, 12, Postgres real), o smoke `tests/smoke/estoqueNovoMovimento.test.jsx` e as provas da release (`premerge-migrate` B40a/B40b/B40k).
+**Testes.** `backend/tests/estoqueAjustes.test.mjs` (novo, 11, Postgres real), o smoke `tests/smoke/estoqueNovoMovimento.test.jsx` e as provas da release (`premerge-migrate` B40a/B40b/B40k).
 
 <!-- Próxima decisão: D-PROD-270 -->

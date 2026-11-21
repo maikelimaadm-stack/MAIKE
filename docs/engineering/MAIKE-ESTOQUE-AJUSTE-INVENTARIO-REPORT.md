@@ -71,7 +71,7 @@ Esta missão nasceu D-PROD-265, com a pasta `20261120200000_estoque_ajustes`. An
 
 | Arquivo | Resultado |
 |---|---|
-| `backend/tests/estoqueAjustes.test.mjs` (novo, Postgres real) | 12/12 |
+| `backend/tests/estoqueAjustes.test.mjs` (novo, Postgres real) | 11/11 |
 | `estoqueSaidas` / `estoqueEntradas` / `estoqueConsulta` | 15 / 47 / 23, todos passaram |
 | `estoqueP0Reconciliacao*`, `estoqueP0MotorUnico`, `estoqueP1M2MotorParametros` | todos passaram |
 | provas da release (`test:gates`) e testes de migration | 1051/1051 · 54/54 (B40a/B40b/B40k novos) |
