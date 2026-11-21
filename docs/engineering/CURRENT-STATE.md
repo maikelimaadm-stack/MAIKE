@@ -17,7 +17,7 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-270**, escolha do proprietário: editar tudo (data, motivo, fornecedor/documento, centros, produtos, quantidades, custo, depósitos) se nada mexeu depois, desfazendo pelo motor e lançando de novo, com histórico |
 | Branch / PR | `claude/edicao-entrada-saida`, a partir da `main` `80aa1db3` |
 | Migration | Nenhuma |
-| Constituição | emenda **proposta** na D-PROD-270; aguarda a aprovação do proprietário |
+| Constituição | emenda **aprovada** pelo proprietário (2026-11-21) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
 | Relatório | [`MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md`](./MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md) |
 
 ## Missão anterior (2026-11-21) — MAIKE-ESTORNO-COCHO-DEPOSITO: cancelar lançamento de cocho e transferência entre depósitos (D-PROD-268)

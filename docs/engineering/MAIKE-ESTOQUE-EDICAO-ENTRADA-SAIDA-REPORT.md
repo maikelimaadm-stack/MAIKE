@@ -20,9 +20,9 @@ Depois da saída manual, o proprietário pediu: "Olha também posso editar ok em
 - O estorno de uma linha substituída da própria saída não conta como "depois" da linha nova (mesma transação, empate de milissegundo); qualquer outro movimento conta.
 - Inativos (motivo, produto, depósito, fornecedor) bloqueiam a edição, como a criação.
 
-## 3. Constituição: emenda PROPOSTA (falta a aprovação)
+## 3. Constituição: emenda APROVADA
 
-A entrada confirmada já podia ser editada sem camada tocada, mas "o motivo dela nunca muda"; a saída só editava a observação. O texto proposto está na D-PROD-270 e **não foi aplicado**; a PR fica em rascunho até a aprovação.
+A entrada confirmada já podia ser editada sem camada tocada, mas "o motivo dela nunca muda"; a saída só editava a observação. O proprietário aprovou a emenda em 2026-11-21; ela foi aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, com o texto da D-PROD-270.
 
 ## 4. Tela
 
