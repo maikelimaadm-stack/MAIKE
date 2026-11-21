@@ -29,8 +29,12 @@
  * A flag do depósito continua `false`: ela guarda só a porta antiga do navegador.
  */
 
-export const MENSAGEM_ESTORNO_SUSPENSO =
-  'Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro.';
+/**
+ * Aviso que o usuário VÊ quando o caminho antigo está suspenso. No Mapa Geral só
+ * há EXCLUSÃO (o proprietário: "não tenho cancelamentos, tenho exclusão"): o
+ * texto fala em exclusão; o nome da constante e as flags não mudam.
+ */
+export const MENSAGEM_ESTORNO_SUSPENSO = 'Exclusão temporariamente indisponível.';
 
 /** Cancelamento de lançamento do cocho (evento de suplementação) — D-PROD-268: só o comando do servidor. */
 export const CANCELAMENTO_COCHO_HABILITADO = true;

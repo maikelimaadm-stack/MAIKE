@@ -28,7 +28,8 @@ import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
 /** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /**
- * Cancelar lançamento do cocho — D-PROD-268.
+ * Excluir lançamento do cocho — D-PROD-268 (o comando do servidor é o cancelamento com estorno
+ * exato; na tela o usuário só vê EXCLUSÃO: botão, diálogo, avisos e recusas falam "excluir").
  *
  * Um comando do servidor faz tudo numa transação: devolve ao depósito a baixa EXATA do
  * lançamento (pelo motor do estoque), cancela o evento e o rateio dele (somem dos históricos do
@@ -48,18 +49,18 @@ const NADA = "Nada foi alterado.";
 
 /** Frase em linguagem de campo para cada `reason` do servidor (nada foi alterado). */
 export const MENSAGENS_REASON = Object.freeze({
-  lancamento_posterior: `Há um lançamento mais novo neste cocho. Cancele primeiro o mais recente. ${NADA}`,
+  lancamento_posterior: `Há um lançamento mais novo neste cocho. Exclua primeiro o mais recente. ${NADA}`,
   periodo_fechado: `O período deste lançamento já foi fechado (o gado saiu ou o consumo foi fechado): o consumo virou fato. ${DIGA_AJUSTE} ${NADA}`,
   gado_movimentado: `O gado das áreas deste cocho foi movimentado depois do lançamento. Desfaça a movimentação antes ou corrija por ajuste de estoque. ${NADA}`,
-  sem_recibo: `Este lançamento não foi feito pelo lançamento do cocho (é antigo ou automático) e não pode ser cancelado. ${DIGA_AJUSTE} ${NADA}`,
+  sem_recibo: `Este lançamento não foi feito pelo lançamento do cocho (é antigo ou automático) e não pode ser excluído. ${DIGA_AJUSTE} ${NADA}`,
   rateio_divergente: `O rateio deste lançamento entre os lotes foi alterado fora do lançamento. ${DIGA_AJUSTE} ${NADA}`,
   saida_nao_comprovada: `Não há prova de qual baixa do depósito é deste lançamento. ${DIGA_AJUSTE} ${NADA}`,
   saida_sem_fatias: `A baixa do depósito é anterior ao controle por nota e não pode ser devolvida com exatidão. ${DIGA_AJUSTE} ${NADA}`,
-  movimento_posterior_no_deposito: `O depósito teve outro movimento deste produto depois do lançamento (outro cocho, compra ou transferência). Cancele primeiro o mais recente. ${NADA}`,
+  movimento_posterior_no_deposito: `O depósito teve outro movimento deste produto depois do lançamento (outro cocho, compra ou transferência). Exclua primeiro o mais recente. ${NADA}`,
   periodo_anterior_nao_comprovado: `Não há prova de que este lançamento fechou o período anterior do cocho; ele não pode ser reaberto com segurança. ${NADA}`,
   periodo_anterior_alterado: `O período anterior do cocho foi alterado depois do fechamento; ele não pode ser reaberto com segurança. ${NADA}`,
   lote_periodo_anterior_nao_comprovado: `Um lote do período anterior foi fechado sem prova deste lançamento; o período não pode ser reaberto com segurança. ${NADA}`,
-  movimento_estornado: `A baixa do depósito deste lançamento já foi estornada. ${NADA}`,
+  movimento_estornado: `A baixa do depósito deste lançamento já foi devolvida ao depósito. ${NADA}`,
   lote_indisponivel_para_devolucao: `Uma nota que forneceu este produto não está mais disponível para receber a devolução. ${NADA}`,
   devolucao_excede_entrada: `A devolução passaria do que entrou na nota. ${NADA}`,
   fatias_inconsistentes: `Os registros da baixa no depósito estão inconsistentes. ${NADA}`,
@@ -70,12 +71,12 @@ export const MENSAGENS_REASON = Object.freeze({
 
 /** Recusas estáveis por código (sem `reason`). */
 export const MENSAGENS_CODIGO = Object.freeze({
-  CANCELAMENTO_JA_REALIZADO: "Este lançamento já foi cancelado.",
+  CANCELAMENTO_JA_REALIZADO: "Este lançamento já foi excluído.",
   SUPLEMENTACAOEVENTO_NOT_FOUND: "Este lançamento não existe mais.",
-  ACAO_NAO_PERMITIDA: "Você não tem permissão para cancelar lançamentos.",
+  ACAO_NAO_PERMITIDA: "Você não tem permissão para excluir lançamentos.",
   EMPRESA_NOT_FOUND: `Fazenda não encontrada. ${NADA}`,
   REQUEST_VALIDATION_FAILED: `Informe o motivo (de 3 a 500 caracteres). ${NADA}`,
-  IDEMPOTENCY_CONFLICT: "Este cancelamento já foi enviado com outro motivo. Feche e abra de novo para recomeçar.",
+  IDEMPOTENCY_CONFLICT: "Esta exclusão já foi enviada com outro motivo. Feche e abra de novo para recomeçar.",
   CONCURRENCY_CONFLICT: `Outra operação alterava este cocho ao mesmo tempo. Tente de novo. ${NADA}`,
   ESTOQUE_LOCAL_INVALIDO: `O depósito deste lançamento não foi encontrado. ${NADA}`,
 });
@@ -85,8 +86,8 @@ export const MENSAGENS_CODIGO = Object.freeze({
  * @param {string|null|undefined} codigo @param {string|null|undefined} reason
  */
 export const mensagemDoCancelamento = (codigo, reason) => {
-  if (codigo === "SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO") return (reason && MENSAGENS_REASON[reason]) || `O lançamento não pode ser cancelado com segurança agora. ${NADA}`;
-  return (codigo && MENSAGENS_CODIGO[codigo]) || `Não foi possível cancelar. ${NADA}`;
+  if (codigo === "SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO") return (reason && MENSAGENS_REASON[reason]) || `O lançamento não pode ser excluído com segurança agora. ${NADA}`;
+  return (codigo && MENSAGENS_CODIGO[codigo]) || `Não foi possível excluir. ${NADA}`;
 };
 
 /** Código e `reason` do corpo de erro do servidor (preservado no `cause` do ApiError). @param {any} erro */
@@ -140,7 +141,7 @@ const kg = (v) => `${Number(v ?? 0).toLocaleString("pt-BR", { maximumFractionDig
 const reais = (v) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const diaBR = (d) => String(d ?? "").slice(0, 10).split("-").reverse().join("/");
 
-/** Linhas do que o cancelamento faz (vindas do ensaio do servidor). @param {any} efeitos */
+/** Linhas do que a exclusão faz (vindas do ensaio do servidor). @param {any} efeitos */
 export const descreverEfeitos = (efeitos) => {
   const linhas = [];
   if (efeitos?.estorno) {
@@ -152,7 +153,7 @@ export const descreverEfeitos = (efeitos) => {
     linhas.push(`Reabre o período de ${diaBR(efeitos.periodo_reaberto.data_lancamento)} com sobra inicial de ${kg(efeitos.periodo_reaberto.sobra_inicial_restaurada_kg)}.`);
   }
   const n = Number(efeitos?.lotes_a_cancelar ?? 0);
-  if (n > 0) linhas.push(`Cancela o rateio em ${n} lote${n === 1 ? "" : "s"}.`);
+  if (n > 0) linhas.push(`Tira o lançamento do rateio de ${n} lote${n === 1 ? "" : "s"}.`);
   return linhas;
 };
 
@@ -206,7 +207,7 @@ export function usePermissaoCancelarCocho() {
 /**
  * @param {{ evento: any, onCancelado?: () => void, rotulo?: string }} props
  */
-export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = "Cancelar lançamento" }) {
+export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = "Excluir lançamento" }) {
   const queryClient = useQueryClient();
   const [aberto, setAberto] = React.useState(false);
   const [motivo, setMotivo] = React.useState("");
@@ -259,8 +260,8 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
   const podeEnviar = online && motivoPronto && !enviando && (elegivelAgora || desconhecido);
 
   const estado = (() => {
-    if (!online) return { habilitado: false, motivo: "Sem conexão: o cancelamento só é feito online." };
-    if (pendenteAgora) return { habilitado: true, motivo: "Cancelamento anterior sem confirmação do servidor: abra para reenviar a mesma operação." };
+    if (!online) return { habilitado: false, motivo: "Sem conexão: a exclusão só é feita online." };
+    if (pendenteAgora) return { habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." };
     if (negadoNoServidor) return { habilitado: false, motivo: MENSAGENS_CODIGO.ACAO_NAO_PERMITIDA };
     if (elegibilidade.isError) return { habilitado: false, motivo: "Não foi possível verificar no servidor. Nada foi alterado.", tentarDeNovo: true };
     if (!e || elegibilidade.isFetching) return { habilitado: false, motivo: "Conferindo no servidor…", verificando: true };
@@ -288,9 +289,10 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
     if (!valor && enviando) return;
     if (!valor && desconhecido) {
       pedirConfirmacao({
-        titulo: "Cancelamento sem confirmação",
-        descricao: "O servidor ainda não confirmou este cancelamento. A operação fica guardada e será reenviada com a mesma chave quando você abrir de novo. Fechar mesmo assim?",
+        titulo: "Exclusão sem confirmação",
+        descricao: "O servidor ainda não confirmou esta exclusão. A operação fica guardada e será reenviada com a mesma chave quando você abrir de novo. Fechar mesmo assim?",
         textoConfirmar: "Fechar",
+        textoCancelar: "Voltar",
       }).then((ok) => {
         if (ok) setAberto(false);
       });
@@ -312,7 +314,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
       setDesconhecido(false);
       setAberto(false);
       setCancelado(true);
-      toast.success("Lançamento cancelado.");
+      toast.success("Lançamento excluído.");
       await recarregar(queryClient, evento);
       onCancelado?.();
     } catch (erro) {
@@ -375,17 +377,17 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
       <Dialog open={aberto} onOpenChange={fechar}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Cancelar lançamento do cocho</DialogTitle>
+            <DialogTitle>Excluir lançamento do cocho</DialogTitle>
             <DialogDescription>
               {evento.ponto_nome ? `${evento.ponto_nome} · ` : ""}
               {evento.produto || "Suplementação"}
-              {evento.data_lancamento ? ` · ${diaBR(evento.data_lancamento)}` : ""}. O lançamento sai dos históricos do cocho, do pasto e do lote; fica na auditoria e, no depósito, como saída estornada e entrada de estorno.
+              {evento.data_lancamento ? ` · ${diaBR(evento.data_lancamento)}` : ""}. O lançamento sai dos históricos do cocho, do pasto e do lote e o estoque volta ao depósito; o registro da exclusão fica na auditoria.
             </DialogDescription>
           </DialogHeader>
-          {!online ? <div role="alert" className="text-sm text-amber-800">Sem conexão. O cancelamento só é feito online.</div> : null}
+          {!online ? <div role="alert" className="text-sm text-amber-800">Sem conexão. A exclusão só é feita online.</div> : null}
           {online && elegibilidade.isFetching ? <div role="status" className="text-sm text-slate-500">Conferindo no servidor...</div> : null}
           {elegivelAgora ? (
-            <ul className="list-disc space-y-0.5 pl-4 text-xs text-slate-700" aria-label="O que o cancelamento faz">
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-slate-700" aria-label="O que a exclusão faz">
               {descreverEfeitos(e.efeitos).map((linha) => (
                 <li key={linha}>{linha}</li>
               ))}
@@ -397,20 +399,24 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
             </div>
           ) : null}
           <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-700" htmlFor={`${idMotivo}-campo`}>
-              Motivo (obrigatório)
-            </label>
+            <div className="text-xs text-slate-700">
+              <label className="font-medium" htmlFor={`${idMotivo}-campo`}>
+                Motivo da exclusão
+              </label>
+              <span className="text-slate-500"> (obrigatório)</span>
+            </div>
             <Textarea
               id={`${idMotivo}-campo`}
               value={motivo}
               maxLength={500}
+              aria-required="true"
               disabled={enviando || desconhecido}
               onChange={(ev) => setMotivo(ev.target.value)}
               placeholder="Ex.: lançado em dobro"
             />
             {desconhecido ? (
               <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-                Sem confirmação do servidor. O cancelamento pode ou não ter sido concluído. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.
+                Sem confirmação do servidor. A exclusão pode ou não ter sido concluída. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.
               </div>
             ) : null}
             {recusa ? (
@@ -423,7 +429,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
                 Voltar
               </Button>
               <Button type="button" variant="destructive" size="sm" disabled={!podeEnviar} onClick={confirmar}>
-                {enviando ? "Cancelando..." : desconhecido ? "Tentar de novo" : "Cancelar lançamento"}
+                {enviando ? "Excluindo..." : desconhecido ? "Tentar de novo" : "Excluir lançamento"}
               </Button>
             </div>
           </div>

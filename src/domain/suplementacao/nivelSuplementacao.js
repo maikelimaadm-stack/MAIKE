@@ -412,6 +412,28 @@ function montarClassesDeProduto(eventos) {
  * }} ContextoDosCochos
  */
 
+/** Lista sem os excluídos, em cache pela identidade do array recebido (mantém os caches abaixo valendo entre cochos). */
+const EVENTOS_SEM_EXCLUIDOS = new WeakMap();
+
+/**
+ * Eventos sem os EXCLUÍDOS (`situacao === 'cancelado'` no servidor). Devolve o
+ * MESMO array quando não há excluído, e sempre o mesmo array filtrado para o
+ * mesmo array de entrada, para os índices por identidade continuarem valendo.
+ * Exportado para que toda leitura de lançamentos do mapa (alertas do lote, aba
+ * Suplementação do pasto) possa usar a MESMA lista que o nível do cocho.
+ * @param {any} eventos @returns {any[]}
+ */
+export function semExcluidos(eventos) {
+  if (!Array.isArray(eventos)) return [];
+  const emCache = EVENTOS_SEM_EXCLUIDOS.get(eventos);
+  if (emCache) return emCache;
+  const filtrados = eventos.some((evento) => evento?.situacao === 'cancelado')
+    ? eventos.filter((evento) => evento?.situacao !== 'cancelado')
+    : eventos;
+  EVENTOS_SEM_EXCLUIDOS.set(eventos, filtrados);
+  return filtrados;
+}
+
 /** Eventos agrupados por ponto, em cache pela identidade do array (o mapa calcula todos os cochos com o mesmo). */
 const EVENTOS_POR_PONTO = new WeakMap();
 
@@ -736,7 +758,12 @@ const compartilhamentoDoCocho = (ponto, ultimo, eventos, pontos, hoje) => {
  *   pontos — o compartilhamento olha o último evento dos outros cochos).
  * @returns {NivelCocho}
  */
-export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
+export function calcularNivelCocho({ ponto, eventos: eventosRecebidos = [], hoje, pontos = [] }) {
+  // Lançamento EXCLUÍDO (situacao "cancelado" no servidor, inclusive os antigos
+  // do mecanismo R2A/D-PROD-99) não conta para nada: nem para o último evento,
+  // nem para o compartilhamento. O servidor já não lista; isto é defesa contra
+  // uma cópia antiga guardada no aparelho — marcador, alertas e detalhe contam igual.
+  const eventos = semExcluidos(eventosRecebidos);
   const doPonto = eventosDoPonto(ponto, eventos);
   let ultimo = selecionarUltimoEventoDoPonto(ponto, doPonto);
   // Um lançamento com data inválida criado DEPOIS do último válido: o ciclo

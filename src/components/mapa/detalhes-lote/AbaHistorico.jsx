@@ -29,15 +29,15 @@ import "@/styles/mk-dp-tl-acoes.css";
  * Movimentação (D-PROD-110, `ExcluirMovimentacao`: elegibilidade conferida no
  * servidor, motivo, confirmação, só online, nunca na fila offline) no pé do
  * cartão, com as mesmas condições dele: dados do servidor (nunca a cópia do
- * aparelho), movimento não cancelado e de tipo com exclusão. Um movimento vira
+ * aparelho) e de tipo com exclusão (o registro excluído já some da linha do tempo). Um movimento vira
  * vários cartões (um por lote) e a exclusão apaga o registro INTEIRO: a ação
  * fica só no primeiro cartão do movimento, com o aviso do alcance. Quem vê a
  * ação decide o próprio `ExcluirMovimentacao`. Ao excluir, histórico e mapa relêem.
  *
- * Cancelar lançamento (D-PROD-268, etapa 2): o cartão de suplementação MAIS RECENTE de cada
- * cocho ganha "Cancelar lançamento" no pé (`CancelarLancamentoCocho`: comando do servidor, só
+ * Excluir lançamento (D-PROD-268, etapa 2): o cartão de suplementação MAIS RECENTE de cada
+ * cocho ganha "Excluir lançamento" no pé (`CancelarLancamentoCocho`: comando do servidor, só
  * com a permissão `cancelar_lancamentos_estoque`, motivo obrigatório, só online, elegibilidade
- * antes de habilitar). Só o mais recente é dica: quem decide é o servidor. Cancelado, o cartão
+ * antes de habilitar). Só o mais recente é dica: quem decide é o servidor. Excluído, o cartão
  * some (o lançamento sai dos históricos do cocho, do pasto e do lote).
  *
  * A lista do "Mostrar" é a que o sistema já usa (como o B1Select): o painel
@@ -54,6 +54,9 @@ const VAZIO_DO_FILTRO = "Nenhum registro deste tipo neste pasto.";
 const NOTA_DA_AREA = "Registros de todas as movimentações, pesagens e manejos que passaram por esta área.";
 const VAZIO_DA_AREA = "Nenhum registro deste tipo nesta área.";
 const SEM_COPIA_NO_APARELHO = "Este aparelho ainda não tem movimentações salvas para consulta sem conexão.";
+// Página lida sem nada para mostrar (por exemplo, só registros excluídos), mas o servidor
+// tem mais páginas: não afirma que o pasto/área não tem histórico.
+const VAZIO_COM_MAIS_PAGINAS = "Nenhum registro nesta parte do histórico. Carregue mais para ver os mais antigos.";
 
 /**
  * Quantos OUTROS pastos o movimento toca além deste (origem/destino do registro
@@ -158,7 +161,7 @@ function AcaoExcluir({ movimento, alcance, aoExcluir }) {
 }
 
 /**
- * D-PROD-268 — "Cancelar lançamento" no pé do cartão de suplementação mais recente de cada cocho
+ * D-PROD-268 — "Excluir lançamento" no pé do cartão de suplementação mais recente de cada cocho
  * (os cartões chegam do mais novo para o mais antigo). Os outros ficam como estão.
  * @param {import("./historicoDoPasto").DiaHistorico[]} dias
  * @param {{ aoCancelar?: () => void, doServidor?: boolean, autorizado?: boolean }} [opcoes]
@@ -312,7 +315,12 @@ export default function AbaHistorico() {
   } else if (dias.length) {
     conteudo = <LinhaDoTempo textoAutomatico dias={dias} rotulo={daArea ? "Registros da área" : undefined} />;
   } else {
-    conteudo = <Vazio icone={History}>{semCopiaNoAparelho ? SEM_COPIA_NO_APARELHO : daArea ? VAZIO_DA_AREA : VAZIO_DO_FILTRO}</Vazio>;
+    const haMaisParaLer = h.haMaisPaginas && filtro !== "sup";
+    conteudo = (
+      <Vazio icone={History}>
+        {semCopiaNoAparelho ? SEM_COPIA_NO_APARELHO : haMaisParaLer ? VAZIO_COM_MAIS_PAGINAS : daArea ? VAZIO_DA_AREA : VAZIO_DO_FILTRO}
+      </Vazio>
+    );
   }
 
   // "Carregar mais" só pede movimentações: com "Suplementação" (tudo do aparelho) não aparece.

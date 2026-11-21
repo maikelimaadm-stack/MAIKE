@@ -5,12 +5,25 @@ import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { Nota, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import FiltroHistorico from "@/components/mapa/detalhes-lote/FiltroHistorico";
 import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
-import { BotaoCancelarRegistro, DialogoCancelarRegistro, TEXTO_SEM_CONEXAO, descreverRegistro, estadoDoCancelamento, estaOnline, useEstaOnline } from "@/components/mapa/detalhes-area/CancelarRegistroDaArea";
+import {
+  BotaoCancelarRegistro,
+  DialogoCancelarRegistro,
+  TEXTO_FALHA_NA_EXCLUSAO,
+  TEXTO_JA_EXCLUIDO,
+  TEXTO_SEM_CONEXAO,
+  descreverRegistro,
+  ehRegistroJaExcluido,
+  estadoDoCancelamento,
+  estaOnline,
+  mensagemDeErroDaExclusao,
+  textoSemCancelamento,
+  useEstaOnline,
+} from "@/components/mapa/detalhes-area/CancelarRegistroDaArea";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { QUERY_RAIZ_ABASTECIMENTOS } from "@/hooks/useFluxoAbastecimento";
 import { diasDosRegistros } from "@/domain/mapa/registrosDaArea";
 import { RAIZ_CONSULTAS_ATIVIDADES, pedeReleitura } from "@/lib/atividadeApontamentoRegras";
-import { STATUS_CANCELADO, STATUS_CONFIRMADO, mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { STATUS_CANCELADO, STATUS_CONFIRMADO, codigoDoErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
 import { cancelarApontamento, definirFazendaDaTela, listarRegistrosDaArea, obterApontamento, obterAtividade } from "@/services/lancamentoAtividadesService";
@@ -23,10 +36,11 @@ import "@/styles/mk-dp-historico.css";
  * tempo do Detalhes do Lote (`LinhaDoTempo`, o filtro "Todos"). Não substitui o histórico de movimentação de animais, que
  * continua no "Histórico completo" do rodapé. "Carregar mais" pede a página seguinte ao servidor.
  *
- * D-PROD-266 (etapa 1): no pé do cartão (`acoes` da LinhaDoTempo), o "Cancelar registro" — o MESMO cancelamento do
- * apontamento do Lançamento de Atividades, com as mesmas condições (`podeCancelar` = ação extra `cancelar_apontamento`
- * de `op-atividades`; fuso da fazenda; atividade ABERTA; apontamento CONFIRMADO relido com a `versao`). Só online.
- * Cancelado, o cartão mostra o chip "Cancelado" e nenhuma ação; a releitura do servidor (que só lista CONFIRMADO) o tira.
+ * D-PROD-266 (etapa 1): no pé do cartão (`acoes` da LinhaDoTempo), o "Excluir registro" — por baixo, o MESMO
+ * cancelamento do apontamento do Lançamento de Atividades, com as mesmas condições (`podeCancelar` = ação extra
+ * `cancelar_apontamento` de `op-atividades`; fuso da fazenda; atividade ABERTA; apontamento CONFIRMADO relido com a
+ * `versao`). Só online. No mapa a pessoa só vê EXCLUSÃO (pedido do proprietário): o registro excluído SOME do histórico
+ * na hora (sem chip "Cancelado"), e a releitura do servidor (que só lista CONFIRMADO) confirma.
  */
 
 const TODOS = "todos";
@@ -42,7 +56,8 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
   const { fusoOk, semFuso } = useFusoDaFazenda(podeCancelar ? empresaId : null);
   const online = useEstaOnline();
   const [filtro, setFiltro] = React.useState(TODOS);
-  const [cancelados, setCancelados] = React.useState(() => /** @type {Set<string>} */ (new Set()));
+  // Registros excluídos nesta tela: saem do histórico na hora, antes da releitura do servidor.
+  const [excluidos, setExcluidos] = React.useState(() => /** @type {Set<string>} */ (new Set()));
   const [conferindo, setConferindo] = React.useState(/** @type {string|null} */ (null));
   const [cancelando, setCancelando] = React.useState(/** @type {{ registro: any, apontamento: any } | null} */ (null));
 
@@ -54,7 +69,11 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
     enabled: Boolean(empresaId && area?.id),
     staleTime: 15 * 1000,
   });
-  const itens = React.useMemo(() => (consulta.data?.pages ?? []).flatMap((p) => p.items), [consulta.data]);
+  // O excluído (aqui ou já CANCELADO no servidor) não aparece: no mapa não há cartão de registro excluído.
+  const itens = React.useMemo(
+    () => (consulta.data?.pages ?? []).flatMap((p) => p.items).filter((r) => r && !excluidos.has(String(r.id)) && r.status !== STATUS_CANCELADO),
+    [consulta.data, excluidos],
+  );
   const dias = React.useMemo(() => diasDosRegistros(itens), [itens]);
   const opcoes = React.useMemo(
     () => [{ valor: TODOS, rotulo: "Todos" }, ...tipos.map((t) => ({ valor: String(t.id), rotulo: String(t.nome_tipo) }))],
@@ -86,17 +105,17 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
     return m;
   }, [atividadeIds, atividadesLidas]);
 
-  /** Releitura depois de um cancelamento (ou de uma recusa que pede reler): histórico, resumo, atividades e o mapa. */
+  /** Releitura depois de uma exclusão (ou de uma recusa que pede reler): histórico, resumo, atividades e o mapa. */
   const relerTudo = () => {
     queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
     queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
-    // O cancelamento do lançamento cancela os abastecimentos ligados a ele (D-PROD-211).
+    // A exclusão do registro leva junto os abastecimentos ligados a ele (D-PROD-211).
     queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ_ABASTECIMENTOS] });
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
 
   /** @param {string} id */
-  const marcarCancelado = (id) => setCancelados((s) => (s.has(id) ? s : new Set([...s, id])));
+  const marcarExcluido = (id) => setExcluidos((s) => (s.has(id) ? s : new Set([...s, id])));
 
   /** Relê o apontamento (status e `versao` do CAS) antes de abrir o diálogo. @param {any} r */
   const pedirCancelamento = async (r) => {
@@ -106,8 +125,8 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
     try {
       const ap = /** @type {any} */ (await obterApontamento(String(r.atividade_id), id));
       if (ap?.status === STATUS_CANCELADO) {
-        marcarCancelado(id);
-        notifyInfo("Já cancelado", "Este registro já está cancelado. Nada foi alterado.");
+        marcarExcluido(id);
+        notifyInfo("Já excluído", TEXTO_JA_EXCLUIDO);
         relerTudo();
       } else if (ap?.status !== STATUS_CONFIRMADO || ap?.versao == null) {
         notifyWarning("Atenção", "Não foi possível conferir este registro agora. Nada foi alterado.");
@@ -115,7 +134,7 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
         setCancelando({ registro: r, apontamento: ap });
       }
     } catch (erro) {
-      notifyWarning("Atenção", mensagemDeErroAtividade(erro, "Não foi possível conferir o registro agora. Tente de novo."));
+      notifyWarning("Atenção", mensagemDeErroDaExclusao(erro, "Não foi possível conferir o registro agora. Tente de novo."));
     } finally {
       setConferindo(null);
     }
@@ -134,8 +153,8 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
     try {
       await cancelarApontamento(String(registro.atividade_id), String(registro.id), { versao: apontamento.versao, motivo });
       setCancelando(null);
-      marcarCancelado(String(registro.id));
-      notifySuccess("Registro cancelado", `${descreverRegistro(registro)} cancelado. Ele fica no Lançamento de Atividades como cancelado; nada foi apagado.`);
+      marcarExcluido(String(registro.id));
+      notifySuccess("Registro excluído", `${descreverRegistro(registro)} excluído deste histórico.`);
       relerTudo();
     } catch (erro) {
       // Sem resposta: o diálogo mostra "resultado incerto" (consultar ou repetir); as listas se relêem.
@@ -147,19 +166,28 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
       // repetir daria a mesma recusa. Fecha o diálogo e pede para abrir de novo (o pedido relê o apontamento).
       if (pedeReleitura(erro)) {
         setCancelando(null);
-        notifyWarning(
-          "O registro mudou",
-          `${mensagemDeErroAtividade(erro, "O registro mudou no servidor.")} Nada foi cancelado. Abra o cancelamento de novo para conferir.`,
-        );
+        if (ehRegistroJaExcluido(erro)) {
+          // Já excluído (por outra pessoa ou por um envio anterior): sai do histórico na hora, sem pedir nova exclusão.
+          marcarExcluido(String(registro.id));
+          notifyInfo("Já excluído", TEXTO_JA_EXCLUIDO);
+        } else if (codigoDoErroAtividade(erro) === "ATIVIDADE_STATUS_INVALIDO") {
+          // Atividade (ou área) fora do status que aceita exclusão: abrir de novo daria a mesma recusa.
+          notifyWarning("Não foi possível excluir", mensagemDeErroDaExclusao(erro, TEXTO_FALHA_NA_EXCLUSAO));
+        } else {
+          notifyWarning(
+            "O registro mudou",
+            `${mensagemDeErroDaExclusao(erro, "O registro mudou no servidor.")} Nada foi excluído. Abra a exclusão de novo para conferir.`,
+          );
+        }
         relerTudo();
         return;
       }
-      notifyWarning("Atenção", mensagemDeErroAtividade(erro, "Não foi possível cancelar o registro. Nada foi alterado."));
+      notifyWarning("Atenção", mensagemDeErroDaExclusao(erro, TEXTO_FALHA_NA_EXCLUSAO));
       throw erro;
     }
   };
 
-  /** "Consultar" depois de um cancelamento sem resposta: relê o apontamento no servidor. */
+  /** "Consultar" depois de uma exclusão sem resposta: relê o apontamento no servidor. */
   const consultarCancelamento = async () => {
     const alvo = cancelando;
     if (!alvo) return;
@@ -167,24 +195,23 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
       const ap = /** @type {any} */ (await obterApontamento(String(alvo.registro.atividade_id), String(alvo.registro.id)));
       if (ap?.status === STATUS_CANCELADO) {
         setCancelando(null);
-        marcarCancelado(String(alvo.registro.id));
-        notifySuccess("Registro cancelado", "O registro aparece cancelado: o envio anterior foi gravado.");
+        marcarExcluido(String(alvo.registro.id));
+        notifySuccess("Registro excluído", "O registro aparece excluído: o envio anterior foi gravado.");
         relerTudo();
       } else {
-        notifyInfo("Ainda confirmado", "O cancelamento não aparece gravado. Pode repetir o envio: se ele já tiver sido gravado, o servidor recusa sem mudar nada.");
+        notifyInfo("Ainda não excluído", "A exclusão não aparece gravada. Pode repetir o envio: se ela já tiver sido gravada, o servidor recusa sem mudar nada.");
       }
     } catch (erro) {
-      notifyWarning("Atenção", mensagemDeErroAtividade(erro, "Não foi possível consultar agora. Tente de novo."));
+      notifyWarning("Atenção", mensagemDeErroDaExclusao(erro, "Não foi possível consultar agora. Tente de novo."));
     }
   };
 
   const porId = React.useMemo(() => new Map(itens.map((r) => [String(r.id), r])), [itens]);
-  // O pé de ações de cada cartão (sem `acoes`, o cartão fica como antes). Cancelado: o chip e nenhuma ação.
+  // O pé de ações de cada cartão (sem `acoes`, o cartão fica como antes). O excluído já saiu de `itens`.
   const diasComAcoes = dias.map((dia) => ({
     ...dia,
     cartoes: dia.cartoes.map((c) => {
       const r = porId.get(c.chave);
-      if (cancelados.has(c.chave) || r?.status === STATUS_CANCELADO) return { ...c, cancelado: true };
       if (!r || r.atividade_id == null) return c;
       const estado = estadoDoCancelamento({ permitido: podeCancelar, semFuso, fusoOk, online, statusAtividade: statusDaAtividade.get(String(r.atividade_id)) });
       if (!estado) return c;
@@ -206,7 +233,7 @@ export default function AbaRegistrosDaArea({ area, tipos, podeCancelar = false }
     conteudo = (
       <div role="alert" className="mk-dp-hist__estado">
         <p>Não foi possível carregar o histórico.</p>
-        <p className="mk-dp-hist__detalhe">{getApiErrorMessage(consulta.error, "Tente novamente em instantes.")}</p>
+        <p className="mk-dp-hist__detalhe">{textoSemCancelamento(getApiErrorMessage(consulta.error, "Tente novamente em instantes."), "Tente novamente em instantes.")}</p>
         <button type="button" className="mk-dp-hist__botao" onClick={() => consulta.refetch()}>
           Tentar novamente
         </button>

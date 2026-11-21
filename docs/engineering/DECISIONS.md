@@ -8981,4 +8981,18 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Relatório:** [`MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md`](./MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-269 -->
+## D-PROD-269 — No mapa só existe "Excluir": sem "cancelar"/"cancelado" nos históricos e o registro excluído some
+
+**Data:** 2026-11-21 · **Origem:** proprietário, depois da D-PROD-268: "Olha eu não tenho cancelamentos eu tenho exclusão ok" · **Branch:** `feat/excluir-historicos-mapa-textos`.
+
+> **Numeração:** a `main` (`80aa1db3`) indica `Próxima decisão: D-PROD-269`, que é esta; o marcador passa a D-PROD-270.
+
+**Decisão.** Em tudo que abre a partir do Mapa Geral (históricos do cocho, do depósito, da área/pasto, aba Histórico do lote, Histórico de Movimentação do lote e da área, abate do curral):
+1. **Ação = "Excluir".** "Cancelar lançamento" → **"Excluir lançamento"**, "Cancelar transferência" → **"Excluir transferência"**, "Cancelar registro" → **"Excluir registro"**; diálogos, "Excluindo...", "Motivo da exclusão", avisos e recusas falam em excluir/excluído. O botão que só fecha o diálogo diz "Voltar". Mensagens do servidor que citem cancelar/estorno passam por filtro e viram texto neutro de exclusão.
+2. **O registro excluído some do histórico do mapa**, sem selo "Cancelado". Vale também para os movimentos de estorno que o servidor gera (`estorno_suplementacao`, `estorno_transferencia_*`) e para os registros antigos com `situacao = 'cancelado'` do mecanismo R2A (D-PROD-99), que nenhuma tela usa mais: no mapa eles não aparecem; no banco e na auditoria continuam. O lançamento de cocho excluído também não entra no nível, nos alertas nem nos indicadores do mapa (`semExcluidos`, uma vez em `MapaGeral`).
+3. **A permissão** `cancelar_lancamentos_estoque` passa a se chamar, na tela de Permissões, **"Excluir lançamento de cocho e transferência de depósito"**. A chave não muda; quem tem, continua com ela.
+4. **Nada muda no servidor**: rotas, códigos, regras e o estorno seguro da D-PROD-268 são os mesmos. Fora do mapa (Financeiro, Lançamento de Atividades, Estoque/kardex) a tela fica igual; o diálogo compartilhado `DialogoAcao` ganha só props opcionais (`mensagemDoErro`, `rotuloEnviando`, `rotuloMotivo`) com o padrão de antes.
+
+**Relatório:** [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-270 -->

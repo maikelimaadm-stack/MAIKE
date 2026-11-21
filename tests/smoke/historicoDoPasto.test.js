@@ -356,14 +356,15 @@ describe("cartões por tipo (só dado real)", () => {
     expect(pares(c)).toEqual([["Lote", "L-2026-019"], ["Lotes juntados", "L-2026-020 · L-2026-021"], ["Quantidade", "20"]]);
   });
 
-  it("cancelado: marcado (o chip 'Cancelado' é do componente) e com o motivo, quando gravado", () => {
+  it("excluído (situacao 'cancelado'): marcado e com o motivo da exclusão, quando gravado — nada de 'cancelamento' no texto", () => {
     const cancelado = { ...ENTRADA, situacao: "cancelado", cancelamento: { em: "2026-11-06T10:00:00.000Z", por_login: "admin", motivo: "Lançado no pasto errado" } };
     const [c] = cartoesDaMovimentacao(cancelado, CTX);
     expect(c.cancelado).toBe(true);
-    expect(pares(c).at(-1)).toEqual(["Motivo do cancelamento", "Lançado no pasto errado"]);
+    expect(pares(c).at(-1)).toEqual(["Motivo da exclusão", "Lançado no pasto errado"]);
+    expect(c.linhas.some((l) => /cancel|estorn/i.test(String(l.rotulo)))).toBe(false);
     const semMotivo = cartoesDaMovimentacao({ ...cancelado, cancelamento: {} }, CTX)[0];
     expect(semMotivo.cancelado).toBe(true);
-    expect(semMotivo.linhas.some((l) => l.rotulo === "Motivo do cancelamento")).toBe(false);
+    expect(semMotivo.linhas.some((l) => l.rotulo === "Motivo da exclusão")).toBe(false);
   });
 
   it("tipo sem desenho próprio: título do documento, nunca some", () => {
@@ -414,6 +415,18 @@ describe("linha do tempo do pasto", () => {
     expect(dias[2].cartoes.map((c) => c.titulo)).toEqual(["Pesagem", "Pesagem", "Morte", "Morte"]);
     expect(total).toBe(13);
     expect(dias.flatMap((d) => d.cartoes).some((c) => c.linhas.some((l) => l.rotulo === "Registrado por"))).toBe(false);
+  });
+
+  it("movimento e lançamento excluídos (situacao 'cancelado') não aparecem na linha do tempo", () => {
+    const movExcluido = { ...ENTRADA, id: "mov-excluido", situacao: "cancelado", cancelamento: { motivo: "Errado" } };
+    const supExcluido = { ...SUPL, id: "ev-excluido", situacao: "cancelado" };
+    const { dias, total } = montarHistoricoDoPasto({ movimentacoes: [ENTRADA, movExcluido], eventos: [SUPL, supExcluido], areaId: P07, areaNome: "Pasto 07", doServidor: true });
+    const cartoes = dias.flatMap((d) => d.cartoes);
+    expect(cartoes.some((c) => c.mov?.id === "mov-excluido" || c.evento?.id === "ev-excluido")).toBe(false);
+    expect(cartoes.some((c) => c.cancelado)).toBe(false);
+    expect(cartoes.some((c) => c.linhas.some((l) => /cancel|estorn/i.test(String(l.rotulo))))).toBe(false);
+    const semExcluidos = montarHistoricoDoPasto({ movimentacoes: [ENTRADA], eventos: [SUPL], areaId: P07, areaNome: "Pasto 07", doServidor: true });
+    expect(total).toBe(semExcluidos.total);
   });
 
   it("filtros: Movimentações, Pesagens, Manejos e Suplementação", () => {
