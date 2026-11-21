@@ -422,60 +422,71 @@ export const criar = async (contexto, entrada) => {
  * @param {Record<string, unknown>} entrada
  */
 export const atualizar = async (contexto, id, entrada) => {
+  exigirAuthContext(contexto?.auth);
+  return getPrismaClient().$transaction((tx) => atualizarNaTransacao(contexto, tx, id, entrada), OPCOES_TRANSACAO);
+};
+
+/**
+ * O MESMO `atualizar`, na transação de quem chama (MAIKE-ENTREGA3, D-PROD-275: a conclusão da reforma troca o capim da
+ * área por aqui — `{ cultura_id }` —, com as mesmas regras da cultura, a mesma auditoria `update` da área e a mesma
+ * propagação, junto com a conclusão: ou tudo ou nada).
+ *
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} id
+ * @param {Record<string, unknown>} entrada
+ */
+export const atualizarNaTransacao = async (contexto, tx, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
+  const anterior = await buscarArea(auth.clienteId, id, tx);
+  if (!anterior) throw areaNotFound();
 
-  return prisma.$transaction(async (tx) => {
-    const anterior = await buscarArea(auth.clienteId, id, tx);
-    if (!anterior) throw areaNotFound();
+  const campos = camposDe(entrada);
+  // D-PROD-223: com as duas alturas próprias (a nova ou a gravada), a de saída é menor.
+  exigirAlturasCoerentes(
+    campos.altura_entrada_cm !== undefined ? campos.altura_entrada_cm : anterior.altura_entrada_cm,
+    campos.altura_saida_cm !== undefined ? campos.altura_saida_cm : anterior.altura_saida_cm
+  );
 
-    const campos = camposDe(entrada);
-    // D-PROD-223: com as duas alturas próprias (a nova ou a gravada), a de saída é menor.
-    exigirAlturasCoerentes(
-      campos.altura_entrada_cm !== undefined ? campos.altura_entrada_cm : anterior.altura_entrada_cm,
-      campos.altura_saida_cm !== undefined ? campos.altura_saida_cm : anterior.altura_saida_cm
-    );
+  if (Object.prototype.hasOwnProperty.call(campos, 'setor_id')) {
+    const setor = await exigirSetorDoTenant(tx, auth.clienteId, String(campos.setor_id ?? ''));
+    campos.setor_nome = setor.nome;
+  }
 
-    if (Object.prototype.hasOwnProperty.call(campos, 'setor_id')) {
-      const setor = await exigirSetorDoTenant(tx, auth.clienteId, String(campos.setor_id ?? ''));
-      campos.setor_nome = setor.nome;
-    }
+  await aplicarCultura(
+    tx,
+    auth.clienteId,
+    campos,
+    {
+      empresa_id: String(anterior.empresa_id),
+      tipo_cultura: String(campos.tipo_cultura ?? anterior.tipo_cultura),
+      cultura_id: anterior.cultura_id ?? null,
+    },
+    anterior.cultura_id ?? null
+  );
 
-    await aplicarCultura(
-      tx,
-      auth.clienteId,
-      campos,
-      {
-        empresa_id: String(anterior.empresa_id),
-        tipo_cultura: String(campos.tipo_cultura ?? anterior.tipo_cultura),
-        cultura_id: anterior.cultura_id ?? null,
-      },
-      anterior.cultura_id ?? null
-    );
+  const registro = Object.keys(campos).length
+    ? await atualizarAreaPorId(tx, auth.clienteId, id, campos)
+    : anterior;
 
-    const registro = Object.keys(campos).length
-      ? await atualizarAreaPorId(tx, auth.clienteId, id, campos)
-      : anterior;
+  const publico = comoAreaPublica(registro);
 
-    const publico = comoAreaPublica(registro);
+  await registrarEvento(
+    contexto,
+    {
+      acao: 'update',
+      entidade: 'AreaPastagem',
+      entidadeId: id,
+      dadosAnteriores: comoAreaPublica(anterior),
+      dadosNovos: publico,
+    },
+    tx
+  );
 
-    await registrarEvento(
-      contexto,
-      {
-        acao: 'update',
-        entidade: 'AreaPastagem',
-        entidadeId: id,
-        dadosAnteriores: comoAreaPublica(anterior),
-        dadosNovos: publico,
-      },
-      tx
-    );
+  await propagarMudancasDaArea(contexto, tx, auth.clienteId, anterior, registro);
 
-    await propagarMudancasDaArea(contexto, tx, auth.clienteId, anterior, registro);
-
-    const [comGado] = await comOcupacao(auth.clienteId, [publico], { tx });
-    return comGado;
-  }, OPCOES_TRANSACAO);
+  const [comGado] = await comOcupacao(auth.clienteId, [publico], { tx });
+  return comGado;
 };
 
 /**

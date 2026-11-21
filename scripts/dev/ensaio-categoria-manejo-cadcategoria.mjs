@@ -137,7 +137,7 @@ export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULA
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215). */
 // D-PROD-249: e a AtividadeArea (as áreas da atividade), da última CONTRACT.
-export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio']);
+export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea']);
 /**
  * D-PROD-206: a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO, que só existe depois da D-PROD-203),
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
@@ -179,7 +179,9 @@ export const NOME_APONTAMENTO_DATA_TERMINO = '20261120200000_apontamento_data_te
 export const NOME_ESTOQUE_AJUSTES = '20261120300000_estoque_ajustes';
 /** D-PROD-274: a EXPAND dos campos por tipo (tabela nova AtividadePlantio e 5 colunas anuláveis), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_CAMPOS_POR_TIPO = '20261121100000_atividade_campos_por_tipo';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO]);
+/** D-PROD-275: a EXPAND da reforma de pastagem (tabelas novas Planejamento e PlanejamentoArea e a coluna anulável da atividade), ainda posterior; fora da partida, sobe no GREEN. */
+export const NOME_REFORMA = '20261122100000_reforma_planejamento';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()

@@ -8,6 +8,7 @@
  *    (PLANEJADA | EM_ANDAMENTO | CONCLUIDA | CANCELADA) e `tipo_fixo` (a
  *    categoria da operação), e cada item com o `andamento` (hectares, %, dias);
  *    D-PROD-274: `local` (o serviço sem área naquele local, a prévia da Nova realização)
+ *    MAIKE-ENTREGA3 (D-PROD-275): `planejamento_id` (as realizações de uma reforma)
  *  - `POST  /atividades/:id/concluir` também é o "Concluir" da linha da lista
  *    (D-PROD-267: conclui as áreas em andamento e a atividade numa transação;
  *    nunca antes do último dia lançado)
@@ -99,6 +100,8 @@ const LISTAR = {
       tipo_fixo: { type: 'string', enum: [...CATEGORIAS_TIPO_FIXO] },
       // D-PROD-274: o serviço SEM área no local (a prévia "Entra em …" da Nova realização sem área).
       local: { type: 'string', minLength: 1, maxLength: 120 },
+      // MAIKE-ENTREGA3 (D-PROD-275): as realizações de uma reforma.
+      planejamento_id: ID,
       q: { type: 'string', maxLength: NOME_MAXIMO },
       limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO },
       cursor: { type: 'string', minLength: 1, maxLength: 512 },

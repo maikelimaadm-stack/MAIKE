@@ -528,6 +528,8 @@ export const listar = async (contexto, query = {}) => {
   }
   // D-PROD-249: a atividade de VÁRIAS áreas aparece no filtro de qualquer uma delas (a 1ª também está em `areas`).
   if (typeof query.area_id === 'string' && query.area_id) where.areas = { some: { area_id: query.area_id } };
+  // MAIKE-ENTREGA3 (D-PROD-275): as realizações de uma reforma (o filtro "Reforma" da lista).
+  if (typeof query.planejamento_id === 'string' && query.planejamento_id) where.planejamento_id = query.planejamento_id;
   if (de || ate) where.data_inicio = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
   // D-PROD-267: a Situação da lista (Planejada e Em andamento são ABERTA sem e com dia lançado) e o tipo fixo da operação.
   if (typeof query.situacao === 'string' && SITUACOES_DO_SERVICO.includes(query.situacao)) {
@@ -737,6 +739,8 @@ export const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoA
       // registro de campo a passa) e o local do serviço sem área.
       ...(unidadeSemCadastro && !snapshots.unidade_producao_sigla ? { unidade_producao_sigla: unidadeSemCadastro } : {}),
       ...(estado.local ? { local: estado.local } : {}),
+      // MAIKE-ENTREGA3 (D-PROD-275): a reforma do "Faz parte de" (só o registro de campo a passa, já conferida).
+      ...(estado.planejamento_id ? { planejamento_id: estado.planejamento_id } : {}),
       cliente_id: clienteId,
       empresa_id: empresaId,
       tipo_atividade_id: tipo.id,

@@ -370,6 +370,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'exclusão barrada pela FK RESTRICT de uma atividade ou de um apontamento de atividade, reconhecida pelo nome da FK (details.vinculo = coluna; details.entidade: atividade | apontamento); inative o cadastro; nada foi apagado',
   },
+  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem (agrupador). As outras recusas dela usam os ATIVIDADE_* com
+  // details.entidade = 'planejamento' (status, versão) ou details.field (referência, data).
+  PLANEJAMENTO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica reforma (planejamento) desta empresa neste tenant',
+  },
   // D-PROD-202 — Lançamento de Atividades (Fatia 3): as linhas de produto e de máquina do apontamento.
   ATIVIDADE_LINHA_NOT_FOUND: {
     http: 404,

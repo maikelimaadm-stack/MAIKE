@@ -43,6 +43,7 @@ import { registrarAtividadeApontamentoMaoObraRoutes } from './modules/atividades
 import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades/atividadeApontamentoServicoRoutes.js';
 import { registrarAtividadeRegistroRoutes } from './modules/atividades/atividadeRegistroRoutes.js';
 import { registrarAtividadeAreaRoutes } from './modules/atividades/atividadeAreaRoutes.js';
+import { registrarPlanejamentoRoutes } from './modules/atividades/planejamentoRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
 import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoutes.js';
@@ -257,6 +258,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarAtividadeApontamentoServicoRoutes);
   // D-PROD-249 — as ÁREAS da atividade (várias áreas; iniciar, concluir, reabrir, remover a não iniciada).
   await app.register(registrarAtividadeAreaRoutes);
+  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem (o agrupador das realizações).
+  await app.register(registrarPlanejamentoRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);

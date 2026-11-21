@@ -61,6 +61,8 @@ const CAMPOS_PUBLICOS = [
   'areas', 'areas_count',
   // D-PROD-274: o local do serviço sem área (Manutenção e Outros) e os dados do Plantio de pastagem (nulos aqui).
   'local', 'plantio',
+  // D-PROD-275: a reforma de que a realização faz parte (nulos aqui).
+  'planejamento_id', 'planejamento',
 ];
 const TOTAIS_VAZIOS = Object.freeze({ apontamentos_confirmados: 0, apontamentos_cancelados: 0, dias_com_apontamento: 0 });
 // O DETALHE é a forma pública + `totais` e, D-PROD-274 (ajuste do teste de ponta a ponta), o "pasto liberado em"

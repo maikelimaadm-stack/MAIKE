@@ -156,6 +156,9 @@ model Cliente {
   atividadeAreas               AtividadeArea[]
   // MAIKE-ENTREGA2 — os dados do plantio de pastagem (1 para 1 com a atividade de plantio).
   atividadesPlantio            AtividadePlantio[]
+  // MAIKE-ENTREGA3 — a reforma de pastagem (o agrupador das realizações) e as áreas dela.
+  planejamentos                Planejamento[]
+  planejamentoAreas            PlanejamentoArea[]
   // D-PROD-202 — linhas de produto (com fatias FIFO) e de máquina do apontamento.
   atividadeApontamentoProdutos      AtividadeApontamentoProduto[]
   atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
@@ -233,6 +236,8 @@ model Usuario {
   atividadeApontamentosCancelados AtividadeApontamento[]        @relation("AtividadeApontamentoCanceladoPor")
   // D-PROD-249 — quem pôs a área na atividade.
   atividadeAreasCriadas           AtividadeArea[]               @relation("AtividadeAreaCriadaPor")
+  // MAIKE-ENTREGA3 — quem criou a reforma.
+  planejamentosCriados            Planejamento[]                @relation("PlanejamentoCriadoPor")
   // D-PROD-202 — autores das linhas do apontamento.
   atividadeProdutosCriados    AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCriadoPor")
   atividadeProdutosCancelados AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCanceladoPor")
@@ -714,6 +719,8 @@ model Cultura {
   // MAIKE-ENTREGA2 — plantios com este capim e plantios em que ela foi o consórcio (FK RESTRICT).
   plantios          AtividadePlantio[] @relation("AtividadePlantioCultura")
   plantiosConsorcio AtividadePlantio[] @relation("AtividadePlantioConsorcio")
+  // MAIKE-ENTREGA3 — reformas em que esta é o capim que vai ficar (FK RESTRICT).
+  planejamentosAlvo Planejamento[]
 
   @@unique([cliente_id, id])
   // D-PROD-216 — alvo da FK composta da Área (mesma fazenda por construção).
@@ -967,6 +974,8 @@ model AreaPastagem {
   atividades Atividade[]
   // D-PROD-249 — a área numa atividade de várias áreas.
   atividadeAreas AtividadeArea[]
+  // MAIKE-ENTREGA3 — a área numa reforma de pastagem.
+  planejamentoAreas PlanejamentoArea[]
   // D-PROD-219 — medições de forragem do pasto.
   medicoesForragem MedicaoForragem[]
   @@unique([cliente_id, numero_area])
@@ -1422,6 +1431,9 @@ model Empresa {
   atividadeAreas        AtividadeArea[]
   // MAIKE-ENTREGA2 — os dados do plantio de pastagem.
   atividadesPlantio     AtividadePlantio[]
+  // MAIKE-ENTREGA3 — as reformas da fazenda e as áreas delas.
+  planejamentos         Planejamento[]
+  planejamentoAreas     PlanejamentoArea[]
   entradasEstoque       EntradaEstoque[]
   saidasEstoque         SaidaEstoque[] // D-PROD-264
   ajustesEstoque        AjusteEstoque[] // D-PROD-272
@@ -3324,6 +3336,10 @@ model Atividade {
   /// MAIKE-ENTREGA2 — onde foi o serviço sem área (Manutenção e Outros: "DIVISA NORTE", "SEDE"), em MAIÚSCULAS; nulo na
   /// atividade com área. Uma coluna anulável, sem CHECK (a API confere o tamanho).
   local                    String?   @db.VarChar(120)
+  /// MAIKE-ENTREGA3 — a reforma de que esta realização faz parte ("Faz parte de: Reforma · …"); nula fora de reforma.
+  /// FK composta pelo tenant (a allowlist EXPAND só aceita (cliente_id, coluna nova) em tabela antiga); a mesma fazenda é
+  /// conferida pela API.
+  planejamento_id          String?   @db.VarChar(64)
 
   cliente          Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa          Empresa                @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
@@ -3345,6 +3361,8 @@ model Atividade {
   areas            AtividadeArea[]
   // MAIKE-ENTREGA2 — o capim plantado e os dados do plantio (só nas atividades de Plantio de pastagem).
   plantio          AtividadePlantio?
+  // MAIKE-ENTREGA3 — a reforma de pastagem (agrupador), quando a realização faz parte de uma.
+  planejamento     Planejamento?          @relation(fields: [cliente_id, planejamento_id], references: [cliente_id, id], onDelete: Restrict)
 
   abastecimentos   AbastecimentoBem[]     // D-PROD-211
   @@unique([cliente_id, id])
@@ -3357,6 +3375,7 @@ model Atividade {
   @@index([cliente_id, setor_id])
   @@index([cliente_id, empresa_id, bem_id])
   @@index([cliente_id, lancamento_tarefa_id])
+  @@index([cliente_id, planejamento_id])
 }
 
 /// D-PROD-200 — APONTAMENTO de um dia/turno, filho da atividade (o antigo ApontamentoAtividade, virando filho).
@@ -3495,6 +3514,74 @@ model AtividadePlantio {
   /// A busca da atividade aberta pelo capim (capim diferente abre outra).
   @@index([cliente_id, empresa_id, cultura_id], map: "AtividadePlantio_cultura_idx")
   @@index([cliente_id, empresa_id, consorcio_cultura_id], map: "AtividadePlantio_consorcio_idx")
+}
+
+/// MAIKE-ENTREGA3 — o PLANEJAMENTO de um conjunto de serviços numa ou mais áreas: nesta versão, a REFORMA DE PASTAGEM
+/// (a "safra" do Aegro, só que para um pasto). É o agrupador: as realizações da área entram nela sozinhas
+/// (`Atividade.planejamento_id`) e o custo total, o R$/ha e o custo por tipo são calculados na LEITURA (nada de custo é
+/// gravado aqui). Criada pelo "Planejar" com 4 campos (áreas com hectares, tipo, capim que vai ficar, início previsto);
+/// o nome é sugerido ("Reforma · PASTO DA AROEIRA · 2026/27"). Concluída pelo dono (pode trocar o capim da área pelo
+/// caminho de sempre da área, auditado) ou cancelada (nada é apagado).
+model Planejamento {
+  id                    String    @id @default(cuid())
+  cliente_id            String    @db.VarChar(64)
+  empresa_id            String    @db.VarChar(64)
+  /// Número da sequência do tenant (`EntidadeCodigoSequencia`, entidade `Planejamento`).
+  numero                String    @db.VarChar(32)
+  nome                  String    @db.VarChar(120)
+  /// REFORMA | FORMACAO | OUTRO (CHECK).
+  tipo                  String    @db.VarChar(16)
+  /// Ano agrícola do início previsto, de 1º de julho a 30 de junho ("2026/27").
+  safra_ciclo           String?   @db.VarChar(32)
+  /// O capim que vai ficar (Cadastro de Culturas da MESMA fazenda: FK composta). Opcional.
+  cultura_alvo_id       String?   @db.VarChar(64)
+  /// Início previsto.
+  data_inicio           DateTime  @db.Date
+  /// ABERTO | CONCLUIDO | CANCELADO (CHECK, com a data de conclusão só no CONCLUIDO).
+  status                String    @default("ABERTO") @db.VarChar(16)
+  data_conclusao        DateTime? @db.Date
+  criado_por_usuario_id String?   @db.VarChar(64)
+  versao                Int       @default(1)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  cliente     Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa     Empresa            @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  culturaAlvo Cultura?           @relation(fields: [cliente_id, empresa_id, cultura_alvo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "Planejamento_cultura_alvo_fkey")
+  criadoPor   Usuario?           @relation("PlanejamentoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "Planejamento_criado_por_fkey")
+  areas       PlanejamentoArea[]
+  atividades  Atividade[]
+
+  @@unique([cliente_id, id])
+  /// Alvo da FK composta das áreas: a área é DESTE planejamento, na mesma fazenda.
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, numero])
+  @@index([cliente_id, empresa_id, status])
+  @@index([cliente_id, empresa_id, cultura_alvo_id], map: "Planejamento_cultura_alvo_idx")
+  @@index([cliente_id, criado_por_usuario_id])
+}
+
+/// MAIKE-ENTREGA3 — uma ÁREA do planejamento e os hectares dela na reforma (o divisor do R$/ha). A mesma área uma vez só.
+model PlanejamentoArea {
+  id              String   @id @default(cuid())
+  cliente_id      String   @db.VarChar(64)
+  empresa_id      String   @db.VarChar(64)
+  planejamento_id String   @db.VarChar(64)
+  area_id         String   @db.VarChar(64)
+  /// Hectares da área na reforma (> 0, CHECK); sem valor no "Planejar", o tamanho da área.
+  hectares        Decimal  @db.Decimal(14, 4)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cliente      Cliente      @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa      Empresa      @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  planejamento Planejamento @relation(fields: [cliente_id, empresa_id, planejamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "PlanejamentoArea_planejamento_fkey")
+  area         AreaPastagem @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict, map: "PlanejamentoArea_area_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, planejamento_id, area_id], map: "PlanejamentoArea_planejamento_area_key")
+  /// As reformas abertas de uma área (o "Faz parte de" e o "Em reforma desde").
+  @@index([cliente_id, area_id])
 }
 
 

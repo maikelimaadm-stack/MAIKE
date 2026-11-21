@@ -48,6 +48,8 @@ const NOME_DATA_TERMINO = '20261120200000_apontamento_data_termino';
 const existeAjustes = async () => (await db.$queryRawUnsafe(`SELECT to_regclass('public."AjusteEstoque"') IS NOT NULL AS e`))[0].e;
 /** D-PROD-274: a EXPAND dos campos por tipo, também posterior (fora da partida). */
 const NOME_CAMPOS_POR_TIPO = '20261121100000_atividade_campos_por_tipo';
+/** D-PROD-275: a EXPAND da reforma de pastagem, também posterior (fora da partida). */
+const NOME_REFORMA = '20261122100000_reforma_planejamento';
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';
 
@@ -136,8 +138,8 @@ after(async () => {
 describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL real)', () => {
   test('EEM-01 partida: todas as pastas anteriores a esta concluídas (as 69 de produção no dia dela); a tabela dos motivos, as colunas novas e a saída manual (D-PROD-264, posterior) não existem', async () => {
     const h = await historico();
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO], 'D-PROD-264, D-PROD-265, D-PROD-272 e D-PROD-274: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário e os campos por tipo');
-    assert.equal(PARTIDA.length, PASTAS.length - 5);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274 e D-PROD-275: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo e a reforma');
+    assert.equal(PARTIDA.length, PASTAS.length - 6);
     assert.equal(PARTIDA.length, 69);
     assert.equal(h.concluidas, PARTIDA.length);
     assert.equal(h.esta, 0);
