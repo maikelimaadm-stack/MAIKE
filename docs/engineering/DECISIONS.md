@@ -8945,13 +8945,24 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Relatório:** [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-270 -->
+## D-PROD-270 — Exclusão nos históricos do mapa sem pedir motivo
 
-## D-PROD-270 — Estoque: edição completa da Entrada e da Saída manual, se nada mexeu depois
+**Data:** 2026-11-21 · **Origem:** proprietário, depois da D-PROD-269: "eu não preciso de motivos para exclusão ok nos históricos de todos" · **Branch:** `feat/excluir-sem-motivo-mapa`.
+
+> **Numeração:** a `main` (`fe9bd3ed`) indica `Próxima decisão: D-PROD-270`, que é esta; o marcador passa a D-PROD-271.
+
+**Decisão.**
+1. Os diálogos de exclusão dos históricos do mapa — lançamento de cocho, transferência de depósito, registro da área e movimentação do lote/abate do curral — **não têm mais campo de motivo**. O botão "Excluir" habilita sem digitar nada (com as mesmas condições de antes: online, elegível no servidor; na movimentação, a confirmação "a exclusão é definitiva" continua).
+2. O servidor continua exigindo motivo (3–500) e o guardando na auditoria: a tela envia o texto fixo **"Excluído pelo histórico do mapa"** (`MOTIVO_EXCLUSAO_MAPA`, `src/domain/mapa/motivoExclusaoMapa.js`). Texto fixo mantém o mesmo fingerprint num reenvio com a mesma chave; uma pendência antiga, gravada com motivo digitado, reenvia o motivo dela.
+3. Nada muda no servidor, nas rotas, nos códigos nem nas outras telas (Financeiro e Lançamento de Atividades continuam pedindo motivo).
+
+**Relatório:** [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md).
+
+## D-PROD-271 — Estoque: edição completa da Entrada e da Saída manual, se nada mexeu depois
 
 **Data:** 2026-11-21 · **Origem:** pedido do proprietário ("Olha também posso editar ok em entrada e saída" → "Depois do ajuste, PR própria" / "Tudo, se nada mexeu depois") · **Branch:** `claude/edicao-entrada-saida` · **Migration:** nenhuma · **Relatório:** [`MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md`](./MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-270 nesta branch (a D-PROD-269 estava reservada para o ajuste de inventário, PR #350). Antes do merge, a `main` deu a D-PROD-269 ao "só Excluir" no mapa (PR #356) e passou a indicar `Próxima decisão: D-PROD-270`, que é esta; o marcador passa a D-PROD-271. O ajuste de inventário (PR #350) passa a D-PROD-271.
+> **Numeração:** nasceu D-PROD-270 nesta branch (a D-PROD-269 estava reservada para o ajuste de inventário, PR #350). Antes do merge, a `main` deu a D-PROD-269 ao "só Excluir" no mapa (PR #356) e depois a D-PROD-270 à exclusão sem motivo no mapa (PR #357), e passou a indicar `Próxima decisão: D-PROD-271`, que é esta; o marcador passa a D-PROD-272. O ajuste de inventário (PR #350) passa a D-PROD-272. A aprovação da emenda (2026-11-21) foi dada com o número D-PROD-270; é a mesma decisão.
 
 **Escolha do proprietário.** Editar **tudo** na entrada e na saída manual — data, motivo, fornecedor/documento, centros, produtos, quantidades, custo e depósitos — desfazendo a versão anterior pelo motor e lançando a nova, com histórico, **só se nada mexeu depois**.
 
@@ -8964,9 +8975,9 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Constituição — emenda APROVADA pelo proprietário em 2026-11-21** (aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-264, e nota própria em `07-DO-NOT-DO.md`, depois da nota D-PROD-264). A constituição já permitia editar a entrada confirmada sem camada tocada, mas diz que "o motivo dela nunca muda"; a nota D-PROD-264 proíbe "mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada" e o §1 diz que o usuário "edita só a observação". Proposta, como parágrafo e nota próprios:
 
-> *Em `00-CONSTITUICAO.md` §1, depois da última emenda do Estoque:* "**Emenda aprovada pelo proprietário (D-PROD-270):** **Estoque — edição completa da entrada e da saída manual.** A entrada manual confirmada e a saída manual confirmada podem ser editadas por inteiro — data, motivo, parceiro e documento (entrada), centros, produtos, quantidades, custo (entrada) e depósitos — só quando nada mexeu depois: na entrada, nenhuma camada de nenhum item foi consumida, transferida ou citada; na saída, o produto não teve outro movimento naquele depósito depois dela. A edição desfaz a versão anterior pelo motor de estoque único (estorno) e lança a nova, no mesmo documento, com motivo da edição, autor, versão e o antes e o depois registrados. A saída continua valorizada pelo custo médio do depósito. Movimentos e camadas nunca são reescritos nem apagados."
+> *Em `00-CONSTITUICAO.md` §1, depois da última emenda do Estoque:* "**Emenda aprovada pelo proprietário (D-PROD-271):** **Estoque — edição completa da entrada e da saída manual.** A entrada manual confirmada e a saída manual confirmada podem ser editadas por inteiro — data, motivo, parceiro e documento (entrada), centros, produtos, quantidades, custo (entrada) e depósitos — só quando nada mexeu depois: na entrada, nenhuma camada de nenhum item foi consumida, transferida ou citada; na saída, o produto não teve outro movimento naquele depósito depois dela. A edição desfaz a versão anterior pelo motor de estoque único (estorno) e lança a nova, no mesmo documento, com motivo da edição, autor, versão e o antes e o depois registrados. A saída continua valorizada pelo custo médio do depósito. Movimentos e camadas nunca são reescritos nem apagados."
 >
-> *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-264:* "a edição completa da entrada e da saída manual (D-PROD-270) substitui, nos limites da decisão, a regra de que o motivo da entrada nunca muda e a proibição de mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada. Continua proibido: editar quando algo mexeu depois; editar sem motivo da edição, autor, versão ou registro do antes e do depois; reescrever ou apagar movimento ou camada de estoque em vez de estornar pelo motor; digitar o valor da saída; editar documento excluído; conceder as ações `entrada` ou `saida` a perfis existentes por padrão."
+> *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-264:* "a edição completa da entrada e da saída manual (D-PROD-271) substitui, nos limites da decisão, a regra de que o motivo da entrada nunca muda e a proibição de mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada. Continua proibido: editar quando algo mexeu depois; editar sem motivo da edição, autor, versão ou registro do antes e do depois; reescrever ou apagar movimento ou camada de estoque em vez de estornar pelo motor; digitar o valor da saída; editar documento excluído; conceder as ações `entrada` ou `saida` a perfis existentes por padrão."
 
 **O que roda no merge.** Só o código (sem migration): merge e deploy normais.
 
@@ -8974,4 +8985,4 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Testes.** `backend/tests/estoqueEntradasEdicao.test.mjs` (novo) e `backend/tests/estoqueSaidasEdicao.test.mjs` (novo), Postgres real, vermelhos contra a `main` e verdes com a mudança; suítes do Estoque e da reconciliação; smoke da tela.
 
-<!-- Próxima decisão: D-PROD-271 -->
+<!-- Próxima decisão: D-PROD-272 -->

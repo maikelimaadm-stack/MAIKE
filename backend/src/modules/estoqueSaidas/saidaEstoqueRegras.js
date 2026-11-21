@@ -15,13 +15,13 @@ import { diaDoCorpo } from '../patrimonio/patrimonioComum.js';
 export const ENTIDADE = 'SaidaEstoque';
 export const TIPO_CRIAR = 'estoque_saida_criar';
 export const TIPO_EXCLUIR = 'estoque_saida_excluir';
-/** D-PROD-270: a edição com substituição (estorno + saída nova) é idempotente por `operation_id`. */
+/** D-PROD-271: a edição com substituição (estorno + saída nova) é idempotente por `operation_id`. */
 export const TIPO_EDITAR = 'estoque_saida_editar';
 
-/** D-PROD-270: os 2 modos da edição (a saída guarda o modo no snapshot do evento; não há coluna). */
+/** D-PROD-271: os 2 modos da edição (a saída guarda o modo no snapshot do evento; não há coluna). */
 export const MODO_METADADOS = 'METADADOS';
 export const MODO_SUBSTITUICAO = 'SUBSTITUICAO';
-/** D-PROD-270: qualquer um destes no corpo do PATCH faz da edição uma SUBSTITUIÇÃO (o corpo é a versão nova completa). */
+/** D-PROD-271: qualquer um destes no corpo do PATCH faz da edição uma SUBSTITUIÇÃO (o corpo é a versão nova completa). */
 export const CAMPOS_FISICOS = Object.freeze(['motivo_id', 'data_saida', 'centro_custo_id', 'centro_resultado_id', 'itens']);
 
 export const STATUS_CONFIRMADA = 'CONFIRMADA';
@@ -104,7 +104,7 @@ export const normalizarExclusao = (id, corpo) => {
 };
 
 /**
- * Corpo da edição (D-PROD-270). Só `observacao` (+ `versao`, `motivo_edicao`) → METADADOS, como antes
+ * Corpo da edição (D-PROD-271). Só `observacao` (+ `versao`, `motivo_edicao`) → METADADOS, como antes
  * (`operation_id`, se vier, não é usado). Qualquer campo físico (`CAMPOS_FISICOS`) → SUBSTITUICAO: o corpo é
  * a versão nova COMPLETA, normalizada e validada como a criação (`normalizarCriacao`).
  * @param {string} id @param {unknown} corpo
@@ -132,7 +132,7 @@ export const fingerprintDaCriacao = (s) => ({
   itens: s.itens.map((i) => [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade]),
 });
 /**
- * D-PROD-270 — fingerprint canônico da edição com substituição (ordem FIXA de chaves).
+ * D-PROD-271 — fingerprint canônico da edição com substituição (ordem FIXA de chaves).
  * @param {{ id: string, empresa_id: any, versao: any, motivo_edicao: string, saida: ReturnType<typeof normalizarCriacao> }} e
  */
 export const fingerprintDaSubstituicao = (e) => ({
@@ -145,7 +145,7 @@ export const fingerprintDaSubstituicao = (e) => ({
 });
 
 /**
- * D-PROD-270 — a versão nova é FISICAMENTE igual à vigente? (cabeçalho físico e linhas, na ordem). Quando é,
+ * D-PROD-271 — a versão nova é FISICAMENTE igual à vigente? (cabeçalho físico e linhas, na ordem). Quando é,
  * a edição não mexe no estoque: só a observação pode ter mudado (vira METADADOS) ou nada mudou.
  * @param {{ motivo_id: string, data_saida: string, centro_custo_id: string|null, centro_resultado_id: string|null }} atual
  * @param {Array<{ produto_id: string, local_estoque_id: string, unidade: string, quantidade: any }>} linhas linhas vigentes, por ordem

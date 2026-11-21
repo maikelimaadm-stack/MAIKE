@@ -295,7 +295,7 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
  * e vários produtos (produto, depósito, unidade, quantidade), SEM valor: o servidor valoriza pelo custo médio do
  * depósito. O seletor de tipo só oferece o que as ações permitem (Entrada e Transferência com `entrada`, Saída com
  * `saida`); só com `saida`, a janela abre direto na Saída.
- * D-PROD-270 — MODO EDIÇÃO (`edicao`): a mesma janela abre uma entrada ou uma saída CONFIRMADA com o tipo fixo (sem
+ * D-PROD-271 — MODO EDIÇÃO (`edicao`): a mesma janela abre uma entrada ou uma saída CONFIRMADA com o tipo fixo (sem
  * trocar de tipo), o título "Editar entrada nº N"/"Editar saída nº N", todos os campos preenchidos com a versão
  * vigente e o "Motivo da edição" obrigatório. "Salvar edição" manda o corpo da criação + `versao`, `motivo_edicao` e
  * uma `operation_id` própria (`ent-ed-`/`sai-ed-`), reaproveitada no reenvio do mesmo conteúdo. O servidor estorna e

@@ -1,5 +1,5 @@
 /**
- * D-PROD-270 — edição COMPLETA da saída manual do Estoque (PATCH /estoque/saidas/:id, modo SUBSTITUICAO): o corpo é a
+ * D-PROD-271 — edição COMPLETA da saída manual do Estoque (PATCH /estoque/saidas/:id, modo SUBSTITUICAO): o corpo é a
  * versão nova inteira (o mesmo da criação) + `versao`, `motivo_edicao` e `operation_id`. Só se nada mexeu depois em
  * nenhuma linha (a regra da exclusão), cada linha é estornada pelo motor, as linhas antigas vão INTEIRAS para o
  * `snapshot_anterior` do evento e são apagadas (sem migration: a saída não tem colunas de revisão) e as novas são
@@ -98,7 +98,7 @@ const fotografia = async (x, id) => ({
   sal: await estoqueAtual(x.sal),
 });
 
-describe('D-PROD-270 — substituição da saída: quantidade, produto, depósito, data, motivo e centros', () => {
+describe('D-PROD-271 — substituição da saída: quantidade, produto, depósito, data, motivo e centros', () => {
   test('quantidade: estorno pelo motor, linha antiga inteira no snapshot e apagada, linha nova pelo custo médio; saldo e valor seguem a versão nova', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '2');
@@ -174,7 +174,7 @@ describe('D-PROD-270 — substituição da saída: quantidade, produto, depósit
   });
 });
 
-describe('D-PROD-270 — "se nada mexeu depois", versão e idempotência', () => {
+describe('D-PROD-271 — "se nada mexeu depois", versão e idempotência', () => {
   test('outro movimento do produto no depósito depois da saída → 409 SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR (a mesma recusa da exclusão); nada muda', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
@@ -223,7 +223,7 @@ describe('D-PROD-270 — "se nada mexeu depois", versão e idempotência', () =>
   });
 });
 
-describe('D-PROD-270 — METADADOS pela versão completa, tenant, permissão e exclusão depois', () => {
+describe('D-PROD-271 — METADADOS pela versão completa, tenant, permissão e exclusão depois', () => {
   test('versão completa fisicamente igual com observação nova → EDICAO/METADADOS sem tocar o estoque; tudo igual → 422 nada_a_alterar', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');

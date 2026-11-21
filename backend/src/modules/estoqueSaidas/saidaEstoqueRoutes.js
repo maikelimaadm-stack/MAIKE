@@ -9,7 +9,7 @@
  *  GET   /estoque/saidas/:id               (ver)    detalhe com histórico
  *  POST  /estoque/saidas                   (saida)  cria e confirma (201; replay 200)
  *  PATCH /estoque/saidas/:id               (saida)  observação (METADADOS) ou a versão nova completa
- *                                                   (SUBSTITUICAO, D-PROD-270), com CAS de versão
+ *                                                   (SUBSTITUICAO, D-PROD-271), com CAS de versão
  *  POST  /estoque/saidas/:id/excluir       (saida)  exclusão lógica com estorno integral (sem movimento depois)
  *  GET   /estoque/motivos-saida            (ver)    lista (os padrões nascem na 1ª leitura)
  *  POST  /estoque/motivos-saida            (saida)  cria
@@ -71,7 +71,7 @@ const CRIAR = {
   },
 };
 /**
- * D-PROD-270 — PATCH: só `observacao` → METADADOS; com qualquer campo físico → SUBSTITUICAO, e o corpo é a
+ * D-PROD-271 — PATCH: só `observacao` → METADADOS; com qualquer campo físico → SUBSTITUICAO, e o corpo é a
  * versão nova COMPLETA com os mesmos campos e formatos da criação (`operation_id`, `motivo_id`, `data_saida`
  * e `itens` passam a ser exigidos pelo serviço, como na criação).
  */

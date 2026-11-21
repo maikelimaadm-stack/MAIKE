@@ -5,7 +5,7 @@
  * Escolhas do proprietário: o motivo vem do CADASTRO de motivos de saída (padrões Perda, Consumo interno, Doação,
  * Vencimento; o usuário cria, renomeia e desativa); NÃO se digita valor (o servidor valoriza pelo custo médio do
  * depósito); excluir só se o produto não teve outro movimento naquele depósito depois.
- * D-PROD-270: editar a observação sozinha, ou a edição completa (o mesmo formulário preenchido com a versão vigente,
+ * D-PROD-271: editar a observação sozinha, ou a edição completa (o mesmo formulário preenchido com a versão vigente,
  * `formularioDaSaida`; o corpo da criação + `versao` e `motivo_edicao`, `montarCorpoEdicaoSaida`), que o servidor só
  * aceita se o produto não teve outro movimento naquele depósito depois.
  * O servidor repete todas as regras e é quem bloqueia de fato.
@@ -92,13 +92,13 @@ export const montarCorpoSaida = (empresaId, form, operationId) => ({
   })),
 });
 
-// ─── edição completa (D-PROD-270) ──────────────────────────────────────────
+// ─── edição completa (D-PROD-271) ──────────────────────────────────────────
 
 /** @param {any} id @param {any} nome */
 const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ?? '') } : null);
 
 /**
- * D-PROD-270 — o formulário da Saída preenchido com a versão VIGENTE (o detalhe do servidor), para a edição
+ * D-PROD-271 — o formulário da Saída preenchido com a versão VIGENTE (o detalhe do servidor), para a edição
  * completa. A quantidade canônica vira texto de campo ("50.0000" → "50"); o produto em saco traz o peso do saco
  * pelo fator da linha.
  * @param {any} s detalhe da saída
@@ -122,7 +122,7 @@ export const formularioDaSaida = (s) => {
 };
 
 /**
- * D-PROD-270 — corpo do PATCH de SUBSTITUIÇÃO da saída: o MESMO corpo da criação (`montarCorpoSaida`) + a versão
+ * D-PROD-271 — corpo do PATCH de SUBSTITUIÇÃO da saída: o MESMO corpo da criação (`montarCorpoSaida`) + a versão
  * lida e o motivo da edição.
  * @param {string} empresaId @param {any} form @param {{ versao: number, motivoEdicao: string }} edicao @param {string} operationId
  */
@@ -231,7 +231,7 @@ export const mensagemErroSaida = (erro, padrao, itens = []) => {
 };
 
 /**
- * D-PROD-270 — mensagem em português de uma recusa da EDIÇÃO COMPLETA da saída (pelo código; a `message` do servidor
+ * D-PROD-271 — mensagem em português de uma recusa da EDIÇÃO COMPLETA da saída (pelo código; a `message` do servidor
  * nunca aparece). `itens` são as linhas do formulário (a versão nova: saldo insuficiente, linha recusada) e
  * `vigentes` as da versão que estava sendo editada (para dizer onde houve movimento depois).
  * @param {unknown} erro @param {string} padrao @param {any[]} [itens] @param {any[]} [vigentes]

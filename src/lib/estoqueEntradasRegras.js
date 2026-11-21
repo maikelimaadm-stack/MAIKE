@@ -8,7 +8,7 @@
  * (data, motivo, fornecedor, documento, centros, observação) e VÁRIOS produtos (produto, unidade, depósito,
  * quantidade, valor unitário, valor total, lote, validade). O saldo de implantação não tem fornecedor nem documento.
  *
- * D-PROD-270: a edição completa reabre o mesmo formulário preenchido com a versão vigente (`formularioDaEntrada`) e
+ * D-PROD-271: a edição completa reabre o mesmo formulário preenchido com a versão vigente (`formularioDaEntrada`) e
  * manda o corpo da criação + `versao` e `motivo_edicao` (`montarCorpoEdicaoEntrada`); o servidor estorna e refaz os
  * lançamentos só se nada mexeu no estoque da entrada depois.
  */
@@ -207,13 +207,13 @@ export const montarCorpoEntrada = (empresaId, form, operationId) => {
   };
 };
 
-// ─── edição completa (D-PROD-270) ──────────────────────────────────────────
+// ─── edição completa (D-PROD-271) ──────────────────────────────────────────
 
 /** @param {any} id @param {any} nome */
 const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ?? '') } : null);
 
 /**
- * D-PROD-270 — o formulário do "Novo movimento" preenchido com a versão VIGENTE de uma entrada (o detalhe do
+ * D-PROD-271 — o formulário do "Novo movimento" preenchido com a versão VIGENTE de uma entrada (o detalhe do
  * servidor), para a edição completa. Decimais canônicos viram texto de campo ("1500.0000" → "1500", "3.4000" →
  * "3,4"). O produto em saco traz o peso do saco pelo fator da linha (para a unidade "Sacos" continuar oferecida).
  * @param {any} e detalhe da entrada
@@ -248,7 +248,7 @@ export const erroDoMotivoDaEdicao = (texto) =>
   tamanho(texto) < MOTIVO_ACAO_MINIMO ? `Informe o motivo da edição (ao menos ${MOTIVO_ACAO_MINIMO} caracteres).` : null;
 
 /**
- * D-PROD-270 — corpo do PATCH de SUBSTITUIÇÃO: o MESMO corpo da criação (`montarCorpoEntrada`: a versão nova
+ * D-PROD-271 — corpo do PATCH de SUBSTITUIÇÃO: o MESMO corpo da criação (`montarCorpoEntrada`: a versão nova
  * completa; opcional vazio vai `null`) + a versão lida e o motivo da edição.
  * @param {string} empresaId @param {any} form @param {{ versao: number, motivoEdicao: string }} edicao @param {string} operationId
  */
@@ -304,7 +304,7 @@ export const dadosDaTransferencia = (form, operationId) => ({
 // ─── apresentação ───────────────────────────────────────────────────────────
 
 /**
- * As linhas da entrada por versão (D-PROD-270): `itens` são as da versão mostrada (as vigentes; na excluída, as da
+ * As linhas da entrada por versão (D-PROD-271): `itens` são as da versão mostrada (as vigentes; na excluída, as da
  * última versão, encerradas pela exclusão) e `anteriores` as versões substituídas por edições, da mais nova para a
  * mais antiga (`revisao` = a revisão em que a versão nasceu).
  * @param {any} e
@@ -331,7 +331,7 @@ export const versoesDaEntrada = (e) => {
 export const itensParaMostrar = (e) => versoesDaEntrada(e).itens;
 
 /**
- * Rótulo de um evento do histórico (entrada e saída). D-PROD-270: a edição com substituição diz que os lançamentos
+ * Rótulo de um evento do histórico (entrada e saída). D-PROD-271: a edição com substituição diz que os lançamentos
  * de estoque foram refeitos; a de observação segue "Editada".
  * @param {{ tipo?: string, modo?: string|null }} v
  */
@@ -468,7 +468,7 @@ const DEPENDENCIA_EDICAO = /** @type {Record<string, string>} */ ({
 });
 
 /**
- * D-PROD-270 — mensagem em português de uma recusa da EDIÇÃO COMPLETA da entrada (pelo código; a `message` do
+ * D-PROD-271 — mensagem em português de uma recusa da EDIÇÃO COMPLETA da entrada (pelo código; a `message` do
  * servidor nunca aparece). `vigentes` são as linhas da versão que estava sendo editada (para dizer o produto e o
  * depósito em que algo mexeu depois). O resto cai nas mensagens da criação (`mensagemErroEntrada`).
  * @param {unknown} erro @param {string} padrao @param {any[]} [vigentes]

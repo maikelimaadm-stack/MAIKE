@@ -1,5 +1,5 @@
 /**
- * D-PROD-270 — edição COMPLETA da entrada manual do Estoque (PATCH /estoque/entradas/:id, modo SUBSTITUICAO):
+ * D-PROD-271 — edição COMPLETA da entrada manual do Estoque (PATCH /estoque/entradas/:id, modo SUBSTITUICAO):
  * o corpo é a versão nova inteira (o mesmo da criação) + `versao`, `motivo_edicao` e `operation_id`. Só se nada
  * mexeu depois nas camadas vigentes (a prova da exclusão), as linhas vigentes são estornadas pelo motor
  * (`estorno_entrada_revisao`), encerradas (`revisao_fim`) e as novas lançadas pelo motor; o cabeçalho guarda número
@@ -98,7 +98,7 @@ const fotografia = async (x, id) => ({
   sal: await estoqueAtual(x.sal),
 });
 
-describe('D-PROD-270 — substituição: quantidade, custo, produto, depósito e data', () => {
+describe('D-PROD-271 — substituição: quantidade, custo, produto, depósito e data', () => {
   test('quantidade e custo: saldo, camada e custo médio seguem a versão nova; a linha antiga é estornada pelo motor (estorno_entrada_revisao) e vira histórico', async () => {
     const x = await cenario();
     await criar(x, { documento_numero: 'NF 1' }, [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '100', custo_unitario: '2' }]);
@@ -185,7 +185,7 @@ describe('D-PROD-270 — substituição: quantidade, custo, produto, depósito e
   });
 });
 
-describe('D-PROD-270 — substituição: motivo, fornecedor, documento e centros', () => {
+describe('D-PROD-271 — substituição: motivo, fornecedor, documento e centros', () => {
   test('Compra → Doação com fornecedor e centros; depois → Saldo de implantação (sem fornecedor): a natureza segue o motivo novo', async () => {
     const x = await cenario();
     const forn = await fornecedor(x, 'Agro Insumos');
@@ -234,7 +234,7 @@ describe('D-PROD-270 — substituição: motivo, fornecedor, documento e centros
   });
 });
 
-describe('D-PROD-270 — "se nada mexeu depois", versão e idempotência', () => {
+describe('D-PROD-271 — "se nada mexeu depois", versão e idempotência', () => {
   test('a camada já consumida (uma saída depois) → 409 ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS, a mesma recusa da exclusão; nada muda', async () => {
     const x = await cenario();
     const a = await criar(x);
@@ -284,7 +284,7 @@ describe('D-PROD-270 — "se nada mexeu depois", versão e idempotência', () =>
   });
 });
 
-describe('D-PROD-270 — METADADOS pela versão completa, tenant, permissão e exclusão depois', () => {
+describe('D-PROD-271 — METADADOS pela versão completa, tenant, permissão e exclusão depois', () => {
   test('versão completa fisicamente igual com observação nova → EDICAO/METADADOS sem tocar o estoque; tudo igual → 422 nada_a_alterar', async () => {
     const x = await cenario();
     const a = await criar(x, { documento_numero: 'NF 9' });

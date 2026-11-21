@@ -8,7 +8,7 @@
  *  - O motivo vem do cadastro de motivos de saída (`motivo_id`, ativo); centros (ativos, da fazenda) e
  *    observação no cabeçalho. Não cria título, conta a pagar nem receita.
  *  - Criar = confirmar numa só chamada, idempotente por `operation_id` (recibo + unique).
- *  - Editar (D-PROD-270), com CAS de versão: só a observação → evento `EDICAO` (modo METADADOS no snapshot);
+ *  - Editar (D-PROD-271), com CAS de versão: só a observação → evento `EDICAO` (modo METADADOS no snapshot);
  *    com campo físico → SUBSTITUICAO: o corpo é a versão nova COMPLETA, validada como a criação; só se nada
  *    mexeu depois em nenhuma linha (a regra da exclusão), cada linha é estornada pelo motor (dia = hoje), as
  *    linhas antigas vão INTEIRAS para o `snapshot_anterior` do evento e são APAGADAS (a saída não tem colunas de
@@ -53,7 +53,7 @@ export const naoEncontrada = () => new AppError('SAIDA_ESTOQUE_NOT_FOUND', 'saí
 const statusInvalido = (status) => new AppError('SAIDA_ESTOQUE_STATUS_INVALIDO', `a saída está ${status}; a ação não é possível; nada foi alterado`, { details: { status } });
 const versaoConflito = () => new AppError('SAIDA_ESTOQUE_VERSAO_CONFLITO', 'a saída mudou desde a leitura; recarregue e tente de novo; nada foi alterado');
 const invalida = (field, reason, mensagem, extra = {}) => new AppError('SAIDA_ESTOQUE_INVALIDA', `${mensagem}; nada foi gravado`, { details: { field, reason, ...extra } });
-/** D-PROD-270: a mesma recusa (código e forma) na exclusão e na edição com substituição; só o texto diz a ação. */
+/** D-PROD-271: a mesma recusa (código e forma) na exclusão e na edição com substituição; só o texto diz a ação. */
 const movimentoPosterior = (extra, acao = 'a exclusão') =>
   new AppError('SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR', `o produto já teve outro movimento neste depósito depois desta saída; ${acao} não é possível; lance uma entrada para corrigir; nada foi alterado`, {
     details: { field: 'itens', reason: 'movimento_posterior', ...extra },
@@ -112,7 +112,7 @@ const comoResumo = (s) => ({
   itens: (s.itens ?? []).map(comoItem),
 });
 
-/** D-PROD-270: o modo da EDIÇÃO vive no snapshot (sem coluna); a edição antiga, sem modo gravado, era só de observação. */
+/** D-PROD-271: o modo da EDIÇÃO vive no snapshot (sem coluna); a edição antiga, sem modo gravado, era só de observação. */
 const modoDoEvento = (v) => (v.tipo === 'EDICAO' ? (/** @type {any} */ (v.snapshot_novo)?.modo ?? MODO_METADADOS) : null);
 
 /** Detalhe: cabeçalho, linhas (as vigentes; as substituídas vivem no `snapshot_anterior` da EDICAO) e eventos. */
@@ -288,7 +288,7 @@ const posteriorIgnorando = async (tx, cli, empresaId, item, ignorar) => {
  * mesma trava do produto, logo na ordem real) maior que o da saída, ou o instante de criação igual ou
  * posterior. As outras linhas da mesma saída são de outro par produto × depósito (UNIQUE), nunca casam.
  *
- * D-PROD-270: depois de uma edição com substituição, o estorno de uma linha SUBSTITUÍDA desta mesma saída nasce na
+ * D-PROD-271: depois de uma edição com substituição, o estorno de uma linha SUBSTITUÍDA desta mesma saída nasce na
  * mesma transação e ANTES (número menor) da linha nova; ele só desfaz uma perna anterior à linha vigente e nunca é
  * "depois" dela. Ele é ignorado para que um empate de `createdAt` no mesmo milissegundo não trave para sempre a
  * exclusão ou a edição seguinte. Saída nunca editada: exatamente a consulta da D-PROD-264.
@@ -380,7 +380,7 @@ export const excluir = async (contexto, id, corpo) => {
   return { status: 200, body: { ...r.body, replay: r.replay } };
 };
 
-// ─── editar (D-PROD-270: METADADOS ou SUBSTITUICAO) ─────────────────────────
+// ─── editar (D-PROD-271: METADADOS ou SUBSTITUICAO) ─────────────────────────
 
 /** Linha → snapshot COMPLETO (todos os campos e os ids dos movimentos), o que sobra dela depois de apagada. */
 const linhaDoSnapshot = (i) => ({
@@ -427,7 +427,7 @@ const gravarMetadados = async (tx, contexto, a) => {
 };
 
 /**
- * SUBSTITUICAO (D-PROD-270), já dentro do recibo idempotente. Fisicamente igual à vigente → só a observação.
+ * SUBSTITUICAO (D-PROD-271), já dentro do recibo idempotente. Fisicamente igual à vigente → só a observação.
  * @param {any} tx @param {any} contexto @param {{ id: string, versao: any, motivo_edicao: string, saida: ReturnType<typeof normalizarCriacao> }} e
  */
 const substituir = async (tx, contexto, e) => {
@@ -544,7 +544,7 @@ const substituir = async (tx, contexto, e) => {
 };
 
 /**
- * D-PROD-270 — PATCH da saída. METADADOS (só observação): CAS de versão, sem recibo, corpo = detalhe.
+ * D-PROD-271 — PATCH da saída. METADADOS (só observação): CAS de versão, sem recibo, corpo = detalhe.
  * SUBSTITUICAO (campo físico; corpo = versão nova completa): idempotente por `operation_id` (replay 200 com
  * `replay: true`; o mesmo `operation_id` com outro corpo → IDEMPOTENCY_CONFLICT).
  * @param {any} contexto @param {string} id @param {Record<string, any>} corpo

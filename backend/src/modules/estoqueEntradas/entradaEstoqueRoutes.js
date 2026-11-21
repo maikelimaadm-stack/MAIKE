@@ -9,7 +9,7 @@
  *  GET   /estoque/entradas/:id                  (ver)     detalhe com histórico
  *  POST  /estoque/entradas                      (entrada) cria e confirma (201; replay 200)
  *  PATCH /estoque/entradas/:id                  (entrada) observação (METADADOS) ou a versão nova completa
- *                                                         (SUBSTITUICAO, D-PROD-270), com CAS de versão
+ *                                                         (SUBSTITUICAO, D-PROD-271), com CAS de versão
  *  POST  /estoque/entradas/:id/excluir          (entrada) exclusão lógica com estorno integral
  *  GET   /estoque/entradas/opcoes/{produtos,locais,fornecedores,centros-custo,centros-resultado}  (entrada) seletores
  *        (D-PROD-264: produtos, locais e centros também com `saida`, pelo formulário da saída manual)
@@ -79,7 +79,7 @@ const CRIAR = {
   },
 };
 /**
- * D-PROD-270 — PATCH: só `observacao` → METADADOS; com qualquer campo físico → SUBSTITUICAO, e o corpo é a
+ * D-PROD-271 — PATCH: só `observacao` → METADADOS; com qualquer campo físico → SUBSTITUICAO, e o corpo é a
  * versão nova COMPLETA com os mesmos campos e formatos da criação (`operation_id`, `motivo_id`,
  * `data_entrada` e `itens` passam a ser exigidos pelo serviço, como na criação).
  */

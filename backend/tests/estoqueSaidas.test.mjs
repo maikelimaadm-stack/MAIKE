@@ -293,7 +293,7 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
   });
 });
 
-describe('D-PROD-264 → D-PROD-270 — editar: METADADOS (só a observação)', () => {
+describe('D-PROD-264 → D-PROD-271 — editar: METADADOS (só a observação)', () => {
   test('observação nova → 200, versão sobe, evento EDICAO/METADADOS; campo físico sem a versão completa → 400; versão velha → 409', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');

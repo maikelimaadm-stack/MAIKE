@@ -63,7 +63,7 @@ export const editarEntradaEstoque = async (empresaId, entrada, dados) =>
   });
 
 /**
- * D-PROD-270 — edição completa (SUBSTITUIÇÃO): o corpo já montado por `montarCorpoEdicaoEntrada` (a versão nova
+ * D-PROD-271 — edição completa (SUBSTITUIÇÃO): o corpo já montado por `montarCorpoEdicaoEntrada` (a versão nova
  * completa + `empresa_id`, `versao`, `motivo_edicao` e `operation_id`). @param {string} id @param {Record<string, unknown>} corpo
  */
 export const substituirEntradaEstoque = async (id, corpo) => updateEntradaEstoque(id, corpo);

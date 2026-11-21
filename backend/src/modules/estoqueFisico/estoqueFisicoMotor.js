@@ -1540,7 +1540,7 @@ export const atualizarProcedencia = async (tx, ctx, a) => {
  * `aplicarEntradaDocumentada`: como `aplicarEntradaEstoque`, com `motivoSlug` (a-z0-9_) no lugar de
  * `origem.sistema`/`origem.tipoDetalhado` (vira `entrada_<motivoSlug>`) e `origem.motivo` obrigatório.
  * `estornarEntradaDocumentada`: como `estornarEmLote` com efeito ENTRADA, `motivoEstorno` obrigatório
- * e o tipo `estorno_entrada_exclusao`; com `revisao: true` (D-PROD-270, a edição com substituição), o tipo
+ * e o tipo `estorno_entrada_exclusao`; com `revisao: true` (D-PROD-271, a edição com substituição), o tipo
  * `estorno_entrada_revisao`.
  * @param {any} tx @param {{auth: any, requestId?: string}} ctx
  * @param {{ motivoSlug: string, origem: { operacaoId: string, motivo: string } } & Record<string, any>} a

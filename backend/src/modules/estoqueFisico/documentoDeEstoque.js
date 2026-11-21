@@ -17,7 +17,7 @@ import { travarEscopo } from '../gestao/gestaoComum.js';
 export const travarDocumentoDeEstoque = (tx, cli, empresaId, chave) => travarEscopo(tx, `estoque:documento:${cli}:${empresaId}:${chave}`);
 
 /**
- * Entrada manual CONFIRMADA da fazenda com este documento. D-PROD-270: `ignorar` = a própria entrada em edição.
+ * Entrada manual CONFIRMADA da fazenda com este documento. D-PROD-271: `ignorar` = a própria entrada em edição.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string} chave @param {string|null} [ignorar]
  * @returns {Promise<{id: string, numero: string}|null>}
  */

@@ -53,7 +53,7 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
  * movimento, em Movimentos, e logo depois de lançar. Com a ação `saida`, duas ações DENTRO da mesma janela (sem popup
  * sobre popup): "Editar observação" (só ela muda) e "Excluir saída" (pede o motivo; estorno integral pelo mesmo
  * valor; o servidor recusa se o produto já teve outro movimento naquele depósito depois).
- * D-PROD-270: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
+ * D-PROD-271: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
  * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. O histórico diz "Editado (lançamentos
  * refeitos)" na edição com substituição.
  * @param {{ saida: { id: string, numero?: string } | null, empresaId: string|null, podeSaida: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void }} props

@@ -13,13 +13,13 @@ import { diaDoCorpo } from '../patrimonio/patrimonioComum.js';
 export const ENTIDADE = 'EntradaEstoque';
 export const TIPO_CRIAR = 'estoque_entrada_criar';
 export const TIPO_EXCLUIR = 'estoque_entrada_excluir';
-/** D-PROD-270: a edição com substituição (estorno + lançamento novo) é idempotente por `operation_id`. */
+/** D-PROD-271: a edição com substituição (estorno + lançamento novo) é idempotente por `operation_id`. */
 export const TIPO_EDITAR = 'estoque_entrada_editar';
 
-/** D-PROD-270: os 2 modos da edição (o mesmo domínio do CHECK de `EntradaEstoqueEvento.modo`). */
+/** D-PROD-271: os 2 modos da edição (o mesmo domínio do CHECK de `EntradaEstoqueEvento.modo`). */
 export const MODO_METADADOS = 'METADADOS';
 export const MODO_SUBSTITUICAO = 'SUBSTITUICAO';
-/** D-PROD-270: qualquer um destes no corpo do PATCH faz da edição uma SUBSTITUIÇÃO (o corpo é a versão nova completa). */
+/** D-PROD-271: qualquer um destes no corpo do PATCH faz da edição uma SUBSTITUIÇÃO (o corpo é a versão nova completa). */
 export const CAMPOS_FISICOS = Object.freeze(['motivo_id', 'data_entrada', 'fornecedor_id', 'documento_numero', 'centro_custo_id', 'centro_resultado_id', 'itens']);
 
 export const STATUS_CONFIRMADA = 'CONFIRMADA';
@@ -157,7 +157,7 @@ const motivoDaEdicao = (c) => {
 };
 
 /**
- * Corpo da edição (D-PROD-270). Só `observacao` (+ `versao`, `motivo_edicao`) → METADADOS, como antes
+ * Corpo da edição (D-PROD-271). Só `observacao` (+ `versao`, `motivo_edicao`) → METADADOS, como antes
  * (`operation_id`, se vier, não é usado). Qualquer campo físico (`CAMPOS_FISICOS`) → SUBSTITUICAO: o corpo é
  * a versão nova COMPLETA, normalizada e validada como a criação (`normalizarCriacao`: `operation_id`,
  * `motivo_id`, `data_entrada` e `itens` obrigatórios; opcional ausente = vazio na versão nova).
@@ -186,7 +186,7 @@ export const fingerprintDaCriacao = (e) => ({
   itens: e.itens.map((i) => [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade, i.custo_unitario, i.custo_zero, i.lote_fabricante, i.data_validade]),
 });
 /**
- * D-PROD-270 — fingerprint canônico da edição com substituição (ordem FIXA de chaves): a entrada, a versão
+ * D-PROD-271 — fingerprint canônico da edição com substituição (ordem FIXA de chaves): a entrada, a versão
  * lida, o motivo da edição e a versão nova inteira (o mesmo canônico da criação).
  * @param {{ id: string, empresa_id: any, versao: any, motivo_edicao: string, entrada: ReturnType<typeof normalizarCriacao> }} e
  */
@@ -202,7 +202,7 @@ export const fingerprintDaSubstituicao = (e) => ({
 export const fingerprintDaExclusao = (e) => ({ v: 1, id: e.id, empresa_id: e.empresa_id, versao: e.versao, motivo: e.motivo });
 
 /**
- * D-PROD-270 — a versão nova é FISICAMENTE igual à vigente? (cabeçalho físico e linhas, na ordem). Quando é,
+ * D-PROD-271 — a versão nova é FISICAMENTE igual à vigente? (cabeçalho físico e linhas, na ordem). Quando é,
  * a edição não mexe no estoque: só a observação pode ter mudado (vira METADADOS) ou nada mudou.
  * @param {{ motivo_id: string|null, data_entrada: string, fornecedor_id: string|null, documento_numero: string|null,
  *   centro_custo_id: string|null, centro_resultado_id: string|null }} atual cabeçalho vigente (dia em AAAA-MM-DD)

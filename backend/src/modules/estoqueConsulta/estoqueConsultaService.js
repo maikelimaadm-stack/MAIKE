@@ -302,7 +302,7 @@ const documentoDeOrigem = async (tx, cli, m) => {
     where: { cliente_id: cli, ...porMovimento },
     select: { saida: { select: { id: true, numero: true, motivo: { select: { nome: true } } } } },
   });
-  // D-PROD-270: a linha substituída pela edição da saída é apagada (o evento guarda o snapshot); o movimento
+  // D-PROD-271: a linha substituída pela edição da saída é apagada (o evento guarda o snapshot); o movimento
   // antigo e o estorno dele ainda levam o id da saída em `lancamento_origem_id` (gravado pelo motor).
   const s = saida?.saida
     ?? (m.origem_sistema === ORIGEM_SAIDA_ESTOQUE && m.lancamento_origem_id

@@ -3,7 +3,7 @@
  * D-PROD-259: o motivo vem do cadastro (`motivo_id`; padrões Compra, Doação e Saldo de implantação);
  * fornecedor, centros, lote e validade; sem justificativa obrigatória.
  * PostgreSQL real, HTTP autenticado: as naturezas do motivo, custo zero só com a declaração,
- * implantação única, edição (METADADOS; a substituição é a D-PROD-270), permissão `entrada` (403), isolamento por tenant, exclusão com
+ * implantação única, edição (METADADOS; a substituição é a D-PROD-271), permissão `entrada` (403), isolamento por tenant, exclusão com
  * estorno pelo motor e prova fail-closed, documento duplicado e a API do documento.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -302,7 +302,7 @@ describe('D-PROD-257 — implantação ativa única e sem histórico', () => {
   });
 });
 
-describe('D-PROD-257 → D-PROD-270 — edição: METADADOS (só a observação) e a substituição exige o corpo completo', () => {
+describe('D-PROD-257 → D-PROD-271 — edição: METADADOS (só a observação) e a substituição exige o corpo completo', () => {
   test('PATCH só com a observação → 200, versão e revisão sobem, evento EDICAO/METADADOS, estoque intocado; versão velha → 409', async () => {
     const x = await cenario();
     const a = (await criar(x)).json();
@@ -318,7 +318,7 @@ describe('D-PROD-257 → D-PROD-270 — edição: METADADOS (só a observação)
     assert.equal(velha.json().code, 'ENTRADA_ESTOQUE_VERSAO_CONFLITO');
   });
 
-  test('D-PROD-270: campo físico sem a versão nova completa → 400 (esquema ou validação da criação) e nada muda', async () => {
+  test('D-PROD-271: campo físico sem a versão nova completa → 400 (esquema ou validação da criação) e nada muda', async () => {
     const x = await cenario();
     const a = (await criar(x)).json();
     const base = { empresa_id: x.e.id, versao: 1, motivo_edicao: 'trocar quantidade' };

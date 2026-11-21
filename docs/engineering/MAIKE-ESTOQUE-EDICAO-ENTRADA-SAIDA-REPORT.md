@@ -1,6 +1,6 @@
-# MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA — Relatório: edição completa da Entrada e da Saída manual (D-PROD-270)
+# MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA — Relatório: edição completa da Entrada e da Saída manual (D-PROD-271)
 
-**Data:** 2026-11-21 · **Branch:** `claude/edicao-entrada-saida` (a partir da `main` `80aa1db3`) · **Migration:** nenhuma · **Decisão:** [D-PROD-270](./DECISIONS.md)
+**Data:** 2026-11-21 · **Branch:** `claude/edicao-entrada-saida` (a partir da `main` `80aa1db3`) · **Migration:** nenhuma · **Decisão:** [D-PROD-271](./DECISIONS.md)
 
 ## 1. Pedido e escolhas do proprietário
 
@@ -22,7 +22,7 @@ Depois da saída manual, o proprietário pediu: "Olha também posso editar ok em
 
 ## 3. Constituição: emenda APROVADA
 
-A entrada confirmada já podia ser editada sem camada tocada, mas "o motivo dela nunca muda"; a saída só editava a observação. O proprietário aprovou a emenda em 2026-11-21; ela foi aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, com o texto da D-PROD-270.
+A entrada confirmada já podia ser editada sem camada tocada, mas "o motivo dela nunca muda"; a saída só editava a observação. O proprietário aprovou a emenda em 2026-11-21; ela foi aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 e nota própria em `07-DO-NOT-DO.md`, com o texto da D-PROD-271.
 
 ## 4. Tela
 

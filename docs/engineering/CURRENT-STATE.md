@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-270; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-271; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -10,22 +10,32 @@ rollout pausado **D-PROD-41**)
 ---
 
 
-## Missão ativa (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-270)
+## Missão ativa (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-271)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-270**, escolha do proprietário: editar tudo (data, motivo, fornecedor/documento, centros, produtos, quantidades, custo, depósitos) se nada mexeu depois, desfazendo pelo motor e lançando de novo, com histórico |
-| Branch / PR | `claude/edicao-entrada-saida`, a partir da `main` `80aa1db3`, com a `main` `fe9bd3ed` integrada · PR #355 |
+| Decisão | **D-PROD-271**, escolha do proprietário: editar tudo (data, motivo, fornecedor/documento, centros, produtos, quantidades, custo, depósitos) se nada mexeu depois, desfazendo pelo motor e lançando de novo, com histórico |
+| Branch / PR | `claude/edicao-entrada-saida`, a partir da `main` `80aa1db3`, com a `main` `f8abde68` integrada · PR #355 |
 | Migration | Nenhuma |
 | Constituição | emenda **aprovada** pelo proprietário (2026-11-21) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
 | Relatório | [`MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md`](./MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md) |
+
+## Missão anterior (2026-11-21) — MAIKE-EXCLUIR-SEM-MOTIVO-MAPA: exclusão nos históricos do mapa sem pedir motivo (D-PROD-270)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-270**, pedido do proprietário: "não preciso de motivos para exclusão nos históricos de todos" |
+| Branch / PR | `feat/excluir-sem-motivo-mapa`, a partir da `main` `fe9bd3ed` · PR (a abrir) |
+| Escopo | Só tela: sem campo de motivo nos 4 diálogos de exclusão do mapa; a tela envia "Excluído pelo histórico do mapa". Servidor sem mudança |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md) |
 
 ## Missão anterior (2026-11-21) — MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA: no mapa só existe "Excluir" (D-PROD-269)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-269**, pedido do proprietário: "eu não tenho cancelamentos eu tenho exclusão" |
-| Branch / PR | `feat/excluir-historicos-mapa-textos`, a partir da `main` `80aa1db3` · PR (a abrir) |
+| Branch / PR | `feat/excluir-historicos-mapa-textos`, a partir da `main` `80aa1db3` · PR **#356** (mergeada, `fe9bd3ed`) |
 | Escopo | Só tela do mapa: ações "Excluir ...", registro excluído/cancelado some dos históricos, permissão renomeada na tela (chave igual). Servidor sem mudança |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md) |

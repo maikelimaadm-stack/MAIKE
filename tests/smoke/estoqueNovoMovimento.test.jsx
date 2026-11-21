@@ -15,7 +15,7 @@
  *  - o corpo vai com a quantidade como TEXTO, sem valor/custo, e `operation_id`; saldo insuficiente diz a linha;
  *  - no celular a folha nasce dentro da janela; o movimento de saída manual abre o detalhe da saída (excluir; 409).
  *
- * D-PROD-270 — edição completa da Entrada e da Saída manual:
+ * D-PROD-271 — edição completa da Entrada e da Saída manual:
  *  - "Editar" no detalhe (só com a ação e a situação CONFIRMADA) abre a janela "Novo movimento" em modo edição, com o
  *    tipo fixo, o título "Editar entrada/saída nº N" e os campos preenchidos com a versão vigente;
  *  - o PATCH de substituição leva o corpo da criação + versão, motivo da edição e operation_id (`ent-ed-`/`sai-ed-`),
@@ -134,7 +134,7 @@ const criarRoteador = () => {
     if (sd && !sd[2] && method === 'PATCH') {
       if (estado.falhaDaEdicaoSaida) return estado.falhaDaEdicaoSaida;
       const atual = estado.saidas.find((x) => x.id === sd[1]);
-      // D-PROD-270: com `itens` é a substituição (as linhas novas; o evento leva o modo).
+      // D-PROD-271: com `itens` é a substituição (as linhas novas; o evento leva o modo).
       const editada = body.itens
         ? {
           ...atual, versao: atual.versao + 1, motivo_id: body.motivo_id, data_saida: body.data_saida, observacao: body.observacao,
@@ -177,7 +177,7 @@ const criarRoteador = () => {
     }
     const m = /^\/estoque\/entradas\/([^/]+)(\/excluir)?$/.exec(path);
     if (m && method === 'GET') return { status: 200, body: estado.entradas.find((e) => e.id === m[1]) };
-    // D-PROD-270: PATCH da entrada — METADADOS (só observação) ou SUBSTITUICAO (com `itens`).
+    // D-PROD-271: PATCH da entrada — METADADOS (só observação) ou SUBSTITUICAO (com `itens`).
     if (m && !m[2] && method === 'PATCH') {
       if (estado.falhaDaEdicaoEntrada) return estado.falhaDaEdicaoEntrada;
       const e = estado.entradas.find((x) => x.id === m[1]);
@@ -708,7 +708,7 @@ describe('D-PROD-264 — do movimento para a saída', () => {
   });
 });
 
-describe('D-PROD-270 — edição completa da entrada', () => {
+describe('D-PROD-271 — edição completa da entrada', () => {
   const patches = (caminho) => backend.chamadas.filter((c) => c.method === 'PATCH' && c.path === caminho);
   const abrirDetalheDaEntrada = async () => {
     await abrirMovimentos();
@@ -820,7 +820,7 @@ describe('D-PROD-270 — edição completa da entrada', () => {
   });
 });
 
-describe('D-PROD-270 — edição completa da saída', () => {
+describe('D-PROD-271 — edição completa da saída', () => {
   const patches = () => backend.chamadas.filter((c) => c.method === 'PATCH' && c.path === '/estoque/saidas/s1');
   const abrirEdicao = async () => {
     await abrirMovimentos();

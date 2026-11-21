@@ -63,7 +63,7 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
  * Movimentos (a aba Entradas saiu). Com a ação `entrada`, duas ações dentro da MESMA janela (sem popup sobre popup):
  * "Editar observação" (só a observação) e "Excluir entrada" (exclusão lógica com estorno integral; o servidor recusa
  * se o estoque já foi usado).
- * D-PROD-270: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
+ * D-PROD-271: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
  * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. As versões substituídas por edições ficam em
  * "Versões anteriores" (recolhida) e o histórico diz "Editado (lançamentos refeitos)".
  * @param {{ entrada: any|null, empresaId: string|null, podeLancar: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void }} props `entrada` é a linha da lista

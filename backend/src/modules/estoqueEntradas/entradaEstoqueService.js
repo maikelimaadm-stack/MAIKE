@@ -7,7 +7,7 @@
  *    movimento ou cache. Custo negativo é recusado pelo motor (M4); custo zero só com a declaração
  *    e o motivo (`conferirCustoZero`).
  *  - D-PROD-259: o motivo vem do CADASTRO de motivos (`motivo_id`, ativo); a natureza dele
- *    (SALDO_IMPLANTACAO | ENTRADA) é gravada em `motivo` e decide as regras. D-PROD-270: o motivo muda
+ *    (SALDO_IMPLANTACAO | ENTRADA) é gravada em `motivo` e decide as regras. D-PROD-271: o motivo muda
  *    na edição com substituição (é parte da versão nova).
  *    Fornecedor (parceiro ativo da fazenda com papel de fornecedor/prestador, ou legado sem papel),
  *    centro de custo e centro de resultado (ativos, da fazenda) no cabeçalho; lote do fabricante e
@@ -15,7 +15,7 @@
  *  - Implantação: uma ativa por produto e empresa, e só para produto SEM histórico físico (as únicas
  *    exceções são os fatos das linhas JÁ ESTORNADAS de entrada manual, por FK).
  *  - Criar = confirmar numa só chamada, idempotente por `operation_id` (recibo + unique).
- *  - Editar (D-PROD-270), com CAS de versão: só a observação → `EDICAO/METADADOS` (não mexe no estoque);
+ *  - Editar (D-PROD-271), com CAS de versão: só a observação → `EDICAO/METADADOS` (não mexe no estoque);
  *    com campo físico → `EDICAO/SUBSTITUICAO`: o corpo é a versão nova COMPLETA, validada como a criação;
  *    só com a mesma prova da exclusão (`provaDeCamadaIntocada`, "nada mexeu depois"), as linhas vigentes
  *    são estornadas pelo motor (`estorno_entrada_revisao`, dia = hoje), encerradas (`revisao_fim`) e as
@@ -64,7 +64,7 @@ export const naoEncontrada = () => new AppError('ENTRADA_ESTOQUE_NOT_FOUND', 'en
 const statusInvalido = (status) => new AppError('ENTRADA_ESTOQUE_STATUS_INVALIDO', `a entrada está ${status}; a ação não é possível; nada foi alterado`, { details: { status } });
 const versaoConflito = () => new AppError('ENTRADA_ESTOQUE_VERSAO_CONFLITO', 'a entrada mudou desde a leitura; recarregue e tente de novo; nada foi alterado');
 const invalida = (field, reason, mensagem, extra = {}) => new AppError('ENTRADA_ESTOQUE_INVALIDA', `${mensagem}; nada foi gravado`, { details: { field, reason, ...extra } });
-/** D-PROD-270: a mesma recusa (código e forma) na exclusão e na edição com substituição; só o texto diz a ação. */
+/** D-PROD-271: a mesma recusa (código e forma) na exclusão e na edição com substituição; só o texto diz a ação. */
 const dependencias = (reason, extra = {}, acao = 'exclusão') => new AppError('ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS', `o estoque desta entrada já foi consumido, movimentado ou não se prova intocado; ${acao} recusada; nada foi alterado`, { details: { field: 'itens', reason, ...extra } });
 
 // ─── leitura ────────────────────────────────────────────────────────────────
@@ -261,7 +261,7 @@ const exigirImplantacaoElegivel = async (tx, cli, produtoIds) => {
  * da Central CONFIRMADO COM mercadoria (D-PROD-261: só o que mexe no estoque) com o mesmo documento
  * recusa a entrada (nunca dupla contagem de estoque). O mesmo documento num lançamento sem produtos
  * (só o pagamento) não conflita. A trava do documento é a mesma da Central.
- * D-PROD-270: na edição, a própria entrada (`ignorarEntradaId`) não conflita consigo mesma.
+ * D-PROD-271: na edição, a própria entrada (`ignorarEntradaId`) não conflita consigo mesma.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string|null} documento @param {string|null} [ignorarEntradaId]
  */
 const exigirDocumentoLivre = async (tx, cli, empresaId, documento, ignorarEntradaId = null) => {
@@ -419,7 +419,7 @@ export const criar = async (contexto, corpo) => {
  * Disponível, disponível = entrada, custo igual ao da linha (nenhuma reavaliação do poço), nenhuma
  * fatia de consumo (financeiro, abastecimento, atividade) — nem de baixa depois estornada — e nenhuma
  * citação em `lotes_consumidos` (suplementação, transferência). Acima do teto, indeterminada.
- * Lida sob a trava do produto. Qualquer dúvida recusa. D-PROD-270: a mesma prova na edição com substituição
+ * Lida sob a trava do produto. Qualquer dúvida recusa. D-PROD-271: a mesma prova na edição com substituição
  * (`acao` só muda o texto da recusa).
  * @param {any} tx @param {string} cli @param {any[]} itens @param {string} [acao]
  */
@@ -517,7 +517,7 @@ export const excluir = async (contexto, id, corpo) => {
   return { status: 200, body: { ...r.body, replay: r.replay } };
 };
 
-// ─── editar (D-PROD-270: METADADOS ou SUBSTITUICAO) ─────────────────────────
+// ─── editar (D-PROD-271: METADADOS ou SUBSTITUICAO) ─────────────────────────
 
 /** Linha vigente → forma comparável e do snapshot (decimais canônicos, dias em AAAA-MM-DD, ids dos fatos). */
 const linhaDoSnapshot = (i) => ({
@@ -566,7 +566,7 @@ const travarCabecalhoEditavel = async (tx, cli, empresaId, id, versao) => {
 };
 
 /**
- * SUBSTITUICAO (D-PROD-270), já dentro do recibo idempotente: valida a versão nova como a criação, trava os
+ * SUBSTITUICAO (D-PROD-271), já dentro do recibo idempotente: valida a versão nova como a criação, trava os
  * produtos de antes ∪ depois, prova que nada mexeu nas camadas vigentes (a prova da exclusão), estorna as
  * linhas vigentes pelo motor, lança as novas pelo motor e grava cabeçalho, evento e auditoria.
  * Fisicamente igual à vigente → só a observação (METADADOS), sem prova nem estorno.
@@ -700,7 +700,7 @@ const substituir = async (tx, contexto, e) => {
 };
 
 /**
- * D-PROD-270 — PATCH da entrada. METADADOS (só observação): CAS de versão, sem recibo, corpo = detalhe.
+ * D-PROD-271 — PATCH da entrada. METADADOS (só observação): CAS de versão, sem recibo, corpo = detalhe.
  * SUBSTITUICAO (campo físico; corpo = versão nova completa): idempotente por `operation_id` (replay 200 com
  * `replay: true`; o mesmo `operation_id` com outro corpo → IDEMPOTENCY_CONFLICT).
  * @param {any} contexto @param {string} id @param {Record<string, any>} corpo
