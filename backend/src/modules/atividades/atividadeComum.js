@@ -442,6 +442,37 @@ export const comoAreaDaAtividadePublica = (r) => ({
   updatedAt: iso(r.updatedAt),
 });
 
+/** MAIKE-ENTREGA2 (D-PROD-268) — resumo da cultura (capim plantado e consórcio) do plantio. */
+export const CULTURA_RESUMO = Object.freeze({ select: { id: true, codigo: true, nome: true, especie: true, cultivar: true, tipo: true } });
+
+/** MAIKE-ENTREGA2 (D-PROD-268) — os dados do plantio de pastagem, com o resumo das culturas. */
+export const PLANTIO_RESUMO = Object.freeze({
+  select: {
+    cultura_id: true, forma_plantio: true, semente_incrustada: true, cobertura: true, consorcio_cultura_id: true,
+    cultura: CULTURA_RESUMO, consorcio: CULTURA_RESUMO,
+  },
+});
+
+/** @param {any} c */
+const culturaPublica = (c) => (c ? { id: c.id, codigo: c.codigo, nome: c.nome, especie: c.especie ?? null, cultivar: c.cultivar ?? null, tipo: c.tipo } : null);
+
+/**
+ * MAIKE-ENTREGA2 (D-PROD-268) — forma pública dos dados do plantio (nulo fora do Plantio de pastagem).
+ * @param {any} p  registro de `AtividadePlantio` com `cultura` e `consorcio`
+ */
+export const plantioPublico = (p) =>
+  p
+    ? {
+        cultura_id: p.cultura_id,
+        cultura: culturaPublica(p.cultura),
+        forma_plantio: p.forma_plantio ?? null,
+        semente_incrustada: p.semente_incrustada ?? null,
+        cobertura: p.cobertura ?? null,
+        consorcio_cultura_id: p.consorcio_cultura_id ?? null,
+        consorcio: culturaPublica(p.consorcio),
+      }
+    : null;
+
 /** `include` da atividade: o resumo ao lado de cada id da forma pública. */
 export const INCLUIR_ATIVIDADE = Object.freeze({
   // D-PROD-249: as áreas (várias áreas por atividade).
@@ -456,6 +487,8 @@ export const INCLUIR_ATIVIDADE = Object.freeze({
   concluidaPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
   reabertaPor: USUARIO_RESUMO,
+  // MAIKE-ENTREGA2 (D-PROD-268): o capim plantado e os dados do plantio.
+  plantio: PLANTIO_RESUMO,
 });
 
 /**
@@ -511,6 +544,9 @@ export const comoAtividadePublica = (r) => ({
   // D-PROD-249: as áreas da atividade (a 1ª é a `area_id` acima) e quantas são.
   areas: (r.areas ?? []).map(comoAreaDaAtividadePublica),
   areas_count: (r.areas ?? []).length,
+  // MAIKE-ENTREGA2 (D-PROD-268): onde foi o serviço sem área (Manutenção e Outros) e o plantio (capim e dados).
+  local: r.local ?? null,
+  plantio: plantioPublico(r.plantio),
 });
 
 /**
@@ -740,10 +776,10 @@ export const recusarCoercaoNasListas = (corpo, listas) => {
 };
 
 /** Decimais da linha de PRODUTO (corpo da linha e itens de `produtos[]`). */
-export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade']);
+export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual']);
 
 /** Resumos das linhas (só exibição), no formato do `select` do Prisma. */
-export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true } });
+export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, carencia_dias: true } });
 export const LOCAL_RESUMO = Object.freeze({ select: { id: true, numero_local: true, nome: true } });
 
 /** @param {any} p */
@@ -779,6 +815,8 @@ export const comoLinhaProdutoPublica = (r) => ({
   quantidade: t4(r.quantidade),
   unidade: r.unidade,
   dose_ha: t4(r.dose_ha),
+  // MAIKE-ENTREGA2 (D-PROD-268): o VC (%) do saco de semente, 2 casas (nulo sem VC).
+  vc_percentual: r.vc_percentual === null || r.vc_percentual === undefined ? null : dec(r.vc_percentual).toFixed(2),
   custo_unitario: t4(r.custo_unitario),
   custo_total: t4(r.custo_total),
   movimentacao_estoque_id: r.movimentacao_estoque_id,

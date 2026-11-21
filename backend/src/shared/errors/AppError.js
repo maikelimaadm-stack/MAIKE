@@ -309,6 +309,19 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
     inexistente: 'o operador não foi encontrado',
     inativo: 'o operador está inativo',
   }),
+  // MAIKE-ENTREGA2 (D-PROD-268) — o capim plantado e a cultura do consórcio (Cadastro de Culturas da fazenda).
+  'plantio.cultura_id': Object.freeze({
+    inexistente: 'o capim plantado não foi encontrado no Cadastro de Culturas desta fazenda',
+    inativo: 'o capim plantado está inativo no Cadastro de Culturas: escolha um ativo',
+  }),
+  'plantio.consorcio_cultura_id': Object.freeze({
+    inexistente: 'a cultura do consórcio não foi encontrada no Cadastro de Culturas desta fazenda',
+    inativo: 'a cultura do consórcio está inativa no Cadastro de Culturas: escolha uma ativa',
+  }),
+  // MAIKE-ENTREGA2 (D-PROD-268) — a unidade da quantidade feita é a da atividade.
+  unidade_producao_sigla: Object.freeze({
+    diferente_da_atividade: 'a unidade da quantidade feita é diferente da unidade deste serviço: use a mesma unidade',
+  }),
 });
 
 /**
@@ -319,7 +332,9 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
  * `area_id`), com os reasons novos `duplicada`, `ja_na_atividade`, `varias_areas`, `com_lancamentos`, `obrigatorio` e
  * `sem_areas`.
  * @param {string} field
- * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'|'duplicada'|'ja_na_atividade'|'varias_areas'|'com_lancamentos'|'obrigatorio'|'sem_areas'|'abastecimento'} reason
+ * D-PROD-268: `plantio.cultura_id`/`plantio.consorcio_cultura_id` (`inexistente`, `inativo`) e `unidade_producao_sigla`
+ * (`diferente_da_atividade`).
+ * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'|'duplicada'|'ja_na_atividade'|'varias_areas'|'com_lancamentos'|'obrigatorio'|'sem_areas'|'abastecimento'|'diferente_da_atividade'} reason
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeReferenciaInvalida = (field, reason, options) =>
@@ -432,7 +447,8 @@ export const atividadeDataInvalida = (field, reason, extra = {}, options = undef
  * nela (nas áreas do registro) foi há mais de `limite_dias`. O servidor não junta sozinho; o cliente pergunta e reenvia
  * com `nova_atividade` (false = continuar; true = concluir a antiga no último dia e abrir outra). Nada foi gravado (nem o
  * recibo da chave: o reenvio com a decisão usa a mesma `operation_id`).
- * @param {{ atividade_id: string, atividade_nome: string, ultimo_dia: string, area_id: string, dias_parado: number, limite_dias: number }} d
+ * D-PROD-268: no registro SEM área (Manutenção e Outros), `area_id` é null e `local` diz qual.
+ * @param {{ atividade_id: string, atividade_nome: string, ultimo_dia: string, area_id: string|null, local?: string|null, dias_parado: number, limite_dias: number }} d
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeServicoParado = (d, options = undefined) =>

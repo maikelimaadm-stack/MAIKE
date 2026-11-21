@@ -51,7 +51,7 @@ import {
   recusarCoercaoNasListas,
 } from './atividadeComum.js';
 import { ITEM_LINHA_MAQUINA, recusarCoercaoDasMaquinas } from './atividadeApontamentoMaquinaRoutes.js';
-import { ESQUEMA_ITEM_PRODUTO } from './atividadeApontamentoProdutoRoutes.js';
+import { ESQUEMA_ITEM_PRODUTO_DO_LANCAMENTO } from './atividadeApontamentoProdutoRoutes.js';
 import { ITEM_LINHA_MAO_OBRA } from './atividadeApontamentoMaoObraRoutes.js';
 import { ITEM_LINHA_SERVICO } from './atividadeApontamentoServicoRoutes.js';
 import { DECIMAIS_DA_LINHA_MAO_OBRA } from './atividadeApontamentoMaoObraService.js';
@@ -93,7 +93,7 @@ const SO_EMPRESA = { type: 'object', required: ['empresa_id'], additionalPropert
 /** D-PROD-202 — as linhas do lançamento e da repetição, com a chave única de tudo. */
 export const LINHAS_DO_LANCAMENTO = Object.freeze({
   operation_id: { type: 'string', minLength: 8, maxLength: OPERATION_ID_DO_LANCAMENTO_MAXIMO, pattern: PADRAO_OPERATION_ID.source },
-  produtos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ESQUEMA_ITEM_PRODUTO },
+  produtos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ESQUEMA_ITEM_PRODUTO_DO_LANCAMENTO },
   maquinas: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAQUINA },
   // D-PROD-207 (Fatia 4): mão de obra e serviço de terceiro.
   mao_obra: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAO_OBRA },

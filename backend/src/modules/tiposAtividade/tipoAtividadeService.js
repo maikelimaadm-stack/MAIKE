@@ -82,6 +82,24 @@ const textoOuNulo = (valor) => {
   return limpo === '' ? null : limpo;
 };
 
+/** MAIKE-ENTREGA2 (D-PROD-268): tamanho da coluna `alvo` (a API confere: a allowlist EXPAND recusa CHECK em tabela antiga). */
+export const ALVO_MAXIMO = 60;
+
+/**
+ * MAIKE-ENTREGA2 (D-PROD-268) — o ALVO da Aplicação no cadastro da operação ("CIGARRINHA", "MATO (FOLHA LARGA)"…):
+ * aparado e em MAIÚSCULAS, até 60 caracteres, sem caractere de controle; vazio ou null limpa.
+ * @param {unknown} valor
+ * @returns {string|null|undefined}
+ */
+export const alvoDoCorpo = (valor) => {
+  const limpo = textoOuNulo(valor);
+  if (limpo === undefined || limpo === null) return limpo;
+  const alvo = limpo.replace(/\s+/g, ' ').toUpperCase();
+  if (/[\u0000-\u001f\u007f]/.test(alvo)) throw invalido('alvo não aceita caractere de controle', { field: 'alvo', reason: 'formato' });
+  if ([...alvo].length > ALVO_MAXIMO) throw invalido(`alvo deve ter no máximo ${ALVO_MAXIMO} caracteres`, { field: 'alvo', reason: 'longo' });
+  return alvo;
+};
+
 /** Mesmo normalizador do Tipo de Tarefa: o nome é gravado em MAIÚSCULAS. */
 const normalizarNomeTipo = (valor) => {
   const limpo = textoOuNulo(valor);
@@ -167,6 +185,8 @@ export const comoTipoPublico = (registro) => ({
   unidade_producao: unidadeProducaoPublica(registro.unidadeProducao),
   coeficiente_padrao: coeficienteComQuatroCasas(registro.coeficiente_padrao),
   ...Object.fromEntries(FLAGS_TIPO_ATIVIDADE.map((flag) => [flag, registro[flag] === true])),
+  // MAIKE-ENTREGA2 (D-PROD-268): o alvo da Aplicação (nulo = sem alvo cadastrado).
+  alvo: registro.alvo ?? null,
   created_date:
     registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
   updated_date:
@@ -186,6 +206,8 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   unidade_producao_id: (v) => idDoPadrao(v, 'unidade_producao_id'),
   coeficiente_padrao: (v) => coeficienteDoCorpo(v),
   ...Object.fromEntries(FLAGS_TIPO_ATIVIDADE.map((flag) => [flag, (v) => flagDoCorpo(v, flag)])),
+  // MAIKE-ENTREGA2 (D-PROD-268).
+  alvo: (v) => alvoDoCorpo(v),
 });
 
 /** @param {Record<string, unknown>} entrada */

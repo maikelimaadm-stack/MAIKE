@@ -64,6 +64,16 @@ export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
   properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO },
 });
 
+/**
+ * MAIKE-ENTREGA2 (D-PROD-268) — o item de `produtos[]` do LANÇAMENTO (`POST …/apontamentos`, `…/duplicar` e
+ * `POST /atividades/registrar`): o de sempre e o VC (%) opcional da semente, em texto (o serviço confere a faixa). As rotas
+ * de UMA linha (lançar e editar a linha) continuam com o corpo de antes.
+ */
+export const ESQUEMA_ITEM_PRODUTO_DO_LANCAMENTO = Object.freeze({
+  ...ESQUEMA_ITEM_PRODUTO,
+  properties: { ...ESQUEMA_ITEM_PRODUTO.properties, vc_percentual: { type: ['string', 'null'], maxLength: 8 } },
+});
+
 const LANCAR = {
   params: PARAMS_APONTAMENTO,
   body: {

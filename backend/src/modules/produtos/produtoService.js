@@ -101,6 +101,8 @@ export const comoProdutoPublico = (registro) => ({
   consumo_maximo_pv: comoNumero(registro.consumo_maximo_pv),
   unidade_principal_estoque: registro.unidade_principal_estoque ?? 'KG',
   peso_por_saco_kg: comoNumero(registro.peso_por_saco_kg),
+  // MAIKE-ENTREGA2 (D-PROD-268): a carência da bula, em dias (nulo = sem carência cadastrada).
+  carencia_dias: registro.carencia_dias ?? null,
   observacoes: registro.observacoes ?? null,
   ativo: registro.ativo,
   created_date:
@@ -108,6 +110,26 @@ export const comoProdutoPublico = (registro) => ({
   updated_date:
     registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
 });
+
+/** MAIKE-ENTREGA2 (D-PROD-268): carência máxima aceita, em dias (a coluna não tem CHECK: a allowlist EXPAND o recusa). */
+export const CARENCIA_MAXIMA_DIAS = 365;
+
+/**
+ * Carência da bula em dias: inteiro de 0 a 365 (0 = libera no mesmo dia); null limpa. O schema da rota já recusou o que
+ * não é inteiro nem null.
+ * @param {unknown} v
+ * @returns {number|null|undefined}
+ */
+export const carenciaDoCorpo = (v) => {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > CARENCIA_MAXIMA_DIAS) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', `carencia_dias deve ser um número inteiro de dias, de 0 a ${CARENCIA_MAXIMA_DIAS}`, {
+      details: { field: 'carencia_dias', reason: 'carencia_invalida' },
+    });
+  }
+  return v;
+};
 
 const CAMPOS_EDITAVEIS = Object.freeze({
   empresa_id: (v) => textoOuNulo(v),
@@ -134,6 +156,7 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   consumo_maximo_pv: (v) => decimalOuNulo(v),
   unidade_principal_estoque: (v) => textoOuNulo(v) ?? undefined,
   peso_por_saco_kg: (v) => decimalOuNulo(v),
+  carencia_dias: (v) => carenciaDoCorpo(v),
   observacoes: (v) => textoOuNulo(v),
   ativo: (v) => (v === undefined ? undefined : Boolean(v)),
 });
