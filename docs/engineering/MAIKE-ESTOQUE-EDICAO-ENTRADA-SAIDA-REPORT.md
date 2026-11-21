@@ -24,10 +24,22 @@ Depois da saída manual, o proprietário pediu: "Olha também posso editar ok em
 
 A entrada confirmada já podia ser editada sem camada tocada, mas "o motivo dela nunca muda"; a saída só editava a observação. O texto proposto está na D-PROD-270 e **não foi aplicado**; a PR fica em rascunho até a aprovação.
 
-## 4. Testes
+## 4. Tela
 
-Ver o corpo da PR (backend e tela).
+No detalhe da Entrada e da Saída, ao lado de "Editar observação" (que continua só para a observação), o botão **"Editar"** (só com a ação `entrada`/`saida`, documento CONFIRMADO) abre o "Novo movimento" em modo edição: título "Editar entrada nº N"/"Editar saída nº N", tipo fixo, todos os campos preenchidos, campo obrigatório **"Motivo da edição"** e o aviso de que os lançamentos são estornados e refeitos (o número continua o mesmo); botão **"Salvar edição"**. Depois de salvar, o detalhe reabre com a versão nova; o histórico mostra "Editado (lançamentos refeitos)" e a entrada ganha a seção recolhida "Versões anteriores". As recusas têm texto próprio (ex.: "Não dá para editar: o produto Ureia teve outro movimento no depósito Galpão insumos depois desta saída (movimento nº 120). … Nada foi alterado."); o texto do servidor nunca aparece.
 
-## 5. Fora de escopo
+## 5. Testes
+
+| Arquivo / verificação | Resultado |
+|---|---|
+| `backend/tests/estoqueEntradasEdicao.test.mjs` (novo) | 12/12 (0/12 contra a `main`) |
+| `backend/tests/estoqueSaidasEdicao.test.mjs` (novo) | 10/10 (0/10 contra a `main`) |
+| `estoqueEntradas` / `estoqueSaidas` / `estoqueConsulta` | 47/47 · 15/15 · 23/23 |
+| `estoqueP0Reconciliacao*` · `estoqueP0MotorUnico` · `motorEstornoCochoTransferencia` | 44/44 · 23/23 · 13/13 |
+| `test:gates` | 1055/1055 |
+| smoke `estoque*` (9 testes novos) · `tests/smoke` inteiro | 83/83 · 3919/3919 |
+| lint, `typecheck:backend`, `gate:types`, `source-closure`, `import-integrity`, `product-scope`, `api-boundary` | limpos |
+
+## 6. Fora de escopo
 
 Editar quando algo mexeu depois (recalcular o que veio depois), editar o ajuste de inventário, restaurar documento excluído.
