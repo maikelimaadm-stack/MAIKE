@@ -300,6 +300,17 @@ const REFERENCIAS = Object.freeze(
     centro_custo_id: { inexistente: 'O centro de custo padrão do tipo não foi encontrado' },
     centro_resultado_id: { inexistente: 'O centro de resultado padrão do tipo não foi encontrado' },
     unidade_producao_id: { inexistente: 'A unidade de produção do tipo não foi encontrada' },
+    // MAIKE-ENTREGA3 (D-PROD-275): o "Faz parte de" (a reforma), o capim que vai ficar e a troca do capim na conclusão.
+    planejamento_id: {
+      inexistente: 'A reforma não foi encontrada nesta fazenda: tire o "Faz parte de" ou escolha outra',
+      fechado: 'A reforma já foi concluída ou cancelada: a realização não entra mais nela (tire o "Faz parte de")',
+      area_fora: 'A área desta realização não faz parte da reforma escolhida: tire o "Faz parte de" ou escolha outra',
+    },
+    cultura_alvo_id: {
+      inexistente: 'O capim que vai ficar não foi encontrado no Cadastro de Culturas desta fazenda',
+      inativo: 'O capim que vai ficar está inativo no Cadastro de Culturas: escolha um ativo',
+    },
+    trocar_capim: { sem_capim: 'A reforma não tem o capim que vai ficar: conclua sem trocar o capim' },
   }),
 );
 
@@ -367,6 +378,11 @@ const fraseDoStatus = (details) => {
   const status = typeof details.status === 'string' ? details.status : '';
   const acao = typeof details.acao === 'string' ? details.acao : '';
   // D-PROD-249/263: o status é de uma ÁREA da atividade (só a área em andamento recebe lançamento).
+  // D-PROD-275: o status é da REFORMA (só a aberta é concluída ou cancelada).
+  if (details.entidade === 'planejamento') {
+    if (status === 'CONCLUIDO') return 'Esta reforma já está concluída. Nada foi alterado.';
+    if (status === 'CANCELADO') return 'Esta reforma está cancelada. Nada foi alterado.';
+  }
   if (details.entidade === 'area') {
     if (status === 'CONCLUIDA') return 'Esta área já está concluída na atividade: reabra a área (no card "Áreas da atividade") ou tire-a do registro. Nada foi gravado.';
     if (status === 'PLANEJADA') return 'Esta área ainda não foi iniciada na atividade: inicie a área antes de lançar. Nada foi gravado.';
@@ -396,6 +412,9 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
   switch (code) {
     case 'ATIVIDADE_NOT_FOUND':
       return 'Esta atividade não foi encontrada nesta fazenda. A lista será relida. Nada foi alterado.';
+    // D-PROD-275: a reforma (de outra fazenda, de outro tenant ou que sumiu).
+    case 'PLANEJAMENTO_NOT_FOUND':
+      return 'Esta reforma não foi encontrada nesta fazenda. Atualize a lista e tente de novo. Nada foi alterado.';
     case 'ATIVIDADE_APONTAMENTO_NOT_FOUND':
       return 'Este apontamento não foi encontrado nesta atividade. Os apontamentos serão relidos. Nada foi alterado.';
     case 'ATIVIDADE_REFERENCIA_INVALIDA': {
@@ -419,6 +438,8 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
         'Esta ação não é permitida no status atual: só a atividade aberta aceita edição, conclusão, cancelamento e apontamentos, e só a concluída é reaberta. Nada foi alterado.'
       );
     case 'ATIVIDADE_VERSAO_CONFLITO':
+      // D-PROD-275: a reforma mudou desde a leitura.
+      if (details.entidade === 'planejamento') return 'Esta reforma foi alterada por outra pessoa desde que você a abriu. Ela será relida: confira e tente de novo. Nada foi gravado.';
       return doApontamento
         ? 'Este apontamento foi alterado por outra pessoa desde que você o abriu. Ele será relido: confira e tente de novo. Nada foi gravado.'
         : 'Esta atividade foi alterada por outra pessoa desde que você a abriu. Ela será relida: confira e tente de novo. Nada foi gravado.';

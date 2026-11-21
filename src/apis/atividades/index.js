@@ -42,4 +42,10 @@ export {
   updateAtividadeLinha,
   cancelAtividadeLinha,
   getMedidorAtividade,
+  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem.
+  listPlanejamentos,
+  getPlanejamento,
+  createPlanejamento,
+  completePlanejamento,
+  cancelPlanejamento,
 } from './atividadesApi.js';

@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
 import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import PainelForragemArea from "@/components/pastagem/PainelForragemArea";
-import { useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
+import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCampoRegras";
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
+import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
 
 
@@ -17,6 +18,9 @@ import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAt
  * cultura/forragem, situação), as atividades em andamento (nome, feito/previsto e a situação em chip) e os custos da área
  * no mês. Os números das atividades e dos custos são do servidor (`GET /atividades-por-area/:id/resumo`); aqui só se
  * formatam. Sem a permissão de ver atividades, as duas seções simplesmente não aparecem (o resto da aba fica).
+ *
+ * MAIKE-ENTREGA3 (D-PROD-275): com uma reforma ABERTA na área (o resumo traz as reformas), o cartão da área mostra
+ * "Em reforma desde 10/09" (o início previsto; ainda no futuro, "Reforma prevista para 10/09") e o nome dela embaixo.
  */
 
 /** @param {unknown} v */
@@ -71,6 +75,10 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
   const custos = resumo.data?.custos ?? null;
   const mes = rotuloDoMesCurto(resumo.data?.mes);
   const cultura = texto(area.tipo_cultura) !== "Infraestrutura" ? texto(area.cultura?.nome || area.tipo_pastagem) : "";
+  const { hoje } = useFusoDaFazenda(empresaId);
+  // D-PROD-275: a reforma aberta da área (a mais antiga).
+  const reformas = verAtividades && resumo.isSuccess && Array.isArray(resumo.data?.planejamentos) ? resumo.data.planejamentos : [];
+  const emReforma = textoDaReformaNaArea(reformas, hoje);
 
   return (
     <div className="mk-dp-area-organizada">
@@ -81,6 +89,17 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
           {cultura ? <Celula textoAutomatico rotulo="Cultura / forragem" valor={cultura} /> : null}
           {ocupada === null ? null : <Celula textoAutomatico rotulo="Situação" valor={ocupada ? "OCUPADO" : "VAZIO"} />}
         </Grade>
+        {/* D-PROD-275: a reforma aberta da área, numa linha inteira (o nome é longo). */}
+        {emReforma ? (
+          <Linha
+            icone={Sprout}
+            rotulo={emReforma}
+            sub={reformas.length > 1 ? `${reformas[0].nome} (+${reformas.length - 1})` : reformas[0].nome}
+            valor={<Chip tom="atencao">Reforma</Chip>}
+            className="mk-dp-area-reforma"
+            data-testid="detalhes-area-em-reforma"
+          />
+        ) : null}
       </Cartao>
 
       {verAtividades && resumo.isSuccess ? (

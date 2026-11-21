@@ -27,6 +27,8 @@ const RESOURCE_APONTAMENTO = 'AtividadeApontamento';
 const CAMINHO = '/atividades';
 const CAMINHO_OPCOES = '/atividades-opcoes';
 const CAMINHO_POR_AREA = '/atividades-por-area';
+/** MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem (o agrupador). */
+const CAMINHO_PLANEJAMENTOS = '/planejamentos';
 
 /**
  * Seletores próprios da tela (guardados por "ver" da tela). D-PROD-202 (Fatia 3): produtos (os já usados na
@@ -112,6 +114,8 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'numero_receituario',
   'local',
   'unidade_producao_sigla',
+  // D-PROD-275: a reforma de que a realização faz parte ("Faz parte de"), só quando vem.
+  'planejamento_id',
   'operation_id',
   'safra_ciclo',
   'turno',
@@ -262,8 +266,16 @@ export const corpoDaCriacaoDoApontamento = (dados, permitidos = CAMPOS_DE_CRIACA
 // ─── Leitura ─────────────────────────────────────────────────────────────
 
 /** Filtros da lista (query FECHADA no servidor: nada além disso vai). Datas sobre `data_inicio`. D-PROD-267: `situacao` e `tipo_fixo`. */
+// D-PROD-275: `planejamento_id` (o filtro "Reforma").
 // D-PROD-274: `local` (o serviço sem área no local; a prévia da Nova realização sem área).
-const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'situacao', 'tipo_fixo', 'tipo_atividade_id', 'area_id', 'data_de', 'data_ate', 'local', 'limit', 'cursor']);
+const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'situacao', 'tipo_fixo', 'tipo_atividade_id', 'area_id', 'planejamento_id', 'data_de', 'data_ate', 'local', 'limit', 'cursor']);
+/** D-PROD-275 — a criação da reforma (o "Planejar"): os 4 campos (o nome, o número e a safra são do servidor). */
+export const CAMPOS_DA_REFORMA = Object.freeze(['empresa_id', 'tipo', 'areas', 'cultura_alvo_id', 'data_inicio']);
+/** D-PROD-275 — cada área da reforma: a área e os hectares dela na reforma. */
+export const CAMPOS_DA_AREA_NA_REFORMA = Object.freeze(['area_id', 'hectares']);
+/** D-PROD-275 — concluir a reforma (com a troca do capim, se o dono quiser) e cancelar. */
+export const CAMPOS_DA_CONCLUSAO_DA_REFORMA = Object.freeze(['empresa_id', 'versao', 'data_conclusao', 'trocar_capim']);
+export const CAMPOS_DO_CANCELAMENTO_DA_REFORMA = Object.freeze(['empresa_id', 'versao']);
 const FILTROS_OPCOES = Object.freeze(['empresa_id', 'q', 'limit', 'cursor']);
 /** Query de cada seletor da Fatia 3 (fechada no servidor). */
 const FILTROS_POR_RECURSO = Object.freeze(
@@ -500,6 +512,45 @@ export const operacoesNativas = Object.freeze({
     }
     return nativeRequest(`${CAMINHO_POR_AREA}/${encodeURIComponent(areaId)}/registros?${params.toString()}`, { autenticado: true }, ctx('listAtividadesDaAreaRegistros', { areaId }));
   },
+
+  // ── A reforma de pastagem (D-PROD-275) ──
+  /** As reformas da fazenda (abertas primeiro). @param {Record<string, unknown>} filtros */
+  listarReformas: (filtros) => {
+    const f = /** @type {Record<string, any>} */ (filtros ?? {});
+    const params = new URLSearchParams();
+    for (const k of ['empresa_id', 'status', 'area_id']) {
+      if (f[k] !== undefined && f[k] !== null && String(f[k]) !== '') params.set(k, String(f[k]));
+    }
+    return nativeRequest(`${CAMINHO_PLANEJAMENTOS}?${params.toString()}`, { autenticado: true }, ctx('listPlanejamentos'));
+  },
+
+  /** A reforma e o custo dela (total, R$/ha, por tipo e os serviços). @param {string} id @param {string} empresaId */
+  obterReforma: (id, empresaId) =>
+    nativeRequest(comEmpresa(`${CAMINHO_PLANEJAMENTOS}/${encodeURIComponent(id)}`, empresaId), { autenticado: true }, ctx('getPlanejamento', { id })),
+
+  /** O "Planejar" da reforma. @param {Record<string, unknown>} dados */
+  criarReforma: (dados) => {
+    const corpo = corpoSemVazios(dados, CAMPOS_DA_REFORMA.filter((c) => c !== 'areas'));
+    const areas = linhasDeEnvio(/** @type {any} */ (dados)?.areas, CAMPOS_DA_AREA_NA_REFORMA);
+    if (areas) corpo.areas = areas;
+    return nativeRequest(CAMINHO_PLANEJAMENTOS, { method: 'POST', body: corpo, autenticado: true }, ctx('createPlanejamento'));
+  },
+
+  /** @param {string} id @param {Record<string, unknown>} dados */
+  concluirReforma: (id, dados) =>
+    nativeRequest(
+      `${CAMINHO_PLANEJAMENTOS}/${encodeURIComponent(id)}/concluir`,
+      { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DA_CONCLUSAO_DA_REFORMA), autenticado: true },
+      ctx('completePlanejamento', { id }),
+    ),
+
+  /** @param {string} id @param {Record<string, unknown>} dados */
+  cancelarReforma: (id, dados) =>
+    nativeRequest(
+      `${CAMINHO_PLANEJAMENTOS}/${encodeURIComponent(id)}/cancelar`,
+      { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DO_CANCELAMENTO_DA_REFORMA), autenticado: true },
+      ctx('cancelPlanejamento', { id }),
+    ),
 
   // ── Áreas da atividade (D-PROD-249) ──
   /** @param {string} atividadeId @param {Record<string, unknown>} dados */

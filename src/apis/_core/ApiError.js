@@ -131,6 +131,8 @@ export const API_ERROR_CODES = Object.freeze({
   // status, versão velha) ou diz o campo recusado (referência, exigência do
   // tipo, data, motivo). `details.field`/`details.reason` dizem qual e por quê.
   ATIVIDADE_NOT_FOUND: 'ATIVIDADE_NOT_FOUND',
+  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem (o agrupador) não é desta fazenda.
+  PLANEJAMENTO_NOT_FOUND: 'PLANEJAMENTO_NOT_FOUND',
   ATIVIDADE_APONTAMENTO_NOT_FOUND: 'ATIVIDADE_APONTAMENTO_NOT_FOUND',
   // D-PROD-249 — várias áreas por atividade: a área não é desta atividade (relê) e a área com lançamento não sai.
   ATIVIDADE_AREA_NOT_FOUND: 'ATIVIDADE_AREA_NOT_FOUND',
@@ -279,6 +281,8 @@ const MENSAGENS = Object.freeze({
     'Um dos padrões do tipo de atividade (centro de custo, centro de resultado, unidade de produção ou coeficiente) não pode ser usado. Nada foi gravado.',
   [API_ERROR_CODES.ATIVIDADE_NOT_FOUND]:
     'Esta atividade não foi encontrada nesta fazenda. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.PLANEJAMENTO_NOT_FOUND]:
+    'Esta reforma não foi encontrada nesta fazenda. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.ATIVIDADE_APONTAMENTO_NOT_FOUND]:
     'Este apontamento não foi encontrado nesta atividade. Atualize os apontamentos e tente novamente.',
   [API_ERROR_CODES.ATIVIDADE_AREA_NOT_FOUND]: 'Esta área não está mais nesta atividade. Atualize a atividade e tente de novo.',

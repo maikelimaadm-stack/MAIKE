@@ -49,6 +49,11 @@ import {
   updateAtividadeLinha,
   cancelAtividadeLinha,
   getMedidorAtividade,
+  listPlanejamentos,
+  getPlanejamento,
+  createPlanejamento,
+  completePlanejamento,
+  cancelPlanejamento,
 } from '@/apis/atividades';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { lerMotivo } from '@/lib/lancamentoAtividadesRegras';
@@ -115,7 +120,7 @@ const soOsInformados = (d, campos) => Object.fromEntries(campos.filter((c) => te
  * `tipo_atividade_id`, `area_id`, `data_de` e `data_ate` (sobre `data_inicio`);
  * D-PROD-274: `local` (o serviço sem área naquele local).
  * Sem fazenda: página vazia, nada é lido.
- * @param {{ status?: string|null, situacao?: string|null, tipo_fixo?: string|null, tipo_atividade_id?: string|null, area_id?: string|null,
+ * @param {{ status?: string|null, situacao?: string|null, tipo_fixo?: string|null, tipo_atividade_id?: string|null, area_id?: string|null, planejamento_id?: string|null,
  *   data_de?: string|null, data_ate?: string|null, local?: string|null, limit?: number, cursor?: string|null }} [filtros]
  */
 export const listarAtividades = async (filtros = {}) => {
@@ -130,6 +135,8 @@ export const listarAtividades = async (filtros = {}) => {
     tipo_fixo: textoOuIndefinido(f.tipo_fixo),
     tipo_atividade_id: textoOuIndefinido(f.tipo_atividade_id),
     area_id: textoOuIndefinido(f.area_id),
+    // D-PROD-275: as realizações de uma reforma (o filtro "Reforma").
+    planejamento_id: textoOuIndefinido(f.planejamento_id),
     data_de: textoOuIndefinido(f.data_de),
     data_ate: textoOuIndefinido(f.data_ate),
     // D-PROD-274: o serviço sem área no local (a prévia "Entra em …" da Nova realização sem área).
@@ -339,6 +346,31 @@ export const registrarCampo = async (dados, opcoes = null) => {
     confirmarNovoEnvio: o.confirmarNovoEnvio ?? perguntarNovoEnvio,
   });
 };
+
+// ─── A reforma de pastagem (MAIKE-ENTREGA3, D-PROD-275) ─────────────────
+
+/** As reformas da fazenda (abertas primeiro). Sem fazenda: nenhuma. @param {{ status?: string|null, area_id?: string|null }} [filtros] */
+export const listarReformas = async (filtros = {}) => {
+  const f = comoObjeto(filtros);
+  if (!fazendaDaTela) return { items: [] };
+  return listPlanejamentos({ empresa_id: fazendaDaTela, status: textoOuIndefinido(f.status), area_id: textoOuIndefinido(f.area_id) });
+};
+
+/** A reforma e o custo dela (total, R$/ha, por tipo e os serviços — calculados no servidor). @param {string} id */
+export const obterReforma = async (id) => getPlanejamento(String(id ?? ''), fazenda('obterReforma', 'Planejamento'));
+
+/**
+ * O "Planejar" da reforma: as áreas com os hectares, o tipo, o capim que vai ficar e o início previsto. Sem chave de
+ * idempotência (como abrir uma atividade): sem resposta, a tela manda conferir a lista antes de repetir.
+ * @param {{ tipo: string, areas: Array<{ area_id: string, hectares?: string }>, cultura_alvo_id?: string|null, data_inicio: string }} dados
+ */
+export const planejarReforma = async (dados) => createPlanejamento({ ...comoObjeto(dados), empresa_id: fazenda('planejarReforma', 'Planejamento') });
+
+/** Concluir a reforma (com `trocar_capim` quando o dono quer o capim novo nas áreas). @param {string} id @param {{ versao: number, data_conclusao?: string, trocar_capim?: boolean }} dados */
+export const concluirReforma = async (id, dados) => completePlanejamento(String(id ?? ''), { ...comoObjeto(dados), empresa_id: fazenda('concluirReforma', 'Planejamento') });
+
+/** Cancelar a reforma (nada é apagado). @param {string} id @param {{ versao: number }} dados */
+export const cancelarReforma = async (id, dados) => cancelPlanejamento(String(id ?? ''), { ...comoObjeto(dados), empresa_id: fazenda('cancelarReforma', 'Planejamento') });
 
 /** D-PROD-254 — atividades da área e custos do mês (números do servidor). @param {string} areaId */
 export const obterResumoDaArea = async (areaId) => getAtividadesDaAreaResumo(String(areaId ?? ''), fazenda('obterResumoDaArea'));
