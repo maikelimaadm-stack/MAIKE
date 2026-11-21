@@ -73,7 +73,8 @@ describe("política fail-closed", () => {
   it("a flag do cocho liga só o caminho novo do servidor (D-PROD-268); a do depósito segue desligada", () => {
     expect(CANCELAMENTO_COCHO_HABILITADO).toBe(true);
     expect(CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO).toBe(false);
-    expect(MENSAGEM_ESTORNO_SUSPENSO).toBe("Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro.");
+    expect(MENSAGEM_ESTORNO_SUSPENSO).toBe("Exclusão temporariamente indisponível.");
+    expect(MENSAGEM_ESTORNO_SUSPENSO).not.toMatch(/cancel|estorn/i);
   });
 });
 

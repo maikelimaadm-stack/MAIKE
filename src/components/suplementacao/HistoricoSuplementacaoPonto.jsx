@@ -31,7 +31,7 @@ const diaDoLancamento = (valor) => {
  * "Rótulo: valor" e as métricas por seção). Regras, consultas e a política de
  * estorno (D-PROD-94a) não mudam.
  *
- * D-PROD-268: "Cancelar lançamento" no pé do cartão (`CancelarLancamentoCocho`: comando do
+ * D-PROD-268: "Excluir lançamento" no pé do cartão (`CancelarLancamentoCocho`: comando do
  * servidor, só para quem tem a permissão, motivo obrigatório, elegibilidade antes de habilitar,
  * só online). A regra local (só o mais recente, sem movimentação de gado depois) é só DICA para
  * esconder a ação; quem decide é o servidor. A reversão antiga pelo navegador saiu daqui.
@@ -47,8 +47,10 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
     queryFn: async () => {
       const cached = await getMapaCachedData('eventosSuplementacao', empresaSelecionadaId);
       
+      // Lançamento excluído (situacao "cancelado" no servidor) some do histórico do cocho, mesmo
+      // numa cópia antiga do aparelho que ainda o traga.
       const applyFilter = (data) => data
-        .filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === pontoId)
+        .filter((evento) => evento.empresa_id === empresaSelecionadaId && evento.ponto_suplementacao_id === pontoId && evento.situacao !== "cancelado")
         .sort((a, b) => new Date(b.created_date || b.data_lancamento || 0) - new Date(a.created_date || a.data_lancamento || 0));
 
       if (navigator.onLine) {
@@ -104,7 +106,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
     return mapa;
   }, [eventos, movimentacoes]);
 
-  // Depois do cancelamento: o cartão sai já (o componente relê caches e o mapa).
+  // Depois da exclusão: o cartão sai já (o componente relê caches e o mapa).
   const aoCancelar = (id) => queryClient.setQueryData(["suplementacao-ponto", pontoId], (current = []) => current.filter((item) => item.id !== id));
 
   // Erro sem nada guardado: o estado de erro do Histórico de Movimentação (não "nenhum lançamento").
@@ -164,7 +166,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
             <CardMetricaEvento evento={evento} showProjecao={true} {...(nivel?.evento?.id != null && evento.id === nivel.evento.id ? projecaoDoCartaoDoNivel(nivel) : {})} />
 
             {evento.observacoes ? <LinhaHistorico rotulo="Observações">{evento.observacoes}</LinhaHistorico> : null}
-            {CANCELAMENTO_COCHO_HABILITADO && index === 0 && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">O gado foi movimentado nas áreas deste cocho depois deste lançamento: ele não pode ser cancelado.</div>}
+            {CANCELAMENTO_COCHO_HABILITADO && index === 0 && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">O gado foi movimentado nas áreas deste cocho depois deste lançamento: ele não pode ser excluído.</div>}
           </CartaoHistorico>
         );
       })}

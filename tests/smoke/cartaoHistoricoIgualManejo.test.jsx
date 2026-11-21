@@ -3,8 +3,10 @@
  * D-PROD-222 — o cartão comum dos históricos (`CartaoHistorico`) tem o MESMO
  * desenho do cartão do Histórico de Movimentação do manejo
  * (`HistoricoMovimentacoes`): as mesmas classes na raiz, na fileira de selos,
- * no selo da data, nos selos de tipo e situação, no título, nas linhas e no
- * rodapé. Se um mudar sem o outro, este teste cai. Dados sintéticos.
+ * no selo da data, nos selos de tipo, no título, nas linhas e no rodapé. Se um
+ * mudar sem o outro, este teste cai. No mapa só existe exclusão: o Histórico de
+ * Movimentação não tem mais selo de situação (Ativo/Cancelado) e não mostra o
+ * cancelado antigo. Dados sintéticos.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -83,7 +85,8 @@ const partes = (seloData) => {
     fileira: fileira.className,
     data: seloData.className,
     selo: /** @type {HTMLElement} */ (fileira.children[1]).className,
-    situacao: /** @type {HTMLElement} */ (fileira.children[3]).className,
+    // Sem selo de situação: a fileira é data, tipo e fluxo.
+    quantosSelos: fileira.children.length,
     titulo: /** @type {HTMLElement} */ (titulo).className,
     linhas: /** @type {HTMLElement} */ (linhas).className,
     rodape: rodape?.className ?? null,
@@ -108,7 +111,6 @@ describe("CartaoHistorico = cartão do Histórico de Movimentação (D-PROD-222)
                 <SeloHistorico tom="data">10/10/2026</SeloHistorico>
                 <SeloHistorico>Morte</SeloHistorico>
                 <SeloHistorico>Saída</SeloHistorico>
-                <SeloHistorico tom="verde">Ativo</SeloHistorico>
               </>
             }
             titulo="NELORE 1"
@@ -124,17 +126,21 @@ describe("CartaoHistorico = cartão do Histórico de Movimentação (D-PROD-222)
     expect(comum).toEqual(ref);
   });
 
-  it("o cartão cancelado, os selos vermelho (Cancelado) e âmbar (Vínculo pelo nome) e o botão do 'Excluir' (contorno) também são os do Histórico de Movimentação", async () => {
-    // Um cancelado e antigo (sem lote_id: "Vínculo pelo nome") ao lado da morte ativa, que tem o "Excluir movimentação".
-    const CANCELADO_LEGADO = { ...MORTE, id: "mv-c", lote_id: null, situacao: "cancelado", cancelamento: { por_login: "admin" } };
-    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([MORTE, CANCELADO_LEGADO]));
+  it("o selo âmbar (Vínculo pelo nome) e o botão do 'Excluir' (contorno) são os do Histórico de Movimentação; o cancelado antigo não aparece", async () => {
+    // Um antigo (sem lote_id: "Vínculo pelo nome") ativo do ledger, que tem o "Excluir movimentação", ao lado de um cancelado antigo.
+    const LEGADO = { ...MORTE, id: "mv-l", lote_id: null };
+    const CANCELADO = { ...MORTE, id: "mv-c", lote: "CANCELADO ANTIGO", situacao: "cancelado", cancelamento: { por_login: "admin" } };
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([LEGADO, CANCELADO]));
     noDialogo(<HistoricoMovimentacoes lotes={[]} areaId="area-A" />);
     const excluirRef = /** @type {HTMLButtonElement} */ (await screen.findByRole("button", { name: "Excluir movimentação" }));
     await waitFor(() => expect(excluirRef.disabled).toBe(false));
     const vinculoRef = screen.getByText("Vínculo pelo nome");
+    expect(screen.queryByText("CANCELADO ANTIGO")).toBeNull();
+    expect(screen.queryByText("Cancelado")).toBeNull();
+    expect(screen.queryByText("Ativo")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/cancel|estorn/i);
     const ref = {
-      cancelado: /** @type {HTMLElement} */ (vinculoRef.closest(".rounded-lg")).className,
-      vermelho: /** @type {HTMLElement} */ (screen.getAllByText("Cancelado").find((el) => el.className.includes("border-red-300"))).className,
+      cartao: /** @type {HTMLElement} */ (vinculoRef.closest(".rounded-lg")).className,
       ambar: vinculoRef.className,
       excluir: excluirRef.className,
     };
@@ -143,11 +149,9 @@ describe("CartaoHistorico = cartão do Histórico de Movimentação (D-PROD-222)
     noDialogo(
       <MolduraHistorico>
         <CartaoHistorico
-          cancelado
           selos={
             <>
               <SeloHistorico tom="data">10/10/2026</SeloHistorico>
-              <SeloHistorico tom="vermelho">Cancelado</SeloHistorico>
               <SeloHistorico tom="ambar">Vínculo pelo nome</SeloHistorico>
             </>
           }
@@ -158,11 +162,21 @@ describe("CartaoHistorico = cartão do Histórico de Movimentação (D-PROD-222)
     );
     const vinculo = screen.getByText("Vínculo pelo nome");
     expect({
-      cancelado: /** @type {HTMLElement} */ (vinculo.closest(".rounded-lg")).className,
-      vermelho: screen.getByText("Cancelado").className,
+      cartao: /** @type {HTMLElement} */ (vinculo.closest(".rounded-lg")).className,
       ambar: vinculo.className,
       excluir: screen.getByRole("button", { name: "Excluir" }).className,
     }).toEqual(ref);
+  });
+
+  it("fora do mapa nada muda: o CartaoHistorico continua com o fundo do cancelado e o selo vermelho para quem os usa", () => {
+    noDialogo(
+      <MolduraHistorico>
+        <CartaoHistorico cancelado selos={<SeloHistorico tom="vermelho">Situação</SeloHistorico>} titulo="NELORE 1" />
+      </MolduraHistorico>,
+    );
+    const selo = screen.getByText("Situação");
+    expect(selo.className).toContain("text-red-800 border-red-300 bg-red-50");
+    expect(/** @type {HTMLElement} */ (selo.closest(".rounded-lg")).className).toContain("border-slate-200 bg-[#FAFCFE]");
   });
 
   it("título do diálogo com a contagem; sem contagem quando zero ou nula", () => {

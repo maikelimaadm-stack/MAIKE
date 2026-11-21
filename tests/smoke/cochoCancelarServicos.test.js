@@ -61,6 +61,8 @@ describe('CS-1 — serviço do cancelamento', () => {
     const e2 = await cancelamento.consultarElegibilidadeCancelamentoCocho({ evento: EVENTO }).then(() => null, (e) => e);
     expect([e1?.code, e2?.code]).toEqual([API_ERROR_CODES.INVALID_ARGUMENT, API_ERROR_CODES.INVALID_ARGUMENT]);
     expect(e1.details.motivo).toBe('offline_comando_composto');
+    // Na tela só há exclusão.
+    expect(e1.details.mensagem).toBe('A exclusão do lançamento só é feita com conexão.');
     expect(http.chamadas).toEqual([]);
   });
 });

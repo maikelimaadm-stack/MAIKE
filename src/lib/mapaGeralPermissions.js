@@ -32,8 +32,9 @@ export const DEFAULT_MAPA_GERAL_PERMISSIONS = {
   // D-PROD-266 — excluir movimentação do lote (gravadora). Nasce DESLIGADA para
   // todo operador: só `=== true` gravado liga (`normalizeMapaGeralPermissions`).
   excluir_movimentacoes_lote: false,
-  // D-PROD-268 — cancelar lançamento de cocho e transferência entre depósitos
-  // (devolve estoque; gravadora). Nasce DESLIGADA para todo operador.
+  // D-PROD-268 — excluir lançamento de cocho e transferência entre depósitos
+  // (devolve estoque; gravadora). Nasce DESLIGADA para todo operador. A chave
+  // mantém o nome antigo (`cancelar_…`); na tela só há EXCLUSÃO.
   cancelar_lancamentos_estoque: false,
 };
 
@@ -80,7 +81,8 @@ export const MAPA_GERAL_PERMISSION_GROUPS = [
       { key: 'movimentar_depositos', label: 'Fazer entrada / saída em depósito' },
       { key: 'visualizar_historico_cocho', label: 'Ver histórico de cocho / depósito' },
       // D-PROD-268
-      { key: 'cancelar_lancamentos_estoque', label: 'Cancelar lançamento de cocho e transferência de depósito' },
+      // O texto visível é de EXCLUSÃO (o proprietário: "não tenho cancelamentos, tenho exclusão"); a chave não muda.
+      { key: 'cancelar_lancamentos_estoque', label: 'Excluir lançamento de cocho e transferência de depósito' },
     ],
   },
   {
@@ -155,11 +157,11 @@ export const podeExcluirMovimentacoesDoLote = (usuario, permissao) => {
   return mapa[CHAVE_EXCLUIR_MOVIMENTACOES_LOTE] === true;
 };
 
-/** D-PROD-268 — chave do mapa que libera cancelar lançamento de cocho e transferência de depósito. */
+/** D-PROD-268 — chave do mapa que libera excluir lançamento de cocho e transferência de depósito (o nome da chave não muda). */
 export const CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE = 'cancelar_lancamentos_estoque';
 
 /**
- * D-PROD-268 — quem vê "Cancelar lançamento" (cocho) e "Cancelar transferência"
+ * D-PROD-268 — quem vê "Excluir lançamento" (cocho) e "Excluir transferência"
  * (depósito): administrador real, `is_admin` ou a chave gravadora
  * `cancelar_lancamentos_estoque` com a tela do Mapa Geral visível. Mesma regra do
  * servidor (`podeCancelarLancamentosEstoque`). Só interface: o servidor reautoriza.

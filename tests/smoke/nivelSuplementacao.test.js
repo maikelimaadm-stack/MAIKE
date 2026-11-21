@@ -22,6 +22,7 @@ import {
   formatarKgNivel,
   formatarPercentualNivel,
   selecionarUltimoEventoDoPonto,
+  semExcluidos,
 } from '@/domain/suplementacao/nivelSuplementacao';
 
 const COCHO = {
@@ -732,6 +733,41 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
   });
 });
 
+describe('calcularNivelCocho — lançamento excluído não conta', () => {
+  const OUTRO = { ...COCHO, id: 'c2', nome_ponto: 'COCHO 2', area_vinculada_ids: undefined, area_vinculada_id: 'a1' };
+
+  it('o último lançamento excluído (situacao "cancelado") é ignorado: vale o anterior, igual a sem ele', () => {
+    const anterior = evento({ id: 'anterior', data_lancamento: '2026-11-01' });
+    const excluido = evento({ id: 'excluido', data_lancamento: '2026-11-03', quantidade_total_kg: 999, situacao: 'cancelado' });
+    const com = nivel({ eventos: [anterior, excluido], hoje: '2026-11-03' });
+    const sem = nivel({ eventos: [anterior], hoje: '2026-11-03' });
+    expect(com.evento?.id).toBe('anterior');
+    expect(com.saldoKg).toBe(100);
+    expect(com.alertas).toEqual(sem.alertas);
+    expect(com.rotuloCurto).toBe(sem.rotuloCurto);
+    expect(com.mensagem).toBe(sem.mensagem);
+  });
+
+  it('só lançamentos excluídos ⇒ "Sem lançamento" com o alerta de cocho sem lançamento', () => {
+    const n = nivel({ eventos: [evento({ situacao: 'cancelado' })] });
+    expect(n.estado).toBe('sem_lancamento');
+    expect(n.evento).toBeNull();
+    expect(n.alertas.map((a) => a.tipo)).toEqual(['cocho_sem_lancamento']);
+  });
+
+  it('o lançamento excluído do outro cocho não torna a estimativa compartilhada', () => {
+    const eventos = [evento(), evento({ id: 'e2', ponto_suplementacao_id: 'c2', situacao: 'cancelado' })];
+    const n = nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-02' });
+    expect(n.confiabilidade).toBe('estimada');
+    expect(n.compartilhadoCom).toEqual([]);
+    expect(n.saldoKg).toBe(150);
+  });
+
+  it('situacao "ativo" (ou ausente) continua contando normalmente', () => {
+    expect(nivel({ eventos: [evento({ situacao: 'ativo' })], hoje: '2026-11-02' }).saldoKg).toBe(150);
+  });
+});
+
 describe('calcularNivelCocho — quantização do ícone', () => {
   it('fracaoParaSvg é a fração do ciclo arredondada em 1%', () => {
     const n1 = nivel({ eventos: [evento({ quantidade_total_kg: 3, consumo_esperado_pv_kg: 1 })], hoje: '2026-11-02' });
@@ -929,5 +965,30 @@ describe('adaptadores de compatibilidade (pontoStatusUtils) delegam ao SSOT', ()
     expect(ind.necessidadeReposicao).toBe(0);
     expect(ind.isCritical).toBe(false);
     expect(ind.latestRecord).toBeNull();
+  });
+});
+
+describe('semExcluidos — a lista única de lançamentos do mapa', () => {
+  it('tira só os excluídos (situacao "cancelado"), na ordem original', () => {
+    const lista = [
+      { id: 'a', situacao: 'ativo' },
+      { id: 'b', situacao: 'cancelado' },
+      { id: 'c' },
+    ];
+    expect(semExcluidos(lista).map((e) => e.id)).toEqual(['a', 'c']);
+  });
+
+  it('sem excluído devolve o MESMO array; com excluído, sempre o mesmo filtrado para a mesma entrada', () => {
+    const limpa = [{ id: 'a' }, { id: 'b', situacao: 'ativo' }];
+    expect(semExcluidos(limpa)).toBe(limpa);
+    const suja = [{ id: 'a' }, { id: 'b', situacao: 'cancelado' }];
+    const primeira = semExcluidos(suja);
+    expect(primeira).not.toBe(suja);
+    expect(semExcluidos(suja)).toBe(primeira);
+  });
+
+  it('entrada que não é lista vira lista vazia', () => {
+    expect(semExcluidos(null)).toEqual([]);
+    expect(semExcluidos(undefined)).toEqual([]);
   });
 });

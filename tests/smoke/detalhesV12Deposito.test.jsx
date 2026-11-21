@@ -412,6 +412,21 @@ describe('DV-9 — movimentacoesDoHistoricoDeposito (regra do histórico complet
     expect(movimentacoesDoHistoricoDeposito(null, filtro)).toEqual([]);
   });
 
+  it('só exclusão no mapa: registro excluído (Estornada) e os estorno_* do servidor não entram; os outros ficam com o saldo gravado', () => {
+    const lista = [
+      ...MOVS.map((m) => (m.id === 'mv-ent' ? { ...m, saldo_antes: 400, saldo_depois: 1400 } : m)),
+      mov('transf-excluida-saida', { ...em('2026-11-12'), tipo_detalhado: 'transferencia_enviada', status: 'Estornada', local_estoque_origem: LOCAL, local_estoque_destino: 'loc-y' }),
+      mov('transf-excluida-entrada', { ...em('2026-11-12'), tipo_detalhado: 'transferencia_recebida', status: 'Estornada', local_estoque_origem: 'loc-y', local_estoque_destino: LOCAL }),
+      mov('supl-excluida', { ...em('2026-11-12'), tipo_detalhado: 'suplementacao', status: 'Estornada', local_estoque_origem: LOCAL }),
+      mov('est-env', { ...em('2026-11-13'), tipo_detalhado: 'estorno_transferencia_enviada', local_estoque_destino: LOCAL }),
+      mov('est-rec', { ...em('2026-11-13'), tipo_detalhado: 'estorno_transferencia_recebida', local_estoque_origem: LOCAL }),
+      mov('est-supl', { ...em('2026-11-13'), tipo_detalhado: 'estorno_suplementacao', local_estoque_destino: LOCAL }),
+    ];
+    const saida = movimentacoesDoHistoricoDeposito(lista, filtro);
+    expect(saida.map((m) => m.id)).toEqual(['mv-litro', 'mv-sai', 'mv-ent']);
+    expect([saida[2].saldo_antes, saida[2].saldo_depois]).toEqual([400, 1400]);
+  });
+
   it('ordem: registro mais novo primeiro (created_date); empate, a data da movimentação', () => {
     const a = mov('a', { created_date: '2026-11-05T10:00:00.000Z', data_movimentacao: '2026-11-01T12:00:00.000Z', local_estoque_destino: LOCAL });
     const b = mov('b', { created_date: '2026-11-06T10:00:00.000Z', data_movimentacao: '2026-10-20T12:00:00.000Z', local_estoque_destino: LOCAL });
