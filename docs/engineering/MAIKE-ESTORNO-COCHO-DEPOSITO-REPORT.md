@@ -1,10 +1,10 @@
 FATIA: MAIKE-ESTORNO-COCHO-DEPOSITO (etapa 2 da MAIKE-EXCLUIR-HISTORICOS-MAPA)
 BRANCH: feat/estorno-cocho-deposito
-PR: (a abrir)
+PR: #353
 
 # MAIKE-ESTORNO-COCHO-DEPOSITO — Relatório
 
-**Decisão:** [D-PROD-268](./DECISIONS.md) · **Base:** `origin/main` `2e048854` (PR #351 mergeada) · **Migration:** nenhuma
+**Decisão:** [D-PROD-268](./DECISIONS.md) · **Base:** `origin/main` `2e048854` (PR #351 mergeada), com a `main` `695ddb25` (PR #352) integrada · **Migration:** nenhuma
 
 ## 1. Pedido e escolhas do proprietário
 
@@ -47,7 +47,8 @@ Na integração: dois smoke antigos (`historicoEstornoSuspenso`, `historicosMapa
 |---|---|
 | Testes do estorno: `motorEstornoCochoTransferencia`, `suplementacaoCancelamentoCocho`, `…Vinculos`, `depositoCancelarTransferencia`, `permissoesR2Rotas`, `estoqueSaidas` | 75/75 |
 | `test:backend` completo | ver §6 |
-| `test:smoke` completo | 312 arquivos, 3890 testes, todos passam |
+| Testes do estorno + os da PR #352, depois de integrar a `main` | 156/156 |
+| `test:smoke` completo (depois de integrar a `main`) | 313 arquivos, 3910 testes, todos passam |
 | Gates do `verify:all` (todos menos backend/smoke/build), `gate:types`, `typecheck:backend`, `lint` (0 erros), `build` | passam |
 
 Em todos os caminhos felizes, os testes conferem `GET /estoque-fisico/reconciliacao` sem achados.
@@ -62,8 +63,8 @@ Em todos os caminhos felizes, os testes conferem `GET /estoque-fisico/reconcilia
 
 | Onde | Etapa | Resultado |
 |---|---|---|
-| Local | `test:backend` completo | (preencher) |
-| CI `quality` | `verify:full` (estático, smoke 1/2 e 2/2, backend 1/4 a 4/4) | (preencher) |
+| Local | `test:backend` completo | Nenhuma falha ligada a esta missão. 4 testes de outras áreas falharam só porque o banco local foi criado com locale `C`: `gestaoP2Naturezas` A, `patrimonioP1Catalogos` K3/K4 e `patrimonioSimplifica02` C2, todos com busca ou nome repetido com acento. Num banco `C.UTF-8` passam 14/14 e 28/28 |
+| CI `quality` | `verify:full` (estático, smoke 1/2 e 2/2, backend 1/4 a 4/4) | resultado na PR #353 |
 
 ## 7. Fora do escopo / próximos
 

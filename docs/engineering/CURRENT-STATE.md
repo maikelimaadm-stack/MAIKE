@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-268**, etapa 2 da D-PROD-266; escolhas do proprietário: permissão nova desligada, recusar com movimento depois, cancelado some dos históricos, recusar com origem inativa |
-| Branch / PR | `feat/estorno-cocho-deposito`, a partir da `main` `2e048854`, com a `main` `695ddb25` integrada · PR (a abrir) |
+| Branch / PR | `feat/estorno-cocho-deposito`, a partir da `main` `2e048854`, com a `main` `695ddb25` integrada · PR **#353** |
 | Escopo | Permissão `cancelar_lancamentos_estoque`; primitivas de estorno no motor; `POST /suplementacao-eventos/:id/cancelamento` e `POST /movimentacoes-estoque/:id/cancelar-transferencia`, com ensaio GET; botões nos históricos do cocho e do depósito |
 | Migration | Nenhuma. Merge e deploy normais |
 | Relatório | [`MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md`](./MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md) |
