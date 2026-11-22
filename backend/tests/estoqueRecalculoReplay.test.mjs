@@ -238,6 +238,21 @@ describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reai
   });
 });
 
+describe('D-PROD-273 fatia 3 — estorno em lote do financeiro', () => {
+  test('cancelar uma venda de duas linhas no mesmo depósito reavalia o poço UMA vez no fim (5,3640; item a item daria 5,3641) e o replay reproduz', async () => {
+    const x = await montar();
+    const A = x.local;
+    await entrar(x, x.sal, A, '52', '6.31');
+    await entrar(x, x.sal, A, '31', '2.78');
+    const venda = await vender(x, [[x.sal, A, '3', '9'], [x.sal, A, '7', '9']]);
+    await entrar(x, x.sal, A, '29', '6.43');
+    await cancelarOperacao(x, venda.id);
+    const camadas = await prisma().estoqueLoteNota.findMany({ where: { cliente_id: x.c, produto_id: x.sal.id, status: 'Disponivel' } });
+    assert.deepEqual([...new Set(camadas.map((l) => l.custo_unitario.toFixed(4)))], ['5.3640']);
+    await provarReplay(x, x.sal);
+  });
+});
+
 describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
   test('excluir uma saída antiga: o saldo dos posteriores sobe e o custo deles muda (conta à mão); nada é gravado', async () => {
     const x = await montar();
