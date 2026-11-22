@@ -15,6 +15,7 @@ import {
   formatarReais,
   quantidadeComSinal,
   rotuloDoMovimento,
+  rotuloSituacao,
 } from "@/lib/estoqueConsultaRegras";
 import { saidaDoMovimento } from "@/lib/estoqueSaidasRegras";
 import { createPageUrl } from "@/utils";
@@ -93,7 +94,7 @@ export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar,
             <Linha rotulo="Quantidade" valor={quantidadeComSinal(m)} testId="movimento-quantidade" />
             <Linha rotulo="Depósito" valor={depositoDoMovimento(m)} />
             <Linha rotulo="Origem" valor={ROTULO_ORIGEM[m.origem_sistema] !== rotuloDoMovimento(m) ? (ROTULO_ORIGEM[m.origem_sistema] ?? m.origem_sistema) : null} />
-            <Linha rotulo="Situação" valor={m.status === "Estornada" ? "Estornada" : m.estorno ? "Estorno" : "Ativa"} />
+            <Linha rotulo="Situação" valor={rotuloSituacao(m)} testId="movimento-situacao" />
           </Grupo>
 
           <Grupo titulo="Saldo e custo">

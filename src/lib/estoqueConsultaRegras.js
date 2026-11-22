@@ -66,6 +66,23 @@ export const rotuloDoMovimento = (m) => {
   return ROTULO_ORIGEM[m?.origem_sistema ?? ''] ?? (m?.tipo === 'Saída' ? 'Saída' : 'Entrada');
 };
 
+/**
+ * D-PROD-273 (fatia 2): o movimento excluído (original 'Estornada') e o estorno dele somem da lista; o filtro
+ * "Mostrar excluídos" os traz de volta, marcados pelo servidor (`excluido`). Sem par completo, a situação de sempre.
+ */
+export const ROTULO_EXCLUIDO = "Excluído";
+export const ROTULO_ESTORNO_DA_EXCLUSAO = "Estorno da exclusão";
+export const OPCOES_EXCLUIDOS = Object.freeze([
+  { value: "", label: "Não" },
+  { value: "sim", label: "Sim" },
+]);
+
+/** Situação do movimento: Excluído / Estorno da exclusão (par excluído), Estornada, Estorno ou Ativa. @param {any} m */
+export const rotuloSituacao = (m) => {
+  if (m?.excluido === true) return m?.estorno ? ROTULO_ESTORNO_DA_EXCLUSAO : ROTULO_EXCLUIDO;
+  return m?.status === "Estornada" ? "Estornada" : m?.estorno ? "Estorno" : "Ativa";
+};
+
 /** @param {string|null|undefined} dia AAAA-MM-DD → DD/MM/AAAA */
 export const formatarDia = (dia) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dia ?? ''));
