@@ -7,6 +7,10 @@
  * D-PROD-259: o motivo vem do CADASTRO de motivos (natureza SALDO_IMPLANTACAO ou ENTRADA); a entrada tem cabeçalho
  * (data, motivo, fornecedor, documento, centros, observação) e VÁRIOS produtos (produto, unidade, depósito,
  * quantidade, valor unitário, valor total, lote, validade). O saldo de implantação não tem fornecedor nem documento.
+ *
+ * D-PROD-271: a edição completa reabre o mesmo formulário preenchido com a versão vigente (`formularioDaEntrada`) e
+ * manda o corpo da criação + `versao` e `motivo_edicao` (`montarCorpoEdicaoEntrada`); o servidor estorna e refaz os
+ * lançamentos só se nada mexeu no estoque da entrada depois.
  */
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
@@ -111,7 +115,7 @@ export const dividirArredondar = (a, b, casas) => {
 };
 
 /** Formata um canônico para o campo de edição (vírgula decimal, sem zeros à direita). @param {string} canonico */
-const paraCampo = (canonico) => {
+export const paraCampo = (canonico) => {
   const [i, f = ''] = String(canonico).split('.');
   const fracao = f.replace(/0+$/, '');
   return fracao ? `${i},${fracao}` : i;
@@ -205,6 +209,57 @@ export const montarCorpoEntrada = (empresaId, form, operationId) => {
   };
 };
 
+// ─── edição completa (D-PROD-271) ──────────────────────────────────────────
+
+/** @param {any} id @param {any} nome */
+const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ?? '') } : null);
+
+/**
+ * D-PROD-271 — o formulário do "Novo movimento" preenchido com a versão VIGENTE de uma entrada (o detalhe do
+ * servidor), para a edição completa. Decimais canônicos viram texto de campo ("1500.0000" → "1500", "3.4000" →
+ * "3,4"). O produto em saco traz o peso do saco pelo fator da linha (para a unidade "Sacos" continuar oferecida).
+ * @param {any} e detalhe da entrada
+ */
+export const formularioDaEntrada = (e) => {
+  const itens = (Array.isArray(e?.itens) ? e.itens : []).map((/** @type {any} */ i) => ({
+    ...linhaVaziaEntrada(),
+    produto: { id: String(i.produto_id), rotulo: String(i.produto_nome ?? ''), unidade_estoque: i.unidade_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: i.unidade === 'SACO' ? (i.fator_kg ?? null) : null },
+    deposito: { id: String(i.local_estoque_id), rotulo: String(i.local_estoque_nome ?? '') },
+    unidade: String(i.unidade ?? ''),
+    quantidade: i.quantidade != null ? paraCampo(i.quantidade) : '',
+    custo: i.custo_zero || i.custo_unitario == null ? '' : paraCampo(i.custo_unitario),
+    total: i.custo_zero || i.valor_total == null ? '' : paraCampo(i.valor_total),
+    custo_zero: Boolean(i.custo_zero),
+    lote: String(i.lote_fabricante ?? ''),
+    validade: String(i.data_validade ?? ''),
+  }));
+  return {
+    motivo: e?.motivo_id ? { id: String(e.motivo_id), nome: rotuloDoMotivo(e), natureza: String(e.motivo ?? MOTIVO_ENTRADA) } : null,
+    data_entrada: String(e?.data_entrada ?? ''),
+    fornecedor: opcaoOuNada(e?.fornecedor_id, e?.fornecedor_nome),
+    documento_numero: String(e?.documento_numero ?? ''),
+    centro_custo: opcaoOuNada(e?.centro_custo_id, e?.centro_custo_nome),
+    centro_resultado: opcaoOuNada(e?.centro_resultado_id, e?.centro_resultado_nome),
+    observacao: String(e?.observacao ?? ''),
+    itens: itens.length ? itens : [linhaVaziaEntrada()],
+  };
+};
+
+/** O motivo da edição (≥ 3 caracteres): a mensagem do que falta, ou `null`. @param {string} texto */
+export const erroDoMotivoDaEdicao = (texto) =>
+  tamanho(texto) < MOTIVO_ACAO_MINIMO ? `Informe o motivo da edição (ao menos ${MOTIVO_ACAO_MINIMO} caracteres).` : null;
+
+/**
+ * D-PROD-271 — corpo do PATCH de SUBSTITUIÇÃO: o MESMO corpo da criação (`montarCorpoEntrada`: a versão nova
+ * completa; opcional vazio vai `null`) + a versão lida e o motivo da edição.
+ * @param {string} empresaId @param {any} form @param {{ versao: number, motivoEdicao: string }} edicao @param {string} operationId
+ */
+export const montarCorpoEdicaoEntrada = (empresaId, form, edicao, operationId) => ({
+  ...montarCorpoEntrada(empresaId, form, operationId),
+  versao: edicao.versao,
+  motivo_edicao: String(edicao.motivoEdicao ?? '').trim(),
+});
+
 /** `operation_id` estável enquanto o conteúdo é o mesmo (reenvio sem resposta = replay), novo quando muda. @param {string} [prefixo] */
 export const chaveDeOperacao = (prefixo = 'ent') =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? `${prefixo}-${crypto.randomUUID()}` : `${prefixo}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -250,8 +305,42 @@ export const dadosDaTransferencia = (form, operationId) => ({
 
 // ─── apresentação ───────────────────────────────────────────────────────────
 
-/** Itens da entrada (os vigentes; a excluída mostra os do histórico). @param {any} e */
-export const itensParaMostrar = (e) => (Array.isArray(e?.itens) && e.itens.length ? e.itens : Array.isArray(e?.itens_historico) ? e.itens_historico : []);
+/**
+ * As linhas da entrada por versão (D-PROD-271): `itens` são as da versão mostrada (as vigentes; na excluída, as da
+ * última versão, encerradas pela exclusão) e `anteriores` as versões substituídas por edições, da mais nova para a
+ * mais antiga (`revisao` = a revisão em que a versão nasceu).
+ * @param {any} e
+ * @returns {{ itens: any[], anteriores: Array<{ revisao: number, itens: any[] }> }}
+ */
+export const versoesDaEntrada = (e) => {
+  const vigentes = Array.isArray(e?.itens) ? e.itens : [];
+  const historico = Array.isArray(e?.itens_historico) ? e.itens_historico : [];
+  const fim = (/** @type {any} */ i) => Number(i?.revisao_fim ?? 0);
+  const ultima = historico.reduce((/** @type {number} */ m, /** @type {any} */ i) => Math.max(m, fim(i)), 0);
+  const itens = vigentes.length ? vigentes : historico.filter((/** @type {any} */ i) => fim(i) === ultima);
+  /** @type {Map<number, any[]>} */
+  const grupos = new Map();
+  for (const i of historico) {
+    if (itens.includes(i)) continue;
+    const r = Number(i?.revisao_inicio ?? 0);
+    grupos.set(r, [...(grupos.get(r) ?? []), i]);
+  }
+  const anteriores = [...grupos.entries()].sort((a, b) => b[0] - a[0]).map(([revisao, linhas]) => ({ revisao, itens: linhas }));
+  return { itens, anteriores };
+};
+
+/** Itens da entrada (os vigentes; a excluída mostra os da última versão). @param {any} e */
+export const itensParaMostrar = (e) => versoesDaEntrada(e).itens;
+
+/**
+ * Rótulo de um evento do histórico (entrada e saída). D-PROD-271: a edição com substituição diz que os lançamentos
+ * de estoque foram refeitos; a de observação segue "Editada".
+ * @param {{ tipo?: string, modo?: string|null }} v
+ */
+export const rotuloDoEventoEstoque = (v) => {
+  if (v?.tipo === 'EDICAO' && v?.modo === 'SUBSTITUICAO') return 'Editado (lançamentos refeitos)';
+  return /** @type {Record<string, string>} */ ({ CONFIRMACAO: 'Lançada', EDICAO: 'Editada', EXCLUSAO: 'Excluída' })[String(v?.tipo)] ?? String(v?.tipo ?? '');
+};
 
 /** Nome do motivo (do cadastro) ou, sem ele, a natureza. @param {any} e */
 export const rotuloDoMotivo = (e) => String(e?.motivo_nome ?? ROTULO_NATUREZA[/** @type {keyof typeof ROTULO_NATUREZA} */ (e?.motivo)] ?? e?.motivo ?? '');
@@ -357,5 +446,55 @@ export const mensagemErroEntrada = (erro, padrao) => {
       return `Esta operação já foi enviada com outro conteúdo. Feche a janela e abra de novo. ${NADA}`;
     default:
       return getApiErrorMessage(erro, padrao);
+  }
+};
+
+/** "Ureia no depósito Galpão insumos" da linha vigente citada pela recusa (`details.item_ordem`, 1-based). @param {Record<string, any>} details @param {any[]} vigentes */
+const linhaVigenteCitada = (details, vigentes) => {
+  const ordem = Number.isInteger(details?.item_ordem) ? details.item_ordem : null;
+  const linha = ordem == null ? null : (vigentes.find((i) => i?.ordem === ordem) ?? vigentes[ordem - 1] ?? null);
+  if (!linha) return '';
+  const produto = linha.produto_nome ? String(linha.produto_nome) : 'o produto';
+  return linha.local_estoque_nome ? `${produto} no depósito ${linha.local_estoque_nome}` : produto;
+};
+
+/** Causas de "algo mexeu depois" na EDIÇÃO (`details.reason` de ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS). */
+const DEPENDENCIA_EDICAO = /** @type {Record<string, string>} */ ({
+  camada_consumida: 'já foi usado depois desta entrada (venda, abastecimento, atividade, transferência ou suplementação)',
+  consumo_estornado: 'já foi usado depois desta entrada, numa baixa que depois foi cancelada',
+  camada_citada_em_baixa: 'já aparece numa baixa feita depois desta entrada',
+  custo_reavaliado: 'teve o custo recalculado por uma baixa feita depois desta entrada',
+  prova_indeterminada: 'tem movimentos demais para provar que nada mexeu nele depois desta entrada',
+  camada_inexistente: 'não se prova intocado depois desta entrada',
+  estoque_ja_consumido: 'já foi usado depois desta entrada',
+});
+
+/**
+ * D-PROD-271 — mensagem em português de uma recusa da EDIÇÃO COMPLETA da entrada (pelo código; a `message` do
+ * servidor nunca aparece). `vigentes` são as linhas da versão que estava sendo editada (para dizer o produto e o
+ * depósito em que algo mexeu depois). O resto cai nas mensagens da criação (`mensagemErroEntrada`).
+ * @param {unknown} erro @param {string} padrao @param {any[]} [vigentes]
+ */
+export const mensagemErroEdicaoEntrada = (erro, padrao, vigentes = []) => {
+  const { code, reason, details } = lerErroGestao(erro);
+  switch (code) {
+    case 'ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS': {
+      const onde = linhaVigenteCitada(details, vigentes);
+      const causa = DEPENDENCIA_EDICAO[String(reason)] ?? 'não se prova intocado depois desta entrada';
+      return `Não dá para editar: o estoque ${onde ? `de ${onde}` : 'desta entrada'} ${causa}. Os lançamentos não foram refeitos. Nada foi alterado.`;
+    }
+    case 'ENTRADA_ESTOQUE_INVALIDA':
+      if (reason === 'nada_a_alterar') return 'Nada mudou na entrada: altere algum campo antes de salvar.';
+      return mensagemErroEntrada(erro, padrao);
+    case 'ENTRADA_ESTOQUE_STATUS_INVALIDO':
+      return 'Esta entrada não pode mais ser editada (já foi excluída). Nada foi alterado.';
+    case 'ENTRADA_ESTOQUE_VERSAO_CONFLITO':
+      return 'A entrada mudou desde que foi aberta (outra edição ou exclusão). Feche e abra de novo. Nada foi alterado.';
+    case 'ESTOQUE_SALDO_INSUFICIENTE':
+      return 'Não há saldo suficiente para refazer os lançamentos desta entrada. Nada foi alterado.';
+    case 'IDEMPOTENCY_CONFLICT':
+      return 'Esta edição já foi enviada com outro conteúdo. Feche a janela e abra de novo. Nada foi alterado.';
+    default:
+      return mensagemErroEntrada(erro, padrao);
   }
 };

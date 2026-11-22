@@ -3,7 +3,7 @@
  * D-PROD-259: o motivo vem do cadastro (`motivo_id`; padrões Compra, Doação e Saldo de implantação);
  * fornecedor, centros, lote e validade; sem justificativa obrigatória.
  * PostgreSQL real, HTTP autenticado: as naturezas do motivo, custo zero só com a declaração,
- * implantação única, motivo imutável, permissão `entrada` (403), isolamento por tenant, exclusão com
+ * implantação única, edição (METADADOS; a substituição é a D-PROD-271), permissão `entrada` (403), isolamento por tenant, exclusão com
  * estorno pelo motor e prova fail-closed, documento duplicado e a API do documento.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -302,15 +302,12 @@ describe('D-PROD-257 — implantação ativa única e sem histórico', () => {
   });
 });
 
-describe('D-PROD-257 — motivo imutável, edição só da observação', () => {
-  test('PATCH com outro motivo → 422 ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL; com o mesmo motivo e nova observação → 200, versão e revisão sobem, evento EDICAO/METADADOS', async () => {
+describe('D-PROD-257 → D-PROD-271 — edição: METADADOS (só a observação) e a substituição exige o corpo completo', () => {
+  test('PATCH só com a observação → 200, versão e revisão sobem, evento EDICAO/METADADOS, estoque intocado; versão velha → 409', async () => {
     const x = await cenario();
     const a = (await criar(x)).json();
     const base = { empresa_id: x.e.id, versao: a.versao, motivo_edicao: 'corrigir observação' };
-    const troca = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, motivo_id: x.mot.doacao });
-    assert.equal(troca.statusCode, 422, troca.body);
-    assert.equal(troca.json().code, 'ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL');
-    const ok = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, motivo_id: x.mot.implantacao, observacao: 'conferido no galpão' });
+    const ok = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, observacao: 'conferido no galpão' });
     assert.equal(ok.statusCode, 200, ok.body);
     const b = ok.json();
     assert.deepEqual([b.motivo, b.versao, b.revisao, b.observacao], ['SALDO_IMPLANTACAO', 2, 2, 'conferido no galpão']);
@@ -321,22 +318,28 @@ describe('D-PROD-257 — motivo imutável, edição só da observação', () => 
     assert.equal(velha.json().code, 'ENTRADA_ESTOQUE_VERSAO_CONFLITO');
   });
 
-  test('campo físico (data, documento, itens) na edição → 409 ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA; nada muda', async () => {
+  test('D-PROD-271: campo físico sem a versão nova completa → 400 (esquema ou validação da criação) e nada muda', async () => {
     const x = await cenario();
     const a = (await criar(x)).json();
-    const r = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'trocar quantidade', itens: [] });
-    assert.equal(r.statusCode, 409, r.body);
-    assert.equal(r.json().code, 'ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA');
+    const base = { empresa_id: x.e.id, versao: 1, motivo_edicao: 'trocar quantidade' };
+    const vazio = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, itens: [] });
+    assert.equal(vazio.statusCode, 400, vazio.body);
+    const soMotivo = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, motivo_id: x.mot.doacao, observacao: 'x' });
+    assert.deepEqual([soMotivo.statusCode, soMotivo.json().code], [400, 'REQUEST_VALIDATION_FAILED'], soMotivo.body);
+    assert.equal(razao(soMotivo), 'formato', 'a substituição exige operation_id, como a criação');
+    const semItens = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { ...base, operation_id: `ed-${randomUUID()}`, motivo_id: x.mot.implantacao, data_entrada: hoje() });
+    assert.deepEqual([semItens.statusCode, semItens.json().code], [400, 'REQUEST_VALIDATION_FAILED'], semItens.body);
+    assert.equal(razao(semItens), 'quantidade_de_itens');
     const d = await chamar('GET', `/estoque/entradas/${a.id}${qs({ empresa_id: x.e.id })}`, x.token);
-    assert.equal(d.json().versao, 1);
+    assert.deepEqual([d.json().versao, d.json().motivo, d.json().eventos.length], [1, 'SALDO_IMPLANTACAO', 1]);
+    assert.equal(await estoqueAtual(x.ureia), 100);
   });
 
-  test('fornecedor ou centro na edição → 409 EDICAO_FISICA; justificativa (campo que não existe mais) → 400', async () => {
+  test('fornecedor ou centro sozinhos na edição → 400 (corpo incompleto); justificativa (campo que não existe mais) → 400', async () => {
     const x = await cenario();
     const a = (await criar(x, { motivo: 'DOACAO' }, { custo_unitario: '1' })).json();
     const r = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'trocar centro', centro_custo_id: 'qualquer' });
-    assert.equal(r.statusCode, 409, r.body);
-    assert.equal(r.json().code, 'ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA');
+    assert.deepEqual([r.statusCode, r.json().code], [400, 'REQUEST_VALIDATION_FAILED'], r.body);
     const j = await chamar('PATCH', `/estoque/entradas/${a.id}`, x.token, { empresa_id: x.e.id, versao: 1, motivo_edicao: 'abc', justificativa: 'x' });
     assert.equal(j.statusCode, 400, j.body);
   });

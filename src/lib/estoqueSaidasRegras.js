@@ -4,14 +4,17 @@
  *
  * Escolhas do proprietário: o motivo vem do CADASTRO de motivos de saída (padrões Perda, Consumo interno, Doação,
  * Vencimento; o usuário cria, renomeia e desativa); NÃO se digita valor (o servidor valoriza pelo custo médio do
- * depósito); excluir só se o produto não teve outro movimento naquele depósito depois; editar só a observação.
+ * depósito); excluir só se o produto não teve outro movimento naquele depósito depois.
+ * D-PROD-271: editar a observação sozinha, ou a edição completa (o mesmo formulário preenchido com a versão vigente,
+ * `formularioDaSaida`; o corpo da criação + `versao` e `motivo_edicao`, `montarCorpoEdicaoSaida`), que o servidor só
+ * aceita se o produto não teve outro movimento naquele depósito depois.
  * O servidor repete todas as regras e é quem bloqueia de fato.
  */
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { lerNumeroLocal } from '@/lib/dinheiroDecimal';
 import { formatarQtd } from '@/lib/estoqueConsultaRegras';
-import { LIMITES_ENTRADA, LOCALE_ENTRADA } from '@/lib/estoqueEntradasRegras';
+import { LIMITES_ENTRADA, LOCALE_ENTRADA, paraCampo } from '@/lib/estoqueEntradasRegras';
 
 export const MAX_ITENS_SAIDA = 50;
 export const ROTULO_STATUS_SAIDA = Object.freeze({ CONFIRMADA: 'Confirmada', EXCLUIDA: 'Excluída' });
@@ -87,6 +90,46 @@ export const montarCorpoSaida = (empresaId, form, operationId) => ({
     unidade: l.unidade,
     quantidade: /** @type {any} */ (lerDecimal(l.quantidade)).valor,
   })),
+});
+
+// ─── edição completa (D-PROD-271) ──────────────────────────────────────────
+
+/** @param {any} id @param {any} nome */
+const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ?? '') } : null);
+
+/**
+ * D-PROD-271 — o formulário da Saída preenchido com a versão VIGENTE (o detalhe do servidor), para a edição
+ * completa. A quantidade canônica vira texto de campo ("50.0000" → "50"); o produto em saco traz o peso do saco
+ * pelo fator da linha.
+ * @param {any} s detalhe da saída
+ */
+export const formularioDaSaida = (s) => {
+  const itens = (Array.isArray(s?.itens) ? s.itens : []).map((/** @type {any} */ i) => ({
+    ...linhaVaziaSaida(),
+    produto: { id: String(i.produto_id), rotulo: String(i.produto_nome ?? ''), unidade_estoque: i.unidade_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: i.unidade === 'SACO' ? (i.fator_kg ?? null) : null },
+    deposito: { id: String(i.local_estoque_id), rotulo: String(i.local_estoque_nome ?? '') },
+    unidade: String(i.unidade ?? ''),
+    quantidade: i.quantidade != null ? paraCampo(i.quantidade) : '',
+  }));
+  return {
+    motivo: s?.motivo_id ? { id: String(s.motivo_id), nome: String(s.motivo_nome ?? '') } : null,
+    data_saida: String(s?.data_saida ?? ''),
+    centro_custo: opcaoOuNada(s?.centro_custo_id, s?.centro_custo_nome),
+    centro_resultado: opcaoOuNada(s?.centro_resultado_id, s?.centro_resultado_nome),
+    observacao: String(s?.observacao ?? ''),
+    itens: itens.length ? itens : [linhaVaziaSaida()],
+  };
+};
+
+/**
+ * D-PROD-271 — corpo do PATCH de SUBSTITUIÇÃO da saída: o MESMO corpo da criação (`montarCorpoSaida`) + a versão
+ * lida e o motivo da edição.
+ * @param {string} empresaId @param {any} form @param {{ versao: number, motivoEdicao: string }} edicao @param {string} operationId
+ */
+export const montarCorpoEdicaoSaida = (empresaId, form, edicao, operationId) => ({
+  ...montarCorpoSaida(empresaId, form, operationId),
+  versao: edicao.versao,
+  motivo_edicao: String(edicao.motivoEdicao ?? '').trim(),
 });
 
 // ─── apresentação ───────────────────────────────────────────────────────────
@@ -184,5 +227,38 @@ export const mensagemErroSaida = (erro, padrao, itens = []) => {
       return `Esta operação já foi enviada com outro conteúdo. Feche a janela e abra de novo. ${NADA}`;
     default:
       return getApiErrorMessage(erro, padrao);
+  }
+};
+
+/**
+ * D-PROD-271 — mensagem em português de uma recusa da EDIÇÃO COMPLETA da saída (pelo código; a `message` do servidor
+ * nunca aparece). `itens` são as linhas do formulário (a versão nova: saldo insuficiente, linha recusada) e
+ * `vigentes` as da versão que estava sendo editada (para dizer onde houve movimento depois).
+ * @param {unknown} erro @param {string} padrao @param {any[]} [itens] @param {any[]} [vigentes]
+ */
+export const mensagemErroEdicaoSaida = (erro, padrao, itens = [], vigentes = []) => {
+  const { code, reason, details } = lerErroGestao(erro);
+  switch (code) {
+    case 'SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR': {
+      if (reason === 'fatias_ausentes') return 'Não dá para editar: não foi possível saber de quais lotes esta saída baixou. Os lançamentos não foram refeitos. Nada foi alterado.';
+      const ordem = Number.isInteger(details.item_ordem) ? details.item_ordem : null;
+      const linha = vigentes.find((i) => (details.produto_id && i?.produto_id === details.produto_id && (!details.local_estoque_id || i?.local_estoque_id === details.local_estoque_id)))
+        ?? (ordem != null ? (vigentes.find((i) => i?.ordem === ordem) ?? vigentes[ordem - 1]) : null);
+      const produto = linha?.produto_nome ? `o produto ${linha.produto_nome}` : 'o produto';
+      const deposito = linha?.local_estoque_nome ? `no depósito ${linha.local_estoque_nome}` : 'no depósito';
+      const numero = details.movimento_numero != null && details.movimento_numero !== '' ? ` (movimento nº ${details.movimento_numero})` : '';
+      return `Não dá para editar: ${produto} teve outro movimento ${deposito} depois desta saída${numero}. Para corrigir, lance uma entrada. Nada foi alterado.`;
+    }
+    case 'SAIDA_ESTOQUE_INVALIDA':
+      if (reason === 'nada_a_alterar') return 'Nada mudou na saída: altere algum campo antes de salvar.';
+      return mensagemErroSaida(erro, padrao, itens);
+    case 'SAIDA_ESTOQUE_STATUS_INVALIDO':
+      return 'Esta saída não pode mais ser editada (já foi excluída). Nada foi alterado.';
+    case 'SAIDA_ESTOQUE_VERSAO_CONFLITO':
+      return 'A saída mudou desde que foi aberta (outra edição ou exclusão). Feche e abra de novo. Nada foi alterado.';
+    case 'IDEMPOTENCY_CONFLICT':
+      return 'Esta edição já foi enviada com outro conteúdo. Feche a janela e abra de novo. Nada foi alterado.';
+    default:
+      return mensagemErroSaida(erro, padrao, itens);
   }
 };

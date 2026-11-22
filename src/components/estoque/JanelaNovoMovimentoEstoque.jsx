@@ -25,10 +25,14 @@ import {
   comValor,
   dadosDaTransferencia,
   ehImplantacao,
+  erroDoMotivoDaEdicao,
+  formularioDaEntrada,
   formularioVazioEntrada,
   formularioVazioTransferencia,
   linhaVaziaEntrada,
+  mensagemErroEdicaoEntrada,
   mensagemErroEntrada,
+  montarCorpoEdicaoEntrada,
   montarCorpoEntrada,
   tiposPermitidos,
   unidadesDoProduto,
@@ -44,17 +48,21 @@ import {
   listarFornecedoresDaEntrada,
   listarMotivosEntrada,
   listarProdutosDaEntrada,
+  substituirEntradaEstoque,
   transferirEntreDepositos,
 } from "@/services/estoqueEntradasService";
 import {
   MAX_ITENS_SAIDA,
+  formularioDaSaida,
   formularioVazioSaida,
   linhaVaziaSaida,
+  mensagemErroEdicaoSaida,
   mensagemErroSaida,
+  montarCorpoEdicaoSaida,
   montarCorpoSaida,
   validarFormularioSaida,
 } from "@/lib/estoqueSaidasRegras";
-import { criarMotivoSaida, criarSaidaEstoque, editarMotivoSaida, listarMotivosSaida } from "@/services/estoqueSaidasService";
+import { criarMotivoSaida, criarSaidaEstoque, editarMotivoSaida, listarMotivosSaida, substituirSaidaEstoque } from "@/services/estoqueSaidasService";
 import { formularioVazioAjuste, mensagemErroAjuste, montarCorpoAjuste, validarFormularioAjuste } from "@/lib/estoqueAjustesRegras";
 import { criarAjusteEstoque, saldoParaAjuste } from "@/services/estoqueAjustesService";
 
@@ -62,10 +70,10 @@ export const FORMULARIO_NOVO_MOVIMENTO_ID = "formulario-novo-movimento-estoque";
 const CHAVE_MOTIVOS = ["estoque", "motivos-entrada"];
 const CHAVE_MOTIVOS_SAIDA = ["estoque", "motivos-saida"];
 
-/** Área de texto Base1. @param {{ label: string, value: string, onChange: (v: string) => void, testId?: string }} props */
-function Observacao({ label, value, onChange, testId = undefined }) {
+/** Área de texto Base1. @param {{ label: string, value: string, onChange: (v: string) => void, testId?: string, required?: boolean, erro?: string }} props */
+function Observacao({ label, value, onChange, testId = undefined, required = false, erro = undefined }) {
   return (
-    <B1Field label={label} span={12} hasValue={Boolean(String(value ?? "").trim())}>
+    <B1Field label={label} span={12} required={required} error={erro} hasValue={Boolean(String(value ?? "").trim())}>
       <textarea value={value} onChange={(e) => onChange(e.target.value)} maxLength={500} rows={2} data-testid={testId} className="mg-input min-w-0 w-full normal-case" />
     </B1Field>
   );
@@ -75,6 +83,15 @@ function Observacao({ label, value, onChange, testId = undefined }) {
 const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null } : null);
 /** @param {any} o */
 const opcaoSimples = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
+
+/**
+ * O motivo vigente entra nas opções mesmo se foi desativado depois (na edição, o seletor mostra o que está gravado).
+ * @param {any[]} motivos @param {{ id: string, nome: string } | null} atual
+ */
+const opcoesDeMotivo = (motivos, atual) => {
+  const opcoes = motivos.map((/** @type {any} */ m) => ({ value: m.id, label: m.nome }));
+  return atual?.id && !opcoes.some((o) => o.value === atual.id) ? [{ value: atual.id, label: atual.nome }, ...opcoes] : opcoes;
+};
 
 /** Soma dos totais das linhas (texto canônico), ou "" se faltar algum. @param {any[]} itens */
 const totalDasLinhas = (itens) => {
@@ -285,27 +302,36 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
  * D-PROD-272: o Ajuste de inventário (ação própria `ajuste`): o usuário digita o saldo CONTADO de cada produto no
  * depósito e vê o saldo atual e a diferença (sobra/falta); sem data (é hoje na fazenda) e sem valor, exceto o custo da
  * sobra num depósito sem saldo. Com um tipo só, a janela já abre nele.
+ * D-PROD-271 — MODO EDIÇÃO (`edicao`): a mesma janela abre uma entrada ou uma saída CONFIRMADA com o tipo fixo (sem
+ * trocar de tipo), o título "Editar entrada nº N"/"Editar saída nº N", todos os campos preenchidos com a versão
+ * vigente e o "Motivo da edição" obrigatório. "Salvar edição" manda o corpo da criação + `versao`, `motivo_edicao` e
+ * uma `operation_id` própria (`ent-ed-`/`sai-ed-`), reaproveitada no reenvio do mesmo conteúdo. O servidor estorna e
+ * refaz os lançamentos só se nada mexeu depois; se só a observação mudou, ele grava como edição de observação.
+ * O Ajuste não tem modo edição (não há edição física do ajuste: só o estorno integral).
  * @param {{ aberto: boolean, empresaId: string, hoje: string, podeEntrada?: boolean, podeSaida?: boolean, podeAjuste?: boolean, onFechar: () => void,
- *   onLancado: (r: { tipo: string, entrada?: any, saida?: any, ajuste?: any }) => void }} props
+ *   edicao?: { tipo: 'entrada'|'saida', documento: any } | null,
+ *   onLancado: (r: { tipo: string, entrada?: any, saida?: any, ajuste?: any, editada?: boolean }) => void }} props
  */
-export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, podeEntrada = true, podeSaida = false, podeAjuste = false, onFechar, onLancado }) {
+export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, podeEntrada = true, podeSaida = false, podeAjuste = false, edicao = null, onFechar, onLancado }) {
   const celular = useCelular();
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
   const tipos = tiposPermitidos({ entrada: podeEntrada, saida: podeSaida, ajuste: podeAjuste });
-  const [tipo, setTipo] = useState(() => tipos[0]?.value ?? TIPO_ENTRADA);
+  const [tipo, setTipo] = useState(() => edicao?.tipo ?? tipos[0]?.value ?? TIPO_ENTRADA);
   const [modoMotivos, setModoMotivos] = useState(/** @type {null | 'entrada' | 'saida'} */ (null));
-  const [entrada, setEntrada] = useState(() => formularioVazioEntrada(hoje));
-  const [saida, setSaida] = useState(() => formularioVazioSaida(hoje));
+  const [entrada, setEntrada] = useState(() => (edicao?.tipo === TIPO_ENTRADA ? formularioDaEntrada(edicao.documento) : formularioVazioEntrada(hoje)));
+  const [saida, setSaida] = useState(() => (edicao?.tipo === TIPO_SAIDA ? formularioDaSaida(edicao.documento) : formularioVazioSaida(hoje)));
   const [ajuste, setAjuste] = useState(() => formularioVazioAjuste());
+  const [motivoEdicao, setMotivoEdicao] = useState("");
   const [transf, setTransf] = useState(() => formularioVazioTransferencia(hoje));
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState(/** @type {string|null} */ (null));
   const operacao = useRef(/** @type {{ conteudo: string, id: string } | null} */ (null));
 
-  const motivosQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS, "ativos"], queryFn: () => listarMotivosEntrada({ ativos: true }), staleTime: 30 * 1000, enabled: aberto && podeEntrada });
+  const editando = Boolean(edicao);
+  const motivosQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS, "ativos"], queryFn: () => listarMotivosEntrada({ ativos: true }), staleTime: 30 * 1000, enabled: aberto && podeEntrada && (!editando || tipo === TIPO_ENTRADA) });
   const motivos = motivosQuery.data ?? [];
-  const motivosSaidaQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS_SAIDA, "ativos"], queryFn: () => listarMotivosSaida({ ativos: true }), staleTime: 30 * 1000, enabled: aberto && podeSaida });
+  const motivosSaidaQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS_SAIDA, "ativos"], queryFn: () => listarMotivosSaida({ ativos: true }), staleTime: 30 * 1000, enabled: aberto && podeSaida && (!editando || tipo === TIPO_SAIDA) });
   const motivosSaida = motivosSaidaQuery.data ?? [];
   // Saldo atual (e custo médio) de cada linha do ajuste que já tem produto e depósito.
   const saldosQueries = useQueries({
@@ -355,14 +381,11 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
   const enviar = async (/** @type {React.FormEvent} */ evento) => {
     evento.preventDefault();
     if (enviando) return;
-    if (tipo === TIPO_ENTRADA) {
-      const { erros: achados, ok } = validarFormularioEntrada(entrada, hoje);
-      setErros(achados);
-      if (!ok) return;
-    } else if (tipo === TIPO_SAIDA) {
-      const { erros: achados, ok } = validarFormularioSaida(saida, hoje);
-      setErros(achados);
-      if (!ok) return;
+    if (tipo === TIPO_ENTRADA || tipo === TIPO_SAIDA) {
+      const { erros: achados, ok } = tipo === TIPO_ENTRADA ? validarFormularioEntrada(entrada, hoje) : validarFormularioSaida(saida, hoje);
+      const faltaMotivo = editando ? erroDoMotivoDaEdicao(motivoEdicao) : null;
+      setErros(faltaMotivo ? { ...achados, motivo_edicao: faltaMotivo } : achados);
+      if (!ok || faltaMotivo) return;
     } else if (tipo === TIPO_AJUSTE) {
       const { erros: achados, ok } = validarFormularioAjuste(ajuste, saldosAjuste);
       setErros(achados);
@@ -375,7 +398,17 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
     setEnviando(true);
     setErroEnvio(null);
     try {
-      if (tipo === TIPO_ENTRADA) {
+      if (edicao && tipo === TIPO_ENTRADA) {
+        const dados = { versao: edicao.documento.versao, motivoEdicao };
+        const id = idDaOperacao("ent-ed", montarCorpoEdicaoEntrada(empresaId, entrada, dados, ""));
+        const editada = await substituirEntradaEstoque(String(edicao.documento.id), montarCorpoEdicaoEntrada(empresaId, entrada, dados, id));
+        onLancado({ tipo, entrada: editada, editada: true });
+      } else if (edicao && tipo === TIPO_SAIDA) {
+        const dados = { versao: edicao.documento.versao, motivoEdicao };
+        const id = idDaOperacao("sai-ed", montarCorpoEdicaoSaida(empresaId, saida, dados, ""));
+        const editada = await substituirSaidaEstoque(String(edicao.documento.id), montarCorpoEdicaoSaida(empresaId, saida, dados, id));
+        onLancado({ tipo, saida: editada, editada: true });
+      } else if (tipo === TIPO_ENTRADA) {
         const id = idDaOperacao("ent", montarCorpoEntrada(empresaId, entrada, ""));
         const criada = await criarEntradaEstoque(montarCorpoEntrada(empresaId, entrada, id));
         onLancado({ tipo, entrada: criada });
@@ -394,10 +427,16 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
       }
     } catch (erro) {
       const oQue = { [TIPO_ENTRADA]: "a entrada", [TIPO_SAIDA]: "a saída", [TIPO_AJUSTE]: "o ajuste" }[tipo] ?? "a transferência";
-      const padrao = `Não foi possível lançar ${oQue}. Verifique a conexão e tente de novo.`;
-      setErroEnvio(
-        tipo === TIPO_SAIDA ? mensagemErroSaida(erro, padrao, saida.itens) : tipo === TIPO_AJUSTE ? mensagemErroAjuste(erro, padrao, ajuste.itens) : mensagemErroEntrada(erro, padrao),
-      );
+      const padrao = editando
+        ? `Não foi possível salvar a edição d${oQue}. Verifique a conexão e tente de novo.`
+        : `Não foi possível lançar ${oQue}. Verifique a conexão e tente de novo.`;
+      const vigentes = Array.isArray(edicao?.documento?.itens) ? edicao.documento.itens : [];
+      if (editando) setErroEnvio(tipo === TIPO_SAIDA ? mensagemErroEdicaoSaida(erro, padrao, saida.itens, vigentes) : mensagemErroEdicaoEntrada(erro, padrao, vigentes));
+      else {
+        setErroEnvio(
+          tipo === TIPO_SAIDA ? mensagemErroSaida(erro, padrao, saida.itens) : tipo === TIPO_AJUSTE ? mensagemErroAjuste(erro, padrao, ajuste.itens) : mensagemErroEntrada(erro, padrao),
+        );
+      }
     } finally {
       setEnviando(false);
     }
@@ -412,7 +451,9 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
       </button>
       <button type="submit" form={FORMULARIO_NOVO_MOVIMENTO_ID} className="tb-btn tb-btn-green" disabled={enviando} data-testid="movimento-lancar">
         {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
-        {enviando ? "Lançando…" : tipo === TIPO_ENTRADA ? "Lançar entrada" : tipo === TIPO_SAIDA ? "Lançar saída" : tipo === TIPO_AJUSTE ? "Lançar ajuste" : "Lançar transferência"}
+        {editando
+          ? enviando ? "Salvando…" : "Salvar edição"
+          : enviando ? "Lançando…" : tipo === TIPO_ENTRADA ? "Lançar entrada" : tipo === TIPO_SAIDA ? "Lançar saída" : tipo === TIPO_AJUSTE ? "Lançar ajuste" : "Lançar transferência"}
       </button>
     </>
   );
@@ -422,7 +463,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
       aberto={aberto}
       onFechar={onFechar}
       podeFechar={!enviando}
-      titulo="Novo movimento de estoque"
+      titulo={edicao ? `Editar ${edicao.tipo === TIPO_SAIDA ? "saída" : "entrada"} nº ${edicao.documento?.numero ?? ""}` : "Novo movimento de estoque"}
       testId="janela-novo-movimento-estoque"
       className={celular ? "b1-janela--tela-cheia" : ""}
       contentProps={{ className: celular ? "b1-janela__camada--tela-cheia" : "" }}
@@ -461,8 +502,8 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
         />
       ) : (
         <form id={FORMULARIO_NOVO_MOVIMENTO_ID} onSubmit={enviar} noValidate className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2" data-testid="formulario-novo-movimento">
-          {/* Com um tipo só (só a ação `saida`), não há o que escolher: a janela já abre nele. */}
-          {tipos.length > 1 ? (
+          {/* Com um tipo só (só a ação `saida`), não há o que escolher: a janela já abre nele. Na edição o tipo é fixo. */}
+          {tipos.length > 1 && !editando ? (
             <EscolhaSegmentada
               rotulo="Tipo de movimento"
               testId="movimento-tipo"
@@ -488,7 +529,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
                   const proximo = m ? { id: m.id, nome: m.nome, natureza: m.natureza } : null;
                   mudarEntrada(proximo?.natureza === MOTIVO_IMPLANTACAO ? { motivo: proximo, fornecedor: null, documento_numero: "" } : { motivo: proximo });
                 }}
-                options={motivos.map((/** @type {any} */ m) => ({ value: m.id, label: m.nome }))}
+                options={opcoesDeMotivo(motivos, entrada.motivo)}
                 required
                 error={erros.motivo}
                 span={6}
@@ -579,7 +620,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
                   const m = motivosSaida.find((/** @type {any} */ x) => x.id === v) ?? null;
                   mudarSaida({ motivo: m ? { id: m.id, nome: m.nome } : null });
                 }}
-                options={motivosSaida.map((/** @type {any} */ m) => ({ value: m.id, label: m.nome }))}
+                options={opcoesDeMotivo(motivosSaida, saida.motivo)}
                 required
                 error={erros.motivo}
                 span={6}
@@ -705,6 +746,29 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
               </p>
             </>
           )}
+
+          {editando ? (
+            <>
+              <SecaoForm titulo="Edição" />
+              <Observacao
+                label="Motivo da edição"
+                value={motivoEdicao}
+                onChange={(v) => {
+                  setMotivoEdicao(v);
+                  setErroEnvio(null);
+                }}
+                required
+                erro={erros.motivo_edicao || undefined}
+                testId="movimento-motivo-edicao"
+              />
+              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="movimento-aviso-edicao">
+                {tipo === TIPO_SAIDA
+                  ? "Ao salvar, os lançamentos de estoque desta saída são estornados e refeitos com os dados novos. Só é possível se o produto não teve outro movimento naquele depósito depois dela."
+                  : "Ao salvar, os lançamentos de estoque desta entrada são estornados e refeitos com os dados novos. Só é possível se nada mexeu no estoque dela depois."}{" "}
+                O número continua o mesmo.
+              </p>
+            </>
+          ) : null}
 
           {erroEnvio ? (
             <div className="col-span-12" role="alert" data-testid="movimento-erro">
