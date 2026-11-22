@@ -143,6 +143,8 @@ inventário (contagem que fixa o saldo), devolução a fornecedor, transferênci
 genérico de estoque. Texto redigido pelo agente e **aprovado pelo proprietário em 2026-11-20** (chat, "Aprovo as
 duas"), na PR #347 (§4).
 
+**Emenda aprovada pelo proprietário (D-PROD-271):** **Estoque — edição completa da entrada e da saída manual.** A entrada manual confirmada e a saída manual confirmada podem ser editadas por inteiro — data, motivo, parceiro e documento (entrada), centros, produtos, quantidades, custo (entrada) e depósitos — só quando nada mexeu depois: na entrada, nenhuma camada de nenhum item foi consumida, transferida ou citada; na saída, o produto não teve outro movimento naquele depósito depois dela. A edição desfaz a versão anterior pelo motor de estoque único (estorno) e lança a nova, no mesmo documento, com motivo da edição, autor, versão e o antes e o depois registrados. A saída continua valorizada pelo custo médio do depósito. Movimentos e camadas nunca são reescritos nem apagados. Texto redigido pelo agente e **aprovado pelo proprietário** em 2026-11-21.
+
 **Expansão autorizada pelo proprietário (D-PROD-193):** **Apontamento de Atividade — itens** (página
 `ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
 **PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de

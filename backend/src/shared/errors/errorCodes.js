@@ -189,13 +189,17 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ENTRADA_ESTOQUE_NOT_FOUND: { http: 404, meaning: 'id não identifica entrada de estoque desta fazenda neste tenant' },
   ENTRADA_ESTOQUE_INVALIDA: { http: 422, meaning: 'entrada recusada (details.field/reason: motivo, produto, depósito, unidade, fornecedor, centro ou documento); nada foi gravado' },
   ENTRADA_ESTOQUE_CUSTO_ZERO: { http: 422, meaning: 'custo zero só com a declaração explícita (custo_zero); nada foi gravado' },
-  ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL: { http: 422, meaning: 'o motivo da entrada nunca muda; exclua e lance outra entrada; nada foi alterado' },
+  // OBSOLETO (D-PROD-271): o motivo muda na edição com substituição; o backend não responde mais este código.
+  // Fica no catálogo porque a tela atual (`src/lib/estoqueEntradasRegras.js`) ainda o traduz.
+  ENTRADA_ESTOQUE_MOTIVO_IMUTAVEL: { http: 422, meaning: 'OBSOLETO (D-PROD-271): não é mais respondido; o motivo muda pela edição com substituição' },
   ENTRADA_ESTOQUE_IMPLANTACAO_COM_HISTORICO: { http: 409, meaning: 'o produto já tem histórico físico ou implantação ativa (details.reason); a implantação só vale para produto sem histórico; nada foi gravado' },
-  ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS: { http: 409, meaning: 'o estoque desta entrada já foi consumido, movimentado ou não se prova intocado (details.reason); exclusão recusada; nada foi alterado' },
+  ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS: { http: 409, meaning: 'o estoque desta entrada já foi consumido, movimentado ou não se prova intocado (details.reason); exclusão ou edição com substituição (D-PROD-271) recusada; nada foi alterado' },
   ENTRADA_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação da entrada não permite esta ação (details.status); nada foi alterado' },
   ENTRADA_ESTOQUE_VERSAO_CONFLITO: { http: 409, meaning: 'a entrada mudou desde a leitura (versão diferente); recarregue; nada foi alterado' },
   ENTRADA_ESTOQUE_DOCUMENTO_CONFLITANTE: { http: 409, meaning: 'já existe entrada confirmada ou lançamento confirmado com produtos com este documento nesta fazenda (details.reason); nada foi gravado' },
-  ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'só a observação se edita; para mudar produto, quantidade, custo, data, fornecedor, documento, centros ou depósito exclua e lance outra entrada; nada foi alterado' },
+  // OBSOLETO (D-PROD-271): a edição física existe (SUBSTITUICAO); o backend não responde mais este código.
+  // Fica no catálogo porque a tela atual (`src/lib/estoqueEntradasRegras.js`) ainda o traduz.
+  ENTRADA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'OBSOLETO (D-PROD-271): não é mais respondido; a edição física é a substituição' },
   // D-PROD-259 — cadastro de motivos de entrada do estoque.
   MOTIVO_ENTRADA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de entrada deste tenant' },
   MOTIVO_ENTRADA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de entrada com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
@@ -205,8 +209,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   SAIDA_ESTOQUE_INVALIDA: { http: 422, meaning: 'saída recusada (details.field/reason: motivo, produto, depósito, unidade, quantidade ou centro); nada foi gravado' },
   SAIDA_ESTOQUE_STATUS_INVALIDO: { http: 409, meaning: 'a situação da saída não permite esta ação (details.status); nada foi alterado' },
   SAIDA_ESTOQUE_VERSAO_CONFLITO: { http: 409, meaning: 'a saída mudou desde a leitura (versão diferente); recarregue; nada foi alterado' },
-  SAIDA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'só a observação se edita; para mudar motivo, data, centros, produto, quantidade ou depósito exclua e lance outra saída; nada foi alterado' },
-  SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR: { http: 409, meaning: 'o produto teve outro movimento no depósito depois da saída; a exclusão não é possível (details.movimento_numero); nada foi alterado' },
+  // OBSOLETO (D-PROD-271): a edição física existe (SUBSTITUICAO); o backend não responde mais este código.
+  // Fica no catálogo porque a tela atual (`src/lib/estoqueSaidasRegras.js`) ainda o traduz.
+  SAIDA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA: { http: 409, meaning: 'OBSOLETO (D-PROD-271): não é mais respondido; a edição física é a substituição' },
+  SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR: { http: 409, meaning: 'o produto teve outro movimento no depósito depois da saída; a exclusão ou a edição com substituição (D-PROD-271) não é possível (details.movimento_numero); nada foi alterado' },
   MOTIVO_SAIDA_NOT_FOUND: { http: 404, meaning: 'id não identifica motivo de saída deste tenant' },
   MOTIVO_SAIDA_DUPLICADO: { http: 409, meaning: 'já existe um motivo de saída com este nome (sem diferença de maiúsculas e espaços); nada foi gravado' },
   // D-PROD-159 / D-PROD-162 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
