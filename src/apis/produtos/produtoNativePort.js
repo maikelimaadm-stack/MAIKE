@@ -39,7 +39,7 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'consumo_maximo_pv',
   'unidade_principal_estoque',
   'peso_por_saco_kg',
-  // D-PROD-271: a carência da bula, em dias (0..365; vazio limpa).
+  // D-PROD-273: a carência da bula, em dias (0..365; vazio limpa).
   'carencia_dias',
   'observacoes',
   'ativo',

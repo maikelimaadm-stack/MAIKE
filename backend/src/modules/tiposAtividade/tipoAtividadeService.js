@@ -82,11 +82,11 @@ const textoOuNulo = (valor) => {
   return limpo === '' ? null : limpo;
 };
 
-/** MAIKE-ENTREGA2 (D-PROD-271): tamanho da coluna `alvo` (a API confere: a allowlist EXPAND recusa CHECK em tabela antiga). */
+/** MAIKE-ENTREGA2 (D-PROD-273): tamanho da coluna `alvo` (a API confere: a allowlist EXPAND recusa CHECK em tabela antiga). */
 export const ALVO_MAXIMO = 60;
 
 /**
- * MAIKE-ENTREGA2 (D-PROD-271) — o ALVO da Aplicação no cadastro da operação ("CIGARRINHA", "MATO (FOLHA LARGA)"…):
+ * MAIKE-ENTREGA2 (D-PROD-273) — o ALVO da Aplicação no cadastro da operação ("CIGARRINHA", "MATO (FOLHA LARGA)"…):
  * aparado e em MAIÚSCULAS, até 60 caracteres, sem caractere de controle; vazio ou null limpa.
  * @param {unknown} valor
  * @returns {string|null|undefined}
@@ -185,7 +185,7 @@ export const comoTipoPublico = (registro) => ({
   unidade_producao: unidadeProducaoPublica(registro.unidadeProducao),
   coeficiente_padrao: coeficienteComQuatroCasas(registro.coeficiente_padrao),
   ...Object.fromEntries(FLAGS_TIPO_ATIVIDADE.map((flag) => [flag, registro[flag] === true])),
-  // MAIKE-ENTREGA2 (D-PROD-271): o alvo da Aplicação (nulo = sem alvo cadastrado).
+  // MAIKE-ENTREGA2 (D-PROD-273): o alvo da Aplicação (nulo = sem alvo cadastrado).
   alvo: registro.alvo ?? null,
   created_date:
     registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
@@ -206,7 +206,7 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   unidade_producao_id: (v) => idDoPadrao(v, 'unidade_producao_id'),
   coeficiente_padrao: (v) => coeficienteDoCorpo(v),
   ...Object.fromEntries(FLAGS_TIPO_ATIVIDADE.map((flag) => [flag, (v) => flagDoCorpo(v, flag)])),
-  // MAIKE-ENTREGA2 (D-PROD-271).
+  // MAIKE-ENTREGA2 (D-PROD-273).
   alvo: (v) => alvoDoCorpo(v),
 });
 

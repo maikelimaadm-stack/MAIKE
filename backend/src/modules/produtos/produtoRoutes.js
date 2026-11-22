@@ -31,7 +31,7 @@ const CAMPOS = Object.freeze({
   consumo_maximo_pv: { type: ['number', 'null'] },
   unidade_principal_estoque: { type: 'string', maxLength: 16 },
   peso_por_saco_kg: { type: ['number', 'null'] },
-  // MAIKE-ENTREGA2 (D-PROD-271): carência da bula, em dias (0..365 no serviço; null limpa).
+  // MAIKE-ENTREGA2 (D-PROD-273): carência da bula, em dias (0..365 no serviço; null limpa).
   carencia_dias: { type: ['integer', 'null'] },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },

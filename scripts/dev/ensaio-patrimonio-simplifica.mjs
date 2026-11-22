@@ -175,7 +175,7 @@ export const NOME_ESTOQUE_ENTRADAS_MOTIVOS = '20261119200000_estoque_entradas_mo
 export const NOME_ESTOQUE_SAIDAS = '20261120100000_estoque_saidas';
 /** D-PROD-265: a CONTRACT aditiva da data de término do apontamento (coluna e CHECK em AtividadeApontamento), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_APONTAMENTO_DATA_TERMINO = '20261120200000_apontamento_data_termino';
-/** D-PROD-271: a EXPAND dos campos por tipo (tabela nova AtividadePlantio e 5 colunas anuláveis), ainda posterior; fora da partida, sobe no GREEN. */
+/** D-PROD-273: a EXPAND dos campos por tipo (tabela nova AtividadePlantio e 5 colunas anuláveis), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_CAMPOS_POR_TIPO = '20261121100000_atividade_campos_por_tipo';
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_CAMPOS_POR_TIPO]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
@@ -216,7 +216,7 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
  * Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho
  * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK). D-PROD-216
  * (posterior, sobe no GREEN): sem a coluna, a FK e o índice da Área ligada à Cultura em AreaPastagem. D-PROD-223
- * (posterior): sem as 3 colunas dos parâmetros próprios do pasto em AreaPastagem. D-PROD-271 (posterior): sem
+ * (posterior): sem as 3 colunas dos parâmetros próprios do pasto em AreaPastagem. D-PROD-273 (posterior): sem
  * `Produto.carencia_dias` e `TipoAtividade.alvo` (as outras 3 colunas dela são de tabelas posteriores).
  */
 export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
@@ -239,7 +239,7 @@ linhas AS (
      AND NOT (t.t = 'AreaPastagem' AND a.attname::text = 'cultura_id')
      -- D-PROD-223 (posterior, sobe no GREEN): os parâmetros próprios do pasto.
      AND NOT (t.t = 'AreaPastagem' AND a.attname::text IN ('altura_entrada_cm', 'altura_saida_cm', 'dias_descanso'))
-     -- D-PROD-271 (posterior, sobe no GREEN): a carência do produto e o alvo da operação.
+     -- D-PROD-273 (posterior, sobe no GREEN): a carência do produto e o alvo da operação.
      AND NOT (t.t = 'Produto' AND a.attname::text = 'carencia_dias')
      AND NOT (t.t = 'TipoAtividade' AND a.attname::text = 'alvo')
   UNION ALL
@@ -356,7 +356,7 @@ export const historico = async (db) =>
             FROM "_prisma_migrations"`);
 
 /**
- * D-PROD-271: colunas ANULÁVEIS que migrations POSTERIORES à CONTRACT acrescentam a tabelas do retrato. Ficam fora do
+ * D-PROD-273: colunas ANULÁVEIS que migrations POSTERIORES à CONTRACT acrescentam a tabelas do retrato. Ficam fora do
  * texto da linha (senão o texto mudaria sem nenhuma linha mudar), e o retrato conta as linhas em que alguma delas veio
  * preenchida (tem de ser 0: elas nascem nulas).
  */

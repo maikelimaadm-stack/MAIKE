@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-271; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-273; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,18 +9,28 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-271)
+## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-273)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-271**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
+| Decisão | **D-PROD-273**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
 | Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25` · PR **#354** |
 | Escopo | Plantio de pastagem com o capim obrigatório (do Cadastro de Culturas; capim diferente abre outra atividade), forma, semente incrustada, cobertura, consórcio e o VC % da semente; safra automática (1º/jul a 30/jun, "2026/27"); Aplicação com o alvo da operação, o nº do receituário e o "pasto liberado em" pela carência do produto; Manutenção e Outros com a área opcional e o local; quantidade feita + unidade na Manutenção; a lista de referência de capins (Marandu 35/20 e 6 capins do Doc 397) sem tocar no que a fazenda já tem; a data no celular |
 | Migration | `20261121100000_atividade_campos_por_tipo`, **EXPAND** (tabela nova `AtividadePlantio` e 5 colunas anuláveis), checksum `9e6487ff…2a58`. **Não aplicada.** Ordem: aplicar com o GO do proprietário, depois o merge |
 | Próximas | agrupador de Reforma e "Faz parte de: Reforma"; "Conferir nascimento"; aviso do 1º pastejo |
 | Relatório | [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · runbook [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md) |
 
-## Missão (2026-11-21) — MAIKE-EXCLUIR-SEM-MOTIVO-MAPA: exclusão nos históricos do mapa sem pedir motivo (D-PROD-270)
+## Missão (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-271)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-271**, escolha do proprietário: editar tudo (data, motivo, fornecedor/documento, centros, produtos, quantidades, custo, depósitos) se nada mexeu depois, desfazendo pelo motor e lançando de novo, com histórico |
+| Branch / PR | `claude/edicao-entrada-saida`, a partir da `main` `80aa1db3`, com a `main` `f8abde68` integrada · PR **#355** (mergeada, `cdfb1174`) |
+| Migration | Nenhuma |
+| Constituição | emenda **aprovada** pelo proprietário (2026-11-21) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
+| Relatório | [`MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md`](./MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md) |
+
+## Missão anterior (2026-11-21) — MAIKE-EXCLUIR-SEM-MOTIVO-MAPA: exclusão nos históricos do mapa sem pedir motivo (D-PROD-270)
 
 | Campo | Valor |
 |---|---|
@@ -30,7 +40,7 @@ rollout pausado **D-PROD-41**)
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md) |
 
-## Missão (2026-11-21) — MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA: no mapa só existe "Excluir" (D-PROD-269)
+## Missão anterior (2026-11-21) — MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA: no mapa só existe "Excluir" (D-PROD-269)
 
 | Campo | Valor |
 |---|---|
@@ -40,7 +50,7 @@ rollout pausado **D-PROD-41**)
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SO-EXCLUSAO-MAPA-REPORT.md) |
 
-## Missão (2026-11-21) — MAIKE-ESTORNO-COCHO-DEPOSITO: cancelar lançamento de cocho e transferência entre depósitos (D-PROD-268)
+## Missão anterior (2026-11-21) — MAIKE-ESTORNO-COCHO-DEPOSITO: cancelar lançamento de cocho e transferência entre depósitos (D-PROD-268)
 
 | Campo | Valor |
 |---|---|

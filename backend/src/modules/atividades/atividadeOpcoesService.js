@@ -87,7 +87,7 @@ const opcaoDeProduto = (p, favorito) => ({
   unidade: unidadeEfetivaDoEstoque(p.unidade_principal_estoque),
   unidade_principal_estoque: p.unidade_principal_estoque,
   estoque_atual: t4(p.estoque_atual),
-  // D-PROD-271: a carência da bula (dias), para o "Pasto liberado em" da Aplicação.
+  // D-PROD-273: a carência da bula (dias), para o "Pasto liberado em" da Aplicação.
   carencia_dias: p.carencia_dias ?? null,
   favorito,
 });

@@ -8,12 +8,18 @@
  *  - O motivo vem do cadastro de motivos de saída (`motivo_id`, ativo); centros (ativos, da fazenda) e
  *    observação no cabeçalho. Não cria título, conta a pagar nem receita.
  *  - Criar = confirmar numa só chamada, idempotente por `operation_id` (recibo + unique).
- *  - Editar: só a observação, com CAS de versão e evento `EDICAO`.
+ *  - Editar (D-PROD-271), com CAS de versão: só a observação → evento `EDICAO` (modo METADADOS no snapshot);
+ *    com campo físico → SUBSTITUICAO: o corpo é a versão nova COMPLETA, validada como a criação; só se nada
+ *    mexeu depois em nenhuma linha (a regra da exclusão), cada linha é estornada pelo motor (dia = hoje), as
+ *    linhas antigas vão INTEIRAS para o `snapshot_anterior` do evento e são APAGADAS (a saída não tem colunas de
+ *    revisão e tem UNIQUE por ordem e por produto × depósito; a reconciliação explica a saída pelos movimentos
+ *    e `lotes_consumidos`, nunca pelas linhas) e as novas são lançadas pelo motor (custo médio, dia = data nova).
+ *    Idempotente por `operation_id`. Número e id da saída não mudam.
  *  - Excluir: exclusão lógica (`EXCLUIDA`) com estorno integral pelo motor, SÓ se o produto não teve outro
  *    movimento naquele depósito depois da saída (escolha do proprietário): o estorno devolve as fatias aos
  *    lotes e o valor exato gravado, sem recalcular nada que veio depois.
  *
- * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (exclusão: cabeçalho FOR UPDATE) →
+ * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (edição e exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
 import { randomUUID } from 'node:crypto';
@@ -28,14 +34,15 @@ import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/dec
 import {
   aplicarSaidaDocumentada, estornarSaidaDocumentada, exigirLocaisEstoque, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { buscarMovimentoPosteriorA } from '../estoqueFisico/movimentoPosterior.js';
+import { buscarMovimentoPosterior, buscarMovimentoPosteriorA } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, diaDoCorpo, listarKeyset, termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import {
-  ENTIDADE, STATUS_CONFIRMADA, STATUS_EXCLUIDA, TEXTO_SAIDA, TIPO_CRIAR, TIPO_EXCLUIR,
-  fingerprintDaCriacao, fingerprintDaExclusao, normalizarCriacao, normalizarEdicao, normalizarExclusao, quantidadeDeEstoque,
+  ENTIDADE, MODO_METADADOS, MODO_SUBSTITUICAO, STATUS_CONFIRMADA, STATUS_EXCLUIDA, TEXTO_SAIDA, TIPO_CRIAR, TIPO_DETALHADO_ESTORNO, TIPO_DETALHADO_SAIDA, TIPO_EDITAR, TIPO_EXCLUIR,
+  fingerprintDaCriacao, fingerprintDaExclusao, fingerprintDaSubstituicao, mesmaVersaoFisica, normalizarCriacao, normalizarEdicao, normalizarExclusao,
+  quantidadeDeEstoque,
 } from './saidaEstoqueRegras.js';
 import { exigirMotivoSaidaAtivo } from './motivoSaidaEstoqueService.js';
 
@@ -46,8 +53,9 @@ export const naoEncontrada = () => new AppError('SAIDA_ESTOQUE_NOT_FOUND', 'saí
 const statusInvalido = (status) => new AppError('SAIDA_ESTOQUE_STATUS_INVALIDO', `a saída está ${status}; a ação não é possível; nada foi alterado`, { details: { status } });
 const versaoConflito = () => new AppError('SAIDA_ESTOQUE_VERSAO_CONFLITO', 'a saída mudou desde a leitura; recarregue e tente de novo; nada foi alterado');
 const invalida = (field, reason, mensagem, extra = {}) => new AppError('SAIDA_ESTOQUE_INVALIDA', `${mensagem}; nada foi gravado`, { details: { field, reason, ...extra } });
-const movimentoPosterior = (extra) =>
-  new AppError('SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR', 'o produto já teve outro movimento neste depósito depois desta saída; a exclusão não é possível; lance uma entrada para corrigir; nada foi alterado', {
+/** D-PROD-271: a mesma recusa (código e forma) na exclusão e na edição com substituição; só o texto diz a ação. */
+const movimentoPosterior = (extra, acao = 'a exclusão') =>
+  new AppError('SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR', `o produto já teve outro movimento neste depósito depois desta saída; ${acao} não é possível; lance uma entrada para corrigir; nada foi alterado`, {
     details: { field: 'itens', reason: 'movimento_posterior', ...extra },
   });
 
@@ -104,7 +112,10 @@ const comoResumo = (s) => ({
   itens: (s.itens ?? []).map(comoItem),
 });
 
-/** Detalhe: cabeçalho, linhas e eventos. */
+/** D-PROD-271: o modo da EDIÇÃO vive no snapshot (sem coluna); a edição antiga, sem modo gravado, era só de observação. */
+const modoDoEvento = (v) => (v.tipo === 'EDICAO' ? (/** @type {any} */ (v.snapshot_novo)?.modo ?? MODO_METADADOS) : null);
+
+/** Detalhe: cabeçalho, linhas (as vigentes; as substituídas vivem no `snapshot_anterior` da EDICAO) e eventos. */
 export const carregarDetalhe = async (db, cli, empresaId, id) => {
   const s = await db.saidaEstoque.findFirst({
     where: { cliente_id: cli, empresa_id: empresaId, id },
@@ -117,7 +128,7 @@ export const carregarDetalhe = async (db, cli, empresaId, id) => {
     excluida_por_usuario_id: s.excluida_por_usuario_id,
     motivo_exclusao: s.motivo_exclusao,
     eventos: s.eventos.map((v) => ({
-      id: v.id, tipo: v.tipo, versao_anterior: v.versao_anterior, versao_nova: v.versao_nova, motivo: v.motivo, usuario_id: v.usuario_id, criado_em: iso(v.createdAt),
+      id: v.id, tipo: v.tipo, modo: modoDoEvento(v), versao_anterior: v.versao_anterior, versao_nova: v.versao_nova, motivo: v.motivo, usuario_id: v.usuario_id, criado_em: iso(v.createdAt),
     })),
   };
 };
@@ -258,40 +269,17 @@ export const criar = async (contexto, corpo) => {
   return { status: r.replay ? 200 : 201, body: { ...r.body, replay: r.replay } };
 };
 
-// ─── editar (só a observação) ───────────────────────────────────────────────
+// ─── excluir (estorno integral pelo motor) ──────────────────────────────────
 
-/** @param {any} contexto @param {string} id @param {Record<string, any>} corpo */
-export const editar = async (contexto, id, corpo) => {
-  const auth = exigirAuthContext(contexto?.auth);
-  const cli = auth.clienteId;
-  const e = normalizarEdicao(id, corpo);
-  return emTransacao(TRANSACAO_CURTA, async (tx) => {
-    const empresaId = await exigirEmpresaDoTenant(tx, cli, e.empresa_id);
-    const [atual] = /** @type {any[]} */ (await tx.$queryRaw`SELECT * FROM "SaidaEstoque" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${id} FOR UPDATE`);
-    if (!atual) throw naoEncontrada();
-    if (e.campos_fisicos.length) {
-      throw new AppError('SAIDA_ESTOQUE_EDICAO_FISICA_NAO_SUPORTADA', 'só a observação se edita; para mudar motivo, data, centros, produto, quantidade ou depósito, exclua a saída e lance outra; nada foi alterado', { details: { campos: e.campos_fisicos } });
-    }
-    if (atual.status !== STATUS_CONFIRMADA) throw statusInvalido(atual.status);
-    if (!Number.isInteger(e.versao) || e.versao !== atual.versao) throw versaoConflito();
-    const observacao = e.observacao === undefined ? atual.observacao : e.observacao;
-    if (observacao === atual.observacao) throw invalida('observacao', 'nada_a_alterar', 'nada mudou na observação');
-    await tx.saidaEstoque.update({ where: { cliente_id_id: { cliente_id: cli, id } }, data: { observacao, versao: atual.versao + 1 } });
-    await tx.saidaEstoqueEvento.create({
-      data: {
-        cliente_id: cli, empresa_id: empresaId, saida_id: id, tipo: 'EDICAO', versao_anterior: atual.versao, versao_nova: atual.versao + 1,
-        motivo: e.motivo_edicao, usuario_id: auth.usuarioId ?? null, snapshot_anterior: { observacao: atual.observacao }, snapshot_novo: { observacao },
-      },
-    });
-    await registrarEvento(contexto, {
-      acao: 'saida_estoque.editar', entidade: ENTIDADE, entidadeId: id,
-      dadosAnteriores: { versao: atual.versao }, dadosNovos: { versao: atual.versao + 1, motivo_informado: true },
-    }, tx);
-    return carregarDetalhe(tx, cli, empresaId, id);
+/** `buscarMovimentoPosteriorA` com mais ids ignorados (os estornos das linhas substituídas desta saída). */
+const posteriorIgnorando = async (tx, cli, empresaId, item, ignorar) => {
+  const [original] = /** @type {any[]} */ (await tx.$queryRaw`SELECT id, numero_movimentacao, "createdAt" FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${item.movimentacao_estoque_id}`);
+  if (!original) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque da saída não encontrado');
+  return buscarMovimentoPosterior(tx, cli, {
+    empresaId, produtoId: item.produto_id, locais: [item.local_estoque_id], ignorarIds: [original.id, ...ignorar],
+    desde: { createdAt: original.createdAt, numero: original.numero_movimentacao },
   });
 };
-
-// ─── excluir (estorno integral pelo motor) ──────────────────────────────────
 
 /**
  * Escolha do proprietário: a saída só se exclui se o produto NÃO teve outro movimento naquele depósito
@@ -299,15 +287,24 @@ export const editar = async (contexto, id, corpo) => {
  * fail-closed por dois critérios, qualquer um recusa: o número sequencial do movimento (atribuído sob a
  * mesma trava do produto, logo na ordem real) maior que o da saída, ou o instante de criação igual ou
  * posterior. As outras linhas da mesma saída são de outro par produto × depósito (UNIQUE), nunca casam.
- * @param {any} tx @param {string} cli @param {string} empresaId @param {any[]} itens
+ *
+ * D-PROD-271: depois de uma edição com substituição, o estorno de uma linha SUBSTITUÍDA desta mesma saída nasce na
+ * mesma transação e ANTES (número menor) da linha nova; ele só desfaz uma perna anterior à linha vigente e nunca é
+ * "depois" dela. Ele é ignorado para que um empate de `createdAt` no mesmo milissegundo não trave para sempre a
+ * exclusão ou a edição seguinte. Saída nunca editada: exatamente a consulta da D-PROD-264.
+ * @param {any} tx @param {string} cli @param {string} empresaId @param {string} saidaId @param {any[]} itens @param {string} [acao]
  */
-const exigirNadaDepois = async (tx, cli, empresaId, itens) => {
+const exigirNadaDepois = async (tx, cli, empresaId, saidaId, itens, acao = 'a exclusão') => {
+  const substituidos = /** @type {Array<{ id: string }>} */ (await tx.$queryRaw`SELECT e.id FROM "MovimentacaoEstoque" e
+      JOIN "MovimentacaoEstoque" o ON o.cliente_id = e.cliente_id AND o.id = e.movimento_pai_id
+    WHERE e.cliente_id = ${cli} AND e.empresa_id = ${empresaId} AND e.lancamento_origem_id = ${saidaId} AND e.tipo_detalhado = ${TIPO_DETALHADO_ESTORNO}
+      AND o.lancamento_origem_id = ${saidaId} AND o.tipo_detalhado = ${TIPO_DETALHADO_SAIDA} AND o.status = 'Estornada'`).map((m) => m.id);
   for (const item of itens) {
     // D-PROD-268: a consulta mora no helper compartilhado do motor (mesmo SQL, mesmo critério, sem pares neutros).
-    const depois = await buscarMovimentoPosteriorA(tx, cli, {
-      empresaId, movimentoId: item.movimentacao_estoque_id, produtoId: item.produto_id, localId: item.local_estoque_id,
-    });
-    if (depois) throw movimentoPosterior({ item_ordem: item.ordem, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, movimento_numero: depois.numero_movimentacao });
+    const depois = substituidos.length
+      ? await posteriorIgnorando(tx, cli, empresaId, item, substituidos)
+      : await buscarMovimentoPosteriorA(tx, cli, { empresaId, movimentoId: item.movimentacao_estoque_id, produtoId: item.produto_id, localId: item.local_estoque_id });
+    if (depois) throw movimentoPosterior({ item_ordem: item.ordem, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, movimento_numero: depois.numero_movimentacao }, acao);
   }
 };
 
@@ -336,7 +333,7 @@ export const excluir = async (contexto, id, corpo) => {
           if (!itens.length) throw statusInvalido('sem_linhas');
           await exigirLocaisEstoque(tx, cli, itens.map((i) => ({ id: i.local_estoque_id, field: 'local_origem_id', exigirAtivo: false })));
           const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, itens.map((i) => i.produto_id));
-          await exigirNadaDepois(tx, cli, empresaId, itens);
+          await exigirNadaDepois(tx, cli, empresaId, id, itens);
           const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
           const movimentos = new Map((await tx.movimentacaoEstoque.findMany({
             where: { cliente_id: cli, id: { in: itens.map((i) => i.movimentacao_estoque_id) } }, select: { id: true, lotes_consumidos: true },
@@ -379,6 +376,200 @@ export const excluir = async (contexto, id, corpo) => {
           return { httpStatus: 200, body: await carregarDetalhe(tx, cli, empresaId, id) };
         },
       }),
+  );
+  return { status: 200, body: { ...r.body, replay: r.replay } };
+};
+
+// ─── editar (D-PROD-271: METADADOS ou SUBSTITUICAO) ─────────────────────────
+
+/** Linha → snapshot COMPLETO (todos os campos e os ids dos movimentos), o que sobra dela depois de apagada. */
+const linhaDoSnapshot = (i) => ({
+  id: i.id, ordem: i.ordem, produto_id: i.produto_id, local_estoque_id: i.local_estoque_id, unidade: i.unidade,
+  quantidade: d4(i.quantidade), fator_kg: d4(i.fator_kg), quantidade_estoque: d4(i.quantidade_estoque),
+  custo_unitario: c4(i.custo_unitario), valor_total: c4(i.valor_total),
+  movimentacao_estoque_id: i.movimentacao_estoque_id, movimentacao_estorno_id: i.movimentacao_estorno_id ?? null,
+  criada_em: iso(i.createdAt),
+});
+const cabecalhoDoSnapshot = (s) => ({
+  numero: s.numero, status: s.status, versao: s.versao, motivo_id: s.motivo_id, data_saida: diaDe(s.data_saida),
+  centro_custo_id: s.centro_custo_id ?? null, centro_resultado_id: s.centro_resultado_id ?? null, observacao: s.observacao ?? null,
+});
+
+/** Cabeçalho travado (FOR UPDATE), CONFIRMADA e na versão lida. */
+const travarCabecalhoEditavel = async (tx, cli, empresaId, id, versao) => {
+  const [atual] = /** @type {any[]} */ (await tx.$queryRaw`SELECT * FROM "SaidaEstoque" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${id} FOR UPDATE`);
+  if (!atual) throw naoEncontrada();
+  if (atual.status !== STATUS_CONFIRMADA) throw statusInvalido(atual.status);
+  if (!Number.isInteger(versao) || versao !== atual.versao) throw versaoConflito();
+  return atual;
+};
+
+/**
+ * METADADOS: só a observação (o cabeçalho já travado). Não mexe no estoque; a versão sobe.
+ * @param {any} tx @param {any} contexto @param {{ cli: string, empresaId: string, atual: any, motivoEdicao: string, observacao: string|null }} a
+ */
+const gravarMetadados = async (tx, contexto, a) => {
+  const { cli, empresaId, atual } = a;
+  const auth = exigirAuthContext(contexto?.auth);
+  if (a.observacao === atual.observacao) throw invalida('observacao', 'nada_a_alterar', 'nada mudou na saída');
+  await tx.saidaEstoque.update({ where: { cliente_id_id: { cliente_id: cli, id: atual.id } }, data: { observacao: a.observacao, versao: atual.versao + 1 } });
+  await tx.saidaEstoqueEvento.create({
+    data: {
+      cliente_id: cli, empresa_id: empresaId, saida_id: atual.id, tipo: 'EDICAO', versao_anterior: atual.versao, versao_nova: atual.versao + 1,
+      motivo: a.motivoEdicao, usuario_id: auth.usuarioId ?? null,
+      snapshot_anterior: { modo: MODO_METADADOS, observacao: atual.observacao }, snapshot_novo: { modo: MODO_METADADOS, observacao: a.observacao },
+    },
+  });
+  await registrarEvento(contexto, {
+    acao: 'saida_estoque.editar', entidade: ENTIDADE, entidadeId: atual.id,
+    dadosAnteriores: { versao: atual.versao }, dadosNovos: { versao: atual.versao + 1, modo: MODO_METADADOS, motivo_informado: true },
+  }, tx);
+};
+
+/**
+ * SUBSTITUICAO (D-PROD-271), já dentro do recibo idempotente. Fisicamente igual à vigente → só a observação.
+ * @param {any} tx @param {any} contexto @param {{ id: string, versao: any, motivo_edicao: string, saida: ReturnType<typeof normalizarCriacao> }} e
+ */
+const substituir = async (tx, contexto, e) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const cli = auth.clienteId;
+  const nova = e.saida;
+  const empresaId = await exigirEmpresaDoTenant(tx, cli, nova.empresa_id);
+  const tempo = await hojeDaEmpresa(tx, cli, empresaId);
+  const atual = await travarCabecalhoEditavel(tx, cli, empresaId, e.id, e.versao);
+  if (nova.data_saida > tempo.hoje) throw invalida('data_saida', 'data_futura', `a data da saída é posterior a hoje (${tempo.hoje}) na fazenda`, { hoje: tempo.hoje, fuso: tempo.fuso });
+  const motivo = await exigirMotivoSaidaAtivo(tx, cli, nova.motivo_id);
+  await exigirCentros(tx, cli, empresaId, nova);
+  const vigentes = await tx.saidaEstoqueItem.findMany({ where: { cliente_id: cli, saida_id: e.id }, orderBy: [{ ordem: 'asc' }], include: { local: { select: { nome: true } } } });
+  if (!vigentes.length) throw statusInvalido('sem_linhas');
+  const locais = await exigirLocaisEstoque(tx, cli, [
+    ...nova.itens.map((i) => ({ id: i.local_estoque_id, field: 'local_origem_id', exigirAtivo: true })),
+    ...vigentes.map((i) => ({ id: i.local_estoque_id, field: 'local_origem_id', exigirAtivo: false })),
+  ]);
+  // Uma chamada só: as travas dos produtos de ANTES e de DEPOIS saem na ordem canônica.
+  const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, [...vigentes.map((i) => i.produto_id), ...nova.itens.map((i) => i.produto_id)]);
+  const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+  const quantidades = nova.itens.map((item, indice) => {
+    const p = produtos.get(item.produto_id);
+    if (!p) throw invalida('produto_id', 'produto_inexistente', 'produto não encontrado nesta fazenda', { indice });
+    if (!p.ativo) throw invalida('produto_id', 'produto_inativo', 'o produto está inativo', { indice });
+    return quantidadeDeEstoque(item, p, indice);
+  });
+  const fisicoAtual = { motivo_id: atual.motivo_id, data_saida: diaDe(atual.data_saida), centro_custo_id: atual.centro_custo_id ?? null, centro_resultado_id: atual.centro_resultado_id ?? null };
+  const linhasAtuais = vigentes.map(linhaDoSnapshot);
+  if (mesmaVersaoFisica(fisicoAtual, linhasAtuais, nova)) {
+    await gravarMetadados(tx, contexto, { cli, empresaId, atual, motivoEdicao: e.motivo_edicao, observacao: nova.observacao });
+    return { httpStatus: 200, body: await carregarDetalhe(tx, cli, empresaId, e.id) };
+  }
+
+  // "Nada mexeu depois" em cada linha: a MESMA regra da exclusão, sob a trava dos produtos.
+  await exigirNadaDepois(tx, cli, empresaId, e.id, vigentes, 'a edição');
+  const movimentos = new Map((await tx.movimentacaoEstoque.findMany({
+    where: { cliente_id: cli, id: { in: vigentes.map((i) => i.movimentacao_estoque_id) } }, select: { id: true, lotes_consumidos: true },
+  })).map((m) => [m.id, m]));
+  const motivoEstorno = `Edição da saída ${atual.numero}: ${e.motivo_edicao}`.slice(0, 255);
+  const estornos = [];
+  for (const item of vigentes) {
+    const fatias = /** @type {any} */ (movimentos.get(item.movimentacao_estoque_id))?.lotes_consumidos;
+    if (!Array.isArray(fatias) || !fatias.length) throw movimentoPosterior({ item_ordem: item.ordem, reason: 'fatias_ausentes' }, 'a edição');
+    const r = await estornarSaidaDocumentada(tx, contexto, {
+      empresaId,
+      item: { ordem: item.ordem, quantidade_estoque: item.quantidade_estoque.toString(), movimentacao_estoque_id: item.movimentacao_estoque_id },
+      consumos: fatias.map((f) => ({ estoque_lote_nota_id: f.lote_id, quantidade: f.quantidade })),
+      produto: produtos.get(item.produto_id),
+      local: { id: item.local_estoque_id, nome: item.local?.nome ?? null },
+      dia: tempo.hoje,
+      origem: { operacaoId: e.id, motivoEstorno },
+      numeroMovimento: numeroMovimentoProvisorio(),
+    });
+    estornos.push(r.movimento.id);
+  }
+  // As linhas antigas saem INTEIRAS para o evento (com o id do estorno) e são apagadas: sem colunas de revisão,
+  // as UNIQUE (ordem; produto × depósito) não deixam a versão nova conviver com elas.
+  const substituidas = linhasAtuais.map((l, indice) => ({ ...l, movimentacao_estorno_id: estornos[indice] }));
+  const apagadas = await tx.saidaEstoqueItem.deleteMany({ where: { cliente_id: cli, saida_id: e.id, id: { in: vigentes.map((i) => i.id) } } });
+  if (apagadas.count !== vigentes.length) throw versaoConflito();
+
+  const texto = `${TEXTO_SAIDA}: ${motivo.nome}`.slice(0, 200);
+  const novosMovimentos = [];
+  const linhas = [];
+  for (const [indice, item] of nova.itens.entries()) {
+    const p = /** @type {any} */ (produtos.get(item.produto_id));
+    const local = /** @type {any} */ (locais.get(item.local_estoque_id));
+    const q = quantidades[indice];
+    const r = await aplicarSaidaDocumentada(tx, contexto, {
+      empresaId,
+      produto: p,
+      local: { id: local.id, nome: local.nome },
+      quantidadeKg: q.quantidadeEstoque,
+      dia: nova.data_saida,
+      origem: { operacaoId: e.id, motivo: texto },
+      numeroMovimento: numeroMovimentoProvisorio(),
+      contextoErro: { field: 'itens', indice },
+    });
+    novosMovimentos.push(r.movimento.id);
+    linhas.push(await tx.saidaEstoqueItem.create({
+      data: {
+        cliente_id: cli, empresa_id: empresaId, saida_id: e.id, ordem: indice + 1, produto_id: p.id, local_estoque_id: local.id,
+        unidade: item.unidade, quantidade: item.quantidade, fator_kg: paraBanco(q.fator, CASAS_QUANTIDADE),
+        quantidade_estoque: paraBanco(q.quantidadeEstoque, CASAS_QUANTIDADE),
+        custo_unitario: paraBanco(r.valor_unitario, CASAS_CUSTO), valor_total: paraBanco(r.valor_total, CASAS_CUSTO),
+        movimentacao_estoque_id: r.movimento.id,
+      },
+    }));
+  }
+  // Estornos primeiro, novos depois: a sequência segue a ordem real dos fatos.
+  await numerarMovimentos(tx, cli, [...estornos, ...novosMovimentos]);
+  const depois = await tx.saidaEstoque.update({
+    where: { cliente_id_id: { cliente_id: cli, id: e.id } },
+    data: {
+      motivo_id: motivo.id, data_saida: comoData(nova.data_saida), centro_custo_id: nova.centro_custo_id, centro_resultado_id: nova.centro_resultado_id,
+      observacao: nova.observacao, versao: atual.versao + 1,
+    },
+  });
+  await tx.saidaEstoqueEvento.create({
+    data: {
+      cliente_id: cli, empresa_id: empresaId, saida_id: e.id, tipo: 'EDICAO', versao_anterior: atual.versao, versao_nova: atual.versao + 1,
+      motivo: e.motivo_edicao, usuario_id: auth.usuarioId ?? null,
+      snapshot_anterior: { modo: MODO_SUBSTITUICAO, cabecalho: cabecalhoDoSnapshot(atual), itens: substituidas },
+      snapshot_novo: { modo: MODO_SUBSTITUICAO, cabecalho: cabecalhoDoSnapshot(depois), motivo_nome: motivo.nome, itens: linhas.map(linhaDoSnapshot), estornos },
+    },
+  });
+  await registrarEvento(contexto, {
+    acao: 'saida_estoque.editar', entidade: ENTIDADE, entidadeId: e.id,
+    dadosAnteriores: { ...paraAuditoria(atual, vigentes), modo: MODO_SUBSTITUICAO },
+    dadosNovos: { ...paraAuditoria(depois, linhas), modo: MODO_SUBSTITUICAO, motivo_informado: true, estornos },
+  }, tx);
+  return { httpStatus: 200, body: await carregarDetalhe(tx, cli, empresaId, e.id) };
+};
+
+/**
+ * D-PROD-271 — PATCH da saída. METADADOS (só observação): CAS de versão, sem recibo, corpo = detalhe.
+ * SUBSTITUICAO (campo físico; corpo = versão nova completa): idempotente por `operation_id` (replay 200 com
+ * `replay: true`; o mesmo `operation_id` com outro corpo → IDEMPOTENCY_CONFLICT).
+ * @param {any} contexto @param {string} id @param {Record<string, any>} corpo
+ * @returns {Promise<{ status: number, body: Record<string, any> }>}
+ */
+export const editar = async (contexto, id, corpo) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const cli = auth.clienteId;
+  const e = normalizarEdicao(id, corpo);
+  if (e.modo === MODO_METADADOS) {
+    const body = await emTransacao(TRANSACAO_CURTA, async (tx) => {
+      const empresaId = await exigirEmpresaDoTenant(tx, cli, e.empresa_id);
+      const atual = await travarCabecalhoEditavel(tx, cli, empresaId, id, e.versao);
+      const observacao = e.observacao === undefined ? atual.observacao : e.observacao;
+      await gravarMetadados(tx, contexto, { cli, empresaId, atual, motivoEdicao: e.motivo_edicao, observacao });
+      return carregarDetalhe(tx, cli, empresaId, id);
+    });
+    return { status: 200, body };
+  }
+  const sub = /** @type {any} */ (e);
+  const fingerprint = fingerprintDePayload(fingerprintDaSubstituicao(sub));
+  const r = await emTransacao(
+    TRANSACAO_LONGA,
+    (tx) => executarComIdempotencia(tx, { clienteId: cli, operationKey: sub.saida.operation_id, tipoOperacao: TIPO_EDITAR, fingerprint, executar: () => substituir(tx, contexto, sub) }),
+    { operation_id: () => new AppError('SAIDA_ESTOQUE_VERSAO_CONFLITO', 'outra operação alterou os mesmos registros; tente de novo com a mesma operation_id') },
   );
   return { status: 200, body: { ...r.body, replay: r.replay } };
 };

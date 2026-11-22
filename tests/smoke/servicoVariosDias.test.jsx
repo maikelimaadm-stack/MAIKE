@@ -18,7 +18,7 @@ import { API_FAKE, erroServidor, instalarBackendFake } from "./fixtures/gestaoBa
 
 const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn(), notifyError: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
-// D-PROD-271: quem conclui tem a permissão de editar (a do "Concluir"); um teste a tira.
+// D-PROD-273: quem conclui tem a permissão de editar (a do "Concluir"); um teste a tira.
 const sessao = vi.hoisted(() => ({ editar: true }));
 vi.mock("@/hooks/useLancamentoAtividadesSessao", () => ({
   useAcoesTelaAtividades: () => ({ ver: true, lancarApontamento: true, editar: sessao.editar, carregando: false, login: "operador" }),
@@ -491,8 +491,8 @@ describe("serviço parado: a pergunta e o reenvio com a decisão", () => {
   });
 });
 
-// ─── D-PROD-271: ajustes do teste de ponta a ponta ────────────────────────────
-describe("ajustes do teste de ponta a ponta (D-PROD-271): o capim, o serviço sem área e quem conclui", () => {
+// ─── D-PROD-273: ajustes do teste de ponta a ponta ────────────────────────────
+describe("ajustes do teste de ponta a ponta (D-PROD-273): o capim, o serviço sem área e quem conclui", () => {
   /** A Manutenção sem área, como a lista do servidor devolve (o servidor antigo mandava hectares_feitos "0.0000"). */
   const CERCA = Object.freeze({
     id: "at-21", numero: "21", nome: "REFORMA DE CERCA · DIVISA NORTE · nov/26", status: "ABERTA", versao: 3,

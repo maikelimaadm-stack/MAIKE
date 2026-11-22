@@ -1,14 +1,15 @@
 /**
  * D-PROD-264 (Estoque → Novo movimento → Saída) — rotas da saída manual documentada.
  * Guardadas pela tela `sup-estoque` (`GUARDAS.estoque`): LER a lista, o detalhe e os motivos = `visualizar`;
- * criar, editar a observação, excluir e manter os motivos = ação extra `saida` (nenhum perfil a recebe por
+ * criar, editar (observação ou substituição), excluir e manter os motivos = ação extra `saida` (nenhum perfil a recebe por
  * padrão; administrador e `is_admin` têm tudo). O tenant vem SÓ do `auth_context`; corpo e query FECHADOS
  * (`additionalProperties: false`); a quantidade chega como TEXTO (número no JSON é 400).
  *
  *  GET   /estoque/saidas                   (ver)    lista keyset
  *  GET   /estoque/saidas/:id               (ver)    detalhe com histórico
  *  POST  /estoque/saidas                   (saida)  cria e confirma (201; replay 200)
- *  PATCH /estoque/saidas/:id               (saida)  só a observação (CAS de versão)
+ *  PATCH /estoque/saidas/:id               (saida)  observação (METADADOS) ou a versão nova completa
+ *                                                   (SUBSTITUICAO, D-PROD-271), com CAS de versão
  *  POST  /estoque/saidas/:id/excluir       (saida)  exclusão lógica com estorno integral (sem movimento depois)
  *  GET   /estoque/motivos-saida            (ver)    lista (os padrões nascem na 1ª leitura)
  *  POST  /estoque/motivos-saida            (saida)  cria
@@ -69,6 +70,11 @@ const CRIAR = {
     },
   },
 };
+/**
+ * D-PROD-271 — PATCH: só `observacao` → METADADOS; com qualquer campo físico → SUBSTITUICAO, e o corpo é a
+ * versão nova COMPLETA com os mesmos campos e formatos da criação (`operation_id`, `motivo_id`, `data_saida`
+ * e `itens` passam a ser exigidos pelo serviço, como na criação).
+ */
 const EDITAR = {
   params: PARAMS,
   body: {
@@ -76,11 +82,8 @@ const EDITAR = {
     required: ['empresa_id', 'versao', 'motivo_edicao'],
     additionalProperties: false,
     properties: {
-      empresa_id: ID, versao: { type: 'integer', minimum: 1 }, motivo_edicao: { type: 'string', minLength: 1, maxLength: 500 },
-      observacao: TEXTO_NULO(500),
-      // Declarados só para responder 409 estável (edição física não suportada), nunca para aplicar.
-      motivo_id: { type: 'string', maxLength: 64 }, data_saida: DIA, itens: { type: 'array', maxItems: MAX_ITENS },
-      centro_custo_id: TEXTO_NULO(64), centro_resultado_id: TEXTO_NULO(64),
+      ...CRIAR.body.properties,
+      versao: { type: 'integer', minimum: 1 }, motivo_edicao: { type: 'string', minLength: 1, maxLength: 500 },
     },
   },
 };
@@ -125,7 +128,10 @@ export const registrarSaidaEstoqueRoutes = async (app) => {
     const r = await criar(ctx(request), corpo(request));
     return reply.status(r.status).send(r.body);
   });
-  app.patch('/estoque/saidas/:id', { ...autenticado, preHandler: [g.saida], schema: EDITAR }, async (request) => editar(ctx(request), idDe(request), corpo(request)));
+  app.patch('/estoque/saidas/:id', { ...autenticado, preHandler: [g.saida], schema: EDITAR }, async (request, reply) => {
+    const r = await editar(ctx(request), idDe(request), corpo(request));
+    return reply.status(r.status).send(r.body);
+  });
   app.post('/estoque/saidas/:id/excluir', { ...autenticado, preHandler: [g.saida], schema: EXCLUIR }, async (request, reply) => {
     const r = await excluir(ctx(request), idDe(request), corpo(request));
     return reply.status(r.status).send(r.body);

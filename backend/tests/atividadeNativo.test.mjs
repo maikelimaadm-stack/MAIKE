@@ -59,11 +59,11 @@ const CAMPOS_PUBLICOS = [
   'reaberta_em', 'reaberta_por', 'motivo_reabertura', 'criado_por', 'createdAt', 'updatedAt',
   // D-PROD-249: as áreas da atividade (várias áreas) e quantas são.
   'areas', 'areas_count',
-  // D-PROD-271: o local do serviço sem área (Manutenção e Outros) e os dados do Plantio de pastagem (nulos aqui).
+  // D-PROD-273: o local do serviço sem área (Manutenção e Outros) e os dados do Plantio de pastagem (nulos aqui).
   'local', 'plantio',
 ];
 const TOTAIS_VAZIOS = Object.freeze({ apontamentos_confirmados: 0, apontamentos_cancelados: 0, dias_com_apontamento: 0 });
-// O DETALHE é a forma pública + `totais` e, D-PROD-271 (ajuste do teste de ponta a ponta), o "pasto liberado em"
+// O DETALHE é a forma pública + `totais` e, D-PROD-273 (ajuste do teste de ponta a ponta), o "pasto liberado em"
 // calculado na leitura (`pasto_liberado_em`, `carencia_dias`; nulos sem produto com carência).
 
 const MODULO = 'suporte-mapa';

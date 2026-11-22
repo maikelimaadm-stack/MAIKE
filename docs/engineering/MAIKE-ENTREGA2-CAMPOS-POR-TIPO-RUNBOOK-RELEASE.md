@@ -1,4 +1,4 @@
-# MAIKE — Campos por tipo (Entrega 2): runbook de release expand-only (D-PROD-271)
+# MAIKE — Campos por tipo (Entrega 2): runbook de release expand-only (D-PROD-273)
 
 > **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** A migration foi testada só no PostgreSQL local. Nada foi aplicado
 > em produção.
@@ -6,7 +6,7 @@
 > Cada passo exige o GO do proprietário ("aplica") e para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores
 > entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-271](./DECISIONS.md) · Relatório: [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md).
+Decisão: [D-PROD-273](./DECISIONS.md) · Relatório: [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md).
 Molde e precedente executado de EXPAND: [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 (D-PROD-264, caminho B). A anterior em produção: [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md)
 (D-PROD-265, aplicada em 2026-11-20 18:58:29 UTC).
@@ -236,4 +236,4 @@ antes, recontar o §2 (o número de concluídas e a "anterior" mudam) e ajustar 
 
 | Data | Quem | O quê |
 |---|---|---|
-| 2026-11-21 | Claude (sessão D-PROD-271) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |
+| 2026-11-21 | Claude (sessão D-PROD-273) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |

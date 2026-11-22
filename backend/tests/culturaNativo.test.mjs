@@ -101,7 +101,7 @@ describe('D-PROD-215 — Culturas: funções puras', () => {
     for (const ruim of ['0', '-3', '25,55', 'abc', 1001]) assert.throws(() => alturaDoCorpo(ruim, 'altura_entrada_cm'), (e) => e.code === 'REQUEST_VALIDATION_FAILED', String(ruim));
   });
 
-  // D-PROD-271: + os 6 do Doc 397 que faltavam (012–017); o Estilosantes Campo Grande (leguminosa) sem altura.
+  // D-PROD-273: + os 6 do Doc 397 que faltavam (012–017); o Estilosantes Campo Grande (leguminosa) sem altura.
   test('LISTA_REFERENCIA: 17 pastagens numeradas 001–017, nomes únicos, saída < entrada (com as duas alturas)', () => {
     assert.equal(LISTA_REFERENCIA.length, 17);
     assert.deepEqual(LISTA_REFERENCIA.map((c) => c.codigo), ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '014', '015', '016', '017']);
@@ -283,7 +283,7 @@ describe('D-PROD-215 — Culturas: lista de referência', () => {
     assert.equal(r.json().ja_existiam, 0);
     const marandu = r.json().culturas.find((c) => c.codigo === '001');
     assert.equal(marandu.nome, 'BRACHIARIA BRIZANTHA CV. MARANDU');
-    // D-PROD-271: Doc 397 (Embrapa Cerrados, Tabela 2): entrada 35, saída 20 (era 25/15).
+    // D-PROD-273: Doc 397 (Embrapa Cerrados, Tabela 2): entrada 35, saída 20 (era 25/15).
     assert.equal(marandu.altura_entrada_cm, 35);
     assert.equal(marandu.altura_saida_cm, 20);
     assert.equal(marandu.dias_descanso, 30, 'D-PROD-223: dias de descanso de referência');

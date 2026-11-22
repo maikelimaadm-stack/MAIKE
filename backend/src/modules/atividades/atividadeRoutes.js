@@ -7,7 +7,7 @@
  *    (sobre `data_inicio`) e `q` (número e nome); D-PROD-267: `situacao`
  *    (PLANEJADA | EM_ANDAMENTO | CONCLUIDA | CANCELADA) e `tipo_fixo` (a
  *    categoria da operação), e cada item com o `andamento` (hectares, %, dias);
- *    D-PROD-271: `local` (o serviço sem área naquele local, a prévia da Nova realização)
+ *    D-PROD-273: `local` (o serviço sem área naquele local, a prévia da Nova realização)
  *  - `POST  /atividades/:id/concluir` também é o "Concluir" da linha da lista
  *    (D-PROD-267: conclui as áreas em andamento e a atividade numa transação;
  *    nunca antes do último dia lançado)
@@ -97,7 +97,7 @@ const LISTAR = {
       // D-PROD-267: a Situação da lista e o tipo fixo da operação (a categoria).
       situacao: { type: 'string', enum: [...SITUACOES_DO_SERVICO] },
       tipo_fixo: { type: 'string', enum: [...CATEGORIAS_TIPO_FIXO] },
-      // D-PROD-271: o serviço SEM área no local (a prévia "Entra em …" da Nova realização sem área).
+      // D-PROD-273: o serviço SEM área no local (a prévia "Entra em …" da Nova realização sem área).
       local: { type: 'string', minLength: 1, maxLength: 120 },
       q: { type: 'string', maxLength: NOME_MAXIMO },
       limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO },

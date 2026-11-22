@@ -13,6 +13,14 @@ import { diaDoCorpo } from '../patrimonio/patrimonioComum.js';
 export const ENTIDADE = 'EntradaEstoque';
 export const TIPO_CRIAR = 'estoque_entrada_criar';
 export const TIPO_EXCLUIR = 'estoque_entrada_excluir';
+/** D-PROD-271: a edição com substituição (estorno + lançamento novo) é idempotente por `operation_id`. */
+export const TIPO_EDITAR = 'estoque_entrada_editar';
+
+/** D-PROD-271: os 2 modos da edição (o mesmo domínio do CHECK de `EntradaEstoqueEvento.modo`). */
+export const MODO_METADADOS = 'METADADOS';
+export const MODO_SUBSTITUICAO = 'SUBSTITUICAO';
+/** D-PROD-271: qualquer um destes no corpo do PATCH faz da edição uma SUBSTITUIÇÃO (o corpo é a versão nova completa). */
+export const CAMPOS_FISICOS = Object.freeze(['motivo_id', 'data_entrada', 'fornecedor_id', 'documento_numero', 'centro_custo_id', 'centro_resultado_id', 'itens']);
 
 export const STATUS_CONFIRMADA = 'CONFIRMADA';
 export const STATUS_EXCLUIDA = 'EXCLUIDA';
@@ -141,21 +149,27 @@ export const normalizarExclusao = (id, corpo) => {
   return { id, empresa_id: c.empresa_id, versao: c.versao, operation_id: c.operation_id, motivo };
 };
 
-/** Corpo da edição (só a observação). @param {string} id @param {unknown} corpo */
-export const normalizarEdicao = (id, corpo) => {
-  const c = /** @type {Record<string, any>} */ (corpo ?? {});
+const motivoDaEdicao = (c) => {
   const motivoEdicao = textoDoCorpo(c.motivo_edicao, 'motivo_edicao');
   if (!motivoEdicao) throw invalido('informe o motivo da edição', { field: 'motivo_edicao', reason: 'obrigatorio' });
   if (tamanho(motivoEdicao) < MOTIVO_ACAO_MINIMO) throw invalido(`o motivo da edição deve ter ao menos ${MOTIVO_ACAO_MINIMO} caracteres`, { field: 'motivo_edicao', reason: 'motivo_curto' });
-  return {
-    id,
-    empresa_id: c.empresa_id,
-    versao: c.versao,
-    motivo_edicao: motivoEdicao,
-    motivo_id: c.motivo_id,
-    campos_fisicos: ['data_entrada', 'documento_numero', 'fornecedor_id', 'centro_custo_id', 'centro_resultado_id', 'itens'].filter((k) => c[k] !== undefined),
-    observacao: textoDoCorpo(c.observacao, 'observacao'),
-  };
+  return motivoEdicao;
+};
+
+/**
+ * Corpo da edição (D-PROD-271). Só `observacao` (+ `versao`, `motivo_edicao`) → METADADOS, como antes
+ * (`operation_id`, se vier, não é usado). Qualquer campo físico (`CAMPOS_FISICOS`) → SUBSTITUICAO: o corpo é
+ * a versão nova COMPLETA, normalizada e validada como a criação (`normalizarCriacao`: `operation_id`,
+ * `motivo_id`, `data_entrada` e `itens` obrigatórios; opcional ausente = vazio na versão nova).
+ * @param {string} id @param {unknown} corpo
+ */
+export const normalizarEdicao = (id, corpo) => {
+  const c = /** @type {Record<string, any>} */ (corpo ?? {});
+  const motivoEdicao = motivoDaEdicao(c);
+  if (CAMPOS_FISICOS.some((k) => c[k] !== undefined)) {
+    return { modo: MODO_SUBSTITUICAO, id, empresa_id: c.empresa_id, versao: c.versao, motivo_edicao: motivoEdicao, entrada: normalizarCriacao(c) };
+  }
+  return { modo: MODO_METADADOS, id, empresa_id: c.empresa_id, versao: c.versao, motivo_edicao: motivoEdicao, observacao: textoDoCorpo(c.observacao, 'observacao') };
 };
 
 /** Fingerprint canônico (ordem FIXA de chaves; v2 da D-PROD-259). @param {ReturnType<typeof normalizarCriacao>} e */
@@ -171,8 +185,42 @@ export const fingerprintDaCriacao = (e) => ({
   observacao: e.observacao,
   itens: e.itens.map((i) => [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade, i.custo_unitario, i.custo_zero, i.lote_fabricante, i.data_validade]),
 });
+/**
+ * D-PROD-271 — fingerprint canônico da edição com substituição (ordem FIXA de chaves): a entrada, a versão
+ * lida, o motivo da edição e a versão nova inteira (o mesmo canônico da criação).
+ * @param {{ id: string, empresa_id: any, versao: any, motivo_edicao: string, entrada: ReturnType<typeof normalizarCriacao> }} e
+ */
+export const fingerprintDaSubstituicao = (e) => ({
+  v: 1,
+  id: e.id,
+  empresa_id: e.empresa_id,
+  versao: e.versao,
+  motivo_edicao: e.motivo_edicao,
+  versao_nova: fingerprintDaCriacao(e.entrada),
+});
 /** @param {ReturnType<typeof normalizarExclusao>} e */
 export const fingerprintDaExclusao = (e) => ({ v: 1, id: e.id, empresa_id: e.empresa_id, versao: e.versao, motivo: e.motivo });
+
+/**
+ * D-PROD-271 — a versão nova é FISICAMENTE igual à vigente? (cabeçalho físico e linhas, na ordem). Quando é,
+ * a edição não mexe no estoque: só a observação pode ter mudado (vira METADADOS) ou nada mudou.
+ * @param {{ motivo_id: string|null, data_entrada: string, fornecedor_id: string|null, documento_numero: string|null,
+ *   centro_custo_id: string|null, centro_resultado_id: string|null }} atual cabeçalho vigente (dia em AAAA-MM-DD)
+ * @param {Array<{ produto_id: string, local_estoque_id: string, unidade: string, quantidade: any, custo_unitario: any,
+ *   custo_zero: boolean, lote_fabricante: string|null, data_validade: string|null }>} linhas linhas vigentes, por ordem
+ * @param {ReturnType<typeof normalizarCriacao>} nova
+ */
+export const mesmaVersaoFisica = (atual, linhas, nova) => {
+  const cab = ['motivo_id', 'data_entrada', 'fornecedor_id', 'documento_numero', 'centro_custo_id', 'centro_resultado_id'];
+  if (cab.some((k) => (atual[k] ?? null) !== (nova[k] ?? null))) return false;
+  if (linhas.length !== nova.itens.length) return false;
+  return nova.itens.every((n, i) => {
+    const a = linhas[i];
+    return a.produto_id === n.produto_id && a.local_estoque_id === n.local_estoque_id && a.unidade === n.unidade
+      && dec(a.quantidade).eq(dec(n.quantidade)) && dec(a.custo_unitario).eq(dec(n.custo_unitario)) && a.custo_zero === n.custo_zero
+      && (a.lote_fabricante ?? null) === (n.lote_fabricante ?? null) && (a.data_validade ?? null) === (n.data_validade ?? null);
+  });
+};
 
 /**
  * Quantidade e custo na unidade de ESTOQUE do Produto (kg, ou L). SACO usa o peso do saco do Produto;

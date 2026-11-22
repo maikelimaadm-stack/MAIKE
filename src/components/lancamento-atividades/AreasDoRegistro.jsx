@@ -39,7 +39,7 @@ const ha = (v) => (v ? `${formatarDecimalLinha(v)} ha` : "—");
  *   carregando?: boolean,
  *   opcional?: boolean,
  * }} props `erros`: `areas` (nenhuma), `area:<id>` (os hectares ou a recusa do servidor naquela área) e `pct:<id>`.
- *   D-PROD-271: `opcional` (Manutenção e Outros) tira o asterisco e mostra "Nenhuma área" sem área escolhida.
+ *   D-PROD-273: `opcional` (Manutenção e Outros) tira o asterisco e mostra "Nenhuma área" sem área escolhida.
  */
 export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros = {}, travada = null, celular = false, readOnly = false, carregando = false, opcional = false }) {
   const ativas = useMemo(() => areasDoMapa.filter((a) => a && a.id != null && a.ativo !== false), [areasDoMapa]);
@@ -128,7 +128,7 @@ export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros =
         escolhidas={escolhidas}
         onAlternar={(a) => onChange(alternarAreaNoRegistro(linhas, a, { travadas }))}
         resumo={resumo}
-        // D-PROD-271: opcional sem área, o rótulo sobe e "Nenhuma área" fica no lugar do valor (não por baixo do rótulo).
+        // D-PROD-273: opcional sem área, o rótulo sobe e "Nenhuma área" fica no lugar do valor (não por baixo do rótulo).
         temValor={linhas.length > 0 || opcional}
         obrigatorio={!opcional}
         readOnly={readOnly}

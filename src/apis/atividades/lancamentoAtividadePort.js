@@ -106,7 +106,7 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   // D-PROD-267: "Como fica depois de salvar? Concluída" e a resposta ao "serviço parado" (booleanos, só quando vêm).
   'concluir',
   'nova_atividade',
-  // D-PROD-271: os campos de cada tipo — o plantio (capim e opcionais), o nº do receituário (Aplicação), o local do serviço
+  // D-PROD-273: os campos de cada tipo — o plantio (capim e opcionais), o nº do receituário (Aplicação), o local do serviço
   // sem área e a unidade da quantidade feita (Manutenção e Outros). Só quando vêm.
   'plantio',
   'numero_receituario',
@@ -153,7 +153,7 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  */
 export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao']);
 /**
- * D-PROD-271 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
+ * D-PROD-273 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
  * a de sempre e o VC (%) da semente, só quando preenchido. As rotas de UMA linha continuam com `CAMPOS_DA_LINHA_PRODUTO`.
  */
 export const CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO = Object.freeze([...CAMPOS_DA_LINHA_PRODUTO, 'vc_percentual']);
@@ -262,7 +262,7 @@ export const corpoDaCriacaoDoApontamento = (dados, permitidos = CAMPOS_DE_CRIACA
 // ─── Leitura ─────────────────────────────────────────────────────────────
 
 /** Filtros da lista (query FECHADA no servidor: nada além disso vai). Datas sobre `data_inicio`. D-PROD-267: `situacao` e `tipo_fixo`. */
-// D-PROD-271: `local` (o serviço sem área no local; a prévia da Nova realização sem área).
+// D-PROD-273: `local` (o serviço sem área no local; a prévia da Nova realização sem área).
 const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'situacao', 'tipo_fixo', 'tipo_atividade_id', 'area_id', 'data_de', 'data_ate', 'local', 'limit', 'cursor']);
 const FILTROS_OPCOES = Object.freeze(['empresa_id', 'q', 'limit', 'cursor']);
 /** Query de cada seletor da Fatia 3 (fechada no servidor). */

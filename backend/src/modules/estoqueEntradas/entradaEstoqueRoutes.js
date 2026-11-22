@@ -1,14 +1,15 @@
 /**
  * D-PROD-257 (Estoque → Entradas) — rotas da entrada manual documentada e do saldo de implantação.
  * Guardadas pela tela `sup-estoque` (`GUARDAS.estoque`): LER a lista e o detalhe = `visualizar`;
- * criar, editar a observação e excluir = ação extra `entrada` (nenhum perfil a recebe por padrão;
+ * criar, editar (observação ou substituição) e excluir = ação extra `entrada` (nenhum perfil a recebe por padrão;
  * administrador e `is_admin` têm tudo). O tenant vem SÓ do `auth_context`; corpo e query FECHADOS
  * (`additionalProperties: false`); decimais chegam como TEXTO (número no JSON é 400).
  *
  *  GET   /estoque/entradas                      (ver)     lista keyset
  *  GET   /estoque/entradas/:id                  (ver)     detalhe com histórico
  *  POST  /estoque/entradas                      (entrada) cria e confirma (201; replay 200)
- *  PATCH /estoque/entradas/:id                  (entrada) só a observação (CAS de versão)
+ *  PATCH /estoque/entradas/:id                  (entrada) observação (METADADOS) ou a versão nova completa
+ *                                                         (SUBSTITUICAO, D-PROD-271), com CAS de versão
  *  POST  /estoque/entradas/:id/excluir          (entrada) exclusão lógica com estorno integral
  *  GET   /estoque/entradas/opcoes/{produtos,locais,fornecedores,centros-custo,centros-resultado}  (entrada) seletores
  *        (D-PROD-264: produtos, locais e centros também com `saida`, pelo formulário da saída manual)
@@ -77,6 +78,11 @@ const CRIAR = {
     },
   },
 };
+/**
+ * D-PROD-271 — PATCH: só `observacao` → METADADOS; com qualquer campo físico → SUBSTITUICAO, e o corpo é a
+ * versão nova COMPLETA com os mesmos campos e formatos da criação (`operation_id`, `motivo_id`,
+ * `data_entrada` e `itens` passam a ser exigidos pelo serviço, como na criação).
+ */
 const EDITAR = {
   params: PARAMS,
   body: {
@@ -84,11 +90,8 @@ const EDITAR = {
     required: ['empresa_id', 'versao', 'motivo_edicao'],
     additionalProperties: false,
     properties: {
-      empresa_id: ID, versao: { type: 'integer', minimum: 1 }, motivo_edicao: { type: 'string', minLength: 1, maxLength: 500 },
-      observacao: TEXTO_NULO(500),
-      // Declarados só para responder 422/409 estável (motivo imutável / edição física não suportada), nunca para aplicar.
-      motivo_id: { type: 'string', maxLength: 64 }, data_entrada: DIA, documento_numero: TEXTO_NULO(64), itens: { type: 'array', maxItems: MAX_ITENS },
-      fornecedor_id: TEXTO_NULO(64), centro_custo_id: TEXTO_NULO(64), centro_resultado_id: TEXTO_NULO(64),
+      ...CRIAR.body.properties,
+      versao: { type: 'integer', minimum: 1 }, motivo_edicao: { type: 'string', minLength: 1, maxLength: 500 },
     },
   },
 };
@@ -154,7 +157,10 @@ export const registrarEntradaEstoqueRoutes = async (app) => {
     const r = await criar(ctx(request), corpo(request));
     return reply.status(r.status).send(r.body);
   });
-  app.patch('/estoque/entradas/:id', { ...autenticado, preHandler: [g.entrada], schema: EDITAR }, async (request) => editar(ctx(request), idDe(request), corpo(request)));
+  app.patch('/estoque/entradas/:id', { ...autenticado, preHandler: [g.entrada], schema: EDITAR }, async (request, reply) => {
+    const r = await editar(ctx(request), idDe(request), corpo(request));
+    return reply.status(r.status).send(r.body);
+  });
   app.post('/estoque/entradas/:id/excluir', { ...autenticado, preHandler: [g.entrada], schema: EXCLUIR }, async (request, reply) => {
     const r = await excluir(ctx(request), idDe(request), corpo(request));
     return reply.status(r.status).send(r.body);

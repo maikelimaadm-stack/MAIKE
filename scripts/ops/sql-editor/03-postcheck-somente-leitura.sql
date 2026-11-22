@@ -29,7 +29,7 @@ tenant(nome) AS (
     -- D-PROD-249: a área da atividade (AtividadeArea) sai logo depois do apontamento, que a referencia (FK composta), e
     -- antes da atividade, da área (AreaPastagem), do setor e dos usuários, que ela referencia.
     'AtividadeArea',
-    -- D-PROD-271: os dados do plantio de pastagem (AtividadePlantio) saem logo depois da área da atividade e antes da
+    -- D-PROD-273: os dados do plantio de pastagem (AtividadePlantio) saem logo depois da área da atividade e antes da
     -- atividade, das culturas (CADCULTURAS) e da fazenda, que eles referenciam (FKs compostas RESTRICT).
     'AtividadePlantio',
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
