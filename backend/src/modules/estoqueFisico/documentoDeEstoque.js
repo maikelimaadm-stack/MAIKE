@@ -17,13 +17,13 @@ import { travarEscopo } from '../gestao/gestaoComum.js';
 export const travarDocumentoDeEstoque = (tx, cli, empresaId, chave) => travarEscopo(tx, `estoque:documento:${cli}:${empresaId}:${chave}`);
 
 /**
- * Entrada manual CONFIRMADA da fazenda com este documento.
- * @param {any} tx @param {string} cli @param {string} empresaId @param {string} chave
+ * Entrada manual CONFIRMADA da fazenda com este documento. D-PROD-271: `ignorar` = a própria entrada em edição.
+ * @param {any} tx @param {string} cli @param {string} empresaId @param {string} chave @param {string|null} [ignorar]
  * @returns {Promise<{id: string, numero: string}|null>}
  */
-export const entradaManualComDocumento = async (tx, cli, empresaId, chave) => {
+export const entradaManualComDocumento = async (tx, cli, empresaId, chave, ignorar = null) => {
   const r = /** @type {any[]} */ (await tx.$queryRaw`SELECT id, numero FROM "EntradaEstoque" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId}
-    AND status = 'CONFIRMADA' AND upper(btrim(documento_numero)) = ${chave} ORDER BY numero LIMIT 1`);
+    AND status = 'CONFIRMADA' AND upper(btrim(documento_numero)) = ${chave} AND id IS DISTINCT FROM ${ignorar}::text ORDER BY numero LIMIT 1`);
   return r[0] ?? null;
 };
 

@@ -5,10 +5,10 @@ import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import AbasEstoque from "@/components/estoque/AbasEstoque";
-import JanelaEntradaEstoque from "@/components/estoque/JanelaEntradaEstoque";
+import JanelaEntradaEstoque, { chaveDetalheEntrada } from "@/components/estoque/JanelaEntradaEstoque";
 import JanelaMovimentoEstoque from "@/components/estoque/JanelaMovimentoEstoque";
 import JanelaNovoMovimentoEstoque from "@/components/estoque/JanelaNovoMovimentoEstoque";
-import JanelaSaidaEstoque from "@/components/estoque/JanelaSaidaEstoque";
+import JanelaSaidaEstoque, { chaveDetalheSaida } from "@/components/estoque/JanelaSaidaEstoque";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { opcoesDeDeposito } from "@/components/estoque/SaldoEstoque";
 import TabelaMovimentosEstoque, {
@@ -41,6 +41,8 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * leva ao detalhe da entrada (editar a observação, excluir), na mesma tela.
  * D-PROD-264: "Novo movimento" aparece com a ação `entrada` OU a ação `saida`; a janela só oferece os tipos que as
  * ações permitem. O detalhe de um movimento de saída manual leva ao detalhe da saída (editar a observação, excluir).
+ * D-PROD-271: o "Editar" do detalhe da entrada ou da saída (com a ação e o fuso da fazenda) fecha o detalhe e abre a
+ * janela "Novo movimento" em modo edição; salvar (ou cancelar) volta ao detalhe, já com a versão nova.
  * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
  *   `podeLancar` é a ação `entrada`; `podeSaida`, a ação `saida`.
@@ -51,6 +53,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
   const [lancando, setLancando] = useState(false);
   const [entradaAberta, setEntradaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
   const [saidaAberta, setSaidaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
+  const [editando, setEditando] = useState(/** @type {{ tipo: 'entrada'|'saida', documento: any } | null} */ (null));
   // Fuso da FAZENDA (o "hoje" do lançamento): o mesmo resumo de empresas do Layout.
   const empresasQuery = useQuery({ queryKey: ["empresas"], queryFn: () => listEmpresas(), enabled: Boolean(empresaId) && podeAlgum, staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
   const fuso = useMemo(() => {
@@ -166,9 +169,13 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
     [controller.listaQueryError],
   );
 
-  const aoLancar = async (/** @type {{ tipo: string, entrada?: any, saida?: any }} */ r) => {
+  const aoLancar = async (/** @type {{ tipo: string, entrada?: any, saida?: any, editada?: boolean }} */ r) => {
     setLancando(false);
+    setEditando(null);
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });
+    // Edição: o detalhe reabre já com a versão nova (a resposta do PATCH é o detalhe completo).
+    if (r?.editada && r.entrada?.id) queryClient.setQueryData(chaveDetalheEntrada(empresaId, String(r.entrada.id)), r.entrada);
+    if (r?.editada && r.saida?.id) queryClient.setQueryData(chaveDetalheSaida(empresaId, String(r.saida.id)), r.saida);
     if (r?.entrada?.id) setEntradaAberta({ id: String(r.entrada.id), numero: String(r.entrada.numero ?? "") });
     if (r?.saida?.id) setSaidaAberta({ id: String(r.saida.id), numero: String(r.saida.numero ?? "") });
   };
@@ -234,8 +241,44 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
     {lancando && empresaId && podeAlgum ? (
       <JanelaNovoMovimentoEstoque aberto empresaId={empresaId} hoje={hoje} podeEntrada={podeLancar} podeSaida={podeSaida} onFechar={() => setLancando(false)} onLancado={aoLancar} />
     ) : null}
-    <JanelaEntradaEstoque entrada={entradaAberta} empresaId={empresaId} podeLancar={podeLancar} onFechar={() => setEntradaAberta(null)} />
-    <JanelaSaidaEstoque saida={saidaAberta} empresaId={empresaId} podeSaida={podeSaida} onFechar={() => setSaidaAberta(null)} />
+    {editando && empresaId ? (
+      <JanelaNovoMovimentoEstoque
+        aberto
+        edicao={editando}
+        empresaId={empresaId}
+        hoje={hoje}
+        podeEntrada={podeLancar}
+        podeSaida={podeSaida}
+        onFechar={() => {
+          const { tipo: tipoEditado, documento } = editando;
+          setEditando(null);
+          const doc = { id: String(documento.id), numero: String(documento.numero ?? "") };
+          if (tipoEditado === "saida") setSaidaAberta(doc);
+          else setEntradaAberta(doc);
+        }}
+        onLancado={aoLancar}
+      />
+    ) : null}
+    <JanelaEntradaEstoque
+      entrada={entradaAberta}
+      empresaId={empresaId}
+      podeLancar={podeLancar}
+      onFechar={() => setEntradaAberta(null)}
+      onEditar={fuso ? (/** @type {any} */ detalhe) => {
+        setEntradaAberta(null);
+        setEditando({ tipo: "entrada", documento: detalhe });
+      } : undefined}
+    />
+    <JanelaSaidaEstoque
+      saida={saidaAberta}
+      empresaId={empresaId}
+      podeSaida={podeSaida}
+      onFechar={() => setSaidaAberta(null)}
+      onEditar={fuso ? (/** @type {any} */ detalhe) => {
+        setSaidaAberta(null);
+        setEditando({ tipo: "saida", documento: detalhe });
+      } : undefined}
+    />
     </div>
   );
 }
