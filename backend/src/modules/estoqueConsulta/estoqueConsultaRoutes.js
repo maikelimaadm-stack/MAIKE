@@ -8,7 +8,8 @@
  * o tenant vem do `auth_context`. `empresa_id` é obrigatória.
  *
  *  GET /estoque/saldo               produto × depósito (camadas disponíveis)
- *  GET /estoque/movimentos          kardex paginado (keyset + cursor assinado)
+ *  GET /estoque/movimentos          kardex paginado (keyset + cursor assinado; sem os excluídos, salvo
+ *                                   `incluir_excluidos=true`, D-PROD-273)
  *  GET /estoque/movimentos/:id      detalhe de um movimento
  *  GET /estoque/opcoes/produtos     filtro de produto (por nome, keyset)
  *  GET /estoque/opcoes/locais       filtro de depósito (por nome, keyset)
@@ -60,6 +61,8 @@ const MOVIMENTOS = {
       data_de: DIA,
       data_ate: DIA,
       q: BUSCA,
+      // D-PROD-273 (fatia 2): o par excluído (original 'Estornada' + estorno) só aparece com true, marcado `excluido`.
+      incluir_excluidos: { type: 'boolean', default: false },
       limit: LIMITE,
       cursor: CURSOR,
     },
