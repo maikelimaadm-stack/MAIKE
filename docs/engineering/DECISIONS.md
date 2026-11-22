@@ -8985,4 +8985,28 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Testes.** `backend/tests/estoqueEntradasEdicao.test.mjs` (novo) e `backend/tests/estoqueSaidasEdicao.test.mjs` (novo), Postgres real, vermelhos contra a `main` e verdes com a mudança; suítes do Estoque e da reconciliação; smoke da tela.
 
-<!-- Próxima decisão: D-PROD-272 -->
+## D-PROD-273 — Estoque: exclusão com recálculo do custo médio; o excluído some das telas
+
+**Data:** 2026-11-22 · **Origem:** pedido do proprietário ("quando eu excluo um movimento ele dá como estorno, e não pode … agora tudo fica bloqueado e não consigo excluir") · **Branch:** `claude/estoque-exclusao-recalculo` · **Migration:** nenhuma prevista · **Especificação:** [`MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md`](./MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md)
+
+> **Numeração:** a `main` (`cdfb1174`) indica `Próxima decisão: D-PROD-272`, mas a D-PROD-272 está reservada para o ajuste de inventário (PR #350, aberta). Esta é a **D-PROD-273**; o marcador passa a D-PROD-274.
+
+**O problema (produção, leitura de 2026-11-22).** No FORTUSAIS ENGORDA PRIME (BARRACÃO DE SAL e DEP - 15 / 15 A): cada exclusão lança um estorno que aparece na tela; como o estorno é um movimento "depois", a regra "só exclui se nada mexeu depois" passa a travar tudo o que é anterior (no DEP 15, os estornos nº 38 e 42 travam as suplementações nº 25, 26, 27, 32 e a transferência nº 33/34); e uma entrada manual de 3.600 kg a custo R$ 0,00 (nº 31, provável tentativa de desfazer a saída manual nº 1, que já não podia ser excluída) baixou o custo médio do Barracão de R$ 3,96 para R$ 2,98/kg, custo que as transferências seguintes levaram ao DEP 15.
+
+**Escolhas do proprietário (2026-11-22).**
+- **O excluído some das telas:** o movimento excluído e o estorno dele saem das listas, do Kardex e dos históricos; continuam no banco para auditoria, com um filtro "mostrar excluídos".
+- **Excluir e recalcular:** qualquer movimento pode ser excluído desde que o saldo nunca fique negativo; o motor recalcula o custo médio dos movimentos seguintes e de quem herdou esse custo.
+- **Ordem:** a ordem em que os movimentos foram lançados (`numero_movimentacao`, a ordem em que o motor valorizou), não a das datas. Recalcular sem excluir nada reproduz exatamente os valores gravados.
+- **PRs:** a edição completa (D-PROD-271, #355) entrou antes, com a regra antiga; ganha o recálculo junto com o resto.
+
+**Constituição — emenda APROVADA pelo proprietário em 2026-11-22** (aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-271, e nota própria em `07-DO-NOT-DO.md`, depois da nota D-PROD-271). Texto aprovado:
+
+> *Em `00-CONSTITUICAO.md` §1:* "**Estoque — exclusão com recálculo.** Qualquer movimento de estoque (entrada, saída, transferência, cocho, atividade, abastecimento, compra, venda, ajuste) pode ser excluído desde que, refeita a sequência do produto na ordem em que os movimentos foram lançados, o saldo de nenhum depósito fique negativo em nenhum ponto. A exclusão é feita pelo motor de estoque único: o movimento excluído deixa de contar e o custo médio de todos os movimentos lançados depois dele, em todos os depósitos do produto, é recalculado, assim como os valores copiados desse custo (cocho, atividade, abastecimento, venda e transferência). Cada valor reescrito fica registrado com o antes e o depois, o autor e o motivo. O movimento excluído e o estorno dele saem das telas e continuam guardados para auditoria. Para a exclusão, esta regra substitui a exigência de que nada tenha mexido depois e a proibição de recalcular o custo de baixas passadas. Preço de venda e valor de compra não mudam; só o custo derivado do estoque."
+>
+> *Em `07-DO-NOT-DO.md`, nota própria:* "a exclusão com recálculo é exceção, nos limites da decisão, às proibições de excluir depois de outro movimento e de recalcular o custo de baixas passadas. Continua proibido: excluir quando o saldo de algum depósito ficaria negativo em algum ponto da sequência; recalcular fora do motor de estoque único ou por outra ordem que não a de lançamento; reescrever valor sem registrar o antes, o depois, o autor e o motivo; apagar fisicamente movimento ou camada; mudar preço de venda ou valor de compra; conceder ações do estoque a perfis existentes por padrão."
+
+**Entregas (uma PR cada, nesta ordem).** (1) esta decisão, a emenda e a especificação; (2) "some da tela"; (3) o replay do motor, a prévia e a prova "replay = gravado" com os dados reais; (4) a exclusão com recálculo das saídas (manual, cocho, atividade, abastecimento, venda) e depois das entradas, compra e transferência, incluindo a edição (D-PROD-271). Até a entrega 4, as regras de exclusão de hoje continuam valendo.
+
+**Fora de escopo.** Recalcular pela ordem das datas; corrigir datas retroativas; mudar preço de venda ou valor de compra.
+
+<!-- Próxima decisão: D-PROD-274 -->

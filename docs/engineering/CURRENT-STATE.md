@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-271; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-273; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -10,7 +10,18 @@ rollout pausado **D-PROD-41**)
 ---
 
 
-## Missão ativa (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-271)
+
+## Missão ativa (2026-11-22) — MAIKE-ESTOQUE-EXCLUSAO-RECALCULO: exclusão com recálculo; o excluído some das telas (D-PROD-273)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-273**: o excluído some das telas; excluir com recálculo do custo médio na ordem de lançamento, saldo nunca negativo; dependentes recalculados com trilha |
+| Branch | `claude/estoque-exclusao-recalculo`, a partir da `main` `cdfb1174` |
+| Constituição | emenda **aprovada** pelo proprietário (2026-11-22) e aplicada |
+| Entregas | (1) decisão + SPEC; (2) some da tela; (3) replay + prévia + prova; (4) exclusão com recálculo |
+| Especificação | [`MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md`](./MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md) |
+
+## Missão anterior (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-271)
 
 | Campo | Valor |
 |---|---|

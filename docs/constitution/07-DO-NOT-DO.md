@@ -169,6 +169,8 @@ Violação exige **rollback**, não flexibilização da regra.
 
 > **Nota (D-PROD-271, emenda aprovada pelo proprietário em 2026-11-21):** a edição completa da entrada e da saída manual (D-PROD-271) substitui, nos limites da decisão, a regra de que o motivo da entrada nunca muda e a proibição de mudar motivo, data, centros, produto, quantidade ou depósito de uma saída lançada. Continua proibido: editar quando algo mexeu depois; editar sem motivo da edição, autor, versão ou registro do antes e do depois; reescrever ou apagar movimento ou camada de estoque em vez de estornar pelo motor; digitar o valor da saída; editar documento excluído; conceder as ações `entrada` ou `saida` a perfis existentes por padrão.
 
+> **Nota (D-PROD-273, emenda aprovada pelo proprietário em 2026-11-22):** a exclusão com recálculo é exceção, nos limites da decisão, às proibições de excluir depois de outro movimento e de recalcular o custo de baixas passadas. Continua proibido: excluir quando o saldo de algum depósito ficaria negativo em algum ponto da sequência; recalcular fora do motor de estoque único ou por outra ordem que não a de lançamento; reescrever valor sem registrar o antes, o depois, o autor e o motivo; apagar fisicamente movimento ou camada; mudar preço de venda ou valor de compra; conceder ações do estoque a perfis existentes por padrão.
+
 > **Nota (D-PROD-193):** os itens do Apontamento de Atividade são a segunda exceção, depois do abastecimento, à
 > lista "fora" da D-PROD-157, só no trecho baixa de estoque, nos limites da decisão. Continua proibido: baixar o
 > item fora do motor de estoque ou por `Produto.estoque_atual -= …`; gravar o movimento com a origem do
