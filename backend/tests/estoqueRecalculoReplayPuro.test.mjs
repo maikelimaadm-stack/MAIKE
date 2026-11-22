@@ -89,6 +89,43 @@ describe('D-PROD-273 fatia 3 — replay puro (era legada e corte do custo médio
     assert.deepEqual(sim.depositos, [{ local_estoque_id: A, saldo_antes: '15.0000', saldo_depois: '5.0000', valor_antes: '50.0000', valor_depois: '20.0000', custo_medio_antes: '3.3333', custo_medio_depois: '4.0000' }]);
   });
 
+  test('simulação: estorno de entrada cuja camada a simulação consumiu → o que falta sai das outras camadas (reatribuído) ou recusa por saldo negativo', () => {
+    // E1 10 a 2 (L1), E2 10 a 4 (L2), venda de 5 a médio 3 (15; L1 5 e L2 10 passam a 3), E3 10 a 6 (L3), estorno da compra E2 (L2 intacta, sai a 3)
+    const montarH = (comE3) => {
+      n = 0;
+      const movimentos = [
+        entrada('e1', '10', '2', '0', { createdAt: dia(1) }),
+        entrada('e2', '10', '4', '10', { createdAt: dia(2), status: 'Estornada', movimento_filho_id: 'est-e2' }),
+        mov({ id: 'v', createdAt: dia(3), tipo_movimentacao: 'Saída', tipo_detalhado: 'venda_financeiro', quantidade: '5', modo_saida_fifo: 'CUSTO_MEDIO', valor_unitario: '3.0000', valor_total: '15.0000',
+          local_estoque_origem: A, saldo_antes: '20', saldo_depois: '15', lotes_consumidos: [{ lote_id: 'L1', quantidade: '5.0000', custo_unitario: '3.0000' }] }),
+        ...(comE3 ? [entrada('e3', '10', '6', '15', { createdAt: dia(4) })] : []),
+        mov({ id: 'est-e2', createdAt: dia(5), tipo_movimentacao: 'Saída', tipo_detalhado: 'estorno_compra', quantidade: '10', valor_unitario: '4', valor_total: '40.0000',
+          local_estoque_origem: A, saldo_antes: comE3 ? '25' : '15', saldo_depois: comE3 ? '15' : '5', movimento_pai_id: 'e2' }),
+      ];
+      movimentos.forEach((m, i) => { m.numero_movimentacao = String(i + 1); });
+      const camadas = [
+        camada('L1', 'e1', '10', '3.0000', '5.0000', 'Disponivel', 1), camada('L2', 'e2', '10', '3.0000', '0.0000', 'Estornado', 2),
+        ...(comE3 ? [camada('L3', 'e3', '10', '6.0000', '10.0000', 'Disponivel', 4)] : []),
+      ];
+      return { movimentos, camadas, cutover: null };
+    };
+    const h = montarH(true);
+    const base = reproduzir(h);
+    assert.deepEqual(compararComGravado(base, h), []);
+    // sem E1: a venda sai de L2 (5 a 4 = 20); o estorno de E2 tira os 5 que restam em L2 e os outros 5 de L3 (FIFO, a 6)
+    const sim = simularExclusao(h, base, ['e1']);
+    assert.equal(sim.permitido, true, JSON.stringify(sim.recusa));
+    const est = sim.movimentos.find((m) => m.id === 'est-e2');
+    assert.deepEqual([est.reatribuido, est.depois.saldo_antes, est.depois.saldo_depois], [true, '15.0000', '5.0000']);
+    assert.deepEqual(sim.depositos.map((d) => [d.saldo_depois, d.custo_medio_depois]), [['5.0000', '6.0000']]);
+    // sem E3 não há de onde tirar: o estorno de E2 deixaria −5 no depósito
+    const h2 = montarH(false);
+    const base2 = reproduzir(h2);
+    assert.deepEqual(compararComGravado(base2, h2), []);
+    const sim2 = simularExclusao(h2, base2, ['e1']);
+    assert.deepEqual([sim2.permitido, sim2.recusa.reason, sim2.recusa.movimento_id, sim2.recusa.saldo], [false, 'saldo_negativo', 'est-e2', '-5.0000']);
+  });
+
   test('ordem canônica: número numérico (11 depois de 9); legado não numérico desempata por createdAt e id', () => {
     const a = { id: 'a', numero_movimentacao: '9', createdAt: dia(5) };
     const b = { id: 'b', numero_movimentacao: '11', createdAt: dia(1) };
