@@ -9,6 +9,7 @@ import { formatarCustoUnitario, formatarDia, formatarInstante, formatarQtd, form
 import { MOTIVO_ACAO_MINIMO, chaveDeOperacao } from "@/lib/estoqueEntradasRegras";
 import { ROTULO_STATUS_AJUSTE, ROTULO_TIPO_AJUSTE, SEM_DIFERENCA, formatarDiferenca, mensagemErroAjuste } from "@/lib/estoqueAjustesRegras";
 import { detalharAjusteEstoque, editarAjusteEstoque, excluirAjusteEstoque } from "@/services/estoqueAjustesService";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 
 /** Chave do detalhe (prefixo `estoque`: o que invalida o estoque invalida o detalhe). */
 export const chaveDetalheAjuste = (/** @type {string|null} */ empresaId, /** @type {string|null} */ id) => ["estoque", "ajuste", empresaId, id];
@@ -54,7 +55,8 @@ const porUnidade = (/** @type {string} */ u) => (u === "L" ? "litro" : "kg");
  * centros, observação, as linhas (saldo antes, contado, diferença, sobra/falta, custo, valor), os totais de sobras e
  * de faltas e o histórico. Abre pelo detalhe do movimento, em Movimentos, e logo depois de lançar. Com a ação
  * `ajuste`, duas ações DENTRO da mesma janela: "Editar observação" (só ela muda) e "Excluir ajuste" (pede o motivo;
- * o servidor recusa se algum produto teve outro movimento no depósito depois).
+ * D-PROD-273, fatia 5: com outro movimento do produto no depósito depois, o servidor recalcula o custo deles — a prévia
+ * mostra antes de confirmar —; recusa se o saldo ficaria negativo ou se houver outra contagem depois).
  * @param {{ ajuste: { id: string, numero?: string } | null, empresaId: string|null, podeAjuste: boolean, onFechar: () => void }} props
  */
 export default function JanelaAjusteEstoque({ ajuste, empresaId, podeAjuste, onFechar }) {
@@ -254,8 +256,9 @@ export default function JanelaAjusteEstoque({ ajuste, empresaId, podeAjuste, onF
             <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2 mt-3" data-testid="ajuste-form-exclusao">
               <SecaoForm titulo="Excluir ajuste" />
               <p className="col-span-12 text-[13px]">
-                O ajuste fica no histórico como excluído e as sobras e faltas dele são estornadas pelo mesmo valor. Só é possível se nenhum produto teve outro movimento no depósito depois dele; senão, faça uma nova contagem.
+                O ajuste fica no histórico como excluído e as sobras e faltas dele saem do estoque. Se o produto teve outros movimentos no depósito depois dele, o custo médio deles é recalculado. Com outra contagem depois, exclua a mais nova primeiro.
               </p>
+              <PreviaRecalculoExclusao empresaId={empresaId} movimentoIds={itens.map((/** @type {any} */ i) => i.movimentacao_estoque_id)} />
               <AreaTexto label="Motivo da exclusão" value={motivo} onChange={setMotivo} required testId="ajuste-exclusao-motivo" />
             </div>
           ) : null}

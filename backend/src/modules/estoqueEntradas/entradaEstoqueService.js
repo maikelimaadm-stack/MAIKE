@@ -21,8 +21,10 @@
  *    são estornadas pelo motor (`estorno_entrada_revisao`, dia = hoje), encerradas (`revisao_fim`) e as
  *    novas lançadas pelo motor (dia = data nova, `revisao_inicio` = revisão + 1); idempotente por
  *    `operation_id`. Número e id da entrada não mudam; o histórico fica nas linhas encerradas e no evento.
- *  - Excluir: exclusão lógica (`EXCLUIDA`) com estorno integral pelo motor, só com a prova fail-closed
- *    de que a camada nunca foi tocada (`provaDeCamadaIntocada`).
+ *  - Excluir: exclusão lógica (`EXCLUIDA`) com estorno integral pelo motor. Sem nada depois no depósito, só com a
+ *    prova fail-closed de que a camada nunca foi tocada (`provaDeCamadaIntocada`). D-PROD-273 (fatia 5): com movimento
+ *    depois, a exclusão recalcula o custo médio de tudo que veio depois (`estoqueExclusaoRecalculo`); saldo negativo
+ *    em qualquer ponto → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`. A edição com substituição continua exigindo a prova.
  *  - Documento (D-PROD-261, R-DEDUPE): a entrada é recusada se outra entrada confirmada ou um
  *    lançamento da Central CONFIRMADO com mercadoria da fazenda já tem o mesmo documento; a Central
  *    faz a consulta recíproca (`documentoDeEstoque.js`), sob a mesma trava do documento.
@@ -54,6 +56,7 @@ import {
   normalizarExclusao,
 } from './entradaEstoqueRegras.js';
 import { exigirMotivoAtivo } from './motivoEntradaEstoqueService.js';
+import { aplicarExclusaoComRecalculo, camadasPeloRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
 /** Teto da prova (contrato A8.3): acima dele a prova é INDETERMINADA e a exclusão é recusada (nunca varredura ilimitada). */
@@ -472,7 +475,19 @@ export const excluir = async (contexto, id, corpo) => {
           if (!itens.length) throw statusInvalido('sem_linhas_vigentes');
           await exigirLocaisEstoque(tx, cli, itens.map((i) => ({ id: i.local_estoque_id, field: 'local_destino_id', exigirAtivo: false })));
           await travarProdutosEstoque(tx, cli, empresaId, itens.map((i) => i.produto_id));
-          await provaDeCamadaIntocada(tx, cli, itens);
+          // D-PROD-273 (fatia 5): com outro movimento do produto no depósito depois, a exclusão RECALCULA o que veio
+          // depois (prova antes de gravar; saldo negativo em qualquer ponto → 409, nada gravado; sem estorno exato como
+          // saída). Sem nada depois: a prova da camada intocada e o estorno exato de sempre.
+          const planos = await planejarExclusaoComRecalculo(tx, cli, {
+            empresaId, movimentos: itens.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })),
+            // camada inteira e nenhuma saída válida depois (a mesma prova da prévia): o estorno exato de antes é a saída
+            intacto: (movimentoId) => entradaIntocada(tx, cli, movimentoId),
+          });
+          const peloRecalculo = new Set(camadasPeloRecalculo(planos));
+          // A prova de sempre só onde nada veio depois (sem plano); com plano, a prova é a do recálculo (ou `entradaIntocada`).
+          const comPlano = new Set(planos.flatMap((p) => p.excluirIds));
+          await provaDeCamadaIntocada(tx, cli, itens.filter((i) => !comPlano.has(i.movimentacao_estoque_id)));
+          const motivoEstorno = `Exclusão da entrada ${atual.numero}: ${e.motivo}`.slice(0, 255);
           let estornos;
           try {
             estornos = await estornarEntradaDocumentada(tx, contexto, {
@@ -483,8 +498,9 @@ export const excluir = async (contexto, id, corpo) => {
               })),
               dia: tempo.hoje,
               documento: { numero: atual.documento_numero, data: tempo.hoje },
-              origem: { operacaoId: id, motivoEstorno: `Exclusão da entrada ${atual.numero}: ${e.motivo}`.slice(0, 255) },
+              origem: { operacaoId: id, motivoEstorno },
               numeroMovimento: numeroMovimentoProvisorio,
+              camadaPeloRecalculo: peloRecalculo,
             });
           } catch (erro) {
             if (/** @type {any} */ (erro)?.code === 'ESTOQUE_JA_CONSUMIDO') throw dependencias(/** @type {any} */ (erro).details?.reason ?? 'estoque_ja_consumido', { lote_id: /** @type {any} */ (erro).details?.lote_id });
@@ -493,6 +509,11 @@ export const excluir = async (contexto, id, corpo) => {
           for (const [indice, item] of itens.entries()) {
             await tx.entradaEstoqueItem.update({ where: { cliente_id_id: { cliente_id: cli, id: item.id } }, data: { movimentacao_estorno_id: estornos[indice], revisao_fim: atual.revisao } });
           }
+          const recalculo = planos.length
+            ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+              empresaId, motivo: motivoEstorno, origem: 'entrada_documentada', estornos: new Map(itens.map((item, k) => [item.movimentacao_estoque_id, estornos[k]])),
+            })
+            : null;
           await numerarMovimentos(tx, cli, estornos);
           const depois = await tx.entradaEstoque.update({
             where: { cliente_id_id: { cliente_id: cli, id } },
@@ -508,9 +529,9 @@ export const excluir = async (contexto, id, corpo) => {
           });
           await registrarEvento(contexto, {
             acao: 'entrada_estoque.excluir', entidade: ENTIDADE, entidadeId: id,
-            dadosAnteriores: { status: atual.status, versao: atual.versao }, dadosNovos: { status: depois.status, versao: depois.versao, motivo_informado: true, estornos },
+            dadosAnteriores: { status: atual.status, versao: atual.versao }, dadosNovos: { status: depois.status, versao: depois.versao, motivo_informado: true, estornos, recalculo },
           }, tx);
-          return { httpStatus: 200, body: await carregarDetalhe(tx, cli, empresaId, id) };
+          return { httpStatus: 200, body: { ...(await carregarDetalhe(tx, cli, empresaId, id)), recalculo } };
         },
       }),
   );

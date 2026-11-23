@@ -289,12 +289,13 @@ describe('aceite — fluxos da Central Única de Lançamentos', () => {
     const [a2, b2] = await Promise.all(lotes.map((l) => prisma().estoqueLoteNota.findUnique({ where: { id: l.id } })));
     assert.deepEqual([a2.status, a2.quantidade_disponivel.toFixed(4), b2.status, b2.quantidade_disponivel.toFixed(4)], ['Disponivel', '3.0000', 'Disponivel', '4.0000']);
     assert.equal((await prisma().produto.findUnique({ where: { id: s.sal.id } })).estoque_atual.toFixed(4), '7.0000');
-    // comprar e consumir parte: cancelar a COMPRA consumida → 409 ESTOQUE_JA_CONSUMIDO
+    // comprar e consumir: cancelar a COMPRA consumida → D-PROD-273 (fatia 5): o cancelamento recalcularia, mas sem ela a
+    // venda de 7,5 kg (de 8) deixaria o depósito em −0,5 → 409 saldo negativo
     const compra3 = await comprarEConfirmar(s, { quantidade: '1', valorUnitario: '10', total: '10.00', dia: '2027-06-02' });
     await comprarEConfirmar(s, { direcao: 'RECEBER', quantidade: '7.5', valorUnitario: '20', total: '150.00' });
     const consumida = await req('POST', `/operacoes-financeiras/${compra3.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'erro' });
     assert.equal(consumida.statusCode, 409, consumida.body);
-    assert.deepEqual([codigo(consumida), motivo(consumida)], ['ESTOQUE_JA_CONSUMIDO', 'lote_consumido']);
+    assert.deepEqual([codigo(consumida), motivo(consumida)], ['ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo']);
   });
 
   test('5. à vista em aberto: baixa parcial, saldo excedido, data futura, estorno (uma vez só), cancelamento só sem baixa ativa', async () => {
