@@ -1686,7 +1686,7 @@ const fatiasLegiveis = (fatias, { comDestino = false } = {}) => {
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, movimentoId: string, produto: any, local: { id: string, nome?: string|null }, dia: string,
  *   origem: { operacaoId: string, motivoEstorno: string }, numeroMovimento?: string|number,
- *   vinculo?: { pontoSuplementacaoId?: string|null, quantidadeKg?: any } }} a
+ *   vinculo?: { pontoSuplementacaoId?: string|null, quantidadeKg?: any }, exigirUltimo?: boolean }} a
  * @returns {Promise<{ movimento: any, original: { id: string, numero_movimentacao: string }, quantidade: any, valor_total: any,
  *   fatias: Array<{ lote_id: string, quantidade: any }> }>}
  */
@@ -1715,11 +1715,15 @@ export const estornarSaidaSuplementacao = async (tx, ctx, a) => {
   if (m.status !== 'Ativa' || m.movimento_filho_id) throw cochoBloqueado('movimento_estornado', extra);
   const fatias = fatiasLegiveis(m.lotes_consumidos);
   if (!fatias) throw cochoBloqueado('saida_sem_fatias', extra);
-  const depois = await buscarMovimentoPosterior(tx, cli, {
-    empresaId: a.empresaId, produtoId: a.produto.id, locais: [a.local.id], ignorarIds: [m.id],
-    desde: { createdAt: m.createdAt, numero: m.numero_movimentacao }, ignorarParesNeutros: true,
-  });
-  if (depois) throw cochoBloqueado('movimento_posterior_no_deposito', { ...extra, movimento_numero: depois.numero_movimentacao });
+  // D-PROD-273 (fatia 4): `exigirUltimo: false` só quando quem chama já planejou a exclusão COM recálculo do que veio
+  // depois (`planejarExclusaoComRecalculo`, sob a mesma trava): o estorno exato é gravado e o recálculo vem em seguida.
+  if (a.exigirUltimo !== false) {
+    const depois = await buscarMovimentoPosterior(tx, cli, {
+      empresaId: a.empresaId, produtoId: a.produto.id, locais: [a.local.id], ignorarIds: [m.id],
+      desde: { createdAt: m.createdAt, numero: m.numero_movimentacao }, ignorarParesNeutros: true,
+    });
+    if (depois) throw cochoBloqueado('movimento_posterior_no_deposito', { ...extra, movimento_numero: depois.numero_movimentacao });
+  }
   let r;
   try {
     r = await estornarSaida(tx, ctx, {

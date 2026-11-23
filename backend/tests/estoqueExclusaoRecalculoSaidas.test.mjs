@@ -173,3 +173,85 @@ describe('D-PROD-273 fatia 4 — saída manual', () => {
     await provarReplay(x, x.sal);
   });
 });
+
+// ─── cocho ──────────────────────────────────────────────────────────────────
+/**
+ * Lançamento de cocho como o formulário: baixa do depósito e o comando de lançamento com a MESMA chave; com
+ * `anterior`, o fechamento do período anterior (custo pela mesma conta da tela — o porte do servidor, provado igual no
+ * smoke). Devolve o evento e o movimento.
+ */
+const lancarCocho = async (x, local, { ponto, kg, sobra = 0, data, anterior = null, fechamento = null }) => {
+  const chave = `lanc-${randomUUID()}`;
+  const movimentacao = ok(await H.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', x.token, {
+    operation_id: chave, empresa_id: x.e1.id, produto_id: x.sal.id, local_origem_id: local.id, quantidade: kg, ponto_suplementacao_id: ponto, data_movimentacao: data,
+  }), 201).movimentacao;
+  const evento = ok(await H.req('POST', '/suplementacao-eventos/comandos/lancamento-com-lotes', x.token, {
+    operation_id: chave,
+    evento: {
+      empresa_id: x.e1.id, ponto_suplementacao_id: ponto, ponto_nome: `Cocho ${ponto}`, area_id: `area-${ponto}`, area_ids: [`area-${ponto}`], data_lancamento: data,
+      produto: 'Sal mineral', produto_id: x.sal.id, quantidade_total_kg: kg, sobra_kg: sobra, dias_periodo: null, consumo_diario_grupo_kg: null,
+      total_cabecas_afetadas: 10, movimentacao_estoque_id: movimentacao.id, custo_unitario_kg: Number(movimentacao.valor_unitario),
+    },
+    lotes: [{ empresa_id: x.e1.id, lote_id: `lote-${ponto}`, lote_nome: 'A', data_lancamento: data, percentual_consumo_lote: 1, dias_periodo: null, dias_ativos_periodo: null, animal_dias_periodo: null, consumo_unitario_dia: null, consumo_por_cabeca_dia_kg: null, consumo_total_lote_periodo_kg: null }],
+    ...(anterior ? { evento_anterior_id: anterior.id } : {}),
+  }), 201).evento;
+  if (anterior && fechamento) ok(await H.req('PATCH', `/suplementacao-eventos/${anterior.id}`, x.token, { ...fechamento, fechado_por_tipo: 'lancamento', fechado_por_evento_id: evento.id }));
+  return { evento, mov: movimentacao };
+};
+const evento = (id) => prisma().suplementacaoEvento.findUnique({ where: { id } });
+const cancelarCocho = (x, id) =>
+  H.req('POST', `/suplementacao-eventos/${id}/cancelamento`, x.token, { empresa_id: x.e1.id, operation_id: `canc-${randomUUID()}`, motivo: 'lançado em dobro' });
+const custoCocho = (d) => ({
+  custo_unitario_kg: d.custo_unitario_kg, custo_total_periodo: d.custo_total_periodo, custo_cab_dia: d.custo_cab_dia,
+  custo_sobra_herdada_kg: d.custo_sobra_herdada_kg, sobra_final_camadas: d.sobra_final_camadas,
+});
+
+describe('D-PROD-273 fatia 4 — cocho (o caso do dono)', () => {
+  test('entrada, saída para o cocho, outras saídas depois: excluir o cocho passa, os posteriores vão de R$ 6 a R$ 5,8, o fechamento dos outros cochos é refeito (cadeia da sobra herdada)', async () => {
+    const x = await montar();
+    const A = x.local;
+    const e1 = await entrar(x, x.sal, A, '100', '4');
+    const e2 = await entrar(x, x.sal, A, '100', '6');
+    const L1 = await camadaDaEntrada(e1);
+    const L2 = await camadaDaEntrada(e2);
+    // C1 (cocho 1): 50 kg a R$ 5 = R$ 250 — a que o dono quer excluir
+    const c1 = await lancarCocho(x, A, { ponto: 'cocho-1', kg: 50, data: '2027-06-01' });
+    await entrar(x, x.sal, A, '50', '9');
+    // C2 (cocho 2): 80 kg a R$ 6 = R$ 480; C3 fecha o período de C2: sobra 10, 5 dias → consumo 70 × 6 = R$ 420
+    const c2 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 80, data: '2027-06-02' });
+    const fech2 = { sobra_kg: 10, dias_periodo: 5, consumo_diario_grupo_kg: 14, custo_unitario_kg: 6, custo_total_periodo: 420, custo_cab_dia: 8.4, sobra_herdada_kg: 0, custo_sobra_herdada_kg: null, custo_sobra_aproximado: null, sobra_final_camadas: [{ kg: 10, custo_kg: 6 }] };
+    const c3 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 20, sobra: 10, data: '2027-06-07', anterior: c2.evento, fechamento: fech2 });
+    // C4 fecha C3: herdou 10 kg a R$ 6, fornecido 20, sobra 5 → consumo 25 = 10 × 6 + 15 × 6 = R$ 150
+    const fech3 = { sobra_kg: 5, dias_periodo: 5, consumo_diario_grupo_kg: 5, custo_unitario_kg: 6, custo_total_periodo: 150, custo_cab_dia: 3, sobra_herdada_kg: 10, custo_sobra_herdada_kg: 6, custo_sobra_aproximado: false, sobra_final_camadas: [{ kg: 5, custo_kg: 6 }] };
+    const c4 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 10, sobra: 5, data: '2027-06-12', anterior: c3.evento, fechamento: fech3 });
+    assert.deepEqual([c2.mov.valor_total, c3.mov.valor_total, c4.mov.valor_total].map(v4), ['480.0000', '120.0000', '60.0000']);
+    await provarReplay(x, x.sal);
+
+    // antes: a elegibilidade (ensaio) já passa e diz o que será recalculado; nada gravado
+    const el = ok(await H.req('GET', `/suplementacao-eventos/${c1.evento.id}/elegibilidade-cancelamento?empresa_id=${x.e1.id}`, x.token));
+    assert.equal(el.elegivel, true, JSON.stringify(el));
+    assert.deepEqual(el.efeitos.recalculo, { produtos: 1, movimentos: 4, camadas: 3, dependentes: 3 });
+    assert.equal(v4((await mov(c2.mov.id)).valor_total), '480.0000', 'o ensaio não grava');
+
+    const r = ok(await cancelarCocho(x, c1.evento.id));
+    assert.deepEqual(r.recalculo, { produtos: 1, movimentos: 4, camadas: 3, dependentes: 3 });
+    // sem C1: 250 kg a R$ 5,8; C2 = 80 × 5,8 = 464 (só L1); C3 = 20 × 5,8 = 116 (L1); C4 = 10 × 5,8 = 58 (L2)
+    assert.deepEqual(valores(await mov(c2.mov.id)), ['5.8000', '464.0000', '250.0000', '170.0000']);
+    assert.deepEqual(valores(await mov(c3.mov.id)), ['5.8000', '116.0000', '170.0000', '150.0000']);
+    assert.deepEqual(valores(await mov(c4.mov.id)), ['5.8000', '58.0000', '150.0000', '140.0000']);
+    const m2 = await mov(c2.mov.id);
+    assert.deepEqual([v4(m2.custo_medio_antes), v4(m2.custo_medio_depois)], ['5.8000', '5.8000'], 'o cocho grava o médio do poço');
+    assert.deepEqual(fatias(m2), [[L1, '80.0000', '5.8000']]);
+    assert.deepEqual(fatias(await mov(c3.mov.id)), [[L1, '20.0000', '5.8000']]);
+    assert.deepEqual(fatias(await mov(c4.mov.id)), [[L2, '10.0000', '5.8000']]);
+    assert.match(m2.observacoes, /\[RATEIO_FIFO\] S\/N: 80\.000 kg$/, 'o rateio das observações segue as fatias novas');
+    // o fechamento dos cochos: C2 = 70 × 5,8 = R$ 406 (8,12 por cab/dia); C3 herdou 10 kg a 5,8: 25 × 5,8 = R$ 145 (2,9)
+    assert.deepEqual(custoCocho((await evento(c2.evento.id)).dados), { custo_unitario_kg: 5.8, custo_total_periodo: 406, custo_cab_dia: 8.12, custo_sobra_herdada_kg: null, sobra_final_camadas: [{ kg: 10, custo_kg: 5.8 }] });
+    assert.deepEqual(custoCocho((await evento(c3.evento.id)).dados), { custo_unitario_kg: 5.8, custo_total_periodo: 145, custo_cab_dia: 2.9, custo_sobra_herdada_kg: 5.8, sobra_final_camadas: [{ kg: 5, custo_kg: 5.8 }] });
+    assert.equal((await evento(c4.evento.id)).dados.custo_unitario_kg, 5.8, 'o lançamento aberto ganha o custo/kg novo');
+    assert.equal((await evento(c1.evento.id)).dados.situacao, 'cancelado');
+    const [t] = await trilha(x, 'SuplementacaoEvento', c3.evento.id);
+    assert.deepEqual([t.dados_anteriores.custo_total_periodo, t.dados_novos.custo_total_periodo], [150, 145]);
+    await provarReplay(x, x.sal);
+  });
+});
