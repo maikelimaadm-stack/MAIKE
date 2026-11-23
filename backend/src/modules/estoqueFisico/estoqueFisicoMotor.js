@@ -67,6 +67,12 @@ export const ORIGEM_DEPOSITO = 'deposito';
  */
 export const ORIGEM_ENTRADA_ESTOQUE = 'entrada_estoque';
 /**
+ * D-PROD-273: a origem da entrada documentada só é citada aqui (D-PROD-257); quem precisa reconhecê-la
+ * (ex.: a guarda da prévia da exclusão) pergunta ao motor.
+ * @param {unknown} sistema
+ */
+export const ehOrigemEntradaDocumentada = (sistema) => sistema === ORIGEM_ENTRADA_ESTOQUE;
+/**
  * D-PROD-193 (Fatia D do apontamento), re-ancorada na D-PROD-202 (Fatia 3 do
  * Lançamento de Atividades) — origem da SAÍDA pela linha de PRODUTO do
  * apontamento da atividade (`AtividadeApontamentoProduto`) e do estorno dela.

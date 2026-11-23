@@ -14,7 +14,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import {
-  ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO,
+  ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ehOrigemEntradaDocumentada,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { previaExclusao, recalculoInviavel } from './estoqueRecalculoService.js';
 
@@ -24,10 +24,9 @@ const PREVIA = {
   querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } },
 };
 
-/** Origem do movimento → guarda da exclusão correspondente. */
+/** Origem do movimento → guarda da exclusão correspondente (a entrada documentada é reconhecida pelo motor — D-PROD-257). */
 const GUARDA_DA_EXCLUSAO = Object.freeze({
   [ORIGEM_SAIDA_ESTOQUE]: GUARDAS.estoque.saida,
-  [ORIGEM_ENTRADA_ESTOQUE]: GUARDAS.estoque.entrada,
   [ORIGEM_DEPOSITO]: GUARDAS.movimentacaoEstoque.cancelarTransferencia,
   [ORIGEM_SUPLEMENTACAO]: GUARDAS.suplementacaoEvento.cancelar,
   [ORIGEM_APONTAMENTO]: GUARDAS.atividadeApontamentos.cancelar,
@@ -42,7 +41,9 @@ export const registrarEstoqueRecalculoRoutes = async (app) => {
     const { id } = /** @type {{ id: string }} */ (request.params);
     return previaExclusao(request.contexto, id, /** @type {any} */ (request.query), {
       autorizar: async (origem) => {
-        const guarda = Object.prototype.hasOwnProperty.call(GUARDA_DA_EXCLUSAO, origem) ? GUARDA_DA_EXCLUSAO[origem] : null;
+        const guarda = ehOrigemEntradaDocumentada(origem)
+          ? GUARDAS.estoque.entrada
+          : (Object.prototype.hasOwnProperty.call(GUARDA_DA_EXCLUSAO, origem) ? GUARDA_DA_EXCLUSAO[origem] : null);
         if (!guarda) throw recalculoInviavel('origem_nao_suportada', { movimento_id: id, origem_sistema: origem });
         await guarda(request);
       },
