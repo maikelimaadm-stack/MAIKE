@@ -422,6 +422,9 @@ const documentoDeOrigem = async (tx, cli, m) => {
       ? await tx.saidaEstoque.findFirst({ where: { cliente_id: cli, id: m.lancamento_origem_id }, select: { id: true, numero: true, motivo: { select: { nome: true } } } })
       : null);
   if (s) return { tipo: 'SAIDA_ESTOQUE', id: s.id, numero: s.numero, rotulo: `Saída nº ${s.numero}${s.motivo?.nome ? ` — ${s.motivo.nome}` : ''}`, pagina: null };
+  // D-PROD-272: o ajuste de inventário (sobra, falta e os estornos), achado pela FK do item.
+  const ajuste = await tx.ajusteEstoqueItem.findFirst({ where: { cliente_id: cli, ...porMovimento }, select: { ajuste: { select: { id: true, numero: true } } } });
+  if (ajuste?.ajuste) return { tipo: 'AJUSTE_ESTOQUE', id: ajuste.ajuste.id, numero: ajuste.ajuste.numero, rotulo: `Ajuste de inventário nº ${ajuste.ajuste.numero}`, pagina: null };
   return null;
 };
 
