@@ -25,7 +25,7 @@ import { TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao } from '../../shared/pris
 import { registrarEvento } from '../auditoria/auditService.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, ZERO, arredondar, dec, paraBanco } from '../financeiro/decimalFinanceiro.js';
 import {
-  aplicarFaltaDeAjuste, aplicarSobraDeAjuste, estornarFaltaDeAjuste, estornarSobraDeAjuste, exigirLocaisEstoque, numerarMovimentos,
+  aplicarFaltaDeAjuste, aplicarSobraDeAjuste, controleDeLote, estornarFaltaDeAjuste, estornarSobraDeAjuste, exigirLocaisEstoque, numerarMovimentos,
   numeroMovimentoProvisorio, pocoDoDeposito, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { aplicarExclusaoComRecalculo, camadasPeloRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
@@ -226,7 +226,33 @@ export const criar = async (contexto, corpo) => {
             let tipo = SEM_DIFERENCA;
             let custo = poco.custoMedio ?? ZERO;
             let custoInformado = false;
-            if (diferenca.gt(0)) {
+            const it = /** @type {any} */ (item);
+            const controle = await controleDeLote(tx, cli, p);
+            /** D-PROD-279: lote e validade da sobra; null em produto sem lote. */
+            let lote = null;
+            if (diferenca.gt(0) && controle.lote) {
+              // Sobra de produto com lote: exige o lote; entra pelo custo da camada mais recente do MESMO lote no depósito
+              // (herdando a validade quando não vier); sem camada desse lote, o custo é obrigatório (custo informado).
+              tipo = SOBRA;
+              if (!it.lote_fabricante) throw invalido422('lote_fabricante', 'lote_obrigatorio', 'este produto controla lote: informe o lote da sobra', { indice });
+              const mesmo = await tx.estoqueLoteNota.findFirst({
+                where: { cliente_id: cli, empresa_id: empresaId, produto_id: p.id, local_estoque_id: item.local_estoque_id, lote_fabricante: it.lote_fabricante },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                select: { custo_unitario: true, data_validade: true },
+              });
+              const validade = it.data_validade ?? (mesmo?.data_validade ? mesmo.data_validade.toISOString().slice(0, 10) : null);
+              if (controle.validade && !validade) throw invalido422('data_validade', 'validade_obrigatoria', 'este produto controla validade: informe a validade do lote', { indice });
+              if (mesmo) {
+                custo = dec(mesmo.custo_unitario);
+              } else {
+                if (item.custo_unitario === null) {
+                  throw invalido422('custo_unitario', 'custo_obrigatorio_sem_saldo', 'não há entrada anterior deste lote no depósito: informe o custo da sobra', { indice });
+                }
+                custo = dec(item.custo_unitario);
+                custoInformado = true;
+              }
+              lote = { fabricante: it.lote_fabricante, validade };
+            } else if (diferenca.gt(0)) {
               tipo = SOBRA;
               if (poco.custoMedio === null) {
                 if (item.custo_unitario === null) {
@@ -238,7 +264,7 @@ export const criar = async (contexto, corpo) => {
             } else if (diferenca.lt(0)) {
               tipo = FALTA;
             }
-            planos.push({ item, p, fator, contado, saldo: poco.quantidade, diferenca, tipo, custo, custoInformado, indice });
+            planos.push({ item, p, fator, contado, saldo: poco.quantidade, diferenca, tipo, custo, custoInformado, indice, lote });
           }
 
           const id = randomUUID();
@@ -265,6 +291,7 @@ export const criar = async (contexto, corpo) => {
               const r = await aplicarSobraDeAjuste(tx, contexto, {
                 ...base, quantidadeKg: pl.diferenca, custoUnitarioKg: pl.custo, valorTotal: valor, documento: { numero, data: tempo.hoje },
                 origem: { operacaoId: id, motivo: `Ajuste de inventário nº ${numero}: sobra` },
+                lote: pl.lote, // D-PROD-279
               });
               loteId = r.lote.id;
               movimentoId = r.movimento.id;
@@ -272,6 +299,7 @@ export const criar = async (contexto, corpo) => {
               const r = await aplicarFaltaDeAjuste(tx, contexto, {
                 ...base, quantidadeKg: pl.diferenca.negated(), documento: { numero, data: tempo.hoje },
                 origem: { operacaoId: id, motivo: `Ajuste de inventário nº ${numero}: falta` },
+                lotes: /** @type {any} */ (pl.item).lotes ?? null, // D-PROD-279
               });
               movimentoId = r.movimento.id;
               custo = dec(r.valor_unitario);

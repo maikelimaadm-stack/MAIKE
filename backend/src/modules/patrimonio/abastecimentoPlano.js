@@ -33,7 +33,7 @@
 
 import { AppError } from '../../shared/errors/AppError.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, LIMITE_ESTOQUE, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
-import { consumirCustoMedio } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { consumirCustoMedio, consumirPorLote } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { MEDIDORES_CONTADOR, ehContador } from './abastecimentoMedidor.js';
 import { diaDe, diaDoCorpo } from './patrimonioComum.js';
@@ -449,7 +449,8 @@ export const planejarAbastecimento = (entrada, estado) => {
   const produtoOk = produtoValido && unidadeAceita;
   let fifo = null;
   if (doEstoque && quantidadePositiva && dentroDoLimite && produtoOk && local && local.ativo) {
-    const sim = consumirCustoMedio(lotes, quantidade);
+    // D-PROD-279: produto com lote sai pelo custo da camada (FEFO), sem reavaliar (como o motor).
+    const sim = produto.controla_lote === true ? consumirPorLote(lotes, quantidade) : consumirCustoMedio(lotes, quantidade);
     if (!sim.suficiente) {
       bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', { disponivel: q4(sim.disponivel), solicitado: q4(quantidade), unidade }));
     } else if (dec(produto.estoque_atual).lt(quantidade)) {

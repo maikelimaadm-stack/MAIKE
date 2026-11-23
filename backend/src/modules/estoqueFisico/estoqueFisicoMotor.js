@@ -94,6 +94,11 @@ export const ORIGEM_SAIDA_ESTOQUE = 'saida_estoque';
 export const ORIGEM_AJUSTE_ESTOQUE = 'ajuste_estoque';
 /** D-PROD-256: marca `modo_saida_fifo` (nome legado da coluna) das saídas valorizadas a custo médio; as antigas ficam 'FIFO'. */
 export const MODO_CUSTO_MEDIO = 'CUSTO_MEDIO';
+/**
+ * D-PROD-279 — marca da saída (e da transferência) de produto que CONTROLA LOTE: cada fatia sai pelo custo da camada
+ * escolhida (o custo da nota) e nenhuma camada é reavaliada. O estorno e o replay decidem pela marca, não pelo cadastro.
+ */
+export const MODO_LOTE = 'LOTE';
 const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
 /** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 da P0 mantêm os valores gravados antes da P0. */
 const EXCLUSAO_SOMENTE_EM = Object.freeze({
@@ -161,6 +166,160 @@ export const ordenarFifo = (lotes) =>
     if (ta !== tb) return ta - tb;
     return String(a.id).localeCompare(String(b.id));
   });
+
+/**
+ * D-PROD-279 — ordem FEFO (o lote que vence primeiro): `data_validade` crescente, SEM validade por último; empate (ou
+ * sem validade) pela ordem FIFO única (`ordenarFifo`: a entrada mais antiga).
+ * @template T
+ * @param {T[]} lotes camadas com `id`, `data_validade`, `data_documento` e `createdAt`
+ * @returns {T[]}
+ */
+export const ordenarFefo = (lotes) => {
+  const fifo = /** @type {any[]} */ (ordenarFifo(/** @type {any[]} */ (lotes)));
+  const posicao = new Map(fifo.map((l, i) => [l.id, i]));
+  return fifo.sort((a, b) => {
+    const va = a.data_validade ? a.data_validade.getTime() : Infinity;
+    const vb = b.data_validade ? b.data_validade.getTime() : Infinity;
+    if (va !== vb) return va < vb ? -1 : 1;
+    return /** @type {number} */ (posicao.get(a.id)) - /** @type {number} */ (posicao.get(b.id));
+  });
+};
+
+/** D-PROD-279 — o lote está vencido no dia `hoje` (AAAA-MM-DD): validade ANTERIOR a hoje (vencer hoje ainda vale). */
+export const loteVencido = (dataValidade, hoje) => Boolean(dataValidade) && dataValidade.toISOString().slice(0, 10) < hoje;
+
+/**
+ * D-PROD-279 — o controle de lote do produto, sob a trava dele. Usa o que veio no objeto (o `findMany` sem `select` dos
+ * serviços traz as colunas); senão lê do banco (fail-closed: sem a linha → 404).
+ * @param {any} tx @param {string} clienteId @param {any} produto
+ * @returns {Promise<{ lote: boolean, validade: boolean }>}
+ */
+export const controleDeLote = async (tx, clienteId, produto) => {
+  if (typeof produto?.controla_lote === 'boolean' && typeof produto?.controla_validade === 'boolean') {
+    return { lote: produto.controla_lote, validade: produto.controla_lote && produto.controla_validade };
+  }
+  const p = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id: produto.id } }, select: { controla_lote: true, controla_validade: true } });
+  if (!p) throw new AppError('PRODUTO_NOT_FOUND', 'produto não encontrado neste tenant');
+  return { lote: p.controla_lote, validade: p.controla_lote && p.controla_validade };
+};
+
+const loteInvalido = (reason, mensagem, details = {}) =>
+  new AppError('ESTOQUE_LOTE_INVALIDO', mensagem, { details: { field: 'lotes', reason, ...details } });
+
+/**
+ * D-PROD-279 — lista de lotes escolhidos de uma linha (`lotes: [{ estoque_lote_nota_id, quantidade }]`), na fronteira:
+ * ausente/nula → `null` (o servidor aplica o FEFO); fora do formato → 422. Não lê banco.
+ * @param {unknown} bruto
+ * @param {{ indice?: number }} [o]
+ * @returns {Array<{ estoque_lote_nota_id: string, quantidade: string }>|null}
+ */
+export const normalizarLotesEscolhidos = (bruto, { indice } = {}) => {
+  if (bruto === undefined || bruto === null) return null;
+  const extra = Number.isInteger(indice) ? { colecao: 'itens', indice } : {};
+  if (!Array.isArray(bruto) || bruto.length === 0 || bruto.length > 50) {
+    throw loteInvalido('lotes_formato', 'informe de 1 a 50 lotes, cada um com estoque_lote_nota_id e quantidade', extra);
+  }
+  return bruto.map((l) => {
+    if (!l || typeof l !== 'object' || typeof l.estoque_lote_nota_id !== 'string' || !l.estoque_lote_nota_id || l.estoque_lote_nota_id.length > 64) {
+      throw loteInvalido('lotes_formato', 'cada lote precisa do estoque_lote_nota_id', extra);
+    }
+    return { estoque_lote_nota_id: l.estoque_lote_nota_id, quantidade: kgDeEntrada(l.quantidade, { field: 'lotes' }).toFixed(CASAS_QUANTIDADE) };
+  });
+};
+
+/**
+ * D-PROD-279 — lote do fabricante e validade de uma ENTRADA, na fronteira (texto aparado ≤ 64; validade AAAA-MM-DD).
+ * Ausentes → null. Não decide obrigatoriedade (isso é do motor, pelo produto).
+ * @param {unknown} lote @param {unknown} validade @param {{ indice?: number }} [o]
+ * @returns {{ fabricante: string|null, validade: string|null }}
+ */
+export const normalizarLoteDaEntrada = (lote, validade, { indice } = {}) => {
+  const extra = Number.isInteger(indice) ? { colecao: 'itens', indice } : {};
+  let fabricante = null;
+  if (lote !== undefined && lote !== null && lote !== '') {
+    if (typeof lote !== 'string' || !lote.trim() || lote.trim().length > 64) {
+      throw new AppError('REQUEST_VALIDATION_FAILED', 'lote inválido (texto de até 64 caracteres)', { details: { field: 'lote_fabricante', reason: 'format', ...extra } });
+    }
+    fabricante = lote.trim();
+  }
+  let dia = null;
+  if (validade !== undefined && validade !== null && validade !== '') {
+    if (typeof validade !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(validade) || Number.isNaN(new Date(`${validade}T00:00:00.000Z`).getTime())
+      || new Date(`${validade}T00:00:00.000Z`).toISOString().slice(0, 10) !== validade) {
+      throw new AppError('REQUEST_VALIDATION_FAILED', 'validade inválida (AAAA-MM-DD)', { details: { field: 'data_validade', reason: 'format', ...extra } });
+    }
+    dia = validade;
+  }
+  return { fabricante, validade: dia };
+};
+
+/**
+ * D-PROD-279 — simulação PURA da saída de produto que CONTROLA LOTE. Sem `escolhidos`, consome pelo FEFO
+ * (`ordenarFefo`); com eles, cada camada citada tem de estar no poço (do produto, da empresa e do depósito: quem chama
+ * passa só as camadas Disponivel desse poço), com o disponível, sem repetir, e a soma = `kg`. Cada fatia sai pelo
+ * CUSTO DA CAMADA; valor = Σ(fatia × custo) em `CASAS_CUSTO`; valor unitário = valor ÷ kg. Nada é reavaliado
+ * (`camadasRestantes` vazio). `custoMedioAntes/Depois` são só informativos (o médio do poço antes e depois).
+ * @param {Array<{ id: string, quantidade_disponivel: any, custo_unitario: any, data_validade?: Date|null, data_documento?: Date|null, createdAt: Date }>} lotes
+ * @param {any} kg
+ * @param {Array<{ estoque_lote_nota_id: string, quantidade: any }>|null} [escolhidos]
+ * @param {Record<string, unknown>} [extra] details das recusas
+ */
+export const consumirPorLote = (lotes, kg, escolhidos = null, extra = {}) => {
+  const pedido = dec(kg);
+  const elegiveis = ordenarFefo(lotes.filter((l) => dec(l.quantidade_disponivel).gt(0)));
+  const disponivel = somar(elegiveis.map((l) => l.quantidade_disponivel));
+  const valorPoco = somar(elegiveis.map((l) => dec(l.quantidade_disponivel).times(dec(l.custo_unitario))));
+  const custoMedioAntes = disponivel.gt(0) ? arredondar(valorPoco.dividedBy(disponivel), CASAS_CUSTO) : ZERO;
+  /** @type {Array<{ lote_id: string, quantidade: any, custo_unitario: any, anterior: any }>} */
+  const fatias = [];
+  let restante = pedido;
+  if (escolhidos && escolhidos.length) {
+    const porId = new Map(elegiveis.map((l) => [l.id, l]));
+    const vistos = new Set();
+    for (const e of escolhidos) {
+      const q = dec(e.quantidade);
+      if (vistos.has(e.estoque_lote_nota_id)) throw loteInvalido('lote_repetido', 'o mesmo lote aparece duas vezes na linha; some as quantidades; nada foi gravado', { ...extra, lote_id: e.estoque_lote_nota_id });
+      vistos.add(e.estoque_lote_nota_id);
+      const l = porId.get(e.estoque_lote_nota_id);
+      if (!l) throw loteInvalido('lote_indisponivel', 'o lote escolhido não está disponível neste produto e depósito; nada foi gravado', { ...extra, lote_id: e.estoque_lote_nota_id });
+      const disp = dec(l.quantidade_disponivel);
+      if (disp.lt(q)) {
+        throw loteInvalido('lote_sem_saldo', 'o lote escolhido não tem essa quantidade; nada foi gravado', {
+          ...extra, lote_id: l.id, disponivel: disp.toFixed(CASAS_QUANTIDADE), solicitado: q.toFixed(CASAS_QUANTIDADE),
+        });
+      }
+      fatias.push({ lote_id: l.id, quantidade: q, custo_unitario: dec(l.custo_unitario), anterior: disp });
+      restante = restante.minus(q);
+    }
+    if (!restante.isZero()) {
+      throw loteInvalido('lotes_nao_somam', 'a soma dos lotes escolhidos não é a quantidade da linha; nada foi gravado', {
+        ...extra, quantidade: pedido.toFixed(CASAS_QUANTIDADE), soma: pedido.minus(restante).toFixed(CASAS_QUANTIDADE),
+      });
+    }
+  } else {
+    for (const l of elegiveis) {
+      if (!restante.gt(0)) break;
+      const disp = dec(l.quantidade_disponivel);
+      const fatia = disp.lt(restante) ? disp : restante;
+      fatias.push({ lote_id: l.id, quantidade: fatia, custo_unitario: dec(l.custo_unitario), anterior: disp });
+      restante = restante.minus(fatia);
+    }
+  }
+  const suficiente = !restante.gt(0);
+  const valorTotal = arredondar(somar(fatias.map((f) => f.quantidade.times(f.custo_unitario))), CASAS_CUSTO);
+  const valorUnitario = pedido.gt(0) ? arredondar(valorTotal.dividedBy(pedido), CASAS_CUSTO) : ZERO;
+  const quantidadeRestante = suficiente ? disponivel.minus(pedido) : disponivel;
+  const valorRestante = suficiente && valorPoco.gt(valorTotal) ? valorPoco.minus(valorTotal) : ZERO;
+  const custoMedioDepois = quantidadeRestante.gt(0) ? arredondar(valorRestante.dividedBy(quantidadeRestante), CASAS_CUSTO) : custoMedioAntes;
+  return { suficiente, disponivel, fatias, valorTotal, valorUnitario, custoMedioAntes, custoMedioDepois, valorPoco, camadasRestantes: /** @type {string[]} */ ([]) };
+};
+
+/** D-PROD-279 — produto SEM controle de lote com a lista de lotes na linha → 422 (nunca ignorada em silêncio). */
+const exigirSemLotesEscolhidos = (escolhidos, extra) => {
+  if (escolhidos && escolhidos.length) {
+    throw loteInvalido('produto_sem_controle_de_lote', 'este produto não controla lote; não informe lotes; nada foi gravado', extra);
+  }
+};
 
 /**
  * O tradutor HTTP só expõe `reason` junto de `field` (ambos strings): toda
@@ -277,7 +436,7 @@ export const consumirCamadas = async (tx, clienteId, fatias) => {
  * cria a camada de destino com o custo, a data e a procedência da camada de origem.
  * @param {any} tx @param {string} clienteId
  * @param {{ empresaId: string, produto: any, local: {id: string, nome?: string|null}, kg: any, custoKg: any, dataDocumento: Date,
- *   procedencia: Record<string, string|null>, movimentoEntradaId: string }} c
+ *   procedencia: Record<string, string|null>, movimentoEntradaId: string, loteFabricante?: string|null, dataValidade?: Date|null }} c
  */
 const criarCamadaEntrada = (tx, clienteId, c) =>
   tx.estoqueLoteNota.create({
@@ -289,6 +448,8 @@ const criarCamadaEntrada = (tx, clienteId, c) =>
       local_estoque_id: c.local.id,
       local_estoque_nome: c.local.nome ?? null,
       ...c.procedencia,
+      lote_fabricante: c.loteFabricante ?? null,
+      data_validade: c.dataValidade ?? null,
       data_documento: c.dataDocumento,
       custo_unitario: paraBanco(c.custoKg, CASAS_CUSTO),
       quantidade_entrada: paraBanco(c.kg, CASAS_QUANTIDADE),
@@ -479,7 +640,9 @@ const procedenciaDaEntrada = (procedencia) => {
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, custoUnitarioKg: any,
  *   valorTotal: any, dia: string, documento?: {numero?: string|null, data?: string|null}, parceiro?: {id?: string|null, nome?: string|null},
  *   origem: {operacaoId: string, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown>,
- *   procedencia?: Partial<Record<'fornecedor_id'|'fornecedor_nome'|'numero_documento', string|null>> }} a
+ *   procedencia?: Partial<Record<'fornecedor_id'|'fornecedor_nome'|'numero_documento', string|null>>,
+ *   lote?: { fabricante?: string|null, validade?: string|null } }} a
+ *   `lote` (D-PROD-279): lote do fabricante e validade (AAAA-MM-DD) da camada; obrigatórios conforme o produto.
  */
 export const aplicarEntradaEstoque = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
@@ -505,6 +668,16 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
   const estoqueAtual = await estoqueAtualDe(tx, cli, a.produto.id);
   if (!kg.gt(0)) {
     throw new AppError('OPERACAO_VALORES_INVALIDOS', 'quantidade em kg deve ser maior que zero', { details: comCampo({ reason: 'quantidade_estoque_zero', ...extra }) });
+  }
+  // D-PROD-279: produto com controle de lote exige o lote (e a validade, se controla) em TODA entrada; sem lote, ignorados.
+  const controle = await controleDeLote(tx, cli, a.produto);
+  const loteFabricante = controle.lote ? (a.lote?.fabricante ?? null) : null;
+  const dataValidade = controle.lote && a.lote?.validade ? comoDia(a.lote.validade) : null;
+  if (controle.lote && !loteFabricante) {
+    throw new AppError('ESTOQUE_LOTE_OBRIGATORIO', 'este produto controla lote: informe o lote; nada foi gravado', { details: { ...extra, field: 'lote_fabricante', reason: 'lote_obrigatorio' } });
+  }
+  if (controle.validade && !dataValidade) {
+    throw new AppError('ESTOQUE_LOTE_OBRIGATORIO', 'este produto controla validade: informe a validade do lote; nada foi gravado', { details: { ...extra, field: 'data_validade', reason: 'validade_obrigatoria' } });
   }
   if (kg.gt(LIMITE_ESTOQUE) || custoKg.gt(LIMITE_ESTOQUE) || valorTotal.gt(LIMITE_ESTOQUE) || estoqueAtual.plus(kg).gt(LIMITE_ESTOQUE)) {
     throw excedeLimiteEstoque({ ...extra, estoque_atual: estoqueAtual.toFixed(CASAS_QUANTIDADE), quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
@@ -539,6 +712,8 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
     dataDocumento: comoDia(a.dia),
     procedencia: { numero_documento: a.documento?.numero ?? null, fornecedor_id: a.parceiro?.id ?? null, fornecedor_nome: a.parceiro?.nome ?? null, ...procedenciaInformada },
     movimentoEntradaId: movimento.id,
+    loteFabricante,
+    dataValidade,
   });
   const estoqueDepois = await incrementarEstoqueAtual(tx, cli, a.produto.id, kg);
   return { lote, movimento, estoque_atual: estoqueDepois };
@@ -635,6 +810,7 @@ export const lotesFifo = (tx, clienteId, empresaId, produtoId, localId, { proced
     where: { cliente_id: clienteId, empresa_id: empresaId, produto_id: produtoId, local_estoque_id: localId, status: 'Disponivel', quantidade_disponivel: { gt: 0 } },
     select: {
       id: true, quantidade_disponivel: true, quantidade_entrada: true, custo_unitario: true, data_documento: true, createdAt: true,
+      lote_fabricante: true, data_validade: true,
       ...(procedencia ? { numero_documento: true, serie_documento: true, fornecedor_id: true, fornecedor_nome: true } : {}),
     },
   });
@@ -667,7 +843,9 @@ export const estoqueAtualInsuficiente = (details) =>
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, dia?: string, instante?: Date,
  *   documento?: {numero?: string|null, data?: string|null}, parceiro?: {id?: string|null, nome?: string|null},
  *   origem: {operacaoId: string|null, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown>,
- *   procedencia?: boolean, complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any, custoMedioAntes: any, custoMedioDepois: any }) => Record<string, unknown> }} a
+ *   procedencia?: boolean, complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any, custoMedioAntes: any, custoMedioDepois: any }) => Record<string, unknown>,
+ *   lotes?: Array<{ estoque_lote_nota_id: string, quantidade: any }>|null }} a
+ *   `lotes` (D-PROD-279, só produto com lote): as camadas escolhidas; ausente → FEFO.
  */
 export const aplicarSaida = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
@@ -681,7 +859,10 @@ export const aplicarSaida = async (tx, ctx, a) => {
   if (!kg.gt(0)) throw quantidadeZero(extra);
   if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.local.id, { procedencia: Boolean(a.procedencia) });
-  const fifo = consumirCustoMedio(lotes, kg);
+  // D-PROD-279: produto com lote sai pelo custo da camada (escolhida ou FEFO), sem reavaliar; os demais, pelo médio.
+  const controle = await controleDeLote(tx, cli, a.produto);
+  if (!controle.lote) exigirSemLotesEscolhidos(a.lotes, extra);
+  const fifo = controle.lote ? consumirPorLote(lotes, kg, a.lotes ?? null, extra) : consumirCustoMedio(lotes, kg);
   if (!fifo.suficiente) {
     throw saldoLoteInsuficiente({ ...extra, disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) });
   }
@@ -711,7 +892,7 @@ export const aplicarSaida = async (tx, ctx, a) => {
       local_origem: a.local.nome ?? null,
       cliente_nome: a.parceiro?.nome ?? null,
       motivo_movimentacao: a.origem.motivo ?? 'Saída por lançamento financeiro confirmado',
-      modo_saida_fifo: MODO_CUSTO_MEDIO,
+      modo_saida_fifo: controle.lote ? MODO_LOTE : MODO_CUSTO_MEDIO,
       lotes_consumidos: fifo.fatias.map(fatiaGravada),
       saldo_antes: paraBanco(saldoAntes, CASAS_QUANTIDADE),
       saldo_depois: paraBanco(saldoAntes.minus(kg), CASAS_QUANTIDADE),
@@ -750,6 +931,7 @@ export const aplicarSaida = async (tx, ctx, a) => {
  * @returns {Promise<{ saida: any, entrada: any, valor_total: any, valor_unitario: any,
  *   fatias: Array<{ lote_id: string, lote_destino_id: string, quantidade: any, custo_unitario: any, lote: any }> }>}
  */
+/** `a.lotes` (D-PROD-279, só produto com lote): as camadas escolhidas na origem; ausente → FEFO. */
 export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
@@ -766,7 +948,10 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
   if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   // 4–5: plano FIFO na origem e limites, ainda sem escrever
   const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.origem.id, { procedencia: true });
-  const fifo = consumirCustoMedio(lotes, kg);
+  // D-PROD-279: produto com lote leva as camadas escolhidas (ou FEFO) pelo custo delas, com lote e validade.
+  const controle = await controleDeLote(tx, cli, a.produto);
+  if (!controle.lote) exigirSemLotesEscolhidos(a.lotes, extra);
+  const fifo = controle.lote ? consumirPorLote(lotes, kg, a.lotes ?? null, extra) : consumirCustoMedio(lotes, kg);
   if (!fifo.suficiente) {
     throw saldoLoteInsuficiente({ ...extra, disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) });
   }
@@ -804,7 +989,7 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
       numero_movimentacao: String(a.numeros.saida),
       tipo_movimentacao: 'Saída',
       tipo_detalhado: 'transferencia_enviada',
-      modo_saida_fifo: MODO_CUSTO_MEDIO,
+      modo_saida_fifo: controle.lote ? MODO_LOTE : MODO_CUSTO_MEDIO,
       lotes_consumidos: fatias.map(fatiaGravada),
       is_registro_principal: true,
       numero_movimentacao_seq: 1,
@@ -848,11 +1033,14 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
         fornecedor_nome: f.lote.fornecedor_nome ?? null,
       },
       movimentoEntradaId: entrada.id,
+      loteFabricante: f.lote.lote_fabricante ?? null,
+      dataValidade: f.lote.data_validade ?? null,
     });
     destinos.push(camada.id);
   }
   // D-PROD-256: o destino entra pelo valor da saída (médio da origem) e o médio dele se recalcula.
-  await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.destino.id, pocoDestino.valor.plus(fifo.valorTotal), saldoDestino.plus(kg));
+  // D-PROD-279: produto com lote não tem médio: cada camada de destino fica com o custo da sua origem.
+  if (!controle.lote) await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.destino.id, pocoDestino.valor.plus(fifo.valorTotal), saldoDestino.plus(kg));
   // 10: pai → filho e linhagem (JSON, sem FK)
   const saidaFinal = await tx.movimentacaoEstoque.update({
     where: { cliente_id_id: { cliente_id: cli, id: saida.id } },
@@ -1065,7 +1253,7 @@ export const estornarSaida = async (tx, ctx, a) => {
     : []).map((l) => [l.id, l]));
   const [original] = /** @type {any[]} */ (a.item.movimentacao_estoque_id
     ? await tx.$queryRaw`SELECT id, status, movimento_filho_id, empresa_id, produto_id, valor_unitario, valor_total,
-          tipo_movimentacao, origem_sistema, tipo_detalhado, local_estoque_origem, local_estoque_destino, quantidade, lotes_consumidos
+          tipo_movimentacao, origem_sistema, tipo_detalhado, local_estoque_origem, local_estoque_destino, quantidade, lotes_consumidos, modo_saida_fifo
         FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${a.item.movimentacao_estoque_id} FOR UPDATE`
     : []);
   if (!original) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
@@ -1115,7 +1303,10 @@ export const estornarSaida = async (tx, ctx, a) => {
   }
   // D-PROD-256: estorno EXATO — volta a quantidade e o VALOR gravado no movimento original (FIFO nas saídas
   // antigas, médio nas novas); o poço inteiro é reavaliado para o médio resultante (nunca um médio novo no lugar).
-  await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.local.id, poco.valor.plus(dec(original.valor_total)), poco.quantidade.plus(kg));
+  // D-PROD-279: saída de produto com lote volta a cada camada pelo custo dela; nada é reavaliado.
+  if (original.modo_saida_fifo !== MODO_LOTE) {
+    await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.local.id, poco.valor.plus(dec(original.valor_total)), poco.quantidade.plus(kg));
+  }
   const numero = await numeroDoMovimento(tx, cli, a.numeroMovimento);
   const estorno = await tx.movimentacaoEstoque.create({
     data: {
@@ -1267,7 +1458,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
   const inicial = new Map([...lotes.values()].map((l) => [l.id, { status: l.status, disp: l.disp }]));
   const originais = new Map(
     originalIds.length
-      ? (/** @type {any[]} */ (await tx.$queryRaw`SELECT id, valor_unitario, valor_total, status, movimento_filho_id, empresa_id, produto_id FROM "MovimentacaoEstoque"
+      ? (/** @type {any[]} */ (await tx.$queryRaw`SELECT id, valor_unitario, valor_total, status, movimento_filho_id, empresa_id, produto_id, modo_saida_fifo FROM "MovimentacaoEstoque"
           WHERE cliente_id = ${cli} AND id = ANY(${originalIds}::text[]) ORDER BY id FOR UPDATE`)).map((m) => [m.id, m])
       : [],
   );
@@ -1389,7 +1580,8 @@ export const estornarEmLote = async (tx, ctx, a) => {
       estoque.set(produto.id, atual.plus(kg));
       // D-PROD-256: devolve o VALOR gravado no original (estorno exato); o poço é reavaliado no fim.
       valores.set(chaveSaldo(produto.id, local.id), (valores.get(chaveSaldo(produto.id, local.id)) ?? ZERO).plus(dec(original.valor_total)));
-      reavaliar.add(chaveSaldo(produto.id, local.id));
+      // D-PROD-279: devolução de saída de produto com lote não reavalia (as camadas voltam pelo custo delas).
+      if (original.modo_saida_fifo !== MODO_LOTE) reavaliar.add(chaveSaldo(produto.id, local.id));
     }
     movimentos.push({
       ...camposComuns(auth, { empresaId: a.empresaId, produto, documento: a.documento, origem: a.origem }),
@@ -2101,7 +2293,8 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
     if (z.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
   const valorD = pocoD.valor.minus(valorTotal);
-  const medioDepoisD = recalculo
+  const semMedio = recalculo || s.modo_saida_fifo === MODO_LOTE; // D-PROD-279: produto com lote não reavalia
+  const medioDepoisD = semMedio
     ? medioDoPoco({ valor: valorD.gt(0) ? valorD : ZERO, quantidade: pocoD.quantidade.minus(kg) })
     : await reavaliarPoco(tx, cli, a.empresaId, produto.id, destino.id, valorD.gt(0) ? valorD : ZERO, pocoD.quantidade.minus(kg));
   // 7. escritas na origem
@@ -2114,7 +2307,7 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
     });
     if (u.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
-  const medioDepoisO = recalculo
+  const medioDepoisO = semMedio
     ? medioDoPoco({ valor: pocoO.valor.plus(valorTotal), quantidade: pocoO.quantidade.plus(kg) })
     : await reavaliarPoco(tx, cli, a.empresaId, produto.id, origem.id, pocoO.valor.plus(valorTotal), pocoO.quantidade.plus(kg));
   // 8. os dois movimentos de estorno (números provisórios: quem chama numera no fim)

@@ -22,7 +22,7 @@ import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from '../patrimonio/patrimonioComum.js';
 import { TAMANHO_MAXIMO_CURSOR } from './estoqueConsultaCursor.js';
-import { movimento, movimentos, opcoesLocais, opcoesProdutos, saldo } from './estoqueConsultaService.js';
+import { lotesDisponiveis, movimento, movimentos, opcoesLocais, opcoesProdutos, saldo } from './estoqueConsultaService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const DIA = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' };
@@ -74,6 +74,14 @@ const DETALHE = {
   querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } },
 };
 
+/** D-PROD-279: lotes disponíveis de um produto num depósito (FEFO). */
+const LOTES = {
+  querystring: {
+    type: 'object', required: ['empresa_id', 'produto_id', 'local_estoque_id'], additionalProperties: false,
+    properties: { empresa_id: ID, produto_id: ID, local_estoque_id: ID },
+  },
+};
+
 const OPCOES_BASE = {
   q: { type: 'string', maxLength: 120 },
   cursor: { type: 'string', minLength: 1, maxLength: 2200 },
@@ -89,6 +97,11 @@ export const registrarEstoqueConsultaRoutes = async (app) => {
   app.get('/estoque/saldo', { ...guarda, schema: SALDO }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return saldo(request.contexto, /** @type {any} */ (request.query));
+  });
+
+  app.get('/estoque/lotes-disponiveis', { ...guarda, schema: LOTES }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return lotesDisponiveis(request.contexto, /** @type {any} */ (request.query));
   });
 
   app.get('/estoque/movimentos', { ...guarda, schema: MOVIMENTOS }, async (request) => {

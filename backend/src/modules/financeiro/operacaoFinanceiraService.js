@@ -57,7 +57,7 @@ import { entradaManualComDocumento, travarDocumentoDeEstoque } from '../estoqueF
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
 import {
-  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, ORIGEM_SISTEMA, aplicarEntradaEstoque, aplicarSaida, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
+  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, ORIGEM_SISTEMA, aplicarEntradaEstoque, aplicarSaida, atualizarProcedencia, estornarEmLote, lotesFifo, normalizarLoteDaEntrada, normalizarLotesEscolhidos, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
@@ -1168,7 +1168,9 @@ const estadoDeEstoque = async (tx, clienteId, empresaId, plano, refs) => {
     const chave = `${s.produto_id}|${s.local_estoque_id}`;
     if (!lotes.has(chave)) lotes.set(chave, await lotesFifo(tx, clienteId, empresaId, s.produto_id, s.local_estoque_id));
   }
-  return { estoqueAtual, lotes };
+  // D-PROD-279: os produtos que controlam lote saem, na prévia, pelo custo da camada (FEFO), como no motor.
+  const comLote = new Set([...refs.produtos].filter(([, p]) => p.controla_lote === true).map(([id]) => id));
+  return { estoqueAtual, lotes, comLote };
 };
 
 const comoPlanoPublico = (plano, simulacao, refs) => {
@@ -1359,6 +1361,24 @@ const conferirLinhasPorItem = async (tx, cli, plano, itens, itemRateios) => {
  *   refs: any, documento: {numero: string, data: string}, parceiro: {id: string, nome: string} }} a
  * @returns {Promise<{ movimentos: string[], lotes: string[], comEfeito: Set<number> }>}
  */
+/**
+ * D-PROD-279 — `lotes_por_item` da confirmação: por `item_ordem`, o lote do fabricante e a validade (compra) e os lotes
+ * escolhidos (venda). Ausente → mapa vazio (o motor exige o lote da compra de produto com lote; a venda usa o FEFO).
+ * @param {unknown} bruto
+ * @returns {Map<number, { item_ordem: number, lote_fabricante: string|null, data_validade: string|null, lotes: any[]|null }>}
+ */
+const lotesDaConfirmacao = (bruto) => {
+  const mapa = new Map();
+  if (!Array.isArray(bruto)) return mapa;
+  bruto.forEach((x, indice) => {
+    const lote = normalizarLoteDaEntrada(x?.lote_fabricante, x?.data_validade, { indice });
+    const lotes = normalizarLotesEscolhidos(x?.lotes, { indice });
+    if (mapa.has(x.item_ordem)) throw new AppError('REQUEST_VALIDATION_FAILED', 'o mesmo item aparece duas vezes em lotes_por_item', { details: { field: 'lotes_por_item', reason: 'duplicado', indice } });
+    mapa.set(x.item_ordem, { item_ordem: x.item_ordem, lote_fabricante: lote.fabricante, data_validade: lote.validade, lotes });
+  });
+  return mapa;
+};
+
 const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
   const { cli, empresaId, plano, itens, refs } = a;
   const efeitos = [...plano.efeitos_estoque.entradas, ...plano.efeitos_estoque.saidas].sort((x, y) => x.item_ordem - y.item_ordem);
@@ -1395,13 +1415,17 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
       // Custo de aquisição LÍQUIDO: movimento = líquido da linha; lote = custo por kg do líquido.
       const ent = await aplicarEntradaEstoque(tx, contexto, {
         ...comum, custoUnitarioKg: e.custo_kg, valorTotal: e.valor_liquido, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'compra_financeiro' },
+        // D-PROD-279: lote e validade do item (vêm na confirmação; o motor exige conforme o produto).
+        lote: { fabricante: a.lotesPorItem?.get(e.item_ordem)?.lote_fabricante ?? null, validade: a.lotesPorItem?.get(e.item_ordem)?.data_validade ?? null },
       });
       dadosItem.movimentacao_estoque_id = ent.movimento.id;
       dadosItem.estoque_lote_nota_id = ent.lote.id;
       movimentos.push(ent.movimento.id);
       lotes.push(ent.lote.id);
     } else {
-      const sai = await aplicarSaida(tx, contexto, { ...comum, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'venda_financeiro' } });
+      const sai = await aplicarSaida(tx, contexto, {
+        ...comum, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'venda_financeiro' }, lotes: a.lotesPorItem?.get(e.item_ordem)?.lotes ?? null, // D-PROD-279
+      });
       dadosItem.movimentacao_estoque_id = sai.movimento.id;
       movimentos.push(sai.movimento.id);
       await tx.operacaoFinanceiraConsumoLote.createMany({
@@ -1425,7 +1449,12 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
 export const confirmar = async (contexto, id, corpo) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
-  const fingerprint = fingerprintDePayload(canonico({ id, empresa_id: corpo.empresa_id, versao: corpo.versao, baixa_no_ato: corpo.baixa_no_ato ?? null }));
+  // D-PROD-279: lote/validade (compra) e lotes escolhidos (venda) por item; no fingerprint só quando vêm.
+  const lotesPorItem = lotesDaConfirmacao(corpo.lotes_por_item);
+  const fingerprint = fingerprintDePayload(canonico({
+    id, empresa_id: corpo.empresa_id, versao: corpo.versao, baixa_no_ato: corpo.baixa_no_ato ?? null,
+    ...(lotesPorItem.size ? { lotes_por_item: [...lotesPorItem.values()] } : {}),
+  }));
   const r = await emTransacao(
     TX_EFEITO,
     (tx) =>
@@ -1479,6 +1508,7 @@ export const confirmar = async (contexto, id, corpo) => {
           const { movimentos, lotes, comEfeito } = await aplicarEfeitosDoPlano(tx, contexto, {
             cli, empresaId, operacaoId: id, direcao: op.direcao, dia: doc.data_operacional, plano, itens, refs,
             documento: { numero: op.documento_referencia ?? op.numero, data: doc.data_emissao }, parceiro: { id: refs.parceiro.id, nome: refs.parceiro.nome },
+            lotesPorItem,
           });
           // Linhas sem efeito físico (serviço): o rateio do cabeçalho replanejado é regravado se mudou.
           for (const itemPlano of plano.itens) {

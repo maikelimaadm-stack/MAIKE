@@ -20,6 +20,7 @@ import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { MAX_ITENS, PADRAO_DECIMAL, PADRAO_OPERATION_ID, recusarCoercaoAjuste } from './ajusteEstoqueRegras.js';
 import { criar, detalhar, editar, excluir, listar, saldoDoDeposito } from './ajusteEstoqueService.js';
+import { DATA_VALIDADE, LOTES_ESCOLHIDOS, LOTE_FABRICANTE } from '../estoqueFisico/loteEscolhaSchema.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const DIA = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' };
@@ -48,6 +49,8 @@ const ITEM = {
   properties: {
     produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', enum: ['KG', 'SACO', 'L'] }, quantidade_contada: DECIMAL,
     custo_unitario: { anyOf: [DECIMAL, { type: 'null' }] },
+    // D-PROD-279: sobra de produto com lote (lote e validade da camada nova) e falta (lotes escolhidos; sem eles, FEFO).
+    lote_fabricante: LOTE_FABRICANTE, data_validade: DATA_VALIDADE, lotes: LOTES_ESCOLHIDOS,
   },
 };
 const CRIAR = {

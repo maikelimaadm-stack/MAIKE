@@ -68,6 +68,15 @@ const AMOSTRA = 20;
  * se possível, só tira o par da sequência.
  */
 
+/**
+ * D-PROD-279 — a entrada de um lote que já teve saída (ou transferência) não sai da sequência: a saída escolheu aquele
+ * lote e não há outro custo para ela. 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`, `reason: 'lote_consumido'`.
+ * @param {{ movimento_id?: string, movimento_numero?: string, lote_id?: string }} p
+ */
+export const loteConsumido = (p) =>
+  recalculoInviavel('lote_consumido', { movimento_id: p.movimento_id, movimento_numero: p.movimento_numero, lote_id: p.lote_id },
+    `este lote já teve saída (movimento nº ${p.movimento_numero}); exclua antes as saídas dele; nada foi alterado`);
+
 /** Saldo negativo na simulação → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` (a recusa da SPEC §4.4). */
 const saldoNegativo = (detalhes) =>
   new AppError('ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', `sem este movimento o saldo do depósito ficaria negativo (${detalhes.saldo}) no movimento nº ${detalhes.movimento_numero}; nada foi alterado`, {
@@ -128,6 +137,7 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     if (reason === 'saldo_negativo') throw saldoNegativo(detalhes);
     // Ajuste de inventário vigente num depósito que a cascata da transferência alcança: recusa (nunca contornável).
     if (reason === RAZAO_AJUSTE_POSTERIOR) throw await recusaAjustePosterior(tx, cli, detalhes);
+    if (reason === 'lote_consumido') throw loteConsumido(detalhes); // D-PROD-279
     throw recalculoInviavel(reason, detalhes);
   }
   return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null };
@@ -517,6 +527,7 @@ const aplicarUm = async (tx, contexto, cli, plano, a) => {
       delete detalhes.reason;
       throw saldoNegativo(detalhes);
     }
+    if (sim.parada?.reason === 'lote_consumido') throw loteConsumido(sim.parada);
     if (!sim.reproduzivel) {
       throw recalculoInviavel('historico_nao_reproduzivel', { problemas: [...sim.problemas, ...(sim.parada ? [sim.parada] : [])].slice(0, AMOSTRA) },
         'o recálculo não conseguiu refazer a sequência deste produto; nada foi alterado');
@@ -552,6 +563,7 @@ const aplicarUm = async (tx, contexto, cli, plano, a) => {
             local_estoque_id: c.local, local_estoque_nome: irmas?.local_estoque_nome ?? null,
             numero_documento: origem.numero_documento ?? null, serie_documento: origem.serie_documento ?? null,
             fornecedor_id: origem.fornecedor_id ?? null, fornecedor_nome: origem.fornecedor_nome ?? null,
+            lote_fabricante: origem.lote_fabricante ?? null, data_validade: origem.data_validade ?? null,
             data_documento: c.data_documento, custo_unitario: paraBanco(c.custo, CASAS_CUSTO),
             quantidade_entrada: paraBanco(c.entrada, CASAS_QUANTIDADE), quantidade_disponivel: paraBanco(c.disp, CASAS_QUANTIDADE),
             movimentacao_entrada_id: nova.r.id, status: c.status,

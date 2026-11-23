@@ -24,6 +24,7 @@ import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCurs
 import { NOME_MAXIMO, criarMotivoSaida, editarMotivoSaida, listarMotivosSaida } from './motivoSaidaEstoqueService.js';
 import { MAX_ITENS, PADRAO_DECIMAL, PADRAO_OPERATION_ID, recusarCoercaoSaida } from './saidaEstoqueRegras.js';
 import { criar, detalhar, editar, excluir, listar } from './saidaEstoqueService.js';
+import { LOTES_ESCOLHIDOS } from '../estoqueFisico/loteEscolhaSchema.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const DIA = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' };
@@ -56,7 +57,8 @@ const ITEM = {
   type: 'object',
   required: ['produto_id', 'local_estoque_id', 'unidade', 'quantidade'],
   additionalProperties: false,
-  properties: { produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', enum: ['KG', 'SACO', 'L'] }, quantidade: DECIMAL },
+  // D-PROD-279: `lotes` só em produto com lote (kg/L de estoque; soma = a quantidade de estoque da linha).
+  properties: { produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', enum: ['KG', 'SACO', 'L'] }, quantidade: DECIMAL, lotes: LOTES_ESCOLHIDOS },
 };
 const CRIAR = {
   body: {

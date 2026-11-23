@@ -10,6 +10,7 @@
 import { AppError } from '../../shared/errors/AppError.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, arredondar, dec } from '../financeiro/decimalFinanceiro.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
+import { normalizarLoteDaEntrada, normalizarLotesEscolhidos } from '../estoqueFisico/estoqueFisicoMotor.js';
 
 export const ENTIDADE = 'AjusteEstoque';
 export const TIPO_CRIAR = 'estoque_ajuste_criar';
@@ -67,7 +68,13 @@ export const normalizarCriacao = (corpo) => {
     if (!UNIDADES.includes(it.unidade)) throw invalido('unidade inválida (KG, SACO ou L)', { field: 'unidade', reason: 'unidade', indice });
     const quantidade = decimalDoCorpo(it.quantidade_contada, 'quantidade_contada', indice);
     const custo = it.custo_unitario === undefined || it.custo_unitario === null ? null : dec(decimalDoCorpo(it.custo_unitario, 'custo_unitario', indice)).toFixed(CASAS_CUSTO);
-    return { produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, unidade: it.unidade, quantidade_contada: quantidade, custo_unitario: custo };
+    // D-PROD-279: lote e validade (sobra) e lotes escolhidos (falta), só quando vêm (o objeto de antes não muda).
+    const lote = normalizarLoteDaEntrada(it.lote_fabricante, it.data_validade, { indice });
+    const lotes = normalizarLotesEscolhidos(it.lotes, { indice });
+    return {
+      produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, unidade: it.unidade, quantidade_contada: quantidade, custo_unitario: custo,
+      ...(lote.fabricante ? { lote_fabricante: lote.fabricante } : {}), ...(lote.validade ? { data_validade: lote.validade } : {}), ...(lotes ? { lotes } : {}),
+    };
   });
   const pares = new Set();
   itens.forEach((it, indice) => {
@@ -111,7 +118,14 @@ export const fingerprintDaCriacao = (a) => ({
   centro_custo_id: a.centro_custo_id,
   centro_resultado_id: a.centro_resultado_id,
   observacao: a.observacao,
-  itens: a.itens.map((i) => [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade_contada, i.custo_unitario]),
+  // D-PROD-279: lote, validade e lotes escolhidos entram no fingerprint só quando vêm.
+  itens: a.itens.map((i) => {
+    const base = [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade_contada, i.custo_unitario];
+    const lote = /** @type {any} */ (i);
+    return lote.lote_fabricante || lote.data_validade || lote.lotes
+      ? [...base, lote.lote_fabricante ?? null, lote.data_validade ?? null, (lote.lotes ?? []).map((l) => [l.estoque_lote_nota_id, l.quantidade])]
+      : base;
+  }),
 });
 /** @param {ReturnType<typeof normalizarExclusao>} a */
 export const fingerprintDaExclusao = (a) => ({ v: 1, id: a.id, empresa_id: a.empresa_id, versao: a.versao, motivo: a.motivo });
