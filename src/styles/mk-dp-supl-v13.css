@@ -1,0 +1,117 @@
+/*
+ * Detalhes do Lote — aba Suplementação, peças do v13 (só desenho; os números
+ * continuam vindo de suplementacaoDoPasto.js). Tudo sob a raiz `.mk-dp`.
+ *
+ *   div.mk-dp-supl-regua[role=img] > div.mk-dp-supl-regua__trilho(> span.__zona + span.__marca)
+ *                                  + div.mk-dp-supl-regua__escala > span ×3
+ *   figure.mk-dp-supl-graf > figcaption(.__titulo + .__legenda) + svg + ol.mk-dp-supl-graf__dados (leitor de tela)
+ *   p.mk-dp-supl-graf__vazio
+ *   div.mk-dp-supl-forn[role=img] > span.__consumido + span.__sobra   (dentro do cartão do Fornecimento)
+ *   span.mk-dp-supl-nivel > span                                      (dentro do item do cocho)
+ */
+
+.mk-dp .mk-dp-supl-regua {
+  min-width: 0;
+  padding: 10px 12px 8px;
+  border: 1px solid #e7e9ec;
+  border-radius: 10px;
+  background: #fff;
+}
+.mk-dp .mk-dp-supl-regua__trilho {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: #fecaca;
+}
+.mk-dp .mk-dp-supl-regua__zona {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #86efac;
+}
+.mk-dp .mk-dp-supl-regua__marca {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: #0f172a;
+}
+.mk-dp .mk-dp-supl-regua__escala {
+  position: relative;
+  height: 16px;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 11px;
+}
+.mk-dp .mk-dp-supl-regua__escala > span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-supl-graf {
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px 6px;
+  border: 1px solid #e7e9ec;
+  border-radius: 10px;
+  background: #fff;
+}
+.mk-dp .mk-dp-supl-graf > figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin-bottom: 4px;
+}
+.mk-dp .mk-dp-supl-graf__titulo { color: #1f2328; font-size: 13px; font-weight: 600; }
+.mk-dp .mk-dp-supl-graf__legenda { display: inline-flex; gap: 12px; color: #64748b; font-size: 11.5px; }
+.mk-dp .mk-dp-supl-graf__legenda > span { display: inline-flex; align-items: center; gap: 5px; }
+.mk-dp .mk-dp-supl-graf__legenda i { display: inline-block; width: 16px; border-top: 2px dashed #64748b; }
+.mk-dp .mk-dp-supl-graf__legenda i[data-serie="real"] { border-top: 2.5px solid #16a34a; }
+.mk-dp .mk-dp-supl-graf > svg { display: block; width: 100%; height: auto; }
+.mk-dp .mk-dp-supl-graf__dados {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.mk-dp .mk-dp-supl-graf__vazio {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed #d8dee6;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.mk-dp .mk-dp-supl-forn {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin: 10px 12px 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef2f6;
+}
+.mk-dp .mk-dp-supl-forn__consumido { background: #16a34a; }
+.mk-dp .mk-dp-supl-forn__sobra { background: #bbf7d0; }
+
+.mk-dp .mk-dp-supl-nivel {
+  display: block;
+  height: 7px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef2f6;
+}
+.mk-dp .mk-dp-supl-nivel > span { display: block; height: 100%; border-radius: 999px; background: #16a34a; }

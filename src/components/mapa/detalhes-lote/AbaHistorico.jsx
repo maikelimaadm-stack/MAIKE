@@ -290,7 +290,8 @@ export default function AbaHistorico() {
         }
       }}
     >
-      {rotulo}
+      {/* "Mostrar" (rótulo pequeno cinza) vem do CSS (::before), fora do texto do botão. */}
+      <span className="mk-dp-hist__valor">{rotulo}</span>
     </BotaoFiltro>
   );
 
@@ -313,7 +314,7 @@ export default function AbaHistorico() {
       </div>
     );
   } else if (dias.length) {
-    conteudo = <LinhaDoTempo textoAutomatico dias={dias} rotulo={daArea ? "Registros da área" : undefined} />;
+    conteudo = <LinhaDoTempo compacto textoAutomatico dias={dias} rotulo={daArea ? "Registros da área" : undefined} />;
   } else {
     const haMaisParaLer = h.haMaisPaginas && filtro !== "sup";
     conteudo = (
