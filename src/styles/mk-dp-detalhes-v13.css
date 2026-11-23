@@ -143,3 +143,39 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Celular: a grade da Lotação em 3 colunas (rótulos inteiros, podendo quebrar)
+   e, na régua, só o nome da faixa atual (os outros não cabem nos trechos estreitos). */
+@media (max-width: 767px) {
+  .mk-dp .mk-dp-area-organizada .mk-dp-grade.mk-dp-d13-grade--4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .mk-dp.mk-dp .mk-dp-area-organizada .mk-dp-d13-grade .mk-dp-cel__rot {
+    display: block;
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+  }
+  .mk-dp .mk-dp-d13-regua__nomes > span:not([data-ativa]) {
+    visibility: hidden;
+  }
+  .mk-dp .mk-dp-d13-regua__nomes > span[data-ativa] {
+    overflow: visible;
+  }
+}
+
+/* Na grade da Lotação do celular o rótulo longo quebra em duas linhas em vez de
+   deslizar (texto automático), para ser lido de uma vez. */
+@media (max-width: 767px) {
+  .mk-dp.mk-dp .mk-dp-d13-grade .mk-dp-cel__rot .mk-dp-texto-auto {
+    display: block;
+    overflow: visible;
+    white-space: normal;
+  }
+  .mk-dp.mk-dp .mk-dp-d13-grade .mk-dp-cel__rot .mk-dp-texto-auto__conteudo {
+    display: inline;
+    white-space: normal;
+    animation: none;
+    transform: none;
+  }
+}
