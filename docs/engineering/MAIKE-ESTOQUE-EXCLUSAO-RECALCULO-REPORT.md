@@ -347,39 +347,90 @@ uma entrada comum e criava a camada com o custo gravado. A falta e os dois estor
    prévia (`lerDependentes`) lista a linha com `documento_id` = o ajuste.
 4. O motor só passou a exportar o rótulo `TIPO_SOBRA_AJUSTE`. Nenhuma regra dele mudou.
 
-**Decisão para o dono conferir: a contagem não é refeita.** O recálculo é de custo. A diferença do ajuste (a
-quantidade do movimento), o saldo anterior e o contado ficam como foram lançados. Os saldos antes e depois do
-movimento são recalculados. Se S1 nunca aconteceu fisicamente, a contagem real teria dado outra diferença. Manter a
-diferença lançada conta S1 duas vezes (no exemplo abaixo: 160 kg em vez de 110). Refazer a contagem mudaria
-quantidades, e até o tipo da linha (sobra ↔ falta). Isso fica fora desta fatia. Se o dono preferir, a alternativa
-segura é recusar a exclusão quando houver um ajuste depois no mesmo depósito.
+**Escolha do proprietário (2026-11-23): com ajuste de inventário depois, a exclusão é recusada.** Este relatório
+apontou que o recálculo é só de custo. A diferença lançada no ajuste ficaria como estava, e a exclusão de S1 contaria
+S1 duas vezes: 160 kg no sistema onde a contagem física deu 110. O dono decidiu que o estoque nunca pode ficar
+diferente do que foi contado. A decisão está registrada no fim da D-PROD-273.
 
-**Números à mão** (`backend/tests/estoqueRecalculoAjuste.test.mjs`). E1 100 kg a R$ 2; S1 tira 50; E2 50 kg a R$ 5
-→ 100 kg, R$ 350, médio 3,50. Sem S1: 150 kg, R$ 450, médio 3,00.
+- **Quando recusa.** Uma sobra ou falta de ajuste foi lançada depois do excluído, na ordem canônica. O ajuste ainda
+  está valendo (`Ativa`, sem estorno, fora de par marcado). Ele está num depósito que a exclusão alcança.
+- **Como recusa.** 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`, `reason: 'ajuste_de_inventario_posterior'`, com
+  `local_estoque_id`, `movimento_id`/`movimento_numero` do ajuste e `ajuste_id`/`ajuste_numero`. Nada é gravado.
+- **Onde se acha o ajuste:**
+  1. **No depósito do movimento**, por consulta direta, antes de ler o histórico: `buscarAjustePosterior` no leitor,
+     com o mesmo critério fail-closed de "depois" de `buscarMovimentoPosterior`. Ela roda em
+     `planejarExclusaoComRecalculo`, antes de qualquer escrita e antes do teste "nada depois". Assim, o ajuste
+     sozinho também recusa: o ajuste é "algo depois".
+  2. **No destino da cascata**, pelo replay. Na simulação (`opcoes.excluir`), um ajuste vigente num depósito já
+     alcançado pela exclusão para a simulação com a mesma razão. "Alcançado" quer dizer o depósito do excluído ou o
+     destino de uma transferência processada depois dele. Os pares já marcados (exclusões com recálculo gravadas)
+     não contam como alcance. Senão, um ajuste depois de qualquer exclusão antiga travaria o produto. Ajuste no
+     destino **antes** de a transferência chegar não recusa: nem o saldo nem o custo dele mudam.
+- **Sem estorno exato.** A recusa não é contornável (`ehRecusaContornavel` devolve falso para essa razão).
+  Abastecimento, atividade e venda **não** caem no estorno exato, que também deixaria o saldo fora do contado. O
+  estorno exato de hoje dessas três origens só roda sem plano quando não há nada depois. Com um ajuste depois, a
+  consulta direta já recusa, então ele não passa.
+- **Prévia.** Devolve `permitido: false`, `modo: null`, a `recusa` com o número do ajuste e nenhum `aviso`. A
+  recusa vem antes do teste de estorno exato e nunca vira `estorno_exato_sem_recalculo`.
+- **Tela.** `mensagemRecalculoDaExclusao` (`src/lib/gestaoErros.js`) mostra: "Há uma contagem de inventário (ajuste
+  nº X) depois deste movimento no depósito; exclua a contagem primeiro ou faça uma nova contagem. Nada foi alterado."
 
-| Cenário | Antes de excluir S1 | Depois de excluir S1 |
-|---|---|---|
-| (e1) sobra de 10 (contou 110) | sobra 10 × 3,50 = 35 (saldo 100→110); S2 20 × 3,50 = 70; poço 90 kg, R$ 315 | sobra 10 × 3,00 = **30** (150→160), camada a 3,00; S2 20 × 3,00 = **60** (160→140); poço 140 kg, R$ 420; linha do ajuste 3,50/35 → 3,00/30 (trilha) |
-| (e2) falta de 10 (contou 90) | falta 10 × 3,50 = 35; S2 70; poço 70 kg, R$ 245 | falta 10 × 3,00 = **30** (150→140, fatia L1 10 a 3,00); S2 **60** (140→120); poço 120 kg, R$ 360; linha 3,50/35 → 3,00/30 |
-| (e3) S1 zera o depósito; sobra 10 com custo informado R$ 7 | S2 5 × 7 = 35 | a sobra continua 7/70 (100→110); S2 5 × 2,4545 = **12,2725** (110 kg, R$ 270); linha intacta |
-| (a) 30 a 1 + 40 a 2, contou 80 | sobra 10 × 1,5714 = 15,714; saída 25 × 1,5714 = 39,285 | — |
-| (b) 50 a 2 + 50 a 4, contou 90 | falta 10 × 3 = 30; saída 20 × 3 = 60 | — |
-| (c) sobra de 20 (ureia) e falta de 25 (sal, 60 a 5 + 40 a 10), ajuste excluído | estornos 3/60 e 7/175; poços 100 kg/R$ 300 e 100 kg/R$ 700 | — |
-| (d) sobra no Barracão sem saldo, R$ 7 informado | 15 × 7 = 105; saída 5 × 7 = 35 | — |
+**A escrita em `AjusteEstoqueItem` continua (ainda alcançável).** O ajuste **já excluído** depois do excluído não
+recusa, porque a contagem não vale mais. A sobra dele e o estorno `estorno_ajuste_sobra` seguem o médio recalculado,
+e a linha do ajuste (status `EXCLUIDA`) copia o custo e o valor do movimento. Sem essa escrita, ela ficaria diferente
+do movimento. Ajuste anterior ao excluído e ajuste no destino antes da cascata não mudam de valor. A correção do
+replay da sobra (custo ao médio) também continua valendo: no replay sem exclusão ela prova o custo gravado.
 
-Em todos: `auditarReplayDoProduto` sem divergência (antes e depois da exclusão). No replay puro
-(`estoqueRecalculoReplayPuro`): sobra gravada a 9 sem custo informado diverge (calculado 3); com custo informado,
-reproduz; sem a linha do ajuste, ou num poço vazio na simulação, o replay para. Excluída a E2, a camada da sobra vai
-de 3 para 2.
+**Números à mão** (`backend/tests/estoqueRecalculoAjuste.test.mjs`). Caso do dono: E1 100 kg a R$ 2; S1 tira 50;
+E2 50 kg a R$ 5 → 100 kg, R$ 350, médio 3,50. Sem S1 seriam 150 kg, R$ 450, médio 3,00.
 
-**Validação (PG 17, banco novo `maike_rx4aj`, `prisma migrate deploy`):**
+| Cenário | Resultado |
+|---|---|
+| (e1) sobra de 10 no meio (10 × 3,50 = 35), S2 20 × 3,50 = 70 | excluir S1 → **409**, ajuste nº 1, depósito Galpão; nada gravado (foto igual: movimentos, camadas, linhas, saídas, cache, trilha); prévia recusa |
+| (e2) falta de 10 no meio (35), S2 70 | **409**; S2 continua 70 |
+| (e3) S1 zera o depósito; sobra 10 com custo informado R$ 7; S2 5 × 7 = 35 | **409** |
+| (e4) entrada → S1 → ajuste (falta 5), nada mais | **409**: o ajuste sozinho é "algo depois" |
+| (e5) S1 em A; A 100 kg a 3,50 → transferência 40 A→B; sobra 5 em B | **409** com o depósito **B** (achado pelo replay) |
+| (e6) ajuste **anterior**: 150 kg a 3 → sobra 10 × 3 = 30; S1 40 × 3; entra 40 a 7 (160 kg, médio 4); S2 20 × 4 = 80 | excluir S1 passa: S2 **76** (200 kg, R$ 760, médio 3,8; saldo 200→180); estoque 180 kg, R$ 684; sobra e linha do ajuste intactas (3/30) |
+| (e7) ajuste **já excluído** depois de S1: sobra 10 × 3,50 = 35, estornada; S2 20 × 3,50 = 70 | excluir S1 passa: sobra e estorno **3,00/30**, camada estornada a 3,00; S2 **60** (150→130); estoque 130 kg, R$ 390; linha do ajuste excluído 3,50/35 → 3,00/30 (trilha) |
+| (e8) sobra 2 × 4 em B **antes** da transferência; T 40 × 3,50 = 140 | excluir S1 passa: T 40 × 3 = **120**; B 52 kg, R$ 168 (médio 3,2308; camadas somam 168,0016); ajuste intacto (4/8) |
+| (a) 30 a 1 + 40 a 2, contou 80 | sobra 10 × 1,5714 = 15,714; saída 25 × 1,5714 = 39,285 |
+| (b) 50 a 2 + 50 a 4, contou 90 | falta 10 × 3 = 30; saída 20 × 3 = 60 |
+| (c) sobra de 20 (ureia) e falta de 25 (sal, 60 a 5 + 40 a 10), ajuste excluído | estornos 3/60 e 7/175; estoques 100 kg/R$ 300 e 100 kg/R$ 700 |
+| (d) sobra no Barracão sem saldo, R$ 7 informado | 15 × 7 = 105; saída 5 × 7 = 35 |
+
+Origens com estorno exato (`estoqueExclusaoRecalculoSaidas.test.mjs`), todas com 100 kg a R$ 4:
+
+- **Atividade:** linha de 50 e falta de 10 depois. Cancelar a linha → **409**; prévia `permitido: false` sem aviso.
+- **Abastecimento:** diesel 50 L e sobra de 10 L depois. Cancelar → **409**.
+- **Venda:** 50 kg e falta de 5 depois. Cancelar → **409**; a venda continua confirmada.
+
+Em todas, nada é gravado.
+
+Em todos os cenários, `auditarReplayDoProduto` dá zero divergência (antes e depois da exclusão ou da recusa).
+
+**Replay puro** (`estoqueRecalculoReplayPuro`):
+- Sobra gravada a 9 sem custo informado diverge (o replay calcula 3).
+- Com custo informado, e com ajuste excluído, o replay reproduz o gravado.
+- Sem a linha do ajuste, o replay para.
+- Excluída a E2, a contagem vigente depois recusa a simulação, com depósito, movimento e `ajuste_id`.
+- Com o ajuste já excluído, a sobra e o estorno dela vão de 3 para 2.
+- Sobra não informada num depósito vazio para a simulação.
+
+**Validação (PG 17, banco novo `maike_rx4aj`, recriado e `prisma migrate deploy`):**
 
 | Verificação | Resultado |
 |---|---|
-| `estoqueAjustes`, `estoqueRecalculo*` (inclui o novo `estoqueRecalculoAjuste` e o puro), `estoqueExclusaoRecalculoSaidas`, `estoqueConsulta*`, `estoqueSaidas*`, `estoqueEntradas*`, `estoqueP1M2MotorParametros`, `motorEstornoCochoTransferencia` | 188/188 (14 arquivos) |
-| Vermelho antes da correção | PG: (e1) e (e2) falhavam, (a) a (d) e (e3) passavam; puro: os 3 novos falhavam |
+| `estoqueAjustes`, `estoqueRecalculo*` (com `estoqueRecalculoAjuste` e o puro), `estoqueExclusaoRecalculoSaidas`, `estoqueConsulta*`, `estoqueSaidas*`, `estoqueEntradas*`, `estoqueP1M2MotorParametros`, `motorEstornoCochoTransferencia` | 197/197 (14 arquivos) |
+| Vermelho antes da correção | 1ª rodada (custo da sobra): PG (e1) e (e2) antigos e os 3 puros. 2ª rodada (recusa): PG (e1)–(e5), as 3 origens com estorno exato e a frase do smoke |
 | Gate tests (`scripts/tests/run-gate-tests.mjs`) | 1058/1058 |
+| Smoke `tests/smoke/estoque*` | 9 arquivos, 110 testes |
+| Smoke inteiro (`npm run -s test:smoke`, por causa do `gestaoErros`) | 318 arquivos, 3999 testes |
 | eslint nos tocados, `typecheck:backend` | ok (0) |
+
+**Fora daqui (como antes):** a edição da linha de atividade (D-PROD-271) e a retificação do financeiro estornam e
+relançam pelo caminho de sempre, sem passar por esta recusa. A exclusão do próprio ajuste continua exigindo nada
+depois (D-PROD-272).
 
 ### Riscos e próximos passos
 
