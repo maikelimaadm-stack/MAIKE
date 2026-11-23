@@ -28,7 +28,10 @@ const celula = (lote, rotulo) => {
   return celulasDa(/** @type {HTMLElement} */ (linha))[i];
 };
 /** Rótulo → valor das células de uma grade. @param {HTMLElement} raiz */
-const grade = (raiz) => Object.fromEntries([...raiz.querySelectorAll(".mk-dp-cel")].map((c) => [c.querySelector("dt").textContent, c.querySelector(".mk-dp-cel__val").textContent]));
+// `.mk-dp-cel` é a célula da Grade comum; `.mk-dp-l13__c` é a da grade compacta dos blocos do lote (v13).
+const grade = (raiz) => Object.fromEntries([...raiz.querySelectorAll(".mk-dp-cel, .mk-dp-l13__c")].map((c) => [c.querySelector("dt").textContent, c.querySelector(".mk-dp-cel__val, .mk-dp-l13__val").textContent]));
+/** As duas barras de participação (v13): [rótulo, valor, largura]. */
+const barras = (raiz) => [...raiz.querySelectorAll(".mk-dp-part__item")].map((b) => [b.querySelector(".mk-dp-part__rot").textContent, b.querySelector(".mk-dp-part__val").textContent, b.querySelector(".mk-dp-part__trilha > span")?.style.width ?? null]);
 
 beforeEach(() => {
   esquecerEstadoLotes();
@@ -149,17 +152,38 @@ describe("aba Lotes: vistas", () => {
 });
 
 describe("aba Lotes › Resumo", () => {
+  it("v13: cada lote mostra as duas barras de participação (% das cabeças e % da UA), sem número grande", () => {
+    render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
+    const itens = [...document.querySelectorAll(".mk-dp-item")];
+    expect(itens).toHaveLength(6);
+    for (const item of itens) expect(barras(item).map(([r]) => r)).toEqual(["% cabeças", "% da UA"]);
+    expect([...itens[0].querySelectorAll(".mk-dp-part__item")].map((b) => b.getAttribute("title"))).toEqual(["% das cabeças do pasto", "% da UA do pasto"]);
+    // L-2026-008: 38 de 314 cab (12%) e 37,96 de 230,09 UA (16%); a barra tem a largura do valor.
+    expect(barras(itens[0]).map(([, v]) => v)).toEqual(["12%", "16%"]);
+    expect(barras(itens[0]).map(([, , w]) => Math.floor(parseFloat(w)))).toEqual([12, 16]);
+    // As seis participações somam o pasto inteiro.
+    expect(Math.round(itens.reduce((t, i) => t + parseFloat(barras(i)[0][2]), 0))).toBe(100);
+    // A linha continua com o texto normal e a situação; o subícone não mudou.
+    expect(itens[0].querySelector(".mk-dp-item__meta").textContent).toContain("38 cab");
+    expect(itens[0].querySelector("img")).toBeTruthy();
+  });
+
   it("5 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
     render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     const kpis = [...document.querySelectorAll(".mk-dp-kpi")].map((k) => [k.querySelector("dt").textContent, k.querySelector(".mk-dp-kpi__val").textContent]);
-    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Peso médio projetado (kg)", "342,6"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
+    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Projetado (kg)", "342,6"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
+    // v13: rótulo inteiro (quebra em vez de cortar); o nome completo fica na dica do "Projetado".
+    expect(document.querySelector(".mk-dp-kpi dt .mk-dp-texto-deslizante, .mk-dp-kpi dt [data-texto-deslizante]")).toBeNull();
+    expect(document.querySelectorAll(".mk-dp-kpi")[2].querySelector("dt [title]").getAttribute("title")).toBe("Peso médio projetado (kg)");
     expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314)");
 
     const itens = [...document.querySelectorAll(".mk-dp-item")];
     expect(itens.map((i) => i.querySelector(".mk-dp-item__nome").textContent)).toEqual(["L-2026-008", "L-2026-014", "L-2026-019", "L-2026-022", "L-2026-025", "L-2026-027"]);
     const primeiro = itens[0];
     expect(primeiro.querySelector(".mk-dp-item__meta").textContent).toBe("38 cab · 38,0 UA · VACA · 449,5 kg");
-    expect(primeiro.querySelector(".mk-dp-item__sub")).toBeNull();
+    // v13: abaixo do texto ficam só as duas barras de participação (nenhum texto solto a mais).
+    expect(primeiro.querySelector(".mk-dp-item__sub").children).toHaveLength(1);
+    expect(primeiro.querySelector(".mk-dp-item__sub > .mk-dp-part")).toBeTruthy();
     expect(primeiro.querySelector(".mk-dp-quad").style.background).toBe("rgb(239, 68, 68)");
     expect(primeiro.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");
     expect(itens[1].querySelector(".mk-dp-chip--ok").textContent).toBe("Em dia");
@@ -223,15 +247,22 @@ describe("aba Lotes › Lote", () => {
     expect(within(painel).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Projeção de peso", "Identificação"]);
 
     const [, lotacao, pesagem, projecao, ident] = painel.querySelectorAll(".mk-dp-cartao");
+    // v13: as duas participações viram barras no topo do bloco; o resto fica em grade.
     expect(grade(lotacao)).toEqual({
-      "Cab.": "38", "% das cabeças do pasto": "12%", UA: "37,96", "% da UA do pasto": "16%",
-      "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081",
+      "Cab.": "38", UA: "37,96", "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081",
     });
-    expect(lotacao.querySelectorAll(".mk-dp-cel__barra")).toHaveLength(2);
+    expect(barras(lotacao).map(([r, v]) => [r, v])).toEqual([["% das cabeças do pasto", "12%"], ["% da UA do pasto", "16%"]]);
+    expect(barras(lotacao).every(([, , w]) => /^\d+(\.\d)?%$/.test(w))).toBe(true);
+    expect(lotacao.querySelector(".mk-dp-l13__barras + .mk-dp-l13")).toBeTruthy();
     expect(within(lotacao).queryByText("Ocupação (UA × dias)")).toBeNull();
     expect(lotacao.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
 
-    expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026", Origem: "MEDIDO" });
+    expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026" });
+    // v13: a Origem é a etiqueta na linha do título da Pesagem (o nome da seção continua "Pesagem").
+    expect(grade(pesagem).Origem).toBeUndefined();
+    const secaoPesagem = screen.getByRole("region", { name: "Pesagem" });
+    expect(secaoPesagem.querySelector(".mk-dp-l13__origem").textContent).toBe("Origem: MEDIDO");
+    expect(secaoPesagem.querySelector(".mk-dp-l13__origem").className).toContain("mk-dp-chip--ok");
     expect(within(pesagem).queryByText("Peso projetado (kg)")).toBeNull();
     expect(grade(projecao)).toMatchObject({ "Peso projetado (kg)": "465,9", "@ projetadas": "15,53", "GMD do mês (kg/dia)": "0,200", "Base da projeção": "PESAGEM 25/08", "Peso objetivo (kg)": "480", "Atinge o objetivo": "25/01/2027 (71 d)", "Pesado × previsto": "98,7% do previsto" });
     const mensal = projecao.querySelector(".mk-dp-projecao-mensal");
@@ -245,7 +276,7 @@ describe("aba Lotes › Lote", () => {
     expect(within(painel).queryByText("Categoria", { exact: true })).toBeNull();
     expect(Object.keys(grade(ident))).toEqual(["Sist. Rep.", "Identificador", "Sigla", "Entrada", "Cat. de manejo"]);
     expect(grade(ident)).toMatchObject({ Identificador: "VERMELHO", "Cat. de manejo": "CRIA" });
-    const identificador = [...ident.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "Identificador");
+    const identificador = [...ident.querySelectorAll(".mk-dp-l13__c")].find((c) => c.querySelector("dt").textContent === "Identificador");
     expect(identificador.querySelector(".mk-dp-bolinha").style.background).toBe("rgb(239, 68, 68)");
     expect(ident.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
   });
@@ -378,13 +409,46 @@ describe("aba Lotes › Lista", () => {
     expect(screen.getByRole("heading", { name: "1 lote · 86 cab" })).toBeTruthy();
   });
 
-  it("celular: coluna do nome com 138 px; desktop 170 px", () => {
+  it("celular (v13): tabela compacta — nome com 116 px, colunas do tamanho do conteúdo até 84 px e as fixas 15% menores; desktop 170 px", () => {
     const um = render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     fireEvent.click(screen.getByRole("button", { name: "Lista", exact: true }));
-    expect(screen.getByRole("table").style.gridTemplateColumns.startsWith("138px ")).toBe(true);
+    expect(screen.getByRole("table").style.gridTemplateColumns.startsWith("116px fit-content(84px) 109px ")).toBe(true);
+    expect(document.querySelector(".mk-dp-tabela").className).toContain("mk-dp-tabela--compacta");
     um.unmount();
     render(<CascaDeTeste modelo={modeloV12()} />);
     expect(screen.getByRole("table").style.gridTemplateColumns.startsWith("170px minmax(84px, auto) 128px ")).toBe(true);
+    expect(document.querySelector(".mk-dp-tabela").className).not.toContain("mk-dp-tabela--compacta");
+  });
+
+  it("v13: continua tabela, com linhas zebradas (uma sim, uma não) e o Total da área preenchido", () => {
+    render(<CascaDeTeste modelo={modeloV12()} />);
+    const linhas = screen.getAllByRole("row").filter((r) => r.querySelector(".mk-dp-tabela__nome"));
+    expect(linhas).toHaveLength(6);
+    expect(linhas.map((r) => r.querySelector(".mk-dp-tabela__nome").classList.contains("is-zebra"))).toEqual([false, true, false, true, false, true]);
+    expect(linhas[1].querySelectorAll(".mk-dp-tabela__td.is-zebra").length).toBe(linhas[1].querySelectorAll(".mk-dp-tabela__td").length);
+    const total = [...document.querySelectorAll(".mk-dp-tabela__tot")].map((c) => c.textContent);
+    expect(total[0]).toBe("Total da área");
+    expect(total.slice(1).filter(Boolean).length).toBeGreaterThan(0);
+  });
+
+  it("v13: a dica de arrastar só aparece quando a tabela passa da largura visível", () => {
+    const dica = "Arraste para o lado para ver as outras colunas →";
+    const um = render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
+    fireEvent.click(screen.getByRole("button", { name: "Lista", exact: true }));
+    expect(screen.queryByText(dica)).toBeNull(); // jsdom: sem rolagem
+    um.unmount();
+    const larguraTotal = Object.getOwnPropertyDescriptor(Element.prototype, "scrollWidth");
+    const larguraVisivel = Object.getOwnPropertyDescriptor(Element.prototype, "clientWidth");
+    Object.defineProperty(Element.prototype, "scrollWidth", { configurable: true, get() { return this.classList?.contains("mk-dp-tabela__rolo") ? 900 : 0; } });
+    Object.defineProperty(Element.prototype, "clientWidth", { configurable: true, get() { return this.classList?.contains("mk-dp-tabela__rolo") ? 370 : 0; } });
+    try {
+      render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
+      fireEvent.click(screen.getByRole("button", { name: "Lista", exact: true }));
+      expect(screen.getByText(dica)).toBeTruthy();
+    } finally {
+      Object.defineProperty(Element.prototype, "scrollWidth", larguraTotal);
+      Object.defineProperty(Element.prototype, "clientWidth", larguraVisivel);
+    }
   });
 });
 

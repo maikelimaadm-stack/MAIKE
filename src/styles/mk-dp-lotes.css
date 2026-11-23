@@ -247,3 +247,265 @@
 .mk-dp .mk-dp-lote-organizado > * {
   min-width: 0;
 }
+
+/* ═══ v13 — aba Lotes (redesenho aprovado pelo dono) ═════════════════════════
+ * Resumo: rótulos inteiros nos 5 números e barras de participação por lote.
+ * Lote: blocos em grade (3 colunas no celular) com as barras no topo da Lotação.
+ * Lista: continua tabela; compacta no celular, zebrada, com a dica de arrastar.
+ * Pesos: valores 500, títulos 600.
+ *
+ * span.mk-dp-part > span.mk-dp-part__item > span.mk-dp-part__topo(> __rot + __val) + span.mk-dp-part__trilha > span
+ * dl.mk-dp-l13 > div.mk-dp-l13__c(.is-larga) > dt.mk-dp-l13__rot + dd.mk-dp-l13__val
+ */
+
+/* Resumo — os 5 números: o rótulo quebra em duas linhas em vez de cortar */
+.mk-dp .mk-dp-resumo-indicadores {
+  --mk-dp-resumo-colunas: minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(0, 0.85fr) minmax(0, 0.95fr);
+}
+
+.mk-dp .mk-dp-resumo-indicadores .mk-dp-kpi {
+  justify-content: space-between;
+}
+
+.mk-dp .mk-dp-resumo-indicadores .mk-dp-kpi__rot {
+  overflow: visible;
+  font-size: 11px;
+  white-space: normal;
+  overflow-wrap: normal;
+  text-wrap: balance;
+}
+
+.mk-dp .mk-dp-resumo-indicadores .mk-dp-kpi__val {
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Barras de participação (% das cabeças · % da UA) */
+.mk-dp .mk-dp-part {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-part__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-part__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.mk-dp .mk-dp-part__rot {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-part__val {
+  flex: 0 0 auto;
+  color: #1f2937;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.mk-dp .mk-dp-part__trilha {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef0f2;
+}
+
+.mk-dp .mk-dp-part__trilha > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #3db5c9;
+}
+
+/* Resumo — as barras vão abaixo do texto do lote */
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item__sub {
+  display: block;
+  margin-top: 5px;
+}
+
+.mk-dp .mk-dp-resumo-lotes .mk-dp-part {
+  gap: 10px;
+}
+
+.mk-dp .mk-dp-resumo-lotes .mk-dp-item__tit {
+  font-weight: 600;
+}
+
+/* Lote — blocos em grade */
+.mk-dp .mk-dp-lote13 .mk-dp-titulo__h {
+  font-weight: 600;
+}
+
+/* "Origem: MEDIDO | DERIVADO" na linha do título da Pesagem, à direita */
+.mk-dp .mk-dp-lote13 .mk-dp-lote-organizado__secao {
+  position: relative;
+}
+
+.mk-dp .mk-dp-lote13 .mk-dp-l13__origem {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.mk-dp .mk-dp-l13__barras {
+  padding: 10px 12px 2px;
+}
+
+.mk-dp .mk-dp-l13 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px 12px;
+}
+
+.mk-dp .mk-dp-l13__barras + .mk-dp-l13 {
+  margin-top: 8px;
+  border-top: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-l13__c {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-l13__c.is-larga {
+  grid-column: 1 / -1;
+}
+
+.mk-dp .mk-dp-l13__rot {
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.mk-dp .mk-dp-l13__val {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  color: #1f2937;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.mk-dp[data-modo="celular"] .mk-dp-l13 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Lista — zebra, total preenchido, grupos discretos */
+.mk-dp .mk-dp-tabela__g {
+  padding-top: 6px;
+  background: #fafbfb;
+  color: #8a9099;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.mk-dp .mk-dp-tabela__th {
+  background: #fafbfb;
+}
+
+.mk-dp .mk-dp-tabela__th.is-on .mk-dp-tabela__ordenar,
+.mk-dp .mk-dp-tabela__nome-txt strong {
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-tabela__td {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.mk-dp .mk-dp-tabela :is(.mk-dp-tabela__nome, .mk-dp-tabela__td).is-zebra {
+  background: #f8fafb;
+}
+
+.mk-dp .mk-dp-tabela__tot {
+  background: #e9edf0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mk-dp .mk-dp-tabela__dica {
+  margin: 0;
+  color: #6b7280;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+/* Lista no celular: ~6 colunas visíveis sem cortar */
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__in {
+  font-size: 12px;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__g {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__ordenar {
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 11px;
+}
+
+.mk-dp .mk-dp-tabela--compacta :is(.mk-dp-tabela__td, .mk-dp-tabela__tot) {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__abrir {
+  gap: 6px;
+  padding-left: 8px;
+  padding-right: 6px;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__nome-txt strong {
+  font-size: 12px;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__nome-txt small {
+  font-size: 11px;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__bolinha {
+  width: 8px;
+  height: 8px;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__ordenar > span:first-child {
+  white-space: normal;
+}
+
+.mk-dp .mk-dp-tabela--compacta .mk-dp-tabela__mini {
+  width: 32px;
+}
