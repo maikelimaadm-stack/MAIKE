@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { calcularFechamentoConsumo } from '@/domain/suplementacao/fechamentoConsumo';
 import { comSaldoSemExcluidos, idsDeParesExcluidos } from '@/lib/estoqueSaldoSemExcluidos';
 import { resumoDaPrevia } from '@/lib/estoqueRecalculoExclusao';
+import { mensagemErroGestao } from '@/lib/gestaoErros';
 import { CAMPOS_CUSTO_FECHAMENTO, custoDoFechamento, recalcularCustosDosCochos } from '../../backend/src/modules/suplementacaoEventos/fechamentoCustoCocho.js';
 
 const evento = { total_cabecas_afetadas: 12, cabecas_nao_consomem: 2, quantidade_total_kg: 37.5, base_consumo: 'PV', consumo_esperado_pv_kg: 8 };
@@ -86,5 +87,14 @@ describe('D-PROD-273 — resumo da prévia na janela de exclusão', () => {
     expect(sem.estado).toBe('sem_recalculo');
     expect(sem.mensagem).toMatch(/sem recalcular/);
     expect(resumoDaPrevia([{ permitido: false, recusa: { code: 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', movimento_numero: '9' } }]).estado).toBe('recusa');
+  });
+
+  it('escolha do proprietário (2026-11-23): contagem de inventário depois → recusa com frase clara, nunca "estorno exato" (nem misturada com prévia sem recálculo)', () => {
+    const recusa = { permitido: false, modo: null, recusa: { code: 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', reason: 'ajuste_de_inventario_posterior', ajuste_numero: '12', movimento_numero: '40' } };
+    const r = resumoDaPrevia([recusa, { permitido: true, modo: 'estorno_exato_sem_recalculo', aviso: { code: 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', reason: 'replay_diverge_do_gravado' } }]);
+    expect([r.estado, r.mensagem]).toEqual(['recusa', 'Há uma contagem de inventário (ajuste nº 12) depois deste movimento no depósito; exclua a contagem primeiro ou faça uma nova contagem. Nada foi alterado.']);
+    const semNumero = resumoDaPrevia([{ permitido: false, recusa: { code: 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', reason: 'ajuste_de_inventario_posterior', movimento_numero: '40' } }]);
+    expect(semNumero.mensagem).toMatch(/^Há uma contagem de inventário \(movimento nº 40\) depois deste movimento/);
+    expect(mensagemErroGestao({ code: 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', details: { reason: 'ajuste_de_inventario_posterior', ajuste_numero: '3' } }, 'x')).toMatch(/ajuste nº 3/);
   });
 });

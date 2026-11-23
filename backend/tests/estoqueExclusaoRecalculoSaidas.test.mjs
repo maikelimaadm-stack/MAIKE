@@ -362,6 +362,72 @@ describe('D-PROD-273 fatia 4 — atividade, abastecimento e venda', () => {
   });
 });
 
+// ─── escolha do proprietário (2026-11-23): contagem de inventário depois → recusa, sem o estorno exato ─────────
+const ajustar = async (x, produto, local, contado, unidade = 'KG') =>
+  ok(await H.req('POST', '/estoque/ajustes', x.token, {
+    empresa_id: x.e1.id, operation_id: `aj-${randomUUID()}`, itens: [{ produto_id: produto.id, local_estoque_id: local.id, unidade, quantidade_contada: contado }],
+  }), 201);
+/** Tudo que o cancelamento poderia gravar no produto (movimentos, camadas, cache) e a trilha do recálculo. */
+const fotoProduto = async (x, produto) => {
+  const p = prisma();
+  const w = { where: { cliente_id: x.c, produto_id: produto.id }, orderBy: { id: /** @type {const} */ ('asc') } };
+  return JSON.stringify([await p.movimentacaoEstoque.findMany(w), await p.estoqueLoteNota.findMany(w), await p.produto.findUnique({ where: { id: produto.id } }),
+    await p.auditLog.count({ where: { cliente_id: x.c, acao: 'estoque.recalculo' } })]);
+};
+/** 409 `ajuste_de_inventario_posterior` com o número do ajuste; nada gravado. */
+const exigirRecusaPorAjuste = async (r, a) => {
+  assert.equal(r.statusCode, 409, r.body);
+  const b = r.json();
+  assert.deepEqual([b.code, b.reason ?? b.details?.reason, b.details?.ajuste_numero, b.details?.movimento_id],
+    ['ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'ajuste_de_inventario_posterior', a.numero, a.itens[0].movimentacao_estoque_id]);
+};
+
+describe('D-PROD-273 — escolha do proprietário: contagem de inventário depois recusa também nas origens com estorno exato (atividade, abastecimento, venda)', () => {
+  test('linha de produto da atividade com ajuste (falta) depois → 409, sem estorno exato; a linha continua ativa', async () => {
+    const x = await montar();
+    const A = x.local;
+    await entrar(x, x.sal, A, '100', '4');
+    const at = await atividade(x);
+    const l1 = await at.lancar(x.sal, A, '50');
+    const a = await ajustar(x, x.sal, A, '40'); // falta 10 a 4
+    await provarReplay(x, x.sal);
+    const antes = await fotoProduto(x, x.sal);
+    const prev = ok(await previa(x, l1.movimentacao_estoque_id));
+    assert.deepEqual([prev.permitido, prev.modo, prev.recusa?.reason, prev.aviso], [false, null, 'ajuste_de_inventario_posterior', null]);
+    await assert.rejects(at.cancelar(l1), /ajuste_de_inventario_posterior/);
+    assert.equal(await fotoProduto(x, x.sal), antes, 'nada foi gravado');
+    assert.equal((await prisma().atividadeApontamentoProduto.findUnique({ where: { id: l1.id } })).status, l1.status);
+    await provarReplay(x, x.sal);
+    assert.ok(a.numero);
+  });
+
+  test('abastecimento com ajuste (sobra) depois → 409, sem estorno exato; nada gravado', async () => {
+    const x = await montar();
+    const d = x.diesel;
+    await entrar(x, d, x.local, '100', '4', 'L');
+    const ab1 = await AB.confirmarOk(x.token, corpoAbastecimento(x, { quantidade: '50', medidor_leitura: '1550.5' }));
+    const a = await ajustar(x, d, x.local, '60', 'L'); // sobra 10 a 4
+    const antes = await fotoProduto(x, d);
+    await exigirRecusaPorAjuste(await AB.cancelar(x.token, ab1.id, { empresa_id: x.e1.id, versao: ab1.versao, motivo: 'lançado em dobro', operation_id: opId() }), a);
+    assert.equal(await fotoProduto(x, d), antes, 'nada foi gravado');
+    assert.equal((await prisma().abastecimentoBem.findUnique({ where: { id: ab1.id } })).status, ab1.status);
+    await provarReplay(x, d);
+  });
+
+  test('venda do financeiro com ajuste depois → 409, sem estorno exato; a venda continua confirmada', async () => {
+    const x = await montar();
+    const A = x.local;
+    await entrar(x, x.sal, A, '100', '4');
+    const v1 = await vender(x, [[x.sal, A, '50', '12']]);
+    const a = await ajustar(x, x.sal, A, '45'); // falta 5 a 4
+    const antes = await fotoProduto(x, x.sal);
+    await exigirRecusaPorAjuste(await cancelarVenda(x, v1.id), a);
+    assert.equal(await fotoProduto(x, x.sal), antes, 'nada foi gravado');
+    assert.equal((await prisma().operacaoFinanceira.findUnique({ where: { id: v1.id } })).status, v1.status);
+    await provarReplay(x, x.sal);
+  });
+});
+
 // ─── cascata e concorrência ─────────────────────────────────────────────────
 describe('D-PROD-273 fatia 4 — cascata pela transferência e concorrência', () => {
   test('excluir a saída antiga na origem: a transferência posterior muda de fatias e de custo, as camadas do destino são recriadas (a antiga fica Estornado) e a venda no destino é recalculada', async () => {
