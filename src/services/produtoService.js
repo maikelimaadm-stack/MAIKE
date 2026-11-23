@@ -154,6 +154,9 @@ export const normalizarProduto = (formData, opcoes = {}) => {
     peso_por_saco_kg: unidadePrincipal === 'SACO' ? pesoPorSaco || undefined : undefined,
     // D-PROD-274: a carência da bula em dias (vazio = sem carência: null limpa na edição; ausente fica como estava).
     ...carenciaDoFormulario(formData.carencia_dias),
+    // D-PROD-279: controle de lote e de validade (validade só com lote).
+    controla_lote: formData.controla_lote === true,
+    controla_validade: formData.controla_lote === true && formData.controla_validade === true,
     observacoes: maiusculoOuIndefinido(formData.observacoes),
     ativo: formData.ativo,
   };

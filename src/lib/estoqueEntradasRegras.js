@@ -15,6 +15,7 @@
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { deUnidades, lerNumeroLocal, multiplicarArredondar, paraUnidades } from '@/lib/dinheiroDecimal';
+import { corpoDosLotes } from './estoqueLotesRegras.js';
 import { formatarDia, formatarQtd, formatarReais } from '@/lib/estoqueConsultaRegras';
 import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
 
@@ -173,6 +174,9 @@ export const validarFormularioEntrada = (form, hoje) => {
       else if (ehZeroCanonico(custo.valor)) erros[`${p}custo`] = 'Valor zero só com "Sem custo" marcado.';
     }
     if (tamanho(l.lote) > TAMANHO_LOTE) erros[`${p}lote`] = `No máximo ${TAMANHO_LOTE} caracteres.`;
+    // D-PROD-279: produto com controle de lote exige o lote (e a validade, se controla).
+    else if (l.produto?.controla_lote && !tamanho(l.lote)) erros[`${p}lote`] = 'Este produto controla lote: informe o lote.';
+    if (l.produto?.controla_validade && !l.validade) erros[`${p}validade`] = 'Este produto controla validade: informe a validade.';
     if (l.validade && !ehDiaIso(l.validade)) erros[`${p}validade`] = 'Data de validade inválida.';
     if (l.produto?.id && l.deposito?.id) {
       const chave = `${l.produto.id}|${l.deposito.id}`;
@@ -290,6 +294,9 @@ export const validarTransferencia = (form, hoje) => {
   const q = lerDecimal(form.quantidade);
   if (!q.ok) erros.quantidade = q.motivo === 'vazio' ? 'Informe a quantidade.' : 'Quantidade inválida (até 4 casas decimais).';
   else if (ehZeroCanonico(q.valor)) erros.quantidade = 'A quantidade deve ser maior que zero.';
+  // D-PROD-279: produto com lote — a escolha tem de fechar e o lote vencido, ser confirmado.
+  if (form.produto?.controla_lote && form.erroLote) erros.lotes = form.erroLote;
+  else if (form.produto?.controla_lote && form.loteVencido && !form.confirmaVencido) erros.lotes = 'Confirme o uso do lote vencido.';
   return { erros, ok: Object.keys(erros).length === 0 };
 };
 
@@ -302,6 +309,8 @@ export const dadosDaTransferencia = (form, operationId) => ({
   quantidade: Number(/** @type {any} */ (lerDecimal(form.quantidade)).valor),
   data: form.data || null,
   observacao: tamanho(form.observacao) ? String(form.observacao).trim() : null,
+  // D-PROD-279: só com escolha manual (sem ela, FEFO no servidor).
+  ...corpoDosLotes({ ...form, unidade: 'KG', deposito: form.origem }),
 });
 
 // ─── apresentação ───────────────────────────────────────────────────────────

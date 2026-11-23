@@ -33,6 +33,18 @@ const normalizarOpcoes = (bruto) => {
   };
 };
 
+/**
+ * D-PROD-279: lotes disponíveis (FEFO) de um produto num depósito.
+ * @param {{ empresa_id: string, produto_id: string, local_estoque_id: string }} filtros
+ */
+export const listLotesDisponiveis = async (filtros) => {
+  const contexto = ctx('listLotesDisponiveis');
+  assertArgument(isId(filtros?.empresa_id), 'empresa_id', contexto);
+  const o = await runProviderCall(() => operacoesNativas.lotesDisponiveis(filtros), contexto);
+  const b = isObjeto(o) ? o : {};
+  return { ...b, lotes: Array.isArray(b.lotes) ? b.lotes.filter(isObjeto) : [] };
+};
+
 /** @param {Record<string, unknown>} filtros */
 export const listSaldoEstoque = async (filtros = {}) => {
   const contexto = ctx('listSaldoEstoque');

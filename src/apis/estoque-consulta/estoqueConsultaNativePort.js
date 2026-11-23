@@ -25,6 +25,8 @@ const comQuery = (caminho, filtros) => {
 export const operacoesNativas = Object.freeze({
   /** @param {Record<string, unknown>} filtros */
   saldo: (filtros) => nativeRequest(comQuery('/estoque/saldo', filtros), { autenticado: true }, ctx('listSaldoEstoque')),
+  /** D-PROD-279: lotes disponíveis (FEFO) de um produto num depósito. @param {Record<string, unknown>} filtros */
+  lotesDisponiveis: (filtros) => nativeRequest(comQuery('/estoque/lotes-disponiveis', filtros), { autenticado: true }, ctx('listLotesDisponiveis')),
   /** @param {Record<string, unknown>} filtros */
   movimentos: (filtros) => nativeRequest(comQuery('/estoque/movimentos', filtros), { autenticado: true }, ctx('listMovimentosEstoque')),
   /** @param {string} id @param {string} empresaId */
