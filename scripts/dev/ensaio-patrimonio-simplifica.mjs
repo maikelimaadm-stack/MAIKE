@@ -177,7 +177,9 @@ export const NOME_ESTOQUE_SAIDAS = '20261120100000_estoque_saidas';
 export const NOME_APONTAMENTO_DATA_TERMINO = '20261120200000_apontamento_data_termino';
 /** D-PROD-272: a EXPAND do ajuste de inventário (3 tabelas novas), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_ESTOQUE_AJUSTES = '20261120300000_estoque_ajustes';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES]);
+/** D-PROD-274: a EXPAND dos campos por tipo (tabela nova AtividadePlantio e 5 colunas anuláveis), ainda posterior; fora da partida, sobe no GREEN. */
+export const NOME_CAMPOS_POR_TIPO = '20261121100000_atividade_campos_por_tipo';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
@@ -187,9 +189,9 @@ const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFO
 const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
 // D-PROD-249: AtividadeArea (as áreas da atividade) nasce com a última delas e fica no fim.
-export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem']);
+export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio']);
 // D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
-export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem']);
+export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio']);
 /**
  * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
  * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —
@@ -216,7 +218,8 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
  * Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho
  * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK). D-PROD-216
  * (posterior, sobe no GREEN): sem a coluna, a FK e o índice da Área ligada à Cultura em AreaPastagem. D-PROD-223
- * (posterior): sem as 3 colunas dos parâmetros próprios do pasto em AreaPastagem.
+ * (posterior): sem as 3 colunas dos parâmetros próprios do pasto em AreaPastagem. D-PROD-274 (posterior): sem
+ * `Produto.carencia_dias` e `TipoAtividade.alvo` (as outras 3 colunas dela são de tabelas posteriores).
  */
 export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
 tab AS (
@@ -238,6 +241,9 @@ linhas AS (
      AND NOT (t.t = 'AreaPastagem' AND a.attname::text = 'cultura_id')
      -- D-PROD-223 (posterior, sobe no GREEN): os parâmetros próprios do pasto.
      AND NOT (t.t = 'AreaPastagem' AND a.attname::text IN ('altura_entrada_cm', 'altura_saida_cm', 'dias_descanso'))
+     -- D-PROD-274 (posterior, sobe no GREEN): a carência do produto e o alvo da operação.
+     AND NOT (t.t = 'Produto' AND a.attname::text = 'carencia_dias')
+     AND NOT (t.t = 'TipoAtividade' AND a.attname::text = 'alvo')
   UNION ALL
   SELECT 'constraint', t.t || '|' || k.conname::text || '|' || k.contype::text || '|' || pg_get_constraintdef(k.oid, true)
     FROM tab t JOIN pg_constraint k ON k.conrelid = t.oid
@@ -351,12 +357,33 @@ export const historico = async (db) =>
                  count(*) FILTER (WHERE migration_name = '${NOME_CONTRACT}' AND finished_at IS NULL AND rolled_back_at IS NULL)::int AS contract_aberta
             FROM "_prisma_migrations"`);
 
+/**
+ * D-PROD-274: colunas ANULÁVEIS que migrations POSTERIORES à CONTRACT acrescentam a tabelas do retrato. Ficam fora do
+ * texto da linha (senão o texto mudaria sem nenhuma linha mudar), e o retrato conta as linhas em que alguma delas veio
+ * preenchida (tem de ser 0: elas nascem nulas).
+ */
+export const COLUNAS_POSTERIORES_NO_RETRATO = Object.freeze({ Produto: Object.freeze(['carencia_dias']) });
+
 /** Retrato das LINHAS: contagem e md5 de cada tabela apagada e das de estoque/P3 (texto da linha inteira, ordenado). */
 export const retrato = async (db) => {
   const r = { tabelas: await contarTabelas(db) };
   for (const t of [...TABELAS_APAGADAS, ...TABELAS_ESTOQUE, 'TanqueBemProduto']) {
     const existe = (await um(db, `SELECT to_regclass('public."${t}"') IS NOT NULL AS e`)).e;
-    r[t] = existe ? await um(db, `SELECT count(*)::int AS n, md5(coalesce(string_agg(x::text, E'\\n' ORDER BY x::text COLLATE "C"), '')) AS md5 FROM public."${t}" x`) : null;
+    const fora = COLUNAS_POSTERIORES_NO_RETRATO[t];
+    if (!existe) {
+      r[t] = null;
+    } else if (!fora) {
+      r[t] = await um(db, `SELECT count(*)::int AS n, md5(coalesce(string_agg(x::text, E'\\n' ORDER BY x::text COLLATE "C"), '')) AS md5 FROM public."${t}" x`);
+    } else {
+      const lista = `ARRAY[${fora.map((c) => `'${c}'`).join(', ')}]::text[]`;
+      const linha = `(to_jsonb(x) - ${lista})::text`;
+      r[t] = await um(
+        db,
+        `SELECT count(*)::int AS n, md5(coalesce(string_agg(${linha}, E'\\n' ORDER BY ${linha} COLLATE "C"), '')) AS md5,
+                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM jsonb_each(to_jsonb(x)) e WHERE e.key = ANY(${lista}) AND e.value <> 'null'::jsonb))::int AS posteriores_preenchidas
+           FROM public."${t}" x`
+      );
+    }
   }
   return r;
 };

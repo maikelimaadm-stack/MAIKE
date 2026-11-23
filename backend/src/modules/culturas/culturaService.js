@@ -56,9 +56,13 @@ const OBS_REFERENCIA = 'Valor de referência (manejo rotacionado). Ajuste para a
 /**
  * Lista de referência (manejo rotacionado; Embrapa), ajustável pela fazenda.
  * Alturas em cm: [entrada, saída]. D-PROD-223: `descanso` = dias de descanso de referência.
+ * D-PROD-274 (MAIKE-ENTREGA2): o Marandu passa a 35/20 e entram os capins da Tabela 2 do Documentos 397 da Embrapa
+ * Cerrados (2022) que faltavam (Ipyporã, Integra, Tamani, Quênia e Tupi, com a entrada e a saída de lá) e o Estilosantes
+ * Campo Grande (leguminosa; o Doc 397 não traz altura). Sem dias de descanso nos novos (a fonte não traz). Só a
+ * REFERÊNCIA muda: o comando continua sem recriar nem alterar a cultura que a fazenda já tem pelo nome.
  */
 export const LISTA_REFERENCIA = Object.freeze([
-  { codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', especie: 'Urochloa brizantha', cultivar: 'Marandu', entrada: 25, saida: 15, descanso: 30 },
+  { codigo: '001', nome: 'BRACHIARIA BRIZANTHA CV. MARANDU', especie: 'Urochloa brizantha', cultivar: 'Marandu', entrada: 35, saida: 20, descanso: 30 },
   { codigo: '002', nome: 'BRACHIARIA BRIZANTHA CV. XARAÉS', especie: 'Urochloa brizantha', cultivar: 'Xaraés', entrada: 30, saida: 15, descanso: 30 },
   { codigo: '003', nome: 'BRACHIARIA BRIZANTHA CV. PIATÃ', especie: 'Urochloa brizantha', cultivar: 'Piatã', entrada: 35, saida: 20, descanso: 30 },
   { codigo: '004', nome: 'BRACHIARIA BRIZANTHA CV. PAIAGUÁS', especie: 'Urochloa brizantha', cultivar: 'Paiaguás', entrada: 30, saida: 15, descanso: 28 },
@@ -69,6 +73,13 @@ export const LISTA_REFERENCIA = Object.freeze([
   { codigo: '009', nome: 'PANICUM CV. ZURI', especie: 'Megathyrsus maximus', cultivar: 'Zuri', entrada: 75, saida: 35, descanso: 35 },
   { codigo: '010', nome: 'PANICUM CV. MASSAI', especie: 'Megathyrsus maximus', cultivar: 'Massai', entrada: 55, saida: 25, descanso: 28 },
   { codigo: '011', nome: 'TIFTON 85', especie: 'Cynodon spp.', cultivar: 'Tifton 85', entrada: 25, saida: 10, descanso: 25 },
+  // D-PROD-274 — os que faltavam da Tabela 2 do Doc 397 (Embrapa Cerrados, 2022).
+  { codigo: '012', nome: 'BRACHIARIA HÍBRIDA BRS RB331 IPYPORÃ', especie: 'Urochloa brizantha x U. ruziziensis', cultivar: 'BRS RB331 Ipyporã', entrada: 35, saida: 20, descanso: null },
+  { codigo: '013', nome: 'BRACHIARIA RUZIZIENSIS BRS INTEGRA', especie: 'Urochloa ruziziensis', cultivar: 'BRS Integra', entrada: 35, saida: 25, descanso: null },
+  { codigo: '014', nome: 'PANICUM BRS TAMANI', especie: 'Megathyrsus maximus', cultivar: 'BRS Tamani', entrada: 50, saida: 25, descanso: null },
+  { codigo: '015', nome: 'PANICUM BRS QUÊNIA', especie: 'Megathyrsus maximus', cultivar: 'BRS Quênia', entrada: 65, saida: 35, descanso: null },
+  { codigo: '016', nome: 'BRACHIARIA HUMIDICOLA BRS TUPI', especie: 'Urochloa humidicola', cultivar: 'BRS Tupi', entrada: 20, saida: 10, descanso: null },
+  { codigo: '017', nome: 'ESTILOSANTES CAMPO GRANDE', especie: 'Stylosanthes capitata e S. macrocephala', cultivar: 'Campo Grande', entrada: null, saida: null, descanso: null },
 ].map((item) => Object.freeze({ ...item, tipo: 'PASTAGEM', observacoes: OBS_REFERENCIA })));
 
 /** @param {unknown} valor */
@@ -455,8 +466,8 @@ export const incluirListaReferencia = async (contexto, entrada) => {
           nome: ref.nome,
           especie: ref.especie,
           cultivar: ref.cultivar,
-          altura_entrada_cm: ref.entrada.toFixed(1),
-          altura_saida_cm: ref.saida.toFixed(1),
+          altura_entrada_cm: ref.entrada === null ? null : ref.entrada.toFixed(1),
+          altura_saida_cm: ref.saida === null ? null : ref.saida.toFixed(1),
           dias_descanso: ref.descanso,
           observacoes: ref.observacoes,
           ativo: true,

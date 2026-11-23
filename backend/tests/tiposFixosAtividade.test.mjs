@@ -22,7 +22,7 @@ describe('D-PROD-258 — os 7 tipos fixos (puro)', () => {
   test('lista fechada: 7 tipos, sem COLHEITA nem MANEJO_ANIMAL, todos com rótulo', () => {
     assert.deepEqual(CATEGORIAS_TIPO_FIXO, ['PREPARO_SOLO', 'PLANTIO', 'TRATO_CULTURAL', 'APLICACAO', 'PASTAGEM', 'BENFEITORIA', 'OUTROS']);
     assert.deepEqual(TIPOS_FIXOS_ATIVIDADE.map((t) => t.rotulo), [
-      'Preparo do solo', 'Formação de pastagem (plantio)', 'Fertilização', 'Aplicação', 'Roçada e tratos', 'Manutenção', 'Outros',
+      'Preparo do solo', 'Plantio de pastagem', 'Fertilização', 'Aplicação', 'Roçada e tratos', 'Manutenção', 'Outros',
     ]);
   });
 

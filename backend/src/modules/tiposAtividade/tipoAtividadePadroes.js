@@ -33,12 +33,12 @@ export const CATEGORIAS_TIPO_ATIVIDADE = Object.freeze([
  * D-PROD-258 — os 7 TIPOS FIXOS dos serviços de pasto. O "tipo fixo" é a `categoria` do tipo de atividade (que agora é
  * obrigatória). Sem mudar a tabela nem o CHECK `TipoAtividade_categoria_check` (D-PROD-72 item 3): o tipo fixo usa 7 dos 9
  * valores já aceitos pelo banco. `TRATO_CULTURAL` passa a significar Fertilização (`FERTILIZACAO` não existe no CHECK); `PASTAGEM`, Roçada e tratos;
- * `BENFEITORIA`, Manutenção; `PLANTIO`, Formação de pastagem (plantio). `COLHEITA` e `MANEJO_ANIMAL` ficam FORA (não são
+ * `BENFEITORIA`, Manutenção; `PLANTIO`, Plantio de pastagem (D-PROD-274; era "Formação de pastagem (plantio)"). `COLHEITA` e `MANEJO_ANIMAL` ficam FORA (não são
  * mais aceitos em escrita; o que já está gravado continua legível e o script de dados os leva a Outros).
  */
 export const TIPOS_FIXOS_ATIVIDADE = Object.freeze([
   Object.freeze({ categoria: 'PREPARO_SOLO', rotulo: 'Preparo do solo' }),
-  Object.freeze({ categoria: 'PLANTIO', rotulo: 'Formação de pastagem (plantio)' }),
+  Object.freeze({ categoria: 'PLANTIO', rotulo: 'Plantio de pastagem' }),
   Object.freeze({ categoria: 'TRATO_CULTURAL', rotulo: 'Fertilização' }),
   Object.freeze({ categoria: 'APLICACAO', rotulo: 'Aplicação' }),
   Object.freeze({ categoria: 'PASTAGEM', rotulo: 'Roçada e tratos' }),
