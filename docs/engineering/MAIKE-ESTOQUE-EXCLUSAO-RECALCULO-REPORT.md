@@ -233,11 +233,11 @@ atividade, financeiro e cocho). Os textos que diziam "só se nada mexeu depois" 
 
 1. **Marca do par em `movimentacao_grupo_id`** (coluna legada sem uso em todo o código), para não precisar de
    migration. Sem a marca, o replay não saberia que os posteriores foram regravados sem o par.
-2. **Histórico que não reproduz o gravado** (saldo importado sem movimento, lançamento fora do protocolo):
-   saída manual e cocho **recusam** (409, antes também recusavam por "movimento posterior"); abastecimento, atividade
-   e venda — que até aqui estornavam pelo valor exato mesmo com movimento depois — **continuam com o estorno exato,
-   sem recalcular** (`estornoExatoSeIrreproduzivel`), para não travar o que hoje funciona. Se o dono preferir a
-   recusa também nesses, é tirar a opção.
+2. **Recálculo inviável** (histórico que não reproduz o gravado, volume, cocho, camada…): saída manual e cocho
+   **recusam** (409/422, antes também recusavam por "movimento posterior"); abastecimento, atividade e venda — que até
+   aqui estornavam pelo valor exato mesmo com movimento depois — **continuam com o estorno exato, sem recalcular**
+   (`estornoExatoSeInviavel`, ampliado na revisão: ver abaixo), com o motivo na trilha. Saldo negativo é sempre
+   recusa. Se o dono preferir a recusa também nesses, é tirar a opção.
 3. Fatia de dependente (`*ConsumoLote`) de camada que deixou de ser consumida é **removida** (a camada nunca);
    o CHECK `quantidade > 0` não deixa zerar. O antes completo fica na trilha.
 4. Camada esgotada sem reavaliação guarda o custo dela (é a regra do motor: a reavaliação só toca o disponível).
@@ -246,13 +246,35 @@ atividade, financeiro e cocho). Os textos que diziam "só se nada mexeu depois" 
 6. O resultado da exclusão traz `recalculo: { produtos, movimentos, camadas, dependentes }` (saída manual, cocho e o
    ensaio de elegibilidade do cocho; financeiro na auditoria).
 
+### Achados da revisão independente e correções
+
+A revisão confirmou por teste os três primeiros achados; cada cenário dela virou teste PG permanente em
+`estoqueExclusaoRecalculoSaidas.test.mjs` (7 testes, todos vermelhos antes da correção, verdes depois) e no smoke.
+
+| # | Achado | Correção |
+|---|---|---|
+| 1 (bloqueante) | O estorno marcado ainda contava como "movimento posterior" fora do planejamento: depois de excluir o cocho 1, cancelar o cocho 2 (agora o último) dava 409 `movimento_posterior_no_deposito`; o mesmo no cancelamento da transferência e na edição D-PROD-271 da saída | A regra mora num ponto só: `buscarMovimentoPosterior` (`movimentoPosterior.js`, de onde vêm também `buscarMovimentoPosteriorA` e todos os chamadores) ignora `movimentacao_grupo_id` com a marca `exclusao_recalculo:` (constante `MARCA_EXCLUSAO_RECALCULO` ali; o replay e a prova da venda do financeiro usam a mesma). No cancelamento da transferência, a linhagem ignora a camada de destino que o recálculo deixou `Estornado` com disponível 0. Testes: cancelar C2 depois de C1 (estorno exato 80 × 5,8 = 464), cancelar a transferência recalculada (A volta a 200 kg) e editar a S2 para 70 kg (70 × 5,8 = 406); replay = gravado |
+| 2 | O custo do fechamento reescrito impedia cancelar o lançamento seguinte do cocho (`periodo_anterior_alterado`) | Escolhida a mais segura: `planejarReabertura` considera as trilhas `estoque.recalculo` do evento posteriores ao fechamento, aplicadas em ordem sobre o `dados_novos` do fechamento, cada uma conferida contra o estado anterior a ela (cadeia quebrada = alterado). Não se grava registro "de fechamento" falso no AuditLog (ele entraria nas provas de quem fechou o período). Ao reabrir, o custo/kg da saída fica o vigente (recalculado). Teste: o caso do dono, cancelar C1 e depois C4 → C3 reabre com sobra 10 e custo/kg 5,8 |
+| 3 | O fallback de abastecimento, atividade e venda só cobria duas razões e só no planejamento | Toda recusa contornável (inviável por qualquer razão, volume 422, `cocho_ocupado`) cai no estorno exato, com a trilha `estoque.recalculo` do produto (`recalculo_dispensado`, `recusa`). Depois de escrever, o recálculo roda num `SAVEPOINT`: recusa contornável (inclusive `recalculo_nao_confere`) faz `ROLLBACK TO SAVEPOINT` e segue com o estorno exato já gravado. Saldo negativo é sempre recusa. Cancelar abastecimento e linha de atividade passou a `TRANSACAO_LONGA` (30 s, a da exclusão da saída manual). Teste: venda com cocho posterior cujo fechamento não reproduz → estorno exato, cocho intocado, motivo `cocho_fechamento_nao_reproduzivel` na trilha |
+| 4 | A prévia mostrava recusa quando a exclusão ia passar | A prévia devolve `modo`: `estorno_exato` (nada depois — sem ler o histórico, mesmo irreproduzível), `recalculo`, ou `estorno_exato_sem_recalculo` com `aviso` (abastecimento, atividade e venda com recálculo inviável; a tela diz que devolve o valor exato sem recalcular, sem alerta vermelho). Na venda e na saída manual, simula juntas as saídas do mesmo produto do documento. Teste: venda de 20 + 30 kg simulada junto → a saída posterior a 464, o mesmo do cancelamento de verdade |
+| 5 | Custo herdado podia ficar velho quando o anterior fechado não gravou `custo_unitario_kg` | `herdaMudou` considera também `custoAntes ≠ custoDepois` do anterior. Teste no smoke: o seguinte passa de 150 a 148 (10 kg herdados a 5,8 + 15 a 6); vermelho antes |
+| 6 | Movimento legado com `movimentacao_grupo_id` preenchido caía em `CONCURRENCY_CONFLICT` | Recusa clara antes de qualquer escrita: `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL` `grupo_legado_preenchido` (também se a marca passar de 64 caracteres); nas três origens do item 3, estorno exato com o motivo na trilha |
+
+Mudou também a expectativa do teste de recusas da prévia da fatia 3: com nada depois, a prévia é `estorno_exato`; o
+cenário ganhou uma saída depois para continuar exercitando tetos e a recusa por divergência.
+
+Não feito (relatado): as cascatas de cancelar o apontamento ou a atividade continuam na transação curta; a leitura do
+histórico continua em três passos (prova, recálculo, prova final) — reaproveitar exigiria reler as camadas depois do
+estorno de qualquer jeito.
+
 ### Validação (PG 17, banco `maike_rx4`)
 
 | Verificação | Resultado |
 |---|---|
-| PG `estoqueExclusaoRecalculoSaidas` (novo: manual, cocho, atividade, abastecimento, venda, cascata, concorrência, fail-closed) | 9/9 |
-| PG regressão: `estoqueRecalculo*`, `estoqueConsulta*`, `estoqueSaidas*`, `estoqueEntradas*`, `estoqueCustoMedio`, `estoqueP0*`, `estoqueP1M2MotorParametros` (P7), `motorEstornoCochoTransferencia`, `suplementacao*`, `leituraCocho*`, `atividade*`, `abastecimento*`, `patrimonioP1Abastec*`, `patrimonioSimplificaAbast*`, `gestaoP3*`, `depositoCancelar*`, `foundation` + o novo | 981/981 (63 arquivos) |
-| Smoke inteiro (inclui o novo `estoqueExclusaoRecalculoCocho`: porte do custo do cocho = tela, par recalculado no histórico) | 318 arquivos, 3984 testes |
+| PG `estoqueExclusaoRecalculoSaidas` (novo: manual, cocho, atividade, abastecimento, venda, cascata, concorrência, fail-closed e os 7 da revisão) | 16/16 |
+| Testes da revisão (`rev4`: `cocho` e `seguintes`) | 13/13 (antes: 9/13) |
+| PG regressão: `estoqueRecalculo*`, `estoqueConsulta*`, `estoqueSaidas*`, `estoqueEntradas*`, `estoqueCustoMedio`, `estoqueP0*`, `estoqueP1M2MotorParametros` (P7), `motorEstornoCochoTransferencia`, `suplementacao*`, `leituraCocho*`, `atividade*`, `abastecimento*`, `patrimonioP1Abastec*`, `patrimonioSimplificaAbast*`, `gestaoP3*`, `depositoCancelar*`, `foundation` + o novo | 988/988 (63 arquivos) |
+| Smoke inteiro (inclui o novo `estoqueExclusaoRecalculoCocho`: porte do custo do cocho = tela, herança pelo custo do movimento, resumo da prévia, par recalculado no histórico) | 318 arquivos, 3986 testes |
 | Gate tests | 1055/1055 |
 | gates `tenancy`, `indices`, `governance-paths`, `no-secrets`, `product-scope`, `import-integrity`, `base44`, `native-api` | ok |
 | eslint nos tocados, `typecheck:backend` | ok (0) |
