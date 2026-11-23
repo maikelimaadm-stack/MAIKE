@@ -290,7 +290,9 @@ describe('INERTE-3 — sessão: hooks do Patrimônio com linhas antigas', () => 
         </QueryClientProvider>,
       );
     });
-    expect(JSON.parse((await screen.findByTestId('atividades')).textContent)).toEqual({ ...SEM_ACOES_ATIVIDADES, carregando: false, login: 'vaqueiro' });
+    // D-PROD-276: o hook também diz se a troca do capim da área (conclusão da reforma) é permitida — o editar do Cadastro
+    // do Mapa; a linha antiga não concede nada.
+    expect(JSON.parse((await screen.findByTestId('atividades')).textContent)).toEqual({ ...SEM_ACOES_ATIVIDADES, trocarCapimDaArea: false, carregando: false, login: 'vaqueiro' });
   });
 });
 

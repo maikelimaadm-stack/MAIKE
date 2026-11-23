@@ -3222,3 +3222,234 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
 .b1-servico-bloco__topo--com-acoes {
   padding-right: 72px;
 }
+
+/* ─── MAIKE-ENTREGA3 (D-PROD-276) — a reforma de pastagem ─────────────── */
+/* "Planejar": os dois cartões (reforma ou um serviço), lado a lado; no celular, um embaixo do outro. */
+.b1-planejar__cartoes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.b1-planejar__cartao {
+  min-height: 132px;
+  padding: 16px 14px;
+}
+.b1-planejar__ajuda {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--mg-text-2, #475569);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .b1-planejar__cartoes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* "Faz parte de" com duas reformas abertas: uma opção por linha (os nomes são longos). */
+.b1-faz-parte-lista {
+  grid-template-columns: minmax(0, 1fr);
+}
+.b1-faz-parte-lista .b1-situacao-depois__opcao {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+/* A barra do filtro "Reforma", em cima da lista: o nome, a situação, os números, o custo por tipo e os serviços. */
+.b1-reforma-barra {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border: 1px solid #e7e5df;
+  border-radius: 14px;
+  background: #fff;
+  color: #141413;
+}
+.b1-reforma-barra__aviso {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--mg-text-2, #475569);
+}
+.b1-reforma-barra__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.b1-reforma-barra__icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(64, 222, 99, 0.14);
+  color: #15803d;
+}
+.b1-reforma-barra__titulo {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.b1-reforma-barra__sub {
+  font-size: 12.5px;
+  color: var(--mg-text-2, #475569);
+}
+.b1-reforma-barra__chip {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f0ec;
+  color: #3d3d3a;
+}
+.b1-reforma-barra__chip--aberto {
+  background: rgba(64, 222, 99, 0.16);
+  color: #15803d;
+}
+.b1-reforma-barra__chip--cancelado {
+  background: #fdecec;
+  color: #9b1c1c;
+}
+.b1-reforma-barra__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cadastro-b1 .b1-reforma-barra .tb-btn.b1-reforma-barra__botao {
+  width: auto;
+  height: 32px;
+  padding: 0 12px;
+  gap: 6px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.b1-reforma-barra__numeros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.b1-reforma-barra__numeros > div {
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #faf9f5;
+}
+.b1-reforma-barra__numeros dt {
+  font-size: 12px;
+  color: var(--mg-text-2, #475569);
+}
+.b1-reforma-barra__numeros dd {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.b1-reforma-barra__tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b1-reforma-barra__tipos li {
+  display: inline-flex;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 10px;
+  border: 1px solid #e7e5df;
+  border-radius: 999px;
+  font-size: 12.5px;
+}
+.b1-reforma-barra__tipos strong {
+  font-variant-numeric: tabular-nums;
+}
+.b1-reforma-barra__servicos {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #efeee9;
+}
+.b1-reforma-barra__servicos li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid #efeee9;
+  font-size: 13px;
+}
+.b1-reforma-barra__dia,
+.b1-reforma-barra__valor {
+  font-variant-numeric: tabular-nums;
+}
+.b1-reforma-barra__dia {
+  color: var(--mg-text-2, #475569);
+}
+.b1-reforma-barra__servico {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.b1-reforma-barra__valor {
+  text-align: right;
+}
+.b1-reforma-barra__situacao {
+  font-size: 12px;
+  color: var(--mg-text-2, #475569);
+}
+.b1-reforma-barra__situacao--em_andamento {
+  color: #b45309;
+}
+.b1-reforma-barra__situacao--concluida {
+  color: #15803d;
+}
+.b1-reforma-barra__servico--fora {
+  opacity: 0.55;
+}
+.b1-reforma-barra__servico--fora .b1-reforma-barra__servico {
+  text-decoration: line-through;
+}
+@media (max-width: 767px) {
+  .b1-reforma-barra {
+    padding: 12px;
+  }
+  .b1-reforma-barra__numeros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .b1-reforma-barra__servicos li {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+  .b1-reforma-barra__situacao {
+    grid-column: 2;
+  }
+  .b1-reforma-barra__valor {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+/* A data da conclusão no celular: o campo cresce para 48px, como na Nova realização (o rótulo não cobre a data). */
+@media (max-width: 767px) {
+  .b1-concluir-reforma .b1-form-embutido {
+    --mg-field-h: 48px;
+  }
+}
+/* A pergunta da troca do capim na conclusão. */
+.b1-reforma-capim__areas {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}

@@ -27,6 +27,9 @@
  * `plantio` (objeto fechado: `cultura_id`, `forma_plantio`, `semente_incrustada`, `cobertura`, `consorcio_cultura_id`),
  * `numero_receituario`, `local` (Manutenção e Outros sem área) e `unidade_producao_sigla` (KM | M | UN). Os booleanos do
  * plantio chegam como booleano ou null, sem coerção. A linha de insumo aceita `vc_percentual` (texto).
+ *
+ * D-PROD-276 (MAIKE-ENTREGA3): `planejamento_id` (id ou null), a reforma de que a realização faz parte ("Faz parte de");
+ * a regra (fazenda, aberta, com as áreas do registro; nunca sem área) é do serviço.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -91,6 +94,8 @@ const REGISTRAR = {
       numero_receituario: { type: ['string', 'null'], maxLength: 80 },
       local: { type: ['string', 'null'], maxLength: 240 },
       unidade_producao_sigla: { type: ['string', 'null'], enum: [...UNIDADES_FEITAS, null] },
+      // D-PROD-276: a reforma do "Faz parte de", opcional.
+      planejamento_id: ID_NULO,
       origem: ORIGEM,
       ...LINHAS_DO_LANCAMENTO,
     },
