@@ -13,6 +13,7 @@ import { lerErroGestao } from '@/lib/gestaoErros';
 import { comparar, lerNumeroLocal, multiplicarArredondar, subtrair } from '@/lib/dinheiroDecimal';
 import { formatarQtd } from '@/lib/estoqueConsultaRegras';
 import { LIMITES_ENTRADA, LOCALE_ENTRADA } from '@/lib/estoqueEntradasRegras';
+import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
 
 export const MAX_ITENS_AJUSTE = 100;
 export const ROTULO_STATUS_AJUSTE = Object.freeze({ CONFIRMADA: 'Confirmado', EXCLUIDA: 'Excluído' });
@@ -184,6 +185,9 @@ const linhaDoErro = (details, itens) => {
  * @param {unknown} erro @param {string} padrao @param {any[]} [itens]
  */
 export const mensagemErroAjuste = (erro, padrao, itens = []) => {
+  // D-PROD-273 (fatia 5): recusas da exclusão com recálculo (saldo negativo, outra contagem depois, inviável).
+  const recalculo = mensagemRecusaRecalculo(erro);
+  if (recalculo) return recalculo;
   const { code, field, reason, details } = lerErroGestao(erro);
   const linha = linhaDoErro(details, itens);
   const naLinha = linha ? ` (linha ${linha.numero}${linha.produto && linha.deposito ? `: ${linha.produto} em ${linha.deposito}` : ''})` : '';

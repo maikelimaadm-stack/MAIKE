@@ -19,6 +19,7 @@ import {
   versoesDaEntrada,
 } from "@/lib/estoqueEntradasRegras";
 import { detalharEntradaEstoque, editarEntradaEstoque, excluirEntradaEstoque } from "@/services/estoqueEntradasService";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 
 /** Chave do detalhe (prefixo `estoque`: o que invalida o estoque invalida o detalhe). */
 export const chaveDetalheEntrada = (/** @type {string|null} */ empresaId, /** @type {string|null} */ id) => ["estoque", "entrada", empresaId, id];
@@ -61,8 +62,9 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
  * Detalhe de UMA entrada (D-PROD-257, D-PROD-259) numa janela só (680px; tela cheia no celular): cabeçalho (motivo,
  * fornecedor, documento, centros), produtos (com lote e validade), histórico. Abre pelo detalhe do movimento, em
  * Movimentos (a aba Entradas saiu). Com a ação `entrada`, duas ações dentro da MESMA janela (sem popup sobre popup):
- * "Editar observação" (só a observação) e "Excluir entrada" (exclusão lógica com estorno integral; o servidor recusa
- * se o estoque já foi usado).
+ * "Editar observação" (só a observação) e "Excluir entrada" (exclusão lógica com estorno integral; D-PROD-273, fatia 5:
+ * com outro movimento do produto no depósito depois, o servidor recalcula o custo deles — a prévia mostra antes de
+ * confirmar — e recusa se o saldo ficaria negativo em algum ponto).
  * D-PROD-271: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
  * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. As versões substituídas por edições ficam em
  * "Versões anteriores" (recolhida) e o histórico diz "Editado (lançamentos refeitos)".
@@ -264,7 +266,10 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
           {modo === "excluir" ? (
             <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2 mt-3" data-testid="entrada-form-exclusao">
               <SecaoForm titulo="Excluir entrada" />
-              <p className="col-span-12 text-[13px]">A entrada fica no histórico como excluída e o estoque dela é estornado por inteiro. Só é possível se esse estoque ainda não foi usado.</p>
+              <p className="col-span-12 text-[13px]">
+                A entrada some das listas (fica guardada como excluída) e o estoque dela sai do depósito. Se o produto teve outros movimentos depois dela, o custo médio deles é recalculado; se o saldo ficaria negativo em algum ponto, a exclusão é recusada.
+              </p>
+              <PreviaRecalculoExclusao empresaId={empresaId} movimentoIds={itens.map((/** @type {any} */ i) => i.movimentacao_estoque_id)} />
               <AreaTexto label="Motivo da exclusão" value={motivo} onChange={setMotivo} required testId="entrada-exclusao-motivo" />
             </div>
           ) : null}

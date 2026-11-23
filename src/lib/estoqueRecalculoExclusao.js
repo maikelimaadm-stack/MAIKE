@@ -31,6 +31,9 @@ const ROTULO_TIPO = /** @type {Record<string, string>} */ ({
   venda_financeiro: 'Venda',
   transferencia_enviada: 'Transferência (saída)',
   transferencia_recebida: 'Transferência (entrada)',
+  compra_financeiro: 'Compra',
+  ajuste_sobra: 'Sobra (ajuste)',
+  ajuste_falta: 'Falta (ajuste)',
 });
 const rotuloDoMovimento = (m) => {
   if (ROTULO_TIPO[m?.tipo_detalhado]) return ROTULO_TIPO[m.tipo_detalhado];
