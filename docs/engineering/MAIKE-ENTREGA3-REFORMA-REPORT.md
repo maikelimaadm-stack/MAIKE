@@ -150,20 +150,19 @@ outra fazenda ou outro tenant), as referências `planejamento_id` (inexistente, 
 
 ### 4.1 Resultados
 
-- `npm run test:backend` (194 arquivos, PostgreSQL local, com `FRONTEND_ORIGINS=http://localhost:5173` e
-  `MAIKE_TESTE_AGORA=2027-06-15T15:00:00.000Z`; `prisma validate`, `generate` e as migrations pelo runner de deploy
-  antes): **2646 testes, 2640 passaram, 0 falharam, 6 todo** (exit 0). A renumeração da decisão (D-PROD-270 →
-  D-PROD-275) entrou durante a rodada e mudou só números em comentários e mensagens (diff conferido palavra a palavra).
-- `node --test backend/tests/atividadeReforma.test.mjs`: 20 / 20; `atividadeCamposPorTipo.test.mjs` (o fingerprint
-  da Entrega 2): 24 / 24.
+Refeitos em 2026-11-23, nesta branch sobre a `main` `6cb0b176`, PostgreSQL local (`maike_va2` recriado vazio: o runner
+de deploy aplicou as 75 migrations em ordem antes dos testes).
+
+- `npm run test:backend` (com `FRONTEND_ORIGINS=http://localhost:5173` e `MAIKE_TESTE_AGORA=2027-06-15T15:00:00.000Z`):
+  **2702 testes, 2696 passaram, 0 falharam, 6 todo** (exit 0).
 - `node scripts/gates/verify-all.mjs --pular=test:backend`: **TODAS AS ETAPAS PASSARAM** (38 etapas PASS,
-  `test:backend` pulada; `test:gates` 1061 / 1061; `test:smoke` 315 arquivos, 3941 testes, 0 falhas; lint 0 erros
-  (2 avisos antigos em `CategoriasManejo.jsx` e `Produtos.jsx`, fora desta entrega); `gate:types` 374 diagnósticos,
-  sem regressão sobre o teto 625; `typecheck:backend` limpo; build e build:admin ok).
-- `node --test scripts/tests/deploy/*.test.mjs`: 333 testes, 333 passaram (também dentro do `test:gates`).
-- `npx vitest run` nos smokes da área (8 arquivos, incluindo `reformaPastagem`, `lancamentoAtividades`,
-  `registroDeCampo*` e `permissoesAntigasInertes`): 178 / 178.
-- Ensaio do caminho B do runbook num banco local separado (`maike_e3_rb`): ver o runbook §3.
+  `test:backend` pulada; `test:gates` 1064 / 1064; `test:smoke` 319 arquivos, 4033 testes, 0 falhas; lint 0 erros;
+  `gate:types` 374 diagnósticos, sem regressão sobre o teto 625; `typecheck:backend` limpo; build e build:admin ok).
+- `node --test scripts/tests/deploy/*.test.mjs`: 336 testes, 336 passaram.
+- `npx vitest run` nos smokes da área (`reformaPastagem`, `lancamentoAtividades`, `registroDeCampoCamposPorTipo`,
+  `servicoVariosDias`, `permissoesAntigasInertes`): 144 / 144.
+- Ensaio do caminho B do runbook num banco local separado (`maike_e3_rb`, estado da `main`: 74 / 0, 109 tabelas):
+  aplicou, 75 / 0, 111 tabelas; a 2ª execução recusou; `migrate diff` vazio (runbook §3). O banco foi apagado.
 
 ## 5. Telas (harness com os componentes reais e backend falso)
 
@@ -173,7 +172,8 @@ o nome sugerido; `-celular-2` é o fim do formulário no celular), `e3-faz-parte
 marcada), `e3-lista-reforma-*` (a pílula Reforma e a barra: R$ 18.240,00, R$ 456,00/ha, 40 ha, 4 serviços, por tipo e
 em ordem de data), `e3-concluir-reforma-*` (a pergunta "Trocar o capim da área para MOMBAÇA?") e
 `e3-area-em-reforma-*` (o Detalhes da área com "Em reforma desde 01/09"). Os números do mock são coerentes entre as
-telas.
+telas. Depois da integração com a `main` (2026-11-23) as telas foram refeitas pelo mesmo harness sobre o código integrado
+(`out-entrega3-main/`): iguais às de antes, só muda a data de hoje no "Concluir reforma".
 
 ## 6. Pontos em aberto
 

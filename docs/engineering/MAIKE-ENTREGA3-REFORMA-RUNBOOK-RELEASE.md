@@ -136,14 +136,17 @@ COMMIT;
 
 Confira o SHA-256 do trecho da migration antes de usar. Qualquer falha desfaz tudo.
 
-**Ensaio local (2026-11-21, PostgreSQL local, nunca produção):** banco novo (`maike_e3_rb`) com as 73 migrations
-anteriores (`prisma migrate deploy` numa cópia da pasta sem a migration nova; 73 / 0, 106 tabelas); o envelope acima,
-montado com o conteúdo integral do `migration.sql` e com o `system_identifier` do banco local no lugar do de produção
-(o resto byte a byte igual ao envelope de produção), aplicou numa transação: 74 / 0, a nova com o checksum
-`27f16e1d…3a10` e 1 passo, 108 tabelas. A 2ª execução recusou (`RELEASE_BLOCKED: migration já registrada`); o
-envelope com o identificador de produção, num banco local, recusou (`RELEASE_BLOCKED: alvo divergente`). Depois, com a
-pasta completa do repositório: `prisma migrate status` "74 migrations found … Database schema is up to date!" e
-`prisma migrate diff --from-url <banco> --to-schema-datamodel backend/prisma/schema.prisma` "No difference detected.".
+**Ensaio local (2026-11-23, PostgreSQL local, nunca produção; refeito sobre a `main` `6cb0b176`):** banco novo
+(`maike_e3_rb`) com as 74 migrations da `main` (`prisma migrate deploy` numa cópia da pasta sem a migration nova); o
+preflight do §2 deu 74 concluídas, 0 com falha, `anterior_ok = 1`, `registrada = 0`, as tabelas e a coluna ausentes e
+109 tabelas. O envelope acima, montado com o conteúdo integral do `migration.sql` (sha256 `27f16e1d…3a10`) e com o
+`system_identifier` do banco local no lugar do de produção (o resto byte a byte igual ao envelope de produção), aplicou
+numa transação: 75 / 0, a nova com o checksum `27f16e1d…3a10` e 1 passo, 111 tabelas, RLS ligado sem FORCE nas duas
+novas com a política `maike_backend_all` para `maike_vercel`. O envelope com o identificador de produção, no banco
+local, recusou antes (`RELEASE_BLOCKED: alvo divergente`); a 2ª execução recusou (`RELEASE_BLOCKED: migration já
+registrada`). Depois, com a pasta completa do repositório: `prisma migrate status` "75 migrations found … Database
+schema is up to date!" e `prisma migrate diff --from-url <banco> --to-schema-datamodel backend/prisma/schema.prisma`
+"No difference detected.". O banco do ensaio foi apagado.
 
 ## 4. Conferência — somente leitura
 
@@ -223,3 +226,4 @@ de concluídas e a "anterior" mudam) e ajustar a guarda do §3.
 | Data | Quem | O quê |
 |---|---|---|
 | 2026-11-21 | Claude (sessão D-PROD-275) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |
+| 2026-11-23 | Claude (sessão D-PROD-275) | branch refeita sobre a `main` `6cb0b176` (Entrega 2 aplicada e mergeada): preflight 74/0 e 109 tabelas, guarda `n_ok <> 74` com a anterior `20261121100000_atividade_campos_por_tipo` (`9e6487ff…2a58`), pós-checagem 75/0 e 111 tabelas; ensaio do §3 refeito no PostgreSQL local; **nada aplicado em produção** |
