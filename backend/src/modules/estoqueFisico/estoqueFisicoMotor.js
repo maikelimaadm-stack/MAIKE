@@ -1226,11 +1226,18 @@ const rotulosDoEstornoEmLote = (a) => {
  *    no segundo (como o laço item a item);
  *  - a marcação dos originais é CAS (`status = 'Ativa' AND movimento_filho_id
  *    IS NULL`); contagem ≠ itens → 409 `CONCURRENCY_CONFLICT`, tudo desfeito.
+ *
+ * D-PROD-273 (fatia 5) — `camadaPeloRecalculo` (opcional, só efeito ENTRADA): ids dos movimentos ORIGINAIS cuja
+ * entrada é excluída COM recálculo. Para eles o lote não precisa estar intocado (outros movimentos já consumiram dele) e
+ * NÃO é tocado aqui: a exclusão com recálculo (`aplicarExclusaoComRecalculo`, na mesma transação, logo depois) refaz a
+ * sequência sem a entrada e deixa a camada 'Estornado' com disponível 0. O resto (original 'Ativa', camada da
+ * empresa/produto/local, entrada = kg do item, `estoque_atual`, o movimento de estorno com o valor do original e a
+ * marcação CAS) é o de sempre. Quem passa a opção TEM de chamar o recálculo depois (senão a prova final não fecha).
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, direcao?: string, efeito?: 'ENTRADA'|'SAIDA', itens: any[], dia: string, documento?: {numero?: string|null, data?: string|null},
  *   parceiro?: {id?: string|null, nome?: string|null}, origem: {operacaoId: string, sistema?: string, tipoDetalhadoEstorno?: string, motivoEstorno?: string},
- *   numeroMovimento: () => string|number }} a
+ *   numeroMovimento: () => string|number, camadaPeloRecalculo?: Iterable<string> }} a
  * @returns {Promise<string[]>} ids dos movimentos de estorno, na ordem de `a.itens`
  */
 export const estornarEmLote = async (tx, ctx, a) => {
@@ -1238,6 +1245,8 @@ export const estornarEmLote = async (tx, ctx, a) => {
   const cli = auth.clienteId;
   const { compra, tipoDetalhado, motivo } = rotulosDoEstornoEmLote(a);
   if (!a.itens.length) return [];
+  const peloRecalculo = new Set(a.camadaPeloRecalculo ?? []);
+  if (peloRecalculo.size && !compra) throw new Error('estornarEmLote: camadaPeloRecalculo só com efeito ENTRADA');
   const produtoIds = unicosDe(a.itens.map((i) => i.produto_id));
   const localIds = unicosDe(a.itens.map((i) => i.local_estoque_id));
   const originalIds = unicosDe(a.itens.map((i) => i.movimentacao_estoque_id));
@@ -1322,7 +1331,8 @@ export const estornarEmLote = async (tx, ctx, a) => {
       const l = item.estoque_lote_nota_id ? lotes.get(item.estoque_lote_nota_id) : null;
       if (!l) throw jaConsumido('o lote de entrada deste item não existe mais; cancelamento recusado (nada foi alterado)', { ...base, reason: 'lote_inexistente' });
       exigirCamadaDaLinha(l, linhaDe(item), base);
-      if (l.status !== 'Disponivel' || !l.disp.eq(l.entrada) || !l.entrada.eq(kg)) {
+      const semCamada = peloRecalculo.has(item.movimentacao_estoque_id);
+      if (semCamada ? !l.entrada.eq(kg) : (l.status !== 'Disponivel' || !l.disp.eq(l.entrada) || !l.entrada.eq(kg))) {
         throw jaConsumido('o estoque desta compra já foi consumido ou alterado; cancelamento recusado (nada foi alterado)', {
           ...base, reason: 'lote_consumido', entrada: l.entrada.toFixed(CASAS_QUANTIDADE), disponivel: l.disp.toFixed(CASAS_QUANTIDADE), status: l.status,
         });
@@ -1335,8 +1345,13 @@ export const estornarEmLote = async (tx, ctx, a) => {
         });
       }
       saldoAntes = saldoDe(produto.id, local.id);
-      valores.set(chaveSaldo(produto.id, local.id), (valores.get(chaveSaldo(produto.id, local.id)) ?? ZERO).minus(l.disp.times(l.custo)));
-      mudarLote(l, 'Estornado', ZERO);
+      if (semCamada) {
+        // D-PROD-273 (fatia 5): a camada fica para o recálculo; o saldo do depósito sem a entrada = o de agora − kg.
+        saldos.set(chaveSaldo(produto.id, local.id), saldoAntes.minus(kg));
+      } else {
+        valores.set(chaveSaldo(produto.id, local.id), (valores.get(chaveSaldo(produto.id, local.id)) ?? ZERO).minus(l.disp.times(l.custo)));
+        mudarLote(l, 'Estornado', ZERO);
+      }
       estoque.set(produto.id, atual.minus(kg));
     } else {
       const devolvido = somar(item.consumos.map((c) => c.quantidade));
@@ -1957,10 +1972,19 @@ const medioDoPoco = (poco) => (poco.quantidade.gt(0) ? arredondar(poco.valor.div
  * {Estornada} (o filho continua R). Corrida perdida → 409 `CONCURRENCY_CONFLICT`.
  * Recusas de negócio: 409 `TRANSFERENCIA_CANCELAMENTO_BLOQUEADO` { field: 'movimentacao_id', reason, ... }.
  * Quem chama: recibo (L0) antes; `numerarMovimentos(tx, cli, [estornoDestino.id, estornoOrigem.id])` e AuditLog no FIM.
+ *
+ * D-PROD-273 (fatia 5) — `recalculo: true`: o cancelamento COM recálculo (há movimento depois em algum dos dois
+ * depósitos; quem chama já provou o plano — `planejarExclusaoComRecalculo` — sob a mesma trava do produto). Valem a
+ * descoberta, as travas, o par coerente e ativo, as fatias com linhagem, o local de origem ativo e o limite; NÃO valem a
+ * regra do último, as camadas do destino intocadas, a devolução nas camadas da origem e a prova de saldo — e nenhuma
+ * camada é escrita aqui: a exclusão com recálculo (`aplicarExclusaoComRecalculo`, logo depois) refaz a sequência sem a
+ * transferência, deixa as camadas recebidas 'Estornado' e regrava o resto. Nascem E_d e E_o (valores de S; saldos =
+ * os de agora ∓ kg, o que os depósitos terão sem a transferência; médios do poço de agora) e os CAS de S e R são os de
+ * sempre. Quem passa a opção TEM de chamar o recálculo depois.
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, movimentoId: string, dia: string, motivo: string, operacaoId?: string|null,
- *   numeros?: { destino?: string, origem?: string } }} a
+ *   numeros?: { destino?: string, origem?: string }, recalculo?: boolean }} a
  * @returns {Promise<{ saida: any, entrada: any, estornoDestino: any, estornoOrigem: any, produto: any,
  *   origem: { id: string, nome: string }, destino: { id: string, nome: string }, quantidade: any, valor_total: any,
  *   devolvido: Array<{ lote_origem_id: string, lote_destino_id: string, quantidade: string }> }>}
@@ -1994,8 +2018,9 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
   }
   const s0 = par.saida;
   const r0 = par.entrada;
-  // 3. regra do último nos dois depósitos (sem pares neutros)
-  const depois = await buscarMovimentoPosterior(tx, cli, {
+  const recalculo = a.recalculo === true;
+  // 3. regra do último nos dois depósitos (sem pares neutros) — no cancelamento com recálculo, o plano já provou o depois
+  const depois = recalculo ? null : await buscarMovimentoPosterior(tx, cli, {
     empresaId: a.empresaId, produtoId: produto.id, locais: [destino.id, origem.id], ignorarIds: [s0.id, r0.id],
     desde: { createdAt: s0.createdAt, numero: r0.numero_movimentacao },
   });
@@ -2038,11 +2063,12 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
     const base = { lote_id: f.lote_destino_id };
     if (!camada || !dec(camada.quantidade_entrada).eq(f.quantidade)) throw transferenciaBloqueada('linhagem_divergente', base);
     if (camada.empresa_id !== a.empresaId || camada.produto_id !== produto.id || camada.local_estoque_id !== destino.id) throw transferenciaBloqueada('camada_divergente', base);
+    if (recalculo) continue;
     if (camada.status !== 'Disponivel' || !dec(camada.quantidade_disponivel).eq(dec(camada.quantidade_entrada))) {
       throw transferenciaBloqueada('camada_consumida', base, 'o estoque recebido nesta transferência já foi usado; não é possível cancelar; nada foi alterado');
     }
   }
-  const consumida = await camadaComConsumoFk(tx, cli, destinosDasFatias);
+  const consumida = recalculo ? null : await camadaComConsumoFk(tx, cli, destinosDasFatias);
   if (consumida) throw transferenciaBloqueada('camada_consumida', { lote_id: consumida }, 'o estoque recebido nesta transferência já foi usado; não é possível cancelar; nada foi alterado');
   /** @type {Map<string, any>} */
   const devolverPorLote = new Map();
@@ -2051,6 +2077,7 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
     const base = { lote_id: f.lote_id };
     if (!lote) throw transferenciaBloqueada('lote_indisponivel_para_devolucao', base);
     if (lote.empresa_id !== a.empresaId || lote.produto_id !== produto.id || lote.local_estoque_id !== origem.id) throw transferenciaBloqueada('camada_divergente', base);
+    if (recalculo) continue;
     if (!['Disponivel', 'Esgotado'].includes(lote.status)) throw transferenciaBloqueada('lote_indisponivel_para_devolucao', { ...base, status: lote.status });
     const total = (devolverPorLote.get(lote.id) ?? ZERO).plus(f.quantidade);
     if (dec(lote.quantidade_disponivel).plus(total).gt(dec(lote.quantidade_entrada))) throw transferenciaBloqueada('devolucao_excede_entrada', base);
@@ -2058,14 +2085,14 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
   }
   const pocoD = await lerPoco(tx, cli, a.empresaId, produto.id, destino.id);
   const pocoO = await lerPoco(tx, cli, a.empresaId, produto.id, origem.id);
-  if (!mesmoDecimal(pocoD.quantidade, r.saldo_depois) || !mesmoDecimal(pocoO.quantidade, s.saldo_depois)) {
+  if (!recalculo && (!mesmoDecimal(pocoD.quantidade, r.saldo_depois) || !mesmoDecimal(pocoO.quantidade, s.saldo_depois))) {
     throw transferenciaBloqueada('saldo_local_divergente', {}, 'o saldo do depósito mudou fora do protocolo depois desta transferência; não é possível cancelar; nada foi alterado');
   }
   if (pocoO.quantidade.plus(kg).gt(LIMITE_ESTOQUE)) {
     throw excedeLimiteEstoque({ field: 'movimentacao_id', produto_id: produto.id, local_estoque_id: origem.id, saldo_origem: pocoO.quantidade.toFixed(CASAS_QUANTIDADE) });
   }
-  // 6. escritas no destino
-  for (const id of destinosDasFatias) {
+  // 6. escritas no destino (no cancelamento com recálculo, nenhuma camada: o recálculo regrava tudo)
+  for (const id of recalculo ? [] : destinosDasFatias) {
     const entrada = paraBanco(dec(lotes.get(id).quantidade_entrada), CASAS_QUANTIDADE);
     const z = await tx.estoqueLoteNota.updateMany({
       where: { cliente_id: cli, id, status: 'Disponivel', quantidade_disponivel: entrada },
@@ -2074,9 +2101,11 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
     if (z.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
   const valorD = pocoD.valor.minus(valorTotal);
-  const medioDepoisD = await reavaliarPoco(tx, cli, a.empresaId, produto.id, destino.id, valorD.gt(0) ? valorD : ZERO, pocoD.quantidade.minus(kg));
+  const medioDepoisD = recalculo
+    ? medioDoPoco({ valor: valorD.gt(0) ? valorD : ZERO, quantidade: pocoD.quantidade.minus(kg) })
+    : await reavaliarPoco(tx, cli, a.empresaId, produto.id, destino.id, valorD.gt(0) ? valorD : ZERO, pocoD.quantidade.minus(kg));
   // 7. escritas na origem
-  for (const id of [...devolverPorLote.keys()].sort()) {
+  for (const id of recalculo ? [] : [...devolverPorLote.keys()].sort()) {
     const lote = lotes.get(id);
     const disp = dec(lote.quantidade_disponivel);
     const u = await tx.estoqueLoteNota.updateMany({
@@ -2085,7 +2114,9 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
     });
     if (u.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
-  const medioDepoisO = await reavaliarPoco(tx, cli, a.empresaId, produto.id, origem.id, pocoO.valor.plus(valorTotal), pocoO.quantidade.plus(kg));
+  const medioDepoisO = recalculo
+    ? medioDoPoco({ valor: pocoO.valor.plus(valorTotal), quantidade: pocoO.quantidade.plus(kg) })
+    : await reavaliarPoco(tx, cli, a.empresaId, produto.id, origem.id, pocoO.valor.plus(valorTotal), pocoO.quantidade.plus(kg));
   // 8. os dois movimentos de estorno (números provisórios: quem chama numera no fim)
   const motivo = `Cancelamento da transferência ${s.numero_movimentacao}: ${a.motivo.trim()}`.slice(0, 255);
   const comum = {

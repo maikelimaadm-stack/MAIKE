@@ -8,13 +8,14 @@
  *  - saída manual → `estoque.saida`; entrada documentada → `estoque.entrada`;
  *  - transferência entre depósitos → `movimentacaoEstoque.cancelarTransferencia`;
  *  - baixa do cocho → `suplementacaoEvento.cancelar`; linha de produto da atividade → `atividadeApontamentos.cancelar`;
- *  - abastecimento → `patrimonioAbastecimentos.cancelar`; compra/venda do financeiro → `operacaoFinanceira.cancelar`.
+ *  - abastecimento → `patrimonioAbastecimentos.cancelar`; compra/venda do financeiro → `operacaoFinanceira.cancelar`;
+ *  - sobra/falta do ajuste de inventário → `estoque.ajuste` (D-PROD-273, fatia 5).
  * Origem sem exclusão no produto → 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL { reason: 'origem_nao_suportada' }`.
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import {
-  ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ehOrigemEntradaDocumentada,
+  ORIGEM_ABASTECIMENTO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ehOrigemEntradaDocumentada,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { previaExclusao, recalculoInviavel } from './estoqueRecalculoService.js';
 
@@ -32,6 +33,8 @@ const GUARDA_DA_EXCLUSAO = Object.freeze({
   [ORIGEM_APONTAMENTO]: GUARDAS.atividadeApontamentos.cancelar,
   [ORIGEM_ABASTECIMENTO]: GUARDAS.patrimonioAbastecimentos.cancelar,
   [ORIGEM_SISTEMA]: GUARDAS.operacaoFinanceira.cancelar,
+  // D-PROD-273 (fatia 5): a exclusão do ajuste de inventário (ação extra `ajuste` da tela Estoque).
+  [ORIGEM_AJUSTE_ESTOQUE]: GUARDAS.estoque.ajuste,
 });
 
 /** @param {import('fastify').FastifyInstance} app */

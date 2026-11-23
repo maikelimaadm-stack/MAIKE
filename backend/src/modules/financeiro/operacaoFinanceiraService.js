@@ -1540,10 +1540,12 @@ export const confirmar = async (contexto, id, corpo) => {
  * (D-PROD-158). Quem chama já travou cabeçalho → produtos → títulos e numera
  * os estornos no FIM (`numerarMovimentos`).
  * @param {any} tx @param {any} contexto
- * @param {{ cli: string, empresaId: string, op: any, mercadorias: any[], dia: string|undefined }} a
+ * D-PROD-273 (fatia 5): `camadaPeloRecalculo` (compra cancelada com recálculo) — os originais cuja camada o recálculo
+ * regrava (ver `estornarEmLote`).
+ * @param {{ cli: string, empresaId: string, op: any, mercadorias: any[], dia: string|undefined, camadaPeloRecalculo?: string[] }} a
  * @returns {Promise<string[]>} ids dos movimentos de estorno, na ordem dos itens
  */
-const estornarEfeitosDoDocumento = async (tx, contexto, { cli, empresaId, op, mercadorias, dia }) => {
+const estornarEfeitosDoDocumento = async (tx, contexto, { cli, empresaId, op, mercadorias, dia, camadaPeloRecalculo = undefined }) => {
   const parceiro = await tx.fornecedor.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: op.parceiro_id } }, select: { id: true, nome: true } });
   // Rodada 2 (CRITICO-2): estornos EM LOTE — mesmo resultado e mesmas
   // recusas do laço item a item, com um número fixo de idas ao banco
@@ -1552,6 +1554,7 @@ const estornarEfeitosDoDocumento = async (tx, contexto, { cli, empresaId, op, me
     empresaId, direcao: op.direcao, itens: mercadorias, dia: /** @type {any} */ (dia),
     documento: { numero: op.documento_referencia ?? op.numero, data: diaDe(op.data_emissao) },
     parceiro: { id: parceiro?.id ?? op.parceiro_id, nome: parceiro?.nome ?? op.parceiro_nome }, origem: { operacaoId: op.id }, numeroMovimento: numeroProvisorio,
+    ...(camadaPeloRecalculo ? { camadaPeloRecalculo } : {}),
   });
   if (estornos.length) {
     const ligados = await tx.$executeRaw`UPDATE "OperacaoFinanceiraItem" AS i
@@ -1597,13 +1600,17 @@ export const cancelar = async (contexto, id, corpo) => {
         const tempo = mercadorias.length ? await hojeDaEmpresa(tx, cli, empresaId) : null;
         // D-PROD-273 (fatia 4): na VENDA, com outro movimento do produto no depósito depois, o cancelamento recalcula
         // o custo médio do que veio depois (o preço não muda; só o custo derivado do estoque). Prova antes do estorno.
-        // A compra (entrada) continua com a regra de hoje (fatia 5).
+        // Fatia 5: na COMPRA também — a entrada sai da sequência e quem consumiu dela volta a consumir das outras camadas
+        // (o valor de compra não muda); saldo negativo em qualquer ponto → 409; sem estorno exato como saída.
         const comMovimento = mercadorias.filter((i) => i.movimentacao_estoque_id);
-        const planos = op.direcao !== 'PAGAR' && comMovimento.length
-          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeInviavel: true })
+        const compra = op.direcao === 'PAGAR';
+        const planos = comMovimento.length
+          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeInviavel: !compra })
           : [];
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
-        const estornos = await estornarEfeitosDoDocumento(tx, contexto, { cli, empresaId, op, mercadorias, dia: tempo?.hoje });
+        const estornos = await estornarEfeitosDoDocumento(tx, contexto, {
+          cli, empresaId, op, mercadorias, dia: tempo?.hoje, ...(compra ? { camadaPeloRecalculo: planos.flatMap((p) => p.excluirIds) } : {}),
+        });
         const recalculo = planos.length
           ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
             empresaId, origem: ORIGEM_SISTEMA, motivo: [...`Cancelamento do lançamento ${op.numero}: ${motivo}`].slice(0, 255).join(''),

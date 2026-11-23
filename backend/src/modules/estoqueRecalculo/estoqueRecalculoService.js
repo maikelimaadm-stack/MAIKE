@@ -11,7 +11,10 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { CLASSE, classificar, compararComGravado, compararCanonico, reproduzir, simularExclusao } from './estoqueReplay.js';
-import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO } from '../estoqueFisico/estoqueFisicoMotor.js';
+import {
+  ORIGEM_ABASTECIMENTO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO,
+  TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE,
+} from '../estoqueFisico/estoqueFisicoMotor.js';
 import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js';
 import {
   TETO_MOVIMENTOS_AFETADOS, TETO_MOVIMENTOS_PRODUTO, buscarAjustePosterior, emLeituraSomente, lerDependentes, lerHistoricoDoProduto, volumeExcedido,
@@ -109,12 +112,16 @@ export const ehRecusaContornavel = (erro) => {
 
 /** D-PROD-273 (fatia 4): origens que, com o recálculo inviável, fazem o estorno exato (sem recalcular). */
 export const ORIGENS_ESTORNO_EXATO_SE_INVIAVEL = Object.freeze([ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA]);
-/** Origens cujo documento exclui TODAS as saídas dele juntas (a prévia simula o documento inteiro). */
-const ORIGENS_DOCUMENTO_INTEIRO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_SAIDA_ESTOQUE]);
+/**
+ * Origens cujo documento exclui TODOS os movimentos dele juntos (a prévia simula o documento inteiro): venda e compra
+ * do financeiro, saída manual, entrada documentada (fatia 5) e ajuste de inventário (fatia 5: sobras e faltas juntas).
+ */
+const ORIGENS_DOCUMENTO_INTEIRO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_SAIDA_ESTOQUE, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
 
 /**
- * Os movimentos que a exclusão de `m` exclui junto: a transferência (as duas pernas) ou, na venda e na saída manual, as
- * outras saídas do MESMO produto do mesmo documento (o cancelamento é do documento inteiro).
+ * Os movimentos que a exclusão de `m` exclui junto: a transferência (as duas pernas) ou, no documento (venda, compra,
+ * saída manual, entrada documentada, ajuste), os outros movimentos do MESMO produto do mesmo documento (o cancelamento é
+ * do documento inteiro). No ajuste, a sobra e a falta do produto vão juntas.
  * @param {any} tx @param {string} cli @param {any} m
  * @returns {Promise<string[]>}
  */
@@ -122,11 +129,14 @@ const excluidosJuntos = async (tx, cli, m) => {
   if (m.tipo_detalhado === 'transferencia_enviada' || m.tipo_detalhado === 'transferencia_recebida') {
     return [m.tipo_detalhado === 'transferencia_enviada' ? m.id : m.movimento_pai_id, m.tipo_detalhado === 'transferencia_enviada' ? m.movimento_filho_id : m.id].filter(Boolean);
   }
-  if (!ORIGENS_DOCUMENTO_INTEIRO.includes(m.origem_sistema) || !m.lancamento_origem_id || m.tipo_movimentacao !== 'Saída') return [m.id];
+  const ehEstorno = typeof m.tipo_detalhado === 'string' && m.tipo_detalhado.startsWith('estorno_');
+  if (!ORIGENS_DOCUMENTO_INTEIRO.includes(m.origem_sistema) || !m.lancamento_origem_id || ehEstorno) return [m.id];
+  const doAjuste = m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE;
   const irmaos = await tx.movimentacaoEstoque.findMany({
     where: {
       cliente_id: cli, empresa_id: m.empresa_id, produto_id: m.produto_id, lancamento_origem_id: m.lancamento_origem_id, origem_sistema: m.origem_sistema,
-      tipo_detalhado: m.tipo_detalhado, tipo_movimentacao: 'Saída', status: 'Ativa', movimento_filho_id: null,
+      ...(doAjuste ? { tipo_detalhado: { in: [TIPO_SOBRA_AJUSTE, TIPO_FALTA_AJUSTE] } } : { tipo_detalhado: m.tipo_detalhado, tipo_movimentacao: m.tipo_movimentacao }),
+      status: 'Ativa', movimento_filho_id: null,
     },
     select: { id: true },
   });

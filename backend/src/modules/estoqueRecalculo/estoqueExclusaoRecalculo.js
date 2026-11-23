@@ -21,7 +21,16 @@
  *     reescrito vai para o AuditLog (`estoque.recalculo`, antes → depois, autor, motivo, o movimento excluído). No fim
  *     relê tudo e exige replay = gravado; qualquer diferença desfaz a transação inteira (409).
  *
- * Fora daqui (fatia 5): entradas, compra, transferência, ajuste e edição (D-PROD-271) — continuam com a recusa.
+ * D-PROD-273 (fatia 5) — as ENTRADAS (entrada documentada, compra do financeiro, sobra do ajuste) e a TRANSFERÊNCIA
+ * (as duas pernas juntas): a mesma maquinaria, com o estorno da origem gravado SEM tocar na camada da entrada (ou nas
+ * recebidas) — `estornarEmLote` com `camadaPeloRecalculo` e `estornarTransferenciaEstoque` com `recalculo: true` — e o
+ * recálculo logo depois: o par (na transferência, os dois pares S + E_o e R + E_d) fica fora da sequência, a camada da
+ * entrada fica 'Estornado' com disponível 0 (nunca apagada) e quem consumiu dela volta a consumir das outras camadas em
+ * FIFO, pelo médio do poço sem ela (as fatias `*ConsumoLote` dos dependentes seguem). Para essas origens não há estorno
+ * exato como saída (`estornoExatoSeInviavel` falso): recusa é recusa. Saldo negativo em qualquer ponto (inclusive no
+ * destino de uma transferência em cascata) → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`, nada gravado.
+ * Fora daqui: a edição completa (D-PROD-271) continua exigindo "nada depois" (relançar no fim da sequência não é
+ * "corrigir no lugar"); `excluirConfirmado` e a retificação do financeiro, como antes.
  * O tenant vem do `auth_context` (R11); toda consulta começa por `cliente_id`.
  */
 import { randomUUID } from 'node:crypto';
@@ -82,9 +91,20 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
   for (const id of a.excluirIds) {
     const m = porId.get(id);
     if (!m) throw recalculoInviavel('movimento_fora_do_historico', { movimento_id: id });
-    if (m.status !== 'Ativa' || m.movimento_filho_id) throw recalculoInviavel('movimento_ja_excluido', { movimento_id: id }, 'este movimento já foi excluído; nada foi alterado');
-    // Fatia 4: só SAÍDAS (manual, cocho, atividade, abastecimento, venda). Transferência e entradas são a fatia 5.
-    if (classificar(m, porId) !== CLASSE.SAIDA) throw recalculoInviavel('origem_nao_suportada', { movimento_id: id, origem_sistema: m.origem_sistema });
+    const classe = classificar(m, porId);
+    // A transferência sai inteira: a S (filho = R) e a R, as duas na lista e as duas 'Ativa'.
+    const filhoDaTransferencia = classe === CLASSE.TRANSFERENCIA_ENVIADA && m.movimento_filho_id && a.excluirIds.includes(m.movimento_filho_id);
+    if (m.status !== 'Ativa' || (m.movimento_filho_id && !filhoDaTransferencia)) throw recalculoInviavel('movimento_ja_excluido', { movimento_id: id }, 'este movimento já foi excluído; nada foi alterado');
+    // Fatia 4: SAÍDAS (manual, cocho, atividade, abastecimento, venda, falta do ajuste). Fatia 5: ENTRADAS (entrada
+    // documentada, compra, sobra do ajuste) e a TRANSFERÊNCIA (as duas pernas juntas). Estorno nunca.
+    if (!CLASSES_EXCLUIVEIS.includes(classe)) throw recalculoInviavel('origem_nao_suportada', { movimento_id: id, origem_sistema: m.origem_sistema });
+    if (classe === CLASSE.TRANSFERENCIA_ENVIADA || classe === CLASSE.TRANSFERENCIA_RECEBIDA) {
+      const s = classe === CLASSE.TRANSFERENCIA_ENVIADA ? m : porId.get(m.movimento_pai_id);
+      const r = s?.movimento_filho_id ? porId.get(s.movimento_filho_id) : null;
+      if (!s || !r || r.movimento_pai_id !== s.id || !a.excluirIds.includes(s.id) || !a.excluirIds.includes(r.id)) {
+        throw recalculoInviavel('par_de_transferencia_incoerente', { movimento_id: id });
+      }
+    }
     // A marca do par mora em `movimentacao_grupo_id` (VarChar(64)): grupo legado já preenchido, ou marca que não cabe,
     // não se sobrescreve.
     if (m.movimentacao_grupo_id !== null && m.movimentacao_grupo_id !== undefined) {
@@ -107,6 +127,10 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
   }
   return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null };
 };
+
+/** Classes que a exclusão com recálculo aceita (fatias 4 e 5). */
+/** @type {readonly string[]} */
+const CLASSES_EXCLUIVEIS = Object.freeze([CLASSE.SAIDA, CLASSE.ENTRADA, CLASSE.TRANSFERENCIA_ENVIADA, CLASSE.TRANSFERENCIA_RECEBIDA]);
 
 const comoDispensa = (erro) => ({ code: /** @type {any} */ (erro).code, reason: /** @type {any} */ (erro).details?.reason ?? null });
 
@@ -432,13 +456,20 @@ const somarResumo = (resumo, r) => {
 const aplicarUm = async (tx, contexto, cli, plano, a) => {
   {
     await travarProdutosEstoque(tx, cli, a.empresaId, [plano.produtoId]);
-    // 1. A marca do par: o replay deixa o original e o estorno fora da sequência.
+    // 1. A marca do par: o replay deixa o original e o estorno fora da sequência. Na transferência são dois pares (S + E_o,
+    //    R + E_d); a S continua com o filho R (o estorno dela é a E_o, filha dela), as outras com o filho = o estorno.
+    const originais = new Map((await tx.movimentacaoEstoque.findMany({
+      where: { cliente_id: cli, empresa_id: a.empresaId, id: { in: plano.excluirIds } }, select: { id: true, tipo_detalhado: true, movimento_filho_id: true },
+    })).map((m) => [m.id, m]));
     for (const originalId of plano.excluirIds) {
       const estornoId = a.estornos.get(originalId);
       if (!estornoId) throw new Error(`exclusão com recálculo: estorno do movimento ${originalId} ausente`);
       const marca = marcaDoPar(originalId);
+      const lido = originais.get(originalId);
+      const filho = lido?.tipo_detalhado === 'transferencia_enviada' ? lido.movimento_filho_id : estornoId;
+      if (!filho || (lido?.tipo_detalhado === 'transferencia_enviada' && !plano.excluirIds.includes(filho))) throw conflito({ movimento_id: originalId });
       const o = await tx.movimentacaoEstoque.updateMany({
-        where: { cliente_id: cli, empresa_id: a.empresaId, id: originalId, status: 'Estornada', movimento_filho_id: estornoId, movimentacao_grupo_id: null }, data: { movimentacao_grupo_id: marca },
+        where: { cliente_id: cli, empresa_id: a.empresaId, id: originalId, status: 'Estornada', movimento_filho_id: filho, movimentacao_grupo_id: null }, data: { movimentacao_grupo_id: marca },
       });
       const e = await tx.movimentacaoEstoque.updateMany({
         where: { cliente_id: cli, empresa_id: a.empresaId, id: estornoId, movimento_pai_id: originalId, movimentacao_grupo_id: null }, data: { movimentacao_grupo_id: marca },

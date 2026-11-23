@@ -42,9 +42,11 @@ import { CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
 import {
   descobrirParDeTransferencia,
   estornarTransferenciaEstoque,
+  exigirLocaisEstoque,
   numerarMovimentos,
   numeroMovimentoProvisorio,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { comoPublico } from './movimentacaoEstoqueService.js';
@@ -106,6 +108,39 @@ const efeitosDoPar = (s, r, locais = {}) => ({
 });
 
 /**
+ * D-PROD-273 (fatia 5) — o cancelamento, com ou sem recálculo, numa transação já aberta (o POST e o ensaio da
+ * elegibilidade). Descobre o par, trava locais → produto (a ordem do motor) e planeja: nada depois nos dois depósitos →
+ * o estorno exato de sempre (`estornarTransferenciaEstoque`, sem mudança); algo depois → a prova do recálculo (replay =
+ * gravado, simulação sem a transferência: saldo negativo em qualquer depósito → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`;
+ * contagem de inventário depois → 409 `ajuste_de_inventario_posterior`; sem estorno exato como saída), o estorno sem
+ * tocar nas camadas (`recalculo: true`) e o recálculo de tudo que veio depois, com a marca dos dois pares.
+ * @param {any} tx @param {any} contexto @param {{ empresaId: string, movimentoId: string, dia: string, motivo: string, numeros?: { destino?: string, origem?: string } }} a
+ */
+const cancelarNaTransacao = async (tx, contexto, a) => {
+  const cli = exigirAuthContext(contexto?.auth).clienteId;
+  const par = await descobrirParDeTransferencia(tx, cli, { empresaId: a.empresaId, movimentoId: a.movimentoId });
+  const locais = await exigirLocaisEstoque(tx, cli, [
+    { id: par.origemId, field: 'local_origem_id', exigirAtivo: false },
+    { id: par.destinoId, field: 'local_destino_id', exigirAtivo: false },
+  ]);
+  // Origem inativa: o motor recusa (422 `local_inativo`) antes de qualquer escrita, como antes — sem planejar.
+  const planos = !locais.get(par.origemId)?.ativo ? [] : await planejarExclusaoComRecalculo(tx, cli, {
+    empresaId: a.empresaId,
+    movimentos: [{ id: par.saida.id, produtoId: par.produtoId, localId: par.origemId }, { id: par.entrada.id, produtoId: par.produtoId, localId: par.destinoId }],
+  });
+  const t = await estornarTransferenciaEstoque(tx, contexto, {
+    empresaId: a.empresaId, movimentoId: a.movimentoId, dia: a.dia, motivo: a.motivo, operacaoId: null, numeros: a.numeros, recalculo: planos.length > 0,
+  });
+  const recalculo = planos.length
+    ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+      empresaId: a.empresaId, origem: 'transferencia', motivo: `Cancelamento da transferência ${t.saida.numero_movimentacao}: ${a.motivo}`.slice(0, 255),
+      estornos: new Map([[t.saida.id, t.estornoOrigem.id], [t.entrada.id, t.estornoDestino.id]]),
+    })
+    : null;
+  return { t, recalculo };
+};
+
+/**
  * POST /movimentacoes-estoque/:id/cancelar-transferencia.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} id id de S ou de R (só alvo; o tenant vem do auth_context)
@@ -128,12 +163,11 @@ export const cancelarTransferencia = async (contexto, id, corpo) => {
       executar: async () => {
         const empresaId = await exigirEmpresaDoTenant(tx, cli, e.empresa_id);
         const tempo = await hojeDaEmpresa(tx, cli, empresaId);
-        const t = await estornarTransferenciaEstoque(tx, contexto, {
+        const { t, recalculo } = await cancelarNaTransacao(tx, contexto, {
           empresaId,
           movimentoId: e.movimentacao_id,
           dia: tempo.hoje,
           motivo: e.motivo,
-          operacaoId: null,
           numeros: { destino: numeroMovimentoProvisorio(), origem: numeroMovimentoProvisorio() },
         });
         // Sequência de movimentos só no FIM: E_d = n, E_o = n + 1.
@@ -164,6 +198,7 @@ export const cancelarTransferencia = async (contexto, id, corpo) => {
               local_origem_id: t.origem.id,
               local_destino_id: t.destino.id,
               motivo_informado: true,
+              recalculo,
             },
           },
         ], tx);
@@ -175,6 +210,7 @@ export const cancelarTransferencia = async (contexto, id, corpo) => {
             replay: false,
             ...publicos,
             devolvido: t.devolvido,
+            recalculo,
           },
         };
       },
@@ -212,14 +248,14 @@ export const elegibilidadeCancelamentoTransferencia = async (contexto, id, empre
     const tempo = await hojeDaEmpresa(tx, cli, empresaId);
     await tx.$executeRawUnsafe('SAVEPOINT elegibilidade_cancelar_transferencia');
     try {
-      const t = await estornarTransferenciaEstoque(tx, contexto, { empresaId, movimentoId: id, dia: tempo.hoje, motivo: 'ensaio', operacaoId: null });
+      const { t, recalculo } = await cancelarNaTransacao(tx, contexto, { empresaId, movimentoId: id, dia: tempo.hoje, motivo: 'ensaio' });
       return {
         ...comum,
         elegivel: true,
         codigo: null,
         motivo: null,
         detalhes: null,
-        efeitos: { ...efeitosDoPar(par.saida, par.entrada, { origem: t.origem, destino: t.destino }), devolvido: t.devolvido },
+        efeitos: { ...efeitosDoPar(par.saida, par.entrada, { origem: t.origem, destino: t.destino }), devolvido: t.devolvido, recalculo },
       };
     } catch (erro) {
       if (erro instanceof AppError) return recusado(erro, efeitosPar);

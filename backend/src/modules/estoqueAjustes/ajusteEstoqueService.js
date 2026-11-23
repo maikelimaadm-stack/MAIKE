@@ -7,8 +7,10 @@
  *    O ajuste é sempre do dia de hoje da fazenda. Não cria título, conta a pagar nem receita.
  *  - Criar = confirmar numa só chamada, idempotente por `operation_id`.
  *  - Editar: só a observação, com CAS de versão.
- *  - Excluir: estorno integral pelo motor, SÓ se os produtos não tiveram outro movimento naqueles depósitos
- *    depois do ajuste (escolha do proprietário, como na saída manual).
+ *  - Excluir: estorno integral pelo motor. D-PROD-273 (fatia 5): com outro movimento do produto naqueles depósitos
+ *    depois do ajuste, a exclusão recalcula o custo médio de tudo que veio depois (a sobra como entrada, a falta como
+ *    saída); saldo negativo em qualquer ponto → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`; outra contagem vigente depois →
+ *    409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL` `ajuste_de_inventario_posterior` (escolha do proprietário, 2026-11-23).
  *
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
@@ -26,7 +28,7 @@ import {
   aplicarFaltaDeAjuste, aplicarSobraDeAjuste, estornarFaltaDeAjuste, estornarSobraDeAjuste, exigirLocaisEstoque, numerarMovimentos,
   numeroMovimentoProvisorio, pocoDoDeposito, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { buscarMovimentoPosteriorA } from '../estoqueFisico/movimentoPosterior.js';
+import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, diaDoCorpo, listarKeyset, termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
@@ -360,13 +362,19 @@ export const excluir = async (contexto, id, corpo) => {
           const itens = await tx.ajusteEstoqueItem.findMany({ where: { cliente_id: cli, ajuste_id: id }, orderBy: [{ ordem: 'asc' }], include: { local: { select: { nome: true } } } });
           const comMovimento = itens.filter((i) => i.movimentacao_estoque_id);
           const estornos = [];
+          /** @type {any} */
+          let recalculo = null;
           if (comMovimento.length) {
             await exigirLocaisEstoque(tx, cli, comMovimento.map((i) => ({ id: i.local_estoque_id, field: 'local_estoque_id', exigirAtivo: false })));
             const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, comMovimento.map((i) => i.produto_id));
-            for (const item of comMovimento) {
-              const depois = await buscarMovimentoPosteriorA(tx, cli, { empresaId, movimentoId: /** @type {string} */ (item.movimentacao_estoque_id), produtoId: item.produto_id, localId: item.local_estoque_id });
-              if (depois) throw movimentoPosterior({ item_ordem: item.ordem, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, movimento_numero: depois.numero_movimentacao });
-            }
+            // D-PROD-273 (fatia 5): com outro movimento do produto no depósito depois do ajuste, a exclusão RECALCULA o que
+            // veio depois — a sobra sai como uma entrada, a falta como uma saída (prova antes de gravar; saldo negativo em
+            // qualquer ponto → 409; sem estorno exato como saída). Escolha do proprietário (2026-11-23): OUTRA contagem
+            // vigente depois, num depósito que a exclusão muda, recusa (409 `ajuste_de_inventario_posterior`).
+            const planos = await planejarExclusaoComRecalculo(tx, cli, {
+              empresaId, movimentos: comMovimento.map((i) => ({ id: /** @type {string} */ (i.movimentacao_estoque_id), produtoId: i.produto_id, localId: i.local_estoque_id })),
+            });
+            const peloRecalculo = new Set(planos.flatMap((p) => p.excluirIds));
             const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
             const motivoEstorno = `Exclusão do ajuste ${atual.numero}: ${e.motivo}`.slice(0, 255);
             const sobras = comMovimento.filter((i) => i.tipo === SOBRA);
@@ -382,6 +390,7 @@ export const excluir = async (contexto, id, corpo) => {
                 documento: { numero: atual.numero, data: tempo.hoje },
                 origem: { operacaoId: id, motivoEstorno },
                 numeroMovimento: numeroMovimentoProvisorio,
+                camadaPeloRecalculo: sobras.map((i) => /** @type {string} */ (i.movimentacao_estoque_id)).filter((m) => peloRecalculo.has(m)),
               });
               sobras.forEach((i, k) => porItem.set(i.id, ids[k]));
             }
@@ -409,6 +418,12 @@ export const excluir = async (contexto, id, corpo) => {
               estornos.push(est);
               await tx.ajusteEstoqueItem.update({ where: { cliente_id_id: { cliente_id: cli, id: item.id } }, data: { movimentacao_estorno_id: est } });
             }
+            recalculo = planos.length
+              ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+                empresaId, motivo: motivoEstorno, origem: 'ajuste_estoque',
+                estornos: new Map(comMovimento.map((i) => [/** @type {string} */ (i.movimentacao_estoque_id), porItem.get(i.id)])),
+              })
+              : null;
             await numerarMovimentos(tx, cli, estornos);
           }
           const depois = await tx.ajusteEstoque.update({
@@ -425,9 +440,9 @@ export const excluir = async (contexto, id, corpo) => {
           });
           await registrarEvento(contexto, {
             acao: 'ajuste_estoque.excluir', entidade: ENTIDADE, entidadeId: id,
-            dadosAnteriores: { status: atual.status, versao: atual.versao }, dadosNovos: { status: depois.status, versao: depois.versao, motivo_informado: true, estornos },
+            dadosAnteriores: { status: atual.status, versao: atual.versao }, dadosNovos: { status: depois.status, versao: depois.versao, motivo_informado: true, estornos, recalculo },
           }, tx);
-          return { httpStatus: 200, body: await carregarDetalhe(tx, cli, empresaId, id) };
+          return { httpStatus: 200, body: { ...(await carregarDetalhe(tx, cli, empresaId, id)), recalculo } };
         },
       }),
   );
