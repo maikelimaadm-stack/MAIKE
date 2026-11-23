@@ -73,7 +73,12 @@ export const lerHistoricoDoProduto = async (tx, cli, empresaId, produtoId, o = {
   const movimentos = await tx.movimentacaoEstoque.findMany({ where: { cliente_id: cli, empresa_id: empresaId, produto_id: produtoId }, select: COLUNAS_MOVIMENTO });
   const camadas = await tx.estoqueLoteNota.findMany({ where: { cliente_id: cli, empresa_id: empresaId, produto_id: produtoId }, select: COLUNAS_CAMADA });
   const cutover = o.cutover === undefined || o.cutover === null ? await lerCorteCustoMedio(tx, cli) : o.cutover;
-  return { movimentos, camadas, cutover };
+  // D-PROD-272: a linha do ajuste de cada sobra/falta do produto diz se o custo da sobra foi informado (sem saldo).
+  const ajustes = await tx.ajusteEstoqueItem.findMany({
+    where: { cliente_id: cli, empresa_id: empresaId, produto_id: produtoId, movimentacao_estoque_id: { not: null } },
+    select: { movimentacao_estoque_id: true, custo_informado: true },
+  });
+  return { movimentos, camadas, cutover, ajustes };
 };
 
 /**
@@ -98,6 +103,7 @@ export const lerDependentes = async (tx, cli, empresaId, ids) => {
   const consumosItem = itens.length
     ? await tx.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: cli, empresa_id: empresaId, item_id: { in: itens.map((i) => i.id) } }, select: { id: true, item_id: true } })
     : [];
+  const ajustes = await tx.ajusteEstoqueItem.findMany({ where: base, select: { id: true, ajuste_id: true, movimentacao_estoque_id: true } });
   const eventos = /** @type {Array<{ id: string, movimento_id: string }>} */ (await tx.$queryRaw`SELECT id, dados->>'movimentacao_estoque_id' AS movimento_id
       FROM "SuplementacaoEvento" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND dados->>'movimentacao_estoque_id' = ANY(${ids}::text[]) ORDER BY id`);
   const movDe = (lista, chave) => new Map(lista.map((x) => [x.id, x[chave]]));
@@ -113,6 +119,7 @@ export const lerDependentes = async (tx, cli, empresaId, ids) => {
     ...itens.map((x) => ({ tipo: 'OperacaoFinanceiraItem', id: x.id, movimento_id: /** @type {string} */ (x.movimentacao_estoque_id), documento_id: x.operacao_id })),
     ...consumosItem.map((x) => ({ tipo: 'OperacaoFinanceiraConsumoLote', id: x.id, movimento_id: /** @type {string} */ (movItem.get(x.item_id)), documento_id: x.item_id })),
     ...eventos.map((x) => ({ tipo: 'SuplementacaoEvento', id: x.id, movimento_id: x.movimento_id, documento_id: null })),
+    ...ajustes.map((x) => ({ tipo: 'AjusteEstoqueItem', id: x.id, movimento_id: /** @type {string} */ (x.movimentacao_estoque_id), documento_id: x.ajuste_id })),
   ];
   return saida.sort((a, b) => (a.tipo + a.id < b.tipo + b.id ? -1 : 1));
 };

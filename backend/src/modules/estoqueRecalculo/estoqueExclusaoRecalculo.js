@@ -16,7 +16,8 @@
  *     destino), as camadas (disponível, custo, situação; camada nunca é apagada — a que sobrou de uma transferência
  *     recalculada fica 'Estornado' e a que falta é criada), o rateio das observações, e os DEPENDENTES (SPEC §3):
  *     `SaidaEstoqueItem`, `AtividadeApontamentoProduto` + fatias, `AbastecimentoBem` + fatias,
- *     `OperacaoFinanceiraConsumoLote` e o custo do fechamento do cocho em `SuplementacaoEvento.dados`. Cada valor
+ *     `OperacaoFinanceiraConsumoLote`, `AjusteEstoqueItem` (custo e valor da sobra/falta do ajuste de inventário,
+ *     D-PROD-272) e o custo do fechamento do cocho em `SuplementacaoEvento.dados`. Cada valor
  *     reescrito vai para o AuditLog (`estoque.recalculo`, antes → depois, autor, motivo, o movimento excluído). No fim
  *     relê tudo e exige replay = gravado; qualquer diferença desfaz a transação inteira (409).
  *
@@ -279,6 +280,23 @@ const reescreverDependentes = async (tx, cli, empresaId, mudados) => {
         depois: { custo_unitario: texto4(vu(id)), custo_total: texto4(vt(id)), ...(f ? { fatias: f.depois } : {}) },
       });
     }
+  }
+
+  // Ajuste de inventário (D-PROD-272): a linha copia o custo e o valor do movimento da sobra/falta (a contagem —
+  // saldo anterior, contado, diferença — é o registro do que se contou e não muda: o recálculo é de custo).
+  for (const it of await tx.ajusteEstoqueItem.findMany({ where: base })) {
+    const id = /** @type {string} */ (it.movimentacao_estoque_id);
+    if (iguaisDec(it.custo_unitario, vu(id)) && iguaisDec(it.valor_total, vt(id))) continue;
+    const u = await tx.ajusteEstoqueItem.updateMany({
+      where: { cliente_id: cli, id: it.id, custo_unitario: it.custo_unitario, valor_total: it.valor_total },
+      data: { custo_unitario: paraBanco(vu(id), CASAS_CUSTO), valor_total: paraBanco(vt(id), CASAS_CUSTO) },
+    });
+    if (u.count !== 1) throw conflito({ ajuste_item_id: it.id });
+    auditoria.push({
+      entidade: 'AjusteEstoqueItem', entidadeId: it.id, movimento_id: id,
+      antes: { custo_unitario: texto4(it.custo_unitario), valor_total: texto4(it.valor_total) },
+      depois: { custo_unitario: texto4(vu(id)), valor_total: texto4(vt(id)) },
+    });
   }
 
   const itens = await tx.operacaoFinanceiraItem.findMany({ where: base, include: { consumos: true } });

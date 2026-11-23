@@ -21,6 +21,12 @@
  *    valor FIFO GRAVADOS (sem reavaliar); estorno anterior ao corte (`cutover`) devolve sem reavaliar. Quando a
  *    simulação de exclusão alcança o depósito dele, passa à regra atual (médio), como a SPEC §4.7 manda.
  *
+ *  - SOBRA DE AJUSTE (D-PROD-272, `ajuste_sobra`): entrada cuja camada nasce ao custo médio do depósito NAQUELE
+ *    ponto (`pocoDoDeposito`: valor ÷ saldo, `CASAS_CUSTO`), valor = quantidade × médio; não reavalia. O custo é
+ *    refeito pelo replay (é custo derivado do estoque: na simulação, segue o médio recalculado), salvo quando a linha
+ *    do ajuste diz `custo_informado` (depósito sem saldo; vale o gravado, como o valor de compra). Sobra sem a linha
+ *    do ajuste, ou sem custo informado num poço vazio, para o replay (fail-closed). A FALTA é uma saída a médio comum.
+ *
  * Movimento fora do protocolo (origem que o motor não grava, estorno sem original legível, entrada sem camada)
  * não é adivinhado: vira `problema` e o replay daquele produto é declarado não reproduzível (fail-closed).
  *
@@ -34,8 +40,8 @@
  */
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, ZERO, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import {
-  MODO_CUSTO_MEDIO, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA, consumirCustoMedio, ordenarFifo,
-  TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA,
+  MODO_CUSTO_MEDIO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA, consumirCustoMedio, ordenarFifo,
+  TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA, TIPO_SOBRA_AJUSTE,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { ORIGENS_PROTOCOLO } from '../estoqueFisico/reconciliacaoEstoque.js';
 import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
@@ -309,7 +315,7 @@ const paresMarcados = (ordem, porId, problemas) => {
  * é o replay "sem exclusão" que tem de reproduzir o gravado.
  * `opcoes.novoIdCamada(r, k)`: id da camada de destino que a transferência `r` precisa criar na posição `k` (a escrita
  * da fatia 4 passa ids reais; a prévia usa `simulada:…`).
- * @param {{ movimentos: any[], camadas: any[], cutover?: Date|number|null }} historico
+ * @param {{ movimentos: any[], camadas: any[], cutover?: Date|number|null, ajustes?: Array<{ movimentacao_estoque_id: string|null, custo_informado: boolean }> }} historico
  * @param {{ excluir?: string[], novoIdCamada?: (r: any, k: number) => string }} [opcoes]
  * @returns {{ resultados: Map<string, any>, camadas: Map<string, any>, problemas: any[], parada: any|null,
  *   afetados: Set<string>, ordem: any[], reproduzivel: boolean, marcados: Set<string> }}
@@ -322,6 +328,8 @@ export const reproduzir = (historico, opcoes = {}) => {
   const excluir = new Set([...(opcoes.excluir ?? []), ...marcados]);
   const novoIdCamada = opcoes.novoIdCamada ?? ((r, k) => `simulada:${r.id}:${k + 1}`);
   const fatos = new Map(historico.camadas.map((l) => [l.id, l]));
+  /** D-PROD-272: movimento da sobra/falta do ajuste → a linha diz se o custo foi informado. */
+  const linhasDeAjuste = new Map((historico.ajustes ?? []).filter((x) => x.movimentacao_estoque_id).map((x) => [x.movimentacao_estoque_id, x]));
   /** @type {Map<string, string[]>} */
   const camadasDaEntrada = new Map();
   for (const l of historico.camadas) {
@@ -387,10 +395,22 @@ export const reproduzir = (historico, opcoes = {}) => {
     if (ids.length !== 1) throw new Parada({ reason: 'entrada_sem_camada', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
     const fato = /** @type {any} */ (fatos.get(ids[0]));
     const saldoAntes = estado.saldo(local);
-    estado.criar({ id: fato.id, local: fato.local_estoque_id, quantidade: fato.quantidade_entrada, custo: m.valor_unitario ?? 0 });
+    let valorUnitario = m.valor_unitario === null ? null : dec(m.valor_unitario);
+    let valorTotal = m.valor_total === null ? null : dec(m.valor_total);
+    if (m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE && m.tipo_detalhado === TIPO_SOBRA_AJUSTE) {
+      const linha = linhasDeAjuste.get(m.id);
+      if (!linha) throw new Parada({ reason: 'sobra_de_ajuste_sem_linha', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+      if (!linha.custo_informado) {
+        // O motor: sobra ao médio do depósito (`pocoDoDeposito`); sem saldo ele exigiria o custo informado.
+        if (!saldoAntes.gt(0)) throw new Parada({ reason: 'sobra_de_ajuste_sem_custo_medio', local_estoque_id: local, movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+        valorUnitario = medioDe(estado.valor(local), saldoAntes);
+        valorTotal = arredondar(dec(m.quantidade).times(valorUnitario), CASAS_CUSTO);
+      }
+    }
+    estado.criar({ id: fato.id, local: fato.local_estoque_id, quantidade: fato.quantidade_entrada, custo: valorUnitario ?? 0 });
     registrar(m, {
       regra: 'atual', local, saldo_antes: saldoAntes, saldo_depois: saldoAntes.plus(dec(m.quantidade)),
-      valor_unitario: m.valor_unitario === null ? null : dec(m.valor_unitario), valor_total: m.valor_total === null ? null : dec(m.valor_total),
+      valor_unitario: valorUnitario, valor_total: valorTotal,
       custo_medio_antes: null, custo_medio_depois: null, fatias: null,
     });
   };
