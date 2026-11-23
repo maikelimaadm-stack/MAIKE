@@ -561,3 +561,125 @@ describe('D-PROD-273 fatia 5 — cascata, dependentes e concorrência', () => {
     await provarReplay(x);
   });
 });
+
+// ─── achados da revisão independente (rev5) ─────────────────────────────────
+const vender = async (x, local, kg, preco) => {
+  const p = prisma();
+  const base = { cliente_id: x.c, empresa_id: x.e1.id };
+  const marca = randomUUID().slice(0, 6);
+  const cli = await p.fornecedor.create({ data: { ...base, numero_cadastro: `CL-${marca}`, tipo_pessoa: 'Jurídica', nome: `Cliente ${marca}`, tipos: ['cliente'] } });
+  const rec = await p.naturezaFinanceira.create({ data: { ...base, numero: `RC-${marca}`, tipo: 'RECEITA', nome: `VENDAS ${marca}` } });
+  const total = (Number(kg) * Number(preco)).toFixed(2);
+  const doc = {
+    empresa_id: x.e1.id, direcao: 'RECEBER', conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: cli.id, data_emissao: '2027-06-10', data_operacional: '2027-06-10',
+    efeito_fisico_confirmado: true, itens: [{ tipo_item: 'MERCADORIA', produto_id: x.sal.id, local_estoque_id: local.id, unidade: 'KG', quantidade: kg, valor_unitario: preco }],
+    rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: rec.id, percentual: '100' }], parcelas: [{ vencimento: '2027-07-10', valor: total }],
+  };
+  const criada = ok(await H.req('POST', '/operacoes-financeiras', x.token, { ...doc, operation_id: opId() }), 201);
+  return ok(await H.req('POST', `/operacoes-financeiras/${criada.id}/confirmar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), versao: criada.versao }));
+};
+/** Segura a trava do produto de fora; devolve quem libera. */
+const segurarTrava = async (x) => {
+  let liberar = () => {};
+  const liberado = new Promise((res) => { liberar = () => res(undefined); });
+  let pronto = () => {};
+  const comTrava = new Promise((res) => { pronto = res; });
+  const fim = aux.$transaction(async (t) => {
+    await t.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${chaveTravaProduto(x.c, x.e1.id, x.sal.id)}, 0))`;
+    pronto();
+    await liberado;
+  }, { timeout: 60000, maxWait: 10000 });
+  await comTrava;
+  return async () => { liberar(); await fim; };
+};
+const esperarNaFila = async (n) => {
+  for (let i = 0; i < 400; i++) {
+    const [{ c }] = /** @type {any[]} */ (await prisma().$queryRaw`SELECT count(*)::int AS c FROM pg_locks WHERE NOT granted`);
+    if (c >= n) return;
+    await new Promise((res) => setTimeout(res, 25));
+  }
+};
+
+describe('D-PROD-273 fatia 5 — achados da revisão', () => {
+  test('(1) corrida: cancelar a venda enquanto a exclusão da E1 reatribui as fatias dela — o cancelamento relê as fatias sob a trava; L3 volta a 100, L2 fica 0; replay = gravado', async () => {
+    const x = await montar();
+    const A = x.local;
+    // E1 100 a 4, E2 100 a 6, E3 100 a 8; S 100 a 6 = 600 (L1); venda 50 a 7 = 350 (L2)
+    const e1 = await entrar(x, A, '100', '4');
+    const e2 = await entrar(x, A, '100', '6');
+    const e3 = await entrar(x, A, '100', '8');
+    await sair(x, A, '100');
+    const venda = await vender(x, A, '50', '20');
+    const [L1, L2, L3] = await Promise.all([camadaDaEntrada(e1), camadaDaEntrada(e2), camadaDaEntrada(e3)]);
+    const soltar = await segurarTrava(x);
+    const pE = excluirEntrada(x, e1);
+    await esperarNaFila(1);
+    const pV = cancelarLancamento(x, venda.id);
+    await esperarNaFila(2);
+    await soltar();
+    const [rE, rV] = await Promise.all([pE, pV]);
+    assert.deepEqual([rE.statusCode, rV.statusCode], [200, 200], `${rE.body}\n${rV.body}`);
+    // sem E1: S 100 × 7 = 700 (L2); venda 50 × 7 (L3) e cancelada → L3 volta a 100 a 7
+    assert.deepEqual((await camada(L1)).status, 'Estornado');
+    assert.deepEqual([(await camada(L2)).disp, (await camada(L2)).status], ['0.0000', 'Esgotado']);
+    assert.deepEqual([(await camada(L3)).disp, (await camada(L3)).custo, (await camada(L3)).status], ['100.0000', '7.0000', 'Disponivel']);
+    assert.equal(await estoqueAtual(x), '100.0000');
+    await provarReplay(x);
+  });
+
+  test('(2) "camada intocada" (custo voltou ao do movimento) mas a entrada entrou no médio de S1 e S2: com o recálculo recusado, a exclusão RECUSA (nunca o estorno exato); a prévia diz o mesmo', async () => {
+    const x = await montar();
+    const A = x.local;
+    // L0 100 a 5, E 100 a 5, X 100 a 11 → 300 kg, médio 7; S1 50 × 7 = 350 (L0); Y 250 a 3 → 500 kg, médio 5; S2 10 × 5 = 50; E volta a custo 5
+    await entrar(x, A, '100', '5');
+    const e = await entrar(x, A, '100', '5');
+    await entrar(x, A, '100', '11');
+    const s1 = await sair(x, A, '50');
+    await entrar(x, A, '250', '3');
+    const s2 = await sair(x, A, '10');
+    const mE = await movDoItem(e);
+    assert.deepEqual(await camada(await camadaDaEntrada(e)), { disp: '100.0000', custo: '5.0000', status: 'Disponivel', entrada: '100.0000' });
+    // o recálculo possível: sem E, S1 = 50 × 8 = 400 e S2 = 10 × 4,875 = 48,75
+    const pv = ok(await previa(x, mE.id));
+    assert.deepEqual([pv.modo, pv.movimentos.find((m) => m.id === s1.itens[0].movimentacao_estoque_id)?.depois.valor_total,
+      pv.movimentos.find((m) => m.id === s2.itens[0].movimentacao_estoque_id)?.depois.valor_total], ['recalculo', '400.0000', '48.7500']);
+    // força uma recusa contornável do recálculo (grupo legado no movimento da entrada)
+    await prisma().movimentacaoEstoque.update({ where: { id: mE.id }, data: { movimentacao_grupo_id: 'legado-x' } });
+    const antes = await foto(x);
+    const pv2 = await previa(x, mE.id);
+    assert.deepEqual([pv2.statusCode, pv2.json().code, pv2.json().reason ?? pv2.json().details?.reason], [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'grupo_legado_preenchido'], pv2.body);
+    const r = await excluirEntrada(x, e);
+    assert.deepEqual([r.statusCode, r.json().code, r.json().reason ?? r.json().details?.reason], [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'grupo_legado_preenchido'], r.body);
+    assert.equal(await foto(x), antes, 'nada gravado: S1 e S2 continuam 350 e 50, coerentes com a entrada que continua');
+    assert.deepEqual([v4((await movDoItem(s1)).valor_total), v4((await movDoItem(s2)).valor_total)], ['350.0000', '50.0000']);
+  });
+
+  test('(2) regressão citada: compra cujo abastecimento já foi cancelado (par excluído não conta) continua cancelável pelo estorno exato', async () => {
+    const x = await montar();
+    const { acoesAbastecimento, corpoAbastecimento } = await import('./patrimonioP1AbastecimentoCenario.mjs');
+    const AB = acoesAbastecimento(app);
+    const { operacao: c, lote_id: LC } = await x.compraP3(x.e1, x.diesel, x.local, { quantidade: '100', preco: '5' });
+    const ab = await AB.confirmarOk(x.token, corpoAbastecimento(x, { quantidade: '80', medidor_leitura: '1550.5' }));
+    ok(await AB.cancelar(x.token, ab.id, { empresa_id: x.e1.id, versao: ab.versao, motivo: 'lançado em dobro', operation_id: opId() }));
+    const r = await cancelarLancamento(x, c.id);
+    assert.equal(r.statusCode, 200, r.body);
+    assert.deepEqual(await camada(LC), { disp: '0.0000', custo: '5.0000', status: 'Estornado', entrada: '100.0000' });
+    await provarReplay(x, x.diesel);
+  });
+
+  test('(3) a prévia e a exclusão concordam: entrada E (único estoque) e a saída S de 30 kg excluída depois → as duas permitem, pelo estorno exato sem recálculo', async () => {
+    const x = await montar();
+    const A = x.local;
+    const e = await entrar(x, A, '100', '4');
+    const s = await sair(x, A, '30');
+    ok(await H.req('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: s.versao, motivo: 'lançada errada', operation_id: `xs-${randomUUID()}` }));
+    const pv = ok(await previa(x, e.itens[0].movimentacao_estoque_id));
+    assert.deepEqual([pv.permitido, pv.modo, pv.aviso?.code], [true, 'estorno_exato_sem_recalculo', 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO']);
+    const r = await excluirEntrada(x, e);
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(await estoqueAtual(x), '0.0000');
+    const [t] = await trilha(x, 'Produto', x.sal.id);
+    assert.deepEqual([t?.dados_novos?.recalculo_dispensado, t?.dados_novos?.recusa?.code], [true, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO']);
+    await provarReplay(x);
+  });
+});
