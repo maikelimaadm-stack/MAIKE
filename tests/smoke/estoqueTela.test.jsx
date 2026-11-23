@@ -163,16 +163,51 @@ describe('D-PROD-255 — Movimentos e a janela do movimento', () => {
   const abrirMovimentos = async () => {
     await montar();
     fireEvent.click(await screen.findByTestId('estoque-aba-movimentos'));
+    await screen.findByText('Transferência (saída)');
+  };
+  /** D-PROD-273 (fatia 2): liga "Mostrar excluídos" na faixa e espera o par excluído voltar. */
+  const mostrarExcluidos = async () => {
+    await escolherOpcao(screen.getByRole('combobox', { name: 'Mostrar excluídos' }), 'Sim');
     await screen.findByText('Estorno da compra');
   };
 
-  it('o kardex mostra tipo, quantidade com sinal, saldo e situação; o par original ↔ estorno é visível', async () => {
+  it('o kardex mostra tipo, quantidade com sinal, saldo e situação; o par excluído não aparece por padrão', async () => {
     await abrirMovimentos();
-    expect(screen.getByText('Estorno da compra')).toBeTruthy();
-    expect(screen.getByText('Estornada')).toBeTruthy();
+    expect(screen.queryByText('Estorno da compra')).toBeNull();
+    expect(screen.queryByText('102')).toBeNull();
+    expect(screen.queryByText('Estornada')).toBeNull();
+    expect(screen.getAllByText('Ativa').length).toBeGreaterThan(0);
     expect(screen.getByText('− 180 L')).toBeTruthy();
     expect(screen.getByText('+ 5.000 L')).toBeTruthy();
     expect(chamadasDe('/estoque/movimentos')[0].query).toEqual({ empresa_id: 'emp-1', limit: expect.any(String) });
+  });
+
+  it('"Mostrar excluídos" pede incluir_excluidos ao servidor e marca o original "Excluído" e o estorno "Estorno da exclusão"; desligar tira de novo', async () => {
+    await abrirMovimentos();
+    backend.chamadas.length = 0;
+    await mostrarExcluidos();
+    expect(chamadasDe('/estoque/movimentos').at(-1).query).toMatchObject({ empresa_id: 'emp-1', incluir_excluidos: 'true' });
+    expect(screen.getByTestId('movimento-excluido-m2').textContent).toBe('Excluído');
+    expect(screen.getByTestId('movimento-excluido-m3').textContent).toBe('Estorno da exclusão');
+    expect(screen.queryByTestId('movimento-excluido-m5')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tirar filtro de Mostrar excluídos' }));
+    await waitFor(() => expect(screen.queryByText('Estorno da compra')).toBeNull());
+    expect(chamadasDe('/estoque/movimentos').at(-1).query.incluir_excluidos).toBeUndefined();
+  });
+
+  it('no celular o filtro "Mostrar excluídos" também traz o par, com a etiqueta no cartão', async () => {
+    celular(true);
+    await montar();
+    fireEvent.click(await screen.findByTestId('estoque-aba-movimentos'));
+    await screen.findAllByText('Diesel S10');
+    expect(screen.queryByTestId('movimento-excluido-m2')).toBeNull();
+    // no celular as pílulas entram na folha "Filtros" (o funil)
+    fireEvent.click(screen.getByTestId('b1-field-filter'));
+    const menu = await screen.findByRole('list', { name: 'Filtros' });
+    fireEvent.click(within(menu).getByRole('button', { name: /^Mostrar excluídos/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Sim' }));
+    await waitFor(() => expect(chamadasDe('/estoque/movimentos').some((c) => c.query.incluir_excluidos === 'true')).toBe(true));
+    expect((await screen.findByTestId('movimento-excluido-m2')).textContent).toBe('Excluído');
   });
 
   it('clicar num movimento abre UMA janela somente leitura (sem rodapé de gravar), com saldo, camadas e o link do documento', async () => {
@@ -198,11 +233,13 @@ describe('D-PROD-255 — Movimentos e a janela do movimento', () => {
     await waitFor(() => expect(screen.queryByTestId('janela-movimento-estoque')).toBeNull());
   });
 
-  it('o estorno mostra o movimento original no detalhe', async () => {
+  it('o estorno (com "Mostrar excluídos") mostra o movimento original no detalhe e a situação "Estorno da exclusão"', async () => {
     await abrirMovimentos();
+    await mostrarExcluidos();
     fireEvent.doubleClick(screen.getByText('103').closest('tr'));
     const janela = await screen.findByTestId('janela-movimento-estoque');
     expect((await within(janela).findByTestId('movimento-pai')).textContent).toContain('Nº 102 — Compra (500 kg)');
+    expect(within(janela).getByTestId('movimento-situacao').textContent).toBe('Estorno da exclusão');
   });
 
   it('no celular a janela ocupa a tela (b1-janela--tela-cheia)', async () => {

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-272; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-273; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,12 +9,22 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-272)
+## Missão ativa (2026-11-22) — MAIKE-ESTOQUE-EXCLUSAO-RECALCULO: exclusão com recálculo; o excluído some das telas (D-PROD-273)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-273**: o excluído some das telas; excluir com recálculo do custo médio na ordem de lançamento, saldo nunca negativo; dependentes recalculados com trilha |
+| Branch | `claude/estoque-exclusao-recalculo`, a partir da `main` `cdfb1174` |
+| Constituição | emenda **aprovada** pelo proprietário (2026-11-22) e aplicada |
+| Entregas | (1) decisão + SPEC; (2) some da tela; (3) replay + prévia + prova; (4) exclusão com recálculo |
+| Especificação | [`MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md`](./MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md) |
+
+## Missão anterior (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-272)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-272**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
-| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5`, com a `main` `cdfb1174` integrada · PR #350 (draft) |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5`, com a `main` `cdfb1174` integrada · PR #350 (mergeada em 2026-11-23) |
 | Migration | `20261120300000_estoque_ajustes` (renomeada de `20261120200000_…` para vir depois da data de término), **EXPAND** (3 tabelas novas). GO do proprietário dado ("Aprovo as duas"); aplicação pelo runbook, registro no §7 |
 | Constituição | emenda **aprovada** pelo proprietário (2026-11-20) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
 | Próxima | edição completa de entrada e saída (PR própria), pedida pelo proprietário |
