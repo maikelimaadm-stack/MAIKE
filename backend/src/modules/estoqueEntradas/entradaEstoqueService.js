@@ -56,7 +56,7 @@ import {
   normalizarExclusao,
 } from './entradaEstoqueRegras.js';
 import { exigirMotivoAtivo } from './motivoEntradaEstoqueService.js';
-import { aplicarExclusaoComRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { aplicarExclusaoComRecalculo, camadasPeloRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
 /** Teto da prova (contrato A8.3): acima dele a prova é INDETERMINADA e a exclusão é recusada (nunca varredura ilimitada). */
@@ -493,7 +493,7 @@ export const excluir = async (contexto, id, corpo) => {
               }
             },
           });
-          const peloRecalculo = new Set(planos.flatMap((p) => p.excluirIds));
+          const peloRecalculo = new Set(camadasPeloRecalculo(planos));
           await provaDeCamadaIntocada(tx, cli, itens.filter((i) => !peloRecalculo.has(i.movimentacao_estoque_id)));
           const motivoEstorno = `Exclusão da entrada ${atual.numero}: ${e.motivo}`.slice(0, 255);
           let estornos;

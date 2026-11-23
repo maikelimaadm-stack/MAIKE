@@ -41,7 +41,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
-import { aplicarExclusaoComRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { aplicarExclusaoComRecalculo, camadasPeloRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { TELAS, carregarAutorizacao, exigirTela, telaPermite } from '../../shared/auth/autorizacaoTela.js';
@@ -1613,7 +1613,7 @@ export const cancelar = async (contexto, id, corpo) => {
           : [];
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
         const estornos = await estornarEfeitosDoDocumento(tx, contexto, {
-          cli, empresaId, op, mercadorias, dia: tempo?.hoje, ...(compra ? { camadaPeloRecalculo: planos.flatMap((p) => p.excluirIds) } : {}),
+          cli, empresaId, op, mercadorias, dia: tempo?.hoje, ...(compra ? { camadaPeloRecalculo: camadasPeloRecalculo(planos) } : {}),
         });
         const recalculo = planos.length
           ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {

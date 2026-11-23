@@ -28,7 +28,7 @@ import {
   aplicarFaltaDeAjuste, aplicarSobraDeAjuste, estornarFaltaDeAjuste, estornarSobraDeAjuste, exigirLocaisEstoque, numerarMovimentos,
   numeroMovimentoProvisorio, pocoDoDeposito, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { aplicarExclusaoComRecalculo, camadasPeloRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, diaDoCorpo, listarKeyset, termoDeBusca } from '../patrimonio/patrimonioComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
@@ -374,7 +374,7 @@ export const excluir = async (contexto, id, corpo) => {
             const planos = await planejarExclusaoComRecalculo(tx, cli, {
               empresaId, movimentos: comMovimento.map((i) => ({ id: /** @type {string} */ (i.movimentacao_estoque_id), produtoId: i.produto_id, localId: i.local_estoque_id })),
             });
-            const peloRecalculo = new Set(planos.flatMap((p) => p.excluirIds));
+            const peloRecalculo = new Set(camadasPeloRecalculo(planos));
             const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
             const motivoEstorno = `Exclusão do ajuste ${atual.numero}: ${e.motivo}`.slice(0, 255);
             const sobras = comMovimento.filter((i) => i.tipo === SOBRA);

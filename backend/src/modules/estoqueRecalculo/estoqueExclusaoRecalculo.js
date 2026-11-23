@@ -61,8 +61,10 @@ const AMOSTRA = 20;
 
 /**
  * @typedef {{ produtoId: string, excluirIds: string[], posteriores: number, dispensa: null | { code: string, reason: string|null },
- *   estornoExatoSeInviavel?: boolean }} PlanoRecalculo
+ *   estornoExatoSeInviavel?: boolean, camadaIntocada?: boolean }} PlanoRecalculo
  * `dispensa`: o recálculo não é possível e a origem contorna com o estorno exato (só a trilha é gravada).
+ * `camadaIntocada` (fatia 5): as entradas do produto que têm algo depois estão com a camada intocada — o estorno da origem
+ * é o exato de sempre (a camada sai inteira pelo motor) e o recálculo, se possível, só tira o par da sequência.
  */
 
 /** Saldo negativo na simulação → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` (a recusa da SPEC §4.4). */
@@ -147,8 +149,11 @@ const comoDispensa = (erro) => ({ code: /** @type {any} */ (erro).code, reason: 
  * estorno exato de antes desta fatia, sem recalcular nada, com o motivo na trilha. Sem a opção (saída manual, cocho),
  * a mesma situação é recusa 409/422. Saldo negativo é sempre recusa.
  * D-PROD-273 (fatia 5) — `intacto(movimentoId)` (opcional, entradas): com algo depois, a entrada cuja camada continua
- * INTOCADA (ver `entradaIntocada`) segue o estorno exato de antes, sem recálculo: nada do que veio depois foi valorizado
- * com o custo dela (nenhuma reavaliação a tocou) e o motor aceita tirá-la inteira. Sem regressão para o que já passava.
+ * INTOCADA (ver `entradaIntocada`): nada do que veio depois foi valorizado com o custo dela, então o estorno exato de
+ * sempre está certo. O plano sai com `camadaIntocada` e o estorno exato como saída: o recálculo é tentado (para o par
+ * sair da sequência — senão ele fica nela e pode travar exclusões mais antigas), e QUALQUER recusa dele (inclusive saldo
+ * negativo num ponto intermediário, que o estorno exato de antes aceitava: par já cancelado no meio) vira o estorno
+ * exato, com o motivo na trilha. Sem regressão para o que já passava. A contagem de inventário depois continua recusa.
  * @param {{ empresaId: string, movimentos: Array<{ id: string, produtoId: string, localId: string }>, ignorarIds?: string[],
  *   ignorarParesNeutros?: boolean, estornoExatoSeInviavel?: boolean, teto?: number, tetoAfetados?: number,
  *   intacto?: (movimentoId: string) => Promise<boolean> }} a
@@ -171,6 +176,7 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
     const ajuste = await ajusteDepoisDe(tx, cli, a.empresaId, produtoId, movimentos.map((m) => m.id));
     if (ajuste) throw await recusaAjustePosterior(tx, cli, ajuste);
     let temDepois = false;
+    let todasIntactas = true;
     for (const m of movimentos) {
       const ref = referencias.get(m.id);
       if (!ref) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque não encontrado');
@@ -179,20 +185,21 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
         desde: { createdAt: ref.createdAt, numero: ref.numero_movimentacao }, ignorarParesNeutros: a.ignorarParesNeutros === true,
       });
       if (depois) {
-        if (a.intacto && await a.intacto(m.id)) continue;
         temDepois = true;
-        break;
+        if (!(a.intacto && await a.intacto(m.id))) todasIntactas = false;
       }
     }
     if (!temDepois) continue;
     const excluirIds = movimentos.map((m) => m.id);
-    const contorna = a.estornoExatoSeInviavel === true;
+    const camadaIntocada = Boolean(a.intacto) && todasIntactas;
+    const contorna = a.estornoExatoSeInviavel === true || camadaIntocada;
     try {
       const plano = await provarExclusaoComRecalculo(tx, cli, { empresaId: a.empresaId, produtoId, excluirIds, teto: a.teto, tetoAfetados: a.tetoAfetados });
-      planos.push({ ...plano, estornoExatoSeInviavel: contorna });
+      planos.push({ ...plano, estornoExatoSeInviavel: contorna, camadaIntocada });
     } catch (erro) {
-      if (!(contorna && ehRecusaContornavel(erro))) throw erro;
-      planos.push({ produtoId, excluirIds, posteriores: 0, dispensa: comoDispensa(erro), estornoExatoSeInviavel: true });
+      const saldoNegativoComCamadaIntocada = camadaIntocada && /** @type {any} */ (erro)?.code === 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO';
+      if (!((contorna && ehRecusaContornavel(erro)) || saldoNegativoComCamadaIntocada)) throw erro;
+      planos.push({ produtoId, excluirIds, posteriores: 0, dispensa: comoDispensa(erro), estornoExatoSeInviavel: true, camadaIntocada });
     }
   }
   return planos;
@@ -403,6 +410,13 @@ const diferencasDoMovimento = (m, r) => {
   }
   return { data, antes, depois, fatiasMudaram };
 };
+
+/**
+ * D-PROD-273 (fatia 5) — os originais cujo estorno NÃO baixa a camada (`camadaPeloRecalculo` do motor): os dos planos
+ * que vão recalcular e não têm a camada intocada.
+ * @param {PlanoRecalculo[]} planos
+ */
+export const camadasPeloRecalculo = (planos) => planos.filter((p) => !p.dispensa && !p.camadaIntocada).flatMap((p) => p.excluirIds);
 
 /**
  * DEPOIS do estorno de cada movimento planejado: marca o par, refaz a sequência e grava o recálculo (ver o topo).

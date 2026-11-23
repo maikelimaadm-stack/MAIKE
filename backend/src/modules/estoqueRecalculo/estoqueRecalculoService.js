@@ -230,17 +230,21 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
       const ajuste = await ajusteDepoisDe(tx, cli, empresaId, m.produto_id, juntos);
       if (ajuste) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, ajuste));
     }
-    // D-PROD-273 (fatia 5): entrada (documentada ou compra) com a camada intocada → o estorno exato de antes, como o serviço.
-    const entradasIntocadas = async () => m.tipo_movimentacao === 'Entrada' && (m.origem_sistema === ORIGEM_SISTEMA || ehOrigemEntradaDocumentada(m.origem_sistema))
-      && (await Promise.all(juntos.map((id) => entradaIntocada(tx, cli, id)))).every(Boolean);
-    if (m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno && juntos.length && (await nadaDepois(tx, cli, m, juntos) || await entradasIntocadas())) {
+    const ativo = m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno;
+    if (ativo && juntos.length && await nadaDepois(tx, cli, m, juntos)) {
       return { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' };
     }
-    const contorna = ORIGENS_ESTORNO_EXATO_SE_INVIAVEL.includes(m.origem_sistema) && m.tipo_movimentacao === 'Saída' && !ehEstorno;
-    const semRecalculo = (erro) => ({
-      ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato_sem_recalculo',
-      aviso: { code: erro.code, reason: erro.details?.reason ?? null },
-    });
+    // D-PROD-273 (fatia 5): entrada (documentada ou compra) com a camada intocada — como o serviço, o recálculo é tentado
+    // e qualquer recusa dele vira o estorno exato de antes (certo, porque nada foi valorizado com o custo dela).
+    const intactas = ativo && m.tipo_movimentacao === 'Entrada' && (m.origem_sistema === ORIGEM_SISTEMA || ehOrigemEntradaDocumentada(m.origem_sistema))
+      && (await Promise.all(juntos.map((id) => entradaIntocada(tx, cli, id)))).every(Boolean);
+    const contorna = (ORIGENS_ESTORNO_EXATO_SE_INVIAVEL.includes(m.origem_sistema) && m.tipo_movimentacao === 'Saída' && !ehEstorno) || intactas;
+    const semRecalculo = (erro) => (intactas
+      ? { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' }
+      : {
+        ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato_sem_recalculo',
+        aviso: { code: erro.code, reason: erro.details?.reason ?? null },
+      });
     try {
       const historico = await lerHistoricoDoProduto(tx, cli, empresaId, m.produto_id, { teto: o.teto ?? TETO_MOVIMENTOS_PRODUTO });
       const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
@@ -257,7 +261,7 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
       const dependentes = sim.permitido ? await lerDependentes(tx, cli, empresaId, sim.movimentos.map((x) => x.id)) : [];
       const { reason, ...detalhes } = sim.recusa ?? { reason: null };
       if (!sim.permitido && reason === RAZAO_AJUSTE_POSTERIOR) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, detalhes));
-      if (!sim.permitido && reason !== 'saldo_negativo' && contorna) return semRecalculo(recalculoInviavel(reason, detalhes));
+      if (!sim.permitido && (reason !== 'saldo_negativo' || intactas) && contorna) return semRecalculo(recalculoInviavel(reason, detalhes));
       return {
         movimento: resumoDoMovimento(m),
         excluidos: excluir,
@@ -279,7 +283,8 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
         gravado: false,
       };
     } catch (erro) {
-      if (contorna && ehRecusaContornavel(erro) && m.status === 'Ativa' && !m.movimento_filho_id) return semRecalculo(erro);
+      if (contorna && (ehRecusaContornavel(erro) || intactas) && /** @type {any} */ (erro)?.details?.reason !== RAZAO_AJUSTE_POSTERIOR
+        && m.status === 'Ativa' && !m.movimento_filho_id) return semRecalculo(erro);
       throw erro;
     }
   });
