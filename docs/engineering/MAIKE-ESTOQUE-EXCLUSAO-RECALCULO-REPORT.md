@@ -17,7 +17,7 @@ na **ordem em que foi lançado** (número do movimento). Emenda aprovada.
 | 1 | Decisão D-PROD-273, emenda constitucional (00 e 07), SPEC | feita |
 | 2 | "Some da tela": `incluir_excluidos` na consulta, filtro **Mostrar excluídos** no Kardex, saldo exibido sem os excluídos | feita |
 | 3 | Replay puro + prévia + prova replay = gravado (sem escrita) | feita (branch `claude/estoque-recalculo-replay`) |
-| 4 | Exclusão com recálculo — saídas | pendente |
+| 4 | Exclusão com recálculo — saídas (manual, cocho, atividade, abastecimento, venda) | feita (branch `claude/estoque-exclusao-saidas`) |
 | 5 | Exclusão com recálculo — entradas, compra, transferência, edição | pendente |
 | 6 | Reconciliação de valor + gate | pendente |
 
@@ -169,3 +169,110 @@ adivinha (recusa, nunca "ajusta"):
 - Rodar `scripts/ops/replay-estoque-custo-medio.mjs` sobre os dados reais (leitura) e tratar cada
   `com_divergencia` / `nao_reproduzivel` antes da fatia 4.
 - Fatia 4: exclusão das saídas usando esta simulação dentro da transação, sob a trava do produto.
+
+## Fatia 4 — exclusão com recálculo das SAÍDAS
+
+**Origens:** saída manual (`saidaEstoqueService.excluir`), cocho (cancelamento do lançamento), linha de produto da
+atividade (cancelar a linha, e as cascatas de cancelar o apontamento/atividade; **não** a edição da linha),
+abastecimento (cancelar, direto e em cascata) e venda do financeiro (`operacaoFinanceira` **cancelar**, só
+`RECEBER`). Entradas, compra, transferência, ajuste, edição D-PROD-271, `excluirConfirmado` e a retificação do
+financeiro continuam com a regra de antes (fatia 5).
+
+**Desenho.** Módulo novo `backend/src/modules/estoqueRecalculo/estoqueExclusaoRecalculo.js`, chamado pelo serviço de
+cada origem, sob as travas na ordem de sempre (cocho e áreas antes da trava do produto):
+
+1. `planejarExclusaoComRecalculo` — ANTES do estorno. Por produto, a mesma consulta de hoje
+   (`buscarMovimentoPosterior`; no cocho descontando os pares neutros; na saída manual ignorando os estornos
+   substituídos da D-PROD-271; os pares já excluídos com recálculo nunca contam como "depois"). Nada depois →
+   plano vazio e o **estorno exato de sempre, sem mudança**. Algo depois → lê o histórico (tetos 20.000 / 5.000 →
+   422), exige replay sem exclusão = gravado (senão 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`), simula a sequência
+   sem o movimento (saldo < 0 → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`; numa saída não acontece) e só então segue.
+2. O estorno exato de hoje (o par original/estorno some das telas — fatia 2).
+3. `aplicarExclusaoComRecalculo` — marca o par em `movimentacao_grupo_id = 'exclusao_recalculo:<id do original>'`
+   (coluna existente e sem uso; **sem migration**), relê o histórico e refaz a sequência com o par fora dela. Grava
+   só o que mudou, com CAS sobre o lido: valores, saldos, médios (só onde o motor os grava) e `lotes_consumidos` dos
+   posteriores, em todos os depósitos (cascata pela transferência); o bloco `[RATEIO_FIFO]` das observações
+   (cocho e transferência) quando as fatias mudam; as camadas (disponível, custo, situação, entrada). Dependentes:
+   `SaidaEstoqueItem` (custo e valor), `AtividadeApontamentoProduto` e `AbastecimentoBem` (custo unitário e total) e as
+   fatias `*ConsumoLote` deles, `OperacaoFinanceiraConsumoLote` (o preço de venda não muda) e o custo do fechamento do
+   cocho em `SuplementacaoEvento.dados`. Trilha: um `AuditLog` `estoque.recalculo` por registro reescrito (antes →
+   depois, autor do `auth_context`, motivo, `movimentos_excluidos`, `origem`) e um resumo por produto. No fim relê
+   tudo e exige replay = gravado; qualquer diferença desfaz a transação inteira (409 `recalculo_nao_confere`).
+
+**Replay (fatia 3, ajustado).** O par marcado fica fora da sequência (marca incoerente = não reproduzível). Na
+transferência cujas fatias mudam: a camada de destino gravada na mesma posição é reaproveitada se a camada de origem
+é a mesma (a quantidade de entrada pode mudar); senão nasce uma nova (id no formato do cuid, para o desempate FIFO por
+id seguir a ordem de criação), e a gravada que sobrou fica `Estornado` com disponível 0 — **nenhuma camada é apagada**.
+As fatias `*ConsumoLote` seguem as fatias novas: a linha da mesma camada é atualizada, a que falta é criada e a de
+camada que deixou de ser consumida é removida (a camada fica; o antes completo vai para a trilha).
+
+**Cocho (`SuplementacaoEvento.dados`).** O cálculo do custo do fechamento era só da tela; foi portado para o servidor
+(`backend/src/modules/suplementacaoEventos/fechamentoCustoCocho.js`, mesma aritmética em Number e mesmos
+arredondamentos de `calcularFechamentoConsumo`; o smoke `estoqueExclusaoRecalculoCocho` compara os dois nos cinco
+caminhos: camadas herdadas, custo do anterior, aproximado, sem sobra, legado). Para cada cocho tocado, a cadeia de
+lançamentos ativos é percorrida em ordem: o custo/kg da saída muda e, se o período está fechado, o fechamento é
+**primeiro refeito com os dados de antes e tem de bater com o gravado** (senão 409 `cocho_fechamento_nao_reproduzivel`)
+e só então refeito com o custo novo; o lançamento seguinte herda as camadas novas da sobra. Os cochos de outros
+pontos são travados sem esperar (`pg_try_advisory_xact_lock`; ocupado → 409 `CONCURRENCY_CONFLICT`), porque a trava do
+cocho vem antes da do produto e quem já segura o produto não pode esperar por ela.
+
+**Kardex e histórico do depósito.** O par recalculado some como qualquer par excluído, mas **não desconta** o saldo
+(os saldos de quem veio depois já foram regravados sem ele): servidor (`estoqueConsultaService`) e tela
+(`src/lib/estoqueSaldoSemExcluidos.js`).
+
+**Frontend.** Componente `src/components/estoque/PreviaRecalculoExclusao.jsx` (chama a prévia que já existe) nas
+janelas de exclusão: saída manual (`JanelaSaidaEstoque`), cocho (`CancelarLancamentoCocho`, que também lista o
+`efeitos.recalculo` do ensaio do servidor), linha de produto (`DialogoCancelarLinha`), abastecimento
+(`DialogoCancelarAbastecimento`) e venda (`LancamentosFinanceirosTela`, diálogo Cancelar). Mostra "Nada foi lançado
+depois: o estorno devolve o valor exato" ou "X movimentos posteriores terão o custo recalculado" com até 5 linhas
+"Nº · tipo · antes → depois" (no celular as linhas quebram, sem rolagem lateral). Recusas do recálculo com frase
+clara em todas as origens (`mensagemRecalculoDaExclusao` em `gestaoErros`, usada pela saída, abastecimento,
+atividade, financeiro e cocho). Os textos que diziam "só se nada mexeu depois" foram trocados.
+
+### Decisões de implementação (dentro da D-PROD-273) — para o dono conferir
+
+1. **Marca do par em `movimentacao_grupo_id`** (coluna legada sem uso em todo o código), para não precisar de
+   migration. Sem a marca, o replay não saberia que os posteriores foram regravados sem o par.
+2. **Histórico que não reproduz o gravado** (saldo importado sem movimento, lançamento fora do protocolo):
+   saída manual e cocho **recusam** (409, antes também recusavam por "movimento posterior"); abastecimento, atividade
+   e venda — que até aqui estornavam pelo valor exato mesmo com movimento depois — **continuam com o estorno exato,
+   sem recalcular** (`estornoExatoSeIrreproduzivel`), para não travar o que hoje funciona. Se o dono preferir a
+   recusa também nesses, é tirar a opção.
+3. Fatia de dependente (`*ConsumoLote`) de camada que deixou de ser consumida é **removida** (a camada nunca);
+   o CHECK `quantidade > 0` não deixa zerar. O antes completo fica na trilha.
+4. Camada esgotada sem reavaliação guarda o custo dela (é a regra do motor: a reavaliação só toca o disponível).
+5. Saída legada FIFO em depósito afetado passa a médio no valor, mas `modo_saida_fifo` não muda (mudar mexeria no
+   corte da era FIFO das outras).
+6. O resultado da exclusão traz `recalculo: { produtos, movimentos, camadas, dependentes }` (saída manual, cocho e o
+   ensaio de elegibilidade do cocho; financeiro na auditoria).
+
+### Validação (PG 17, banco `maike_rx4`)
+
+VALIDACAO_FATIA4
+
+### Testes PG novos (`backend/tests/estoqueExclusaoRecalculoSaidas.test.mjs`, números à mão)
+
+Base: A recebe 100 kg a R$ 4 (L1) e 100 kg a R$ 6 (L2); S1 tira 50 a R$ 5; entram 50 a R$ 9; S2 tira 80 a R$ 6 =
+R$ 480 (L1 50 + L2 30). Excluir S1: 250 kg a R$ 5,8; S2 = 80 × 5,8 = **R$ 464** (só L1 80), saldo 200→250 / 120→170.
+
+| Cenário | Resultado |
+|---|---|
+| Saída manual | S2 464, fatias L1 80, entrada do meio 150→200, camadas L1 20 / L2 100 / L3 50 a 5,8; `SaidaEstoqueItem` 480→464; trilha; kardex sem desconto duplo; excluir depois a S2 (agora a última) = estorno exato, sem recálculo |
+| Cocho (o caso do dono) | excluir o cocho 1 (50 kg): cocho 2 480→464, cocho 3 120→116, cocho 4 60→58; fechamento do cocho 2 R$ 420→406 (8,4→8,12 cab/dia, sobra 10 kg a 5,8), do cocho 3 (herdou a sobra) R$ 150→145 (3→2,9), lançamento aberto 6→5,8; ensaio de elegibilidade já mostra o recálculo sem gravar |
+| Linha de atividade | linha posterior 480→464, fatias (L1 50 + L2 30) → (L1 80): a fatia da L2 sai, a da L1 é atualizada (mesmo id) |
+| Abastecimento (diesel, L) | `AbastecimentoBem` 480→464, fatias → L1 80; a camada L2 continua |
+| Venda | fatias do item 6→5,8 (L1 80); preço de venda igual (12 × 80 = 960) |
+| Cascata | A: 50 a 2 (L1), 100 a 5 (L2); S1 50; entram 50 a 10; T 80 A→B a 6 = 480 (L2); venda 30 no B a 6. Excluir S1: T 440 (L1 50 + L2 30, médio 5,5), duas camadas novas no B, a antiga `Estornado`, venda 165 na camada nova |
+| Concorrência | trava do produto segura de fora, duas exclusões na fila: as duas passam em sequência; S3 = 80 × 5,8 = 464; dois pares marcados |
+
+Em todos: `auditarReplayDoProduto` sem divergência antes e depois.
+
+### Riscos e próximos passos
+
+- Transação: o abastecimento e a linha da atividade usam a transação curta (9 s); um produto com milhares de
+  movimentos depois pode estourar o tempo (a transação volta inteira; nada fica pela metade). Os tetos (5.000
+  posteriores) valem; medir em produção.
+- O custo do fechamento do cocho só é refeito quando reproduz o gravado; eventos antigos com fechamento feito à mão
+  ou fora da conta da tela recusam a exclusão (409 com o `evento_id`).
+- Fatia 5: entradas, compra, transferência e edição D-PROD-271 com a mesma maquinaria (prova de saldo ≥ 0 e
+  reatribuição de camadas nos estornos de entrada).

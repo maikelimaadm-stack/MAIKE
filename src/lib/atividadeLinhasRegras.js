@@ -49,7 +49,7 @@ import {
   rotuloDoBem,
   unidadeDoAbastecimentoDoProduto,
 } from './abastecimentoRegras.js';
-import { lerErroGestao } from './gestaoErros.js';
+import { lerErroGestao, mensagemRecalculoDaExclusao } from './gestaoErros.js';
 import {
   LIMITES_DECIMAL_ATIVIDADE,
   LOCALE_ATIVIDADE,
@@ -1233,6 +1233,9 @@ const comUnidade = (v, u) => `${formatarDecimalLinha(v) || String(v ?? '')}${u ?
  */
 export const mensagemDeErroLinha = (erro, fallback, ctx = {}) => {
   const { code, field, reason, details } = lerErroGestao(erro);
+  // D-PROD-273 (fatia 4): recusas do recálculo do que veio depois (cancelamento da linha de produto).
+  const recalculo = mensagemRecalculoDaExclusao(code, reason, details);
+  if (recalculo) return recalculo;
   const u = rotuloDaUnidade(details.unidade) || rotuloDaUnidade(ctx.unidade) || '';
   const um = rotuloDaUnidadeDoMedidor(null, details.medidor_unidade) || texto(ctx.medidorUnidade);
   switch (code) {

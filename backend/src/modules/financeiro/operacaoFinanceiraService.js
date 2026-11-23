@@ -1599,7 +1599,7 @@ export const cancelar = async (contexto, id, corpo) => {
         // A compra (entrada) continua com a regra de hoje (fatia 5).
         const comMovimento = mercadorias.filter((i) => i.movimentacao_estoque_id);
         const planos = op.direcao !== 'PAGAR' && comMovimento.length
-          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })) })
+          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeIrreproduzivel: true })
           : [];
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
         const estornos = await estornarEfeitosDoDocumento(tx, contexto, { cli, empresaId, op, mercadorias, dia: tempo?.hoje });

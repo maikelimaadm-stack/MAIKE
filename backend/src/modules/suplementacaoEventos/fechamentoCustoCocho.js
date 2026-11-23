@@ -182,7 +182,9 @@ export const recalcularCustosDosCochos = (eventos, custos) => {
         novo = { ...d, custo_unitario_kg: custoDepois };
       }
       if (canonico(novo) !== canonico(d)) {
+        /** @type {Record<string, unknown>} */
         const antes = {};
+        /** @type {Record<string, unknown>} */
         const depois = {};
         for (const k of CAMPOS_CUSTO_FECHAMENTO) {
           if (canonico(d[k]) !== canonico(novo[k])) {

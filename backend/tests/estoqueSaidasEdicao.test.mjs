@@ -175,7 +175,7 @@ describe('D-PROD-271 — substituição da saída: quantidade, produto, depósit
 });
 
 describe('D-PROD-271 — "se nada mexeu depois", versão e idempotência', () => {
-  test('outro movimento do produto no depósito depois da saída → 409 SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR (a mesma recusa da exclusão); nada muda', async () => {
+  test('outro movimento do produto no depósito depois da saída → a EDIÇÃO recusa 409 SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR e nada muda; a exclusão recalcula (D-PROD-273, fatia 4)', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     const s = await sair(x);
@@ -184,9 +184,11 @@ describe('D-PROD-271 — "se nada mexeu depois", versão e idempotência', () =>
     const r = await editar(x, s, {}, [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '10' }]);
     assert.deepEqual([r.statusCode, r.json().code, razao(r), r.json().details?.item_ordem], [409, 'SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR', 'movimento_posterior', 1], r.body);
     assert.match(r.json().message, /a edição não é possível/);
-    const ex = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
-    assert.deepEqual([ex.json().code, razao(ex)], [r.json().code, razao(r)]);
     assert.deepEqual(await fotografia(x, s.id), antes);
+    // D-PROD-273 (fatia 4): a EXCLUSÃO, essa sim, passa e recalcula o que veio depois; a edição continua recusando (fatia 5)
+    const ex = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
+    assert.equal(ex.statusCode, 200, ex.body);
+    assert.equal(ex.json().recalculo.produtos, 1);
   });
 
   test('versão desatualizada → 409 VERSAO_CONFLITO; saída excluída → 409 STATUS_INVALIDO; nada muda', async () => {
@@ -275,7 +277,7 @@ describe('D-PROD-271 — METADADOS pela versão completa, tenant, permissão e e
     await reconciliacaoLimpa(x);
   });
 
-  test('empate de createdAt entre o estorno da linha substituída e a linha nova (mesmo milissegundo) não trava a exclusão; um movimento de fato posterior continua travando', async () => {
+  test('empate de createdAt entre o estorno da linha substituída e a linha nova (mesmo milissegundo) não trava a exclusão; um movimento de fato posterior trava a edição e, na exclusão, é recalculado (D-PROD-273)', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     const s = await sair(x);
@@ -285,13 +287,18 @@ describe('D-PROD-271 — METADADOS pela versão completa, tenant, permissão e e
     const nova = await movimento(r.json().itens[0].movimentacao_estoque_id);
     await prisma().movimentacaoEstoque.update({ where: { id: ev.snapshot_novo.estornos[0] }, data: { createdAt: nova.createdAt } });
     const outra = await sair(x, {}, [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '1' }]);
-    const travada = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 2, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
+    // a edição com um movimento de fato posterior continua travada (regra da D-PROD-271, fatia 5)
+    const travada = await editar(x, { ...s, versao: 2 }, {}, [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '21' }]);
     assert.deepEqual([travada.statusCode, travada.json().code], [409, 'SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR'], travada.body);
+    // D-PROD-273 (fatia 4): a exclusão com o posterior de fato passa e recalcula; o estorno empatado da linha
+    // substituída não conta como "depois" (nem no plano do recálculo)
+    const exclusao = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 2, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
+    assert.equal(exclusao.statusCode, 200, exclusao.body);
+    assert.equal(exclusao.json().recalculo.produtos, 1);
     const exOutra = await chamar('POST', `/estoque/saidas/${outra.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
     assert.equal(exOutra.statusCode, 200, exOutra.body);
-    // o estorno da saída `outra` é posterior de fato: ainda trava
-    const aindaTravada = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 2, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
-    assert.equal(aindaTravada.json().code, 'SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR', aindaTravada.body);
+    assert.equal(exOutra.json().recalculo, null, 'a última: estorno exato');
+    await reconciliacaoLimpa(x);
     const y = await cenario();
     await entrar(y, y.ureia, '100', '3');
     const t = await sair(y);

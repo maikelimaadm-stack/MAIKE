@@ -423,6 +423,32 @@ const mensagemLancamento = (code, field, reason, details, c) => {
   }
 };
 
+const INVIAVEL_RECALCULO = /** @type {Record<string, string>} */ ({
+  movimento_ja_excluido: 'Este movimento já foi excluído.',
+  movimento_e_estorno: 'Este movimento é o estorno de outro; exclua o original.',
+  origem_nao_suportada: 'A exclusão com recálculo deste tipo de movimento ainda não está disponível.',
+  historico_nao_reproduzivel: 'O histórico deste produto tem movimentos que o sistema não sabe recalcular (saldo importado ou lançamento antigo).',
+  replay_diverge_do_gravado: 'Os valores gravados deste produto não batem com o recálculo; a exclusão foi bloqueada por segurança.',
+  cocho_fechamento_nao_reproduzivel: 'O custo do fechamento de um lançamento de cocho posterior não pôde ser refeito com segurança.',
+  cocho_custo_divergente_do_movimento: 'O custo gravado num lançamento de cocho posterior não bate com a saída de estoque dele.',
+  reatribuicao_de_camada: 'Um movimento posterior teria de trocar de lote de forma que esta versão ainda não faz.',
+  recalculo_nao_confere: 'O recálculo não fechou com o gravado.',
+});
+
+/**
+ * D-PROD-273 (fatia 4) — recusas da exclusão com recálculo (iguais em todas as origens de saída): mensagem clara,
+ * ou null para outro código.
+ * @param {string|null} code @param {string|null} reason @param {Record<string, any>} details
+ */
+export const mensagemRecalculoDaExclusao = (code, reason, details = {}) => {
+  if (code === 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO') {
+    return `Sem este movimento o saldo do depósito ficaria negativo${details.movimento_numero != null ? ` no movimento nº ${details.movimento_numero}` : ''}. A exclusão não é possível. Nada foi alterado.`;
+  }
+  if (code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO') return 'Há movimentos demais deste produto depois deste para recalcular de uma vez. Procure o suporte. Nada foi alterado.';
+  if (code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL') return `${INVIAVEL_RECALCULO[String(reason)] ?? 'A exclusão com recálculo não é segura para este movimento.'} Nada foi alterado.`;
+  return null;
+};
+
 /**
  * Mensagem clara por código. Nunca devolve vazio; código desconhecido cai na
  * mensagem pública do `ApiError` (catálogo local) ou no fallback.
@@ -432,6 +458,9 @@ const mensagemLancamento = (code, field, reason, details, c) => {
  */
 export const mensagemErroGestao = (erro, fallback, contexto = {}) => {
   const { code, field, reason, details } = lerErroGestao(erro);
+  // D-PROD-273 (fatia 4): recusas da exclusão com recálculo (venda do financeiro e as outras saídas).
+  const recalculo = mensagemRecalculoDaExclusao(code, reason, details);
+  if (recalculo) return recalculo;
   const doLancamento = mensagemLancamento(code, field, reason, { ...details, motivos: motivosDoErro(erro) }, contexto);
   if (doLancamento) return doLancamento;
   switch (code) {

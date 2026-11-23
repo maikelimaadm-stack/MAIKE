@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { http, prisma } from './patrimonioP1Cenario.mjs';
 import { acoesAbastecimento, corpoAbastecimento, montarAbastecimento, opId } from './patrimonioP1AbastecimentoCenario.mjs';
-import { exigirLocaisEstoque, estornarSaidaSuplementacao, numerarMovimentos, numeroMovimentoProvisorio } from '../src/modules/estoqueFisico/estoqueFisicoMotor.js';
+import { estornarEmLote, exigirLocaisEstoque, estornarSaidaSuplementacao, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque } from '../src/modules/estoqueFisico/estoqueFisicoMotor.js';
 import { auditarReplayDoProduto, previaExclusao } from '../src/modules/estoqueRecalculo/estoqueRecalculoService.js';
 import { emLeituraSomente, lerHistoricoDoProduto } from '../src/modules/estoqueRecalculo/estoqueRecalculoLeitor.js';
 import { reproduzir } from '../src/modules/estoqueRecalculo/estoqueReplay.js';
@@ -239,14 +239,24 @@ describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reai
 });
 
 describe('D-PROD-273 fatia 3 — estorno em lote do financeiro', () => {
-  test('cancelar uma venda de duas linhas no mesmo depósito reavalia o poço UMA vez no fim (5,3640; item a item daria 5,3641) e o replay reproduz', async () => {
+  test('estornar em lote uma venda de duas linhas no mesmo depósito reavalia o poço UMA vez no fim (5,3640; item a item daria 5,3641) e o replay reproduz', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '52', '6.31');
     await entrar(x, x.sal, A, '31', '2.78');
     const venda = await vender(x, [[x.sal, A, '3', '9'], [x.sal, A, '7', '9']]);
     await entrar(x, x.sal, A, '29', '6.43');
-    await cancelarOperacao(x, venda.id);
+    // D-PROD-273 (fatia 4): pelo serviço, este cancelamento (com a entrada depois) passaria a RECALCULAR; aqui o estorno
+    // em lote é o da regra antiga (pares antigos de produção), pela primitiva do motor, como o serviço chamava.
+    await prisma().$transaction(async (tx) => {
+      await travarProdutosEstoque(tx, x.c, x.e1.id, [x.sal.id]);
+      const itens = await tx.operacaoFinanceiraItem.findMany({ where: { cliente_id: x.c, operacao_id: venda.id, tipo_item: 'MERCADORIA' }, orderBy: { ordem: 'asc' }, include: { consumos: true } });
+      const estornos = await estornarEmLote(tx, x.ctx, {
+        empresaId: x.e1.id, direcao: 'RECEBER', itens, dia: '2027-06-15', documento: { numero: venda.numero, data: '2027-06-10' },
+        parceiro: { id: venda.parceiro_id, nome: null }, origem: { operacaoId: venda.id }, numeroMovimento: numeroMovimentoProvisorio,
+      });
+      await numerarMovimentos(tx, x.c, estornos);
+    });
     const camadas = await prisma().estoqueLoteNota.findMany({ where: { cliente_id: x.c, produto_id: x.sal.id, status: 'Disponivel' } });
     assert.deepEqual([...new Set(camadas.map((l) => l.custo_unitario.toFixed(4)))], ['5.3640']);
     await provarReplay(x, x.sal);

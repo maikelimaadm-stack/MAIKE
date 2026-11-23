@@ -98,8 +98,12 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
  * movimento DEPOIS no depósito dele (`buscarMovimentoPosterior`, ignorando os próprios excluídos e `ignorarIds`),
  * prova e devolve o plano do recálculo. Produto sem nada depois fica fora (o estorno exato de hoje vale).
  * @param {any} tx @param {string} cli
+ * `estornoExatoSeIrreproduzivel` (abastecimento, atividade e venda — as origens que já estornavam pelo valor exato
+ * mesmo com movimento depois): quando o histórico do produto NÃO reproduz o gravado (saldo importado sem movimento,
+ * lançamento fora do protocolo), o recálculo não é possível e o produto fica fora do plano — vale o estorno exato de
+ * antes desta fatia, sem recalcular nada. Sem a opção (saída manual, cocho), a mesma situação é recusa 409.
  * @param {{ empresaId: string, movimentos: Array<{ id: string, produtoId: string, localId: string }>, ignorarIds?: string[],
- *   ignorarParesNeutros?: boolean, teto?: number, tetoAfetados?: number }} a
+ *   ignorarParesNeutros?: boolean, estornoExatoSeIrreproduzivel?: boolean, teto?: number, tetoAfetados?: number }} a
  * @returns {Promise<PlanoRecalculo[]>}
  */
 export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
@@ -130,7 +134,13 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
       }
     }
     if (!temDepois) continue;
-    planos.push(await provarExclusaoComRecalculo(tx, cli, { empresaId: a.empresaId, produtoId, excluirIds: movimentos.map((m) => m.id), teto: a.teto, tetoAfetados: a.tetoAfetados }));
+    try {
+      planos.push(await provarExclusaoComRecalculo(tx, cli, { empresaId: a.empresaId, produtoId, excluirIds: movimentos.map((m) => m.id), teto: a.teto, tetoAfetados: a.tetoAfetados }));
+    } catch (erro) {
+      const e = /** @type {any} */ (erro);
+      const irreproduzivel = e instanceof AppError && e.code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL' && ['historico_nao_reproduzivel', 'replay_diverge_do_gravado'].includes(String(e.details?.reason));
+      if (!(a.estornoExatoSeIrreproduzivel === true && irreproduzivel)) throw erro;
+    }
   }
   return planos;
 };
@@ -326,7 +336,7 @@ const diferencasDoMovimento = (m, r) => {
 
 /**
  * DEPOIS do estorno de cada movimento planejado: marca o par, refaz a sequência e grava o recálculo (ver o topo).
- * @param {any} tx @param {{ requestId?: string, auth: any }} contexto
+ * @param {any} tx @param {any} contexto `{ requestId, auth }` de quem chama (o autor da trilha)
  * @param {PlanoRecalculo[]} planos
  * @param {{ empresaId: string, estornos: Map<string, string>, motivo: string, origem: string }} a
  *   `estornos`: id do original → id do estorno lançado agora

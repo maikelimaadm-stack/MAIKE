@@ -661,7 +661,7 @@ const cancelarAbastecimentoTravado = async (tx, contexto, { cli, empresaId, ante
     if (!local) throw new Error('abastecimento: local de estoque do abastecimento ausente');
     // D-PROD-273 (fatia 4): com outro movimento do produto no depósito depois do abastecimento, o cancelamento
     // recalcula o custo médio do que veio depois (prova antes do estorno; recálculo e dependentes depois dele).
-    const planos = await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: [{ id: orig.id, produtoId: antes.produto_id, localId: local.id }] });
+    const planos = await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: [{ id: orig.id, produtoId: antes.produto_id, localId: local.id }], estornoExatoSeIrreproduzivel: true });
     let estorno;
     try {
       estorno = await estornarSaida(tx, contexto, {

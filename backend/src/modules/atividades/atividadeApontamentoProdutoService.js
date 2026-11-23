@@ -451,7 +451,7 @@ export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade
     if (!fatias.length || !somar(fatias.map((/** @type {any} */ f) => f.quantidade)).eq(dec(linha.quantidade))) throw atividadeEstornoBloqueado('fatias_inconsistentes', base);
   }
   const planos = recalcular
-    ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: linhas.map((l) => ({ id: l.movimentacao_estoque_id, produtoId: l.produto_id, localId: l.local_estoque_id })) })
+    ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: linhas.map((l) => ({ id: l.movimentacao_estoque_id, produtoId: l.produto_id, localId: l.local_estoque_id })), estornoExatoSeIrreproduzivel: true })
     : [];
   let estornos;
   try {

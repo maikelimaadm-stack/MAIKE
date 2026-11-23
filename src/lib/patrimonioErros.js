@@ -17,7 +17,7 @@
  */
 
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
-import { lerErroGestao } from '@/lib/gestaoErros';
+import { lerErroGestao, mensagemRecalculoDaExclusao } from '@/lib/gestaoErros';
 import { MAX_PRODUTOS_POR_TANQUE, ROTULO_NATUREZA, ROTULO_UNIDADE_ESTOQUE } from '@/lib/patrimonioDominio';
 import { formatarNumero } from '@/lib/dinheiroDecimal';
 import { formatarDia } from '@/lib/diaCivil';
@@ -340,6 +340,9 @@ const MOTIVO_CANCELAMENTO_BLOQUEADO = /** @type {Record<string, string>} */ ({
  */
 export const mensagemErroAbastecimento = (erro, fallback) => {
   const { code, field, reason, details } = lerErroGestao(erro);
+  // D-PROD-273 (fatia 4): recusas do recálculo do que veio depois (cancelamento com movimento posterior).
+  const recalculo = mensagemRecalculoDaExclusao(code, reason, details);
+  if (recalculo) return recalculo;
   switch (code) {
     case 'ABASTECIMENTO_NAO_ENCONTRADO':
       return 'Abastecimento não encontrado nesta fazenda. A lista será atualizada.';

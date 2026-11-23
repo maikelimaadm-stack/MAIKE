@@ -73,7 +73,7 @@ describe('FE6 — cancelamento', () => {
     expect(within(dialogo).getByTestId('cancelamento-aviso-medidor')).toHaveTextContent(
       'A leitura operacional do medidor passará de 1.550,5 h (10/06/2026) para a leitura do cadastro, 1.520,5 h (01/06/2026).',
     );
-    expect(dialogo).toHaveTextContent('O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem (80,0000 L de Diesel S10 granel)');
+    expect(dialogo).toHaveTextContent('O cancelamento estorna a baixa: o estoque volta aos lotes de origem (80,0000 L de Diesel S10 granel); se houve outros movimentos do produto no depósito depois, o custo médio deles é recalculado.');
     const enviar = within(dialogo).getByTestId('cancelamento-enviar');
     expect(enviar).toBeDisabled();
     fireEvent.change(within(dialogo).getByTestId('cancelamento-motivo'), { target: { value: 'ab' } });
