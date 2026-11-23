@@ -344,7 +344,8 @@ export function iniciarMovimentoBase1() {
     const H = r.height;
     const T = toque;
     const recente = Boolean(T) && Date.now() - (T?.t ?? 0) < 900;
-    const focado = document.activeElement;
+    const gatilho = p.id ? Array.from(document.querySelectorAll('[aria-controls]')).find((botao) => botao.getAttribute("aria-controls") === p.id) : null;
+    const focado = gatilho || document.activeElement;
     const ativo = focado && focado !== document.body && !p.contains(focado) ? focado.getBoundingClientRect() : null;
     /** @type {Caixa | null} */
     let g = recente && T ? T.r || { left: T.x - 16, right: T.x + 16, top: T.y - 16, bottom: T.y + 16 } : ativo && ativo.width ? ativo : null;
@@ -357,13 +358,16 @@ export function iniciarMovimentoBase1() {
     /** @type {HTMLElement} */ (p).style.transformOrigin = `${Math.round(F.ox)}px ${Math.round(F.oy)}px`;
     p.setAttribute("data-mk-abre", "");
     const fluido = p.matches(".mg-mais-opcoes");
-    // Mais opções: o contorno se expande com uma mola leve; o texto entra depois,
-    // sem desfocar a lista. Não anima width/height nem recalcula a posição do Radix.
+    // FLIP: a superfície inteira parte do retângulo REAL do botão (mesmo fora
+    // do painel), vira uma gota e se acomoda. O conteúdo só aparece depois.
+    const estilo = getComputedStyle(p);
+    const origemLiquida = `translate(${px(geo.l)}, ${px(geo.t)}) scale(${Math.max(1, g.right - g.left) / W}, ${Math.max(1, g.bottom - g.top) / H})`;
+    if (fluido) /** @type {HTMLElement} */ (p).style.transformOrigin = "0px 0px";
     const quadrosFluidos = [
-      { offset: 0, clipPath: F.ini, opacity: 0.7, transform: "scale(1, .95)", borderRadius: "25px", easing: "cubic-bezier(.19, 1.22, .20, 1)" },
-      { offset: 0.36, clipPath: F.cheio, opacity: 1, transform: "scale(1.013, 1.025)", borderRadius: "25px", easing: "cubic-bezier(.23, .89, .3, 1)" },
-      { offset: 0.66, clipPath: F.fora, opacity: 1, transform: "scale(.995, .989)", borderRadius: getComputedStyle(p).borderTopLeftRadius, easing: "ease-out" },
-      { offset: 1, clipPath: F.fora, opacity: 1, transform: "scale(1)", borderRadius: getComputedStyle(p).borderTopLeftRadius },
+      { offset: 0, clipPath: "none", opacity: 1, transform: origemLiquida, borderRadius: "50%", easing: "cubic-bezier(.19, 1.22, .20, 1)" },
+      { offset: 0.42, clipPath: "none", opacity: 1, transform: "translate(-2px, -2px) scale(1.02, 1.04)", borderRadius: "28px 34px 25px 30px", easing: "cubic-bezier(.23, .89, .3, 1)" },
+      { offset: 0.7, clipPath: "none", opacity: 1, transform: "translate(1px, 1px) scale(.994, .985)", borderRadius: "24px 21px 25px 22px", easing: "ease-out" },
+      { offset: 1, clipPath: "none", opacity: 1, transform: "translate(0px, 0px) scale(1)", borderRadius: estilo.borderTopLeftRadius },
     ];
     const a = anima(
       p,
@@ -381,7 +385,7 @@ export function iniciarMovimentoBase1() {
         anima(conteudo, [
           { opacity: 0, transform: "translate3d(12px, -11px, 0) scale(.97)" },
           { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
-        ], { delay: 150, duration: 420, easing: "cubic-bezier(.18, 1.18, .26, 1)", fill: "backwards" });
+        ], { delay: 200, duration: 360, easing: "cubic-bezier(.18, 1.18, .26, 1)", fill: "backwards" });
       });
     } else if (!solto) {
       anima(
@@ -450,10 +454,18 @@ export function iniciarMovimentoBase1() {
       const r = p.getBoundingClientRect();
       if (geo && r.width && r.height && typeof p.animate === "function") {
         const F = formas(p, geo, r.width, r.height);
-        /** @type {HTMLElement} */ (p).style.transformOrigin = `${Math.round(F.ox)}px ${Math.round(F.oy)}px`;
+        const liquido = p.matches(".mg-mais-opcoes");
+        /** @type {HTMLElement} */ (p).style.transformOrigin = liquido ? "0px 0px" : `${Math.round(F.ox)}px ${Math.round(F.oy)}px`;
+        if (liquido) Array.from(p.children).forEach((conteudo) => {
+          anima(conteudo, [{ opacity: 1 }, { opacity: 0 }], { duration: 90, fill: "forwards" });
+        });
         anima(
           p,
-          [
+          liquido ? [
+            { offset: 0, transform: "translate(0px, 0px) scale(1)", borderRadius: getComputedStyle(p).borderTopLeftRadius, opacity: 1 },
+            { offset: 0.2, transform: "translate(-1px, -1px) scale(1.015, 1.025)", borderRadius: "28px", opacity: 1 },
+            { offset: 1, transform: `translate(${px(geo.l)}, ${px(geo.t)}) scale(${Math.max(1, geo.r - geo.l) / r.width}, ${Math.max(1, geo.b - geo.t) / r.height})`, borderRadius: "50%", opacity: 0 },
+          ] : [
             { offset: 0, clipPath: F.fora, opacity: 1, transform: "scale(1)" },
             { offset: 0.2, clipPath: F.cheio, opacity: 1 },
             { offset: 1, clipPath: F.ini, opacity: 0, transform: "scale(.96)" },

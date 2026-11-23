@@ -166,7 +166,8 @@ describe("movimento do design no motor Base1 (6.32)", () => {
   it.each([false, true])("Mais opções: expansão fluida e saída inerte; reduzir movimento=%s", async (reduzir) => {
     consultas(reduzir ? ["(prefers-reduced-motion: reduce)"] : []);
     desligar = ligarMovimentoBase1();
-    document.body.innerHTML = '<div class="cadastro-b1 cadastro-b1--full-page"></div>';
+    document.body.innerHTML = '<div class="cadastro-b1 cadastro-b1--full-page"><button aria-controls="opcoes-liquidas">Mais opções</button></div>';
+    retangulo(document.querySelector("button"), { left: 300, top: 20, width: 40, height: 40 });
     const original = Element.prototype.getBoundingClientRect;
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
       return this.classList?.contains("mg-mais-opcoes")
@@ -177,6 +178,7 @@ describe("movimento do design no motor Base1 (6.32)", () => {
     inv.setAttribute("data-radix-popper-content-wrapper", "");
     inv.innerHTML = '<div class="cadastro-b1 mg-mais-opcoes" style="border-radius:18px"><div role="menu"><button role="menuitem">Configurar</button></div></div>';
     const painel = inv.firstElementChild;
+    painel.id = "opcoes-liquidas";
     retangulo(painel, { left: 100, top: 80, width: 240, height: 280 });
     await act(async () => { document.body.appendChild(inv); await Promise.resolve(); });
     if (reduzir) {
@@ -184,8 +186,11 @@ describe("movimento do design no motor Base1 (6.32)", () => {
     } else {
       const entrada = chamadas().find((c) => c.alvo === painel);
       expect(entrada?.opc.duration).toBe(660);
-      expect(entrada?.quadros[1]).toMatchObject({ transform: "scale(1.013, 1.025)" });
-      expect(chamadas().find((c) => c.alvo === painel.firstElementChild)?.opc).toMatchObject({ delay: 150, duration: 420 });
+      expect(entrada?.quadros[0]).toMatchObject({ borderRadius: "50%", clipPath: "none" });
+      expect(entrada?.quadros[0].transform).toContain("translate(200px, -60px)");
+      expect(painel.style.transformOrigin).toBe("0px 0px");
+      expect(entrada?.quadros[1]).toMatchObject({ transform: "translate(-2px, -2px) scale(1.02, 1.04)" });
+      expect(chamadas().find((c) => c.alvo === painel.firstElementChild)?.opc).toMatchObject({ delay: 200, duration: 360 });
       expect(chamadas().some((c) => c.alvo === inv)).toBe(false);
     }
     animate.mockClear();
