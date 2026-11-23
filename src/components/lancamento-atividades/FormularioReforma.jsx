@@ -23,7 +23,7 @@ import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 const NOTA = "mt-1 min-w-0 break-words px-1 text-[12px] text-[var(--mg-text-2,#475569)]";
 
 /**
- * MAIKE-ENTREGA3 (D-PROD-275) — o "Planejar" da REFORMA DE PASTAGEM (o agrupador): só 4 campos, nesta ordem —
+ * MAIKE-ENTREGA3 (D-PROD-276) — o "Planejar" da REFORMA DE PASTAGEM (o agrupador): só 4 campos, nesta ordem —
  *  1. Áreas (a mesma tabela da Nova realização: Área · Tamanho · % · Hectares, com o Total; os hectares de cada área são o
  *     divisor do R$/ha);
  *  2. Tipo: Reforma de pastagem, Formação de pasto novo ou Outro;

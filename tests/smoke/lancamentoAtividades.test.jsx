@@ -1008,7 +1008,7 @@ describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)",
 describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", () => {
   it("LA-CABECALHO-1 — abrir: herdados travados, exigido pelo tipo marcado e avisado antes de enviar; corpo com empresa_id, decimal em texto e sem centros, unidade nem setor", async () => {
     await montarComLista();
-    // D-PROD-267: o planejar da barra se chama "Planejar". D-PROD-275: ele pergunta o que planejar (a reforma ou um
+    // D-PROD-267: o planejar da barra se chama "Planejar". D-PROD-276: ele pergunta o que planejar (a reforma ou um
     // serviço); "Um serviço" é o planejar de antes.
     fireEvent.click(screen.getByRole("button", { name: "Planejar" }));
     fireEvent.click(await screen.findByTestId("janela-planejar-servico"));
@@ -2241,7 +2241,7 @@ describe("LA-REGISTRAR — planejar × registrar trabalho de campo (D-PROD-254; 
     expect(screen.queryByRole("button", { name: "Nova atividade" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Registrar serviço" })).toBeNull();
     expect(planejar).not.toBe(registrar);
-    // "Planejar" abre o formulário de PLANEJAR (tipo, áreas), não o registro de campo. D-PROD-275: antes, a escolha
+    // "Planejar" abre o formulário de PLANEJAR (tipo, áreas), não o registro de campo. D-PROD-276: antes, a escolha
     // "Reforma de pastagem" ou "Um serviço"; "Um serviço" é o planejar de antes.
     fireEvent.click(planejar);
     const escolha = await screen.findByTestId("janela-planejar");

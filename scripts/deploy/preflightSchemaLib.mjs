@@ -124,7 +124,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AtividadeApontamentoProduto', 'vc_percentual'],
   ['Produto', 'carencia_dias'],
   ['TipoAtividade', 'alvo'],
-  // D-PROD-275 (MAIKE-ENTREGA3): a lista e a Nova realização leem a reforma (tabelas novas) e a ligação da atividade a
+  // D-PROD-276 (MAIKE-ENTREGA3): a lista e a Nova realização leem a reforma (tabelas novas) e a ligação da atividade a
   // ela; sem a migration `20261122100000_reforma_planejamento`, `/atividades`, `/planejamentos` e o resumo da área
   // respondem 500.
   ['Planejamento', 'status'],

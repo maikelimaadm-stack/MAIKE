@@ -10,7 +10,7 @@ import { areasParaTrocarCapim, perguntaDaTrocaDeCapim } from "@/lib/reformaRegra
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 /**
- * MAIKE-ENTREGA3 (D-PROD-275) — "Concluir a reforma" (o dono, normalmente depois do primeiro pastejo): a data de conclusão
+ * MAIKE-ENTREGA3 (D-PROD-276) — "Concluir a reforma" (o dono, normalmente depois do primeiro pastejo): a data de conclusão
  * (hoje por padrão; nunca no futuro nem antes do início) e, quando o capim que vai ficar é diferente do capim de hoje de
  * alguma área, a pergunta "Trocar o capim da área para MOMBAÇA?" — isso mantém o mapa certo (o capim da área é o que dá as
  * alturas de manejo). "Sim, trocar e concluir" manda `trocar_capim: true` (o servidor troca pelo caminho de sempre da área,

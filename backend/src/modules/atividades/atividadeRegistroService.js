@@ -78,7 +78,7 @@
  * Os campos novos entram no fingerprint SÓ quando vêm: sem eles, byte a byte o de antes (`v: 1`/`v: 2`). O registro sem
  * área usa `v: 3`. Com várias áreas, a quantidade feita é repartida pelos hectares, como as linhas.
  *
- * D-PROD-275 (MAIKE-ENTREGA3) — "FAZ PARTE DE" a reforma: `planejamento_id` opcional (id ou null). Com ele, a reforma tem de
+ * D-PROD-276 (MAIKE-ENTREGA3) — "FAZ PARTE DE" a reforma: `planejamento_id` opcional (id ou null). Com ele, a reforma tem de
  * ser da MESMA fazenda, ABERTA e ter TODAS as áreas do registro (senão 422 `ATIVIDADE_REFERENCIA_INVALIDA`, `field`
  * `planejamento_id`: `inexistente` | `fechado` | `area_fora`), conferida ANTES das áreas e travada `FOR SHARE`. A atividade
  * NOVA nasce ligada a ela; a que CONTINUA só é ligada se ainda não tinha reforma (nunca troca uma ligação diferente: a
@@ -433,7 +433,7 @@ const concluirAtividadeSemArea = async (tx, contexto, { clienteId, empresaId, at
 };
 
 /**
- * D-PROD-275 — liga a atividade que CONTINUA (sem reforma) à reforma do "Faz parte de", auditado, sem mexer na `versao`
+ * D-PROD-276 — liga a atividade que CONTINUA (sem reforma) à reforma do "Faz parte de", auditado, sem mexer na `versao`
  * (é dado do lançamento, como a unidade da quantidade feita). Chame SOB a trava da atividade.
  * @param {any} tx @param {any} contexto @param {{ clienteId: string, empresaId: string, atividadeId: string, planejamentoId: string }} p
  */
@@ -611,7 +611,7 @@ const buscarAtividadeAberta = (tx, { clienteId, empresaId, tipoId, areaId, cultu
       ...(culturaId ? { plantio: { is: { cultura_id: culturaId } } } : {}),
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-    // D-PROD-275: a reforma de que ela já faz parte (continuar nunca troca uma ligação diferente).
+    // D-PROD-276: a reforma de que ela já faz parte (continuar nunca troca uma ligação diferente).
     select: { id: true, nome: true, data_inicio: true, planejamento_id: true },
   });
 
@@ -681,7 +681,7 @@ export const registrarCampo = async (contexto, corpo) => {
   const unidadeFeita = unidadeFeitaDoCorpo(corpo.unidade_producao_sigla);
   const plantio = corpo.plantio === undefined || corpo.plantio === null ? null : plantioDoCorpo(corpo.plantio);
   if (local && !semArea) throw invalido('local só vale sem área: com área, o lugar do serviço é a própria área', { field: 'local', reason: 'com_area' });
-  // D-PROD-275: a reforma de que a realização faz parte (só com área).
+  // D-PROD-276: a reforma de que a realização faz parte (só com área).
   const planejamentoId = idOuNulo(corpo.planejamento_id, 'planejamento_id') ?? null;
   if (planejamentoId && semArea) {
     throw invalido('planejamento_id só vale com área: o serviço sem área (com o local) não faz parte de reforma', { field: 'planejamento_id', reason: 'sem_area' });
@@ -719,7 +719,7 @@ export const registrarCampo = async (contexto, corpo) => {
     ...(plantio ? { plantio: canonico(plantio) } : {}),
     ...(receituario ? { numero_receituario: receituario } : {}),
     ...(unidadeFeita ? { unidade_producao_sigla: unidadeFeita } : {}),
-    // D-PROD-275: a reforma ("Faz parte de"), só quando vem.
+    // D-PROD-276: a reforma ("Faz parte de"), só quando vem.
     ...(planejamentoId ? { planejamento_id: planejamentoId } : {}),
   };
   const origem = origemDoCorpo(corpo.origem);
@@ -747,7 +747,7 @@ export const registrarCampo = async (contexto, corpo) => {
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
       exigirDiaNaoFuturo(tempo, dia, 'data_operacional');
       if (termino) exigirDiaNaoFuturo(tempo, termino, 'data_termino');
-      // D-PROD-275: a reforma do "Faz parte de" (da fazenda, aberta e com todas as áreas do registro), ANTES das áreas.
+      // D-PROD-276: a reforma do "Faz parte de" (da fazenda, aberta e com todas as áreas do registro), ANTES das áreas.
       if (planejamentoId) await exigirPlanejamentoDoRegistro(tx, { clienteId: cli, empresaId, planejamentoId, areaIds: alvos.map((a) => a.area_id) });
       /** @param {number} i @param {IndicesDaArea} [indices] */
       const area = (i, indices) => ({ ativo: varias, indice: i, areaId: alvos[i].area_id, indices });
@@ -851,7 +851,7 @@ export const registrarCampo = async (contexto, corpo) => {
       const situacao = alvos.map(() => ({ atividade_area_id: /** @type {string|null} */ (null), adicionada: false, iniciada: false }));
       /** D-PROD-274: os dados do plantio que o registro completou na atividade que continuou. */
       let plantioCompletado = /** @type {string[]} */ ([]);
-      /** D-PROD-275: a reforma da atividade depois do registro e o que o registro fez com a ligação. */
+      /** D-PROD-276: a reforma da atividade depois do registro e o que o registro fez com a ligação. */
       let planejamentoDaAtividade = /** @type {string|null} */ (null);
       let planejamentoLigacao = /** @type {null|'criada'|'completada'|'ja_ligada'|'mantida_outra'} */ (null);
       if (achada) {
@@ -874,7 +874,7 @@ export const registrarCampo = async (contexto, corpo) => {
         }
         if (plantio) plantioCompletado = await gravarPlantio(tx, contexto, { clienteId: cli, empresaId, atividadeId, plantio, nova: false });
         if (unidadeFeita) await exigirUnidadeDaAtividade(tx, contexto, { clienteId: cli, empresaId, atividadeId, sigla: unidadeFeita });
-        // D-PROD-275: continuar só LIGA a atividade que ainda não tinha reforma; uma ligação diferente nunca é trocada.
+        // D-PROD-276: continuar só LIGA a atividade que ainda não tinha reforma; uma ligação diferente nunca é trocada.
         planejamentoDaAtividade = achada.planejamento_id ?? null;
         if (planejamentoId) {
           if (!planejamentoDaAtividade) {
@@ -898,7 +898,7 @@ export const registrarCampo = async (contexto, corpo) => {
           tipoAtividadeId: tipoId,
           // Uma área: a abertura de sempre (EM_ANDAMENTO desde o dia). Várias: `areas[]` (todas "a iniciar", planejada =
           // o tamanho), iniciadas logo abaixo no dia do registro (= o início da atividade). D-PROD-274: sem área, o local.
-          // D-PROD-275: a atividade NOVA nasce na reforma do "Faz parte de" (só com área).
+          // D-PROD-276: a atividade NOVA nasce na reforma do "Faz parte de" (só com área).
           estado: semArea
             ? { ...comum, nome, local }
             : varias
@@ -1015,7 +1015,7 @@ export const registrarCampo = async (contexto, corpo) => {
           plantio_completado: plantioCompletado,
           pasto_liberado_em: liberado.pasto_liberado_em,
           carencia_dias: liberado.carencia_dias,
-          // D-PROD-275: a reforma da atividade depois do registro e o que o "Faz parte de" fez.
+          // D-PROD-276: a reforma da atividade depois do registro e o que o "Faz parte de" fez.
           planejamento_id: planejamentoDaAtividade,
           planejamento_ligacao: planejamentoLigacao,
         },

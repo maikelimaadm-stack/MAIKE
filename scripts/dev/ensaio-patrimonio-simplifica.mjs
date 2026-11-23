@@ -179,7 +179,7 @@ export const NOME_APONTAMENTO_DATA_TERMINO = '20261120200000_apontamento_data_te
 export const NOME_ESTOQUE_AJUSTES = '20261120300000_estoque_ajustes';
 /** D-PROD-274: a EXPAND dos campos por tipo (tabela nova AtividadePlantio e 5 colunas anuláveis), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_CAMPOS_POR_TIPO = '20261121100000_atividade_campos_por_tipo';
-/** D-PROD-275: a EXPAND da reforma de pastagem (tabelas novas Planejamento e PlanejamentoArea e a coluna anulável da atividade), ainda posterior; fora da partida, sobe no GREEN. */
+/** D-PROD-276: a EXPAND da reforma de pastagem (tabelas novas Planejamento e PlanejamentoArea e a coluna anulável da atividade), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_REFORMA = '20261122100000_reforma_planejamento';
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */

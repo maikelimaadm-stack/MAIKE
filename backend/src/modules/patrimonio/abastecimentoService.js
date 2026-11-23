@@ -19,7 +19,8 @@
  *    commit;
  *  - cancelamento: estorno exato fatia a fatia (`estornarSaida`), CAS por
  *    `versao`, dia do estorno = hoje da fazenda; recusa se a unidade efetiva
- *    do Produto mudou (`unidade_mudou`); nunca toca `BemPatrimonial`.
+ *    do Produto mudou (`unidade_mudou`); nunca toca `BemPatrimonial`. D-PROD-273 (fatia 4): com outro movimento
+ *    do produto no depósito depois, recalcula o custo médio do que veio depois (`estoqueExclusaoRecalculo`);
  *
  * A leitura do medidor vive no próprio abastecimento (`medidor_origem =
  * 'ABASTECIMENTO'`): o bem nunca é gravado (nem a `versao`).
@@ -60,10 +61,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError, atividadeApontamentoNotFound, atividadeStatusInvalido } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { STATUS_APONTAMENTO, exigirStatusDaAtividade, travarAtividade } from '../atividades/atividadeComum.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
@@ -657,6 +659,9 @@ const cancelarAbastecimentoTravado = async (tx, contexto, { cli, empresaId, ante
       ? await tx.localEstoque.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: antes.local_estoque_id } }, select: { id: true, nome: true } })
       : null;
     if (!local) throw new Error('abastecimento: local de estoque do abastecimento ausente');
+    // D-PROD-273 (fatia 4): com outro movimento do produto no depósito depois do abastecimento, o cancelamento
+    // recalcula o custo médio do que veio depois (prova antes do estorno; recálculo e dependentes depois dele).
+    const planos = await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: [{ id: orig.id, produtoId: antes.produto_id, localId: local.id }], estornoExatoSeInviavel: true });
     let estorno;
     try {
       estorno = await estornarSaida(tx, contexto, {
@@ -674,6 +679,12 @@ const cancelarAbastecimentoTravado = async (tx, contexto, { cli, empresaId, ante
       throw traduzirErroDoEstorno(erro);
     }
     estornoId = estorno.movimento.id;
+    if (planos.length) {
+      await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+        empresaId, origem: ORIGEM_ABASTECIMENTO, estornos: new Map([[orig.id, estornoId]]),
+        motivo: [...`Cancelamento do abastecimento ${antes.numero}: ${motivo}`].slice(0, 255).join(''),
+      });
+    }
   }
   await atualizarComVersao(tx.abastecimentoBem, {
     clienteId: cli,
@@ -714,7 +725,9 @@ export const cancelar = async (contexto, id, corpo) => {
   const fingerprint = fingerprintDePayload(fingerprintDoCancelamento(entrada));
   try {
     const r = await emTransacao(
-      TRANSACAO_CURTA,
+      // D-PROD-273 (fatia 4): o cancelamento pode recalcular o que veio depois no depósito: a transação longa da exclusão
+      // da saída manual (30 s), não a curta (9 s).
+      TRANSACAO_LONGA,
       (tx) =>
         executarComIdempotencia(tx, {
           clienteId: cli,

@@ -292,7 +292,7 @@ export default function LancamentoAtividades() {
   const [dataDe, setDataDe] = useState("");
   const [dataAte, setDataAte] = useState("");
   const periodoInvertido = Boolean(dataDe && dataAte && dataDe > dataAte);
-  // MAIKE-ENTREGA3 (D-PROD-275): o filtro "Reforma" (com a barra do custo), o "Planejar" (o que planejar → a reforma ou um
+  // MAIKE-ENTREGA3 (D-PROD-276): o filtro "Reforma" (com a barra do custo), o "Planejar" (o que planejar → a reforma ou um
   // serviço) e a conclusão da reforma.
   const [reformaFiltro, setReformaFiltro] = useState("");
   const [planejar, setPlanejar] = useState(/** @type {null|'escolher'|'reforma'} */ (null));
@@ -328,7 +328,7 @@ export default function LancamentoAtividades() {
     staleTime: 30 * 1000,
   });
 
-  // D-PROD-275: as reformas da fazenda (a pílula "Reforma") e a reforma escolhida, com o custo calculado no servidor.
+  // D-PROD-276: as reformas da fazenda (a pílula "Reforma") e a reforma escolhida, com o custo calculado no servidor.
   const reformasQuery = useQuery({
     queryKey: [QUERY_RAIZ, "reformas", empresaId],
     queryFn: () => listarReformas(),
@@ -354,7 +354,7 @@ export default function LancamentoAtividades() {
         situacao: situacaoFiltro && situacaoFiltro !== SITUACAO_ABERTAS ? situacaoFiltro : null,
         ...filtroDoTipo(tipoFiltro),
         area_id: areaFiltro || null,
-        // D-PROD-275: as realizações da reforma escolhida.
+        // D-PROD-276: as realizações da reforma escolhida.
         planejamento_id: reformaFiltro || null,
         data_de: dataDe || null,
         data_ate: dataAte || null,
@@ -406,7 +406,7 @@ export default function LancamentoAtividades() {
     setLancandoDia(null);
     setConcluindoServico(null);
     setAreaFiltro("");
-    // D-PROD-275: a reforma é da fazenda.
+    // D-PROD-276: a reforma é da fazenda.
     setReformaFiltro("");
     setPlanejar(null);
     setConcluindoReforma(null);
@@ -419,7 +419,7 @@ export default function LancamentoAtividades() {
 
   const invalidarLista = () => {
     void queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
-    // D-PROD-275: o custo da reforma vem das mesmas realizações da lista.
+    // D-PROD-276: o custo da reforma vem das mesmas realizações da lista.
     void queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "reforma"] });
   };
   /** O totalizador (área, produtos, máquinas, custo) se relê depois de toda escrita (D-PROD-202). */
@@ -674,7 +674,7 @@ export default function LancamentoAtividades() {
     }
   };
 
-  // ─── D-PROD-275: a reforma de pastagem (o agrupador) ──────────────────
+  // ─── D-PROD-276: a reforma de pastagem (o agrupador) ──────────────────
   const podeConcluirReforma = podeGravar && acoes.editar;
   const podeCancelarReforma = podeGravar && acoes.cancelar;
   /** Releu a reforma (e as reformas da pílula, o resumo das áreas no mapa e as áreas, que podem ter trocado de capim). */
@@ -842,7 +842,7 @@ export default function LancamentoAtividades() {
           apontamentos: o servidor recusa sem ele.
         </AvisoGestao>
       ) : null}
-      {/* D-PROD-275: a barra da reforma escolhida no filtro (custo total, R$/ha, por tipo e os serviços). */}
+      {/* D-PROD-276: a barra da reforma escolhida no filtro (custo total, R$/ha, por tipo e os serviços). */}
       {empresaId && acoes.ver && reformaFiltro && !controller.showForm ? (
         <BarraDaReforma
           reforma={reformaQuery.data && String(/** @type {any} */ (reformaQuery.data).id) === reformaFiltro ? reformaQuery.data : null}
@@ -872,7 +872,7 @@ export default function LancamentoAtividades() {
           { id: "tipo", rotulo: "Tipo", nome: "Filtrar por tipo", opcoes: opcoesTipoFiltro, valor: tipoFiltro, padrao: "", onChange: setTipoFiltro, coluna: "tipo", ocultarPadrao: true },
           { id: "situacao", rotulo: "Situação", nome: "Filtrar por situação", opcoes: OPCOES_SITUACAO, valor: situacaoFiltro, padrao: "", onChange: setSituacaoFiltro, coluna: "status", ocultarPadrao: true },
           { id: "area", rotulo: "Área", nome: "Filtrar por área", opcoes: opcoesAreaFiltro, valor: areaFiltro, padrao: "", onChange: setAreaFiltro, coluna: "area", ocultarPadrao: true },
-          // D-PROD-275: as realizações de uma reforma (e, em cima da lista, a barra do custo dela). Só aparece quando a
+          // D-PROD-276: as realizações de uma reforma (e, em cima da lista, a barra do custo dela). Só aparece quando a
           // fazenda tem reforma (ou uma está escolhida): a fazenda sem reforma não ganha uma pílula vazia.
           ...(reformas.length || reformaFiltro
             ? [{ id: "reforma", rotulo: "Reforma", nome: "Filtrar por reforma", opcoes: opcoesReformaFiltro, valor: reformaFiltro, padrao: "", onChange: setReformaFiltro, ocultarPadrao: true }]

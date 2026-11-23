@@ -353,12 +353,12 @@ export const getAtividadesDaAreaResumo = async (areaId, empresaId) => {
     mes: typeof o.mes === 'string' ? o.mes : null,
     atividades: Array.isArray(o.atividades) ? o.atividades.filter(isObjeto) : [],
     custos: isObjeto(o.custos) ? o.custos : null,
-    // MAIKE-ENTREGA3 (D-PROD-275): as reformas abertas da área ("Faz parte de" e "Em reforma desde").
+    // MAIKE-ENTREGA3 (D-PROD-276): as reformas abertas da área ("Faz parte de" e "Em reforma desde").
     planejamentos: Array.isArray(o.planejamentos) ? o.planejamentos.filter(isObjeto) : [],
   };
 };
 
-// ─── A reforma de pastagem (MAIKE-ENTREGA3, D-PROD-275) ──────────────────
+// ─── A reforma de pastagem (MAIKE-ENTREGA3, D-PROD-276) ──────────────────
 
 const RESOURCE_PLANEJAMENTO = 'Planejamento';
 /** @param {string} operation */

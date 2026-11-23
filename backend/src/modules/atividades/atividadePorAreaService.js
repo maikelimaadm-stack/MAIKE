@@ -5,7 +5,7 @@
  *    da fazenda, nunca as CANCELADAS; ABERTAS primeiro, depois `data_inicio` desc; no máximo 20) e os custos da área no
  *    mês corrente (Σ das linhas CONFIRMADAS dos apontamentos CONFIRMADOS cuja área da atividade é esta, pelo
  *    `data_operacional`). Todo número vem do banco; nada é calculado no cliente. D-PROD-267: cada atividade traz também o
- *    `ultimo_dia` lançado nesta área (a prévia do "+ Lançar dia" e do "serviço parado"). D-PROD-275 (MAIKE-ENTREGA3): e as
+ *    `ultimo_dia` lançado nesta área (a prévia do "+ Lançar dia" e do "serviço parado"). D-PROD-276 (MAIKE-ENTREGA3): e as
  *    reformas ABERTAS que contêm a área (`planejamentos`: o "Faz parte de" da Nova realização e o "Em reforma desde" do
  *    mapa), e cada atividade traz o `planejamento_id` dela.
  *  - `GET /atividades-por-area/:areaId/registros?empresa_id&limit&cursor&tipo_atividade_id` — os apontamentos CONFIRMADOS
@@ -69,7 +69,7 @@ export const resumoDaArea = async (contexto, areaId, query = {}) => {
           areas: { where: { area_id: areaId }, select: { id: true, status: true, area_planejada: true } },
           // D-PROD-274: o capim do Plantio de pastagem (a prévia "Entra em…" usa a mesma regra do servidor).
           plantio: { select: { cultura_id: true } },
-          // D-PROD-275: a reforma de que a atividade já faz parte.
+          // D-PROD-276: a reforma de que a atividade já faz parte.
           planejamento_id: true,
         },
       })
@@ -138,11 +138,11 @@ export const resumoDaArea = async (contexto, areaId, query = {}) => {
           data_prevista_fim: diaDe(a.data_prevista_fim),
           // D-PROD-274: o capim plantado (só no Plantio de pastagem; capim diferente abre outra atividade).
           plantio_cultura_id: a.plantio?.cultura_id ?? null,
-          // D-PROD-275: a reforma de que ela já faz parte (continuar nunca troca uma ligação diferente).
+          // D-PROD-276: a reforma de que ela já faz parte (continuar nunca troca uma ligação diferente).
           planejamento_id: a.planejamento_id ?? null,
         };
       }),
-      // D-PROD-275: as reformas abertas desta área ("Faz parte de" e "Em reforma desde").
+      // D-PROD-276: as reformas abertas desta área ("Faz parte de" e "Em reforma desde").
       planejamentos: await planejamentosAbertosDaArea(tx, cli, empresaId, areaId),
       custos: {
         custo_total: dinheiro(total),

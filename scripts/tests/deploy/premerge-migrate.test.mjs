@@ -398,7 +398,7 @@ const NOME_CPT = '20261121100000_atividade_campos_por_tipo';
 const COLUNAS_CPT = ['Atividade.local', 'AtividadeApontamento.numero_receituario', 'AtividadeApontamentoProduto.vc_percentual', 'Produto.carencia_dias', 'TipoAtividade.alvo'];
 const DO_CPT = 'e47bfde02699052ca52f4c6c750e9f28aec247d1fcaf5c2c308a05e006799765';
 /**
- * D-PROD-275 — a reforma de pastagem como agrupador: EXPAND puro, as tabelas novas Planejamento e PlanejamentoArea (com os
+ * D-PROD-276 — a reforma de pastagem como agrupador: EXPAND puro, as tabelas novas Planejamento e PlanejamentoArea (com os
  * CHECKs delas e o RLS) e, em tabela antiga, a coluna anulável sem DEFAULT Atividade.planejamento_id, o índice não-único
  * (cliente_id, planejamento_id) e a FK ("cliente_id", "planejamento_id") → Planejamento ("cliente_id", "id"); a 75ª, depois
  * dos campos por tipo (D-PROD-274).
@@ -443,7 +443,7 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   // D-PROD-272: + as 3 tabelas do ajuste de inventário (AjusteEstoque*), EXPAND.
   // D-PROD-264: + as 4 tabelas da saída manual do Estoque (MotivoSaidaEstoque e as 3 SaidaEstoque*), EXPAND.
   // D-PROD-274: + a AtividadePlantio (os dados do Plantio de pastagem), EXPAND.
-  // D-PROD-275: + o Planejamento e a PlanejamentoArea (a reforma de pastagem), EXPAND.
+  // D-PROD-276: + o Planejamento e a PlanejamentoArea (a reforma de pastagem), EXPAND.
   assert.deepEqual(c.tabelas_novas, [
     'AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote',
     'Atividade', 'AtividadeApontamento', 'AtividadeApontamentoMaoObra', 'AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
@@ -458,7 +458,7 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   // criadas no próprio lote (D-PROD-162); classificada sozinha (B22a), a Fatia 3 as declara como colunas em tabela antiga.
   // D-PROD-274: das 5 colunas dos campos por tipo, só Produto.carencia_dias entra aqui (Atividade, AtividadeApontamento,
   // AtividadeApontamentoProduto e TipoAtividade são criadas no próprio lote; sozinha, B41a, a migration declara as 5).
-  // D-PROD-275: Atividade.planejamento_id também fica fora (Atividade é criada no lote; sozinha, B42a, ela aparece).
+  // D-PROD-276: Atividade.planejamento_id também fica fora (Atividade é criada no lote; sozinha, B42a, ela aparece).
   assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['AreaPastagem.altura_entrada_cm', 'AreaPastagem.altura_saida_cm', 'AreaPastagem.dias_descanso', 'CADCATEGORIA.peso_objetivo_kg', 'Cliente.sessao_epoca', 'Empresa.fuso_horario', 'EntradaEstoque.motivo_id', 'LancamentoTarefa.posicao_id', 'Produto.carencia_dias', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
   // As sete CONTRACT, na ordem do manifesto: as colunas removidas não viram "coluna nova em tabela antiga", o RENAME
   // da D-PROD-187 não cria tabela nova, a CADCURVAGANHO recriada pela D-PROD-194 não aparece duas vezes em tabelas_novas,
@@ -5224,7 +5224,7 @@ test('B38k (D-PROD-264/D-PROD-259): ordem de produção hoje — alvo com as 70 
   const P1_03 = '20261113300000_estoque_p1_03_indices';
   const NOME_ENT = '20261119100000_estoque_entradas';
   const raiz = 'backend/prisma/migrations';
-  // D-PROD-265/D-PROD-272/D-PROD-274: "hoje" é o dia da D-PROD-264; a data de término do apontamento (D-PROD-265, ver B39k), o ajuste de inventário (D-PROD-272, ver B40k) e os campos por tipo (D-PROD-274, ver B41k) vieram depois: 71 pastas; a reforma (D-PROD-275, ver B42k), também depois.
+  // D-PROD-265/D-PROD-272/D-PROD-274: "hoje" é o dia da D-PROD-264; a data de término do apontamento (D-PROD-265, ver B39k), o ajuste de inventário (D-PROD-272, ver B40k) e os campos por tipo (D-PROD-274, ver B41k) vieram depois: 71 pastas; a reforma (D-PROD-276, ver B42k), também depois.
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 75);
@@ -5319,7 +5319,7 @@ test('B39b (D-PROD-265): o mesmo arquivo com a coluna NOT NULL ou com DEFAULT, o
 
 test('B39k (D-PROD-265/D-PROD-264): ordem de produção hoje — alvo com as 71 da main concluídas (por último a saída manual, D-PROD-264): o histórico confere, a única pendente é a data de término e a barreira do CONTRACT a exige; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 72 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
   const raiz = 'backend/prisma/migrations';
-  // D-PROD-272/D-PROD-274: "hoje" é o dia da D-PROD-265; o ajuste de inventário (D-PROD-272, ver B40k) e os campos por tipo (D-PROD-274, ver B41k) vieram depois: 72 pastas; a reforma (D-PROD-275, ver B42k), também depois.
+  // D-PROD-272/D-PROD-274: "hoje" é o dia da D-PROD-265; o ajuste de inventário (D-PROD-272, ver B40k) e os campos por tipo (D-PROD-274, ver B41k) vieram depois: 72 pastas; a reforma (D-PROD-276, ver B42k), também depois.
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 75);
@@ -5394,7 +5394,7 @@ test('B40k (D-PROD-272/D-PROD-265): ordem de produção hoje — alvo com as 72 
   const P1_03 = '20261113300000_estoque_p1_03_indices';
   const NOME_ENT = '20261119100000_estoque_entradas';
   const raiz = 'backend/prisma/migrations';
-  // D-PROD-274: "hoje" é o dia da D-PROD-272; os campos por tipo (D-PROD-274, ver B41k) vieram depois: 73 pastas; a reforma (D-PROD-275, ver B42k), também depois.
+  // D-PROD-274: "hoje" é o dia da D-PROD-272; os campos por tipo (D-PROD-274, ver B41k) vieram depois: 73 pastas; a reforma (D-PROD-276, ver B42k), também depois.
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 75);
@@ -5441,7 +5441,7 @@ test('B41a (D-PROD-274): os campos por tipo classificados SOZINHOS, como na rele
   assert.equal(MIGRATIONS_APROVADAS[NOME_CPT], '9e6487ffddb92a35945c675c1924f363c3396e97dac52e56e8d3c94c20a32a58');
   assert.equal(Object.prototype.hasOwnProperty.call(MIGRATIONS_CONTRACT_APROVADAS, NOME_CPT), false, 'EXPAND: sem entrada CONTRACT');
   assert.ok(DO_RLS_APROVADOS.includes(DO_CPT), 'o RLS da nova é corpo pinado');
-  assert.equal(NOMES.at(-2), NOME_CPT, 'a penúltima do manifesto (D-PROD-275: a reforma veio depois)');
+  assert.equal(NOMES.at(-2), NOME_CPT, 'a penúltima do manifesto (D-PROD-276: a reforma veio depois)');
   assert.equal(NOMES.at(-3), NOME_AJU, 'depois do ajuste de inventário (D-PROD-272)');
   assert.equal(NOMES.at(-4), NOME_DT, 'e da data de término do apontamento (D-PROD-265)');
 });
@@ -5477,7 +5477,7 @@ test('B41b (D-PROD-274): o mesmo arquivo com coluna NOT NULL ou com DEFAULT em t
 
 test('B41k (D-PROD-274/D-PROD-272): ordem de produção hoje — alvo com as 73 da main concluídas (por último o ajuste de inventário, D-PROD-272, aplicado em 2026-11-23): o histórico confere, a única pendente são os campos por tipo, nenhum CONTRACT a autorizar; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 74 e nada pendente; nenhuma conferência depende da ordem dos nomes', () => {
   const raiz = 'backend/prisma/migrations';
-  // D-PROD-275: "hoje" é o dia da D-PROD-274; a reforma (D-PROD-275, ver B42k) veio depois: 75 pastas.
+  // D-PROD-276: "hoje" é o dia da D-PROD-274; a reforma (D-PROD-276, ver B42k) veio depois: 75 pastas.
   const todas = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(todas.length, 75);
@@ -5509,7 +5509,7 @@ test('B41k (D-PROD-274/D-PROD-272): ordem de produção hoje — alvo com as 73 
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B42a (D-PROD-275): a reforma classificada SOZINHA, como na release: ok, EXPAND puro, exatamente as 2 tabelas novas e a coluna anulável Atividade.planejamento_id (com a FK composta pelo tenant para a tabela nova), nenhum CONTRACT; checksum e RLS pinados; a última do manifesto', () => {
+test('B42a (D-PROD-276): a reforma classificada SOZINHA, como na release: ok, EXPAND puro, exatamente as 2 tabelas novas e a coluna anulável Atividade.planejamento_id (com a FK composta pelo tenant para a tabela nova), nenhum CONTRACT; checksum e RLS pinados; a última do manifesto', () => {
   const c = classificarMigrations([ler(NOME_RF)]);
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -5527,7 +5527,7 @@ test('B42a (D-PROD-275): a reforma classificada SOZINHA, como na release: ok, EX
   assert.equal(NOMES.at(-3), NOME_AJU, 'e do ajuste de inventário (D-PROD-272)');
 });
 
-test('B42b (D-PROD-275): o mesmo arquivo com a coluna NOT NULL, com DEFAULT ou DATE em tabela antiga, a FK pela fazenda (3 colunas) ou para tabela antiga, CHECK ou UNIQUE em tabela antiga, DML (ligar as atividades que já existem) ou o RLS citando tabela antiga é recusado (a allowlist EXPAND não afrouxou); byte diferente do pinado diverge', () => {
+test('B42b (D-PROD-276): o mesmo arquivo com a coluna NOT NULL, com DEFAULT ou DATE em tabela antiga, a FK pela fazenda (3 colunas) ou para tabela antiga, CHECK ou UNIQUE em tabela antiga, DML (ligar as atividades que já existem) ou o RLS citando tabela antiga é recusado (a allowlist EXPAND não afrouxou); byte diferente do pinado diverge', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_RF}/migration.sql`, 'utf8');
   const comManifesto = (s) => classificarMigrations([{ nome: NOME_RF, sql: s }], { manifesto: { [NOME_RF]: sha256(s) } });
   assert.equal(comManifesto(sql).ok, true, 'o original passa com o manifesto sintético');
@@ -5560,12 +5560,12 @@ test('B42b (D-PROD-275): o mesmo arquivo com a coluna NOT NULL, com DEFAULT ou D
   assert.deepEqual(classificarMigrations([{ nome: NOME_RF, sql: `${sql} ` }]).violacoes.map((v) => v.codigo), ['MIGRATION_CHECKSUM_DIVERGENTE']);
 });
 
-test('B42k (D-PROD-275/D-PROD-274): ordem de produção hoje — alvo com as 74 da main concluídas (por último os campos por tipo, D-PROD-274, aplicados em 2026-11-23, checksum 9e6487ff…2a58): o histórico confere, a única pendente é a reforma, nenhum CONTRACT a autorizar; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 75 e nada pendente', () => {
+test('B42k (D-PROD-276/D-PROD-274): ordem de produção hoje — alvo com as 74 da main concluídas (por último os campos por tipo, D-PROD-274, aplicados em 2026-11-23, checksum 9e6487ff…2a58): o histórico confere, a única pendente é a reforma, nenhum CONTRACT a autorizar; checksum diferente do arquivo ou registro parcial é divergência; depois dela, 75 e nada pendente', () => {
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(locais.length, 75);
-  assert.ok(locais.every((l) => l.nome <= NOME_RF), 'a reforma (D-PROD-275) é a migration de nome mais recente');
+  assert.ok(locais.every((l) => l.nome <= NOME_RF), 'a reforma (D-PROD-276) é a migration de nome mais recente');
   const t0 = Date.parse('2026-01-01T00:00:00Z');
   // Produção: as 74 pastas concluídas (a ordem real até a D-PROD-272 está provada em B41k; aqui basta que a anterior
   // seja a dos campos por tipo, D-PROD-274, com o checksum aplicado) e a única pendente é esta.

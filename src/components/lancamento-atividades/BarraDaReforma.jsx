@@ -12,7 +12,7 @@ const rotuloDoTipo = (tipo) => TIPOS_DE_REFORMA.find((t) => t.value === tipo)?.l
 const ha = (v) => (v ? `${formatarDecimalLinha(String(v))} ha` : "—");
 
 /**
- * MAIKE-ENTREGA3 (D-PROD-275) — a barra do filtro "Reforma", em cima da lista: o nome, a situação e o tipo da reforma, o
+ * MAIKE-ENTREGA3 (D-PROD-276) — a barra do filtro "Reforma", em cima da lista: o nome, a situação e o tipo da reforma, o
  * capim que vai ficar (com a natureza: recuperação ou renovação), o CUSTO TOTAL, o R$/ha (custo das realizações ÷ hectares
  * da reforma), o custo por tipo (Preparo, Fertilização, Aplicação, Plantio…) e os serviços em ordem de data com a situação
  * e o custo de cada um. Todo número vem do servidor (`GET /planejamentos/:id`, calculado na leitura com o mesmo custo da

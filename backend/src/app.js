@@ -258,7 +258,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarAtividadeApontamentoServicoRoutes);
   // D-PROD-249 — as ÁREAS da atividade (várias áreas; iniciar, concluir, reabrir, remover a não iniciada).
   await app.register(registrarAtividadeAreaRoutes);
-  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem (o agrupador das realizações).
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma de pastagem (o agrupador das realizações).
   await app.register(registrarPlanejamentoRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);

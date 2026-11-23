@@ -473,7 +473,7 @@ export const plantioPublico = (p) =>
       }
     : null;
 
-/** MAIKE-ENTREGA3 (D-PROD-275) — o resumo da reforma (agrupador) da atividade. */
+/** MAIKE-ENTREGA3 (D-PROD-276) — o resumo da reforma (agrupador) da atividade. */
 export const PLANEJAMENTO_RESUMO = Object.freeze({ select: { id: true, numero: true, nome: true, status: true } });
 
 /** @param {any} p */
@@ -495,7 +495,7 @@ export const INCLUIR_ATIVIDADE = Object.freeze({
   reabertaPor: USUARIO_RESUMO,
   // MAIKE-ENTREGA2 (D-PROD-274): o capim plantado e os dados do plantio.
   plantio: PLANTIO_RESUMO,
-  // MAIKE-ENTREGA3 (D-PROD-275): a reforma de que a realização faz parte.
+  // MAIKE-ENTREGA3 (D-PROD-276): a reforma de que a realização faz parte.
   planejamento: PLANEJAMENTO_RESUMO,
 });
 
@@ -555,7 +555,7 @@ export const comoAtividadePublica = (r) => ({
   // MAIKE-ENTREGA2 (D-PROD-274): onde foi o serviço sem área (Manutenção e Outros) e o plantio (capim e dados).
   local: r.local ?? null,
   plantio: plantioPublico(r.plantio),
-  // MAIKE-ENTREGA3 (D-PROD-275): a reforma ("Faz parte de"), quando a realização faz parte de uma.
+  // MAIKE-ENTREGA3 (D-PROD-276): a reforma ("Faz parte de"), quando a realização faz parte de uma.
   planejamento_id: r.planejamento_id ?? null,
   planejamento: planejamentoPublico(r.planejamento),
 });

@@ -4,7 +4,7 @@ import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 
 /**
- * MAIKE-ENTREGA3 (D-PROD-275) — o "Planejar" da lista: escolhe O QUE planejar, em dois cartões (o mesmo desenho dos tipos da
+ * MAIKE-ENTREGA3 (D-PROD-276) — o "Planejar" da lista: escolhe O QUE planejar, em dois cartões (o mesmo desenho dos tipos da
  * Nova realização). "Reforma de pastagem" abre o formulário da reforma (o agrupador); "Um serviço" abre o planejar de
  * sempre (a atividade antes de lançar os dias). Quem não pode criar não vê o "Planejar" (a página decide).
  *

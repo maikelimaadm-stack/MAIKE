@@ -30,6 +30,9 @@ export const operacoesNativas = Object.freeze({
   /** @param {string} id @param {string} empresaId */
   movimento: (id, empresaId) =>
     nativeRequest(comQuery(`/estoque/movimentos/${encodeURIComponent(id)}`, { empresa_id: empresaId }), { autenticado: true }, ctx('getMovimentoEstoque', { id })),
+  /** D-PROD-273: prévia (somente leitura) da exclusão com recálculo. @param {string} id @param {string} empresaId */
+  previaExclusao: (id, empresaId) =>
+    nativeRequest(comQuery(`/estoque/movimentos/${encodeURIComponent(id)}/exclusao/previa`, { empresa_id: empresaId }), { autenticado: true }, ctx('getPreviaExclusaoMovimento', { id })),
   /** @param {Record<string, unknown>} filtros */
   opcoesProdutos: (filtros) => nativeRequest(comQuery('/estoque/opcoes/produtos', filtros), { autenticado: true }, ctx('listOpcoesProdutosEstoque')),
   /** @param {Record<string, unknown>} filtros */

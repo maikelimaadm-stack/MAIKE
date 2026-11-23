@@ -9,6 +9,7 @@ import { formatarCustoUnitario, formatarDia, formatarInstante, formatarQtd, form
 import { MOTIVO_ACAO_MINIMO, chaveDeOperacao, rotuloDoEventoEstoque } from "@/lib/estoqueEntradasRegras";
 import { ROTULO_STATUS_SAIDA, mensagemErroSaida, quantidadeDaLinhaSaida } from "@/lib/estoqueSaidasRegras";
 import { detalharSaidaEstoque, editarSaidaEstoque, excluirSaidaEstoque } from "@/services/estoqueSaidasService";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 
 /** Chave do detalhe (prefixo `estoque`: o que invalida o estoque invalida o detalhe). */
 export const chaveDetalheSaida = (/** @type {string|null} */ empresaId, /** @type {string|null} */ id) => ["estoque", "saida", empresaId, id];
@@ -52,7 +53,8 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
  * centros, observação, as linhas (quantidade baixada, custo médio e valor) e o histórico. Abre pelo detalhe do
  * movimento, em Movimentos, e logo depois de lançar. Com a ação `saida`, duas ações DENTRO da mesma janela (sem popup
  * sobre popup): "Editar observação" (só ela muda) e "Excluir saída" (pede o motivo; estorno integral pelo mesmo
- * valor; o servidor recusa se o produto já teve outro movimento naquele depósito depois).
+ * valor; D-PROD-273: com outro movimento do produto naquele depósito depois, o servidor recalcula o custo deles e a
+ * janela mostra a prévia antes de confirmar).
  * D-PROD-271: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
  * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. O histórico diz "Editado (lançamentos
  * refeitos)" na edição com substituição.
@@ -240,8 +242,9 @@ export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFech
             <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2 mt-3" data-testid="saida-form-exclusao">
               <SecaoForm titulo="Excluir saída" />
               <p className="col-span-12 text-[13px]">
-                A saída fica no histórico como excluída e o produto volta ao depósito pelo mesmo valor. Só é possível se o produto não teve outro movimento naquele depósito depois dela; senão, lance uma entrada para corrigir.
+                A saída some das listas (fica guardada como excluída) e o produto volta ao depósito. Se houve outros movimentos do produto depois dela, o custo médio deles é recalculado.
               </p>
+              <PreviaRecalculoExclusao empresaId={empresaId} movimentoIds={itens.map((/** @type {any} */ i) => i.movimentacao_estoque_id)} />
               <AreaTexto label="Motivo da exclusão" value={motivo} onChange={setMotivo} required testId="saida-exclusao-motivo" />
             </div>
           ) : null}

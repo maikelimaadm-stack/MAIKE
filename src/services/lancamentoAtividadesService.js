@@ -135,7 +135,7 @@ export const listarAtividades = async (filtros = {}) => {
     tipo_fixo: textoOuIndefinido(f.tipo_fixo),
     tipo_atividade_id: textoOuIndefinido(f.tipo_atividade_id),
     area_id: textoOuIndefinido(f.area_id),
-    // D-PROD-275: as realizações de uma reforma (o filtro "Reforma").
+    // D-PROD-276: as realizações de uma reforma (o filtro "Reforma").
     planejamento_id: textoOuIndefinido(f.planejamento_id),
     data_de: textoOuIndefinido(f.data_de),
     data_ate: textoOuIndefinido(f.data_ate),
@@ -347,7 +347,7 @@ export const registrarCampo = async (dados, opcoes = null) => {
   });
 };
 
-// ─── A reforma de pastagem (MAIKE-ENTREGA3, D-PROD-275) ─────────────────
+// ─── A reforma de pastagem (MAIKE-ENTREGA3, D-PROD-276) ─────────────────
 
 /** As reformas da fazenda (abertas primeiro). Sem fazenda: nenhuma. @param {{ status?: string|null, area_id?: string|null }} [filtros] */
 export const listarReformas = async (filtros = {}) => {

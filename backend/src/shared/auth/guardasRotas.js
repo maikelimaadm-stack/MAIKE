@@ -378,7 +378,7 @@ export const GUARDAS = Object.freeze({
       return true;
     }),
   },
-  // MAIKE-ENTREGA3 (D-PROD-275) — a REFORMA DE PASTAGEM (`/planejamentos`), na mesma tela `op-atividades`: ver =
+  // MAIKE-ENTREGA3 (D-PROD-276) — a REFORMA DE PASTAGEM (`/planejamentos`), na mesma tela `op-atividades`: ver =
   // visualizar (a lista, a barra de custo e o "Faz parte de"); criar pelo "Planejar" = novo|salvar (como abrir uma
   // atividade); concluir = editar|salvar (como concluir a atividade) e, com `trocar_capim: true`, também o editar do
   // Mapa Cadastro (o mesmo do `PATCH /areas-pastagem/:id`, que é por onde o capim da área muda); cancelar = excluir

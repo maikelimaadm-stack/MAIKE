@@ -169,7 +169,7 @@ export const limparBanco = async () => {
   // D-PROD-274: os dados do plantio (referenciam a atividade e as culturas, RESTRICT): antes de ambas.
   await prisma.atividadePlantio.deleteMany({});
   await prisma.atividade.deleteMany({});
-  // D-PROD-275: a reforma (as atividades a referenciam, RESTRICT) e as áreas dela (referenciam área e cultura): depois da
+  // D-PROD-276: a reforma (as atividades a referenciam, RESTRICT) e as áreas dela (referenciam área e cultura): depois da
   // atividade, antes das áreas, das culturas e dos usuários.
   await prisma.planejamentoArea.deleteMany({});
   await prisma.planejamento.deleteMany({});

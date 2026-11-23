@@ -154,7 +154,7 @@ const NOTA_DO_CAMPO = "mt-1 min-w-0 break-words px-1 text-[12px] text-[var(--mg-
  * sucesso da Aplicação diz o "Pasto liberado em" da resposta; "Concluída" fica desligada para quem não pode editar (a
  * permissão do "Concluir"; o servidor também recusa, 403).
  *
- * D-PROD-275 (MAIKE-ENTREGA3) — "Faz parte de" na seção Planejamento (só leitura, como o destino): com uma reforma ABERTA
+ * D-PROD-276 (MAIKE-ENTREGA3) — "Faz parte de" na seção Planejamento (só leitura, como o destino): com uma reforma ABERTA
  * que tem as áreas do registro (o resumo da área traz as reformas), a linha "Faz parte de: Reforma · … ✓" já vem marcada,
  * com o "tirar" (um serviço que não é da reforma, como uma cerca); com duas, uma lista para escolher (uma delas ou "Não faz
  * parte de reforma"); o serviço que continua e já faz parte de uma reforma mostra a dela (o servidor nunca troca a
@@ -243,7 +243,7 @@ export default function JanelaRegistroDeCampo({
   const [local, setLocal] = useState(doServico0.local);
   const [quantidadeFeita, setQuantidadeFeita] = useState("");
   const [unidadeFeita, setUnidadeFeita] = useState(doServico0.unidade);
-  // D-PROD-275: o "Faz parte de" — o "tirar" (com uma reforma) e a escolha (com duas ou mais).
+  // D-PROD-276: o "Faz parte de" — o "tirar" (com uma reforma) e a escolha (com duas ou mais).
   const [reformaTirada, setReformaTirada] = useState(false);
   const [reformaEscolhida, setReformaEscolhida] = useState("");
   const culturasLidas = useQuery({
@@ -461,7 +461,7 @@ export default function JanelaRegistroDeCampo({
         capim: campos.plantio && capim ? String(capim.nome ?? "") : null,
       });
 
-  // ─── D-PROD-275: "Faz parte de" (a reforma aberta das áreas do registro) ─
+  // ─── D-PROD-276: "Faz parte de" (a reforma aberta das áreas do registro) ─
   const resumosLidos = resumos.map((r) => (r.isSuccess ? r.data : null));
   const atividadeAchada = semAreaAgora
     ? null
@@ -525,7 +525,7 @@ export default function JanelaRegistroDeCampo({
       if (!localDoTexto(local)) e.local = "Sem área, informe o local do serviço.";
     } else Object.assign(e, errosDasAreasDoRegistro(areasDoRegistro));
     if (campos.plantio && !culturaId) e.capim = "Escolha o capim plantado.";
-    // D-PROD-275: com duas reformas abertas na área, a escolha é obrigatória (uma delas ou "Não faz parte de reforma").
+    // D-PROD-276: com duas reformas abertas na área, a escolha é obrigatória (uma delas ou "Não faz parte de reforma").
     if (!semArea && faz.falta) e.reforma = "Escolha de qual reforma este serviço faz parte (ou \"Não faz parte de reforma\").";
     if (campos.quantidadeFeita && quantidadeFeita.trim() && !unidadeDaOperacao && !unidadeFeita) e.unidade = "Escolha a unidade.";
     // Os hectares são de cada área (`areas[]`): o dia não leva `area_executada_dia`. D-PROD-274: a quantidade feita
@@ -576,7 +576,7 @@ export default function JanelaRegistroDeCampo({
         ...(campos.plantio ? { plantio: corpoDoPlantio({ culturaId, forma, incrustada, cobertura, consorcioId }) } : {}),
         ...(campos.aplicacao && receituario.trim() ? { numero_receituario: receituario.trim() } : {}),
         ...(unidade ? { unidade_producao_sigla: unidade } : {}),
-        // D-PROD-275: "Faz parte de" — só quando marcado (sem ele, o corpo — e o recibo — é o de antes).
+        // D-PROD-276: "Faz parte de" — só quando marcado (sem ele, o corpo — e o recibo — é o de antes).
         ...(!semArea && faz.enviar ? { planejamento_id: faz.enviar } : {}),
         tipo_atividade_id: String(tipo.id),
         // D-PROD-265: só preenchida (sem ela, o corpo — e o recibo — é o de antes).
@@ -603,7 +603,7 @@ export default function JanelaRegistroDeCampo({
     // D-PROD-274: o capim, os dados do plantio e o local ficam (o próximo registro costuma ser igual); o resto sai.
     setReceituario("");
     setQuantidadeFeita("");
-    // D-PROD-275: o "Faz parte de" volta ao padrão (marcado com uma reforma; escolher com duas).
+    // D-PROD-276: o "Faz parte de" volta ao padrão (marcado com uma reforma; escolher com duas).
     setReformaTirada(false);
     setReformaEscolhida("");
     setEscolhaDaSituacao(null);
@@ -660,7 +660,7 @@ export default function JanelaRegistroDeCampo({
     // D-PROD-263: a recusa de uma área que não aponta linha nenhuma fica embaixo da área, na tabela das áreas.
     const daArea = areaDaRecusa(erro, enviado.current?.corpo?.areas);
     if (daArea && !alvo) setErros((x) => ({ ...x, [`area:${daArea.area_id}`]: mensagem }));
-    // D-PROD-275: a reforma recusada (concluída, cancelada ou sem a área): a frase fica no "Faz parte de" e os resumos se releem.
+    // D-PROD-276: a reforma recusada (concluída, cancelada ou sem a área): a frase fica no "Faz parte de" e os resumos se releem.
     if (/** @type {any} */ (erro)?.details?.field === "planejamento_id") {
       setErros((x) => ({ ...x, reforma: mensagem }));
       void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
@@ -1316,7 +1316,7 @@ export default function JanelaRegistroDeCampo({
  */
 
 /**
- * D-PROD-275 — a linha "Faz parte de" da seção Planejamento (só leitura): a reforma já marcada com o "tirar", o "pôr de
+ * D-PROD-276 — a linha "Faz parte de" da seção Planejamento (só leitura): a reforma já marcada com o "tirar", o "pôr de
  * volta", a lista de escolha (duas reformas abertas) ou a reforma de que o serviço que continua já faz parte.
  * @param {{ faz: ReturnType<typeof fazParteDe>, escolhaId: string, erro: string|null, bloqueado: boolean,
  *   onTirar: () => void, onPorDeVolta: () => void, onEscolher: (id: string) => void }} props

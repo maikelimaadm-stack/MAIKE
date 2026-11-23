@@ -1,5 +1,5 @@
 /**
- * MAIKE-ENTREGA3 (D-PROD-275) — a REFORMA DE PASTAGEM como agrupador (`Planejamento` + `PlanejamentoArea`), na tela
+ * MAIKE-ENTREGA3 (D-PROD-276) — a REFORMA DE PASTAGEM como agrupador (`Planejamento` + `PlanejamentoArea`), na tela
  * `op-atividades`. É a "safra" do Aegro, só que para um pasto: o "Planejar" cria a reforma com 4 campos e cada realização
  * da área entra nela pelo registro de campo (`Atividade.planejamento_id`, "Faz parte de"). Nenhum custo é gravado aqui:
  * o total, o R$/ha e o custo por tipo são calculados na LEITURA, com os MESMOS números da lista
@@ -495,7 +495,7 @@ export const cancelar = async (contexto, id, corpo) => {
 // ─── o registro de campo ("Faz parte de") ───────────────────────────────────
 
 /**
- * D-PROD-275 — a reforma do registro de campo (`planejamento_id` do `POST /atividades/registrar`), na transação dele e
+ * D-PROD-276 — a reforma do registro de campo (`planejamento_id` do `POST /atividades/registrar`), na transação dele e
  * ANTES das áreas: travada `FOR SHARE` (a conclusão, que a trava `FOR UPDATE`, espera o registro terminar), da MESMA
  * fazenda (outra fazenda ou outro tenant = `inexistente`), ABERTA (`fechado`) e com TODAS as áreas do registro
  * (`area_fora`, com `details.area_id`). Tudo 422 `ATIVIDADE_REFERENCIA_INVALIDA` (`field` `planejamento_id`).
@@ -518,7 +518,7 @@ export const exigirPlanejamentoDoRegistro = async (tx, { clienteId, empresaId, p
 };
 
 /**
- * D-PROD-275 — as reformas ABERTAS que contêm a área (o "Faz parte de" e o "Em reforma desde"), para o resumo da área:
+ * D-PROD-276 — as reformas ABERTAS que contêm a área (o "Faz parte de" e o "Em reforma desde"), para o resumo da área:
  * as mais antigas primeiro (a reforma em curso), com todas as áreas de cada uma (o registro de várias áreas só oferece a
  * reforma que tem todas).
  * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} areaId

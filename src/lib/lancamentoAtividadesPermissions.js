@@ -34,12 +34,12 @@ export const ACOES_EXTRAS_ATIVIDADES = Object.freeze({
   cancelarApontamento: 'cancelar_apontamento',
 });
 
-/** MAIKE-ENTREGA3 (D-PROD-275) — a tela do Cadastro do Mapa (o `PATCH /areas-pastagem/:id` pede o editar dela). */
+/** MAIKE-ENTREGA3 (D-PROD-276) — a tela do Cadastro do Mapa (o `PATCH /areas-pastagem/:id` pede o editar dela). */
 export const TELA_MAPA_CADASTRO = 'pec-mapa-cadastro';
 const MODULO_MAPA_CADASTRO = findMenuItemByUrl(DEFAULT_MENU, 'MapaCadastro')?.moduleId ?? 'mapa';
 
 /**
- * D-PROD-275 — trocar o capim da área na conclusão da reforma: o servidor pede, além do editar da tela de atividades, o
+ * D-PROD-276 — trocar o capim da área na conclusão da reforma: o servidor pede, além do editar da tela de atividades, o
  * editar do Cadastro do Mapa (o mesmo da edição da área). Espelho do guarda `GUARDAS.planejamentos.concluir`.
  * @param {unknown} permissao permissão efetiva
  */

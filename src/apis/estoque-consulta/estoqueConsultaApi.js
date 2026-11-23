@@ -54,6 +54,13 @@ export const getMovimentoEstoque = async (id, empresaId) => {
   return runProviderCall(() => operacoesNativas.movimento(id, empresaId), contexto);
 };
 
+/** D-PROD-273: o que a exclusão do movimento recalcularia (nada é gravado). @param {string} id @param {string} empresaId */
+export const getPreviaExclusaoMovimento = async (id, empresaId) => {
+  const contexto = ctx('getPreviaExclusaoMovimento');
+  assertArgument(isId(id) && isId(empresaId), 'id', contexto);
+  return runProviderCall(() => operacoesNativas.previaExclusao(id, empresaId), contexto);
+};
+
 /** @param {Record<string, unknown>} filtros */
 export const listOpcoesProdutosEstoque = async (filtros = {}) => {
   const contexto = ctx('listOpcoesProdutosEstoque');

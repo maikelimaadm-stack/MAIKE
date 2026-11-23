@@ -20,7 +20,7 @@ export { useEmpresaRealSelecionadaId } from '@/hooks/useGestaoSessao';
  * @returns {{ ver: boolean, criar: boolean, editar: boolean, cancelar: boolean, reabrir: boolean,
  *   lancarApontamento: boolean, editarApontamento: boolean, cancelarApontamento: boolean,
  *   trocarCapimDaArea: boolean, carregando: boolean, login: string|null }}
- *   D-PROD-275: `trocarCapimDaArea` — a troca do capim na conclusão da reforma (o editar do Cadastro do Mapa).
+ *   D-PROD-276: `trocarCapimDaArea` — a troca do capim na conclusão da reforma (o editar do Cadastro do Mapa).
  */
 export const useAcoesTelaAtividades = () => {
   const { data: usuarioAtual = null, isLoading: carregandoUsuario } = useQuery({

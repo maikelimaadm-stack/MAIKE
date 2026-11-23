@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-275; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-276; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-21) — MAIKE-ENTREGA3: a reforma de pastagem como agrupador (D-PROD-275)
+## Missão ativa (2026-11-21) — MAIKE-ENTREGA3: a reforma de pastagem como agrupador (D-PROD-276)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-275**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, §1.2 A, B e C e o "Reforma (PR C)" do §1.3 de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 3" do plano de campo |
+| Decisão | **D-PROD-276**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, §1.2 A, B e C e o "Reforma (PR C)" do §1.3 de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 3" do plano de campo |
 | Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv` (local `entrega3-reforma`), refeita sobre a `main` `6cb0b176` (com a Entrega 2, PR #354, mergeada) · PR (a abrir) |
 | Escopo | "Planejar" pergunta Reforma de pastagem ou Um serviço; a reforma com 4 campos (Áreas com hectares, Tipo, Capim que vai ficar, Início previsto), nome e safra do servidor ("Reforma · PASTO DA AROEIRA · 2026/27"); "Faz parte de" na Nova realização (marcada, tirar, lista com duas; `planejamento_id` no registro, nunca troca a ligação de quem continua, fingerprint igual sem ele); filtro Reforma na lista com a barra (custo total, R$/ha calculado na leitura, por tipo, serviços em ordem de data); "Em reforma desde DD/MM" no Detalhes da área do mapa; Concluir (com "Trocar o capim da área para …?", pelo caminho auditado da área) e Cancelar (nada apagado) |
 | Migration | `20261122100000_reforma_planejamento`, **EXPAND** (tabelas novas `Planejamento` e `PlanejamentoArea`; `Atividade.planejamento_id` anulável com índice e FK pelo tenant), checksum `27f16e1d…3a10`. **Não aplicada.** É a 75ª, depois da `20261121100000_atividade_campos_por_tipo` (Entrega 2, aplicada em produção em 2026-11-23); pré-checagem 74/0 e 109 tabelas, pós-checagem 75/0 e 111 tabelas. Ordem: aplicar esta com o GO do proprietário, depois o merge |
 | Próximas | "Conferir nascimento"; aviso do 1º pastejo; planejar cada serviço da reforma (as linhas "Planejada") |
 | Relatório | [`MAIKE-ENTREGA3-REFORMA-REPORT.md`](./MAIKE-ENTREGA3-REFORMA-REPORT.md) · runbook [`MAIKE-ENTREGA3-REFORMA-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA3-REFORMA-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-23) — MAIKE-VERCEL-CUSTO-MINIMO: só a `main` faz build e merge de docs/testes não faz build (D-PROD-275)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-275**, pedido do proprietário: reduzir ao máximo o custo da Vercel (77% era minuto de build de prévias) |
+| Branch / PR | `chore/vercel-custo-minimo`, a partir da `main` `58c0697b`, com a `main` `6cb0b176` integrada · PR **#361** (mergeada) |
+| Mudança | `vercel.json`: `ignoreCommand` sem as 5 exceções de branch e pulando merge só de docs/testes |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-VERCEL-BUILDS-REPORT.md`](./MAIKE-VERCEL-BUILDS-REPORT.md) |
 
 ## Missão anterior (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-274)
 

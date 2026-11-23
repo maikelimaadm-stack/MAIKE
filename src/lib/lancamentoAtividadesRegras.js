@@ -300,7 +300,7 @@ const REFERENCIAS = Object.freeze(
     centro_custo_id: { inexistente: 'O centro de custo padrão do tipo não foi encontrado' },
     centro_resultado_id: { inexistente: 'O centro de resultado padrão do tipo não foi encontrado' },
     unidade_producao_id: { inexistente: 'A unidade de produção do tipo não foi encontrada' },
-    // MAIKE-ENTREGA3 (D-PROD-275): o "Faz parte de" (a reforma), o capim que vai ficar e a troca do capim na conclusão.
+    // MAIKE-ENTREGA3 (D-PROD-276): o "Faz parte de" (a reforma), o capim que vai ficar e a troca do capim na conclusão.
     planejamento_id: {
       inexistente: 'A reforma não foi encontrada nesta fazenda: tire o "Faz parte de" ou escolha outra',
       fechado: 'A reforma já foi concluída ou cancelada: a realização não entra mais nela (tire o "Faz parte de")',
@@ -378,7 +378,7 @@ const fraseDoStatus = (details) => {
   const status = typeof details.status === 'string' ? details.status : '';
   const acao = typeof details.acao === 'string' ? details.acao : '';
   // D-PROD-249/263: o status é de uma ÁREA da atividade (só a área em andamento recebe lançamento).
-  // D-PROD-275: o status é da REFORMA (só a aberta é concluída ou cancelada).
+  // D-PROD-276: o status é da REFORMA (só a aberta é concluída ou cancelada).
   if (details.entidade === 'planejamento') {
     if (status === 'CONCLUIDO') return 'Esta reforma já está concluída. Nada foi alterado.';
     if (status === 'CANCELADO') return 'Esta reforma está cancelada. Nada foi alterado.';
@@ -412,7 +412,7 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
   switch (code) {
     case 'ATIVIDADE_NOT_FOUND':
       return 'Esta atividade não foi encontrada nesta fazenda. A lista será relida. Nada foi alterado.';
-    // D-PROD-275: a reforma (de outra fazenda, de outro tenant ou que sumiu).
+    // D-PROD-276: a reforma (de outra fazenda, de outro tenant ou que sumiu).
     case 'PLANEJAMENTO_NOT_FOUND':
       return 'Esta reforma não foi encontrada nesta fazenda. Atualize a lista e tente de novo. Nada foi alterado.';
     case 'ATIVIDADE_APONTAMENTO_NOT_FOUND':
@@ -438,7 +438,7 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
         'Esta ação não é permitida no status atual: só a atividade aberta aceita edição, conclusão, cancelamento e apontamentos, e só a concluída é reaberta. Nada foi alterado.'
       );
     case 'ATIVIDADE_VERSAO_CONFLITO':
-      // D-PROD-275: a reforma mudou desde a leitura.
+      // D-PROD-276: a reforma mudou desde a leitura.
       if (details.entidade === 'planejamento') return 'Esta reforma foi alterada por outra pessoa desde que você a abriu. Ela será relida: confira e tente de novo. Nada foi gravado.';
       return doApontamento
         ? 'Este apontamento foi alterado por outra pessoa desde que você o abriu. Ele será relido: confira e tente de novo. Nada foi gravado.'

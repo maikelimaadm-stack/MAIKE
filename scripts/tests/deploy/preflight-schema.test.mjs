@@ -87,7 +87,7 @@ const COLUNAS_OK = [
   { table_name: 'AtividadeApontamentoProduto', column_name: 'vc_percentual' },
   { table_name: 'Produto', column_name: 'carencia_dias' },
   { table_name: 'TipoAtividade', column_name: 'alvo' },
-  // D-PROD-275: a reforma (2 tabelas novas) e a ligação da atividade a ela.
+  // D-PROD-276: a reforma (2 tabelas novas) e a ligação da atividade a ela.
   { table_name: 'Planejamento', column_name: 'status' },
   { table_name: 'PlanejamentoArea', column_name: 'hectares' },
   { table_name: 'Atividade', column_name: 'planejamento_id' },
@@ -206,7 +206,7 @@ test('B12 (D-PROD-162): a consulta de colunas é MONTADA de COLUNAS_EXIGIDAS —
   for (const [t, c] of COLUNAS_EXIGIDAS) assert.ok(CONSULTAS.colunas.includes(`('${t}','${c}')`), `${t}.${c} fora da consulta`);
   const pares = [...CONSULTAS.colunas.matchAll(/\('([A-Za-z_]+)','([A-Za-z_]+)'\)/g)].map((x) => `${x[1]}.${x[2]}`);
   assert.deepEqual(pares, COLUNAS_EXIGIDAS.map(([t, c]) => `${t}.${c}`), 'nada a mais nem a menos na consulta');
-  // D-PROD-275: sem a migration da reforma, o preflight para (a lista, o registro e o resumo da área leem as colunas).
+  // D-PROD-276: sem a migration da reforma, o preflight para (a lista, o registro e o resumo da área leem as colunas).
   for (const k of ['AbastecimentoBem.quantidade', 'AbastecimentoBem.unidade', 'TanqueBemProduto.produto_id', 'Planejamento.status', 'PlanejamentoArea.hectares', 'Atividade.planejamento_id']) {
     assert.ok(pares.includes(k), k);
     const r = avaliarPreflight(pronto({ colunas: COLUNAS_OK.filter((c) => `${c.table_name}.${c.column_name}` !== k) }));

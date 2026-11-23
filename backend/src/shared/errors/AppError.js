@@ -238,7 +238,7 @@ export const atividadeNotFound = (message, options) =>
 export const atividadeApontamentoNotFound = (message, options) =>
   new AppError('ATIVIDADE_APONTAMENTO_NOT_FOUND', message || 'apontamento não encontrado nesta atividade', options);
 
-/** MAIKE-ENTREGA3 (D-PROD-275) — reforma (planejamento) de outra fazenda ou de outro tenant = inexistente (sem oráculo). */
+/** MAIKE-ENTREGA3 (D-PROD-276) — reforma (planejamento) de outra fazenda ou de outro tenant = inexistente (sem oráculo). */
 export const planejamentoNotFound = (message, options) =>
   new AppError('PLANEJAMENTO_NOT_FOUND', message || 'reforma não encontrada nesta fazenda', options);
 
@@ -326,7 +326,7 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
   unidade_producao_sigla: Object.freeze({
     diferente_da_atividade: 'a unidade da quantidade feita é diferente da unidade deste serviço: use a mesma unidade',
   }),
-  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma de que a realização faz parte ("Faz parte de") e o capim que vai ficar.
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma de que a realização faz parte ("Faz parte de") e o capim que vai ficar.
   planejamento_id: Object.freeze({
     inexistente: 'a reforma não foi encontrada nesta fazenda',
     fechado: 'a reforma já foi concluída ou cancelada: a realização não entra mais nela',
@@ -351,7 +351,7 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
  * @param {string} field
  * D-PROD-274: `plantio.cultura_id`/`plantio.consorcio_cultura_id` (`inexistente`, `inativo`) e `unidade_producao_sigla`
  * (`diferente_da_atividade`).
- * D-PROD-275: `planejamento_id` (`inexistente`, `fechado`, `area_fora`), `cultura_alvo_id` (`inexistente`, `inativo`) e
+ * D-PROD-276: `planejamento_id` (`inexistente`, `fechado`, `area_fora`), `cultura_alvo_id` (`inexistente`, `inativo`) e
  * `trocar_capim` (`sem_capim`).
  * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'|'duplicada'|'ja_na_atividade'|'varias_areas'|'com_lancamentos'|'obrigatorio'|'sem_areas'|'abastecimento'|'diferente_da_atividade'|'fechado'|'area_fora'|'sem_capim'} reason
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
@@ -487,7 +487,7 @@ const ROTULO_DO_STATUS_ATIVIDADE = Object.freeze({
   // D-PROD-249: o ciclo da área da atividade.
   PLANEJADA: 'planejada (não iniciada)',
   EM_ANDAMENTO: 'em andamento',
-  // MAIKE-ENTREGA3 (D-PROD-275): o ciclo da reforma.
+  // MAIKE-ENTREGA3 (D-PROD-276): o ciclo da reforma.
   ABERTO: 'aberta',
   CONCLUIDO: 'concluída',
 });
@@ -500,7 +500,7 @@ const ROTULO_DA_ENTIDADE_ATIVIDADE = Object.freeze({
   linha_maquina: 'a linha de máquina',
   // D-PROD-249 — a área de uma atividade de várias áreas.
   area: 'a área da atividade',
-  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma (agrupador).
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma (agrupador).
   planejamento: 'a reforma',
 });
 
@@ -528,7 +528,7 @@ const REGRA_DE_STATUS_DA_ACAO = Object.freeze({
   reabrir_area: 'só área concluída, de atividade aberta, é reaberta',
   remover_area: 'só área planejada (não iniciada) e sem lançamento, de atividade aberta, sai da atividade',
   lancar_na_area: 'só área em andamento recebe lançamento (inicie a área planejada ou reabra a concluída)',
-  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma.
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma.
   concluir_planejamento: 'só reforma aberta é concluída',
   cancelar_planejamento: 'só reforma aberta é cancelada',
 });

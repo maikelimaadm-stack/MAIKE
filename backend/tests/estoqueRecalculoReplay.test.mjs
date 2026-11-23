@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { http, prisma } from './patrimonioP1Cenario.mjs';
 import { acoesAbastecimento, corpoAbastecimento, montarAbastecimento, opId } from './patrimonioP1AbastecimentoCenario.mjs';
-import { exigirLocaisEstoque, estornarSaidaSuplementacao, numerarMovimentos, numeroMovimentoProvisorio } from '../src/modules/estoqueFisico/estoqueFisicoMotor.js';
+import { estornarEmLote, exigirLocaisEstoque, estornarSaidaSuplementacao, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque } from '../src/modules/estoqueFisico/estoqueFisicoMotor.js';
 import { auditarReplayDoProduto, previaExclusao } from '../src/modules/estoqueRecalculo/estoqueRecalculoService.js';
 import { emLeituraSomente, lerHistoricoDoProduto } from '../src/modules/estoqueRecalculo/estoqueRecalculoLeitor.js';
 import { reproduzir } from '../src/modules/estoqueRecalculo/estoqueReplay.js';
@@ -239,14 +239,24 @@ describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reai
 });
 
 describe('D-PROD-273 fatia 3 — estorno em lote do financeiro', () => {
-  test('cancelar uma venda de duas linhas no mesmo depósito reavalia o poço UMA vez no fim (5,3640; item a item daria 5,3641) e o replay reproduz', async () => {
+  test('estornar em lote uma venda de duas linhas no mesmo depósito reavalia o poço UMA vez no fim (5,3640; item a item daria 5,3641) e o replay reproduz', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '52', '6.31');
     await entrar(x, x.sal, A, '31', '2.78');
     const venda = await vender(x, [[x.sal, A, '3', '9'], [x.sal, A, '7', '9']]);
     await entrar(x, x.sal, A, '29', '6.43');
-    await cancelarOperacao(x, venda.id);
+    // D-PROD-273 (fatia 4): pelo serviço, este cancelamento (com a entrada depois) passaria a RECALCULAR; aqui o estorno
+    // em lote é o da regra antiga (pares antigos de produção), pela primitiva do motor, como o serviço chamava.
+    await prisma().$transaction(async (tx) => {
+      await travarProdutosEstoque(tx, x.c, x.e1.id, [x.sal.id]);
+      const itens = await tx.operacaoFinanceiraItem.findMany({ where: { cliente_id: x.c, operacao_id: venda.id, tipo_item: 'MERCADORIA' }, orderBy: { ordem: 'asc' }, include: { consumos: true } });
+      const estornos = await estornarEmLote(tx, x.ctx, {
+        empresaId: x.e1.id, direcao: 'RECEBER', itens, dia: '2027-06-15', documento: { numero: venda.numero, data: '2027-06-10' },
+        parceiro: { id: venda.parceiro_id, nome: null }, origem: { operacaoId: venda.id }, numeroMovimento: numeroMovimentoProvisorio,
+      });
+      await numerarMovimentos(tx, x.c, estornos);
+    });
     const camadas = await prisma().estoqueLoteNota.findMany({ where: { cliente_id: x.c, produto_id: x.sal.id, status: 'Disponivel' } });
     assert.deepEqual([...new Set(camadas.map((l) => l.custo_unitario.toFixed(4)))], ['5.3640']);
     await provarReplay(x, x.sal);
@@ -352,6 +362,9 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     assert.deepEqual(codigo(await previa(x, 'nao-existe')), [404, 'MOVIMENTACAO_ESTOQUE_NOT_FOUND', undefined]);
     const s2 = await sair(x, x.sal, A, '5');
     const m2 = await movDoItem(s2);
+    // D-PROD-273 (fatia 4): sem nada depois a prévia diz "estorno exato" sem ler o histórico; uma saída depois faz a
+    // prévia de m2 passar pelo recálculo (tetos e prova replay = gravado)
+    await sair(x, x.sal, A, '1');
     assert.equal((await H.req('GET', `/estoque/movimentos/${m2.id}/exclusao/previa${qs({ empresa_id: x.e2.id })}`, x.token)).statusCode, 404, 'outra empresa = inexistente');
     assert.equal((await previa(x, m2.id, x.token, { cliente_id: x.c })).statusCode, 400, 'tenant nunca vem da querystring');
     // guarda = a da exclusão da saída manual (`estoque.saida`): só visualizar não basta
@@ -360,9 +373,9 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     const operador = await x.conta({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [{ modulo_id: 'suporte-mapa', tela_id: 'sup-estoque', visualizar: true, saida: true }] });
     assert.equal(ok(await previa(x, m2.id, operador.token)).permitido, true);
     // teto fail-closed (serviço com teto pequeno): nada é processado
-    await assert.rejects(previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { teto: 3 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.movimentos === 4);
+    await assert.rejects(previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { teto: 3 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.movimentos === 5);
     const e1m = (await prisma().movimentacaoEstoque.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id, tipo_detalhado: 'entrada_manual' } }));
-    await assert.rejects(previaExclusao(x.ctx, e1m.id, { empresa_id: x.e1.id }, { tetoAfetados: 2 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.afetados === 3);
+    await assert.rejects(previaExclusao(x.ctx, e1m.id, { empresa_id: x.e1.id }, { tetoAfetados: 2 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.afetados === 4);
     // histórico adulterado (custo de camada fora do motor): o replay não reproduz o gravado → a prévia recusa
     const camada = await prisma().estoqueLoteNota.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id } });
     await prisma().estoqueLoteNota.update({ where: { id: camada.id }, data: { custo_unitario: '9.9999' } });

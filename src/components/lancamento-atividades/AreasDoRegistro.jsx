@@ -41,7 +41,7 @@ const ha = (v) => (v ? `${formatarDecimalLinha(v)} ha` : "—");
  *   palavraDosHectares?: string,
  * }} props `erros`: `areas` (nenhuma), `area:<id>` (os hectares ou a recusa do servidor naquela área) e `pct:<id>`.
  *   D-PROD-274: `opcional` (Manutenção e Outros) tira o asterisco e mostra "Nenhuma área" sem área escolhida.
- *   D-PROD-275: `palavraDosHectares` — o que os hectares são ("feitos" no registro; "na reforma" no Planejar da reforma).
+ *   D-PROD-276: `palavraDosHectares` — o que os hectares são ("feitos" no registro; "na reforma" no Planejar da reforma).
  */
 export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros = {}, travada = null, celular = false, readOnly = false, carregando = false, opcional = false, palavraDosHectares = "feitos" }) {
   const ativas = useMemo(() => areasDoMapa.filter((a) => a && a.id != null && a.ativo !== false), [areasDoMapa]);

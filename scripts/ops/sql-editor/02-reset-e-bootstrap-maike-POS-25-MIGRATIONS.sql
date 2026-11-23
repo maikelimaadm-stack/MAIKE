@@ -20,7 +20,7 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 111 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + 3 do ajuste de inventário, D-PROD-272, + AtividadePlantio, D-PROD-274, + Planejamento e PlanejamentoArea, D-PROD-275), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 111 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + 3 do ajuste de inventário, D-PROD-272, + AtividadePlantio, D-PROD-274, + Planejamento e PlanejamentoArea, D-PROD-276), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
@@ -79,7 +79,7 @@ DECLARE
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
     -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia, a área da atividade (D-PROD-249) e o abastecimento (acima) a referenciam.
     'Atividade',
-    -- D-PROD-275: a reforma de pastagem sai logo depois da atividade, que a referencia (FK composta): primeiro as áreas dela
+    -- D-PROD-276: a reforma de pastagem sai logo depois da atividade, que a referencia (FK composta): primeiro as áreas dela
     -- (PlanejamentoArea: referencia a reforma, a área e a fazenda) e depois a reforma (Planejamento: referencia o capim —
     -- CADCULTURAS —, o usuário e a fazenda), antes de todos eles.
     'PlanejamentoArea',

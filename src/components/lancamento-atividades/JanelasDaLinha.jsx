@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
@@ -1537,7 +1538,7 @@ export const nomeDaLinhaDoTipo = (tipo, l) => {
 /** O que acontece ao cancelar cada tipo de linha (a descrição do diálogo). */
 const EFEITO_DO_CANCELAMENTO = Object.freeze(
   /** @type {Record<string, string>} */ ({
-    [LINHA_PRODUTO]: "A quantidade volta exatamente aos lotes de onde saiu (estorno exato).",
+    [LINHA_PRODUTO]: "A quantidade volta aos lotes de onde saiu; se houve outros movimentos do produto no depósito depois, o custo médio deles é recalculado.",
     [LINHA_MAQUINA]: "A leitura desta linha deixa de contar como leitura atual do bem.",
     [LINHA_MAO_OBRA]: "O custo desta mão de obra deixa de contar na atividade.",
     [LINHA_SERVICO]: "O valor deste serviço deixa de contar na atividade.",
@@ -1570,6 +1571,11 @@ export function DialogoCancelarLinha({ atividade, cancelando, escopo, onCancelad
   const atividadeId = String(atividade?.id ?? "");
   const apId = String(cancelando.apontamento?.id ?? "");
   const nome = nomeDaLinhaDoTipo(cancelando.tipo, cancelando.linha);
+  const empresaId = useEmpresaRealSelecionadaId();
+  // D-PROD-273 (fatia 4): a linha de produto mostra a prévia do recálculo do que veio depois antes de confirmar.
+  const previa = cancelando.tipo === LINHA_PRODUTO && cancelando.linha?.movimentacao_estoque_id
+    ? <PreviaRecalculoExclusao empresaId={empresaId} movimentoIds={[cancelando.linha.movimentacao_estoque_id]} />
+    : null;
 
   /** @param {string} motivo @param {{ retentativa: boolean }} o */
   const enviar = async (motivo, o) => {
@@ -1615,6 +1621,7 @@ export function DialogoCancelarLinha({ atividade, cancelando, escopo, onCancelad
       onFechar={onFechar}
       onEnviar={enviar}
       onConsultar={consultar}
+      conteudo={previa}
     />
   );
 }

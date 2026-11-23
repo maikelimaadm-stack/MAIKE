@@ -19,7 +19,7 @@ import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAt
  * no mês. Os números das atividades e dos custos são do servidor (`GET /atividades-por-area/:id/resumo`); aqui só se
  * formatam. Sem a permissão de ver atividades, as duas seções simplesmente não aparecem (o resto da aba fica).
  *
- * MAIKE-ENTREGA3 (D-PROD-275): com uma reforma ABERTA na área (o resumo traz as reformas), o cartão da área mostra
+ * MAIKE-ENTREGA3 (D-PROD-276): com uma reforma ABERTA na área (o resumo traz as reformas), o cartão da área mostra
  * "Em reforma desde 10/09" (o início previsto; ainda no futuro, "Reforma prevista para 10/09") e o nome dela embaixo.
  */
 
@@ -76,7 +76,7 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
   const mes = rotuloDoMesCurto(resumo.data?.mes);
   const cultura = texto(area.tipo_cultura) !== "Infraestrutura" ? texto(area.cultura?.nome || area.tipo_pastagem) : "";
   const { hoje } = useFusoDaFazenda(empresaId);
-  // D-PROD-275: a reforma aberta da área (a mais antiga).
+  // D-PROD-276: a reforma aberta da área (a mais antiga).
   const reformas = verAtividades && resumo.isSuccess && Array.isArray(resumo.data?.planejamentos) ? resumo.data.planejamentos : [];
   const emReforma = textoDaReformaNaArea(reformas, hoje);
 
@@ -89,7 +89,7 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
           {cultura ? <Celula textoAutomatico rotulo="Cultura / forragem" valor={cultura} /> : null}
           {ocupada === null ? null : <Celula textoAutomatico rotulo="Situação" valor={ocupada ? "OCUPADO" : "VAZIO"} />}
         </Grade>
-        {/* D-PROD-275: a reforma aberta da área, numa linha inteira (o nome é longo). */}
+        {/* D-PROD-276: a reforma aberta da área, numa linha inteira (o nome é longo). */}
         {emReforma ? (
           <Linha
             icone={Sprout}

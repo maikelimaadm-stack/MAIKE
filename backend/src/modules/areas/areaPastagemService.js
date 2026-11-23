@@ -427,7 +427,7 @@ export const atualizar = async (contexto, id, entrada) => {
 };
 
 /**
- * O MESMO `atualizar`, na transação de quem chama (MAIKE-ENTREGA3, D-PROD-275: a conclusão da reforma troca o capim da
+ * O MESMO `atualizar`, na transação de quem chama (MAIKE-ENTREGA3, D-PROD-276: a conclusão da reforma troca o capim da
  * área por aqui — `{ cultura_id }` —, com as mesmas regras da cultura, a mesma auditoria `update` da área e a mesma
  * propagação, junto com a conclusão: ou tudo ou nada).
  *

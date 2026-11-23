@@ -1,4 +1,4 @@
-# MAIKE — Reforma de pastagem (Entrega 3): runbook de release expand-only (D-PROD-275)
+# MAIKE — Reforma de pastagem (Entrega 3): runbook de release expand-only (D-PROD-276)
 
 > **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** A migration foi testada só no PostgreSQL local. Nada foi aplicado
 > em produção.
@@ -6,7 +6,7 @@
 > Cada passo exige o GO do proprietário ("aplica") e para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores
 > entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-275](./DECISIONS.md) · Relatório: [`MAIKE-ENTREGA3-REFORMA-REPORT.md`](./MAIKE-ENTREGA3-REFORMA-REPORT.md).
+Decisão: [D-PROD-276](./DECISIONS.md) · Relatório: [`MAIKE-ENTREGA3-REFORMA-REPORT.md`](./MAIKE-ENTREGA3-REFORMA-REPORT.md).
 Molde: [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md)
 (D-PROD-274, PR #354, mergeada em `6cb0b176`). **Esta release vem DEPOIS da Entrega 2:** a guarda do §3 exige a
 `20261121100000_atividade_campos_por_tipo` concluída em produção com o checksum do repositório — ela foi aplicada em
@@ -225,5 +225,5 @@ de concluídas e a "anterior" mudam) e ajustar a guarda do §3.
 
 | Data | Quem | O quê |
 |---|---|---|
-| 2026-11-21 | Claude (sessão D-PROD-275) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |
-| 2026-11-23 | Claude (sessão D-PROD-275) | branch refeita sobre a `main` `6cb0b176` (Entrega 2 aplicada e mergeada): preflight 74/0 e 109 tabelas, guarda `n_ok <> 74` com a anterior `20261121100000_atividade_campos_por_tipo` (`9e6487ff…2a58`), pós-checagem 75/0 e 111 tabelas; ensaio do §3 refeito no PostgreSQL local; **nada aplicado em produção** |
+| 2026-11-21 | Claude (sessão D-PROD-276) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |
+| 2026-11-23 | Claude (sessão D-PROD-276) | branch refeita sobre a `main` `6cb0b176` (Entrega 2 aplicada e mergeada): preflight 74/0 e 109 tabelas, guarda `n_ok <> 74` com a anterior `20261121100000_atividade_campos_por_tipo` (`9e6487ff…2a58`), pós-checagem 75/0 e 111 tabelas; ensaio do §3 refeito no PostgreSQL local; **nada aplicado em produção** |

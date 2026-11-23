@@ -1,5 +1,5 @@
 /**
- * MAIKE-ENTREGA3 (D-PROD-275) — as regras PURAS da reforma de pastagem na tela (o agrupador): o nome sugerido, a
+ * MAIKE-ENTREGA3 (D-PROD-276) — as regras PURAS da reforma de pastagem na tela (o agrupador): o nome sugerido, a
  * natureza ("recuperação: mesmo capim" ou "renovação: troca de capim"), o "Faz parte de" da Nova realização, a pergunta
  * da troca do capim na conclusão e o "Em reforma desde" do mapa. Quem decide é o servidor (`planejamentoService.js`): aqui
  * só se repete a regra para a prévia e se monta o corpo.

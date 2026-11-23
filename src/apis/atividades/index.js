@@ -42,7 +42,7 @@ export {
   updateAtividadeLinha,
   cancelAtividadeLinha,
   getMedidorAtividade,
-  // MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem.
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma de pastagem.
   listPlanejamentos,
   getPlanejamento,
   createPlanejamento,

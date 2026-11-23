@@ -27,7 +27,7 @@ const RESOURCE_APONTAMENTO = 'AtividadeApontamento';
 const CAMINHO = '/atividades';
 const CAMINHO_OPCOES = '/atividades-opcoes';
 const CAMINHO_POR_AREA = '/atividades-por-area';
-/** MAIKE-ENTREGA3 (D-PROD-275) — a reforma de pastagem (o agrupador). */
+/** MAIKE-ENTREGA3 (D-PROD-276) — a reforma de pastagem (o agrupador). */
 const CAMINHO_PLANEJAMENTOS = '/planejamentos';
 
 /**
@@ -114,7 +114,7 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'numero_receituario',
   'local',
   'unidade_producao_sigla',
-  // D-PROD-275: a reforma de que a realização faz parte ("Faz parte de"), só quando vem.
+  // D-PROD-276: a reforma de que a realização faz parte ("Faz parte de"), só quando vem.
   'planejamento_id',
   'operation_id',
   'safra_ciclo',
@@ -266,14 +266,14 @@ export const corpoDaCriacaoDoApontamento = (dados, permitidos = CAMPOS_DE_CRIACA
 // ─── Leitura ─────────────────────────────────────────────────────────────
 
 /** Filtros da lista (query FECHADA no servidor: nada além disso vai). Datas sobre `data_inicio`. D-PROD-267: `situacao` e `tipo_fixo`. */
-// D-PROD-275: `planejamento_id` (o filtro "Reforma").
+// D-PROD-276: `planejamento_id` (o filtro "Reforma").
 // D-PROD-274: `local` (o serviço sem área no local; a prévia da Nova realização sem área).
 const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'situacao', 'tipo_fixo', 'tipo_atividade_id', 'area_id', 'planejamento_id', 'data_de', 'data_ate', 'local', 'limit', 'cursor']);
-/** D-PROD-275 — a criação da reforma (o "Planejar"): os 4 campos (o nome, o número e a safra são do servidor). */
+/** D-PROD-276 — a criação da reforma (o "Planejar"): os 4 campos (o nome, o número e a safra são do servidor). */
 export const CAMPOS_DA_REFORMA = Object.freeze(['empresa_id', 'tipo', 'areas', 'cultura_alvo_id', 'data_inicio']);
-/** D-PROD-275 — cada área da reforma: a área e os hectares dela na reforma. */
+/** D-PROD-276 — cada área da reforma: a área e os hectares dela na reforma. */
 export const CAMPOS_DA_AREA_NA_REFORMA = Object.freeze(['area_id', 'hectares']);
-/** D-PROD-275 — concluir a reforma (com a troca do capim, se o dono quiser) e cancelar. */
+/** D-PROD-276 — concluir a reforma (com a troca do capim, se o dono quiser) e cancelar. */
 export const CAMPOS_DA_CONCLUSAO_DA_REFORMA = Object.freeze(['empresa_id', 'versao', 'data_conclusao', 'trocar_capim']);
 export const CAMPOS_DO_CANCELAMENTO_DA_REFORMA = Object.freeze(['empresa_id', 'versao']);
 const FILTROS_OPCOES = Object.freeze(['empresa_id', 'q', 'limit', 'cursor']);
@@ -513,7 +513,7 @@ export const operacoesNativas = Object.freeze({
     return nativeRequest(`${CAMINHO_POR_AREA}/${encodeURIComponent(areaId)}/registros?${params.toString()}`, { autenticado: true }, ctx('listAtividadesDaAreaRegistros', { areaId }));
   },
 
-  // ── A reforma de pastagem (D-PROD-275) ──
+  // ── A reforma de pastagem (D-PROD-276) ──
   /** As reformas da fazenda (abertas primeiro). @param {Record<string, unknown>} filtros */
   listarReformas: (filtros) => {
     const f = /** @type {Record<string, any>} */ (filtros ?? {});
