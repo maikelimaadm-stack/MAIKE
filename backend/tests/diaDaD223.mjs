@@ -154,13 +154,34 @@ export const schemaSemReforma = (schema) => {
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
 
+/**
+ * D-PROD-279 — o `schema.prisma` de hoje sem o produto do implemento: as 4 colunas de `TipoPatrimonial` marcadas com
+ * `// MAIKE-TIPO-IMPLEMENTO-PRODUTO` (a marca e a linha `///` acima delas também saem). A EXPAND
+ * `20261124100000_tipo_implemento_produto` é posterior a todos os "dias" destes espelhos e tem a prova própria em
+ * `premerge-migrate.test.mjs` (B43) e em `tipoImplementoProduto.test.mjs`.
+ * @param {string} schema
+ */
+export const schemaSemProdutoDoImplemento = (schema) => {
+  const linhas = schema.split('\n');
+  const sai = new Array(linhas.length).fill(false);
+  for (let i = 0; i < linhas.length; i += 1) {
+    if (/^\s*\/\/ MAIKE-TIPO-IMPLEMENTO-PRODUTO\s*$/.test(linhas[i])) {
+      sai[i] = true;
+      let j = i + 1;
+      while (j < linhas.length && /^\s*\/\/\//.test(linhas[j])) sai[j++] = true;
+      sai[j] = true;
+    }
+  }
+  return linhas.filter((_, i) => !sai[i]).join('\n');
+};
+
 let espelho = null;
 /** O diretório do espelho do runner até a D-PROD-223, com o schema do dia dela. */
 export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))));
+  writeFileSync(destino, schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -181,7 +202,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))));
+  writeFileSync(destino, schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;
